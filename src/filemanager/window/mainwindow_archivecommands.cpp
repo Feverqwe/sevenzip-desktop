@@ -36,7 +36,7 @@ void MainWindow::calculateHash(const QString &method) {
         launchGuiHash(paths, ToUString(method), panel.GetFsPath(), !panel.GetFlatMode());
         return;
     }
-    previousState_ = state_;
+    const auto previousState = state_;
     setState(State::Operating);
     HRESULT result;
     {
@@ -49,7 +49,7 @@ void MainWindow::calculateHash(const QString &method) {
             result = app_.CalculateCrc2(ToUString(method), &providers);
     }
     if (!app_.QtOperations().closed()) {
-        setState(previousState_);
+        setState(previousState);
         if (result != S_OK && result != E_ABORT)
             app_.GetFocusedPanel().MessageBox_Error_HRESULT(result);
     }
@@ -367,7 +367,6 @@ void MainWindow::testArchive() {
     if (resource && resource->HasExtractService() &&
         (resource->HasDirectInput() || resource->UsesNativeMetadata() ||
          backend_->hasListedSourceArchive(archive_))) {
-        previousState_ = state_;
         setState(State::Operating);
         operationName_ = QtLangText(IDS_PROGRESS_TESTING);
         {

@@ -105,12 +105,13 @@ void MainWindow::backendFinished(bool ok, const QString &message, HRESULT result
     if (hadProgress && !ok && !canceled)
         progress_->Sync.FinalMessage.ErrorMessage.Message = ToUString(resultMessage);
     closeProgressDialog(true);
-    const bool finishedArchiveState = finishArchiveState(ok);
+    if (state_ == State::Loading && !ok)
+        showDirectory(returnDirectory_, false);
+    else if (state_ == State::Operating)
+        setState(previousState_ == State::Viewing ? State::Viewing : State::Filesystem);
     if (transferDestination)
         refreshTransferDestination(*transferDestination);
     appPresentation_->CopyFinished();
-    if (finishedArchiveState)
-        return;
     statusBar()->showMessage(resultMessage);
     if (!ok && !hadProgress && !messageDisplayed && !canceled)
         QMessageBox::warning(this, "Sevenzip", resultMessage);
@@ -136,27 +137,6 @@ bool MainWindow::startPendingArchiveMove(bool ok) {
         backendFinished(result == S_OK, QString::fromWCharArray(HResultToMessage(result)), result,
                         result != S_OK);
         return true;
-    }
-    return false;
-}
-
-bool MainWindow::finishArchiveState(bool ok) {
-    if (state_ == State::Loading && !ok) {
-        showDirectory(returnDirectory_, false);
-    } else if (state_ == State::Operating) {
-        if (creating_)
-            showDirectory(directory_, false);
-        else if (updatingArchive_ && ok) {
-            updatingArchive_ = false;
-            // Mutation completion and native reopen are one guarded transition.
-            // Change the presentation mode without enabling commands in between.
-            state_ = State::Viewing;
-            refreshCurrent();
-            return true;
-        } else
-            setState(previousState_ == State::Viewing ? State::Viewing : State::Filesystem);
-        creating_ = false;
-        updatingArchive_ = false;
     }
     return false;
 }

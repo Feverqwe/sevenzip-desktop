@@ -164,7 +164,6 @@ class MainWindow : public QMainWindow {
                            const ExtractionOptions &options, const QStringList &names,
                            const CRecordVector<UInt32> *explicitIndices = nullptr);
     bool startPendingArchiveMove(bool ok);
-    bool finishArchiveState(bool ok);
     void closeProgressDialog(bool finished = false);
     void beginWorkerProgress(const QString &label, const QString &detail,
                              std::function<void()> cancel);
@@ -374,8 +373,6 @@ class MainWindow : public QMainWindow {
     std::optional<CSelectedState> scanSelectedState_;
     std::optional<QStringList> scanSelectedPaths_;
     State previousState_ = State::Filesystem;
-    bool creating_ = false;
-    bool updatingArchive_ = false;
     enum class ArchiveMoveStage { Extracting, Removing };
     struct PendingArchiveMove {
         PendingArchiveMove(unsigned index, const CRecordVector<UInt32> &selected)
