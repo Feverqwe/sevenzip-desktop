@@ -13,6 +13,7 @@ struct QtOperationResult;
 #include "filemanager/providers/qtfolderprojection.h"
 #include "filemanager/qtfilemanagersplitter.h"
 #include "filemanager/views/filetable.h"
+#include "filemanager/window/qtguioutputrefresh.h"
 #include "fileops/scanner/filesystemscanner.h"
 #include "fileops/transfer/filetransferoperation.h"
 #include "fileops/volumes/volumeoperations.h"
@@ -271,7 +272,7 @@ class MainWindow : public QMainWindow {
     HRESULT launchGuiArchiveExtract(const UStringVector &paths, const UString &folder,
                                     bool showDialog, bool elimDup, UInt32 writeZone);
     HRESULT observeGuiArchiveOperation(QtOperationLauncher *operation, const QString &error);
-    void refreshGuiOutputPanel(unsigned index, const QtOperationResult &result);
+    void refreshGuiOutputPanel(unsigned index, const QtGuiOutputRefresh::Outputs &output);
     void createDialog();
     QStringList selectedFilesystemPaths();
     void transferFiles(const QStringList &sources, const QString &destination, bool move,
@@ -363,6 +364,7 @@ class MainWindow : public QMainWindow {
     QHash<QString, FilesystemSignature> autoRefreshSnapshot_;
     std::optional<FilesystemViewport> pendingViewport_;
     QTimer *autoRefreshTimer_ = nullptr;
+    std::unique_ptr<QtGuiOutputRefresh> guiOutputRefresh_;
     FilesystemScanner *filesystemScanner_ = nullptr;
     std::optional<CSelectedState> scanSelectedState_;
     std::optional<QStringList> scanSelectedPaths_;

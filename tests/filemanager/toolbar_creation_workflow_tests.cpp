@@ -28,6 +28,8 @@ class CreationBackend final : public ArchiveBackend {
     QList<QtOperationJob> Requests;
     QString Target;
     bool Cancel = false;
+    bool Hold = false;
+    QPointer<QtOperationLauncher> Held;
     QtOperationLauncher *startGuiCompress(const QString &archive, const QString &type,
                                           bool addExtension, const QStringList &paths, bool email,
                                           bool showDialog, QString &error) override {
@@ -40,6 +42,10 @@ class CreationBackend final : public ArchiveBackend {
         job.EMail = email;
         job.ShowDialog = showDialog;
         Requests.append(job);
+        if (Hold) {
+            Held = new QtOperationLauncher(this);
+            return Held;
+        }
         ScopedTestEnvironment decision("SEVENZIP_OPERATION_CREATE_DECISION",
                                        Cancel ? "cancel" : "accept");
         ScopedTestEnvironment target("SEVENZIP_OPERATION_CREATE_TARGET", Target);
@@ -75,6 +81,56 @@ class ToolbarCreationWorkflowTests final : public QObject, protected MainWindowT
         preferences.Save(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
     }
     void cleanup() { QVERIFY(CleanupOperationTestTemps()); }
+    void pendingOutputFollowsNavigation_data() {
+        QTest::addColumn<QtOperationResult::Outcome>("outcome");
+        QTest::newRow("success") << QtOperationResult::Outcome::Success;
+        QTest::newRow("partial failure") << QtOperationResult::Outcome::Failure;
+        QTest::newRow("partial cancellation") << QtOperationResult::Outcome::Cancelled;
+    }
+    void pendingOutputFollowsNavigation() {
+        QFETCH(QtOperationResult::Outcome, outcome);
+        QTemporaryDir input, output, elsewhere;
+        QVERIFY(input.isValid() && output.isValid() && elsewhere.isValid());
+        const QString source = input.filePath("payload 空.txt");
+        QVERIFY(SourceExtractFixture::writeFile(source, "selected bytes"));
+        QVERIFY(SourceExtractFixture::writeFile(elsewhere.filePath("other.txt"), "other bytes"));
+        const QString module = QStringLiteral(SEVENZIP_CODEC_MODULE);
+        ArchiveCodecCatalog catalog(module, 0);
+        CreationBackend backend;
+        QCOMPARE(backend.loadCodecCatalog(module, catalog.version()), S_OK);
+        backend.Hold = true;
+        MainWindow window(&backend);
+        window.show();
+        if (!action(window, "twoPanelsAction")->isChecked())
+            action(window, "twoPanelsAction")->trigger();
+        auto *peer = openPanel(window, 1, output.path());
+        QTRY_COMPARE(peer->rowCount(), 0);
+        auto *selected = openPanel(window, 0, input.path());
+        QTRY_COMPARE(selected->rowCount(), 1);
+        selected->sourcePanel->Set_AutoRefresh_Mode(false);
+        peer->sourcePanel->Set_AutoRefresh_Mode(false);
+        selected->selectRow(0);
+        action(window, "toolbarAddAction")->trigger();
+        QVERIFY(backend.Held);
+        QVERIFY(QFile::remove(source));
+        QVERIFY(SourceExtractFixture::writeFile(output.filePath("partial 空.txt"), "output bytes"));
+        QtOperationResult result;
+        result.Status = outcome;
+        result.ChangedDirectories = {input.path(), output.path()};
+        emit backend.Held->finished(result);
+        // Navigate before deferred delivery. A child result must refresh the
+        // current providers even when it reports partial/cancelled work.
+        openPanel(window, 1, elsewhere.path());
+        QTRY_COMPARE(peer->rowCount(), 1);
+        QTRY_COMPARE(selected->rowCount(), 0);
+        QCOMPARE(peer->model()->index(0, 0).data().toString(), QString("other.txt"));
+        QCOMPARE(QDir::cleanPath(window.findChild<QWidget *>("filePanel1")
+                                     ->findChild<QLineEdit *>("archivePath")
+                                     ->text()),
+                 QDir::cleanPath(elsewhere.path()));
+        QCOMPARE(SourceExtractFixture::readFile(output.filePath("partial 空.txt")),
+                 QByteArray("output bytes"));
+    }
     void selectedFilesystemAddRefreshesActualInputAndOutput_data() {
         QTest::addColumn<unsigned>("pane");
         QTest::addColumn<bool>("cancel");

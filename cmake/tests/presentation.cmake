@@ -336,6 +336,14 @@ if(BUILD_TESTING)
         set_tests_properties(toolbar_archive_workflow toolbar_archive_batch PROPERTIES TIMEOUT 120
             RESOURCE_LOCK "sevenzip_native_ui;sevenzip_ui_artifacts" ENVIRONMENT
             "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/toolbar-archive-workflow.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
+        qt_add_executable(gui_output_refresh_tests
+            tests/filemanager/gui_output_refresh_tests.cpp
+            src/filemanager/window/qtguioutputrefresh.cpp)
+        target_include_directories(gui_output_refresh_tests PRIVATE src)
+        target_link_libraries(gui_output_refresh_tests PRIVATE Qt6::Core Qt6::Test)
+        add_test(NAME gui_output_refresh COMMAND gui_output_refresh_tests -silent)
+        set_tests_properties(gui_output_refresh PROPERTIES TIMEOUT 15)
+
         qt_add_executable(toolbar_creation_workflow_tests tests/filemanager/toolbar_creation_workflow_tests.cpp)
         target_link_libraries(toolbar_creation_workflow_tests PRIVATE sevenzip_layout_inspection)
         target_link_libraries(toolbar_creation_workflow_tests PRIVATE sevenzip_window)

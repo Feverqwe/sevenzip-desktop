@@ -1761,6 +1761,8 @@
     "src/filemanager/window/mainwindow_volumes.cpp",
     "src/filemanager/window/qtapppresentation.cpp",
     "src/filemanager/window/qtapppresentation.h",
+    "src/filemanager/window/qtguioutputrefresh.cpp",
+    "src/filemanager/window/qtguioutputrefresh.h",
     "src/filemanager/window/qtmainwindowchrome.cpp",
     "src/filemanager/window/qtmainwindowchrome.h",
     "src/fileops/links/qtlinkcontrols.cpp",

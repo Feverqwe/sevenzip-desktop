@@ -4,7 +4,6 @@
 #include "platform/temp/qtownedtempidentity.h"
 #include <QDir>
 #include <QFileInfo>
-#include <QTimer>
 
 namespace {
 QStringList ArchivePaths(const UStringVector &paths) {
@@ -82,8 +81,7 @@ HRESULT MainWindow::observeGuiArchiveOperation(QtOperationLauncher *operation,
             [this, source](const QtOperationResult &result) {
                 if (app_.QtOperations().closed())
                     return;
-                for (unsigned i = 0; i < kNumPanelsMax; ++i)
-                    refreshGuiOutputPanel(i, result);
+                guiOutputRefresh_->Enqueue(result.ChangedDirectories, result.ChangedArchives);
                 using Outcome = QtOperationResult::Outcome;
                 if (result.Status == Outcome::LaunchFailed ||
                     result.Status == Outcome::ProtocolFailed || result.Status == Outcome::Crashed)
@@ -93,17 +91,7 @@ HRESULT MainWindow::observeGuiArchiveOperation(QtOperationLauncher *operation,
     return S_OK;
 }
 
-void MainWindow::refreshGuiOutputPanel(unsigned index, const QtOperationResult &result) {
-    if (app_.QtOperations().closed() ||
-        (result.ChangedDirectories.isEmpty() && result.ChangedArchives.isEmpty()))
-        return;
-    if (app_.QtOperations().active() || app_.QtOperations().callActive()) {
-        // Another source operation/scan owns the panels. Re-evaluate the current
-        // provider after it releases its guards; never restore an old location.
-        QTimer::singleShot(50, this,
-                           [this, index, result] { refreshGuiOutputPanel(index, result); });
-        return;
-    }
+void MainWindow::refreshGuiOutputPanel(unsigned index, const QtGuiOutputRefresh::Outputs &output) {
     auto &panel = app_.Panels[index];
     if (!panel.PanelCreated)
         return;
@@ -115,7 +103,7 @@ void MainWindow::refreshGuiOutputPanel(unsigned index, const QtOperationResult &
         // ordinary file reuses the original source folder/subfolder workflow.
         if (!resource || resource->HasStreamInput())
             return;
-        for (const auto &archive : result.ChangedArchives)
+        for (const auto &archive : output.archives)
             if (SameFile(resource->EnginePath, archive)) {
                 const QPointer<QWidget> focus = focusWidget();
                 withPanelProjection(index, [this] { refreshCurrent(); });
@@ -128,7 +116,7 @@ void MainWindow::refreshGuiOutputPanel(unsigned index, const QtOperationResult &
                 return;
             }
         if (!QFileInfo::exists(resource->EnginePath))
-            for (const auto &directory : result.ChangedDirectories)
+            for (const auto &directory : output.directories)
                 if (ContainsDirectory(NormalPath(directory), NormalPath(resource->EnginePath))) {
                     const QString parent = QFileInfo(resource->EnginePath).absolutePath();
                     const QPointer<QWidget> focus = focusWidget();
@@ -142,9 +130,9 @@ void MainWindow::refreshGuiOutputPanel(unsigned index, const QtOperationResult &
     if (!panel.Is_IO_FS_Folder())
         return;
     const QString current = NormalPath(QString::fromWCharArray(panel.GetFsPath()));
-    for (const auto &directory : result.ChangedDirectories) {
-        const QString output = NormalPath(directory);
-        if (ContainsDirectory(current, output) || ContainsDirectory(output, current)) {
+    for (const auto &directory : output.directories) {
+        const QString changed = NormalPath(directory);
+        if (ContainsDirectory(current, changed) || ContainsDirectory(changed, current)) {
             panel.OnReload();
             return;
         }

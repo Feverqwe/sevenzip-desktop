@@ -244,6 +244,10 @@ continues after the manager closes or the channel disconnects. Shell arguments
 still enter the original parser. Toolbar and context-menu consumers share this
 boundary. Completion refreshes currently affected filesystem panels after their
 source guards release, preserving navigation made while the child was running.
+The window owns one pending output-refresh queue for both panels. Overlapping
+child results share affected paths; each panel consumes its batch when source
+guards permit it, using its current provider. Shutdown discards pending refreshes
+without stopping independent children.
 Creation uses the original UpdateGUI and Common/Update workers, including volumes,
 SFX and optional input deletion. A shared per-user write lease prevents competing
 native writers. Its separate C++23 library returns either an acquired, movable

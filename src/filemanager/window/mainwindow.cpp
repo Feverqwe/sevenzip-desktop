@@ -69,6 +69,14 @@ void MainWindow::createFileManagerWindow(const QtFileManagerStartup *startup, bo
                                          UInt32 splitterPos) {
     const unsigned focusedPanel = app_.LastFocusedPanel;
     renameController_ = std::make_unique<QtRenameController>(*this);
+    guiOutputRefresh_ = std::make_unique<QtGuiOutputRefresh>(
+        [this] {
+            const auto &operations = app_.QtOperations();
+            return !operations.closed() && !operations.active() && !operations.callActive();
+        },
+        [this](unsigned index, const QtGuiOutputRefresh::Outputs &output) {
+            refreshGuiOutputPanel(index, output);
+        });
     appPresentation_ = std::make_unique<QtAppPresentation>(*this);
     connectFilesystemScanner();
     COpenResult opened;

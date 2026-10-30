@@ -43,6 +43,7 @@ sevenzip_add_port_component(sevenzip_main_window src/filemanager/window/mainwind
     src/filemanager/window/mainwindow_archive_transfer.cpp
     src/filemanager/window/mainwindow_archivecommands.cpp
     src/filemanager/window/mainwindow_guioperations.cpp
+    src/filemanager/window/qtguioutputrefresh.cpp
     src/filemanager/window/mainwindow_archivelist.cpp
     src/filemanager/window/mainwindow_archiveopening.cpp
     src/filemanager/window/mainwindow_backendevents.cpp

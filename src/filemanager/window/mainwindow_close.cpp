@@ -82,6 +82,8 @@ void MainWindow::closeEvent(QCloseEvent *event) {
 }
 
 void MainWindow::quiesceOperations() {
+    if (guiOutputRefresh_)
+        guiOutputRefresh_->Stop();
     if (renameController_)
         renameController_->Stop();
     for (const auto &ui : panelUi_) {

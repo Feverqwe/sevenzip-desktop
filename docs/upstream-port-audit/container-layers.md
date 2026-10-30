@@ -935,6 +935,16 @@ temporary directories without proven task ownership were preserved.
 
 ### Standalone Create/Update: source comparison
 
+Output refresh review (2026-10-30): compared pinned `Panel.cpp` AddToArchive,
+GetFilePaths and ExtractArchives, `PanelItems.cpp` reload/selection workflow and
+their current source/service callers. Child completion metadata, current-provider
+matching, ordinary archive reopening, deleted-input fallback and stream/device
+exclusions remain local integration around those retained bodies. A window-owned
+queue now combines overlapping output paths, waits behind source calls/scans and
+discards pending refreshes at shutdown. Each panel consumes its own batch before
+calling source/UI code, retaining results delivered by nested events. No upstream
+code is imported or decoding/update algorithm changed by this queue refactor.
+
 The next boundary review compares `CompressCall.cpp`/`CompressCall2.cpp` creation
 arguments, `CPanel::AddToArchive`, File Manager create/shell/drop consumers, GUI
 `Main2` update dispatch, `UpdateGUI`/ShowDialog option transfer, native catalog
