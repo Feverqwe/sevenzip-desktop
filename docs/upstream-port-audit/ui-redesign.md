@@ -1836,3 +1836,34 @@ configuration/lifecycle `20261030T165041Z-5a0d25cc` PASS.
 Полный/slow gate и оригинальная Windows pixel parity не заявляются. Технические
 receipts и исходные ошибки сохранены; одноразовый diagnostic script удалён,
 incremental build/runtime/compiler cache сохранены.
+
+## Единый запуск Copy/Move из открытого архива — 2026-10-30
+
+Повторно сопоставлены закреплённые `CApp::OnCopy`, `CPanel::CopyTo` и их
+options/callbacks с Qt-маршрутом принятого выбора, source extraction,
+завершением Move и обновлением панелей. Исходная ревизия 7-Zip —
+`0766b733fe3e06dd2a7f9a3cfbf2108ac73abd17`; оригинальные inventory units
+и hashes в baseline не меняются, новый upstream-код не импортируется.
+
+Запуск извлечения для Copy, Move и Copy to same объединён у владельца
+архивных переносов. Сохранены явные source indices, source-first маршрут,
+ограничение fallback для Copy to same и удаление записей лишь после успешного
+извлечения. Синхронное завершение и отказ запуска очищают pending transfer
+перед показом ошибки. Native алгоритмы, path validation, пароли, межархивный
+rollback и границы recovery не меняются. Это упрощение локальной координации,
+а не расширение source-port scope или свидетельство визуального паритета.
+
+Существующий сценарий Shift+F5/Shift+F6 теперь регистрирует неожиданные сообщения
+об ошибках и закрывает их, чтобы native ошибка удаления давала test failure,
+а не неограниченное ожидание модального окна. Проверки результата сохранены.
+Linux: четыре набора `ui_copy_same`, `ui_copy_routing`, `ui_operations`,
+`ui_archive_states` PASS в `20261030T195030Z-f1a18674`, CTest 64,46 с.
+Использован существующий tmpfs scratch при дисковой incremental сборке и кэше.
+Первичный дисковый batch прерван после modal error и aggregate timeout;
+отдельно наблюдались `fdatasync` и I/O pressure около 51%. Точная причина
+первого сообщения удаления не установлена; в повторе оно не возникло.
+macOS: те же четыре набора PASS, CTest 71,89 с. Native Windows:
+`20261030T195520Z-8858a086`, 4/4 PASS, CTest 423,94 с. Полный и slow gate
+не запускались. После проверки удалены четыре runtime-копии прерванных Linux
+fixtures (около 60 МиБ); небольшие свидетельства ошибок и результаты сохранены,
+incremental outputs и compiler cache сохранены.

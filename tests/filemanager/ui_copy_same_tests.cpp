@@ -242,6 +242,16 @@ class UiCopySameTests final : public QObject, protected MainWindowTestSupport {
     }
 
     void shiftF5CopiesFocusedArchiveItemToAbsoluteFolder() {
+        QString errors;
+        QTimer errorResponder;
+        connect(&errorResponder, &QTimer::timeout, this, [&] {
+            for (QWidget *widget : QApplication::topLevelWidgets())
+                if (auto *box = qobject_cast<QMessageBox *>(widget); box && box->isVisible()) {
+                    errors += box->text() + '\n';
+                    box->accept();
+                }
+        });
+        errorResponder.start(10);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString first = fixture.filePath(QStringLiteral("first file.txt"));
@@ -302,6 +312,7 @@ class UiCopySameTests final : public QObject, protected MainWindowTestSupport {
         });
         QTest::keyClick(view, Qt::Key_F5, Qt::ShiftModifier);
         QVERIFY(dialogSeen);
+        QVERIFY2(errors.isEmpty(), qPrintable(errors));
         QTRY_VERIFY(
             QFileInfo::exists(QDir(destination).filePath(QStringLiteral("first file.txt"))));
         QVERIFY(!QFileInfo::exists(QDir(destination).filePath(QStringLiteral("second file.txt"))));
@@ -320,6 +331,7 @@ class UiCopySameTests final : public QObject, protected MainWindowTestSupport {
         });
         QTest::keyClick(view, Qt::Key_F6, Qt::ShiftModifier);
         QVERIFY(dialogSeen);
+        QVERIFY2(errors.isEmpty(), qPrintable(errors));
         QTRY_VERIFY(
             QFileInfo::exists(QDir(movedDestination).filePath(QStringLiteral("second file.txt"))));
         QTRY_COMPARE(view->rowCount(), 1);

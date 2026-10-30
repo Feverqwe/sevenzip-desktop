@@ -1,5 +1,6 @@
 #include "7zip/UI/FileManager/resource.h"
 #include "7zip/UI/FileManager/resourceGui.h"
+#include "7zip/UI/GUI/ExtractRes.h"
 #include "archive/agent/Agent.h"
 #include "archive/resources/qtarchivetransferbackup.h"
 #include "filemanager/panels/Panel.h"
@@ -9,6 +10,53 @@
 #include "platform/trash/qttrashservice.h"
 #include "ui/progress/ProgressDialog2.h"
 #include <QScopedValueRollback>
+
+void MainWindow::transferFromArchive(const QString &destination, bool move, bool copyToSame,
+                                     unsigned sourceIndex, const CRecordVector<UInt32> &indices) {
+    const QStringList paths = archivePathsForIndices(indices);
+    if (paths.isEmpty())
+        return;
+    ExtractionOptions options;
+    options.pathMode = ExtractionOptions::PathMode::CurrentPaths;
+    options.currentFolder = archiveFolder_;
+    options.overwriteMode = ExtractionOptions::OverwriteMode::Ask;
+    rememberTransferDestination(destination);
+    if (move)
+        archiveMove_.emplace(sourceIndex, indices);
+    const bool handled =
+        extractWithSource(destination, true, archivePassword_, options, paths, &indices);
+    if (handled && state_ == State::Operating)
+        return; // Asynchronous completion owns the pending transfer.
+    if (!handled && !copyToSame &&
+        (!move || (QFileInfo(destination).isDir() && !QFileInfo(destination).isSymLink()))) {
+        previousState_ = state_;
+        setState(State::Operating);
+        begin(QtLangText(move ? IDS_MOVING : IDS_PROGRESS_EXTRACTING), destination);
+        // Source refusal permits fallback only at the archive root. Retain
+        // Move's full-path transport and Copy's explicit extraction options.
+        if (move)
+            backend_->extract(archive_, destination, paths, archivePassword_);
+        else
+            backend_->extract(archive_, destination, paths, archivePassword_, options);
+        return;
+    }
+    // A synchronous result or refused launch has no pending continuation.
+    // Clear it before an error dialog can deliver another GUI callback.
+    archiveMove_.reset();
+    transferDestinationPanel_.reset();
+    if (!handled) {
+        if (copyToSame)
+            QMessageBox::warning(
+                this, QtLangText(IDS_COPYING),
+                QCoreApplication::translate("mainwindow_fileoperations",
+                                            "Source extraction is unavailable for this archive."));
+        else
+            QMessageBox::warning(
+                this, "Sevenzip",
+                QCoreApplication::translate("mainwindow_fileoperations",
+                                            "The destination folder is unavailable."));
+    }
+}
 
 bool MainWindow::transferBetweenArchivePanels(const QString &destination, bool move,
                                               const CRecordVector<UInt32> &indices) {

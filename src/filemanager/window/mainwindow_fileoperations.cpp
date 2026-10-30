@@ -187,63 +187,7 @@ void MainWindow::executeCopyDestination(bool move, bool copyToSame, unsigned sou
     if (state_ == State::Viewing) {
         if (useDestPanel && useTemp && transferBetweenArchivePanels(destination, move, indices))
             return;
-        const QStringList paths = archivePathsForIndices(indices);
-        if (paths.isEmpty())
-            return;
-        ExtractionOptions options;
-        options.pathMode = ExtractionOptions::PathMode::CurrentPaths;
-        options.currentFolder = archiveFolder_;
-        options.overwriteMode = ExtractionOptions::OverwriteMode::Ask;
-        rememberTransferDestination(destination);
-        if (copyToSame) {
-            if (move) {
-                archiveMove_.emplace(sourceIndex, indices);
-            }
-            const bool handled =
-                extractWithSource(destination, true, archivePassword_, options, paths, &indices);
-            if (!handled || state_ != State::Operating) {
-                archiveMove_.reset();
-                transferDestinationPanel_.reset();
-                if (!handled)
-                    QMessageBox::warning(this, QtLangText(IDS_COPYING),
-                                         QCoreApplication::translate(
-                                             "mainwindow_fileoperations",
-                                             "Source extraction is unavailable for this archive."));
-            }
-            return;
-        }
-        if (!move) {
-            if (!extractWithSource(destination, true, archivePassword_, options, paths, &indices)) {
-                previousState_ = state_;
-                setState(State::Operating);
-                begin(QtLangText(IDS_PROGRESS_EXTRACTING), destination);
-                backend_->extract(archive_, destination, paths, archivePassword_, options);
-            }
-            if (state_ != State::Operating)
-                transferDestinationPanel_.reset();
-            return;
-        }
-        archiveMove_.emplace(sourceIndex, indices);
-        if (extractWithSource(destination, true, archivePassword_, options, paths, &indices)) {
-            if (state_ != State::Operating) {
-                archiveMove_.reset();
-                transferDestinationPanel_.reset();
-            }
-            return;
-        }
-        if (!QFileInfo(destination).isDir() || QFileInfo(destination).isSymLink()) {
-            archiveMove_.reset();
-            transferDestinationPanel_.reset();
-            QMessageBox::warning(
-                this, "Sevenzip",
-                QCoreApplication::translate("mainwindow_fileoperations",
-                                            "The destination folder is unavailable."));
-            return;
-        }
-        previousState_ = state_;
-        setState(State::Operating);
-        begin(QtLangText(IDS_MOVING), destination);
-        backend_->extract(archive_, destination, paths, archivePassword_);
+        transferFromArchive(destination, move, copyToSame, sourceIndex, indices);
         return;
     }
     QStringList sources;

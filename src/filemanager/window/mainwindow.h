@@ -145,6 +145,8 @@ class MainWindow : public QMainWindow {
                                 const CRecordVector<UInt32> &indices);
     bool transferBetweenArchivePanels(const QString &destination, bool move,
                                       const CRecordVector<UInt32> &indices);
+    void transferFromArchive(const QString &destination, bool move, bool copyToSame,
+                             unsigned sourceIndex, const CRecordVector<UInt32> &indices);
     void rememberTransferDestination(const QString &path);
     void refreshTransferDestination(unsigned index);
     void createFileTable(QWidget *central);
