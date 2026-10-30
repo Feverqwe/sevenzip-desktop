@@ -67,7 +67,7 @@ if(BUILD_TESTING AND WIN32)
             filesystem_selection_runtime ui_operations ui_copy_same ui_copy_routing app_copy_routing ui_update_modes archive_metadata_ui source_drop_add
             drag_drop_add_ui drag_drop_add_independent drag_drop_add_temporary dropped_path_choice modal_refresh_window
             main_shell panel_shell source_context_menu panel_key window_placement panel_key_source panel_list_load panel_item_icons panel_name_text archive_rename_window panel_copy_reload copy_publication_order filesystem_reload address_navigation panel_parent_reload panel_folder_sync native_archive_properties filesystem_comment fs_drives_device_ui namespace_hash native_network_navigation native_persisted_locations address_combo panel_address_keys root_command persisted_location ui_navigation ui_archive_states ui_archive_volumes
-            large_list_window worker_window_progress panel_sort_commands panel_refresh_drop panel_refresh_completion panel_rename_state deferred_rename navigation_reload panel_deleted_draw panel_column_menu panel_column_initialization panel_column_schema panel_column_sort panel_column_changes panel_cell_text native_column_workflow panel_item_changed
+            command_publication large_list_window worker_window_progress panel_sort_commands panel_refresh_drop panel_refresh_completion panel_rename_state deferred_rename navigation_reload panel_deleted_draw panel_column_menu panel_column_initialization panel_column_schema panel_column_sort panel_column_changes panel_cell_text native_column_workflow panel_item_changed
             archive_reload_command drag_reload_completion panel_creation_path copy_archive_refresh interarchive_recovery panel_load_count panel_activation progress_dialog progress_worker progress_cancel archive_progress volume_dialog language_dialog language_standard_buttons fm_settings list_settings_runtime
             language_main_dialog language_focus properties_runtime
             archive_layer_chain archive_layer_lifetime
@@ -122,6 +122,10 @@ if(BUILD_TESTING AND WIN32)
     # lifetime after the 60s aggregate cap expired in a batch. Reserve twice
     # the measured time; retain individual state waits and all scenarios.
     set_tests_properties(navigation_reload PROPERTIES TIMEOUT 120)
+    # The complete native keyboard suite passed in 69.45s after its 90s
+    # batch cap expired. Reserve twice the measured process time, rounded
+    # up to a minute; keep every scenario and individual state deadline.
+    set_tests_properties(panel_key_source PROPERTIES TIMEOUT 180)
 endif()
 
 if(APPLE AND TEST copy_archive_refresh)

@@ -1,4 +1,10 @@
 if(BUILD_TESTING)
+    qt_add_executable(command_publication_tests tests/filemanager/command_publication_tests.cpp)
+    target_link_libraries(command_publication_tests PRIVATE sevenzip_window Qt6::Test)
+    target_include_directories(command_publication_tests PRIVATE src tests)
+    add_test(NAME command_publication COMMAND command_publication_tests -silent)
+    set_tests_properties(command_publication PROPERTIES TIMEOUT 60 ENVIRONMENT
+        "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/command-publication.ini")
     qt_add_executable(large_list_window_tests tests/filemanager/large_list_window_tests.cpp)
     target_link_libraries(large_list_window_tests PRIVATE sevenzip_layout_inspection)
     target_link_libraries(large_list_window_tests PRIVATE sevenzip_window)

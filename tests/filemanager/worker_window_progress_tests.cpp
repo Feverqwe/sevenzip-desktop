@@ -75,21 +75,25 @@ class WorkerWindowProgressTests final : public QObject, protected MainWindowTest
             });
             split->trigger();
         };
-        bool armed = false, requested = false, enabled = false;
-        connect(ready, &QAction::changed, &window, [&] {
-            if (!armed || requested || !ready->isEnabled())
+        bool armed = false, selected = false, requested = false;
+        const auto requestNext = [&] {
+            if (armed && selected && !requested && split->isEnabled()) {
+                requested = true;
+                launch(second);
+            }
+        };
+        QObject observer;
+        connect(split, &QAction::changed, &observer, requestNext);
+        connect(ready, &QAction::changed, &observer, [&] {
+            if (!armed || selected || !ready->isEnabled())
                 return;
-            requested = true;
-            if (!selectSource())
-                return;
-            enabled = split->isEnabled();
-            launch(second);
+            selected = selectSource();
+            requestNext();
         });
         launch(first);
         QCOMPARE(dialogs, 1);
         armed = true;
         QTRY_VERIFY(requested);
-        QVERIFY(enabled);
         QTRY_COMPARE(dialogs, 2);
         QTRY_VERIFY(QFileInfo::exists(QDir(second).filePath(name + ".004")));
         for (const QString &destination : {first, second}) {

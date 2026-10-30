@@ -32,7 +32,7 @@ belong in [the audit](upstream-port-audit.md).
 | source Agent opening/factory | CArchiveFolderManager/CAgent Open and binding; backend reader/catalog and stream lease; S_FALSE diagnostics, progress/Cancel, Extract/Test/error bytes | `agent_opening`, `agent_folder`, `archive_opening`, `archive_open_options`, `archive_property_catalog` |
 | source inventory | Per-module audit and baseline | `upstream_inventory`, `upstream_baseline` |
 | independent panels | CApp/CPanel; Qt per-window operation state | `app_state`, `panel_runtime`, `binding_lifecycle` |
-| availability and dispatch | CApp/WndProc/PanelMenu; QtFileManagerCommands | `native_command_dispatch`, `command_policy_runtime`, `menu_policy` |
+| availability and dispatch | CApp/WndProc/PanelMenu; reentrant navigation discards stale action updates and permits subsequent selection | `native_command_dispatch`, `command_policy_runtime`, `menu_policy`, `command_publication` |
 | address/parent/nested rollback | PanelFolder/PanelOpen; native folder binding | `native_navigation_window`, `panel_navigation`, `ui_navigation`, `nested_archive` |
 | filesystem/flat enumeration | FSFolder/PanelItems; scanner/model projection | `fs_folder`, `filesystem_scanner`, `flat_view` |
 | columns/sort/time/refresh | PanelSort/PanelItems; Qt header/viewport adapter | `panel_columns`, `panel_sort`, `panel_auto_refresh`, `view_settings_columns` |

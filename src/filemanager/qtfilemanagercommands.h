@@ -112,6 +112,8 @@ class QtFileManagerCommands final : public IQtFileManagerMenuCommandServices {
     TransportCapabilities ReadTransportCapabilities();
     bool TransportAllows(unsigned id, const TransportCapabilities &capabilities) const;
     QHash<unsigned, bool> Availability();
+    enum class ActionRefresh { Idle, Publishing, Pending };
+    void PublishActions();
     void AttachFileActions();
     void AttachPanelActions();
     void AttachViewActions();
@@ -121,4 +123,5 @@ class QtFileManagerCommands final : public IQtFileManagerMenuCommandServices {
     void RunNativeOpen(const std::function<void(CPanel &)> &open);
     MainWindow &window_;
     QHash<unsigned, QList<QAction *>> actions_;
+    ActionRefresh actionRefresh_ = ActionRefresh::Idle;
 };
