@@ -115,6 +115,9 @@ if(BUILD_TESTING AND WIN32)
     # The complete native address matrix passed in 64s including process
     # startup/shutdown. Give its aggregate the same measured-time reserve.
     set_tests_properties(address_combo PROPERTIES TIMEOUT 180)
+    # Native publication phases passed all 12 workflows in 30.6s including
+    # process lifetime. Reserve twice that time, rounded up to a minute.
+    set_tests_properties(copy_publication_order PROPERTIES TIMEOUT 120)
 endif()
 
 if(APPLE AND TEST copy_archive_refresh)
