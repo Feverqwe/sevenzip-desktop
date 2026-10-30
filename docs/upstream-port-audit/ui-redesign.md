@@ -1461,3 +1461,23 @@ Qt-владельцу отложенного фокуса. Доставка ож
 Новые заимствованные реализации и functional omissions не добавлены; pinned
 original bytes не менялись. Текущие поведенческие свидетельства, найденные
 ошибки и пробелы приёмки принадлежат отчёту сценариев.
+
+## Единые правила команд и состояние продолжения Copy — 2026-10-30
+
+Перед изменением сопоставлены полные исходные App.cpp::OnCopy,
+SwitchOnOffOnePanel, их callers и текущие Qt completion/publication consumers
+с repository-owned baseline. Исходные правила выбора панели, Copy/Move,
+сохранения выделения, обновления источника/назначения, ошибок и отмены остаются
+у прежних владельцев; новых импортов и изменений original hashes нет.
+
+Доступность Two Panels и Exit теперь использует те же предикаты, что и
+исполнение команды. Qt-переключение повторно обращается к общей политике;
+состояние не кэшируется в QAction и не расходится с guards обработчика.
+Быстрая проверка этих команд не требует запросов свойств файловой панели.
+
+Проверки policy/F9/scan: command_policy_runtime, view_menu, panel_address_keys
+и large_list_window PASS на Linux, macOS и native Windows. Linux batch
+`20261030T071716Z-4de24868` имеет matching-token verify-result PASS при ошибке
+SSH wrapper; это не успешный orchestration status. Windows batch
+`20261030T080653Z-2c9dd14b` подтвердил эти четыре consumer-набора; отдельный
+таймаут copy_publication_order рассматривается в проверке продолжения Copy.

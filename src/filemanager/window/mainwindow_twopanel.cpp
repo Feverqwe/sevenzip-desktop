@@ -1,3 +1,5 @@
+#include "7zip/UI/FileManager/resource.h"
+#include "filemanager/qtfilemanagercommands.h"
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtapppresentation.h"
 #include <QScopeGuard>
@@ -128,8 +130,7 @@ void MainWindow::withPanelProjection(unsigned index, const std::function<void()>
 }
 
 void MainWindow::togglePanels() {
-    if (app_.QtOperations().closed() || app_.QtOperations().active() ||
-        (filesystemScanner_ && filesystemScanner_->isRunning())) {
+    if (!commands_ || !commands_->CanExecuteCommand(IDM_VIEW_TWO_PANELS)) {
         twoPanelsAction_->setChecked(app_.NumPanels == 2);
         return;
     }

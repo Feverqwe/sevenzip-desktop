@@ -151,6 +151,19 @@ void QtFileManagerCommands::AttachViewActions() {
     }
 }
 
+bool QtFileManagerCommands::CanSwitchPanels() const {
+    const auto &w = window_;
+    return !w.app_.QtOperations().closed() && !w.app_.QtOperations().active() &&
+           !w.sourceArchiveProgress_ &&
+           !(w.filesystemScanner_ && w.filesystemScanner_->isRunning());
+}
+
+bool QtFileManagerCommands::CanExit() const {
+    const auto &w = window_;
+    return !w.app_.QtOperations().closed() && !w.app_.QtOperations().callActive() &&
+           !w.sourceArchiveProgress_ && !QApplication::activeModalWidget();
+}
+
 bool QtFileManagerCommands::CanExecuteCommand(unsigned id) {
     auto &w = window_;
     if (w.app_.QtOperations().closed())
@@ -158,8 +171,9 @@ bool QtFileManagerCommands::CanExecuteCommand(unsigned id) {
     if (id >= kMenuCmdID_Plugin_Start)
         return w.programFileMenu_ && w.programFileMenu_->CanInvoke(id);
     if (id == 8)
-        return !w.app_.QtOperations().callActive() && !w.sourceArchiveProgress_ &&
-               !QApplication::activeModalWidget();
+        return CanExit();
+    if (id == IDM_VIEW_TWO_PANELS)
+        return CanSwitchPanels();
     return Availability().value(id, false);
 }
 
@@ -255,9 +269,7 @@ QHash<unsigned, bool> QtFileManagerCommands::Availability() {
         return availability;
     auto &panel = w.app_.GetFocusedPanel();
     const bool navigating = !w.app_.QtOperations().blocking() && !w.sourceArchiveProgress_;
-    availability[IDM_VIEW_TWO_PANELS] =
-        navigating && !w.app_.QtOperations().active() &&
-        !(w.filesystemScanner_ && w.filesystemScanner_->isRunning());
+    availability[IDM_VIEW_TWO_PANELS] = CanSwitchPanels();
     // Enumeration disables list notifications too, but its flat-view toggle
     // remains the cancellation command. Only folder-property queries need
     // the notification guard; native update can replace the folder proxy.
@@ -289,8 +301,7 @@ QHash<unsigned, bool> QtFileManagerCommands::Availability() {
         (w.state_ == MainWindow::State::Viewing || panel.IsFSFolder() || namespaceChild);
     availability[IDM_VIEW_FLAT_VIEW] = navigating && (w.scanningDisk_ || !hasFolder ||
                                                       (safeFolderQueries && !panel.IsRootFolder()));
-    availability[8] = !w.app_.QtOperations().callActive() && !w.sourceArchiveProgress_ &&
-                      !QApplication::activeModalWidget();
+    availability[8] = CanExit();
     if (!safeFolderQueries || w.scanningDisk_ || !hasFolder)
         return availability;
     const TransportCapabilities capabilities = ReadTransportCapabilities();

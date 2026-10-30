@@ -88,6 +88,8 @@ class QtFileManagerCommands final : public IQtFileManagerMenuCommandServices {
     void SetBookmark(unsigned index) override;
 
   private:
+    bool CanSwitchPanels() const;
+    bool CanExit() const;
     QPointer<QtArchiveMountManager> mounts_;
     void AttachMountActions();
     void MountReadOnlyContainer();
