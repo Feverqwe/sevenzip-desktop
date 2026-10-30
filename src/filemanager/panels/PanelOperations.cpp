@@ -23,6 +23,7 @@
 
 #include <QFileInfo>
 #include <QMessageBox>
+#include <QScopeGuard>
 
 #ifdef _WIN32
 #include "Windows/COM.h"
@@ -323,6 +324,46 @@ HRESULT CPanel::OnEndLabelEdit(UInt32 realIndex, const UString &enteredName) {
     return result;
 }
 
+static bool ConfirmDeleteItems(const CPanel &panel, const CRecordVector<UInt32> &indices) {
+    UInt32 titleID, messageID;
+    UString messageParam;
+    if (indices.Size() == 1) {
+        const unsigned index = indices[0];
+        messageParam = panel.GetItemRelPath2(index);
+        if (panel.IsItem_Folder(index)) {
+            titleID = IDS_CONFIRM_FOLDER_DELETE;
+            messageID = IDS_WANT_TO_DELETE_FOLDER;
+        } else {
+            titleID = IDS_CONFIRM_FILE_DELETE;
+            messageID = IDS_WANT_TO_DELETE_FILE;
+        }
+    } else {
+        titleID = IDS_CONFIRM_ITEMS_DELETE;
+        messageID = IDS_WANT_TO_DELETE_ITEMS;
+    }
+    // The source shell branch presents the platform confirmation itself. Qt's
+    // native trash API does not, so use the same source prompt for both modes.
+    const QString title = ToQString(LangString(titleID));
+    const QString message =
+        ToQString(indices.Size() == 1 ? MyFormatNew(messageID, messageParam)
+                                      : MyFormatNew(messageID, UInt64(indices.Size())));
+    return QMessageBox::question(panel.GetParent(), title, message,
+                                 QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel,
+                                 QMessageBox::Yes) == QMessageBox::Yes;
+}
+
+static HRESULT MoveItemsToTrash(const CPanel &panel, const CRecordVector<UInt32> &indices,
+                                IQtTrashService &trash) {
+    FOR_VECTOR(i, indices) {
+        const QString path = ToQString(panel.GetItemFullPath(indices[i]));
+        if (QFileInfo(path).isSymLink())
+            return E_NOTIMPL;
+        if (!trash.MoveToTrash(path))
+            return E_FAIL;
+    }
+    return S_OK;
+}
+
 HRESULT CPanel::DeleteItems(bool toRecycleBin, IQtTrashService &trash, CSelectedState &state,
                             const CRecordVector<UInt32> *explicitIndices, bool confirm) {
     CDisableTimerProcessing disableTimerProcessing(*this);
@@ -334,77 +375,39 @@ HRESULT CPanel::DeleteItems(bool toRecycleBin, IQtTrashService &trash, CSelected
     if (indices.IsEmpty())
         return S_FALSE;
     SaveSelectedState(state);
-
-    if (!CheckBeforeUpdate(IDS_ERROR_DELETING))
-        return E_ABORT;
-
-    UInt32 titleID, messageID;
-    UString messageParam;
-    if (indices.Size() == 1) {
-        const unsigned index = indices[0];
-        messageParam = GetItemRelPath2(index);
-        if (IsItem_Folder(index)) {
-            titleID = IDS_CONFIRM_FOLDER_DELETE;
-            messageID = IDS_WANT_TO_DELETE_FOLDER;
-        } else {
-            titleID = IDS_CONFIRM_FILE_DELETE;
-            messageID = IDS_WANT_TO_DELETE_FILE;
-        }
-    } else {
-        titleID = IDS_CONFIRM_ITEMS_DELETE;
-        messageID = IDS_WANT_TO_DELETE_ITEMS;
-        messageParam = NumberToString(indices.Size());
-    }
-    // The source shell branch presents the platform confirmation itself. Qt's
-    // native trash API does not, so use the same source prompt for both modes.
-    const QString title = ToQString(LangString(titleID));
-    const QString message =
-        ToQString(indices.Size() == 1 ? MyFormatNew(messageID, messageParam)
-                                      : MyFormatNew(messageID, UInt64(indices.Size())));
-    if (confirm && QMessageBox::question(GetParent(), title, message,
-                                         QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel,
-                                         QMessageBox::Yes) != QMessageBox::Yes)
+    if (!CheckBeforeUpdate(IDS_ERROR_DELETING) || (confirm && !ConfirmDeleteItems(*this, indices)))
         return E_ABORT;
 
     CDisableNotify disableNotify(*this);
-    HRESULT result = S_OK;
-    if (toRecycleBin && IsFSFolder()) {
-        FOR_VECTOR(i, indices) {
-            const QString path = ToQString(GetItemFullPath(indices[i]));
-            if (QFileInfo(path).isSymLink()) {
-                result = E_NOTIMPL;
-                break;
-            }
-            if (!trash.MoveToTrash(path)) {
-                result = E_FAIL;
-                break;
-            }
-        }
+    const bool recycle = toRecycleBin && IsFSFolder();
+    HRESULT result;
+    if (recycle) {
+        result = MoveItemsToTrash(*this, indices, trash);
         // QFile's native trash boundary has no shell error UI. Preserve the
         // source shell branch's refresh after a partial result.
         if (result != S_OK)
             MessageBox_Error_HRESULT_Caption(result, LangString(IDS_ERROR_DELETING));
-        RefreshListCtrl(state);
-        return result;
-    }
-    {
+    } else {
         CThreadFolderOperations op(FOLDER_TYPE_DELETE);
         op.FolderOperations = _folderOperations;
         op.Indices = indices;
         auto *folder = dynamic_cast<NFsFolder::CFSFolder *>((IFolderFolder *)_folder);
+        const auto clearCheckBreak = qScopeGuard([folder] {
+            if (folder)
+                folder->CheckBreak = {};
+        });
         if (folder)
             folder->CheckBreak = [&op](const QString &path) {
                 op.Sync.Set_FilePath(path.toStdWString().c_str());
                 return op.Sync.CheckStop() == S_OK;
             };
         result = op.DoOperation(*this, LangString(IDS_DELETING), LangString(IDS_ERROR_DELETING));
-        if (folder)
-            folder->CheckBreak = {};
     }
-    RefreshTitleAlways();
+    if (!recycle)
+        RefreshTitleAlways();
     // Interarchive Move retains its transaction guards until rollback settles;
     // that caller publishes the captured selection after releasing them.
-    if (!explicitIndices)
+    if (recycle || !explicitIndices)
         RefreshListCtrl(state);
     return result;
 }

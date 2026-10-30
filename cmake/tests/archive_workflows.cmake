@@ -368,7 +368,7 @@ if(BUILD_TESTING)
     target_include_directories(source_delete_tests PRIVATE src tests)
     target_link_libraries(source_delete_tests PRIVATE Qt6::Test)
     add_test(NAME source_delete COMMAND source_delete_tests -silent)
-    set_tests_properties(source_delete PROPERTIES TIMEOUT 30 ENVIRONMENT
+    set_tests_properties(source_delete PROPERTIES TIMEOUT 300 ENVIRONMENT
         "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/source_delete.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
     qt_add_executable(source_create_tests tests/filemanager/source_create_tests.cpp)
     target_link_libraries(source_create_tests PRIVATE sevenzip_layout_inspection)

@@ -1867,3 +1867,40 @@ macOS: те же четыре набора PASS, CTest 71,89 с. Native Windows:
 не запускались. После проверки удалены четыре runtime-копии прерванных Linux
 fixtures (около 60 МиБ); небольшие свидетельства ошибок и результаты сохранены,
 incremental outputs и compiler cache сохранены.
+
+## Delete lifecycle simplification — 2026-10-30
+
+Compared the pinned 7-Zip `b88c6bc09339de32f7d18bbab900686b244f42ba`
+`CPP/7zip/UI/FileManager/PanelOperations.cpp` DeleteItems and its operation
+worker with the current command dispatch, Qt trash boundary, filesystem Delete,
+archive Move callers and retained scan/notification guards. No new upstream
+code or baseline owners were imported.
+
+The existing panel owner now separates confirmation and trash execution from
+the delete lifecycle, shares terminal list publication between both execution
+branches and clears the worker's borrowed cancellation callback by scope guard.
+Empty selection, read-only refusal, No/Cancel without refresh, partial-result
+refresh and the archive Move caller's deferred publication remain intact.
+The Qt trash confirmation and native service remain the recorded platform
+adaptation; archive deletion still uses the official native provider.
+
+Existing `source_delete`, `ui_operations` and `ui_copy_same` passed on Linux x64
+(`20261030T201140Z-449f385b`, CTest 35.80 s) and macOS arm64 (29.00 s).
+The initial sandboxed macOS run passed all 32 delete cases but blocked in archive
+Move progress/error modals in both consumers; stacks and the interrupted result
+were retained. The unchanged batch passed outside the sandbox; the exact initial
+native error was not recovered. No new behavior tests, layout changes or slow
+matrices were introduced. Incremental builds and compiler caches were retained.
+
+Windows x64 desktop passed both archive consumers in
+`20261030T201415Z-89430de0`; `source_delete` exceeded its 30 s process deadline.
+The isolated repeat did too. Verbose diagnostics showed successful refusal cases
+before that deadline; a Linux diagnostic completed all 32 assertions but timed
+out during process exit under measured heavy I/O pressure. The suite's overall
+CTest budget was increased without changing assertions, internal waits or cases.
+Windows `20261030T203335Z-27d4d85e` then passed all 32 cases (CTest 73.72 s).
+Verbose output was diagnostic only; ordinary `-silent` registration is retained.
+The final registration passed again on Linux
+(`20261030T204212Z-79d2738c`, CTest 5.74 s) and macOS (5.66 s).
+Four disposable runtime deployments from the interrupted macOS batch were
+removed after checking process/file references; small failure evidence remains.
