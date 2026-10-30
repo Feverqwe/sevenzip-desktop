@@ -90,17 +90,14 @@ void MainWindow::backendFinished(bool ok, const QString &message, HRESULT result
     const std::optional<unsigned> transferDestination = transferDestinationPanel_;
     transferDestinationPanel_.reset();
     QString resultMessage = message;
-    if (archiveMoveStage_ == ArchiveMoveStage::Removing)
+    if (archiveMove_ && archiveMove_->stage == ArchiveMoveStage::Removing)
         resultMessage =
             ok ? QCoreApplication::translate("mainwindow_backendevents",
                                              "Items moved out of archive.")
                : QCoreApplication::translate("mainwindow_backendevents",
                                              "Files extracted but not deleted from archive. ") +
                      message;
-    if (archiveMoveStage_ != ArchiveMoveStage::None) {
-        archiveMoveStage_ = ArchiveMoveStage::None;
-        archiveMoveIndices_.Clear();
-    }
+    archiveMove_.reset();
     if (!ok)
         archivePassword_.clear();
     const bool hadProgress = progress_;
@@ -120,16 +117,18 @@ void MainWindow::backendFinished(bool ok, const QString &message, HRESULT result
 }
 
 bool MainWindow::startPendingArchiveMove(bool ok) {
-    if (archiveMoveStage_ == ArchiveMoveStage::Extracting && ok) {
-        archiveMoveStage_ = ArchiveMoveStage::Removing;
+    if (archiveMove_ && archiveMove_->stage == ArchiveMoveStage::Extracting && ok) {
+        // Closing progress can deliver callbacks that clear pending state.
+        // Keep an owning snapshot of the accepted deletion request.
+        const PendingArchiveMove request = *archiveMove_;
+        archiveMove_->stage = ArchiveMoveStage::Removing;
         closeProgressDialog();
-        auto &panel = app_.GetFocusedPanel();
+        auto &panel = app_.Panels[request.source];
         CSelectedState selected;
         HRESULT result;
         {
             QScopedValueRollback<bool> progressOwner(sourceArchiveProgress_, true);
-            result =
-                panel.DeleteItems(false, *trashService_, selected, &archiveMoveIndices_, false);
+            result = panel.DeleteItems(false, *trashService_, selected, &request.indices, false);
         }
         app_.QtOperations().End();
         renderBoundFolder();

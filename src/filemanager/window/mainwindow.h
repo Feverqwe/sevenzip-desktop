@@ -370,9 +370,15 @@ class MainWindow : public QMainWindow {
     State previousState_ = State::Filesystem;
     bool creating_ = false;
     bool updatingArchive_ = false;
-    enum class ArchiveMoveStage { None, Extracting, Removing };
-    ArchiveMoveStage archiveMoveStage_ = ArchiveMoveStage::None;
-    CRecordVector<UInt32> archiveMoveIndices_;
+    enum class ArchiveMoveStage { Extracting, Removing };
+    struct PendingArchiveMove {
+        PendingArchiveMove(unsigned index, const CRecordVector<UInt32> &selected)
+            : source(index), indices(selected) {}
+        const unsigned source;
+        const CRecordVector<UInt32> indices;
+        ArchiveMoveStage stage = ArchiveMoveStage::Extracting;
+    };
+    std::optional<PendingArchiveMove> archiveMove_;
     std::optional<unsigned> transferDestinationPanel_;
     QLineEdit *path_ = nullptr;
     QComboBox *pathCombo_ = nullptr;
