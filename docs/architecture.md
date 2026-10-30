@@ -131,6 +131,12 @@ comparison remain delegated to the source panel and its folder providers. Model
 changes preserve Qt persistent indexes and selection across sorting and column
 changes. The model does not retain providers beyond the panel's lifetime.
 
+Inline rename has one scoped Qt controller for the editor, deferred delivery and
+activation guard. It retains the sending panel/item identity through commit or
+cancel and stops pending work before window shutdown. Model repaint and language
+refresh are presentation updates; source CPanel still owns name validation,
+rename operations, errors and restored selection.
+
 Main-window chrome has a scoped Qt presentation adapter for toolbar spacing,
 labels and the parent button. It does not style dialogs or own commands; the
 editable address retains the original panel address/navigation owner.

@@ -1,0 +1,26 @@
+#pragma once
+#include <QObject>
+#include <QTimer>
+#include <memory>
+
+class MainWindow;
+class QAbstractItemView;
+
+// Owns one inline editor through commit/cancel and deferred source delivery.
+class QtRenameController final : public QObject {
+  public:
+    explicit QtRenameController(MainWindow &window);
+    void Attach(QAbstractItemView &view, unsigned panel);
+    void Begin(int row);
+    void Cancel(unsigned panel);
+    void Stop();
+    bool Pending() const { return bool(request_); }
+
+  private:
+    struct Request;
+    void Complete();
+    void Apply(const Request &request);
+    MainWindow &window_;
+    QTimer completion_;
+    std::shared_ptr<Request> request_;
+};

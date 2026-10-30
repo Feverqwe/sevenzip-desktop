@@ -10,6 +10,7 @@
 #include "filemanager/providers/FSFolder.h"
 #include "filemanager/providers/qtlocationfolder.h"
 #include "filemanager/qtfilemanagercommands.h"
+#include "filemanager/rename/qtrenamecontroller.h"
 #include "filemanager/window/mainwindow.h"
 #include "localization/qtlangcontrols.h"
 #include "localization/qtlanguageservices.h"
@@ -45,7 +46,7 @@ HRESULT MainWindow::showDirectory(const QString &path, bool remember, bool sourc
     displayArchive_.clear();
     archivePassword_.clear();
     archiveFolder_.clear();
-    renameEdit_.reset();
+    renameController_->Cancel(projectedPanel_);
     table_->clearSelection();
     table_->setSortingEnabled(false);
     table_->clearRows();
@@ -222,12 +223,12 @@ HRESULT MainWindow::navigateTo(const QString &path, bool sourceAddress) {
 }
 
 void MainWindow::activateItems(Qt::KeyboardModifiers modifiers) {
-    if (!renameActivationPending_)
+    if (!renameController_->Pending())
         commands_->ActivateItems(modifiers);
 }
 
 void MainWindow::activateRow(int row, Qt::KeyboardModifiers modifiers) {
-    if (renameActivationPending_)
+    if (renameController_->Pending())
         return;
     if (row < 0 || row >= table_->rowCount())
         return;

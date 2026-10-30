@@ -41,6 +41,13 @@ class PanelActivationTests final : public QObject, protected MainWindowTestSuppo
         QTRY_COMPARE(list(window, pane).rowCount(), 2);
         list(window, pane).sourcePanel->Set_AutoRefresh_Mode(false);
     }
+    static void activateWithKeyboard(MainWindow &window, QWidget *control,
+                                     Qt::KeyboardModifiers modifiers = Qt::NoModifier) {
+        if (modifiers == Qt::NoModifier)
+            QTest::keySequence(control, action(window, "openItemAction")->shortcut());
+        else
+            QTest::keyClick(control, Qt::Key_Return, modifiers);
+    }
   private slots:
     void initTestCase() {
 #ifndef SEVENZIP_CODEC_MODULE
@@ -216,7 +223,7 @@ class PanelActivationTests final : public QObject, protected MainWindowTestSuppo
         const auto selection = view.selectionModel()->selection();
         {
             CPanel::CDisableNotify guard(panel);
-            QTest::keyClick(control, Qt::Key_Return);
+            activateWithKeyboard(window, control);
             QTest::mouseDClick(control->viewport(), Qt::LeftButton, Qt::ShiftModifier,
                                control->visualRect(index).center());
             QCOMPARE(panel.GetFolder(), (IFolderFolder *)previous);
@@ -249,7 +256,7 @@ class PanelActivationTests final : public QObject, protected MainWindowTestSuppo
             QTest::mouseDClick(control->viewport(), Qt::LeftButton, modifiers,
                                control->visualRect(index).center());
         else
-            QTest::keyClick(control, Qt::Key_Return, modifiers);
+            activateWithKeyboard(window, control, modifiers);
         QApplication::processEvents();
         responder.stop();
         QCOMPARE(shown, properties);
@@ -360,7 +367,7 @@ class PanelActivationTests final : public QObject, protected MainWindowTestSuppo
                 QTest::mouseDClick(control->viewport(), Qt::LeftButton, Qt::NoModifier,
                                    control->visualRect(index).center());
             else
-                QTest::keyClick(control, Qt::Key_Return);
+                activateWithKeyboard(window, control);
         };
         activate();
         responder.stop();

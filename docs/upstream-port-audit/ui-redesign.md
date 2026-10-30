@@ -1776,3 +1776,63 @@ macOS: те же пять наборов PASS одним batch, 76,72 с CTest;
 Windows `20261030T130229Z-c1c99022`: те же пять наборов PASS одним batch,
 295,70 с CTest. Full/slow gate не запускался. Полезные incremental outputs,
 compiler caches и небольшие логи/receipts сохранены.
+
+## Полный жизненный цикл inline Rename — 2026-10-30
+
+Сопоставлены полные OnBeginLabelEdit/OnEndLabelEdit/RenameFile из записанного
+PanelOperations.cpp и LVN begin/end dispatch из PanelListNotify.cpp,
+0766b733fe3e06dd2a7f9a3cfbf2108ac73abd17; текущие CPanel handlers, delegate,
+model display/edit roles, все Qt begin/activation/navigation/shutdown consumers.
+Исходные validation/worker/error/selection ветви остаются у CPanel. Новых
+импортов, изменений исходных hashes/revision или алгоритма Rename нет.
+
+QtRenameController владеет полным Qt-протоколом: редактором, identity исходной
+панели/provider/item, решением commit/cancel и одним управляемым zero timer.
+Из MainWindow удалены раздельные optional edit/activation flag и независимые
+singleShot cleanup callbacks. Подтверждение берётся от delegate::commitData,
+а не от dataChanged общей модели. Отмена чужого/старого редактора не завершает
+текущий запрос; навигация отменяет editing только своей панели. Shutdown
+останавливает timer до ReleaseApp. Deferred Apply сохраняет folder/index/path
+проверки, projection/notify guards, flat archive no-op и native completion.
+Таблица и значки используют один Begin; отказ Qt создать редактор сразу снимает
+activation guard. Delegate сохраняет изменённый пользователем текст при repaint.
+
+Linux pre-fix `20261030T134025Z-350963ff` воспроизвёл четыре потери
+подтверждённого имени после language text refresh: таблица/значки обеих панелей.
+Исходная проверка отказа редактора через Enter проходила: клавиатура идёт другим
+dispatch. Итоговый тест использует мышиное открытие; его pre-fix failure отдельно
+не заявляется. Итоговый lifecycle suite также проверяет реальный Unicode ввод
+до repaint, Escape и уничтожение окна с queued commit, сохраняя входные байты.
+
+Новый controller зарегистрирован в local inventory, upstream bytes не менялись.
+Inventory выявил и исправлен пропуск local owner qtcommandpublication.cpp из
+предыдущей итерации; проверка inventory после регистрации трёх путей PASS.
+
+Focused rename_lifecycle, deferred_rename, panel_rename_state,
+archive_rename_window и panel_activation: Linux `20261030T135157Z-9265bab9`
+5/5 PASS одним batch, 90,99 с CTest. Использован существующий tmpfs scratch;
+build/runtime/ccache остались на диске. Slow native_rename_2/301 не запускались.
+macOS первый batch: 4/5 PASS, panel_activation имел 24 ошибки default keyboard
+activation. Его literal Return расходился с неизменённым shortcut-контрактом:
+macOS Return — Rename, ⌘↓ — Open. Fixture теперь использует назначенный shortcut
+openItemAction для default activation; modified Enter остаётся отдельным source
+сценарием. Production shortcuts не менялись. Финальный fixture Linux
+`20261030T140504Z-c825aafa` PASS, 92,33 с CTest; macOS PASS, 84,82 с,
+275 Qt checks без пропусков. Остальные четыре macOS набора дали 64 checks
+без пропусков; это совокупность запусков, а не один успешный batch пяти suites.
+
+Windows `20261030T135910Z-b6888b0b`: 3/5 PASS; panel_activation и
+panel_rename_state превысили aggregate 180/60 с без отдельной ошибки проверки.
+Полная native диагностика `20261030T160009Z-293b8994`: rename-state 32 PASS,
+полный процесс 55,39 с; activation 259 PASS, 16 штатных пропусков native
+filesystem Properties, полный процесс 623,83 с. Оба процесса вернули 0,
+но orchestrator получил SSH 255; успешный runner invocation не заявляется.
+Только Windows aggregate limits получили резерв 120/1260 с, рассчитанный по
+полным процессам; individual waits и cases не менялись. Финальный Linux
+configuration/lifecycle `20261030T165041Z-5a0d25cc` PASS.
+Штатный Windows CTest-повтор `20261030T165200Z-1f7932c2` завершился 2/2 PASS,
+704,39 с, matching-token receipt. Вместе с тремя прежними успешными Windows
+наборами он покрывает все пять выбранных suites; это совокупность запусков.
+Полный/slow gate и оригинальная Windows pixel parity не заявляются. Технические
+receipts и исходные ошибки сохранены; одноразовый diagnostic script удалён,
+incremental build/runtime/compiler cache сохранены.

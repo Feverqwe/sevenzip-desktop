@@ -7,6 +7,7 @@
 #include "filemanager/qtfilemanagercommands.h"
 #include "filemanager/qtfilemanagerdrag.h"
 #include "filemanager/qtprogramfilemenu.h"
+#include "filemanager/rename/qtrenamecontroller.h"
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtapppresentation.h"
 #include "fileops/volumes/qtvolumeservices.h"

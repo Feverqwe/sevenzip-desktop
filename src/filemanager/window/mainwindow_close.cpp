@@ -1,6 +1,7 @@
 #include "filemanager/qtfilemanagercommands.h"
 #include "filemanager/qtfilemanagerdrag.h"
 #include "filemanager/qtfilemanagerwindowservices.h"
+#include "filemanager/rename/qtrenamecontroller.h"
 #include "filemanager/window/mainwindow.h"
 #include <QCloseEvent>
 #include <QEventLoopLocker>
@@ -81,6 +82,8 @@ void MainWindow::closeEvent(QCloseEvent *event) {
 }
 
 void MainWindow::quiesceOperations() {
+    if (renameController_)
+        renameController_->Stop();
     for (const auto &ui : panelUi_) {
         if (ui.pathCombo)
             disconnect(ui.pathCombo, nullptr, this, nullptr);

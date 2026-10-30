@@ -1,4 +1,10 @@
 if(BUILD_TESTING)
+    qt_add_executable(rename_lifecycle_tests tests/filemanager/rename_lifecycle_tests.cpp)
+    target_link_libraries(rename_lifecycle_tests PRIVATE sevenzip_window Qt6::Test)
+    target_include_directories(rename_lifecycle_tests PRIVATE src tests)
+    add_test(NAME rename_lifecycle COMMAND rename_lifecycle_tests -silent)
+    set_tests_properties(rename_lifecycle PROPERTIES TIMEOUT 90 ENVIRONMENT
+        "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/rename-lifecycle.ini")
     qt_add_executable(command_publication_tests tests/filemanager/command_publication_tests.cpp)
     target_link_libraries(command_publication_tests PRIVATE sevenzip_window Qt6::Test)
     target_include_directories(command_publication_tests PRIVATE src tests)

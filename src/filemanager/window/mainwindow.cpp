@@ -6,6 +6,7 @@
 #include "filemanager/qtfilemanagerdrag.h"
 #include "filemanager/qtfilemanagerstartup.h"
 #include "filemanager/qtprogramfilemenu.h"
+#include "filemanager/rename/qtrenamecontroller.h"
 #include "filemanager/window/qtapppresentation.h"
 #include "localization/LangUtils.h"
 #include "localization/qtlangcontrols.h"
@@ -67,6 +68,7 @@ MainWindow::MainWindow(ArchiveBackend *backend, std::function<bool(const QUrl &)
 void MainWindow::createFileManagerWindow(const QtFileManagerStartup *startup, bool panelsDefined,
                                          UInt32 splitterPos) {
     const unsigned focusedPanel = app_.LastFocusedPanel;
+    renameController_ = std::make_unique<QtRenameController>(*this);
     appPresentation_ = std::make_unique<QtAppPresentation>(*this);
     connectFilesystemScanner();
     COpenResult opened;

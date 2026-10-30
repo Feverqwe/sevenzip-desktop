@@ -52,7 +52,6 @@ struct QtOperationResult;
 #include <QMessageBox>
 #include <QMimeData>
 #include <QPainter>
-#include <QPersistentModelIndex>
 #include <QPlainTextEdit>
 #include <QPointer>
 #include <QPushButton>
@@ -111,6 +110,7 @@ class MainWindow : public QMainWindow {
     friend class QtProgramFileMenu;
     friend class QtPanelContextMenu;
     friend class QtFileManagerInitServices;
+    friend class QtRenameController;
     void initializeFileManagerWindow(const QtFileManagerStartup *startup);
     void createFileManagerWindow(const QtFileManagerStartup *startup, bool panelsDefined,
                                  UInt32 splitterPos);
@@ -279,16 +279,8 @@ class MainWindow : public QMainWindow {
     void executeCopyDestination(bool move, bool copyToSame, unsigned sourceIndex,
                                 const QString &destination, const CRecordVector<UInt32> &indices,
                                 bool useDestPanel, bool useTemp);
-    struct RenameEdit {
-        unsigned Panel;
-        CMyComPtr<IFolderFolder> Folder;
-        QPersistentModelIndex Item;
-        quint32 SourceIndex;
-        QString Path;
-    };
     void connectRenameEditor(QAbstractItemView &view);
     void beginRename(int row);
-    void finishDeferredRename(const RenameEdit &edit, const QString &name);
     void finishFilesystemRename(quint32 sourceIndex, const QString &originalPath,
                                 const QString &name);
     QStringList selectedArchivePaths();
@@ -304,6 +296,7 @@ class MainWindow : public QMainWindow {
     std::unique_ptr<class QtAppPresentation> appPresentation_;
     std::unique_ptr<class QtFileManagerDrag> drag_;
     std::unique_ptr<class QtFileManagerCommands> commands_;
+    std::unique_ptr<class QtRenameController> renameController_;
     std::unique_ptr<class QtProgramFileMenu> programFileMenu_;
     std::function<bool(const QUrl &)> fileOpener_;
     QString archive_;
@@ -420,8 +413,6 @@ class MainWindow : public QMainWindow {
     QAction *move_ = nullptr;
     QAction *remove_ = nullptr;
     QAction *rename_ = nullptr;
-    std::optional<RenameEdit> renameEdit_;
-    bool renameActivationPending_ = false;
     QAction *split_ = nullptr;
     QAction *combine_ = nullptr;
     VolumeOperation *volumeOperation_ = nullptr;

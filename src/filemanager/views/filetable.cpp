@@ -6,6 +6,7 @@
 #include <QEvent>
 #include <QHeaderView>
 #include <QKeyEvent>
+#include <QLineEdit>
 #include <QMimeData>
 #include <QMouseEvent>
 #include <QPainter>
@@ -59,6 +60,11 @@ bool sameColumnIdentity(const CPropColumn &left, const CPropColumn &right) {
 class FileRowDelegate final : public QStyledItemDelegate {
   public:
     using QStyledItemDelegate::QStyledItemDelegate;
+    void setEditorData(QWidget *editor, const QModelIndex &index) const override {
+        if (const auto *line = qobject_cast<QLineEdit *>(editor); line && line->isModified())
+            return;
+        QStyledItemDelegate::setEditorData(editor, index);
+    }
     void initStyleOption(QStyleOptionViewItem *option, const QModelIndex &index) const override {
         QStyledItemDelegate::initStyleOption(option, index);
         const auto *list = qobject_cast<QListView *>(parent());
