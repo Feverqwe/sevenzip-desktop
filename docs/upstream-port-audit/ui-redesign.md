@@ -1950,3 +1950,39 @@ symlink privilege without changing machine/account policy. Acceptance therefore
 combines the first three suites with this repeat; ordinary-token metadata
 acceptance is not claimed. Product sources and all test deadlines/assertions
 remained unchanged between platform runs.
+
+## Compression option handoff — 2026-10-31
+
+Compared complete repository-owned baseline
+`b88c6bc09339de32f7d18bbab900686b244f42ba`
+`CPP/7zip/UI/GUI/UpdateGUI.cpp` and its header, including ShowDialog,
+property parsing/overrides and worker completion, with the current AddToArchive,
+Qt form, shell services and backend writer consumers. Original member hashes
+match the existing manifest. No new source import or baseline owner is involved.
+
+ShowDialog now uses the existing shared compression-property builder, retaining
+the upstream property order and explicit method overrides. Backend validation
+has separate feature, encoder and encryption checks; the selected method is
+resolved once while Store retains its distinct effective method. Validation
+order, memory/password diagnostics, update modes and native writer/cancellation
+remain unchanged. Qt presentation and platform adapters are unchanged.
+
+The previous test compared properties with another invocation of the same
+builder. Its method/order coverage now exercises real PPMd/LZMA2 archives,
+official-engine inspection and extraction with exact-byte checks in the existing
+creation suite. Existing shell/window, update-mode, cancellation, input-deletion
+and localized-error suites cover the surrounding scenario.
+
+Linux x64 passed five suites in `20261030T212222Z-ca10cc05`; compression's
+new PPMd inspection failed because the CLI spells the method in a different
+case. The case-insensitive method check and exact-byte extraction passed in
+`20261030T212551Z-3954573f` (CTest 2.17 s); production code was unchanged.
+macOS arm64 passed all six suites together (CTest 3.56 s).
+Windows x64 Limited desktop passed the same five surrounding/parameter suites
+in `20261030T212640Z-86d01b5e`; the lifecycle suite failed at symlink fixture
+creation. The unchanged lifecycle suite passed on the elevated desktop in
+`20261030T212945Z-a7d7fe60` (CTest 1.41 s). Ordinary-token symlink-fixture
+acceptance is not claimed. These are composed Linux/Windows results, not green
+initial batches. No full/slow gate or rendered visual-parity check was run.
+Incremental builds/caches were retained; temporary original-file extracts were
+removed and small run evidence retained. No heavy diagnostic artifacts were added.

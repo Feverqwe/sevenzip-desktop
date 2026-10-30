@@ -435,14 +435,9 @@ HRESULT ShowDialog(CCodecs *codecs, const CObjectVector<NWildcard::CCensorPath> 
     callback->PasswordIsDefined = !di.Password.isEmpty();
     if (callback->PasswordIsDefined)
         callback->Password = di.Password.toStdWString().c_str();
-    options.MethodMode.Properties.Clear();
-    const bool is7z = archiverInfo.Is_7z();
-    UStringVector optionStrings;
-    SplitOptionsToStrings(di.Options, optionStrings);
-    const bool methodOverride = IsThereMethodOverride(is7z, optionStrings);
-    SetOutProperties(options.MethodMode.Properties, di, is7z, !methodOverride);
+    options.MethodMode.Properties =
+        NCompressDialog::GetCompressionProperties(di, archiverInfo.Is_7z());
     options.OpenShareForWrite = di.OpenShareForWrite;
-    ParseAndAddPropertires(options.MethodMode.Properties, optionStrings);
     if (di.SFXMode)
         options.SfxMode = true;
     options.MethodMode.Type = COpenType();

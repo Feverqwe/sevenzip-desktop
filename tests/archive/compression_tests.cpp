@@ -26,35 +26,6 @@ class CompressionTests : public QObject {
     Q_OBJECT
 
   private slots:
-    void nativeInfoDrivesBackendProperties_data() {
-        QTest::addColumn<QString>("method");
-        QTest::addColumn<UInt32>("threads");
-        QTest::newRow("PPMd-order") << QString("PPMd") << UInt32(-1);
-        QTest::newRow("LZMA2-fast-bytes-threads") << QString("LZMA2") << UInt32(2);
-    }
-    void nativeInfoDrivesBackendProperties() {
-        QFETCH(QString, method);
-        QFETCH(UInt32, threads);
-        CompressionOptions options;
-        options.Level = 7;
-        options.Method = method.toStdWString().c_str();
-        options.Dict64 = 1 << 20;
-        options.Order = 8;
-        options.OrderMode = method == "PPMd";
-        options.NumThreads = threads;
-        CObjectVector<CProperty> actual;
-        QString error;
-        QVERIFY2(ArchiveBackend::compressionProperties("7z", {}, false, options, &actual, &error),
-                 qPrintable(error));
-        const auto expected = NCompressDialog::GetCompressionProperties(options, true);
-        QCOMPARE(actual.Size(), expected.Size());
-        FOR_VECTOR(i, expected) {
-            QCOMPARE(QString::fromWCharArray(actual[i].Name.Ptr()),
-                     QString::fromWCharArray(expected[i].Name.Ptr()));
-            QCOMPARE(QString::fromWCharArray(actual[i].Value.Ptr()),
-                     QString::fromWCharArray(expected[i].Value.Ptr()));
-        }
-    }
     void invalidNativeInfoIsRejected_data() {
         QTest::addColumn<QString>("field");
         for (const char *field : {"level", "method", "threads", "dictionary", "order"})
@@ -289,6 +260,7 @@ class CompressionTests : public QObject {
         QTest::addColumn<int>("level");
         QTest::newRow("7z-solid-off") << "7z" << "LZMA2" << 9;
         QTest::newRow("7z-level-two") << "7z" << "LZMA2" << 2;
+        QTest::newRow("7z-PPMd-order") << "7z" << "PPMd" << 7;
         QTest::newRow("zip-bzip2") << "zip" << "BZip2" << 9;
     }
 
@@ -301,7 +273,8 @@ class CompressionTests : public QObject {
         const QString source = temp.filePath(QStringLiteral("данные с пробелом.txt"));
         QFile file(source);
         QVERIFY(file.open(QIODevice::WriteOnly));
-        file.write(QByteArray(8192, 'a'));
+        const QByteArray bytes(8192, 'a');
+        QCOMPARE(file.write(bytes), bytes.size());
         file.close();
 
         const QString target = temp.filePath("archive." + format);
@@ -309,10 +282,11 @@ class CompressionTests : public QObject {
         options.Level = level;
         options.Method = method.toStdWString().c_str();
         options.NumThreads = method == "PPMd" && format == "7z" ? UInt32(-1) : 2;
+        options.Order = method == "LZMA2" || method == "PPMd" ? 8 : UInt32(-1);
         // Exercise level/method/solid transport with a bounded dictionary.
         // Level 9's default needs >2 GiB even for this 8 KiB fixture and can
         // correctly fail the source memory gate in the shared runner guest.
-        options.Dict64 = method == "LZMA2" ? UInt64(1 << 20) : UInt64(-1);
+        options.Dict64 = method == "LZMA2" || method == "PPMd" ? UInt64(1 << 20) : UInt64(-1);
         options.SolidIsSpecified = format == "7z";
         options.SolidBlockSize = 0;
         ArchiveBackend backend;
@@ -333,7 +307,15 @@ class CompressionTests : public QObject {
         inspect.start("7z", {"l", "-slt", "-sccUTF-8", "--", target});
         QVERIFY(inspect.waitForFinished(15000));
         QCOMPARE(inspect.exitCode(), 0);
-        QVERIFY(inspect.readAllStandardOutput().contains("Method = " + method.toUtf8()));
+        const QString listing = QString::fromUtf8(inspect.readAllStandardOutput());
+        QVERIFY2(listing.contains("Method = " + method, Qt::CaseInsensitive), qPrintable(listing));
+        const QString output = temp.filePath("extracted");
+        inspect.start("7z", {"x", "-y", "-o" + output, "--", target});
+        QVERIFY(inspect.waitForFinished(15000));
+        QCOMPARE(inspect.exitCode(), 0);
+        QFile extracted(QDir(output).filePath(QFileInfo(source).fileName()));
+        QVERIFY(extracted.open(QIODevice::ReadOnly));
+        QCOMPARE(extracted.readAll(), bytes);
     }
 
     void createsArchiveWithDictionaryWordAndSolidBlock() {
