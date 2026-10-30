@@ -1904,3 +1904,49 @@ The final registration passed again on Linux
 (`20261030T204212Z-79d2738c`, CTest 5.74 s) and macOS (5.66 s).
 Four disposable runtime deployments from the interrupted macOS batch were
 removed after checking process/file references; small failure evidence remains.
+
+## Open-archive extraction lifecycle — 2026-10-30
+
+Compared the repository-owned 7-Zip baseline
+`b88c6bc09339de32f7d18bbab900686b244f42ba`,
+`CPP/7zip/UI/FileManager/PanelCopy.cpp` (`CPanel::CopyTo` and its worker),
+`Panel.h` options and `CPP/7zip/UI/GUI/ExtractGUI.cpp` with the current
+Extract, archive F5/F6, batch extraction, path policy and completion consumers.
+No new upstream code, dependencies or baseline owners were imported. Existing
+native extraction algorithms and the recorded Qt presentation/path adaptations
+remain in their owning modules.
+
+The window adapter separates destination validation/creation from the scoped
+panel extraction call. Both extraction branches share operation entry and
+terminal publication, using the same scope decision as selection preparation.
+Validation still runs before and after destination creation; the source callback
+retains its output/link checks. Password selection, path/overwrite modes,
+registry-zone defaults for F5/F6, partial errors and cancellation are preserved.
+Borrowed panel extraction options now unwind with the joined CopyTo call,
+before completion can enter archive Move deletion and replace the folder proxy.
+
+Existing behavior suites cover ordinary and selected extraction, nested paths,
+Unicode/spaces, overwrite prompts/cancellation, bad-password retry, archive Move,
+metadata and damaged-archive consent. No new implementation-mirroring test or
+visual change was introduced. Focused platform results are recorded below.
+
+Linux x64: `ui_copy_same`, `ui_operations`, `nested_archive` and
+`archive_metadata_ui` passed in `20261030T204821Z-bb068496`;
+`archive_recovery_ui` reached its unchanged 45 s deadline without an assertion
+failure. The guest showed sustained I/O pressure and test threads waiting in
+`jbd2_log_wait_commit`. Its isolated repeat with the existing uncompressed RAM
+scratch passed in `20261030T210230Z-ac757e4f`, without rebuilding or changing
+product/tests/deadlines. The completed timeout's settings fixture was removed
+after process and open-reference checks; run evidence, disk builds and compiler
+caches were retained. macOS arm64 passed the same five suites (CTest 36.63 s).
+No full/slow gate or rendered visual-parity acceptance was requested or run.
+
+Windows x64 desktop: `ui_copy_same`, `ui_operations` and `nested_archive`
+passed in `20261030T210433Z-275331d7`. Recovery exceeded the same 45 s budget;
+metadata failed while creating its symlink fixture, before entering the changed
+code. Both passed unchanged in the focused elevated desktop repeat
+`20261030T211318Z-a39a98e9` (CTest 48.53 s), which supplies the fixture's existing
+symlink privilege without changing machine/account policy. Acceptance therefore
+combines the first three suites with this repeat; ordinary-token metadata
+acceptance is not claimed. Product sources and all test deadlines/assertions
+remained unchanged between platform runs.

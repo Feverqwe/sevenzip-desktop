@@ -18,6 +18,80 @@
 #include <QScopeGuard>
 #include <QScopedValueRollback>
 
+namespace {
+QString PrepareExtractionDestination(ArchiveBackend &backend, QtArchiveFileResource &resource,
+                                     const QString &destination, const QStringList &names,
+                                     const ExtractionOptions &options, const QString &archiveFolder,
+                                     QWidget *parent) {
+    QString error;
+    const auto validate = [&](const QString &path) {
+        return backend.validateExtraction(
+            path, names, options, &error, resource.HasNativeExtractService(), archiveFolder,
+            resource.UsesNativeMetadata() ? resource.NativeArchiveLink()->GetArc() : nullptr);
+    };
+    if (!validate(destination)) {
+        QMessageBox::warning(parent, QtLangText(IDS_PROGRESS_EXTRACTING), error);
+        return {};
+    }
+    const QString output = QFileInfo(destination).absoluteFilePath();
+    if (!QDir().mkpath(output) || !validate(output)) {
+        QMessageBox::warning(
+            parent, QtLangText(IDS_PROGRESS_EXTRACTING),
+            error.isEmpty() ? QCoreApplication::translate("mainwindow_archivecommands",
+                                                          "Could not create destination folder: %1")
+                                  .arg(destination)
+                            : error);
+        return {};
+    }
+    return output;
+}
+
+HRESULT ExtractPanelItems(CPanel &panel, CAgentFolder &folder, const QString &output,
+                          const QString &password, const ExtractionOptions &options,
+                          const CRecordVector<UInt32> &indices, bool explicitIndices,
+                          UStringVector &messages) {
+    CCopyToOptions sourceOptions;
+    CQtExtractPathPolicy pathPolicy(output);
+    CExtractNtOptions ntOptions;
+    ntOptions.NtSecurity = options.NtSecurity;
+    ntOptions.QtPathPolicy = &pathPolicy;
+    QScopedValueRollback<const CExtractNtOptions *> extractOptions(folder.QtExtractNtOptions,
+                                                                   &ntOptions);
+    sourceOptions.extractMode = options.pathMode != ExtractionOptions::PathMode::CurrentPaths;
+    sourceOptions.folder = ToUString(QDir::toNativeSeparators(output));
+    sourceOptions.pathMode = options.pathMode == ExtractionOptions::PathMode::NoPaths
+                                 ? NExtract::NPathMode::kNoPaths
+                             : options.pathMode == ExtractionOptions::PathMode::AbsolutePaths
+                                 ? NExtract::NPathMode::kAbsPaths
+                                 : NExtract::NPathMode::kFullPaths;
+    // F5/F6 retains CCopyToOptions' registry-zone default. The explicit Extract
+    // dialog has its own options.
+    if (!explicitIndices)
+        sourceOptions.NeedRegistryZone = false;
+    sourceOptions.showErrorMessages = true;
+    switch (options.overwriteMode) {
+    case ExtractionOptions::OverwriteMode::Ask:
+        break;
+    case ExtractionOptions::OverwriteMode::OverwriteExisting:
+        sourceOptions.overwriteMode = NExtract::NOverwriteMode::kOverwrite;
+        break;
+    case ExtractionOptions::OverwriteMode::SkipExisting:
+    case ExtractionOptions::OverwriteMode::RejectExisting:
+        sourceOptions.overwriteMode = NExtract::NOverwriteMode::kSkip;
+        break;
+    case ExtractionOptions::OverwriteMode::RenameExtracted:
+        sourceOptions.overwriteMode = NExtract::NOverwriteMode::kRename;
+        break;
+    case ExtractionOptions::OverwriteMode::RenameExisting:
+        sourceOptions.overwriteMode = NExtract::NOverwriteMode::kRenameExisting;
+        break;
+    }
+    bool usePassword = !password.isEmpty();
+    UString sourcePassword = ToUString(password);
+    return panel.CopyTo(sourceOptions, indices, &messages, usePassword, sourcePassword);
+}
+} // namespace
+
 void MainWindow::calculateHash(const QString &method) {
     if (app_.QtOperations().closed())
         return;
@@ -226,123 +300,48 @@ bool MainWindow::extractWithSource(const QString &destination, bool onlySelected
         if (validationNames.isEmpty())
             return true;
     }
-    {
-        QString validationError;
-        const bool sourceLinks = resource->HasNativeExtractService();
-        if (!backend_->validateExtraction(destination, validationNames, options, &validationError,
-                                          sourceLinks, archiveFolder_,
-                                          resource->UsesNativeMetadata()
-                                              ? resource->NativeArchiveLink()->GetArc()
-                                              : nullptr)) {
-            QMessageBox::warning(this, QtLangText(IDS_PROGRESS_EXTRACTING), validationError);
-            return true;
-        }
-        const QString output = QFileInfo(destination).absoluteFilePath();
-        if (!QDir().mkpath(output) ||
-            !backend_->validateExtraction(
-                output, validationNames, options, &validationError, sourceLinks, archiveFolder_,
-                resource->UsesNativeMetadata() ? resource->NativeArchiveLink()->GetArc()
-                                               : nullptr)) {
-            QMessageBox::warning(
-                this, QtLangText(IDS_PROGRESS_EXTRACTING),
-                validationError.isEmpty()
-                    ? QCoreApplication::translate("mainwindow_archivecommands",
-                                                  "Could not create destination folder: %1")
-                          .arg(destination)
-                    : validationError);
-            return true;
-        }
-        if (!onlySelected && archiveFolder_.isEmpty() && !resource->HasDirectInput() &&
-            !resource->UsesNativeMetadata() && resource->FilesystemReadLimitations().isEmpty()) {
-            previousState_ = state_;
-            setState(State::Operating);
-            operationName_ = QtLangText(IDS_PROGRESS_EXTRACTING);
-            QtArchiveBatchResult result;
-            {
-                QScopedValueRollback<bool> progressOwner(sourceArchiveProgress_, true);
-                ExtractionOptions sourceOptions = options;
-                // Validation above implements RejectExisting. If a file appears
-                // afterwards, source Skip also preserves it without overwriting.
-                if (sourceOptions.overwriteMode == ExtractionOptions::OverwriteMode::RejectExisting)
-                    sourceOptions.overwriteMode = ExtractionOptions::OverwriteMode::SkipExisting;
-                result = RunQtArchiveBatchExtract(*backend_, {archive_}, output,
-                                                  password.isEmpty() ? archivePassword_ : password,
-                                                  sourceOptions, this);
-            }
-            const bool ok = result.Result == S_OK && result.CallbackOK;
-            const QString message =
-                ok ? QCoreApplication::translate("mainwindow_archivecommands",
-                                                 "Extraction completed.")
-                : result.Result == E_ABORT
-                    ? QCoreApplication::translate("mainwindow_archivecommands",
-                                                  "Operation canceled.")
-                : result.Result == S_OK
-                    ? QCoreApplication::translate("mainwindow_archivecommands",
-                                                  "Extraction completed with errors.")
-                    : QString::fromWCharArray(HResultToMessage(result.Result));
-            backendFinished(ok, message, result.Result, result.MessageWasDisplayed);
-            return true;
-        }
-        previousState_ = state_;
-        setState(State::Operating);
-        operationName_ = QtLangText(IDS_COPYING); // PanelCopy::CopyTo title owner
-        CCopyToOptions sourceOptions;
-        CQtExtractPathPolicy pathPolicy(output);
-        CExtractNtOptions ntOptions;
-        ntOptions.NtSecurity = options.NtSecurity;
-        ntOptions.QtPathPolicy = &pathPolicy;
-        QScopedValueRollback<const CExtractNtOptions *> extractOptions(folder->QtExtractNtOptions,
-                                                                       &ntOptions);
-        sourceOptions.extractMode = options.pathMode != ExtractionOptions::PathMode::CurrentPaths;
-        sourceOptions.folder = ToUString(QDir::toNativeSeparators(output));
-        sourceOptions.pathMode = options.pathMode == ExtractionOptions::PathMode::NoPaths
-                                     ? NExtract::NPathMode::kNoPaths
-                                 : options.pathMode == ExtractionOptions::PathMode::AbsolutePaths
-                                     ? NExtract::NPathMode::kAbsPaths
-                                     : NExtract::NPathMode::kFullPaths;
-        // F5/F6 supplies captured source indices and retains CCopyToOptions'
-        // registry-zone default. The explicit Extract dialog has its own options.
-        if (!explicitIndices)
-            sourceOptions.NeedRegistryZone = false;
-        sourceOptions.showErrorMessages = true;
-        {
-            switch (options.overwriteMode) {
-            case ExtractionOptions::OverwriteMode::Ask:
-                break;
-            case ExtractionOptions::OverwriteMode::OverwriteExisting:
-                sourceOptions.overwriteMode = NExtract::NOverwriteMode::kOverwrite;
-                break;
-            case ExtractionOptions::OverwriteMode::SkipExisting:
-            case ExtractionOptions::OverwriteMode::RejectExisting:
-                sourceOptions.overwriteMode = NExtract::NOverwriteMode::kSkip;
-                break;
-            case ExtractionOptions::OverwriteMode::RenameExtracted:
-                sourceOptions.overwriteMode = NExtract::NOverwriteMode::kRename;
-                break;
-            case ExtractionOptions::OverwriteMode::RenameExisting:
-                sourceOptions.overwriteMode = NExtract::NOverwriteMode::kRenameExisting;
-                break;
-            }
-        }
-        bool usePassword = !password.isEmpty() || !archivePassword_.isEmpty();
-        UString sourcePassword = ToUString(password.isEmpty() ? archivePassword_ : password);
-        UStringVector messages;
-        HRESULT result;
-        {
-            QScopedValueRollback<bool> progressOwner(sourceArchiveProgress_, true);
-            result = panel.CopyTo(sourceOptions, indices, &messages, usePassword, sourcePassword);
-        }
-        const bool ok = result == S_OK && messages.IsEmpty();
-        QString message =
-            ok ? QCoreApplication::translate("mainwindow_archivecommands", "Extraction completed.")
-            : result == E_ABORT
-                ? QCoreApplication::translate("mainwindow_archivecommands", "Operation canceled.")
-                : QString::fromWCharArray(HResultToMessage(result));
-        if (!messages.IsEmpty())
-            message = ToQString(messages[0]);
-        backendFinished(ok, message, result, !messages.IsEmpty());
+    const QString output = PrepareExtractionDestination(
+        *backend_, *resource, destination, validationNames, options, archiveFolder_, this);
+    if (output.isEmpty())
         return true;
+    previousState_ = state_;
+    setState(State::Operating);
+    operationName_ = QtLangText(scoped ? IDS_COPYING : IDS_PROGRESS_EXTRACTING);
+    const QString sourcePassword = password.isEmpty() ? archivePassword_ : password;
+    QtArchiveBatchResult result;
+    QString message;
+    {
+        QScopedValueRollback<bool> progressOwner(sourceArchiveProgress_, true);
+        if (!scoped) {
+            ExtractionOptions sourceOptions = options;
+            // Validation above implements RejectExisting. If a file appears
+            // afterwards, source Skip also preserves it without overwriting.
+            if (sourceOptions.overwriteMode == ExtractionOptions::OverwriteMode::RejectExisting)
+                sourceOptions.overwriteMode = ExtractionOptions::OverwriteMode::SkipExisting;
+            result = RunQtArchiveBatchExtract(*backend_, {archive_}, output, sourcePassword,
+                                              sourceOptions, this);
+        } else {
+            UStringVector messages;
+            result.Result = ExtractPanelItems(panel, *folder, output, sourcePassword, options,
+                                              indices, explicitIndices != nullptr, messages);
+            result.CallbackOK = messages.IsEmpty();
+            result.MessageWasDisplayed = !messages.IsEmpty();
+            if (!messages.IsEmpty())
+                message = ToQString(messages[0]);
+        }
     }
+    const bool ok = result.Result == S_OK && result.CallbackOK;
+    if (!scoped || !result.MessageWasDisplayed)
+        message =
+            ok ? QCoreApplication::translate("mainwindow_archivecommands", "Extraction completed.")
+            : result.Result == E_ABORT
+                ? QCoreApplication::translate("mainwindow_archivecommands", "Operation canceled.")
+            : result.Result == S_OK
+                ? QCoreApplication::translate("mainwindow_archivecommands",
+                                              "Extraction completed with errors.")
+                : QString::fromWCharArray(HResultToMessage(result.Result));
+    backendFinished(ok, message, result.Result, result.MessageWasDisplayed);
+    return true;
 }
 
 void MainWindow::testArchive() {
