@@ -201,9 +201,7 @@ void MainWindow::applyFlatView(bool enabled) {
     // A user mode change supersedes the current scan. Join its folder loader
     // before source RefreshListCtrl reuses that same IFolderFolder instance.
     filesystemScanner_->cancelAndWait();
-    listProjection_->cancel();
-    scanningDisk_ = false;
-    scanningArchive_ = false;
+    cancelListPublication();
     QSettings settings(toolbarSettingsPath(), QSettings::IniFormat);
     {
         const QSignalBlocker block(flatView_);

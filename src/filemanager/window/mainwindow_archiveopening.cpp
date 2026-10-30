@@ -72,12 +72,7 @@ HRESULT MainWindow::openArchiveAs(const QString &path, const QString &type) {
             QCoreApplication::translate("mainwindow_archiveopening", "File not found: ") + path);
         return E_INVALIDARG;
     }
-    filesystemScanner_->cancel();
-    listProjection_->cancel();
-    scanningArchive_ = false;
-    scanningDisk_ = false;
-    scanSelectedState_.reset();
-    scanSelectedPaths_.reset();
+    cancelListPublication();
     if (state_ == State::Filesystem)
         returnDirectory_ = directory_;
     auto &panel = app_.GetFocusedPanel();

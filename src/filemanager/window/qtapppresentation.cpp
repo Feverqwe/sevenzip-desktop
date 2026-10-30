@@ -132,12 +132,7 @@ void QtAppPresentation::RefreshFolder(unsigned index) {
 
 void QtAppPresentation::PrepareFolderChange(unsigned index) {
     window_.withPanelProjection(index, [this] {
-        window_.filesystemScanner_->cancel();
-        window_.listProjection_->cancel();
-        window_.scanningDisk_ = false;
-        window_.scanningArchive_ = false;
-        window_.scanSelectedState_.reset();
-        window_.scanSelectedPaths_.reset();
+        window_.cancelListPublication();
         window_.setState(window_.state_);
     });
 }

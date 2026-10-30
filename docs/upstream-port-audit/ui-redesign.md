@@ -1631,3 +1631,32 @@ Windows: `20261030T102242Z-ba4aaaa4`, 3/3 PASS одним batch, 102,48 с CTest
 Лимиты тестов не менялись. Full/slow gate и визуальная паритетность
 этими прогонами не заявляются. Временный snapshot исходника удалён;
 лог pre-fix ошибки, receipts, incremental outputs и compiler caches сохранены.
+
+## Единая отмена заменяемого списка — 2026-10-30
+
+Сопоставлены исходные App.cpp::OnSetSameFolder/OnSetSubFolder и границы
+PanelItems.cpp::RefreshListCtrl с локальными rebinding/publication callers.
+Исходные команды, binding, выделение, сортировка и notification guards
+сохранены; новых заимствований или изменений baseline нет.
+
+Шесть входов замены списка используют одну отмену Qt-публикации текущей
+панели: оба загрузчика, флаги, отложенное выделение и viewport очищаются вместе.
+Ранее эти блоки дублировались с разными подмножествами полей. Новый метод
+не меняет режим приложения и не освобождает его guards посередине rebinding.
+Flat View по-прежнему явно ждёт worker перед повторным использованием папки;
+обычная навигация только отменяет работу. Синхронизация остаётся привязана
+к исходно выбранной панели. Failure с модальным сообщением и shutdown/join
+сохранили отдельные lifecycles и прежний порядок блокировок.
+
+Новых тестов приватного helper нет: существующие filesystem_reload,
+large_list_window, panel_folder_sync и ui_archive_states проверяют наблюдаемую
+навигацию во время обновления, ошибки/повтор, Flat View, peer и archive return.
+
+Linux: `20261030T104711Z-7831c5a7`, 4/4 PASS, 20,96 с CTest.
+macOS: те же 4/4 PASS, 12,21 с CTest; 77 Qt checks без пропусков.
+Windows: `20261030T105103Z-86bfabd5`, 4/4 PASS одним batch, 221,53 с CTest.
+Отдельный SSH-запрос статуса Linux завершился по таймауту; основной runner
+завершился штатно и сохранил matching-token PASS receipt, повтор не запускался.
+Тесты и лимиты не менялись; full/slow gate и визуальная паритетность не заявляются.
+Временный source snapshot удалён после сравнения; небольшие receipts,
+incremental builds и compiler caches сохранены.

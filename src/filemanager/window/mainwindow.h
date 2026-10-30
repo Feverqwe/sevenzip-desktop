@@ -156,6 +156,7 @@ class MainWindow : public QMainWindow {
     void createPanelActions(QMenu *editMenu);
     void createIconList(QWidget *central);
     void connectFilesystemScanner();
+    void cancelListPublication();
     void failFilesystemListing(HRESULT result);
     void connectBackend();
     void backendFinished(bool ok, const QString &message, HRESULT result,

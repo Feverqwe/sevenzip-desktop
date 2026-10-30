@@ -18,12 +18,7 @@ HRESULT MainWindow::renderRootFolder(bool updateAddress) {
     auto disableNotify = std::make_unique<CPanel::CDisableNotify>(panel);
     table_->setSortingEnabled(false);
     IFolderFolder *folder = panel.GetFolder();
-    filesystemScanner_->cancel();
-    listProjection_->cancel();
-    scanningArchive_ = false;
-    scanningDisk_ = false;
-    scanSelectedState_.reset();
-    scanSelectedPaths_.reset();
+    cancelListPublication();
     archive_.clear();
     displayArchive_.clear();
     archivePassword_.clear();

@@ -202,6 +202,16 @@ void MainWindow::connectFilesystemScanner() {
     listProjection_ = panelUi_[projectedPanel_].listProjection;
 }
 
+void MainWindow::cancelListPublication() {
+    filesystemScanner_->cancel();
+    listProjection_->cancel();
+    scanningDisk_ = false;
+    scanningArchive_ = false;
+    scanSelectedState_.reset();
+    scanSelectedPaths_.reset();
+    pendingViewport_.reset();
+}
+
 void MainWindow::failFilesystemListing(HRESULT result) {
     auto &panel = app_.GetFocusedPanel();
     scanSelectedState_.reset();

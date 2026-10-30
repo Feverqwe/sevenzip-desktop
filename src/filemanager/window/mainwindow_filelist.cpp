@@ -34,13 +34,7 @@ HRESULT MainWindow::showDirectory(const QString &path, bool remember, bool sourc
         history_.append(ToQString(GetFolderPath(app_.GetFocusedPanel().GetFolder())));
     else if (remember && !directory_.isEmpty() && directory_ != next)
         history_.append(directory_);
-    filesystemScanner_->cancel();
-    listProjection_->cancel();
-    scanningArchive_ = false;
-    scanningDisk_ = false;
-    scanSelectedState_.reset();
-    scanSelectedPaths_.reset();
-    pendingViewport_.reset();
+    cancelListPublication();
     if (!sourceAlreadyBound)
         app_.GetFocusedPanel().CloseOpenFolders();
     directory_ = next;

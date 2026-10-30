@@ -17,10 +17,7 @@
 #include <QScopedValueRollback>
 
 HRESULT MainWindow::renderArchiveFolder(bool updateAddress) {
-    listProjection_->cancel();
-    scanningArchive_ = false;
-    scanSelectedState_.reset();
-    scanSelectedPaths_.reset();
+    cancelListPublication();
     auto &panel = app_.GetFocusedPanel();
     std::optional<CPanel::CDisableTimerProcessing> disableTimerProcessing;
     std::optional<CPanel::CDisableNotify> disableNotify;
