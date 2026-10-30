@@ -154,15 +154,12 @@ void QtAppPresentation::ExecuteCopy(bool move, bool copyToSame, unsigned sourceI
     window_.activatePanelUi(sourceIndex);
     if (!window_.app_.QtOperations().Begin(QtAppOperationState::Kind::Operation))
         return;
-    copySource_ = sourceIndex;
-    copyPending_ = true;
-    copyFinished_ = false;
-    copyRefreshDestination_ = !copyToSame;
-    copyRefreshSource_ = move || copyToSame;
-    copyExecuting_ = true;
-    window_.executeCopyDestination(move, copyToSame, sourceIndex, destination, indices,
-                                   useDestPanel, useTemp);
-    copyExecuting_ = false;
+    copy_.emplace(sourceIndex, move, copyToSame);
+    {
+        QScopedValueRollback<bool> executing(copy_->executing, true);
+        window_.executeCopyDestination(move, copyToSame, sourceIndex, destination, indices,
+                                       useDestPanel, useTemp);
+    }
     if (window_.state_ != MainWindow::State::Operating &&
         window_.app_.QtOperations().kind() == QtAppOperationState::Kind::Operation) {
         window_.app_.QtOperations().End();
@@ -173,47 +170,53 @@ void QtAppPresentation::ExecuteCopy(bool move, bool copyToSame, unsigned sourceI
 }
 
 void QtAppPresentation::CopyFinished() {
-    if (!copyPending_)
+    if (!copy_)
         return;
-    copyFinished_ = true;
+    copy_->finished = true;
     CompleteCopyIfReady();
 }
 
 void QtAppPresentation::CompleteCopyIfReady() {
-    if (!copyPending_ || copyExecuting_ || !copyFinished_ || window_.app_.QtOperations().active())
+    if (!copy_ || copy_->executing || !copy_->finished || window_.app_.QtOperations().active())
         return;
-    if (copyRefreshSource_ && !window_.app_.QtOperations().closed()) {
-        QScopedValueRollback<bool> publishing(copyExecuting_, true);
-        RefreshCopyPanel(copySource_);
+    if (copy_->refreshSource && !window_.app_.QtOperations().closed()) {
+        QScopedValueRollback<bool> publishing(copy_->executing, true);
+        RefreshCopyPanel(copy_->source);
     }
     if (window_.app_.QtOperations().active())
         return;
-    if (copyRefreshDestination_ && !window_.app_.QtOperations().closed()) {
-        copyRefreshDestination_ = false;
+    if (copy_->refreshDestination && !window_.app_.QtOperations().closed()) {
+        copy_->refreshDestination = false;
         // Original OnCopy refreshes its destination panel even when the typed
         // output is elsewhere, ignoring the RefreshListCtrl result.
-        QScopedValueRollback<bool> publishing(copyExecuting_, true);
-        const unsigned destination = window_.app_.NumPanels <= 1 ? copySource_ : 1 - copySource_;
+        QScopedValueRollback<bool> publishing(copy_->executing, true);
+        const unsigned destination =
+            window_.app_.NumPanels <= 1 ? copy_->source : 1 - copy_->source;
         RefreshCopyPanel(destination);
     }
     if (window_.app_.QtOperations().active())
         return;
-    copyPending_ = false;
+    const unsigned source = copy_->source;
+    // Panel activation and source completion can re-enter action refresh.
+    // Release this request first so it cannot be completed a second time.
+    copy_.reset();
     if (!window_.app_.QtOperations().closed())
-        window_.activatePanelUi(copySource_);
+        window_.activatePanelUi(source);
     window_.app_.CompleteCopy();
     window_.refreshActions();
 }
 
 void QtAppPresentation::CopyDestinationRefreshed(unsigned index) {
-    const unsigned destination = window_.app_.NumPanels <= 1 ? copySource_ : 1 - copySource_;
-    if (copyPending_ && index == destination)
-        copyRefreshDestination_ = false;
+    if (!copy_)
+        return;
+    const unsigned destination = window_.app_.NumPanels <= 1 ? copy_->source : 1 - copy_->source;
+    if (index == destination)
+        copy_->refreshDestination = false;
 }
 
 void QtAppPresentation::CopySourceRefreshed(unsigned index) {
-    if (copyPending_ && index == copySource_)
-        copyRefreshSource_ = false;
+    if (copy_ && index == copy_->source)
+        copy_->refreshSource = false;
 }
 
 void QtAppPresentation::RefreshCopyPanel(unsigned index) {

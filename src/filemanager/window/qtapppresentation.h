@@ -27,7 +27,7 @@ class QtAppPresentation final : public IQtAppPresentation {
     void CopyDestinationRefreshed(unsigned index);
     void RefreshCopyPanel(unsigned index);
     void CopySourceRefreshed(unsigned index);
-    bool IsCopyPending() const { return copyPending_; }
+    bool IsCopyPending() const { return copy_.has_value(); }
     void RequestInitialFocus(unsigned index);
     void RequestListFocus(unsigned index);
     void CompleteInitialFocusIfReady();
@@ -37,10 +37,14 @@ class QtAppPresentation final : public IQtAppPresentation {
     MainWindow &window_;
     QMenu *editMenu_ = nullptr;
     std::optional<unsigned> initialFocus_;
-    unsigned copySource_ = 0;
-    bool copyPending_ = false;
-    bool copyExecuting_ = false;
-    bool copyFinished_ = false;
-    bool copyRefreshDestination_ = false;
-    bool copyRefreshSource_ = false;
+    struct CopyContinuation {
+        CopyContinuation(unsigned index, bool move, bool copyToSame)
+            : source(index), refreshSource(move || copyToSame), refreshDestination(!copyToSame) {}
+        const unsigned source;
+        bool executing = false;
+        bool finished = false;
+        bool refreshSource;
+        bool refreshDestination;
+    };
+    std::optional<CopyContinuation> copy_;
 };
