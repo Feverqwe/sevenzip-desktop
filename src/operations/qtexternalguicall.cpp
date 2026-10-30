@@ -11,35 +11,38 @@
 #include <memory>
 
 namespace {
+enum class Phase { Pending, Checking, Running, Cancelled };
+
 struct Request {
+    Request(const std::function<int()> &body, const std::function<bool()> &canDeliver)
+        : body(body), canDeliver(canDeliver) {}
     QSemaphore ready;
-    // Pending -> Running or Cancelled. A delivered body keeps its worker
-    // record alive until completion; modal closure uses CanCloseNow.
-    std::atomic_int phase{0};
+    // Checking and Running retain worker captures. Only Pending can be
+    // cancelled; modal closure of delivered work uses CanCloseNow.
+    std::atomic<Phase> phase{Phase::Pending};
+    const std::function<int()> body;
+    const std::function<bool()> canDeliver;
     int result = 0;
     std::exception_ptr error;
 };
 
-void Deliver(const std::shared_ptr<Request> &request, QObject *context,
-             const std::function<int()> &body, const std::function<bool()> &ready) {
-    int pending = 0;
-    if (!request->phase.compare_exchange_strong(pending, 3)) {
+void Deliver(const std::shared_ptr<Request> &request, QObject *context) {
+    auto pending = Phase::Pending;
+    if (!request->phase.compare_exchange_strong(pending, Phase::Checking)) {
         request->ready.release();
         return;
     }
     try {
-        if (ready && !ready()) {
-            request->phase.store(0);
-            QTimer::singleShot(25, context, [request, context, body, ready] {
-                Deliver(request, context, body, ready);
-            });
+        if (request->canDeliver && !request->canDeliver()) {
+            request->phase.store(Phase::Pending);
+            QTimer::singleShot(25, context, [request, context] { Deliver(request, context); });
             return;
         }
-        request->phase.store(1);
-        request->result = body();
+        request->phase.store(Phase::Running);
+        request->result = request->body();
     } catch (...) {
         // Retire delivery even if readiness or rescheduling failed first.
-        request->phase.store(1);
+        request->phase.store(Phase::Running);
         request->error = std::current_exception();
     }
     request->ready.release();
@@ -55,14 +58,14 @@ int QtExternalGuiCall(QWidget *window, CExitEventLauncher &launcher,
         return 0;
     if (QThread::currentThread() == context->thread())
         return body();
-    const auto request = std::make_shared<Request>();
+    const auto request = std::make_shared<Request>(body, ready);
     QMetaObject::invokeMethod(
-        context, [request, context, body, ready] { Deliver(request, context, body, ready); },
-        Qt::QueuedConnection);
+        context, [request, context] { Deliver(request, context); }, Qt::QueuedConnection);
     while (!request->ready.tryAcquire(1, 25)) {
         if (launcher.Exiting()) {
-            int pending = 0;
-            if (request->phase.compare_exchange_strong(pending, 2) || pending == 2)
+            auto pending = Phase::Pending;
+            if (request->phase.compare_exchange_strong(pending, Phase::Cancelled) ||
+                pending == Phase::Cancelled)
                 return 0;
         }
     }

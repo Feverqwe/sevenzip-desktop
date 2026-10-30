@@ -79,6 +79,48 @@ class ExternalGuiCallTests final : public QObject {
         QCOMPARE(result, 0);
         QVERIFY(!invoked);
     }
+    void exitAfterDeliveryRetainsWorker_data() {
+        QTest::addColumn<bool>("duringReadiness");
+        QTest::newRow("checking") << true;
+        QTest::newRow("running") << false;
+    }
+    void exitAfterDeliveryRetainsWorker() {
+        QFETCH(bool, duringReadiness);
+        QWidget window;
+        CExitEventLauncher launcher;
+        std::atomic_bool completed{false};
+        bool retained = false;
+        int result = 0;
+        const auto exitAndObserve = [&] {
+            launcher.Exit(false);
+            // Allow the waiting worker to observe exit while the GUI still
+            // uses its callback captures. Delivered work must finish first.
+            QTest::qWait(100);
+            retained = !completed.load();
+        };
+        std::thread worker([&] {
+            result = QtExternalGuiCall(
+                &window, launcher,
+                [&] {
+                    if (!duringReadiness)
+                        exitAndObserve();
+                    return 73;
+                },
+                [&] {
+                    if (duringReadiness)
+                        exitAndObserve();
+                    return true;
+                });
+            completed.store(true);
+        });
+        const auto join = qScopeGuard([&] {
+            launcher.Exit(false);
+            worker.join();
+        });
+        QTRY_VERIFY(completed.load());
+        QVERIFY(retained);
+        QCOMPARE(result, 73);
+    }
 };
 
 QTEST_MAIN(ExternalGuiCallTests)
