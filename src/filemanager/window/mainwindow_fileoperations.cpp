@@ -93,33 +93,33 @@ void MainWindow::transferFiles(const QStringList &sources, const QString &destin
             sync->Set_NumBytesCur(completed);
         },
         Qt::DirectConnection);
-    connect(fileTransfer_, &FileTransferOperation::result, this,
-            [this, operation](bool success, const QString &message) {
-                if (app_.QtOperations().closed())
-                    return;
-                operation->wait();
-                if (!success &&
-                    operation->resultKind() != FileTransferOperation::ResultKind::Canceled &&
-                    progress_)
-                    progress_->Sync.FinalMessage.ErrorMessage.Message = ToUString(message);
-                closeProgressDialog(true);
-                if (success)
-                    statusBar()->showMessage(message);
-            });
     const unsigned sourcePanel = app_.GetFocusedPanelIndex();
     const unsigned destinationPanel = 1 - sourcePanel;
     const bool refreshDestination = app_.NumPanels == 2 &&
                                     panelUi_[destinationPanel].state == State::Filesystem &&
                                     QDir::cleanPath(panelUi_[destinationPanel].directory) ==
                                         QDir::cleanPath(destinationDirectory);
-    connect(operation, &QThread::finished, this,
+    connect(operation, &FileTransferOperation::result, this,
             [this, operation, sources, sourcePanel, destinationPanel, refreshDestination,
-             refreshSource] {
+             refreshSource](bool success, const QString &message) {
                 if (app_.QtOperations().closed())
                     return;
-                operation->deleteLater();
+                // Join and release the worker before terminal dialogs/panels
+                // publish readiness. No second signal owns the continuation.
+                operation->wait();
+                const bool canceled =
+                    operation->resultKind() == FileTransferOperation::ResultKind::Canceled;
                 if (fileTransfer_ == operation)
                     fileTransfer_ = nullptr;
+                operation->deleteLater();
+                if (!success && !canceled && progress_)
+                    progress_->Sync.FinalMessage.ErrorMessage.Message = ToUString(message);
+                const QPointer<MainWindow> guard(this);
+                closeProgressDialog(true);
+                if (!guard || app_.QtOperations().closed())
+                    return;
+                if (success)
+                    statusBar()->showMessage(message);
                 if (refreshSource) {
                     showDirectory(directory_, false, true);
                     selectPaths(sources);

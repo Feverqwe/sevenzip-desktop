@@ -1735,3 +1735,44 @@ PASS, 11,45 с CTest; штатный Windows CTest-повтор
 Full/slow gate и визуальная паритетность не заявляются. Временные snapshot,
 диагностический скрипт и настройки удалены; небольшие receipts, исходные ошибки,
 incremental builds и compiler caches сохранены.
+
+## Единое завершение файлового Copy/Move — 2026-10-30
+
+Сопоставлены исходные App.cpp::CApp::OnCopy и PanelCopy.cpp::CPanel::CopyTo
+из записанного архива 0766b733fe3e06dd2a7f9a3cfbf2108ac73abd17, текущие
+executeCopyDestination/transferFiles, все terminal emissions FileTransferOperation
+и QtFileTransferTransaction, CopyFinished и shutdown. Алгоритмы файловых операций,
+rollback, маршрутизация и native selection/refresh policy не менялись; нового
+импорта или изменения baseline нет.
+
+Завершение Qt filesystem worker больше не разделено между result и queued
+QThread::finished. Один обработчик дожидается worker, сохраняет результат отмены,
+снимает владение и затем выполняет прежнюю последовательность финального диалога,
+статуса, обновления панелей и source continuation. После финального диалога
+проверяется lifetime/close окна. Это упрощение протокола завершения; отдельный
+пользовательский сбой доставки сигналов не заявляется.
+
+Проверка использует существующие поведенческие наборы worker_window_progress,
+ui_copy_routing, copy_publication_order, file_transfer и file_transfer_direct:
+успех, ошибка, отмена, Copy/Move, прямой путь, Unicode/пробелы, обновление и
+выделение обеих панелей, закрытие во время worker callback. Новые проверки
+внутреннего порядка сигналов не добавляются.
+
+Linux disk batch `20261030T124932Z-217fd0e1`: 4/5 PASS;
+ui_copy_routing превысил общий лимит 120 с. Полный диагностический повтор
+`20261030T125442Z-1ea376dc`: 87 Qt checks PASS без пропусков,
+278,51 с полного процесса. Во время прогона процесс ожидал
+jbd2_log_wait_commit, I/O pressure full avg10 составлял 53,59%.
+Исходный таймаут и диагностический лог сохранены; лимиты и сценарии не менялись.
+Одноразовый диагностический скрипт удалён; после проверки отсутствия активного
+теста удалена оставшаяся 15-МБ startup runtime-копия его завершённого fixture.
+Штатный Linux-повтор всех пяти наборов `20261030T130059Z-4f217996`
+PASS одним batch, 39,04 с CTest. Использован существующий tmpfs scratch
+для временных данных; build/runtime/compiler cache остались на диске,
+повторная сборка не потребовалась. Это приёмка с RAM scratch; скорость
+на дисковом временном каталоге не заявляется.
+macOS: те же пять наборов PASS одним batch, 76,72 с CTest;
+140 Qt checks без пропусков. Визуальная паритетность этим запуском не принимается.
+Windows `20261030T130229Z-c1c99022`: те же пять наборов PASS одним batch,
+295,70 с CTest. Full/slow gate не запускался. Полезные incremental outputs,
+compiler caches и небольшие логи/receipts сохранены.
