@@ -90,9 +90,15 @@ class DragDropAddUiTests final : public QObject {
         QCoreApplication::sendEvent(table->viewport(), &enter);
         QVERIFY(enter.isAccepted());
         bool errorShown = false;
+        bool choiceShown = false;
         QTimer respond;
         connect(&respond, &QTimer::timeout, &window, [&] {
             if (auto *error = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                if (error->objectName() == "droppedPathAction") {
+                    choiceShown = true;
+                    error->button(QMessageBox::Open)->click();
+                    return;
+                }
                 errorShown = true;
                 error->accept();
             }
@@ -102,6 +108,7 @@ class DragDropAddUiTests final : public QObject {
                         Qt::NoModifier);
         QCoreApplication::sendEvent(table->viewport(), &drop);
         respond.stop();
+        QCOMPARE(choiceShown, !multiple);
         if (multiple) {
             QTRY_COMPARE(backend.Results.size(), 1);
             QCOMPARE(backend.Results.first().Status, QtOperationResult::Outcome::Cancelled);

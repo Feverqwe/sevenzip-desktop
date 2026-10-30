@@ -62,10 +62,13 @@ def run(args):
                 assert not actual["timedOut"], actual
                 assert actual["windows"] == 1, actual
                 assert actual["archives"] == (1 if mode == "document" else 0), actual
+                assert not actual["wrongDocumentShown"], actual
                 assert Path(actual["executable"]).resolve() == binary.resolve(), actual
                 assert hashlib.sha256(archive.read_bytes()).digest() == digest
                 assert member.read_bytes() == payload
-                print(mode + ": one expected window, source bytes retained")
+                print(f"{mode}: one expected window, source bytes retained; "
+                      f"first show {actual['firstShowMs']} ms, ready {actual['readyMs']} ms, "
+                      f"maximum event gap after show {actual['maximumGapAfterShowMs']} ms")
         finally:
             # Only this unique fixture bundle/extension; never a real ZIP handler.
             subprocess.run([str(unregister), "-u", str(application)], check=True,

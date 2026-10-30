@@ -133,6 +133,8 @@ void MainWindow::togglePanels() {
         twoPanelsAction_->setChecked(app_.NumPanels == 2);
         return;
     }
+    const QPointer<QWidget> focused = focusWidget();
+    const bool editingAddress = focused && (focused == path_ || focused == pathCombo_);
     if (app_.NumPanels == 2 && panelSplitter_)
         panelSplitter_->RememberPosition();
     if (app_.SwitchOnOffOnePanel() != S_OK) {
@@ -143,7 +145,10 @@ void MainWindow::togglePanels() {
     if (panelSplitter_ && app_.NumPanels == 2) {
         panelSplitter_->UpdateSourceLayout();
     }
-    app_.GetFocusedPanel().SetFocusToList();
+    if (editingAddress && focused && focused->isVisible() && focused->isEnabled())
+        focused->setFocus(Qt::OtherFocusReason);
+    else
+        app_.GetFocusedPanel().SetFocusToList();
 }
 
 unsigned MainWindow::panelIndexFor(QObject *object) const {

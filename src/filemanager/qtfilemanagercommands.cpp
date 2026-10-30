@@ -108,6 +108,7 @@ void QtFileManagerCommands::AttachPanelActions() {
 
 void QtFileManagerCommands::AttachViewActions() {
     auto &w = window_;
+    Bind(w.twoPanelsAction_, IDM_VIEW_TWO_PANELS);
     Bind(w.refresh_, IDM_VIEW_REFRESH);
     Bind(w.autoRefreshAction_, IDM_VIEW_AUTO_REFRESH);
     Bind(w.foldersHistory_, IDM_FOLDERS_HISTORY);
@@ -254,6 +255,9 @@ QHash<unsigned, bool> QtFileManagerCommands::Availability() {
         return availability;
     auto &panel = w.app_.GetFocusedPanel();
     const bool navigating = !w.app_.QtOperations().blocking() && !w.sourceArchiveProgress_;
+    availability[IDM_VIEW_TWO_PANELS] =
+        navigating && !w.app_.QtOperations().active() &&
+        !(w.filesystemScanner_ && w.filesystemScanner_->isRunning());
     // Enumeration disables list notifications too, but its flat-view toggle
     // remains the cancellation command. Only folder-property queries need
     // the notification guard; native update can replace the folder proxy.
@@ -421,6 +425,10 @@ void QtFileManagerCommands::RefreshActions() {
 
 void QtFileManagerCommands::RefreshViewActions() {
     const auto &panel = window_.app_.GetFocusedPanel();
+    {
+        const QSignalBlocker block(window_.twoPanelsAction_);
+        window_.twoPanelsAction_->setChecked(window_.app_.NumPanels == 2);
+    }
     {
         const QSignalBlocker block(window_.flatView_);
         window_.flatView_->setChecked(panel.GetFlatMode());

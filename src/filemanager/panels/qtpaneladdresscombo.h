@@ -32,7 +32,7 @@ class IQtPanelAddressCombo {
 class QtPanelAddressCombo final : public QComboBox, public IQtPanelAddressCombo {
   public:
     QtPanelAddressCombo(CPanel &panel, std::function<HRESULT(const QString &, bool)> navigate,
-                        QWidget *parent);
+                        QWidget *parent, std::function<void()> focusList = {});
     void showPopup() override;
     QSize sizeHint() const override;
     QSize minimumSizeHint() const override;
@@ -58,6 +58,7 @@ class QtPanelAddressCombo final : public QComboBox, public IQtPanelAddressCombo 
     bool eventFilter(QObject *object, QEvent *event) override;
     CPanel &panel_;
     std::function<HRESULT(const QString &, bool)> navigate_;
+    std::function<void()> focusList_;
     QAction *currentIcon_ = nullptr;
     bool listFocusPending_ = false;
 };

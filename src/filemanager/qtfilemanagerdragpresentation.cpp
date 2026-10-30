@@ -9,6 +9,28 @@
 #include <QFileInfo>
 #include <QScopedValueRollback>
 
+QtFileManagerDrag::DroppedPathAction
+QtFileManagerDrag::ChooseDroppedPathAction(const QString &path) {
+    QMessageBox dialog(
+        QMessageBox::Question, QCoreApplication::translate("DroppedPath", "Choose an action"),
+        QCoreApplication::translate("DroppedPath", "What would you like to do with “%1”?")
+            .arg(QFileInfo(path).fileName()),
+        QMessageBox::Open | QMessageBox::Cancel, &window_);
+    dialog.setObjectName("droppedPathAction");
+    dialog.setTextFormat(Qt::PlainText);
+    auto *compress = dialog.addButton(
+        QCoreApplication::translate("ArchiveRedesign", "Create archive"), QMessageBox::ActionRole);
+    compress->setObjectName("compressDroppedPath");
+    dialog.setDefaultButton(QMessageBox::Cancel);
+    dialog.setEscapeButton(QMessageBox::Cancel);
+    dialog.exec();
+    if (dialog.clickedButton() == dialog.button(QMessageBox::Open))
+        return DroppedPathAction::Open;
+    if (dialog.clickedButton() == compress)
+        return DroppedPathAction::Compress;
+    return DroppedPathAction::Cancel;
+}
+
 bool QtFileManagerDrag::ConfirmCopyToArchive(CPanel &panel, DWORD effect) {
     UString s = LangString(effect == DROPEFFECT_MOVE ? IDS_MOVE_TO : IDS_COPY_TO);
     s.Add_LF();

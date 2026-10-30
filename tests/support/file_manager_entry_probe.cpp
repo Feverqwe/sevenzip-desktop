@@ -13,9 +13,28 @@
 #include "fileops/links/qtlinkservices.h"
 #endif
 
+namespace {
+class StartupCommandsObserver final : public QObject {
+  public:
+    bool shown = false;
+    bool archiveCommandsReady = false;
+    bool eventFilter(QObject *object, QEvent *event) override {
+        auto *window = dynamic_cast<MainWindow *>(object);
+        if (!shown && window && event->type() == QEvent::Show) {
+            shown = true;
+            auto *test = window->findChild<QAction *>("testArchiveAction");
+            archiveCommandsReady = test && test->isEnabled();
+        }
+        return false;
+    }
+};
+} // namespace
+
 int main(int argc, char **argv) {
     QApplication application(argc, argv);
     application.setApplicationName("Sevenzip File Manager entry probe");
+    StartupCommandsObserver startupCommands;
+    application.installEventFilter(&startupCommands);
     bool oleInitialized = false;
 #ifdef Q_OS_WIN
     APTTYPE apartment;
@@ -92,15 +111,17 @@ int main(int argc, char **argv) {
     });
     const int result = RunSevenzipDesktop(application);
     observer.stop();
-    const QJsonObject report{{"bound", bound},
-                             {"refusal", refusal},
-                             {"password", password},
-                             {"timeout", timedOut},
-                             {"windowState", windowState},
-                             {"exitCode", result},
-                             {"privilegeDropped", privilegeDropped},
-                             {"linkCopied", linkCopied},
-                             {"oleInitialized", oleInitialized}};
+    const QJsonObject report{
+        {"bound", bound},
+        {"archiveCommandsReadyAtFirstShow", startupCommands.archiveCommandsReady},
+        {"refusal", refusal},
+        {"password", password},
+        {"timeout", timedOut},
+        {"windowState", windowState},
+        {"exitCode", result},
+        {"privilegeDropped", privilegeDropped},
+        {"linkCopied", linkCopied},
+        {"oleInitialized", oleInitialized}};
     const QByteArray bytes = QJsonDocument(report).toJson(QJsonDocument::Compact);
     std::fwrite(bytes.constData(), 1, static_cast<size_t>(bytes.size()), stdout);
     return timedOut ? 1 : result;

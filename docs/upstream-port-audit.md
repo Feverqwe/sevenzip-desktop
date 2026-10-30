@@ -57,6 +57,10 @@ rg -n --no-ignore -F 'CAgent::Open' docs/archive/qt-port/upstream-port-audit/ do
 
 ## Новые изменения
 
+- [Запуск и выбор внешнего Drop](upstream-port-audit/startup-drop-choice.md)
+  — подготовка первого окна и запрошенный выбор открытия/упаковки;
+  [аудит сценариев](user-workflow-audit.md) хранит текущие результаты и ограничения.
+
 - [Build dependency overlays](upstream-port-audit/build-dependencies.md)
   — закреплённые vcpkg recipes и узкие исправления зависимостей сборки.
 

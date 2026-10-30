@@ -56,9 +56,11 @@ class PanelAddressKeysTests final : public QObject, protected MainWindowTestSupp
         QTest::keyClick(address, Qt::Key_F9);
         QVERIFY(!peer->isVisible());
         QVERIFY(panel->isVisible());
+        QTRY_VERIFY(address->hasFocus());
         QCOMPARE(address->text(), draft);
         QTest::keyClick(address, Qt::Key_F9);
         QVERIFY(peer->isVisible());
+        QTRY_VERIFY(address->hasFocus());
         QCOMPARE(address->text(), draft);
         QTest::keyClick(address, Qt::Key_Tab);
         QTRY_VERIFY(stack->currentWidget()->hasFocus());

@@ -137,6 +137,47 @@ class CompressionEncryptionTests final : public QObject {
         QCOMPARE(restored.findChild<QComboBox *>("archiveFormat")->currentText(), QString("7z"));
         QVERIFY(!restored.findChild<QCheckBox *>("archiveShowPassword")->isChecked());
     }
+    void disabledPasswordDraftDoesNotBlockSubmission_data() {
+        QTest::addColumn<bool>("switchFormat");
+        QTest::newRow("format-without-encryption") << true;
+        QTest::newRow("unchecked-protection") << false;
+    }
+    void disabledPasswordDraftDoesNotBlockSubmission() {
+        QFETCH(bool, switchFormat);
+        const auto catalog = NativeArchiveFixture::Catalog();
+        QVERIFY(catalog && catalog->result() == S_OK);
+        CreateArchiveDialog dialog(directory_.path(), {source_}, nullptr, catalog);
+        auto *format = dialog.findChild<QComboBox *>("archiveFormat");
+        auto *password = dialog.findChild<QLineEdit *>("archivePassword");
+        auto *confirmation = dialog.findChild<QLineEdit *>("archivePasswordConfirmation");
+        auto *protect = dialog.findChild<QCheckBox *>("archivePasswordEnabled");
+        format->setCurrentText("7z");
+        password->setText("draft password");
+        confirmation->setText("different draft");
+        if (switchFormat)
+            format->setCurrentText("tar");
+        else
+            protect->setChecked(false);
+        QCOMPARE(format->currentText(), switchFormat ? QString("tar") : QString("7z"));
+        QVERIFY(!password->isEnabled());
+        QVERIFY(dialog.password().isEmpty());
+        bool errorShown = false;
+        QTimer dismiss;
+        connect(&dismiss, &QTimer::timeout, &dialog, [&] {
+            if (auto *error = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                errorShown = true;
+                error->accept();
+            }
+        });
+        dismiss.start(5);
+        submit(dialog);
+        dismiss.stop();
+        QVERIFY(!errorShown);
+        QCOMPARE(dialog.result(), int(QDialog::Accepted));
+        QVERIFY(dialog.sourceInfo().Password.isEmpty());
+        QCOMPARE(password->text(), QString("draft password"));
+        QCOMPARE(confirmation->text(), QString("different draft"));
+    }
     void realArchives_data() {
         QTest::addColumn<QString>("format");
         QTest::addColumn<QString>("encryption");

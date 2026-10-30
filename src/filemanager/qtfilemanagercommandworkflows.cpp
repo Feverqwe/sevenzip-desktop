@@ -211,7 +211,7 @@ void QtFileManagerCommands::Change_AutoRefresh_Mode() {
     QSettings settings(MainWindow::toolbarSettingsPath(), QSettings::IniFormat);
     settings.setValue(QStringLiteral("view/autoRefresh"), window_.app_.Get_AutoRefresh_Mode());
 }
-void QtFileManagerCommands::SwitchOnOffOnePanel() { Q_UNREACHABLE(); }
+void QtFileManagerCommands::SwitchOnOffOnePanel() { window_.togglePanels(); }
 void QtFileManagerCommands::RedrawListItems_InPanels() {
     QSettings settings(MainWindow::toolbarSettingsPath(), QSettings::IniFormat);
     settings.setValue(QStringLiteral("view/timestampUTC"), g_Timestamp_Show_UTC);

@@ -14,8 +14,25 @@
 #endif
 #include <QEventLoop>
 #include <QFileInfo>
+#include <QPointer>
 #include <QScopeGuard>
 #include <memory>
+
+namespace {
+bool WaitForFileManagerCodecs(ArchiveBackend &backend, QString &error) {
+    QEventLoop discovery;
+    bool ready = false;
+    QObject::connect(&backend, &ArchiveBackend::codecCatalogReady, &discovery,
+                     [&](bool success, const QString &message) {
+                         ready = success;
+                         error = message;
+                         discovery.quit();
+                     });
+    if (backend.discoverCodecCatalog())
+        discovery.exec();
+    return ready;
+}
+} // namespace
 
 MainWindow *OpenSevenzipAssociatedFile(const QString &path) {
     auto backend = std::make_unique<ArchiveBackend>();
@@ -34,13 +51,19 @@ MainWindow *OpenSevenzipAssociatedFile(const QString &path) {
     QObject::connect(
         service, &ArchiveBackend::codecCatalogReady, window,
         [window, path](bool success, const QString &message) {
-            if (success)
+            const QPointer<MainWindow> alive(window);
+            if (success) {
                 window->openPath(path);
-            else
+                if (alive)
+                    window->show();
+            } else {
+                window->show();
                 QMessageBox::critical(window, QStringLiteral("7-Zip"), message);
+            }
         },
         Qt::SingleShotConnection);
-    window->show();
+    // Discovery can hold dyld's process-wide loader lock even on its worker.
+    // Expose the requested document after binding, without a directory flash.
     service->discoverCodecCatalog();
     return receiver.release();
 }
@@ -94,35 +117,24 @@ int RunSevenzipFileManager(QApplication &application, bool associatedStartup) {
         if (associatedStartup)
             return application.exec();
         ArchiveBackend backend;
-        if (startup.NeedOpenArc) {
-            // The source first archive open loads Global_Codecs synchronously.
-            // Await the existing backend discovery before CApp::Create so its
-            // initial BindToPath uses that same retained native catalog.
-            QEventLoop discovery;
-            bool ready = false;
-            QString error;
-            QObject::connect(&backend, &ArchiveBackend::codecCatalogReady, &discovery,
-                             [&](bool success, const QString &message) {
-                                 ready = success;
-                                 error = message;
-                                 discovery.quit();
-                             });
-            if (backend.discoverCodecCatalog())
-                discovery.exec();
-            if (!ready)
-                throw UString(error.toStdWString().c_str());
-        }
+        // Prepare the retained native catalog before the first interactive
+        // window. On macOS a worker's dlopen can also block AppKit painting
+        // through dyld's loader lock; showing first only disguises that wait.
+        QString codecError;
+        const bool codecsReady = WaitForFileManagerCodecs(backend, codecError);
+        if (startup.NeedOpenArc && !codecsReady)
+            throw UString(codecError.toStdWString().c_str());
         try {
             const bool quitOnClose = application.quitOnLastWindowClosed();
             const auto restore =
                 qScopeGuard([&] { application.setQuitOnLastWindowClosed(quitOnClose); });
             application.setQuitOnLastWindowClosed(false);
             MainWindow window(&backend, {}, nullptr, &startup);
+            if (!codecError.isEmpty())
+                window.statusBar()->showMessage(codecError);
             if (startup.ShowCommand != NQtFileManager::NShowCommand::Hide)
                 window.show();
             application.setQuitOnLastWindowClosed(quitOnClose);
-            if (!startup.NeedOpenArc)
-                backend.discoverCodecCatalog();
             return application.exec();
         } catch (const QtFileManagerStartupFailure &failure) {
             // WM_CREATE refusal makes InitInstance fail and WinMain2 returns

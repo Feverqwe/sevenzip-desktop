@@ -1,6 +1,6 @@
-#include "filemanager/qtfilemanagerdrag.h"
 #include "7zip/UI/FileManager/resource.h"
 #include "archive/codecs/archivecodeccatalog.h"
+#include "filemanager/qtfilemanagerdrag.h"
 #include "filemanager/views/filetable.h"
 #include "filemanager/views/qtfilelisthover.h"
 #include "filemanager/window/mainwindow.h"
@@ -188,16 +188,30 @@ static DWORD DropKeys(const QDropEvent &drop) {
 HRESULT QtFileManagerDrag::ExecuteDrop(CDataObject *data, DWORD keys, const QPoint &position,
                                        DWORD &effect) {
     auto &target = window_.app_.DropTarget();
-    const QString archive = ArchiveToOpen(data, keys);
-    if (!archive.isEmpty()) {
+    const QString path = PathToOpen(data, keys);
+    if (!path.isEmpty()) {
         CPanel *const panel = target.TargetPanel();
-        target.ClearState();
-        for (unsigned i = 0; i < kNumPanelsMax; ++i)
-            if (panel == &window_.app_.Panels[i])
-                window_.activatePanelUi(i);
-        // Opening never transfers ownership of the dropped file to the target.
-        effect = DROPEFFECT_COPY;
-        return window_.openArchiveAs(archive, {});
+        DroppedPathAction choice;
+        {
+            QtAppOperationState::CallScope call(window_.app_.QtOperations());
+            CPanel::CDisableTimerProcessing2 timer(panel);
+            choice = ChooseDroppedPathAction(path);
+        }
+        if (choice != DroppedPathAction::Compress) {
+            target.ClearState();
+            effect = DROPEFFECT_NONE;
+            if (choice == DroppedPathAction::Cancel)
+                return E_ABORT;
+            for (unsigned i = 0; i < kNumPanelsMax; ++i)
+                if (panel == &window_.app_.Panels[i])
+                    window_.activatePanelUi(i);
+            // Opening never transfers ownership of the dropped item.
+            const HRESULT result = QFileInfo(path).isDir() ? window_.navigateTo(path)
+                                                           : window_.openArchiveAs(path, {});
+            if (result == S_OK)
+                effect = DROPEFFECT_COPY;
+            return result;
+        }
     }
     CPanel *const owner = target.TargetPanel();
     const unsigned index = unsigned(target.TargetPanelIndex);
@@ -214,7 +228,7 @@ HRESULT QtFileManagerDrag::ExecuteDrop(CDataObject *data, DWORD keys, const QPoi
     return result;
 }
 
-QString QtFileManagerDrag::ArchiveToOpen(CDataObject *data, DWORD keys) const {
+QString QtFileManagerDrag::PathToOpen(CDataObject *data, DWORD keys) const {
     if (active_ || data != &external_ || menuDrag_ || (keys & (MK_RBUTTON | MK_MBUTTON)))
         return {};
     const auto &target = window_.app_.DropTarget();
@@ -230,10 +244,16 @@ QString QtFileManagerDrag::ArchiveToOpen(CDataObject *data, DWORD keys) const {
     const QString path = ToQString(names.Front());
     const QFileInfo file(path);
     const auto catalog = window_.backend_->codecCatalog();
-    if (!file.isFile() || file.isSymLink() || !catalog || catalog->result() != S_OK ||
-        catalog->nativeCodecs().FindFormatForArchiveName(names.Front()) < 0)
+    if (file.isSymLink() || !catalog || catalog->result() != S_OK)
         return {};
-    return path;
+    if (!file.isDir() &&
+        (!file.isFile() || catalog->nativeCodecs().FindFormatForArchiveName(names.Front()) < 0))
+        return {};
+    const auto &formats = catalog->nativeCodecs().Formats;
+    FOR_VECTOR(i, formats)
+    if (formats[i].UpdateEnabled)
+        return path;
+    return {};
 }
 
 bool QtFileManagerDrag::HandleDropEvent(QWidget &widget, QEvent &event) {

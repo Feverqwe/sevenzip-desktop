@@ -111,6 +111,8 @@ void QtAppPresentation::CompleteInitialFocusIfReady() {
         window_.app_.QtOperations().closed() || window_.app_.QtOperations().active())
         return;
     const unsigned index = *initialFocus_;
+    if (window_.scanningPanelMask() & (1u << index))
+        return;
     initialFocus_.reset();
     window_.activatePanelUi(index);
     window_.app_.SetFocusedPanel(index);

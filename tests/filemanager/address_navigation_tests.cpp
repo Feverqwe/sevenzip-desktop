@@ -12,6 +12,104 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
     }
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
+    void rejectedArchiveAddressKeepsEditingFocus_data() {
+        QTest::addColumn<qint32>("result");
+        QTest::newRow("refused") << qint32(S_FALSE);
+        QTest::newRow("failed") << qint32(E_FAIL);
+        QTest::newRow("cancelled") << qint32(E_ABORT);
+    }
+    void rejectedArchiveAddressKeepsEditingFocus() {
+        QFETCH(qint32, result);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString path = fixture.filePath(QStringLiteral("архив с ошибкой 空.zip"));
+        const QByteArray bytes("unchanged archive bytes");
+        QVERIFY(writeFile(path, bytes));
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        window.openPath(fixture.path());
+        auto *address = window.findChild<QLineEdit *>("archivePath");
+        auto *view = table(window);
+        QTRY_VERIFY(view->isEnabled());
+        address->setFocus();
+        QTRY_VERIFY(address->hasFocus());
+        backend.queueListAction([&] { backend.fail("Archive opening refused", HRESULT(result)); });
+        QTimer dismiss;
+        connect(&dismiss, &QTimer::timeout, &window, [] {
+            if (auto *warning = qobject_cast<QMessageBox *>(QApplication::activeModalWidget()))
+                warning->accept();
+        });
+        dismiss.start(5);
+        address->setText(path);
+        QTest::keyClick(address, Qt::Key_Return);
+        dismiss.stop();
+        QApplication::processEvents();
+        window.activateWindow();
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        QCOMPARE(backend.listCalls, 1);
+        QTRY_VERIFY(address->hasFocus());
+        QVERIFY(view->isEnabled());
+        QVERIFY(action(window, "twoPanelsAction")->isEnabled());
+        QFile source(path);
+        QVERIFY(source.open(QIODevice::ReadOnly));
+        QCOMPARE(source.readAll(), bytes);
+        address->setText(fixture.path());
+        QTest::keyClick(address, Qt::Key_Return);
+        QTRY_VERIFY(view->hasFocus());
+        QCOMPARE(backend.listCalls, 1);
+    }
+    void completedAddressNavigationFocusesLargeList_data() {
+        QTest::addColumn<bool>("archive");
+        QTest::addColumn<bool>("newInput");
+        QTest::newRow("filesystem") << false << false;
+        QTest::newRow("archive") << true << false;
+        QTest::newRow("filesystem-new-input") << false << true;
+        QTest::newRow("archive-new-input") << true << true;
+    }
+    void completedAddressNavigationFocusesLargeList() {
+        QFETCH(bool, archive);
+        QFETCH(bool, newInput);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString target = archive ? fixture.filePath("large.zip") : fixture.path();
+        ControlledBackend backend;
+        QList<ArchiveEntry> entries;
+        for (int i = 0; i < 1024; ++i) {
+            const QString name = QStringLiteral("файл 空 %1.txt").arg(i);
+            if (archive)
+                entries.append(ArchiveEntry{name, 1, 1});
+            else
+                QVERIFY(writeFile(fixture.filePath(name), "x"));
+        }
+        if (archive) {
+            QVERIFY(backend.prepareArchiveFixture(target));
+            backend.queueList(entries);
+        }
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        auto *address = window.findChild<QLineEdit *>("archivePath");
+        auto *view = table(window);
+        address->setFocus();
+        QTRY_VERIFY(address->hasFocus());
+        address->setText(target);
+        QTest::keyClick(address, Qt::Key_Return);
+        if (newInput) {
+            address->selectAll();
+            QTest::keyClicks(address, "new draft");
+        }
+        QTRY_VERIFY(view->isEnabled() && view->rowCount() >= 1024);
+        window.activateWindow();
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        if (newInput) {
+            QTRY_VERIFY(address->hasFocus());
+            QCOMPARE(address->text(), QString("new draft"));
+        } else {
+            QTRY_VERIFY(view->hasFocus());
+        }
+    }
     void boundReloadPreservesTimerDraft_data() {
         QTest::addColumn<unsigned>("sourceIndex");
         QTest::addColumn<QString>("language");

@@ -37,6 +37,19 @@ if(BUILD_TESTING)
     set_tests_properties(drag_drop_add_ui drag_drop_add_independent drag_drop_add_temporary PROPERTIES
         TIMEOUT 60 RESOURCE_LOCK sevenzip_native_ui ENVIRONMENT
         "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/drag_drop_add_ui.ini")
+    if(SEVENZIP_CODEC_MODULE)
+        qt_add_executable(dropped_path_choice_tests tests/filemanager/dropped_path_choice_tests.cpp)
+        target_link_libraries(dropped_path_choice_tests PRIVATE sevenzip_window sevenzip_layout_inspection
+            Qt6::Test sevenzip_location sevenzip_folder_loader)
+        target_include_directories(dropped_path_choice_tests PRIVATE src tests)
+        target_compile_definitions(dropped_path_choice_tests PRIVATE
+            "SEVENZIP_OPERATION_HOST=\"$<TARGET_FILE:operation_host>\""
+            "SEVENZIP_CODEC_MODULE=\"${SEVENZIP_CODEC_MODULE}\"")
+        add_dependencies(dropped_path_choice_tests operation_host)
+        add_test(NAME dropped_path_choice COMMAND dropped_path_choice_tests -silent)
+        set_tests_properties(dropped_path_choice PROPERTIES TIMEOUT 60 RESOURCE_LOCK sevenzip_native_ui
+            ENVIRONMENT "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/dropped_path_choice.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
+    endif()
 endif()
 
 # Window runtime uses the authoritative source-owned archive location factory.

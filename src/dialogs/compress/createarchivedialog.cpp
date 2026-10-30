@@ -358,7 +358,7 @@ QString CreateArchiveDialog::archivePath() const {
 
 void CreateArchiveDialog::validateAndAccept() {
     if (password_) {
-        const bool protect = passwordEnabled_->isChecked();
+        const bool protect = password_->isEnabled();
         const auto error = CCompressDialog::CheckPassword(
             protect ? password_->text() : QString(),
             protect ? passwordConfirmation_->text() : QString(), showPassword_->isChecked(),

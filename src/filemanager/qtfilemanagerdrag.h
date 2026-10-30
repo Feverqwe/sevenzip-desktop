@@ -30,9 +30,11 @@ class QtFileManagerDrag final : public QObject,
     bool eventFilter(QObject *, QEvent *) override;
 
   private:
+    enum class DroppedPathAction { Open, Compress, Cancel };
     bool HandleDropEvent(QWidget &, QEvent &);
     HRESULT ExecuteDrop(CDataObject *, DWORD keys, const QPoint &position, DWORD &effect);
-    QString ArchiveToOpen(CDataObject *, DWORD keys) const;
+    QString PathToOpen(CDataObject *, DWORD keys) const;
+    DroppedPathAction ChooseDroppedPathAction(const QString &path);
     CDataObject *ReadData(const QMimeData &);
     bool HandleRightDrag(QWidget &, QEvent &);
     void SuspendHover(bool suspended);

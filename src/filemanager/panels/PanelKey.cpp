@@ -54,7 +54,7 @@ bool CPanel::OnKeyDown(const QtPanelKeyDown &keyDownInfo, CApp &g_App) {
     }
 
     if ((keyDownInfo.VKey == Qt::Key_F9) && !alt && !ctrl && !shift) {
-        g_App.SwitchOnOffOnePanel();
+        g_App.ExecuteCommand(IDM_VIEW_TWO_PANELS);
     }
 
     if (keyDownInfo.VKey >= Qt::Key_F3 && keyDownInfo.VKey <= Qt::Key_F12 && ctrl) {

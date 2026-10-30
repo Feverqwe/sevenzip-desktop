@@ -44,6 +44,8 @@ class LargeListWindowTests final : public QObject, protected MainWindowTestSuppo
         auto *list = table(window);
         bool scheduled = false;
         int heartbeatRows = -1;
+        bool panelSwitchBlocked = false;
+        bool panelShortcutIgnored = false;
         QElapsedTimer guiTime;
         QElapsedTimer elapsed;
         qint64 firstRowMs = -1;
@@ -75,7 +77,20 @@ class LargeListWindowTests final : public QObject, protected MainWindowTestSuppo
                     scheduled = true;
                     guiTime.start();
                     heartbeat.start();
-                    QTimer::singleShot(0, &window, [&] { heartbeatRows = list->rowCount(); });
+                    QTimer::singleShot(0, &window, [&] {
+                        heartbeatRows = list->rowCount();
+                        panelSwitchBlocked = !action(window, "twoPanelsAction")->isEnabled();
+                        const bool twoPanels = action(window, "twoPanelsAction")->isChecked();
+                        const auto *previousPeer = window.findChild<QWidget *>("filePanel1");
+                        const bool peerVisible = previousPeer && previousPeer->isVisible();
+                        auto *address = window.findChild<QLineEdit *>("archivePath");
+                        address->setFocus();
+                        QTest::keyClick(address, Qt::Key_F9);
+                        const auto *peer = window.findChild<QWidget *>("filePanel1");
+                        panelShortcutIgnored =
+                            action(window, "twoPanelsAction")->isChecked() == twoPanels &&
+                            bool(peer && peer->isVisible()) == peerVisible;
+                    });
                 });
         elapsed.start();
         if (archive)
@@ -88,6 +103,9 @@ class LargeListWindowTests final : public QObject, protected MainWindowTestSuppo
         QTRY_VERIFY_WITH_TIMEOUT(heartbeatRows >= 0, 15000);
         QTRY_VERIFY_WITH_TIMEOUT(list->isEnabled() && list->rowCount() >= count, 15000);
         QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
+        QVERIFY(panelSwitchBlocked);
+        QVERIFY(panelShortcutIgnored);
+        QVERIFY(action(window, "twoPanelsAction")->isEnabled());
         const qint64 readyMs = elapsed.elapsed();
         if (guiTime.elapsed() - lastHeartbeat > maxGuiGap) {
             maxGuiGap = guiTime.elapsed() - lastHeartbeat;

@@ -2,6 +2,17 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="ru_RU" sourcelanguage="en">
     <context>
+        <name>DroppedPath</name>
+        <message>
+            <source>Choose an action</source>
+            <translation>Выберите действие</translation>
+        </message>
+        <message>
+            <source>What would you like to do with “%1”?</source>
+            <translation>Что сделать с «%1»?</translation>
+        </message>
+    </context>
+    <context>
         <name>AboutDialog</name>
         <message>
             <location filename="../src/dialogs/about/AboutDialog.cpp" line="+67" />

@@ -151,8 +151,10 @@ class CommandPolicyRuntimeTests : public QObject, protected MainWindowTestSuppor
         table(window)->selectRow(0);
         action(window, "testArchiveAction")->trigger();
         QCOMPARE(backend.testCalls, 1);
-        for (const char *name : {"testArchiveAction", "openOutsideAction", "createFileAction",
-                                 "refreshAction", "copyAction", "selectAllAction"}) {
+        const bool twoPanels = action(window, "twoPanelsAction")->isChecked();
+        for (const char *name :
+             {"twoPanelsAction", "testArchiveAction", "openOutsideAction", "createFileAction",
+              "refreshAction", "copyAction", "selectAllAction"}) {
             auto *command = action(window, name);
             QVERIFY(!command->isEnabled());
             command->setEnabled(true); // A stale queued trigger must recheck CApp.
@@ -161,10 +163,15 @@ class CommandPolicyRuntimeTests : public QObject, protected MainWindowTestSuppor
         QCOMPARE(backend.testCalls, 1);
         QCOMPARE(backend.listCalls, 1);
         QCOMPARE(opened, 0);
+        QCOMPARE(action(window, "twoPanelsAction")->isChecked(), twoPanels);
         QVERIFY(!window.findChild<QDialog *>("comboDialog"));
         backend.completeExtraction();
         auto *outside = action(window, "openOutsideAction");
         QVERIFY(outside->isEnabled());
+        auto *panels = action(window, "twoPanelsAction");
+        QVERIFY(panels->isEnabled());
+        panels->trigger();
+        QCOMPARE(panels->isChecked(), !twoPanels);
         QVERIFY(window.close());
         outside->setEnabled(true);
         outside->trigger();

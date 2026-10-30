@@ -204,9 +204,9 @@ HRESULT MainWindow::navigateTo(const QString &path, bool sourceAddress) {
             : path;
     const QFileInfo info(nativeAddress);
     if (!sourceAddress && info.isDir())
-        showDirectory(nativeAddress, true);
+        return showDirectory(nativeAddress, true);
     else if (!sourceAddress && info.isFile() && !info.isSymLink())
-        openArchive(nativeAddress);
+        return openArchiveAs(nativeAddress, {});
     else {
         QString nativePath = nativeAddress;
         if (!sourceAddress)
@@ -224,7 +224,6 @@ HRESULT MainWindow::navigateTo(const QString &path, bool sourceAddress) {
                 QCoreApplication::translate("mainwindow_filelist", "Path not found: ") + path);
         return result;
     }
-    return S_OK;
 }
 
 void MainWindow::activateItems(Qt::KeyboardModifiers modifiers) {

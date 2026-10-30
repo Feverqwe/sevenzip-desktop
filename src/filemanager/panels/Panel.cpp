@@ -452,7 +452,7 @@ bool CMyComboBoxEdit::OnMessage(const QtPanelKeyDown &key, CApp &g_App) {
         return true;
     case Qt::Key_F9:
         if (!key.Control && !key.Shift) {
-            g_App.SwitchOnOffOnePanel();
+            g_App.ExecuteCommand(IDM_VIEW_TWO_PANELS);
             return true;
         }
         break;

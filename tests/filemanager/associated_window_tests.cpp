@@ -14,6 +14,27 @@
 #include <QTemporaryDir>
 #include <QtTest>
 
+namespace {
+class FirstDocumentContents final : public QObject {
+    QSet<MainWindow *> shown_;
+
+  public:
+    QList<QStringList> contents;
+    bool eventFilter(QObject *object, QEvent *event) override {
+        auto *window = dynamic_cast<MainWindow *>(object);
+        if (!window || event->type() != QEvent::Show || shown_.contains(window))
+            return false;
+        shown_.insert(window);
+        QStringList names;
+        if (auto *table = window->findChild<FileTable *>("archiveTable"))
+            for (int row = 0; row < table->rowCount(); ++row)
+                names.append(table->model()->index(row, 0).data().toString());
+        contents.append(names);
+        return false;
+    }
+};
+} // namespace
+
 class AssociatedWindowTests final : public QObject {
     Q_OBJECT
     WidgetDialogFixture dialogs_;
@@ -40,6 +61,8 @@ class AssociatedWindowTests final : public QObject {
         QVERIFY(engine.waitForFinished(10000));
         QCOMPARE(engine.exitCode(), 0);
         const auto original = SourceExtractFixture::readFile(archive);
+        FirstDocumentContents firstShow;
+        qApp->installEventFilter(&firstShow);
         QStringList errors;
         QObject responder;
         dialogs_.respond(responder, [&](QDialog &dialog) {
@@ -62,6 +85,7 @@ class AssociatedWindowTests final : public QObject {
         QTRY_VERIFY(first->rowCount() == 1 &&
                     first->model()->index(0, 0).data().toString() == name);
         QVERIFY2(errors.isEmpty(), qPrintable(errors.join('\n')));
+        QCOMPARE(firstShow.contents, QList<QStringList>{QStringList{name}});
 
         QFileOpenEvent repeated(archive);
         QVERIFY(QApplication::sendEvent(&source, &repeated));
@@ -72,6 +96,7 @@ class AssociatedWindowTests final : public QObject {
         QTRY_VERIFY(second->rowCount() == 1 &&
                     second->model()->index(0, 0).data().toString() == name);
         QVERIFY2(errors.isEmpty(), qPrintable(errors.join('\n')));
+        QCOMPARE(firstShow.contents, (QList<QStringList>{QStringList{name}, QStringList{name}}));
         QCOMPARE(first->model()->index(0, 0).data().toString(), name);
         QCOMPARE(SourceExtractFixture::readFile(archive), original);
         QCOMPARE(SourceExtractFixture::readFile(fixture.filePath(name)), payload);
@@ -99,6 +124,7 @@ class AssociatedWindowTests final : public QObject {
         auto *backend = window->findChild<ArchiveBackend *>();
         QVERIFY(backend);
         QVERIFY(backend->busy());
+        QVERIFY(!window->isVisible());
         QTRY_VERIFY(QFileInfo::exists(slow.Entered));
         QSignalSpy completed(backend, &ArchiveBackend::finished);
         QVERIFY(window->close());

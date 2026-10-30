@@ -348,8 +348,11 @@ class AddressComboTests final : public QObject, protected MainWindowTestSupport 
         QVERIFY(QDir().rmdir(parent));
         QVERIFY(!QFileInfo::exists(parent));
         if (keyboard) {
+            auto *popup = combo->view()->window();
+            QVERIFY(QTest::qWaitForWindowExposed(popup));
+            QTRY_VERIFY(combo->view()->hasFocus());
             combo->view()->setCurrentIndex(combo->view()->model()->index(index, 0));
-            QTest::keyClick(combo->view(), Qt::Key_Return);
+            QTest::keyClick(popup->windowHandle(), Qt::Key_Return);
         } else
             AddressPopupSupport::selectRow(*combo, index);
         QVERIFY(!QTest::currentTestFailed());

@@ -55,6 +55,26 @@ class FileManagerStartupTests final : public QObject {
         QCOMPARE(probe.result(), S_OK);
         version = probe.version();
     }
+    void ordinaryFolderHasArchiveCommandsWhenFirstShown() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString name = QStringLiteral("первый файл 空.txt");
+        QVERIFY(SourceExtractFixture::writeFile(fixture.filePath(name), "startup payload"));
+        QProcess process;
+        auto environment = QProcessEnvironment::systemEnvironment();
+        environment.insert("SEVENZIP_PROBE_MEMBER", name);
+        environment.insert("SEVENZIP_SETTINGS_PATH", fixture.filePath("ordinary-startup.ini"));
+        process.setProcessEnvironment(environment);
+        process.start(QString::fromUtf8(SEVENZIP_FM_PROBE), {fixture.path()});
+        QVERIFY(process.waitForStarted(5000));
+        QVERIFY2(process.waitForFinished(35000), "ordinary FM entry did not finish");
+        QCOMPARE(process.exitStatus(), QProcess::NormalExit);
+        QCOMPARE(process.exitCode(), 0);
+        const auto report = QJsonDocument::fromJson(process.readAllStandardOutput()).object();
+        QVERIFY(report.value("bound").toBool());
+        QVERIFY(report.value("archiveCommandsReadyAtFirstShow").toBool());
+        QVERIFY(!report.value("timeout").toBool());
+    }
     void initialNativeBinding_data() {
         QTest::addColumn<QString>("kind");
         QTest::addColumn<QString>("tail");

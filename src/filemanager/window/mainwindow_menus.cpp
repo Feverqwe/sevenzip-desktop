@@ -181,10 +181,8 @@ void MainWindow::createViewOptions(QMenu *viewMenu) {
     flatView_->setCheckable(true);
     twoPanelsAction_ = viewMenu->addAction(QStringLiteral("Two Panels"));
     twoPanelsAction_->setObjectName("twoPanelsAction");
-    twoPanelsAction_->setProperty("nativeCommandID", IDM_VIEW_TWO_PANELS);
     twoPanelsAction_->setCheckable(true);
     twoPanelsAction_->setChecked(app_.NumPanels == 2);
-    connect(twoPanelsAction_, &QAction::triggered, this, [this] { togglePanels(); });
     viewMenu->addSeparator();
     createToolbarOptions(viewMenu);
     root_ = viewMenu->addAction("Open Root Folder");

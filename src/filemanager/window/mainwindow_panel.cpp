@@ -5,6 +5,7 @@
 #include "filemanager/qtfilemanagerdrag.h"
 #include "filemanager/views/qtfilelisthover.h"
 #include "filemanager/window/mainwindow.h"
+#include "filemanager/window/qtapppresentation.h"
 #include "filemanager/window/qtmainwindowchrome.h"
 #include "localization/qtlangcontrols.h"
 #include "ui/controls/qtstatuslabel.h"
@@ -45,7 +46,7 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
             activatePanelUi(index);
             return navigateTo(path, sourcePath);
         },
-        central);
+        central, [this, index] { appPresentation_->RequestListFocus(index); });
     pathCombo_->setObjectName("pathCombo");
     pathCombo_->setEditable(true);
     pathCombo_->setInsertPolicy(QComboBox::NoInsert);

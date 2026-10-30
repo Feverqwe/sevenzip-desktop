@@ -115,6 +115,17 @@ including archive-first and late creation from an initially single right panel.
 
 ### File-list drag target (P1-16)
 
+Внешний левый Drop одной папки или распознанного архива на файловую панель
+предлагает открыть этот путь, создать архив либо отменить действие.
+Вопрос показывает имя объекта как plain text; Cancel — default и Escape.
+Выбор создания сохраняет текущую папку назначения и открывает существующую
+форму Add. Открытие адресуется панели Drop. Отмена сохраняет исходные файлы,
+путь и доступность команд. Неподдерживаемые типы, несколько путей,
+archive target и внутренние/native transfers сохраняют исходный сценарий.
+Кнопки используют стандартные роли/геометрию QMessageBox и переводы Qt;
+порядок определяется платформой. Свидетельства — в
+[аудите изменения](../upstream-port-audit/startup-drop-choice.md).
+
 Reference: pinned `PanelDrag.cpp::PositionCursor`, its `LVIS_DROPHILITED`
 paint state, native right-drop popup pairs/masks and Copy-to-archive confirmation.
 External middle-button entry uses the same source popup; source transfer flags

@@ -38,8 +38,9 @@ class AddressItemDelegate final : public QStyledItemDelegate {
 
 QtPanelAddressCombo::QtPanelAddressCombo(CPanel &panel,
                                          std::function<HRESULT(const QString &, bool)> navigate,
-                                         QWidget *parent)
-    : QComboBox(parent), panel_(panel), navigate_(std::move(navigate)) {
+                                         QWidget *parent, std::function<void()> focusList)
+    : QComboBox(parent), panel_(panel), navigate_(std::move(navigate)),
+      focusList_(std::move(focusList)) {
 #ifdef Q_OS_MACOS
     setAttribute(Qt::WA_LayoutUsesWidgetRect);
 #endif
@@ -179,14 +180,20 @@ void QtPanelAddressCombo::CompleteListFocus() {
     QWidget *focus = QApplication::focusWidget();
     if (!focus)
         focus = window()->focusWidget();
-    if (focus && (focus == this || isAncestorOf(focus)))
-        panel_.SetFocusToList();
+    if (focus && (focus == this || isAncestorOf(focus))) {
+        if (focusList_)
+            focusList_();
+        else
+            panel_.SetFocusToList();
+    }
 }
 
 bool QtPanelAddressCombo::eventFilter(QObject *object, QEvent *event) {
     if (object == view() && event->type() == QEvent::Hide && listFocusPending_)
         QTimer::singleShot(0, this, [this] { CompleteListFocus(); });
     if (object == lineEdit()) {
+        if (event->type() == QEvent::KeyPress || event->type() == QEvent::MouseButtonPress)
+            listFocusPending_ = false;
         if (event->type() == QEvent::KeyPress &&
             static_cast<QKeyEvent *>(event)->key() == Qt::Key_Escape) {
             bool result;
