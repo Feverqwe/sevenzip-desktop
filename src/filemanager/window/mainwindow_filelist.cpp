@@ -40,6 +40,7 @@ HRESULT MainWindow::showDirectory(const QString &path, bool remember, bool sourc
     scanningDisk_ = false;
     scanSelectedState_.reset();
     scanSelectedPaths_.reset();
+    pendingViewport_.reset();
     if (!sourceAlreadyBound)
         app_.GetFocusedPanel().CloseOpenFolders();
     directory_ = next;

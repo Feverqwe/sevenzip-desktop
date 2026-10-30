@@ -5,6 +5,7 @@
 #include "localization/LangUtils.h"
 #include "support/widget_dialogs.h"
 #include "ui/progress/ProgressDialog2.h"
+#include <QScrollBar>
 
 class FilesystemReloadTests final : public QObject, protected MainWindowTestSupport {
     Q_OBJECT
@@ -15,6 +16,46 @@ class FilesystemReloadTests final : public QObject, protected MainWindowTestSupp
     }
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
+    void navigationDuringReloadStartsAtTop() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString oldPath = fixture.filePath("old folder");
+        const QString newPath = fixture.filePath("new folder");
+        QVERIFY(QDir().mkpath(oldPath) && QDir().mkpath(newPath));
+        constexpr int count = 512;
+        for (int i = 0; i < count; ++i) {
+            const QString name = QStringLiteral("file %1.txt").arg(i);
+            QVERIFY(writeControl(QDir(oldPath).filePath(name)));
+            QVERIFY(writeControl(QDir(newPath).filePath(name)));
+        }
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        window.openPath(oldPath);
+        auto *view = table(window);
+        QTRY_VERIFY(view->isEnabled() && view->rowCount() >= count);
+        view->sourcePanel->Set_AutoRefresh_Mode(false);
+        view->verticalScrollBar()->setValue(view->verticalScrollBar()->maximum());
+        QVERIFY(view->verticalScrollBar()->value() > 0);
+        bool scheduled = false;
+        bool navigated = false;
+        connect(view->model(), &QAbstractItemModel::rowsInserted, &window, [&] {
+            if (!scheduled && !view->isEnabled() && view->rowCount() > 1) {
+                scheduled = true;
+                QTimer::singleShot(0, &window, [&] {
+                    navigated = true;
+                    window.openPath(newPath);
+                });
+            }
+        });
+        view->sourcePanel->OnReload();
+        QTRY_VERIFY(navigated);
+        QTRY_VERIFY(view->isEnabled() && view->rowCount() >= count);
+        QCOMPARE(QDir::cleanPath(window.findChild<QLineEdit *>("archivePath")->text()),
+                 QFileInfo(newPath).canonicalFilePath());
+        QCOMPARE(view->verticalScrollBar()->value(), 0);
+    }
     void missingFolderClearsNativeItems_data() {
         QTest::addColumn<unsigned>("sourceIndex");
         QTest::addColumn<QString>("language");

@@ -32,8 +32,7 @@ void MainWindow::storePanelUi(unsigned index) {
     ui.pendingSelection = scanSelectedState_;
     ui.pendingSelectedPaths = scanSelectedPaths_;
     ui.autoRefreshSnapshot = autoRefreshSnapshot_;
-    ui.autoRefreshTopPath = autoRefreshTopPath_;
-    ui.autoRefreshScrollValue = autoRefreshScrollValue_;
+    ui.pendingViewport = pendingViewport_;
 }
 
 void MainWindow::restorePanelUi(unsigned index) {
@@ -60,8 +59,7 @@ void MainWindow::restorePanelUi(unsigned index) {
     scanSelectedState_ = ui.pendingSelection;
     scanSelectedPaths_ = ui.pendingSelectedPaths;
     autoRefreshSnapshot_ = ui.autoRefreshSnapshot;
-    autoRefreshTopPath_ = ui.autoRefreshTopPath;
-    autoRefreshScrollValue_ = ui.autoRefreshScrollValue;
+    pendingViewport_ = ui.pendingViewport;
 }
 
 void MainWindow::activatePanelUi(unsigned index) {

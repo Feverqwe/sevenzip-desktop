@@ -6,6 +6,7 @@
 #include <QScopeGuard>
 #include <QScopedValueRollback>
 #include <QScrollBar>
+#include <utility>
 
 HRESULT MainWindow::reloadPanelPresentation(unsigned index, const CSelectedState &selection) {
     if (!panelUi_[index].container ||
@@ -69,16 +70,19 @@ HRESULT MainWindow::reloadPanelPresentation(unsigned index, const CSelectedState
         return loaded;
     }
     const int firstRow = table_->rowAt(0);
-    autoRefreshTopPath_ = table_->model()->index(firstRow, 1).data().toString();
-    autoRefreshScrollValue_ = table_->verticalScrollBar()->value();
-    return refreshFilesystem(selection, true);
+    const FilesystemViewport viewport(directory_,
+                                      table_->model()->index(firstRow, 1).data().toString(),
+                                      table_->verticalScrollBar()->value());
+    return refreshFilesystem(selection, true, viewport);
 }
 
-HRESULT MainWindow::refreshFilesystem(const CSelectedState &selection, bool sourceAlreadyBound) {
+HRESULT MainWindow::refreshFilesystem(const CSelectedState &selection, bool sourceAlreadyBound,
+                                      std::optional<FilesystemViewport> viewport) {
     const HRESULT loaded =
         showDirectory(directory_, false, sourceAlreadyBound, !selection.CalledFromTimer);
     if (loaded != S_OK)
         return loaded;
+    pendingViewport_ = std::move(viewport);
     restoreListSelection(selection);
     if (!scanningDisk_) {
         restoreAutoRefreshViewport();
@@ -196,11 +200,12 @@ void MainWindow::pollAutoRefresh() {
 }
 
 void MainWindow::restoreAutoRefreshViewport() {
-    if (autoRefreshScrollValue_ < 0)
+    const auto viewport = std::exchange(pendingViewport_, std::nullopt);
+    if (!viewport || viewport->directory != directory_)
         return;
     int row = -1;
     for (int i = 0; i < table_->rowCount(); ++i) {
-        if (table_->model()->index(i, 1).data().toString() == autoRefreshTopPath_) {
+        if (table_->model()->index(i, 1).data().toString() == viewport->topPath) {
             row = i;
             break;
         }
@@ -208,7 +213,5 @@ void MainWindow::restoreAutoRefreshViewport() {
     if (row >= 0)
         table_->scrollTo(table_->model()->index(row, 0), QAbstractItemView::PositionAtTop);
     else
-        table_->verticalScrollBar()->setValue(autoRefreshScrollValue_);
-    autoRefreshTopPath_.clear();
-    autoRefreshScrollValue_ = -1;
+        table_->verticalScrollBar()->setValue(viewport->scrollValue);
 }

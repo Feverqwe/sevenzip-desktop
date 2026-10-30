@@ -217,7 +217,15 @@ class MainWindow : public QMainWindow {
     void refreshCurrent(const CSelectedState *preserved = nullptr);
     HRESULT reloadPanelPresentation(unsigned index, const CSelectedState &selection);
     HRESULT startFilesystemListing(bool sourceAlreadyBound, bool updateAddress);
-    HRESULT refreshFilesystem(const CSelectedState &selection, bool sourceAlreadyBound);
+    struct FilesystemViewport {
+        FilesystemViewport(const QString &folder, const QString &top, int position)
+            : directory(folder), topPath(top), scrollValue(position) {}
+        QString directory;
+        QString topPath;
+        int scrollValue;
+    };
+    HRESULT refreshFilesystem(const CSelectedState &selection, bool sourceAlreadyBound,
+                              std::optional<FilesystemViewport> viewport = std::nullopt);
     void restoreListSelection(const CSelectedState &selection);
     struct FilesystemSignature;
     void pollAutoRefresh();
@@ -351,8 +359,7 @@ class MainWindow : public QMainWindow {
         FilesystemScanner *filesystemScanner = nullptr;
         QtFolderProjection *listProjection = nullptr;
         QHash<QString, FilesystemSignature> autoRefreshSnapshot;
-        QString autoRefreshTopPath;
-        int autoRefreshScrollValue = -1;
+        std::optional<FilesystemViewport> pendingViewport;
         std::optional<CSelectedState> pendingSelection;
         std::optional<QStringList> pendingSelectedPaths;
     };
@@ -361,8 +368,7 @@ class MainWindow : public QMainWindow {
     unsigned projectedPanel_ = 0;
     unsigned panelProjectionDepth_ = 0;
     QHash<QString, FilesystemSignature> autoRefreshSnapshot_;
-    QString autoRefreshTopPath_;
-    int autoRefreshScrollValue_ = -1;
+    std::optional<FilesystemViewport> pendingViewport_;
     QTimer *autoRefreshTimer_ = nullptr;
     FilesystemScanner *filesystemScanner_ = nullptr;
     std::optional<CSelectedState> scanSelectedState_;

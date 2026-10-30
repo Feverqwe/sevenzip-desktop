@@ -206,8 +206,7 @@ void MainWindow::failFilesystemListing(HRESULT result) {
     auto &panel = app_.GetFocusedPanel();
     scanSelectedState_.reset();
     scanSelectedPaths_.reset();
-    autoRefreshTopPath_.clear();
-    autoRefreshScrollValue_ = -1;
+    pendingViewport_.reset();
     table_->clearSelection();
     table_->clearRows();
     table_->setSortingEnabled(true);

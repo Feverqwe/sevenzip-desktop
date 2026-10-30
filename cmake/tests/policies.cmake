@@ -118,6 +118,10 @@ if(BUILD_TESTING AND WIN32)
     # Native publication phases passed all 12 workflows in 30.6s including
     # process lifetime. Reserve twice that time, rounded up to a minute.
     set_tests_properties(copy_publication_order PROPERTIES TIMEOUT 120)
+    # All 20 native navigation workflows passed in 51.1s including process
+    # lifetime after the 60s aggregate cap expired in a batch. Reserve twice
+    # the measured time; retain individual state waits and all scenarios.
+    set_tests_properties(navigation_reload PROPERTIES TIMEOUT 120)
 endif()
 
 if(APPLE AND TEST copy_archive_refresh)
