@@ -6,12 +6,79 @@
 #include "localization/LangUtils.h"
 #include "platform/memory/qtmemorylockservices.h"
 #include "settings/RegistryUtils.h"
+#include <QPointer>
 #include <QScopeGuard>
+#include <memory>
 
 class ArchiveBackendTests : public QObject, protected ArchiveBackendTestSupport {
     Q_OBJECT
 
   private slots:
+    void readCompletionMayReleaseBackend_data() {
+        QTest::addColumn<QString>("stage");
+        for (const char *stage : {"diagnostic", "info", "entries"})
+            QTest::newRow(stage) << QString::fromLatin1(stage);
+    }
+    void readCompletionMayReleaseBackend() {
+        QFETCH(QString, stage);
+        QTemporaryDir fixture;
+        const QString archive = fixture.filePath(QStringLiteral("архив 空 with spaces.zip"));
+        if (stage == "diagnostic")
+            writeFile(archive, "ordinary bytes");
+        else
+            QVERIFY(NativeArchiveFixture::Write(archive, {{"payload.txt"}}, "zip"));
+        QFile file(archive);
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        const QByteArray original = file.readAll();
+        file.close();
+        auto backend = std::make_unique<ArchiveBackend>();
+        QPointer<ArchiveBackend> retained(backend.get());
+        int finished = 0;
+        connect(backend.get(), &ArchiveBackend::finished, this, [&] { ++finished; });
+        const auto release = [&](const QString &current) {
+            if (stage == current)
+                backend.reset();
+        };
+        connect(backend.get(), &ArchiveBackend::outputReceived, this,
+                [&] { release("diagnostic"); });
+        connect(backend.get(), &ArchiveBackend::infoReady, this, [&] { release("info"); });
+        connect(backend.get(), &ArchiveBackend::entriesReady, this, [&] { release("entries"); });
+        backend->list(archive);
+        QTRY_VERIFY_WITH_TIMEOUT(retained.isNull(), 15000);
+        QCOMPARE(finished, 0);
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        QCOMPARE(file.readAll(), original);
+    }
+    void readDiagnosticCanStartAnotherArchive() {
+        QTemporaryDir fixture;
+        const QString first = fixture.filePath(QStringLiteral("не архив 空.bin"));
+        const QString second = fixture.filePath("next.zip");
+        writeFile(first, "ordinary bytes");
+        QVERIFY(NativeArchiveFixture::Write(second, {{"next.txt"}}, "zip"));
+        ArchiveBackend backend;
+        QSignalSpy completed(&backend, &ArchiveBackend::finished);
+        QSignalSpy entries(&backend, &ArchiveBackend::entriesReady);
+        QStringList diagnostics;
+        connect(&backend, &ArchiveBackend::outputReceived, this, [&](const QString &message) {
+            diagnostics.append(message);
+            if (diagnostics.size() == 1)
+                backend.list(second);
+        });
+        backend.list(first);
+        QTRY_COMPARE_WITH_TIMEOUT(completed.size(), 2, 15000);
+        QVERIFY(!completed.first().first().toBool());
+        QVERIFY(completed.last().first().toBool());
+        QVERIFY(!diagnostics.isEmpty());
+        QVERIFY(diagnostics.first().contains(first));
+        QVERIFY(!diagnostics.first().contains(second));
+        QCOMPARE(completed.first()[1].toString(), diagnostics.join('\n'));
+        QCOMPARE(entries.size(), 1);
+        const auto items = qvariant_cast<QList<ArchiveEntry>>(entries.first().first());
+        QCOMPARE(items.size(), 1);
+        QCOMPARE(items.first().path, QString("next.txt"));
+        QVERIFY(backend.hasListedSourceArchive(second));
+        QVERIFY(!backend.busy());
+    }
     void rejectedRequestDoesNotReusePreviousResult_data() {
         QTest::addColumn<QString>("operation");
         QTest::addColumn<bool>("cancelled");

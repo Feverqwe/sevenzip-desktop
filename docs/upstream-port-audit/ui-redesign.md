@@ -1986,3 +1986,46 @@ acceptance is not claimed. These are composed Linux/Windows results, not green
 initial batches. No full/slow gate or rendered visual-parity check was run.
 Incremental builds/caches were retained; temporary original-file extracts were
 removed and small run evidence retained. No heavy diagnostic artifacts were added.
+
+## Read-operation completion — 2026-10-31
+
+Compared the owned baseline `b88c6bc09339de32f7d18bbab900686b244f42ba`
+`CPP/7zip/UI/FileManager/ExtractCallback.cpp` (`SetExtractErrorMessage`,
+`GetOpenArcErrorMessage`, open-result and item-result consumers), Common
+ArchiveOpenCallback/ArchiveExtractCallback, and the current joined read worker,
+listing, single-entry/partial-output and backend signal consumers. Complete
+original inventory-unit hashes match the existing manifest. No source import,
+new decoder or baseline owner was introduced.
+
+Backend completion builds diagnostics from the retained operation before
+publishing them through one lifetime-guarded output loop. Native error formatting,
+catalog-note visibility, message ordering, cancellation suppression and listing
+limitations are preserved. Fallback diagnostics use the captured archive path.
+Source extraction still decides partial-output disposition before terminal
+publication; listing snapshots and info/entries/finished publication retain their
+existing ownership and reentry semantics.
+
+Backend behavior coverage now includes releasing the backend from diagnostic,
+info and entries signals without a subsequent completion or source modification,
+and opening another archive from a diagnostic handler while retaining the first
+request's error and the second request's listing. Existing recovery and extraction
+suites cover successful output, password/error/cancellation and unverified data.
+
+Linux x64 passed `archive_backend`, `worker_progress`, `archive_recovery_backend`,
+`native_source_extract` and `source_extract_contract` in
+`20261030T213819Z-96dee696`. `source_extract_backend` reached its unchanged 30 s
+deadline without an assertion failure during measured heavy disk I/O pressure.
+Its isolated repeat, using the already mounted uncompressed RAM scratch with
+the same disk build/cache, passed in `20261030T214558Z-f1a6e1d3`
+(CTest 4.99 s; Ninja had no work). No product, assertion or deadline changes
+were made between runs. Linux acceptance combines these runs.
+Four exact disposable directories from the completed batch were removed after
+timestamp and process cwd/fd/maps checks; the first unprivileged reference check
+safely refused before deletion. Logs, incremental outputs and compiler caches
+were retained; final disk/RAM scratch contained only CTest/cache directories.
+macOS arm64 passed the same six suites together (CTest 55.85 s), including
+58 backend cases. No heavy diagnostics, full/slow gate or visual changes were
+introduced.
+
+Windows x64 Limited desktop passed all six suites in
+`20261030T214704Z-a3d95ac5`; no elevated repeat or test changes were needed.
