@@ -34,6 +34,70 @@ class WorkerWindowProgressTests final : public QObject, protected MainWindowTest
     }
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
+    void nextVolumeCommandRunsWhenReady() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString source = fixture.filePath("source");
+        const QString first = fixture.filePath("first output");
+        const QString second = fixture.filePath("second output");
+        QVERIFY(QDir().mkpath(source) && QDir().mkpath(first) && QDir().mkpath(second));
+        const QString name = QStringLiteral("данные.bin");
+        QFile input(QDir(source).filePath(name));
+        QVERIFY(input.open(QIODevice::WriteOnly));
+        QCOMPARE(input.write("0123456789abcdef"), qint64(16));
+        input.close();
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(source);
+        auto *view = table(window);
+        auto *split = action(window, "splitFileAction");
+        auto *ready = action(window, "createFolderAction");
+        const auto selectSource = [&] {
+            const int row = filesystemRow(window, name);
+            if (row < 0)
+                return false;
+            view->setCurrentCell(row, 0);
+            view->selectRow(row);
+            return true;
+        };
+        QVERIFY(selectSource());
+        int dialogs = 0;
+        const auto launch = [&](const QString &destination) {
+            QTimer::singleShot(0, &window, [&, destination] {
+                auto *dialog = window.findChild<QDialog *>("splitDialog");
+                if (!dialog)
+                    return;
+                ++dialogs;
+                dialog->findChild<QComboBox *>("volumeDestination")->setCurrentText(destination);
+                dialog->findChild<QComboBox *>("volumeSize")->setCurrentText("4B");
+                dialog->accept();
+            });
+            split->trigger();
+        };
+        bool armed = false, requested = false, enabled = false;
+        connect(ready, &QAction::changed, &window, [&] {
+            if (!armed || requested || !ready->isEnabled())
+                return;
+            requested = true;
+            if (!selectSource())
+                return;
+            enabled = split->isEnabled();
+            launch(second);
+        });
+        launch(first);
+        QCOMPARE(dialogs, 1);
+        armed = true;
+        QTRY_VERIFY(requested);
+        QVERIFY(enabled);
+        QTRY_COMPARE(dialogs, 2);
+        QTRY_VERIFY(QFileInfo::exists(QDir(second).filePath(name + ".004")));
+        for (const QString &destination : {first, second}) {
+            QFile part(QDir(destination).filePath(name + ".001"));
+            QVERIFY(part.open(QIODevice::ReadOnly));
+            QCOMPARE(part.readAll(), QByteArray("0123"));
+        }
+    }
     void nativeWorkerUpdatesVisibleProgressWithoutGuiQueue_data() {
         QTest::addColumn<int>("mode");
         QTest::addColumn<bool>("destroyDuringCallback");

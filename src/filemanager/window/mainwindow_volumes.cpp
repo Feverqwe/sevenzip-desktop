@@ -93,24 +93,27 @@ void MainWindow::launchVolume(VolumeOperation *operation, const UString &title,
                 if (app_.QtOperations().closed())
                     return;
                 operation->wait();
+                const bool canceled = operation->isCanceled();
+                if (volumeOperation_ == operation)
+                    volumeOperation_ = nullptr;
+                operation->deleteLater();
+                const QPointer<MainWindow> guard(this);
                 completion();
-                if (!success && !operation->isCanceled() && progress_)
+                if (!guard || app_.QtOperations().closed())
+                    return;
+                if (!success && !canceled && progress_)
                     progress_->Sync.FinalMessage.ErrorMessage.Message = ToUString(message);
                 closeProgressDialog(true);
+                if (!guard || app_.QtOperations().closed())
+                    return;
                 if (success) {
                     showDirectory(directory_, false);
-                    statusBar()->showMessage(message);
+                    if (guard && !app_.QtOperations().closed() && !app_.QtOperations().blocking())
+                        statusBar()->showMessage(message);
                 } else {
                     setState(State::Filesystem);
                 }
             });
-    connect(operation, &QThread::finished, this, [this, operation] {
-        if (app_.QtOperations().closed())
-            return;
-        operation->deleteLater();
-        if (volumeOperation_ == operation)
-            volumeOperation_ = nullptr;
-    });
     setState(State::Operating);
     volumeOperation_->start();
 }
