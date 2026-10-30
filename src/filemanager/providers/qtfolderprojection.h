@@ -1,9 +1,9 @@
 #pragma once
 #include "7zip/UI/FileManager/IFolder.h"
-#include "Common/MyCom.h"
 #include <QObject>
 #include <QTimer>
 #include <functional>
+#include <memory>
 
 // GUI scheduling only. The source folder still owns items and real indices;
 // this retains it until all rows have been presented or navigation cancels.
@@ -13,15 +13,11 @@ class QtFolderProjection final : public QObject {
     void start(IFolderFolder *folder, quint32 count, std::function<HRESULT(quint32)> append,
                std::function<void(HRESULT)> completed);
     void cancel();
-    bool active() const { return bool(folder_); }
+    bool active() const { return bool(request_); }
 
   private:
     void batch();
-    CMyComPtr<IFolderFolder> folder_;
+    struct Request;
+    std::shared_ptr<Request> request_;
     QTimer timer_{this};
-    quint64 generation_ = 0;
-    quint32 next_ = 0;
-    quint32 count_ = 0;
-    std::function<HRESULT(quint32)> append_;
-    std::function<void(HRESULT)> completed_;
 };

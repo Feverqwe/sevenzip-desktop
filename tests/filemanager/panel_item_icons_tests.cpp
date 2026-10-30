@@ -12,6 +12,7 @@
 #include "ui/support/layout_inspection.h"
 #include <QAction>
 #include <QApplication>
+#include <QPointer>
 #include <QStyle>
 #include <QtTest>
 #ifdef _WIN32
@@ -283,6 +284,42 @@ class PanelItemIconsTests final : public QObject, protected MainWindowTestSuppor
         QFile file(fixture.filePath(QStringLiteral("file δ 0.txt")));
         QVERIFY(file.open(QIODevice::ReadOnly));
         QCOMPARE(file.readAll(), QByteArray("control"));
+    }
+    void projectionPreservesCallbackStateAcrossBatches() {
+        CMyComPtr<IFolderFolder> folder = new LoadFolder;
+        QtFolderProjection projection;
+        QList<quint32> observed;
+        std::optional<HRESULT> terminal;
+        projection.start(
+            folder, 70,
+            [&observed, next = quint32(0)](quint32) mutable {
+                observed.append(next++);
+                return S_OK;
+            },
+            [&](HRESULT result) { terminal = result; });
+        QTRY_VERIFY(terminal.has_value());
+        QCOMPARE(*terminal, S_OK);
+        QCOMPARE(observed.size(), 70);
+        for (quint32 index = 0; index < 70; ++index)
+            QCOMPARE(observed[index], index);
+    }
+    void projectionCanBeDestroyedFromAppend() {
+        CMyComPtr<IFolderFolder> folder = new LoadFolder;
+        QPointer<QtFolderProjection> projection = new QtFolderProjection(this);
+        unsigned rows = 0;
+        unsigned completions = 0;
+        projection->start(
+            folder, 70,
+            [&](quint32) {
+                ++rows;
+                delete projection.data();
+                return E_ABORT;
+            },
+            [&](HRESULT) { ++completions; });
+        QTRY_VERIFY(projection.isNull());
+        QCoreApplication::processEvents();
+        QCOMPARE(rows, 1u);
+        QCOMPARE(completions, 0u);
     }
     void projectionSuccessFailureAndCancel_data() {
         QTest::addColumn<int>("stop");

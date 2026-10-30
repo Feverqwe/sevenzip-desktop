@@ -1,6 +1,20 @@
 #include "filemanager/providers/qtfolderprojection.h"
+#include "Common/MyCom.h"
 #include <QElapsedTimer>
 #include <QPointer>
+#include <utility>
+
+struct QtFolderProjection::Request {
+    Request(IFolderFolder *source, quint32 size, std::function<HRESULT(quint32)> appendRow,
+            std::function<void(HRESULT)> finished)
+        : folder(source), count(size), append(std::move(appendRow)),
+          completed(std::move(finished)) {}
+    CMyComPtr<IFolderFolder> folder;
+    const quint32 count;
+    quint32 next = 0;
+    std::function<HRESULT(quint32)> append;
+    std::function<void(HRESULT)> completed;
+};
 
 QtFolderProjection::QtFolderProjection(QObject *parent) : QObject(parent) {
     timer_.setInterval(0);
@@ -8,51 +22,42 @@ QtFolderProjection::QtFolderProjection(QObject *parent) : QObject(parent) {
 }
 
 void QtFolderProjection::cancel() {
-    ++generation_;
     timer_.stop();
-    folder_.Release();
-    append_ = {};
-    completed_ = {};
+    request_.reset();
 }
 
 void QtFolderProjection::start(IFolderFolder *folder, quint32 count,
                                std::function<HRESULT(quint32)> append,
                                std::function<void(HRESULT)> completed) {
+    auto request =
+        folder ? std::make_shared<Request>(folder, count, std::move(append), std::move(completed))
+               : nullptr;
     cancel();
-    folder_ = folder;
-    count_ = count;
-    next_ = 0;
-    append_ = std::move(append);
-    completed_ = std::move(completed);
-    timer_.start();
+    request_ = std::move(request);
+    if (request_)
+        timer_.start();
 }
 
 void QtFolderProjection::batch() {
-    if (!folder_)
+    const auto request = request_;
+    if (!request)
         return;
-    const quint64 generation = generation_;
     const QPointer<QtFolderProjection> guard(this);
-    CMyComPtr<IFolderFolder> retained = folder_;
-    const auto append = append_;
     QElapsedTimer elapsed;
     elapsed.start();
+    HRESULT result = S_OK;
     // Include property projection and native icon/row creation in the budget.
-    for (unsigned rows = 0; rows < 32 && elapsed.elapsed() < 8 && next_ < count_; ++rows) {
-        const HRESULT result = append(next_++);
-        if (!guard || generation != generation_)
+    for (unsigned rows = 0; rows < 32 && elapsed.elapsed() < 8 && request->next < request->count;
+         ++rows) {
+        result = request->append(request->next++);
+        if (!guard || request != request_)
             return;
-        if (result != S_OK) {
-            auto completed = std::move(completed_);
-            cancel();
-            if (completed)
-                completed(result);
-            return;
-        }
+        if (result != S_OK)
+            break;
     }
-    if (next_ < count_)
+    if (result == S_OK && request->next < request->count)
         return;
-    auto completed = std::move(completed_);
     cancel();
-    if (completed)
-        completed(S_OK);
+    if (request->completed)
+        request->completed(result);
 }
