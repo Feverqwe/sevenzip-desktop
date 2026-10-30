@@ -3,6 +3,7 @@
 #include "filemanager/panels/qtpaneldragtransport.h"
 #include <QObject>
 #include <QPoint>
+#include <optional>
 class MainWindow;
 class QEvent;
 class QtFileManagerDrag final : public QObject,
@@ -33,6 +34,8 @@ class QtFileManagerDrag final : public QObject,
     enum class DroppedPathAction { Open, Compress, Cancel };
     bool HandleDropEvent(QWidget &, QEvent &);
     HRESULT ExecuteDrop(CDataObject *, DWORD keys, const QPoint &position, DWORD &effect);
+    // An empty result continues the original Drop/Add path.
+    std::optional<HRESULT> HandleDroppedPathChoice(CDataObject *, DWORD keys, DWORD &effect);
     QString PathToOpen(CDataObject *, DWORD keys) const;
     DroppedPathAction ChooseDroppedPathAction(const QString &path);
     CDataObject *ReadData(const QMimeData &);
