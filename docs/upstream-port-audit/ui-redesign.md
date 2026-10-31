@@ -2322,3 +2322,34 @@ No functional changes followed the Linux
 result. Existing incremental outputs/compiler caches were retained, with one
 build job on the memory-limited guests. No full/slow suites, heavy diagnostics
 or visual-layout changes were introduced.
+
+## Retiring the unused archive progress worker bridge — 2026-10-31
+
+Reviewed the complete archive progress wrapper, its build registration, manager
+progress/password/completion consumers, drag entry and native resource progress
+services. Compared the original ProgressDialog2 creation, cancellation, worker
+entry/completion and joining bodies with the current port and its existing audit.
+The original algorithms, resources, source baselines and platform adaptations
+remain unchanged.
+
+The local `ArchiveProgressOperation` bridge had no application caller: only its
+own fixtures instantiated its polling worker. It is removed with its unused
+includes and build/inventory entries. Application progress continues through
+the existing source dialog and transport, while native archive workers retain
+their original joined lifecycle.
+
+Password accept, empty-password and cancel checks now open a real archive through
+the file-manager window and verify the resulting listing and unchanged archive.
+Pause failure and completion while paused exercise the actual dialog/transport
+directly, retaining normal/compact Close geometry checks. The removed wrapper's
+throwing-start callback is no longer an application contract; original worker
+exception/result composition remains covered by `progress_worker`, and native
+resource lifetime after window release by `archive_layer_lifetime`.
+
+Focused runtime validation passed `archive_progress`, `progress_worker`,
+`progress_cancel`, `native_navigation_window`, `archive_layer_lifetime` and
+`worker_window_progress` on Linux (15.89 seconds), macOS (27.64 seconds) and the
+Windows interactive runner (44.44 seconds). The checks include native password
+acceptance/cancellation and normal/compact progress geometry; they do not
+establish rendered Windows pixel parity. Existing incremental builds and
+compiler caches were reused; no full or slow suites ran.

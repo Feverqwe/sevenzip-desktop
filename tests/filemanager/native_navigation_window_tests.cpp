@@ -56,6 +56,57 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
                 QTest::newRow(qPrintable(QString("%1-%2").arg(origin).arg(cancel)))
                     << origin << cancel;
     }
+    void encryptedArchivePassword_data() {
+        QTest::addColumn<QString>("password");
+        QTest::addColumn<bool>("accept");
+        QTest::newRow("accept") << QStringLiteral("fixture пароль") << true;
+        QTest::newRow("empty") << QStringLiteral("") << true;
+        QTest::newRow("cancel") << QStringLiteral("fixture пароль") << false;
+    }
+    void encryptedArchivePassword() {
+        QFETCH(QString, password);
+        QFETCH(bool, accept);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString path = fixture.filePath(QStringLiteral("архив с паролем.7z"));
+        const QString entry = QStringLiteral("данные 空.txt");
+        QVERIFY(NativeArchiveFixture::Write(path, {{entry, "secret"}}, "7z", password));
+        QFile archive(path);
+        QVERIFY(archive.open(QIODevice::ReadOnly));
+        const auto original = archive.readAll();
+        archive.close();
+        ArchiveBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(fixture.path());
+        auto *list = window.findChild<FileTable *>("archiveTable");
+        auto *address = window.findChild<QLineEdit *>("archivePath");
+        QTRY_VERIFY(list->isEnabled());
+        const QString previous = address->text();
+        bool observed = false;
+        QTimer responder;
+        connect(&responder, &QTimer::timeout, &window, [&] {
+            if (auto *dialog = dynamic_cast<CPasswordDialog *>(QApplication::activeModalWidget())) {
+                observed = true;
+                dialog->findChild<QLineEdit *>("passwordEdit")->setText(password);
+                if (accept)
+                    dialog->accept();
+                else
+                    dialog->reject();
+            }
+        });
+        responder.start(5);
+        window.openArchive(path);
+        QVERIFY(observed);
+        QCOMPARE(QDir::cleanPath(address->text()), QDir::cleanPath(accept ? path : previous));
+        QCOMPARE(list->rowCount(), 1);
+        if (accept)
+            QCOMPARE(list->model()->index(0, 0).data().toString(), entry);
+        QVERIFY(list->isEnabled());
+        QVERIFY(!backend.busy());
+        QVERIFY(archive.open(QIODevice::ReadOnly));
+        QCOMPARE(archive.readAll(), original);
+    }
     void archiveOpenCompletion() {
         QFETCH(int, origin);
         QFETCH(bool, cancel);

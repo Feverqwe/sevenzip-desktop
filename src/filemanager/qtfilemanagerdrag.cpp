@@ -7,7 +7,6 @@
 #include "filemanager/window/qtapppresentation.h"
 #include "localization/LangUtils.h"
 #include "localization/qtlangcontrols.h"
-#include "ui/progress/archiveprogressoperation.h"
 #include <QScopedValueRollback>
 #include <QStorageInfo>
 

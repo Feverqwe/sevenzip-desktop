@@ -14,7 +14,6 @@
 #include "gui/resource2.h"
 #include "localization/qtlangcontrols.h"
 #include "platform/shell/qtshellarchiveservices.h"
-#include "ui/progress/archiveprogressoperation.h"
 #include <QScopeGuard>
 #include <QScopedValueRollback>
 

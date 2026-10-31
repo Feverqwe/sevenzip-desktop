@@ -139,8 +139,6 @@ add_library(sevenzip_panel
     src/filemanager/providers/RootFolder.h
     src/filemanager/panels/PanelSort.cpp
     src/filemanager/panels/PanelSort.h
-    src/ui/progress/archiveprogressoperation.cpp
-    src/ui/progress/archiveprogressoperation.h
     src/ui/progress/archiveprogresstransport.cpp
     src/ui/progress/archiveprogresstransport.h
     src/ui/progress/qtprogresstransport.h
