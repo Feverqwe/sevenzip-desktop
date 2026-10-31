@@ -200,6 +200,9 @@ rg -n --no-ignore -F 'CAgent::Open' docs/archive/qt-port/upstream-port-audit/ do
 - [Состояние автообновления панели](upstream-port-audit/auto-refresh-owner.md)
   — обнаружение изменений и восстановление прокрутки у одного владельца.
 
+- [Общий ввод имени и маски](upstream-port-audit/name-input-owner.md)
+  — данные представления сразу в контролах, исходный результат только после OK.
+
 - [Владение при исключении копирования object vector](upstream-port-audit/object-vector-ownership.md)
   — освобождение уже скопированных владельцев при отказе очередного элемента.
 

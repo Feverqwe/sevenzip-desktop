@@ -12,16 +12,12 @@ class CComboDialog : public QDialog {
   public:
     CComboDialog(const QString &title, const QString &prompt, const QString &initial,
                  QWidget *parent = nullptr, const QStringList &strings = {});
-    UString Title;
-    UString Static;
     UString Value;
-    UStringVector Strings;
-    QString value() const;
     void BindLanguage(UInt32 titleID, UInt32 promptID);
     void accept() override;
 
   private:
     QComboBox *_comboBox = nullptr;
-    bool OnInit();
+    bool OnInit(const QString &title, const QString &prompt, const QStringList &strings);
     void OnOK();
 };

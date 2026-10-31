@@ -17,40 +17,36 @@
 
 CComboDialog::CComboDialog(const QString &title, const QString &prompt, const QString &initial,
                            QWidget *parent, const QStringList &strings)
-    : QDialog(parent), Title(ToUString(title)), Static(ToUString(prompt)),
-      Value(ToUString(initial)) {
-    for (const QString &s : strings)
-        Strings.Add(ToUString(s));
-    OnInit();
+    : QDialog(parent), Value(ToUString(initial)) {
+    OnInit(title, prompt, strings);
 }
 
-bool CComboDialog::OnInit() {
+bool CComboDialog::OnInit(const QString &title, const QString &prompt, const QStringList &strings) {
     QtUseContextDialogModality(*this);
     setWindowFlag(Qt::WindowMinMaxButtonsHint);
     setWindowFlag(Qt::WindowContextHelpButtonHint, false);
     setObjectName("comboDialog");
-    setWindowTitle(ToQString(Title));
+    setWindowTitle(title);
     auto *buttons = new QtLangButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     buttons->setObjectName("comboButtons");
     auto *layout = QtCreateDialogLayout(*this, *buttons);
-    auto *staticControl = new QtWrappingLabel(ToQString(Static), this);
+    auto *staticControl = new QtWrappingLabel(prompt, this);
     staticControl->setObjectName("comboPrompt");
     staticControl->setTextFormat(Qt::PlainText);
     staticControl->setWordWrap(true);
     layout->addWidget(staticControl);
     _comboBox = new QComboBox(this);
     _comboBox->setObjectName("comboValue");
-    _comboBox->setAccessibleName(ToQString(Static));
+    _comboBox->setAccessibleName(prompt);
     _comboBox->setEditable(true);
     _comboBox->setInsertPolicy(QComboBox::NoInsert);
     _comboBox->setMinimumContentsLength(12);
     _comboBox->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
     staticControl->setBuddy(_comboBox);
     // Native AddString leaves the edit text unchanged. Qt's first insertion
-    // selects item 0, so restore the initial Value after populating Strings.
+    // selects item 0, so restore the initial Value after populating choices.
     _comboBox->setEditText(ToQString(Value));
-    FOR_VECTOR(i, Strings)
-    _comboBox->addItem(ToQString(Strings[i]));
+    _comboBox->addItems(strings);
     _comboBox->setCurrentIndex(-1);
     _comboBox->setEditText(ToQString(Value));
     layout->addWidget(_comboBox);
@@ -76,9 +72,10 @@ void CComboDialog::BindLanguage(UInt32 titleID, UInt32 promptID) {
     // A caller-built item title has no resource ID. Lang ID 0 names 7-Zip,
     // so binding it would replace the source "item : Comment" title.
     if (titleID)
-        QtBindLangText(this, titleID, ToQString(Title));
-    QtBindLangText(findChild<QLabel *>("comboPrompt"), promptID, ToQString(Static));
-    QtBindLangText(_comboBox, promptID, ToQString(Static), true);
+        QtBindLangText(this, titleID, windowTitle());
+    auto *prompt = findChild<QLabel *>("comboPrompt");
+    QtBindLangText(prompt, promptID, prompt->text());
+    QtBindLangText(_comboBox, promptID, _comboBox->accessibleName(), true);
     auto *buttons = static_cast<QtLangButtonBox *>(findChild<QDialogButtonBox *>("comboButtons"));
     // Callers identify the source operation with resource IDs; translated
     // window captions and caller-built comment titles are not command keys.
@@ -90,8 +87,4 @@ void CComboDialog::BindLanguage(UInt32 titleID, UInt32 promptID) {
         buttons->SetAcceptText("DialogRedesign", QT_TRANSLATE_NOOP("DialogRedesign", "Deselect"));
     else if (promptID == IDS_COMMENT2)
         buttons->SetAcceptText("DialogRedesign", QT_TRANSLATE_NOOP("DialogRedesign", "Save"));
-}
-
-QString CComboDialog::value() const {
-    return result() == QDialog::Accepted ? ToQString(Value) : _comboBox->currentText();
 }
