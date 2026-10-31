@@ -130,6 +130,9 @@ publishes source item identities and row presentation metadata; property text an
 comparison remain delegated to the source panel and its folder providers. Model
 changes preserve Qt persistent indexes and selection across sorting and column
 changes. The model does not retain providers beyond the panel's lifetime.
+The table owns each Qt column's property and source-catalog/visible-column
+binding together. Window code applies layout and persists the source panel's
+settings through that binding rather than maintaining parallel property maps.
 
 Inline rename has one scoped Qt controller for the editor, deferred delivery and
 activation guard. It retains the sending panel/item identity through commit or

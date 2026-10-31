@@ -68,7 +68,8 @@ sevenzip_add_port_component(sevenzip_main_window src/filemanager/window/mainwind
     src/filemanager/window/mainwindow_twopanel.cpp
     src/filemanager/window/mainwindow_volumes.cpp
     src/filemanager/panels/PanelKey.cpp
-    src/filemanager/views/filepanelmodel.cpp src/filemanager/views/filepanelmodel.h src/filemanager/views/filetable.cpp src/filemanager/views/filetable.h
+    src/filemanager/views/filepanelmodel.cpp src/filemanager/views/filepanelmodel.h
+    src/filemanager/views/filetable.cpp src/filemanager/views/filetable.h src/filemanager/views/filetable_columns.cpp
     src/filemanager/window/qtapppresentation.cpp
     src/filemanager/rename/qtrenamecontroller.cpp src/filemanager/rename/qtrenamecontroller.h
     src/filemanager/qtfilemanagercommands.cpp

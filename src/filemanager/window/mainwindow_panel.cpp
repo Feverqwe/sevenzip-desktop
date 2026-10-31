@@ -134,9 +134,8 @@ void MainWindow::createFileTable(QWidget *central) {
     auto *fileTable = static_cast<FileTable *>(table_);
     fileTable->setFullRowHighlight(fileListSettings_.FullRow);
     fileTable->sourcePanel = &app_.GetFocusedPanel();
-    fileTable->propertyIds = {kpidName,  kpidPath,      kpidSize,      kpidPackSize,
-                              kpidMTime, kpidExtension, kpidNoProperty};
-    fileTable->rawProperties.resize(7);
+    fileTable->setColumnProperties(
+        {kpidName, kpidPath, kpidSize, kpidPackSize, kpidMTime, kpidExtension, kpidNoProperty});
     table_->setObjectName("archiveTable");
     QtBindLocalText(table_, "mainwindow_panel", QT_TRANSLATE_NOOP("mainwindow_panel", "File list"),
                     true);
@@ -158,12 +157,17 @@ void MainWindow::createFileTable(QWidget *central) {
     const unsigned columnOwner = projectedPanel_;
     connect(table_->horizontalHeader(), &QWidget::customContextMenuRequested, this,
             [this, columnOwner](const QPoint &pos) {
+                const QPointer<QWidget> focused = QApplication::focusWidget();
                 withPanelProjection(columnOwner, [this, pos] {
                     QtPanelContextMenu menu(*this, *table_);
                     auto *header = table_->horizontalHeader();
                     const QPoint point = header->mapToGlobal(pos);
                     app_.GetFocusedPanel().OnContextMenu(header, point.x(), point.y(), menu);
                 });
+                // Popup destruction can restore window focus while another
+                // panel is projected. Restore the caller after that scope ends.
+                if (focused)
+                    focused->setFocus(Qt::PopupFocusReason);
             });
     connect(table_->horizontalHeader(), &QHeaderView::sectionResized, this,
             [this, columnOwner] { withPanelProjection(columnOwner, [this] { saveColumns(); }); });

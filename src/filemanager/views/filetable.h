@@ -39,10 +39,9 @@ class FileTable : public QTableView {
     // able to close its archive streams before deleting nested temporary files.
     IFolderFolder *textFolder = nullptr;
     std::function<void()> dragStarter;
-    QVector<PROPID> propertyIds;
-    QVector<bool> rawProperties;
-    QVector<int> sourceColumnIndices;
-    QVector<int> visibleColumnIndices;
+    void setColumnProperties(const QVector<PROPID> &properties, bool raw = false);
+    void configureSourceColumns();
+    bool usesSourceColumns() const { return sourceColumnsBound_; }
     const CPropColumn *sourceColumn(int column) const;
     int columnForCatalogProperty(unsigned index) const;
     int columnForVisibleProperty(unsigned index) const;
@@ -50,24 +49,23 @@ class FileTable : public QTableView {
     void appendSourceColumn(unsigned catalogIndex);
     bool takeSourceColumnClick();
     bool deferSourceColumnClick(std::function<void()> action);
-    PROPID propertyId(int column) const {
-        return column >= 0 && column < propertyIds.size() ? propertyIds[column] : kpidNoProperty;
-    }
-    bool isRawProperty(int column) const {
-        return column >= 0 && column < rawProperties.size() && rawProperties[column];
-    }
-    int columnForProperty(PROPID id) const {
-        for (int column = 0; column < propertyIds.size(); ++column) {
-            if (column != 1 && column != 5 && column != 6 && propertyIds[column] == id)
-                return column;
-        }
-        return id == kpidExtension ? 5 : id == kpidNoProperty ? 6 : -1;
-    }
+    PROPID propertyId(int column) const;
+    bool isRawProperty(int column) const;
+    int columnForProperty(PROPID id) const;
 
   protected:
     void startDrag(Qt::DropActions actions) override;
 
   private:
+    struct ColumnBinding {
+        PROPID property;
+        bool raw = false;
+        int catalogIndex = -1;
+        int visibleIndex = -1;
+    };
+    QVector<ColumnBinding> columns_;
+    bool sourceColumnsBound_ = false;
+    int findVisibleColumn(unsigned index) const;
     bool fullRowHighlight_ = false;
     FilePanelModel *model_;
 };

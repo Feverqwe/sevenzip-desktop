@@ -347,7 +347,7 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
         FileTable view(2);
         view.sourcePanel = &panel;
         view.textFolder = folder;
-        view.propertyIds = {kpidName, kpidSize};
+        view.setColumnProperties({kpidName, kpidSize});
         view.setSelectionBehavior(QAbstractItemView::SelectRows);
         panel.AttachSelectionView(&view);
         panel.SetAlternativeSelection(alternative);

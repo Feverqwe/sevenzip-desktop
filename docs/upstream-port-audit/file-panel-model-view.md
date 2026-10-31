@@ -171,3 +171,84 @@ completeness для смены presentation storage подтверждена о�
 providers/Agent/CPanel algorithms и прежние omissions не изменены, новых
 source-visible заглушек или не подключённых model consumers в выбранном
 scope не осталось.
+
+## Column customization bindings — 2026-10-31
+
+Compared the complete baseline `PanelItems.cpp::InitColumns`,
+`SaveListViewInfo`, `ShowColumnsContextMenu`, `PanelSort.cpp::OnColumnClick`,
+their column types and current settings/header/menu/model consumers. The
+recorded complete `PanelItems.cpp`, `PanelSort.cpp` and `Panel.h` hashes match
+the repository-owned source archive at
+`b88c6bc09339de32f7d18bbab900686b244f42ba`. Source catalog construction,
+name-first ordering, sort rules and settings serialization remain unchanged.
+
+Qt column binding construction and mutation now have one owner beside
+`FileTable`, in `filetable_columns.cpp`. One record retains property ID, raw
+status and both source indices, replacing four separately maintained vectors.
+Initial catalog binding, Show/Hide, text/alignment lookup, sort dispatch and
+settings projection use the same records. Duplicate-property identity matching,
+the source-visible occurrence order, reserved Qt display slots and standalone
+adapter fallback remain intact. Visible aliases are installed after matching
+the complete catalog; removing a column uses the retained binding even after
+the source has already removed its visible entry.
+
+This is local Qt integration, recorded as such in the existing manifest and
+linked through the existing window component. No external source was imported,
+no original hashes advanced and no archive/provider algorithms moved into the
+view. Window code retains layout, menu interaction and source settings calls.
+Existing behavioral suites cover the selected workflow and standalone consumers;
+their fixture setup now supplies properties through the adapter boundary.
+No source-text assertions or duplicate implementation tests were added.
+
+The initial Linux batch built the selected targets and passed 13 of 14 suites
+(`20261031T034720Z-e0ac0e2f`, CTest 38.60 s). The existing column-menu regression
+failed all four inactive-panel cancellation cases: popup teardown changed the
+remembered focus from the peer address to a file list. Original
+`PanelMenu.cpp::OnContextMenu` takes the header branch without a list command.
+The Qt adapter now restores the captured caller focus after popup destruction
+and panel projection unwind, instead of doing so inside both scopes. The
+existing focus/owner/selection assertions are unchanged.
+
+The four affected menu/schema/native suites passed Linux in
+`20261031T035255Z-67e48e51`; the other ten suites had passed on unchanged code.
+The two additional direct menu consumers, `panel_columns` and
+`panel_column_sort`, passed again in `20261031T040325Z-8b98e523`.
+All Linux batches reused the existing disk build and compiler cache with the existing
+RAM scratch. Current normal/compact JSON reports were enabled for the affected
+checks; no screenshots or rendered upstream comparison were requested.
+
+macOS arm64 passed all fourteen suites together (CTest 49.74 s). Reviewed Linux
+and macOS current-build JSON for native/schema and inactive-panel menu states
+at 980×620 and 640×400: both address controls and tables are enabled and fully
+visible. These are offscreen Qt geometry/behavior checks, separately from native
+archive fixture execution; they do not establish rendered Windows pixel parity.
+
+The first Windows Limited-desktop batch (`20261031T035407Z-dfcc3213`) passed
+ten suites. `panel_column_changes`, `panel_cell_text` and `panel_column_sort`
+reached their 60-second aggregate caps without a reported assertion failure;
+their complete-matrix acceptance requires a diagnostic repeat. Rename passed
+30 cases and failed two symbolic-link fixture creations under the Limited token;
+those cases require the existing elevated runner mode. Product code and test
+assertions were unchanged after the successful Linux/macOS checks.
+
+The diagnostic `20261031T041422Z-7f141fd4` also ended at the three aggregate
+300-second caps, with passing rows and no reported assertion failure. It
+overlapped the physical runner migration: configuration alone took 1232.79 s
+and the first test began 1574.47 s after invocation. These results do not
+establish stable Windows deadlines or acceptance. A fresh run after migration
+and the elevated symlink check remain necessary; further cap increases are
+not justified by these timings.
+
+After migration, Windows Limited desktop passed all three suites in
+`20261031T052242Z-ff81068c`: column changes 21.89 s, cell text 10.64 s and
+column sort 21.23 s, without assertion failures or skipped cases. The temporary
+verbose output and 300-second caps were removed, restoring the original silent
+mode and 60-second limits. No product code or assertions changed for the repeat.
+
+The existing elevated desktop mode passed all 32 rename-state checks, including
+both symbolic-link fixtures, in `20261031T053023Z-577a342b` (10.02 s).
+Together with the first ten suites and the post-migration repeat, all fourteen
+selected Windows suites are accepted. macOS/Linux results above remain valid;
+no functional changes followed them. Small failure/acceptance receipts were
+retained and completed fixtures cleaned their scopes. Build trees and compiler
+caches were preserved throughout.

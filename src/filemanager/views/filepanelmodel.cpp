@@ -276,8 +276,7 @@ void FilePanelModel::sort(int column, Qt::SortOrder order) {
             return first.directory;
         const int compared = panel->CompareItemIndices(
             first.sourceIndex, second.sourceIndex, view_.propertyId(column),
-            view_.sourceColumnIndices.isEmpty() ? view_.isRawProperty(column)
-                                                : panel->_isRawSortProp != 0);
+            view_.usesSourceColumns() ? panel->_isRawSortProp != 0 : view_.isRawProperty(column));
         return order == Qt::AscendingOrder ? compared < 0 : compared > 0;
     });
     emit layoutAboutToBeChanged({}, QAbstractItemModel::VerticalSortHint);

@@ -1,6 +1,4 @@
 #include "filemanager/views/filetable.h"
-#include "filemanager/panels/Panel.h"
-#include "filemanager/panels/PanelSort.h"
 #include "ui/theme/qtsemanticcolors.h"
 
 #include <QEvent>
@@ -11,7 +9,6 @@
 #include <QMouseEvent>
 #include <QPainter>
 #include <QScopedValueRollback>
-#include <QSignalBlocker>
 #include <QStyledItemDelegate>
 #include <QUrl>
 
@@ -53,10 +50,6 @@ class FileColumnHeader final : public QHeaderView {
     }
 };
 
-bool sameColumnIdentity(const CPropColumn &left, const CPropColumn &right) {
-    return left.ID == right.ID && left.Type == right.Type && left.IsRawProp == right.IsRawProp &&
-           left.Name == right.Name;
-}
 class FileRowDelegate final : public QStyledItemDelegate {
   public:
     using QStyledItemDelegate::QStyledItemDelegate;
@@ -181,102 +174,6 @@ bool FileTable::deferSourceColumnClick(std::function<void()> action) {
     // Finish Qt's automatic sort before projecting the source click result.
     header->sortClick = std::move(action);
     return true;
-}
-
-const CPropColumn *FileTable::sourceColumn(int column) const {
-    if (!sourcePanel || column < 0)
-        return nullptr;
-    if (column < visibleColumnIndices.size()) {
-        const int index = visibleColumnIndices[column];
-        const CPropColumns &visible = sourcePanel->GetVisibleColumns();
-        if (index >= 0 && unsigned(index) < visible.Size())
-            return &visible[unsigned(index)];
-    }
-    const CPropColumns &columns = sourcePanel->GetColumns();
-    if (!sourceColumnIndices.isEmpty()) {
-        const int index = column < sourceColumnIndices.size() ? sourceColumnIndices[column] : -1;
-        if (index < 0 || unsigned(index) >= columns.Size())
-            return nullptr;
-        const CPropColumn &prop = columns[unsigned(index)];
-        return prop.ID == propertyId(column) && prop.IsRawProp == isRawProperty(column) ? &prop
-                                                                                        : nullptr;
-    }
-    // Standalone adapters without a publication map retain their ID binding.
-    const int index = columns.FindItem_for_PropID(propertyId(column));
-    return index >= 0 ? &columns[unsigned(index)] : nullptr;
-}
-
-int FileTable::columnForCatalogProperty(unsigned index) const {
-    return sourceColumnIndices.indexOf(int(index));
-}
-
-int FileTable::columnForVisibleProperty(unsigned index) const {
-    if (!sourcePanel || index >= sourcePanel->GetVisibleColumns().Size())
-        return -1;
-    if (!visibleColumnIndices.isEmpty())
-        return visibleColumnIndices.indexOf(int(index));
-    const CPropColumns &visible = sourcePanel->GetVisibleColumns();
-    const CPropColumn &prop = visible[index];
-    unsigned occurrence = 0;
-    for (unsigned previous = 0; previous < index; ++previous)
-        if (sameColumnIdentity(visible[previous], prop))
-            ++occurrence;
-    for (int column = 0; column < columnCount(); ++column) {
-        const CPropColumn *candidate = sourceColumn(column);
-        if (candidate && sameColumnIdentity(*candidate, prop)) {
-            if (occurrence == 0)
-                return column;
-            --occurrence;
-        }
-    }
-    return -1;
-}
-
-void FileTable::removeSourceColumn(unsigned index) {
-    const int column = visibleColumnIndices.indexOf(int(index));
-    if (column >= 0)
-        setColumnHidden(column, true);
-    for (int &visible : visibleColumnIndices) {
-        if (visible == int(index))
-            visible = -1;
-        else if (visible > int(index))
-            --visible;
-    }
-}
-
-void FileTable::appendSourceColumn(unsigned catalogIndex) {
-    const QSignalBlocker blocked(this);
-    const QSignalBlocker selectionBlocked(selectionModel());
-    const QModelIndexList selected = selectionModel()->selectedRows();
-    int column = -1;
-    for (int candidate = 0; candidate < sourceColumnIndices.size(); ++candidate)
-        if (sourceColumnIndices[candidate] == int(catalogIndex) &&
-            visibleColumnIndices[candidate] < 0) {
-            column = candidate;
-            break;
-        }
-    const unsigned index = sourcePanel->GetVisibleColumns().Size() - 1;
-    const CPropColumn &prop = sourcePanel->GetVisibleColumns()[index];
-    if (column < 0) {
-        column = columnCount();
-        propertyIds.append(prop.ID);
-        rawProperties.append(prop.IsRawProp);
-        sourceColumnIndices.append(int(catalogIndex));
-        visibleColumnIndices.append(-1);
-        QStringList labels;
-        for (int i = 0; i < column; ++i)
-            labels << model_->headerData(i, Qt::Horizontal, Qt::DisplayRole).toString();
-        labels << ToQString(prop.Name);
-        model_->setColumns(labels);
-    } else {
-        model_->invalidateText(column);
-    }
-    visibleColumnIndices[column] = int(index);
-    setColumnWidth(column, qMax(32, int(prop.Width)));
-    setColumnHidden(column, false);
-    horizontalHeader()->moveSection(horizontalHeader()->visualIndex(column), columnCount() - 1);
-    for (const QModelIndex &row : selected)
-        selectionModel()->select(model()->index(row.row(), column), QItemSelectionModel::Select);
 }
 
 void FileTable::setFullRowHighlight(bool enabled) {

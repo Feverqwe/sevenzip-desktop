@@ -32,7 +32,7 @@ class PanelRefreshNotificationsTests final : public QObject {
         FileTable view(1);
         view.sourcePanel = &panel;
         view.textFolder = folder;
-        view.propertyIds = {kpidName};
+        view.setColumnProperties({kpidName});
         view.setSelectionBehavior(QAbstractItemView::SelectRows);
         for (int row = 0; row < 2; ++row) {
             FilePanelModel::Row item;

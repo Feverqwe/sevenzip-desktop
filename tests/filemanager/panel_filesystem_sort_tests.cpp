@@ -159,8 +159,7 @@ class PanelFilesystemSortTests final : public QObject {
         FileTable view(1);
         view.sourcePanel = &panel;
         view.textFolder = folder;
-        view.propertyIds = {kpidComment};
-        view.rawProperties = {false};
+        view.setColumnProperties({kpidComment});
         view.setSelectionBehavior(QAbstractItemView::SelectRows);
         const QList<UInt32> indices = {first, second};
         for (int row = 0; row < 2; ++row) {

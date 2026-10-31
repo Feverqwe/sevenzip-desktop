@@ -1,8 +1,4 @@
-#include "filemanager/PropertyName.h"
-#include "filemanager/panels/PanelSort.h"
 #include "filemanager/window/mainwindow.h"
-#include "localization/qtlanguageservices.h"
-#include <QPointer>
 
 void MainWindow::configureColumns(bool initialized) {
     auto &panel = app_.GetFocusedPanel();
@@ -14,38 +10,7 @@ void MainWindow::configureColumns(bool initialized) {
     const CPropColumns &columns = panel.GetColumns();
     table_->clearRows();
     fileTable->textFolder = panel.GetFolder();
-    fileTable->propertyIds = {kpidName,  kpidPath,      kpidSize,      kpidPackSize,
-                              kpidMTime, kpidExtension, kpidNoProperty};
-    fileTable->rawProperties.fill(false, 7);
-    fileTable->sourceColumnIndices.fill(-1, 7);
-    fileTable->visibleColumnIndices.clear();
-    QStringList labels;
-    for (PROPID id : fileTable->propertyIds)
-        labels << (id == kpidNoProperty ? QCoreApplication::translate("mainwindow_columns", "Order")
-                                        : QString::fromWCharArray(GetNameOfProperty(id, nullptr)));
-    FOR_VECTOR(i, columns) {
-        const CPropColumn &prop = columns[i];
-        int column = -1;
-        if (prop.ID == kpidName)
-            column = 0;
-        else if (prop.ID == kpidSize)
-            column = 2;
-        else if (prop.ID == kpidPackSize)
-            column = 3;
-        else if (prop.ID == kpidMTime)
-            column = 4;
-        if (column < 0 || prop.IsRawProp || fileTable->sourceColumnIndices[column] >= 0) {
-            column = fileTable->propertyIds.size();
-            fileTable->propertyIds.append(prop.ID);
-            fileTable->rawProperties.append(false);
-            fileTable->sourceColumnIndices.append(-1);
-            labels << ToQString(prop.Name);
-        }
-        fileTable->sourceColumnIndices[column] = int(i);
-        fileTable->rawProperties[column] = prop.IsRawProp;
-        labels[column] = ToQString(prop.Name);
-    }
-    table_->panelModel()->setColumns(labels);
+    fileTable->configureSourceColumns();
     FOR_VECTOR(i, columns) {
         const CPropColumn &prop = columns[i];
         const int column = fileTable->columnForCatalogProperty(i);
@@ -59,13 +24,6 @@ void MainWindow::configureColumns(bool initialized) {
             table_->setColumnHidden(column, true);
     }
     const CPropColumns &visible = panel.GetVisibleColumns();
-    QVector<int> visibleIndices(table_->columnCount(), -1);
-    FOR_VECTOR(i, visible) {
-        const int column = fileTable->columnForVisibleProperty(i);
-        if (column >= 0)
-            visibleIndices[column] = int(i);
-    }
-    fileTable->visibleColumnIndices = visibleIndices;
     updateIconColumn();
     CIntArr columnOrder;
     const bool ordered = panel.GetColumnOrder(columnOrder);
@@ -157,10 +115,7 @@ void MainWindow::showColumnsMenu(const QPoint &pos) {
             saveColumns();
         });
     }
-    const QPointer<QWidget> focused = QApplication::focusWidget();
     menu.exec(table_->horizontalHeader()->mapToGlobal(pos));
-    if (focused)
-        focused->setFocus(Qt::PopupFocusReason);
 }
 
 void MainWindow::redrawTimestampColumns() {

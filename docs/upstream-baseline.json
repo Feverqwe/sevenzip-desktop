@@ -1727,6 +1727,7 @@
     "src/filemanager/views/filepanelmodel.h",
     "src/filemanager/views/filetable.cpp",
     "src/filemanager/views/filetable.h",
+    "src/filemanager/views/filetable_columns.cpp",
     "src/filemanager/views/qtfilelisthover.cpp",
     "src/filemanager/views/qtfilelisthover.h",
     "src/filemanager/views/qtlistview.cpp",

@@ -100,8 +100,7 @@ class PanelArchiveSortTests final : public QObject {
         FileTable view(1);
         view.sourcePanel = &panel;
         view.textFolder = folder;
-        view.propertyIds = {property};
-        view.rawProperties = {true};
+        view.setColumnProperties({property}, true);
         view.setSelectionBehavior(QAbstractItemView::SelectRows);
         for (int row = 0; row < entries.size(); ++row) {
             FilePanelModel::Row item;

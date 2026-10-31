@@ -135,7 +135,7 @@ class PanelColumnsTests final : public QObject, protected MainWindowTestSupport 
         FileTable view(1);
         view.sourcePanel = &panel;
         view.textFolder = folder;
-        view.propertyIds = {kpidName};
+        view.setColumnProperties({kpidName});
         auto *model = view.panelModel();
         QAbstractItemModelTester tester(model,
                                         QAbstractItemModelTester::FailureReportingMode::QtTest);
@@ -178,8 +178,9 @@ class PanelColumnsTests final : public QObject, protected MainWindowTestSupport 
         FileTable list(8);
         list.sourcePanel = &panel;
         list.textFolder = folder;
-        list.propertyIds.fill(kpidNoProperty, 8);
-        list.propertyIds[7] = kpidCRC;
+        QVector<PROPID> properties(8, kpidNoProperty);
+        properties[7] = kpidCRC;
+        list.setColumnProperties(properties);
         for (int row = 0; row < 2; ++row) {
             FilePanelModel::Row item;
             item.sourceIndex = row;
