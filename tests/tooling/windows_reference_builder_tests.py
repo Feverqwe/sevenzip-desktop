@@ -25,18 +25,20 @@ class ReferenceBuilderTests(unittest.TestCase):
         self.project = self.root / "project"
         self.upstream = self.root / "upstream"
         self.bin = self.root / "bin"
-        for path in (self.project / "scripts", self.project / "tests/fixtures",
+        for path in (self.project / "scripts", self.project / "tests/support",
                      self.project / "docs", codec_runtime(self.project), self.bin, self.upstream):
             path.mkdir(parents=True, exist_ok=True)
         for name in ("build-windows-reference.ps1", "upstream_baseline.py"):
             shutil.copy2(ROOT / "scripts" / name, self.project / "scripts" / name)
         (self.project / "scripts/lib").mkdir()
-        for helper in ("build_paths.py", "project_paths.py", "workspace.ps1", "local_ramdisk.py",
-                       "ramdisk_platforms.py", "cp2_install.py"):
+        for helper in ("build_paths.py", "project_paths.py", "workspace.ps1", "cp2_install.py"):
             shutil.copy2(ROOT / "scripts/lib" / helper, self.project / "scripts/lib" / helper)
         (self.project / "tools/build").mkdir(parents=True)
         shutil.copy2(ROOT / "tools/build/project.json", self.project / "tools/build/project.json")
-        self.adapter = self.project / "tests/fixtures/native_reference_entry.cpp"
+        (self.project / "tools/dependencies").mkdir()
+        shutil.copy2(ROOT / "tools/dependencies/source_archives.py",
+                     self.project / "tools/dependencies/source_archives.py")
+        self.adapter = self.project / "tests/support/native_reference_entry.cpp"
         self.adapter.write_bytes(b"private reference wrapper")
         for name in ("7z.dll", "7z.exe"):
             (codec_runtime(self.project) / name).write_bytes(b"synthetic runtime")

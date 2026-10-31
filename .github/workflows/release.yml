@@ -15,8 +15,6 @@ concurrency:
 env:
   QT_VERSION: '6.12.0'
   CMAKE_BUILD_PARALLEL_LEVEL: '4'
-  SEVENZIP_RAMDISK: 'OFF'
-  SEVENZIP_BUILD_STORAGE: disk
 
 jobs:
   build:

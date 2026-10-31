@@ -78,31 +78,16 @@ can select an approved private directory with those capabilities. The isolated
 [runtime check](archive/qt-port/upstream-port-audit.md#p3-04--isolated-linux-runtime-and-temporary-directory-contract-2026-10-10)
 verifies this override, cleanup and unchanged archives; it changes no system policy.
 
-Build wrappers use the ordinary disk by default for intermediates and temporary
-data. Optional RAM workspaces are enabled with `SEVENZIP_RAMDISK=ON`;
-add `SEVENZIP_BUILD_STORAGE=ram` to place native build intermediates there too.
-When enabled, wrappers create a RAM workspace when missing: APFS on macOS, LZ4 zram/ext4
-on Linux, and an ImDisk NTFS drive on Windows. Local development defaults to
-4 GiB; remote runner commands select 8 GiB. Linux/Windows capacity can be selected
-with `SEVENZIP_RAM_SIZE_GIB`. Linux/Windows use automatic compression by default;
-`SEVENZIP_RAM_COMPRESSION=OFF` selects an uncompressed workspace. Linux requires
-`zramctl`, ext4 utilities and passwordless provisioning
-permission; Windows requires the installed ImDisk driver and administrator
-rights for creation. `./scripts/ramdisk.sh start` and `status` allow explicit
-setup and inspection. The wrappers validate the actual backing storage and
-stop on a wrong mount or insufficient free space; they never silently spill
-RAM builds onto disk.
+Build wrappers use ordinary disk for intermediates and temporary data.
+They do not provision RAM disks.
 
 Build files, binaries, runtimes, reports, installed dependencies and persistent
 compiler/download caches stay under the main checkout's `build/`, separated by
-branch and platform. Optional RAM contents are lost
-when unmounted or after restart; persistent caches remain usable.
+branch and platform.
 Use `scripts/lib/build_paths.py path --root "$PWD" --category work --preset dev`
-to locate the selected profile's build trees. `SEVENZIP_BUILD_STORAGE=disk`
-selects persistent intermediates. Disposable test settings and startup data
-use the selected scratch storage; reports stay on disk.
-vcpkg profiles always use disk for their
-intermediates and remain optional; native builds install no manifest packages.
+to locate the selected profile's build trees. Disposable test settings and startup
+data use project scratch storage. vcpkg profiles remain optional; native builds
+install no manifest packages.
 
 On macOS, installed host tools and the prebuilt Qt SDK are retained in the main
 checkout's ignored `.codex/tools/` directory. They are installed once and reused
@@ -493,8 +478,7 @@ sh .agents/skills/sz-setup/scripts/setup.sh
 
 Without target arguments, `build.sh dev` builds the application and its required
 dependencies, not every test executable. Use `verify.py` for a focused scenario
-or pass explicit targets. `build.sh dev all` is an explicit all-target build;
-use `SEVENZIP_BUILD_STORAGE=disk` when its intermediates exceed the RAM budget.
+or pass explicit targets. `build.sh dev all` is an explicit all-target build.
 
 `./scripts/build.sh dev sevenzip_window_tests` builds the application and its
 window test consumers without running them. Select runtime checks separately

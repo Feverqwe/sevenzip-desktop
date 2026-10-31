@@ -24,7 +24,6 @@ from lib.hyperv_workspace import current_branch, load_workspaces, mount_guard, w
 from lib.runner_config import load_config, runner_config
 from lib.project_paths import harness_root
 from lib.runner_timing import summarize
-from lib.ramdisk_platforms import capacity_gib, compression_enabled
 from lib.runtime_layout import codec_runtime
 from lib.build_paths import branch_component, directory, environment as workspace_environment
 
@@ -158,12 +157,7 @@ def execute_check(record, platform, preset, root, token, command=None,
     storage = config['workspace']['root'].rsplit('/', 1)[0]
     branch = record.get("branch") or current_branch(ROOT)
     tag = platform + '-x86_64'
-    build_environment = {'SEVENZIP_WORKSPACE': storage, 'SEVENZIP_SOURCE_ROOT': root,
-                         'SEVENZIP_RAM_SIZE_GIB': str(capacity_gib(default=8)),
-                         'SEVENZIP_RAM_COMPRESSION': 'ON' if compression_enabled() else 'OFF'}
-    for name in ('SEVENZIP_BUILD_STORAGE', 'SEVENZIP_RAMDISK'):
-        if name in os.environ:
-            build_environment[name] = os.environ[name]
+    build_environment = {'SEVENZIP_WORKSPACE': storage, 'SEVENZIP_SOURCE_ROOT': root}
     build_environment.update(diagnostics)
     if use_vcpkg:
         build_environment.update(VCPKG_MAX_CONCURRENCY=str(build_jobs))

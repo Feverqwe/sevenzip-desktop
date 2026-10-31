@@ -40,7 +40,7 @@ def workspace_root(root):
     mount = mount_root(root)
     configured_source = os.environ.get("SEVENZIP_SOURCE_ROOT")
     if configured_source and Path(configured_source).resolve() != root:
-        # Nested workflow fixtures own their outputs on the RAM workspace.
+        # Nested workflow fixtures own their outputs in their temporary workspace.
         temporary = Path(os.environ.get("TMPDIR", mount)).resolve()
         if root.is_relative_to(temporary) or root.is_relative_to(mount.resolve()):
             return root
@@ -84,22 +84,11 @@ def directory(root, category):
 
 
 def scratch_root(root):
-    if os.environ.get("SEVENZIP_RAMDISK", "OFF") == "OFF":
-        return workspace_root(root)
-    if __package__:
-        from .local_ramdisk import scratch
-    else:
-        from local_ramdisk import scratch
-    return scratch(root)
+    return workspace_root(root)
 
 
 def build_root(root, preset="dev"):
-    storage = os.environ.get("SEVENZIP_BUILD_STORAGE", "disk")
-    if storage not in ("ram", "disk"):
-        raise ValueError("SEVENZIP_BUILD_STORAGE must be ram or disk")
-    if storage == "disk" or preset.startswith("vcpkg-"):
-        return workspace_root(root) / "branches" / branch_key(root) / "work" / host_tag()
-    return scratch_root(root) / "b" / branch_key(root) / "w"
+    return workspace_root(root) / "branches" / branch_key(root) / "work" / host_tag()
 
 
 def host_tools(root):
@@ -142,15 +131,7 @@ def environment(root, preset="dev"):
     workspace = require_workspace(root)
     workspace.mkdir(parents=True, exist_ok=True)
     scratch = scratch_root(root)
-    ram_mount = ""
-    if os.environ.get("SEVENZIP_RAMDISK", "OFF") != "OFF":
-        if __package__:
-            from .local_ramdisk import volume
-        else:
-            from local_ramdisk import volume
-        ram_mount = str(volume(root))
     values = {
-        "SEVENZIP_RAM_MOUNT": ram_mount,
         "SEVENZIP_WORKSPACE": str(workspace),
         "SEVENZIP_SOURCE_ROOT": str(Path(root).resolve()),
         "SEVENZIP_BRANCH_KEY": branch_key(root),
@@ -172,11 +153,10 @@ def environment(root, preset="dev"):
         "VCPKG_ROOT": str(directory(root, "tools") / "vcpkg"),
     }
     paths = [contained_output(workspace, value) for name, value in values.items()
-             if name not in ("SEVENZIP_RAM_MOUNT", "SEVENZIP_WORKSPACE", "SEVENZIP_SOURCE_ROOT", "SEVENZIP_BRANCH_KEY", "SEVENZIP_TOOLS_ROOT", "SEVENZIP_BUILD_ROOT", "CCACHE_TEMPDIR", "TMPDIR", "TMP", "TEMP")]
+             if name not in ("SEVENZIP_WORKSPACE", "SEVENZIP_SOURCE_ROOT", "SEVENZIP_BRANCH_KEY", "SEVENZIP_TOOLS_ROOT", "SEVENZIP_BUILD_ROOT", "CCACHE_TEMPDIR", "TMPDIR", "TMP", "TEMP")]
     paths.extend([contained_output(scratch, values["TMPDIR"]),
                   contained_output(scratch, values["CCACHE_TEMPDIR"]),
-                  contained_output(workspace if preset.startswith("vcpkg-") or os.environ.get("SEVENZIP_BUILD_STORAGE", "disk") == "disk" else scratch,
-                                   values["SEVENZIP_BUILD_ROOT"])])
+                  contained_output(workspace, values["SEVENZIP_BUILD_ROOT"])])
     tools = host_tools(root)
     if platform.system() == "Darwin" and not tools.resolve().is_relative_to(harness_root(root).resolve()):
         raise ValueError("Local tools directory escapes the project")

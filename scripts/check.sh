@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 set -euo pipefail
-export SEVENZIP_BUILD_STORAGE="${SEVENZIP_BUILD_STORAGE:-disk}"
 
 project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$project_root"

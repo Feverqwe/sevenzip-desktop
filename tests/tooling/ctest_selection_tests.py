@@ -21,7 +21,7 @@ class CTestSelectionTests(unittest.TestCase):
             (root / "scripts/lib").mkdir(parents=True)
             (root / "runner-tmp").mkdir()
             for name in ("ctest.sh", "lib/runner_timing.py", "lib/build_paths.py",
-                         "lib/project_paths.py", "lib/local_ramdisk.py", "lib/ramdisk_platforms.py", "lib/cp2_install.py"):
+                         "lib/project_paths.py", "lib/cp2_install.py"):
                 shutil.copy2(ROOT / "scripts" / name, root / "scripts" / name)
             (root / "tools/build").mkdir(parents=True)
             shutil.copy2(ROOT / "tools/build/project.json", root / "tools/build/project.json")
@@ -56,7 +56,7 @@ class CTestSelectionTests(unittest.TestCase):
             self.assertFalse((root / "slow").exists())
             self.assertFalse((root / "other").exists())
             self.assertEqual(Path((root / "fast").read_text()).resolve(), scratch.resolve())
-            # A persistent build tree remains after its RAM working directory
+            # A persistent build tree remains after its disposable working directory
             # disappears. The next invocation must restore it before startup.
             shutil.rmtree(root / "scratch")
             self.run_command([*wrapper, "-R", "^fast$"], env)

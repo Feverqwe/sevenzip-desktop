@@ -1,4 +1,4 @@
-# Prepare and validate project RAM/disk storage before running tools.
+# Prepare and validate project storage before running tools.
 function Initialize-SevenzipWorkspace([string]$ProjectRoot) {
     $env:PYTHONDONTWRITEBYTECODE = '1'
     $python = if ($env:SEVENZIP_RUNNER_PYTHON) { $env:SEVENZIP_RUNNER_PYTHON } else { 'python' }

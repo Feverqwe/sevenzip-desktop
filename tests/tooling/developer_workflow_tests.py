@@ -25,32 +25,13 @@ class WorkflowTests(unittest.TestCase):
         # runner's destination would mix fixtures and bypass their cleanup.
         os.environ.pop("SEVENZIP_OUTPUT_ROOT", None)
 
-    def test_occupied_non_ram_destination_preserves_cached_data(self):
-        with tempfile.TemporaryDirectory(prefix="unavailable RAM ") as temporary:
-            root = Path(temporary)
-            self.fixture(root)
-            retained = root / "retained-cache"
-            retained.write_bytes(b"existing compiler data")
-            unavailable = root / "unavailable"
-            unavailable.mkdir()
-            sentinel = unavailable / "existing-data"
-            sentinel.write_bytes(b"not a RAM filesystem")
-            result = subprocess.run(["bash", "scripts/build.sh", "dev", "subject"], cwd=root,
-                                    env=dict(os.environ, SEVENZIP_RAMDISK="ON",
-                                             SEVENZIP_RAM_MOUNT=str(unavailable)),
-                                    text=True, capture_output=True)
-            self.assertNotEqual(result.returncode, 0)
-            self.assertEqual(retained.read_bytes(), b"existing compiler data")
-            self.assertEqual(sentinel.read_bytes(), b"not a RAM filesystem")
-
     def fixture(self, root):
         (root / "scripts/config").mkdir(parents=True)
         (root / "cmake").mkdir()
         (root / "scripts/lib").mkdir(parents=True, exist_ok=True)
         for name in ("build.sh", "ctest.sh", "verify.py", "config/verify-profiles.json",
                      "lib/runner_timing.py", "lib/toolchain.py", "lib/toolchain.sh", "lib/runtime_layout.py",
-                     "lib/project_paths.py", "lib/build_paths.py", "lib/local_ramdisk.py",
-                     "lib/ramdisk_platforms.py", "lib/cp2_install.py"):
+                     "lib/project_paths.py", "lib/build_paths.py", "lib/cp2_install.py"):
             shutil.copy2(ROOT / "scripts" / name, root / "scripts" / name)
         (root / "tools/build").mkdir(parents=True)
         shutil.copy2(ROOT / "tools/build/project.json", root / "tools/build/project.json")
@@ -86,10 +67,7 @@ include(cmake/DeveloperWorkflow.cmake)
         with tempfile.TemporaryDirectory(prefix="focused default ") as temporary:
             root = Path(temporary)
             self.fixture(root)
-            environment = dict(os.environ, CMAKE_PREFIX_PATH=str(root),
-                               SEVENZIP_RAM_MOUNT=str(root / "unavailable-ram"))
-            environment.pop("SEVENZIP_RAMDISK", None)
-            environment.pop("SEVENZIP_BUILD_STORAGE", None)
+            environment = dict(os.environ, CMAKE_PREFIX_PATH=str(root))
             built = subprocess.run(["bash", "scripts/build.sh", "dev"], cwd=root,
                                    env=environment,
                                    text=True, capture_output=True)
