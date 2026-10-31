@@ -33,6 +33,42 @@ and compiler caches. No full/slow gate or layout change/visual acceptance is
 claimed. Compact verification reports and test logs are retained separately
 from the subsequent build-storage migration.
 
+## Overwrite decisions across a mixed batch — 2026-10-31
+
+Reviewed the complete original FileManager `ExtractCallback.cpp::AskWrite` and
+`AskOverwrite`, their callback types and filesystem-copy callers at
+`9128b80e3a471108678e2b3ec3c985861c8d7b0f` in
+<https://github.com/ip7z/7zip.git>. The complete original ExtractCallback unit
+matches its recorded SHA256 baseline. The Qt transaction, copy callback, worker
+wait/cancel protocol and window prompt/shutdown consumers were compared together.
+
+The filesystem transaction now resolves remembered overwrite answers through
+one path for top-level files and conflicts inside merged folders. Ordinary
+Yes/No remain per-file; Yes-to-all, No-to-all and automatic rename remain scoped
+to the batch. Directory merging, source copy recursion, staged publication,
+rollback and source removal retain their existing owners. The native archive
+callback and its source algorithms are unchanged. No external code is imported,
+no baseline changes and no source branches or dependencies are omitted.
+
+The public worker regression copies and moves a mixed file/folder selection in
+both orders. It checks visible conflict paths, prompt count, destination bytes,
+renamed output and retained/removed source bytes for all six answers. Cancel is
+delivered at the second conflict after an earlier item has published, checking
+rollback across the folder boundary. Existing cases covered individual
+top-level and nested conflicts, but did not cross that boundary with a retained
+answer. These are behavior-preserving simplifications; no pre-fix product
+failure is claimed.
+
+Seven focused suites passed on Linux, macOS and native interactive Windows:
+`file_transfer`, `file_transfer_direct`, `language_file_transfer`, `ui_operations`,
+`ui_copy_routing`, `app_lifecycle_window` and `worker_checkpoint`. The first
+macOS run exposed a test-only Unicode comparison: Qt creates decomposed file
+names there, while native enumeration retains that representation. Comparing
+canonically equivalent paths fixes the fixture. The final `file_transfer`
+repeat passed on all three platforms; the other six suites were unchanged and
+already passing. Builds reused the existing trees and compiler caches. No full/slow gate,
+appearance change or rendered visual-parity acceptance is claimed.
+
 ## Exception ownership — 2026-10-18
 
 Source reference: <https://github.com/ip7z/7zip.git>, commit

@@ -288,8 +288,8 @@ void QtFileTransferTransaction::finish(QList<Completed> &completed, QString &err
 void QtFileTransferTransaction::run() {
     enum class OverwriteMode { Ask, Skip, Overwrite, Rename };
     OverwriteMode overwriteMode = OverwriteMode::Ask;
-    auto nestedAnswer = [this, &overwriteMode](const QString &existing,
-                                               const QString &incoming) -> int {
+    auto overwriteAnswer = [this, &overwriteMode](const QString &existing,
+                                                  const QString &incoming) -> int {
         if (overwriteMode == OverwriteMode::Skip)
             return NOverwriteAnswer::kNo;
         if (overwriteMode == OverwriteMode::Overwrite)
@@ -331,22 +331,27 @@ void QtFileTransferTransaction::run() {
             }
             if (merge) {
                 mayReplace = true;
-            } else if (overwriteMode == OverwriteMode::Ask) {
-                const int answer = worker_.askOverwrite(target, source);
+            } else {
+                const int answer = overwriteAnswer(target, source);
                 switch (answer) {
                 case NOverwriteAnswer::kNo:
-                    continue;
                 case NOverwriteAnswer::kNoToAll:
-                    overwriteMode = OverwriteMode::Skip;
                     continue;
                 case NOverwriteAnswer::kYes:
-                    break;
                 case NOverwriteAnswer::kYesToAll:
-                    overwriteMode = OverwriteMode::Overwrite;
+                    mayReplace = true;
                     break;
-                case NOverwriteAnswer::kAutoRename:
-                    overwriteMode = OverwriteMode::Rename;
+                case NOverwriteAnswer::kAutoRename: {
+                    FString renamed = us2fs(target.toStdWString().c_str());
+                    if (!AutoRenamePath(renamed)) {
+                        error = QCoreApplication::translate("qtfiletransfertransaction",
+                                                            "Could not find an available name: %1")
+                                    .arg(target);
+                        break;
+                    }
+                    target = QString::fromWCharArray(fs2us(renamed));
                     break;
+                }
                 default:
                     error = QCoreApplication::translate("qtfiletransfertransaction",
                                                         "Operation canceled.");
@@ -355,20 +360,6 @@ void QtFileTransferTransaction::run() {
             }
             if (!error.isEmpty())
                 break;
-            if (!merge && overwriteMode == OverwriteMode::Skip)
-                continue;
-            if (!merge && overwriteMode == OverwriteMode::Rename) {
-                FString renamed = us2fs(target.toStdWString().c_str());
-                if (!AutoRenamePath(renamed)) {
-                    error = QCoreApplication::translate("qtfiletransfertransaction",
-                                                        "Could not find an available name: %1")
-                                .arg(target);
-                    break;
-                }
-                target = QString::fromWCharArray(fs2us(renamed));
-            } else if (!merge) {
-                mayReplace = true;
-            }
         }
         const QString suffix =
             QStringLiteral(".sevenzip-%1").arg(QUuid::createUuid().toString(QUuid::Id128));
@@ -399,7 +390,7 @@ void QtFileTransferTransaction::run() {
         const bool staged =
             valid &&
             (merge ? (copyEntry(target, stage, &error, false) &&
-                      mergeEntry(source, stage, target, nestedAnswer, &writtenSources, &error))
+                      mergeEntry(source, stage, target, overwriteAnswer, &writtenSources, &error))
                    : (renamed || copyEntry(source, stage, &error)));
         if (!staged && error.isEmpty())
             error =

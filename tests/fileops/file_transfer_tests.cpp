@@ -322,6 +322,105 @@ class FileTransferTests : public QObject {
         QCOMPARE(originalSource.readAll(), QByteArray("again"));
     }
 
+    void overwriteDecisionAcrossFolderBoundary_data() {
+        QTest::addColumn<int>("answer");
+        QTest::addColumn<bool>("nestedFirst");
+        QTest::addColumn<bool>("move");
+        for (const int answer :
+             {NOverwriteAnswer::kYes, NOverwriteAnswer::kNo, NOverwriteAnswer::kYesToAll,
+              NOverwriteAnswer::kNoToAll, NOverwriteAnswer::kAutoRename, NOverwriteAnswer::kCancel})
+            for (bool nestedFirst : {false, true})
+                for (bool move : {false, true})
+                    QTest::newRow(qPrintable(QString("%1-%2-%3")
+                                                 .arg(answer)
+                                                 .arg(nestedFirst ? "nested-first" : "top-first")
+                                                 .arg(move ? "move" : "copy")))
+                        << answer << nestedFirst << move;
+    }
+
+    void overwriteDecisionAcrossFolderBoundary() {
+        QFETCH(int, answer);
+        QFETCH(bool, nestedFirst);
+        QFETCH(bool, move);
+        QTemporaryDir temp;
+        QVERIFY(temp.isValid());
+        const QString incoming = temp.filePath("incoming");
+        const QString destination = temp.filePath("destination");
+        const QString folder = QStringLiteral("вложенная папка");
+        const QStringList names{QStringLiteral("верхний файл.txt"),
+                                folder + QStringLiteral("/внутренний файл.txt")};
+        for (const QString &root : {incoming, destination}) {
+            QVERIFY(QDir().mkpath(QDir(root).filePath(folder)));
+            for (const QString &name : names) {
+                QFile file(QDir(root).filePath(name));
+                QVERIFY(file.open(QIODevice::WriteOnly));
+                QCOMPARE(file.write(root == incoming ? "new" : "old"), qint64(3));
+            }
+        }
+        QStringList sources{QDir(incoming).filePath(names[0]), QDir(incoming).filePath(folder)};
+        if (nestedFirst)
+            sources.swapItemsAt(0, 1);
+        FileTransferOperation operation(sources, destination, move);
+        QStringList prompted;
+        connect(
+            &operation, &FileTransferOperation::overwriteRequested, &operation,
+            [&](const QString &existing, const QString &) {
+                prompted << QDir::fromNativeSeparators(existing).normalized(
+                    QString::NormalizationForm_C);
+                int decision = answer;
+                if (answer == NOverwriteAnswer::kCancel)
+                    decision =
+                        prompted.size() == 1 ? NOverwriteAnswer::kYes : NOverwriteAnswer::kCancel;
+                else if (prompted.size() == 2)
+                    decision = answer == NOverwriteAnswer::kYes ? NOverwriteAnswer::kNo
+                                                                : NOverwriteAnswer::kYes;
+                operation.submitOverwriteAnswer(decision);
+            },
+            Qt::DirectConnection);
+        QSignalSpy result(&operation, &FileTransferOperation::result);
+        operation.start();
+        QVERIFY(operation.wait(30000));
+        QTRY_COMPARE(result.size(), 1);
+        const bool canceled = answer == NOverwriteAnswer::kCancel;
+        QCOMPARE(result.first().first().toBool(), !canceled);
+        QCOMPARE(operation.resultKind(), canceled ? FileTransferOperation::ResultKind::Canceled
+                                                  : FileTransferOperation::ResultKind::Success);
+        const bool all = answer == NOverwriteAnswer::kYesToAll ||
+                         answer == NOverwriteAnswer::kNoToAll ||
+                         answer == NOverwriteAnswer::kAutoRename;
+        QStringList expectedPrompts;
+        expectedPrompts << QDir(destination)
+                               .filePath(names[nestedFirst ? 1 : 0])
+                               .normalized(QString::NormalizationForm_C);
+        if (!all)
+            expectedPrompts << QDir(destination)
+                                   .filePath(names[nestedFirst ? 0 : 1])
+                                   .normalized(QString::NormalizationForm_C);
+        QCOMPARE(prompted, expectedPrompts);
+        for (int i = 0; i < names.size(); ++i) {
+            const bool first = i == (nestedFirst ? 1 : 0);
+            const bool renamed = answer == NOverwriteAnswer::kAutoRename;
+            const bool written = !canceled && (renamed || answer == NOverwriteAnswer::kYesToAll ||
+                                               (answer == NOverwriteAnswer::kYes && first) ||
+                                               (answer == NOverwriteAnswer::kNo && !first));
+            QFile target(QDir(destination).filePath(names[i]));
+            QVERIFY(target.open(QIODevice::ReadOnly));
+            QCOMPARE(target.readAll(), written && !renamed ? QByteArray("new") : QByteArray("old"));
+            if (renamed) {
+                const QFileInfo info(target);
+                QFile alternate(info.dir().filePath(info.completeBaseName() + "_1.txt"));
+                QVERIFY(alternate.open(QIODevice::ReadOnly));
+                QCOMPARE(alternate.readAll(), QByteArray("new"));
+            }
+            QFile source(QDir(incoming).filePath(names[i]));
+            QCOMPARE(source.exists(), !move || !written);
+            if (source.exists()) {
+                QVERIFY(source.open(QIODevice::ReadOnly));
+                QCOMPARE(source.readAll(), QByteArray("new"));
+            }
+        }
+    }
+
     void directoryConflictMergesAndAsksForNestedFile() {
         for (const int answer : {NOverwriteAnswer::kNo, NOverwriteAnswer::kYes}) {
             QTemporaryDir temp;
