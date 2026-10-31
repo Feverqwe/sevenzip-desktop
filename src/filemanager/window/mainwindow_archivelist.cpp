@@ -69,7 +69,6 @@ HRESULT MainWindow::renderArchiveFolder(bool updateAddress) {
                     if (result != S_OK) {
                         table_->clearRows();
                         scanSelectedState_.reset();
-                        scanSelectedPaths_.reset();
                     }
                     scanningArchive_ = false;
                     applySortMode(true);

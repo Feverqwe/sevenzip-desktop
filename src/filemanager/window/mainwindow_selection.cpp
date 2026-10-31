@@ -4,10 +4,6 @@ void MainWindow::completeListSelection() {
     if (scanSelectedState_)
         app_.GetFocusedPanel().RestoreLoadedSelection(*scanSelectedState_);
     scanSelectedState_.reset();
-    auto paths = std::move(scanSelectedPaths_);
-    scanSelectedPaths_.reset();
-    if (paths)
-        selectPaths(*paths);
 }
 
 void MainWindow::restoreListSelection(const CSelectedState &selection) {

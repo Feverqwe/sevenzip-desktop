@@ -216,8 +216,6 @@ class MainWindow : public QMainWindow {
     HRESULT renderRootFolder(bool updateAddress = true);
     HRESULT appendFilesystemEntry(const QFileInfo &file, quint32 sourceIndex);
     void appendParentEntry();
-    QStringList selectedPaths() const;
-    void selectPaths(const QStringList &paths);
     void completeListSelection();
     void refreshCurrent(const CSelectedState *preserved = nullptr);
     HRESULT reloadPanelPresentation(unsigned index, const CSelectedState &selection);
@@ -360,7 +358,6 @@ class MainWindow : public QMainWindow {
         QHash<QString, FilesystemSignature> autoRefreshSnapshot;
         std::optional<FilesystemViewport> pendingViewport;
         std::optional<CSelectedState> pendingSelection;
-        std::optional<QStringList> pendingSelectedPaths;
     };
     std::array<PanelUiState, 2> panelUi_;
     QtFileManagerSplitter *panelSplitter_ = nullptr;
@@ -372,7 +369,6 @@ class MainWindow : public QMainWindow {
     std::unique_ptr<QtGuiOutputRefresh> guiOutputRefresh_;
     FilesystemScanner *filesystemScanner_ = nullptr;
     std::optional<CSelectedState> scanSelectedState_;
-    std::optional<QStringList> scanSelectedPaths_;
     State previousState_ = State::Filesystem;
     enum class ArchiveMoveStage { Extracting, Removing };
     struct PendingArchiveMove {

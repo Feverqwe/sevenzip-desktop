@@ -133,6 +133,5 @@ void MainWindow::cancelListPublication() {
     scanningDisk_ = false;
     scanningArchive_ = false;
     scanSelectedState_.reset();
-    scanSelectedPaths_.reset();
     pendingViewport_.reset();
 }

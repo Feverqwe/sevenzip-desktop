@@ -1,7 +1,6 @@
 #include "filemanager/rename/qtrenamecontroller.h"
 #include "filemanager/window/mainwindow.h"
 #include <QAbstractItemDelegate>
-#include <QFileInfo>
 #include <QLineEdit>
 #include <QPersistentModelIndex>
 #include <QScopedValueRollback>
@@ -129,7 +128,7 @@ void QtRenameController::Apply(const Request &request) {
         return;
     QtAppOperationState::CallScope call(window_.app_.QtOperations());
     window_.withPanelProjection(request.panel, [&] {
-        const auto &panel = window_.app_.GetFocusedPanel();
+        auto &panel = window_.app_.GetFocusedPanel();
         if (panel.GetFolder() != request.folder || !request.item.isValid() ||
             !panel.ShouldProcessNotifications() ||
             request.sourceIndex >= panel.GetLoadedItemCount())
@@ -145,10 +144,13 @@ void QtRenameController::Apply(const Request &request) {
         QScopedValueRollback<unsigned> projection(window_.panelProjectionDepth_,
                                                   window_.panelProjectionDepth_ + 1);
         CPanel::CDisableNotify peer(window_.app_.Panels[1 - request.panel]);
-        if (request.name == (archive ? path.section('/', -1) : QFileInfo(path).fileName())) {
+        if (request.name == ToQString(panel.GetItemName(request.sourceIndex))) {
             if (archive && window_.flatView_->isChecked()) {
-                window_.renderBoundFolder();
-                window_.selectPaths({path});
+                CSelectedState selection;
+                panel.SaveSelectedState(selection);
+                selection.SelectFocused = true;
+                if (window_.renderBoundFolder() == S_OK)
+                    window_.restoreListSelection(selection);
             }
             return;
         }

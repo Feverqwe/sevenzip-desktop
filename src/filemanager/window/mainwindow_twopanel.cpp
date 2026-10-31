@@ -30,7 +30,6 @@ void MainWindow::storePanelUi(unsigned index) {
     ui.filesystemScanner = filesystemScanner_;
     ui.listProjection = listProjection_;
     ui.pendingSelection = scanSelectedState_;
-    ui.pendingSelectedPaths = scanSelectedPaths_;
     ui.autoRefreshSnapshot = autoRefreshSnapshot_;
     ui.pendingViewport = pendingViewport_;
 }
@@ -57,7 +56,6 @@ void MainWindow::restorePanelUi(unsigned index) {
     filesystemScanner_ = ui.filesystemScanner;
     listProjection_ = ui.listProjection;
     scanSelectedState_ = ui.pendingSelection;
-    scanSelectedPaths_ = ui.pendingSelectedPaths;
     autoRefreshSnapshot_ = ui.autoRefreshSnapshot;
     pendingViewport_ = ui.pendingViewport;
 }

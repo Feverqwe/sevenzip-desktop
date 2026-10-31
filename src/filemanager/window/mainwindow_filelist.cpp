@@ -42,31 +42,6 @@ HRESULT MainWindow::showDirectory(const QString &path, bool remember, bool sourc
     return startFilesystemListing(sourceAlreadyBound, updateAddress);
 }
 
-QStringList MainWindow::selectedPaths() const {
-    QStringList paths;
-    for (const QModelIndex &index : table_->selectionModel()->selectedRows())
-        paths << table_->model()->index(index.row(), 1).data().toString();
-    return paths;
-}
-
-void MainWindow::selectPaths(const QStringList &paths) {
-    if (scanningDisk_ || scanningArchive_) {
-        scanSelectedPaths_ = paths;
-        return;
-    }
-    table_->clearSelection();
-    const auto &panel = app_.GetFocusedPanel();
-    const bool streams = panel.GetFolder() && panel.IsAltStreamsFolder();
-    for (int row = 0; row < table_->rowCount(); ++row) {
-        const QString path = streams ? table_->model()->index(row, 0).data(Qt::UserRole).toString()
-                                     : table_->model()->index(row, 1).data().toString();
-        if (paths.contains(path))
-            table_->selectionModel()->select(table_->model()->index(row, 0),
-                                             QItemSelectionModel::Select |
-                                                 QItemSelectionModel::Rows);
-    }
-}
-
 void MainWindow::openPath(const QString &path) { navigateTo(QFileInfo(path).absoluteFilePath()); }
 
 HRESULT MainWindow::navigateTo(const QString &path, bool sourceAddress) {
