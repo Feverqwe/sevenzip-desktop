@@ -38,7 +38,7 @@ NOverwriteDialog::CFileInfo overwriteFileInfo(const QString &path) {
 } // namespace
 
 void MainWindow::transferFiles(const QStringList &sources, const QString &destination, bool move,
-                               bool directPath, bool refreshSource) {
+                               bool directPath) {
     if (app_.QtOperations().closed())
         return;
     QtAppOperationState::CallScope call(app_.QtOperations());
@@ -93,15 +93,8 @@ void MainWindow::transferFiles(const QStringList &sources, const QString &destin
             sync->Set_NumBytesCur(completed);
         },
         Qt::DirectConnection);
-    const unsigned sourcePanel = app_.GetFocusedPanelIndex();
-    const unsigned destinationPanel = 1 - sourcePanel;
-    const bool refreshDestination = app_.NumPanels == 2 &&
-                                    panelUi_[destinationPanel].state == State::Filesystem &&
-                                    QDir::cleanPath(panelUi_[destinationPanel].directory) ==
-                                        QDir::cleanPath(destinationDirectory);
     connect(operation, &FileTransferOperation::result, this,
-            [this, operation, sources, sourcePanel, destinationPanel, refreshDestination,
-             refreshSource](bool success, const QString &message) {
+            [this, operation](bool success, const QString &message) {
                 if (app_.QtOperations().closed())
                     return;
                 // Join and release the worker before terminal dialogs/panels
@@ -120,20 +113,9 @@ void MainWindow::transferFiles(const QStringList &sources, const QString &destin
                     return;
                 if (success)
                     statusBar()->showMessage(message);
-                if (refreshSource) {
-                    showDirectory(directory_, false, true);
-                    selectPaths(sources);
-                    appPresentation_->CopySourceRefreshed(sourcePanel);
-                } else
-                    setState(State::Filesystem);
-                if (refreshDestination && app_.NumPanels == 2 &&
-                    app_.GetFocusedPanelIndex() == sourcePanel) {
-                    activatePanelUi(destinationPanel);
-                    appPresentation_->RefreshCopyPanel(destinationPanel);
-                    activatePanelUi(sourcePanel);
-                }
-                if (app_.GetFocusedPanelIndex() == sourcePanel)
-                    app_.Panels[sourcePanel].SetFocusToList();
+                // OnCopy's continuation owns both reloads, saved selections
+                // and final focus after this worker releases its operation.
+                setState(State::Filesystem);
                 appPresentation_->CopyFinished();
             });
     setState(State::Operating);
@@ -199,8 +181,7 @@ void MainWindow::executeCopyDestination(bool move, bool copyToSame, unsigned sou
     sources << QtFilesystemPath(us2fs(filePaths[i]));
     if (sources.isEmpty())
         return;
-    transferFiles(sources, destination, move, directPath,
-                  move || copyToSame || app_.NumPanels <= 1);
+    transferFiles(sources, destination, move, directPath);
 }
 
 bool MainWindow::transferToArchivePanel(const QString &destination, bool move,

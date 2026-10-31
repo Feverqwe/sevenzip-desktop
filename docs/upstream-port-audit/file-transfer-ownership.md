@@ -1,4 +1,39 @@
-# File-transfer exception ownership — 2026-10-18
+# File-transfer ownership
+
+## Filesystem completion publication — 2026-10-31
+
+Compared the complete original `CApp::OnCopy` body in the recorded 7-Zip source
+archive with its current command/dialog, execution, worker-result, retained
+continuation and panel-reload consumers. The baseline is
+<https://github.com/ip7z/7zip.git>, commit
+`b88c6bc09339de32f7d18bbab900686b244f42ba`,
+`CPP/7zip/UI/FileManager/App.cpp`. Original post-copy behavior retains the source
+and destination selection states, refreshes the applicable panels even after
+operation failure, then restores selection and source focus.
+
+The filesystem worker result no longer supplies a second panel-publication
+policy alongside the retained continuation. It joins/releases the worker,
+presents the terminal progress result and releases operation state before
+notifying that owner. The existing owner handles both panel reloads, asynchronous
+publication, saved selection and final focus. A redundant refresh-source argument
+and destination-path/active-panel checks disappear. Transaction staging,
+rollback, overwrite answers and cancellation remain unchanged. Archive routes
+retain their existing notifications for panels already reopened or refreshed.
+No external code is imported or omitted and no original baseline hashes change.
+
+Existing behavior coverage exercises two-panel copy/move, output outside the peer
+panel, single-panel and new-name copies, cancellation, overwritten bytes, saved
+selection/focus and peer-load failures. No implementation-presence test is added.
+
+The seven focused suites passed on Linux (35.88 seconds), macOS (71.75 seconds)
+and Windows (107.76 seconds), without skips: `ui_copy_routing`, `ui_copy_same`,
+`panel_copy_reload`, `copy_publication_order`, `file_transfer`,
+`file_transfer_direct` and `worker_checkpoint`. Builds reused existing trees
+and compiler caches. No full/slow gate or layout change/visual acceptance is
+claimed. Compact verification reports and test logs are retained separately
+from the subsequent build-storage migration.
+
+## Exception ownership — 2026-10-18
 
 Source reference: <https://github.com/ip7z/7zip.git>, commit
 `9128b80e3a471108678e2b3ec3c985861c8d7b0f`,

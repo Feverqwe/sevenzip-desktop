@@ -281,7 +281,7 @@ class MainWindow : public QMainWindow {
     void createDialog();
     QStringList selectedFilesystemPaths();
     void transferFiles(const QStringList &sources, const QString &destination, bool move,
-                       bool directPath = false, bool refreshSource = true);
+                       bool directPath = false);
     void executeCopyDestination(bool move, bool copyToSame, unsigned sourceIndex,
                                 const QString &destination, const CRecordVector<UInt32> &indices,
                                 bool useDestPanel, bool useTemp);
