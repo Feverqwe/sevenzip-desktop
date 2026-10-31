@@ -28,8 +28,6 @@ void MainWindow::SelectSpec(bool selectMode) {
     if (state_ != State::Filesystem && state_ != State::Viewing && state_ != State::Namespace)
         return;
     CPanel &panel = app_.GetFocusedPanel();
-    CSelectedState selected;
-    panel.SaveSelectedState(selected);
     panel.SelectSpec(selectMode);
     refreshActions();
 }
@@ -38,8 +36,6 @@ void MainWindow::SelectByType(bool selectMode) {
     if (state_ != State::Filesystem && state_ != State::Viewing && state_ != State::Namespace)
         return;
     CPanel &panel = app_.GetFocusedPanel();
-    CSelectedState selected;
-    panel.SaveSelectedState(selected);
     panel.SelectByType(selectMode);
     refreshActions();
 }
@@ -48,8 +44,6 @@ void MainWindow::SelectAll(bool selectMode) {
     if (state_ != State::Filesystem && state_ != State::Viewing && state_ != State::Namespace)
         return;
     CPanel &panel = app_.GetFocusedPanel();
-    CSelectedState selected;
-    panel.SaveSelectedState(selected);
     panel.SelectAll(selectMode);
     refreshActions();
 }
@@ -58,8 +52,6 @@ void MainWindow::InvertSelection() {
     if (state_ != State::Filesystem && state_ != State::Viewing && state_ != State::Namespace)
         return;
     CPanel &panel = app_.GetFocusedPanel();
-    CSelectedState selected;
-    panel.SaveSelectedState(selected);
     panel.InvertSelection();
     refreshActions();
 }

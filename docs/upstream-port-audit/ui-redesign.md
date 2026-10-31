@@ -2353,3 +2353,37 @@ Windows interactive runner (44.44 seconds). The checks include native password
 acceptance/cancellation and normal/compact progress geometry; they do not
 establish rendered Windows pixel parity. Existing incremental builds and
 compiler caches were reused; no full or slow suites ran.
+
+## Selection commands without discarded snapshots — 2026-10-31
+
+Compared original PanelItems selection/name/snapshot bodies, PanelSelect commands,
+App copy dispatch and the current Qt selection notification adapter, command
+availability and operation consumers. `SaveSelectedState` reads selection and
+builds sorted names; it does not synchronize Qt selection. The existing bound
+selection notification already updates the original panel marks.
+
+Removed discarded snapshots from selection commands, alternative-selection
+switching and the Qt open/edit/properties/copy entry paths. Command availability
+now reads focus and the parent item through a narrow panel query over its list adapter,
+without constructing names for every selected item. The original mark, wildcard,
+operated-index and restoration algorithms remain unchanged; snapshots consumed
+by refresh/rename/copy completion are retained. No source baseline is advanced
+and no external code is imported.
+
+Existing panel/native-open fixtures also stop taking unused snapshots before
+their actions. They continue to check observable selection, native source-index
+mapping, focus, alternative marks and external-open limits; no assertions pin
+the absence or number of snapshot calls.
+
+Focused Linux runtime validation passed `panel_selection`, `panel_selected_state`,
+`source_selection`, `filesystem_selection_runtime`, `archive_selection_runtime`,
+`command_policy_runtime`, `native_open_commands`, `panel_copy_reload` and
+`properties_runtime` (33.87 seconds). The same nine suites passed on macOS
+(23.81 seconds) and the Windows interactive runner (87.48 seconds). These checks
+cover both selection modes, logical source paths
+across views, command consumers and selection restoration; source completeness
+and platform runtime evidence remain separate.
+
+Existing incremental builds and compiler caches were retained, using one build
+job on the guests. No full or slow suites, heavy diagnostics or production
+layout changes were introduced.

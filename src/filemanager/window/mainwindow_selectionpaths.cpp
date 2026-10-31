@@ -7,9 +7,6 @@ CRecordVector<UInt32> MainWindow::sourceOperatedIndices() {
     CPanel &panel = app_.GetFocusedPanel();
     if (!panel.GetFolder())
         return indices;
-    CSelectedState selection;
-    // Qt selection synchronization remains until the full source OnNotify port.
-    panel.SaveSelectedState(selection);
     panel.Get_ItemIndices_Operated(indices);
     return indices;
 }

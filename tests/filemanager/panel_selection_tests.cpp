@@ -94,9 +94,6 @@ class PanelSelectionTests final : public QObject {
         QTableWidget view;
         populate(view);
         panel.AttachSelectionView(&view);
-        CSelectedState snapshot;
-        panel.SaveSelectedState(snapshot);
-
         view.selectionModel()->setCurrentIndex(view.model()->index(1, 0),
                                                QItemSelectionModel::NoUpdate);
         panel.SelectByType(true);
@@ -161,7 +158,6 @@ class PanelSelectionTests final : public QObject {
         populate(view);
         panel.AttachSelectionView(&view);
         CSelectedState snapshot;
-        panel.SaveSelectedState(snapshot);
         view.selectionModel()->setCurrentIndex(view.model()->index(1, 0),
                                                QItemSelectionModel::NoUpdate);
         view.selectRow(1);

@@ -30,6 +30,13 @@ void CPanel::OnItemChanged(unsigned index, bool oldSelected, bool newSelected) {
         _selectedStatusVector[index] = newSelected;
 }
 
+CPanel::FocusState CPanel::GetFocusState() const {
+    const int focused = _selectionList.GetFocusedItem();
+    if (focused < 0)
+        return {};
+    return {true, GetRealItemIndex(focused) == UInt32(-1), _selectionList.IsItemSelected(focused)};
+}
+
 void CPanel::AttachSelectionView(QAbstractItemView *view,
                                  QtPanelList::SortColumnResolver sortColumn,
                                  std::function<void(int)> editLabel) {

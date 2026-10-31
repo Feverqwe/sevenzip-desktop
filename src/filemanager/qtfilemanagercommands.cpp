@@ -181,19 +181,15 @@ QtFileManagerCommands::TransportCapabilities QtFileManagerCommands::ReadTranspor
     auto &w = window_;
     TransportCapabilities c;
     auto &panel = w.app_.GetFocusedPanel();
-    CSelectedState selection;
-    panel.SaveSelectedState(selection);
+    const auto focus = panel.GetFocusState();
     CRecordVector<UInt32> operated;
     panel.Get_ItemIndices_Operated(operated);
     c.selected = !operated.IsEmpty();
     c.one = operated.Size() == 1;
     c.operated = !operated.IsEmpty();
-    c.focused = selection.FocusedItem >= 0;
-    c.focusedNonParent = c.focused && selection.FocusedName_Defined;
-    // SaveSelectedState leaves the parent's FocusedName undefined.
-    c.selectedParent =
-        c.focused && !selection.FocusedName_Defined &&
-        w.table_->selectionModel()->isRowSelected(selection.FocusedItem, QModelIndex());
+    c.focused = focus.Present;
+    c.focusedNonParent = focus.Present && !focus.Parent;
+    c.selectedParent = focus.Present && focus.Parent && focus.Selected;
     c.focusedFile = panel.IsFocusedFile();
     c.comment = panel.CanComment();
     CMyComPtr<IFolderCalcItemFullSize> calcItemFullSize;

@@ -10,9 +10,6 @@ void MainWindow::showSelectedProperties() {
     if (!properties_->isEnabled())
         return;
     CPanel &panel = app_.GetFocusedPanel();
-    CSelectedState selection;
-    // Synchronize the Qt selection until the full source OnNotify port is connected.
-    panel.SaveSelectedState(selection);
     panel.LoadFullPath();
     panel.Properties();
 }

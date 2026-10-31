@@ -52,10 +52,6 @@ bool CPanel::IsItemMarked(UInt32 index) const {
 void CPanel::SetAlternativeSelection(bool enabled) {
     if (_mySelectMode == enabled)
         return;
-    if (enabled && _selectionList.IsBound()) {
-        CSelectedState state;
-        SaveSelectedState(state);
-    }
     _mySelectMode = enabled;
     _selectionIsDefined = false;
     _startGroupSelect = MyMax(0, _selectionList.GetFocusedItem());

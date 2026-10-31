@@ -605,6 +605,12 @@ class CPanel : public QObject {
     void BeginShiftSelection();
     void SetAlternativeSelection(bool enabled);
     bool IsItemMarked(UInt32 index) const;
+    struct FocusState {
+        bool Present = false;
+        bool Parent = false;
+        bool Selected = false;
+    };
+    FocusState GetFocusState() const;
     void SaveSelectedState(CSelectedState &state);
     void GetSelectedNames(UStringVector &selectedNames);
     void Get_ItemIndices_Selected(CRecordVector<UInt32> &indices) const;

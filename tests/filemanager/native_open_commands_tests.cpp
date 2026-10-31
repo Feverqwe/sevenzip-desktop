@@ -74,8 +74,6 @@ class NativeOpenCommandsTests : public QObject {
         table.item(0, 0)->setData(Qt::UserRole + 6, 1u);
         table.item(1, 0)->setData(Qt::UserRole + 6, 0u);
         table.item(0, 0)->setText("forged.txt");
-        CSelectedState selection;
-        panel.SaveSelectedState(selection);
         panel.OpenSelectedItems(false);
         services.paths.sort();
         QStringList expected = {fixture.filePath(QStringLiteral("первый й.txt")),
@@ -119,8 +117,6 @@ class NativeOpenCommandsTests : public QObject {
         bind(panel, fixture.path());
         populate(panel, table);
         table.selectAll();
-        CSelectedState selection;
-        panel.SaveSelectedState(selection);
         bool sawError = false;
         QTimer answer;
         connect(&answer, &QTimer::timeout, &table, [&] {

@@ -167,8 +167,6 @@ void CApp::OnCopy(bool move, bool copyToSame, unsigned srcPanelIndex) {
     UString destPath;
     bool useDestPanel = false;
     {
-        CSelectedState selection;
-        srcPanel.SaveSelectedState(selection); // Sync the Qt list before source selection.
         if (copyToSame) {
             const int focusedItem = srcPanel._selectionList.GetFocusedItem();
             if (focusedItem < 0)
