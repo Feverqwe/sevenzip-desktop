@@ -226,25 +226,28 @@ void ArchiveBackend::cancel() {
     if (readOperation_)
         readOperation_->cancel();
     pendingPassword_.clear();
-    if (overwritePromptActive_)
+    if (overwritePromptActive_) {
+        overwritePromptActive_ = false;
         emit dismissOverwriteRequested();
+    }
 }
 
 void ArchiveBackend::cancelAndWait() {
     const QPointer<ArchiveBackend> owner(this);
+    const QPointer<QtArchiveHashOperation> hash(hashOperation_.get());
+    const QPointer<QtArchiveReadOperation> read(readOperation_.get());
     if (busy())
         cancel();
     if (!owner)
         return;
-    if (hashOperation_) {
-        hashOperation_->wait();
+    // Dismissing a prompt can join this worker and start its replacement.
+    // Completion owns the join; only finish the operation cancelled above.
+    if (hash && hashOperation_.get() == hash.data()) {
         finishHashOperation();
         return;
     }
-    if (readOperation_) {
-        readOperation_->wait();
+    if (read && readOperation_.get() == read.data())
         finishReadOperation();
-    }
 }
 
 void ArchiveBackend::providePassword(const QString &password) {

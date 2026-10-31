@@ -38,6 +38,56 @@ class ExtractionOptionsTests : public QObject {
     }
 
   private slots:
+    void overwriteCancellationLeavesReplacementRunning_data() {
+        QTest::addColumn<bool>("hashReplacement");
+        QTest::newRow("read-to-hash") << true;
+        QTest::newRow("read-to-read") << false;
+    }
+    void overwriteCancellationLeavesReplacementRunning() {
+        QFETCH(bool, hashReplacement);
+        QTemporaryDir temp;
+        QVERIFY(temp.isValid());
+        const QString archive = temp.filePath(QStringLiteral("архив 空.7z"));
+        QVERIFY(NativeArchiveFixture::Write(archive, {{"file.txt", "new bytes"}}));
+        const QString destination = temp.filePath("output with spaces");
+        QVERIFY(QDir().mkpath(destination));
+        const QString output = destination + "/file.txt";
+        writeFile(output, "original bytes");
+        ArchiveBackend backend;
+        QCOMPARE(NativeArchiveFixture::Attach(backend), S_OK);
+        backend.list(archive);
+        await(backend, true);
+        QSignalSpy completed(&backend, &ArchiveBackend::finished);
+        int dismissals = 0;
+        bool replacementRunningOnReturn = false;
+        connect(&backend, &ArchiveBackend::dismissOverwriteRequested, &backend, [&] {
+            // Bound the unfixed recursive dismissal while checking that one
+            // cancellation dismisses its prompt only once.
+            if (++dismissals != 1)
+                return;
+            backend.cancelAndWait();
+            if (hashReplacement)
+                backend.hashMethods({archive}, {"CRC32"});
+            else
+                backend.test(archive);
+        });
+        connect(&backend, &ArchiveBackend::overwriteRequired, &backend,
+                [&](const QString &, const ArchiveEntry &) {
+                    backend.cancelAndWait();
+                    replacementRunningOnReturn = backend.busy() && completed.size() == 1;
+                });
+        ExtractionOptions options;
+        options.overwriteMode = ExtractionOptions::OverwriteMode::Ask;
+        backend.extract(archive, destination, {}, {}, options);
+        QTRY_COMPARE(completed.size(), 2);
+        QVERIFY(replacementRunningOnReturn);
+        QCOMPARE(dismissals, 1);
+        QVERIFY(!completed.first().first().toBool());
+        QVERIFY(completed.last().first().toBool());
+        QVERIFY(!backend.busy());
+        QCOMPARE(readFile(output), QByteArray("original bytes"));
+    }
+
     void destinationChangesWhileOverwritePending() {
         QTemporaryDir temp;
         QVERIFY(temp.isValid());

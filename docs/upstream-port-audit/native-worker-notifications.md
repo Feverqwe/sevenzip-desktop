@@ -1,5 +1,47 @@
 # Native-worker notification ownership
 
+## Joined cancellation and prompt reentry — 2026-10-31
+
+Reviewed complete backend cancellation, read/hash startup and completion,
+password/overwrite waits, phase-start reentry, destruction and joined source
+request consumers. Compared original `CProgressSync::Set_Stopped`/`CheckStop`,
+`CProgressDialog::OnCancel` and `CExtractCallbackImp::AskOverwrite` in
+`CPP/7zip/UI/FileManager/ProgressDialog2.h/.cpp` and `ExtractCallback.cpp` from
+the recorded 7-Zip archive at `b88c6bc09339de32f7d18bbab900686b244f42ba`.
+Native stop, answer mapping, file access and decoding remain unchanged.
+The asynchronous backend notification/join boundary is local Qt integration;
+no external source is imported and original baseline hashes remain unchanged.
+
+A synchronous overwrite-dismissal consumer can join the cancelled read and
+start another operation before the outer cancellation returns. Previously that
+outer call looked up its worker after notification and joined the replacement.
+It could also recursively emit the same dismissal. Cancellation now consumes
+the active prompt before notifying consumers and retains weak identities of
+the workers present at entry. Only a still-current original worker is completed;
+the completion owner already joins it, so duplicate waits are removed. The
+backend-deletion guard and independently coalesced progress generation remain.
+
+Two real native overwrite cases reproduced the premature replacement join on
+Linux: read-to-hash and read-to-read. The regression observes the replacement
+still busy on return, then successful completion, one prompt dismissal, a
+cancelled original result and unchanged destination bytes. It uses a Unicode
+archive path and a destination with spaces; no private worker access or timing
+race is needed. MainWindow's dismissal connection is queued, so this evidence
+establishes the public backend's synchronous-consumer contract, rather than
+claiming a reproduced window-dialog failure.
+
+Seven focused suites passed: `extraction_options`, `worker_progress`,
+`native_archive_test`, `native_hash_workflow`, `native_source_extract`,
+`app_lifecycle_window` and `binding_lifecycle`. Linux took 40.42 seconds and
+macOS 28.74 seconds, with 136 passed Qt rows per platform and no skips.
+Elevated interactive Windows took 54.76 seconds: 135 passed rows and only the
+existing ordinary-filename colon skip; native NTFS link cases passed.
+The genuine pre-fix failure and final compact receipts/logs are retained.
+Source inventory and whitespace checks passed. No new disposable scratch roots
+remained; pre-existing unrelated local roots, incremental trees and compiler
+caches were preserved. No full/slow gate, heavy diagnostics or visual acceptance
+is claimed.
+
 ## Read/hash callback identity — 2026-10-31
 
 Reviewed complete hash command routing, native read/hash worker startup,
