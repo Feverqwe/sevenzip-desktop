@@ -2,7 +2,6 @@
 #include "settings/RegistryUtils.h"
 #include <QDialog>
 #include <QPointer>
-#include <functional>
 #include <memory>
 struct IFolderManager;
 class IQtAssociationServices;
@@ -55,12 +54,13 @@ class QtFmOptionsDialog final : public QDialog {
     void resizeEvent(QResizeEvent *event) override;
 
   public:
-    std::function<void(const CFmSettings &)> Applied;
     explicit QtFmOptionsDialog(const QString &settingsPath, QWidget *parent = nullptr,
                                IFolderManager *manager = nullptr,
                                std::shared_ptr<IQtAssociationServices> associations = {});
-    CFmSettings settings() const;
     void apply();
     void accept() override;
     void reject() override;
+
+  signals:
+    void Applied();
 };

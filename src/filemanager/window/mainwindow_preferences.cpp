@@ -188,12 +188,11 @@ void MainWindow::updateToolbar() {
 
 void MainWindow::showSettings() {
     SettingsDialog dialog(toolbarSettingsPath(), this, folderManager_);
-    dialog.Applied = [this](const CFmSettings &settings) { applyFileListSettings(settings); };
+    connect(&dialog, &SettingsDialog::Applied, this, &MainWindow::applyFileListSettings);
     dialog.exec();
 }
 
-void MainWindow::applyFileListSettings(const CFmSettings &settings) {
-    fileListSettings_ = settings;
+void MainWindow::applyFileListSettings() {
     app_.SetListSettings();
     app_.RefreshAllPanels();
     refreshActions();

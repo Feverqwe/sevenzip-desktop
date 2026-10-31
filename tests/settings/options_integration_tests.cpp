@@ -298,8 +298,7 @@ class OptionsIntegrationTests final : public QObject {
         auto *apply = dialog.findChild<QDialogButtonBox *>("settingsButtons")
                           ->button(QDialogButtonBox::Apply);
         QVERIFY(!apply->isEnabled());
-        int applied = 0;
-        dialog.Applied = [&](const CFmSettings &) { ++applied; };
+        QSignalSpy applied(&dialog, &QtFmOptionsDialog::Applied);
         auto *types = dialog.findChild<QTreeWidget *>("systemAssociations");
         QCOMPARE(types->topLevelItemCount(), 1);
         types->topLevelItem(0)->setSelected(true);
@@ -377,7 +376,7 @@ class OptionsIntegrationTests final : public QObject {
             dialog.reject();
             QCOMPARE(dialog.result(), int(QDialog::Rejected));
         }
-        QCOMPARE(applied, finish == 0 ? 0 : 1);
+        QCOMPARE(applied.size(), finish == 0 ? 0 : 1);
         QCOMPARE(errors, (finish != 0 && failure != 0 ? 1 : 0) + (finish == 3 ? 1 : 0));
         if (errors)
             QCOMPARE(errorIcon, QMessageBox::Critical);

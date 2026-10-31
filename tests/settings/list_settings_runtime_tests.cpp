@@ -283,8 +283,15 @@ class ListSettingsRuntimeTests final : public QObject, protected MainWindowTestS
         QTRY_COMPARE_WITH_TIMEOUT(window.findChild<QLineEdit *>("archivePath")->text(),
                                   QFileInfo(temp.path()).canonicalFilePath(), 1500);
         QCOMPARE(table(window)->model()->index(0, 0).data().toString(), QStringLiteral(".."));
-        action(window, "openRootAction")->trigger();
-        QVERIFY(filesystemRow(window, QStringLiteral("..")) < 0);
+        auto *root = action(window, "openRootAction");
+        QTRY_VERIFY(root->isEnabled());
+        root->trigger();
+        QTRY_VERIFY(table(window)->isEnabled());
+        QCOMPARE(table(window)->model()->index(0, 0).data().toString(), QStringLiteral(".."));
+        auto *parent = action(window, "parentFolderAction");
+        QTRY_VERIFY(parent->isEnabled());
+        parent->trigger();
+        QTRY_VERIFY(table(window)->isEnabled() && filesystemRow(window, QStringLiteral("..")) < 0);
     }
 };
 

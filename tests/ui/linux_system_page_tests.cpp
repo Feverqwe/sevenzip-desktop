@@ -180,8 +180,7 @@ class LinuxSystemPageTests final : public QObject {
         QTRY_COMPARE(currentHandler(), QString("Red.desktop"));
         QSignalSpy errors(reopenedPage, &CSystemPage::ApplyError);
         QObject responseContext;
-        bool messageSeen = false, messageValid = false, messageWritten = false,
-             laterApplied = false;
+        bool messageSeen = false, messageValid = false, messageWritten = false;
         widgetDialogs_.respond(responseContext, [&](QDialog &active) {
             auto *message = qobject_cast<QMessageBox *>(&active);
             if (!message)
@@ -194,12 +193,12 @@ class LinuxSystemPageTests final : public QObject {
             messageWritten = UiInspection::writeReport(*message, tag + "-external-message");
             message->done(QMessageBox::Ok);
         });
-        reopened.Applied = [&](const CFmSettings &) { laterApplied = true; };
+        QSignalSpy laterApplied(&reopened, &QtFmOptionsDialog::Applied);
         reopened.findChild<QDialogButtonBox *>("settingsButtons")
             ->button(QDialogButtonBox::Apply)
             ->click();
         QVERIFY(messageSeen && messageValid && messageWritten);
-        QVERIFY(laterApplied && reopened.isVisible());
+        QVERIFY(!laterApplied.isEmpty() && reopened.isVisible());
         QCOMPARE(errors.size(), 1);
         QCOMPARE(errors.front().front().toLongLong(), qint64(1237)); // ERROR_RETRY.
         QCOMPARE(row(*reopenedList, "zip")->text(1), QString("Red.desktop"));

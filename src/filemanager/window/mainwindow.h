@@ -197,7 +197,7 @@ class MainWindow : public QMainWindow {
     void updateToolbar();
     void applyFlatView(bool enabled);
     void showSettings();
-    void applyFileListSettings(const CFmSettings &settings);
+    void applyFileListSettings();
     bool eventFilter(QObject *watched, QEvent *event) override;
     bool handlePanelKey(QObject *watched, QKeyEvent *key);
     bool handlePanelListKey(QKeyEvent *key);

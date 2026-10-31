@@ -172,7 +172,6 @@ QtFmOptionsDialog::QtFmOptionsDialog(const QString &settingsPath, QWidget *paren
     pages->focusInitialControl();
 }
 
-CFmSettings QtFmOptionsDialog::settings() const { return _settingsPage->settings(); }
 void QtFmOptionsDialog::showPageHelp() {
     QWidget *context = focusWidget();
     if (!context || !_sections->isAncestorOf(context))
@@ -232,8 +231,7 @@ void QtFmOptionsDialog::apply() {
     _langPage->OnApply();
     if (languageChanged)
         QtNotifyLanguageChanged();
-    if (Applied)
-        Applied(settings());
+    emit Applied();
     updateApplyButton();
 }
 void QtFmOptionsDialog::updateApplyButton() {
