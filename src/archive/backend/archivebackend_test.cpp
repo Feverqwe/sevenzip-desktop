@@ -78,28 +78,28 @@ void ArchiveBackend::startNativeRead(
     if (job == Job::SourceExtract)
         readOperation_->Output = {sourceExtractEntry_, sourceExtractOutput_,
                                   sourceExtractAltStream_};
-    const quint64 generation = ++readGeneration_;
+    const QPointer<QtArchiveReadOperation> operation(readOperation_.get());
     const quint64 progressGeneration = beginWorkerProgress();
     readOperation_->Progress = [this, progressGeneration](quint64 completed, quint64 total,
                                                           const QString &path) {
         const int percent = total ? int(qMin(100.0, 100.0 * completed / total)) : 0;
         postWorkerProgress(progressGeneration, percent, path);
     };
-    readOperation_->PasswordRequired = [this, generation] {
+    readOperation_->PasswordRequired = [this, operation] {
         QMetaObject::invokeMethod(
             this,
-            [this, generation] {
-                if (readOperation_ && readGeneration_ == generation && !cancelled_)
+            [this, operation] {
+                if (operation && readOperation_.get() == operation.data() && !cancelled_)
                     emit passwordRequired();
             },
             Qt::QueuedConnection);
     };
-    readOperation_->OverwriteRequired = [this, generation](const QString &path,
-                                                           const ArchiveEntry &entry) {
+    readOperation_->OverwriteRequired = [this, operation](const QString &path,
+                                                          const ArchiveEntry &entry) {
         QMetaObject::invokeMethod(
             this,
-            [this, generation, path, entry] {
-                if (!readOperation_ || readGeneration_ != generation || cancelled_)
+            [this, operation, path, entry] {
+                if (!operation || readOperation_.get() != operation.data() || cancelled_)
                     return;
                 if (!isSignalConnected(
                         QMetaMethod::fromSignal(&ArchiveBackend::overwriteRequired))) {
@@ -111,8 +111,8 @@ void ArchiveBackend::startNativeRead(
             },
             Qt::QueuedConnection);
     };
-    connect(readOperation_.get(), &QThread::finished, this, [this, generation] {
-        if (readOperation_ && readGeneration_ == generation)
+    connect(readOperation_.get(), &QThread::finished, this, [this, operation] {
+        if (operation && readOperation_.get() == operation.data())
             finishReadOperation();
     });
     cancelled_ = false;

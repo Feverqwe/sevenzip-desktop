@@ -177,7 +177,16 @@ class WorkerProgressTests final : public QObject {
         backend.cancelAndWait();
         QCOMPARE(completed.count(), 1);
         QCOMPARE(backend.lastResult(), HRESULT(E_ABORT));
+        const auto pause = connect(&backend, &ArchiveBackend::phaseStarted, this,
+                                   [&] { QCOMPARE(backend.setPaused(true), HRESULT(S_OK)); });
         backend.hashMethods({path}, {"CRC32"});
+        disconnect(pause);
+        // Deliver the joined worker's queued completion while its replacement
+        // is paused. It must neither finish nor synchronously join the new job.
+        QTest::qWait(50);
+        QCOMPARE(completed.count(), 1);
+        QVERIFY(backend.busy());
+        QCOMPARE(backend.setPaused(false), HRESULT(S_OK));
         QTRY_COMPARE(completed.count(), 2);
         QVERIFY(completed.last().first().toBool());
         QTest::qWait(50);

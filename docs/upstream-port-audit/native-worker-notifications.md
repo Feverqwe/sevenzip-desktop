@@ -1,4 +1,54 @@
-# Native-worker notification ownership — 2026-10-18
+# Native-worker notification ownership
+
+## Read/hash callback identity — 2026-10-31
+
+Reviewed complete hash command routing, native read/hash worker startup,
+password/overwrite requests, joined cancellation, detached result publication
+and their consumers. Compared original `HashCalc` and `HashCalcGUI` bodies in
+the recorded 7-Zip archive at `b88c6bc09339de32f7d18bbab900686b244f42ba` with
+the current port. Hash enumeration/reads/aggregation, native decoding, result
+formatting and modal progress remain with their existing source owners.
+
+Queued native read/hash callbacks now retain a `QPointer` to their actual worker
+and compare it with the backend's current owner. Separate mutable read/hash
+generation counters are removed. A released worker's weak reference stays null
+even if a later QObject reuses its address; a completed worker retained during
+result publication also cannot act on its replacement. The progress generation
+still protects the independently coalesced mutex snapshot. This is local Qt
+lifetime integration: no external source is imported or omitted, and original
+baseline hashes remain unchanged.
+
+The existing joined-cancel/restart regression now pauses its replacement from
+the public phase-start notification before the thread starts. The GUI delivers
+pending old completion events while that replacement remains paused: it must
+stay busy without another result, then complete successfully after Resume.
+This checks event delivery and avoids relying only on a final completion count
+after an already fast replacement has finished. Existing read/extraction suites
+cover success, errors, password/overwrite handling and cancellation.
+
+Windows acceptance exposed two preexisting fixture assumptions in extraction
+options: exact slash spelling in an overwrite path, and `QFile::link` standing in
+for a filesystem symlink. The path assertion now accepts native separators;
+the linked-destination cases use the existing native-link fixture on every OS.
+They keep checking rejection and unchanged outside bytes, rather than a Windows
+shortcut or an absent destination. Both destination and incoming native paths
+are compared independently of separator spelling. The Windows native-link rerun
+requires the elevated desktop; the ordinary-filename colon case remains
+intentionally excluded on Windows. The directory-link fixture removes its link
+after the backend joins, before Qt deletes the target directory, avoiding a
+dangling NTFS reparse point left by `QTemporaryDir` cleanup.
+
+Eight focused suites passed on Linux (14.33 seconds) and macOS (24.85 seconds),
+128 Qt rows per platform without skips. The initial Windows batch passed the
+other seven suites; extraction-options acceptance followed the fixture fixes.
+The final affected-suite reruns passed on all three platforms, including the
+elevated Windows native-link cases. Only the Windows ordinary-filename colon row
+was skipped. Existing incremental trees and compiler caches were retained.
+Inventory and whitespace checks passed. Compact test logs and verification
+receipts are retained; no full/slow gate, heavy diagnostics or visual acceptance
+is claimed.
+
+## Notification lifetime — 2026-10-18
 
 Source: <https://github.com/ip7z/7zip.git>, commit
 `9128b80e3a471108678e2b3ec3c985861c8d7b0f`.

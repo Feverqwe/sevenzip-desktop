@@ -283,8 +283,6 @@ class ArchiveBackend : public QObject {
     std::unique_ptr<QtArchiveHashOperation> hashOperation_;
     std::unique_ptr<QtArchiveReadOperation> readOperation_;
     std::shared_ptr<NativeArchiveListing> nativeListing_;
-    quint64 readGeneration_ = 0;
-    quint64 hashGeneration_ = 0;
     QTimer workerProgressTimer_{this};
     QMutex workerProgressMutex_;
     quint64 workerProgressGeneration_ = 0;

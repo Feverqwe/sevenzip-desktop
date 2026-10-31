@@ -143,7 +143,7 @@
     set_tests_properties(split_destination PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 60)
     qt_add_executable(extraction_options_tests tests/archive/extraction_options_tests.cpp)
     target_link_libraries(extraction_options_tests PRIVATE sevenzip_location)
-    target_include_directories(extraction_options_tests PRIVATE src)
+    target_include_directories(extraction_options_tests PRIVATE src tests)
     target_link_libraries(extraction_options_tests PRIVATE Qt6::Test)
     add_test(NAME extraction_options COMMAND extraction_options_tests -silent)
     qt_add_executable(compression_tests tests/archive/compression_tests.cpp)

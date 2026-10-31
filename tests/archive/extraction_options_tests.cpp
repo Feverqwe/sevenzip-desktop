@@ -1,12 +1,15 @@
 #include "archive/backend/archivebackend.h"
 #include "archive/callbacks/IFileExtractCallback.h"
 #include "archive/support/native_archive_fixture.h"
+#include "fileops/links/qtlinkservices.h"
+#include "platform/support/native_link_fixture.h"
 
 #include <QCoreApplication>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
 #include <QProcess>
+#include <QScopeGuard>
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QTimer>
@@ -47,18 +50,24 @@ class ExtractionOptionsTests : public QObject {
         QVERIFY(QDir().mkpath(outside));
         writeFile(destination + "/file.txt", "original bytes");
         writeFile(outside + "/file.txt", "outside bytes");
+        bool linked = false;
+        // Remove a directory reparse point before QTemporaryDir deletes its
+        // target. Windows cannot remove that dangling entry through Qt alone.
+        const auto removeLink = qScopeGuard([&] {
+            if (linked)
+                QtRemoveFileSystemEntry(destination);
+        });
         ArchiveBackend backend(nullptr, temp.filePath("missing console"));
         QCOMPARE(NativeArchiveFixture::Attach(backend), S_OK);
         backend.list(archive);
         await(backend, true);
-        bool linked = false;
         connect(&backend, &ArchiveBackend::overwriteRequired, &backend,
                 [&](const QString &, const ArchiveEntry &) {
                     if (!QDir().rename(destination, preserved)) {
                         backend.cancel();
                         return;
                     }
-                    linked = QFile::link(outside, destination);
+                    linked = CreateNativeSymbolicLink(destination, outside);
                     backend.provideOverwriteAnswer(linked ? NOverwriteAnswer::kYes
                                                           : NOverwriteAnswer::kCancel);
                 });
@@ -120,8 +129,8 @@ class ExtractionOptionsTests : public QObject {
         QSignalSpy prompts(&backend, &ArchiveBackend::overwriteRequired);
         connect(&backend, &ArchiveBackend::overwriteRequired, &backend,
                 [&](const QString &path, const ArchiveEntry &entry) {
-                    QCOMPARE(path, flat + '/' + name);
-                    QCOMPARE(entry.path, folder + '/' + name);
+                    QCOMPARE(QDir::fromNativeSeparators(path), flat + '/' + name);
+                    QCOMPARE(QDir::fromNativeSeparators(entry.path), folder + '/' + name);
                     QVERIFY(backend.busy());
                     // The callback waits while the GUI continues processing events.
                     QTimer::singleShot(0, &backend, [&] {
@@ -558,7 +567,7 @@ class ExtractionOptionsTests : public QObject {
         const QString destination = temp.filePath("destination");
         QVERIFY(QDir().mkpath(destination));
         writeFile(temp.filePath("outside.txt"), "outside");
-        if (!QFile::link(temp.filePath("outside.txt"), destination + "/file.txt"))
+        if (!CreateNativeSymbolicLink(destination + "/file.txt", temp.filePath("outside.txt")))
             QSKIP("This filesystem does not permit test symlinks");
         QVERIFY(NativeArchiveFixture::Write(archive, {{"file.txt", "archive bytes"}}));
         ArchiveBackend backend(nullptr, temp.filePath("missing console"));
