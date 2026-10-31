@@ -1,4 +1,5 @@
 #include "7zip/UI/FileManager/PropertyNameRes.h"
+#include "7zip/UI/FileManager/resource.h"
 #include "dialogs/browse/BrowseDialog2.h"
 #include "localization/LangUtils.h"
 #include "localization/qtlangcontrols.h"
@@ -83,6 +84,82 @@ class TempCleanupTests : public QObject {
     void init() {
         QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         ReloadLang(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
+    }
+    void failedNavigationRetainsListingAndRootCommands() {
+#ifdef Q_OS_WIN
+        QSKIP("This fixture requires POSIX directory read permissions");
+#else
+        QTemporaryDir owned;
+        QVERIFY(owned.isValid());
+        const QString sentinel = owned.filePath(QStringLiteral("keep 文件.txt"));
+        QVERIFY(file(sentinel));
+        QVERIFY(inactive(owned.path()));
+        const auto permissions = QFileInfo(owned.path()).permissions();
+        const auto restore = qScopeGuard([&] { QFile::setPermissions(owned.path(), permissions); });
+        QVERIFY(
+            QFile::setPermissions(owned.path(), QFileDevice::WriteOwner | QFileDevice::ExeOwner));
+        QVERIFY(!QFileInfo(owned.path()).isReadable());
+        bool denied = false, oldListing = false, rootBlocked = false, recovered = false;
+        QTimer::singleShot(0, qApp, [&] {
+            auto *dialog = dynamic_cast<CBrowseDialog2 *>(QApplication::activeModalWidget());
+            QVERIFY(dialog);
+            const auto close = qScopeGuard([&] { dialog->reject(); });
+            auto *list = dialog->findChild<QTreeWidget *>("tempList");
+            auto *path = dialog->findChild<QLineEdit *>("tempPath");
+            const QString previousPath = path->text();
+            QStringList previousRows;
+            for (int i = 0; i < list->topLevelItemCount(); ++i)
+                previousRows.append(list->topLevelItem(i)->text(0));
+            QTimer answers;
+            connect(&answers, &QTimer::timeout, dialog, [&] {
+                if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                    denied = true;
+                    box->accept();
+                }
+            });
+            answers.start(1);
+            select(*dialog, owned.path());
+            QVERIFY(row(*dialog, owned.path()));
+            QTest::keyClick(list, Qt::Key_Return);
+            QStringList remainingRows;
+            for (int i = 0; i < list->topLevelItemCount(); ++i)
+                remainingRows.append(list->topLevelItem(i)->text(0));
+            oldListing = path->text() == previousPath && remainingRows == previousRows;
+            const auto outsideCommands = [&](bool enabled) {
+                bool found = false, matched = true;
+                QTimer::singleShot(0, dialog, [&] {
+                    auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
+                    QVERIFY(menu);
+                    QString label = QtLangText(IDM_OPEN_OUTSIDE, "Open Outside");
+                    label.remove('&');
+                    for (auto *action : menu->actions())
+                        if (action->text().startsWith(label)) {
+                            found = true;
+                            matched &= action->isEnabled() == enabled;
+                        }
+                    menu->close();
+                });
+                list->clearSelection();
+                QMetaObject::invokeMethod(list, "customContextMenuRequested", Qt::DirectConnection,
+                                          Q_ARG(QPoint, QPoint(10, 5)));
+                return found && matched;
+            };
+            rootBlocked = outsideCommands(false);
+            QVERIFY(QFile::setPermissions(owned.path(), permissions));
+            select(*dialog, owned.path());
+            QTest::keyClick(list, Qt::Key_Return);
+            recovered = QDir::cleanPath(path->text()) == QDir::cleanPath(owned.path()) &&
+                        row(*dialog, sentinel) && outsideCommands(true);
+        });
+        MyBrowseForTempFolder(nullptr);
+        QVERIFY(denied);
+        QVERIFY(oldListing);
+        QVERIFY(rootBlocked);
+        QVERIFY(recovered);
+        QFile bytes(sentinel);
+        QVERIFY(bytes.open(QIODevice::ReadOnly));
+        QCOMPARE(bytes.readAll(), QByteArray("fixture"));
+#endif
     }
     void liveLanguageChangePreservesLinkSelection() {
         QTemporaryDir owned, outside;

@@ -214,10 +214,10 @@ void CBrowseDialog2::ConnectControls(QDialogButtonBox *buttons, QPushButton *ref
 void CBrowseDialog2::PopulateRows(const UStringVector &selected, const UString &focused) {
     _list->setUpdatesEnabled(false);
     _list->clear();
-    _parent->setEnabled(!IsExactTempFolder(DirPrefix));
-    _pathEdit->setText(Text(DirPrefix));
+    _parent->setEnabled(!IsExactTempFolder(_snapshot->Prefix));
+    _pathEdit->setText(Text(_snapshot->Prefix));
     QTreeWidgetItem *cursor = nullptr;
-    if (_showDots && _topDirPrefix != DirPrefix) {
+    if (_showDots && _topDirPrefix != _snapshot->Prefix) {
         auto *parent = new BrowseRow(*this, _list);
         parent->setData(0, Qt::UserRole, -1);
         parent->setText(0, "..");
@@ -225,14 +225,14 @@ void CBrowseDialog2::PopulateRows(const UStringVector &selected, const UString &
         if (focused == UString(".."))
             cursor = parent;
     }
-    FOR_VECTOR(i, _items) {
-        const CBrowseItem &bi = _items[i];
-        const auto &fi = _files[bi.MainFileIndex];
+    FOR_VECTOR(i, _snapshot->Items) {
+        const CBrowseItem &bi = _snapshot->Items[i];
+        const auto &fi = _snapshot->Files[bi.MainFileIndex];
         const UString name = fs2us(fi.Name);
         auto *row = new BrowseRow(*this, _list);
         row->setData(0, Qt::UserRole, int(i));
         row->setText(0, Text(name));
-        row->setIcon(0, QFileIconProvider().icon(QFileInfo(Text(DirPrefix + name))));
+        row->setIcon(0, QFileIconProvider().icon(QFileInfo(Text(_snapshot->Prefix + name))));
         FILETIME ft;
         FiTime_To_FILETIME(fi.MTime, ft);
         wchar_t time[64] = {};
@@ -251,7 +251,7 @@ void CBrowseDialog2::PopulateRows(const UStringVector &selected, const UString &
         if (bi.NumDirs != 0)
             row->setText(4, QString::number(bi.NumDirs) + (bi.WasInterrupted ? "+" : ""));
         if (bi.SubFileIndex >= 0)
-            row->setText(5, Text(fs2us(_files[bi.SubFileIndex].Name)));
+            row->setText(5, Text(fs2us(_snapshot->Files[bi.SubFileIndex].Name)));
         for (int column : {2, 3, 4})
             row->setTextAlignment(column, Qt::AlignRight | Qt::AlignVCenter);
         row->setSelected(selected.FindInSorted(name) != -1);
@@ -294,11 +294,11 @@ void CBrowseDialog2::ReloadLanguagePresentation() {
     for (int row = 0; row < _list->topLevelItemCount(); ++row) {
         auto *item = _list->topLevelItem(row);
         const int index = item->data(0, Qt::UserRole).toInt();
-        if (index < 0 || unsigned(index) >= _items.Size())
+        if (index < 0 || unsigned(index) >= _snapshot->Items.Size())
             continue;
-        if (_files[_items[index].MainFileIndex].IsOsSymLink())
+        if (_snapshot->Files[_snapshot->Items[index].MainFileIndex].IsOsSymLink())
             item->setText(3, QtLangText(IDM_LINK));
-        const auto &owner = _owners[index];
+        const auto &owner = _snapshot->Owners[index];
         QString reason;
         if (owner.active)
             reason = QCoreApplication::translate("qttempbrowsepresentation",
@@ -332,7 +332,7 @@ void CBrowseDialog2::UpdateDeleteAvailability() {
     GetSelected_RealIndexes(selected);
     bool enabled = selected.Size() != 0;
     FOR_VECTOR(i, selected) {
-        const auto &owner = _owners[selected[i]];
+        const auto &owner = _snapshot->Owners[selected[i]];
         if (owner.active || owner.externallyProtected)
             enabled = false;
     }
@@ -341,10 +341,10 @@ void CBrowseDialog2::UpdateDeleteAvailability() {
         QString status = QCoreApplication::translate("qttempbrowsepresentation",
                                                      "Sevenzip owned temporary files");
         status += '\n';
-        status += _items.IsEmpty()
+        status += _snapshot->Items.IsEmpty()
                       ? QCoreApplication::translate("qttempbrowsepresentation",
                                                     "No Sevenzip temporary files")
-                      : QtSelectionStatusText(int(selected.Size()), int(_items.Size()));
+                      : QtSelectionStatusText(int(selected.Size()), int(_snapshot->Items.Size()));
         if (!enabled)
             for (auto *item : _list->selectedItems())
                 if (!item->toolTip(0).isEmpty()) {

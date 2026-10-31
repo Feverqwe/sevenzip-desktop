@@ -2170,3 +2170,34 @@ Windows Limited desktop passed the same seven suites in
 `20261031T052242Z-ff81068c`, together with column and drop-target consumers
 (14/14, test phase 230.11 s). No full/slow suites, heavy diagnostics or
 visual-layout changes were introduced.
+
+## Temporary-file browser snapshot — 2026-10-31
+
+Compared the complete baseline `BrowseDialog2.cpp/.h/.rc`, including enumeration,
+recursive counts, sorting, selection restoration, navigation, properties and
+deletion, with the Qt presentation and owned-temporary-path guards. The original
+units match the existing manifest at
+`b88c6bc09339de32f7d18bbab900686b244f42ba`; no external code was imported or
+baseline hashes advanced.
+
+The browser now prepares file records, rows, ownership and the current directory
+as one snapshot before publishing it. Previously a failed directory enumeration
+could retain the old rows/path but change the root used by unselected context
+commands. A failed transition now retains the complete previous context, and a
+later retry can succeed. Sorting/counting algorithms, partial-count reporting,
+deletion leases, external-process protection and bounded path validation remain
+unchanged. This is a local state-lifetime adaptation, with no new presentation
+or recovery policy.
+
+A POSIX permission-denial regression checks the retained listing and disabled
+root commands, then restores access and verifies successful navigation without
+changing the fixture contents. Windows skips this POSIX-specific fixture; its
+existing temporary-file behavior checks remain selected. At the user's request,
+macOS validation ran during runner migration: `temp_cleanup`, `owned_temp` and
+`temp_detached_launch` all passed (37 test functions, CTest 1.66 s). Existing
+incremental builds/cache and normal/compact geometry checks were reused.
+Linux passed all three suites in `20261031T051513Z-17749efb`, including the
+permission-denial and retry fixture. Windows elevated desktop passed all three
+suites in `20261031T053023Z-577a342b`; only the POSIX permission fixture was
+skipped there. Existing native link and cleanup cases passed without weakening
+their assertions. No full/slow or heavy diagnostic runs were started.

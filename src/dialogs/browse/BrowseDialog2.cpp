@@ -221,7 +221,7 @@ static void PrintProps(UString &s, const CBrowseItem &bi, const CFileInfo &fi,
 void CBrowseDialog2::PrintFileProps(UString &s, const CFileInfo &file) {
     _filePropsValid = true;
     CFileInfo file2;
-    FString path = us2fs(DirPrefix);
+    FString path = us2fs(_snapshot->Prefix);
     path += file.Name;
     if (!file2.Find(path)) {
         _filePropsValid = false;
@@ -246,7 +246,7 @@ void CBrowseDialog2::Show_FileProps_Window(const CFileInfo &file) {
 }
 
 void CBrowseDialog2::OnDelete() {
-    if (!DirPrefix.IsPrefixedBy(TempFolderPath))
+    if (!_snapshot->Prefix.IsPrefixedBy(TempFolderPath))
         return;
     CUIntVector indices;
     GetSelected_RealIndexes(indices);
@@ -257,8 +257,8 @@ void CBrowseDialog2::OnDelete() {
         UString messageParam, s2;
         if (indices.Size() == 1) {
             const unsigned index = indices[0];
-            const CBrowseItem &bi = _items[index];
-            const CFileInfo &file = _files[bi.MainFileIndex];
+            const CBrowseItem &bi = _snapshot->Items[index];
+            const CFileInfo &file = _snapshot->Files[bi.MainFileIndex];
             PrintFileProps(s2, file);
             // Source PrintFileProps reloads on error; those row references and
             // selection indices are then invalid. Never confirm a different item.
@@ -281,8 +281,8 @@ void CBrowseDialog2::OnDelete() {
                     s2 += "...";
                     break;
                 }
-                const CBrowseItem &bi = _items[indices[i]];
-                const CFileInfo &fi = _files[bi.MainFileIndex];
+                const CBrowseItem &bi = _snapshot->Items[indices[i]];
+                const CFileInfo &fi = _snapshot->Files[bi.MainFileIndex];
                 PrintProps_Name(s2, fi);
                 s2.Add_LF();
             }
@@ -302,13 +302,14 @@ void CBrowseDialog2::OnDelete() {
     for (UInt32 i = 0; i < indices.Size(); i++) {
         const unsigned index = indices[i];
         bool result = true;
-        const CBrowseItem &bi = _items[index];
-        const CFileInfo &fi = _files[bi.MainFileIndex];
+        const CBrowseItem &bi = _snapshot->Items[index];
+        const CFileInfo &fi = _snapshot->Files[bi.MainFileIndex];
         if (fi.Name.IsEmpty())
             return;
-        const FString fullPath = us2fs(DirPrefix) + fi.Name;
-        auto lease = QtOwnedTempRegistry().ClaimForDeletion(_owners[index]);
-        if (!lease || !OwnedPath(_owners[index], QtPath(fs2us(fullPath)), QtPath(TempFolderPath))) {
+        const FString fullPath = us2fs(_snapshot->Prefix) + fi.Name;
+        auto lease = QtOwnedTempRegistry().ClaimForDeletion(_snapshot->Owners[index]);
+        if (!lease ||
+            !OwnedPath(_snapshot->Owners[index], QtPath(fs2us(fullPath)), QtPath(TempFolderPath))) {
             QMessageBox::warning(this, "7-Zip",
                                  QCoreApplication::translate(
                                      "BrowseDialog2", "This temporary item is active, protected, "
@@ -337,8 +338,9 @@ int CBrowseDialog2::CompareItems(int index1, int index2) const {
         return -1;
     if (index2 == kParentIndex)
         return 1;
-    const CBrowseItem &item1 = _items[index1], &item2 = _items[index2];
-    const CFileInfo &f1 = _files[item1.MainFileIndex], &f2 = _files[item2.MainFileIndex];
+    const CBrowseItem &item1 = _snapshot->Items[index1], &item2 = _snapshot->Items[index2];
+    const CFileInfo &f1 = _snapshot->Files[item1.MainFileIndex],
+                    &f2 = _snapshot->Files[item2.MainFileIndex];
     const bool isDir2 = f2.IsDir();
     if (f1.IsDir()) {
         if (!isDir2)
@@ -371,7 +373,8 @@ int CBrowseDialog2::CompareItems(int index1, int index2) const {
         } else if (sub2 < 0)
             res = 1;
         else
-            res = CompareFileNames(fs2us(_files[sub1].Name), fs2us(_files[sub2].Name));
+            res = CompareFileNames(fs2us(_snapshot->Files[sub1].Name),
+                                   fs2us(_snapshot->Files[sub2].Name));
         break;
     }
     }
@@ -391,7 +394,7 @@ void CBrowseDialog2::ChangeSorting_and_Reload(int columnIndex) {
 void CBrowseDialog2::Reload_WithErrorMessage() {
     const HRESULT res = Reload();
     if (res != S_OK)
-        MessageBox_HResError(this, res, DirPrefix);
+        MessageBox_HResError(this, res, _snapshot->Prefix);
 }
 HRESULT CBrowseDialog2::Reload(const UString &pathPrefix, const UString &selectedName) {
     UStringVector selectedVector;
@@ -416,28 +419,28 @@ HRESULT CBrowseDialog2::Reload(const UString &pathPrefix, const UStringVector &s
                                const UString &focusedName) {
     UStringVector selectedVector = selectedVector2;
     selectedVector.Sort();
-    CObjectVector<CFileInfo> files;
-    CRecordVector<CBrowseItem> items;
+    auto snapshot = std::make_unique<Snapshot>();
+    auto &files = snapshot->Files;
+    auto &items = snapshot->Items;
+    auto &owners = snapshot->Owners;
+    auto &root = snapshot->Root;
     CWaitCursor2 waitCursor;
-    QVector<QtOwnedTempEntry> owners;
     const auto entries = QtOwnedTempRegistry().Entries();
     const bool isTempFolder = IsExactTempFolder(pathPrefix);
     QHash<QString, QtOwnedTempEntry> rootOwners;
     if (isTempFolder) {
-        _currentRoot = {};
         const QString temp = QFileInfo(QtPath(TempFolderPath)).canonicalFilePath();
         for (const auto &entry : entries)
             if (QFileInfo(entry.path).dir().canonicalPath() == temp)
                 rootOwners.insert(TempPathKey(QFileInfo(entry.path).fileName()), entry);
     } else {
-        _currentRoot = {};
         for (const auto &entry : entries)
             if (OwnedPath(entry, QtPath(pathPrefix), QtPath(TempFolderPath))) {
-                _currentRoot = entry;
+                root = entry;
                 break;
             }
     }
-    if (!isTempFolder && !OwnedPath(_currentRoot, QtPath(pathPrefix), QtPath(TempFolderPath)))
+    if (!isTempFolder && !OwnedPath(root, QtPath(pathPrefix), QtPath(TempFolderPath)))
         return HRESULT(0x80070005L); // E_ACCESSDENIED is absent from POSIX MyWindows.h.
     {
         CEnumerator enumerator;
@@ -449,7 +452,7 @@ HRESULT CBrowseDialog2::Reload(const UString &pathPrefix, const UStringVector &s
                 return GetLastError_noZero_HRESULT();
             if (!found)
                 break;
-            QtOwnedTempEntry owner = _currentRoot;
+            QtOwnedTempEntry owner = root;
             if (isTempFolder) {
                 owner = rootOwners.value(TempPathKey(QtPath(fs2us(fi.Name))));
                 const QString fullPath = QtPath(pathPrefix + fs2us(fi.Name));
@@ -486,10 +489,8 @@ HRESULT CBrowseDialog2::Reload(const UString &pathPrefix, const UStringVector &s
         if (cnt > 1000)
             waitCursor.Set();
     }
-    _items = items;
-    _files = files;
-    _owners = owners;
-    DirPrefix = pathPrefix;
+    snapshot->Prefix = pathPrefix;
+    _snapshot.swap(snapshot);
     PopulateRows(selectedVector, focusedName);
     return S_OK;
 }
@@ -497,14 +498,15 @@ HRESULT CBrowseDialog2::Reload() {
     UStringVector selected;
     CUIntVector indexes;
     GetSelected_RealIndexes(indexes);
-    FOR_VECTOR(i, indexes) selected.Add(fs2us(_files[_items[indexes[i]].MainFileIndex].Name));
+    FOR_VECTOR(i, indexes)
+    selected.Add(fs2us(_snapshot->Files[_snapshot->Items[indexes[i]].MainFileIndex].Name));
     UString focusedName;
     if (auto *row = _list->currentItem()) {
         const int realIndex = row->data(0, Qt::UserRole).toInt();
         if (realIndex >= 0)
-            focusedName = fs2us(_files[_items[realIndex].MainFileIndex].Name);
+            focusedName = fs2us(_snapshot->Files[_snapshot->Items[realIndex].MainFileIndex].Name);
     }
-    const UString dirPathTemp = DirPrefix;
+    const UString dirPathTemp = _snapshot->Prefix;
     return Reload(dirPathTemp, selected, focusedName);
 }
 void CBrowseDialog2::OnOK() {
@@ -533,10 +535,10 @@ bool CBrowseDialog2::GetParentPath(const UString &path, UString &parentPrefix, U
     return true;
 }
 void CBrowseDialog2::OpenParentFolder() {
-    if (IsExactTempFolder(DirPrefix))
+    if (IsExactTempFolder(_snapshot->Prefix))
         return;
     UString parent, selected;
-    if (GetParentPath(DirPrefix, parent, selected))
+    if (GetParentPath(_snapshot->Prefix, parent, selected))
         Reload(parent, selected);
 }
 void CBrowseDialog2::OnItemEnter() {
@@ -550,15 +552,15 @@ void CBrowseDialog2::OnItemEnter() {
     if (indices.Size() != 1)
         return;
     const unsigned realIndex = indices[0];
-    const CFileInfo &file = _files[_items[realIndex].MainFileIndex];
+    const CFileInfo &file = _snapshot->Files[_snapshot->Items[realIndex].MainFileIndex];
     const auto modifiers = QApplication::keyboardModifiers();
     if (modifiers.testFlag(Qt::AltModifier)) {
         Show_FileProps_Window(file);
         return;
     }
-    const UString fullPath = DirPrefix + fs2us(file.Name);
+    const UString fullPath = _snapshot->Prefix + fs2us(file.Name);
     if (file.IsOsSymLink() ||
-        !OwnedPath(_owners[realIndex], QtPath(fullPath), QtPath(TempFolderPath))) {
+        !OwnedPath(_snapshot->Owners[realIndex], QtPath(fullPath), QtPath(TempFolderPath))) {
         QMessageBox::warning(
             this, "7-Zip",
             QCoreApplication::translate("BrowseDialog2", "Link opening was blocked by 7-Zip."));
@@ -569,10 +571,9 @@ void CBrowseDialog2::OnItemEnter() {
         if (!modifiers.testFlag(Qt::ShiftModifier) || modifiers.testFlag(Qt::ControlModifier))
             needExternal = false;
     if (needExternal) {
-        OpenOutside(fullPath, _owners[realIndex], false);
+        OpenOutside(fullPath, _snapshot->Owners[realIndex], false);
         return;
     }
-    _currentRoot = _owners[realIndex];
     UString s = fullPath;
     s.Add_PathSepar();
     const HRESULT res = Reload(s, UString());
@@ -712,7 +713,7 @@ void CBrowseDialog2::OpenOutside(const UString &path, const QtOwnedTempEntry &ow
 #ifdef _WIN32
     else if (!_opener) {
         CProcess process;
-        const HRESULT result = StartApplication(DirPrefix, path, this, process);
+        const HRESULT result = StartApplication(_snapshot->Prefix, path, this, process);
         opened = result == S_OK || (HANDLE)process != NULL;
     }
 #endif
@@ -764,7 +765,8 @@ void CBrowseDialog2::OnContextMenu(const QPoint &position) {
         if (cmd == k_CmdId_Delete)
             action->setEnabled(_delete->isEnabled());
         if (cmd == k_CmdId_Open_Explorer || cmd == k_CmdId_Open_7zip) {
-            const auto owner = indices.Size() == 1 ? _owners[indices[0]] : _currentRoot;
+            const auto owner =
+                indices.Size() == 1 ? _snapshot->Owners[indices[0]] : _snapshot->Root;
             action->setEnabled(!owner.key.isEmpty() && !owner.active && !owner.externallyProtected);
         }
         if (cmd == k_CmdId_Props)
@@ -782,10 +784,10 @@ void CBrowseDialog2::OnContextMenu(const QPoint &position) {
         return;
     }
     if (indices.Size() <= 1) {
-        UString fullPath = DirPrefix;
-        QtOwnedTempEntry owner = _currentRoot;
+        UString fullPath = _snapshot->Prefix;
+        QtOwnedTempEntry owner = _snapshot->Root;
         if (indices.Size() != 0) {
-            const CFileInfo &file = _files[_items[indices[0]].MainFileIndex];
+            const CFileInfo &file = _snapshot->Files[_snapshot->Items[indices[0]].MainFileIndex];
             if (file.IsOsSymLink()) {
                 QMessageBox::warning(this, "7-Zip",
                                      QCoreApplication::translate(
@@ -793,14 +795,14 @@ void CBrowseDialog2::OnContextMenu(const QPoint &position) {
                 return;
             }
             fullPath += fs2us(file.Name);
-            owner = _owners[indices[0]];
+            owner = _snapshot->Owners[indices[0]];
         }
         if (menuResult == k_CmdId_Open_Explorer || menuResult == k_CmdId_Open_7zip) {
             OpenOutside(fullPath, owner, menuResult == k_CmdId_Open_7zip);
             return;
         }
         if (indices.Size() == 1 && menuResult == k_CmdId_Props)
-            Show_FileProps_Window(_files[_items[indices[0]].MainFileIndex]);
+            Show_FileProps_Window(_snapshot->Files[_snapshot->Items[indices[0]].MainFileIndex]);
     }
 }
 void CBrowseDialog2::OnHelp() { ShowHelpWindow("fm/temp.htm", this); }

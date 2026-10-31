@@ -8,6 +8,7 @@
 #include "platform/temp/qtownedtempregistry.h"
 #include <QDialog>
 #include <functional>
+#include <memory>
 
 class QTreeWidget;
 class QLineEdit;
@@ -40,11 +41,15 @@ struct CBrowseItem {
 };
 
 class CBrowseDialog2 : public QDialog {
+    struct Snapshot {
+        CRecordVector<CBrowseItem> Items;
+        CObjectVector<NWindows::NFile::NFind::CFileInfo> Files;
+        QVector<QtOwnedTempEntry> Owners;
+        QtOwnedTempEntry Root;
+        UString Prefix;
+    };
     std::function<bool(const QUrl &)> _opener;
-    CRecordVector<CBrowseItem> _items;
-    CObjectVector<NWindows::NFile::NFind::CFileInfo> _files;
-    QVector<QtOwnedTempEntry> _owners;
-    QtOwnedTempEntry _currentRoot;
+    std::unique_ptr<Snapshot> _snapshot = std::make_unique<Snapshot>();
     QTreeWidget *_list = nullptr;
     QLineEdit *_pathEdit = nullptr;
     QPushButton *_delete = nullptr, *_parent = nullptr;
@@ -53,7 +58,7 @@ class CBrowseDialog2 : public QDialog {
     bool _ascending = true;
     bool _filePropsValid = true;
     bool _showDots = false, _singleClick = false;
-    UString _topDirPrefix, DirPrefix;
+    UString _topDirPrefix;
     void BuildControls();
     void InitializeColumns();
     void ConnectControls(QDialogButtonBox *buttons, QPushButton *refresh);
