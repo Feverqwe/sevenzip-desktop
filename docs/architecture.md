@@ -183,6 +183,10 @@ Qt workers provide scheduling, progress and cancellation without changing those
 algorithms. Widgets are updated on the GUI thread; worker and callback lifetimes
 must outlive any queued completion or modal prompt they can produce.
 
+Filesystem-list presentation has one window module for immediate loading,
+worker startup, row delivery and completion. Navigation and path selection
+remain separate; enumeration and cancellation stay with their native/worker owners.
+
 Use deterministic private fixtures for partial writes, conflict decisions,
 cross-volume behavior and cancellation. Native Trash, devices, links, metadata
 and permissions have separate platform boundaries; do not infer their support

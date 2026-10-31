@@ -224,6 +224,7 @@ class MainWindow : public QMainWindow {
     void refreshCurrent(const CSelectedState *preserved = nullptr);
     HRESULT reloadPanelPresentation(unsigned index, const CSelectedState &selection);
     HRESULT startFilesystemListing(bool sourceAlreadyBound, bool updateAddress);
+    HRESULT startFilesystemScan(IFolderFolder *folder, bool flat);
     struct FilesystemViewport {
         FilesystemViewport(const QString &folder, const QString &top, int position)
             : directory(folder), topPath(top), scrollValue(position) {}

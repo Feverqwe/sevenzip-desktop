@@ -13,8 +13,6 @@
 #include "localization/qtlanguageservices.h"
 #include "platform/associations/qtassociatedfileservices.h"
 #include "platform/trash/qttrashservice.h"
-#include <QScopeGuard>
-#include <QScrollBar>
 
 MainWindow::MainWindow(ArchiveBackend *backend, std::function<bool(const QUrl &)> fileOpener,
                        IQtTrashService *trashService, const QtFileManagerStartup *startup,
@@ -129,89 +127,6 @@ void MainWindow::createFileManagerWindow(const QtFileManagerStartup *startup, bo
     reloadLangItems();
 }
 
-void MainWindow::connectFilesystemScanner() {
-    for (unsigned index = 0; index < kNumPanelsMax; ++index) {
-        auto &ui = panelUi_[index];
-        ui.listProjection = new QtFolderProjection(this);
-        ui.filesystemScanner = new FilesystemScanner(this);
-        auto *scanner = ui.filesystemScanner;
-        connect(scanner, &FilesystemScanner::folderReady, this,
-                [this, index](IFolderFolder *folder) {
-                    withPanelProjection(index, [&] {
-                        if (app_.QtOperations().closed())
-                            return;
-                        QtAppOperationState::CallScope call(app_.QtOperations());
-                        auto &panel = app_.GetFocusedPanel();
-                        if (panel.GetFolder() != folder)
-                            panel.SetNewFolder(folder);
-                        panel.LoadFullPath();
-                        const HRESULT loaded = panel.LoadListItems(true);
-                        if (loaded != S_OK) {
-                            panelUi_[index].filesystemScanner->cancel();
-                            failFilesystemListing(loaded);
-                            return;
-                        }
-                        configureColumns(true);
-                        appendParentEntry();
-                    });
-                });
-        connect(scanner, &FilesystemScanner::batchReady, this,
-                [this, index](const QFileInfoList &files, quint32 firstSourceIndex) {
-                    withPanelProjection(index, [&] {
-                        if (app_.QtOperations().closed())
-                            return;
-                        QtAppOperationState::CallScope call(app_.QtOperations());
-                        quint32 sourceIndex = firstSourceIndex;
-                        for (const QFileInfo &file : files) {
-                            const HRESULT result = appendFilesystemEntry(file, sourceIndex++);
-                            if (result != S_OK) {
-                                panelUi_[index].filesystemScanner->cancel();
-                                failFilesystemListing(result);
-                                return;
-                            }
-                        }
-                        statusBar()->showMessage(
-                            QCoreApplication::translate("mainwindow", "Shown: %1 items…")
-                                .arg(table_->rowCount()));
-                    });
-                });
-        connect(scanner, &FilesystemScanner::advanced, this, [this, index](quint64 count) {
-            if (index != projectedPanel_)
-                return;
-            if (app_.QtOperations().closed())
-                return;
-            statusBar()->showMessage(
-                QtLangText(IDS_SCANNING) +
-                QCoreApplication::translate("mainwindow", " %1 items").arg(count));
-        });
-        connect(scanner, &FilesystemScanner::completed, this, [this, index] {
-            withPanelProjection(index, [this] {
-                if (app_.QtOperations().closed())
-                    return;
-                QtAppOperationState::CallScope call(app_.QtOperations());
-                scanningDisk_ = false;
-                applySortMode(true);
-                completeListSelection();
-                restoreAutoRefreshViewport();
-                setState(State::Filesystem);
-                statusBar()->showMessage(
-                    QCoreApplication::translate("mainwindow", "%1 items").arg(table_->rowCount()));
-            });
-        });
-        connect(scanner, &FilesystemScanner::failed, this, [this, index](qint32 result) {
-            withPanelProjection(index, [this, result] {
-                if (app_.QtOperations().closed())
-                    return;
-                QtAppOperationState::CallScope call(app_.QtOperations());
-                app_.GetFocusedPanel().LoadListItems(true, HRESULT(result));
-                failFilesystemListing(HRESULT(result));
-            });
-        });
-    }
-    filesystemScanner_ = panelUi_[projectedPanel_].filesystemScanner;
-    listProjection_ = panelUi_[projectedPanel_].listProjection;
-}
-
 void MainWindow::cancelListPublication() {
     filesystemScanner_->cancel();
     listProjection_->cancel();
@@ -220,23 +135,4 @@ void MainWindow::cancelListPublication() {
     scanSelectedState_.reset();
     scanSelectedPaths_.reset();
     pendingViewport_.reset();
-}
-
-void MainWindow::failFilesystemListing(HRESULT result) {
-    auto &panel = app_.GetFocusedPanel();
-    scanSelectedState_.reset();
-    scanSelectedPaths_.reset();
-    pendingViewport_.reset();
-    table_->clearSelection();
-    table_->clearRows();
-    table_->setSortingEnabled(true);
-    // OnCopy ignores RefreshListCtrl errors, including a retained worker load.
-    // Navigation and explicit reload keep their existing diagnostic policy.
-    if (!appPresentation_->IsCopyPending())
-        panel.MessageBox_Error_HRESULT(result);
-    if (app_.QtOperations().closed())
-        return;
-    scanningDisk_ = false;
-    setState(State::Filesystem);
-    statusBar()->showMessage(QCoreApplication::translate("mainwindow", "Could not read folder."));
 }

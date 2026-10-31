@@ -2284,3 +2284,41 @@ The Windows navigation suite used the native Qt platform and shared desktop
 resource lock; macOS/Linux logic checks used offscreen Qt. No rendered upstream
 pixel comparison is claimed. Existing incremental builds and compiler caches
 were reused; no full/slow suites or heavy diagnostics were needed.
+
+## Filesystem-list presentation owner — 2026-10-31
+
+Compared the complete original `FSFolder.cpp::LoadItems/LoadSubItems` and
+`PanelItems.cpp::RefreshListCtrl`, their current folder/item types, preloaded
+list adaptation, scanner/loader lifetime and window consumers. Full original
+unit hashes match the recorded baseline
+`b88c6bc09339de32f7d18bbab900686b244f42ba`. The native walk, no-follow policy,
+notifications, callback cancellation and retained COM ownership are unchanged.
+No external source was imported or original hashes advanced.
+
+One local window module now owns immediate/deferred loading, worker delivery,
+row publication and completion. Navigation/path selection stay separate, and
+application construction no longer contains filesystem workflow callbacks.
+The flat and deferred non-flat branches share their worker-start transition.
+The immediate-load return value, early deferral boundary and existing error,
+copy, selection/viewport and panel-projection policies are retained.
+
+The moved row, completion/error and signal-wiring bodies were compared directly
+with their previous versions. Cohesive signal wiring remains together; each
+callback handles one delivery phase. The new source is registered as local
+integration in the existing manifest and compiled once through the window owner.
+Architecture records that boundary without changing public behavior or layout.
+
+Existing scanner, filesystem reload, worker-window, navigation failure, item-icon
+and refresh-notification suites cover the affected lifecycle, including success,
+failure, cancellation, reentry, both panels and preserved selections. No new
+test is needed for this ownership extraction; source-presence assertions and
+implementation-mirroring coverage were not added.
+
+All six selected suites passed Linux in `20261031T074920Z-aa207a86`
+(test phase 9.86 s), macOS (15.52 s), and Windows Limited desktop in
+`20261031T075305Z-a18ae99a` (44.76 s). Windows passed all native shell icon
+checks; Linux/macOS retain the two existing Windows-only shell-icon skips.
+No functional changes followed the Linux
+result. Existing incremental outputs/compiler caches were retained, with one
+build job on the memory-limited guests. No full/slow suites, heavy diagnostics
+or visual-layout changes were introduced.
