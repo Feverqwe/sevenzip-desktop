@@ -203,6 +203,9 @@ rg -n --no-ignore -F 'CAgent::Open' docs/archive/qt-port/upstream-port-audit/ do
 - [Общий ввод имени и маски](upstream-port-audit/name-input-owner.md)
   — данные представления сразу в контролах, исходный результат только после OK.
 
+- [Жизненный цикл диагностических сообщений](upstream-port-audit/message-dialog-lifetime.md)
+  — актуальные строки при повторном открытии и компоновка средствами Qt.
+
 - [Владение при исключении копирования object vector](upstream-port-audit/object-vector-ownership.md)
   — освобождение уже скопированных владельцев при отказе очередного элемента.
 

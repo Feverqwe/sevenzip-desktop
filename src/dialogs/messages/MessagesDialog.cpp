@@ -13,7 +13,6 @@
 #include <QDialogButtonBox>
 #include <QEvent>
 #include <QPushButton>
-#include <QResizeEvent>
 #include <QVBoxLayout>
 
 void CMessagesDialog::AddMessageDirect(const wchar_t *message) {
@@ -36,11 +35,8 @@ void CMessagesDialog::AddMessage(const wchar_t *message) {
     AddMessageDirect(s);
 }
 
-bool CMessagesDialog::OnInit() {
-    _messageList.Attach(_list);
-    _messageList.InsertColumn(0, L"", 30);
-    _messageList.InsertColumn(1, LangString(IDS_MESSAGE), 600);
-
+void CMessagesDialog::OnInit() {
+    _list->clear();
     if (Messages)
         FOR_VECTOR(i, *Messages)
     AddMessage((*Messages)[i]);
@@ -48,14 +44,6 @@ bool CMessagesDialog::OnInit() {
     _messageList.SetColumnWidthAuto(0);
     _messageList.SetColumnWidthAuto(1);
     QtNormalizeDialogSize(*this);
-    OnSize(width(), height());
-    return true;
-}
-
-bool CMessagesDialog::OnSize(int, int) {
-    // Qt owns resize geometry; the source notification path remains connected.
-    layout()->activate();
-    return false;
 }
 
 CMessagesDialog::CMessagesDialog(QWidget *parent) : QDialog(parent) {
@@ -68,6 +56,9 @@ CMessagesDialog::CMessagesDialog(QWidget *parent) : QDialog(parent) {
     _list->setObjectName("IDL_MESSAGE");
     _list->setColumnCount(2);
     _list->setHeaderHidden(false);
+    _messageList.Attach(_list);
+    _messageList.InsertColumn(0, L"", 30);
+    _messageList.InsertColumn(1, LangString(IDS_MESSAGE), 600);
     _close = new QPushButton(this);
     QtBindResourceText(_close, IDS_CLOSE, "&Close");
     _close->setObjectName("IDOK");
@@ -83,25 +74,15 @@ CMessagesDialog::CMessagesDialog(QWidget *parent) : QDialog(parent) {
 INT_PTR CMessagesDialog::Create(QWidget *parent) {
     if (parent && parentWidget() != parent)
         setParent(parent, windowFlags());
-    if (!_initialized) {
-        _initialized = OnInit();
-        _close->setFocus();
-    }
+    OnInit();
+    _close->setFocus();
     return exec();
 }
 
 void CMessagesDialog::reject() { done(IDCANCEL); }
 
-void CMessagesDialog::resizeEvent(QResizeEvent *event) {
-    if (_initialized)
-        OnSize(event->size().width(), event->size().height());
-    QDialog::resizeEvent(event);
-}
-
 void CMessagesDialog::changeEvent(QEvent *event) {
-    if (event->type() == QEvent::LanguageChange && _initialized) {
+    if (event->type() == QEvent::LanguageChange && _list)
         _list->headerItem()->setText(1, QtLangText(IDS_MESSAGE));
-        OnSize(width(), height());
-    }
     QDialog::changeEvent(event);
 }

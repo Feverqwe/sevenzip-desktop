@@ -402,8 +402,8 @@ MessagesDialog.rc (`IDD_MESSAGES`) uses a two-column numbered/message list and
 Close footer,456×176DLU initial client and resize/minimize/maximize capabilities
 without context-help. Assigning a parent must preserve those source flags.
 Close has initial focus, matching the first resource tab stop.
-The Qt source port preserves AddMessageDirect/AddMessage and the
-OnInit/OnSize notification path; `IDL_MESSAGE` is above `IDOK` at 760×450 and
+The Qt source port preserves message text, line splitting and numbering.
+Each opening displays the current message set; `IDL_MESSAGE` is above `IDOK` at 760×450 and
 640×380. Current-build JSON confirms both controls are visible, separated and
 within the dialog. Create follows the source modal lifetime until Close/Enter
 (IDOK) or Escape (IDCANCEL), retaining the stack-owned PanelDrag message vector.

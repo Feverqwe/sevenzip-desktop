@@ -290,6 +290,30 @@ class ExtractPromptTests final : public QObject {
         QCOMPARE(lines.Size(), unsigned(1));
         QCOMPARE(QString::fromWCharArray(lines[0]), QStringLiteral("diagnostic 密碼\nnext row\n"));
     }
+    void sourceMessagesRefreshOnEachOpening() {
+        UStringVector first, next;
+        first.Add(L"old diagnostic");
+        next.Add(L"new diagnostic 文件\ncontinued\n");
+        const UStringVector *inputs[]{&first, &next, nullptr};
+        const QList<QStringList> expected{
+            {"old diagnostic"}, {QStringLiteral("new diagnostic 文件"), "continued", ""}, {}};
+        CMessagesDialog dialog;
+        for (int opening = 0; opening < expected.size(); ++opening) {
+            dialog.Messages = inputs[opening];
+            bool visited = false;
+            QTimer::singleShot(0, &dialog, [&] {
+                const auto close = qScopeGuard([&] { dialog.accept(); });
+                visited = true;
+                auto *list = dialog.findChild<QTreeWidget *>("IDL_MESSAGE");
+                QCOMPARE(list->columnCount(), 2);
+                QCOMPARE(list->topLevelItemCount(), expected[opening].size());
+                for (int row = 0; row < expected[opening].size(); ++row)
+                    QCOMPARE(list->topLevelItem(row)->text(1), expected[opening][row]);
+            });
+            QCOMPARE(dialog.Create(), INT_PTR(IDOK));
+            QVERIFY(visited);
+        }
+    }
     void geometry() {
         for (int width : {700, 560}) {
             {

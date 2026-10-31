@@ -13,15 +13,12 @@ class QPushButton;
 
 class CMessagesDialog : public QDialog {
     CQtProgressListView _messageList;
-    CListView *_list;
+    CListView *_list = nullptr;
     QPushButton *_close;
-    bool _initialized = false;
 
     void AddMessageDirect(const wchar_t *message);
     void AddMessage(const wchar_t *message);
-    bool OnInit();
-    bool OnSize(int xSize, int ySize);
-    void resizeEvent(QResizeEvent *event) override;
+    void OnInit();
     void changeEvent(QEvent *event) override;
 
   public:
