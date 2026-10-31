@@ -1,10 +1,24 @@
 {
   "source": "src/sync/executor.rs",
   "symbols": [
-    "scan_dest"
+    "scan_dest",
+    "ExecutorOptions",
+    "push_multi"
   ],
-  "reason": "Prune protected/excluded destination subtrees before metadata traversal; receiver wrapper supplies the same exclusions as the sender. Transfer/deletion logic remains upstream.",
+  "reason": "Prune protected/excluded destination subtrees before metadata traversal; receiver wrapper supplies the same exclusions as the sender. Transfer/deletion logic remains upstream. Preserve smbStorage timestamp-resolution adaptation for SMB FILETIME comparison and verification.",
   "replacements": [
+    {
+      "before": "    /// gets the transfer time and the quick check falls back to size-only\n    /// (rsync's behavior — size+mtime comparison would be meaningless).\n    pub preserve_times: bool,\n    /// The *target* side's OS, driving the permission matrix and link\n    /// representation at scan time (spec §2.2 / §3.2). The source side\n    /// decides; the receiver never re-derives it. Set by the CLI: the probed\n",
+      "after": "    /// gets the transfer time and the quick check falls back to size-only\n    /// (rsync's behavior — size+mtime comparison would be meaningless).\n    pub preserve_times: bool,\n    /// Timestamp comparison quantum; one preserves nanosecond comparisons.\n    pub timestamp_resolution_ns: u32,\n    /// The *target* side's OS, driving the permission matrix and link\n    /// representation at scan time (spec §2.2 / §3.2). The source side\n    /// decides; the receiver never re-derives it. Set by the CLI: the probed\n"
+    },
+    {
+      "before": "            atimes: false,\n            preserve_perms: true,\n            preserve_times: true,\n            target_os: TargetOs::Unix,\n            progress: None,\n            include_root_component: false,\n",
+      "after": "            atimes: false,\n            preserve_perms: true,\n            preserve_times: true,\n            timestamp_resolution_ns: 1,\n            target_os: TargetOs::Unix,\n            progress: None,\n            include_root_component: false,\n"
+    },
+    {
+      "before": "                size_only: !options.preserve_times,\n                preserve_perms: options.preserve_perms,\n                preserve_times: options.preserve_times,\n            });\n            let source_manifest = manifest_from_file_meta(&source_files);\n            planner.plan(&source_manifest, &dest_manifest).itemize()\n",
+      "after": "                size_only: !options.preserve_times,\n                preserve_perms: options.preserve_perms,\n                preserve_times: options.preserve_times,\n                timestamp_resolution_ns: options.timestamp_resolution_ns,\n            });\n            let source_manifest = manifest_from_file_meta(&source_files);\n            planner.plan(&source_manifest, &dest_manifest).itemize()\n"
+    },
     {
       "before": "    let scanner = Scanner::new(scanner_options(\n        options,\n        root,\n        None,\n        false,\n        false,\n        (!source_links.is_empty()).then_some(source_links),\n    ));",
       "after": "    let scanner = Scanner::new(scanner_options(\n        options,\n        root,\n        Some(crate::sync::FilterSet {\n            includes: options.include.clone(),\n            excludes: options.exclude.clone(),\n        }),\n        false,\n        false,\n        (!source_links.is_empty()).then_some(source_links),\n    ));"

@@ -77,7 +77,7 @@ configure() {
     esac
   done
   set -- "-DCMAKE_INSTALL_PREFIX=$SEVENZIP_ARTIFACT_ROOT/install/$preset" "$@"
-  set -- "-DSEVENZIP_TEST_SCRATCH_DIR=$TMPDIR/ctest/$preset" "$@"
+  set -- "-DSEVENZIP_TEST_SCRATCH_DIR=$SEVENZIP_TEST_SCRATCH_ROOT/$preset" "$@"
   if [[ "$preset" == vcpkg-* ]]; then
     # The pinned vcpkg toolchain caches its root independently of its file path.
     set -- "-DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \

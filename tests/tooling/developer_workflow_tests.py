@@ -25,6 +25,32 @@ class WorkflowTests(unittest.TestCase):
         # runner's destination would mix fixtures and bypass their cleanup.
         os.environ.pop("SEVENZIP_OUTPUT_ROOT", None)
 
+    @unittest.skipIf(os.name == "nt", "POSIX output migration links")
+    def test_migrated_outputs_reuse_build_and_preserve_compiler_cache(self):
+        with tempfile.TemporaryDirectory(prefix="migrated outputs ") as temporary:
+            root = Path(temporary)
+            self.fixture(root)
+            environment = dict(os.environ, CMAKE_PREFIX_PATH=str(root))
+            command = ["bash", "scripts/build.sh", "dev", "subject"]
+            first = subprocess.run(command, cwd=root, env=environment, text=True, capture_output=True)
+            self.assertEqual(first.returncode, 0, first.stdout + first.stderr)
+            linked = (root / "subject-links").read_bytes()
+            cache = directory(root, "cache") / "retained"
+            cache.write_bytes(b"existing compiler data")
+            workspace = directory(root, "tools").parents[1]
+            shared = root / "shared project"
+            shared.mkdir()
+            for name in ("branches", "b"):
+                shutil.move(workspace / name, shared / name)
+                (workspace / name).symlink_to(shared / name, target_is_directory=True)
+            environment["SMBSTORAGE_BUILD_ROOT"] = str(shared)
+            second = subprocess.run(command, cwd=root, env=environment, text=True, capture_output=True)
+            self.assertEqual(second.returncode, 0, second.stdout + second.stderr)
+            self.assertEqual((root / "subject-links").read_bytes(), linked)
+            self.assertEqual(cache.read_bytes(), b"existing compiler data")
+            executable = directory(root, "artifacts") / "dev/subject"
+            self.assertEqual(subprocess.run([str(executable)]).returncode, 0)
+
     def fixture(self, root):
         (root / "scripts/config").mkdir(parents=True)
         (root / "cmake").mkdir()

@@ -23,7 +23,10 @@ skill's default fresh-directory workflow does not apply.
 
 The selected workspace root contains a persistent source directory for each Git branch.
 Tools, caches, dependencies, runtime, outputs, native build intermediates,
-temporary files and local source staging use the ordinary disk. Project
+temporary files and local source staging use the ordinary disk by default.
+Linux synchronized source copies and generated outputs can use the existing shared
+smbStorage through the
+[storage settings](runner-configuration.md#connections-and-tools); project
 wrappers do not provision RAM disks.
 Only the branch
 name selects the directory; local checkout paths do not affect it. Different

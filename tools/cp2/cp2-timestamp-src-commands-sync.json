@@ -1,0 +1,13 @@
+{
+  "source": "src/commands/sync.rs",
+  "symbols": [
+    "server_args"
+  ],
+  "reason": "From smbStorage timestamp-resolution.patch: explicitly selected SMB FILETIME precision; nanosecond default retained.",
+  "replacements": [
+    {
+      "before": "    if !options.preserve_times {\n        args.push(\"--no-times\".to_string());\n    }\n    // `-S`/`-X`/`-U`: receiver-side application (sparse writes, xattrs,\n    // atime) and sender-side collection (xattrs) both live on the server\n    // side of a push and on the client side of a pull — forward whenever\n",
+      "after": "    if !options.preserve_times {\n        args.push(\"--no-times\".to_string());\n    }\n    if options.timestamp_resolution_ns != 1 {\n        args.push(\"--timestamp-resolution-ns\".to_string());\n        args.push(options.timestamp_resolution_ns.to_string());\n    }\n    // `-S`/`-X`/`-U`: receiver-side application (sparse writes, xattrs,\n    // atime) and sender-side collection (xattrs) both live on the server\n    // side of a push and on the client side of a pull — forward whenever\n"
+    }
+  ]
+}

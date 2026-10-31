@@ -5,7 +5,7 @@
     "url": "https://codeload.github.com/elemeng/cp2/tar.gz/528e846f5c0d823ed41e045e1ff66a7d7456c9cb",
     "sha256": "ee063c52e1c1fc7660d19aeb983c19b7ad1837c87add09ea39fa4dc80f83076e"
   },
-  "scope": "External cp2 with destination exclusion pruning and strict checksum/verification basis-cache handling; original complete inventory units remain pinned",
+  "scope": "External cp2 with destination exclusion pruning and strict checksum/verification basis-cache handling; original complete inventory units remain pinned; timestamp-resolution adaptation from smbStorage (original patch SHA256 23f495094c7891e900d49b3837722248fe61b025b9e3a24103dbdd50ffbab360), retaining project protections",
   "owners": [
     "tools/cp2/cp2.lock.json",
     "tools/cp2/cp2-ssh.rs",
@@ -16,7 +16,13 @@
     "scripts/lib/hyperv_cp2_sync.py",
     "tools/cp2/cp2-destination-filter.json",
     "tools/cp2/cp2-NOTICE.txt",
-    "tools/cp2/cp2-signature-cache.json"
+    "tools/cp2/cp2-signature-cache.json",
+    "tools/cp2/cp2-timestamp-setup-main.json",
+    "tools/cp2/cp2-timestamp-src-cli.json",
+    "tools/cp2/cp2-timestamp-src-commands-mod.json",
+    "tools/cp2/cp2-timestamp-src-commands-sync.json",
+    "tools/cp2/cp2-timestamp-src-sync-planner.json",
+    "tools/cp2/cp2-timestamp-src-sync-sender.json"
   ],
   "files": {
     ".github/workflows/release.yml": "5a362da055107631f27e66c68a29a6945b7c853292d66e6366bd6cdbb71f5f6e",
@@ -94,6 +100,12 @@
   },
   "adapted_edits": {
     "src/sync/executor.rs": "tools/cp2/cp2-destination-filter.json",
-    "src/sync/receiver.rs": "tools/cp2/cp2-signature-cache.json"
+    "src/sync/receiver.rs": "tools/cp2/cp2-signature-cache.json",
+    "setup/main.rs": "tools/cp2/cp2-timestamp-setup-main.json",
+    "src/cli.rs": "tools/cp2/cp2-timestamp-src-cli.json",
+    "src/commands/mod.rs": "tools/cp2/cp2-timestamp-src-commands-mod.json",
+    "src/commands/sync.rs": "tools/cp2/cp2-timestamp-src-commands-sync.json",
+    "src/sync/planner.rs": "tools/cp2/cp2-timestamp-src-sync-planner.json",
+    "src/sync/sender.rs": "tools/cp2/cp2-timestamp-src-sync-sender.json"
   }
 }

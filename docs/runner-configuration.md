@@ -40,10 +40,43 @@ Native registration/reference commands check that name before running.
 CMake, Ninja, Git, ccache, clang-format and Bash must be available on PATH.
 Install the dependencies described in [development](development.md#dependencies).
 
-Select a dedicated `build/sources` workspace on the runner's ordinary disk.
+Select a dedicated `build/sources` workspace on the runner.
 Its parent `build` retains installed tools, dependencies, outputs and caches.
-Native build intermediates and temporary data use the ordinary disk.
-Project wrappers do not create or manage RAM disks.
+Native build intermediates and temporary data use ordinary disk unless the
+runner is connected to its shared build storage. Project wrappers do not create
+or manage RAM disks.
+
+For an installed Linux smbStorage service, add an optional `build_wrapper`
+argument list to that runner's entry. For example:
+
+```json
+"build_wrapper": [
+  "python3", "/home/runner/.local/share/smbstorage-runner/bin/run-build.py",
+  "--config", "/home/runner/.config/smbstorage/runner.json",
+  "--project", "sevenzip-desktop", "--"
+]
+```
+
+The external readiness wrapper verifies the live service and native mount,
+pins it throughout source synchronization, runtime preparation/build/tests and
+log collection, and supplies `SMBSTORAGE_BUILD_ROOT` to remote commands.
+A readiness failure prevents writes to the source/build storage. Ordinary checks
+do not start, stop or reconfigure the common service. Other platforms retain
+ordinary storage until their native shared-storage lifecycle is accepted.
+
+During installation, migrate synchronized `sources` and generated `branches`
+and `b` directories through the mount with cp2, retaining a reversible copy of
+nonempty old outputs. Links
+at their original paths preserve CMake/Ninja incremental state. The destination
+is the selected project's namespace on the common mount. The local repository,
+tools and compiler/download caches remain outside it. Use the pinned cp2 with
+`--timestamp-resolution-ns 100` for CIFS timestamp precision. Do not link another
+project's namespace or modify smbStorage backend roots directly. For a manual guest build,
+use the same external wrapper around the project's normal build command.
+Compiler temporary files use shared project scratch. Native runtime test fixtures
+use a separate ordinary-disk directory: the mounted filesystem may not support
+the links and local IPC objects those tests require. This does not replace the
+real build/output checks through the shared mount.
 
 The ordinary `dev` preset uses the configured Qt SDK. Optional `vcpkg-*` presets
 use the checkout under the workspace's tools directory and obtain Qt from the

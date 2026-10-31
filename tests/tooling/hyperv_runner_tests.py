@@ -31,6 +31,36 @@ def git(root, *args):
 
 
 class RunnerTests(unittest.TestCase):
+    @unittest.skipIf(os.name == "nt", "Linux shared-storage shell")
+    def test_storage_pin_covers_all_phases_and_refuses_unready_mount(self):
+        with tempfile.TemporaryDirectory(prefix="storage pin ") as temporary:
+            root = Path(temporary)
+            pin = root / "pinned"
+            wrapper = root / "wrapper.py"
+            wrapper.write_text('''import pathlib,subprocess,sys
+pin=pathlib.Path(sys.argv[1])
+if pin.with_suffix('.unavailable').exists(): raise SystemExit(37)
+pin.touch()
+try: raise SystemExit(subprocess.run(sys.argv[2:]).returncode)
+finally: pin.unlink()
+''')
+            record = {"ssh_argv": ["bash", "-c"], "config": {
+                "python": sys.executable,
+                "build_wrapper": [sys.executable, str(wrapper), str(pin)]}}
+            with (root / "log").open("w") as log:
+                with self.assertRaisesRegex(ValueError, "phase failed"):
+                    with hyperv_workspace.shared_storage(record, log):
+                        self.assertTrue(pin.exists())
+                        subprocess.run([sys.executable, "-c", "pass"], check=True)
+                        self.assertTrue(pin.exists())
+                        raise ValueError("phase failed")
+                self.assertFalse(pin.exists())
+                pin.with_suffix('.unavailable').touch()
+                with self.assertRaisesRegex(RuntimeError, "could not be pinned"):
+                    with hyperv_workspace.shared_storage(record, log):
+                        self.fail("unready storage allowed source writes")
+                self.assertFalse(pin.exists())
+
     def test_cp2_snapshot_rebuilds_edits_made_during_previous_build_and_recovers_lost_cache(self):
         if not shutil.which("cmake") or not shutil.which("ninja"):
             self.skipTest("CMake/Ninja unavailable")

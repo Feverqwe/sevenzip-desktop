@@ -27,6 +27,19 @@ preserved size/mtime and produced incorrect output despite checksum comparison.
 Normal metadata mode retains caching. Signature generation and reconstruction
 remain upstream; checksum mode also requests its existing output verification.
 
+The SMB adaptation is taken from the smbStorage `tools/cp2/timestamp-resolution.patch`
+(SHA256 `23f495094c7891e900d49b3837722248fe61b025b9e3a24103dbdd50ffbab360`)
+against the same original cp2 revision. The timestamp edit owners in the existing
+baseline retain the CLI option, propagation to planner/sender/receiver and
+post-apply verification at the selected precision. They also retain the patch's
+portable unit checks and setup platform guards. The separate CLI integration
+fixture adjustment is omitted because the installed tool excludes that test
+inventory. The original complete units and licenses remain pinned. The unrelated
+GNU sidecar adaptation is not needed by the project's explicit receiver install.
+Both prior project protections are retained; the combined fingerprint differs
+from the bundled smbStorage binary. Normal CIFS sync selects 100 ns without a
+tree-wide checksum pass. Explicit verification still verifies transferred bytes.
+
 Local integration owns installation, the configured SSH connection, protected
 source exclusions and build-fresh snapshot timestamps. cp2 owns reconciliation,
 file transfer, checksum mode and its signature cache. The small local SSH

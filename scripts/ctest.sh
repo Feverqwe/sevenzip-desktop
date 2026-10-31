@@ -16,6 +16,10 @@ for ((index=0; index < ${#arguments[@]}; index++)); do
 done
 workspace_environment="$(python3 -B "$project_root/scripts/lib/build_paths.py" env --root "$project_root" --preset "$ctest_preset")"
 eval "$workspace_environment"
+if [[ -n "${SMBSTORAGE_BUILD_ROOT:-}" ]]; then
+  # Runtime fixtures need native links/IPC; compiler temporaries stay shared.
+  export TMPDIR="$SEVENZIP_TEST_SCRATCH_ROOT" TMP="$SEVENZIP_TEST_SCRATCH_ROOT" TEMP="$SEVENZIP_TEST_SCRATCH_ROOT"
+fi
 
 # Restore disposable test directories before CTest uses them as working directories.
 test_workspace_setup="${ctest_directory:-$SEVENZIP_BUILD_ROOT/$ctest_preset}/PrepareTestWorkspace.cmake"

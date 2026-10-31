@@ -102,9 +102,15 @@ def checked_output(root, path):
 
 
 def contained_output(workspace, path):
-    workspace = workspace.resolve()
+    roots = [workspace.resolve()]
+    # The shared runner wrapper verifies/pins the native mount and supplies
+    # this project's root. Migrated output symlinks retain CMake's old paths.
+    shared = os.environ.get("SMBSTORAGE_BUILD_ROOT")
+    if shared:
+        roots.append(Path(shared).resolve())
     path = Path(path).absolute()
-    if path.resolve() == workspace or not path.resolve().is_relative_to(workspace):
+    resolved = path.resolve()
+    if resolved in roots or not any(resolved.is_relative_to(root) for root in roots):
         raise ValueError(f"Output must be inside the project workspace: {path}")
     return path
 
@@ -136,6 +142,9 @@ def environment(root, preset="dev"):
         "SEVENZIP_SOURCE_ROOT": str(Path(root).resolve()),
         "SEVENZIP_BRANCH_KEY": branch_key(root),
         "SEVENZIP_BUILD_ROOT": str(build_root(root, preset)),
+        "SEVENZIP_TEST_SCRATCH_ROOT": str(
+            workspace / "native-tests" / branch_key(root) / host_tag()
+            if os.environ.get("SMBSTORAGE_BUILD_ROOT") else directory(root, "tmp") / "ctest"),
         "SEVENZIP_ARTIFACT_ROOT": str(directory(root, "artifacts")),
         "SEVENZIP_OUTPUT_ROOT": str(directory(root, "artifacts")),
         "SEVENZIP_TOOLS_ROOT": str(host_tools(root)),

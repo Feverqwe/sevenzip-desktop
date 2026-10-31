@@ -1,0 +1,41 @@
+{
+  "source": "src/sync/planner.rs",
+  "symbols": [
+    "PlannerConfig",
+    "Planner::times_match",
+    "Planner::attrs_differ",
+    "Planner::content_matches",
+    "Planner::compare"
+  ],
+  "reason": "From smbStorage timestamp-resolution.patch: explicitly selected SMB FILETIME precision; nanosecond default retained.",
+  "replacements": [
+    {
+      "before": "    /// Re-apply mtimes to already-in-sync files whose time drifted (off with\n    /// `--no-times`, which also flips `size_only`).\n    pub preserve_times: bool,\n}\n\n/// Pure planner: source manifest × destination manifest → [`SyncPlan`].\n",
+      "after": "    /// Re-apply mtimes to already-in-sync files whose time drifted (off with\n    /// `--no-times`, which also flips `size_only`).\n    pub preserve_times: bool,\n    /// Timestamp comparison quantum; zero (Default) is treated as one.\n    pub timestamp_resolution_ns: u32,\n}\n\n/// Pure planner: source manifest × destination manifest → [`SyncPlan`].\n"
+    },
+    {
+      "before": "    /// Whether the source and destination mtimes agree, including the\n    /// nanosecond remainder — the receiver restores both at apply time, so a\n    /// drift means the file changed.\n    fn times_match(src: &FileEntry, dst: &FileEntry) -> bool {\n        src.mtime_sec == dst.mtime_sec && src.mtime_nsec == dst.mtime_nsec\n    }\n\n    /// Whether a content-matched file still needs a metadata-only update: the\n",
+      "after": "    /// Whether the source and destination mtimes agree, including the\n    /// nanosecond remainder — the receiver restores both at apply time, so a\n    /// drift means the file changed.\n    fn times_match(&self, src: &FileEntry, dst: &FileEntry) -> bool {\n        let quantum = self.config.timestamp_resolution_ns.max(1);\n        src.mtime_sec == dst.mtime_sec && src.mtime_nsec / quantum == dst.mtime_nsec / quantum\n    }\n\n    /// Whether a content-matched file still needs a metadata-only update: the\n"
+    },
+    {
+      "before": "        // (file-type bits included), the source scan the permission bits.\n        const PERM: u32 = 0o7777;\n        let perms = self.config.preserve_perms && (src.mode & PERM) != (dst.mode & PERM);\n        let times = self.config.preserve_times && !Self::times_match(src, dst);\n        perms || times\n    }\n\n",
+      "after": "        // (file-type bits included), the source scan the permission bits.\n        const PERM: u32 = 0o7777;\n        let perms = self.config.preserve_perms && (src.mode & PERM) != (dst.mode & PERM);\n        let times = self.config.preserve_times && !self.times_match(src, dst);\n        perms || times\n    }\n\n"
+    },
+    {
+      "before": "        if self.config.size_only {\n            return src.size == dst.size;\n        }\n        src.size == dst.size && Self::times_match(src, dst)\n    }\n\n    /// Decide the action for a file that exists on both sides.\n",
+      "after": "        if self.config.size_only {\n            return src.size == dst.size;\n        }\n        src.size == dst.size && self.times_match(src, dst)\n    }\n\n    /// Decide the action for a file that exists on both sides.\n"
+    },
+    {
+      "before": "                // `--checksum` and `--no-times` fall back to the target\n                // string alone (a link has no content hash — the target *is*\n                // its content — mirroring the file hash / size-only checks).\n                if self.config.checksum || self.config.size_only || Self::times_match(src, dst) {\n                    return SyncAction::Skip;\n                }\n                return SyncAction::Update;\n",
+      "after": "                // `--checksum` and `--no-times` fall back to the target\n                // string alone (a link has no content hash — the target *is*\n                // its content — mirroring the file hash / size-only checks).\n                if self.config.checksum || self.config.size_only || self.times_match(src, dst) {\n                    return SyncAction::Skip;\n                }\n                return SyncAction::Update;\n"
+    },
+    {
+      "before": "                SyncAction::Update\n            };\n        }\n        if src.size != dst.size || !Self::times_match(src, dst) {\n            SyncAction::Update\n        } else {\n            SyncAction::Skip\n",
+      "after": "                SyncAction::Update\n            };\n        }\n        if src.size != dst.size || !self.times_match(src, dst) {\n            SyncAction::Update\n        } else {\n            SyncAction::Skip\n"
+    },
+    {
+      "before": "        assert_eq!(plan.updates.len(), 1);\n    }\n\n    #[test]\n    fn plan_mtime_change_update() {\n        let src = manifest(vec![entry(\"a.txt\", 10, 200, None)]);\n",
+      "after": "        assert_eq!(plan.updates.len(), 1);\n    }\n\n    #[test]\n    fn coarse_timestamps_skip_rounding_but_transfer_changed_bucket_or_size() {\n        let mut source = entry(\"data\", 5, 100, None);\n        let mut destination = source.clone();\n        source.mtime_nsec = 760;\n        destination.mtime_nsec = 700;\n        let source_manifest = manifest(vec![source]);\n        let strict = Planner::default().plan(&source_manifest, &manifest(vec![destination.clone()]));\n        assert_eq!(strict.updates.len(), 1);\n        let coarse = Planner::new(PlannerConfig {\n            timestamp_resolution_ns: 100,\n            ..PlannerConfig::default()\n        });\n        assert_eq!(coarse.plan(&source_manifest, &manifest(vec![destination.clone()])).skips.len(), 1);\n        destination.mtime_nsec = 800;\n        assert_eq!(coarse.plan(&source_manifest, &manifest(vec![destination.clone()])).updates.len(), 1);\n        destination.mtime_nsec = 700;\n        destination.size += 1;\n        assert_eq!(coarse.plan(&source_manifest, &manifest(vec![destination])).updates.len(), 1);\n    }\n\n    #[test]\n    fn plan_mtime_change_update() {\n        let src = manifest(vec![entry(\"a.txt\", 10, 200, None)]);\n"
+    }
+  ]
+}

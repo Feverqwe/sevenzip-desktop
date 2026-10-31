@@ -64,11 +64,15 @@ def load_config(path=None):
     entries = data["runners"]
     if not isinstance(entries, dict) or not entries or set(entries) - {"linux", "windows"}:
         raise ValueError("Configure linux and/or windows runners")
-    common = {"workspace", "ssh", "ready_command", "python", "qt_prefix", "path"}
+    common = {"workspace", "ssh", "ready_command", "python", "qt_prefix", "path", "build_wrapper"}
     for platform, entry in entries.items():
         if not isinstance(entry, dict) or set(entry) - common - {"vcvars", "computer_name"}:
             raise ValueError(f"Unknown runner settings for {platform}")
         workspace(entry.get("workspace"), platform)
+        if "build_wrapper" in entry:
+            if platform != "linux":
+                raise ValueError("Build wrappers currently require Linux")
+            arguments(entry["build_wrapper"], "build_wrapper")
         if ("ssh" in entry) == ("ready_command" in entry):
             raise ValueError("Each runner requires exactly one of ssh or ready_command")
         if "ssh" in entry:

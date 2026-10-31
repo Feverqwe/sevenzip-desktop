@@ -1,7 +1,7 @@
 {
   "repository": "https://github.com/elemeng/cp2.git",
   "revision": "528e846f5c0d823ed41e045e1ff66a7d7456c9cb",
-  "banner": "cp2 0.3.0 (build ad99ff8075ce9508)",
+  "banner": "cp2 0.3.0 (build 8202301dff8f1159)",
   "archive": {
     "url": "https://codeload.github.com/elemeng/cp2/tar.gz/528e846f5c0d823ed41e045e1ff66a7d7456c9cb",
     "sha256": "ee063c52e1c1fc7660d19aeb983c19b7ad1837c87add09ea39fa4dc80f83076e"
@@ -18,11 +18,35 @@
   "edits": [
     {
       "path": "tools/cp2/cp2-destination-filter.json",
-      "sha256": "8bbb40ce5a01c59011bfa6958d4b2e6687f73293a20a82c5324529bae642cb8c"
+      "sha256": "4213a171adb4562f2ebd8d790b1a2b32dab7af43adfa0e007f9f8a914409a43d"
     },
     {
       "path": "tools/cp2/cp2-signature-cache.json",
-      "sha256": "a4f4d0441416fdd28504dae02ad7843c0647489c015a028990d85c6edf0ce824"
+      "sha256": "c98d69fd4b34036ad7eb256bbfae7ecf55f5b7cfdba97fcb205eda6c5c7c0884"
+    },
+    {
+      "path": "tools/cp2/cp2-timestamp-setup-main.json",
+      "sha256": "9cf09f5809fc5f09f485bb2c210f22b7a07bd62719b689c348f8c3d76a228d8f"
+    },
+    {
+      "path": "tools/cp2/cp2-timestamp-src-cli.json",
+      "sha256": "879c533adf7495b1a8b3a191b78e5b618c93612e722ae5c15bb85f786cd9ba5f"
+    },
+    {
+      "path": "tools/cp2/cp2-timestamp-src-commands-mod.json",
+      "sha256": "70113ca698c3924bd9780754f1d8218c0fe81a03d695d7dc390202f95c4b00d9"
+    },
+    {
+      "path": "tools/cp2/cp2-timestamp-src-commands-sync.json",
+      "sha256": "44bfa4a57fcb212a5072ee4000587eeaba3ef78362b63f82c2146201b36d429f"
+    },
+    {
+      "path": "tools/cp2/cp2-timestamp-src-sync-planner.json",
+      "sha256": "c084f71b9b1ec6f5150718c58f5643759525ca7c63e4966c41ad41533a0cfc53"
+    },
+    {
+      "path": "tools/cp2/cp2-timestamp-src-sync-sender.json",
+      "sha256": "d08ebff74242a89c0858e3dbab531225b797ee14dd62109d67e8aa8e88bb8989"
     }
   ]
 }

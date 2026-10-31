@@ -38,12 +38,15 @@ def ensure(record, remote, output=None, prebuilt=None):
     config = record["config"]
     tools = config["workspace"]["root"].rsplit("/", 1)[0] + "/tools/" + record["platform"] + "-x86_64"
     filters = "\n".join((*PROTECTED, "__pycache__/", "*.pyc", ".DS_Store")) + "\n"
-    wrapper_key = hashlib.sha256(filters.encode() + Path(__file__).read_bytes()).hexdigest()[:16]
+    storage_wrapper = config.get("build_wrapper", [])
+    wrapper_key = hashlib.sha256(filters.encode() + Path(__file__).read_bytes() +
+                                 json.dumps(storage_wrapper).encode()).hexdigest()[:16]
     code = installer_source()
     code += "\nresult=install(" + repr(tools) + ", " + repr(pin())
     code += ", prebuilt=" + repr(prebuilt) + ", vcvars=" + repr(config.get("vcvars")) + ")\n"
     code += "filters=" + repr(filters) + "\n"
     code += "wrapper_key=" + repr(wrapper_key) + "\n"
+    code += "storage_wrapper=" + repr(storage_wrapper) + "\n"
     code += '''
 import shlex
 binary=Path(result['path'])
@@ -54,7 +57,7 @@ wrapper=folder/('cp2-runner.cmd' if os.name=='nt' else 'cp2-runner')
 if os.name=='nt':
     body='@echo off\\n"'+str(binary)+'" --exclude-from "'+str(patterns)+'" %*\\nexit /b %errorlevel%\\n'
 else:
-    body='#!/bin/sh\\nexec '+shlex.quote(str(binary))+' --exclude-from '+shlex.quote(str(patterns))+' "$@"\\n'
+    body='#!/bin/sh\\nexec '+shlex.join([*storage_wrapper,str(binary)])+' --exclude-from '+shlex.quote(str(patterns))+' "$@"\\n'
 with install_lock(folder/'prepare.lock'):
     if not patterns.exists() or patterns.read_text()!=filters:patterns.write_text(filters)
     if not wrapper.exists() or wrapper.read_text()!=body:wrapper.write_text(body)
@@ -65,7 +68,12 @@ print('CP2_INSTALL='+json.dumps(result))
     encoded = base64.b64encode(code.encode()).decode()
     statement = "import base64;exec(base64.b64decode(" + repr(encoded) + "))"
     if record["platform"] == "windows":
-        script = f"& '{config['python']}' -c \"{statement}\"\nif($LASTEXITCODE){{exit $LASTEXITCODE}}\n"
+        # The pinned adaptations can exceed CreateProcess's argument limit.
+        # The outer SSH transport already frames this script; pipe its ASCII
+        # payload to Python instead of putting it in the child's command line.
+        script = (f"'{encoded}' | & '{config['python']}' -c "
+                  "\"import base64,sys;exec(base64.b64decode(sys.stdin.buffer.read()))\"\n"
+                  "if($LASTEXITCODE){exit $LASTEXITCODE}\n")
     else:
         script = shlex.join([config["python"], "-c", statement]) + "\n"
     try:

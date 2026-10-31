@@ -1,0 +1,13 @@
+{
+  "source": "src/commands/mod.rs",
+  "symbols": [
+    "options_from_cli"
+  ],
+  "reason": "From smbStorage timestamp-resolution.patch: explicitly selected SMB FILETIME precision; nanosecond default retained.",
+  "replacements": [
+    {
+      "before": "    }\n    Ok(ExecutorOptions {\n        checksum: cli.checksum,\n        delete: cli.delete,\n        update_only: cli.update,\n        ignore_existing: cli.ignore_existing,\n",
+      "after": "    }\n    Ok(ExecutorOptions {\n        checksum: cli.checksum,\n        timestamp_resolution_ns: cli.timestamp_resolution_ns,\n        delete: cli.delete,\n        update_only: cli.update,\n        ignore_existing: cli.ignore_existing,\n"
+    }
+  ]
+}

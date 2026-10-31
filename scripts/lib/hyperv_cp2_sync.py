@@ -43,6 +43,8 @@ def command(binary, record, source, root, receiver, checksum=False):
             "--remote-path", receiver, "--no-auto-install", "--delete", "--no-progress"]
     if record["platform"] == "windows":
         argv.append("--no-perms")
+    if record.get("config", {}).get("build_wrapper"):
+        argv += ["--timestamp-resolution-ns", "100"]
     if checksum:
         argv += ["--checksum", "--verify"]
     for pattern in (*PROTECTED, "__pycache__/", "*.pyc", ".DS_Store"):

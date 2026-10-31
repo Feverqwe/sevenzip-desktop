@@ -1,0 +1,13 @@
+{
+  "source": "src/sync/sender.rs",
+  "symbols": [
+    "Sender"
+  ],
+  "reason": "From smbStorage timestamp-resolution.patch: explicitly selected SMB FILETIME precision; nanosecond default retained.",
+  "replacements": [
+    {
+      "before": "            size_only: !options.preserve_times,\n            preserve_perms: options.preserve_perms,\n            preserve_times: options.preserve_times,\n        });\n        let plan = planner.plan(source_manifest, &dest_manifest);\n        tracing::info!(\n",
+      "after": "            size_only: !options.preserve_times,\n            preserve_perms: options.preserve_perms,\n            preserve_times: options.preserve_times,\n            timestamp_resolution_ns: options.timestamp_resolution_ns,\n        });\n        let plan = planner.plan(source_manifest, &dest_manifest);\n        tracing::info!(\n"
+    }
+  ]
+}

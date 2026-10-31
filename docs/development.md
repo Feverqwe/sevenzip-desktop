@@ -78,12 +78,15 @@ can select an approved private directory with those capabilities. The isolated
 [runtime check](archive/qt-port/upstream-port-audit.md#p3-04--isolated-linux-runtime-and-temporary-directory-contract-2026-10-10)
 verifies this override, cleanup and unchanged archives; it changes no system policy.
 
-Build wrappers use ordinary disk for intermediates and temporary data.
-They do not provision RAM disks.
+Build wrappers use persistent project storage for intermediates and temporary
+data. They do not provision RAM disks. A Linux runner can use its existing shared
+smbStorage through the [runner configuration](runner-configuration.md).
 
-Build files, binaries, runtimes, reports, installed dependencies and persistent
-compiler/download caches stay under the main checkout's `build/`, separated by
-branch and platform.
+Build files, binaries, runtimes and reports are separated by branch and platform.
+Shared-storage installations retain their established logical build paths while
+generated outputs live in the project's namespace on the common mount. Linux
+runner source copies may share that namespace. The local repository, installed
+tools and persistent compiler/download caches remain on ordinary disk.
 Use `scripts/lib/build_paths.py path --root "$PWD" --category work --preset dev`
 to locate the selected profile's build trees. Disposable test settings and startup
 data use project scratch storage. vcpkg profiles remain optional; native builds

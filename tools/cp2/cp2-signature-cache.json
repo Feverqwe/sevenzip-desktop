@@ -4,10 +4,50 @@
     "Receiver",
     "Receiver::new",
     "Receiver::handle_signature_request",
-    "signature_for_path"
+    "signature_for_path",
+    "ApplyCfg",
+    "Receiver::apply_cfg",
+    "apply_recipe_blocking",
+    "dest_still_matches"
   ],
-  "reason": "Bypass metadata/sample-trusted signature cache for explicit content checksum/verification. Normal metadata mode retains caching; source reads, signature generation and apply algorithms remain upstream.",
+  "reason": "Bypass metadata/sample-trusted signature cache for explicit content checksum/verification. Normal metadata mode retains caching; source reads, signature generation and apply algorithms remain upstream. Preserve smbStorage timestamp-resolution adaptation for SMB FILETIME comparison and verification.",
   "replacements": [
+    {
+      "before": "    /// final mode (spec §2.2 matrix) and this receiver just executes it\n    /// (0-Root: owner/group are never touched).\n    preserve_times: bool,\n    /// `-a` (archive): restore owner/group (best-effort `chown` — a non-root\n    /// receiver keeps the SSH user's ownership, the default 0-Root model).\n    /// Nanosecond mtimes are always restored.\n",
+      "after": "    /// final mode (spec §2.2 matrix) and this receiver just executes it\n    /// (0-Root: owner/group are never touched).\n    preserve_times: bool,\n    timestamp_resolution_ns: u32,\n    /// `-a` (archive): restore owner/group (best-effort `chown` — a non-root\n    /// receiver keeps the SSH user's ownership, the default 0-Root model).\n    /// Nanosecond mtimes are always restored.\n"
+    },
+    {
+      "before": "            verify,\n            rollsum: options.rollsum,\n            preserve_times: options.preserve_times,\n            archive: options.archive,\n            sparse: options.sparse,\n            xattrs: options.xattrs,\n",
+      "after": "            verify,\n            rollsum: options.rollsum,\n            preserve_times: options.preserve_times,\n            timestamp_resolution_ns: options.timestamp_resolution_ns,\n            archive: options.archive,\n            sparse: options.sparse,\n            xattrs: options.xattrs,\n"
+    },
+    {
+      "before": "                apply_source_meta_sync(&path, meta, cfg)?;\n                if cfg.verify {\n                    let stat = std::fs::metadata(&path).map_err(Error::Io)?;\n                    if !dest_still_matches(&stat, meta) {\n                        return Ok(false);\n                    }\n                }\n",
+      "after": "                apply_source_meta_sync(&path, meta, cfg)?;\n                if cfg.verify {\n                    let stat = std::fs::metadata(&path).map_err(Error::Io)?;\n                    if !dest_still_matches(&stat, meta, cfg.timestamp_resolution_ns) {\n                        return Ok(false);\n                    }\n                }\n"
+    },
+    {
+      "before": "    backup: bool,\n    verify: bool,\n    preserve_times: bool,\n    archive: bool,\n    sparse: bool,\n    preserve_atimes: bool,\n",
+      "after": "    backup: bool,\n    verify: bool,\n    preserve_times: bool,\n    timestamp_resolution_ns: u32,\n    archive: bool,\n    sparse: bool,\n    preserve_atimes: bool,\n"
+    },
+    {
+      "before": "            backup: self.backup,\n            verify: self.verify,\n            preserve_times: self.preserve_times,\n            archive: self.archive,\n            sparse: self.sparse,\n            preserve_atimes: self.preserve_atimes,\n",
+      "after": "            backup: self.backup,\n            verify: self.verify,\n            preserve_times: self.preserve_times,\n            timestamp_resolution_ns: self.timestamp_resolution_ns,\n            archive: self.archive,\n            sparse: self.sparse,\n            preserve_atimes: self.preserve_atimes,\n"
+    },
+    {
+      "before": "                // storage copy) voids the hash we are about to report.\n                if cfg.verify {\n                    let stat = std::fs::metadata(&path).map_err(Error::Io)?;\n                    if !dest_still_matches(&stat, meta) {\n                        return Err(Error::Other(DEST_CHANGED_MSG.to_string()));\n                    }\n                }\n",
+      "after": "                // storage copy) voids the hash we are about to report.\n                if cfg.verify {\n                    let stat = std::fs::metadata(&path).map_err(Error::Io)?;\n                    if !dest_still_matches(&stat, meta, cfg.timestamp_resolution_ns) {\n                        return Err(Error::Other(DEST_CHANGED_MSG.to_string()));\n                    }\n                }\n"
+    },
+    {
+      "before": "/// source metadata the receiver applied (verification mode): a post-apply\n/// modification by another process would void the hash the receiver is about\n/// to report, so the sender must keep the source.\nfn dest_still_matches(stat: &std::fs::Metadata, meta: &FileMeta) -> bool {\n    stat.len() == meta.size\n        && crate::platform::fs::mtime_secs(stat) == meta.mtime\n        && crate::platform::fs::mtime_nsecs(stat) == meta.mtime_nsec\n}\n\n#[cfg(test)]\n",
+      "after": "/// source metadata the receiver applied (verification mode): a post-apply\n/// modification by another process would void the hash the receiver is about\n/// to report, so the sender must keep the source.\nfn dest_still_matches(stat: &std::fs::Metadata, meta: &FileMeta, resolution_ns: u32) -> bool {\n    let quantum = resolution_ns.max(1);\n    stat.len() == meta.size\n        && crate::platform::fs::mtime_secs(stat) == meta.mtime\n        && crate::platform::fs::mtime_nsecs(stat) / quantum == meta.mtime_nsec / quantum\n}\n\n#[cfg(test)]\n"
+    },
+    {
+      "before": "        let set = filetime_set(&file, meta.mtime);\n        assert!(set.is_ok(), \"{set:?}\");\n        let stat = std::fs::metadata(&file).unwrap();\n        assert!(dest_still_matches(&stat, &meta), \"matching meta must pass\");\n\n        // Same size, modified content (mtime bumped) → mismatch.\n        std::fs::write(&file, b\"54321\").unwrap();\n        let stat = std::fs::metadata(&file).unwrap();\n        assert!(\n            !dest_still_matches(&stat, &meta),\n            \"a post-apply modification must fail the check\"\n        );\n    }\n",
+      "after": "        let set = filetime_set(&file, meta.mtime);\n        assert!(set.is_ok(), \"{set:?}\");\n        let stat = std::fs::metadata(&file).unwrap();\n        assert!(dest_still_matches(&stat, &meta, 1), \"matching meta must pass\");\n\n        // A coarse target loses sub-100ns ticks, but no whole bucket or byte.\n        let mut rounded_source = meta.clone();\n        rounded_source.mtime_nsec = 60;\n        assert!(!dest_still_matches(&stat, &rounded_source, 1));\n        assert!(dest_still_matches(&stat, &rounded_source, 100));\n        rounded_source.mtime_nsec = 100;\n        assert!(!dest_still_matches(&stat, &rounded_source, 100));\n        rounded_source.mtime_nsec = 60;\n        rounded_source.size += 1;\n        assert!(!dest_still_matches(&stat, &rounded_source, 100));\n\n        // Same size, modified content (mtime bumped) → mismatch.\n        std::fs::write(&file, b\"54321\").unwrap();\n        let stat = std::fs::metadata(&file).unwrap();\n        assert!(\n            !dest_still_matches(&stat, &meta, 1),\n            \"a post-apply modification must fail the check\"\n        );\n    }\n"
+    },
+    {
+      "before": "            Some(&meta),\n            ApplyCfg {\n                preserve_times: true,\n                ..ApplyCfg::default()\n            },\n            false,\n",
+      "after": "            Some(&meta),\n            ApplyCfg {\n                preserve_times: true,\n                timestamp_resolution_ns: 1,\n                ..ApplyCfg::default()\n            },\n            false,\n"
+    },
     {
       "before": "    rollsum: bool,\n    /// Apply modification times",
       "after": "    rollsum: bool,\n    /// Content checks must not trust metadata-keyed cached basis signatures.\n    signature_cache: bool,\n    /// Apply modification times"

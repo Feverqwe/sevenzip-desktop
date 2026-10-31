@@ -1,0 +1,13 @@
+{
+  "source": "src/cli.rs",
+  "symbols": [
+    "Cli"
+  ],
+  "reason": "From smbStorage timestamp-resolution.patch: explicitly selected SMB FILETIME precision; nanosecond default retained.",
+  "replacements": [
+    {
+      "before": "    #[arg(short = 'c', long, help_heading = \"Selection\")]\n    pub checksum: bool,\n\n    /// Skip files that already exist in the destination\n    #[arg(long, help_heading = \"Selection\")]\n    pub ignore_existing: bool,\n",
+      "after": "    #[arg(short = 'c', long, help_heading = \"Selection\")]\n    pub checksum: bool,\n\n    /// Compare timestamps at this resolution in nanoseconds (100 for SMB FILETIME)\n    #[arg(long, default_value_t = 1, value_parser = clap::value_parser!(u32).range(1..=1_000_000_000), help_heading = \"Selection\")]\n    pub timestamp_resolution_ns: u32,\n\n    /// Skip files that already exist in the destination\n    #[arg(long, help_heading = \"Selection\")]\n    pub ignore_existing: bool,\n"
+    }
+  ]
+}
