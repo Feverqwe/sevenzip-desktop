@@ -266,8 +266,7 @@ QString QtFileManagerDrag::PathToOpen(CDataObject *data, DWORD keys) const {
 bool QtFileManagerDrag::HandleDropEvent(QWidget &widget, QEvent &event) {
     if (event.type() == QEvent::DragLeave) {
         window_.app_.DropTarget().DragLeave();
-        external_.NativeData.reset();
-        SuspendHover(active_);
+        ResetDropTarget();
         return true;
     }
     auto &drop = static_cast<QDropEvent &>(event);
@@ -275,15 +274,13 @@ bool QtFileManagerDrag::HandleDropEvent(QWidget &widget, QEvent &event) {
     if (revoked_ || window_.app_.QtOperations().closed() || window_.backend_->busy() ||
         QApplication::activeModalWidget() || (window_.sourceArchiveProgress_ && !active_) ||
         (panel < kNumPanelsMax && !PanelEnabled(panel))) {
-        window_.app_.DropTarget().ClearState();
-        SuspendHover(active_);
+        ResetDropTarget();
         drop.ignore();
         return true;
     }
     CDataObject *data = ReadData(*drop.mimeData());
     if (!data) {
-        window_.app_.DropTarget().ClearState();
-        SuspendHover(active_);
+        ResetDropTarget();
         drop.ignore();
         return true;
     }
@@ -315,12 +312,24 @@ bool QtFileManagerDrag::HandleDropEvent(QWidget &widget, QEvent &event) {
     if (result == S_OK && effect) {
         drop.setDropAction(effect == DROPEFFECT_MOVE ? Qt::MoveAction : Qt::CopyAction);
         drop.accept();
-    } else
+    } else {
         drop.ignore();
+        if (event.type() == QEvent::DragEnter) {
+            // Qt sends subsequent move/leave events only after accepting entry.
+            // Balance the native Enter notification before discarding its state.
+            target.DragLeave();
+            ResetDropTarget();
+        }
+    }
     if (event.type() == QEvent::Drop) {
-        external_.NativeData.reset();
-        SuspendHover(active_);
+        ResetDropTarget();
         window_.refreshActions();
     }
     return true;
+}
+
+void QtFileManagerDrag::ResetDropTarget() {
+    window_.app_.DropTarget().ClearState();
+    external_.NativeData.reset();
+    SuspendHover(active_);
 }

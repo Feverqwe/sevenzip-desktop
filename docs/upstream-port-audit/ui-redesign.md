@@ -2201,3 +2201,44 @@ permission-denial and retry fixture. Windows elevated desktop passed all three
 suites in `20261031T053023Z-577a342b`; only the POSIX permission fixture was
 skipped there. Existing native link and cleanup cases passed without weakening
 their assertions. No full/slow or heavy diagnostic runs were started.
+
+## Drop-target completion — 2026-10-31
+
+Compared baseline `PanelDrag.cpp` enter/over/leave/drop, cursor positioning,
+effect selection and reset bodies with the current typed transfer boundary,
+Qt transport, right-button input and panel refresh consumers. The complete
+original unit matches its existing manifest hash at
+`b88c6bc09339de32f7d18bbab900686b244f42ba`. No external source or baseline
+revision changed.
+
+Qt target completion now clears native target state, the retained platform data
+and hover suspension together on leave, drop and invalid input. A rejected
+entry also sends the original leave notification before releasing that state:
+the Qt event sequence does not provide a later leave for an unaccepted entry.
+Previously an unsupported effect could leave a folder highlighted and ordinary
+hover selection suspended indefinitely. An accepted drag still suspends hover
+until it leaves or drops, including when a move crosses an ineligible target.
+The source-side archive-byte lifetime, performed-effect protocol, transfer
+ownership, native operation selection and asynchronous refresh remain unchanged.
+
+The existing hover regression now also rejects a link-only drag, checks that
+highlighting clears and ordinary selection resumes without an extra leave,
+then accepts a supported drag and verifies its normal suspension/leave cycle.
+It exercises the visible selection and actual Qt event route rather than
+private state. macOS validation covers the UI, typed protocol, dropped-path
+choice and archive refresh consumers: all four suites passed (CTest 141.80 s),
+using the existing lite build and compiler cache. Linux passed the same four
+suites in `20261031T051513Z-17749efb`. Windows Limited desktop passed all four
+in `20261031T052242Z-ff81068c`, including the rejected-entry/retry regression
+and all 48 archive-refresh rows. No layout, decoding or extraction policy changed.
+The macOS application target also built successfully, its 17 file-manager
+startup checks passed, and the source inventory matched the recorded manifest.
+Windows built the application and passed all 21 startup checks in the elevated
+`20261031T053023Z-577a342b` batch (five suites, test phase 30.51 s).
+
+The first combined Linux attempt (`20261031T051419Z-687a7015`) stopped before
+tests: its kernel log confirms an OOM-killer termination of `moc` with about
+1.8 GiB visible guest memory. The successful retry limited build parallelism
+to one job, retained existing build outputs and compiler caches, and changed
+no product code or assertions. Completed temporary fixtures cleaned themselves;
+obsolete task-owned column reports were removed after retaining review copies.

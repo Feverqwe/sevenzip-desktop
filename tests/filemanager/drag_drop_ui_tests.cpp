@@ -211,7 +211,13 @@ class DragDropUiTests final : public QObject {
         QCOMPARE(original.readAll(), originalBytes);
     }
 
+    void externalDragSuspendsHoverWithoutOpeningFolder_data() {
+        QTest::addColumn<bool>("rejectFirst");
+        QTest::newRow("accepted") << false;
+        QTest::newRow("rejected-then-accepted") << true;
+    }
     void externalDragSuspendsHoverWithoutOpeningFolder() {
+        QFETCH(bool, rejectFirst);
         QTemporaryDir root;
         const QString folder = QStringLiteral("назначение");
         QVERIFY(QDir().mkpath(root.filePath(folder)));
@@ -236,6 +242,19 @@ class DragDropUiTests final : public QObject {
         const QPoint point = table->visualRect(destination).center();
         QMimeData mime;
         mime.setUrls({QUrl::fromLocalFile(file.fileName())});
+        if (rejectFirst) {
+            QDragEnterEvent rejected(DragEventPosition(point), Qt::LinkAction, &mime,
+                                     Qt::LeftButton, Qt::NoModifier);
+            QCoreApplication::sendEvent(table->viewport(), &rejected);
+            QVERIFY(!rejected.isAccepted());
+            QVERIFY(!destination.data(Qt::UserRole + 19).toBool());
+            // A rejected entry has no matching DragLeave. Ordinary hover must
+            // resume, and the next supported drag must still be accepted.
+            QTest::mouseMove(table->viewport(), point);
+            QTRY_COMPARE(table->currentRow(), destination.row());
+            table->selectRow(selected);
+            table->setCurrentCell(selected, 0);
+        }
         QDragEnterEvent enter(DragEventPosition(point), Qt::CopyAction, &mime, Qt::LeftButton,
                               Qt::NoModifier);
         QCoreApplication::sendEvent(table->viewport(), &enter);

@@ -41,6 +41,7 @@ class QtFileManagerDrag final : public QObject,
     CDataObject *ReadData(const QMimeData &);
     bool HandleRightDrag(QWidget &, QEvent &);
     void SuspendHover(bool suspended);
+    void ResetDropTarget();
     MainWindow &window_;
     CDataObject external_;
 #ifdef _WIN32
