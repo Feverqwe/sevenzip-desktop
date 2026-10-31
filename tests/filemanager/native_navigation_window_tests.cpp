@@ -1,9 +1,12 @@
 #include "archive/support/native_archive_fixture.h"
+#include "dialogs/password/PasswordDialog.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
 #include "filemanager/window/mainwindow.h"
 #include "localization/LangUtils.h"
 #include "settings/RegistryUtils.h"
+#include "support/progress_dialog.h"
+#include "ui/progress/ProgressDialog2.h"
 #include "ui/support/layout_inspection.h"
 #include <QAction>
 #include <QFile>
@@ -44,6 +47,94 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         QFile::remove(settings);
         SaveRegLang(UString("-"), settings);
         ReloadLang(settings);
+    }
+    void archiveOpenCompletion_data() {
+        QTest::addColumn<int>("origin");
+        QTest::addColumn<bool>("cancel");
+        for (int origin : {0, 1, 2})
+            for (bool cancel : {false, true})
+                QTest::newRow(qPrintable(QString("%1-%2").arg(origin).arg(cancel)))
+                    << origin << cancel;
+    }
+    void archiveOpenCompletion() {
+        QFETCH(int, origin);
+        QFETCH(bool, cancel);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString plain = fixture.filePath(QStringLiteral("ordinary 文件.bin"));
+        QFile input(plain);
+        QVERIFY(input.open(QIODevice::WriteOnly));
+        QCOMPARE(input.write("ordinary data"), qint64(13));
+        input.close();
+        const QString valid = fixture.filePath(QStringLiteral("valid archive.zip"));
+        const QString entry = QStringLiteral("данные 空.txt");
+        QVERIFY(NativeArchiveFixture::Write(valid, {{entry, "payload"}}, "zip"));
+        const QString encrypted = fixture.filePath("encrypted.7z");
+        if (cancel)
+            QVERIFY(NativeArchiveFixture::Write(encrypted, {{entry, "secret"}}, "7z",
+                                                QStringLiteral("fixture password")));
+        ArchiveBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        auto *list = window.findChild<FileTable *>("archiveTable");
+        auto *address = window.findChild<QLineEdit *>("archivePath");
+        if (origin == 0)
+            window.openPath(fixture.path());
+        else {
+            action(window, "openRootAction")->trigger();
+            if (origin == 1)
+                action(window, "parentFolderAction")->trigger();
+        }
+        QTRY_VERIFY(list->isEnabled());
+        const QString previousPath = address->text();
+        const auto names = [&] {
+            QStringList result;
+            for (int row = 0; row < list->rowCount(); ++row)
+                result.append(list->model()->index(row, 0).data().toString());
+            return result;
+        };
+        const QStringList previousNames = names();
+        QVERIFY(!previousNames.isEmpty());
+        const bool couldCreate = action(window, "createFolderAction")->isEnabled();
+        bool passwordCancelled = false, refused = false;
+        QTimer respond;
+        connect(&respond, &QTimer::timeout, &window, [&] {
+            auto *modal = QApplication::activeModalWidget();
+            if (auto *password = dynamic_cast<CPasswordDialog *>(modal)) {
+                passwordCancelled = true;
+                password->reject();
+            } else if (auto *message = qobject_cast<QMessageBox *>(modal)) {
+                refused = true;
+                message->accept();
+            } else if (auto *progress = dynamic_cast<CProgressDialog *>(modal)) {
+                auto *close = progress->findChild<QPushButton *>("IDCANCEL");
+                if (TestProgressDialog::IsCloseButton(close))
+                    close->click();
+            }
+        });
+        respond.start(1);
+        window.openArchive(cancel ? encrypted : plain);
+        QApplication::processEvents();
+        QCOMPARE(passwordCancelled, cancel);
+        if (!cancel)
+            QVERIFY(refused);
+        QCOMPARE(address->text(), previousPath);
+        QCOMPARE(names(), previousNames);
+        QVERIFY(list->isEnabled());
+        QVERIFY(action(window, "refreshAction")->isEnabled());
+        QCOMPARE(action(window, "createFolderAction")->isEnabled(), couldCreate);
+        action(window, "refreshAction")->trigger();
+        QCOMPARE(names(), previousNames);
+        window.openArchive(valid);
+        QCOMPARE(list->rowCount(), 1);
+        QCOMPARE(
+            list->model()->index(0, 0).data().toString().normalized(QString::NormalizationForm_C),
+            entry.normalized(QString::NormalizationForm_C));
+        QCOMPARE(QDir::cleanPath(address->text()), QDir::cleanPath(valid));
+        QVERIFY(list->isEnabled());
+        QVERIFY(!backend.busy());
+        QVERIFY(input.open(QIODevice::ReadOnly));
+        QCOMPARE(input.readAll(), QByteArray("ordinary data"));
     }
     void filesystemParentKeepsKeyboardFocus_data() {
         QTest::addColumn<QString>("language");

@@ -69,13 +69,16 @@ HRESULT MainWindow::openArchiveAs(const QString &path, const QString &type) {
     if (state_ == State::Filesystem)
         returnDirectory_ = directory_;
     auto &panel = app_.GetFocusedPanel();
+    const UString fallback =
+        state_ == State::Namespace ? GetFolderPath(panel.GetFolder()) : ToUString(returnDirectory_);
     operationName_ = QtLangText(IDS_OPENNING);
     QString message;
-    const auto completion = connect(backend_, &ArchiveBackend::finished, this,
-                                    [&message](bool, const QString &text) { message = text; });
-    setState(State::Loading);
     HRESULT result;
     {
+        const auto completion = connect(backend_, &ArchiveBackend::finished, this,
+                                        [&message](bool, const QString &text) { message = text; });
+        const auto disconnectCompletion = qScopeGuard([&] { disconnect(completion); });
+        setState(State::Loading);
         QScopedValueRollback<bool> source(sourceArchiveProgress_, true);
         COpenResult opened;
         result = panel.BindToPath(ToUString(file.absoluteFilePath()), ToUString(type), opened);
@@ -92,11 +95,11 @@ HRESULT MainWindow::openArchiveAs(const QString &path, const QString &type) {
                                                 ToUString(file.absoluteFilePath())));
         }
     }
-    disconnect(completion);
-    if (panel.IsArcFolder())
-        renderBoundFolder();
-    else
-        showDirectory(returnDirectory_, false);
+    if (!panel.IsArcFolder()) {
+        COpenResult restored;
+        panel.BindToPath(fallback, UString(), restored);
+    }
+    renderBoundFolder();
     if (result == E_ABORT)
         message = QCoreApplication::translate("mainwindow_archiveopening", "Operation canceled.");
     else if (message.isEmpty())

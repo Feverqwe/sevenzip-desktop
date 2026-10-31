@@ -2242,3 +2242,45 @@ tests: its kernel log confirms an OOM-killer termination of `moc` with about
 to one job, retained existing build outputs and compiler caches, and changed
 no product code or assertions. Completed temporary fixtures cleaned themselves;
 obsolete task-owned column reports were removed after retaining review copies.
+
+## Archive-opening completion — 2026-10-31
+
+Compared complete original `PanelFolderChange.cpp::BindToPath` and
+`BindToPathAndRefresh`, their close/root/binding callers and `COpenResult`,
+with `OpenAsArc`, password/progress delivery and the Qt opening/rendering
+consumers. The original complete unit matches the existing manifest hash at
+`b88c6bc09339de32f7d18bbab900686b244f42ba`; no source import or revision change
+is involved. Native probing, archive-only refusal, parent links, errors and
+password requirements remain authoritative.
+
+Opening now completes through one bound-folder presentation path. On failure
+outside an archive, the native binder restores the remembered filesystem
+location or the originating namespace before publication. Previously the Qt
+adapter always tried a filesystem fallback; opening from a virtual folder
+before any archive had been opened could leave it in Loading with disabled
+commands. The temporary backend-message connection is confined to the opening
+call, so it is disconnected before fallback and cannot outlive its stack data.
+
+The navigation regression checks ordinary-file refusal and password cancellation
+from the filesystem, virtual root and drive list, followed by Refresh and a
+successful native ZIP opening. It observes paths, rows, command availability
+and unchanged input bytes. The affected Windows focus/navigation suite now
+uses the existing native desktop QPA/resource-lock policy. No controls or
+layout changed.
+
+The initial Linux run built the scope and passed the two existing consumers;
+the new cancellation cases exposed an incorrectly prepared test archive.
+Passing both header encryption and store mode to the fixture made two native
+`SetProperties` calls; the second resets earlier properties. The regression
+now uses the existing encrypted-header fixture without that unrelated option.
+No decoder or product password behavior was changed to accommodate the fixture.
+
+The corrected three-suite selection (`native_navigation_window`,
+`nested_archive`, `root_navigation`) passed Linux in
+`20261031T073233Z-f2fadd6a` (test phase 27.09 s), macOS (30.29 s), then
+Windows Limited desktop in `20261031T073422Z-a4763cb0` (62.24 s).
+All six refusal/cancellation/retry rows passed alongside existing consumers.
+The Windows navigation suite used the native Qt platform and shared desktop
+resource lock; macOS/Linux logic checks used offscreen Qt. No rendered upstream
+pixel comparison is claimed. Existing incremental builds and compiler caches
+were reused; no full/slow suites or heavy diagnostics were needed.
