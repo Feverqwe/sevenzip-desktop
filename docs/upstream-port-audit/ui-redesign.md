@@ -2029,3 +2029,57 @@ introduced.
 
 Windows x64 Limited desktop passed all six suites in
 `20261030T214704Z-a3d95ac5`; no elevated repeat or test changes were needed.
+
+## Archive-to-archive transfer completion — 2026-10-31
+
+Compared the owned baseline `b88c6bc09339de32f7d18bbab900686b244f42ba`
+`CPP/7zip/UI/FileManager/App.cpp::CApp::OnCopy`, PanelCopy's CopyTo/CopyFrom
+workers and AgentOut's DeleteItems/CommonUpdate with their current callers,
+selection/timer guards, progress callbacks, backup Close/ReOpen and Qt copy
+continuation. Complete original inventory-unit hashes match the manifest.
+No source import or new baseline owner is involved.
+
+The adapter retains one native transaction through copy, optional source
+deletion and destination rollback, then publishes the reached outcome. Source
+guards unwind before either panel starts its publication. Updated destinations
+reload their already rebuilt provider; rollback reopens the physical archive.
+One shared destination-publication helper retains the old-row notification
+guard, saved selection, completion notification and return to the source panel;
+filesystem-to-archive copy uses that same presentation boundary.
+
+Source item diagnostics can accompany `S_OK` without a successful transfer.
+They still prevent destination writing and source deletion; the adapter now
+avoids presenting the successful HRESULT as an additional error dialog. The
+native progress window continues to own those item diagnostics. New Copy/Move
+regressions corrupt a stored ZIP payload and check both archive byte sequences,
+the destination listing, source diagnostics, absence of the spurious dialog,
+remembered source list and subsequent command availability.
+
+Linux x64 passed `ui_copy_routing`, `archive_transfer_backup`,
+`interarchive_recovery_native` and `agent_stream_copy_ui` in
+`20261030T215658Z-10ad1a73`. The new CRC rows reached their focus check with
+unchanged archives and no spurious dialog, but required window activation in
+the offscreen fixture. Diagnostic repeat `20261031T001603Z-58114714` confirmed
+an enabled source list/command and the correct remembered list in an inactive
+window. The final fixture checks that remembered list, activates the window
+through the existing test helper, then checks actual focus. `ui_operations`
+passed in `20261031T013304Z-fe7e08c7` (CTest 23.08 s). Product code was unchanged
+between these runs. Its SSH observer reported a reset after test completion;
+the matching passed verification receipt, completion token, released lock and
+absence of running tests were independently confirmed. Linux acceptance is
+composed from these results, not a green initial batch or transport receipt.
+
+macOS arm64 passed all five suites together (CTest 69.44 s), including all
+35 operation cases. No heavy diagnostics or rendered layout changes were
+introduced. Full `interarchive_refresh`, `interarchive_recovery` and
+`copy_archive_refresh` matrices are slow and were not run; the existing native
+recovery subset covers the selected rollback/reopen paths without opting into
+those matrices. Incremental outputs and compiler caches were reused.
+
+Windows x64 Limited desktop passed the same five suites in
+`20261031T030144Z-b7205b99` (CTest 460.06 s). This includes the existing full
+85-case native Copy/Move routing matrix, which is registered as an ordinary test;
+its timeout and assertions were unchanged. No elevated repeat was needed.
+Small run/diagnostic receipts were retained. Completed fixture scopes cleaned
+their disposable archives; no heavy diagnostic artifacts or new build trees
+were created.

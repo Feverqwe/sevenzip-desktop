@@ -145,6 +145,10 @@ class MainWindow : public QMainWindow {
                                 const CRecordVector<UInt32> &indices);
     bool transferBetweenArchivePanels(const QString &destination, bool move,
                                       const CRecordVector<UInt32> &indices);
+    enum class ArchiveTransferReload { BoundFolder, ReopenArchive };
+    void refreshArchiveTransferDestination(
+        unsigned index, const CSelectedState &selection,
+        ArchiveTransferReload reload = ArchiveTransferReload::BoundFolder);
     void transferFromArchive(const QString &destination, bool move, bool copyToSame,
                              unsigned sourceIndex, const CRecordVector<UInt32> &indices);
     void rememberTransferDestination(const QString &path);

@@ -58,6 +58,24 @@ void MainWindow::transferFromArchive(const QString &destination, bool move, bool
     }
 }
 
+void MainWindow::refreshArchiveTransferDestination(unsigned index, const CSelectedState &selection,
+                                                   ArchiveTransferReload reload) {
+    const unsigned sourceIndex = 1 - index;
+    auto &target = app_.Panels[index];
+    {
+        // CopyFrom replaced the proxy while the old rows remain visible.
+        // Preserve OnCopy's notification guard until loading begins.
+        CPanel::CDisableNotify disableNotify(target);
+        activatePanelUi(index);
+    }
+    if (reload == ArchiveTransferReload::ReopenArchive)
+        refreshCurrent(&selection);
+    else
+        target.RefreshListCtrl(selection);
+    appPresentation_->CopyDestinationRefreshed(index);
+    activatePanelUi(sourceIndex);
+}
+
 bool MainWindow::transferBetweenArchivePanels(const QString &destination, bool move,
                                               const CRecordVector<UInt32> &indices) {
     if (app_.NumPanels != 2 || state_ != State::Viewing)
@@ -98,64 +116,53 @@ bool MainWindow::transferBetweenArchivePanels(const QString &destination, bool m
                                         "Could not save destination archive for rollback."));
         return true;
     }
+    enum class Outcome { Stopped, Updated, RolledBack, RollbackFailed };
+    Outcome outcome = Outcome::Stopped;
+    CSelectedState selected;
     {
         QScopedValueRollback<bool> progressOwner(sourceArchiveProgress_, true);
         result = app_.CopyArchiveToArchive(sourceIndex, indices, &messages);
-    }
-    CSelectedState selected;
-    if (result == S_OK && messages.IsEmpty() && move) {
-        result = source.DeleteItems(false, *trashService_, selected, &indices);
-        if (result == S_OK) {
-            app_.QtOperations().End();
-            renderBoundFolder();
-            source.RestoreLoadedSelection(selected);
-            appPresentation_->CopySourceRefreshed(sourceIndex);
-        }
-        if (result != S_OK) {
-            const bool restored = rollback->restore([&target] {
-                auto *folder = dynamic_cast<CAgentFolder *>(target.GetFolder());
-                return folder && folder->CloseArchive() == S_OK;
-            });
-            app_.QtOperations().End();
-            {
-                CPanel::CDisableNotify disableNotify(target);
-                activatePanelUi(destinationIndex);
-            }
-            refreshCurrent(&destinationSelection);
-            appPresentation_->CopyDestinationRefreshed(destinationIndex);
-            activatePanelUi(sourceIndex);
-            if (!restored) {
-                QMessageBox::warning(
-                    this, QtLangText(IDS_MOVING),
-                    QCoreApplication::translate(
-                        "mainwindow_archive_transfer",
-                        "Could not roll back destination archive. Check both archives."));
-                return true;
+        if (result == S_OK && messages.IsEmpty()) {
+            outcome = Outcome::Updated;
+            if (move) {
+                result = source.DeleteItems(false, *trashService_, selected, &indices);
+                if (result != S_OK) {
+                    const bool restored = rollback->restore([&target] {
+                        auto *folder = dynamic_cast<CAgentFolder *>(target.GetFolder());
+                        return folder && folder->CloseArchive() == S_OK;
+                    });
+                    outcome = restored ? Outcome::RolledBack : Outcome::RollbackFailed;
+                }
             }
         }
     }
     // All native work (including Move rollback) is settled before publication.
-    // Keep a scan already started by the source refresh above.
     if (app_.QtOperations().kind() == QtAppOperationState::Kind::Operation)
         app_.QtOperations().End();
-    if (result == S_OK && messages.IsEmpty()) {
-        {
-            // The old selected rows cannot query CopyFrom's rebuilt proxy
-            // before the source RefreshListCtrl load/publication phase.
-            CPanel::CDisableNotify disableNotify(target);
-            activatePanelUi(destinationIndex);
-        }
-        // CopyFrom already reopens the updated native archive and restores its
-        // proxy. Original OnCopy reloads that bound provider with saved state.
-        target.RefreshListCtrl(destinationSelection);
-        appPresentation_->CopyDestinationRefreshed(destinationIndex);
-        activatePanelUi(sourceIndex);
+    if (outcome == Outcome::Updated && move) {
+        renderBoundFolder();
+        source.RestoreLoadedSelection(selected);
+        appPresentation_->CopySourceRefreshed(sourceIndex);
+    }
+    if (outcome != Outcome::Stopped)
+        refreshArchiveTransferDestination(destinationIndex, destinationSelection,
+                                          outcome == Outcome::Updated
+                                              ? ArchiveTransferReload::BoundFolder
+                                              : ArchiveTransferReload::ReopenArchive);
+    if (outcome == Outcome::RollbackFailed) {
+        QMessageBox::warning(this, QtLangText(IDS_MOVING),
+                             QCoreApplication::translate(
+                                 "mainwindow_archive_transfer",
+                                 "Could not roll back destination archive. Check both archives."));
+        return true;
+    }
+    if (outcome == Outcome::Updated) {
         statusBar()->showMessage(
             move ? QCoreApplication::translate("mainwindow_archive_transfer",
                                                "Items moved between archives.")
                  : QCoreApplication::translate("mainwindow_archive_transfer",
                                                "Items copied into the archive."));
-    } else if (result != E_ABORT) {
+    } else if (result != S_OK && result != E_ABORT) {
         QMessageBox::warning(this, QtLangText(IDS_COPYING),
                              QString::fromWCharArray(HResultToMessage(result).Ptr()));
     }

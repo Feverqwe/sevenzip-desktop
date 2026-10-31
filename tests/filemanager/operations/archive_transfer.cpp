@@ -1,5 +1,96 @@
 #include "window_operations.h"
 
+void MainWindowOperationsTests::damagedArchiveTransferPreservesBothArchives_data() {
+    QTest::addColumn<bool>("move");
+    QTest::newRow("copy") << false;
+    QTest::newRow("move") << true;
+}
+
+void MainWindowOperationsTests::damagedArchiveTransferPreservesBothArchives() {
+    QFETCH(bool, move);
+    QTemporaryDir fixture;
+    const QString sourceArchive = fixture.filePath(QStringLiteral("источник 空.zip"));
+    const QString targetArchive = fixture.filePath(QStringLiteral("назначение 空.zip"));
+    const QString name = QStringLiteral("повреждённый файл.txt");
+    NativeArchiveFixture::Item incoming;
+    incoming.Path = name;
+    incoming.Bytes = QByteArray("source payload for CRC failure").repeated(16);
+    QVERIFY(NativeArchiveFixture::Write(sourceArchive, {incoming}, "zip", {}, true, true));
+    NativeArchiveFixture::Item kept;
+    kept.Path = "keep.txt";
+    kept.Bytes = "destination sentinel";
+    QVERIFY(NativeArchiveFixture::Write(targetArchive, {kept}, "zip"));
+    const auto read = [](const QString &path) {
+        QFile file(path);
+        return file.open(QIODevice::ReadOnly) ? file.readAll() : QByteArray();
+    };
+    QByteArray damaged = read(sourceArchive);
+    const auto payload = damaged.indexOf(incoming.Bytes);
+    QVERIFY(payload >= 0);
+    damaged[payload] = '!';
+    QFile sourceFile(sourceArchive);
+    QVERIFY(sourceFile.open(QIODevice::WriteOnly | QIODevice::Truncate));
+    QCOMPARE(sourceFile.write(damaged), damaged.size());
+    sourceFile.close();
+    const QByteArray targetBefore = read(targetArchive);
+    QVERIFY(!targetBefore.isEmpty());
+
+    ArchiveBackend backend;
+    MainWindow window(&backend);
+    window.show();
+    QVERIFY(WindowActivation::waitForActive(window));
+    action(window, "twoPanelsAction")->trigger();
+    QVERIFY(action(window, "twoPanelsAction")->isChecked());
+    auto *source =
+        window.findChild<QWidget *>("filePanel0")->findChild<FileTable *>("archiveTable");
+    auto *target =
+        window.findChild<QWidget *>("filePanel1")->findChild<FileTable *>("archiveTable");
+    source->setFocus();
+    QTRY_VERIFY(source->hasFocus());
+    window.openArchive(sourceArchive);
+    QVERIFY(WindowActivation::waitForActive(window));
+    target->setFocus();
+    QTRY_VERIFY(target->hasFocus());
+    window.openArchive(targetArchive);
+    QVERIFY(WindowActivation::waitForActive(window));
+    source->setFocus();
+    QTRY_VERIFY(source->hasFocus());
+    QTRY_COMPARE(source->rowCount(), 1);
+    source->selectRow(0);
+
+    QStringList sourceErrors, warnings;
+    QTimer driver;
+    connect(&driver, &QTimer::timeout, &window, [&] {
+        auto *modal = QApplication::activeModalWidget();
+        if (auto *dialog = dynamic_cast<CopyDialog *>(modal))
+            dialog->accept();
+        else if (auto *box = qobject_cast<QMessageBox *>(modal)) {
+            warnings.append(box->text());
+            box->accept();
+        } else if (auto *progress = dynamic_cast<CProgressDialog *>(modal)) {
+            auto *close = progress->findChild<QPushButton *>("IDCANCEL");
+            if (TestProgressDialog::IsCloseButton(close)) {
+                FOR_VECTOR(i, progress->Sync.Messages)
+                sourceErrors.append(ToQString(progress->Sync.Messages[i]));
+                close->click();
+            }
+        }
+    });
+    driver.start(1);
+    action(window, move ? "moveAction" : "copyAction")->trigger();
+    driver.stop();
+    QVERIFY2(sourceErrors.join('\n').contains(name), qPrintable(sourceErrors.join('\n')));
+    QVERIFY2(warnings.isEmpty(), qPrintable(warnings.join('\n')));
+    QCOMPARE(read(sourceArchive), damaged);
+    QCOMPARE(read(targetArchive), targetBefore);
+    QTRY_COMPARE(target->rowCount(), 1);
+    QCOMPARE(target->model()->index(0, 0).data().toString(), QString("keep.txt"));
+    QTRY_COMPARE(window.focusWidget(), source);
+    QVERIFY(WindowActivation::waitForActive(window));
+    QTRY_VERIFY(source->hasFocus());
+    QTRY_VERIFY(action(window, "copyAction")->isEnabled());
+}
+
 void MainWindowOperationsTests::archivePanelsCopyAndMoveThroughStaging_data() {
     QTest::addColumn<bool>("russian");
     QTest::newRow("en") << false;

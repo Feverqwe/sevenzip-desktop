@@ -36,6 +36,8 @@ class MainWindowOperationsTests : public QObject, protected MainWindowTestSuppor
     void diskPanelCopiesIntoOppositeArchive();
     void archivePanelsCopyAndMoveThroughStaging_data();
     void archivePanelsCopyAndMoveThroughStaging();
+    void damagedArchiveTransferPreservesBothArchives_data();
+    void damagedArchiveTransferPreservesBothArchives();
     void protectedArchivePanelsCopyWithStoredPasswords();
     void nestedArchivePanelCannotWriteIntoOppositeArchive();
     void stage7ArchiveCommandStates();
