@@ -241,9 +241,7 @@ HRESULT QtArchiveFolderManager::OpenLinkImpl(CArchiveLink &link, const COpenOpti
     const wchar_t *filePath = sourceOptions.filePath;
     IProgress *progress = services.Progress;
     const bool ownedStreamFile = services.OwnedStreamFile;
-    const auto request = std::make_shared<CRequest>();
     auto *resource = static_cast<QtArchiveFileResource *>(services.Resource());
-    request->Resource = resource;
     QString ownedPath;
     bool keepOwnedPath = false;
     const auto cleanup = qScopeGuard([&] {
@@ -329,13 +327,13 @@ HRESULT QtArchiveFolderManager::OpenLinkImpl(CArchiveLink &link, const COpenOpti
         keepOwnedPath = true;
         return nativeResult;
     }
-    const auto *nativeLink = resource->NativeArchiveLink();
-    const bool partialNativeOpen = nativeLink && !nativeLink->NonOpen_ArcPath.IsEmpty();
     const QString listingFormat =
-        resource->RequiresOuterOpen() || partialNativeOpen ? resource->TransportFormat() : format;
+        resource->RequiresOuterOpen() ? resource->TransportFormat() : format;
     const QString password = ui && ui->PasswordIsDefined
                                  ? QString::fromWCharArray(ui->Password.Ptr())
                                  : nativeProgress.Password;
+    const auto request = std::make_shared<CRequest>();
+    request->Resource = resource;
     QMetaObject::invokeMethod(
         this,
         [this, request, path, listingFormat, password] {

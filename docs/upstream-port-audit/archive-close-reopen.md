@@ -115,3 +115,27 @@ macOS/Linux skip those rows while exercising archive ADS. The targets rebuilt
 incrementally with existing caches. No new production code/test, allocation
 injection, standalone Qt reproducer, full/slow gate or visual acceptance was
 part of this follow-up.
+
+## Opening request scope — 2026-10-31
+
+Compared the complete current opening service, source Agent folder binding,
+resource/codec leases, stream materialization, native metadata publication and
+queued metadata completion, including the original ArchiveFolderOpen binding
+body. Existing source baselines and native open/reopen algorithms remain
+unchanged; no external code is imported.
+
+The optional metadata request is now created only when the opening needs the
+queued metadata service. The per-opening service already retains the resource
+until the published property transport takes its own reference. Removed a partial-native
+check from the later metadata path: a native link has already returned through
+the earlier native branch, so that check could never succeed. Actual partial
+native opening, diagnostics, password/cancel handling and owned-file cleanup
+retain their original branches. Existing behavior suites validate the complete
+opening/return/failure and retained-layer workflows; no source-text or allocation
+count tests are added.
+
+Focused validation passed `native_folder_opening`, `nested_archive`,
+`archive_layer_lifetime`, `binding_lifecycle` and `archive_layer_chain` on Linux
+(52.35 seconds), macOS (57.56 seconds) and the Windows interactive runner
+(92.42 seconds). Incremental builds and compiler caches were retained; no full
+or slow suites, heavy diagnostics or appearance changes were introduced.
