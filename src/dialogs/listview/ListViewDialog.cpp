@@ -20,11 +20,7 @@
 #include <QVBoxLayout>
 
 static const unsigned kOneStringMaxSize = 1024;
-static constexpr int kPropertyIDRole = Qt::UserRole + 14;
-static constexpr int kPropertyFallbackRole = Qt::UserRole + 15;
-static constexpr int kPropertyHasFallbackRole = Qt::UserRole + 16;
-static constexpr int kDiagnosticSourceRole = Qt::UserRole + 17;
-static constexpr int kArchiveValueRole = Qt::UserRole + 18;
+static constexpr int kRowBindingRole = Qt::UserRole + 14;
 
 static UString ListValueText(UString value) {
     if (value.Len() > kOneStringMaxSize) {
@@ -69,22 +65,10 @@ bool CListViewDialog::OnInit() {
     _listView->installEventFilter(this);
     FOR_VECTOR(i, Strings) {
         _listView->InsertItem(i, Strings[i]);
-        const auto diagnostic = _diagnosticBindings.constFind(i);
-        if (diagnostic != _diagnosticBindings.cend()) {
-            auto *item = _listView->topLevelItem(int(i));
-            item->setData(0, kDiagnosticSourceRole, diagnostic->first);
-            item->setData(1, kDiagnosticSourceRole, diagnostic->second);
-        }
-        const auto binding = _propertyNameBindings.constFind(i);
-        if (binding != _propertyNameBindings.cend()) {
-            auto *item = _listView->topLevelItem(int(i));
-            item->setData(0, kPropertyIDRole, binding->ID);
-            item->setData(0, kPropertyFallbackRole, ToQString(binding->Fallback));
-            item->setData(0, kPropertyHasFallbackRole, binding->HasFallback);
-        }
-        const auto archiveValue = _archiveValueBindings.constFind(i);
-        if (archiveValue != _archiveValueBindings.cend())
-            _listView->topLevelItem(int(i))->setData(1, kArchiveValueRole, *archiveValue);
+        const auto binding = _rowBindings.constFind(i);
+        if (binding != _rowBindings.cend())
+            _listView->topLevelItem(int(i))->setData(0, kRowBindingRole,
+                                                     QVariant::fromValue(*binding));
         if (NumColumns > 1 && i < Values.Size()) {
             _listView->SetSubItem(i, 1, ListValueText(Values[i]));
         }
@@ -132,27 +116,28 @@ bool CListViewDialog::OnInit() {
 }
 
 void CListViewDialog::QtBindPropertyName(unsigned row, UInt32 id, const wchar_t *fallback) {
-    _propertyNameBindings.insert(
-        row, {id, fallback ? UString(fallback) : UString(), fallback != nullptr});
+    _rowBindings[row].Property = CPropertyNameBinding{
+        id, fallback ? ToQString(UString(fallback)) : QString(), fallback != nullptr};
 }
 
 void CListViewDialog::QtBindDiagnosticRow(unsigned row, const char *name, const char *value) {
-    _diagnosticBindings.insert(row, {name, value});
+    _rowBindings[row].Diagnostic = {name, value};
 }
 
 void CListViewDialog::QtBindArchiveDiagnosticValue(unsigned row, const UString &source) {
-    _archiveValueBindings.insert(row, ToQString(source));
+    _rowBindings[row].ArchiveValue = ToQString(source);
 }
 
 void CListViewDialog::QtBindArchiveFlagsValue(unsigned row, UInt32 flags) {
-    _archiveValueBindings.insert(row, QVariant::fromValue(quint32(flags)));
+    _rowBindings[row].ArchiveValue = QVariant::fromValue(quint32(flags));
 }
 
 void CListViewDialog::changeEvent(QEvent *event) {
     if (event->type() == QEvent::LanguageChange && _listView) {
         for (int i = 0; i < _listView->topLevelItemCount(); ++i) {
             auto *item = _listView->topLevelItem(i);
-            const QVariant archiveValue = item->data(1, kArchiveValueRole);
+            const auto binding = item->data(0, kRowBindingRole).value<CRowBinding>();
+            const QVariant &archiveValue = binding.ArchiveValue;
             if (archiveValue.isValid() && unsigned(i) < Values.Size()) {
                 const UString value =
                     archiveValue.metaType().id() == QMetaType::UInt
@@ -162,7 +147,8 @@ void CListViewDialog::changeEvent(QEvent *event) {
                 item->setText(1, ToQString(ListValueText(value)));
             }
             for (int column = 0; column < 2; ++column) {
-                const QByteArray key = item->data(column, kDiagnosticSourceRole).toByteArray();
+                const QByteArray &key =
+                    column == 0 ? binding.Diagnostic.first : binding.Diagnostic.second;
                 if (key.isEmpty())
                     continue;
                 const UString text = QtDiagnosticText(key.constData());
@@ -171,13 +157,12 @@ void CListViewDialog::changeEvent(QEvent *event) {
                     values[unsigned(i)] = text;
                 item->setText(column, ToQString(text));
             }
-            const QVariant id = item->data(0, kPropertyIDRole);
-            if (!id.isValid())
+            if (!binding.Property)
                 continue;
-            const UString fallback = ToUString(item->data(0, kPropertyFallbackRole).toString());
-            const UString text = GetNameOfProperty(
-                id.toUInt(),
-                item->data(0, kPropertyHasFallbackRole).toBool() ? fallback.Ptr() : nullptr);
+            const auto &property = *binding.Property;
+            const UString fallback = ToUString(property.Fallback);
+            const UString text =
+                GetNameOfProperty(property.ID, property.HasFallback ? fallback.Ptr() : nullptr);
             if (unsigned(i) < Strings.Size())
                 Strings[unsigned(i)] = text;
             item->setText(0, ToQString(text));
@@ -235,9 +220,9 @@ void CListViewDialog::ShowItemInfo() {
     dlg.OnInit();
     if (NumColumns > 1) {
         auto *item = _listView->topLevelItem(int(index));
-        const QVariant id = item->data(0, kPropertyIDRole);
-        if (id.isValid() && id.toUInt() < 1000)
-            QtBindLangText(&dlg, 1000 + id.toUInt(), ToQString(Strings[index]));
+        const auto binding = item->data(0, kRowBindingRole).value<CRowBinding>();
+        if (binding.Property && binding.Property->ID < 1000)
+            QtBindLangText(&dlg, 1000 + binding.Property->ID, ToQString(Strings[index]));
     }
     dlg.setObjectName("listItemInfoDialog");
     dlg.exec();

@@ -128,18 +128,24 @@ class LanguageDialogTests final : public QObject {
         const UString unknown(L"plugin filename 32-bit overflow in headers %1 空.part");
         CListViewDialog dialog;
         dialog.NumColumns = 2;
+        dialog.DeleteIsAllowed = true;
+        dialog.Strings.Add(L"Discard");
+        dialog.Values.Add(L"unused");
         dialog.Strings.Add(L"Error");
         dialog.Values.Add(QtArchiveDiagnosticText(missing));
-        dialog.QtBindArchiveDiagnosticValue(0, missing);
+        dialog.QtBindArchiveDiagnosticValue(1, missing);
         dialog.Strings.Add(L"Warning");
         dialog.Values.Add(QtArchiveDiagnosticText(warning));
-        dialog.QtBindArchiveDiagnosticValue(1, warning);
+        dialog.QtBindArchiveDiagnosticValue(2, warning);
         dialog.Strings.Add(L"Plugin");
         dialog.Values.Add(unknown);
-        dialog.QtBindArchiveDiagnosticValue(2, unknown);
+        dialog.QtBindArchiveDiagnosticValue(3, unknown);
         dialog.OnInit();
         dialog.show();
         auto *list = dialog.findChild<QTreeWidget *>("propertiesList");
+        list->setCurrentItem(list->topLevelItem(0));
+        QTest::keyClick(list, Qt::Key_Delete);
+        QCOMPARE(list->topLevelItemCount(), 3);
         auto *selected = list->topLevelItem(0);
         list->setCurrentItem(selected);
         for (const char *code : {"ru", "-"}) {

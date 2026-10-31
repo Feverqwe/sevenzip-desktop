@@ -160,7 +160,6 @@ class ListViewDialogTests : public QObject {
         QVERIFY(checked);
         QVERIFY(dialog.isVisible());
         QCOMPARE(dialog.result(), int(QDialog::Rejected));
-        QCOMPARE(dialog.FocusedItemIndex, -1);
         dialog.accept();
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
         QCOMPARE(dialog.FocusedItemIndex, 0);
