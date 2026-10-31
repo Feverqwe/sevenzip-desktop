@@ -19,7 +19,7 @@ HRESULT MainWindow::startFilesystemListing(bool sourceAlreadyBound, bool updateA
         return renderBoundFolder(updateAddress);
     }
     if (result == S_OK && updateAddress)
-        static_cast<QtPanelAddressCombo *>(pathCombo_)->ShowCurrentPath(directory_, true);
+        static_cast<QtPanelAddressCombo *>(pathCombo_)->ShowCurrentPath(directory_);
     if (panel.GetFlatMode()) {
         RINOK(startFilesystemScan(folder, true))
     } else {

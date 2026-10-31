@@ -146,9 +146,9 @@ void QtPanelAddressCombo::SetCurrentIcon(int index) {
     currentIcon_->setIcon(g_Ext_to_Icon_Map.GetIcon(index));
     currentIcon_->setVisible(index >= 0);
 }
-void QtPanelAddressCombo::ShowCurrentPath(const QString &displayPath, bool addToHistory) {
+void QtPanelAddressCombo::ShowCurrentPath(const QString &displayPath) {
     if (panel_)
-        panel_->LoadFullPathAndShow(*this, ToUString(displayPath), addToHistory);
+        panel_->LoadFullPathAndShow(*this, ToUString(displayPath));
 }
 void QtPanelAddressCombo::ReloadCurrentPath() {
     if (!panel_)
@@ -156,7 +156,7 @@ void QtPanelAddressCombo::ReloadCurrentPath() {
     const QString previousPrefix = ToQString(panel_->GetCurrentFolderPrefix());
     const QString previousText = currentText();
     panel_->LoadFullPath();
-    ShowCurrentPath(ToQString(panel_->GetCurrentFolderPrefix()), false);
+    ShowCurrentPath(ToQString(panel_->GetCurrentFolderPrefix()));
     if (previousText != previousPrefix)
         lineEdit()->setText(previousText);
 }

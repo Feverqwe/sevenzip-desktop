@@ -188,6 +188,9 @@ rg -n --no-ignore -F 'CAgent::Open' docs/archive/qt-port/upstream-port-audit/ do
 - [Поздняя смена языка после закрытия окна](upstream-port-audit/closed-language-event.md)
   — запрет обращения к освобождённым папкам панели из отложенного события Qt.
 
+- [Владение историей посещённых папок](upstream-port-audit/location-history-ownership.md)
+  — единая запись посещений при навигации и представление адреса без повторной записи.
+
 - [Владение при исключении копирования object vector](upstream-port-audit/object-vector-ownership.md)
   — освобождение уже скопированных владельцев при отказе очередного элемента.
 

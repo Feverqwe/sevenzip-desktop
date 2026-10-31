@@ -47,7 +47,7 @@ class QtPanelAddressCombo final : public QComboBox, public IQtPanelAddressCombo 
     int GetPathIconIndex(const UString &path, DWORD attributes) override;
     int GetNamespaceIconIndex(UInt32 namespaceID) override;
     void SetCurrentIcon(int index) override;
-    void ShowCurrentPath(const QString &displayPath, bool addToHistory);
+    void ShowCurrentPath(const QString &displayPath);
     void ReloadCurrentPath();
     void GetLogicalDriveStrings(FStringVector &paths) override;
     UString GetText() const override;

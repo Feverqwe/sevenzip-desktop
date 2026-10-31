@@ -38,8 +38,7 @@ HRESULT MainWindow::renderArchiveFolder(bool updateAddress) {
     const QString prefix = archiveFolder_.isEmpty() ? QString() : archiveFolder_ + '/';
     table_->setSortingEnabled(false);
     if (updateAddress)
-        static_cast<QtPanelAddressCombo *>(pathCombo_)
-            ->ShowCurrentPath(archiveDisplayPath(), false);
+        static_cast<QtPanelAddressCombo *>(pathCombo_)->ShowCurrentPath(archiveDisplayPath());
     configureColumns(true);
     appendParentEntry();
     if (archiveFolder->GetNumberOfItems() > 256) {

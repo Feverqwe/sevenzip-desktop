@@ -29,8 +29,7 @@ HRESULT MainWindow::renderRootFolder(bool updateAddress) {
         static_cast<QtPanelAddressCombo *>(pathCombo_)
             ->ShowCurrentPath(drives || network || streams
                                   ? QString::fromWCharArray(GetFolderPath(folder))
-                                  : QString(),
-                              false);
+                                  : QString());
     const auto finish = [&](HRESULT result) {
         if (result != S_OK)
             table_->clearRows();

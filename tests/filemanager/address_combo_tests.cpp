@@ -47,7 +47,7 @@ class AddressComboTests final : public QObject, protected MainWindowTestSupport 
         CObjectVector<CPanelItem> items;
         CPanel panel(path + delimiter, items);
         QtPanelAddressCombo combo(panel, [](const QString &, bool) { return S_OK; }, nullptr);
-        combo.ShowCurrentPath(path + delimiter, false);
+        combo.ShowCurrentPath(path + delimiter);
         auto *current = combo.lineEdit()->findChild<QAction *>("currentAddressIcon");
         QVERIFY(current);
         QVERIFY(current->isVisible());

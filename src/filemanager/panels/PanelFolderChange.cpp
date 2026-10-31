@@ -149,14 +149,10 @@ static int Find_FileExtension_DotPos_in_path(const wchar_t *path) {
     }
 }
 
-void CPanel::LoadFullPathAndShow(IQtPanelAddressCombo &header, const UString &displayPath,
-                                 bool addToHistory) {
+void CPanel::LoadFullPathAndShow(IQtPanelAddressCombo &header, const UString &displayPath) {
     using namespace NWindows::NFile;
     using namespace NFind;
     LoadFullPath();
-    // Preserve the Qt display separator and existing nested-history policy.
-    if (addToHistory)
-        _appState->FolderHistory.AddString(displayPath);
     header.SetText(displayPath);
 
 #ifndef UNDER_CE
