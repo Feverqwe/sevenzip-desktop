@@ -109,9 +109,10 @@ class NativePropertiesWindowTests final : public QObject, protected MainWindowTe
         QTest::keyClick(address, Qt::Key_Return);
         action(window, "autoRefreshAction")->setChecked(false);
         auto *view = table(window);
-        const int row = filesystemRow(window, path);
-        QVERIFY(row >= 0);
-        view->selectRow(row);
+        QTRY_VERIFY_WITH_TIMEOUT(view->isEnabled() && filesystemRow(window, path) >= 0, 5000);
+        view->selectRow(filesystemRow(window, path));
+        auto *properties = action(window, "selectedPropertiesAction");
+        QTRY_VERIFY(properties->isEnabled());
         QVERIFY(QFile::remove(path));
         bool portableShown = false;
         QTimer responder;
@@ -123,7 +124,7 @@ class NativePropertiesWindowTests final : public QObject, protected MainWindowTe
             }
         });
         responder.start();
-        action(window, "selectedPropertiesAction")->trigger();
+        properties->trigger();
         QTest::qWait(20);
         QVERIFY(!portableShown);
         QCOMPARE(view->selectionModel()->selectedRows().size(), 1);

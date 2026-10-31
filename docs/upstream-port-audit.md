@@ -191,6 +191,9 @@ rg -n --no-ignore -F 'CAgent::Open' docs/archive/qt-port/upstream-port-audit/ do
 - [Владение историей посещённых папок](upstream-port-audit/location-history-ownership.md)
   — единая запись посещений при навигации и представление адреса без повторной записи.
 
+- [Метаданные строк отчёта свойств](upstream-port-audit/property-report-ownership.md)
+  — единый владелец данных для перевода, копирования и просмотра полного значения.
+
 - [Владение при исключении копирования object vector](upstream-port-audit/object-vector-ownership.md)
   — освобождение уже скопированных владельцев при отказе очередного элемента.
 

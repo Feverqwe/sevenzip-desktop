@@ -20,7 +20,7 @@
 #include <QVBoxLayout>
 
 static const unsigned kOneStringMaxSize = 1024;
-static constexpr int kRowBindingRole = Qt::UserRole + 14;
+static constexpr int kRowIdentityRole = Qt::UserRole + 14;
 
 static UString ListValueText(UString value) {
     if (value.Len() > kOneStringMaxSize) {
@@ -65,10 +65,7 @@ bool CListViewDialog::OnInit() {
     _listView->installEventFilter(this);
     FOR_VECTOR(i, Strings) {
         _listView->InsertItem(i, Strings[i]);
-        const auto binding = _rowBindings.constFind(i);
-        if (binding != _rowBindings.cend())
-            _listView->topLevelItem(int(i))->setData(0, kRowBindingRole,
-                                                     QVariant::fromValue(*binding));
+        _listView->topLevelItem(int(i))->setData(0, kRowIdentityRole, i);
         if (NumColumns > 1 && i < Values.Size()) {
             _listView->SetSubItem(i, 1, ListValueText(Values[i]));
         }
@@ -136,7 +133,7 @@ void CListViewDialog::changeEvent(QEvent *event) {
     if (event->type() == QEvent::LanguageChange && _listView) {
         for (int i = 0; i < _listView->topLevelItemCount(); ++i) {
             auto *item = _listView->topLevelItem(i);
-            const auto binding = item->data(0, kRowBindingRole).value<CRowBinding>();
+            const auto binding = _rowBindings.value(item->data(0, kRowIdentityRole).toUInt());
             const QVariant &archiveValue = binding.ArchiveValue;
             if (archiveValue.isValid() && unsigned(i) < Values.Size()) {
                 const UString value =
@@ -220,7 +217,7 @@ void CListViewDialog::ShowItemInfo() {
     dlg.OnInit();
     if (NumColumns > 1) {
         auto *item = _listView->topLevelItem(int(index));
-        const auto binding = item->data(0, kRowBindingRole).value<CRowBinding>();
+        const auto binding = _rowBindings.value(item->data(0, kRowIdentityRole).toUInt());
         if (binding.Property && binding.Property->ID < 1000)
             QtBindLangText(&dlg, 1000 + binding.Property->ID, ToQString(Strings[index]));
     }
