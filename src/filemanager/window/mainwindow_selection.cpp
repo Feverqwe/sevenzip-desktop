@@ -1,16 +1,18 @@
 #include "filemanager/window/mainwindow.h"
+#include <utility>
 
 void MainWindow::completeListSelection() {
-    if (scanSelectedState_)
-        app_.GetFocusedPanel().RestoreLoadedSelection(*scanSelectedState_);
-    scanSelectedState_.reset();
+    const unsigned owner = projectedPanel_;
+    const auto selection = std::exchange(panelUi_[owner].pendingSelection, std::nullopt);
+    if (selection)
+        app_.Panels[owner].RestoreLoadedSelection(*selection);
 }
 
 void MainWindow::restoreListSelection(const CSelectedState &selection) {
     if (scanningDisk_ || scanningArchive_)
-        scanSelectedState_ = selection;
+        panelUi_[projectedPanel_].pendingSelection = selection;
     else
-        app_.GetFocusedPanel().RestoreLoadedSelection(selection);
+        app_.Panels[projectedPanel_].RestoreLoadedSelection(selection);
 }
 
 void MainWindow::handleSelectionClick(int row) {

@@ -195,7 +195,7 @@ void MainWindow::connectFilesystemScanner() {
 
 void MainWindow::failFilesystemListing(HRESULT result) {
     auto &panel = app_.GetFocusedPanel();
-    scanSelectedState_.reset();
+    panelUi_[projectedPanel_].pendingSelection.reset();
     pendingViewport_.reset();
     table_->clearSelection();
     table_->clearRows();

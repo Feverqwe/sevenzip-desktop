@@ -272,7 +272,6 @@ class MainWindow : public QMainWindow {
     HRESULT observeGuiArchiveOperation(QtOperationLauncher *operation, const QString &error);
     void refreshGuiOutputPanel(unsigned index, const QtGuiOutputRefresh::Outputs &output);
     void createDialog();
-    QStringList selectedFilesystemPaths();
     void transferFiles(const QStringList &sources, const QString &destination, bool move,
                        bool directPath = false);
     void executeCopyDestination(bool move, bool copyToSame, unsigned sourceIndex,
@@ -284,7 +283,6 @@ class MainWindow : public QMainWindow {
                                 const QString &name);
     QStringList selectedArchivePaths();
     QStringList archivePathsForIndices(const CRecordVector<UInt32> &indices);
-    QStringList selectedArchiveItemsPaths();
     CRecordVector<UInt32> sourceOperatedIndices();
 
     ArchiveBackend *backend_ = nullptr;
@@ -363,7 +361,6 @@ class MainWindow : public QMainWindow {
     QTimer *autoRefreshTimer_ = nullptr;
     std::unique_ptr<QtGuiOutputRefresh> guiOutputRefresh_;
     FilesystemScanner *filesystemScanner_ = nullptr;
-    std::optional<CSelectedState> scanSelectedState_;
     State previousState_ = State::Filesystem;
     enum class ArchiveMoveStage { Extracting, Removing };
     struct PendingArchiveMove {

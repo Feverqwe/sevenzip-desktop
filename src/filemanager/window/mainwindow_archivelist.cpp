@@ -67,7 +67,7 @@ HRESULT MainWindow::renderArchiveFolder(bool updateAddress) {
                                                               panelProjectionDepth_ + 1);
                     if (result != S_OK) {
                         table_->clearRows();
-                        scanSelectedState_.reset();
+                        panelUi_[projectedPanel_].pendingSelection.reset();
                     }
                     scanningArchive_ = false;
                     applySortMode(true);

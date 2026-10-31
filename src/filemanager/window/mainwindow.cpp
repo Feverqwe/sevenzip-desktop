@@ -132,6 +132,6 @@ void MainWindow::cancelListPublication() {
     listProjection_->cancel();
     scanningDisk_ = false;
     scanningArchive_ = false;
-    scanSelectedState_.reset();
+    panelUi_[projectedPanel_].pendingSelection.reset();
     pendingViewport_.reset();
 }

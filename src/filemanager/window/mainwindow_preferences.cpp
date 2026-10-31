@@ -41,7 +41,6 @@ void MainWindow::showItemContextMenu(unsigned owner, QAbstractItemView *view, co
                 view->setCurrentIndex(index);
             }
         }
-        sourceOperatedIndices();
         refreshActions();
         const QPoint point = keyboard ? pos : view->viewport()->mapToGlobal(pos);
         QtPanelContextMenu menu(*this, *view);

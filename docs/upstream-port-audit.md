@@ -194,6 +194,9 @@ rg -n --no-ignore -F 'CAgent::Open' docs/archive/qt-port/upstream-port-audit/ do
 - [Метаданные строк отчёта свойств](upstream-port-audit/property-report-ownership.md)
   — единый владелец данных для перевода, копирования и просмотра полного значения.
 
+- [Граница команд выделения](upstream-port-audit/selection-command-boundary.md)
+  — исходные индексы и отложенный снимок своей панели без дублирующей проекции.
+
 - [Владение при исключении копирования object vector](upstream-port-audit/object-vector-ownership.md)
   — освобождение уже скопированных владельцев при отказе очередного элемента.
 

@@ -1,5 +1,3 @@
-#include "Common/StringConvert.h"
-#include "filemanager/providers/qtlocationfolder.h"
 #include "filemanager/window/mainwindow.h"
 
 CRecordVector<UInt32> MainWindow::sourceOperatedIndices() {
@@ -9,31 +7,6 @@ CRecordVector<UInt32> MainWindow::sourceOperatedIndices() {
         return indices;
     panel.Get_ItemIndices_Operated(indices);
     return indices;
-}
-
-QStringList MainWindow::selectedArchiveItemsPaths() {
-    QStringList paths;
-    if (state_ != State::Viewing)
-        return paths;
-    const auto indices = sourceOperatedIndices();
-    auto *folder = static_cast<CAgentFolder *>(app_.GetFocusedPanel().GetFolder());
-    FOR_VECTOR(i, indices)
-    paths << ToQString(folder->GetFullPrefix(indices[i]) + folder->GetName(indices[i]));
-    return paths;
-}
-
-QStringList MainWindow::selectedFilesystemPaths() {
-    QStringList paths;
-    CPanel &panel = app_.GetFocusedPanel();
-    if (!panel.GetFolder() || (state_ != State::Filesystem && !panel.IsAltStreamsFolder()))
-        return paths;
-    const auto indices = sourceOperatedIndices();
-    panel.LoadFullPath();
-    UStringVector filePaths;
-    panel.GetFilePaths(indices, filePaths);
-    FOR_VECTOR(i, filePaths)
-    paths << QtFilesystemPath(us2fs(filePaths[i]));
-    return paths;
 }
 
 QStringList MainWindow::selectedArchivePaths() {
