@@ -1,5 +1,42 @@
 # File-transfer ownership
 
+## Staging and completion ownership — 2026-10-31
+
+Reviewed the complete Qt transaction, worker entry/cancel/wait boundary, copy
+callback and window completion consumers against the recorded source
+FSFolderCopy CopyFile_Ask/CopyFolder, state, callback and native I/O branches.
+Reference: <https://github.com/ip7z/7zip.git>, commit
+`9128b80e3a471108678e2b3ec3c985861c8d7b0f`; the complete original
+`CPP/7zip/UI/FileManager/FSFolderCopy.cpp` matches its existing baseline hash.
+The whole-batch transaction remains the local integration described below;
+source copy, matching, progress, validation and link services are unchanged.
+No source is imported and no baseline changes.
+
+Per-item rollback now owns the current staged or published path directly.
+Backup paths become owned only after the previous destination was successfully
+renamed. This removes parallel stage-started, published and backup-owned flags
+while retaining restoration on cancellation, failure and exceptions. Ownership
+still transfers to the completed batch only after its record is accepted.
+Successful Copy/Move share backup disposal and result publication. Partial Move
+recovery stays separate: a destination is retained once source removal may have
+consumed bytes, including a throwing removal service. The per-item loop remains
+together to keep publication and rollback ordering explicit.
+
+Existing public worker tests cover successful copy/move, direct names, overwrite
+answers across mixed batches, canceled/failed staging, throwing rename/removal
+services, cross-volume source-removal failure, merged directories and retained
+bytes. UI consumers cover same-name and two-panel copies. No new test that
+merely asserts the changed representation is needed, and no pre-fix product
+failure is claimed.
+
+The six focused suites passed on Linux (183 checks, 44.41 seconds), macOS
+(183 checks, 73.22 seconds) and interactive Windows (182 checks, 86.89 seconds),
+without skips: file_transfer, file_transfer_direct, language_file_transfer,
+ui_copy_same, ui_copy_routing and worker_checkpoint. The POSIX link case is
+compiled only on Linux/macOS. Existing incremental trees and compiler caches
+were reused; disposable fixtures were removed after preserving the reports.
+No full/slow gate, appearance change or visual-parity acceptance is claimed.
+
 ## Filesystem completion publication — 2026-10-31
 
 Compared the complete original `CApp::OnCopy` body in the recorded 7-Zip source

@@ -14,7 +14,7 @@ class QtFileTransferTransaction final {
         QString target;
         QString backup;
         bool copiedMove = false;
-        bool sourceDeleted = false;
+        bool retainPublished = false;
         bool merged = false;
         QStringList writtenSources;
     };
