@@ -379,6 +379,12 @@ if(BUILD_TESTING)
     add_test(NAME address_combo COMMAND address_combo_tests -silent)
     set_tests_properties(address_combo PROPERTIES TIMEOUT 60 ENVIRONMENT
         "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/address-combo.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
+    qt_add_executable(address_lifetime_tests tests/filemanager/address_lifetime_tests.cpp)
+    target_link_libraries(address_lifetime_tests PRIVATE sevenzip_window Qt6::Test)
+    target_include_directories(address_lifetime_tests PRIVATE src tests)
+    add_test(NAME address_lifetime COMMAND address_lifetime_tests -silent)
+    set_tests_properties(address_lifetime PROPERTIES TIMEOUT 30 RESOURCE_LOCK sevenzip_native_ui
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
     qt_add_executable(panel_address_keys_tests tests/filemanager/panel_address_keys_tests.cpp)
     target_link_libraries(panel_address_keys_tests PRIVATE sevenzip_layout_inspection)
     target_link_libraries(panel_address_keys_tests PRIVATE sevenzip_window)

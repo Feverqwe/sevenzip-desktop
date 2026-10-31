@@ -2516,3 +2516,40 @@ The initial Linux build caught one remaining keyboard-router call using the old
 signature; it was updated before the successful batch. Existing incremental
 outputs and compiler caches were retained. No full/slow suites, heavy diagnostics
 or appearance changes were introduced; the recorded source inventory matches.
+
+## Address control and panel teardown — 2026-10-31
+
+Compared the original panel destructor and address notification/selection bodies
+with Qt control creation, deferred focus, window close and member/child teardown.
+Native panel navigation remains unchanged. Qt widgets can outlive the source
+panel because window members disappear before widget children; the former
+reference and self-context callbacks did not express that boundary.
+
+The address control now holds a weak panel link and owns a single callback
+context for signals and both queued-focus entry points. That context disconnects
+before control state and base-widget teardown; event filters are removed before
+child hide/focus notifications. Expired panels cannot receive address commands
+or invoke captured navigation/focus services. Popup closure and asynchronous
+list readiness retain their existing delivery rules while both owners are live.
+The obsolete window-close disconnections targeted a different receiver and are
+removed. No new external implementation is imported.
+
+A focused lifecycle suite checks navigation after panel disposal and pending
+focus with both destruction orders. The live request is also exercised, so
+silently disabling all focus delivery cannot satisfy the regression. Before the
+fix, Linux delivered the second focus callback after owner destruction instead
+of cancelling it. The suite does not inspect private state or connection records.
+
+Focused validation passed `address_lifetime`, `address_combo`,
+`address_navigation`, `panel_address_keys`, `app_lifecycle_window` and
+`binding_lifecycle` on Linux (42.50 seconds), macOS (27.95 seconds) and the
+Windows interactive runner (373.94 seconds): 133/133/150 passed rows, no skips.
+Windows completed with a matching run receipt and exit 0; its existing navigation
+and binding suites took substantially longer in this batch. No performance
+conclusion is drawn from those timings. The new lifecycle suite took 0.11 seconds
+on Windows. The earlier failing Linux reproduction is retained separately.
+
+Source inventory verification and whitespace checks passed. Incremental builds
+and compiler caches were retained; no full/slow suites, heavy diagnostics or
+appearance changes ran. Completed snapshots and disposable fixtures left no new
+scratch roots; pre-existing unrelated local roots were preserved.

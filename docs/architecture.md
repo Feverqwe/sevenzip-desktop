@@ -143,6 +143,8 @@ rename operations, errors and restored selection.
 Main-window chrome has a scoped Qt presentation adapter for toolbar spacing,
 labels and the parent button. It does not style dialogs or own commands; the
 editable address retains the original panel address/navigation owner.
+Address callbacks require a live source panel and share a control-owned delivery
+lifetime, so late signals and queued focus requests stop when either owner ends.
 
 ## Dialogs and preferences
 

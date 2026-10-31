@@ -3,6 +3,7 @@
 #include "Common/MyString.h"
 #include "Common/MyWindows.h"
 #include <QComboBox>
+#include <QPointer>
 #include <functional>
 
 class CPanel;
@@ -33,6 +34,7 @@ class QtPanelAddressCombo final : public QComboBox, public IQtPanelAddressCombo 
   public:
     QtPanelAddressCombo(CPanel &panel, std::function<HRESULT(const QString &, bool)> navigate,
                         QWidget *parent, std::function<void()> focusList = {});
+    ~QtPanelAddressCombo() override;
     void showPopup() override;
     QSize sizeHint() const override;
     QSize minimumSizeHint() const override;
@@ -56,9 +58,11 @@ class QtPanelAddressCombo final : public QComboBox, public IQtPanelAddressCombo 
   private:
     void CompleteListFocus();
     bool eventFilter(QObject *object, QEvent *event) override;
-    CPanel &panel_;
+    QPointer<CPanel> panel_;
     std::function<HRESULT(const QString &, bool)> navigate_;
     std::function<void()> focusList_;
     QAction *currentIcon_ = nullptr;
     bool listFocusPending_ = false;
+    // Disconnect queued/signal callbacks before state and base widgets disappear.
+    QObject callbacks_;
 };

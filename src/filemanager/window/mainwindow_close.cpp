@@ -86,12 +86,6 @@ void MainWindow::quiesceOperations() {
         guiOutputRefresh_->Stop();
     if (renameController_)
         renameController_->Stop();
-    for (const auto &ui : panelUi_) {
-        if (ui.pathCombo)
-            disconnect(ui.pathCombo, nullptr, this, nullptr);
-        if (ui.path)
-            disconnect(ui.path, nullptr, this, nullptr);
-    }
     disconnect(backend_, nullptr, this, nullptr);
     if (overwriteDialog_)
         overwriteDialog_->reject();

@@ -39,7 +39,7 @@ class AddressItemDelegate final : public QStyledItemDelegate {
 QtPanelAddressCombo::QtPanelAddressCombo(CPanel &panel,
                                          std::function<HRESULT(const QString &, bool)> navigate,
                                          QWidget *parent, std::function<void()> focusList)
-    : QComboBox(parent), panel_(panel), navigate_(std::move(navigate)),
+    : QComboBox(parent), panel_(&panel), navigate_(std::move(navigate)),
       focusList_(std::move(focusList)) {
 #ifdef Q_OS_MACOS
     setAttribute(Qt::WA_LayoutUsesWidgetRect);
@@ -50,18 +50,30 @@ QtPanelAddressCombo::QtPanelAddressCombo(CPanel &panel,
     lineEdit()->installEventFilter(this);
     setItemDelegate(new AddressItemDelegate(this));
     view()->installEventFilter(this);
-    connect(this, &QComboBox::activated, this,
-            [this](int) { panel_.OnComboBoxCommand(QtAddressCommand::SelectionAccepted, *this); });
-    connect(lineEdit(), &QLineEdit::returnPressed, this,
-            [this] { panel_.OnNotifyComboBoxEndEdit(QtAddressEditReason::Return, *this); });
+    connect(this, &QComboBox::activated, &callbacks_, [this](int) {
+        if (panel_)
+            panel_->OnComboBoxCommand(QtAddressCommand::SelectionAccepted, *this);
+    });
+    connect(lineEdit(), &QLineEdit::returnPressed, &callbacks_, [this] {
+        if (panel_)
+            panel_->OnNotifyComboBoxEndEdit(QtAddressEditReason::Return, *this);
+    });
+}
+
+QtPanelAddressCombo::~QtPanelAddressCombo() {
+    if (lineEdit())
+        lineEdit()->removeEventFilter(this);
+    view()->removeEventFilter(this);
 }
 
 void QtPanelAddressCombo::showPopup() {
+    if (!panel_)
+        return;
     const QString text = currentText();
     {
         const QSignalBlocker blocker(this);
-        panel_.LoadFullPath();
-        panel_.OnComboBoxCommand(QtAddressCommand::DropDown, *this);
+        panel_->LoadFullPath();
+        panel_->OnComboBoxCommand(QtAddressCommand::DropDown, *this);
         setCurrentIndex(-1);
         lineEdit()->setText(text);
     }
@@ -135,13 +147,16 @@ void QtPanelAddressCombo::SetCurrentIcon(int index) {
     currentIcon_->setVisible(index >= 0);
 }
 void QtPanelAddressCombo::ShowCurrentPath(const QString &displayPath, bool addToHistory) {
-    panel_.LoadFullPathAndShow(*this, ToUString(displayPath), addToHistory);
+    if (panel_)
+        panel_->LoadFullPathAndShow(*this, ToUString(displayPath), addToHistory);
 }
 void QtPanelAddressCombo::ReloadCurrentPath() {
-    const QString previousPrefix = ToQString(panel_.GetCurrentFolderPrefix());
+    if (!panel_)
+        return;
+    const QString previousPrefix = ToQString(panel_->GetCurrentFolderPrefix());
     const QString previousText = currentText();
-    panel_.LoadFullPath();
-    ShowCurrentPath(ToQString(panel_.GetCurrentFolderPrefix()), false);
+    panel_->LoadFullPath();
+    ShowCurrentPath(ToQString(panel_->GetCurrentFolderPrefix()), false);
     if (previousText != previousPrefix)
         lineEdit()->setText(previousText);
 }
@@ -160,17 +175,19 @@ void QtPanelAddressCombo::GetLogicalDriveStrings(FStringVector &paths) {
 UString QtPanelAddressCombo::GetText() const { return ToUString(currentText()); }
 void QtPanelAddressCombo::SetText(const UString &text) { lineEdit()->setText(ToQString(text)); }
 HRESULT QtPanelAddressCombo::BindToPathAndRefresh(const UString &path, bool sourcePath) {
-    return navigate_(ToQString(CPanel::PrepareBindPath(path)), sourcePath);
+    return panel_ ? navigate_(ToQString(CPanel::PrepareBindPath(path)), sourcePath) : E_ABORT;
 }
 void QtPanelAddressCombo::SetFocusToList() {
+    if (!panel_)
+        return;
     listFocusPending_ = true;
-    QTimer::singleShot(0, this, [this] { CompleteListFocus(); });
+    QTimer::singleShot(0, &callbacks_, [this] { CompleteListFocus(); });
 }
 
 void QtPanelAddressCombo::CompleteListFocus() {
     // Source navigation can process events before the selection popup closes.
     // Its Hide notification completes delivery after Qt restores combo focus.
-    if (!listFocusPending_ || view()->isVisible())
+    if (!panel_ || !listFocusPending_ || view()->isVisible())
         return;
     listFocusPending_ = false;
     // Deliver only while the address owns focus: a newer same-pane interaction
@@ -182,19 +199,21 @@ void QtPanelAddressCombo::CompleteListFocus() {
         if (focusList_)
             focusList_();
         else
-            panel_.SetFocusToList();
+            panel_->SetFocusToList();
     }
 }
 
 bool QtPanelAddressCombo::eventFilter(QObject *object, QEvent *event) {
+    if (!panel_)
+        return QComboBox::eventFilter(object, event);
     if (object == view() && event->type() == QEvent::Hide && listFocusPending_)
-        QTimer::singleShot(0, this, [this] { CompleteListFocus(); });
+        QTimer::singleShot(0, &callbacks_, [this] { CompleteListFocus(); });
     if (object == lineEdit()) {
         if (event->type() == QEvent::KeyPress || event->type() == QEvent::MouseButtonPress)
             listFocusPending_ = false;
         if (event->type() == QEvent::KeyPress &&
             static_cast<QKeyEvent *>(event)->key() == Qt::Key_Escape) {
-            return panel_.OnNotifyComboBoxEndEdit(QtAddressEditReason::Escape, *this);
+            return panel_->OnNotifyComboBoxEndEdit(QtAddressEditReason::Escape, *this);
         }
     }
     return QComboBox::eventFilter(object, event);
