@@ -187,6 +187,14 @@
         add_test(NAME native_external_${external_rows} COMMAND native_external_publication_tests -silent)
         set_tests_properties(native_external_${external_rows} PROPERTIES TIMEOUT 240 ENVIRONMENT "QT_QPA_PLATFORM=offscreen;SEVENZIP_EXTERNAL_ROWS=${external_rows};SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/native-external-${external_rows}.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
     endforeach()
+    add_test(NAME native_external_update COMMAND native_external_publication_tests -silent
+        externalUpdatePublishesAfterNativeWriter:2-0-0-0-0-0-0
+        externalUpdatePublishesAfterNativeWriter:2-80004005-0-1-1-1-1
+        externalUpdatePublishesAfterNativeWriter:2-80004004-0-0-0-0-0
+        externalUpdatePublishesAfterNativeWriter:2-0-80004005-1-0-0-0
+        externalUpdatePublishesAfterNativeWriter:301-0-0-0-1-0-1)
+    set_tests_properties(native_external_update PROPERTIES TIMEOUT 90 ENVIRONMENT
+        "QT_QPA_PLATFORM=offscreen;SEVENZIP_EXTERNAL_ROWS=0;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/native-external-update.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
     qt_add_executable(native_nested_publication_tests
         tests/filemanager/native_nested_publication_tests.cpp
         tests/platform/support/native_property_failure_runtime.cpp)

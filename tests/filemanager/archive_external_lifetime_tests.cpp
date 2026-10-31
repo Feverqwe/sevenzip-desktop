@@ -1,3 +1,5 @@
+#include "7zip/PropID.h"
+#include "Windows/PropVariant.h"
 #include "archive/backend/archivebackend.h"
 #include "archive/resources/qtarchivefoldermanager.h"
 #include "dialogs/browse/BrowseDialog2.h"
@@ -9,6 +11,7 @@
 #include "support/widget_dialogs.h"
 #include <QApplication>
 #include <QDir>
+#include <QEventLoop>
 #include <QFile>
 #include <QFileInfo>
 #include <QMessageBox>
@@ -107,6 +110,62 @@ class ArchiveExternalLifetimeTests final : public QObject {
     WidgetDialogFixture widgetDialogs_;
   private slots:
     void init() { QFile::remove(settings()); }
+    void changedFilePublishesWithoutWindowUpdateRunner() {
+        QTemporaryDir fixture;
+        const QString name = QStringLiteral("изменённый файл 空.txt");
+        const QString archive = fixture.filePath("original.zip");
+        QVERIFY(write(fixture.filePath(name), "original"));
+        QVERIFY(createArchive(fixture.path(), archive, name));
+        const QString control = fixture.filePath("editor control");
+        const auto stop = qScopeGuard([&] { write(control + ".exit", "exit"); });
+        configure(control);
+        ArchiveBackend backend;
+        CMyComPtr<IFolderManager> manager = new QtArchiveFolderManager(backend);
+        QtAssociatedFileServices service({});
+        CPanel panel;
+        QVERIFY(bind(panel, manager, service, archive));
+        qint64 publishedSize = -1;
+        panel.AttachReloadPresentation([&](const CSelectedState &) -> HRESULT {
+            RINOK(panel.GetFolder()->LoadItems())
+            NWindows::NCOM::CPropVariant size;
+            RINOK(panel.GetFolder()->GetProperty(0, kpidSize, &size))
+            if (size.vt != VT_UI8)
+                return E_FAIL;
+            publishedSize = qint64(size.uhVal.QuadPart);
+            return S_OK;
+        });
+        panel.EditItem(0, true);
+        QTRY_VERIFY(QFileInfo(control + ".ready").size() > 0);
+        const QString temporary = QString::fromUtf8(read(control + ".ready"));
+        QStringList errors;
+        bool asked = false;
+        QEventLoop delivery;
+        QTimer responder;
+        widgetDialogs_.connectResponder(responder, this, [&] {
+            if (auto *box = qobject_cast<QMessageBox *>(widgetDialogs_.activeDialog())) {
+                if (box->objectName() == "externalUpdatePrompt") {
+                    asked = true;
+                    connect(box, &QObject::destroyed, &delivery, &QEventLoop::quit);
+                    box->button(QMessageBox::Yes)->click();
+                } else {
+                    errors.append(box->text());
+                    box->accept();
+                }
+            }
+        });
+        responder.start(1);
+        QVERIFY(write(control, "change"));
+        QVERIFY(write(control + ".exit", "exit"));
+        QTimer::singleShot(5000, &delivery, &QEventLoop::quit);
+        if (!asked)
+            delivery.exec();
+        QVERIFY(asked);
+        QTRY_COMPARE(publishedSize, qint64(modified.size()));
+        QTRY_VERIFY(!QFileInfo(temporary).exists());
+        panel.ExitExternalWorkers(false);
+        QVERIFY2(errors.isEmpty(), qPrintable(errors.join('\n')));
+        QCOMPARE(contents(archive, name), modified);
+    }
     void unknownFileFallback_data() {
         QTest::addColumn<bool>("known");
         QTest::addColumn<bool>("ask");

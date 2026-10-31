@@ -165,6 +165,16 @@ class NativeExternalPublicationTests final : public QObject, protected MainWindo
         QVERIFY(action(window, "editFileAction")->isEnabled());
         bool prompted = false, injected = false, cancelled = false, failed = false,
              retrying = false;
+        bool closeRejectedDuringPublication = false;
+        const bool checkPublicationClose =
+            count == 2 && HRESULT(written) == S_OK && HRESULT(rendered) == S_OK;
+        connect(list->model(), &QAbstractItemModel::rowsRemoved, &window, [&] {
+            if (checkPublicationClose && injected && !closeRejectedDuringPublication &&
+                !QApplication::activeModalWidget()) {
+                closeRejectedDuringPublication = !window.close();
+                QVERIFY(closeRejectedDuringPublication);
+            }
+        });
         QStringList unexpected, writerErrors;
         QTimer responder, driver;
         connect(&responder, &QTimer::timeout, &window, [&] {
@@ -239,6 +249,8 @@ class NativeExternalPublicationTests final : public QObject, protected MainWindo
             QTRY_COMPARE(view->selectionModel()->selectedRows().size(), 1);
         }
         QVERIFY(prompted);
+        if (checkPublicationClose)
+            QVERIFY(closeRejectedDuringPublication);
         QCOMPARE(cancelled, HRESULT(written) == E_ABORT);
         QVERIFY(runtime_.writerReceipts().contains(
             QByteArray::number(QCoreApplication::applicationPid()) + ' ' +

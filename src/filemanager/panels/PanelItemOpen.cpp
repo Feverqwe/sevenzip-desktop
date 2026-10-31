@@ -39,6 +39,14 @@ using namespace NDir;
 static const FChar *const kTempDirPrefix = FTEXT("7zO");
 static const UInt32 kParentIndex = (UInt32)-1;
 
+bool IQtExternalFileServices::RunArchiveUpdate(CPanel &panel, const QtArchiveUpdateBody &body) {
+    std::optional<CSelectedState> selection;
+    const bool result = body(selection);
+    if (selection)
+        panel.RefreshListCtrl(*selection);
+    return result;
+}
+
 void CExitEventLauncher::Exit(bool hardExit) {
     // Native event/owned-thread lifecycle. Always join on POSIX/Qt: detaching
     // after the source Windows 100 ms hard-exit timeout could outlive this owner.
@@ -179,6 +187,59 @@ class CTmpProcessInfoRelease {
     }
 };
 
+static int CallExternalUpdateGui(CTmpProcessInfo &tpi, const std::function<int()> &body) {
+    return QtExternalGuiCall(tpi.Parent, *tpi.Launcher, body,
+                             [&] { return tpi.ExternalServices->CanHandleExternalUpdate(); });
+}
+
+static int ShowExternalUpdateMessage(CTmpProcessInfo &tpi, const UString &text,
+                                     bool question = false) {
+    return CallExternalUpdateGui(tpi, [&] {
+        QMessageBox box(question ? QMessageBox::Question : QMessageBox::Critical,
+                        QStringLiteral("7-Zip"), ToQString(text),
+                        question ? QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel
+                                 : QMessageBox::Ok,
+                        tpi.Parent);
+        box.setObjectName(question ? "externalUpdatePrompt" : "externalUpdateError");
+        box.setTextFormat(Qt::PlainText);
+        return box.exec();
+    });
+}
+
+static bool UpdateChangedExternalFile(CTmpProcessInfo &tpi) {
+    const UString error = MyFormatNew(IDS_CANNOT_UPDATE_FILE, fs2us(tpi.FilePath));
+    if (tpi.ReadOnly) {
+        UString message = error;
+        message.Add_LF();
+        AddLangString(message, IDS_PROP_READ_ONLY);
+        message.Add_LF();
+        message += tpi.FullPathFolderPrefix;
+        ShowExternalUpdateMessage(tpi, message);
+        return false;
+    }
+    const int answer = ShowExternalUpdateMessage(
+        tpi, MyFormatNew(IDS_WANT_UPDATE_MODIFIED_FILE, tpi.RelPath), true);
+    if (tpi.Launcher->Exiting())
+        return false;
+    if (answer != QMessageBox::Yes)
+        return true;
+    const int updated = CallExternalUpdateGui(tpi, [&] {
+        return tpi.ExternalServices->RunArchiveUpdate(
+                   *tpi.Window,
+                   [&](std::optional<CSelectedState> &selection) {
+                       return tpi.Window->OnOpenItemChanged(tpi, tpi.FullPathFolderPrefix,
+                                                            tpi.UsePassword, tpi.Password,
+                                                            &selection);
+                   })
+                   ? 1
+                   : 0;
+    });
+    if (updated == 1)
+        return true;
+    ShowExternalUpdateMessage(tpi, error);
+    return false;
+}
+
 static THREAD_FUNC_DECL MyThreadFunction(void *param) try {
     CMyUniquePtr<CTmpProcessInfo> tpi((CTmpProcessInfo *)param);
     CChildProcesses &processes = tpi->Processes;
@@ -239,68 +300,8 @@ static THREAD_FUNC_DECL MyThreadFunction(void *param) try {
             break;
         if (mainProcessWasSet) {
             if (tpi->WasChanged_from_TempFileInfo(newFileInfo)) {
-                const auto ready = [&] { return tpi->ExternalServices->CanHandleExternalUpdate(); };
-                const UString m = MyFormatNew(IDS_CANNOT_UPDATE_FILE, fs2us(tpi->FilePath));
-                if (tpi->ReadOnly) {
-                    UString error = m;
-                    error.Add_LF();
-                    AddLangString(error, IDS_PROP_READ_ONLY);
-                    error.Add_LF();
-                    error += tpi->FullPathFolderPrefix;
-                    QtExternalGuiCall(
-                        tpi->Parent, *tpi->Launcher,
-                        [&] {
-                            QMessageBox box(QMessageBox::Critical, QStringLiteral("7-Zip"),
-                                            ToQString(error), QMessageBox::Ok, tpi->Parent);
-                            box.setObjectName("externalUpdateError");
-                            box.setTextFormat(Qt::PlainText);
-                            return box.exec();
-                        },
-                        ready);
+                if (!UpdateChangedExternalFile(*tpi))
                     return 0;
-                }
-                const UString message = MyFormatNew(IDS_WANT_UPDATE_MODIFIED_FILE, tpi->RelPath);
-                const int answer = QtExternalGuiCall(
-                    tpi->Parent, *tpi->Launcher,
-                    [&] {
-                        QMessageBox box(
-                            QMessageBox::Question, QStringLiteral("7-Zip"), ToQString(message),
-                            QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel, tpi->Parent);
-                        box.setObjectName("externalUpdatePrompt");
-                        box.setTextFormat(Qt::PlainText);
-                        return box.exec();
-                    },
-                    ready);
-                if (tpi->Launcher->Exiting())
-                    return 0;
-                if (answer == QMessageBox::Yes) {
-                    if (QtExternalGuiCall(
-                            tpi->Parent, *tpi->Launcher,
-                            [&] {
-                                return tpi->ExternalServices->RunArchiveUpdate(
-                                           *tpi->Window,
-                                           [&](std::optional<CSelectedState> &selection) {
-                                               return tpi->Window->OnOpenItemChanged(
-                                                   *tpi, tpi->FullPathFolderPrefix,
-                                                   tpi->UsePassword, tpi->Password, &selection);
-                                           })
-                                           ? 1
-                                           : 0;
-                            },
-                            ready) != 1) {
-                        QtExternalGuiCall(
-                            tpi->Parent, *tpi->Launcher,
-                            [&] {
-                                QMessageBox box(QMessageBox::Critical, QStringLiteral("7-Zip"),
-                                                ToQString(m), QMessageBox::Ok, tpi->Parent);
-                                box.setObjectName("externalUpdateError");
-                                box.setTextFormat(Qt::PlainText);
-                                return box.exec();
-                            },
-                            ready);
-                        return 0;
-                    }
-                }
                 needCheckTimestamp = false;
                 break;
             }
@@ -1188,14 +1189,13 @@ bool CPanel::OnOpenItemChanged(const CTempFileInfo &tpi, const UString &fullPath
     SaveSelectedState(state);
     CDisableNotify disableNotify(*this);
     HRESULT result = OnOpenItemChanged(fileIndex, fs2us(tpi.FilePath), usePassword, password);
-    RefreshListCtrl(state);
-    // The Qt caller publishes rows after its operation guards unwind. Native
-    // RefreshListCtrl is unconditional here, independently of the update result.
+    // Publish the reached source refresh phase after the caller's operation
+    // guards unwind, including when the native writer failed.
     if (refreshSelection)
         *refreshSelection = state;
-    if (result != S_OK)
-        return false;
-    return true;
+    else
+        RefreshListCtrl(state);
+    return result == S_OK;
 }
 
 class CThreadCopyFrom : public CProgressThreadVirt {

@@ -2083,3 +2083,50 @@ its timeout and assertions were unchanged. No elevated repeat was needed.
 Small run/diagnostic receipts were retained. Completed fixture scopes cleaned
 their disposable archives; no heavy diagnostic artifacts or new build trees
 were created.
+
+## External-editor update completion — 2026-10-31
+
+Compared the complete recorded `PanelItemOpen.cpp` process worker and both
+`OnOpenItemChanged` bodies at baseline
+`b88c6bc09339de32f7d18bbab900686b244f42ba`, their process/temp owners, native
+`CopyFromFile` / `UpdateOneFile` / `CommonUpdate` dependencies and current Qt
+service, operation, publication and close callers. The original inventory-unit
+hash matches the manifest. No source import or new baseline owner is involved.
+
+The process wait loop retains the original child-process and timestamp policy.
+Its changed-file branch delegates the existing read-only refusal, confirmation,
+native update and error messages to a focused helper. Yes/No/Cancel semantics,
+password handoff and temporary-file retention on failed update remain intact.
+Source selection is handed to the update caller for one refresh after operation
+guards unwind, including native writer failure. Both the window adapter and the
+default external-file service consume that refresh through the panel boundary.
+The window uses the existing synchronous-call close guard through publication;
+a reentrant close cannot join the worker while its delivered GUI call is active.
+
+Regressions check a native edited ZIP through the default service, actual
+publication/selection/focus and a close request from publication. The ordinary
+`native_external_update` selection reuses five existing writer/publication rows,
+including failure, cancellation, retry and deferred 301-item publication; the
+full native external matrices remain opt-in slow tests.
+
+Linux x64 passed the six external editor/process/GUI-delivery suites in
+`20261031T032618Z-0f2ccccb` (CTest 43.11 s), then the direct
+`source_update_backend` consumer in `20261031T032941Z-3743aab4`. macOS arm64
+passed all seven suites together (CTest 33.27 s). These runs reused existing
+incremental build trees and compiler caches; Linux used its existing RAM scratch
+without moving the build. No layout/text changes, heavy diagnostics or full gate
+were introduced.
+
+The first Windows batch (`20261031T033029Z-1114fa7c`) stopped at compilation:
+the new test callback mixed deduced `int` success constants and Windows
+`HRESULT` error returns. Its explicit `HRESULT` return type fixes the fixture;
+no product code changed after the successful Linux/macOS runs.
+The corrected lifetime suite passed Linux in `20261031T033506Z-8307b747`
+and macOS (CTest 32.23 s); the other six suites did not require repeating there.
+
+Windows x64 Limited desktop passed all seven suites in
+`20261031T033640Z-203d5dc8` (CTest 166.74 s). No elevated repeat was needed.
+Small receipts were retained, and completed fixture scopes and synchronization
+cleaned their temporary data. Linux/Windows scratch contained only the existing
+CTest/cache owners after the runs; unrelated pre-existing local artifacts were
+preserved. No large diagnostic artifacts or new build trees were created.

@@ -21,6 +21,7 @@ bool MainWindow::canHandleExternalUpdate() const {
 bool MainWindow::runExternalArchiveUpdate(CPanel &panel, const QtArchiveUpdateBody &body) {
     if (!canHandleExternalUpdate())
         return false;
+    QtAppOperationState::CallScope call(app_.QtOperations());
     const QPointer<QWidget> focused = focusWidget();
     std::optional<CSelectedState> selection;
     bool result;
@@ -30,16 +31,8 @@ bool MainWindow::runExternalArchiveUpdate(CPanel &panel, const QtArchiveUpdateBo
         const auto finish = qScopeGuard([&] { app_.QtOperations().End(); });
         result = body(selection);
     }
-    if (selection) {
-        unsigned index = 0;
-        while (index < kNumPanelsMax && &app_.Panels[index] != &panel)
-            ++index;
-        if (index < kNumPanelsMax)
-            withPanelProjection(index, [&] {
-                if (renderBoundFolder() == S_OK)
-                    restoreListSelection(*selection);
-            });
-    }
+    if (selection)
+        panel.RefreshListCtrl(*selection);
     refreshActions();
     // Qt can clear the window's remembered focus when its address control is
     // disabled during modal progress. Restore it after terminal publication.

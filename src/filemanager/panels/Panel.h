@@ -221,11 +221,6 @@ struct CSelectedState {
     }
 };
 
-inline bool IQtExternalFileServices::RunArchiveUpdate(CPanel &, const QtArchiveUpdateBody &body) {
-    std::optional<CSelectedState> selection;
-    return body(selection);
-}
-
 struct CTempFileInfo {
     // Narrow ownership adapter, copied with native nested/process temp records.
     std::shared_ptr<QtOwnedTempLease> OwnedTempLease;
