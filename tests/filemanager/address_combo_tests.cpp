@@ -98,6 +98,8 @@ class AddressComboTests final : public QObject, protected MainWindowTestSupport 
     void queuedSelectionFocusWaitsForPopupClosure() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
+        const QString child = fixture.filePath(QStringLiteral("внутри space"));
+        QVERIFY(QDir().mkpath(child));
         QFile file(fixture.filePath(QStringLiteral("keep 空.txt")));
         QVERIFY(file.open(QIODevice::WriteOnly));
         QCOMPARE(file.write("preserved"), qint64(9));
@@ -108,9 +110,9 @@ class AddressComboTests final : public QObject, protected MainWindowTestSupport 
         QVERIFY(WindowActivation::waitForActive(window));
         auto *address = window.findChild<QLineEdit *>("archivePath");
         address->setFocus();
-        address->setText(fixture.path());
+        address->setText(child);
         QTest::keyClick(address, Qt::Key_Return);
-        QTRY_COMPARE(table(window)->rowCount(), 1);
+        QTRY_VERIFY(table(window)->isEnabled());
         auto *combo = window.findChild<QComboBox *>("pathCombo");
         AddressPopupSupport::show(*combo);
         auto *view = combo->view();
@@ -119,15 +121,18 @@ class AddressComboTests final : public QObject, protected MainWindowTestSupport 
         QTRY_VERIFY(view->hasFocus());
         const int index = combo->findText(QFileInfo(fixture.path()).fileName());
         QVERIFY(index >= 0);
+        combo->setCurrentIndex(index);
         // Source navigation can deliver posted events inside activated(),
         // before QComboBox subsequently hides its selection popup.
         QVERIFY(
             QMetaObject::invokeMethod(combo, "activated", Qt::DirectConnection, Q_ARG(int, index)));
         QApplication::processEvents();
         QVERIFY(view->isVisible());
+        QCOMPARE(QDir::cleanPath(address->text()), QFileInfo(fixture.path()).canonicalFilePath());
         combo->hidePopup();
         QVERIFY(WindowActivation::waitForActive(window));
         QTRY_VERIFY(table(window)->hasFocus());
+        QTRY_COMPARE(table(window)->rowCount(), 2);
         QVERIFY(file.open(QIODevice::ReadOnly));
         QCOMPARE(file.readAll(), QByteArray("preserved"));
         QCOMPARE(backend.listCalls, 0);

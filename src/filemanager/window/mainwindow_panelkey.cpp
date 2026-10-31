@@ -74,11 +74,10 @@ bool MainWindow::handlePanelKey(QObject *watched, QKeyEvent *key) {
         if (key->key() == Qt::Key_Return || key->key() == Qt::Key_Enter ||
             key->key() == Qt::Key_Escape) {
             if (auto *header = dynamic_cast<IQtPanelAddressCombo *>(pathCombo_)) {
-                bool result;
                 app_.GetFocusedPanel().OnNotifyComboBoxEndEdit(key->key() == Qt::Key_Escape
                                                                    ? QtAddressEditReason::Escape
                                                                    : QtAddressEditReason::Return,
-                                                               *header, result);
+                                                               *header);
                 return true;
             }
         }

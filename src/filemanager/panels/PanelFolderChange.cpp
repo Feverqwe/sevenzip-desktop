@@ -612,24 +612,19 @@ UString GetFolderPath(IFolderFolder *folder) {
 // Original AddComboBoxItem/OnComboBoxCommand; Qt supplies control, icon,
 // drive/mount and application delivery services. Source path construction and
 // archive-link boundaries remain in this module.
-bool CPanel::OnNotifyComboBoxEnter(const UString &s, IQtPanelAddressCombo &header) {
-    if (header.BindToPathAndRefresh(s, false) == S_OK) {
+void CPanel::OnNotifyComboBoxEnter(const UString &s, IQtPanelAddressCombo &header) {
+    if (header.BindToPathAndRefresh(s, false) == S_OK)
         header.SetFocusToList();
-        return TRUE;
-    }
-    return FALSE;
 }
 
-bool CPanel::OnNotifyComboBoxEndEdit(QtAddressEditReason reason, IQtPanelAddressCombo &header,
-                                     bool &result) {
+bool CPanel::OnNotifyComboBoxEndEdit(QtAddressEditReason reason, IQtPanelAddressCombo &header) {
     if (reason == QtAddressEditReason::Escape) {
         header.SetText(_currentFolderPrefix);
         header.SetFocusToList();
-        result = FALSE;
         return true;
     }
     if (reason == QtAddressEditReason::Return) {
-        result = OnNotifyComboBoxEnter(header.GetText(), header);
+        OnNotifyComboBoxEnter(header.GetText(), header);
         return true;
     }
     return false;

@@ -2482,3 +2482,37 @@ interactive runner (18.73 seconds): 35 passed rows on each platform, no skips.
 The original source inventory still matches its recorded baseline. Existing
 incremental builds and compiler caches were retained; no full/slow suites,
 heavy diagnostics or layout changes were introduced.
+
+## Address edit notification boundary — 2026-10-31
+
+Reviewed the complete original address edit/command handlers and current-path
+publication with their Qt combo, panel activation and deferred-focus consumers.
+Hierarchy construction, namespace/drive entries, archive-link boundaries and
+bind-path preparation remain in the source panel. Popup closure and asynchronous
+list readiness remain separate Qt focus-delivery conditions.
+
+Removed the Win32 notification-result output carried through the Qt edit
+callbacks: no Qt caller consumes it. Enter still transfers focus only after
+`S_OK`; Escape restores the bound source prefix and requests list focus. The
+handled-event return is retained for the Escape event filter. No source navigation
+or failure branch is replaced, and no external code is newly imported.
+
+The existing popup-completion regression now starts inside a controlled child
+directory, selects its real parent and checks the resulting address/list as well
+as popup closure, focus and preserved fixture bytes. It explicitly supplies the
+selected combo row before delivering activation, so the check exercises the
+source selection branch rather than relying on popup focus restoration alone.
+
+Focused validation passed `address_navigation`, `address_combo` and
+`panel_address_keys` on Linux (12.22 seconds) and macOS (26.14 seconds), with
+92 passed rows and no skips on each. The Windows interactive guest reports all
+three suites passed (53.78 seconds); its verification receipt matches run
+`20261031T095910Z-bade8755`. The SSH observer lost its connection and therefore
+reported transport failure separately; a subsequent workspace status was
+unlocked. This is guest test evidence, not a successful transport result.
+Further runner use stopped when the user announced maintenance.
+
+The initial Linux build caught one remaining keyboard-router call using the old
+signature; it was updated before the successful batch. Existing incremental
+outputs and compiler caches were retained. No full/slow suites, heavy diagnostics
+or appearance changes were introduced; the recorded source inventory matches.

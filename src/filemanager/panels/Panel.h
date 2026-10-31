@@ -550,9 +550,8 @@ class CPanel : public QObject {
     void LoadFullPathAndShow(IQtPanelAddressCombo &header, const UString &displayPath,
                              bool addToHistory);
     bool OnComboBoxCommand(QtAddressCommand code, IQtPanelAddressCombo &header);
-    bool OnNotifyComboBoxEnter(const UString &text, IQtPanelAddressCombo &header);
-    bool OnNotifyComboBoxEndEdit(QtAddressEditReason reason, IQtPanelAddressCombo &header,
-                                 bool &result);
+    void OnNotifyComboBoxEnter(const UString &text, IQtPanelAddressCombo &header);
+    bool OnNotifyComboBoxEndEdit(QtAddressEditReason reason, IQtPanelAddressCombo &header);
     void AddComboBoxItem(IQtPanelAddressCombo &header, const UString &name, int iconIndex,
                          unsigned indent, bool addToList, UInt32 namespaceID = 0);
     void SetToRootFolder();

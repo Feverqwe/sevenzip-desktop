@@ -52,10 +52,8 @@ QtPanelAddressCombo::QtPanelAddressCombo(CPanel &panel,
     view()->installEventFilter(this);
     connect(this, &QComboBox::activated, this,
             [this](int) { panel_.OnComboBoxCommand(QtAddressCommand::SelectionAccepted, *this); });
-    connect(lineEdit(), &QLineEdit::returnPressed, this, [this] {
-        bool result;
-        panel_.OnNotifyComboBoxEndEdit(QtAddressEditReason::Return, *this, result);
-    });
+    connect(lineEdit(), &QLineEdit::returnPressed, this,
+            [this] { panel_.OnNotifyComboBoxEndEdit(QtAddressEditReason::Return, *this); });
 }
 
 void QtPanelAddressCombo::showPopup() {
@@ -196,8 +194,7 @@ bool QtPanelAddressCombo::eventFilter(QObject *object, QEvent *event) {
             listFocusPending_ = false;
         if (event->type() == QEvent::KeyPress &&
             static_cast<QKeyEvent *>(event)->key() == Qt::Key_Escape) {
-            bool result;
-            return panel_.OnNotifyComboBoxEndEdit(QtAddressEditReason::Escape, *this, result);
+            return panel_.OnNotifyComboBoxEndEdit(QtAddressEditReason::Escape, *this);
         }
     }
     return QComboBox::eventFilter(object, event);
