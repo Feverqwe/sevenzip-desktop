@@ -2452,3 +2452,33 @@ redundant test assertion, the affected `list_view_dialog` target was rebuilt and
 rechecked on Linux (0.19 seconds); production code was unchanged. Existing
 incremental builds and compiler caches were retained. No full or slow suites,
 heavy diagnostics or appearance changes were introduced.
+
+## Folder history ownership and shared list handling — 2026-10-31
+
+Compared the complete original `App.h::FoldersHistory`,
+`CPanel::FoldersHistory`, `CFolderHistory::AddString` and the history/settings
+list helpers, including dialog selection, deletion, confirmation and callers.
+The native command binds the selected location to its originating panel. The
+Qt continuation now retains that panel across the modal call: focus changes
+during dialog completion cannot redirect navigation to its neighbour.
+
+History insertion reuses the existing settings list helper with the same
+case-insensitive deduplication and newest spelling/order. The history size limit
+is unchanged. Selection is read once after accepted edits, directly from the
+dialog list, so rebuilding history cannot alter the selected index. Cancel
+still discards dialog deletions; accepting an empty root entry remains distinct
+from cancelling. Existing immediate Qt settings persistence and GUI-owned state
+remain platform adaptations; no external source is newly imported.
+
+The public regression selects a history entry from each pane, moves focus to
+the peer during dialog completion and checks the originating location, peer
+location/draft and fixture bytes. Both rows failed before the panel fix on Linux.
+Existing suites cover accepted/cancelled deletions, persistence, the empty root,
+Unicode/spaces, nested archives and legacy display-form paths.
+
+Focused validation passed `folder_history`, `persisted_location` and
+`list_view_dialog` on Linux (9.86 seconds), macOS (22.21 seconds) and the Windows
+interactive runner (18.73 seconds): 35 passed rows on each platform, no skips.
+The original source inventory still matches its recorded baseline. Existing
+incremental builds and compiler caches were retained; no full/slow suites,
+heavy diagnostics or layout changes were introduced.

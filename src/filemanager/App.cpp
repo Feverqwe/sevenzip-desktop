@@ -656,15 +656,6 @@ void CApp::ReleaseApp() {
         Panels[i].ReleasePanel();
 }
 
-static void AddUniqueStringToHead(UStringVector &list, const UString &s) {
-    for (unsigned i = 0; i < list.Size();)
-        if (s.IsEqualTo_NoCase(list[i]))
-            list.Delete(i);
-        else
-            i++;
-    list.Insert(0, s);
-}
-
 void CFolderHistory::Normalize() {
     const unsigned kMaxSize = 100;
     if (Strings.Size() > kMaxSize)
@@ -672,7 +663,7 @@ void CFolderHistory::Normalize() {
 }
 
 void CFolderHistory::AddString(const UString &s) {
-    AddUniqueStringToHead(Strings, s);
+    AddUniqueStringToHeadOfList(Strings, s);
     Normalize();
 }
 

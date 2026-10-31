@@ -52,6 +52,77 @@ class PersistedLocationTests final : public QObject, protected MainWindowTestSup
         SaveRegLang(UString("-"), settings);
         ReloadLang(settings);
     }
+    void historyKeepsOriginatingPanel_data() {
+        QTest::addColumn<unsigned>("owner");
+        QTest::newRow("left") << 0u;
+        QTest::newRow("right") << 1u;
+    }
+    void historyKeepsOriginatingPanel() {
+        QFETCH(unsigned, owner);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString target = fixture.filePath(QStringLiteral("история 密碼"));
+        QVERIFY(QDir().mkpath(target));
+        QVERIFY(ExternalEditorFixture::write(target + "/target.txt", "target"));
+        CFolderHistory history;
+        history.AddString(ToUString(target));
+        history.Save(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        action(window, "twoPanelsAction")->trigger();
+        QLineEdit *addresses[2];
+        FileTable *tables[2];
+        QString locations[2];
+        for (unsigned index = 0; index < 2; ++index) {
+            auto *pane = window.findChild<QWidget *>(QString("filePanel%1").arg(index));
+            addresses[index] = pane->findChild<QLineEdit *>("archivePath");
+            tables[index] = pane->findChild<FileTable *>("archiveTable");
+            locations[index] = fixture.filePath(QString("panel %1").arg(index));
+            QVERIFY(QDir().mkpath(locations[index]));
+            QVERIFY(ExternalEditorFixture::write(locations[index] + "/initial.txt", "initial"));
+            addresses[index]->setFocus();
+            QTRY_VERIFY(addresses[index]->hasFocus());
+            window.openPath(locations[index]);
+            QTRY_VERIFY(action(window, "foldersHistoryAction")->isEnabled());
+        }
+        addresses[owner]->setFocus();
+        QTRY_VERIFY(addresses[owner]->hasFocus());
+        const unsigned peer = 1 - owner;
+        const QString peerPrefix = ToQString(tables[peer]->sourcePanel->GetCurrentFolderPrefix());
+        const QString peerDraft = QStringLiteral("peer черновик");
+        addresses[peer]->setText(peerDraft);
+        bool peerFocused = false;
+        QTimer::singleShot(0, &window, [&] {
+            auto *dialog = window.findChild<QDialog *>("foldersHistoryDialog");
+            QVERIFY(dialog);
+            const auto close = qScopeGuard([&] {
+                if (dialog->isVisible())
+                    dialog->reject();
+            });
+            auto *tree = dialog->findChild<QTreeWidget *>("foldersHistoryList");
+            QVERIFY(tree);
+            const auto items = tree->findItems(target, Qt::MatchExactly);
+            QCOMPARE(items.size(), 1);
+            tree->setCurrentItem(items.front());
+            connect(dialog, &QDialog::finished, &window, [&] {
+                window.activateWindow();
+                addresses[peer]->setFocus();
+                QTRY_VERIFY(addresses[peer]->hasFocus());
+                peerFocused = true;
+            });
+            dialog->accept();
+        });
+        action(window, "foldersHistoryAction")->trigger();
+        QVERIFY(peerFocused);
+        QTRY_COMPARE(QDir::cleanPath(QDir::fromNativeSeparators(
+                         ToQString(tables[owner]->sourcePanel->GetCurrentFolderPrefix()))),
+                     target);
+        QCOMPARE(ToQString(tables[peer]->sourcePanel->GetCurrentFolderPrefix()), peerPrefix);
+        QCOMPARE(addresses[peer]->text(), peerDraft);
+        QCOMPARE(ExternalEditorFixture::read(target + "/target.txt"), QByteArray("target"));
+    }
     void driveBookmarkUsesFocusedSourcePrefix_data() {
         QTest::addColumn<QString>("language");
         QTest::newRow("en") << QString("-");

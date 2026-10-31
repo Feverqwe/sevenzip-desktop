@@ -851,17 +851,13 @@ QString CPanel::FoldersHistory(CFolderHistory &history, const QString &settingsP
     QtBindLangText(&listViewDialog, IDS_FOLDERS_HISTORY);
     if (listViewDialog.exec() != QDialog::Accepted)
         return QString();
-    UString selectString;
     if (listViewDialog.StringsWereChanged) {
         history.RemoveAll();
         for (int i = (int)listViewDialog.Strings.Size() - 1; i >= 0; i--)
             history.AddString(listViewDialog.Strings[(unsigned)i]);
         history.Save(settingsPath);
-        if (listViewDialog.FocusedItemIndex >= 0)
-            selectString = listViewDialog.Strings[(unsigned)listViewDialog.FocusedItemIndex];
-    } else {
-        if (listViewDialog.FocusedItemIndex >= 0)
-            selectString = listViewDialog.Strings[(unsigned)listViewDialog.FocusedItemIndex];
     }
-    return listViewDialog.FocusedItemIndex >= 0 ? ToQString(selectString) : QString();
+    return listViewDialog.FocusedItemIndex >= 0
+               ? ToQString(listViewDialog.Strings[(unsigned)listViewDialog.FocusedItemIndex])
+               : QString();
 }

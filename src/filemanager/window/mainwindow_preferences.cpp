@@ -122,11 +122,13 @@ void MainWindow::recordVisitedPath(const QString &path) {
 void MainWindow::showFoldersHistory() {
     if (state_ == State::Loading || state_ == State::Operating)
         return;
+    const unsigned owner = app_.GetFocusedPanelIndex();
     const QString selected =
         CPanel::FoldersHistory(app_.AppState.FolderHistory, toolbarSettingsPath(), this);
-    if (!selected.isNull())
+    if (!selected.isNull()) {
+        activatePanelUi(owner);
         navigateTo(SavedSourcePath(selected), true);
-    else
+    } else
         refreshActions();
 }
 void MainWindow::refreshBookmarks() { MyLoadBookmarks(openBookmarks_, saveBookmarks_, app_); }
