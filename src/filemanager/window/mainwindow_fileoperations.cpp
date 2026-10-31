@@ -148,15 +148,7 @@ void MainWindow::executeCopyDestination(bool move, bool copyToSame, unsigned sou
         options.replaceAltStreamChars = false;
         options.showErrorMessages = true;
         UStringVector messages;
-        bool usePassword = false;
-        UString password;
-        if (!app_.Panels[sourceIndex].GetParentFolders().IsEmpty()) {
-            const CFolderLink &folder = app_.Panels[sourceIndex].GetParentFolders().Back();
-            usePassword = folder.UsePassword;
-            password = folder.Password;
-        }
-        const HRESULT result =
-            app_.Panels[sourceIndex].CopyTo(options, indices, &messages, usePassword, password);
+        const HRESULT result = app_.Panels[sourceIndex].CopyTo(options, indices, &messages);
         // Original OnCopy reports the writer result before refreshing either
         // list. Retain both pending publications until ExecuteCopy releases
         // its operation guards; a blocked reload would only return S_OK.

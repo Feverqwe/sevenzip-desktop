@@ -85,7 +85,9 @@ HRESULT ExtractPanelItems(CPanel &panel, CAgentFolder &folder, const QString &ou
         sourceOptions.overwriteMode = NExtract::NOverwriteMode::kRenameExisting;
         break;
     }
-    bool usePassword = !password.isEmpty();
+    if (password.isEmpty())
+        return panel.CopyTo(sourceOptions, indices, &messages);
+    bool usePassword = true;
     UString sourcePassword = ToUString(password);
     return panel.CopyTo(sourceOptions, indices, &messages, usePassword, sourcePassword);
 }
@@ -305,7 +307,6 @@ bool MainWindow::extractWithSource(const QString &destination, bool onlySelected
         return true;
     previousState_ = state_;
     setState(State::Operating);
-    const QString sourcePassword = password.isEmpty() ? archivePassword_ : password;
     QtArchiveBatchResult result;
     QString message;
     {
@@ -316,12 +317,13 @@ bool MainWindow::extractWithSource(const QString &destination, bool onlySelected
             // afterwards, source Skip also preserves it without overwriting.
             if (sourceOptions.overwriteMode == ExtractionOptions::OverwriteMode::RejectExisting)
                 sourceOptions.overwriteMode = ExtractionOptions::OverwriteMode::SkipExisting;
-            result = RunQtArchiveBatchExtract(*backend_, {archive_}, output, sourcePassword,
+            result = RunQtArchiveBatchExtract(*backend_, {archive_}, output,
+                                              password.isEmpty() ? archivePassword_ : password,
                                               sourceOptions, this);
         } else {
             UStringVector messages;
-            result.Result = ExtractPanelItems(panel, *folder, output, sourcePassword, options,
-                                              indices, explicitIndices != nullptr, messages);
+            result.Result = ExtractPanelItems(panel, *folder, output, password, options, indices,
+                                              explicitIndices != nullptr, messages);
             result.CallbackOK = messages.IsEmpty();
             result.MessageWasDisplayed = !messages.IsEmpty();
             if (!messages.IsEmpty())

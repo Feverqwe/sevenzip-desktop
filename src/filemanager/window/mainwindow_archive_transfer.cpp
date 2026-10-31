@@ -22,8 +22,7 @@ void MainWindow::transferFromArchive(const QString &destination, bool move, bool
     options.overwriteMode = ExtractionOptions::OverwriteMode::Ask;
     if (move)
         archiveMove_.emplace(sourceIndex, indices);
-    const bool handled =
-        extractWithSource(destination, true, archivePassword_, options, paths, &indices);
+    const bool handled = extractWithSource(destination, true, {}, options, paths, &indices);
     if (handled && state_ == State::Operating)
         return; // Asynchronous completion owns the pending transfer.
     if (!handled && !copyToSame &&

@@ -1,5 +1,44 @@
 # Archive folder lifetime across rollback — 2026-10-18
 
+## Native copy password ownership — 2026-10-31
+
+Compared original `CPanel::CopyTo` overloads, `TestArchives`, `CApp::OnCopy`,
+open callback/password publication and extraction callback handling in upstream
+FileManager `Panel.h`, `Panel.cpp`, `PanelCopy.cpp`, `App.cpp`,
+`FileFolderPluginOpen.cpp` and `ExtractCallback.cpp` at
+`9128b80e3a471108678e2b3ec3c985861c8d7b0f`. Complete original units match the
+existing baseline hashes. The source keeps both a password value and whether
+it is defined; an accepted empty password is distinct from an absent one.
+
+Default native extraction and archive Copy/Move now use the existing panel
+`CopyTo` overload to seed that state from its owning parent link. Removed two
+duplicate password initializations from archive-to-archive and stream/device
+copy callers. Scoped Extract no longer reconstructs password definedness from
+the window's string projection. Explicit nonempty overrides still use the
+existing reference-parameter overload. Callers consuming returned password state,
+native algorithms, success/cancel rules, extraction validation, batch/fallback
+credentials and read-only mount policy remain unchanged. No external code is
+imported or baseline advanced.
+
+A real encrypted-7z window scenario reproduced an extra prompt for an accepted
+empty password. The regression now covers empty and Unicode/space credentials,
+overwrite cancellation with retained destination bytes, native Test, two panels
+with different passwords, return and successful extraction without extra prompts.
+It uses existing native archive and widget-dialog fixtures; successful Test
+summaries are distinguished from errors. Original geometry/redaction checks
+remain in the same password-window component.
+
+Eight focused suites passed on Linux, macOS and elevated interactive Windows:
+`password_window`, `extraction_options`, `native_archive_test`,
+`native_source_extract`, `ui_copy_routing`, `agent_stream_copy_ui`,
+`ui_operations` and `archive_external_security`. Linux/macOS each passed 222 Qt
+rows; Windows passed 221, with only the existing ordinary-filename colon skip.
+Native link fixtures passed. CTest took 101.38, 68.21 and 155.18 seconds
+respectively. Original-unit hashes, source inventory, task formatting and
+whitespace checks passed. Incremental trees/caches were retained; completed
+fixtures were cleaned after evidence capture. No full/slow gate, heavy
+diagnostics or appearance acceptance is claimed.
+
 ## Archive navigation ownership — 2026-10-31
 
 Reviewed opening selected/focused entries, ordinary archive folders, stream,

@@ -372,14 +372,7 @@ HRESULT CApp::CopyArchiveToArchive(unsigned srcPanelIndex, const CRecordVector<U
     options.includeAltStreams = true;
     options.replaceAltStreamChars = false;
     options.showErrorMessages = true;
-    bool usePassword = false;
-    UString password;
-    if (!srcPanel.GetParentFolders().IsEmpty()) {
-        const CFolderLink &folder = srcPanel.GetParentFolders().Back();
-        usePassword = folder.UsePassword;
-        password = folder.Password;
-    }
-    HRESULT result = srcPanel.CopyTo(options, indices, messages, usePassword, password);
+    HRESULT result = srcPanel.CopyTo(options, indices, messages);
 
     if (result == S_OK && (!messages || messages->IsEmpty())) {
         UStringVector filePaths;

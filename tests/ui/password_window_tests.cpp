@@ -1,5 +1,11 @@
+#include "archive/support/native_archive_fixture.h"
+#include "archive/support/source_extract_fixture.h"
+#include "dialogs/overwrite/OverwriteDialog.h"
 #include "dialogs/password/PasswordDialog.h"
 #include "filemanager/support/window_state_support.h"
+#include "support/progress_dialog.h"
+#include "support/widget_dialogs.h"
+#include "ui/progress/ProgressDialog2.h"
 #include "ui/support/layout_inspection.h"
 #include <QScopeGuard>
 
@@ -7,6 +13,115 @@ class PasswordWindowTests final : public QObject, protected MainWindowTestSuppor
     Q_OBJECT
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
+    void cancelledExtractionKeepsEachPanelsNativePassword_data() {
+        QTest::addColumn<QString>("leftPassword");
+        QTest::newRow("unicode-spaces") << QStringLiteral(" left 密碼 ");
+        QTest::newRow("defined-empty") << QStringLiteral("");
+    }
+    void cancelledExtractionKeepsEachPanelsNativePassword() {
+        QFETCH(QString, leftPassword);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString name = QStringLiteral("данные 密碼 with spaces.txt");
+        const QByteArray payload = "encrypted payload";
+        const QString leftArchive = fixture.filePath("left.7z");
+        const QString rightArchive = fixture.filePath("right.7z");
+        const QString rightPassword = QStringLiteral("right δ password");
+        NativeArchiveFixture::Item item;
+        item.Path = name;
+        item.Bytes = payload;
+        QVERIFY(NativeArchiveFixture::Write(leftArchive, {item}, "7z", leftPassword));
+        QVERIFY(NativeArchiveFixture::Write(rightArchive, {item}, "7z", rightPassword));
+        ArchiveBackend backend;
+        QCOMPARE(NativeArchiveFixture::Attach(backend), S_OK);
+        WidgetDialogFixture dialogs;
+        QString answer = leftPassword;
+        int passwords = 0, overwrites = 0, testResults = 0;
+        QStringList errors;
+        QTimer responder;
+        MainWindow window(&backend);
+        dialogs.connectResponder(responder, &window, [&] {
+            auto *modal = dialogs.activeDialog();
+            if (auto *dialog = dynamic_cast<CPasswordDialog *>(modal)) {
+                ++passwords;
+                dialog->findChild<QLineEdit *>("passwordEdit")->setText(answer);
+                dialog->accept();
+            } else if (auto *dialog = dynamic_cast<COverwriteDialog *>(modal)) {
+                ++overwrites;
+                dialog->reject();
+            } else if (auto *progress = dynamic_cast<CProgressDialog *>(modal)) {
+                auto *close = progress->findChild<QPushButton *>("IDCANCEL");
+                if (TestProgressDialog::IsCloseButton(close))
+                    close->click();
+            } else if (auto *box = qobject_cast<QMessageBox *>(modal)) {
+                if ((box->icon() == QMessageBox::Information ||
+                     box->icon() == QMessageBox::NoIcon) &&
+                    box->standardButtons() == QMessageBox::Ok)
+                    ++testResults;
+                else
+                    errors.append(box->text());
+                if (auto *yes = box->button(QMessageBox::Yes))
+                    yes->click();
+                else
+                    box->accept();
+            }
+        });
+        responder.start(1);
+        window.show();
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        QTRY_VERIFY(action(window, "twoPanelsAction")->isEnabled());
+        if (!action(window, "twoPanelsAction")->isChecked())
+            action(window, "twoPanelsAction")->trigger();
+        QVERIFY(action(window, "twoPanelsAction")->isChecked());
+        auto *left = table(window);
+        auto *right =
+            window.findChild<QWidget *>("filePanel1")->findChild<FileTable *>("archiveTable");
+        QVERIFY(left && right);
+        left->setFocus();
+        QTRY_VERIFY(left->hasFocus());
+        window.openArchive(leftArchive);
+        QTRY_COMPARE(left->rowCount(), 1);
+        QTRY_VERIFY(left->isEnabled());
+        QCOMPARE(passwords, 1);
+        left->selectRow(0);
+        const QString cancelled = fixture.filePath("cancelled output");
+        QVERIFY(SourceExtractFixture::writeFile(QDir(cancelled).filePath(name), "retained"));
+        ExtractionOptions options;
+        options.overwriteMode = ExtractionOptions::OverwriteMode::Ask;
+        window.extractTo(cancelled, true, {}, options);
+        QCOMPARE(overwrites, 1);
+        QCOMPARE(passwords, 1);
+        QCOMPARE(SourceExtractFixture::readFile(QDir(cancelled).filePath(name)),
+                 QByteArray("retained"));
+        window.testArchive();
+        QCOMPARE(passwords, 1);
+        answer = rightPassword;
+        window.activateWindow();
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        QTRY_VERIFY(right->isVisible());
+        QTRY_VERIFY(right->isEnabled());
+        right->setFocus();
+        QTRY_VERIFY(right->hasFocus());
+        window.openArchive(rightArchive);
+        QTRY_COMPARE(right->rowCount(), 1);
+        QTRY_VERIFY(right->isEnabled());
+        QCOMPARE(passwords, 2);
+        window.testArchive();
+        QCOMPARE(passwords, 2);
+        answer = leftPassword;
+        window.activateWindow();
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        QTRY_VERIFY(left->isEnabled());
+        left->setFocus();
+        QTRY_VERIFY(left->hasFocus());
+        left->selectRow(0);
+        const QString extracted = fixture.filePath("retried output");
+        window.extractTo(extracted, true);
+        QCOMPARE(SourceExtractFixture::readFile(QDir(extracted).filePath(name)), payload);
+        QCOMPARE(passwords, 2);
+        QCOMPARE(testResults, 2);
+        QVERIFY2(errors.isEmpty(), qPrintable(errors.join('\n')));
+    }
     void passwordPromptCancellationAndReopen() {
         ControlledBackend backend;
         MainWindow window(&backend);
