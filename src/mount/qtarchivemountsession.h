@@ -40,7 +40,7 @@ class QtArchiveMountSession final : public QObject {
     QString path_, error_, limitations_, user_, password_, share_;
     QStringList skipped_;
     Status status_ = Status::Preparing;
-    bool started_ = false, stopRequested_ = false, cleaning_ = false;
+    bool started_ = false, stopRequested_ = false;
     std::unique_ptr<QTemporaryDir> directory_;
     QThread worker_;
     QProcess child_;
@@ -48,6 +48,7 @@ class QtArchiveMountSession final : public QObject {
     QtSmbMountPlatform *platform_;
     void setStatus(Status status);
     void fail(const QString &error);
+    bool cleanupStarted() const;
     void cleanup();
     void finishCleanup();
 };

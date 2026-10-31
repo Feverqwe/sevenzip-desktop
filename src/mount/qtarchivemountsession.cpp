@@ -34,12 +34,12 @@ QtArchiveMountSession::QtArchiveMountSession(QString label, QObject *parent)
         finishCleanup();
     });
     connect(&child_, &QProcess::errorOccurred, this, [this](QProcess::ProcessError error) {
-        if (!cleaning_ && error == QProcess::FailedToStart)
+        if (!cleanupStarted() && error == QProcess::FailedToStart)
             fail(tr("Could not start the bundled SMB server: %1").arg(child_.errorString()));
     });
     connect(&child_, qOverload<int, QProcess::ExitStatus>(&QProcess::finished), this,
             [this](int, QProcess::ExitStatus) {
-                if (!cleaning_)
+                if (!cleanupStarted())
                     fail(tr("The SMB server stopped unexpectedly."));
                 finishCleanup();
             });
@@ -109,12 +109,12 @@ void QtArchiveMountSession::start(IUnknown *resource, quint64 quota, const QStri
     connect(
         source_, &QtArchiveMountSource::prepared, this,
         [this, endpoint, serverExecutable](const QString &limitations, const QStringList &skipped) {
-            if (cleaning_)
+            if (cleanupStarted())
                 return;
             limitations_ = limitations;
             skipped_ = skipped;
             emit changed();
-            if (cleaning_)
+            if (cleanupStarted())
                 return;
             child_.start(serverExecutable, {"--source", endpoint.toString()});
             QTimer::singleShot(15000, this, [this] {
@@ -123,7 +123,7 @@ void QtArchiveMountSession::start(IUnknown *resource, quint64 quota, const QStri
             });
         });
     connect(source_, &QtArchiveMountSource::serverListening, this, [this](quint16 port) {
-        if (cleaning_)
+        if (cleanupStarted())
             return;
         setStatus(Status::Mounting);
         platform_->mount(port, share_, user_, password_,
@@ -154,9 +154,8 @@ void QtArchiveMountSession::fail(const QString &error) {
     cleanup();
 }
 void QtArchiveMountSession::cleanup() {
-    if (cleaning_)
+    if (cleanupStarted())
         return;
-    cleaning_ = true;
     setStatus(Status::Stopping);
     if (source_) {
         source_->requestCancel();
@@ -165,14 +164,14 @@ void QtArchiveMountSession::cleanup() {
     if (child_.state() != QProcess::NotRunning) {
         child_.terminate();
         QTimer::singleShot(3000, this, [this] {
-            if (cleaning_ && child_.state() != QProcess::NotRunning)
+            if (cleanupStarted() && child_.state() != QProcess::NotRunning)
                 child_.kill();
         });
     }
     finishCleanup();
 }
 void QtArchiveMountSession::finishCleanup() {
-    if (!cleaning_ || worker_.isRunning() || child_.state() != QProcess::NotRunning)
+    if (!cleanupStarted() || worker_.isRunning() || child_.state() != QProcess::NotRunning)
         return;
     if (directory_ && directory_->isValid()) {
         QDir root(directory_->path());
@@ -183,6 +182,9 @@ void QtArchiveMountSession::finishCleanup() {
         setStatus(Status::Stopped);
         emit stopped();
     }
+}
+bool QtArchiveMountSession::cleanupStarted() const {
+    return status_ == Status::Stopping || status_ == Status::Stopped;
 }
 void QtArchiveMountSession::setStatus(Status status) {
     status_ = status;

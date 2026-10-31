@@ -1,5 +1,42 @@
 # Local read-only SMB: implementation and evidence
 
+## Session cleanup state — 2026-10-31
+
+Reviewed the complete manager/session/source/control/platform chain, including
+preparation publication, cancellation during mounting, busy unmount, broker
+recovery and owner-close continuation. This is local integration without a 7zFM
+counterpart; native reader, SMB protocol and OS-client implementations remain
+unchanged. No external source is imported.
+
+Session cleanup now derives from its existing `Stopping`/`Stopped` phase instead
+of maintaining a second mutable flag. Single-start and deferred-unmount requests
+remain separate facts. The server and reader still stay alive until the OS
+confirms unmount; an unmount error retains the connection for retry. Cleanup
+still removes only known empty directories, without recursing through a mount.
+
+New public behavior checks cancel TAR/ZIP preparation immediately and from its
+prepared-state notification. They verify one stopped notification, no late server
+error and unchanged archive bytes. Focused suites passed on Linux (five suites,
+4.49 seconds), macOS (five, 8.20 seconds) and Windows (four, 25.36 seconds).
+`archive_mount_transport` is Unix-only. The final cancellation assertion was
+rechecked in the affected target on macOS (1.61 seconds) and Windows (0.56 seconds);
+the final Linux batch already included it. Opt-in native-client/lifecycle rows
+remain gated in the default suites.
+
+Separate native probes passed the manager's EN/RU setup, extraction consent,
+owner-close cancellation, busy-unmount/continued-read and final detach on Linux
+(two scenario rows, 1.33 seconds) and macOS (two, 6.32 seconds). The elevated
+Windows synthetic exFAT device probe passed source loss, retry and detach (one
+scenario row, 2.55 seconds). These probes had no skips; they do not establish
+new UAC/PolicyKit interaction or Windows manager UI acceptance.
+
+Linux validation resumed after the user restored its removed Qt kit and stale
+Qt package discovery was refreshed. The build tree and compiler cache were
+preserved; the one-time repair script was removed. Existing source inventory
+verification and whitespace checks passed. No full/slow suite or heavy
+diagnostics ran. Two busy-manager JSON reports per Unix platform are retained;
+their disposable originals were removed after capture.
+
 ## Scope and current boundary
 
 2026-10-25, `feature/readonly-smb`, based on `6d955531`.

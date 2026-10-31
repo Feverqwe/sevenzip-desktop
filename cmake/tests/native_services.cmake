@@ -318,6 +318,12 @@
     add_test(NAME mount_extraction_prompt COMMAND mount_extraction_prompt_tests -silent)
     set_tests_properties(mount_extraction_prompt PROPERTIES TIMEOUT 20
         ENVIRONMENT "QT_QPA_PLATFORM=offscreen;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
+    qt_add_executable(mount_session_tests tests/mount/mount_session_tests.cpp)
+    target_include_directories(mount_session_tests PRIVATE tests)
+    target_link_libraries(mount_session_tests PRIVATE sevenzip_location sevenzip_mount_ui Qt6::Test)
+    add_test(NAME mount_session COMMAND mount_session_tests -silent)
+    set_tests_properties(mount_session PROPERTIES TIMEOUT 30
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
     set_tests_properties(archive_readonly_view PROPERTIES TIMEOUT 45
         ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
     if(UNIX)
