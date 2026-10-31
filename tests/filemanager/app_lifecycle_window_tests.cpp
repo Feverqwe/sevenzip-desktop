@@ -67,14 +67,20 @@ class AppLifecycleWindowTests : public QObject, protected MainWindowTestSupport 
     void hiddenCloseEndsApplicationLoop_data() {
         QTest::addColumn<bool>("peerVisible");
         QTest::addColumn<bool>("automaticQuit");
-        QTest::newRow("hidden-only") << false << true;
-        QTest::newRow("visible-peer") << true << true;
-        QTest::newRow("automatic-quit-disabled") << false << false;
+        QTest::addColumn<bool>("destroyWindow");
+        for (bool destroy : {false, true}) {
+            const QString suffix = destroy ? "-destroy" : "-close";
+            QTest::newRow(qPrintable("hidden-only" + suffix)) << false << true << destroy;
+            QTest::newRow(qPrintable("visible-peer" + suffix)) << true << true << destroy;
+            QTest::newRow(qPrintable("automatic-quit-disabled" + suffix))
+                << false << false << destroy;
+        }
     }
 
     void hiddenCloseEndsApplicationLoop() {
         QFETCH(bool, peerVisible);
         QFETCH(bool, automaticQuit);
+        QFETCH(bool, destroyWindow);
         QTemporaryDir settings;
         QVERIFY(settings.isValid());
         const QByteArray oldSettings = qgetenv("SEVENZIP_SETTINGS_PATH");
@@ -84,14 +90,20 @@ class AppLifecycleWindowTests : public QObject, protected MainWindowTestSupport 
         const auto restoreQuit = qScopeGuard([&] { qApp->setQuitOnLastWindowClosed(oldQuit); });
         qApp->setQuitOnLastWindowClosed(automaticQuit);
         ControlledBackend backend;
-        MainWindow window(&backend);
+        auto window = std::make_unique<MainWindow>(&backend);
         QWidget peer;
         if (peerVisible)
             peer.show();
         bool closed = false;
         bool peerRetained = false;
         bool timedOut = false;
-        QTimer::singleShot(0, &window, [&] { closed = window.close(); });
+        QTimer::singleShot(0, window.get(), [&] {
+            if (destroyWindow) {
+                window.reset();
+                closed = true;
+            } else
+                closed = window->close();
+        });
         QTimer peerClose;
         peerClose.setSingleShot(true);
         connect(&peerClose, &QTimer::timeout, [&] {
@@ -287,6 +299,31 @@ class AppLifecycleWindowTests : public QObject, protected MainWindowTestSupport 
         QCOMPARE(info.rect.right, geometry.x() + geometry.width());
         QCOMPARE(info.rect.bottom, geometry.y() + geometry.height());
         QCOMPARE(info.numPanels, 1u);
+    }
+
+    void destructionWithModalChildSavesWindowInfo() {
+        ControlledBackend backend;
+        auto window = std::make_unique<MainWindow>(&backend);
+        window->setGeometry(40, 60, 720, 480);
+        window->show();
+        QCoreApplication::processEvents();
+        const QRect geometry = window->geometry();
+        auto *dialog = new QDialog(window.get());
+        dialog->setWindowModality(Qt::WindowModal);
+        dialog->show();
+        QTRY_COMPARE(QApplication::activeModalWidget(), dialog);
+        QVERIFY(window->isVisible());
+        window.reset();
+        QVERIFY(!backend.busy());
+        CWindowInfo info{};
+        bool position = false, panels = false;
+        info.Read(position, panels, qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
+        QVERIFY(position);
+        QVERIFY(panels);
+        QCOMPARE(info.rect.left, geometry.x());
+        QCOMPARE(info.rect.top, geometry.y());
+        QCOMPARE(info.rect.right, geometry.x() + geometry.width());
+        QCOMPARE(info.rect.bottom, geometry.y() + geometry.height());
     }
 
     void sourceModalOpenCannotReleaseItsCaller() {

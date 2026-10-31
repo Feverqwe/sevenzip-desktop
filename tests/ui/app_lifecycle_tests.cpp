@@ -42,7 +42,13 @@ class ReleaseObservedFolder final : public IFolderFolder, public CMyUnknownImp {
 class AppLifecycleTests : public QObject {
     Q_OBJECT
   private slots:
-    void closeRetainsNativeOrderAndRejectsLiveCallers() {
+    void closeRetainsInputsUntilWorkersJoin_data() {
+        QTest::addColumn<bool>("destroying");
+        QTest::newRow("request") << false;
+        QTest::newRow("destruction") << true;
+    }
+    void closeRetainsInputsUntilWorkersJoin() {
+        QFETCH(bool, destroying);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         OwnerPresentation presentation;
@@ -52,56 +58,66 @@ class AppLifecycleTests : public QObject {
         QCOMPARE(app.Create(nullptr, ToUString(fixture.path()), UString(), widths, false, opened,
                             presentation, fixture.filePath("close settings.ini")),
                  S_OK);
-        QStringList events;
         class Services final : public IQtFileManagerWindowServices {
             CApp &app;
-            QStringList &events;
+            bool veto;
 
           public:
-            Services(CApp &owner, QStringList &log) : app(owner), events(log) {}
-            bool CanCloseNow() const override { return true; }
+            int joins = 0;
+            bool externalWorkersStopped = false;
+            Services(CApp &owner, bool refuse) : app(owner), veto(refuse) {}
+            bool CanCloseNow() const override { return !veto; }
             void Deactivate() override {
-                events << "inactive";
                 app.QtOperations().Close();
                 for (auto &panel : app.Panels)
                     panel.Disable_Processing_Timer_Notify_StatusBar();
             }
             void ExitExternalWorkers(bool hard) override {
-                events << (hard ? "exit-hard" : "exit-soft");
+                if (hard) {
+                    QVERIFY(!app.Panels[0].GetFolder());
+                    QVERIFY(!app.Panels[1].GetFolder());
+                    externalWorkersStopped = true;
+                }
             }
-            void RevokeDropTarget() override { events << "revoke"; }
+            void RevokeDropTarget() override {}
             void QuiesceOperations() override {
                 QVERIFY(app.Panels[0].GetFolder());
                 QVERIFY(app.Panels[1].GetFolder());
-                events << "join";
+                ++joins;
             }
             bool WindowWasCreated() const override { return true; }
             void SaveWindowInfo() override {
                 QVERIFY(!app.Panels[0].GetFolder());
                 QVERIFY(!app.Panels[1].GetFolder());
-                events << "window-info";
             }
-        } services(app, events);
+        } services(app, destroying);
+        unsigned released = 0;
         for (unsigned i = 0; i < kNumPanelsMax; ++i)
-            app.Panels[i].SetNewFolder(new ReleaseObservedFolder([&, i] {
+            app.Panels[i].SetNewFolder(new ReleaseObservedFolder([&] {
                 QVERIFY(!app.Panels[0].ShouldProcessNotifications());
                 QVERIFY(!app.Panels[1].ShouldProcessNotifications());
-                events << QStringLiteral("release%1").arg(i);
+                QCOMPARE(services.joins, 1);
+                ++released;
             }));
         {
             QtAppOperationState::CallScope call(app.QtOperations());
-            QVERIFY(!WndProc(QtFileManagerMessage::Close, app, services));
-            QVERIFY(events.isEmpty());
+            QVERIFY(!CloseFileManager(app, services));
+            QCOMPARE(released, 0u);
         }
         QVERIFY(app.QtOperations().Begin(QtAppOperationState::Kind::Open));
-        QVERIFY(!WndProc(QtFileManagerMessage::Close, app, services));
-        QVERIFY(events.isEmpty());
-        QVERIFY(app.QtOperations().Begin(QtAppOperationState::Kind::Operation));
-        QVERIFY(WndProc(QtFileManagerMessage::Close, app, services));
-        QCOMPARE(events, QStringList({"inactive", "exit-soft", "revoke", "join", "release0",
-                                      "release1", "window-info", "exit-hard"}));
-        QVERIFY(WndProc(QtFileManagerMessage::Close, app, services));
-        QCOMPARE(events.size(), 8);
+        QVERIFY(!CloseFileManager(app, services));
+        QCOMPARE(released, 0u);
+        if (destroying) {
+            QtAppOperationState::CallScope call(app.QtOperations());
+            QVERIFY(CloseFileManager(app, services, QtFileManagerCloseReason::Destruction));
+        } else {
+            QVERIFY(app.QtOperations().Begin(QtAppOperationState::Kind::Operation));
+            QVERIFY(CloseFileManager(app, services));
+        }
+        QCOMPARE(released, kNumPanelsMax);
+        QVERIFY(services.externalWorkersStopped);
+        QVERIFY(CloseFileManager(app, services));
+        QCOMPARE(services.joins, 1);
     }
 
     void operationGuardsStayWithAppUntilCompletionOrRelease() {

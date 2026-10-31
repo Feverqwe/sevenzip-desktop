@@ -290,32 +290,29 @@ bool WndProc(unsigned wmId, CApp &g_App, IQtFileManagerMenuCommandServices &serv
     return services.ExecuteExtensionCommand(wmId);
 }
 
-bool WndProc(QtFileManagerMessage message, CApp &app, IQtFileManagerWindowServices &services) {
-    switch (message) {
-    case QtFileManagerMessage::Close: {
-        if (app.QtOperations().closed())
-            return true;
-        // A disabled Win32 modal parent cannot initiate this close workflow.
-        // Qt programmatic/reentrant close must not release live caller inputs.
-        if (app.QtOperations().callActive() ||
-            app.QtOperations().kind() == QtAppOperationState::Kind::Open || !services.CanCloseNow())
-            return false;
-        services.Deactivate(); // WM_ACTIVATE / WA_INACTIVE
-        services.ExitExternalWorkers(false);
-        services.RevokeDropTarget(); // RevokeDragDrop / _dropTarget.Release
-        // Qt asynchronous workers can outlive the original modal call stack.
-        // Join them while panel folders/temporary inputs still exist.
-        services.QuiesceOperations();
-        if (services.WindowWasCreated())
-            app.Save();
-        app.ReleaseApp();
-        if (services.WindowWasCreated())
-            services.SaveWindowInfo();
-        services.ExitExternalWorkers(true);
-        return true; // Qt closeEvent supplies the subsequent window destruction.
-    }
-    }
-    return false;
+bool CloseFileManager(CApp &app, IQtFileManagerWindowServices &services,
+                      QtFileManagerCloseReason reason) {
+    if (app.QtOperations().closed())
+        return true;
+    // A disabled Win32 modal parent cannot initiate this close workflow.
+    // Qt programmatic/reentrant close must not release live caller inputs.
+    if (reason == QtFileManagerCloseReason::Request &&
+        (app.QtOperations().callActive() ||
+         app.QtOperations().kind() == QtAppOperationState::Kind::Open || !services.CanCloseNow()))
+        return false;
+    services.Deactivate(); // WM_ACTIVATE / WA_INACTIVE
+    services.ExitExternalWorkers(false);
+    services.RevokeDropTarget(); // RevokeDragDrop / _dropTarget.Release
+    // Qt asynchronous workers can outlive the original modal call stack.
+    // Join them while panel folders/temporary inputs still exist.
+    services.QuiesceOperations();
+    if (services.WindowWasCreated())
+        app.Save();
+    app.ReleaseApp();
+    if (services.WindowWasCreated())
+        services.SaveWindowInfo();
+    services.ExitExternalWorkers(true);
+    return true;
 }
 
 bool IsLargePageSupported() {

@@ -4,45 +4,10 @@
 #include "filemanager/FormatUtils.h"
 #include "filemanager/SplitUtils.h"
 #include "filemanager/panels/PanelSplitFile.h"
-#include "filemanager/qtfilemanagercommands.h"
-#include "filemanager/qtfilemanagerdrag.h"
-#include "filemanager/qtprogramfilemenu.h"
-#include "filemanager/rename/qtrenamecontroller.h"
 #include "filemanager/window/mainwindow.h"
-#include "filemanager/window/qtapppresentation.h"
 #include "fileops/volumes/qtvolumeservices.h"
 #include "localization/qtlangcontrols.h"
-#include "platform/associations/qtassociatedfileservices.h"
-#include "platform/trash/qttrashservice.h"
 #include "ui/progress/ProgressDialog2.h"
-#include <QCloseEvent>
-
-MainWindow::~MainWindow() {
-    if (drag_)
-        drag_->Revoke();
-    removeEventFilter(this);
-    // QComboBox can emit activated from editingFinished while QWidget tears
-    // down focus. Navigation must stop before MainWindow members are destroyed.
-    QCloseEvent close;
-    closeEvent(&close);
-    if (!app_.QtOperations().closed()) {
-        // Destruction cannot be vetoed; retain the same input lifetime even
-        // when a modal child prevented an ordinary user close.
-        app_.QtOperations().Close();
-        for (auto &panel : app_.Panels)
-            panel.Disable_Processing_Timer_Notify_StatusBar();
-        quiesceOperations();
-        app_.Save();
-        app_.ReleaseApp();
-    }
-    // QWidget destroys its children after CApp's member lifetime ends. Stop
-    // callback text before that teardown and clear published folder identities.
-    for (auto &ui : panelUi_)
-        if (auto *table = dynamic_cast<FileTable *>(ui.table)) {
-            table->sourcePanel = nullptr;
-            table->textFolder = nullptr;
-        }
-}
 
 class QtVolumeWindowServices final : public IQtVolumeServices {
     MainWindow &window_;

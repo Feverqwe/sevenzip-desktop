@@ -1,8 +1,12 @@
 #include "filemanager/qtfilemanagercommands.h"
 #include "filemanager/qtfilemanagerdrag.h"
 #include "filemanager/qtfilemanagerwindowservices.h"
+#include "filemanager/qtprogramfilemenu.h"
 #include "filemanager/rename/qtrenamecontroller.h"
 #include "filemanager/window/mainwindow.h"
+#include "filemanager/window/qtapppresentation.h"
+#include "platform/associations/qtassociatedfileservices.h"
+#include "platform/trash/qttrashservice.h"
 #include <QCloseEvent>
 #include <QEventLoopLocker>
 
@@ -60,9 +64,29 @@ class QtFileManagerWindowServices final : public IQtFileManagerWindowServices {
     }
 };
 
+MainWindow::~MainWindow() {
+    if (drag_)
+        drag_->Revoke();
+    removeEventFilter(this);
+    // QComboBox can emit activated from editingFinished while QWidget tears
+    // down focus. Navigation must stop before MainWindow members are destroyed.
+    QCloseEvent close;
+    closeEvent(&close);
+    // Destruction cannot be vetoed by a modal child or an active source call.
+    QtFileManagerWindowServices services(*this);
+    CloseFileManager(app_, services, QtFileManagerCloseReason::Destruction);
+    // QWidget destroys its children after CApp's member lifetime ends. Stop
+    // callback text before that teardown and clear published folder identities.
+    for (auto &ui : panelUi_)
+        if (auto *table = dynamic_cast<FileTable *>(ui.table)) {
+            table->sourcePanel = nullptr;
+            table->textFolder = nullptr;
+        }
+}
+
 void MainWindow::closeEvent(QCloseEvent *event) {
     QtFileManagerWindowServices services(*this);
-    if (WndProc(QtFileManagerMessage::Close, app_, services)) {
+    if (CloseFileManager(app_, services)) {
         event->accept();
         if (!isVisible()) {
             // Source WM_DESTROY posts quit even after SW_HIDE. Qt only emits

@@ -1,7 +1,7 @@
 #pragma once
 class CApp;
 
-enum class QtFileManagerMessage { Close };
+enum class QtFileManagerCloseReason { Request, Destruction };
 
 // Native WM_CLOSE functional body calls these narrow Qt/platform services.
 class IQtFileManagerWindowServices {
@@ -16,4 +16,5 @@ class IQtFileManagerWindowServices {
     virtual void SaveWindowInfo() = 0;
 };
 
-bool WndProc(QtFileManagerMessage message, CApp &app, IQtFileManagerWindowServices &services);
+bool CloseFileManager(CApp &app, IQtFileManagerWindowServices &services,
+                      QtFileManagerCloseReason reason = QtFileManagerCloseReason::Request);
