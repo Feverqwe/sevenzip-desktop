@@ -5,6 +5,7 @@
 #include "ui/progress/ProgressDialog2.h"
 #include "ui/progress/archiveprogresstransport.h"
 #include "ui/progress/qtcallbackprogresstransport.h"
+#include <utility>
 
 void MainWindow::showSelectedProperties() {
     if (!properties_->isEnabled())
@@ -15,10 +16,14 @@ void MainWindow::showSelectedProperties() {
 }
 
 void MainWindow::begin(const QString &label, const QString &detail) {
-    operationName_ = label;
-    currentDetail_ = detail;
     startProgressDialog(label, detail);
-    progressTransport_ = std::make_unique<ArchiveProgressTransport>(*progress_, *backend_);
+    auto transport = std::make_unique<ArchiveProgressTransport>(*progress_, *backend_);
+    connect(backend_, &ArchiveBackend::progress, transport.get(),
+            [this, label](int, const QString &path) {
+                if (!app_.QtOperations().closed() && !path.isEmpty())
+                    statusBar()->showMessage(label + ": " + path);
+            });
+    progressTransport_ = std::move(transport);
     progress_->OnInit();
     progress_->show();
 }

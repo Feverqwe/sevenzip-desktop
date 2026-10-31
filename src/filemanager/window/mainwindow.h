@@ -392,8 +392,6 @@ class MainWindow : public QMainWindow {
     QPointer<CProgressDialog> progress_;
     std::unique_ptr<IQtProgressTransport> progressTransport_;
     bool sourceArchiveProgress_ = false;
-    QString operationName_;
-    QString currentDetail_;
     QAction *toolbarAdd_ = nullptr;
     QAction *extract_ = nullptr;
     QAction *test_ = nullptr;

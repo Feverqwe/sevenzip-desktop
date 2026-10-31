@@ -63,16 +63,6 @@ void MainWindow::connectBackend() {
                 progress_->Sync.AddError_Message(line.toStdWString().c_str());
         }
     });
-    connect(backend_, &ArchiveBackend::progress, this, [this](int percent, const QString &detail) {
-        if (app_.QtOperations().closed() || !progress_)
-            return;
-        progress_->SetTransportPercent(percent);
-        if (!detail.isEmpty()) {
-            currentDetail_ = detail;
-            progress_->Sync.Set_FilePath(detail.toStdWString().c_str());
-            statusBar()->showMessage(operationName_ + ": " + currentDetail_);
-        }
-    });
     connect(backend_, &ArchiveBackend::finished, this, [this](bool ok, const QString &message) {
         backendFinished(ok, message, backend_->lastResult());
     });

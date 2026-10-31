@@ -1,5 +1,38 @@
 # Native-worker notification ownership
 
+## Window progress publication — 2026-10-31
+
+Compared complete original `CProgressSync::Set_FilePath`, `Set_Status` and
+`CProgressDialog::UpdateStatInfo` in `CPP/7zip/UI/FileManager/ProgressDialog2.cpp`
+from the recorded 7-Zip archive at `b88c6bc09339de32f7d18bbab900686b244f42ba`.
+The original unit SHA256 matches the baseline. Reviewed the current transport,
+window-owned and source-owned dialog creation, backend progress/completion,
+transport retirement, cancellation, shutdown and sequential operation callers.
+Native progress snapshots, timer rendering, pause/cancel and result formatting
+remain unchanged; no external source is imported or omitted.
+
+Window-owned archive progress already updates its dialog through
+`ArchiveProgressTransport`. Removed the second percent/path writer from the
+window's global backend listener. The status-bar observer now lives with the
+current transport and captures its operation label; transport retirement also
+retires this observer. Removed window-wide operation-name/current-detail fields
+and unused label assignments from source-owned opening/extract/test paths.
+Native filesystem/volume progress keeps its existing worker owner.
+
+The existing window cancellation check now observes rendered percentage and
+Unicode/spaced path, retains the last path on an empty detail update, rejects
+post-retirement status changes and starts a different archive operation with
+its own label/progress before cancelling it. This protects visible behavior
+without pinning callback counts, source text or private transport state.
+
+Seven focused suites passed: `ui_archive_states`, `archive_progress`,
+`progress_cancel`, `progress_worker`, `worker_window_progress`, `volume_workflow`
+and `binding_lifecycle`. Linux took 43.36 seconds, macOS 28.26 seconds and
+interactive Windows 60.47 seconds: 120 passed Qt rows on each platform, no
+skips. Original source hash, inventory and whitespace checks passed. Compact
+receipts/logs are retained, with existing incremental trees and compiler caches.
+No full/slow gate, heavy diagnostics or visual acceptance is claimed.
+
 ## Joined cancellation and prompt reentry — 2026-10-31
 
 Reviewed complete backend cancellation, read/hash startup and completion,

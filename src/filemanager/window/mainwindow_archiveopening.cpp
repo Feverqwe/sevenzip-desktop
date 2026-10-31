@@ -71,7 +71,6 @@ HRESULT MainWindow::openArchiveAs(const QString &path, const QString &type) {
     auto &panel = app_.GetFocusedPanel();
     const UString fallback =
         state_ == State::Namespace ? GetFolderPath(panel.GetFolder()) : ToUString(returnDirectory_);
-    operationName_ = QtLangText(IDS_OPENNING);
     QString message;
     HRESULT result;
     {

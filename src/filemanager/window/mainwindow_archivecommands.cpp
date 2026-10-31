@@ -305,7 +305,6 @@ bool MainWindow::extractWithSource(const QString &destination, bool onlySelected
         return true;
     previousState_ = state_;
     setState(State::Operating);
-    operationName_ = QtLangText(scoped ? IDS_COPYING : IDS_PROGRESS_EXTRACTING);
     const QString sourcePassword = password.isEmpty() ? archivePassword_ : password;
     QtArchiveBatchResult result;
     QString message;
@@ -366,7 +365,6 @@ void MainWindow::testArchive() {
         (resource->HasDirectInput() || resource->UsesNativeMetadata() ||
          backend_->hasListedSourceArchive(archive_))) {
         setState(State::Operating);
-        operationName_ = QtLangText(IDS_PROGRESS_TESTING);
         {
             QScopedValueRollback<bool> progressOwner(sourceArchiveProgress_, true);
             app_.TestArchives();

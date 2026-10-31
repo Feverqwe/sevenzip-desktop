@@ -203,6 +203,21 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
         auto *progress =
             dynamic_cast<CProgressDialog *>(window.findChild<QDialog *>("progressDialog"));
         QVERIFY(progress);
+        auto *percent = progress->findChild<QProgressBar *>("IDC_PROGRESS1");
+        auto *label = progress->findChild<QLabel *>("IDT_PROGRESS_STATUS");
+        auto *path = progress->findChild<QLabel *>("IDT_PROGRESS_FILE_NAME");
+        QVERIFY(percent && label && path);
+        const QString detail = QStringLiteral("folder with spaces/файл 空.txt");
+        backend.report(37, detail, {});
+        QTRY_COMPARE(percent->value(), 37);
+        const QString extractionLabel = label->text();
+        QVERIFY(!extractionLabel.isEmpty());
+        QCOMPARE(window.statusBar()->currentMessage(), extractionLabel + ": " + detail);
+        QVERIFY(path->text().contains(QStringLiteral("файл 空.txt")));
+        backend.report(38, {}, {});
+        QTRY_COMPARE(percent->value(), 38);
+        QCOMPARE(window.statusBar()->currentMessage(), extractionLabel + ": " + detail);
+        QVERIFY(path->text().contains(QStringLiteral("файл 空.txt")));
         auto *button = progress->findChild<QPushButton *>("IDCANCEL");
         QVERIFY(button);
         QTimer::singleShot(0, &window, [] {
@@ -218,6 +233,18 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
         QVERIFY(action(window, "parentFolderAction")->isEnabled());
         QVERIFY(action(window, "selectAllAction")->isEnabled());
         QCOMPARE(window.statusBar()->currentMessage(), QStringLiteral("Операция отменена."));
+        backend.report(99, QStringLiteral("retired path"), {});
+        QCOMPARE(window.statusBar()->currentMessage(), QStringLiteral("Операция отменена."));
+        window.testArchive();
+        QCOMPARE(backend.testCalls, 1);
+        auto *next = dynamic_cast<CProgressDialog *>(window.findChild<QDialog *>("progressDialog"));
+        QVERIFY(next);
+        backend.report(64, detail, {});
+        QTRY_COMPARE(next->findChild<QProgressBar *>("IDC_PROGRESS1")->value(), 64);
+        const QString testLabel = next->findChild<QLabel *>("IDT_PROGRESS_STATUS")->text();
+        QVERIFY(testLabel != extractionLabel);
+        QCOMPARE(window.statusBar()->currentMessage(), testLabel + ": " + detail);
+        backend.cancel();
     }
 
     void createDialogEncryptionChoices() {
