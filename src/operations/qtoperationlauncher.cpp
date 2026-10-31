@@ -33,6 +33,7 @@ class OperationChannel final : public OperationSource {
 } // namespace
 
 struct QtOperationLauncher::State {
+    enum class Phase { Ready, AwaitingAcceptance, AcceptanceQueued, Accepted, Finished };
     QtOperationProcess process_;
     std::unique_ptr<QTemporaryDir> directory_;
     OperationChannel channel_;
@@ -42,10 +43,10 @@ struct QtOperationLauncher::State {
     std::optional<QtOperationResult> result_;
     QStringList changedDirectories_;
     QStringList changedArchives_;
-    bool started_ = false;
-    bool accepted_ = false;
-    bool acceptancePending_ = false;
-    bool terminal_ = false;
+    Phase phase_ = Phase::Ready;
+    bool isAccepted() const {
+        return phase_ == Phase::AcceptanceQueued || phase_ == Phase::Accepted;
+    }
 };
 
 QtOperationLauncher::QtOperationLauncher(QObject *parent)
@@ -53,13 +54,12 @@ QtOperationLauncher::QtOperationLauncher(QObject *parent)
     state_->startup_.setSingleShot(true);
     state_->poll_.setInterval(25);
     state_->channel_.Accept = [this] {
-        if (state_->accepted_ || state_->result_ || state_->terminal_) {
+        if (state_->phase_ != State::Phase::AwaitingAcceptance || state_->result_) {
             protocolFailure(QCoreApplication::translate("QtOperation",
                                                         "Unexpected operation protocol message."));
             return;
         }
-        state_->accepted_ = true;
-        state_->acceptancePending_ = true;
+        state_->phase_ = State::Phase::AcceptanceQueued;
         state_->startup_.stop();
         // The child has copied and validated the request before this call.
         // A receiver may delete the observer. Leave QtRO's dispatch stack
@@ -67,7 +67,7 @@ QtOperationLauncher::QtOperationLauncher(QObject *parent)
         QMetaObject::invokeMethod(
             this,
             [this] {
-                state_->acceptancePending_ = false;
+                state_->phase_ = State::Phase::Accepted;
                 emit accepted();
             },
             Qt::QueuedConnection);
@@ -77,7 +77,7 @@ QtOperationLauncher::QtOperationLauncher(QObject *parent)
         state_->startup_.stop();
     };
     state_->channel_.Outputs = [this](const QStringList &directories, const QStringList &archives) {
-        if (!state_->accepted_ || state_->result_ || state_->terminal_ || directories.isEmpty() ||
+        if (!state_->isAccepted() || state_->result_ || directories.isEmpty() ||
             !ValidateOperationOutputs(directories, archives)) {
             protocolFailure(QCoreApplication::translate("QtOperation",
                                                         "Unexpected operation protocol message."));
@@ -91,7 +91,7 @@ QtOperationLauncher::QtOperationLauncher(QObject *parent)
                 state_->changedArchives_.append(archive);
     };
     state_->channel_.Complete = [this](const OperationReport &report) {
-        auto result = state_->accepted_ && !state_->result_ && !state_->terminal_
+        auto result = state_->isAccepted() && !state_->result_
                           ? OperationResultFromReport(report)
                           : std::unexpected(QtOperationResult::Outcome::ProtocolFailed);
         if (!result) {
@@ -142,7 +142,7 @@ QtOperationLauncher *QtOperationLauncher::Launch(const QString &program, const Q
 }
 
 bool QtOperationLauncher::start(const QString &program, const QtOperationJob &job, QString &error) {
-    if (state_->started_ || state_->terminal_) {
+    if (state_->phase_ != State::Phase::Ready) {
         error =
             QCoreApplication::translate("QtOperation", "An operation observer cannot be reused.");
         return false;
@@ -175,7 +175,7 @@ bool QtOperationLauncher::start(const QString &program, const QtOperationJob &jo
         return false;
     }
     const auto started = state_->process_.start(program, channel).transform([&] {
-        state_->started_ = true;
+        state_->phase_ = State::Phase::AwaitingAcceptance;
         state_->startup_.start(10000);
         state_->poll_.start();
     });
@@ -193,7 +193,8 @@ void QtOperationLauncher::protocolFailure(const QString &error) {
 }
 
 void QtOperationLauncher::observe() {
-    if (state_->terminal_ || state_->acceptancePending_)
+    if (state_->phase_ == State::Phase::Finished ||
+        state_->phase_ == State::Phase::AcceptanceQueued)
         return;
     const auto native = state_->process_.poll();
     if (native.Status == QtOperationProcess::State::Running)
@@ -233,9 +234,9 @@ void QtOperationLauncher::observe() {
 }
 
 void QtOperationLauncher::finish(QtOperationResult result) {
-    if (state_->terminal_)
+    if (state_->phase_ == State::Phase::Finished)
         return;
-    state_->terminal_ = true;
+    state_->phase_ = State::Phase::Finished;
     for (const auto &directory : state_->changedDirectories_)
         if (!result.ChangedDirectories.contains(directory))
             result.ChangedDirectories.append(directory);

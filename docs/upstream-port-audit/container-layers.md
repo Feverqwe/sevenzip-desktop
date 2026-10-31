@@ -1523,3 +1523,24 @@ Validation used the existing incremental builds and compiler caches. No full or
 slow suites were run. XCB checks used a virtual display; these results establish
 no rendered Windows pixel-parity acceptance. Source completeness above is
 separate from runtime evidence on these three checked platforms.
+
+### Independent operation observer lifecycle — 2026-10-31
+
+Compared the complete launcher, endpoint, native process adapter and manager
+result consumers with the independent-process boundary reviewed above, including
+the original `Call7zGui` and mapping/event callers. The existing original-source
+baselines and omissions remain unchanged; no external code is imported here.
+
+The Qt observer now represents its lifecycle with explicit phases instead of
+four independently mutable flags. Child acceptance and delivery of the public
+acceptance notification remain separate: output/result messages may arrive
+between them, while public completion waits for that notification. Native launch,
+timeouts, cancellation outcomes, crash/output retention and independent child
+ownership retain their existing implementations.
+
+Focused runtime validation passed `operation_protocol`, `operation_launcher`,
+`operation_extraction` and `gui_output_refresh` on Linux (4.91 seconds), macOS
+(18.57 seconds) and the Windows interactive runner (13.97 seconds), without
+skipped rows. These cover acceptance/completion order, observer/parent deletion,
+crash/retry, cancellation, output retention and panel refresh. Existing
+incremental builds and compiler caches were reused; no full or slow suites ran.
