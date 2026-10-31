@@ -60,8 +60,9 @@ HRESULT MainWindow::reloadPanelPresentation(unsigned index, const CSelectedState
     }
     if (!QFileInfo(directory_).isDir()) {
         const HRESULT loaded = app_.GetFocusedPanel().LoadListItems();
-        autoRefreshSnapshot_.clear();
-        autoRefreshSnapshot_.insert(directory_, filesystemSignature(directory_));
+        auto &snapshot = panelUi_[index].autoRefreshSnapshot;
+        snapshot.clear();
+        snapshot.insert(directory_, filesystemSignature(directory_));
         table_->clearSelection();
         table_->clearRows();
         statusBar()->showMessage(
@@ -82,7 +83,7 @@ HRESULT MainWindow::refreshFilesystem(const CSelectedState &selection, bool sour
         showDirectory(directory_, false, sourceAlreadyBound, !selection.CalledFromTimer);
     if (loaded != S_OK)
         return loaded;
-    pendingViewport_ = std::move(viewport);
+    panelUi_[projectedPanel_].pendingViewport = std::move(viewport);
     restoreListSelection(selection);
     if (!scanningDisk_) {
         restoreAutoRefreshViewport();
@@ -181,9 +182,9 @@ void MainWindow::pollAutoRefresh() {
             activatePanelUi(index);
         if (state_ == State::Filesystem) {
             CPanel &panel = app_.GetFocusedPanel();
-            if (panel.AutoRefresh_Mode && !autoRefreshSnapshot_.isEmpty()) {
-                for (auto it = autoRefreshSnapshot_.cbegin(); it != autoRefreshSnapshot_.cend();
-                     ++it) {
+            const auto &snapshot = panelUi_[index].autoRefreshSnapshot;
+            if (panel.AutoRefresh_Mode) {
+                for (auto it = snapshot.cbegin(); it != snapshot.cend(); ++it) {
                     if (!(filesystemSignature(it.key()) == it.value())) {
                         panel.MarkPortableFolderChanged();
                         break;
@@ -200,7 +201,7 @@ void MainWindow::pollAutoRefresh() {
 }
 
 void MainWindow::restoreAutoRefreshViewport() {
-    const auto viewport = std::exchange(pendingViewport_, std::nullopt);
+    const auto viewport = std::exchange(panelUi_[projectedPanel_].pendingViewport, std::nullopt);
     if (!viewport || viewport->directory != directory_)
         return;
     int row = -1;

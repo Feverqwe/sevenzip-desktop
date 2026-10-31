@@ -32,7 +32,7 @@ HRESULT MainWindow::renderArchiveFolder(bool updateAddress) {
     if (loaded != S_OK)
         return loaded;
     static_cast<FileTable *>(table_)->filesystem = false;
-    autoRefreshSnapshot_.clear();
+    panelUi_[projectedPanel_].autoRefreshSnapshot.clear();
     panel.LoadFullPath();
     recordVisitedPath(ToQString(panel.GetCurrentFolderPrefix()));
     const QString prefix = archiveFolder_.isEmpty() ? QString() : archiveFolder_ + '/';

@@ -197,6 +197,9 @@ rg -n --no-ignore -F 'CAgent::Open' docs/archive/qt-port/upstream-port-audit/ do
 - [Граница команд выделения](upstream-port-audit/selection-command-boundary.md)
   — исходные индексы и отложенный снимок своей панели без дублирующей проекции.
 
+- [Состояние автообновления панели](upstream-port-audit/auto-refresh-owner.md)
+  — обнаружение изменений и восстановление прокрутки у одного владельца.
+
 - [Владение при исключении копирования object vector](upstream-port-audit/object-vector-ownership.md)
   — освобождение уже скопированных владельцев при отказе очередного элемента.
 

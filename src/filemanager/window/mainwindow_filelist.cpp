@@ -25,8 +25,9 @@ HRESULT MainWindow::showDirectory(const QString &path, bool remember, bool sourc
     if (!sourceAlreadyBound)
         app_.GetFocusedPanel().CloseOpenFolders();
     directory_ = next;
-    autoRefreshSnapshot_.clear();
-    autoRefreshSnapshot_.insert(directory_, filesystemSignature(directory_));
+    auto &snapshot = panelUi_[projectedPanel_].autoRefreshSnapshot;
+    snapshot.clear();
+    snapshot.insert(directory_, filesystemSignature(directory_));
     recordVisitedPath(directory_);
     archive_.clear();
     displayArchive_.clear();

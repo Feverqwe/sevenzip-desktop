@@ -75,6 +75,79 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         QTRY_COMPARE_WITH_TIMEOUT(files->rowCount(), 80, 3500);
     }
 
+    void bothPanelsKeepTheirViewportAcrossChanges() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QStringList folders{fixture.filePath(QStringLiteral("левая папка 空")),
+                                  fixture.filePath(QStringLiteral("правая папка 空"))};
+        for (const auto &folder : folders) {
+            QVERIFY(QDir().mkpath(folder));
+            for (int i = 0; i < 270; ++i)
+                QVERIFY(writeFile(QDir(folder).filePath(
+                    QStringLiteral("file-%1.txt").arg(i, 3, 10, QChar('0')))));
+        }
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.resize(1100, 400);
+        window.show();
+        window.activateWindow();
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        action(window, "twoPanelsAction")->trigger();
+        FileTable *views[2];
+        const QStringList selectedNames{"file-050.txt", "file-150.txt"};
+        QStringList topPaths;
+        for (unsigned pane = 0; pane < 2; ++pane) {
+            auto *ui = window.findChild<QWidget *>(QString("filePanel%1").arg(pane));
+            auto *address = ui->findChild<QLineEdit *>("archivePath");
+            views[pane] = ui->findChild<FileTable *>("archiveTable");
+            auto *view = views[pane];
+            address->setFocus();
+            address->setText(folders[int(pane)]);
+            QTest::keyClick(address, Qt::Key_Return);
+            QTRY_VERIFY(view->isEnabled() && view->rowCount() == 270);
+            action(window, "viewMode3Action")->trigger();
+            const auto matches =
+                view->model()->match(view->model()->index(0, 0), Qt::DisplayRole,
+                                     selectedNames[int(pane)], 1, Qt::MatchExactly);
+            QVERIFY(!matches.isEmpty());
+            const int selectedRow = matches.first().row();
+            view->setCurrentCell(selectedRow, 0);
+            view->selectRow(selectedRow);
+            view->scrollTo(view->model()->index(selectedRow - 15, 0),
+                           QAbstractItemView::PositionAtTop);
+            QVERIFY(view->verticalScrollBar()->value() > 0);
+        }
+        views[1]->setFocus();
+        QTRY_VERIFY(views[1]->hasFocus());
+        for (auto *view : views)
+            topPaths << view->model()->index(view->rowAt(0), 1).data().toString();
+        for (bool addEntry : {false, true}) {
+            for (unsigned pane = 0; pane < 2; ++pane) {
+                const QDir folder(folders[int(pane)]);
+                if (addEntry)
+                    QVERIFY(writeFile(folder.filePath(QStringLiteral("новый файл.txt"))));
+                else
+                    QVERIFY(writeFile(folder.filePath(selectedNames[int(pane)]),
+                                      QByteArray(31 + int(pane), 'x')));
+            }
+            for (unsigned pane = 0; pane < 2; ++pane) {
+                auto *view = views[pane];
+                QTRY_VERIFY_WITH_TIMEOUT(
+                    view->isEnabled() && view->rowCount() == (addEntry ? 271 : 270), 5000);
+                QTRY_COMPARE_WITH_TIMEOUT(
+                    view->model()->index(view->currentRow(), 2).data(Qt::UserRole + 2).toLongLong(),
+                    qint64(31 + pane), 5000);
+                QCOMPARE(view->model()->index(view->currentRow(), 0).data().toString(),
+                         selectedNames[int(pane)]);
+                QVERIFY(view->selectionModel()->isRowSelected(view->currentRow(), QModelIndex()));
+                QCOMPARE(view->model()->index(view->rowAt(0), 1).data().toString(),
+                         topPaths[int(pane)]);
+            }
+            auto *peer = window.findChild<QWidget *>("filePanel1");
+            QVERIFY(peer->isAncestorOf(window.focusWidget()));
+        }
+    }
+
     void togglePersistsAndGatesTimer() {
         QTemporaryDir temp;
         QVERIFY(temp.isValid());

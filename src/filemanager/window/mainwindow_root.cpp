@@ -23,7 +23,7 @@ HRESULT MainWindow::renderRootFolder(bool updateAddress) {
     displayArchive_.clear();
     archivePassword_.clear();
     archiveFolder_.clear();
-    autoRefreshSnapshot_.clear();
+    panelUi_[projectedPanel_].autoRefreshSnapshot.clear();
     static_cast<FileTable *>(table_)->filesystem = false;
     if (updateAddress)
         static_cast<QtPanelAddressCombo *>(pathCombo_)

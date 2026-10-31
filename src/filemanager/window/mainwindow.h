@@ -356,8 +356,6 @@ class MainWindow : public QMainWindow {
     QtFileManagerSplitter *panelSplitter_ = nullptr;
     unsigned projectedPanel_ = 0;
     unsigned panelProjectionDepth_ = 0;
-    QHash<QString, FilesystemSignature> autoRefreshSnapshot_;
-    std::optional<FilesystemViewport> pendingViewport_;
     QTimer *autoRefreshTimer_ = nullptr;
     std::unique_ptr<QtGuiOutputRefresh> guiOutputRefresh_;
     FilesystemScanner *filesystemScanner_ = nullptr;

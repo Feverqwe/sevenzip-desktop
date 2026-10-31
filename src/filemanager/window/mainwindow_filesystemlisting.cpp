@@ -86,8 +86,8 @@ HRESULT MainWindow::appendFilesystemEntry(const QFileInfo &file, quint32 sourceI
     // the portable fallback for flat descendants, outside its nonrecursive watch.
     if (app_.GetFocusedPanel().GetFlatMode())
 #endif
-        autoRefreshSnapshot_.insert(file.absoluteFilePath(),
-                                    filesystemSignature(file.absoluteFilePath()));
+        panelUi_[projectedPanel_].autoRefreshSnapshot.insert(
+            file.absoluteFilePath(), filesystemSignature(file.absoluteFilePath()));
     IFolderFolder *folder = app_.GetFocusedPanel().GetFolder();
     NWindows::NCOM::CPropVariant name, prefix;
     folder->GetProperty(sourceIndex, kpidName, &name);
@@ -196,7 +196,7 @@ void MainWindow::connectFilesystemScanner() {
 void MainWindow::failFilesystemListing(HRESULT result) {
     auto &panel = app_.GetFocusedPanel();
     panelUi_[projectedPanel_].pendingSelection.reset();
-    pendingViewport_.reset();
+    panelUi_[projectedPanel_].pendingViewport.reset();
     table_->clearSelection();
     table_->clearRows();
     table_->setSortingEnabled(true);

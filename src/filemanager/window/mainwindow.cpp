@@ -133,5 +133,5 @@ void MainWindow::cancelListPublication() {
     scanningDisk_ = false;
     scanningArchive_ = false;
     panelUi_[projectedPanel_].pendingSelection.reset();
-    pendingViewport_.reset();
+    panelUi_[projectedPanel_].pendingViewport.reset();
 }
