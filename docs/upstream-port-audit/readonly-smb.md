@@ -1,5 +1,49 @@
 # Local read-only SMB: implementation and evidence
 
+## Read-only cache ownership — 2026-10-31
+
+Reviewed the complete retained-view/cache/read-operation/source pipeline and its
+callers. Native extraction completion is successful only for the engine's OK
+operation result; accepted recoverable output retains its positive operation
+code. Existing extraction and recovery consent remain separate, including the
+encrypted-output refusal. No new external source is imported.
+
+Namespace preparation and range validation stay in the view implementation.
+Stream acquisition, eviction and materialization now have one private source
+owner with shared private state, without a new public interface. The former
+530-line unit becomes a 350-line view and a small cache implementation. Cache
+policy, bounded output, direct-stream fallback and source reader leases are
+preserved. The new units are classified as local integration in the existing
+inventory; original revisions and hashes are unchanged.
+
+Cached result metadata is formed in one helper for new and retained entries.
+The duplicate unverified flag is removed: the retained native operation result
+already distinguishes successful and explicitly accepted unverified extraction.
+The direct-stream sentinel remains unchanged. Active-operation registration now
+has scoped cleanup under its existing mutex, clearing the cancellation target
+before the stack operation is destroyed on normal return or unwinding.
+
+Existing behavioral suites cover ranges, quotas, eviction/fresh consent, retained
+reader generations, damaged ZIP consent and cached warnings, output limits and
+cancellation. No private-state or source-presence tests were added. A synthetic
+allocator-failure run is not part of this evidence.
+
+Final focused checks passed on Linux (four suites, 3.73 seconds), macOS (four,
+7.79 seconds) and Windows (three, 4.10 seconds). The Unix-only transport suite
+accounts for the platform difference; its five opt-in native rows remain gated
+in each Unix default run. Separate native probes passed the manager's EN/RU
+setup, extraction consent, owner-close cancellation, busy-unmount/continued-read
+and final detach on Linux (two scenario rows, 1.31 seconds) and macOS (two,
+6.92 seconds). The elevated Windows synthetic exFAT device probe passed source
+loss, retry and detach (one scenario row, 1.88 seconds), without skips. These
+probes do not establish all gated lifecycle cases, UAC/PolicyKit interaction or
+Windows manager visual parity.
+
+Source inventory and whitespace checks passed. No full/slow suite or heavy
+diagnostics ran; incremental builds and compiler caches were preserved. Compact
+logs/results and two busy-manager JSON reports per Unix platform are retained;
+the disposable report originals were removed after capture.
+
 ## Session cleanup state — 2026-10-31
 
 Reviewed the complete manager/session/source/control/platform chain, including

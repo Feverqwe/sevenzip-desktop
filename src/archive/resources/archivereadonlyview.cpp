@@ -1,5 +1,3 @@
-#include "archive/resources/archivereadonlyview.h"
-#include "7zip/Common/FileStreams.h"
 #include "Common/ComTry.h"
 #include "Common/StringConvert.h"
 #include "Windows/PropVariant.h"
@@ -8,20 +6,15 @@
 #include "archive/backend/archivebackend.h"
 #include "archive/resources/archiveinputlayer.h"
 #include "archive/resources/archivenativeopen.h"
+#include "archive/resources/archivereadonlyview_p.h"
 #include "archive/resources/qtarchivefileresource.h"
 #include "archive/resources/qtarchiveitemstream.h"
 #include "archive/resources/qtarchivereadoperation.h"
 #include <QCoreApplication>
 #include <QDebug>
-#include <QDir>
-#include <QFile>
-#include <QFileInfo>
-#include <QHash>
 #include <QMutexLocker>
-#include <QTemporaryDir>
 #include <QThread>
 #include <algorithm>
-#include <atomic>
 #include <limits>
 #include <new>
 
@@ -43,211 +36,38 @@ bool SafeComponent(const QString &name) {
 }
 } // namespace
 
-struct ArchiveReadOnlyView::State {
-    struct Item {
-        UInt32 Index = UInt32(-1);
-        quint64 Used = 0;
-        quint64 Bytes = 0;
-        QString Path;
-        std::shared_ptr<ArchiveInputLayer> Stream;
-        Int32 Operation = -1;
-        bool Encrypted = false, Unverified = false;
-    };
-    CMyComPtr<IUnknown> Resource;
-    std::shared_ptr<ArchiveNativeOpen> Reader;
-    bool NativeMetadata = false, Prepared = false, Ready = false;
-    quint64 Depth = 0;
-    QString Limitations;
-    QString FolderPrefix;
-    QStringList Skipped;
-    QList<Entry> Entries;
-    QHash<quint64, Item> Items;
-    QHash<QString, quint64> Paths;
-    quint64 Quota, Cached = 0, Clock = 0;
-    unsigned Active = 0;
-    QString Password;
-    std::function<bool(const QString &, quint64)> ExtractionConsent;
-    std::function<bool(const QString &, quint64, Int32)> RecoveryConsent;
-    std::unique_ptr<QTemporaryDir> Directory;
-    std::atomic_bool Cancelled{false};
-    QMutex OperationMutex;
-    QtArchiveReadOperation *Operation = nullptr;
+ArchiveReadOnlyView::State::State(
+    IUnknown *resource, quint64 quota, QString password,
+    std::function<bool(const QString &, quint64)> extractionConsent,
+    std::function<bool(const QString &, quint64, Int32)> recoveryConsent, const QString &folder)
+    : Resource(resource), Quota(quota), Password(std::move(password)),
+      ExtractionConsent(std::move(extractionConsent)), RecoveryConsent(std::move(recoveryConsent)) {
+    FolderPrefix = folder;
+    FolderPrefix.replace(u'\\', u'/');
+    if (!FolderPrefix.isEmpty() && !FolderPrefix.endsWith(u'/'))
+        FolderPrefix += u'/';
+    if (const auto *owner = dynamic_cast<QtArchiveFileResource *>(resource)) {
+        Reader = owner->NativeReaderLease();
+        NativeMetadata = owner->NativeItemProperties() != nullptr;
+        Depth = owner->ContainerDepth();
+        Limitations = owner->FilesystemReadLimitations();
+        if (Limitations.isEmpty() && owner->AllowsIncompleteDeviceRead())
+            Limitations = QCoreApplication::translate(
+                "ArchiveReadOnlyView", "Limited access was allowed for this device. Files may be "
+                                       "missing, outdated or unreadable.");
+    }
+}
 
-    State(IUnknown *resource, quint64 quota, QString password,
-          std::function<bool(const QString &, quint64)> extractionConsent,
-          std::function<bool(const QString &, quint64, Int32)> recoveryConsent,
-          const QString &folder)
-        : Resource(resource), Quota(quota), Password(std::move(password)),
-          ExtractionConsent(std::move(extractionConsent)),
-          RecoveryConsent(std::move(recoveryConsent)) {
-        FolderPrefix = folder;
-        FolderPrefix.replace(u'\\', u'/');
-        if (!FolderPrefix.isEmpty() && !FolderPrefix.endsWith(u'/'))
-            FolderPrefix += u'/';
-        if (const auto *owner = dynamic_cast<QtArchiveFileResource *>(resource)) {
-            Reader = owner->NativeReaderLease();
-            NativeMetadata = owner->NativeItemProperties() != nullptr;
-            Depth = owner->ContainerDepth();
-            Limitations = owner->FilesystemReadLimitations();
-            if (Limitations.isEmpty() && owner->AllowsIncompleteDeviceRead())
-                Limitations = QCoreApplication::translate(
-                    "ArchiveReadOnlyView",
-                    "Limited access was allowed for this device. Files may be "
-                    "missing, outdated or unreadable.");
-        }
-    }
-    void skip(const QString &path, const QString &reason) {
-        const QString message =
-            QCoreApplication::translate("ArchiveReadOnlyView", "Skipped %1: %2").arg(path, reason);
-        Skipped.append(message);
-        qInfo().noquote() << message;
-    }
-    bool evict(quint64 except, quint64 needed) {
-        while (Cached > Quota - needed || Active >= 64) {
-            auto oldest = Items.end();
-            for (auto i = Items.begin(); i != Items.end(); ++i)
-                if (i.key() != except && i->Stream &&
-                    (oldest == Items.end() || i->Used < oldest->Used))
-                    oldest = i;
-            if (oldest == Items.end())
-                return false;
-            oldest->Stream.reset();
-            --Active;
-            if (!oldest->Path.isEmpty()) {
-                if (!QFile::remove(oldest->Path))
-                    return false;
-                oldest->Path.clear();
-            }
-            Cached -= oldest->Bytes;
-            oldest->Bytes = 0;
-            // Keep item identity, but count only retained streams below.
-        }
-        return true;
-    }
-    HRESULT stream(quint64 id, ReadResult &result) {
-        auto &item = Items[id];
-        item.Used = ++Clock;
-        if (item.Stream) {
-            result.Operation = item.Operation;
-            if (item.Unverified)
-                result.Error = QStringLiteral("Unverified or incomplete extracted data.");
-            return S_OK;
-        }
-        CMyComPtr<IProgress> request = new ReadRequest(Cancelled);
-        CMyComPtr<ISequentialInStream> sequential;
-        const HRESULT streamed =
-            CreateArchiveItemStream(Resource, Reader, Depth, item.Index, &sequential, request);
-        if (streamed == E_ABORT)
-            return E_ABORT;
-        CMyComPtr<IInStream> seekable;
-        if (streamed == S_OK && sequential)
-            sequential.QueryInterface(IID_IInStream, &seekable);
-        if (seekable) {
-            if (!evict(id, 0))
-                return E_OUTOFMEMORY;
-            const auto opened =
-                ArchiveInputLayer::Create(seekable, request).transform([&](auto layer) {
-                    item.Stream = std::move(layer);
-                    ++Active;
-                });
-            return opened ? S_OK : opened.error();
-        }
+void ArchiveReadOnlyView::State::skip(const QString &path, const QString &reason) {
+    const QString message =
+        QCoreApplication::translate("ArchiveReadOnlyView", "Skipped %1: %2").arg(path, reason);
+    Skipped.append(message);
+    qInfo().noquote() << message;
+}
 
-        const quint64 size = Entries.at(qsizetype(id - 1)).Size;
-        if (!Quota) {
-            result.Error =
-                QStringLiteral("The reader could not provide direct access to this entry.");
-            return streamed != S_OK ? streamed : E_NOTIMPL;
-        }
-        if (size > Quota) {
-            result.Error =
-                QStringLiteral("This entry requires decoding beyond the mount cache limit.");
-            return E_OUTOFMEMORY;
-        }
-        QString name;
-        for (quint64 current = id; current > 1;) {
-            const auto &entry = Entries.at(qsizetype(current - 1));
-            name = name.isEmpty() ? entry.Name : entry.Name + u'/' + name;
-            current = entry.Parent;
-        }
-        // No temporary output or decoding starts without explicit consent.
-        if (!ExtractionConsent || !ExtractionConsent(name, size)) {
-            result.Error =
-                QStringLiteral("Extracting this entry into the mount cache requires confirmation.");
-            return E_ABORT;
-        }
-        if (Cancelled)
-            return E_ABORT;
-        if (!evict(id, size)) {
-            result.Error = QStringLiteral("Could not release space in the mount cache.");
-            return E_OUTOFMEMORY;
-        }
-        if (!Directory)
-            Directory = std::make_unique<QTemporaryDir>();
-        if (!Directory->isValid()) {
-            result.Error = Directory->errorString();
-            return E_FAIL;
-        }
-        const QString path = Directory->filePath(QString::number(id));
-        QtArchiveReadOperation operation(Reader, Password);
-        operation.Output.NativeIndex = item.Index;
-        operation.Output.Path = path;
-        operation.Output.Limit = size;
-        {
-            QMutexLocker lock(&OperationMutex);
-            Operation = &operation;
-            if (Cancelled)
-                operation.cancel();
-        }
-        operation.start();
-        operation.wait();
-        {
-            QMutexLocker lock(&OperationMutex);
-            Operation = nullptr;
-        }
-        result.Operation = operation.OutputOperation;
-        const qint64 actual = QFileInfo(path).size();
-        const bool complete = operation.Result == S_OK && operation.OutputClosed && actual >= 0 &&
-                              quint64(actual) == size;
-        using namespace NArchive::NExtract::NOperationResult;
-        const bool recoverable =
-            !item.Encrypted && operation.Result != E_ABORT && operation.OutputClosed &&
-            actual > 0 && quint64(actual) <= size &&
-            (operation.OutputOperation == kDataError || operation.OutputOperation == kCRCError ||
-             operation.OutputOperation == kUnexpectedEnd ||
-             operation.OutputOperation == kDataAfterEnd);
-        const bool recovered = !complete && recoverable && RecoveryConsent &&
-                               RecoveryConsent(name, quint64(actual), operation.OutputOperation);
-        if ((!complete && !recovered) || Cancelled) {
-            QFile::remove(path);
-            result.Error =
-                QStringLiteral("The entry could not be decoded completely and verified.");
-            return Cancelled ? E_ABORT : operation.Result == S_OK ? E_FAIL : operation.Result;
-        }
-        CMyComPtr2<IInStream, CInFileStream> file;
-        file.Create_if_Empty();
-        if (!file->Open(us2fs(path.toStdWString().c_str()))) {
-            QFile::remove(path);
-            return E_FAIL;
-        }
-        auto opened = ArchiveInputLayer::Create(file.Interface(), request);
-        if (!opened) {
-            file.Detach()->Release();
-            QFile::remove(path);
-            return opened.error();
-        }
-        item.Stream = std::move(*opened);
-        item.Path = path;
-        item.Bytes = quint64(actual);
-        item.Operation = operation.OutputOperation;
-        item.Unverified = recovered;
-        if (recovered)
-            result.Error = QStringLiteral("Unverified or incomplete extracted data.");
-        Cached += item.Bytes;
-        ++Active;
-        return S_OK;
-    }
-};
+CMyComPtr<IProgress> ArchiveReadOnlyView::State::readRequest() const {
+    return new ReadRequest(Cancelled);
+}
 
 ArchiveReadOnlyView::ArchiveReadOnlyView(
     IUnknown *resource, quint64 quota, QString password,
@@ -282,7 +102,7 @@ HRESULT ArchiveReadOnlyView::needsCache(bool &required) {
     auto &state = *state_;
     if (!state.Ready)
         return E_FAIL;
-    CMyComPtr<IProgress> request = new ReadRequest(state.Cancelled);
+    const auto request = state.readRequest();
     for (auto item = state.Items.cbegin(); item != state.Items.cend(); ++item) {
         if (state.Cancelled || QThread::currentThread()->isInterruptionRequested())
             return E_ABORT;
@@ -321,7 +141,7 @@ HRESULT ArchiveReadOnlyView::initialize(QString &error) {
         return E_NOINTERFACE;
     }
     std::lock_guard<std::mutex> lock(state.Reader->itemStreamMutex());
-    CMyComPtr<IProgress> request = new ReadRequest(state.Cancelled);
+    const auto request = state.readRequest();
     ArchiveInputReadRequestScope scope(state.Reader->inputStream(), request);
     state.Entries.append({1, 0, {}, 0, true});
     state.Paths.insert({}, 1);
@@ -472,7 +292,7 @@ ArchiveReadOnlyView::ReadResult ArchiveReadOnlyView::read(quint64 id, quint64 of
     if (result.Result != S_OK)
         return result;
     result.Data.resize(qsizetype(std::min<quint64>(length, size - offset)));
-    CMyComPtr<IProgress> request = new ReadRequest(state.Cancelled);
+    const auto request = state.readRequest();
     UInt32 actual = 0;
     result.Result = state.Items[id].Stream->ReadAt(offset, result.Data.data(),
                                                    UInt32(result.Data.size()), &actual, request);

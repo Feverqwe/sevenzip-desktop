@@ -297,6 +297,8 @@ Read-only mounts use an `ArchiveBackend` snapshot retaining the same native
 reader generation and resource leases. The mount owner is independent of panel
 navigation. Reader work stays in the application's worker; the separate SMB
 process receives immutable metadata and bounded range replies over private IPC.
+The read-only view owns namespace projection and range validation; its private
+cache unit owns stream acquisition, consented materialization and retained results.
 The independent OS-client broker owns native mount cleanup. Extraction and use
 of unverified output have separate, default-deny consent boundaries. See the
 [source audit](upstream-port-audit/readonly-smb.md) for provenance and validation.
