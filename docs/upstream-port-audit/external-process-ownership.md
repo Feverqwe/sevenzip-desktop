@@ -1,4 +1,43 @@
-# External-process registration and allocation failures — 2026-10-18
+# External-process ownership
+
+## One-shot reaper handoff — 2026-10-31
+
+Reviewed the complete native process adapter, creation and adoption paths,
+source child tracker, wait/close and temporary-file launch owners against
+PanelItemOpen.cpp at the recorded revision
+`9128b80e3a471108678e2b3ec3c985861c8d7b0f` in
+<https://github.com/ip7z/7zip.git>. Its complete original hash matches the
+existing baseline. Source command parsing, child discovery, wait policy and
+archive update behavior are unchanged; the POSIX reaper remains a local
+platform service without a usable Win32 implementation to import.
+
+The reaper's single PID handoff now uses `std::latch` rather than a separate
+mutex, condition variable and released flag. PID assignment precedes release;
+the waiting thread reads it after the latch opens. Each reserved state receives
+exactly one release, either from owner destruction or the thread-detach failure
+cleanup, which joins before unwinding without publishing that state. Reaper
+allocation remains before spawn. Closing an owner still neither allocates a
+thread nor waits for an editor, and a metadata failure after launch still
+returns the valid process owner. No Windows branch, external code baseline or
+source algorithm changes.
+
+Existing process regressions exercise a real child after post-spawn allocation
+failure and a pipe-blocked child whose owner is released with allocation failure
+armed. Launch, archive lifetime/security and focused native update consumers
+cover the complete path through the retained source workflow. No new
+implementation-mirroring test or pre-fix product failure is claimed.
+
+Five focused suites passed on Linux (28.86 seconds), macOS (31.59 seconds)
+and interactive Windows (33.94 seconds), without skips. Each platform passed
+46 Qt checks across external_launch, archive_external_lifetime,
+archive_external_security and native_external_update, plus its allocation
+ownership executable: process_spawn_allocation on POSIX and
+process_handle_allocation on Windows. The two large native external-publication
+matrices remain excluded as slow. Incremental builds and compiler caches were
+retained; disposable fixtures were cleaned after capturing results. These are
+source-owner and focused runtime results, not full-suite or visual acceptance.
+
+## Registration and allocation failures — 2026-10-18
 
 Source: <https://github.com/ip7z/7zip.git>, reviewed commit
 `9128b80e3a471108678e2b3ec3c985861c8d7b0f`. The existing PanelItemOpen port

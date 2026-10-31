@@ -179,8 +179,8 @@ rg -n --no-ignore -F 'CAgent::Open' docs/archive/qt-port/upstream-port-audit/ do
 - [Владельцы process/listing/overwrite уведомлений](upstream-port-audit/process-notifications.md)
   — срок жизни Qt-транспорта и данных сигнала при удалении, отмене и повторном запросе.
 
-- [Владельцы внешних процессов при исключении](upstream-port-audit/external-process-ownership.md)
-  — OS handles, запуск и регистрация editor worker с сохранением временной копии.
+- [Владение внешними процессами](upstream-port-audit/external-process-ownership.md)
+  — OS handles, запуск, регистрация и освобождение без потери временной копии.
 
 - [Подтверждение открытия неизвестных файлов](upstream-port-audit/unknown-file-open.md)
   — системный обработчик и настраиваемый вопрос перед автоматическим внешним открытием.

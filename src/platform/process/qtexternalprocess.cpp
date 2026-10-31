@@ -13,8 +13,7 @@
 #include <TlHelp32.h>
 #else
 #include <cerrno>
-#include <condition_variable>
-#include <mutex>
+#include <latch>
 #include <spawn.h>
 #include <sys/wait.h>
 #include <thread>
@@ -112,18 +111,12 @@ QtProcessStatus ReadProcessRecord(UInt32 id, CSnapshotProcess &record, QByteArra
 }
 
 struct CChildReapState {
-    std::mutex Mutex;
-    std::condition_variable Ready;
+    std::latch Ready{1};
     pid_t Id = 0;
-    bool Released = false;
 
-    void Release(pid_t id) {
-        {
-            std::lock_guard<std::mutex> lock(Mutex);
-            Id = id;
-            Released = true;
-        }
-        Ready.notify_one();
+    void Release(pid_t id) noexcept {
+        Id = id;
+        Ready.count_down();
     }
 };
 
@@ -139,10 +132,8 @@ class CPidProcessHandle final : public IQtProcessHandle {
     void PrepareReaper() {
         auto state = std::make_shared<CChildReapState>();
         std::thread worker([state] {
-            std::unique_lock<std::mutex> lock(state->Mutex);
-            state->Ready.wait(lock, [&] { return state->Released; });
+            state->Ready.wait();
             const pid_t id = state->Id;
-            lock.unlock();
             if (id > 0)
                 while (waitpid(id, nullptr, 0) < 0 && errno == EINTR) {
                 }
