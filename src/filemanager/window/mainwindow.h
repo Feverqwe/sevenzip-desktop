@@ -241,14 +241,12 @@ class MainWindow : public QMainWindow {
     void activateRow(int row, Qt::KeyboardModifiers modifiers);
     void activateItems(Qt::KeyboardModifiers modifiers);
     void goBack();
-    void goUp();
     void goParent();
     enum class RootLocation { Namespace, Drives };
     void goRoot(bool remember = true, RootLocation location = RootLocation::Namespace);
     QString archiveDisplayPath() const;
     HRESULT renderBoundFolder(bool updateAddress = true);
     bool isNestedArchive() const;
-    void showArchiveFolder(const QString &folder);
     HRESULT renderArchiveFolder(bool updateAddress = true);
     HRESULT appendArchiveEntry(CAgentFolder &folder, unsigned index, const QString &prefix,
                                bool flat);
@@ -260,7 +258,6 @@ class MainWindow : public QMainWindow {
     void calculateHash(const QString &method);
     void begin(const QString &label, const QString &detail);
     void startProgressDialog(const QString &label, const QString &detail);
-    void openNestedArchive(const QString &entry);
     void extractArchives();
     void runArchiveBatchCommand(bool test);
     HRESULT launchGuiArchiveTest(const UStringVector &paths, bool hashMode);

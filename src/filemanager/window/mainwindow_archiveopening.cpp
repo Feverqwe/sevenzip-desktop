@@ -170,47 +170,6 @@ HRESULT MainWindow::renderBoundFolder(bool updateAddress) {
     return loaded;
 }
 
-void MainWindow::showArchiveFolder(const QString &folder) {
-    if (app_.QtOperations().closed())
-        return;
-    QtAppOperationState::CallScope call(app_.QtOperations());
-    auto &panel = app_.GetFocusedPanel();
-    if (panel.GetParentFolders().IsEmpty())
-        return;
-    const UString path = panel.GetParentFolders().Back().VirtualPath + L"/" + ToUString(folder);
-    {
-        QScopedValueRollback<bool> source(sourceArchiveProgress_, true);
-        COpenResult result;
-        if (panel.BindToPath(path, UString(), result) != S_OK)
-            return;
-    }
-    renderBoundFolder();
-}
-
-void MainWindow::openNestedArchive(const QString &entry) {
-    if (app_.QtOperations().closed())
-        return;
-    QtAppOperationState::CallScope call(app_.QtOperations());
-    auto &panel = app_.GetFocusedPanel();
-    UInt32 count = 0;
-    if (!panel.GetFolder() || panel.GetFolder()->GetNumberOfItems(&count) != S_OK)
-        return;
-    for (UInt32 index = 0; index < count; ++index) {
-        const QString path = QDir::fromNativeSeparators(
-            ToQString(GetFolderPath(panel.GetFolder()) + panel.GetItemRelPath(index)));
-        if (path != entry)
-            continue;
-        setState(State::Operating);
-        {
-            QScopedValueRollback<bool> source(sourceArchiveProgress_, true);
-            panel.LoadFullPath();
-            panel.OpenItemInArchive(index, true, false, false, false);
-        }
-        renderBoundFolder();
-        return;
-    }
-}
-
 void MainWindow::goBack() {
     if (state_ == State::Loading || state_ == State::Operating)
         return;
@@ -224,11 +183,6 @@ void MainWindow::goBack() {
         else
             navigateTo(previous, true);
     }
-}
-
-void MainWindow::goUp() {
-    if (state_ == State::Viewing && !archiveFolder_.isEmpty())
-        goParent();
 }
 
 void MainWindow::goParent() {

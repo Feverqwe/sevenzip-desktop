@@ -41,11 +41,11 @@ class NestedUpdateTests final : public QObject {
         const QString innerArchive = makeArchive(inner.path(), "original inner contents");
         const QString outerArchive = outer.filePath("outer.fixture7z");
         QVERIFY(NativeArchiveFixture::Write(outerArchive, {{kName, readFile(innerArchive)}}));
-        const QString changedArchive =
-            makeArchive(changed.path(), "updated inner contents and size");
-        QVERIFY(!innerArchive.isEmpty() && !outerArchive.isEmpty() && !changedArchive.isEmpty());
+        const QByteArray changedContents = "updated inner contents and size";
+        const QString changedFile = changed.filePath(kName);
+        QVERIFY(writeFile(changedFile, changedContents));
+        QVERIFY(!innerArchive.isEmpty() && !outerArchive.isEmpty());
         const QByteArray originalOuter = readFile(outerArchive);
-        const QByteArray replacement = readFile(changedArchive);
         const QString temporaryFile = temporary.filePath(QStringLiteral("密碼 с пробелом.bin"));
         QVERIFY(writeFile(temporaryFile, readFile(innerArchive)));
 
@@ -66,7 +66,23 @@ class NestedUpdateTests final : public QObject {
                                  UString(L"zip"), opened),
                  S_OK);
         QCOMPARE(panel.GetParentFolders().Size(), 2u);
-        QVERIFY(writeFile(temporaryFile, replacement));
+        // Change the open inner archive through its native update transaction;
+        // overwriting its disk reader directly is forbidden on Windows.
+        panel.OpenFolder(0);
+        QCOMPARE(panel.OnOpenItemChanged(0, changedFile.toStdWString().c_str(), false, UString()),
+                 S_OK);
+        panel.RefreshListCtrl();
+        panel.OpenParentFolder();
+        QCOMPARE(panel.GetParentFolders().Size(), 2u);
+        const QByteArray replacement = readFile(temporaryFile);
+        QVERIFY(!replacement.isEmpty());
+        QVERIFY(replacement != readFile(innerArchive));
+        QProcess inspect;
+        inspect.start(QStandardPaths::findExecutable("7z"),
+                      {"x", "-so", "--", temporaryFile, kName});
+        QVERIFY(inspect.waitForFinished(10000));
+        QCOMPARE(inspect.exitCode(), 0);
+        QCOMPARE(inspect.readAllStandardOutput(), changedContents);
         if (outcome)
             QVERIFY(runtime_.armWriter(outcome == 1 ? E_FAIL : E_ABORT, outcome == 2));
         bool cancelled = false;

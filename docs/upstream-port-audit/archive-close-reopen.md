@@ -1,5 +1,46 @@
 # Archive folder lifetime across rollback — 2026-10-18
 
+## Archive navigation ownership — 2026-10-31
+
+Reviewed opening selected/focused entries, ordinary archive folders, stream,
+memory and disk-backed nested archives, failed/cancelled opening, Parent/Back,
+temporary-file ownership and return selection. Compared the complete original
+`OpenFocusedItemAsInternal`, `OpenSelectedItems`, `OpenItem`,
+`OpenItemInArchive`, `OpenParentFolder` and parent-stack consumers in upstream
+`PanelItems.cpp`, `PanelItemOpen.cpp` and `PanelFolderChange.cpp` at
+`9128b80e3a471108678e2b3ec3c985861c8d7b0f`. All three complete original units
+match the existing baseline SHA256 values. Native opening, extraction, parent
+stack, cancellation and selection algorithms remain unchanged; no source is
+imported or omitted.
+
+Removed three unused window navigation entry points and their declarations.
+They reconstructed archive paths or searched entries separately from the active
+source command path. Real row activation, Open Inside, folder entry and
+Parent/Back already use the source panel with the existing Qt presentation and
+focus adapters. Existing integrated navigation/nested-opening regressions cover
+these consumers, including Unicode names, spaces, failed/cancelled opening and
+temporary-file cleanup; no implementation-presence tests are added.
+
+Windows acceptance exposed a pre-existing fixture limitation: the nested-update
+test directly overwrote an inner archive while its disk reader was still open.
+The fixture now edits the inner entry through the existing source native update
+transaction, verifies the extracted new payload, and then tests returning and
+publishing that changed archive into its parent. Success, failed update,
+cancellation, original outer bytes and retained recovery copies remain checked.
+No production file-sharing policy or archive update algorithm is changed.
+
+Accepted `ui_navigation`, `nested_archive`, `nested_update`,
+`native_folder_opening`, `root_command`, `address_combo`, `binding_lifecycle`
+and `persisted_location` on Linux, macOS and interactive Windows. After the
+fixture correction, only `nested_update` needed rebuilding/rechecking on each
+platform; the seven unchanged suites retained their passing evidence. The
+accepted scope has 116 passed Qt rows on Linux/macOS and 118 on Windows, without
+skips. Source inventory, original-unit hashes, formatting and whitespace checks
+passed. Incremental trees and compiler caches were retained; no full/slow gate,
+heavy diagnostics or visual acceptance is claimed.
+
+## Rollback folder lifetime — 2026-10-18
+
 Source: <https://github.com/ip7z/7zip.git>, commit
 `9128b80e3a471108678e2b3ec3c985861c8d7b0f`.
 Reviewed `CPP/7zip/UI/Agent/ArchiveFolderOut.cpp::CommonUpdateOperation`,
