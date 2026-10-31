@@ -162,6 +162,8 @@ routes, source provider choice, parent/back restoration, selection and input byt
 Current namespace consumers are recorded in the
 [address/Root acceptance](../archive/qt-port/upstream-port-audit/p3-05-address-root-2026-10-17.md).
 Full native/rendered parent acceptance remains separate.
+The Show '..' preference exposes a parent row in the drive list, while the
+virtual root has no parent row.
 The integrated Qt command/key consumers use the retained source drive transition.
 The separate root namespace is reached through Parent; Back from a filesystem
 location restores its actual stored namespace prefix. After source selection

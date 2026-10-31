@@ -1,6 +1,5 @@
 #include "7zip/UI/FileManager/resource.h"
 #include "filemanager/MyLoadMenu.h"
-#include "filemanager/SysIconUtils.h"
 #include "filemanager/panels/Panel.h"
 #include "filemanager/panels/PanelSort.h"
 #include "filemanager/panels/qtpanelcontextmenu.h"
@@ -192,30 +191,10 @@ void MainWindow::showSettings() {
 }
 
 void MainWindow::applyFileListSettings(const CFmSettings &settings) {
-    const bool showDotsChanged = fileListSettings_.ShowDots != settings.ShowDots;
     fileListSettings_ = settings;
     app_.SetListSettings();
     app_.RefreshAllPanels();
     refreshActions();
-    if (showDotsChanged)
-        updateParentEntry();
-    if (state_ == State::Filesystem)
-        updateFilesystemIcons();
-}
-
-void MainWindow::updateFilesystemIcons() {
-    for (int row = 0; row < table_->rowCount(); ++row) {
-        const QFileInfo file(table_->model()->index(row, 1).data().toString());
-        table_->model()->setData(
-            table_->model()->index(row, 0),
-            fileListSettings_.ShowRealFileIcons
-                ? g_Ext_to_Icon_Map.GetIcon(file.isDir() ? FILE_ATTRIBUTE_DIRECTORY
-                                                         : FILE_ATTRIBUTE_ARCHIVE,
-                                            file.fileName())
-                : QApplication::style()->standardIcon(file.isDir() ? QStyle::SP_DirIcon
-                                                                   : QStyle::SP_FileIcon),
-            Qt::DecorationRole);
-    }
 }
 
 bool MainWindow::eventFilter(QObject *watched, QEvent *event) {

@@ -200,7 +200,6 @@ class MainWindow : public QMainWindow {
     void applyFlatView(bool enabled);
     void showSettings();
     void applyFileListSettings(const CFmSettings &settings);
-    void updateFilesystemIcons();
     bool eventFilter(QObject *watched, QEvent *event) override;
     bool handlePanelKey(QObject *watched, QKeyEvent *key);
     bool handlePanelListKey(QKeyEvent *key);
@@ -217,7 +216,6 @@ class MainWindow : public QMainWindow {
     HRESULT renderRootFolder(bool updateAddress = true);
     HRESULT appendFilesystemEntry(const QFileInfo &file, quint32 sourceIndex);
     void appendParentEntry();
-    void updateParentEntry();
     QStringList selectedPaths() const;
     void selectPaths(const QStringList &paths);
     void completeListSelection();

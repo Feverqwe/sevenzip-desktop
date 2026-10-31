@@ -288,21 +288,6 @@ void MainWindow::appendParentEntry() {
     table_->setSortingEnabled(sorting);
 }
 
-void MainWindow::updateParentEntry() {
-    if (!table_)
-        return;
-    for (int row = 0; row < table_->rowCount(); ++row) {
-        if (table_->model()->index(row, 0).data(Qt::UserRole + 6).toUInt() == UInt32(-1)) {
-            table_->model()->removeRow(row);
-            break;
-        }
-    }
-    if (state_ != State::Namespace && state_ != State::Loading && state_ != State::Operating)
-        appendParentEntry();
-    applySortMode();
-    refreshActions();
-}
-
 void MainWindow::activateSingleClickedRow(int row) {
     if (drag_ && drag_->Active())
         return;
