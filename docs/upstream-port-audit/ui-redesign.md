@@ -2130,3 +2130,43 @@ Small receipts were retained, and completed fixture scopes and synchronization
 cleaned their temporary data. Linux/Windows scratch contained only the existing
 CTest/cache owners after the runs; unrelated pre-existing local artifacts were
 preserved. No large diagnostic artifacts or new build trees were created.
+
+## External-file launch handoff — 2026-10-31
+
+Compared the complete baseline `PanelItemOpen.cpp::OpenItemInArchive`, its
+temporary-process record/cleanup guard, callers and current process-service
+boundary, including stream, memory and disk opening, extraction messages,
+password handoff and no-handle associations. The original unit hash matches
+the existing manifest at `b88c6bc09339de32f7d18bbab900686b244f42ba`.
+Also checked the existing `CTempDir` cleanup, file-info initialization and native
+thread construction/registration dependencies. No external source was imported
+and original hashes were not changed.
+
+One narrow launch adapter now owns the returned OS handle until the original
+child-process observer accepts it. It retains the temporary directory on a
+successful no-handle launch, a returned handle despite error, or an exception
+after a handle was returned. The existing `CTempDir` remains the cleanup owner
+before that handoff; the redundant file-delete guard and its separate flags
+were removed. The observer receives the already prepared `CTempFileInfo`
+instead of rebuilding the same paths, item identity and lease. Tracking capacity
+and allocating metadata are still prepared before launching the program.
+
+The stream/memory/disk algorithms, extraction validation, passwords, warning and
+fallback decisions, process-child policy and update completion remain unchanged.
+The launcher reference is captured before thread creation, since the worker may
+immediately finish and delete its temporary record. Existing regressions check
+observable launch, extraction failure/cancellation, child lifetime, exceptions
+and retained/removed temporary files; no test-only hooks or mirrored assertions
+were added.
+
+At the user's request, work and validation continued on macOS while the shared
+runners were being migrated to another disk. macOS arm64 passed all seven
+selected opening/external-process suites (CTest 36.01 s), using the existing
+incremental build and compiler cache. Small receipts were retained; temporary
+fixtures cleaned themselves. After the user confirmed Linux migration complete,
+its seven selected suites passed in `20261031T051513Z-17749efb`, together with
+related temporary-browser and drop consumers (14/14, test phase 109.20 s).
+Windows Limited desktop passed the same seven suites in
+`20261031T052242Z-ff81068c`, together with column and drop-target consumers
+(14/14, test phase 230.11 s). No full/slow suites, heavy diagnostics or
+visual-layout changes were introduced.

@@ -28,10 +28,10 @@
 #include "ui/progress/ProgressDialog2.h"
 #include <QElapsedTimer>
 #include <QMessageBox>
-#include <QScopeGuard>
 #include <QWidget>
 #include <chrono>
 #include <thread>
+#include <utility>
 
 using namespace NWindows;
 using namespace NFile;
@@ -174,19 +174,6 @@ struct CTmpProcessInfo : public CTempFileInfo {
     CTmpProcessInfo() : UsePassword(false), ReadOnly(false) {}
 };
 
-class CTmpProcessInfoRelease {
-    CTmpProcessInfo *_tmpProcessInfo;
-
-  public:
-    bool _needDelete;
-    CTmpProcessInfoRelease(CTmpProcessInfo &tpi Z7_lifetimebound)
-        : _tmpProcessInfo(&tpi), _needDelete(true) {}
-    ~CTmpProcessInfoRelease() {
-        if (_needDelete)
-            _tmpProcessInfo->DeleteDirAndFile();
-    }
-};
-
 static int CallExternalUpdateGui(CTmpProcessInfo &tpi, const std::function<int()> &body) {
     return QtExternalGuiCall(tpi.Parent, *tpi.Launcher, body,
                              [&] { return tpi.ExternalServices->CanHandleExternalUpdate(); });
@@ -325,6 +312,47 @@ static THREAD_FUNC_DECL MyThreadFunction(void *param) try {
     // The record's owners unwind; an unproven external lifetime keeps its copy.
     return (THREAD_FUNC_RET_TYPE)(uintptr_t)1;
 }
+
+namespace {
+// CTempDir owns cleanup until launch establishes an external lifetime. A
+// returned handle can establish that lifetime even when the service throws.
+class CExternalFileLaunch MY_UNCOPYABLE {
+    CTempDir &_directory;
+    CMyUniquePtr<CTmpProcessInfo> &_info;
+    IQtProcessHandle *_process = nullptr;
+
+  public:
+    CExternalFileLaunch(CTempDir &directory, CMyUniquePtr<CTmpProcessInfo> &info)
+        : _directory(directory), _info(info) {}
+    ~CExternalFileLaunch() {
+        if (_process) {
+            _directory.DisableDeleting();
+            delete _process;
+        }
+    }
+    void Start(const std::function<HRESULT(IQtProcessHandle *&)> &start) {
+        const HRESULT result = start(_process);
+        // The native caller accepts a valid handle even on launch error.
+        if (!_process && result != S_OK)
+            return;
+        // Both known processes and successful no-handle associations retain
+        // the copy if registration or thread creation subsequently fails.
+        _directory.DisableDeleting();
+        _info->Processes.Services = _info->ExternalServices->ProcessServices();
+        if (_process)
+            _info->Processes.SetMainProcess(std::exchange(_process, nullptr));
+        // The worker can finish and delete its record immediately after Create.
+        auto &launcher = *_info->Launcher;
+        ::CThread thread;
+        Thread_CONSTRUCT(&thread);
+        if (Thread_Create(&thread, MyThreadFunction, _info.get()) != 0)
+            throw 271824;
+        launcher._threads.AddInReserved(thread);
+        launcher._numActiveThreads++;
+        _info.release();
+    }
+};
+} // namespace
 
 void CPanel::MessageBox_LastError() const {
     MessageBox_Error_HRESULT(GetLastError_noZero_HRESULT());
@@ -1096,10 +1124,7 @@ void CPanel::OpenItemInArchive(unsigned index, bool tryInternal, bool tryExterna
                                                        _settingsPath))
         return;
     CMyUniquePtr<CTmpProcessInfo> tpi(new CTmpProcessInfo());
-    tpi->OwnedTempLease = tempDirectory.OwnedLease();
-    tpi->FolderPath = tempDir;
-    tpi->FilePath = tempFilePath;
-    tpi->NeedDelete = true;
+    static_cast<CTempFileInfo &>(*tpi) = tempFileInfo;
     tpi->UsePassword = usePassword;
     tpi->Password = password;
     tpi->ReadOnly = IsThereReadOnlyFolder();
@@ -1107,7 +1132,6 @@ void CPanel::OpenItemInArchive(unsigned index, bool tryInternal, bool tryExterna
         tpi->ReadOnly = true;
     if (!tpi->FileInfo.Find(tempFilePath))
         return;
-    CTmpProcessInfoRelease tmpProcessInfoRelease(*tpi);
     if (!_exitEventLauncher)
         _exitEventLauncher = std::make_unique<CExitEventLauncher>();
     // Allocate tracking before launch/thread creation; Add must not throw while
@@ -1122,44 +1146,16 @@ void CPanel::OpenItemInArchive(unsigned index, bool tryInternal, bool tryExterna
     // Prepare allocating tracking metadata before an external program can own
     // the copy. The process output remains guarded even inside launch errors.
     tpi->FullPathFolderPrefix = _currentFolderPrefix;
-    tpi->RelPath = relPath;
-    IQtProcessHandle *process = nullptr;
-    const auto closeProcess = qScopeGuard([&] {
-        if (process) {
-            tempDirectory.DisableDeleting();
-            tmpProcessInfoRelease._needDelete = false;
-            delete process;
-        }
-    });
-    const HRESULT res = editMode
-                            ? StartEditApplication(fs2us(tempFilePath), useEditor, GetParent(),
-                                                   *_externalFileServices, _settingsPath, &process)
-                            : _externalFileServices->StartApplicationKnown(
-                                  fs2us(tempDirNorm), fs2us(tempFilePath), GetParent(), process);
-    // Original caller rejects failure only when no process was returned.
-    // A valid handle must retain its file and enter the worker even on error.
-    if (!process && res != S_OK)
-        return;
-    // The external process can now hold/write the file even if thread creation
-    // fails. Preserve it before handing the source record to the native worker.
-    tempDirectory.DisableDeleting();
-    tmpProcessInfoRelease._needDelete = false;
     tpi->Window = this;
     tpi->Parent = GetParent();
     tpi->ExternalServices = _externalFileServices;
-    tpi->FileIndex = index;
     tpi->Launcher = _exitEventLauncher.get();
-    tpi->Processes.Services = _externalFileServices->ProcessServices();
-    if (process) {
-        IQtProcessHandle *owned = process;
-        process = nullptr;
-        tpi->Processes.SetMainProcess(owned);
-    }
-    ::CThread th;
-    Thread_CONSTRUCT(&th) if (Thread_Create(&th, MyThreadFunction, tpi.get()) != 0) throw 271824;
-    _exitEventLauncher->_threads.AddInReserved(th);
-    _exitEventLauncher->_numActiveThreads++;
-    tpi.release();
+    CExternalFileLaunch(tempDirectory, tpi).Start([&](IQtProcessHandle *&process) {
+        return editMode ? StartEditApplication(fs2us(tempFilePath), useEditor, GetParent(),
+                                               *_externalFileServices, _settingsPath, &process)
+                        : _externalFileServices->StartApplicationKnown(
+                              fs2us(tempDirNorm), fs2us(tempFilePath), GetParent(), process);
+    });
 }
 
 // Native OnOpenItemChanged message body. A typed request replaces LPARAM and
