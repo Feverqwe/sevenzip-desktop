@@ -169,26 +169,3 @@ QString MainWindow::copyDefaultDestination() const {
     }
     return state_ == State::Viewing ? returnDirectory_ : directory_;
 }
-
-void MainWindow::rememberTransferDestination(const QString &path) {
-    transferDestinationPanel_.reset();
-    if (app_.NumPanels != 2)
-        return;
-    const unsigned other = 1 - app_.GetFocusedPanelIndex();
-    if (panelUi_[other].state != State::Filesystem)
-        return;
-    const QString destination = QFileInfo(path).canonicalFilePath();
-    const QString panelPath = QFileInfo(panelUi_[other].directory).canonicalFilePath();
-    if (!destination.isEmpty() && destination == panelPath)
-        transferDestinationPanel_ = other;
-}
-
-void MainWindow::refreshTransferDestination(unsigned index) {
-    if (app_.NumPanels != 2 || index >= kNumPanelsMax || app_.GetFocusedPanelIndex() == index ||
-        app_.QtOperations().blocking())
-        return;
-    const unsigned source = app_.GetFocusedPanelIndex();
-    activatePanelUi(index);
-    appPresentation_->RefreshCopyPanel(index);
-    activatePanelUi(source);
-}

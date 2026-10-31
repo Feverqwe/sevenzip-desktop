@@ -20,7 +20,6 @@ void MainWindow::transferFromArchive(const QString &destination, bool move, bool
     options.pathMode = ExtractionOptions::PathMode::CurrentPaths;
     options.currentFolder = archiveFolder_;
     options.overwriteMode = ExtractionOptions::OverwriteMode::Ask;
-    rememberTransferDestination(destination);
     if (move)
         archiveMove_.emplace(sourceIndex, indices);
     const bool handled =
@@ -43,7 +42,6 @@ void MainWindow::transferFromArchive(const QString &destination, bool move, bool
     // A synchronous result or refused launch has no pending continuation.
     // Clear it before an error dialog can deliver another GUI callback.
     archiveMove_.reset();
-    transferDestinationPanel_.reset();
     if (!handled) {
         if (copyToSame)
             QMessageBox::warning(

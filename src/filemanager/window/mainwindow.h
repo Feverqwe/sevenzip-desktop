@@ -151,8 +151,6 @@ class MainWindow : public QMainWindow {
         ArchiveTransferReload reload = ArchiveTransferReload::BoundFolder);
     void transferFromArchive(const QString &destination, bool move, bool copyToSame,
                              unsigned sourceIndex, const CRecordVector<UInt32> &indices);
-    void rememberTransferDestination(const QString &path);
-    void refreshTransferDestination(unsigned index);
     void createFileTable(QWidget *central);
     void configureColumns(bool initialized = false);
     void updateIconColumn();
@@ -379,7 +377,6 @@ class MainWindow : public QMainWindow {
         ArchiveMoveStage stage = ArchiveMoveStage::Extracting;
     };
     std::optional<PendingArchiveMove> archiveMove_;
-    std::optional<unsigned> transferDestinationPanel_;
     QLineEdit *path_ = nullptr;
     QComboBox *pathCombo_ = nullptr;
     QString directory_;

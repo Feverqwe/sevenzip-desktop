@@ -87,8 +87,6 @@ void MainWindow::backendFinished(bool ok, const QString &message, HRESULT result
         return; // Source worker owns completion until its modal lifecycle joins.
     if (startPendingArchiveMove(ok))
         return;
-    const std::optional<unsigned> transferDestination = transferDestinationPanel_;
-    transferDestinationPanel_.reset();
     QString resultMessage = message;
     if (archiveMove_ && archiveMove_->stage == ArchiveMoveStage::Removing)
         resultMessage =
@@ -109,8 +107,6 @@ void MainWindow::backendFinished(bool ok, const QString &message, HRESULT result
         showDirectory(returnDirectory_, false);
     else if (state_ == State::Operating)
         setState(previousState_ == State::Viewing ? State::Viewing : State::Filesystem);
-    if (transferDestination)
-        refreshTransferDestination(*transferDestination);
     appPresentation_->CopyFinished();
     statusBar()->showMessage(resultMessage);
     if (!ok && !hadProgress && !messageDisplayed && !canceled)

@@ -77,6 +77,12 @@ void MainWindowOperationsTests::twoPanelArchiveCopyRefreshesFilesystemDestinatio
     QVERIFY(root.isValid());
     QVERIFY(QDir(root.path()).mkdir(QStringLiteral("назначение")));
     const QString destination = root.filePath(QStringLiteral("назначение"));
+    const QString retainedName = QStringLiteral("keep focused δ.txt");
+    const QString retainedPath = QDir(destination).filePath(retainedName);
+    QFile retained(retainedPath);
+    QVERIFY(retained.open(QIODevice::WriteOnly));
+    QCOMPARE(retained.write("destination control"), qint64(19));
+    retained.close();
     const QString source = root.filePath(QStringLiteral("архивный файл.txt"));
     QFile input(source);
     QVERIFY(input.open(QIODevice::WriteOnly));
@@ -99,6 +105,7 @@ void MainWindowOperationsTests::twoPanelArchiveCopyRefreshesFilesystemDestinatio
     QVERIFY(left);
     auto *leftTable = left->findChild<FileTable *>("archiveTable");
     QTRY_COMPARE(leftTable->rowCount(), 2);
+    leftTable->sourcePanel->Set_AutoRefresh_Mode(false);
     action(window, "twoPanelsAction")->trigger();
     const auto restorePanels = qScopeGuard([&] {
         if (action(window, "twoPanelsAction")->isChecked())
@@ -113,7 +120,16 @@ void MainWindowOperationsTests::twoPanelArchiveCopyRefreshesFilesystemDestinatio
     auto *rightPath = right->findChild<QLineEdit *>("archivePath");
     rightPath->setText(destination);
     QTest::keyClick(rightPath, Qt::Key_Return);
-    QTRY_COMPARE(rightTable->rowCount(), 0);
+    QTRY_COMPARE(rightTable->rowCount(), 1);
+    rightTable->sourcePanel->Set_AutoRefresh_Mode(false);
+    rightTable->selectRow(0);
+    const auto verifyDestinationSelection = [&] {
+        CSelectedState selection;
+        rightTable->sourcePanel->SaveSelectedState(selection);
+        QCOMPARE(ToQString(selection.FocusedName), retainedName);
+        QCOMPARE(selection.SelectedNames.Size(), 1u);
+        QCOMPARE(ToQString(selection.SelectedNames[0]), retainedName);
+    };
 
     const auto leftRow = [leftTable](const QString &name) {
         for (int row = 0; row < leftTable->rowCount(); ++row)
@@ -143,22 +159,24 @@ void MainWindowOperationsTests::twoPanelArchiveCopyRefreshesFilesystemDestinatio
     QFile result(copied);
     QVERIFY(result.open(QIODevice::ReadOnly));
     QCOMPARE(result.readAll(), QByteArray("archive bytes"));
-    QTRY_COMPARE(rightTable->rowCount(), 1);
-    QCOMPARE(
-        rightTable->model()->index(0, 0).data().toString().normalized(QString::NormalizationForm_C),
-        QFileInfo(source).fileName().normalized(QString::NormalizationForm_C));
+    QTRY_COMPARE(rightTable->rowCount(), 2);
+    verifyDestinationSelection();
+    QTRY_VERIFY(left->isAncestorOf(window.focusWidget()));
     QCOMPARE(leftTable->rowCount(), 2);
 
     const int moveRow = leftRow(QFileInfo(movedSource).fileName());
     QVERIFY(moveRow >= 0);
     leftTable->selectRow(moveRow);
+    rightTable->sourcePanel->SetAlternativeSelection(true);
     QTimer::singleShot(0, &window, [&] {
         auto *dialog = window.findChild<CopyDialog *>("copyDialog");
         QVERIFY(dialog);
         dialog->accept();
     });
     action(window, "moveAction")->trigger();
-    QTRY_COMPARE(rightTable->rowCount(), 2);
+    QTRY_COMPARE(rightTable->rowCount(), 3);
+    verifyDestinationSelection();
+    QTRY_VERIFY(left->isAncestorOf(window.focusWidget()));
     QFile moved(QDir(destination).filePath(QFileInfo(movedSource).fileName()));
     QVERIFY(moved.open(QIODevice::ReadOnly));
     QCOMPARE(moved.readAll(), QByteArray("move bytes"));
@@ -166,6 +184,8 @@ void MainWindowOperationsTests::twoPanelArchiveCopyRefreshesFilesystemDestinatio
     QCOMPARE(
         leftTable->model()->index(0, 0).data().toString().normalized(QString::NormalizationForm_C),
         QFileInfo(source).fileName().normalized(QString::NormalizationForm_C));
+    QVERIFY(retained.open(QIODevice::ReadOnly));
+    QCOMPARE(retained.readAll(), QByteArray("destination control"));
 }
 
 void MainWindowOperationsTests::stage7ArchiveCopyAndDropCancellation() {
