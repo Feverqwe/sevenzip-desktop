@@ -7,6 +7,7 @@
 #include <QTemporaryDir>
 #include <QtTest>
 #include <future>
+#include <stdexcept>
 
 namespace {
 template <typename Function> auto Worker(Function work) {
@@ -480,7 +481,13 @@ class ArchiveReadOnlyViewTests final : public QObject {
         QVERIFY(operation.OutputClosed);
         QVERIFY(QFileInfo(output).size() <= 1024);
     }
+    void unverifiedOutputRequiresSeparateConsent_data() {
+        QTest::addColumn<bool>("throwFirstDecision");
+        QTest::newRow("refused decision") << false;
+        QTest::newRow("failed decision") << true;
+    }
     void unverifiedOutputRequiresSeparateConsent() {
+        QFETCH(bool, throwFirstDecision);
         QTemporaryDir fixture;
         const QString path = fixture.filePath("damaged.zip");
         const auto payload = Payload();
@@ -507,6 +514,8 @@ class ArchiveReadOnlyViewTests final : public QObject {
                          [](const QString &, quint64) { return true; },
                          [&](const QString &name, quint64 bytes, Int32 operation) {
                              ++decisions;
+                             if (throwFirstDecision && decisions == 1)
+                                 throw std::runtime_error("recovery decision failed");
                              return allow && name == "data.bin" &&
                                     bytes == quint64(payload.size()) &&
                                     operation == NArchive::NExtract::NOperationResult::kCRCError;
@@ -517,6 +526,7 @@ class ArchiveReadOnlyViewTests final : public QObject {
         const auto denied = Worker([&] { return view->read(id, 0, 1024); });
         QVERIFY(denied.Result != S_OK);
         QVERIFY(denied.Data.isEmpty());
+        QVERIFY(!denied.Error.isEmpty());
         QCOMPARE(decisions, 1);
         allow = true;
         const auto unverified = Worker([&] { return view->read(id, 0, 1024); });

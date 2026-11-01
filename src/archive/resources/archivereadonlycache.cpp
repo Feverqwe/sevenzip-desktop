@@ -98,6 +98,10 @@ HRESULT ArchiveReadOnlyView::State::materialize(quint64 id, const CMyComPtr<IPro
     }
     const QString path = Directory->filePath(QString::number(id));
     QtArchiveReadOperation operation(Reader, Password);
+    auto removeUncachedOutput = qScopeGuard([&] {
+        if (operation.OutputCreated)
+            QFile::remove(path);
+    });
     operation.Output.NativeIndex = item.Index;
     operation.Output.Path = path;
     operation.Output.Limit = size;
@@ -128,22 +132,16 @@ HRESULT ArchiveReadOnlyView::State::materialize(quint64 id, const CMyComPtr<IPro
     const bool recovered = !complete && recoverable && RecoveryConsent &&
                            RecoveryConsent(name, quint64(actual), operation.OutputOperation);
     if ((!complete && !recovered) || Cancelled) {
-        QFile::remove(path);
         result.Error = QStringLiteral("The entry could not be decoded completely and verified.");
         return Cancelled ? E_ABORT : operation.Result == S_OK ? E_FAIL : operation.Result;
     }
     CMyComPtr2<IInStream, CInFileStream> file;
     file.Create_if_Empty();
-    if (!file->Open(us2fs(path.toStdWString().c_str()))) {
-        QFile::remove(path);
+    if (!file->Open(us2fs(path.toStdWString().c_str())))
         return E_FAIL;
-    }
     auto opened = ArchiveInputLayer::Create(file.Interface(), request);
-    if (!opened) {
-        file.Detach()->Release();
-        QFile::remove(path);
+    if (!opened)
         return opened.error();
-    }
     item.Stream = std::move(*opened);
     item.Path = path;
     item.Bytes = quint64(actual);
@@ -151,6 +149,7 @@ HRESULT ArchiveReadOnlyView::State::materialize(quint64 id, const CMyComPtr<IPro
     describe(item, result);
     Cached += item.Bytes;
     ++Active;
+    removeUncachedOutput.dismiss();
     return S_OK;
 }
 

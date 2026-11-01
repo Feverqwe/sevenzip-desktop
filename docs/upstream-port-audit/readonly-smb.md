@@ -1,5 +1,39 @@
 # Local read-only SMB: implementation and evidence
 
+## Decoded cache publication ownership — 2026-11-01
+
+Reviewed the complete retained view, cache acquisition/eviction/materialization,
+native single-entry worker, input-layer ownership and mount-source callers.
+Compared the existing output-stream/Extract/Close boundary with original
+Client7z GetStream and SetOperationResult at
+`b88c6bc09339de32f7d18bbab900686b244f42ba` in
+<https://github.com/ip7z/7zip.git>. The complete original Client7z.cpp matches
+its existing inventory hash. Native decoding and source algorithms are unchanged;
+no external code is imported or baseline advanced.
+
+A decoded file remains owned by its joined request until successful cache
+publication. One scoped cleanup replaces the separate failure-path removals
+and also covers exception unwinding from a recovery-consent service. Cleanup
+only removes output actually created by that request. Local input handles are
+released before removal; successful publication transfers ownership to the
+existing cache and its eviction/destruction paths.
+
+Previously a throwing recovery decision could leave an unpublished decoded file
+that prevented a later attempt from creating its output. The public damaged-ZIP
+test now covers both a refused decision and a throwing decision, then checks
+successful retry with fresh consent, exact bytes, retained CRC warning, cached
+reads and a healthy sibling. No private cache paths or implementation-presence
+assertions are exposed. No pre-fix runtime reproduction is claimed.
+
+Focused validation passed archive_readonly_view and archive_mount_transport on
+Linux, then archive_readonly_view on Windows. The extra Windows check covers
+closing file handles before deleting decoded outputs; no distinct macOS path
+was changed, so no macOS rerun was selected. Both recovery-decision rows pass
+on the checked platforms. The transport suite's opt-in native OS mount rows
+remain unrun; this is not native-mount or visual acceptance. Existing build
+trees and compiler caches were reused, with no parallelism override or full/slow
+gate.
+
 ## Read-only cache ownership — 2026-10-31
 
 Reviewed the complete retained-view/cache/read-operation/source pipeline and its
