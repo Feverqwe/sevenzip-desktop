@@ -72,6 +72,8 @@ class ChildJob {
 };
 
 QStringList AccessibleNames(HWND window, QHash<QString, bool> *exposed = nullptr) {
+    if (exposed)
+        exposed->clear();
     const HRESULT initialized = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
     const auto uninitialize = qScopeGuard([&] {
         if (SUCCEEDED(initialized))
@@ -111,7 +113,7 @@ QStringList AccessibleNames(HWND window, QHash<QString, bool> *exposed = nullptr
     return names;
 }
 
-enum class AccessibleAction { Expand, Check };
+enum class AccessibleAction { Expand, Collapse, Check };
 
 bool ActivateAccessibleControl(HWND window, const wchar_t *name, AccessibleAction action) {
     const HRESULT initialized = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
@@ -135,24 +137,17 @@ bool ActivateAccessibleControl(HWND window, const wchar_t *name, AccessibleActio
         FAILED(automation->CreatePropertyCondition(UIA_NamePropertyId, value, &condition)) ||
         FAILED(root->FindFirst(TreeScope_Descendants, condition, &element)) || !element)
         return false;
-    if (action == AccessibleAction::Expand) {
+    if (action != AccessibleAction::Check) {
         CMyComPtr<IUIAutomationExpandCollapsePattern> expansion;
         if (FAILED(element->GetCurrentPattern(UIA_ExpandCollapsePatternId, &pattern)) || !pattern ||
             FAILED(
                 pattern.QueryInterface(__uuidof(IUIAutomationExpandCollapsePattern), &expansion)))
             return false;
+        const bool expand = action == AccessibleAction::Expand;
+        const HRESULT invoked = expand ? expansion->Expand() : expansion->Collapse();
         ExpandCollapseState state;
-        if (FAILED(expansion->get_CurrentExpandCollapseState(&state)))
-            return false;
-        // QTRY evaluates its predicate again after success. Keep that final
-        // observation from pressing the disclosure a second time.
-        if (state == ExpandCollapseState_Expanded)
-            return true;
-        pattern.Release();
-        CMyComPtr<IUIAutomationInvokePattern> invoke;
-        return SUCCEEDED(element->GetCurrentPattern(UIA_InvokePatternId, &pattern)) && pattern &&
-               SUCCEEDED(pattern.QueryInterface(__uuidof(IUIAutomationInvokePattern), &invoke)) &&
-               SUCCEEDED(invoke->Invoke());
+        return SUCCEEDED(invoked) && SUCCEEDED(expansion->get_CurrentExpandCollapseState(&state)) &&
+               state == (expand ? ExpandCollapseState_Expanded : ExpandCollapseState_Collapsed);
     }
     CMyComPtr<IUIAutomationTogglePattern> toggle;
     if (FAILED(element->GetCurrentPattern(UIA_TogglePatternId, &pattern)) || !pattern ||
@@ -268,6 +263,10 @@ class NativeGUIWorkflowTests final : public QObject {
         AddDialog dialog{DWORD(helper.processId())};
         QTRY_VERIFY_WITH_TIMEOUT(
             (EnumWindows(FindAddDialog, reinterpret_cast<LPARAM>(&dialog)), dialog.window), 20000);
+        for (const auto action :
+             {AccessibleAction::Expand, AccessibleAction::Collapse, AccessibleAction::Expand})
+            QTRY_VERIFY_WITH_TIMEOUT(
+                ActivateAccessibleControl(dialog.window, L"Compression settings", action), 5000);
         QVERIFY(PostMessageW(dialog.window, WM_CLOSE, 0, 0));
         QVERIFY(helper.waitForFinished(10000));
         QCOMPARE(helper.exitStatus(), QProcess::NormalExit);
@@ -304,10 +303,21 @@ class NativeGUIWorkflowTests final : public QObject {
         QTRY_VERIFY_WITH_TIMEOUT(ActivateAccessibleControl(dialog.window, L"Advanced settings",
                                                            AccessibleAction::Expand),
                                  5000);
+        QHash<QString, bool> exposed;
+        const QString advancedControl = "Eliminate duplication of root folder";
+        QTRY_VERIFY_WITH_TIMEOUT(
+            (AccessibleNames(dialog.window, &exposed), exposed.value(advancedControl)), 5000);
+        QTRY_VERIFY_WITH_TIMEOUT(ActivateAccessibleControl(dialog.window, L"Advanced settings",
+                                                           AccessibleAction::Collapse),
+                                 5000);
+        QTRY_VERIFY_WITH_TIMEOUT(
+            (AccessibleNames(dialog.window, &exposed), !exposed.value(advancedControl)), 5000);
+        QTRY_VERIFY_WITH_TIMEOUT(ActivateAccessibleControl(dialog.window, L"Advanced settings",
+                                                           AccessibleAction::Expand),
+                                 5000);
         QTRY_VERIFY_WITH_TIMEOUT(
             ActivateAccessibleControl(dialog.window, L"Use a password", AccessibleAction::Check),
             5000);
-        QHash<QString, bool> exposed;
         for (const QString &name : {QString("Path mode:"), QString("Overwrite mode:"),
                                     QString("Eliminate duplication of root folder"),
                                     QString("Password"), QString("Show Password")}) {

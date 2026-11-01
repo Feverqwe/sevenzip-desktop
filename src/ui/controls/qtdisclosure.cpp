@@ -36,7 +36,9 @@ class AccessibleDisclosure final : public QAccessibleWidget {
     }
 
     void doAction(const QString &action) override {
-        if (action == pressAction())
+        // Qt's Windows UIA ExpandCollapse provider dispatches showMenuAction;
+        // Cocoa keeps using the advertised press action for a disclosure.
+        if (action == pressAction() || action == showMenuAction())
             button()->click();
         else
             QAccessibleWidget::doAction(action);

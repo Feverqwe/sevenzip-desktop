@@ -10,7 +10,13 @@
 class DisclosureAccessibilityTests final : public QObject {
     Q_OBJECT
   private slots:
+    void assistiveActionExposesStateAndRetainsDraft_data() {
+        QTest::addColumn<QString>("action");
+        QTest::newRow("press") << QAccessibleActionInterface::pressAction();
+        QTest::newRow("expand-collapse-bridge") << QAccessibleActionInterface::showMenuAction();
+    }
     void assistiveActionExposesStateAndRetainsDraft() {
+        QFETCH(QString, action);
         QWidget window;
         auto *layout = new QVBoxLayout(&window);
         auto *draft = new QLineEdit(QStringLiteral("черновик 密碼"));
@@ -34,14 +40,14 @@ class DisclosureAccessibilityTests final : public QObject {
         QVERIFY(actions);
         const QString press = QAccessibleActionInterface::pressAction();
         QVERIFY(actions->actionNames().contains(press));
-        actions->doAction(press);
+        actions->doAction(action);
         QVERIFY(draft->isVisible());
         QVERIFY(!summary->isVisible());
         QCOMPARE(section->button()->mapTo(&window, QPoint()).y(), headerTop);
         QVERIFY(accessible->state().expanded);
         QVERIFY(!accessible->state().collapsed);
         draft->setText(QStringLiteral("  изменённый черновик  "));
-        actions->doAction(press);
+        actions->doAction(action);
         QVERIFY(!draft->isVisible());
         QVERIFY(summary->isVisible());
         QVERIFY(accessible->state().collapsed);
@@ -61,7 +67,7 @@ class DisclosureAccessibilityTests final : public QObject {
         QCOMPARE(draft->text(), QStringLiteral("  изменённый черновик  "));
         section->button()->setEnabled(false);
         QVERIFY(accessible->state().disabled);
-        actions->doAction(press);
+        actions->doAction(action);
         QVERIFY(draft->isVisible());
     }
 };

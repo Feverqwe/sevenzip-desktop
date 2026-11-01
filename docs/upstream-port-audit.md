@@ -68,6 +68,9 @@ rg -n --no-ignore -F 'CAgent::Open' docs/archive/qt-port/upstream-port-audit/ do
 - [Общая подготовка метаданных Add](upstream-port-audit/add-metadata-owner.md)
   — параметры исходного запроса, возможности формата и сохранённые значения.
 
+- [Раскрытие секций средствами доступности](upstream-port-audit/disclosure-expand-collapse.md)
+  — общий путь активации и прямой Windows UIA Expand/Collapse.
+
 - [Запуск и выбор внешнего Drop](upstream-port-audit/startup-drop-choice.md)
   — подготовка первого окна и запрошенный выбор открытия/упаковки;
   [аудит сценариев](user-workflow-audit.md) хранит текущие результаты и ограничения.
