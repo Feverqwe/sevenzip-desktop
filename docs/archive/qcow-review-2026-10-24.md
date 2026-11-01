@@ -22,7 +22,7 @@
 и сборки сохранены: ими пользуются другие импорты.
 
 Оставшаяся область переноса и её ограничения описаны в
-[аудите QCOW](upstream-port-audit/container-layers.md#qemu-read-side-update--2026-10-24).
+[аудите QCOW](../upstream-port-audit/container-layers.md#qemu-read-side-update--2026-10-24).
 
 Позднейшие LUKS, отдельные пароли зависимостей, VM state, QED и переход на libqcow
 находятся в отдельной `feature/qcow-read-updates`. Эта ветка не была слита в

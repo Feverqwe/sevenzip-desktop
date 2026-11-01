@@ -26,11 +26,11 @@ evidence applies only to the recorded revision, platform and scenario.
 | Find workflows, source owners and regressions | [Regression matrix](regression-matrix.md) |
 | Find a test suite or UI data producer | [Coverage](testing/coverage.md), [geometry](testing/geometry.md) |
 | Understand UI/backend ownership and boundaries | [Architecture](architecture.md) |
-| Organize project modules and repository-owned build sources | [Source ownership and pending migration](architecture.md#module-directories-and-source-ownership) |
+| Organize project modules and repository-owned build sources | [Source ownership](architecture.md#module-directories-and-source-ownership) |
 | Change direct read-only device access | [Usage and limits](direct-device-reading.md), [source audit](upstream-port-audit/direct-devices.md) |
 | Change the redesigned interface or shortcuts | [UI contracts](ui-layout-contracts.md), [shortcut scheme](ui-shortcuts-design.md), [source audit](upstream-port-audit/ui-redesign.md) |
 | Check behavior and platform differences | [Parity](7zfm-parity.md) |
-| Review the 2026-10-30 workflow and control-state audit | [Workflow audit](user-workflow-audit.md) |
+| Review past workflow audits and source decisions | [Archive](archive/README.md), [source audit](upstream-port-audit.md) |
 | Change layout, text, visibility or resizing | [UI contracts](ui-layout-contracts.md) |
 | Extract resources and compare them with widgets | [UI reference tooling](ui-reference.md) |
 | Capture an original Windows reference | [Windows reference](windows-ui-reference.md) |

@@ -54,11 +54,11 @@ Do not equate a geometry PASS with visual or behavioral parity.
    For example, the local macOS producer command after the build is:
 
    ```sh
-   build_root="$(python3 scripts/lib/build_paths.py path --root "$PWD" --category work --preset dev)"
+   artifact_root="$(python3 scripts/lib/build_paths.py path --root "$PWD" --category artifacts)"
    QT_QPA_PLATFORM=cocoa \
    SEVENZIP_UI_REPORTS=ON SEVENZIP_UI_REPORT_DIR="$PWD/build/ui-runtime/macos" \
    SEVENZIP_SETTINGS_PATH="$PWD/build/ui-runtime/settings.ini" \
-     "$build_root/dev/copy_dialog_tests" sourceFrameAndKeyboard -silent
+     "$artifact_root/dev/copy_dialog_tests" sourceFrameAndKeyboard -silent
    ```
 
    Use `windows` QPA in the Windows interactive desktop and `xcb`/`wayland`

@@ -20,7 +20,7 @@ see [SDK setup](development.md#dependencies).
 Runtime/SFX builders compile private source trees expanded from the local
 7-Zip archive and adaptations recorded in [the baseline](upstream-baseline.json).
 Release CI uses those same repository-owned inputs without fetching 7-Zip.
-Source ownership and pending directory migration are described in
+Source ownership and generated build views are described in
 [architecture](architecture.md#module-directories-and-source-ownership).
 `scripts/install-qt-windows.py` adapts aqtinstall to the selected Qt kit's
 compiler-specific repository layout. Pins from the removed workflow are

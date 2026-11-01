@@ -77,8 +77,10 @@ contracts without placing an upstream-shaped source tree in the project.
 The baselines record original paths, current owners and local dependency archives
 explicitly. Modified libsmb2 sources belong to its project module; generated
 forwarding units connect them to the dependency's original build rules and keep
-compiler dependency tracking live. Final cross-platform acceptance is pending;
-[development](development.md) documents the current commands.
+compiler dependency tracking live. The
+[source-ownership audit](upstream-port-audit/module-source-ownership.md) records
+the completed transfer and platform checks, including the interrupted full gate.
+[Development](development.md) documents the current commands.
 
 External C libraries keep their original compilation language and provenance.
 C++ dependency facades own resource lifetimes and bounded buffer interfaces;

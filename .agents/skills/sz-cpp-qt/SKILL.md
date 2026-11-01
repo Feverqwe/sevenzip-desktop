@@ -31,4 +31,4 @@ python3 scripts/lib/build_paths.py path --root "$PWD" --category work --preset d
 ```
 
 Use its `dev/compile_commands.json` with clangd so diagnostics match the selected
-RAM or disk workspace.
+branch, platform and workspace.

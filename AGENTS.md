@@ -308,7 +308,6 @@ failure or prerequisite that prevents further work. Repeat remote checks only
 when later edits affect their tested behavior or dependencies.
 
 Select focused checks from the changed behavior and its platform dependencies.
-Documentation-only changes still need only `git diff --check`.
 
 For behavior changes, use the [test usefulness criteria](#test-usefulness).
 A pre-fix failing run follows the
@@ -333,32 +332,24 @@ observed problem or an explicit user request. Keep serialization scoped to
 individual tests through `RUN_SERIAL` or resource locks when a real shared
 resource requires it. Report compilation and test execution time separately
 when investigating a slowdown.
-Use the default `lite` build mode for ordinary work. Enable additional diagnostics
-only when the task needs their evidence, through the options documented in
-[development](docs/development.md#build-diagnostics). Scope diagnostic environment
-variables to the relevant command; do not leave them enabled for later tasks.
-Debug symbols, sanitizers and Clang-Tidy can greatly expand object files,
-linking cost and runtime. Before enabling them, identify the smallest executable
-or library targets and focused tests that can answer the diagnostic question.
-Build only those targets and their necessary dependencies. Do not combine heavy
-diagnostics with `all`, the full gate or an unrelated test matrix merely for
-convenience. A whole-project diagnostic build needs a concrete cross-component
-reason or an explicit user request; explain its scope and cost before launching.
-Use `debug` for debugger work and `sanitize` for memory/undefined-behavior
-investigations, or enable the individual option that is sufficient. Keep
-warnings, input validation and ordinary Debug assertions enabled. UI report
-generation and screenshots are separate opt-ins; enable JSON reports for the
-affected geometry checks when this task requires inspecting their output.
-After a heavy diagnostic build, review its disk usage and remove task-owned
-artifacts that are no longer needed: large diagnostic/test binaries and symbol
-files, dumps, extracted fixtures, temporary snapshots and superseded reports.
-Do this when the diagnostic question is resolved, rather than leaving bulky
-outputs for hypothetical future use. Keep only the evidence needed for current
-review or unresolved failures. Check active processes, locks and references
-before deleting; preserve current useful incremental outputs, compiler caches,
-installed tools and dependencies. Do not clean the whole workspace or unrelated
-targets to dispose of one diagnostic run. Report the cleanup and retained large
-artifacts with their reason.
+Use the default `lite` build mode for ordinary work. For diagnostics, follow
+[development](docs/development.md#build-diagnostics): use `debug` for debugger
+work, `sanitize` for memory/undefined behavior, or the sufficient individual
+option. Scope environment overrides to the relevant command; retain warnings,
+input validation and ordinary Debug assertions. Before enabling expensive
+symbols, sanitizers or Clang-Tidy, identify the smallest targets, dependencies
+and focused tests that answer the question. Do not combine them with `all`,
+a full gate or an unrelated matrix for convenience. Whole-project diagnostics
+require a concrete cross-component reason or explicit request; explain their
+scope and cost first. JSON reports and screenshots are separate opt-ins;
+enable reports when the affected geometry needs inspection.
+After heavy diagnostics, review disk usage and apply
+[artifact retention](docs/testing.md#test-artifact-retention) when the question
+is resolved. Remove obsolete task-owned binaries/symbols, dumps, fixtures,
+snapshots and reports after checking processes, locks and references. Preserve
+current review/failure evidence, useful incremental outputs, caches, tools and
+dependencies; never clean unrelated targets or the workspace wholesale.
+Report cleanup and any retained large artifacts with their reason.
 Expand checks when failures or shared dependencies show a wider impact.
 Run `./scripts/check.sh` only for broad cross-component changes whose impact
 cannot be covered confidently by focused suites, unresolved integration risks,

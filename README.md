@@ -81,8 +81,8 @@ python3 scripts/prepare-runtime.py
 test suite. On macOS, locate the development build and launch it from a terminal:
 
 ```sh
-build_root="$(python3 scripts/lib/build_paths.py path --root "$PWD" --category work --preset dev)"
-"$build_root/dev/Sevenzip.app/Contents/MacOS/Sevenzip" /path/to/archive.7z
+artifact_root="$(python3 scripts/lib/build_paths.py path --root "$PWD" --category artifacts)"
+"$artifact_root/dev/Sevenzip.app/Contents/MacOS/Sevenzip" /path/to/archive.7z
 ```
 
 To build a Release package without test executables:
@@ -91,8 +91,9 @@ To build a Release package without test executables:
 ./scripts/build-app.sh
 ```
 
-On macOS, the resulting application is `dist/Sevenzip.app`.
-Intermediate build files remain in `build/`.
+The script prints the installation directory, including `Sevenzip.app` on macOS.
+Use the [workspace resolver](docs/development.md#local-commands) to locate
+build outputs for the selected branch and platform.
 
 The application uses the prepared native codec runtime and its own `7zG` process.
 The official `7z` client is included as a separate command-line tool and is also

@@ -3,7 +3,7 @@
 -volname HfsFixture base.dmg`, trimmed to the volume's allocation size.
 It contains only generated test data: two patterned files, an empty directory,
 one resource fork and one custom inline extended attribute. No user files or
-device contents were used. `tests/hfs_fixture.py` defines their expected bytes
+device contents were used. `tests/formats/hfs/support/hfs_fixture.py` defines their expected bytes
 and derives the fragmented, preallocated and damaged variants.
 
 `hfsplus-modern.img.zlib` starts from that volume, attached as `CRawDiskImage`
@@ -12,7 +12,7 @@ file APIs created three names for `alpha`, composed Latin/Hangul names, an emoji
 a colon name and a symlink to `alpha`; the HFS+ driver wrote their decomposed
 disk names and backing inode. The image was detached before compression.
 The volume also contains native generated filesystem metadata. No user files
-were copied into it. `tests/hfs_modern_fixture.py` defines the expected payloads
+were copied into it. `tests/formats/hfs/support/hfs_modern_fixture.py` defines the expected payloads
 and the focused Unicode, link-guard, metadata and corrupt variants.
 
 `alpha.lzvn` contains only the generated `bytes(range(256)) * 8` payload,

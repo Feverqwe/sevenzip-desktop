@@ -9,7 +9,8 @@ Sevenzip is an independent application based on 7-Zip. The required
 keeps all 7-Zip build inputs in this repository. Unchanged 7-Zip sources are
 archived locally and expanded into the build workspace; neither configuration
 nor runtime/SFX preparation requires a separate upstream checkout or fetch.
-Project module directory migration and final platform acceptance are pending.
+The [source-ownership audit](upstream-port-audit/module-source-ownership.md)
+records the completed reorganization and its validation boundaries.
 
 The Qt kit must include Remote Objects and its `repc` compiler. Install the
 `qtremoteobjects` module alongside the selected Qt version on all platforms.
@@ -114,18 +115,18 @@ prepares the console and codec core without building SFX or external CMake modul
 Do not install test-only codec fixtures in a production runtime. Earlier ARM64
 builder samples are retained in [the tooling archive](archive/qt-port/workflow-evidence.md).
 
-Windows CMake installation places the Qt application, original7zFM/7zG entry
+Windows CMake installation places the Qt application, original 7zFM/7zG entry
 aliases, project shell DLL, official `7z.dll` and the independent `7z.exe` sidecar
 together in `bin`.
 `scripts/check-windows-package.sh` prepares a private installation of Qt runtime,
 platform plugins and compiler runtime using Qt's own deployment script. It
 first checks the prepared runtime's producer, repository, pinned revision,
-architecture and binary SHA256 values. Runtime provenance and7-Zip license are
+architecture and binary SHA256 values. Runtime provenance and 7-Zip license are
 installed under `share`; installation does not register shell handlers or
 write associations. `SEVENZIP_WINDOWS_RUNTIME` can select another prepared
 runtime directory at configure time.
 
-`scripts/check-windows-package.sh` builds and installs into the snapshot's
+`scripts/check-windows-package.sh` builds and installs into
 the branch’s package directory, then exercises its actual DLL and GUI helper with
 only package/system paths in the child process environment. Run it on the
 interactive Windows runner. This private test layout is not a release package
@@ -501,31 +502,39 @@ slow suites. `--show-only` still allows discovery without running tests.
 
 Qt Test suites run with `-silent`, so a failed suite reports its failed cases without listing the cases that passed. `ctest.sh` filters CTest's `Start` and successful `Passed` lines as they arrive; failed suite status, diagnostics, and the final summary remain visible. Each retained line is flushed immediately, and a failed CTest still returns a nonzero exit status.
 
-`check.sh` exits before any work when `CODEX_SANDBOX` identifies an active sandbox. The complete suite needs an unsandboxed run: DBus socket creation and native process-priority tests fail with `Operation not permitted` in the Codex sandbox. Focused tests can still be run there when their required system calls are permitted.
+`check.sh` refuses to run its formatting/build/test gate when `CODEX_SANDBOX`
+identifies an active sandbox. The complete suite needs an unsandboxed run:
+DBus socket creation and native process-priority tests fail with `Operation not
+permitted` in the Codex sandbox. Focused tests can still run there when their
+required system calls are permitted.
 
-`build.sh` uses CMake `--log-level=WARNING`, discards configuration stdout, and builds with Ninja `--quiet`: successful configuration and build progress lines are hidden, while warnings and errors remain visible as they occur. `ctest.sh` streams CTest output directly, including failure details when `--output-on-failure` is passed. When `CODEX_SESSION_ID` is set, only the formatting phase of `check.sh` buffers output; on failure it shows the last 30 log lines and the path to the full temporary log. Set `SEVENZIP_SCRIPT_OUTPUT=verbose` to see that formatting output as it runs. `ctest.sh` forwards arguments to CTest after setting the default parallel level and combining caller label exclusions with the default slow-suite exclusion; agents use it for both focused and default gate runs.
+`build.sh` uses compact output by default: configuration summaries, warnings
+and errors remain visible, while routine Ninja progress is suppressed.
+`ctest.sh` streams failure details and the final summary. The formatting phase
+of `check.sh` buffers output in agent sessions; a failure prints a log tail and
+the full log's path. Set `SEVENZIP_SCRIPT_OUTPUT=verbose` for full configuration,
+compiler/linker commands and unbuffered formatting diagnostics. The CTest wrapper
+preserves caller arguments and combines label exclusions with the default
+slow-suite exclusion; use it for both focused checks and default gates.
 
-The buffered log belongs to the shell that called `sevenzip_setup_output`.
-Background progress notifiers cannot finalize or remove that parent's log,
-including when a fast command cancels a notifier before its traps are installed.
-`agent_output` covers fast-command termination, delayed progress and failure-log
-retention across the supported Bash versions.
+Successful buffered logs are removed; failure logs remain for diagnosis.
+The `agent_output` suite checks termination, delayed progress and log retention.
 
 If `ccache` is installed, `build.sh` automatically uses it for C, C++ and Objective-C++ compilation, including builds started by `check.sh`. Install it with `brew install ccache` on macOS or your package manager on Linux. It speeds up recompilation after a clean build or branch switch; Ninja already skips unchanged files, and the full CTest suite still runs on every `check.sh` invocation.
-On macOS the script defaults `CCACHE_DIR` to `/private/tmp/sevenzip-desktop-ccache`, which is writable in the local sandbox and reuses the existing cache. Set `CCACHE_DIR` before running the script to use another directory.
+The workspace resolver selects the persistent compiler cache. Use
+`python3 scripts/lib/build_paths.py path --root "$PWD" --category cache`
+to locate it; configured shared storage is described in
+[runner configuration](runner-configuration.md#connections-and-tools).
 Windows ccache uses CMake 3.25+ with embedded MSVC `/Z7` debug information;
 the project runners provide that toolchain. `verify-result.json` records actual
-compiler launchers and ccache hit/miss deltas without resetting shared statistics.
+compiler launchers. Verification does not reset shared cache statistics.
 
 Validation reuses the existing incremental build and compiler cache. Full/release
 checks do not imply a cold build; clearing or bypassing the cache requires an
 explicit user request under [the validation rules](../AGENTS.md#validation-scope).
 
-Build specific targets with `./scripts/build.sh dev <target> [target ...]` and run
-focused cases with `./scripts/ctest.sh --preset dev -R '<test-name-regex>' --output-on-failure`.
-The build script configures the preset and applies platform toolchain workarounds;
-without targets it builds everything. Requirements for focused/full validation,
-repeat runs and docs-only changes are in [AGENTS.md](../AGENTS.md#validation-and-ui-reference).
+Requirements for focused/full validation, repeat runs and docs-only changes
+are in [AGENTS.md](../AGENTS.md#validation-and-ui-reference).
 
 Use `scripts/build-app.sh release` to prepare a native application installation;
 it prints the installation directory. Build outputs are ignored. The development preset

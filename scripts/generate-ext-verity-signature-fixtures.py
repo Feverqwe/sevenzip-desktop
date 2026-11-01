@@ -22,10 +22,15 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--linux", type=Path, default=Path("build/review/filesystems-linux/linux"))
     parser.add_argument("--openssl", required=True)
+    parser.add_argument("--output", type=Path, default=Path("tests/fixtures/ext4/verity-signatures.json"))
     args = parser.parse_args()
-    sys.path.insert(0, str(Path("tests").resolve()))
-    from ext_verity_fixture import VerityVolume
-    from ext_fixture import NAME
+    capabilities = subprocess.run([args.openssl, "cms", "-help"], text=True,
+                                  stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    if capabilities.returncode or "-no_signing_time" not in capabilities.stdout:
+        parser.error("--openssl must select an OpenSSL CMS tool with -no_signing_time support")
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from tests.formats.ext.support.ext_verity_fixture import VerityVolume
+    from tests.formats.ext.support.ext_fixture import NAME
     rsa = runpy.run_path(str(Path(__file__).with_name("generate-rsa-fixtures.py")))
     source = (args.linux / "crypto/testmgr.h").read_bytes()
     manifest = json.loads(Path("docs/ext-linux-baseline.json").read_text())
@@ -40,7 +45,7 @@ def main():
     certificates = {}
     text = Path("tests/fixtures/asn1/trust-chain.h").read_text()
     for name in ("root", "leaf", "intermediate", "collision"):
-        body = re.search(r"trust_chain_" + name + r"\[\] = \{(.*?)\n\};", text, re.S).group(1)
+        body = re.search(r"trust_chain_" + name + r"\[\]\s*=\s*\{(.*?)\};", text, re.S).group(1)
         certificates[name] = b"".join(ast.literal_eval("b" + v) for v in re.findall(r'"[^"]*"', body))
     result = {"linux_revision": manifest["revision"], "path": NAME,
               "root": certificates["root"].hex(), "collision": certificates["collision"].hex(), "cases": []}
@@ -48,7 +53,7 @@ def main():
         temp = Path(temporary)
 
         def openssl(*command):
-            subprocess.run([args.openssl, *command], check=True, capture_output=True)
+            subprocess.run([args.openssl, *command], check=True, stdout=subprocess.DEVNULL)
 
         for name, der in certificates.items():
             (temp / (name + ".der")).write_bytes(der)
@@ -77,7 +82,7 @@ def main():
                 "file_size": volume.size, "sha256": hashlib.sha256(volume.read(0, volume.size)).hexdigest(),
                 "digest": volume.file_digest.hex(), "signature_offset": volume.signature_physical,
                 "signature_size": volume.signature_size})
-    Path("tests/fixtures/ext4/verity-signatures.json").write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n")
+    args.output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n")
 
 
 if __name__ == "__main__":

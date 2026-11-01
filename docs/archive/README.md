@@ -37,6 +37,7 @@
 ## Other historical records
 
 - [Agent documentation and tooling audit, 2026-10-25](agent-maintenance-2026-10-25.md).
+- [Agent documentation and tooling audit, 2026-11-01](agent-maintenance-2026-11-01.md).
 - Implemented plans: [direct device access](plans/direct-device-reading-plan.md),
   [interface redesign](plans/ui-redesign-plan.md), [ZIP refresh](plans/zip-refresh-plan.md),
   [C++23 migration and acceptance](plans/cpp23-project-migration.md).
@@ -44,3 +45,5 @@
   and limitations belong to the [documentation map](../README.md).
 - [Runner installations and desktop/network diagnoses](runner-environment-2026-10-18.md).
 - [Add dialog layout investigations and intermediate validation](add-dialog-layout-history.md).
+- [QCOW scope review and rollback, 2026-10-24](qcow-review-2026-10-24.md).
+- [User workflow and control-state audit, 2026-10-30](user-workflow-audit-2026-10-30.md).

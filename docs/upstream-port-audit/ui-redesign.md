@@ -1551,7 +1551,7 @@ build trees/compiler caches сохранены, временная диагно�
 
 ## Поиск ошибок пользовательских сценариев — 2026-10-30
 
-В продолжении [аудита сценариев](../user-workflow-audit.md) исправлены
+В продолжении [аудита сценариев](../archive/user-workflow-audit-2026-10-30.md) исправлены
 доступность Two Panels, проверка отключённого пароля Add и результат
 адресной навигации. Сопоставлены исходные `MyLoadMenu.cpp` (View checks и
 dispatch), `App.cpp::SwitchOnOffOnePanel`, `CompressDialog.cpp::OnOK` и
