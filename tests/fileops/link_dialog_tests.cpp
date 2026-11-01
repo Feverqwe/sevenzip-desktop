@@ -235,6 +235,64 @@ class LinkDialogTests final : public QObject {
                      relative ? QFileInfo(target).fileName() : QDir::toNativeSeparators(target));
         }
     }
+    void relativeTargetClassification_data() {
+        QTest::addColumn<bool>("directoryTarget");
+        QTest::addColumn<bool>("wrongType");
+        for (bool directory : {false, true})
+            for (bool wrong : {false, true})
+                QTest::newRow(qPrintable(QString("%1-%2")
+                                             .arg(directory ? "directory" : "file")
+                                             .arg(wrong ? "wrong-type" : "create")))
+                    << directory << wrong;
+    }
+    void relativeTargetClassification() {
+#ifdef _WIN32
+        QSKIP("Relative symbolic target classification is a POSIX adaptation.");
+#else
+        QFETCH(bool, directoryTarget);
+        QFETCH(bool, wrongType);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        QDir root(fixture.path());
+        QVERIFY(root.mkdir("cwd"));
+        QVERIFY(root.mkdir("links"));
+        const QString targetName = QStringLiteral("цель 空");
+        const QString target = root.filePath("links/" + targetName);
+        const QString decoy = root.filePath("cwd/" + targetName);
+        const QString filePath = directoryTarget ? decoy : target;
+        QVERIFY(QDir().mkdir(directoryTarget ? target : decoy));
+        QFile file(filePath);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        QCOMPARE(file.write("payload"), qint64(7));
+        file.close();
+        const QString previous = QDir::currentPath();
+        const auto restore = qScopeGuard([&] { QDir::setCurrent(previous); });
+        QVERIFY(QDir::setCurrent(root.filePath("cwd")));
+        const QString link = root.filePath(QStringLiteral("links/ссылка"));
+        CLinkDialog dialog;
+        dialog.FilePath = target.toStdWString().c_str();
+        QString error;
+        QCOMPARE(run(dialog, link, targetName,
+                     directoryTarget != wrongType ? IDR_LINK_TYPE_SYM_DIR : IDR_LINK_TYPE_SYM_FILE,
+                     false, &error),
+                 int(wrongType ? QDialog::Rejected : QDialog::Accepted));
+        if (wrongType) {
+            QVERIFY(!error.isEmpty());
+            QVERIFY(!QFileInfo(link).isSymLink());
+            return;
+        }
+        QVERIFY2(error.isEmpty(), qPrintable(error));
+        UString raw;
+        QVERIFY(readTarget(link, raw));
+        QCOMPARE(QString::fromWCharArray(raw.Ptr()), targetName);
+        QCOMPARE(QFileInfo(link).isDir(), directoryTarget);
+        if (!directoryTarget) {
+            QFile output(link);
+            QVERIFY(output.open(QIODevice::ReadOnly));
+            QCOMPARE(output.readAll(), QByteArray("payload"));
+        }
+#endif
+    }
     void symbolicObjectCases_data() {
         QTest::addColumn<QString>("kind");
         for (const char *kind : {"directory", "dangling", "cycle"})

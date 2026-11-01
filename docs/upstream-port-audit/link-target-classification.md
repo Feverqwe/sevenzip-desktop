@@ -1,0 +1,39 @@
+# Relative link target classification — 2026-11-01
+
+Reference: <https://github.com/ip7z/7zip.git>, commit
+`9128b80e3a471108678e2b3ec3c985861c8d7b0f`. Compared complete LinkDialog
+initialization, browse, creation, error and CApp::Link bodies, header/resources,
+Qt controls, native link services and their command consumer. Original complete
+LinkDialog.cpp/.h/.rc hashes match the existing baseline. No source import or
+provenance advancement.
+
+The existing POSIX adaptation follows a target to classify file versus directory,
+but resolved relative targets from the process working directory. Creation stores
+the raw target, which the filesystem resolves from the link's parent. An unrelated
+same-named object in the working directory could therefore reject a valid choice
+or conceal a wrong type.
+
+Classification now prefixes a relative symbolic target with the link's parent;
+creation still receives the original target. QFileInfo extracts the parent
+without canonicalizing it; parent and target symlink/.. traversal remain for the
+filesystem to resolve. The upstream full-path helpers were inspected but normalize
+dot components and are unsuitable for this probe. Windows reparse handling and
+hard-link target lookup retain their existing source semantics. No new decoding,
+file mutation policy, link replacement algorithm or dialog layout is introduced.
+
+The POSIX regression places opposite object types under the same Unicode name in
+the link directory and an isolated process working directory. Correct file and
+directory choices create a link with the unchanged relative target; incorrect
+choices are rejected without creating a link. Existing coverage retains Cancel,
+hard-link content identity, dangling/cyclic targets, retarget/clear and refusal
+to hide existing file bytes. The fresh stack dialog in CApp::Link remains its
+lifetime owner; no speculative dialog-reuse feature was added.
+
+Validation: link_dialog, link_command, filesystem_link, folder_link and
+browse_dialog built and passed on Linux first, then macOS and Windows: 69 passes
+on each platform. Four new POSIX-only rows are explicitly skipped on Windows;
+its native link cases passed. Initial build failures in test string conversion
+and Windows moc slot registration were corrected in the fixture, with no product
+workaround. The final slot-registration correction leaves the POSIX test body
+unchanged. No full/slow gate or cache reset; incremental trees and compiler
+caches retained, completed scratch removed after evidence capture.

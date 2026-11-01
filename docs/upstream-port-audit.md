@@ -80,6 +80,9 @@ rg -n --no-ignore -F 'CAgent::Open' docs/archive/qt-port/upstream-port-audit/ do
 - [Представление ассоциаций после конфликта](upstream-port-audit/association-presentation-owner.md)
   — согласованное обновление обработчика и значка перед повторным Apply.
 
+- [Тип относительной цели ссылки](upstream-port-audit/link-target-classification.md)
+  — проверка относительно родителя ссылки с сохранением исходной цели.
+
 - [Запуск и выбор внешнего Drop](upstream-port-audit/startup-drop-choice.md)
   — подготовка первого окна и запрошенный выбор открытия/упаковки;
   [аудит сценариев](user-workflow-audit.md) хранит текущие результаты и ограничения.

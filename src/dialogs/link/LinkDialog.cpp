@@ -22,6 +22,7 @@
 
 #include "7zip/UI/FileManager/resource.h"
 #include "fileops/links/qtlinkservices.h"
+#include <QFileInfo>
 #include <QMessageBox>
 
 extern bool g_SymLink_Supported;
@@ -233,7 +234,14 @@ void CLinkDialog::OnButton_Link() {
 #else
     // Target classification only: POSIX lstat describes the link inode, while
     // Windows retains its file/directory reparse attribute. Creation keeps raw to.
-    const bool finded2 = info2.Find_FollowLink(us2fs(to));
+    UString target = to;
+    if (idb != IDR_LINK_TYPE_HARD && !to.IsEmpty() && !NName::IsAbsolutePath(to)) {
+        // Preserve symlink/.. traversal in the parent and target paths.
+        target = QFileInfo(QString::fromWCharArray(from.Ptr())).path().toStdWString().c_str();
+        target.Add_PathSepar();
+        target += to;
+    }
+    const bool finded2 = info2.Find_FollowLink(us2fs(target));
 #endif
 
     const bool isDirLink = (idb == IDR_LINK_TYPE_SYM_DIR || idb == IDR_LINK_TYPE_JUNCTION);
