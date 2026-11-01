@@ -6,6 +6,7 @@
 #include "archive/resources/archiveinputlayer.h"
 #include "archive/resources/archivenativeopen.h"
 #include "archive/resources/qtarchiveagentopen.h"
+#include "archive/resources/qtarchivebackendrequest.h"
 #include "archive/resources/qtarchivefileresource.h"
 #include "archive/resources/qtarchivenativeopenprogress.h"
 #include "archive/resources/qtarchiveproperties.h"
@@ -16,23 +17,10 @@
 #include "ui/progress/archiveprogresstransport.h"
 #include <QFile>
 #include <QMetaObject>
-#include <QMutex>
-#include <QMutexLocker>
 #include <QScopeGuard>
 #include <QSemaphore>
 #include <QThread>
 #include <atomic>
-
-struct QtArchiveFolderManager::CRequest {
-    QMutex Mutex;
-    bool Completed = false;
-    HRESULT Result = E_FAIL;
-    QList<ArchiveEntry> Entries;
-    ArchiveInfo Info;
-    CMyComPtr<IFolderFolder> Folder;
-    CMyComPtr<IUnknown> Resource;
-    std::atomic<bool> PasswordRequested{false};
-};
 
 struct QtArchiveFolderManager::COpenServices final : IQtAgentOpenServices {
     QtArchiveFolderManager &Manager;
@@ -107,78 +95,9 @@ QtArchiveFolderManager::WaitForCodecCatalog(std::shared_ptr<const ArchiveCodecCa
     return nativeProgress.Open_CheckBreak();
 }
 
-QtArchiveFolderManager::QtArchiveFolderManager(ArchiveBackend &backend) : _backend(backend) {
-    connect(&backend, &ArchiveBackend::infoReady, this, [this](const ArchiveInfo &info) {
-        if (_request)
-            _request->Info = info;
-    });
-    connect(&backend, &ArchiveBackend::entriesReady, this,
-            [this](const QList<ArchiveEntry> &entries) {
-                if (_request)
-                    _request->Entries = entries;
-            });
-    connect(&backend, &ArchiveBackend::passwordRequired, this, [this] {
-        if (_request)
-            _request->PasswordRequested.store(true);
-    });
-    connect(&backend, &ArchiveBackend::finished, this, [this](bool success, const QString &) {
-        if (!_request)
-            return;
-        const auto request = std::move(_request);
-        HRESULT result = success ? E_FAIL : _backend.lastResult();
-        if (!success && result == S_OK)
-            result = E_FAIL;
-        try {
-            if (success) {
-                auto *resource =
-                    dynamic_cast<QtArchiveFileResource *>(request->Resource.Interface());
-                if (resource) {
-                    resource->Info = request->Info;
-                    const QString transportFormat = resource->TransportFormat();
-                    resource->AttachReopenService(_backend, transportFormat);
-                    // A split archive opens through the outer Split handler before its
-                    // contained format; forcing -t7z on .001 bypasses that handler.
-                    resource->AttachExtractService(_backend, transportFormat);
-                    if (_backend.supportsArchiveUpdate(request->Info.format))
-                        resource->AttachUpdateService(_backend, request->Info.format);
-                }
-                result = CreateArchiveMetadata(request->Entries, &request->Folder);
-            }
-        } catch (...) {
-            result = E_FAIL;
-        }
-        QMutexLocker lock(&request->Mutex);
-        request->Result = result;
-        request->Completed = true;
-    });
-}
+QtArchiveFolderManager::QtArchiveFolderManager(ArchiveBackend &backend) : _backend(backend) {}
 
-QtArchiveFolderManager::~QtArchiveFolderManager() {
-    // Source Create joins the worker before its manager reference is released.
-    Q_ASSERT(!_request);
-    disconnect(&_backend, nullptr, this, nullptr);
-}
-
-void QtArchiveFolderManager::Start(const std::shared_ptr<CRequest> &request, const QString &path,
-                                   const QString &format, const QString &password) {
-    if (_request || _backend.busy()) {
-        QMutexLocker lock(&request->Mutex);
-        request->Result = E_FAIL;
-        request->Completed = true;
-        return;
-    }
-    _request = request;
-    try {
-        _backend.openFolder(path, format, password);
-    } catch (...) {
-        // A start implementation may throw after launching its owned process.
-        _backend.cancelAndWait();
-        _request.reset();
-        QMutexLocker lock(&request->Mutex);
-        request->Result = E_FAIL;
-        request->Completed = true;
-    }
-}
+QtArchiveFolderManager::~QtArchiveFolderManager() = default;
 
 Z7_COM7F_IMF(QtArchiveFolderManager::OpenFolderFile(IInStream *inStream, const wchar_t *filePath,
                                                     const wchar_t *arcFormat,
@@ -332,82 +251,30 @@ HRESULT QtArchiveFolderManager::OpenLinkImpl(CArchiveLink &link, const COpenOpti
     const QString password = ui && ui->PasswordIsDefined
                                  ? QString::fromWCharArray(ui->Password.Ptr())
                                  : nativeProgress.Password;
-    const auto request = std::make_shared<CRequest>();
-    request->Resource = resource;
-    QMetaObject::invokeMethod(
-        this,
-        [this, request, path, listingFormat, password] {
-            Start(request, path, listingFormat, password);
-        },
-        Qt::QueuedConnection);
-    HRESULT stopResult = S_OK;
-    bool cancelRequested = false;
-    for (;;) {
-        {
-            QMutexLocker lock(&request->Mutex);
-            if (request->Completed) {
-                if (stopResult != S_OK)
-                    return stopResult;
-                if (request->Result == S_OK) {
-                    auto *consent = dynamic_cast<IQtArchiveReadConsent *>(progress);
-                    auto *dialog = ui        ? &ui->ProgressDialog
-                                   : consent ? consent->ReadConsentDialog()
-                                             : nullptr;
-                    auto *readCallback = ui        ? ui
-                                         : consent ? consent->ReadConsentCallback()
-                                                   : nullptr;
-                    RINOK(ConfirmLimitedArchiveRead(dialog, readCallback, {},
-                                                    request->Info.readLimitations))
-                    resource->SetFilesystemReadLimitations(request->Info.readLimitations);
-                    RINOK(CreateArchiveLinkTransport(link, request->Folder, resource,
-                                                     sourceOptions.codecs))
-                    keepOwnedPath = true;
-                    return nativeResult;
-                }
-                return request->Result;
-            }
-        }
-        if (stopResult == S_OK && request->PasswordRequested.exchange(false)) {
-            try {
-                CMyComPtr<ICryptoGetTextPassword> crypto;
-                if (progress)
-                    progress->QueryInterface(IID_ICryptoGetTextPassword, (void **)&crypto);
-                if (!crypto)
-                    stopResult = E_NOINTERFACE;
-                else {
-                    CMyComBSTR password;
-                    stopResult = crypto->CryptoGetTextPassword(&password);
-                    if (stopResult == S_OK) {
-                        const QString value = QString::fromWCharArray(password);
-                        QMetaObject::invokeMethod(
-                            this,
-                            [this, request, value] {
-                                if (_request == request)
-                                    _backend.providePassword(value);
-                            },
-                            Qt::QueuedConnection);
-                    }
-                }
-            } catch (...) {
-                stopResult = E_FAIL;
-            }
-        }
-        // An external child can finish while paused. Do not enter the source
-        // cooperative pause wait before observing its completion latch.
-        if (stopResult == S_OK && ui && ui->ProgressDialog.Sync.Get_Stopped())
-            stopResult = E_ABORT;
-        if (stopResult != S_OK && !cancelRequested) {
-            cancelRequested = true;
-            QMetaObject::invokeMethod(
-                this,
-                [this, request] {
-                    if (_request == request)
-                        _backend.cancel();
-                },
-                Qt::QueuedConnection);
-        }
-        QThread::msleep(10);
+    ArchiveInfo info;
+    QList<ArchiveEntry> entries;
+    RINOK(ReadArchiveBackendListing(_backend, path, listingFormat, password, progress,
+                                    ui ? &ui->ProgressDialog.Sync : nullptr, info, entries))
+    CMyComPtr<IFolderFolder> folder;
+    try {
+        resource->Info = info;
+        const QString transportFormat = resource->TransportFormat();
+        resource->AttachReopenService(_backend, transportFormat);
+        resource->AttachExtractService(_backend, transportFormat);
+        if (_backend.supportsArchiveUpdate(info.format))
+            resource->AttachUpdateService(_backend, info.format);
+        RINOK(CreateArchiveMetadata(entries, &folder))
+    } catch (...) {
+        return E_FAIL;
     }
+    auto *consent = dynamic_cast<IQtArchiveReadConsent *>(progress);
+    auto *dialog = ui ? &ui->ProgressDialog : consent ? consent->ReadConsentDialog() : nullptr;
+    auto *readCallback = ui ? ui : consent ? consent->ReadConsentCallback() : nullptr;
+    RINOK(ConfirmLimitedArchiveRead(dialog, readCallback, {}, info.readLimitations))
+    resource->SetFilesystemReadLimitations(info.readLimitations);
+    RINOK(CreateArchiveLinkTransport(link, folder, resource, sourceOptions.codecs))
+    keepOwnedPath = true;
+    return nativeResult;
     COM_TRY_END
 }
 

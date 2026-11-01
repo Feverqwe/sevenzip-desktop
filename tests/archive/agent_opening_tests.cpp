@@ -45,6 +45,27 @@ class COpeningBackend final : public ArchiveBackend {
     }
 };
 
+class CListingBackend final : public ArchiveBackend {
+  public:
+    int Failure = 0;
+    QString Name;
+    void openFolder(const QString &, const QString &, const QString &) override {
+        if (Failure == 2)
+            throw 1;
+        ArchiveInfo info;
+        info.format = "zip";
+        ArchiveEntry entry;
+        entry.path = Name;
+        entry.sizeValue = 7;
+        emit infoReady(info);
+        emit entriesReady({entry});
+        emit finished(Failure == 0, {});
+        // A later publication must not change the completed opening's snapshot.
+        entry.path = "unrelated later listing";
+        emit entriesReady({entry});
+    }
+};
+
 class CExtractObserver final : public IFolderArchiveExtractCallback, public CMyUnknownImp {
     Z7_COM_UNKNOWN_IMP_1(IFolderArchiveExtractCallback)
 
@@ -96,7 +117,7 @@ class AgentOpeningTests final : public QObject, protected ArchiveBackendTestSupp
         QTRY_COMPARE(ready.size(), 1);
         QVERIFY2(ready[0][0].toBool(), "Matching official codec module is required");
     }
-    HRESULT run(COpeningBackend &backend, const std::function<HRESULT()> &operation) {
+    HRESULT run(ArchiveBackend &backend, const std::function<HRESULT()> &operation) {
         std::atomic<bool> finished{false};
         HRESULT result = E_FAIL;
         auto *worker = QThread::create([&] {
@@ -121,7 +142,7 @@ class AgentOpeningTests final : public QObject, protected ArchiveBackendTestSupp
         }
         return result;
     }
-    HRESULT open(COpeningBackend &backend, IFolderManager *manager, const QString &path,
+    HRESULT open(ArchiveBackend &backend, IFolderManager *manager, const QString &path,
                  const wchar_t *format, IFolderFolder **folder, IProgress *progress = nullptr,
                  IInStream *stream = nullptr) {
         return run(backend, [&] {
@@ -131,6 +152,48 @@ class AgentOpeningTests final : public QObject, protected ArchiveBackendTestSupp
     }
 
   private slots:
+    void metadataOpeningFailureAndReopen_data() {
+        QTest::addColumn<int>("failure");
+        QTest::newRow("failed listing") << 1;
+        QTest::newRow("throwing start") << 2;
+    }
+    void metadataOpeningFailureAndReopen() {
+        QFETCH(int, failure);
+        QTemporaryDir temporary;
+        QVERIFY(temporary.isValid());
+        CListingBackend backend;
+        // Exercise the typed metadata service without a retained native reader.
+        QCOMPARE(backend.loadCodecCatalog(temporary.filePath("absent module"), 1), E_FAIL);
+        CMyComPtr<IFolderManager> manager = new QtArchiveFolderManager(backend);
+        CMyComPtr<IFolderFolder> folder;
+        const QString path = temporary.filePath(QStringLiteral("архив 空.zip"));
+        writeFile(path, "typed metadata fixture input");
+        backend.Failure = failure;
+        QCOMPARE(open(backend, manager, path, L"zip", &folder), E_FAIL);
+        QVERIFY(!folder);
+        backend.Failure = 0;
+        backend.Name = QStringLiteral("первый 空.txt");
+        QCOMPARE(open(backend, manager, path, L"zip", &folder), S_OK);
+        QCOMPARE(folder->LoadItems(), S_OK);
+        UInt32 count = 0;
+        QCOMPARE(folder->GetNumberOfItems(&count), S_OK);
+        QCOMPARE(count, UInt32(1));
+        NWindows::NCOM::CPropVariant name;
+        QCOMPARE(folder->GetProperty(0, kpidName, &name), S_OK);
+        QCOMPARE(QString::fromWCharArray(name.bstrVal), backend.Name);
+        backend.Name = QStringLiteral("обновлённый файл.txt");
+        auto *agent = dynamic_cast<CAgentFolder *>(folder.Interface());
+        QVERIFY(agent);
+        CMyComPtr<IFolderFolder> reopened;
+        QCOMPARE(run(backend, [&] { return agent->ReOpen(nullptr, &reopened); }), S_OK);
+        QVERIFY(reopened);
+        QCOMPARE(reopened->LoadItems(), S_OK);
+        QCOMPARE(reopened->GetNumberOfItems(&count), S_OK);
+        QCOMPARE(count, UInt32(1));
+        QCOMPARE(reopened->GetProperty(0, kpidName, &name), S_OK);
+        QCOMPARE(QString::fromWCharArray(name.bstrVal), backend.Name);
+    }
+
     void readCancellationJoinsInitialCodecLoading_data() {
         QTest::addColumn<bool>("destroy");
         QTest::newRow("cancel and retry") << false;

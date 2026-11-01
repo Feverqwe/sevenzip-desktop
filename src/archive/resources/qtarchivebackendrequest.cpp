@@ -54,13 +54,28 @@ HRESULT RequestPassword(ArchiveBackend &backend, const std::shared_ptr<CRequest>
         return E_FAIL;
     }
 }
-} // namespace
-
-HRESULT RunArchiveBackendRequest(ArchiveBackend &backend, const std::function<void()> &start,
-                                 IUnknown *passwordCallback, CProgressSync *sync) {
+HRESULT RunRequest(ArchiveBackend &backend, const std::function<void()> &start,
+                   IUnknown *passwordCallback, CProgressSync *sync, ArchiveInfo *info = nullptr,
+                   QList<ArchiveEntry> *entries = nullptr) {
     if (QThread::currentThread() == backend.thread())
         return E_FAIL;
     const auto request = std::make_shared<CRequest>();
+    CConnection infoReady(info
+                              ? QObject::connect(&backend, &ArchiveBackend::infoReady, &backend,
+                                                 [request, info](const ArchiveInfo &value) {
+                                                     QMutexLocker lock(&request->Mutex);
+                                                     if (request->State == CRequest::Phase::Running)
+                                                         *info = value;
+                                                 })
+                              : QMetaObject::Connection{});
+    CConnection entriesReady(
+        entries ? QObject::connect(&backend, &ArchiveBackend::entriesReady, &backend,
+                                   [request, entries](const QList<ArchiveEntry> &value) {
+                                       QMutexLocker lock(&request->Mutex);
+                                       if (request->State == CRequest::Phase::Running)
+                                           *entries = value;
+                                   })
+                : QMetaObject::Connection{});
     CConnection finished(QObject::connect(&backend, &ArchiveBackend::finished, &backend,
                                           [&backend, request](bool success, const QString &) {
                                               QMutexLocker lock(&request->Mutex);
@@ -132,4 +147,19 @@ HRESULT RunArchiveBackendRequest(ArchiveBackend &backend, const std::function<vo
         }
         QThread::msleep(10);
     }
+}
+} // namespace
+
+HRESULT RunArchiveBackendRequest(ArchiveBackend &backend, const std::function<void()> &start,
+                                 IUnknown *passwordCallback, CProgressSync *sync) {
+    return RunRequest(backend, start, passwordCallback, sync);
+}
+
+HRESULT ReadArchiveBackendListing(ArchiveBackend &backend, const QString &path,
+                                  const QString &format, const QString &password,
+                                  IUnknown *passwordCallback, CProgressSync *sync,
+                                  ArchiveInfo &info, QList<ArchiveEntry> &entries) {
+    return RunRequest(
+        backend, [&backend, path, format, password] { backend.openFolder(path, format, password); },
+        passwordCallback, sync, &info, &entries);
 }

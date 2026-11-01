@@ -21,20 +21,6 @@
 #include <QThread>
 #include <memory>
 
-namespace {
-struct CMetadataRequest {
-    ArchiveInfo Info;
-    QList<ArchiveEntry> Entries;
-};
-class CConnection {
-    QMetaObject::Connection _connection;
-
-  public:
-    explicit CConnection(QMetaObject::Connection connection) : _connection(connection) {}
-    ~CConnection() { QObject::disconnect(_connection); }
-};
-} // namespace
-
 // Native FileFolderPluginOpen worker/modal lifecycle, with ReOpen as its action.
 HRESULT ReOpenArchiveFolder(CAgentFolder &folder, const QString &settingsPath, QWidget *parent,
                             IFolderFolder **resultFolder, bool usePassword,
@@ -151,13 +137,6 @@ void QtArchiveFileResource::AttachReopenService(ArchiveBackend &backend, const Q
         }
         if (!backend)
             return E_FAIL;
-        const auto request = std::make_shared<CMetadataRequest>();
-        CConnection info(
-            QObject::connect(backend.data(), &ArchiveBackend::infoReady, backend.data(),
-                             [request](const ArchiveInfo &value) { request->Info = value; }));
-        CConnection entries(QObject::connect(
-            backend.data(), &ArchiveBackend::entriesReady, backend.data(),
-            [request](const QList<ArchiveEntry> &value) { request->Entries = value; }));
         QString password;
         CMyComPtr<ICryptoGetTextPassword2> crypto;
         if (callback)
@@ -178,16 +157,16 @@ void QtArchiveFileResource::AttachReopenService(ArchiveBackend &backend, const Q
                 ui && ui->PasswordIsDefined)
                 password = QString::fromWCharArray(ui->Password);
         }
-        RINOK(RunArchiveBackendRequest(
-            *backend,
-            [backend, path, format, password] { backend->openFolder(path, format, password); },
-            callback, _sync))
+        ArchiveInfo info;
+        QList<ArchiveEntry> entries;
+        RINOK(ReadArchiveBackendListing(*backend, path, format, password, callback, _sync, info,
+                                        entries))
         RINOK(ConfirmLimitedArchiveRead(ui ? &ui->ProgressDialog : nullptr, ui,
-                                        FilesystemReadLimitations(), request->Info.readLimitations))
-        RINOK(CreateArchiveMetadata(request->Entries, metadata))
-        Info = request->Info;
-        SetFilesystemReadLimitations(
-            request->Info.readLimitations.isEmpty() ? limitations : request->Info.readLimitations);
+                                        FilesystemReadLimitations(), info.readLimitations))
+        RINOK(CreateArchiveMetadata(entries, metadata))
+        Info = info;
+        SetFilesystemReadLimitations(info.readLimitations.isEmpty() ? limitations
+                                                                    : info.readLimitations);
         AttachNativeOpen(std::move(nativeOpen));
         return S_OK;
         COM_TRY_END
