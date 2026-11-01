@@ -54,21 +54,8 @@ void ArchiveBackend::startNativeRead(
     Job job, const QString &archive, const QString &password, const QString &format,
     std::shared_ptr<const QtArchiveDirectoryExtractRequest> directory) {
     const auto catalog = codecCatalog();
-    QtArchiveReadOperation::Work work;
-    if (job == Job::List) {
-        nativeListing_ = std::make_shared<NativeArchiveListing>();
-        work = [listing = nativeListing_](const std::shared_ptr<ArchiveNativeOpen> &reader,
-                                          IArchiveExtractCallback *callback) {
-            return ReadNativeArchiveListing(*reader, *listing, callback);
-        };
-    } else if (job == Job::Test) {
-        work = [](const std::shared_ptr<ArchiveNativeOpen> &reader,
-                  IArchiveExtractCallback *callback) {
-            return ArchiveBackend::extractNativeArchive(reader, nullptr, UInt32(-1), 1, callback);
-        };
-    }
     readOperation_ = std::make_unique<QtArchiveReadOperation>(
-        archive, password, catalog, std::move(work),
+        archive, password, catalog,
         job == Job::List            ? QtArchiveReadOperation::Kind::List
         : job == Job::SourceExtract ? QtArchiveReadOperation::Kind::ExtractEntry
         : job == Job::Extract       ? QtArchiveReadOperation::Kind::ExtractDirectory
@@ -127,7 +114,7 @@ void ArchiveBackend::finishReadOperation() {
     readOperation_->wait();
     finishWorkerProgress();
     auto operation = std::move(readOperation_);
-    auto listing = std::move(nativeListing_);
+    auto listing = std::move(operation->Listing);
     const bool listingJob = job_ == Job::List;
     const bool sourceExtractJob = job_ == Job::SourceExtract;
     const bool extractJob = job_ == Job::Extract || sourceExtractJob;

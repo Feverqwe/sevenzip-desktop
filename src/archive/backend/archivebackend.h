@@ -31,7 +31,6 @@ class QtArchiveTransferBackup;
 enum class ArchiveTransferBackupError;
 class QThread;
 struct IOpenCallbackUI;
-struct NativeArchiveListing;
 struct QtArchiveDirectoryExtractRequest;
 struct IUpdateCallbackUI2;
 struct CUpdateOptions;
@@ -283,7 +282,6 @@ class ArchiveBackend : public QObject {
     QString sourceExtractOutput_;
     std::unique_ptr<QtArchiveHashOperation> hashOperation_;
     std::unique_ptr<QtArchiveReadOperation> readOperation_;
-    std::shared_ptr<NativeArchiveListing> nativeListing_;
     QTimer workerProgressTimer_{this};
     QMutex workerProgressMutex_;
     quint64 workerProgressGeneration_ = 0;

@@ -126,7 +126,6 @@ target_link_libraries(sevenzip_location PRIVATE
     sevenzip_archive_backend sevenzip_compress_source sevenzip_agent)
 target_sources(sevenzip_location PRIVATE
     src/archive/backend/archivebackend_guioperations.cpp
-    src/archive/backend/archivebackend_nativeentries.cpp src/archive/backend/archivebackend_nativeentries.h
     src/archive/backend/archivebackend_test.cpp)
 
 sevenzip_add_port_component(sevenzip_panel_context_menu src/filemanager/panels/qtpanelcontextmenu.h

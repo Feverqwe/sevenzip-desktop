@@ -47,6 +47,7 @@ add_library(sevenzip_filesystem STATIC
     src/archive/resources/qtarchivehashoperation.cpp src/archive/resources/qtarchivehashoperation.h
     src/archive/resources/qtarchivereadoperation.cpp src/archive/resources/qtarchivereadoperation.h
     src/archive/resources/qtarchivedirectoryextract.cpp src/archive/resources/qtarchivedirectoryextract.h
+    src/archive/backend/archivebackend_nativeentries.cpp src/archive/backend/archivebackend_nativeentries.h
     src/console/List.cpp src/console/List.h
 
     src/archive/codecs/archivecodelocation.cpp src/archive/codecs/archivecodelocation.h

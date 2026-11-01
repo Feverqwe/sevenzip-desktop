@@ -85,3 +85,38 @@ both new rows. The original seven-suite run's stdout and current-token report
 record success; no complete Linux per-case total is claimed. This also accepted
 the C++ changes after the operator's FUSE repair; the earlier dependency-file
 EEXIST build failures are retained separately. No full/slow gate was run.
+
+## Read worker result ownership — 2026-11-01
+
+Compared the complete worker opening/dispatch/error/cancellation path and all
+constructor consumers, including retained-reader materialization and bounded
+output tests. The original Agent ReadItems and Extract bodies retain their
+metadata and native Extract responsibilities; the Qt dispatcher is local
+integration. Existing listing projection, callbacks, path validation, extraction
+adapters and native algorithms are unchanged. No external code is imported.
+
+The worker now dispatches its four declared operation kinds directly and owns
+the listing result exclusively. This removes the additional generic callback
+and backend-held shared output pointer. Completion takes the joined worker's
+result before publishing signals, preserving reentrant publication and release
+behavior. Existing checks already cover deletion during publication, opening
+another archive from a diagnostic, retained lists, password retry, cancellation,
+directory/entry output and bounded retained-reader extraction; no implementation
+presence test was added.
+
+The listing adapter is compiled once with its shared worker and directory-read
+consumers in the filesystem resource library. Keeping it in the higher-level
+location library caused an undefined reference in the Linux native-test link
+after dispatch moved; the target ownership correction resolves that dependency
+without repeating sources or adding executable-specific link ordering.
+
+After that correction, eight focused suites passed first on Linux x64
+(`20261101T040753Z-90f1c597`), then native macOS arm64 and interactive Windows x64
+(`20261101T041001Z-eb1c55d3`). The direct native_source_extract consumer passed
+separately, Linux first (`20261101T041333Z-f0e1b2c2`), followed by macOS and Windows
+(`20261101T041512Z-c8682a67`): CRC/partial output, password cancellation/retry and
+destruction while waiting are included. Combined totals are 221 passing cases
+on Linux, 221 on macOS and 220 on Windows, with one expected Windows skip for
+colon filenames. Full current test logs were retained for all nine suites on
+each OS. Checks used Qt 6.12, existing incremental trees and compiler caches;
+completed test fixtures were removed. No full/slow gate was run.

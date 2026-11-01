@@ -14,6 +14,7 @@ class ArchiveCodecCatalog;
 class ArchiveNativeOpen;
 struct CArcErrorInfo;
 struct ArchiveEntry;
+struct NativeArchiveListing;
 struct QtArchiveDirectoryExtractRequest;
 
 // Joined worker around official opening and read-only archive operations.
@@ -31,8 +32,6 @@ class QtArchiveReadOperation final : public QThread {
         QString ErrorMessage;
         QString WarningMessage;
     };
-    using Work = std::function<HRESULT(const std::shared_ptr<ArchiveNativeOpen> &,
-                                       IArchiveExtractCallback *)>;
     enum class Kind { Test, List, ExtractEntry, ExtractDirectory };
     struct SourceOutput {
         QString Entry;
@@ -42,11 +41,11 @@ class QtArchiveReadOperation final : public QThread {
         UInt64 Limit = UInt64(-1);
     };
     QtArchiveReadOperation(QString path, QString password,
-                           std::shared_ptr<const ArchiveCodecCatalog> catalog, Work work,
-                           Kind kind = Kind::Test, QString format = {},
-                           QString moduleLocation = {});
+                           std::shared_ptr<const ArchiveCodecCatalog> catalog, Kind kind,
+                           QString format = {}, QString moduleLocation = {});
     // Extract an entry from an already consented, retained reader generation.
     QtArchiveReadOperation(std::shared_ptr<ArchiveNativeOpen> reader, QString password);
+    ~QtArchiveReadOperation() override;
     void cancel();
     void setPaused(bool paused);
     void providePassword(const QString &password);
@@ -58,6 +57,7 @@ class QtArchiveReadOperation final : public QThread {
     HRESULT Result = E_FAIL;
     QString CatalogDiagnostic;
     QString OpenedFormat;
+    std::unique_ptr<NativeArchiveListing> Listing;
     std::shared_ptr<const ArchiveCodecCatalog> catalog() const { return catalog_; }
     QList<ItemError> Errors;
     QList<OpenError> OpenErrors;
@@ -78,7 +78,6 @@ class QtArchiveReadOperation final : public QThread {
     std::shared_ptr<const ArchiveCodecCatalog> catalog_;
     std::shared_ptr<ArchiveNativeOpen> retainedReader_;
     const QString path_;
-    Work work_;
     const Kind kind_;
     const QString format_;
     const QString moduleLocation_;

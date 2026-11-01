@@ -11,6 +11,7 @@
 #include "Common/StringConvert.h"
 #include "Windows/PropVariant.h"
 #include "archive/backend/archivebackend.h"
+#include "archive/backend/archivebackend_nativeentries.h"
 #include "archive/callbacks/ArchiveOpenCallback.h"
 #include "archive/callbacks/IFileExtractCallback.h"
 #include "archive/codecs/archivecodeccatalog.h"
@@ -215,17 +216,18 @@ HRESULT ExtractEntry(QtArchiveReadOperation &operation,
 
 QtArchiveReadOperation::QtArchiveReadOperation(QString path, QString password,
                                                std::shared_ptr<const ArchiveCodecCatalog> catalog,
-                                               Work work, Kind kind, QString format,
-                                               QString moduleLocation)
-    : catalog_(std::move(catalog)), path_(std::move(path)), work_(std::move(work)), kind_(kind),
-      format_(std::move(format)), moduleLocation_(std::move(moduleLocation)),
-      password_(std::move(password)), passwordDefined_(!password_.isEmpty()) {}
+                                               Kind kind, QString format, QString moduleLocation)
+    : catalog_(std::move(catalog)), path_(std::move(path)), kind_(kind), format_(std::move(format)),
+      moduleLocation_(std::move(moduleLocation)), password_(std::move(password)),
+      passwordDefined_(!password_.isEmpty()) {}
 
 QtArchiveReadOperation::QtArchiveReadOperation(std::shared_ptr<ArchiveNativeOpen> reader,
                                                QString password)
-    : QtArchiveReadOperation({}, std::move(password), {}, {}, Kind::ExtractEntry) {
+    : QtArchiveReadOperation({}, std::move(password), {}, Kind::ExtractEntry) {
     retainedReader_ = std::move(reader);
 }
+
+QtArchiveReadOperation::~QtArchiveReadOperation() = default;
 
 void QtArchiveReadOperation::cancel() {
     progress_.cancel();
@@ -342,10 +344,21 @@ void QtArchiveReadOperation::run() {
         OpenedFormat = QString::fromWCharArray(
             reader->nativeCodecs().GetFormatNamePtr(reader->arc().FormatIndex));
         callback->Attach(&reader->arc());
-        Result = kind_ == Kind::ExtractEntry ? ExtractEntry(*this, reader, *callback)
-                 : kind_ == Kind::ExtractDirectory
-                     ? ExtractQtArchiveDirectory(*this, reader, callback)
-                     : work_(reader, callback);
+        switch (kind_) {
+        case Kind::List:
+            Listing = std::make_unique<NativeArchiveListing>();
+            Result = ReadNativeArchiveListing(*reader, *Listing, callback);
+            break;
+        case Kind::Test:
+            Result = ArchiveBackend::extractNativeArchive(reader, nullptr, UInt32(-1), 1, callback);
+            break;
+        case Kind::ExtractEntry:
+            Result = ExtractEntry(*this, reader, *callback);
+            break;
+        case Kind::ExtractDirectory:
+            Result = ExtractQtArchiveDirectory(*this, reader, callback);
+            break;
+        }
         callback->Attach(nullptr);
         if (Result == S_OK && (!Errors.isEmpty() || !Messages.isEmpty() ||
                                (kind_ != Kind::List && !OpenErrors.isEmpty())))
