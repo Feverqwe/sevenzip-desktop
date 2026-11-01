@@ -54,6 +54,7 @@ class WorkflowTests(unittest.TestCase):
                 "    assert file.read_bytes()==b'fixture data\\n'\n"
                 "    pathlib.Path(sys.argv[1]).write_text(str(file.resolve()))\n")
             with (root / "CMakeLists.txt").open("a") as cmake:
+                cmake.write('file(APPEND "${CMAKE_SOURCE_DIR}/configure-runs" "configure\\n")\n')
                 cmake.write('add_test(NAME scratch COMMAND "' + Path(sys.executable).as_posix() +
                             '" "${CMAKE_SOURCE_DIR}/scratch-probe.py" "${CMAKE_SOURCE_DIR}/scratch-proof")\n')
             environment = dict(os.environ, CMAKE_PREFIX_PATH=str(root),
@@ -65,10 +66,12 @@ class WorkflowTests(unittest.TestCase):
             first = subprocess.run(command, cwd=root, env=environment, text=True, capture_output=True)
             self.assertEqual(first.returncode, 0, first.stdout + first.stderr)
             linked = (root / "subject-links").read_bytes()
+            configured = (root / "configure-runs").read_bytes()
             cache = directory(root, "cache") / "retained"
             cache.write_bytes(b"existing compiler data")
             second = subprocess.run(command, cwd=root, env=environment, text=True, capture_output=True)
             self.assertEqual(second.returncode, 0, second.stdout + second.stderr)
+            self.assertEqual((root / "configure-runs").read_bytes(), configured)
             self.assertEqual((root / "subject-links").read_bytes(), linked)
             self.assertEqual(cache.read_bytes(), b"existing compiler data")
             executable = directory(root, "artifacts") / "dev" / ("subject.exe" if os.name == "nt" else "subject")
@@ -79,6 +82,60 @@ class WorkflowTests(unittest.TestCase):
                                      text=True, capture_output=True)
             self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
             self.assertTrue(Path((root / "scratch-proof").read_text()).is_relative_to(workspace.resolve()))
+
+    def test_configuration_reuse_refreshes_settings_tools_and_edited_cache(self):
+        with tempfile.TemporaryDirectory(prefix="configure reuse ") as temporary:
+            root = Path(temporary)
+            self.fixture(root)
+            with (root / "CMakeLists.txt").open("a") as cmake:
+                cmake.write('''
+file(APPEND "${CMAKE_SOURCE_DIR}/configure-runs" "configure\\n")
+if("$ENV{SEVENZIP_WINDOWS_RUNNER_HOST}" STREQUAL "reject")
+    message(FATAL_ERROR "Rejected fixture configuration")
+endif()
+file(WRITE "${CMAKE_SOURCE_DIR}/configured-host" "$ENV{SEVENZIP_WINDOWS_RUNNER_HOST}")
+file(WRITE "${CMAKE_SOURCE_DIR}/configured-tool" "$ENV{FIXTURE_TOOL_MARKER}")
+file(WRITE "${CMAKE_SOURCE_DIR}/configured-cache" "${FIXTURE_EDIT}")
+''')
+            environment = dict(os.environ, CMAKE_PREFIX_PATH=str(root),
+                               SEVENZIP_WINDOWS_RUNNER_HOST="first")
+
+            def configure(succeeds=True):
+                result = subprocess.run(["bash", "scripts/build.sh", "dev", "--configure-only"],
+                                        cwd=root, env=environment, text=True, capture_output=True)
+                self.assertEqual(result.returncode == 0, succeeds, result.stdout + result.stderr)
+                return result
+
+            configure()
+            environment["SEVENZIP_WINDOWS_RUNNER_HOST"] = "second"
+            configure()
+            self.assertEqual((root / "configured-host").read_text(), "second")
+
+            cache = build_directory(root, "dev") / "CMakeCache.txt"
+            with cache.open("a") as stream:
+                stream.write("\nFIXTURE_EDIT:STRING=external change\n")
+            configure()
+            self.assertEqual((root / "configured-cache").read_text(), "external change")
+
+            tool = root / "alternate tools/cmake"
+            tool.parent.mkdir()
+            real_cmake = Path(shutil.which("cmake")).as_posix()
+            tool.write_text('#!/bin/sh\nexport FIXTURE_TOOL_MARKER=alternate\nexec "' +
+                            real_cmake + '" "$@"\n')
+            tool.chmod(0o755)
+            environment["PATH"] = str(tool.parent) + os.pathsep + environment["PATH"]
+            configure()
+            self.assertEqual((root / "configured-tool").read_text(), "alternate")
+
+            environment["SEVENZIP_WINDOWS_RUNNER_HOST"] = "reject"
+            failed = configure(succeeds=False)
+            self.assertIn("Rejected fixture configuration", failed.stdout + failed.stderr)
+            configure(succeeds=False)
+            environment["SEVENZIP_WINDOWS_RUNNER_HOST"] = "second"
+            configure()
+            configured = (root / "configure-runs").read_bytes()
+            configure()
+            self.assertEqual((root / "configure-runs").read_bytes(), configured)
 
     def test_configure_failure_preserves_launcher_diagnostic(self):
         with tempfile.TemporaryDirectory(prefix="failed configure ") as temporary:

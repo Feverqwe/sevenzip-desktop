@@ -417,11 +417,11 @@ targets, result and time spent on runtime/configuration/selection/build/tests.
 It uses `build.sh --configure-only`, then `build.sh --build-only <targets>` to
 avoid configuring twice. Both modes retain the build wrapper's toolchain setup;
 the latter requires an existing CMake cache. Plan output uses `verify-plan.json`
-and preserves the last verification result. The build wrapper checks the
-requested options/environment and cache signature; when unchanged, Ninja checks
-CMake inputs/globs and regenerates only when needed, before test selection.
-Changed wrapper/preset/options/environment or an externally edited CMake cache
-triggers normal configuration. Incremental builds retain the same directory.
+and preserves the last verification result. Repeated builds reuse configuration
+when paths, tools, settings and the CMake cache are unchanged. Changes to CMake
+inputs still trigger regeneration before test selection. Incremental builds
+retain the same directory and compiler cache. Moving an existing build requires
+updating its recorded paths; configuration reuse does not relocate a CMake cache.
 
 Runtime preparation uses `python3 scripts/prepare-runtime.py`: the official
 builders run only when the pinned upstream revision/repository, builder code,
