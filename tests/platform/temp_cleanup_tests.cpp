@@ -119,7 +119,7 @@ class TempCleanupTests : public QObject {
             });
             answers.start(1);
             select(*dialog, owned.path());
-            QVERIFY(row(*dialog, owned.path()));
+            QVERIFY2(row(*dialog, owned.path()), qPrintable(owned.path()));
             QTest::keyClick(list, Qt::Key_Return);
             QStringList remainingRows;
             for (int i = 0; i < list->topLevelItemCount(); ++i)

@@ -57,6 +57,8 @@ rg -n --no-ignore -F 'CAgent::Open' docs/archive/qt-port/upstream-port-audit/ do
 
 ## Новые изменения
 
+- [Идентичность временных объектов при смене прав](upstream-port-audit/temp-identity-permissions.md)
+  — Linux metadata handles, прежние записи и защита активных leases.
 - [Неактивный черновик пароля Add](upstream-port-audit/inactive-password-coverage.md)
   — согласованы положительный сценарий и прежняя матрица ошибок.
 

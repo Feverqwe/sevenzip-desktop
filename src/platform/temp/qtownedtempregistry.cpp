@@ -13,6 +13,10 @@
 
 namespace {
 QString RecordPath(const QString &root, const QString &key) { return root + '/' + key + ".json"; }
+QString IdentityKey(const QString &identity) {
+    return QUuid::createUuidV5(QUuid("ae8d385e-4ab9-4bbf-818e-088be7c96ef2"), identity.toUtf8())
+        .toString(QUuid::WithoutBraces);
+}
 bool SafeRoot(const QString &root, bool create) {
     QFileInfo info(root);
     if (!info.exists() && create) {
@@ -61,7 +65,7 @@ std::optional<QtOwnedTempEntry> ReadRecord(const QString &root, const QString &k
     return entry;
 }
 bool Matches(const QtOwnedTempEntry &entry) {
-    return !entry.identity.isEmpty() && QtOwnedTempIdentity(entry.path) == entry.identity;
+    return QtOwnedTempMatchesIdentity(entry.path, entry.identity);
 }
 } // namespace
 
@@ -86,7 +90,7 @@ bool QtOwnedTempLease::setExternalProtection(bool value) {
 bool QtOwnedTempLease::ProtectExternal() { return setExternalProtection(true); }
 bool QtOwnedTempLease::ExternalFinished() { return setExternalProtection(false); }
 bool QtOwnedTempLease::MatchesObjectAt(const QString &path) const {
-    return QtOwnedTempIdentity(path) == entry_.identity;
+    return QtOwnedTempMatchesIdentity(path, entry_.identity);
 }
 bool QtOwnedTempLease::RelocateAfterMove(const QString &path) {
     const QString destination = QDir::cleanPath(QFileInfo(path).absoluteFilePath());
@@ -120,9 +124,16 @@ std::shared_ptr<QtOwnedTempLease> QtOwnedTempRegistry::RegisterCreated(const QSt
         return {};
     // One lock per OS object also protects aliases and accidental duplicate
     // registration. A creation call cannot replace an existing live record.
-    entry.key =
-        QUuid::createUuidV5(QUuid("ae8d385e-4ab9-4bbf-818e-088be7c96ef2"), entry.identity.toUtf8())
-            .toString(QUuid::WithoutBraces);
+    entry.key = IdentityKey(entry.identity);
+#ifdef __linux__
+    const QString legacy = QtOwnedTempLegacyIdentity(entry.path);
+    if (!legacy.isEmpty() && legacy != entry.identity) {
+        const QString key = IdentityKey(legacy);
+        if (const auto previous = ReadRecord(root_, key);
+            previous && QtOwnedTempMatchesIdentity(entry.path, previous->identity))
+            entry.key = key;
+    }
+#endif
     auto lock = ClaimLock(root_, entry.key);
     if (!lock || ReadRecord(root_, entry.key).transform(Matches).value_or(false) ||
         !WriteRecord(root_, entry))

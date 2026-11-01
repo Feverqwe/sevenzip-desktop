@@ -329,6 +329,9 @@ Temporary-object identity, registration and directory ownership form a C++23
 object library composed into the shared native library. Native temporary creation
 and Qt consumers use the same registry and lease implementation. Registry reads
 return an optional validated record; callers acquire a lease before cleanup.
+Object identity uses metadata handles where available, independently of permission
+to read contents. Existing records retain their complete prior identity checks
+and lease exclusion.
 Directory ownership handoff returns a shared owner rather than a reference to
 the directory's ownership field.
 

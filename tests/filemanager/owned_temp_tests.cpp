@@ -7,9 +7,45 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QLockFile>
 #include <QTemporaryDir>
 #include <QUuid>
 #include <QtTest>
+#ifdef __linux__
+#include <QScopeGuard>
+#include <fcntl.h>
+#include <linux/fs.h>
+#include <sys/ioctl.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+namespace {
+// The stored v1 Linux format predates permission-independent file handles.
+QString LegacyDirectoryIdentity(const QString &path) {
+    const QByteArray name = QFile::encodeName(path);
+    struct stat info;
+    if (::lstat(name.constData(), &info) != 0 || !S_ISDIR(info.st_mode))
+        return {};
+    QString identity = QString("%1:%2:1").arg(qulonglong(info.st_dev)).arg(qulonglong(info.st_ino));
+    struct statx extended = {};
+    if (::statx(AT_FDCWD, name.constData(), AT_SYMLINK_NOFOLLOW, STATX_INO | STATX_BTIME,
+                &extended) == 0 &&
+        (extended.stx_mask & STATX_BTIME))
+        identity +=
+            QString(":%1:%2").arg(extended.stx_btime.tv_sec).arg(extended.stx_btime.tv_nsec);
+    const int descriptor = ::open(name.constData(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW | O_NONBLOCK);
+    if (descriptor < 0)
+        return {};
+    const auto close = qScopeGuard([descriptor] { ::close(descriptor); });
+    long generation = 0;
+    if (::ioctl(descriptor, FS_IOC_GETVERSION, &generation) == 0)
+        identity += QString(":g%1").arg(qulonglong(static_cast<unsigned long>(generation)));
+    return identity;
+}
+} // namespace
+#endif
 
 class OwnedTempTests : public QObject {
     Q_OBJECT
@@ -28,6 +64,53 @@ class OwnedTempTests : public QObject {
         qputenv("SEVENZIP_OWNED_TEMP_REGISTRY", registryPath.toUtf8());
     }
     void cleanup() { qputenv("SEVENZIP_OWNED_TEMP_REGISTRY", previousRoot); }
+#ifdef __linux__
+    void previousRegistryPreservesActiveLeaseAndRetainedFiles() {
+        const QString path = fixture.filePath(QStringLiteral("old retained 文件"));
+        QVERIFY(QDir().mkpath(path));
+        const QString sentinel = path + QStringLiteral("/keep.txt");
+        QVERIFY(write(sentinel));
+        const QString identity = LegacyDirectoryIdentity(path);
+        QVERIFY(!identity.isEmpty());
+        const QString key =
+            QUuid::createUuidV5(QUuid("ae8d385e-4ab9-4bbf-818e-088be7c96ef2"), identity.toUtf8())
+                .toString(QUuid::WithoutBraces);
+        QVERIFY(QDir().mkpath(registryPath));
+        const QByteArray record = QJsonDocument(QJsonObject{{"version", 1},
+                                                            {"path", path},
+                                                            {"identity", identity},
+                                                            {"external", false}})
+                                      .toJson(QJsonDocument::Compact);
+        QFile stored(registryPath + '/' + key + ".json");
+        QVERIFY(stored.open(QIODevice::WriteOnly));
+        QCOMPARE(stored.write(record), record.size());
+        stored.close();
+        QLockFile previousOwner(registryPath + '/' + key + ".lock");
+        previousOwner.setStaleLockTime(0);
+        QVERIFY(previousOwner.tryLock());
+        QtOwnedTempRegistry registry;
+        auto entries = registry.Entries();
+        QCOMPARE(entries.size(), 1);
+        QVERIFY(entries.first().active);
+        QVERIFY(!registry.ClaimForDeletion(entries.first()));
+        QVERIFY(!registry.RegisterCreated(path));
+        previousOwner.unlock();
+        QtOwnedTempRegistry restarted(registry.root());
+        entries = restarted.Entries();
+        QCOMPARE(entries.size(), 1);
+        QVERIFY(!entries.first().active);
+        auto claim = restarted.ClaimForDeletion(entries.first());
+        QVERIFY(claim);
+        QVERIFY(!registry.ClaimForDeletion(entries.first()));
+        QFile contents(sentinel);
+        QVERIFY(contents.open(QIODevice::ReadOnly));
+        QCOMPARE(contents.readAll(), QByteArray("fixture"));
+        contents.close();
+        QVERIFY(QDir(path).removeRecursively());
+        claim.reset();
+        QVERIFY(restarted.Entries().isEmpty());
+    }
+#endif
     void activeQtOwnerAndCopiedLeaseProtectUntilLastOwner() {
         QtOwnedTempRegistry registry;
         QString path;

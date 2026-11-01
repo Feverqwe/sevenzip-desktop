@@ -82,7 +82,7 @@ QString TempPathKey(const QString &path) {
 #endif
 }
 bool OwnedPath(const QtOwnedTempEntry &owner, const QString &path, const QString &temp) {
-    if (owner.key.isEmpty() || QtOwnedTempIdentity(owner.path) != owner.identity ||
+    if (owner.key.isEmpty() || !QtOwnedTempMatchesIdentity(owner.path, owner.identity) ||
         QFileInfo(owner.path).dir().canonicalPath() != QFileInfo(temp).canonicalFilePath())
         return false;
     const QString root = QFileInfo(owner.path).canonicalFilePath();
@@ -96,7 +96,7 @@ bool OwnedPath(const QtOwnedTempEntry &owner, const QString &path, const QString
         if (info.isSymLink() || info.isJunction() || !info.exists())
             return false;
         if (TempPathKey(current) == TempPathKey(root))
-            return QtOwnedTempIdentity(current) == owner.identity;
+            return QtOwnedTempMatchesIdentity(current, owner.identity);
         const QString parent = info.absolutePath();
         if (parent == current)
             return false;
