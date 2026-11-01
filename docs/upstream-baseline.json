@@ -2094,6 +2094,8 @@
     "src/ui/progress/qttaskbarprogress_mac.mm",
     "src/ui/progress/qtworkerprogress.cpp",
     "src/ui/progress/qtworkerprogress.h",
+    "src/ui/reports/qttextreport.cpp",
+    "src/ui/reports/qttextreport.h",
     "src/ui/theme/qtcommandicons.cpp",
     "src/ui/theme/qtcommandicons.h",
     "src/ui/theme/qtsemanticcolors.cpp",

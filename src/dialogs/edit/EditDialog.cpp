@@ -8,9 +8,7 @@
 #include "settings/ViewSettings.h"
 #include "ui/dialogs/qtdialoglayout.h"
 #include "ui/dialogs/qtdialogscreenservices.h"
-#include <QApplication>
-#include <QClipboard>
-#include <QFontDatabase>
+#include "ui/reports/qttextreport.h"
 #include <QKeyEvent>
 #include <QPlainTextEdit>
 #include <QPushButton>
@@ -24,13 +22,7 @@ bool CEditDialog::OnInit() {
     setWindowFlag(Qt::WindowContextHelpButtonHint, false);
     _edit = new QPlainTextEdit(this);
     _edit->setObjectName("editText");
-    QFont reportFont = _edit->font();
-    reportFont.setFamilies(QFontDatabase::systemFont(QFontDatabase::FixedFont).families());
-    reportFont.setStyleHint(QFont::Monospace);
-    _edit->setFont(reportFont);
-    _edit->setReadOnly(true);
-    _edit->setLineWrapMode(QPlainTextEdit::NoWrap);
-    _edit->setTabChangesFocus(true);
+    QtConfigureTextReport(*_edit, _edit->font());
     _edit->installEventFilter(this);
     setWindowTitle(ToQString(Title));
     _edit->setPlainText(ToQString(Text));
@@ -40,12 +32,7 @@ bool CEditDialog::OnInit() {
     copy->setObjectName("copyReportButton");
     copy->setEnabled(!_edit->toPlainText().isEmpty());
     QtBindLocalText(copy, "DialogRedesign", QT_TRANSLATE_NOOP("DialogRedesign", "Copy"));
-    connect(copy, &QPushButton::clicked, this, [this] {
-        if (_edit->textCursor().hasSelection())
-            _edit->copy();
-        else
-            QApplication::clipboard()->setText(_edit->toPlainText());
-    });
+    connect(copy, &QPushButton::clicked, this, [this] { QtCopyTextReport(*_edit); });
     auto *close = buttons->button(QDialogButtonBox::Close);
     close->setDefault(true);
     QtCreateDialogLayout(*this, *buttons)->addWidget(_edit, 1);

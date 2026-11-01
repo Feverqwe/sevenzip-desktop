@@ -36,6 +36,12 @@ if(APPLE)
 endif()
 set_target_properties(sevenzip_native_keys PROPERTIES AUTOMOC OFF AUTOUIC OFF)
 
+add_library(sevenzip_text_report STATIC
+    src/ui/reports/qttextreport.cpp src/ui/reports/qttextreport.h)
+target_include_directories(sevenzip_text_report PUBLIC src)
+target_link_libraries(sevenzip_text_report PUBLIC Qt6::Widgets)
+set_target_properties(sevenzip_text_report PROPERTIES AUTOMOC OFF AUTOUIC OFF)
+
 add_library(sevenzip_panel
     STATIC
     src/filemanager/SplitUtils.cpp
@@ -221,7 +227,7 @@ add_library(sevenzip_panel
     src/filemanager/providers/NetFolder.h
     src/filemanager/panels/PanelListNotify.cpp
     src/filemanager/panels/Panel.h)
-target_link_libraries(sevenzip_panel PRIVATE sevenzip_dialog_screen sevenzip_location sevenzip_panel_selection)
+target_link_libraries(sevenzip_panel PRIVATE sevenzip_dialog_screen sevenzip_location sevenzip_panel_selection sevenzip_text_report)
 set_target_properties(sevenzip_panel PROPERTIES AUTOUIC OFF)
 target_compile_definitions(sevenzip_panel PRIVATE SEVENZIP_PROGRESS_PRESENTATION_ONLY)
 target_link_libraries(sevenzip_panel PUBLIC sevenzip_progress_sync)

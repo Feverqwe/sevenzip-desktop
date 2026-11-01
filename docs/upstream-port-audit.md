@@ -86,6 +86,9 @@ rg -n --no-ignore -F 'CAgent::Open' docs/archive/qt-port/upstream-port-audit/ do
 - [Черновик рабочей папки](upstream-port-audit/work-directory-draft.md)
   — текущие значения в контролах и локальный запрос сохранения при Apply.
 
+- [Общий текстовый отчёт](upstream-port-audit/text-report-owner.md)
+  — режим чтения, шрифт и копирование полного текста либо выделения.
+
 - [Запуск и выбор внешнего Drop](upstream-port-audit/startup-drop-choice.md)
   — подготовка первого окна и запрошенный выбор открытия/упаковки;
   [аудит сценариев](user-workflow-audit.md) хранит текущие результаты и ограничения.

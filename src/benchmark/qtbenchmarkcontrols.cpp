@@ -5,9 +5,9 @@
 #include "ui/dialogs/qtdialoglayout.h"
 #include "ui/dialogs/qtdialogscreenservices.h"
 #include "ui/dialogs/qtmodalresult.h"
+#include "ui/reports/qttextreport.h"
 #include <QApplication>
 #include <QCloseEvent>
-#include <QFontDatabase>
 #include <QGridLayout>
 #include <QLabel>
 #include <QPushButton>
@@ -112,13 +112,7 @@ void CQtBenchmarkWindow::BuildControls(bool totalMode) {
         elapsed->addStretch();
         outer->addLayout(elapsed);
         auto *console = new QPlainTextEdit(this);
-        console->setReadOnly(true);
-        QFont reportFont = font();
-        reportFont.setFamilies(QFontDatabase::systemFont(QFontDatabase::FixedFont).families());
-        reportFont.setStyleHint(QFont::Monospace);
-        console->setFont(reportFont);
-        console->setLineWrapMode(QPlainTextEdit::NoWrap);
-        console->setTabChangesFocus(true);
+        QtConfigureTextReport(*console, font());
         Register(IDE_BENCH2_EDIT, "IDE_BENCH2_EDIT", console);
         outer->addWidget(console, 1);
         auto *copy = buttons->findChild<QPushButton *>("copyReportButton");
@@ -221,13 +215,7 @@ void CQtBenchmarkWindow::BuildNormalControls(QHBoxLayout *body) {
     body->addWidget(scroll, 1);
     auto *log = new QPlainTextEdit(this);
     Register(IDT_BENCH_LOG, "IDT_BENCH_LOG", log);
-    log->setReadOnly(true);
-    log->setLineWrapMode(QPlainTextEdit::NoWrap);
-    log->setTabChangesFocus(true);
-    QFont reportFont = font();
-    reportFont.setFamilies(QFontDatabase::systemFont(QFontDatabase::FixedFont).families());
-    reportFont.setStyleHint(QFont::Monospace);
-    log->setFont(reportFont);
+    QtConfigureTextReport(*log, font());
     log->setMinimumHeight(log->fontMetrics().height() * 4);
     log->hide();
     grid->addWidget(log, 4, 0, 1, 2, Qt::AlignLeft);

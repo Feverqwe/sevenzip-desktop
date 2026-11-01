@@ -1,6 +1,7 @@
 #include "7zip/UI/GUI/BenchmarkDialogRes.h"
 #include "benchmark/qtbenchmarkcontrols.h"
 #include "localization/qtlangcontrols.h"
+#include "ui/reports/qttextreport.h"
 #include <QApplication>
 #include <QClipboard>
 #include <QGridLayout>
@@ -85,10 +86,8 @@ QGridLayout *CQtBenchmarkWindow::BuildSummary() {
 
 void CQtBenchmarkWindow::CopyReport() {
     if (auto *console = qobject_cast<QPlainTextEdit *>(GetItem(IDE_BENCH2_EDIT))) {
-        if (console->textCursor().hasSelection())
-            console->copy();
-        else if (!console->toPlainText().isEmpty())
-            QApplication::clipboard()->setText(console->toPlainText());
+        if (!console->toPlainText().isEmpty())
+            QtCopyTextReport(*console);
         return;
     }
     QStringList lines;
