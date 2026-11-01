@@ -2706,3 +2706,36 @@ acceptance are not claimed.
 The source inventory and full original-baseline verification passed. Existing
 incremental outputs and compiler caches were retained with ordinary four-job
 defaults; no full or slow gate ran.
+
+## Owned temporary-browser rows — 2026-11-01
+
+Rechecked original BrowseDialog2 item/enumerator types, reload/count/publication,
+comparison, selection/refresh, delete, navigation and context-command bodies with
+the current transactional snapshot, Qt row publication and ownership guards.
+The complete original BrowseDialog2.cpp/.h units still match the recorded hashes
+at `b88c6bc09339de32f7d18bbab900686b244f42ba` in
+<https://github.com/ip7z/7zip.git>. No external source or revision is added.
+
+Each snapshot row now extends the unchanged source CBrowseItem payload with its
+owned-temporary entry. Object-vector storage copies that nontrivial ownership
+value with the row; the separately indexed ownership vector and paired append
+are removed. Native recursive counting still updates only the CBrowseItem base,
+retaining the row's ownership proof. Sorting, file/subfile indices, partial-count
+reporting, snapshot publication, deletion leases, external protection, link/path
+validation and native filesystem/process operations are unchanged. Selection,
+tooltips and command availability consume the same row ownership. No text,
+layout, visibility or geometry change is introduced.
+
+Existing temp_cleanup, owned_temp and temp_detached_launch behavior coverage
+checks confirmed/cancelled deletion, active/external protection, replaced object
+identity, partial deletion failure, navigation failure/retry, refresh/sort
+selection, recursive counts, links and detached consumers. No new test is added
+solely for the internal storage change.
+
+Focused Linux validation passed all three suites, with 38 passed rows and no
+skips. Only portable snapshot ownership changed; secondary OS, native shell
+interaction and rendered appearance are not claimed. Source inventory and
+whitespace checks passed, and the original complete-unit hashes were verified.
+The ordinary four-job build reused incremental outputs and the compiler cache;
+no full/slow gate or heavy diagnostic was run. One stale task-owned registry
+record was removed after confirming its target no longer existed.

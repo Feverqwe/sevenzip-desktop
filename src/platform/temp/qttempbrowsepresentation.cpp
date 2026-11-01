@@ -298,7 +298,7 @@ void CBrowseDialog2::ReloadLanguagePresentation() {
             continue;
         if (_snapshot->Files[_snapshot->Items[index].MainFileIndex].IsOsSymLink())
             item->setText(3, QtLangText(IDM_LINK));
-        const auto &owner = _snapshot->Owners[index];
+        const auto &owner = _snapshot->Items[index].Owner;
         QString reason;
         if (owner.active)
             reason = QCoreApplication::translate("qttempbrowsepresentation",
@@ -332,7 +332,7 @@ void CBrowseDialog2::UpdateDeleteAvailability() {
     GetSelected_RealIndexes(selected);
     bool enabled = selected.Size() != 0;
     FOR_VECTOR(i, selected) {
-        const auto &owner = _snapshot->Owners[selected[i]];
+        const auto &owner = _snapshot->Items[selected[i]].Owner;
         if (owner.active || owner.externallyProtected)
             enabled = false;
     }

@@ -41,10 +41,12 @@ struct CBrowseItem {
 };
 
 class CBrowseDialog2 : public QDialog {
+    struct OwnedItem : CBrowseItem {
+        QtOwnedTempEntry Owner;
+    };
     struct Snapshot {
-        CRecordVector<CBrowseItem> Items;
+        CObjectVector<OwnedItem> Items;
         CObjectVector<NWindows::NFile::NFind::CFileInfo> Files;
-        QVector<QtOwnedTempEntry> Owners;
         QtOwnedTempEntry Root;
         UString Prefix;
     };

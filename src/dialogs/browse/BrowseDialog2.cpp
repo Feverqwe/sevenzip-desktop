@@ -307,9 +307,9 @@ void CBrowseDialog2::OnDelete() {
         if (fi.Name.IsEmpty())
             return;
         const FString fullPath = us2fs(_snapshot->Prefix) + fi.Name;
-        auto lease = QtOwnedTempRegistry().ClaimForDeletion(_snapshot->Owners[index]);
-        if (!lease ||
-            !OwnedPath(_snapshot->Owners[index], QtPath(fs2us(fullPath)), QtPath(TempFolderPath))) {
+        auto lease = QtOwnedTempRegistry().ClaimForDeletion(_snapshot->Items[index].Owner);
+        if (!lease || !OwnedPath(_snapshot->Items[index].Owner, QtPath(fs2us(fullPath)),
+                                 QtPath(TempFolderPath))) {
             QMessageBox::warning(this, "7-Zip",
                                  QCoreApplication::translate(
                                      "BrowseDialog2", "This temporary item is active, protected, "
@@ -422,7 +422,6 @@ HRESULT CBrowseDialog2::Reload(const UString &pathPrefix, const UStringVector &s
     auto snapshot = std::make_unique<Snapshot>();
     auto &files = snapshot->Files;
     auto &items = snapshot->Items;
-    auto &owners = snapshot->Owners;
     auto &root = snapshot->Root;
     CWaitCursor2 waitCursor;
     const auto entries = QtOwnedTempRegistry().Entries();
@@ -459,13 +458,13 @@ HRESULT CBrowseDialog2::Reload(const UString &pathPrefix, const UStringVector &s
                 if (!OwnedPath(owner, fullPath, QtPath(TempFolderPath)))
                     continue;
             }
-            CBrowseItem item;
+            OwnedItem item;
             item.Construct();
+            item.Owner = owner;
             item.MainFileIndex = files.Size();
             item.Size = fi.Size;
             files.Add(fi);
             items.Add(item);
-            owners.append(owner);
         }
     }
     UInt64 cnt = items.Size();
@@ -560,7 +559,7 @@ void CBrowseDialog2::OnItemEnter() {
     }
     const UString fullPath = _snapshot->Prefix + fs2us(file.Name);
     if (file.IsOsSymLink() ||
-        !OwnedPath(_snapshot->Owners[realIndex], QtPath(fullPath), QtPath(TempFolderPath))) {
+        !OwnedPath(_snapshot->Items[realIndex].Owner, QtPath(fullPath), QtPath(TempFolderPath))) {
         QMessageBox::warning(
             this, "7-Zip",
             QCoreApplication::translate("BrowseDialog2", "Link opening was blocked by 7-Zip."));
@@ -571,7 +570,7 @@ void CBrowseDialog2::OnItemEnter() {
         if (!modifiers.testFlag(Qt::ShiftModifier) || modifiers.testFlag(Qt::ControlModifier))
             needExternal = false;
     if (needExternal) {
-        OpenOutside(fullPath, _snapshot->Owners[realIndex], false);
+        OpenOutside(fullPath, _snapshot->Items[realIndex].Owner, false);
         return;
     }
     UString s = fullPath;
@@ -766,7 +765,7 @@ void CBrowseDialog2::OnContextMenu(const QPoint &position) {
             action->setEnabled(_delete->isEnabled());
         if (cmd == k_CmdId_Open_Explorer || cmd == k_CmdId_Open_7zip) {
             const auto owner =
-                indices.Size() == 1 ? _snapshot->Owners[indices[0]] : _snapshot->Root;
+                indices.Size() == 1 ? _snapshot->Items[indices[0]].Owner : _snapshot->Root;
             action->setEnabled(!owner.key.isEmpty() && !owner.active && !owner.externallyProtected);
         }
         if (cmd == k_CmdId_Props)
@@ -795,7 +794,7 @@ void CBrowseDialog2::OnContextMenu(const QPoint &position) {
                 return;
             }
             fullPath += fs2us(file.Name);
-            owner = _snapshot->Owners[indices[0]];
+            owner = _snapshot->Items[indices[0]].Owner;
         }
         if (menuResult == k_CmdId_Open_Explorer || menuResult == k_CmdId_Open_7zip) {
             OpenOutside(fullPath, owner, menuResult == k_CmdId_Open_7zip);
