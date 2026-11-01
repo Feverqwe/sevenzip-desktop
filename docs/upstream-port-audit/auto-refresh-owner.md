@@ -1,5 +1,34 @@
 # Automatic refresh state ownership — 2026-10-31
 
+## Refresh routing and saved selection — 2026-11-01
+
+Rechecked original PanelItems SaveSelectedState, RefreshListCtrl, OnReload and
+OnTimer with the current panel callbacks, namespace/archive rendering,
+filesystem scan completion and archive reopening. The original complete
+PanelItems.cpp at `9128b80e3a471108678e2b3ec3c985861c8d7b0f` still matches the
+recorded SHA256 `7ac9d1a31d4f468cffcd3807c8ae36e8b16f040e7c81aa074ad2ae6930135802`.
+No source is imported or baseline changed.
+
+Manual refresh now captures the source panel selection once before choosing
+the namespace, filesystem or archive route. The reload presentation callback
+shares successful selection restoration across bound archive, namespace and
+changed-location loads. Existing route precedence, timer address behavior,
+missing-folder results, archive reopen/fallback, viewport restoration and
+asynchronous selection delivery remain unchanged. Source and pending Qt
+selection retain their distinct lifetimes; no new state owner is introduced.
+Post-change source comparison found no omitted branch or disconnected caller.
+Existing public refresh, navigation, copy reload and archive command suites
+already cover these contracts; no implementation-mirroring test is added.
+
+The seven focused suites passed on Linux, macOS and interactive Windows:
+filesystem_reload, panel_auto_refresh, navigation_reload, archive_reload_command,
+panel_copy_reload, modal_refresh_window and panel_parent_reload. These checks
+cover saved selection, independent peer state, missing folders, navigation during
+publication and bound archive reload. Existing build trees and compiler caches
+were reused. Disposable completed settings/fixtures were cleaned; compact
+reports and incremental outputs are retained. No full/slow gate or appearance
+change/visual acceptance is claimed.
+
 Reference: <https://github.com/ip7z/7zip.git>, commit
 `9128b80e3a471108678e2b3ec3c985861c8d7b0f`. Compared PanelItems
 `OnTimer`, `OnReload`, saved-selection restoration, Panel timer/notification
