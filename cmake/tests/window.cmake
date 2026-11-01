@@ -120,6 +120,14 @@
     foreach(suite ui_operations ui_navigation ui_archive_states)
         set_tests_properties(${suite} PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/${suite}-settings.ini")
     endforeach()
+    set_property(TEST ui_operations APPEND PROPERTY ENVIRONMENT "SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
+    if(APPLE)
+        add_test(NAME backend_overwrite_metadata_native
+            COMMAND ui_operations_tests backendOverwriteDisplaysNativeMetadata -silent)
+        set_tests_properties(backend_overwrite_metadata_native PROPERTIES TIMEOUT 30
+            RESOURCE_LOCK sevenzip_native_ui ENVIRONMENT
+            "QT_QPA_PLATFORM=cocoa;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/backend-overwrite-metadata.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports-native-overwrite")
+    endif()
     set_property(TEST ui_navigation APPEND PROPERTY ENVIRONMENT "SEVENZIP_SCREENSHOT_DIR=${CMAKE_BINARY_DIR}/ui-screenshots")
     set_tests_properties(ui_state PROPERTIES
         ENVIRONMENT "QT_QPA_PLATFORM=offscreen;SEVENZIP_SCREENSHOT_DIR=${CMAKE_BINARY_DIR}/ui-screenshots;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/ui-state-settings.ini"

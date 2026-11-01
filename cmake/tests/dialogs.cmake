@@ -198,7 +198,7 @@
         tests/filemanager/operations/archive_transfer.cpp
         tests/filemanager/operations/extraction.cpp
         tests/filemanager/operations/archive_commands.cpp)
-    target_link_libraries(ui_operations_tests PRIVATE sevenzip_window)
+    target_link_libraries(ui_operations_tests PRIVATE sevenzip_window sevenzip_layout_inspection)
     qt_add_executable(ui_navigation_tests tests/filemanager/ui_navigation_tests.cpp)
     target_link_libraries(ui_navigation_tests PRIVATE sevenzip_window)
     qt_add_executable(ui_archive_states_tests tests/filemanager/ui_archive_states_tests.cpp)

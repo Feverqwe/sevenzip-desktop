@@ -1512,6 +1512,7 @@
     "src/archive/resources/archivelayercontext.h",
     "src/archive/resources/archivenativeopen.cpp",
     "src/archive/resources/archivenativeopen.h",
+    "src/archive/resources/archiveoverwritequestion.h",
     "src/archive/resources/archivereadonlycache.cpp",
     "src/archive/resources/archivereadonlyview.cpp",
     "src/archive/resources/archivereadonlyview.h",

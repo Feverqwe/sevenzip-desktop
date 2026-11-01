@@ -246,7 +246,7 @@ void QtArchiveReadOperation::provideOverwriteAnswer(int answer) {
     overwriteReady_.wakeAll();
 }
 
-HRESULT QtArchiveReadOperation::askOverwrite(const QString &path, const ArchiveEntry &entry,
+HRESULT QtArchiveReadOperation::askOverwrite(const ArchiveOverwriteQuestion &question,
                                              Int32 *answer) {
     if (!answer || !OverwriteRequired)
         return E_FAIL;
@@ -255,7 +255,7 @@ HRESULT QtArchiveReadOperation::askOverwrite(const QString &path, const ArchiveE
         overwriteAnswered_ = false;
     }
     RINOK(checkpoint())
-    OverwriteRequired(path, entry);
+    OverwriteRequired(question);
     for (;;) {
         RINOK(checkpoint())
         QMutexLocker lock(&overwriteMutex_);

@@ -149,3 +149,50 @@ passing cases and four expected Windows-only NTFS/reparse skips; Windows
 recorded 212 passing cases and one expected colon-filename skip. Full logs and
 current-token reports were retained, and completed fixtures were removed after
 checking active processes and runner locks. No full/slow gate was run.
+
+## Native overwrite question metadata — 2026-11-01
+
+Compared original FileManager ExtractCallback AskOverwrite and OverwriteDialog
+resources, types, initialization, formatting and answer handlers, plus the native
+ArchiveExtractCallback caller, Qt directory adapter, joined wait, GUI publication
+and cancellation/receiver-lifetime consumers. The reference ExtractCallback unit
+matches the recorded SHA256 c3b4e671cc6cf45666ba40cacc9ae3596f4d6d88cfdfb08a29f3268a55dacda9;
+OverwriteDialog resource dependencies match the existing pinned contract.
+No native algorithm or dialog body is imported or replaced.
+
+The directory adapter previously discarded existing-file metadata, formatted
+incoming time as technical-listing text and narrowed its unsigned size. The
+window reparsed the timestamp with a seconds-only pattern, restatted the existing
+path and displayed zero for unknown or unrepresentable incoming sizes. A single
+owned question now transports both native file snapshots, preserving optional
+FILETIME and UInt64 values through the queued boundary to the existing dialog.
+The new transport type is local integration. Native answer mapping, cancellation,
+path revalidation after the answer, dialog structure and platform modality remain
+unchanged.
+
+The native selected-directory regression also checks both snapshots and an exact
+subsecond timestamp. Two window behavior rows exercise a native metadata snapshot
+with a size beyond INT64_MAX and completely absent metadata, checking visible
+details and Cancel preserving existing bytes. Normal/compact reports cover both
+states. Existing overwrite answer, cancellation/reentry and receiver-release
+checks remain part of the focused acceptance selection.
+
+Seven focused suites passed on Linux x64 (`20261101T044001Z-4ecad203`), with an
+ui_operations-only follow-up (`20261101T044549Z-41d9776f`) after correcting the
+test's UTC setup order and an explicit native type include needed on Windows.
+macOS retained six unaffected passing suites and passed ui_operations plus the
+two Cocoa question rows in the follow-up; Windows x64 passed all seven suites
+in the interactive elevated run `20261101T045028Z-91906e21`. The accepted scope
+contains 162 Qt cases on Linux, 166 on macOS and 161 on Windows; the sole skip
+is the existing Windows colon-filename case. The resource comparator also
+passed on each OS. The initial compile/fixture failures and passing follow-ups
+are retained separately rather than reported as a new all-suite macOS run.
+
+Current normal/compact JSON confirms complete unsigned sizes, optional missing
+metadata, timestamps and visible detail/footer controls: Linux offscreen,
+Windows native QPA and macOS Cocoa for the new question states. Existing EN/RU
+geometry checks passed. This is source/data/geometry acceptance, without a new
+rendered original-Windows pixel comparison. All checks used Qt 6.12 and the
+existing incremental trees/compiler caches. Completed fixtures were removed;
+current reports and failure/follow-up evidence were retained. No full/slow gate
+was run.

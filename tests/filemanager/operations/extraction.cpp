@@ -1,4 +1,91 @@
+#include "Windows/PropVariant.h"
+#include "Windows/PropVariantConv.h"
+#include "ui/support/layout_inspection.h"
 #include "window_operations.h"
+#include <QScopedValueRollback>
+
+void MainWindowOperationsTests::backendOverwriteDisplaysNativeMetadata_data() {
+    QTest::addColumn<bool>("defined");
+    QTest::newRow("native snapshot and full unsigned size") << true;
+    QTest::newRow("unknown metadata stays unknown") << false;
+}
+
+void MainWindowOperationsTests::backendOverwriteDisplaysNativeMetadata() {
+    QFETCH(bool, defined);
+    QTemporaryDir fixture;
+    QVERIFY(fixture.isValid());
+    const QString target = fixture.filePath(QStringLiteral("старый 空.txt"));
+    QFile original(target);
+    QVERIFY(original.open(QIODevice::WriteOnly));
+    QCOMPARE(original.write("keep"), qint64(4));
+    original.close();
+    ArchiveOverwriteQuestion question;
+    question.Existing.Path = target;
+    question.Incoming.Path = QStringLiteral("входящий файл/new.txt");
+    if (defined) {
+        question.Existing.Size = 42; // The native question is a snapshot, not a new stat().
+        question.Incoming.Size = UInt64(-1) - 4;
+        const UInt64 ticks = 116444736000000000ULL + 1234567;
+        question.Existing.Modified = FILETIME{UInt32(ticks), UInt32(ticks >> 32)};
+        question.Incoming.Modified = question.Existing.Modified;
+    }
+    ArchiveBackend backend;
+    MainWindow window(&backend);
+    window.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&window));
+    QScopedValueRollback<bool> utc(g_Timestamp_Show_UTC, true);
+    bool inspected = false;
+    QTimer answer;
+    connect(&answer, &QTimer::timeout, &window, [&] {
+        COverwriteDialog *dialog = nullptr;
+        for (auto *widget : QApplication::topLevelWidgets())
+            if (auto *candidate = dynamic_cast<COverwriteDialog *>(widget);
+                candidate && candidate->isVisible())
+                dialog = candidate;
+        if (!dialog)
+            return;
+        answer.stop();
+        const auto close = qScopeGuard([&] { dialog->reject(); });
+        inspected = true;
+        auto *oldText = dialog->findChild<QLabel *>("overwriteOldFile");
+        auto *newText = dialog->findChild<QLabel *>("overwriteNewFile");
+        QVERIFY(oldText && newText);
+        QCOMPARE(dialog->OldFileInfo.Size_IsDefined, defined);
+        QCOMPARE(dialog->NewFileInfo.Size_IsDefined, defined);
+        QCOMPARE(dialog->OldFileInfo.Time_IsDefined, defined);
+        QCOMPARE(dialog->NewFileInfo.Time_IsDefined, defined);
+        if (defined) {
+            QVERIFY(oldText->text().contains("42 bytes"));
+            QVERIFY(newText->text().contains(QLocale().toString(*question.Incoming.Size)));
+            for (const auto *label : {oldText, newText})
+                QVERIFY(label->text().contains("1970-01-01 00:00:00"));
+            QCOMPARE(dialog->NewFileInfo.Time.dwLowDateTime,
+                     question.Incoming.Modified->dwLowDateTime);
+            QCOMPARE(dialog->NewFileInfo.Time.dwHighDateTime,
+                     question.Incoming.Modified->dwHighDateTime);
+        } else {
+            QVERIFY(!oldText->text().contains(" bytes"));
+            QVERIFY(!newText->text().contains(" bytes"));
+            QVERIFY(!newText->text().contains("1970"));
+        }
+        for (int width : {700, 560}) {
+            dialog->resize(width, 440);
+            QApplication::processEvents();
+            QVERIFY(UiInspection::fullyVisible(*oldText, *dialog));
+            QVERIFY(UiInspection::fullyVisible(*newText, *dialog));
+            QVERIFY(UiInspection::labelFits(*oldText));
+            QVERIFY(UiInspection::labelFits(*newText));
+            QVERIFY(UiInspection::writeReport(
+                *dialog, QString("backend-overwrite-%1-%2").arg(defined).arg(width)));
+        }
+    });
+    answer.start(1);
+    backend.overwriteRequired(question);
+    answer.stop();
+    QVERIFY(inspected);
+    QVERIFY(original.open(QIODevice::ReadOnly));
+    QCOMPARE(original.readAll(), QByteArray("keep"));
+}
 
 void MainWindowOperationsTests::extractAskUsesSourceOverwriteDialog() {
     QTemporaryDir temp;

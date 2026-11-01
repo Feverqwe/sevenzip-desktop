@@ -71,11 +71,10 @@ class ExtractionOptionsTests : public QObject {
             else
                 backend.test(archive);
         });
-        connect(&backend, &ArchiveBackend::overwriteRequired, &backend,
-                [&](const QString &, const ArchiveEntry &) {
-                    backend.cancelAndWait();
-                    replacementRunningOnReturn = backend.busy() && completed.size() == 1;
-                });
+        connect(&backend, &ArchiveBackend::overwriteRequired, &backend, [&] {
+            backend.cancelAndWait();
+            replacementRunningOnReturn = backend.busy() && completed.size() == 1;
+        });
         ExtractionOptions options;
         options.overwriteMode = ExtractionOptions::OverwriteMode::Ask;
         backend.extract(archive, destination, {}, {}, options);
@@ -111,16 +110,15 @@ class ExtractionOptionsTests : public QObject {
         QCOMPARE(NativeArchiveFixture::Attach(backend), S_OK);
         backend.list(archive);
         await(backend, true);
-        connect(&backend, &ArchiveBackend::overwriteRequired, &backend,
-                [&](const QString &, const ArchiveEntry &) {
-                    if (!QDir().rename(destination, preserved)) {
-                        backend.cancel();
-                        return;
-                    }
-                    linked = CreateNativeSymbolicLink(destination, outside);
-                    backend.provideOverwriteAnswer(linked ? NOverwriteAnswer::kYes
-                                                          : NOverwriteAnswer::kCancel);
-                });
+        connect(&backend, &ArchiveBackend::overwriteRequired, &backend, [&] {
+            if (!QDir().rename(destination, preserved)) {
+                backend.cancel();
+                return;
+            }
+            linked = CreateNativeSymbolicLink(destination, outside);
+            backend.provideOverwriteAnswer(linked ? NOverwriteAnswer::kYes
+                                                  : NOverwriteAnswer::kCancel);
+        });
         ExtractionOptions options;
         options.overwriteMode = ExtractionOptions::OverwriteMode::Ask;
         backend.extract(archive, destination, {}, {}, options);
@@ -145,8 +143,13 @@ class ExtractionOptionsTests : public QObject {
         NativeArchiveFixture::Item directory;
         directory.Path = folder;
         directory.Directory = true;
+        NativeArchiveFixture::Item selected;
+        selected.Path = folder + '/' + name;
+        selected.Bytes = "selected bytes";
+        const UInt64 ticks = 116444736000000000ULL + 1234567;
+        selected.Modified = FILETIME{UInt32(ticks), UInt32(ticks >> 32)};
         QList<NativeArchiveFixture::Item> items{
-            directory, {folder + '/' + name, "selected bytes"}, {"unselected.txt", "unselected"}};
+            directory, selected, {"unselected.txt", "unselected"}};
         if (unsafeChild)
             items.append({folder + "/../escape.txt", "unsafe bytes"});
         const QString archive = temp.filePath("fixture.7z");
@@ -178,14 +181,24 @@ class ExtractionOptionsTests : public QObject {
         options.overwriteMode = ExtractionOptions::OverwriteMode::Ask;
         QSignalSpy prompts(&backend, &ArchiveBackend::overwriteRequired);
         connect(&backend, &ArchiveBackend::overwriteRequired, &backend,
-                [&](const QString &path, const ArchiveEntry &entry) {
-                    QCOMPARE(QDir::fromNativeSeparators(path), flat + '/' + name);
-                    QCOMPARE(QDir::fromNativeSeparators(entry.path), folder + '/' + name);
-                    QVERIFY(backend.busy());
-                    // The callback waits while the GUI continues processing events.
-                    QTimer::singleShot(0, &backend, [&] {
-                        backend.provideOverwriteAnswer(NOverwriteAnswer::kYes);
+                [&](const ArchiveOverwriteQuestion &question) {
+                    const auto answer = qScopeGuard([&] {
+                        QTimer::singleShot(0, &backend, [&] {
+                            backend.provideOverwriteAnswer(NOverwriteAnswer::kYes);
+                        });
                     });
+                    QCOMPARE(QDir::fromNativeSeparators(question.Existing.Path), flat + '/' + name);
+                    QCOMPARE(QDir::fromNativeSeparators(question.Incoming.Path),
+                             folder + '/' + name);
+                    QCOMPARE(question.Existing.Size, std::optional<UInt64>(9));
+                    QVERIFY(question.Existing.Modified.has_value());
+                    QCOMPARE(question.Incoming.Size, std::optional<UInt64>(selected.Bytes.size()));
+                    QVERIFY(question.Incoming.Modified.has_value());
+                    QCOMPARE(question.Incoming.Modified->dwLowDateTime,
+                             selected.Modified->dwLowDateTime);
+                    QCOMPARE(question.Incoming.Modified->dwHighDateTime,
+                             selected.Modified->dwHighDateTime);
+                    QVERIFY(backend.busy());
                 });
         done.clear();
         backend.extract(archive, flat, {folder + '/' + name}, {}, options);
@@ -323,12 +336,13 @@ class ExtractionOptionsTests : public QObject {
 
         QSignalSpy requested(&backend, &ArchiveBackend::overwriteRequired);
         connect(&backend, &ArchiveBackend::overwriteRequired, &backend,
-                [&backend](const QString &, const ArchiveEntry &incoming) {
-                    backend.provideOverwriteAnswer(incoming.path.endsWith(QStringLiteral("α.txt"))
-                                                       ? NOverwriteAnswer::kNo
-                                                   : incoming.path.endsWith(QStringLiteral("β.txt"))
-                                                       ? NOverwriteAnswer::kYes
-                                                       : NOverwriteAnswer::kAutoRename);
+                [&backend](const ArchiveOverwriteQuestion &question) {
+                    backend.provideOverwriteAnswer(
+                        question.Incoming.Path.endsWith(QStringLiteral("α.txt"))
+                            ? NOverwriteAnswer::kNo
+                        : question.Incoming.Path.endsWith(QStringLiteral("β.txt"))
+                            ? NOverwriteAnswer::kYes
+                            : NOverwriteAnswer::kAutoRename);
                 });
         ExtractionOptions options;
         options.overwriteMode = ExtractionOptions::OverwriteMode::Ask;
@@ -388,13 +402,12 @@ class ExtractionOptionsTests : public QObject {
             QSignalSpy requested(&backend, &ArchiveBackend::overwriteRequired);
             QSignalSpy finished(&backend, &ArchiveBackend::finished);
             const auto connection =
-                connect(&backend, &ArchiveBackend::overwriteRequired, &backend,
-                        [&backend, answer](const QString &, const ArchiveEntry &) {
-                            if (answer == NOverwriteAnswer::kCancel)
-                                backend.cancel();
-                            else
-                                backend.provideOverwriteAnswer(answer);
-                        });
+                connect(&backend, &ArchiveBackend::overwriteRequired, &backend, [&backend, answer] {
+                    if (answer == NOverwriteAnswer::kCancel)
+                        backend.cancel();
+                    else
+                        backend.provideOverwriteAnswer(answer);
+                });
             backend.extract(archive, output, {}, {}, options);
             QTRY_COMPARE_WITH_TIMEOUT(finished.size(), 1, 30000);
             QCOMPARE(finished.first().first().toBool(), answer != NOverwriteAnswer::kCancel);
@@ -429,9 +442,7 @@ class ExtractionOptionsTests : public QObject {
         backend.list(archive, password);
         await(backend, true);
         connect(&backend, &ArchiveBackend::overwriteRequired, &backend,
-                [&backend](const QString &, const ArchiveEntry &) {
-                    backend.provideOverwriteAnswer(NOverwriteAnswer::kYes);
-                });
+                [&backend] { backend.provideOverwriteAnswer(NOverwriteAnswer::kYes); });
         ExtractionOptions options;
         options.overwriteMode = ExtractionOptions::OverwriteMode::Ask;
         QSignalSpy rejected(&backend, &ArchiveBackend::finished);

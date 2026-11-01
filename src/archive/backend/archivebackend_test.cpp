@@ -82,11 +82,11 @@ void ArchiveBackend::startReadOperation(Job job, std::unique_ptr<QtArchiveReadOp
             },
             Qt::QueuedConnection);
     };
-    readOperation_->OverwriteRequired = [this, operation](const QString &path,
-                                                          const ArchiveEntry &entry) {
+    readOperation_->OverwriteRequired = [this,
+                                         operation](const ArchiveOverwriteQuestion &question) {
         QMetaObject::invokeMethod(
             this,
-            [this, operation, path, entry] {
+            [this, operation, question] {
                 if (!operation || readOperation_.get() != operation.data() || cancelled_)
                     return;
                 if (!isSignalConnected(
@@ -95,7 +95,7 @@ void ArchiveBackend::startReadOperation(Job job, std::unique_ptr<QtArchiveReadOp
                     return;
                 }
                 overwritePromptActive_ = true;
-                emit overwriteRequired(path, entry);
+                emit overwriteRequired(question);
             },
             Qt::QueuedConnection);
     };

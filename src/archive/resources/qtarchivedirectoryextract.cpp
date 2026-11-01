@@ -4,17 +4,26 @@
 #include "archive/resources/qtarchivedirectoryextract.h"
 #include "7zip/IPassword.h"
 #include "Common/StringConvert.h"
-#include "Windows/PropVariant.h"
 #include "archive/backend/archivebackend_nativeentries.h"
 #include "archive/operations/Extract.h"
 #include "archive/resources/archivenativeopen.h"
 #include "archive/resources/qtarchivereadoperation.h"
 #include "archive/resources/qtextractpathpolicy.h"
-#include "console/List.h"
 #include <QDir>
 #include <QMutexLocker>
 
 namespace {
+ArchiveOverwriteQuestion::File OverwriteFile(const wchar_t *path, const FILETIME *time,
+                                             const UInt64 *size) {
+    ArchiveOverwriteQuestion::File file;
+    file.Path = QString::fromWCharArray(path);
+    if (time)
+        file.Modified = *time;
+    if (size)
+        file.Size = *size;
+    return file;
+}
+
 class CDirectoryCallback final : public IFolderArchiveExtractCallback,
                                  public IFolderArchiveExtractCallback2,
                                  public ICryptoGetTextPassword,
@@ -45,33 +54,22 @@ class CDirectoryCallback final : public IFolderArchiveExtractCallback,
         }
         return operation_.checkpoint();
     }
-    Z7_COM7F_IMF(AskOverwrite(const wchar_t *existing, const FILETIME *, const UInt64 *,
-                              const wchar_t *name, const FILETIME *time, const UInt64 *size,
-                              Int32 *answer))
+    Z7_COM7F_IMF(AskOverwrite(const wchar_t *existing, const FILETIME *existingTime,
+                              const UInt64 *existingSize, const wchar_t *name, const FILETIME *time,
+                              const UInt64 *size, Int32 *answer))
     override {
         // RejectExisting also guards collisions created after initial validation.
         if (operation_.Directory->Options.overwriteMode ==
             ExtractionOptions::OverwriteMode::RejectExisting)
             return E_FAIL;
-        ArchiveEntry entry;
-        entry.path = QString::fromWCharArray(name);
-        if (size) {
-            entry.sizeValue = *size;
-            entry.size = *size <= UInt64(INT64_MAX) ? qint64(*size) : -1;
-        }
-        if (time) {
-            NWindows::NCOM::CPropVariant prop;
-            prop = *time;
-            entry.modified =
-                QString::fromWCharArray(GetListingItemPropertyValue(kpidMTime, prop, false));
-        }
-        const QString target = QString::fromWCharArray(existing);
-        RINOK(operation_.askOverwrite(target, entry, answer))
+        const ArchiveOverwriteQuestion question{OverwriteFile(existing, existingTime, existingSize),
+                                                OverwriteFile(name, time, size)};
+        RINOK(operation_.askOverwrite(question, answer))
         // The UI may have been open while the destination changed. Recheck
         // before the source callback deletes/renames the existing output.
         QString error;
-        if (!ArchiveBackend::validateExtractionOutput(operation_.Directory->Destination, target,
-                                                      false, &error)) {
+        if (!ArchiveBackend::validateExtractionOutput(operation_.Directory->Destination,
+                                                      question.Existing.Path, false, &error)) {
             operation_.Messages.append(error);
             return E_INVALIDARG;
         }
