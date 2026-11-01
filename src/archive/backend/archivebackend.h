@@ -3,8 +3,9 @@ struct CExternalCodecs;
 struct CProperty;
 class CArc;
 
+#include "7zip/Archive/IArchive.h"
 #include "archive/codecs/archivecodecpublication.h"
-#include "dialogs/compress/CompressDialog.h"
+#include "dialogs/compress/CompressInfo.h"
 #include "fileops/overwrite/overwritequestion.h"
 
 #include <QDateTime>

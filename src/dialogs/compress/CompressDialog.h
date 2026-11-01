@@ -6,6 +6,7 @@
 #include "archive/codecs/LoadCodecs.h"
 #include "archive/operations/ZipRegistry.h"
 #include "dialogs/browse/BrowseDialog.h"
+#include "dialogs/compress/CompressInfo.h"
 #include "fileops/patterns/Wildcard.h"
 #include <QStringList>
 #include <QStringView>
@@ -18,9 +19,6 @@ void SetErrorMessage_MemUsage(UString &s, UInt64 reqSize, UInt64 ramSize, UInt64
 
 namespace NCompressDialog {
 QString Modify_Auto(const QString &text);
-namespace NUpdateMode {
-enum EEnum { kAdd, kUpdate, kFresh, kSync };
-}
 
 enum EMethodID {
     kCopy,
@@ -88,41 +86,6 @@ struct COrderOptions {
 int GetMethodID(QStringView name, QStringView format);
 bool GetOrderMode(int methodID);
 COrderOptions SetOrder2(int methodID, UInt32 level, UInt32 defaultOrder = UInt32(-1));
-struct CInfo {
-    UString ArcPath;
-    QString Password;
-    int FormatIndex = -1;
-    bool KeepName = false;
-    bool SFXMode = false;
-    CRecordVector<UInt64> VolumeSizes;
-    UInt32 Level = UInt32(-1);
-    UString Method;
-    UInt64 Dict64 = UInt64(-1);
-    bool OrderMode = false;
-    UInt32 Order = UInt32(-1);
-    UString Options;
-    UInt32 NumThreads = UInt32(-1);
-    bool EncryptHeadersIsAllowed = false;
-    bool EncryptHeaders = false;
-    UInt32 TimePrec = UInt32(-1);
-    CBoolPair MTime;
-    CBoolPair CTime;
-    CBoolPair ATime;
-    CBoolPair SetArcMTime;
-    CBoolPair SymLinks;
-    CBoolPair HardLinks;
-    CBoolPair AltStreams;
-    CBoolPair NtSecurity;
-    CBoolPair PreserveATime;
-    bool OpenShareForWrite = false;
-    bool DeleteAfterCompressing = false;
-    NUpdateMode::EEnum UpdateMode = NUpdateMode::kAdd;
-    NWildcard::ECensorPathMode PathMode = NWildcard::k_RelatPath;
-    bool SolidIsSpecified = false;
-    UInt64 SolidBlockSize = 0;
-    NCompression::CMemUse MemUsage;
-    QString EncryptionMethod;
-};
 struct CSolidOptions {
     UInt64 AutoSolid = 1 << 20;
     int Selected = 0;

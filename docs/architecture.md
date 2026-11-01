@@ -103,6 +103,9 @@ Window shortcuts and mount commands belong to the shared window component.
 Archive and compression scenarios link the resource and dialog libraries
 directly. Shared test helpers have their own targets; native override fixtures
 retain separate compilation where their definitions intentionally differ.
+Compression request values share the source parameter record owned by the
+compression module. Backend interfaces consume that contract independently of
+the dialog/controller declarations used by presentation.
 
 ## Window and panel state
 

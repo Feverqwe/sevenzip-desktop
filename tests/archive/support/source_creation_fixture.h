@@ -2,6 +2,7 @@
 
 #include "archive/sfx/archivesfxmodule.h"
 #include "archive/support/native_archive_fixture.h"
+#include "dialogs/compress/CompressDialog.h"
 #include "gui/UpdateCallbackGUI.h"
 #include "gui/UpdateGUI.h"
 #include "gui/qtupdateguiservices.h"

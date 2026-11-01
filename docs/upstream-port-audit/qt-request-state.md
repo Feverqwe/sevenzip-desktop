@@ -1,5 +1,47 @@
 # State of a new archive request — 2026-10-18
 
+## Compression parameter boundary — 2026-11-01
+
+Compared source CompressDialog `CInfo`/update-mode declarations, the current
+Add request projection and UpdateGUI property conversion with backend/native
+writer consumers. The original CompressDialog.h inventory at recorded
+`b88c6bc09339de32f7d18bbab900686b244f42ba` in
+<https://github.com/ip7z/7zip.git> matches its pinned complete-unit hash. The
+existing adapted declarations move unchanged into the compression module's
+`CompressInfo.h`; field order, types, initial values and inherited Qt adaptations
+are preserved. No new upstream code, omitted branch or revision advance is
+involved. The existing manifest extraction map records both transferred symbols
+and their local owner, so later source reviews include the extracted header.
+
+ArchiveBackend now includes the parameter contract and native archive interface,
+without importing compression controller/browse declarations through its public
+header. The UpdateGUI service header consumes the same contract, while its
+implementation, Add presentation and controller-based fixtures include their
+controller explicitly. Selection,
+validation, persistence, property overrides, encryption, update and writer
+algorithms are unchanged. No new behavior test or measured build-speed gain is
+claimed; existing creation/update suites and consumer compilation validate this
+declaration/dependency refactoring.
+
+Baseline inventory also lacked the preexisting local ArchivePropertySource
+implementation/header from the generation-bound metadata change. They are now
+registered as local integration; their code and original source hashes are
+unchanged. Full baseline verification uses an isolated recorded-revision
+reference; the existing external checkout remains untouched. Ordinary builds
+continue to use repository-owned source archives only.
+
+Linux validation passed the existing compression, compression_advanced,
+codec_creation_ui, source_update_backend, native_update_publication,
+archive_backend, ui_update_modes and shell_update_gui suites. GUI and File
+Manager entry components also compiled. The first focused build exposed a
+missing controller forward declaration in UpdateGUI; it was added before the
+passing build. The publication suite initially lacked its official SFX runtime;
+the existing runtime-preparation workflow supplied it, and that suite passed
+on its own repeat. The other seven passing suites were not repeated.
+Ordinary four-job builds and incremental compiler caches were retained.
+No native platform branch changed, so secondary OS, independent application
+runtime, appearance, full and slow-suite acceptance are not claimed.
+
 Source: <https://github.com/ip7z/7zip.git>, commit
 `0766b733fe3e06dd2a7f9a3cfbf2108ac73abd17`.
 

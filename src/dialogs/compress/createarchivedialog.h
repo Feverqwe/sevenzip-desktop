@@ -2,6 +2,7 @@
 
 #include "archive/backend/archivebackend.h"
 #include "archive/sfx/archivesfxmodule.h"
+#include "dialogs/compress/CompressDialog.h"
 
 #include <QCheckBox>
 #include <QComboBox>

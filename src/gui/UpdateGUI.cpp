@@ -9,6 +9,7 @@
 #include "Windows/FileFind.h"
 #include "archive/callbacks/qtguimessages.h"
 #include "archive/compression/MethodProps.h"
+#include "dialogs/compress/CompressDialog.h"
 #include "gui/UpdateCallbackGUI.h"
 #include "gui/qtupdateguiservices.h"
 #include "gui/resource2.h"

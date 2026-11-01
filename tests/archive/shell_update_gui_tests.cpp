@@ -2,6 +2,7 @@
 #include "archive/backend/archivebackend.h"
 #include "archive/codecs/archivecodeccatalog.h"
 #include "archive/support/source_extract_fixture.h"
+#include "dialogs/compress/CompressDialog.h"
 #include "gui/UpdateCallbackGUI.h"
 #include "gui/UpdateGUI.h"
 #include "operations/CompressCall.h"

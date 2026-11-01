@@ -1512,6 +1512,8 @@
     "src/archive/resources/archivelayercontext.h",
     "src/archive/resources/archivenativeopen.cpp",
     "src/archive/resources/archivenativeopen.h",
+    "src/archive/resources/archivepropertysource.cpp",
+    "src/archive/resources/archivepropertysource.h",
     "src/archive/resources/archivereadonlycache.cpp",
     "src/archive/resources/archivereadonlyview.cpp",
     "src/archive/resources/archivereadonlyview.h",
@@ -1651,6 +1653,7 @@
     "src/devices/module.cmake",
     "src/devices/qtdevicecommands.cpp",
     "src/dialogs/combo/alias.h",
+    "src/dialogs/compress/CompressInfo.h",
     "src/dialogs/compress/createarchivedialog.cpp",
     "src/dialogs/compress/createarchivedialog.h",
     "src/dialogs/compress/createarchivedialog_advanced.cpp",
@@ -3408,6 +3411,15 @@
     "src/formats/vhdx/VhdxCrc.cpp"
   ],
   "extracted": {
+    "src/dialogs/compress/CompressDialog.h": {
+      "local": [
+        "src/dialogs/compress/CompressInfo.h"
+      ],
+      "symbols": [
+        "NCompressDialog::NUpdateMode",
+        "NCompressDialog::CInfo"
+      ]
+    },
     "src/formats/ext/ExtHandler.cpp": {
       "local": [
         "src/formats/ext/ExtHeader.cpp",
