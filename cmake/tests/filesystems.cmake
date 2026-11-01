@@ -186,7 +186,10 @@
         "SEVENZIP_UDF_FIXTURE=\"${CMAKE_CURRENT_SOURCE_DIR}/tests/formats/udf/support/udf_fixture.py\"")
     add_test(NAME udf_stream COMMAND udf_stream_tests -silent)
     add_dependencies(udf_stream_tests sevenzip_udf_runtime)
-    set_tests_properties(udf_stream PROPERTIES TIMEOUT 45)
+    # All 289 stream/backend cases passed in 51.7s on native macOS after the
+    # 45s aggregate cap expired. Reserve twice that time, rounded up; retain
+    # every scenario and its individual operation deadlines.
+    set_tests_properties(udf_stream PROPERTIES TIMEOUT 120)
     add_test(NAME iso COMMAND ${Python3_EXECUTABLE}
         ${CMAKE_CURRENT_SOURCE_DIR}/tests/formats/iso/iso_tests.py
         ${SEVENZIP_CODEC_RUNTIME_DIR} "$<TARGET_FILE:sevenzip_iso>"

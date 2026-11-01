@@ -46,7 +46,7 @@ class LauncherProgressTests : public QObject {
     }
 
   private slots:
-#ifdef Q_OS_LINUX
+#if defined(Q_OS_LINUX) || defined(Q_OS_MACOS)
     void privateBusesRemainIsolatedWithLongTemporaryPath() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());

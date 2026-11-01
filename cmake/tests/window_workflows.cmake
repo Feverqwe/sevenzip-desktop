@@ -251,18 +251,17 @@ if(BUILD_TESTING)
             "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/file-manager-startup.ini")
     endif()
     if(WIN32 AND SEVENZIP_CODEC_MODULE)
-        qt_add_executable(native_shell_email_tests
-            tests/filemanager/native_shell_email_tests.cpp
-            tests/support/native_mapi_loader.cpp)
+        qt_add_executable(native_shell_email_tests tests/filemanager/native_shell_email_tests.cpp)
         target_link_libraries(native_shell_email_tests PRIVATE sevenzip_layout_inspection)
         target_link_libraries(native_shell_email_tests PRIVATE sevenzip_window)
         target_include_directories(native_shell_email_tests PRIVATE src tests)
         target_link_libraries(native_shell_email_tests PRIVATE Qt6::Test)
         target_compile_definitions(native_shell_email_tests PRIVATE
             "SEVENZIP_CODEC_MODULE=\"${SEVENZIP_CODEC_MODULE}\""
+            "NATIVE_MAPI_HOST=\"$<TARGET_FILE:native_mapi_host>\""
             "NATIVE_MAPI_WIDE=\"$<TARGET_FILE:native_mapi_wide>\""
             "NATIVE_MAPI_MISSING=\"$<TARGET_FILE:native_mapi_missing>\"")
-        add_dependencies(native_shell_email_tests native_mapi_wide native_mapi_missing)
+        add_dependencies(native_shell_email_tests native_mapi_host native_mapi_wide native_mapi_missing)
         add_test(NAME native_shell_email COMMAND native_shell_email_tests -silent)
         set_tests_properties(native_shell_email PROPERTIES TIMEOUT 180 RESOURCE_LOCK sevenzip_ui_artifacts
             ENVIRONMENT "SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/native-shell-email.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")

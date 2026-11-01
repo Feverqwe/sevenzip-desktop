@@ -62,6 +62,9 @@ rg -n --no-ignore -F 'CAgent::Open' docs/archive/qt-port/upstream-port-audit/ do
 - [Неактивный черновик пароля Add](upstream-port-audit/inactive-password-coverage.md)
   — согласованы положительный сценарий и прежняя матрица ошибок.
 
+- [Нативные тестовые сценарии](upstream-port-audit/native-validation-fixtures.md)
+  — независимые операции, приватный MAPI, доступность и предпосылки проверок.
+
 - [Запуск и выбор внешнего Drop](upstream-port-audit/startup-drop-choice.md)
   — подготовка первого окна и запрошенный выбор открытия/упаковки;
   [аудит сценариев](user-workflow-audit.md) хранит текущие результаты и ограничения.

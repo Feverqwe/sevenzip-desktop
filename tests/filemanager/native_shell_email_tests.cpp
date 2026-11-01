@@ -2,21 +2,44 @@
 #include "filemanager/views/filetable.h"
 
 #include "7zip/UI/Explorer/ContextMenuFlags.h"
-#include "7zip/UI/FileManager/ProgressDialog2Res.h"
 #include "archive/codecs/archivecodeccatalog.h"
 #include "archive/support/source_extract_fixture.h"
-#include "dialogs/compress/createarchivedialog.h"
 #include "filemanager/support/window_state_support.h"
-#include "support/native_mapi_loader.h"
-#include "ui/progress/ProgressDialog2.h"
+#include "support/operation_kill.h"
 #include "ui/support/layout_inspection.h"
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QMenuBar>
 #include <QScopeGuard>
+#include <optional>
 
 namespace {
+class MailBackend final : public ArchiveBackend {
+  public:
+    using ArchiveBackend::ArchiveBackend;
+    QPointer<QtOperationLauncher> Operation;
+    std::optional<QtOperationResult> Result;
+
+    QtOperationLauncher *startGuiCompress(const QString &archive, const QString &type,
+                                          bool addExtension, const QStringList &paths, bool email,
+                                          bool showDialog, QString &error) override {
+        QtOperationJob job;
+        job.Operation = QtOperationJob::Command::Compress;
+        job.ArchivePath = archive;
+        job.ArchiveType = type;
+        job.AddExtension = addExtension;
+        job.Paths = paths;
+        job.EMail = email;
+        job.ShowDialog = showDialog;
+        Operation = QtOperationLauncher::Launch(QStringLiteral(NATIVE_MAPI_HOST), job, error);
+        if (Operation)
+            connect(Operation, &QtOperationLauncher::finished, this,
+                    [this](const QtOperationResult &result) { Result = result; });
+        return Operation;
+    }
+};
+
 QAction *findVerb(QMenu &menu, const QString &verb) {
     for (auto *action : menu.actions()) {
         if (action->property("shellVerb").toString() == verb)
@@ -111,7 +134,8 @@ class NativeShellEmailTests final : public QObject, protected MainWindowTestSupp
         QVERIFY(QDir().mkpath(clientCwd));
         QMap<QByteArray, QByteArray> previous;
         for (const QByteArray &key :
-             {"SEVENZIP_MAPI_TEST_REPORT", "SEVENZIP_MAPI_TEST_CWD", "SEVENZIP_MAPI_TEST_CANCEL"})
+             {"SEVENZIP_MAPI_TEST_REPORT", "SEVENZIP_MAPI_TEST_CWD", "SEVENZIP_MAPI_TEST_CANCEL",
+              "SEVENZIP_MAPI_TEST_PROVIDER", "SEVENZIP_MAPI_TEST_DIALOG"})
             previous.insert(key, qgetenv(key));
         const auto restoreEnvironment = qScopeGuard([&] {
             for (auto it = previous.cbegin(); it != previous.cend(); ++it)
@@ -123,12 +147,15 @@ class NativeShellEmailTests final : public QObject, protected MainWindowTestSupp
         qputenv("SEVENZIP_MAPI_TEST_REPORT", report.toUtf8());
         qputenv("SEVENZIP_MAPI_TEST_CWD", clientCwd.toUtf8());
         qputenv("SEVENZIP_MAPI_TEST_CANCEL", "0");
-        HMODULE provider = LoadPrivateMAPIProvider(missing ? QString(NATIVE_MAPI_MISSING)
-                                                           : QString(NATIVE_MAPI_WIDE));
-        QVERIFY(provider);
-        const auto unload = qScopeGuard([&] { FreeLibrary(provider); });
+        const QString provider = missing ? QString(NATIVE_MAPI_MISSING) : QString(NATIVE_MAPI_WIDE);
+        qputenv("SEVENZIP_MAPI_TEST_PROVIDER", provider.toUtf8());
+        qputenv("SEVENZIP_MAPI_TEST_DIALOG", cancel ? "cancel" : "accept");
         settings(language);
-        ArchiveBackend backend(nullptr, engine);
+        MailBackend backend(nullptr, engine);
+        const auto stopUnfinishedFixture = qScopeGuard([&] {
+            if (backend.Operation && !backend.Result)
+                KillOperationProbe(backend.Operation->processId());
+        });
         QCOMPARE(backend.loadCodecCatalog(module, version), S_OK);
         MainWindow window(&backend);
         window.resize(size);
@@ -136,26 +163,6 @@ class NativeShellEmailTests final : public QObject, protected MainWindowTestSupp
         auto *view = table(window);
         QTRY_VERIFY(rowNamed(window, name) >= 0);
         view->selectRow(rowNamed(window, name));
-        QStringList errors;
-        QTimer dismissal;
-        connect(&dismissal, &QTimer::timeout, [&] {
-            if (auto *dialog =
-                    qobject_cast<CreateArchiveDialog *>(QApplication::activeModalWidget())) {
-                if (cancel)
-                    dialog->reject();
-                else
-                    dialog->findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok)->click();
-            } else if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
-                errors.append(box->text());
-                box->accept();
-            } else if (auto *progress =
-                           dynamic_cast<CProgressDialog *>(QApplication::activeModalWidget())) {
-                auto *close = progress->findChild<QPushButton *>("IDCANCEL");
-                if (close && close->property("languageID").toUInt() == IDS_CLOSE)
-                    close->click();
-            }
-        });
-        dismissal.start(5);
         auto *menu = window.findChild<QMenu *>("fileMenu");
         QVERIFY(menu);
         menu->popup(window.mapToGlobal(QPoint(0, window.menuBar()->height())));
@@ -172,12 +179,22 @@ class NativeShellEmailTests final : public QObject, protected MainWindowTestSupp
         root->menu()->hide();
         menu->hide();
         email->trigger();
-        dismissal.stop();
+        QTRY_VERIFY_WITH_TIMEOUT(backend.Result.has_value(), 15000);
+        using Outcome = QtOperationResult::Outcome;
+        QCOMPARE(backend.Result->Status, cancel    ? Outcome::Cancelled
+                                         : missing ? Outcome::Failure
+                                                   : Outcome::Success);
+        const auto host =
+            QJsonDocument::fromJson(SourceExtractFixture::readFile(report + ".host.json")).object();
+        QVERIFY(!host.isEmpty());
+        QCOMPARE(host["provider"].toString(), QFileInfo(provider).canonicalFilePath());
+        QCOMPARE(host["cwdAfter"], host["cwdBefore"]);
+        const auto errors = host["messages"].toArray();
         QCOMPARE(QDir::currentPath(), fixture.path());
         QCOMPARE(SourceExtractFixture::readFile(fixture.filePath(name)), bytes);
-        if (!cancel && !missing)
-            QVERIFY2(errors.isEmpty(), qPrintable(errors.join("\n")));
-        QCOMPARE(view->selectionModel()->selectedRows().size(), cancel || missing ? 1 : 0);
+        // Source InvokePluginCommand clears selection when the independent
+        // operation launches successfully; its later Cancel belongs to 7zG.
+        QCOMPARE(view->selectionModel()->selectedRows().size(), 0);
         if (cancel || missing) {
             QVERIFY(!QFileInfo::exists(report));
             QCOMPARE(errors.isEmpty(), cancel);

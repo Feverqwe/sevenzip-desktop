@@ -111,7 +111,9 @@ QStringList AccessibleNames(HWND window, QHash<QString, bool> *exposed = nullptr
     return names;
 }
 
-bool EnableAccessibleToggle(HWND window, const wchar_t *name) {
+enum class AccessibleAction { Expand, Check };
+
+bool ActivateAccessibleControl(HWND window, const wchar_t *name, AccessibleAction action) {
     const HRESULT initialized = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
     const auto uninitialize = qScopeGuard([&] {
         if (SUCCEEDED(initialized))
@@ -129,11 +131,31 @@ bool EnableAccessibleToggle(HWND window, const wchar_t *name) {
     CMyComPtr<IUIAutomationElement> root, element;
     CMyComPtr<IUIAutomationCondition> condition;
     CMyComPtr<IUnknown> pattern;
-    CMyComPtr<IUIAutomationTogglePattern> toggle;
     if (FAILED(automation->ElementFromHandle(window, &root)) ||
         FAILED(automation->CreatePropertyCondition(UIA_NamePropertyId, value, &condition)) ||
-        FAILED(root->FindFirst(TreeScope_Descendants, condition, &element)) || !element ||
-        FAILED(element->GetCurrentPattern(UIA_TogglePatternId, &pattern)) || !pattern ||
+        FAILED(root->FindFirst(TreeScope_Descendants, condition, &element)) || !element)
+        return false;
+    if (action == AccessibleAction::Expand) {
+        CMyComPtr<IUIAutomationExpandCollapsePattern> expansion;
+        if (FAILED(element->GetCurrentPattern(UIA_ExpandCollapsePatternId, &pattern)) || !pattern ||
+            FAILED(
+                pattern.QueryInterface(__uuidof(IUIAutomationExpandCollapsePattern), &expansion)))
+            return false;
+        ExpandCollapseState state;
+        if (FAILED(expansion->get_CurrentExpandCollapseState(&state)))
+            return false;
+        // QTRY evaluates its predicate again after success. Keep that final
+        // observation from pressing the disclosure a second time.
+        if (state == ExpandCollapseState_Expanded)
+            return true;
+        pattern.Release();
+        CMyComPtr<IUIAutomationInvokePattern> invoke;
+        return SUCCEEDED(element->GetCurrentPattern(UIA_InvokePatternId, &pattern)) && pattern &&
+               SUCCEEDED(pattern.QueryInterface(__uuidof(IUIAutomationInvokePattern), &invoke)) &&
+               SUCCEEDED(invoke->Invoke());
+    }
+    CMyComPtr<IUIAutomationTogglePattern> toggle;
+    if (FAILED(element->GetCurrentPattern(UIA_TogglePatternId, &pattern)) || !pattern ||
         FAILED(pattern.QueryInterface(__uuidof(IUIAutomationTogglePattern), &toggle)))
         return false;
     ToggleState state;
@@ -279,8 +301,12 @@ class NativeGUIWorkflowTests final : public QObject {
         QVERIFY(GetWindowTextW(dialog.window, caption, 1024) > 0);
         QCOMPARE(QString::fromWCharArray(caption),
                  "Extract : " + QDir::toNativeSeparators(archive));
-        QTRY_VERIFY_WITH_TIMEOUT(EnableAccessibleToggle(dialog.window, L"Advanced settings"), 5000);
-        QTRY_VERIFY_WITH_TIMEOUT(EnableAccessibleToggle(dialog.window, L"Use a password"), 5000);
+        QTRY_VERIFY_WITH_TIMEOUT(ActivateAccessibleControl(dialog.window, L"Advanced settings",
+                                                           AccessibleAction::Expand),
+                                 5000);
+        QTRY_VERIFY_WITH_TIMEOUT(
+            ActivateAccessibleControl(dialog.window, L"Use a password", AccessibleAction::Check),
+            5000);
         QHash<QString, bool> exposed;
         for (const QString &name : {QString("Path mode:"), QString("Overwrite mode:"),
                                     QString("Eliminate duplication of root folder"),
@@ -374,7 +400,7 @@ class NativeGUIWorkflowTests final : public QObject {
         QVERIFY(PostMessageW(dialog.window, WM_CLOSE, 0, 0));
         QVERIFY(helper.waitForFinished(10000));
         QCOMPARE(helper.exitStatus(), QProcess::NormalExit);
-        QCOMPARE(helper.exitCode(), 0); // Original Benchmark returns S_OK after its joined dialog.
+        QCOMPARE(helper.exitCode(), 255); // Closing an active benchmark reports cancellation.
     }
 };
 

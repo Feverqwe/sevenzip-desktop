@@ -1,4 +1,5 @@
 #include "7zip/UI/FileManager/resource.h"
+#include "Common/MyCom.h"
 #include "Windows/COM.h"
 #include "Windows/Menu.h"
 #include "filemanager/panels/Panel.h"
@@ -161,9 +162,12 @@ class NativeSystemMenuTests final : public QObject {
         for (unsigned i = 0; i < 3; ++i)
             QVERIFY(create(true));
         const DWORD before = GetGuiResources(GetCurrentProcess(), GR_USEROBJECTS);
-        for (unsigned i = 0; i < 3; ++i)
+        // Providers can asynchronously release pre-existing cached resources.
+        // More rejections than the baseline still expose one leaked menu per
+        // call, even if every resource counted before the loop is reclaimed.
+        for (DWORD i = 0; i <= before; ++i)
             QVERIFY(create(false));
-        QTRY_COMPARE(GetGuiResources(GetCurrentProcess(), GR_USEROBJECTS), before);
+        QTRY_VERIFY(GetGuiResources(GetCurrentProcess(), GR_USEROBJECTS) <= before);
         QVERIFY(create(true));
     }
 };

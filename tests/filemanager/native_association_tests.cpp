@@ -201,6 +201,9 @@ class NativeAssociationTests final : public QObject {
         const QByteArray archiveBytes = SourceExtractFixture::readFile(archive);
         QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         SaveRegLang(ToUString(language), qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
+        // Exercise the real shell process and temporary-copy lifetime without
+        // depending on this machine's registered handlers or friendly app names.
+        SaveConfirmUnknownFileOpen(false, qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         CWindowInfo placement{};
         placement.numPanels = 2;
         placement.currentPanel = pane;
