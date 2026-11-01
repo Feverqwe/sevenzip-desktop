@@ -78,30 +78,23 @@ HRESULT CFsFolderStat::Enumerate() {
     const unsigned len = Path.Len();
     NWindows::NFile::NFind::CEnumerator enumerator;
     enumerator.SetDirPrefix(Path);
-#ifdef _WIN32
-    NWindows::NFile::NFind::CDirEntry fi;
-    while (enumerator.Next(fi)) {
-        if (fi.IsDir() && !fi.IsOsSymLink()) {
-            NumFolders++;
-            Path.DeleteFrom(len);
-            Path += fi.Name;
-            RINOK(Enumerate())
-        } else {
-            NumFiles++;
-            Size += fi.Size;
-        }
-    }
-#else
+    NWindows::NFile::NFind::CFileInfo fi;
+#ifndef _WIN32
     NWindows::NFile::NFind::CDirEntry entry;
+#endif
     for (;;) {
+#ifdef _WIN32
+        if (!enumerator.Next(fi))
+            break;
+#else
         bool found;
         if (!enumerator.Next(entry, found))
             break;
         if (!found)
             break;
-        NWindows::NFile::NFind::CFileInfo fi;
         if (!enumerator.Fill_FileInfo(entry, fi, false))
             return E_FAIL;
+#endif
         if (fi.IsDir() && !fi.IsOsSymLink()) {
             NumFolders++;
             Path.DeleteFrom(len);
@@ -112,7 +105,6 @@ HRESULT CFsFolderStat::Enumerate() {
             Size += fi.Size;
         }
     }
-#endif
     return S_OK;
 }
 

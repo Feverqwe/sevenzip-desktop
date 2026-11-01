@@ -252,3 +252,37 @@ selected Windows suites are accepted. macOS/Linux results above remain valid;
 no functional changes followed them. Small failure/acceptance receipts were
 retained and completed fixtures cleaned their scopes. Build trees and compiler
 caches were preserved throughout.
+
+## Shared folder statistics traversal — 2026-11-01
+
+Compared the complete original FSFolder statistics loop and the panel's F3
+consumer with the current provider, property publication and redraw path.
+Original FSFolder.cpp/.h and PanelItems.cpp/Panel.h match the recorded baseline
+hashes at `b88c6bc09339de32f7d18bbab900686b244f42ba` in the source repository
+above. No external code is imported or original inventory advanced.
+
+Windows and POSIX now share the original counting/recursion body. Only retrieval
+of the next native FileInfo remains platform-specific. Windows FileInfo and
+POSIX directory-entry name buffers retain their former reuse. The duplicated
+count and recursion body is removed. Existing symlink exclusion,
+progress/cancellation, error/end handling
+and successful statistics publication retain their prior behavior. In particular,
+this refactor does not change the source's partial-enumeration policy or claim
+that ignored enumeration errors establish complete totals.
+
+No new UI state or background-operation owner is introduced. Existing provider
+tests cover counts, cancellation before publication and repeated calculation;
+the F3 view regression checks operated folders with a different focused file,
+lazy property text, normal/compact layouts, retained selection and no reload.
+No implementation-presence or trivial field test was added.
+
+Linux passed `fs_folder` and `folder_size_view` (22 rows, no skips), then Windows
+passed the affected `fs_folder` native provider suite (15 rows, no skips).
+The final buffer-lifetime correction is POSIX-only; both Linux suites were
+repeated after it, while Windows retained its passing evidence for unchanged
+preprocessed code. No distinct macOS enumeration branch or Qt UI adaptation
+changed, so no macOS run or repeat of Windows UI suites was selected. Selected
+scratch directories were inspected pre/post; the completed view settings fixture
+was removed after each Linux batch. Incremental builds and compiler caches were
+retained with normal four-job defaults. No full/slow gate, screenshots, JSON
+reports or new visual-parity acceptance is involved.
