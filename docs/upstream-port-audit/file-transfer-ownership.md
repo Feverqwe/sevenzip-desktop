@@ -110,7 +110,10 @@ and extraction consumers, cancellation, overwrite layout and prompt parity.
 Current compact/normal widget reports have no clipped visible controls on all
 three platforms. Linux/macOS reports use offscreen Qt; Windows reports cover
 both native and offscreen Qt.
-The additional Cocoa run was deferred because the Mac desktop was locked.
+After the desktop was unlocked, the additional Cocoa overwrite run passed on
+`70c9a260`: four Qt checks without skips (1.11 seconds). Its four current native
+reports cover normal/compact sizes with optional and supplied metadata, without
+clipped visible controls.
 No full/slow gate or rendered-original visual comparison is claimed. Existing
 incremental builds and compiler caches were reused, reports retained and
 completed disposable fixtures removed.
