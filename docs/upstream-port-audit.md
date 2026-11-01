@@ -283,6 +283,9 @@ rg -n --no-ignore -F 'CAgent::Open' docs/archive/qt-port/upstream-port-audit/ do
 - [Владение файловым переносом при исключении](upstream-port-audit/file-transfer-ownership.md)
   — откат stages и опубликованного пакета, сохранение копии после частичного удаления исходника.
 
+- [Общее рекурсивное удаление каталогов](upstream-port-audit/recursive-directory-removal.md)
+  — исходный native-обход для Qt и native callers, отмена, ошибки и границы ссылок.
+
 - [Папка архива после отката Move](upstream-port-audit/archive-close-reopen.md)
   — сохранение пути ADS до закрытия native handler на Windows.
 

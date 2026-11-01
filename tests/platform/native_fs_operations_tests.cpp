@@ -1,4 +1,5 @@
 #include "filemanager/providers/FSFolder.h"
+#include "support/native_link_fixture.h"
 #include <QDir>
 #include <QFile>
 #include <QScopeGuard>
@@ -27,6 +28,52 @@ class Progress final : public IProgress, public CMyUnknownImp {
 class NativeFsOperationsTests : public QObject {
     Q_OBJECT
   private slots:
+    void recursiveRemovalPreservesLinkedTargets_data() {
+        QTest::addColumn<bool>("native");
+        QTest::addColumn<bool>("links");
+        QTest::newRow("native tree") << true << false;
+        QTest::newRow("Qt tree") << false << false;
+        QTest::newRow("native linked tree") << true << true;
+        QTest::newRow("Qt linked tree") << false << true;
+    }
+    void recursiveRemovalPreservesLinkedTargets() {
+        QFETCH(bool, native);
+        QFETCH(bool, links);
+        QTemporaryDir fixture, outside;
+        QVERIFY(fixture.isValid() && outside.isValid());
+        const QString root = fixture.filePath(QStringLiteral("удалить 空"));
+        QVERIFY(QDir().mkpath(root + "/nested/.hidden"));
+        const QString sentinel = outside.filePath("keep.txt");
+        for (const auto &path : {sentinel, root + "/nested/.hidden/data.txt", root + "/file.txt"}) {
+            QFile file(path);
+            QVERIFY(file.open(QIODevice::WriteOnly));
+            QCOMPARE(file.write("protected"), qint64(9));
+        }
+        if (links) {
+            if (!CreateNativeSymbolicLink(root + "/outside", outside.path()))
+                QSKIP("Directory symbolic links are unavailable for this test account");
+            QVERIFY(CreateNativeSymbolicLink(root + "/cycle", root));
+            QVERIFY(CreateNativeSymbolicLink(root + "/broken", "missing-target"));
+        }
+        const auto remove = [&](const QString &path) {
+            return native ? NWindows::NFile::NDir::RemoveDirWithSubItems(NativeFixturePath(path))
+                          : NWindows::NFile::NDir::RemoveDirWithSubItems(path);
+        };
+        QVERIFY(remove(root));
+        QVERIFY(!QFileInfo::exists(root));
+        if (links) {
+            const QString link = fixture.filePath("directory-link");
+            QVERIFY(CreateNativeSymbolicLink(link, outside.path()));
+            QVERIFY(remove(link));
+            QVERIFY(!QFileInfo::exists(link) && !QFileInfo(link).isSymLink());
+            QVERIFY(CreateNativeSymbolicLink(link, outside.path()));
+            QVERIFY(remove(link + QDir::separator()));
+            QVERIFY(!QFileInfo::exists(link) && !QFileInfo(link).isSymLink());
+        }
+        QFile remaining(sentinel);
+        QVERIFY(remaining.open(QIODevice::ReadOnly));
+        QCOMPARE(remaining.readAll(), QByteArray("protected"));
+    }
     void caseOnlyRename_data() {
         QTest::addColumn<bool>("directory");
         QTest::newRow("file") << false;

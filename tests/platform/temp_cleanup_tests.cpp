@@ -491,7 +491,8 @@ class TempCleanupTests : public QObject {
             QTest::keyClick(list, Qt::Key_Return);
             select(*dialog, missing);
             QVERIFY(list->currentItem());
-            QCOMPARE(list->currentItem()->text(0), QFileInfo(missing).fileName());
+            QCOMPARE(list->currentItem()->text(0).normalized(QString::NormalizationForm_C),
+                     QFileInfo(missing).fileName().normalized(QString::NormalizationForm_C));
             QVERIFY(QFile::remove(missing));
             QTimer answers;
             connect(&answers, &QTimer::timeout, dialog, [&] {
