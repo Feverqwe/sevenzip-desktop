@@ -19,7 +19,7 @@ class QtFileTransferTransaction final {
     static OverwriteQuestion snapshot(const OverwriteSource &source);
     enum class SourceState { Intact, Renamed, RemovalStarted };
     enum class RollbackMode { RestoreSources, KeepMovedSources };
-    struct Completed {
+    struct TransferEntry {
         QString source;
         QString target;
         QString backup;
@@ -29,10 +29,11 @@ class QtFileTransferTransaction final {
     };
     FileTransferOperation &worker_;
     QStringList prepareTargets(QString &error) const;
-    void finish(QList<Completed> &completed, QString &error);
-    void rollback(const QList<Completed> &completed,
+    void finish(QList<TransferEntry> &completed, QString &error);
+    void rollbackEntry(const TransferEntry &entry, const QString &ownedPath, RollbackMode mode);
+    void rollback(const QList<TransferEntry> &completed,
                   RollbackMode mode = RollbackMode::RestoreSources);
-    void removeSources(QList<Completed> &completed, QString &error);
+    void removeSources(QList<TransferEntry> &completed, QString &error);
     bool copyEntry(const QString &source, const QString &target, QString *error,
                    bool reportProgress = true);
     bool mergeEntry(const QString &source, const QString &stage, const QString &target,

@@ -1,5 +1,43 @@
 # File-transfer ownership
 
+## Current-item and batch rollback — 2026-11-02
+
+Reviewed the complete staging/publication/source-removal flow, worker and copy
+callbacks, and direct-path/window consumers. The source CopyFile_Ask, IsDestChild
+and CopyFolder bodies were compared again at recorded revision
+`b88c6bc09339de32f7d18bbab900686b244f42ba` in
+<https://github.com/ip7z/7zip.git>; FSFolderCopy.cpp's complete original hash
+matches the existing baseline. Native copying, link handling, overwrite choices,
+validation, cancellation and result publication are unchanged. No external code
+is imported or baseline advanced.
+
+One transfer record now holds source state, backup and merged-source inventory
+from staging through completed-batch ownership. The current item's renamed flag
+and separate backup/written-source locals are removed. Current-item failure and
+reverse batch recovery use one rollback implementation. Its owned physical path
+remains distinct from the intended destination, so a failed stage-to-destination
+rename still restores the previous destination at its original name. A record
+is copied into the completed batch before dismissing its current-item guard;
+failed insertion leaves that guard's inputs intact without allocating a new
+container from cleanup.
+
+The existing distinction between full rollback and retaining published bytes
+after source removal starts remains unchanged, including exceptions after an
+actual deletion. Existing public worker/direct-name/UI tests cover rename and
+copy fallback, overwrite/skip/autorenaming, directory merge, cancellation,
+service exceptions and mixed partial Move recovery. No new representation-only
+test or pre-fix failure is claimed. No dialog text/layout or OS branch changes.
+
+Linux file_transfer, file_transfer_direct, ui_copy_same and ui_copy_routing
+passed 168 checks without skips; run `20261101T220654Z-6ca9f12f`, build
+15.035 seconds, tests 40.011 seconds. The runner's SSH channel reset after
+verification completed, so its outer report records transport exit 255. The
+matching passed verification receipt, guest test log, matching completion marker
+and unlocked worktree confirm finished execution; tests were not restarted.
+Only common transaction ownership changed, so no secondary OS batch was added.
+Two disposable settings files were removed after checking processes; incremental
+builds and caches remain. Inventory and whitespace checks passed.
+
 ## Mixed Move recovery state — 2026-11-01
 
 Reviewed the complete transaction, worker, overwrite/copy callbacks and window
