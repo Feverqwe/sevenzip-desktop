@@ -27,6 +27,7 @@ class CExtractDialog : public QDialog {
     NExtract::CInfo _info;
     void OnInit(const QStringList &history);
     void OnOK();
+    UString DraftDestination() const;
     void UpdatePasswordControl();
     void OnButtonSetPath();
     void changeEvent(QEvent *event) override;

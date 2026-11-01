@@ -71,6 +71,9 @@ rg -n --no-ignore -F 'CAgent::Open' docs/archive/qt-port/upstream-port-audit/ do
 - [Раскрытие секций средствами доступности](upstream-port-audit/disclosure-expand-collapse.md)
   — общий путь активации и прямой Windows UIA Expand/Collapse.
 
+- [Общий путь назначения Extract](upstream-port-audit/extract-destination-owner.md)
+  — текущее значение, подтверждение и исходные правила истории.
+
 - [Запуск и выбор внешнего Drop](upstream-port-audit/startup-drop-choice.md)
   — подготовка первого окна и запрошенный выбор открытия/упаковки;
   [аудит сценариев](user-workflow-audit.md) хранит текущие результаты и ограничения.

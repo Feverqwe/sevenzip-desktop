@@ -364,26 +364,15 @@ void CExtractDialog::OnOK() {
     if (!OverwriteMode_Force && _info.OverwriteMode != OverwriteMode)
         _info.OverwriteMode_Force = true;
     _info.OverwriteMode = OverwriteMode;
-    UString s;
     int currentItem = _path->currentIndex();
     // A Qt editable combo may retain its index after setEditText: Win32 GetCurSel is CB_ERR.
     if (currentItem >= 0 && _path->currentText() != _path->itemText(currentItem))
         currentItem = -1;
-    if (currentItem == -1) {
-        s = _path->currentText().toStdWString().c_str();
-        if (_path->count() >= int(kHistorySize))
-            currentItem = _path->count() - 1;
-    } else
-        s = _path->itemText(currentItem).toStdWString().c_str();
-    s.Trim();
+    if (currentItem == -1 && _path->count() >= int(kHistorySize))
+        currentItem = _path->count() - 1;
+    UString s = DraftDestination();
     NWindows::NFile::NName::NormalizeDirPathPrefix(s);
     const bool splitDest = _nameEnable->isChecked();
-    if (splitDest) {
-        UString pathName(_pathName->text().toStdWString().c_str());
-        pathName.Trim();
-        s += pathName;
-        NWindows::NFile::NName::NormalizeDirPathPrefix(s);
-    }
     if (splitDest != _info.SplitDest.Val) {
         _info.SplitDest.Def = true;
         _info.SplitDest.Val = splitDest;
@@ -404,6 +393,11 @@ void CExtractDialog::OnOK() {
 QString CExtractDialog::destination() const {
     if (result() == QDialog::Accepted)
         return DirPath;
+    const UString path = DraftDestination();
+    return QString::fromWCharArray(path.Ptr());
+}
+
+UString CExtractDialog::DraftDestination() const {
     UString s(_path->currentText().toStdWString().c_str());
     s.Trim();
     if (_nameEnable->isChecked()) {
@@ -412,7 +406,7 @@ QString CExtractDialog::destination() const {
         pathName.Trim();
         s += pathName;
     }
-    return QString::fromWCharArray(s.Ptr());
+    return s;
 }
 
 ExtractionOptions CExtractDialog::options() const {
