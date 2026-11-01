@@ -2739,3 +2739,39 @@ whitespace checks passed, and the original complete-unit hashes were verified.
 The ordinary four-job build reused incremental outputs and the compiler cache;
 no full/slow gate or heavy diagnostic was run. One stale task-owned registry
 record was removed after confirming its target no longer existed.
+
+## Copy request and final publication — 2026-11-01
+
+Compared original App.cpp OnCopy selection, destination/history, worker/error,
+refresh, notification-guard and focus bodies with current CApp request setup,
+Qt copy execution/completion, panel reload callbacks and shutdown. Complete
+original App.cpp/.h hashes match the existing recorded baseline at
+`b88c6bc09339de32f7d18bbab900686b244f42ba` in
+<https://github.com/ip7z/7zip.git>. Native path/provider rules, operations,
+post-operation branches and previously recorded adaptations are unchanged.
+
+CApp now retains one immutable accepted-copy request containing panel identities,
+copy mode and both saved selections. Refresh and final publication consume that
+record instead of separately capturing the same selections in two callbacks.
+Refresh takes a local shared lease before entering source publication; completion
+detaches the active request before restoring selections/focus. Synchronous
+completion during reload therefore retains the selection argument without
+copying the callback and its captured vectors. Shutdown discards the same owner.
+The Qt execution/scan continuation and cancellation policy are unchanged; no
+external source, native algorithm, text or layout is introduced.
+
+The existing one/two-panel asynchronous-copy regression now completes the copy
+inside its public reload callback and checks the supplied selection afterwards,
+then retains its timer-restoration and idempotent-completion checks. This covers
+borrowed-state lifetime through reentrant publication, rather than checking
+private request representation. Existing copy/publication/window consumers
+exercise actual results, selection/focus, errors/cancellation and Copy to same.
+
+Focused Linux validation passed app_copy_routing, panel_copy_reload,
+copy_publication_order, ui_copy_same and ui_operations: 124 passed rows, no skips.
+Only portable request ownership and the existing source tail's placement changed,
+so secondary OS, native input and appearance acceptance are not claimed. Source
+inventory, original complete-unit hashes and whitespace checks passed. Ordinary
+four-job builds retained incremental outputs and compiler cache; no full/slow
+gate or heavy diagnostic was needed. Completed task-owned settings fixtures
+were removed while the passing receipts and useful build outputs were retained.

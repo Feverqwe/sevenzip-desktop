@@ -29,6 +29,17 @@
 
 static const unsigned kParentIndex = (unsigned)(int)-1;
 
+struct CApp::CopyRequest {
+    CopyRequest(unsigned source, unsigned destination, bool move, bool copyToSame)
+        : Source(source), Destination(destination), Move(move), CopyToSame(copyToSame) {}
+    const unsigned Source;
+    const unsigned Destination;
+    const bool Move;
+    const bool CopyToSame;
+    CSelectedState SourceSelection;
+    CSelectedState DestinationSelection;
+};
+
 CApp::CApp() : _qtOperations(Panels) {
     CreateDragTarget();
     SetPanels_AutoRefresh_Mode();
@@ -292,37 +303,12 @@ void CApp::OnCopy(bool move, bool copyToSame, unsigned srcPanelIndex) {
         srcPanel.MessageBox_Error_UnsupportOperation();
         return;
     }
-    CSelectedState srcSelState;
-    CSelectedState destSelState;
-    srcPanel.SaveSelectedState(srcSelState);
-    destPanel.SaveSelectedState(destSelState);
+    auto request = std::make_shared<CopyRequest>(srcPanelIndex, destPanelIndex, move, copyToSame);
+    srcPanel.SaveSelectedState(request->SourceSelection);
+    destPanel.SaveSelectedState(request->DestinationSelection);
     // Keep the original RefreshListCtrl caller and its saved state across the
     // asynchronous presentation boundary. OnCopy ignores reload HRESULTs.
-    _copyRefresh = [this, srcPanelIndex, destPanelIndex, srcSelState,
-                    destSelState](unsigned index) {
-        if (index == srcPanelIndex)
-            Panels[index].RefreshListCtrl(srcSelState);
-        else if (index == destPanelIndex)
-            Panels[index].RefreshListCtrl(destSelState);
-    };
-    // The original post-operation body runs after Qt publishes both panels.
-    _copyContinuation = [this, move, copyToSame, srcPanelIndex, destPanelIndex, srcSelState,
-                         destSelState] {
-        CPanel &srcPanel = Panels[srcPanelIndex];
-        CPanel &destPanel = Panels[destPanelIndex];
-        CPanel::CDisableNotify disableNotify1(destPanel);
-        CPanel::CDisableNotify disableNotify2(srcPanel);
-        RefreshTitleAlways();
-        if (copyToSame || move)
-            srcPanel.RestoreLoadedSelection(srcSelState);
-        if (!copyToSame) {
-            destPanel.RestoreLoadedSelection(destSelState);
-            srcPanel.KillSelection();
-        }
-        disableNotify1.Restore();
-        disableNotify2.Restore();
-        srcPanel.SetFocusToList();
-    };
+    _copyRequest = std::move(request);
     // Qt execution can return while the operation owner retains these guards.
     // Unwind the source stack in reverse order before that owner snapshots it.
     disableTimerProcessing2.Restore();
@@ -332,19 +318,35 @@ void CApp::OnCopy(bool move, bool copyToSame, unsigned srcPanelIndex) {
 }
 
 void CApp::CompleteCopy() {
-    auto continuation = std::move(_copyContinuation);
-    _copyContinuation = nullptr;
-    _copyRefresh = nullptr;
-    if (continuation && !_qtOperations.closed())
-        continuation();
+    auto request = std::move(_copyRequest);
+    if (!request || _qtOperations.closed())
+        return;
+    // The original post-operation body runs after Qt publishes both panels.
+    CPanel &srcPanel = Panels[request->Source];
+    CPanel &destPanel = Panels[request->Destination];
+    CPanel::CDisableNotify disableNotify1(destPanel);
+    CPanel::CDisableNotify disableNotify2(srcPanel);
+    RefreshTitleAlways();
+    if (request->CopyToSame || request->Move)
+        srcPanel.RestoreLoadedSelection(request->SourceSelection);
+    if (!request->CopyToSame) {
+        destPanel.RestoreLoadedSelection(request->DestinationSelection);
+        srcPanel.KillSelection();
+    }
+    disableNotify1.Restore();
+    disableNotify2.Restore();
+    srcPanel.SetFocusToList();
 }
 
 bool CApp::RefreshCopyPanel(unsigned index) {
-    if (!_copyRefresh || _qtOperations.closed() || index >= kNumPanelsMax)
+    const auto request = _copyRequest;
+    if (!request || _qtOperations.closed() || index >= kNumPanelsMax)
         return false;
     // Synchronous publication can re-enter completion and release the owner.
-    const auto refresh = _copyRefresh;
-    refresh(index);
+    if (index == request->Source)
+        Panels[index].RefreshListCtrl(request->SourceSelection);
+    else if (index == request->Destination)
+        Panels[index].RefreshListCtrl(request->DestinationSelection);
     return true;
 }
 
@@ -634,8 +636,7 @@ void CApp::Save() {
 }
 
 void CApp::ReleaseApp() {
-    _copyContinuation = nullptr;
-    _copyRefresh = nullptr;
+    _copyRequest.reset();
     _qtOperations.Close();
     _qtCommandServices = nullptr;
     // 24.09: ReleasePanel() will stop panel timer processing.

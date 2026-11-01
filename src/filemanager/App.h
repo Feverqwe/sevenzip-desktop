@@ -6,7 +6,7 @@
 #include "filemanager/panels/Panel.h"
 #include "filemanager/state/qtappoperationstate.h"
 #include "settings/RegistryUtils.h"
-#include <functional>
+#include <memory>
 
 const unsigned kNumPanelsMax = 2;
 const int kMenuCmdID_Toolbar_Start = 1070;
@@ -180,6 +180,6 @@ class CApp {
     QPointer<QWidget> _window;
     IQtAppPresentation *_presentation = nullptr;
     QString _settingsPath;
-    std::function<void()> _copyContinuation;
-    std::function<void(unsigned)> _copyRefresh;
+    struct CopyRequest;
+    std::shared_ptr<const CopyRequest> _copyRequest;
 };
