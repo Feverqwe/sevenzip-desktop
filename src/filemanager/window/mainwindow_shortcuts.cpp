@@ -58,9 +58,9 @@ void MainWindow::configureShortcuts() {
     connect(focusPath, &QAction::triggered, this, [this] {
         if (!app_.QtOperations().closed() && !app_.QtOperations().blocking() &&
             !QApplication::activeModalWidget()) {
-            pathCombo_->hidePopup();
-            path_->setFocus();
-            path_->selectAll();
+            projectedUi().pathCombo->hidePopup();
+            projectedUi().path->setFocus();
+            projectedUi().path->selectAll();
         }
     });
     auto *close = new QAction(this);
@@ -102,9 +102,9 @@ bool MainWindow::reservedPanelKey(const QKeyEvent &key) const {
 
 bool MainWindow::isPanelEditorFocused() const {
     QWidget *focus = QApplication::focusWidget();
-    return focus && focus != table_ && focus != iconList_ &&
-           (!table_ || focus != table_->viewport()) &&
-           (!iconList_ || focus != iconList_->viewport()) &&
-           ((table_ && table_->isAncestorOf(focus)) ||
-            (iconList_ && iconList_->isAncestorOf(focus)));
+    return focus && focus != projectedUi().table && focus != projectedUi().iconList &&
+           (!projectedUi().table || focus != projectedUi().table->viewport()) &&
+           (!projectedUi().iconList || focus != projectedUi().iconList->viewport()) &&
+           ((projectedUi().table && projectedUi().table->isAncestorOf(focus)) ||
+            (projectedUi().iconList && projectedUi().iconList->isAncestorOf(focus)));
 }

@@ -18,24 +18,26 @@ void MainWindow::transferFromArchive(const QString &destination, bool move, bool
         return;
     ExtractionOptions options;
     options.pathMode = ExtractionOptions::PathMode::CurrentPaths;
-    options.currentFolder = archiveFolder_;
+    options.currentFolder = projectedUi().archiveFolder;
     options.overwriteMode = ExtractionOptions::OverwriteMode::Ask;
     if (move)
         archiveMove_.emplace(sourceIndex, indices);
     const bool handled = extractWithSource(destination, true, {}, options, paths, &indices);
-    if (handled && state_ == State::Operating)
+    if (handled && projectedUi().state == State::Operating)
         return; // Asynchronous completion owns the pending transfer.
     if (!handled && !copyToSame &&
         (!move || (QFileInfo(destination).isDir() && !QFileInfo(destination).isSymLink()))) {
-        previousState_ = state_;
+        previousState_ = projectedUi().state;
         setState(State::Operating);
         begin(QtLangText(move ? IDS_MOVING : IDS_PROGRESS_EXTRACTING), destination);
         // Source refusal permits fallback only at the archive root. Retain
         // Move's full-path transport and Copy's explicit extraction options.
         if (move)
-            backend_->extract(archive_, destination, paths, archivePassword_);
+            backend_->extract(projectedUi().archive, destination, paths,
+                              projectedUi().archivePassword);
         else
-            backend_->extract(archive_, destination, paths, archivePassword_, options);
+            backend_->extract(projectedUi().archive, destination, paths,
+                              projectedUi().archivePassword, options);
         return;
     }
     // A synchronous result or refused launch has no pending continuation.
@@ -75,7 +77,7 @@ void MainWindow::refreshArchiveTransferDestination(unsigned index, const CSelect
 
 bool MainWindow::transferBetweenArchivePanels(const QString &destination, bool move,
                                               const CRecordVector<UInt32> &indices) {
-    if (app_.NumPanels != 2 || state_ != State::Viewing)
+    if (app_.NumPanels != 2 || projectedUi().state != State::Viewing)
         return false;
     const unsigned sourceIndex = app_.GetFocusedPanelIndex();
     const unsigned destinationIndex = 1 - sourceIndex;
@@ -85,7 +87,8 @@ bool MainWindow::transferBetweenArchivePanels(const QString &destination, bool m
         QDir::cleanPath(destination) != QDir::cleanPath(ToQString(target.GetFsPath())))
         return false;
     if (source.GetParentFolders().Size() != 1 || target.GetParentFolders().Size() != 1 ||
-        QDir::cleanPath(archive_) == QDir::cleanPath(panelUi_[destinationIndex].archive) ||
+        QDir::cleanPath(projectedUi().archive) ==
+            QDir::cleanPath(panelUi_[destinationIndex].archive) ||
         target.IsThereReadOnlyFolder()) {
         QMessageBox::warning(
             this, QtLangText(IDS_COPYING),

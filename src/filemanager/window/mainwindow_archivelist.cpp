@@ -31,14 +31,16 @@ HRESULT MainWindow::renderArchiveFolder(bool updateAddress) {
     const HRESULT loaded = panel.LoadListItems();
     if (loaded != S_OK)
         return loaded;
-    static_cast<FileTable *>(table_)->filesystem = false;
+    static_cast<FileTable *>(projectedUi().table)->filesystem = false;
     panelUi_[projectedPanel_].autoRefreshSnapshot.clear();
     panel.LoadFullPath();
     recordVisitedPath(ToQString(panel.GetCurrentFolderPrefix()));
-    const QString prefix = archiveFolder_.isEmpty() ? QString() : archiveFolder_ + '/';
-    table_->setSortingEnabled(false);
+    const QString prefix =
+        projectedUi().archiveFolder.isEmpty() ? QString() : projectedUi().archiveFolder + '/';
+    projectedUi().table->setSortingEnabled(false);
     if (updateAddress)
-        static_cast<QtPanelAddressCombo *>(pathCombo_)->ShowCurrentPath(archiveDisplayPath());
+        static_cast<QtPanelAddressCombo *>(projectedUi().pathCombo)
+            ->ShowCurrentPath(archiveDisplayPath());
     configureColumns(true);
     appendParentEntry();
     if (archiveFolder->GetNumberOfItems() > 256) {
@@ -47,9 +49,9 @@ HRESULT MainWindow::renderArchiveFolder(bool updateAddress) {
         // and leaves notifications disabled when asynchronous loading ends.
         disableNotify.reset();
         disableTimerProcessing.reset();
-        scanningArchive_ = true;
+        projectedUi().scanningArchive = true;
         setState(State::Viewing);
-        listProjection_->start(
+        projectedUi().listProjection->start(
             folderOwner, archiveFolder->GetNumberOfItems(),
             [this, owner = projectedPanel_, archiveFolder, prefix, flat](quint32 index) {
                 HRESULT result = S_OK;
@@ -66,10 +68,10 @@ HRESULT MainWindow::renderArchiveFolder(bool updateAddress) {
                     QScopedValueRollback<unsigned> projection(panelProjectionDepth_,
                                                               panelProjectionDepth_ + 1);
                     if (result != S_OK) {
-                        table_->clearRows();
+                        projectedUi().table->clearRows();
                         panelUi_[projectedPanel_].pendingSelection.reset();
                     }
-                    scanningArchive_ = false;
+                    projectedUi().scanningArchive = false;
                     applySortMode(true);
                     completeListSelection();
                     setState(State::Viewing);
@@ -88,7 +90,7 @@ HRESULT MainWindow::renderArchiveFolder(bool updateAddress) {
     for (unsigned index = 0; index < archiveFolder->GetNumberOfItems(); ++index) {
         const HRESULT result = appendArchiveEntry(*archiveFolder, index, prefix, flat);
         if (result != S_OK) {
-            table_->clearRows();
+            projectedUi().table->clearRows();
             return result;
         }
     }
@@ -112,7 +114,7 @@ HRESULT MainWindow::appendArchiveEntry(CAgentFolder &folder, unsigned index, con
     row.prefix = flat ? panelPrefix.mid(prefix.size()) : QString();
     row.toolTip = row.path;
     row.icon = icon;
-    table_->panelModel()->append(std::move(row));
+    projectedUi().table->panelModel()->append(std::move(row));
     return S_OK;
 }
 
@@ -125,7 +127,7 @@ void MainWindow::setState(State state) {
     if (!(panelProjectionDepth_ && app_.QtOperations().blocking()) &&
         !app_.QtOperations().Begin(kind, scanningPanels))
         return;
-    state_ = state;
+    projectedUi().state = state;
     refreshActions();
 }
 
@@ -136,20 +138,19 @@ void MainWindow::refreshActions() {
         QScopedValueRollback<unsigned> projection(panelProjectionDepth_, panelProjectionDepth_ + 1);
         app_.RefreshTitle();
         const bool navigating = !app_.QtOperations().closed() && !app_.QtOperations().blocking();
-        const bool idle = navigating && !scanningDisk_ && !scanningArchive_;
+        const bool idle =
+            navigating && !projectedUi().scanningDisk && !projectedUi().scanningArchive;
         refreshBookmarks();
         if (commands_)
             commands_->RefreshActions();
-        if (commands_ && !scanningDisk_ && !scanningArchive_ &&
+        if (commands_ && !projectedUi().scanningDisk && !projectedUi().scanningArchive &&
             app_.GetFocusedPanel().ShouldProcessNotifications())
             refreshPanelStatus();
         for (unsigned index = 0; index < kNumPanelsMax; ++index) {
             const auto &ui = panelUi_[index];
             if (!ui.container || !ui.table || !ui.iconList || !ui.path)
                 continue;
-            const bool projecting = index == projectedPanel_
-                                        ? scanningDisk_ || scanningArchive_
-                                        : ui.scanningDisk || ui.scanningArchive;
+            const bool projecting = ui.scanningDisk || ui.scanningArchive;
             const bool panelIdle = navigating && !projecting;
             QWidget *focused = QApplication::focusWidget();
             if (projecting && focused &&
@@ -169,10 +170,11 @@ void MainWindow::refreshActions() {
             ui.pathCombo->setEnabled(navigating);
             ui.path->setReadOnly(!navigating);
         }
-        const bool dragAvailable = idle && app_.GetFocusedPanel().DoesItSupportOperations() &&
-                                   (state_ == State::Filesystem || state_ == State::Viewing);
-        table_->setDragEnabled(dragAvailable);
-        iconList_->setDragEnabled(dragAvailable);
+        const bool dragAvailable =
+            idle && app_.GetFocusedPanel().DoesItSupportOperations() &&
+            (projectedUi().state == State::Filesystem || projectedUi().state == State::Viewing);
+        projectedUi().table->setDragEnabled(dragAvailable);
+        projectedUi().iconList->setDragEnabled(dragAvailable);
     }
     if (appPresentation_ && !panelProjectionDepth_) {
         appPresentation_->CompleteInitialFocusIfReady();

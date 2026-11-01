@@ -200,7 +200,7 @@ void MainWindow::createViewOptions(QMenu *viewMenu) {
 void MainWindow::applyFlatView(bool enabled) {
     // A user mode change supersedes the current scan. Join its folder loader
     // before source RefreshListCtrl reuses that same IFolderFolder instance.
-    filesystemScanner_->cancelAndWait();
+    projectedUi().filesystemScanner->cancelAndWait();
     cancelListPublication();
     QSettings settings(toolbarSettingsPath(), QSettings::IniFormat);
     {

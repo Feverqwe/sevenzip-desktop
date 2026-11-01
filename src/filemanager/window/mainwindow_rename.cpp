@@ -28,12 +28,12 @@ void MainWindow::beginRename(int row) { renameController_->Begin(row); }
 
 void MainWindow::finishFilesystemRename(quint32 sourceIndex, const QString &originalPath,
                                         const QString &name) {
-    const bool archive = state_ == State::Viewing;
+    const bool archive = projectedUi().state == State::Viewing;
     const auto &panel = app_.GetFocusedPanel();
     const bool streams = panel.GetFolder() && panel.IsAltStreamsFolder();
-    if (state_ != State::Filesystem && !archive && !streams)
+    if (projectedUi().state != State::Filesystem && !archive && !streams)
         return;
-    if (!archive && !streams && QFileInfo(originalPath).absolutePath() != directory_ &&
+    if (!archive && !streams && QFileInfo(originalPath).absolutePath() != projectedUi().directory &&
         !panel.GetFlatMode())
         return;
     {
@@ -43,7 +43,7 @@ void MainWindow::finishFilesystemRename(quint32 sourceIndex, const QString &orig
     const auto selection = app_.GetFocusedPanel().TakeRefreshSelection();
     if (!selection) {
         // The source validation return rejects the edit without reloading.
-        rejectLabelEdit(app_.GetFocusedPanel(), *table_, sourceIndex);
+        rejectLabelEdit(app_.GetFocusedPanel(), *projectedUi().table, sourceIndex);
         refreshActions();
         return;
     }

@@ -44,10 +44,10 @@ void QtFileManagerCommands::RunNativeOpen(const std::function<void(CPanel &)> &o
     const bool wasRoot = panel.IsRootFolder();
     CMyComPtr<IFolderFolder> previousFolder = panel.GetFolder();
     const UString previousPrefix = panel.GetCurrentFolderPrefix();
-    const auto previousState = w.state_;
-    const QString previousDirectory = w.directory_;
+    const auto previousState = w.projectedUi().state;
+    const QString previousDirectory = w.projectedUi().directory;
     if (wasFilesystem)
-        w.returnDirectory_ = previousDirectory;
+        w.projectedUi().returnDirectory = previousDirectory;
     w.setState(MainWindow::State::Operating);
     {
         QScopedValueRollback<bool> source(w.sourceArchiveProgress_, true);
@@ -55,9 +55,9 @@ void QtFileManagerCommands::RunNativeOpen(const std::function<void(CPanel &)> &o
     }
     if (wasFilesystem && panel.IsFSFolder() &&
         QDir::cleanPath(ToQString(GetFolderPath(panel.GetFolder()))) != previousDirectory)
-        w.history_.append(previousDirectory);
+        w.projectedUi().history.append(previousDirectory);
     if (wasRoot && panel.IsFSFolder())
-        w.history_.append(QString()); // Empty native root prefix in Qt Back history.
+        w.projectedUi().history.append(QString()); // Empty native root prefix in Qt Back history.
     if ((IFolderFolder *)previousFolder == panel.GetFolder() &&
         previousPrefix == panel.GetCurrentFolderPrefix())
         w.setState(previousState);
@@ -117,9 +117,9 @@ bool QtFileManagerCommands::ExecuteExtensionCommand(unsigned id) {
         OpenDevice();
         break;
     case OpenArchivePicker: {
-        const QString directory = window_.state_ == MainWindow::State::Viewing
-                                      ? QFileInfo(window_.archive_).absolutePath()
-                                      : window_.directory_;
+        const QString directory = window_.projectedUi().state == MainWindow::State::Viewing
+                                      ? QFileInfo(window_.projectedUi().archive).absolutePath()
+                                      : window_.projectedUi().directory;
         const QString path = QFileDialog::getOpenFileName(
             &window_, QCoreApplication::translate("qtfilemanagercommandworkflows", "Open archive"),
             directory, window_.backend_->openDialogFilter());
@@ -172,7 +172,7 @@ void QtFileManagerCommands::VerCtrl(unsigned id) {
     CSelectedState selection;
     w.app_.GetFocusedPanel().SaveSelectedState(selection);
     w.app_.VerCtrl(id);
-    w.showDirectory(w.directory_, false);
+    w.showDirectory(w.projectedUi().directory, false);
     w.restoreListSelection(selection);
     w.refreshActions();
 }

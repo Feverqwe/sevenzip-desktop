@@ -38,7 +38,7 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
         button->setObjectName(QString("panelParentButton%1").arg(index));
         navigation->addWidget(button);
     }
-    pathCombo_ = new QtPanelAddressCombo(
+    projectedUi().pathCombo = new QtPanelAddressCombo(
         app_.Panels[index],
         [this, index](const QString &path, bool sourcePath) {
             if (app_.QtOperations().closed())
@@ -47,29 +47,29 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
             return navigateTo(path, sourcePath);
         },
         central, [this, index] { appPresentation_->RequestListFocus(index); });
-    pathCombo_->setObjectName("pathCombo");
-    pathCombo_->setEditable(true);
-    pathCombo_->setInsertPolicy(QComboBox::NoInsert);
-    pathCombo_->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
-    pathCombo_->setMinimumContentsLength(16);
-    path_ = pathCombo_->lineEdit();
-    path_->setObjectName("archivePath");
-    path_->installEventFilter(this);
-    pathCombo_->installEventFilter(this);
-    path_->setProperty("languagePlaceholder", true);
-    QtBindLocalText(path_, "mainwindow_panel",
+    projectedUi().pathCombo->setObjectName("pathCombo");
+    projectedUi().pathCombo->setEditable(true);
+    projectedUi().pathCombo->setInsertPolicy(QComboBox::NoInsert);
+    projectedUi().pathCombo->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+    projectedUi().pathCombo->setMinimumContentsLength(16);
+    projectedUi().path = projectedUi().pathCombo->lineEdit();
+    projectedUi().path->setObjectName("archivePath");
+    projectedUi().path->installEventFilter(this);
+    projectedUi().pathCombo->installEventFilter(this);
+    projectedUi().path->setProperty("languagePlaceholder", true);
+    QtBindLocalText(projectedUi().path, "mainwindow_panel",
                     QT_TRANSLATE_NOOP("mainwindow_panel", "Path to folder or archive"), true);
-    navigation->addWidget(pathCombo_);
+    navigation->addWidget(projectedUi().pathCombo);
     layout->addLayout(navigation);
     createFileTable(central);
     if (!panelSplitter_)
         createPanelActions(editMenu);
     createIconList(central);
-    viewStack_ = new QStackedWidget(central);
-    viewStack_->setObjectName("fileViewStack");
-    viewStack_->addWidget(table_);
-    viewStack_->addWidget(iconList_);
-    layout->addWidget(viewStack_);
+    projectedUi().viewStack = new QStackedWidget(central);
+    projectedUi().viewStack->setObjectName("fileViewStack");
+    projectedUi().viewStack->addWidget(projectedUi().table);
+    projectedUi().viewStack->addWidget(projectedUi().iconList);
+    layout->addWidget(projectedUi().viewStack);
     auto *panelStatus = new QStatusBar(central);
     panelStatus->setObjectName("panelStatusBar");
     panelStatus->setSizeGripEnabled(false);
@@ -83,14 +83,16 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
         panelUi_[index].statusLabels[part] = label;
     }
     layout->addWidget(panelStatus);
-    connect(table_->selectionModel(), &QItemSelectionModel::selectionChanged, this, [this, index] {
-        if (projectedPanel_ == index && app_.Panels[index].ShouldProcessNotifications())
-            refreshActions();
-    });
-    connect(table_->selectionModel(), &QItemSelectionModel::currentChanged, this, [this, index] {
-        if (projectedPanel_ == index && app_.Panels[index].ShouldProcessNotifications())
-            refreshActions();
-    });
+    connect(projectedUi().table->selectionModel(), &QItemSelectionModel::selectionChanged, this,
+            [this, index] {
+                if (projectedPanel_ == index && app_.Panels[index].ShouldProcessNotifications())
+                    refreshActions();
+            });
+    connect(projectedUi().table->selectionModel(), &QItemSelectionModel::currentChanged, this,
+            [this, index] {
+                if (projectedPanel_ == index && app_.Panels[index].ShouldProcessNotifications())
+                    refreshActions();
+            });
     if (!panelSplitter_) {
         panelSplitter_ = new QtFileManagerSplitter(this);
         panelSplitter_->setObjectName("filePanelSplitter");
@@ -99,8 +101,8 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
     panelUi_[index].container = central;
     central->setObjectName(QStringLiteral("filePanel%1").arg(index));
     panelSplitter_->insertWidget(static_cast<int>(index), central);
-    table_->addActions(panelShortcutActions_);
-    iconList_->addActions(panelShortcutActions_);
+    projectedUi().table->addActions(panelShortcutActions_);
+    projectedUi().iconList->addActions(panelShortcutActions_);
     app_.GetFocusedPanel().SetListViewMode(app_.GetFocusedPanel().GetListViewMode());
     statusBar()->setSizeGripEnabled(false);
     if (!deviceReadOnly_) {
@@ -118,49 +120,50 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
                     feedback->setVisible(!message.isEmpty() || !deviceReadOnly_->isHidden());
                 });
     }
-    connect(table_, &QTableView::doubleClicked, this, [this](const QModelIndex &index) {
-        const int row = index.row();
-        if (!fileListSettings_.SingleClick)
-            activateRow(row, selectionClickModifiers_);
-    });
-    connect(table_, &QTableView::clicked, this, [this](const QModelIndex &index) {
+    connect(projectedUi().table, &QTableView::doubleClicked, this,
+            [this](const QModelIndex &index) {
+                const int row = index.row();
+                if (!fileListSettings_.SingleClick)
+                    activateRow(row, selectionClickModifiers_);
+            });
+    connect(projectedUi().table, &QTableView::clicked, this, [this](const QModelIndex &index) {
         const int row = index.row();
         activateSingleClickedRow(row);
     });
 }
 
 void MainWindow::createFileTable(QWidget *central) {
-    table_ = new FileTable(7, central);
-    auto *fileTable = static_cast<FileTable *>(table_);
+    projectedUi().table = new FileTable(7, central);
+    auto *fileTable = static_cast<FileTable *>(projectedUi().table);
     fileTable->setFullRowHighlight(fileListSettings_.FullRow);
     fileTable->sourcePanel = &app_.GetFocusedPanel();
     fileTable->setColumnProperties(
         {kpidName, kpidPath, kpidSize, kpidPackSize, kpidMTime, kpidExtension, kpidNoProperty});
-    table_->setObjectName("archiveTable");
-    QtBindLocalText(table_, "mainwindow_panel", QT_TRANSLATE_NOOP("mainwindow_panel", "File list"),
-                    true);
-    table_->verticalHeader()->hide();
-    table_->panelModel()->setColumns(
+    projectedUi().table->setObjectName("archiveTable");
+    QtBindLocalText(projectedUi().table, "mainwindow_panel",
+                    QT_TRANSLATE_NOOP("mainwindow_panel", "File list"), true);
+    projectedUi().table->verticalHeader()->hide();
+    projectedUi().table->panelModel()->setColumns(
         {"Name", "Path", "Size", "Packed Size", "Modified", "Type", "Order"});
-    table_->setColumnHidden(1, true);
-    table_->setColumnHidden(5, true);
-    table_->setColumnHidden(6, true);
-    table_->horizontalHeader()->setSectionsMovable(true);
-    table_->setColumnWidth(0, 160);
-    table_->setColumnWidth(2, 100);
-    table_->setColumnWidth(3, 100);
-    table_->setColumnWidth(4, 150);
-    table_->setShowGrid(fileListSettings_.ShowGrid);
-    table_->setWordWrap(false);
-    table_->setTextElideMode(Qt::ElideMiddle);
-    table_->horizontalHeader()->setContextMenuPolicy(Qt::CustomContextMenu);
+    projectedUi().table->setColumnHidden(1, true);
+    projectedUi().table->setColumnHidden(5, true);
+    projectedUi().table->setColumnHidden(6, true);
+    projectedUi().table->horizontalHeader()->setSectionsMovable(true);
+    projectedUi().table->setColumnWidth(0, 160);
+    projectedUi().table->setColumnWidth(2, 100);
+    projectedUi().table->setColumnWidth(3, 100);
+    projectedUi().table->setColumnWidth(4, 150);
+    projectedUi().table->setShowGrid(fileListSettings_.ShowGrid);
+    projectedUi().table->setWordWrap(false);
+    projectedUi().table->setTextElideMode(Qt::ElideMiddle);
+    projectedUi().table->horizontalHeader()->setContextMenuPolicy(Qt::CustomContextMenu);
     const unsigned columnOwner = projectedPanel_;
-    connect(table_->horizontalHeader(), &QWidget::customContextMenuRequested, this,
+    connect(projectedUi().table->horizontalHeader(), &QWidget::customContextMenuRequested, this,
             [this, columnOwner](const QPoint &pos) {
                 const QPointer<QWidget> focused = QApplication::focusWidget();
                 withPanelProjection(columnOwner, [this, pos] {
-                    QtPanelContextMenu menu(*this, *table_);
-                    auto *header = table_->horizontalHeader();
+                    QtPanelContextMenu menu(*this, *projectedUi().table);
+                    auto *header = projectedUi().table->horizontalHeader();
                     const QPoint point = header->mapToGlobal(pos);
                     app_.GetFocusedPanel().OnContextMenu(header, point.x(), point.y(), menu);
                 });
@@ -169,34 +172,34 @@ void MainWindow::createFileTable(QWidget *central) {
                 if (focused)
                     focused->setFocus(Qt::PopupFocusReason);
             });
-    connect(table_->horizontalHeader(), &QHeaderView::sectionResized, this,
+    connect(projectedUi().table->horizontalHeader(), &QHeaderView::sectionResized, this,
             [this, columnOwner] { withPanelProjection(columnOwner, [this] { saveColumns(); }); });
-    connect(table_->horizontalHeader(), &QHeaderView::sectionMoved, this,
+    connect(projectedUi().table->horizontalHeader(), &QHeaderView::sectionMoved, this,
             [this, columnOwner] { withPanelProjection(columnOwner, [this] { saveColumns(); }); });
-    table_->setSelectionBehavior(QAbstractItemView::SelectRows);
-    table_->setSelectionMode(QAbstractItemView::ExtendedSelection);
-    tableHover_ = new QtFileListHover(*table_);
-    tableHover_->SetEnabled(fileListSettings_.SingleClick);
-    table_->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    connectRenameEditor(*table_);
-    table_->setSortingEnabled(true);
-    table_->setDragEnabled(true);
-    table_->setAcceptDrops(true);
-    table_->viewport()->setAcceptDrops(true);
-    table_->sortItems(0, Qt::AscendingOrder);
-    connect(table_->horizontalHeader(), &QHeaderView::sortIndicatorChanged, this,
+    projectedUi().table->setSelectionBehavior(QAbstractItemView::SelectRows);
+    projectedUi().table->setSelectionMode(QAbstractItemView::ExtendedSelection);
+    projectedUi().tableHover = new QtFileListHover(*projectedUi().table);
+    projectedUi().tableHover->SetEnabled(fileListSettings_.SingleClick);
+    projectedUi().table->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    connectRenameEditor(*projectedUi().table);
+    projectedUi().table->setSortingEnabled(true);
+    projectedUi().table->setDragEnabled(true);
+    projectedUi().table->setAcceptDrops(true);
+    projectedUi().table->viewport()->setAcceptDrops(true);
+    projectedUi().table->sortItems(0, Qt::AscendingOrder);
+    connect(projectedUi().table->horizontalHeader(), &QHeaderView::sortIndicatorChanged, this,
             [this, owner = projectedPanel_](int column, Qt::SortOrder order) {
                 sortIndicatorChanged(owner, column, order);
             });
-    table_->installEventFilter(this);
-    table_->viewport()->installEventFilter(this);
-    connect(table_, &QTableView::clicked, this, [this](const QModelIndex &index) {
+    projectedUi().table->installEventFilter(this);
+    projectedUi().table->viewport()->installEventFilter(this);
+    connect(projectedUi().table, &QTableView::clicked, this, [this](const QModelIndex &index) {
         const int row = index.row();
         handleSelectionClick(row);
     });
-    table_->setContextMenuPolicy(Qt::CustomContextMenu);
-    connect(table_, &QWidget::customContextMenuRequested, this,
-            [this, owner = projectedPanel_, view = table_](const QPoint &pos) {
+    projectedUi().table->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(projectedUi().table, &QWidget::customContextMenuRequested, this,
+            [this, owner = projectedPanel_, view = projectedUi().table](const QPoint &pos) {
                 showItemContextMenu(owner, view, pos);
             });
     app_.GetFocusedPanel().AttachSelectionView(
@@ -208,13 +211,13 @@ void MainWindow::createFileTable(QWidget *central) {
 }
 
 void MainWindow::createPanelActions(QMenu *editMenu) {
-    table_->addAction(openItem_);
-    parent_ = new QAction(table_);
+    projectedUi().table->addAction(openItem_);
+    parent_ = new QAction(projectedUi().table);
     parent_->setObjectName("parentFolderAction");
-    table_->addAction(parent_);
-    selectAll_ = new QAction(table_);
+    projectedUi().table->addAction(parent_);
+    selectAll_ = new QAction(projectedUi().table);
     selectAll_->setObjectName("selectAllAction");
-    table_->addAction(selectAll_);
+    projectedUi().table->addAction(selectAll_);
     selectAll_->setText("Select All");
     editMenu->addAction(selectAll_);
     deselectAll_ = editMenu->addAction("Deselect All");
@@ -233,43 +236,44 @@ void MainWindow::createPanelActions(QMenu *editMenu) {
 }
 
 void MainWindow::createIconList(QWidget *central) {
-    iconList_ = new FileIconList(central);
-    iconList_->setObjectName("iconList");
-    QtBindLocalText(iconList_, "mainwindow_panel",
+    projectedUi().iconList = new FileIconList(central);
+    projectedUi().iconList->setObjectName("iconList");
+    QtBindLocalText(projectedUi().iconList, "mainwindow_panel",
                     QT_TRANSLATE_NOOP("mainwindow_panel", "File list"), true);
-    iconList_->setModel(table_->model());
-    iconList_->setItemDelegate(CreateFileRowDelegate(iconList_));
-    iconList_->setModelColumn(0);
-    iconList_->setSelectionModel(table_->selectionModel());
-    iconList_->setSelectionMode(fileListSettings_.AlternativeSelection
-                                    ? QAbstractItemView::SingleSelection
-                                    : QAbstractItemView::ExtendedSelection);
-    iconList_->setSelectionBehavior(QAbstractItemView::SelectRows);
-    iconHover_ = new QtFileListHover(*iconList_);
-    iconHover_->SetEnabled(fileListSettings_.SingleClick);
-    iconList_->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    connectRenameEditor(*iconList_);
-    iconList_->setUniformItemSizes(true);
-    iconList_->setWordWrap(false);
-    iconList_->setDragEnabled(true);
-    iconList_->setAcceptDrops(true);
-    iconList_->viewport()->setAcceptDrops(true);
-    iconList_->setContextMenuPolicy(Qt::CustomContextMenu);
-    iconList_->installEventFilter(this);
-    iconList_->viewport()->installEventFilter(this);
-    connect(iconList_, &QListView::clicked, this,
+    projectedUi().iconList->setModel(projectedUi().table->model());
+    projectedUi().iconList->setItemDelegate(CreateFileRowDelegate(projectedUi().iconList));
+    projectedUi().iconList->setModelColumn(0);
+    projectedUi().iconList->setSelectionModel(projectedUi().table->selectionModel());
+    projectedUi().iconList->setSelectionMode(fileListSettings_.AlternativeSelection
+                                                 ? QAbstractItemView::SingleSelection
+                                                 : QAbstractItemView::ExtendedSelection);
+    projectedUi().iconList->setSelectionBehavior(QAbstractItemView::SelectRows);
+    projectedUi().iconHover = new QtFileListHover(*projectedUi().iconList);
+    projectedUi().iconHover->SetEnabled(fileListSettings_.SingleClick);
+    projectedUi().iconList->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    connectRenameEditor(*projectedUi().iconList);
+    projectedUi().iconList->setUniformItemSizes(true);
+    projectedUi().iconList->setWordWrap(false);
+    projectedUi().iconList->setDragEnabled(true);
+    projectedUi().iconList->setAcceptDrops(true);
+    projectedUi().iconList->viewport()->setAcceptDrops(true);
+    projectedUi().iconList->setContextMenuPolicy(Qt::CustomContextMenu);
+    projectedUi().iconList->installEventFilter(this);
+    projectedUi().iconList->viewport()->installEventFilter(this);
+    connect(projectedUi().iconList, &QListView::clicked, this,
             [this](const QModelIndex &index) { handleSelectionClick(index.row()); });
-    iconList_->addAction(selectAll_);
-    iconList_->addAction(openItem_);
-    iconList_->addAction(parent_);
-    connect(iconList_, &QListView::doubleClicked, this, [this](const QModelIndex &index) {
-        if (!fileListSettings_.SingleClick)
-            activateRow(index.row(), selectionClickModifiers_);
-    });
-    connect(iconList_, &QListView::clicked, this,
+    projectedUi().iconList->addAction(selectAll_);
+    projectedUi().iconList->addAction(openItem_);
+    projectedUi().iconList->addAction(parent_);
+    connect(projectedUi().iconList, &QListView::doubleClicked, this,
+            [this](const QModelIndex &index) {
+                if (!fileListSettings_.SingleClick)
+                    activateRow(index.row(), selectionClickModifiers_);
+            });
+    connect(projectedUi().iconList, &QListView::clicked, this,
             [this](const QModelIndex &index) { activateSingleClickedRow(index.row()); });
-    connect(iconList_, &QWidget::customContextMenuRequested, this,
-            [this, owner = projectedPanel_, view = iconList_](const QPoint &pos) {
+    connect(projectedUi().iconList, &QWidget::customContextMenuRequested, this,
+            [this, owner = projectedPanel_, view = projectedUi().iconList](const QPoint &pos) {
                 showItemContextMenu(owner, view, pos);
             });
 }
@@ -277,15 +281,15 @@ void MainWindow::createIconList(QWidget *central) {
 void MainWindow::appendParentEntry() {
     if (!app_.GetFocusedPanel()._showDots || app_.GetFocusedPanel().IsRootFolder())
         return;
-    const bool sorting = table_->isSortingEnabled();
-    table_->setSortingEnabled(false);
+    const bool sorting = projectedUi().table->isSortingEnabled();
+    projectedUi().table->setSortingEnabled(false);
     FilePanelModel::Row row;
     row.name = QStringLiteral("..");
     row.directory = true;
     row.icon = QApplication::style()->standardIcon(QStyle::SP_DirIcon);
     row.toolTip = QCoreApplication::translate("mainwindow_panel", "Parent folder");
-    table_->panelModel()->append(std::move(row));
-    table_->setSortingEnabled(sorting);
+    projectedUi().table->panelModel()->append(std::move(row));
+    projectedUi().table->setSortingEnabled(sorting);
 }
 
 void MainWindow::activateSingleClickedRow(int row) {

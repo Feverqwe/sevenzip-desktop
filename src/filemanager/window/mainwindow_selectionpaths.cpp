@@ -15,7 +15,7 @@ QStringList MainWindow::selectedArchivePaths() {
 
 QStringList MainWindow::archivePathsForIndices(const CRecordVector<UInt32> &indices) {
     QStringList paths;
-    if (state_ != State::Viewing)
+    if (projectedUi().state != State::Viewing)
         return paths;
     CPanel &panel = app_.GetFocusedPanel();
     if (!panel.GetFolder())

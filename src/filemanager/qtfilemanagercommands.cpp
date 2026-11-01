@@ -155,7 +155,7 @@ bool QtFileManagerCommands::CanSwitchPanels() const {
     const auto &w = window_;
     return !w.app_.QtOperations().closed() && !w.app_.QtOperations().active() &&
            !w.sourceArchiveProgress_ &&
-           !(w.filesystemScanner_ && w.filesystemScanner_->isRunning());
+           !(w.projectedUi().filesystemScanner && w.projectedUi().filesystemScanner->isRunning());
 }
 
 bool QtFileManagerCommands::CanExit() const {
@@ -245,7 +245,7 @@ QtFileManagerCommands::TransportCapabilities QtFileManagerCommands::ReadTranspor
     const auto *resource =
         agent ? dynamic_cast<QtArchiveFileResource *>(agent->GetEngineResource()) : nullptr;
     c.writable = c.mutationWritable && !(resource && resource->Info.encrypted);
-    c.rows = w.table_->rowCount() > 0;
+    c.rows = w.projectedUi().table->rowCount() > 0;
     UStringVector history;
     w.app_.AppState.FolderHistory.GetList(history);
     c.foldersHistory = !history.IsEmpty();
@@ -275,30 +275,32 @@ QHash<unsigned, bool> QtFileManagerCommands::Availability() {
     availability[IDM_TEMP_DIR] = availability[IDM_HELP_CONTENTS];
     availability[OpenArchivePicker] = availability[IDM_HELP_CONTENTS] && !w.backend_->busy();
     availability[ManageMounts] = availability[IDM_HELP_CONTENTS];
-    if (availability[OpenArchivePicker] && safeFolderQueries && !w.scanningArchive_ &&
-        !w.scanningDisk_) {
+    if (availability[OpenArchivePicker] && safeFolderQueries && !w.projectedUi().scanningArchive &&
+        !w.projectedUi().scanningDisk) {
         const auto *folder = dynamic_cast<CAgentFolder *>(panel.GetFolder());
         const auto *resource =
             folder ? dynamic_cast<QtArchiveFileResource *>(folder->GetEngineResource()) : nullptr;
         availability[MountReadOnly] =
             resource && resource->NativeReaderLease() && resource->NativeItemProperties();
     }
-    availability[OpenDevicePicker] = availability[OpenArchivePicker] && safeFolderQueries &&
-                                     !w.scanningDisk_ && !w.scanningArchive_ &&
-                                     w.backend_->codecCatalog() &&
-                                     w.backend_->codecCatalog()->result() == S_OK;
+    availability[OpenDevicePicker] =
+        availability[OpenArchivePicker] && safeFolderQueries && !w.projectedUi().scanningDisk &&
+        !w.projectedUi().scanningArchive && w.backend_->codecCatalog() &&
+        w.backend_->codecCatalog()->result() == S_OK;
     const bool hasFolder = panel.GetFolder() != nullptr;
-    const bool namespaceChild = safeFolderQueries && w.state_ == MainWindow::State::Namespace &&
+    const bool namespaceChild = safeFolderQueries &&
+                                w.projectedUi().state == MainWindow::State::Namespace &&
                                 hasFolder && !panel.IsRootFolder();
-    availability[Back] = navigating && (w.state_ == MainWindow::State::Viewing || namespaceChild ||
-                                        !w.history_.isEmpty());
-    availability[IDM_OPEN_PARENT_FOLDER] =
-        safeFolderQueries && hasFolder && !panel.IsRootFolder() &&
-        (w.state_ == MainWindow::State::Viewing || panel.IsFSFolder() || namespaceChild);
-    availability[IDM_VIEW_FLAT_VIEW] = navigating && (w.scanningDisk_ || !hasFolder ||
+    availability[Back] = navigating && (w.projectedUi().state == MainWindow::State::Viewing ||
+                                        namespaceChild || !w.projectedUi().history.isEmpty());
+    availability[IDM_OPEN_PARENT_FOLDER] = safeFolderQueries && hasFolder &&
+                                           !panel.IsRootFolder() &&
+                                           (w.projectedUi().state == MainWindow::State::Viewing ||
+                                            panel.IsFSFolder() || namespaceChild);
+    availability[IDM_VIEW_FLAT_VIEW] = navigating && (w.projectedUi().scanningDisk || !hasFolder ||
                                                       (safeFolderQueries && !panel.IsRootFolder()));
     availability[8] = CanExit();
-    if (!safeFolderQueries || w.scanningDisk_ || !hasFolder)
+    if (!safeFolderQueries || w.projectedUi().scanningDisk || !hasFolder)
         return availability;
     const TransportCapabilities capabilities = ReadTransportCapabilities();
     QtFileMenuProjection menu;

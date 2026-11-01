@@ -110,7 +110,7 @@ void MainWindow::refreshGuiOutputPanel(unsigned index, const QtGuiOutputRefresh:
                 // Projection retains modal source guards while restoring the
                 // original panel. Publish the resulting idle/scan state after
                 // that restoration, before restoring the remembered focus.
-                setState(state_);
+                setState(projectedUi().state);
                 if (focus && focus->isEnabled() && focus->isVisible())
                     focus->setFocus(Qt::OtherFocusReason);
                 return;

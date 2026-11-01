@@ -53,10 +53,7 @@ bool QtAppPresentation::CreatePanel(CPanel &panel, unsigned index) {
         return false;
     const unsigned previous = window_.projectedPanel_;
     const bool hadPrevious = window_.panelUi_[previous].container;
-    if (hadPrevious)
-        window_.storePanelUi(previous);
     window_.projectedPanel_ = index;
-    window_.restorePanelUi(index);
     window_.app_.SetFocusedPanel(index);
     panel.LoadFullPath();
     const QSettings settings(window_.toolbarSettingsPath(), QSettings::IniFormat);
@@ -81,11 +78,9 @@ bool QtAppPresentation::CreatePanel(CPanel &panel, unsigned index) {
         [window = QPointer<MainWindow>(&window_), index](const CSelectedState &selection) {
             return window ? window->reloadPanelPresentation(index, selection) : E_ABORT;
         });
-    window_.storePanelUi(index);
     if (window_.drag_)
         window_.drag_->AttachPanel(index);
     if (hadPrevious && index != previous) {
-        window_.restorePanelUi(previous);
         window_.projectedPanel_ = previous;
         window_.app_.SetFocusedPanel(previous);
     }
@@ -133,7 +128,7 @@ void QtAppPresentation::RefreshFolder(unsigned index) {
 void QtAppPresentation::PrepareFolderChange(unsigned index) {
     window_.withPanelProjection(index, [this] {
         window_.cancelListPublication();
-        window_.setState(window_.state_);
+        window_.setState(window_.projectedUi().state);
     });
 }
 
@@ -155,12 +150,12 @@ void QtAppPresentation::ExecuteCopy(bool move, bool copyToSame, unsigned sourceI
         window_.executeCopyDestination(move, copyToSame, sourceIndex, destination, indices,
                                        useDestPanel, useTemp);
     }
-    if (window_.state_ != MainWindow::State::Operating &&
+    if (window_.projectedUi().state != MainWindow::State::Operating &&
         window_.app_.QtOperations().kind() == QtAppOperationState::Kind::Operation) {
         window_.app_.QtOperations().End();
         window_.refreshActions();
     }
-    if (window_.state_ != MainWindow::State::Operating)
+    if (window_.projectedUi().state != MainWindow::State::Operating)
         CopyFinished();
 }
 

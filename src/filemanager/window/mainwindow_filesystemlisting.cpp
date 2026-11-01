@@ -12,14 +12,16 @@
 HRESULT MainWindow::startFilesystemListing(bool sourceAlreadyBound, bool updateAddress) {
     COpenResult opened;
     auto &panel = app_.GetFocusedPanel();
-    HRESULT result =
-        sourceAlreadyBound ? S_OK : panel.BindToPath(ToUString(directory_), UString(), opened);
+    HRESULT result = sourceAlreadyBound
+                         ? S_OK
+                         : panel.BindToPath(ToUString(projectedUi().directory), UString(), opened);
     CMyComPtr<IFolderFolder> folder = panel.GetFolder();
     if (result == S_OK && !panel.IsFSFolder()) {
         return renderBoundFolder(updateAddress);
     }
     if (result == S_OK && updateAddress)
-        static_cast<QtPanelAddressCombo *>(pathCombo_)->ShowCurrentPath(directory_);
+        static_cast<QtPanelAddressCombo *>(projectedUi().pathCombo)
+            ->ShowCurrentPath(projectedUi().directory);
     if (panel.GetFlatMode()) {
         RINOK(startFilesystemScan(folder, true))
     } else {
@@ -48,11 +50,11 @@ HRESULT MainWindow::startFilesystemListing(bool sourceAlreadyBound, bool updateA
             auto *spec = static_cast<NFsFolder::CFSFolder *>((IFolderFolder *)folder);
             for (UInt32 i = 0; i < spec->Files.Size(); ++i) {
                 result = appendFilesystemEntry(
-                    QFileInfo(QDir(directory_)
+                    QFileInfo(QDir(projectedUi().directory)
                                   .filePath(QtFilesystemPath(spec->GetRelPath(spec->Files[i])))),
                     i);
                 if (result != S_OK) {
-                    table_->clearRows();
+                    projectedUi().table->clearRows();
                     break;
                 }
             }
@@ -69,10 +71,10 @@ HRESULT MainWindow::startFilesystemListing(bool sourceAlreadyBound, bool updateA
 }
 
 HRESULT MainWindow::startFilesystemScan(IFolderFolder *folder, bool flat) {
-    scanningDisk_ = true;
+    projectedUi().scanningDisk = true;
     setState(State::Filesystem);
     statusBar()->showMessage(QtLangText(IDS_SCANNING));
-    if (filesystemScanner_->start(directory_, flat, folder))
+    if (projectedUi().filesystemScanner->start(projectedUi().directory, flat, folder))
         return S_OK;
     failFilesystemListing(E_ABORT);
     return E_ABORT;
@@ -106,7 +108,7 @@ HRESULT MainWindow::appendFilesystemEntry(const QFileInfo &file, quint32 sourceI
     row.toolTip = row.path;
     row.directory = directory;
     row.icon = icon;
-    table_->panelModel()->append(std::move(row));
+    projectedUi().table->panelModel()->append(std::move(row));
     return S_OK;
 }
 
@@ -153,7 +155,7 @@ void MainWindow::connectFilesystemScanner() {
                         }
                         statusBar()->showMessage(
                             QCoreApplication::translate("mainwindow", "Shown: %1 items…")
-                                .arg(table_->rowCount()));
+                                .arg(projectedUi().table->rowCount()));
                     });
                 });
         connect(scanner, &FilesystemScanner::advanced, this, [this, index](quint64 count) {
@@ -170,13 +172,13 @@ void MainWindow::connectFilesystemScanner() {
                 if (app_.QtOperations().closed())
                     return;
                 QtAppOperationState::CallScope call(app_.QtOperations());
-                scanningDisk_ = false;
+                projectedUi().scanningDisk = false;
                 applySortMode(true);
                 completeListSelection();
                 restoreAutoRefreshViewport();
                 setState(State::Filesystem);
-                statusBar()->showMessage(
-                    QCoreApplication::translate("mainwindow", "%1 items").arg(table_->rowCount()));
+                statusBar()->showMessage(QCoreApplication::translate("mainwindow", "%1 items")
+                                             .arg(projectedUi().table->rowCount()));
             });
         });
         connect(scanner, &FilesystemScanner::failed, this, [this, index](qint32 result) {
@@ -189,24 +191,22 @@ void MainWindow::connectFilesystemScanner() {
             });
         });
     }
-    filesystemScanner_ = panelUi_[projectedPanel_].filesystemScanner;
-    listProjection_ = panelUi_[projectedPanel_].listProjection;
 }
 
 void MainWindow::failFilesystemListing(HRESULT result) {
     auto &panel = app_.GetFocusedPanel();
     panelUi_[projectedPanel_].pendingSelection.reset();
     panelUi_[projectedPanel_].pendingViewport.reset();
-    table_->clearSelection();
-    table_->clearRows();
-    table_->setSortingEnabled(true);
+    projectedUi().table->clearSelection();
+    projectedUi().table->clearRows();
+    projectedUi().table->setSortingEnabled(true);
     // OnCopy ignores RefreshListCtrl errors, including a retained worker load.
     // Navigation and explicit reload keep their existing diagnostic policy.
     if (!appPresentation_->IsCopyPending())
         panel.MessageBox_Error_HRESULT(result);
     if (app_.QtOperations().closed())
         return;
-    scanningDisk_ = false;
+    projectedUi().scanningDisk = false;
     setState(State::Filesystem);
     statusBar()->showMessage(QCoreApplication::translate("mainwindow", "Could not read folder."));
 }

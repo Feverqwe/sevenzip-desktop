@@ -9,7 +9,7 @@ void MainWindow::completeListSelection() {
 }
 
 void MainWindow::restoreListSelection(const CSelectedState &selection) {
-    if (scanningDisk_ || scanningArchive_)
+    if (projectedUi().scanningDisk || projectedUi().scanningArchive)
         panelUi_[projectedPanel_].pendingSelection = selection;
     else
         app_.Panels[projectedPanel_].RestoreLoadedSelection(selection);
@@ -23,7 +23,8 @@ void MainWindow::handleSelectionClick(int row) {
 }
 
 void MainWindow::SelectSpec(bool selectMode) {
-    if (state_ != State::Filesystem && state_ != State::Viewing && state_ != State::Namespace)
+    if (projectedUi().state != State::Filesystem && projectedUi().state != State::Viewing &&
+        projectedUi().state != State::Namespace)
         return;
     CPanel &panel = app_.GetFocusedPanel();
     panel.SelectSpec(selectMode);
@@ -31,7 +32,8 @@ void MainWindow::SelectSpec(bool selectMode) {
 }
 
 void MainWindow::SelectByType(bool selectMode) {
-    if (state_ != State::Filesystem && state_ != State::Viewing && state_ != State::Namespace)
+    if (projectedUi().state != State::Filesystem && projectedUi().state != State::Viewing &&
+        projectedUi().state != State::Namespace)
         return;
     CPanel &panel = app_.GetFocusedPanel();
     panel.SelectByType(selectMode);
@@ -39,7 +41,8 @@ void MainWindow::SelectByType(bool selectMode) {
 }
 
 void MainWindow::SelectAll(bool selectMode) {
-    if (state_ != State::Filesystem && state_ != State::Viewing && state_ != State::Namespace)
+    if (projectedUi().state != State::Filesystem && projectedUi().state != State::Viewing &&
+        projectedUi().state != State::Namespace)
         return;
     CPanel &panel = app_.GetFocusedPanel();
     panel.SelectAll(selectMode);
@@ -47,7 +50,8 @@ void MainWindow::SelectAll(bool selectMode) {
 }
 
 void MainWindow::InvertSelection() {
-    if (state_ != State::Filesystem && state_ != State::Viewing && state_ != State::Namespace)
+    if (projectedUi().state != State::Filesystem && projectedUi().state != State::Viewing &&
+        projectedUi().state != State::Namespace)
         return;
     CPanel &panel = app_.GetFocusedPanel();
     panel.InvertSelection();

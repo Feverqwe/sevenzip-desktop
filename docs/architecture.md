@@ -109,6 +109,10 @@ operation semantics. `MainWindow` projects that state into widgets and connects
 the platform services. It must not become a second owner of archive algorithms
 or command-availability decisions.
 
+Each panel owns its Qt controls and presentation state. Command dispatch and
+temporary background callbacks select that existing state by panel identity;
+switching panels does not save and restore a second mutable window copy.
+
 List mode, Flat View and sort preferences stay with the source panel. Qt reads
 them when presenting controls, changing columns or returning from another panel's
 callback; it does not retain a second mutable copy of those preferences. Archive

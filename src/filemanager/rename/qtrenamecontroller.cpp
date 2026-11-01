@@ -52,19 +52,19 @@ void QtRenameController::Begin(int row) {
         return;
     auto &panel = window_.app_.GetFocusedPanel();
     const bool streams = panel.GetFolder() && panel.IsAltStreamsFolder();
-    const bool archive = window_.state_ == MainWindow::State::Viewing;
-    if (window_.state_ != MainWindow::State::Filesystem && !archive && !streams)
+    const bool archive = window_.projectedUi().state == MainWindow::State::Viewing;
+    if (window_.projectedUi().state != MainWindow::State::Filesystem && !archive && !streams)
         return;
-    if (!window_.rename_->isEnabled() || row < 0 || row >= window_.table_->rowCount() ||
-        panel.OnBeginLabelEdit(row))
+    if (!window_.rename_->isEnabled() || row < 0 ||
+        row >= window_.projectedUi().table->rowCount() || panel.OnBeginLabelEdit(row))
         return;
-    const QModelIndex item = window_.table_->model()->index(row, 0);
+    const QModelIndex item = window_.projectedUi().table->model()->index(row, 0);
     if (!item.isValid() || item.data(Qt::UserRole + 6).isNull())
         return;
     const quint32 sourceIndex = item.data(Qt::UserRole + 6).toUInt();
-    auto *view = window_.viewStack_->currentWidget() == window_.iconList_
-                     ? static_cast<QAbstractItemView *>(window_.iconList_)
-                     : static_cast<QAbstractItemView *>(window_.table_);
+    auto *view = window_.projectedUi().viewStack->currentWidget() == window_.projectedUi().iconList
+                     ? static_cast<QAbstractItemView *>(window_.projectedUi().iconList)
+                     : static_cast<QAbstractItemView *>(window_.projectedUi().table);
     const auto request =
         std::make_shared<Request>(window_.projectedPanel_, panel.GetFolder(), item, sourceIndex,
                                   ToQString(archive ? panel.GetItemRelPath2(sourceIndex)
@@ -133,9 +133,9 @@ void QtRenameController::Apply(const Request &request) {
             !panel.ShouldProcessNotifications() ||
             request.sourceIndex >= panel.GetLoadedItemCount())
             return;
-        const bool archive = window_.state_ == MainWindow::State::Viewing;
+        const bool archive = window_.projectedUi().state == MainWindow::State::Viewing;
         const bool streams = panel.IsAltStreamsFolder();
-        if (window_.state_ != MainWindow::State::Filesystem && !archive && !streams)
+        if (window_.projectedUi().state != MainWindow::State::Filesystem && !archive && !streams)
             return;
         const QString path = ToQString(archive ? panel.GetItemRelPath2(request.sourceIndex)
                                                : panel.GetItemFullPath(request.sourceIndex));

@@ -49,30 +49,30 @@ void MainWindow::showItemContextMenu(unsigned owner, QAbstractItemView *view, co
 }
 
 void MainWindow::applySortMode(bool enableSorting) {
-    if (!table_)
+    if (!projectedUi().table)
         return;
     auto &panel = app_.GetFocusedPanel();
-    auto *view = static_cast<FileTable *>(table_);
+    auto *view = static_cast<FileTable *>(projectedUi().table);
     int column = view->columnForProperty(panel.GetSortID());
     if (column < 0)
         column = panel.GetSortID() == kpidNoProperty ? 6 : 0;
     const Qt::SortOrder order = panel._ascending ? Qt::AscendingOrder : Qt::DescendingOrder;
     panel._sortID = view->propertyId(column);
     panel.SetSortRawStatus();
-    if (enableSorting && !table_->isSortingEnabled()) {
+    if (enableSorting && !projectedUi().table->isSortingEnabled()) {
         // Enabling Qt sorting already sorts; configure the source order first.
-        const QSignalBlocker blocker(table_->horizontalHeader());
-        table_->horizontalHeader()->setSortIndicator(column, order);
-        table_->setSortingEnabled(true);
+        const QSignalBlocker blocker(projectedUi().table->horizontalHeader());
+        projectedUi().table->horizontalHeader()->setSortIndicator(column, order);
+        projectedUi().table->setSortingEnabled(true);
     } else
-        table_->sortItems(column, order);
+        projectedUi().table->sortItems(column, order);
     saveColumns();
 }
 
 void MainWindow::sortIndicatorChanged(unsigned index, int column, Qt::SortOrder order) {
     const bool active = index == projectedPanel_;
     withPanelProjection(index, [this, index, column, order, active] {
-        auto *view = static_cast<FileTable *>(table_);
+        auto *view = static_cast<FileTable *>(projectedUi().table);
         if (view->deferSourceColumnClick(
                 [window = QPointer<MainWindow>(this), index, column, order] {
                     if (window)
@@ -81,7 +81,7 @@ void MainWindow::sortIndicatorChanged(unsigned index, int column, Qt::SortOrder 
             return;
         auto &panel = app_.GetFocusedPanel();
         {
-            const QSignalBlocker blocked(table_->horizontalHeader());
+            const QSignalBlocker blocked(projectedUi().table->horizontalHeader());
             if (view->takeSourceColumnClick()) {
                 panel.OnColumnClick(view->propertyId(column));
             } else {
@@ -92,7 +92,8 @@ void MainWindow::sortIndicatorChanged(unsigned index, int column, Qt::SortOrder 
             }
             // Qt's initial automatic sort precedes this signal consumer. Project
             // the authoritative source flag/order onto the clicked section.
-            table_->sortItems(column, panel._ascending ? Qt::AscendingOrder : Qt::DescendingOrder);
+            projectedUi().table->sortItems(column, panel._ascending ? Qt::AscendingOrder
+                                                                    : Qt::DescendingOrder);
         }
         if (!configuringColumns_) {
             if (active && commands_)
@@ -119,7 +120,7 @@ void MainWindow::recordVisitedPath(const QString &path) {
 }
 
 void MainWindow::showFoldersHistory() {
-    if (state_ == State::Loading || state_ == State::Operating)
+    if (projectedUi().state == State::Loading || projectedUi().state == State::Operating)
         return;
     const unsigned owner = app_.GetFocusedPanelIndex();
     const QString selected =
@@ -133,7 +134,8 @@ void MainWindow::showFoldersHistory() {
 void MainWindow::refreshBookmarks() { MyLoadBookmarks(openBookmarks_, saveBookmarks_, app_); }
 
 void MainWindow::saveBookmark(int index) {
-    if (index < 0 || index >= 10 || state_ == State::Loading || state_ == State::Operating)
+    if (index < 0 || index >= 10 || projectedUi().state == State::Loading ||
+        projectedUi().state == State::Operating)
         return;
     auto &panel = app_.GetFocusedPanel();
     panel.LoadFullPath();
@@ -143,7 +145,8 @@ void MainWindow::saveBookmark(int index) {
 }
 
 void MainWindow::openBookmark(int index) {
-    if (index < 0 || index >= 10 || state_ == State::Loading || state_ == State::Operating)
+    if (index < 0 || index >= 10 || projectedUi().state == State::Loading ||
+        projectedUi().state == State::Operating)
         return;
     const QString path =
         ToQString(CPanel::OpenBookmark(app_.AppState.FastFolders, (unsigned)index));
@@ -218,16 +221,19 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
         app_.SetFocusToLastItem();
         return true;
     }
-    const bool listViewport = (table_ && watched == table_->viewport()) ||
-                              (iconList_ && watched == iconList_->viewport());
+    const bool listViewport =
+        (projectedUi().table && watched == projectedUi().table->viewport()) ||
+        (projectedUi().iconList && watched == projectedUi().iconList->viewport());
     if (listViewport && (event->type() == QEvent::MouseButtonPress ||
                          event->type() == QEvent::MouseButtonDblClick)) {
         const auto *mouse = static_cast<QMouseEvent *>(event);
         selectionClickModifiers_ = mouse->modifiers();
         selectionClickLeft_ = mouse->button() == Qt::LeftButton;
     }
-    const bool listControl = watched == table_ || watched == iconList_ || listViewport;
-    if ((watched == path_ || watched == pathCombo_) && event->type() == QEvent::ShortcutOverride) {
+    const bool listControl =
+        watched == projectedUi().table || watched == projectedUi().iconList || listViewport;
+    if ((watched == projectedUi().path || watched == projectedUi().pathCombo) &&
+        event->type() == QEvent::ShortcutOverride) {
         const auto *key = static_cast<QKeyEvent *>(event);
         const auto mods = key->modifiers();
         if (key->key() == Qt::Key_Return || key->key() == Qt::Key_Enter ||
@@ -260,21 +266,21 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
 }
 
 void MainWindow::setViewMode(int mode) {
-    if (mode < 0 || mode > 3 || !viewStack_)
+    if (mode < 0 || mode > 3 || !projectedUi().viewStack)
         return;
     auto &panel = app_.GetFocusedPanel();
-    auto *stack = viewStack_;
-    auto *address = pathCombo_;
+    auto *stack = projectedUi().viewStack;
+    auto *address = projectedUi().pathCombo;
     const QWidget *focused = QApplication::focusWidget();
     const QWidget *previousView = stack->currentWidget();
     const bool restoreFocus =
         previousView && focused && (focused == previousView || previousView->isAncestorOf(focused));
     viewActions_[mode]->setChecked(true);
     if (mode != 3) {
-        static_cast<FileIconList *>(iconList_)->SetListViewMode(mode);
+        static_cast<FileIconList *>(projectedUi().iconList)->SetListViewMode(mode);
         // Qt's Static movement resets dragEnabled. The shared file-list policy
         // still permits exporting entries through the native drag controller.
-        iconList_->setDragEnabled(table_->dragEnabled());
+        projectedUi().iconList->setDragEnabled(projectedUi().table->dragEnabled());
     }
     // Upstream changes the style of the same list control. Qt replaces the
     // visible view, which can synchronously focus another panel while hiding

@@ -29,10 +29,10 @@ no source-shape test or redundant dialog-only regression was added.
 
 Validation: open_callback, update_callback, extract_prompt, password_window and
 progress_worker passed on Linux first, then macOS and Windows. Linux/Windows
-also passed fscrypt_key_ui: 83 passes each; macOS reported 62 common passes.
-No failures or skips in the executed sets. Native macOS fscrypt_key_ui remains
-unverified because the console is locked; its activation requirement was retained
-and the known-unavailable native scenario was not rerun. Existing tests cover
+also passed fscrypt_key_ui: 83 passes each. macOS initially reported 62 common
+passes, then passed all 21 native fscrypt_key_ui checks after the user unlocked
+the console. All six selected suites are now checked on all three platforms,
+without failures or skips. Existing tests cover
 worker readiness, accepted empty/raw Unicode passwords, cancellation, reuse,
 accepted-only visibility persistence and operation teardown. Incremental builds
 and caches retained, completed scratch removed after evidence capture. No

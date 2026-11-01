@@ -255,7 +255,7 @@ bool QtFileManagerShellMenu::ShowSystemMenu() const { return _window.app_.ShowSy
 void QtFileManagerShellMenu::CreateSevenZipMenu(CPanel &panel, bool extended,
                                                 const CRecordVector<UInt32> &indices,
                                                 int firstDirIndex) {
-    if (_window.state_ != MainWindow::State::Filesystem)
+    if (_window.projectedUi().state != MainWindow::State::Filesystem)
         return;
     panel.LoadFullPath();
     NQtShellMenu::CMenuHandle tree;
@@ -267,7 +267,7 @@ void QtFileManagerShellMenu::CreateSevenZipMenu(CPanel &panel, bool extended,
 
 void QtFileManagerShellMenu::CreateSystemMenu(CPanel &panel, bool extended,
                                               const CRecordVector<UInt32> &indices) {
-    if (indices.IsEmpty() || _window.state_ != MainWindow::State::Filesystem)
+    if (indices.IsEmpty() || _window.projectedUi().state != MainWindow::State::Filesystem)
         return;
 #ifdef _WIN32
     auto system = std::make_unique<QtNativeShellMenu>();

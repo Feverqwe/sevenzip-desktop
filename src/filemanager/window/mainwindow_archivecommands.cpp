@@ -98,9 +98,10 @@ void MainWindow::calculateHash(const QString &method) {
         return;
     QtAppOperationState::CallScope call(app_.QtOperations());
     const CPanel &panel = app_.GetFocusedPanel();
-    const bool filesystemNamespace =
-        state_ == State::Namespace && panel.Is_IO_FS_Folder() && panel.DoesItSupportOperations();
-    if ((state_ != State::Filesystem && state_ != State::Viewing && !filesystemNamespace) ||
+    const bool filesystemNamespace = projectedUi().state == State::Namespace &&
+                                     panel.Is_IO_FS_Folder() && panel.DoesItSupportOperations();
+    if ((projectedUi().state != State::Filesystem && projectedUi().state != State::Viewing &&
+         !filesystemNamespace) ||
         sourceOperatedIndices().IsEmpty())
         return;
     if (canLaunchGuiFilesystemOperation() && !panel.GetFsPath().IsEmpty()) {
@@ -111,7 +112,7 @@ void MainWindow::calculateHash(const QString &method) {
         launchGuiHash(paths, ToUString(method), panel.GetFsPath(), !panel.GetFlatMode());
         return;
     }
-    const auto previousState = state_;
+    const auto previousState = projectedUi().state;
     setState(State::Operating);
     HRESULT result;
     {
@@ -154,7 +155,7 @@ void MainWindow::runArchiveBatchCommand(bool test) {
         app_.ExtractArchives(services); // Original archive branch delegates to OnCopy.
         return;
     }
-    const auto previous = state_;
+    const auto previous = projectedUi().state;
     const unsigned source = app_.GetFocusedPanelIndex();
     const QPointer<QWidget> focus = focusWidget();
     const auto restore = qScopeGuard([&] {
@@ -183,9 +184,9 @@ void MainWindow::createDialog() {
             focus->setFocus(Qt::OtherFocusReason);
     });
     QtAppOperationState::CallScope call(app_.QtOperations());
-    if (state_ != State::Filesystem && state_ != State::Viewing)
+    if (projectedUi().state != State::Filesystem && projectedUi().state != State::Viewing)
         return;
-    const auto previousState = state_;
+    const auto previousState = projectedUi().state;
     const unsigned sourceIndex = app_.GetFocusedPanelIndex();
     CPanel &panel = app_.GetFocusedPanel();
     CSelectedState selection;
@@ -226,7 +227,7 @@ void MainWindow::extractTo(const QString &destination, bool onlySelected, const 
     if (app_.QtOperations().closed())
         return;
     QtAppOperationState::CallScope call(app_.QtOperations());
-    if (state_ != State::Viewing || destination.isEmpty())
+    if (projectedUi().state != State::Viewing || destination.isEmpty())
         return;
     const auto *folder = dynamic_cast<CAgentFolder *>(app_.GetFocusedPanel().GetFolder());
     IInArchive *metadata = folder ? folder->GetArchiveProperties() : nullptr;
@@ -241,11 +242,11 @@ void MainWindow::extractTo(const QString &destination, bool onlySelected, const 
     }
     if (extractWithSource(destination, onlySelected, password, options, names))
         return;
-    previousState_ = state_;
+    previousState_ = projectedUi().state;
     setState(State::Operating);
     begin(QtLangText(IDS_PROGRESS_EXTRACTING), destination);
-    backend_->extract(archive_, destination, names,
-                      password.isEmpty() ? archivePassword_ : password, options);
+    backend_->extract(projectedUi().archive, destination, names,
+                      password.isEmpty() ? projectedUi().archivePassword : password, options);
 }
 
 bool MainWindow::extractWithSource(const QString &destination, bool onlySelected,
@@ -253,13 +254,14 @@ bool MainWindow::extractWithSource(const QString &destination, bool onlySelected
                                    const QStringList &names,
                                    const CRecordVector<UInt32> *explicitIndices) {
     CPanel &panel = app_.GetFocusedPanel();
-    auto *folder =
-        state_ == State::Viewing ? dynamic_cast<CAgentFolder *>(panel.GetFolder()) : nullptr;
+    auto *folder = projectedUi().state == State::Viewing
+                       ? dynamic_cast<CAgentFolder *>(panel.GetFolder())
+                       : nullptr;
     auto *resource =
         folder ? dynamic_cast<QtArchiveFileResource *>(folder->GetEngineResource()) : nullptr;
     const bool sourceAvailable =
         resource && (resource->HasDirectInput() || resource->UsesNativeMetadata() ||
-                     backend_->hasListedSourceArchive(archive_));
+                     backend_->hasListedSourceArchive(projectedUi().archive));
     if (options.pathMode == ExtractionOptions::PathMode::CurrentPaths &&
         (!resource || !resource->HasExtractService() || !sourceAvailable)) {
         if (options.currentFolder.isEmpty())
@@ -280,8 +282,8 @@ bool MainWindow::extractWithSource(const QString &destination, bool onlySelected
     }
     if (!resource || !resource->HasExtractService() || !sourceAvailable)
         return false;
-    const bool scoped = onlySelected || !archiveFolder_.isEmpty() || resource->HasDirectInput() ||
-                        resource->UsesNativeMetadata() ||
+    const bool scoped = onlySelected || !projectedUi().archiveFolder.isEmpty() ||
+                        resource->HasDirectInput() || resource->UsesNativeMetadata() ||
                         !resource->FilesystemReadLimitations().isEmpty();
     CRecordVector<UInt32> indices;
     QStringList validationNames = names;
@@ -301,11 +303,12 @@ bool MainWindow::extractWithSource(const QString &destination, bool onlySelected
         if (validationNames.isEmpty())
             return true;
     }
-    const QString output = PrepareExtractionDestination(
-        *backend_, *resource, destination, validationNames, options, archiveFolder_, this);
+    const QString output =
+        PrepareExtractionDestination(*backend_, *resource, destination, validationNames, options,
+                                     projectedUi().archiveFolder, this);
     if (output.isEmpty())
         return true;
-    previousState_ = state_;
+    previousState_ = projectedUi().state;
     setState(State::Operating);
     QtArchiveBatchResult result;
     QString message;
@@ -317,9 +320,9 @@ bool MainWindow::extractWithSource(const QString &destination, bool onlySelected
             // afterwards, source Skip also preserves it without overwriting.
             if (sourceOptions.overwriteMode == ExtractionOptions::OverwriteMode::RejectExisting)
                 sourceOptions.overwriteMode = ExtractionOptions::OverwriteMode::SkipExisting;
-            result = RunQtArchiveBatchExtract(*backend_, {archive_}, output,
-                                              password.isEmpty() ? archivePassword_ : password,
-                                              sourceOptions, this);
+            result = RunQtArchiveBatchExtract(
+                *backend_, {projectedUi().archive}, output,
+                password.isEmpty() ? projectedUi().archivePassword : password, sourceOptions, this);
         } else {
             UStringVector messages;
             result.Result = ExtractPanelItems(panel, *folder, output, password, options, indices,
@@ -348,7 +351,7 @@ void MainWindow::testArchive() {
     if (app_.QtOperations().closed())
         return;
     QtAppOperationState::CallScope call(app_.QtOperations());
-    if (state_ != State::Viewing) {
+    if (projectedUi().state != State::Viewing) {
         runArchiveBatchCommand(true);
         return;
     }
@@ -365,7 +368,7 @@ void MainWindow::testArchive() {
     }
     if (resource && resource->HasExtractService() &&
         (resource->HasDirectInput() || resource->UsesNativeMetadata() ||
-         backend_->hasListedSourceArchive(archive_))) {
+         backend_->hasListedSourceArchive(projectedUi().archive))) {
         setState(State::Operating);
         {
             QScopedValueRollback<bool> progressOwner(sourceArchiveProgress_, true);
@@ -374,8 +377,8 @@ void MainWindow::testArchive() {
         setState(State::Viewing);
         return;
     }
-    previousState_ = state_;
+    previousState_ = projectedUi().state;
     setState(State::Operating);
-    begin(QtLangText(IDS_PROGRESS_TESTING), archive_);
-    backend_->test(archive_, archivePassword_);
+    begin(QtLangText(IDS_PROGRESS_TESTING), projectedUi().archive);
+    backend_->test(projectedUi().archive, projectedUi().archivePassword);
 }

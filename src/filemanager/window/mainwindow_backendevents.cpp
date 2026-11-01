@@ -53,8 +53,8 @@ void MainWindow::connectBackend() {
             backend_->cancel();
             return;
         }
-        archivePassword_ = ToQString(dialog.Password);
-        backend_->providePassword(archivePassword_);
+        projectedUi().archivePassword = ToQString(dialog.Password);
+        backend_->providePassword(projectedUi().archivePassword);
     });
     connect(backend_, &ArchiveBackend::outputReceived, this, [this](const QString &line) {
         if (!app_.QtOperations().closed()) {
@@ -87,15 +87,15 @@ void MainWindow::backendFinished(bool ok, const QString &message, HRESULT result
                      message;
     archiveMove_.reset();
     if (!ok)
-        archivePassword_.clear();
+        projectedUi().archivePassword.clear();
     const bool hadProgress = progress_;
     const bool canceled = result == E_ABORT;
     if (hadProgress && !ok && !canceled)
         progress_->Sync.FinalMessage.ErrorMessage.Message = ToUString(resultMessage);
     closeProgressDialog(true);
-    if (state_ == State::Loading && !ok)
-        showDirectory(returnDirectory_, false);
-    else if (state_ == State::Operating)
+    if (projectedUi().state == State::Loading && !ok)
+        showDirectory(projectedUi().returnDirectory, false);
+    else if (projectedUi().state == State::Operating)
         setState(previousState_ == State::Viewing ? State::Viewing : State::Filesystem);
     appPresentation_->CopyFinished();
     statusBar()->showMessage(resultMessage);

@@ -188,7 +188,7 @@ void QtProgramFileMenu::Activate() {
     auto &panel = _window.app_.GetFocusedPanel();
     // No folder/property access during source worker replacement or scanning.
     if (_window.app_.QtOperations().callActive() || _window.sourceArchiveProgress_ ||
-        _window.scanningDisk_ || !panel.ShouldProcessNotifications()) {
+        _window.projectedUi().scanningDisk || !panel.ShouldProcessNotifications()) {
         ReleasePluginMenus();
         return;
     }
@@ -226,9 +226,10 @@ void QtProgramFileMenu::Activate() {
 
 bool QtProgramFileMenu::CanInvoke(unsigned id) const {
     return _panel && _panel == &_window.app_.GetFocusedPanel() &&
-           _window.state_ == MainWindow::State::Filesystem && !_window.backend_->busy() &&
-           !_window.sourceArchiveProgress_ && !_window.scanningDisk_ &&
-           _panel->ShouldProcessNotifications() && _shell->CanInvoke(id);
+           _window.projectedUi().state == MainWindow::State::Filesystem &&
+           !_window.backend_->busy() && !_window.sourceArchiveProgress_ &&
+           !_window.projectedUi().scanningDisk && _panel->ShouldProcessNotifications() &&
+           _shell->CanInvoke(id);
 }
 
 void QtProgramFileMenu::InvokePluginCommand(unsigned id) {

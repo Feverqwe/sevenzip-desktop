@@ -6,53 +6,8 @@
 #include <QScopedValueRollback>
 
 // Qt keeps each panel's controls and presentation state while CPanel owns the
-// bound folder, selection and source navigation state. The active fields in
-// MainWindow are a projection used by existing command consumers.
-void MainWindow::storePanelUi(unsigned index) {
-    PanelUiState &ui = panelUi_[index];
-    ui.path = path_;
-    ui.pathCombo = pathCombo_;
-    ui.table = table_;
-    ui.iconList = iconList_;
-    ui.viewStack = viewStack_;
-    ui.tableHover = tableHover_;
-    ui.iconHover = iconHover_;
-    ui.directory = directory_;
-    ui.returnDirectory = returnDirectory_;
-    ui.archive = archive_;
-    ui.displayArchive = displayArchive_;
-    ui.archivePassword = archivePassword_;
-    ui.archiveFolder = archiveFolder_;
-    ui.history = history_;
-    ui.state = state_;
-    ui.scanningDisk = scanningDisk_;
-    ui.scanningArchive = scanningArchive_;
-    ui.filesystemScanner = filesystemScanner_;
-    ui.listProjection = listProjection_;
-}
-
-void MainWindow::restorePanelUi(unsigned index) {
-    const PanelUiState &ui = panelUi_[index];
-    path_ = ui.path;
-    pathCombo_ = ui.pathCombo;
-    table_ = ui.table;
-    iconList_ = ui.iconList;
-    viewStack_ = ui.viewStack;
-    tableHover_ = ui.tableHover;
-    iconHover_ = ui.iconHover;
-    directory_ = ui.directory;
-    returnDirectory_ = ui.returnDirectory;
-    archive_ = ui.archive;
-    displayArchive_ = ui.displayArchive;
-    archivePassword_ = ui.archivePassword;
-    archiveFolder_ = ui.archiveFolder;
-    history_ = ui.history;
-    state_ = ui.state;
-    scanningDisk_ = ui.scanningDisk;
-    scanningArchive_ = ui.scanningArchive;
-    filesystemScanner_ = ui.filesystemScanner;
-    listProjection_ = ui.listProjection;
-}
+// bound folder, selection and source navigation state. The projected index
+// selects those existing bindings for commands and temporary callbacks.
 
 void MainWindow::activatePanelUi(unsigned index) {
     if (index == projectedPanel_ || index >= kNumPanelsMax || !panelUi_[index].container)
@@ -67,11 +22,9 @@ void MainWindow::activatePanelUi(unsigned index) {
         CPanel::CDisableNotify sourceNotify(app_.Panels[projectedPanel_]);
         CPanel::CDisableNotify targetNotify(app_.Panels[index]);
         QScopedValueRollback<unsigned> projection(panelProjectionDepth_, panelProjectionDepth_ + 1);
-        storePanelUi(projectedPanel_);
-        restorePanelUi(index);
         projectedPanel_ = index;
         app_.SetFocusedPanel(index);
-        setState(state_);
+        setState(projectedUi().state);
     }
     refreshActions();
     app_.RefreshTitle(true);
@@ -80,9 +33,7 @@ void MainWindow::activatePanelUi(unsigned index) {
 unsigned MainWindow::scanningPanelMask() const {
     unsigned mask = 0;
     for (unsigned index = 0; index < kNumPanelsMax; ++index) {
-        if (index == projectedPanel_
-                ? scanningDisk_ || scanningArchive_
-                : panelUi_[index].scanningDisk || panelUi_[index].scanningArchive)
+        if (panelUi_[index].scanningDisk || panelUi_[index].scanningArchive)
             mask |= 1u << index;
     }
     return mask;
@@ -98,16 +49,12 @@ void MainWindow::withPanelProjection(unsigned index, const std::function<void()>
     const unsigned original = projectedPanel_;
     const QPointer<MainWindow> guard(this);
     const QString status = statusBar()->currentMessage();
-    storePanelUi(original);
-    restorePanelUi(index);
     projectedPanel_ = index;
     app_.SetFocusedPanel(index);
     ++panelProjectionDepth_;
     const auto restore = qScopeGuard([&] {
         if (!guard)
             return;
-        storePanelUi(index);
-        restorePanelUi(original);
         projectedPanel_ = original;
         app_.SetFocusedPanel(original);
         --panelProjectionDepth_;
@@ -125,7 +72,8 @@ void MainWindow::togglePanels() {
         return;
     }
     const QPointer<QWidget> focused = focusWidget();
-    const bool editingAddress = focused && (focused == path_ || focused == pathCombo_);
+    const bool editingAddress =
+        focused && (focused == projectedUi().path || focused == projectedUi().pathCombo);
     if (app_.NumPanels == 2 && panelSplitter_)
         panelSplitter_->RememberPosition();
     if (app_.SwitchOnOffOnePanel() != S_OK) {
@@ -161,5 +109,6 @@ QString MainWindow::copyDefaultDestination() const {
         if (!other.isEmpty())
             return other;
     }
-    return state_ == State::Viewing ? returnDirectory_ : directory_;
+    return projectedUi().state == State::Viewing ? projectedUi().returnDirectory
+                                                 : projectedUi().directory;
 }

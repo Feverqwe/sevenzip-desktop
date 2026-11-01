@@ -44,7 +44,7 @@ void MainWindow::transferFiles(const QStringList &sources, const QString &destin
     QtAppOperationState::CallScope call(app_.QtOperations());
     const QString destinationDirectory =
         directPath ? QFileInfo(destination).absolutePath() : destination;
-    if (state_ != State::Filesystem || !QFileInfo(destinationDirectory).isDir() ||
+    if (projectedUi().state != State::Filesystem || !QFileInfo(destinationDirectory).isDir() ||
         QFileInfo(destinationDirectory).isSymLink() || sources.isEmpty() ||
         (directPath && sources.size() != 1)) {
         QMessageBox::warning(this, "Sevenzip",
@@ -130,7 +130,8 @@ void MainWindow::executeCopyDestination(bool move, bool copyToSame, unsigned sou
     const bool devices =
         app_.GetFocusedPanel().IsFSDrivesFolder() && app_.GetFocusedPanel().IsDeviceDrivesPrefix();
     if (sourceIndex != app_.GetFocusedPanelIndex() || indices.IsEmpty() ||
-        (state_ != State::Viewing && state_ != State::Filesystem && !streams && !devices))
+        (projectedUi().state != State::Viewing && projectedUi().state != State::Filesystem &&
+         !streams && !devices))
         return;
     QtAppOperationState::CallScope call(app_.QtOperations());
     if (useDestPanel && !useTemp && transferToArchivePanel(destination, move, indices))
@@ -158,7 +159,7 @@ void MainWindow::executeCopyDestination(bool move, bool copyToSame, unsigned sou
     }
     const bool directPath = indices.Size() == 1 && !destination.endsWith('/') &&
                             !QFileInfo(destination).isDir() && !useDestPanel;
-    if (state_ == State::Viewing) {
+    if (projectedUi().state == State::Viewing) {
         if (useDestPanel && useTemp && transferBetweenArchivePanels(destination, move, indices))
             return;
         transferFromArchive(destination, move, copyToSame, sourceIndex, indices);

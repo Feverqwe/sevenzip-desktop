@@ -133,8 +133,6 @@ class MainWindow : public QMainWindow {
     void rebuildSourceMenus();
     void activateSingleClickedRow(int row);
     void createFilePanel(QMenu *editMenu, unsigned index);
-    void storePanelUi(unsigned index);
-    void restorePanelUi(unsigned index);
     void activatePanelUi(unsigned index);
     void withPanelProjection(unsigned index, const std::function<void()> &body);
     unsigned scanningPanelMask() const;
@@ -296,14 +294,9 @@ class MainWindow : public QMainWindow {
     std::unique_ptr<class QtRenameController> renameController_;
     std::unique_ptr<class QtProgramFileMenu> programFileMenu_;
     std::function<bool(const QUrl &)> fileOpener_;
-    QString archive_;
-    QString displayArchive_;
-    QString archivePassword_;
-    QString archiveFolder_;
     CApp app_;
     QAction *saveBookmarks_[10]{};
     QAction *openBookmarks_[10]{};
-    State state_ = State::Filesystem;
     bool configuringColumns_ = false;
     QAction *sortActions_[5]{};
     QAction *timeActions_[5]{};
@@ -312,9 +305,6 @@ class MainWindow : public QMainWindow {
     QAction *viewActions_[4]{};
     QAction *flatView_ = nullptr;
     QAction *twoPanelsAction_ = nullptr;
-    bool scanningDisk_ = false;
-    bool scanningArchive_ = false;
-    QtFolderProjection *listProjection_ = nullptr;
     struct FilesystemSignature {
         QDateTime modified;
         QDateTime metadataChanged;
@@ -356,9 +346,10 @@ class MainWindow : public QMainWindow {
     QtFileManagerSplitter *panelSplitter_ = nullptr;
     unsigned projectedPanel_ = 0;
     unsigned panelProjectionDepth_ = 0;
+    PanelUiState &projectedUi() { return panelUi_[projectedPanel_]; }
+    const PanelUiState &projectedUi() const { return panelUi_[projectedPanel_]; }
     QTimer *autoRefreshTimer_ = nullptr;
     std::unique_ptr<QtGuiOutputRefresh> guiOutputRefresh_;
-    FilesystemScanner *filesystemScanner_ = nullptr;
     State previousState_ = State::Filesystem;
     enum class ArchiveMoveStage { Extracting, Removing };
     struct PendingArchiveMove {
@@ -369,18 +360,10 @@ class MainWindow : public QMainWindow {
         ArchiveMoveStage stage = ArchiveMoveStage::Extracting;
     };
     std::optional<PendingArchiveMove> archiveMove_;
-    QLineEdit *path_ = nullptr;
-    QComboBox *pathCombo_ = nullptr;
-    QString directory_;
-    QString returnDirectory_;
-    QStringList history_;
-    FileTable *table_ = nullptr;
-    QListView *iconList_ = nullptr;
     Qt::KeyboardModifiers selectionClickModifiers_ = Qt::NoModifier;
     bool selectionClickLeft_ = false;
     bool selectionShiftSequence_ = false;
     bool rightControlPressed_ = false;
-    QStackedWidget *viewStack_ = nullptr;
     QPointer<CProgressDialog> progress_;
     std::unique_ptr<IQtProgressTransport> progressTransport_;
     bool sourceArchiveProgress_ = false;
@@ -418,8 +401,6 @@ class MainWindow : public QMainWindow {
     QAction *refresh_ = nullptr;
     QAction *settingsAction_ = nullptr;
     CFmSettings fileListSettings_;
-    QtFileListHover *tableHover_ = nullptr;
-    QtFileListHover *iconHover_ = nullptr;
     QAction *foldersHistory_ = nullptr;
     QAction *deselectAll_ = nullptr;
     QAction *invertSelection_ = nullptr;

@@ -57,7 +57,7 @@ HRESULT MainWindow::openArchiveAs(const QString &path, const QString &type) {
             focused->setFocus(Qt::OtherFocusReason);
     });
     QtAppOperationState::CallScope call(app_.QtOperations());
-    if (state_ == State::Loading || state_ == State::Operating)
+    if (projectedUi().state == State::Loading || projectedUi().state == State::Operating)
         return E_ABORT;
     const QFileInfo file(path);
     if (!file.isFile() || file.isSymLink()) {
@@ -66,11 +66,12 @@ HRESULT MainWindow::openArchiveAs(const QString &path, const QString &type) {
         return E_INVALIDARG;
     }
     cancelListPublication();
-    if (state_ == State::Filesystem)
-        returnDirectory_ = directory_;
+    if (projectedUi().state == State::Filesystem)
+        projectedUi().returnDirectory = projectedUi().directory;
     auto &panel = app_.GetFocusedPanel();
-    const UString fallback =
-        state_ == State::Namespace ? GetFolderPath(panel.GetFolder()) : ToUString(returnDirectory_);
+    const UString fallback = projectedUi().state == State::Namespace
+                                 ? GetFolderPath(panel.GetFolder())
+                                 : ToUString(projectedUi().returnDirectory);
     QString message;
     HRESULT result;
     {
@@ -136,9 +137,9 @@ HRESULT MainWindow::renderBoundFolder(bool updateAddress) {
     if (!panel.IsArcFolder()) {
         const QString directory = panel.GetFolder()
                                       ? QDir::cleanPath(ToQString(GetFolderPath(panel.GetFolder())))
-                                      : returnDirectory_;
+                                      : projectedUi().returnDirectory;
         const HRESULT loaded =
-            showDirectory(directory.isEmpty() ? returnDirectory_ : directory, false,
+            showDirectory(directory.isEmpty() ? projectedUi().returnDirectory : directory, false,
                           panel.GetFolder() && panel.IsFSFolder(), updateAddress);
         if (loaded == S_OK && selection)
             restoreListSelection(*selection);
@@ -151,18 +152,22 @@ HRESULT MainWindow::renderBoundFolder(bool updateAddress) {
     auto *resource = dynamic_cast<QtArchiveFileResource *>(folder->GetEngineResource());
     if (!resource)
         return E_NOTIMPL;
-    archive_ = resource->EnginePath;
+    projectedUi().archive = resource->EnginePath;
     const auto &parents = panel.GetParentFolders();
-    archivePassword_ = parents.IsEmpty() ? QString() : ToQString(parents.Back().Password);
-    archiveFolder_ = QDir::fromNativeSeparators(ToQString(GetFolderPath(folder)));
-    if (archiveFolder_.endsWith('/'))
-        archiveFolder_.chop(1);
-    displayArchive_ = QDir::fromNativeSeparators(ToQString(panel.GetCurrentFolderPrefix()));
-    displayArchive_.chop(archiveFolder_.size() +
-                         (archiveFolder_.isEmpty() || archiveFolder_.endsWith(':') ? 1 : 2));
+    projectedUi().archivePassword =
+        parents.IsEmpty() ? QString() : ToQString(parents.Back().Password);
+    projectedUi().archiveFolder = QDir::fromNativeSeparators(ToQString(GetFolderPath(folder)));
+    if (projectedUi().archiveFolder.endsWith('/'))
+        projectedUi().archiveFolder.chop(1);
+    projectedUi().displayArchive =
+        QDir::fromNativeSeparators(ToQString(panel.GetCurrentFolderPrefix()));
+    projectedUi().displayArchive.chop(
+        projectedUi().archiveFolder.size() +
+        (projectedUi().archiveFolder.isEmpty() || projectedUi().archiveFolder.endsWith(':') ? 1
+                                                                                            : 2));
     // Keep operation guards until rows and native selection agree. The enum
     // here selects Qt presentation; the app owner still blocks commands.
-    state_ = State::Viewing;
+    projectedUi().state = State::Viewing;
     const HRESULT loaded = renderArchiveFolder(updateAddress);
     if (loaded == S_OK && selection)
         restoreListSelection(*selection);
@@ -171,13 +176,13 @@ HRESULT MainWindow::renderBoundFolder(bool updateAddress) {
 }
 
 void MainWindow::goBack() {
-    if (state_ == State::Loading || state_ == State::Operating)
+    if (projectedUi().state == State::Loading || projectedUi().state == State::Operating)
         return;
-    if (state_ == State::Viewing ||
-        (state_ == State::Namespace && !app_.GetFocusedPanel().IsRootFolder()))
+    if (projectedUi().state == State::Viewing ||
+        (projectedUi().state == State::Namespace && !app_.GetFocusedPanel().IsRootFolder()))
         goParent();
-    else if (!history_.isEmpty()) {
-        const QString previous = history_.takeLast();
+    else if (!projectedUi().history.isEmpty()) {
+        const QString previous = projectedUi().history.takeLast();
         if (previous.isEmpty())
             goRoot(false);
         else
@@ -190,15 +195,16 @@ void MainWindow::goParent() {
         return;
     QtAppOperationState::CallScope call(app_.QtOperations());
     auto &panel = app_.GetFocusedPanel();
-    if (state_ != State::Viewing && state_ != State::Filesystem &&
-        (state_ != State::Namespace || panel.IsRootFolder()))
+    if (projectedUi().state != State::Viewing && projectedUi().state != State::Filesystem &&
+        (projectedUi().state != State::Namespace || panel.IsRootFolder()))
         return;
     if (!panel.GetFolder())
         return;
     const QPointer<QWidget> focused = focusWidget();
     const bool restoreListFocus =
-        focused && (focused == table_ || table_->isAncestorOf(focused) || focused == iconList_ ||
-                    iconList_->isAncestorOf(focused));
+        focused &&
+        (focused == projectedUi().table || projectedUi().table->isAncestorOf(focused) ||
+         focused == projectedUi().iconList || projectedUi().iconList->isAncestorOf(focused));
     const unsigned panelIndex = app_.LastFocusedPanel;
     setState(State::Operating);
     {
@@ -213,13 +219,16 @@ void MainWindow::goParent() {
     else if (!app_.QtOperations().closed() && focused && focused->isVisible() &&
              focused->isEnabled() && !QApplication::activeModalWidget())
         focused->setFocus(Qt::OtherFocusReason);
-    if (panel.IsRootFolder() && !history_.isEmpty() && history_.last().isEmpty())
-        history_.removeLast(); // Parent consumed the virtual-root Back location.
+    if (panel.IsRootFolder() && !projectedUi().history.isEmpty() &&
+        projectedUi().history.last().isEmpty())
+        projectedUi().history.removeLast(); // Parent consumed the virtual-root Back location.
 }
 
 QString MainWindow::archiveDisplayPath() const {
-    if (displayArchive_.isEmpty())
-        return archiveFolder_;
-    return displayArchive_ +
-           (archiveFolder_.isEmpty() ? QString() : QStringLiteral(" / ") + archiveFolder_);
+    if (projectedUi().displayArchive.isEmpty())
+        return projectedUi().archiveFolder;
+    return projectedUi().displayArchive +
+           (projectedUi().archiveFolder.isEmpty()
+                ? QString()
+                : QStringLiteral(" / ") + projectedUi().archiveFolder);
 }

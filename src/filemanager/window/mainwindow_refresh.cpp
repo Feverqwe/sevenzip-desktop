@@ -51,41 +51,42 @@ HRESULT MainWindow::reloadPanelPresentation(unsigned index, const CSelectedState
         restoreListSelection(selection);
         return S_OK;
     }
-    if (state_ != State::Filesystem ||
-        QDir::cleanPath(ToQString(GetFolderPath(panel.GetFolder()))) != directory_) {
+    if (projectedUi().state != State::Filesystem ||
+        QDir::cleanPath(ToQString(GetFolderPath(panel.GetFolder()))) != projectedUi().directory) {
         const HRESULT loaded = renderBoundFolder(!selection.CalledFromTimer);
         if (loaded == S_OK)
             restoreListSelection(selection);
         return loaded;
     }
-    if (!QFileInfo(directory_).isDir()) {
+    if (!QFileInfo(projectedUi().directory).isDir()) {
         const HRESULT loaded = app_.GetFocusedPanel().LoadListItems();
         auto &snapshot = panelUi_[index].autoRefreshSnapshot;
         snapshot.clear();
-        snapshot.insert(directory_, filesystemSignature(directory_));
-        table_->clearSelection();
-        table_->clearRows();
+        snapshot.insert(projectedUi().directory, filesystemSignature(projectedUi().directory));
+        projectedUi().table->clearSelection();
+        projectedUi().table->clearRows();
         statusBar()->showMessage(
-            QCoreApplication::translate("mainwindow_refresh", "Folder not found: ") + directory_);
+            QCoreApplication::translate("mainwindow_refresh", "Folder not found: ") +
+            projectedUi().directory);
         refreshActions();
         return loaded;
     }
-    const int firstRow = table_->rowAt(0);
-    const FilesystemViewport viewport(directory_,
-                                      table_->model()->index(firstRow, 1).data().toString(),
-                                      table_->verticalScrollBar()->value());
+    const int firstRow = projectedUi().table->rowAt(0);
+    const FilesystemViewport viewport(
+        projectedUi().directory, projectedUi().table->model()->index(firstRow, 1).data().toString(),
+        projectedUi().table->verticalScrollBar()->value());
     return refreshFilesystem(selection, true, viewport);
 }
 
 HRESULT MainWindow::refreshFilesystem(const CSelectedState &selection, bool sourceAlreadyBound,
                                       std::optional<FilesystemViewport> viewport) {
-    const HRESULT loaded =
-        showDirectory(directory_, false, sourceAlreadyBound, !selection.CalledFromTimer);
+    const HRESULT loaded = showDirectory(projectedUi().directory, false, sourceAlreadyBound,
+                                         !selection.CalledFromTimer);
     if (loaded != S_OK)
         return loaded;
     panelUi_[projectedPanel_].pendingViewport = std::move(viewport);
     restoreListSelection(selection);
-    if (!scanningDisk_) {
+    if (!projectedUi().scanningDisk) {
         restoreAutoRefreshViewport();
         refreshActions();
     }
@@ -96,7 +97,7 @@ void MainWindow::refreshCurrent(const CSelectedState *preserved) {
     if (app_.QtOperations().closed())
         return;
     QtAppOperationState::CallScope call(app_.QtOperations());
-    if (state_ == State::Namespace) {
+    if (projectedUi().state == State::Namespace) {
         auto &panel = app_.GetFocusedPanel();
         CSelectedState selection;
         if (preserved)
@@ -108,14 +109,14 @@ void MainWindow::refreshCurrent(const CSelectedState *preserved) {
         refreshActions();
         return;
     }
-    if (state_ == State::Filesystem) {
+    if (projectedUi().state == State::Filesystem) {
         CSelectedState selection;
         if (preserved)
             selection = *preserved;
         else
             app_.GetFocusedPanel().SaveSelectedState(selection);
         refreshFilesystem(selection, false);
-    } else if (state_ == State::Viewing) {
+    } else if (projectedUi().state == State::Viewing) {
         auto &panel = app_.GetFocusedPanel();
         CSelectedState selection;
         if (preserved)
@@ -145,7 +146,7 @@ void MainWindow::refreshCurrent(const CSelectedState *preserved) {
             refreshActions();
         } else {
             // Native ReOpen releases the old proxy; never render stale folders.
-            showDirectory(returnDirectory_, false);
+            showDirectory(projectedUi().returnDirectory, false);
             if (result != E_ABORT)
                 QMessageBox::warning(this, QStringLiteral("7-Zip"),
                                      QCoreApplication::translate("mainwindow_refresh",
@@ -165,8 +166,8 @@ void MainWindow::pollAutoRefresh() {
     // Native modal commands hold panel timer/notification guards while their
     // workers can rebuild archive proxies. Do not change the Qt projection
     // (and query the other panel) before CPanel::OnTimer sees those guards.
-    if (scanningDisk_ || app_.QtOperations().active() || app_.QtOperations().closed() ||
-        app_.QtOperations().callActive() || sourceArchiveProgress_)
+    if (projectedUi().scanningDisk || app_.QtOperations().active() ||
+        app_.QtOperations().closed() || app_.QtOperations().callActive() || sourceArchiveProgress_)
         return;
     // Unlike native WM_TIMER, the Qt timer visits both panel projections.
     // Their activation queries status, so honor source notification/status
@@ -180,7 +181,7 @@ void MainWindow::pollAutoRefresh() {
             continue;
         if (index != projectedPanel_)
             activatePanelUi(index);
-        if (state_ == State::Filesystem) {
+        if (projectedUi().state == State::Filesystem) {
             CPanel &panel = app_.GetFocusedPanel();
             const auto &snapshot = panelUi_[index].autoRefreshSnapshot;
             if (panel.AutoRefresh_Mode) {
@@ -202,17 +203,18 @@ void MainWindow::pollAutoRefresh() {
 
 void MainWindow::restoreAutoRefreshViewport() {
     const auto viewport = std::exchange(panelUi_[projectedPanel_].pendingViewport, std::nullopt);
-    if (!viewport || viewport->directory != directory_)
+    if (!viewport || viewport->directory != projectedUi().directory)
         return;
     int row = -1;
-    for (int i = 0; i < table_->rowCount(); ++i) {
-        if (table_->model()->index(i, 1).data().toString() == viewport->topPath) {
+    for (int i = 0; i < projectedUi().table->rowCount(); ++i) {
+        if (projectedUi().table->model()->index(i, 1).data().toString() == viewport->topPath) {
             row = i;
             break;
         }
     }
     if (row >= 0)
-        table_->scrollTo(table_->model()->index(row, 0), QAbstractItemView::PositionAtTop);
+        projectedUi().table->scrollTo(projectedUi().table->model()->index(row, 0),
+                                      QAbstractItemView::PositionAtTop);
     else
-        table_->verticalScrollBar()->setValue(viewport->scrollValue);
+        projectedUi().table->verticalScrollBar()->setValue(viewport->scrollValue);
 }

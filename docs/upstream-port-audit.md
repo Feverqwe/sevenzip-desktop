@@ -92,6 +92,9 @@ rg -n --no-ignore -F 'CAgent::Open' docs/archive/qt-port/upstream-port-audit/ do
 - [Единая граница callback-диалогов](upstream-port-audit/callback-dialog-owner.md)
   — готовность прогресса и показ пароля/ключей в GUI-потоке.
 
+- [Владелец состояния представления панели](upstream-port-audit/panel-presentation-owner.md)
+  — единое состояние каждой панели для команд и фоновых callbacks.
+
 - [Запуск и выбор внешнего Drop](upstream-port-audit/startup-drop-choice.md)
   — подготовка первого окна и запрошенный выбор открытия/упаковки;
   [аудит сценариев](user-workflow-audit.md) хранит текущие результаты и ограничения.

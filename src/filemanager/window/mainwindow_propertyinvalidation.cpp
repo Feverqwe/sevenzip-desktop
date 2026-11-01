@@ -5,12 +5,13 @@
 // Display text is requested from the source panel when Qt paints a cell.
 void MainWindow::redrawSourceProperties() {
     auto &panel = app_.GetFocusedPanel();
-    if (!table_ || !panel.GetFolder() || app_.QtOperations().closed())
+    if (!projectedUi().table || !panel.GetFolder() || app_.QtOperations().closed())
         return;
-    table_->panelModel()->invalidateText();
-    if (table_->isSortingEnabled())
-        table_->panelModel()->sort(table_->horizontalHeader()->sortIndicatorSection(),
-                                   table_->horizontalHeader()->sortIndicatorOrder());
-    table_->viewport()->update();
+    projectedUi().table->panelModel()->invalidateText();
+    if (projectedUi().table->isSortingEnabled())
+        projectedUi().table->panelModel()->sort(
+            projectedUi().table->horizontalHeader()->sortIndicatorSection(),
+            projectedUi().table->horizontalHeader()->sortIndicatorOrder());
+    projectedUi().table->viewport()->update();
     refreshActions();
 }

@@ -128,10 +128,10 @@ void MainWindow::createFileManagerWindow(const QtFileManagerStartup *startup, bo
 }
 
 void MainWindow::cancelListPublication() {
-    filesystemScanner_->cancel();
-    listProjection_->cancel();
-    scanningDisk_ = false;
-    scanningArchive_ = false;
+    projectedUi().filesystemScanner->cancel();
+    projectedUi().listProjection->cancel();
+    projectedUi().scanningDisk = false;
+    projectedUi().scanningArchive = false;
     panelUi_[projectedPanel_].pendingSelection.reset();
     panelUi_[projectedPanel_].pendingViewport.reset();
 }

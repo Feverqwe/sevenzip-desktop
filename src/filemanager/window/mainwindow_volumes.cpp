@@ -32,7 +32,7 @@ void MainWindow::startVolume(VolumeOperation::Mode mode) {
     if (app_.QtOperations().closed())
         return;
     QtAppOperationState::CallScope call(app_.QtOperations());
-    if (state_ != State::Filesystem || volumeOperation_ ||
+    if (projectedUi().state != State::Filesystem || volumeOperation_ ||
         !(mode == VolumeOperation::Mode::Split ? split_ : combine_)->isEnabled())
         return;
     QtVolumeWindowServices services(*this);
@@ -73,7 +73,7 @@ void MainWindow::launchVolume(VolumeOperation *operation, const UString &title,
                 if (!guard || app_.QtOperations().closed())
                     return;
                 if (success) {
-                    showDirectory(directory_, false);
+                    showDirectory(projectedUi().directory, false);
                     if (guard && !app_.QtOperations().closed() && !app_.QtOperations().blocking())
                         statusBar()->showMessage(message);
                 } else {

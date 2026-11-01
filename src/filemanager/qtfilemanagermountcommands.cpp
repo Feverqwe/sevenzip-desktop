@@ -28,7 +28,7 @@ void QtFileManagerCommands::MountReadOnlyContainer() {
         mounts_ = new QtArchiveMountManager(&window_);
     const QString path = ToQString(GetFolderPath(folder));
     const QString label = path.isEmpty() ? QStringLiteral("/") : path;
-    mounts_->mount(resource, label, window_.archivePassword_, path);
+    mounts_->mount(resource, label, window_.projectedUi().archivePassword, path);
 }
 void QtFileManagerCommands::ShowMounts() {
     if (!mounts_)

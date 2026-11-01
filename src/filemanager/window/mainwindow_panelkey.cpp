@@ -63,9 +63,11 @@ bool MainWindow::overridePanelKey(const QKeyEvent &key) const {
 }
 
 bool MainWindow::handlePanelKey(QObject *watched, QKeyEvent *key) {
-    const bool address = watched == path_ || watched == pathCombo_;
-    const bool list = watched == table_ || watched == table_->viewport() || watched == iconList_ ||
-                      (iconList_ && watched == iconList_->viewport());
+    const bool address = watched == projectedUi().path || watched == projectedUi().pathCombo;
+    const bool list = watched == projectedUi().table ||
+                      watched == projectedUi().table->viewport() ||
+                      watched == projectedUi().iconList ||
+                      (projectedUi().iconList && watched == projectedUi().iconList->viewport());
     if (!address && !list)
         return false;
     if (list && isPanelEditorFocused())
@@ -73,7 +75,7 @@ bool MainWindow::handlePanelKey(QObject *watched, QKeyEvent *key) {
     if (address) {
         if (key->key() == Qt::Key_Return || key->key() == Qt::Key_Enter ||
             key->key() == Qt::Key_Escape) {
-            if (auto *header = dynamic_cast<IQtPanelAddressCombo *>(pathCombo_)) {
+            if (auto *header = dynamic_cast<IQtPanelAddressCombo *>(projectedUi().pathCombo)) {
                 app_.GetFocusedPanel().OnNotifyComboBoxEndEdit(key->key() == Qt::Key_Escape
                                                                    ? QtAddressEditReason::Escape
                                                                    : QtAddressEditReason::Return,
@@ -95,8 +97,8 @@ bool MainWindow::handlePanelKey(QObject *watched, QKeyEvent *key) {
 
 bool MainWindow::handlePanelListKey(QKeyEvent *key) {
     if (app_.QtOperations().closed() || app_.QtOperations().blocking() ||
-        app_.QtOperations().callActive() || sourceArchiveProgress_ || scanningDisk_ ||
-        scanningArchive_ || QApplication::activeModalWidget())
+        app_.QtOperations().callActive() || sourceArchiveProgress_ || projectedUi().scanningDisk ||
+        projectedUi().scanningArchive || QApplication::activeModalWidget())
         return true;
     CPanel &panel = app_.GetFocusedPanel();
     // Original Panel.cpp::OnNotify suppresses LVN_KEYDOWN with other list
@@ -159,10 +161,10 @@ bool MainWindow::handlePanelListKey(QKeyEvent *key) {
         // range. A queued timer can otherwise observe a later key's focus.
         const QPointer<MainWindow> window(this);
         const QPointer<CPanel> owner(&panel);
-        if (viewStack_->currentWidget() == table_)
-            static_cast<FileTable *>(table_)->handleDefaultKeyPress(key);
+        if (projectedUi().viewStack->currentWidget() == projectedUi().table)
+            static_cast<FileTable *>(projectedUi().table)->handleDefaultKeyPress(key);
         else
-            static_cast<FileIconList *>(iconList_)->handleDefaultKeyPress(key);
+            static_cast<FileIconList *>(projectedUi().iconList)->handleDefaultKeyPress(key);
         if (window && owner && !app_.QtOperations().closed()) {
             owner->OnShiftSelectMessage();
             refreshActions();

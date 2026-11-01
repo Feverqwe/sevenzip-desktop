@@ -13,48 +13,49 @@ HRESULT MainWindow::showDirectory(const QString &path, bool remember, bool sourc
     if (!info.isDir()) {
         statusBar()->showMessage(
             QCoreApplication::translate("mainwindow_filelist", "Folder not found: ") + path);
-        path_->setText(state_ == State::Viewing ? archiveDisplayPath() : directory_);
+        projectedUi().path->setText(
+            projectedUi().state == State::Viewing ? archiveDisplayPath() : projectedUi().directory);
         return E_FAIL;
     }
     const QString next = info.canonicalFilePath();
-    if (remember && state_ == State::Namespace)
-        history_.append(ToQString(GetFolderPath(app_.GetFocusedPanel().GetFolder())));
-    else if (remember && !directory_.isEmpty() && directory_ != next)
-        history_.append(directory_);
+    if (remember && projectedUi().state == State::Namespace)
+        projectedUi().history.append(ToQString(GetFolderPath(app_.GetFocusedPanel().GetFolder())));
+    else if (remember && !projectedUi().directory.isEmpty() && projectedUi().directory != next)
+        projectedUi().history.append(projectedUi().directory);
     cancelListPublication();
     if (!sourceAlreadyBound)
         app_.GetFocusedPanel().CloseOpenFolders();
-    directory_ = next;
+    projectedUi().directory = next;
     auto &snapshot = panelUi_[projectedPanel_].autoRefreshSnapshot;
     snapshot.clear();
-    snapshot.insert(directory_, filesystemSignature(directory_));
-    recordVisitedPath(directory_);
-    archive_.clear();
-    displayArchive_.clear();
-    archivePassword_.clear();
-    archiveFolder_.clear();
+    snapshot.insert(projectedUi().directory, filesystemSignature(projectedUi().directory));
+    recordVisitedPath(projectedUi().directory);
+    projectedUi().archive.clear();
+    projectedUi().displayArchive.clear();
+    projectedUi().archivePassword.clear();
+    projectedUi().archiveFolder.clear();
     renameController_->Cancel(projectedPanel_);
-    table_->clearSelection();
-    table_->setSortingEnabled(false);
-    table_->clearRows();
+    projectedUi().table->clearSelection();
+    projectedUi().table->setSortingEnabled(false);
+    projectedUi().table->clearRows();
     if (updateAddress)
-        path_->setText(directory_);
-    static_cast<FileTable *>(table_)->filesystem = true;
+        projectedUi().path->setText(projectedUi().directory);
+    static_cast<FileTable *>(projectedUi().table)->filesystem = true;
     return startFilesystemListing(sourceAlreadyBound, updateAddress);
 }
 
 void MainWindow::openPath(const QString &path) { navigateTo(QFileInfo(path).absoluteFilePath()); }
 
 HRESULT MainWindow::navigateTo(const QString &path, bool sourceAddress) {
-    if (state_ == State::Loading || state_ == State::Operating)
+    if (projectedUi().state == State::Loading || projectedUi().state == State::Operating)
         return E_ABORT;
-    if (state_ == State::Viewing && path == archiveDisplayPath())
+    if (projectedUi().state == State::Viewing && path == archiveDisplayPath())
         return S_OK;
     // A typed relative address belongs to the displayed filesystem folder.
     // CPanel::BindToPath still resolves the resulting native path.
     const QString nativeAddress =
-        !sourceAddress && state_ == State::Filesystem && QDir::isRelativePath(path)
-            ? QDir(directory_).filePath(path)
+        !sourceAddress && projectedUi().state == State::Filesystem && QDir::isRelativePath(path)
+            ? QDir(projectedUi().directory).filePath(path)
             : path;
     const QFileInfo info(nativeAddress);
     if (!sourceAddress && info.isDir())
@@ -88,10 +89,10 @@ void MainWindow::activateItems(Qt::KeyboardModifiers modifiers) {
 void MainWindow::activateRow(int row, Qt::KeyboardModifiers modifiers) {
     if (renameController_->Pending())
         return;
-    if (row < 0 || row >= table_->rowCount())
+    if (row < 0 || row >= projectedUi().table->rowCount())
         return;
-    if (!table_->selectionModel()->isRowSelected(row, QModelIndex()))
-        table_->selectRow(row);
-    table_->setCurrentCell(row, 0, QItemSelectionModel::NoUpdate);
+    if (!projectedUi().table->selectionModel()->isRowSelected(row, QModelIndex()))
+        projectedUi().table->selectRow(row);
+    projectedUi().table->setCurrentCell(row, 0, QItemSelectionModel::NoUpdate);
     activateItems(modifiers);
 }
