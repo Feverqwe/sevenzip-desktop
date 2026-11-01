@@ -62,7 +62,6 @@ HRESULT COpenArchiveCallback::Open_FscryptKeys(BSTR *keys) {
         FilesystemKeysDefined = true;
     }
     if (!FilesystemKeysDefined) {
-        ProgressDialog.WaitCreating();
         if (!AskCallbackFilesystemKeys(ProgressDialog, FilesystemKeys))
             return E_ABORT;
         FilesystemKeysDefined = true;
@@ -81,7 +80,6 @@ HRESULT COpenArchiveCallback::Open_CryptoGetTextPassword(BSTR *password)
         bool showPassword = NExtract::Read_ShowPassword(SettingsPath);
         bool selectedShowPassword = showPassword;
 
-        ProgressDialog.WaitCreating();
         if (!AskCallbackPassword(ProgressDialog, Password, selectedShowPassword))
             return E_ABORT;
 

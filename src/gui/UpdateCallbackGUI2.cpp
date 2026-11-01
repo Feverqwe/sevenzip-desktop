@@ -40,7 +40,6 @@ HRESULT CUpdateCallbackGUI2::SetOperation_Base(UInt32 notifyOp, const wchar_t *n
 }
 
 HRESULT CUpdateCallbackGUI2::ShowAskPasswordDialog() {
-    ProgressDialog->WaitCreating();
     UString password;
     if (!AskCallbackPassword(*ProgressDialog, password))
         return E_ABORT;

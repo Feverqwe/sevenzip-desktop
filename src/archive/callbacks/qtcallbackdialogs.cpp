@@ -7,6 +7,8 @@ HRESULT RunCallbackDialog(CProgressDialog &parent, const std::function<HRESULT()
     if (QThread::currentThread() == parent.thread())
         return body();
     parent.WaitCreating();
+    // Widgets stay on the GUI thread; the source operation joins its worker
+    // before destroying this progress parent.
     HRESULT result = E_FAIL;
     QMetaObject::invokeMethod(&parent, [&] { result = body(); }, Qt::BlockingQueuedConnection);
     return result;

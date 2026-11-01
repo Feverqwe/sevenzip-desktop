@@ -89,6 +89,9 @@ rg -n --no-ignore -F 'CAgent::Open' docs/archive/qt-port/upstream-port-audit/ do
 - [Общий текстовый отчёт](upstream-port-audit/text-report-owner.md)
   — режим чтения, шрифт и копирование полного текста либо выделения.
 
+- [Единая граница callback-диалогов](upstream-port-audit/callback-dialog-owner.md)
+  — готовность прогресса и показ пароля/ключей в GUI-потоке.
+
 - [Запуск и выбор внешнего Drop](upstream-port-audit/startup-drop-choice.md)
   — подготовка первого окна и запрошенный выбор открытия/упаковки;
   [аудит сценариев](user-workflow-audit.md) хранит текущие результаты и ограничения.

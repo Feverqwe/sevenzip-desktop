@@ -631,7 +631,6 @@ Z7_COM7F_IMF(CExtractCallbackImp::CryptoGetTextPassword(BSTR *password)) {
     if (!PasswordIsDefined) {
         const bool showPassword = NExtract::Read_ShowPassword(SettingsPath);
         bool selectedShowPassword = showPassword;
-        ProgressDialog->WaitCreating();
         if (!AskCallbackPassword(*ProgressDialog, Password, selectedShowPassword))
             return E_ABORT;
         PasswordIsDefined = true;
