@@ -11,22 +11,18 @@ import sys
 sys.dont_write_bytecode = True
 import time
 
-from lib.runner_timing import mark
 from lib.build_paths import build_directory, directory
 
-INVOCATION_STARTED = time.monotonic()
 ROOT = Path(__file__).resolve().parents[1]
 
 
 def run(command, root, timings, phase, capture=False):
     started = time.monotonic()
     print(f"[{phase}]", flush=True)
-    mark(phase + "_start")
     try:
         return subprocess.run(command, cwd=root, check=True, text=True,
                               stdout=subprocess.PIPE if capture else None)
     finally:
-        mark(phase + "_end")
         timings[phase] = round(time.monotonic() - started, 3)
 
 
@@ -163,8 +159,7 @@ def main(argv=None):
                 command.append("--plan")
             if args.prepare_runtime:
                 command.append("--prepare-runtime")
-            environment = dict(os.environ, SEVENZIP_INVOCATION_STARTED=str(INVOCATION_STARTED))
-            result = subprocess.run(command, cwd=ROOT, env=environment)
+            result = subprocess.run(command, cwd=ROOT)
             if result.returncode:
                 return result.returncode
         return 0

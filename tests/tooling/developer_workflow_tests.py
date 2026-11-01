@@ -100,7 +100,7 @@ class WorkflowTests(unittest.TestCase):
         (root / "cmake").mkdir()
         (root / "scripts/lib").mkdir(parents=True, exist_ok=True)
         for name in ("build.sh", "ctest.sh", "verify.py", "config/verify-profiles.json",
-                     "lib/runner_timing.py", "lib/toolchain.py", "lib/toolchain.sh", "lib/runtime_layout.py",
+                     "lib/toolchain.py", "lib/toolchain.sh", "lib/runtime_layout.py",
                      "lib/project_paths.py", "lib/build_paths.py", "lib/cp2_install.py"):
             shutil.copy2(ROOT / "scripts" / name, root / "scripts" / name)
         shutil.copy2(ROOT / "cmake/DeveloperWorkflow.cmake", root / "cmake/DeveloperWorkflow.cmake")
@@ -297,18 +297,6 @@ endif()
                     alias.rmdir()
                 else:
                     alias.unlink()
-
-    def test_unwritable_optional_timing_does_not_fail_verification(self):
-        with tempfile.TemporaryDirectory(prefix="optional timing ") as temporary:
-            root = Path(temporary)
-            self.fixture(root)
-            (root / "runner-tmp").write_text("An unavailable timing directory")
-            with patch.dict(os.environ, {
-                    "SEVENZIP_RUNNER_TIMING": str(root / "runner-tmp/timing.jsonl"),
-                    "SEVENZIP_RUN_TOKEN": "fixture", "SEVENZIP_RUNNER_PYTHON": sys.executable}):
-                self.run_verify(root, "^scenario$")
-            result = json.loads((directory(root, "logs") / "dev/verify-result.json").read_text())
-            self.assertEqual(result["status"], "passed")
 
     def test_analysis_mode_rechecks_an_unchanged_incremental_build(self):
         # Enabling analysis must run its diagnostics even when the executable

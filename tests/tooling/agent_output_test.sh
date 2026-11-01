@@ -97,10 +97,6 @@ chmod +x "$fixture/bin/ctest"
 export PATH="$fixture/bin:$PATH"
 export FAKE_CTEST_PARALLEL_LEVEL="$fixture/ctest-parallel-level"
 export SEVENZIP_INCLUDE_SLOW_TESTS=0
-# Exercise the shell fixture directly. On Windows the inherited Python timing
-# wrapper resolves ctest.exe instead of this extensionless test double.
-unset SEVENZIP_RUNNER_TIMING
-
 ctest_success="$(CTEST_PARALLEL_LEVEL= SEVENZIP_CTEST_JOBS= CODEX_SESSION_ID=test SEVENZIP_SCRIPT_OUTPUT=auto bash \
   "$repo_root/scripts/ctest.sh" --preset dev -R '^agent_output$')"
 [[ "$ctest_success" == 'fixture CTest output' ]]

@@ -36,17 +36,9 @@ if [[ -z "${CTEST_PARALLEL_LEVEL:-}" ]]; then
   export CTEST_PARALLEL_LEVEL="$ctest_jobs"
 fi
 
-invoke_ctest() {
-  if [[ -n "${SEVENZIP_RUNNER_TIMING:-}" ]]; then
-    "$SEVENZIP_RUNNER_PYTHON" scripts/lib/runner_timing.py --ctest "$@"
-  else
-    ctest "$@"
-  fi
-}
-
 run_ctest() {
   case "${SEVENZIP_INCLUDE_SLOW_TESTS:-0}" in
-    1) invoke_ctest --no-tests=error "$@"; return ;;
+    1) ctest --no-tests=error "$@"; return ;;
     0) ;;
     *) printf 'SEVENZIP_INCLUDE_SLOW_TESTS must be 0 or 1.\n' >&2; return 2 ;;
   esac
@@ -73,7 +65,7 @@ run_ctest() {
     fi
   done
   # Bash 3 with nounset needs the guarded expansion for an empty array.
-  invoke_ctest --no-tests=error ${forwarded[@]+"${forwarded[@]}"} --label-exclude "$excluded_labels"
+  ctest --no-tests=error ${forwarded[@]+"${forwarded[@]}"} --label-exclude "$excluded_labels"
 }
 
 run_ctest "$@" | awk '

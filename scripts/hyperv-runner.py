@@ -23,11 +23,9 @@ from lib import hyperv_cp2_sync
 from lib.hyperv_workspace import current_branch, load_workspaces, worktree_root
 from lib.runner_config import load_config, runner_config
 from lib.project_paths import harness_root
-from lib.runner_timing import summarize
 from lib.runtime_layout import codec_runtime
 from lib.build_paths import branch_component, directory, environment as workspace_environment
 
-INVOCATION_STARTED = float(os.environ.get("SEVENZIP_INVOCATION_STARTED", time.monotonic()))
 ROOT = Path(__file__).resolve().parents[1]
 HARNESS = harness_root(ROOT)
 STATE = directory(ROOT, "logs") / "runners"
@@ -80,8 +78,6 @@ def lock_command(record, root, token, action, **kwargs):
         operation += "operate(root, record['token'], 'release-completed')\n"
     else:
         operation = f"operate({root!r}, {token!r}, {action!r})\n"
-        if action == "acquire":
-            operation += "import time\nprint('RUNNER_CLOCK=' + str(time.monotonic()), flush=True)\n"
     code += "\ntry:\n" + "".join("    " + line + "\n" for line in operation.splitlines())
     code += ("except (ValueError, OSError) as error:\n"
              "    import sys\n    print(f'Runner lock: {error}', file=sys.stderr)\n"
@@ -167,8 +163,6 @@ def execute_check(record, platform, preset, root, token, command=None,
         if platform == 'linux':
             build_environment['SEVENZIP_VCPKG_QT_PCH'] = 'OFF'
     runtime_directory = f'{storage}/branches/{branch_component(branch)}/artifacts/{tag}/{preset}/codec-runtime'
-    timing_command = shlex.join([config['python'], 'scripts/lib/runner_timing.py'])
-    payload = timing_command + " command_start\n" + payload
     if platform == "linux":
         storage_environment = ''.join(f'export {key}={shlex.quote(value)}\n'
                                       for key, value in build_environment.items())
@@ -176,7 +170,7 @@ def execute_check(record, platform, preset, root, token, command=None,
                                 if analysis_mode is not None else "")
         script = f"""set -euo pipefail
 cd {shlex.quote(root)}
-mkdir -p runner-tmp/ccache
+mkdir -p runner-tmp
 export TMPDIR="$PWD/runner-tmp" TMP="$PWD/runner-tmp" TEMP="$PWD/runner-tmp"
 export QT_QPA_PLATFORM="${{QT_QPA_PLATFORM:-offscreen}}"
 export CMAKE_BUILD_PARALLEL_LEVEL={build_jobs}
@@ -189,18 +183,16 @@ export LIBGL_ALWAYS_SOFTWARE=1 SEVENZIP_CTEST_JOBS=1
 export PYTHONUTF8=1 PYTHONIOENCODING=utf-8
 export SEVENZIP_RUN_TOKEN={token}
 export SEVENZIP_RUNNER_PYTHON={shlex.quote(config['python'])}
-export SEVENZIP_RUNNER_TIMING="$PWD/runner-tmp/timing.jsonl"
-: > "$SEVENZIP_RUNNER_TIMING"
 export CCACHE_MAXSIZE=2G
 set +e
 (
 set -e
 """
         if prepare_runtime:
-            script += (timing_command + ' runtime_start\n' + shlex.quote(config['python']) +
+            script += (shlex.quote(config['python']) +
                        ' scripts/prepare-runtime.py --preset ' +
                        shlex.quote(preset) + '\n' +
-                       timing_command + ' runtime_end\nexport SEVENZIP_RUNTIME_PREPARED=1\n')
+                       'export SEVENZIP_RUNTIME_PREPARED=1\n')
         script += ('export PATH=' + shlex.quote(runtime_directory) + ':"$PATH"\n'
                    'export SEVENZIP_CODEC_MODULE_DIR=' + shlex.quote(runtime_directory) + '\n' + payload)
         script += (f") > check.log 2>&1\ncode=$?\nprintf '%s\\n' '{token}' > .runner-complete\n"
@@ -228,13 +220,10 @@ set -e
                     'set "SEVENZIP_CTEST_JOBS=1"', f'set "SEVENZIP_CODEC_MODULE_DIR={runtime_directory}"',
                     'set "PYTHONUTF8=1"', 'set "PYTHONIOENCODING=utf-8"',
                     f'set "SEVENZIP_RUN_TOKEN={token}"',
-                    f'set "SEVENZIP_RUNNER_TIMING={root}/runner-tmp/timing.jsonl"',
                     f'cd /d "{root}"']
         if prepare_runtime:
-            commands += [f'"{config["python"]}" scripts/lib/runner_timing.py runtime_start',
-                         f'"{config["python"]}" scripts/prepare-runtime.py --preset {preset}',
+            commands += [f'"{config["python"]}" scripts/prepare-runtime.py --preset {preset}',
                          'if errorlevel 1 exit /b %errorlevel%',
-                         f'"{config["python"]}" scripts/lib/runner_timing.py runtime_end',
                          'set "SEVENZIP_RUNTIME_PREPARED=1"']
         commands += ['bash runner-command.sh', 'exit /b %errorlevel%']
         batch = base64.b64encode(("\r\n".join(commands) + "\r\n").encode()).decode()
@@ -253,8 +242,7 @@ $workspace = & '{config['python']}' -B scripts/lib/build_paths.py env --root '{r
 if ($LASTEXITCODE -ne 0) {{ throw 'Build workspace verification failed' }}
 $lines=@($workspace.PSObject.Properties | ForEach-Object {{ 'set "'+$_.Name+'='+[string]$_.Value+'"' }})
 [IO.File]::WriteAllLines('{root}/workspace-env.cmd', $lines, (New-Object Text.UTF8Encoding($false)))
-New-Item -ItemType Directory '{root}/runner-tmp/ccache' -Force | Out-Null
-[IO.File]::WriteAllText('{root}/runner-tmp/timing.jsonl', '')
+New-Item -ItemType Directory '{root}/runner-tmp' -Force | Out-Null
 $env:TEMP=$env:TMP=$env:TMPDIR='{root}/runner-tmp'
 [IO.File]::WriteAllBytes('{root}/check.cmd', [Convert]::FromBase64String('{batch}'))
 [IO.File]::WriteAllBytes('{root}/runner-command.sh', [Convert]::FromBase64String('{encoded_payload}'))
@@ -296,7 +284,6 @@ def run_platform(platform, local, source, preset, command, prepare_runtime,
               "branch": branch, "directory": root, "interactive": interactive and platform == "windows",
               "elevated": elevated and platform == "windows", "seconds": {}}
     acquired = launched = interrupted_sync = False
-    clock_anchor = None
     print(f"[{platform}] Branch: {branch}; persistent worktree: {root}; "
           f"log: {directory / 'transport.log'}", flush=True)
     with (directory / "transport.log").open("w") as output:
@@ -308,16 +295,8 @@ def run_platform(platform, local, source, preset, command, prepare_runtime,
             result.update(record)
             result["seconds"]["ready"] = round(time.monotonic() - started, 3)
             started = time.monotonic()
-            before_lock = time.monotonic()
-            response = lock_command(record, root, token, "acquire", capture_output=True)
-            after_lock = time.monotonic()
+            lock_command(record, root, token, "acquire", **transport)
             acquired = True
-            if response is not None:
-                for line in response.stdout.splitlines():
-                    if line.startswith("RUNNER_CLOCK="):
-                        clock_anchor = (before_lock, float(line.split("=", 1)[1]), after_lock)
-                    else:
-                        output.write(line + "\n")
             result["seconds"]["guard_and_lock"] = round(time.monotonic() - started, 3)
             started = time.monotonic()
             hyperv_cp2_sync.synchronize(record, platform, source, root, token, directory,
@@ -350,9 +329,6 @@ def run_platform(platform, local, source, preset, command, prepare_runtime,
                 try:
                     if launched:
                         result.update(collect_logs(record, root, directory, command, token, remote, output, branch))
-                        timing = directory / "timing.jsonl"
-                        if timing.exists():
-                            result.update(summarize(timing, token, clock_anchor, INVOCATION_STARTED))
                 except (subprocess.CalledProcessError, OSError, ValueError) as error:
                     result["log_error"] = str(error)
                 try:
@@ -367,9 +343,6 @@ def run_platform(platform, local, source, preset, command, prepare_runtime,
                         result.update(status="error", exit_code=1)
             (directory / "run.json").write_text(json.dumps(result, indent=2) + "\n")
     print(f"[{platform}] {result['status']}; timing: {result['seconds']}; logs: {directory}", flush=True)
-    if "to_tests_seconds" in result:
-        print(f"[{platform}] First test: {result['to_tests_seconds']:.3f}s after invocation; "
-              f"bounds: {result['to_tests_bounds_seconds']}; guest phases: {result['guest_seconds']}", flush=True)
     if result["status"] != "passed" or result.get("lock_retained"):
         log = directory / "check.log"
         if not log.exists():

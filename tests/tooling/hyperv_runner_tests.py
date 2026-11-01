@@ -22,7 +22,6 @@ spec.loader.exec_module(runner)
 from lib import hyperv_cp2_sync, cp2_snapshot, hyperv_interactive, hyperv_lock, hyperv_source, hyperv_transport, hyperv_workspace
 from lib.runner_config import load_config
 from lib.build_paths import branch_component, directory, host_tag
-from lib.runner_timing import summarize
 
 
 def git(root, *args):
@@ -101,20 +100,6 @@ class RunnerTests(unittest.TestCase):
             with patch.object(hyperv_source.shutil, "copy2", side_effect=racing_copy):
                 hyperv_source.stage_tree(project, staged, source_times=True)
             self.assertEqual((staged / "src/changed.cpp").read_text(), "updated during snapshot")
-
-    def test_test_start_timing_uses_guest_clock_and_rejects_previous_run(self):
-        with tempfile.TemporaryDirectory() as temporary:
-            path = Path(temporary) / "timing.jsonl"
-            events = [("old", "tests_start", 1), ("current", "configure_start", 1002),
-                      ("current", "configure_end", 1005), ("current", "tests_start", 1008),
-                      ("current", "tests_start", 1010)]
-            path.write_text("".join(json.dumps({"token": token, "event": event, "monotonic": stamp}) + "\n"
-                                    for token, event, stamp in events))
-            result = summarize(path, "current", (15, 1000, 17), 10)
-            self.assertEqual(result["to_tests_seconds"], 14)
-            self.assertEqual(result["to_tests_bounds_seconds"], [13, 15])
-            self.assertEqual(result["guest_seconds"]["configure"], 3)
-            self.assertNotIn("to_tests_seconds", summarize(path, "missing", (15, 1000, 17), 10))
 
     def test_interactive_branch_worktree_and_unsafe_roots(self):
         workspace = load_config()["windows"]["workspace"]
@@ -409,8 +394,6 @@ raise SystemExit(runner.main())
             destination.mkdir()
             payload = "Command diagnostics: Юникод 空\r\n".encode() + bytes(range(256)) * 1024
             (root / "check.log").write_bytes(payload)
-            (root / "runner-tmp").mkdir()
-            timing = root / "runner-tmp/timing.jsonl"
             platform = "windows" if os.name == "nt" else "linux"
             report = (base / "branches" / branch_component("fixture") / "logs" /
                       (platform + "-x86_64") / "modules-linux-dev/verify-result.json")
@@ -421,18 +404,14 @@ raise SystemExit(runner.main())
                 return subprocess.run(argv, input=None if os.name == "nt" else script,
                                       text=True, check=True, **kwargs)
             transfer = Mock(side_effect=execute)
-            for scenario in ("complete", "missing-timing", "stale-verification", "missing-verification"):
+            for scenario in ("complete", "stale-verification", "missing-verification"):
                 with self.subTest(scenario=scenario):
-                    timing.write_bytes(b'{"event":"tests_start"}\n')
                     report.write_text(json.dumps({"status": "passed", "run_token": "current"}))
-                    if scenario == "missing-timing":
-                        timing.unlink()
-                    elif scenario == "stale-verification":
+                    if scenario == "stale-verification":
                         report.write_text(json.dumps({"run_token": "previous"}))
                     elif scenario == "missing-verification":
                         report.unlink()
                     # Leftovers from earlier downloads must not masquerade as this run.
-                    (destination / "timing.jsonl").write_text("old timing")
                     (destination / report.name).write_text("old result")
                     transfer.reset_mock()
                     result = hyperv_transport.collect_logs(
@@ -441,11 +420,6 @@ raise SystemExit(runner.main())
                         "current", transfer, None, "fixture")
                     self.assertEqual(transfer.call_count, 1)
                     self.assertEqual((destination / "check.log").read_bytes(), payload)
-                    if scenario == "missing-timing":
-                        self.assertIn("timing_error", result)
-                        self.assertFalse((destination / "timing.jsonl").exists())
-                    else:
-                        self.assertEqual((destination / "timing.jsonl").read_bytes(), timing.read_bytes())
                     if scenario in ("stale-verification", "missing-verification"):
                         self.assertIn("verification_error", result)
                         self.assertFalse((destination / report.name).exists())
@@ -563,7 +537,6 @@ sys.exit(code)
             root = Path(temporary)
             (root / "scripts").mkdir()
             (root / "scripts/lib").mkdir()
-            shutil.copy2(ROOT / "scripts/lib/runner_timing.py", root / "scripts/lib/runner_timing.py")
             self.workspace_fixture(root)
             (root / "scripts/fixture.sh").write_text('printf "%s\\n" "$@" "$TEMP" "$QT_QPA_PLATFORM" "$CMAKE_BUILD_PARALLEL_LEVEL"\nexit 23\n')
             args = ["space name", "Юникод", "$(touch injected)", "a'b", "", "first\nsecond"]
@@ -592,7 +565,6 @@ sys.exit(code)
         with tempfile.TemporaryDirectory(prefix="manifest runner ") as temporary:
             root = Path(temporary)
             (root / "scripts/lib").mkdir(parents=True)
-            shutil.copy2(ROOT / "scripts/lib/runner_timing.py", root / "scripts/lib/runner_timing.py")
             self.workspace_fixture(root)
             (root / "scripts/probe.py").write_text('''import json, os, subprocess, sys
 from pathlib import Path
@@ -642,7 +614,6 @@ Path('selected.json').write_text(json.dumps({key: os.environ.get(key) for key in
         with tempfile.TemporaryDirectory(prefix="windows bootstrap ") as temporary:
             root = Path(temporary)
             (root / "scripts/lib").mkdir(parents=True)
-            shutil.copy2(ROOT / "scripts/lib/runner_timing.py", root / "scripts/lib/runner_timing.py")
             self.workspace_fixture(root)
             selected, bundled = directory(root, "tools") / "vcpkg", root / "bundled tool"
             for tool_directory, status in ((selected, 0), (bundled, 61)):
@@ -706,7 +677,6 @@ subprocess.run([sys.executable, str(Path(os.environ['VCPKG_ROOT']) / 'vcpkg.py')
         with tempfile.TemporaryDirectory(prefix="runtime toolchain ") as temporary:
             root = Path(temporary)
             (root / "scripts/lib").mkdir(parents=True)
-            shutil.copy2(ROOT / "scripts/lib/runner_timing.py", root / "scripts/lib/runner_timing.py")
             self.workspace_fixture(root)
             (root / "scripts/prepare-runtime.py").write_text('''import argparse, os, json
 from pathlib import Path

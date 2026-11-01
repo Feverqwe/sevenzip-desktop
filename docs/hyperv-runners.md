@@ -17,9 +17,8 @@ see [configuration](runner-configuration.md) and
 ## Persistent worktree
 
 Synchronize local code into a persistent guest directory and reuse its build
-outputs; do not create per-run build directories. Branch isolation (user request,
-2026-10-24) replaces the former single shared directory. The global runners
-skill's default fresh-directory workflow does not apply.
+outputs; do not create per-run build directories. Each Git branch has its own
+workspace and lock.
 
 The selected workspace root contains a persistent source directory for each Git branch.
 Source copies, build outputs, runtime data and temporary files use ordinary SSD
@@ -107,20 +106,11 @@ insufficient, report the remaining capacity requirement; do not add a disk.
 
 ## Runner configuration and evidence
 
-Run reports include the time from local script invocation to the first CTest
-test starting, with lower/upper bounds for SSH clock correlation. This uses
-monotonic clocks and does not require synchronized wall clocks. The marker is
-recorded when the wrapper receives CTest's first `Start` line; listing tests or
-failing before execution does not produce a test-start measurement.
-Reports separate local source preparation, readiness, workspace checks/locking,
-transfer and remote execution. Focused `verify.py` runs additionally record
-guest runtime preparation, configuration, target discovery, selection, build
-and test durations and milestones. Missing stages are not reported as zero.
-Timing is diagnostic: unavailable measurements do not change the command result
-or prevent collection of its log and verification report.
-The command log, timing data and verification report return together in one
-compressed SSH response. Missing optional reports are recorded independently;
-a verification report is accepted only for the current run.
+Run reports record command status, readiness, synchronization and execution durations.
+Focused `verify.py` runs also record configuration, selected targets and tests,
+and their results. The command log and verification report return together in
+one compressed SSH response. A verification report is accepted only for the
+current run; missing reports are recorded alongside command failures.
 
 `CMAKE_BUILD_PARALLEL_LEVEL` is forwarded to guest builds when set to a positive
 integer. Use `1` when a guest runs out of memory during compilation; this
