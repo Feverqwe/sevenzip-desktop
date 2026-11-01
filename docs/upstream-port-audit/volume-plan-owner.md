@@ -1,5 +1,33 @@
 # Split/Combine plan ownership — 2026-11-01
 
+## Output transaction records
+
+Rechecked the original workers, naming, preallocation, discovery and command
+branches below with current plans, native I/O/progress adapters, window services
+and transaction consumers. The complete original PanelSplitFile unit still
+matches its recorded baseline; no source import or baseline change is involved.
+
+The Qt no-overwrite transaction now keeps each staged path and its final target
+in one output record, replacing parallel lists and paired admission guards.
+Registration still precedes native creation, and a failed creation removes its
+record. Publication order, successful-prefix counting, stage cleanup before
+published-output rollback, commit behavior and error paths are unchanged. Native
+Split/Combine algorithms and input-change/cancellation policy retain their owners.
+
+A public operation regression introduces a conflicting second output after all
+parts have been written. Failure must roll back the first published part, retain
+the other owner's bytes, remove remaining stages and preserve the source. This
+adds previously missing late-publication coverage without testing transaction
+representation or claiming a pre-fix product failure.
+
+Linux acceptance passed `volume_operations`, `volume_workflow` and
+`worker_window_progress`. After strengthening the new regression to compare the
+whole remaining directory, only `volume_operations` was repeated and passed;
+other passing evidence was reused. This changes portable record ownership,
+without native I/O/platform branches, so no secondary platform was selected.
+Existing incremental outputs, compiler cache and the four-job default were
+retained. No full/slow gate or appearance acceptance is claimed.
+
 Compared the complete original `PanelSplitFile.cpp` declarations, Split/Combine
 commands, worker bodies, sequence naming, preallocation, discovery and summary
 branches with their current Qt callers, services, progress and transaction owners.
