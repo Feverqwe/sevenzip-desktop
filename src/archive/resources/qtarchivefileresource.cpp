@@ -11,6 +11,7 @@
 #include "archive/resources/archivelayercontext.h"
 #include "archive/resources/archivenativeopen.h"
 #include "archive/resources/qtarchivedeleteinputs.h"
+#include "archive/resources/qtarchiveproperties.h"
 #include "fileops/native/FileDir.h"
 #include "platform/temp/WorkDir.h"
 #include "platform/temp/qtownedtempregistry.h"
@@ -40,7 +41,6 @@ QtArchiveFileResource::~QtArchiveFileResource() {
 }
 
 HRESULT QtArchiveFileResource::CloseNativeOpen() {
-    _nativeItemOrder = false;
     _nativePropertiesExplicit = false;
     auto reader = std::move(_nativeOpen);
     // Child streams can still use this generation after navigation or refresh.
@@ -49,7 +49,6 @@ HRESULT QtArchiveFileResource::CloseNativeOpen() {
 }
 
 void QtArchiveFileResource::AttachNativeOpen(std::shared_ptr<ArchiveNativeOpen> reader) {
-    _nativeItemOrder = false;
     _nativeMetadata = false;
     _nativePropertiesExplicit = false;
     _nativeNested = reader && reader->hasNestedStream();
@@ -93,8 +92,7 @@ bool QtArchiveFileResource::HasUpdateService() const {
     const bool preservesPrefix = HasNativeUpdateService() && _nativeOpen->arc().InStream &&
                                  _nativeOpen->arc().ArcStreamOffset != 0;
     return bool(_update) && (Info.offset == 0 || preservesPrefix) && !RequiresOuterOpen() &&
-           !_nativeReadOnly && _filesystemReadLimitations.isEmpty() &&
-           (!_nativeOpen || NativeItemProperties());
+           !_nativeReadOnly && _filesystemReadLimitations.isEmpty();
 }
 
 HRESULT QtArchiveFileResource::ApplyOutputMTime(CWorkDirTempFile &file) const {
@@ -210,7 +208,7 @@ HRESULT QtArchiveFileResource::ConfigureArc(CArc &arc, const CCodecs *codecs) co
         arc.Ask_AltStream = false;
         arc.Ask_Aux = false;
         arc.Ask_INode = false;
-        if (NativeItemProperties()) {
+        if (ArchiveUsesNativeItemIndexes(arc.Archive)) {
             arc.Archive->QueryInterface(IID_IArchiveGetRawProps, (void **)&arc.GetRawProps);
             arc.GetRootProps = native.GetRootProps;
             arc.IsTree = native.IsTree;
@@ -265,19 +263,26 @@ HRESULT QtArchiveFileResource::ReOpen(IFolderFolder **metadata, IArchiveOpenCall
     return _reopen ? _reopen(metadata, callback) : E_NOTIMPL;
 }
 
-HRESULT QtArchiveFileResource::Extract(IInArchive *metadata, const UInt32 *indices, UInt32 count,
-                                       Int32 testMode, IArchiveExtractCallback *callback) {
-    return _extract ? _extract(metadata, indices, count, testMode, callback) : E_NOTIMPL;
+HRESULT QtArchiveFileResource::Extract(IInArchive *metadata, bool nativeIndexes,
+                                       const UInt32 *indices, UInt32 count, Int32 testMode,
+                                       IArchiveExtractCallback *callback) {
+    return _extract ? _extract(metadata, nativeIndexes, indices, count, testMode, callback)
+                    : E_NOTIMPL;
 }
 
 std::unique_ptr<IQtProgressTransport>
-QtArchiveFileResource::CreateProgressTransport(CProgressDialog &dialog, bool nativeWorker) {
-    nativeWorker = nativeWorker || HasStreamInput() || HasNativeUpdateService();
+QtArchiveFileResource::CreateProgressTransport(CProgressDialog &dialog) {
+    bool nativeWorker = HasStreamInput() || HasNativeUpdateService();
     if (_compressionOptions && NativeItemProperties()) {
         const auto &options = *_compressionOptions;
         nativeWorker = nativeWorker || options.SymLinks.Val || options.HardLinks.Val ||
                        options.AltStreams.Val || options.NtSecurity.Val;
     }
+    return CreateProgressTransport(dialog, nativeWorker);
+}
+
+std::unique_ptr<IQtProgressTransport>
+QtArchiveFileResource::CreateProgressTransport(CProgressDialog &dialog, bool nativeWorker) {
     return _progress ? _progress(dialog, nativeWorker) : nullptr;
 }
 

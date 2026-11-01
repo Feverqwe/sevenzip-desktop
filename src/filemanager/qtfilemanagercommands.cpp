@@ -4,6 +4,7 @@
 #include "archive/codecs/archivecodeccatalog.h"
 #include "archive/hashing/HashCalc.h"
 #include "archive/resources/qtarchivefileresource.h"
+#include "archive/resources/qtarchiveproperties.h"
 #include "filemanager/MyLoadMenu.h"
 #include "filemanager/panels/PanelSplitFile.h"
 #include "filemanager/qtfilemenuprojection.h"
@@ -278,10 +279,8 @@ QHash<unsigned, bool> QtFileManagerCommands::Availability() {
     if (availability[OpenArchivePicker] && safeFolderQueries && !w.projectedUi().scanningArchive &&
         !w.projectedUi().scanningDisk) {
         const auto *folder = dynamic_cast<CAgentFolder *>(panel.GetFolder());
-        const auto *resource =
-            folder ? dynamic_cast<QtArchiveFileResource *>(folder->GetEngineResource()) : nullptr;
         availability[MountReadOnly] =
-            resource && resource->NativeReaderLease() && resource->NativeItemProperties();
+            folder && ArchiveUsesNativeItemIndexes(folder->GetArchiveProperties());
     }
     availability[OpenDevicePicker] =
         availability[OpenArchivePicker] && safeFolderQueries && !w.projectedUi().scanningDisk &&

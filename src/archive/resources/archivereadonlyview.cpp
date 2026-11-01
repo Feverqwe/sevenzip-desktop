@@ -48,7 +48,6 @@ ArchiveReadOnlyView::State::State(
         FolderPrefix += u'/';
     if (const auto *owner = dynamic_cast<QtArchiveFileResource *>(resource)) {
         Reader = owner->NativeReaderLease();
-        NativeMetadata = owner->NativeItemProperties() != nullptr;
         Depth = owner->ContainerDepth();
         Limitations = owner->FilesystemReadLimitations();
         if (Limitations.isEmpty() && owner->AllowsIncompleteDeviceRead())
@@ -136,7 +135,7 @@ HRESULT ArchiveReadOnlyView::initialize(QString &error) {
     if (state.Prepared)
         return state.Ready ? S_OK : E_FAIL;
     state.Prepared = true;
-    if (!state.Reader || !state.NativeMetadata) {
+    if (!state.Reader) {
         error = QStringLiteral("This container has no retained native reader.");
         return E_NOINTERFACE;
     }

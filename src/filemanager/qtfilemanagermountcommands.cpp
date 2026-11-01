@@ -1,5 +1,6 @@
 #include "archive/agent/Agent.h"
 #include "archive/resources/qtarchivefileresource.h"
+#include "archive/resources/qtarchiveproperties.h"
 #include "filemanager/qtfilemanagercommands.h"
 #include "filemanager/window/mainwindow.h"
 #include "localization/qtlangcontrols.h"
@@ -22,7 +23,7 @@ void QtFileManagerCommands::MountReadOnlyContainer() {
     auto *folder = dynamic_cast<CAgentFolder *>(window_.app_.GetFocusedPanel().GetFolder());
     auto *resource =
         folder ? dynamic_cast<QtArchiveFileResource *>(folder->GetEngineResource()) : nullptr;
-    if (!resource || !resource->NativeReaderLease())
+    if (!resource || !ArchiveUsesNativeItemIndexes(folder->GetArchiveProperties()))
         return;
     if (!mounts_)
         mounts_ = new QtArchiveMountManager(&window_);

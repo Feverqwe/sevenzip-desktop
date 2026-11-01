@@ -1437,7 +1437,7 @@ bool CAgent::CanUpdate() const {
     if (_archiveLink.Arcs.Size() == 0)
         return true;
     if (auto *resource = dynamic_cast<QtArchiveFileResource *>(_engineResource.Interface()))
-        if (!resource->HasUpdateService())
+        if (!resource->HasUpdateService() || !ArchiveUpdateEnabled(GetArchive()))
             return false;
     if (_isDeviceFile)
         return false;

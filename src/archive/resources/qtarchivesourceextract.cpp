@@ -154,10 +154,10 @@ HRESULT ExtractItems(ArchiveBackend &backend, const QString &archive, const QStr
 void QtArchiveFileResource::AttachExtractService(ArchiveBackend &backend, const QString &format) {
     AttachProgressService(backend);
     _extract = [this, backend = QPointer<ArchiveBackend>(&backend),
-                format](IInArchive *metadata, const UInt32 *indices, UInt32 count, Int32 testMode,
-                        IArchiveExtractCallback *callback) {
+                format](IInArchive *metadata, bool nativeIndexes, const UInt32 *indices,
+                        UInt32 count, Int32 testMode, IArchiveExtractCallback *callback) {
         COM_TRY_BEGIN
-        if (HasNativeExtractService()) {
+        if (nativeIndexes && HasNativeExtractService()) {
             const auto reader = NativeReaderLease();
             return ArchiveBackend::extractNativeArchive(reader, indices, count, testMode, callback);
         }

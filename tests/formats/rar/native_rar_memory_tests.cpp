@@ -201,16 +201,33 @@ class NativeRarMemoryTests final : public QObject {
         QCOMPARE(read(archive), original);
         // A lost index contract must refuse the actual source consumer, not
         // silently run the console decoder with different memory decisions.
-        ArchiveEntry otherEntry;
-        otherEntry.path = "another archive's file.bin";
+        UInt32 itemCount = 0;
+        QCOMPARE(opening.Folder->GetNumberOfItems(&itemCount), S_OK);
+        QList<ArchiveEntry> otherEntries;
+        for (UInt32 index = 0; index < itemCount; ++index) {
+            ArchiveEntry entry;
+            entry.path = QString("another archive's file-%1.bin").arg(index);
+            otherEntries.append(entry);
+        }
         CMyComPtr<IFolderFolder> unrelated;
-        QCOMPARE(CreateArchiveMetadata({otherEntry}, &unrelated), S_OK);
-        CMyComPtr<IInArchive> mismatched;
-        QCOMPARE(CreateArchivePropertyTransport(unrelated, &mismatched, resource), S_OK);
+        QCOMPARE(CreateArchiveMetadata(otherEntries, &unrelated), S_OK);
+        CMyComPtr2_Create<IFolderArcProps, CAgent> mismatchedAgent;
+        QCOMPARE(mismatchedAgent->Init(unrelated, UString(L"rar"), resource), S_OK);
+        CMyComPtr<IFolderFolder> mismatchedFolder;
+        QCOMPARE(mismatchedAgent->BindToRootFolder(&mismatchedFolder), S_OK);
+        auto *mismatched = dynamic_cast<CAgentFolder *>(mismatchedFolder.Interface());
+        QVERIFY(mismatched);
         QVERIFY(resource->HasNativeRarReader());
-        QVERIFY(!resource->HasExtractService());
+        CMyComPtr<IArchiveFolder> mismatchedArchive;
+        QCOMPARE(mismatchedFolder.QueryInterface(IID_IArchiveFolder, &mismatchedArchive),
+                 E_NOINTERFACE);
+        CMyComPtr<IArchiveFolder> retainedOriginal;
+        QCOMPARE(opening.Folder.QueryInterface(IID_IArchiveFolder, &retainedOriginal), S_OK);
+        // A caller that already has the interface still cannot bypass the
+        // extraction boundary's native-index check.
+        mismatchedArchive = static_cast<IArchiveFolder *>(mismatched);
         const QString refusedOutput = fixture.filePath("refused-output");
-        CRarExtractWorker refused(archiveFolder, archive, refusedOutput, true, false);
+        CRarExtractWorker refused(mismatchedArchive, archive, refusedOutput, true, false);
         auto refusedTransport = resource->CreateProgressTransport(refused, true);
         QCOMPARE(refused.Create(L"Source RAR index refusal", nullptr), S_OK);
         QVERIFY(refused.Result != S_OK);

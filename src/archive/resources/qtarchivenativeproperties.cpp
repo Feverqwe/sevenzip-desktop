@@ -7,7 +7,6 @@
 
 void QtArchiveFileResource::UseNativeMetadata() {
     _nativeMetadata = true;
-    BindNativeItemOrder(nullptr);
     if (_nativeOpen) {
         if (const auto *format = _nativeOpen->formatInfo())
             Info.format = QString::fromWCharArray(format->Name.Ptr());
@@ -16,25 +15,23 @@ void QtArchiveFileResource::UseNativeMetadata() {
     }
 }
 
-void QtArchiveFileResource::BindNativeItemOrder(IFolderFolder *metadata) {
-    _nativeItemOrder = false;
+std::shared_ptr<ArchiveNativeOpen>
+QtArchiveFileResource::MatchNativeItemOrder(IFolderFolder *metadata) const {
     if (!_nativeOpen)
-        return;
+        return {};
     if ((HasDirectInput() || UsesNativeMetadata()) && !metadata) {
         // Direct metadata comes from this exact retained handler, including
-        // duplicate names; there is no independent CLI index mapping.
-        _nativeItemOrder = true;
-        return;
+        // duplicate names; there is no independent metadata index mapping.
+        return _nativeOpen;
     }
     if (!metadata)
-        return;
+        return {};
     IInArchive *native = _nativeOpen->arc().Archive;
     UInt32 nativeCount = 0, count = 0;
     if (native->GetNumberOfItems(&nativeCount) != S_OK ||
         metadata->GetNumberOfItems(&count) != S_OK || nativeCount != count)
-        return;
-    // The source Agent proxy currently comes from the file-only item transport.
-    // Never feed its real indexes to another handler without proving the order.
+        return {};
+    // Independent metadata must prove its index order before using this handler.
     QSet<QString> paths;
     for (UInt32 i = 0; i < count; ++i) {
         UString original;
@@ -42,19 +39,19 @@ void QtArchiveFileResource::BindNativeItemOrder(IFolderFolder *metadata) {
         if (_nativeOpen->arc().GetItem_Path(i, original) != S_OK ||
             metadata->GetProperty(i, kpidPath, &presented) != S_OK || presented.vt != VT_BSTR ||
             QString::fromWCharArray(original.Ptr()) != QString::fromWCharArray(presented.bstrVal))
-            return;
+            return {};
         const QString path = QString::fromWCharArray(original.Ptr());
         // Repeated names cannot establish which physical native index the
         // independent metadata row describes. Refuse an ambiguous mapping.
         if (paths.contains(path))
-            return;
+            return {};
         paths.insert(path);
     }
-    _nativeItemOrder = true;
+    return _nativeOpen;
 }
 
 IInArchive *QtArchiveFileResource::NativeItemProperties() const {
-    return _nativeItemOrder && _nativeOpen ? _nativeOpen->arc().Archive.Interface() : nullptr;
+    return _nativeOpen ? _nativeOpen->arc().Archive.Interface() : nullptr;
 }
 
 bool QtArchiveFileResource::HasNativeUpdateService() const {
@@ -104,9 +101,4 @@ bool QtArchiveFileResource::HasNativeHashReader() const {
     return _nativeOpen && _nativeOpen->hasNativeHashExtractor();
 }
 
-bool QtArchiveFileResource::HasExtractService() const {
-    // Never silently replace a source RAR memory decision with a console one
-    // when the process-backed proxy cannot prove matching native item indexes.
-    return bool(_extract) &&
-           ((!HasNativeRarReader() && !HasNativeHashReader()) || HasNativeExtractService());
-}
+bool QtArchiveFileResource::HasExtractService() const { return bool(_extract); }

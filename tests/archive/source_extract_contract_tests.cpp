@@ -53,7 +53,8 @@ class CExtractContractWorker final : public CProgressThreadVirt {
         CMyComPtr<IInArchive> archive;
         RINOK(_metadata.QueryInterface(IID_IInArchive, &archive))
         const UInt32 ignored = UInt32(-1);
-        return _resourceSpec->Extract(archive, &ignored, UInt32(-1), false, Callback.Interface());
+        return _resourceSpec->Extract(archive, false, &ignored, UInt32(-1), false,
+                                      Callback.Interface());
     }
 
   public:

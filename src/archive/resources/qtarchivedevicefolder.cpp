@@ -21,7 +21,6 @@ HRESULT QtArchiveFileResource::RefreshDeviceInput(IOpenCallbackUI *callback, QSt
         ArchiveBackend::openDeviceFilesystem(_codecs, cursor, EnginePath, callback, opened, error))
     AttachNativeOpen(std::move(opened));
     _nativeReadOnly = true;
-    BindNativeItemOrder(nullptr);
     Info.format = _nativeOpen->resolvedOpenType();
     Info.physicalSize = qint64(_nativeOpen->arc().FileSize);
     Info.offset = 0;

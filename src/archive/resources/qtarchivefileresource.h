@@ -38,7 +38,8 @@ class QtArchiveFileResource final : public IUnknown, public CMyUnknownImp {
         _update;
     CProgressSync *_sync = nullptr;
     std::function<HRESULT(IFolderFolder **, IArchiveOpenCallback *)> _reopen;
-    std::function<HRESULT(IInArchive *, const UInt32 *, UInt32, Int32, IArchiveExtractCallback *)>
+    std::function<HRESULT(IInArchive *, bool, const UInt32 *, UInt32, Int32,
+                          IArchiveExtractCallback *)>
         _extract;
     std::function<std::unique_ptr<IQtProgressTransport>(CProgressDialog &, bool)> _progress;
     std::optional<CompressionOptions> _compressionOptions;
@@ -53,7 +54,6 @@ class QtArchiveFileResource final : public IUnknown, public CMyUnknownImp {
     unsigned _containerLevels = 1;
     bool _inputContextDefined = false;
     bool _nativeReadOnly = false;
-    bool _nativeItemOrder = false;
     bool _nativeMetadata = false;
     bool _nativePropertiesExplicit = false;
     QString _filesystemReadLimitations;
@@ -83,7 +83,7 @@ class QtArchiveFileResource final : public IUnknown, public CMyUnknownImp {
         _filesystemReadLimitations = limitations;
     }
     HRESULT CloseNativeOpen();
-    void BindNativeItemOrder(IFolderFolder *metadata);
+    std::shared_ptr<ArchiveNativeOpen> MatchNativeItemOrder(IFolderFolder *metadata) const;
     void UseNativeMetadata();
     bool UsesNativeMetadata() const { return _nativeMetadata; }
     bool HasCommentService() const;
@@ -110,8 +110,9 @@ class QtArchiveFileResource final : public IUnknown, public CMyUnknownImp {
     void AttachExtractService(ArchiveBackend &backend, const QString &format);
     void AttachReopenService(ArchiveBackend &backend, const QString &format);
     HRESULT ReOpen(IFolderFolder **metadata, IArchiveOpenCallback *callback);
+    std::unique_ptr<IQtProgressTransport> CreateProgressTransport(CProgressDialog &dialog);
     std::unique_ptr<IQtProgressTransport> CreateProgressTransport(CProgressDialog &dialog,
-                                                                  bool nativeWorker = false);
+                                                                  bool nativeWorker);
     // The caller owns the dialog until the native worker has joined.
     void SetUpdateProgress(CProgressSync *sync) { _sync = sync; }
     void SetCompressionOptions(const CompressionOptions &options) { _compressionOptions = options; }
@@ -137,6 +138,6 @@ class QtArchiveFileResource final : public IUnknown, public CMyUnknownImp {
     bool HasExtractService() const;
     HRESULT Update(ISequentialOutStream *output, IInArchive *metadata, UInt32 count,
                    IArchiveUpdateCallback *callback);
-    HRESULT Extract(IInArchive *metadata, const UInt32 *indices, UInt32 count, Int32 testMode,
-                    IArchiveExtractCallback *callback);
+    HRESULT Extract(IInArchive *metadata, bool nativeIndexes, const UInt32 *indices, UInt32 count,
+                    Int32 testMode, IArchiveExtractCallback *callback);
 };

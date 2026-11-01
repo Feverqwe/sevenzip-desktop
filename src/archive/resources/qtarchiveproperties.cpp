@@ -2,6 +2,7 @@
 #include "Common/MyCom.h"
 #include "Windows/PropVariant.h"
 #include "archive/opening/OpenArchive.h"
+#include "archive/resources/archivenativeopen.h"
 #include "archive/resources/archivereadstream.h"
 #include "archive/resources/qtarchivefileresource.h"
 #include "archive/resources/qtarchiveitemstream.h"
@@ -23,21 +24,21 @@ class CFolderArchiveProperties final : public IInArchive,
                                        public IArchiveGetRawProps,
                                        public CMyUnknownImp {
     Z7_COM_QI_BEGIN2(IInArchive)
-    else if (_resourceSpec && _resourceSpec->HasNativeItemStreamService() &&
+    else if (NativeArchive() && _resourceSpec->HasNativeItemStreamService() &&
              iid == IID_IInArchiveGetStream) {
         *outObject = static_cast<IInArchiveGetStream *>(this);
     }
-    else if (_resourceSpec && _resourceSpec->HasNativeItemStreamService() &&
+    else if (NativeArchive() && _resourceSpec->HasNativeItemStreamService() &&
              iid == IID_IArchiveGetStreamWithRequest) {
         *outObject = static_cast<IArchiveGetStreamWithRequest *>(this);
     }
-    else if (_rawProps && iid == IID_IArchiveGetRawProps) {
+    else if (RawProperties() && iid == IID_IArchiveGetRawProps) {
         *outObject = static_cast<IArchiveGetRawProps *>(this);
     }
-    else if (_resourceSpec && _resourceSpec->HasUpdateService() && iid == IID_IOutArchive) {
+    else if (CanUpdate() && iid == IID_IOutArchive) {
         *outObject = static_cast<IOutArchive *>(this);
     }
-    else if (_resourceSpec && _resourceSpec->HasNativePropertyService() &&
+    else if (NativeArchive() && _resourceSpec->HasNativePropertyService() &&
              iid == IID_ISetProperties) {
         *outObject = static_cast<ISetProperties *>(this);
     }
@@ -48,13 +49,30 @@ class CFolderArchiveProperties final : public IInArchive,
     CMyComPtr<IFolderFolder> _properties;
     CMyComPtr<IArchiveGetRawProps> _rawProps;
     QtArchiveFileResource *_resourceSpec;
+    std::weak_ptr<ArchiveNativeOpen> _native;
+    std::shared_ptr<ArchiveNativeOpen> NativeReader() const {
+        auto reader = _native.lock();
+        return _resourceSpec && reader == _resourceSpec->NativeReaderLease() ? reader : nullptr;
+    }
+    IInArchive *NativeArchive() const {
+        const auto reader = NativeReader();
+        return reader ? reader->arc().Archive.Interface() : nullptr;
+    }
+    IArchiveGetRawProps *RawProperties() const {
+        return _properties || NativeArchive() ? _rawProps.Interface() : nullptr;
+    }
+    bool CanUpdate() const {
+        return _resourceSpec && _resourceSpec->HasUpdateService() &&
+               (!_resourceSpec->NativeItemProperties() || NativeArchive());
+    }
     void BindRawProperties() {
+        _native.reset();
         _rawProps.Release();
         if (_properties)
             _properties.QueryInterface(IID_IArchiveGetRawProps, &_rawProps);
         if (_resourceSpec) {
-            _resourceSpec->BindNativeItemOrder(_properties);
-            if (auto *native = _resourceSpec->NativeItemProperties()) {
+            _native = _resourceSpec->MatchNativeItemOrder(_properties);
+            if (auto *native = NativeArchive()) {
                 CMyComPtr<IArchiveGetRawProps> raw;
                 native->QueryInterface(IID_IArchiveGetRawProps, (void **)&raw);
                 if (raw)
@@ -64,6 +82,12 @@ class CFolderArchiveProperties final : public IInArchive,
     }
 
   public:
+    bool UsesNativeItemIndexes() const { return NativeArchive() != nullptr; }
+    bool HasExtractService() const {
+        return _resourceSpec && _resourceSpec->HasExtractService() &&
+               ((!_resourceSpec->HasNativeRarReader() && !_resourceSpec->HasNativeHashReader()) ||
+                UsesNativeItemIndexes());
+    }
     CFolderArchiveProperties(IFolderFolder *properties, IUnknown *resource)
         : _resource(resource), _properties(properties),
           _resourceSpec(dynamic_cast<QtArchiveFileResource *>(resource)) {
@@ -79,49 +103,59 @@ class CFolderArchiveProperties final : public IInArchive,
 };
 
 Z7_COM7F_IMF(CFolderArchiveProperties::GetStream(UInt32 index, ISequentialInStream **stream)) {
-    return CreateArchiveItemStream(_resource, index, stream);
+    return GetStreamWithRequest(index, stream, nullptr);
 }
 
 Z7_COM7F_IMF(CFolderArchiveProperties::GetStreamWithRequest(UInt32 index,
                                                             ISequentialInStream **stream,
                                                             IProgress *request)) {
-    return CreateArchiveItemStream(_resource, index, stream, request);
+    if (!stream)
+        return E_INVALIDARG;
+    *stream = nullptr;
+    auto reader = NativeReader();
+    return reader ? CreateArchiveItemStream(_resource, std::move(reader),
+                                            _resourceSpec->ContainerDepth(), index, stream, request)
+                  : E_NOINTERFACE;
 }
 
 Z7_COM7F_IMF(CFolderArchiveProperties::SetProperties(const wchar_t *const *names,
                                                      const PROPVARIANT *values, UInt32 count)) {
-    return _resourceSpec ? _resourceSpec->SetNativeProperties(names, values, count) : E_NOTIMPL;
+    return NativeArchive() ? _resourceSpec->SetNativeProperties(names, values, count)
+                           : E_NOINTERFACE;
 }
 
 Z7_COM7F_IMF(CFolderArchiveProperties::GetParent(UInt32 index, UInt32 *parent, UInt32 *type)) {
-    return _rawProps ? _rawProps->GetParent(index, parent, type) : E_NOTIMPL;
+    auto *raw = RawProperties();
+    return raw ? raw->GetParent(index, parent, type) : E_NOTIMPL;
 }
 Z7_COM7F_IMF(CFolderArchiveProperties::GetNumRawProps(UInt32 *count)) {
-    return _rawProps ? _rawProps->GetNumRawProps(count) : E_NOTIMPL;
+    auto *raw = RawProperties();
+    return raw ? raw->GetNumRawProps(count) : E_NOTIMPL;
 }
 Z7_COM7F_IMF(CFolderArchiveProperties::GetRawPropInfo(UInt32 index, BSTR *name, PROPID *id)) {
-    return _rawProps ? _rawProps->GetRawPropInfo(index, name, id) : E_NOTIMPL;
+    auto *raw = RawProperties();
+    return raw ? raw->GetRawPropInfo(index, name, id) : E_NOTIMPL;
 }
 Z7_COM7F_IMF(CFolderArchiveProperties::GetRawProp(UInt32 index, PROPID id, const void **data,
                                                   UInt32 *size, UInt32 *type)) {
-    return _rawProps ? _rawProps->GetRawProp(index, id, data, size, type) : E_NOTIMPL;
+    auto *raw = RawProperties();
+    return raw ? raw->GetRawProp(index, id, data, size, type) : E_NOTIMPL;
 }
 
 Z7_COM7F_IMF(CFolderArchiveProperties::GetFileTimeType(UInt32 *type)) {
     if (!type)
         return E_INVALIDARG;
-    if (_resourceSpec)
-        if (auto *native = _resourceSpec->NativeItemProperties()) {
-            CMyComPtr<IOutArchive> writer;
-            if (native->QueryInterface(IID_IOutArchive, (void **)&writer) == S_OK)
-                return writer->GetFileTimeType(type);
-        }
+    if (auto *native = NativeArchive()) {
+        CMyComPtr<IOutArchive> writer;
+        if (native->QueryInterface(IID_IOutArchive, (void **)&writer) == S_OK)
+            return writer->GetFileTimeType(type);
+    }
     *type = NFileTimeType::kWindows;
     return S_OK;
 }
 Z7_COM7F_IMF(CFolderArchiveProperties::UpdateItems(ISequentialOutStream *output, UInt32 count,
                                                    IArchiveUpdateCallback *callback)) {
-    return _resourceSpec ? _resourceSpec->Update(output, this, count, callback) : E_NOTIMPL;
+    return CanUpdate() ? _resourceSpec->Update(output, this, count, callback) : E_NOINTERFACE;
 }
 
 Z7_COM7F_IMF(CFolderArchiveProperties::Open(IInStream *, const UInt64 *,
@@ -135,35 +169,37 @@ Z7_COM7F_IMF(CFolderArchiveProperties::Open(IInStream *, const UInt64 *,
     return S_OK;
 }
 Z7_COM7F_IMF(CFolderArchiveProperties::Close()) {
-    return _resourceSpec ? _resourceSpec->CloseNativeOpen() : S_OK;
+    if (!_resourceSpec || (_resourceSpec->NativeReaderLease() && !NativeReader()))
+        return S_OK;
+    _native.reset();
+    return _resourceSpec->CloseNativeOpen();
 }
 Z7_COM7F_IMF(CFolderArchiveProperties::GetNumberOfItems(UInt32 *count)) {
-    if (_resourceSpec)
-        if (auto *native = _resourceSpec->NativeItemProperties())
-            return native->GetNumberOfItems(count);
+    if (auto *native = NativeArchive())
+        return native->GetNumberOfItems(count);
     if (!_properties)
         return E_FAIL;
     return _properties->GetNumberOfItems(count);
 }
 Z7_COM7F_IMF(CFolderArchiveProperties::GetProperty(UInt32 index, PROPID id, PROPVARIANT *value)) {
-    if (_resourceSpec)
-        if (auto *native = _resourceSpec->NativeItemProperties()) {
-            // IInArchive permits an omitted IsDir property (gzip is a file).
-            // The folder/process-plan boundary needs its defined bool. Reuse
-            // the original archive property reader's default/type rules.
-            if (id == kpidIsDir) {
-                bool isDir;
-                RINOK(Archive_IsItem_Dir(native, index, isDir))
-                NWindows::NCOM::CPropVariant prop(isDir);
-                return prop.Detach(value);
-            }
-            return native->GetProperty(index, id, value);
+    if (auto *native = NativeArchive()) {
+        // IInArchive permits an omitted IsDir property (gzip is a file).
+        // The folder/process-plan boundary needs its defined bool. Reuse
+        // the original archive property reader's default/type rules.
+        if (id == kpidIsDir) {
+            bool isDir;
+            RINOK(Archive_IsItem_Dir(native, index, isDir))
+            NWindows::NCOM::CPropVariant prop(isDir);
+            return prop.Detach(value);
         }
+        return native->GetProperty(index, id, value);
+    }
     return _properties ? _properties->GetProperty(index, id, value) : E_FAIL;
 }
 Z7_COM7F_IMF(CFolderArchiveProperties::Extract(const UInt32 *indices, UInt32 count, Int32 testMode,
                                                IArchiveExtractCallback *callback)) {
-    return _resourceSpec ? _resourceSpec->Extract(this, indices, count, testMode, callback)
+    return _resourceSpec ? _resourceSpec->Extract(this, UsesNativeItemIndexes(), indices, count,
+                                                  testMode, callback)
                          : E_NOTIMPL;
 }
 Z7_COM7F_IMF(CFolderArchiveProperties::GetArchiveProperty(PROPID id, PROPVARIANT *value)) {
@@ -174,7 +210,7 @@ Z7_COM7F_IMF(CFolderArchiveProperties::GetArchiveProperty(PROPID id, PROPVARIANT
 }
 Z7_COM7F_IMF(CFolderArchiveProperties::GetNumberOfProperties(UInt32 *count)) {
     if (!_properties && _resourceSpec)
-        if (auto *native = _resourceSpec->NativeItemProperties())
+        if (auto *native = NativeArchive())
             return native->GetNumberOfProperties(count);
     if (!_properties)
         return E_FAIL;
@@ -183,7 +219,7 @@ Z7_COM7F_IMF(CFolderArchiveProperties::GetNumberOfProperties(UInt32 *count)) {
 Z7_COM7F_IMF(CFolderArchiveProperties::GetPropertyInfo(UInt32 index, BSTR *name, PROPID *id,
                                                        VARTYPE *type)) {
     if (!_properties && _resourceSpec)
-        if (auto *native = _resourceSpec->NativeItemProperties())
+        if (auto *native = NativeArchive())
             return native->GetPropertyInfo(index, name, id, type);
     if (!_properties)
         return E_FAIL;
@@ -202,10 +238,20 @@ Z7_COM7F_IMF(CFolderArchiveProperties::GetArchivePropertyInfo(UInt32 index, BSTR
 }
 } // namespace
 
+bool ArchiveUsesNativeItemIndexes(IInArchive *archive) {
+    const auto *view = dynamic_cast<CFolderArchiveProperties *>(archive);
+    return view && view->UsesNativeItemIndexes();
+}
+
+bool ArchiveHasExtractService(IInArchive *archive) {
+    const auto *view = dynamic_cast<CFolderArchiveProperties *>(archive);
+    return view && view->HasExtractService();
+}
+
 HRESULT CreateArchivePropertyTransport(IFolderFolder *properties, IInArchive **archive,
                                        IUnknown *engineResource) {
     const auto *resource = dynamic_cast<QtArchiveFileResource *>(engineResource);
-    if ((!properties && (!resource || !resource->NativeItemProperties())) || !archive)
+    if ((!properties && (!resource || !resource->MatchNativeItemOrder(nullptr))) || !archive)
         return E_INVALIDARG;
     *archive = nullptr;
     if (!engineResource) {
@@ -221,7 +267,7 @@ HRESULT CreateArchivePropertyTransport(IFolderFolder *properties, IInArchive **a
 HRESULT CreateArchiveLinkTransport(CArchiveLink &link, IFolderFolder *properties,
                                    IUnknown *engineResource, const CCodecs *codecs) {
     const auto *resource = dynamic_cast<QtArchiveFileResource *>(engineResource);
-    if (!properties && (!resource || !resource->NativeItemProperties()))
+    if (!properties && (!resource || !resource->MatchNativeItemOrder(nullptr)))
         return E_INVALIDARG;
     if (!link.Arcs.IsEmpty())
         return E_FAIL;

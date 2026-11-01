@@ -22,7 +22,7 @@ struct ArchiveReadOnlyView::State {
     };
     CMyComPtr<IUnknown> Resource;
     std::shared_ptr<ArchiveNativeOpen> Reader;
-    bool NativeMetadata = false, Prepared = false, Ready = false;
+    bool Prepared = false, Ready = false;
     quint64 Depth = 0;
     QString Limitations;
     QString FolderPrefix;

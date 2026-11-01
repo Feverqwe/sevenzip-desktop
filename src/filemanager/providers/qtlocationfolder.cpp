@@ -4,6 +4,7 @@
 #include "Windows/FileName.h"
 #include "archive/agent/Agent.h"
 #include "archive/resources/qtarchivefileresource.h"
+#include "archive/resources/qtarchiveproperties.h"
 #include "filemanager/panels/qtpanelfolder.h"
 #include "filemanager/providers/FSFolder.h"
 #include "fileops/patterns/Wildcard.h"
@@ -13,7 +14,8 @@
 std::unique_ptr<IQtProgressTransport>
 CAgentFolder::CreateProgressTransport(CProgressDialog &dialog) {
     auto *resource = dynamic_cast<QtArchiveFileResource *>(_agentSpec->GetEngineResource());
-    return resource ? resource->CreateProgressTransport(dialog, resource->HasNativeExtractService())
+    return resource ? resource->CreateProgressTransport(
+                          dialog, ArchiveUsesNativeItemIndexes(_agentSpec->GetArchive()))
                     : nullptr;
 }
 
@@ -31,10 +33,7 @@ bool CAgentFolder::CanCopyFromFile() const {
 }
 
 bool CAgentFolder::CanCopyTo() const {
-    if (!_agentSpec)
-        return false;
-    auto *resource = dynamic_cast<QtArchiveFileResource *>(_agentSpec->GetEngineResource());
-    return resource && resource->HasExtractService();
+    return _agentSpec && ArchiveHasExtractService(_agentSpec->GetArchive());
 }
 
 bool CAgentFolder::CanComment() const {

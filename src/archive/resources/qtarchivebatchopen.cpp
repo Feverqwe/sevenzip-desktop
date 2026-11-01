@@ -8,6 +8,7 @@
 #include "archive/agent/Agent.h"
 #include "archive/resources/qtarchivefileresource.h"
 #include "archive/resources/qtarchivefoldermanager.h"
+#include "archive/resources/qtarchiveproperties.h"
 #include "archive/resources/qtfilesystemreadprompt.h"
 #include "fileops/patterns/Wildcard.h"
 #include "ui/progress/ProgressDialog2.h"
@@ -66,17 +67,20 @@ HRESULT QtArchiveBatchOpen::Open(CArchiveLink &link, const COpenOptions &options
         agent ? dynamic_cast<QtArchiveFileResource *>(agent->GetEngineResource()) : nullptr;
     if (!resource || !agent->GetArchiveProperties())
         return E_FAIL;
+    const bool nativeIndexes = ArchiveUsesNativeItemIndexes(agent->GetArchiveProperties());
     if (_extractOptions) {
         QString error;
-        if (!_backend.validateExtraction(
-                _destination, {}, *_extractOptions, &error, resource->HasNativeExtractService(), {},
-                resource->UsesNativeMetadata() ? resource->NativeArchiveLink()->GetArc() : nullptr))
+        if (!_backend.validateExtraction(_destination, {}, *_extractOptions, &error, nativeIndexes,
+                                         {},
+                                         nativeIndexes && resource->UsesNativeMetadata()
+                                             ? resource->NativeArchiveLink()->GetArc()
+                                             : nullptr))
             return E_INVALIDARG;
     }
     // Source OpenArchive applies COpenOptions properties to the native handler.
     // The file-only folder stage has already opened it; RAR extraction options
     // (memx/crc/mt) remain applicable before its original Extract call.
-    if (options.props && resource->HasNativeExtractService())
+    if (options.props && nativeIndexes)
         RINOK(SetProperties(resource->NativeItemProperties(), *options.props))
     CArc &arc = link.Arcs.AddNew();
     arc.Archive = agent->GetArchiveProperties();

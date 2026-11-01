@@ -1,0 +1,61 @@
+# Archive metadata view ownership — 2026-11-01
+
+Reviewed the complete property facade, native index matching, opening/reopening,
+typed backend requests, item streams, update/extract services and source Agent
+capability/property consumers. The original Agent contracts were compared with
+<https://github.com/ip7z/7zip.git> at
+`9128b80e3a471108678e2b3ec3c985861c8d7b0f`. Complete Agent.cpp and AgentOut.cpp
+units match the existing archive/manifest hashes
+`ae8ba20818071b76987a4d715994e058927413804411b55dba1caec5934c4786` and
+`7b2b83432f6f46b534a09a2d7bf02ad13e44fb3c908ef9a9eec192f01c7c3b50`.
+The source archive's container hash also matches its existing baseline. No
+external code is imported or original revision/hash advanced.
+
+Previously each property facade changed a shared resource's index-order flag.
+Constructing unrelated metadata could disable a native facade with no fallback
+properties; constructing another matching facade could make the unrelated one
+return native properties at its unproven indexes. Index authorization now belongs
+to each facade as a weak binding to the reader generation it matched. It cannot
+enable another view or silently authorize a replacement reader's indexes, and
+closing an unrelated or superseded view cannot close the current native reader.
+
+The existing exact count/path/duplicate-name matching remains one pure resource
+service. Direct native metadata retains duplicate-name support without an
+independent index mapping. Item getters, raw properties, item streams,
+writer/property interfaces and extraction use the facade's own binding. Streams
+retain the already established native reader lease. Agent update readiness also
+checks that view's writer interface before source operations can start.
+
+The resource reports physical reader/service capabilities without a mutable
+metadata-view flag. Extraction receives the view's native-index authorization;
+folder progress selects the corresponding native or backend worker directly.
+The direct resource overload retains its previous automatic progress selection.
+Window extraction/test, batch validation and read-only mount commands use the
+same per-view capability boundary. A read-only snapshot retains its own reader;
+its duplicate native-metadata availability flag is removed.
+Unproven RAR/hash indexes still refuse the source consumer. File-only typed
+metadata services, including an absent codec catalog, retain their existing
+fallback and update-service contracts. Explicit writer properties, source I/O,
+callbacks, path validation, publication and cancellation algorithms are unchanged.
+
+The Unicode normalization regression now creates native, unrelated and matching
+public archive views, checking that each retains its own properties and writer
+capability as other views are constructed. It also replaces the reader and checks
+that an old view cannot return the replacement's unrelated entry or close that
+reader. The RAR regression constructs an actual unrelated source Agent:
+its extraction is refused while the original
+folder remains usable. These replace assertions about mutation of the shared
+resource with observable per-view behavior. No pre-fix runtime reproduction is
+claimed; the failure mechanism was established from the complete source path.
+
+Acceptance used a 16-suite core batch and a 12-suite follow-up for the remaining
+extraction/window/mount consumers on Linux, macOS and interactive Windows.
+Together they cover 24 distinct suites per platform: 461 Qt passes on Linux,
+461 on macOS and 464 on Windows, without failures. The three filesystem ADS
+rows skip on each POSIX system; Windows skips the existing colon-filename case.
+The core batches took 91.00/43.65/104.25 seconds and the follow-ups
+76.59/46.97/104.03 seconds respectively. Repeated suites are counted once in
+these totals. Full logs and matching remote completion/verification receipts
+were retained; completed disposable fixtures were removed. Builds reused the
+existing incremental trees and compiler caches. No full gate, opt-in slow
+nested matrices or appearance/visual-parity acceptance is claimed.

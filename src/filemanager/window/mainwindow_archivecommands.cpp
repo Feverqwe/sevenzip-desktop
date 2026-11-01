@@ -7,6 +7,7 @@
 #include "archive/hashing/HashCalc.h"
 #include "archive/resources/qtarchivebatchextract.h"
 #include "archive/resources/qtarchivefileresource.h"
+#include "archive/resources/qtarchiveproperties.h"
 #include "archive/resources/qtextractpathpolicy.h"
 #include "dialogs/messages/MessagesDialog.h"
 #include "filemanager/window/mainwindow.h"
@@ -21,10 +22,11 @@ namespace {
 QString PrepareExtractionDestination(ArchiveBackend &backend, QtArchiveFileResource &resource,
                                      const QString &destination, const QStringList &names,
                                      const ExtractionOptions &options, const QString &archiveFolder,
-                                     QWidget *parent) {
+                                     bool nativeIndexes, QWidget *parent) {
     const auto output = backend.prepareExtractionDestination(
-        destination, names, options, resource.HasNativeExtractService(), archiveFolder,
-        resource.UsesNativeMetadata() ? resource.NativeArchiveLink()->GetArc() : nullptr);
+        destination, names, options, nativeIndexes, archiveFolder,
+        nativeIndexes && resource.UsesNativeMetadata() ? resource.NativeArchiveLink()->GetArc()
+                                                       : nullptr);
     if (!output) {
         QMessageBox::warning(parent, QtLangText(IDS_PROGRESS_EXTRACTING), output.error());
         return {};
@@ -249,8 +251,12 @@ bool MainWindow::extractWithSource(const QString &destination, bool onlySelected
     const bool sourceAvailable =
         resource && (resource->HasDirectInput() || resource->UsesNativeMetadata() ||
                      backend_->hasListedSourceArchive(projectedUi().archive));
+    const bool nativeIndexes =
+        folder && ArchiveUsesNativeItemIndexes(folder->GetArchiveProperties());
+    const bool extractAvailable =
+        folder && ArchiveHasExtractService(folder->GetArchiveProperties());
     if (options.pathMode == ExtractionOptions::PathMode::CurrentPaths &&
-        (!resource || !resource->HasExtractService() || !sourceAvailable)) {
+        (!extractAvailable || !sourceAvailable)) {
         if (options.currentFolder.isEmpty())
             return false; // At archive root, the existing full-path transport is equivalent.
         QMessageBox::warning(
@@ -260,14 +266,14 @@ bool MainWindow::extractWithSource(const QString &destination, bool onlySelected
         return true;
     }
     const bool nativeRar = resource && resource->HasNativeRarReader();
-    if (nativeRar && !resource->HasNativeExtractService()) {
+    if (nativeRar && !nativeIndexes) {
         QMessageBox::warning(
             this, QtLangText(IDS_PROGRESS_EXTRACTING),
             QCoreApplication::translate("mainwindow_archivecommands",
                                         "Source extraction is unavailable for this archive."));
         return true;
     }
-    if (!resource || !resource->HasExtractService() || !sourceAvailable)
+    if (!extractAvailable || !sourceAvailable)
         return false;
     const bool scoped = onlySelected || !projectedUi().archiveFolder.isEmpty() ||
                         resource->HasDirectInput() || resource->UsesNativeMetadata() ||
@@ -292,7 +298,7 @@ bool MainWindow::extractWithSource(const QString &destination, bool onlySelected
     }
     const QString output =
         PrepareExtractionDestination(*backend_, *resource, destination, validationNames, options,
-                                     projectedUi().archiveFolder, this);
+                                     projectedUi().archiveFolder, nativeIndexes, this);
     if (output.isEmpty())
         return true;
     previousState_ = projectedUi().state;
@@ -346,14 +352,15 @@ void MainWindow::testArchive() {
     auto *folder = dynamic_cast<CAgentFolder *>(panel.GetFolder());
     auto *resource =
         folder ? dynamic_cast<QtArchiveFileResource *>(folder->GetEngineResource()) : nullptr;
-    if (resource && resource->HasNativeRarReader() && !resource->HasNativeExtractService()) {
+    if (resource && resource->HasNativeRarReader() &&
+        !ArchiveUsesNativeItemIndexes(folder->GetArchiveProperties())) {
         QMessageBox::warning(
             this, QtLangText(IDS_PROGRESS_TESTING),
             QCoreApplication::translate("mainwindow_archivecommands",
                                         "Source extraction is unavailable for this archive."));
         return;
     }
-    if (resource && resource->HasExtractService() &&
+    if (resource && ArchiveHasExtractService(folder->GetArchiveProperties()) &&
         (resource->HasDirectInput() || resource->UsesNativeMetadata() ||
          backend_->hasListedSourceArchive(projectedUi().archive))) {
         setState(State::Operating);

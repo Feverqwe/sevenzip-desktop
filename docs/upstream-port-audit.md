@@ -57,6 +57,9 @@ rg -n --no-ignore -F 'CAgent::Open' docs/archive/qt-port/upstream-port-audit/ do
 
 ## Новые изменения
 
+- [Владелец метаданных архива](upstream-port-audit/metadata-view-owner.md)
+  — независимая привязка индексов каждого представления к нативному reader.
+
 - [Планы Split/Combine](upstream-port-audit/volume-plan-owner.md)
   — типизированная передача исходных параметров от команды до worker.
 

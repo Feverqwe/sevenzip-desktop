@@ -5,6 +5,7 @@
 #include "archive/resources/archivenativeopen.h"
 #include "archive/resources/qtarchivefileresource.h"
 #include "archive/resources/qtarchivefoldermanager.h"
+#include "archive/resources/qtarchiveproperties.h"
 #include "archive/resources/qtarchivewritelease.h"
 #include "archive/support/archive_backend_test_support.h"
 #include "filemanager/UpdateCallback100.h"
@@ -426,7 +427,7 @@ class CodecUpdateTests final : public QObject, protected ArchiveBackendTestSuppo
                     .entryList({"*.tmp", ".sevenzip-*"}, QDir::Files | QDir::Hidden)
                     .isEmpty());
     }
-    void canonicallyEquivalentMetadataDoesNotProveNativeIndexes() {
+    void metadataViewsKeepIndependentNativeIndexBindings() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString name = QStringLiteral("é 空.bin");
@@ -452,6 +453,8 @@ class CodecUpdateTests final : public QObject, protected ArchiveBackendTestSuppo
         QCOMPARE(resource->NativeItemProperties()->GetProperty(0, kpidPath, &stored), S_OK);
         QCOMPARE(stored.vt, VARTYPE(VT_BSTR));
         const QString original = QString::fromWCharArray(stored.bstrVal);
+        CMyComPtr<IInArchive> nativeView;
+        QCOMPARE(CreateArchivePropertyTransport(nullptr, &nativeView, resource), S_OK);
         ArchiveEntry entry;
         entry.path =
             original.normalized(original == original.normalized(QString::NormalizationForm_C)
@@ -460,13 +463,52 @@ class CodecUpdateTests final : public QObject, protected ArchiveBackendTestSuppo
         QVERIFY(entry.path != original);
         CMyComPtr<IFolderFolder> metadata;
         QCOMPARE(CreateArchiveMetadata({entry}, &metadata), S_OK);
-        resource->BindNativeItemOrder(metadata);
-        QVERIFY(!resource->HasNativeUpdateService());
+        CMyComPtr<IInArchive> unrelatedView;
+        QCOMPARE(CreateArchivePropertyTransport(metadata, &unrelatedView, resource), S_OK);
+        NWindows::NCOM::CPropVariant value;
+        QCOMPARE(nativeView->GetProperty(0, kpidPath, &value), S_OK);
+        QCOMPARE(QString::fromWCharArray(value.bstrVal), original);
+        QCOMPARE(unrelatedView->GetProperty(0, kpidPath, &value), S_OK);
+        QCOMPARE(QString::fromWCharArray(value.bstrVal), entry.path);
+        QVERIFY(ArchiveUpdateEnabled(nativeView));
+        QVERIFY(!ArchiveUpdateEnabled(unrelatedView));
+        QCOMPARE(unrelatedView->Close(), S_OK);
+        const QString unrelated = entry.path;
         metadata.Release();
         entry.path = original;
         QCOMPARE(CreateArchiveMetadata({entry}, &metadata), S_OK);
-        resource->BindNativeItemOrder(metadata);
-        QVERIFY(resource->HasNativeUpdateService());
+        CMyComPtr<IInArchive> matchingView;
+        QCOMPARE(CreateArchivePropertyTransport(metadata, &matchingView, resource), S_OK);
+        QCOMPARE(matchingView->GetProperty(0, kpidPath, &value), S_OK);
+        QCOMPARE(QString::fromWCharArray(value.bstrVal), original);
+        QVERIFY(ArchiveUpdateEnabled(matchingView));
+        QCOMPARE(unrelatedView->GetProperty(0, kpidPath, &value), S_OK);
+        QCOMPARE(QString::fromWCharArray(value.bstrVal), unrelated);
+        QVERIFY(!ArchiveUpdateEnabled(unrelatedView));
+        QCOMPARE(nativeView->GetProperty(0, kpidPath, &value), S_OK);
+        QCOMPARE(QString::fromWCharArray(value.bstrVal), original);
+
+        const QString replacementName = QStringLiteral("replacement 空.bin");
+        writeFile(fixture.filePath(replacementName), "replacement");
+        const QString replacementArchive = fixture.filePath("replacement.7z");
+        creator.start(engine_, {"a", "-t7z", "--", replacementArchive, replacementName});
+        QVERIFY(creator.waitForFinished(10000));
+        QCOMPARE(creator.exitCode(), 0);
+        std::shared_ptr<ArchiveNativeOpen> replacement;
+        QCOMPARE(backend.openNativeArchive(replacementArchive, "7z", nullptr, replacement), S_OK);
+        resource->EnginePath = replacementArchive;
+        resource->AttachNativeOpen(std::move(replacement));
+        resource->UseNativeMetadata();
+        const HRESULT oldRead = nativeView->GetProperty(0, kpidPath, &value);
+        QVERIFY(oldRead != S_OK ||
+                (value.vt == VT_BSTR && QString::fromWCharArray(value.bstrVal) == original));
+        CMyComPtr<IInArchive> replacementView;
+        QCOMPARE(CreateArchivePropertyTransport(nullptr, &replacementView, resource), S_OK);
+        QCOMPARE(replacementView->GetProperty(0, kpidPath, &value), S_OK);
+        QCOMPARE(QString::fromWCharArray(value.bstrVal), replacementName);
+        QCOMPARE(nativeView->Close(), S_OK);
+        QCOMPARE(replacementView->GetProperty(0, kpidPath, &value), S_OK);
+        QCOMPARE(QString::fromWCharArray(value.bstrVal), replacementName);
     }
     void sourcePropertiesReachWriterAndResetAfterUpdate() {
         QTemporaryDir fixture;
