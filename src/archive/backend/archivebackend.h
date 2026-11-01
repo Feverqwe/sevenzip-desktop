@@ -219,6 +219,11 @@ class ArchiveBackend : public QObject {
                                     const QString &output, const QString &format,
                                     const QString &password, bool isAltStream = false);
     bool hasListedSourceArchive(const QString &archive) const;
+    std::expected<QString, QString>
+    prepareExtractionDestination(const QString &destination, const QStringList &selected,
+                                 const ExtractionOptions &options, bool nativeSource = false,
+                                 const QString &sourceFolder = {},
+                                 const CArc *nativeMetadata = nullptr) const;
     // sourceFolder is the exact bound Agent prefix removed by the source callback.
     bool validateExtraction(const QString &destination, const QStringList &selected,
                             const ExtractionOptions &options, QString *error,

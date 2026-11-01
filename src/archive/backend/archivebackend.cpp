@@ -155,23 +155,13 @@ void ArchiveBackend::extract(const QString &archive, const QString &destination,
             return;
         }
     }
-    QString validationError;
-    if (!validateExtraction(destination, selectedEntries, options, &validationError)) {
-        emit finished(false, validationError);
-        return;
-    }
-    const QString outputDirectory = QFileInfo(destination).absoluteFilePath();
-    if (!QDir().mkpath(outputDirectory) ||
-        !validateExtraction(destination, selectedEntries, options, &validationError)) {
-        emit finished(false, validationError.isEmpty()
-                                 ? QCoreApplication::translate(
-                                       "archivebackend", "Could not create destination folder: %1")
-                                       .arg(destination)
-                                 : validationError);
+    const auto output = prepareExtractionDestination(destination, selectedEntries, options);
+    if (!output) {
+        emit finished(false, output.error());
         return;
     }
     auto request = std::make_shared<QtArchiveDirectoryExtractRequest>();
-    request->Destination = outputDirectory;
+    request->Destination = *output;
     request->Selected = selectedEntries;
     request->Options = options;
     pendingPassword_ = password;

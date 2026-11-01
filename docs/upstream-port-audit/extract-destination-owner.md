@@ -30,3 +30,31 @@ Windows also passed native_gui_workflow, for 101 passes and one existing skip:
 the POSIX filename-with-colons case is not an ordinary Windows filename.
 Existing incremental outputs/compiler caches were reused. Completed selected
 scratch was removed after saving results; no full or slow gate was repeated.
+
+The backend follow-up shares the checked destination preparation used by scoped
+source extraction and the listed-archive fallback. Validation, directory creation
+and validation of the resulting absolute destination now have one backend owner;
+the window retains error presentation. Native metadata and the exact bound source
+prefix are passed through unchanged. The existing creation-error text is shared
+with the backend; its English and Russian presentation remains the same.
+
+Reviewed the complete local preparation paths and their consumers, plus the
+original GUI/ExtractGUI destination setup and Common/Extract output-directory
+creation. Both complete original units match the recorded baseline at the
+reference revision above. The extra Qt preflight remains project integration;
+native extraction and runtime output-path checks retain their existing owners.
+No source imports, option-policy changes or provenance advancement.
+
+Existing GUI extraction checks now create new nested Unicode destinations for
+both selected and all entries. The backend mode checks likewise extract into an
+initially absent nested destination. They verify extracted bytes through public
+operations, alongside existing overwrite, cancellation, unsafe-output and link
+checks; no helper-shaped test was added.
+
+The follow-up passed extraction_options, ui_operations, source_extract_backend,
+source_extract_advanced, source_link_extract, source_extract_contract and
+native_rar_ui on Linux first, then macOS and Windows: 114/114/117 passes,
+no failures. Each POSIX platform skips four Windows ACL/ADS/reparse rows;
+Windows skips the ordinary POSIX filename-with-colons row. Existing incremental
+builds and compiler caches were retained. Completed suite scratch was removed
+after saving results; no full/slow gate or visual change was involved.

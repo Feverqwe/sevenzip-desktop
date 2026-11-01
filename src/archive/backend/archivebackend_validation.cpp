@@ -110,6 +110,26 @@ bool ArchiveBackend::validateExtractionStreamOutput(const QString &destination, 
     return validateExtractionOutput(destination, output, false, error);
 }
 
+std::expected<QString, QString> ArchiveBackend::prepareExtractionDestination(
+    const QString &destination, const QStringList &selected, const ExtractionOptions &options,
+    bool nativeSource, const QString &sourceFolder, const CArc *nativeMetadata) const {
+    QString error;
+    const auto validate = [&](const QString &path) {
+        return validateExtraction(path, selected, options, &error, nativeSource, sourceFolder,
+                                  nativeMetadata);
+    };
+    if (!validate(destination))
+        return std::unexpected(error);
+    const QString output = QFileInfo(destination).absoluteFilePath();
+    if (!QDir().mkpath(output))
+        return std::unexpected(
+            QCoreApplication::translate("archivebackend", "Could not create destination folder: %1")
+                .arg(destination));
+    if (!validate(output))
+        return std::unexpected(error);
+    return output;
+}
+
 bool ArchiveBackend::validateExtraction(const QString &destination, const QStringList &selected,
                                         const ExtractionOptions &options, QString *error,
                                         bool nativeSource, const QString &sourceFolder,

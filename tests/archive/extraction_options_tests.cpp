@@ -483,9 +483,8 @@ class ExtractionOptionsTests : public QObject {
         QTemporaryDir temp;
         QVERIFY(temp.isValid());
         const QString source = temp.filePath(QStringLiteral("source folder"));
-        const QString destination = temp.filePath(QStringLiteral("output folder"));
+        const QString destination = temp.filePath(QStringLiteral("новая папка/вложенный output"));
         QVERIFY(QDir().mkpath(source + QStringLiteral("/вложено")));
-        QVERIFY(QDir().mkpath(destination));
         writeFile(source + QStringLiteral("/вложено/δ file.txt"), "archive version");
         writeFile(source + QStringLiteral("/new.txt"), "new file");
         const QString archive = temp.filePath(QStringLiteral("fixture.") + format);

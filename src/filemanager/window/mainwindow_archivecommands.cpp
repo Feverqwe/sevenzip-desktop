@@ -22,27 +22,14 @@ QString PrepareExtractionDestination(ArchiveBackend &backend, QtArchiveFileResou
                                      const QString &destination, const QStringList &names,
                                      const ExtractionOptions &options, const QString &archiveFolder,
                                      QWidget *parent) {
-    QString error;
-    const auto validate = [&](const QString &path) {
-        return backend.validateExtraction(
-            path, names, options, &error, resource.HasNativeExtractService(), archiveFolder,
-            resource.UsesNativeMetadata() ? resource.NativeArchiveLink()->GetArc() : nullptr);
-    };
-    if (!validate(destination)) {
-        QMessageBox::warning(parent, QtLangText(IDS_PROGRESS_EXTRACTING), error);
+    const auto output = backend.prepareExtractionDestination(
+        destination, names, options, resource.HasNativeExtractService(), archiveFolder,
+        resource.UsesNativeMetadata() ? resource.NativeArchiveLink()->GetArc() : nullptr);
+    if (!output) {
+        QMessageBox::warning(parent, QtLangText(IDS_PROGRESS_EXTRACTING), output.error());
         return {};
     }
-    const QString output = QFileInfo(destination).absoluteFilePath();
-    if (!QDir().mkpath(output) || !validate(output)) {
-        QMessageBox::warning(
-            parent, QtLangText(IDS_PROGRESS_EXTRACTING),
-            error.isEmpty() ? QCoreApplication::translate("mainwindow_archivecommands",
-                                                          "Could not create destination folder: %1")
-                                  .arg(destination)
-                            : error);
-        return {};
-    }
-    return output;
+    return *output;
 }
 
 HRESULT ExtractPanelItems(CPanel &panel, CAgentFolder &folder, const QString &output,

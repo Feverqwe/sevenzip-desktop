@@ -16,6 +16,16 @@ void MainWindowOperationsTests::extractAskUsesSourceOverwriteDialog() {
     MainWindow window(&backend);
     window.openArchive(archive);
     QTRY_COMPARE(table(window)->rowCount(), 1);
+    for (bool selected : {false, true}) {
+        const QString freshOutput =
+            temp.filePath(QStringLiteral("новая папка/вложенный output %1").arg(selected));
+        if (selected)
+            table(window)->selectRow(0);
+        window.extractTo(freshOutput, selected);
+        QFile extracted(QDir(freshOutput).filePath(QStringLiteral("архивный файл.txt")));
+        QVERIFY(extracted.open(QIODevice::ReadOnly));
+        QCOMPARE(extracted.readAll(), QByteArray("archive"));
+    }
     QFile old(target);
     QVERIFY(old.open(QIODevice::WriteOnly));
     QCOMPARE(old.write("existing"), qint64(8));
