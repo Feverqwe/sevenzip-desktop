@@ -1,5 +1,35 @@
 # External-process ownership
 
+## Child tracking ownership — 2026-11-01
+
+Compared complete original PanelItemOpen child discovery, process tracking,
+wait/update and temporary-file worker bodies and dependencies at the recorded
+`b88c6bc09339de32f7d18bbab900686b244f42ba` revision in
+<https://github.com/ip7z/7zip.git>, with current launch, GUI bridge, owner-exit
+and archive-publication consumers. The complete original unit matches its
+existing baseline hash. No external code is imported or baseline advanced.
+
+Each tracked Qt process now keeps its owned handle and wait flag in one record,
+using the existing native object-vector owner. Main and discovered handles stay
+guarded until their record exists. Record destruction releases the interface;
+the parallel wait-flag array, paired reservations and raw-handle cleanup loop
+are removed. Original PID admission, child/name discovery, wait projection,
+timing decisions, changed-file prompts, archive writer and externally protected
+copy policy retain their existing control flow and owners. Native process
+adapters are unchanged, including platform-specific close/reaper behavior.
+
+Existing public editing/lifetime/security/launch suites cover a child outliving
+its parent, update acceptance/refusal/cancellation, window exit, protected
+archives and exceptions from name lookup, snapshot or launch after handle
+creation. No representation test or pre-fix product failure is added.
+
+Linux acceptance: `external_launch`, `archive_external_edit`,
+`archive_external_lifetime` and `archive_external_security` pass. Linux is the
+selected platform for this interface-level ownership change; no native adapter
+branch changed. Windows/macOS acceptance is not claimed. The initial build hit
+guest OOM before tests; the unchanged incremental retry passed with configured
+parallelism and compiler cache, without memory or concurrency overrides.
+
 ## One-shot reaper handoff — 2026-10-31
 
 Reviewed the complete native process adapter, creation and adoption paths,
