@@ -39,23 +39,12 @@ def ssh_launcher():
     return binary
 
 
-def destination_filesystem(record, root, remote):
-    if record["platform"] != "linux" or not record.get("config", {}).get("build_wrapper"):
-        return None
-    response = remote(record, shlex.join([
-        "findmnt", "--json", "--target", root, "--output", "FSTYPE"]), capture_output=True)
-    mounts = json.loads(response.stdout).get("filesystems", [])
-    if len(mounts) != 1 or not isinstance(mounts[0].get("fstype"), str) or not mounts[0]["fstype"]:
-        raise ValueError("Cannot determine source destination filesystem")
-    return mounts[0]["fstype"]
-
-
-def command(binary, record, source, root, receiver, checksum=False, filesystem=None):
+def command(binary, record, source, root, receiver, checksum=False):
     argv = [str(binary), str(source) + "/", record["ssh_argv"][-1] + ":" + root,
             "--remote-path", receiver, "--no-auto-install", "--delete", "--no-progress"]
     if record["platform"] == "windows":
         argv.append("--no-perms")
-    if filesystem == "cifs":
+    if record["platform"] == "windows":
         argv += ["--timestamp-resolution-ns", "100"]
     if checksum:
         argv += ["--checksum", "--verify"]
@@ -67,7 +56,6 @@ def command(binary, record, source, root, receiver, checksum=False, filesystem=N
 def synchronize(record, platform, source, root, token, directory, remote, powershell, output,
                 checksum=False):
     started = time.monotonic()
-    filesystem = destination_filesystem(record, root, remote)
     client = hyperv_cp2_install.local()["path"]
     launcher = ssh_launcher()
     receiver = hyperv_cp2_install.ensure(record, remote, output)
@@ -92,7 +80,7 @@ def synchronize(record, platform, source, root, token, directory, remote, powers
         try:
             started = time.monotonic()
             result = subprocess.run(command(client, record, staged, root, receiver["server_path"],
-                                            checksum, filesystem),
+                                            checksum),
                                     env=environment, stdout=output, stderr=subprocess.STDOUT, check=True)
             transfer = time.monotonic() - started
             cp2_snapshot.commit(cache, entries)
@@ -102,7 +90,7 @@ def synchronize(record, platform, source, root, token, directory, remote, powers
                 subprocess.run([*argv[:-1], "-S", str(socket), "-O", "exit", argv[-1]],
                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     details = {"preparation_seconds": round(preparation, 3), "transfer_seconds": round(transfer, 3),
-               "receiver": receiver, "checksum": checksum, "destination_filesystem": filesystem,
+               "receiver": receiver, "checksum": checksum,
                "timestamp_cache": str(cache),
                "exit_code": result.returncode}
     (directory / "cp2-sync.json").write_text(json.dumps(details, indent=2) + "\n")

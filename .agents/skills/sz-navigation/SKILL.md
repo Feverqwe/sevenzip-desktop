@@ -15,7 +15,7 @@ clangd --check=<source-file> --compile-commands-dir="$build_root/dev"
 ```
 
 The compilation database is `$build_root/dev/compile_commands.json`; do not
-assume a fixed path across branches, platforms or RAM/disk workspaces.
+assume a fixed path across branches, platforms or configured workspaces.
 
 Locate current code by its project module owner. The
 [7-Zip baseline](../../../docs/upstream-baseline.json) maps current owners to

@@ -286,8 +286,8 @@ if(WIN32)
     # Original Explorer resource.rc icon entry, with a build-only absolute path.
     string(APPEND sevenzip_native_menu_resource
         "\nIDI_ICON ICON \"${SEVENZIP_7ZIP_SOURCE_DIR}/CPP/7zip/UI/FileManager/FM.ico\"\n")
-    file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/native_context_menu.rc"
-        "${sevenzip_native_menu_resource}")
+    file(CONFIGURE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/native_context_menu.rc" CONTENT
+        "${sevenzip_native_menu_resource}" @ONLY)
     set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${explorer_resource}")
     target_sources(sevenzip_shell PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/native_context_menu.rc")
 endif()

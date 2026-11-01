@@ -124,33 +124,11 @@ configure() {
       "-DCMAKE_CXX_COMPILER_LAUNCHER=$compiler_cache" \
       "-DCMAKE_OBJCXX_COMPILER_LAUNCHER=$compiler_cache" "$@"
   fi
-  local cache_file="$build_directory/CMakeCache.txt"
-  local signature_file="$build_directory/.configure-signature"
-  local requested_signature
-  requested_signature="$(printf '%q ' "$preset" "$@" \
-    "${CMAKE_PREFIX_PATH:-}" "${CC:-}" "${CXX:-}" "${OBJCXX:-}" \
-    "${CFLAGS:-}" "${CXXFLAGS:-}" "${OBJCXXFLAGS:-}" "${LDFLAGS:-}" \
-    "${CMAKE_TOOLCHAIN_FILE:-}" "${SDKROOT:-}" "${CPLUS_INCLUDE_PATH:-}" \
-    "${VCPKG_ROOT:-}" "${VCPKG_OVERLAY_PORTS:-}" \
-    "${SEVENZIP_WINDOWS_RUNNER_HOST:-}" "${COMPUTERNAME:-}" \
-    "$(cksum "$project_root/scripts/build.sh" "$project_root/CMakePresets.json")" | cksum)"
-  local existing_signature=""
-  if [[ -f "$cache_file" && -f "$signature_file" && -f "$build_directory/build.ninja" ]]; then
-    existing_signature="$(printf '%s\n%s\n' "$requested_signature" "$(cksum "$cache_file")")"
-  fi
-  if [[ "${SEVENZIP_SCRIPT_OUTPUT:-compact}" == verbose ]]; then
-    cmake --preset "$preset" "$@"
-  elif [[ -n "$existing_signature" && "$(cat "$signature_file")" == "$existing_signature" ]]; then
-    # Ninja owns CMake input/glob dependencies. Regenerate only when needed,
-    # before CTest selection; this target does not compile the application.
-    cmake --build --preset "$preset" --target build.ninja -- --quiet
-  elif [[ "$preset" == vcpkg-* ]]; then
-    # Manifest installation can take time; retain package progress and errors.
+  if [[ "${SEVENZIP_SCRIPT_OUTPUT:-compact}" == verbose || "$preset" == vcpkg-* ]]; then
     cmake --preset "$preset" "$@"
   else
-    cmake --preset "$preset" --log-level=WARNING "$@" >/dev/null
+    cmake --preset "$preset" --log-level=WARNING "$@"
   fi
-  printf '%s\n%s\n' "$requested_signature" "$(cksum "$cache_file")" > "$signature_file"
 }
 
 if [[ "$preset" != dev && "$preset" != release && "$preset" != modules-dev &&

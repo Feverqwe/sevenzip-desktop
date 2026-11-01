@@ -179,8 +179,8 @@ target_link_libraries(sevenzip_desktop PRIVATE
 if(WIN32)
     # Original resource.rc IDI_ICON entry, with build-local absolute paths.
     add_dependencies(sevenzip_desktop sevenzip_device_reader)
-    file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/application_icon.rc"
-        "#include \"${SEVENZIP_7ZIP_SOURCE_DIR}/CPP/7zip/UI/FileManager/resourceGui.h\"\nIDI_ICON ICON \"${SEVENZIP_7ZIP_SOURCE_DIR}/CPP/7zip/UI/FileManager/FM.ico\"\n")
+    file(CONFIGURE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/application_icon.rc" CONTENT
+        "#include \"${SEVENZIP_7ZIP_SOURCE_DIR}/CPP/7zip/UI/FileManager/resourceGui.h\"\nIDI_ICON ICON \"${SEVENZIP_7ZIP_SOURCE_DIR}/CPP/7zip/UI/FileManager/FM.ico\"\n" @ONLY)
     set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/application_icon.rc" PROPERTIES
         OBJECT_DEPENDS "${SEVENZIP_7ZIP_SOURCE_DIR}/CPP/7zip/UI/FileManager/FM.ico")
     target_sources(sevenzip_desktop PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/application_icon.rc")

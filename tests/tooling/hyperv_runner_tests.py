@@ -12,7 +12,6 @@ import sys
 import tempfile
 import time
 import unittest
-import uuid
 from unittest.mock import Mock, patch
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -22,7 +21,7 @@ runner = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(runner)
 from lib import hyperv_cp2_sync, cp2_snapshot, hyperv_interactive, hyperv_lock, hyperv_source, hyperv_transport, hyperv_workspace
 from lib.runner_config import load_config
-from lib.build_paths import branch_component, directory
+from lib.build_paths import branch_component, directory, host_tag
 from lib.runner_timing import summarize
 
 
@@ -31,35 +30,6 @@ def git(root, *args):
 
 
 class RunnerTests(unittest.TestCase):
-    @unittest.skipIf(os.name == "nt", "Linux shared-storage shell")
-    def test_storage_pin_covers_all_phases_and_refuses_unready_mount(self):
-        with tempfile.TemporaryDirectory(prefix="storage pin ") as temporary:
-            root = Path(temporary)
-            pin = root / "pinned"
-            wrapper = root / "wrapper.py"
-            wrapper.write_text('''import pathlib,subprocess,sys
-pin=pathlib.Path(sys.argv[1])
-if pin.with_suffix('.unavailable').exists(): raise SystemExit(37)
-pin.touch()
-try: raise SystemExit(subprocess.run(sys.argv[2:]).returncode)
-finally: pin.unlink()
-''')
-            record = {"ssh_argv": ["bash", "-c"], "config": {
-                "python": sys.executable,
-                "build_wrapper": [sys.executable, str(wrapper), str(pin)]}}
-            with (root / "log").open("w") as log:
-                with self.assertRaisesRegex(ValueError, "phase failed"):
-                    with hyperv_workspace.shared_storage(record, log):
-                        self.assertTrue(pin.exists())
-                        subprocess.run([sys.executable, "-c", "pass"], check=True)
-                        self.assertTrue(pin.exists())
-                        raise ValueError("phase failed")
-                self.assertFalse(pin.exists())
-                pin.with_suffix('.unavailable').touch()
-                with self.assertRaisesRegex(RuntimeError, "could not be pinned"):
-                    with hyperv_workspace.shared_storage(record, log):
-                        self.fail("unready storage allowed source writes")
-                self.assertFalse(pin.exists())
 
     def test_cp2_snapshot_rebuilds_edits_made_during_previous_build_and_recovers_lost_cache(self):
         if not shutil.which("cmake") or not shutil.which("ninja"):
@@ -164,10 +134,10 @@ finally: pin.unlink()
         environment = patch.dict(os.environ, {"SEVENZIP_RUNNER_CONFIG": str(self.config_path)})
         environment.start()
         self.addCleanup(environment.stop)
+        os.environ.pop("SEVENZIP_SHARED_TOOLS_ROOT", None)
+        os.environ.pop("SEVENZIP_CACHE_ROOT", None)
 
     def workspace_fixture(self, root):
-        (root / "tools/build").mkdir(parents=True, exist_ok=True)
-        shutil.copy2(ROOT / "tools/build/project.json", root / "tools/build/project.json")
         shutil.copy2(ROOT / "scripts/lib/workspace.ps1", root / "scripts/lib/workspace.ps1")
         # The command tests execute the guest shell on the current OS. The
         # storage provider stays real, with fixture-owned durable outputs.
@@ -191,8 +161,6 @@ finally: pin.unlink()
         revision = git(upstream, "rev-parse", "HEAD")
         (project / "docs").mkdir()
         (project / "docs/upstream-baseline.json").write_text(json.dumps({"revision": revision}))
-        (project / "tools/build").mkdir(parents=True)
-        shutil.copy2(ROOT / "tools/build/project.json", project / "tools/build/project.json")
         (project / "src").mkdir()
         (project / "src/changed.cpp").write_text("old")
         (project / "src/deleted.cpp").write_text("old")
@@ -409,34 +377,21 @@ raise SystemExit(runner.main())
             self.assertFalse(guest.with_name(guest.name + ".lock").exists())
             self.assertFalse((guest / "scripts/config/runners.local.json").exists())
 
-    def test_workspace_configuration_and_missing_mount_fail_before_sync(self):
-        with tempfile.TemporaryDirectory() as temporary:
-            state = Path(temporary)
-            valid = {"linux": {"root": "/mnt/custom-data/sevenzip/runs", "mount": "/mnt/custom-data",
-                               "filesystem_uuid": str(uuid.uuid4())},
-                     "windows": {"root": "D:/build/sevenzip/runs"}}
-            settings = {"schema": 1, "runners": load_config()}
-            for platform in valid:
-                settings["runners"][platform]["workspace"] = valid[platform]
-            self.config_path.write_text(json.dumps(settings))
-            self.assertEqual(hyperv_workspace.load_workspaces(), valid)
-            record = {"name": "runner-linux", "ssh_argv": ["ssh", "fixture"], "ip": "fixture"}
-            with patch.object(runner, "discover", return_value=record), \
-                    patch.object(runner, "remote", side_effect=subprocess.CalledProcessError(1, "mount")), \
-                    patch.object(runner, "lock_command") as lock, patch.object(runner, "invoke") as invoke:
-                result = runner.run_platform("linux", state, state, "dev", None, False,
-                                             workspace=valid["linux"], branch="fixture")
-                self.assertEqual(result["directory"], hyperv_workspace.worktree_root(
-                    valid["linux"], "fixture"))
-                self.assertEqual(result["status"], "failed")
-                lock.assert_not_called()
-                invoke.assert_not_called()
-            for invalid in ("/unowned", "/mnt/custom-data/runs/../other"):
-                valid["linux"]["root"] = invalid
-                settings["runners"]["linux"]["workspace"] = valid["linux"]
+    def test_invalid_workspace_paths_fail_before_connecting(self):
+        initial = json.loads(self.config_path.read_text())
+        for platform, path in (("linux", "/unowned"),
+                               ("linux", "/mnt/custom-data/runs/../other"),
+                               ("windows", "C:/"),
+                               ("windows", "C:/runner/project/../other")):
+            with self.subTest(platform=platform, path=path):
+                settings = json.loads(json.dumps(initial))
+                settings["runners"][platform]["workspace"] = {"root": path}
                 self.config_path.write_text(json.dumps(settings))
-                with self.assertRaises(ValueError):
-                    hyperv_workspace.load_workspaces()
+                with patch.object(sys, "argv", ["hyperv-runner.py", "status", platform]), \
+                        patch.object(runner, "discover") as discover:
+                    with self.assertRaises(ValueError):
+                        runner.main()
+                    discover.assert_not_called()
 
     def test_missing_config_fails_before_connecting(self):
         self.config_path.unlink()
@@ -579,6 +534,7 @@ sys.exit(code)
                 runner.remote(record, "exit 7", capture_output=True, timeout=20)
             self.assertEqual(error.exception.returncode, 7)
 
+
     def test_custom_readiness_command_supplies_connection_without_fixed_vm_names(self):
         provider = self.config_path.parent / "discover.py"
         provider.write_text("print(" + repr(json.dumps({"vm": "my-build-vm", "vm_id": "fixture",
@@ -653,12 +609,17 @@ Path('selected.json').write_text(json.dumps({key: os.environ.get(key) for key in
                 return subprocess.run(["bash", "-se"], input=script, text=True,
                                       check=True, capture_output=True)
 
-            settings = dict(config, workspace={"root": (root / "sources").as_posix()})
-            # Match the explicit workspace used by the guest shell fixture.
-            with patch.dict(os.environ, {"SEVENZIP_WORKSPACE": str(root)}):
-                tool_root = directory(root, "tools") / "vcpkg"
+            settings = dict(config, workspace={"root": (root / "sources").as_posix()},
+                            tools_root=(root / "shared tools").as_posix(),
+                            cache_root=(root / "persistent cache").as_posix())
+            tool_root = Path(settings['tools_root']) / host_tag() / "vcpkg"
             tool_root.mkdir(parents=True, exist_ok=True)
-            (tool_root / "host-tool.py").write_text("raise SystemExit(0)\n")
+            archive = Path(settings['cache_root']) / host_tag() / "vcpkg/archives/retained"
+            archive.parent.mkdir(parents=True)
+            archive.write_bytes(b'existing dependency')
+            (tool_root / "host-tool.py").write_text(
+                "import os\nfrom pathlib import Path\n"
+                "assert (Path(os.environ['VCPKG_DEFAULT_BINARY_CACHE'])/'retained').read_bytes()==b'existing dependency'\n")
             with patch.object(runner, "remote", local_remote), \
                     patch.dict(os.environ, {"CMAKE_BUILD_PARALLEL_LEVEL": "2"}):
                 runner.execute_check({"config": settings, "branch": "snapshot"}, "linux", "vcpkg-dev",
@@ -834,8 +795,6 @@ raise SystemExit(0 if matches else 9)
             for helper in ("toolchain.py", "toolchain.sh", "runtime_layout.py", "build_paths.py",
                            "project_paths.py", "cp2_install.py"):
                 shutil.copy2(ROOT / "scripts/lib" / helper, root / "scripts/lib" / helper)
-            (root / "tools/build").mkdir(parents=True)
-            shutil.copy2(ROOT / "tools/build/project.json", root / "tools/build/project.json")
             for name, content in (("bin/git", "exit 73\n"), ("bin/clang-format", "exit 0\n"),
                                   ("scripts/build.sh", "touch built\n"), ("scripts/ctest.sh", "exit 0\n")):
                 path = root / name

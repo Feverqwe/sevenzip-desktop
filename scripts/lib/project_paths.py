@@ -5,17 +5,6 @@ import subprocess
 import sys
 
 
-def physical_path(path):
-    path = Path(path).absolute()
-    # Some Windows filesystem drivers resolve only one enclosing junction
-    # per call. Continue until nested aliases have all been removed.
-    while True:
-        resolved = path.resolve()
-        if resolved == path:
-            return resolved
-        path = resolved
-
-
 def harness_root(source_root):
     root = Path(source_root).resolve()
     if not (root / ".git").is_file():
@@ -27,4 +16,4 @@ def harness_root(source_root):
 
 
 if __name__ == "__main__":
-    print(physical_path(sys.argv[1]).as_posix())
+    print(Path(sys.argv[1]).resolve().as_posix())

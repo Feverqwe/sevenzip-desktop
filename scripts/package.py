@@ -12,7 +12,7 @@ import shutil
 import subprocess
 import tarfile
 import tempfile
-from lib.build_paths import build_directory, checked_output, contained_output, directory, environment, scratch_root
+from lib.build_paths import build_directory, checked_output, directory, environment
 
 ROOT = Path(__file__).resolve().parents[1]
 DEVELOPMENT_SUFFIXES = {".c", ".cpp", ".cc", ".h", ".hpp", ".mm", ".m",
@@ -213,10 +213,7 @@ def main():
     import os
     os.environ.update(environment(ROOT))
     build_input = args.build_dir or build_directory(ROOT, "release")
-    try:
-        args.build_dir = checked_output(ROOT, build_input)
-    except ValueError:
-        args.build_dir = contained_output(scratch_root(ROOT), build_input)
+    args.build_dir = checked_output(ROOT, build_input)
     system = platform.system()
     if args.install_only is not None:
         install = checked_output(ROOT, args.install_only)

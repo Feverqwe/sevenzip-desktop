@@ -6,7 +6,6 @@ import json
 import os
 from pathlib import Path
 import re
-import shutil
 import subprocess
 import sys
 sys.dont_write_bytecode = True
@@ -52,19 +51,6 @@ def selected_targets(tests, artifacts, build):
     return sorted(targets)
 
 
-def cache_stats():
-    cache = shutil.which("ccache")
-    if not cache:
-        return {}
-    environment = dict(os.environ)
-    result = subprocess.run([cache, "--print-stats"], text=True, capture_output=True, env=environment)
-    if result.returncode:
-        return {}
-    wanted = {"cache_miss", "direct_cache_hit", "preprocessed_cache_hit"}
-    return {key: int(value) for line in result.stdout.splitlines()
-            for key, value in [line.split()] if key in wanted}
-
-
 def verify(root, args, profile):
     build = build_directory(root, args.preset)
     build.mkdir(parents=True, exist_ok=True)
@@ -75,9 +61,6 @@ def verify(root, args, profile):
     result = {"status": "running", "profile": args.profile, "selection": args.tests or profile["tests"],
               "preset": args.preset, "tests": [], "targets": [], "seconds": timings,
               "run_token": os.environ.get("SEVENZIP_RUN_TOKEN")}
-    mark("cache_stats_before_start")
-    before_cache = cache_stats()
-    mark("cache_stats_before_end")
     try:
         if not args.plan and args.prepare_runtime and \
                 os.environ.get("SEVENZIP_RUNTIME_PREPARED") != "1":
@@ -124,10 +107,6 @@ def verify(root, args, profile):
         result["error"] = str(error)
         raise
     finally:
-        mark("cache_stats_after_start")
-        after_cache = cache_stats()
-        mark("cache_stats_after_end")
-        result["ccache_delta"] = {name: value - before_cache.get(name, value) for name, value in after_cache.items()}
         report.write_text(json.dumps(result, indent=2) + "\n")
         print("Timing: " + ", ".join(f"{name}={seconds:.2f}s" for name, seconds in timings.items()), flush=True)
         print(f"Result: {result['status']}; {report}", flush=True)

@@ -37,19 +37,10 @@ fixture adjustment is omitted because the installed tool excludes that test
 inventory. The original complete units and licenses remain pinned. The unrelated
 GNU sidecar adaptation is not needed by the project's explicit receiver install.
 Both prior project protections are retained; the combined fingerprint differs
-from the bundled smbStorage binary. Normal CIFS sync selects 100 ns without a
-tree-wide checksum pass. Explicit verification still verifies transferred bytes.
-
-The shared-storage follow-up checks the destination filesystem under the pinned
-readiness wrapper. Only CIFS receives timestamp rounding; the Linux FUSE frontend
-uses cp2's strict comparison. No service/frontend switch, source hashing pass,
-cache reset or cp2 source/baseline change is involved. A real FUSE copy check
-changes same-sized bytes with a one-nanosecond mtime change: the old rounded mode
-skips the change, strict comparison transfers it, and an unchanged repeat skips
-the file. The selected mount and synchronization result are retained as evidence.
-The existing hyperv_runner behavior suite passed on Linux, macOS and Windows;
-the Linux invocation also synchronized the real project through FUSE without
-checksum mode.
+from the original bundled binary. Windows sync selects 100 ns for native
+FILETIME timestamps; Linux keeps strict mtime comparison. This remains useful
+with ordinary SSD storage. Explicit verification still verifies transferred
+bytes. Storage-service wrappers and frontend-specific selection are retired.
 
 Local integration owns installation, the configured SSH connection, protected
 source exclusions and build-fresh snapshot timestamps. cp2 owns reconciliation,

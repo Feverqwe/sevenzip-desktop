@@ -9,6 +9,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts"))
@@ -19,6 +20,12 @@ from lib.runtime_layout import codec_runtime
 @unittest.skipUnless(os.name == "nt", "Windows PowerShell builder")
 class ReferenceBuilderTests(unittest.TestCase):
     def setUp(self):
+        environment = patch.dict(os.environ)
+        environment.start()
+        self.addCleanup(environment.stop)
+        for name in ("SEVENZIP_BRANCH_KEY", "SEVENZIP_OUTPUT_ROOT", "SEVENZIP_SHARED_TOOLS_ROOT",
+                     "SEVENZIP_CACHE_ROOT"):
+            os.environ.pop(name, None)
         self.temporary = tempfile.TemporaryDirectory(prefix="reference builder Юникод ")
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name)
@@ -33,9 +40,7 @@ class ReferenceBuilderTests(unittest.TestCase):
         (self.project / "scripts/lib").mkdir()
         for helper in ("build_paths.py", "project_paths.py", "workspace.ps1", "cp2_install.py"):
             shutil.copy2(ROOT / "scripts/lib" / helper, self.project / "scripts/lib" / helper)
-        (self.project / "tools/build").mkdir(parents=True)
-        shutil.copy2(ROOT / "tools/build/project.json", self.project / "tools/build/project.json")
-        (self.project / "tools/dependencies").mkdir()
+        (self.project / "tools/dependencies").mkdir(parents=True)
         shutil.copy2(ROOT / "tools/dependencies/source_archives.py",
                      self.project / "tools/dependencies/source_archives.py")
         self.adapter = self.project / "tests/support/native_reference_entry.cpp"

@@ -22,12 +22,10 @@ outputs; do not create per-run build directories. Branch isolation (user request
 skill's default fresh-directory workflow does not apply.
 
 The selected workspace root contains a persistent source directory for each Git branch.
-Tools, caches, dependencies, runtime, outputs, native build intermediates,
-temporary files and local source staging use the ordinary disk by default.
-Linux synchronized source copies and generated outputs can use the existing shared
-smbStorage through the
-[storage settings](runner-configuration.md#connections-and-tools); project
-wrappers do not provision RAM disks.
+Source copies, build outputs, runtime data and temporary files use ordinary SSD
+storage. Shared tools and reusable caches are configured separately through
+[storage settings](runner-configuration.md#connections-and-tools). Project
+wrappers do not provision RAM disks or depend on an external storage service.
 Only the branch
 name selects the directory; local checkout paths do not affect it. Different
 branches can run concurrently; runs of the same branch share a lock even from

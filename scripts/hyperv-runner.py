@@ -3,7 +3,6 @@
 
 import argparse
 import base64
-from contextlib import ExitStack
 from concurrent.futures import ThreadPoolExecutor
 import datetime
 import json
@@ -21,7 +20,7 @@ from lib.hyperv_interactive import interactive_command
 from lib.hyperv_source import stage_tree
 from lib.hyperv_transport import collect_logs
 from lib import hyperv_cp2_sync
-from lib.hyperv_workspace import current_branch, load_workspaces, mount_guard, worktree_root, shared_storage
+from lib.hyperv_workspace import current_branch, load_workspaces, worktree_root
 from lib.runner_config import load_config, runner_config
 from lib.project_paths import harness_root
 from lib.runner_timing import summarize
@@ -62,11 +61,8 @@ def discover(platform):
 
 def remote(record, script, **kwargs):
     command = "bash -se"
-    if record["platform"] == "linux" and record.get("config", {}).get("build_wrapper"):
-        command = shlex.join([*record["config"]["build_wrapper"], "bash", "-se"])
     if record["platform"] == "windows":
-        # OpenSSH can delay stdin EOF after a large write. Read a framed ASCII
-        # payload so execution does not depend on EOF or the console code page.
+        # Read a bounded payload without waiting for OpenSSH's delayed EOF.
         script = base64.b64encode(script.encode("utf-8")).decode("ascii")
         command = powershell(
             f"$payload=[char[]]::new({len(script)}); "
@@ -161,6 +157,10 @@ def execute_check(record, platform, preset, root, token, command=None,
     branch = record.get("branch") or current_branch(ROOT)
     tag = platform + '-x86_64'
     build_environment = {'SEVENZIP_WORKSPACE': storage, 'SEVENZIP_SOURCE_ROOT': root}
+    if config.get('tools_root'):
+        build_environment['SEVENZIP_SHARED_TOOLS_ROOT'] = config['tools_root']
+    if config.get('cache_root'):
+        build_environment['SEVENZIP_CACHE_ROOT'] = config['cache_root']
     build_environment.update(diagnostics)
     if use_vcpkg:
         build_environment.update(VCPKG_MAX_CONCURRENCY=str(build_jobs))
@@ -195,7 +195,6 @@ export CCACHE_MAXSIZE=2G
 set +e
 (
 set -e
-df -Pk .
 """
         if prepare_runtime:
             script += (timing_command + ' runtime_start\n' + shlex.quote(config['python']) +
@@ -301,18 +300,14 @@ def run_platform(platform, local, source, preset, command, prepare_runtime,
     print(f"[{platform}] Branch: {branch}; persistent worktree: {root}; "
           f"log: {directory / 'transport.log'}", flush=True)
     with (directory / "transport.log").open("w") as output:
-        storage_session = ExitStack()
         transport = {"stdout": output, "stderr": subprocess.STDOUT}
         try:
             started = time.monotonic()
             record = discover(platform)
             record["branch"] = branch
-            storage_session.enter_context(shared_storage(record, output))
             result.update(record)
             result["seconds"]["ready"] = round(time.monotonic() - started, 3)
             started = time.monotonic()
-            if "filesystem_uuid" in workspace:
-                remote(record, mount_guard(workspace), **transport)
             before_lock = time.monotonic()
             response = lock_command(record, root, token, "acquire", capture_output=True)
             after_lock = time.monotonic()
@@ -370,12 +365,6 @@ def run_platform(platform, local, source, preset, command, prepare_runtime,
                     result["lock_retained"] = str(error)
                     if result["status"] == "passed":
                         result.update(status="error", exit_code=1)
-            try:
-                storage_session.close()
-            except (OSError, subprocess.SubprocessError) as error:
-                result["storage_error"] = str(error)
-                if result["status"] == "passed":
-                    result.update(status="error", exit_code=1)
             (directory / "run.json").write_text(json.dumps(result, indent=2) + "\n")
     print(f"[{platform}] {result['status']}; timing: {result['seconds']}; logs: {directory}", flush=True)
     if "to_tests_seconds" in result:
@@ -523,8 +512,6 @@ def main():
         for platform in args.platforms:
             record = discover(platform)
             workspace = load_workspaces()[platform]
-            if "filesystem_uuid" in workspace:
-                remote(record, mount_guard(workspace))
             root = worktree_root(workspace, branch)
             print(f"[{platform}] Worktree: {root}", flush=True)
             lock_command(record, root, "", args.action)

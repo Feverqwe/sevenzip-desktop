@@ -13,7 +13,7 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts"))
-from lib.build_paths import build_directory, directory
+from lib.build_paths import build_directory, directory, host_tag
 
 
 class WorkflowTests(unittest.TestCase):
@@ -24,32 +24,76 @@ class WorkflowTests(unittest.TestCase):
         # Each miniature project owns its outputs; inheriting the outer
         # runner's destination would mix fixtures and bypass their cleanup.
         os.environ.pop("SEVENZIP_OUTPUT_ROOT", None)
+        os.environ.pop("SEVENZIP_BRANCH_KEY", None)
+        os.environ.pop("SEVENZIP_SHARED_TOOLS_ROOT", None)
+        os.environ.pop("SEVENZIP_CACHE_ROOT", None)
 
-    @unittest.skipIf(os.name == "nt", "POSIX output migration links")
-    def test_migrated_outputs_reuse_build_and_preserve_compiler_cache(self):
-        with tempfile.TemporaryDirectory(prefix="migrated outputs ") as temporary:
+    def directory_alias(self, alias, target):
+        if os.name == "nt":
+            result = subprocess.run(["cmd", "/d", "/c", "mklink", "/J", str(alias), str(target)],
+                                    text=True, capture_output=True)
+            diagnostic = result.stdout + result.stderr
+            self.assertEqual(result.returncode, 0, diagnostic)
+        else:
+            alias.symlink_to(target, target_is_directory=True)
+
+    def test_external_tools_and_cache_preserve_incremental_build(self):
+        with tempfile.TemporaryDirectory(prefix="shared outputs ") as temporary:
             root = Path(temporary)
             self.fixture(root)
-            environment = dict(os.environ, CMAKE_PREFIX_PATH=str(root))
+            workspace = root / "runner project"
+            os.environ.update(SEVENZIP_WORKSPACE=str(workspace), SEVENZIP_SOURCE_ROOT=str(root))
+            os.environ["SEVENZIP_CACHE_ROOT"] = str(root / "persistent cache")
+            (root / "scratch-probe.py").write_text(
+                "import os,pathlib,subprocess,sys,tempfile\n"
+                "tool=pathlib.Path(os.environ['SEVENZIP_TOOLS_ROOT'])/'probe-tool.py'\n"
+                "data=subprocess.check_output([sys.executable,str(tool)])\n"
+                "with tempfile.TemporaryDirectory() as temporary:\n"
+                "    file=pathlib.Path(temporary)/'payload'\n"
+                "    file.write_bytes(data)\n"
+                "    assert file.read_bytes()==b'fixture data\\n'\n"
+                "    pathlib.Path(sys.argv[1]).write_text(str(file.resolve()))\n")
+            with (root / "CMakeLists.txt").open("a") as cmake:
+                cmake.write('add_test(NAME scratch COMMAND "' + Path(sys.executable).as_posix() +
+                            '" "${CMAKE_SOURCE_DIR}/scratch-probe.py" "${CMAKE_SOURCE_DIR}/scratch-proof")\n')
+            environment = dict(os.environ, CMAKE_PREFIX_PATH=str(root),
+                               SEVENZIP_SHARED_TOOLS_ROOT=str(root / "shared tools"))
+            tools = root / "shared tools" / host_tag()
+            tools.mkdir(parents=True)
+            (tools / "probe-tool.py").write_text("import sys\nsys.stdout.buffer.write(b'fixture data\\n')\n")
             command = ["bash", "scripts/build.sh", "dev", "subject"]
             first = subprocess.run(command, cwd=root, env=environment, text=True, capture_output=True)
             self.assertEqual(first.returncode, 0, first.stdout + first.stderr)
             linked = (root / "subject-links").read_bytes()
             cache = directory(root, "cache") / "retained"
             cache.write_bytes(b"existing compiler data")
-            workspace = directory(root, "tools").parents[1]
-            shared = root / "shared project"
-            shared.mkdir()
-            for name in ("branches", "b"):
-                shutil.move(workspace / name, shared / name)
-                (workspace / name).symlink_to(shared / name, target_is_directory=True)
-            environment["SMBSTORAGE_BUILD_ROOT"] = str(shared)
             second = subprocess.run(command, cwd=root, env=environment, text=True, capture_output=True)
             self.assertEqual(second.returncode, 0, second.stdout + second.stderr)
             self.assertEqual((root / "subject-links").read_bytes(), linked)
             self.assertEqual(cache.read_bytes(), b"existing compiler data")
-            executable = directory(root, "artifacts") / "dev/subject"
+            executable = directory(root, "artifacts") / "dev" / ("subject.exe" if os.name == "nt" else "subject")
             self.assertEqual(subprocess.run([str(executable)]).returncode, 0)
+            checked = subprocess.run(["bash", "scripts/ctest.sh", "--test-dir",
+                                      str(build_directory(root, "dev")), "-R", "^scratch$",
+                                      "--output-on-failure"], cwd=root, env=environment,
+                                     text=True, capture_output=True)
+            self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
+            self.assertTrue(Path((root / "scratch-proof").read_text()).is_relative_to(workspace.resolve()))
+
+    def test_configure_failure_preserves_launcher_diagnostic(self):
+        with tempfile.TemporaryDirectory(prefix="failed configure ") as temporary:
+            root = Path(temporary)
+            self.fixture(root)
+            (root / "bin").mkdir()
+            cmake = root / "bin/cmake"
+            cmake.write_text("#!/bin/sh\nprintf '%s\\n' 'Cannot start configured CMake launcher'\nexit 23\n")
+            cmake.chmod(0o755)
+            result = subprocess.run(["bash", "scripts/build.sh", "dev", "--configure-only"],
+                                    cwd=root, text=True, capture_output=True,
+                                    env=dict(os.environ, CMAKE_PREFIX_PATH=str(root),
+                                             PATH=str(cmake.parent) + os.pathsep + os.environ["PATH"]))
+            self.assertEqual(result.returncode, 23, result.stdout + result.stderr)
+            self.assertIn("Cannot start configured CMake launcher", result.stdout + result.stderr)
 
     def fixture(self, root):
         (root / "scripts/config").mkdir(parents=True)
@@ -59,8 +103,6 @@ class WorkflowTests(unittest.TestCase):
                      "lib/runner_timing.py", "lib/toolchain.py", "lib/toolchain.sh", "lib/runtime_layout.py",
                      "lib/project_paths.py", "lib/build_paths.py", "lib/cp2_install.py"):
             shutil.copy2(ROOT / "scripts" / name, root / "scripts" / name)
-        (root / "tools/build").mkdir(parents=True)
-        shutil.copy2(ROOT / "tools/build/project.json", root / "tools/build/project.json")
         shutil.copy2(ROOT / "cmake/DeveloperWorkflow.cmake", root / "cmake/DeveloperWorkflow.cmake")
         shutil.copy2(ROOT / "cmake/BuildDiagnostics.cmake", root / "cmake/BuildDiagnostics.cmake")
         shutil.copy2(ROOT / "cmake/ReadCTestCommands.cmake", root / "cmake/ReadCTestCommands.cmake")
@@ -73,7 +115,6 @@ class WorkflowTests(unittest.TestCase):
         (root / "CMakeLists.txt").write_text('''cmake_minimum_required(VERSION 3.21)
 project(workflow LANGUAGES CXX)
 include(cmake/BuildDiagnostics.cmake)
-file(APPEND "${CMAKE_BINARY_DIR}/configure-count" "configured\n")
 enable_testing()
 add_executable(subject main.cpp)
 add_custom_target(sevenzip_desktop DEPENDS subject)
@@ -165,14 +206,12 @@ int main(int argc, char **) {
                 self.assertFalse((directory(root, "artifacts") / "dev" / ("unrelated" + suffix)).exists())
                 self.run_verify(root, "^scenario$")
                 self.assertEqual(before, (root / "subject-links").read_bytes())
-                self.assertEqual((build_directory(root) / "configure-count").read_text().splitlines(), ["configured"])
                 with (root / "CMakeLists.txt").open("a") as stream:
                     stream.write("add_test(NAME added COMMAND subject)\n")
                 self.run_verify(root, "^added$", plan=True)
                 planned = json.loads((directory(root, "logs") / "dev/verify-plan.json").read_text())
                 self.assertEqual(planned["status"], "planned")
                 self.assertEqual(json.loads(report.read_text())["status"], "passed")
-                self.assertEqual(len((build_directory(root) / "configure-count").read_text().splitlines()), 2)
                 self.run_verify(root, "^does_not_exist$", succeeds=False)
                 self.assertEqual(json.loads(report.read_text())["status"], "failed")
                 self.run_verify(root, "^long$", succeeds=False)
@@ -239,11 +278,7 @@ endif()
             root, alias = base / "source", base / "linked source"
             root.mkdir()
             self.fixture(root)
-            if os.name == "nt":
-                subprocess.run(["cmd", "/d", "/c", "mklink", "/J", str(alias), str(root)],
-                               check=True, capture_output=True)
-            else:
-                alias.symlink_to(root, target_is_directory=True)
+            self.directory_alias(alias, root)
             try:
                 result = subprocess.run(
                     ["bash", str(alias / "scripts/build.sh"), "dev", "subject"], cwd=alias,

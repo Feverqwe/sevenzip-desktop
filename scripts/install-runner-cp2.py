@@ -11,7 +11,6 @@ sys.dont_write_bytecode = True
 import os
 
 from lib import hyperv_cp2_install
-from lib.hyperv_workspace import mount_guard
 from lib.build_paths import environment
 
 
@@ -31,8 +30,6 @@ def main():
     spec.loader.exec_module(runner)
     for platform in ("linux", "windows") if args.platform == "all" else (args.platform,):
         record = runner.discover(platform)
-        if "filesystem_uuid" in record["config"]["workspace"]:
-            runner.remote(record, mount_guard(record["config"]["workspace"]))
         result = hyperv_cp2_install.ensure(record, runner.remote, prebuilt=args.binary)
         print(json.dumps(dict(platform=platform, **result)), flush=True)
 

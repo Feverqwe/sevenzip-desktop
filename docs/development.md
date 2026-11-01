@@ -78,15 +78,13 @@ can select an approved private directory with those capabilities. The isolated
 [runtime check](archive/qt-port/upstream-port-audit.md#p3-04--isolated-linux-runtime-and-temporary-directory-contract-2026-10-10)
 verifies this override, cleanup and unchanged archives; it changes no system policy.
 
-Build wrappers use persistent project storage for intermediates and temporary
-data. They do not provision RAM disks. A Linux runner can use its existing shared
-smbStorage through the [runner configuration](runner-configuration.md).
+Build wrappers use persistent ordinary SSD storage for source copies,
+intermediates and temporary data. They do not provision RAM disks or require
+an external storage service. See [runner configuration](runner-configuration.md)
+for shared installed tools and reusable compiler/download caches.
 
 Build files, binaries, runtimes and reports are separated by branch and platform.
-Shared-storage installations retain their established logical build paths while
-generated outputs live in the project's namespace on the common mount. Linux
-runner source copies may share that namespace. The local repository, installed
-tools and persistent compiler/download caches remain on ordinary disk.
+The local repository remains on its ordinary disk.
 Use `scripts/lib/build_paths.py path --root "$PWD" --category work --preset dev`
 to locate the selected profile's build trees. Disposable test settings and startup
 data use project scratch storage. vcpkg profiles remain optional; native builds
@@ -351,7 +349,7 @@ BMI files. This accounts for interface changes that ccache does not track from
 MSVC module references itself. Build trees and compiler caches remain incremental.
 Interface producers use the compiler when Ninja needs to rebuild
 them: the object-only ccache result cannot restore their additional IFC output
-after a RAM-disk reset. Completed interfaces remain incremental build outputs;
+when an interface output is missing. Completed interfaces remain incremental build outputs;
 ordinary sources and importers continue using the existing compiler cache.
 This handles unsupported paired outputs without clearing caches or disabling
 named modules. The [ccache module limitations](https://ccache.dev/manual/latest.html#_c_modules)
