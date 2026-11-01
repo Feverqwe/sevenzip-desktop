@@ -1,5 +1,42 @@
 # Local read-only SMB: implementation and evidence
 
+## Mount settings preparation owner — 2026-11-01
+
+Reviewed the complete settings preparation/cache-probe/cancellation flow,
+retained-view initialization and item-stream probe, and the manager/session/source
+handoff. As recorded for this feature, mount preparation is local Qt integration
+without a 7zFM counterpart. Native item enumeration/GetStream, decoding, cache
+policy, quotas, recovery/extraction consent and OS-client operations are unchanged;
+no external source is imported or baseline advanced.
+
+The settings dialog now owns its preparation worker, completion handler and
+cache choice. BuildControls constructs the same presentation, while separate
+methods handle preparation, completion and modal result publication. The former
+public Ready/Preparing/Cancelled flags and callback into a surrounding stack
+frame become a private phase with the worker under the same owner. Pending
+cancellation still keeps the event loop responsive, disables further input and
+closes only after completion. A failed check keeps Mount unavailable and reports
+the reader diagnostic. A successful check retains the prepared view for session
+handoff; normal return joins before publishing it. Dialog teardown also retires
+the worker before releasing that view or its consumers during unwinding.
+
+Existing tests cover direct versus decoded-cache readers, Help, successful view
+handoff, cancellation while the reader is busy, setup cancellation without a
+session, and compact/normal English/Russian presentation. An additional public
+failure check verifies the backend diagnostic, disabled Mount, refusal of an
+accept attempt and working Cancel for a resource without a retained reader.
+It does not inspect private phases or worker identities. Control text, layout,
+visibility rules and resize behavior are preserved.
+
+Linux x64 passed mount_extraction_prompt and archive_mount_transport: 45 checks
+passed, with five existing opt-in native OS mount cases skipped. Run
+`20261101T195022Z-38fc4275` built the selected targets in 13.830 seconds and
+ran tests in 3.680 seconds. The affected common Qt workflow was checked on the
+primary platform; no OS-specific implementation changed, so Windows/macOS were
+not rerun. This is not real-mount or new visual parity acceptance. Selected
+scratch directories were empty after completion; incremental outputs and
+compiler caches were retained. Inventory and whitespace checks passed.
+
 ## Pending read completion ownership — 2026-11-01
 
 Reviewed read admission/range validation, callback completion, event-loop reply

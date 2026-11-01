@@ -17,26 +17,31 @@
 #include <QVBoxLayout>
 
 namespace {
+class MountPreparation;
 class MountSettingsDialog final : public QDialog {
+    enum class Phase { Preparing, Cancelling, Failed, Ready };
+    Phase phase_ = Phase::Ready;
+    bool cacheRequired_ = true;
+    std::unique_ptr<MountPreparation> preparation_;
+    QDialogButtonBox *buttons_ = nullptr;
+    QLabel *checking_ = nullptr;
+    QFormLayout *form_ = nullptr;
+    QSpinBox *quota_ = nullptr;
+    QLineEdit *password_ = nullptr;
+    QPushButton *help_ = nullptr, *start_ = nullptr;
+    QShortcut *shortcut_ = nullptr;
+    void BuildControls(const QString &label, const QString &password, bool checkReader);
+    void Prepare(IUnknown *resource, const QString &password, const QString &folder);
+    void PreparationFinished();
+    void ShowCache(bool required);
+
   public:
     using QDialog::QDialog;
-    bool Ready = true;
-    bool Preparing = false, Cancelled = false;
-    std::function<void()> CancelPreparation;
-    void accept() override {
-        if (Ready)
-            QDialog::accept();
-    }
-    void reject() override {
-        if (Preparing) {
-            if (!Cancelled) {
-                Cancelled = true;
-                CancelPreparation();
-            }
-        } else {
-            QDialog::reject();
-        }
-    }
+    ~MountSettingsDialog() override;
+    QtMountOptions Run(const QString &label, const QString &password, IUnknown *resource,
+                       const QString &folder);
+    void accept() override;
+    void reject() override;
 };
 
 class MountPreparation final : public QThread {
@@ -91,110 +96,145 @@ class MountLabel final : public QLabel {
         setMinimumHeight(heightForWidth(event->size().width()));
     }
 };
+void MountSettingsDialog::BuildControls(const QString &label, const QString &archivePassword,
+                                        bool checkReader) {
+    phase_ = checkReader ? Phase::Preparing : Phase::Ready;
+    setObjectName("archiveMountSettings");
+    setWindowTitle(QCoreApplication::translate("QtArchiveMountManager", "Mount read-only"));
+    QtUseContextDialogModality(*this);
+    buttons_ = new QDialogButtonBox(QDialogButtonBox::Cancel | QDialogButtonBox::Help, this);
+    help_ = buttons_->button(QDialogButtonBox::Help);
+    help_->setObjectName("mountCacheHelpButton");
+    auto *layout = QtCreateDialogLayout(*this, *buttons_);
+    auto *source = new MountLabel(label, this);
+    source->setTextFormat(Qt::PlainText);
+    source->setWordWrap(true);
+    layout->addWidget(source);
+    checking_ = new QLabel(
+        QCoreApplication::translate("QtArchiveMountManager", "Checking file access…"), this);
+    checking_->setWordWrap(true);
+    checking_->setVisible(checkReader);
+    layout->addWidget(checking_);
+    form_ = new QFormLayout;
+    form_->setRowWrapPolicy(QFormLayout::WrapAllRows);
+    form_->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
+    quota_ = new QSpinBox(this);
+    quota_->setObjectName("mountCacheLimit");
+    quota_->setMinimumWidth(160);
+    quota_->setRange(16, 1048576);
+    quota_->setValue(1024);
+    quota_->setSuffix(QCoreApplication::translate("QtArchiveMountManager", " MiB"));
+    form_->addRow(QCoreApplication::translate("QtArchiveMountManager", "Temporary cache limit:"),
+                  quota_);
+    password_ = new QLineEdit(archivePassword, this);
+    password_->setObjectName("mountArchivePassword");
+    password_->setMinimumWidth(160);
+    password_->setEchoMode(QLineEdit::Password);
+    form_->addRow(
+        QCoreApplication::translate("QtArchiveMountManager", "Archive password (if needed):"),
+        password_);
+    layout->addLayout(form_);
+    start_ = buttons_->addButton(QCoreApplication::translate("QtArchiveMountManager", "Mount"),
+                                 QDialogButtonBox::AcceptRole);
+    start_->setDefault(true);
+    start_->setEnabled(phase_ == Phase::Ready);
+    shortcut_ = new QShortcut(QKeySequence::HelpContents, this);
+    const auto showHelp = [this] {
+        if (quota_->isVisible())
+            ShowCacheHelp(this);
+    };
+    connect(buttons_, &QDialogButtonBox::helpRequested, this, showHelp);
+    connect(shortcut_, &QShortcut::activated, this, showHelp);
+    cacheRequired_ = !checkReader;
+    ShowCache(cacheRequired_);
+    connect(buttons_, &QDialogButtonBox::accepted, this, &QDialog::accept);
+    connect(buttons_, &QDialogButtonBox::rejected, this, &QDialog::reject);
+    resize(520, sizeHint().height());
+}
+
+void MountSettingsDialog::ShowCache(bool required) {
+    form_->setRowVisible(quota_, required);
+    help_->setVisible(required);
+    shortcut_->setEnabled(required);
+}
+
+void MountSettingsDialog::Prepare(IUnknown *resource, const QString &password,
+                                  const QString &folder) {
+    if (!resource)
+        return;
+    preparation_ = std::make_unique<MountPreparation>(resource, password, folder);
+    connect(preparation_.get(), &QThread::finished, this,
+            &MountSettingsDialog::PreparationFinished);
+    preparation_->start();
+}
+
+void MountSettingsDialog::PreparationFinished() {
+    if (phase_ == Phase::Cancelling) {
+        phase_ = Phase::Failed;
+        QDialog::reject();
+        return;
+    }
+    if (preparation_->Result != S_OK) {
+        phase_ = Phase::Failed;
+        checking_->setText(preparation_->Error.isEmpty()
+                               ? QCoreApplication::translate("QtArchiveMountManager",
+                                                             "Could not check file access.")
+                               : preparation_->Error);
+        return;
+    }
+    cacheRequired_ = preparation_->CacheRequired;
+    ShowCache(cacheRequired_);
+    checking_->hide();
+    phase_ = Phase::Ready;
+    start_->setEnabled(true);
+    resize(width(), sizeHint().height());
+}
+
+void MountSettingsDialog::accept() {
+    if (phase_ == Phase::Ready)
+        QDialog::accept();
+}
+
+void MountSettingsDialog::reject() {
+    if (phase_ == Phase::Preparing) {
+        phase_ = Phase::Cancelling;
+        preparation_->cancel();
+        checking_->setText(QCoreApplication::translate("QtArchiveMountManager", "Cancelling…"));
+        buttons_->setEnabled(false);
+    } else if (phase_ != Phase::Cancelling)
+        QDialog::reject();
+}
+
+MountSettingsDialog::~MountSettingsDialog() {
+    // Retire the worker while its view and dialog consumers still exist,
+    // including unwinding before Run reaches its normal join.
+    if (preparation_) {
+        if (preparation_->isRunning())
+            preparation_->cancel();
+        preparation_->wait();
+    }
+}
+
+QtMountOptions MountSettingsDialog::Run(const QString &label, const QString &password,
+                                        IUnknown *resource, const QString &folder) {
+    BuildControls(label, password, resource != nullptr);
+    Prepare(resource, password, folder);
+    const bool accepted = exec() == QDialog::Accepted;
+    if (preparation_) {
+        if (!accepted)
+            preparation_->cancel();
+        preparation_->wait();
+    }
+    if (!accepted)
+        return {};
+    return {true, cacheRequired_ ? quint64(quota_->value()) * 1024 * 1024 : 0, password_->text(),
+            preparation_ ? preparation_->View : nullptr};
+}
 } // namespace
 
 QtMountOptions QtAskMountOptions(QWidget *owner, const QString &label,
                                  const QString &archivePassword, IUnknown *resource,
                                  const QString &folder) {
     MountSettingsDialog settings(owner);
-    settings.Ready = !resource;
-    settings.setObjectName("archiveMountSettings");
-    settings.setWindowTitle(
-        QCoreApplication::translate("QtArchiveMountManager", "Mount read-only"));
-    QtUseContextDialogModality(settings);
-    auto *buttons =
-        new QDialogButtonBox(QDialogButtonBox::Cancel | QDialogButtonBox::Help, &settings);
-    auto *help = buttons->button(QDialogButtonBox::Help);
-    help->setObjectName("mountCacheHelpButton");
-    auto *layout = QtCreateDialogLayout(settings, *buttons);
-    auto *source = new MountLabel(label, &settings);
-    source->setTextFormat(Qt::PlainText);
-    source->setWordWrap(true);
-    layout->addWidget(source);
-    auto *checking = new QLabel(
-        QCoreApplication::translate("QtArchiveMountManager", "Checking file access…"), &settings);
-    checking->setWordWrap(true);
-    checking->setVisible(resource != nullptr);
-    layout->addWidget(checking);
-    auto *form = new QFormLayout;
-    form->setRowWrapPolicy(QFormLayout::WrapAllRows);
-    form->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
-    auto *quota = new QSpinBox(&settings);
-    quota->setObjectName("mountCacheLimit");
-    quota->setMinimumWidth(160);
-    quota->setRange(16, 1048576);
-    quota->setValue(1024);
-    quota->setSuffix(QCoreApplication::translate("QtArchiveMountManager", " MiB"));
-    form->addRow(QCoreApplication::translate("QtArchiveMountManager", "Temporary cache limit:"),
-                 quota);
-    auto *password = new QLineEdit(archivePassword, &settings);
-    password->setObjectName("mountArchivePassword");
-    password->setMinimumWidth(160);
-    password->setEchoMode(QLineEdit::Password);
-    form->addRow(
-        QCoreApplication::translate("QtArchiveMountManager", "Archive password (if needed):"),
-        password);
-    layout->addLayout(form);
-    auto *start = buttons->addButton(QCoreApplication::translate("QtArchiveMountManager", "Mount"),
-                                     QDialogButtonBox::AcceptRole);
-    start->setDefault(true);
-    start->setEnabled(settings.Ready);
-    auto *shortcut = new QShortcut(QKeySequence::HelpContents, &settings);
-    const auto showHelp = [&settings, quota] {
-        if (quota->isVisible())
-            ShowCacheHelp(&settings);
-    };
-    QObject::connect(buttons, &QDialogButtonBox::helpRequested, &settings, showHelp);
-    QObject::connect(shortcut, &QShortcut::activated, &settings, showHelp);
-    const auto showCache = [form, quota, help, shortcut](bool required) {
-        form->setRowVisible(quota, required);
-        help->setVisible(required);
-        shortcut->setEnabled(required);
-    };
-    bool cacheRequired = !resource;
-    showCache(cacheRequired);
-    std::unique_ptr<MountPreparation> preparation;
-    if (resource) {
-        preparation = std::make_unique<MountPreparation>(resource, archivePassword, folder);
-        settings.Preparing = true;
-        settings.CancelPreparation = [&] {
-            preparation->cancel();
-            checking->setText(QCoreApplication::translate("QtArchiveMountManager", "Cancelling…"));
-            buttons->setEnabled(false);
-        };
-        QObject::connect(preparation.get(), &QThread::finished, &settings, [&] {
-            settings.Preparing = false;
-            if (settings.Cancelled) {
-                settings.reject();
-                return;
-            }
-            if (preparation->Result != S_OK) {
-                checking->setText(preparation->Error.isEmpty()
-                                      ? QCoreApplication::translate("QtArchiveMountManager",
-                                                                    "Could not check file access.")
-                                      : preparation->Error);
-                return;
-            }
-            cacheRequired = preparation->CacheRequired;
-            showCache(cacheRequired);
-            checking->hide();
-            settings.Ready = true;
-            start->setEnabled(true);
-            settings.resize(settings.width(), settings.sizeHint().height());
-        });
-        preparation->start();
-    }
-    QObject::connect(buttons, &QDialogButtonBox::accepted, &settings, &QDialog::accept);
-    QObject::connect(buttons, &QDialogButtonBox::rejected, &settings, &QDialog::reject);
-    settings.resize(520, settings.sizeHint().height());
-    const bool accepted = settings.exec() == QDialog::Accepted;
-    if (preparation) {
-        if (!accepted)
-            preparation->cancel();
-        preparation->wait();
-    }
-    if (!accepted)
-        return {};
-    return {true, cacheRequired ? quint64(quota->value()) * 1024 * 1024 : 0, password->text(),
-            preparation ? preparation->View : nullptr};
+    return settings.Run(label, archivePassword, resource, folder);
 }

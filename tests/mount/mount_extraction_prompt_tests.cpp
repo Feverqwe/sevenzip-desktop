@@ -175,6 +175,42 @@ class MountExtractionPromptTests final : public QObject {
         QVERIFY(!options.Accepted);
         QVERIFY(cancelled && released);
     }
+    void failedReaderCheckReportsErrorAndCannotMount() {
+        CMyComPtr<IUnknown> resource = new QtArchiveFileResource(QStringLiteral("unopened.img"));
+        std::shared_ptr<ArchiveReadOnlyView> view;
+        QString error;
+        QCOMPARE(ArchiveBackend::createReadOnlyView(resource, 0, {}, view, error), E_NOINTERFACE);
+        QVERIFY(!error.isEmpty());
+        QObject context;
+        bool reported = false, blocked = false;
+        QTimer inspect;
+        connect(&inspect, &QTimer::timeout, &context, [&] {
+            auto *dialog = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!dialog || dialog->objectName() != "archiveMountSettings")
+                return;
+            for (const auto *label : dialog->findChildren<QLabel *>())
+                if (label->isVisible() && label->text() == error)
+                    reported = true;
+            if (!reported)
+                return;
+            inspect.stop();
+            auto *buttons = dialog->findChild<QDialogButtonBox *>();
+            for (auto *button : buttons->buttons())
+                if (buttons->buttonRole(button) == QDialogButtonBox::AcceptRole)
+                    blocked = !button->isEnabled();
+            dialog->accept();
+            blocked = blocked && dialog->isVisible();
+            dialog->reject();
+        });
+        inspect.start(5);
+        QTimer::singleShot(2000, &context, [] {
+            if (auto *dialog = qobject_cast<QDialog *>(QApplication::activeModalWidget()))
+                dialog->reject();
+        });
+        const auto options = QtAskMountOptions(nullptr, "unopened", {}, resource);
+        QVERIFY(!options.Accepted);
+        QVERIFY(reported && blocked);
+    }
     void removesOnlySelectedStoppedRecord() {
         const auto unavailable = QtSmbMountPlatform::unavailableReason();
         if (!unavailable.isEmpty())
