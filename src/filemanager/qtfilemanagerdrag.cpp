@@ -39,6 +39,7 @@ void QtFileManagerDrag::Revoke() {
     if (revoked_)
         return;
     revoked_ = true;
+    rightPress_.reset();
     external_.NativeData.reset();
     window_.app_.DropTarget().ClearState();
     window_.app_.DropTarget().AttachPresentation(nullptr);

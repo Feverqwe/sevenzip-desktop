@@ -159,6 +159,30 @@ class DragDropUiTests final : public QObject {
             QMouseEvent release(QEvent::MouseButtonRelease, moved, viewport->mapToGlobal(moved),
                                 Qt::RightButton, Qt::NoButton, Qt::NoModifier);
             QCoreApplication::sendEvent(viewport, &release);
+            // A refused right drag must not suppress the next ordinary click.
+            // Exercise platforms delivering their context notification on press.
+            bool normalMenu = false;
+            unsigned menus = 0;
+            QTimer closeMenu;
+            connect(&closeMenu, &QTimer::timeout, &window, [&] {
+                if (auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget())) {
+                    ++menus;
+                    normalMenu = menu->objectName() == "panelContextMenu";
+                    menu->close();
+                }
+            });
+            closeMenu.start(5);
+            QCoreApplication::sendEvent(viewport, &context);
+            QCOMPARE(menus, 0u); // A delayed notification still belongs to the consumed drag.
+            QCoreApplication::sendEvent(viewport, &press);
+            QCoreApplication::sendEvent(viewport, &context);
+            QCOMPARE(menus, 0u);
+            QMouseEvent clicked(QEvent::MouseButtonRelease, point, global, Qt::RightButton,
+                                Qt::NoButton, Qt::NoModifier);
+            QCoreApplication::sendEvent(viewport, &clicked);
+            closeMenu.stop();
+            QCOMPARE(menus, 1u);
+            QVERIFY(normalMenu);
         } else if (icons) {
             auto *list = dynamic_cast<FileIconList *>(window.findChild<QListView *>("iconList"));
             QVERIFY(list && list->isVisible() && list->dragEnabled() && list->dragStarter);
@@ -483,7 +507,22 @@ class DragDropUiTests final : public QObject {
             return dropped ? drop.dropAction() : Qt::IgnoreAction;
         });
         sourceTable->sourcePanel->AttachDragServices(&transport);
-        sourceTable->sourcePanel->OnDrag(right);
+        if (right) {
+            auto *viewport = sourceTable->viewport();
+            const QPoint start =
+                sourceTable->visualRect(sourceTable->model()->index(sourceRow, 0)).center();
+            const QPoint moved = start + QPoint(QApplication::startDragDistance() + 1, 0);
+            QMouseEvent press(QEvent::MouseButtonPress, start, viewport->mapToGlobal(start),
+                              Qt::RightButton, Qt::RightButton, Qt::NoModifier);
+            QCoreApplication::sendEvent(viewport, &press);
+            QMouseEvent motion(QEvent::MouseMove, moved, viewport->mapToGlobal(moved), Qt::NoButton,
+                               Qt::RightButton, Qt::NoModifier);
+            QCoreApplication::sendEvent(viewport, &motion);
+            QMouseEvent release(QEvent::MouseButtonRelease, moved, viewport->mapToGlobal(moved),
+                                Qt::RightButton, Qt::NoButton, Qt::NoModifier);
+            QCoreApplication::sendEvent(viewport, &release);
+        } else
+            sourceTable->sourcePanel->OnDrag(false);
         sourceTable->sourcePanel->AttachDragServices(nullptr);
         chooseMenu.stop();
         QVERIFY(sourceRefused);

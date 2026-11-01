@@ -14,10 +14,10 @@ bool QtFileManagerDrag::HandleRightDrag(QWidget &widget, QEvent &event) {
     if (event.type() == QEvent::ContextMenu) {
         const auto &context = static_cast<QContextMenuEvent &>(event);
         if (context.reason() == QContextMenuEvent::Mouse) {
-            if (rightPressWidget_ == &widget) {
+            if (rightPress_ && rightPress_->widget == &widget) {
                 // macOS presents a context menu on press; defer until release
                 // so a right-button drag can reach the source drop menu.
-                contextDeferred_ = true;
+                rightPress_->contextDeferred = true;
                 return true;
             }
             if (rightDragConsumed_)
@@ -26,26 +26,25 @@ bool QtFileManagerDrag::HandleRightDrag(QWidget &widget, QEvent &event) {
     } else if (event.type() == QEvent::MouseButtonPress) {
         const auto &mouse = static_cast<QMouseEvent &>(event);
         rightDragConsumed_ = false;
-        contextDeferred_ = false;
-        rightPressWidget_ = mouse.button() == Qt::RightButton ? &widget : nullptr;
-        rightPressPosition_ = mouse.position().toPoint();
-    } else if (event.type() == QEvent::MouseMove && rightPressWidget_ == &widget) {
+        rightPress_.reset();
+        if (mouse.button() == Qt::RightButton)
+            rightPress_.emplace(RightPress{&widget, mouse.position().toPoint()});
+    } else if (event.type() == QEvent::MouseMove && rightPress_ && rightPress_->widget == &widget) {
         const auto &mouse = static_cast<QMouseEvent &>(event);
         if ((mouse.buttons() & Qt::RightButton) && PanelEnabled(panel) &&
-            (mouse.position().toPoint() - rightPressPosition_).manhattanLength() >=
+            (mouse.position().toPoint() - rightPress_->position).manhattanLength() >=
                 QApplication::startDragDistance()) {
             rightDragConsumed_ = true;
-            contextDeferred_ = false;
-            rightPressWidget_ = nullptr;
+            rightPress_.reset();
             StartDrag(panel, true);
             return true;
         }
     } else if (event.type() == QEvent::MouseButtonRelease) {
         const auto &mouse = static_cast<QMouseEvent &>(event);
-        if (mouse.button() == Qt::RightButton && rightPressWidget_ == &widget) {
-            rightPressWidget_ = nullptr;
-            if (contextDeferred_) {
-                contextDeferred_ = false;
+        if (mouse.button() == Qt::RightButton && rightPress_ && rightPress_->widget == &widget) {
+            const bool contextDeferred = rightPress_->contextDeferred;
+            rightPress_.reset();
+            if (contextDeferred) {
                 QContextMenuEvent context(QContextMenuEvent::Mouse, mouse.position().toPoint(),
                                           mouse.globalPosition().toPoint(), mouse.modifiers());
                 QCoreApplication::sendEvent(&widget, &context);

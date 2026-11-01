@@ -2775,3 +2775,39 @@ inventory, original complete-unit hashes and whitespace checks passed. Ordinary
 four-job builds retained incremental outputs and compiler cache; no full/slow
 gate or heavy diagnostic was needed. Completed task-owned settings fixtures
 were removed while the passing receipts and useful build outputs were retained.
+
+## Right-button gesture ownership — 2026-11-01
+
+Compared original PanelListNotify drag notifications and PanelDrag OnDrag
+eligibility, source/target protocol, completion/cancellation and context commands
+with Qt event-filter installation, threshold detection, deferred menus, drop
+delivery, hover suspension and teardown. Complete original PanelDrag.cpp and
+PanelListNotify.cpp inventory hashes still match
+`b88c6bc09339de32f7d18bbab900686b244f42ba` from
+<https://github.com/ip7z/7zip.git>. No native drag/transfer algorithm or external
+source revision is changed.
+
+The pending right press now owns its weak widget, origin and deferred-context
+state in one optional record. Starting a drag, delivering its ordinary context
+menu or revoking the controller discards that record as one operation. The
+consumed-drag flag remains independent because later context notifications must
+still be suppressed after the press is gone, until another press starts.
+Thresholds, view eligibility, context-event order, source right-drag restrictions,
+drop effects, cancellation and ordinary menu behavior are preserved.
+
+The existing refused archive-gesture case now checks suppression of a delayed
+context notification and a subsequent ordinary right click: press-time context
+is deferred, then exactly one source menu appears on release. Existing filesystem
+right-copy/cancel cases enter through mouse press/move/release instead of calling
+OnDrag directly, retaining their real output/selection/target assertions and
+controlled drag transport. These are public Qt event protocols, not physical
+OS-input or rendered menu acceptance. No helper-state/source assertion, new
+matrix, layout, text or visibility change is introduced.
+
+Focused Linux validation passed drag_drop, drag_drop_ui, dropped_path_choice and
+source_context_menu: 56 passed rows with no skips. Early/deferred context delivery
+is exercised as a Qt notification sequence; native platform delivery, physical
+input, secondary OS and visual parity are not claimed. Source inventory, original
+complete-unit hashes and whitespace checks passed. Ordinary four-job builds
+retained incremental outputs and compiler cache. Disposable settings from the
+completed suites were removed; no full/slow or heavy diagnostic gate ran.
