@@ -90,19 +90,6 @@ void MainWindow::togglePanels() {
         app_.GetFocusedPanel().SetFocusToList();
 }
 
-unsigned MainWindow::panelIndexFor(QObject *object) const {
-    for (unsigned index = 0; index < kNumPanelsMax; ++index) {
-        const PanelUiState &ui = panelUi_[index];
-        if (!ui.container)
-            continue;
-        if (object == ui.path || object == ui.pathCombo || object == ui.table ||
-            object == ui.iconList || (ui.table && object == ui.table->viewport()) ||
-            (ui.iconList && object == ui.iconList->viewport()))
-            return index;
-    }
-    return kNumPanelsMax;
-}
-
 QString MainWindow::copyDefaultDestination() const {
     if (app_.NumPanels == 2) {
         const QString other = ToQString(app_.Panels[1 - app_.GetFocusedPanelIndex()].GetFsPath());

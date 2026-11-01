@@ -196,8 +196,10 @@ class MainWindow : public QMainWindow {
     void applyFlatView(bool enabled);
     void showSettings();
     void applyFileListSettings();
+    enum class PanelInputTarget { Other, Address, List, ListViewport };
+    PanelInputTarget panelInputTarget(QObject *object, unsigned panel) const;
     bool eventFilter(QObject *watched, QEvent *event) override;
-    bool handlePanelKey(QObject *watched, QKeyEvent *key);
+    bool handlePanelKey(PanelInputTarget target, QKeyEvent *key);
     bool handlePanelListKey(QKeyEvent *key);
     bool overridePanelKey(const QKeyEvent &key) const;
     void configureShortcuts();

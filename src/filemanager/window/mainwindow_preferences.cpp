@@ -6,11 +6,9 @@
 #include "filemanager/providers/qtlocationfolder.h"
 #include "filemanager/qtfilemanagercommands.h"
 #include "filemanager/window/mainwindow.h"
-#include "filemanager/window/qtapppresentation.h"
 #include "filemanager/window/qtmainwindowchrome.h"
 #include "localization/qtlanguageservices.h"
 #include "ui/theme/qtcommandicons.h"
-#include <QMouseEvent>
 #include <QSignalBlocker>
 #include <QToolButton>
 
@@ -198,71 +196,6 @@ void MainWindow::applyFileListSettings() {
     app_.SetListSettings();
     app_.RefreshAllPanels();
     refreshActions();
-}
-
-bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
-    if (event->type() == QEvent::KeyPress || event->type() == QEvent::KeyRelease)
-        updatePanelModifier(*static_cast<QKeyEvent *>(event));
-    if (event->type() == QEvent::WindowDeactivate)
-        rightControlPressed_ = false;
-    if (appPresentation_ &&
-        (event->type() == QEvent::KeyPress || event->type() == QEvent::MouseButtonPress ||
-         event->type() == QEvent::MouseButtonDblClick))
-        appPresentation_->CancelInitialFocus();
-    if (!panelProjectionDepth_ &&
-        (event->type() == QEvent::FocusIn || event->type() == QEvent::MouseButtonPress ||
-         event->type() == QEvent::MouseButtonDblClick || event->type() == QEvent::KeyPress)) {
-        const unsigned panelIndex = panelIndexFor(watched);
-        if (panelIndex < kNumPanelsMax && panelIndex != projectedPanel_ && app_.NumPanels == 2)
-            activatePanelUi(panelIndex);
-    }
-    // FM.cpp WM_SETFOCUS delegates to the application owner.
-    if (watched == this && event->type() == QEvent::FocusIn) {
-        app_.SetFocusToLastItem();
-        return true;
-    }
-    const bool listViewport =
-        (projectedUi().table && watched == projectedUi().table->viewport()) ||
-        (projectedUi().iconList && watched == projectedUi().iconList->viewport());
-    if (listViewport && (event->type() == QEvent::MouseButtonPress ||
-                         event->type() == QEvent::MouseButtonDblClick)) {
-        const auto *mouse = static_cast<QMouseEvent *>(event);
-        selectionClickModifiers_ = mouse->modifiers();
-        selectionClickLeft_ = mouse->button() == Qt::LeftButton;
-    }
-    const bool listControl =
-        watched == projectedUi().table || watched == projectedUi().iconList || listViewport;
-    if ((watched == projectedUi().path || watched == projectedUi().pathCombo) &&
-        event->type() == QEvent::ShortcutOverride) {
-        const auto *key = static_cast<QKeyEvent *>(event);
-        const auto mods = key->modifiers();
-        if (key->key() == Qt::Key_Return || key->key() == Qt::Key_Enter ||
-            key->key() == Qt::Key_Escape) {
-            event->accept();
-            return true;
-        }
-        // Deliver the edit subclass's keys before application QAction shortcuts.
-        if (!(mods & (Qt::MetaModifier | Qt::AltModifier)) &&
-            ((key->key() == Qt::Key_W && mods.testFlag(Qt::ControlModifier)) ||
-             (key->key() == Qt::Key_F9 && mods == Qt::NoModifier))) {
-            event->accept();
-            return true;
-        }
-    }
-    if (listControl && !isPanelEditorFocused() && event->type() == QEvent::ShortcutOverride) {
-        const auto *key = static_cast<QKeyEvent *>(event);
-        if (overridePanelKey(*key)) {
-            event->accept();
-            return true;
-        }
-    }
-    if (event->type() == QEvent::KeyPress &&
-        handlePanelKey(watched, static_cast<QKeyEvent *>(event)))
-        return true;
-    if (event->type() == QEvent::KeyRelease &&
-        static_cast<QKeyEvent *>(event)->key() == Qt::Key_Shift)
-        selectionShiftSequence_ = false;
-    return QMainWindow::eventFilter(watched, event);
 }
 
 void MainWindow::setViewMode(int mode) {

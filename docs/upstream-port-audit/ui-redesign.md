@@ -2671,3 +2671,38 @@ Source inventory verification and whitespace checks passed. Incremental builds
 and compiler caches were retained; no full/slow suites, heavy diagnostics or
 appearance changes ran. Completed snapshots and disposable fixtures left no new
 scratch roots; pre-existing unrelated local roots were preserved.
+
+## Panel input routing — 2026-11-01
+
+Compared the original Panel.cpp list and address-edit message handlers,
+PanelKey.cpp dispatch and FM.cpp focus restoration with current Qt filter
+installation, panel activation/projection, shortcut interception, editor
+exclusion, list selection and address delivery. The recorded source remains
+<https://github.com/ip7z/7zip.git> at
+`b88c6bc09339de32f7d18bbab900686b244f42ba`; no original implementation is newly
+imported or replaced.
+
+One Qt widget-role classification now serves panel lookup, event routing and
+editor exclusion. Keyboard delivery consumes the role already selected by the
+event filter, rather than repeating the address/list/viewport comparisons.
+The event filter and panel lookup live beside the keyboard adapter instead of
+the preferences and two-panel layout code. Classification for delivery still
+follows panel activation, including refusal while an operation retains its
+source owner. Initial-focus cancellation, click modifiers, shortcut priority,
+text editing, Shift sequences and source calls retain their order and policy.
+Native modifier decoding and command/selection algorithms are unchanged.
+
+Existing behavior suites cover both panels and view types, activation from
+mouse and keyboard, modified clicks, address submission/cancellation, text
+editors, source key commands and busy/modal suppression. No source-presence
+or helper-specific test is added for this internal refactoring. No layout,
+text, visibility or geometry change is involved.
+
+Focused Linux validation passed panel_activation, address_navigation, panel_key,
+panel_address_keys, panel_shortcut and panel_key_source. Native modifier branches
+were not changed. The offscreen run skips ten native layout-mapping rows and
+one Cocoa virtual-key row; secondary OS, those QPA protocols and physical-keyboard
+acceptance are not claimed.
+The source inventory and full original-baseline verification passed. Existing
+incremental outputs and compiler caches were retained with ordinary four-job
+defaults; no full or slow gate ran.
