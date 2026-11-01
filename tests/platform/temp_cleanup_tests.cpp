@@ -467,6 +467,64 @@ class TempCleanupTests : public QObject {
         QVERIFY(properties);
         QVERIFY(QFileInfo::exists(root.filePath("details.txt")));
     }
+    void missingSelectedItemDoesNotConfirmAnotherEntry_data() {
+        QTest::addColumn<bool>("remove");
+        QTest::newRow("properties") << false;
+        QTest::newRow("delete") << true;
+    }
+    void missingSelectedItemDoesNotConfirmAnotherEntry() {
+        QFETCH(bool, remove);
+        QTemporaryDir root;
+        QVERIFY(root.isValid());
+        const QString missing = root.filePath(QStringLiteral("исчезнувший 文件.txt"));
+        const QString retained = root.filePath("keep.txt");
+        QVERIFY(file(missing) && file(retained));
+        QVERIFY(inactive(root.path()));
+        bool refreshed = false;
+        int errors = 0, confirmations = 0, properties = 0;
+        QTimer::singleShot(0, qApp, [&] {
+            auto *dialog = dynamic_cast<CBrowseDialog2 *>(QApplication::activeModalWidget());
+            QVERIFY(dialog);
+            const auto close = qScopeGuard([&] { dialog->reject(); });
+            auto *list = dialog->findChild<QTreeWidget *>("tempList");
+            select(*dialog, root.path());
+            QTest::keyClick(list, Qt::Key_Return);
+            select(*dialog, missing);
+            QVERIFY(list->currentItem());
+            QCOMPARE(list->currentItem()->text(0), QFileInfo(missing).fileName());
+            QVERIFY(QFile::remove(missing));
+            QTimer answers;
+            connect(&answers, &QTimer::timeout, dialog, [&] {
+                auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
+                if (!box)
+                    return;
+                if (box->icon() == QMessageBox::Critical)
+                    ++errors;
+                else if (box->icon() == QMessageBox::Question)
+                    ++confirmations;
+                else
+                    ++properties;
+                box->done(box->standardButtons().testFlag(QMessageBox::No) ? QMessageBox::No
+                                                                           : QMessageBox::Ok);
+            });
+            answers.start(5);
+            QTest::keyClick(list, remove ? Qt::Key_Delete : Qt::Key_Return,
+                            remove ? Qt::NoModifier : Qt::AltModifier);
+            QCOMPARE(errors, 1);
+            QCOMPARE(confirmations, 0);
+            QCOMPARE(properties, 0);
+            refreshed = !row(*dialog, missing) && row(*dialog, retained);
+            select(*dialog, retained);
+            QTest::keyClick(list, Qt::Key_Return, Qt::AltModifier);
+            QCOMPARE(properties, 1);
+            answers.stop();
+        });
+        MyBrowseForTempFolder(nullptr);
+        QVERIFY(refreshed);
+        QFile remaining(retained);
+        QVERIFY(remaining.open(QIODevice::ReadOnly));
+        QCOMPARE(remaining.readAll(), QByteArray("fixture"));
+    }
     void confirmationControlsTheActualNativeDeleteLoop_data() {
         QTest::addColumn<int>("answer");
         QTest::newRow("yes") << int(QMessageBox::Yes);

@@ -9,6 +9,7 @@
 #include <QDialog>
 #include <functional>
 #include <memory>
+#include <optional>
 
 class QTreeWidget;
 class QLineEdit;
@@ -58,7 +59,6 @@ class CBrowseDialog2 : public QDialog {
     QLabel *_scopeLabel = nullptr;
     int _sortIndex = 1;
     bool _ascending = true;
-    bool _filePropsValid = true;
     bool _showDots = false, _singleClick = false;
     UString _topDirPrefix;
     void BuildControls();
@@ -78,7 +78,7 @@ class CBrowseDialog2 : public QDialog {
     void Reload_WithErrorMessage();
     void ChangeSorting_and_Reload(int columnIndex);
     void OpenParentFolder();
-    void PrintFileProps(UString &s, const NWindows::NFile::NFind::CFileInfo &file);
+    std::optional<UString> PrintFileProps(const NWindows::NFile::NFind::CFileInfo &file);
     void Show_FileProps_Window(const NWindows::NFile::NFind::CFileInfo &file);
     void OnItemEnter();
     void OnOK();

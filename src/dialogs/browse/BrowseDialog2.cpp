@@ -218,16 +218,14 @@ static void PrintProps(UString &s, const CBrowseItem &bi, const CFileInfo &fi,
     }
 }
 
-void CBrowseDialog2::PrintFileProps(UString &s, const CFileInfo &file) {
-    _filePropsValid = true;
+std::optional<UString> CBrowseDialog2::PrintFileProps(const CFileInfo &file) {
     CFileInfo file2;
     FString path = us2fs(_snapshot->Prefix);
     path += file.Name;
     if (!file2.Find(path)) {
-        _filePropsValid = false;
         MessageBox_LastError_path(this, path);
         Reload_WithErrorMessage();
-        return;
+        return std::nullopt;
     }
     CBrowseEnumerator enumer;
     enumer.bi.Size = file2.Size;
@@ -235,14 +233,13 @@ void CBrowseDialog2::PrintFileProps(UString &s, const CFileInfo &file) {
         enumer.Path = path;
         enumer.Enumerate(0);
     }
+    UString s;
     PrintProps(s, enumer.bi, file2, enumer.bi.NumRootItems == 1 ? &enumer.fi_SubFile : NULL);
+    return s;
 }
 void CBrowseDialog2::Show_FileProps_Window(const CFileInfo &file) {
-    UString s;
-    PrintFileProps(s, file);
-    if (!_filePropsValid)
-        return;
-    QMessageBox::information(this, QtPath(LangString(IDS_PROPERTIES)), QtPath(s));
+    if (const auto properties = PrintFileProps(file))
+        QMessageBox::information(this, QtPath(LangString(IDS_PROPERTIES)), QtPath(*properties));
 }
 
 void CBrowseDialog2::OnDelete() {
@@ -259,11 +256,12 @@ void CBrowseDialog2::OnDelete() {
             const unsigned index = indices[0];
             const CBrowseItem &bi = _snapshot->Items[index];
             const CFileInfo &file = _snapshot->Files[bi.MainFileIndex];
-            PrintFileProps(s2, file);
+            const auto properties = PrintFileProps(file);
             // Source PrintFileProps reloads on error; those row references and
             // selection indices are then invalid. Never confirm a different item.
-            if (!_filePropsValid)
+            if (!properties)
                 return;
+            s2 = *properties;
             messageParam = fs2us(file.Name);
             if (file.IsDir()) {
                 titleID = IDS_CONFIRM_FOLDER_DELETE;
