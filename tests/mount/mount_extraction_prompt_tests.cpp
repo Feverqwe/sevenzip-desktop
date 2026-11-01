@@ -192,7 +192,8 @@ class MountExtractionPromptTests final : public QObject {
         QtArchiveMountManager manager(&owner);
         auto *remove = manager.findChild<QAction *>("removeMountAction");
         auto *list = manager.findChild<QTreeWidget *>("mountList");
-        QVERIFY(remove && list);
+        auto *details = manager.findChild<QPlainTextEdit *>("mountDetails");
+        QVERIFY(remove && list && details);
         QVERIFY(!remove->isEnabled());
         const int initialWidth = list->columnWidth(0);
         QTimer answer;
@@ -207,8 +208,16 @@ class MountExtractionPromptTests final : public QObject {
             manager.mount(nullptr, label, {});
             QVERIFY(!remove->isEnabled());
             auto *session = manager.findChildren<QtArchiveMountSession *>().last();
+            session->entryIssue(0, quint32(label == first ? E_FAIL : S_FALSE),
+                                label == first ? "first read issue" : "second read issue", -1);
+            session->entryIssue(0, quint32(E_ABORT), "cancelled read", -1);
             QTRY_COMPARE(session->status(), QtArchiveMountSession::Status::Stopped);
             QVERIFY(remove->isEnabled());
+            QVERIFY(details->toPlainText().contains(label == first ? "first read issue"
+                                                                   : "second read issue"));
+            QVERIFY(!details->toPlainText().contains(label == first ? "second read issue"
+                                                                    : "first read issue"));
+            QVERIFY(!details->toPlainText().contains("cancelled read"));
         }
         answer.stop();
         QCOMPARE(list->topLevelItemCount(), 2);
@@ -217,11 +226,19 @@ class MountExtractionPromptTests final : public QObject {
         QVERIFY(UiInspection::writeReport(manager, "mount-manager-long-source"));
         list->header()->resizeSection(0, initialWidth + 80);
         list->setCurrentItem(list->topLevelItem(0));
+        QVERIFY(details->toPlainText().contains("first read issue"));
+        QVERIFY(!details->toPlainText().contains("second read issue"));
         QVERIFY(RemoveThroughContextMenu(*list));
         QCOMPARE(list->topLevelItemCount(), 1);
         QCOMPARE(list->currentItem()->text(0), longLabel);
         QCOMPARE(list->columnWidth(0), initialWidth + 80);
         QVERIFY(remove->isEnabled());
+        QVERIFY(details->toPlainText().contains("second read issue"));
+        QVERIFY(!details->toPlainText().contains("first read issue"));
+        const auto sessions = manager.findChildren<QtArchiveMountSession *>();
+        auto *remaining = sessions.last();
+        remaining->entryIssue(0, quint32(E_FAIL), "later second read issue", -1);
+        QVERIFY(details->toPlainText().contains("later second read issue"));
         QVERIFY(RemoveThroughContextMenu(*list));
         QCOMPARE(list->topLevelItemCount(), 0);
         QVERIFY(manager.findChild<QPlainTextEdit *>("mountDetails")->toPlainText().isEmpty());

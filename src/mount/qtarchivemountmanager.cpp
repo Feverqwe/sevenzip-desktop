@@ -33,16 +33,19 @@ void QtArchiveMountManager::mount(IUnknown *resource, const QString &label,
         return;
     }
     auto *session = new QtArchiveMountSession(label, this);
-    sessions_.append(session);
+    sessions_.append(Session{session, {}});
     connect(session, &QtArchiveMountSession::changed, this, &QtArchiveMountManager::refresh);
     connect(session, &QtArchiveMountSession::entryIssue, this,
             [this, session](quint64, quint32 result, const QString &error, qint32) {
-                if (result != quint32(E_ABORT)) {
-                    issues_[session].append(result == quint32(S_FALSE)
-                                                ? tr("Unverified data: %1").arg(error)
-                                                : tr("Read failed: %1").arg(error));
-                    refresh();
-                }
+                if (result == quint32(E_ABORT))
+                    return;
+                const auto entry = std::ranges::find(sessions_, session, &Session::instance);
+                if (entry == sessions_.end())
+                    return;
+                entry->issues.append(result == quint32(S_FALSE)
+                                         ? tr("Unverified data: %1").arg(error)
+                                         : tr("Read failed: %1").arg(error));
+                refresh();
             });
     connect(session, &QtArchiveMountSession::extractionRequired, this,
             [this, session](const QString &path, quint64 size,
@@ -88,7 +91,7 @@ void QtArchiveMountManager::refresh() {
         return QString();
     };
     for (int row = 0; row < sessions_.size(); ++row) {
-        auto *session = sessions_[row];
+        auto *session = sessions_[row].instance;
         auto *item = list_->topLevelItem(row);
         if (!item)
             item = new QTreeWidgetItem(list_);
@@ -104,21 +107,22 @@ void QtArchiveMountManager::refresh() {
     updateDetails();
     if (!closingOwner_)
         return;
-    if (std::any_of(sessions_.cbegin(), sessions_.cend(), [](const auto *session) {
-            return session->status() == Status::Mounted && !session->error().isEmpty();
+    if (std::any_of(sessions_.cbegin(), sessions_.cend(), [](const Session &entry) {
+            return entry.instance->status() == Status::Mounted &&
+                   !entry.instance->error().isEmpty();
         })) {
         closingOwner_ = false;
         showManager();
-    } else if (std::all_of(sessions_.cbegin(), sessions_.cend(), [](const auto *session) {
-                   return session->status() == Status::Stopped;
+    } else if (std::all_of(sessions_.cbegin(), sessions_.cend(), [](const Session &entry) {
+                   return entry.instance->status() == Status::Stopped;
                })) {
         closingOwner_ = false;
         QTimer::singleShot(0, owner_, &QWidget::close);
     }
 }
 bool QtArchiveMountManager::canCloseOwner() {
-    if (std::all_of(sessions_.cbegin(), sessions_.cend(), [](const auto *session) {
-            return session->status() == QtArchiveMountSession::Status::Stopped;
+    if (std::all_of(sessions_.cbegin(), sessions_.cend(), [](const Session &entry) {
+            return entry.instance->status() == QtArchiveMountSession::Status::Stopped;
         }))
         return true;
     if (closingOwner_)
@@ -132,8 +136,8 @@ bool QtArchiveMountManager::canCloseOwner() {
     if (prompt.clickedButton() != close)
         return false;
     closingOwner_ = true;
-    for (auto *session : sessions_)
-        session->unmount();
+    for (const auto &entry : sessions_)
+        entry.instance->unmount();
     refresh();
     return false;
 }

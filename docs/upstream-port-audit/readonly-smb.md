@@ -547,3 +547,36 @@ distinguishes kernel CIFS support from the recommended mount.cifs helper; neithe
 may be assumed present on every desktop. The product must detect the native
 capability and explain a concrete limitation rather than installing a filesystem
 driver or promising universal mounts.
+
+### Manager session records — 2026-11-01
+
+Reviewed the complete manager creation/selection/details/remove/owner-close
+path, session startup/cancellation/stop cleanup, extraction prompts and source
+issue delivery against the existing local integration scope above. There is no
+upstream 7zFM mount-session owner to transfer; native client, SMB reader and
+session lifecycle implementations and their recorded source baselines are
+unchanged. No external code is imported.
+
+Each manager record now keeps its session and read diagnostics together. This
+removes the separate pointer-keyed diagnostic table and paired removal step.
+Queued issue delivery resolves the retained session record and ignores a record
+already removed from the manager. Selection, detail ordering, translations,
+action availability, stopped-only removal and owner-close decisions retain
+their previous behavior. QObject session ownership and platform operations are
+unchanged; no text, layout, visibility or geometry change is introduced.
+
+The existing two-session removal regression now checks distinct diagnostics,
+cancellation-report exclusion, selection switching and new diagnostics after
+the preceding row is removed. It detects cross-session attribution or lost
+messages after row changes through public session notifications and displayed
+details; it does not inspect manager storage or private helpers. Setup fails
+before starting a server or native mount, preserving the fixture source bytes.
+
+Focused Linux validation passed mount_extraction_prompt, mount_session and
+archive_mount_transport: 50 passed rows, with five native-OS mount rows left
+behind their existing opt-in. The manager removal/diagnostic regression ran;
+the installed CIFS prerequisite was detected without installing or mounting
+anything. Only portable manager state changed, so secondary OS and native mount
+acceptance are not claimed. Source inventory and whitespace checks passed;
+ordinary four-job builds reused incremental outputs and the compiler cache.
+No full/slow suite, appearance inspection or platform adapter change is involved.
