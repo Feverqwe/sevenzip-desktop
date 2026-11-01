@@ -76,6 +76,14 @@ class NativeCommandDispatchTests : public QObject {
             QCOMPARE(commands.parameter, command.second);
         }
         for (auto command : {std::pair<unsigned, QString>{IDM_HASH_ALL, "*"},
+                             {IDM_CRC32, "CRC32"},
+                             {IDM_CRC64, "CRC64"},
+                             {IDM_XXH64, "XXH64"},
+                             {IDM_MD5, "MD5"},
+                             {IDM_SHA1, "SHA1"},
+                             {IDM_SHA256, "SHA256"},
+                             {IDM_SHA384, "SHA384"},
+                             {IDM_SHA512, "SHA512"},
                              {IDM_SHA3_256, "SHA3-256"},
                              {IDM_BLAKE2SP, "BLAKE2sp"}}) {
             commands.calls.clear();

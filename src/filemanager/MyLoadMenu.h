@@ -16,6 +16,7 @@ void OnMenuActivating(QMenuBar &mainMenu, QMenu &menu, int position, CApp &app,
 void MyLoadMenu(QMenuBar &menu, bool needResetMenu);
 void MyLoadBookmarks(QAction *const *openActions, QAction *const *setActions, CApp &app);
 unsigned GetSortControlID(PROPID propID);
+const char *GetHashMethodForCommand(unsigned id);
 bool ExecuteFileCommand(unsigned id, IQtFileManagerCommandServices &app);
 bool OnMenuCommand(unsigned id, IQtFileManagerMenuCommandServices &app);
 

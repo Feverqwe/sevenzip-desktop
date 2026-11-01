@@ -397,7 +397,7 @@ class MainWindow : public QMainWindow {
     QAction *editFile_ = nullptr;
     QAction *diffFiles_ = nullptr;
     QAction *properties_ = nullptr;
-    QAction *hashActions_[11]{};
+    QHash<unsigned, QAction *> hashActions_;
     QAction *createFolder_ = nullptr;
     QAction *createFile_ = nullptr;
     QAction *refresh_ = nullptr;
