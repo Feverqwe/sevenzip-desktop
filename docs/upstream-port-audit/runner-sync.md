@@ -40,6 +40,17 @@ Both prior project protections are retained; the combined fingerprint differs
 from the bundled smbStorage binary. Normal CIFS sync selects 100 ns without a
 tree-wide checksum pass. Explicit verification still verifies transferred bytes.
 
+The shared-storage follow-up checks the destination filesystem under the pinned
+readiness wrapper. Only CIFS receives timestamp rounding; the Linux FUSE frontend
+uses cp2's strict comparison. No service/frontend switch, source hashing pass,
+cache reset or cp2 source/baseline change is involved. A real FUSE copy check
+changes same-sized bytes with a one-nanosecond mtime change: the old rounded mode
+skips the change, strict comparison transfers it, and an unchanged repeat skips
+the file. The selected mount and synchronization result are retained as evidence.
+The existing hyperv_runner behavior suite passed on Linux, macOS and Windows;
+the Linux invocation also synchronized the real project through FUSE without
+checksum mode.
+
 Local integration owns installation, the configured SSH connection, protected
 source exclusions and build-fresh snapshot timestamps. cp2 owns reconciliation,
 file transfer, checksum mode and its signature cache. The small local SSH

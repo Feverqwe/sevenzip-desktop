@@ -70,7 +70,9 @@ nonempty old outputs. Links
 at their original paths preserve CMake/Ninja incremental state. The destination
 is the selected project's namespace on the common mount. The local repository,
 tools and compiler/download caches remain outside it. Use the pinned cp2 with
-`--timestamp-resolution-ns 100` for CIFS timestamp precision. Do not link another
+`--timestamp-resolution-ns 100` for CIFS timestamp precision; FUSE uses strict
+mtime comparison. Runner sync checks the source destination's actual filesystem
+instead of inferring precision from the configured wrapper. Do not link another
 project's namespace or modify smbStorage backend roots directly. For a manual guest build,
 use the same external wrapper around the project's normal build command.
 Compiler temporary files use shared project scratch. Native runtime test fixtures
