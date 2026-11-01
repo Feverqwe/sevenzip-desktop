@@ -6,9 +6,12 @@
 #include "support/options_presentation.h"
 #include "support/widget_dialogs.h"
 #include "ui/support/layout_inspection.h"
+#include <QColor>
 #include <QDialogButtonBox>
 #include <QHeaderView>
+#include <QImage>
 #include <QMessageBox>
+#include <QPixmap>
 #include <QPushButton>
 #include <QTabWidget>
 #include <QTemporaryDir>
@@ -17,6 +20,16 @@
 #include <QtTest>
 
 namespace {
+QIcon SolidIcon(Qt::GlobalColor color) {
+    QPixmap pixmap(16, 16);
+    pixmap.fill(color);
+    return QIcon(pixmap);
+}
+QColor IconColor(const QTreeWidgetItem &item) {
+    const QImage sample = item.icon(0).pixmap(1, 1).toImage();
+    return sample.isNull() ? QColor() : sample.pixelColor(0, 0);
+}
+
 class CFixtureManager final : public IFolderManager, public CMyUnknownImp {
     Z7_COM_UNKNOWN_IMP_1(IFolderManager)
   public:
@@ -43,6 +56,9 @@ class CFakeAssociations final : public IQtAssociationServices {
     int deleted = 0;
     int notifications = 0;
     QString userName;
+    QIcon ownIcon;
+    QIcon originalIcon;
+    QIcon externalIcon;
     bool CanApply(unsigned g) const override { return permitted[g]; }
     bool CanApplyFormat(unsigned g, const UString &ext) const override {
         return permitted[g] && !(unsupportedUnicodeFormat && ext == L"тар");
@@ -51,6 +67,10 @@ class CFakeAssociations final : public IQtAssociationServices {
     QString CurrentUserName() const override { return userName; }
     bool RefreshNativeStateAfterApply() const override { return nativeAliases; }
     UString OwnIconPath() const override { return UString(L"/app/sevenzip"); }
+    QIcon OwnIcon() const override { return ownIcon; }
+    QIcon AssociationIcon(unsigned, const UString &) const override {
+        return externallyChanged ? externalIcon : originalIcon;
+    }
     bool Read(unsigned, const UString &ext, NRegistryAssoc::CShellExtInfo &info) override {
         if (nativeAliases) {
             info.ProgramKey = associated ? "7-Zip.native" : "Native.Other";
@@ -261,20 +281,32 @@ class SystemPageTests final : public QObject {
     void externalChangeRefreshesTheFailedRowBeforeAnotherDecision() {
         CMyComPtr<IFolderManager> manager = new CFixtureManager;
         auto service = std::make_shared<CFakeAssociations>();
+        service->ownIcon = SolidIcon(Qt::green);
+        service->originalIcon = SolidIcon(Qt::red);
+        service->externalIcon = SolidIcon(Qt::blue);
         CSystemPage page(manager, service);
         auto *list = page.findChild<QTreeWidget *>("systemAssociations");
-        list->topLevelItem(1)->setSelected(true);
+        const auto original = list->findItems("zip", Qt::MatchExactly);
+        const auto changed = list->findItems("7z", Qt::MatchExactly);
+        QCOMPARE(original.size(), 1);
+        QCOMPARE(changed.size(), 1);
+        auto *row = changed.front();
+        QCOMPARE(IconColor(*original.front()), QColor(Qt::red));
+        row->setSelected(true);
         page.findChild<QPushButton *>("systemCurrent")->click();
+        QCOMPARE(IconColor(*row), QColor(Qt::green));
         service->externallyChanged = true;
         service->failure = 1237;
         QCOMPARE(page.OnApply(), LONG(1237));
-        QCOMPARE(list->topLevelItem(1)->text(1), QString("External.Archiver"));
+        QCOMPARE(row->text(1), QString("External.Archiver"));
+        QCOMPARE(IconColor(*row), QColor(Qt::blue));
         QVERIFY(!page.IsModified());
         page.findChild<QPushButton *>("systemCurrent")->click();
-        QCOMPARE(list->topLevelItem(1)->text(1), QString("7-Zip"));
+        QCOMPARE(row->text(1), QString("7-Zip"));
         service->failure = 0;
         QCOMPARE(page.OnApply(), LONG(0));
-        QCOMPARE(list->topLevelItem(1)->text(1), QString("7-Zip"));
+        QCOMPARE(row->text(1), QString("7-Zip"));
+        QCOMPARE(IconColor(*row), QColor(Qt::green));
     }
     void sourceApplyFailureRevertsAndCancelDoesNotRegister() {
         CMyComPtr<IFolderManager> manager = new CFixtureManager;

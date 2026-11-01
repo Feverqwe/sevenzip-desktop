@@ -62,7 +62,6 @@ class CSystemPage : public QWidget {
     CExtDatabase _extDB;
     CObjectVector<CAssoc> _items;
     CObjectVector<QIcon> _imageList;
-    unsigned _numIcons = 0;
     std::shared_ptr<IQtAssociationServices> _services;
     QTreeWidget *_listView;
     QPushButton *_current;
@@ -81,6 +80,7 @@ class CSystemPage : public QWidget {
     unsigned GetRealIndex(unsigned listIndex) const { return listIndex; }
     int AddIcon(const UString &path, int iconIndex, const QIcon &nativeIcon = {});
     UString OwnFormatIconPath(unsigned realIndex) const;
+    void PrepareAssociationPresentation(unsigned group, unsigned realIndex, CModifiedExtInfo &info);
     void RefreshAvailability();
     void RefreshListItem(unsigned group, unsigned listIndex);
     void ChangeState(unsigned group, const CUIntVector &indices);

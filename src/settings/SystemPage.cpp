@@ -46,7 +46,7 @@ CSysString CModifiedExtInfo::GetString() const {
 int CSystemPage::AddIcon(const UString &iconPath, int iconIndex, const QIcon &nativeIcon) {
     if (!nativeIcon.isNull()) {
         _imageList.Add(nativeIcon);
-        return (int)(_numIcons++);
+        return int(_imageList.Size() - 1);
     }
     if (iconPath.IsEmpty())
         return -1;
@@ -72,7 +72,7 @@ int CSystemPage::AddIcon(const UString &iconPath, int iconIndex, const QIcon &na
     if (icon.isNull())
         return -1;
     _imageList.Add(icon);
-    return (int)(_numIcons++);
+    return int(_imageList.Size() - 1);
 }
 
 CSystemPage::CSystemPage(IFolderManager *manager, std::shared_ptr<IQtAssociationServices> services,
@@ -140,7 +140,6 @@ bool CSystemPage::OnInit(IFolderManager *manager) {
     _extDB.Read(manager);
     _items.Clear();
     _imageList.Clear();
-    _numIcons = 0;
     _listView->clear();
     FOR_VECTOR(i, _extDB.Exts) {
         const CExtPlugins &extInfo = _extDB.Exts[i];
@@ -155,10 +154,7 @@ bool CSystemPage::OnInit(IFolderManager *manager) {
             CModifiedExtInfo &mi = assoc.Pair[g];
             if (_services)
                 _services->Read(g, extInfo.Ext, mi);
-            mi.SetState(OwnFormatIconPath(i));
-            mi.ImageIndex =
-                AddIcon(mi.IconPath, mi.IconIndex,
-                        _services ? _services->AssociationIcon(g, extInfo.Ext) : QIcon());
+            PrepareAssociationPresentation(g, i, mi);
             item->setText(int(g + 1),
                           QString::fromWCharArray(GetUnicodeString(mi.GetString()).Ptr()));
         }
@@ -211,6 +207,14 @@ UString CSystemPage::OwnFormatIconPath(unsigned realIndex) const {
     // Native desktop/bundle registrations use the application's native
     // identity rather than a Windows DLL DefaultIcon resource path.
     return _services ? _services->OwnIconPath() : UString();
+}
+
+void CSystemPage::PrepareAssociationPresentation(unsigned group, unsigned realIndex,
+                                                 CModifiedExtInfo &info) {
+    info.SetState(OwnFormatIconPath(realIndex));
+    info.ImageIndex = AddIcon(
+        info.IconPath, info.IconIndex,
+        _services ? _services->AssociationIcon(group, _extDB.Exts[realIndex].Ext) : QIcon());
 }
 
 void CSystemPage::RefreshListItem(unsigned group, unsigned listIndex) {
@@ -326,7 +330,7 @@ LONG CSystemPage::OnApply() {
                     mi.OldState = mi.State;
                 mi.State = mi.OldState;
                 if (res2 == 1237 && _services->Read(g, extInfo.Ext, mi))
-                    mi.SetState(OwnFormatIconPath(realIndex));
+                    PrepareAssociationPresentation(g, realIndex, mi);
                 RefreshListItem(g, listIndex);
             }
         }
@@ -343,10 +347,7 @@ LONG CSystemPage::OnApply() {
             for (unsigned g = 0; g < 2; ++g) {
                 CModifiedExtInfo detected;
                 if (_services->Read(g, _extDB.Exts[realIndex].Ext, detected)) {
-                    detected.SetState(OwnFormatIconPath(realIndex));
-                    detected.ImageIndex =
-                        AddIcon(detected.IconPath, detected.IconIndex,
-                                _services->AssociationIcon(g, _extDB.Exts[realIndex].Ext));
+                    PrepareAssociationPresentation(g, realIndex, detected);
                     _items[realIndex].Pair[g] = detected;
                     RefreshListItem(g, listIndex);
                 }
