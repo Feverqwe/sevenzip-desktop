@@ -162,9 +162,8 @@ HRESULT QtArchiveFolderManager::OpenLinkImpl(CArchiveLink &link, const COpenOpti
     const bool ownedStreamFile = services.OwnedStreamFile;
     auto *resource = static_cast<QtArchiveFileResource *>(services.Resource());
     QString ownedPath;
-    bool keepOwnedPath = false;
-    const auto cleanup = qScopeGuard([&] {
-        if (!keepOwnedPath && !ownedPath.isEmpty()) {
+    auto cleanup = qScopeGuard([&] {
+        if (!ownedPath.isEmpty()) {
             resource->CloseNativeOpen();
             QFile::remove(ownedPath);
         }
@@ -243,7 +242,7 @@ HRESULT QtArchiveFolderManager::OpenLinkImpl(CArchiveLink &link, const COpenOpti
         if (resource->HasNativeUpdateService())
             resource->AttachUpdateService(_backend, resource->TransportFormat());
         RINOK(CreateArchiveLinkTransport(link, nullptr, resource, sourceOptions.codecs))
-        keepOwnedPath = true;
+        cleanup.dismiss();
         return nativeResult;
     }
     const QString listingFormat =
@@ -273,7 +272,7 @@ HRESULT QtArchiveFolderManager::OpenLinkImpl(CArchiveLink &link, const COpenOpti
     RINOK(ConfirmLimitedArchiveRead(dialog, readCallback, {}, info.readLimitations))
     resource->SetFilesystemReadLimitations(info.readLimitations);
     RINOK(CreateArchiveLinkTransport(link, folder, resource, sourceOptions.codecs))
-    keepOwnedPath = true;
+    cleanup.dismiss();
     return nativeResult;
     COM_TRY_END
 }

@@ -1,5 +1,34 @@
 # Archive folder lifetime across rollback — 2026-10-18
 
+## Nested opening spool handoff — 2026-11-01
+
+Reviewed resource-owned and panel-owned spool creation, opening, transport
+publication, nested edits and release. Compared original CopyCoder copying,
+Agent folder factory, FileFolderPluginOpen worker/modal handoff and Panel
+temporary-file records at recorded
+`b88c6bc09339de32f7d18bbab900686b244f42ba` in
+<https://github.com/ip7z/7zip.git>. Complete original inventory hashes match the
+existing baseline. No external code is imported or baseline advanced.
+
+Both spool paths share their existing seek/copy/progress/close sequence. Scoped
+failure cleanup closes output before deleting it and is dismissed only after
+successful publication. The opening manager likewise dismisses its cleanup
+after a native or metadata transport is created, removing three separate
+keep/completed flags. A resource-owned file still retains its registry lease;
+materialized panel copies still belong to the original temporary-file record.
+Direct streams/device inputs, native opening branches, limited-read consent,
+changed-file prompts, update propagation and creation/permission policy remain
+unchanged. Existing public ownership, cancellation and nested-edit checks are
+used; no representation test or pre-fix product failure is claimed.
+
+Linux acceptance passed `owned_temp_publication`, `archive_opening`,
+`nested_edit_chain`, `native_parent_publication` and `binding_lifecycle`.
+Windows additionally passed only `owned_temp_publication` and `archive_opening`
+for its native close-before-delete behavior. macOS was not selected; shared
+POSIX behavior is covered on primary Linux. The checks used existing incremental
+trees, compiler caches and the four-job default. No full/slow gate or appearance
+acceptance is claimed.
+
 ## Native copy password ownership — 2026-10-31
 
 Compared original `CPanel::CopyTo` overloads, `TestArchives`, `CApp::OnCopy`,
