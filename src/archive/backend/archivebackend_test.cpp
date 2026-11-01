@@ -136,7 +136,6 @@ void ArchiveBackend::finishReadOperation() {
     if (sourceExtractJob)
         finishSourceExtractOperation(*operation);
     const HRESULT result = lastResult_;
-    pendingPassword_.clear();
     overwritePromptActive_ = false;
     job_ = Job::None;
     const QPointer<ArchiveBackend> owner(this);
@@ -159,13 +158,10 @@ void ArchiveBackend::finishReadOperation() {
     if (result == S_OK && listingJob && listing) {
         listing->Info.readLimitations = diagnostics.join('\n');
         entries_ = std::move(listing->Entries);
-        listed_ = true;
-        encrypted_ = listing->Info.encrypted;
         const QFileInfo source(path);
-        listedSourceArchives_.insert(
-            path, {source.size(), source.lastModified(), source.metadataChangeTime(), entries_,
-                   encrypted_, !diagnostics.isEmpty(), listing->Info.format,
-                   listing->Info.containerLevels, !listing->CanUpdate || !source.isWritable()});
+        listedSourceArchives_.insert(path,
+                                     {source.size(), source.lastModified(),
+                                      source.metadataChangeTime(), entries_, listing->Info.format});
         const auto entries = entries_;
         emit infoReady(listing->Info);
         if (!owner)

@@ -56,6 +56,5 @@ void ArchiveBackend::extractSourceEntry(const QString &archive, const QString &e
     if (format.isEmpty() && hasListedSourceArchive(archive_))
         sourceExtractRecovery_ =
             IsArchiveRecoveryFormat(listedSourceArchives_.value(archive_).Format);
-    pendingPassword_ = password;
     startNativeRead(Job::SourceExtract, archive_, password, format);
 }

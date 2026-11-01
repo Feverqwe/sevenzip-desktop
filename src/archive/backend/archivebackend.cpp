@@ -6,7 +6,6 @@
 #include "archive/resources/qtarchivehashoperation.h"
 #include "archive/resources/qtarchivereadoperation.h"
 #include <QCoreApplication>
-#include <QDir>
 #include <QFileInfo>
 #include <QPointer>
 ArchiveBackend::ArchiveBackend(QObject *parent, QString runtimeLocation) : QObject(parent) {
@@ -80,9 +79,6 @@ void ArchiveBackend::startListing(const QString &archive, const QString &passwor
     archive_ = QFileInfo(archive).absoluteFilePath();
     listedSourceArchives_.remove(archive_);
     entries_.clear();
-    listed_ = false;
-    encrypted_ = false;
-    pendingPassword_ = password;
     startNativeRead(Job::List, archive_, password, format);
 }
 
@@ -96,17 +92,13 @@ bool ArchiveBackend::hasListedSourceArchive(const QString &archive) const {
            file.metadataChangeTime() == found->MetadataChanged;
 }
 
-bool ArchiveBackend::restoreListedArchive(const QString &archive, bool allowLimited) {
+bool ArchiveBackend::restoreListedArchive(const QString &archive) {
     if (!hasListedSourceArchive(archive))
         return false;
     const QString path = QFileInfo(archive).absoluteFilePath();
     const ListedSourceSnapshot &snapshot = listedSourceArchives_.constFind(path).value();
-    if (!allowLimited && (snapshot.LimitedRead || snapshot.ReadOnly))
-        return false;
     archive_ = path;
     entries_ = snapshot.Entries;
-    encrypted_ = snapshot.Encrypted;
-    listed_ = true;
     return true;
 }
 
@@ -164,7 +156,6 @@ void ArchiveBackend::extract(const QString &archive, const QString &destination,
     request->Destination = *output;
     request->Selected = selectedEntries;
     request->Options = options;
-    pendingPassword_ = password;
     startNativeRead(Job::Extract, archive_, password, {}, std::move(request));
 }
 
@@ -181,7 +172,6 @@ void ArchiveBackend::test(const QString &archive, const QString &password) {
                                                "Open the archive and inspect its contents first."));
         return;
     }
-    pendingPassword_ = password;
     startNativeRead(Job::Test, archive_, password);
 }
 
@@ -199,7 +189,6 @@ void ArchiveBackend::testSourceArchive(const QString &archive, const QString &pa
         return;
     }
     archive_ = file.absoluteFilePath();
-    pendingPassword_ = password;
     startNativeRead(Job::Test, archive_, password);
 }
 
@@ -215,7 +204,6 @@ void ArchiveBackend::cancel() {
         hashOperation_->cancel();
     if (readOperation_)
         readOperation_->cancel();
-    pendingPassword_.clear();
     if (overwritePromptActive_) {
         overwritePromptActive_ = false;
         emit dismissOverwriteRequested();
@@ -241,7 +229,6 @@ void ArchiveBackend::cancelAndWait() {
 }
 
 void ArchiveBackend::providePassword(const QString &password) {
-    pendingPassword_ = password;
     if (readOperation_)
         readOperation_->providePassword(password);
 }

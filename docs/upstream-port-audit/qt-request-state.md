@@ -48,3 +48,40 @@ resize expectation. The [test-only correction](options-platform-visibility.md#п
 passed separately in run `20261017T215830Z-4e302ed8`. Linux/Windows used the
 persistent `current` worktree and compiler caches; Windows symlink fixtures
 used the existing elevated task mode. No full/slow gate was run.
+
+## Retained listing and password state — 2026-11-01
+
+Reviewed the complete listing/start/completion, cached-list restoration,
+extract/test, source-entry recovery, password and cancellation consumers. The
+retained listing cache is local integration; the original Agent ReadItems owner
+remains responsible for native folder metadata. No native reader, decoder or
+upstream algorithm is imported or changed.
+
+The backend no longer stores unused listed/encrypted/prompt flags or a second
+password copy. The active read operation already owns password delivery and
+waiting. Cached snapshots now retain only file identity, entries and the format
+needed by source recovery. Removed the private allowLimited branch: both callers
+always selected its permissive default. Actual native read-only capabilities,
+limited-read consent and published encryption/limitations/container metadata
+retain their existing owners and behavior. Cancellation and completion signal
+ordering are unchanged.
+
+Two public behavior rows cover plain ZIP and encrypted-header 7z: list two
+archives, extract the first after listing the second, replace the first with a
+different valid archive, reject cached Extract/Test until it is listed again,
+then extract its new entry and test the other retained archive. The changed-file
+case checks rejection before destination creation; extracted bytes establish
+which source and listing were used. No private-field or source-presence checks
+were added.
+
+The seven focused listing, extraction, test and recovery suites passed first on
+Linux x64 (`20261101T034936Z-567d79fd`), then native macOS arm64 and interactive
+Windows x64 (`20261101T035448Z-e1245eed`), all with Qt 6.12 and existing incremental
+trees/compiler caches. macOS recorded 165 passing cases; Windows recorded 164
+and one expected skip for colon filenames. Linux's final LastTest.log retained
+only the selection header, so a verbose archive_backend-only follow-up
+(`20261101T040116Z-33238908`) independently confirmed all 60 cases, including
+both new rows. The original seven-suite run's stdout and current-token report
+record success; no complete Linux per-case total is claimed. This also accepted
+the C++ changes after the operator's FUSE repair; the earlier dependency-file
+EEXIST build failures are retained separately. No full/slow gate was run.

@@ -265,16 +265,12 @@ class ArchiveBackend : public QObject {
         QDateTime Modified;
         QDateTime MetadataChanged;
         QList<ArchiveEntry> Entries;
-        bool Encrypted = false;
-        bool LimitedRead = false;
         QString Format;
-        unsigned ContainerLevels = 1;
-        bool ReadOnly = false;
     };
     enum class Job { None, List, Extract, Test, Hash, SourceExtract };
     void finishSourceExtractOperation(const QtArchiveReadOperation &operation);
     static bool safePath(const QString &path);
-    bool restoreListedArchive(const QString &archive, bool allowLimited = true);
+    bool restoreListedArchive(const QString &archive);
     void startListing(const QString &archive, const QString &password, const QString &format);
 
     QString configuredModule_;
@@ -308,12 +304,8 @@ class ArchiveBackend : public QObject {
                                            UInt32 count);
     QList<ArchiveEntry> entries_;
     QHash<QString, ListedSourceSnapshot> listedSourceArchives_;
-    bool listed_ = false;
     bool cancelled_ = false;
     HRESULT lastResult_ = E_FAIL;
-    QString pendingPassword_;
-    bool passwordPrompted_ = false;
-    bool encrypted_ = false;
     bool sourceExtractRecovery_ = false;
     QString sourceExtractEntry_;
     bool sourceExtractAltStream_ = false;

@@ -79,6 +79,76 @@ class ArchiveBackendTests : public QObject, protected ArchiveBackendTestSupport 
         QVERIFY(backend.hasListedSourceArchive(second));
         QVERIFY(!backend.busy());
     }
+    void listedArchivesRestoreIndependentlyAndRejectChangedSource_data() {
+        QTest::addColumn<QString>("format");
+        QTest::addColumn<QString>("password");
+        QTest::newRow("plain ZIP") << QStringLiteral("zip") << QString();
+        QTest::newRow("encrypted 7z") << QStringLiteral("7z") << QStringLiteral("fixture пароль");
+    }
+    void listedArchivesRestoreIndependentlyAndRejectChangedSource() {
+        QFETCH(QString, format);
+        QFETCH(QString, password);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString first = fixture.filePath(QStringLiteral("первый 空.") + format);
+        const QString second = fixture.filePath("second.zip");
+        const QString name = QStringLiteral("первый файл.txt");
+        const auto entry = [](const QString &path, const QByteArray &bytes) {
+            NativeArchiveFixture::Item item;
+            item.Path = path;
+            item.Bytes = bytes;
+            return item;
+        };
+        QVERIFY(NativeArchiveFixture::Write(first, {entry(name, "first bytes")}, format, password,
+                                            true, true));
+        QVERIFY(NativeArchiveFixture::Write(second, {entry("second.txt", "second bytes")}, "zip"));
+        ArchiveBackend backend;
+        backend.list(first, password);
+        await(backend, true);
+        backend.list(second);
+        await(backend, true);
+        QVERIFY(backend.hasListedSourceArchive(first));
+        QVERIFY(backend.hasListedSourceArchive(second));
+        const QString output = fixture.filePath(QStringLiteral("выход 空/first"));
+        backend.extract(first, output, {name}, password);
+        await(backend, true);
+        QFile extracted(QDir(output).filePath(name));
+        QVERIFY(extracted.open(QIODevice::ReadOnly));
+        QCOMPARE(extracted.readAll(), QByteArray("first bytes"));
+        extracted.close();
+
+        const QString changedName = QStringLiteral("обновлённый файл.txt");
+        const QByteArray changedBytes(1024, 'x');
+        const QString replacement = fixture.filePath("replacement." + format);
+        QVERIFY(NativeArchiveFixture::Write(replacement, {entry(changedName, changedBytes)}, format,
+                                            password, true, true));
+        QVERIFY(QFileInfo(replacement).size() != QFileInfo(first).size());
+        QVERIFY(QFile::remove(first));
+        QVERIFY(QFile::rename(replacement, first));
+        QVERIFY(!backend.hasListedSourceArchive(first));
+        QVERIFY(backend.hasListedSourceArchive(second));
+        const QString rejectedOutput = fixture.filePath("must not be created");
+        for (bool test : {false, true}) {
+            QSignalSpy rejected(&backend, &ArchiveBackend::finished);
+            if (test)
+                backend.test(first, password);
+            else
+                backend.extract(first, rejectedOutput, {}, password);
+            QCOMPARE(rejected.size(), 1);
+            QVERIFY(!rejected.first().first().toBool());
+        }
+        QVERIFY(!QFileInfo::exists(rejectedOutput));
+        backend.list(first, password);
+        await(backend, true);
+        const QString retryOutput = fixture.filePath(QStringLiteral("выход 空/retry"));
+        backend.extract(first, retryOutput, {changedName}, password);
+        await(backend, true);
+        QFile updated(QDir(retryOutput).filePath(changedName));
+        QVERIFY(updated.open(QIODevice::ReadOnly));
+        QCOMPARE(updated.readAll(), changedBytes);
+        backend.test(second);
+        await(backend, true);
+    }
     void rejectedRequestDoesNotReusePreviousResult_data() {
         QTest::addColumn<QString>("operation");
         QTest::addColumn<bool>("cancelled");
