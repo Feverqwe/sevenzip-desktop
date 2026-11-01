@@ -29,6 +29,18 @@ extern char **environ;
 
 namespace {
 #ifdef Q_OS_WIN
+UString NativeParameters(const UString &parameters, const UStringVector &paths) {
+    UString result = parameters;
+    FOR_VECTOR(i, paths) {
+        if (!result.IsEmpty() && result.Back() != ' ')
+            result.Add_Space();
+        result.Add_Char('"');
+        result += paths[i];
+        result.Add_Char('"');
+    }
+    return result;
+}
+
 std::optional<FILETIME> ProcessCreationTime(UInt32 id) {
     NWindows::CProcess process;
     FILETIME created{}, exited{}, kernel{}, user{};
@@ -67,6 +79,12 @@ class CWinProcessHandle final : public IQtProcessHandle {
     }
 };
 #else
+QStringList ProcessArguments(const UString &parameters, const UStringVector &paths) {
+    QStringList arguments = QProcess::splitCommand(ToQString(parameters));
+    FOR_VECTOR(i, paths) arguments.append(ToQString(paths[i]));
+    return arguments;
+}
+
 QtProcessStatus ReadProcessRecord(UInt32 id, CSnapshotProcess &record, QByteArray &identity) {
 #ifdef Q_OS_MACOS
     proc_bsdinfo info{};
@@ -330,14 +348,7 @@ HRESULT QtNativeProcessServices::Create(const UString &program, const UString &p
     if (program.IsEmpty())
         return E_FAIL;
 #ifdef Q_OS_WIN
-    UString param = parameters;
-    FOR_VECTOR(i, paths) {
-        if (!param.IsEmpty() && param.Back() != ' ')
-            param.Add_Space();
-        param.Add_Char('"');
-        param += paths[i];
-        param.Add_Char('"');
-    }
+    const UString param = NativeParameters(parameters, paths);
     return StartNative(
         [&](NWindows::CProcess &native) {
             const WRes result = native.Create(program, param, nullptr);
@@ -350,9 +361,8 @@ HRESULT QtNativeProcessServices::Create(const UString &program, const UString &p
     handle->PrepareReaper();
     QList<QByteArray> bytes;
     bytes.append(QFile::encodeName(ToQString(program)));
-    for (const QString &arg : QProcess::splitCommand(ToQString(parameters)))
+    for (const QString &arg : ProcessArguments(parameters, paths))
         bytes.append(QFile::encodeName(arg));
-    FOR_VECTOR(i, paths) bytes.append(QFile::encodeName(ToQString(paths[i])));
     QVector<char *> arguments;
     for (QByteArray &arg : bytes)
         arguments.append(arg.data());
@@ -393,4 +403,17 @@ HRESULT QtNativeProcessServices::Create(const UString &program, const UString &p
     process = handle.release();
 #endif
     return S_OK;
+}
+
+HRESULT QtNativeProcessServices::CreateDetached(const UString &program, const UString &parameters,
+                                                const UStringVector &paths) {
+    QProcess process;
+    process.setProgram(ToQString(program));
+#ifdef Q_OS_WIN
+    // Preserve original CreateProcess parameter-string interpretation on Windows.
+    process.setNativeArguments(ToQString(NativeParameters(parameters, paths)));
+#else
+    process.setArguments(ProcessArguments(parameters, paths));
+#endif
+    return process.startDetached() ? S_OK : E_FAIL;
 }

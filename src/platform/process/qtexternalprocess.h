@@ -55,4 +55,6 @@ class QtNativeProcessServices final : public IQtProcessServices {
 #endif
     HRESULT Create(const UString &program, const UString &parameters, const UStringVector &paths,
                    IQtProcessHandle *&process);
+    HRESULT CreateDetached(const UString &program, const UString &parameters,
+                           const UStringVector &paths);
 };

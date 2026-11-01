@@ -1,5 +1,49 @@
 # External-process ownership
 
+## External editor launch boundary — 2026-11-01
+
+Reviewed the complete source SplitCmdLineSmart, StartAppWithParams,
+StartEditApplication, EditItem and both DiffFiles bodies and native CProcess
+creation against the existing baseline at
+`b88c6bc09339de32f7d18bbab900686b244f42ba` in
+<https://github.com/ip7z/7zip.git>. PanelItemOpen.cpp's complete original hash
+matches the recorded inventory. The current disk/archive callers, association
+adapter and process creation/handle/reaper implementations were compared before
+changing the launch boundary. No source algorithm is replaced or imported.
+
+QtNativeProcessServices now owns both waitable and detached executable launches.
+QtAssociatedFileServices delegates creation while retaining system associations,
+prompts and archive-update integration. The two launch paths share parameter
+preparation: original quoted path appending on Windows, and the existing Qt
+parameter splitting plus literal path arguments on POSIX. Native CProcess and
+posix_spawn ownership, process groups, preallocated reaper, metadata-failure
+handoff and detached QProcess launch retain their respective behavior. No shell
+is introduced. Source selection, command parsing/defaults and editor wait/update
+policy remain unchanged; no UI layout/text changes or new baseline units.
+
+The existing real-child argument fixture now also exercises the waitable route.
+It detects lost/split Unicode or space-containing paths, shell interpretation of
+literal path characters, and failure to return a usable process owner. Both
+routes still check an unavailable executable. Existing keyboard View/Edit/Diff,
+archive editing and process-allocation regressions cover the direct consumers.
+
+Linux passed all four selected suites first: 40 Qt checks without skips plus
+process_spawn_allocation; run `20261101T191813Z-2e84ba64`, build 68.864 seconds,
+tests 15.756 seconds. Interactive Windows passed the same three behavioral
+suites (40 Qt checks without skips) plus process_handle_allocation; run
+`20261101T191952Z-833385b7`, build 142.450 seconds, tests 22.690 seconds.
+macOS passed external_launch (17 checks without skips) and
+process_spawn_allocation. Its first launch suite stopped four archive fixtures
+because the local reference runtime was absent; normal codec-only preparation
+reused the compiler cache (3.40 seconds), then only external_launch was repeated
+and passed (build 0.592 seconds, tests 4.468 seconds). The first macOS selected
+build took 11.295 seconds. No product fix was needed for that prerequisite.
+
+Disposable fixture settings and records whose temporary objects no longer
+exist were removed after checking completed runs/processes. Incremental builds,
+prepared runtime and compiler caches remain available. Slow native-publication
+matrices and new visual parity acceptance were not part of this change.
+
 ## Child tracking ownership — 2026-11-01
 
 Compared complete original PanelItemOpen child discovery, process tracking,
