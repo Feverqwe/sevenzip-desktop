@@ -17,6 +17,20 @@
 #include <QUuid>
 #include <algorithm>
 
+OverwriteQuestion QtFileTransferTransaction::snapshot(const OverwriteSource &source) {
+    OverwriteQuestion question;
+    question.Existing = FilesystemOverwriteFile(source.Existing);
+    if (!source.DisplayExisting.isEmpty())
+        question.Existing.Path = source.DisplayExisting;
+    if (const auto *path = std::get_if<QString>(&source.Incoming))
+        question.Incoming = FilesystemOverwriteFile(*path);
+    else {
+        question.Incoming = std::get<OverwriteQuestion::File>(source.Incoming);
+        question.Incoming.Directory = QFileInfo(question.Incoming.Path).isDir();
+    }
+    return question;
+}
+
 bool QtFileTransferTransaction::removeEntry(const QString &path) {
     return QtRemoveFileSystemEntry(path);
 }
@@ -71,11 +85,12 @@ bool QtFileTransferTransaction::copyEntry(const QString &source, const QString &
 
 bool QtFileTransferTransaction::mergeEntry(
     const QString &source, const QString &stage, const QString &target,
-    const std::function<int(const QString &, const QString &)> &answer, QStringList *writtenSources,
+    const std::function<int(const OverwriteSource &)> &answer, QStringList *writtenSources,
     QString *error) {
     CFileTransferCopyCallback callback(
-        [this, &answer, &stage, &target](const QString &incoming, const QString &requested,
-                                         QString &effective, bool &write) -> HRESULT {
+        [this, &answer, &stage, &target](const OverwriteQuestion::File &incoming,
+                                         const QString &requested, QString &effective,
+                                         bool &write) -> HRESULT {
             if (worker_.canceled_)
                 return E_ABORT;
             const QFileInfo existing(requested);
@@ -83,7 +98,7 @@ bool QtFileTransferTransaction::mergeEntry(
                 return E_ABORT;
             if (existing.exists()) {
                 const QString visible = target + requested.mid(stage.size());
-                const int decision = answer(visible, incoming);
+                const int decision = answer({requested, visible, incoming});
                 if (decision == NOverwriteAnswer::kNo || decision == NOverwriteAnswer::kNoToAll) {
                     write = false;
                     return S_OK;
@@ -285,15 +300,14 @@ void QtFileTransferTransaction::finish(QList<Completed> &completed, QString &err
 void QtFileTransferTransaction::run() {
     enum class OverwriteMode { Ask, Skip, Overwrite, Rename };
     OverwriteMode overwriteMode = OverwriteMode::Ask;
-    auto overwriteAnswer = [this, &overwriteMode](const QString &existing,
-                                                  const QString &incoming) -> int {
+    auto overwriteAnswer = [this, &overwriteMode](const OverwriteSource &source) -> int {
         if (overwriteMode == OverwriteMode::Skip)
             return NOverwriteAnswer::kNo;
         if (overwriteMode == OverwriteMode::Overwrite)
             return NOverwriteAnswer::kYes;
         if (overwriteMode == OverwriteMode::Rename)
             return NOverwriteAnswer::kAutoRename;
-        const int answer = worker_.askOverwrite(existing, incoming);
+        const int answer = worker_.askOverwrite(snapshot(source));
         if (answer == NOverwriteAnswer::kNoToAll)
             overwriteMode = OverwriteMode::Skip;
         else if (answer == NOverwriteAnswer::kYesToAll)
@@ -329,7 +343,7 @@ void QtFileTransferTransaction::run() {
             if (merge) {
                 mayReplace = true;
             } else {
-                const int answer = overwriteAnswer(target, source);
+                const int answer = overwriteAnswer({target, target, source});
                 switch (answer) {
                 case NOverwriteAnswer::kNo:
                 case NOverwriteAnswer::kNoToAll:

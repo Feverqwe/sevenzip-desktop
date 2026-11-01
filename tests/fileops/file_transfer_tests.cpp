@@ -1,9 +1,14 @@
+#include "Common/StringConvert.h"
+#include "Windows/FileFind.h"
+#include "Windows/TimeUtils.h"
 #include "archive/callbacks/IFileExtractCallback.h"
 #include "filemanager/providers/FSFolder.h"
 #include "fileops/transfer/filetransferoperation.h"
+#include "platform/support/native_link_fixture.h"
 
 #include <QDir>
 #include <QFile>
+#include <QScopeGuard>
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QTest>
@@ -13,6 +18,85 @@ class FileTransferTests : public QObject {
     Q_OBJECT
 
   private slots:
+    void overwriteSnapshotSurvivesQueuedFilesystemChanges_data() {
+        QTest::addColumn<bool>("merge");
+        QTest::addColumn<bool>("link");
+        QTest::newRow("file") << false << false;
+        QTest::newRow("merged child") << true << false;
+        QTest::newRow("link object") << false << true;
+    }
+    void overwriteSnapshotSurvivesQueuedFilesystemChanges() {
+        QFETCH(bool, merge);
+        QFETCH(bool, link);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString destination = fixture.filePath("destination");
+        const QString sourceRoot = fixture.filePath(QStringLiteral("источник 空"));
+        const QString source = merge ? QDir(sourceRoot).filePath("child.txt") : sourceRoot;
+        const QString targetRoot = QDir(destination).filePath(QFileInfo(sourceRoot).fileName());
+        const QString target = merge ? QDir(targetRoot).filePath("child.txt") : targetRoot;
+        QVERIFY(QDir().mkpath(QFileInfo(source).absolutePath()));
+        QVERIFY(QDir().mkpath(QFileInfo(target).absolutePath()));
+        const auto write = [](const QString &path, const QByteArray &bytes) {
+            QFile file(path);
+            return file.open(QIODevice::WriteOnly | QIODevice::Truncate) &&
+                   file.write(bytes) == bytes.size();
+        };
+        const QString payload = link ? fixture.filePath("link payload") : source;
+        QVERIFY(write(payload, QByteArray(1024, 's')));
+        if (link && !CreateNativeSymbolicLink(source, payload))
+            QSKIP("Native symbolic links are unavailable");
+        QVERIFY(write(target, "old bytes"));
+        NWindows::NFile::NFind::CFileInfo sourceInfo, targetInfo;
+        QVERIFY(sourceInfo.Find(us2fs(QDir::toNativeSeparators(source).toStdWString().c_str())));
+        QVERIFY(targetInfo.Find(us2fs(QDir::toNativeSeparators(target).toStdWString().c_str())));
+        FILETIME sourceTime, targetTime;
+        FiTime_To_FILETIME(sourceInfo.MTime, sourceTime);
+        FiTime_To_FILETIME(targetInfo.MTime, targetTime);
+        FileTransferOperation operation({sourceRoot}, destination, false);
+        std::atomic_bool mutated{false};
+        bool inspected = false;
+        connect(
+            &operation, &FileTransferOperation::overwriteRequested, &operation,
+            [&] { mutated = write(payload, "changed source") && write(target, "changed target"); },
+            Qt::DirectConnection);
+        connect(
+            &operation, &FileTransferOperation::overwriteRequested, this,
+            [&](const OverwriteQuestion &question) {
+                const auto cancel = qScopeGuard([&] { operation.cancel(); });
+                inspected = true;
+                QVERIFY(mutated.load());
+                QCOMPARE(
+                    QDir::fromNativeSeparators(question.Existing.Path)
+                        .normalized(QString::NormalizationForm_C),
+                    QDir::fromNativeSeparators(target).normalized(QString::NormalizationForm_C));
+                QCOMPARE(
+                    QDir::fromNativeSeparators(question.Incoming.Path)
+                        .normalized(QString::NormalizationForm_C),
+                    QDir::fromNativeSeparators(source).normalized(QString::NormalizationForm_C));
+                QCOMPARE(question.Existing.Size, std::optional<UInt64>(targetInfo.Size));
+                QCOMPARE(question.Incoming.Size, std::optional<UInt64>(sourceInfo.Size));
+                QVERIFY(question.Existing.Modified && question.Incoming.Modified);
+                QCOMPARE(question.Existing.Modified->dwLowDateTime, targetTime.dwLowDateTime);
+                QCOMPARE(question.Existing.Modified->dwHighDateTime, targetTime.dwHighDateTime);
+                QCOMPARE(question.Incoming.Modified->dwLowDateTime, sourceTime.dwLowDateTime);
+                QCOMPARE(question.Incoming.Modified->dwHighDateTime, sourceTime.dwHighDateTime);
+            },
+            Qt::QueuedConnection);
+        QSignalSpy result(&operation, &FileTransferOperation::result);
+        operation.start();
+        QTRY_COMPARE(result.size(), 1);
+        QVERIFY(operation.wait(30000));
+        QVERIFY(inspected);
+        QCOMPARE(operation.resultKind(), FileTransferOperation::ResultKind::Canceled);
+        for (const auto &item : {qMakePair(payload, QByteArray("changed source")),
+                                 qMakePair(target, QByteArray("changed target"))}) {
+            QFile file(item.first);
+            QVERIFY(file.open(QIODevice::ReadOnly));
+            QCOMPARE(file.readAll(), item.second);
+        }
+        QCOMPARE(QDir(destination).entryList(QDir::AllEntries | QDir::NoDotAndDotDot).size(), 1);
+    }
     void serviceExceptionPreservesMoveData_data() {
         QTest::addColumn<bool>("duringDeletion");
         QTest::newRow("staging") << false;
@@ -50,9 +134,7 @@ class FileTransferTests : public QObject {
         FileTransferOperation move({first, second}, destination, true, nullptr, adapter);
         connect(
             &move, &FileTransferOperation::overwriteRequested, &move,
-            [&move](const QString &, const QString &) {
-                move.submitOverwriteAnswer(NOverwriteAnswer::kYes);
-            },
+            [&move]() { move.submitOverwriteAnswer(NOverwriteAnswer::kYes); },
             Qt::DirectConnection);
         QSignalSpy result(&move, &FileTransferOperation::result);
         move.start();
@@ -109,8 +191,7 @@ class FileTransferTests : public QObject {
         bool sourcePresentAtPrompt = false;
         connect(
             &move, &FileTransferOperation::overwriteRequested, &move,
-            [&move, file, occupied, &oldPreservedAtPrompt,
-             &sourcePresentAtPrompt](const QString &, const QString &) {
+            [&move, file, occupied, &oldPreservedAtPrompt, &sourcePresentAtPrompt]() {
                 QFile old(occupied);
                 oldPreservedAtPrompt =
                     old.open(QIODevice::ReadOnly) && old.readAll() == QByteArray("old bytes");
@@ -223,10 +304,7 @@ class FileTransferTests : public QObject {
             QSignalSpy advanced(&copy, &FileTransferOperation::advanced);
             connect(
                 &copy, &FileTransferOperation::overwriteRequested, &copy,
-                [&copy, answer](const QString &, const QString &) {
-                    copy.submitOverwriteAnswer(answer);
-                },
-                Qt::DirectConnection);
+                [&copy, answer]() { copy.submitOverwriteAnswer(answer); }, Qt::DirectConnection);
             copy.start();
             QVERIFY(copy.wait(30000));
             QTRY_COMPARE(requested.size(), 1);
@@ -273,9 +351,7 @@ class FileTransferTests : public QObject {
         QSignalSpy result(&move, &FileTransferOperation::result);
         connect(
             &move, &FileTransferOperation::overwriteRequested, &move,
-            [&move](const QString &, const QString &) {
-                move.submitOverwriteAnswer(NOverwriteAnswer::kYesToAll);
-            },
+            [&move]() { move.submitOverwriteAnswer(NOverwriteAnswer::kYesToAll); },
             Qt::DirectConnection);
         move.start();
         QVERIFY(move.wait(30000));
@@ -303,8 +379,8 @@ class FileTransferTests : public QObject {
         QSignalSpy canceledResult(&canceled, &FileTransferOperation::result);
         connect(
             &canceled, &FileTransferOperation::overwriteRequested, &canceled,
-            [&canceled](const QString &existing, const QString &) {
-                if (existing.endsWith("first"))
+            [&canceled](const OverwriteQuestion &question) {
+                if (question.Existing.Path.endsWith("first"))
                     canceled.submitOverwriteAnswer(NOverwriteAnswer::kYes);
                 else
                     canceled.cancel();
@@ -364,9 +440,9 @@ class FileTransferTests : public QObject {
         QStringList prompted;
         connect(
             &operation, &FileTransferOperation::overwriteRequested, &operation,
-            [&](const QString &existing, const QString &) {
-                prompted << QDir::fromNativeSeparators(existing).normalized(
-                    QString::NormalizationForm_C);
+            [&](const OverwriteQuestion &question) {
+                prompted << QDir::fromNativeSeparators(question.Existing.Path)
+                                .normalized(QString::NormalizationForm_C);
                 int decision = answer;
                 if (answer == NOverwriteAnswer::kCancel)
                     decision =
@@ -448,10 +524,7 @@ class FileTransferTests : public QObject {
             QSignalSpy result(&copy, &FileTransferOperation::result);
             connect(
                 &copy, &FileTransferOperation::overwriteRequested, &copy,
-                [&copy, answer](const QString &, const QString &) {
-                    copy.submitOverwriteAnswer(answer);
-                },
-                Qt::DirectConnection);
+                [&copy, answer]() { copy.submitOverwriteAnswer(answer); }, Qt::DirectConnection);
             copy.start();
             QVERIFY(copy.wait(30000));
             QTRY_COMPARE(result.size(), 1);
@@ -487,10 +560,7 @@ class FileTransferTests : public QObject {
         QSignalSpy result(&move, &FileTransferOperation::result);
         connect(
             &move, &FileTransferOperation::overwriteRequested, &move,
-            [&move](const QString &, const QString &) {
-                move.submitOverwriteAnswer(NOverwriteAnswer::kNo);
-            },
-            Qt::DirectConnection);
+            [&move]() { move.submitOverwriteAnswer(NOverwriteAnswer::kNo); }, Qt::DirectConnection);
         move.start();
         QVERIFY(move.wait(30000));
         QTRY_COMPARE(result.size(), 1);
@@ -523,9 +593,7 @@ class FileTransferTests : public QObject {
         QSignalSpy result(&copy, &FileTransferOperation::result);
         connect(
             &copy, &FileTransferOperation::overwriteRequested, &copy,
-            [&copy](const QString &, const QString &) {
-                copy.submitOverwriteAnswer(NOverwriteAnswer::kAutoRename);
-            },
+            [&copy]() { copy.submitOverwriteAnswer(NOverwriteAnswer::kAutoRename); },
             Qt::DirectConnection);
         copy.start();
         QVERIFY(copy.wait(30000));
@@ -562,8 +630,8 @@ class FileTransferTests : public QObject {
                                    true);
         QSignalSpy result(&move, &FileTransferOperation::result);
         connect(
-            &move, &FileTransferOperation::overwriteRequested, &move,
-            [&move](const QString &, const QString &) { move.cancel(); }, Qt::DirectConnection);
+            &move, &FileTransferOperation::overwriteRequested, &move, [&move]() { move.cancel(); },
+            Qt::DirectConnection);
         move.start();
         QVERIFY(move.wait(30000));
         QTRY_COMPARE(result.size(), 1);
@@ -636,7 +704,7 @@ class FileTransferTests : public QObject {
         QSignalSpy result(&copy, &FileTransferOperation::result);
         connect(
             &copy, &FileTransferOperation::overwriteRequested, &copy,
-            [&copy, cancel](const QString &, const QString &) {
+            [&copy, cancel]() {
                 if (cancel)
                     copy.cancel();
                 else

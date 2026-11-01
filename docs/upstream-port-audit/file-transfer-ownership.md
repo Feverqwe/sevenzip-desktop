@@ -70,6 +70,51 @@ and compiler caches. No full/slow gate or layout change/visual acceptance is
 claimed. Compact verification reports and test logs are retained separately
 from the subsequent build-storage migration.
 
+## Filesystem overwrite metadata snapshots — 2026-11-01
+
+Reviewed the complete transaction, worker wait/cancel protocol, copy callback,
+window routing and overwrite consumers. Compared original FSFolderCopy
+CopyFile_Ask/CopyFolder and ExtractCallback AskWrite/AskOverwrite at
+9128b80e3a471108678e2b3ec3c985861c8d7b0f. The complete FSFolderCopy unit matches
+the recorded SHA256 9e3728bf2ad8c6f809019c7f2a7059b98ef85e7094c84cdda5fb5e6443e58c86;
+the previously verified ExtractCallback baseline is unchanged. Native copy,
+recursion, matching, staging, rollback and source-removal algorithms are unchanged.
+
+The filesystem copy bridge no longer drops native source time and size. The
+worker publishes an owned overwrite snapshot, including the staging entry's
+actual metadata when a merged child is compared under its visible final name.
+The ordinary path uses the existing native FileFind service; supplied callback
+metadata is retained directly. Remembered batch answers return before snapshot
+construction, avoiding extra metadata reads for Skip/Overwrite/Rename-all.
+
+Archive and filesystem prompts share one local contract and renderer. The
+contract and native snapshot adapters have their own common target under fileops;
+widgets own the conversion to the existing dialog model. Filesystem icon/folder
+classification and omission of directory sizes preserve their previous display
+policy. The GUI no longer recomputes file time/size or copies partially populated
+native dialog-info objects. This is local integration, with no external code
+import or original-baseline revision/hash change.
+
+Three public worker rows cover an ordinary conflict, a merged child and a link
+object. They change source and destination bytes before queued delivery, verify
+the original native snapshot and visible paths, then cancel and check that those
+later file changes survive without staging leftovers. Existing mixed-batch,
+direct-path, remembered-answer, cancellation, link and rollback checks remain.
+
+Fourteen focused suites passed on Linux (349 Qt checks, 76.27 seconds), macOS
+(349 checks, 66.56 seconds) and interactive Windows (347 checks, 139.31 seconds).
+Windows skipped the existing colon-filename case; the POSIX-only link case is
+not compiled there. The three new snapshot rows passed on every platform.
+The suites cover transfer workers, window routing/lifecycle, archive backend
+and extraction consumers, cancellation, overwrite layout and prompt parity.
+Current compact/normal widget reports have no clipped visible controls on all
+three platforms. Linux/macOS reports use offscreen Qt; Windows reports cover
+both native and offscreen Qt.
+The additional Cocoa run was deferred because the Mac desktop was locked.
+No full/slow gate or rendered-original visual comparison is claimed. Existing
+incremental builds and compiler caches were reused, reports retained and
+completed disposable fixtures removed.
+
 ## Overwrite decisions across a mixed batch — 2026-10-31
 
 Reviewed the complete original FileManager `ExtractCallback.cpp::AskWrite` and

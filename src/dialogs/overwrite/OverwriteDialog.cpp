@@ -20,6 +20,19 @@
 using namespace NWindows;
 static const unsigned kCurrentFileNameSizeLimit = 72;
 
+void COverwriteDialog::SetQuestion(const OverwriteQuestion &question) {
+    const auto setFile = [](NOverwriteDialog::CFileInfo &info,
+                            const OverwriteQuestion::File &file) {
+        info.Path = file.Path.toStdWString().c_str();
+        info.Is_FileSystemFile = file.Filesystem;
+        info.Is_Directory = file.Directory;
+        info.SetSize2(!file.Directory && file.Size ? &*file.Size : nullptr);
+        info.SetTime2(file.Modified ? &*file.Modified : nullptr);
+    };
+    setFile(OldFileInfo, question.Existing);
+    setFile(NewFileInfo, question.Incoming);
+}
+
 int NOverwriteDialog::MapButtonResult(INT_PTR button) {
     switch (button) {
     case IDYES:

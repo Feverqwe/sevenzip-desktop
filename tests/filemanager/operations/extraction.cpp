@@ -19,8 +19,9 @@ void MainWindowOperationsTests::backendOverwriteDisplaysNativeMetadata() {
     QVERIFY(original.open(QIODevice::WriteOnly));
     QCOMPARE(original.write("keep"), qint64(4));
     original.close();
-    ArchiveOverwriteQuestion question;
+    OverwriteQuestion question;
     question.Existing.Path = target;
+    question.Existing.Filesystem = true;
     question.Incoming.Path = QStringLiteral("входящий файл/new.txt");
     if (defined) {
         question.Existing.Size = 42; // The native question is a snapshot, not a new stat().

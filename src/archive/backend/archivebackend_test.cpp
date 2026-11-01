@@ -82,8 +82,7 @@ void ArchiveBackend::startReadOperation(Job job, std::unique_ptr<QtArchiveReadOp
             },
             Qt::QueuedConnection);
     };
-    readOperation_->OverwriteRequired = [this,
-                                         operation](const ArchiveOverwriteQuestion &question) {
+    readOperation_->OverwriteRequired = [this, operation](const OverwriteQuestion &question) {
         QMetaObject::invokeMethod(
             this,
             [this, operation, question] {

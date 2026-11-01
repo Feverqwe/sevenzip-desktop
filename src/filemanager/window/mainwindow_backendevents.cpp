@@ -13,23 +13,14 @@
 
 void MainWindow::connectBackend() {
     connect(backend_, &ArchiveBackend::overwriteRequired, this,
-            [this](const ArchiveOverwriteQuestion &question) {
+            [this](const OverwriteQuestion &question) {
                 if (app_.QtOperations().closed() || sourceArchiveProgress_) {
                     backend_->provideOverwriteAnswer(NOverwriteAnswer::kCancel);
                     return;
                 }
                 COverwriteDialog dialog(this);
                 overwriteDialog_ = &dialog;
-                const auto setFileInfo = [](NOverwriteDialog::CFileInfo &info,
-                                            const ArchiveOverwriteQuestion::File &file,
-                                            bool native) {
-                    info.Path = ToUString(file.Path);
-                    info.Is_FileSystemFile = native;
-                    info.SetSize2(file.Size ? &*file.Size : nullptr);
-                    info.SetTime2(file.Modified ? &*file.Modified : nullptr);
-                };
-                setFileInfo(dialog.OldFileInfo, question.Existing, true);
-                setFileInfo(dialog.NewFileInfo, question.Incoming, false);
+                dialog.SetQuestion(question);
                 connect(backend_, &ArchiveBackend::dismissOverwriteRequested, &dialog,
                         &QDialog::reject, Qt::QueuedConnection);
                 const int answer = NOverwriteDialog::MapButtonResult(dialog.Create(this));

@@ -30,14 +30,15 @@ Z7_COM7F_IMF(CFileTransferCopyCallback::ShowMessage(const wchar_t *message)) {
 }
 
 Z7_COM7F_IMF(CFileTransferCopyCallback::AskWrite(const wchar_t *srcPath, Int32 srcIsFolder,
-                                                 const FILETIME *, const UInt64 *,
+                                                 const FILETIME *srcTime, const UInt64 *srcSize,
                                                  const wchar_t *destPath, BSTR *destPathResult,
                                                  Int32 *writeAnswer)) {
     if (srcIsFolder || !destPathResult || !writeAnswer)
         return E_INVALIDARG;
     *destPathResult = nullptr;
     *writeAnswer = 0;
-    const QString source = QString::fromWCharArray(srcPath);
+    const auto source =
+        NativeOverwriteFile(QString::fromWCharArray(srcPath), srcTime, srcSize, true);
     QString effective = QString::fromWCharArray(destPath);
     bool write = false;
     const HRESULT result = decide_(source, effective, effective, write);
@@ -46,7 +47,7 @@ Z7_COM7F_IMF(CFileTransferCopyCallback::AskWrite(const wchar_t *srcPath, Int32 s
     if (!write)
         return S_OK;
     *writeAnswer = 1;
-    writtenSources << source;
+    writtenSources << source.Path;
     const std::wstring wide = effective.toStdWString();
     return StringToBstr(wide.c_str(), destPathResult);
 }

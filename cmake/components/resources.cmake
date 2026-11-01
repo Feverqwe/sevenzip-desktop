@@ -46,7 +46,6 @@ add_library(sevenzip_filesystem STATIC
     src/archive/sfx/archivesfxmodule.cpp src/archive/sfx/archivesfxmodule.h
     src/archive/resources/qtarchivehashoperation.cpp src/archive/resources/qtarchivehashoperation.h
     src/archive/resources/qtarchivereadoperation.cpp src/archive/resources/qtarchivereadoperation.h
-    src/archive/resources/archiveoverwritequestion.h
     src/archive/resources/qtarchivedirectoryextract.cpp src/archive/resources/qtarchivedirectoryextract.h
     src/archive/backend/archivebackend_nativeentries.cpp src/archive/backend/archivebackend_nativeentries.h
     src/console/List.cpp src/console/List.h
@@ -103,7 +102,7 @@ target_include_directories(sevenzip_filesystem PUBLIC src)
 target_include_directories(sevenzip_filesystem PUBLIC "${CMAKE_CURRENT_BINARY_DIR}")
 target_include_directories(sevenzip_filesystem PRIVATE ${SEVENZIP_7ZIP_SOURCE_DIR}/CPP/Windows)
 target_link_libraries(sevenzip_filesystem PUBLIC sevenzip_operation_client sevenzip_archive_write_lease
-    sevenzip_archive_input sevenzip_common sevenzip_zip sevenzip_progress_sync)
+    sevenzip_archive_input sevenzip_common sevenzip_zip sevenzip_progress_sync sevenzip_overwrite_question)
 target_link_libraries(sevenzip_filesystem PUBLIC sevenzip_system_icons sevenzip_name_sort)
 target_link_libraries(sevenzip_filesystem PRIVATE sevenzip_codec_image)
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS

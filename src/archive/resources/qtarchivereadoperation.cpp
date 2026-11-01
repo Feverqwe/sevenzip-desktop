@@ -246,8 +246,7 @@ void QtArchiveReadOperation::provideOverwriteAnswer(int answer) {
     overwriteReady_.wakeAll();
 }
 
-HRESULT QtArchiveReadOperation::askOverwrite(const ArchiveOverwriteQuestion &question,
-                                             Int32 *answer) {
+HRESULT QtArchiveReadOperation::askOverwrite(const OverwriteQuestion &question, Int32 *answer) {
     if (!answer || !OverwriteRequired)
         return E_FAIL;
     {

@@ -228,6 +228,7 @@ add_library(sevenzip_panel
     src/filemanager/panels/PanelListNotify.cpp
     src/filemanager/panels/Panel.h)
 target_link_libraries(sevenzip_panel PRIVATE sevenzip_dialog_screen sevenzip_location sevenzip_panel_selection sevenzip_text_report)
+target_link_libraries(sevenzip_panel PUBLIC sevenzip_overwrite_question)
 set_target_properties(sevenzip_panel PROPERTIES AUTOUIC OFF)
 target_compile_definitions(sevenzip_panel PRIVATE SEVENZIP_PROGRESS_PRESENTATION_ONLY)
 target_link_libraries(sevenzip_panel PUBLIC sevenzip_progress_sync)

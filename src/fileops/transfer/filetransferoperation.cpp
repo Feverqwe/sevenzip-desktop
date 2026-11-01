@@ -3,6 +3,7 @@
 #include "archive/callbacks/IFileExtractCallback.h"
 #include "fileops/links/qtlinkservices.h"
 #include "fileops/transfer/qtfiletransfertransaction.h"
+#include <QMetaMethod>
 #include <QMutexLocker>
 
 FileTransferOperation::FileTransferOperation(QStringList sources, QString destination, bool move,
@@ -37,16 +38,17 @@ void FileTransferOperation::submitOverwriteAnswer(int answer) {
     overwriteCondition_.wakeAll();
 }
 
-int FileTransferOperation::askOverwrite(const QString &existing, const QString &incoming) {
+int FileTransferOperation::askOverwrite(const OverwriteQuestion &question) {
     QMutexLocker lock(&overwriteMutex_);
-    if (canceled_ || receivers(SIGNAL(overwriteRequested(QString, QString))) == 0) {
+    if (canceled_ ||
+        !isSignalConnected(QMetaMethod::fromSignal(&FileTransferOperation::overwriteRequested))) {
         canceled_ = true;
         return NOverwriteAnswer::kCancel;
     }
     overwriteWaiting_ = true;
     overwriteAnswer_ = -1;
     lock.unlock();
-    emit overwriteRequested(existing, incoming);
+    emit overwriteRequested(question);
     lock.relock();
     while (overwriteAnswer_ < 0 && !canceled_)
         overwriteCondition_.wait(&overwriteMutex_);

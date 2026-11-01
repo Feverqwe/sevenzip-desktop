@@ -1,4 +1,5 @@
 #pragma once
+#include "fileops/overwrite/overwritequestion.h"
 
 #include <QMutex>
 #include <QStringList>
@@ -29,7 +30,7 @@ class FileTransferOperation : public QThread {
     void currentFile(const QString &path);
     void advanced(qint64 bytes);
     void result(bool success, const QString &message);
-    void overwriteRequested(const QString &existing, const QString &incoming);
+    void overwriteRequested(const OverwriteQuestion &question);
     void dismissOverwriteRequested();
 
   protected:
@@ -37,7 +38,7 @@ class FileTransferOperation : public QThread {
 
   private:
     friend class QtFileTransferTransaction;
-    int askOverwrite(const QString &existing, const QString &incoming);
+    int askOverwrite(const OverwriteQuestion &question);
 
     QStringList sources_;
     QString destination_;

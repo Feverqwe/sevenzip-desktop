@@ -71,9 +71,7 @@ class FileTransferDirectTests : public QObject {
             QSignalSpy result(&operation, &FileTransferOperation::result);
             connect(
                 &operation, &FileTransferOperation::overwriteRequested, &operation,
-                [&operation, answer](const QString &, const QString &) {
-                    operation.submitOverwriteAnswer(answer);
-                },
+                [&operation, answer]() { operation.submitOverwriteAnswer(answer); },
                 Qt::DirectConnection);
             operation.start();
             QVERIFY(operation.wait(30000));

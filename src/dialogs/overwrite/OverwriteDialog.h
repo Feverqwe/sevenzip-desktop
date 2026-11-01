@@ -4,6 +4,7 @@
 #include "7zip/UI/FileManager/OverwriteDialogRes.h"
 #include "Common/MyString.h"
 #include "Common/MyWindows.h"
+#include "fileops/overwrite/overwritequestion.h"
 #include "ui/dialogs/qtmodalresult.h"
 #include <QDialog>
 #include <QHash>
@@ -66,6 +67,7 @@ class COverwriteDialog final : public QDialog {
     explicit COverwriteDialog(QWidget *parent = nullptr)
         : QDialog(parent), ShowExtraButtons(true), DefaultButton_is_NO(false) {}
     bool OnInit();
+    void SetQuestion(const OverwriteQuestion &question);
     INT_PTR Create(QWidget *parent = nullptr);
     void reject() override;
 };

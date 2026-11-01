@@ -155,6 +155,7 @@ qt_standard_project_setup()
 include(src/devices/module.cmake)
 
 include(cmake/components/native.cmake)
+include(src/fileops/overwrite/module.cmake)
 
 include(src/formats/zip/module.cmake)
 include(src/formats/rar/module.cmake)

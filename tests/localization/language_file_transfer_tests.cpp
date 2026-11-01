@@ -162,9 +162,7 @@ class LanguageFileTransferTests final : public QObject {
         FileTransferOperation operation({source}, destination, false);
         connect(
             &operation, &FileTransferOperation::overwriteRequested, &operation,
-            [&operation](const QString &, const QString &) {
-                operation.submitOverwriteAnswer(NOverwriteAnswer::kCancel);
-            },
+            [&operation]() { operation.submitOverwriteAnswer(NOverwriteAnswer::kCancel); },
             Qt::DirectConnection);
         QSignalSpy result(&operation, &FileTransferOperation::result);
         operation.start();

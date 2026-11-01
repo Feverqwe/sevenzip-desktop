@@ -16,7 +16,7 @@ sevenzip_add_port_component(sevenzip_archive_backend src/archive/backend/archive
     src/archive/backend/archivebackend_sourceupdate.cpp
     src/archive/backend/archivebackend_validation.cpp
     src/archive/backend/archivebackend_workerprogress.cpp src/archive/backend/archivebackend_transfer.cpp)
-target_link_libraries(sevenzip_archive_backend PRIVATE sevenzip_archive_transfer_backup)
+target_link_libraries(sevenzip_archive_backend PRIVATE sevenzip_archive_transfer_backup sevenzip_overwrite_question)
 target_sources(sevenzip_archive_backend PRIVATE src/archive/codecs/archivecodecpublication.h)
 
 sevenzip_add_port_component(sevenzip_compress_presentation src/dialogs/compress/createarchivedialog.h
@@ -113,6 +113,7 @@ sevenzip_add_port_component(sevenzip_panel_split src/filemanager/panels/PanelSpl
     src/fileops/volumes/qtvolumeio.h src/fileops/volumes/qtvolumeio.cpp src/fileops/volumes/qtvolumeservices.h)
 sevenzip_add_port_component(sevenzip_file_transfer src/fileops/transfer/filetransferoperation.h
     src/fileops/transfer/filetransferoperation.cpp src/fileops/transfer/qtfiletransfertransaction.cpp src/fileops/transfer/qtfiletransfertransaction.h)
+target_link_libraries(sevenzip_file_transfer PRIVATE sevenzip_overwrite_question)
 sevenzip_add_port_component(sevenzip_filesystem_scan src/fileops/scanner/filesystemscanner.h
     src/fileops/scanner/filesystemscanner.cpp)
 sevenzip_add_port_component(sevenzip_volume_operations src/fileops/volumes/qtvolumetransaction.h

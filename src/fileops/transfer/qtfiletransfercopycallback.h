@@ -2,6 +2,7 @@
 
 #include "7zip/UI/FileManager/IFolder.h"
 #include "Common/MyCom.h"
+#include "fileops/overwrite/overwritequestion.h"
 #include <QStringList>
 #include <functional>
 
@@ -12,7 +13,8 @@ class CFileTransferCopyCallback final : public IFolderOperationsExtractCallback,
     Z7_COM_UNKNOWN_IMP_1(IFolderOperationsExtractCallback)
 
   public:
-    using Decide = std::function<HRESULT(const QString &, const QString &, QString &, bool &)>;
+    using Decide =
+        std::function<HRESULT(const OverwriteQuestion::File &, const QString &, QString &, bool &)>;
     CFileTransferCopyCallback(Decide decide, std::function<bool(quint64)> advance,
                               std::function<void(const QString &)> currentFile);
 

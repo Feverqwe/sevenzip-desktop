@@ -13,17 +13,6 @@
 #include <QMutexLocker>
 
 namespace {
-ArchiveOverwriteQuestion::File OverwriteFile(const wchar_t *path, const FILETIME *time,
-                                             const UInt64 *size) {
-    ArchiveOverwriteQuestion::File file;
-    file.Path = QString::fromWCharArray(path);
-    if (time)
-        file.Modified = *time;
-    if (size)
-        file.Size = *size;
-    return file;
-}
-
 class CDirectoryCallback final : public IFolderArchiveExtractCallback,
                                  public IFolderArchiveExtractCallback2,
                                  public ICryptoGetTextPassword,
@@ -62,8 +51,10 @@ class CDirectoryCallback final : public IFolderArchiveExtractCallback,
         if (operation_.Directory->Options.overwriteMode ==
             ExtractionOptions::OverwriteMode::RejectExisting)
             return E_FAIL;
-        const ArchiveOverwriteQuestion question{OverwriteFile(existing, existingTime, existingSize),
-                                                OverwriteFile(name, time, size)};
+        const OverwriteQuestion question{
+            NativeOverwriteFile(QString::fromWCharArray(existing), existingTime, existingSize,
+                                true),
+            NativeOverwriteFile(QString::fromWCharArray(name), time, size, false)};
         RINOK(operation_.askOverwrite(question, answer))
         // The UI may have been open while the destination changed. Recheck
         // before the source callback deletes/renames the existing output.

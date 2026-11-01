@@ -181,7 +181,7 @@ class ExtractionOptionsTests : public QObject {
         options.overwriteMode = ExtractionOptions::OverwriteMode::Ask;
         QSignalSpy prompts(&backend, &ArchiveBackend::overwriteRequired);
         connect(&backend, &ArchiveBackend::overwriteRequired, &backend,
-                [&](const ArchiveOverwriteQuestion &question) {
+                [&](const OverwriteQuestion &question) {
                     const auto answer = qScopeGuard([&] {
                         QTimer::singleShot(0, &backend, [&] {
                             backend.provideOverwriteAnswer(NOverwriteAnswer::kYes);
@@ -336,7 +336,7 @@ class ExtractionOptionsTests : public QObject {
 
         QSignalSpy requested(&backend, &ArchiveBackend::overwriteRequired);
         connect(&backend, &ArchiveBackend::overwriteRequired, &backend,
-                [&backend](const ArchiveOverwriteQuestion &question) {
+                [&backend](const OverwriteQuestion &question) {
                     backend.provideOverwriteAnswer(
                         question.Incoming.Path.endsWith(QStringLiteral("α.txt"))
                             ? NOverwriteAnswer::kNo

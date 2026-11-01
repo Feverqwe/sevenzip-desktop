@@ -16,27 +16,6 @@
 #include <QFile>
 #include <QScopedValueRollback>
 
-namespace {
-
-NOverwriteDialog::CFileInfo overwriteFileInfo(const QString &path) {
-    const QFileInfo source(path);
-    NOverwriteDialog::CFileInfo info;
-    info.Path = ToUString(path);
-    info.Is_FileSystemFile = true;
-    info.Is_Directory = source.isDir();
-    if (source.isFile())
-        info.SetSize(UInt64(source.size()));
-    const qint64 ticks = (source.lastModified().toMSecsSinceEpoch() + 11644473600000LL) * 10000;
-    if (ticks > 0) {
-        FILETIME time{};
-        time.dwLowDateTime = DWORD(quint64(ticks));
-        time.dwHighDateTime = DWORD(quint64(ticks) >> 32);
-        info.SetTime(time);
-    }
-    return info;
-}
-} // namespace
-
 void MainWindow::transferFiles(const QStringList &sources, const QString &destination, bool move,
                                bool directPath) {
     if (app_.QtOperations().closed())
@@ -58,15 +37,14 @@ void MainWindow::transferFiles(const QStringList &sources, const QString &destin
                                              : FileTransferOperation::DestinationKind::Directory);
     auto *operation = fileTransfer_;
     connect(operation, &FileTransferOperation::overwriteRequested, this,
-            [this, operation](const QString &existing, const QString &incoming) {
+            [this, operation](const OverwriteQuestion &question) {
                 if (app_.QtOperations().closed() || operation->isCanceled()) {
                     operation->submitOverwriteAnswer(NOverwriteAnswer::kCancel);
                     return;
                 }
                 COverwriteDialog dialog(this);
                 overwriteDialog_ = &dialog;
-                dialog.OldFileInfo = overwriteFileInfo(existing);
-                dialog.NewFileInfo = overwriteFileInfo(incoming);
+                dialog.SetQuestion(question);
                 connect(operation, &FileTransferOperation::dismissOverwriteRequested, &dialog,
                         &QDialog::reject, Qt::QueuedConnection);
                 if (operation->isCanceled()) {

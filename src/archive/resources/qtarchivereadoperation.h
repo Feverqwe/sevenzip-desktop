@@ -1,6 +1,6 @@
 #pragma once
 #include "7zip/Archive/IArchive.h"
-#include "archive/resources/archiveoverwritequestion.h"
+#include "fileops/overwrite/overwritequestion.h"
 #include "ui/progress/qtworkerprogress.h"
 #include <QList>
 #include <QMutex>
@@ -51,7 +51,7 @@ class QtArchiveReadOperation final : public QThread {
     void setPaused(bool paused);
     void providePassword(const QString &password);
     void provideOverwriteAnswer(int answer);
-    HRESULT askOverwrite(const ArchiveOverwriteQuestion &question, Int32 *answer);
+    HRESULT askOverwrite(const OverwriteQuestion &question, Int32 *answer);
     HRESULT checkpoint();
     HRESULT password(BSTR *value);
     void report(quint64 completed, quint64 total, const QString &path);
@@ -70,7 +70,7 @@ class QtArchiveReadOperation final : public QThread {
     Int32 OutputOperation = -1;
     std::function<void(quint64, quint64, const QString &)> Progress;
     std::function<void()> PasswordRequired;
-    std::function<void(const ArchiveOverwriteQuestion &)> OverwriteRequired;
+    std::function<void(const OverwriteQuestion &)> OverwriteRequired;
 
   private:
     void run() override;

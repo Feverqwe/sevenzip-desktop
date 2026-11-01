@@ -4,8 +4,8 @@ struct CProperty;
 class CArc;
 
 #include "archive/codecs/archivecodecpublication.h"
-#include "archive/resources/archiveoverwritequestion.h"
 #include "dialogs/compress/CompressDialog.h"
+#include "fileops/overwrite/overwritequestion.h"
 
 #include <QDateTime>
 #include <QHash>
@@ -254,7 +254,7 @@ class ArchiveBackend : public QObject {
     void outputReceived(const QString &text);
     void finished(bool success, const QString &message);
     void passwordRequired();
-    void overwriteRequired(const ArchiveOverwriteQuestion &question);
+    void overwriteRequired(const OverwriteQuestion &question);
     void dismissOverwriteRequested();
     void phaseStarted();
     void codecCatalogReady(bool success, const QString &message);
