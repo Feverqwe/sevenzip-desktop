@@ -179,7 +179,7 @@ eval "$workspace_environment"
 export SEVENZIP_INCLUDE_SLOW_TESTS={include_slow}
 export CMAKE_PREFIX_PATH={shlex.quote(qt_prefix)}
 export PATH={shlex.quote(':'.join(tool_paths))}:"$PATH"
-export LIBGL_ALWAYS_SOFTWARE=1 SEVENZIP_CTEST_JOBS=1
+export LIBGL_ALWAYS_SOFTWARE=1
 export PYTHONUTF8=1 PYTHONIOENCODING=utf-8
 export SEVENZIP_RUN_TOKEN={token}
 export SEVENZIP_RUNNER_PYTHON={shlex.quote(config['python'])}
@@ -217,7 +217,7 @@ set -e
                     f'set "SEVENZIP_RUNNER_PYTHON={config["python"]}"',
                     f'set "CMAKE_BUILD_PARALLEL_LEVEL={build_jobs}"',
                     f'set "SEVENZIP_INCLUDE_SLOW_TESTS={include_slow}"',
-                    'set "SEVENZIP_CTEST_JOBS=1"', f'set "SEVENZIP_CODEC_MODULE_DIR={runtime_directory}"',
+                    f'set "SEVENZIP_CODEC_MODULE_DIR={runtime_directory}"',
                     'set "PYTHONUTF8=1"', 'set "PYTHONIOENCODING=utf-8"',
                     f'set "SEVENZIP_RUN_TOKEN={token}"',
                     f'cd /d "{root}"']

@@ -323,6 +323,16 @@ Do not invoke CTest directly.
 Focused validation is the default, including before completing an iteration or
 commit. Build only the required targets and explain the selected scope briefly. A local
 code, test or build-script change does not by itself require the full suite.
+Select granular suites for the changed component and its direct consumers with
+`verify.py --tests` or the CTest wrapper. Do not run several broad, overlapping
+profiles merely because their names relate to the task. Reuse passing evidence
+when later edits do not affect the checked behavior or dependencies.
+Use the configured build and CTest parallelism. Do not reduce build jobs or
+force a sequential CTest run as a precaution; change concurrency only for an
+observed problem or an explicit user request. Keep serialization scoped to
+individual tests through `RUN_SERIAL` or resource locks when a real shared
+resource requires it. Report compilation and test execution time separately
+when investigating a slowdown.
 Use the default `lite` build mode for ordinary work. Enable additional diagnostics
 only when the task needs their evidence, through the options documented in
 [development](docs/development.md#build-diagnostics). Scope diagnostic environment
