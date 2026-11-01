@@ -138,8 +138,9 @@ def execute_check(record, platform, preset, root, token, command=None,
     include_slow = os.environ.get("SEVENZIP_INCLUDE_SLOW_TESTS", "0")
     if include_slow not in ("0", "1"):
         raise ValueError("SEVENZIP_INCLUDE_SLOW_TESTS must be 0 or 1")
-    build_jobs = int(os.environ.get("CMAKE_BUILD_PARALLEL_LEVEL", "4"))
-    if build_jobs <= 0:
+    requested_jobs = os.environ.get("CMAKE_BUILD_PARALLEL_LEVEL")
+    build_jobs = int(requested_jobs) if requested_jobs is not None else None
+    if build_jobs is not None and build_jobs <= 0:
         raise ValueError("CMAKE_BUILD_PARALLEL_LEVEL must be a positive integer")
     analysis_mode = clang_tidy_mode()
     diagnostics = diagnostic_environment()
@@ -158,12 +159,12 @@ def execute_check(record, platform, preset, root, token, command=None,
     if config.get('cache_root'):
         build_environment['SEVENZIP_CACHE_ROOT'] = config['cache_root']
     build_environment.update(diagnostics)
-    if use_vcpkg:
-        build_environment.update(VCPKG_MAX_CONCURRENCY=str(build_jobs))
-        if platform == 'linux':
-            build_environment['SEVENZIP_VCPKG_QT_PCH'] = 'OFF'
+    if use_vcpkg and platform == 'linux':
+        build_environment['SEVENZIP_VCPKG_QT_PCH'] = 'OFF'
     runtime_directory = f'{storage}/branches/{branch_component(branch)}/artifacts/{tag}/{preset}/codec-runtime'
     if platform == "linux":
+        parallelism = str(build_jobs) if build_jobs is not None else (
+            f'$({shlex.quote(config["python"])} -c "import os; print(os.cpu_count() or 1)")')
         storage_environment = ''.join(f'export {key}={shlex.quote(value)}\n'
                                       for key, value in build_environment.items())
         analysis_environment = (f"export SEVENZIP_ENABLE_CLANG_TIDY={analysis_mode}\n"
@@ -173,7 +174,8 @@ cd {shlex.quote(root)}
 mkdir -p runner-tmp
 export TMPDIR="$PWD/runner-tmp" TMP="$PWD/runner-tmp" TEMP="$PWD/runner-tmp"
 export QT_QPA_PLATFORM="${{QT_QPA_PLATFORM:-offscreen}}"
-export CMAKE_BUILD_PARALLEL_LEVEL={build_jobs}
+export CMAKE_BUILD_PARALLEL_LEVEL={parallelism}
+{'export VCPKG_MAX_CONCURRENCY="$CMAKE_BUILD_PARALLEL_LEVEL"' if use_vcpkg else ''}
 {storage_environment}{analysis_environment}workspace_environment="$({shlex.quote(config['python'])} -B scripts/lib/build_paths.py env --root "$PWD" --preset {shlex.quote(preset)})"
 eval "$workspace_environment"
 export SEVENZIP_INCLUDE_SLOW_TESTS={include_slow}
@@ -198,6 +200,7 @@ set -e
         script += (f") > check.log 2>&1\ncode=$?\nprintf '%s\\n' '{token}' > .runner-complete\n"
                    'if [ "$code" -ne 0 ]; then tail -n 80 check.log; fi\nexit "$code"\n')
     else:
+        parallelism = str(build_jobs) if build_jobs is not None else '%NUMBER_OF_PROCESSORS%'
         commands = ['@echo off', 'chcp 65001 >nul', *[f'set "{key}={root}/runner-tmp"' for key in ("TEMP", "TMP", "TMPDIR")],
                     f'call "{config["vcvars"]}"', 'if errorlevel 1 exit /b %errorlevel%']
         commands += ['call workspace-env.cmd', 'if errorlevel 1 exit /b %errorlevel%']
@@ -215,12 +218,14 @@ set -e
                     f'set "CMAKE_PREFIX_PATH={qt_prefix}"', 'set "CC=cl.exe"', 'set "CXX=cl.exe"',
                     f'set "SEVENZIP_WINDOWS_RUNNER_HOST={config["computer_name"]}"',
                     f'set "SEVENZIP_RUNNER_PYTHON={config["python"]}"',
-                    f'set "CMAKE_BUILD_PARALLEL_LEVEL={build_jobs}"',
+                    f'set "CMAKE_BUILD_PARALLEL_LEVEL={parallelism}"',
                     f'set "SEVENZIP_INCLUDE_SLOW_TESTS={include_slow}"',
                     f'set "SEVENZIP_CODEC_MODULE_DIR={runtime_directory}"',
                     'set "PYTHONUTF8=1"', 'set "PYTHONIOENCODING=utf-8"',
                     f'set "SEVENZIP_RUN_TOKEN={token}"',
                     f'cd /d "{root}"']
+        if use_vcpkg:
+            commands.append('set "VCPKG_MAX_CONCURRENCY=%CMAKE_BUILD_PARALLEL_LEVEL%"')
         if prepare_runtime:
             commands += [f'"{config["python"]}" scripts/prepare-runtime.py --preset {preset}',
                          'if errorlevel 1 exit /b %errorlevel%',

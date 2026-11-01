@@ -5,6 +5,11 @@ export PYTHONDONTWRITEBYTECODE=1
 project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$project_root/scripts/lib/toolchain.sh"
 sevenzip_select_toolchain release runtime
+export CMAKE_BUILD_PARALLEL_LEVEL="${CMAKE_BUILD_PARALLEL_LEVEL-$(python3 -c 'import os; print(os.cpu_count() or 1)')}"
+if [[ ! "$CMAKE_BUILD_PARALLEL_LEVEL" =~ ^[1-9][0-9]*$ ]]; then
+  printf 'CMAKE_BUILD_PARALLEL_LEVEL must be a positive integer.\n' >&2
+  exit 2
+fi
 artifact_dir="${1:-$SEVENZIP_ARTIFACT_ROOT/release/sfx}"
 python3 -B "$project_root/scripts/lib/build_paths.py" check-output --root "$project_root" --output "$artifact_dir" >/dev/null
 case "$(uname -s)" in
@@ -41,7 +46,7 @@ if command -v ccache >/dev/null 2>&1; then
   task_sfx_cxx="ccache $task_sfx_cxx"
 fi
 make -s -C "$snapshot/CPP/7zip/Bundles/SFXCon" -f sevenzip-runtime.gcc.mak \
-  CC="$task_sfx_cc" CXX="$task_sfx_cxx" LFLAGS_STRIP= -j4
+  CC="$task_sfx_cc" CXX="$task_sfx_cxx" LFLAGS_STRIP= -j"$CMAKE_BUILD_PARALLEL_LEVEL"
 python3 - "$project_root/docs/upstream-baseline.json" "$snapshot" "$artifact_dir" <<'PY'
 import hashlib, json, pathlib, platform, re, shutil, sys
 baseline = json.loads(pathlib.Path(sys.argv[1]).read_text())

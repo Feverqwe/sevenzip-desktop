@@ -592,15 +592,21 @@ Path('selected.json').write_text(json.dumps({key: os.environ.get(key) for key in
             (tool_root / "host-tool.py").write_text(
                 "import os\nfrom pathlib import Path\n"
                 "assert (Path(os.environ['VCPKG_DEFAULT_BINARY_CACHE'])/'retained').read_bytes()==b'existing dependency'\n")
-            with patch.object(runner, "remote", local_remote), \
-                    patch.dict(os.environ, {"CMAKE_BUILD_PARALLEL_LEVEL": "2"}):
-                runner.execute_check({"config": settings, "branch": "snapshot"}, "linux", "vcpkg-dev",
-                                     root.as_posix(), "token", [sys.executable, "scripts/probe.py"], True)
+            for jobs in (None, "2"):
+                with self.subTest(jobs=jobs), patch.object(runner, "remote", local_remote), \
+                        patch.dict(os.environ):
+                    if jobs is None:
+                        os.environ.pop("CMAKE_BUILD_PARALLEL_LEVEL", None)
+                    else:
+                        os.environ["CMAKE_BUILD_PARALLEL_LEVEL"] = jobs
+                    runner.execute_check({"config": settings, "branch": "snapshot"}, "linux", "vcpkg-dev",
+                                         root.as_posix(), "token", [sys.executable, "scripts/probe.py"], True)
+                    selected = json.loads((root / "selected.json").read_text())
+                    self.assertEqual(selected["VCPKG_MAX_CONCURRENCY"], jobs or str(os.cpu_count() or 1))
             selected = json.loads((root / "selected.json").read_text())
             prepared = json.loads((root / "prepared.json").read_text())
             self.assertEqual({key: value for key, value in selected.items() if key != 'PATH'},
                              {key: value for key, value in prepared.items() if key != 'PATH'})
-            self.assertEqual(selected["VCPKG_MAX_CONCURRENCY"], "2")
             self.assertFalse(selected["CMAKE_PREFIX_PATH"])
             self.assertNotIn(config["qt_prefix"] + "/bin", selected["PATH"].split(os.pathsep))
             self.assertFalse((root / "injected").exists())
@@ -624,6 +630,9 @@ Path('selected.json').write_text(json.dumps({key: os.environ.get(key) for key in
             probe = '''import os, subprocess, sys
 from pathlib import Path
 subprocess.run([sys.executable, str(Path(os.environ['VCPKG_ROOT']) / 'vcpkg.py')], check=True)
+jobs = str(os.cpu_count() or 1)
+assert os.environ['CMAKE_BUILD_PARALLEL_LEVEL'] == jobs
+assert os.environ['VCPKG_MAX_CONCURRENCY'] == jobs
 '''
             (root / "scripts/prepare-runtime.py").write_text(probe)
             (root / "scripts/probe.py").write_text(probe)
@@ -637,7 +646,8 @@ subprocess.run([sys.executable, str(Path(os.environ['VCPKG_ROOT']) / 'vcpkg.py')
                 return subprocess.run(runner.powershell(script).split(), text=True,
                                       capture_output=True)
 
-            with patch.object(runner, "remote", local_remote):
+            with patch.object(runner, "remote", local_remote), patch.dict(os.environ):
+                os.environ.pop("CMAKE_BUILD_PARALLEL_LEVEL", None)
                 result = runner.execute_check({"config": settings, "branch": "snapshot"}, "windows", "vcpkg-dev",
                                               root.as_posix(), "fixture",
                                               [Path(sys.executable).as_posix(), "scripts/probe.py"], True)

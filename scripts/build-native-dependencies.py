@@ -58,7 +58,7 @@ def prepare(snapshot):
             write_changed(metadata / name, b"# Dependency facade uses the C++ header fallback.\n")
         return
     subprocess.run(["cmake", "--build", str(build), "--config", "Release", "--parallel",
-                    os.environ.get("CMAKE_BUILD_PARALLEL_LEVEL", "4")], check=True)
+                    os.environ.get("CMAKE_BUILD_PARALLEL_LEVEL", str(os.cpu_count() or 1))], check=True)
     package = build / "package"
     subprocess.run(["cmake", "--install", str(build), "--config", "Release", "--prefix", str(package)],
                    check=True)
