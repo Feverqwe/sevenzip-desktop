@@ -141,6 +141,7 @@ class CAgentFolder final : public IFolderFolder,
 
   private:
     friend class CAgent;
+    void RestorePath(const UStringVector &pathParts, bool isAltStreamFolder);
     void LoadFolder(unsigned dirIndex);
     void GetPrefix(UInt32 index, UString &prefix) const;
     int CompareItems3(UInt32 index1, UInt32 index2, PROPID propID);

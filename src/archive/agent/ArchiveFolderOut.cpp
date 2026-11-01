@@ -34,6 +34,38 @@ void CAgentFolder::GetPathParts(UStringVector &pathParts, bool &isAltStreamFolde
         _proxy->GetDirPathParts_isChanged(_proxyDirIndex, pathParts, isChangedPath);
 }
 
+void CAgentFolder::RestorePath(const UStringVector &pathParts, bool isAltStreamFolder) {
+    if (_proxy) {
+        FOR_VECTOR(i, pathParts) {
+            const int next = _proxy->FindSubDir(_proxyDirIndex, pathParts[i]);
+            if (next == -1)
+                break;
+            _proxyDirIndex = (unsigned)next;
+        }
+    }
+    if (_proxy2) {
+        if (pathParts.IsEmpty() && isAltStreamFolder)
+            _proxyDirIndex = k_Proxy2_AltRootDirIndex;
+        else
+            FOR_VECTOR(i, pathParts) {
+                const bool dirOnly = (i + 1 < pathParts.Size() || !isAltStreamFolder);
+                const int index = _proxy2->FindItem(_proxyDirIndex, pathParts[i], dirOnly);
+                if (index == -1)
+                    break;
+                const CProxyFile2 &file =
+                    _proxy2->Files[_proxy2->Dirs[_proxyDirIndex].Items[index]];
+                if (dirOnly)
+                    _proxyDirIndex = (unsigned)file.DirIndex;
+                else {
+                    if (file.AltDirIndex != -1)
+                        _proxyDirIndex = (unsigned)file.AltDirIndex;
+                    break;
+                }
+            }
+        _isAltStreamFolder = _proxy2->IsAltDir(_proxyDirIndex);
+    }
+}
+
 static bool Delete_EmptyFolder_And_EmptySubFolders(const FString &path) {
     {
         const FString pathPrefix = path + FCHAR_PATH_SEPARATOR;
@@ -304,81 +336,7 @@ HRESULT CAgentFolder::CommonUpdateOperation(AGENT_OP operation, bool moveMode,
         _proxy2 = _agentSpec->_proxy2;
         _proxyGeneration = _agentSpec->_proxyGeneration.load();
 
-        if (_proxy) {
-            FOR_VECTOR(i, pathParts) {
-                const int next = _proxy->FindSubDir(_proxyDirIndex, pathParts[i]);
-                if (next == -1)
-                    break;
-                _proxyDirIndex = (unsigned)next;
-            }
-        }
-
-        if (_proxy2) {
-            if (pathParts.IsEmpty() && isAltStreamFolder) {
-                _proxyDirIndex = k_Proxy2_AltRootDirIndex;
-            } else
-                FOR_VECTOR(i, pathParts) {
-                    const bool dirOnly = (i + 1 < pathParts.Size() || !isAltStreamFolder);
-                    const int index = _proxy2->FindItem(_proxyDirIndex, pathParts[i], dirOnly);
-                    if (index == -1)
-                        break;
-
-                    const CProxyFile2 &file =
-                        _proxy2->Files[_proxy2->Dirs[_proxyDirIndex].Items[index]];
-
-                    if (dirOnly)
-                        _proxyDirIndex = (unsigned)file.DirIndex;
-                    else {
-                        if (file.AltDirIndex != -1)
-                            _proxyDirIndex = (unsigned)file.AltDirIndex;
-                        break;
-                    }
-                }
-        }
-
-        /*
-        if (pathParts.IsEmpty() && isAltStreamFolder)
-        {
-          CMyComPtr<IFolderAltStreams> folderAltStreams;
-          archiveFolder.QueryInterface(IID_IFolderAltStreams, &folderAltStreams);
-          if (folderAltStreams)
-          {
-            CMyComPtr<IFolderFolder> newFolder;
-            folderAltStreams->BindToAltStreams((UInt32)(Int32)-1, &newFolder);
-            if (newFolder)
-              archiveFolder = newFolder;
-          }
-        }
-
-        FOR_VECTOR (i, pathParts)
-        {
-          CMyComPtr<IFolderFolder> newFolder;
-
-          if (isAltStreamFolder && i == pathParts.Size() - 1)
-          {
-            CMyComPtr<IFolderAltStreams> folderAltStreams;
-            archiveFolder.QueryInterface(IID_IFolderAltStreams, &folderAltStreams);
-            if (folderAltStreams)
-              folderAltStreams->BindToAltStreams(pathParts[i], &newFolder);
-          }
-          else
-            archiveFolder->BindToFolder(pathParts[i], &newFolder);
-
-          if (!newFolder)
-            break;
-          archiveFolder = newFolder;
-        }
-
-        CMyComPtr<IArchiveFolderInternal> archiveFolderInternal;
-        RINOK(archiveFolder.QueryInterface(IID_IArchiveFolderInternal, &archiveFolderInternal));
-        CAgentFolder *agentFolder;
-        RINOK(archiveFolderInternal->GetAgentFolder(&agentFolder));
-        _proxyDirIndex = agentFolder->_proxyDirIndex;
-        // _parentFolder = agentFolder->_parentFolder;
-        */
-
-        if (_proxy2)
-            _isAltStreamFolder = _proxy2->IsAltDir(_proxyDirIndex);
+        RestorePath(pathParts, isAltStreamFolder);
 
         return res;
 

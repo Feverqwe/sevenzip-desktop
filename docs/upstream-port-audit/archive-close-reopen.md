@@ -219,3 +219,34 @@ Focused validation passed `native_folder_opening`, `nested_archive`,
 (52.35 seconds), macOS (57.56 seconds) and the Windows interactive runner
 (92.42 seconds). Incremental builds and compiler caches were retained; no full
 or slow suites, heavy diagnostics or appearance changes were introduced.
+
+## Shared folder restoration — 2026-11-01
+
+Compared the complete current CommonUpdateOperation, explicit folder ReOpen,
+path capture and proxy lookup bodies with the original Agent/ArchiveFolderOut,
+Agent and AgentProxy units in <https://github.com/ip7z/7zip.git> at
+`9128b80e3a471108678e2b3ec3c985861c8d7b0f`. Their complete hashes, plus Agent.h,
+match the recorded baseline. No external code or new algorithm is imported.
+
+The original path restoration walk now has one private implementation shared
+by archive update and explicit ReOpen. Ordinary path lookup, the nearest
+surviving parent, file ADS and root ADS retain their original branches. Each
+caller still owns root binding, proxy generation and result publication. The
+unused commented alternative walk was removed. No archive writer, publication,
+rollback, consent or cancellation policy changed.
+
+Public regressions reopen real ZIP/WIM archives after replacing their contents,
+checking preserved Unicode subfolders and fallback when one or both selected
+ancestors disappear. Existing mutation checks now also verify the reopened
+folder path after Delete/Rename/CreateFolder. The ADS update workflow additionally
+reopens both the file's streams and the empty root stream namespace, checking
+their path and entries through the folder interface.
+
+Focused validation passed agent_lifecycle, archive_proxy, source_update_backend,
+agent_stream_update, external_editors_ui, native_folder_opening and archive_opening
+on Linux first, then macOS and Windows: 117/117/121 passing cases, no failures.
+The three filesystem ADS rows skip on each POSIX platform and pass on Windows;
+archive ADS runs everywhere. Incremental build trees and compiler caches were
+retained, and completed temporary fixtures were removed after evidence capture.
+No full/slow gate, heavy diagnostics or visual comparison was needed for this
+nonvisual change.

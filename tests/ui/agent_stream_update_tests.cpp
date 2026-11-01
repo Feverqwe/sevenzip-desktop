@@ -1,6 +1,7 @@
 #include "archive/agent/Agent.h"
 #include "archive/resources/qtarchivefileresource.h"
 #include "archive/resources/qtarchivefoldermanager.h"
+#include "archive/resources/qtarchivereopen.h"
 #include "archive/support/source_extract_fixture.h"
 #include "archive/support/source_metadata_update_fixture.h"
 #include "filemanager/providers/FileFolderPluginOpen.h"
@@ -130,6 +131,34 @@ class AgentStreamUpdateTests final : public QObject {
             UInt32 count = 0;
             QCOMPARE(target->GetNumberOfItems(&count), S_OK);
             QCOMPARE(count, UInt32(2));
+            CMyComPtr<IFolderFolder> refreshed;
+            QCOMPARE(ReOpenArchiveFolder(*folder, {}, nullptr, &refreshed, false, UString()), S_OK);
+            QVERIFY(refreshed);
+            QCOMPARE(refreshed->LoadItems(), S_OK);
+            QCOMPARE(refreshed->GetNumberOfItems(&count), S_OK);
+            QCOMPARE(count, UInt32(2));
+            NWindows::NCOM::CPropVariant restoredPath;
+            QCOMPARE(refreshed->GetFolderProperty(kpidPath, &restoredPath), S_OK);
+            QCOMPARE(QString::fromWCharArray(restoredPath.bstrVal), owner + ':');
+            CMyComPtr<IFolderFolder> archiveRoot, alternateRoot;
+            QCOMPARE(refreshed->BindToParentFolder(&archiveRoot), S_OK);
+            QVERIFY(archiveRoot);
+            CMyComPtr<IFolderAltStreams> streams;
+            QCOMPARE(archiveRoot.QueryInterface(IID_IFolderAltStreams, &streams), S_OK);
+            QCOMPARE(streams->BindToAltStreams(UInt32(-1), &alternateRoot), S_OK);
+            QVERIFY(alternateRoot);
+            auto *alternateAgent = dynamic_cast<CAgentFolder *>(alternateRoot.Interface());
+            QVERIFY(alternateAgent);
+            CMyComPtr<IFolderFolder> refreshedRoot;
+            QCOMPARE(
+                ReOpenArchiveFolder(*alternateAgent, {}, nullptr, &refreshedRoot, false, UString()),
+                S_OK);
+            QVERIFY(refreshedRoot);
+            QCOMPARE(refreshedRoot->LoadItems(), S_OK);
+            QCOMPARE(refreshedRoot->GetNumberOfItems(&count), S_OK);
+            QCOMPARE(count, UInt32(0));
+            QCOMPARE(refreshedRoot->GetFolderProperty(kpidPath, &restoredPath), S_OK);
+            QCOMPARE(QString::fromWCharArray(restoredPath.bstrVal), QStringLiteral(":"));
         }
         if (!directory)
             QCOMPARE(readFile(input), payload);

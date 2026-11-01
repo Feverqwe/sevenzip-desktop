@@ -1687,37 +1687,7 @@ HRESULT CAgentFolder::ReOpen(IArchiveOpenCallback *callback, IFolderFolder **fol
     // Restore FolderItem from ArchiveFolderOut::CommonUpdateOperation.
     // The reopened owner is returned separately so callers discard stale proxies.
     auto *restored = static_cast<CAgentFolder *>(archiveFolder.Interface());
-    if (restored->_proxy) {
-        FOR_VECTOR(i, pathParts) {
-            const int next = restored->_proxy->FindSubDir(restored->_proxyDirIndex, pathParts[i]);
-            if (next == -1)
-                break;
-            restored->_proxyDirIndex = (unsigned)next;
-        }
-    }
-    if (restored->_proxy2) {
-        if (pathParts.IsEmpty() && isAltStreamFolder)
-            restored->_proxyDirIndex = k_Proxy2_AltRootDirIndex;
-        else
-            FOR_VECTOR(i, pathParts) {
-                const bool dirOnly = (i + 1 < pathParts.Size() || !isAltStreamFolder);
-                const int index =
-                    restored->_proxy2->FindItem(restored->_proxyDirIndex, pathParts[i], dirOnly);
-                if (index == -1)
-                    break;
-                const CProxyFile2 &file =
-                    restored->_proxy2
-                        ->Files[restored->_proxy2->Dirs[restored->_proxyDirIndex].Items[index]];
-                if (dirOnly)
-                    restored->_proxyDirIndex = (unsigned)file.DirIndex;
-                else {
-                    if (file.AltDirIndex != -1)
-                        restored->_proxyDirIndex = (unsigned)file.AltDirIndex;
-                    break;
-                }
-            }
-        restored->_isAltStreamFolder = restored->_proxy2->IsAltDir(restored->_proxyDirIndex);
-    }
+    restored->RestorePath(pathParts, isAltStreamFolder);
     *folder = archiveFolder.Detach();
     return S_OK;
     COM_TRY_END

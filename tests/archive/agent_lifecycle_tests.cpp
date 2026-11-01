@@ -3,6 +3,7 @@
 #include "archive/agent/Agent.h"
 #include "archive/resources/qtarchivefoldermanager.h"
 #include "archive/support/archive_backend_test_support.h"
+#include "archive/support/native_archive_fixture.h"
 #include <QScopeGuard>
 #include <QStandardPaths>
 #include <atomic>
@@ -126,6 +127,82 @@ class AgentLifecycleTests final : public QObject, protected ArchiveBackendTestSu
     void initTestCase() {
         engine_ = QStandardPaths::findExecutable("7z");
         QVERIFY2(!engine_.isEmpty(), "Official fixture engine is required");
+    }
+    void reopenRestoresClosestSurvivingFolder_data() {
+        QTest::addColumn<QString>("format");
+        QTest::addColumn<int>("removedParents");
+        for (const QString &format : {QStringLiteral("zip"), QStringLiteral("wim")})
+            for (int removed = 0; removed <= 2; ++removed)
+                QTest::newRow(qPrintable(format + QString::number(removed))) << format << removed;
+    }
+    void reopenRestoresClosestSurvivingFolder() {
+        QFETCH(QString, format);
+        QFETCH(int, removedParents);
+        QTemporaryDir temporary;
+        QVERIFY(temporary.isValid());
+        const QString parent = QStringLiteral("родитель 空");
+        const QString child = QStringLiteral("внутри с пробелом");
+        const QString prefix = parent + '/' + child + '/';
+        const QString leaf = QStringLiteral("файл.bin");
+        QList<NativeArchiveFixture::Item> original{
+            {.Path = "root.bin", .Bytes = "root"},
+            {.Path = parent, .Directory = true},
+            {.Path = parent + "/keep.bin", .Bytes = "parent"},
+            {.Path = parent + '/' + child, .Directory = true},
+            {.Path = prefix + leaf, .Bytes = "original"}};
+        QList<NativeArchiveFixture::Item> replacement{{.Path = "root.bin", .Bytes = "root"}};
+        if (removedParents < 2) {
+            replacement.append(original[1]);
+            replacement.append(original[2]);
+        }
+        if (removedParents == 0) {
+            replacement.append(original[3]);
+            replacement.append({.Path = prefix + leaf, .Bytes = "updated content"});
+        }
+        const QString path = temporary.filePath(QStringLiteral("архив 空.") + format);
+        const QString nextPath = temporary.filePath("replacement." + format);
+        QVERIFY(NativeArchiveFixture::Write(path, original, format));
+        QVERIFY(NativeArchiveFixture::Write(nextPath, replacement, format));
+        ArchiveBackend backend(nullptr, engine_);
+        QCOMPARE(NativeArchiveFixture::Attach(backend), S_OK);
+        CMyComPtr<IFolderManager> manager = new QtArchiveFolderManager(backend);
+        CMyComPtr<IFolderFolder> root, parentFolder, selected;
+        const auto nativePath = path.toStdWString();
+        const auto nativeFormat = format.toStdWString();
+        QCOMPARE(run(backend,
+                     [&] {
+                         return manager->OpenFolderFile(nullptr, nativePath.c_str(),
+                                                        nativeFormat.c_str(), &root, nullptr);
+                     }),
+                 S_OK);
+        QCOMPARE(root->BindToFolder(parent.toStdWString().c_str(), &parentFolder), S_OK);
+        QVERIFY(parentFolder);
+        QCOMPARE(parentFolder->BindToFolder(child.toStdWString().c_str(), &selected), S_OK);
+        QVERIFY(selected);
+        auto *agent = dynamic_cast<CAgentFolder *>(selected.Interface());
+        QVERIFY(agent);
+        QCOMPARE(agent->CloseArchive(), S_OK);
+        QVERIFY(QFile::remove(path));
+        QVERIFY(QFile::rename(nextPath, path));
+        CMyComPtr<IFolderFolder> restored;
+        QCOMPARE(run(backend, [&] { return agent->ReOpen(nullptr, &restored); }), S_OK);
+        QVERIFY(restored);
+        QCOMPARE(restored->LoadItems(), S_OK);
+        NWindows::NCOM::CPropVariant value;
+        QCOMPARE(restored->GetFolderProperty(kpidPath, &value), S_OK);
+        QCOMPARE(value.vt, VARTYPE(VT_BSTR));
+        const QString expectedPrefix = removedParents == 0   ? prefix
+                                       : removedParents == 1 ? parent + '/'
+                                                             : QString();
+        QCOMPARE(QDir::fromNativeSeparators(QString::fromWCharArray(value.bstrVal)),
+                 expectedPrefix);
+        UInt32 count = 0;
+        QCOMPARE(restored->GetNumberOfItems(&count), S_OK);
+        QCOMPARE(count, UInt32(1));
+        QCOMPARE(restored->GetProperty(0, kpidName, &value), S_OK);
+        QCOMPARE(QString::fromWCharArray(value.bstrVal), removedParents == 0   ? leaf
+                                                         : removedParents == 1 ? "keep.bin"
+                                                                               : "root.bin");
     }
     void closedAndFailedReopenCannotLoadOldFolders_data() {
         QTest::addColumn<QString>("format");

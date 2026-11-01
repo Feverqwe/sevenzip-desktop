@@ -173,15 +173,28 @@ class CNativeMutationWorker final : public CProgressThreadVirt {
             ui->Password = ToUString(Password);
         }
         const UInt32 selected = 0;
+        HRESULT result;
         switch (Operation) {
         case Mutation::Delete:
-            return operations->Delete(&selected, 1, ui);
+            result = operations->Delete(&selected, 1, ui);
+            break;
         case Mutation::Rename:
-            return operations->Rename(selected, L"новое имя.bin", ui);
+            result = operations->Rename(selected, L"новое имя.bin", ui);
+            break;
         case Mutation::CreateFolder:
-            return operations->CreateFolder(L"новая папка", ui);
+            result = operations->CreateFolder(L"новая папка", ui);
+            break;
+        default:
+            return E_FAIL;
         }
-        return E_FAIL;
+        RINOK(result)
+        RINOK(folder->LoadItems())
+        NWindows::NCOM::CPropVariant path;
+        RINOK(folder->GetFolderProperty(kpidPath, &path))
+        if (path.vt != VT_BSTR)
+            return E_FAIL;
+        RestoredPath = QDir::fromNativeSeparators(QString::fromWCharArray(path.bstrVal));
+        return S_OK;
     }
 
   public:
@@ -189,6 +202,7 @@ class CNativeMutationWorker final : public CProgressThreadVirt {
     Mutation Operation = Mutation::Delete;
     bool RootFolder = false;
     QString Password;
+    QString RestoredPath;
     CNativeMutationWorker(ArchiveBackend &backend, const QString &archive, const QString &format)
         : _resourceSpec(new QtArchiveFileResource(archive)), _format(format) {
         DisableUserQuestions = true;
@@ -955,6 +969,7 @@ class SourceUpdateBackendTests final : public QObject {
         QVERIFY(transport);
         QCOMPARE(worker.Create(L"Source folder mutation", nullptr), S_OK);
         QCOMPARE(worker.Result, S_OK);
+        QCOMPARE(worker.RestoredPath, QStringLiteral("inside/"));
         QVERIFY(!backend.busy());
         const QString extracted = fixture.filePath("extracted");
         QVERIFY(runEngine(fixture.path(), {"x", "-y", "-o" + extracted, "--", archive}));
@@ -998,6 +1013,7 @@ class SourceUpdateBackendTests final : public QObject {
         QVERIFY(transport);
         QCOMPARE(worker.Create(L"Source folder rename/delete", nullptr), S_OK);
         QCOMPARE(worker.Result, S_OK);
+        QCOMPARE(worker.RestoredPath, QString());
         const QString extracted = fixture.filePath("extracted");
         QVERIFY(runEngine(fixture.path(), {"x", "-y", "-o" + extracted, "--", archive}));
         QCOMPARE(readFile(QDir(extracted).filePath("keep.bin")), QByteArray("keep"));
