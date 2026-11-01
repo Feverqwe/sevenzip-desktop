@@ -285,9 +285,11 @@ class ArchiveBackend : public QObject {
     QTimer workerProgressTimer_{this};
     QMutex workerProgressMutex_;
     quint64 workerProgressGeneration_ = 0;
-    bool workerProgressPending_ = false;
-    int workerProgressPercent_ = 0;
-    QString workerProgressPath_;
+    struct WorkerProgress {
+        int Percent;
+        QString Path;
+    };
+    std::optional<WorkerProgress> pendingWorkerProgress_;
     quint64 beginWorkerProgress();
     bool startWorkerPhase(QThread &worker, std::function<void()> launch = {});
     void postWorkerProgress(quint64 generation, int percent, const QString &path);

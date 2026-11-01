@@ -1,5 +1,33 @@
 # Native-worker notification ownership
 
+## Pending worker progress snapshot — 2026-11-01
+
+Reviewed hash/read startup, callbacks, sampled progress, completion, joined
+cancellation and their dialog transport. Rechecked original ProgressDialog2
+setters, timer and mutex snapshot block, plus HashCalc progress call sites at
+recorded `b88c6bc09339de32f7d18bbab900686b244f42ba` in
+<https://github.com/ip7z/7zip.git>. Complete original ProgressDialog2.cpp/.h and
+HashCalc.cpp units match the existing baseline hashes; no import or baseline
+change is involved.
+
+The Qt backend retains one optional percent/path snapshot. Publishing replaces
+that snapshot, GUI delivery takes it under the mutex before emitting, and phase
+start/finish discard it. Separate pending/percent/path fields and their paired
+resets/copies are removed. Existing generation rejection, sampling interval,
+percent calculation, native algorithms, output summaries and cancellation policy
+remain unchanged. A local snapshot still survives receivers that cancel, restart
+or destroy the backend. Existing worker/read/hash and dialog behavior checks
+cover these contracts; no representation test or pre-fix failure is claimed.
+
+Linux acceptance passed `worker_progress`, `native_archive_test`,
+`native_source_extract`, `native_hash_workflow`, `archive_progress` and
+`native_listing`. The initial listing run exposed its missing runtime build
+dependency for the existing MBR-with-ZIP fixture: its focused target now prepares
+`sevenzip_mbr_runtime`; the listing-only repeat passed. Other passing evidence
+was reused. Checks retained incremental outputs, compiler cache and the requested
+four-job default. No native OS branch changed, so no secondary platform, full/
+slow gate or appearance acceptance was selected.
+
 ## Window progress publication — 2026-10-31
 
 Compared complete original `CProgressSync::Set_FilePath`, `Set_Status` and

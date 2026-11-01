@@ -11,6 +11,7 @@
         set_tests_properties(${native_read_suite} PROPERTIES TIMEOUT 45
             ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
     endforeach()
+    add_dependencies(native_listing_tests sevenzip_mbr_runtime)
     qt_add_executable(archive_qcow_tests tests/formats/qcow/archive_qcow_tests.cpp)
     target_link_libraries(archive_qcow_tests PRIVATE sevenzip_location)
     target_include_directories(archive_qcow_tests PRIVATE src tests)
