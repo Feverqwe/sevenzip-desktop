@@ -87,5 +87,61 @@
     "tests": "^(native_shell_data|native_shell_com|native_shell_launch|native_archive_command_line)$",
     "interactive": true,
     "platform": "windows"
+  },
+  "archive-agent": {
+    "description": "Archive agent lifecycle, opening, folder capabilities and File Manager consumers",
+    "tests": "^(agent_lifecycle|agent_opening|agent_folder|agent_real_indices|agent_capability|archive_opening|archive_open_options|archive_property_catalog|codec_catalog|archive_item_open|nested_archive|archive_external_edit|nested_edit_chain|panel_columns|panel_column_schema|panel_column_changes|native_column_workflow)$",
+    "interactive": true
+  },
+  "compression": {
+    "description": "Add dialog, compression settings and File Manager archive creation workflows",
+    "tests": "^(source_compress_dialog|shell_menu_window|shell_update_window|shell_update_gui|sfx_creation|sfx_lifecycle|compression|compression_advanced|compression_path|compression_preferences|compression_resources|compression_dictionary|compression_order|compression_solid|compression_memory|compression_limit|language_ui|codec_commands_ui|codec_creation_ui|ui_geometry|filesystem_selection_runtime|ui_operations|ui_update_modes|archive_metadata_ui|source_drop_add|drag_drop_add_ui|source_archive_browse|modal_refresh_window|flat_view|main_shell|panel_shell|panel_key|ui_navigation|ui_archive_states|ui_archive_volumes|language_main_dialog|language_focus|properties_runtime|file_menu_policy|source_properties|archive_error_properties|command_policy_runtime|native_command_dispatch|nested_archive|nested_edit_chain|archive_item_open|archive_external_edit|external_editors_ui|language_archive_command)$",
+    "interactive": true
+  },
+  "archive-create": {
+    "description": "Archive creation, updates, codecs, volumes, links and stored metadata",
+    "tests": "^(archive_backend|source_update_backend|codec_creation|codec_update|external_codecs|archive_creation_lifecycle|archive_volume_creation|source_link_storage|source_metadata_storage|language_source_update)$",
+    "interactive": false
+  },
+  "properties": {
+    "description": "File and archive properties, metadata formatting and native property sheets",
+    "tests": "^(properties|source_properties|properties_runtime|language_ui|native_properties_window|native_system_menu|native_shell_data|native_shell_com|alt_streams_command|owned_temp_publication|drag_drop|language_dialog|property_formatting|panel_property|panel_columns|native_library)$",
+    "interactive": true
+  },
+  "native-properties": {
+    "description": "Windows property sheets and native shell data consumers",
+    "tests": "^(native_properties_window|native_system_menu|native_shell_data|native_shell_com)$",
+    "interactive": true,
+    "platform": "windows"
+  },
+  "workers": {
+    "description": "Worker progress, archive creation, updates and cancellation",
+    "tests": "^(worker_progress|archive_creation_lifecycle|archive_volume_creation|source_update_backend|archive_backend|filesystem_scanner|archive_proxy|language_source_update)$",
+    "interactive": false
+  },
+  "lists": {
+    "description": "Large panel publication, selection, refresh and nested navigation",
+    "tests": "^(large_list_window|flat_view|panel_selected_state|panel_key|panel_auto_refresh|nested_archive|nested_edit_chain|app_lifecycle_window|binding_lifecycle|ui_navigation|bookmarks)$",
+    "interactive": true
+  },
+  "archive-volumes": {
+    "description": "Archive volumes, SFX creation and File Manager volume consumers",
+    "tests": "^(archive_volume_creation|sfx_creation|sfx_lifecycle|ui_archive_volumes)$",
+    "interactive": true
+  },
+  "file-transfer": {
+    "description": "File transfer progress, copy/move and split/combine workflows",
+    "tests": "^(worker_window_progress|ui_copy_same|ui_operations|language_file_transfer|file_transfer|volume_operations|volume_workflow|app_lifecycle_window)$",
+    "interactive": true
+  },
+  "interaction": {
+    "description": "Pointer activation, list settings, folder history and progress dialogs",
+    "tests": "^(list_activation|list_view_dialog|folder_history|list_settings_runtime|panel_key|properties_runtime|temp_cleanup|hash_results|progress_dialog)$",
+    "interactive": true
+  },
+  "responsiveness": {
+    "description": "Integrated archive workers, panel publication, volumes and file transfer",
+    "tests": "^(worker_progress|archive_creation_lifecycle|archive_volume_creation|source_update_backend|archive_backend|filesystem_scanner|archive_proxy|language_source_update|large_list_window|flat_view|panel_selected_state|panel_key|panel_auto_refresh|nested_archive|nested_edit_chain|app_lifecycle_window|binding_lifecycle|ui_navigation|bookmarks|sfx_creation|sfx_lifecycle|ui_archive_volumes|worker_window_progress|ui_copy_same|ui_operations|language_file_transfer|file_transfer|volume_operations|volume_workflow)$",
+    "interactive": true
   }
 }
