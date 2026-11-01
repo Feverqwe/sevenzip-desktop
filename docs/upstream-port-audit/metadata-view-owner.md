@@ -1,5 +1,42 @@
 # Archive metadata view ownership — 2026-11-01
 
+## Snapshot item-property catalog — 2026-11-01
+
+Reviewed QtPanelFolder's complete catalog/value/raw-property implementation,
+metadata factory, property transport and Agent/panel descriptor consumers while
+tracing folder binding and archive opening. The source Agent catalog expansion,
+path-to-name mapping and panel-column consumers retain their existing bodies;
+original Agent.cpp and PanelItems.cpp hashes match the recorded
+`b88c6bc09339de32f7d18bbab900686b244f42ba` baseline in
+<https://github.com/ip7z/7zip.git>. No external code is imported or baseline
+advanced. Native readers and the source path-binding algorithm are unchanged.
+
+The Qt snapshot now builds its standard item-property ID list once. Count and
+descriptor lookup consume that same list, replacing stored timestamp/CRC flags
+and the descriptor's conditional index adjustments. Original catalog order,
+native VARTYPE mapping, optional-field admission, custom names and sparse values
+remain unchanged. Custom-presentation snapshots still have only their named
+catalog and return E_NOTIMPL for native MTime; the unreachable text-MTime branch
+guarded by an always-false custom flag is removed. Raw properties retain their
+separate original interface and owner.
+
+A public factory/Agent regression enumerates a named property and reads distinct
+values from two entries with neither optional field, timestamp only, CRC only
+and both fields. This catches lost or misindexed named properties without
+pinning private offsets, property order or total count. Existing timestamp,
+sparse-value, Unicode-path, CRC sort/property-dialog, opening and proxy checks
+cover the direct consumers. No layout, text or visibility rules change.
+
+Linux x64 passed archive_property_catalog, agent_property_projection,
+archive_proxy and archive_opening: 54 checks without failures or skips. Run
+`20261101T203401Z-355dc678` built selected targets in 18.128 seconds and ran
+tests in 8.191 seconds. This portable catalog change was checked on the primary
+platform; OS-specific/native reader code was unchanged, so no Windows/macOS
+batch was selected. Scratch directories were empty after completion; existing
+builds and compiler caches were retained. Inventory and whitespace checks passed.
+
+---
+
 Reviewed the complete property facade, native index matching, opening/reopening,
 typed backend requests, item streams, update/extract services and source Agent
 capability/property consumers. The original Agent contracts were compared with

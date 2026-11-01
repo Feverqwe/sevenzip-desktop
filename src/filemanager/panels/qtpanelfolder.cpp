@@ -42,15 +42,22 @@ QtPanelFolder::QtPanelFolder(const QString &prefix, const CObjectVector<CPanelIt
                              PropertyCatalog catalog)
     : prefix_(prefix), items_(items), catalog_(catalog) {
     if (catalog_ == PropertyCatalog::ArchiveTransport) {
+        bool hasMTimeText = false, hasCrc = false;
         FOR_VECTOR(i, items_) {
             if (!items_[i].MTimeText.isEmpty())
-                hasMTimeText_ = true;
-            hasCrc_ |= items_[i].Crc.has_value();
+                hasMTimeText = true;
+            hasCrc |= items_[i].Crc.has_value();
             for (auto p = items_[i].RawProperties.cbegin(); p != items_[i].RawProperties.cend();
                  ++p)
                 if (rawPropertyIds_.FindInSorted(p.key()) < 0)
                     rawPropertyIds_.AddToUniqueSorted(p.key());
         }
+        for (const PROPID id : kArchiveProperties)
+            archivePropertyIds_.Add(id);
+        if (hasMTimeText)
+            archivePropertyIds_.Add(kpidMTime);
+        if (hasCrc)
+            archivePropertyIds_.Add(kpidCRC);
     }
     // Names are already localized/formatted by the Qt property presentation.
     // Describe their union once; missing values use the source VT_EMPTY contract.
@@ -120,11 +127,7 @@ Z7_COM7F_IMF(QtPanelFolder::GetProperty(UInt32 index, PROPID id, PROPVARIANT *va
             SetArchiveTime(item.MTimeText, prop);
             break;
         }
-        if (!hasMTimeText_)
-            return E_NOTIMPL;
-        if (!item.MTimeText.isEmpty())
-            prop = ToUString(item.MTimeText);
-        break;
+        return E_NOTIMPL;
     case kpidNumSubDirs:
         if (catalog_ != PropertyCatalog::ArchiveTransport)
             prop = item.NumSubDirs;
@@ -164,38 +167,18 @@ Z7_COM7F_IMF(QtPanelFolder::BindToParentFolder(IFolderFolder **folder)) {
 }
 
 Z7_COM7F_IMF(QtPanelFolder::GetNumberOfProperties(UInt32 *count)) {
-    *count = catalog_ == PropertyCatalog::ArchiveTransport
-                 ? Z7_ARRAY_SIZE(kArchiveProperties) + (hasMTimeText_ ? 1 : 0) + (hasCrc_ ? 1 : 0) +
-                       propertyNames_.Size()
-                 : propertyNames_.Size();
+    *count = archivePropertyIds_.Size() + propertyNames_.Size();
     return S_OK;
 }
 
 Z7_COM7F_IMF(QtPanelFolder::GetPropertyInfo(UInt32 index, BSTR *name, PROPID *id, VARTYPE *type)) {
-    if (catalog_ == PropertyCatalog::ArchiveTransport) {
-        if (hasMTimeText_ && index == Z7_ARRAY_SIZE(kArchiveProperties)) {
-            *name = NULL;
-            *id = kpidMTime;
-            *type = VT_FILETIME;
-            return S_OK;
-        }
-        if (index < Z7_ARRAY_SIZE(kArchiveProperties)) {
-            *name = NULL;
-            *id = kArchiveProperties[index];
-            *type = k7z_PROPID_To_VARTYPE[(unsigned)*id];
-            return S_OK;
-        }
-        index -= Z7_ARRAY_SIZE(kArchiveProperties) + (hasMTimeText_ ? 1 : 0);
-        if (hasCrc_) {
-            if (index == 0) {
-                *name = NULL;
-                *id = kpidCRC;
-                *type = VT_UI4;
-                return S_OK;
-            }
-            --index;
-        }
+    if (index < archivePropertyIds_.Size()) {
+        *name = NULL;
+        *id = archivePropertyIds_[index];
+        *type = k7z_PROPID_To_VARTYPE[(unsigned)*id];
+        return S_OK;
     }
+    index -= archivePropertyIds_.Size();
     if (index >= propertyNames_.Size())
         return E_INVALIDARG;
     *name = ::SysAllocStringLen(propertyNames_[index], propertyNames_[index].Len());
