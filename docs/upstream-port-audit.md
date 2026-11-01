@@ -95,6 +95,9 @@ rg -n --no-ignore -F 'CAgent::Open' docs/archive/qt-port/upstream-port-audit/ do
 - [Владелец состояния представления панели](upstream-port-audit/panel-presentation-owner.md)
   — единое состояние каждой панели для команд и фоновых callbacks.
 
+- [Жизненный цикл запроса backend](upstream-port-audit/backend-request-phases.md)
+  — единое состояние запроса и защита другой выполняющейся операции.
+
 - [Запуск и выбор внешнего Drop](upstream-port-audit/startup-drop-choice.md)
   — подготовка первого окна и запрошенный выбор открытия/упаковки;
   [аудит сценариев](user-workflow-audit.md) хранит текущие результаты и ограничения.

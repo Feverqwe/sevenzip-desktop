@@ -7,16 +7,16 @@
 #include <QMutex>
 #include <QMutexLocker>
 #include <QThread>
-#include <atomic>
 #include <memory>
+#include <utility>
 
 namespace {
 struct CRequest {
+    enum class Phase { Pending, Running, Finished };
     QMutex Mutex;
-    bool Owned = false;
-    bool Completed = false;
+    Phase State = Phase::Pending;
     HRESULT Result = E_FAIL;
-    std::atomic<bool> PasswordRequested{false};
+    bool PasswordRequested = false;
 };
 class CConnection {
     QMetaObject::Connection _connection;
@@ -43,7 +43,7 @@ HRESULT RequestPassword(ArchiveBackend &backend, const std::shared_ptr<CRequest>
                 bool provide;
                 {
                     QMutexLocker lock(&request->Mutex);
-                    provide = request->Owned && !request->Completed;
+                    provide = request->State == CRequest::Phase::Running;
                 }
                 if (provide)
                     backend.providePassword(text);
@@ -64,19 +64,19 @@ HRESULT RunArchiveBackendRequest(ArchiveBackend &backend, const std::function<vo
     CConnection finished(QObject::connect(&backend, &ArchiveBackend::finished, &backend,
                                           [&backend, request](bool success, const QString &) {
                                               QMutexLocker lock(&request->Mutex);
-                                              if (!request->Owned || request->Completed)
+                                              if (request->State != CRequest::Phase::Running)
                                                   return;
                                               request->Result =
                                                   success ? S_OK : backend.lastResult();
                                               if (!success && request->Result == S_OK)
                                                   request->Result = E_FAIL;
-                                              request->Completed = true;
+                                              request->State = CRequest::Phase::Finished;
                                           }));
     CConnection password(
         QObject::connect(&backend, &ArchiveBackend::passwordRequired, &backend, [request] {
             QMutexLocker lock(&request->Mutex);
-            if (request->Owned && !request->Completed)
-                request->PasswordRequested.store(true);
+            if (request->State == CRequest::Phase::Running)
+                request->PasswordRequested = true;
         }));
     QMetaObject::invokeMethod(
         &backend,
@@ -84,10 +84,10 @@ HRESULT RunArchiveBackendRequest(ArchiveBackend &backend, const std::function<vo
             {
                 QMutexLocker lock(&request->Mutex);
                 if (backend.busy()) {
-                    request->Completed = true;
+                    request->State = CRequest::Phase::Finished;
                     return;
                 }
-                request->Owned = true;
+                request->State = CRequest::Phase::Running;
             }
             try {
                 start();
@@ -95,7 +95,7 @@ HRESULT RunArchiveBackendRequest(ArchiveBackend &backend, const std::function<vo
                 backend.cancelAndWait();
                 QMutexLocker lock(&request->Mutex);
                 request->Result = E_FAIL;
-                request->Completed = true;
+                request->State = CRequest::Phase::Finished;
             }
         },
         Qt::QueuedConnection);
@@ -104,12 +104,15 @@ HRESULT RunArchiveBackendRequest(ArchiveBackend &backend, const std::function<vo
     for (;;) {
         if (stopResult == S_OK && sync && sync->Get_Stopped())
             stopResult = E_ABORT;
+        bool passwordRequested;
         {
             QMutexLocker lock(&request->Mutex);
-            if (request->Completed)
+            if (request->State == CRequest::Phase::Finished)
                 return stopResult == S_OK ? request->Result : stopResult;
+            passwordRequested =
+                stopResult == S_OK && std::exchange(request->PasswordRequested, false);
         }
-        if (stopResult == S_OK && request->PasswordRequested.exchange(false)) {
+        if (passwordRequested) {
             stopResult = RequestPassword(backend, request, passwordCallback);
         }
         if (stopResult != S_OK && !cancelRequested) {
@@ -120,7 +123,7 @@ HRESULT RunArchiveBackendRequest(ArchiveBackend &backend, const std::function<vo
                     bool cancel;
                     {
                         QMutexLocker lock(&request->Mutex);
-                        cancel = request->Owned && !request->Completed;
+                        cancel = request->State == CRequest::Phase::Running;
                     }
                     if (cancel)
                         backend.cancel();

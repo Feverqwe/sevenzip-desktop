@@ -24,6 +24,8 @@
 #include <QTemporaryDir>
 #include <QTimer>
 #include <QtTest>
+#include <chrono>
+#include <future>
 
 namespace {
 using namespace SourceExtractFixture;
@@ -98,6 +100,47 @@ class CNativeExtractWorker final : public CProgressThreadVirt {
 class SourceExtractBackendTests final : public QObject {
     Q_OBJECT
   private slots:
+    void busyRequestLeavesUnrelatedOperationRunning_data() {
+        QTest::addColumn<bool>("cancelled");
+        QTest::newRow("rejected") << false;
+        QTest::newRow("cancelled") << true;
+    }
+    void busyRequestLeavesUnrelatedOperationRunning() {
+        QFETCH(bool, cancelled);
+        QTemporaryDir directory;
+        QVERIFY(directory.isValid());
+        const QString path = directory.filePath(QStringLiteral("другой запрос 空.bin"));
+        QVERIFY(writeFile(path, "123456789"));
+        ArchiveBackend backend;
+        QSignalSpy finished(&backend, &ArchiveBackend::finished);
+        const auto pause = connect(&backend, &ArchiveBackend::phaseStarted, &backend,
+                                   [&] { QCOMPARE(backend.setPaused(true), HRESULT(S_OK)); });
+        backend.hashMethods({path}, {"CRC32"});
+        disconnect(pause);
+        QVERIFY(backend.busy());
+        CProgressSync sync;
+        sync.Set_Stopped(cancelled);
+        bool started = false;
+        auto request = std::async(std::launch::async, [&] {
+            return RunArchiveBackendRequest(
+                backend,
+                [&] {
+                    started = true;
+                    emit backend.finished(false, "Unexpected request start");
+                },
+                nullptr, &sync);
+        });
+        QTRY_VERIFY_WITH_TIMEOUT(
+            request.wait_for(std::chrono::milliseconds(0)) == std::future_status::ready, 10000);
+        QCOMPARE(request.get(), HRESULT(cancelled ? E_ABORT : E_FAIL));
+        QVERIFY(!started);
+        QVERIFY(backend.busy());
+        QCOMPARE(finished.size(), 0);
+        QCOMPARE(backend.setPaused(false), HRESULT(S_OK));
+        QTRY_COMPARE(finished.size(), 1);
+        QVERIFY(finished.front().front().toBool());
+        QCOMPARE(backend.lastResult(), HRESULT(S_OK));
+    }
     void nativeNestedOpenMaterializesOwnedStreamAndRestoresParent() {
         QTemporaryDir inner, outer;
         const QByteArray contents("nested contents\0bytes", 21);
