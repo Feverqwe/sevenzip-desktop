@@ -63,6 +63,7 @@ class CreateArchiveDialog : public QDialog {
     void updateSfxControls();
     void toggleSfx(bool enabled);
     void showAdvancedOptions();
+    void prepareMetadataSource(CCompressDialog &source) const;
     void updateAdvancedSummary();
     bool checkVolumeSizes();
     void SetEncryptionMethod();

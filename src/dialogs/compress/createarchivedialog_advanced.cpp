@@ -118,8 +118,6 @@ void CreateArchiveDialog::showAdvancedOptions() {
     // owner while codecs/compression remain in the official external engine.
     CCompressDialog source;
     source.Format = registryFormat_;
-    if (fixedSources_)
-        source.Info = archiveNameState_.Info;
     source.MethodID = archiveNameState_.GetMethodID();
 #ifdef Q_OS_WIN
     source.PreserveATime.SetVal_as_Supported(m_RegistryInfo.PreserveATime.Val);
@@ -132,12 +130,7 @@ void CreateArchiveDialog::showAdvancedOptions() {
     if (registryFormat_ == "zip")
         source.ArcInfo.TimeFlags |= TIME_PREC_TO_ARC_FLAGS_MASK(NFileTimeType::kUnix) |
                                     TIME_PREC_TO_ARC_FLAGS_MASK(NFileTimeType::kDOS);
-    if (codecs_ && codecs_->result() == S_OK) {
-        const int index = codecs_->formatIndex(registryFormat_);
-        if (index >= 0)
-            source.ArcInfo = codecs_->nativeCodecs().Formats[unsigned(index)];
-    }
-    source.LoadMetadataOptions(m_RegistryInfo);
+    prepareMetadataSource(source);
     // Local profile copy is source COptionsDialog's in-memory transaction:
     // Options Cancel does not mutate the Add form; Add Cancel never saves disk.
     NCompression::CFormatOptions profile = Get_FormatOptions();
@@ -160,8 +153,7 @@ void CreateArchiveDialog::showAdvancedOptions() {
     updateAdvancedSummary();
 }
 
-void CreateArchiveDialog::updateAdvancedSummary() {
-    CCompressDialog source;
+void CreateArchiveDialog::prepareMetadataSource(CCompressDialog &source) const {
     if (fixedSources_)
         source.Info = archiveNameState_.Info;
     if (codecs_ && codecs_->result() == S_OK) {
@@ -170,6 +162,11 @@ void CreateArchiveDialog::updateAdvancedSummary() {
             source.ArcInfo = codecs_->nativeCodecs().Formats[unsigned(index)];
     }
     source.LoadMetadataOptions(m_RegistryInfo);
+}
+
+void CreateArchiveDialog::updateAdvancedSummary() {
+    CCompressDialog source;
+    prepareMetadataSource(source);
     source.FormatOptions = &Get_FormatOptions();
     source.ShowOptionsString();
     hasMetadataOptions_ = !source.OptionsString.IsEmpty();

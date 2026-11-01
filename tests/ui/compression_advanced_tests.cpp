@@ -5,6 +5,7 @@
 #include "support/archive_sections.h"
 #include "ui/support/layout_inspection.h"
 #include <QDateTime>
+#include <QScopeGuard>
 #include <QScrollArea>
 #include <QScrollBar>
 #include <QSignalSpy>
@@ -315,6 +316,62 @@ class CompressionAdvancedTests final : public QObject {
         QVERIFY(UiInspection::separate(*parameters, *advanced, dialog));
         QVERIFY(UiInspection::bounds(*volume, dialog).bottom() <
                 UiInspection::bounds(*parameters, dialog).top());
+    }
+    void sourceMetadataPriority_data() {
+        QTest::addColumn<bool>("stored");
+        QTest::addColumn<bool>("defined");
+        QTest::addColumn<bool>("requested");
+        QTest::addColumn<bool>("expected");
+        QTest::newRow("explicit-off") << true << true << false << false;
+        QTest::newRow("explicit-on") << false << true << true << true;
+        QTest::newRow("saved-default") << true << false << false << true;
+    }
+    void sourceMetadataPriority() {
+        QFETCH(bool, stored);
+        QFETCH(bool, defined);
+        QFETCH(bool, requested);
+        QFETCH(bool, expected);
+        const auto catalog = NativeArchiveFixture::Catalog();
+        QVERIFY(catalog);
+        QCOMPARE(catalog->result(), S_OK);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString input = fixture.filePath("source.txt");
+        QVERIFY(writeFile(input, "data"));
+        NCompression::CInfo registry;
+        registry.SymLinks.Def = true;
+        registry.SymLinks.Val = stored;
+        registry.Save(settings_);
+        const QByteArray before = readFile(settings_);
+        CCompressDialog source;
+        source.Info.FormatIndex = catalog->formatIndex("tar");
+        QVERIFY(source.Info.FormatIndex >= 0);
+        source.Info.ArcPath = fixture.filePath("output.tar").toStdWString().c_str();
+        source.Info.SymLinks.Def = defined;
+        source.Info.SymLinks.Val = requested;
+        CObjectVector<NWildcard::CCensorPath> paths;
+        paths.AddNew().Path = input.toStdWString().c_str();
+        QCOMPARE(NCompressDialog::PrepareFormatSelection(source, catalog->nativeCodecs(), paths),
+                 S_OK);
+        CreateArchiveDialog form(fixture.path(), {input}, nullptr, catalog, &source);
+        QCOMPARE(form.findChild<QComboBox *>("archiveFormat")->currentText(), QString("tar"));
+        QCOMPARE(form.compressionOptions().SymLinks.Val, expected);
+        bool inspected = false;
+        QTimer::singleShot(0, &form, [&] {
+            auto *options = dynamic_cast<COptionsDialog *>(QApplication::activeModalWidget());
+            QVERIFY(options);
+            const auto cancel = qScopeGuard([&] { options->reject(); });
+            auto *links = check(*options, "IDX_COMPRESS_NT_SYM_LINKS");
+            QVERIFY(links && links->isEnabled() && links->isVisible());
+            QCOMPARE(links->isChecked(), expected);
+            links->setChecked(!expected);
+            inspected = true;
+        });
+        form.findChild<QPushButton *>("archiveAdvancedOptions")->click();
+        QVERIFY(inspected);
+        QCOMPARE(form.compressionOptions().SymLinks.Val, expected);
+        form.reject();
+        QCOMPARE(readFile(settings_), before);
     }
     void profilesAndCancel() {
         QTemporaryDir fixture;

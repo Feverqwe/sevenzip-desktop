@@ -406,14 +406,7 @@ CompressionOptions CreateArchiveDialog::compressionOptions() const {
         options.SfxModule = sfxModule_.path();
     options.format = format_->currentText();
     CCompressDialog metadata;
-    if (fixedSources_)
-        metadata.Info = archiveNameState_.Info;
-    if (codecs_ && codecs_->result() == S_OK) {
-        const int index = codecs_->formatIndex(registryFormat_);
-        if (index >= 0)
-            metadata.ArcInfo = codecs_->nativeCodecs().Formats[unsigned(index)];
-    }
-    metadata.LoadMetadataOptions(m_RegistryInfo);
+    prepareMetadataSource(metadata);
     NCompression::CInfo metadataRegistry = m_RegistryInfo;
     metadata.SaveMetadataOptions(metadataRegistry);
     options.SymLinks = metadata.Info.SymLinks;
