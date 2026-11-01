@@ -130,6 +130,25 @@ set_tests_properties(long PROPERTIES LABELS slow)
 include(cmake/DeveloperWorkflow.cmake)
 ''')
 
+    def test_platform_specific_profile_rejects_partial_runs_before_dispatch(self):
+        with tempfile.TemporaryDirectory(prefix="platform workflow ") as temporary:
+            root = Path(temporary)
+            self.fixture(root)
+            required = "linux" if os.name == "nt" else "windows"
+            (root / "scripts/config/verify-profiles.json").write_text(json.dumps({
+                "fixture": {"tests": "^scenario$", "platform": required}}))
+            (root / "scripts/hyperv-runner.py").write_text(
+                "from pathlib import Path\nimport sys\nPath('dispatched').write_text(sys.argv[2])\n")
+            command = [sys.executable, "scripts/verify.py", "fixture", "--platform"]
+            for platform in ("local", "all", "windows" if required == "linux" else "linux"):
+                result = subprocess.run([*command, platform], cwd=root, text=True, capture_output=True)
+                self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertIn(required, result.stderr)
+                self.assertFalse((root / "dispatched").exists())
+            result = subprocess.run([*command, required], cwd=root, text=True, capture_output=True)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertEqual((root / "dispatched").read_text(), required)
+
     def test_default_debug_build_excludes_unrelated_targets(self):
         with tempfile.TemporaryDirectory(prefix="focused default ") as temporary:
             root = Path(temporary)

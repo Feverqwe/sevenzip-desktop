@@ -38,5 +38,54 @@
     "description": "Verification, runner sync, source snapshots, runtime cache and agent setup",
     "tests": "^(ctest_selection|developer_workflow|hyperv_runner|upstream_baseline|runtime_cache|module_cache|agent_output|project_memory_setup|windows_reference_builder)$",
     "interactive": false
+  },
+  "associations": {
+    "description": "File associations, System settings and file-open consumers",
+    "tests": "^(association_services|association_file_open|system_page|mac_system_page|linux_association_clear_[01]|linux_system_page_.*)$",
+    "interactive": true
+  },
+  "file-menu": {
+    "description": "File and plugin menus, Open, View and Edit workflows",
+    "tests": "^(archive_item_open|archive_external_edit|nested_edit_chain|shell_menu_window|shell_context|external_editors_ui|language_archive_command|native_system_menu|native_properties_window|owned_temp)$",
+    "interactive": true
+  },
+  "startup": {
+    "description": "File Manager startup, GUI entry and window lifecycle",
+    "tests": "^(file_manager_startup|unix_gui_entry|app_lifecycle|shell_menu_window)$",
+    "interactive": true
+  },
+  "menus": {
+    "description": "Menu settings, command policy and native shell integration",
+    "tests": "^(menu_page|menu_policy|context_menu_settings|options_dialog|shell_context|language_ui|native_menu_integration)$",
+    "interactive": true
+  },
+  "columns": {
+    "description": "Panel columns, publication, sorting and language consumers",
+    "tests": "^(panel_columns|panel_column_schema|panel_column_initialization|panel_column_changes|panel_column_menu|panel_column_sort|language_ui)$",
+    "interactive": true
+  },
+  "native-email": {
+    "description": "Windows email flow with private MAPI providers",
+    "tests": "^(native_mapi|native_shell_email)$",
+    "interactive": true,
+    "platform": "windows"
+  },
+  "native-gui": {
+    "description": "Windows GUI helper archive workflows",
+    "tests": "^native_gui_workflow$",
+    "interactive": true,
+    "platform": "windows"
+  },
+  "native-menu": {
+    "description": "Windows HMENU presentation and File/System consumers",
+    "tests": "^(native_menu_presentation|native_system_menu|shell_menu_window)$",
+    "interactive": true,
+    "platform": "windows"
+  },
+  "native-shell": {
+    "description": "Windows shell selections, COM and native command consumers",
+    "tests": "^(native_shell_data|native_shell_com|native_shell_launch|native_archive_command_line)$",
+    "interactive": true,
+    "platform": "windows"
   }
 }

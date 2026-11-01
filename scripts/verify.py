@@ -139,8 +139,13 @@ def main(argv=None):
             print(f"{name}: {profile['description']}")
         return 0
     profile = profiles.get(args.profile, {"tests": args.tests})
+    local_platform = {"win32": "windows", "linux": "linux", "darwin": "macos"}[sys.platform]
+    platforms = ((local_platform,) if args.platform == "local" else
+                 ("linux", "windows") if args.platform == "all" else (args.platform,))
+    if profile.get("platform") and any(platform != profile["platform"] for platform in platforms):
+        raise ValueError(f"Profile {args.profile} requires --platform {profile['platform']} "
+                         f"(or --platform local on {profile['platform']})")
     if args.platform != "local":
-        platforms = ("linux", "windows") if args.platform == "all" else (args.platform,)
         for platform in platforms:
             command = [sys.executable, str(ROOT / "scripts/hyperv-runner.py"), "run", platform,
                        "--preset", args.preset]

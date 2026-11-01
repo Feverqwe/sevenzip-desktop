@@ -16,6 +16,8 @@ python3 scripts/verify.py <profile> --platform all
 
 Актуальный состав профилей хранит `scripts/config/verify-profiles.json`; `--plan`
 показывает выбранные CTest suites и targets. Профиль не заменяет оценку влияния.
+Для нативных Windows-профилей указывайте `--platform windows`; они используют
+интерактивный рабочий стол раннера. Локально на Windows доступен `--platform local`.
 Для сценария вне профилей используйте `--tests '<regex>'` или wrappers из
 [development](../development.md#local-commands).
 
