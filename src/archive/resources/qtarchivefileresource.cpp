@@ -10,6 +10,7 @@
 #include "archive/resources/archiveinputlayer.h"
 #include "archive/resources/archivelayercontext.h"
 #include "archive/resources/archivenativeopen.h"
+#include "archive/resources/archivepropertysource.h"
 #include "archive/resources/qtarchivedeleteinputs.h"
 #include "archive/resources/qtarchiveproperties.h"
 #include "fileops/native/FileDir.h"
@@ -143,43 +144,16 @@ HRESULT QtArchiveFileResource::DeleteInputsAfterPublication(IUpdateDeletionCallb
 }
 
 HRESULT QtArchiveFileResource::GetArchiveProperty(PROPID id, PROPVARIANT *value) const {
-    if (_nativeOpen)
-        return _nativeOpen->arc().Archive->GetArchiveProperty(id, value);
-    NWindows::NCOM::CPropVariant prop;
-    if (id == kpidReadOnly)
-        prop = !_filesystemReadLimitations.isEmpty();
-    else if (id == kpidPhySize && Info.physicalSize >= 0)
-        prop = UInt64(Info.physicalSize);
-    else if (id == kpidOffset)
-        prop.Set_Int64(Info.offset);
-    else if (id >= 0x10000 && id - 0x10000 < unsigned(Info.properties.size())) {
-        auto i = Info.properties.cbegin();
-        std::advance(i, id - 0x10000);
-        prop = i.value().toStdWString().c_str();
-    }
-    return prop.Detach(value);
+    return ArchivePropertySource(this).GetProperty(id, value);
 }
 
 HRESULT QtArchiveFileResource::GetNumberOfArchiveProperties(UInt32 *count) const {
-    if (_nativeOpen)
-        return _nativeOpen->arc().Archive->GetNumberOfArchiveProperties(count);
-    *count = UInt32(Info.properties.size());
-    return S_OK;
+    return ArchivePropertySource(this).GetCount(count);
 }
 
 HRESULT QtArchiveFileResource::GetArchivePropertyInfo(UInt32 index, BSTR *name, PROPID *id,
                                                       VARTYPE *type) const {
-    if (_nativeOpen)
-        return _nativeOpen->arc().Archive->GetArchivePropertyInfo(index, name, id, type);
-    if (index >= unsigned(Info.properties.size()))
-        return E_INVALIDARG;
-    auto i = Info.properties.cbegin();
-    std::advance(i, index);
-    const std::wstring key = i.key().toStdWString();
-    *name = ::SysAllocStringLen(key.c_str(), unsigned(key.size()));
-    *id = 0x10000 + index;
-    *type = VT_BSTR;
-    return *name ? S_OK : E_OUTOFMEMORY;
+    return ArchivePropertySource(this).GetInfo(index, name, id, type);
 }
 
 HRESULT QtArchiveFileResource::ConfigureArc(CArc &arc, const CCodecs *codecs) const {

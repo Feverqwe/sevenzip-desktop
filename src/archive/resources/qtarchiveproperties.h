@@ -2,11 +2,23 @@
 #pragma once
 #include "7zip/Archive/IArchive.h"
 #include "7zip/UI/FileManager/IFolder.h"
+#include <QString>
+#include <memory>
 
 HRESULT CreateArchivePropertyTransport(IFolderFolder *properties, IInArchive **archive,
                                        IUnknown *engineResource = nullptr);
 struct CArchiveLink;
 class CCodecs;
+class ArchiveNativeOpen;
+struct ArchivePropertyContext {
+    std::shared_ptr<ArchiveNativeOpen> Reader;
+    const CArchiveLink *Link;
+    const CCodecs *Codecs;
+    QString Format;
+    HRESULT Result;
+    ArchivePropertyContext(IInArchive *archive, const CArchiveLink &fallback,
+                           const CCodecs *codecs);
+};
 HRESULT CreateArchiveLinkTransport(CArchiveLink &link, IFolderFolder *properties,
                                    IUnknown *engineResource, const CCodecs *codecs = nullptr);
 

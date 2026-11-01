@@ -1107,46 +1107,36 @@ IMP_IFolderFolder_GetProp(CAgentFolder::GetFolderPropertyInfo, kFolderProps)
     return S_OK;
 }
 
-const CArchiveLink &CAgent::GetArchivePropertyLink() const {
-    if (const auto *resource = dynamic_cast<QtArchiveFileResource *>(GetEngineResource()))
-        if (const auto *link = resource->NativeArchiveLink())
-            return *link;
-    return _archiveLink;
-}
-
-const CCodecs *CAgent::GetArchivePropertyCodecs() const {
-    const auto *resource = dynamic_cast<QtArchiveFileResource *>(GetEngineResource());
-    const CCodecs *codecs = resource ? resource->NativeArchiveCodecs() : nullptr;
-    return codecs ? codecs : _openCodecs;
-}
-
 UString CAgent::GetTypeOfArc(const CArc &arc) const {
-    const CCodecs *codecs = GetArchivePropertyCodecs();
-    if (!codecs) {
-        if (auto *resource = dynamic_cast<QtArchiveFileResource *>(GetEngineResource()))
-            if (!resource->Info.format.isEmpty())
-                return UString(resource->Info.format.toStdWString().c_str());
-        return ArchiveType;
-    }
+    ArchivePropertyContext context(GetArchive(), _archiveLink, _openCodecs);
+    if (context.Result != S_OK)
+        return UString();
+    const CCodecs *codecs = context.Codecs;
+    if (!codecs)
+        return context.Format.isEmpty() ? ArchiveType
+                                        : UString(context.Format.toStdWString().c_str());
     // Operation metadata is a file-only facade of the innermost native arc.
     // Its codec index is not a native slot; resolve that facade by identity.
-    const CArc &native =
-        &arc == &_archiveLink.Arcs.Back() ? *GetArchivePropertyLink().GetArc() : arc;
+    const CArc &native = &arc == &_archiveLink.Arcs.Back() ? *context.Link->GetArc() : arc;
     if (native.FormatIndex < 0)
         return UString("Parser");
     return codecs->GetFormatNamePtr(native.FormatIndex);
 }
 
 Z7_COM7F_IMF(CAgent::GetArcNumLevels(UInt32 *numLevels)) {
-    *numLevels = GetArchivePropertyLink().Arcs.Size();
+    ArchivePropertyContext context(GetArchive(), _archiveLink, _openCodecs);
+    RINOK(context.Result)
+    *numLevels = context.Link->Arcs.Size();
     return S_OK;
 }
 
 Z7_COM7F_IMF(CAgent::GetArcProp(UInt32 level, PROPID propID, PROPVARIANT *value)) {
     COM_TRY_BEGIN
     NWindows::NCOM::CPropVariant prop;
-    const CArchiveLink &link = GetArchivePropertyLink();
-    const CCodecs *codecs = GetArchivePropertyCodecs();
+    ArchivePropertyContext context(GetArchive(), _archiveLink, _openCodecs);
+    RINOK(context.Result)
+    const CArchiveLink &link = *context.Link;
+    const CCodecs *codecs = context.Codecs;
     if (level > (UInt32)link.Arcs.Size())
         return E_INVALIDARG;
     if (level == (UInt32)link.Arcs.Size()) {
@@ -1222,28 +1212,38 @@ Z7_COM7F_IMF(CAgent::GetArcProp(UInt32 level, PROPID propID, PROPVARIANT *value)
 }
 
 Z7_COM7F_IMF(CAgent::GetArcNumProps(UInt32 level, UInt32 *numProps)) {
-    return GetArchivePropertyLink().Arcs[level].Archive->GetNumberOfArchiveProperties(numProps);
+    ArchivePropertyContext context(GetArchive(), _archiveLink, _openCodecs);
+    RINOK(context.Result)
+    return (*context.Link).Arcs[level].Archive->GetNumberOfArchiveProperties(numProps);
 }
 
 Z7_COM7F_IMF(CAgent::GetArcPropInfo(UInt32 level, UInt32 index, BSTR *name, PROPID *propID,
                                     VARTYPE *varType)) {
-    return GetArchivePropertyLink().Arcs[level].Archive->GetArchivePropertyInfo(index, name, propID,
-                                                                                varType);
+    ArchivePropertyContext context(GetArchive(), _archiveLink, _openCodecs);
+    RINOK(context.Result)
+    return (*context.Link)
+        .Arcs[level]
+        .Archive->GetArchivePropertyInfo(index, name, propID, varType);
 }
 
 Z7_COM7F_IMF(CAgent::GetArcProp2(UInt32 level, PROPID propID, PROPVARIANT *value)) {
-    const CArchiveLink &link = GetArchivePropertyLink();
+    ArchivePropertyContext context(GetArchive(), _archiveLink, _openCodecs);
+    RINOK(context.Result)
+    const CArchiveLink &link = *context.Link;
     return link.Arcs[level - 1].Archive->GetProperty(link.Arcs[level].SubfileIndex, propID, value);
 }
 
 Z7_COM7F_IMF(CAgent::GetArcNumProps2(UInt32 level, UInt32 *numProps)) {
-    return GetArchivePropertyLink().Arcs[level - 1].Archive->GetNumberOfProperties(numProps);
+    ArchivePropertyContext context(GetArchive(), _archiveLink, _openCodecs);
+    RINOK(context.Result)
+    return (*context.Link).Arcs[level - 1].Archive->GetNumberOfProperties(numProps);
 }
 
 Z7_COM7F_IMF(CAgent::GetArcPropInfo2(UInt32 level, UInt32 index, BSTR *name, PROPID *propID,
                                      VARTYPE *varType)) {
-    return GetArchivePropertyLink().Arcs[level - 1].Archive->GetPropertyInfo(index, name, propID,
-                                                                             varType);
+    ArchivePropertyContext context(GetArchive(), _archiveLink, _openCodecs);
+    RINOK(context.Result)
+    return (*context.Link).Arcs[level - 1].Archive->GetPropertyInfo(index, name, propID, varType);
 }
 
 Z7_COM7F_IMF(CAgentFolder::GetNumberOfProperties(UInt32 *numProps)) {

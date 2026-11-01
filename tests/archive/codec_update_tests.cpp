@@ -455,6 +455,16 @@ class CodecUpdateTests final : public QObject, protected ArchiveBackendTestSuppo
         const QString original = QString::fromWCharArray(stored.bstrVal);
         CMyComPtr<IInArchive> nativeView;
         QCOMPARE(CreateArchivePropertyTransport(nullptr, &nativeView, resource), S_OK);
+        CMyComPtr<IFolderArcProps> archiveProperties;
+        QCOMPARE(folder->GetFolderArcProps(&archiveProperties), S_OK);
+        NWindows::NCOM::CPropVariant archivePath;
+        QCOMPARE(archiveProperties->GetArcProp(0, kpidPath, &archivePath), S_OK);
+        QCOMPARE(archivePath.vt, VARTYPE(VT_BSTR));
+        const QString originalArchivePath = QString::fromWCharArray(archivePath.bstrVal);
+        NWindows::NCOM::CPropVariant physicalSize;
+        QCOMPARE(nativeView->GetArchiveProperty(kpidPhySize, &physicalSize), S_OK);
+        QCOMPARE(physicalSize.vt, VARTYPE(VT_UI8));
+        const UInt64 originalPhysicalSize = physicalSize.uhVal.QuadPart;
         ArchiveEntry entry;
         entry.path =
             original.normalized(original == original.normalized(QString::NormalizationForm_C)
@@ -497,8 +507,22 @@ class CodecUpdateTests final : public QObject, protected ArchiveBackendTestSuppo
         std::shared_ptr<ArchiveNativeOpen> replacement;
         QCOMPARE(backend.openNativeArchive(replacementArchive, "7z", nullptr, replacement), S_OK);
         resource->EnginePath = replacementArchive;
+        auto retainedReader = resource->NativeReaderLease();
         resource->AttachNativeOpen(std::move(replacement));
         resource->UseNativeMetadata();
+        QCOMPARE(archiveProperties->GetArcProp(0, kpidPath, &archivePath), S_OK);
+        QCOMPARE(QString::fromWCharArray(archivePath.bstrVal), originalArchivePath);
+        QCOMPARE(nativeView->GetArchiveProperty(kpidPhySize, &physicalSize), S_OK);
+        QCOMPARE(physicalSize.vt, VARTYPE(VT_UI8));
+        QCOMPARE(physicalSize.uhVal.QuadPart, originalPhysicalSize);
+        retainedReader.reset();
+        const HRESULT oldArchiveRead = archiveProperties->GetArcProp(0, kpidPath, &archivePath);
+        QVERIFY(oldArchiveRead != S_OK ||
+                (archivePath.vt == VT_BSTR &&
+                 QString::fromWCharArray(archivePath.bstrVal) == originalArchivePath));
+        const HRESULT oldPhysicalRead = nativeView->GetArchiveProperty(kpidPhySize, &physicalSize);
+        QVERIFY(oldPhysicalRead != S_OK ||
+                (physicalSize.vt == VT_UI8 && physicalSize.uhVal.QuadPart == originalPhysicalSize));
         const HRESULT oldRead = nativeView->GetProperty(0, kpidPath, &value);
         QVERIFY(oldRead != S_OK ||
                 (value.vt == VT_BSTR && QString::fromWCharArray(value.bstrVal) == original));

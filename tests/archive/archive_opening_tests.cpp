@@ -193,8 +193,18 @@ class ArchiveOpeningTests : public QObject, protected ArchiveBackendTestSupport 
         resourceSpec->Info.physicalSize = 128;
         resourceSpec->Info.offset = 0;
         QCOMPARE(resourceSpec->ConfigureArc(offsetArc), S_OK);
-        QVERIFY(offsetArc.ErrorInfo.UnexpecedEnd);
+        QCOMPARE(offsetArc.GetGlobalOffset(), Int64(16));
+        QVERIFY(!offsetArc.ErrorInfo.UnexpecedEnd);
         QVERIFY(!offsetArc.ErrorInfo.ThereIsTail);
+        CArc truncatedArc;
+        QCOMPARE(CreateArchivePropertyTransport(metadata, &truncatedArc.Archive, resource), S_OK);
+        QCOMPARE(resourceSpec->ConfigureArc(truncatedArc), S_OK);
+        QVERIFY(truncatedArc.ErrorInfo.UnexpecedEnd);
+        QVERIFY(!truncatedArc.ErrorInfo.ThereIsTail);
+        NWindows::NCOM::CPropVariant originalSize;
+        QCOMPARE(arc.Archive->GetArchiveProperty(kpidPhySize, &originalSize), S_OK);
+        QCOMPARE(originalSize.vt, VARTYPE(VT_UI8));
+        QCOMPARE(originalSize.uhVal.QuadPart, UInt64(32));
     }
     void sharedNativeArchiveMetadata() {
         CObjectVector<CPanelItem> items;

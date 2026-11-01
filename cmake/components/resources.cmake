@@ -171,6 +171,8 @@ add_library(sevenzip_location
     src/archive/agent/UpdateCallbackAgent.h
     src/archive/resources/qtarchiveproperties.cpp
     src/archive/resources/qtarchiveproperties.h
+    src/archive/resources/archivepropertysource.cpp
+    src/archive/resources/archivepropertysource.h
     src/archive/resources/qtarchiveitemstream.cpp
     src/archive/resources/qtarchiveitemstream.h
     src/archive/resources/qtarchivefoldermanager.cpp

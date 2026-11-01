@@ -250,8 +250,6 @@ class CAgent final : public IInFolderArchive,
   private:
     friend class CAgentFolder;
     std::atomic<UInt64> _proxyGeneration{0};
-    const CArchiveLink &GetArchivePropertyLink() const;
-    const CCodecs *GetArchivePropertyCodecs() const;
     HRESULT ReadItems();
     CMyComPtr<IUnknown> _engineResource;
     IQtAgentOpenServices *_openServices;

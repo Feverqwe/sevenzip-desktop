@@ -59,3 +59,36 @@ these totals. Full logs and matching remote completion/verification receipts
 were retained; completed disposable fixtures were removed. Builds reused the
 existing incremental trees and compiler caches. No full gate, opt-in slow
 nested matrices or appearance/visual-parity acceptance is claimed.
+
+## Archive-wide properties and reader replacement — 2026-11-01
+
+The original Agent's complete archive-property methods use its own archive link.
+The Qt adaptation also needs the native outer chain behind its file-only operation
+facade. That lookup previously followed the resource's current reader, so an old
+view could show a replacement archive's path and properties despite its isolated
+item indexes. The existing codec-update fixture reproduced that cross-view path
+change through the public `IFolderArcProps` interface before the fix.
+
+Archive-wide metadata now belongs to the view's opening. Native properties use
+that generation and its codec owner under a scoped reader lease; an expired
+generation returns an error. Typed metadata without a native reader retains its
+own property snapshot. This preserves the complete original nested-level,
+error/warning, offset, tail and property-enumeration branches, without keeping
+input files open for the entire lifetime of a metadata view. Reopening rebinds
+the requesting view. Native raw-property interfaces are queried through the
+authorized item binding rather than cached across reader replacement.
+
+The existing source units and hashes above were verified again; no new external
+source is imported and provenance is unchanged. The property-source snapshot and
+scoped context are local integration in `src/archive/resources/`, shared by the
+resource and its views. Existing regression fixtures cover retained and expired
+readers, old/new view independence, and typed metadata tail/offset/truncation
+results across separate views.
+
+Runtime validation passed eight focused suites on Linux, macOS and Windows:
+codec update, archive opening, source properties, the archive property catalog,
+native archive properties, nested opening/update and window property consumers.
+The pre-fix Linux run failed the new public archive-path assertion while its
+other 74 checks passed. The fixed retained/expired-reader and typed-snapshot
+cases pass with the existing incremental builds and compiler caches. No full
+gate, slow matrix or visual-parity acceptance is claimed for this change.
