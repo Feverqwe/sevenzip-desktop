@@ -218,8 +218,8 @@ QtArchiveReadOperation::QtArchiveReadOperation(QString path, QString password,
                                                std::shared_ptr<const ArchiveCodecCatalog> catalog,
                                                Kind kind, QString format, QString moduleLocation)
     : catalog_(std::move(catalog)), path_(std::move(path)), kind_(kind), format_(std::move(format)),
-      moduleLocation_(std::move(moduleLocation)), password_(std::move(password)),
-      passwordDefined_(!password_.isEmpty()) {}
+      moduleLocation_(std::move(moduleLocation)),
+      password_(password.isEmpty() ? std::nullopt : std::make_optional(std::move(password))) {}
 
 QtArchiveReadOperation::QtArchiveReadOperation(std::shared_ptr<ArchiveNativeOpen> reader,
                                                QString password)
@@ -242,7 +242,6 @@ void QtArchiveReadOperation::cancel() {
 void QtArchiveReadOperation::provideOverwriteAnswer(int answer) {
     QMutexLocker lock(&overwriteMutex_);
     overwriteAnswer_ = answer;
-    overwriteAnswered_ = true;
     overwriteReady_.wakeAll();
 }
 
@@ -251,17 +250,16 @@ HRESULT QtArchiveReadOperation::askOverwrite(const OverwriteQuestion &question, 
         return E_FAIL;
     {
         QMutexLocker lock(&overwriteMutex_);
-        overwriteAnswered_ = false;
+        overwriteAnswer_.reset();
     }
     RINOK(checkpoint())
     OverwriteRequired(question);
     for (;;) {
         RINOK(checkpoint())
         QMutexLocker lock(&overwriteMutex_);
-        if (overwriteAnswered_) {
-            *answer = overwriteAnswer_;
-            return overwriteAnswer_ >= NOverwriteAnswer::kYes &&
-                           overwriteAnswer_ <= NOverwriteAnswer::kCancel
+        if (overwriteAnswer_) {
+            *answer = *overwriteAnswer_;
+            return *answer >= NOverwriteAnswer::kYes && *answer <= NOverwriteAnswer::kCancel
                        ? S_OK
                        : E_FAIL;
         }
@@ -273,7 +271,6 @@ HRESULT QtArchiveReadOperation::checkpoint() { return progress_.checkpoint(); }
 void QtArchiveReadOperation::providePassword(const QString &password) {
     QMutexLocker lock(&passwordMutex_);
     password_ = password;
-    passwordDefined_ = true;
     passwordReady_.wakeAll();
 }
 HRESULT QtArchiveReadOperation::password(BSTR *value) {
@@ -283,8 +280,8 @@ HRESULT QtArchiveReadOperation::password(BSTR *value) {
     for (;;) {
         RINOK(checkpoint())
         QMutexLocker lock(&passwordMutex_);
-        if (passwordDefined_)
-            return StringToBstr(password_.toStdWString().c_str(), value);
+        if (password_)
+            return StringToBstr(password_->toStdWString().c_str(), value);
         if (!passwordRequested_) {
             if (!PasswordRequired)
                 return E_ABORT;

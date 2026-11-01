@@ -10,6 +10,7 @@
 #include <QWaitCondition>
 #include <functional>
 #include <memory>
+#include <optional>
 
 class ArchiveCodecCatalog;
 class ArchiveNativeOpen;
@@ -85,11 +86,9 @@ class QtArchiveReadOperation final : public QThread {
     QtWorkerProgress progress_;
     QMutex passwordMutex_;
     QWaitCondition passwordReady_;
-    QString password_;
-    bool passwordDefined_;
+    std::optional<QString> password_;
     bool passwordRequested_ = false;
     QMutex overwriteMutex_;
     QWaitCondition overwriteReady_;
-    bool overwriteAnswered_ = false;
-    int overwriteAnswer_ = -1;
+    std::optional<int> overwriteAnswer_;
 };

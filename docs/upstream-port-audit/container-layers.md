@@ -1583,3 +1583,36 @@ Their first focused Linux run could not open CPIO because the module was absent
 from this branch's runtime; connecting the existing deployment target resolved
 that failure. Incremental builds and compiler caches were retained. No full/slow
 gate or appearance/visual-parity acceptance is claimed.
+
+### Read-worker dialog responses — 2026-11-01
+
+Compared the original FileManager ExtractCallback password/overwrite bodies,
+their current modal adapters and Common extraction consumers with the joined
+read worker, directory callback and backend delivery/cancellation/completion.
+The complete ExtractCallback.cpp inventory still matches its recorded original
+hash at `b88c6bc09339de32f7d18bbab900686b244f42ba` from
+<https://github.com/ip7z/7zip.git>. No external code, decoder algorithm or source
+revision changes in this iteration.
+
+Password and overwrite responses now each express value presence directly,
+instead of coupling a value with a separate ready flag. An initial empty
+password still means no supplied response; explicitly answering with an empty
+password is a defined response. An invalid overwrite answer remains a received
+failure, rather than an unanswered prompt. Each new overwrite question discards
+its preceding answer. Prompt-once tracking, mutex/wait ownership, progress
+checkpoints, pause/cancel wakeups, native HRESULTs and post-dialog path validation
+are preserved. No generic dialog/decoder framework is introduced.
+
+Existing native test/list/single-entry/directory-extraction and retained-reader
+suites cover empty/wrong/preset passwords, retry, multiple overwrite questions,
+all/rename/cancel/no-consumer decisions and destruction while awaiting a reply.
+No new test is needed for the changed representation; those checks observe
+operation results and output/source bytes rather than private response fields.
+
+Focused Linux validation passed native_archive_test, native_listing,
+native_source_extract, extraction_options and archive_readonly_view, with no
+skipped rows. Only portable Qt response ownership changed, so secondary OS,
+native dialog appearance and physical interaction are not claimed. Source
+inventory and whitespace checks passed; the existing incremental build and
+compiler cache were retained with ordinary four-job defaults. No full or slow
+suite ran.
