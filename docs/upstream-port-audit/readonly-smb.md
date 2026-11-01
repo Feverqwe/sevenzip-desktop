@@ -1,5 +1,32 @@
 # Local read-only SMB: implementation and evidence
 
+## Pending read completion ownership — 2026-11-01
+
+Reviewed read admission/range validation, callback completion, event-loop reply
+publication, disconnected-client destruction and the QtRO reader consumer.
+The local pending-read owner now contains its synchronized optional result;
+callback and server-loop consumers no longer manipulate a separate ready flag
+and result under separately written lock scopes. Its maximum reply length is
+fixed on construction. Taking a result retains the completed state, so late
+duplicate callbacks remain ignored. Shared lifetime and pending-count release
+still extend beyond client disconnection when a completion retains the owner.
+
+This is a local C++ integration change. Existing libsmb2 READ/STATUS_PENDING,
+message correlation and signed reply calls, admission limits, cancellation,
+bounds and native decoding are unchanged. No external source is imported and
+no recorded baseline changes. Session/broker recovery states were also reviewed
+and retain their separate meanings; OS launch/unmount adapters are unchanged.
+
+A separate-process wire regression completes each asynchronous read from
+another thread twice with conflicting results. It verifies exact first bytes,
+first-error preservation, subsequent healthy Unicode-path reads and final-file
+range clipping. Existing transport checks cover delayed extraction consent,
+metadata availability during that wait and cancellation without publishing data.
+Linux `smb_readonly_server` and `archive_mount_transport` passed 19 checks; five
+existing native OS mount opt-ins were skipped. No real mount, OS authorization,
+secondary platform or appearance acceptance is claimed. Both selected scratch
+directories were empty after the run; incremental outputs and caches remain.
+
 ## Decoded cache publication ownership — 2026-11-01
 
 Reviewed the complete retained view, cache acquisition/eviction/materialization,

@@ -7,17 +7,13 @@ void SmbReadOnlyServer::State::completeReads() {
     for (auto *client : OpenClients) {
         for (auto next = client->Reads.begin(); next != client->Reads.end();) {
             const auto pending = next->second;
-            SmbTreeRead result;
-            {
-                std::lock_guard<std::mutex> lock(pending->Mutex);
-                if (!pending->Ready) {
-                    ++next;
-                    continue;
-                }
-                result = std::move(pending->Result);
+            auto result = pending->takeResult();
+            if (!result) {
+                ++next;
+                continue;
             }
             smb2_read_reply reply{};
-            const quint32 status = quint32(readReply(std::move(result), pending->Maximum, &reply));
+            const quint32 status = quint32(readReply(std::move(*result), pending->Maximum, &reply));
             smb2_pdu *pdu;
             if (status) {
                 smb2_error_reply error{};

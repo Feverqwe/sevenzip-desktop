@@ -4,6 +4,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include <stdexcept>
+#include <thread>
+#include <vector>
 
 int main(int argc, char **argv) {
     if (argc != 2 && argc != 3)
@@ -11,6 +13,7 @@ int main(int argc, char **argv) {
     constexpr quint64 size = (quint64(5) << 30) + 123;
     const bool trace = argc == 3 && QString::fromUtf8(argv[2]) == "--trace";
     const bool caseNames = argc == 3 && QString::fromUtf8(argv[2]) == "--case-names";
+    const bool async = argc == 3 && QString::fromUtf8(argv[2]) == "--async";
     QString failedTrace;
     if (argc == 3 && QString::fromUtf8(argv[2]) == "--throw-authorize")
         failedTrace = QStringLiteral("AUTHORIZE");
@@ -26,16 +29,28 @@ int main(int argc, char **argv) {
         entries.append({6, 5, 4096, 0, QStringLiteral("libip6t_hl.so"), false});
         entries.append({7, 5, 4096, 0, QStringLiteral("libip6t_HL.so"), false});
     }
-    SmbReadOnlyServer server(
-        std::move(entries), QStringLiteral("szprobe"), QStringLiteral("LocalProbeOnly427"),
-        [trace, caseNames](quint64 id, quint64 offset, quint32 length) {
-            if (trace)
-                std::fprintf(stderr, "fixture read\n");
-            SmbTreeRead result;
-            result.Data.resize(length);
-            for (quint32 i = 0; i < length; ++i)
-                result.Data[i] = char((offset + i + (caseNames ? id : 0)) % 251);
-            return result;
+    const auto read = [trace, caseNames, async](quint64 id, quint64 offset, quint32 length) {
+        if (trace)
+            std::fprintf(stderr, "fixture read\n");
+        if (async && id == 4)
+            return SmbTreeRead{0xc0000185U, {}};
+        SmbTreeRead result;
+        result.Data.resize(length);
+        for (quint32 i = 0; i < length; ++i)
+            result.Data[i] = char((offset + i + (caseNames ? id : 0)) % 251);
+        return result;
+    };
+    std::vector<std::jthread> pendingReads;
+    SmbReadOnlyServer server(std::move(entries), QStringLiteral("szprobe"),
+                             QStringLiteral("LocalProbeOnly427"), read);
+    if (async)
+        server.setAsyncReader([&](quint64 id, quint64 offset, quint32 length,
+                                  SmbReadOnlyServer::ReadCompletion complete) {
+            pendingReads.emplace_back([=] {
+                complete(read(id, offset, length));
+                // A late completion must not replace the first bytes or error.
+                complete({0, QByteArray(length, 'X')});
+            });
         });
     QString error;
     if (trace)
