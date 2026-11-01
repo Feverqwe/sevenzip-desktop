@@ -461,7 +461,7 @@ class VolumeOperationsTests : public QObject {
         const auto parts = VolumeOperation::inspectParts(base + ".001", &error);
         QCOMPARE(parts.paths.size(), 5);
         QCOMPARE(parts.totalSize, qint64(15));
-        CThreadCombine combiner;
+        CCombineVolumePlan combiner;
         combiner.InputDirPrefix = us2fs(ToUString(dir.path() + '/'));
         combiner.TotalSize = quint64(parts.totalSize);
         for (const QString &part : parts.paths)

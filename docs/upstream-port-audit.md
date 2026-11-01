@@ -57,6 +57,9 @@ rg -n --no-ignore -F 'CAgent::Open' docs/archive/qt-port/upstream-port-audit/ do
 
 ## Новые изменения
 
+- [Планы Split/Combine](upstream-port-audit/volume-plan-owner.md)
+  — типизированная передача исходных параметров от команды до worker.
+
 - [Идентичность временных объектов при смене прав](upstream-port-audit/temp-identity-permissions.md)
   — Linux metadata handles, прежние записи и защита активных leases.
 - [Неактивный черновик пароля Add](upstream-port-audit/inactive-password-coverage.md)

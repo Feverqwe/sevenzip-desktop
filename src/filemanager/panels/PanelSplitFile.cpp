@@ -247,7 +247,7 @@ static void AddInfoFileName(UString &dest, const UString &name) {
     dest += name;
 }
 
-UString CThreadCombine::GetInfo() const {
+UString CCombineVolumePlan::GetInfo() const {
     UString info;
     AddValuePair2(info, IDS_PROP_FILES, Names.Size(), TotalSize);
 
@@ -266,8 +266,8 @@ UString CThreadCombine::GetInfo() const {
     return info;
 }
 
-void CThreadCombine::LoadParts(const UString &srcPath, const UString &itemName,
-                               CVolSeqName &volSeqName) {
+void CCombineVolumePlan::LoadParts(const UString &srcPath, const UString &itemName,
+                                   CVolSeqName &volSeqName) {
     Names.Clear();
     UString nextName = itemName;
     TotalSize = 0;
@@ -356,7 +356,7 @@ void CApp::Split(IQtVolumeServices &services) {
     }
 
     {
-        CThreadSplit spliter;
+        CSplitVolumePlan spliter;
         spliter.NumVolumes = numVolumes;
 
         const UString title = LangString(IDS_SPLITTING);
@@ -412,7 +412,7 @@ void CApp::Combine(IQtVolumeServices &services) {
     }
 
     {
-        CThreadCombine combiner;
+        CCombineVolumePlan combiner;
 
         combiner.LoadParts(srcPath, itemName, volSeqName);
         if (combiner.Names.Size() == 1) {

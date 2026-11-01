@@ -204,7 +204,7 @@ class VolumeDialogTests : public QObject {
     }
     void combineUsesCopyDialogAndUpstreamSummary() {
         QFETCH(int, count);
-        CThreadCombine combiner;
+        CCombineVolumePlan combiner;
         combiner.InputDirPrefix = us2fs(UString("/parts/"));
         combiner.TotalSize = 1234;
         for (int i = 1; i <= count; ++i)

@@ -14,13 +14,13 @@ class QtVolumeWindowServices final : public IQtVolumeServices {
 
   public:
     explicit QtVolumeWindowServices(MainWindow &window) : window_(window) {}
-    void StartSplit(const CThreadSplit &plan, const UString &title,
+    void StartSplit(const CSplitVolumePlan &plan, const UString &title,
                     std::function<void()> completion) override {
         const QString source = ToQString(fs2us(plan.FilePath));
         window_.launchVolume(new VolumeOperation(plan, &window_), title, source,
                              UInt64(QFileInfo(source).size()), std::move(completion));
     }
-    void StartCombine(const CThreadCombine &plan, const UString &title,
+    void StartCombine(const CCombineVolumePlan &plan, const UString &title,
                       std::function<void()> completion) override {
         window_.launchVolume(new VolumeOperation(plan, &window_), title,
                              ToQString(fs2us(plan.InputDirPrefix + plan.Names.Front())),

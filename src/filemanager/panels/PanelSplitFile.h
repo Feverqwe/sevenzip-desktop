@@ -27,22 +27,30 @@ class QtVolumeWorker {
     bool CreateOutput(NWindows::NFile::NIO::COutFile &file, const FString &path);
 };
 
-class CThreadCombine : public QtVolumeWorker {
-  public:
+struct CCombineVolumePlan {
     FString InputDirPrefix;
     FStringVector Names;
     FString OutputPath;
     UInt64 TotalSize = 0;
     UString GetInfo() const;
     void LoadParts(const UString &srcPath, const UString &itemName, CVolSeqName &volSeqName);
-    HRESULT ProcessVirt();
 };
 
-class CThreadSplit : public QtVolumeWorker {
-  public:
+struct CSplitVolumePlan {
     FString FilePath;
     FString VolBasePath;
     UInt64 NumVolumes = 0;
     CRecordVector<UInt64> VolumeSizes;
+};
+
+class CThreadCombine : public QtVolumeWorker, public CCombineVolumePlan {
+  public:
+    explicit CThreadCombine(const CCombineVolumePlan &plan) : CCombineVolumePlan(plan) {}
+    HRESULT ProcessVirt();
+};
+
+class CThreadSplit : public QtVolumeWorker, public CSplitVolumePlan {
+  public:
+    explicit CThreadSplit(const CSplitVolumePlan &plan) : CSplitVolumePlan(plan) {}
     HRESULT ProcessVirt();
 };
