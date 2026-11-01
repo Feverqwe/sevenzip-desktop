@@ -138,7 +138,7 @@ def execute_check(record, platform, preset, root, token, command=None,
     include_slow = os.environ.get("SEVENZIP_INCLUDE_SLOW_TESTS", "0")
     if include_slow not in ("0", "1"):
         raise ValueError("SEVENZIP_INCLUDE_SLOW_TESTS must be 0 or 1")
-    build_jobs = int(os.environ.get("CMAKE_BUILD_PARALLEL_LEVEL", "8"))
+    build_jobs = int(os.environ.get("CMAKE_BUILD_PARALLEL_LEVEL", "4"))
     if build_jobs <= 0:
         raise ValueError("CMAKE_BUILD_PARALLEL_LEVEL must be a positive integer")
     analysis_mode = clang_tidy_mode()
