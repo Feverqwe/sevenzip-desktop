@@ -6,6 +6,7 @@
 
 #include "7zip/UI/FileManager/FoldersPageRes.h"
 #include "Common/StringConvert.h"
+#include "archive/operations/ZipRegistry.h"
 #include "dialogs/browse/BrowseDialog.h"
 #include "filemanager/panels/Panel.h"
 #include "localization/qtlangcontrols.h"
@@ -84,10 +85,11 @@ CFoldersPage::CFoldersPage(const QString &settingsPath, QWidget *parent)
 bool CFoldersPage::OnInit() {
     _initMode = true;
     _needSave = false;
-    m_WorkDirInfo.Load(_settingsPath);
-    _forRemovable->setChecked(m_WorkDirInfo.ForRemovableOnly);
-    _workModes->button(int(kWorkModeButtons[m_WorkDirInfo.Mode]))->setChecked(true);
-    m_WorkPath->setText(ToQString(fs2us(m_WorkDirInfo.Path)));
+    NWorkDir::CInfo workDirInfo;
+    workDirInfo.Load(_settingsPath);
+    _forRemovable->setChecked(workDirInfo.ForRemovableOnly);
+    _workModes->button(int(kWorkModeButtons[workDirInfo.Mode]))->setChecked(true);
+    m_WorkPath->setText(ToQString(fs2us(workDirInfo.Path)));
     MyEnableControls();
     _initMode = false;
     return true;
@@ -104,13 +106,6 @@ void CFoldersPage::MyEnableControls() {
     bool enablePath = (GetWorkMode() == NWorkDir::NMode::kSpecified);
     m_WorkPath->setEnabled(enablePath);
     _workBrowse->setEnabled(enablePath);
-}
-
-void CFoldersPage::GetWorkDir(NWorkDir::CInfo &workDirInfo) {
-    UString s = ToUString(m_WorkPath->text());
-    workDirInfo.Path = us2fs(s);
-    workDirInfo.ForRemovableOnly = _forRemovable->isChecked();
-    workDirInfo.Mode = NWorkDir::NMode::EEnum(GetWorkMode());
 }
 
 void CFoldersPage::ModifiedEvent() {
@@ -150,8 +145,12 @@ void CFoldersPage::OnFoldersWorkButtonPath() {
 
 long CFoldersPage::OnApply() {
     if (_needSave) {
-        GetWorkDir(m_WorkDirInfo);
-        m_WorkDirInfo.Save(_settingsPath);
+        NWorkDir::CInfo workDirInfo;
+        UString s = ToUString(m_WorkPath->text());
+        workDirInfo.Path = us2fs(s);
+        workDirInfo.ForRemovableOnly = _forRemovable->isChecked();
+        workDirInfo.Mode = NWorkDir::NMode::EEnum(GetWorkMode());
+        workDirInfo.Save(_settingsPath);
         _needSave = false;
     }
     return 0;

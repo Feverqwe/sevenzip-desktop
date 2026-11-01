@@ -83,6 +83,9 @@ rg -n --no-ignore -F 'CAgent::Open' docs/archive/qt-port/upstream-port-audit/ do
 - [Тип относительной цели ссылки](upstream-port-audit/link-target-classification.md)
   — проверка относительно родителя ссылки с сохранением исходной цели.
 
+- [Черновик рабочей папки](upstream-port-audit/work-directory-draft.md)
+  — текущие значения в контролах и локальный запрос сохранения при Apply.
+
 - [Запуск и выбор внешнего Drop](upstream-port-audit/startup-drop-choice.md)
   — подготовка первого окна и запрошенный выбор открытия/упаковки;
   [аудит сценариев](user-workflow-audit.md) хранит текущие результаты и ограничения.
