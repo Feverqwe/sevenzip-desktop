@@ -1,5 +1,46 @@
 # File-transfer ownership
 
+## Mixed Move recovery state — 2026-11-01
+
+Reviewed the complete transaction, worker, overwrite/copy callbacks and window
+completion consumers against original `FSFolderCopy.cpp` CopyFile_Ask,
+CopyFolder, copy/move I/O and callback/state dependencies at
+`9128b80e3a471108678e2b3ec3c985861c8d7b0f` in
+<https://github.com/ip7z/7zip.git>. The repository source archive's complete
+original unit still matches SHA256
+`9e3728bf2ad8c6f809019c7f2a7059b98ef85e7094c84cdda5fb5e6443e58c86`.
+The post-change comparison retains the original native copy algorithms and all
+existing Qt validation, overwrite, staging, cancellation and publication paths.
+No external code is imported, no baseline revision/hash changes and no source
+branch or dependency is omitted.
+
+The local whole-batch transaction now records whether each source is intact,
+renamed or has entered removal. One reverse recovery pass handles both full
+rollback before removal and partial recovery afterward. Source removal has a
+separate completion step; its state changes before a potentially destructive
+service call, including one that throws. Renamed entries and entries whose
+removal started retain their published bytes on partial failure; untouched
+entries restore the previous destination. This preserves the earlier recovery
+policy while removing overlapping copied-move/retain flags and a duplicate
+recovery loop.
+
+The public worker regression mixes rename and copy fallback in the same batch,
+with occupied destinations and Unicode/spaced names. It checks bytes, retained
+sources, restored destination contents and absence of staging residue after
+removal failure or cancellation following actual deletion. Existing tests
+covered these transfer modes separately, but not their combined partial recovery.
+This is a behavior-preserving refactor; no pre-fix product failure is claimed.
+
+The six focused suites passed on Linux, macOS and interactive Windows:
+file_transfer, file_transfer_direct, language_file_transfer, ui_copy_same,
+ui_copy_routing and worker_checkpoint. Both mixed-Move regression rows passed
+on all three platforms. The first Linux build exhausted guest memory; the
+repeat reused its outputs/cache with two build jobs. Initial macOS/Windows
+UI runs lacked the new branch's codec runtime; after preparation only the two
+affected UI suites were repeated. No full/slow gate or visual acceptance is
+claimed. Completed temporary fixtures were removed; incremental build trees,
+native runtime and compact verification evidence are retained.
+
 ## Staging and completion ownership — 2026-10-31
 
 Reviewed the complete Qt transaction, worker entry/cancel/wait boundary, copy

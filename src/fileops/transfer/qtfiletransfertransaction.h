@@ -17,19 +17,22 @@ class QtFileTransferTransaction final {
         std::variant<QString, OverwriteQuestion::File> Incoming;
     };
     static OverwriteQuestion snapshot(const OverwriteSource &source);
+    enum class SourceState { Intact, Renamed, RemovalStarted };
+    enum class RollbackMode { RestoreSources, KeepMovedSources };
     struct Completed {
         QString source;
         QString target;
         QString backup;
-        bool copiedMove = false;
-        bool retainPublished = false;
+        SourceState sourceState = SourceState::Intact;
         bool merged = false;
         QStringList writtenSources;
     };
     FileTransferOperation &worker_;
     QStringList prepareTargets(QString &error) const;
     void finish(QList<Completed> &completed, QString &error);
-    void rollback(const QList<Completed> &completed);
+    void rollback(const QList<Completed> &completed,
+                  RollbackMode mode = RollbackMode::RestoreSources);
+    void removeSources(QList<Completed> &completed, QString &error);
     bool copyEntry(const QString &source, const QString &target, QString *error,
                    bool reportProgress = true);
     bool mergeEntry(const QString &source, const QString &stage, const QString &target,
