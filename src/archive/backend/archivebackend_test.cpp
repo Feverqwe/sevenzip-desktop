@@ -54,17 +54,18 @@ void ArchiveBackend::startNativeRead(
     Job job, const QString &archive, const QString &password, const QString &format,
     std::shared_ptr<const QtArchiveDirectoryExtractRequest> directory) {
     const auto catalog = codecCatalog();
-    readOperation_ = std::make_unique<QtArchiveReadOperation>(
+    auto worker = std::make_unique<QtArchiveReadOperation>(
         archive, password, catalog,
-        job == Job::List            ? QtArchiveReadOperation::Kind::List
-        : job == Job::SourceExtract ? QtArchiveReadOperation::Kind::ExtractEntry
-        : job == Job::Extract       ? QtArchiveReadOperation::Kind::ExtractDirectory
-                                    : QtArchiveReadOperation::Kind::Test,
+        job == Job::List      ? QtArchiveReadOperation::Kind::List
+        : job == Job::Extract ? QtArchiveReadOperation::Kind::ExtractDirectory
+                              : QtArchiveReadOperation::Kind::Test,
         format, configuredModule_);
-    readOperation_->Directory = std::move(directory);
-    if (job == Job::SourceExtract)
-        readOperation_->Output = {sourceExtractEntry_, sourceExtractOutput_,
-                                  sourceExtractAltStream_};
+    worker->Directory = std::move(directory);
+    startReadOperation(job, std::move(worker));
+}
+
+void ArchiveBackend::startReadOperation(Job job, std::unique_ptr<QtArchiveReadOperation> worker) {
+    readOperation_ = std::move(worker);
     const QPointer<QtArchiveReadOperation> operation(readOperation_.get());
     const quint64 progressGeneration = beginWorkerProgress();
     readOperation_->Progress = [this, progressGeneration](quint64 completed, quint64 total,

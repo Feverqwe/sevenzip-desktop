@@ -39,6 +39,7 @@ class QtArchiveReadOperation final : public QThread {
         bool AltStream = false;
         UInt32 NativeIndex = UInt32(-1);
         UInt64 Limit = UInt64(-1);
+        bool RecoveryFormat = false;
     };
     QtArchiveReadOperation(QString path, QString password,
                            std::shared_ptr<const ArchiveCodecCatalog> catalog, Kind kind,

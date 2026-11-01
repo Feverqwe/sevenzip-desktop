@@ -120,3 +120,32 @@ on Linux, 221 on macOS and 220 on Windows, with one expected Windows skip for
 colon filenames. Full current test logs were retained for all nine suites on
 each OS. Checks used Qt 6.12, existing incremental trees and compiler caches;
 completed test fixtures were removed. No full/slow gate was run.
+
+## Single-entry extraction request — 2026-11-01
+
+Reviewed the complete source-entry request, native selection/output/close path,
+partial-result projection, cancellation, cleanup and file-resource consumer.
+Compared Client7z GetStream, SetOperationResult and Extract at the recorded
+9128b80e3a471108678e2b3ec3c985861c8d7b0f reference; its complete source-unit hash
+matches the baseline. The existing private-stream adaptation, native decoding,
+bounds/literal selection and caller-owned metadata remain unchanged. No external
+code is imported or replaced.
+
+The source-entry caller now prepares its worker directly and uses the common
+read launch boundary. Entry name, output path, alternate-stream selection and
+recovery-format eligibility belong to that operation; four duplicate backend
+fields are removed. Completion cleans the operation's own path. Requested,
+cached and actual-format recovery eligibility, closed/nonempty partial-output
+requirements and the public item result retain their previous behavior.
+Existing native-source checks cover successful bytes, explicit/automatic CRC
+failures, opening warnings, password cancellation/retry, rejected outputs and
+destruction while waiting; no private-state assertions were added.
+
+All nine selected source-entry, link, recovery/output and shared-launch suites
+passed first on Linux x64 (`20261101T041826Z-8d5f75c9`), then native macOS arm64
+and interactive Windows x64 (`20261101T042049Z-89e4c687`), using Qt 6.12 and the
+existing incremental trees/compiler caches. Linux and macOS each recorded 209
+passing cases and four expected Windows-only NTFS/reparse skips; Windows
+recorded 212 passing cases and one expected colon-filename skip. Full logs and
+current-token reports were retained, and completed fixtures were removed after
+checking active processes and runner locks. No full/slow gate was run.

@@ -279,7 +279,6 @@ class ArchiveBackend : public QObject {
     bool codecDiscoveryCancelled_ = false;
     Job job_ = Job::None;
     QString archive_;
-    QString sourceExtractOutput_;
     std::unique_ptr<QtArchiveHashOperation> hashOperation_;
     std::unique_ptr<QtArchiveReadOperation> readOperation_;
     QTimer workerProgressTimer_{this};
@@ -297,6 +296,7 @@ class ArchiveBackend : public QObject {
     void startNativeRead(Job job, const QString &archive, const QString &password,
                          const QString &format = {},
                          std::shared_ptr<const QtArchiveDirectoryExtractRequest> directory = {});
+    void startReadOperation(Job job, std::unique_ptr<QtArchiveReadOperation> worker);
     void finishReadOperation();
     static HRESULT validateNativeHashReads(const ArchiveNativeOpen &reader, const UInt32 *indices,
                                            UInt32 count);
@@ -304,9 +304,6 @@ class ArchiveBackend : public QObject {
     QHash<QString, ListedSourceSnapshot> listedSourceArchives_;
     bool cancelled_ = false;
     HRESULT lastResult_ = E_FAIL;
-    bool sourceExtractRecovery_ = false;
-    QString sourceExtractEntry_;
-    bool sourceExtractAltStream_ = false;
     Int32 sourceExtractOperation_ = -1;
     bool overwritePromptActive_ = false;
 };

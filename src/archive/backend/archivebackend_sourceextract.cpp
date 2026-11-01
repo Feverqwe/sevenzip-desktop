@@ -21,15 +21,16 @@ void ArchiveBackend::finishSourceExtractOperation(const QtArchiveReadOperation &
                                   : flags & kpv_ErrorFlags_DataAfterEnd ? kDataAfterEnd
                                                                         : kHeadersError;
     }
-    const bool recovery = sourceExtractRecovery_ || IsArchiveRecoveryFormat(operation.OpenedFormat);
+    const bool recovery =
+        operation.Output.RecoveryFormat || IsArchiveRecoveryFormat(operation.OpenedFormat);
     const bool partial = (lastResult_ == E_FAIL || lastResult_ == S_FALSE) && recovery &&
                          operation.OutputCreated && operation.OutputClosed &&
                          sourceExtractOperation_ > kOK;
     if (partial)
         lastResult_ = S_FALSE;
     if (operation.OutputCreated && lastResult_ != S_OK &&
-        (!partial || QFileInfo(sourceExtractOutput_).size() <= 0))
-        QFile::remove(sourceExtractOutput_);
+        (!partial || QFileInfo(operation.Output.Path).size() <= 0))
+        QFile::remove(operation.Output.Path);
 }
 
 void ArchiveBackend::extractSourceEntry(const QString &archive, const QString &entry,
@@ -49,12 +50,13 @@ void ArchiveBackend::extractSourceEntry(const QString &archive, const QString &e
         return;
     }
     archive_ = QFileInfo(archive).absoluteFilePath();
-    sourceExtractEntry_ = entry;
-    sourceExtractAltStream_ = isAltStream;
-    sourceExtractOutput_ = QFileInfo(output).absoluteFilePath();
-    sourceExtractRecovery_ = IsArchiveRecoveryFormat(format);
+    auto worker = std::make_unique<QtArchiveReadOperation>(
+        archive_, password, codecCatalog(), QtArchiveReadOperation::Kind::ExtractEntry, format,
+        configuredModule_);
+    worker->Output = {entry, QFileInfo(output).absoluteFilePath(), isAltStream};
+    worker->Output.RecoveryFormat = IsArchiveRecoveryFormat(format);
     if (format.isEmpty() && hasListedSourceArchive(archive_))
-        sourceExtractRecovery_ =
+        worker->Output.RecoveryFormat =
             IsArchiveRecoveryFormat(listedSourceArchives_.value(archive_).Format);
-    startNativeRead(Job::SourceExtract, archive_, password, format);
+    startReadOperation(Job::SourceExtract, std::move(worker));
 }
