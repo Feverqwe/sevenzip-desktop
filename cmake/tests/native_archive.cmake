@@ -39,6 +39,7 @@
     set_tests_properties(archive_open_options PROPERTIES TIMEOUT 60 ENVIRONMENT
         "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/archive-open-options.ini")
     qt_add_executable(source_extract_advanced_tests tests/archive/source_extract_advanced_tests.cpp)
+    add_dependencies(source_extract_advanced_tests sevenzip_linux_frames_runtime)
     target_link_libraries(source_extract_advanced_tests PRIVATE sevenzip_layout_inspection sevenzip_location)
     target_include_directories(source_extract_advanced_tests PRIVATE src)
     target_link_libraries(source_extract_advanced_tests PRIVATE Qt6::Test)

@@ -1544,3 +1544,42 @@ Focused runtime validation passed `operation_protocol`, `operation_launcher`,
 skipped rows. These cover acceptance/completion order, observer/parent deletion,
 crash/retry, cancellation, output retention and panel refresh. Existing
 incremental builds and compiler caches were reused; no full or slow suites ran.
+
+### Selected-folder extraction path projection — 2026-11-01
+
+Rechecked original ArchiveExtractCallback CorrectPathParts and its extract/hash
+callers, ExtractingFilePath Correct_FsPath and path helpers, Agent extraction
+prefix handling and the current directory/native-index validation consumers.
+The reference remains <https://github.com/ip7z/7zip.git>, commit
+`b88c6bc09339de32f7d18bbab900686b244f42ba`. Complete original callback and
+ExtractingFilePath units match their existing baseline hashes. No external
+code is imported, baseline advanced or native branch/dependency omitted.
+
+The backend now separates one entry's validated relative output name from
+whole-selection name conflicts and destination occupancy checks. The scoped
+projection context borrows the existing request values; it creates no retained
+reader, worker or parallel mutable settings. Full/current/absolute/no-path modes,
+bound-folder prefix removal, native alternate streams, source links and native
+name correction retain their previous decisions and diagnostic order. Source
+path normalization and actual extraction remain in their existing 7-Zip owners.
+This is a behavior-preserving refactor, with no pre-fix product failure claimed.
+
+Existing behavior coverage checks selected folders and unsafe descendants,
+bound versus unbound prefixes, overwrite/cancellation, corrected-name conflicts,
+absolute outputs, alternate streams and link redirection. No source-presence or
+implementation-mirroring test is added.
+
+Six focused suites passed: archive_backend, extraction_options,
+native_source_extract, source_extract_advanced, source_link_extract and
+native_extract_callback. Linux is the primary shared-behavior check; macOS
+checks its native path handling, and Windows covers alternate streams, NTFS
+security and reparse links. The four Windows-only rows are skipped on Linux
+and macOS. On Windows, four suites passed under the ordinary desktop token;
+the two suites creating native symlink fixtures passed with the runner's
+scoped elevated desktop token after ordinary-token fixture creation failed.
+
+The CPIO consumers now depend on preparation of their existing external reader.
+Their first focused Linux run could not open CPIO because the module was absent
+from this branch's runtime; connecting the existing deployment target resolved
+that failure. Incremental builds and compiler caches were retained. No full/slow
+gate or appearance/visual-parity acceptance is claimed.

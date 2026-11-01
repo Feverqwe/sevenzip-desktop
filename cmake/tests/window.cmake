@@ -136,6 +136,7 @@
     set_tests_properties(ui_layout PROPERTIES
         ENVIRONMENT "QT_QPA_PLATFORM=offscreen;SEVENZIP_SCREENSHOT_DIR=${CMAKE_BINARY_DIR}/ui-screenshots;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/ui-layout-settings.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports"
     )
+    add_dependencies(archive_backend_tests sevenzip_linux_frames_runtime)
     add_test(NAME archive_backend COMMAND archive_backend_tests)
     qt_add_executable(extract_dialog_tests tests/archive/extract_dialog_tests.cpp)
     target_link_libraries(extract_dialog_tests PRIVATE sevenzip_layout_inspection sevenzip_location)
