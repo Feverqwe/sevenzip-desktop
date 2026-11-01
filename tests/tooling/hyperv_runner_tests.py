@@ -602,7 +602,7 @@ Path('selected.json').write_text(json.dumps({key: os.environ.get(key) for key in
                     runner.execute_check({"config": settings, "branch": "snapshot"}, "linux", "vcpkg-dev",
                                          root.as_posix(), "token", [sys.executable, "scripts/probe.py"], True)
                     selected = json.loads((root / "selected.json").read_text())
-                    self.assertEqual(selected["VCPKG_MAX_CONCURRENCY"], jobs or str(os.cpu_count() or 1))
+                    self.assertEqual(selected["VCPKG_MAX_CONCURRENCY"], jobs or "8")
             selected = json.loads((root / "selected.json").read_text())
             prepared = json.loads((root / "prepared.json").read_text())
             self.assertEqual({key: value for key, value in selected.items() if key != 'PATH'},
@@ -630,7 +630,7 @@ Path('selected.json').write_text(json.dumps({key: os.environ.get(key) for key in
             probe = '''import os, subprocess, sys
 from pathlib import Path
 subprocess.run([sys.executable, str(Path(os.environ['VCPKG_ROOT']) / 'vcpkg.py')], check=True)
-jobs = str(os.cpu_count() or 1)
+jobs = '8'
 assert os.environ['CMAKE_BUILD_PARALLEL_LEVEL'] == jobs
 assert os.environ['VCPKG_MAX_CONCURRENCY'] == jobs
 '''

@@ -112,7 +112,7 @@ and their results. The command log and verification report return together in
 one compressed SSH response. A verification report is accepted only for the
 current run; missing reports are recorded alongside command failures.
 
-Guest builds use the guest's available logical processors by default, including
+Guest builds use eight parallel jobs by default, including
 native runtime and SFX builds. `CMAKE_BUILD_PARALLEL_LEVEL` overrides build
 parallelism when set to a positive integer. Use `1` when a guest runs out of
 memory during compilation; this retains its incremental build and compiler cache.
