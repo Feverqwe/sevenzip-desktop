@@ -9,6 +9,7 @@
 #include <QThread>
 #include <QTreeWidget>
 #include <QVBoxLayout>
+#include <atomic>
 
 struct DeviceSelectionDialog::Job {
     std::atomic<bool> cancelled{false};
@@ -19,6 +20,20 @@ struct DeviceSelectionDialog::Job {
     DeviceAccessResult access;
     QString error;
     HRESULT result = E_FAIL;
+};
+
+struct DeviceSelectionDialog::Work {
+    const std::shared_ptr<Job> job;
+    const std::unique_ptr<QThread> worker;
+    Work(std::shared_ptr<Job> state, const std::function<void()> &operation)
+        : job(std::move(state)), worker(QThread::create([job = job, operation] {
+              try {
+                  operation();
+              } catch (...) {
+                  job->result = E_FAIL;
+              }
+          })) {}
+    ~Work() { worker->wait(); }
 };
 
 namespace {
@@ -97,16 +112,14 @@ DeviceSelectionDialog::DeviceSelectionDialog(std::shared_ptr<const ArchiveCodecC
 }
 
 DeviceSelectionDialog::~DeviceSelectionDialog() {
-    if (job_)
-        job_->cancelled = true;
-    if (worker_)
-        worker_->wait();
+    if (work_)
+        work_->job->cancelled = true;
 }
 
 void DeviceSelectionDialog::reject() {
-    if (worker_) {
+    if (work_) {
         closing_ = true;
-        job_->cancelled = true;
+        work_->job->cancelled = true;
         message_->setText(tr("Canceling…"));
         return;
     }
@@ -126,33 +139,28 @@ void DeviceSelectionDialog::setWorking(bool working) {
 
 void DeviceSelectionDialog::updateOpen() {
     const auto *item = items_->currentItem();
-    open_->setEnabled(!worker_ && item && !item->isDisabled());
+    open_->setEnabled(!work_ && item && !item->isDisabled());
 }
 
 void DeviceSelectionDialog::start(const std::shared_ptr<Job> &job,
                                   const std::function<void()> &operation) {
-    job_ = job;
-    worker_ = QThread::create([job, operation] {
-        try {
-            operation();
-        } catch (...) {
-            job->result = E_FAIL;
-        }
-    });
-    worker_->setParent(this);
-    connect(worker_, &QThread::finished, this, [this, job] {
-        auto *finished = worker_;
-        worker_ = nullptr;
-        finished->deleteLater();
-        job_.reset();
+    auto work = std::make_unique<Work>(job, operation);
+    auto *worker = work->worker.get();
+    connect(worker, &QThread::finished, this, [this, job] {
+        if (!work_ || work_->job != job)
+            return;
+        // Result callbacks may restart or destroy the dialog after this join.
+        auto completed = std::move(work_);
+        completed->worker->wait();
         finish(job);
     });
+    work_ = std::move(work);
     setWorking(true);
-    worker_->start();
+    worker->start();
 }
 
 void DeviceSelectionDialog::listDevices() {
-    if (worker_)
+    if (work_)
         return;
     source_.reset();
     selected_.Release();
@@ -199,8 +207,8 @@ void DeviceSelectionDialog::showPartitions() {
 }
 
 void DeviceSelectionDialog::finish(const std::shared_ptr<Job> &job) {
-    // Deferred QThread deletion must not retain an exclusive native open when
-    // the user returns to devices or immediately retries a failed request.
+    // Release the acquisition lease before controls permit an immediate retry.
+    // A successful source retains the handle needed by its partition streams.
     job->access.handle.reset();
     setWorking(false);
     if (closing_) {

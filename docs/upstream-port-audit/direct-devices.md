@@ -216,10 +216,23 @@ opening, Parent, выбор и существующий CopyTo остаются 
 обычный Open archive и список томов. Диалог перечисляет внешние устройства,
 блокирует busy rows, затем предлагает разделы или открывает единственный.
 Native access и backend inspection выполняются owned worker; UI отменяет запрос
-и ждёт завершения, не публикуя поздний источник. Back освобождает источник до
-следующего exclusive open; отложенное удаление QThread не удерживает device lease.
+и ждёт завершения, не публикуя поздний источник. Задание и QThread принадлежат
+одному owner: он снимается с активного состояния и joins поток до публикации
+результата, повторного открытия или уничтожения диалога. Shared job сохраняет
+время жизни native cancellation predicate. Acquisition lease освобождается до
+разблокировки controls; успешный source сохраняет нужный handle для partition
+streams. Back освобождает источник до следующего exclusive open.
 Проверка устройства компилируется вместе с reader; лёгким потребителям
 метаданных не требуется весь process backend.
+
+Упрощение worker ownership от 2026-11-01 не меняет native access, reader,
+fscrypt или layout. Просмотрены chooser, его command/backend/stream consumers
+и Linux authorization cancellation; это локальная Qt integration без upstream
+алгоритма для переноса. `device_input`, `archive_device`, `device_ui` и
+`fscrypt_key_ui` PASS на Linux: 96 проверок, без skips. Отмена при уничтожении
+диалога дополняет существующие reject, Back/exclusive reopen и partition tests.
+Проверены controlled streams/authorization, не реальные устройства или системный
+запрос прав; native appearance и другие платформы этим запуском не проверялись.
 
 Для direct input главное окно использует native extract/test и refresh вместо
 file-only listing prerequisites; извлечение всех файлов не переоткрывает display

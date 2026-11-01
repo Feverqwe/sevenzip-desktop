@@ -255,25 +255,39 @@ class DeviceUiTests final : public QObject {
         }
         dialog.reject();
     }
+    void pendingAuthorizationCanBeCanceledWithoutPublishingStream_data() {
+        QTest::addColumn<bool>("destroy");
+        QTest::newRow("reject") << false;
+        QTest::newRow("destroy") << true;
+    }
     void pendingAuthorizationCanBeCanceledWithoutPublishingStream() {
+        QFETCH(bool, destroy);
         std::atomic<bool> entered{false};
+        std::atomic<bool> completed{false};
         auto services = Services(std::make_shared<CDeviceBytes>(fixture_));
         services.open = [&](const ExternalDevice &, const auto &cancelled) {
             entered = true;
             while (!cancelled())
                 QThread::msleep(1);
+            completed = true;
             return DeviceAccessResult{DeviceAccessStatus::Cancelled, {}, {}};
         };
-        DeviceSelectionDialog dialog(catalog_, nullptr, services);
-        dialog.show();
-        QTRY_VERIFY(Items(dialog)->isEnabled());
-        Items(dialog)->setCurrentItem(Items(dialog)->topLevelItem(1));
-        Open(dialog)->click();
+        auto dialog = std::make_unique<DeviceSelectionDialog>(catalog_, nullptr, services);
+        dialog->show();
+        QTRY_VERIFY(Items(*dialog)->isEnabled());
+        Items(*dialog)->setCurrentItem(Items(*dialog)->topLevelItem(1));
+        Open(*dialog)->click();
         QTRY_VERIFY(entered.load());
-        QSignalSpy rejected(&dialog, &QDialog::rejected);
-        QTest::keyClick(&dialog, Qt::Key_Escape);
-        QTRY_COMPARE(rejected.size(), 1);
-        QVERIFY(!dialog.selectedStream());
+        QVERIFY(!completed.load());
+        if (destroy)
+            dialog.reset();
+        else {
+            QSignalSpy rejected(dialog.get(), &QDialog::rejected);
+            QTest::keyClick(dialog.get(), Qt::Key_Escape);
+            QTRY_COMPARE(rejected.size(), 1);
+            QVERIFY(!dialog->selectedStream());
+        }
+        QVERIFY(completed.load());
     }
     void menuToSourcePanelCopyRefreshAndParent_data() {
         QTest::addColumn<QString>("language");
