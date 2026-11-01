@@ -1,4 +1,5 @@
 #include "fileops/scanner/filesystemscanner.h"
+#include "Common/MyCom.h"
 #include "Common/StringConvert.h"
 #include "filemanager/panels/Panel.h"
 #include "filemanager/providers/FSFolder.h"
@@ -8,6 +9,14 @@
 #include <QElapsedTimer>
 #include <QPointer>
 #include <QTimer>
+
+struct FilesystemScanner::Presentation {
+    explicit Presentation(IFolderFolder *source)
+        : folder(source), directory(QtFilesystemPath(us2fs(GetFolderPath(source)))) {}
+    const CMyComPtr<IFolderFolder> folder;
+    const QString directory;
+    quint32 nextIndex = 0;
+};
 
 FilesystemScanner::FilesystemScanner(QObject *parent) : QObject(parent) {
     progressTimer_.setInterval(33);
@@ -84,14 +93,13 @@ void FilesystemScanner::loaderFinished(FilesystemFolderLoader *loader, quint64 g
         emit failed(qint32(result));
         return;
     }
-    folder_ = loaded;
-    directory_ = QtFilesystemPath(us2fs(GetFolderPath(folder_)));
-    presenting_ = true;
+    const auto presentation = std::make_shared<Presentation>(loaded);
+    presentation_ = presentation;
     const QPointer<FilesystemScanner> guard(this);
-    emit folderReady(folder_);
+    emit folderReady(presentation->folder);
     if (!guard)
         return;
-    if (generation == generation_ && presenting_)
+    if (presentation == presentation_)
         QTimer::singleShot(0, this, [this, generation] { scanBatch(generation); });
 }
 
@@ -102,39 +110,39 @@ void FilesystemScanner::cancel() {
     if (loader_)
         loader_->cancel();
     loader_ = nullptr;
-    folder_.Release();
-    nextIndex_ = 0;
-    presenting_ = false;
+    presentation_.reset();
 }
 
-bool FilesystemScanner::isRunning() const { return loader_ || presenting_; }
+bool FilesystemScanner::isRunning() const { return loader_ || presentation_; }
 
 void FilesystemScanner::scanBatch(quint64 generation) {
-    if (generation != generation_ || !presenting_ || !folder_)
+    const auto presentation = presentation_;
+    if (generation != generation_ || !presentation)
         return;
     QElapsedTimer elapsed;
     elapsed.start();
     QFileInfoList files;
-    const quint32 firstIndex = nextIndex_;
-    auto *spec = static_cast<NFsFolder::CFSFolder *>((IFolderFolder *)folder_);
+    const quint32 firstIndex = presentation->nextIndex;
+    auto *spec = static_cast<NFsFolder::CFSFolder *>((IFolderFolder *)presentation->folder);
     // Row creation can include native icon lookup. Keep each GUI delivery
     // bounded independently of the time spent preparing QFileInfo values.
-    while (files.size() < 32 && elapsed.elapsed() < 8 && nextIndex_ < spec->Files.Size()) {
-        const FString relPath = spec->GetRelPath(spec->Files[nextIndex_++]);
+    while (files.size() < 32 && elapsed.elapsed() < 8 &&
+           presentation->nextIndex < spec->Files.Size()) {
+        const FString relPath = spec->GetRelPath(spec->Files[presentation->nextIndex++]);
         const QString name = QtFilesystemPath(relPath);
-        files.append(QFileInfo(QDir(directory_).filePath(name)));
+        files.append(QFileInfo(QDir(presentation->directory).filePath(name)));
     }
     const QPointer<FilesystemScanner> guard(this);
     if (!files.isEmpty())
         emit batchReady(files, firstIndex);
     if (!guard)
         return;
-    if (generation != generation_ || !presenting_ || !folder_)
+    if (presentation != presentation_)
         return;
-    if (nextIndex_ < spec->Files.Size()) {
+    if (presentation->nextIndex < spec->Files.Size()) {
         QTimer::singleShot(0, this, [this, generation] { scanBatch(generation); });
         return;
     }
-    presenting_ = false;
+    presentation_.reset();
     emit completed();
 }

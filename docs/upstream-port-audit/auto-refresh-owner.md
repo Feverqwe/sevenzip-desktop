@@ -1,5 +1,39 @@
 # Automatic refresh state ownership — 2026-10-31
 
+## Filesystem publication ownership — 2026-11-01
+
+Compared original FSFolder `LoadSubItems`/`LoadItems`, their folder types and
+PanelItems `RefreshListCtrl` with the current loader, scanner, row publication,
+selection completion, navigation and close consumers. The complete FSFolder
+implementation/header and PanelItems inventory units in the repository source
+archive match their existing baseline hashes at
+`b88c6bc09339de32f7d18bbab900686b244f42ba` in
+<https://github.com/ip7z/7zip.git>. No code is imported or baseline advanced.
+
+The Qt scanner now owns an unfinished publication as one object: the source
+folder, its presentation directory and the next source index. Cancellation or
+completion clears that owner instead of coordinating a folder pointer, path,
+index and separate active flag. Signal delivery retains the current object on
+the GUI stack; after a receiver navigates, restarts or destroys the scanner,
+its identity determines whether that delivery may continue. Worker generations
+still reject retired loads and queued batches. Completed source folders belong
+to consumers that retain the documented borrowed `folderReady` interface.
+
+The native filesystem walk, flat-mode policy, callback cancellation, worker
+join, progress sampling, ordered source indices, bounded row delivery and panel
+selection/error policy are unchanged. Existing scanner and panel regressions
+cover restart from progress/batch delivery, destruction from signals, queued
+completion after close, metadata retention and selection across disk/archive
+transitions. No new representation test or pre-fix failure is claimed.
+
+Linux acceptance passed `filesystem_scanner`, `filesystem_reload`,
+`panel_runtime` and `panel_copy_reload`, together with the runner-command suite
+after the requested default parallelism change. The original eight-job build
+hit kernel-confirmed OOM before tests; the incremental four-job retry passed
+without local overrides or clearing caches. No native OS branch changed, so
+Windows/macOS were not selected. No appearance change or full/slow gate is
+claimed.
+
 ## Refresh routing and saved selection — 2026-11-01
 
 Rechecked original PanelItems SaveSelectedState, RefreshListCtrl, OnReload and
