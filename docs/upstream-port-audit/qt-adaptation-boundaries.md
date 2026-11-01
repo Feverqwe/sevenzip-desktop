@@ -482,3 +482,34 @@ follow-ups; platform-only владельцы проверены отдельно
 новая приёмка рендеренного паритета с оригинальным Windows 7zFM не выполнялась.
 Результат фиксирует проверенные области и найденные дефекты, а не гарантирует
 отсутствие иных ошибок во всех возможных сценариях.
+
+## Именованные маршруты архивных операций — 2026-11-01
+
+Повторно просмотрены пакетные Test/Extract от CApp/CPanel до CompressCall2,
+QtShellArchiveServices, native opener, ExtractGUI и независимого 7zG; вместе
+рассмотрены связанные Add/hash/popup consumers. Полные оригиналы
+`CPP/7zip/UI/Common/CompressCall2.cpp`, `CPP/7zip/UI/FileManager/Panel.cpp`
+и `App.h` совпадают с baseline hashes ревизии
+`b88c6bc09339de32f7d18bbab900686b244f42ba` из того же source repository.
+Нового внешнего импорта и изменения baseline нет.
+
+Concrete Qt adapter теперь принимает одну структуру именованных Routes вместо
+длинного позиционного списка callback arguments. Она же владеет callback-ами
+внутри сервиса. Toolbar batch/Add, shell popup, standalone GUI factory и все
+прямые тестовые consumers переведены вместе. Отсутствующий маршрут сохраняет
+прежний in-process fallback; virtual source interfaces и сами исходные
+CompressCall2/GUI/Extract/Update/hash algorithms не меняются.
+
+Сохранены callbacks, их параметры/captures, settings path, retained catalog,
+ошибки/приоритет результата, output notifications и lifetime до source worker
+join. Typed metadata opening без retained native reader и учёт томов остаются:
+это поддерживаемые границы, а не доказанно мёртвые ветви. Новых правил выбора
+архивов, decoding, path validation, recovery consent или OS launch не введено.
+Контролы, тексты и геометрия также не меняются.
+
+Проверка Linux x64: 11 focused suites для сервиса и прямых consumers прошли,
+163 Qt checks без failures/skips; run `20261101T191046Z-1468e9b8`.
+Инкрементальная сборка заняла 41.023 с, тесты — 20.058 с. Другие платформы
+в этой итерации не запускались: изменение общей передачи callbacks не меняет
+платформенные реализации. Source comparison и runtime evidence имеют указанный
+выше scope; нового визуального parity acceptance нет.

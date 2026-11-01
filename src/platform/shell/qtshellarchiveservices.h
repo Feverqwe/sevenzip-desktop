@@ -24,10 +24,19 @@ class QtShellArchiveServices final : public IQtCompressCallServices, public IQtU
         std::function<HRESULT(const UStringVector &, const UString &, bool, bool, UInt32)>;
     using OutputSink = QtGUIOutputSink;
     using HashSink = std::function<HRESULT(const UStringVector &, const UString &)>;
-    QtShellArchiveServices(ArchiveBackend &backend, QWidget *parent, OpenSink open,
-                           CompressSink compress, ErrorSink error = {}, ModalSink modal = {},
-                           QString settingsPath = {}, TestSink test = {}, ExtractSink extract = {},
-                           OutputSink outputReady = {}, HashSink hash = {});
+    struct Routes {
+        OpenSink Open{};
+        CompressSink Compress{};
+        ErrorSink Error{};
+        ModalSink Modal{};
+        TestSink Test{};
+        ExtractSink Extract{};
+        OutputSink OutputReady{};
+        HashSink Hash{};
+    };
+    QtShellArchiveServices(ArchiveBackend &backend, QWidget *parent);
+    QtShellArchiveServices(ArchiveBackend &backend, QWidget *parent, Routes routes,
+                           QString settingsPath = {});
     QString CompressionSettingsPath() const override { return _settingsPath; }
     FString GetSfxModulePath() const override;
     HRESULT PresentCompressDialog(CCompressDialog &source,
@@ -82,14 +91,7 @@ class QtShellArchiveServices final : public IQtCompressCallServices, public IQtU
     QWidget *_parent;
     std::shared_ptr<const ArchiveCodecCatalog> _catalog;
     CCodecs _metadata;
-    OpenSink _open;
-    CompressSink _compress;
-    ModalSink _modal;
+    Routes _routes;
     QString _settingsPath;
-    ErrorSink _error;
-    TestSink _test;
-    ExtractSink _extract;
-    OutputSink _outputReady;
-    HashSink _hash;
     HRESULT _result = S_OK;
 };

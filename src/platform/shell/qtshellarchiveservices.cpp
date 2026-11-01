@@ -39,16 +39,13 @@ class COutputPolicy final : public IQtExtractPathPolicy {
 };
 } // namespace
 
+QtShellArchiveServices::QtShellArchiveServices(ArchiveBackend &backend, QWidget *parent)
+    : QtShellArchiveServices(backend, parent, {}) {}
+
 QtShellArchiveServices::QtShellArchiveServices(ArchiveBackend &backend, QWidget *parent,
-                                               OpenSink open, CompressSink compress,
-                                               ErrorSink error, ModalSink modal,
-                                               QString settingsPath, TestSink test,
-                                               ExtractSink extract, OutputSink outputReady,
-                                               HashSink hash)
-    : _backend(backend), _parent(parent), _catalog(backend.codecCatalog()), _open(std::move(open)),
-      _compress(std::move(compress)), _modal(std::move(modal)),
-      _settingsPath(std::move(settingsPath)), _error(std::move(error)), _test(std::move(test)),
-      _extract(std::move(extract)), _outputReady(std::move(outputReady)), _hash(std::move(hash)) {
+                                               Routes routes, QString settingsPath)
+    : _backend(backend), _parent(parent), _catalog(backend.codecCatalog()),
+      _routes(std::move(routes)), _settingsPath(std::move(settingsPath)) {
     // Metadata alone supports source ParseOpenTypes. Native factories remain
     // with the retained immutable backend catalog, never copied/unloaded here.
     if (_catalog && _catalog->result() == S_OK)
@@ -62,7 +59,7 @@ FString QtShellArchiveServices::GetSfxModulePath() const {
 }
 HRESULT QtShellArchiveServices::PresentCompressDialog(
     CCompressDialog &source, const CObjectVector<NWildcard::CCensorPath> &paths, QWidget *parent) {
-    return _modal ? _modal(source, paths, parent) : E_NOTIMPL;
+    return _routes.Modal ? _routes.Modal(source, paths, parent) : E_NOTIMPL;
 }
 void QtShellArchiveServices::GetUserCodecs(CCodecs &codecs,
                                            CObjectVector<CCodecInfoUser> &userCodecs) {
@@ -120,8 +117,8 @@ HRESULT QtShellArchiveServices::ExtractGUI(CCodecs &codecs, const CObjectVector<
     const HRESULT result =
         ::ExtractGUI(&codecs, types, excludedFormats, paths, fullPaths, censor, options, hashBundle,
                      showDialog, messageWasDisplayed, &callback, &open, &open, _parent, [&] {
-                         if (_outputReady)
-                             _outputReady(policy.Root(), QtGUIOutputKind::Directory);
+                         if (_routes.OutputReady)
+                             _routes.OutputReady(policy.Root(), QtGUIOutputKind::Directory);
                      });
     return result;
 }
@@ -132,18 +129,18 @@ HRESULT QtShellArchiveServices::HashCalcGUI(const CExternalCodecs *providers,
     return ::HashCalcGUI(providers, censor, options, messageWasDisplayed);
 }
 void QtShellArchiveServices::Open(const UString &path, const UString &type) {
-    if (_open)
-        _result = _open(path, type);
+    if (_routes.Open)
+        _result = _routes.Open(path, type);
     else
         ErrorMessageHRESULT(E_NOTIMPL);
 }
 void QtShellArchiveServices::ExtractArchives(const UStringVector &paths, const UString &folder,
                                              bool showDialog, bool elimDup, UInt32 zone) {
-    _result = _extract ? _extract(paths, folder, showDialog, elimDup, zone)
-                       : ::ExtractArchives(paths, folder, showDialog, elimDup, zone, *this);
+    _result = _routes.Extract ? _routes.Extract(paths, folder, showDialog, elimDup, zone)
+                              : ::ExtractArchives(paths, folder, showDialog, elimDup, zone, *this);
 }
 void QtShellArchiveServices::TestArchives(const UStringVector &paths, bool hashMode) {
-    _result = _test ? _test(paths, hashMode) : ::TestArchives(paths, hashMode, *this);
+    _result = _routes.Test ? _routes.Test(paths, hashMode) : ::TestArchives(paths, hashMode, *this);
 }
 void QtShellArchiveServices::CompressFiles(const UString &folder, const UString &name,
                                            const UString &type, bool addExtension,
@@ -156,8 +153,9 @@ HRESULT QtShellArchiveServices::CompressSelection(const UString &folder, const U
                                                   const UStringVector &paths, bool email,
                                                   bool showDialog, bool waitFinish) {
     const HRESULT result =
-        _compress
-            ? _compress(folder, name, type, addExtension, paths, email, showDialog, waitFinish)
+        _routes.Compress
+            ? _routes.Compress(folder, name, type, addExtension, paths, email, showDialog,
+                               waitFinish)
             : IQtCompressCallServices::CompressSelection(folder, name, type, addExtension, paths,
                                                          email, showDialog, waitFinish);
     // The source dispatcher can return S_OK after UpdateGUI has recorded a
@@ -181,24 +179,26 @@ HRESULT QtShellArchiveServices::UpdateGUI(CCodecs &codecs, const CObjectVector<C
     _result = ::UpdateGUI(
         &codecs, types, path, censor, options, showDialog, messageWasDisplayed, &callback, _parent,
         *this, [&] {
-            if (!_outputReady)
+            if (!_routes.OutputReady)
                 return;
             if (options.VolumesSizes.IsEmpty() || options.SfxMode)
-                _outputReady(QFileInfo(QString::fromWCharArray(options.ArchivePath.GetFinalPath()))
-                                 .absoluteFilePath(),
-                             QtGUIOutputKind::Archive);
+                _routes.OutputReady(
+                    QFileInfo(QString::fromWCharArray(options.ArchivePath.GetFinalPath()))
+                        .absoluteFilePath(),
+                    QtGUIOutputKind::Archive);
             if (!options.VolumesSizes.IsEmpty()) {
                 UString first = options.ArchivePath.GetFinalVolPath(options.SfxMode);
                 first += ".001";
-                _outputReady(QFileInfo(QString::fromWCharArray(first)).absoluteFilePath(),
-                             QtGUIOutputKind::Archive);
+                _routes.OutputReady(QFileInfo(QString::fromWCharArray(first)).absoluteFilePath(),
+                                    QtGUIOutputKind::Archive);
             }
             if (options.DeleteAfterCompressing)
                 FOR_VECTOR(i, censor.CensorPaths) {
                     if (censor.CensorPaths[i].Include)
-                        _outputReady(QFileInfo(QString::fromWCharArray(censor.CensorPaths[i].Path))
-                                         .absolutePath(),
-                                     QtGUIOutputKind::Directory);
+                        _routes.OutputReady(
+                            QFileInfo(QString::fromWCharArray(censor.CensorPaths[i].Path))
+                                .absolutePath(),
+                            QtGUIOutputKind::Directory);
                 }
         });
     return _result;
@@ -217,24 +217,24 @@ HRESULT QtShellArchiveServices::UpdateArchive(CCodecs *codecs,
 }
 void QtShellArchiveServices::CalcChecksum(const UStringVector &paths, const UString &method,
                                           const UString &folder, const UString &generateName) {
-    const HRESULT result = _hash && generateName.IsEmpty()
-                               ? _hash(paths, method)
+    const HRESULT result = _routes.Hash && generateName.IsEmpty()
+                               ? _routes.Hash(paths, method)
                                : ::CalcChecksum(paths, method, folder, generateName, *this);
     if (result != S_OK)
         _result = result;
 }
 void QtShellArchiveServices::ShowErrorMessage(const UString &message) {
     _result = E_FAIL;
-    if (_error)
-        _error(E_FAIL, message);
+    if (_routes.Error)
+        _routes.Error(E_FAIL, message);
     else
         QMessageBox::warning(_parent, QStringLiteral("7-Zip"), QString::fromWCharArray(message));
 }
 void QtShellArchiveServices::ShowErrorMessageRes(UInt32 id) { ShowErrorMessage(LangString(id)); }
 void QtShellArchiveServices::ErrorMessageHRESULT(HRESULT result) {
     _result = result;
-    if (_error)
-        _error(result, HResultToMessage(result));
+    if (_routes.Error)
+        _routes.Error(result, HResultToMessage(result));
     else
         ShowErrorMessage(HResultToMessage(result));
     _result = result;

@@ -138,8 +138,10 @@ void MainWindow::runArchiveBatchCommand(bool test) {
                                     bool showDialog, bool elimDup, UInt32 zone) {
             return launchGuiArchiveExtract(paths, folder, showDialog, elimDup, zone);
         };
-    QtShellArchiveServices services(*backend_, this, {}, {}, {}, {}, toolbarSettingsPath(),
-                                    std::move(independentTest), std::move(independentExtract));
+    QtShellArchiveServices services(
+        *backend_, this,
+        {.Test = std::move(independentTest), .Extract = std::move(independentExtract)},
+        toolbarSettingsPath());
     if (!test && !panel.GetParentFolders().IsEmpty()) {
         app_.ExtractArchives(services); // Original archive branch delegates to OnCopy.
         return;
@@ -191,12 +193,14 @@ void MainWindow::createDialog() {
                                             showDialog);
         };
     QtShellArchiveServices services(
-        *backend_, this, {}, std::move(independent), {},
-        [&](CCompressDialog &source, const CObjectVector<NWildcard::CCensorPath> &paths,
-            QWidget *parent) {
-            dialogShown = true;
-            return CreateArchiveDialog::PresentSource(source, paths, catalog, parent);
-        },
+        *backend_, this,
+        {.Compress = std::move(independent),
+         .Modal =
+             [&](CCompressDialog &source, const CObjectVector<NWildcard::CCensorPath> &paths,
+                 QWidget *parent) {
+                 dialogShown = true;
+                 return CreateArchiveDialog::PresentSource(source, paths, catalog, parent);
+             }},
         toolbarSettingsPath());
     setState(State::Operating);
     {
