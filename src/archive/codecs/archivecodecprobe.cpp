@@ -9,14 +9,17 @@
 #include <QScopeGuard>
 #include <atomic>
 #include <new>
+#include <utility>
 
 struct ArchiveCodecProbe::Work {
     std::atomic<bool> cancelled{false};
     std::atomic<bool> timedOut{false};
     const QDeadlineTimer deadline;
     ArchiveCodecProbeResult result;
+    std::function<void(ArchiveCodecProbeResult)> completion;
 
-    explicit Work(int timeoutMs) : deadline(qMax(1, timeoutMs), Qt::PreciseTimer) {}
+    Work(int timeoutMs, std::function<void(ArchiveCodecProbeResult)> callback)
+        : deadline(qMax(1, timeoutMs), Qt::PreciseTimer), completion(std::move(callback)) {}
 
     bool Stopped() {
         if (deadline.hasExpired())
@@ -71,10 +74,10 @@ ArchiveCodecProbe::~ArchiveCodecProbe() {
 bool ArchiveCodecProbe::Start(const QString &module,
                               std::function<void(ArchiveCodecProbeResult)> completion,
                               int timeoutMs) {
-    if (active_)
+    if (work_)
         return false;
     try {
-        const auto work = std::make_shared<Work>(timeoutMs);
+        const auto work = std::make_shared<Work>(timeoutMs, std::move(completion));
         std::unique_ptr<QThread> loader(QThread::create([work, module] {
             try {
                 work->result = Discover(module, work);
@@ -109,10 +112,8 @@ bool ArchiveCodecProbe::Start(const QString &module,
             return false;
         // Publish only fully prepared owners. Queued delivery cannot consume
         // this state until Start has returned to the owning event loop.
-        completion_ = std::move(completion);
         work_ = work;
         loader_ = std::move(loader);
-        active_ = true;
         return true;
     } catch (...) {
         return false;
@@ -120,21 +121,21 @@ bool ArchiveCodecProbe::Start(const QString &module,
 }
 
 void ArchiveCodecProbe::Cancel() {
-    if (active_)
+    if (work_)
         work_->cancelled = true;
 }
 
 void ArchiveCodecProbe::Complete(ArchiveCodecProbeResult result) {
-    if (work_->cancelled || work_->timedOut) {
+    const auto work = std::move(work_);
+    if (work->cancelled || work->timedOut) {
         result.catalog.reset();
         result.result = E_ABORT;
         result.error =
-            work_->timedOut
+            work->timedOut
                 ? QCoreApplication::translate("archivecodecprobe", "Codec discovery timed out.")
                 : QCoreApplication::translate("archivecodecprobe", "Codec discovery cancelled.");
     }
-    active_ = false;
-    const auto completion = std::move(completion_);
+    const auto completion = std::move(work->completion);
     if (completion)
         completion(std::move(result));
 }

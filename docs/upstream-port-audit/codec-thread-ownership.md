@@ -1,5 +1,35 @@
 # Shared codec owner across native workers — 2026-10-18
 
+## Discovery request lifetime — 2026-11-01
+
+Reviewed probe preparation, queued delivery, cancellation/deadline, join,
+destruction and backend publication with opening/startup consumers. Rechecked
+the unchanged native loading boundary against recorded LoadCodecs.cpp/.h at
+`b88c6bc09339de32f7d18bbab900686b244f42ba` in
+<https://github.com/ip7z/7zip.git>; complete original units match their existing
+baseline hashes. No native loading code is imported, replaced or omitted.
+
+The discovery request now owns its completion callback alongside the result and
+stop/deadline state. Its presence defines probe activity; the separate callback
+member and active flag are removed. Joined completion detaches the request before
+calling a consumer, so a reentrant retry has its own owner and a consumer may
+destroy the probe. Worker identity, unpublished-start cleanup, deadline/error
+policy and the backend's separate queued publication state remain unchanged.
+That backend state still spans the interval after the probe finishes and before
+catalog publication on the GUI thread.
+
+New public callback cases retry or destroy the probe from completion, checking
+one result per accepted request and readiness for retry. Existing cases retain
+native loading, rejected concurrent starts, failure/cancellation, deadlines,
+responsiveness and joined teardown coverage. No private representation test or
+pre-fix product failure is claimed.
+
+Linux acceptance passed `codec_probe`, `codec_catalog`, `agent_opening` and
+`codec_commands_ui`. Only the portable request owner changed; native module
+loading and platform branches are untouched, so no secondary OS was selected.
+Checks reused incremental outputs, compiler cache and the four-job default.
+No full/slow gate or appearance acceptance is claimed.
+
 Source: <https://github.com/ip7z/7zip.git>, commit
 `9128b80e3a471108678e2b3ec3c985861c8d7b0f`.
 Reviewed complete `UI/Common/LoadCodecs.h` ownership declarations,

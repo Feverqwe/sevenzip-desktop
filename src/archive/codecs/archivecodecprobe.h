@@ -17,8 +17,6 @@ class ArchiveCodecProbe final : public QObject {
     struct Work;
     std::unique_ptr<QThread> loader_;
     std::shared_ptr<Work> work_;
-    std::function<void(ArchiveCodecProbeResult)> completion_;
-    bool active_ = false;
     static int DefaultTimeoutMs();
     static ArchiveCodecProbeResult Discover(const QString &module,
                                             const std::shared_ptr<Work> &work);
@@ -33,5 +31,5 @@ class ArchiveCodecProbe final : public QObject {
     bool Start(const QString &module, std::function<void(ArchiveCodecProbeResult)> completion,
                int timeoutMs = DefaultTimeoutMs());
     void Cancel();
-    bool active() const { return active_; }
+    bool active() const { return bool(work_); }
 };
