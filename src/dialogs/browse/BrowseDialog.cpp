@@ -724,17 +724,19 @@ bool CBrowseInfo::BrowseForFile(const CObjectVector<CBrowseFilterInfo> &filters)
         }
         filters2.Add(s);
     }
-    const UString storedPath = FilePath;
+    NWindows::CCommonDialogInfo request = *this;
     UString dirPrefix;
     FString prefix, name;
     if (NDir::GetFullPathAndSplit(us2fs(FilePath), prefix, name)) {
         dirPrefix = fs2us(prefix);
-        FilePath = fs2us(name);
+        request.FilePath = fs2us(name);
     }
-    if (CommonDlg_BrowseForFile(!dirPrefix.IsEmpty() ? dirPrefix.Ptr() : nullptr, filters2))
-        return true;
-    FilePath = storedPath;
-    return false;
+    if (!request.CommonDlg_BrowseForFile(!dirPrefix.IsEmpty() ? dirPrefix.Ptr() : nullptr,
+                                         filters2))
+        return false;
+    FilePath = request.FilePath;
+    FilterIndex = request.FilterIndex;
+    return true;
 }
 
 #ifdef _WIN32

@@ -175,12 +175,22 @@ class BrowseDialogTests final : public QObject {
         filters[1].Masks.Add(UString("*"));
         browse.FilePath = ToUString(selected);
         browse.FilterIndex = 1;
-        widgetDialogs_.respond(*this, [](QDialog &active) {
-            if (auto *dialog = qobject_cast<QFileDialog *>(&active))
+        const QString cancelled = fixture.filePath(QStringLiteral("отменённый выбор.7z"));
+        bool edited = false;
+        widgetDialogs_.respond(*this, [&](QDialog &active) {
+            if (auto *dialog = qobject_cast<QFileDialog *>(&active)) {
+                dialog->setFocus();
+                dialog->selectNameFilter(dialog->nameFilters().front());
+                dialog->selectFile(cancelled);
+                edited = dialog->selectedFiles() == QStringList{cancelled} &&
+                         dialog->selectedNameFilter() == dialog->nameFilters().front();
                 dialog->reject();
+            }
         });
         QVERIFY(!browse.BrowseForFile(filters));
+        QVERIFY(edited);
         QCOMPARE(ToQString(browse.FilePath), selected);
+        QCOMPARE(browse.FilterIndex, 1);
         widgetDialogs_.respond(*this, [selected](QDialog &active) {
             if (auto *dialog = qobject_cast<QFileDialog *>(&active)) {
                 dialog->setFocus();
