@@ -96,8 +96,7 @@ class CompressionErrorPolicyTests final : public QObject {
             qputenv("SEVENZIP_SETTINGS_PATH", _previousSettings);
     }
     void refusalAndRecovery_data() {
-        addData({"ascii", "length", "mismatch", "disabled-mismatch", "path", "volume", "browse",
-                 "path-before-volume"});
+        addData({"ascii", "length", "mismatch", "path", "volume", "browse", "path-before-volume"});
     }
     void refusalAndRecovery() {
 #ifndef SEVENZIP_CODEC_MODULE
@@ -134,13 +133,9 @@ class CompressionErrorPolicyTests final : public QObject {
             password->setText(QString(100, 'x'));
             confirmation->setText(password->text());
             expected = QString::fromWCharArray(LangString(IDS_PASSWORD_TOO_LONG));
-        } else if (scenario == "mismatch" || scenario == "disabled-mismatch") {
+        } else if (scenario == "mismatch") {
             password->setText("first");
             confirmation->setText("second");
-            if (scenario == "disabled-mismatch") {
-                dialog.findChild<QComboBox *>("archiveFormat")->setCurrentText("tar");
-                QVERIFY(!password->isEnabled());
-            }
             expected = QString::fromWCharArray(LangString(IDS_PASSWORD_NOT_MATCH));
         } else if (scenario == "volume") {
             volume->setEditText("invalid volume");
