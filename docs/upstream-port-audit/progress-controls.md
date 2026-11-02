@@ -83,3 +83,33 @@ dialog adapter changed, so secondary OS checks were not selected. Whitespace and
 source-inventory checks passed, completed test settings were removed, and builds
 used configured four-job defaults with incremental outputs and compiler caches.
 No full/slow gate or new rendered appearance acceptance is claimed.
+
+## Consuming checksum result availability — 2026-11-02
+
+Reviewed complete CRC/copy worker result preparation, GUI completion hooks and
+post-Create fallback consumers against original PanelCrc.cpp and PanelCopy.cpp.
+Each worker is constructed for one operation. Readiness is published before the
+completion hook, and the fallback follows the joined Create call; neither worker
+writes result readiness after its first presentation.
+
+Each worker now keeps one pending-result flag instead of separate readiness and
+already-shown flags. Presentation consumes it before opening the modal result
+view, retaining protection against nested delivery and the fallback call. The
+original publication points remain: CRC can show a completed summary with
+accumulated errors, while copy requires its previous success/no-message-error/
+hash-method conditions. Hash contents, cancellation, source algorithms and
+result policy are unchanged; no new source import or baseline advance occurs.
+
+Public CRC and archive checksum cases count actual result windows and verify
+their digest. This detects duplicate completion/fallback presentation through
+user-visible behavior. Reviewing direct consumers also found two native hash
+fixtures still using the constructor from before the validated-provider handoff;
+they now supply the explicit built-in provider inventory used by those cases.
+
+Linux native_hash_workflow, checksum and operation_hash passed 37 checks without
+skips, including both once-only window checks and independent panel hash flows.
+Only shared result ownership and portable test consumers changed; no OS branch
+changed, so secondary OS checks were not selected. Original PanelCrc.cpp and
+PanelCopy.cpp inventory hashes, source inventory and whitespace checks passed.
+Configured four-job builds reused incremental outputs and compiler caches;
+completed test settings were removed. No full/slow or visual gate ran.

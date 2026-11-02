@@ -21,8 +21,7 @@
 #include "7zip/UI/GUI/ExtractRes.h"
 
 class CPanelCopyThread : public CProgressThreadVirt {
-    bool ResultsWereShown;
-    bool NeedShowRes;
+    bool ResultsPending;
 
     HRESULT ProcessVirt() Z7_override;
     virtual void ProcessWasFinished_GuiVirt() Z7_override;
@@ -43,17 +42,16 @@ class CPanelCopyThread : public CProgressThreadVirt {
     void ShowFinalResults(QWidget *hwnd);
 
     CPanelCopyThread()
-        : ResultsWereShown(false), NeedShowRes(false), CopyFrom_Paths(NULL)
+        : ResultsPending(false), CopyFrom_Paths(NULL)
     // , Result2(E_FAIL)
     {}
 };
 
 void CPanelCopyThread::ShowFinalResults(QWidget *hwnd) {
-    if (NeedShowRes)
-        if (!ResultsWereShown) {
-            ResultsWereShown = true;
-            ShowHashResults(Hash, hwnd);
-        }
+    if (!ResultsPending)
+        return;
+    ResultsPending = false;
+    ShowHashResults(Hash, hwnd);
 }
 
 void CPanelCopyThread::ProcessWasFinished_GuiVirt() { ShowFinalResults(this); }
@@ -111,7 +109,7 @@ HRESULT CPanelCopyThread::ProcessVirt() {
 
     if (result2 == S_OK && !ExtractCallbackSpec->ThereAreMessageErrors) {
         if (!options->hashMethods.IsEmpty())
-            NeedShowRes = true;
+            ResultsPending = true;
         else if (options->testMode) {
             CProgressMessageBoxPair &pair =
                 GetMessagePair(false); // GetMessagePair(ExtractCallbackSpec->Hash.NumErrors != 0);

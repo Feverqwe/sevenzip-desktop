@@ -154,8 +154,7 @@ DWORD CDirEnumerator::GetNextFile(NFind::CFileInfo &fi, bool &filled, FString &r
 }
 
 class CThreadCrc : public CProgressThreadVirt {
-    bool ResultsWereShown;
-    bool WasFinished;
+    bool ResultsPending;
 
     HRESULT ProcessVirt() Z7_override;
     virtual void ProcessWasFinished_GuiVirt() Z7_override;
@@ -169,15 +168,14 @@ class CThreadCrc : public CProgressThreadVirt {
     void AddErrorMessage(DWORD systemError, const FChar *name);
     void ShowFinalResults(QWidget *hwnd);
 
-    CThreadCrc() : ResultsWereShown(false), WasFinished(false) {}
+    CThreadCrc() : ResultsPending(false) {}
 };
 
 void CThreadCrc::ShowFinalResults(QWidget *hwnd) {
-    if (WasFinished)
-        if (!ResultsWereShown) {
-            ResultsWereShown = true;
-            ShowHashResults(Hash, hwnd);
-        }
+    if (!ResultsPending)
+        return;
+    ResultsPending = false;
+    ShowHashResults(Hash, hwnd);
 }
 
 void CThreadCrc::ProcessWasFinished_GuiVirt() { ShowFinalResults(this); }
@@ -320,7 +318,7 @@ HRESULT CThreadCrc::ProcessVirt() {
     SetStatus(L"");
 
     CProgressMessageBoxPair &pair = GetMessagePair(Hash.NumErrors != 0);
-    WasFinished = true;
+    ResultsPending = true;
     LangString(IDS_CHECKSUM_INFORMATION, pair.Title);
     return S_OK;
 }
