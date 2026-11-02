@@ -1,5 +1,33 @@
 # Split/Combine plan ownership — 2026-11-01
 
+## Input consistency snapshots — 2026-11-02
+
+Rechecked the complete original PanelSplitFile unit, its source plans/workers
+and current Qt validation, progress, transaction and window consumers. The
+original inventory still matches its recorded hash. Native algorithms and
+plan preparation are unchanged; no external source is imported or baseline
+advanced.
+
+Qt post-operation consistency checks now use one private input record holding
+the path and its initial size. Combine no longer coordinates paths and captured
+sizes by index in separate lists. Split uses the same existing file-type,
+symlink and size check before output publication. Failure messages, check order,
+rollback and cancellation remain unchanged. This preserves the existing check's
+limits; it does not introduce a content or file-identity guarantee.
+
+Prepared native plans and lazy path requests retain their distinct preparation
+timing, including destination snapshots, invalid-size diagnostics and part
+discovery. Existing regressions exercise exact round-trip bytes, changed/missing
+parts, completed-part growth, source growth/shrinkage, collisions, cancellation,
+rollback and subsequent command readiness. No new test is added for the record
+representation or private helper.
+
+Linux focused validation passed volume_operations, volume_workflow and
+worker_window_progress: 77 Qt checks without skips. This validates the portable
+input-check owner and its operation/window consumers; no new Windows/macOS or
+appearance acceptance is claimed. Completed test settings and the disposable
+reference extraction were removed; incremental builds/compiler caches retained.
+
 ## Output transaction records
 
 Rechecked the original workers, naming, preallocation, discovery and command
