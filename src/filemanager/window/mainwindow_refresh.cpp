@@ -60,10 +60,14 @@ HRESULT MainWindow::reloadPanelPresentation(unsigned index, const CSelectedState
         refreshActions();
         return loaded;
     }
-    const int firstRow = projectedUi().table->rowAt(0);
+    auto *view = qobject_cast<QAbstractItemView *>(projectedUi().viewStack->currentWidget());
+    const QString topPath =
+        view == projectedUi().table
+            ? view->model()->index(projectedUi().table->rowAt(0), 1).data().toString()
+            : QString();
     const FilesystemViewport viewport(
-        projectedUi().directory, projectedUi().table->model()->index(firstRow, 1).data().toString(),
-        projectedUi().table->verticalScrollBar()->value());
+        view, projectedUi().directory, topPath,
+        QPoint(view->horizontalScrollBar()->value(), view->verticalScrollBar()->value()));
     return refreshFilesystem(selection, true, viewport);
 }
 
@@ -186,16 +190,22 @@ void MainWindow::restoreAutoRefreshViewport() {
     const auto viewport = std::exchange(panelUi_[projectedPanel_].pendingViewport, std::nullopt);
     if (!viewport || viewport->directory != projectedUi().directory)
         return;
+    auto *view = viewport->view.data();
+    if (!view || view != projectedUi().viewStack->currentWidget())
+        return;
+    view->doItemsLayout();
     int row = -1;
-    for (int i = 0; i < projectedUi().table->rowCount(); ++i) {
-        if (projectedUi().table->model()->index(i, 1).data().toString() == viewport->topPath) {
-            row = i;
-            break;
+    if (view == projectedUi().table) {
+        for (int i = 0; i < projectedUi().table->rowCount(); ++i) {
+            if (view->model()->index(i, 1).data().toString() == viewport->topPath) {
+                row = i;
+                break;
+            }
         }
     }
     if (row >= 0)
-        projectedUi().table->scrollTo(projectedUi().table->model()->index(row, 0),
-                                      QAbstractItemView::PositionAtTop);
+        view->scrollTo(view->model()->index(row, 0), QAbstractItemView::PositionAtTop);
     else
-        projectedUi().table->verticalScrollBar()->setValue(viewport->scrollValue);
+        view->verticalScrollBar()->setValue(viewport->scrollPosition.y());
+    view->horizontalScrollBar()->setValue(viewport->scrollPosition.x());
 }

@@ -54,6 +54,7 @@ struct QtOperationResult;
 #include <QMimeData>
 #include <QPainter>
 #include <QPlainTextEdit>
+#include <QPoint>
 #include <QPointer>
 #include <QPushButton>
 #include <QRegularExpression>
@@ -222,11 +223,13 @@ class MainWindow : public QMainWindow {
     HRESULT finishSynchronousFilesystemListing(HRESULT result);
     HRESULT startFilesystemScan(IFolderFolder *folder, bool flat);
     struct FilesystemViewport {
-        FilesystemViewport(const QString &folder, const QString &top, int position)
-            : directory(folder), topPath(top), scrollValue(position) {}
+        FilesystemViewport(QAbstractItemView *source, const QString &folder, const QString &top,
+                           const QPoint &position)
+            : view(source), directory(folder), topPath(top), scrollPosition(position) {}
+        QPointer<QAbstractItemView> view;
         QString directory;
         QString topPath;
-        int scrollValue;
+        QPoint scrollPosition;
     };
     HRESULT refreshFilesystem(const CSelectedState &selection, bool sourceAlreadyBound,
                               std::optional<FilesystemViewport> viewport = std::nullopt);

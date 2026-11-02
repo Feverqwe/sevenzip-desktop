@@ -1,5 +1,47 @@
 # Automatic refresh state ownership — 2026-10-31
 
+## Active view viewport — 2026-11-02
+
+Reviewed the complete refresh routing, polling, snapshot consumption, filesystem
+publication/selection completion and active-view creation. Compared original
+PanelItems OnTimer/OnReload at recorded
+`b88c6bc09339de32f7d18bbab900686b244f42ba`; its complete original hash matches
+the existing baseline. Native enumeration, change detection and selection
+algorithms remain unchanged. No import or provenance advancement.
+
+The pending viewport now identifies the active Qt item view and retains both
+scroll axes. Previously capture and restoration always used the table, even
+when an icon/list presentation was active. After reloading, native selection
+restoration could then move the visible list without restoring its position.
+The view's layout is completed before applying its saved bars. The table keeps
+its existing top-file anchor and vertical fallback; horizontal position is
+restored after scrollTo. Icons/lists retain their own horizontal and vertical
+positions. The pending record is still consumed before callbacks, remains
+directory-scoped and rejects a deleted or no-longer-current view.
+
+No new grid anchoring or pixel/item conversion policy is introduced. The three
+icon/list modes share one widget, but view-mode commands are disabled during a
+scan; no separate mode-change race is claimed. Native scan joining, notification
+guards, small-folder behavior, deferred selection and independent panel state
+are preserved. No widget layout, labels or style changes.
+
+Six new behavior rows change file contents in all three icon/list modes, using
+small and larger private folders. They check retained selection and both scroll
+axes after automatic refresh. Pre-fix Linux failed four rows: vertical position
+changed for the larger icon modes and horizontal position changed in both List
+cases. Existing table/peer, missing-folder, disabled-refresh, modal and async
+completion regressions remain useful. No private-state/source assertion is
+added.
+
+Linux focused validation `20261102T080043Z-8edaa33c`: panel_auto_refresh,
+filesystem_reload, filesystem_selection_runtime, modal_refresh_window and
+panel_refresh_completion passed (152 Qt checks, no skips). Build 73.542 s,
+tests 31.608 s, existing incremental outputs and compiler cache retained.
+Removed five completed-run settings files. Astra independently reviewed the
+changed source and completion order without duplicating runtime validation.
+Windows/macOS were not run; native platform services and view geometry settings
+are unchanged, and this is Linux runtime evidence only.
+
 ## Filesystem publication ownership — 2026-11-01
 
 Compared original FSFolder `LoadSubItems`/`LoadItems`, their folder types and
