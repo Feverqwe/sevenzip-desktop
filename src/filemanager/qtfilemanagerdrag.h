@@ -48,7 +48,6 @@ class QtFileManagerDrag final : public QObject,
     QPointer<QtNativePanelDragConverter> nativeConverter_;
 #endif
     bool active_ = false, revoked_ = false;
-    bool menuDrag_ = false;
     struct RightPress {
         QPointer<QWidget> widget;
         QPoint position;

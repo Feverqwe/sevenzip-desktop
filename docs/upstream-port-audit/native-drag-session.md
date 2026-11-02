@@ -1,5 +1,32 @@
 # Native drag session ownership — 2026-10-18
 
+## Shared drop-menu decision — 2026-11-02
+
+Compared original target ClearState, DragEnter, DragOver, DragLeave and Drop,
+their button/source-flag types and consumers at recorded 7-Zip revision
+`9128b80e3a471108678e2b3ec3c985861c8d7b0f` from
+<https://github.com/ip7z/7zip.git>. The complete PanelDrag.cpp inventory hash
+matches the existing baseline. Current Qt input, drop-choice and native target
+consumers were reviewed together; no source handler algorithm is changed or
+imported.
+
+The Qt Open/Create archive choice now reads the target's existing menu-drop
+state through a const boundary. It no longer maintains another flag from
+DragEnter. Right/middle-button retention, source transfer-flag precedence and
+session cleanup stay with the target that already owns those decisions. The
+current-event button check, ordinary external path choice, native context menu,
+copy/move effects, source publication, cancellation and pending right-press
+gesture retain their respective owners.
+
+Existing public regressions cover source button flags, middle-button Drop after
+release, both panels/views, cancellation, and opening/compressing/cancelling
+Unicode archive or directory drops. No getter/representation test is needed.
+Linux passed drag_protocol, drag_drop_ui and dropped_path_choice: 49 checks,
+no skips. Inventory and whitespace checks pass. This common Qt state change
+does not alter native COM/OS gestures, layouts or text; no new secondary-platform
+or rendered-reference acceptance is claimed. Incremental outputs/compiler caches
+were retained, and completed test settings were removed.
+
 ## Qt transport failure boundary — 2026-11-02
 
 Reviewed the complete Qt transport/controller and source OnDrag, data materializing,
