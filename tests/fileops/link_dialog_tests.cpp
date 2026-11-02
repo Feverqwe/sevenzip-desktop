@@ -235,6 +235,45 @@ class LinkDialogTests final : public QObject {
                      relative ? QFileInfo(target).fileName() : QDir::toNativeSeparators(target));
         }
     }
+    void embeddedTerminatorDoesNotCreateTruncatedLink_data() {
+        QTest::addColumn<bool>("from");
+        QTest::newRow("link-path") << true;
+        QTest::newRow("target-path") << false;
+    }
+    void embeddedTerminatorDoesNotCreateTruncatedLink() {
+        QFETCH(bool, from);
+        QTemporaryDir directory;
+        QVERIFY(directory.isValid());
+        const QString target = directory.filePath(QStringLiteral("цель 空.txt"));
+        const QString link = directory.filePath(QStringLiteral("ссылка 空.txt"));
+        QFile original(target);
+        QVERIFY(original.open(QIODevice::WriteOnly));
+        QCOMPARE(original.write("protected bytes"), qint64(15));
+        original.close();
+        const QString suffix = QChar::Null + QStringLiteral("suffix");
+        CLinkDialog rejected;
+        rejected.FilePath = target.toStdWString().c_str();
+        QString error;
+        QCOMPARE(run(rejected, from ? link + suffix : link, from ? target : target + suffix,
+                     IDR_LINK_TYPE_HARD, false, &error),
+                 int(QDialog::Rejected));
+        QVERIFY(!error.isEmpty());
+        QVERIFY(!QFileInfo::exists(link));
+        QVERIFY(!QFileInfo(link).isSymLink());
+        QVERIFY(original.open(QIODevice::ReadOnly));
+        QCOMPARE(original.readAll(), QByteArray("protected bytes"));
+        original.close();
+        CLinkDialog corrected;
+        corrected.FilePath = target.toStdWString().c_str();
+        error.clear();
+        QCOMPARE(run(corrected, link, target, IDR_LINK_TYPE_HARD, false, &error),
+                 int(QDialog::Accepted));
+        QVERIFY2(error.isEmpty(), qPrintable(error));
+        QFile created(link);
+        QVERIFY(created.open(QIODevice::ReadOnly));
+        QCOMPARE(created.readAll(), QByteArray("protected bytes"));
+    }
+
     void relativeTargetClassification_data() {
         QTest::addColumn<bool>("directoryTarget");
         QTest::addColumn<bool>("wrongType");

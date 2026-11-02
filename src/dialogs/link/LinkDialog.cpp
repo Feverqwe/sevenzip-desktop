@@ -190,7 +190,10 @@ bool CLinkDialog::OnButtonClicked(unsigned buttonID, QWidget *buttonHWND) {
 void CLinkDialog::OnButton_SetPath(bool to) {
     UString currentPath;
     CQtLinkCombo &combo = to ? _pathToCombo : _pathFromCombo;
-    combo.GetText(currentPath);
+    if (!combo.GetText(currentPath)) {
+        ShowError(NError::MyFormatMessage(E_INVALIDARG));
+        return;
+    }
     // UString title = "Specify a location for output folder";
     const UString title = LangString(IDS_SET_FOLDER);
 
@@ -210,8 +213,10 @@ void CLinkDialog::ShowLastErrorMessage() { ShowError(NError::MyFormatMessage(Get
 
 void CLinkDialog::OnButton_Link() {
     UString from, to;
-    _pathFromCombo.GetText(from);
-    _pathToCombo.GetText(to);
+    if (!_pathFromCombo.GetText(from) || !_pathToCombo.GetText(to)) {
+        ShowError(NError::MyFormatMessage(E_INVALIDARG));
+        return;
+    }
 
     if (from.IsEmpty())
         return;
