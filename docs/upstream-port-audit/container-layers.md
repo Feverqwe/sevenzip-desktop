@@ -1545,6 +1545,32 @@ skipped rows. These cover acceptance/completion order, observer/parent deletion,
 crash/retry, cancellation, output retention and panel refresh. Existing
 incremental builds and compiler caches were reused; no full or slow suites ran.
 
+### Independent operation channel owner — 2026-11-02
+
+Rechecked the complete launcher, endpoint and native process adapter, backend
+launch methods and manager result/refresh consumers. Original Call7zGui,
+mapping/event preparation and process release were compared at
+`b88c6bc09339de32f7d18bbab900686b244f42ba`; the complete original
+Common/CompressCall.cpp hash matches the recorded baseline. No source import or
+provenance advancement.
+
+The private Remote Objects channel now retains an explicit reference to its
+owning observer instead of four mutable std::function forwarding callbacks.
+Acceptance, rejection, output accumulation and completion handling have named
+private bodies outside construction. Channel, host and observer retain their
+existing lifetime/destruction order. Deferred public acceptance still leaves
+the QtRO dispatch stack before a receiver can delete the observer; output/result
+ordering, startup deadlines, native process observation and independent child
+lifetime remain unchanged. Generated IPC and public signals are unchanged.
+
+Existing behavior coverage is sufficient for this extraction: no new tests pin
+the private structure. Linux primary run `20261102T021909Z-a9476ede` passed
+operation_protocol, operation_launcher, operation_extraction and
+gui_output_refresh: 38 checks, no skips. Build 25.982 s; tests 3.712 s.
+This validates the portable channel/observer dispatch; native Windows/macOS
+launch and UI behavior were not newly accepted. Selected scratch directories
+were empty; incremental builds and compiler caches retained. No full/slow gate.
+
 ### Selected-folder extraction path projection — 2026-11-01
 
 Rechecked original ArchiveExtractCallback CorrectPathParts and its extract/hash

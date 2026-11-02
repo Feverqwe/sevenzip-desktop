@@ -20,6 +20,11 @@ class QtOperationLauncher final : public QObject {
     void finished(const QtOperationResult &result);
 
   private:
+    class Channel;
+    void acceptRequest();
+    void rejectRequest(const QString &error);
+    void recordOutputs(const QStringList &directories, const QStringList &archives);
+    bool completeRequest(const OperationReport &report);
     void observe();
     void finish(QtOperationResult result);
     void protocolFailure(const QString &error);
