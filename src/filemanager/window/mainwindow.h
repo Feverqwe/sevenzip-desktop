@@ -150,7 +150,7 @@ class MainWindow : public QMainWindow {
     void transferFromArchive(const QString &destination, bool move, bool copyToSame,
                              unsigned sourceIndex, const CRecordVector<UInt32> &indices);
     void createFileTable(QWidget *central);
-    void configureColumns(bool initialized = false);
+    void configureColumns();
     void updateIconColumn();
     void saveColumns();
     void showColumnsMenu(const QPoint &pos);

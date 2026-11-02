@@ -41,7 +41,7 @@ HRESULT MainWindow::renderArchiveFolder(bool updateAddress) {
     if (updateAddress)
         static_cast<QtPanelAddressCombo *>(projectedUi().pathCombo)
             ->ShowCurrentPath(archiveDisplayPath());
-    configureColumns(true);
+    configureColumns();
     appendParentEntry();
     if (archiveFolder->GetNumberOfItems() > 256) {
         // Finish the synchronous source guards before retaining operation

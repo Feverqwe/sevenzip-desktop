@@ -172,6 +172,35 @@ providers/Agent/CPanel algorithms и прежние omissions не измене�
 source-visible заглушек или не подключённых model consumers в выбранном
 scope не осталось.
 
+## Column publication boundary — 2026-11-02
+
+Rechecked native InitColumns/LoadListItems and SaveListViewInfo against the
+current filesystem, archive and namespace publishers and Qt column/menu/sort
+consumers. The complete original PanelItems.cpp inventory matches its recorded
+SHA256 at `b88c6bc09339de32f7d18bbab900686b244f42ba`. No external code is
+imported or provenance advanced.
+
+Every Qt column publisher already receives the initialized catalog after
+successful source LoadListItems. The unused alternate initialization mode and
+its default argument are removed from the private Qt presentation function.
+Source catalog creation remains with the panel, while Qt projects the prepared
+catalog. The configuration guard now restores its prior value through scope
+exit, including unwinding, instead of manually assigning false. Existing save
+and sort consumers still suppress publication of intermediate column settings.
+Native ordering, visibility, duplicate-property behavior, sorting, selection,
+widths and persistence remain unchanged.
+
+Existing public behavior checks cover initialized catalogs, dynamic schemas,
+toggle/reorder/resize, sort and persistence across publication and reopen,
+including both panes and English/Russian. No private-state or removed-argument
+test is added. No new layout/text or source-reader algorithm is introduced.
+
+Linux focused validation passed panel_columns, panel_column_initialization,
+panel_column_menu, panel_column_changes and panel_column_sort: 70 Qt checks
+without skips. This is shared Qt publication/consumer evidence on Linux; no new
+Windows/macOS or rendered-original UI acceptance is claimed. Completed settings
+were removed; incremental build trees/compiler caches retained.
+
 ## Column customization bindings — 2026-10-31
 
 Compared the complete baseline `PanelItems.cpp::InitColumns`,

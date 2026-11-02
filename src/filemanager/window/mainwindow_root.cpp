@@ -51,7 +51,7 @@ HRESULT MainWindow::renderRootFolder(bool updateAddress) {
         return finish(result);
     const UInt32 count = panel.GetLoadedItemCount();
     recordVisitedPath(ToQString(panel.GetCurrentFolderPrefix()));
-    configureColumns(true);
+    configureColumns();
     appendParentEntry();
     for (UInt32 index = 0; index < count; ++index) {
         NWindows::NCOM::CPropVariant name;

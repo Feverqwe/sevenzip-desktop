@@ -45,7 +45,7 @@ HRESULT MainWindow::startFilesystemListing(bool sourceAlreadyBound, bool updateA
             }
         }
         if (result == S_OK) {
-            configureColumns(true);
+            configureColumns();
             appendParentEntry();
             auto *spec = static_cast<NFsFolder::CFSFolder *>((IFolderFolder *)folder);
             for (UInt32 i = 0; i < spec->Files.Size(); ++i) {
@@ -134,7 +134,7 @@ void MainWindow::connectFilesystemScanner() {
                             failFilesystemListing(loaded);
                             return;
                         }
-                        configureColumns(true);
+                        configureColumns();
                         appendParentEntry();
                     });
                 });
