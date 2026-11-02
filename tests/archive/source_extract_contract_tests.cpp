@@ -8,6 +8,27 @@
 #include <QtTest>
 using namespace SourceExtractFixture;
 namespace {
+class CRejectedOutput final : public ISequentialOutStream, public CMyUnknownImp {
+    Z7_COM_UNKNOWN_IMP_1(ISequentialOutStream)
+    HRESULT _result;
+
+  public:
+    explicit CRejectedOutput(HRESULT result) : _result(result) {}
+    Z7_COM7F_IMF(Write(const void *, UInt32, UInt32 *processed)) override {
+        if (processed)
+            *processed = 0;
+        return _result;
+    }
+};
+
+class CMissingOutputBackend final : public ArchiveBackend {
+  public:
+    void extractSourceEntry(const QString &, const QString &, const QString &, const QString &,
+                            const QString &, bool) override {
+        emit finished(true, {});
+    }
+};
+
 class CContractCallback final : public IArchiveExtractCallback, public CMyUnknownImp {
     Z7_COM_UNKNOWN_IMP_1(IArchiveExtractCallback)
     CMyComPtr2<ISequentialOutStream, CDynBufSeqOutStream> _stream;
@@ -19,6 +40,7 @@ class CContractCallback final : public IArchiveExtractCallback, public CMyUnknow
     QList<QByteArray> Bytes;
     QVector<Int32> Results;
     HRESULT errorResult = E_FAIL;
+    HRESULT writeResult = S_OK;
     Z7_COM7F_IMF(SetTotal(UInt64 total)) override {
         Total = total;
         return S_OK;
@@ -32,6 +54,8 @@ class CContractCallback final : public IArchiveExtractCallback, public CMyUnknow
         Indices.append(index);
         _stream.SetFromCls(new CDynBufSeqOutStream);
         CMyComPtr<ISequentialOutStream> owner = _stream.Interface();
+        if (writeResult != S_OK)
+            owner = new CRejectedOutput(writeResult);
         *stream = owner.Detach();
         return S_OK;
     }
@@ -71,6 +95,74 @@ class CExtractContractWorker final : public CProgressThreadVirt {
 class SourceExtractContractTests final : public QObject {
     Q_OBJECT
   private slots:
+    void outputFailureWinsOverDecodedResult_data() {
+        QTest::addColumn<bool>("damaged");
+        QTest::addColumn<HRESULT>("writeResult");
+        for (bool damaged : {false, true})
+            for (HRESULT result : {HRESULT(E_ABORT), HRESULT(E_FAIL), HRESULT(S_FALSE)})
+                QTest::newRow(qPrintable(QString("%1-%2").arg(damaged).arg(quint32(result))))
+                    << damaged << result;
+    }
+    void outputFailureWinsOverDecodedResult() {
+        QFETCH(bool, damaged);
+        QFETCH(HRESULT, writeResult);
+        QTemporaryDir directory;
+        const QByteArray bytes(256, 'P');
+        QVERIFY(writeFile(directory.filePath(kName), bytes));
+        QProcess process;
+        process.setWorkingDirectory(directory.path());
+        process.start(QStandardPaths::findExecutable("7z"),
+                      {"a", "-tzip", "-mx0", "input.zip", kName});
+        QVERIFY(process.waitForFinished(10000));
+        QCOMPARE(process.exitCode(), 0);
+        const QString path = directory.filePath("input.zip");
+        QByteArray image = readFile(path);
+        if (damaged) {
+            const auto payload = image.indexOf(bytes);
+            QVERIFY(payload > 0);
+            image[payload] = '!';
+            QVERIFY(writeFile(path, image));
+        }
+        CObjectVector<CPanelItem> items;
+        CPanelItem item;
+        item.RelPath = kName;
+        item.SizeDefined = true;
+        item.Size = bytes.size();
+        items.Add(item);
+        CMyComPtr<IFolderFolder> metadata =
+            new QtPanelFolder({}, items, QtPanelFolder::PropertyCatalog::ArchiveTransport);
+        ArchiveBackend backend;
+        CExtractContractWorker worker(backend, path, metadata);
+        worker.DisableUserQuestions = true;
+        worker.Callback->writeResult = writeResult;
+        QCOMPARE(worker.Create(L"Output failure"), S_OK);
+        QCOMPARE(worker.Result, writeResult);
+        QCOMPARE(worker.Callback->Indices, QVector<UInt32>({0}));
+        QVERIFY(worker.Callback->Results.isEmpty());
+        QVERIFY(!backend.busy());
+        QCOMPARE(readFile(path), image);
+    }
+    void missingStagedFileKeepsOriginalError() {
+        QTemporaryDir directory;
+        CObjectVector<CPanelItem> items;
+        CPanelItem item;
+        item.RelPath = kName;
+        item.SizeDefined = true;
+        item.Size = 1;
+        items.Add(item);
+        CMyComPtr<IFolderFolder> metadata =
+            new QtPanelFolder({}, items, QtPanelFolder::PropertyCatalog::ArchiveTransport);
+        CMissingOutputBackend backend;
+        CExtractContractWorker worker(backend, directory.filePath("input.zip"), metadata);
+        worker.DisableUserQuestions = true;
+        worker.Callback->errorResult = E_ABORT;
+        QCOMPARE(worker.Create(L"Missing staging output"), S_OK);
+        QVERIFY(worker.Result != S_OK && worker.Result != S_FALSE && worker.Result != E_ABORT);
+        QCOMPARE(worker.Callback->Results,
+                 QVector<Int32>({NArchive::NExtract::NOperationResult::kDataError}));
+        QCOMPARE(worker.Callback->Bytes, QList<QByteArray>({QByteArray()}));
+        QVERIFY(!backend.busy());
+    }
     void unverifiedBytesRetainCrcErrorAndHealthySiblings_data() {
         QTest::addColumn<QString>("format");
         QTest::newRow("zip") << QString("zip");

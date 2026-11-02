@@ -117,32 +117,25 @@ HRESULT ExtractItems(ArchiveBackend &backend, const QString &archive, const QStr
                 operation = NArchive::NExtract::NOperationResult::kDataError;
             if (output &&
                 (result == S_OK || (result == S_FALSE && QFileInfo::exists(streamPath)))) {
-                const HRESULT decoded = result;
-                CMyComPtr2<ISequentialInStream, CInFileStream> input;
-                input.Create_if_Empty();
+                CMyComPtr2_Create<ISequentialInStream, CInFileStream> input;
                 if (!input->Open(us2fs(streamPath.toStdWString().c_str())))
                     result = GetLastError_noZero_HRESULT();
                 else {
                     CMyComPtr<ICompressProgressInfo> progress =
                         new CExtractStreamProgress(callback, completed);
-                    result = NCompress::CopyStream(input.Interface(), output, progress);
-                    if (result != S_OK)
-                        return result;
-                    result = decoded;
+                    RINOK(NCompress::CopyStream(input.Interface(), output, progress))
                 }
             }
         }
         output.Release();
         // Native engines stop extraction on E_ABORT without reporting a data
         // error for the interrupted item. Preserve that cancellation contract.
-        if (result == E_ABORT)
-            return E_ABORT;
-        const HRESULT reported = callback->SetOperationResult(
-            result == S_OK || result == S_FALSE ? operation
-                                                : NArchive::NExtract::NOperationResult::kDataError);
-        if (result != S_OK && result != S_FALSE)
+        if (result != S_OK && result != S_FALSE) {
+            if (result != E_ABORT)
+                callback->SetOperationResult(NArchive::NExtract::NOperationResult::kDataError);
             return result;
-        RINOK(reported)
+        }
+        RINOK(callback->SetOperationResult(operation))
         if (size.vt == VT_UI8)
             completed += size.uhVal.QuadPart;
     }

@@ -1,5 +1,37 @@
 # State of a new archive request — 2026-10-18
 
+## Staged extraction stream outcomes — 2026-11-02
+
+Reviewed the complete typed file-only extraction adapter, native source-entry
+publication, callback contracts and official CopyCoder error propagation. Native
+decoding, selection/duplicate guards, password handling, staging and partial-data
+eligibility remain unchanged. No external source import or baseline advancement.
+
+Stream transfer now returns its own non-success result directly, leaving the
+saved extraction outcome intact instead of overwriting and restoring it. The
+staged input uses the existing always-created COM owner. Fatal extraction or
+staging-open errors retain a separate path: Cancel has no item-error report,
+other failures report DataError while preserving their original HRESULT.
+Nonfatal item outcomes still reach the original callback and allow healthy
+siblings to continue when accepted. Output release and progress publication
+remain at their existing points.
+
+Public extraction contract cases now reject output writes with E_ABORT, E_FAIL
+and S_FALSE, both after successful decoding and after CRC-damaged partial output.
+They require the write outcome and no completed-item report. A controlled missing
+staged file verifies that the opening error takes priority over an error-report
+callback's Cancel result. Existing cases cover CRC/healthy siblings, native
+selection, password retry/cancellation and cumulative progress. These checks do
+not inspect source text or private adapter structure.
+
+Linux passed the four selected extraction/request suites: 60 checks without
+skips, including all seven new error-precedence cases. Source inventory and
+whitespace checks passed. Shared result handling changed without platform
+branches or native ABI changes, so secondary platforms were not selected.
+Selected scratch was empty before and after validation; configured four-job
+builds retained incremental outputs and compiler caches. No full/slow or
+appearance gate ran.
+
 ## Joining a stopped backend request — 2026-11-02
 
 Reviewed the complete worker-to-GUI request/password helper and source-extraction,
