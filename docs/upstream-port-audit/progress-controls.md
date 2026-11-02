@@ -31,3 +31,31 @@ the progress-language and other UI operation cases passed. These failures are
 recorded separately from acceptance of the removed priority capability.
 Slow suites and a full gate were not run. The runner receipt is
 `20261023T180121Z-40f9b011`; incremental builds and compiler caches were retained.
+
+## Native worker entry owner — 2026-11-02
+
+Compared progress worker entry, creation, exception/result publication, readiness,
+completion and join with their original ProgressDialog2.cpp/.h bodies. Complete
+original units at `b88c6bc09339de32f7d18bbab900686b244f42ba` match the recorded
+inventory hashes. No code is imported or provenance advanced.
+
+The native thread entry now belongs to its progress worker. It receives that
+owner directly on every platform; POSIX no longer needs a separate stack context
+pairing the owner with its own completion latch. The original native callback
+signature/calling convention, Process/result/ThreadFinishedOK order, exception
+handling and final POSIX wake remain unchanged. The modal creation boundary still
+joins the native thread before releasing the owner. FileFolderPluginOpen keeps
+its separate worker entry and existing completion wake; it is not routed through
+the progress worker's entry. No pause, cancellation, message or UI policy changes.
+
+Existing worker tests cover fast completion without a dialog, requested readiness,
+delayed completion, error/exception composition and GUI completion delivery. Wait
+tests cover latched notifications and finish precedence; opening callbacks cover
+the independent native-thread/readiness path. No private entry/context test is added.
+
+Linux progress_worker, progress_wait and open_callback passed 34 checks without
+skips. Windows progress_worker and open_callback then passed 29 checks, validating
+the native callback signature and completion path there. Selected scratch was
+empty before and after both runs. Whitespace and inventory checks passed; builds
+used configured four-job defaults, incremental outputs and compiler caches.
+No new macOS, visual, full or slow-suite acceptance is claimed.
