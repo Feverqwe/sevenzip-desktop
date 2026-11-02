@@ -1,5 +1,52 @@
 # Local read-only SMB: implementation and evidence
 
+## READ reply buffer handoff — 2026-11-02
+
+Compared the complete `lib/smb2-cmd-read.c` inventory unit, headers, vector/PDU
+ownership helpers and synchronous/deferred server consumers at recorded
+libsmb2 revision `1395c54006f0cfb4da5df4b9fd9bf531feffe56a` from
+<https://github.com/sahlberg/libsmb2.git>. The complete original SHA256 remains
+`7b53bf0518b2c58dcc2053ed241695e288a040858b07c70712bb651410fbc998`
+in the existing baseline. The full C unit now belongs to
+`src/dependencies/smb2/smb2-cmd-read.c`; request encoding and receive parsing
+are transferred unchanged, without omitted branches. Three header includes use
+the existing dependency module owners. Copyright and LGPL notices remain intact.
+
+Only `smb2_encode_read_reply` and `smb2_cmd_read_reply_async` change ownership
+handling. Reply data has one owner: the reply retains it until the consuming
+I/O-vector call, which takes it on both success and failure. The common builder
+exit frees any untransferred buffer, including an unused zero-length payload.
+Previously PDU/header allocation failure leaked that buffer, while later errors
+already released it through vector/PDU cleanup. Callers could not repair this
+from a NULL return without risking a duplicate free. Nonempty data with a NULL
+pointer retains its previous invalid-input behavior; this change adds no new
+protocol validation policy. Wire encoding, read limits, STATUS_PENDING, client
+correlation and OS mount/authorization behavior are unchanged.
+
+The unit is removed from the unchanged source archive and mapped to its C owner
+by the existing baseline/overlay tooling. All 109 remaining archive members
+retain their bytes and modes; original hashes/revision are not advanced.
+Ordinary builds need no external checkout or network. Existing reference verify
+and review commands below continue to compare the pinned original with this
+adaptation. The source inventory also now records previously added local
+archive-transfer and child-reaper integration units; no borrowed-source hashes
+are assigned to those local wrappers.
+
+An isolated C probe compiles that same authoritative unit with fixture-only
+allocation/admission failures. It counts releases of a real payload, preserves
+the vector helper's consuming failure contract, checks payload lifetime through
+PDU release, and covers early/late failures and empty replies. Linux reproduced
+both early leaks before the correction. This fixture introduces no production
+allocator hook or separate SMB implementation.
+
+Linux passed `smb2_read_reply`, `smb_readonly_server` and
+`archive_mount_transport`: the nine ownership-probe cases and 19 Qt checks.
+Five existing native OS mount opt-ins remain skipped. The source inventory and
+whitespace checks pass. This is common C buffer ownership, without OS-specific
+or visual changes; no new Windows/macOS, privileged mount or full/slow acceptance
+is claimed. Incremental builds and compiler caches were retained, and the three
+completed suite scratch directories contained no disposable files.
+
 ## Native-client completion cleanup — 2026-11-02
 
 Reviewed the complete remote client/process owner, Linux broker, private control
@@ -287,7 +334,7 @@ commit `1395c54006f0cfb4da5df4b9fd9bf531feffe56a`. The
 including the headers, source/build dependencies and original example used for
 assessment. `adapted` maps original units to their authoritative local owners in
 `third_party/libsmb2`; unchanged dependencies are distinguished from local fixes.
-The reference example is studied, not shipped. The two probes are local API
+The reference example is studied, not shipped. The diagnostic probes are local API
 integration, not copies of its virtual disk implementation.
 
 The library is LGPL-2.1-or-later; notices and the original license are retained in
