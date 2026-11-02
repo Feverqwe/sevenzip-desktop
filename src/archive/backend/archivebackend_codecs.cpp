@@ -233,8 +233,7 @@ HRESULT ArchiveBackend::extractNativeArchive(const std::shared_ptr<ArchiveNative
                                              IArchiveExtractCallback *callback) {
     if (!reader || !reader->arc().Archive)
         return E_NOTIMPL;
-    std::lock_guard<std::mutex> lock(reader->itemStreamMutex());
-    ArchiveInputReadRequestScope readRequest(reader->inputStream(), callback);
+    ArchiveNativeReadScope readRequest(reader, callback);
     if (reader->hasNativeHashExtractor()) {
         RINOK(validateNativeHashReads(*reader, indices, count))
     }

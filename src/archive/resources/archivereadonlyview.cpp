@@ -139,9 +139,8 @@ HRESULT ArchiveReadOnlyView::initialize(QString &error) {
         error = QStringLiteral("This container has no retained native reader.");
         return E_NOINTERFACE;
     }
-    std::lock_guard<std::mutex> lock(state.Reader->itemStreamMutex());
     const auto request = state.readRequest();
-    ArchiveInputReadRequestScope scope(state.Reader->inputStream(), request);
+    ArchiveNativeReadScope scope(state.Reader, request);
     state.Entries.append({1, 0, {}, 0, true});
     state.Paths.insert({}, 1);
     UInt32 count = 0;

@@ -320,6 +320,42 @@ libraries require a newer macOS deployment version than the project's 14.4
 floor; that floor is not accepted for this optional compiler. Windows and Linux
 module builds remain unverified for this iteration.
 
+## Scoped native read ownership — 2026-11-02
+
+Reviewed the complete Qt input-layer/item-stream adapters, native generation
+owner, stream-acquisition worker and their extraction/read-only consumers.
+Compared the original serialized seek/read pattern in
+7zDecode.cpp::CLockedSequentialInStreamMT::Read. Complete original StreamObjects,
+LimitedStreams and 7zDecode inventories match the recorded baseline at
+`b88c6bc09339de32f7d18bbab900686b244f42ba`; no external source is imported or
+provenance advanced.
+
+One scoped Qt context now retains the native reader generation, holds its stream
+mutex and installs the operation's input callback. Destruction restores the
+previous callback before releasing the lock and generation. Item stream factory,
+Read/Seek, native extraction/Test and read-only enumeration use that same owner
+instead of independently pairing a lock and callback guard. This also keeps a
+reader alive while a factory transfers its other reference to the returned
+stream. Initial opening still binds its request before generation publication;
+metadata-only locks retain their existing scope.
+
+The read-only view creates its local cancellation callback before entering this
+context; that callback only references the view's cancellation flag and performs
+no native access during construction. Cursor positions, read bounds, seek/read
+algorithms, cancellation checks, generation replacement and direct-versus-spooled
+input policy are unchanged. Existing public regressions exercise retained
+descendants after parent refresh/window release, independent cursors, current
+factory/read callbacks, cancellation/retry, native extraction/Test and read-only
+views. No new test is added for private guard composition or class names, and no
+pre-fix runtime failure is claimed.
+
+Linux focused validation passed archive_layer_lifetime, archive_layer_chain,
+archive_readonly_view, native_source_extract and native_archive_test: 149 Qt
+checks without skips. This validates the common reader scope and checked direct
+consumers on Linux; no new Windows/macOS, full/slow gate or appearance acceptance
+is claimed. Selected scratch directories are empty; incremental builds/compiler
+caches are retained.
+
 ## Retained native streams and generations
 
 Selected source changes:

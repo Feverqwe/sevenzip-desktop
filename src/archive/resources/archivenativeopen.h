@@ -2,6 +2,7 @@
 
 #include "Windows/FileFind.h"
 #include "archive/opening/OpenArchive.h"
+#include "archive/resources/archiveinputlayer.h"
 #include "crypto/fscrypt/fscryptkeyrequest.h"
 #include <QString>
 #include <memory>
@@ -54,4 +55,17 @@ class ArchiveNativeOpen final : public IOpenCallbackUI, public IFscryptKeyUI {
     QString transportType() const { return transportType_; }
     QString resolvedOpenType() const;
     void CopyVolumeMetadata(CArchiveLink &link) const;
+};
+
+// Keep the reader generation alive until the operation callback is restored
+// and its native stream lock is released.
+class ArchiveNativeReadScope final {
+    std::shared_ptr<ArchiveNativeOpen> reader_;
+    std::lock_guard<std::mutex> lock_;
+    ArchiveInputReadRequestScope request_;
+
+  public:
+    ArchiveNativeReadScope(std::shared_ptr<ArchiveNativeOpen> reader, IProgress *request);
+    ArchiveNativeReadScope(const ArchiveNativeReadScope &) = delete;
+    ArchiveNativeReadScope &operator=(const ArchiveNativeReadScope &) = delete;
 };
