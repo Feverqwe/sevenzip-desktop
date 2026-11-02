@@ -1,5 +1,38 @@
 # Shared codec owner across native workers — 2026-10-18
 
+## Checksum provider handoff — 2026-11-02
+
+Reviewed backend checksum validation, worker startup, pause/cancel, joined
+completion and reentrant output delivery alongside `CExternalCodecs::Load`,
+`CHashBundle::SetMethods`, `HashCalc` and the `HashCalcGUI` worker handoff.
+The original GUI passes an already loaded provider inventory into its worker;
+provider loading enumerates method metadata and retains provider interfaces,
+without establishing a thread-local resource. Existing native implementations
+and their recorded baselines remain unchanged; no external code is imported.
+
+Backend validation previously loaded a provider inventory which it discarded,
+then the Qt worker independently loaded the same catalog again. The validated
+inventory now transfers to the worker through one owning pointer. The retained
+catalog outlives both the provider inventory and result bundle. Unsupported
+methods still fail synchronously before publishing an active worker; native
+method parsing, hasher creation, enumeration, reading, statistics and summary
+generation remain with their existing source owners. Registered built-in
+hashers remain available without an external catalog. Pause/cancel, progress
+generation and detached completion results retain their existing behavior.
+
+Existing checksum and worker-progress regressions cover exact Unicode-path
+digests, invalid methods, pause/cancel, joined cancellation followed by retry,
+backend destruction during output and reentrant failure during summary delivery.
+No private provider-load counter or representation test is added for this
+ownership refactoring.
+
+Focused Linux validation passed checksum, worker_progress and codec_commands_ui:
+42 checks without skips. Only portable ownership and preparation changed; no
+native OS branch, module-loading algorithm or UI appearance changed, so secondary
+platform checks were not selected. Whitespace and source-inventory checks passed.
+Configured four-job builds reused incremental outputs and compiler caches; the
+completed tests' temporary settings were removed. No full or slow gate is claimed.
+
 ## Discovery request lifetime — 2026-11-01
 
 Reviewed probe preparation, queued delivery, cancellation/deadline, join,
