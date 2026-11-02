@@ -9,6 +9,7 @@
 #include <QMenu>
 #include <QPainter>
 #include <QPointer>
+#include <QScopeGuard>
 #include <QWidgetAction>
 #include <QtMath>
 
@@ -187,17 +188,17 @@ struct QtNativeShellMenuPresentation::State : std::enable_shared_from_this<State
         HDC screen = GetDC(window);
         if (!screen)
             return {};
+        const auto releaseScreen = qScopeGuard([&] { ReleaseDC(window, screen); });
         HDC dc = CreateCompatibleDC(screen);
-        HBITMAP bitmap = CreateCompatibleBitmap(screen, size.width(), size.height());
-        if (!dc || !bitmap) {
-            if (dc)
-                DeleteDC(dc);
-            if (bitmap)
-                DeleteObject(bitmap);
-            ReleaseDC(window, screen);
+        if (!dc)
             return {};
-        }
+        const auto releaseDc = qScopeGuard([&] { DeleteDC(dc); });
+        HBITMAP bitmap = CreateCompatibleBitmap(screen, size.width(), size.height());
+        if (!bitmap)
+            return {};
+        const auto releaseBitmap = qScopeGuard([&] { DeleteObject(bitmap); });
         const HGDIOBJ previous = SelectObject(dc, bitmap);
+        auto restoreBitmap = qScopeGuard([&] { SelectObject(dc, previous); });
         DRAWITEMSTRUCT draw{};
         draw.CtlType = ODT_MENU;
         draw.itemID = item.wID;
@@ -212,21 +213,25 @@ struct QtNativeShellMenuPresentation::State : std::enable_shared_from_this<State
         FillRect(dc, &draw.rcItem, GetSysColorBrush(selected ? COLOR_HIGHLIGHT : COLOR_MENU));
         NONCLIENTMETRICSW metrics{};
         metrics.cbSize = sizeof(metrics);
-        HFONT font = SystemParametersInfoW(SPI_GETNONCLIENTMETRICS, sizeof(metrics), &metrics, 0)
-                         ? CreateFontIndirectW(&metrics.lfMenuFont)
-                         : nullptr;
-        const HGDIOBJ previousFont = font ? SelectObject(dc, font) : nullptr;
-        const HRESULT rendered = Message(WM_DRAWITEM, 0, LPARAM(&draw));
-        if (font) {
-            SelectObject(dc, previousFont);
-            DeleteObject(font);
+        HRESULT rendered;
+        {
+            HFONT font =
+                SystemParametersInfoW(SPI_GETNONCLIENTMETRICS, sizeof(metrics), &metrics, 0)
+                    ? CreateFontIndirectW(&metrics.lfMenuFont)
+                    : nullptr;
+            const HGDIOBJ previousFont = font ? SelectObject(dc, font) : nullptr;
+            const auto releaseFont = qScopeGuard([&] {
+                if (font) {
+                    SelectObject(dc, previousFont);
+                    DeleteObject(font);
+                }
+            });
+            rendered = Message(WM_DRAWITEM, 0, LPARAM(&draw));
         }
+        // GetDIBits-based conversion requires the bitmap to be deselected.
         SelectObject(dc, previous);
-        const QImage image = SUCCEEDED(rendered) ? QImage::fromHBITMAP(bitmap) : QImage();
-        DeleteObject(bitmap);
-        DeleteDC(dc);
-        ReleaseDC(window, screen);
-        return image;
+        restoreBitmap.dismiss();
+        return SUCCEEDED(rendered) ? QImage::fromHBITMAP(bitmap) : QImage();
     }
     QSize Measure(const NWindows::CMenuItem &item) {
         MEASUREITEMSTRUCT measure{};

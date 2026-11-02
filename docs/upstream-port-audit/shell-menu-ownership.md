@@ -52,3 +52,34 @@ there; run `20261018T125629Z-c58dd142` does not establish application acceptance
 The focused snapshot above predates that unrelated change. Persistent build
 trees and compiler caches were reused. No full gate, slow suite or visual
 acceptance was run.
+
+## Windows owner-draw resources — 2026-11-02
+
+Rechecked the complete Qt native menu presentation, retained-provider state,
+menu construction, popup/command dispatch and bitmap fixture. Compared native
+PanelMenu CreateSystemMenu and the Menu destroyer contract at recorded 7-Zip
+revision `b88c6bc09339de32f7d18bbab900686b244f42ba`. Owner-draw rendering into a
+Qt image is project presentation glue; the native provider, message ABI, command
+generation and invocation remain unchanged. No external code is imported and
+no baseline revision is advanced.
+
+The drawing function now binds screen/memory DCs, bitmap and font cleanup to
+their scopes. This removes repeated manual failure cleanup and also releases
+resources during C++ unwinding. Previous bitmap/font selections are restored
+before deleting their objects; the bitmap is still deselected before conversion
+to QImage. Normal output, callback messages, menu generations, provider/menu
+lifetimes and layout are unchanged. Exception cleanup is established by source
+review here; no allocation-failure injection or reproduced leak is claimed.
+
+Existing native_menu_presentation checks verify alpha/orientation, callback
+bitmaps, measured/drawn states, native keyboard dispatch, refused measurement,
+submenu behavior and provider/menu release. System/menu-window consumers cover
+construction, command selection and stale actions. No new test is added solely
+to require a particular cleanup implementation.
+
+Windows interactive validation passed native_menu_presentation,
+native_system_menu and shell_menu_window: 44 Qt checks without skips. Only the
+Windows implementation changed, so Linux/macOS suites were not repeated.
+This establishes the checked native rendering and dispatch behavior; no injected
+allocation failure or new rendered-original parity acceptance is claimed.
+Completed settings were removed; incremental builds/compiler caches retained.
