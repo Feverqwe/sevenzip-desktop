@@ -513,3 +513,29 @@ join. Typed metadata opening без retained native reader и учёт томо�
 в этой итерации не запускались: изменение общей передачи callbacks не меняет
 платформенные реализации. Source comparison и runtime evidence имеют указанный
 выше scope; нового визуального parity acceptance нет.
+
+## Folder mutation callback owner — 2026-11-02
+
+Compared original CThreadFolderOperations, its ProcessVirt/DoOperation and
+CreateFolder/Delete/Rename callers at recorded
+`b88c6bc09339de32f7d18bbab900686b244f42ba`. Complete PanelOperations.cpp SHA256
+matches the existing baseline. Reviewed the local comment consumer, progress
+callback implementation, transport scope and worker completion/join boundary.
+The current typed COM owner comes from the already recorded MyCom dependency;
+no source import or provenance advancement.
+
+The common worker now keeps its IProgress reference and concrete update callback
+through one CMyComPtr2 instead of a separately maintained raw pointer/reference
+pair. Allocation still occurs at DoOperation entry, before initialization,
+password inheritance and transport creation. Interface dispatch, one retained
+reference, joined worker lifetime, operation results, cancellation, diagnostics
+and caller-owned selection publication are unchanged. The source algorithms and
+the separate trash/transaction branches are preserved. Existing behavior suites
+exercise these consumers; no representation-only test was added.
+
+Linux `20261102T080659Z-d707aade`: source_delete, source_create,
+panel_rename_state, rename_lifecycle and native_comment_ui passed (131 Qt
+checks, no skips). Build 23.795 s, tests 25.505 s. Astra source review confirmed
+equivalent lifetime/interface conversion. Removed five completed settings files;
+incremental outputs and compiler cache retained. No secondary OS, full/slow
+gate or new visual acceptance was run; platform implementations are unchanged.

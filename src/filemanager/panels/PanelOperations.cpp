@@ -47,8 +47,7 @@ class CThreadFolderOperations : public CProgressThreadVirt {
     UInt32 Index;
     CRecordVector<UInt32> Indices;
     CMyComPtr<IFolderOperations> FolderOperations;
-    CMyComPtr<IProgress> UpdateCallback;
-    CUpdateCallback100Imp *UpdateCallbackSpec;
+    CMyComPtr2<IProgress, CUpdateCallback100Imp> UpdateCallback;
 
     explicit CThreadFolderOperations(EFolderOpType opType) : OpType(opType) {}
     HRESULT DoOperation(CPanel &panel, const UString &progressTitle, const UString &titleError);
@@ -76,18 +75,17 @@ HRESULT CThreadFolderOperations::ProcessVirt() {
 
 HRESULT CThreadFolderOperations::DoOperation(CPanel &panel, const UString &progressTitle,
                                              const UString &titleError) {
-    UpdateCallbackSpec = new CUpdateCallback100Imp;
-    UpdateCallback = UpdateCallbackSpec;
-    UpdateCallbackSpec->ProgressDialog = this;
+    UpdateCallback.SetFromCls(new CUpdateCallback100Imp);
+    UpdateCallback->ProgressDialog = this;
 
     WaitMode = true;
     Sync.FinalMessage.ErrorMessage.Title = titleError;
-    UpdateCallbackSpec->Init();
+    UpdateCallback->Init();
 
     if (!panel.GetParentFolders().IsEmpty()) {
         const CFolderLink &folderLink = panel.GetParentFolders().Back();
-        UpdateCallbackSpec->PasswordIsDefined = folderLink.UsePassword;
-        UpdateCallbackSpec->Password = folderLink.Password;
+        UpdateCallback->PasswordIsDefined = folderLink.UsePassword;
+        UpdateCallback->Password = folderLink.Password;
     }
 
     MainWindow = panel.GetParent();
