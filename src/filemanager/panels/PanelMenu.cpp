@@ -647,9 +647,9 @@ void CPanel::Properties(const CRecordVector<UInt32> &operatedIndices,
                 AddPropertyString(propID, name, prop, message);
             }
         }
-        if (_folderRawProps) {
-            _folderRawProps->GetNumRawProps(&numProps);
-            for (UInt32 i = 0; i < numProps; i++) {
+        UInt32 numRawProps = 0;
+        if (_folderRawProps && _folderRawProps->GetNumRawProps(&numRawProps) == S_OK) {
+            for (UInt32 i = 0; i < numRawProps; i++) {
                 CMyComBSTR name;
                 PROPID propID;
                 if (_folderRawProps->GetRawPropInfo(i, &name, &propID) != S_OK)

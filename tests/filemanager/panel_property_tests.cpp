@@ -1,6 +1,7 @@
 #include "7zip/PropID.h"
 #include "Windows/PropVariant.h"
 #include "Windows/PropVariantConv.h"
+#include "archive/support/schema_folder.h"
 #include "dialogs/listview/ListViewDialog.h"
 #include "filemanager/panels/Panel.h"
 #include "localization/LangUtils.h"
@@ -140,6 +141,37 @@ class PanelPropertyTests : public QObject {
         QCOMPARE(value(dialog, "Изменен"), QString("1970-01-01 00:00:00.123456789Z"));
         QCOMPARE(value(dialog, "Свойство й"), QStringLiteral("значение с пробелом"));
         QCOMPARE(value(dialog, "123456"), QString("42"));
+    }
+
+    void rawCatalogFailureKeepsOtherProperties_data() {
+        QTest::addColumn<bool>("available");
+        QTest::addColumn<bool>("writeCount");
+        QTest::newRow("available") << true << true;
+        QTest::newRow("failed-without-count") << false << false;
+        QTest::newRow("failed-with-written-count") << false << true;
+    }
+    void rawCatalogFailureKeepsOtherProperties() {
+        QFETCH(bool, available);
+        QFETCH(bool, writeCount);
+        auto *schema = new SchemaFolder;
+        CMyComPtr<IFolderFolder> folder = schema;
+        schema->properties = {{kpidName, VT_BSTR, S_OK, {}}};
+        schema->items->firstName = L"документ 空.txt";
+        schema->items->folderPath = L"/properties/папка 空/";
+        schema->rawCountResult = available ? S_OK : E_FAIL;
+        schema->writeRawCount = writeCount;
+        CPanel panel(folder);
+        CRecordVector<UInt32> selected;
+        selected.Add(0);
+        CListViewDialog dialog;
+        panel.Properties(selected, dialog);
+        dialog.OnInit();
+        QCOMPARE(value(dialog, "Имя"), QStringLiteral("документ 空.txt"));
+        QCOMPARE(value(dialog, "CRC"), available ? QString("DEADBEEF") : QString());
+        auto *list = dialog.findChild<QTreeWidget *>("propertiesList");
+        QVERIFY(list);
+        QVERIFY(!list->findItems(QStringLiteral("/properties/папка 空/"), Qt::MatchExactly, 1)
+                     .isEmpty());
     }
 
     void emptyValuesAndFailedCatalogEntriesAreSkipped() {
