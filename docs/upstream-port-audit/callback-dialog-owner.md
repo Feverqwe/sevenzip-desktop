@@ -74,3 +74,28 @@ Only portable callback presentation changed, so no secondary OS was selected.
 Whitespace and source-inventory checks passed; completed temporary settings were
 removed. Configured four-job builds reused incremental outputs and compiler caches.
 No full/slow gate, new rendered appearance or decoder-report runtime claim follows.
+
+## Shared overwrite answer translation — 2026-11-02
+
+Reviewed overwrite button creation/closure, native AskOverwrite and its AskWrite
+consumer, and the backend/filesystem-transfer dialog consumers against original
+ExtractCallback.cpp::AskOverwrite. The callback now reuses the existing Qt
+button-to-answer mapper instead of maintaining its own five-answer switch.
+It still distinguishes the original Cancel result (answer plus E_ABORT) from an
+unknown raw button code (E_FAIL without changing the output answer). The latter
+error branch was source-checked rather than exercised through a fabricated UI
+button. Metadata, question cancellation, Skip/All/Rename policy and native
+extraction/publication remain unchanged. No new interface, imported code or
+provenance change is introduced.
+
+Existing dialog, native batch extraction and archive-move regressions check the
+integrated path through actual button responses and resulting files. No mapping
+constant or source-shape test is added for this boundary consolidation.
+
+Linux extract_prompt, source_extract_backend and archive_move_completion passed
+45 checks without skips. Only portable answer translation changed; no native OS
+branch or layout changed, so secondary OS checks were not selected. Whitespace
+and source-inventory checks passed. Configured four-job builds reused incremental
+outputs and compiler caches. Completed settings and an obsolete isolated runtime
+fixture were removed after checking its stale lock and process references.
+No full/slow gate or new rendered appearance acceptance is claimed.
