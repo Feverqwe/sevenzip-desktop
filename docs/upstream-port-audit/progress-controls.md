@@ -202,3 +202,37 @@ whitespace checks passed. Only shared local ownership changed; no native OS
 branch or ABI changed, so secondary platforms were not selected. Configured
 four-job builds reused incremental outputs and compiler caches. Selected scratch
 was empty before and after validation; no full/slow or appearance gate ran.
+
+## Resource progress during archive reopen — 2026-11-02
+
+Reviewed complete reopen, resource progress/update services and transport
+attachment/cancellation with agent reopen and retained-reader consumers. Native
+reopen/thread signatures, callback delegation and join remain unchanged; no
+source import, archive algorithm or baseline changes are introduced.
+
+Reopen's one-use Sync cleanup now uses the existing scope guard rather than a
+local guard class. Attachment and clearing remain at the same points, including
+thread-start failure and a missing backend transport. The independent binding
+remains necessary when a retained reader outlives its backend.
+
+The resource transport now forwards Cancel as well as Pause to its contained
+archive transport. Reopen explicitly attaches this outer interface to the
+dialog; previously its Cancel inherited the interface's empty default instead
+of reaching the backend. Sync-based worker cancellation remains in place.
+Composition and destruction order are retained: clear resource Sync, detach
+the contained transport, then release the retained resource.
+
+An existing lifetime suite now covers resource transports after caller-resource
+and backend release, and verifies that cancelling a paused backend operation
+through the public resource transport completes as cancelled without changing
+input bytes. Reopen/stream-update and progress-cancel suites cover direct
+consumers. No private pointer/state or source-shape test is added.
+
+Linux passed the four selected suites: 49 checks, with three existing Windows
+filesystem-ADS cases skipped. After making the paused-operation fixture use the
+dialog's retained Sync pause state, all nine lifetime checks passed again;
+the other passing suites remain applicable. Shared Qt delegation/cleanup changed,
+without native OS branches or calling conventions, so secondary platforms were
+not selected. Source inventory and whitespace checks passed. Selected scratch
+was empty before and after both runs; configured four-job incremental builds
+and compiler caches were retained. No full/slow or appearance gate ran.

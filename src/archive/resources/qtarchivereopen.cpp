@@ -18,6 +18,7 @@
 #include "localization/LangUtils.h"
 #include <QCoreApplication>
 #include <QPointer>
+#include <QScopeGuard>
 #include <QThread>
 #include <memory>
 
@@ -59,18 +60,13 @@ HRESULT ReOpenArchiveFolder(CAgentFolder &folder, const QString &settingsPath, Q
     callback->Callback = &request.UI;
     auto transport = folder.CreateProgressTransport(request.UI.ProgressDialog);
     request.UI.ProgressDialog.AttachTransport(transport.get());
-    struct CScopedSync {
-        QtArchiveFileResource *Resource;
-        explicit CScopedSync(CAgentFolder &folder, CProgressSync &sync)
-            : Resource(dynamic_cast<QtArchiveFileResource *>(folder.GetEngineResource())) {
-            if (Resource)
-                Resource->SetUpdateProgress(&sync);
-        }
-        ~CScopedSync() {
-            if (Resource)
-                Resource->SetUpdateProgress(nullptr);
-        }
-    } sync(folder, request.UI.ProgressDialog.Sync);
+    auto *resource = dynamic_cast<QtArchiveFileResource *>(folder.GetEngineResource());
+    if (resource)
+        resource->SetUpdateProgress(&request.UI.ProgressDialog.Sync);
+    const auto clearProgress = qScopeGuard([resource] {
+        if (resource)
+            resource->SetUpdateProgress(nullptr);
+    });
     NWindows::CThread thread;
     const WRes started = thread.Create(CThreadArchiveReOpen::Run, &request);
     if (started != 0)
