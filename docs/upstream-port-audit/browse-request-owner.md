@@ -31,3 +31,32 @@ then macOS and Windows. Linux/macOS reported 73 passes each; Windows reported
 suites with the final picker-suite rerun after correcting widget input focus
 in its cancellation fixture. Incremental outputs/caches were retained, completed
 scratch removed after capture, and no full or slow gate repeated.
+
+## Source-browser navigation path — 2026-11-02
+
+Reviewed source-browser initialization and parent fallback, reload, filter/sort
+refresh, parent/child navigation, folder creation and accepted/cancelled output
+against the original BrowseDialog.cpp/.h at
+`b88c6bc09339de32f7d18bbab900686b244f42ba`. Complete original inventory hashes
+match the existing manifest. No source is imported or baseline advanced.
+
+The original reload contract warned callers not to pass the current directory
+by reference because reload changes that directory. The Qt port now captures
+the requested path by value at the reload boundary, removing three separate
+caller-side copies. Enumeration still precedes publication, and failure retains
+the previous listing. Source filtering, sorting, cursor/path-edit policy, folder
+creation, native-picker fallback and accepted-only path/filter output retain
+their existing bodies and behavior. No layout, text or geometry change is made.
+
+Existing source-browser regressions cover long paths, filter/sort refresh,
+child/parent navigation, Unicode folder creation, cancellation/failure and raw
+save-name preservation. Picker and archive-browse consumers cover confirmation
+and filter/extension publication. No private-signature or temporary-variable
+test is added, and no pre-fix runtime failure is claimed.
+
+Linux browse_dialog, source_browse_dialog and source_archive_browse passed:
+42 checks without skips. Only portable request-string ownership changed, with
+no changed OS branch; no new secondary-platform or rendered-native acceptance
+is claimed. Configured four-job builds reused incremental outputs and compiler
+caches. Selected scratch directories were empty afterward; whitespace and source
+inventory checks passed. No full or slow gate ran.
