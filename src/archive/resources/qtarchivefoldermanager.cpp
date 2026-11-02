@@ -224,10 +224,10 @@ HRESULT QtArchiveFolderManager::OpenLinkImpl(CArchiveLink &link, const COpenOpti
     }
     QString limitations;
     bool nativeMetadata = false;
+    auto *consent = dynamic_cast<IQtArchiveReadConsent *>(progress);
+    auto *dialog = ui ? &ui->ProgressDialog : consent ? consent->ReadConsentDialog() : nullptr;
+    auto *readCallback = ui ? ui : consent ? consent->ReadConsentCallback() : nullptr;
     if (nativeOpen) {
-        auto *consent = dynamic_cast<IQtArchiveReadConsent *>(progress);
-        auto *dialog = ui ? &ui->ProgressDialog : consent ? consent->ReadConsentDialog() : nullptr;
-        auto *readCallback = ui ? ui : consent ? consent->ReadConsentCallback() : nullptr;
         RINOK(PrepareLimitedArchiveRead(nativeOpen->archiveLink(), nativeOpen->nativeCodecs(),
                                         dialog, readCallback, {}, limitations, nativeMetadata))
     }
@@ -266,9 +266,6 @@ HRESULT QtArchiveFolderManager::OpenLinkImpl(CArchiveLink &link, const COpenOpti
     } catch (...) {
         return E_FAIL;
     }
-    auto *consent = dynamic_cast<IQtArchiveReadConsent *>(progress);
-    auto *dialog = ui ? &ui->ProgressDialog : consent ? consent->ReadConsentDialog() : nullptr;
-    auto *readCallback = ui ? ui : consent ? consent->ReadConsentCallback() : nullptr;
     RINOK(ConfirmLimitedArchiveRead(dialog, readCallback, {}, info.readLimitations))
     resource->SetFilesystemReadLimitations(info.readLimitations);
     RINOK(CreateArchiveLinkTransport(link, folder, resource, sourceOptions.codecs))
