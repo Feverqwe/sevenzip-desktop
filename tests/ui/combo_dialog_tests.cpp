@@ -6,6 +6,7 @@
 #include <QDialogButtonBox>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMessageBox>
 #include <QPushButton>
 #include <QScopeGuard>
 #include <QTimer>
@@ -77,6 +78,42 @@ class ComboDialogTests : public QObject {
             dialog.accept();
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
         QCOMPARE(ToQString(dialog.Value), value);
+    }
+
+    void embeddedTerminatorKeepsDraft_data() {
+        QTest::addColumn<bool>("retry");
+        QTest::newRow("correct-and-confirm") << true;
+        QTest::newRow("cancel") << false;
+    }
+    void embeddedTerminatorKeepsDraft() {
+        QFETCH(bool, retry);
+        CComboDialog dialog("Title", "Prompt", "before");
+        auto *combo = dialog.findChild<QComboBox *>("comboValue");
+        const QString draft = QStringLiteral("prefix") + QChar::Null + QStringLiteral("suffix");
+        combo->setCurrentText(draft);
+        dialog.show();
+        bool error = false;
+        QTimer::singleShot(0, &dialog, [&] {
+            if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                error = !box->text().isEmpty();
+                box->accept();
+            }
+        });
+        dialog.findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok)->click();
+        QVERIFY(error);
+        QVERIFY(dialog.isVisible());
+        QCOMPARE(ToQString(dialog.Value), QStringLiteral("before"));
+        QCOMPARE(combo->currentText(), draft);
+        if (retry) {
+            combo->setCurrentText(QStringLiteral("  исправлено 空  "));
+            dialog.accept();
+            QCOMPARE(dialog.result(), int(QDialog::Accepted));
+            QCOMPARE(ToQString(dialog.Value), QStringLiteral("  исправлено 空  "));
+        } else {
+            dialog.reject();
+            QCOMPARE(dialog.result(), int(QDialog::Rejected));
+            QCOMPARE(ToQString(dialog.Value), QStringLiteral("before"));
+        }
     }
 
     void cancelPreservesPublicValueAndFolderHelperClearsOutput() {

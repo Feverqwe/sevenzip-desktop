@@ -25,6 +25,58 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         return -1;
     }
   private slots:
+    void invalidDraftCanBeCorrected_data() {
+        QTest::addColumn<bool>("file");
+        QTest::newRow("file") << true;
+        QTest::newRow("folder") << false;
+    }
+    void invalidDraftCanBeCorrected() {
+        QFETCH(bool, file);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        auto *view = openPanel(window, 0, fixture.path());
+        QTRY_COMPARE(view->rowCount(), 0);
+        view->setFocus();
+        const QString finalName = QStringLiteral("corrected 空");
+        bool rejected = false;
+        QTimer::singleShot(0, &window, [&] {
+            auto *dialog = window.findChild<CComboDialog *>("comboDialog");
+            QVERIFY(dialog);
+            const auto close = qScopeGuard([&] {
+                if (dialog->isVisible())
+                    dialog->reject();
+            });
+            auto *combo = dialog->findChild<QComboBox *>("comboValue");
+            combo->setCurrentText(QStringLiteral("truncated") + QChar::Null + "suffix");
+            bool error = false;
+            QTimer::singleShot(0, dialog, [&] {
+                if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                    error = !box->text().isEmpty();
+                    box->accept();
+                }
+            });
+            dialog->accept();
+            QVERIFY(error);
+            QVERIFY(dialog->isVisible());
+            QVERIFY(!QFileInfo::exists(fixture.filePath("truncated")));
+            QCOMPARE(view->rowCount(), 0);
+            rejected = true;
+            combo->setCurrentText(finalName);
+            dialog->accept();
+        });
+        action(window, file ? "createFileAction" : "createFolderAction")->trigger();
+        QVERIFY(rejected);
+        const QFileInfo created(fixture.filePath(finalName));
+        QVERIFY(created.exists());
+        QCOMPARE(created.isFile(), file);
+        QVERIFY(!QFileInfo::exists(fixture.filePath("truncated")));
+        QTRY_COMPARE(view->rowCount(), 1);
+        QCOMPARE(view->currentRow(), row(view, finalName));
+    }
+
     void create_data() {
         QTest::addColumn<bool>("file");
         QTest::addColumn<unsigned>("pane");
