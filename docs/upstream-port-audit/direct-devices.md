@@ -1,5 +1,33 @@
 # Прямое read-only чтение устройств
 
+## Volume record initialization — 2026-11-02
+
+Reviewed volume enumeration, property publication, folder binding and native
+device-size/copy consumers with the original FSDrives.cpp/.h at
+`b88c6bc09339de32f7d18bbab900686b244f42ba`. Both complete original inventory
+hashes match the recorded baseline. No external source is imported.
+
+Numeric defaults now belong to the drive record instead of repeated assignments
+in logical-drive, physical-drive and Qt mount enumeration. This also initializes
+POSIX records whose provider cannot report total or available space before those
+records are copied into the catalog. Existing availability flags still control
+whether properties are published; unknown space is not presented as zero.
+Native enumeration, removable-media policy, physical-drive copying and current
+mount revalidation before folder binding are unchanged. No decoding, device
+authorization, source-write or visual behavior changes are introduced.
+
+Existing volume and root-navigation checks exercise public properties, opening,
+disappearance, refresh and return navigation. No field-default test or pre-fix
+runtime failure is claimed for this initialization/ownership change.
+
+Focused volume_mount and root_navigation checks passed on Linux first (12 checks)
+and Windows (nine checks), without skips. Windows exercises native logical-drive
+enumeration and opening the drive containing a disposable fixture. The POSIX
+fixture covers a mounted path becoming unavailable. Physical-device copying and
+new macOS runtime evidence are not claimed. Whitespace and inventory checks passed;
+temporary test settings were removed while incremental builds and compiler caches
+were retained. Builds used configured four-job defaults; no full or slow gate ran.
+
 ## Fixed disks in Windows — 2026-10-24
 
 Убран local transport filter, скрывавший non-removable SATA/NVMe disks без
