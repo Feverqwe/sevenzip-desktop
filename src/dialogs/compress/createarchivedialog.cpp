@@ -287,12 +287,7 @@ void CreateArchiveDialog::createArchiveForm(QVBoxLayout *layout, QVBoxLayout *wi
     for (auto *check : findChildren<QCheckBox *>())
         connect(check, &QCheckBox::toggled, this, &CreateArchiveDialog::updateRedesignSummary);
     connect(browse, &QPushButton::clicked, this, [this] {
-        CCompressDialog path = archiveNameState_;
-        path.Format = format_->currentText();
-        path.m_ArchivePath = name_->text();
-        path.Info.SFXMode = sfx_ && sfx_->isChecked();
-        QString target;
-        if (!path.GetFinalPath_Smart(target) || archiveFolder_->text().contains(QChar::Null)) {
+        if (archivePath().isEmpty()) {
             ShowErrorMessageQt(this, QtDiagnosticText(QT_TRANSLATE_NOOP("SevenZipDiagnostics",
                                                                         "Incorrect archive path")));
             return;
