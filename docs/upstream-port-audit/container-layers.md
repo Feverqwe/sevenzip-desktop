@@ -660,6 +660,32 @@ subset is accepted. No opt-in exhaustive matrix, full gate or visual comparison
 was run. Incremental builds and caches were preserved; obsolete task-owned
 timeout fixtures and the temporary stack sample were removed after diagnosis.
 
+### Selected-directory preparation — 2026-11-02
+
+Reviewed the complete directory adapter and read-operation/backend consumers
+with the original Common/Extract selection, callback initialization/close and
+Agent CurrentPaths contracts. Source selection, decoding and callback algorithms
+remain authoritative; no new source import or baseline advancement occurs.
+
+Directory-specific option projection is now separate from the extraction call,
+and its prepared options are immutable for that call. The bounded path policy
+outlives those options and the native callbacks. Both callback implementations
+use the existing typed COM owners without a separate raw/interface alias.
+Allocation, reference acquisition and callback release order remain unchanged.
+Literal selection, UTF-16 path parts, ADS copy/move policy, mtime fallback,
+RejectExisting handling, late path validation and clean-success status publication
+retain their previous behavior. Batch extraction keeps its distinct option rules.
+
+Existing extraction-options behavior coverage is reused; no test of the new
+private preparation function or pointer representation is added.
+
+Linux extraction_options passed 23 checks without skips. Source inventory and
+whitespace checks passed. Only shared preparation/ownership changed, without
+native OS branches or ABI changes, so secondary platforms were not selected.
+Selected scratch was empty before and after validation; configured four-job
+incremental builds and compiler caches were retained. No full/slow or appearance
+gate ran.
+
 ### Native extraction to a destination
 
 Baseline `fd7d5229`; source review on 2026-10-24 against

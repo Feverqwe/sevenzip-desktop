@@ -147,6 +147,38 @@ void AddLiteral(NWildcard::CCensorNode &censor, const QString &path, bool includ
     item.WildcardMatching = false;
     censor.AddItem(include, item);
 }
+
+CExtractOptions MakeDirectoryExtractOptions(const QtArchiveDirectoryExtractRequest &request,
+                                            CQtExtractPathPolicy &policy) {
+    CExtractOptions options;
+    options.NtOptions.QtPathPolicy = &policy;
+    options.OutputDir = us2fs(request.Destination.toStdWString().c_str());
+    options.OutDirMode = NExtractOutDirMode::k_Direct;
+    options.PathMode = request.Options.pathMode == ExtractionOptions::PathMode::NoPaths
+                           ? NExtract::NPathMode::kNoPaths
+                       : request.Options.pathMode == ExtractionOptions::PathMode::CurrentPaths
+                           ? NExtract::NPathMode::kCurPaths
+                           : NExtract::NPathMode::kFullPaths;
+    switch (request.Options.overwriteMode) {
+    case ExtractionOptions::OverwriteMode::Ask:
+    case ExtractionOptions::OverwriteMode::RejectExisting:
+        options.OverwriteMode = NExtract::NOverwriteMode::kAsk;
+        break;
+    case ExtractionOptions::OverwriteMode::SkipExisting:
+        options.OverwriteMode = NExtract::NOverwriteMode::kSkip;
+        break;
+    case ExtractionOptions::OverwriteMode::OverwriteExisting:
+        options.OverwriteMode = NExtract::NOverwriteMode::kOverwrite;
+        break;
+    case ExtractionOptions::OverwriteMode::RenameExtracted:
+        options.OverwriteMode = NExtract::NOverwriteMode::kRename;
+        break;
+    case ExtractionOptions::OverwriteMode::RenameExisting:
+        options.OverwriteMode = NExtract::NOverwriteMode::kRenameExisting;
+        break;
+    }
+    return options;
+}
 } // namespace
 
 HRESULT ExtractQtArchiveDirectory(QtArchiveReadOperation &operation,
@@ -178,34 +210,8 @@ HRESULT ExtractQtArchiveDirectory(QtArchiveReadOperation &operation,
                 !request.Selected.isEmpty() && !request.Selected.contains(entry.path))
                 AddLiteral(censor, entry.path, false);
 
-    CExtractOptions options;
     CQtExtractPathPolicy policy(request.Destination);
-    options.NtOptions.QtPathPolicy = &policy;
-    options.OutputDir = us2fs(request.Destination.toStdWString().c_str());
-    options.OutDirMode = NExtractOutDirMode::k_Direct;
-    options.PathMode = request.Options.pathMode == ExtractionOptions::PathMode::NoPaths
-                           ? NExtract::NPathMode::kNoPaths
-                       : request.Options.pathMode == ExtractionOptions::PathMode::CurrentPaths
-                           ? NExtract::NPathMode::kCurPaths
-                           : NExtract::NPathMode::kFullPaths;
-    switch (request.Options.overwriteMode) {
-    case ExtractionOptions::OverwriteMode::Ask:
-    case ExtractionOptions::OverwriteMode::RejectExisting:
-        options.OverwriteMode = NExtract::NOverwriteMode::kAsk;
-        break;
-    case ExtractionOptions::OverwriteMode::SkipExisting:
-        options.OverwriteMode = NExtract::NOverwriteMode::kSkip;
-        break;
-    case ExtractionOptions::OverwriteMode::OverwriteExisting:
-        options.OverwriteMode = NExtract::NOverwriteMode::kOverwrite;
-        break;
-    case ExtractionOptions::OverwriteMode::RenameExtracted:
-        options.OverwriteMode = NExtract::NOverwriteMode::kRename;
-        break;
-    case ExtractionOptions::OverwriteMode::RenameExisting:
-        options.OverwriteMode = NExtract::NOverwriteMode::kRenameExisting;
-        break;
-    }
+    const CExtractOptions options = MakeDirectoryExtractOptions(request, policy);
     UStringVector parts;
     const bool streamFolder =
         request.Options.pathMode == ExtractionOptions::PathMode::CurrentPaths &&
@@ -216,20 +222,19 @@ HRESULT ExtractQtArchiveDirectory(QtArchiveReadOperation &operation,
         folder.replace('\\', '/');
         SplitPathToParts(MultiByteToUnicodeString(folder.toUtf8().constData(), CP_UTF8), parts);
     }
-    CMyComPtr2<IArchiveExtractCallback, CArchiveExtractCallback> callback;
-    callback.Create_if_Empty();
+    CMyComPtr2_Create<IArchiveExtractCallback, CArchiveExtractCallback> callback;
     callback->QtExtractPurpose = request.Options.Purpose;
     callback->InitForMulti(false, options.PathMode, options.OverwriteMode, options.ZoneMode, false);
     callback->InitBeforeNewArchive();
-    auto *ui = new CDirectoryCallback(operation, progress);
-    CMyComPtr<IFolderArchiveExtractCallback> retained = ui;
+    CMyComPtr2<IFolderArchiveExtractCallback, CDirectoryCallback> ui;
+    ui.SetFromCls(new CDirectoryCallback(operation, progress));
     CDirectoryExtract extract(operation, reader, listing);
     UInt64 processed = 0;
     UString error;
     const HRESULT result =
         DecompressArchive(const_cast<CCodecs *>(&reader->nativeCodecs()), reader->archiveLink(),
-                          reader->arc().GetEstmatedPhySize(), censor, options, false, ui, retained,
-                          callback.ClsPtr(), error, processed, &extract, &parts, streamFolder);
+                          reader->arc().GetEstmatedPhySize(), censor, options, false, ui.ClsPtr(),
+                          ui, callback.ClsPtr(), error, processed, &extract, &parts, streamFolder);
     if (!error.IsEmpty())
         operation.Messages.append(QString::fromWCharArray(error));
     if (result == S_OK && operation.Messages.isEmpty() && operation.Errors.isEmpty() &&
