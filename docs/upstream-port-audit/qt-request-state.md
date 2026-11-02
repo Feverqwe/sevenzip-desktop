@@ -1,5 +1,36 @@
 # State of a new archive request — 2026-10-18
 
+## Joining a stopped backend request — 2026-11-02
+
+Reviewed the complete worker-to-GUI request/password helper and source-extraction,
+listing/open and reopen consumers. The local adapter retains the recorded native
+stop semantics and original algorithms; no source import or baseline changes.
+
+The request now leaves password/progress processing once a stop result is
+observed, performs its existing stop transition once, then waits only for
+completion. This replaces the separate cancellation-sent flag with control flow.
+Pending retirement still prevents delayed start captures from executing;
+Running-only checks still protect unrelated backend work and late password
+delivery. A stopped Running request continues to join completion before returning
+the saved outcome. Non-S_OK password outcomes include S_FALSE, and an observed
+stop retains priority over an already published completion result.
+
+Pending/busy regressions move from the extraction suite into a focused backend
+request suite. New public-boundary cases check password cancellation, callback
+error, missing password interface, S_FALSE, Running cancellation and completion
+with an observed stop. They require the exact outcome, one cancellation where
+needed and completion before return; the backend fixture can finish on a timer
+if cancellation regresses. COM callback exception injection is excluded because
+that interface is noexcept. No private-state or source-shape checks are added.
+
+Linux passed backend_request and its four selected direct-consumer suites:
+52 checks without skips. The first build exposed a nonportable test error-name;
+the fixture now uses a portable arbitrary HRESULT and the same selection passed.
+Source inventory and whitespace checks passed. Shared Qt request control flow
+changed without native OS/ABI changes, so secondary platforms were not selected.
+Selected scratch was empty before and after; configured four-job incremental
+builds and compiler caches were retained. No full/slow or appearance gate ran.
+
 ## Cancellation before backend request dispatch — 2026-11-02
 
 Reviewed complete worker-to-GUI request/password delivery, listing/open/reopen
