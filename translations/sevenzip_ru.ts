@@ -5897,6 +5897,10 @@ Use `Revert` to recover timestamp.</source>
     <context>
         <name>mainwindow_archive_transfer</name>
         <message>
+            <source>Source removal did not finish cleanly. The destination copy was retained; check both archives.</source>
+            <translation>Удаление из исходного архива завершилось с ошибкой. Копия в целевом архиве сохранена; проверьте оба архива.</translation>
+        </message>
+        <message>
             <location filename="../src/filemanager/window/mainwindow_archive_transfer.cpp" line="+79" />
             <source>Could not roll back destination archive. Check both archives.</source>
             <translation>Не удалось откатить целевой архив. Проверьте оба архива.</translation>

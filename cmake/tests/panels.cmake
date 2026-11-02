@@ -31,6 +31,19 @@
     endif()
     add_test(NAME panel_creation_publication COMMAND panel_creation_publication_tests -silent)
     set_tests_properties(panel_creation_publication PROPERTIES TIMEOUT 120 ENVIRONMENT "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/panel-creation-publication.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
+    qt_add_executable(interarchive_move_publication_tests
+        tests/filemanager/interarchive_move_publication_tests.cpp
+        tests/platform/support/native_property_failure_runtime.cpp)
+    target_link_libraries(interarchive_move_publication_tests PRIVATE
+        sevenzip_window sevenzip_layout_inspection sevenzip_widget_dialog_fixtures Qt6::Test)
+    target_include_directories(interarchive_move_publication_tests PRIVATE src tests)
+    target_compile_definitions(interarchive_move_publication_tests PRIVATE
+        "SEVENZIP_EXTERNAL_RUNTIME=\"${SEVENZIP_CODEC_RUNTIME_DIR}\""
+        "SEVENZIP_EXTERNAL_FORMAT_FIXTURE=\"$<TARGET_FILE:external_format_fixture>\"")
+    add_dependencies(interarchive_move_publication_tests external_format_fixture)
+    add_test(NAME interarchive_move_publication COMMAND interarchive_move_publication_tests -silent)
+    set_tests_properties(interarchive_move_publication PROPERTIES TIMEOUT 45 ENVIRONMENT
+        "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/interarchive-move-publication.ini")
     qt_add_executable(interarchive_recovery_tests tests/filemanager/interarchive_recovery_tests.cpp)
     target_link_libraries(interarchive_recovery_tests PRIVATE sevenzip_layout_inspection)
     target_link_libraries(interarchive_recovery_tests PRIVATE sevenzip_window)

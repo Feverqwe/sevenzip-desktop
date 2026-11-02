@@ -852,9 +852,10 @@ bool CTempFile::Remove() {
     return !_mustBeDeleted;
 }
 
-bool CTempFile::MoveTo(CFSTR name, bool deleteDestBefore, ICopyFileProgress *progress) {
+bool CTempFile::MoveTo(CFSTR name, bool deleteDestBefore, ICopyFileProgress *progress,
+                       bool *published) {
     DisableDeleting();
-    return MyPublishFile_with_Progress(_path, name, progress, deleteDestBefore);
+    return MyPublishFile_with_Progress(_path, name, progress, deleteDestBefore, published);
     /*
     if (attrib != INVALID_FILE_ATTRIBUTES && (attrib & FILE_ATTRIBUTE_READONLY))
     {
@@ -1351,9 +1352,14 @@ static bool AtomicPublish(CFSTR oldFile, CFSTR newFile, bool replaceExisting) {
 }
 
 bool MyPublishFile_with_Progress(CFSTR oldFile, CFSTR newFile, ICopyFileProgress *progress,
-                                 bool replaceExisting) {
-    if (AtomicPublish(oldFile, newFile, replaceExisting))
+                                 bool replaceExisting, bool *published) {
+    if (published)
+        *published = false;
+    if (AtomicPublish(oldFile, newFile, replaceExisting)) {
+        if (published)
+            *published = true;
         return true;
+    }
 #ifdef _WIN32
     if (::GetLastError() != ERROR_NOT_SAME_DEVICE)
         return false;
@@ -1422,6 +1428,8 @@ bool MyPublishFile_with_Progress(CFSTR oldFile, CFSTR newFile, ICopyFileProgress
         error = ::GetLastError();
         return false;
     }
+    if (published)
+        *published = true;
     const bool removed = DeleteFileAlways(oldFile);
     if (!removed)
         error = ::GetLastError();

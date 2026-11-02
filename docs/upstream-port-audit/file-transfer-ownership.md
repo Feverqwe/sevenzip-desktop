@@ -1,5 +1,81 @@
 # File-transfer ownership
 
+## Interarchive Move publication outcome — 2026-11-02
+
+Compared original ArchiveFolderOut CommonUpdateOperation, its Delete and update
+callers, WorkDir MoveToOriginal and FileDir temporary-file/move bodies at recorded
+`b88c6bc09339de32f7d18bbab900686b244f42ba` in
+<https://github.com/ip7z/7zip.git>. Complete original ArchiveFolderOut.cpp,
+WorkDir.cpp and FileDir.cpp hashes match the existing baseline. Reviewed the
+current atomic-publication adaptation, callback setup/join, panel deletion,
+interarchive rollback, destination refresh and backend Move continuation.
+No import or provenance advancement. Native update/decoding, cancellation,
+reopening, selection and temporary ownership algorithms remain authoritative.
+
+Previously a failed source DeleteItems always rolled the destination back.
+However, source archive replacement precedes MoveArc_Finish and ReOpen, either
+of which may fail. Cross-volume publication can also succeed before old-temp
+cleanup fails. Restoring the previous destination after these failures can
+remove the only surviving copy of moved entries.
+
+The operation's joined callback now owns an optional publication result. Native
+update reports an initial false value; uninstrumented providers leave it unknown.
+The native publisher sets true immediately after successful atomic replacement
+in both same-volume and staged cross-volume paths, before later cleanup. Its
+optional output points directly into the callback's state, retaining the fact
+through later errors or exceptions. COM interfaces and original HRESULTs are
+unchanged. Panel deletion returns both facts after the worker has joined; early
+refusal reports that publication did not occur.
+
+Interarchive Move rolls back only when nonpublication is known. Otherwise it
+retains the destination, refreshes both presentations and explicitly reports
+the source error and retained copy. Unknown is handled conservatively; no
+source rollback, atomic whole-Move guarantee or complete-success claim is added.
+The typed backend Move continuation retains its original HRESULT handling.
+
+Focused regression uses real native 7z/ZIP archives and independent extraction
+of both resulting archives. It covers success, refused deletion, source writer
+failure before publication and source reopen failure after publication. The
+existing delegating format fixture injects only the terminal failure after a
+real native open/write. The test waits for the sending view's focus and checks
+the copy dialog destination. Five rows include the late warning in EN/RU and
+normal/compact label/OK bounds. Widget dialog fixtures prevent native panels
+and responder reentry; this is Qt behavior/geometry evidence, not native rendered
+parity. No pre-fix product runtime reproduction is claimed.
+
+A Linux WorkDir regression uses two real filesystems and denies source-directory
+cleanup after cross-volume copying starts. It checks failure alongside published
+bytes and a true publication result, then restores permissions/removes its temp.
+Astra independently reviewed the state lifetime, unknown/default behavior,
+exception paths and atomic marker placement without duplicating runtime runs.
+
+Validation reused incremental builds, compiler caches and configured concurrency:
+
+- Linux `20261102T081729Z-4a6c36fb`: eleven focused suites passed, 170 Qt checks
+  without skips; build 17.985 s, tests 38.865 s. This includes the fast native
+  recovery subset, existing archive/ADS Move, mutation and publication consumers.
+  The final five-row EN/RU/widget-geometry regression passed separately as seven
+  Qt checks in `20261102T082714Z-c5e6276d`; build 6.351 s, tests 6.353 s.
+- macOS: work_dir passed six checks. Native publication passed nine checks with
+  three unavailable `/dev/shm` cases skipped after preparing its missing official
+  SFX module; repeat build 12.683 s, tests 0.719 s. Final Move passed seven checks;
+  build 14.12 s, tests 7.45 s. Passing consumers were not repeated wholesale.
+- Windows `20261102T083947Z-19865e57`: final Move and native publication passed
+  sixteen checks, with the same three cross-filesystem cases skipped; build
+  169.170 s, tests 9.048 s. The interactive receipt records session 1, normal
+  priority and a non-elevated token. Earlier work_dir passed six checks. The
+  missing official SFX module was prepared with the repository's existing builder.
+
+The earlier Windows interactive attempt stopped in tool preparation before test
+execution. Its exact childless transport process was terminated and the released
+branch lock confirmed before retry. Bounded probes of the same framing and
+pinned receiver preparation passed; no reproducible transport defect or runner
+change is claimed. Temporary settings and absent-object registry records were
+removed after completion. Prepared SFX deployments, useful incremental snapshots
+and caches remain. No full/slow matrix, new JSON reports/screenshots or native
+rendered parity acceptance was run. Cross-volume cleanup-failure runtime evidence
+is Linux-only; unknown providers and late exceptions were source-reviewed.
+
 ## Current-item and batch rollback — 2026-11-02
 
 Reviewed the complete staging/publication/source-removal flow, worker and copy

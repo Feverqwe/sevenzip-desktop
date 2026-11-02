@@ -98,7 +98,8 @@ bool MainWindow::startPendingArchiveMove(bool ok) {
         HRESULT result;
         {
             QScopedValueRollback<bool> progressOwner(sourceArchiveProgress_, true);
-            result = panel.DeleteItems(false, *trashService_, selected, &request.indices, false);
+            result =
+                panel.DeleteItems(false, *trashService_, selected, &request.indices, false).Result;
         }
         app_.QtOperations().End();
         renderBoundFolder();

@@ -217,7 +217,8 @@ class CGlobalOnlyArchive final : public IInArchive,
             UInt64 process = 0;
             UInt32 index = 0, result = 0, count = 0;
             if (!(control >> process >> index >> result >> count) || process != CurrentProcess() ||
-                index != UInt32(-1) || result != UInt32(E_ABORT) || count != actualCount)
+                index != UInt32(-1) || count != actualCount ||
+                (result != UInt32(E_ABORT) && result != UInt32(E_FAIL)))
                 return opened;
             // The GUI releases this hold by removing its control file. Do not
             // retain a Windows CRT handle across a possibly paused callback.
@@ -228,6 +229,8 @@ class CGlobalOnlyArchive final : public IInArchive,
                 std::ofstream(receipt, std::ios::app) << process << ' ' << count << '\n';
                 observed = true;
             }
+            if (result == UInt32(E_FAIL))
+                return E_FAIL;
             const HRESULT progress = callback->SetCompleted(nullptr, nullptr);
             if (progress != S_OK)
                 return progress;

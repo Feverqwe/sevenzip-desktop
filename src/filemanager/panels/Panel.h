@@ -17,6 +17,7 @@
 #include "Windows/PropVariantConv.h"
 #include "Windows/Synchronization.h"
 #include "Windows/TimeUtils.h"
+#include "archive/resources/qtarchiveupdatepublication.h"
 #include "common/collections/MyVector.h"
 #include "filemanager/panels/qtpanellist.h"
 #include "fileops/native/FileDir.h"
@@ -663,9 +664,10 @@ class CPanel : public QObject {
     void RenameFile();
     bool OnBeginLabelEdit(int row);
     HRESULT OnEndLabelEdit(UInt32 realIndex, const UString &enteredName);
-    HRESULT DeleteItems(bool toRecycleBin, class IQtTrashService &trash, CSelectedState &selection,
-                        const CRecordVector<UInt32> *explicitIndices = nullptr,
-                        bool confirm = true);
+    QtArchiveUpdateResult DeleteItems(bool toRecycleBin, class IQtTrashService &trash,
+                                      CSelectedState &selection,
+                                      const CRecordVector<UInt32> *explicitIndices = nullptr,
+                                      bool confirm = true);
     bool CanComment() const;
     void ChangeComment();
     bool IsDeviceDrivesPrefix() const { return _currentFolderPrefix.IsEqualTo("\\\\.\\"); }

@@ -116,7 +116,7 @@ bool MainWindow::transferBetweenArchivePanels(const QString &destination, bool m
                                         "Could not save destination archive for rollback."));
         return true;
     }
-    enum class Outcome { Stopped, Updated, RolledBack, RollbackFailed };
+    enum class Outcome { Stopped, Updated, Retained, RolledBack, RollbackFailed };
     Outcome outcome = Outcome::Stopped;
     CSelectedState selected;
     {
@@ -125,13 +125,17 @@ bool MainWindow::transferBetweenArchivePanels(const QString &destination, bool m
         if (result == S_OK && messages.IsEmpty()) {
             outcome = Outcome::Updated;
             if (move) {
-                result = source.DeleteItems(false, *trashService_, selected, &indices);
+                const auto removed = source.DeleteItems(false, *trashService_, selected, &indices);
+                result = removed.Result;
                 if (result != S_OK) {
-                    const bool restored = rollback->restore([&target] {
-                        auto *folder = dynamic_cast<CAgentFolder *>(target.GetFolder());
-                        return folder && folder->CloseArchive() == S_OK;
-                    });
-                    outcome = restored ? Outcome::RolledBack : Outcome::RollbackFailed;
+                    if (removed.Published == false) {
+                        const bool restored = rollback->restore([&target] {
+                            auto *folder = dynamic_cast<CAgentFolder *>(target.GetFolder());
+                            return folder && folder->CloseArchive() == S_OK;
+                        });
+                        outcome = restored ? Outcome::RolledBack : Outcome::RollbackFailed;
+                    } else
+                        outcome = Outcome::Retained;
                 }
             }
         }
@@ -139,21 +143,31 @@ bool MainWindow::transferBetweenArchivePanels(const QString &destination, bool m
     // All native work (including Move rollback) is settled before publication.
     if (app_.QtOperations().kind() == QtAppOperationState::Kind::Operation)
         app_.QtOperations().End();
-    if (outcome == Outcome::Updated && move) {
+    const bool retainedUpdate = outcome == Outcome::Updated || outcome == Outcome::Retained;
+    if (retainedUpdate && move) {
         renderBoundFolder();
         source.RestoreLoadedSelection(selected);
         appPresentation_->CopySourceRefreshed(sourceIndex);
     }
     if (outcome != Outcome::Stopped)
         refreshArchiveTransferDestination(destinationIndex, destinationSelection,
-                                          outcome == Outcome::Updated
-                                              ? ArchiveTransferReload::BoundFolder
-                                              : ArchiveTransferReload::ReopenArchive);
+                                          retainedUpdate ? ArchiveTransferReload::BoundFolder
+                                                         : ArchiveTransferReload::ReopenArchive);
     if (outcome == Outcome::RollbackFailed) {
         QMessageBox::warning(this, QtLangText(IDS_MOVING),
                              QCoreApplication::translate(
                                  "mainwindow_archive_transfer",
                                  "Could not roll back destination archive. Check both archives."));
+        return true;
+    }
+    if (outcome == Outcome::Retained) {
+        const QString message = QCoreApplication::translate(
+            "mainwindow_archive_transfer",
+            "Source removal did not finish cleanly. The destination copy was retained; check "
+            "both archives.");
+        statusBar()->showMessage(message);
+        QMessageBox::warning(this, QtLangText(IDS_MOVING),
+                             message + '\n' + QString::fromWCharArray(HResultToMessage(result)));
         return true;
     }
     if (outcome == Outcome::Updated) {

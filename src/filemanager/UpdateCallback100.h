@@ -11,6 +11,7 @@
 #include "7zip/IPassword.h"
 
 #include "archive/agent/IFolderArchive.h"
+#include "archive/resources/qtarchiveupdatepublication.h"
 
 #include "gui/UpdateCallbackGUI2.h"
 
@@ -25,6 +26,7 @@ class CUpdateCallback100Imp Z7_final : public IFolderArchiveUpdateCallback,
                                        public IArchiveOpenCallback,
                                        public ICompressProgressInfo,
                                        public CUpdateCallbackGUI2,
+                                       public QtArchiveUpdatePublication,
                                        public CMyUnknownImp {
     Z7_COM_UNKNOWN_IMP_8(IFolderArchiveUpdateCallback, IFolderArchiveUpdateCallback2,
                          IFolderArchiveUpdateCallback_MoveArc, IFolderScanProgress,
