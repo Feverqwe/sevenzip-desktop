@@ -6,6 +6,7 @@
 #include <QScopedValueRollback>
 #include <QUrl>
 #include <QWidget>
+#include <new>
 
 QtPanelDragMime::QtPanelDragMime(CDataObject &data) : data_(data) {
     QList<QUrl> urls;
@@ -22,7 +23,7 @@ QtPanelDragTransport::QtPanelDragTransport(QWidget *source, Executor executor,
         };
 }
 HRESULT QtPanelDragTransport::DoDragDrop(CDataObject &data, CDropSource &source, DWORD allowed,
-                                         DWORD &effect) {
+                                         DWORD &effect) try {
     effect = DROPEFFECT_NONE;
     if (!widget_ || active_)
         return E_ABORT;
@@ -77,6 +78,16 @@ HRESULT QtPanelDragTransport::DoDragDrop(CDataObject &data, CDropSource &source,
                                           k_TargetFlags_MustBeProcessedBySource))))
         data.FinishExternalReceiver();
     return result;
+} catch (const std::bad_alloc &) {
+    // Rejoin OnDrag's normal DragEnd/error path. A receiver may already have
+    // consumed URLs, so its unconfirmed temporary lease must stay protected.
+    effect = DROPEFFECT_NONE;
+    data.Copy_HRESULT = E_OUTOFMEMORY;
+    return DRAGDROP_S_CANCEL;
+} catch (...) {
+    effect = DROPEFFECT_NONE;
+    data.Copy_HRESULT = E_FAIL;
+    return DRAGDROP_S_CANCEL;
 }
 HRESULT QtPanelDragTransport::CompressFiles(CPanel &panel, const UString &folder,
                                             const UString &name, const UStringVector &paths,

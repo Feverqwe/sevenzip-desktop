@@ -16,6 +16,8 @@
 #include <QTemporaryDir>
 #include <QUuid>
 #include <QtTest>
+#include <new>
+#include <stdexcept>
 
 class DragArchiveTests : public QObject {
     Q_OBJECT
@@ -191,6 +193,8 @@ class DragArchiveTests : public QObject {
         QTest::newRow("drag-cancelled") << 2;
         QTest::newRow("extraction-cancelled") << 3;
         QTest::newRow("recipient-refused-drop") << 4;
+        QTest::newRow("recipient-throws") << 6;
+        QTest::newRow("recipient-allocation-fails") << 7;
 #ifdef Q_OS_MACOS
         QTest::newRow("native-qt-ignore-unconfirmed") << 5;
 #endif
@@ -271,6 +275,10 @@ class DragArchiveTests : public QObject {
                     claimDenied = !registry.ClaimForDeletion(entry);
             if (outcome == 0)
                 mime->Data().FinishExternalReceiver();
+            if (outcome == 6)
+                throw std::runtime_error("recipient service failed after reading URLs");
+            if (outcome == 7)
+                throw std::bad_alloc();
             return outcome == 2 || outcome == 4 ? Qt::IgnoreAction : Qt::MoveAction;
         };
         if (outcome == 5)
@@ -288,7 +296,10 @@ class DragArchiveTests : public QObject {
         responder.start(1);
         app.Panels[0].OnDrag(false);
         responder.stop();
-        QVERIFY2(errors.isEmpty(), qPrintable(errors.join('\n')));
+        if (outcome == 6 || outcome == 7)
+            QVERIFY(!errors.isEmpty());
+        else
+            QVERIFY2(errors.isEmpty(), qPrintable(errors.join('\n')));
         QVERIFY(!transport.Active());
         QCOMPARE(app.DropTarget().SrcPanelIndex, -1);
         QCOMPARE(Read(archive), original);
@@ -316,8 +327,9 @@ class DragArchiveTests : public QObject {
             QCOMPARE(calls, 1);
         QCOMPARE(deliveredBytes, payload);
         QVERIFY(claimDenied);
-        QCOMPARE(row->isSelected(), outcome == 2 || outcome == 4 || outcome == 5);
-        if (outcome == 1 || outcome == 5) {
+        QCOMPARE(row->isSelected(), outcome == 2 || outcome == 4 || outcome == 5 || outcome == 6 ||
+                                       outcome == 7);
+        if (outcome == 1 || outcome == 5 || outcome == 6 || outcome == 7) {
             QCOMPARE(Read(delivered), payload);
             QtOwnedTempRegistry registry;
             bool found = false;
