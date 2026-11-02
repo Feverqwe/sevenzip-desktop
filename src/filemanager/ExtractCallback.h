@@ -184,6 +184,7 @@ class CExtractCallbackImp Z7_final
 #ifndef Z7_NO_CRYPTO
       public ICryptoGetTextPassword,
 #endif
+      public QtArchiveExtractStatusReceiver,
       public CMyUnknownImp {
     Z7_COM_QI_BEGIN2(IFolderArchiveExtractCallback)
     Z7_COM_QI_ENTRY(IFolderArchiveExtractCallback2)

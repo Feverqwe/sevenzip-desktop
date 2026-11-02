@@ -164,11 +164,11 @@ class MainWindow : public QMainWindow {
     void failFilesystemListing(HRESULT result);
     void connectBackend();
     void backendFinished(bool ok, const QString &message, HRESULT result,
-                         bool messageDisplayed = false);
+                         bool messageDisplayed = false,
+                         std::optional<QtArchiveExtractStatus> extraction = std::nullopt);
     bool extractWithSource(const QString &destination, bool onlySelected, const QString &password,
                            const ExtractionOptions &options, const QStringList &names,
                            const CRecordVector<UInt32> *explicitIndices = nullptr);
-    bool startPendingArchiveMove(bool ok);
     void closeProgressDialog(bool finished = false);
     void beginWorkerProgress(const QString &label, const QString &detail,
                              std::function<void()> cancel);
@@ -358,15 +358,13 @@ class MainWindow : public QMainWindow {
     QTimer *autoRefreshTimer_ = nullptr;
     std::unique_ptr<QtGuiOutputRefresh> guiOutputRefresh_;
     State previousState_ = State::Filesystem;
-    enum class ArchiveMoveStage { Extracting, Removing };
     struct PendingArchiveMove {
         PendingArchiveMove(unsigned index, const CRecordVector<UInt32> &selected)
             : source(index), indices(selected) {}
         const unsigned source;
         const CRecordVector<UInt32> indices;
-        ArchiveMoveStage stage = ArchiveMoveStage::Extracting;
     };
-    std::optional<PendingArchiveMove> archiveMove_;
+    std::unique_ptr<PendingArchiveMove> archiveMove_;
     Qt::KeyboardModifiers selectionClickModifiers_ = Qt::NoModifier;
     bool selectionClickLeft_ = false;
     bool selectionShiftSequence_ = false;

@@ -20,6 +20,11 @@ enum {
 class IQtFileManagerMenuCommandServices;
 class IQtVolumeServices;
 
+struct QtArchiveTransferResult {
+    HRESULT Result;
+    QString Error;
+};
+
 void SetButtonText(int commandID, UString &s);
 
 class CApp;
@@ -117,8 +122,9 @@ class CApp {
     bool RefreshCopyPanel(unsigned index);
     void Split(IQtVolumeServices &services);
     void Combine(IQtVolumeServices &services);
-    HRESULT CopyArchiveToArchive(unsigned srcPanelIndex, const CRecordVector<UInt32> &indices,
-                                 UStringVector *messages);
+    QtArchiveTransferResult CopyArchiveToArchive(unsigned srcPanelIndex,
+                                                 const CRecordVector<UInt32> &indices,
+                                                 UStringVector *messages);
     void OnSetSameFolder(unsigned index);
     void OnSetSubFolder(unsigned index);
     void DragBegin(unsigned index);

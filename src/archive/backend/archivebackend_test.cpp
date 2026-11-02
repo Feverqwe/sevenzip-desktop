@@ -104,6 +104,7 @@ void ArchiveBackend::startReadOperation(Job job, std::unique_ptr<QtArchiveReadOp
     });
     cancelled_ = false;
     lastResult_ = E_FAIL;
+    lastExtractStatus_.reset();
     job_ = job;
     startWorkerPhase(*readOperation_);
 }
@@ -118,6 +119,8 @@ void ArchiveBackend::finishReadOperation() {
     const bool listingJob = job_ == Job::List;
     const bool sourceExtractJob = job_ == Job::SourceExtract;
     const bool extractJob = job_ == Job::Extract || sourceExtractJob;
+    if (job_ == Job::Extract)
+        lastExtractStatus_ = operation->ExtractStatus;
     const QString path = archive_;
     lastResult_ = cancelled_ ? E_ABORT : operation->Result;
     if (sourceExtractJob)

@@ -614,6 +614,48 @@ class ArchiveBackendTests : public QObject, protected ArchiveBackendTestSupport 
                 !backend.validateExtraction(output, {entry}, options, &error, false, sourceFolder));
         }
     }
+    void currentStreamFolderValidation_data() {
+        QTest::addColumn<QString>("entry");
+        QTest::addColumn<QString>("currentFolder");
+        QTest::addColumn<QString>("sourceFolder");
+        QTest::addColumn<bool>("accepted");
+        QTest::newRow("bound-owner") << "../inside/h:stream" << "../inside" << "../inside" << true;
+        QTest::newRow("unbound-owner") << "../inside/h:stream" << "../inside" << "" << false;
+        QTest::newRow("different-binding")
+            << "../inside/h:stream" << "../inside" << "other" << false;
+        QTest::newRow("remaining-traversal")
+            << "../inside/../h:stream" << "../inside" << "../inside" << false;
+        QTest::newRow("bound-stream-folder")
+            << "../inside/h:stream" << "../inside/h:" << "../inside/h:" << true;
+        QTest::newRow("unbound-stream-folder")
+            << "../inside/h:stream" << "../inside/h:" << "" << false;
+        QTest::newRow("unsafe-stream-output")
+            << "../inside/h:../escape" << "../inside/h:" << "../inside/h:" << false;
+    }
+    void currentStreamFolderValidation() {
+        QFETCH(QString, entry);
+        QFETCH(QString, currentFolder);
+        QFETCH(QString, sourceFolder);
+        QFETCH(bool, accepted);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        ArchiveEntry stream;
+        stream.path = entry;
+        stream.properties.insert(QStringLiteral("Alternate Stream"), QStringLiteral("+"));
+        ExtractionOptions options;
+        options.pathMode = ExtractionOptions::PathMode::CurrentPaths;
+        options.currentFolder = currentFolder;
+        QString error;
+        const QString output = fixture.filePath("output");
+        QCOMPARE(ArchiveBackend::validateExtractionEntries({stream}, output, {}, options, &error,
+                                                           false, sourceFolder),
+                 accepted);
+        if (accepted) {
+            options.pathMode = ExtractionOptions::PathMode::FullPaths;
+            QVERIFY(!ArchiveBackend::validateExtractionEntries({stream}, output, {}, options,
+                                                               &error, false, sourceFolder));
+        }
+    }
     void unsafePath() {
         QTemporaryDir temp;
         QVERIFY(temp.isValid());

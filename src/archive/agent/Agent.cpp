@@ -1818,6 +1818,10 @@ Z7_COM7F_IMF(CAgentFolder::Extract(const UInt32 *indices, UInt32 numItems, Int32
                                    IFolderArchiveExtractCallback *extractCallback2)) {
     COM_TRY_BEGIN
 
+    auto *status = dynamic_cast<QtArchiveExtractStatusReceiver *>(extractCallback2);
+    if (status)
+        status->ExtractReport.Status.reset();
+
     if (!IsBound())
         return E_FAIL;
 
@@ -1881,6 +1885,8 @@ Z7_COM7F_IMF(CAgentFolder::Extract(const UInt32 *indices, UInt32 numItems, Int32
                               false, // stdOutMode
                               IntToBool(testMode), pathU, pathParts, isAltStreamFolder,
                               (UInt64)(Int64)-1);
+    if (status)
+        extractCallbackSpec->QtExtractPurpose = status->ExtractReport.Purpose;
 
     if (_proxy2)
         extractCallbackSpec->SetBaseParentFolderIndex(
@@ -1912,6 +1918,8 @@ Z7_COM7F_IMF(CAgentFolder::Extract(const UInt32 *indices, UInt32 numItems, Int32
         const HRESULT res2 = ecsCloser.Close();
         if (res == S_OK)
             res = res2;
+        if (res == S_OK && status && !testMode)
+            status->ExtractReport.Status = extractCallbackSpec->QtExtractStatus;
         return res;
     }
 

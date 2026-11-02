@@ -170,12 +170,13 @@ HRESULT ExtractQtArchiveDirectory(QtArchiveReadOperation &operation,
     else
         for (const auto &path : request.Selected)
             AddLiteral(censor, path, true);
-    // The public selection is literal, including alternate streams. Do not add
-    // an ordinary file's unselected ADS through the console censor's convenience rule.
-    for (const auto &entry : listing.Entries)
-        if (entry.properties.value(QStringLiteral("Alternate Stream")) == "+" &&
-            !request.Selected.isEmpty() && !request.Selected.contains(entry.path))
-            AddLiteral(censor, entry.path, false);
+    // Copy's public selection is literal. Move also needs the selected host's
+    // streams: its source deletion includes them, just like Agent::CopyTo.
+    if (request.Options.Purpose == QtArchiveExtractPurpose::Copy)
+        for (const auto &entry : listing.Entries)
+            if (entry.properties.value(QStringLiteral("Alternate Stream")) == "+" &&
+                !request.Selected.isEmpty() && !request.Selected.contains(entry.path))
+                AddLiteral(censor, entry.path, false);
 
     CExtractOptions options;
     CQtExtractPathPolicy policy(request.Destination);
@@ -217,6 +218,7 @@ HRESULT ExtractQtArchiveDirectory(QtArchiveReadOperation &operation,
     }
     CMyComPtr2<IArchiveExtractCallback, CArchiveExtractCallback> callback;
     callback.Create_if_Empty();
+    callback->QtExtractPurpose = request.Options.Purpose;
     callback->InitForMulti(false, options.PathMode, options.OverwriteMode, options.ZoneMode, false);
     callback->InitBeforeNewArchive();
     auto *ui = new CDirectoryCallback(operation, progress);
@@ -230,5 +232,8 @@ HRESULT ExtractQtArchiveDirectory(QtArchiveReadOperation &operation,
                           callback.ClsPtr(), error, processed, &extract, &parts, streamFolder);
     if (!error.IsEmpty())
         operation.Messages.append(QString::fromWCharArray(error));
+    if (result == S_OK && operation.Messages.isEmpty() && operation.Errors.isEmpty() &&
+        operation.OpenErrors.isEmpty())
+        operation.ExtractStatus = callback->QtExtractStatus;
     return result;
 }

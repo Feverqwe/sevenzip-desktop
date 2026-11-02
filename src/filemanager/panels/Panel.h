@@ -17,6 +17,7 @@
 #include "Windows/PropVariantConv.h"
 #include "Windows/Synchronization.h"
 #include "Windows/TimeUtils.h"
+#include "archive/resources/qtarchiveextractstatus.h"
 #include "archive/resources/qtarchiveupdatepublication.h"
 #include "common/collections/MyVector.h"
 #include "filemanager/panels/qtpanellist.h"
@@ -497,7 +498,7 @@ class CPanel : public QObject {
     void ExtractArchives(IQtCompressCallServices &services);
     void TestArchives(IQtCompressCallServices *services = nullptr);
     HRESULT CopyTo(CCopyToOptions &options, const CRecordVector<UInt32> &indices,
-                   UStringVector *messages) {
+                   UStringVector *messages, QtArchiveExtractReport *report = nullptr) {
         bool usePassword = false;
         UString password;
         if (!_parentFolders.IsEmpty()) {
@@ -505,11 +506,11 @@ class CPanel : public QObject {
             usePassword = fl.UsePassword;
             password = fl.Password;
         }
-        return CopyTo(options, indices, messages, usePassword, password);
+        return CopyTo(options, indices, messages, usePassword, password, nullptr, report);
     }
     HRESULT CopyTo(CCopyToOptions &options, const CRecordVector<UInt32> &indices,
                    UStringVector *messages, bool &usePassword, UString &password,
-                   const UStringVector *filePaths = NULL);
+                   const UStringVector *filePaths = NULL, QtArchiveExtractReport *report = nullptr);
     HRESULT CopyFrom(bool moveMode, const UString &folderPrefix, const UStringVector &filePaths,
                      bool showErrorMessages, UStringVector *messages,
                      const NUpdateArchive::CActionSet *actionSet = nullptr,

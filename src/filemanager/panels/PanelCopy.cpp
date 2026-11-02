@@ -156,7 +156,9 @@ void CPanel::Get_ZoneId_Stream_from_ParentFolders(CByteBuffer &buf) {
 
 HRESULT CPanel::CopyTo(CCopyToOptions &options, const CRecordVector<UInt32> &indices,
                        UStringVector *messages, bool &usePassword, UString &password,
-                       const UStringVector *filePaths) {
+                       const UStringVector *filePaths, QtArchiveExtractReport *report) {
+    if (report)
+        report->Status.reset();
     if (options.NeedRegistryZone && !options.testMode) {
         CContextMenuInfo ci;
         ci.Load(_settingsPath);
@@ -269,6 +271,8 @@ HRESULT CPanel::CopyTo(CCopyToOptions &options, const CRecordVector<UInt32> &ind
 
         extracter.ExtractCallbackSpec->OverwriteMode = options.overwriteMode;
         extracter.ExtractCallbackSpec->Init();
+        if (report)
+            extracter.ExtractCallbackSpec->ExtractReport.Purpose = report->Purpose;
 
         extracter.CopyFrom_Paths = filePaths;
         if (!filePaths) {
@@ -286,6 +290,12 @@ HRESULT CPanel::CopyTo(CCopyToOptions &options, const CRecordVector<UInt32> &ind
 
         // res = extracter.Result2;
         res = extracter.Result;
+
+        if (report) {
+            report->Status = extracter.ExtractCallbackSpec->ExtractReport.Status;
+            if (report->Status && !extracter.ExtractCallbackSpec->IsOK())
+                report->Status->Complete = false;
+        }
 
         if (res == S_OK && extracter.ExtractCallbackSpec->IsOK()) {
             usePassword = extracter.ExtractCallbackSpec->PasswordIsDefined;

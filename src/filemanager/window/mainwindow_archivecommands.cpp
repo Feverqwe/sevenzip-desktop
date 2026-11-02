@@ -37,8 +37,11 @@ QString PrepareExtractionDestination(ArchiveBackend &backend, QtArchiveFileResou
 HRESULT ExtractPanelItems(CPanel &panel, CAgentFolder &folder, const QString &output,
                           const QString &password, const ExtractionOptions &options,
                           const CRecordVector<UInt32> &indices, bool explicitIndices,
-                          UStringVector &messages) {
+                          UStringVector &messages, std::optional<QtArchiveExtractStatus> &status) {
     CCopyToOptions sourceOptions;
+    QtArchiveExtractReport report;
+    report.Purpose = options.Purpose;
+    const auto captureStatus = qScopeGuard([&] { status = std::move(report.Status); });
     CQtExtractPathPolicy pathPolicy(output);
     CExtractNtOptions ntOptions;
     ntOptions.NtSecurity = options.NtSecurity;
@@ -75,10 +78,11 @@ HRESULT ExtractPanelItems(CPanel &panel, CAgentFolder &folder, const QString &ou
         break;
     }
     if (password.isEmpty())
-        return panel.CopyTo(sourceOptions, indices, &messages);
+        return panel.CopyTo(sourceOptions, indices, &messages, &report);
     bool usePassword = true;
     UString sourcePassword = ToUString(password);
-    return panel.CopyTo(sourceOptions, indices, &messages, usePassword, sourcePassword);
+    return panel.CopyTo(sourceOptions, indices, &messages, usePassword, sourcePassword, nullptr,
+                        &report);
 }
 } // namespace
 
@@ -322,8 +326,9 @@ bool MainWindow::extractWithSource(const QString &destination, bool onlySelected
                 password.isEmpty() ? projectedUi().archivePassword : password, sourceOptions, this);
         } else {
             UStringVector messages;
-            result.Result = ExtractPanelItems(panel, *folder, output, password, options, indices,
-                                              explicitIndices != nullptr, messages);
+            result.Result =
+                ExtractPanelItems(panel, *folder, output, password, options, indices,
+                                  explicitIndices != nullptr, messages, result.ExtractStatus);
             result.CallbackOK = messages.IsEmpty();
             result.MessageWasDisplayed = !messages.IsEmpty();
             if (!messages.IsEmpty())
@@ -340,7 +345,7 @@ bool MainWindow::extractWithSource(const QString &destination, bool onlySelected
                 ? QCoreApplication::translate("mainwindow_archivecommands",
                                               "Extraction completed with errors.")
                 : QString::fromWCharArray(HResultToMessage(result.Result));
-    backendFinished(ok, message, result.Result, result.MessageWasDisplayed);
+    backendFinished(ok, message, result.Result, result.MessageWasDisplayed, result.ExtractStatus);
     return true;
 }
 

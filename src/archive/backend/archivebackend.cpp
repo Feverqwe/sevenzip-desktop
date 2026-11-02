@@ -25,6 +25,9 @@ bool ArchiveBackend::busy() const {
 }
 
 HRESULT ArchiveBackend::lastResult() const { return lastResult_; }
+std::optional<QtArchiveExtractStatus> ArchiveBackend::lastExtractStatus() const {
+    return lastExtractStatus_;
+}
 
 HRESULT ArchiveBackend::setPaused(bool paused) {
     if (readOperation_) {
@@ -111,6 +114,7 @@ void ArchiveBackend::extract(const QString &archive, const QString &destination,
         return;
     }
     lastResult_ = E_FAIL;
+    lastExtractStatus_.reset();
     cancelled_ = false;
     if (!restoreListedArchive(archive)) {
         emit finished(

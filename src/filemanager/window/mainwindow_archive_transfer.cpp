@@ -20,8 +20,9 @@ void MainWindow::transferFromArchive(const QString &destination, bool move, bool
     options.pathMode = ExtractionOptions::PathMode::CurrentPaths;
     options.currentFolder = projectedUi().archiveFolder;
     options.overwriteMode = ExtractionOptions::OverwriteMode::Ask;
+    options.Purpose = move ? QtArchiveExtractPurpose::Move : QtArchiveExtractPurpose::Copy;
     if (move)
-        archiveMove_.emplace(sourceIndex, indices);
+        archiveMove_ = std::make_unique<PendingArchiveMove>(sourceIndex, indices);
     const bool handled = extractWithSource(destination, true, {}, options, paths, &indices);
     if (handled && projectedUi().state == State::Operating)
         return; // Asynchronous completion owns the pending transfer.
@@ -32,10 +33,12 @@ void MainWindow::transferFromArchive(const QString &destination, bool move, bool
         begin(QtLangText(move ? IDS_MOVING : IDS_PROGRESS_EXTRACTING), destination);
         // Source refusal permits fallback only at the archive root. Retain
         // Move's full-path transport and Copy's explicit extraction options.
-        if (move)
+        if (move) {
+            ExtractionOptions fallback;
+            fallback.Purpose = QtArchiveExtractPurpose::Move;
             backend_->extract(projectedUi().archive, destination, paths,
-                              projectedUi().archivePassword);
-        else
+                              projectedUi().archivePassword, fallback);
+        } else
             backend_->extract(projectedUi().archive, destination, paths,
                               projectedUi().archivePassword, options);
         return;
@@ -102,6 +105,7 @@ bool MainWindow::transferBetweenArchivePanels(const QString &destination, bool m
     target.SaveSelectedState(destinationSelection);
     UStringVector messages;
     HRESULT result;
+    QtArchiveTransferResult transfer{E_FAIL, {}};
     std::unique_ptr<QtArchiveTransferBackup> rollback;
     const QString destinationArchive = panelUi_[destinationIndex].archive;
     if (move) {
@@ -121,7 +125,8 @@ bool MainWindow::transferBetweenArchivePanels(const QString &destination, bool m
     CSelectedState selected;
     {
         QScopedValueRollback<bool> progressOwner(sourceArchiveProgress_, true);
-        result = app_.CopyArchiveToArchive(sourceIndex, indices, &messages);
+        transfer = app_.CopyArchiveToArchive(sourceIndex, indices, &messages);
+        result = transfer.Result;
         if (result == S_OK && messages.IsEmpty()) {
             outcome = Outcome::Updated;
             if (move) {
@@ -178,7 +183,9 @@ bool MainWindow::transferBetweenArchivePanels(const QString &destination, bool m
                                                "Items copied into the archive."));
     } else if (result != S_OK && result != E_ABORT) {
         QMessageBox::warning(this, QtLangText(IDS_COPYING),
-                             QString::fromWCharArray(HResultToMessage(result).Ptr()));
+                             transfer.Error.isEmpty()
+                                 ? QString::fromWCharArray(HResultToMessage(result).Ptr())
+                                 : transfer.Error);
     }
     return true;
 }

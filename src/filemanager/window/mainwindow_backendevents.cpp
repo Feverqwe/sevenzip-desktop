@@ -10,6 +10,7 @@
 #include "ui/progress/ProgressDialog2.h"
 #include <QCoreApplication>
 #include <QScopedValueRollback>
+#include <utility>
 
 void MainWindow::connectBackend() {
     connect(backend_, &ArchiveBackend::overwriteRequired, this,
@@ -47,28 +48,60 @@ void MainWindow::connectBackend() {
         }
     });
     connect(backend_, &ArchiveBackend::finished, this, [this](bool ok, const QString &message) {
-        backendFinished(ok, message, backend_->lastResult());
+        backendFinished(ok, message, backend_->lastResult(), false, backend_->lastExtractStatus());
     });
 }
 
 void MainWindow::backendFinished(bool ok, const QString &message, HRESULT result,
-                                 bool messageDisplayed) {
+                                 bool messageDisplayed,
+                                 std::optional<QtArchiveExtractStatus> extraction) {
     if (app_.QtOperations().closed())
         return;
     QtAppOperationState::CallScope call(app_.QtOperations());
     if (sourceArchiveProgress_)
         return; // Source worker owns completion until its modal lifecycle joins.
-    if (startPendingArchiveMove(ok))
-        return;
     QString resultMessage = message;
-    if (archiveMove_ && archiveMove_->stage == ArchiveMoveStage::Removing)
-        resultMessage =
-            ok ? QCoreApplication::translate("mainwindow_backendevents",
-                                             "Items moved out of archive.")
-               : QCoreApplication::translate("mainwindow_backendevents",
-                                             "Files extracted but not deleted from archive. ") +
-                     message;
-    archiveMove_.reset();
+    const auto move = std::move(archiveMove_);
+    if (move && ok) {
+        if (!extraction || !extraction->Complete)
+            resultMessage = QCoreApplication::translate(
+                "mainwindow_backendevents",
+                "Source items were kept because complete extraction could not be confirmed.");
+        else {
+            QtArchiveUpdateResult removed{E_FAIL, std::nullopt};
+            {
+                QScopedValueRollback<bool> progressOwner(sourceArchiveProgress_, true);
+                closeProgressDialog();
+                withPanelProjection(move->source, [&] {
+                    auto &panel = app_.Panels[move->source];
+                    CSelectedState selection;
+                    removed =
+                        panel.DeleteItems(false, *trashService_, selection, &move->indices, false);
+                    app_.QtOperations().End();
+                    renderBoundFolder();
+                    panel.RestoreLoadedSelection(selection);
+                });
+            }
+            result = removed.Result;
+            ok = result == S_OK;
+            messageDisplayed = !ok; // The source worker owns deletion diagnostics.
+            if (ok)
+                resultMessage = QCoreApplication::translate("mainwindow_backendevents",
+                                                            "Items moved out of archive.");
+            else {
+                resultMessage =
+                    removed.Published == false
+                        ? QCoreApplication::translate(
+                              "mainwindow_backendevents",
+                              "Files extracted but not deleted from archive. ")
+                        : QCoreApplication::translate(
+                              "mainwindow_backendevents",
+                              "Files were extracted, but source removal did not finish cleanly. "
+                              "Check the source archive. ");
+                resultMessage += QString::fromWCharArray(HResultToMessage(result));
+            }
+        }
+    }
     if (!ok)
         projectedUi().archivePassword.clear();
     const bool hadProgress = progress_;
@@ -84,31 +117,6 @@ void MainWindow::backendFinished(bool ok, const QString &message, HRESULT result
     statusBar()->showMessage(resultMessage);
     if (!ok && !hadProgress && !messageDisplayed && !canceled)
         QMessageBox::warning(this, "Sevenzip", resultMessage);
-}
-
-bool MainWindow::startPendingArchiveMove(bool ok) {
-    if (archiveMove_ && archiveMove_->stage == ArchiveMoveStage::Extracting && ok) {
-        // Closing progress can deliver callbacks that clear pending state.
-        // Keep an owning snapshot of the accepted deletion request.
-        const PendingArchiveMove request = *archiveMove_;
-        archiveMove_->stage = ArchiveMoveStage::Removing;
-        closeProgressDialog();
-        auto &panel = app_.Panels[request.source];
-        CSelectedState selected;
-        HRESULT result;
-        {
-            QScopedValueRollback<bool> progressOwner(sourceArchiveProgress_, true);
-            result =
-                panel.DeleteItems(false, *trashService_, selected, &request.indices, false).Result;
-        }
-        app_.QtOperations().End();
-        renderBoundFolder();
-        panel.RestoreLoadedSelection(selected);
-        backendFinished(result == S_OK, QString::fromWCharArray(HResultToMessage(result)), result,
-                        result != S_OK);
-        return true;
-    }
-    return false;
 }
 
 void MainWindow::closeProgressDialog(bool finished) {

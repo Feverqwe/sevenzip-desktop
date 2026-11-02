@@ -503,7 +503,9 @@ Z7_COM7F_IMF(CArchiveUpdateCallback::GetProperty(UInt32 index, PROPID propID, PR
             // case kpidShortName:  prop = di.ShortName; break;
 #else
         case kpidIsAltStream:
-            if (NewDataIsAltStream)
+            if (NewDataIsAltStream ||
+                (QtAltStreamItems && (unsigned)up.DirIndex < QtAltStreamItems->Size() &&
+                 (*QtAltStreamItems)[(unsigned)up.DirIndex]))
                 prop = true;
             break;
 

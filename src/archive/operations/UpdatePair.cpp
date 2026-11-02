@@ -10,6 +10,7 @@
 
 #include "7zip/UI/Common/SortUtils.h"
 #include "7zip/UI/Common/UpdatePair.h"
+#include "archive/operations/qtupdatepair.h"
 
 using namespace NWindows;
 using namespace NTime;
@@ -129,6 +130,13 @@ static int CompareArcItems(const unsigned *p1, const unsigned *p2, void *param) 
 void GetUpdatePairInfoList(const CDirItems &dirItems, const CObjectVector<CArcItem> &arcItems,
                            NFileTimeType::EEnum fileTimeType,
                            CRecordVector<CUpdatePair> &updatePairs) {
+    GetUpdatePairInfoList(dirItems, arcItems, fileTimeType, updatePairs, {});
+}
+
+void GetUpdatePairInfoList(const CDirItems &dirItems, const CObjectVector<CArcItem> &arcItems,
+                           NFileTimeType::EEnum fileTimeType,
+                           CRecordVector<CUpdatePair> &updatePairs,
+                           const CRecordVector<Byte> &altStreamItems) {
     CUIntVector dirIndices, arcIndices;
 
     const unsigned numDirItems = dirItems.Items.Size();
@@ -252,7 +260,8 @@ void GetUpdatePairInfoList(const CDirItems &dirItems, const CObjectVector<CArcIt
             arcIndex++;
         }
 
-        if (
+        if ((pair.DirIndex >= 0 && (unsigned)pair.DirIndex < altStreamItems.Size() &&
+             altStreamItems[(unsigned)pair.DirIndex]) ||
 #ifdef _WIN32
             (di && di->IsAltStream) ||
 #endif

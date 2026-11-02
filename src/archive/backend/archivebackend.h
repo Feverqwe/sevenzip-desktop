@@ -5,6 +5,7 @@ class CArc;
 
 #include "7zip/Archive/IArchive.h"
 #include "archive/codecs/archivecodecpublication.h"
+#include "archive/resources/qtarchiveextractstatus.h"
 #include "dialogs/compress/CompressInfo.h"
 #include "fileops/overwrite/overwritequestion.h"
 
@@ -94,6 +95,7 @@ struct ExtractionOptions {
     OverwriteMode overwriteMode = OverwriteMode::RejectExisting;
     CBoolPair ElimDup;
     CBoolPair NtSecurity;
+    QtArchiveExtractPurpose Purpose = QtArchiveExtractPurpose::Copy;
 };
 
 class ArchiveReadOnlyView;
@@ -106,6 +108,7 @@ class ArchiveBackend : public QObject {
     ~ArchiveBackend() override;
     virtual bool busy() const;
     virtual HRESULT lastResult() const;
+    virtual std::optional<QtArchiveExtractStatus> lastExtractStatus() const;
     // Item/block or opening diagnostic result, or -1 when no result is available.
     Int32 lastSourceExtractOperation() const { return sourceExtractOperation_; }
     // Explicit module/version boundary. The engine probe/discovery service
@@ -308,6 +311,7 @@ class ArchiveBackend : public QObject {
     QHash<QString, ListedSourceSnapshot> listedSourceArchives_;
     bool cancelled_ = false;
     HRESULT lastResult_ = E_FAIL;
+    std::optional<QtArchiveExtractStatus> lastExtractStatus_;
     Int32 sourceExtractOperation_ = -1;
     bool overwritePromptActive_ = false;
 };

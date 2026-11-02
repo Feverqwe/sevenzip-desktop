@@ -1,5 +1,85 @@
 # File-transfer ownership
 
+## Archive Move extraction outcome — 2026-11-02
+
+Compared the selected native extraction, overwrite, stream, directory and deferred
+link bodies, Agent extraction/update callers, panel worker join and update pairing
+with recorded `b88c6bc09339de32f7d18bbab900686b244f42ba` in
+<https://github.com/ip7z/7zip.git>. Complete original Agent, AgentOut,
+ArchiveExtractCallback, ExtractCallback, PanelCopy, UpdatePair and UpdateCallback
+inventory hashes match the existing baseline. No external import or provenance
+advancement. Native decoding, path/link validation, overwrite decisions, filesystem
+enumeration, pairing and archive writing remain authoritative.
+
+Native extraction intentionally returns S_OK for overwrite No/NoToAll. The old
+Move continuation treated that result as permission to remove every selected
+source entry, including an entire directory with a skipped child. A real pre-fix
+Linux run reproduced loss of the original archive bytes while different existing
+destination bytes survived, for a file and two directory overwrite choices.
+
+A joined extraction report now distinguishes accepted outputs from its HRESULT.
+It accounts for skipped output and deferred link completion; solid neighbours
+processed without extraction do not invalidate the selected operation. Unknown
+or incomplete results retain the whole source selection and report that fact.
+The pending Move's unique owner is consumed before callbacks; deletion and final
+presentation share one completion path. Its deletion diagnostics use the publication outcome
+described below, including errors after source replacement.
+
+The same report protects interarchive staging before destination import. Original
+logical directory prefixes are associated with physical identities; shared parent
+reuse remains valid, while merged names, changed identities and repaired names
+do not establish complete transfer. Existing private output is skipped without
+an overwrite prompt. Directory links are checked before native placeholder
+replacement, and data-encoded links refresh the recorded output identity.
+On Windows, output identity includes the native canonical stream name because
+an NTFS owner and its streams share a file identity. Unknown identities retain
+the source. Observation failures cannot escape native final cleanup.
+
+Confirmed relative links, hardlink groups and alternate streams feed the existing
+native enumeration and update callbacks through operation-scoped transfer inputs.
+The destination resource stays pinned until CopyFrom joins and reopens; its prior
+transfer state is restored without changing compression or encryption settings.
+On Unix, confirmed sibling stream files missed by selected-host enumeration are
+enumerated with the native helper. A per-directory-item sidecar supplies both
+native update pairing and kpidIsAltStream; ordinary colon filenames are not
+inferred to be streams. Nested streams must already belong to the enumerated
+selected directory. Missing inputs and unsupported target metadata prevent import.
+
+Native archive-root symlinks are redirected into the extraction tree. The current
+filesystem staging cannot round-trip those targets after its temporary directory
+is removed, so interarchive transfer reports that limitation and retains both
+archives. Ordinary filesystem extraction and relative links remain available.
+This is a staging limitation, not missing native link decoding.
+
+The asynchronous directory fallback receives the same operation purpose. Move
+uses the native host-stream inclusion rule, matching source deletion; ordinary
+Copy retains its literal stream selection. Known POSIX stream outputs are checked
+as standalone files, including their actual leaf and ancestors; a one-character
+owner is not interpreted as a Windows drive. Current-folder validation applies
+the exact bound source prefix before checking the remaining output. Unbound
+traversal and ordinary drive paths remain rejected.
+
+Focused real-archive regressions cover overwrite refusal and cancellation,
+successful solid extraction, source-reopen failure after publication, directory
+and file streams, link preservation, merged staging paths, unsupported target
+metadata, and independent decoding of destination bytes and stream properties.
+The directory-stream overwrite reproduced false source retention on Windows
+before stream identities were distinguished. The one-character WIM owner
+reproduced the POSIX path rejection independently of fixture decoding.
+Linux passed eight affected suites; macOS and Windows passed the six suites
+covering their extraction, path, link, stream and UI adaptations. The final
+fixture-path correction was checked again with the Move suite on all three.
+Platform-only cases remain explicit skips. Linux's final combined build/test
+times were 17.064/16.750 seconds; macOS 21.81/15.21; Windows 62.98/19.87 for the
+combined batch, followed by the corrected Move-only acceptance. Its earlier
+failure was fixture preparation, before transfer; the other five passing suites
+were reused. A separate Windows transport stall before synchronization was
+diagnosed only to its childless bootstrap process and recovered; it does not
+establish a framing defect. No full/slow gate or rendered pixel parity is claimed.
+EN/RU warning geometry was checked in normal and compact Qt layouts.
+Diagnosed temporary fixtures and completed settings were removed; incremental
+outputs, compiler caches, runtime deployments and small diagnostic logs remain.
+
 ## Interarchive Move publication outcome — 2026-11-02
 
 Compared original ArchiveFolderOut CommonUpdateOperation, its Delete and update

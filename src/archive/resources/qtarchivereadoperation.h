@@ -1,5 +1,6 @@
 #pragma once
 #include "7zip/Archive/IArchive.h"
+#include "archive/resources/qtarchiveextractstatus.h"
 #include "fileops/overwrite/overwritequestion.h"
 #include "ui/progress/qtworkerprogress.h"
 #include <QList>
@@ -57,6 +58,7 @@ class QtArchiveReadOperation final : public QThread {
     HRESULT password(BSTR *value);
     void report(quint64 completed, quint64 total, const QString &path);
     HRESULT Result = E_FAIL;
+    std::optional<QtArchiveExtractStatus> ExtractStatus;
     QString CatalogDiagnostic;
     QString OpenedFormat;
     std::unique_ptr<NativeArchiveListing> Listing;

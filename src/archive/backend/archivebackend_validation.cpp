@@ -52,6 +52,33 @@ bool SafeExtractionPath(const QString &path) {
     return true;
 }
 
+bool ValidateExtractionNodes(const QString &output, bool directory, QString *error) {
+    QString candidate = output;
+    bool leaf = true;
+    while (true) {
+        const QFileInfo existing(candidate);
+#ifdef Q_OS_MACOS
+        const bool systemAlias = candidate == "/var" || candidate == "/tmp" || candidate == "/etc";
+#else
+        const bool systemAlias = false;
+#endif
+        if ((existing.isSymLink() && !systemAlias) ||
+            (existing.exists() && (leaf && !directory ? !existing.isFile() : !existing.isDir()))) {
+            *error =
+                QCoreApplication::translate("archivebackend_validation",
+                                            "Destination path is occupied by a file or link: %1")
+                    .arg(candidate);
+            return false;
+        }
+        const QString parent = existing.absolutePath();
+        if (parent == candidate)
+            break;
+        candidate = parent;
+        leaf = false;
+    }
+    return true;
+}
+
 struct ExtractionPathContext {
     const QFileInfo &target;
     const ExtractionOptions &options;
@@ -85,6 +112,8 @@ std::expected<QString, QString> ExtractionRelativePath(const ExtractionPathConte
                               currentFolder.endsWith(':');
     const bool stream = streamFolder && !entry.directory &&
                         entry.properties.value(QStringLiteral("Alternate Stream")) == "+";
+    const bool sourceRelative = options.pathMode == ExtractionOptions::PathMode::CurrentPaths &&
+                                !boundFolder.isEmpty() && boundFolder == currentFolder;
     const QString base = streamFolder ? currentFolder.chopped(1) : QString();
     const QString streamName = entryPath.mid(currentFolder.size());
     // Original ArchiveExtractCallback::CorrectPathParts removes the base
@@ -92,18 +121,9 @@ std::expected<QString, QString> ExtractionRelativePath(const ExtractionPathConte
     // output name. Ordinary POSIX filenames may contain colons; ADS
     // names still cannot contain a second stream separator.
     const bool safeStream = stream && entryPath.startsWith(currentFolder) &&
-                            SafeExtractionPath(base) && SafeExtractionPath(streamName) &&
-                            !streamName.contains('/') && !streamName.contains('\\') &&
-                            !streamName.contains(':');
-    bool nativeStream = false;
-#ifdef Q_OS_WIN
-    const int colon = boundedPath.indexOf(':');
-    nativeStream = nativeSource && !streamFolder && !entry.directory && !entry.link &&
-                   entry.properties.value(QStringLiteral("Alternate Stream")) == "+" && colon > 0 &&
-                   SafeExtractionPath(boundedPath.left(colon)) &&
-                   SafeExtractionPath(boundedPath.mid(colon + 1)) &&
-                   !boundedPath.mid(colon + 1).contains('/');
-#endif
+                            (sourceRelative || SafeExtractionPath(base)) &&
+                            SafeExtractionPath(streamName) && !streamName.contains('/') &&
+                            !streamName.contains('\\') && !streamName.contains(':');
     QString relative = boundedPath;
     if (options.pathMode == ExtractionOptions::PathMode::CurrentPaths && !currentFolder.isEmpty()) {
         const QString prefix = currentFolder + (safeStream ? QString() : QString('/'));
@@ -118,12 +138,21 @@ std::expected<QString, QString> ExtractionRelativePath(const ExtractionPathConte
         relative = relative.section('/', -1);
     // A bound source folder can remove this exact prefix even when the
     // prefix itself contains parent components. Unbound inputs stay strict.
-    const bool sourceRelative = options.pathMode == ExtractionOptions::PathMode::CurrentPaths &&
-                                !boundFolder.isEmpty() && boundFolder == currentFolder;
     QStringList checkedParts = (sourceRelative ? relative : boundedPath).split('/');
     checkedParts.removeAll(QStringLiteral("."));
+    const QString checkedPath = checkedParts.join('/');
+    const int colon = checkedPath.indexOf(':');
+    // The listing declares streams explicitly; unlike links, their bounded
+    // output names do not require a native-index extraction workflow.
+    const bool nativeStream = !streamFolder && !entry.directory && !entry.link &&
+                              entry.properties.value(QStringLiteral("Alternate Stream")) == "+" &&
+                              colon > 0 && SafeExtractionPath(checkedPath.left(colon)) &&
+                              SafeExtractionPath(checkedPath.mid(colon + 1)) &&
+                              !checkedPath.mid(colon + 1).contains('/') &&
+                              !checkedPath.mid(colon + 1).contains('\\') &&
+                              !checkedPath.mid(colon + 1).contains(':');
     const bool safeRelative =
-        (entry.directory && checkedParts.isEmpty()) || SafeExtractionPath(checkedParts.join('/'));
+        (entry.directory && checkedParts.isEmpty()) || SafeExtractionPath(checkedPath);
     if ((!safeStream && !nativeStream && !safeRelative) || (entry.link && !nativeSource) ||
         (streamFolder && !safeStream)) {
         return std::unexpected(
@@ -158,30 +187,7 @@ bool ArchiveBackend::validateExtractionOutput(const QString &destination, const 
                 .arg(path);
         return false;
     }
-    QString candidate = output;
-    bool leaf = true;
-    while (true) {
-        const QFileInfo existing(candidate);
-#ifdef Q_OS_MACOS
-        const bool systemAlias = candidate == "/var" || candidate == "/tmp" || candidate == "/etc";
-#else
-        const bool systemAlias = false;
-#endif
-        if ((existing.isSymLink() && !systemAlias) ||
-            (existing.exists() && (leaf && !directory ? !existing.isFile() : !existing.isDir()))) {
-            *error =
-                QCoreApplication::translate("archivebackend_validation",
-                                            "Destination path is occupied by a file or link: %1")
-                    .arg(candidate);
-            return false;
-        }
-        const QString parent = existing.absolutePath();
-        if (parent == candidate)
-            break;
-        candidate = parent;
-        leaf = false;
-    }
-    return true;
+    return ValidateExtractionNodes(output, directory, error);
 }
 
 bool ArchiveBackend::validateExtractionStreamOutput(const QString &destination, const QString &path,
@@ -190,13 +196,33 @@ bool ArchiveBackend::validateExtractionStreamOutput(const QString &destination, 
     const int colon = output.lastIndexOf(':');
     if (colon > output.lastIndexOf('/')) {
         const QString name = output.mid(colon + 1);
-        if (!safePath(name) || name.contains('/')) {
+        if (!safePath(name) || name.contains('/') || name.contains('\\')) {
             *error = QCoreApplication::translate("archivebackend_validation",
                                                  "Unsafe alternate stream name");
             return false;
         }
+#ifdef Q_OS_WIN
         const QString base = output.left(colon);
         return validateExtractionOutput(destination, base, QFileInfo(base).isDir(), error);
+#else
+        // POSIX writes a standalone file. Validate the known stream's two
+        // components without mistaking h:stream for a Windows drive prefix,
+        // then check the actual output and all its filesystem ancestors.
+        const QString root = QDir::cleanPath(QFileInfo(destination).absoluteFilePath());
+        const QString absolute = QDir::cleanPath(QFileInfo(output).absoluteFilePath());
+        const QString relative = QDir(root).relativeFilePath(absolute);
+        const int separator = relative.lastIndexOf(':');
+        const QString base = relative.left(separator);
+        if (separator < 0 || separator <= relative.lastIndexOf('/') ||
+            (!base.isEmpty() && !safePath(base))) {
+            *error =
+                QCoreApplication::translate("archivebackend_validation",
+                                            "Extraction path is outside the destination folder: %1")
+                    .arg(path);
+            return false;
+        }
+        return ValidateExtractionNodes(absolute, false, error);
+#endif
     }
     // Extracting from a source ADS folder removes the base and colon.
     return validateExtractionOutput(destination, output, false, error);

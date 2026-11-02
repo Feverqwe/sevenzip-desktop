@@ -20,6 +20,17 @@ pixels or physical input. [Receipt](../archive/qt-port/upstream-port-audit.md#p3
 
 ### Source Copy/Move destination (P3-05.15, required scope)
 
+Archive-to-filesystem Move retains the complete source selection when extraction
+skips an item or cannot confirm complete output. Its terminal status explains
+that retention. A late source-removal error asks to check the archive rather
+than claiming that no deletion occurred.
+
+Interarchive staging errors precede destination import and source deletion.
+Unsupported target metadata and incompatible paths leave both archives intact;
+private staging collisions do not open an overwrite question. EN/RU warnings
+must keep their label and OK visible at normal/compact message sizes. Native
+extraction diagnostics retain their existing progress-message presentation.
+
 Copy history values follow source UStringVector/IsEqualTo_NoCase, retaining
 source-distinct K/K spellings through save/reload and the actual editable combo.
 Cancel preserves order; accepted CApp Copy moves its destination to the front.

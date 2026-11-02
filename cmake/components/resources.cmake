@@ -64,10 +64,12 @@ add_library(sevenzip_filesystem STATIC
     src/archive/operations/UpdatePair.cpp
     ${SEVENZIP_7ZIP_SOURCE_DIR}/CPP/7zip/UI/Common/UpdateProduce.cpp
     src/archive/resources/qtarchivedeleteinputs.cpp src/archive/resources/qtarchivedeleteinputs.h
+    src/archive/resources/qtarchivetransferinputs.cpp src/archive/resources/qtarchivetransferinputs.h
 
     src/archive/streams/MultiOutStream.cpp src/archive/streams/MultiOutStream.h
 
     src/archive/callbacks/ArchiveExtractCallback.cpp src/archive/callbacks/ArchiveExtractCallback.h
+    src/archive/callbacks/qtarchiveoutputidentity.cpp src/archive/callbacks/qtarchiveoutputidentity.h
     src/archive/operations/Extract.cpp src/archive/operations/Extract.h
     src/archive/opening/OpenArchive.cpp src/archive/opening/OpenArchive.h
     src/archive/codecs/archivecodeccatalog.cpp src/archive/codecs/archivecodeccatalog.h
