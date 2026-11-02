@@ -1,5 +1,39 @@
 # Local read-only SMB: implementation and evidence
 
+## Native-client completion cleanup — 2026-11-02
+
+Reviewed the complete remote client/process owner, Linux broker, private control
+and broker entrypoint, mount-session start/unmount/cleanup and manager consumers.
+These are project Qt/platform integration without a 7zFM mount counterpart;
+native readers, SMB protocol code and privileged OS-client commands are unchanged.
+No external import or baseline advance.
+
+Terminal failure now releases the private host, source and temporary channel
+before notifying mountFinished receivers. This applies to an unacknowledged
+helper exit and channel-creation failure. Previously helper exit notified first,
+so a receiver could encounter the obsolete active channel on immediate retry;
+channel-creation failure could also clean state after a receiver had acted on it.
+The outcome is captured before cleanup and notification is last. An acknowledged
+or potentially mounted session still retains its recovery channel and server,
+including when the path acknowledgement was lost.
+
+QProcess exit/start-failure delivery is queued to the client owner before public
+notification. Owner deletion therefore drops pending delivery, while result
+receivers run outside those QProcess signal frames. Existing POSIX orphan-helper
+and Windows handle/notifier ownership remain unchanged. No new test hook or
+privileged fixture was introduced for this source-visible publication correction.
+
+Linux primary `20261102T051009Z-b03e8b78` built native_mount_client,
+mount_session and archive_mount_transport and passed their ordinary checks:
+17 Qt passes and 9 skips. Build 10.155 s; tests 3.079 s. Four native-client rows
+were skipped (the CIFS client is installed, plus three opt-in lifecycle rows),
+as were five opt-in transport mount rows. The failure/retry ordering was reviewed
+from source, not reproduced through an authorized native OS mount. These results
+do not establish new native mount, authorization, recovery or receiver-deletion
+acceptance. Only portable Qt completion ordering changed; secondary OS checks
+were not rerun. Selected scratch was empty before/after; incremental outputs and
+compiler caches retained. No full/slow gate, reports or screenshots.
+
 ## Mount settings preparation owner — 2026-11-01
 
 Reviewed the complete settings preparation/cache-probe/cancellation flow,

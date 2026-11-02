@@ -53,13 +53,16 @@ struct QtSmbMountPlatform::State {
 };
 QtSmbMountPlatform::QtSmbMountPlatform(QObject *parent)
     : QObject(parent), state_(std::make_unique<State>()) {
-    connect(state_->Helper.get(), qOverload<int, QProcess::ExitStatus>(&QProcess::finished), this,
-            [this](int, QProcess::ExitStatus) { helperEnded(); });
-    connect(state_->Helper.get(), &QProcess::errorOccurred, this,
-            [this](QProcess::ProcessError error) {
-                if (error == QProcess::FailedToStart)
-                    launchFailed(state_->Helper->errorString());
-            });
+    connect(
+        state_->Helper.get(), qOverload<int, QProcess::ExitStatus>(&QProcess::finished), this,
+        [this](int, QProcess::ExitStatus) { helperEnded(); }, Qt::QueuedConnection);
+    connect(
+        state_->Helper.get(), &QProcess::errorOccurred, this,
+        [this](QProcess::ProcessError error) {
+            if (error == QProcess::FailedToStart)
+                launchFailed(state_->Helper->errorString());
+        },
+        Qt::QueuedConnection);
     // Do not retain process diagnostics or any command's input in the UI.
     connect(state_->Helper.get(), &QProcess::readyReadStandardError, this,
             [this] { state_->Helper->readAllStandardError(); });
@@ -81,10 +84,12 @@ void QtSmbMountPlatform::launchFailed(const QString &error) {
 }
 void QtSmbMountPlatform::helperEnded() {
     state_->Exited = true;
-    if (!state_->Disconnected) {
-        const QString error = !state_->Reported && !state_->LaunchFailure.isEmpty()
-                                  ? state_->LaunchFailure
-                                  : tr("The system mount helper stopped unexpectedly.");
+    const bool reportFailure = !state_->Disconnected;
+    QString error;
+    if (reportFailure) {
+        error = !state_->Reported && !state_->LaunchFailure.isEmpty()
+                    ? state_->LaunchFailure
+                    : tr("The system mount helper stopped unexpectedly.");
         if (state_->Reported || (state_->Source && state_->Source->connected())) {
             // Preserve the server even when a mount's path acknowledgement
             // was lost. A fresh broker can recover only this session's mount.
@@ -92,11 +97,12 @@ void QtSmbMountPlatform::helperEnded() {
             emit unmountFinished(error);
             return;
         }
-        emit mountFinished({}, error);
     }
     state_->Host.reset();
     state_->Source.reset();
     state_->Directory.reset();
+    if (reportFailure)
+        emit mountFinished({}, error);
 }
 
 QString QtSmbMountPlatform::unavailableReason() {
@@ -147,9 +153,10 @@ void QtSmbMountPlatform::mount(quint16 port, const QString &share, const QString
     QRemoteObjectHost::setLocalServerOptions(QLocalServer::UserAccessOption);
     if (!state_->Host->setHostUrl(endpoint) ||
         !state_->Host->enableRemoting<NativeClientSourceAPI>(state_->Source.get())) {
-        emit mountFinished({}, tr("Could not create the private system-mount channel."));
         state_->Host.reset();
         state_->Source.reset();
+        state_->Directory.reset();
+        emit mountFinished({}, tr("Could not create the private system-mount channel."));
         return;
     }
     connect(
