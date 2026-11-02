@@ -1,5 +1,4 @@
 #include "help/qthelpservices.h"
-#include "Common/StringConvert.h"
 #include "localization/qtlangbuttonbox.h"
 #include "localization/qtlangcontrols.h"
 #include "ui/dialogs/qtdialoglayout.h"
@@ -262,17 +261,6 @@ HelpBrowser *CreateHelpBrowser(QWidget *parent, const QUrl &root, const QString 
     return browser;
 }
 } // namespace
-
-FString QtHelpModuleDirPrefix() {
-    const auto path = (QCoreApplication::applicationDirPath() + '/').toStdWString();
-    return us2fs(UString(path.c_str()));
-}
-
-void QtDisplayHelpTopic(const FString &path, QWidget *parent) {
-    const QString value = QString::fromWCharArray(fs2us(path).Ptr());
-    const int marker = value.indexOf("7-zip.chm::/");
-    QtOpenHelpTopic(marker < 0 ? QString() : value.mid(marker + 12), parent);
-}
 
 void QtOpenHelpTopic(const QString &topic, QWidget *parent, const QString &root) {
     InitHelpResources();

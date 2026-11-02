@@ -57,6 +57,9 @@ rg -n --no-ignore -F 'CAgent::Open' docs/archive/qt-port/upstream-port-audit/ do
 
 ## Новые изменения
 
+- [Прямой запуск темы справки](upstream-port-audit/help-topic-owner.md)
+  — Qt получает тему без промежуточного пути к CHM.
+
 - [Владелец метаданных архива](upstream-port-audit/metadata-view-owner.md)
   — независимая привязка индексов каждого представления к нативному reader.
 
