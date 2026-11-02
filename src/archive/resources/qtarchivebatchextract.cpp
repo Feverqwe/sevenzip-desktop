@@ -61,18 +61,17 @@ QtArchiveBatchResult RunQtArchiveBatchExtract(ArchiveBackend &backend, const QSt
     case ExtractionOptions::OverwriteMode::RejectExisting:
         return result;
     }
-    CMyComPtr<IFolderArchiveExtractCallback> callback = new CExtractCallbackImp;
-    auto *spec = static_cast<CExtractCallbackImp *>(callback.Interface());
-    spec->MultiArcMode = archives.size() > 1;
-    spec->OverwriteMode = sourceOptions.OverwriteMode;
-    spec->SettingsPath = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
-    spec->Password = UString(password.toStdWString().c_str());
-    spec->PasswordIsDefined = !password.isEmpty();
+    CMyComPtr2_Create<IFolderArchiveExtractCallback, CExtractCallbackImp> callback;
+    callback->MultiArcMode = archives.size() > 1;
+    callback->OverwriteMode = sourceOptions.OverwriteMode;
+    callback->SettingsPath = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
+    callback->Password = UString(password.toStdWString().c_str());
+    callback->PasswordIsDefined = !password.isEmpty();
     QtArchiveBatchOpen open(backend);
     open.SetExtractionPolicy(destination, options);
     result.Result = ExtractGUI(&codecs, types, excludedFormats, archivePaths, archivePathsFull,
                                censor, sourceOptions, nullptr, false, result.MessageWasDisplayed,
-                               spec, &open, &open, parent);
-    result.CallbackOK = spec->IsOK();
+                               callback.ClsPtr(), &open, &open, parent);
+    result.CallbackOK = callback->IsOK();
     return result;
 }

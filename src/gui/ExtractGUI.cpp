@@ -72,7 +72,6 @@ class CThreadExtracting : public CProgressThreadVirt {
     */
 
     CCodecs *codecs;
-    CExtractCallbackImp *ExtractCallbackSpec;
     const CObjectVector<COpenType> *FormatIndices;
     const CIntVector *ExcludedFormatIndices;
 
@@ -86,7 +85,7 @@ class CThreadExtracting : public CProgressThreadVirt {
     virtual void ProcessWasFinished_GuiVirt() Z7_override;
 #endif
 
-    CMyComPtr<IFolderArchiveExtractCallback> FolderArchiveExtractCallback;
+    CMyComPtr2<IFolderArchiveExtractCallback, CExtractCallbackImp> ExtractCallback;
     UString Title;
 
     CPropNameValPairs Pairs;
@@ -117,15 +116,15 @@ if (HashBundle)
         #endif
         */
         codecs, *FormatIndices, *ExcludedFormatIndices, *ArchivePaths, *ArchivePathsFull,
-        *WildcardCensor, *Options, ExtractCallbackSpec, ExtractCallbackSpec,
-        FolderArchiveExtractCallback,
+        *WildcardCensor, *Options, ExtractCallback.ClsPtr(), ExtractCallback.ClsPtr(),
+        ExtractCallback,
 #ifndef Z7_SFX
         HashBundle,
 #endif
         FinalMessage.ErrorMessage.Message, Stat, QtOpenService);
 
 #ifndef Z7_SFX
-    if (res == S_OK && ExtractCallbackSpec->IsOK()) {
+    if (res == S_OK && ExtractCallback->IsOK()) {
         if (HashBundle) {
             AddValuePair(Pairs, IDS_ARCHIVES_COLON, Stat.NumArchives);
             AddSizeValuePair(Pairs, IDS_PROP_PACKED_SIZE, Stat.PackSize);
@@ -254,10 +253,9 @@ HRESULT ExtractGUI(
     UString title = LangString(options.TestMode ? IDS_PROGRESS_TESTING : IDS_PROGRESS_EXTRACTING);
 
     extracter.Title = title;
-    extracter.ExtractCallbackSpec = extractCallback;
-    extracter.ExtractCallbackSpec->ProgressDialog = &extracter;
-    extracter.FolderArchiveExtractCallback = extractCallback;
-    extracter.ExtractCallbackSpec->Init();
+    extractCallback->ProgressDialog = &extracter;
+    extracter.ExtractCallback.SetFromCls(extractCallback);
+    extracter.ExtractCallback->Init();
 
     extracter.CompressingMode = false;
 

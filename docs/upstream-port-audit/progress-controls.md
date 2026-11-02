@@ -141,3 +141,35 @@ so secondary OS checks were not selected. Source inventory, original inventory
 hash and whitespace checks passed. Builds retained configured four-job defaults,
 incremental outputs and compiler caches; completed scratch settings were removed.
 No full/slow or appearance gate ran.
+
+## Batch extraction callback ownership — 2026-11-02
+
+Compared the complete original extraction worker and extraction-group callers
+with the current ExtractGUI, shell-command and GUI-command paths. The application
+batch adapter uses the same extraction boundary. Callback interfaces, extraction
+options, volume ordering, path policy and report checks retain their existing
+owners and behavior; original inventory hashes remain unchanged.
+
+Each extraction entry now uses the existing typed COM owner for its callback,
+removing the separate implementation pointer and interface downcast. The worker
+likewise retains the caller-provided implementation through one typed owner.
+It acquires its additional reference at the original preparation point, after
+dialog/path acceptance, and releases it after the joined operation. The caller's
+reference still survives worker destruction and the final IsOK check. Dialog
+Cancel and invalid-output exits do not acquire a worker callback reference.
+Progress attachment, initialization, password updates, success/error summaries,
+hash results and transport teardown order are unchanged. No public API,
+independent archive algorithm or new source import is introduced.
+
+Existing batch extraction, shell service, open-option and GUI error-policy tests
+exercise success, overwrite cancellation, volume handling, type exclusion and
+early exits. The native GUI workflow additionally exercises the independent
+7zG command entry; it is registered only on Windows. No pointer-layout or
+private-state test is added.
+
+Linux passed 50 checks across the four shared suites without skips. Windows then
+passed all 13 native GUI workflow checks, covering the changed 7zG entry through
+its platform-specific driver. Selected scratch directories were empty before
+and after both runs. Source inventory, original hashes and whitespace checks
+passed. Builds reused configured four-job defaults, incremental outputs and
+compiler caches. No macOS, full/slow or rendered-parity acceptance is claimed.

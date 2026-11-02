@@ -184,8 +184,7 @@ static int Main2(const QtGUIServiceFactory &factory, const QtGUICommandSource &c
         UStringVector ArchivePathsSorted;
         UStringVector ArchivePathsFullSorted;
 
-        CExtractCallbackImp *ecs = new CExtractCallbackImp;
-        CMyComPtr<IFolderArchiveExtractCallback> extractCallback = ecs;
+        CMyComPtr2_Create<IFolderArchiveExtractCallback, CExtractCallbackImp> ecs;
 
 #ifndef Z7_NO_CRYPTO
         ecs->PasswordIsDefined = options.PasswordEnabled;
@@ -246,7 +245,7 @@ static int Main2(const QtGUIServiceFactory &factory, const QtGUICommandSource &c
 #ifndef Z7_SFX
             hb_ptr,
 #endif
-            options.ShowDialog, messageWasDisplayed, *ecs, options.ArcType);
+            options.ShowDialog, messageWasDisplayed, *ecs.ClsPtr(), options.ArcType);
         if (result != S_OK) {
             if (result != E_ABORT && messageWasDisplayed)
                 return NExitCode::kFatalError;
