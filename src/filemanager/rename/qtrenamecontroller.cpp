@@ -3,6 +3,7 @@
 #include <QAbstractItemDelegate>
 #include <QLineEdit>
 #include <QPersistentModelIndex>
+#include <QScopeGuard>
 #include <QScopedValueRollback>
 #include <utility>
 
@@ -72,13 +73,15 @@ void QtRenameController::Begin(int row) {
                                   view);
     request_ = request;
     const QPointer<QtRenameController> guard(this);
+    auto retireUnopened = qScopeGuard([this, guard, request] {
+        if (guard && request_ == request)
+            request_.reset();
+    });
     view->scrollTo(item);
     if (!guard || request_ != request)
         return;
-    if (!request->item.isValid()) {
-        request_.reset();
+    if (!request->item.isValid())
         return;
-    }
     view->edit(request->item);
     if (!guard || request_ != request)
         return;
@@ -90,9 +93,9 @@ void QtRenameController::Begin(int row) {
     if (!request->editor) {
         // Qt may refuse to create an editor. There is no deferred key/edit
         // completion to wait for, so normal activation must remain available.
-        request_.reset();
         return;
     }
+    retireUnopened.dismiss();
     if (archive || streams) {
         request->editor->setText(ToQString(panel.GetItemName(sourceIndex)));
         request->editor->selectAll();

@@ -29,7 +29,7 @@ void MainWindow::beginRename(int row) { renameController_->Begin(row); }
 void MainWindow::finishFilesystemRename(quint32 sourceIndex, const QString &originalPath,
                                         const QString &name) {
     const bool archive = projectedUi().state == State::Viewing;
-    const auto &panel = app_.GetFocusedPanel();
+    auto &panel = app_.GetFocusedPanel();
     const bool streams = panel.GetFolder() && panel.IsAltStreamsFolder();
     if (projectedUi().state != State::Filesystem && !archive && !streams)
         return;
@@ -39,15 +39,15 @@ void MainWindow::finishFilesystemRename(quint32 sourceIndex, const QString &orig
     {
         QScopedValueRollback<bool> source(sourceArchiveProgress_, true);
         if (name.contains(QChar::Null)) {
-            CPanel::CDisableTimerProcessing disableTimer(app_.GetFocusedPanel());
-            app_.GetFocusedPanel().MessageBox_Error_HRESULT(E_INVALIDARG);
+            CPanel::CDisableTimerProcessing disableTimer(panel);
+            panel.MessageBox_Error_HRESULT(E_INVALIDARG);
         } else
-            app_.GetFocusedPanel().OnEndLabelEdit(sourceIndex, ToUString(name));
+            panel.OnEndLabelEdit(sourceIndex, ToUString(name));
     }
-    const auto selection = app_.GetFocusedPanel().TakeRefreshSelection();
+    const auto selection = panel.TakeRefreshSelection();
     if (!selection) {
         // The source validation return rejects the edit without reloading.
-        rejectLabelEdit(app_.GetFocusedPanel(), *projectedUi().table, sourceIndex);
+        rejectLabelEdit(panel, *projectedUi().table, sourceIndex);
         refreshActions();
         return;
     }
