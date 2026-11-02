@@ -1,5 +1,41 @@
 # External-process ownership
 
+## Independent child release — 2026-11-02
+
+Reviewed POSIX child ownership, creation/adoption and polling in both process
+adapters, the independent-operation observer and endpoint, and editor wait
+consumers. Compared original Call7zGui,
+CProcess creation and CHandle destruction at recorded upstream revision
+`9128b80e3a471108678e2b3ec3c985861c8d7b0f` from
+<https://github.com/ip7z/7zip.git>; complete CompressCall.cpp, ProcessUtils.cpp/.h,
+Handle.h and PanelItemOpen.cpp hashes match the existing baseline. Windows
+releases observation by closing its handle. POSIX reaping remains a local service;
+no external source is imported or provenance advanced.
+
+The independent GUI adapter's one-time nonblocking destructor wait could leave
+a child unreaped when its observer was deleted while the manager stayed alive.
+Both clients now link one POSIX child owner, extracted from the existing editor
+reaper. It reserves cleanup before spawn, takes the successful PID without
+allocation, and transfers pending reaping on destruction without terminating or
+waiting for the child. Confirmed reaping and ECHILD consume that responsibility;
+other observation errors retain it. Failed launches release their reservation.
+The editor handle no longer keeps a separate owned flag or handoff destructor.
+Native launch/session/descriptor policy, process identity, result interpretation,
+IPC, archive edit-return and Windows behavior are unchanged.
+Observation failure is committed before allocating its diagnostic text, so an
+allocation exception cannot leave a running state with a cleared child PID.
+
+A real-child regression releases its observer before permitting completion,
+checks the payload, then observes reaping with waitid/WNOWAIT without consuming
+the exit itself. Linux reproduced the unreaped-child failure before the fix.
+Existing checks cover startup failure/retry, exit codes/crash, observer/parent
+exit, archive extraction, editor handoff and cleanup with allocation failure.
+Linux passed operation_process, operation_launcher, operation_extraction,
+external_launch, process_spawn_allocation and archive_external_lifetime.
+The same six suites then passed on macOS. Windows branches are unchanged and
+were not rerun. Both platforms reused incremental builds and compiler caches;
+no full/slow gate or visual acceptance was involved.
+
 ## Editor settings signal routing — 2026-11-02
 
 Compared complete original EditPage.cpp/.h/.rc and its EditPage2.rc controls at

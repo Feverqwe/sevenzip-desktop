@@ -257,6 +257,9 @@ child lifetime remain application responsibilities.
 The process adapter and application observer have separate C++23 library targets;
 the adapter exposes launch failure as `std::expected` and keeps native observation
 ownership private. Process lifetime tests do not depend on archive/filesystem code.
+Independent GUI jobs and external editors share one POSIX child-lifetime owner.
+It preserves later child reaping when an observer is released while work continues;
+each client retains its launch, identity and exit-result policy.
 Completion waits briefly for
 the observer to acknowledge the result before the child exits. Before extraction
 starts, the child reports the actual output paths after any source dialog edits.

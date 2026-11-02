@@ -12,11 +12,10 @@
 #include "Windows/ProcessUtils.h"
 #include <TlHelp32.h>
 #else
+#include "platform/process/qtchildprocessreaper.h"
 #include <cerrno>
-#include <latch>
 #include <spawn.h>
 #include <sys/wait.h>
-#include <thread>
 #include <unistd.h>
 #ifdef Q_OS_MACOS
 #include <crt_externs.h>
@@ -128,77 +127,41 @@ QtProcessStatus ReadProcessRecord(UInt32 id, CSnapshotProcess &record, QByteArra
     return QtProcessStatus::Running;
 }
 
-struct CChildReapState {
-    std::latch Ready{1};
-    pid_t Id = 0;
-
-    void Release(pid_t id) noexcept {
-        Id = id;
-        Ready.count_down();
-    }
-};
-
 class CPidProcessHandle final : public IQtProcessHandle {
     UInt32 _id = 0;
     UString _path;
     QByteArray _identity;
-    bool _owned = false;
     bool _finished = false;
-    std::shared_ptr<CChildReapState> _reaper;
+    QtChildProcessReaper _reaper;
 
   public:
-    void PrepareReaper() {
-        auto state = std::make_shared<CChildReapState>();
-        std::thread worker([state] {
-            state->Ready.wait();
-            const pid_t id = state->Id;
-            if (id > 0)
-                while (waitpid(id, nullptr, 0) < 0 && errno == EINTR) {
-                }
-        });
-        try {
-            worker.detach();
-        } catch (...) {
-            state->Release(0);
-            worker.join();
-            throw;
-        }
-        _reaper = std::move(state);
-    }
-    void Attach(UInt32 id, const UString &path, const QByteArray &identity, bool owned) {
+    void PrepareReaper() { _reaper.Prepare(); }
+    void Attach(UInt32 id, const UString &path, const QByteArray &identity) {
         _id = id;
-        _owned = owned;
         _path = path;
         _identity = identity;
     }
     void Own(UInt32 id) noexcept {
         _id = id;
-        _owned = true;
-    }
-    ~CPidProcessHandle() override {
-        // Closing a source process handle does not terminate the application.
-        // Reserve reaping before launch: close/exception cleanup must neither
-        // allocate a thread nor wait for a running editor to exit.
-        if (_reaper)
-            _reaper->Release(_owned ? pid_t(_id) : 0);
+        _reaper.Adopt(pid_t(id));
     }
     UInt32 Id() const override { return _id; }
     UString FileName() const override { return _path; }
     QtProcessStatus Status() override {
         if (_finished)
             return QtProcessStatus::Exited;
-        if (_owned) {
+        if (_reaper.Id() > 0) {
             const pid_t result = waitpid(pid_t(_id), nullptr, WNOHANG);
             if (result == 0 || (result < 0 && errno == EINTR))
                 return QtProcessStatus::Running;
             if (result == pid_t(_id)) {
-                _owned = false;
+                _reaper.Reaped();
                 _finished = true;
                 return QtProcessStatus::Exited;
             }
             if (errno != ECHILD)
                 return QtProcessStatus::Error;
-            _owned = false;
+            _reaper.Reaped();
         }
         CSnapshotProcess record;
         QByteArray identity;
@@ -311,7 +274,7 @@ IQtProcessHandle *QtNativeProcessServices::OpenProcess(UInt32 id) {
     if (ReadProcessRecord(id, item, identity) != QtProcessStatus::Running)
         return nullptr;
     auto handle = std::make_unique<CPidProcessHandle>();
-    handle->Attach(id, item.Name, identity, false);
+    handle->Attach(id, item.Name, identity);
     return handle.release();
 #endif
 }
@@ -357,7 +320,7 @@ HRESULT QtNativeProcessServices::Create(const UString &program, const UString &p
         process);
 #else
     auto handle = std::make_unique<CPidProcessHandle>();
-    handle->Attach(0, program, QByteArray(), false);
+    handle->Attach(0, program, QByteArray());
     handle->PrepareReaper();
     QList<QByteArray> bytes;
     bytes.append(QFile::encodeName(ToQString(program)));
@@ -395,7 +358,7 @@ HRESULT QtNativeProcessServices::Create(const UString &program, const UString &p
         CSnapshotProcess item;
         QByteArray identity;
         ReadProcessRecord(UInt32(pid), item, identity);
-        handle->Attach(UInt32(pid), program, identity, true);
+        handle->Attach(UInt32(pid), program, identity);
     } catch (...) {
         process = handle.release();
         return E_OUTOFMEMORY;

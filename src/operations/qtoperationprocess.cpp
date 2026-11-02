@@ -13,6 +13,7 @@
 #ifdef Q_OS_WIN
 #include "Windows/ProcessUtils.h"
 #else
+#include "platform/process/qtchildprocessreaper.h"
 #include <cerrno>
 #include <cstring>
 #include <fcntl.h>
@@ -62,16 +63,7 @@ struct QtOperationProcess::Native {
 #ifdef Q_OS_WIN
     NWindows::CProcess Process;
 #else
-    pid_t Pid = -1;
-    ~Native() {
-        // The application-owned launcher normally reaps in poll(). On parent
-        // shutdown release observation without sending a signal to active work.
-        if (Pid > 0) {
-            int status;
-            while (::waitpid(Pid, &status, WNOHANG) < 0 && errno == EINTR) {
-            }
-        }
-    }
+    QtChildProcessReaper Process;
 #endif
 };
 
@@ -84,7 +76,7 @@ quint64 QtOperationProcess::processId() const {
 #ifdef Q_OS_WIN
     return ::GetProcessId(native_->Process);
 #else
-    return quint64(native_->Pid);
+    return quint64(native_->Process.Id());
 #endif
 }
 
@@ -123,11 +115,14 @@ std::expected<void, QString> QtOperationProcess::start(const QString &program,
 #else
     char **environment = environ;
 #endif
-    const int code = Spawn(&native_->Pid, executable.constData(), arguments, environment);
+    native_->Process.Prepare();
+    pid_t pid = 0;
+    const int code = Spawn(&pid, executable.constData(), arguments, environment);
     if (code) {
-        native_->Pid = -1;
+        native_->Process.Reaped();
         return std::unexpected(QString::fromLocal8Bit(std::strerror(code)));
     }
+    native_->Process.Adopt(pid);
 #endif
     result_ = {State::Running, 0, {}};
     return {};
@@ -154,19 +149,24 @@ QtOperationProcess::Result QtOperationProcess::poll() {
     int status = 0;
     pid_t process;
     do {
-        process = ::waitpid(native_->Pid, &status, WNOHANG);
+        process = ::waitpid(native_->Process.Id(), &status, WNOHANG);
     } while (process < 0 && errno == EINTR);
     if (process == 0)
         return result_;
-    if (process < 0)
-        result_ = {State::ObservationFailed, 0, QString::fromLocal8Bit(std::strerror(errno))};
-    else if (WIFEXITED(status))
+    if (process < 0) {
+        const int error = errno;
+        result_ = {State::ObservationFailed, 0, {}};
+        if (error == ECHILD)
+            native_->Process.Reaped();
+        result_.Error = QString::fromLocal8Bit(std::strerror(error));
+    } else if (WIFEXITED(status)) {
+        native_->Process.Reaped();
         result_ = {State::Exited, quint32(WEXITSTATUS(status)), {}};
-    else if (WIFSIGNALED(status))
+    } else if (WIFSIGNALED(status)) {
+        native_->Process.Reaped();
         result_ = {State::Crashed, quint32(WTERMSIG(status)), {}};
-    else
+    } else
         return result_;
-    native_->Pid = -1;
 #endif
     return result_;
 }
