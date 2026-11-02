@@ -184,7 +184,8 @@ class MainWindow : public QMainWindow {
                       UInt64 totalSize, std::function<void()> completion);
     void showItemContextMenu(unsigned owner, QAbstractItemView *view, const QPoint &pos);
     void applySortMode(bool enableSorting = false);
-    void sortIndicatorChanged(unsigned panel, int column, Qt::SortOrder order);
+    void sortIndicatorChanged(unsigned panel, int column, Qt::SortOrder order,
+                              bool headerClick = false);
     static QIcon toolbarIcon(int kind);
     static QString toolbarSettingsPath();
     void recordVisitedPath(const QString &path);

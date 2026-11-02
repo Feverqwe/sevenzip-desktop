@@ -286,3 +286,29 @@ scratch directories were inspected pre/post; the completed view settings fixture
 was removed after each Linux batch. Incremental builds and compiler caches were
 retained with normal four-job defaults. No full/slow gate, screenshots, JSON
 reports or new visual-parity acceptance is involved.
+
+## Column-click sort dispatch — 2026-11-02
+
+Compared original OnColumnClick and SortItemsWithPropID at
+`b88c6bc09339de32f7d18bbab900686b244f42ba` with their current bodies and
+Qt header, panel projection, column bindings, model sorting and settings
+consumers. The complete original PanelSort.cpp hash matches the existing
+baseline. No external import or native sorting algorithm change.
+
+The deferred header callback now carries its click origin into the window's
+sort handler. The separate header flag and consuming getter are removed.
+Qt's automatic header sort still finishes before source click dispatch; ordinary
+programmatic requests retain their explicit direction. Source property defaults,
+raw-property rules, duplicate-column bindings, persistent selection indexes and
+inactive-panel projection remain unchanged. Callback dispatch no longer needs
+to reset the removed flag after returning from application code.
+
+Existing behavior suites cover repeated/duplicate header clicks, explicit sort
+requests, source defaults, selected item identity, filesystem reload and archive
+raw properties; no new implementation-presence tests were added. Linux primary
+`20261102T041127Z-4613a7c0` passed panel_column_sort, panel_sort_commands,
+panel_filesystem_sort and panel_archive_sort: 69 checks, no skips. Build
+62.302 s; tests 12.622 s. No platform branch or layout changed; Windows/macOS
+native input and rendered parity were not newly validated. Removed two completed
+settings fixtures; other selected scratch was empty. Incremental builds and
+compiler caches retained, no full/slow gate or new reports/screenshots.

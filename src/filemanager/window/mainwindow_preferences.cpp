@@ -67,20 +67,21 @@ void MainWindow::applySortMode(bool enableSorting) {
     saveColumns();
 }
 
-void MainWindow::sortIndicatorChanged(unsigned index, int column, Qt::SortOrder order) {
+void MainWindow::sortIndicatorChanged(unsigned index, int column, Qt::SortOrder order,
+                                      bool headerClick) {
     const bool active = index == projectedPanel_;
-    withPanelProjection(index, [this, index, column, order, active] {
+    withPanelProjection(index, [this, index, column, order, active, headerClick] {
         auto *view = static_cast<FileTable *>(projectedUi().table);
-        if (view->deferSourceColumnClick(
-                [window = QPointer<MainWindow>(this), index, column, order] {
-                    if (window)
-                        window->sortIndicatorChanged(index, column, order);
-                }))
+        if (!headerClick && view->deferSourceColumnClick(
+                                [window = QPointer<MainWindow>(this), index, column, order] {
+                                    if (window)
+                                        window->sortIndicatorChanged(index, column, order, true);
+                                }))
             return;
         auto &panel = app_.GetFocusedPanel();
         {
             const QSignalBlocker blocked(projectedUi().table->horizontalHeader());
-            if (view->takeSourceColumnClick()) {
+            if (headerClick) {
                 panel.OnColumnClick(view->propertyId(column));
             } else {
                 // Explicit Qt sort requests retain their requested direction.
