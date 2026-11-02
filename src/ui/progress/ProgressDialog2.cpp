@@ -968,19 +968,15 @@ bool CProgressDialog::OnExternalCloseMessage() {
         thereAreMessages = !Sync.Messages.IsEmpty();
         fm = Sync.FinalMessage;
     }
-    if (!fm.ErrorMessage.Message.IsEmpty()) {
+    const bool isError = !fm.ErrorMessage.Message.IsEmpty();
+    if (isError || !thereAreMessages) {
         MessagesDisplayed = true;
-        if (fm.ErrorMessage.Title.IsEmpty())
-            fm.ErrorMessage.Title = "7-Zip";
-        if (!DisableUserQuestions)
-            MessageBox(this, fm.ErrorMessage.Message, fm.ErrorMessage.Title, true);
-    } else if (!thereAreMessages) {
-        MessagesDisplayed = true;
-        if (!fm.OkMessage.Message.IsEmpty()) {
-            if (fm.OkMessage.Title.IsEmpty())
-                fm.OkMessage.Title = "7-Zip";
+        CProgressMessageBoxPair &message = isError ? fm.ErrorMessage : fm.OkMessage;
+        if (!message.Message.IsEmpty()) {
+            if (message.Title.IsEmpty())
+                message.Title = "7-Zip";
             if (!DisableUserQuestions)
-                MessageBox(this, fm.OkMessage.Message, fm.OkMessage.Title, false);
+                MessageBox(this, message.Message, message.Title, isError);
         }
     }
     if (!DisableUserQuestions)

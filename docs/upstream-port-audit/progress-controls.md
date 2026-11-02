@@ -59,3 +59,27 @@ the native callback signature and completion path there. Selected scratch was
 empty before and after both runs. Whitespace and inventory checks passed; builds
 used configured four-job defaults, incremental outputs and compiler caches.
 No new macOS, visual, full or slow-suite acceptance is claimed.
+
+## Final message presentation — 2026-11-02
+
+Reviewed final GUI hooks in copy, CRC, extraction and hashing together with
+progress completion, message snapshots and close deferral during cancellation
+confirmation. Compared the complete original OnExternalCloseMessage branches.
+The final-message snapshot still follows the GUI result hook; deferred-close
+states and each consumer's once-only result handling remain unchanged.
+
+Error and success now share one presentation path for their existing message
+pair. Error priority, suppression of success when item errors are present,
+MessagesDisplayed for an empty successful result, default/custom titles, error
+icon, disabled questions and the errors-list Close state retain their previous
+behavior. No native operation, result aggregation, layout or text changes are
+introduced; no external code is imported or baseline advanced. Existing actual
+message-box, deferred-cancel and checksum workflow regressions cover the
+observable behavior, without tests of the new local selection expression.
+
+Linux progress_worker, progress_cancel and checksum passed 53 checks without
+skips. Only shared message selection/presentation changed; no OS branch or native
+dialog adapter changed, so secondary OS checks were not selected. Whitespace and
+source-inventory checks passed, completed test settings were removed, and builds
+used configured four-job defaults with incremental outputs and compiler caches.
+No full/slow gate or new rendered appearance acceptance is claimed.
