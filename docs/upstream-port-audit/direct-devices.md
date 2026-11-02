@@ -606,3 +606,38 @@ Alerts page потребовала JavaScript, Markdown retrieval недосту
 Приложение также собрано на трёх ОС, remote receipt
 `20261021T031840Z-8e06c889`. Старые task-owned warning JSON заменены текущими;
 build trees/caches сохранены, full/slow suites и installation не выполнялись.
+
+## POSIX descriptor adoption — 2026-11-02
+
+Reviewed the complete POSIX handle/adoption implementation, Linux snapshot,
+OpenDevice/descriptor validation and publication, macOS direct/helper adoption
+callers, device input/partition ownership and chooser worker exception handling.
+The existing native-access adaptations above remain project integration.
+Original FileIO.h CFileBase/CInFile ownership interfaces at
+`b88c6bc09339de32f7d18bbab900686b244f42ba` were checked: they do not expose
+adoption of this authorized descriptor. The complete original header hash
+matches the recorded baseline. No external import or reader algorithm change.
+
+Adoption now gives the descriptor a stack cleanup owner before validation and
+shared-handle allocation, then transfers responsibility after successful
+construction. This closes the allocation-failure gap in the existing ownership
+contract, including a duplicated Linux exclusive-open descriptor and macOS
+direct/helper descriptors. Read-only validation, close-on-exec, native identity
+checks, cancellation and positional reads are unchanged. No exception is hidden
+or new privileged operation introduced.
+
+A standalone fixture arms one allocation failure only around public adoption
+of an O_RDONLY /dev/null descriptor and checks that the exception propagates and
+the descriptor is closed. It follows the existing isolated allocation-fixture
+pattern; there are no production hooks or source-text assertions. Existing tests
+retain normal read/close, writable-descriptor refusal, bounded streams and
+private UDisks authorization/cancellation checks. No pre-fix run is claimed.
+
+Linux primary `20261102T045407Z-e8fc1a52` passed device_access, device_input,
+device_descriptor_allocation and udisks_device: 25 Qt checks plus the standalone
+allocation fixture, no skips; build 10.849 s, tests 0.883 s. macOS then passed
+the three applicable suites: 15 Qt checks plus the allocation fixture, no skips;
+build 3.690 s, tests 0.790 s. Windows excludes the changed adapter and fixture.
+These checks do not open physical user disks or establish new native elevation
+acceptance. Selected scratch directories were empty before/after, incremental
+outputs and compiler caches retained. No full/slow gate, reports or screenshots.
