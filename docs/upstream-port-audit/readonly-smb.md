@@ -118,6 +118,26 @@ not rerun. This is not real-mount or new visual parity acceptance. Selected
 scratch directories were empty after completion; incremental outputs and
 compiler caches were retained. Inventory and whitespace checks passed.
 
+### One prepared cache decision — 2026-11-02
+
+Rechecked settings construction, reader probing, failure/cancellation, accepted
+options and session/source handoff. The preparation result now supplies both
+the cache-control choice and the returned quota decision; the dialog no longer
+keeps a synchronized copy of that result. Setup without a retained resource
+still offers the cache limit. Preparing/failed/cancelling acceptance gates,
+worker joins, prepared-view lifetime and cancellation remain unchanged.
+This is local Qt integration with no upstream 7zFM mount counterpart; native
+enumeration, stream probing, decoding, quota and consent policies are unchanged.
+No import, baseline, layout, text or visibility-rule change is introduced.
+
+Linux mount_extraction_prompt and archive_mount_transport passed 45 checks,
+with five native-OS mount rows behind their existing opt-in. Existing direct/cache
+reader, Help, failed-preparation, busy-reader cancellation and view-handoff cases
+cover this change; no private-state regression was added. Only portable decision
+ownership changed, so secondary OS checks were not selected. Whitespace and
+source-inventory checks passed, selected scratch directories were empty, and
+configured four-job builds retained incremental outputs and compiler caches.
+
 ## Pending read completion ownership — 2026-11-01
 
 Reviewed read admission/range validation, callback completion, event-loop reply

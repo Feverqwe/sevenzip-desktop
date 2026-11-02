@@ -21,7 +21,6 @@ class MountPreparation;
 class MountSettingsDialog final : public QDialog {
     enum class Phase { Preparing, Cancelling, Failed, Ready };
     Phase phase_ = Phase::Ready;
-    bool cacheRequired_ = true;
     std::unique_ptr<MountPreparation> preparation_;
     QDialogButtonBox *buttons_ = nullptr;
     QLabel *checking_ = nullptr;
@@ -145,8 +144,7 @@ void MountSettingsDialog::BuildControls(const QString &label, const QString &arc
     };
     connect(buttons_, &QDialogButtonBox::helpRequested, this, showHelp);
     connect(shortcut_, &QShortcut::activated, this, showHelp);
-    cacheRequired_ = !checkReader;
-    ShowCache(cacheRequired_);
+    ShowCache(!checkReader);
     connect(buttons_, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(buttons_, &QDialogButtonBox::rejected, this, &QDialog::reject);
     resize(520, sizeHint().height());
@@ -182,8 +180,7 @@ void MountSettingsDialog::PreparationFinished() {
                                : preparation_->Error);
         return;
     }
-    cacheRequired_ = preparation_->CacheRequired;
-    ShowCache(cacheRequired_);
+    ShowCache(preparation_->CacheRequired);
     checking_->hide();
     phase_ = Phase::Ready;
     start_->setEnabled(true);
@@ -227,7 +224,8 @@ QtMountOptions MountSettingsDialog::Run(const QString &label, const QString &pas
     }
     if (!accepted)
         return {};
-    return {true, cacheRequired_ ? quint64(quota_->value()) * 1024 * 1024 : 0, password_->text(),
+    const bool cacheRequired = !preparation_ || preparation_->CacheRequired;
+    return {true, cacheRequired ? quint64(quota_->value()) * 1024 * 1024 : 0, password_->text(),
             preparation_ ? preparation_->View : nullptr};
 }
 } // namespace
