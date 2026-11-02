@@ -122,10 +122,10 @@ void ArchiveBackend::finishReadOperation() {
     if (job_ == Job::Extract)
         lastExtractStatus_ = operation->ExtractStatus;
     const QString path = archive_;
-    lastResult_ = cancelled_ ? E_ABORT : operation->Result;
-    if (sourceExtractJob)
-        finishSourceExtractOperation(*operation);
-    const HRESULT result = lastResult_;
+    const HRESULT workerResult = cancelled_ ? E_ABORT : operation->Result;
+    const HRESULT result =
+        sourceExtractJob ? finishSourceExtractOperation(*operation, workerResult) : workerResult;
+    lastResult_ = result;
     overwritePromptActive_ = false;
     job_ = Job::None;
     const QPointer<ArchiveBackend> owner(this);

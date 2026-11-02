@@ -1,5 +1,34 @@
 # State of a new archive request — 2026-10-18
 
+## Source-entry completion outcome owner — 2026-11-02
+
+Reviewed the complete source-entry completion/cleanup helper, joined read
+completion, partial-output consumers and callback-driven backend replacement.
+Native item/open diagnostics, read-only recovery eligibility and source decoding
+retain their current owners and contracts. No source import, decoder change or
+baseline advancement is introduced.
+
+Source-entry completion now accepts and returns its HRESULT instead of mutating
+the backend's terminal result as a hidden side effect. Joined read completion
+applies cancellation priority, obtains the source-specific outcome where needed
+and stores the terminal result before publishing signals. Item-result
+classification remains at its existing owner. Recovery format checks,
+created/closed output requirements, empty-output cleanup, warning/item priority
+and cancellation cleanup are unchanged. Backend state snapshots and destruction/
+replacement guards keep their original notification order.
+
+Existing native-source, recovery, stream-contract and backend completion suites
+cover successful, partial and failed outcomes, output preservation/removal,
+password/cancellation and reentrant completion. No internal-field or helper-shape
+test is added.
+
+Linux passed all four selected suites: 114 checks without skips. Source inventory
+and whitespace checks passed. Shared completion-result handling changed without
+OS-specific code or native engine interface changes, so secondary platforms were
+not selected. Selected scratch was empty before and after validation; configured
+four-job incremental builds and compiler caches were retained. No full/slow or
+appearance gate ran.
+
 ## Native read worker terminal result — 2026-11-02
 
 Reviewed the complete native worker/callback sequence and all result consumers.

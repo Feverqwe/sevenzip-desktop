@@ -5,7 +5,8 @@
 #include <QFile>
 #include <QFileInfo>
 
-void ArchiveBackend::finishSourceExtractOperation(const QtArchiveReadOperation &operation) {
+HRESULT ArchiveBackend::finishSourceExtractOperation(const QtArchiveReadOperation &operation,
+                                                     HRESULT result) {
     using namespace NArchive::NExtract::NOperationResult;
     sourceExtractOperation_ = operation.OutputOperation;
     if (sourceExtractOperation_ == kOK && !operation.Errors.isEmpty())
@@ -23,14 +24,15 @@ void ArchiveBackend::finishSourceExtractOperation(const QtArchiveReadOperation &
     }
     const bool recovery =
         operation.Output.RecoveryFormat || IsArchiveRecoveryFormat(operation.OpenedFormat);
-    const bool partial = (lastResult_ == E_FAIL || lastResult_ == S_FALSE) && recovery &&
+    const bool partial = (result == E_FAIL || result == S_FALSE) && recovery &&
                          operation.OutputCreated && operation.OutputClosed &&
                          sourceExtractOperation_ > kOK;
     if (partial)
-        lastResult_ = S_FALSE;
-    if (operation.OutputCreated && lastResult_ != S_OK &&
+        result = S_FALSE;
+    if (operation.OutputCreated && result != S_OK &&
         (!partial || QFileInfo(operation.Output.Path).size() <= 0))
         QFile::remove(operation.Output.Path);
+    return result;
 }
 
 void ArchiveBackend::extractSourceEntry(const QString &archive, const QString &entry,

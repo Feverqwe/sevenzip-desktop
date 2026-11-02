@@ -272,7 +272,7 @@ class ArchiveBackend : public QObject {
         QString Format;
     };
     enum class Job { None, List, Extract, Test, Hash, SourceExtract };
-    void finishSourceExtractOperation(const QtArchiveReadOperation &operation);
+    HRESULT finishSourceExtractOperation(const QtArchiveReadOperation &operation, HRESULT result);
     static bool safePath(const QString &path);
     bool restoreListedArchive(const QString &archive);
     void startListing(const QString &archive, const QString &password, const QString &format);
