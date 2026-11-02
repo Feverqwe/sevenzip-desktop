@@ -95,8 +95,6 @@ class CreateArchiveDialog : public QDialog {
     void validateAndAccept();
     QString archivePath() const;
 
-    QString currentDirectory_;
-    const QString StartDirPrefix;
     QString target_;
     std::shared_ptr<const ArchiveCodecCatalog> codecs_;
     CCompressDialog archiveNameState_;

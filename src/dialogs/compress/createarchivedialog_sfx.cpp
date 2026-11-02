@@ -17,7 +17,6 @@ void CreateArchiveDialog::updateSfxControls() {
         const QSignalBlocker blocker(sfx_);
         sfx_->setChecked(false);
         if (wasSfx) {
-            archiveNameState_.m_ArchivePath = name_->text();
             archiveNameState_.OnButtonSFX();
             name_->setText(archiveNameState_.m_ArchivePath);
         }
@@ -47,7 +46,6 @@ void CreateArchiveDialog::toggleSfx(bool enabled) {
         *method_, level_->currentData().toUInt(), m_RegistryInfo, [this] { MethodChanged(); },
         keepMethodId);
     method_->setEnabled(method_->count() > 1);
-    archiveNameState_.m_ArchivePath = name_->text();
     archiveNameState_.OnButtonSFX();
     name_->setText(archiveNameState_.m_ArchivePath);
     SetMemoryUsage();

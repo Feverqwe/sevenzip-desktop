@@ -30,3 +30,30 @@ compression_error_policy passed, 65 checks, no skips. Build 13.960 s; tests
 dialog layout did not. macOS/Windows native pickers were not newly validated.
 Selected scratch directories were empty after completion; incremental outputs
 and compiler caches retained. No full or slow gate.
+
+## Live archive name state — 2026-11-02
+
+Compared original GetFinalPath_Smart, SetArchiveName/SetArchiveName2,
+SetArcPathFields, history/format/method handlers and OnButtonSFX with the Qt
+state, source-form initialization and standalone callers. The reviewed 9128
+snapshot's complete CompressDialog.cpp is identical to the recorded b88 baseline
+above, whose original hash matches the manifest. No import or baseline advance.
+
+The existing native name state now receives editable-name changes through one
+Qt binding, like its existing destination-folder binding. Format, hash-method
+and SFX handlers no longer copy the same control text before native naming.
+Path validation reads that state directly instead of constructing another path
+snapshot. The initial directory and its fallback are initialized there after
+copying a source dialog; duplicate window fields are removed while preserving
+their previous values. History
+projection, native naming/path algorithms, folder NUL rejection and accepted-path
+persistence remain unchanged.
+
+Existing behavior checks cover typed Unicode names, edited/empty destinations,
+history and Cancel, format/hash suffixes, SFX transitions and source-modal
+creation. No private-binding test or pre-fix failure is claimed. Five Linux
+suites passed: compression path, format, source dialog, SFX creation and error
+policy. Final incremental build/test times were 27.654/6.030 seconds. Native OS path
+branches and picker integrations did not change, so no secondary OS batch was
+added. Existing Qt geometry checks passed; no native rendered parity, full/slow
+gate or new screenshot/report run is claimed.
