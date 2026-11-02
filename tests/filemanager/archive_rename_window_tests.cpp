@@ -263,12 +263,12 @@ class ArchiveRenameWindowTests final : public QObject, protected MainWindowTestS
     }
 
     void unsafeArchiveRenameKeepsOriginal_data() {
-        QTest::addColumn<bool>("absolute");
-        QTest::newRow("parent") << false;
-        QTest::newRow("absolute") << true;
+        QTest::addColumn<QString>("kind");
+        for (const char *kind : {"parent", "absolute", "embedded-null"})
+            QTest::newRow(kind) << QString::fromLatin1(kind);
     }
     void unsafeArchiveRenameKeepsOriginal() {
-        QFETCH(bool, absolute);
+        QFETCH(QString, kind);
         QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
@@ -303,7 +303,9 @@ class ArchiveRenameWindowTests final : public QObject, protected MainWindowTestS
                 }
         });
         responder.start(2);
-        editor->setText(absolute ? sentinel : QString("../escape.txt"));
+        editor->setText(kind == "absolute"        ? sentinel
+                        : kind == "embedded-null" ? QString("truncated.txt") + QChar::Null + "tail"
+                                                  : QString("../escape.txt"));
         QTest::keyClick(editor, Qt::Key_Return);
         QTimer::singleShot(5000, &completion, &QEventLoop::quit);
         completion.exec();

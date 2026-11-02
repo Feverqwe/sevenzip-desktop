@@ -38,7 +38,11 @@ void MainWindow::finishFilesystemRename(quint32 sourceIndex, const QString &orig
         return;
     {
         QScopedValueRollback<bool> source(sourceArchiveProgress_, true);
-        app_.GetFocusedPanel().OnEndLabelEdit(sourceIndex, ToUString(name));
+        if (name.contains(QChar::Null)) {
+            CPanel::CDisableTimerProcessing disableTimer(app_.GetFocusedPanel());
+            app_.GetFocusedPanel().MessageBox_Error_HRESULT(E_INVALIDARG);
+        } else
+            app_.GetFocusedPanel().OnEndLabelEdit(sourceIndex, ToUString(name));
     }
     const auto selection = app_.GetFocusedPanel().TakeRefreshSelection();
     if (!selection) {
