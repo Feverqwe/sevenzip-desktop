@@ -1,5 +1,32 @@
 # External-process ownership
 
+## Editor settings signal routing — 2026-11-02
+
+Compared complete original EditPage.cpp/.h/.rc and its EditPage2.rc controls at
+recorded revision `b88c6bc09339de32f7d18bbab900686b244f42ba`; the three original
+inventory hashes match the baseline. Reviewed current page initialization,
+Apply/Cancel/modified state, Browse and OptionsDialog/launch consumers. No
+external code import or provenance change.
+
+Each Qt edit signal now marks its own settings row, and each Browse button
+directly supplies its edit control. The synthetic Win32-ID round trip, two
+dispatch searches and their stored IDs are removed from the Qt adapter. Native
+initialization guards, changed flags, read/save mapping and command parsing are
+preserved. Browse still retains the draft on Cancel and replaces parameters
+when a file is selected. Confirmation policy, launch defaults, translation
+resources, widget names, layout and geometry are unchanged.
+
+Expanded the existing Browse behavior check across viewer/editor/diff: Cancel
+retains the command, acceptance selects the Unicode/spaced executable and Apply
+persists it for the corresponding program. Existing checks cover Apply/Cancel,
+live language/geometry, focused-file arguments and independent saved commands.
+No representation-only test or pre-fix failure is claimed.
+
+Linux external_editors_ui, options_dialog and external_launch passed: 47 checks,
+no skips; incremental build 13.057s, tests 5.372s. Removed completed settings and
+an absent-object temp record; incremental trees and compiler caches retained.
+No secondary-platform, full/slow or new appearance acceptance run.
+
 ## Failed listing during editor return — 2026-11-02
 
 Reviewed the current stream/virtual-file/disk opening branches, temporary and

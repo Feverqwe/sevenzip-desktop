@@ -8,8 +8,6 @@ class QCheckBox;
 struct CEditPageCtrl {
     QLineEdit *Edit = nullptr;
     bool WasChanged = false;
-    unsigned Ctrl = 0;
-    unsigned Button = 0;
 };
 
 class CEditPage : public QWidget {
@@ -25,8 +23,6 @@ class CEditPage : public QWidget {
     bool OnInit();
     void OnNotifyHelp();
     long OnApply();
-    bool OnCommand(unsigned itemID);
-    bool OnButtonClicked(unsigned buttonID);
     bool IsModified() const;
 
   signals:

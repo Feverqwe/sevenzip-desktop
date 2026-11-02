@@ -18,6 +18,8 @@
 #define kEditTopic "FM/options.htm#editor"
 void CEditPage::OnNotifyHelp() { ShowHelpWindow(kEditTopic, this); }
 
+static void Edit_BrowseForFile(QLineEdit &edit, QWidget *hwnd);
+
 CEditPage::CEditPage(const QString &settingsPath, QWidget *parent)
     : QWidget(parent), _settingsPath(settingsPath) {
     setObjectName("editorPage");
@@ -25,15 +27,11 @@ CEditPage::CEditPage(const QString &settingsPath, QWidget *parent)
     const QString labels[] = {"&View:", "&Editor:", "&Diff:"};
     const unsigned labelIDs[] = {IDT_EDIT_VIEWER, IDT_EDIT_EDITOR, IDT_EDIT_DIFF};
     const char *names[] = {"viewerCommand", "editorCommand", "diffCommand"};
-    const unsigned edits[] = {IDE_EDIT_VIEWER, IDE_EDIT_EDITOR, IDE_EDIT_DIFF};
-    const unsigned buttons[] = {IDB_EDIT_VIEWER, IDB_EDIT_EDITOR, IDB_EDIT_DIFF};
     for (unsigned i = 0; i < 3; ++i) {
         auto *label = new QLabel(labels[i], this);
         label->setProperty("languageColon", i == 0);
         QtBindResourceText(label, labelIDs[i], labels[i]);
         auto &c = _ctrls[i];
-        c.Ctrl = edits[i];
-        c.Button = buttons[i];
         c.Edit = new QLineEdit(this);
         c.Edit->setObjectName(names[i]);
         QtBindLangText(c.Edit, labelIDs[i], labels[i], true);
@@ -45,9 +43,14 @@ CEditPage::CEditPage(const QString &settingsPath, QWidget *parent)
         layout->addWidget(label, int(i) * 2, 0, 1, 2);
         layout->addWidget(c.Edit, int(i) * 2 + 1, 0);
         layout->addWidget(browse, int(i) * 2 + 1, 1);
-        connect(c.Edit, &QLineEdit::textChanged, this, [this, id = c.Ctrl] { OnCommand(id); });
+        connect(c.Edit, &QLineEdit::textChanged, this, [this, i] {
+            if (!_initMode) {
+                _ctrls[i].WasChanged = true;
+                Changed();
+            }
+        });
         connect(browse, &QPushButton::clicked, this,
-                [this, id = c.Button] { OnButtonClicked(id); });
+                [this, edit = c.Edit] { Edit_BrowseForFile(*edit, this); });
     }
     _confirmUnknownFileOpen = new QCheckBox(this);
     _confirmUnknownFileOpen->setObjectName("confirmUnknownFileOpenOption");
@@ -125,32 +128,6 @@ static void Edit_BrowseForFile(QLineEdit &edit, QWidget *hwnd) {
         cmd.Trim();
         edit.setText(ToQString(cmd));
     }
-}
-
-bool CEditPage::OnButtonClicked(unsigned buttonID) {
-    for (unsigned i = 0; i < 3; i++) {
-        CEditPageCtrl &c = _ctrls[i];
-        if (buttonID == c.Button) {
-            Edit_BrowseForFile(*c.Edit, this);
-            return true;
-        }
-    }
-    return false;
-}
-
-bool CEditPage::OnCommand(unsigned itemID) {
-    // Only QLineEdit::textChanged invokes this EN_CHANGE projection.
-    if (!_initMode) {
-        for (unsigned i = 0; i < 3; i++) {
-            CEditPageCtrl &c = _ctrls[i];
-            if (itemID == c.Ctrl) {
-                c.WasChanged = true;
-                Changed();
-                return true;
-            }
-        }
-    }
-    return false;
 }
 
 bool CEditPage::IsModified() const {
