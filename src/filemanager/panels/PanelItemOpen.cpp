@@ -1163,8 +1163,9 @@ bool CPanel::OnOpenItemChanged(const CTempFileInfo &tpi, const UString &fullPath
     if (fullPathFolderPrefix != _currentFolderPrefix || !_folder)
         return false;
     UInt32 fileIndex = tpi.FileIndex;
-    UInt32 numItems;
-    _folder->GetNumberOfItems(&numItems);
+    UInt32 numItems = 0;
+    if (_folder->GetNumberOfItems(&numItems) != S_OK)
+        return false;
     // Source limitation: duplicate names can still make a relocated index
     // ambiguous after another archive update.
     if (fileIndex >= numItems || GetItemRelPath(fileIndex) != tpi.RelPath) {

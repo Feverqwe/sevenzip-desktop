@@ -1,4 +1,6 @@
 #include "7zip/UI/FileManager/ProgressDialog2Res.h"
+#include "Common/StringConvert.h"
+#include "filemanager/support/panel_load_folder.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
 #include "localization/LangUtils.h"
@@ -26,6 +28,38 @@ class ArchiveExternalEditTests final : public QObject, protected MainWindowTestS
     WidgetDialogFixture widgetDialogs_;
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
+    void unavailableFolderKeepsChangedFileWithoutReload() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString changed = fixture.filePath(QStringLiteral("изменённая копия 空.txt"));
+        QVERIFY(write(changed, modified));
+        auto *spec = new LoadFolder;
+        CMyComPtr<IFolderFolder> provider = spec;
+        spec->folderPath = L"archive.zip/";
+        CPanel panel(provider);
+        spec->countResult = E_FAIL;
+        // Failed outputs are not a usable listing, even when nonzero.
+        spec->itemCount = 2;
+        CTempFileInfo temp;
+        temp.FileIndex = 0;
+        temp.RelPath = spec->firstName;
+        temp.FilePath = us2fs(changed.toStdWString().c_str());
+        bool unexpectedMessage = false;
+        QTimer responder;
+        connect(&responder, &QTimer::timeout, this, [&] {
+            if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                unexpectedMessage = true;
+                box->accept();
+            }
+        });
+        responder.start(1);
+        std::optional<CSelectedState> refresh = CSelectedState();
+        QVERIFY(!panel.OnOpenItemChanged(temp, panel.GetCurrentFolderPrefix(), false, UString(),
+                                         &refresh));
+        QVERIFY(!refresh);
+        QVERIFY(!unexpectedMessage);
+        QCOMPARE(read(changed), modified);
+    }
     void sourceViewerOpensLargeFileWithoutPreviewLimit() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());

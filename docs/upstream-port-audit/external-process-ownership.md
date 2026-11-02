@@ -1,5 +1,36 @@
 # External-process ownership
 
+## Failed listing during editor return — 2026-11-02
+
+Reviewed the current stream/virtual-file/disk opening branches, temporary and
+external-process owners, changed-file prompt and return-to-writer boundary.
+Compared the original OnOpenItemChanged bodies at recorded 7-Zip revision
+`b88c6bc09339de32f7d18bbab900686b244f42ba`; the complete PanelItemOpen.cpp
+hash matches the existing manifest. No import or provenance advancement.
+
+The returned edit now stops at a failed GetNumberOfItems before resolving its
+item or starting an archive update. Previously the inherited code used an
+uninitialized or failed output count. Initializing the count alone would not
+protect against a provider writing a nonzero value before returning failure.
+The native CAgentFolder already clears count when unbound; a user failure in
+that provider is not claimed. Item relocation, duplicate-name limitation,
+passwords, process waiting, native writer and retained temporary-copy policy
+remain unchanged. The existing ownership boundaries did not justify another
+structural extraction.
+
+The behavior regression uses the existing folder fixture returning a failed
+nonzero count. The changed copy must retain its bytes, no reload selection is
+published and the unsupported-operation dialog must not be reached. Existing
+external editing and native update tests cover successful write-back, refusal,
+cancel, stale item/location and selection publication. No pre-fix execution or
+representation-only test is claimed.
+
+Linux archive_external_edit and source_update_backend passed: 63 checks, no
+skips; incremental build 14.6s, tests 11.244s. Removed completed settings and
+three registry records after verifying their temporary objects were absent.
+Incremental trees and compiler caches retained. No secondary-platform,
+full/slow or new appearance acceptance run.
+
 ## External editor launch boundary — 2026-11-01
 
 Reviewed the complete source SplitCmdLineSmart, StartAppWithParams,

@@ -43,7 +43,7 @@
     qt_add_executable(archive_external_edit_tests
         tests/filemanager/archive_external_edit_tests.cpp
         tests/platform/support/external_editor_fixture.cpp)
-    target_link_libraries(archive_external_edit_tests PRIVATE sevenzip_layout_inspection)
+    target_link_libraries(archive_external_edit_tests PRIVATE sevenzip_layout_inspection sevenzip_panel_load_fixture)
     target_link_libraries(archive_external_edit_tests PRIVATE sevenzip_window)
     target_include_directories(archive_external_edit_tests PRIVATE src tests)
     target_link_libraries(archive_external_edit_tests PRIVATE Qt6::Widgets Qt6::Test)
