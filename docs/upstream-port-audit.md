@@ -57,6 +57,9 @@ rg -n --no-ignore -F 'CAgent::Open' docs/archive/qt-port/upstream-port-audit/ do
 
 ## Новые изменения
 
+- [Снимок исходников для удаления после архивации](upstream-port-audit/archive-input-deletion.md)
+  — цельное состояние до публикации и сохранение нативных проверок перед удалением.
+
 - [Владелец согласия на ограниченное чтение](upstream-port-audit/limited-read-consent-owner.md)
   — сбор свойств и подтверждение открытия имеют отдельные обязанности.
 

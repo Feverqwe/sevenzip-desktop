@@ -154,6 +154,14 @@ HRESULT CAgentFolder::CommonUpdateOperation(AGENT_OP operation, bool moveMode,
     }
 
     try {
+        CMyComPtr<IUnknown> deletionOwner = _agentSpec->GetEngineResource();
+        auto *deletionResource = dynamic_cast<QtArchiveFileResource *>(deletionOwner.Interface());
+        if (deletionResource)
+            deletionResource->DiscardDeleteInputs();
+        const auto discardDeleteInputs = qScopeGuard([&] {
+            if (deletionResource)
+                deletionResource->DiscardDeleteInputs();
+        });
 
         RINOK(_agentSpec->SetFolder(this))
 

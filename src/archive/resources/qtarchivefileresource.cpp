@@ -138,11 +138,9 @@ void QtArchiveFileResource::CaptureOutputMTime(const CFiTime &time, bool defined
 void QtArchiveFileResource::CaptureDeleteInputs(const CDirItems &items,
                                                 const CByteBuffer &processed) {
     _deleteInputs.reset();
-    if (_compressionOptions && _compressionOptions->DeleteAfterCompressing) {
-        _deleteInputs = std::make_shared<QtArchiveDeleteInputs>();
-        _deleteInputs->Capture(items, processed);
-        _deleteInputs->SymLinks = _compressionOptions->SymLinks;
-    }
+    if (_compressionOptions && _compressionOptions->DeleteAfterCompressing)
+        _deleteInputs = std::make_shared<QtArchiveDeleteInputs>(items, processed,
+                                                                _compressionOptions->SymLinks);
 }
 
 HRESULT QtArchiveFileResource::DeleteInputsAfterPublication(IUpdateDeletionCallback &callback) {

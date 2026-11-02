@@ -124,6 +124,7 @@ class QtArchiveFileResource final : public IUnknown, public CMyUnknownImp {
     HRESULT AdoptPublishedOwnedTemp(const CWorkDirTempFile &file);
     void CaptureOutputMTime(const CFiTime &time, bool defined);
     void CaptureDeleteInputs(const CDirItems &items, const CByteBuffer &processed);
+    void DiscardDeleteInputs() { _deleteInputs.reset(); }
     HRESULT DeleteInputsAfterPublication(IUpdateDeletionCallback &callback);
     const std::optional<CompressionOptions> &CompressionSettings() const {
         return _compressionOptions;
