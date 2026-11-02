@@ -31,8 +31,7 @@ class CPanelCopyThread : public CProgressThreadVirt {
     const UStringVector *CopyFrom_Paths;
     CMyComPtr<IFolderOperations> FolderOperations;
     CRecordVector<UInt32> Indices;
-    CExtractCallbackImp *ExtractCallbackSpec;
-    CMyComPtr<IFolderOperationsExtractCallback> ExtractCallback;
+    CMyComPtr2<IFolderOperationsExtractCallback, CExtractCallbackImp> ExtractCallback;
 
     CHashBundle Hash;
     // UString FirstFilePath;
@@ -86,16 +85,16 @@ HRESULT CPanelCopyThread::ProcessVirt() {
     }
 
     if (CopyFrom_Paths) {
-        result2 = NFsFolder::CopyFileSystemItems(
-            *CopyFrom_Paths, us2fs(options->folder), options->moveMode,
-            (IFolderOperationsExtractCallback *)ExtractCallbackSpec);
+        result2 = NFsFolder::CopyFileSystemItems(*CopyFrom_Paths, us2fs(options->folder),
+                                                 options->moveMode, ExtractCallback);
     } else if (options->testMode || options->extractMode) {
         CMyComPtr<IArchiveFolder> archiveFolder;
         FolderOperations.QueryInterface(IID_IArchiveFolder, &archiveFolder);
         if (!archiveFolder)
             return E_NOTIMPL;
         CMyComPtr<IFolderArchiveExtractCallback> extractCallback2;
-        RINOK(ExtractCallback.QueryInterface(IID_IFolderArchiveExtractCallback, &extractCallback2))
+        RINOK(ExtractCallback.Interface()->QueryInterface(IID_IFolderArchiveExtractCallback,
+                                                          (void **)&extractCallback2))
         NExtract::NPathMode::EEnum pathMode = options->pathMode;
         result2 = archiveFolder->Extract(
             Indices.ConstData(), Indices.Size(), BoolToInt(options->includeAltStreams),
@@ -107,12 +106,12 @@ HRESULT CPanelCopyThread::ProcessVirt() {
                                            BoolToInt(options->replaceAltStreamChars),
                                            options->folder, ExtractCallback);
 
-    if (result2 == S_OK && !ExtractCallbackSpec->ThereAreMessageErrors) {
+    if (result2 == S_OK && !ExtractCallback->ThereAreMessageErrors) {
         if (!options->hashMethods.IsEmpty())
             ResultsPending = true;
         else if (options->testMode) {
             CProgressMessageBoxPair &pair =
-                GetMessagePair(false); // GetMessagePair(ExtractCallbackSpec->Hash.NumErrors != 0);
+                GetMessagePair(false); // GetMessagePair(ExtractCallback->Hash.NumErrors != 0);
             AddHashBundleRes(pair.Message, Hash);
         }
     }
@@ -196,20 +195,19 @@ HRESULT CPanel::CopyTo(CCopyToOptions &options, const CRecordVector<UInt32> &ind
 
         CPanelCopyThread extracter;
 
-        extracter.ExtractCallbackSpec = new CExtractCallbackImp;
-        extracter.ExtractCallback = extracter.ExtractCallbackSpec;
-        extracter.ExtractCallbackSpec->Src_Is_IO_FS_Folder = IsFSFolder() || IsAltStreamsFolder();
+        extracter.ExtractCallback.SetFromCls(new CExtractCallbackImp);
+        extracter.ExtractCallback->Src_Is_IO_FS_Folder = IsFSFolder() || IsAltStreamsFolder();
         // options.src_Is_IO_FS_Folder;
         extracter.options = &options;
-        extracter.ExtractCallbackSpec->ProgressDialog = &extracter;
-        extracter.ExtractCallbackSpec->SettingsPath = _settingsPath;
+        extracter.ExtractCallback->ProgressDialog = &extracter;
+        extracter.ExtractCallback->SettingsPath = _settingsPath;
         std::unique_ptr<IQtProgressTransport> transport;
         if (auto *services =
                 dynamic_cast<IQtProgressServices *>((IFolderOperations *)_folderOperations))
             transport = services->CreateProgressTransport(extracter);
         extracter.CompressingMode = false;
 
-        extracter.ExtractCallbackSpec->StreamMode = options.streamMode;
+        extracter.ExtractCallback->StreamMode = options.streamMode;
 
         if (indices.Size() == 1) {
             extracter.Hash.FirstFileName = GetItemRelPath(indices[0]);
@@ -217,10 +215,10 @@ HRESULT CPanel::CopyTo(CCopyToOptions &options, const CRecordVector<UInt32> &ind
         }
 
         if (options.VirtFileSystemSpec) {
-            extracter.ExtractCallbackSpec->VirtFileSystem = options.VirtFileSystemSpec;
-            extracter.ExtractCallbackSpec->VirtFileSystemSpec = options.VirtFileSystemSpec;
+            extracter.ExtractCallback->VirtFileSystem = options.VirtFileSystemSpec;
+            extracter.ExtractCallback->VirtFileSystemSpec = options.VirtFileSystemSpec;
         }
-        extracter.ExtractCallbackSpec->ProcessAltStreams = options.includeAltStreams;
+        extracter.ExtractCallback->ProcessAltStreams = options.includeAltStreams;
 
         if (!options.hashMethods.IsEmpty()) {
             /* this code is used when we call CRC calculation for files in side archive
@@ -233,9 +231,9 @@ HRESULT CPanel::CopyTo(CCopyToOptions &options, const CRecordVector<UInt32> &ind
             */
 
             RINOK(extracter.Hash.SetMethods(options.ExternalCodecs, options.hashMethods))
-            extracter.ExtractCallbackSpec->SetHashMethods(&extracter.Hash);
+            extracter.ExtractCallback->SetHashMethods(&extracter.Hash);
         } else if (options.testMode) {
-            extracter.ExtractCallbackSpec->SetHashCalc(&extracter.Hash);
+            extracter.ExtractCallback->SetHashCalc(&extracter.Hash);
         }
 
         // extracter.Hash.Init();
@@ -267,10 +265,10 @@ HRESULT CPanel::CopyTo(CCopyToOptions &options, const CRecordVector<UInt32> &ind
         extracter.MainTitle = progressWindowTitle;
         extracter.MainAddTitle = title + L' ';
 
-        extracter.ExtractCallbackSpec->OverwriteMode = options.overwriteMode;
-        extracter.ExtractCallbackSpec->Init();
+        extracter.ExtractCallback->OverwriteMode = options.overwriteMode;
+        extracter.ExtractCallback->Init();
         if (report)
-            extracter.ExtractCallbackSpec->ExtractReport.Purpose = report->Purpose;
+            extracter.ExtractCallback->ExtractReport.Purpose = report->Purpose;
 
         extracter.CopyFrom_Paths = filePaths;
         if (!filePaths) {
@@ -278,8 +276,8 @@ HRESULT CPanel::CopyTo(CCopyToOptions &options, const CRecordVector<UInt32> &ind
             extracter.FolderOperations = _folderOperations;
         }
 
-        extracter.ExtractCallbackSpec->PasswordIsDefined = usePassword;
-        extracter.ExtractCallbackSpec->Password = password;
+        extracter.ExtractCallback->PasswordIsDefined = usePassword;
+        extracter.ExtractCallback->Password = password;
 
         RINOK(extracter.Create(title, GetParent()))
 
@@ -290,14 +288,14 @@ HRESULT CPanel::CopyTo(CCopyToOptions &options, const CRecordVector<UInt32> &ind
         res = extracter.Result;
 
         if (report) {
-            report->Status = extracter.ExtractCallbackSpec->ExtractReport.Status;
-            if (report->Status && !extracter.ExtractCallbackSpec->IsOK())
+            report->Status = extracter.ExtractCallback->ExtractReport.Status;
+            if (report->Status && !extracter.ExtractCallback->IsOK())
                 report->Status->Complete = false;
         }
 
-        if (res == S_OK && extracter.ExtractCallbackSpec->IsOK()) {
-            usePassword = extracter.ExtractCallbackSpec->PasswordIsDefined;
-            password = extracter.ExtractCallbackSpec->Password;
+        if (res == S_OK && extracter.ExtractCallback->IsOK()) {
+            usePassword = extracter.ExtractCallback->PasswordIsDefined;
+            password = extracter.ExtractCallback->Password;
         }
 
         extracter.ShowFinalResults(GetParent());
@@ -355,8 +353,7 @@ class CThreadUpdate final : public CProgressThreadVirt {
     UString FolderPrefix;
     UStringVector FileNames;
     CRecordVector<const wchar_t *> FileNamePointers;
-    CMyComPtr<IFolderArchiveUpdateCallback> UpdateCallback;
-    CUpdateCallback100Imp *UpdateCallbackSpec = nullptr;
+    CMyComPtr2<IFolderArchiveUpdateCallback, CUpdateCallback100Imp> UpdateCallback;
     bool MoveMode = false;
     const NUpdateArchive::CActionSet *ActionSet = nullptr;
     std::optional<NWildcard::ECensorPathMode> PathMode;
@@ -377,18 +374,17 @@ HRESULT CPanel::CopyFrom(bool moveMode, const UString &folderPrefix, const UStri
         updater.MoveMode = moveMode;
         updater.ActionSet = actionSet;
         updater.PathMode = pathMode;
-        updater.UpdateCallbackSpec = new CUpdateCallback100Imp;
-        updater.UpdateCallback = updater.UpdateCallbackSpec;
-        updater.UpdateCallbackSpec->Init();
-        updater.UpdateCallbackSpec->ProgressDialog = &updater;
+        updater.UpdateCallback.SetFromCls(new CUpdateCallback100Imp);
+        updater.UpdateCallback->Init();
+        updater.UpdateCallback->ProgressDialog = &updater;
         updater.MainWindow = GetParent();
         updater.MainTitle = L"7-Zip";
         const UString title = LangString(IDS_COPYING);
         updater.MainAddTitle = title + L' ';
         if (!_parentFolders.IsEmpty()) {
             const CFolderLink &fl = _parentFolders.Back();
-            updater.UpdateCallbackSpec->PasswordIsDefined = fl.UsePassword;
-            updater.UpdateCallbackSpec->Password = fl.Password;
+            updater.UpdateCallback->PasswordIsDefined = fl.UsePassword;
+            updater.UpdateCallback->Password = fl.Password;
         }
         updater.FolderOperations = _folderOperations;
         updater.FolderPrefix = folderPrefix;

@@ -113,3 +113,31 @@ changed, so secondary OS checks were not selected. Original PanelCrc.cpp and
 PanelCopy.cpp inventory hashes, source inventory and whitespace checks passed.
 Configured four-job builds reused incremental outputs and compiler caches;
 completed test settings were removed. No full/slow or visual gate ran.
+
+## Copy callback ownership — 2026-11-02
+
+Reviewed complete original PanelCopy.cpp workers and CopyTo/CopyFrom callers,
+including filesystem path copying, archive extraction/testing, stream output,
+hash results and update actions. Compared the recorded original inventory unit;
+its baseline remains unchanged. Callback interfaces and implementations already
+share one reference-counted lifetime through the joined progress operation.
+
+Both copy workers now use the existing upstream typed COM owner instead of
+maintaining a separate implementation pointer beside the owning interface.
+Allocation and reference acquisition remain at the same preparation points;
+interface conversions and extraction QueryInterface retain their original
+interfaces. Hash/provider destruction order, progress transport lifetime,
+passwords, overwrite decisions, extraction reports, update publication and
+error/cancellation handling are unchanged. No new abstraction, imported source,
+algorithm or platform policy is introduced.
+
+Existing extraction, native drop, archive move, checksum and copy-publication
+regressions exercise the affected public workflows and their direct consumers.
+No test of pointer representation or private worker structure is added.
+
+Linux passed all five selected suites: 58 checks without skips. Only shared
+callback ownership changed; no platform-specific implementation or ABI changed,
+so secondary OS checks were not selected. Source inventory, original inventory
+hash and whitespace checks passed. Builds retained configured four-job defaults,
+incremental outputs and compiler caches; completed scratch settings were removed.
+No full/slow or appearance gate ran.
