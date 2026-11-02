@@ -152,12 +152,10 @@ class CTestCallback final : public IArchiveExtractCallback,
     HRESULT Open_CryptoGetTextPassword(BSTR *value) override { return operation_.password(value); }
 };
 
-HRESULT ExtractEntry(QtArchiveReadOperation &operation,
-                     const std::shared_ptr<ArchiveNativeOpen> &reader, CTestCallback &callback) {
-    const CArc &arc = reader->arc();
+HRESULT FindOutputIndex(QtArchiveReadOperation &operation, const CArc &arc, UInt32 &selected) {
     UInt32 count;
     RINOK(arc.Archive->GetNumberOfItems(&count))
-    UInt32 selected = operation.Output.NativeIndex;
+    selected = operation.Output.NativeIndex;
     if (selected != UInt32(-1)) {
         if (selected >= count)
             return E_INVALIDARG;
@@ -166,9 +164,10 @@ HRESULT ExtractEntry(QtArchiveReadOperation &operation,
         RINOK(Archive_IsItem_AltStream(arc.Archive, selected, alternate))
         if (directory || alternate != operation.Output.AltStream)
             return E_INVALIDARG;
+        return S_OK;
     }
     const auto entry = QDir::fromNativeSeparators(operation.Output.Entry);
-    for (UInt32 index = 0; operation.Output.NativeIndex == UInt32(-1) && index < count; ++index) {
+    for (UInt32 index = 0; index < count; ++index) {
         RINOK(operation.checkpoint())
         UString path;
         RINOK(arc.GetItem_Path(index, path))
@@ -184,13 +183,17 @@ HRESULT ExtractEntry(QtArchiveReadOperation &operation,
             return E_INVALIDARG;
         selected = index;
     }
-    if (selected == UInt32(-1))
-        return E_INVALIDARG;
+    return selected == UInt32(-1) ? E_INVALIDARG : S_OK;
+}
+
+HRESULT ExtractEntry(QtArchiveReadOperation &operation,
+                     const std::shared_ptr<ArchiveNativeOpen> &reader, CTestCallback &callback) {
+    UInt32 selected;
+    RINOK(FindOutputIndex(operation, reader->arc(), selected))
     // Client7z's output-stream/Extract/Close ownership, restricted to one index.
     // This API writes a private spool: metadata and final path policy belong to
     // the source caller. Create_NEW also protects against a raced destination.
-    CMyComPtr2<ISequentialOutStream, COutFileStream> output;
-    output.Create_if_Empty();
+    CMyComPtr2_Create<ISequentialOutStream, COutFileStream> output;
     if (!output->Create_NEW(us2fs(operation.Output.Path.toStdWString().c_str())))
         return GetLastError_noZero_HRESULT();
     operation.OutputCreated = true;
@@ -322,12 +325,12 @@ void QtArchiveReadOperation::run() {
             CatalogDiagnostic = catalog_->error();
             return;
         }
-        auto *callback = new CTestCallback(*this);
-        CMyComPtr<IArchiveExtractCallback> retained = callback;
+        CMyComPtr2<IArchiveExtractCallback, CTestCallback> callback;
+        callback.SetFromCls(new CTestCallback(*this));
         auto reader = retainedReader_;
         if (!reader) {
             reader = std::make_shared<ArchiveNativeOpen>(catalog_);
-            Result = reader->Open(path_, format_, callback);
+            Result = reader->Open(path_, format_, callback.ClsPtr());
             if (Result != S_OK)
                 recordOpenError(path_, reader->archiveLink().NonOpen_ErrorInfo);
             for (unsigned i = 0; i < reader->archiveLink().Arcs.Size(); ++i) {
@@ -349,7 +352,7 @@ void QtArchiveReadOperation::run() {
             Result = ArchiveBackend::extractNativeArchive(reader, nullptr, UInt32(-1), 1, callback);
             break;
         case Kind::ExtractEntry:
-            Result = ExtractEntry(*this, reader, *callback);
+            Result = ExtractEntry(*this, reader, *callback.ClsPtr());
             break;
         case Kind::ExtractDirectory:
             Result = ExtractQtArchiveDirectory(*this, reader, callback);

@@ -1,5 +1,35 @@
 # State of a new archive request — 2026-10-18
 
+## Native single-entry preparation — 2026-11-02
+
+Reviewed the complete native read callback/worker, single-entry selection/output,
+retained-cache caller, native extraction boundary and partial-output publication.
+Compared the original Client7z GetStream/SetOperationResult output ownership and
+close contract. Native decoding and stream-limit implementations remain intact;
+no external code import or baseline advancement occurs.
+
+Single-entry selection and validation now precede output processing through one
+local preparation function. A supplied index still validates bounds, directory
+and stream kind; name selection still scans for ambiguity before creating a
+file. Output uses the existing always-created COM owner, and the worker callback
+uses the existing typed owner instead of paired raw/interface aliases.
+Reference acquisition/destruction order and open/list/test/directory interfaces
+remain unchanged. Callback output binding/unbinding, explicit file close,
+created/closed flags, partial item results and error precedence are preserved.
+
+Existing native-source tests cover literal/duplicate names, solid siblings,
+CRC/partial output, passwords and cancellation. Read-only view checks cover
+retained index selection and bounded output; native test and directory options
+exercise the other callback consumers. No private-preparation or pointer-type
+test is added.
+
+Linux passed all four selected suites: 111 checks without skips. Source inventory
+and whitespace checks passed. Shared selection/ownership changed without native
+OS branches or calling-convention changes, so secondary platforms were not
+selected. Selected scratch was empty before and after validation; configured
+four-job builds reused incremental outputs and compiler caches. No full/slow or
+appearance gate ran.
+
 ## Staged extraction stream outcomes — 2026-11-02
 
 Reviewed the complete typed file-only extraction adapter, native source-entry
