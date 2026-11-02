@@ -41,8 +41,11 @@ class CBatchOpenProgress final : public IProgress,
 };
 } // namespace
 
-QtArchiveBatchOpen::QtArchiveBatchOpen(ArchiveBackend &backend)
-    : _backend(backend), _manager(new QtArchiveFolderManager(backend)) {}
+QtArchiveBatchOpen::QtArchiveBatchOpen(ArchiveBackend &backend) : _backend(backend) {
+    _manager.SetFromCls(new QtArchiveFolderManager(backend));
+}
+
+QtArchiveBatchOpen::~QtArchiveBatchOpen() = default;
 
 void QtArchiveBatchOpen::SetExtractionPolicy(const QString &destination,
                                              const ExtractionOptions &options) {
@@ -57,8 +60,7 @@ HRESULT QtArchiveBatchOpen::Open(CArchiveLink &link, const COpenOptions &options
         return E_NOTIMPL;
     CMyComPtr<IProgress> progress = new CBatchOpenProgress(callback, _dialog);
     CMyComPtr<IFolderFolder> folder;
-    auto *manager = static_cast<QtArchiveFolderManager *>(_manager.Interface());
-    const HRESULT result = manager->OpenArchive(
+    const HRESULT result = _manager->OpenArchive(
         options, _openType.IsEmpty() ? nullptr : _openType.Ptr(), &folder, progress);
     if (result != S_OK)
         return result;
@@ -120,6 +122,5 @@ HRESULT QtArchiveBatchOpen::Open(CArchiveLink &link, const COpenOptions &options
 std::unique_ptr<IQtProgressTransport>
 QtArchiveBatchOpen::CreateProgressTransport(CProgressDialog &dialog) {
     _dialog = &dialog;
-    auto *services = dynamic_cast<IQtProgressServices *>(_manager.Interface());
-    return services ? services->CreateProgressTransport(dialog) : nullptr;
+    return _manager->CreateProgressTransport(dialog);
 }

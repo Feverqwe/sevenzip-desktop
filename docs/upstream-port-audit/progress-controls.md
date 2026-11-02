@@ -173,3 +173,32 @@ its platform-specific driver. Selected scratch directories were empty before
 and after both runs. Source inventory, original hashes and whitespace checks
 passed. Builds reused configured four-job defaults, incremental outputs and
 compiler caches. No macOS, full/slow or rendered-parity acceptance is claimed.
+
+## Batch opening service ownership — 2026-11-02
+
+Reviewed the complete batch opener and folder-manager opening path together with
+their resource, progress and agent service boundaries. These are local Qt
+integration owners around the recorded source opening/extraction implementations;
+no original algorithm, source inventory or provenance baseline changes.
+
+The batch opener now retains its known folder-manager implementation through
+the existing typed COM owner. Opening and progress transport call that manager
+directly, removing downcasts and the unreachable missing-progress-service branch.
+The opening service likewise keeps its known archive resource in a typed owner,
+while continuing to publish the same IUnknown interface to the agent boundary.
+Reference-count interfaces and resource/catalog destruction order are unchanged.
+The opener destructor is defined beside the complete manager implementation,
+keeping the header's forward declaration usable by consumers.
+
+Native and stream opening, codec discovery/cancellation, limited-read consent,
+path validation, properties and volume accounting retain their existing branches.
+Existing batch/open-option, shell extraction, agent opening and retained-layer
+lifetime tests cover these owners and direct consumers. No test of private
+pointer types, casts or constructor representation is added.
+
+Linux passed all five selected suites: 59 checks without skips, including
+discovery cancellation and retained stream/layer lifetimes. Source inventory and
+whitespace checks passed. Only shared local ownership changed; no native OS
+branch or ABI changed, so secondary platforms were not selected. Configured
+four-job builds reused incremental outputs and compiler caches. Selected scratch
+was empty before and after validation; no full/slow or appearance gate ran.

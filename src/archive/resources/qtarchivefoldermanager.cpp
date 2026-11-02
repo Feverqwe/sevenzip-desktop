@@ -29,19 +29,20 @@ struct QtArchiveFolderManager::COpenServices final : IQtAgentOpenServices {
     bool MaterializeStreamFile;
     const COpenOptions *Requested;
     UString Format;
-    CMyComPtr<IUnknown> Lease;
+    CMyComPtr2<IUnknown, QtArchiveFileResource> Lease;
     std::shared_ptr<const ArchiveCodecCatalog> Catalog;
     COpenServices(QtArchiveFolderManager &manager, const wchar_t *path, const wchar_t *format,
                   IProgress *progress, bool ownedStreamFile, const COpenOptions *requested,
                   bool materializeStream)
         : Manager(manager), Progress(progress), OwnedStreamFile(ownedStreamFile),
           MaterializeStreamFile(materializeStream), Requested(requested),
-          Format(format ? format : L""),
-          Lease(new QtArchiveFileResource(QString::fromWCharArray(path))) {}
+          Format(format ? format : L"") {
+        Lease.SetFromCls(new QtArchiveFileResource(QString::fromWCharArray(path)));
+    }
     HRESULT LoadCodecs(const CCodecs *&codecs) override {
         RINOK(Manager.WaitForCodecCatalog(Catalog, Progress))
         codecs = Catalog && Catalog->result() == S_OK ? &Catalog->nativeCodecs() : nullptr;
-        static_cast<QtArchiveFileResource *>(Lease.Interface())->AttachCodecCatalog(Catalog);
+        Lease->AttachCodecCatalog(Catalog);
         return S_OK;
     }
     IUnknown *Resource() const override { return Lease; }
@@ -160,7 +161,7 @@ HRESULT QtArchiveFolderManager::OpenLinkImpl(CArchiveLink &link, const COpenOpti
     const wchar_t *filePath = sourceOptions.filePath;
     IProgress *progress = services.Progress;
     const bool ownedStreamFile = services.OwnedStreamFile;
-    auto *resource = static_cast<QtArchiveFileResource *>(services.Resource());
+    auto *resource = services.Lease.ClsPtr();
     QString ownedPath;
     auto cleanup = qScopeGuard([&] {
         if (!ownedPath.isEmpty()) {

@@ -13,7 +13,7 @@ struct ExtractionOptions;
 
 class QtArchiveBatchOpen final : public IQtArchiveOpenService, public IQtProgressServices {
     ArchiveBackend &_backend;
-    CMyComPtr<IFolderManager> _manager;
+    CMyComPtr2<IFolderManager, QtArchiveFolderManager> _manager;
     QString _destination;
     const ExtractionOptions *_extractOptions = nullptr;
     UString _openType;
@@ -21,6 +21,7 @@ class QtArchiveBatchOpen final : public IQtArchiveOpenService, public IQtProgres
 
   public:
     explicit QtArchiveBatchOpen(ArchiveBackend &backend);
+    ~QtArchiveBatchOpen() override;
     void SetExtractionPolicy(const QString &destination, const ExtractionOptions &options);
     void SetOpenType(const UString &type) { _openType = type; }
     HRESULT Open(CArchiveLink &link, const COpenOptions &options,
