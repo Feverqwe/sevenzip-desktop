@@ -1,4 +1,5 @@
 #include "archive/resources/qtarchivebatchextract.h"
+#include "7zip/UI/Common/SortUtils.h"
 #include "Common/StringConvert.h"
 #include "archive/resources/qtarchivebatchopen.h"
 #include "archive/resources/qtextractpathpolicy.h"
@@ -19,9 +20,13 @@ QtArchiveBatchResult RunQtArchiveBatchExtract(ArchiveBackend &backend, const QSt
     for (const QString &path : archives) {
         const QString absolute = QFileInfo(path).absoluteFilePath();
         archivePaths.Add(UString(absolute.toStdWString().c_str()));
-        archivePathsFull.Add(UString(absolute.toStdWString().c_str()));
     }
-    archivePathsFull.Sort();
+    // Extract's volume lookup indexes the processing list and its size/skip
+    // arrays. Build both native path lists from the same filename ordering.
+    CUIntVector order;
+    SortFileNames(archivePaths, order);
+    FOR_VECTOR(i, order) { archivePathsFull.Add(archivePaths[order[i]]); }
+    archivePaths = archivePathsFull;
     NWildcard::CCensorNode censor;
     censor.Add_Wildcard();
     CExtractOptions sourceOptions;

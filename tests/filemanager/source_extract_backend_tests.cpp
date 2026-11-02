@@ -368,12 +368,11 @@ class SourceExtractBackendTests final : public QObject {
         QCOMPARE(readFile(output), bytes);
     }
     void sourceBatchExtractsTwoArchivesWithAsk() {
-        QTemporaryDir first, second, output;
-        QVERIFY(first.isValid());
-        QVERIFY(second.isValid());
+        QTemporaryDir inputs, output;
+        QVERIFY(inputs.isValid());
         QVERIFY(output.isValid());
-        const QString one = makeArchive(first.path(), "first bytes");
-        const QString two = makeArchive(second.path(), "second bytes");
+        const QString one = makeArchive(inputs.filePath("a"), "first bytes");
+        const QString two = makeArchive(inputs.filePath("z"), "second bytes");
         QVERIFY(!one.isEmpty());
         QVERIFY(!two.isEmpty());
         ArchiveBackend backend;
@@ -409,7 +408,13 @@ class SourceExtractBackendTests final : public QObject {
         QCOMPARE(readFile(output.filePath(kName)), QByteArray("second bytes"));
         QVERIFY(!backend.busy());
     }
+    void sourceBatchSkipsFollowingVolumes_data() {
+        QTest::addColumn<bool>("mixed");
+        QTest::newRow("ordered-volumes") << false;
+        QTest::newRow("mixed-selection") << true;
+    }
     void sourceBatchSkipsFollowingVolumes() {
+        QFETCH(bool, mixed);
         QTemporaryDir directory, output;
         QVERIFY(directory.isValid());
         QVERIFY(output.isValid());
@@ -437,6 +442,17 @@ class SourceExtractBackendTests final : public QObject {
             volumes.append(path);
         }
         QVERIFY(volumes.size() > 1);
+        const QString standalone = QStringLiteral("standalone 空.txt");
+        if (mixed) {
+            QVERIFY(writeFile(directory.filePath(standalone), "independent archive bytes"));
+            process.start(QStandardPaths::findExecutable("7z"),
+                          {"a", "-tzip", "a-independent.zip", standalone});
+            QVERIFY(process.waitForFinished(10000));
+            QCOMPARE(process.exitCode(), 0);
+            // The independent archive sorts before the volumes but was selected
+            // between them. A lookup index must still identify the same input.
+            volumes.insert(2, directory.filePath("a-independent.zip"));
+        }
         ArchiveBackend backend;
         QTimer dismissError;
         bool closeScheduled = false;
@@ -464,6 +480,9 @@ class SourceExtractBackendTests final : public QObject {
         QCOMPARE(result.Result, S_OK);
         QVERIFY(result.CallbackOK);
         QCOMPARE(readFile(output.filePath(kName)), bytes);
+        if (mixed)
+            QCOMPARE(readFile(output.filePath(standalone)),
+                     QByteArray("independent archive bytes"));
         QVERIFY(!backend.busy());
     }
 };
