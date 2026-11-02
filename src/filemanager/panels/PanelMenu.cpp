@@ -647,8 +647,10 @@ void CPanel::Properties(const CRecordVector<UInt32> &operatedIndices,
                 AddPropertyString(propID, name, prop, message);
             }
         }
-        UInt32 numRawProps = 0;
-        if (_folderRawProps && _folderRawProps->GetNumRawProps(&numRawProps) == S_OK) {
+        if (_folderRawProps) {
+            UInt32 numRawProps = 0;
+            // Preserve source partial enumeration; each descriptor/value is checked below.
+            _folderRawProps->GetNumRawProps(&numRawProps);
             for (UInt32 i = 0; i < numRawProps; i++) {
                 CMyComBSTR name;
                 PROPID propID;

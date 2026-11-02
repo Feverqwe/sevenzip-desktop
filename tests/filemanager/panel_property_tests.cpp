@@ -143,22 +143,23 @@ class PanelPropertyTests : public QObject {
         QCOMPARE(value(dialog, "123456"), QString("42"));
     }
 
-    void rawCatalogFailureKeepsOtherProperties_data() {
-        QTest::addColumn<bool>("available");
+    void rawCatalogKeepsAvailableProperties_data() {
+        QTest::addColumn<HRESULT>("result");
         QTest::addColumn<bool>("writeCount");
-        QTest::newRow("available") << true << true;
-        QTest::newRow("failed-without-count") << false << false;
-        QTest::newRow("failed-with-written-count") << false << true;
+        QTest::newRow("available") << HRESULT(S_OK) << true;
+        QTest::newRow("failed-without-count") << HRESULT(E_FAIL) << false;
+        QTest::newRow("failed-with-written-count") << HRESULT(E_FAIL) << true;
+        QTest::newRow("partial-with-written-count") << HRESULT(S_FALSE) << true;
     }
-    void rawCatalogFailureKeepsOtherProperties() {
-        QFETCH(bool, available);
+    void rawCatalogKeepsAvailableProperties() {
+        QFETCH(HRESULT, result);
         QFETCH(bool, writeCount);
         auto *schema = new SchemaFolder;
         CMyComPtr<IFolderFolder> folder = schema;
         schema->properties = {{kpidName, VT_BSTR, S_OK, {}}};
         schema->items->firstName = L"документ 空.txt";
         schema->items->folderPath = L"/properties/папка 空/";
-        schema->rawCountResult = available ? S_OK : E_FAIL;
+        schema->rawCountResult = result;
         schema->writeRawCount = writeCount;
         CPanel panel(folder);
         CRecordVector<UInt32> selected;
@@ -167,7 +168,7 @@ class PanelPropertyTests : public QObject {
         panel.Properties(selected, dialog);
         dialog.OnInit();
         QCOMPARE(value(dialog, "Имя"), QStringLiteral("документ 空.txt"));
-        QCOMPARE(value(dialog, "CRC"), available ? QString("DEADBEEF") : QString());
+        QCOMPARE(value(dialog, "CRC"), writeCount ? QString("DEADBEEF") : QString());
         auto *list = dialog.findChild<QTreeWidget *>("propertiesList");
         QVERIFY(list);
         QVERIFY(!list->findItems(QStringLiteral("/properties/папка 空/"), Qt::MatchExactly, 1)
