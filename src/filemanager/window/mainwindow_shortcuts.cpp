@@ -102,9 +102,10 @@ bool MainWindow::reservedPanelKey(const QKeyEvent &key) const {
 
 bool MainWindow::isPanelEditorFocused() const {
     QWidget *focus = QApplication::focusWidget();
-    return focus && focus != projectedUi().table && focus != projectedUi().iconList &&
-           (!projectedUi().table || focus != projectedUi().table->viewport()) &&
-           (!projectedUi().iconList || focus != projectedUi().iconList->viewport()) &&
+    if (!focus)
+        return false;
+    const auto target = panelInputTarget(focus, projectedPanel_);
+    return target != PanelInputTarget::List && target != PanelInputTarget::ListViewport &&
            ((projectedUi().table && projectedUi().table->isAncestorOf(focus)) ||
             (projectedUi().iconList && projectedUi().iconList->isAncestorOf(focus)));
 }

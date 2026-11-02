@@ -14,7 +14,9 @@
 #include "archive/agent/UpdateCallbackAgent.h"
 #include "archive/operations/EnumDirItems.h"
 #include "archive/operations/Update.h"
+#include "archive/operations/qtupdatepair.h"
 #include "archive/resources/qtarchivefileresource.h"
+#include "archive/resources/qtarchivetransferinputs.h"
 #include "fileops/native/FileDir.h"
 #include "fileops/patterns/Wildcard.h"
 #include <memory>
@@ -279,6 +281,12 @@ Z7_COM7F_IMF(CAgent::DoOperation(FStringVector *requestedPaths, FStringVector *p
         dirItems.ReadSecure = options.NtSecurity.Val;
 #endif
     }
+    const auto *transferInputs =
+        resource && resource->TransferInputs() ? &*resource->TransferInputs() : nullptr;
+    if (transferInputs) {
+        dirItems.SymLinks |= transferInputs->SymLinks;
+        dirItems.ScanAltStreams |= !transferInputs->AltStreamPaths.isEmpty();
+    }
 
     {
         FString folderPrefix = _folderPrefix;
@@ -308,6 +316,11 @@ Z7_COM7F_IMF(CAgent::DoOperation(FStringVector *requestedPaths, FStringVector *p
             }
         }
     }
+
+    CRecordVector<Byte> altStreamItems;
+    if (transferInputs)
+        RINOK(PrepareQtArchiveTransferInputs(dirItems, _folderPrefix, _updatePathPrefix,
+                                             *transferInputs, altStreamItems))
 
     CMyComPtr<IOutArchive> outArchive;
 
@@ -354,7 +367,7 @@ Z7_COM7F_IMF(CAgent::DoOperation(FStringVector *requestedPaths, FStringVector *p
 
     {
         CRecordVector<CUpdatePair> updatePairs;
-        GetUpdatePairInfoList(dirItems, arcItems, fileTimeType, updatePairs);
+        GetUpdatePairInfoList(dirItems, arcItems, fileTimeType, updatePairs, altStreamItems);
         CAgUpCallbackImp upCallback(&arcItems, updateCallback100);
         UpdateProduce(updatePairs, actionSet, updatePairs2, &upCallback);
     }
@@ -375,6 +388,7 @@ Z7_COM7F_IMF(CAgent::DoOperation(FStringVector *requestedPaths, FStringVector *p
     CMyComPtr2_Create<IArchiveUpdateCallback, CArchiveUpdateCallback> updateCallback;
 
     updateCallback->DirItems = &dirItems;
+    updateCallback->QtAltStreamItems = &altStreamItems;
 #ifndef _WIN32
     updateCallback->NewDataIsAltStream = _updatePathPrefix_is_AltFolder;
 #endif
@@ -396,6 +410,11 @@ Z7_COM7F_IMF(CAgent::DoOperation(FStringVector *requestedPaths, FStringVector *p
     }
 
     SetInArchiveInterfaces(this, updateCallback.ClsPtr());
+
+    if (transferInputs) {
+        updateCallback->StoreSymLinks |= transferInputs->SymLinks;
+        updateCallback->StoreHardLinks |= transferInputs->HardLinks;
+    }
 
     updateCallback->Callback = &updateCallbackAgent;
 

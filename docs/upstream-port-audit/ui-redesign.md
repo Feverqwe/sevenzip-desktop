@@ -2671,3 +2671,143 @@ Source inventory verification and whitespace checks passed. Incremental builds
 and compiler caches were retained; no full/slow suites, heavy diagnostics or
 appearance changes ran. Completed snapshots and disposable fixtures left no new
 scratch roots; pre-existing unrelated local roots were preserved.
+
+## Panel input routing — 2026-11-01
+
+Compared the original Panel.cpp list and address-edit message handlers,
+PanelKey.cpp dispatch and FM.cpp focus restoration with current Qt filter
+installation, panel activation/projection, shortcut interception, editor
+exclusion, list selection and address delivery. The recorded source remains
+<https://github.com/ip7z/7zip.git> at
+`b88c6bc09339de32f7d18bbab900686b244f42ba`; no original implementation is newly
+imported or replaced.
+
+One Qt widget-role classification now serves panel lookup, event routing and
+editor exclusion. Keyboard delivery consumes the role already selected by the
+event filter, rather than repeating the address/list/viewport comparisons.
+The event filter and panel lookup live beside the keyboard adapter instead of
+the preferences and two-panel layout code. Classification for delivery still
+follows panel activation, including refusal while an operation retains its
+source owner. Initial-focus cancellation, click modifiers, shortcut priority,
+text editing, Shift sequences and source calls retain their order and policy.
+Native modifier decoding and command/selection algorithms are unchanged.
+
+Existing behavior suites cover both panels and view types, activation from
+mouse and keyboard, modified clicks, address submission/cancellation, text
+editors, source key commands and busy/modal suppression. No source-presence
+or helper-specific test is added for this internal refactoring. No layout,
+text, visibility or geometry change is involved.
+
+Focused Linux validation passed panel_activation, address_navigation, panel_key,
+panel_address_keys, panel_shortcut and panel_key_source. Native modifier branches
+were not changed. The offscreen run skips ten native layout-mapping rows and
+one Cocoa virtual-key row; secondary OS, those QPA protocols and physical-keyboard
+acceptance are not claimed.
+The source inventory and full original-baseline verification passed. Existing
+incremental outputs and compiler caches were retained with ordinary four-job
+defaults; no full or slow gate ran.
+
+## Owned temporary-browser rows — 2026-11-01
+
+Rechecked original BrowseDialog2 item/enumerator types, reload/count/publication,
+comparison, selection/refresh, delete, navigation and context-command bodies with
+the current transactional snapshot, Qt row publication and ownership guards.
+The complete original BrowseDialog2.cpp/.h units still match the recorded hashes
+at `b88c6bc09339de32f7d18bbab900686b244f42ba` in
+<https://github.com/ip7z/7zip.git>. No external source or revision is added.
+
+Each snapshot row now extends the unchanged source CBrowseItem payload with its
+owned-temporary entry. Object-vector storage copies that nontrivial ownership
+value with the row; the separately indexed ownership vector and paired append
+are removed. Native recursive counting still updates only the CBrowseItem base,
+retaining the row's ownership proof. Sorting, file/subfile indices, partial-count
+reporting, snapshot publication, deletion leases, external protection, link/path
+validation and native filesystem/process operations are unchanged. Selection,
+tooltips and command availability consume the same row ownership. No text,
+layout, visibility or geometry change is introduced.
+
+Existing temp_cleanup, owned_temp and temp_detached_launch behavior coverage
+checks confirmed/cancelled deletion, active/external protection, replaced object
+identity, partial deletion failure, navigation failure/retry, refresh/sort
+selection, recursive counts, links and detached consumers. No new test is added
+solely for the internal storage change.
+
+Focused Linux validation passed all three suites, with 38 passed rows and no
+skips. Only portable snapshot ownership changed; secondary OS, native shell
+interaction and rendered appearance are not claimed. Source inventory and
+whitespace checks passed, and the original complete-unit hashes were verified.
+The ordinary four-job build reused incremental outputs and the compiler cache;
+no full/slow gate or heavy diagnostic was run. One stale task-owned registry
+record was removed after confirming its target no longer existed.
+
+## Copy request and final publication — 2026-11-01
+
+Compared original App.cpp OnCopy selection, destination/history, worker/error,
+refresh, notification-guard and focus bodies with current CApp request setup,
+Qt copy execution/completion, panel reload callbacks and shutdown. Complete
+original App.cpp/.h hashes match the existing recorded baseline at
+`b88c6bc09339de32f7d18bbab900686b244f42ba` in
+<https://github.com/ip7z/7zip.git>. Native path/provider rules, operations,
+post-operation branches and previously recorded adaptations are unchanged.
+
+CApp now retains one immutable accepted-copy request containing panel identities,
+copy mode and both saved selections. Refresh and final publication consume that
+record instead of separately capturing the same selections in two callbacks.
+Refresh takes a local shared lease before entering source publication; completion
+detaches the active request before restoring selections/focus. Synchronous
+completion during reload therefore retains the selection argument without
+copying the callback and its captured vectors. Shutdown discards the same owner.
+The Qt execution/scan continuation and cancellation policy are unchanged; no
+external source, native algorithm, text or layout is introduced.
+
+The existing one/two-panel asynchronous-copy regression now completes the copy
+inside its public reload callback and checks the supplied selection afterwards,
+then retains its timer-restoration and idempotent-completion checks. This covers
+borrowed-state lifetime through reentrant publication, rather than checking
+private request representation. Existing copy/publication/window consumers
+exercise actual results, selection/focus, errors/cancellation and Copy to same.
+
+Focused Linux validation passed app_copy_routing, panel_copy_reload,
+copy_publication_order, ui_copy_same and ui_operations: 124 passed rows, no skips.
+Only portable request ownership and the existing source tail's placement changed,
+so secondary OS, native input and appearance acceptance are not claimed. Source
+inventory, original complete-unit hashes and whitespace checks passed. Ordinary
+four-job builds retained incremental outputs and compiler cache; no full/slow
+gate or heavy diagnostic was needed. Completed task-owned settings fixtures
+were removed while the passing receipts and useful build outputs were retained.
+
+## Right-button gesture ownership — 2026-11-01
+
+Compared original PanelListNotify drag notifications and PanelDrag OnDrag
+eligibility, source/target protocol, completion/cancellation and context commands
+with Qt event-filter installation, threshold detection, deferred menus, drop
+delivery, hover suspension and teardown. Complete original PanelDrag.cpp and
+PanelListNotify.cpp inventory hashes still match
+`b88c6bc09339de32f7d18bbab900686b244f42ba` from
+<https://github.com/ip7z/7zip.git>. No native drag/transfer algorithm or external
+source revision is changed.
+
+The pending right press now owns its weak widget, origin and deferred-context
+state in one optional record. Starting a drag, delivering its ordinary context
+menu or revoking the controller discards that record as one operation. The
+consumed-drag flag remains independent because later context notifications must
+still be suppressed after the press is gone, until another press starts.
+Thresholds, view eligibility, context-event order, source right-drag restrictions,
+drop effects, cancellation and ordinary menu behavior are preserved.
+
+The existing refused archive-gesture case now checks suppression of a delayed
+context notification and a subsequent ordinary right click: press-time context
+is deferred, then exactly one source menu appears on release. Existing filesystem
+right-copy/cancel cases enter through mouse press/move/release instead of calling
+OnDrag directly, retaining their real output/selection/target assertions and
+controlled drag transport. These are public Qt event protocols, not physical
+OS-input or rendered menu acceptance. No helper-state/source assertion, new
+matrix, layout, text or visibility change is introduced.
+
+Focused Linux validation passed drag_drop, drag_drop_ui, dropped_path_choice and
+source_context_menu: 56 passed rows with no skips. Early/deferred context delivery
+is exercised as a Qt notification sequence; native platform delivery, physical
+input, secondary OS and visual parity are not claimed. Source inventory, original
+complete-unit hashes and whitespace checks passed. Ordinary four-job builds
+retained incremental outputs and compiler cache. Disposable settings from the
+completed suites were removed; no full/slow or heavy diagnostic gate ran.

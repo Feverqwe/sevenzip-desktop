@@ -33,6 +33,13 @@ class CSpoolProgress final : public ICompressProgressInfo, public CMyUnknownImp 
         return _progress ? _progress->SetCompleted(inSize) : S_OK;
     }
 };
+
+HRESULT CopySpool(IInStream *input, COutFileStream &output, IProgress *progress) {
+    RINOK(InStream_SeekToBegin(input))
+    CMyComPtr<ICompressProgressInfo> copyProgress = new CSpoolProgress(progress);
+    RINOK(NCompress::CopyStream(input, &output, copyProgress))
+    return output.Close();
+}
 } // namespace
 
 QtArchiveFileResource::~QtArchiveFileResource() {
@@ -131,11 +138,9 @@ void QtArchiveFileResource::CaptureOutputMTime(const CFiTime &time, bool defined
 void QtArchiveFileResource::CaptureDeleteInputs(const CDirItems &items,
                                                 const CByteBuffer &processed) {
     _deleteInputs.reset();
-    if (_compressionOptions && _compressionOptions->DeleteAfterCompressing) {
-        _deleteInputs = std::make_shared<QtArchiveDeleteInputs>();
-        _deleteInputs->Capture(items, processed);
-        _deleteInputs->SymLinks = _compressionOptions->SymLinks;
-    }
+    if (_compressionOptions && _compressionOptions->DeleteAfterCompressing)
+        _deleteInputs = std::make_shared<QtArchiveDeleteInputs>(items, processed,
+                                                                _compressionOptions->SymLinks);
 }
 
 HRESULT QtArchiveFileResource::DeleteInputsAfterPublication(IUpdateDeletionCallback &callback) {
@@ -279,28 +284,24 @@ HRESULT QtArchiveFileResource::Spool(IInStream *stream, IProgress *progress) {
     outputSpec->File.mode_for_Create = 0600;
 #endif
     AString postfix;
-    if (!NWindows::NFile::NDir::CreateTempFile2(prefix, true, postfix, &outputSpec->File))
+    FString createdPath;
+    if (!NWindows::NFile::NDir::CreateTempFile2(prefix, true, postfix, &outputSpec->File,
+                                                createdPath))
         return GetLastError_noZero_HRESULT();
-    prefix += postfix;
-    const QString path = QDir::fromNativeSeparators(QString::fromWCharArray(fs2us(prefix)));
     std::shared_ptr<QtOwnedTempLease> lease;
-    bool completed = false;
-    const auto cleanup = qScopeGuard([&] {
+    auto cleanup = qScopeGuard([&] {
         outputSpec->Close();
-        if (!completed)
-            QFile::remove(path);
+        NWindows::NFile::NDir::DeleteFileAlways(createdPath);
     });
+    const QString path = QDir::fromNativeSeparators(QString::fromWCharArray(fs2us(createdPath)));
     lease = QtOwnedTempRegistry().RegisterCreated(path);
     if (!lease)
         return E_FAIL;
-    RINOK(InStream_SeekToBegin(stream))
-    CMyComPtr<ICompressProgressInfo> copyProgress = new CSpoolProgress(progress);
-    RINOK(NCompress::CopyStream(stream, output, copyProgress))
-    RINOK(outputSpec->Close())
+    RINOK(CopySpool(stream, *outputSpec, progress))
     _temporary = path;
     _temporaryLease = std::move(lease);
     EnginePath = path;
-    completed = true;
+    cleanup.dismiss();
     return S_OK;
 }
 
@@ -312,17 +313,12 @@ HRESULT QtArchiveFileResource::SpoolToOwnedFile(IInStream *stream, const QString
     CMyComPtr<ISequentialOutStream> output = outputSpec;
     if (!outputSpec->Create_NEW(us2fs(path.toStdWString().c_str())))
         return GetLastError_noZero_HRESULT();
-    bool completed = false;
-    const auto cleanup = qScopeGuard([&] {
+    auto cleanup = qScopeGuard([&] {
         outputSpec->Close();
-        if (!completed)
-            QFile::remove(path);
+        QFile::remove(path);
     });
-    RINOK(InStream_SeekToBegin(stream))
-    CMyComPtr<ICompressProgressInfo> copyProgress = new CSpoolProgress(progress);
-    RINOK(NCompress::CopyStream(stream, output, copyProgress))
-    RINOK(outputSpec->Close())
+    RINOK(CopySpool(stream, *outputSpec, progress))
     EnginePath = path;
-    completed = true;
+    cleanup.dismiss();
     return S_OK; // The source CTempFileInfo owns cleanup of this file.
 }

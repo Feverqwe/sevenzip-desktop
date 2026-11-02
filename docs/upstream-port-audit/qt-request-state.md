@@ -1,5 +1,285 @@
 # State of a new archive request — 2026-10-18
 
+## Selected-name extraction preparation — 2026-11-02
+
+Reviewed complete public extraction preparation, restored listing, destination
+preparation and native directory-request consumers, including window extraction
+and transfer fallback. Native selection/decoding and bounded output remain at
+their existing source owners; no external code import or baseline advancement.
+
+Literal-name resolution now returns a prepared list or the existing translated
+error before destination preparation starts. This removes the launch method's
+coupled found flag/partially appended selection. First-match behavior, requested
+order/duplicates, slash comparison, original stored entry paths and empty
+selection retain their previous meaning. Busy/reset, stale-list refusal,
+source-only options, destination validation and operation startup keep their
+order; no path canonicalization or wildcard behavior is added.
+
+The existing rejected-request regression now supplies a valid name followed by
+a missing name and requires no destination directory to be created. This protects
+the observable side-effect boundary in addition to the existing result, busy and
+unchanged-input assertions. Existing backend, extraction-option and notification
+suites cover direct consumers; no helper/source-shape test is added.
+
+Linux passed all three selected suites: 104 checks without skips. Source inventory
+and whitespace checks passed. Only shared request preparation changed, without
+OS-specific code or native engine interface changes, so secondary platforms were
+not selected. Selected scratch was empty before and after validation; configured
+four-job incremental builds and compiler caches were retained. No full/slow or
+appearance gate ran.
+
+## Validated cached-listing lookup — 2026-11-02
+
+Reviewed listing publication/invalidation, cached-source availability and
+restoration, Test/extract, source-entry recovery-format selection and notification
+callers. The cache remains local Qt integration around authoritative native
+metadata; no source import, filesystem/decoder algorithm change or baseline
+advancement occurs.
+
+Availability, restoration and recovery-format lookup now use one private lookup
+that returns the validated snapshot. Restoration reuses the same QFileInfo and
+snapshot instead of repeating path construction and hash lookup after a separate
+boolean check; recovery likewise avoids fetching another snapshot value.
+Borrowed snapshots stay within the synchronous call, before operation startup
+or notifications. Busy, file/link, size/time checks and listing invalidation
+remain unchanged, as do cache publication, entries/format and recovery policy.
+
+Existing backend, listing, source-entry, recovery and notification cases cover
+independent cached archives, changed-source refusal and relist retry, cancelled
+listing and reentrant extraction. No pointer-layout, private-lookup or current
+metadata-constant test is added.
+
+Linux passed all five selected suites: 131 checks without skips. Source inventory
+and whitespace checks passed. Shared cache lookup/ownership changed without
+OS-specific metadata rules or native engine interface changes, so secondary
+platforms were not selected. Selected scratch was empty before and after
+validation; configured four-job incremental builds and compiler caches were
+retained. No full/slow or appearance gate ran.
+
+## Source-entry completion outcome owner — 2026-11-02
+
+Reviewed the complete source-entry completion/cleanup helper, joined read
+completion, partial-output consumers and callback-driven backend replacement.
+Native item/open diagnostics, read-only recovery eligibility and source decoding
+retain their current owners and contracts. No source import, decoder change or
+baseline advancement is introduced.
+
+Source-entry completion now accepts and returns its HRESULT instead of mutating
+the backend's terminal result as a hidden side effect. Joined read completion
+applies cancellation priority, obtains the source-specific outcome where needed
+and stores the terminal result before publishing signals. Item-result
+classification remains at its existing owner. Recovery format checks,
+created/closed output requirements, empty-output cleanup, warning/item priority
+and cancellation cleanup are unchanged. Backend state snapshots and destruction/
+replacement guards keep their original notification order.
+
+Existing native-source, recovery, stream-contract and backend completion suites
+cover successful, partial and failed outcomes, output preservation/removal,
+password/cancellation and reentrant completion. No internal-field or helper-shape
+test is added.
+
+Linux passed all four selected suites: 114 checks without skips. Source inventory
+and whitespace checks passed. Shared completion-result handling changed without
+OS-specific code or native engine interface changes, so secondary platforms were
+not selected. Selected scratch was empty before and after validation; configured
+four-job incremental builds and compiler caches were retained. No full/slow or
+appearance gate ran.
+
+## Native read worker terminal result — 2026-11-02
+
+Reviewed the complete native worker/callback sequence and all result consumers.
+Backend completion, retained cache and direct fixtures join the worker before
+reading its terminal result; cancellation/progress callbacks do not read it.
+Source opening, listing, decoding, output and callback contracts remain unchanged;
+no new source import or baseline advancement is introduced.
+
+The worker's processing body now returns its HRESULT, while the thread entry
+stores that outcome and retains the existing exception-to-E_OUTOFMEMORY mapping.
+This removes repeated writes/checks of the public terminal field during setup.
+Checkpoints remain before and after codec loading, catalog diagnostics retain
+their failure points, and failed Open still collects all available open errors
+before returning. Callback attachment/detachment and final error aggregation keep
+their order, including List's existing treatment of open warnings. Callback and
+reader locals still unwind before thread completion is published.
+
+Existing listing, native Test, single-entry, directory-option and retained-view
+suites cover the affected modes and early exits. No private-method or
+intermediate-field-value test is added.
+
+Linux passed all five selected suites: 127 checks without skips. Source inventory
+and whitespace checks passed. Only shared worker/result ownership changed,
+without native OS branches or ABI changes, so secondary platforms were not
+selected. Selected scratch was empty before and after validation; configured
+four-job builds retained incremental outputs and compiler caches. No full/slow
+or appearance gate ran.
+
+## Native single-entry preparation — 2026-11-02
+
+Reviewed the complete native read callback/worker, single-entry selection/output,
+retained-cache caller, native extraction boundary and partial-output publication.
+Compared the original Client7z GetStream/SetOperationResult output ownership and
+close contract. Native decoding and stream-limit implementations remain intact;
+no external code import or baseline advancement occurs.
+
+Single-entry selection and validation now precede output processing through one
+local preparation function. A supplied index still validates bounds, directory
+and stream kind; name selection still scans for ambiguity before creating a
+file. Output uses the existing always-created COM owner, and the worker callback
+uses the existing typed owner instead of paired raw/interface aliases.
+Reference acquisition/destruction order and open/list/test/directory interfaces
+remain unchanged. Callback output binding/unbinding, explicit file close,
+created/closed flags, partial item results and error precedence are preserved.
+
+Existing native-source tests cover literal/duplicate names, solid siblings,
+CRC/partial output, passwords and cancellation. Read-only view checks cover
+retained index selection and bounded output; native test and directory options
+exercise the other callback consumers. No private-preparation or pointer-type
+test is added.
+
+Linux passed all four selected suites: 111 checks without skips. Source inventory
+and whitespace checks passed. Shared selection/ownership changed without native
+OS branches or calling-convention changes, so secondary platforms were not
+selected. Selected scratch was empty before and after validation; configured
+four-job builds reused incremental outputs and compiler caches. No full/slow or
+appearance gate ran.
+
+## Staged extraction stream outcomes — 2026-11-02
+
+Reviewed the complete typed file-only extraction adapter, native source-entry
+publication, callback contracts and official CopyCoder error propagation. Native
+decoding, selection/duplicate guards, password handling, staging and partial-data
+eligibility remain unchanged. No external source import or baseline advancement.
+
+Stream transfer now returns its own non-success result directly, leaving the
+saved extraction outcome intact instead of overwriting and restoring it. The
+staged input uses the existing always-created COM owner. Fatal extraction or
+staging-open errors retain a separate path: Cancel has no item-error report,
+other failures report DataError while preserving their original HRESULT.
+Nonfatal item outcomes still reach the original callback and allow healthy
+siblings to continue when accepted. Output release and progress publication
+remain at their existing points.
+
+Public extraction contract cases now reject output writes with E_ABORT, E_FAIL
+and S_FALSE, both after successful decoding and after CRC-damaged partial output.
+They require the write outcome and no completed-item report. A controlled missing
+staged file verifies that the opening error takes priority over an error-report
+callback's Cancel result. Existing cases cover CRC/healthy siblings, native
+selection, password retry/cancellation and cumulative progress. These checks do
+not inspect source text or private adapter structure.
+
+Linux passed the four selected extraction/request suites: 60 checks without
+skips, including all seven new error-precedence cases. Source inventory and
+whitespace checks passed. Shared result handling changed without platform
+branches or native ABI changes, so secondary platforms were not selected.
+Selected scratch was empty before and after validation; configured four-job
+builds retained incremental outputs and compiler caches. No full/slow or
+appearance gate ran.
+
+## Joining a stopped backend request — 2026-11-02
+
+Reviewed the complete worker-to-GUI request/password helper and source-extraction,
+listing/open and reopen consumers. The local adapter retains the recorded native
+stop semantics and original algorithms; no source import or baseline changes.
+
+The request now leaves password/progress processing once a stop result is
+observed, performs its existing stop transition once, then waits only for
+completion. This replaces the separate cancellation-sent flag with control flow.
+Pending retirement still prevents delayed start captures from executing;
+Running-only checks still protect unrelated backend work and late password
+delivery. A stopped Running request continues to join completion before returning
+the saved outcome. Non-S_OK password outcomes include S_FALSE, and an observed
+stop retains priority over an already published completion result.
+
+Pending/busy regressions move from the extraction suite into a focused backend
+request suite. New public-boundary cases check password cancellation, callback
+error, missing password interface, S_FALSE, Running cancellation and completion
+with an observed stop. They require the exact outcome, one cancellation where
+needed and completion before return; the backend fixture can finish on a timer
+if cancellation regresses. COM callback exception injection is excluded because
+that interface is noexcept. No private-state or source-shape checks are added.
+
+Linux passed backend_request and its four selected direct-consumer suites:
+52 checks without skips. The first build exposed a nonportable test error-name;
+the fixture now uses a portable arbitrary HRESULT and the same selection passed.
+Source inventory and whitespace checks passed. Shared Qt request control flow
+changed without native OS/ABI changes, so secondary platforms were not selected.
+Selected scratch was empty before and after; configured four-job incremental
+builds and compiler caches were retained. No full/slow or appearance gate ran.
+
+## Cancellation before backend request dispatch — 2026-11-02
+
+Reviewed complete worker-to-GUI request/password delivery, listing/open/reopen
+and source-extraction consumers, native codec probe/backend publication and
+relevant cancellation fixtures. Original CProgressSync::CheckStop at
+`b88c6bc09339de32f7d18bbab900686b244f42ba` was compared with the existing
+adapter; the complete original ProgressDialog2.cpp hash matches the baseline.
+Its stop semantics and native algorithms remain unchanged. No upstream import
+or provenance advancement.
+
+A stopped request can now retire while still Pending, before GUI dispatch.
+The queued start checks the same mutex-protected phase and ignores the retired
+request. Previously the caller always had to wait for GUI startup followed by
+queued cancellation, so even a pre-cancelled request invoked its start callback.
+This also prevents a delayed callback from invoking captures after their waiting
+caller has returned. Running requests retain the existing joined cancellation,
+password and result path; unrelated busy backend work remains untouched. No new
+phase, platform service or native cancellation policy is introduced.
+
+The regression withholds GUI dispatch, requires the cancelled caller to return
+E_ABORT, then drains the delayed callback and verifies that no operation started
+or emitted completion. Its failure path drains GUI work before joining the
+fixture, so it does not strand its own future. Existing checks retain occupied
+backend refusal/cancellation, extraction, nested opening and retry coverage.
+No pre-fix run is claimed.
+
+Linux primary `20261102T050434Z-2b65b62d` passed source_extract_backend and
+agent_opening: 31 checks, no skips. Build 13.663 s; tests 4.117 s. Portable Qt
+request scheduling changed, without native platform/UI changes; secondary OS
+acceptance was not rerun. Selected scratch directories were empty before/after,
+incremental outputs and compiler caches retained. No full/slow gate or reports.
+
+## Compression parameter boundary — 2026-11-01
+
+Compared source CompressDialog `CInfo`/update-mode declarations, the current
+Add request projection and UpdateGUI property conversion with backend/native
+writer consumers. The original CompressDialog.h inventory at recorded
+`b88c6bc09339de32f7d18bbab900686b244f42ba` in
+<https://github.com/ip7z/7zip.git> matches its pinned complete-unit hash. The
+existing adapted declarations move unchanged into the compression module's
+`CompressInfo.h`; field order, types, initial values and inherited Qt adaptations
+are preserved. No new upstream code, omitted branch or revision advance is
+involved. The existing manifest extraction map records both transferred symbols
+and their local owner, so later source reviews include the extracted header.
+
+ArchiveBackend now includes the parameter contract and native archive interface,
+without importing compression controller/browse declarations through its public
+header. The UpdateGUI service header consumes the same contract, while its
+implementation, Add presentation and controller-based fixtures include their
+controller explicitly. Selection,
+validation, persistence, property overrides, encryption, update and writer
+algorithms are unchanged. No new behavior test or measured build-speed gain is
+claimed; existing creation/update suites and consumer compilation validate this
+declaration/dependency refactoring.
+
+Baseline inventory also lacked the preexisting local ArchivePropertySource
+implementation/header from the generation-bound metadata change. They are now
+registered as local integration; their code and original source hashes are
+unchanged. Full baseline verification uses an isolated recorded-revision
+reference; the existing external checkout remains untouched. Ordinary builds
+continue to use repository-owned source archives only.
+
+Linux validation passed the existing compression, compression_advanced,
+codec_creation_ui, source_update_backend, native_update_publication,
+archive_backend, ui_update_modes and shell_update_gui suites. GUI and File
+Manager entry components also compiled. The first focused build exposed a
+missing controller forward declaration in UpdateGUI; it was added before the
+passing build. The publication suite initially lacked its official SFX runtime;
+the existing runtime-preparation workflow supplied it, and that suite passed
+on its own repeat. The other seven passing suites were not repeated.
+Ordinary four-job builds and incremental compiler caches were retained.
+No native platform branch changed, so secondary OS, independent application
+runtime, appearance, full and slow-suite acceptance are not claimed.
+
 Source: <https://github.com/ip7z/7zip.git>, commit
 `0766b733fe3e06dd2a7f9a3cfbf2108ac73abd17`.
 

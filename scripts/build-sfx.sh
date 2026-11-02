@@ -5,7 +5,7 @@ export PYTHONDONTWRITEBYTECODE=1
 project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$project_root/scripts/lib/toolchain.sh"
 sevenzip_select_toolchain release runtime
-export CMAKE_BUILD_PARALLEL_LEVEL="${CMAKE_BUILD_PARALLEL_LEVEL-$(python3 -c 'import os; print(os.cpu_count() or 1)')}"
+export CMAKE_BUILD_PARALLEL_LEVEL="${CMAKE_BUILD_PARALLEL_LEVEL-4}"
 if [[ ! "$CMAKE_BUILD_PARALLEL_LEVEL" =~ ^[1-9][0-9]*$ ]]; then
   printf 'CMAKE_BUILD_PARALLEL_LEVEL must be a positive integer.\n' >&2
   exit 2

@@ -138,9 +138,8 @@ def execute_check(record, platform, preset, root, token, command=None,
     include_slow = os.environ.get("SEVENZIP_INCLUDE_SLOW_TESTS", "0")
     if include_slow not in ("0", "1"):
         raise ValueError("SEVENZIP_INCLUDE_SLOW_TESTS must be 0 or 1")
-    requested_jobs = os.environ.get("CMAKE_BUILD_PARALLEL_LEVEL")
-    build_jobs = int(requested_jobs) if requested_jobs is not None else None
-    if build_jobs is not None and build_jobs <= 0:
+    build_jobs = int(os.environ.get("CMAKE_BUILD_PARALLEL_LEVEL", "4"))
+    if build_jobs <= 0:
         raise ValueError("CMAKE_BUILD_PARALLEL_LEVEL must be a positive integer")
     analysis_mode = clang_tidy_mode()
     diagnostics = diagnostic_environment()
@@ -163,8 +162,7 @@ def execute_check(record, platform, preset, root, token, command=None,
         build_environment['SEVENZIP_VCPKG_QT_PCH'] = 'OFF'
     runtime_directory = f'{storage}/branches/{branch_component(branch)}/artifacts/{tag}/{preset}/codec-runtime'
     if platform == "linux":
-        parallelism = str(build_jobs) if build_jobs is not None else (
-            f'$({shlex.quote(config["python"])} -c "import os; print(os.cpu_count() or 1)")')
+        parallelism = str(build_jobs)
         storage_environment = ''.join(f'export {key}={shlex.quote(value)}\n'
                                       for key, value in build_environment.items())
         analysis_environment = (f"export SEVENZIP_ENABLE_CLANG_TIDY={analysis_mode}\n"
@@ -200,7 +198,7 @@ set -e
         script += (f") > check.log 2>&1\ncode=$?\nprintf '%s\\n' '{token}' > .runner-complete\n"
                    'if [ "$code" -ne 0 ]; then tail -n 80 check.log; fi\nexit "$code"\n')
     else:
-        parallelism = str(build_jobs) if build_jobs is not None else '%NUMBER_OF_PROCESSORS%'
+        parallelism = str(build_jobs)
         commands = ['@echo off', 'chcp 65001 >nul', *[f'set "{key}={root}/runner-tmp"' for key in ("TEMP", "TMP", "TMPDIR")],
                     f'call "{config["vcvars"]}"', 'if errorlevel 1 exit /b %errorlevel%']
         commands += ['call workspace-env.cmd', 'if errorlevel 1 exit /b %errorlevel%']

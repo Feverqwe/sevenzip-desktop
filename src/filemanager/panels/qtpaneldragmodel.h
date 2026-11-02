@@ -160,4 +160,5 @@ class CDropTarget {
                  std::optional<CSelectedState> *refreshSelection = nullptr);
     CPanel *TargetPanel() const { return m_Panel; }
     bool IsAppTarget() const { return m_IsAppTarget; }
+    bool IsMenuDrop() const { return m_IsRightButton; }
 };

@@ -9,6 +9,7 @@
 #include "archive/resources/qtarchivewritelease.h"
 #include "archive/sfx/archivesfxmodule.h"
 #include "ui/diagnostics/qtdiagnostictext.h"
+#include <QScopeGuard>
 #include <optional>
 
 #include "Common/StringConvert.h"
@@ -233,20 +234,15 @@ HRESULT CUpdateErrorInfo::SetFromError_DWORD(const char *message, const FString 
 
 using namespace NUpdateArchive;
 
-struct CMultiOutStream_Rec {
-    CMultiOutStream *Spec;
-    CMyComPtr<IOutStream> Ref;
-};
-
 struct CMultiOutStream_Bunch {
-    CObjectVector<CMultiOutStream_Rec> Items;
+    CObjectVector<CMyComPtr2<IOutStream, CMultiOutStream>> Items;
 
     HRESULT Destruct() {
         HRESULT hres = S_OK;
         FOR_VECTOR(i, Items) {
-            CMultiOutStream_Rec &rec = Items[i];
-            if (rec.Ref) {
-                const HRESULT hres2 = rec.Spec->Destruct();
+            auto &stream = Items[i];
+            if (stream.IsDefined()) {
+                const HRESULT hres2 = stream->Destruct();
                 if (hres == S_OK)
                     hres = hres2;
             }
@@ -257,9 +253,9 @@ struct CMultiOutStream_Bunch {
 
     void DisableDeletion() {
         FOR_VECTOR(i, Items) {
-            CMultiOutStream_Rec &rec = Items[i];
-            if (rec.Ref)
-                rec.Spec->NeedDelete = false;
+            auto &stream = Items[i];
+            if (stream.IsDefined())
+                stream->NeedDelete = false;
         }
     }
 };
@@ -765,7 +761,12 @@ if (options.VolumesSizes.Size() == 0) {
             } else
                 realPath = us2fs(archivePath.GetFinalPath());
             if (outStreamSpec->Create_NEW(realPath)) {
+                auto cleanup = qScopeGuard([&] {
+                    outStreamSpec->Close();
+                    DeleteFileAlways(realPath);
+                });
                 tempFiles.Paths.Add(realPath);
+                cleanup.dismiss();
                 isOK = true;
                 break;
             }
@@ -791,11 +792,7 @@ if (options.VolumesSizes.Size() == 0) {
     volStreamSpec->Prefix = us2fs(archivePath.GetFinalVolPath(options.SfxMode));
     volStreamSpec->Prefix.Add_Dot();
     volStreamSpec->Init(options.VolumesSizes);
-    {
-        CMultiOutStream_Rec &rec = multiStreams.Items.AddNew();
-        rec.Spec = volStreamSpec;
-        rec.Ref = rec.Spec;
-    }
+    multiStreams.Items.AddNew().SetFromCls(volStreamSpec);
 
     /*
     updateCallbackSpec->VolumesSizes = volumesSizes;
@@ -821,12 +818,17 @@ if (options.SfxMode) {
         sfxOutStream = outStreamSpec2;
         const FString realPath = us2fs(archivePath.GetFinalPath());
         AString postfix;
-        if (!CreateTempFile2(realPath, true, postfix, &outStreamSpec2->File))
+        FString createdPath;
+        if (!CreateTempFile2(realPath, true, postfix, &outStreamSpec2->File, createdPath))
             return errorInfo.SetFromLastError(
                 QT_TRANSLATE_NOOP("SevenZipDiagnostics", "cannot open file"), realPath);
-        sfxHeaderPath = realPath;
-        sfxHeaderPath += postfix;
+        auto cleanup = qScopeGuard([&] {
+            outStreamSpec2->Close();
+            DeleteFileAlways(createdPath);
+        });
+        sfxHeaderPath = createdPath;
         sfxHeaderIndex = (int)tempFiles.Paths.Add(sfxHeaderPath);
+        cleanup.dismiss();
     }
 
     {

@@ -8,6 +8,31 @@
 #include <QCoreApplication>
 #include <QFileInfo>
 #include <QPointer>
+#include <algorithm>
+
+namespace {
+std::expected<QStringList, QString> ResolveExtractionSelection(const QList<ArchiveEntry> &entries,
+                                                               const QStringList &selected) {
+    QStringList paths;
+    for (const QString &name : selected) {
+        QString normalized = name;
+        normalized.replace('\\', '/');
+        const auto found = std::ranges::find_if(entries, [&normalized](const ArchiveEntry &entry) {
+            QString path = entry.path;
+            path.replace('\\', '/');
+            return path == normalized;
+        });
+        if (found == entries.cend())
+            return std::unexpected(
+                QCoreApplication::translate("archivebackend",
+                                            "Selected file is missing from the archive: %1")
+                    .arg(name));
+        paths.append(found->path);
+    }
+    return paths;
+}
+} // namespace
+
 ArchiveBackend::ArchiveBackend(QObject *parent, QString runtimeLocation) : QObject(parent) {
     workerProgressTimer_.setInterval(33);
     connect(&workerProgressTimer_, &QTimer::timeout, this, &ArchiveBackend::reportWorkerProgress);
@@ -25,6 +50,9 @@ bool ArchiveBackend::busy() const {
 }
 
 HRESULT ArchiveBackend::lastResult() const { return lastResult_; }
+std::optional<QtArchiveExtractStatus> ArchiveBackend::lastExtractStatus() const {
+    return lastExtractStatus_;
+}
 
 HRESULT ArchiveBackend::setPaused(bool paused) {
     if (readOperation_) {
@@ -82,23 +110,29 @@ void ArchiveBackend::startListing(const QString &archive, const QString &passwor
     startNativeRead(Job::List, archive_, password, format);
 }
 
-bool ArchiveBackend::hasListedSourceArchive(const QString &archive) const {
+const ArchiveBackend::ListedSourceSnapshot *
+ArchiveBackend::findListedSourceArchive(const QFileInfo &file) const {
     if (busy())
-        return false;
-    const QFileInfo file(archive);
+        return nullptr;
     const auto found = listedSourceArchives_.constFind(file.absoluteFilePath());
-    return found != listedSourceArchives_.cend() && file.isFile() && !file.isSymLink() &&
-           file.size() == found->Size && file.lastModified() == found->Modified &&
-           file.metadataChangeTime() == found->MetadataChanged;
+    if (found == listedSourceArchives_.cend() || !file.isFile() || file.isSymLink() ||
+        file.size() != found->Size || file.lastModified() != found->Modified ||
+        file.metadataChangeTime() != found->MetadataChanged)
+        return nullptr;
+    return &found.value();
+}
+
+bool ArchiveBackend::hasListedSourceArchive(const QString &archive) const {
+    return findListedSourceArchive(QFileInfo(archive)) != nullptr;
 }
 
 bool ArchiveBackend::restoreListedArchive(const QString &archive) {
-    if (!hasListedSourceArchive(archive))
+    const QFileInfo file(archive);
+    const auto *snapshot = findListedSourceArchive(file);
+    if (!snapshot)
         return false;
-    const QString path = QFileInfo(archive).absoluteFilePath();
-    const ListedSourceSnapshot &snapshot = listedSourceArchives_.constFind(path).value();
-    archive_ = path;
-    entries_ = snapshot.Entries;
+    archive_ = file.absoluteFilePath();
+    entries_ = snapshot->Entries;
     return true;
 }
 
@@ -111,6 +145,7 @@ void ArchiveBackend::extract(const QString &archive, const QString &destination,
         return;
     }
     lastResult_ = E_FAIL;
+    lastExtractStatus_.reset();
     cancelled_ = false;
     if (!restoreListedArchive(archive)) {
         emit finished(
@@ -125,36 +160,19 @@ void ArchiveBackend::extract(const QString &archive, const QString &destination,
                        "archivebackend", "These extraction options require the source workflow."));
         return;
     }
-    QStringList selectedEntries;
-    for (const QString &name : selected) {
-        QString normalized = name;
-        normalized.replace('\\', '/');
-        bool found = false;
-        for (const ArchiveEntry &entry : entries_) {
-            QString entryPath = entry.path;
-            entryPath.replace('\\', '/');
-            if (entryPath == normalized) {
-                selectedEntries << entry.path;
-                found = true;
-                break;
-            }
-        }
-        if (!found) {
-            emit finished(
-                false, QCoreApplication::translate("archivebackend",
-                                                   "Selected file is missing from the archive: %1")
-                           .arg(name));
-            return;
-        }
+    const auto selectedEntries = ResolveExtractionSelection(entries_, selected);
+    if (!selectedEntries) {
+        emit finished(false, selectedEntries.error());
+        return;
     }
-    const auto output = prepareExtractionDestination(destination, selectedEntries, options);
+    const auto output = prepareExtractionDestination(destination, *selectedEntries, options);
     if (!output) {
         emit finished(false, output.error());
         return;
     }
     auto request = std::make_shared<QtArchiveDirectoryExtractRequest>();
     request->Destination = *output;
-    request->Selected = selectedEntries;
+    request->Selected = *selectedEntries;
     request->Options = options;
     startNativeRead(Job::Extract, archive_, password, {}, std::move(request));
 }

@@ -57,6 +57,15 @@ rg -n --no-ignore -F 'CAgent::Open' docs/archive/qt-port/upstream-port-audit/ do
 
 ## Новые изменения
 
+- [Снимок исходников для удаления после архивации](upstream-port-audit/archive-input-deletion.md)
+  — цельное состояние до публикации и сохранение нативных проверок перед удалением.
+
+- [Владелец согласия на ограниченное чтение](upstream-port-audit/limited-read-consent-owner.md)
+  — сбор свойств и подтверждение открытия имеют отдельные обязанности.
+
+- [Прямой запуск темы справки](upstream-port-audit/help-topic-owner.md)
+  — Qt получает тему без промежуточного пути к CHM.
+
 - [Владелец метаданных архива](upstream-port-audit/metadata-view-owner.md)
   — независимая привязка индексов каждого представления к нативному reader.
 
@@ -73,6 +82,9 @@ rg -n --no-ignore -F 'CAgent::Open' docs/archive/qt-port/upstream-port-audit/ do
 
 - [Общая подготовка метаданных Add](upstream-port-audit/add-metadata-owner.md)
   — параметры исходного запроса, возможности формата и сохранённые значения.
+
+- [Общая проверка пути Add](upstream-port-audit/archive-path-validation.md)
+  — Browse и подтверждение используют одинаковую начальную папку.
 
 - [Раскрытие секций средствами доступности](upstream-port-audit/disclosure-expand-collapse.md)
   — общий путь активации и прямой Windows UIA Expand/Collapse.
@@ -282,6 +294,9 @@ rg -n --no-ignore -F 'CAgent::Open' docs/archive/qt-port/upstream-port-audit/ do
 
 - [Владение файловым переносом при исключении](upstream-port-audit/file-transfer-ownership.md)
   — откат stages и опубликованного пакета, сохранение копии после частичного удаления исходника.
+
+- [Общее рекурсивное удаление каталогов](upstream-port-audit/recursive-directory-removal.md)
+  — исходный native-обход для Qt и native callers, отмена, ошибки и границы ссылок.
 
 - [Папка архива после отката Move](upstream-port-audit/archive-close-reopen.md)
   — сохранение пути ADS до закрытия native handler на Windows.

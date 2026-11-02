@@ -76,6 +76,17 @@ if(BUILD_TESTING AND UNIX)
     add_test(NAME smb2_server_directory COMMAND smb2_directory_probe)
     set_tests_properties(smb2_server_directory PROPERTIES TIMEOUT 15)
 
+    add_executable(smb2_read_reply_probe tests/support/libsmb2_read_reply_probe.c)
+    target_link_libraries(smb2_read_reply_probe PRIVATE smb2)
+    target_include_directories(smb2_read_reply_probe PRIVATE
+        src ${SEVENZIP_DEPENDENCY_DIR}/libsmb2/lib ${SEVENZIP_DEPENDENCY_DIR}/libsmb2/include/smb2
+        "${CMAKE_CURRENT_BINARY_DIR}/libsmb2")
+    target_compile_definitions(smb2_read_reply_probe PRIVATE HAVE_CONFIG_H)
+    set_target_properties(smb2_read_reply_probe PROPERTIES
+        AUTOMOC OFF AUTOUIC OFF C_STANDARD 11 C_STANDARD_REQUIRED ON)
+    add_test(NAME smb2_read_reply COMMAND smb2_read_reply_probe)
+    set_tests_properties(smb2_read_reply PROPERTIES TIMEOUT 15)
+
 endif()
 if(BUILD_TESTING)
     add_executable(smb2_mount_probe tests/support/libsmb2_mount_probe.cpp)

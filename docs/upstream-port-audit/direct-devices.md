@@ -1,5 +1,33 @@
 # Прямое read-only чтение устройств
 
+## Volume record initialization — 2026-11-02
+
+Reviewed volume enumeration, property publication, folder binding and native
+device-size/copy consumers with the original FSDrives.cpp/.h at
+`b88c6bc09339de32f7d18bbab900686b244f42ba`. Both complete original inventory
+hashes match the recorded baseline. No external source is imported.
+
+Numeric defaults now belong to the drive record instead of repeated assignments
+in logical-drive, physical-drive and Qt mount enumeration. This also initializes
+POSIX records whose provider cannot report total or available space before those
+records are copied into the catalog. Existing availability flags still control
+whether properties are published; unknown space is not presented as zero.
+Native enumeration, removable-media policy, physical-drive copying and current
+mount revalidation before folder binding are unchanged. No decoding, device
+authorization, source-write or visual behavior changes are introduced.
+
+Existing volume and root-navigation checks exercise public properties, opening,
+disappearance, refresh and return navigation. No field-default test or pre-fix
+runtime failure is claimed for this initialization/ownership change.
+
+Focused volume_mount and root_navigation checks passed on Linux first (12 checks)
+and Windows (nine checks), without skips. Windows exercises native logical-drive
+enumeration and opening the drive containing a disposable fixture. The POSIX
+fixture covers a mounted path becoming unavailable. Physical-device copying and
+new macOS runtime evidence are not claimed. Whitespace and inventory checks passed;
+temporary test settings were removed while incremental builds and compiler caches
+were retained. Builds used configured four-job defaults; no full or slow gate ran.
+
 ## Fixed disks in Windows — 2026-10-24
 
 Убран local transport filter, скрывавший non-removable SATA/NVMe disks без
@@ -216,10 +244,23 @@ opening, Parent, выбор и существующий CopyTo остаются 
 обычный Open archive и список томов. Диалог перечисляет внешние устройства,
 блокирует busy rows, затем предлагает разделы или открывает единственный.
 Native access и backend inspection выполняются owned worker; UI отменяет запрос
-и ждёт завершения, не публикуя поздний источник. Back освобождает источник до
-следующего exclusive open; отложенное удаление QThread не удерживает device lease.
+и ждёт завершения, не публикуя поздний источник. Задание и QThread принадлежат
+одному owner: он снимается с активного состояния и joins поток до публикации
+результата, повторного открытия или уничтожения диалога. Shared job сохраняет
+время жизни native cancellation predicate. Acquisition lease освобождается до
+разблокировки controls; успешный source сохраняет нужный handle для partition
+streams. Back освобождает источник до следующего exclusive open.
 Проверка устройства компилируется вместе с reader; лёгким потребителям
 метаданных не требуется весь process backend.
+
+Упрощение worker ownership от 2026-11-01 не меняет native access, reader,
+fscrypt или layout. Просмотрены chooser, его command/backend/stream consumers
+и Linux authorization cancellation; это локальная Qt integration без upstream
+алгоритма для переноса. `device_input`, `archive_device`, `device_ui` и
+`fscrypt_key_ui` PASS на Linux: 96 проверок, без skips. Отмена при уничтожении
+диалога дополняет существующие reject, Back/exclusive reopen и partition tests.
+Проверены controlled streams/authorization, не реальные устройства или системный
+запрос прав; native appearance и другие платформы этим запуском не проверялись.
 
 Для direct input главное окно использует native extract/test и refresh вместо
 file-only listing prerequisites; извлечение всех файлов не переоткрывает display
@@ -593,3 +634,38 @@ Alerts page потребовала JavaScript, Markdown retrieval недосту
 Приложение также собрано на трёх ОС, remote receipt
 `20261021T031840Z-8e06c889`. Старые task-owned warning JSON заменены текущими;
 build trees/caches сохранены, full/slow suites и installation не выполнялись.
+
+## POSIX descriptor adoption — 2026-11-02
+
+Reviewed the complete POSIX handle/adoption implementation, Linux snapshot,
+OpenDevice/descriptor validation and publication, macOS direct/helper adoption
+callers, device input/partition ownership and chooser worker exception handling.
+The existing native-access adaptations above remain project integration.
+Original FileIO.h CFileBase/CInFile ownership interfaces at
+`b88c6bc09339de32f7d18bbab900686b244f42ba` were checked: they do not expose
+adoption of this authorized descriptor. The complete original header hash
+matches the recorded baseline. No external import or reader algorithm change.
+
+Adoption now gives the descriptor a stack cleanup owner before validation and
+shared-handle allocation, then transfers responsibility after successful
+construction. This closes the allocation-failure gap in the existing ownership
+contract, including a duplicated Linux exclusive-open descriptor and macOS
+direct/helper descriptors. Read-only validation, close-on-exec, native identity
+checks, cancellation and positional reads are unchanged. No exception is hidden
+or new privileged operation introduced.
+
+A standalone fixture arms one allocation failure only around public adoption
+of an O_RDONLY /dev/null descriptor and checks that the exception propagates and
+the descriptor is closed. It follows the existing isolated allocation-fixture
+pattern; there are no production hooks or source-text assertions. Existing tests
+retain normal read/close, writable-descriptor refusal, bounded streams and
+private UDisks authorization/cancellation checks. No pre-fix run is claimed.
+
+Linux primary `20261102T045407Z-e8fc1a52` passed device_access, device_input,
+device_descriptor_allocation and udisks_device: 25 Qt checks plus the standalone
+allocation fixture, no skips; build 10.849 s, tests 0.883 s. macOS then passed
+the three applicable suites: 15 Qt checks plus the allocation fixture, no skips;
+build 3.690 s, tests 0.790 s. Windows excludes the changed adapter and fixture.
+These checks do not open physical user disks or establish new native elevation
+acceptance. Selected scratch directories were empty before/after, incremental
+outputs and compiler caches retained. No full/slow gate, reports or screenshots.

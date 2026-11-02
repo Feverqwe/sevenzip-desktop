@@ -44,3 +44,25 @@ Linux batch passed five suites, 103 checks without skips, and the default Linux
 gate passed all 504 selected suites. Its 15 slow suites were excluded and Qt
 tests reported 77 skips. Wider panel-state acceptance is recorded
 [separately](panel-presentation-owner.md).
+
+## Properties before confirmation — 2026-11-01
+
+Compared the complete original `PrintFileProps`, properties-window and deletion
+bodies with their current Qt callers, row snapshot and error/reload path.
+BrowseDialog2.cpp/.h/.rc and BrowseDialog2Res.h match the recorded original hashes
+at `b88c6bc09339de32f7d18bbab900686b244f42ba`. No new source is imported.
+
+The adapted properties call now returns its text or an absent result instead of
+communicating success through a mutable dialog field. Both properties display
+and single-item deletion consume that result before using row references: the
+existing error path reloads the list and invalidates the old snapshot. Native
+enumeration/counts, formatting, errors, ownership claims and deletion stay intact.
+This preserves the existing refusal after a failed properties lookup.
+
+A regression removes the selected file after listing, then invokes Properties
+or Delete. It checks one error, no empty properties/confirmation dialog, refreshed
+rows, a successful subsequent properties lookup and unchanged neighboring bytes.
+Linux `temp_cleanup` and its direct browser consumer `temp_detached_launch` passed
+28 checks without skips. Native shell launch branches and UI appearance were not
+changed or newly accepted; no other platform run was required for this Qt result
+adaptation.

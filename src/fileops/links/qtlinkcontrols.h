@@ -13,8 +13,12 @@ class CQtLinkCombo {
   public:
     void Attach(QWidget *view) { view_ = qobject_cast<QComboBox *>(view); }
     void SetText(const UString &text) { view_->setEditText(QString::fromWCharArray(text.Ptr())); }
-    void GetText(UString &text) const {
-        text = QDir::toNativeSeparators(view_->currentText()).toStdWString().c_str();
+    bool GetText(UString &text) const {
+        const QString value = view_->currentText();
+        if (value.contains(QChar::Null))
+            return false;
+        text = QDir::toNativeSeparators(value).toStdWString().c_str();
+        return true;
     }
     void SetCurSel(int index) { view_->setCurrentIndex(index); }
 };

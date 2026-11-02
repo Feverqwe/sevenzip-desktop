@@ -7,7 +7,6 @@
 #include <QDesktopServices>
 #include <QFileInfo>
 #include <QMessageBox>
-#include <QProcess>
 #ifdef Q_OS_WIN
 #include "Windows/ProcessUtils.h"
 #endif
@@ -65,25 +64,7 @@ HRESULT QtAssociatedFileServices::CreateProcess(const UString &program, const US
                                                 const UStringVector &paths, QWidget *) {
     // Disk View/Edit/Diff do not wait in the source implementation. Archive
     // editing requires the separate known-process owner before it can use this.
-    QProcess process;
-    process.setProgram(ToQString(program));
-    QStringList arguments = QProcess::splitCommand(ToQString(parameters));
-    FOR_VECTOR(i, paths) arguments.append(ToQString(paths[i]));
-#ifdef Q_OS_WIN
-    // Preserve original CreateProcess parameter-string interpretation on Windows.
-    UString nativeParameters = parameters;
-    FOR_VECTOR(i, paths) {
-        if (!nativeParameters.IsEmpty() && nativeParameters.Back() != ' ')
-            nativeParameters.Add_Space();
-        nativeParameters.Add_Char('"');
-        nativeParameters += paths[i];
-        nativeParameters.Add_Char('"');
-    }
-    process.setNativeArguments(ToQString(nativeParameters));
-#else
-    process.setArguments(arguments);
-#endif
-    return process.startDetached() ? S_OK : E_FAIL;
+    return _processServices.CreateDetached(program, parameters, paths);
 }
 
 HRESULT QtAssociatedFileServices::StartApplicationKnown(const UString &dir, const UString &path,

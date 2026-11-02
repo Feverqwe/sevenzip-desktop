@@ -219,7 +219,19 @@ class AppCopyRoutingTests final : public QObject {
         panel.OnTimer();
         QCOMPARE(whileOperating, 1u);
         QCOMPARE(reloads, 2u);
-        app.CompleteCopy();
+        UStringVector beforeCompletion, afterCompletion;
+        panel.AttachReloadPresentation([&](const CSelectedState &selection) {
+            beforeCompletion = selection.SelectedNames;
+            app.CompleteCopy();
+            afterCompletion = selection.SelectedNames;
+            return S_OK;
+        });
+        QVERIFY(app.RefreshCopyPanel(0));
+        QCOMPARE(beforeCompletion.Size(), 1u);
+        QCOMPARE(afterCompletion.Size(), 1u);
+        QCOMPARE(ToQString(beforeCompletion[0]), QString("one.txt"));
+        QCOMPARE(ToQString(afterCompletion[0]), ToQString(beforeCompletion[0]));
+        QVERIFY(!app.RefreshCopyPanel(0));
         QVERIFY(presentation.views[0]->selectionModel()->selectedRows().isEmpty());
         QVERIFY(panel.ShouldProcessNotifications());
         presentation.views[0]->selectRow(0);

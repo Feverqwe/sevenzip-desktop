@@ -6,6 +6,11 @@
 #include <QFileInfo>
 #include <QScopeGuard>
 
+ArchiveNativeReadScope::ArchiveNativeReadScope(std::shared_ptr<ArchiveNativeOpen> reader,
+                                               IProgress *request)
+    : reader_(std::move(reader)), lock_(reader_->itemStreamMutex()),
+      request_(reader_->inputStream(), request) {}
+
 namespace {
 class COpenReadRequest final : public IProgress, public CMyUnknownImp {
     Z7_COM_UNKNOWN_IMP_1(IProgress)

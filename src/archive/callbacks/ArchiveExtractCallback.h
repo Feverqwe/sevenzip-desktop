@@ -19,7 +19,9 @@
 
 #include "7zip/UI/Common/ExtractMode.h"
 #include "archive/callbacks/IFileExtractCallback.h"
+#include "archive/callbacks/qtarchiveoutputidentity.h"
 #include "archive/opening/OpenArchive.h"
+#include "archive/resources/qtarchiveextractstatus.h"
 
 #include "archive/hashing/HashCalc.h"
 
@@ -382,6 +384,10 @@ class CArchiveExtractCallback Z7_final : public IArchiveExtractCallback,
     FString _diskFilePath;
 
     CProcessedFileInfo _fi;
+    QtArchiveOutputIdentity QtOutputs;
+    UStringVector QtOriginalPathParts;
+    unsigned QtRemovedPathParts = 0;
+    bool QtIsStreamOutput = false;
 
     UInt64 _position;
     UInt64 _curSize;
@@ -424,6 +430,7 @@ class CArchiveExtractCallback Z7_final : public IArchiveExtractCallback,
 #endif
 
     void CreateComplexDirectory(const UStringVector &dirPathParts, bool isFinal, FString &fullPath);
+    void RecordQtOutputIdentity(const FString &path) noexcept;
     HRESULT GetTime(UInt32 index, PROPID propID, CArcTime &ft);
     HRESULT GetUnpackSize();
 
@@ -457,6 +464,8 @@ class CArchiveExtractCallback Z7_final : public IArchiveExtractCallback,
     UInt64 NumAltStreams;
     UInt64 UnpackSize;
     UInt64 AltStreams_UnpackSize;
+    QtArchiveExtractStatus QtExtractStatus;
+    QtArchiveExtractPurpose QtExtractPurpose = QtArchiveExtractPurpose::Copy;
 
     FString DirPathPrefix_for_HashFiles;
 
@@ -510,7 +519,7 @@ class CArchiveExtractCallback Z7_final : public IArchiveExtractCallback,
     HRESULT ReadLink();
     HRESULT SetLink(const FString &fullProcessedPath_from, const CLinkInfo &linkInfo,
                     bool &linkWasSet);
-    HRESULT SetPostLinks() const;
+    HRESULT SetPostLinks();
 
   public:
     HRESULT CreateHardLink2(const FString &newFilePath, const FString &existFilePath,

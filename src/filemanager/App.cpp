@@ -11,6 +11,9 @@
 #include "Windows/FileName.h"
 #include "Windows/PropVariant.h"
 #include "Windows/PropVariantConv.h"
+#include "archive/agent/Agent.h"
+#include "archive/resources/archivenativeopen.h"
+#include "archive/resources/qtarchivefileresource.h"
 #include "dialogs/copy/CopyDialog.h"
 #include "filemanager/AppState.h"
 #include "filemanager/FormatUtils.h"
@@ -23,11 +26,24 @@
 #include "localization/LangUtils.h"
 #include "settings/ViewSettings.h"
 #include "ui/diagnostics/qtdiagnostictext.h"
+#include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
+#include <QScopedValueRollback>
 #include <QWidget>
 
 static const unsigned kParentIndex = (unsigned)(int)-1;
+
+struct CApp::CopyRequest {
+    CopyRequest(unsigned source, unsigned destination, bool move, bool copyToSame)
+        : Source(source), Destination(destination), Move(move), CopyToSame(copyToSame) {}
+    const unsigned Source;
+    const unsigned Destination;
+    const bool Move;
+    const bool CopyToSame;
+    CSelectedState SourceSelection;
+    CSelectedState DestinationSelection;
+};
 
 CApp::CApp() : _qtOperations(Panels) {
     CreateDragTarget();
@@ -292,37 +308,12 @@ void CApp::OnCopy(bool move, bool copyToSame, unsigned srcPanelIndex) {
         srcPanel.MessageBox_Error_UnsupportOperation();
         return;
     }
-    CSelectedState srcSelState;
-    CSelectedState destSelState;
-    srcPanel.SaveSelectedState(srcSelState);
-    destPanel.SaveSelectedState(destSelState);
+    auto request = std::make_shared<CopyRequest>(srcPanelIndex, destPanelIndex, move, copyToSame);
+    srcPanel.SaveSelectedState(request->SourceSelection);
+    destPanel.SaveSelectedState(request->DestinationSelection);
     // Keep the original RefreshListCtrl caller and its saved state across the
     // asynchronous presentation boundary. OnCopy ignores reload HRESULTs.
-    _copyRefresh = [this, srcPanelIndex, destPanelIndex, srcSelState,
-                    destSelState](unsigned index) {
-        if (index == srcPanelIndex)
-            Panels[index].RefreshListCtrl(srcSelState);
-        else if (index == destPanelIndex)
-            Panels[index].RefreshListCtrl(destSelState);
-    };
-    // The original post-operation body runs after Qt publishes both panels.
-    _copyContinuation = [this, move, copyToSame, srcPanelIndex, destPanelIndex, srcSelState,
-                         destSelState] {
-        CPanel &srcPanel = Panels[srcPanelIndex];
-        CPanel &destPanel = Panels[destPanelIndex];
-        CPanel::CDisableNotify disableNotify1(destPanel);
-        CPanel::CDisableNotify disableNotify2(srcPanel);
-        RefreshTitleAlways();
-        if (copyToSame || move)
-            srcPanel.RestoreLoadedSelection(srcSelState);
-        if (!copyToSame) {
-            destPanel.RestoreLoadedSelection(destSelState);
-            srcPanel.KillSelection();
-        }
-        disableNotify1.Restore();
-        disableNotify2.Restore();
-        srcPanel.SetFocusToList();
-    };
+    _copyRequest = std::move(request);
     // Qt execution can return while the operation owner retains these guards.
     // Unwind the source stack in reverse order before that owner snapshots it.
     disableTimerProcessing2.Restore();
@@ -332,26 +323,43 @@ void CApp::OnCopy(bool move, bool copyToSame, unsigned srcPanelIndex) {
 }
 
 void CApp::CompleteCopy() {
-    auto continuation = std::move(_copyContinuation);
-    _copyContinuation = nullptr;
-    _copyRefresh = nullptr;
-    if (continuation && !_qtOperations.closed())
-        continuation();
+    auto request = std::move(_copyRequest);
+    if (!request || _qtOperations.closed())
+        return;
+    // The original post-operation body runs after Qt publishes both panels.
+    CPanel &srcPanel = Panels[request->Source];
+    CPanel &destPanel = Panels[request->Destination];
+    CPanel::CDisableNotify disableNotify1(destPanel);
+    CPanel::CDisableNotify disableNotify2(srcPanel);
+    RefreshTitleAlways();
+    if (request->CopyToSame || request->Move)
+        srcPanel.RestoreLoadedSelection(request->SourceSelection);
+    if (!request->CopyToSame) {
+        destPanel.RestoreLoadedSelection(request->DestinationSelection);
+        srcPanel.KillSelection();
+    }
+    disableNotify1.Restore();
+    disableNotify2.Restore();
+    srcPanel.SetFocusToList();
 }
 
 bool CApp::RefreshCopyPanel(unsigned index) {
-    if (!_copyRefresh || _qtOperations.closed() || index >= kNumPanelsMax)
+    const auto request = _copyRequest;
+    if (!request || _qtOperations.closed() || index >= kNumPanelsMax)
         return false;
     // Synchronous publication can re-enter completion and release the owner.
-    const auto refresh = _copyRefresh;
-    refresh(index);
+    if (index == request->Source)
+        Panels[index].RefreshListCtrl(request->SourceSelection);
+    else if (index == request->Destination)
+        Panels[index].RefreshListCtrl(request->DestinationSelection);
     return true;
 }
 
-HRESULT CApp::CopyArchiveToArchive(unsigned srcPanelIndex, const CRecordVector<UInt32> &indices,
-                                   UStringVector *messages) {
+QtArchiveTransferResult CApp::CopyArchiveToArchive(unsigned srcPanelIndex,
+                                                   const CRecordVector<UInt32> &indices,
+                                                   UStringVector *messages) {
     if (NumPanels != 2 || srcPanelIndex >= kNumPanelsMax || indices.IsEmpty())
-        return E_INVALIDARG;
+        return {E_INVALIDARG, {}};
     const unsigned destPanelIndex = 1 - srcPanelIndex;
     CPanel &srcPanel = Panels[srcPanelIndex];
     CPanel &destPanel = Panels[destPanelIndex];
@@ -360,7 +368,7 @@ HRESULT CApp::CopyArchiveToArchive(unsigned srcPanelIndex, const CRecordVector<U
 
     NWindows::NFile::NDir::CTempDir tempDirectory;
     if (!tempDirectory.Create(FTEXT("7zO")))
-        return E_FAIL;
+        return {E_FAIL, {}};
     FString tempDirPrefix = tempDirectory.GetPath();
     NWindows::NFile::NName::NormalizeDirPathPrefix(tempDirPrefix);
 
@@ -372,16 +380,42 @@ HRESULT CApp::CopyArchiveToArchive(unsigned srcPanelIndex, const CRecordVector<U
     options.includeAltStreams = true;
     options.replaceAltStreamChars = false;
     options.showErrorMessages = true;
-    HRESULT result = srcPanel.CopyTo(options, indices, messages);
+    QtArchiveExtractReport report;
+    report.Purpose = QtArchiveExtractPurpose::ArchiveStaging;
+    HRESULT result = srcPanel.CopyTo(options, indices, messages, &report);
 
     if (result == S_OK && (!messages || messages->IsEmpty())) {
+        if (!report.Status || !report.Status->Complete || !report.Status->StagingCompatible)
+            return {E_FAIL, QCoreApplication::translate(
+                                "archive_transfer",
+                                "Some selected items cannot be transferred without data or path "
+                                "changes. Both archives were left unchanged.")};
         UStringVector filePaths;
         filePaths.ClearAndReserve(indices.Size());
         FOR_VECTOR(i, indices)
         filePaths.AddInReserved(srcPanel.GetItemName_for_Copy(indices[i]));
+        auto *destination = dynamic_cast<CAgentFolder *>(destPanel.GetFolder());
+        CMyComPtr<IUnknown> resourceOwner =
+            destination ? destination->GetEngineResource() : nullptr;
+        auto *resource = dynamic_cast<QtArchiveFileResource *>(resourceOwner.Interface());
+        const auto reader = resource ? resource->NativeReaderLease() : nullptr;
+        const auto *format = reader ? reader->formatInfo() : nullptr;
+        const auto &inputs = report.Status->Inputs;
+        const bool hasMetadata =
+            inputs.SymLinks || inputs.HardLinks || !inputs.AltStreamPaths.isEmpty();
+        if (hasMetadata && (!format || (inputs.SymLinks && !format->Flags_SymLinks()) ||
+                            (inputs.HardLinks && !format->Flags_HardLinks()) ||
+                            (!inputs.AltStreamPaths.isEmpty() && !format->Flags_AltStreams())))
+            return {E_NOTIMPL, QCoreApplication::translate(
+                                   "archive_transfer",
+                                   "The destination format cannot preserve the selected links or "
+                                   "alternate streams. Both archives were left unchanged.")};
+        std::optional<QScopedValueRollback<std::optional<QtArchiveTransferInputs>>> transferInputs;
+        if (resource)
+            transferInputs.emplace(resource->TransferInputs(), inputs);
         result = destPanel.CopyFrom(false, fs2us(tempDirPrefix), filePaths, true, messages);
     }
-    return result;
+    return {result, {}};
 }
 
 void CApp::OnSetSameFolder(unsigned srcPanelIndex) {
@@ -634,8 +668,7 @@ void CApp::Save() {
 }
 
 void CApp::ReleaseApp() {
-    _copyContinuation = nullptr;
-    _copyRefresh = nullptr;
+    _copyRequest.reset();
     _qtOperations.Close();
     _qtCommandServices = nullptr;
     // 24.09: ReleasePanel() will stop panel timer processing.

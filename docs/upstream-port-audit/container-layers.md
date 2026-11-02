@@ -320,6 +320,42 @@ libraries require a newer macOS deployment version than the project's 14.4
 floor; that floor is not accepted for this optional compiler. Windows and Linux
 module builds remain unverified for this iteration.
 
+## Scoped native read ownership — 2026-11-02
+
+Reviewed the complete Qt input-layer/item-stream adapters, native generation
+owner, stream-acquisition worker and their extraction/read-only consumers.
+Compared the original serialized seek/read pattern in
+7zDecode.cpp::CLockedSequentialInStreamMT::Read. Complete original StreamObjects,
+LimitedStreams and 7zDecode inventories match the recorded baseline at
+`b88c6bc09339de32f7d18bbab900686b244f42ba`; no external source is imported or
+provenance advanced.
+
+One scoped Qt context now retains the native reader generation, holds its stream
+mutex and installs the operation's input callback. Destruction restores the
+previous callback before releasing the lock and generation. Item stream factory,
+Read/Seek, native extraction/Test and read-only enumeration use that same owner
+instead of independently pairing a lock and callback guard. This also keeps a
+reader alive while a factory transfers its other reference to the returned
+stream. Initial opening still binds its request before generation publication;
+metadata-only locks retain their existing scope.
+
+The read-only view creates its local cancellation callback before entering this
+context; that callback only references the view's cancellation flag and performs
+no native access during construction. Cursor positions, read bounds, seek/read
+algorithms, cancellation checks, generation replacement and direct-versus-spooled
+input policy are unchanged. Existing public regressions exercise retained
+descendants after parent refresh/window release, independent cursors, current
+factory/read callbacks, cancellation/retry, native extraction/Test and read-only
+views. No new test is added for private guard composition or class names, and no
+pre-fix runtime failure is claimed.
+
+Linux focused validation passed archive_layer_lifetime, archive_layer_chain,
+archive_readonly_view, native_source_extract and native_archive_test: 149 Qt
+checks without skips. This validates the common reader scope and checked direct
+consumers on Linux; no new Windows/macOS, full/slow gate or appearance acceptance
+is claimed. Selected scratch directories are empty; incremental builds/compiler
+caches are retained.
+
 ## Retained native streams and generations
 
 Selected source changes:
@@ -623,6 +659,32 @@ hit its old 120 s cap before its obsolete hooks were replaced; only the native
 subset is accepted. No opt-in exhaustive matrix, full gate or visual comparison
 was run. Incremental builds and caches were preserved; obsolete task-owned
 timeout fixtures and the temporary stack sample were removed after diagnosis.
+
+### Selected-directory preparation — 2026-11-02
+
+Reviewed the complete directory adapter and read-operation/backend consumers
+with the original Common/Extract selection, callback initialization/close and
+Agent CurrentPaths contracts. Source selection, decoding and callback algorithms
+remain authoritative; no new source import or baseline advancement occurs.
+
+Directory-specific option projection is now separate from the extraction call,
+and its prepared options are immutable for that call. The bounded path policy
+outlives those options and the native callbacks. Both callback implementations
+use the existing typed COM owners without a separate raw/interface alias.
+Allocation, reference acquisition and callback release order remain unchanged.
+Literal selection, UTF-16 path parts, ADS copy/move policy, mtime fallback,
+RejectExisting handling, late path validation and clean-success status publication
+retain their previous behavior. Batch extraction keeps its distinct option rules.
+
+Existing extraction-options behavior coverage is reused; no test of the new
+private preparation function or pointer representation is added.
+
+Linux extraction_options passed 23 checks without skips. Source inventory and
+whitespace checks passed. Only shared preparation/ownership changed, without
+native OS branches or ABI changes, so secondary platforms were not selected.
+Selected scratch was empty before and after validation; configured four-job
+incremental builds and compiler caches were retained. No full/slow or appearance
+gate ran.
 
 ### Native extraction to a destination
 
@@ -1544,3 +1606,101 @@ Focused runtime validation passed `operation_protocol`, `operation_launcher`,
 skipped rows. These cover acceptance/completion order, observer/parent deletion,
 crash/retry, cancellation, output retention and panel refresh. Existing
 incremental builds and compiler caches were reused; no full or slow suites ran.
+
+### Independent operation channel owner — 2026-11-02
+
+Rechecked the complete launcher, endpoint and native process adapter, backend
+launch methods and manager result/refresh consumers. Original Call7zGui,
+mapping/event preparation and process release were compared at
+`b88c6bc09339de32f7d18bbab900686b244f42ba`; the complete original
+Common/CompressCall.cpp hash matches the recorded baseline. No source import or
+provenance advancement.
+
+The private Remote Objects channel now retains an explicit reference to its
+owning observer instead of four mutable std::function forwarding callbacks.
+Acceptance, rejection, output accumulation and completion handling have named
+private bodies outside construction. Channel, host and observer retain their
+existing lifetime/destruction order. Deferred public acceptance still leaves
+the QtRO dispatch stack before a receiver can delete the observer; output/result
+ordering, startup deadlines, native process observation and independent child
+lifetime remain unchanged. Generated IPC and public signals are unchanged.
+
+Existing behavior coverage is sufficient for this extraction: no new tests pin
+the private structure. Linux primary run `20261102T021909Z-a9476ede` passed
+operation_protocol, operation_launcher, operation_extraction and
+gui_output_refresh: 38 checks, no skips. Build 25.982 s; tests 3.712 s.
+This validates the portable channel/observer dispatch; native Windows/macOS
+launch and UI behavior were not newly accepted. Selected scratch directories
+were empty; incremental builds and compiler caches retained. No full/slow gate.
+
+### Selected-folder extraction path projection — 2026-11-01
+
+Rechecked original ArchiveExtractCallback CorrectPathParts and its extract/hash
+callers, ExtractingFilePath Correct_FsPath and path helpers, Agent extraction
+prefix handling and the current directory/native-index validation consumers.
+The reference remains <https://github.com/ip7z/7zip.git>, commit
+`b88c6bc09339de32f7d18bbab900686b244f42ba`. Complete original callback and
+ExtractingFilePath units match their existing baseline hashes. No external
+code is imported, baseline advanced or native branch/dependency omitted.
+
+The backend now separates one entry's validated relative output name from
+whole-selection name conflicts and destination occupancy checks. The scoped
+projection context borrows the existing request values; it creates no retained
+reader, worker or parallel mutable settings. Full/current/absolute/no-path modes,
+bound-folder prefix removal, native alternate streams, source links and native
+name correction retain their previous decisions and diagnostic order. Source
+path normalization and actual extraction remain in their existing 7-Zip owners.
+This is a behavior-preserving refactor, with no pre-fix product failure claimed.
+
+Existing behavior coverage checks selected folders and unsafe descendants,
+bound versus unbound prefixes, overwrite/cancellation, corrected-name conflicts,
+absolute outputs, alternate streams and link redirection. No source-presence or
+implementation-mirroring test is added.
+
+Six focused suites passed: archive_backend, extraction_options,
+native_source_extract, source_extract_advanced, source_link_extract and
+native_extract_callback. Linux is the primary shared-behavior check; macOS
+checks its native path handling, and Windows covers alternate streams, NTFS
+security and reparse links. The four Windows-only rows are skipped on Linux
+and macOS. On Windows, four suites passed under the ordinary desktop token;
+the two suites creating native symlink fixtures passed with the runner's
+scoped elevated desktop token after ordinary-token fixture creation failed.
+
+The CPIO consumers now depend on preparation of their existing external reader.
+Their first focused Linux run could not open CPIO because the module was absent
+from this branch's runtime; connecting the existing deployment target resolved
+that failure. Incremental builds and compiler caches were retained. No full/slow
+gate or appearance/visual-parity acceptance is claimed.
+
+### Read-worker dialog responses — 2026-11-01
+
+Compared the original FileManager ExtractCallback password/overwrite bodies,
+their current modal adapters and Common extraction consumers with the joined
+read worker, directory callback and backend delivery/cancellation/completion.
+The complete ExtractCallback.cpp inventory still matches its recorded original
+hash at `b88c6bc09339de32f7d18bbab900686b244f42ba` from
+<https://github.com/ip7z/7zip.git>. No external code, decoder algorithm or source
+revision changes in this iteration.
+
+Password and overwrite responses now each express value presence directly,
+instead of coupling a value with a separate ready flag. An initial empty
+password still means no supplied response; explicitly answering with an empty
+password is a defined response. An invalid overwrite answer remains a received
+failure, rather than an unanswered prompt. Each new overwrite question discards
+its preceding answer. Prompt-once tracking, mutex/wait ownership, progress
+checkpoints, pause/cancel wakeups, native HRESULTs and post-dialog path validation
+are preserved. No generic dialog/decoder framework is introduced.
+
+Existing native test/list/single-entry/directory-extraction and retained-reader
+suites cover empty/wrong/preset passwords, retry, multiple overwrite questions,
+all/rename/cancel/no-consumer decisions and destruction while awaiting a reply.
+No new test is needed for the changed representation; those checks observe
+operation results and output/source bytes rather than private response fields.
+
+Focused Linux validation passed native_archive_test, native_listing,
+native_source_extract, extraction_options and archive_readonly_view, with no
+skipped rows. Only portable Qt response ownership changed, so secondary OS,
+native dialog appearance and physical interaction are not claimed. Source
+inventory and whitespace checks passed; the existing incremental build and
+compiler cache were retained with ordinary four-job defaults. No full or slow
+suite ran.

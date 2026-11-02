@@ -113,7 +113,16 @@ class ExternalEditorsUiTests final : public QObject, protected MainWindowTestSup
         }
     }
 
+    void editorBrowsePreservesCancelAndReplacesParameters_data() {
+        QTest::addColumn<QString>("control");
+        QTest::addColumn<int>("program");
+        QTest::newRow("viewer") << QString("viewerCommand") << 0;
+        QTest::newRow("editor") << QString("editorCommand") << 1;
+        QTest::newRow("diff") << QString("diffCommand") << 2;
+    }
     void editorBrowsePreservesCancelAndReplacesParameters() {
+        QFETCH(QString, control);
+        QFETCH(int, program);
         QTemporaryDir fixture;
         const QString selected = fixture.filePath(QStringLiteral("программа с пробелом")
 #ifdef Q_OS_WIN
@@ -122,8 +131,8 @@ class ExternalEditorsUiTests final : public QObject, protected MainWindowTestSup
         );
         QVERIFY(writeFile(selected));
         CEditPage page(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
-        auto *edit = page.findChild<QLineEdit *>("editorCommand");
-        auto *browse = page.findChild<QPushButton *>("editorCommandBrowse");
+        auto *edit = page.findChild<QLineEdit *>(control);
+        auto *browse = page.findChild<QPushButton *>(control + "Browse");
         const QString original = "\"" + selected + "\" --old-parameter";
         edit->setText(original);
         QTimer::singleShot(0, [] {
@@ -142,7 +151,10 @@ class ExternalEditorsUiTests final : public QObject, protected MainWindowTestSup
         QCOMPARE(edit->text(), selected);
         page.OnApply();
         UString saved;
-        ReadRegEditor(true, saved, qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
+        if (program < 2)
+            ReadRegEditor(program > 0, saved, qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
+        else
+            ReadRegDiff(saved, qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         QCOMPARE(ToQString(saved), selected);
     }
 

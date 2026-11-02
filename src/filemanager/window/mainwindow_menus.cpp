@@ -88,15 +88,18 @@ void MainWindow::createFileExtras(QMenu *menu, QToolBar *toolbar) {
     hashMenu->menuAction()->setObjectName("hashMenu");
     QtBindLocalText(hashMenu->menuAction(), "CommandMenus",
                     QT_TRANSLATE_NOOP("CommandMenus", "Checksums"));
-    const QStringList hashLabels = {"CRC-32",   "CRC-64",   "XXH64",   "MD5",
-                                    "SHA-1",    "SHA-256",  "SHA-384", "SHA-512",
-                                    "SHA3-256", "BLAKE2sp", "*"};
-    const QStringList hashMethods = {"CRC32",  "CRC64",  "XXH64",    "MD5",      "SHA1", "SHA256",
-                                     "SHA384", "SHA512", "SHA3-256", "BLAKE2sp", "*"};
-    for (int index = 0; index < hashLabels.size(); ++index) {
-        auto *action = hashMenu->addAction(hashLabels[index]);
-        action->setObjectName(QStringLiteral("hash%1Action").arg(hashMethods[index]));
-        hashActions_[index] = action;
+    const struct {
+        unsigned ID;
+        const char *Label;
+    } hashes[] = {{IDM_CRC32, "CRC-32"},      {IDM_CRC64, "CRC-64"},   {IDM_XXH64, "XXH64"},
+                  {IDM_MD5, "MD5"},           {IDM_SHA1, "SHA-1"},     {IDM_SHA256, "SHA-256"},
+                  {IDM_SHA384, "SHA-384"},    {IDM_SHA512, "SHA-512"}, {IDM_SHA3_256, "SHA3-256"},
+                  {IDM_BLAKE2SP, "BLAKE2sp"}, {IDM_HASH_ALL, "*"}};
+    for (const auto &hash : hashes) {
+        auto *action = hashMenu->addAction(QString::fromLatin1(hash.Label));
+        action->setObjectName(QStringLiteral("hash%1Action")
+                                  .arg(QString::fromLatin1(GetHashMethodForCommand(hash.ID))));
+        hashActions_.insert(hash.ID, action);
     }
     createFolder_ = menu->addAction("Create Folder");
     createFolder_->setObjectName("createFolderAction");

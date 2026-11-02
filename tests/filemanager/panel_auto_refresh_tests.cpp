@@ -1,8 +1,10 @@
 #include "filemanager/support/window_state_support.h"
+#include "filemanager/views/filetable.h"
 #include "localization/LangUtils.h"
 #include "settings/RegistryUtils.h"
 
 #include <QScrollBar>
+#include <QStackedWidget>
 
 namespace {
 struct CurrentDirectoryGuard {
@@ -26,6 +28,57 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         settings.remove(QStringLiteral("view/autoRefresh"));
         SaveRegLang(UString("-"), qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         ReloadLang(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
+    }
+
+    void iconViewsKeepTheirScrollAcrossChanges_data() {
+        QTest::addColumn<int>("mode");
+        QTest::addColumn<int>("count");
+        for (int mode : {0, 1, 2})
+            for (int count : {160, 320})
+                QTest::newRow(qPrintable(QString("mode-%1-items-%2").arg(mode).arg(count)))
+                    << mode << count;
+    }
+    void iconViewsKeepTheirScrollAcrossChanges() {
+        QFETCH(int, mode);
+        QFETCH(int, count);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        CurrentDirectoryGuard directoryGuard;
+        QVERIFY(QDir::setCurrent(fixture.path()));
+        for (int i = 0; i < count; ++i)
+            QVERIFY(writeFile(fixture.filePath(QString("file-%1.txt").arg(i, 3, 10, QChar('0')))));
+        MainWindow window;
+        window.resize(640, 400);
+        window.show();
+        auto *files = table(window);
+        QTRY_VERIFY(files->isEnabled() && files->rowCount() == count);
+        action(window, qPrintable(QString("viewMode%1Action").arg(mode)))->trigger();
+        auto *view = qobject_cast<QAbstractItemView *>(
+            window.findChild<QStackedWidget *>("fileViewStack")->currentWidget());
+        QVERIFY(view && view != files);
+        const QString selected = QString("file-%1.txt").arg(count / 2, 3, 10, QChar('0'));
+        const int row = filesystemRow(window, selected);
+        QVERIFY(row >= 0);
+        files->setCurrentCell(row, 0);
+        files->selectRow(row);
+        view->setFocus();
+        QApplication::processEvents();
+        auto *scroll = mode == 2 ? view->horizontalScrollBar() : view->verticalScrollBar();
+        QVERIFY(scroll->maximum() > 0);
+        scroll->setValue((scroll->maximum() + 1) / 2);
+        const int horizontal = view->horizontalScrollBar()->value();
+        const int vertical = view->verticalScrollBar()->value();
+        QVERIFY(scroll->value() > 0);
+        const QByteArray changed("changed contents");
+        QVERIFY(writeFile(fixture.filePath(selected), changed));
+        QTRY_VERIFY_WITH_TIMEOUT(view->isEnabled() && files->rowCount() == count, 5000);
+        QTRY_COMPARE_WITH_TIMEOUT(
+            files->model()->index(files->currentRow(), 2).data(Qt::UserRole + 2).toLongLong(),
+            qint64(changed.size()), 5000);
+        QCOMPARE(files->model()->index(files->currentRow(), 0).data().toString(), selected);
+        QVERIFY(view->selectionModel()->isRowSelected(files->currentRow(), {}));
+        QCOMPARE(view->horizontalScrollBar()->value(), horizontal);
+        QCOMPARE(view->verticalScrollBar()->value(), vertical);
     }
 
     void detectsChangesAndPreservesSelectionAndScroll() {

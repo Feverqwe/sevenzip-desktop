@@ -1,11 +1,11 @@
 #pragma once
 
 #include "7zip/UI/FileManager/IFolder.h"
-#include "Common/MyCom.h"
 #include <QFileInfo>
 #include <QList>
 #include <QObject>
 #include <QTimer>
+#include <memory>
 class FilesystemFolderLoader;
 
 class FilesystemScanner : public QObject {
@@ -32,6 +32,7 @@ class FilesystemScanner : public QObject {
     void completed();
 
   private:
+    struct Presentation;
     void scanBatch(quint64 generation);
     void loaderFinished(FilesystemFolderLoader *loader, quint64 generation);
 
@@ -40,8 +41,5 @@ class FilesystemScanner : public QObject {
     quint64 progressCount_ = 0;
     FilesystemFolderLoader *loader_ = nullptr;
     QList<FilesystemFolderLoader *> loaders_;
-    CMyComPtr<IFolderFolder> folder_;
-    QString directory_;
-    quint32 nextIndex_ = 0;
-    bool presenting_ = false;
+    std::shared_ptr<Presentation> presentation_;
 };

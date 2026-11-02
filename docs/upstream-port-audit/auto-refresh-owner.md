@@ -1,5 +1,110 @@
 # Automatic refresh state ownership — 2026-10-31
 
+## Active view viewport — 2026-11-02
+
+Reviewed the complete refresh routing, polling, snapshot consumption, filesystem
+publication/selection completion and active-view creation. Compared original
+PanelItems OnTimer/OnReload at recorded
+`b88c6bc09339de32f7d18bbab900686b244f42ba`; its complete original hash matches
+the existing baseline. Native enumeration, change detection and selection
+algorithms remain unchanged. No import or provenance advancement.
+
+The pending viewport now identifies the active Qt item view and retains both
+scroll axes. Previously capture and restoration always used the table, even
+when an icon/list presentation was active. After reloading, native selection
+restoration could then move the visible list without restoring its position.
+The view's layout is completed before applying its saved bars. The table keeps
+its existing top-file anchor and vertical fallback; horizontal position is
+restored after scrollTo. Icons/lists retain their own horizontal and vertical
+positions. The pending record is still consumed before callbacks, remains
+directory-scoped and rejects a deleted or no-longer-current view.
+
+No new grid anchoring or pixel/item conversion policy is introduced. The three
+icon/list modes share one widget, but view-mode commands are disabled during a
+scan; no separate mode-change race is claimed. Native scan joining, notification
+guards, small-folder behavior, deferred selection and independent panel state
+are preserved. No widget layout, labels or style changes.
+
+Six new behavior rows change file contents in all three icon/list modes, using
+small and larger private folders. They check retained selection and both scroll
+axes after automatic refresh. Pre-fix Linux failed four rows: vertical position
+changed for the larger icon modes and horizontal position changed in both List
+cases. Existing table/peer, missing-folder, disabled-refresh, modal and async
+completion regressions remain useful. No private-state/source assertion is
+added.
+
+Linux focused validation `20261102T080043Z-8edaa33c`: panel_auto_refresh,
+filesystem_reload, filesystem_selection_runtime, modal_refresh_window and
+panel_refresh_completion passed (152 Qt checks, no skips). Build 73.542 s,
+tests 31.608 s, existing incremental outputs and compiler cache retained.
+Removed five completed-run settings files. Astra independently reviewed the
+changed source and completion order without duplicating runtime validation.
+Windows/macOS were not run; native platform services and view geometry settings
+are unchanged, and this is Linux runtime evidence only.
+
+## Filesystem publication ownership — 2026-11-01
+
+Compared original FSFolder `LoadSubItems`/`LoadItems`, their folder types and
+PanelItems `RefreshListCtrl` with the current loader, scanner, row publication,
+selection completion, navigation and close consumers. The complete FSFolder
+implementation/header and PanelItems inventory units in the repository source
+archive match their existing baseline hashes at
+`b88c6bc09339de32f7d18bbab900686b244f42ba` in
+<https://github.com/ip7z/7zip.git>. No code is imported or baseline advanced.
+
+The Qt scanner now owns an unfinished publication as one object: the source
+folder, its presentation directory and the next source index. Cancellation or
+completion clears that owner instead of coordinating a folder pointer, path,
+index and separate active flag. Signal delivery retains the current object on
+the GUI stack; after a receiver navigates, restarts or destroys the scanner,
+its identity determines whether that delivery may continue. Worker generations
+still reject retired loads and queued batches. Completed source folders belong
+to consumers that retain the documented borrowed `folderReady` interface.
+
+The native filesystem walk, flat-mode policy, callback cancellation, worker
+join, progress sampling, ordered source indices, bounded row delivery and panel
+selection/error policy are unchanged. Existing scanner and panel regressions
+cover restart from progress/batch delivery, destruction from signals, queued
+completion after close, metadata retention and selection across disk/archive
+transitions. No new representation test or pre-fix failure is claimed.
+
+Linux acceptance passed `filesystem_scanner`, `filesystem_reload`,
+`panel_runtime` and `panel_copy_reload`, together with the runner-command suite
+after the requested default parallelism change. The original eight-job build
+hit kernel-confirmed OOM before tests; the incremental four-job retry passed
+without local overrides or clearing caches. No native OS branch changed, so
+Windows/macOS were not selected. No appearance change or full/slow gate is
+claimed.
+
+## Refresh routing and saved selection — 2026-11-01
+
+Rechecked original PanelItems SaveSelectedState, RefreshListCtrl, OnReload and
+OnTimer with the current panel callbacks, namespace/archive rendering,
+filesystem scan completion and archive reopening. The original complete
+PanelItems.cpp at `9128b80e3a471108678e2b3ec3c985861c8d7b0f` still matches the
+recorded SHA256 `7ac9d1a31d4f468cffcd3807c8ae36e8b16f040e7c81aa074ad2ae6930135802`.
+No source is imported or baseline changed.
+
+Manual refresh now captures the source panel selection once before choosing
+the namespace, filesystem or archive route. The reload presentation callback
+shares successful selection restoration across bound archive, namespace and
+changed-location loads. Existing route precedence, timer address behavior,
+missing-folder results, archive reopen/fallback, viewport restoration and
+asynchronous selection delivery remain unchanged. Source and pending Qt
+selection retain their distinct lifetimes; no new state owner is introduced.
+Post-change source comparison found no omitted branch or disconnected caller.
+Existing public refresh, navigation, copy reload and archive command suites
+already cover these contracts; no implementation-mirroring test is added.
+
+The seven focused suites passed on Linux, macOS and interactive Windows:
+filesystem_reload, panel_auto_refresh, navigation_reload, archive_reload_command,
+panel_copy_reload, modal_refresh_window and panel_parent_reload. These checks
+cover saved selection, independent peer state, missing folders, navigation during
+publication and bound archive reload. Existing build trees and compiler caches
+were reused. Disposable completed settings/fixtures were cleaned; compact
+reports and incremental outputs are retained. No full/slow gate or appearance
+change/visual acceptance is claimed.
+
 Reference: <https://github.com/ip7z/7zip.git>, commit
 `9128b80e3a471108678e2b3ec3c985861c8d7b0f`. Compared PanelItems
 `OnTimer`, `OnReload`, saved-selection restoration, Panel timer/notification

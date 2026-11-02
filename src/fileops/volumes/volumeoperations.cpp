@@ -15,6 +15,18 @@
 #include <limits>
 #include <type_traits>
 
+namespace {
+struct InputSnapshot {
+    QString path;
+    qint64 size;
+
+    bool unchanged() const {
+        const QFileInfo current(path);
+        return current.isFile() && !current.isSymLink() && current.size() == size;
+    }
+};
+} // namespace
+
 VolumeOperation::VolumeOperation(Mode mode, QString source, QString destination, qint64 volumeSize,
                                  QObject *parent)
     : VolumeOperation(mode, std::move(source), std::move(destination), QList<qint64>{volumeSize},
@@ -158,14 +170,14 @@ bool VolumeOperation::split(const CSplitVolumePlan &plan, QString *error) {
         spliter.VolBasePath = us2fs(ToUString(QDir(destination_).filePath(source.fileName())));
         spliter.NumVolumes = GetNumberOfVolumes(UInt64(source.size()), spliter.VolumeSizes);
     }
+    const InputSnapshot input{source_, source.size()};
     QtVolumeTransaction transaction;
     spliter.createOutput = [&transaction](auto &file, const FString &path) {
         return transaction.create(file, path);
     };
     if (!process(spliter, error))
         return false;
-    const QFileInfo after(source_);
-    if (!after.isFile() || after.isSymLink() || after.size() != source.size()) {
+    if (!input.unchanged()) {
         *error =
             QCoreApplication::translate("volumeoperations", "Source file changed while splitting.");
         return false;
@@ -194,7 +206,7 @@ bool VolumeOperation::combine(const CCombineVolumePlan &plan, QString *error) {
             "volumeoperations", "Destination folder is unavailable or the file already exists.");
         return false;
     }
-    QList<qint64> sizes;
+    QList<InputSnapshot> inputs;
     CThreadCombine combiner(plan);
     if (!nativePlan_) {
         combiner.InputDirPrefix = us2fs(ToUString(QFileInfo(source_).absolutePath() + '/'));
@@ -209,7 +221,7 @@ bool VolumeOperation::combine(const CCombineVolumePlan &plan, QString *error) {
         }
         if (!nativePlan_)
             combiner.Names.Add(us2fs(ToUString(QFileInfo(path).fileName())));
-        sizes << QFileInfo(path).size();
+        inputs.append({path, QFileInfo(path).size()});
     }
     QtVolumeTransaction transaction;
     combiner.createOutput = [&transaction](auto &file, const FString &path) {
@@ -217,11 +229,10 @@ bool VolumeOperation::combine(const CCombineVolumePlan &plan, QString *error) {
     };
     if (!process(combiner, error))
         return false;
-    for (qsizetype i = 0; i < parts.paths.size(); ++i) {
-        const QFileInfo after(parts.paths[i]);
-        if (!after.isFile() || after.isSymLink() || after.size() != sizes[i]) {
+    for (const auto &input : inputs) {
+        if (!input.unchanged()) {
             *error = QCoreApplication::translate("volumeoperations", "File part changed: %1")
-                         .arg(parts.paths[i]);
+                         .arg(input.path);
             return false;
         }
     }

@@ -32,3 +32,31 @@ removing the file; a focused `native_properties_window` repeat passed. Product
 code remained unchanged after the first Linux acceptance. Existing incremental
 trees and compiler caches were retained; no full/slow gate, screenshots or
 rendered Windows-reference comparison was run.
+
+## Independent raw-property count — 2026-11-02
+
+Compared the complete property collector with the same recorded original
+`PanelMenu.cpp`, including ordinary, raw, folder and archive-level groups, plus
+the raw-property providers and public dialog consumer. The original file still
+matches its recorded baseline. Its raw-count query reused the ordinary-property
+count; a provider leaving that output untouched could therefore inherit an
+unrelated count. The collector now initializes its own raw count to zero.
+
+The initial correction also required S_OK from that query. Follow-up comparison
+with original Properties, InitColumns and the existing column regressions found
+no basis for that extra gate. The collector again retains source partial
+enumeration when a count is written: each descriptor and value must still pass
+its own successful query. Available ordinary and folder properties remain in
+the report. Raw conversion, group order, archive metadata and the native Windows
+property-sheet route are unchanged. No source import or provenance advance is
+involved. The inspected built-in raw-count providers return S_OK; a built-in
+positive-count failure is not claimed.
+
+A public-report regression checks that an untouched raw count cannot reuse the
+ordinary count, while written counts retain available CRC data even with E_FAIL
+or S_FALSE from the count query. This follow-up reproduced the initial gate's
+loss of available raw fields on Linux before removing it. File name and folder
+path remain available in all cases. Linux passed `panel_property`, `properties`,
+`source_properties` and `native_archive_properties`. This shared collector change
+has no platform-specific branch or layout change; no new macOS/Windows runtime
+acceptance or rendered-reference comparison is claimed.

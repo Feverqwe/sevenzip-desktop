@@ -968,19 +968,15 @@ bool CProgressDialog::OnExternalCloseMessage() {
         thereAreMessages = !Sync.Messages.IsEmpty();
         fm = Sync.FinalMessage;
     }
-    if (!fm.ErrorMessage.Message.IsEmpty()) {
+    const bool isError = !fm.ErrorMessage.Message.IsEmpty();
+    if (isError || !thereAreMessages) {
         MessagesDisplayed = true;
-        if (fm.ErrorMessage.Title.IsEmpty())
-            fm.ErrorMessage.Title = "7-Zip";
-        if (!DisableUserQuestions)
-            MessageBox(this, fm.ErrorMessage.Message, fm.ErrorMessage.Title, true);
-    } else if (!thereAreMessages) {
-        MessagesDisplayed = true;
-        if (!fm.OkMessage.Message.IsEmpty()) {
-            if (fm.OkMessage.Title.IsEmpty())
-                fm.OkMessage.Title = "7-Zip";
+        CProgressMessageBoxPair &message = isError ? fm.ErrorMessage : fm.OkMessage;
+        if (!message.Message.IsEmpty()) {
+            if (message.Title.IsEmpty())
+                message.Title = "7-Zip";
             if (!DisableUserQuestions)
-                MessageBox(this, fm.OkMessage.Message, fm.OkMessage.Title, false);
+                MessageBox(this, message.Message, message.Title, isError);
         }
     }
     if (!DisableUserQuestions)
@@ -1068,25 +1064,14 @@ void CProgressDialog::ProcessWasFinished() {
         _needClose = true;
 #ifndef _WIN32
     // FileFolderPluginOpen has its own native worker entry point, not the
-    // CProgressThreadVirt completion context. Wake the same finished latch;
+    // CProgressThreadVirt entry point. Wake the same finished latch;
     // Create still joins the native thread before releasing its owner.
     _startWait.SignalFinished();
 #endif
 }
 
-#ifndef _WIN32
-struct CProgressThreadContext {
-    CProgressThreadVirt *Progress;
-    CQtProgressStartWait *Wait;
-};
-#endif
-static THREAD_FUNC_DECL MyThreadFunction(void *param) {
-#ifdef _WIN32
-    CProgressThreadVirt *p = (CProgressThreadVirt *)param;
-#else
-    auto *context = static_cast<CProgressThreadContext *>(param);
-    CProgressThreadVirt *p = context->Progress;
-#endif
+THREAD_FUNC_DECL CProgressThreadVirt::MyThreadFunction(void *param) {
+    auto *p = static_cast<CProgressThreadVirt *>(param);
     try {
         p->Process();
         p->ThreadFinishedOK = true;
@@ -1094,18 +1079,13 @@ static THREAD_FUNC_DECL MyThreadFunction(void *param) {
         p->Result = E_FAIL;
     }
 #ifndef _WIN32
-    context->Wait->SignalFinished();
+    p->_startWait.SignalFinished();
 #endif
     return 0;
 }
 HRESULT CProgressThreadVirt::Create(const UString &title, QWidget *parentWindow) {
     NWindows::CThread thread;
-#ifdef _WIN32
     const WRes wres = thread.Create(MyThreadFunction, this);
-#else
-    CProgressThreadContext context{this, &_startWait};
-    const WRes wres = thread.Create(MyThreadFunction, &context);
-#endif
     if (wres != 0)
         return HRESULT_FROM_WIN32(wres);
     CProgressDialog::Create(title, thread, parentWindow);

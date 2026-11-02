@@ -97,8 +97,8 @@ class ShellArchiveServicesTests final : public QObject {
         QCOMPARE(probe.result(), S_OK);
         QCOMPARE(backend.loadCodecCatalog(_module, probe.version()), S_OK);
         HRESULT error = S_OK;
-        QtShellArchiveServices service(backend, nullptr, {}, {},
-                                       [&](HRESULT result, const UString &) { error = result; });
+        QtShellArchiveServices service(
+            backend, nullptr, {.Error = [&](HRESULT result, const UString &) { error = result; }});
         UStringVector paths;
         paths.Add(us(b));
         paths.Add(us(a));
@@ -132,7 +132,8 @@ class ShellArchiveServicesTests final : public QObject {
         ArchiveCodecCatalog probe(_module, 0);
         QCOMPARE(probe.result(), S_OK);
         QCOMPARE(backend.loadCodecCatalog(_module, probe.version()), S_OK);
-        QtShellArchiveServices service(backend, nullptr, {}, {}, [](HRESULT, const UString &) {});
+        QtShellArchiveServices service(backend, nullptr,
+                                       {.Error = [](HRESULT, const UString &) {}});
         UStringVector paths;
         paths.Add(us(archive));
         if (multiple) {
@@ -170,8 +171,8 @@ class ShellArchiveServicesTests final : public QObject {
         QCOMPARE(probe.result(), S_OK);
         QCOMPARE(backend.loadCodecCatalog(_module, probe.version()), S_OK);
         HRESULT error = S_OK;
-        QtShellArchiveServices service(backend, nullptr, {}, {},
-                                       [&](HRESULT result, const UString &) { error = result; });
+        QtShellArchiveServices service(
+            backend, nullptr, {.Error = [&](HRESULT result, const UString &) { error = result; }});
         UStringVector paths;
         paths.Add(us(path));
         CDismissal dismissal;
@@ -207,7 +208,8 @@ class ShellArchiveServicesTests final : public QObject {
         ArchiveCodecCatalog probe(_module, 0);
         QCOMPARE(probe.result(), S_OK);
         QCOMPARE(backend.loadCodecCatalog(_module, probe.version()), S_OK);
-        QtShellArchiveServices service(backend, nullptr, {}, {}, [](HRESULT, const UString &) {});
+        QtShellArchiveServices service(backend, nullptr,
+                                       {.Error = [](HRESULT, const UString &) {}});
         UStringVector paths;
         paths.Add(us(manifest));
         CDismissal dismissal;
@@ -229,8 +231,8 @@ class ShellArchiveServicesTests final : public QObject {
         QCOMPARE(probe.result(), S_OK);
         QCOMPARE(backend.loadCodecCatalog(_module, probe.version()), S_OK);
         HRESULT error = S_OK;
-        QtShellArchiveServices service(backend, nullptr, {}, {},
-                                       [&](HRESULT result, const UString &) { error = result; });
+        QtShellArchiveServices service(
+            backend, nullptr, {.Error = [&](HRESULT result, const UString &) { error = result; }});
         bool answered = false;
         QTimer answer;
         connect(&answer, &QTimer::timeout, this, [&] {

@@ -91,6 +91,44 @@ class ExtractPromptTests final : public QObject {
         QCOMPARE(allowed, 3ULL << 30);
         QCOMPARE(answer, UInt32(NRequestMemoryAnswerFlags::k_Allow));
     }
+    void stoppedMemoryRequestPreservesReports_data() {
+        QTest::addColumn<bool>("report");
+        QTest::newRow("interactive-request") << false;
+        QTest::newRow("diagnostic-report") << true;
+    }
+    void stoppedMemoryRequestPreservesReports() {
+        QFETCH(bool, report);
+        QTemporaryDir settings;
+        QVERIFY(settings.isValid());
+        CProgressDialog progress;
+        CExtractCallbackImp callback;
+        callback.ProgressDialog = &progress;
+        callback.SettingsPath = settings.filePath("options.ini");
+        callback.Init();
+        progress.Sync.Set_Stopped(true);
+        bool prompted = false;
+        QTimer responder;
+        connect(&responder, &QTimer::timeout, this, [&] {
+            if (auto *dialog = dynamic_cast<CMemDialog *>(QApplication::activeModalWidget())) {
+                prompted = true;
+                dialog->reject();
+            }
+        });
+        responder.start(5);
+        UInt64 allowed = 1ULL << 30;
+        UInt32 answer = NRequestMemoryAnswerFlags::k_SkipArc;
+        auto &memory = static_cast<IArchiveRequestMemoryUseCallback &>(callback);
+        const HRESULT result = memory.RequestMemoryUse(
+            report ? NRequestMemoryUseFlags::k_IsReport : 0, NArchive::NEventIndexType::kNoIndex, 0,
+            L"данные с пробелом.bin", 2ULL << 30, &allowed, &answer);
+        responder.stop();
+        QVERIFY(!prompted);
+        QCOMPARE(result, report ? S_OK : E_ABORT);
+        QCOMPARE(allowed, UInt64(1) << 30);
+        QCOMPARE(answer, UInt32(report ? NRequestMemoryAnswerFlags::k_SkipArc
+                                       : NRequestMemoryAnswerFlags::k_Stop));
+        QCOMPARE(callback.ThereAreMessageErrors, report);
+    }
     void overwriteResultsAndDefaults() {
         for (const auto &item : {qMakePair("overwriteYes", IDYES), qMakePair("overwriteNo", IDNO),
                                  qMakePair("overwriteYesAll", IDB_YES_TO_ALL),

@@ -16,7 +16,6 @@ namespace {
 class FileColumnHeader final : public QHeaderView {
   public:
     using QHeaderView::QHeaderView;
-    bool columnClick = false;
     bool dispatchingClick = false;
     std::function<void()> sortClick;
 
@@ -44,9 +43,7 @@ class FileColumnHeader final : public QHeaderView {
             return;
         auto action = std::move(sortClick);
         sortClick = {};
-        columnClick = true;
         action();
-        columnClick = false;
     }
 };
 
@@ -157,15 +154,6 @@ FileTable::FileTable(int columns, QWidget *parent)
 }
 
 void FileTable::invalidateLanguageText() { model_->invalidateLanguageText(); }
-
-bool FileTable::takeSourceColumnClick() {
-    auto *header = dynamic_cast<FileColumnHeader *>(horizontalHeader());
-    if (!header)
-        return false;
-    const bool clicked = header->columnClick;
-    header->columnClick = false;
-    return clicked;
-}
 
 bool FileTable::deferSourceColumnClick(std::function<void()> action) {
     auto *header = dynamic_cast<FileColumnHeader *>(horizontalHeader());

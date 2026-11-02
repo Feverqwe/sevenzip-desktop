@@ -5,6 +5,7 @@
 #include <atomic>
 #include <map>
 #include <mutex>
+#include <optional>
 #include <set>
 #include <vector>
 #ifdef _WIN32
@@ -56,15 +57,29 @@ struct SmbReadOnlyServer::State : smb2_server {
         Info Metadata;
         std::vector<smb2_fileidbothdirectoryinformation> Directory;
         struct Pending {
-            std::shared_ptr<std::atomic_uint> Count;
-            explicit Pending(std::shared_ptr<std::atomic_uint> count) : Count(std::move(count)) {
+            Pending(std::shared_ptr<std::atomic_uint> count, quint32 maximum)
+                : Maximum(maximum), Count(std::move(count)) {
                 ++*Count;
             }
             ~Pending() { --*Count; }
-            quint32 Maximum;
+            const quint32 Maximum;
+            void complete(SmbTreeRead result) {
+                std::lock_guard<std::mutex> lock(Mutex);
+                if (!Result)
+                    Result = std::move(result);
+            }
+            std::optional<SmbTreeRead> takeResult() {
+                std::lock_guard<std::mutex> lock(Mutex);
+                if (!Result)
+                    return std::nullopt;
+                // Keep the slot engaged so late duplicate completions stay ignored.
+                return std::move(*Result);
+            }
+
+          private:
+            const std::shared_ptr<std::atomic_uint> Count;
             std::mutex Mutex;
-            SmbTreeRead Result;
-            bool Ready = false;
+            std::optional<SmbTreeRead> Result;
         };
         smb2_context *Context = nullptr;
         std::map<quint64, std::shared_ptr<Pending>> Reads;

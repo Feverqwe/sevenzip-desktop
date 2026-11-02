@@ -1,5 +1,204 @@
 # Local read-only SMB: implementation and evidence
 
+## READ reply buffer handoff — 2026-11-02
+
+Compared the complete `lib/smb2-cmd-read.c` inventory unit, headers, vector/PDU
+ownership helpers and synchronous/deferred server consumers at recorded
+libsmb2 revision `1395c54006f0cfb4da5df4b9fd9bf531feffe56a` from
+<https://github.com/sahlberg/libsmb2.git>. The complete original SHA256 remains
+`7b53bf0518b2c58dcc2053ed241695e288a040858b07c70712bb651410fbc998`
+in the existing baseline. The full C unit now belongs to
+`src/dependencies/smb2/smb2-cmd-read.c`; request encoding and receive parsing
+are transferred unchanged, without omitted branches. Three header includes use
+the existing dependency module owners. Copyright and LGPL notices remain intact.
+
+Only `smb2_encode_read_reply` and `smb2_cmd_read_reply_async` change ownership
+handling. Reply data has one owner: the reply retains it until the consuming
+I/O-vector call, which takes it on both success and failure. The common builder
+exit frees any untransferred buffer, including an unused zero-length payload.
+Previously PDU/header allocation failure leaked that buffer, while later errors
+already released it through vector/PDU cleanup. Callers could not repair this
+from a NULL return without risking a duplicate free. Nonempty data with a NULL
+pointer retains its previous invalid-input behavior; this change adds no new
+protocol validation policy. Wire encoding, read limits, STATUS_PENDING, client
+correlation and OS mount/authorization behavior are unchanged.
+
+The unit is removed from the unchanged source archive and mapped to its C owner
+by the existing baseline/overlay tooling. All 109 remaining archive members
+retain their bytes and modes; original hashes/revision are not advanced.
+Ordinary builds need no external checkout or network. Existing reference verify
+and review commands below continue to compare the pinned original with this
+adaptation. The source inventory also now records previously added local
+archive-transfer and child-reaper integration units; no borrowed-source hashes
+are assigned to those local wrappers.
+
+An isolated C probe compiles that same authoritative unit with fixture-only
+allocation/admission failures. It counts releases of a real payload, preserves
+the vector helper's consuming failure contract, checks payload lifetime through
+PDU release, and covers early/late failures and empty replies. Linux reproduced
+both early leaks before the correction. This fixture introduces no production
+allocator hook or separate SMB implementation.
+
+Linux passed `smb2_read_reply`, `smb_readonly_server` and
+`archive_mount_transport`: the nine ownership-probe cases and 19 Qt checks.
+Five existing native OS mount opt-ins remain skipped. The source inventory and
+whitespace checks pass. This is common C buffer ownership, without OS-specific
+or visual changes; no new Windows/macOS, privileged mount or full/slow acceptance
+is claimed. Incremental builds and compiler caches were retained, and the three
+completed suite scratch directories contained no disposable files.
+
+## Native-client completion cleanup — 2026-11-02
+
+Reviewed the complete remote client/process owner, Linux broker, private control
+and broker entrypoint, mount-session start/unmount/cleanup and manager consumers.
+These are project Qt/platform integration without a 7zFM mount counterpart;
+native readers, SMB protocol code and privileged OS-client commands are unchanged.
+No external import or baseline advance.
+
+Terminal failure now releases the private host, source and temporary channel
+before notifying mountFinished receivers. This applies to an unacknowledged
+helper exit and channel-creation failure. Previously helper exit notified first,
+so a receiver could encounter the obsolete active channel on immediate retry;
+channel-creation failure could also clean state after a receiver had acted on it.
+The outcome is captured before cleanup and notification is last. An acknowledged
+or potentially mounted session still retains its recovery channel and server,
+including when the path acknowledgement was lost.
+
+QProcess exit/start-failure delivery is queued to the client owner before public
+notification. Owner deletion therefore drops pending delivery, while result
+receivers run outside those QProcess signal frames. Existing POSIX orphan-helper
+and Windows handle/notifier ownership remain unchanged. No new test hook or
+privileged fixture was introduced for this source-visible publication correction.
+
+Linux primary `20261102T051009Z-b03e8b78` built native_mount_client,
+mount_session and archive_mount_transport and passed their ordinary checks:
+17 Qt passes and 9 skips. Build 10.155 s; tests 3.079 s. Four native-client rows
+were skipped (the CIFS client is installed, plus three opt-in lifecycle rows),
+as were five opt-in transport mount rows. The failure/retry ordering was reviewed
+from source, not reproduced through an authorized native OS mount. These results
+do not establish new native mount, authorization, recovery or receiver-deletion
+acceptance. Only portable Qt completion ordering changed; secondary OS checks
+were not rerun. Selected scratch was empty before/after; incremental outputs and
+compiler caches retained. No full/slow gate, reports or screenshots.
+
+## Mount settings preparation owner — 2026-11-01
+
+Reviewed the complete settings preparation/cache-probe/cancellation flow,
+retained-view initialization and item-stream probe, and the manager/session/source
+handoff. As recorded for this feature, mount preparation is local Qt integration
+without a 7zFM counterpart. Native item enumeration/GetStream, decoding, cache
+policy, quotas, recovery/extraction consent and OS-client operations are unchanged;
+no external source is imported or baseline advanced.
+
+The settings dialog now owns its preparation worker, completion handler and
+cache choice. BuildControls constructs the same presentation, while separate
+methods handle preparation, completion and modal result publication. The former
+public Ready/Preparing/Cancelled flags and callback into a surrounding stack
+frame become a private phase with the worker under the same owner. Pending
+cancellation still keeps the event loop responsive, disables further input and
+closes only after completion. A failed check keeps Mount unavailable and reports
+the reader diagnostic. A successful check retains the prepared view for session
+handoff; normal return joins before publishing it. Dialog teardown also retires
+the worker before releasing that view or its consumers during unwinding.
+
+Existing tests cover direct versus decoded-cache readers, Help, successful view
+handoff, cancellation while the reader is busy, setup cancellation without a
+session, and compact/normal English/Russian presentation. An additional public
+failure check verifies the backend diagnostic, disabled Mount, refusal of an
+accept attempt and working Cancel for a resource without a retained reader.
+It does not inspect private phases or worker identities. Control text, layout,
+visibility rules and resize behavior are preserved.
+
+Linux x64 passed mount_extraction_prompt and archive_mount_transport: 45 checks
+passed, with five existing opt-in native OS mount cases skipped. Run
+`20261101T195022Z-38fc4275` built the selected targets in 13.830 seconds and
+ran tests in 3.680 seconds. The affected common Qt workflow was checked on the
+primary platform; no OS-specific implementation changed, so Windows/macOS were
+not rerun. This is not real-mount or new visual parity acceptance. Selected
+scratch directories were empty after completion; incremental outputs and
+compiler caches were retained. Inventory and whitespace checks passed.
+
+### One prepared cache decision — 2026-11-02
+
+Rechecked settings construction, reader probing, failure/cancellation, accepted
+options and session/source handoff. The preparation result now supplies both
+the cache-control choice and the returned quota decision; the dialog no longer
+keeps a synchronized copy of that result. Setup without a retained resource
+still offers the cache limit. Preparing/failed/cancelling acceptance gates,
+worker joins, prepared-view lifetime and cancellation remain unchanged.
+This is local Qt integration with no upstream 7zFM mount counterpart; native
+enumeration, stream probing, decoding, quota and consent policies are unchanged.
+No import, baseline, layout, text or visibility-rule change is introduced.
+
+Linux mount_extraction_prompt and archive_mount_transport passed 45 checks,
+with five native-OS mount rows behind their existing opt-in. Existing direct/cache
+reader, Help, failed-preparation, busy-reader cancellation and view-handoff cases
+cover this change; no private-state regression was added. Only portable decision
+ownership changed, so secondary OS checks were not selected. Whitespace and
+source-inventory checks passed, selected scratch directories were empty, and
+configured four-job builds retained incremental outputs and compiler caches.
+
+## Pending read completion ownership — 2026-11-01
+
+Reviewed read admission/range validation, callback completion, event-loop reply
+publication, disconnected-client destruction and the QtRO reader consumer.
+The local pending-read owner now contains its synchronized optional result;
+callback and server-loop consumers no longer manipulate a separate ready flag
+and result under separately written lock scopes. Its maximum reply length is
+fixed on construction. Taking a result retains the completed state, so late
+duplicate callbacks remain ignored. Shared lifetime and pending-count release
+still extend beyond client disconnection when a completion retains the owner.
+
+This is a local C++ integration change. Existing libsmb2 READ/STATUS_PENDING,
+message correlation and signed reply calls, admission limits, cancellation,
+bounds and native decoding are unchanged. No external source is imported and
+no recorded baseline changes. Session/broker recovery states were also reviewed
+and retain their separate meanings; OS launch/unmount adapters are unchanged.
+
+A separate-process wire regression completes each asynchronous read from
+another thread twice with conflicting results. It verifies exact first bytes,
+first-error preservation, subsequent healthy Unicode-path reads and final-file
+range clipping. Existing transport checks cover delayed extraction consent,
+metadata availability during that wait and cancellation without publishing data.
+Linux `smb_readonly_server` and `archive_mount_transport` passed 19 checks; five
+existing native OS mount opt-ins were skipped. No real mount, OS authorization,
+secondary platform or appearance acceptance is claimed. Both selected scratch
+directories were empty after the run; incremental outputs and caches remain.
+
+## Decoded cache publication ownership — 2026-11-01
+
+Reviewed the complete retained view, cache acquisition/eviction/materialization,
+native single-entry worker, input-layer ownership and mount-source callers.
+Compared the existing output-stream/Extract/Close boundary with original
+Client7z GetStream and SetOperationResult at
+`b88c6bc09339de32f7d18bbab900686b244f42ba` in
+<https://github.com/ip7z/7zip.git>. The complete original Client7z.cpp matches
+its existing inventory hash. Native decoding and source algorithms are unchanged;
+no external code is imported or baseline advanced.
+
+A decoded file remains owned by its joined request until successful cache
+publication. One scoped cleanup replaces the separate failure-path removals
+and also covers exception unwinding from a recovery-consent service. Cleanup
+only removes output actually created by that request. Local input handles are
+released before removal; successful publication transfers ownership to the
+existing cache and its eviction/destruction paths.
+
+Previously a throwing recovery decision could leave an unpublished decoded file
+that prevented a later attempt from creating its output. The public damaged-ZIP
+test now covers both a refused decision and a throwing decision, then checks
+successful retry with fresh consent, exact bytes, retained CRC warning, cached
+reads and a healthy sibling. No private cache paths or implementation-presence
+assertions are exposed. No pre-fix runtime reproduction is claimed.
+
+Focused validation passed archive_readonly_view and archive_mount_transport on
+Linux, then archive_readonly_view on Windows. The extra Windows check covers
+closing file handles before deleting decoded outputs; no distinct macOS path
+was changed, so no macOS rerun was selected. Both recovery-decision rows pass
+on the checked platforms. The transport suite's opt-in native OS mount rows
+remain unrun; this is not native-mount or visual acceptance. Existing build
+trees and compiler caches were reused, with no parallelism override or full/slow
+gate.
+
 ## Read-only cache ownership — 2026-10-31
 
 Reviewed the complete retained-view/cache/read-operation/source pipeline and its
@@ -155,7 +354,7 @@ commit `1395c54006f0cfb4da5df4b9fd9bf531feffe56a`. The
 including the headers, source/build dependencies and original example used for
 assessment. `adapted` maps original units to their authoritative local owners in
 `third_party/libsmb2`; unchanged dependencies are distinguished from local fixes.
-The reference example is studied, not shipped. The two probes are local API
+The reference example is studied, not shipped. The diagnostic probes are local API
 integration, not copies of its virtual disk implementation.
 
 The library is LGPL-2.1-or-later; notices and the original license are retained in
@@ -513,3 +712,71 @@ distinguishes kernel CIFS support from the recommended mount.cifs helper; neithe
 may be assumed present on every desktop. The product must detect the native
 capability and explain a concrete limitation rather than installing a filesystem
 driver or promising universal mounts.
+
+### Manager session records — 2026-11-01
+
+Reviewed the complete manager creation/selection/details/remove/owner-close
+path, session startup/cancellation/stop cleanup, extraction prompts and source
+issue delivery against the existing local integration scope above. There is no
+upstream 7zFM mount-session owner to transfer; native client, SMB reader and
+session lifecycle implementations and their recorded source baselines are
+unchanged. No external code is imported.
+
+Each manager record now keeps its session and read diagnostics together. This
+removes the separate pointer-keyed diagnostic table and paired removal step.
+Queued issue delivery resolves the retained session record and ignores a record
+already removed from the manager. Selection, detail ordering, translations,
+action availability, stopped-only removal and owner-close decisions retain
+their previous behavior. QObject session ownership and platform operations are
+unchanged; no text, layout, visibility or geometry change is introduced.
+
+The existing two-session removal regression now checks distinct diagnostics,
+cancellation-report exclusion, selection switching and new diagnostics after
+the preceding row is removed. It detects cross-session attribution or lost
+messages after row changes through public session notifications and displayed
+details; it does not inspect manager storage or private helpers. Setup fails
+before starting a server or native mount, preserving the fixture source bytes.
+
+Focused Linux validation passed mount_extraction_prompt, mount_session and
+archive_mount_transport: 50 passed rows, with five native-OS mount rows left
+behind their existing opt-in. The manager removal/diagnostic regression ran;
+the installed CIFS prerequisite was detected without installing or mounting
+anything. Only portable manager state changed, so secondary OS and native mount
+acceptance are not claimed. Source inventory and whitespace checks passed;
+ordinary four-job builds reused incremental outputs and the compiler cache.
+No full/slow suite, appearance inspection or platform adapter change is involved.
+
+### Decoded-cache eviction failure and retry — 2026-11-02
+
+Reviewed read, extraction consent, cache publication, eviction and cancellation
+together with their callers and retained-stream accounting. This cache is local
+Qt integration with no corresponding upstream 7zFM mount owner. The recorded
+native reader and extraction implementations remain unchanged; no external code
+is imported and no provenance baseline advances.
+
+An unsuccessful cache-file removal previously closed the stream but left its
+file and quota charge stranded outside subsequent eviction candidates. Retrying
+that entry could also attempt to create a file still present on disk, even when
+there was enough quota to avoid eviction. Cache release now owns stream closure,
+file removal and accounting together. Retained files remain eligible for retry,
+and rematerialization releases the entry's previous file after consent. Failed
+removal retains its byte charge; Windows still closes the stream before removal.
+Archive decoding, source access, extraction validation and consent policy retain
+their existing owners and behavior.
+
+Two POSIX regressions temporarily remove traversal permission from a disposable
+cache ancestor, restore it, then retry either the retained entry or a different
+entry. They check returned bytes, subsequent eviction and consent through the
+public reader. The retained entry is small enough to exercise retry without quota
+pressure. Both rows failed before the fix on macOS and pass afterward. Windows
+skips this POSIX permission fixture; its existing cache checks cover ordinary
+file closure, eviction and rereading.
+
+After restarting the Linux runner, focused validation passed archive_readonly_view,
+archive_mount_transport and mount_extraction_prompt: 79 passed checks, with five
+native-OS mount rows behind their existing opt-in. Windows archive_readonly_view
+passed 32 checks and skipped the two POSIX permission rows. The earlier macOS
+diagnostic passed all 34 reader checks. Builds used configured four-job defaults,
+incremental outputs and compiler caches. Selected temporary fixture directories
+were empty afterward. Source inventory and whitespace checks passed; no full or
+slow gate, native mount or visual acceptance is claimed.

@@ -250,6 +250,75 @@ class FileTransferTests : public QObject {
         }
     }
 
+    void mixedMoveFailurePreservesConsumedSources_data() {
+        QTest::addColumn<bool>("cancelAfterRemoval");
+        QTest::newRow("delete failure") << false;
+        QTest::newRow("cancel after deletion") << true;
+    }
+
+    void mixedMoveFailurePreservesConsumedSources() {
+        QFETCH(bool, cancelAfterRemoval);
+        QTemporaryDir temp;
+        QVERIFY(temp.isValid());
+        const QString destination = temp.filePath(QStringLiteral("назначение 空"));
+        QVERIFY(QDir().mkpath(destination));
+        QStringList sources;
+        for (int i = 0; i < 4; ++i) {
+            const QString source = temp.filePath(QStringLiteral("файл %1.txt").arg(i));
+            sources << source;
+            QFile incoming(source);
+            QVERIFY(incoming.open(QIODevice::WriteOnly));
+            QCOMPARE(incoming.write(source.toUtf8()), qint64(source.toUtf8().size()));
+            QFile previous(QDir(destination).filePath(QFileInfo(source).fileName()));
+            QVERIFY(previous.open(QIODevice::WriteOnly));
+            QCOMPARE(previous.write("previous"), qint64(8));
+        }
+        FileTransferOperation *operation = nullptr;
+        FileTransferOperation::FileSystemAdapter adapter;
+        adapter.trySourceRename = [sources](const QString &source, const QString &stage) {
+            return (source == sources.front() || source == sources.back()) &&
+                   QDir().rename(source, stage);
+        };
+        QStringList removed;
+        adapter.removeSource = [&](const QString &source) {
+            removed << source;
+            if (!QFile::remove(source))
+                return false;
+            if (cancelAfterRemoval)
+                operation->cancel();
+            return cancelAfterRemoval;
+        };
+        FileTransferOperation move(sources, destination, true, nullptr, adapter);
+        operation = &move;
+        connect(
+            &move, &FileTransferOperation::overwriteRequested, &move,
+            [&move] { move.submitOverwriteAnswer(NOverwriteAnswer::kYesToAll); },
+            Qt::DirectConnection);
+        QSignalSpy result(&move, &FileTransferOperation::result);
+        move.start();
+        QVERIFY(move.wait(30000));
+        QTRY_COMPARE(result.size(), 1);
+        QVERIFY(!result.first().first().toBool());
+        QCOMPARE(move.resultKind(), FileTransferOperation::ResultKind::Failure);
+        QCOMPARE(removed, QStringList{sources[1]});
+        for (int i = 0; i < sources.size(); ++i) {
+            const bool untouched = i == 2;
+            QCOMPARE(QFileInfo::exists(sources[i]), untouched);
+            if (untouched) {
+                QFile original(sources[i]);
+                QVERIFY(original.open(QIODevice::ReadOnly));
+                QCOMPARE(original.readAll(), sources[i].toUtf8());
+            }
+            QFile published(QDir(destination).filePath(QFileInfo(sources[i]).fileName()));
+            QVERIFY(published.open(QIODevice::ReadOnly));
+            QCOMPARE(published.readAll(), untouched ? QByteArray("previous") : sources[i].toUtf8());
+        }
+        QCOMPARE(QDir(destination)
+                     .entryList(QDir::AllEntries | QDir::NoDotAndDotDot | QDir::Hidden)
+                     .size(),
+                 sources.size());
+    }
+
     void crossVolumeCancelBeforeDeleteRollsBackPublishedTargets() {
         QTemporaryDir temp;
         QVERIFY(temp.isValid());

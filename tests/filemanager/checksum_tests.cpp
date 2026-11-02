@@ -97,11 +97,13 @@ class ChecksumTests : public QObject {
         const QString digest = QString::fromLatin1(
             QCryptographicHash::hash("content", QCryptographicHash::Sha256).toHex());
         QString results;
+        int resultWindows = 0;
         QTimer closeResults;
         connect(&closeResults, &QTimer::timeout, this, [&] {
             auto *dialog = qobject_cast<CListViewDialog *>(widgetDialogs_.activeDialog());
             if (!dialog)
                 return;
+            ++resultWindows;
             results = messageText(dialog->findChild<QTreeWidget *>("propertiesList"));
             dialog->accept();
         });
@@ -113,6 +115,7 @@ class ChecksumTests : public QObject {
         results.clear();
         action->trigger();
         QVERIFY(results.contains(digest));
+        QCOMPARE(resultWindows, 1);
         closeResults.stop();
         QVERIFY(QDir::setCurrent(original));
     }

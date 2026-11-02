@@ -386,6 +386,55 @@ class CompressionPathTests final : public QObject {
                 QCOMPARE(folder->text(), previousFolder);
         }
     }
+    void emptyDestinationKeepsInitialPrefixForBrowseAndAccept() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        QDir cwd(fixture.path());
+        QVERIFY(cwd.mkpath("initial/deeper"));
+        const QString initial = cwd.filePath("initial/deeper");
+        int parents = 1;
+        for (QDir ancestor = cwd; !ancestor.isRoot(); ++parents)
+            QVERIFY(ancestor.cdUp());
+        // This path is valid from the initial folder, but escapes the root
+        // when the picker accidentally resolves it from the process directory.
+        const QString draft = QString("../").repeated(parents) + QStringLiteral("архив 空.7z");
+        const QString previous = QDir::currentPath();
+        const bool nativeDisabled = QApplication::testAttribute(Qt::AA_DontUseNativeDialogs);
+        const auto restore = qScopeGuard([&] {
+            QDir::setCurrent(previous);
+            QApplication::setAttribute(Qt::AA_DontUseNativeDialogs, nativeDisabled);
+        });
+        QVERIFY(QDir::setCurrent(cwd.path()));
+        QApplication::setAttribute(Qt::AA_DontUseNativeDialogs);
+        CreateArchiveDialog dialog(initial, {source_});
+        dialog.findChild<QLineEdit *>("archiveFolder")->clear();
+        dialog.findChild<QLineEdit *>("archiveName")->setText(draft);
+        bool pickerOpened = false;
+        QString error;
+        QTimer answer;
+        connect(&answer, &QTimer::timeout, &dialog, [&] {
+            if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                error = box->text();
+                box->accept();
+            } else if (auto *picker =
+                           qobject_cast<QFileDialog *>(QApplication::activeModalWidget())) {
+                pickerOpened = true;
+                picker->reject();
+            }
+        });
+        answer.start(1);
+        dialog.findChild<QPushButton *>("archiveBrowse")->click();
+        answer.stop();
+        QVERIFY2(error.isEmpty(), qPrintable(error));
+        QVERIFY(pickerOpened);
+        QCOMPARE(dialog.findChild<QLineEdit *>("archiveName")->text(), draft);
+        QVERIFY(dialog.findChild<QLineEdit *>("archiveFolder")->text().isEmpty());
+        submit(dialog);
+        QCOMPARE(dialog.result(), int(QDialog::Accepted));
+        QCOMPARE(QDir::fromNativeSeparators(dialog.target()),
+                 QDir::cleanPath(initial + '/' + draft));
+        QVERIFY(!QFileInfo::exists(dialog.target()));
+    }
     void realArchiveAndValidation() {
         CreateArchiveDialog dialog(dir_.path(), {source_});
         auto *name = dialog.findChild<QLineEdit *>("archiveName");

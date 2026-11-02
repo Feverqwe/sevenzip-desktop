@@ -3,8 +3,10 @@ struct CExternalCodecs;
 struct CProperty;
 class CArc;
 
+#include "7zip/Archive/IArchive.h"
 #include "archive/codecs/archivecodecpublication.h"
-#include "dialogs/compress/CompressDialog.h"
+#include "archive/resources/qtarchiveextractstatus.h"
+#include "dialogs/compress/CompressInfo.h"
 #include "fileops/overwrite/overwritequestion.h"
 
 #include <QDateTime>
@@ -31,6 +33,7 @@ class QtOwnedTempDir;
 class QtArchiveTransferBackup;
 enum class ArchiveTransferBackupError;
 class QThread;
+class QFileInfo;
 struct IOpenCallbackUI;
 struct QtArchiveDirectoryExtractRequest;
 struct IUpdateCallbackUI2;
@@ -93,6 +96,7 @@ struct ExtractionOptions {
     OverwriteMode overwriteMode = OverwriteMode::RejectExisting;
     CBoolPair ElimDup;
     CBoolPair NtSecurity;
+    QtArchiveExtractPurpose Purpose = QtArchiveExtractPurpose::Copy;
 };
 
 class ArchiveReadOnlyView;
@@ -105,6 +109,7 @@ class ArchiveBackend : public QObject {
     ~ArchiveBackend() override;
     virtual bool busy() const;
     virtual HRESULT lastResult() const;
+    virtual std::optional<QtArchiveExtractStatus> lastExtractStatus() const;
     // Item/block or opening diagnostic result, or -1 when no result is available.
     Int32 lastSourceExtractOperation() const { return sourceExtractOperation_; }
     // Explicit module/version boundary. The engine probe/discovery service
@@ -267,8 +272,9 @@ class ArchiveBackend : public QObject {
         QList<ArchiveEntry> Entries;
         QString Format;
     };
+    const ListedSourceSnapshot *findListedSourceArchive(const QFileInfo &file) const;
     enum class Job { None, List, Extract, Test, Hash, SourceExtract };
-    void finishSourceExtractOperation(const QtArchiveReadOperation &operation);
+    HRESULT finishSourceExtractOperation(const QtArchiveReadOperation &operation, HRESULT result);
     static bool safePath(const QString &path);
     bool restoreListedArchive(const QString &archive);
     void startListing(const QString &archive, const QString &password, const QString &format);
@@ -285,9 +291,11 @@ class ArchiveBackend : public QObject {
     QTimer workerProgressTimer_{this};
     QMutex workerProgressMutex_;
     quint64 workerProgressGeneration_ = 0;
-    bool workerProgressPending_ = false;
-    int workerProgressPercent_ = 0;
-    QString workerProgressPath_;
+    struct WorkerProgress {
+        int Percent;
+        QString Path;
+    };
+    std::optional<WorkerProgress> pendingWorkerProgress_;
     quint64 beginWorkerProgress();
     bool startWorkerPhase(QThread &worker, std::function<void()> launch = {});
     void postWorkerProgress(quint64 generation, int percent, const QString &path);
@@ -305,6 +313,7 @@ class ArchiveBackend : public QObject {
     QHash<QString, ListedSourceSnapshot> listedSourceArchives_;
     bool cancelled_ = false;
     HRESULT lastResult_ = E_FAIL;
+    std::optional<QtArchiveExtractStatus> lastExtractStatus_;
     Int32 sourceExtractOperation_ = -1;
     bool overwritePromptActive_ = false;
 };

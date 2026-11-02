@@ -43,6 +43,7 @@ class QtArchiveFileResource final : public IUnknown, public CMyUnknownImp {
         _extract;
     std::function<std::unique_ptr<IQtProgressTransport>(CProgressDialog &, bool)> _progress;
     std::optional<CompressionOptions> _compressionOptions;
+    std::optional<QtArchiveTransferInputs> _transferInputs;
     std::optional<CFiTime> _outputMTime;
     std::shared_ptr<QtArchiveDeleteInputs> _deleteInputs;
     std::shared_ptr<const ArchiveCodecCatalog> _codecs;
@@ -116,6 +117,7 @@ class QtArchiveFileResource final : public IUnknown, public CMyUnknownImp {
     // The caller owns the dialog until the native worker has joined.
     void SetUpdateProgress(CProgressSync *sync) { _sync = sync; }
     void SetCompressionOptions(const CompressionOptions &options) { _compressionOptions = options; }
+    std::optional<QtArchiveTransferInputs> &TransferInputs() { return _transferInputs; }
     void ClearCompressionOptions() {
         _compressionOptions.reset();
         _deleteInputs.reset();
@@ -124,6 +126,7 @@ class QtArchiveFileResource final : public IUnknown, public CMyUnknownImp {
     HRESULT AdoptPublishedOwnedTemp(const CWorkDirTempFile &file);
     void CaptureOutputMTime(const CFiTime &time, bool defined);
     void CaptureDeleteInputs(const CDirItems &items, const CByteBuffer &processed);
+    void DiscardDeleteInputs() { _deleteInputs.reset(); }
     HRESULT DeleteInputsAfterPublication(IUpdateDeletionCallback &callback);
     const std::optional<CompressionOptions> &CompressionSettings() const {
         return _compressionOptions;

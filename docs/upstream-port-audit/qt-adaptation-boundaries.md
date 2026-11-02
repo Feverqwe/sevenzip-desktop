@@ -482,3 +482,60 @@ follow-ups; platform-only владельцы проверены отдельно
 новая приёмка рендеренного паритета с оригинальным Windows 7zFM не выполнялась.
 Результат фиксирует проверенные области и найденные дефекты, а не гарантирует
 отсутствие иных ошибок во всех возможных сценариях.
+
+## Именованные маршруты архивных операций — 2026-11-01
+
+Повторно просмотрены пакетные Test/Extract от CApp/CPanel до CompressCall2,
+QtShellArchiveServices, native opener, ExtractGUI и независимого 7zG; вместе
+рассмотрены связанные Add/hash/popup consumers. Полные оригиналы
+`CPP/7zip/UI/Common/CompressCall2.cpp`, `CPP/7zip/UI/FileManager/Panel.cpp`
+и `App.h` совпадают с baseline hashes ревизии
+`b88c6bc09339de32f7d18bbab900686b244f42ba` из того же source repository.
+Нового внешнего импорта и изменения baseline нет.
+
+Concrete Qt adapter теперь принимает одну структуру именованных Routes вместо
+длинного позиционного списка callback arguments. Она же владеет callback-ами
+внутри сервиса. Toolbar batch/Add, shell popup, standalone GUI factory и все
+прямые тестовые consumers переведены вместе. Отсутствующий маршрут сохраняет
+прежний in-process fallback; virtual source interfaces и сами исходные
+CompressCall2/GUI/Extract/Update/hash algorithms не меняются.
+
+Сохранены callbacks, их параметры/captures, settings path, retained catalog,
+ошибки/приоритет результата, output notifications и lifetime до source worker
+join. Typed metadata opening без retained native reader и учёт томов остаются:
+это поддерживаемые границы, а не доказанно мёртвые ветви. Новых правил выбора
+архивов, decoding, path validation, recovery consent или OS launch не введено.
+Контролы, тексты и геометрия также не меняются.
+
+Проверка Linux x64: 11 focused suites для сервиса и прямых consumers прошли,
+163 Qt checks без failures/skips; run `20261101T191046Z-1468e9b8`.
+Инкрементальная сборка заняла 41.023 с, тесты — 20.058 с. Другие платформы
+в этой итерации не запускались: изменение общей передачи callbacks не меняет
+платформенные реализации. Source comparison и runtime evidence имеют указанный
+выше scope; нового визуального parity acceptance нет.
+
+## Folder mutation callback owner — 2026-11-02
+
+Compared original CThreadFolderOperations, its ProcessVirt/DoOperation and
+CreateFolder/Delete/Rename callers at recorded
+`b88c6bc09339de32f7d18bbab900686b244f42ba`. Complete PanelOperations.cpp SHA256
+matches the existing baseline. Reviewed the local comment consumer, progress
+callback implementation, transport scope and worker completion/join boundary.
+The current typed COM owner comes from the already recorded MyCom dependency;
+no source import or provenance advancement.
+
+The common worker now keeps its IProgress reference and concrete update callback
+through one CMyComPtr2 instead of a separately maintained raw pointer/reference
+pair. Allocation still occurs at DoOperation entry, before initialization,
+password inheritance and transport creation. Interface dispatch, one retained
+reference, joined worker lifetime, operation results, cancellation, diagnostics
+and caller-owned selection publication are unchanged. The source algorithms and
+the separate trash/transaction branches are preserved. Existing behavior suites
+exercise these consumers; no representation-only test was added.
+
+Linux `20261102T080659Z-d707aade`: source_delete, source_create,
+panel_rename_state, rename_lifecycle and native_comment_ui passed (131 Qt
+checks, no skips). Build 23.795 s, tests 25.505 s. Astra source review confirmed
+equivalent lifetime/interface conversion. Removed five completed settings files;
+incremental outputs and compiler cache retained. No secondary OS, full/slow
+gate or new visual acceptance was run; platform implementations are unchanged.

@@ -11,6 +11,7 @@
         set_tests_properties(${native_read_suite} PROPERTIES TIMEOUT 45
             ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
     endforeach()
+    add_dependencies(native_listing_tests sevenzip_mbr_runtime)
     qt_add_executable(archive_qcow_tests tests/formats/qcow/archive_qcow_tests.cpp)
     target_link_libraries(archive_qcow_tests PRIVATE sevenzip_location)
     target_include_directories(archive_qcow_tests PRIVATE src tests)
@@ -39,6 +40,7 @@
     set_tests_properties(archive_open_options PROPERTIES TIMEOUT 60 ENVIRONMENT
         "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/archive-open-options.ini")
     qt_add_executable(source_extract_advanced_tests tests/archive/source_extract_advanced_tests.cpp)
+    add_dependencies(source_extract_advanced_tests sevenzip_linux_frames_runtime)
     target_link_libraries(source_extract_advanced_tests PRIVATE sevenzip_layout_inspection sevenzip_location)
     target_include_directories(source_extract_advanced_tests PRIVATE src)
     target_link_libraries(source_extract_advanced_tests PRIVATE Qt6::Test)

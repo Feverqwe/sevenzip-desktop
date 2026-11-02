@@ -104,6 +104,7 @@ void ArchiveBackend::startReadOperation(Job job, std::unique_ptr<QtArchiveReadOp
     });
     cancelled_ = false;
     lastResult_ = E_FAIL;
+    lastExtractStatus_.reset();
     job_ = job;
     startWorkerPhase(*readOperation_);
 }
@@ -118,11 +119,13 @@ void ArchiveBackend::finishReadOperation() {
     const bool listingJob = job_ == Job::List;
     const bool sourceExtractJob = job_ == Job::SourceExtract;
     const bool extractJob = job_ == Job::Extract || sourceExtractJob;
+    if (job_ == Job::Extract)
+        lastExtractStatus_ = operation->ExtractStatus;
     const QString path = archive_;
-    lastResult_ = cancelled_ ? E_ABORT : operation->Result;
-    if (sourceExtractJob)
-        finishSourceExtractOperation(*operation);
-    const HRESULT result = lastResult_;
+    const HRESULT workerResult = cancelled_ ? E_ABORT : operation->Result;
+    const HRESULT result =
+        sourceExtractJob ? finishSourceExtractOperation(*operation, workerResult) : workerResult;
+    lastResult_ = result;
     overwritePromptActive_ = false;
     job_ = Job::None;
     const QPointer<ArchiveBackend> owner(this);
@@ -131,6 +134,16 @@ void ArchiveBackend::finishReadOperation() {
         !codecCatalog()) {
         codecCatalog_.store(operation->catalog());
     }
+    const bool publishListing = result == S_OK && listingJob && listing;
+    if (publishListing) {
+        listing->Info.readLimitations = diagnostics.join('\n');
+        entries_ = std::move(listing->Entries);
+        const QFileInfo source(path);
+        listedSourceArchives_.insert(path,
+                                     {source.size(), source.lastModified(),
+                                      source.metadataChangeTime(), entries_, listing->Info.format});
+    }
+    const QList<ArchiveEntry> entries = publishListing ? entries_ : QList<ArchiveEntry>();
     QStringList output = diagnostics;
     // A usable catalog can report a discovery note without making the
     // archive listing limited or adding an error to the final result.
@@ -142,14 +155,7 @@ void ArchiveBackend::finishReadOperation() {
         if (!owner)
             return;
     }
-    if (result == S_OK && listingJob && listing) {
-        listing->Info.readLimitations = diagnostics.join('\n');
-        entries_ = std::move(listing->Entries);
-        const QFileInfo source(path);
-        listedSourceArchives_.insert(path,
-                                     {source.size(), source.lastModified(),
-                                      source.metadataChangeTime(), entries_, listing->Info.format});
-        const auto entries = entries_;
+    if (publishListing) {
         emit infoReady(listing->Info);
         if (!owner)
             return;

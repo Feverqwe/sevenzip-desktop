@@ -2,7 +2,9 @@
 #include "platform/temp/WorkDir.h"
 #include <QDir>
 #include <QFile>
+#include <QScopeGuard>
 #include <QSettings>
+#include <QStorageInfo>
 #include <QTemporaryDir>
 #include <QtTest>
 
@@ -116,6 +118,57 @@ class WorkDirTests final : public QObject {
         QVERIFY(temp.CreateTempFile(nativePath(original), settings) != S_OK);
         QCOMPARE(contents(original), QByteArray("original"));
     }
+
+#ifdef Q_OS_LINUX
+    void publishedArchiveSurvivesTemporaryCleanupFailure() {
+        if (!QFileInfo("/dev/shm").isDir() ||
+            QStorageInfo("/dev/shm").device() == QStorageInfo(QDir::tempPath()).device())
+            QSKIP("No separate /dev/shm filesystem for cross-volume publication");
+        QTemporaryDir fixture;
+        QTemporaryDir work("/dev/shm/sevenzip-publication-XXXXXX");
+        QVERIFY(fixture.isValid() && work.isValid());
+        const QString original = fixture.filePath("archive 空.zip");
+        QFile file(original);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        QCOMPARE(file.write("original"), qint64(8));
+        file.close();
+        NWorkDir::CInfo info;
+        info.SetDefault();
+        info.Mode = NWorkDir::NMode::kSpecified;
+        info.ForRemovableOnly = false;
+        info.Path = nativePath(work.path());
+        const QString settings = fixture.filePath("settings.ini");
+        info.Save(settings);
+        CWorkDirTempFile temp;
+        QCOMPARE(temp.CreateTempFile(nativePath(original), settings), S_OK);
+        const QString temporary = qtPath(temp.Get_TempFilePath());
+        const auto permissions = QFile::permissions(work.path());
+        const auto cleanup = qScopeGuard([&] {
+            QFile::setPermissions(work.path(), permissions);
+            QFile::remove(temporary);
+        });
+        UInt32 written = 0;
+        QCOMPARE(temp.OutStream->Write("published", 9, &written), S_OK);
+        QCOMPARE(written, UInt32(9));
+        struct DenyCleanup final : NWindows::NFile::NDir::ICopyFileProgress {
+            QString directory;
+            bool denied = false;
+            DWORD CopyFileProgress(UInt64, UInt64) override {
+                denied = QFile::setPermissions(directory,
+                                               QFileDevice::ReadOwner | QFileDevice::ExeOwner);
+                return PROGRESS_CONTINUE;
+            }
+        } progress;
+        progress.directory = work.path();
+        bool published = false;
+        const HRESULT result = temp.MoveToOriginal(true, &progress, &published);
+        QVERIFY(progress.denied);
+        QVERIFY(result != S_OK);
+        QVERIFY(published);
+        QCOMPARE(contents(original), QByteArray("published"));
+        QCOMPARE(contents(temporary), QByteArray("published"));
+    }
+#endif
 
     void temporaryDirectoryCleanupDoesNotFollowLinks() {
         QTemporaryDir fixture;

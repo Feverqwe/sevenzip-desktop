@@ -20,6 +20,7 @@ class CResourceProgress final : public IQtProgressTransport {
     }
     ~CResourceProgress() override { _resourceSpec->SetUpdateProgress(nullptr); }
     HRESULT SetPaused(bool paused) override { return _transport.SetPaused(paused); }
+    void Cancel() override { _transport.Cancel(); }
 };
 } // namespace
 

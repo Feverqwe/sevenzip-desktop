@@ -11,14 +11,42 @@
 #include <QtTest>
 
 namespace {
+class CStopBeforeDispatch final : public QObject {
+    CProgressDialog &progress_;
+
+  public:
+    bool Armed = false;
+    bool Stopped = false;
+    explicit CStopBeforeDispatch(CProgressDialog &progress) : progress_(progress) {
+        progress.installEventFilter(this);
+    }
+    bool eventFilter(QObject *, QEvent *event) override {
+        if (Armed && event->type() == QEvent::MetaCall) {
+            Armed = false;
+            Stopped = true;
+            progress_.Sync.Set_Stopped(true);
+        }
+        return false;
+    }
+};
+
 struct CPasswordRequest {
     COpenArchiveCallback Callback;
     HRESULT Result = E_FAIL;
     BSTR Password = nullptr;
+    CStopBeforeDispatch *StopBeforeDispatch = nullptr;
     ~CPasswordRequest() { SysFreeString(Password); }
     static THREAD_FUNC_DECL Run(void *param) {
         auto &request = *static_cast<CPasswordRequest *>(param);
         CProgressCloser closer(request.Callback.ProgressDialog);
+        if (request.StopBeforeDispatch) {
+            request.Callback.ProgressDialog.WaitCreating();
+            // Arm before the callback's queued GUI delivery. Cancellation then
+            // happens in that event's filter, after worker-side prechecks.
+            QMetaObject::invokeMethod(
+                &request.Callback.ProgressDialog,
+                [&request] { request.StopBeforeDispatch->Armed = true; }, Qt::QueuedConnection);
+        }
         request.Result = request.Callback.Open_CryptoGetTextPassword(&request.Password);
         return 0;
     }
@@ -35,6 +63,48 @@ class OpenCallbackTests : public QObject {
         QCOMPARE(callback.Open_SetTotal(&files, &bytes), HRESULT(E_ABORT));
         QCOMPARE(callback.Open_CheckBreak(), HRESULT(E_ABORT));
         QCOMPARE(callback.Open_Finished(), HRESULT(E_ABORT));
+    }
+
+    void stoppedPasswordRequestDoesNotPrompt_data() {
+        QTest::addColumn<bool>("queued");
+        QTest::newRow("already-stopped") << false;
+        QTest::newRow("stopped-at-gui-dispatch") << true;
+    }
+    void stoppedPasswordRequestDoesNotPrompt() {
+        QFETCH(bool, queued);
+        QTemporaryDir settings;
+        QVERIFY(settings.isValid());
+        CPasswordRequest request;
+        request.Callback.SettingsPath = settings.filePath("options.ini");
+        CStopBeforeDispatch stop(request.Callback.ProgressDialog);
+        bool prompted = false;
+        QTimer responder;
+        connect(&responder, &QTimer::timeout, this, [&] {
+            auto *dialog = dynamic_cast<CPasswordDialog *>(QApplication::activeModalWidget());
+            if (!dialog)
+                return;
+            prompted = true;
+            dialog->findChild<QCheckBox *>("passwordShow")->setChecked(true);
+            dialog->findChild<QLineEdit *>("passwordEdit")->setText("discarded fixture");
+            dialog->accept();
+        });
+        responder.start(5); // Also bounds the unfixed run if a late prompt opens.
+        if (queued) {
+            request.StopBeforeDispatch = &stop;
+            NWindows::CThread worker;
+            QCOMPARE(worker.Create(CPasswordRequest::Run, &request), WRes(0));
+            request.Callback.StartProgressDialog(UString(L"Cancelled opening"), worker);
+            QVERIFY(stop.Stopped);
+        } else {
+            request.Callback.ProgressDialog.Sync.Set_Stopped(true);
+            request.Result = request.Callback.Open_CryptoGetTextPassword(&request.Password);
+        }
+        responder.stop();
+        QCOMPARE(request.Result, HRESULT(E_ABORT));
+        QVERIFY(!prompted);
+        QVERIFY(!request.Password);
+        QVERIFY(!request.Callback.PasswordIsDefined);
+        QVERIFY(!NExtract::Read_ShowPassword(request.Callback.SettingsPath));
     }
 
     void volumeSafetyAndRetainedStream() {

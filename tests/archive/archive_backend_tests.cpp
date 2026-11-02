@@ -182,8 +182,9 @@ class ArchiveBackendTests : public QObject, protected ArchiveBackendTestSupport 
             QCOMPARE(backend.lastResult(), E_ABORT);
         }
         QSignalSpy refused(&backend, &ArchiveBackend::finished);
+        const QString output = fixture.filePath("output");
         if (operation == "extract")
-            backend.extract(archive, fixture.filePath("output"), {"missing.txt"});
+            backend.extract(archive, output, {"a.txt", "missing.txt"});
         else
             backend.test(fixture.filePath("unlisted.zip"));
         QCOMPARE(refused.size(), 1);
@@ -191,6 +192,7 @@ class ArchiveBackendTests : public QObject, protected ArchiveBackendTestSupport 
         QVERIFY(FAILED(backend.lastResult()));
         QVERIFY(backend.lastResult() != E_ABORT);
         QVERIFY(!backend.busy());
+        QVERIFY(!QFileInfo::exists(output));
         QFile original(archive);
         QVERIFY(original.open(QIODevice::ReadOnly));
         QCOMPARE(original.readAll(), before);
@@ -281,6 +283,52 @@ class ArchiveBackendTests : public QObject, protected ArchiveBackendTestSupport 
                                                 &error));
         }
     }
+#ifdef Q_OS_WIN
+    void streamOutputIgnoresUnrelatedDriveCurrentDirectory() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString previous = QDir::currentPath();
+        const QString unrelated = fixture.filePath("unrelated");
+        QVERIFY(QDir().mkpath(unrelated + "/stream"));
+        QVERIFY(QDir::setCurrent(unrelated));
+        const auto restoreDirectory = qScopeGuard([&] { QDir::setCurrent(previous); });
+        const QString current = QDir::currentPath();
+        QVERIFY(current.size() > 2 && current.at(1) == ':');
+        NativeArchiveFixture::Item host;
+        host.Path = current.left(1);
+        host.Bytes = "host bytes";
+        auto stream = host;
+        stream.Path += ":stream";
+        stream.Bytes = "stream bytes";
+        stream.AltStream = true;
+        const QString archive = fixture.filePath("streams.wim");
+        QVERIFY(NativeArchiveFixture::Write(archive, {host, stream}, "wim"));
+        QFile source(archive);
+        QVERIFY(source.open(QIODevice::ReadOnly));
+        const QByteArray original = source.readAll();
+        source.close();
+        ArchiveBackend backend;
+        QCOMPARE(NativeArchiveFixture::Attach(backend), S_OK);
+        QSignalSpy finished(&backend, &ArchiveBackend::finished);
+        backend.list(archive);
+        QTRY_COMPARE(finished.size(), 1);
+        QVERIFY(finished.takeFirst().at(0).toBool());
+        const QString output = fixture.filePath("output");
+        backend.extract(archive, output);
+        QTRY_COMPARE(finished.size(), 1);
+        const auto result = finished.takeFirst();
+        QVERIFY2(result.at(0).toBool(), qPrintable(result.at(1).toString()));
+        QFile extracted(output + '/' + host.Path);
+        QVERIFY(extracted.open(QIODevice::ReadOnly));
+        QCOMPARE(extracted.readAll(), host.Bytes);
+        QFile extractedStream(output + '/' + stream.Path);
+        QVERIFY(extractedStream.open(QIODevice::ReadOnly));
+        QCOMPARE(extractedStream.readAll(), stream.Bytes);
+        QVERIFY(QDir(unrelated + "/stream").isEmpty());
+        QVERIFY(source.open(QIODevice::ReadOnly));
+        QCOMPARE(source.readAll(), original);
+    }
+#endif
     void extractionValidationLanguagePreservesRawPath() {
         QTemporaryDir fixture;
         const QString languageSettings = fixture.filePath("language.ini");
@@ -612,6 +660,48 @@ class ArchiveBackendTests : public QObject, protected ArchiveBackendTestSupport 
             QVERIFY(QDir().mkpath(QDir(output).filePath(entry.section('/', -1))));
             QVERIFY(
                 !backend.validateExtraction(output, {entry}, options, &error, false, sourceFolder));
+        }
+    }
+    void currentStreamFolderValidation_data() {
+        QTest::addColumn<QString>("entry");
+        QTest::addColumn<QString>("currentFolder");
+        QTest::addColumn<QString>("sourceFolder");
+        QTest::addColumn<bool>("accepted");
+        QTest::newRow("bound-owner") << "../inside/h:stream" << "../inside" << "../inside" << true;
+        QTest::newRow("unbound-owner") << "../inside/h:stream" << "../inside" << "" << false;
+        QTest::newRow("different-binding")
+            << "../inside/h:stream" << "../inside" << "other" << false;
+        QTest::newRow("remaining-traversal")
+            << "../inside/../h:stream" << "../inside" << "../inside" << false;
+        QTest::newRow("bound-stream-folder")
+            << "../inside/h:stream" << "../inside/h:" << "../inside/h:" << true;
+        QTest::newRow("unbound-stream-folder")
+            << "../inside/h:stream" << "../inside/h:" << "" << false;
+        QTest::newRow("unsafe-stream-output")
+            << "../inside/h:../escape" << "../inside/h:" << "../inside/h:" << false;
+    }
+    void currentStreamFolderValidation() {
+        QFETCH(QString, entry);
+        QFETCH(QString, currentFolder);
+        QFETCH(QString, sourceFolder);
+        QFETCH(bool, accepted);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        ArchiveEntry stream;
+        stream.path = entry;
+        stream.properties.insert(QStringLiteral("Alternate Stream"), QStringLiteral("+"));
+        ExtractionOptions options;
+        options.pathMode = ExtractionOptions::PathMode::CurrentPaths;
+        options.currentFolder = currentFolder;
+        QString error;
+        const QString output = fixture.filePath("output");
+        QCOMPARE(ArchiveBackend::validateExtractionEntries({stream}, output, {}, options, &error,
+                                                           false, sourceFolder),
+                 accepted);
+        if (accepted) {
+            options.pathMode = ExtractionOptions::PathMode::FullPaths;
+            QVERIFY(!ArchiveBackend::validateExtractionEntries({stream}, output, {}, options,
+                                                               &error, false, sourceFolder));
         }
     }
     void unsafePath() {

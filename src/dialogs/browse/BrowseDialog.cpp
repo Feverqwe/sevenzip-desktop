@@ -106,7 +106,7 @@ class CBrowseDialog : public QDialog {
     UString DirPrefix;
 
     bool GetParentPath(const UString &path, UString &parentPrefix, UString &name);
-    HRESULT Reload(const UString &pathPrefix, const UString &selectedName);
+    HRESULT Reload(UString pathPrefix, const UString &selectedName);
     HRESULT Reload();
     void OpenParentFolder();
     void SetPathEditText();
@@ -282,8 +282,7 @@ void CBrowseDialog::OnInit() {
     if (!GetParentPath(FilePath, DirPrefix, name))
         DirPrefix = _topDirPrefix;
     for (;;) {
-        const UString baseFolder = DirPrefix;
-        if (Reload(baseFolder, name) == S_OK)
+        if (Reload(DirPrefix, name) == S_OK)
             break;
         name.Empty();
         if (DirPrefix.IsEmpty())
@@ -431,7 +430,7 @@ int CBrowseDialog::CompareItems(int lParam1, int lParam2) const {
     return _ascending ? res : -res;
 }
 
-HRESULT CBrowseDialog::Reload(const UString &pathPrefix, const UString &selectedName) {
+HRESULT CBrowseDialog::Reload(UString pathPrefix, const UString &selectedName) {
     CObjectVector<CFileInfo> files;
 #ifdef _WIN32
     if (pathPrefix.IsEmpty() || pathPrefix.IsEqualTo(kSuperPathPrefix)) {
@@ -538,8 +537,7 @@ HRESULT CBrowseDialog::Reload() {
         if (fileIndex != kParentIndex)
             selected = fs2us(_files[fileIndex].Name);
     }
-    const UString dirPathTemp = DirPrefix;
-    return Reload(dirPathTemp, selected);
+    return Reload(DirPrefix, selected);
 }
 
 void CBrowseDialog::OpenParentFolder() {
@@ -591,8 +589,7 @@ void CBrowseDialog::OnCreateDir() {
         if (!NDir::CreateComplexDir(destPath))
             MessageBox_HResError(this, GetLastError_noZero_HRESULT(), fs2us(destPath));
         else {
-            const UString tempPath = DirPrefix;
-            Reload(tempPath, name);
+            Reload(DirPrefix, name);
             SetPathEditText();
         }
         _list->setFocus();

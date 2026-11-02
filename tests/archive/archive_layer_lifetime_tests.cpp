@@ -9,6 +9,7 @@
 #include "archive/support/archive_reader_fixture.h"
 #include "ui/progress/ProgressDialog2.h"
 #include "ui/progress/archiveprogresstransport.h"
+#include <QScopeGuard>
 
 namespace {
 class CReadRequest final : public IProgress, public CMyUnknownImp {
@@ -178,19 +179,55 @@ class ArchiveLayerLifetimeTests final : public ArchiveReaderFixture {
     }
     void progressAfterWindowRelease_data() {
         QTest::addColumn<bool>("native");
-        QTest::newRow("native callbacks") << true;
-        QTest::newRow("unavailable process") << false;
+        QTest::addColumn<bool>("resourceTransport");
+        QTest::newRow("native callbacks") << true << false;
+        QTest::newRow("unavailable process") << false << false;
+        QTest::newRow("resource native callbacks") << true << true;
+        QTest::newRow("resource unavailable process") << false << true;
     }
     void progressAfterWindowRelease() {
         QFETCH(bool, native);
+        QFETCH(bool, resourceTransport);
         auto backend = Backend();
         QVERIFY(backend);
         CProgressDialog dialog;
-        ArchiveProgressTransport transport(dialog, *backend, native);
+        std::unique_ptr<IQtProgressTransport> transport;
+        if (resourceTransport) {
+            CMyComPtr2<IUnknown, QtArchiveFileResource> resource;
+            resource.SetFromCls(new QtArchiveFileResource(QString()));
+            resource->AttachProgressService(*backend);
+            transport = resource->CreateProgressTransport(dialog, native);
+        } else
+            transport = std::make_unique<ArchiveProgressTransport>(dialog, *backend, native);
         backend.reset();
-        QCOMPARE(transport.SetPaused(true), native ? S_OK : E_FAIL);
-        QCOMPARE(transport.SetPaused(false), native ? S_OK : E_FAIL);
-        transport.Cancel();
+        QCOMPARE(transport->SetPaused(true), native ? S_OK : E_FAIL);
+        QCOMPARE(transport->SetPaused(false), native ? S_OK : E_FAIL);
+        transport->Cancel();
+    }
+    void resourceTransportCancelsPausedOperation() {
+        QTemporaryDir fixture;
+        const QString path = fixture.filePath(QStringLiteral("данные 空 with spaces.bin"));
+        const QByteArray bytes("resource progress bytes");
+        QVERIFY(Put(path, bytes));
+        auto backend = Backend();
+        QVERIFY(backend);
+        const auto cleanup = qScopeGuard([&] { backend->cancelAndWait(); });
+        CProgressDialog dialog;
+        dialog.Sync.Set_Paused(true);
+        CMyComPtr2<IUnknown, QtArchiveFileResource> resource;
+        resource.SetFromCls(new QtArchiveFileResource(QString()));
+        resource->AttachProgressService(*backend);
+        auto transport = resource->CreateProgressTransport(dialog);
+        QVERIFY(transport);
+        QSignalSpy finished(backend.get(), &ArchiveBackend::finished);
+        backend->hashMethods({path}, {"CRC32"});
+        QVERIFY(backend->busy());
+        transport->Cancel();
+        QTRY_COMPARE(finished.size(), 1);
+        QVERIFY(!finished.front().front().toBool());
+        QCOMPARE(backend->lastResult(), HRESULT(E_ABORT));
+        QVERIFY(!backend->busy());
+        QCOMPARE(Bytes(path), bytes);
     }
 };
 QTEST_MAIN(ArchiveLayerLifetimeTests)

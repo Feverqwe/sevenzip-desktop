@@ -87,11 +87,8 @@ void QtFileManagerCommands::AttachFileActions() {
     Bind(w.createFolder_, IDM_CREATE_FOLDER);
     Bind(w.createFile_, IDM_CREATE_FILE);
     Bind(w.exitAction_, 8);
-    const unsigned hashIDs[] = {IDM_CRC32,    IDM_CRC64,    IDM_XXH64,   IDM_MD5,
-                                IDM_SHA1,     IDM_SHA256,   IDM_SHA384,  IDM_SHA512,
-                                IDM_SHA3_256, IDM_BLAKE2SP, IDM_HASH_ALL};
-    for (unsigned i = 0; i < 11; ++i)
-        Bind(w.hashActions_[i], hashIDs[i]);
+    for (auto it = w.hashActions_.cbegin(); it != w.hashActions_.cend(); ++it)
+        Bind(it.value(), it.key());
 }
 
 void QtFileManagerCommands::AttachPanelActions() {
@@ -225,17 +222,18 @@ QtFileManagerCommands::TransportCapabilities QtFileManagerCommands::ReadTranspor
         const auto catalog = w.backend_->codecCatalog();
         CExternalCodecs providers;
         if (w.backend_->loadHashProviders(providers) == S_OK) {
-            for (QAction *action : w.hashActions_) {
-                const unsigned command = action->property("nativeCommandID").toUInt();
-                const QByteArray method = action->objectName().mid(4).chopped(6).toLatin1();
+            for (auto it = w.hashActions_.cbegin(); it != w.hashActions_.cend(); ++it) {
+                const unsigned command = it.key();
+                const char *method = GetHashMethodForCommand(command);
+                if (!method)
+                    continue;
                 CMethodId id;
-                if (method == "*") {
+                if (command == IDM_HASH_ALL) {
                     CRecordVector<CMethodId> methods;
                     GetHashMethods(&providers, methods);
                     c.hashMethods[command] = !methods.IsEmpty();
                 } else
-                    c.hashMethods[command] =
-                        FindHashMethod(&providers, AString(method.constData()), id);
+                    c.hashMethods[command] = FindHashMethod(&providers, AString(method), id);
             }
         }
     }

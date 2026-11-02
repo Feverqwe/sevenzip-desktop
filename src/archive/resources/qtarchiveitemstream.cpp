@@ -1,7 +1,6 @@
 #include "archive/resources/qtarchiveitemstream.h"
 #include "Common/ComTry.h"
 #include "Common/MyCom.h"
-#include "archive/resources/archiveinputlayer.h"
 #include "archive/resources/archivelayercontext.h"
 #include "archive/resources/archivenativeopen.h"
 #include "archive/resources/archivereadstream.h"
@@ -58,8 +57,7 @@ class CArchiveItemStream final : public IInStream,
             return S_OK;
         if (!data)
             return E_INVALIDARG;
-        std::lock_guard<std::mutex> lock(_native->itemStreamMutex());
-        ArchiveInputReadRequestScope scope(_native->inputStream(), request);
+        ArchiveNativeReadScope scope(_native, request);
         if (_seekable) {
             RINOK(_seekable->Seek(Int64(_position), STREAM_SEEK_SET, nullptr))
         }
@@ -83,8 +81,7 @@ class CArchiveItemStream final : public IInStream,
         }
         if (!_seekable)
             return E_NOTIMPL;
-        std::lock_guard<std::mutex> lock(_native->itemStreamMutex());
-        ArchiveInputReadRequestScope scope(_native->inputStream(), request);
+        ArchiveNativeReadScope scope(_native, request);
         if (origin == STREAM_SEEK_CUR) {
             RINOK(_seekable->Seek(Int64(_position), STREAM_SEEK_SET, nullptr))
         }
@@ -125,8 +122,7 @@ HRESULT CreateArchiveItemStream(IUnknown *resource, std::shared_ptr<ArchiveNativ
     if (!native || native->QueryInterface(IID_IInArchiveGetStream, (void **)&streams) != S_OK ||
         !streams)
         return S_OK;
-    std::lock_guard<std::mutex> lock(lease->itemStreamMutex());
-    ArchiveInputReadRequestScope scope(lease->inputStream(), request);
+    ArchiveNativeReadScope scope(lease, request);
     if (request) {
         RINOK(request->SetCompleted(nullptr))
     }

@@ -188,6 +188,35 @@ class OptionsDialogTests : public QObject {
             QCOMPARE(NExtract::Read_LimitGB(settings), UInt32(2));
         }
     }
+    void appliedObserverDraftIsNotDiscardedByOk() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString settings = fixture.filePath("pending.ini");
+        NExtract::Save_LimitGB(settings, 3);
+        QtFmOptionsDialog dialog(settings);
+        dialog.show();
+        QVERIFY(OptionsPresentation::show(dialog, "extractMemoryEdit"));
+        auto *edit = dialog.findChild<QLineEdit *>("extractMemoryEdit");
+        auto *buttons = dialog.findChild<QDialogButtonBox *>("settingsButtons");
+        bool changed = false;
+        connect(&dialog, &QtFmOptionsDialog::Applied, &dialog, [&] {
+            if (!changed) {
+                changed = true;
+                edit->setText("7");
+            }
+        });
+        buttons->button(QDialogButtonBox::Ok)->click();
+        QVERIFY(changed);
+        QVERIFY(dialog.isVisible());
+        QVERIFY(buttons->button(QDialogButtonBox::Apply)->isEnabled());
+        QCOMPARE(edit->text(), QString("7"));
+        QCOMPARE(NExtract::Read_LimitGB(settings), UInt32(3));
+        buttons->button(QDialogButtonBox::Ok)->click();
+        QCOMPARE(dialog.result(), int(QDialog::Accepted));
+        QVERIFY(!dialog.isVisible());
+        QCOMPARE(NExtract::Read_LimitGB(settings), UInt32(7));
+    }
+
     void memoryApplyThenCancelAndUnset() {
         QTemporaryDir fixture;
         const QString settings = fixture.filePath("memory.ini");

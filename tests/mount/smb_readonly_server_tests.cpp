@@ -189,6 +189,54 @@ class SmbReadOnlyServerTests final : public QObject {
         QVERIFY(file);
         QCOMPARE(ClientWork([&] { return smb2_close(accepted.Context, file); }), 0);
     }
+    void asynchronousReadsKeepFirstResultAndRecoverAfterError() {
+        QProcess server;
+        server.start(QStringLiteral(SEVENZIP_SMB_PROBE), {"0", "--async"});
+        QVERIFY(server.waitForStarted(10000));
+        const auto cleanup = qScopeGuard([&] {
+            server.terminate();
+            if (!server.waitForFinished(5000)) {
+                server.kill();
+                server.waitForFinished(5000);
+            }
+        });
+        QByteArray diagnostics;
+        const QRegularExpression ready("loopback SMB fixture ready on port ([0-9]+)");
+        QRegularExpressionMatch match;
+        QTRY_VERIFY_WITH_TIMEOUT((diagnostics += server.readAllStandardError(),
+                                  match = ready.match(QString::fromUtf8(diagnostics)),
+                                  match.hasMatch()),
+                                 10000);
+        Client client;
+        QCOMPARE(client.connect(match.captured(1).toUShort()), 0);
+        // Each asynchronous reader responds from another thread twice, with
+        // deliberately conflicting bytes/status in the second completion.
+        for (const char *name : {"hello.txt", "large.bin", "Файл с пробелом.bin"}) {
+            auto *file = ClientWork([&] { return smb2_open(client.Context, name, O_RDONLY); });
+            QVERIFY2(file, smb2_get_error(client.Context));
+            const auto close =
+                qScopeGuard([&] { ClientWork([&] { return smb2_close(client.Context, file); }); });
+            const bool failed = QByteArray(name) == "large.bin";
+            const quint64 offset = QByteArray(name) == "hello.txt" ? 1003 : 262140;
+            QByteArray bytes(128, '\0');
+            const int count = ClientWork([&] {
+                return smb2_pread(client.Context, file, reinterpret_cast<uint8_t *>(bytes.data()),
+                                  bytes.size(), offset);
+            });
+            if (failed) {
+                QVERIFY(count < 0);
+                QCOMPARE(bytes, QByteArray(128, '\0'));
+            } else {
+                QCOMPARE(count, offset == 1003 ? 128 : 4);
+                QByteArray expected(count, Qt::Uninitialized);
+                for (int i = 0; i < count; ++i)
+                    expected[i] = char((offset + i) % 251);
+                QCOMPARE(bytes.left(count), expected);
+                QCOMPARE(bytes.mid(count), QByteArray(bytes.size() - count, '\0'));
+            }
+        }
+        QCOMPARE(server.state(), QProcess::Running);
+    }
     void cancelHasNoReplyAndPreservesOutstandingRead() {
 #ifndef Q_OS_UNIX
         QSKIP("This wire-client driver uses POSIX poll; native Windows lifecycle is checked "

@@ -68,7 +68,7 @@ class ArchiveOpenOptionsTests final : public QObject {
     }
     bool extract(ArchiveBackend &backend, const QString &archive, const QString &output,
                  const UString &type, bool excludeZip) {
-        QtShellArchiveServices service(backend, nullptr, {}, {});
+        QtShellArchiveServices service(backend, nullptr);
         CObjectVector<COpenType> types;
         if (!ParseOpenTypes(service.Codecs(), type, types))
             return false;

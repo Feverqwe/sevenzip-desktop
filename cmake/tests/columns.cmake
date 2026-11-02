@@ -45,8 +45,9 @@
     target_link_libraries(archive_error_properties_tests PRIVATE sevenzip_panel Qt6::Test)
     add_test(NAME archive_error_properties COMMAND archive_error_properties_tests -silent)
 
-    qt_add_executable(panel_property_tests tests/filemanager/panel_property_tests.cpp)
-    target_link_libraries(panel_property_tests PRIVATE sevenzip_layout_inspection)
+    qt_add_executable(panel_property_tests tests/filemanager/panel_property_tests.cpp
+        tests/archive/support/schema_folder.cpp)
+    target_link_libraries(panel_property_tests PRIVATE sevenzip_layout_inspection sevenzip_panel_load_fixture)
     target_include_directories(panel_property_tests PRIVATE tests)
     target_link_libraries(panel_property_tests PRIVATE sevenzip_panel Qt6::Test)
     add_test(NAME panel_property COMMAND panel_property_tests -silent)

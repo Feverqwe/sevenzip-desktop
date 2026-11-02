@@ -39,6 +39,7 @@ void QtFileManagerDrag::Revoke() {
     if (revoked_)
         return;
     revoked_ = true;
+    rightPress_.reset();
     external_.NativeData.reset();
     window_.app_.DropTarget().ClearState();
     window_.app_.DropTarget().AttachPresentation(nullptr);
@@ -235,9 +236,9 @@ std::optional<HRESULT> QtFileManagerDrag::HandleDroppedPathChoice(CDataObject *d
 }
 
 QString QtFileManagerDrag::PathToOpen(CDataObject *data, DWORD keys) const {
-    if (active_ || data != &external_ || menuDrag_ || (keys & (MK_RBUTTON | MK_MBUTTON)))
-        return {};
     const auto &target = window_.app_.DropTarget();
+    if (active_ || data != &external_ || target.IsMenuDrop() || (keys & (MK_RBUTTON | MK_MBUTTON)))
+        return {};
     const CPanel *panel = target.TargetPanel();
     if (!panel || !panel->IsFSFolder())
         return {};
@@ -285,8 +286,6 @@ bool QtFileManagerDrag::HandleDropEvent(QWidget &widget, QEvent &event) {
     }
     const QPoint position = widget.mapToGlobal(drop.position().toPoint());
     const DWORD keys = DropKeys(drop);
-    if (event.type() == QEvent::DragEnter)
-        menuDrag_ = (keys & (MK_RBUTTON | MK_MBUTTON)) != 0;
     DWORD effect = 0;
     if (drop.possibleActions() & Qt::CopyAction)
         effect |= DROPEFFECT_COPY;

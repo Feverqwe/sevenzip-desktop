@@ -28,7 +28,8 @@ class CWorkDirTempFile MY_UNCOPYABLE {
     HRESULT CreateTempFile(const FString &originalPath, const QString &settingsPath = {});
     HRESULT SetMTime(const CFiTime &time);
     HRESULT MoveToOriginal(bool deleteOriginal,
-                           NWindows::NFile::NDir::ICopyFileProgress *progress = NULL);
+                           NWindows::NFile::NDir::ICopyFileProgress *progress = NULL,
+                           bool *published = nullptr);
 };
 
 #endif

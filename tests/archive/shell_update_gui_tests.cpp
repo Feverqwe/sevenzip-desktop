@@ -2,6 +2,7 @@
 #include "archive/backend/archivebackend.h"
 #include "archive/codecs/archivecodeccatalog.h"
 #include "archive/support/source_extract_fixture.h"
+#include "dialogs/compress/CompressDialog.h"
 #include "gui/UpdateCallbackGUI.h"
 #include "gui/UpdateGUI.h"
 #include "operations/CompressCall.h"
@@ -103,7 +104,7 @@ class ShellUpdateGuiTests final : public QObject {
         QVERIFY(SourceExtractFixture::writeFile(path, "abc"));
         ArchiveBackend backend;
         QCOMPARE(backend.loadCodecCatalog(_module, _version), S_OK);
-        QtShellArchiveServices service(backend, nullptr, {}, {});
+        QtShellArchiveServices service(backend, nullptr);
         CCodecs &codecs = service.Codecs();
         CObjectVector<COpenType> types;
         QVERIFY(ParseOpenTypes(codecs, UString(L"7z"), types));
@@ -233,7 +234,7 @@ class ShellUpdateGuiTests final : public QObject {
         QVERIFY(SourceExtractFixture::writeFile(fixture.filePath(name), "abc"));
         ArchiveBackend backend;
         QCOMPARE(backend.loadCodecCatalog(_module, _version), S_OK);
-        QtShellArchiveServices service(backend, nullptr, {}, {});
+        QtShellArchiveServices service(backend, nullptr);
         UStringVector paths;
         paths.Add(us(fixture.filePath(name)));
         const QString target = "result." + (type == "hash" ? "sha256" : type);
@@ -257,7 +258,7 @@ class ShellUpdateGuiTests final : public QObject {
         QVERIFY(SourceExtractFixture::writeFile(fixture.filePath("result.7z"), "sentinel"));
         ArchiveBackend backend;
         QCOMPARE(backend.loadCodecCatalog(_module, _version), S_OK);
-        QtShellArchiveServices service(backend, nullptr, {}, {});
+        QtShellArchiveServices service(backend, nullptr);
         UStringVector paths;
         paths.Add(us(path));
         CDismissal dismissal;
@@ -284,7 +285,7 @@ class ShellUpdateGuiTests final : public QObject {
         QVERIFY(SourceExtractFixture::writeFile(path, data));
         ArchiveBackend backend;
         QCOMPARE(backend.loadCodecCatalog(_module, _version), S_OK);
-        QtShellArchiveServices service(backend, nullptr, {}, {});
+        QtShellArchiveServices service(backend, nullptr);
         UStringVector paths;
         paths.Add(us(path));
         CDismissal dismissal;
@@ -304,7 +305,7 @@ class ShellUpdateGuiTests final : public QObject {
         QVERIFY(SourceExtractFixture::writeFile(path, "abc"));
         ArchiveBackend backend;
         QCOMPARE(backend.loadCodecCatalog(_module, _version), S_OK);
-        QtShellArchiveServices stale(backend, nullptr, {}, {});
+        QtShellArchiveServices stale(backend, nullptr);
         QCOMPARE(backend.loadCodecCatalog(_module, _version), S_OK);
         UStringVector paths;
         paths.Add(us(path));

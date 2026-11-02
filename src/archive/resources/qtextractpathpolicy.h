@@ -15,19 +15,15 @@ class CQtExtractPathPolicy final : public IQtExtractPathPolicy {
                       UString &message) override {
         QString error;
         QString output = QString::fromWCharArray(fs2us(path).Ptr());
-#ifdef Q_OS_WIN
         // The source has corrected the stream name and chosen its base file.
-        // Validate the base independently, so an existing base link cannot
-        // redirect an otherwise bounded NTFS stream write.
+        // The validator checks an NTFS stream's owner or the standalone POSIX
+        // output, retaining their different filesystem link boundaries.
         if (alternateStream) {
             if (ArchiveBackend::validateExtractionStreamOutput(_destination, output, &error))
                 return S_OK;
             message = error.toStdWString().c_str();
             return E_INVALIDARG;
         }
-#else
-        Q_UNUSED(alternateStream);
-#endif
         if (ArchiveBackend::validateExtractionOutput(_destination, output, directory, &error))
             return S_OK;
         message = error.toStdWString().c_str();

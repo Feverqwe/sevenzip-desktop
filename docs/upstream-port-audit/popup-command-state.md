@@ -71,3 +71,33 @@ table/icons, EN/RU, normal/compact geometry и четырёх empty/Parent со�
 Сохранены порядок, группы и видимость пунктов; Rename без operated item
 отключён, Create File доступен в пустой обычной папке. Скриншоты не требовались;
 rendered Windows 7zFM comparison и физический ввод не заявляются.
+
+## Привязка команд контрольных сумм — 2026-11-01
+
+Сверены исходный `ExecuteFileCommand`, CRC resource menu и текущая цепочка
+Qt menu → binding → capability projection → dispatcher → CalculateCrc.
+Полные MyLoadMenu.cpp/.h и resource.rc/.h совпадают с существующими baseline
+hashes ревизии `b88c6bc09339de32f7d18bbab900686b244f42ba` того же repository.
+Внешний код не импортирован, исходные hashes и revision не меняются.
+
+Исходное соответствие command ID и имени hash method вынесено в общий lookup
+того же menu owner. Native switch сохраняет все прежние command branches и
+проверку доступности перед side effects; вычисление digest и выбор файлов не
+меняются. Qt действия хранятся по native ID вместо позиционного массива.
+Их создание, привязка и проверка провайдера используют тот же ID; parsing
+`objectName` и параллельный список методов/индексов удалены. Порядок resource
+menu, подписи, action names, локализация и public command IDs сохранены.
+
+Каталог и provider interfaces сохраняют прежнее время жизни. Кэширования
+capabilities или отказов загрузки не добавлено; navigation, selection, busy/
+closed guards и повторная проверка перед выполнением остаются прежними.
+Существующий dispatch regression теперь проверяет правильный typed вызов для
+всех hash command IDs; runtime suites проверяют native digest выбранного файла,
+ошибки/отмену, независимый 7zG, смену папки во время публикации и языков меню.
+
+Linux PASS: `native_command_dispatch`, `command_policy_runtime`,
+`command_publication`, `checksum`, `manager_hash_workflow`, `language_ui` —
+44 проверки без skips. Сборка 59,826 с, тесты 4,075 с. Изменение общей привязки
+не затрагивает native OS branches; macOS/Windows и visual parity этим запуском
+не проверялись. Обычный параллелизм 4 и compiler cache сохранены. После terminal
+run удалены пять settings fixtures; full/slow gate и UI reports не запускались.

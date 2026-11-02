@@ -3,13 +3,16 @@
 #include <QFile>
 #include <QProcess>
 #include <QSaveFile>
+#include <QScopeGuard>
 #include <QTemporaryDir>
 #include <QTimer>
 #include <QtTest>
 #ifdef Q_OS_WIN
 #include <windows.h>
 #else
+#include <cerrno>
 #include <csignal>
+#include <sys/wait.h>
 #include <unistd.h>
 #endif
 
@@ -80,6 +83,36 @@ class OperationProcessTests final : public QObject {
         QVERIFY(file.open(QIODevice::ReadOnly));
         QCOMPARE(file.readAll(), QByteArray("completed after parent exit"));
     }
+#ifndef Q_OS_WIN
+    void discardedObserverReapsIndependentChild() {
+        QTemporaryDir directory;
+        QVERIFY(directory.isValid());
+        const QString output = directory.filePath(QStringLiteral("итог 空 with spaces.txt"));
+        qputenv("SEVENZIP_OPERATION_PROBE_OUTPUT", output.toUtf8());
+        const auto restore = qScopeGuard([] { qunsetenv("SEVENZIP_OPERATION_PROBE_OUTPUT"); });
+        auto process = std::make_unique<QtOperationProcess>();
+        QVERIFY(process->start(QCoreApplication::applicationFilePath(), "wait-release"));
+        const pid_t child = pid_t(process->processId());
+        QVERIFY(child > 0);
+        const auto cleanup = qScopeGuard([&] { ::waitpid(child, nullptr, WNOHANG); });
+        process.reset();
+        QVERIFY(!QFileInfo::exists(output));
+        QFile release(output + ".release");
+        QVERIFY(release.open(QIODevice::WriteOnly));
+        release.close();
+        QTRY_VERIFY(QFileInfo::exists(output));
+        QFile file(output);
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        QCOMPARE(file.readAll(), QByteArray("completed after parent exit"));
+        // WNOWAIT observes ownership without stealing the exit from a reaper.
+        const auto reaped = [child] {
+            siginfo_t information{};
+            return ::waitid(P_PID, id_t(child), &information, WEXITED | WNOHANG | WNOWAIT) < 0 &&
+                   errno == ECHILD;
+        };
+        QTRY_VERIFY_WITH_TIMEOUT(reaped(), 3000);
+    }
+#endif
 };
 
 int main(int argc, char **argv) {
@@ -104,15 +137,27 @@ int main(int argc, char **argv) {
 #endif
             return 1;
         }
-        if (mode == "survive") {
-            QTimer::singleShot(250, &application, [&] {
+        if (mode == "survive" || mode == "wait-release") {
+            const auto complete = [&] {
                 QSaveFile output(qEnvironmentVariable("SEVENZIP_OPERATION_PROBE_OUTPUT"));
                 if (!output.open(QIODevice::WriteOnly) ||
                     output.write("completed after parent exit") != 27 || !output.commit())
                     application.exit(1);
                 else
                     application.exit(0);
-            });
+            };
+            QTimer release;
+            if (mode == "survive")
+                QTimer::singleShot(250, &application, complete);
+            else {
+                QObject::connect(&release, &QTimer::timeout, &application, [&] {
+                    if (QFileInfo::exists(qEnvironmentVariable("SEVENZIP_OPERATION_PROBE_OUTPUT") +
+                                          ".release"))
+                        complete();
+                });
+                release.start(10);
+                QTimer::singleShot(10000, &application, [&] { application.exit(1); });
+            }
             return application.exec();
         }
         return mode == "success" ? 0 : mode == "cancelled" ? 255 : 2;

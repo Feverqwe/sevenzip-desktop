@@ -2,6 +2,7 @@
 #include "Windows/PropVariant.h"
 #include "archive/callbacks/ArchiveExtractCallback.h"
 #include "archive/hashing/HashCalc.h"
+#include "archive/hashing/qtfilecrc.h"
 #include "archive/resources/qtarchivehashoperation.h"
 #include "dialogs/listview/ListViewDialog.h"
 #include "filemanager/ExtractCallback.h"
@@ -78,6 +79,38 @@ class NativeHashWorkflowTests final : public QObject {
         return file.open(QIODevice::WriteOnly) && file.write(data) == data.size();
     }
   private slots:
+    void panelFileResultIsShownOnce() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString name = QStringLiteral("имя с пробелом.txt");
+        const QByteArray payload = "native checksum fixture";
+        QVERIFY(write(fixture.filePath(name), payload));
+        UStringVector paths;
+        paths.Add(name.toStdWString().c_str());
+        CExternalCodecs providers;
+        int resultWindows = 0;
+        QString resultText;
+        QTimer responder;
+        connect(&responder, &QTimer::timeout, this, [&] {
+            auto *dialog = qobject_cast<CListViewDialog *>(QApplication::activeModalWidget());
+            if (!dialog)
+                return;
+            ++resultWindows;
+            auto *rows = dialog->findChild<QTreeWidget *>("propertiesList");
+            for (int row = 0; row < rows->topLevelItemCount(); ++row)
+                resultText += rows->topLevelItem(row)->text(1) + '\n';
+            dialog->accept();
+        });
+        responder.start(5);
+        const UString prefix((fixture.path() + '/').toStdWString().c_str());
+        const HRESULT result =
+            CalculateFileCrc(L"SHA256", &providers, prefix, paths, true, nullptr);
+        responder.stop();
+        QCOMPARE(result, S_OK);
+        QCOMPARE(resultWindows, 1);
+        QVERIFY(resultText.contains(QString::fromLatin1(
+            QCryptographicHash::hash(payload, QCryptographicHash::Sha256).toHex())));
+    }
     void extractedDirectoryContributesToHash_data() {
         QTest::addColumn<bool>("toStream");
         QTest::newRow("filesystem") << false;
@@ -147,7 +180,7 @@ class NativeHashWorkflowTests final : public QObject {
         QVERIFY(QDir().mkpath(root + "/empty"));
         QVERIFY(write(root + QStringLiteral("/имя.txt"), "123456789"));
         QVERIFY(write(root + "/other.txt", "abc"));
-        QtArchiveHashOperation worker({root}, methods, {});
+        QtArchiveHashOperation worker({root}, methods, {}, std::make_unique<CExternalCodecs>());
         QSignalSpy finished(&worker, &QThread::finished);
         worker.start();
         QTRY_COMPARE_WITH_TIMEOUT(finished.size(), 1, 30000);
@@ -178,7 +211,8 @@ class NativeHashWorkflowTests final : public QObject {
         const QString path = temporary.filePath("input.txt");
         QVERIFY(write(path, "input"));
         for (bool cancel : {false, true}) {
-            QtArchiveHashOperation worker({path}, {cancel ? "SHA256" : "unknown"}, {});
+            QtArchiveHashOperation worker({path}, {cancel ? "SHA256" : "unknown"}, {},
+                                          std::make_unique<CExternalCodecs>());
             QSignalSpy finished(&worker, &QThread::finished);
             if (cancel)
                 worker.setPaused(true);

@@ -10,6 +10,7 @@
 #include "archive/resources/archivenativeopen.h"
 #include "archive/resources/qtarchivedeleteinputs.h"
 #include "archive/resources/qtarchivefileresource.h"
+#include "archive/resources/qtarchiveupdatepublication.h"
 #include "archive/resources/qtarchivewritelease.h"
 #include "fileops/native/FileDir.h"
 #include "platform/temp/WorkDir.h"
@@ -126,6 +127,8 @@ HRESULT CAgentFolder::CommonUpdateOperation(AGENT_OP operation, bool moveMode,
                                             const NUpdateArchive::CActionSet *actionSet,
                                             const UInt32 *indices, UInt32 numItems,
                                             IProgress *progress) {
+    auto *publication = dynamic_cast<QtArchiveUpdatePublication *>(progress);
+    bool *published = publication ? &publication->Published.emplace(false) : nullptr;
     if (!IsBound())
         return E_FAIL;
     if (moveMode && _agentSpec->_isHashHandler)
@@ -154,6 +157,14 @@ HRESULT CAgentFolder::CommonUpdateOperation(AGENT_OP operation, bool moveMode,
     }
 
     try {
+        CMyComPtr<IUnknown> deletionOwner = _agentSpec->GetEngineResource();
+        auto *deletionResource = dynamic_cast<QtArchiveFileResource *>(deletionOwner.Interface());
+        if (deletionResource)
+            deletionResource->DiscardDeleteInputs();
+        const auto discardDeleteInputs = qScopeGuard([&] {
+            if (deletionResource)
+                deletionResource->DiscardDeleteInputs();
+        });
 
         RINOK(_agentSpec->SetFolder(this))
 
@@ -263,7 +274,7 @@ HRESULT CAgentFolder::CommonUpdateOperation(AGENT_OP operation, bool moveMode,
 
             C_CopyFileProgress_to_FolderCallback_MoveArc prox(updateCallback_MoveArc);
             res = tempFile.MoveToOriginal(true, // deleteOriginal
-                                          &prox);
+                                          &prox, published);
             if (res == S_OK) {
                 adoptPublishedTemp();
                 res = updateCallback_MoveArc->MoveArc_Finish();
@@ -279,7 +290,7 @@ HRESULT CAgentFolder::CommonUpdateOperation(AGENT_OP operation, bool moveMode,
             // And Before_ArcReopen() call will clear user break status in that case.
             RINOK(updateCallback_MoveArc->Before_ArcReopen())
         } else {
-            res = tempFile.MoveToOriginal(true); // deleteOriginal
+            res = tempFile.MoveToOriginal(true, nullptr, published); // deleteOriginal
             if (res == S_OK)
                 adoptPublishedTemp();
         }

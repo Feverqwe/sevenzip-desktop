@@ -292,10 +292,19 @@ Preserve unrelated working-tree changes and other tasks' memory entries.
 
 ### Validation scope
 
-Linux runner is the primary validation platform. For each code/build change,
-build affected targets and run focused checks there first. After Linux passes,
-validate the same change on macOS and Windows; those secondary checks may run
-in parallel. Fix Linux failures before starting secondary acceptance runs.
+Linux remains the primary development platform and the default platform for
+validating shared behavior.
+Build affected targets and run focused checks only on platforms relevant to
+the changed behavior and its dependencies. Before each batch, briefly explain
+why the selected platforms are needed. Platform-specific changes need checks
+on their owning platform; do not automatically add the other operating systems.
+For shared portable behavior, use one applicable platform (Linux by default),
+and add another only for a concrete affected compiler, filesystem, native
+integration or build difference, or explicit cross-platform acceptance request.
+A shared source file or an iteration/commit boundary alone does not justify
+repeating the same checks on all three operating systems.
+When Linux and other platforms are selected, validate Linux first and fix its
+failures before secondary acceptance; the remaining checks may run in parallel.
 If a runner is unavailable, continue independent work and report the missing
 platform evidence rather than waiting indefinitely.
 

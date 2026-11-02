@@ -16,39 +16,45 @@ QtFileManagerShellMenu::QtFileManagerShellMenu(MainWindow &window, QMenu &menu,
     : _window(window), _menu(menu),
       _services(
           *window.backend_, &window,
-          [this](const UString &path, const UString &type) { return Open(path, type); },
-          [this](const UString &folder, const UString &name, const UString &type, bool addExtension,
-                 const UStringVector &paths, bool email, bool showDialog, bool waitFinish) {
-              if (!waitFinish && _window.canLaunchGuiFilesystemOperation())
-                  return _window.launchGuiArchiveCompress(folder, name, type, addExtension, paths,
-                                                          email, showDialog);
-              return ::CompressFiles(folder, name, type, addExtension, paths, email, showDialog,
-                                     waitFinish, _services);
-          },
-          {},
-          [this](CCompressDialog &source, const CObjectVector<NWildcard::CCensorPath> &paths,
-                 QWidget *parent) {
-              return CreateArchiveDialog::PresentSource(source, paths, _services.Catalog(), parent);
-          },
-          MainWindow::toolbarSettingsPath(),
-          [this](const UStringVector &paths, bool hashMode) {
-              if (_window.canLaunchGuiFilesystemOperation())
-                  return _window.launchGuiArchiveTest(paths, hashMode);
-              return ::TestArchives(paths, hashMode, _services);
-          },
-          [this](const UStringVector &paths, const UString &folder, bool showDialog, bool elimDup,
-                 UInt32 writeZone) {
-              if (_window.canLaunchGuiFilesystemOperation())
-                  return _window.launchGuiArchiveExtract(paths, folder, showDialog, elimDup,
-                                                         writeZone);
-              return ::ExtractArchives(paths, folder, showDialog, elimDup, writeZone, _services);
-          },
-          {},
-          [this](const UStringVector &paths, const UString &method) {
-              if (_window.canLaunchGuiFilesystemOperation())
-                  return _window.launchGuiHash(paths, method);
-              return ::CalcChecksum(paths, method, UString(), UString(), _services);
-          }),
+          {.Open = [this](const UString &path, const UString &type) { return Open(path, type); },
+           .Compress =
+               [this](const UString &folder, const UString &name, const UString &type,
+                      bool addExtension, const UStringVector &paths, bool email, bool showDialog,
+                      bool waitFinish) {
+                   if (!waitFinish && _window.canLaunchGuiFilesystemOperation())
+                       return _window.launchGuiArchiveCompress(folder, name, type, addExtension,
+                                                               paths, email, showDialog);
+                   return ::CompressFiles(folder, name, type, addExtension, paths, email,
+                                          showDialog, waitFinish, _services);
+               },
+           .Modal =
+               [this](CCompressDialog &source, const CObjectVector<NWildcard::CCensorPath> &paths,
+                      QWidget *parent) {
+                   return CreateArchiveDialog::PresentSource(source, paths, _services.Catalog(),
+                                                             parent);
+               },
+           .Test =
+               [this](const UStringVector &paths, bool hashMode) {
+                   if (_window.canLaunchGuiFilesystemOperation())
+                       return _window.launchGuiArchiveTest(paths, hashMode);
+                   return ::TestArchives(paths, hashMode, _services);
+               },
+           .Extract =
+               [this](const UStringVector &paths, const UString &folder, bool showDialog,
+                      bool elimDup, UInt32 writeZone) {
+                   if (_window.canLaunchGuiFilesystemOperation())
+                       return _window.launchGuiArchiveExtract(paths, folder, showDialog, elimDup,
+                                                              writeZone);
+                   return ::ExtractArchives(paths, folder, showDialog, elimDup, writeZone,
+                                            _services);
+               },
+           .Hash =
+               [this](const UStringVector &paths, const UString &method) {
+                   if (_window.canLaunchGuiFilesystemOperation())
+                       return _window.launchGuiHash(paths, method);
+                   return ::CalcChecksum(paths, method, UString(), UString(), _services);
+               }},
+          MainWindow::toolbarSettingsPath()),
       _dispatch(std::move(dispatch)) {
     static const bool initialized = [] {
         Q_INIT_RESOURCE(upstream_shell_icons);

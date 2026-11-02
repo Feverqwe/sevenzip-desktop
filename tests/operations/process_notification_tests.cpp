@@ -133,6 +133,44 @@ class ProcessNotificationTests final : public QObject {
         QVERIFY(completed[1][0].toBool());
         QCOMPARE(backend.lastResult(), HRESULT(E_INVALIDARG));
     }
+    void listingDiagnosticReceiverCanExtractCompletedArchive() {
+        QTemporaryDir fixture;
+        const QString archive = fixture.filePath(QStringLiteral("архив 空.7z"));
+        const QByteArray payload("retained bytes\0binary", 21);
+        QVERIFY(NativeArchiveFixture::Write(archive, {{"first.txt", payload}}, "7z"));
+        QFile file(archive);
+        QVERIFY(file.open(QIODevice::Append));
+        const QByteArray trailing("nonzero trailing data");
+        QCOMPARE(file.write(trailing), qint64(trailing.size()));
+        file.close();
+        const QString destination = fixture.filePath("extracted");
+        ArchiveBackend backend;
+        bool requested = false;
+        bool listed = false;
+        connect(&backend, &ArchiveBackend::outputReceived, this, [&] {
+            if (requested)
+                return;
+            requested = true;
+            listed = backend.hasListedSourceArchive(archive);
+            backend.extract(archive, destination, {"first.txt"});
+        });
+        QSignalSpy completed(&backend, &ArchiveBackend::finished);
+        QSignalSpy entries(&backend, &ArchiveBackend::entriesReady);
+        backend.list(archive);
+        QTRY_COMPARE(completed.size(), 2);
+        QVERIFY(requested);
+        QVERIFY(listed);
+        QVERIFY(completed[0][0].toBool()); // The completed listing retains its own result.
+        QVERIFY(!completed[1][0].toBool()); // Trailing data still makes extraction unverified.
+        QCOMPARE(entries.size(), 1);
+        const auto listing = qvariant_cast<QList<ArchiveEntry>>(entries[0][0]);
+        QCOMPARE(listing.size(), 1);
+        QCOMPARE(listing[0].path, QString("first.txt"));
+        QFile extracted(QDir(destination).filePath("first.txt"));
+        QVERIFY(extracted.open(QIODevice::ReadOnly));
+        QCOMPARE(extracted.readAll(), payload);
+        QVERIFY(!backend.busy());
+    }
 };
 
 QTEST_GUILESS_MAIN(ProcessNotificationTests)

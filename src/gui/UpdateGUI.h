@@ -4,10 +4,12 @@
 
 #include "7zip/UI/Common/Property.h"
 #include "7zip/UI/Common/UpdateAction.h"
-#include "dialogs/compress/CompressDialog.h"
+#include "dialogs/compress/CompressInfo.h"
 #include "fileops/patterns/Wildcard.h"
 #include <functional>
 class CUpdateCallbackGUI;
+class CCodecs;
+class CCompressDialog;
 struct CUpdateOptions;
 struct COpenType;
 class IQtUpdateGUIServices;

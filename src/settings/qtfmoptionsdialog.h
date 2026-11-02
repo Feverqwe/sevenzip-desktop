@@ -57,7 +57,8 @@ class QtFmOptionsDialog final : public QDialog {
     explicit QtFmOptionsDialog(const QString &settingsPath, QWidget *parent = nullptr,
                                IFolderManager *manager = nullptr,
                                std::shared_ptr<IQtAssociationServices> associations = {});
-    void apply();
+    // Returns whether the dialog can close after applying.
+    bool apply();
     void accept() override;
     void reject() override;
 

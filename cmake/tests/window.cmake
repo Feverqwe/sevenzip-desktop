@@ -43,7 +43,7 @@
     qt_add_executable(archive_external_edit_tests
         tests/filemanager/archive_external_edit_tests.cpp
         tests/platform/support/external_editor_fixture.cpp)
-    target_link_libraries(archive_external_edit_tests PRIVATE sevenzip_layout_inspection)
+    target_link_libraries(archive_external_edit_tests PRIVATE sevenzip_layout_inspection sevenzip_panel_load_fixture)
     target_link_libraries(archive_external_edit_tests PRIVATE sevenzip_window)
     target_include_directories(archive_external_edit_tests PRIVATE src tests)
     target_link_libraries(archive_external_edit_tests PRIVATE Qt6::Widgets Qt6::Test)
@@ -136,6 +136,7 @@
     set_tests_properties(ui_layout PROPERTIES
         ENVIRONMENT "QT_QPA_PLATFORM=offscreen;SEVENZIP_SCREENSHOT_DIR=${CMAKE_BINARY_DIR}/ui-screenshots;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/ui-layout-settings.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports"
     )
+    add_dependencies(archive_backend_tests sevenzip_linux_frames_runtime)
     add_test(NAME archive_backend COMMAND archive_backend_tests)
     qt_add_executable(extract_dialog_tests tests/archive/extract_dialog_tests.cpp)
     target_link_libraries(extract_dialog_tests PRIVATE sevenzip_layout_inspection sevenzip_location)

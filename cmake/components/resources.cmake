@@ -10,6 +10,15 @@ target_include_directories(sevenzip_operation_process PUBLIC src)
 target_link_libraries(sevenzip_operation_process PUBLIC Qt6::Core)
 if(WIN32)
     target_link_libraries(sevenzip_operation_process PRIVATE sevenzip_common)
+elseif(UNIX)
+    add_library(sevenzip_child_reaper STATIC
+        src/platform/process/qtchildprocessreaper.cpp src/platform/process/qtchildprocessreaper.h)
+    set_target_properties(sevenzip_child_reaper PROPERTIES AUTOMOC OFF AUTOUIC OFF)
+    target_compile_features(sevenzip_child_reaper PUBLIC cxx_std_23)
+    target_include_directories(sevenzip_child_reaper PUBLIC src)
+    target_link_libraries(sevenzip_child_reaper PRIVATE Threads::Threads)
+    target_link_libraries(sevenzip_operation_process PRIVATE sevenzip_child_reaper)
+    target_link_libraries(sevenzip_panel PRIVATE sevenzip_child_reaper)
 endif()
 
 add_library(sevenzip_operation_client STATIC src/operations/qtoperationlauncher.cpp src/operations/qtoperationlauncher.h)
@@ -64,10 +73,12 @@ add_library(sevenzip_filesystem STATIC
     src/archive/operations/UpdatePair.cpp
     ${SEVENZIP_7ZIP_SOURCE_DIR}/CPP/7zip/UI/Common/UpdateProduce.cpp
     src/archive/resources/qtarchivedeleteinputs.cpp src/archive/resources/qtarchivedeleteinputs.h
+    src/archive/resources/qtarchivetransferinputs.cpp src/archive/resources/qtarchivetransferinputs.h
 
     src/archive/streams/MultiOutStream.cpp src/archive/streams/MultiOutStream.h
 
     src/archive/callbacks/ArchiveExtractCallback.cpp src/archive/callbacks/ArchiveExtractCallback.h
+    src/archive/callbacks/qtarchiveoutputidentity.cpp src/archive/callbacks/qtarchiveoutputidentity.h
     src/archive/operations/Extract.cpp src/archive/operations/Extract.h
     src/archive/opening/OpenArchive.cpp src/archive/opening/OpenArchive.h
     src/archive/codecs/archivecodeccatalog.cpp src/archive/codecs/archivecodeccatalog.h

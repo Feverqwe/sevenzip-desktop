@@ -12,6 +12,7 @@
 #include <QFile>
 #include <QLineEdit>
 #include <QProcess>
+#include <QScopeGuard>
 #include <QSignalSpy>
 #include <QStackedWidget>
 #include <QStandardPaths>
@@ -47,6 +48,70 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         QFile::remove(settings);
         SaveRegLang(UString("-"), settings);
         ReloadLang(settings);
+    }
+    void changedDirectoryKeepsBindFailure_data() {
+        QTest::addColumn<bool>("flat");
+        QTest::newRow("normal") << false;
+        QTest::newRow("flat") << true;
+    }
+    void changedDirectoryKeepsBindFailure() {
+        QFETCH(bool, flat);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString initial = fixture.filePath("initial");
+        const QString destination = fixture.filePath(QStringLiteral("destination 空.7z"));
+        const QString encrypted = fixture.filePath("encrypted.7z");
+        QVERIFY(QDir().mkpath(initial));
+        QVERIFY(QDir().mkpath(destination));
+        NativeArchiveFixture::Item item;
+        item.Path = "keep.txt";
+        item.Bytes = "protected bytes";
+        QVERIFY(NativeArchiveFixture::Write(encrypted, {item}, "7z", "fixture password"));
+        QFile keep(QDir(initial).filePath("keep.txt"));
+        QVERIFY(keep.open(QIODevice::WriteOnly));
+        QCOMPARE(keep.write("protected bytes"), qint64(15));
+        keep.close();
+        ArchiveBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(initial);
+        auto *list = window.findChild<FileTable *>("archiveTable");
+        QTRY_VERIFY(list->isEnabled());
+        QCOMPARE(list->rowCount(), 1);
+        list->sourcePanel->SetFlatModeForDisk(flat);
+        bool attempted = false, replaced = false, passwordCancelled = false;
+        const auto replacement =
+            connect(list->model(), &QAbstractItemModel::rowsRemoved, &window, [&] {
+                if (attempted)
+                    return;
+                attempted = true;
+                replaced = QDir().rmdir(destination) && QFile::copy(encrypted, destination);
+            });
+        const auto disconnectReplacement = qScopeGuard([&] { disconnect(replacement); });
+        QTimer responder;
+        connect(&responder, &QTimer::timeout, &window, [&] {
+            auto *modal = QApplication::activeModalWidget();
+            if (auto *password = dynamic_cast<CPasswordDialog *>(modal)) {
+                passwordCancelled = true;
+                password->reject();
+            } else if (auto *message = qobject_cast<QMessageBox *>(modal))
+                message->accept();
+            else if (auto *progress = dynamic_cast<CProgressDialog *>(modal)) {
+                auto *close = progress->findChild<QPushButton *>("IDCANCEL");
+                if (TestProgressDialog::IsCloseButton(close))
+                    close->click();
+            }
+        });
+        responder.start(1);
+        window.openPath(destination);
+        QVERIFY(replaced);
+        QVERIFY(passwordCancelled);
+        QVERIFY(list->isEnabled());
+        QVERIFY(list->isSortingEnabled());
+        QCOMPARE(list->rowCount(), 0);
+        QVERIFY(!backend.busy());
+        QVERIFY(keep.open(QIODevice::ReadOnly));
+        QCOMPARE(keep.readAll(), QByteArray("protected bytes"));
     }
     void archiveOpenCompletion_data() {
         QTest::addColumn<int>("origin");

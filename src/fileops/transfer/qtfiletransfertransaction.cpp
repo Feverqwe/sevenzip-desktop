@@ -212,92 +212,90 @@ QStringList QtFileTransferTransaction::prepareTargets(QString &error) const {
     return targets;
 }
 
-void QtFileTransferTransaction::rollback(const QList<Completed> &completed) {
-    for (qsizetype i = completed.size(); i > 0; --i) {
-        const Completed &entry = completed[i - 1];
-        if (worker_.move_ && !entry.copiedMove)
-            QDir().rename(entry.target, entry.source);
-        else
-            removeEntry(entry.target);
+void QtFileTransferTransaction::rollbackEntry(const TransferEntry &entry, const QString &ownedPath,
+                                              RollbackMode mode) {
+    if (ownedPath.isEmpty())
+        return;
+    if (mode == RollbackMode::KeepMovedSources && entry.sourceState != SourceState::Intact) {
         if (!entry.backup.isEmpty())
-            QDir().rename(entry.backup, entry.target);
-    }
-}
-
-void QtFileTransferTransaction::finish(QList<Completed> &completed, QString &error) {
-    if (!error.isEmpty()) {
-        rollback(completed);
-        worker_.resultKind_ = worker_.canceled_ ? FileTransferOperation::ResultKind::Canceled
-                                                : FileTransferOperation::ResultKind::Failure;
-        emit worker_.result(false, error);
+            removeEntry(entry.backup);
         return;
     }
-    if (worker_.move_) {
-        for (Completed &entry : completed) {
-            if (!entry.copiedMove)
-                continue;
-            if (worker_.canceled_) {
-                error =
-                    QCoreApplication::translate("qtfiletransfertransaction", "Operation canceled.");
-                break;
-            }
-            // An attempted recursive removal can already have consumed bytes.
-            entry.retainPublished = true;
-            bool removed = false;
-            try {
-                removed = entry.merged
-                              ? removeMergedSource(entry.source, entry.writtenSources, &error)
-                              : worker_.adapter_.removeSource(entry.source);
-            } catch (...) {
-                error = QString::fromWCharArray(NWindows::NError::MyFormatMessage(E_FAIL));
-            }
-            if (!removed) {
-                // Recursive deletion can fail after removing some children.
-                // Retain the published copy so the remaining bytes stay available.
-                if (error.isEmpty())
-                    error = QCoreApplication::translate("qtfiletransfertransaction",
-                                                        "Could not delete source after copying: %1")
-                                .arg(entry.source);
-                break;
-            }
+    if (entry.sourceState == SourceState::Renamed)
+        QDir().rename(ownedPath, entry.source);
+    else
+        removeEntry(ownedPath);
+    if (!entry.backup.isEmpty())
+        QDir().rename(entry.backup, entry.target);
+}
+
+void QtFileTransferTransaction::rollback(const QList<TransferEntry> &completed, RollbackMode mode) {
+    for (qsizetype i = completed.size(); i > 0; --i)
+        rollbackEntry(completed[i - 1], completed[i - 1].target, mode);
+}
+
+void QtFileTransferTransaction::removeSources(QList<TransferEntry> &completed, QString &error) {
+    for (TransferEntry &entry : completed) {
+        if (entry.sourceState != SourceState::Intact)
+            continue;
+        if (worker_.canceled_) {
+            error = QCoreApplication::translate("qtfiletransfertransaction", "Operation canceled.");
+            return;
         }
-        if (!error.isEmpty()) {
-            for (qsizetype i = completed.size(); i > 0; --i) {
-                const Completed &entry = completed[i - 1];
-                if (entry.retainPublished) {
-                    if (!entry.backup.isEmpty())
-                        removeEntry(entry.backup);
-                    continue;
-                }
-                removeEntry(entry.target);
-                if (!entry.backup.isEmpty())
-                    QDir().rename(entry.backup, entry.target);
-            }
-            worker_.resultKind_ = FileTransferOperation::ResultKind::Failure;
-            emit worker_.result(
-                false, error + QCoreApplication::translate("qtfiletransfertransaction",
-                                                           " Some items may have been moved."));
+        // An attempted recursive removal can already have consumed bytes.
+        // From here on rollback must retain the published copy.
+        entry.sourceState = SourceState::RemovalStarted;
+        bool removed = false;
+        try {
+            removed = entry.merged ? removeMergedSource(entry.source, entry.writtenSources, &error)
+                                   : worker_.adapter_.removeSource(entry.source);
+        } catch (...) {
+            error = QString::fromWCharArray(NWindows::NError::MyFormatMessage(E_FAIL));
+        }
+        if (!removed) {
+            if (error.isEmpty())
+                error = QCoreApplication::translate("qtfiletransfertransaction",
+                                                    "Could not delete source after copying: %1")
+                            .arg(entry.source);
             return;
         }
     }
-    for (const Completed &entry : completed)
+}
+
+FileTransferOperation::Completion QtFileTransferTransaction::finish(QList<TransferEntry> &completed,
+                                                                    QString &error) {
+    if (!error.isEmpty()) {
+        rollback(completed);
+        return {worker_.canceled_ ? FileTransferOperation::ResultKind::Canceled
+                                  : FileTransferOperation::ResultKind::Failure,
+                error};
+    }
+    if (worker_.move_) {
+        removeSources(completed, error);
+        if (!error.isEmpty()) {
+            rollback(completed, RollbackMode::KeepMovedSources);
+            return {FileTransferOperation::ResultKind::Failure,
+                    error + QCoreApplication::translate("qtfiletransfertransaction",
+                                                        " Some items may have been moved.")};
+        }
+    }
+    for (const TransferEntry &entry : completed)
         if (!entry.backup.isEmpty())
             removeEntry(entry.backup);
     QString message;
     if (!worker_.move_)
         message = QCoreApplication::translate("qtfiletransfertransaction", "Items copied.");
-    else if (std::any_of(completed.cbegin(), completed.cend(), [](const Completed &entry) {
+    else if (std::any_of(completed.cbegin(), completed.cend(), [](const TransferEntry &entry) {
                  return entry.merged && QFileInfo::exists(entry.source);
              }))
         message = QCoreApplication::translate("qtfiletransfertransaction",
                                               "Some files skipped; sources retained.");
     else
         message = QCoreApplication::translate("qtfiletransfertransaction", "Items moved.");
-    worker_.resultKind_ = FileTransferOperation::ResultKind::Success;
-    emit worker_.result(true, message);
+    return {FileTransferOperation::ResultKind::Success, message};
 }
 
-void QtFileTransferTransaction::run() {
+FileTransferOperation::Completion QtFileTransferTransaction::run() {
     enum class OverwriteMode { Ask, Skip, Overwrite, Rename };
     OverwriteMode overwriteMode = OverwriteMode::Ask;
     auto overwriteAnswer = [this, &overwriteMode](const OverwriteSource &source) -> int {
@@ -318,7 +316,7 @@ void QtFileTransferTransaction::run() {
     };
     QString error;
     QStringList targets = prepareTargets(error);
-    QList<Completed> completed;
+    QList<TransferEntry> completed;
     auto rollbackBatch = qScopeGuard([&] { rollback(completed); });
     for (qsizetype i = 0; i < worker_.sources_.size() && error.isEmpty(); ++i) {
         if (worker_.canceled_) {
@@ -375,32 +373,21 @@ void QtFileTransferTransaction::run() {
         const QString suffix =
             QStringLiteral(".sevenzip-%1").arg(QUuid::createUuid().toString(QUuid::Id128));
         const QString stage = target + suffix;
-        QString backup;
-        QStringList writtenSources;
+        TransferEntry entry{source, target, {}, SourceState::Intact, merge, {}};
         QString ownedPath;
-        bool renamed = false;
-        auto rollbackItem = qScopeGuard([&] {
-            if (ownedPath.isEmpty())
-                return;
-            if (renamed)
-                QDir().rename(ownedPath, source);
-            else
-                removeEntry(ownedPath);
-            if (!backup.isEmpty())
-                QDir().rename(backup, target);
-        });
+        auto rollbackItem =
+            qScopeGuard([&] { rollbackEntry(entry, ownedPath, RollbackMode::RestoreSources); });
         emit worker_.currentFile(worker_.sources_[i]);
         const bool valid = !worker_.move_ || validateEntry(source, &error);
         if (valid)
             ownedPath = stage;
-        renamed =
-            valid && worker_.move_ && !merge && worker_.adapter_.trySourceRename(source, stage);
-        const bool copiedMove = valid && worker_.move_ && !renamed;
-        const bool staged =
-            valid &&
-            (merge ? (copyEntry(target, stage, &error, false) &&
-                      mergeEntry(source, stage, target, overwriteAnswer, &writtenSources, &error))
-                   : (renamed || copyEntry(source, stage, &error)));
+        if (valid && worker_.move_ && !merge && worker_.adapter_.trySourceRename(source, stage))
+            entry.sourceState = SourceState::Renamed;
+        const bool staged = valid && (merge ? (copyEntry(target, stage, &error, false) &&
+                                               mergeEntry(source, stage, target, overwriteAnswer,
+                                                          &entry.writtenSources, &error))
+                                            : (entry.sourceState == SourceState::Renamed ||
+                                               copyEntry(source, stage, &error)));
         if (!staged && error.isEmpty())
             error =
                 QCoreApplication::translate("qtfiletransfertransaction", "Could not move item: %1")
@@ -419,7 +406,7 @@ void QtFileTransferTransaction::run() {
             // Keep the old entry until every source has published successfully.
             const QString backupPath = target + suffix + QStringLiteral("-backup");
             if (QDir().rename(target, backupPath))
-                backup = backupPath;
+                entry.backup = backupPath;
             else
                 error = QCoreApplication::translate("qtfiletransfertransaction",
                                                     "Could not preserve the previous item: %1")
@@ -435,10 +422,9 @@ void QtFileTransferTransaction::run() {
         }
         if (!error.isEmpty())
             break;
-        completed.append({source, target, backup, copiedMove, worker_.move_ && !copiedMove, merge,
-                          writtenSources});
+        completed.append(entry);
         rollbackItem.dismiss();
     }
     rollbackBatch.dismiss();
-    finish(completed, error);
+    return finish(completed, error);
 }

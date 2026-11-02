@@ -1,13 +1,17 @@
 #pragma once
 
 #include "Windows/FileIO.h"
-#include <QStringList>
+#include <QList>
+#include <QString>
 
 // Owns only staged files and files successfully published by this operation.
 // NIO owns file data; this adapter supplies no-overwrite publication/rollback.
 class QtVolumeTransaction final {
-    QStringList targets_;
-    QStringList staged_;
+    struct Output {
+        QString target;
+        QString staged;
+    };
+    QList<Output> outputs_;
     qsizetype publishedCount_ = 0;
     bool committed_ = false;
     QString failedPath_;

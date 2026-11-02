@@ -115,8 +115,7 @@ static HRESULT ExtractGroupCommand(const UStringVector &arcPaths, bool showDialo
 
     CCodecs *codecs = &services.Codecs();
 
-    CExtractCallbackImp *ecs = new CExtractCallbackImp;
-    CMyComPtr<IFolderArchiveExtractCallback> extractCallback = ecs;
+    CMyComPtr2_Create<IFolderArchiveExtractCallback, CExtractCallbackImp> ecs;
 
     ecs->Init();
 
@@ -155,9 +154,9 @@ static HRESULT ExtractGroupCommand(const UStringVector &arcPaths, bool showDialo
 
     ecs->MultiArcMode = (arcPathsSorted.Size() > 1);
 
-    result =
-        services.ExtractGUI(*codecs, formatIndices, arcPathsSorted, arcFullPathsSorted,
-                            censor.Pairs.Front().Head, eo, showDialog, messageWasDisplayed, *ecs);
+    result = services.ExtractGUI(*codecs, formatIndices, arcPathsSorted, arcFullPathsSorted,
+                                 censor.Pairs.Front().Head, eo, showDialog, messageWasDisplayed,
+                                 *ecs.ClsPtr());
 
     if (result != S_OK) {
         if (result != E_ABORT && messageWasDisplayed)

@@ -58,3 +58,32 @@ no failures. Each POSIX platform skips four Windows ACL/ADS/reparse rows;
 Windows skips the ordinary POSIX filename-with-colons row. Existing incremental
 builds and compiler caches were retained. Completed suite scratch was removed
 after saving results; no full/slow gate or visual change was involved.
+
+## Batch input preparation — 2026-11-02
+
+Reviewed the dialog/caller chain, complete Qt batch extraction/opening adapters,
+the native Extract archive loop and its volume accounting, and original
+EnumerateDirItemsAndSort/SortFileNames. Complete original Extract.cpp,
+EnumDirItems.cpp and SortUtils.cpp inventory hashes match the recorded baseline
+at `b88c6bc09339de32f7d18bbab900686b244f42ba` from the same upstream repository.
+No external source is imported or provenance advanced.
+
+The Qt batch adapter previously sorted only the full-path lookup list while
+leaving the processing list in selection order. Native volume lookup uses the
+same index for processing paths, sizes and skipped archives; independently
+ordered lists could skip an unrelated archive or reopen an already used volume.
+Both lists now derive from one ordering produced by the existing native
+SortFileNames, including its platform filename comparison. Native extraction,
+volume discovery, progress, cancellation and output-path policy are unchanged.
+
+The existing volume regression now also extracts a split 7z and an independent
+ZIP selected between its volumes, checking both payloads and the complete result.
+The overwrite/Cancel fixture uses deterministically ordered input directories,
+so its expected final bytes follow the native archive order rather than random
+temporary-directory names. No new implementation-presence test is added.
+
+Linux focused validation passed: source_extract_backend, source_extract_advanced
+and source_link_extract, 37 checks. Four existing Windows ACL/ADS/reparse rows
+are skipped on Linux. The batch adapter and direct consumers are checked here;
+no new Windows/macOS acceptance is claimed. Build trees/compiler caches remain
+incremental, and selected scratch directories are empty after completion.

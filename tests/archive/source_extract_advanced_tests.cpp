@@ -1,6 +1,7 @@
 #include "7zip/UI/FileManager/ProgressDialog2Res.h"
 #include "archive/codecs/archivecodeccatalog.h"
 #include "archive/resources/qtarchivebatchextract.h"
+#include "archive/support/native_archive_fixture.h"
 #include "archive/support/source_extract_fixture.h"
 #include "dialogs/extract/ExtractDialog.h"
 #include "dialogs/overwrite/OverwriteDialog.h"
@@ -348,6 +349,72 @@ class SourceExtractAdvancedTests final : public QObject {
         QVERIFY(!QFileInfo::exists(source));
         QVERIFY(!backend.busy());
     }
+#ifndef Q_OS_WIN
+    void standaloneStreamChecksItsActualOutput_data() {
+        QTest::addColumn<bool>("occupied");
+        QTest::addColumn<bool>("asynchronous");
+        QTest::newRow("one-character-owner") << false << false;
+        QTest::newRow("existing-output-link") << true << false;
+        QTest::newRow("async-one-character-owner") << false << true;
+        QTest::newRow("async-existing-output-link") << true << true;
+    }
+    void standaloneStreamChecksItsActualOutput() {
+        QFETCH(bool, occupied);
+        QFETCH(bool, asynchronous);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        NativeArchiveFixture::Item host;
+        host.Path = "h";
+        host.Bytes = "host bytes";
+        auto stream = host;
+        stream.Path += ":stream δ";
+        stream.Bytes = "stream bytes";
+        stream.AltStream = true;
+        const QString archive = fixture.filePath("streams.wim");
+        QVERIFY(NativeArchiveFixture::Write(archive, {host, stream}, "wim"));
+        const QByteArray original = readFile(archive);
+        const QString output = fixture.filePath("output");
+        QVERIFY(QDir().mkpath(output));
+        const QString streamOutput = QDir(output).filePath(stream.Path);
+        const QString victim = fixture.filePath("outside.bin");
+        QVERIFY(writeFile(victim, "preserved"));
+        if (occupied)
+            QVERIFY(CreateNativeSymbolicLink(streamOutput, victim));
+        ArchiveBackend backend;
+        QCOMPARE(NativeArchiveFixture::Attach(backend), S_OK);
+        ExtractionOptions options;
+        options.overwriteMode = ExtractionOptions::OverwriteMode::OverwriteExisting;
+        CErrorDismissal dismissal;
+        bool success;
+        if (asynchronous) {
+            QSignalSpy finished(&backend, &ArchiveBackend::finished);
+            backend.list(archive);
+            QTRY_COMPARE(finished.size(), 1);
+            QVERIFY(finished.takeFirst().at(0).toBool());
+            backend.extract(archive, output, {}, {}, options);
+            QTRY_COMPARE(finished.size(), 1);
+            success = finished.takeFirst().at(0).toBool();
+        } else {
+            const auto result =
+                RunQtArchiveBatchExtract(backend, {archive}, output, {}, options, nullptr);
+            success = result.Result == S_OK && result.CallbackOK;
+        }
+        if (occupied) {
+            QVERIFY(!success);
+            QVERIFY(QFileInfo(streamOutput).isSymLink());
+        } else {
+            QVERIFY(success);
+            QCOMPARE(readFile(QDir(output).filePath(host.Path)), host.Bytes);
+            QCOMPARE(readFile(streamOutput), stream.Bytes);
+        }
+        QCOMPARE(readFile(victim), QByteArray("preserved"));
+        QCOMPARE(readFile(archive), original);
+        QString error;
+        QVERIFY(!ArchiveBackend::validateExtractionStreamOutput(
+            output, fixture.filePath("outside:stream"), &error));
+        QVERIFY(!backend.busy());
+    }
+#endif
     void correctedPathRejectsExistingLink() {
         QTemporaryDir input, output, outside;
         const auto archive = makeArchive(input.path(), "incoming bytes");

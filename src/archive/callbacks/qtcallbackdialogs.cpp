@@ -13,3 +13,9 @@ HRESULT RunCallbackDialog(CProgressDialog &parent, const std::function<HRESULT()
     QMetaObject::invokeMethod(&parent, [&] { result = body(); }, Qt::BlockingQueuedConnection);
     return result;
 }
+
+HRESULT RunCallbackQuestion(CProgressDialog &parent, const std::function<HRESULT()> &body) {
+    if (parent.Sync.Get_Stopped())
+        return E_ABORT;
+    return RunCallbackDialog(parent, [&] { return parent.Sync.Get_Stopped() ? E_ABORT : body(); });
+}

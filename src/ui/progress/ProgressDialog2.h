@@ -281,6 +281,8 @@ class CProgressCloser {
 };
 
 class CProgressThreadVirt : public CProgressDialog {
+    static THREAD_FUNC_DECL MyThreadFunction(void *param);
+
   protected:
     FStringVector ErrorPaths;
     CProgressFinalMessage FinalMessage;

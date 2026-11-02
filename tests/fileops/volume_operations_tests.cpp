@@ -246,6 +246,43 @@ class VolumeOperationsTests : public QObject {
         QCOMPARE(VolumeOperation::discoverParts(source + ".001", &error),
                  (QStringList{source + ".001", source + ".002"}));
     }
+    void lateSplitCollisionRollsBackPublishedPrefix() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString source = fixture.filePath(QStringLiteral("части 空 with space.bin"));
+        const QByteArray bytes(3 << 20, 'x');
+        QFile input(source);
+        QVERIFY(input.open(QIODevice::WriteOnly));
+        QCOMPARE(input.write(bytes), qint64(bytes.size()));
+        input.close();
+        VolumeOperation split(VolumeOperation::Mode::Split, source, fixture.path(), 1 << 20);
+        bool injected = false;
+        connect(
+            &split, &VolumeOperation::advanced, &split,
+            [&](qint64 completed) {
+                if (injected || completed != bytes.size())
+                    return;
+                QFile occupied(source + ".002");
+                injected = occupied.open(QIODevice::WriteOnly) && occupied.write("other") == 5;
+            },
+            Qt::DirectConnection);
+        QSignalSpy results(&split, &VolumeOperation::result);
+        split.start();
+        QVERIFY(split.wait());
+        QVERIFY(injected);
+        QCOMPARE(results.size(), 1);
+        QVERIFY(!results.first().first().toBool());
+        QVERIFY(!split.isCanceled());
+        QFile occupied(source + ".002");
+        QVERIFY(occupied.open(QIODevice::ReadOnly));
+        QCOMPARE(occupied.readAll(), QByteArray("other"));
+        QVERIFY(input.open(QIODevice::ReadOnly));
+        QCOMPARE(input.readAll(), bytes);
+        QCOMPARE(
+            QDir(fixture.path()).entryList(QDir::AllEntries | QDir::Hidden | QDir::NoDotAndDotDot),
+            (QStringList{QFileInfo(source).fileName(), QFileInfo(source).fileName() + ".002"}));
+    }
+
     void cancellationRemovesPartialOutput_data() { splitsAndCombinesUnicodeFile_data(); }
     void cancellationRemovesPartialOutput() {
         QFETCH(bool, russian);

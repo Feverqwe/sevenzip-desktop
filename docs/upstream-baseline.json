@@ -1487,6 +1487,8 @@
     "src/archive/backend/archivebackend_transfer.cpp",
     "src/archive/backend/archivebackend_validation.cpp",
     "src/archive/backend/archivebackend_workerprogress.cpp",
+    "src/archive/callbacks/qtarchiveoutputidentity.cpp",
+    "src/archive/callbacks/qtarchiveoutputidentity.h",
     "src/archive/callbacks/qtcallbackdialogs.cpp",
     "src/archive/callbacks/qtcallbackdialogs.h",
     "src/archive/callbacks/qtcallbackpassword.cpp",
@@ -1503,6 +1505,7 @@
     "src/archive/codecs/archivecodelocation.h",
     "src/archive/codecs/archiveexternalcodecs.cpp",
     "src/archive/hashing/qtfilecrc.h",
+    "src/archive/operations/qtupdatepair.h",
     "src/archive/resources/archiveattributes.cpp",
     "src/archive/resources/archiveattributes.h",
     "src/archive/resources/archivedevice.cpp",
@@ -1512,6 +1515,8 @@
     "src/archive/resources/archivelayercontext.h",
     "src/archive/resources/archivenativeopen.cpp",
     "src/archive/resources/archivenativeopen.h",
+    "src/archive/resources/archivepropertysource.cpp",
+    "src/archive/resources/archivepropertysource.h",
     "src/archive/resources/archivereadonlycache.cpp",
     "src/archive/resources/archivereadonlyview.cpp",
     "src/archive/resources/archivereadonlyview.h",
@@ -1530,6 +1535,7 @@
     "src/archive/resources/qtarchivedevicefolder.cpp",
     "src/archive/resources/qtarchivedirectoryextract.cpp",
     "src/archive/resources/qtarchivedirectoryextract.h",
+    "src/archive/resources/qtarchiveextractstatus.h",
     "src/archive/resources/qtarchivefileresource.cpp",
     "src/archive/resources/qtarchivefileresource.h",
     "src/archive/resources/qtarchivefoldermanager.cpp",
@@ -1554,6 +1560,9 @@
     "src/archive/resources/qtarchivestreamopen.h",
     "src/archive/resources/qtarchivetransferbackup.cpp",
     "src/archive/resources/qtarchivetransferbackup.h",
+    "src/archive/resources/qtarchivetransferinputs.cpp",
+    "src/archive/resources/qtarchivetransferinputs.h",
+    "src/archive/resources/qtarchiveupdatepublication.h",
     "src/archive/resources/qtarchivewritelease.cpp",
     "src/archive/resources/qtarchivewritelease.h",
     "src/archive/resources/qtextractpathpolicy.h",
@@ -1651,6 +1660,7 @@
     "src/devices/module.cmake",
     "src/devices/qtdevicecommands.cpp",
     "src/dialogs/combo/alias.h",
+    "src/dialogs/compress/CompressInfo.h",
     "src/dialogs/compress/createarchivedialog.cpp",
     "src/dialogs/compress/createarchivedialog.h",
     "src/dialogs/compress/createarchivedialog_advanced.cpp",
@@ -2027,6 +2037,8 @@
     "src/platform/associations/qtsystempagepresentation.cpp",
     "src/platform/memory/qtmemorylockservices.cpp",
     "src/platform/memory/qtmemorylockservices.h",
+    "src/platform/process/qtchildprocessreaper.cpp",
+    "src/platform/process/qtchildprocessreaper.h",
     "src/platform/process/qtexternalprocess.cpp",
     "src/platform/process/qtexternalprocess.h",
     "src/platform/shell/qtcontextmenuservices.h",
@@ -3408,6 +3420,15 @@
     "src/formats/vhdx/VhdxCrc.cpp"
   ],
   "extracted": {
+    "src/dialogs/compress/CompressDialog.h": {
+      "local": [
+        "src/dialogs/compress/CompressInfo.h"
+      ],
+      "symbols": [
+        "NCompressDialog::NUpdateMode",
+        "NCompressDialog::CInfo"
+      ]
+    },
     "src/formats/ext/ExtHandler.cpp": {
       "local": [
         "src/formats/ext/ExtHeader.cpp",
@@ -8878,7 +8899,7 @@
     },
     "libsmb2": {
       "local": "third_party/libsmb2/source.tar.xz",
-      "sha256": "9ad3781bacc6ea57aa39a5edfcc11159b16cbcf1abd99f38ba0815ee2b77107c",
+      "sha256": "fd528d7e4e3ce2ec1caf5e688b4003e780436d4377b43d098e8b2f27527bdc9d",
       "files": {
         "CMakeLists.txt": "e0c65d8d593cc79befddbaa92172cdb73ca7a0e7f75047a6fe8810898c3a173d",
         "COPYING": "fd87b0d474243809ec4b41c6c8e4a6563c143e5c1e1f4039adc54c0151babf76",
@@ -8969,7 +8990,6 @@
         "lib/smb2-cmd-negotiate.c": "b716f0e6080932a6808df2b1664f7b814bc0cc8afed4cd9e03c2040c563760de",
         "lib/smb2-cmd-notify-change.c": "107923a609dd722bfee28cdb8cdf27b9c955b92e199cdb200245892bc75d8eca",
         "lib/smb2-cmd-oplock-break.c": "78aa082d5b00ac4039d7b92d106f587ac7821b105823293120943efdc9ee69a9",
-        "lib/smb2-cmd-read.c": "7b53bf0518b2c58dcc2053ed241695e288a040858b07c70712bb651410fbc998",
         "lib/smb2-cmd-session-setup.c": "a91141522cf674034fec4bd4a944c54b734be98188eeb0d132f570aee86eb7e5",
         "lib/smb2-cmd-set-info.c": "2dd3920ec3a48a99fc44e7a5a8657a4803667e9b5982b8f7b852a1bc1ee66b8e",
         "lib/smb2-cmd-tree-connect.c": "a309ebb25c742a6c9dcd2b10b8682c02a14f6fe79665faf35fdb86ab5a9dc034",
@@ -9001,6 +9021,7 @@
         "lib/smb2-cmd-create.c": "src/dependencies/smb2/smb2-cmd-create.c",
         "lib/smb2-cmd-query-directory.c": "src/dependencies/smb2/smb2-cmd-query-directory.c",
         "lib/smb2-cmd-query-info.c": "src/dependencies/smb2/smb2-cmd-query-info.c",
+        "lib/smb2-cmd-read.c": "src/dependencies/smb2/smb2-cmd-read.c",
         "lib/smb2-data-file-info.c": "src/dependencies/smb2/smb2-data-file-info.c",
         "lib/socket.c": "src/dependencies/smb2/socket.c",
         "lib/timestamps.c": "src/dependencies/smb2/timestamps.c"

@@ -1,5 +1,71 @@
 # Native drag session ownership — 2026-10-18
 
+## Shared drop-menu decision — 2026-11-02
+
+Compared original target ClearState, DragEnter, DragOver, DragLeave and Drop,
+their button/source-flag types and consumers at recorded 7-Zip revision
+`9128b80e3a471108678e2b3ec3c985861c8d7b0f` from
+<https://github.com/ip7z/7zip.git>. The complete PanelDrag.cpp inventory hash
+matches the existing baseline. Current Qt input, drop-choice and native target
+consumers were reviewed together; no source handler algorithm is changed or
+imported.
+
+The Qt Open/Create archive choice now reads the target's existing menu-drop
+state through a const boundary. It no longer maintains another flag from
+DragEnter. Right/middle-button retention, source transfer-flag precedence and
+session cleanup stay with the target that already owns those decisions. The
+current-event button check, ordinary external path choice, native context menu,
+copy/move effects, source publication, cancellation and pending right-press
+gesture retain their respective owners.
+
+Existing public regressions cover source button flags, middle-button Drop after
+release, both panels/views, cancellation, and opening/compressing/cancelling
+Unicode archive or directory drops. No getter/representation test is needed.
+Linux passed drag_protocol, drag_drop_ui and dropped_path_choice: 49 checks,
+no skips. Inventory and whitespace checks pass. This common Qt state change
+does not alter native COM/OS gestures, layouts or text; no new secondary-platform
+or rendered-reference acceptance is claimed. Incremental outputs/compiler caches
+were retained, and completed test settings were removed.
+
+## Qt transport failure boundary — 2026-11-02
+
+Reviewed the complete Qt transport/controller and source OnDrag, data materializing,
+receiver protection and DragEnter/Over/Leave/Drop; traced the native receiver boundary.
+Compared the original OnDrag return/error/DragEnd and temporary-input policy at
+`b88c6bc09339de32f7d18bbab900686b244f42ba` in
+<https://github.com/ip7z/7zip.git>; complete PanelDrag.cpp bytes match the existing
+baseline. No external code is imported or baseline changed.
+
+A C++ exception from the Qt drag executor previously escaped the typed drag
+service instead of returning to the source HRESULT workflow. In particular,
+after exposing archive URLs it skipped DragEnd and the source's check retaining
+an unconfirmed temporary root. The transport now reports allocation failures
+as E_OUTOFMEMORY and other exceptions as E_FAIL through Copy_HRESULT, cancels
+the drag with no transfer effect, and returns to those existing source handlers.
+The active guard unwinds normally; the transport does not assert that an exposed
+receiver has finished. Original copying, target decisions, protocol flags,
+selection rules and external-receiver lifetime policy remain authoritative.
+
+The real-archive fixture now throws an ordinary exception or std::bad_alloc from
+its executor after reading the delivered URL/bytes. It checks an error is shown,
+source selection and archive bytes remain, DragEnd has retired the source index,
+the transport is inactive and the retained bytes have an inactive externally
+protected registry entry that cannot be claimed for deletion. Fixture-owned
+bytes are explicitly removed after checking retention. The failure mechanism
+was established from source; no pre-fix process-aborting run is claimed.
+No native format/COM/OS branch, dialog geometry/text or decoder changes.
+
+Linux drag_archive, drag_drop and drag_drop_ui passed 45 checks without skips;
+run `20261102T012716Z-f53259ee`, build 15.116 seconds, tests 9.344 seconds.
+Both new exception rows passed through the real archive-byte fixture. This is
+portable Qt error-boundary validation on the primary platform; no new native
+OS gesture, Windows COM or Cocoa acceptance is claimed. No secondary platform
+batch was needed for an unchanged OS-specific implementation. One completed
+settings.ini was removed; incremental builds and compiler caches remain.
+Inventory and whitespace checks passed.
+
+---
+
 Source: <https://github.com/ip7z/7zip.git>, commit
 `9128b80e3a471108678e2b3ec3c985861c8d7b0f`.
 Reviewed `CPP/7zip/UI/FileManager/PanelDrag.cpp` DragEnter/DragLeave/Drop

@@ -1,5 +1,7 @@
 #include "platform/associations/qtassociationplatform.h"
 #include <QtTest>
+#include <functional>
+#include <utility>
 #ifdef _WIN32
 #include <QScopeGuard>
 #include <QSettings>
@@ -15,10 +17,13 @@ class CFakePlatform final : public IQtAssociationPlatform {
     LONG writeError = 0;
     int writes = 0;
     bool associated = false;
+    std::function<void()> beforeRead;
     bool CanApply(unsigned group) const override { return group == 0; }
     QString UnavailableReason(unsigned) const override { return "Only current user is supported"; }
     UString OwnIconPath() const override { return UString(L"/app/папка с пробелом/sevenzip"); }
     LONG Read(unsigned, const UString &, QtAssociationRecord &record) override {
+        if (auto callback = std::exchange(beforeRead, {}))
+            callback();
         if (readError)
             return readError;
         record.revision = revision;
@@ -125,6 +130,39 @@ class AssociationServicesTests final : public QObject {
         native->readError = 0;
         QCOMPARE(service->Delete(0, UString(L"zip"), info), LONG(50));
         QCOMPARE(native->writes, 0);
+    }
+    void redetectionDuringApplyDoesNotAdoptExternalChange_data() {
+        QTest::addColumn<bool>("associate");
+        QTest::newRow("add") << true;
+        QTest::newRow("delete") << false;
+    }
+    void redetectionDuringApplyDoesNotAdoptExternalChange() {
+        QFETCH(bool, associate);
+        auto native = std::make_shared<CFakePlatform>();
+        native->associated = !associate;
+        auto service = CreateQtAssociationServices(native);
+        const UString extension(L"zip");
+        NRegistryAssoc::CShellExtInfo info;
+        QVERIFY(service->Read(0, extension, info));
+        bool redetected = false;
+        native->beforeRead = [&] {
+            native->revision = "external change during apply";
+            NRegistryAssoc::CShellExtInfo updated;
+            redetected = service->Read(0, extension, updated);
+        };
+        const auto apply = [&] {
+            return associate ? service->Add(0, extension, info, UString(), UString(), UString(), 0)
+                             : service->Delete(0, extension, info);
+        };
+        const LONG conflict = apply();
+        QVERIFY(redetected);
+        QCOMPARE(conflict, LONG(1237));
+        QCOMPARE(native->writes, 0);
+        QCOMPARE(native->associated, !associate);
+        QVERIFY(service->Read(0, extension, info));
+        QCOMPARE(apply(), LONG(0));
+        QCOMPARE(native->writes, 1);
+        QCOMPARE(native->associated, associate);
     }
     void nativeFailurePreservesSnapshotAndHandler() {
         auto native = std::make_shared<CFakePlatform>();

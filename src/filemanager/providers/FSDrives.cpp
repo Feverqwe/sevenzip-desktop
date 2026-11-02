@@ -118,9 +118,6 @@ Z7_COM7F_IMF(CFSDrives::LoadItems()) {
         di.FullSystemName = driveName;
         if (!driveName.IsEmpty())
             di.Name.SetFrom(driveName, driveName.Len() - 1);
-        di.ClusterSize = 0;
-        di.DriveSize = 0;
-        di.FreeSpace = 0;
         di.DriveType = NSystem::MyGetDriveType(driveName);
         bool needRead = true;
         if (di.DriveType == DRIVE_CDROM || di.DriveType == DRIVE_REMOVABLE)
@@ -154,10 +151,7 @@ Z7_COM7F_IMF(CFSDrives::LoadItems()) {
             // GetSystemIconIndex(). And we need name without "\\\\.\\" prefix in
             // GetSystemIconIndex(). So we don't set di.FullSystemName = fullPath;
             di.FullSystemName = name;
-            di.ClusterSize = 0;
             di.DriveSize = fi.Size;
-            di.FreeSpace = 0;
-            di.DriveType = 0;
             di.IsPhysicalDrive = true;
             di.KnownSize = true;
             _drives.Add(di);
@@ -176,7 +170,6 @@ Z7_COM7F_IMF(CFSDrives::LoadItems()) {
         di.VolumeName = name.c_str();
         di.FileSystemName = fileSystem.c_str();
         di.DriveType = 3;
-        di.ClusterSize = 0;
         if (mount.totalBytes >= 0) {
             di.DriveSize = UInt64(mount.totalBytes);
             di.KnownSize = true;

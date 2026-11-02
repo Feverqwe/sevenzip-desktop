@@ -383,6 +383,35 @@ void CFileMenu::Load(IQtFileMenuServices &destMenu, unsigned startPos) {
     destMenu.RemoveAllItemsFrom(numRealItems);
 }
 
+const char *GetHashMethodForCommand(unsigned id) {
+    switch (id) {
+    case IDM_HASH_ALL:
+        return "*";
+    case IDM_CRC32:
+        return "CRC32";
+    case IDM_CRC64:
+        return "CRC64";
+    case IDM_XXH64:
+        return "XXH64";
+    case IDM_MD5:
+        return "MD5";
+    case IDM_SHA1:
+        return "SHA1";
+    case IDM_SHA256:
+        return "SHA256";
+    case IDM_SHA384:
+        return "SHA384";
+    case IDM_SHA512:
+        return "SHA512";
+    case IDM_SHA3_256:
+        return "SHA3-256";
+    case IDM_BLAKE2SP:
+        return "BLAKE2sp";
+    default:
+        return nullptr;
+    }
+}
+
 bool ExecuteFileCommand(unsigned id, IQtFileManagerCommandServices &g_App) {
     // Qt can deliver a queued shortcut after capabilities changed. Recompute
     // the same application policy used by menus before any source dispatch.
@@ -428,37 +457,17 @@ bool ExecuteFileCommand(unsigned id, IQtFileManagerCommandServices &g_App) {
         g_App.Delete(!g_App.IsShiftDown());
         break;
     case IDM_HASH_ALL:
-        g_App.CalculateCrc("*");
-        break;
     case IDM_CRC32:
-        g_App.CalculateCrc("CRC32");
-        break;
     case IDM_CRC64:
-        g_App.CalculateCrc("CRC64");
-        break;
     case IDM_XXH64:
-        g_App.CalculateCrc("XXH64");
-        break;
     case IDM_MD5:
-        g_App.CalculateCrc("MD5");
-        break;
     case IDM_SHA1:
-        g_App.CalculateCrc("SHA1");
-        break;
     case IDM_SHA256:
-        g_App.CalculateCrc("SHA256");
-        break;
     case IDM_SHA384:
-        g_App.CalculateCrc("SHA384");
-        break;
     case IDM_SHA512:
-        g_App.CalculateCrc("SHA512");
-        break;
     case IDM_SHA3_256:
-        g_App.CalculateCrc("SHA3-256");
-        break;
     case IDM_BLAKE2SP:
-        g_App.CalculateCrc("BLAKE2sp");
+        g_App.CalculateCrc(GetHashMethodForCommand(id));
         break;
     case IDM_DIFF:
         g_App.DiffFiles();

@@ -15,58 +15,58 @@ HRESULT MainWindow::startFilesystemListing(bool sourceAlreadyBound, bool updateA
     HRESULT result = sourceAlreadyBound
                          ? S_OK
                          : panel.BindToPath(ToUString(projectedUi().directory), UString(), opened);
+    if (result != S_OK)
+        return finishSynchronousFilesystemListing(result);
     CMyComPtr<IFolderFolder> folder = panel.GetFolder();
-    if (result == S_OK && !panel.IsFSFolder()) {
+    if (!panel.IsFSFolder())
         return renderBoundFolder(updateAddress);
-    }
-    if (result == S_OK && updateAddress)
+    if (updateAddress)
         static_cast<QtPanelAddressCombo *>(projectedUi().pathCombo)
             ->ShowCurrentPath(projectedUi().directory);
-    if (panel.GetFlatMode()) {
-        RINOK(startFilesystemScan(folder, true))
-    } else {
-        if (result == S_OK) {
-            auto *spec = static_cast<NFsFolder::CFSFolder *>((IFolderFolder *)folder);
-            bool defer = false;
-            {
-                auto previous = std::move(spec->SetCompleted);
-                const auto restore = qScopeGuard([&] { spec->SetCompleted = std::move(previous); });
-                // Preserve immediate small-folder callers. Stop the original
-                // load at its callback boundary, then rerun it in the existing
-                // worker for a larger list instead of walking all files here.
-                spec->SetCompleted = [&](quint64 count) {
-                    defer = count > 256;
-                    return !defer;
-                };
-                result = panel.LoadListItems();
-            }
-            if (result == E_ABORT && defer) {
-                return startFilesystemScan(folder, false);
-            }
-        }
-        if (result == S_OK) {
-            configureColumns(true);
-            appendParentEntry();
-            auto *spec = static_cast<NFsFolder::CFSFolder *>((IFolderFolder *)folder);
-            for (UInt32 i = 0; i < spec->Files.Size(); ++i) {
-                result = appendFilesystemEntry(
-                    QFileInfo(QDir(projectedUi().directory)
-                                  .filePath(QtFilesystemPath(spec->GetRelPath(spec->Files[i])))),
-                    i);
-                if (result != S_OK) {
-                    projectedUi().table->clearRows();
-                    break;
-                }
-            }
-        }
-        applySortMode(true);
-        setState(State::Filesystem);
-        if (result == S_OK)
-            statusBar()->clearMessage();
-        else
-            statusBar()->showMessage(
-                QCoreApplication::translate("mainwindow_filelist", "Could not read folder."));
+    if (panel.GetFlatMode())
+        return startFilesystemScan(folder, true);
+
+    auto *spec = static_cast<NFsFolder::CFSFolder *>((IFolderFolder *)folder);
+    bool defer = false;
+    {
+        auto previous = std::move(spec->SetCompleted);
+        const auto restore = qScopeGuard([&] { spec->SetCompleted = std::move(previous); });
+        // Preserve immediate small-folder callers. Stop the original
+        // load at its callback boundary, then rerun it in the existing
+        // worker for a larger list instead of walking all files here.
+        spec->SetCompleted = [&](quint64 count) {
+            defer = count > 256;
+            return !defer;
+        };
+        result = panel.LoadListItems();
     }
+    if (result == E_ABORT && defer)
+        return startFilesystemScan(folder, false);
+    if (result == S_OK) {
+        configureColumns();
+        appendParentEntry();
+        for (UInt32 i = 0; i < spec->Files.Size(); ++i) {
+            result = appendFilesystemEntry(
+                QFileInfo(QDir(projectedUi().directory)
+                              .filePath(QtFilesystemPath(spec->GetRelPath(spec->Files[i])))),
+                i);
+            if (result != S_OK) {
+                projectedUi().table->clearRows();
+                break;
+            }
+        }
+    }
+    return finishSynchronousFilesystemListing(result);
+}
+
+HRESULT MainWindow::finishSynchronousFilesystemListing(HRESULT result) {
+    applySortMode(true);
+    setState(State::Filesystem);
+    if (result == S_OK)
+        statusBar()->clearMessage();
+    else
+        statusBar()->showMessage(
+            QCoreApplication::translate("mainwindow_filelist", "Could not read folder."));
     return result;
 }
 
@@ -134,7 +134,7 @@ void MainWindow::connectFilesystemScanner() {
                             failFilesystemListing(loaded);
                             return;
                         }
-                        configureColumns(true);
+                        configureColumns();
                         appendParentEntry();
                     });
                 });

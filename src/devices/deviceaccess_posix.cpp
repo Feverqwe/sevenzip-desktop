@@ -1,5 +1,6 @@
 #include "devices/deviceaccess_posix.h"
 #include "Common/MyWindows.h"
+#include <QScopeGuard>
 #include <cerrno>
 #include <fcntl.h>
 #include <limits>
@@ -31,11 +32,13 @@ class PosixDeviceHandle final : public DeviceReadHandle {
 std::shared_ptr<DeviceReadHandle> AdoptReadOnlyDeviceDescriptor(int descriptor) {
     if (descriptor < 0)
         return {};
+    auto close = qScopeGuard([descriptor] { ::close(descriptor); });
     const int flags = ::fcntl(descriptor, F_GETFL);
     if (flags < 0 || (flags & O_ACCMODE) != O_RDONLY ||
         ::fcntl(descriptor, F_SETFD, FD_CLOEXEC) < 0) {
-        ::close(descriptor);
         return {};
     }
-    return std::make_shared<PosixDeviceHandle>(descriptor);
+    auto handle = std::make_shared<PosixDeviceHandle>(descriptor);
+    close.dismiss();
+    return handle;
 }

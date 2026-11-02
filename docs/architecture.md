@@ -103,6 +103,9 @@ Window shortcuts and mount commands belong to the shared window component.
 Archive and compression scenarios link the resource and dialog libraries
 directly. Shared test helpers have their own targets; native override fixtures
 retain separate compilation where their definitions intentionally differ.
+Compression request values share the source parameter record owned by the
+compression module. Backend interfaces consume that contract independently of
+the dialog/controller declarations used by presentation.
 
 ## Window and panel state
 
@@ -125,6 +128,11 @@ work. Each window retains its own operation state and panel bindings. Completion
 must update the captured owning panel even if focus changes while a modal dialog
 or worker is active. Navigation, refresh and publication preserve independent
 peer state and reject stale results after a location/provider change.
+
+Window-owned asynchronous progress retains its dialog and transport in one
+operation snapshot. Completion retires that snapshot before native final-message
+callbacks; workers still join before progress storage is released. Source modal
+progress keeps its native owner and lifecycle.
 
 Filesystem enumeration and archive folder bindings feed the list/model projection.
 Original item indices, marks and focused row are distinct from display text and
@@ -249,6 +257,9 @@ child lifetime remain application responsibilities.
 The process adapter and application observer have separate C++23 library targets;
 the adapter exposes launch failure as `std::expected` and keeps native observation
 ownership private. Process lifetime tests do not depend on archive/filesystem code.
+Independent GUI jobs and external editors share one POSIX child-lifetime owner.
+It preserves later child reaping when an observer is released while work continues;
+each client retains its launch, identity and exit-result policy.
 Completion waits briefly for
 the observer to acknowledge the result before the child exits. Before extraction
 starts, the child reports the actual output paths after any source dialog edits.

@@ -4,6 +4,7 @@
 
 #include "7zip/UI/Common/StdAfx.h"
 #include "ui/diagnostics/qtdiagnostictext.h"
+#include <QScopeGuard>
 
 #undef sprintf
 #undef printf
@@ -314,6 +315,9 @@ void CArchiveExtractCallback::Init(const CExtractNtOptions &ntOptions,
                                    bool testMode, const FString &directoryPath,
                                    const UStringVector &removePathParts,
                                    bool removePartsForAltStreams, UInt64 packSize) {
+    QtExtractStatus = {};
+    QtOutputs.Clear();
+    QtOriginalPathParts.Clear();
     ClearExtractedDirsInfo();
     _outFileStream.Release();
     _bufPtrSeqOutStream.Release();
@@ -447,7 +451,19 @@ void CArchiveExtractCallback::CreateComplexDirectory(const UStringVector &dirPat
     else
         fullPath = _dirPathPrefix;
 
+    UString logicalPrefix;
+    for (unsigned i = 0; i < QtRemovedPathParts; ++i) {
+        if (i != 0)
+            logicalPrefix.Add_PathSepar();
+        logicalPrefix += QtOriginalPathParts[i];
+    }
     FOR_VECTOR(i, dirPathParts) {
+        const unsigned originalPart = QtRemovedPathParts + i;
+        if (originalPart < QtOriginalPathParts.Size()) {
+            if (!logicalPrefix.IsEmpty())
+                logicalPrefix.Add_PathSepar();
+            logicalPrefix += QtOriginalPathParts[originalPart];
+        }
         if (i != 0)
             fullPath.Add_PathSepar();
         const UString &s = dirPathParts[i];
@@ -507,6 +523,12 @@ void CArchiveExtractCallback::CreateComplexDirectory(const UStringVector &dirPat
                     fullPath);
                 // need_SetAttrib = false;
             }
+        }
+        if (QtExtractPurpose != QtArchiveExtractPurpose::Copy &&
+            !QtOutputs.Record(QString::fromWCharArray(fs2us(fullPath)),
+                              QString::fromWCharArray(logicalPrefix))) {
+            QtExtractStatus.Complete = false;
+            QtExtractStatus.StagingCompatible = false;
         }
         /*
         // this code doesn't process item excluded by "Eliminate duplication of root folder"
@@ -992,6 +1014,13 @@ HRESULT CArchiveExtractCallback::Read_fi_Props() {
 
 void CArchiveExtractCallback::CorrectPathParts() {
     UStringVector &pathParts = _item.PathParts;
+    QtIsStreamOutput = false;
+    UStringVector uncorrected;
+    if (QtExtractPurpose != QtArchiveExtractPurpose::Copy)
+        uncorrected = pathParts;
+    QtRemovedPathParts = QtOriginalPathParts.Size() >= pathParts.Size()
+                             ? QtOriginalPathParts.Size() - pathParts.Size()
+                             : 0;
 
 #ifdef SUPPORT_ALT_STREAMS
     if (!_item.IsAltStream || !pathParts.IsEmpty() ||
@@ -1000,11 +1029,25 @@ void CArchiveExtractCallback::CorrectPathParts() {
         Correct_FsPath(_pathMode == NExtract::NPathMode::kAbsPaths, _keepAndReplaceEmptyDirPrefixes,
                        pathParts, _item.MainIsDir);
 
+    if (QtExtractPurpose != QtArchiveExtractPurpose::Copy) {
+        bool unchanged = pathParts.Size() == uncorrected.Size();
+        for (unsigned i = 0; unchanged && i < pathParts.Size(); ++i)
+            unchanged = pathParts[i] == uncorrected[i];
+        if (!unchanged) {
+            QtExtractStatus.Complete = false;
+            QtExtractStatus.StagingCompatible = false;
+        }
+    }
+
 #ifdef SUPPORT_ALT_STREAMS
 
     if (_item.IsAltStream) {
         UString s(_item.AltStreamName);
         Correct_AltStream_Name(s);
+        if (QtExtractPurpose != QtArchiveExtractPurpose::Copy && s != _item.AltStreamName) {
+            QtExtractStatus.Complete = false;
+            QtExtractStatus.StagingCompatible = false;
+        }
         bool needColon = true;
 
         if (pathParts.IsEmpty()) {
@@ -1022,6 +1065,7 @@ void CArchiveExtractCallback::CorrectPathParts() {
 #endif
 
         UString &name = pathParts.Back();
+        QtIsStreamOutput = needColon && !_ntOptions.ReplaceColonForAltStream;
         if (needColon)
             name.Add_Char((char)(_ntOptions.ReplaceColonForAltStream ? '_' : ':'));
         name += s;
@@ -1141,6 +1185,12 @@ HRESULT CArchiveExtractCallback::CheckExistFile(FString &fullProcessedPath, bool
     NFind::CFileInfo fileInfo;
 
     if (fileInfo.Find(fullProcessedPath)) {
+        QtExtractStatus.StagingCompatible = false;
+        if (QtExtractPurpose != QtArchiveExtractPurpose::Copy &&
+            QtOutputs.WasOutput(QString::fromWCharArray(fs2us(fullProcessedPath))) != false)
+            QtExtractStatus.Complete = false;
+        if (QtExtractPurpose == QtArchiveExtractPurpose::ArchiveStaging)
+            return S_OK;
         if (_overwriteMode == NExtract::NOverwriteMode::kSkip)
             return S_OK;
 
@@ -1265,6 +1315,8 @@ HRESULT CArchiveExtractCallback::GetExtractStream(CMyComPtr<ISequentialOutStream
 
     bool isAnti = false;
     RINOK(_arc->IsItem_Anti(index, isAnti))
+    if (isAnti)
+        QtExtractStatus.StagingCompatible = false;
 
     CorrectPathParts();
     UString processedPath(MakePathFromParts(_item.PathParts));
@@ -1308,6 +1360,15 @@ HRESULT CArchiveExtractCallback::GetExtractStream(CMyComPtr<ISequentialOutStream
         if (isAnti)
             RemoveDir(_diskFilePath);
 #ifdef SUPPORT_LINKS
+        if (!_link.LinkPath.IsEmpty()) {
+            NFind::CFileInfo existing;
+            if (existing.Find(fullProcessedPath)) {
+                QtExtractStatus.Complete = false;
+                QtExtractStatus.StagingCompatible = false;
+                if (QtExtractPurpose == QtArchiveExtractPurpose::ArchiveStaging)
+                    return S_OK;
+            }
+        }
         if (_link.LinkPath.IsEmpty())
 #endif
         {
@@ -1331,6 +1392,10 @@ HRESULT CArchiveExtractCallback::GetExtractStream(CMyComPtr<ISequentialOutStream
     }
 
     _diskFilePath = fullProcessedPath;
+
+    if (QtIsStreamOutput)
+        QtExtractStatus.Inputs.AltStreamPaths.append(
+            QString::fromWCharArray(fs2us(fullProcessedPath)));
 
     if (isAnti) {
         needExit = false;
@@ -1380,12 +1445,14 @@ HRESULT CArchiveExtractCallback::GetExtractStream(CMyComPtr<ISequentialOutStream
                     RINOK(CreateHardLink2(fullProcessedPath, hl, link_was_Created))
                     if (!link_was_Created)
                         return S_OK;
+                    QtExtractStatus.Inputs.HardLinks = true;
                     // printf("\nHard linkWasSet Archive_Get_HardLinkNode %s\n",
                     // GetAnsiString(_diskFilePath)); _needSetAttrib = true; // do we need to set
                     // attribute ?
                     SetAttrib(_diskFilePath);
                     SET_NEED_SET_OWNER
                     SET_OWNER
+                    RecordQtOutputIdentity(_diskFilePath);
                     /* if we set (needExit = false) here, _hashStreamSpec will be used,
                        and hash will be calulated for all hard links files (it's slower).
                        But "Test" operation also calculates hashes.
@@ -1525,6 +1592,7 @@ HRESULT CArchiveExtractCallback::GetExtractStream(CMyComPtr<ISequentialOutStream
 
     _outFileStream = outFileStream_Loc;
 
+    RecordQtOutputIdentity(_diskFilePath);
     needExit = false;
     return S_OK;
 }
@@ -1551,6 +1619,12 @@ Z7_COM7F_IMF(CArchiveExtractCallback::GetStream(const UInt32 index,
                                                 ISequentialOutStream **outStream,
                                                 const Int32 askExtractMode)) {
     COM_TRY_BEGIN
+
+    bool outputAccepted = askExtractMode != NArchive::NExtract::NAskMode::kExtract || _testMode;
+    const auto recordOmittedOutput = qScopeGuard([&] {
+        if (!outputAccepted)
+            QtExtractStatus.Complete = false;
+    });
 
     *outStream = NULL;
 
@@ -1612,6 +1686,8 @@ Z7_COM7F_IMF(CArchiveExtractCallback::GetStream(const UInt32 index,
     IInArchive *const archive = _arc->Archive;
 
     RINOK(GetItem(index))
+    if (QtExtractPurpose != QtArchiveExtractPurpose::Copy)
+        QtOriginalPathParts = _item.PathParts;
 
     {
         NCOM::CPropVariant prop;
@@ -1672,8 +1748,10 @@ Z7_COM7F_IMF(CArchiveExtractCallback::GetStream(const UInt32 index,
 #endif // Z7_SFX
     {
         if (pathParts.IsEmpty()) {
-            if (_item.IsDir)
+            if (_item.IsDir) {
+                outputAccepted = true; // Structural archive root, not an omitted file.
                 return S_OK;
+            }
             /*
             #ifdef SUPPORT_ALT_STREAMS
             if (!_item.IsAltStream)
@@ -1816,6 +1894,7 @@ Z7_COM7F_IMF(CArchiveExtractCallback::GetStream(const UInt32 index,
         *outStream = outStreamLoc.Detach();
     }
 
+    outputAccepted = true;
     return S_OK;
 
     COM_TRY_END
@@ -2000,15 +2079,40 @@ HRESULT CArchiveExtractCallback::CreateHardLink2(const FString &newFilePath,
     return S_OK;
 }
 
+void CArchiveExtractCallback::RecordQtOutputIdentity(const FString &path) noexcept {
+    if (QtExtractPurpose == QtArchiveExtractPurpose::Copy)
+        return;
+    try {
+        if (!QtOutputs.RecordOutput(QString::fromWCharArray(fs2us(path))))
+            QtExtractStatus.Complete = false;
+    } catch (...) {
+        // This observer also runs during native final cleanup. Missing proof
+        // must retain the source and must not escape a destructor.
+        QtExtractStatus.Complete = false;
+    }
+}
+
 HRESULT CArchiveExtractCallback::SetLink(const FString &fullProcessedPath_from,
                                          const CLinkInfo &link,
                                          bool &linkWasSet) // placeholder was created
 {
     linkWasSet = false;
-    if (link.LinkPath.IsEmpty())
+    if (link.LinkPath.IsEmpty()) {
+        QtExtractStatus.Complete = false;
         return S_OK;
-    if (!_ntOptions.SymLinks.Val && link.Is_AnySymLink())
+    }
+    if (!_ntOptions.SymLinks.Val && link.Is_AnySymLink()) {
+        QtExtractStatus.Complete = false;
         return S_OK;
+    }
+    if (link.Is_AnySymLink()) {
+        QtExtractStatus.Inputs.SymLinks = true;
+        // Native extraction redirects archive-root links into its output tree.
+        // Reimporting that OS target would retain a disposable staging path.
+        if (!link.isRelative)
+            QtExtractStatus.StagingCompatible = false;
+    } else
+        QtExtractStatus.Inputs.HardLinks = true;
     CPostLink postLink;
     postLink.Index_in_Arc = _index;
     postLink.item_IsDir = _item.IsDir;
@@ -2023,11 +2127,12 @@ HRESULT CArchiveExtractCallback::SetLink(const FString &fullProcessedPath_from,
     DeleteLinkFileAlways_or_RemoveEmptyDir(fullProcessedPath_from,
                                            false); // checkThatFileIsEmpty = false
 
-    NIO::COutFile outFile;
-    if (!outFile.Create_NEW(fullProcessedPath_from))
-        return SendMessageError(
-            QT_TRANSLATE_NOOP("SevenZipDiagnostics", "Cannot create temporary link file"),
-            fullProcessedPath_from);
+    {
+        NIO::COutFile outFile;
+        if (!outFile.Create_NEW(fullProcessedPath_from))
+            return SendMessageError(
+                QT_TRANSLATE_NOOP("SevenZipDiagnostics", "Cannot create temporary link file"),
+                fullProcessedPath_from);
 #if 0 // 1 for debug
   // here we can write link path to temporary link file placeholder,
   // but empty placeholder is better, because we don't want to get any non-empty data instead of link file.
@@ -2035,7 +2140,9 @@ HRESULT CArchiveExtractCallback::SetLink(const FString &fullProcessedPath_from,
   ConvertUnicodeToUTF8(link.LinkPath, s);
   outFile.WriteFull(s, s.Len());
 #endif
+    }
     linkWasSet = true;
+    RecordQtOutputIdentity(fullProcessedPath_from);
     return S_OK;
 }
 
@@ -2820,11 +2927,13 @@ bool CFiTimesCAM::SetLinkFileTime_to_FS(CFSTR path) const {
                                  MTime_Defined ? &MTime : NULL);
 }
 
-HRESULT CArchiveExtractCallback::SetPostLinks() const {
+HRESULT CArchiveExtractCallback::SetPostLinks() {
     FOR_VECTOR(i, _postLinks) {
         const CPostLink &link = _postLinks[i];
         bool linkWasSet = false;
         RINOK(SetLink2(*this, link, linkWasSet))
+        if (!linkWasSet)
+            QtExtractStatus.Complete = false;
         if (linkWasSet) {
             // we set timestamps before SetAttrib(),
             // because windows doesn't set timestamps, if file has read-only attribute

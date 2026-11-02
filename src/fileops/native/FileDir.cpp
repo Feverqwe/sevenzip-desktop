@@ -558,54 +558,6 @@ bool DeleteFileAlways(CFSTR path) {
     return false;
 }
 
-bool RemoveDirWithSubItems(const FString &path) {
-    bool needRemoveSubItems = true;
-    {
-        NFind::CFileInfo fi;
-        if (!fi.Find(path))
-            return false;
-        if (!fi.IsDir()) {
-            ::SetLastError(ERROR_DIRECTORY);
-            return false;
-        }
-        if (fi.HasReparsePoint())
-            needRemoveSubItems = false;
-    }
-
-    if (needRemoveSubItems) {
-        FString s(path);
-        s.Add_PathSepar();
-        const unsigned prefixSize = s.Len();
-        NFind::CEnumerator enumerator;
-        enumerator.SetDirPrefix(s);
-        NFind::CDirEntry fi;
-        bool isError = false;
-        DWORD lastError = 0;
-        while (enumerator.Next(fi)) {
-            s.DeleteFrom(prefixSize);
-            s += fi.Name;
-            if (fi.IsDir()) {
-                if (!RemoveDirWithSubItems(s)) {
-                    lastError = GetLastError();
-                    isError = true;
-                }
-            } else if (!DeleteFileAlways(s)) {
-                lastError = GetLastError();
-                isError = false;
-            }
-        }
-        if (isError) {
-            SetLastError(lastError);
-            return false;
-        }
-    }
-
-    // we clear read-only attrib to remove read-only dir
-    if (!SetFileAttrib(path, 0))
-        return false;
-    return RemoveDir(path);
-}
-
 bool RemoveDirAlways_if_Empty(const FString &path) {
     const DWORD attrib = NFind::GetFileAttrib(path);
     if (attrib != INVALID_FILE_ATTRIBUTES && (attrib & FILE_ATTRIBUTE_READONLY)) {
@@ -786,7 +738,8 @@ bool MyGetTempPath(FString &path) {
 #endif
 }
 
-bool CreateTempFile2(CFSTR prefix, bool addRandom, AString &postfix, NIO::COutFile *outFile) {
+bool CreateTempFile2(CFSTR prefix, bool addRandom, AString &postfix, NIO::COutFile *outFile,
+                     FString &path) {
     UInt32 d =
 #ifdef _WIN32
         (GetTickCount() << 12) ^ (GetCurrentThreadId() << 14) ^ GetCurrentProcessId();
@@ -817,7 +770,8 @@ bool CreateTempFile2(CFSTR prefix, bool addRandom, AString &postfix, NIO::COutFi
         addRandom = true;
         if (outFile)
             postfix += ".tmp";
-        FString path(prefix);
+        // Prepare the cleanup owner's path before creating the OS object.
+        path = prefix;
         path += postfix;
         if (NFind::DoesFileOrDirExist(path)) {
             SetLastError(ERROR_ALREADY_EXISTS);
@@ -838,16 +792,21 @@ bool CreateTempFile2(CFSTR prefix, bool addRandom, AString &postfix, NIO::COutFi
     return false;
 }
 
+bool CreateTempFile2(CFSTR prefix, bool addRandom, AString &postfix, NIO::COutFile *outFile) {
+    FString path;
+    return CreateTempFile2(prefix, addRandom, postfix, outFile, path);
+}
+
 bool CTempFile::Create(CFSTR prefix, NIO::COutFile *outFile) {
     if (!Remove())
         return false;
     _ownedLease.reset();
     _path.Empty();
     AString postfix;
-    if (!CreateTempFile2(prefix, false, postfix, outFile))
+    if (!CreateTempFile2(prefix, false, postfix, outFile, _path)) {
+        _path.Empty();
         return false;
-    _path = prefix;
-    _path += postfix;
+    }
     _mustBeDeleted = true;
     _ownedLease =
         QtOwnedTempRegistry().RegisterCreated(QString::fromWCharArray(fs2us(_path).Ptr()));
@@ -870,10 +829,10 @@ bool CTempFile::CreateRandomInTempFolder(CFSTR namePrefix, NIO::COutFile *outFil
         return false;
     AString postfix;
     tempPath += namePrefix;
-    if (!CreateTempFile2(tempPath, true, postfix, outFile))
+    if (!CreateTempFile2(tempPath, true, postfix, outFile, _path)) {
+        _path.Empty();
         return false;
-    _path = tempPath;
-    _path += postfix;
+    }
     _mustBeDeleted = true;
     _ownedLease =
         QtOwnedTempRegistry().RegisterCreated(QString::fromWCharArray(fs2us(_path).Ptr()));
@@ -893,9 +852,10 @@ bool CTempFile::Remove() {
     return !_mustBeDeleted;
 }
 
-bool CTempFile::MoveTo(CFSTR name, bool deleteDestBefore, ICopyFileProgress *progress) {
+bool CTempFile::MoveTo(CFSTR name, bool deleteDestBefore, ICopyFileProgress *progress,
+                       bool *published) {
     DisableDeleting();
-    return MyPublishFile_with_Progress(_path, name, progress, deleteDestBefore);
+    return MyPublishFile_with_Progress(_path, name, progress, deleteDestBefore, published);
     /*
     if (attrib != INVALID_FILE_ATTRIBUTES && (attrib & FILE_ATTRIBUTE_READONLY))
     {
@@ -916,10 +876,10 @@ bool CTempDir::Create(CFSTR prefix) {
         return false;
     tempPath += prefix;
     AString postfix;
-    if (!CreateTempFile2(tempPath, true, postfix, NULL))
+    if (!CreateTempFile2(tempPath, true, postfix, NULL, _path)) {
+        _path.Empty();
         return false;
-    _path = tempPath;
-    _path += postfix;
+    }
     _mustBeDeleted = true;
     _ownedLease =
         QtOwnedTempRegistry().RegisterCreated(QString::fromWCharArray(fs2us(_path).Ptr()));
@@ -943,61 +903,109 @@ bool DeleteFileAlways(const QString &path) {
     return DeleteFileAlways(us2fs(native.c_str()));
 }
 
-bool RemoveDirWithSubItems(const QString &path,
-                           const std::function<bool(const QString &)> &checkBreak) {
-    if (checkBreak && !checkBreak(path))
-        return false;
+namespace {
+enum class RemoveTreeResult { Removed, Failed, Cancelled };
+
+// Original RemoveDirWithSubItems traversal, shared by native and Qt callers.
+RemoveTreeResult RemoveDirTree(FString path,
+                               const std::function<bool(const QString &)> &checkBreak) {
+    // A terminal separator must not make lstat follow a directory link.
+    const unsigned rootPrefixSize = GetRootPrefixSize(fs2us(path));
+    while (path.Len() > rootPrefixSize && IS_PATH_SEPAR(path.Back()))
+        path.DeleteBack();
+    const auto proceed = [&](const FString &item) {
+        return !checkBreak ||
+               checkBreak(QDir::fromNativeSeparators(QString::fromWCharArray(fs2us(item))));
+    };
+    if (!proceed(path))
+        return RemoveTreeResult::Cancelled;
     bool needRemoveSubItems = true;
     {
-        const QFileInfo fi(path);
-        if (!fi.exists() && !fi.isSymLink())
-            return false;
-        if (!fi.isDir())
-            return false;
-        if (fi.isSymLink())
+        NFind::CFileInfo fi;
+        if (!fi.Find(path))
+            return RemoveTreeResult::Failed;
+#ifndef _WIN32
+        if (fi.IsOsSymLink()) {
+            // The QString boundary accepts directory links, not file links.
+            // Inspect the target's type only; never enumerate its contents.
+            if (!fi.Find(path, true))
+                return RemoveTreeResult::Failed;
+            if (fi.IsDir())
+                return DeleteFileAlways(path) ? RemoveTreeResult::Removed
+                                              : RemoveTreeResult::Failed;
+        }
+#endif
+        if (!fi.IsDir()) {
+#ifdef _WIN32
+            ::SetLastError(ERROR_DIRECTORY);
+#else
+            errno = ENOTDIR;
+#endif
+            return RemoveTreeResult::Failed;
+        }
+#ifdef _WIN32
+        if (fi.HasReparsePoint())
             needRemoveSubItems = false;
+#endif
     }
     if (needRemoveSubItems) {
-        QString s(path);
-        if (!s.endsWith('/'))
-            s += '/';
-        const qsizetype prefixSize = s.size();
-        if (!QFileInfo(path).isReadable())
-            return false;
-        const auto entries = QDir(path).entryInfoList(
-            QDir::AllEntries | QDir::NoDotAndDotDot | QDir::Hidden | QDir::System, QDir::NoSort);
+        FString s(path);
+        s.Add_PathSepar();
+        const unsigned prefixSize = s.Len();
+        NFind::CEnumerator enumerator;
+        enumerator.SetDirPrefix(s);
         bool isError = false;
-        for (const QFileInfo &fi : entries) {
-            s.truncate(prefixSize);
-            s += fi.fileName();
-            if (checkBreak && !checkBreak(s))
-                return false;
-            if (fi.isDir()) {
-                if (!RemoveDirWithSubItems(s, checkBreak))
-                    isError = true;
-            } else if (!DeleteFileAlways(s))
-                isError = false;
-        }
-        if (isError)
-            return false;
-    }
-    if (QFileInfo(path).isSymLink())
-        return QFile::remove(path);
-#ifdef Q_OS_WIN
-    const auto permissions = QFileInfo(path).permissions();
-    if (!QFile::setPermissions(path, permissions | QFileDevice::WriteUser))
-        return false;
+        DWORD lastError = 0;
+        for (;;) {
+            NFind::CFileInfo fi;
+            bool found;
+#ifdef _WIN32
+            if (!enumerator.Next(fi, found))
+#else
+            NFind::CDirEntry entry;
+            if (!enumerator.Next(entry, found) ||
+                (found && !enumerator.Fill_FileInfo(entry, fi, false)))
 #endif
-    return QDir().rmdir(path);
+                return RemoveTreeResult::Failed;
+            if (!found)
+                break;
+            s.DeleteFrom(prefixSize);
+            s += fi.Name;
+            if (!proceed(s))
+                return RemoveTreeResult::Cancelled;
+            const auto result = fi.IsDir()            ? RemoveDirTree(s, checkBreak)
+                                : DeleteFileAlways(s) ? RemoveTreeResult::Removed
+                                                      : RemoveTreeResult::Failed;
+            if (result == RemoveTreeResult::Cancelled)
+                return result;
+            if (result == RemoveTreeResult::Failed) {
+                lastError = GetLastError();
+                isError = true;
+            }
+        }
+        if (isError) {
+            SetLastError(lastError);
+            return RemoveTreeResult::Failed;
+        }
+    }
+#ifdef _WIN32
+    // Preserve the source read-only-directory handling.
+    if (!SetFileAttrib(path, 0))
+        return RemoveTreeResult::Failed;
+#endif
+    return RemoveDir(path) ? RemoveTreeResult::Removed : RemoveTreeResult::Failed;
+}
+} // namespace
+
+bool RemoveDirWithSubItems(const FString &path) {
+    return RemoveDirTree(path, {}) == RemoveTreeResult::Removed;
 }
 
-#ifndef _WIN32
-bool RemoveDirWithSubItems(const FString &path) {
-    // The upstream recursive routine is Win32-only. This existing Qt boundary
-    // removes directory symlinks themselves and retains the cancellation API.
-    return RemoveDirWithSubItems(QString::fromWCharArray(fs2us(path).Ptr()));
+bool RemoveDirWithSubItems(const QString &path,
+                           const std::function<bool(const QString &)> &checkBreak) {
+    const auto native = QDir::toNativeSeparators(path).toStdWString();
+    return RemoveDirTree(us2fs(native.c_str()), checkBreak) == RemoveTreeResult::Removed;
 }
-#endif
 
 #ifndef _WIN32
 
@@ -1344,9 +1352,14 @@ static bool AtomicPublish(CFSTR oldFile, CFSTR newFile, bool replaceExisting) {
 }
 
 bool MyPublishFile_with_Progress(CFSTR oldFile, CFSTR newFile, ICopyFileProgress *progress,
-                                 bool replaceExisting) {
-    if (AtomicPublish(oldFile, newFile, replaceExisting))
+                                 bool replaceExisting, bool *published) {
+    if (published)
+        *published = false;
+    if (AtomicPublish(oldFile, newFile, replaceExisting)) {
+        if (published)
+            *published = true;
         return true;
+    }
 #ifdef _WIN32
     if (::GetLastError() != ERROR_NOT_SAME_DEVICE)
         return false;
@@ -1415,6 +1428,8 @@ bool MyPublishFile_with_Progress(CFSTR oldFile, CFSTR newFile, ICopyFileProgress
         error = ::GetLastError();
         return false;
     }
+    if (published)
+        *published = true;
     const bool removed = DeleteFileAlways(oldFile);
     if (!removed)
         error = ::GetLastError();

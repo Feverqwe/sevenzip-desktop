@@ -1,8 +1,8 @@
 #pragma once
 #include <QCoreApplication>
 #include <QDialog>
-#include <QHash>
 #include <QList>
+#include <QStringList>
 
 class QtArchiveMountSession;
 struct IUnknown;
@@ -15,14 +15,17 @@ class QAction;
 class QtArchiveMountManager final : public QDialog {
     Q_DECLARE_TR_FUNCTIONS(QtArchiveMountManager)
     QWidget *owner_;
-    QList<QtArchiveMountSession *> sessions_;
-    QHash<QtArchiveMountSession *, QStringList> issues_;
+    struct Session {
+        QtArchiveMountSession *instance;
+        QStringList issues;
+    };
+    QList<Session> sessions_;
     QTreeWidget *list_;
     QPlainTextEdit *details_;
     QPushButton *open_, *copy_, *unmount_, *force_;
     QAction *remove_;
     bool closingOwner_ = false;
-    QtArchiveMountSession *selected() const;
+    const Session *selected() const;
     void refresh();
     void updateDetails();
     void unmountSelected(bool force);

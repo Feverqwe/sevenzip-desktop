@@ -5,13 +5,14 @@
 // A native enumeration snapshot survives staging and final archive publication.
 // It is not a list of paths to delete regardless of subsequent source changes.
 class QtArchiveDeleteInputs {
-  public:
     CDirItems DirItems;
     CByteBuffer ProcessedItems;
     CBoolPair SymLinks;
-    void Capture(const CDirItems &items, const CByteBuffer &processed);
-    void MarkCreatedInputsProcessed();
-    HRESULT Delete(IUpdateDeletionCallback &callback);
+
+  public:
+    QtArchiveDeleteInputs(const CDirItems &items, const CByteBuffer &processed,
+                          const CBoolPair &symLinks);
+    HRESULT Delete(IUpdateDeletionCallback &callback) const;
 };
 
 class QtUpdateDeletionCallback final : public IUpdateDeletionCallback {

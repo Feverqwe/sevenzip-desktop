@@ -2,6 +2,7 @@
 
 #include "archive/backend/archivebackend.h"
 #include "archive/sfx/archivesfxmodule.h"
+#include "dialogs/compress/CompressDialog.h"
 
 #include <QCheckBox>
 #include <QComboBox>
@@ -94,8 +95,6 @@ class CreateArchiveDialog : public QDialog {
     void validateAndAccept();
     QString archivePath() const;
 
-    QString currentDirectory_;
-    const QString StartDirPrefix;
     QString target_;
     std::shared_ptr<const ArchiveCodecCatalog> codecs_;
     CCompressDialog archiveNameState_;

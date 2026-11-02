@@ -47,8 +47,7 @@ class CThreadFolderOperations : public CProgressThreadVirt {
     UInt32 Index;
     CRecordVector<UInt32> Indices;
     CMyComPtr<IFolderOperations> FolderOperations;
-    CMyComPtr<IProgress> UpdateCallback;
-    CUpdateCallback100Imp *UpdateCallbackSpec;
+    CMyComPtr2<IProgress, CUpdateCallback100Imp> UpdateCallback;
 
     explicit CThreadFolderOperations(EFolderOpType opType) : OpType(opType) {}
     HRESULT DoOperation(CPanel &panel, const UString &progressTitle, const UString &titleError);
@@ -76,18 +75,17 @@ HRESULT CThreadFolderOperations::ProcessVirt() {
 
 HRESULT CThreadFolderOperations::DoOperation(CPanel &panel, const UString &progressTitle,
                                              const UString &titleError) {
-    UpdateCallbackSpec = new CUpdateCallback100Imp;
-    UpdateCallback = UpdateCallbackSpec;
-    UpdateCallbackSpec->ProgressDialog = this;
+    UpdateCallback.SetFromCls(new CUpdateCallback100Imp);
+    UpdateCallback->ProgressDialog = this;
 
     WaitMode = true;
     Sync.FinalMessage.ErrorMessage.Title = titleError;
-    UpdateCallbackSpec->Init();
+    UpdateCallback->Init();
 
     if (!panel.GetParentFolders().IsEmpty()) {
         const CFolderLink &folderLink = panel.GetParentFolders().Back();
-        UpdateCallbackSpec->PasswordIsDefined = folderLink.UsePassword;
-        UpdateCallbackSpec->Password = folderLink.Password;
+        UpdateCallback->PasswordIsDefined = folderLink.UsePassword;
+        UpdateCallback->Password = folderLink.Password;
     }
 
     MainWindow = panel.GetParent();
@@ -364,8 +362,10 @@ static HRESULT MoveItemsToTrash(const CPanel &panel, const CRecordVector<UInt32>
     return S_OK;
 }
 
-HRESULT CPanel::DeleteItems(bool toRecycleBin, IQtTrashService &trash, CSelectedState &state,
-                            const CRecordVector<UInt32> *explicitIndices, bool confirm) {
+QtArchiveUpdateResult CPanel::DeleteItems(bool toRecycleBin, IQtTrashService &trash,
+                                          CSelectedState &state,
+                                          const CRecordVector<UInt32> *explicitIndices,
+                                          bool confirm) {
     CDisableTimerProcessing disableTimerProcessing(*this);
     CRecordVector<UInt32> indices;
     if (explicitIndices)
@@ -373,20 +373,20 @@ HRESULT CPanel::DeleteItems(bool toRecycleBin, IQtTrashService &trash, CSelected
     else
         Get_ItemIndices_Operated(indices);
     if (indices.IsEmpty())
-        return S_FALSE;
+        return {S_FALSE, false};
     SaveSelectedState(state);
     if (!CheckBeforeUpdate(IDS_ERROR_DELETING) || (confirm && !ConfirmDeleteItems(*this, indices)))
-        return E_ABORT;
+        return {E_ABORT, false};
 
     CDisableNotify disableNotify(*this);
     const bool recycle = toRecycleBin && IsFSFolder();
-    HRESULT result;
+    QtArchiveUpdateResult result{E_FAIL, std::nullopt};
     if (recycle) {
-        result = MoveItemsToTrash(*this, indices, trash);
+        result.Result = MoveItemsToTrash(*this, indices, trash);
         // QFile's native trash boundary has no shell error UI. Preserve the
         // source shell branch's refresh after a partial result.
-        if (result != S_OK)
-            MessageBox_Error_HRESULT_Caption(result, LangString(IDS_ERROR_DELETING));
+        if (result.Result != S_OK)
+            MessageBox_Error_HRESULT_Caption(result.Result, LangString(IDS_ERROR_DELETING));
     } else {
         CThreadFolderOperations op(FOLDER_TYPE_DELETE);
         op.FolderOperations = _folderOperations;
@@ -401,7 +401,9 @@ HRESULT CPanel::DeleteItems(bool toRecycleBin, IQtTrashService &trash, CSelected
                 op.Sync.Set_FilePath(path.toStdWString().c_str());
                 return op.Sync.CheckStop() == S_OK;
             };
-        result = op.DoOperation(*this, LangString(IDS_DELETING), LangString(IDS_ERROR_DELETING));
+        result.Result =
+            op.DoOperation(*this, LangString(IDS_DELETING), LangString(IDS_ERROR_DELETING));
+        result.Published = op.UpdateCallback->Published;
     }
     if (!recycle)
         RefreshTitleAlways();

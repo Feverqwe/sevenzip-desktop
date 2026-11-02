@@ -6,7 +6,6 @@
 #include "archive/opening/OpenArchive.h"
 #include "archive/resources/archivereadpolicy.h"
 #include "filemanager/ExtractCallback.h"
-#include "filemanager/OpenCallback.h"
 #include "ui/diagnostics/qtdiagnostictext.h"
 #include <QCoreApplication>
 #include <QMessageBox>
@@ -39,8 +38,8 @@ bool ConfirmLimitedFilesystemRead(QWidget *parent, const QString &limitations) {
     return warning.clickedButton() == open;
 }
 
-HRESULT PrepareLimitedFilesystemRead(const CArchiveLink &link, COpenArchiveCallback *callback,
-                                     const QString &accepted, QString &limitations) {
+namespace {
+HRESULT CollectFilesystemReadLimitations(const CArchiveLink &link, QString &limitations) {
     limitations.clear();
     FOR_VECTOR(a, link.Arcs) {
         const CArc &arc = link.Arcs[a];
@@ -66,21 +65,15 @@ HRESULT PrepareLimitedFilesystemRead(const CArchiveLink &link, COpenArchiveCallb
             limitations += QString::fromWCharArray(value.bstrVal);
         }
     }
-    if (!callback || limitations.isEmpty() || limitations == accepted)
-        return S_OK;
-    RINOK(callback->Open_CheckBreak())
-    RINOK(RunCallbackDialog(callback->ProgressDialog, [&] {
-        return ConfirmLimitedFilesystemRead(&callback->ProgressDialog, limitations) ? S_OK
-                                                                                    : E_ABORT;
-    }))
-    return callback->Open_CheckBreak();
+    return S_OK;
 }
+} // namespace
 
 HRESULT PrepareLimitedArchiveRead(const CArchiveLink &link, const CCodecs &codecs,
                                   CProgressDialog *dialog, IOpenCallbackUI *callback,
                                   const QString &accepted, QString &limitations,
                                   bool &nativeMetadata) {
-    RINOK(PrepareLimitedFilesystemRead(link, nullptr, {}, limitations))
+    RINOK(CollectFilesystemReadLimitations(link, limitations))
     bool archiveWarning = false;
     nativeMetadata = !limitations.isEmpty();
     FOR_VECTOR(a, link.Arcs) {

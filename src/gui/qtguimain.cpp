@@ -33,15 +33,17 @@ int RunSevenzipGUICommand(QApplication &application, const QtGUICommandSource &c
         if (!ready && !hashOnly)
             throw UString(error.toStdWString().c_str());
         services = std::make_unique<QtShellArchiveServices>(
-            backend, nullptr, QtShellArchiveServices::OpenSink{},
-            QtShellArchiveServices::CompressSink{}, QtShellArchiveServices::ErrorSink{},
-            [&backend](CCompressDialog &source, const CObjectVector<NWildcard::CCensorPath> &paths,
-                       QWidget *parent) {
-                return CreateArchiveDialog::PresentSource(source, paths, backend.codecCatalog(),
-                                                          parent);
-            },
-            FmSettingsPath(), QtShellArchiveServices::TestSink{},
-            QtShellArchiveServices::ExtractSink{}, outputReady);
+            backend, nullptr,
+            QtShellArchiveServices::Routes{
+                .Modal =
+                    [&backend](CCompressDialog &source,
+                               const CObjectVector<NWildcard::CCensorPath> &paths,
+                               QWidget *parent) {
+                        return CreateArchiveDialog::PresentSource(source, paths,
+                                                                  backend.codecCatalog(), parent);
+                    },
+                .OutputReady = outputReady},
+            FmSettingsPath());
         return *services;
     };
     return SevenzipGUI(factory, command);

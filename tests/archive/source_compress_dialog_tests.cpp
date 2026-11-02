@@ -451,12 +451,14 @@ class SourceCompressDialogTests final : public QObject {
         bool shown = false;
         unsigned errors = 0;
         QtShellArchiveServices service(
-            backend, nullptr, {}, {}, [&](HRESULT, const UString &) { errors++; },
-            [&](CCompressDialog &dialog, const CObjectVector<NWildcard::CCensorPath> &paths,
-                QWidget *parent) {
-                return CreateArchiveDialog::PresentSource(dialog, paths, backend.codecCatalog(),
-                                                          parent);
-            });
+            backend, nullptr,
+            {.Error = [&](HRESULT, const UString &) { errors++; },
+             .Modal =
+                 [&](CCompressDialog &dialog, const CObjectVector<NWildcard::CCensorPath> &paths,
+                     QWidget *parent) {
+                     return CreateArchiveDialog::PresentSource(dialog, paths,
+                                                               backend.codecCatalog(), parent);
+                 }});
         QTimer dismissal;
         connect(&dismissal, &QTimer::timeout, [&] {
             if (auto *dialog =

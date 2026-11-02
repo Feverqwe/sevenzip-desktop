@@ -34,7 +34,6 @@ class QtPanelFolder final : public IFolderFolder,
     CObjectVector<CPanelItem> items_;
     UStringVector propertyNames_;
     PropertyCatalog catalog_;
-    bool hasMTimeText_ = false;
-    bool hasCrc_ = false;
+    CRecordVector<PROPID> archivePropertyIds_;
     CRecordVector<PROPID> rawPropertyIds_;
 };

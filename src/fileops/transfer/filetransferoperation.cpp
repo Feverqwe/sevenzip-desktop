@@ -60,10 +60,14 @@ int FileTransferOperation::askOverwrite(const OverwriteQuestion &question) {
 }
 
 void FileTransferOperation::run() {
-    try {
-        QtFileTransferTransaction(*this).run();
-    } catch (...) {
-        resultKind_ = ResultKind::Failure;
-        emit result(false, QString::fromWCharArray(NWindows::NError::MyFormatMessage(E_FAIL)));
-    }
+    const auto completion = [this]() -> Completion {
+        try {
+            return QtFileTransferTransaction(*this).run();
+        } catch (...) {
+            return {ResultKind::Failure,
+                    QString::fromWCharArray(NWindows::NError::MyFormatMessage(E_FAIL))};
+        }
+    }();
+    resultKind_ = completion.kind;
+    emit result(completion.kind == ResultKind::Success, completion.message);
 }

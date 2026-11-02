@@ -375,19 +375,13 @@ int SmbReadOnlyServer::State::read(smb2_context *context, smb2_read_request *req
         auto &session = client(context);
         if (PendingCount->load() >= 128 || session.Reads.size() >= 32)
             return status(SMB2_STATUS_INSUFFICIENT_RESOURCES);
-        const auto pending = std::make_shared<Client::Pending>(PendingCount);
-        pending->Maximum = length;
+        const auto pending = std::make_shared<Client::Pending>(PendingCount, length);
         const quint64 message = smb2_get_last_request_message_id(context);
         if (!session.Reads.emplace(message, pending).second)
             return status(SMB2_STATUS_INVALID_PARAMETER);
         try {
-            ReadAsync(entry.Id, request->offset, length, [pending](SmbTreeRead result) {
-                std::lock_guard<std::mutex> lock(pending->Mutex);
-                if (!pending->Ready) {
-                    pending->Result = std::move(result);
-                    pending->Ready = true;
-                }
-            });
+            ReadAsync(entry.Id, request->offset, length,
+                      [pending](SmbTreeRead result) { pending->complete(std::move(result)); });
         } catch (...) {
             session.Reads.erase(message);
             throw;

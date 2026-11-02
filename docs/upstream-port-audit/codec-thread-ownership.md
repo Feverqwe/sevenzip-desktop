@@ -1,5 +1,68 @@
 # Shared codec owner across native workers — 2026-10-18
 
+## Checksum provider handoff — 2026-11-02
+
+Reviewed backend checksum validation, worker startup, pause/cancel, joined
+completion and reentrant output delivery alongside `CExternalCodecs::Load`,
+`CHashBundle::SetMethods`, `HashCalc` and the `HashCalcGUI` worker handoff.
+The original GUI passes an already loaded provider inventory into its worker;
+provider loading enumerates method metadata and retains provider interfaces,
+without establishing a thread-local resource. Existing native implementations
+and their recorded baselines remain unchanged; no external code is imported.
+
+Backend validation previously loaded a provider inventory which it discarded,
+then the Qt worker independently loaded the same catalog again. The validated
+inventory now transfers to the worker through one owning pointer. The retained
+catalog outlives both the provider inventory and result bundle. Unsupported
+methods still fail synchronously before publishing an active worker; native
+method parsing, hasher creation, enumeration, reading, statistics and summary
+generation remain with their existing source owners. Registered built-in
+hashers remain available without an external catalog. Pause/cancel, progress
+generation and detached completion results retain their existing behavior.
+
+Existing checksum and worker-progress regressions cover exact Unicode-path
+digests, invalid methods, pause/cancel, joined cancellation followed by retry,
+backend destruction during output and reentrant failure during summary delivery.
+No private provider-load counter or representation test is added for this
+ownership refactoring.
+
+Focused Linux validation passed checksum, worker_progress and codec_commands_ui:
+42 checks without skips. Only portable ownership and preparation changed; no
+native OS branch, module-loading algorithm or UI appearance changed, so secondary
+platform checks were not selected. Whitespace and source-inventory checks passed.
+Configured four-job builds reused incremental outputs and compiler caches; the
+completed tests' temporary settings were removed. No full or slow gate is claimed.
+
+## Discovery request lifetime — 2026-11-01
+
+Reviewed probe preparation, queued delivery, cancellation/deadline, join,
+destruction and backend publication with opening/startup consumers. Rechecked
+the unchanged native loading boundary against recorded LoadCodecs.cpp/.h at
+`b88c6bc09339de32f7d18bbab900686b244f42ba` in
+<https://github.com/ip7z/7zip.git>; complete original units match their existing
+baseline hashes. No native loading code is imported, replaced or omitted.
+
+The discovery request now owns its completion callback alongside the result and
+stop/deadline state. Its presence defines probe activity; the separate callback
+member and active flag are removed. Joined completion detaches the request before
+calling a consumer, so a reentrant retry has its own owner and a consumer may
+destroy the probe. Worker identity, unpublished-start cleanup, deadline/error
+policy and the backend's separate queued publication state remain unchanged.
+That backend state still spans the interval after the probe finishes and before
+catalog publication on the GUI thread.
+
+New public callback cases retry or destroy the probe from completion, checking
+one result per accepted request and readiness for retry. Existing cases retain
+native loading, rejected concurrent starts, failure/cancellation, deadlines,
+responsiveness and joined teardown coverage. No private representation test or
+pre-fix product failure is claimed.
+
+Linux acceptance passed `codec_probe`, `codec_catalog`, `agent_opening` and
+`codec_commands_ui`. Only the portable request owner changed; native module
+loading and platform branches are untouched, so no secondary OS was selected.
+Checks reused incremental outputs, compiler cache and the four-job default.
+No full/slow gate or appearance acceptance is claimed.
+
 Source: <https://github.com/ip7z/7zip.git>, commit
 `9128b80e3a471108678e2b3ec3c985861c8d7b0f`.
 Reviewed complete `UI/Common/LoadCodecs.h` ownership declarations,

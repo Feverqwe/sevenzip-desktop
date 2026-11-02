@@ -193,9 +193,9 @@ void QtFmOptionsDialog::showPageHelp() {
     else
         _settingsPage->OnNotifyHelp();
 }
-void QtFmOptionsDialog::apply() {
+bool QtFmOptionsDialog::apply() {
     if (_applying)
-        return;
+        return false;
     QScopedValueRollback<bool> applying(_applying, true);
     setEnabled(false);
     const auto enable = qScopeGuard([this] { setEnabled(true); });
@@ -220,7 +220,7 @@ void QtFmOptionsDialog::apply() {
     if (_settingsPage->OnApply() != 0) {
         revealControl(findChild<QWidget *>("extractMemorySpin"));
         updateApplyButton();
-        return;
+        return false;
     }
     const auto colorScheme = _settingsPage->settings().ColorScheme;
     if (colorScheme != _appliedColorScheme) {
@@ -233,6 +233,8 @@ void QtFmOptionsDialog::apply() {
         QtNotifyLanguageChanged();
     emit Applied();
     updateApplyButton();
+    // Applied observers can leave a new draft after the pages were saved.
+    return !_settingsPage->IsModified();
 }
 void QtFmOptionsDialog::updateApplyButton() {
     _buttons->button(QDialogButtonBox::Apply)
@@ -265,10 +267,7 @@ void QtFmOptionsDialog::changeEvent(QEvent *event) {
         updateNavigationGeometry();
 }
 void QtFmOptionsDialog::accept() {
-    if (_applying)
-        return;
-    apply();
-    if (!_settingsPage->IsModified())
+    if (apply())
         QDialog::accept();
 }
 void QtFmOptionsDialog::reject() {

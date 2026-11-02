@@ -100,6 +100,7 @@ if(APPLE)
 endif()
 
 sevenzip_add_port_component(sevenzip_compress_source src/dialogs/compress/CompressDialog.h
+    src/dialogs/compress/CompressInfo.h
     src/dialogs/compress/CompressDialog.cpp)
 
 sevenzip_add_port_component(sevenzip_agent src/archive/agent/Agent.h

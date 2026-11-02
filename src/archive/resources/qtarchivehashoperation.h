@@ -13,10 +13,13 @@ class ArchiveCodecCatalog;
 class QtArchiveHashOperation final : public QThread, private IHashCallbackUI {
     // Declared first so DLL images outlive Bundle's retained IHasher instances.
     std::shared_ptr<const ArchiveCodecCatalog> catalog_;
+    // The same provider inventory serves synchronous validation and worker reads.
+    std::unique_ptr<const CExternalCodecs> providers_;
 
   public:
     QtArchiveHashOperation(QStringList paths, QStringList methods,
-                           std::shared_ptr<const ArchiveCodecCatalog> catalog);
+                           std::shared_ptr<const ArchiveCodecCatalog> catalog,
+                           std::unique_ptr<const CExternalCodecs> providers);
     void cancel();
     void setPaused(bool paused);
     HRESULT Result = E_FAIL;

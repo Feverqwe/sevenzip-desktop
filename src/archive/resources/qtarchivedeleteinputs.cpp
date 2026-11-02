@@ -1,18 +1,12 @@
 #include "archive/resources/qtarchivedeleteinputs.h"
 
-void QtArchiveDeleteInputs::Capture(const CDirItems &items, const CByteBuffer &processed) {
-    DirItems = items;
+QtArchiveDeleteInputs::QtArchiveDeleteInputs(const CDirItems &items, const CByteBuffer &processed,
+                                             const CBoolPair &symLinks)
+    : DirItems(items), ProcessedItems(processed), SymLinks(symLinks) {
     DirItems.Callback = nullptr;
-    ProcessedItems = processed;
 }
 
-void QtArchiveDeleteInputs::MarkCreatedInputsProcessed() {
-    ProcessedItems.Alloc(DirItems.Items.Size());
-    for (unsigned i = 0; i < DirItems.Items.Size(); ++i)
-        ProcessedItems[i] = 1;
-}
-
-HRESULT QtArchiveDeleteInputs::Delete(IUpdateDeletionCallback &callback) {
+HRESULT QtArchiveDeleteInputs::Delete(IUpdateDeletionCallback &callback) const {
     return UpdateArchive(DirItems, ProcessedItems, SymLinks, &callback);
 }
 

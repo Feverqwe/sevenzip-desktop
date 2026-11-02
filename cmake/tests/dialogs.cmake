@@ -79,7 +79,7 @@
         add_executable(process_spawn_allocation_tests tests/operations/process_spawn_allocation_tests.cpp
             src/platform/process/qtexternalprocess.cpp)
         target_include_directories(process_spawn_allocation_tests PRIVATE src)
-        target_link_libraries(process_spawn_allocation_tests PRIVATE sevenzip_common)
+        target_link_libraries(process_spawn_allocation_tests PRIVATE sevenzip_common sevenzip_child_reaper)
         set_target_properties(process_spawn_allocation_tests PROPERTIES AUTOMOC OFF AUTOUIC OFF)
         add_test(NAME process_spawn_allocation COMMAND process_spawn_allocation_tests)
         set_tests_properties(process_spawn_allocation PROPERTIES TIMEOUT 15)

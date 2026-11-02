@@ -48,8 +48,11 @@ class QtFileManagerDrag final : public QObject,
     QPointer<QtNativePanelDragConverter> nativeConverter_;
 #endif
     bool active_ = false, revoked_ = false;
-    bool menuDrag_ = false;
-    QPointer<QWidget> rightPressWidget_;
-    QPoint rightPressPosition_;
-    bool contextDeferred_ = false, rightDragConsumed_ = false;
+    struct RightPress {
+        QPointer<QWidget> widget;
+        QPoint position;
+        bool contextDeferred = false;
+    };
+    std::optional<RightPress> rightPress_;
+    bool rightDragConsumed_ = false;
 };

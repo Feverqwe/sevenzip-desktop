@@ -1,10 +1,9 @@
 #include "filemanager/window/mainwindow.h"
+#include <QScopedValueRollback>
 
-void MainWindow::configureColumns(bool initialized) {
+void MainWindow::configureColumns() {
     auto &panel = app_.GetFocusedPanel();
-    if (!initialized && panel.InitColumns() != S_OK)
-        return;
-    configuringColumns_ = true;
+    const QScopedValueRollback<bool> configuring(configuringColumns_, true);
     const QSignalBlocker blocked(projectedUi().table->horizontalHeader());
     auto *fileTable = static_cast<FileTable *>(projectedUi().table);
     const CPropColumns &columns = panel.GetColumns();
@@ -40,7 +39,6 @@ void MainWindow::configureColumns(bool initialized) {
         panel._sortID = fileTable->propertyId(fallback);
         panel.SetSortRawStatus();
     }
-    configuringColumns_ = false;
 }
 
 void MainWindow::updateIconColumn() {

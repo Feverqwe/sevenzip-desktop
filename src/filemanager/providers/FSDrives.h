@@ -9,12 +9,12 @@
 struct CDriveInfo {
     FString Name;
     FString FullSystemName;
-    UInt64 DriveSize;
-    UInt64 FreeSpace;
-    UInt64 ClusterSize;
+    UInt64 DriveSize = 0;
+    UInt64 FreeSpace = 0;
+    UInt64 ClusterSize = 0;
     UString VolumeName;
     UString FileSystemName;
-    UINT DriveType;
+    UINT DriveType = 0;
     bool KnownSize;
     bool KnownSizes;
     bool IsPhysicalDrive;

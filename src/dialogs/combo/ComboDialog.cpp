@@ -4,6 +4,7 @@
 // converts only at widget boundaries. OnOK keeps the raw value.
 #include "dialogs/combo/ComboDialog.h"
 #include "7zip/UI/FileManager/resource.h"
+#include "Windows/ErrorMsg.h"
 #include "localization/qtlangbuttonbox.h"
 #include "localization/qtlangcontrols.h"
 #include "settings/ViewSettings.h"
@@ -13,6 +14,7 @@
 #include <QComboBox>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMessageBox>
 #include <QVBoxLayout>
 
 CComboDialog::CComboDialog(const QString &title, const QString &prompt, const QString &initial,
@@ -62,7 +64,16 @@ bool CComboDialog::OnInit(const QString &title, const QString &prompt, const QSt
 }
 
 void CComboDialog::OnOK() {
-    Value = ToUString(_comboBox->currentText());
+    const QString text = _comboBox->currentText();
+    // Native text controls cannot return an embedded terminator. Reject it at
+    // the Qt boundary instead of passing a silently shortened value to callers.
+    if (text.contains(QChar::Null)) {
+        QMessageBox::critical(this, windowTitle(),
+                              ToQString(NWindows::NError::MyFormatMessage(E_INVALIDARG)));
+        _comboBox->setFocus();
+        return;
+    }
+    Value = ToUString(text);
     QDialog::accept();
 }
 

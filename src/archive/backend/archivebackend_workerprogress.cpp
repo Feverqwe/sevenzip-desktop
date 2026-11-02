@@ -2,6 +2,7 @@
 #include <QMutexLocker>
 #include <QPointer>
 #include <QThread>
+#include <utility>
 
 bool ArchiveBackend::startWorkerPhase(QThread &worker, std::function<void()> launch) {
     const QPointer<ArchiveBackend> owner(this);
@@ -23,8 +24,7 @@ bool ArchiveBackend::startWorkerPhase(QThread &worker, std::function<void()> lau
 // native callback to the GUI queue. Native scan/hash/deletion policy is unchanged.
 quint64 ArchiveBackend::beginWorkerProgress() {
     QMutexLocker lock(&workerProgressMutex_);
-    workerProgressPending_ = false;
-    workerProgressPath_.clear();
+    pendingWorkerProgress_.reset();
     workerProgressTimer_.start();
     return ++workerProgressGeneration_;
 }
@@ -33,23 +33,17 @@ void ArchiveBackend::postWorkerProgress(quint64 generation, int percent, const Q
     QMutexLocker lock(&workerProgressMutex_);
     if (generation != workerProgressGeneration_)
         return;
-    workerProgressPercent_ = percent;
-    workerProgressPath_ = path;
-    workerProgressPending_ = true;
+    pendingWorkerProgress_ = WorkerProgress{percent, path};
 }
 
 void ArchiveBackend::reportWorkerProgress() {
-    int percent;
-    QString path;
+    std::optional<WorkerProgress> update;
     {
         QMutexLocker lock(&workerProgressMutex_);
-        if (!workerProgressPending_)
-            return;
-        percent = workerProgressPercent_;
-        path = workerProgressPath_;
-        workerProgressPending_ = false;
+        update = std::exchange(pendingWorkerProgress_, std::nullopt);
     }
-    emit progress(percent, path);
+    if (update)
+        emit progress(update->Percent, update->Path);
 }
 
 void ArchiveBackend::finishWorkerProgress() {
@@ -57,7 +51,6 @@ void ArchiveBackend::finishWorkerProgress() {
     {
         QMutexLocker lock(&workerProgressMutex_);
         ++workerProgressGeneration_;
-        workerProgressPending_ = false;
-        workerProgressPath_.clear();
+        pendingWorkerProgress_.reset();
     }
 }

@@ -36,24 +36,13 @@ HRESULT MainWindow::reloadPanelPresentation(unsigned index, const CSelectedState
         }
     });
     const auto &panel = app_.Panels[index];
-    if (panel.IsArcFolder()) {
-        const HRESULT loaded = renderBoundFolder(!selection.CalledFromTimer);
-        if (loaded != S_OK)
-            return loaded;
-        restoreListSelection(selection);
-        return S_OK;
-    }
-    if (panel.IsRootFolder() || panel.IsFSDrivesFolder() || panel.IsNetFolder() ||
-        panel.IsAltStreamsFolder()) {
-        const HRESULT loaded = renderRootFolder(!selection.CalledFromTimer);
-        if (loaded != S_OK)
-            return loaded;
-        restoreListSelection(selection);
-        return S_OK;
-    }
-    if (projectedUi().state != State::Filesystem ||
+    const bool archive = panel.IsArcFolder();
+    const bool root = !archive && (panel.IsRootFolder() || panel.IsFSDrivesFolder() ||
+                                   panel.IsNetFolder() || panel.IsAltStreamsFolder());
+    if (archive || root || projectedUi().state != State::Filesystem ||
         QDir::cleanPath(ToQString(GetFolderPath(panel.GetFolder()))) != projectedUi().directory) {
-        const HRESULT loaded = renderBoundFolder(!selection.CalledFromTimer);
+        const HRESULT loaded = root ? renderRootFolder(!selection.CalledFromTimer)
+                                    : renderBoundFolder(!selection.CalledFromTimer);
         if (loaded == S_OK)
             restoreListSelection(selection);
         return loaded;
@@ -71,10 +60,14 @@ HRESULT MainWindow::reloadPanelPresentation(unsigned index, const CSelectedState
         refreshActions();
         return loaded;
     }
-    const int firstRow = projectedUi().table->rowAt(0);
+    auto *view = qobject_cast<QAbstractItemView *>(projectedUi().viewStack->currentWidget());
+    const QString topPath =
+        view == projectedUi().table
+            ? view->model()->index(projectedUi().table->rowAt(0), 1).data().toString()
+            : QString();
     const FilesystemViewport viewport(
-        projectedUi().directory, projectedUi().table->model()->index(firstRow, 1).data().toString(),
-        projectedUi().table->verticalScrollBar()->value());
+        view, projectedUi().directory, topPath,
+        QPoint(view->horizontalScrollBar()->value(), view->verticalScrollBar()->value()));
     return refreshFilesystem(selection, true, viewport);
 }
 
@@ -97,32 +90,24 @@ void MainWindow::refreshCurrent(const CSelectedState *preserved) {
     if (app_.QtOperations().closed())
         return;
     QtAppOperationState::CallScope call(app_.QtOperations());
+    if (projectedUi().state != State::Namespace && projectedUi().state != State::Filesystem &&
+        projectedUi().state != State::Viewing)
+        return;
+    auto &panel = app_.GetFocusedPanel();
+    CSelectedState selection;
+    if (preserved)
+        selection = *preserved;
+    else
+        panel.SaveSelectedState(selection);
     if (projectedUi().state == State::Namespace) {
-        auto &panel = app_.GetFocusedPanel();
-        CSelectedState selection;
-        if (preserved)
-            selection = *preserved;
-        else
-            panel.SaveSelectedState(selection);
         renderRootFolder();
         panel.RestoreLoadedSelection(selection);
         refreshActions();
         return;
     }
     if (projectedUi().state == State::Filesystem) {
-        CSelectedState selection;
-        if (preserved)
-            selection = *preserved;
-        else
-            app_.GetFocusedPanel().SaveSelectedState(selection);
         refreshFilesystem(selection, false);
-    } else if (projectedUi().state == State::Viewing) {
-        auto &panel = app_.GetFocusedPanel();
-        CSelectedState selection;
-        if (preserved)
-            selection = *preserved;
-        else
-            panel.SaveSelectedState(selection);
+    } else {
         CMyComPtr<IFolderFolder> oldFolder = panel.GetFolder();
         auto *folder = dynamic_cast<CAgentFolder *>((IFolderFolder *)oldFolder);
         if (!folder)
@@ -205,16 +190,22 @@ void MainWindow::restoreAutoRefreshViewport() {
     const auto viewport = std::exchange(panelUi_[projectedPanel_].pendingViewport, std::nullopt);
     if (!viewport || viewport->directory != projectedUi().directory)
         return;
+    auto *view = viewport->view.data();
+    if (!view || view != projectedUi().viewStack->currentWidget())
+        return;
+    view->doItemsLayout();
     int row = -1;
-    for (int i = 0; i < projectedUi().table->rowCount(); ++i) {
-        if (projectedUi().table->model()->index(i, 1).data().toString() == viewport->topPath) {
-            row = i;
-            break;
+    if (view == projectedUi().table) {
+        for (int i = 0; i < projectedUi().table->rowCount(); ++i) {
+            if (view->model()->index(i, 1).data().toString() == viewport->topPath) {
+                row = i;
+                break;
+            }
         }
     }
     if (row >= 0)
-        projectedUi().table->scrollTo(projectedUi().table->model()->index(row, 0),
-                                      QAbstractItemView::PositionAtTop);
+        view->scrollTo(view->model()->index(row, 0), QAbstractItemView::PositionAtTop);
     else
-        projectedUi().table->verticalScrollBar()->setValue(viewport->scrollValue);
+        view->verticalScrollBar()->setValue(viewport->scrollPosition.y());
+    view->horizontalScrollBar()->setValue(viewport->scrollPosition.x());
 }

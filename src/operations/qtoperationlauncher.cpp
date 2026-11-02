@@ -10,33 +10,29 @@
 #include <QThread>
 #include <QTimer>
 #include <QUuid>
-#include <functional>
 #include <optional>
 #include <utility>
 
-namespace {
-class OperationChannel final : public OperationSource {
+class QtOperationLauncher::Channel final : public OperationSource {
+    QtOperationLauncher &owner_;
+
   public:
+    explicit Channel(QtOperationLauncher &owner) : owner_(owner) {}
     OperationRequest Request;
-    std::function<void()> Accept;
-    std::function<void(const QString &)> Reject;
-    std::function<void(const QStringList &, const QStringList &)> Outputs;
-    std::function<bool(const OperationReport &)> Complete;
     OperationRequest request() const override { return Request; }
-    void accept() override { Accept(); }
-    void reject(QString error) override { Reject(error); }
+    void accept() override { owner_.acceptRequest(); }
+    void reject(QString error) override { owner_.rejectRequest(error); }
     void outputs(QStringList directories, QStringList archives) override {
-        Outputs(directories, archives);
+        owner_.recordOutputs(directories, archives);
     }
-    bool complete(OperationReport report) override { return Complete(report); }
+    bool complete(OperationReport report) override { return owner_.completeRequest(report); }
 };
-} // namespace
 
 struct QtOperationLauncher::State {
     enum class Phase { Ready, AwaitingAcceptance, AcceptanceQueued, Accepted, Finished };
     QtOperationProcess process_;
     std::unique_ptr<QTemporaryDir> directory_;
-    OperationChannel channel_;
+    Channel channel_;
     QRemoteObjectHost host_;
     QTimer poll_, startup_;
     QElapsedTimer exited_;
@@ -44,64 +40,16 @@ struct QtOperationLauncher::State {
     QStringList changedDirectories_;
     QStringList changedArchives_;
     Phase phase_ = Phase::Ready;
+    explicit State(QtOperationLauncher &owner) : channel_(owner) {}
     bool isAccepted() const {
         return phase_ == Phase::AcceptanceQueued || phase_ == Phase::Accepted;
     }
 };
 
 QtOperationLauncher::QtOperationLauncher(QObject *parent)
-    : QObject(parent), state_(std::make_unique<State>()) {
+    : QObject(parent), state_(std::make_unique<State>(*this)) {
     state_->startup_.setSingleShot(true);
     state_->poll_.setInterval(25);
-    state_->channel_.Accept = [this] {
-        if (state_->phase_ != State::Phase::AwaitingAcceptance || state_->result_) {
-            protocolFailure(QCoreApplication::translate("QtOperation",
-                                                        "Unexpected operation protocol message."));
-            return;
-        }
-        state_->phase_ = State::Phase::AcceptanceQueued;
-        state_->startup_.stop();
-        // The child has copied and validated the request before this call.
-        // A receiver may delete the observer. Leave QtRO's dispatch stack
-        // before exposing that callback, so its connection stays alive there.
-        QMetaObject::invokeMethod(
-            this,
-            [this] {
-                state_->phase_ = State::Phase::Accepted;
-                emit accepted();
-            },
-            Qt::QueuedConnection);
-    };
-    state_->channel_.Reject = [this](const QString &error) {
-        protocolFailure(error);
-        state_->startup_.stop();
-    };
-    state_->channel_.Outputs = [this](const QStringList &directories, const QStringList &archives) {
-        if (!state_->isAccepted() || state_->result_ || directories.isEmpty() ||
-            !ValidateOperationOutputs(directories, archives)) {
-            protocolFailure(QCoreApplication::translate("QtOperation",
-                                                        "Unexpected operation protocol message."));
-            return;
-        }
-        for (const auto &directory : directories)
-            if (!state_->changedDirectories_.contains(directory))
-                state_->changedDirectories_.append(directory);
-        for (const auto &archive : archives)
-            if (!state_->changedArchives_.contains(archive))
-                state_->changedArchives_.append(archive);
-    };
-    state_->channel_.Complete = [this](const OperationReport &report) {
-        auto result = state_->isAccepted() && !state_->result_
-                          ? OperationResultFromReport(report)
-                          : std::unexpected(QtOperationResult::Outcome::ProtocolFailed);
-        if (!result) {
-            protocolFailure(QCoreApplication::translate("QtOperation",
-                                                        "Unexpected operation protocol message."));
-            return false;
-        }
-        state_->result_ = std::move(*result);
-        return true;
-    };
     connect(&state_->poll_, &QTimer::timeout, this, &QtOperationLauncher::observe);
     connect(&state_->startup_, &QTimer::timeout, this, [this] {
         protocolFailure(QCoreApplication::translate(
@@ -109,6 +57,60 @@ QtOperationLauncher::QtOperationLauncher(QObject *parent)
         // A lost acknowledgement does not authorize terminating independent work.
         state_->host_.disableRemoting(&state_->channel_);
     });
+}
+
+void QtOperationLauncher::acceptRequest() {
+    if (state_->phase_ != State::Phase::AwaitingAcceptance || state_->result_) {
+        protocolFailure(
+            QCoreApplication::translate("QtOperation", "Unexpected operation protocol message."));
+        return;
+    }
+    state_->phase_ = State::Phase::AcceptanceQueued;
+    state_->startup_.stop();
+    // The child has copied and validated the request before this call.
+    // A receiver may delete the observer. Leave QtRO's dispatch stack
+    // before exposing that callback, so its connection stays alive there.
+    QMetaObject::invokeMethod(
+        this,
+        [this] {
+            state_->phase_ = State::Phase::Accepted;
+            emit accepted();
+        },
+        Qt::QueuedConnection);
+}
+
+void QtOperationLauncher::rejectRequest(const QString &error) {
+    protocolFailure(error);
+    state_->startup_.stop();
+}
+
+void QtOperationLauncher::recordOutputs(const QStringList &directories,
+                                        const QStringList &archives) {
+    if (!state_->isAccepted() || state_->result_ || directories.isEmpty() ||
+        !ValidateOperationOutputs(directories, archives)) {
+        protocolFailure(
+            QCoreApplication::translate("QtOperation", "Unexpected operation protocol message."));
+        return;
+    }
+    for (const auto &directory : directories)
+        if (!state_->changedDirectories_.contains(directory))
+            state_->changedDirectories_.append(directory);
+    for (const auto &archive : archives)
+        if (!state_->changedArchives_.contains(archive))
+            state_->changedArchives_.append(archive);
+}
+
+bool QtOperationLauncher::completeRequest(const OperationReport &report) {
+    auto result = state_->isAccepted() && !state_->result_
+                      ? OperationResultFromReport(report)
+                      : std::unexpected(QtOperationResult::Outcome::ProtocolFailed);
+    if (!result) {
+        protocolFailure(
+            QCoreApplication::translate("QtOperation", "Unexpected operation protocol message."));
+        return false;
+    }
+    state_->result_ = std::move(*result);
+    return true;
 }
 QtOperationLauncher::~QtOperationLauncher() = default;
 

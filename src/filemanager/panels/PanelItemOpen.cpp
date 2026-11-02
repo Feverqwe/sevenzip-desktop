@@ -30,6 +30,7 @@
 #include <QMessageBox>
 #include <QWidget>
 #include <chrono>
+#include <memory>
 #include <thread>
 #include <utility>
 
@@ -68,25 +69,22 @@ void CExitEventLauncher::Exit(bool hardExit) {
     }
 }
 
-// Source CChildProcesses; only OS handles/snapshot/process services are adapted.
+// Source child discovery and wait policy with scoped Qt process owners.
 class CChildProcesses {
+    struct CTrackedProcess {
+        std::unique_ptr<IQtProcessHandle> Handle;
+        bool NeedWait = true;
+    };
     CRecordVector<UInt32> _ids;
 
   public:
     IQtProcessServices *Services = nullptr;
-    CRecordVector<IQtProcessHandle *> Handles;
-    CRecordVector<bool> NeedWait;
+    CObjectVector<CTrackedProcess> Entries;
     UString Path;
     ~CChildProcesses() { CloseAll(); }
-    void DisableWait(unsigned index) { NeedWait[index] = false; }
+    void DisableWait(unsigned index) { Entries[index].NeedWait = false; }
     void CloseAll() {
-        FOR_VECTOR(i, Handles) {
-            IQtProcessHandle *h = Handles[i];
-            if (h != nullptr)
-                delete h;
-        }
-        Handles.Clear();
-        NeedWait.Clear();
+        Entries.Clear();
         _ids.Clear();
     }
     void SetMainProcess(IQtProcessHandle *h) {
@@ -95,10 +93,8 @@ class CChildProcesses {
         if (id != 0)
             _ids.AddToUniqueSorted(id);
         Path = h->FileName();
-        Handles.ReserveOnePosition();
-        NeedWait.ReserveOnePosition();
-        Handles.AddInReserved(owner.release());
-        NeedWait.AddInReserved(true);
+        auto &entry = Entries.AddNew();
+        entry.Handle.reset(owner.release());
     }
     void Update(bool needFindProcessByPath) {
         if (!Services)
@@ -131,10 +127,8 @@ class CChildProcesses {
                     IQtProcessHandle *hProcess = owner.get();
                     if (hProcess) {
                         _ids.AddToUniqueSorted(id);
-                        Handles.ReserveOnePosition();
-                        NeedWait.ReserveOnePosition();
-                        Handles.AddInReserved(owner.release());
-                        NeedWait.AddInReserved(true);
+                        auto &entry = Entries.AddNew();
+                        entry.Handle.reset(owner.release());
                         wasAdded = true;
                     }
                 }
@@ -230,20 +224,21 @@ static bool UpdateChangedExternalFile(CTmpProcessInfo &tpi) {
 static THREAD_FUNC_DECL MyThreadFunction(void *param) try {
     CMyUniquePtr<CTmpProcessInfo> tpi((CTmpProcessInfo *)param);
     CChildProcesses &processes = tpi->Processes;
-    const bool mainProcessWasSet = !processes.Handles.IsEmpty();
+    const bool mainProcessWasSet = !processes.Entries.IsEmpty();
     bool isComplexMode = true;
-    if (!processes.Handles.IsEmpty()) {
+    if (mainProcessWasSet) {
         QElapsedTimer timer;
         timer.start();
         bool firstPass = true;
         for (;;) {
             CRecordVector<IQtProcessHandle *> handles;
             CUIntVector indices;
-            FOR_VECTOR(i, processes.Handles) {
+            FOR_VECTOR(i, processes.Entries) {
                 if (handles.Size() > 60)
                     break;
-                if (processes.NeedWait[i]) {
-                    handles.Add(processes.Handles[i]);
+                const auto &process = processes.Entries[i];
+                if (process.NeedWait) {
+                    handles.Add(process.Handle.get());
                     indices.Add(i);
                 }
             }
@@ -1168,8 +1163,9 @@ bool CPanel::OnOpenItemChanged(const CTempFileInfo &tpi, const UString &fullPath
     if (fullPathFolderPrefix != _currentFolderPrefix || !_folder)
         return false;
     UInt32 fileIndex = tpi.FileIndex;
-    UInt32 numItems;
-    _folder->GetNumberOfItems(&numItems);
+    UInt32 numItems = 0;
+    if (_folder->GetNumberOfItems(&numItems) != S_OK)
+        return false;
     // Source limitation: duplicate names can still make a relocated index
     // ambiguous after another archive update.
     if (fileIndex >= numItems || GetItemRelPath(fileIndex) != tpi.RelPath) {

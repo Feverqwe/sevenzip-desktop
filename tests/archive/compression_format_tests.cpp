@@ -312,15 +312,17 @@ class CompressionFormatTests final : public QObject {
         QCOMPARE(backend.loadCodecCatalog(module_, catalog_->version()), S_OK);
         QStringList errors;
         QtShellArchiveServices service(
-            backend, nullptr, {}, {},
-            [&](HRESULT, const UString &message) {
-                errors.append(QString::fromWCharArray(message.Ptr()));
-            },
-            [&](CCompressDialog &source, const CObjectVector<NWildcard::CCensorPath> &paths,
-                QWidget *parent) {
-                return CreateArchiveDialog::PresentSource(source, paths, backend.codecCatalog(),
-                                                          parent);
-            });
+            backend, nullptr,
+            {.Error =
+                 [&](HRESULT, const UString &message) {
+                     errors.append(QString::fromWCharArray(message.Ptr()));
+                 },
+             .Modal =
+                 [&](CCompressDialog &source, const CObjectVector<NWildcard::CCensorPath> &paths,
+                     QWidget *parent) {
+                     return CreateArchiveDialog::PresentSource(source, paths,
+                                                               backend.codecCatalog(), parent);
+                 }});
         bool shown = false;
         QTimer responder;
         connect(&responder, &QTimer::timeout, this, [&] {

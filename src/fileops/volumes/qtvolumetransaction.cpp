@@ -9,10 +9,10 @@
 QtVolumeTransaction::~QtVolumeTransaction() {
     if (committed_)
         return;
-    for (const QString &path : staged_)
-        QFile::remove(path);
+    for (const auto &output : outputs_)
+        QFile::remove(output.staged);
     for (qsizetype i = 0; i < publishedCount_; ++i)
-        QFile::remove(targets_[i]);
+        QFile::remove(outputs_[i].target);
 }
 
 bool QtVolumeTransaction::create(NWindows::NFile::NIO::COutFile &file, const FString &target) {
@@ -24,24 +24,21 @@ bool QtVolumeTransaction::create(NWindows::NFile::NIO::COutFile &file, const FSt
     const QString stage = path + ".sevenzip-" + QUuid::createUuid().toString(QUuid::Id128);
     const FString nativeStage = us2fs(ToUString(stage));
     // Register both names before creating a file that rollback must own.
-    targets_.append(path);
-    auto removeTarget = qScopeGuard([&] { targets_.removeLast(); });
-    staged_.append(stage);
-    auto removeStage = qScopeGuard([&] { staged_.removeLast(); });
+    outputs_.append(Output{path, stage});
+    auto removeOutput = qScopeGuard([&] { outputs_.removeLast(); });
     if (!file.Create_NEW(nativeStage)) {
         failedPath_ = path;
         return false;
     }
-    removeStage.dismiss();
-    removeTarget.dismiss();
+    removeOutput.dismiss();
     return true;
 }
 
 bool QtVolumeTransaction::publish() {
-    for (qsizetype i = 0; i < targets_.size(); ++i) {
-        const QString &target = targets_[i];
+    for (const auto &output : outputs_) {
+        const QString &target = output.target;
         if (QFileInfo::exists(target) || QFileInfo(target).isSymLink() ||
-            !QFile::rename(staged_[i], target)) {
+            !QFile::rename(output.staged, target)) {
             failedPath_ = target;
             return false;
         }

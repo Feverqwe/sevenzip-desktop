@@ -18,6 +18,7 @@ struct QtOperationResult;
 #include "fileops/transfer/filetransferoperation.h"
 #include "fileops/volumes/volumeoperations.h"
 #include "settings/dialog_alias.h"
+#include "ui/progress/qtprogresstransport.h"
 
 #include <QAction>
 #include <QActionGroup>
@@ -54,6 +55,7 @@ struct QtOperationResult;
 #include <QMimeData>
 #include <QPainter>
 #include <QPlainTextEdit>
+#include <QPoint>
 #include <QPointer>
 #include <QPushButton>
 #include <QRegularExpression>
@@ -79,7 +81,6 @@ struct QtOperationResult;
 
 class QtFileListHover;
 class CProgressDialog;
-class IQtProgressTransport;
 class IQtTrashService;
 struct QtFileManagerStartup;
 
@@ -100,6 +101,10 @@ class MainWindow : public QMainWindow {
     void testArchive();
 
   private:
+    struct WindowProgress {
+        QPointer<CProgressDialog> dialog;
+        std::unique_ptr<IQtProgressTransport> transport;
+    };
     DeviceSelectionServices deviceServices_;
     QLabel *deviceReadOnly_ = nullptr;
     friend class QtAppPresentation;
@@ -150,7 +155,7 @@ class MainWindow : public QMainWindow {
     void transferFromArchive(const QString &destination, bool move, bool copyToSame,
                              unsigned sourceIndex, const CRecordVector<UInt32> &indices);
     void createFileTable(QWidget *central);
-    void configureColumns(bool initialized = false);
+    void configureColumns();
     void updateIconColumn();
     void saveColumns();
     void showColumnsMenu(const QPoint &pos);
@@ -163,11 +168,11 @@ class MainWindow : public QMainWindow {
     void failFilesystemListing(HRESULT result);
     void connectBackend();
     void backendFinished(bool ok, const QString &message, HRESULT result,
-                         bool messageDisplayed = false);
+                         bool messageDisplayed = false,
+                         std::optional<QtArchiveExtractStatus> extraction = std::nullopt);
     bool extractWithSource(const QString &destination, bool onlySelected, const QString &password,
                            const ExtractionOptions &options, const QStringList &names,
                            const CRecordVector<UInt32> *explicitIndices = nullptr);
-    bool startPendingArchiveMove(bool ok);
     void closeProgressDialog(bool finished = false);
     void beginWorkerProgress(const QString &label, const QString &detail,
                              std::function<void()> cancel);
@@ -184,7 +189,8 @@ class MainWindow : public QMainWindow {
                       UInt64 totalSize, std::function<void()> completion);
     void showItemContextMenu(unsigned owner, QAbstractItemView *view, const QPoint &pos);
     void applySortMode(bool enableSorting = false);
-    void sortIndicatorChanged(unsigned panel, int column, Qt::SortOrder order);
+    void sortIndicatorChanged(unsigned panel, int column, Qt::SortOrder order,
+                              bool headerClick = false);
     static QIcon toolbarIcon(int kind);
     static QString toolbarSettingsPath();
     void recordVisitedPath(const QString &path);
@@ -196,8 +202,10 @@ class MainWindow : public QMainWindow {
     void applyFlatView(bool enabled);
     void showSettings();
     void applyFileListSettings();
+    enum class PanelInputTarget { Other, Address, List, ListViewport };
+    PanelInputTarget panelInputTarget(QObject *object, unsigned panel) const;
     bool eventFilter(QObject *watched, QEvent *event) override;
-    bool handlePanelKey(QObject *watched, QKeyEvent *key);
+    bool handlePanelKey(PanelInputTarget target, QKeyEvent *key);
     bool handlePanelListKey(QKeyEvent *key);
     bool overridePanelKey(const QKeyEvent &key) const;
     void configureShortcuts();
@@ -216,13 +224,16 @@ class MainWindow : public QMainWindow {
     void refreshCurrent(const CSelectedState *preserved = nullptr);
     HRESULT reloadPanelPresentation(unsigned index, const CSelectedState &selection);
     HRESULT startFilesystemListing(bool sourceAlreadyBound, bool updateAddress);
+    HRESULT finishSynchronousFilesystemListing(HRESULT result);
     HRESULT startFilesystemScan(IFolderFolder *folder, bool flat);
     struct FilesystemViewport {
-        FilesystemViewport(const QString &folder, const QString &top, int position)
-            : directory(folder), topPath(top), scrollValue(position) {}
+        FilesystemViewport(QAbstractItemView *source, const QString &folder, const QString &top,
+                           const QPoint &position)
+            : view(source), directory(folder), topPath(top), scrollPosition(position) {}
+        QPointer<QAbstractItemView> view;
         QString directory;
         QString topPath;
-        int scrollValue;
+        QPoint scrollPosition;
     };
     HRESULT refreshFilesystem(const CSelectedState &selection, bool sourceAlreadyBound,
                               std::optional<FilesystemViewport> viewport = std::nullopt);
@@ -255,7 +266,9 @@ class MainWindow : public QMainWindow {
     void showSelectedProperties();
     void calculateHash(const QString &method);
     void begin(const QString &label, const QString &detail);
-    void startProgressDialog(const QString &label, const QString &detail);
+    std::unique_ptr<WindowProgress> createProgressDialog(const QString &label,
+                                                         const QString &detail);
+    CProgressDialog *progressDialog() const;
     void extractArchives();
     void runArchiveBatchCommand(bool test);
     HRESULT launchGuiArchiveTest(const UStringVector &paths, bool hashMode);
@@ -351,21 +364,18 @@ class MainWindow : public QMainWindow {
     QTimer *autoRefreshTimer_ = nullptr;
     std::unique_ptr<QtGuiOutputRefresh> guiOutputRefresh_;
     State previousState_ = State::Filesystem;
-    enum class ArchiveMoveStage { Extracting, Removing };
     struct PendingArchiveMove {
         PendingArchiveMove(unsigned index, const CRecordVector<UInt32> &selected)
             : source(index), indices(selected) {}
         const unsigned source;
         const CRecordVector<UInt32> indices;
-        ArchiveMoveStage stage = ArchiveMoveStage::Extracting;
     };
-    std::optional<PendingArchiveMove> archiveMove_;
+    std::unique_ptr<PendingArchiveMove> archiveMove_;
     Qt::KeyboardModifiers selectionClickModifiers_ = Qt::NoModifier;
     bool selectionClickLeft_ = false;
     bool selectionShiftSequence_ = false;
     bool rightControlPressed_ = false;
-    QPointer<CProgressDialog> progress_;
-    std::unique_ptr<IQtProgressTransport> progressTransport_;
+    std::unique_ptr<WindowProgress> progress_;
     bool sourceArchiveProgress_ = false;
     QAction *toolbarAdd_ = nullptr;
     QAction *extract_ = nullptr;
@@ -395,7 +405,7 @@ class MainWindow : public QMainWindow {
     QAction *editFile_ = nullptr;
     QAction *diffFiles_ = nullptr;
     QAction *properties_ = nullptr;
-    QAction *hashActions_[11]{};
+    QHash<unsigned, QAction *> hashActions_;
     QAction *createFolder_ = nullptr;
     QAction *createFile_ = nullptr;
     QAction *refresh_ = nullptr;

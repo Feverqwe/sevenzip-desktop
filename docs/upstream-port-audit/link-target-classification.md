@@ -1,5 +1,31 @@
 # Relative link target classification — 2026-11-01
 
+## Qt path input boundary — 2026-11-02
+
+Compared the complete original LinkDialog.cpp/.h/.rc at recorded commit
+`b88c6bc09339de32f7d18bbab900686b244f42ba`; all three original hashes match
+the baseline. Reviewed the Qt control adapter, creation/browse callers and native
+link services. No import or provenance change.
+
+The Qt text adapter previously silently truncated either path at an embedded
+NUL before the native workflow received it. It now rejects that input, and both
+creation and Browse report the existing invalid-argument error before using the
+path. Native link creation, relative target classification, retarget/clear and
+platform-specific reparse handling retain their existing algorithms. No layout
+or filename-normalization change.
+
+Two behavior rows attempt a hard link with NUL in either path: an error must
+leave the shortened link absent and original bytes intact. A separate valid
+dialog then creates the expected link. No pre-fix execution or same-dialog retry
+acceptance is claimed; invalid Browse is source-reviewed.
+
+Linux link_dialog and link_command passed: 28 passes, no skips. Focused build
+12.695s, tests 1.192s; completed settings fixtures removed, incremental trees and
+compiler caches retained. No secondary-platform, full/slow or appearance
+acceptance run.
+
+## Relative target classification
+
 Reference: <https://github.com/ip7z/7zip.git>, commit
 `9128b80e3a471108678e2b3ec3c985861c8d7b0f`. Compared complete LinkDialog
 initialization, browse, creation, error and CApp::Link bodies, header/resources,

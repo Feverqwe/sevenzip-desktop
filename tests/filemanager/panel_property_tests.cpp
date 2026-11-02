@@ -1,6 +1,7 @@
 #include "7zip/PropID.h"
 #include "Windows/PropVariant.h"
 #include "Windows/PropVariantConv.h"
+#include "archive/support/schema_folder.h"
 #include "dialogs/listview/ListViewDialog.h"
 #include "filemanager/panels/Panel.h"
 #include "localization/LangUtils.h"
@@ -140,6 +141,38 @@ class PanelPropertyTests : public QObject {
         QCOMPARE(value(dialog, "Изменен"), QString("1970-01-01 00:00:00.123456789Z"));
         QCOMPARE(value(dialog, "Свойство й"), QStringLiteral("значение с пробелом"));
         QCOMPARE(value(dialog, "123456"), QString("42"));
+    }
+
+    void rawCatalogKeepsAvailableProperties_data() {
+        QTest::addColumn<HRESULT>("result");
+        QTest::addColumn<bool>("writeCount");
+        QTest::newRow("available") << HRESULT(S_OK) << true;
+        QTest::newRow("failed-without-count") << HRESULT(E_FAIL) << false;
+        QTest::newRow("failed-with-written-count") << HRESULT(E_FAIL) << true;
+        QTest::newRow("partial-with-written-count") << HRESULT(S_FALSE) << true;
+    }
+    void rawCatalogKeepsAvailableProperties() {
+        QFETCH(HRESULT, result);
+        QFETCH(bool, writeCount);
+        auto *schema = new SchemaFolder;
+        CMyComPtr<IFolderFolder> folder = schema;
+        schema->properties = {{kpidName, VT_BSTR, S_OK, {}}};
+        schema->items->firstName = L"документ 空.txt";
+        schema->items->folderPath = L"/properties/папка 空/";
+        schema->rawCountResult = result;
+        schema->writeRawCount = writeCount;
+        CPanel panel(folder);
+        CRecordVector<UInt32> selected;
+        selected.Add(0);
+        CListViewDialog dialog;
+        panel.Properties(selected, dialog);
+        dialog.OnInit();
+        QCOMPARE(value(dialog, "Имя"), QStringLiteral("документ 空.txt"));
+        QCOMPARE(value(dialog, "CRC"), writeCount ? QString("DEADBEEF") : QString());
+        auto *list = dialog.findChild<QTreeWidget *>("propertiesList");
+        QVERIFY(list);
+        QVERIFY(!list->findItems(QStringLiteral("/properties/папка 空/"), Qt::MatchExactly, 1)
+                     .isEmpty());
     }
 
     void emptyValuesAndFailedCatalogEntriesAreSkipped() {

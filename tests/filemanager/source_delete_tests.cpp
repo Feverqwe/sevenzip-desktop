@@ -329,7 +329,8 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         responder.start(1);
         if (mode == 1 || mode == 2) {
             CSelectedState selection;
-            QCOMPARE(panel.DeleteItems(false, trash, selection), mode == 1 ? E_FAIL : E_ABORT);
+            QCOMPARE(panel.DeleteItems(false, trash, selection).Result,
+                     mode == 1 ? E_FAIL : E_ABORT);
         } else if (recycle)
             action(window, "deleteAction")->trigger();
         else {

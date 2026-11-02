@@ -56,12 +56,12 @@ QtArchiveMountManager::QtArchiveMountManager(QWidget *owner) : QDialog(owner), o
     connect(footer, &QDialogButtonBox::rejected, this, &QDialog::reject);
     connect(list_, &QTreeWidget::itemSelectionChanged, this, &QtArchiveMountManager::updateDetails);
     connect(open_, &QPushButton::clicked, this, [this] {
-        if (const auto *session = selected(); session && !session->path().isEmpty())
-            QDesktopServices::openUrl(QUrl::fromLocalFile(session->path()));
+        if (const auto *entry = selected(); entry && !entry->instance->path().isEmpty())
+            QDesktopServices::openUrl(QUrl::fromLocalFile(entry->instance->path()));
     });
     connect(copy_, &QPushButton::clicked, this, [this] {
-        if (const auto *session = selected(); session && !session->path().isEmpty())
-            QApplication::clipboard()->setText(session->path());
+        if (const auto *entry = selected(); entry && !entry->instance->path().isEmpty())
+            QApplication::clipboard()->setText(entry->instance->path());
     });
     connect(unmount_, &QPushButton::clicked, this, [this] { unmountSelected(false); });
     connect(force_, &QPushButton::clicked, this, [this] { unmountSelected(true); });
@@ -84,13 +84,14 @@ void QtArchiveMountManager::changeEvent(QEvent *event) {
     if (event->type() == QEvent::LanguageChange)
         retranslate();
 }
-QtArchiveMountSession *QtArchiveMountManager::selected() const {
-    const auto *item = list_->currentItem();
-    const int row = item ? list_->indexOfTopLevelItem(const_cast<QTreeWidgetItem *>(item)) : -1;
-    return row >= 0 && row < sessions_.size() ? sessions_.at(row) : nullptr;
+const QtArchiveMountManager::Session *QtArchiveMountManager::selected() const {
+    auto *item = list_->currentItem();
+    const int row = item ? list_->indexOfTopLevelItem(item) : -1;
+    return row >= 0 && row < sessions_.size() ? &sessions_.at(row) : nullptr;
 }
 void QtArchiveMountManager::updateDetails() {
-    const auto *session = selected();
+    const auto *entry = selected();
+    const auto *session = entry ? entry->instance : nullptr;
     const auto status = session ? session->status() : QtArchiveMountSession::Status::Stopped;
     const bool mounted = status == QtArchiveMountSession::Status::Mounted;
     open_->setEnabled(mounted && session && !session->path().isEmpty());
@@ -108,14 +109,15 @@ void QtArchiveMountManager::updateDetails() {
         if (!session->error().isEmpty())
             details << session->error();
         details << session->skippedEntries();
-        details << issues_.value(const_cast<QtArchiveMountSession *>(session));
+        details << entry->issues;
     }
     details_->setPlainText(details.join(u'\n'));
 }
 void QtArchiveMountManager::unmountSelected(bool force) {
-    auto *session = selected();
-    if (!session)
+    const auto *entry = selected();
+    if (!entry)
         return;
+    auto *session = entry->instance;
     if (force) {
         QMessageBox prompt(QMessageBox::Warning, tr("Force unmount"),
                            tr("Disconnect this mount even if another application is using it? "
@@ -130,12 +132,12 @@ void QtArchiveMountManager::unmountSelected(bool force) {
     session->unmount(force);
 }
 void QtArchiveMountManager::removeSelected() {
-    auto *session = selected();
-    if (!session || session->status() != QtArchiveMountSession::Status::Stopped)
+    const auto *entry = selected();
+    if (!entry || entry->instance->status() != QtArchiveMountSession::Status::Stopped)
         return;
-    const int row = sessions_.indexOf(session);
+    auto *session = entry->instance;
+    const int row = list_->indexOfTopLevelItem(list_->currentItem());
     sessions_.removeAt(row);
-    issues_.remove(session);
     disconnect(session, nullptr, this, nullptr);
     delete list_->takeTopLevelItem(row);
     session->deleteLater();

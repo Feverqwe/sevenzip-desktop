@@ -3,6 +3,38 @@
 Область: таблица, значковые виды и их прямые потребители в File Manager.
 Ветка `feature/file-panel-model-view`, база Desktop `df10e42b`.
 
+## Ошибка привязки перед filesystem scan — 2026-11-02
+
+Сверены полные тела исходного и текущего CPanel::BindToPath, его caller
+showDirectory и Qt-пути синхронной/фоновой загрузки. Полный оригинальный
+PanelFolderChange.cpp на baseline `b88c6bc09339de32f7d18bbab900686b244f42ba`
+совпадает с manifest. Импорта или изменения native-алгоритмов нет.
+
+Ошибка привязки теперь завершается до выбора flat/обычного режима загрузки.
+Синхронные завершения используют один финализатор сортировки, состояния и
+диагностики. Ранее flat mode мог заменить ошибку привязки успешным запуском
+сканера для оставшейся папки. Малые списки по-прежнему загружаются сразу,
+передача большого списка worker выполняется только при его пороге остановки;
+обработчики async completion, выделения и отмены сохранены.
+
+Регрессия детерминированно заменяет проверенный каталог зашифрованным архивом
+при удалении прежних строк, затем отменяет native-запрос пароля. В обычном и
+flat режиме список должен быть доступен сразу после возврата, с включённой
+сортировкой и без строк. Ожидание eventual-enabled скрыло бы ошибочный scan.
+До исправления Linux прошёл обычную строку и упал на flat-строке: список был
+отключён. Первый диагностический запуск не выполнил замену из-за неверного
+fixture-сигнала; исправлен только responder на публичное удаление строк.
+Исходные данные проверяются по байтам; реальные пользовательские файлы не нужны.
+
+Linux native_navigation_window, filesystem_reload, filesystem_scanner,
+filesystem_selection_runtime и navigation_reload прошли вместе: 140 проверок,
+без пропусков; incremental build 45.77s, tests 25.62s. Параметры загрузки,
+native-перечисление, пороги и compiler cache сохранены. Изменения не требуют
+новой приёмки геометрии; вторичные платформы и full/slow gate не запускались.
+После ограничения lifetime тестового перехватчика native_navigation_window
+повторён: 49 проверок без пропусков, build 8.1s, tests 15.846s; остальные четыре
+набора не затронуты. Завершённые временные настройки удалены.
+
 ## Исходная реализация и граница адаптации
 
 Источник — <https://github.com/ip7z/7zip.git>, baseline
@@ -172,6 +204,35 @@ providers/Agent/CPanel algorithms и прежние omissions не измене�
 source-visible заглушек или не подключённых model consumers в выбранном
 scope не осталось.
 
+## Column publication boundary — 2026-11-02
+
+Rechecked native InitColumns/LoadListItems and SaveListViewInfo against the
+current filesystem, archive and namespace publishers and Qt column/menu/sort
+consumers. The complete original PanelItems.cpp inventory matches its recorded
+SHA256 at `b88c6bc09339de32f7d18bbab900686b244f42ba`. No external code is
+imported or provenance advanced.
+
+Every Qt column publisher already receives the initialized catalog after
+successful source LoadListItems. The unused alternate initialization mode and
+its default argument are removed from the private Qt presentation function.
+Source catalog creation remains with the panel, while Qt projects the prepared
+catalog. The configuration guard now restores its prior value through scope
+exit, including unwinding, instead of manually assigning false. Existing save
+and sort consumers still suppress publication of intermediate column settings.
+Native ordering, visibility, duplicate-property behavior, sorting, selection,
+widths and persistence remain unchanged.
+
+Existing public behavior checks cover initialized catalogs, dynamic schemas,
+toggle/reorder/resize, sort and persistence across publication and reopen,
+including both panes and English/Russian. No private-state or removed-argument
+test is added. No new layout/text or source-reader algorithm is introduced.
+
+Linux focused validation passed panel_columns, panel_column_initialization,
+panel_column_menu, panel_column_changes and panel_column_sort: 70 Qt checks
+without skips. This is shared Qt publication/consumer evidence on Linux; no new
+Windows/macOS or rendered-original UI acceptance is claimed. Completed settings
+were removed; incremental build trees/compiler caches retained.
+
 ## Column customization bindings — 2026-10-31
 
 Compared the complete baseline `PanelItems.cpp::InitColumns`,
@@ -252,3 +313,63 @@ selected Windows suites are accepted. macOS/Linux results above remain valid;
 no functional changes followed them. Small failure/acceptance receipts were
 retained and completed fixtures cleaned their scopes. Build trees and compiler
 caches were preserved throughout.
+
+## Shared folder statistics traversal — 2026-11-01
+
+Compared the complete original FSFolder statistics loop and the panel's F3
+consumer with the current provider, property publication and redraw path.
+Original FSFolder.cpp/.h and PanelItems.cpp/Panel.h match the recorded baseline
+hashes at `b88c6bc09339de32f7d18bbab900686b244f42ba` in the source repository
+above. No external code is imported or original inventory advanced.
+
+Windows and POSIX now share the original counting/recursion body. Only retrieval
+of the next native FileInfo remains platform-specific. Windows FileInfo and
+POSIX directory-entry name buffers retain their former reuse. The duplicated
+count and recursion body is removed. Existing symlink exclusion,
+progress/cancellation, error/end handling
+and successful statistics publication retain their prior behavior. In particular,
+this refactor does not change the source's partial-enumeration policy or claim
+that ignored enumeration errors establish complete totals.
+
+No new UI state or background-operation owner is introduced. Existing provider
+tests cover counts, cancellation before publication and repeated calculation;
+the F3 view regression checks operated folders with a different focused file,
+lazy property text, normal/compact layouts, retained selection and no reload.
+No implementation-presence or trivial field test was added.
+
+Linux passed `fs_folder` and `folder_size_view` (22 rows, no skips), then Windows
+passed the affected `fs_folder` native provider suite (15 rows, no skips).
+The final buffer-lifetime correction is POSIX-only; both Linux suites were
+repeated after it, while Windows retained its passing evidence for unchanged
+preprocessed code. No distinct macOS enumeration branch or Qt UI adaptation
+changed, so no macOS run or repeat of Windows UI suites was selected. Selected
+scratch directories were inspected pre/post; the completed view settings fixture
+was removed after each Linux batch. Incremental builds and compiler caches were
+retained with normal four-job defaults. No full/slow gate, screenshots, JSON
+reports or new visual-parity acceptance is involved.
+
+## Column-click sort dispatch — 2026-11-02
+
+Compared original OnColumnClick and SortItemsWithPropID at
+`b88c6bc09339de32f7d18bbab900686b244f42ba` with their current bodies and
+Qt header, panel projection, column bindings, model sorting and settings
+consumers. The complete original PanelSort.cpp hash matches the existing
+baseline. No external import or native sorting algorithm change.
+
+The deferred header callback now carries its click origin into the window's
+sort handler. The separate header flag and consuming getter are removed.
+Qt's automatic header sort still finishes before source click dispatch; ordinary
+programmatic requests retain their explicit direction. Source property defaults,
+raw-property rules, duplicate-column bindings, persistent selection indexes and
+inactive-panel projection remain unchanged. Callback dispatch no longer needs
+to reset the removed flag after returning from application code.
+
+Existing behavior suites cover repeated/duplicate header clicks, explicit sort
+requests, source defaults, selected item identity, filesystem reload and archive
+raw properties; no new implementation-presence tests were added. Linux primary
+`20261102T041127Z-4613a7c0` passed panel_column_sort, panel_sort_commands,
+panel_filesystem_sort and panel_archive_sort: 69 checks, no skips. Build
+62.302 s; tests 12.622 s. No platform branch or layout changed; Windows/macOS
+native input and rendered parity were not newly validated. Removed two completed
+settings fixtures; other selected scratch was empty. Incremental builds and
+compiler caches retained, no full/slow gate or new reports/screenshots.

@@ -18,6 +18,7 @@
 #include <QTemporaryDir>
 #include <QTimer>
 #include <QtTest>
+#include <memory>
 
 namespace {
 class CAssociationService final : public IQtExternalFileServices {
@@ -84,7 +85,13 @@ class ExternalLaunchTests final : public QObject {
         QCOMPARE(service.Paths.Size(), 1u);
         QVERIFY(service.Paths[0] == fullPath);
     }
-    void detachedProcessPreservesArgumentsAndFailsWithoutExecutable() {
+    void processPreservesArgumentsAndFailsWithoutExecutable_data() {
+        QTest::addColumn<bool>("knownProcess");
+        QTest::newRow("detached") << false;
+        QTest::newRow("waitable") << true;
+    }
+    void processPreservesArgumentsAndFailsWithoutExecutable() {
+        QFETCH(bool, knownProcess);
         QTemporaryDir fixture;
         const QString program = fixture.filePath(QStringLiteral("приложение с пробелом"))
 #ifdef Q_OS_WIN
@@ -101,7 +108,15 @@ class ExternalLaunchTests final : public QObject {
         QtAssociatedFileServices service({});
         const UString parameters = ToUString(
             QString("--external-fixture \"%1\" --readonly \"parameter space\"").arg(output));
-        QCOMPARE(service.CreateProcess(ToUString(program), parameters, paths, nullptr), S_OK);
+        IQtProcessHandle *process = nullptr;
+        const HRESULT launched =
+            knownProcess ? service.CreateKnownProcess(ToUString(program), parameters, paths,
+                                                      nullptr, process)
+                         : service.CreateProcess(ToUString(program), parameters, paths, nullptr);
+        std::unique_ptr<IQtProcessHandle> owner(process);
+        QCOMPARE(launched, S_OK);
+        if (knownProcess)
+            QVERIFY(owner);
         QTRY_VERIFY(QFileInfo(output).size() > 0);
         QFile result(output);
         QVERIFY(result.open(QIODevice::ReadOnly));
@@ -111,9 +126,18 @@ class ExternalLaunchTests final : public QObject {
         for (qsizetype i = 0; i < expected.size(); ++i)
             QCOMPARE(arguments[i].toString().normalized(QString::NormalizationForm_C),
                      expected[i].normalized(QString::NormalizationForm_C));
-        QCOMPARE(service.CreateProcess(ToUString(fixture.filePath("missing")), parameters, paths,
-                                       nullptr),
-                 E_FAIL);
+        if (owner)
+            QTRY_COMPARE(owner->Status(), QtProcessStatus::Exited);
+        const UString missing = ToUString(fixture.filePath("missing"));
+        if (knownProcess) {
+            process = nullptr;
+            const HRESULT failed =
+                service.CreateKnownProcess(missing, parameters, paths, nullptr, process);
+            std::unique_ptr<IQtProcessHandle> failedOwner(process);
+            QVERIFY(failed != S_OK);
+            QVERIFY(!failedOwner);
+        } else
+            QCOMPARE(service.CreateProcess(missing, parameters, paths, nullptr), E_FAIL);
     }
     void associationAdapterPreservesPathAndReportsFailure_data() {
         QTest::addColumn<bool>("russian");

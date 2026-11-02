@@ -66,8 +66,7 @@ CreateArchiveDialog::CreateArchiveDialog(const QString &directory,
                                          const QStringList &initialSources, QWidget *parent,
                                          std::shared_ptr<const ArchiveCodecCatalog> codecs,
                                          const CCompressDialog *sourceDialog)
-    : QDialog(parent), currentDirectory_(directory), StartDirPrefix(directory),
-      codecs_(std::move(codecs)) {
+    : QDialog(parent), codecs_(std::move(codecs)) {
     QtUseContextDialogModality(*this);
     setObjectName("createArchiveDialog");
     auto *layout = new QVBoxLayout(this);
@@ -95,7 +94,8 @@ CreateArchiveDialog::CreateArchiveDialog(const QString &directory,
     if (sourceDialog)
         archiveNameState_ = *sourceDialog;
     else
-        archiveNameState_.DirPrefix = currentDirectory_;
+        archiveNameState_.DirPrefix = directory;
+    archiveNameState_.StartDirPrefix = directory;
     prepareInitialSources(initialSources);
     createArchiveForm(contentLayout, layout);
     scroll->setWidget(content);
@@ -219,6 +219,8 @@ void CreateArchiveDialog::createArchiveForm(QVBoxLayout *layout, QVBoxLayout *wi
         archivePath_->addItem(m_RegistryInfo.ArcPaths[i]);
     name_ = archivePath_->lineEdit();
     name_->setObjectName("archiveName");
+    connect(name_, &QLineEdit::textChanged, this,
+            [this](const QString &name) { archiveNameState_.m_ArchivePath = name; });
     archiveLayout->addWidget(archivePath_, 1);
     auto *folderRow = new QWidget(archiveField);
     auto *folderLayout = new QHBoxLayout(folderRow);
@@ -287,12 +289,7 @@ void CreateArchiveDialog::createArchiveForm(QVBoxLayout *layout, QVBoxLayout *wi
     for (auto *check : findChildren<QCheckBox *>())
         connect(check, &QCheckBox::toggled, this, &CreateArchiveDialog::updateRedesignSummary);
     connect(browse, &QPushButton::clicked, this, [this] {
-        CCompressDialog path = archiveNameState_;
-        path.Format = format_->currentText();
-        path.m_ArchivePath = name_->text();
-        path.Info.SFXMode = sfx_ && sfx_->isChecked();
-        QString target;
-        if (!path.GetFinalPath_Smart(target) || archiveFolder_->text().contains(QChar::Null)) {
+        if (archivePath().isEmpty()) {
             ShowErrorMessageQt(this, QtDiagnosticText(QT_TRANSLATE_NOOP("SevenZipDiagnostics",
                                                                         "Incorrect archive path")));
             return;
@@ -305,7 +302,6 @@ void CreateArchiveDialog::createArchiveForm(QVBoxLayout *layout, QVBoxLayout *wi
             archiveFolder_->setText(QDir::toNativeSeparators(ToQString(folder)));
     });
     connect(format_, &QComboBox::currentTextChanged, this, [this] {
-        archiveNameState_.m_ArchivePath = name_->text();
         configureArchiveName(format_->currentText());
         archiveNameState_.SetArchiveName2();
         name_->setText(archiveNameState_.m_ArchivePath);
@@ -347,12 +343,8 @@ void CreateArchiveDialog::createFooter(QVBoxLayout *layout) {
 QString CreateArchiveDialog::archivePath() const {
     if (archiveFolder_->text().contains(QChar::Null))
         return {};
-    CCompressDialog path;
-    path.DirPrefix = archiveNameState_.DirPrefix;
-    path.StartDirPrefix = StartDirPrefix;
-    path.m_ArchivePath = name_->text();
     QString result;
-    path.GetFinalPath_Smart(result);
+    archiveNameState_.GetFinalPath_Smart(result);
     return result;
 }
 

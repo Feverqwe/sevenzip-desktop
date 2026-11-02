@@ -133,6 +133,40 @@ class CodecProbeTests : public QObject {
         QTRY_COMPARE(calls, 2);
         QVERIFY(!probe->active());
     }
+    void completionCanRestartOrDestroyProbe_data() {
+        QTest::addColumn<bool>("restart");
+        QTest::newRow("restart") << true;
+        QTest::newRow("destroy") << false;
+    }
+    void completionCanRestartOrDestroyProbe() {
+        QFETCH(bool, restart);
+        QTemporaryDir temporary;
+        QVERIFY(temporary.isValid());
+        auto probe = std::make_unique<ArchiveCodecProbe>();
+        const QString missing = temporary.filePath(QStringLiteral("нет модуля 空"));
+        int calls = 0;
+        QVERIFY(probe->Start(missing, [&](auto result) {
+            ++calls;
+            QVERIFY(result.result != S_OK);
+            QVERIFY(!probe->active());
+            if (restart) {
+                QVERIFY(probe->Start(missing, [&](auto next) {
+                    ++calls;
+                    QVERIFY(next.result != S_OK);
+                    QVERIFY(!probe->active());
+                }));
+            } else
+                probe.reset();
+        }));
+        QTRY_COMPARE(calls, restart ? 2 : 1);
+        if (restart)
+            QVERIFY(!probe->active());
+        else
+            QVERIFY(!probe);
+        QCoreApplication::processEvents();
+        QCOMPARE(calls, restart ? 2 : 1);
+    }
+
     void cancellationBeforeLoadingPublishesNoCatalog() {
         QTemporaryDir temporary;
         ArchiveCodecProbe probe;

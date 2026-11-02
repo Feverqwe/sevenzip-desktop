@@ -176,7 +176,7 @@ Z7_COM7F_IMF(CExtractCallbackImp::AskOverwrite(const wchar_t *existName, const F
                                                const UInt64 *existSize, const wchar_t *newName,
                                                const FILETIME *newTime, const UInt64 *newSize,
                                                Int32 *answer)) {
-    return RunCallbackDialog(*ProgressDialog, [&]() -> HRESULT {
+    return RunCallbackQuestion(*ProgressDialog, [&]() -> HRESULT {
         COverwriteDialog dialog;
 
         dialog.OldFileInfo.SetTime2(existTime);
@@ -190,30 +190,11 @@ Z7_COM7F_IMF(CExtractCallbackImp::AskOverwrite(const wchar_t *existName, const F
         dialog.NewFileInfo.Is_FileSystemFile = Src_Is_IO_FS_Folder;
 
         const INT_PTR writeAnswer = dialog.Create(ProgressDialog);
-
-        switch (writeAnswer) {
-        case IDCANCEL:
-            *answer = NOverwriteAnswer::kCancel;
-            return E_ABORT;
-        case IDYES:
-            *answer = NOverwriteAnswer::kYes;
-            break;
-        case IDNO:
-            *answer = NOverwriteAnswer::kNo;
-            break;
-        case IDB_YES_TO_ALL:
-            *answer = NOverwriteAnswer::kYesToAll;
-            break;
-        case IDB_NO_TO_ALL:
-            *answer = NOverwriteAnswer::kNoToAll;
-            break;
-        case IDB_AUTO_RENAME:
-            *answer = NOverwriteAnswer::kAutoRename;
-            break;
-        default:
+        const int mapped = NOverwriteDialog::MapButtonResult(writeAnswer);
+        if (mapped == NOverwriteAnswer::kCancel && writeAnswer != IDCANCEL)
             return E_FAIL;
-        }
-        return S_OK;
+        *answer = mapped;
+        return writeAnswer == IDCANCEL ? E_ABORT : S_OK;
     });
 }
 
@@ -980,6 +961,10 @@ Z7_COM7F_IMF(CExtractCallbackImp::RequestMemoryUse(UInt32 flags, UInt32 indexTyp
             if (_remember)
                 dialog.SkipArc = _skipArc;
             else {
+                if (ProgressDialog->Sync.Get_Stopped()) {
+                    *answerFlags = NRequestMemoryAnswerFlags::k_Stop;
+                    return E_ABORT;
+                }
                 dialog.ShowRemember =
                     (MultiArcMode || indexType != NArchive::NEventIndexType::kNoIndex || path);
                 if (dialog.Create(ProgressDialog) != IDCONTINUE) {

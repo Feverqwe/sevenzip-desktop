@@ -1,5 +1,173 @@
 # External-process ownership
 
+## Independent child release — 2026-11-02
+
+Reviewed POSIX child ownership, creation/adoption and polling in both process
+adapters, the independent-operation observer and endpoint, and editor wait
+consumers. Compared original Call7zGui,
+CProcess creation and CHandle destruction at recorded upstream revision
+`9128b80e3a471108678e2b3ec3c985861c8d7b0f` from
+<https://github.com/ip7z/7zip.git>; complete CompressCall.cpp, ProcessUtils.cpp/.h,
+Handle.h and PanelItemOpen.cpp hashes match the existing baseline. Windows
+releases observation by closing its handle. POSIX reaping remains a local service;
+no external source is imported or provenance advanced.
+
+The independent GUI adapter's one-time nonblocking destructor wait could leave
+a child unreaped when its observer was deleted while the manager stayed alive.
+Both clients now link one POSIX child owner, extracted from the existing editor
+reaper. It reserves cleanup before spawn, takes the successful PID without
+allocation, and transfers pending reaping on destruction without terminating or
+waiting for the child. Confirmed reaping and ECHILD consume that responsibility;
+other observation errors retain it. Failed launches release their reservation.
+The editor handle no longer keeps a separate owned flag or handoff destructor.
+Native launch/session/descriptor policy, process identity, result interpretation,
+IPC, archive edit-return and Windows behavior are unchanged.
+Observation failure is committed before allocating its diagnostic text, so an
+allocation exception cannot leave a running state with a cleared child PID.
+
+A real-child regression releases its observer before permitting completion,
+checks the payload, then observes reaping with waitid/WNOWAIT without consuming
+the exit itself. Linux reproduced the unreaped-child failure before the fix.
+Existing checks cover startup failure/retry, exit codes/crash, observer/parent
+exit, archive extraction, editor handoff and cleanup with allocation failure.
+Linux passed operation_process, operation_launcher, operation_extraction,
+external_launch, process_spawn_allocation and archive_external_lifetime.
+The same six suites then passed on macOS. Windows branches are unchanged and
+were not rerun. Both platforms reused incremental builds and compiler caches;
+no full/slow gate or visual acceptance was involved.
+
+## Editor settings signal routing — 2026-11-02
+
+Compared complete original EditPage.cpp/.h/.rc and its EditPage2.rc controls at
+recorded revision `b88c6bc09339de32f7d18bbab900686b244f42ba`; the three original
+inventory hashes match the baseline. Reviewed current page initialization,
+Apply/Cancel/modified state, Browse and OptionsDialog/launch consumers. No
+external code import or provenance change.
+
+Each Qt edit signal now marks its own settings row, and each Browse button
+directly supplies its edit control. The synthetic Win32-ID round trip, two
+dispatch searches and their stored IDs are removed from the Qt adapter. Native
+initialization guards, changed flags, read/save mapping and command parsing are
+preserved. Browse still retains the draft on Cancel and replaces parameters
+when a file is selected. Confirmation policy, launch defaults, translation
+resources, widget names, layout and geometry are unchanged.
+
+Expanded the existing Browse behavior check across viewer/editor/diff: Cancel
+retains the command, acceptance selects the Unicode/spaced executable and Apply
+persists it for the corresponding program. Existing checks cover Apply/Cancel,
+live language/geometry, focused-file arguments and independent saved commands.
+No representation-only test or pre-fix failure is claimed.
+
+Linux external_editors_ui, options_dialog and external_launch passed: 47 checks,
+no skips; incremental build 13.057s, tests 5.372s. Removed completed settings and
+an absent-object temp record; incremental trees and compiler caches retained.
+No secondary-platform, full/slow or new appearance acceptance run.
+
+## Failed listing during editor return — 2026-11-02
+
+Reviewed the current stream/virtual-file/disk opening branches, temporary and
+external-process owners, changed-file prompt and return-to-writer boundary.
+Compared the original OnOpenItemChanged bodies at recorded 7-Zip revision
+`b88c6bc09339de32f7d18bbab900686b244f42ba`; the complete PanelItemOpen.cpp
+hash matches the existing manifest. No import or provenance advancement.
+
+The returned edit now stops at a failed GetNumberOfItems before resolving its
+item or starting an archive update. Previously the inherited code used an
+uninitialized or failed output count. Initializing the count alone would not
+protect against a provider writing a nonzero value before returning failure.
+The native CAgentFolder already clears count when unbound; a user failure in
+that provider is not claimed. Item relocation, duplicate-name limitation,
+passwords, process waiting, native writer and retained temporary-copy policy
+remain unchanged. The existing ownership boundaries did not justify another
+structural extraction.
+
+The behavior regression uses the existing folder fixture returning a failed
+nonzero count. The changed copy must retain its bytes, no reload selection is
+published and the unsupported-operation dialog must not be reached. Existing
+external editing and native update tests cover successful write-back, refusal,
+cancel, stale item/location and selection publication. No pre-fix execution or
+representation-only test is claimed.
+
+Linux archive_external_edit and source_update_backend passed: 63 checks, no
+skips; incremental build 14.6s, tests 11.244s. Removed completed settings and
+three registry records after verifying their temporary objects were absent.
+Incremental trees and compiler caches retained. No secondary-platform,
+full/slow or new appearance acceptance run.
+
+## External editor launch boundary — 2026-11-01
+
+Reviewed the complete source SplitCmdLineSmart, StartAppWithParams,
+StartEditApplication, EditItem and both DiffFiles bodies and native CProcess
+creation against the existing baseline at
+`b88c6bc09339de32f7d18bbab900686b244f42ba` in
+<https://github.com/ip7z/7zip.git>. PanelItemOpen.cpp's complete original hash
+matches the recorded inventory. The current disk/archive callers, association
+adapter and process creation/handle/reaper implementations were compared before
+changing the launch boundary. No source algorithm is replaced or imported.
+
+QtNativeProcessServices now owns both waitable and detached executable launches.
+QtAssociatedFileServices delegates creation while retaining system associations,
+prompts and archive-update integration. The two launch paths share parameter
+preparation: original quoted path appending on Windows, and the existing Qt
+parameter splitting plus literal path arguments on POSIX. Native CProcess and
+posix_spawn ownership, process groups, preallocated reaper, metadata-failure
+handoff and detached QProcess launch retain their respective behavior. No shell
+is introduced. Source selection, command parsing/defaults and editor wait/update
+policy remain unchanged; no UI layout/text changes or new baseline units.
+
+The existing real-child argument fixture now also exercises the waitable route.
+It detects lost/split Unicode or space-containing paths, shell interpretation of
+literal path characters, and failure to return a usable process owner. Both
+routes still check an unavailable executable. Existing keyboard View/Edit/Diff,
+archive editing and process-allocation regressions cover the direct consumers.
+
+Linux passed all four selected suites first: 40 Qt checks without skips plus
+process_spawn_allocation; run `20261101T191813Z-2e84ba64`, build 68.864 seconds,
+tests 15.756 seconds. Interactive Windows passed the same three behavioral
+suites (40 Qt checks without skips) plus process_handle_allocation; run
+`20261101T191952Z-833385b7`, build 142.450 seconds, tests 22.690 seconds.
+macOS passed external_launch (17 checks without skips) and
+process_spawn_allocation. Its first launch suite stopped four archive fixtures
+because the local reference runtime was absent; normal codec-only preparation
+reused the compiler cache (3.40 seconds), then only external_launch was repeated
+and passed (build 0.592 seconds, tests 4.468 seconds). The first macOS selected
+build took 11.295 seconds. No product fix was needed for that prerequisite.
+
+Disposable fixture settings and records whose temporary objects no longer
+exist were removed after checking completed runs/processes. Incremental builds,
+prepared runtime and compiler caches remain available. Slow native-publication
+matrices and new visual parity acceptance were not part of this change.
+
+## Child tracking ownership — 2026-11-01
+
+Compared complete original PanelItemOpen child discovery, process tracking,
+wait/update and temporary-file worker bodies and dependencies at the recorded
+`b88c6bc09339de32f7d18bbab900686b244f42ba` revision in
+<https://github.com/ip7z/7zip.git>, with current launch, GUI bridge, owner-exit
+and archive-publication consumers. The complete original unit matches its
+existing baseline hash. No external code is imported or baseline advanced.
+
+Each tracked Qt process now keeps its owned handle and wait flag in one record,
+using the existing native object-vector owner. Main and discovered handles stay
+guarded until their record exists. Record destruction releases the interface;
+the parallel wait-flag array, paired reservations and raw-handle cleanup loop
+are removed. Original PID admission, child/name discovery, wait projection,
+timing decisions, changed-file prompts, archive writer and externally protected
+copy policy retain their existing control flow and owners. Native process
+adapters are unchanged, including platform-specific close/reaper behavior.
+
+Existing public editing/lifetime/security/launch suites cover a child outliving
+its parent, update acceptance/refusal/cancellation, window exit, protected
+archives and exceptions from name lookup, snapshot or launch after handle
+creation. No representation test or pre-fix product failure is added.
+
+Linux acceptance: `external_launch`, `archive_external_edit`,
+`archive_external_lifetime` and `archive_external_security` pass. Linux is the
+selected platform for this interface-level ownership change; no native adapter
+branch changed. Windows/macOS acceptance is not claimed. The initial build hit
+guest OOM before tests; the unchanged incremental retry passed with configured
+parallelism and compiler cache, without memory or concurrency overrides.
+
 ## One-shot reaper handoff — 2026-10-31
 
 Reviewed the complete native process adapter, creation and adoption paths,

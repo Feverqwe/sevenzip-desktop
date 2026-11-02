@@ -2,13 +2,12 @@
 #include "archive/resources/archivedevice.h"
 #include "devices/deviceaccess.h"
 #include <QDialog>
-#include <atomic>
 #include <functional>
+#include <memory>
 
 class QLabel;
 class QPushButton;
 class QTreeWidget;
-class QThread;
 
 // The dialog consumes the platform boundary; filesystem parsing stays in the
 // original engine. Callbacks run on its owned worker and never touch widgets.
@@ -21,12 +20,12 @@ struct DeviceSelectionServices {
 class DeviceSelectionDialog final : public QDialog {
     Q_OBJECT
     struct Job;
+    struct Work;
     std::shared_ptr<const ArchiveCodecCatalog> catalog_;
     DeviceSelectionServices services_;
     QList<ExternalDevice> devices_;
     std::shared_ptr<ArchiveDevice> source_;
-    std::shared_ptr<Job> job_;
-    QThread *worker_ = nullptr;
+    std::unique_ptr<Work> work_;
     QTreeWidget *items_;
     QLabel *message_;
     QPushButton *open_, *refresh_, *back_;

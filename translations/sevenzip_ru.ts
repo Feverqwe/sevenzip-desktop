@@ -5897,6 +5897,10 @@ Use `Revert` to recover timestamp.</source>
     <context>
         <name>mainwindow_archive_transfer</name>
         <message>
+            <source>Source removal did not finish cleanly. The destination copy was retained; check both archives.</source>
+            <translation>Удаление из исходного архива завершилось с ошибкой. Копия в целевом архиве сохранена; проверьте оба архива.</translation>
+        </message>
+        <message>
             <location filename="../src/filemanager/window/mainwindow_archive_transfer.cpp" line="+79" />
             <source>Could not roll back destination archive. Check both archives.</source>
             <translation>Не удалось откатить целевой архив. Проверьте оба архива.</translation>
@@ -5974,7 +5978,26 @@ Use `Revert` to recover timestamp.</source>
         </message>
     </context>
     <context>
+        <name>archive_transfer</name>
+        <message>
+            <source>The destination format cannot preserve the selected links or alternate streams. Both archives were left unchanged.</source>
+            <translation>Формат целевого архива не поддерживает сохранение выбранных ссылок или дополнительных потоков. Оба архива оставлены без изменений.</translation>
+        </message>
+        <message>
+            <source>Some selected items cannot be transferred without data or path changes. Both archives were left unchanged.</source>
+            <translation>Некоторые выбранные объекты нельзя перенести без изменения данных или путей. Оба архива оставлены без изменений.</translation>
+        </message>
+    </context>
+    <context>
         <name>mainwindow_backendevents</name>
+        <message>
+            <source>Source items were kept because complete extraction could not be confirmed.</source>
+            <translation>Исходные объекты сохранены, поскольку полнота извлечения не подтверждена.</translation>
+        </message>
+        <message>
+            <source>Files were extracted, but source removal did not finish cleanly. Check the source archive. </source>
+            <translation>Файлы извлечены, но удаление из исходного архива завершилось с ошибкой. Проверьте исходный архив. </translation>
+        </message>
         <message>
             <location filename="../src/filemanager/window/mainwindow_backendevents.cpp" line="+101" />
             <source>Files extracted but not deleted from archive. </source>

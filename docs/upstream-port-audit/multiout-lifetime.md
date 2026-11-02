@@ -1,5 +1,40 @@
 # Volume-writer allocation ownership and record state — 2026-10-18
 
+## Native writer group owner — 2026-11-02
+
+Reviewed the current complete MultiOutStream lifecycle/stream implementation,
+header, native Update group construction/finalization and existing volume tests.
+Compared the complete original group record, construction and cleanup bodies at
+recorded `b88c6bc09339de32f7d18bbab900686b244f42ba`. Original MultiOutStream.cpp/.h
+hashes match the baseline; this is not a new full upstream transfer audit of its
+unchanged algorithms. No import or provenance advancement.
+
+The Update group now uses the existing native CMyComPtr2 owner instead of a
+separate raw implementation pointer and COM reference in every record. Its
+class access and interface lifetime share one owner. AddNew allocates the record
+before SetFromCls retains the writer; the local output interface already owns it
+if that allocation fails. The existing cleanup pass retains first-error handling,
+disables deletion at the same successful completion point and releases the group
+after explicit destruction. No stream algorithm, restriction, close, rename or
+publication policy changes.
+
+The current native writer and SFX publication paths did not justify a larger
+rewrite. In particular, replacing a retained SFX temp path with the shorter final
+path reuses the recorded MyString capacity; it is not a current allocation gap.
+Final volume rename clears Postfix without allocation. Existing constructor,
+preallocation/truncation and file-close fixes remain intact.
+
+Linux archive_volume_creation, sfx_lifecycle and native_update_publication passed
+43 Qt checks without skips, plus standalone multiout_lifecycle passed. Incremental
+build 11.634s, tests 1.182s. The existing regressions exercise variable-volume
+output, protected archives, cancellation/failures, occupied paths and native
+allocation cleanup; no representation-only test or pre-fix failure is claimed.
+One completed registry record was removed after its object was confirmed absent;
+other selected scratch was empty. Build trees/compiler caches retained. No
+secondary-platform, full/slow or new appearance acceptance run.
+
+## Original lifetime corrections
+
 Source: <https://github.com/ip7z/7zip.git>, commit
 `9128b80e3a471108678e2b3ec3c985861c8d7b0f`.
 Reviewed complete `CPP/7zip/Common/MultiOutStream.h`, its initialization,

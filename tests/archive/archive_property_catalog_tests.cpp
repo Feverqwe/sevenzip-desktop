@@ -80,6 +80,49 @@ class ArchivePropertyCatalogTests : public QObject {
     }
 
   private slots:
+    void optionalMetadataKeepsNamedValuesReachable_data() {
+        QTest::addColumn<bool>("timestamp");
+        QTest::addColumn<bool>("crc");
+        QTest::newRow("neither") << false << false;
+        QTest::newRow("time") << true << false;
+        QTest::newRow("crc") << false << true;
+        QTest::newRow("both") << true << true;
+    }
+    void optionalMetadataKeepsNamedValuesReachable() {
+        QFETCH(bool, timestamp);
+        QFETCH(bool, crc);
+        ArchiveEntry first{"first.txt", 1, 1};
+        first.properties.insert("Note", QStringLiteral("первая запись"));
+        if (timestamp)
+            first.modified = "2026-09-28 12:34:56.1234567";
+        if (crc)
+            first.crc = 0x12345678;
+        ArchiveEntry second{"second.txt", 2, 2};
+        second.properties.insert("Note", QStringLiteral("вторая запись"));
+        CMyComPtr<IFolderFolder> folder;
+        QCOMPARE(CreateArchiveFolder({first, second}, UString(L"7z"), &folder), S_OK);
+        QCOMPARE(folder->LoadItems(), S_OK);
+        UInt32 count = 0;
+        QCOMPARE(folder->GetNumberOfProperties(&count), S_OK);
+        bool foundNote = false;
+        for (UInt32 i = 0; i < count; ++i) {
+            CMyComBSTR name;
+            PROPID id;
+            VARTYPE type;
+            QCOMPARE(folder->GetPropertyInfo(i, &name, &id, &type), S_OK);
+            if (!name || QString::fromWCharArray(name) != "Note")
+                continue;
+            foundNote = true;
+            CPropVariant value;
+            QCOMPARE(folder->GetProperty(0, id, &value), S_OK);
+            QCOMPARE(value.vt, VARTYPE(VT_BSTR));
+            QCOMPARE(QString::fromWCharArray(value.bstrVal), first.properties.value("Note"));
+            QCOMPARE(folder->GetProperty(1, id, &value), S_OK);
+            QCOMPARE(value.vt, VARTYPE(VT_BSTR));
+            QCOMPARE(QString::fromWCharArray(value.bstrVal), second.properties.value("Note"));
+        }
+        QVERIFY(foundNote);
+    }
     void suppliedTimestampUsesNativeTimeAndMissingValuesRemainSparse() {
         CMyComPtr<IFolderFolder> folder;
         QCOMPARE(

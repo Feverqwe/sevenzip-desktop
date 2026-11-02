@@ -1,12 +1,13 @@
 #include "archive/resources/qtarchivehashoperation.h"
 #include "Common/StringConvert.h"
 #include "Windows/ErrorMsg.h"
-#include "archive/codecs/archivecodeccatalog.h"
 #include <QFileInfo>
 
 QtArchiveHashOperation::QtArchiveHashOperation(QStringList paths, QStringList methods,
-                                               std::shared_ptr<const ArchiveCodecCatalog> catalog)
-    : catalog_(std::move(catalog)), paths_(std::move(paths)), methods_(std::move(methods)) {}
+                                               std::shared_ptr<const ArchiveCodecCatalog> catalog,
+                                               std::unique_ptr<const CExternalCodecs> providers)
+    : catalog_(std::move(catalog)), providers_(std::move(providers)), paths_(std::move(paths)),
+      methods_(std::move(methods)) {}
 
 void QtArchiveHashOperation::cancel() { progress_.cancel(); }
 void QtArchiveHashOperation::setPaused(bool paused) { progress_.setPaused(paused); }
@@ -71,14 +72,6 @@ void QtArchiveHashOperation::run() {
         Result = CheckBreak();
         if (Result != S_OK)
             return;
-        CExternalCodecs providers;
-        if (catalog_ && catalog_->result() == S_OK) {
-            auto &codecs = const_cast<CCodecs &>(catalog_->nativeCodecs());
-            providers.GetHashers = static_cast<IHashers *>(&codecs);
-            Result = providers.Load();
-            if (Result != S_OK)
-                return;
-        }
         NWildcard::CCensor censor;
         NWildcard::CCensorPathProps properties;
         properties.WildcardMatching = false;
@@ -91,7 +84,7 @@ void QtArchiveHashOperation::run() {
         // Enumerate links as link objects; never traverse a cyclic directory.
         options.SymLinks.SetVal_as_Defined(true);
         AString error;
-        Result = HashCalc(&providers, censor, options, error, this);
+        Result = HashCalc(providers_.get(), censor, options, error, this);
         if (!error.IsEmpty())
             Errors.append(QString::fromLatin1(error.Ptr()));
     } catch (...) {

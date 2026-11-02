@@ -147,6 +147,7 @@ class CArchiveUpdateCallback Z7_final : public IArchiveUpdateCallback2,
     IUpdateCallbackUI *Callback;
 
     const CDirItems *DirItems;
+    const CRecordVector<Byte> *QtAltStreamItems = nullptr;
     const CDirItem *ParentDirItem;
 
     const CArc *Arc;

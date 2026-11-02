@@ -98,6 +98,8 @@ HRESULT RunRequest(ArchiveBackend &backend, const std::function<void()> &start,
         [&backend, request, start] {
             {
                 QMutexLocker lock(&request->Mutex);
+                if (request->State != CRequest::Phase::Pending)
+                    return;
                 if (backend.busy()) {
                     request->State = CRequest::Phase::Finished;
                     return;
@@ -115,9 +117,8 @@ HRESULT RunRequest(ArchiveBackend &backend, const std::function<void()> &start,
         },
         Qt::QueuedConnection);
     HRESULT stopResult = S_OK;
-    bool cancelRequested = false;
     for (;;) {
-        if (stopResult == S_OK && sync && sync->Get_Stopped())
+        if (sync && sync->Get_Stopped())
             stopResult = E_ABORT;
         bool passwordRequested;
         {
@@ -130,20 +131,35 @@ HRESULT RunRequest(ArchiveBackend &backend, const std::function<void()> &start,
         if (passwordRequested) {
             stopResult = RequestPassword(backend, request, passwordCallback);
         }
-        if (stopResult != S_OK && !cancelRequested) {
-            cancelRequested = true;
-            QMetaObject::invokeMethod(
-                &backend,
-                [&backend, request] {
-                    bool cancel;
-                    {
-                        QMutexLocker lock(&request->Mutex);
-                        cancel = request->State == CRequest::Phase::Running;
-                    }
-                    if (cancel)
-                        backend.cancel();
-                },
-                Qt::QueuedConnection);
+        if (stopResult != S_OK)
+            break;
+        QThread::msleep(10);
+    }
+    {
+        QMutexLocker lock(&request->Mutex);
+        if (request->State == CRequest::Phase::Pending) {
+            request->Result = stopResult;
+            request->State = CRequest::Phase::Finished;
+            return stopResult;
+        }
+    }
+    QMetaObject::invokeMethod(
+        &backend,
+        [&backend, request] {
+            bool cancel;
+            {
+                QMutexLocker lock(&request->Mutex);
+                cancel = request->State == CRequest::Phase::Running;
+            }
+            if (cancel)
+                backend.cancel();
+        },
+        Qt::QueuedConnection);
+    for (;;) {
+        {
+            QMutexLocker lock(&request->Mutex);
+            if (request->State == CRequest::Phase::Finished)
+                return stopResult;
         }
         QThread::msleep(10);
     }

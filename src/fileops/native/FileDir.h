@@ -76,8 +76,9 @@ bool MyMoveFile(CFSTR existFileName, CFSTR newFileName);
 bool MyMoveFile_with_Progress(CFSTR oldFile, CFSTR newFile, ICopyFileProgress *progress);
 // Publish a completed temporary file without deleting the previous destination.
 // Cross-volume copying stages beside the destination before atomic replacement.
+// published records replacement even if later temporary-file cleanup fails.
 bool MyPublishFile_with_Progress(CFSTR oldFile, CFSTR newFile, ICopyFileProgress *progress,
-                                 bool replaceExisting);
+                                 bool replaceExisting, bool *published = nullptr);
 
 #ifndef UNDER_CE
 bool MyCreateHardLink(CFSTR newFileName, CFSTR existFileName);
@@ -118,6 +119,9 @@ bool GetCurrentDir(FString &resultPath);
 bool MyGetTempPath(FString &resultPath);
 
 bool CreateTempFile2(CFSTR prefix, bool addRandom, AString &postfix, NIO::COutFile *outFile);
+// Prepare an owner's path before creation so cleanup can precede further allocation.
+bool CreateTempFile2(CFSTR prefix, bool addRandom, AString &postfix, NIO::COutFile *outFile,
+                     FString &createdPath);
 
 class CTempFile MY_UNCOPYABLE {
     bool _mustBeDeleted;
@@ -134,7 +138,8 @@ class CTempFile MY_UNCOPYABLE {
     bool CreateRandomInTempFolder(CFSTR namePrefix, NIO::COutFile *outFile);
     bool Remove();
     // bool MoveTo(CFSTR name, bool deleteDestBefore);
-    bool MoveTo(CFSTR name, bool deleteDestBefore, ICopyFileProgress *progress);
+    bool MoveTo(CFSTR name, bool deleteDestBefore, ICopyFileProgress *progress,
+                bool *published = nullptr);
 };
 
 class CTempDir MY_UNCOPYABLE {
