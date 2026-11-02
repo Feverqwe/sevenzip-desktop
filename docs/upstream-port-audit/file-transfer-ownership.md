@@ -1,5 +1,23 @@
 # File-transfer ownership
 
+## Bounded stream preflight — 2026-11-02
+
+Compared the native full-output path construction in ArchiveExtractCallback at
+recorded `b88c6bc09339de32f7d18bbab900686b244f42ba` with the Qt preflight caller
+and node checks. Native construction and runtime bounds remain unchanged;
+there is no import or provenance advancement.
+
+The Qt node loop interpreted each validated component as a separate path.
+On Windows, a stream owner named after the current drive made `C:stream` select
+the drive's current directory instead of the extraction destination. A real WIM
+regression reproduced refusal caused by an unrelated directory before native
+extraction. Preflight now appends components to its bounded path before cleaning
+it. The regression checks extracted owner/stream bytes and preserves both the
+unrelated directory and original archive. Three Linux suites passed for the
+shared validator and two Windows suites passed for real extraction and link
+boundaries, including the previously failing WIM case. macOS drive-relative
+interpretation is unaffected; no new macOS acceptance run is claimed.
+
 ## Archive Move extraction outcome — 2026-11-02
 
 Compared the selected native extraction, overwrite, stream, directory and deferred

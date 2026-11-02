@@ -281,6 +281,52 @@ class ArchiveBackendTests : public QObject, protected ArchiveBackendTestSupport 
                                                 &error));
         }
     }
+#ifdef Q_OS_WIN
+    void streamOutputIgnoresUnrelatedDriveCurrentDirectory() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString previous = QDir::currentPath();
+        const QString unrelated = fixture.filePath("unrelated");
+        QVERIFY(QDir().mkpath(unrelated + "/stream"));
+        QVERIFY(QDir::setCurrent(unrelated));
+        const auto restoreDirectory = qScopeGuard([&] { QDir::setCurrent(previous); });
+        const QString current = QDir::currentPath();
+        QVERIFY(current.size() > 2 && current.at(1) == ':');
+        NativeArchiveFixture::Item host;
+        host.Path = current.left(1);
+        host.Bytes = "host bytes";
+        auto stream = host;
+        stream.Path += ":stream";
+        stream.Bytes = "stream bytes";
+        stream.AltStream = true;
+        const QString archive = fixture.filePath("streams.wim");
+        QVERIFY(NativeArchiveFixture::Write(archive, {host, stream}, "wim"));
+        QFile source(archive);
+        QVERIFY(source.open(QIODevice::ReadOnly));
+        const QByteArray original = source.readAll();
+        source.close();
+        ArchiveBackend backend;
+        QCOMPARE(NativeArchiveFixture::Attach(backend), S_OK);
+        QSignalSpy finished(&backend, &ArchiveBackend::finished);
+        backend.list(archive);
+        QTRY_COMPARE(finished.size(), 1);
+        QVERIFY(finished.takeFirst().at(0).toBool());
+        const QString output = fixture.filePath("output");
+        backend.extract(archive, output);
+        QTRY_COMPARE(finished.size(), 1);
+        const auto result = finished.takeFirst();
+        QVERIFY2(result.at(0).toBool(), qPrintable(result.at(1).toString()));
+        QFile extracted(output + '/' + host.Path);
+        QVERIFY(extracted.open(QIODevice::ReadOnly));
+        QCOMPARE(extracted.readAll(), host.Bytes);
+        QFile extractedStream(output + '/' + stream.Path);
+        QVERIFY(extractedStream.open(QIODevice::ReadOnly));
+        QCOMPARE(extractedStream.readAll(), stream.Bytes);
+        QVERIFY(QDir(unrelated + "/stream").isEmpty());
+        QVERIFY(source.open(QIODevice::ReadOnly));
+        QCOMPARE(source.readAll(), original);
+    }
+#endif
     void extractionValidationLanguagePreservesRawPath() {
         QTemporaryDir fixture;
         const QString languageSettings = fixture.filePath("language.ini");

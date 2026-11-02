@@ -345,7 +345,9 @@ bool ArchiveBackend::validateExtractionEntries(const QList<ArchiveEntry> &entrie
         const QStringList parts = relative.split('/');
         for (int index = 0; index < parts.size(); ++index) {
             const QString &part = parts.at(index);
-            candidate = QDir(candidate).filePath(part);
+            // Each component already belongs to the bounded relative output.
+            // A stream such as C:stream must not become drive-relative again.
+            candidate = QDir::cleanPath(candidate + '/' + part);
             const QFileInfo existing(candidate);
             const bool finalFile = index == parts.size() - 1 && !entry.directory;
             if (existing.isSymLink() ||
