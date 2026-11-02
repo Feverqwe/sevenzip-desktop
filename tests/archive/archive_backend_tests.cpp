@@ -182,8 +182,9 @@ class ArchiveBackendTests : public QObject, protected ArchiveBackendTestSupport 
             QCOMPARE(backend.lastResult(), E_ABORT);
         }
         QSignalSpy refused(&backend, &ArchiveBackend::finished);
+        const QString output = fixture.filePath("output");
         if (operation == "extract")
-            backend.extract(archive, fixture.filePath("output"), {"missing.txt"});
+            backend.extract(archive, output, {"a.txt", "missing.txt"});
         else
             backend.test(fixture.filePath("unlisted.zip"));
         QCOMPARE(refused.size(), 1);
@@ -191,6 +192,7 @@ class ArchiveBackendTests : public QObject, protected ArchiveBackendTestSupport 
         QVERIFY(FAILED(backend.lastResult()));
         QVERIFY(backend.lastResult() != E_ABORT);
         QVERIFY(!backend.busy());
+        QVERIFY(!QFileInfo::exists(output));
         QFile original(archive);
         QVERIFY(original.open(QIODevice::ReadOnly));
         QCOMPARE(original.readAll(), before);

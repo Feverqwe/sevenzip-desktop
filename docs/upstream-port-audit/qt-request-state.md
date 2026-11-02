@@ -1,5 +1,33 @@
 # State of a new archive request — 2026-10-18
 
+## Selected-name extraction preparation — 2026-11-02
+
+Reviewed complete public extraction preparation, restored listing, destination
+preparation and native directory-request consumers, including window extraction
+and transfer fallback. Native selection/decoding and bounded output remain at
+their existing source owners; no external code import or baseline advancement.
+
+Literal-name resolution now returns a prepared list or the existing translated
+error before destination preparation starts. This removes the launch method's
+coupled found flag/partially appended selection. First-match behavior, requested
+order/duplicates, slash comparison, original stored entry paths and empty
+selection retain their previous meaning. Busy/reset, stale-list refusal,
+source-only options, destination validation and operation startup keep their
+order; no path canonicalization or wildcard behavior is added.
+
+The existing rejected-request regression now supplies a valid name followed by
+a missing name and requires no destination directory to be created. This protects
+the observable side-effect boundary in addition to the existing result, busy and
+unchanged-input assertions. Existing backend, extraction-option and notification
+suites cover direct consumers; no helper/source-shape test is added.
+
+Linux passed all three selected suites: 104 checks without skips. Source inventory
+and whitespace checks passed. Only shared request preparation changed, without
+OS-specific code or native engine interface changes, so secondary platforms were
+not selected. Selected scratch was empty before and after validation; configured
+four-job incremental builds and compiler caches were retained. No full/slow or
+appearance gate ran.
+
 ## Validated cached-listing lookup — 2026-11-02
 
 Reviewed listing publication/invalidation, cached-source availability and
