@@ -306,62 +306,63 @@ void QtArchiveReadOperation::recordOpenError(const QString &path, const CArcErro
                            QString::fromWCharArray(error.ErrorMessage),
                            QString::fromWCharArray(error.WarningMessage)});
 }
+HRESULT QtArchiveReadOperation::process() {
+    RINOK(checkpoint())
+    if (!retainedReader_ && !catalog_) {
+        catalog_ = ArchiveCodecProbe::LoadCatalog(moduleLocation_);
+        CatalogDiagnostic = catalog_->error();
+    }
+    // Native entrypoints are not interruptible. Retain their image until
+    // loading returns, then honor stop/pause before opening any input.
+    RINOK(checkpoint())
+    HRESULT result = retainedReader_ ? S_OK : catalog_->result();
+    if (result != S_OK) {
+        CatalogDiagnostic = catalog_->error();
+        return result;
+    }
+    CMyComPtr2<IArchiveExtractCallback, CTestCallback> callback;
+    callback.SetFromCls(new CTestCallback(*this));
+    auto reader = retainedReader_;
+    if (!reader) {
+        reader = std::make_shared<ArchiveNativeOpen>(catalog_);
+        result = reader->Open(path_, format_, callback.ClsPtr());
+        if (result != S_OK)
+            recordOpenError(path_, reader->archiveLink().NonOpen_ErrorInfo);
+        for (unsigned i = 0; i < reader->archiveLink().Arcs.Size(); ++i) {
+            const auto &arc = reader->archiveLink().Arcs[i];
+            recordOpenError(QString::fromWCharArray(arc.Path), arc.ErrorInfo);
+        }
+    }
+    if (result != S_OK)
+        return result;
+    OpenedFormat =
+        QString::fromWCharArray(reader->nativeCodecs().GetFormatNamePtr(reader->arc().FormatIndex));
+    callback->Attach(&reader->arc());
+    switch (kind_) {
+    case Kind::List:
+        Listing = std::make_unique<NativeArchiveListing>();
+        result = ReadNativeArchiveListing(*reader, *Listing, callback);
+        break;
+    case Kind::Test:
+        result = ArchiveBackend::extractNativeArchive(reader, nullptr, UInt32(-1), 1, callback);
+        break;
+    case Kind::ExtractEntry:
+        result = ExtractEntry(*this, reader, *callback.ClsPtr());
+        break;
+    case Kind::ExtractDirectory:
+        result = ExtractQtArchiveDirectory(*this, reader, callback);
+        break;
+    }
+    callback->Attach(nullptr);
+    if (result == S_OK && (!Errors.isEmpty() || !Messages.isEmpty() ||
+                           (kind_ != Kind::List && !OpenErrors.isEmpty())))
+        return E_FAIL;
+    return result;
+}
+
 void QtArchiveReadOperation::run() {
     try {
-        Result = checkpoint();
-        if (Result != S_OK)
-            return;
-        if (!retainedReader_ && !catalog_) {
-            catalog_ = ArchiveCodecProbe::LoadCatalog(moduleLocation_);
-            CatalogDiagnostic = catalog_->error();
-        }
-        // Native entrypoints are not interruptible. Retain their image until
-        // loading returns, then honor stop/pause before opening any input.
-        Result = checkpoint();
-        if (Result != S_OK)
-            return;
-        Result = retainedReader_ ? S_OK : catalog_->result();
-        if (Result != S_OK) {
-            CatalogDiagnostic = catalog_->error();
-            return;
-        }
-        CMyComPtr2<IArchiveExtractCallback, CTestCallback> callback;
-        callback.SetFromCls(new CTestCallback(*this));
-        auto reader = retainedReader_;
-        if (!reader) {
-            reader = std::make_shared<ArchiveNativeOpen>(catalog_);
-            Result = reader->Open(path_, format_, callback.ClsPtr());
-            if (Result != S_OK)
-                recordOpenError(path_, reader->archiveLink().NonOpen_ErrorInfo);
-            for (unsigned i = 0; i < reader->archiveLink().Arcs.Size(); ++i) {
-                const auto &arc = reader->archiveLink().Arcs[i];
-                recordOpenError(QString::fromWCharArray(arc.Path), arc.ErrorInfo);
-            }
-        }
-        if (Result != S_OK)
-            return;
-        OpenedFormat = QString::fromWCharArray(
-            reader->nativeCodecs().GetFormatNamePtr(reader->arc().FormatIndex));
-        callback->Attach(&reader->arc());
-        switch (kind_) {
-        case Kind::List:
-            Listing = std::make_unique<NativeArchiveListing>();
-            Result = ReadNativeArchiveListing(*reader, *Listing, callback);
-            break;
-        case Kind::Test:
-            Result = ArchiveBackend::extractNativeArchive(reader, nullptr, UInt32(-1), 1, callback);
-            break;
-        case Kind::ExtractEntry:
-            Result = ExtractEntry(*this, reader, *callback.ClsPtr());
-            break;
-        case Kind::ExtractDirectory:
-            Result = ExtractQtArchiveDirectory(*this, reader, callback);
-            break;
-        }
-        callback->Attach(nullptr);
-        if (Result == S_OK && (!Errors.isEmpty() || !Messages.isEmpty() ||
-                               (kind_ != Kind::List && !OpenErrors.isEmpty())))
-            Result = E_FAIL;
+        Result = process();
     } catch (...) {
         Result = E_OUTOFMEMORY;
     }

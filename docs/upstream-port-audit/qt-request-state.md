@@ -1,5 +1,33 @@
 # State of a new archive request — 2026-10-18
 
+## Native read worker terminal result — 2026-11-02
+
+Reviewed the complete native worker/callback sequence and all result consumers.
+Backend completion, retained cache and direct fixtures join the worker before
+reading its terminal result; cancellation/progress callbacks do not read it.
+Source opening, listing, decoding, output and callback contracts remain unchanged;
+no new source import or baseline advancement is introduced.
+
+The worker's processing body now returns its HRESULT, while the thread entry
+stores that outcome and retains the existing exception-to-E_OUTOFMEMORY mapping.
+This removes repeated writes/checks of the public terminal field during setup.
+Checkpoints remain before and after codec loading, catalog diagnostics retain
+their failure points, and failed Open still collects all available open errors
+before returning. Callback attachment/detachment and final error aggregation keep
+their order, including List's existing treatment of open warnings. Callback and
+reader locals still unwind before thread completion is published.
+
+Existing listing, native Test, single-entry, directory-option and retained-view
+suites cover the affected modes and early exits. No private-method or
+intermediate-field-value test is added.
+
+Linux passed all five selected suites: 127 checks without skips. Source inventory
+and whitespace checks passed. Only shared worker/result ownership changed,
+without native OS branches or ABI changes, so secondary platforms were not
+selected. Selected scratch was empty before and after validation; configured
+four-job builds retained incremental outputs and compiler caches. No full/slow
+or appearance gate ran.
+
 ## Native single-entry preparation — 2026-11-02
 
 Reviewed the complete native read callback/worker, single-entry selection/output,

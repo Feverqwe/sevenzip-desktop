@@ -76,6 +76,7 @@ class QtArchiveReadOperation final : public QThread {
     std::function<void(const OverwriteQuestion &)> OverwriteRequired;
 
   private:
+    HRESULT process();
     void run() override;
     void recordOpenError(const QString &path, const CArcErrorInfo &error);
     // Native interfaces stay inside run and release before this module lease.
