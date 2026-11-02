@@ -1,5 +1,33 @@
 # State of a new archive request — 2026-10-18
 
+## Validated cached-listing lookup — 2026-11-02
+
+Reviewed listing publication/invalidation, cached-source availability and
+restoration, Test/extract, source-entry recovery-format selection and notification
+callers. The cache remains local Qt integration around authoritative native
+metadata; no source import, filesystem/decoder algorithm change or baseline
+advancement occurs.
+
+Availability, restoration and recovery-format lookup now use one private lookup
+that returns the validated snapshot. Restoration reuses the same QFileInfo and
+snapshot instead of repeating path construction and hash lookup after a separate
+boolean check; recovery likewise avoids fetching another snapshot value.
+Borrowed snapshots stay within the synchronous call, before operation startup
+or notifications. Busy, file/link, size/time checks and listing invalidation
+remain unchanged, as do cache publication, entries/format and recovery policy.
+
+Existing backend, listing, source-entry, recovery and notification cases cover
+independent cached archives, changed-source refusal and relist retry, cancelled
+listing and reentrant extraction. No pointer-layout, private-lookup or current
+metadata-constant test is added.
+
+Linux passed all five selected suites: 131 checks without skips. Source inventory
+and whitespace checks passed. Shared cache lookup/ownership changed without
+OS-specific metadata rules or native engine interface changes, so secondary
+platforms were not selected. Selected scratch was empty before and after
+validation; configured four-job incremental builds and compiler caches were
+retained. No full/slow or appearance gate ran.
+
 ## Source-entry completion outcome owner — 2026-11-02
 
 Reviewed the complete source-entry completion/cleanup helper, joined read

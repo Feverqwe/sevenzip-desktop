@@ -33,6 +33,7 @@ class QtOwnedTempDir;
 class QtArchiveTransferBackup;
 enum class ArchiveTransferBackupError;
 class QThread;
+class QFileInfo;
 struct IOpenCallbackUI;
 struct QtArchiveDirectoryExtractRequest;
 struct IUpdateCallbackUI2;
@@ -271,6 +272,7 @@ class ArchiveBackend : public QObject {
         QList<ArchiveEntry> Entries;
         QString Format;
     };
+    const ListedSourceSnapshot *findListedSourceArchive(const QFileInfo &file) const;
     enum class Job { None, List, Extract, Test, Hash, SourceExtract };
     HRESULT finishSourceExtractOperation(const QtArchiveReadOperation &operation, HRESULT result);
     static bool safePath(const QString &path);

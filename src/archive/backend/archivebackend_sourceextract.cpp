@@ -57,8 +57,9 @@ void ArchiveBackend::extractSourceEntry(const QString &archive, const QString &e
         configuredModule_);
     worker->Output = {entry, QFileInfo(output).absoluteFilePath(), isAltStream};
     worker->Output.RecoveryFormat = IsArchiveRecoveryFormat(format);
-    if (format.isEmpty() && hasListedSourceArchive(archive_))
-        worker->Output.RecoveryFormat =
-            IsArchiveRecoveryFormat(listedSourceArchives_.value(archive_).Format);
+    if (format.isEmpty()) {
+        if (const auto *snapshot = findListedSourceArchive(QFileInfo(archive_)))
+            worker->Output.RecoveryFormat = IsArchiveRecoveryFormat(snapshot->Format);
+    }
     startReadOperation(Job::SourceExtract, std::move(worker));
 }

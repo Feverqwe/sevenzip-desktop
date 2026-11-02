@@ -85,23 +85,29 @@ void ArchiveBackend::startListing(const QString &archive, const QString &passwor
     startNativeRead(Job::List, archive_, password, format);
 }
 
-bool ArchiveBackend::hasListedSourceArchive(const QString &archive) const {
+const ArchiveBackend::ListedSourceSnapshot *
+ArchiveBackend::findListedSourceArchive(const QFileInfo &file) const {
     if (busy())
-        return false;
-    const QFileInfo file(archive);
+        return nullptr;
     const auto found = listedSourceArchives_.constFind(file.absoluteFilePath());
-    return found != listedSourceArchives_.cend() && file.isFile() && !file.isSymLink() &&
-           file.size() == found->Size && file.lastModified() == found->Modified &&
-           file.metadataChangeTime() == found->MetadataChanged;
+    if (found == listedSourceArchives_.cend() || !file.isFile() || file.isSymLink() ||
+        file.size() != found->Size || file.lastModified() != found->Modified ||
+        file.metadataChangeTime() != found->MetadataChanged)
+        return nullptr;
+    return &found.value();
+}
+
+bool ArchiveBackend::hasListedSourceArchive(const QString &archive) const {
+    return findListedSourceArchive(QFileInfo(archive)) != nullptr;
 }
 
 bool ArchiveBackend::restoreListedArchive(const QString &archive) {
-    if (!hasListedSourceArchive(archive))
+    const QFileInfo file(archive);
+    const auto *snapshot = findListedSourceArchive(file);
+    if (!snapshot)
         return false;
-    const QString path = QFileInfo(archive).absoluteFilePath();
-    const ListedSourceSnapshot &snapshot = listedSourceArchives_.constFind(path).value();
-    archive_ = path;
-    entries_ = snapshot.Entries;
+    archive_ = file.absoluteFilePath();
+    entries_ = snapshot->Entries;
     return true;
 }
 
