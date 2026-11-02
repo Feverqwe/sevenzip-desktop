@@ -118,6 +118,9 @@ bool GetCurrentDir(FString &resultPath);
 bool MyGetTempPath(FString &resultPath);
 
 bool CreateTempFile2(CFSTR prefix, bool addRandom, AString &postfix, NIO::COutFile *outFile);
+// Prepare an owner's path before creation so cleanup can precede further allocation.
+bool CreateTempFile2(CFSTR prefix, bool addRandom, AString &postfix, NIO::COutFile *outFile,
+                     FString &createdPath);
 
 class CTempFile MY_UNCOPYABLE {
     bool _mustBeDeleted;

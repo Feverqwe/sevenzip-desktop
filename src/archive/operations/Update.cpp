@@ -9,6 +9,7 @@
 #include "archive/resources/qtarchivewritelease.h"
 #include "archive/sfx/archivesfxmodule.h"
 #include "ui/diagnostics/qtdiagnostictext.h"
+#include <QScopeGuard>
 #include <optional>
 
 #include "Common/StringConvert.h"
@@ -765,7 +766,12 @@ if (options.VolumesSizes.Size() == 0) {
             } else
                 realPath = us2fs(archivePath.GetFinalPath());
             if (outStreamSpec->Create_NEW(realPath)) {
+                auto cleanup = qScopeGuard([&] {
+                    outStreamSpec->Close();
+                    DeleteFileAlways(realPath);
+                });
                 tempFiles.Paths.Add(realPath);
+                cleanup.dismiss();
                 isOK = true;
                 break;
             }
@@ -821,12 +827,17 @@ if (options.SfxMode) {
         sfxOutStream = outStreamSpec2;
         const FString realPath = us2fs(archivePath.GetFinalPath());
         AString postfix;
-        if (!CreateTempFile2(realPath, true, postfix, &outStreamSpec2->File))
+        FString createdPath;
+        if (!CreateTempFile2(realPath, true, postfix, &outStreamSpec2->File, createdPath))
             return errorInfo.SetFromLastError(
                 QT_TRANSLATE_NOOP("SevenZipDiagnostics", "cannot open file"), realPath);
-        sfxHeaderPath = realPath;
-        sfxHeaderPath += postfix;
+        auto cleanup = qScopeGuard([&] {
+            outStreamSpec2->Close();
+            DeleteFileAlways(createdPath);
+        });
+        sfxHeaderPath = createdPath;
         sfxHeaderIndex = (int)tempFiles.Paths.Add(sfxHeaderPath);
+        cleanup.dismiss();
     }
 
     {

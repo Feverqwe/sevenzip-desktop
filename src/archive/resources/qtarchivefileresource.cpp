@@ -284,15 +284,16 @@ HRESULT QtArchiveFileResource::Spool(IInStream *stream, IProgress *progress) {
     outputSpec->File.mode_for_Create = 0600;
 #endif
     AString postfix;
-    if (!NWindows::NFile::NDir::CreateTempFile2(prefix, true, postfix, &outputSpec->File))
+    FString createdPath;
+    if (!NWindows::NFile::NDir::CreateTempFile2(prefix, true, postfix, &outputSpec->File,
+                                                createdPath))
         return GetLastError_noZero_HRESULT();
-    prefix += postfix;
-    const QString path = QDir::fromNativeSeparators(QString::fromWCharArray(fs2us(prefix)));
     std::shared_ptr<QtOwnedTempLease> lease;
     auto cleanup = qScopeGuard([&] {
         outputSpec->Close();
-        QFile::remove(path);
+        NWindows::NFile::NDir::DeleteFileAlways(createdPath);
     });
+    const QString path = QDir::fromNativeSeparators(QString::fromWCharArray(fs2us(createdPath)));
     lease = QtOwnedTempRegistry().RegisterCreated(path);
     if (!lease)
         return E_FAIL;

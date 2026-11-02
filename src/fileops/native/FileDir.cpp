@@ -738,7 +738,8 @@ bool MyGetTempPath(FString &path) {
 #endif
 }
 
-bool CreateTempFile2(CFSTR prefix, bool addRandom, AString &postfix, NIO::COutFile *outFile) {
+bool CreateTempFile2(CFSTR prefix, bool addRandom, AString &postfix, NIO::COutFile *outFile,
+                     FString &path) {
     UInt32 d =
 #ifdef _WIN32
         (GetTickCount() << 12) ^ (GetCurrentThreadId() << 14) ^ GetCurrentProcessId();
@@ -769,7 +770,8 @@ bool CreateTempFile2(CFSTR prefix, bool addRandom, AString &postfix, NIO::COutFi
         addRandom = true;
         if (outFile)
             postfix += ".tmp";
-        FString path(prefix);
+        // Prepare the cleanup owner's path before creating the OS object.
+        path = prefix;
         path += postfix;
         if (NFind::DoesFileOrDirExist(path)) {
             SetLastError(ERROR_ALREADY_EXISTS);
@@ -790,16 +792,21 @@ bool CreateTempFile2(CFSTR prefix, bool addRandom, AString &postfix, NIO::COutFi
     return false;
 }
 
+bool CreateTempFile2(CFSTR prefix, bool addRandom, AString &postfix, NIO::COutFile *outFile) {
+    FString path;
+    return CreateTempFile2(prefix, addRandom, postfix, outFile, path);
+}
+
 bool CTempFile::Create(CFSTR prefix, NIO::COutFile *outFile) {
     if (!Remove())
         return false;
     _ownedLease.reset();
     _path.Empty();
     AString postfix;
-    if (!CreateTempFile2(prefix, false, postfix, outFile))
+    if (!CreateTempFile2(prefix, false, postfix, outFile, _path)) {
+        _path.Empty();
         return false;
-    _path = prefix;
-    _path += postfix;
+    }
     _mustBeDeleted = true;
     _ownedLease =
         QtOwnedTempRegistry().RegisterCreated(QString::fromWCharArray(fs2us(_path).Ptr()));
@@ -822,10 +829,10 @@ bool CTempFile::CreateRandomInTempFolder(CFSTR namePrefix, NIO::COutFile *outFil
         return false;
     AString postfix;
     tempPath += namePrefix;
-    if (!CreateTempFile2(tempPath, true, postfix, outFile))
+    if (!CreateTempFile2(tempPath, true, postfix, outFile, _path)) {
+        _path.Empty();
         return false;
-    _path = tempPath;
-    _path += postfix;
+    }
     _mustBeDeleted = true;
     _ownedLease =
         QtOwnedTempRegistry().RegisterCreated(QString::fromWCharArray(fs2us(_path).Ptr()));
@@ -868,10 +875,10 @@ bool CTempDir::Create(CFSTR prefix) {
         return false;
     tempPath += prefix;
     AString postfix;
-    if (!CreateTempFile2(tempPath, true, postfix, NULL))
+    if (!CreateTempFile2(tempPath, true, postfix, NULL, _path)) {
+        _path.Empty();
         return false;
-    _path = tempPath;
-    _path += postfix;
+    }
     _mustBeDeleted = true;
     _ownedLease =
         QtOwnedTempRegistry().RegisterCreated(QString::fromWCharArray(fs2us(_path).Ptr()));
