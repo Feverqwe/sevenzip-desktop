@@ -17,11 +17,14 @@ class QtAssociationServices final : public IQtAssociationServices {
         const auto previous = observed_.constFind(id);
         if (previous == observed_.cend())
             return 50; // ERROR_NOT_SUPPORTED: no successful detection snapshot.
+        // Native reads can reenter detection and replace the cached record.
+        // This Apply must retain the revision on which its choice was based.
+        const QByteArray expectedRevision = previous->revision;
         QtAssociationRecord current;
         const LONG readResult = platform_->Read(group, ext, current);
         if (readResult != 0)
             return readResult;
-        if (current.revision != previous->revision)
+        if (current.revision != expectedRevision)
             return 1237; // ERROR_RETRY: an external association change won.
         const LONG result =
             platform_->Write(group, ext, associate, current, title, command, iconPath, iconIndex);
