@@ -2,6 +2,7 @@
 #include "fileops/overwrite/overwritequestion.h"
 
 #include <QMutex>
+#include <QString>
 #include <QStringList>
 #include <QThread>
 #include <QWaitCondition>
@@ -38,6 +39,10 @@ class FileTransferOperation : public QThread {
 
   private:
     friend class QtFileTransferTransaction;
+    struct Completion {
+        ResultKind kind;
+        QString message;
+    };
     int askOverwrite(const OverwriteQuestion &question);
 
     QStringList sources_;

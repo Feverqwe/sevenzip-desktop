@@ -262,23 +262,21 @@ void QtFileTransferTransaction::removeSources(QList<TransferEntry> &completed, Q
     }
 }
 
-void QtFileTransferTransaction::finish(QList<TransferEntry> &completed, QString &error) {
+FileTransferOperation::Completion QtFileTransferTransaction::finish(QList<TransferEntry> &completed,
+                                                                    QString &error) {
     if (!error.isEmpty()) {
         rollback(completed);
-        worker_.resultKind_ = worker_.canceled_ ? FileTransferOperation::ResultKind::Canceled
-                                                : FileTransferOperation::ResultKind::Failure;
-        emit worker_.result(false, error);
-        return;
+        return {worker_.canceled_ ? FileTransferOperation::ResultKind::Canceled
+                                  : FileTransferOperation::ResultKind::Failure,
+                error};
     }
     if (worker_.move_) {
         removeSources(completed, error);
         if (!error.isEmpty()) {
             rollback(completed, RollbackMode::KeepMovedSources);
-            worker_.resultKind_ = FileTransferOperation::ResultKind::Failure;
-            emit worker_.result(
-                false, error + QCoreApplication::translate("qtfiletransfertransaction",
-                                                           " Some items may have been moved."));
-            return;
+            return {FileTransferOperation::ResultKind::Failure,
+                    error + QCoreApplication::translate("qtfiletransfertransaction",
+                                                        " Some items may have been moved.")};
         }
     }
     for (const TransferEntry &entry : completed)
@@ -294,11 +292,10 @@ void QtFileTransferTransaction::finish(QList<TransferEntry> &completed, QString 
                                               "Some files skipped; sources retained.");
     else
         message = QCoreApplication::translate("qtfiletransfertransaction", "Items moved.");
-    worker_.resultKind_ = FileTransferOperation::ResultKind::Success;
-    emit worker_.result(true, message);
+    return {FileTransferOperation::ResultKind::Success, message};
 }
 
-void QtFileTransferTransaction::run() {
+FileTransferOperation::Completion QtFileTransferTransaction::run() {
     enum class OverwriteMode { Ask, Skip, Overwrite, Rename };
     OverwriteMode overwriteMode = OverwriteMode::Ask;
     auto overwriteAnswer = [this, &overwriteMode](const OverwriteSource &source) -> int {
@@ -429,5 +426,5 @@ void QtFileTransferTransaction::run() {
         rollbackItem.dismiss();
     }
     rollbackBatch.dismiss();
-    finish(completed, error);
+    return finish(completed, error);
 }

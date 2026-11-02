@@ -1,5 +1,32 @@
 # File-transfer ownership
 
+## Filesystem terminal outcome owner — 2026-11-02
+
+Reviewed the complete transaction run/finish, rollback, source-removal, worker
+entry and joined window/direct-path consumers. Compared native FSFolderCopy
+CopyTo and its callback boundary at recorded
+`9128b80e3a471108678e2b3ec3c985861c8d7b0f` in
+<https://github.com/ip7z/7zip.git>; the complete original unit matches its existing
+baseline hash. Native copying, overwrite, progress and filesystem algorithms
+remain unchanged. No external import, omission or baseline advancement.
+
+The transaction returns its completion kind and message instead of changing
+the worker's terminal status and emitting its signal. The worker handles escaping
+transaction exceptions, stores that outcome and publishes completion in one
+place after the transaction returns. The public signal and status contract are
+unchanged. Cancellation before completion, skipped merged sources and failure
+after source removal retain their distinct outcomes and translated messages.
+The current-item/batch guards and partial-Move recovery ordering are preserved.
+
+Existing behavior regressions cover ordinary/direct-path copy and Move,
+overwrite choices, cancellation, throwing filesystem services, partial source
+removal, EN/RU messages, archive workflow integration and window shutdown.
+No private-result representation test or pre-fix failure is claimed. Five
+affected Linux suites passed: file transfer, direct-path transfer, EN/RU transfer
+results, archive workflow and window worker progress. Incremental build/test
+times were 53.043/3.158 seconds. No native OS branch, layout or text changed,
+so no secondary-platform, full/slow gate or appearance run was selected.
+
 ## Bounded stream preflight — 2026-11-02
 
 Compared the native full-output path construction in ArchiveExtractCallback at

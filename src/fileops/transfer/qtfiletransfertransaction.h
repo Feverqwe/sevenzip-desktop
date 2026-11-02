@@ -1,12 +1,11 @@
 #pragma once
 #include "fileops/overwrite/overwritequestion.h"
+#include "fileops/transfer/filetransferoperation.h"
 #include <QList>
 #include <QString>
 #include <QStringList>
 #include <functional>
 #include <variant>
-
-class FileTransferOperation;
 
 // Filesystem staging, publication and rollback for one joined transfer worker.
 // The worker retains immutable inputs, cancellation and overwrite interaction.
@@ -29,7 +28,7 @@ class QtFileTransferTransaction final {
     };
     FileTransferOperation &worker_;
     QStringList prepareTargets(QString &error) const;
-    void finish(QList<TransferEntry> &completed, QString &error);
+    FileTransferOperation::Completion finish(QList<TransferEntry> &completed, QString &error);
     void rollbackEntry(const TransferEntry &entry, const QString &ownedPath, RollbackMode mode);
     void rollback(const QList<TransferEntry> &completed,
                   RollbackMode mode = RollbackMode::RestoreSources);
@@ -46,5 +45,5 @@ class QtFileTransferTransaction final {
 
   public:
     explicit QtFileTransferTransaction(FileTransferOperation &worker) : worker_(worker) {}
-    void run();
+    FileTransferOperation::Completion run();
 };
