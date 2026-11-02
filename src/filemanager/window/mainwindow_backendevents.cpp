@@ -42,9 +42,10 @@ void MainWindow::connectBackend() {
     });
     connect(backend_, &ArchiveBackend::outputReceived, this, [this](const QString &line) {
         if (!app_.QtOperations().closed()) {
-            if (progress_ && (line.startsWith(QStringLiteral("ERROR:"), Qt::CaseInsensitive) ||
-                              line.startsWith(QStringLiteral("WARNING:"), Qt::CaseInsensitive)))
-                progress_->Sync.AddError_Message(line.toStdWString().c_str());
+            if (auto *progress = progressDialog();
+                progress && (line.startsWith(QStringLiteral("ERROR:"), Qt::CaseInsensitive) ||
+                             line.startsWith(QStringLiteral("WARNING:"), Qt::CaseInsensitive)))
+                progress->Sync.AddError_Message(line.toStdWString().c_str());
         }
     });
     connect(backend_, &ArchiveBackend::finished, this, [this](bool ok, const QString &message) {
@@ -104,10 +105,11 @@ void MainWindow::backendFinished(bool ok, const QString &message, HRESULT result
     }
     if (!ok)
         projectedUi().archivePassword.clear();
-    const bool hadProgress = progress_;
+    auto *progress = progressDialog();
+    const bool hadProgress = progress != nullptr;
     const bool canceled = result == E_ABORT;
     if (hadProgress && !ok && !canceled)
-        progress_->Sync.FinalMessage.ErrorMessage.Message = ToUString(resultMessage);
+        progress->Sync.FinalMessage.ErrorMessage.Message = ToUString(resultMessage);
     closeProgressDialog(true);
     if (projectedUi().state == State::Loading && !ok)
         showDirectory(projectedUi().returnDirectory, false);
@@ -120,16 +122,18 @@ void MainWindow::backendFinished(bool ok, const QString &message, HRESULT result
 }
 
 void MainWindow::closeProgressDialog(bool finished) {
-    if (!progress_)
+    const auto progress = std::move(progress_);
+    if (!progress || !progress->dialog)
         return;
-    CProgressDialog *completed = progress_;
-    progress_ = nullptr;
+    CProgressDialog *completed = progress->dialog;
     completed->AttachTransport(nullptr);
     // Source progress is destroyed before OnCopy refreshes the title. Qt keeps
     // the completed dialog through queued close/error presentation; it must no
     // longer overwrite the application owner's restored title on destruction.
     completed->MainWindow = nullptr;
-    progressTransport_.reset();
+    progress->transport.reset();
+    if (!progress->dialog)
+        return;
     if (finished) {
         completed->setObjectName("completedProgressDialog");
         connect(completed, &QDialog::finished, completed, &QObject::deleteLater);
@@ -137,11 +141,13 @@ void MainWindow::closeProgressDialog(bool finished) {
         // ArchiveBackend and Qt workers finish on the GUI event loop. Deliver
         // the source close/final-message transition before commands become
         // available for the next operation.
-        QCoreApplication::sendPostedEvents(completed, QEvent::MetaCall);
+        if (progress->dialog)
+            QCoreApplication::sendPostedEvents(completed, QEvent::MetaCall);
     } else {
         // QDialog::close routes through the source reject/cancel confirmation.
         // An already completed stage must be dismissed without a new prompt.
         completed->done(0);
-        completed->deleteLater();
+        if (progress->dialog)
+            completed->deleteLater();
     }
 }

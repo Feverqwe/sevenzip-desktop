@@ -48,11 +48,12 @@ void MainWindow::launchVolume(VolumeOperation *operation, const UString &title,
     volumeOperation_ = operation;
     beginWorkerProgress(ToQString(title), source,
                         [operation = volumeOperation_] { operation->cancel(); });
-    progress_->MainAddTitle = title;
-    progress_->MainAddTitle.Add_Space();
-    progress_->Sync.Set_TitleFileName(ToUString(QFileInfo(source).fileName()));
-    progress_->Sync.Set_NumBytesTotal(totalSize);
-    volumeOperation_->attachProgress(progress_->Sync);
+    auto *progress = progressDialog();
+    progress->MainAddTitle = title;
+    progress->MainAddTitle.Add_Space();
+    progress->Sync.Set_TitleFileName(ToUString(QFileInfo(source).fileName()));
+    progress->Sync.Set_NumBytesTotal(totalSize);
+    volumeOperation_->attachProgress(progress->Sync);
     connect(volumeOperation_, &VolumeOperation::result, this,
             [this, operation = volumeOperation_,
              completion = std::move(completion)](bool success, const QString &message) {
@@ -67,8 +68,8 @@ void MainWindow::launchVolume(VolumeOperation *operation, const UString &title,
                 completion();
                 if (!guard || app_.QtOperations().closed())
                     return;
-                if (!success && !canceled && progress_)
-                    progress_->Sync.FinalMessage.ErrorMessage.Message = ToUString(message);
+                if (auto *progress = progressDialog(); !success && !canceled && progress)
+                    progress->Sync.FinalMessage.ErrorMessage.Message = ToUString(message);
                 closeProgressDialog(true);
                 if (!guard || app_.QtOperations().closed())
                     return;

@@ -129,6 +129,11 @@ must update the captured owning panel even if focus changes while a modal dialog
 or worker is active. Navigation, refresh and publication preserve independent
 peer state and reject stale results after a location/provider change.
 
+Window-owned asynchronous progress retains its dialog and transport in one
+operation snapshot. Completion retires that snapshot before native final-message
+callbacks; workers still join before progress storage is released. Source modal
+progress keeps its native owner and lifecycle.
+
 Filesystem enumeration and archive folder bindings feed the list/model projection.
 Original item indices, marks and focused row are distinct from display text and
 Qt selection. Sorting, column metadata and native namespaces retain their source

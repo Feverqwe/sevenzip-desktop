@@ -18,6 +18,7 @@ struct QtOperationResult;
 #include "fileops/transfer/filetransferoperation.h"
 #include "fileops/volumes/volumeoperations.h"
 #include "settings/dialog_alias.h"
+#include "ui/progress/qtprogresstransport.h"
 
 #include <QAction>
 #include <QActionGroup>
@@ -80,7 +81,6 @@ struct QtOperationResult;
 
 class QtFileListHover;
 class CProgressDialog;
-class IQtProgressTransport;
 class IQtTrashService;
 struct QtFileManagerStartup;
 
@@ -101,6 +101,10 @@ class MainWindow : public QMainWindow {
     void testArchive();
 
   private:
+    struct WindowProgress {
+        QPointer<CProgressDialog> dialog;
+        std::unique_ptr<IQtProgressTransport> transport;
+    };
     DeviceSelectionServices deviceServices_;
     QLabel *deviceReadOnly_ = nullptr;
     friend class QtAppPresentation;
@@ -262,7 +266,9 @@ class MainWindow : public QMainWindow {
     void showSelectedProperties();
     void calculateHash(const QString &method);
     void begin(const QString &label, const QString &detail);
-    void startProgressDialog(const QString &label, const QString &detail);
+    std::unique_ptr<WindowProgress> createProgressDialog(const QString &label,
+                                                         const QString &detail);
+    CProgressDialog *progressDialog() const;
     void extractArchives();
     void runArchiveBatchCommand(bool test);
     HRESULT launchGuiArchiveTest(const UStringVector &paths, bool hashMode);
@@ -369,8 +375,7 @@ class MainWindow : public QMainWindow {
     bool selectionClickLeft_ = false;
     bool selectionShiftSequence_ = false;
     bool rightControlPressed_ = false;
-    QPointer<CProgressDialog> progress_;
-    std::unique_ptr<IQtProgressTransport> progressTransport_;
+    std::unique_ptr<WindowProgress> progress_;
     bool sourceArchiveProgress_ = false;
     QAction *toolbarAdd_ = nullptr;
     QAction *extract_ = nullptr;

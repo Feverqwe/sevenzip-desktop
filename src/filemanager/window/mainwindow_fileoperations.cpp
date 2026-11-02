@@ -59,7 +59,7 @@ void MainWindow::transferFiles(const QStringList &sources, const QString &destin
                         [operation = fileTransfer_] { operation->cancel(); });
     // The source mutex snapshot is worker-safe. Completion or close joins the
     // worker before releasing this dialog; no QWidget/MainWindow state is read.
-    CProgressSync *sync = &progress_->Sync;
+    CProgressSync *sync = &progressDialog()->Sync;
     connect(
         fileTransfer_, &FileTransferOperation::currentFile, this,
         [sync](const QString &path) { sync->Set_FilePath(path.toStdWString().c_str()); },
@@ -83,8 +83,8 @@ void MainWindow::transferFiles(const QStringList &sources, const QString &destin
                 if (fileTransfer_ == operation)
                     fileTransfer_ = nullptr;
                 operation->deleteLater();
-                if (!success && !canceled && progress_)
-                    progress_->Sync.FinalMessage.ErrorMessage.Message = ToUString(message);
+                if (auto *progress = progressDialog(); !success && !canceled && progress)
+                    progress->Sync.FinalMessage.ErrorMessage.Message = ToUString(message);
                 const QPointer<MainWindow> guard(this);
                 closeProgressDialog(true);
                 if (!guard || app_.QtOperations().closed())

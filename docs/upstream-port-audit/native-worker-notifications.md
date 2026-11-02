@@ -1,5 +1,30 @@
 # Native-worker notification ownership
 
+## Window progress lifetime — 2026-11-02
+
+Compared original ProgressDialog2 constructor, destructor/title restoration,
+OnCancel, OnExternalCloseMessage and ProcessWasFinished at recorded
+`b88c6bc09339de32f7d18bbab900686b244f42ba` with the Qt dialog, backend transport,
+filesystem copy, split/combine, window completion and joined shutdown callers.
+The native dialog algorithms remain unchanged; no import, omission or baseline
+advancement is involved.
+
+The window publishes its dialog and transport together and consumes their single
+owner before final callbacks. Closing still detaches the dialog, clears its title
+owner and destroys the transport while the dialog lives, then delivers native
+finish or quiet dismissal. Reentrant startup can retain a new snapshot without
+sharing the retiring transport. Worker join, Sync lifetime and deferred error
+presentation remain with their existing owners. This is an ownership refactor;
+no pre-fix behavior failure or external widget-deletion contract is claimed.
+Existing window cancellation, paused backend progress, shutdown during copy/
+split/combine and next-operation checks cover the retained behavior; no test
+of the private representation was added. Six affected Linux suites passed:
+archive progress, cancellation, archive window state, binding lifecycle,
+archive Move completion and worker window progress. Incremental build/test
+times were 54.016/28.421 seconds. Original ProgressDialog2.cpp/.h hashes match
+the existing baseline. No native platform branch, layout or text changed, so
+no secondary-platform, full/slow gate or appearance run was selected.
+
 ## Pending worker progress snapshot — 2026-11-01
 
 Reviewed hash/read startup, callbacks, sampled progress, completion, joined
