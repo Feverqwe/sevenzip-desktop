@@ -46,7 +46,8 @@ struct ArchiveReadOnlyView::State {
           const QString &folder);
     void skip(const QString &path, const QString &reason);
     CMyComPtr<IProgress> readRequest() const;
-    bool evict(quint64 except, quint64 needed);
+    bool release(Item &item);
+    bool evict(quint64 needed);
     HRESULT stream(quint64 id, ReadResult &result);
     HRESULT materialize(quint64 id, const CMyComPtr<IProgress> &request, ReadResult &result);
     static void describe(const Item &item, ReadResult &result);

@@ -9,24 +9,32 @@
 #include <QMutexLocker>
 #include <QScopeGuard>
 
-bool ArchiveReadOnlyView::State::evict(quint64 except, quint64 needed) {
+bool ArchiveReadOnlyView::State::release(Item &item) {
+    if (item.Stream) {
+        item.Stream.reset();
+        --Active;
+    }
+    if (!item.Path.isEmpty()) {
+        if (!QFile::remove(item.Path))
+            return false;
+        item.Path.clear();
+    }
+    Cached -= item.Bytes;
+    item.Bytes = 0;
+    return true;
+}
+
+bool ArchiveReadOnlyView::State::evict(quint64 needed) {
     while (Cached > Quota - needed || Active >= 64) {
         auto oldest = Items.end();
         for (auto i = Items.begin(); i != Items.end(); ++i)
-            if (i.key() != except && i->Stream && (oldest == Items.end() || i->Used < oldest->Used))
+            if ((i->Stream || !i->Path.isEmpty()) &&
+                (oldest == Items.end() || i->Used < oldest->Used))
                 oldest = i;
         if (oldest == Items.end())
             return false;
-        oldest->Stream.reset();
-        --Active;
-        if (!oldest->Path.isEmpty()) {
-            if (!QFile::remove(oldest->Path))
-                return false;
-            oldest->Path.clear();
-        }
-        Cached -= oldest->Bytes;
-        oldest->Bytes = 0;
-        // Keep item identity, but count only retained streams below.
+        if (!release(*oldest))
+            return false;
     }
     return true;
 }
@@ -48,7 +56,7 @@ HRESULT ArchiveReadOnlyView::State::stream(quint64 id, ReadResult &result) {
     if (streamed == S_OK && sequential)
         sequential.QueryInterface(IID_IInStream, &seekable);
     if (seekable) {
-        if (!evict(id, 0))
+        if (!evict(0))
             return E_OUTOFMEMORY;
         const auto opened = ArchiveInputLayer::Create(seekable, request).transform([&](auto layer) {
             item.Stream = std::move(layer);
@@ -86,7 +94,7 @@ HRESULT ArchiveReadOnlyView::State::materialize(quint64 id, const CMyComPtr<IPro
     }
     if (Cancelled)
         return E_ABORT;
-    if (!evict(id, size)) {
+    if (!release(item) || !evict(size)) {
         result.Error = QStringLiteral("Could not release space in the mount cache.");
         return E_OUTOFMEMORY;
     }

@@ -725,3 +725,38 @@ anything. Only portable manager state changed, so secondary OS and native mount
 acceptance are not claimed. Source inventory and whitespace checks passed;
 ordinary four-job builds reused incremental outputs and the compiler cache.
 No full/slow suite, appearance inspection or platform adapter change is involved.
+
+### Decoded-cache eviction failure and retry — 2026-11-02
+
+Reviewed read, extraction consent, cache publication, eviction and cancellation
+together with their callers and retained-stream accounting. This cache is local
+Qt integration with no corresponding upstream 7zFM mount owner. The recorded
+native reader and extraction implementations remain unchanged; no external code
+is imported and no provenance baseline advances.
+
+An unsuccessful cache-file removal previously closed the stream but left its
+file and quota charge stranded outside subsequent eviction candidates. Retrying
+that entry could also attempt to create a file still present on disk, even when
+there was enough quota to avoid eviction. Cache release now owns stream closure,
+file removal and accounting together. Retained files remain eligible for retry,
+and rematerialization releases the entry's previous file after consent. Failed
+removal retains its byte charge; Windows still closes the stream before removal.
+Archive decoding, source access, extraction validation and consent policy retain
+their existing owners and behavior.
+
+Two POSIX regressions temporarily remove traversal permission from a disposable
+cache ancestor, restore it, then retry either the retained entry or a different
+entry. They check returned bytes, subsequent eviction and consent through the
+public reader. The retained entry is small enough to exercise retry without quota
+pressure. Both rows failed before the fix on macOS and pass afterward. Windows
+skips this POSIX permission fixture; its existing cache checks cover ordinary
+file closure, eviction and rereading.
+
+After restarting the Linux runner, focused validation passed archive_readonly_view,
+archive_mount_transport and mount_extraction_prompt: 79 passed checks, with five
+native-OS mount rows behind their existing opt-in. Windows archive_readonly_view
+passed 32 checks and skipped the two POSIX permission rows. The earlier macOS
+diagnostic passed all 34 reader checks. Builds used configured four-job defaults,
+incremental outputs and compiler caches. Selected temporary fixture directories
+were empty afterward. Source inventory and whitespace checks passed; no full or
+slow gate, native mount or visual acceptance is claimed.

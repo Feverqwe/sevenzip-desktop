@@ -4,10 +4,15 @@
 #include "archive/resources/qtarchivereadoperation.h"
 #include "archive/support/native_archive_fixture.h"
 #include "formats/cpio/support/dot_path_cpio_fixture.h"
+#include <QFileInfo>
+#include <QScopeGuard>
 #include <QTemporaryDir>
 #include <QtTest>
 #include <future>
 #include <stdexcept>
+#ifndef Q_OS_WIN
+#include <unistd.h>
+#endif
 
 namespace {
 template <typename Function> auto Worker(Function work) {
@@ -582,6 +587,85 @@ class ArchiveReadOnlyViewTests final : public QObject {
         QCOMPARE(cached.Result, S_OK);
         QCOMPARE(cached.Data, payload.left(4096));
         QCOMPARE(authorized.size(), 3);
+    }
+    void cacheEvictionFailureCanBeRetried_data() {
+        QTest::addColumn<bool>("retryOriginal");
+        QTest::newRow("retry-retained-entry") << true;
+        QTest::newRow("retry-new-entry") << false;
+    }
+    void cacheEvictionFailureCanBeRetried() {
+#ifdef Q_OS_WIN
+        QSKIP("Directory traversal permission fixture is POSIX-only");
+#else
+        if (geteuid() == 0)
+            QSKIP("Root bypasses directory traversal permissions");
+        QFETCH(bool, retryOriginal);
+        QTemporaryDir fixture;
+        QTemporaryDir cacheRoot;
+        QVERIFY(fixture.isValid() && cacheRoot.isValid());
+        const QString firstName = QStringLiteral("первый 空.bin");
+        const QString secondName = QStringLiteral("second file.bin");
+        const QByteArray payload = Payload();
+        const QByteArray first = payload.left(payload.size() / 3);
+        const QByteArray second(payload.size(), 'Q');
+        // Both entries cannot fit, but retrying the small one needs no LRU eviction.
+        const quint64 quota = quint64(second.size()) + quint64(first.size()) / 2;
+        const QString path = fixture.filePath("source.zip");
+        QVERIFY(
+            NativeArchiveFixture::Write(path, {{firstName, first}, {secondName, second}}, "zip"));
+        CMyComPtr<IUnknown> resource;
+        std::shared_ptr<ArchiveNativeOpen> reader;
+        QCOMPARE(Worker([&] { return Open(path, "zip", resource, reader); }), S_OK);
+        const QByteArray previousTemp = qgetenv("TMPDIR");
+        const auto restoreTemp = qScopeGuard([&] {
+            if (previousTemp.isNull())
+                qunsetenv("TMPDIR");
+            else
+                qputenv("TMPDIR", previousTemp);
+        });
+        qputenv("TMPDIR", cacheRoot.path().toUtf8());
+        std::shared_ptr<ArchiveReadOnlyView> view;
+        QString error;
+        QStringList authorized;
+        QCOMPARE(Worker([&] {
+                     return ArchiveBackend::createReadOnlyView(resource, quota, {}, view, error,
+                                                               [&](const QString &entry, quint64) {
+                                                                   authorized.append(entry);
+                                                                   return true;
+                                                               });
+                 }),
+                 S_OK);
+        const auto read = [&](const QString &name) {
+            return Worker([&] { return view->read(FileId(view, name), 5000, 4096); });
+        };
+        const auto initial = read(firstName);
+        QCOMPARE(initial.Result, S_OK);
+        QCOMPARE(initial.Data, first.mid(5000, 4096));
+        QCOMPARE(authorized, QStringList{firstName});
+        {
+            const auto permissions = QFileInfo(cacheRoot.path()).permissions();
+            const auto restorePermissions =
+                qScopeGuard([&] { QFile::setPermissions(cacheRoot.path(), permissions); });
+            QVERIFY(QFile::setPermissions(cacheRoot.path(), QFile::ReadOwner | QFile::WriteOwner));
+            const auto blocked = read(secondName);
+            QCOMPARE(blocked.Result, E_OUTOFMEMORY);
+            QVERIFY(blocked.Data.isEmpty());
+        }
+        const QString retriedName = retryOriginal ? firstName : secondName;
+        const QByteArray retriedBytes = retryOriginal ? first : second;
+        const auto retried = read(retriedName);
+        QCOMPARE(retried.Result, S_OK);
+        QCOMPARE(retried.Data, retriedBytes.mid(5000, 4096));
+        const auto cached = read(retriedName);
+        QCOMPARE(cached.Result, S_OK);
+        QCOMPARE(cached.Data, retried.Data);
+        QCOMPARE(authorized, QStringList({firstName, secondName, retriedName}));
+        const QString otherName = retryOriginal ? secondName : firstName;
+        const auto other = read(otherName);
+        QCOMPARE(other.Result, S_OK);
+        QCOMPARE(other.Data, (retryOriginal ? second : first).mid(5000, 4096));
+        QCOMPARE(authorized, QStringList({firstName, secondName, retriedName, otherName}));
+#endif
     }
     void skipsUnsafeOrAmbiguousNamespace_data() {
         QTest::addColumn<QStringList>("names");
