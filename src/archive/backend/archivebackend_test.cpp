@@ -131,6 +131,16 @@ void ArchiveBackend::finishReadOperation() {
         !codecCatalog()) {
         codecCatalog_.store(operation->catalog());
     }
+    const bool publishListing = result == S_OK && listingJob && listing;
+    if (publishListing) {
+        listing->Info.readLimitations = diagnostics.join('\n');
+        entries_ = std::move(listing->Entries);
+        const QFileInfo source(path);
+        listedSourceArchives_.insert(path,
+                                     {source.size(), source.lastModified(),
+                                      source.metadataChangeTime(), entries_, listing->Info.format});
+    }
+    const QList<ArchiveEntry> entries = publishListing ? entries_ : QList<ArchiveEntry>();
     QStringList output = diagnostics;
     // A usable catalog can report a discovery note without making the
     // archive listing limited or adding an error to the final result.
@@ -142,14 +152,7 @@ void ArchiveBackend::finishReadOperation() {
         if (!owner)
             return;
     }
-    if (result == S_OK && listingJob && listing) {
-        listing->Info.readLimitations = diagnostics.join('\n');
-        entries_ = std::move(listing->Entries);
-        const QFileInfo source(path);
-        listedSourceArchives_.insert(path,
-                                     {source.size(), source.lastModified(),
-                                      source.metadataChangeTime(), entries_, listing->Info.format});
-        const auto entries = entries_;
+    if (publishListing) {
         emit infoReady(listing->Info);
         if (!owner)
             return;
