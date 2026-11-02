@@ -37,3 +37,40 @@ worker readiness, accepted empty/raw Unicode passwords, cancellation, reuse,
 accepted-only visibility persistence and operation teardown. Incremental builds
 and caches retained, completed scratch removed after evidence capture. No
 full/slow gate or heavy diagnostics.
+
+## Questions queued before cancellation — 2026-11-02
+
+Rechecked open/fscrypt/password, extraction overwrite and memory callbacks with
+progress readiness, confirmed stop, blocking GUI dispatch and joined teardown.
+Original password/overwrite bodies and the complete RequestMemoryUse policy were
+compared with the recorded source scope above. No external code is imported or
+baseline advanced.
+
+The common question wrapper now checks confirmed stop before requesting GUI
+readiness and again when the queued GUI call is delivered. Password, filesystem
+key and overwrite questions therefore cannot start after cancellation. Cached
+credentials retain their source fast path. The checks read the stopped state;
+they do not wait for pause on the GUI thread. Existing dialog acceptance, output
+publication and parent/worker lifetimes remain unchanged. This closes a Qt
+presentation gap; it does not dismiss a question already being displayed.
+
+Neutral GUI dispatch remains available for memory policy. Automatic allowance,
+remembered decisions and diagnostic reports keep their original branches and
+outputs, including after stop. Only an actual interactive memory question checks
+stop before opening and returns E_ABORT with the source stop answer. The memory
+dialog object remains on the GUI thread even when used only to format a report.
+
+Public opening-callback regressions cover already-stopped and queued requests.
+An event filter applies stop at GUI delivery and lets the blocking invocation
+complete; the fallback responder makes an unexpected late prompt observable
+through its result, password output and visibility-setting side effects. Memory
+callback cases check suppressed interactive prompting and retained report
+diagnostics/outputs. Existing coverage also retains automatic allowance while
+stopped, normal password acceptance/reuse and cancellation confirmation.
+
+Focused Linux validation passed open_callback, update_callback, extract_prompt,
+password_window, fscrypt_key_ui and progress_cancel: 93 checks without skips.
+Only portable callback presentation changed, so no secondary OS was selected.
+Whitespace and source-inventory checks passed; completed temporary settings were
+removed. Configured four-job builds reused incremental outputs and compiler caches.
+No full/slow gate, new rendered appearance or decoder-report runtime claim follows.

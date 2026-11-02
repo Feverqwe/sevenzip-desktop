@@ -176,7 +176,7 @@ Z7_COM7F_IMF(CExtractCallbackImp::AskOverwrite(const wchar_t *existName, const F
                                                const UInt64 *existSize, const wchar_t *newName,
                                                const FILETIME *newTime, const UInt64 *newSize,
                                                Int32 *answer)) {
-    return RunCallbackDialog(*ProgressDialog, [&]() -> HRESULT {
+    return RunCallbackQuestion(*ProgressDialog, [&]() -> HRESULT {
         COverwriteDialog dialog;
 
         dialog.OldFileInfo.SetTime2(existTime);
@@ -980,6 +980,10 @@ Z7_COM7F_IMF(CExtractCallbackImp::RequestMemoryUse(UInt32 flags, UInt32 indexTyp
             if (_remember)
                 dialog.SkipArc = _skipArc;
             else {
+                if (ProgressDialog->Sync.Get_Stopped()) {
+                    *answerFlags = NRequestMemoryAnswerFlags::k_Stop;
+                    return E_ABORT;
+                }
                 dialog.ShowRemember =
                     (MultiArcMode || indexType != NArchive::NEventIndexType::kNoIndex || path);
                 if (dialog.Create(ProgressDialog) != IDCONTINUE) {

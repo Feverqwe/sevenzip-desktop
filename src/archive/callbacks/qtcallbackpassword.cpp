@@ -5,7 +5,7 @@
 #include "ui/progress/ProgressDialog2.h"
 
 bool AskCallbackFilesystemKeys(CProgressDialog &parent, UString &keys) {
-    return RunCallbackDialog(parent, [&]() -> HRESULT {
+    return RunCallbackQuestion(parent, [&]() -> HRESULT {
                FscryptKeyDialog dialog(&parent);
                if (dialog.exec() != QDialog::Accepted)
                    return E_ABORT;
@@ -20,7 +20,7 @@ bool AskCallbackPassword(CProgressDialog &parent, UString &password) {
 }
 
 bool AskCallbackPassword(CProgressDialog &parent, UString &password, bool &showPassword) {
-    return RunCallbackDialog(parent, [&]() -> HRESULT {
+    return RunCallbackQuestion(parent, [&]() -> HRESULT {
                CPasswordDialog dialog(&parent);
                dialog.ShowPassword = showPassword;
                dialog.OnInit();
