@@ -98,6 +98,8 @@ HRESULT RunRequest(ArchiveBackend &backend, const std::function<void()> &start,
         [&backend, request, start] {
             {
                 QMutexLocker lock(&request->Mutex);
+                if (request->State != CRequest::Phase::Pending)
+                    return;
                 if (backend.busy()) {
                     request->State = CRequest::Phase::Finished;
                     return;
@@ -131,6 +133,14 @@ HRESULT RunRequest(ArchiveBackend &backend, const std::function<void()> &start,
             stopResult = RequestPassword(backend, request, passwordCallback);
         }
         if (stopResult != S_OK && !cancelRequested) {
+            {
+                QMutexLocker lock(&request->Mutex);
+                if (request->State == CRequest::Phase::Pending) {
+                    request->Result = stopResult;
+                    request->State = CRequest::Phase::Finished;
+                    return stopResult;
+                }
+            }
             cancelRequested = true;
             QMetaObject::invokeMethod(
                 &backend,

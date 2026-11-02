@@ -100,6 +100,34 @@ class CNativeExtractWorker final : public CProgressThreadVirt {
 class SourceExtractBackendTests final : public QObject {
     Q_OBJECT
   private slots:
+    void cancelledRequestDoesNotStartWhenGuiResumes() {
+        ArchiveBackend backend;
+        QSignalSpy finished(&backend, &ArchiveBackend::finished);
+        CProgressSync sync;
+        sync.Set_Stopped(true);
+        bool started = false;
+        auto request = std::async(std::launch::async, [&] {
+            return RunArchiveBackendRequest(
+                backend,
+                [&] {
+                    started = true;
+                    emit backend.finished(false, "Cancelled request was dispatched");
+                },
+                nullptr, &sync);
+        });
+        // Withhold GUI dispatch until the cancelled caller can release its
+        // captures. Still drain on failure so the fixture can join its worker.
+        const bool returnedBeforeDispatch =
+            request.wait_for(std::chrono::seconds(2)) == std::future_status::ready;
+        QTRY_VERIFY_WITH_TIMEOUT(
+            request.wait_for(std::chrono::milliseconds(0)) == std::future_status::ready, 10000);
+        QCOMPARE(request.get(), HRESULT(E_ABORT));
+        QCoreApplication::sendPostedEvents(&backend, QEvent::MetaCall);
+        QVERIFY(returnedBeforeDispatch);
+        QVERIFY(!started);
+        QCOMPARE(finished.size(), 0);
+        QVERIFY(!backend.busy());
+    }
     void busyRequestLeavesUnrelatedOperationRunning_data() {
         QTest::addColumn<bool>("cancelled");
         QTest::newRow("rejected") << false;

@@ -1,5 +1,37 @@
 # State of a new archive request — 2026-10-18
 
+## Cancellation before backend request dispatch — 2026-11-02
+
+Reviewed complete worker-to-GUI request/password delivery, listing/open/reopen
+and source-extraction consumers, native codec probe/backend publication and
+relevant cancellation fixtures. Original CProgressSync::CheckStop at
+`b88c6bc09339de32f7d18bbab900686b244f42ba` was compared with the existing
+adapter; the complete original ProgressDialog2.cpp hash matches the baseline.
+Its stop semantics and native algorithms remain unchanged. No upstream import
+or provenance advancement.
+
+A stopped request can now retire while still Pending, before GUI dispatch.
+The queued start checks the same mutex-protected phase and ignores the retired
+request. Previously the caller always had to wait for GUI startup followed by
+queued cancellation, so even a pre-cancelled request invoked its start callback.
+This also prevents a delayed callback from invoking captures after their waiting
+caller has returned. Running requests retain the existing joined cancellation,
+password and result path; unrelated busy backend work remains untouched. No new
+phase, platform service or native cancellation policy is introduced.
+
+The regression withholds GUI dispatch, requires the cancelled caller to return
+E_ABORT, then drains the delayed callback and verifies that no operation started
+or emitted completion. Its failure path drains GUI work before joining the
+fixture, so it does not strand its own future. Existing checks retain occupied
+backend refusal/cancellation, extraction, nested opening and retry coverage.
+No pre-fix run is claimed.
+
+Linux primary `20261102T050434Z-2b65b62d` passed source_extract_backend and
+agent_opening: 31 checks, no skips. Build 13.663 s; tests 4.117 s. Portable Qt
+request scheduling changed, without native platform/UI changes; secondary OS
+acceptance was not rerun. Selected scratch directories were empty before/after,
+incremental outputs and compiler caches retained. No full/slow gate or reports.
+
 ## Compression parameter boundary — 2026-11-01
 
 Compared source CompressDialog `CInfo`/update-mode declarations, the current
