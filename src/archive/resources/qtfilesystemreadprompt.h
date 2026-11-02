@@ -2,7 +2,6 @@
 #include "Common/MyWindows.h"
 #include <QString>
 class QWidget;
-class COpenArchiveCallback;
 struct CArchiveLink;
 class CCodecs;
 class CProgressDialog;
@@ -15,8 +14,6 @@ struct IQtArchiveReadConsent {
 bool ConfirmLimitedFilesystemRead(QWidget *parent, const QString &limitations);
 HRESULT ConfirmLimitedArchiveRead(CProgressDialog *dialog, IOpenCallbackUI *callback,
                                   const QString &accepted, const QString &limitations);
-HRESULT PrepareLimitedFilesystemRead(const CArchiveLink &link, COpenArchiveCallback *callback,
-                                     const QString &accepted, QString &limitations);
 HRESULT PrepareLimitedArchiveRead(const CArchiveLink &link, const CCodecs &codecs,
                                   CProgressDialog *dialog, IOpenCallbackUI *callback,
                                   const QString &accepted, QString &limitations,
