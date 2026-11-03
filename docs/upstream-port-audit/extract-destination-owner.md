@@ -87,3 +87,34 @@ and source_link_extract, 37 checks. Four existing Windows ACL/ADS/reparse rows
 are skipped on Linux. The batch adapter and direct consumers are checked here;
 no new Windows/macOS acceptance is claimed. Build trees/compiler caches remain
 incremental, and selected scratch directories are empty after completion.
+
+## Dialog mode identity — 2026-11-03
+
+Reviewed initialization/settings precedence, draft options, live translation,
+confirmation and the GUI extraction consumer against original ExtractDialog
+initialization/OnOK, public types/resources and ExtractGUI at
+`9128b80e3a471108678e2b3ec3c985861c8d7b0f`. Complete ExtractDialog.cpp/.h/.rc
+and ExtractGUI.cpp original hashes match the existing baseline. No source import
+or provenance advancement; native extraction and settings algorithms remain.
+
+Each Qt mode item now keeps its native value and caption identity together.
+Initialization, summary, draft options and confirmation read the selected native
+value directly, removing the ordinal-to-value round trip and parallel value/
+caption lists. Language changes update captions without changing mode identity.
+Unknown initialization still selects the first item; an unmatched later caller
+override still leaves the current selection. CurrentPaths remains displayed as
+Full while native confirmation retains CurrentPaths under the source rule.
+
+Existing language/draft and settings-force tests now additionally check selected
+modes after a live language change and CurrentPaths confirmation/persistence.
+They observe captions and resulting options, not item roles or descriptor data.
+Source, batch and directory extraction retain their context-specific path and
+overwrite policies, including RejectExisting handling. Passwords, metadata,
+history, Cancel behavior and the public draft accessor remain unchanged.
+
+Linux `extract_dialog`, `source_extract_advanced`, `extract_prompt` and
+`operation_extraction` passed: 64 Qt checks, no failures; two existing native
+NTFS ACL/ADS checks require Windows and are skipped. Final incremental build
+6.394s, tests 3.473s. Selected scratch is empty, and build trees/compiler caches
+are retained. No platform-native behavior, layout or text changed; no secondary
+OS, full/slow suite or new visual acceptance is claimed.

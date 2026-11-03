@@ -1,6 +1,8 @@
+#include "7zip/UI/GUI/ExtractRes.h"
 #include "archive/support/native_archive_fixture.h"
 #include "dialogs/extract/alias.h"
 #include "localization/LangUtils.h"
+#include "localization/qtlangcontrols.h"
 #include "settings/RegistryUtils.h"
 #include "ui/support/layout_inspection.h"
 #include <QDialogButtonBox>
@@ -69,8 +71,21 @@ class ExtractDialogTests final : public QObject {
         enabled->click();
         QApplication::processEvents();
         QVERIFY(UiInspection::writeReport(dialog, "redesign-extract-collapsed-" + language));
+        advanced->click();
+        pathMode(dialog)->setCurrentIndex(1);
+        advanced->click();
+        SaveRegLang(UString(language == "ru" ? "-" : "ru"), settings_);
+        ReloadLang(settings_);
+        QtNotifyLanguageChanged();
+        QCOMPARE(pathMode(dialog)->currentText(),
+                 QString::fromWCharArray(LangString(IDS_EXTRACT_PATHS_NO)).remove('&'));
+        QCOMPARE(overwrite(dialog)->currentText(),
+                 QString::fromWCharArray(LangString(IDS_EXTRACT_OVERWRITE_RENAME)).remove('&'));
+        QCOMPARE(dialog.options().pathMode, ExtractionOptions::PathMode::NoPaths);
+        QCOMPARE(dialog.options().overwriteMode, ExtractionOptions::OverwriteMode::RenameExtracted);
         dialog.accept();
         QCOMPARE(dialog.Password, QString());
+        QCOMPARE(dialog.PathMode, NExtract::NPathMode::kNoPaths);
         QCOMPARE(dialog.OverwriteMode, NExtract::NOverwriteMode::kRename);
     }
 
@@ -170,6 +185,15 @@ class ExtractDialogTests final : public QObject {
         QCOMPARE(pathMode(forced)->currentIndex(), 0);
         QCOMPARE(overwrite(forced)->currentIndex(), 0);
         QVERIFY(forced.findChild<QLineEdit *>("extractPassword")->text().isEmpty());
+        CExtractDialog current(dir_.path(), {});
+        current.PathMode_Force = true;
+        current.OverwriteMode_Force = true;
+        current.SetInitialOptions(NExtract::NPathMode::kCurPaths, NExtract::NOverwriteMode::kAsk,
+                                  QString());
+        current.accept();
+        QCOMPARE(current.PathMode, NExtract::NPathMode::kCurPaths);
+        saved.Load(settings_);
+        QCOMPARE(saved.PathMode, NExtract::NPathMode::kFullPaths);
     }
     void originalHistoryRules() {
         QStringList history;
