@@ -58,7 +58,7 @@ HRESULT CollectFilesystemReadLimitations(const CArchiveLink &link, QString &limi
             RINOK(arc.Archive->GetArchiveProperty(id, &value))
             if (value.vt == VT_EMPTY)
                 continue;
-            if (!arc.IsReadOnly || value.vt != VT_BSTR)
+            if (value.vt != VT_BSTR)
                 return E_NOTIMPL;
             if (!limitations.isEmpty())
                 limitations += '\n';
@@ -67,52 +67,16 @@ HRESULT CollectFilesystemReadLimitations(const CArchiveLink &link, QString &limi
     }
     return S_OK;
 }
-} // namespace
 
-HRESULT PrepareLimitedArchiveRead(const CArchiveLink &link, const CCodecs &codecs,
-                                  CProgressDialog *dialog, IOpenCallbackUI *callback,
-                                  const QString &accepted, QString &limitations,
-                                  bool &nativeMetadata) {
-    RINOK(CollectFilesystemReadLimitations(link, limitations))
-    bool archiveWarning = false;
-    nativeMetadata = !limitations.isEmpty();
-    FOR_VECTOR(a, link.Arcs) {
-        const CArc &arc = link.Arcs[a];
-        if (arc.FormatIndex < 0)
-            continue;
-        const QString format = QString::fromWCharArray(codecs.GetFormatNamePtr(arc.FormatIndex));
-        if (!IsArchiveRecoveryFormat(format) || !arc.ErrorInfo.IsThereErrorOrWarning())
-            continue;
-        archiveWarning = true;
-        nativeMetadata = true;
-        const CArcErrorInfo &error = arc.ErrorInfo;
-        QStringList detail;
-        for (const UString &text : {GetOpenArcErrorMessage(error.GetErrorFlags()),
-                                    GetOpenArcErrorMessage(error.GetWarningFlags()),
-                                    error.ErrorMessage, error.WarningMessage})
-            if (!text.IsEmpty())
-                detail.append(QString::fromWCharArray(text.Ptr()));
-        if (!limitations.isEmpty())
-            limitations += '\n';
-        limitations += format + ": " + detail.join('\n');
-    }
-    if (!dialog || !callback || limitations.isEmpty() || limitations == accepted)
-        return S_OK;
-    RINOK(callback->Open_CheckBreak())
-    if (archiveWarning)
-        return ConfirmLimitedArchiveRead(dialog, callback, accepted, limitations);
-    RINOK(RunCallbackDialog(*dialog, [&] {
-        return ConfirmLimitedFilesystemRead(dialog, limitations) ? S_OK : E_ABORT;
-    }))
-    return callback->Open_CheckBreak();
-}
-
-HRESULT ConfirmLimitedArchiveRead(CProgressDialog *dialog, IOpenCallbackUI *callback,
-                                  const QString &accepted, const QString &limitations) {
+HRESULT ConfirmLimitedRead(CProgressDialog *dialog, IOpenCallbackUI *callback,
+                           const QString &accepted, const QString &limitations,
+                           bool archiveWarning) {
     if (!dialog || !callback || limitations.isEmpty() || limitations == accepted)
         return S_OK;
     RINOK(callback->Open_CheckBreak())
     RINOK(RunCallbackDialog(*dialog, [&] {
+        if (!archiveWarning)
+            return ConfirmLimitedFilesystemRead(dialog, limitations) ? S_OK : E_ABORT;
         QMessageBox warning(
             QMessageBox::Warning,
             QCoreApplication::translate("qtfilesystemreadprompt", "Open archive with limitations?"),
@@ -135,4 +99,37 @@ HRESULT ConfirmLimitedArchiveRead(CProgressDialog *dialog, IOpenCallbackUI *call
         return warning.clickedButton() == open ? S_OK : E_ABORT;
     }))
     return callback->Open_CheckBreak();
+}
+} // namespace
+
+HRESULT ConfirmLimitedArchiveRead(CProgressDialog *dialog, IOpenCallbackUI *callback,
+                                  const QString &accepted, const QString &limitations) {
+    return ConfirmLimitedRead(dialog, callback, accepted, limitations, true);
+}
+
+HRESULT PrepareLimitedArchiveRead(const CArchiveLink &link, const CCodecs &codecs,
+                                  CProgressDialog *dialog, IOpenCallbackUI *callback,
+                                  const QString &accepted, QString &limitations) {
+    RINOK(CollectFilesystemReadLimitations(link, limitations))
+    bool archiveWarning = false;
+    FOR_VECTOR(a, link.Arcs) {
+        const CArc &arc = link.Arcs[a];
+        if (arc.FormatIndex < 0)
+            continue;
+        const QString format = QString::fromWCharArray(codecs.GetFormatNamePtr(arc.FormatIndex));
+        if (!IsArchiveRecoveryFormat(format) || !arc.ErrorInfo.IsThereErrorOrWarning())
+            continue;
+        archiveWarning = true;
+        const CArcErrorInfo &error = arc.ErrorInfo;
+        QStringList detail;
+        for (const UString &text : {GetOpenArcErrorMessage(error.GetErrorFlags()),
+                                    GetOpenArcErrorMessage(error.GetWarningFlags()),
+                                    error.ErrorMessage, error.WarningMessage})
+            if (!text.IsEmpty())
+                detail.append(QString::fromWCharArray(text.Ptr()));
+        if (!limitations.isEmpty())
+            limitations += '\n';
+        limitations += format + ": " + detail.join('\n');
+    }
+    return ConfirmLimitedRead(dialog, callback, accepted, limitations, archiveWarning);
 }

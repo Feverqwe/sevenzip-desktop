@@ -109,7 +109,6 @@ void QtArchiveFileResource::AttachReopenService(ArchiveBackend &backend, const Q
         RINOK(ArchiveBackend::openNativeArchive(_codecs, path, format, &nativeProgress, nativeOpen,
                                                 _streamInput ? &options : nullptr))
         QString limitations;
-        bool nativeMetadata = false;
         auto *ui =
             openCallback ? dynamic_cast<COpenArchiveCallback *>(openCallback->Callback) : nullptr;
         // CArchiveLink::ReOpen wraps the caller in a fresh COpenCallbackImp.
@@ -122,10 +121,9 @@ void QtArchiveFileResource::AttachReopenService(ArchiveBackend &backend, const Q
         if (nativeOpen) {
             RINOK(PrepareLimitedArchiveRead(nativeOpen->archiveLink(), nativeOpen->nativeCodecs(),
                                             ui ? &ui->ProgressDialog : nullptr, ui,
-                                            FilesystemReadLimitations(), limitations,
-                                            nativeMetadata))
+                                            FilesystemReadLimitations(), limitations))
         }
-        if (nativeOpen && (UsesNativeMetadata() || nativeMetadata)) {
+        if (nativeOpen && (UsesNativeMetadata() || !limitations.isEmpty())) {
             SetFilesystemReadLimitations(limitations);
             AttachNativeOpen(std::move(nativeOpen));
             UseNativeMetadata();
