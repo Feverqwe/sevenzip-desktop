@@ -210,12 +210,8 @@ void MainWindow::setViewMode(int mode) {
     const bool restoreFocus =
         previousView && focused && (focused == previousView || previousView->isAncestorOf(focused));
     viewActions_[mode]->setChecked(true);
-    if (mode != 3) {
+    if (mode != 3)
         static_cast<FileIconList *>(projectedUi().iconList)->SetListViewMode(mode);
-        // Qt's Static movement resets dragEnabled. The shared file-list policy
-        // still permits exporting entries through the native drag controller.
-        projectedUi().iconList->setDragEnabled(projectedUi().table->dragEnabled());
-    }
     // Upstream changes the style of the same list control. Qt replaces the
     // visible view, which can synchronously focus another panel while hiding
     // the old widget. Bind the captured source owner and retain its list focus.

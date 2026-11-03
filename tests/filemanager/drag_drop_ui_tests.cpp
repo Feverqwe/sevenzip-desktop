@@ -12,7 +12,11 @@
 #include <QDragLeaveEvent>
 #include <QMouseEvent>
 #include <QStackedWidget>
+#include <QStandardItemModel>
+#include <QStyle>
+#include <QStyleFactory>
 #include <QThread>
+#include <memory>
 
 namespace {
 int Row(FileTable &table, const QString &name) {
@@ -34,6 +38,55 @@ class DragDropUiTests final : public QObject {
     Q_OBJECT
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
+
+    void viewModesPreserveDragInteraction_data() {
+        QTest::addColumn<int>("mode");
+        QTest::addColumn<bool>("enabled");
+        for (int mode : {0, 1, 2})
+            for (bool enabled : {false, true})
+                QTest::newRow(qPrintable(QString("%1-%2").arg(mode).arg(enabled)))
+                    << mode << enabled;
+    }
+    void viewModesPreserveDragInteraction() {
+        QFETCH(int, mode);
+        QFETCH(bool, enabled);
+        const std::unique_ptr<QStyle> style(QStyleFactory::create(QStringLiteral("Fusion")));
+        QVERIFY(style);
+        QStandardItemModel model;
+        model.appendRow(new QStandardItem(QStringLiteral("drag item")));
+        FileIconList view;
+        view.setModel(&model);
+        view.setDragEnabled(enabled);
+        int exports = 0;
+        view.dragStarter = [&] { ++exports; };
+        view.SetListViewMode(mode);
+        view.resize(640, 320);
+        view.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&view));
+        const auto drag = [&] {
+            const auto index = model.index(0, 0);
+            view.setCurrentIndex(index);
+            const QPoint start = view.visualRect(index).center();
+            QTest::mousePress(view.viewport(), Qt::LeftButton, Qt::NoModifier, start);
+            const QPoint finish = start + QPoint(QApplication::startDragDistance() + 2, 0);
+            QMouseEvent move(QEvent::MouseMove, finish, view.viewport()->mapToGlobal(finish),
+                             Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
+            QCoreApplication::sendEvent(view.viewport(), &move);
+            QTest::mouseRelease(view.viewport(), Qt::LeftButton, Qt::NoModifier, finish);
+        };
+        drag();
+        QCOMPARE(exports, int(enabled));
+        QFont font = view.font();
+        font.setPointSizeF(qMax(9.0, font.pointSizeF()) + 1);
+        view.setFont(font);
+        QCoreApplication::processEvents();
+        drag();
+        QCOMPARE(exports, enabled ? 2 : 0);
+        view.setStyle(style.get());
+        QCoreApplication::processEvents();
+        drag();
+        QCOMPARE(exports, enabled ? 3 : 0);
+    }
 
     void externalMiddleButtonUsesDropMenu() {
         QTemporaryDir root;
@@ -101,10 +154,16 @@ class DragDropUiTests final : public QObject {
         QVERIFY(input.open(QIODevice::WriteOnly));
         QCOMPARE(input.write("controller bytes"), qint64(16));
         input.close();
+        const QString hoverName = QStringLiteral("hover after cancel.txt");
+        QFile hoverFile(root.filePath(hoverName));
+        QVERIFY(hoverFile.open(QIODevice::WriteOnly));
+        QCOMPARE(hoverFile.write("hover bytes"), qint64(11));
+        hoverFile.close();
         const QString archive = root.filePath("source.zip");
         ArchiveBackend backend;
         QSignalSpy finished(&backend, &ArchiveBackend::finished);
-        QVERIFY(NativeArchiveFixture::WriteFiles(archive, {input.fileName()}));
+        QVERIFY(
+            NativeArchiveFixture::WriteFiles(archive, {input.fileName(), hoverFile.fileName()}));
         QFile original(archive);
         QVERIFY(original.open(QIODevice::ReadOnly));
         const QByteArray originalBytes = original.readAll();
@@ -233,6 +292,16 @@ class DragDropUiTests final : public QObject {
         }
         QVERIFY(original.open(QIODevice::ReadOnly));
         QCOMPARE(original.readAll(), originalBytes);
+        if (!right) {
+            QAbstractItemView *view = icons ? window.findChild<QListView *>("iconList")
+                                            : static_cast<QAbstractItemView *>(table);
+            QVERIFY(view && view->isVisible());
+            const int hoverRow = Row(*table, hoverName);
+            QVERIFY(hoverRow >= 0);
+            const QModelIndex hovered = view->model()->index(hoverRow, 0);
+            QTest::mouseMove(view->viewport(), view->visualRect(hovered).center());
+            QTRY_COMPARE(view->currentIndex().siblingAtColumn(0).data().toString(), hoverName);
+        }
     }
 
     void externalDragSuspendsHoverWithoutOpeningFolder_data() {

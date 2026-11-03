@@ -1,5 +1,45 @@
 # File-transfer ownership
 
+## Qt copy destination route — 2026-11-03
+
+Compared complete original App `OnCopy` destination/provider classification,
+operation and publication branches with the current CApp request, Qt presentation,
+filesystem/archive dispatch and copy continuation. Native path preparation,
+history, guards and algorithms retain their existing owners and baseline; no
+external code was imported.
+
+The Qt execution boundary carries one route instead of separately interpreting
+destination-panel and temporary-file flags. The three routes preserve filesystem
+output, direct destination-provider input and staged provider-to-provider input.
+Source flags are classified once when crossing that boundary. Device/stream
+handling, fallback order, captured source identity and indices, Copy to same,
+Move deletion/rollback and completion/selection publication remain unchanged.
+
+Existing public command and operation suites exercise actual output bytes and
+selection/focus across source/destination combinations, cancellation, overwrite,
+staging and reentrant completion. No test of a private enum or source-text
+representation was added; the presentation fixture uses the changed interface.
+
+## Prepared source/destination pairs — 2026-11-03
+
+Rechecked the original FSFolderCopy destination construction, direct-path gate,
+self/child checks, copy/move and overwrite callbacks with the current worker,
+transaction and window/direct-path consumers. The recorded native inventory and
+algorithms remain unchanged; this refactors local batch preparation without an
+external import or baseline change.
+
+Preparation now retains each source with its destination instead of returning
+a target list indexed against a separate source list. Execution, progress and
+failure diagnostics use those checked pairs. Ordered validation, duplicate-target
+comparison, overwrite/rename decisions, staging, cancellation, exception cleanup
+and partial-Move recovery keep their existing behavior.
+
+The public regression rejects a batch whose later source is missing or maps to
+an already selected output name. Both Copy and Move must fail without asking to
+overwrite the first existing target; source/destination bytes and the destination
+directory must remain intact. This protects all-input preflight before any
+per-item interaction, beyond existing mid-transfer rollback cases.
+
 ## Filesystem terminal outcome owner — 2026-11-02
 
 Reviewed the complete transaction run/finish, rollback, source-removal, worker

@@ -50,6 +50,8 @@ class CPanelCallbackImp final : public CPanelCallback {
     void RefreshTitle(bool always) override;
 };
 
+enum class QtCopyRoute { FileSystem, DestinationPanel, StagedDestinationPanel };
+
 // Qt replaces menu/toolbar handles and panel child-control construction. Native
 // creation, path binding, per-panel state and release order remain CApp/CPanel.
 class IQtAppPresentation {
@@ -62,7 +64,7 @@ class IQtAppPresentation {
     virtual void RefreshFolder(unsigned) {}
     virtual void PrepareFolderChange(unsigned) {}
     virtual void ExecuteCopy(bool, bool, unsigned, const QString &, const CRecordVector<UInt32> &,
-                             bool, bool) {}
+                             QtCopyRoute) {}
     virtual void SetListSettings(unsigned index, const CFmSettings &settings) = 0;
     virtual void ShowPanel(unsigned index, bool visible) = 0;
     virtual void ReloadToolbars(CApp &) {}

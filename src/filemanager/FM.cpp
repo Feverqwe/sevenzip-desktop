@@ -292,24 +292,27 @@ bool WndProc(unsigned wmId, CApp &g_App, IQtFileManagerMenuCommandServices &serv
 
 bool CloseFileManager(CApp &app, IQtFileManagerWindowServices &services,
                       QtFileManagerCloseReason reason) {
-    if (app.QtOperations().closed())
+    auto &operations = app.QtOperations();
+    if (operations.closed())
         return true;
     // A disabled Win32 modal parent cannot initiate this close workflow.
     // Qt programmatic/reentrant close must not release live caller inputs.
     if (reason == QtFileManagerCloseReason::Request &&
-        (app.QtOperations().callActive() ||
-         app.QtOperations().kind() == QtAppOperationState::Kind::Open || !services.CanCloseNow()))
+        (operations.callActive() || operations.kind() == QtAppOperationState::Kind::Open ||
+         !services.CanCloseNow()))
         return false;
+    operations.Close();
     services.Deactivate(); // WM_ACTIVATE / WA_INACTIVE
     services.ExitExternalWorkers(false);
     services.RevokeDropTarget(); // RevokeDragDrop / _dropTarget.Release
     // Qt asynchronous workers can outlive the original modal call stack.
     // Join them while panel folders/temporary inputs still exist.
     services.QuiesceOperations();
-    if (services.WindowWasCreated())
+    const bool windowWasCreated = app.Panels[0].PanelCreated || app.Panels[1].PanelCreated;
+    if (windowWasCreated)
         app.Save();
     app.ReleaseApp();
-    if (services.WindowWasCreated())
+    if (windowWasCreated)
         services.SaveWindowInfo();
     services.ExitExternalWorkers(true);
     return true;

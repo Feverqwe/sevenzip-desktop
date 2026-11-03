@@ -825,7 +825,6 @@ bool CBrowseDialog2::OnKeyDown(QKeyEvent *keyDownInfo) {
             else if (keyDownInfo->key() == Qt::Key_F6)
                 index = 2;
             ChangeSorting_and_Reload(index);
-            Reload_WithErrorMessage();
             return true;
         }
         return false;

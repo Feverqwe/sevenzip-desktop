@@ -45,6 +45,33 @@ gate passed all 504 selected suites. Its 15 slow suites were excluded and Qt
 tests reported 77 skips. Wider panel-state acceptance is recorded
 [separately](panel-presentation-owner.md).
 
+## Single refresh and complete selection publication — 2026-11-03
+
+Reviewed the original BrowseDialog2 sort-key handler, sort/reload helpers,
+enumeration and selection restoration together with current Qt controls,
+ownership checks, properties/delete and external-open consumers. Complete
+original BrowseDialog2.cpp/.h hashes match the existing baseline. No external
+source, enumeration algorithm or ownership policy was added or changed.
+
+The original key handler reloads again after the sort helper has already done
+so. The Qt handler now delegates sorting and its single refresh to that helper,
+as header sorting already does. This removes redundant directory/count work and
+a second error dialog after a failed sort refresh. Sort direction, preserved
+listing on failure, selection/focus and retry behavior retain their existing
+owners. Claim locks, object identity, link/path checks and deletion are unchanged.
+
+Qt row publication suppresses intermediate widget selection notifications while
+rebuilding and restoring the listing. The existing language/status presenter runs
+after sorting and cursor/selection restoration, publishing final availability and
+counts without the previous per-selected-row work and duplicate terminal update.
+Model insertion notifications and the existing wait-cursor lifetime remain intact.
+
+A POSIX behavior regression denies directory read access after listing, invokes
+sorting through the header or keyboard, and checks one error, preserved selection
+and successful refresh after restoring access. It also verifies retained bytes.
+Existing successful sort/navigation/delete/properties and detached-open cases
+remain the direct consumers; no private call-count or source-text test is added.
+
 ## Properties before confirmation — 2026-11-01
 
 Compared the complete original `PrintFileProps`, properties-window and deletion

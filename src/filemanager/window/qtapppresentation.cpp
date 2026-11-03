@@ -134,8 +134,7 @@ void QtAppPresentation::PrepareFolderChange(unsigned index) {
 
 void QtAppPresentation::ExecuteCopy(bool move, bool copyToSame, unsigned sourceIndex,
                                     const QString &destination,
-                                    const CRecordVector<UInt32> &indices, bool useDestPanel,
-                                    bool useTemp) {
+                                    const CRecordVector<UInt32> &indices, QtCopyRoute route) {
     if (window_.app_.QtOperations().closed() || sourceIndex >= kNumPanelsMax)
         return;
     // OnCopy retains srcPanel across its modal dialog. Native Qt focus
@@ -147,8 +146,7 @@ void QtAppPresentation::ExecuteCopy(bool move, bool copyToSame, unsigned sourceI
     copy_.emplace(sourceIndex, move, copyToSame);
     {
         QScopedValueRollback<bool> executing(copy_->executing, true);
-        window_.executeCopyDestination(move, copyToSame, sourceIndex, destination, indices,
-                                       useDestPanel, useTemp);
+        window_.executeCopyDestination(move, copyToSame, sourceIndex, destination, indices, route);
     }
     if (window_.projectedUi().state != MainWindow::State::Operating &&
         window_.app_.QtOperations().kind() == QtAppOperationState::Kind::Operation) {

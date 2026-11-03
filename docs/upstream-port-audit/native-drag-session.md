@@ -1,5 +1,25 @@
 # Native drag session ownership — 2026-10-18
 
+## Qt gesture completion scope — 2026-11-03
+
+Rechecked original source OnDrag completion and target Enter/Over/Leave/Drop
+cleanup with the current Qt gesture, transport, temporary-data, drop-choice,
+hover and teardown consumers. Complete original PanelDrag and PanelListNotify
+inventory hashes match the recorded baseline. No native transfer algorithm,
+COM protocol, external-receiver retention rule or baseline changed.
+
+The Qt adapter scopes source-drag cleanup around OnDrag and completed-drop
+cleanup around target execution. Source guards restore before clearing the target
+and resuming hover, with the active-drag guard restored last. Drop effect/acceptance
+is published before target cleanup and action refresh. Enter/Move/Leave and refused
+entry retain their existing separate lifetime and balancing notifications.
+
+The live archive-source cancellation cases now verify ordinary hover selection
+after cancellation in both table and icon views, while retaining source selection,
+archive bytes and temporary-root checks before that hover. This detects a stuck
+hover suspension through public mouse events; it does not test private guards or
+claim a pre-fix product failure.
+
 ## Shared drop-menu decision — 2026-11-02
 
 Compared original target ClearState, DragEnter, DragOver, DragLeave and Drop,

@@ -22,7 +22,6 @@ class QtFileManagerWindowServices final : public IQtFileManagerWindowServices {
                window_.commands_->CanCloseMounts();
     }
     void Deactivate() override {
-        window_.app_.QtOperations().Close();
         if (window_.autoRefreshTimer_)
             window_.autoRefreshTimer_->stop();
         for (auto &panel : window_.app_.Panels)
@@ -45,9 +44,6 @@ class QtFileManagerWindowServices final : public IQtFileManagerWindowServices {
         }
     }
     void QuiesceOperations() override { window_.quiesceOperations(); }
-    bool WindowWasCreated() const override {
-        return window_.app_.Panels[0].PanelCreated || window_.app_.Panels[1].PanelCreated;
-    }
     void SaveWindowInfo() override {
         CWindowInfo info{};
         bool positionDefined = false, panelsDefined = false;

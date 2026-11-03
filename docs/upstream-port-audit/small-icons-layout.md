@@ -77,3 +77,26 @@ and persistence coverage remains; assertions pinning Qt mode/icon-size
 configuration were replaced by geometry checks. Rendered Windows reference
 comparison, Windows system-timeout execution and Windows/Linux runtime checks
 remain unverified.
+
+## Drag capability across view configuration — 2026-11-03
+
+Rechecked original Panel mode/style selection, menu and Ctrl+1–4 dispatch with
+the current Qt mode/stack, shared selection, per-panel focus and drag capability
+consumers. Original Panel.cpp/.h, PanelKey.cpp, MyLoadMenu.cpp and resource.rc
+hashes match the existing baseline. No source command, native drag/format
+algorithm, cell geometry or platform adaptation was imported or changed.
+
+The owning icon/list view now preserves its current drag capability while applying
+mode configuration, including Qt Static movement. Window mode switching and
+font/style refresh no longer restore that policy independently. The command-state
+owner still enables/disables both views together; mode changes retain that state.
+Shared model/selection, source focus/projection, persistence and layout metrics
+keep their existing owners and behavior.
+
+The regression performs actual mouse drag gestures through the view's existing
+export boundary in all three icon/list modes, before and after live font/style
+changes. Enabled drag must reach the export handler once per gesture; disabled
+drag must remain unavailable. Existing window/menu/settings/archive-drop cases
+cover integration. No private-state/getter or fixed-metric assertion is added,
+and no pre-fix application failure is claimed: production callers previously
+supplied the manual restoration now moved into the view.

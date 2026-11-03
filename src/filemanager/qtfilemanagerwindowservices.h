@@ -12,7 +12,6 @@ class IQtFileManagerWindowServices {
     virtual void ExitExternalWorkers(bool hardExit) = 0;
     virtual void RevokeDropTarget() = 0;
     virtual void QuiesceOperations() = 0;
-    virtual bool WindowWasCreated() const = 0;
     virtual void SaveWindowInfo() = 0;
 };
 

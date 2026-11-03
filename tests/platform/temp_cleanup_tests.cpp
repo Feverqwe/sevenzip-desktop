@@ -705,6 +705,66 @@ class TempCleanupTests : public QObject {
             QCOMPARE(QApplication::overrideCursor()->shape(), oldShape);
         QVERIFY(QFileInfo::exists(owned.filePath("1000")));
     }
+    void sortFailureReportsOnceAndCanRetry_data() {
+        QTest::addColumn<bool>("keyboard");
+        QTest::newRow("header") << false;
+        QTest::newRow("shortcut") << true;
+    }
+    void sortFailureReportsOnceAndCanRetry() {
+#ifdef Q_OS_WIN
+        QSKIP("This fixture requires POSIX directory read permissions");
+#else
+        QFETCH(bool, keyboard);
+        QTemporaryDir owned;
+        QVERIFY(owned.isValid());
+        const QString sentinel = owned.filePath(QStringLiteral("keep 文件.txt"));
+        QVERIFY(file(sentinel));
+        QVERIFY(inactive(owned.path()));
+        const auto permissions = QFileInfo(owned.path()).permissions();
+        const auto restore = qScopeGuard([&] { QFile::setPermissions(owned.path(), permissions); });
+        int errors = 0;
+        bool retained = false, recovered = false;
+        QTimer::singleShot(0, qApp, [&] {
+            auto *dialog = dynamic_cast<CBrowseDialog2 *>(QApplication::activeModalWidget());
+            QVERIFY(dialog);
+            const auto close = qScopeGuard([&] { dialog->reject(); });
+            auto *list = dialog->findChild<QTreeWidget *>("tempList");
+            select(*dialog, owned.path());
+            QTest::keyClick(list, Qt::Key_Return);
+            select(*dialog, sentinel);
+            QVERIFY(QFile::setPermissions(owned.path(),
+                                          QFileDevice::WriteOwner | QFileDevice::ExeOwner));
+            QVERIFY(!QFileInfo(owned.path()).isReadable());
+            QTimer answers;
+            connect(&answers, &QTimer::timeout, dialog, [&] {
+                if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                    ++errors;
+                    box->accept();
+                }
+            });
+            answers.start(5);
+            if (keyboard)
+                QTest::keyClick(list, Qt::Key_F6, Qt::ControlModifier);
+            else
+                list->header()->sectionClicked(2);
+            answers.stop();
+            auto *item = row(*dialog, sentinel);
+            retained = item && item->isSelected() && list->currentItem() == item;
+            QVERIFY(QFile::setPermissions(owned.path(), permissions));
+            dialog->findChild<QPushButton *>("tempRefresh")->click();
+            item = row(*dialog, sentinel);
+            recovered = item && item->isSelected() && list->currentItem() == item &&
+                        list->header()->sortIndicatorSection() == 2 &&
+                        list->header()->sortIndicatorOrder() == Qt::DescendingOrder;
+        });
+        MyBrowseForTempFolder(nullptr);
+        QCOMPARE(errors, 1);
+        QVERIFY(retained && recovered);
+        QFile bytes(sentinel);
+        QVERIFY(bytes.open(QIODevice::ReadOnly));
+        QCOMPARE(bytes.readAll(), QByteArray("fixture"));
+#endif
+    }
     void sourceRefreshAndSortKeysRetainSelectionAndBytes() {
         QTemporaryDir owned;
         QVERIFY(owned.isValid());
