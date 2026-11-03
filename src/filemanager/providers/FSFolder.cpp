@@ -856,40 +856,6 @@ FString CFSFolder::GetRelPath(const CDirItem &item) const {
     return Folders[item.Parent] + item.Name;
 }
 
-bool CFSFolder::Rename(UInt32 index, const QString &newName) {
-    if (Rename(index, newName.toStdWString().c_str(), nullptr) != S_OK) {
-        ErrorMessage =
-            QCoreApplication::translate("FSFolder", "Could not rename item: %1").arg(newName);
-        return false;
-    }
-    return true;
-}
-
-class CMutationProgress final : public IProgress, public CMyUnknownImp {
-    Z7_COM_UNKNOWN_IMP_1(IProgress)
-    CFSFolder &folder_;
-
-  public:
-    explicit CMutationProgress(CFSFolder &folder) : folder_(folder) {}
-    Z7_COM7F_IMF(SetTotal(UInt64 total)) override {
-        return !folder_.SetTotal || folder_.SetTotal(total) ? S_OK : E_ABORT;
-    }
-    Z7_COM7F_IMF(SetCompleted(const UInt64 *completed)) override {
-        return !folder_.SetCompleted || !completed || folder_.SetCompleted(*completed) ? S_OK
-                                                                                       : E_ABORT;
-    }
-};
-
-bool CFSFolder::Delete(const UInt32 *indices, UInt32 numItems) {
-    ErrorMessage.clear();
-    CMyComPtr<IProgress> progress = new CMutationProgress(*this);
-    if (Delete(indices, numItems, progress) == S_OK)
-        return true;
-    if (ErrorMessage.isEmpty())
-        ErrorMessage = QCoreApplication::translate("FSFolder", "Could not delete selected items.");
-    return false;
-}
-
 void CFSFolder::GetAbsPath(const wchar_t *name, FString &absPath) const {
     absPath.Empty();
     if (!NWindows::NFile::NName::IsAbsolutePath(name))

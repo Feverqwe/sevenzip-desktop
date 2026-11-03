@@ -83,3 +83,24 @@ localization checks remain with their active operation consumers.
 No external code or decoding/filesystem algorithm is imported or replaced,
 and no pre-fix product failure, UI geometry change or new platform service is
 claimed.
+
+## Native Rename/Delete consumers — 2026-11-03
+
+Compared complete original FSFolder Rename/Delete and PanelOperations command,
+progress, confirmation and refresh paths with their current consumers. The
+complete original FSFolder.cpp/.h and PanelOperations.cpp hashes match the
+existing b88c baseline. Native mutation bodies, no-replace behavior, trash policy,
+recursive cancellation and selection/refresh publication are unchanged.
+
+The remaining Qt Rename/Delete convenience methods had only test callers.
+Those consumers now use IFolderOperations directly. Deletion progress adaptation
+belongs to their test fixture, so the production-only-for-tests progress adapter
+and unused total callback are removed. The LoadItems count callback and recursive
+CheckBreak callback retain their actual scan/delete consumers. The test driver
+keeps native path diagnostics and falls back to the native HRESULT message.
+
+Existing tests retain collisions, Unicode/nested names, partial failure,
+before-start/between-item/recursive cancellation and link-target preservation.
+Public UI/native-provider consumers cover actual command behavior; no API-presence
+or new representation-only test is added. No external code is imported, original
+hash advanced, or pre-fix application failure claimed.

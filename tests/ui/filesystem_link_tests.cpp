@@ -6,6 +6,7 @@
 #include "filemanager/providers/FSFolder.h"
 #include "fileops/links/qtlinkservices.h"
 #include "fileops/native/FileDir.h"
+#include "fileops/support/filedeleteprogress.h"
 #include "fileops/transfer/filetransferoperation.h"
 #ifdef _WIN32
 #include "Windows/MemoryLock.h"
@@ -238,7 +239,8 @@ class FileSystemLinkTests : public QObject {
         QCOMPARE(count, UInt32(0));
 #endif
         const UInt32 index = 0;
-        QVERIFY(folder.Delete(&index, 1));
+        CMyComPtr<IProgress> progress = new FileDeleteProgress;
+        QCOMPARE(folder.Delete(&index, 1, progress), S_OK);
         QVERIFY(!QtIsFileSystemLink(copied));
         QVERIFY(file.open(QIODevice::ReadOnly));
         QCOMPARE(file.readAll(), QByteArray("target bytes"));

@@ -1,6 +1,7 @@
 #include "Common/StringConvert.h"
 #include "filemanager/providers/FSFolder.h"
 #include "fileops/support/filedeleteoperation.h"
+#include "fileops/support/filedeleteprogress.h"
 #include <QDir>
 #include <QFile>
 #include <QSignalSpy>
@@ -37,13 +38,13 @@ class FilesystemOperationsTests : public QObject {
         QCOMPARE(QDir::fromNativeSeparators(
                      QString::fromWCharArray(fs2us(folder.GetRelPath(folder.Files[0])))),
                  name);
-        QVERIFY(!folder.Rename(0, "occupied"));
+        QVERIFY(folder.Rename(0, L"occupied", nullptr) != S_OK);
         QCOMPARE(read(temp.filePath(occupied)), QByteArray("keep"));
-        QVERIFY(folder.Rename(0, QStringLiteral("другое имя.txt")));
+        QCOMPARE(folder.Rename(0, L"другое имя.txt", nullptr), S_OK);
         QVERIFY(!QFile::exists(temp.filePath(name)));
         QCOMPARE(read(temp.filePath(nested + QStringLiteral("/другое имя.txt"))),
                  QByteArray("contents"));
-        QVERIFY(!folder.Rename(1, "invalid index"));
+        QVERIFY(folder.Rename(1, L"invalid index", nullptr) != S_OK);
         // GetAbsPath also supports upstream's absolute input.
         QCOMPARE(folder.CreateFile(temp.filePath("absolute").toStdWString().c_str(), nullptr),
                  S_OK);
@@ -155,12 +156,13 @@ class FilesystemOperationsTests : public QObject {
         NFsFolder::CFSFolder folder(temp.path());
         folder.AddPath(temp.filePath("tree/directory link"));
         UInt32 index = 0;
-        QVERIFY(folder.Delete(&index, 1));
+        CMyComPtr<IProgress> progress = new FileDeleteProgress;
+        QCOMPARE(folder.Delete(&index, 1, progress), S_OK);
         QVERIFY(!QFileInfo(temp.filePath("tree/directory link")).isSymLink());
         QCOMPARE(read(temp.filePath("outside/keep")), QByteArray("keep"));
         folder.AddPath(temp.filePath("tree"));
         index = 1;
-        QVERIFY(folder.Delete(&index, 1));
+        QCOMPARE(folder.Delete(&index, 1, progress), S_OK);
         QVERIFY(!QFile::exists(temp.filePath("tree")));
         QCOMPARE(read(temp.filePath("outside/keep")), QByteArray("keep"));
     }
