@@ -29,7 +29,6 @@ struct ArchiveReadOnlyView::State {
     QStringList Skipped;
     QList<Entry> Entries;
     QHash<quint64, Item> Items;
-    QHash<QString, quint64> Paths;
     quint64 Quota, Cached = 0, Clock = 0;
     unsigned Active = 0;
     QString Password;
