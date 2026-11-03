@@ -89,6 +89,8 @@ void CreateArchiveDialog::createCompressionOptions(QFormLayout *form) {
         SaveOptionsInMem();
         registryFormat_ = format_->currentText();
         FormatChanged();
+        archiveNameState_.SetArchiveName2();
+        name_->setText(archiveNameState_.m_ArchivePath);
     });
     connect(level_, &QComboBox::currentIndexChanged, this, [this] {
         // IDC_COMPRESS_LEVEL: clear the previous method-dependent specs before

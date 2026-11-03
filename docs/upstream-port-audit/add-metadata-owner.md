@@ -30,3 +30,25 @@ skips. Linux acceptance combines the five unchanged passing suites with the
 final advanced-suite rerun after correcting its source-format fixture setup.
 No full or slow suite was repeated. Incremental builds and compiler caches were
 retained; completed test scratch was removed after capturing results.
+
+## Format transition ownership — 2026-11-03
+
+Rechecked original FormatChanged/OnCommand, SetMethod2, SaveOptionsInMem,
+SetArchiveName/SetArchiveName2 and SFX bodies with current initialization,
+fixed-source, registry, history, method/encryption/memory and acceptance callers.
+Complete original CompressDialog.cpp/.h/.rc and RegistryUtils.cpp hashes match
+the existing b88c baseline. No native option or naming algorithm is imported or
+changed.
+
+One Qt format-change handler now saves the outgoing profile, applies the selected
+format and dependent controls, then updates the archive name. The later second
+handler and repeated format configuration in the SFX adapter are removed.
+Initialization still configures the format before naming and constructing its
+dependent controls; ordinary method changes retain that format owner. Memory
+combo population restores its prior signal-blocking state through scope exit.
+
+Existing format/profile/path, method/event, encryption and SFX workflows cover
+the complete transition, including Cancel, reload of saved options, native output
+and no-codec fallback. No handler-count/source-text assertion or pre-fix product
+failure is added. Source priorities, metadata defaults, layout and control metrics
+are unchanged.
