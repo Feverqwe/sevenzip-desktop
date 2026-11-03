@@ -7,6 +7,7 @@
 #include <functional>
 
 class QAction;
+class CApp;
 class MainWindow;
 class CPanel;
 class QtArchiveMountManager;
@@ -100,12 +101,12 @@ class QtFileManagerCommands final : public IQtFileManagerMenuCommandServices {
         bool filesystemStreams = false;
         bool batchArchives = false;
         bool copy = false;
-        bool nested = false, root = false;
+        bool root = false;
         bool comment = false;
         bool focusedNonParent = false;
         bool benchmark = false;
         QHash<unsigned, bool> hashMethods;
-        bool selected = false, one = false, oneFile = false, operated = false, focused = false;
+        bool one = false, oneFile = false, operated = false, focused = false;
         bool focusedFile = false, folderSize = false, selectedParent = false;
         bool split = false, combine = false, rows = false, foldersHistory = false;
     };
@@ -118,7 +119,7 @@ class QtFileManagerCommands final : public IQtFileManagerMenuCommandServices {
     void AttachPanelActions();
     void AttachViewActions();
     void Bind(QAction *action, unsigned id);
-    void BindToggle(QAction *action, unsigned id, bool CApp::*state);
+    void BindToggle(QAction *action, unsigned id, bool (*readState)(CApp &));
     void OpenNative(bool internal, bool external, const wchar_t *type);
     void RunNativeOpen(const std::function<void(CPanel &)> &open);
     MainWindow &window_;

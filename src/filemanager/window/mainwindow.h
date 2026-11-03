@@ -255,7 +255,6 @@ class MainWindow : public QMainWindow {
     void goRoot(bool remember = true, RootLocation location = RootLocation::Namespace);
     QString archiveDisplayPath() const;
     HRESULT renderBoundFolder(bool updateAddress = true);
-    bool isNestedArchive() const;
     HRESULT renderArchiveFolder(bool updateAddress = true);
     HRESULT appendArchiveEntry(CAgentFolder &folder, unsigned index, const QString &prefix,
                                bool flat);

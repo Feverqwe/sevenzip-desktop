@@ -24,21 +24,22 @@ void QtFileManagerCommands::Bind(QAction *action, unsigned id) {
     action->setProperty("nativeCommandID", id);
 }
 
-void QtFileManagerCommands::BindToggle(QAction *action, unsigned id, bool CApp::*state) {
+void QtFileManagerCommands::BindToggle(QAction *action, unsigned id, bool (*readState)(CApp &)) {
     actions_[id].append(action);
     QObject::disconnect(action, &QAction::toggled, &window_, nullptr);
-    QObject::connect(action, &QAction::toggled, &window_, [this, action, id, state](bool checked) {
-        const bool previous = window_.app_.*state;
-        if (checked == previous)
-            return;
-        // QAction toggles before dispatch; native CApp owns the actual flag.
-        // Roll presentation back before the command and mirror it on reload.
-        {
-            QSignalBlocker block(action);
-            action->setChecked(previous);
-        }
-        window_.app_.ExecuteCommand(id);
-    });
+    QObject::connect(action, &QAction::toggled, &window_,
+                     [this, action, id, readState](bool checked) {
+                         const bool previous = readState(window_.app_);
+                         if (checked == previous)
+                             return;
+                         // QAction toggles before dispatch; native CApp owns the actual flag.
+                         // Roll presentation back before the command and mirror it on reload.
+                         {
+                             QSignalBlocker block(action);
+                             action->setChecked(previous);
+                         }
+                         window_.app_.ExecuteCommand(id);
+                     });
     action->setProperty("nativeCommandID", id);
 }
 
@@ -116,23 +117,15 @@ void QtFileManagerCommands::AttachViewActions() {
     Bind(w.findChild<QAction *>("aboutAction"), IDM_ABOUT);
     Bind(w.findChild<QAction *>("tempDirAction"), IDM_TEMP_DIR);
     Bind(w.findChild<QAction *>("benchmarkAction"), IDM_BENCHMARK);
-    actions_[IDM_VIEW_FLAT_VIEW].append(w.flatView_);
-    QObject::disconnect(w.flatView_, &QAction::toggled, &w, nullptr);
-    QObject::connect(w.flatView_, &QAction::toggled, &w, [this](bool checked) {
-        const bool previous = window_.app_.GetFlatMode();
-        if (checked == previous)
-            return;
-        {
-            QSignalBlocker block(window_.flatView_);
-            window_.flatView_->setChecked(previous);
-        }
-        window_.app_.ExecuteCommand(IDM_VIEW_FLAT_VIEW);
-    });
-    w.flatView_->setProperty("nativeCommandID", IDM_VIEW_FLAT_VIEW);
-    BindToggle(w.standardToolbarOption_, IDM_VIEW_STANDARD_TOOLBAR, &CApp::ShowStandardToolbar);
-    BindToggle(w.archiveToolbarOption_, IDM_VIEW_ARCHIVE_TOOLBAR, &CApp::ShowArchiveToolbar);
-    BindToggle(w.buttonTextOption_, IDM_VIEW_TOOLBARS_SHOW_BUTTONS_TEXT, &CApp::ShowButtonsLables);
-    BindToggle(w.largeButtonsOption_, IDM_VIEW_TOOLBARS_LARGE_BUTTONS, &CApp::LargeButtons);
+    BindToggle(w.flatView_, IDM_VIEW_FLAT_VIEW, [](CApp &app) { return app.GetFlatMode(); });
+    BindToggle(w.standardToolbarOption_, IDM_VIEW_STANDARD_TOOLBAR,
+               [](CApp &app) { return app.ShowStandardToolbar; });
+    BindToggle(w.archiveToolbarOption_, IDM_VIEW_ARCHIVE_TOOLBAR,
+               [](CApp &app) { return app.ShowArchiveToolbar; });
+    BindToggle(w.buttonTextOption_, IDM_VIEW_TOOLBARS_SHOW_BUTTONS_TEXT,
+               [](CApp &app) { return app.ShowButtonsLables; });
+    BindToggle(w.largeButtonsOption_, IDM_VIEW_TOOLBARS_LARGE_BUTTONS,
+               [](CApp &app) { return app.LargeButtons; });
     for (unsigned i = 0; i < 4; ++i)
         Bind(w.viewActions_[i], IDM_VIEW_LARGE_ICONS + i);
     const unsigned sortIDs[] = {IDM_VIEW_ARANGE_BY_NAME, IDM_VIEW_ARANGE_BY_TYPE,
@@ -182,7 +175,6 @@ QtFileManagerCommands::TransportCapabilities QtFileManagerCommands::ReadTranspor
     const auto focus = panel.GetFocusState();
     CRecordVector<UInt32> operated;
     panel.Get_ItemIndices_Operated(operated);
-    c.selected = !operated.IsEmpty();
     c.one = operated.Size() == 1;
     c.operated = !operated.IsEmpty();
     c.focused = focus.Present;
@@ -238,7 +230,6 @@ QtFileManagerCommands::TransportCapabilities QtFileManagerCommands::ReadTranspor
         }
     }
     c.archive = panel.GetFolder() && panel.IsArcFolder();
-    c.nested = w.isNestedArchive();
     c.mutationWritable = c.archive && !panel.IsThereReadOnlyFolder();
     const auto *agent = dynamic_cast<CAgentFolder *>(panel.GetFolder());
     const auto *resource =
@@ -352,11 +343,11 @@ bool QtFileManagerCommands::TransportAllows(unsigned id, const TransportCapabili
     case IDM_COPY_TO:
         return !c.root && c.copy;
     case IDM_PROPERTIES:
-        return c.archive || (c.selected && !c.root);
+        return c.archive || (c.operated && !c.root);
     case IDM_MOVE_TO:
         return c.filesystem || c.filesystemStreams || c.writable;
     case IDM_DELETE:
-        return c.selected && (c.filesystem || c.filesystemStreams || c.mutationWritable);
+        return c.operated && (c.filesystem || c.filesystemStreams || c.mutationWritable);
     case IDM_RENAME:
         return c.focusedNonParent && (c.filesystem || c.filesystemStreams || c.mutationWritable);
     case IDM_CREATE_FOLDER:
@@ -366,7 +357,7 @@ bool QtFileManagerCommands::TransportAllows(unsigned id, const TransportCapabili
     case IDM_COMMENT:
         return c.comment;
     case IDM_LINK:
-        return c.filesystem && c.one && c.selected;
+        return c.filesystem && c.one;
     case IDM_ALT_STREAMS:
         return !c.operated || c.one; // Source OpenAltStreams accepts zero or one item.
     case IDM_SPLIT:
@@ -384,14 +375,14 @@ bool QtFileManagerCommands::TransportAllows(unsigned id, const TransportCapabili
     case IDM_SHA3_256:
     case IDM_BLAKE2SP:
     case IDM_HASH_ALL:
-        return c.selected && !c.root && c.hashMethods.value(id);
+        return c.operated && !c.root && c.hashMethods.value(id);
     case IDM_SELECT_ALL:
     case IDM_INVERT_SELECTION:
     case IDM_SELECT:
     case IDM_DESELECT:
         return c.rows;
     case IDM_DESELECT_ALL:
-        return c.selected;
+        return c.operated;
     case IDM_SELECT_BY_TYPE:
     case IDM_DESELECT_BY_TYPE:
         return c.focused;

@@ -101,3 +101,28 @@ Linux PASS: `native_command_dispatch`, `command_policy_runtime`,
 не затрагивает native OS branches; macOS/Windows и visual parity этим запуском
 не проверялись. Обычный параллелизм 4 и compiler cache сохранены. После terminal
 run удалены пять settings fixtures; full/slow gate и UI reports не запускались.
+
+## Общая привязка переключателей и operated items — 2026-11-03
+
+Повторно сопоставлены исходные `CApp::GetFlatMode`, toolbar switches,
+`Get_ItemIndices_Operated`, `CreateFileMenu` и view-command dispatch с Qt binding,
+availability и повторной проверкой перед выполнением. Полные App.h/.cpp,
+PanelItems.cpp, PanelMenu.cpp, MyLoadMenu.cpp и FM.cpp проверены по существующим
+original hashes; внешнего импорта и изменения baseline нет.
+
+Flat View использует ту же Qt-привязку, что четыре toolbar switches: состояние
+читается при событии у CApp, QAction откатывается с блокировкой сигнала до native
+dispatch. Для Flat View сохраняется выбор текущей панели; native handlers,
+сохранение настроек и последующая публикация состояния не изменены. Два одинаково
+вычисляемых признака наличия operated items объединены; неиспользуемый запрос
+вложенности архива удалён. Native menu eligibility, ограничения транспорта,
+notification/operation guards и reentrant publication остаются раздельными.
+Новых функциональных omissions и изменений layout/подписей нет.
+
+Linux PASS: `command_policy_runtime`, `command_publication`, `flat_view`,
+`ui_layout`, `source_context_menu` — 54 проверки без skips. Сборка 56,505 с,
+тесты 7,851 с; configured parallelism 4 и compiler cache сохранены. Проверены
+реальные переключатели и сохранение toolbar settings после повторного открытия.
+Native OS branches не менялись; Windows/macOS и visual parity не проверялись.
+Full/slow gate и UI reports не запускались. После завершения удалены пять
+settings fixtures; incremental outputs и протокол проверки сохранены.
