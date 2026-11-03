@@ -27,6 +27,7 @@
 #include <QPainter>
 #include <QPushButton>
 #include <QShortcut>
+#include <QSignalBlocker>
 #include <QStyle>
 #include <QStyledItemDelegate>
 #include <QTreeWidget>
@@ -212,6 +213,7 @@ void CBrowseDialog2::ConnectControls(QDialogButtonBox *buttons, QPushButton *ref
     close->setFocus();
 }
 void CBrowseDialog2::PopulateRows(const UStringVector &selected, const UString &focused) {
+    const QSignalBlocker selectionChanges(*_list);
     _list->setUpdatesEnabled(false);
     _list->clear();
     _parent->setEnabled(!IsExactTempFolder(_snapshot->Prefix));
@@ -258,7 +260,6 @@ void CBrowseDialog2::PopulateRows(const UStringVector &selected, const UString &
         if (focused == name && !cursor)
             cursor = row;
     }
-    ReloadLanguagePresentation();
     _list->sortItems(0, Qt::AscendingOrder);
     if (!cursor && _list->topLevelItemCount() > 0) {
         cursor = _list->topLevelItem(0);
@@ -271,8 +272,8 @@ void CBrowseDialog2::PopulateRows(const UStringVector &selected, const UString &
     }
     _list->header()->setSortIndicator(_sortIndex,
                                       _ascending ? Qt::AscendingOrder : Qt::DescendingOrder);
+    ReloadLanguagePresentation();
     _list->setUpdatesEnabled(true);
-    UpdateDeleteAvailability();
 }
 int CBrowseDialog2::GetRealItemIndex(int row) const {
     auto *item = _list->topLevelItem(row);
