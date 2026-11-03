@@ -1,5 +1,21 @@
 # Split/Combine plan ownership — 2026-11-01
 
+## Preserve the discovered combine plan — 2026-11-03
+
+Rechecked the complete original sequence/discovery, command and worker bodies
+with the Qt plans, input validation, progress, output transaction and window
+completion consumers. The original inventory and native algorithms remain
+unchanged; no external code or new baseline is introduced.
+
+Convenience Combine requests prepare the native plan directly in their worker
+before input validation and execution. The public part-list query projects that
+same preparation result into its existing path/size response; execution no longer
+converts the response back into another native name list. Prepared command plans
+are copied once into the worker, as before. Lazy discovery,
+contiguous-prefix handling, empty parts, diagnostic precedence, input snapshots,
+cancellation and publication rollback retain their existing behavior. Split
+preparation and the source completion/window-readiness protocol are unchanged.
+
 ## Input consistency snapshots — 2026-11-02
 
 Rechecked the complete original PanelSplitFile unit, its source plans/workers

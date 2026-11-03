@@ -71,40 +71,50 @@ qint64 VolumeOperation::parseSize(const QString &text) {
     return sizes.size() == 1 ? sizes.first() : 0;
 }
 
-VolumeParts VolumeOperation::inspectParts(const QString &firstPart, QString *error) {
+namespace {
+bool InspectCombinePlan(const QString &firstPart, CCombineVolumePlan &combiner, QString *error) {
     const QFileInfo first(firstPart);
     CVolSeqName sequence;
     if (!sequence.ParseName(ToUString(first.fileName()))) {
         *error = ToQString(LangString(IDS_COMBINE_CANT_DETECT_SPLIT_FILE));
-        return {};
+        return false;
     }
-    CCombineVolumePlan combiner;
     const UString prefix = ToUString(first.absolutePath() + '/');
+    combiner.InputDirPrefix = us2fs(prefix);
     combiner.LoadParts(prefix, ToUString(first.fileName()), sequence);
     if (combiner.Names.Size() == 1) {
         *error = ToQString(LangString(IDS_COMBINE_CANT_FIND_MORE_THAN_ONE_PART));
-        return {};
+        return false;
     }
     if (combiner.TotalSize == 0) {
         *error = QCoreApplication::translate("volumeoperations", "No data");
-        return {};
+        return false;
     }
-    VolumeParts result;
     FOR_VECTOR(i, combiner.Names) {
         const QString path = ToQString(prefix + fs2us(combiner.Names[i]));
         if (QFileInfo(path).isSymLink()) {
             *error = QCoreApplication::translate("volumeoperations", "File part is unavailable: %1")
                          .arg(path);
-            return {};
+            return false;
         }
-        result.paths << path;
     }
     if (combiner.TotalSize > UInt64(std::numeric_limits<qint64>::max())) {
         *error = QCoreApplication::translate("volumeoperations",
                                              "Part sizes are unavailable or too large.");
-        return {};
+        return false;
     }
-    result.totalSize = qint64(combiner.TotalSize);
+    return true;
+}
+} // namespace
+
+VolumeParts VolumeOperation::inspectParts(const QString &firstPart, QString *error) {
+    CCombineVolumePlan plan;
+    if (!InspectCombinePlan(firstPart, plan, error))
+        return {};
+    VolumeParts result;
+    FOR_VECTOR(i, plan.Names)
+    result.paths << ToQString(fs2us(plan.InputDirPrefix + plan.Names[i]));
+    result.totalSize = qint64(plan.TotalSize);
     return result;
 }
 QStringList VolumeOperation::discoverParts(const QString &firstPart, QString *error) {
@@ -191,13 +201,13 @@ bool VolumeOperation::split(const CSplitVolumePlan &plan, QString *error) {
 }
 
 bool VolumeOperation::combine(const CCombineVolumePlan &plan, QString *error) {
-    VolumeParts parts;
-    if (nativePlan_) {
-        FOR_VECTOR(i, plan.Names)
-        parts.paths << ToQString(fs2us(plan.InputDirPrefix + plan.Names[i]));
-    } else
-        parts = inspectParts(source_, error);
-    if (parts.paths.isEmpty())
+    CThreadCombine combiner(plan);
+    if (!nativePlan_) {
+        if (!InspectCombinePlan(source_, combiner, error))
+            return false;
+        combiner.OutputPath = us2fs(ToUString(destination_));
+    }
+    if (combiner.Names.IsEmpty())
         return false;
     const QFileInfo target(destination_);
     if (!QFileInfo(target.absolutePath()).isDir() || QFileInfo::exists(destination_) ||
@@ -207,21 +217,15 @@ bool VolumeOperation::combine(const CCombineVolumePlan &plan, QString *error) {
         return false;
     }
     QList<InputSnapshot> inputs;
-    CThreadCombine combiner(plan);
-    if (!nativePlan_) {
-        combiner.InputDirPrefix = us2fs(ToUString(QFileInfo(source_).absolutePath() + '/'));
-        combiner.OutputPath = us2fs(ToUString(destination_));
-        combiner.TotalSize = UInt64(parts.totalSize);
-    }
-    for (const QString &path : parts.paths) {
-        if (!QFileInfo(path).isFile() || QFileInfo(path).isSymLink()) {
+    FOR_VECTOR(i, combiner.Names) {
+        const QString path = ToQString(fs2us(combiner.InputDirPrefix + combiner.Names[i]));
+        const QFileInfo input(path);
+        if (!input.isFile() || input.isSymLink()) {
             *error = QCoreApplication::translate("volumeoperations", "File part is unavailable: %1")
                          .arg(path);
             return false;
         }
-        if (!nativePlan_)
-            combiner.Names.Add(us2fs(ToUString(QFileInfo(path).fileName())));
-        inputs.append({path, QFileInfo(path).size()});
+        inputs.append({path, input.size()});
     }
     QtVolumeTransaction transaction;
     combiner.createOutput = [&transaction](auto &file, const FString &path) {
