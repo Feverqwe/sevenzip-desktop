@@ -1,5 +1,28 @@
 # External-process ownership
 
+## Independent operation completion — 2026-11-03
+
+Reviewed the full launcher/channel, endpoint, typed contract, native process
+adapter and File Manager completion consumers together with the existing
+Call7zGui, CProcess and CHandle source boundaries. CompressCall.cpp,
+ProcessUtils.cpp/.h and Handle.h match their recorded original inventory hashes.
+No native algorithm, process launch policy or external source was changed.
+
+The observer now selects its terminal result before passing it through one
+completion path. Crash/observation errors, report validation, exit disagreement,
+buffered-message draining and early output notifications retain their existing
+semantics. Acceptance dispatch and independent child lifetime are unchanged.
+
+A focused real-process peer exercises success, missing/invalid reports,
+native-exit disagreement and a crash after a success report over the production
+Remote Objects channel. It checks public acceptance/completion, diagnostics and
+output metadata; native launcher/extraction/creation and output-refresh suites
+cover the direct workflow consumers. No pre-fix product failure is claimed.
+These six focused suites passed on Linux; the peer's initial synchronous QtRO
+initialization fixture was corrected to queue work like the production endpoint.
+Native platform adapters and UI geometry were unchanged; no additional platform,
+full/slow or appearance acceptance is claimed.
+
 ## Independent child release — 2026-11-02
 
 Reviewed POSIX child ownership, creation/adoption and polling in both process
