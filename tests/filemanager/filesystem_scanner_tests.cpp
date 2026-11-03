@@ -7,6 +7,7 @@
 #include <QDir>
 #include <QElapsedTimer>
 #include <QFile>
+#include <QFileInfo>
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QTimer>
@@ -22,6 +23,24 @@ class FilesystemScannerTests : public QObject {
                 QStringLiteral("папка с пробелом/sub/📦-текущий-%1.txt").arg(i)));
             QVERIFY(file.open(QIODevice::WriteOnly));
             QCOMPARE(file.write("fixture"), qint64(7));
+        }
+    }
+    static void appendPaths(IFolderFolder *folder, quint32 first, quint32 count,
+                            QStringList &paths) {
+        QVERIFY(folder);
+        UInt32 total = 0;
+        QCOMPARE(folder->GetNumberOfItems(&total), S_OK);
+        QVERIFY(first <= total && count <= total - first);
+        const QString directory = ToQString(GetFolderPath(folder));
+        for (quint32 i = first; i < first + count; ++i) {
+            NWindows::NCOM::CPropVariant name, prefix;
+            QCOMPARE(folder->GetProperty(i, kpidName, &name), S_OK);
+            QCOMPARE(name.vt, VARTYPE(VT_BSTR));
+            QCOMPARE(folder->GetProperty(i, kpidPrefix, &prefix), S_OK);
+            const QString relative =
+                (prefix.vt == VT_BSTR ? ToQString(UString(prefix.bstrVal)) : QString()) +
+                ToQString(UString(name.bstrVal));
+            paths.append(QDir(directory).filePath(QDir::fromNativeSeparators(relative)));
         }
     }
   private slots:
@@ -86,13 +105,11 @@ class FilesystemScannerTests : public QObject {
         CMyComPtr<IFolderFolder> retained;
         connect(&scanner, &FilesystemScanner::folderReady, this,
                 [&](IFolderFolder *folder) { retained = folder; });
-        QStringList names;
-        connect(&scanner, &FilesystemScanner::batchReady, this,
-                [&](const QFileInfoList &files, quint32 first) {
-                    QCOMPARE(first, quint32(0));
-                    for (const auto &file : files)
-                        names.append(file.fileName());
-                });
+        QStringList paths;
+        connect(&scanner, &FilesystemScanner::batchReady, this, [&](quint32 first, quint32 count) {
+            QCOMPARE(first, quint32(0));
+            appendPaths(retained, first, count, paths);
+        });
         QSignalSpy completed(&scanner, &FilesystemScanner::completed);
         scanner.start(fixture.path(), false);
         QTRY_COMPARE(completed.count(), 1);
@@ -100,7 +117,7 @@ class FilesystemScannerTests : public QObject {
         UInt32 count = 0;
         QCOMPARE(retained->GetNumberOfItems(&count), S_OK);
         QCOMPARE(count, UInt32(1));
-        QCOMPARE(names, QStringList{QStringLiteral("папка с пробелом")});
+        QCOMPARE(paths, QStringList{fixture.filePath(QStringLiteral("папка с пробелом"))});
     }
     void completedWorkerHasOnlyLatestProgressWaitingForGui() {
         QTemporaryDir fixture;
@@ -124,18 +141,16 @@ class FilesystemScannerTests : public QObject {
         createFiles(temp.path(), 300);
         FilesystemScanner scanner;
         CMyComPtr<IFolderFolder> retained;
-        QList<QString> displayedPaths;
+        QStringList displayedPaths;
         bool ordered = true;
         bool batchesOnGui = true;
         connect(&scanner, &FilesystemScanner::folderReady, this,
                 [&](IFolderFolder *folder) { retained = folder; });
-        connect(&scanner, &FilesystemScanner::batchReady, this,
-                [&](const QFileInfoList &files, quint32 first) {
-                    ordered &= first == quint32(displayedPaths.size());
-                    batchesOnGui &= QThread::currentThread() == thread();
-                    for (const QFileInfo &file : files)
-                        displayedPaths.append(file.absoluteFilePath());
-                });
+        connect(&scanner, &FilesystemScanner::batchReady, this, [&](quint32 first, quint32 count) {
+            ordered &= first == quint32(displayedPaths.size());
+            batchesOnGui &= QThread::currentThread() == thread();
+            appendPaths(retained, first, count, displayedPaths);
+        });
         QSignalSpy completed(&scanner, &FilesystemScanner::completed);
         QSignalSpy failed(&scanner, &FilesystemScanner::failed);
         QSignalSpy progress(&scanner, &FilesystemScanner::advanced);
@@ -153,18 +168,18 @@ class FilesystemScannerTests : public QObject {
         QCOMPARE(retained->GetNumberOfItems(&count), S_OK);
         QCOMPARE(count, UInt32(302));
         QCOMPARE(displayedPaths.size(), qsizetype(count));
-        const QString prefix = ToQString(GetFolderPath(retained));
-        for (UInt32 i = 0; i < count; ++i) {
-            NWindows::NCOM::CPropVariant name, relative;
-            QCOMPARE(retained->GetProperty(i, kpidName, &name), S_OK);
-            QCOMPARE(retained->GetProperty(i, kpidPrefix, &relative), S_OK);
-            const QString path =
-                prefix +
-                (relative.vt == VT_BSTR ? ToQString(UString(relative.bstrVal)) : QString()) +
-                ToQString(UString(name.bstrVal));
-            QCOMPARE(QFileInfo(displayedPaths[int(i)]).canonicalFilePath(),
-                     QFileInfo(QDir::fromNativeSeparators(path)).canonicalFilePath());
-        }
+        QStringList expectedPaths{temp.filePath(QStringLiteral("папка с пробелом")),
+                                  temp.filePath(QStringLiteral("папка с пробелом/sub"))};
+        for (int i = 0; i < 300; ++i)
+            expectedPaths.append(
+                temp.filePath(QStringLiteral("папка с пробелом/sub/📦-текущий-%1.txt").arg(i)));
+        for (QString &path : displayedPaths)
+            path = QFileInfo(path).canonicalFilePath();
+        for (QString &path : expectedPaths)
+            path = QFileInfo(path).canonicalFilePath();
+        displayedPaths.sort();
+        expectedPaths.sort();
+        QCOMPARE(displayedPaths, expectedPaths);
         scanner.cancel();
         QCOMPARE(retained->GetNumberOfItems(&count), S_OK);
         QCOMPARE(count, UInt32(302));
@@ -179,17 +194,16 @@ class FilesystemScannerTests : public QObject {
         bool eventLoopResumed = false;
         bool yieldedBeforeLastBatch = false;
         bool scheduledHeartbeat = false;
-        connect(&scanner, &FilesystemScanner::batchReady, this,
-                [&](const QFileInfoList &files, quint32 first) {
-                    ordered &= first == expectedIndex;
-                    expectedIndex += quint32(files.size());
-                    if (expectedIndex == 2050)
-                        yieldedBeforeLastBatch = eventLoopResumed;
-                    if (!scheduledHeartbeat) {
-                        scheduledHeartbeat = true;
-                        QTimer::singleShot(0, &scanner, [&] { eventLoopResumed = true; });
-                    }
-                });
+        connect(&scanner, &FilesystemScanner::batchReady, this, [&](quint32 first, quint32 count) {
+            ordered &= first == expectedIndex;
+            expectedIndex += count;
+            if (expectedIndex == 2050)
+                yieldedBeforeLastBatch = eventLoopResumed;
+            if (!scheduledHeartbeat) {
+                scheduledHeartbeat = true;
+                QTimer::singleShot(0, &scanner, [&] { eventLoopResumed = true; });
+            }
+        });
         QSignalSpy completed(&scanner, &FilesystemScanner::completed);
         QSignalSpy failed(&scanner, &FilesystemScanner::failed);
         QElapsedTimer elapsed;
@@ -214,16 +228,17 @@ class FilesystemScannerTests : public QObject {
         FilesystemScanner scanner;
         QStringList paths;
         bool restarted = false;
-        connect(&scanner, &FilesystemScanner::batchReady, this,
-                [&](const QFileInfoList &files, quint32) {
-                    if (!restarted) {
-                        restarted = true;
-                        scanner.start(second.path());
-                        return;
-                    }
-                    for (const QFileInfo &info : files)
-                        paths.append(info.absoluteFilePath());
-                });
+        CMyComPtr<IFolderFolder> retained;
+        connect(&scanner, &FilesystemScanner::folderReady, this,
+                [&](IFolderFolder *folder) { retained = folder; });
+        connect(&scanner, &FilesystemScanner::batchReady, this, [&](quint32 first, quint32 count) {
+            if (!restarted) {
+                restarted = true;
+                scanner.start(second.path());
+                return;
+            }
+            appendPaths(retained, first, count, paths);
+        });
         QSignalSpy completed(&scanner, &FilesystemScanner::completed);
         QSignalSpy failed(&scanner, &FilesystemScanner::failed);
         scanner.start(first.path());
@@ -301,19 +316,19 @@ class FilesystemScannerTests : public QObject {
         bool restarted = false;
         int owners = 0;
         QStringList paths;
+        CMyComPtr<IFolderFolder> retained;
         connect(&scanner, &FilesystemScanner::advanced, this, [&](quint64) {
             if (!restarted) {
                 restarted = true;
                 scanner.start(second.path());
             }
         });
-        connect(&scanner, &FilesystemScanner::folderReady, this,
-                [&](IFolderFolder *) { ++owners; });
+        connect(&scanner, &FilesystemScanner::folderReady, this, [&](IFolderFolder *folder) {
+            ++owners;
+            retained = folder;
+        });
         connect(&scanner, &FilesystemScanner::batchReady, this,
-                [&](const QFileInfoList &files, quint32) {
-                    for (const QFileInfo &info : files)
-                        paths.append(info.absoluteFilePath());
-                });
+                [&](quint32 first, quint32 count) { appendPaths(retained, first, count, paths); });
         QSignalSpy completed(&scanner, &FilesystemScanner::completed);
         QSignalSpy failed(&scanner, &FilesystemScanner::failed);
         scanner.start(first.path());
@@ -350,11 +365,10 @@ class FilesystemScannerTests : public QObject {
             if (!inBatch)
                 scanner.reset();
         });
-        connect(scanner.get(), &FilesystemScanner::batchReady, this,
-                [&](const QFileInfoList &, quint32) {
-                    if (inBatch)
-                        scanner.reset();
-                });
+        connect(scanner.get(), &FilesystemScanner::batchReady, this, [&](quint32, quint32) {
+            if (inBatch)
+                scanner.reset();
+        });
         scanner->start(temp.path());
         QTRY_VERIFY(!scanner);
     }

@@ -218,7 +218,7 @@ class MainWindow : public QMainWindow {
     HRESULT showDirectory(const QString &path, bool remember, bool sourceAlreadyBound = false,
                           bool updateAddress = true);
     HRESULT renderRootFolder(bool updateAddress = true);
-    HRESULT appendFilesystemEntry(const QFileInfo &file, quint32 sourceIndex);
+    HRESULT appendFilesystemEntry(const QString &baseDirectory, quint32 sourceIndex);
     void appendParentEntry();
     void completeListSelection();
     void refreshCurrent(const CSelectedState *preserved = nullptr);

@@ -1,5 +1,6 @@
 #include "7zip/PropID.h"
 #include "7zip/UI/FileManager/resource.h"
+#include "Common/StringConvert.h"
 #include "Windows/PropVariant.h"
 #include "filemanager/panels/qtpaneladdresscombo.h"
 #include "filemanager/providers/FSFolder.h"
@@ -46,10 +47,7 @@ HRESULT MainWindow::startFilesystemListing(bool sourceAlreadyBound, bool updateA
         configureColumns();
         appendParentEntry();
         for (UInt32 i = 0; i < spec->Files.Size(); ++i) {
-            result = appendFilesystemEntry(
-                QFileInfo(QDir(projectedUi().directory)
-                              .filePath(QtFilesystemPath(spec->GetRelPath(spec->Files[i])))),
-                i);
+            result = appendFilesystemEntry(projectedUi().directory, i);
             if (result != S_OK) {
                 projectedUi().table->clearRows();
                 break;
@@ -80,9 +78,13 @@ HRESULT MainWindow::startFilesystemScan(IFolderFolder *folder, bool flat) {
     return E_ABORT;
 }
 
-HRESULT MainWindow::appendFilesystemEntry(const QFileInfo &file, quint32 sourceIndex) {
+HRESULT MainWindow::appendFilesystemEntry(const QString &baseDirectory, quint32 sourceIndex) {
     QIcon icon;
     RINOK(app_.GetFocusedPanel().GetItemIcon(sourceIndex, icon))
+    auto *folder = static_cast<NFsFolder::CFSFolder *>(app_.GetFocusedPanel().GetFolder());
+    const QFileInfo file(
+        QDir(baseDirectory)
+            .filePath(QtFilesystemPath(folder->GetRelPath(folder->Files[sourceIndex]))));
 #ifdef Q_OS_WIN
     // Normal Windows folders already use source FindChangeNotification. Keep
     // the portable fallback for flat descendants, outside its nonrecursive watch.
@@ -90,7 +92,6 @@ HRESULT MainWindow::appendFilesystemEntry(const QFileInfo &file, quint32 sourceI
 #endif
         panelUi_[projectedPanel_].autoRefreshSnapshot.insert(
             file.absoluteFilePath(), filesystemSignature(file.absoluteFilePath()));
-    IFolderFolder *folder = app_.GetFocusedPanel().GetFolder();
     NWindows::NCOM::CPropVariant name, prefix;
     folder->GetProperty(sourceIndex, kpidName, &name);
     folder->GetProperty(sourceIndex, kpidPrefix, &prefix);
@@ -139,14 +140,16 @@ void MainWindow::connectFilesystemScanner() {
                     });
                 });
         connect(scanner, &FilesystemScanner::batchReady, this,
-                [this, index](const QFileInfoList &files, quint32 firstSourceIndex) {
+                [this, index](quint32 firstSourceIndex, quint32 count) {
                     withPanelProjection(index, [&] {
                         if (app_.QtOperations().closed())
                             return;
                         QtAppOperationState::CallScope call(app_.QtOperations());
-                        quint32 sourceIndex = firstSourceIndex;
-                        for (const QFileInfo &file : files) {
-                            const HRESULT result = appendFilesystemEntry(file, sourceIndex++);
+                        const QString directory = QtFilesystemPath(
+                            us2fs(GetFolderPath(app_.GetFocusedPanel().GetFolder())));
+                        for (quint32 i = 0; i < count; ++i) {
+                            const HRESULT result =
+                                appendFilesystemEntry(directory, firstSourceIndex + i);
                             if (result != S_OK) {
                                 panelUi_[index].filesystemScanner->cancel();
                                 failFilesystemListing(result);

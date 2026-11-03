@@ -1,7 +1,6 @@
 #pragma once
 
 #include "7zip/UI/FileManager/IFolder.h"
-#include <QFileInfo>
 #include <QList>
 #include <QObject>
 #include <QTimer>
@@ -26,7 +25,8 @@ class FilesystemScanner : public QObject {
     // All signals are dispatched on the GUI thread. Retain folderReady's
     // borrowed pointer through CMyComPtr when it must outlive the signal.
     void folderReady(IFolderFolder *folder);
-    void batchReady(const QFileInfoList &files, quint32 firstSourceIndex);
+    // Ranges refer to the retained folder published by folderReady.
+    void batchReady(quint32 firstSourceIndex, quint32 count);
     void advanced(quint64 count);
     void failed(qint32 result);
     void completed();

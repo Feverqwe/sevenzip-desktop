@@ -76,6 +76,44 @@ without local overrides or clearing caches. No native OS branch changed, so
 Windows/macOS were not selected. No appearance change or full/slow gate is
 claimed.
 
+## Filesystem row projection — 2026-11-03
+
+Reviewed immediate and worker-backed loading, folder/batch publication,
+cancellation, reload selection and viewport restoration. Compared original
+FSFolder `LoadSubItems`, `LoadItems`, `GetRelPath` and panel loading/selection
+boundaries at `9128b80e3a471108678e2b3ec3c985861c8d7b0f`; complete FSFolder.cpp,
+FSFolder.h and PanelItems.cpp hashes match the recorded baseline. Native walks,
+metadata, notifications and selection algorithms remain unchanged; no external
+source is imported or provenance advanced.
+
+The scanner publishes ordered source-index ranges for its retained folder.
+The owning panel now constructs paths and rows for both immediate and background
+loads, removing the scanner's intermediate QFileInfo list, path-conversion
+dependencies and copied directory. Immediate loading keeps its displayed base
+directory; background loading keeps the bound native folder's base directory.
+Source indices, native properties/icons and portable change signatures retain
+their existing mapping. Filesystem metadata is still taken from the loaded source,
+not refreshed from QFileInfo during row presentation.
+
+Each GUI delivery remains limited by row count and yields before the next range.
+The old elapsed-time bound only covered preparation of the removed QFileInfo list;
+it did not bound icon lookup or row insertion. No speed or latency improvement
+is claimed. Worker generations, shared folder lifetime during reentrant signals,
+destruction guards, cancellation and selection/viewport completion remain intact.
+Scanner regressions consume ranges against the public retained-folder interface,
+check fixture paths, ordering, bounds and restart/destruction behavior. Existing
+panel checks cover actual path projection and retained metadata; no test pins the
+batch size or a private state representation.
+
+Linux acceptance passed `filesystem_scanner`, `filesystem_reload`,
+`panel_runtime`, `panel_auto_refresh` and `panel_refresh_completion`: 167 Qt
+checks without failures or skips. After preserving the existing icon/index-error
+gate before direct native-vector access, the four affected window suites passed
+again; unchanged scanner evidence was retained. The final window build took
+5.676s and tests 40.609s. Completed test settings were removed, while incremental
+trees and compiler caches remain. No secondary OS, full/slow suite or new visual
+acceptance is claimed; native platform branches were not changed.
+
 ## Refresh routing and saved selection — 2026-11-01
 
 Rechecked original PanelItems SaveSelectedState, RefreshListCtrl, OnReload and
