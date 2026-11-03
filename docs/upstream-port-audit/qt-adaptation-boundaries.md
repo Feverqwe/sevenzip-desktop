@@ -554,3 +554,26 @@ checks, no skips). Build 23.795 s, tests 25.505 s. Astra source review confirmed
 equivalent lifetime/interface conversion. Removed five completed settings files;
 incremental outputs and compiler cache retained. No secondary OS, full/slow
 gate or new visual acceptance was run; platform implementations are unchanged.
+
+## Comment writer delegation — 2026-11-03
+
+Reviewed the focused-item comment command, dialog cancellation, source
+`SetProperty`/`CommentItem`/`CommonUpdate`, resource dispatch and temporary-output
+publication/reopening. Compared the original comment and common-writer bodies
+at `b88c6bc09339de32f7d18bbab900686b244f42ba`; complete AgentOut.cpp,
+ArchiveFolderOut.cpp and PanelOperations.cpp hashes match the recorded baseline.
+No native algorithm, external import or provenance revision changes.
+
+The backend comment entry point retains its built-in ZIP eligibility check and
+delegates writing to the existing native-update overload that preserves handler
+properties. This removes a duplicate mutex/interface/path-validation/UpdateItems
+sequence. Eligibility already implies one non-read-only arc, satisfying the common
+writer's restrictions; that writer also checks the archive interface. Original
+callbacks, encrypted payload handling, errors, pause/cancel, publication and panel
+refresh remain unchanged. Existing native comment and command regressions cover
+these behaviors, including nested publication; no private-structure test is added.
+
+Linux `native_comment` and `native_comment_ui` passed: 27 Qt checks, no failures
+or skips; incremental build 9.785s, tests 10.743s. Completed test settings were
+removed; incremental outputs and compiler caches retained. No other platform,
+full/slow suite or new visual acceptance was needed for this shared writer change.
