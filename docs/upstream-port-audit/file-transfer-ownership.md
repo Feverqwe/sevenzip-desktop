@@ -1,5 +1,37 @@
 # File-transfer ownership
 
+## Per-item transaction boundary — 2026-11-03
+
+Reviewed the complete transaction/worker/copy callback, direct-target and window
+consumers. Rechecked original FSFolderCopy `CopyFile_Ask`, `IsDestChild` and
+`CopyFolder` with their local state/callback/native I/O boundaries at recorded
+`b88c6bc09339de32f7d18bbab900686b244f42ba`; the complete original unit hash
+matches the baseline. Native copying and platform services are unchanged; no
+external source is imported or provenance advanced.
+
+The complete current-item transaction now has its own function, retaining
+overwrite selection, staging, backup/publication and rollback together. The outer
+operation owns target preparation, sticky overwrite choices, completed records,
+batch rollback and completion/source removal. Skipping continues without adding
+a record; failure returns with its existing error. Successful insertion still
+copies the record before dismissing current-item rollback. Exceptions unwind the
+current item before the completed batch, while partial Move recovery remains in
+the existing completion phase.
+
+The moved body matches the prior body apart from four loop-exit adaptations.
+One operation-scoped overwrite callable serves both top-level and merge decisions;
+its captured state outlives every synchronous call. No phase flags, policy,
+messages, source-removal rules, cancellation or UI publication ordering changes.
+Existing exception, merge, overwrite, direct-target and UI checks cover these
+risks; no test pins the new function or private control structure.
+
+Linux `file_transfer`, `file_transfer_direct`, `ui_copy_same` and
+`ui_copy_routing` passed: 172 Qt checks, no failures or skips; incremental build
+14.698s, tests 40.050s. Completed settings and the temporary source-comparison
+snapshot were removed; build trees, compiler caches and run evidence retained.
+No native OS branch, layout or text changed, so no secondary platform, full/slow
+gate or new appearance acceptance is claimed.
+
 ## Qt copy destination route — 2026-11-03
 
 Compared complete original App `OnCopy` destination/provider classification,
