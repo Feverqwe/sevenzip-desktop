@@ -856,33 +856,6 @@ FString CFSFolder::GetRelPath(const CDirItem &item) const {
     return Folders[item.Parent] + item.Name;
 }
 
-void CFSFolder::GetAbsPath(const QString &name, QString &absPath) const {
-    FString sourcePath;
-    GetAbsPath(name.toStdWString().c_str(), sourcePath);
-    absPath = QtPath(sourcePath);
-}
-
-bool CFSFolder::CreateFolder(const QString &name) {
-    if (CreateFolder(name.toStdWString().c_str(), nullptr) == S_OK)
-        return true;
-    QString absPath;
-    GetAbsPath(name, absPath);
-    ErrorMessage =
-        QCoreApplication::translate("FSFolder", "Could not create folder: %1").arg(absPath);
-    return false;
-}
-
-bool CFSFolder::CreateFile(const QString &name) {
-    if (CreateFile(name.toStdWString().c_str(), nullptr) != S_OK) {
-        QString absPath;
-        GetAbsPath(name, absPath);
-        ErrorMessage =
-            QCoreApplication::translate("FSFolder", "Could not create file: %1").arg(absPath);
-        return false;
-    }
-    return true;
-}
-
 bool CFSFolder::Rename(UInt32 index, const QString &newName) {
     if (Rename(index, newName.toStdWString().c_str(), nullptr) != S_OK) {
         ErrorMessage =

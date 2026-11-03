@@ -24,12 +24,12 @@ class FilesystemOperationsTests : public QObject {
         QVERIFY(temp.isValid());
         NFsFolder::CFSFolder folder(temp.path());
         const QString nested = QStringLiteral("новая папка/вложенная");
-        QVERIFY(folder.CreateFolder(nested));
-        QVERIFY(!folder.CreateFolder(nested));
+        QCOMPARE(folder.CreateFolder(nested.toStdWString().c_str(), nullptr), S_OK);
+        QVERIFY(folder.CreateFolder(nested.toStdWString().c_str(), nullptr) != S_OK);
         const QString name = nested + QStringLiteral("/файл с пробелом.txt");
-        QVERIFY(folder.CreateFile(name));
+        QCOMPARE(folder.CreateFile(name.toStdWString().c_str(), nullptr), S_OK);
         QVERIFY(write(temp.filePath(name)));
-        QVERIFY(!folder.CreateFile(name));
+        QVERIFY(folder.CreateFile(name.toStdWString().c_str(), nullptr) != S_OK);
         QCOMPARE(read(temp.filePath(name)), QByteArray("contents"));
         const QString occupied = nested + "/occupied";
         QVERIFY(write(temp.filePath(occupied), "keep"));
@@ -45,7 +45,8 @@ class FilesystemOperationsTests : public QObject {
                  QByteArray("contents"));
         QVERIFY(!folder.Rename(1, "invalid index"));
         // GetAbsPath also supports upstream's absolute input.
-        QVERIFY(folder.CreateFile(temp.filePath("absolute")));
+        QCOMPARE(folder.CreateFile(temp.filePath("absolute").toStdWString().c_str(), nullptr),
+                 S_OK);
         QVERIFY(QFile::exists(temp.filePath("absolute")));
     }
 

@@ -24,34 +24,6 @@ class LanguageFileTransferTests final : public QObject {
 
   private slots:
     void cleanup() { language(false); }
-    void filesystemMutationFailurePreservesRawPath_data() {
-        QTest::addColumn<bool>("russian");
-        QTest::newRow("en") << false;
-        QTest::newRow("ru") << true;
-    }
-    void filesystemMutationFailurePreservesRawPath() {
-        QFETCH(bool, russian);
-        language(russian);
-        QTemporaryDir directory;
-        QVERIFY(directory.isValid());
-        const QString name = QStringLiteral("occupied 密碼 file.txt");
-        const QString path = directory.filePath(name);
-        QFile file(path);
-        QVERIFY(file.open(QIODevice::WriteOnly));
-        QCOMPARE(file.write("keep bytes"), qint64(10));
-        file.close();
-        NFsFolder::CFSFolder folder(directory.path());
-        QVERIFY(!folder.CreateFolder(name));
-        QCOMPARE(folder.ErrorMessage, (russian ? QStringLiteral("Не удалось создать папку: %1")
-                                               : QString("Could not create folder: %1"))
-                                          .arg(path));
-        QCOMPARE(read(path), QByteArray("keep bytes"));
-        QVERIFY(!folder.CreateFile(name));
-        QCOMPARE(folder.ErrorMessage, (russian ? QStringLiteral("Не удалось создать файл: %1")
-                                               : QString("Could not create file: %1"))
-                                          .arg(path));
-        QCOMPARE(read(path), QByteArray("keep bytes"));
-    }
     void transfer_data() {
         QTest::addColumn<bool>("russian");
         QTest::addColumn<bool>("move");

@@ -111,9 +111,6 @@ class CFSFolder final : public IFolderFolder,
     std::function<bool(const QString &)> CheckBreak;
     void AddPath(const QString &path);
     FString GetRelPath(const CDirItem &item) const;
-    void GetAbsPath(const QString &name, QString &absPath) const;
-    bool CreateFolder(const QString &name);
-    bool CreateFile(const QString &name);
     bool Rename(UInt32 index, const QString &newName);
     bool Delete(const UInt32 *indices, UInt32 numItems);
 

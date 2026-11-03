@@ -61,3 +61,25 @@ Linux focused validation passed: `combo_dialog`, `source_create`,
 without skips. This validates the shared Qt input boundary and its direct
 consumers; no new Windows/macOS or rendered-original appearance acceptance is
 claimed. No native platform service or layout implementation changed.
+
+## Creation provider boundary — 2026-11-03
+
+Reviewed the complete CreateFolder/CreateFile command, dialog/path validation,
+update eligibility, progress, provider and selection/refresh consumers. Original
+PanelOperations.cpp and FSFolder.cpp/.h hashes match the existing b88c baseline.
+The retained source routes already use IFolderOperations. Their distinct failure
+and refresh policies, native path correction, no-replace creation and selection
+publication remain unchanged.
+
+Removed two Qt convenience creation methods and their now-unused QString path
+projection. Only tests called these wrappers; their parallel error messages
+were not part of the application workflow. Provider checks now call the same
+native creation interface used by the panel. Tests of wrapper-only translated
+errors are removed; existing source_create cases verify the actual localized
+failure dialog, selection and unchanged bytes. Native and combined filesystem
+checks retain Unicode/nested/absolute-path and collision coverage. Transfer
+localization checks remain with their active operation consumers.
+
+No external code or decoding/filesystem algorithm is imported or replaced,
+and no pre-fix product failure, UI geometry change or new platform service is
+claimed.
