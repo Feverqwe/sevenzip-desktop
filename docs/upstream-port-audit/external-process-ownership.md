@@ -1,5 +1,31 @@
 # External-process ownership
 
+## Returned-edit callback ownership — 2026-11-03
+
+Reviewed editor launch/tracking, changed-copy consent, the GUI handoff, source
+`OnOpenItemChanged`/`CThreadCopyFrom`, callback initialization and joined progress,
+with update and selection publication consumers. Compared the original worker
+and write-back bodies at `b88c6bc09339de32f7d18bbab900686b244f42ba`; complete
+PanelItemOpen.cpp matches the recorded hash. The existing typed COM owner comes
+from recorded MyCom.h, whose original hash also matches. No external source is
+imported or provenance advanced.
+
+The write-back worker now holds one CMyComPtr2 for its IProgress reference and
+concrete update callback, removing the separately maintained raw alias. Allocation,
+one retained reference, interface conversion, transport creation, Init/password
+ordering and joined destruction remain unchanged. Child discovery/wait policy,
+temporary-copy protection, update consent, native writer and post-operation
+selection publication retain their existing owners and algorithms. These distinct
+lifetimes do not justify another structural wrapper. Existing public editing,
+lifetime and update checks cover the change; no representation-only test is added.
+
+Linux `archive_external_edit`, `archive_external_lifetime` and
+`source_update_backend` passed: 81 Qt checks without failures or skips;
+incremental build 14.716s, tests 15.920s. Completed settings and registry records
+for absent test objects were removed; build trees and compiler caches retained.
+No native platform branch, UI layout or launch policy changed, so no secondary
+OS, full/slow suite or new visual acceptance is claimed.
+
 ## Independent operation completion — 2026-11-03
 
 Reviewed the full launcher/channel, endpoint, typed contract, native process
