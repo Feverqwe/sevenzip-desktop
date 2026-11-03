@@ -187,6 +187,8 @@ void FileIconList::startDrag(Qt::DropActions actions) {
 }
 
 void FileIconList::SetListViewMode(int mode) {
+    // Qt's Static movement resets dragEnabled; retain the provider's policy.
+    const bool drag = dragEnabled();
     mode_ = mode;
     setViewMode(mode == 0 ? QListView::IconMode : QListView::ListMode);
     const int icon = style()->pixelMetric(
@@ -205,14 +207,11 @@ void FileIconList::SetListViewMode(int mode) {
     setWrapping(true);
     setResizeMode(QListView::Adjust);
     setMovement(QListView::Static);
+    setDragEnabled(drag);
 }
 
 void FileIconList::changeEvent(QEvent *event) {
     QListView::changeEvent(event);
-    if (mode_ >= 0 &&
-        (event->type() == QEvent::FontChange || event->type() == QEvent::StyleChange)) {
-        const bool drag = dragEnabled();
+    if (mode_ >= 0 && (event->type() == QEvent::FontChange || event->type() == QEvent::StyleChange))
         SetListViewMode(mode_);
-        setDragEnabled(drag);
-    }
 }

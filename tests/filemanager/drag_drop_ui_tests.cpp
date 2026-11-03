@@ -12,7 +12,11 @@
 #include <QDragLeaveEvent>
 #include <QMouseEvent>
 #include <QStackedWidget>
+#include <QStandardItemModel>
+#include <QStyle>
+#include <QStyleFactory>
 #include <QThread>
+#include <memory>
 
 namespace {
 int Row(FileTable &table, const QString &name) {
@@ -34,6 +38,55 @@ class DragDropUiTests final : public QObject {
     Q_OBJECT
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
+
+    void viewModesPreserveDragInteraction_data() {
+        QTest::addColumn<int>("mode");
+        QTest::addColumn<bool>("enabled");
+        for (int mode : {0, 1, 2})
+            for (bool enabled : {false, true})
+                QTest::newRow(qPrintable(QString("%1-%2").arg(mode).arg(enabled)))
+                    << mode << enabled;
+    }
+    void viewModesPreserveDragInteraction() {
+        QFETCH(int, mode);
+        QFETCH(bool, enabled);
+        const std::unique_ptr<QStyle> style(QStyleFactory::create(QStringLiteral("Fusion")));
+        QVERIFY(style);
+        QStandardItemModel model;
+        model.appendRow(new QStandardItem(QStringLiteral("drag item")));
+        FileIconList view;
+        view.setModel(&model);
+        view.setDragEnabled(enabled);
+        int exports = 0;
+        view.dragStarter = [&] { ++exports; };
+        view.SetListViewMode(mode);
+        view.resize(640, 320);
+        view.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&view));
+        const auto drag = [&] {
+            const auto index = model.index(0, 0);
+            view.setCurrentIndex(index);
+            const QPoint start = view.visualRect(index).center();
+            QTest::mousePress(view.viewport(), Qt::LeftButton, Qt::NoModifier, start);
+            const QPoint finish = start + QPoint(QApplication::startDragDistance() + 2, 0);
+            QMouseEvent move(QEvent::MouseMove, finish, view.viewport()->mapToGlobal(finish),
+                             Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
+            QCoreApplication::sendEvent(view.viewport(), &move);
+            QTest::mouseRelease(view.viewport(), Qt::LeftButton, Qt::NoModifier, finish);
+        };
+        drag();
+        QCOMPARE(exports, int(enabled));
+        QFont font = view.font();
+        font.setPointSizeF(qMax(9.0, font.pointSizeF()) + 1);
+        view.setFont(font);
+        QCoreApplication::processEvents();
+        drag();
+        QCOMPARE(exports, enabled ? 2 : 0);
+        view.setStyle(style.get());
+        QCoreApplication::processEvents();
+        drag();
+        QCOMPARE(exports, enabled ? 3 : 0);
+    }
 
     void externalMiddleButtonUsesDropMenu() {
         QTemporaryDir root;
