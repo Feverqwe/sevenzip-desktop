@@ -6,33 +6,10 @@ void MainWindow::configureColumns() {
     const QScopedValueRollback<bool> configuring(configuringColumns_, true);
     const QSignalBlocker blocked(projectedUi().table->horizontalHeader());
     auto *fileTable = static_cast<FileTable *>(projectedUi().table);
-    const CPropColumns &columns = panel.GetColumns();
     projectedUi().table->clearRows();
     fileTable->textFolder = panel.GetFolder();
     fileTable->configureSourceColumns();
-    FOR_VECTOR(i, columns) {
-        const CPropColumn &prop = columns[i];
-        const int column = fileTable->columnForCatalogProperty(i);
-        projectedUi().table->setColumnWidth(column, qMax(32, int(prop.Width)));
-        projectedUi().table->setColumnHidden(column, !prop.IsVisible);
-    }
-    for (int column : {1, 5, 6})
-        projectedUi().table->setColumnHidden(column, true);
-    for (int column : {0, 2, 3, 4}) {
-        if (!fileTable->sourceColumn(column))
-            projectedUi().table->setColumnHidden(column, true);
-    }
-    const CPropColumns &visible = panel.GetVisibleColumns();
     updateIconColumn();
-    CIntArr columnOrder;
-    const bool ordered = panel.GetColumnOrder(columnOrder);
-    FOR_VECTOR(i, visible) {
-        const int column =
-            fileTable->columnForVisibleProperty(ordered ? unsigned(columnOrder[i]) : i);
-        if (column >= 0)
-            projectedUi().table->horizontalHeader()->moveSection(
-                projectedUi().table->horizontalHeader()->visualIndex(column), int(i));
-    }
     const int sortColumn = fileTable->columnForProperty(panel.GetSortID());
     if (sortColumn < 0 || projectedUi().table->isColumnHidden(sortColumn)) {
         const int fallback = panel.GetSortID() == kpidNoProperty ? 6 : 0;
@@ -54,24 +31,7 @@ void MainWindow::saveColumns() {
     if (panel.GetColumns().IsEmpty())
         return;
     const auto *fileTable = static_cast<FileTable *>(projectedUi().table);
-    CPropColumns visible;
-    const CPropColumns &columns = panel.GetVisibleColumns();
-    FOR_VECTOR(i, columns) {
-        const int column = fileTable->columnForVisibleProperty(i);
-        if (column < 0 || projectedUi().table->isColumnHidden(column))
-            continue;
-        CPropColumn prop = columns[i];
-        prop.IsVisible = true;
-        prop.Order = 0;
-        for (int visual = 0; visual < projectedUi().table->horizontalHeader()->visualIndex(column);
-             ++visual)
-            if (!projectedUi().table->isColumnHidden(
-                    projectedUi().table->horizontalHeader()->logicalIndex(visual)))
-                ++prop.Order;
-        prop.Width = UInt32(projectedUi().table->horizontalHeader()->sectionSize(column));
-        visible.Add(prop);
-    }
-    panel.SaveListViewInfo(visible);
+    panel.SaveListViewInfo(fileTable->sourceColumnLayout());
 }
 
 void MainWindow::showColumnsMenu(const QPoint &pos) {

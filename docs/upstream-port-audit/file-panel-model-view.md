@@ -204,6 +204,26 @@ providers/Agent/CPanel algorithms и прежние omissions не измене�
 source-visible заглушек или не подключённых model consumers в выбранном
 scope не осталось.
 
+## Column layout projection owner — 2026-11-03
+
+Rechecked original InitColumns, SaveListViewInfo, ShowColumnsContextMenu and
+OnColumnClick with current catalog/binding, menu, header, sort and persistence
+consumers. Complete PanelItems.cpp, PanelSort.cpp and Panel.h original hashes
+match the existing b88c baseline. No source algorithm or external code is imported.
+
+FileTable now applies the prepared column layout and projects current display
+metadata back to source descriptors beside its existing binding owner. The window
+keeps panel projection, publication guards, native sort fallback and persistence
+dispatch. Header order is counted once when capturing display metadata, while
+descriptor order stays in source logical order. Duplicate/raw identities, hidden
+reserved sections, widths, visibility and source settings policy are unchanged.
+The shared icon view receives its model-column binding after table configuration.
+
+Existing initialization, menu, dynamic-schema, duplicate-column sorting and native
+provider workflows cover selection, peer ownership, hide/show, resize/reorder and
+reload/reopen persistence. No representation-only test or pre-fix product failure
+is added; layout metrics and visible UI structure are unchanged.
+
 ## Column publication boundary — 2026-11-02
 
 Rechecked native InitColumns/LoadListItems and SaveListViewInfo against the
