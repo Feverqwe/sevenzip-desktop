@@ -218,7 +218,7 @@ class MainWindow : public QMainWindow {
     HRESULT showDirectory(const QString &path, bool remember, bool sourceAlreadyBound = false,
                           bool updateAddress = true);
     HRESULT renderRootFolder(bool updateAddress = true);
-    HRESULT appendFilesystemEntry(const QFileInfo &file, quint32 sourceIndex);
+    HRESULT appendFilesystemEntry(const QString &baseDirectory, quint32 sourceIndex);
     void appendParentEntry();
     void completeListSelection();
     void refreshCurrent(const CSelectedState *preserved = nullptr);
@@ -255,7 +255,6 @@ class MainWindow : public QMainWindow {
     void goRoot(bool remember = true, RootLocation location = RootLocation::Namespace);
     QString archiveDisplayPath() const;
     HRESULT renderBoundFolder(bool updateAddress = true);
-    bool isNestedArchive() const;
     HRESULT renderArchiveFolder(bool updateAddress = true);
     HRESULT appendArchiveEntry(CAgentFolder &folder, unsigned index, const QString &prefix,
                                bool flat);

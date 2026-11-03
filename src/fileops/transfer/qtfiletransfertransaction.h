@@ -32,6 +32,9 @@ class QtFileTransferTransaction final {
     };
     FileTransferOperation &worker_;
     QList<TransferPath> prepareTargets(QString &error) const;
+    bool transferEntry(const TransferPath &path,
+                       const std::function<int(const OverwriteSource &)> &answer,
+                       QList<TransferEntry> &completed, QString &error);
     FileTransferOperation::Completion finish(QList<TransferEntry> &completed, QString &error);
     void rollbackEntry(const TransferEntry &entry, const QString &ownedPath, RollbackMode mode);
     void rollback(const QList<TransferEntry> &completed,

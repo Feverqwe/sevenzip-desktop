@@ -10,7 +10,6 @@
 #include <atomic>
 
 class QLabel;
-class QPushButton;
 class QGridLayout;
 class QHBoxLayout;
 class QDialogButtonBox;
@@ -69,7 +68,6 @@ class CQtBenchmarkWindow : public QDialog {
     QGridLayout *BuildSummary();
     QLabel *label(unsigned id, const char *name, const QString &text = {});
     QLabel *rightLabel(unsigned id, const char *name, const QString &text = {});
-    QPushButton *button(unsigned id, const char *name, const QString &text);
     QComboBox *combo(unsigned id, const char *name);
     QWidget *Register(unsigned id, const char *name, QWidget *widget);
     static QString ResourceCaption(unsigned id);

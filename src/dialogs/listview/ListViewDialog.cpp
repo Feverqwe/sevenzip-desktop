@@ -113,8 +113,8 @@ bool CListViewDialog::OnInit() {
 }
 
 void CListViewDialog::QtBindPropertyName(unsigned row, UInt32 id, const wchar_t *fallback) {
-    _rowBindings[row].Property = CPropertyNameBinding{
-        id, fallback ? ToQString(UString(fallback)) : QString(), fallback != nullptr};
+    _rowBindings[row].Property =
+        CPropertyNameBinding{id, fallback ? std::make_optional<UString>(fallback) : std::nullopt};
 }
 
 void CListViewDialog::QtBindDiagnosticRow(unsigned row, const char *name, const char *value) {
@@ -122,11 +122,11 @@ void CListViewDialog::QtBindDiagnosticRow(unsigned row, const char *name, const 
 }
 
 void CListViewDialog::QtBindArchiveDiagnosticValue(unsigned row, const UString &source) {
-    _rowBindings[row].ArchiveValue = ToQString(source);
+    _rowBindings[row].ArchiveValue = source;
 }
 
 void CListViewDialog::QtBindArchiveFlagsValue(unsigned row, UInt32 flags) {
-    _rowBindings[row].ArchiveValue = QVariant::fromValue(quint32(flags));
+    _rowBindings[row].ArchiveValue = flags;
 }
 
 void CListViewDialog::changeEvent(QEvent *event) {
@@ -134,12 +134,11 @@ void CListViewDialog::changeEvent(QEvent *event) {
         for (int i = 0; i < _listView->topLevelItemCount(); ++i) {
             auto *item = _listView->topLevelItem(i);
             const auto binding = _rowBindings.value(item->data(0, kRowIdentityRole).toUInt());
-            const QVariant &archiveValue = binding.ArchiveValue;
-            if (archiveValue.isValid() && unsigned(i) < Values.Size()) {
+            const auto *flags = std::get_if<UInt32>(&binding.ArchiveValue);
+            const auto *source = std::get_if<UString>(&binding.ArchiveValue);
+            if ((flags || source) && unsigned(i) < Values.Size()) {
                 const UString value =
-                    archiveValue.metaType().id() == QMetaType::UInt
-                        ? GetOpenArcErrorMessage(archiveValue.toUInt())
-                        : QtArchiveDiagnosticText(ToUString(archiveValue.toString()));
+                    flags ? GetOpenArcErrorMessage(*flags) : QtArchiveDiagnosticText(*source);
                 Values[unsigned(i)] = value;
                 item->setText(1, ToQString(ListValueText(value)));
             }
@@ -157,9 +156,8 @@ void CListViewDialog::changeEvent(QEvent *event) {
             if (!binding.Property)
                 continue;
             const auto &property = *binding.Property;
-            const UString fallback = ToUString(property.Fallback);
-            const UString text =
-                GetNameOfProperty(property.ID, property.HasFallback ? fallback.Ptr() : nullptr);
+            const UString text = GetNameOfProperty(
+                property.ID, property.Fallback ? property.Fallback->Ptr() : nullptr);
             if (unsigned(i) < Strings.Size())
                 Strings[unsigned(i)] = text;
             item->setText(0, ToQString(text));

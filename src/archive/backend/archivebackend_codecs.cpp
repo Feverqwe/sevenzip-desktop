@@ -128,11 +128,7 @@ HRESULT ArchiveBackend::updateNativeComment(const std::shared_ptr<ArchiveNativeO
                                             IArchiveUpdateCallback *callback) const {
     if (!reader || !reader->hasCommentWriter())
         return E_NOTIMPL;
-    std::lock_guard<std::mutex> lock(reader->itemStreamMutex());
-    CMyComPtr<IOutArchive> writer;
-    RINOK(reader->arc().Archive.QueryInterface(IID_IOutArchive, &writer))
-    RINOK(ValidateNativeUpdatePaths(count, callback))
-    return writer->UpdateItems(output, count, callback);
+    return updateNativeArchive(reader, output, count, callback);
 }
 
 HRESULT ArchiveBackend::updateSourceArchive(const QString &path, const QString &type,

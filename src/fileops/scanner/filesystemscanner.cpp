@@ -1,20 +1,13 @@
 #include "fileops/scanner/filesystemscanner.h"
 #include "Common/MyCom.h"
-#include "Common/StringConvert.h"
-#include "filemanager/panels/Panel.h"
 #include "filemanager/providers/FSFolder.h"
 #include "filemanager/providers/filesystemfolderloader.h"
-#include "filemanager/providers/qtlocationfolder.h"
-#include <QDir>
-#include <QElapsedTimer>
 #include <QPointer>
 #include <QTimer>
 
 struct FilesystemScanner::Presentation {
-    explicit Presentation(IFolderFolder *source)
-        : folder(source), directory(QtFilesystemPath(us2fs(GetFolderPath(source)))) {}
+    explicit Presentation(IFolderFolder *source) : folder(source) {}
     const CMyComPtr<IFolderFolder> folder;
-    const QString directory;
     quint32 nextIndex = 0;
 };
 
@@ -119,22 +112,16 @@ void FilesystemScanner::scanBatch(quint64 generation) {
     const auto presentation = presentation_;
     if (generation != generation_ || !presentation)
         return;
-    QElapsedTimer elapsed;
-    elapsed.start();
-    QFileInfoList files;
     const quint32 firstIndex = presentation->nextIndex;
     auto *spec = static_cast<NFsFolder::CFSFolder *>((IFolderFolder *)presentation->folder);
-    // Row creation can include native icon lookup. Keep each GUI delivery
-    // bounded independently of the time spent preparing QFileInfo values.
-    while (files.size() < 32 && elapsed.elapsed() < 8 &&
-           presentation->nextIndex < spec->Files.Size()) {
-        const FString relPath = spec->GetRelPath(spec->Files[presentation->nextIndex++]);
-        const QString name = QtFilesystemPath(relPath);
-        files.append(QFileInfo(QDir(presentation->directory).filePath(name)));
-    }
+    // Row creation can include native icon lookup. Bound each GUI delivery;
+    // path and row projection belong to the receiving panel.
+    const quint32 count =
+        firstIndex < spec->Files.Size() ? qMin(quint32(32), spec->Files.Size() - firstIndex) : 0;
+    presentation->nextIndex += count;
     const QPointer<FilesystemScanner> guard(this);
-    if (!files.isEmpty())
-        emit batchReady(files, firstIndex);
+    if (count)
+        emit batchReady(firstIndex, count);
     if (!guard)
         return;
     if (presentation != presentation_)

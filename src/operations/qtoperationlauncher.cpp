@@ -210,29 +210,25 @@ void QtOperationLauncher::observe() {
     if (!state_->result_ && state_->exited_.elapsed() < 1000)
         return;
     using Outcome = QtOperationResult::Outcome;
+    QtOperationResult result;
     if (native.Status == QtOperationProcess::State::Crashed) {
-        finish({Outcome::Crashed, int(native.Code),
-                QCoreApplication::translate("QtOperation",
-                                            "The operation process terminated unexpectedly.")});
-        return;
-    }
-    if (native.Status == QtOperationProcess::State::ObservationFailed) {
-        finish({Outcome::ProtocolFailed, 2, native.Error});
-        return;
-    }
-    // Native exit and local socket notification can be delivered in either
-    // order. Allow buffered result/EOF notifications to reach the observer.
-    if (state_->result_) {
-        auto result = *state_->result_;
+        result = {Outcome::Crashed, int(native.Code),
+                  QCoreApplication::translate("QtOperation",
+                                              "The operation process terminated unexpectedly.")};
+    } else if (native.Status == QtOperationProcess::State::ObservationFailed) {
+        result = {Outcome::ProtocolFailed, 2, native.Error};
+    } else if (state_->result_) {
+        result = *state_->result_;
         if (result.Status != Outcome::ProtocolFailed && native.Code != quint32(result.ExitCode))
             result = {Outcome::ProtocolFailed, int(native.Code),
                       QCoreApplication::translate("QtOperation",
                                                   "Operation result and process exit disagree.")};
-        finish(result);
-    } else if (state_->exited_.elapsed() >= 1000)
-        finish({Outcome::ProtocolFailed, int(native.Code),
-                QCoreApplication::translate(
-                    "QtOperation", "Operation process exited without a complete result.")});
+    } else {
+        result = {Outcome::ProtocolFailed, int(native.Code),
+                  QCoreApplication::translate(
+                      "QtOperation", "Operation process exited without a complete result.")};
+    }
+    finish(std::move(result));
 }
 
 void QtOperationLauncher::finish(QtOperationResult result) {

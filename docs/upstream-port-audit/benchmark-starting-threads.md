@@ -42,3 +42,29 @@ project runtime passed. No codec or benchmark test assertion was relaxed.
 
 No UI geometry or text change is introduced by this validation; slow suites are
 not included. The selected suites do not establish whole-project acceptance.
+
+## Qt action ownership — 2026-11-03
+
+Reviewed benchmark initialization, parameter changes, restart/stop/cancel,
+completion/join and report copying with the Qt control builder and File Manager
+command consumer. Compared original command/button/cancel handlers and resources
+at `b88c6bc09339de32f7d18bbab900686b244f42ba`; complete BenchmarkDialog.cpp,
+BenchmarkDialog.h and BenchmarkDialog.rc hashes match the recorded baseline.
+No original algorithm, source import or provenance revision changes.
+
+The Qt footer now creates and connects its Restart/Stop actions directly.
+Removed the separate button factory and its unreachable Close/Help dispatch,
+along with unused standard-button caption/binding branches. Close/Help continue
+through the existing standard button-box signals. Source command IDs, handlers,
+worker state, creation/registration/connection order, action roles, translations,
+default button, tab order and report behavior remain unchanged. The source
+benchmark algorithm and its state transitions do not need another wrapper.
+Existing lifecycle and command checks cover the public behavior; no new test
+pins private factories, resource maps or the current control structure.
+
+Linux `benchmark_lifecycle` and `benchmark_command` passed: 25 Qt checks,
+no failures or skips; incremental build 17.174s, tests 6.084s. Existing normal/
+compact and live-language checks passed without a layout/text change. Completed
+settings were removed; incremental outputs and compiler caches retained.
+No secondary platform, heavy benchmark, full/slow suite or new rendered-original
+appearance acceptance is claimed.

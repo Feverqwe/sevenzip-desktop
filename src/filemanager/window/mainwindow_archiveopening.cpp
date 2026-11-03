@@ -112,10 +112,6 @@ HRESULT MainWindow::openArchiveAs(const QString &path, const QString &type) {
     return panel.IsArcFolder() ? result : result == S_OK ? S_FALSE : result;
 }
 
-bool MainWindow::isNestedArchive() const {
-    return app_.Panels[app_.GetFocusedPanelIndex()].GetParentFolders().Size() > 1;
-}
-
 HRESULT MainWindow::renderBoundFolder(bool updateAddress) {
     if (app_.QtOperations().closed())
         return E_ABORT;

@@ -5,7 +5,6 @@
 void CreateArchiveDialog::updateSfxControls() {
     if (!sfx_)
         return;
-    configureArchiveName(format_->currentText());
     archiveNameState_.MethodID = level_->currentData().toUInt() == 0
                                      ? NCompressDialog::kCopy
                                      : archiveNameState_.GetMethodID();

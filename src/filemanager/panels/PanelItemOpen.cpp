@@ -1197,8 +1197,7 @@ class CThreadCopyFrom : public CProgressThreadVirt {
     UString FullPath;
     UInt32 ItemIndex;
     CMyComPtr<IFolderOperations> FolderOperations;
-    CMyComPtr<IProgress> UpdateCallback;
-    CUpdateCallback100Imp *UpdateCallbackSpec;
+    CMyComPtr2<IProgress, CUpdateCallback100Imp> UpdateCallback;
 };
 
 HRESULT CThreadCopyFrom::ProcessVirt() {
@@ -1212,9 +1211,8 @@ HRESULT CPanel::OnOpenItemChanged(UInt32 index, const wchar_t *fullFilePath, boo
         return E_FAIL;
     }
     CThreadCopyFrom t;
-    t.UpdateCallbackSpec = new CUpdateCallback100Imp;
-    t.UpdateCallback = t.UpdateCallbackSpec;
-    t.UpdateCallbackSpec->ProgressDialog = &t;
+    t.UpdateCallback.SetFromCls(new CUpdateCallback100Imp);
+    t.UpdateCallback->ProgressDialog = &t;
     t.ItemIndex = index;
     t.FullPath = fullFilePath;
     t.FolderOperations = _folderOperations;
@@ -1222,9 +1220,9 @@ HRESULT CPanel::OnOpenItemChanged(UInt32 index, const wchar_t *fullFilePath, boo
     if (auto *services =
             dynamic_cast<IQtProgressServices *>((IFolderOperations *)_folderOperations))
         transport = services->CreateProgressTransport(t);
-    t.UpdateCallbackSpec->Init();
-    t.UpdateCallbackSpec->PasswordIsDefined = usePassword;
-    t.UpdateCallbackSpec->Password = password;
+    t.UpdateCallback->Init();
+    t.UpdateCallback->PasswordIsDefined = usePassword;
+    t.UpdateCallback->Password = password;
     RINOK(t.Create(GetItemName(index), GetParent()))
     return t.Result;
 }

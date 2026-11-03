@@ -36,9 +36,7 @@ QString CQtBenchmarkWindow::ResourceCaption(unsigned id) {
         {IDT_BENCH_ELAPSED, "Elapsed time:"},
         {IDT_BENCH_PASSES, "Passes:"},
         {IDB_RESTART, "&Restart"},
-        {IDB_STOP, "&Stop"},
-        {9, "&Help"},
-        {2, "Cancel"}};
+        {IDB_STOP, "&Stop"}};
     return captions.value(id);
 }
 QString CQtBenchmarkWindow::QtLangText(unsigned id) {
@@ -62,10 +60,7 @@ QWidget *CQtBenchmarkWindow::Register(unsigned id, const char *name, QWidget *wi
     if (id == IDT_BENCH_SPEED)
         widget->setProperty("languageRemoveColon", true);
     if (!caption.isEmpty()) {
-        if (id == IDCANCEL || id == IDHELP)
-            QtBindStandardResourceText(widget, id, caption);
-        else
-            QtBindResourceText(widget, captionId, caption);
+        QtBindResourceText(widget, captionId, caption);
     }
     return widget;
 }
@@ -79,19 +74,6 @@ QLabel *CQtBenchmarkWindow::label(unsigned id, const char *name, const QString &
 QLabel *CQtBenchmarkWindow::rightLabel(unsigned id, const char *name, const QString &text) {
     auto *view = label(id, name, text);
     view->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-    return view;
-}
-QPushButton *CQtBenchmarkWindow::button(unsigned id, const char *name, const QString &text) {
-    auto *view = new QPushButton(text, this);
-    Register(id, name, view);
-    connect(view, &QPushButton::clicked, this, [this, id, view] {
-        if (id == 2)
-            OnCancel();
-        else if (id == 9)
-            OnHelp();
-        else
-            OnButtonClicked(id, view);
-    });
     return view;
 }
 QComboBox *CQtBenchmarkWindow::combo(unsigned id, const char *name) {
@@ -142,10 +124,14 @@ QDialogButtonBox *CQtBenchmarkWindow::BuildFooter(bool totalMode) {
     QtBindLocalText(copy, "DialogRedesign", QT_TRANSLATE_NOOP("DialogRedesign", "Copy"));
     connect(copy, &QPushButton::clicked, this, &CQtBenchmarkWindow::CopyReport);
     if (!totalMode) {
-        footer->addButton(button(IDB_RESTART, "IDB_RESTART", QtLangText(IDB_RESTART)),
-                          QDialogButtonBox::ActionRole);
-        footer->addButton(button(IDB_STOP, "IDB_STOP", QtLangText(IDB_STOP)),
-                          QDialogButtonBox::ActionRole);
+        for (const auto &entry :
+             {qMakePair(IDB_RESTART, "IDB_RESTART"), qMakePair(IDB_STOP, "IDB_STOP")}) {
+            auto *view = new QPushButton(QtLangText(entry.first), this);
+            Register(entry.first, entry.second, view);
+            connect(view, &QPushButton::clicked, this,
+                    [this, id = entry.first, view] { OnButtonClicked(id, view); });
+            footer->addButton(view, QDialogButtonBox::ActionRole);
+        }
     }
     return footer;
 }

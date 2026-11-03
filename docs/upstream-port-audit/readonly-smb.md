@@ -1,5 +1,34 @@
 # Local read-only SMB: implementation and evidence
 
+## Namespace preparation ownership — 2026-11-03
+
+Reviewed retained-view preparation, native item metadata, SMB namespace projection,
+direct-stream probing, decoded-cache publication/eviction and session/source
+consumers. These are local mount integration; recorded native GetItem/GetStream
+and extraction boundaries remain unchanged, with no external import or baseline
+advance.
+
+The complete namespace preparation now has a focused source owner beside the
+view and cache implementation. Its full-path index is local to preparation:
+parent/conflict lookup finishes before the prepared view serves reads. The view
+retains its entries and native item/stream mapping, without retaining an unused
+copy of every full path. Native metadata lookup, normalization, parent ordering,
+folder projection, skipped-entry diagnostics and name-safety decisions preserve
+their previous control flow. Preparation failure/cancellation remains terminal
+for that view. Source collection was compared independently of runtime checks.
+
+The new source unit is recorded as local integration in the existing inventory;
+no original hashes change. Existing behavioral coverage exercises nested roots,
+unsafe/conflicting names, case-distinct entries, metadata failures, retained reader
+generations, direct/cached ranges, fresh consent, recovery, eviction retry and
+cancellation. No private-state or file-presence test is added. Cache/quota/consent,
+OS mount policy and UI geometry are unchanged.
+
+Linux passed archive_readonly_view, archive_mount_transport, mount_session and
+mount_extraction_prompt: 85 checks, with five existing native OS mount rows
+behind their opt-in. No new native mount, secondary-platform or full/slow
+acceptance is claimed. Incremental outputs and compiler caches were retained.
+
 ## READ reply buffer handoff — 2026-11-02
 
 Compared the complete `lib/smb2-cmd-read.c` inventory unit, headers, vector/PDU

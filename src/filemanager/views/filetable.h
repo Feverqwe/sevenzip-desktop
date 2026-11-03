@@ -10,6 +10,7 @@
 #include <QVector>
 #include <functional>
 class CPanel;
+class CPropColumns;
 struct CPropColumn;
 QAbstractItemDelegate *CreateFileRowDelegate(QWidget *parent);
 
@@ -41,6 +42,7 @@ class FileTable : public QTableView {
     std::function<void()> dragStarter;
     void setColumnProperties(const QVector<PROPID> &properties, bool raw = false);
     void configureSourceColumns();
+    CPropColumns sourceColumnLayout() const;
     bool usesSourceColumns() const { return sourceColumnsBound_; }
     const CPropColumn *sourceColumn(int column) const;
     int columnForCatalogProperty(unsigned index) const;

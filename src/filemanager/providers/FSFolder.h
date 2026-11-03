@@ -104,18 +104,12 @@ class CFSFolder final : public IFolderFolder,
         // Streams.Clear();
     }
     QString ErrorMessage;
-    std::function<bool(quint64)> SetTotal;
     std::function<bool(quint64)> SetCompleted;
     // LoadItems uses these existing integration callbacks for count progress
     // and cooperative cancellation; no Qt widgets run in the source body.
     std::function<bool(const QString &)> CheckBreak;
     void AddPath(const QString &path);
     FString GetRelPath(const CDirItem &item) const;
-    void GetAbsPath(const QString &name, QString &absPath) const;
-    bool CreateFolder(const QString &name);
-    bool CreateFile(const QString &name);
-    bool Rename(UInt32 index, const QString &newName);
-    bool Delete(const UInt32 *indices, UInt32 numItems);
 
   private:
     HRESULT LoadSubItems(int dirItem, const FString &relPrefix);

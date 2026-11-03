@@ -301,11 +301,6 @@ void CreateArchiveDialog::createArchiveForm(QVBoxLayout *layout, QVBoxLayout *wi
                 ToUString(archiveFolder_->text()), folder))
             archiveFolder_->setText(QDir::toNativeSeparators(ToQString(folder)));
     });
-    connect(format_, &QComboBox::currentTextChanged, this, [this] {
-        configureArchiveName(format_->currentText());
-        archiveNameState_.SetArchiveName2();
-        name_->setText(archiveNameState_.m_ArchivePath);
-    });
     connect(archivePath_, &QComboBox::activated, this, [this](int index) {
         CCompressDialog path = archiveNameState_;
         const QString selectedPath = archivePath_->itemText(index);

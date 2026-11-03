@@ -23,35 +23,39 @@
 #include <QStandardPaths>
 #include <QToolButton>
 #include <QVBoxLayout>
+#include <span>
 
 #define kHelpTopic "fm/plugins/7-zip/extract.htm"
 void CExtractDialog::OnHelp() { ShowHelpWindow(kHelpTopic, this); }
-static const int kPathModeButtonsVals[] = {
-    NExtract::NPathMode::kFullPaths, NExtract::NPathMode::kNoPaths, NExtract::NPathMode::kAbsPaths};
-static const int kOverwriteButtonsVals[] = {
-    NExtract::NOverwriteMode::kAsk, NExtract::NOverwriteMode::kOverwrite,
-    NExtract::NOverwriteMode::kSkip, NExtract::NOverwriteMode::kRename,
-    NExtract::NOverwriteMode::kRenameExisting};
-static const UInt32 kPathMode_IDs[] = {IDS_EXTRACT_PATHS_FULL, IDS_EXTRACT_PATHS_NO,
-                                       IDS_EXTRACT_PATHS_ABS};
-static const UInt32 kOverwriteMode_IDs[] = {
-    IDS_EXTRACT_OVERWRITE_ASK, IDS_EXTRACT_OVERWRITE_WITHOUT_PROMPT,
-    IDS_EXTRACT_OVERWRITE_SKIP_EXISTING, IDS_EXTRACT_OVERWRITE_RENAME,
-    IDS_EXTRACT_OVERWRITE_RENAME_EXISTING};
+namespace {
+struct CExtractModeItem {
+    int Value;
+    UInt32 LangID;
+};
+static constexpr CExtractModeItem kPathModes[] = {
+    {NExtract::NPathMode::kFullPaths, IDS_EXTRACT_PATHS_FULL},
+    {NExtract::NPathMode::kNoPaths, IDS_EXTRACT_PATHS_NO},
+    {NExtract::NPathMode::kAbsPaths, IDS_EXTRACT_PATHS_ABS}};
+static constexpr CExtractModeItem kOverwriteModes[] = {
+    {NExtract::NOverwriteMode::kAsk, IDS_EXTRACT_OVERWRITE_ASK},
+    {NExtract::NOverwriteMode::kOverwrite, IDS_EXTRACT_OVERWRITE_WITHOUT_PROMPT},
+    {NExtract::NOverwriteMode::kSkip, IDS_EXTRACT_OVERWRITE_SKIP_EXISTING},
+    {NExtract::NOverwriteMode::kRename, IDS_EXTRACT_OVERWRITE_RENAME},
+    {NExtract::NOverwriteMode::kRenameExisting, IDS_EXTRACT_OVERWRITE_RENAME_EXISTING}};
+static constexpr int kModeCaptionRole = Qt::UserRole + 1;
 static const unsigned kHistorySize = 16;
 
-static void AddComboItems(QComboBox &combo, const UInt32 *langIDs, unsigned numItems,
-                          const int *values, int curVal) {
-    unsigned curSel = 0;
-    for (unsigned i = 0; i < numItems; i++) {
-        QString s = QtLangText(langIDs[i]);
+static void AddComboItems(QComboBox &combo, std::span<const CExtractModeItem> modes, int curVal) {
+    for (const auto &mode : modes) {
+        QString s = QtLangText(mode.LangID);
         s.remove('&');
-        combo.addItem(s, i);
-        if (values[i] == curVal)
-            curSel = i;
+        const int index = combo.count();
+        combo.addItem(s, mode.Value);
+        combo.setItemData(index, mode.LangID, kModeCaptionRole);
     }
-    combo.setCurrentIndex(int(curSel));
+    combo.setCurrentIndex(qMax(0, combo.findData(curVal)));
 }
+} // namespace
 
 void AddUniqueString(CObjectVector<QString> &list, const QString &s) {
     const UString source(s.toStdWString().c_str());
@@ -239,14 +243,13 @@ void CExtractDialog::SetInitialOptions(NExtract::NPathMode::EEnum pathMode,
         overwriteMode = _info.OverwriteMode;
     PathMode = pathMode;
     OverwriteMode = overwriteMode;
-    for (int index = 0; index < _pathMode->count(); ++index)
-        if (kPathModeButtonsVals[_pathMode->itemData(index).toUInt()] ==
-            (pathMode == NExtract::NPathMode::kCurPaths ? NExtract::NPathMode::kFullPaths
-                                                        : pathMode))
-            _pathMode->setCurrentIndex(index);
-    for (int index = 0; index < _overwriteMode->count(); ++index)
-        if (kOverwriteButtonsVals[_overwriteMode->itemData(index).toUInt()] == overwriteMode)
-            _overwriteMode->setCurrentIndex(index);
+    const int pathIndex = _pathMode->findData(int(
+        pathMode == NExtract::NPathMode::kCurPaths ? NExtract::NPathMode::kFullPaths : pathMode));
+    if (pathIndex >= 0)
+        _pathMode->setCurrentIndex(pathIndex);
+    const int overwriteIndex = _overwriteMode->findData(int(overwriteMode));
+    if (overwriteIndex >= 0)
+        _overwriteMode->setCurrentIndex(overwriteIndex);
     _passwordControl->setText(password);
 }
 
@@ -293,10 +296,8 @@ void CExtractDialog::OnInit(const QStringList &history) {
     // Qt addItem selects the first item in an editable empty combo. Restore typed text.
     _path->setCurrentIndex(-1);
     _path->setEditText(pathPrefix);
-    AddComboItems(*_pathMode, kPathMode_IDs, Z7_ARRAY_SIZE(kPathMode_IDs), kPathModeButtonsVals,
-                  PathMode);
-    AddComboItems(*_overwriteMode, kOverwriteMode_IDs, Z7_ARRAY_SIZE(kOverwriteMode_IDs),
-                  kOverwriteButtonsVals, OverwriteMode);
+    AddComboItems(*_pathMode, kPathModes, PathMode);
+    AddComboItems(*_overwriteMode, kOverwriteModes, OverwriteMode);
 }
 
 void CExtractDialog::showEvent(QShowEvent *event) {
@@ -310,12 +311,11 @@ void CExtractDialog::showEvent(QShowEvent *event) {
 
 void CExtractDialog::changeEvent(QEvent *event) {
     if (event->type() == QEvent::LanguageChange && _pathMode && _overwriteMode) {
-        for (auto pair :
-             {qMakePair(_pathMode, kPathMode_IDs), qMakePair(_overwriteMode, kOverwriteMode_IDs)})
-            for (int index = 0; index < pair.first->count(); ++index)
-                pair.first->setItemText(
+        for (auto *combo : {_pathMode, _overwriteMode})
+            for (int index = 0; index < combo->count(); ++index)
+                combo->setItemText(
                     index,
-                    QtLangText(pair.second[pair.first->itemData(index).toUInt()]).remove('&'));
+                    QtLangText(combo->itemData(index, kModeCaptionRole).toUInt()).remove('&'));
     }
     QDialog::changeEvent(event);
     if (event->type() == QEvent::LanguageChange)
@@ -325,9 +325,9 @@ void CExtractDialog::changeEvent(QEvent *event) {
 void CExtractDialog::UpdateAdvancedSummary() {
     if (!_advancedSection || _pathMode->currentIndex() < 0)
         return;
-    const bool modified =
-        kPathModeButtonsVals[_pathMode->currentIndex()] != NExtract::NPathMode::kFullPaths ||
-        !_elimDup->isChecked() || (_ntSecurity->isEnabled() && _ntSecurity->isChecked());
+    const bool modified = _pathMode->currentData().toInt() != NExtract::NPathMode::kFullPaths ||
+                          !_elimDup->isChecked() ||
+                          (_ntSecurity->isEnabled() && _ntSecurity->isChecked());
     _advancedSection->setSummary(
         modified ? QCoreApplication::translate("ArchiveRedesign", "Modified") : QString());
 }
@@ -344,11 +344,10 @@ void CExtractDialog::OnButtonSetPath() {
 }
 
 void CExtractDialog::OnOK() {
-    const int pathMode2 = kPathModeButtonsVals[_pathMode->currentData().toUInt()];
+    const int pathMode2 = _pathMode->currentData().toInt();
     if (PathMode != NExtract::NPathMode::kCurPaths || pathMode2 != NExtract::NPathMode::kFullPaths)
         PathMode = (NExtract::NPathMode::EEnum)pathMode2;
-    OverwriteMode = (NExtract::NOverwriteMode::EEnum)
-        kOverwriteButtonsVals[_overwriteMode->currentData().toUInt()];
+    OverwriteMode = (NExtract::NOverwriteMode::EEnum)_overwriteMode->currentData().toInt();
     Password = password();
     GetButton_Bools(_elimDup, ElimDup, _info.ElimDup);
     GetButton_Bools(_ntSecurity, NtSecurity, _info.NtSecurity);
@@ -415,12 +414,12 @@ ExtractionOptions CExtractDialog::options() const {
     result.ElimDup.Val = _elimDup->isEnabled() && _elimDup->isChecked();
     result.NtSecurity = NtSecurity;
     result.NtSecurity.Val = _ntSecurity->isEnabled() && _ntSecurity->isChecked();
-    if (kPathModeButtonsVals[_pathMode->currentData().toUInt()] == NExtract::NPathMode::kNoPaths)
+    const int pathMode = _pathMode->currentData().toInt();
+    if (pathMode == NExtract::NPathMode::kNoPaths)
         result.pathMode = ExtractionOptions::PathMode::NoPaths;
-    else if (kPathModeButtonsVals[_pathMode->currentData().toUInt()] ==
-             NExtract::NPathMode::kAbsPaths)
+    else if (pathMode == NExtract::NPathMode::kAbsPaths)
         result.pathMode = ExtractionOptions::PathMode::AbsolutePaths;
-    switch (kOverwriteButtonsVals[_overwriteMode->currentData().toUInt()]) {
+    switch (_overwriteMode->currentData().toInt()) {
     case NExtract::NOverwriteMode::kAsk:
         result.overwriteMode = ExtractionOptions::OverwriteMode::Ask;
         break;

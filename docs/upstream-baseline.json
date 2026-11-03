@@ -1518,6 +1518,7 @@
     "src/archive/resources/archivepropertysource.cpp",
     "src/archive/resources/archivepropertysource.h",
     "src/archive/resources/archivereadonlycache.cpp",
+    "src/archive/resources/archivereadonlytree.cpp",
     "src/archive/resources/archivereadonlyview.cpp",
     "src/archive/resources/archivereadonlyview.h",
     "src/archive/resources/archivereadonlyview_p.h",

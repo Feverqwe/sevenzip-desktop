@@ -58,6 +58,50 @@ void FileTable::configureSourceColumns() {
         if (matches[i] >= 0)
             columns_[matches[i]].visibleIndex = int(i);
     }
+    FOR_VECTOR(i, catalog) {
+        const CPropColumn &prop = catalog[i];
+        const int column = columnForCatalogProperty(i);
+        setColumnWidth(column, qMax(32, int(prop.Width)));
+        setColumnHidden(column, !prop.IsVisible);
+    }
+    for (int column : {1, 5, 6})
+        setColumnHidden(column, true);
+    for (int column : {0, 2, 3, 4}) {
+        if (!sourceColumn(column))
+            setColumnHidden(column, true);
+    }
+    CIntArr columnOrder;
+    const bool ordered = sourcePanel->GetColumnOrder(columnOrder);
+    FOR_VECTOR(i, visible) {
+        const int column = columnForVisibleProperty(ordered ? unsigned(columnOrder[i]) : i);
+        if (column >= 0)
+            horizontalHeader()->moveSection(horizontalHeader()->visualIndex(column), int(i));
+    }
+}
+
+CPropColumns FileTable::sourceColumnLayout() const {
+    const auto *header = horizontalHeader();
+    QVector<int> orders(columnCount());
+    int order = 0;
+    for (int visual = 0; visual < header->count(); ++visual) {
+        const int column = header->logicalIndex(visual);
+        if (!isColumnHidden(column))
+            orders[column] = order++;
+    }
+    CPropColumns layout;
+    const CPropColumns &visible = sourcePanel->GetVisibleColumns();
+    // Preserve source logical indices; the header supplies only display metadata.
+    FOR_VECTOR(i, visible) {
+        const int column = columnForVisibleProperty(i);
+        if (column < 0 || isColumnHidden(column))
+            continue;
+        CPropColumn prop = visible[i];
+        prop.IsVisible = true;
+        prop.Order = orders[column];
+        prop.Width = UInt32(header->sectionSize(column));
+        layout.Add(prop);
+    }
+    return layout;
 }
 
 PROPID FileTable::propertyId(int column) const {

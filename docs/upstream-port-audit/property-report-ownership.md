@@ -60,3 +60,30 @@ path remain available in all cases. Linux passed `panel_property`, `properties`,
 `source_properties` and `native_archive_properties`. This shared collector change
 has no platform-specific branch or layout change; no new macOS/Windows runtime
 acceptance or rendered-reference comparison is claimed.
+
+## Typed report translation inputs — 2026-11-03
+
+Rechecked the source dialog bodies, header/resource, property collection groups
+and their current language, detail, clipboard and editable-history consumers.
+Complete original ListViewDialog.cpp/.h/.rc and PanelMenu.cpp hashes match the
+existing b88c baseline. No collector/native property-sheet branch is changed,
+and no external source is imported or baseline advanced.
+
+The dialog retains source property-name fallbacks and archive diagnostics as
+owned UString values. Missing versus supplied-empty fallback stays explicit;
+diagnostic text and numeric flags have distinct typed alternatives. This removes
+QString round trips, dynamic QVariant type inspection and a separate fallback
+presence flag. Translation still takes an owning row snapshot before updating
+widgets; stable row identities survive deletion. Complete Strings/Values remain
+the detail/clipboard source, independently of display truncation.
+
+Existing behavior checks cover custom names, localized flags and diagnostics,
+row deletion, retained selection, full values, clipboard/details and history
+confirmation. No type-presence or representation-only test is added. Source
+collection, raw partial enumeration, layout and visible text policy are unchanged.
+
+One observable correction follows from retaining the original string: an unknown
+archive diagnostic containing embedded NUL no longer loses its tail on language
+change. The prior QString-to-UString reconstruction used a terminated pointer.
+The existing language-change scenario now checks the complete displayed and
+stored diagnostic before/after switching languages and deleting an earlier row.

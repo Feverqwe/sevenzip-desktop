@@ -48,22 +48,19 @@ void CreateArchiveDialog::SaveOptionsInMem() {
 }
 
 void CreateArchiveDialog::SetMemUseCombo() {
-    memUse_->blockSignals(true);
+    const QSignalBlocker blocked(memUse_);
     memUse_->clear();
     const bool enable = NCompressDialog::GetFormatInfo(registryFormat_).MemUse_();
     findChild<QWidget *>("compressionMemoryGroup")->setVisible(enable);
     findChild<QWidget *>("compressionDecompressionGroup")->setVisible(enable);
     memUse_->setEnabled(enable);
-    if (!enable) {
-        memUse_->blockSignals(false);
+    if (!enable)
         return;
-    }
     const QString spec = Get_FormatOptions().MemUse;
     int selected;
     for (const auto &item : NCompressDialog::SetMemUseCombo(spec, &selected))
         memUse_->addItem(item.User, item.Spec);
     memUse_->setCurrentIndex(selected);
-    memUse_->blockSignals(false);
 }
 
 // Qt adapter for FormatChanged / SetMethod2 and the registry branches of

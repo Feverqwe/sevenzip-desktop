@@ -16,5 +16,4 @@ HRESULT ConfirmLimitedArchiveRead(CProgressDialog *dialog, IOpenCallbackUI *call
                                   const QString &accepted, const QString &limitations);
 HRESULT PrepareLimitedArchiveRead(const CArchiveLink &link, const CCodecs &codecs,
                                   CProgressDialog *dialog, IOpenCallbackUI *callback,
-                                  const QString &accepted, QString &limitations,
-                                  bool &nativeMetadata);
+                                  const QString &accepted, QString &limitations);
