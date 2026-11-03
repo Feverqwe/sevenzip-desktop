@@ -1,5 +1,25 @@
 # File-transfer ownership
 
+## Prepared source/destination pairs — 2026-11-03
+
+Rechecked the original FSFolderCopy destination construction, direct-path gate,
+self/child checks, copy/move and overwrite callbacks with the current worker,
+transaction and window/direct-path consumers. The recorded native inventory and
+algorithms remain unchanged; this refactors local batch preparation without an
+external import or baseline change.
+
+Preparation now retains each source with its destination instead of returning
+a target list indexed against a separate source list. Execution, progress and
+failure diagnostics use those checked pairs. Ordered validation, duplicate-target
+comparison, overwrite/rename decisions, staging, cancellation, exception cleanup
+and partial-Move recovery keep their existing behavior.
+
+The public regression rejects a batch whose later source is missing or maps to
+an already selected output name. Both Copy and Move must fail without asking to
+overwrite the first existing target; source/destination bytes and the destination
+directory must remain intact. This protects all-input preflight before any
+per-item interaction, beyond existing mid-transfer rollback cases.
+
 ## Filesystem terminal outcome owner — 2026-11-02
 
 Reviewed the complete transaction run/finish, rollback, source-removal, worker

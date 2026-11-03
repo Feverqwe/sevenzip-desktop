@@ -18,6 +18,64 @@ class FileTransferTests : public QObject {
     Q_OBJECT
 
   private slots:
+    void invalidBatchDoesNotAskToOverwrite_data() {
+        QTest::addColumn<bool>("move");
+        QTest::addColumn<bool>("duplicateName");
+        QTest::newRow("copy-missing-source") << false << false;
+        QTest::newRow("move-missing-source") << true << false;
+        QTest::newRow("copy-duplicate-target") << false << true;
+        QTest::newRow("move-duplicate-target") << true << true;
+    }
+    void invalidBatchDoesNotAskToOverwrite() {
+        QFETCH(bool, move);
+        QFETCH(bool, duplicateName);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString name = QStringLiteral("имя 空 с пробелом.txt");
+        const QString first = fixture.filePath("first/" + name);
+        const QString last = fixture.filePath("last/" + name);
+        const QString destination = fixture.filePath("destination");
+        const QString target = QDir(destination).filePath(name);
+        const auto write = [](const QString &path, const QByteArray &bytes) {
+            QFile file(path);
+            return file.open(QIODevice::WriteOnly) && file.write(bytes) == bytes.size();
+        };
+        QVERIFY(QDir().mkpath(QFileInfo(first).absolutePath()));
+        QVERIFY(QDir().mkpath(QFileInfo(last).absolutePath()));
+        QVERIFY(QDir().mkpath(destination));
+        QVERIFY(write(first, "first bytes"));
+        if (duplicateName)
+            QVERIFY(write(last, "last bytes"));
+        QVERIFY(write(target, "existing bytes"));
+        FileTransferOperation operation({first, last}, destination, move);
+        QSignalSpy prompts(&operation, &FileTransferOperation::overwriteRequested);
+        QSignalSpy result(&operation, &FileTransferOperation::result);
+        connect(
+            &operation, &FileTransferOperation::overwriteRequested, &operation,
+            [&] { operation.submitOverwriteAnswer(NOverwriteAnswer::kYes); }, Qt::DirectConnection);
+        operation.start();
+        QVERIFY(operation.wait(30000));
+        QCOMPARE(result.size(), 1);
+        QVERIFY(!result.first().first().toBool());
+        QCOMPARE(operation.resultKind(), FileTransferOperation::ResultKind::Failure);
+        QCOMPARE(prompts.size(), 0);
+        for (const auto &expected : {qMakePair(first, QByteArray("first bytes")),
+                                     qMakePair(target, QByteArray("existing bytes"))}) {
+            QFile file(expected.first);
+            QVERIFY(file.open(QIODevice::ReadOnly));
+            QCOMPARE(file.readAll(), expected.second);
+        }
+        if (duplicateName) {
+            QFile file(last);
+            QVERIFY(file.open(QIODevice::ReadOnly));
+            QCOMPARE(file.readAll(), QByteArray("last bytes"));
+        } else
+            QVERIFY(!QFileInfo::exists(last));
+        QCOMPARE(
+            QDir(destination).entryList(QDir::AllEntries | QDir::Hidden | QDir::NoDotAndDotDot),
+            QStringList{name});
+    }
+
     void overwriteSnapshotSurvivesQueuedFilesystemChanges_data() {
         QTest::addColumn<bool>("merge");
         QTest::addColumn<bool>("link");
