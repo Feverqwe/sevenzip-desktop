@@ -6,8 +6,8 @@
 #include <QByteArray>
 #include <QDialog>
 #include <QHash>
-#include <QVariant>
 #include <optional>
+#include <variant>
 
 class CListView;
 class CListViewDialog : public QDialog {
@@ -21,13 +21,12 @@ class CListViewDialog : public QDialog {
     bool eventFilter(QObject *watched, QEvent *event) override;
     struct CPropertyNameBinding {
         UInt32 ID;
-        QString Fallback;
-        bool HasFallback;
+        std::optional<UString> Fallback;
     };
     struct CRowBinding {
         std::optional<CPropertyNameBinding> Property;
         QPair<QByteArray, QByteArray> Diagnostic;
-        QVariant ArchiveValue;
+        std::variant<std::monostate, UString, UInt32> ArchiveValue;
     };
     QHash<unsigned, CRowBinding> _rowBindings;
     void changeEvent(QEvent *event) override;

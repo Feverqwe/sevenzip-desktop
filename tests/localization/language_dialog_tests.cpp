@@ -125,7 +125,9 @@ class LanguageDialogTests final : public QObject {
         const UString missing(L"Missing volume : 32-bit overflow in headers %1 空.part");
         const UString warning(
             "32-bit overflow in headers 16-bit overflow for number of files in headers");
-        const UString unknown(L"plugin filename 32-bit overflow in headers %1 空.part");
+        UString unknown(L"plugin filename 32-bit overflow in headers %1 空.part");
+        unknown.Add_Char(wchar_t(0));
+        unknown += L"retained diagnostic tail 空";
         CListViewDialog dialog;
         dialog.NumColumns = 2;
         dialog.DeleteIsAllowed = true;
@@ -158,6 +160,7 @@ class LanguageDialogTests final : public QObject {
             QCOMPARE(selected->text(1), expected);
             QCOMPARE(ToQString(dialog.Values[0]), expected);
             QCOMPARE(list->topLevelItem(2)->text(1), ToQString(unknown));
+            QCOMPARE(ToQString(dialog.Values[2]), ToQString(unknown));
             QVERIFY(list->topLevelItem(1)->text(1).contains(
                 QString(code) == "ru" ? QStringLiteral("16-разрядное переполнение")
                                       : QStringLiteral("16-bit overflow")));
