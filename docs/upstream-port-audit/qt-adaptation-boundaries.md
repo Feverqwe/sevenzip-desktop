@@ -1,5 +1,20 @@
 # Qt adaptation boundary review — 2026-10-18
 
+## Window shutdown ownership — 2026-11-03
+
+Reviewed the original FM `WM_CLOSE`/`WM_DESTROY`, App save/release and Panel
+release bodies with the Qt close/destruction, operation guards, deferred rename,
+scanner, transfer, volume and mount-close consumers. The existing source
+inventory and original hashes remain unchanged; no external code was added.
+
+The close coordinator now closes its operation state directly before invoking
+presentation services. It derives the save decision from its own created panels,
+retaining that decision across folder release instead of querying the window
+adapter twice. Panel release preserves their creation flags. The original
+soft-exit, revoke, save, release and hard-exit order remains intact, with Qt worker
+joins before input release. Request vetoes, forced destruction and hidden-window
+automatic quit retain their existing adaptations.
+
 ## Native build language boundary — 2026-10-27
 
 The pinned SDK's `CPP/Build.mak`, `CPP/7zip/7zip_gcc.mak` and compiler-warning

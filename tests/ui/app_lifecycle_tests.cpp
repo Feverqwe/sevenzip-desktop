@@ -68,7 +68,6 @@ class AppLifecycleTests : public QObject {
             Services(CApp &owner, bool refuse) : app(owner), veto(refuse) {}
             bool CanCloseNow() const override { return !veto; }
             void Deactivate() override {
-                app.QtOperations().Close();
                 for (auto &panel : app.Panels)
                     panel.Disable_Processing_Timer_Notify_StatusBar();
             }
@@ -85,7 +84,6 @@ class AppLifecycleTests : public QObject {
                 QVERIFY(app.Panels[1].GetFolder());
                 ++joins;
             }
-            bool WindowWasCreated() const override { return true; }
             void SaveWindowInfo() override {
                 QVERIFY(!app.Panels[0].GetFolder());
                 QVERIFY(!app.Panels[1].GetFolder());
