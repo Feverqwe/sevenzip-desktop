@@ -7,6 +7,7 @@
 #include "filemanager/window/qtapppresentation.h"
 #include "localization/LangUtils.h"
 #include "localization/qtlangcontrols.h"
+#include <QScopeGuard>
 #include <QScopedValueRollback>
 #include <QStorageInfo>
 
@@ -75,12 +76,14 @@ void QtFileManagerDrag::StartDrag(unsigned panel, bool rightButton) {
         return; // Native OnDrag permits right-button sources only in the filesystem.
     QScopedValueRollback<bool> active(active_, true);
     SuspendHover(true);
+    const auto finishDrag = qScopeGuard([this] {
+        window_.app_.DropTarget().ClearState();
+        SuspendHover(false);
+    });
     {
         QScopedValueRollback<bool> source(window_.sourceArchiveProgress_, true);
         window_.app_.Panels[panel].OnDrag(rightButton);
     }
-    window_.app_.DropTarget().ClearState();
-    SuspendHover(false);
 }
 HRESULT QtFileManagerDrag::DoDragDrop(CDataObject &data, CDropSource &source, DWORD allowed,
                                       DWORD &effect) {
@@ -293,6 +296,12 @@ bool QtFileManagerDrag::HandleDropEvent(QWidget &widget, QEvent &event) {
         effect |= DROPEFFECT_MOVE;
     HRESULT result;
     auto &target = window_.app_.DropTarget();
+    const auto finishDrop = qScopeGuard([this, &event] {
+        if (event.type() == QEvent::Drop) {
+            ResetDropTarget();
+            window_.refreshActions();
+        }
+    });
     SuspendHover(true);
     if (event.type() == QEvent::DragMove)
         result = target.DragOver(keys, position.x(), position.y(), &effect);
@@ -318,10 +327,6 @@ bool QtFileManagerDrag::HandleDropEvent(QWidget &widget, QEvent &event) {
             target.DragLeave();
             ResetDropTarget();
         }
-    }
-    if (event.type() == QEvent::Drop) {
-        ResetDropTarget();
-        window_.refreshActions();
     }
     return true;
 }

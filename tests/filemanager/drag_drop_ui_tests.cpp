@@ -101,10 +101,16 @@ class DragDropUiTests final : public QObject {
         QVERIFY(input.open(QIODevice::WriteOnly));
         QCOMPARE(input.write("controller bytes"), qint64(16));
         input.close();
+        const QString hoverName = QStringLiteral("hover after cancel.txt");
+        QFile hoverFile(root.filePath(hoverName));
+        QVERIFY(hoverFile.open(QIODevice::WriteOnly));
+        QCOMPARE(hoverFile.write("hover bytes"), qint64(11));
+        hoverFile.close();
         const QString archive = root.filePath("source.zip");
         ArchiveBackend backend;
         QSignalSpy finished(&backend, &ArchiveBackend::finished);
-        QVERIFY(NativeArchiveFixture::WriteFiles(archive, {input.fileName()}));
+        QVERIFY(
+            NativeArchiveFixture::WriteFiles(archive, {input.fileName(), hoverFile.fileName()}));
         QFile original(archive);
         QVERIFY(original.open(QIODevice::ReadOnly));
         const QByteArray originalBytes = original.readAll();
@@ -233,6 +239,16 @@ class DragDropUiTests final : public QObject {
         }
         QVERIFY(original.open(QIODevice::ReadOnly));
         QCOMPARE(original.readAll(), originalBytes);
+        if (!right) {
+            QAbstractItemView *view = icons ? window.findChild<QListView *>("iconList")
+                                            : static_cast<QAbstractItemView *>(table);
+            QVERIFY(view && view->isVisible());
+            const int hoverRow = Row(*table, hoverName);
+            QVERIFY(hoverRow >= 0);
+            const QModelIndex hovered = view->model()->index(hoverRow, 0);
+            QTest::mouseMove(view->viewport(), view->visualRect(hovered).center());
+            QTRY_COMPARE(view->currentIndex().siblingAtColumn(0).data().toString(), hoverName);
+        }
     }
 
     void externalDragSuspendsHoverWithoutOpeningFolder_data() {
