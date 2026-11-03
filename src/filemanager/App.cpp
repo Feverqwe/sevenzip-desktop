@@ -318,8 +318,10 @@ void CApp::OnCopy(bool move, bool copyToSame, unsigned srcPanelIndex) {
     // Unwind the source stack in reverse order before that owner snapshots it.
     disableTimerProcessing2.Restore();
     disableTimerProcessing1.Restore();
-    _presentation->ExecuteCopy(move, copyToSame, srcPanelIndex, output, indices, useDestPanel,
-                               useTemp);
+    const auto route = !useDestPanel ? QtCopyRoute::FileSystem
+                       : useTemp     ? QtCopyRoute::StagedDestinationPanel
+                                     : QtCopyRoute::DestinationPanel;
+    _presentation->ExecuteCopy(move, copyToSame, srcPanelIndex, output, indices, route);
 }
 
 void CApp::CompleteCopy() {

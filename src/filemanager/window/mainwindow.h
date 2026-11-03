@@ -287,7 +287,7 @@ class MainWindow : public QMainWindow {
                        bool directPath = false);
     void executeCopyDestination(bool move, bool copyToSame, unsigned sourceIndex,
                                 const QString &destination, const CRecordVector<UInt32> &indices,
-                                bool useDestPanel, bool useTemp);
+                                QtCopyRoute route);
     void connectRenameEditor(QAbstractItemView &view);
     void beginRename(int row);
     void finishFilesystemRename(quint32 sourceIndex, const QString &originalPath,

@@ -1,5 +1,25 @@
 # File-transfer ownership
 
+## Qt copy destination route — 2026-11-03
+
+Compared complete original App `OnCopy` destination/provider classification,
+operation and publication branches with the current CApp request, Qt presentation,
+filesystem/archive dispatch and copy continuation. Native path preparation,
+history, guards and algorithms retain their existing owners and baseline; no
+external code was imported.
+
+The Qt execution boundary carries one route instead of separately interpreting
+destination-panel and temporary-file flags. The three routes preserve filesystem
+output, direct destination-provider input and staged provider-to-provider input.
+Source flags are classified once when crossing that boundary. Device/stream
+handling, fallback order, captured source identity and indices, Copy to same,
+Move deletion/rollback and completion/selection publication remain unchanged.
+
+Existing public command and operation suites exercise actual output bytes and
+selection/focus across source/destination combinations, cancellation, overwrite,
+staging and reentrant completion. No test of a private enum or source-text
+representation was added; the presentation fixture uses the changed interface.
+
 ## Prepared source/destination pairs — 2026-11-03
 
 Rechecked the original FSFolderCopy destination construction, direct-path gate,

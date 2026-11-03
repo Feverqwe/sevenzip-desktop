@@ -22,8 +22,7 @@ class CopyPresentation final : public IQtAppPresentation {
     QTableWidget *views[2];
     unsigned executions = 0;
     QString destination;
-    bool useDestination = false;
-    bool useTemporary = false;
+    QtCopyRoute route = QtCopyRoute::FileSystem;
     CRecordVector<UInt32> copiedIndices;
     CApp *owner = nullptr;
     bool beginOperation = false;
@@ -56,11 +55,10 @@ class CopyPresentation final : public IQtAppPresentation {
     void SetListSettings(unsigned, const CFmSettings &) override {}
     void ShowPanel(unsigned, bool) override {}
     void ExecuteCopy(bool, bool, unsigned, const QString &path,
-                     const CRecordVector<UInt32> &indices, bool useDest, bool useTemp) override {
+                     const CRecordVector<UInt32> &indices, QtCopyRoute selectedRoute) override {
         ++executions;
         destination = path;
-        useDestination = useDest;
-        useTemporary = useTemp;
+        route = selectedRoute;
         copiedIndices = indices;
         if (beginOperation)
             owner->QtOperations().Begin(QtAppOperationState::Kind::Operation);
@@ -268,8 +266,7 @@ class AppCopyRoutingTests final : public QObject {
         QVERIFY(interaction.shown);
         QVERIFY2(interaction.error.isEmpty(), qPrintable(interaction.error));
         QCOMPARE(presentation.executions, 1u);
-        QVERIFY(!presentation.useDestination);
-        QVERIFY(!presentation.useTemporary);
+        QCOMPARE(presentation.route, QtCopyRoute::FileSystem);
         QCOMPARE(presentation.copiedIndices.Size(), 1u);
         QVERIFY(QDir(peer).entryList(QDir::Files).isEmpty());
     }
@@ -302,8 +299,7 @@ class AppCopyRoutingTests final : public QObject {
         if (!cancel) {
             QCOMPARE(presentation.destination, output + '/');
             QCOMPARE(presentation.copiedIndices.Size(), 2u);
-            QVERIFY(!presentation.useDestination);
-            QVERIFY(!presentation.useTemporary);
+            QCOMPARE(presentation.route, QtCopyRoute::FileSystem);
         }
         QCOMPARE(QDir(source).entryList(QDir::Files).size(), 2);
     }

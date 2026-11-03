@@ -16,8 +16,7 @@ class QtAppPresentation final : public IQtAppPresentation {
     void RefreshFolder(unsigned index) override;
     void PrepareFolderChange(unsigned index) override;
     void ExecuteCopy(bool move, bool copyToSame, unsigned sourceIndex, const QString &destination,
-                     const CRecordVector<UInt32> &indices, bool useDestPanel,
-                     bool useTemp) override;
+                     const CRecordVector<UInt32> &indices, QtCopyRoute route) override;
     void SetListSettings(unsigned index, const CFmSettings &settings) override;
     void ShowPanel(unsigned index, bool visible) override;
     void ReloadToolbars(CApp &app) override;

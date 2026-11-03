@@ -102,8 +102,7 @@ void MainWindow::transferFiles(const QStringList &sources, const QString &destin
 
 void MainWindow::executeCopyDestination(bool move, bool copyToSame, unsigned sourceIndex,
                                         const QString &destination,
-                                        const CRecordVector<UInt32> &indices, bool useDestPanel,
-                                        bool useTemp) {
+                                        const CRecordVector<UInt32> &indices, QtCopyRoute route) {
     const bool streams = app_.GetFocusedPanel().IsAltStreamsFolder();
     const bool devices =
         app_.GetFocusedPanel().IsFSDrivesFolder() && app_.GetFocusedPanel().IsDeviceDrivesPrefix();
@@ -112,12 +111,13 @@ void MainWindow::executeCopyDestination(bool move, bool copyToSame, unsigned sou
          !streams && !devices))
         return;
     QtAppOperationState::CallScope call(app_.QtOperations());
-    if (useDestPanel && !useTemp && transferToArchivePanel(destination, move, indices))
+    if (route == QtCopyRoute::DestinationPanel &&
+        transferToArchivePanel(destination, move, indices))
         return;
     bool alternateDestination = false;
 #ifdef _WIN32
-    alternateDestination =
-        !useTemp && NWindows::NFile::NName::IsAltPathPrefix(us2fs(ToUString(destination)));
+    alternateDestination = route != QtCopyRoute::StagedDestinationPanel &&
+                           NWindows::NFile::NName::IsAltPathPrefix(us2fs(ToUString(destination)));
 #endif
     if (streams || devices || alternateDestination) {
         CCopyToOptions options;
@@ -136,9 +136,10 @@ void MainWindow::executeCopyDestination(bool move, bool copyToSame, unsigned sou
         return;
     }
     const bool directPath = indices.Size() == 1 && !destination.endsWith('/') &&
-                            !QFileInfo(destination).isDir() && !useDestPanel;
+                            !QFileInfo(destination).isDir() && route == QtCopyRoute::FileSystem;
     if (projectedUi().state == State::Viewing) {
-        if (useDestPanel && useTemp && transferBetweenArchivePanels(destination, move, indices))
+        if (route == QtCopyRoute::StagedDestinationPanel &&
+            transferBetweenArchivePanels(destination, move, indices))
             return;
         transferFromArchive(destination, move, copyToSame, sourceIndex, indices);
         return;
