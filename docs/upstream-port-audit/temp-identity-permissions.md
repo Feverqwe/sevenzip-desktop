@@ -1,5 +1,30 @@
 # Temporary-object identity and read permissions — 2026-11-01
 
+## Shared temporary-item inspection owner — 2026-11-04
+
+Compared complete native BrowseDialog2.cpp enumeration, property formatting,
+reload and confirmation/delete callers at
+`b88c6bc09339de32f7d18bbab900686b244f42ba`; the complete original source/header
+hashes match the recorded baseline. The existing inspection implementation and
+portable item record now live together in `browseiteminspection.cpp/.h`, in the
+same browse module and panel target. The baseline's extraction mapping records
+these owners without advancing original hashes or importing new code.
+
+Both listing and property/confirmation paths use this owner. Recursive counts,
+early interruption, incomplete-result markers, single-child details, native
+name/time/attribute formatting and the POSIX no-follow enumerator adapter are
+unchanged. Moved bodies were compared with the previous owner; differences are
+limited to namespace/linkage, declarations and signature formatting. The dialog
+continues to own snapshots, navigation, errors, confirmation and deletion leases.
+No ownership/path restrictions, UI state, geometry or native OS behavior changed.
+
+Existing Linux `temp_cleanup`, `temp_detached_launch`, `main_shell` and
+`language_standard_buttons` checks passed. Compilation took 21.143 seconds and
+tests 3.285 seconds, with configured four-job parallelism, incremental outputs
+and compiler cache retained. No new implementation-presence tests were added.
+Inventory and whitespace checks passed. Windows/macOS and visual parity were
+not revalidated; full/slow gates and extra UI reports were not requested.
+
 ## Confirmed cleanup listing lifetime — 2026-11-04
 
 Rechecked original BrowseDialog2.cpp/.h deletion, property lookup, context-menu,

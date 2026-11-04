@@ -2,9 +2,7 @@
 // Igor Pavlov, LGPL-2.1-or-later; see third_party/7zip/License.txt.
 #ifndef ZIP7_INC_BROWSE_DIALOG2_H
 #define ZIP7_INC_BROWSE_DIALOG2_H
-#include "Common/MyString.h"
-#include "Windows/FileFind.h"
-#include "common/collections/MyVector.h"
+#include "dialogs/browse/browseiteminspection.h"
 #include "platform/temp/qtownedtempregistry.h"
 #include <QDialog>
 #include <functional>
@@ -18,20 +16,6 @@ class QLabel;
 class QDialogButtonBox;
 class QKeyEvent;
 class QUrl;
-
-struct CBrowseItem {
-    unsigned MainFileIndex;
-    int SubFileIndex;
-    bool WasInterrupted;
-    UInt32 NumFiles, NumDirs, NumRootItems;
-    UInt64 Size;
-    void Construct() {
-        SubFileIndex = -1;
-        WasInterrupted = false;
-        NumFiles = NumDirs = NumRootItems = 0;
-        Size = 0;
-    }
-};
 
 class CBrowseDialog2 : public QDialog {
     struct OwnedItem : CBrowseItem {

@@ -64,6 +64,8 @@ add_library(sevenzip_panel
     src/dialogs/about/AboutDialog.h
     src/dialogs/browse/BrowseDialog2.cpp
     src/dialogs/browse/BrowseDialog2.h
+    src/dialogs/browse/browseiteminspection.cpp
+    src/dialogs/browse/browseiteminspection.h
     src/platform/temp/qttempbrowsepresentation.cpp
     src/filemanager/views/qtfilelisthover.cpp
     src/filemanager/views/qtfilelisthover.h
