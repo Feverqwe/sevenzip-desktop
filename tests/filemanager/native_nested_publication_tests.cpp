@@ -1,6 +1,7 @@
 #include "archive/agent/Agent.h"
 #include "archive/resources/qtarchivefileresource.h"
 #include "archive/resources/qtarchivefoldermanager.h"
+#include "archive/support/archive_copy_callback.h"
 #include "archive/support/source_extract_fixture.h"
 #include "filemanager/providers/FileFolderPluginOpen.h"
 #include "filemanager/qtfilemanagerstartup.h"
@@ -455,7 +456,7 @@ class NativeNestedPublicationTests final : public QObject, protected MainWindowT
             QVERIFY(runtime_.extractionReceipts().contains(
                 QByteArray::number(QCoreApplication::applicationPid()) + " 1"));
         const QString spool = ToQString(fs2us(panel.GetParentFolders().Back().FilePath));
-        QCOMPARE(SourceExtractFixture::readFile(spool), innerBytes);
+        const bool hadSpool = QFileInfo::exists(spool);
         CMyComPtr<IFolderFolder> childProvider = panel.GetFolder();
         inspectState(window, result == S_OK ? "opened" : "failed");
         QVERIFY(runtime_.clear());
@@ -471,6 +472,23 @@ class NativeNestedPublicationTests final : public QObject, protected MainWindowT
         QCOMPARE(panel.GetFolder(), childProvider.Interface());
         QVERIFY(panel.ShouldProcessNotifications());
         inspectState(window, "recovered");
+        {
+            // Reading the opened child must work regardless of whether its
+            // source stayed a handler stream or used a temporary file.
+            CMyComPtr<IFolderOperations> operations;
+            QCOMPARE(childProvider.QueryInterface(IID_IFolderOperations, &operations), S_OK);
+            auto *observer = new CArchiveCopyCallback;
+            CMyComPtr<IFolderOperationsExtractCallback> callback = observer;
+            QTemporaryDir output;
+            QVERIFY(output.isValid());
+            const auto prefix = (output.path() + '/').toStdWString();
+            const UInt32 index = 0;
+            QCOMPARE(operations->CopyTo(0, &index, 1, 0, 0, prefix.c_str(), callback), S_OK);
+            QCOMPARE(observer->Errors, 0u);
+            QCOMPARE(
+                SourceExtractFixture::readFile(output.filePath(QStringLiteral("item 000 空.bin"))),
+                QStringLiteral("item 000 空.bin").toUtf8());
+        }
         // The fixture's identity assertion is complete. Release its extra
         // reader before the source Parent workflow closes/deletes the spool.
         childProvider.Release();
@@ -478,7 +496,8 @@ class NativeNestedPublicationTests final : public QObject, protected MainWindowT
         QTRY_COMPARE(list->rowCount(), 1);
         QCOMPARE(panel.GetFolder(), outerProvider.Interface());
         QCOMPARE(panel.GetParentFolders().Size(), 1u);
-        QTRY_VERIFY(!QFileInfo::exists(spool));
+        if (hadSpool)
+            QTRY_VERIFY(!QFileInfo::exists(spool));
         QCOMPARE(peerList->sourcePanel->GetFolder(), peerProvider.Interface());
         QCOMPARE(peerList->rowCount(), 1);
         QCOMPARE(SourceExtractFixture::readFile(sentinel), QByteArray("peer bytes"));

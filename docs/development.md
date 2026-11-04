@@ -545,13 +545,16 @@ Some Apple Command Line Tools installations contain C++ standard headers inside 
 ## Long suites
 
 The current labels are in [SlowTests.cmake](../cmake/SlowTests.cmake).
-Long matrices and high-memory boundary checks are excluded by default.
+Long suites and high-memory boundary checks are excluded by default.
 Agents run these only on an explicit request for long tests or the exhaustive
 suite, following [AGENTS.md](../AGENTS.md#validation-and-ui-reference).
 
-The full `panel_creation_path`, `interarchive_recovery` and `copy_archive_refresh`
-matrices are opt-in. The default
-`interarchive_recovery_native` subset covers native reopen failure, cancellation
+Where a suite has a `_quick` companion, that selection runs existing behavior
+checks in the default set. It does not accept the complete matrix. Select both
+names when investigating the whole component; opt in to run its full suite.
+
+The full `interarchive_recovery` and `copy_archive_refresh` matrices are opt-in.
+The default `interarchive_recovery_native` subset covers native reopen failure, cancellation
 and failed restore. Acceptance of that subset does not accept the full matrix.
 
 Prior timing observations and cap rationale are retained in

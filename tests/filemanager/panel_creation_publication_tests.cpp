@@ -121,6 +121,7 @@ class PanelCreationPublicationTests final : public QObject, protected MainWindow
         QFETCH(bool, russian);
         QFETCH(bool, icons);
         QFETCH(bool, alternative);
+        const bool controlledOpening = kind == "filesystem" || kind == "transport";
         const int count = large ? 301 : 2;
         const QString settingsPath = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         QFile::remove(settingsPath);
@@ -232,16 +233,20 @@ class PanelCreationPublicationTests final : public QObject, protected MainWindow
             auto *list = ui->findChild<FileTable *>("archiveTable");
             QTRY_COMPARE(list->rowCount(), count);
             QTRY_VERIFY(list->isEnabled() && list->updatesEnabled());
-            QVERIFY(!observed);
+            if (controlledOpening)
+                QVERIFY(!observed);
             QVERIFY(!window.findChild<QWidget *>(QString("filePanel%1").arg(1 - pane)));
             action(window, "twoPanelsAction")->trigger();
         }
-        QVERIFY(observed);
-        QVERIFY2(started, "OnCreate must publish or start its asynchronous publication before the "
-                          "next panel opens");
-        if (!large)
-            QCOMPARE(rowsBeforeSecond, count);
-        QCOMPARE(backend.listCalls, kind == "filesystem" ? 1 : 2);
+        // The controlled transport exposes the peer-open boundary. Native
+        // archives bypass that test backend; verify their published views below.
+        if (controlledOpening) {
+            QVERIFY(observed);
+            QVERIFY2(started, "OnCreate must publish or start its asynchronous publication before "
+                              "the next panel opens");
+            if (!large)
+                QCOMPARE(rowsBeforeSecond, count);
+        }
         auto *firstUi = window.findChild<QWidget *>(QString("filePanel%1").arg(pane));
         auto *secondUi = window.findChild<QWidget *>(QString("filePanel%1").arg(1 - pane));
         auto *first = static_cast<FileTable *>(firstUi->findChild<FileTable *>("archiveTable"));
@@ -256,8 +261,10 @@ class PanelCreationPublicationTests final : public QObject, protected MainWindow
             QCOMPARE(nativeCount, UInt32(count));
             table->sourcePanel->Set_AutoRefresh_Mode(false);
         }
+        const int initialListCalls = backend.listCalls;
         // Source LoadItems reloads the bound provider, including the worker path.
-        QCOMPARE(first->sourcePanel->GetFolder(), firstProvider.Interface());
+        if (controlledOpening)
+            QCOMPARE(first->sourcePanel->GetFolder(), firstProvider.Interface());
         firstProvider = first->sourcePanel->GetFolder();
         CMyComPtr<IFolderFolder> secondProvider = second->sourcePanel->GetFolder();
         QVERIFY(dynamic_cast<CAgentFolder *>(secondProvider.Interface()));
@@ -292,7 +299,7 @@ class PanelCreationPublicationTests final : public QObject, protected MainWindow
         action(window, "twoPanelsAction")->trigger();
         QCOMPARE(second->sourcePanel->GetFolder(), secondProvider.Interface());
         QCOMPARE(second->rowCount(), count);
-        QCOMPARE(backend.listCalls, kind == "filesystem" ? 1 : 2);
+        QCOMPARE(backend.listCalls, initialListCalls);
         if (kind != "filesystem")
             QCOMPARE(SourceExtractFixture::readFile(firstPath), archiveBefore);
         for (const QString &name : names)

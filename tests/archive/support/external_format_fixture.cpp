@@ -252,18 +252,17 @@ class CGlobalOnlyArchive final : public IInArchive,
                 control >> expectedCount; // Older controls omit the optional count filter.
                 UInt32 requestedProperty = kpidAttrib;
                 control >> requestedProperty;
-                if (property != requestedProperty)
-                    return archive_->GetProperty(index, property, value);
-                if (expectedCount && (archive_->GetNumberOfItems(&actualCount) != S_OK ||
-                                      actualCount != expectedCount))
-                    return archive_->GetProperty(index, property, value);
-                auto receipt = propertyControl_;
-                receipt += ".hit";
-                std::ofstream(receipt, std::ios::app) << index << ' ' << result << '\n';
-                if (result == S_OK)
-                    return archive_->GetProperty(index, property, value);
-                *value = PROPVARIANT{};
-                return static_cast<HRESULT>(static_cast<Int32>(result));
+                if (property == requestedProperty &&
+                    (!expectedCount || (archive_->GetNumberOfItems(&actualCount) == S_OK &&
+                                        actualCount == expectedCount))) {
+                    auto receipt = propertyControl_;
+                    receipt += ".hit";
+                    std::ofstream(receipt, std::ios::app) << index << ' ' << result << '\n';
+                    if (result != S_OK) {
+                        *value = PROPVARIANT{};
+                        return static_cast<HRESULT>(static_cast<Int32>(result));
+                    }
+                }
             }
         }
         if (property == kpidSize && index == 0 && !diskControl_.empty()) {
