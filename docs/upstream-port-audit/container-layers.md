@@ -11,6 +11,27 @@ The completed transfer is recorded in [progress controls](progress-controls.md).
 
 ## Native enumeration and testing
 
+### Read-callback item ownership — 2026-11-04
+
+Rechecked the current read worker, Test/single-entry dispatch, callbacks and
+backend diagnostic/publication consumers against the original item/result and
+block-error projection in `ArchiveExtractCallback.cpp` at
+`b88c6bc09339de32f7d18bbab900686b244f42ba`. The complete original unit hash
+matches the existing baseline; no external source or revision is imported.
+
+The Qt callback now retains the current item path, encryption flag and index in
+one record. Metadata reads prepare that record before publishing it under the
+existing state mutex. Progress snapshots read its path; operation-result
+delivery updates the selected output result and appends any item error within
+one critical section. Explicit indexed/block reports use the same local record
+shape while preserving their distinct index rules and block labels.
+
+Native GetItem/encryption queries, skipped solid siblings, output-index checks,
+error codes, password/memory/cancel services and joined backend publication
+remain unchanged. No decoder or format implementation is replaced. Existing
+Test and single-entry extraction regressions cover the observable contracts;
+no private-record or source-presence test is added.
+
 Sources: `3e276e74cc04b80c11c1276827ed2f9640b6f3eb`,
 `ae78a45a02f17a04c88a3514558f55cdba29aab6` and
 `8c0c78acaecd82060dbc0ca2eaefe12ef2ecc2e1`, using their final combined

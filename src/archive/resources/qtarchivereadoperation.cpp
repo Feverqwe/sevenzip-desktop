@@ -36,19 +36,23 @@ class CTestCallback final : public IArchiveExtractCallback,
     QtArchiveReadOperation &operation_;
     const CArc *archive_ = nullptr;
     UInt64 total_ = 0;
-    QString path_;
-    bool encrypted_ = false;
+    struct Item {
+        QString Path;
+        bool Encrypted = false;
+        UInt32 Index = UInt32(-1);
+    };
+    Item current_;
     UInt32 outputIndex_ = UInt32(-1);
-    UInt32 currentIndex_ = UInt32(-1);
     CMyComPtr<ISequentialOutStream> output_;
     QMutex stateMutex_;
-    HRESULT ReadItem(UInt32 index, QString &path, bool &encrypted) {
+    HRESULT ReadItem(UInt32 index, Item &item) {
         if (!archive_)
             return E_FAIL;
-        CReadArcItem item;
-        RINOK(archive_->GetItem(index, item))
-        path = QString::fromWCharArray(item.Path);
-        return Archive_GetItemBoolProp(archive_->Archive, index, kpidEncrypted, encrypted);
+        CReadArcItem arcItem;
+        RINOK(archive_->GetItem(index, arcItem))
+        item.Path = QString::fromWCharArray(arcItem.Path);
+        item.Index = index;
+        return Archive_GetItemBoolProp(archive_->Archive, index, kpidEncrypted, item.Encrypted);
     }
 
   public:
@@ -71,7 +75,7 @@ class CTestCallback final : public IArchiveExtractCallback,
         {
             QMutexLocker lock(&stateMutex_);
             total = total_;
-            path = path_;
+            path = current_.Path;
         }
         if (completed)
             operation_.report(*completed, total, path);
@@ -81,13 +85,10 @@ class CTestCallback final : public IArchiveExtractCallback,
         if (!stream || !archive_)
             return E_INVALIDARG;
         *stream = nullptr;
-        QString path;
-        bool encrypted = false;
-        RINOK(ReadItem(index, path, encrypted)) {
+        Item item;
+        RINOK(ReadItem(index, item)) {
             QMutexLocker lock(&stateMutex_);
-            path_ = path;
-            encrypted_ = encrypted;
-            currentIndex_ = index;
+            current_ = std::move(item);
         }
         RINOK(operation_.checkpoint())
         // Client7z::CArchiveExtractCallback::GetStream returns file output only
@@ -102,27 +103,24 @@ class CTestCallback final : public IArchiveExtractCallback,
     Z7_COM7F_IMF(SetOperationResult(Int32 result)) override {
         {
             QMutexLocker lock(&stateMutex_);
-            if (output_ && currentIndex_ == outputIndex_)
+            if (output_ && current_.Index == outputIndex_)
                 operation_.OutputOperation = result;
-        }
-        // Extract's HRESULT alone does not account for CRC/partial item results.
-        if (result != NArchive::NExtract::NOperationResult::kOK) {
-            QMutexLocker lock(&stateMutex_);
-            operation_.Errors.append({path_, result, encrypted_});
+            // Extract's HRESULT alone does not account for CRC/partial item results.
+            if (result != NArchive::NExtract::NOperationResult::kOK)
+                operation_.Errors.append({current_.Path, result, current_.Encrypted});
         }
         return operation_.checkpoint();
     }
     Z7_COM7F_IMF(ReportExtractResult(UInt32 indexType, UInt32 index, Int32 result)) override {
         // ArchiveExtractCallback::ReportExtractResult's item/block projection.
-        QString path;
-        bool encrypted = false;
+        Item item;
         if (indexType == NArchive::NEventIndexType::kInArcIndex && index != UInt32(-1)) {
-            RINOK(ReadItem(index, path, encrypted))
+            RINOK(ReadItem(index, item))
         } else
-            path = '#' + QString::number(index);
+            item.Path = '#' + QString::number(index);
         if (result != NArchive::NExtract::NOperationResult::kOK) {
             QMutexLocker lock(&stateMutex_);
-            operation_.Errors.append({path, result, encrypted});
+            operation_.Errors.append({item.Path, result, item.Encrypted});
             if (output_ && indexType == NArchive::NEventIndexType::kInArcIndex &&
                 index == outputIndex_)
                 operation_.OutputOperation = result;
