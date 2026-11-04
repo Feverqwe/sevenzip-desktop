@@ -124,6 +124,7 @@ add_library(sevenzip_panel
     src/dialogs/overwrite/OverwriteDialog.cpp
     src/dialogs/overwrite/OverwriteDialog.h
     src/dialogs/mem/MemDialog.cpp
+    src/dialogs/mem/qtmemoryrequestpresentation.cpp
     src/dialogs/mem/MemDialog.h
     src/filemanager/OpenCallback.cpp
     src/filemanager/OpenCallback.h

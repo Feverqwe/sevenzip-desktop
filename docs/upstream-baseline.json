@@ -1713,6 +1713,7 @@
     "src/dialogs/copy/alias.h",
     "src/dialogs/extract/alias.h",
     "src/dialogs/listview/qtlistviewdialogpresentation.cpp",
+    "src/dialogs/mem/qtmemoryrequestpresentation.cpp",
     "src/filemanager/AppCopy.cpp",
     "src/filemanager/ExtractCallbackOutput.cpp",
     "src/filemanager/external/qtexternalapplications.cpp",

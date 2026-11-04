@@ -1,5 +1,33 @@
 # Dialog layout review — 2026-10-17
 
+## Memory-request presentation owner — 2026-11-04
+
+Compared original MemDialog.cpp/.h/.rc initialization, action/limit controls,
+spin behavior and Continue handling at
+`b88c6bc09339de32f7d18bbab900686b244f42ba` from
+<https://github.com/ip7z/7zip.git>, current RAM service, callback decision and
+dialog consumers. Complete original dialog/resource hashes match the baseline;
+no external source or revision is imported.
+
+The complete Qt control construction now lives in
+`mem/qtmemoryrequestpresentation.cpp`, under the same panel component and dialog
+instance. The three construction bodies are unchanged. Source initialization,
+RAM admission/default choice, spin and input parsing, error handling,
+Allow/Skip/Remember/Save and Cancel retain their existing owner and behavior.
+The extraction makes the resourceGui dependency for the limit caption explicit.
+
+No new controller, state, memory limit, callback policy or platform adapter is
+introduced. Grouping, sizing, focus, binding and connection order are unchanged.
+Existing prompt and language regressions cover decisions, invalid input,
+spinner keyboard/buttons, normal/compact geometry and language updates; no
+source-shape test or new appearance acceptance is added.
+
+Linux `extract_prompt`, `source_prompt_presentation` and `language_dialog`
+passed 45 checks without failures or skips. Initial compilation identified the
+missing resourceGui include after extraction; it was corrected before runtime
+checks. Native platform adapters are unchanged, so no new Windows/macOS,
+full/slow or rendered visual acceptance is claimed.
+
 ## Review gallery: compact forms and useful content — 2026-10-18
 
 Reviewed native LinkDialog.rc/OnInit/OnSize, MemDialog.rc/OnInit and spin
