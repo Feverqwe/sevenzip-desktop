@@ -1,5 +1,28 @@
 # Прямое read-only чтение устройств
 
+## Device picker result ownership — 2026-11-05
+
+Compared complete native OpenAsArc bodies, callers, types and error paths in
+PanelItemOpen.cpp at `b88c6bc09339de32f7d18bbab900686b244f42ba` from
+<https://github.com/ip7z/7zip.git> with PanelArchiveLifecycle.cpp and the Qt device
+command consumer. The complete original hash matches the existing baseline.
+No source is imported or revision advanced; this picker is local Qt integration.
+
+The command retains its initiating panel before the modal picker and activates
+that panel only for an accepted selection. Native opening, error handling,
+read-only stream leases, bounds checks, cancellation and limited-read consent
+remain unchanged. Cancel preserves both locations and the restored focus.
+The existing device UI suite now covers acceptance and cancellation from either
+panel after modal close restores peer focus, including the peer's address draft,
+selection and unchanged fixture bytes. It uses the recorded GPT image through a
+memory-only read handle, without physical devices or authorization services.
+
+Linux device_ui passed all 31 Qt checks without skips. Before the fix, both
+accepted-selection cases failed while cancellation passed. The focused suite
+also retains authorization retry, worker cancellation, read-only recovery,
+copy/extract, refresh and parent-navigation coverage. Platform transports and
+appearance are unchanged; no Windows/macOS, full or slow acceptance is claimed.
+
 ## Complete Windows device export owner — 2026-11-04
 
 Rechecked original FSDrives.cpp/.h enumeration, device paths, image naming,

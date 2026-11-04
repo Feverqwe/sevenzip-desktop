@@ -120,14 +120,17 @@ bool QtFileManagerCommands::ExecuteExtensionCommand(unsigned id) {
         OpenDevice();
         break;
     case OpenArchivePicker: {
+        const unsigned owner = window_.app_.GetFocusedPanelIndex();
         const QString directory = window_.projectedUi().state == MainWindow::State::Viewing
                                       ? QFileInfo(window_.projectedUi().archive).absolutePath()
                                       : window_.projectedUi().directory;
         const QString path = QFileDialog::getOpenFileName(
             &window_, QCoreApplication::translate("qtfilemanagercommandworkflows", "Open archive"),
             directory, window_.backend_->openDialogFilter());
-        if (!path.isEmpty())
+        if (!path.isEmpty()) {
+            window_.activatePanelUi(owner);
             window_.openArchive(path);
+        }
         break;
     }
     case Back:

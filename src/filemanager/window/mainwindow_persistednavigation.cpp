@@ -1,21 +1,23 @@
 #include "filemanager/MyLoadMenu.h"
 #include "filemanager/panels/Panel.h"
 #include "filemanager/window/mainwindow.h"
+#include <QDir>
+#include <QFileInfo>
 
-namespace {
-QString SavedSourcePath(QString path) {
-    // Earlier Qt settings used a display separator after the real archive.
-    // Convert only that boundary; spaces inside source path components survive.
+QString MainWindow::sourcePathFromDisplayPath(QString path) const {
+    // A display separator follows the archive, including a nested archive
+    // already open in this panel. Spaces in actual path components survive.
     const QString separator = QStringLiteral(" / ");
     for (int pos = path.indexOf(separator); pos >= 0;
          pos = path.indexOf(separator, pos + separator.size()))
-        if (QFileInfo(path.left(pos)).isFile()) {
+        if (QFileInfo(path.left(pos)).isFile() ||
+            (projectedUi().state == State::Viewing &&
+             QDir::fromNativeSeparators(path.left(pos)) == projectedUi().displayArchive)) {
             path.replace(pos, separator.size(), QStringLiteral("/"));
             break;
         }
     return path;
 }
-} // namespace
 
 void MainWindow::recordVisitedPath(const QString &path) {
     app_.AppState.FolderHistory.AddString(ToUString(path));
@@ -30,7 +32,7 @@ void MainWindow::showFoldersHistory() {
         CPanel::FoldersHistory(app_.AppState.FolderHistory, toolbarSettingsPath(), this);
     if (!selected.isNull()) {
         activatePanelUi(owner);
-        navigateTo(SavedSourcePath(selected), true);
+        navigateTo(sourcePathFromDisplayPath(selected), true);
     } else
         refreshActions();
 }
@@ -53,5 +55,5 @@ void MainWindow::openBookmark(int index) {
         return;
     const QString path =
         ToQString(CPanel::OpenBookmark(app_.AppState.FastFolders, (unsigned)index));
-    navigateTo(SavedSourcePath(path), true);
+    navigateTo(sourcePathFromDisplayPath(path), true);
 }

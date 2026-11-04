@@ -43,6 +43,7 @@ class QtFmOptionsDialog final : public QDialog {
     bool _compact = false;
     QtDisclosure *_translationGroup;
     void buildSections();
+    void buildNavigation();
     void updateNavigationGeometry();
     void refreshSectionSummaries();
     void revealControl(QWidget *control);

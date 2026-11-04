@@ -68,7 +68,7 @@ HRESULT MainWindow::navigateTo(const QString &path, bool sourceAddress) {
     else {
         QString nativePath = nativeAddress;
         if (!sourceAddress)
-            nativePath.replace(QStringLiteral(" / "), QStringLiteral("/"));
+            nativePath = sourcePathFromDisplayPath(nativePath);
         auto &panel = app_.GetFocusedPanel();
         HRESULT result;
         {

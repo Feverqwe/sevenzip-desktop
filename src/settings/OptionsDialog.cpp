@@ -21,7 +21,6 @@
 #include <QComboBox>
 #include <QDialogButtonBox>
 #include <QEvent>
-#include <QListWidget>
 #include <QMessageBox>
 #include <QPlainTextEdit>
 #include <QPointer>
@@ -181,21 +180,6 @@ bool QtFmOptionsDialog::hasPendingChanges() const {
 }
 void QtFmOptionsDialog::updateApplyButton() {
     _buttons->button(QDialogButtonBox::Apply)->setEnabled(hasPendingChanges());
-    refreshSectionSummaries();
-}
-void QtFmOptionsDialog::reloadLangItems() {
-    QtReloadLangTexts(*this);
-    _menuPage->ReloadLangItems();
-    _systemPage->ReloadLangItems();
-    auto *pages = findChild<QTabWidget *>("optionsPages");
-    for (int i = 0; i < pages->count(); i++) {
-        pages->setTabText(
-            i, QCoreApplication::translate(
-                   "SettingsRedesign",
-                   pages->widget(i)->property("sectionTitle").toByteArray().constData()));
-        _navigation->item(i)->setText(pages->tabText(i));
-        _compactNavigation->item(i)->setText(pages->tabText(i));
-    }
     refreshSectionSummaries();
 }
 void QtFmOptionsDialog::changeEvent(QEvent *event) {

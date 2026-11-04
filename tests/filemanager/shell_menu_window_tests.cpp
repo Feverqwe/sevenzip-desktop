@@ -41,7 +41,7 @@ bool write(const QString &path, const QByteArray &bytes) {
     QFile file(path);
     return file.open(QIODevice::WriteOnly) && file.write(bytes) == bytes.size();
 }
-int rowNamed(MainWindow &window, const QString &name) {
+int rowNamed(QWidget &window, const QString &name) {
     auto *view = window.findChild<FileTable *>("archiveTable");
     for (int row = 0; row < view->rowCount(); ++row)
         if (view->model()->index(row, 0).data().toString() == name)
@@ -155,11 +155,17 @@ class ShellMenuWindowTests final : public QObject, protected MainWindowTestSuppo
     }
     void archivePicker_data() {
         QTest::addColumn<QString>("outcome");
-        for (const QString &outcome : {QString("open"), QString("cancel"), QString("invalid")})
-            QTest::newRow(qPrintable(outcome)) << outcome;
+        QTest::addColumn<int>("owner");
+        for (const QString &outcome : {QString("open"), QString("cancel"), QString("invalid")}) {
+            QTest::newRow(qPrintable(outcome)) << outcome << -1;
+            for (int owner : {0, 1})
+                QTest::newRow(qPrintable(QString("%1-peer-focus-%2").arg(outcome).arg(owner)))
+                    << outcome << owner;
+        }
     }
     void archivePicker() {
         QFETCH(QString, outcome);
+        QFETCH(int, owner);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         CurrentDirectoryGuard guard;
@@ -177,18 +183,53 @@ class ShellMenuWindowTests final : public QObject, protected MainWindowTestSuppo
         QCOMPARE(backend.loadCodecCatalog(module_, version_), S_OK);
         MainWindow window(&backend);
         window.show();
-        QTRY_VERIFY(rowNamed(window, name) >= 0);
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        if (owner >= 0)
+            action(window, "twoPanelsAction")->trigger();
+        auto *source = window.findChild<QWidget *>(QString("filePanel%1").arg(qMax(0, owner)));
+        auto *sourceAddress = source->findChild<QLineEdit *>("archivePath");
+        FileTable *peer = nullptr;
+        QLineEdit *peerAddress = nullptr;
+        QString peerPrefix;
+        const QString peerDraft = QStringLiteral("peer черновик 密碼");
+        if (owner >= 0) {
+            const QString directory = fixture.filePath("peer folder");
+            QVERIFY(QDir().mkpath(directory));
+            QVERIFY(write(QDir(directory).filePath("peer.txt"), "peer payload"));
+            auto *pane = window.findChild<QWidget *>(QString("filePanel%1").arg(1 - owner));
+            peerAddress = pane->findChild<QLineEdit *>("archivePath");
+            peer = pane->findChild<FileTable *>("archiveTable");
+            peerAddress->setFocus();
+            QTRY_VERIFY(peerAddress->hasFocus());
+            window.openPath(directory);
+            QTRY_COMPARE(peer->rowCount(), 1);
+            peer->selectRow(0);
+            peerPrefix = ToQString(peer->sourcePanel->GetCurrentFolderPrefix());
+            peerAddress->setText(peerDraft);
+        }
+        sourceAddress->setFocus();
+        QTRY_VERIFY(sourceAddress->hasFocus());
+        window.openPath(fixture.path());
+        QTRY_VERIFY(rowNamed(*source, name) >= 0);
         auto *open = action(window, "openArchiveAction");
         auto *menu = window.findChild<QMenu *>("fileMenu");
         QVERIFY(QMetaObject::invokeMethod(menu, "aboutToShow", Qt::DirectConnection));
         QVERIFY(menu->actions().contains(open));
         QVERIFY(open->isEnabled());
-        bool shown = false, error = false;
+        bool shown = false, error = false, peerFocused = false;
         QTimer responder;
         widgetDialogs_.connectResponder(responder, &window, [&] {
             auto *dialog = widgetDialogs_.activeDialog();
             if (auto *picker = qobject_cast<QFileDialog *>(dialog)) {
                 shown = true;
+                if (peerAddress)
+                    // Modal close can restore peer focus before the picker returns its path.
+                    connect(picker, &QDialog::finished, &window, [&] {
+                        window.activateWindow();
+                        peerAddress->setFocus();
+                        QTRY_VERIFY(peerAddress->hasFocus());
+                        peerFocused = true;
+                    });
                 if (outcome == "cancel")
                     picker->reject();
                 else {
@@ -208,11 +249,19 @@ class ShellMenuWindowTests final : public QObject, protected MainWindowTestSuppo
         responder.stop();
         QVERIFY(shown);
         QCOMPARE(error, outcome == "invalid");
-        QTRY_VERIFY(rowNamed(window, name) >= 0);
+        QTRY_VERIFY(rowNamed(*source, name) >= 0);
         if (outcome == "open") {
-            QVERIFY(rowNamed(window, QFileInfo(archive).fileName()) < 0);
+            QVERIFY(rowNamed(*source, QFileInfo(archive).fileName()) < 0);
         } else
-            QTRY_VERIFY(rowNamed(window, QFileInfo(archive).fileName()) >= 0);
+            QTRY_VERIFY(rowNamed(*source, QFileInfo(archive).fileName()) >= 0);
+        if (peer) {
+            QVERIFY(peerFocused);
+            QCOMPARE(ToQString(peer->sourcePanel->GetCurrentFolderPrefix()), peerPrefix);
+            QCOMPARE(peerAddress->text(), peerDraft);
+            QCOMPARE(peer->rowCount(), 1);
+            QCOMPARE(peer->model()->index(0, 0).data().toString(), QString("peer.txt"));
+            QVERIFY(peer->selectionModel()->isRowSelected(0, {}));
+        }
     }
     void nativeOpenKeepsExplicitTypeAndCancellation_data() {
         QTest::addColumn<QString>("outcome");

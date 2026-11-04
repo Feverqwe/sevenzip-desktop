@@ -2,6 +2,30 @@
 
 2026-10-17. По запросу пользователя неподдерживаемые настройки скрыты.
 
+## Complete options navigation presentation — 2026-11-05
+
+Reviewed the original OptionsDialog page/property-sheet owner and the current
+section composition, navigation, language reload, resize, validation reveal,
+keyboard activation and Apply/Cancel consumers. Complete original OptionsDialog.cpp
+hash matches the existing baseline at
+`b88c6bc09339de32f7d18bbab900686b244f42ba`; no native algorithm, platform branch,
+dependency revision or imported scope changes.
+
+The complete Qt navigation setup, section-name reload, resize/layout update and
+invalid-control reveal now share `qtfmoptionsnavigation.cpp` in the existing
+location component. Section content stays with its composition owner; native page
+state, help dispatch and Apply/Cancel stay in the dialog's existing owners.
+The dialog retains all widgets and state. Its builder calls the extracted
+navigation setup at the same point before refreshing section summaries.
+
+Complete expanded layout/dialog bodies match their preceding versions, including
+quoted strings. Widget types/parents, construction and connection order, source
+page identities, fonts, dimensions, visibility, focus and language contexts are
+unchanged. No controller, runtime state or product interface is added. Existing
+options, keyboard and live-language regressions provide behavior acceptance;
+no test depends on private helper names or source placement. This source-owner
+change does not establish new rendered visual parity.
+
 ## Settings page presentation owner — 2026-11-04
 
 Compared complete original SettingsPage.cpp/.h/.rc at

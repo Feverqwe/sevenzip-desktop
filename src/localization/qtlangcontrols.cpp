@@ -63,28 +63,21 @@ class QtLangCaption final : public IQtLangDialogControls, public IQtLangWindowTe
     const QString &Text() const { return text_; }
 };
 
-void SetText(QObject *object) {
-    const auto translate = [object](const char *property, const char *contextProperty,
-                                    bool withArguments) {
-        const QByteArray context = object->property(contextProperty).toByteArray();
-        const QByteArray source = object->property(property).toByteArray();
-        QString text = QCoreApplication::translate(context.constData(), source.constData());
-        if (withArguments)
-            for (const QString &argument : object->property("languageArguments").toStringList())
-                text = text.arg(argument);
-        return text;
-    };
-    if (auto *widget = qobject_cast<QWidget *>(object))
-        if (object->property("languageToolTipEnglish").isValid())
-            widget->setToolTip(
-                translate("languageToolTipEnglish", "languageToolTipContext", false));
-    const QVariant id = object->property("languageID");
-    const QVariant local = object->property("languageLocalEnglish");
-    if (!id.isValid() && !local.isValid())
-        return;
+QString TranslateProperty(QObject *object, const char *property, const char *contextProperty,
+                          bool withArguments) {
+    const QByteArray context = object->property(contextProperty).toByteArray();
+    const QByteArray source = object->property(property).toByteArray();
+    QString text = QCoreApplication::translate(context.constData(), source.constData());
+    if (withArguments)
+        for (const QString &argument : object->property("languageArguments").toStringList())
+            text = text.arg(argument);
+    return text;
+}
+
+QString ControlCaption(QObject *object, const QVariant &id) {
     QString text = id.isValid()
                        ? QtLangText(id.toUInt(), object->property("languageFallback").toString())
-                       : translate("languageLocalEnglish", "languageContext", true);
+                       : TranslateProperty(object, "languageLocalEnglish", "languageContext", true);
     if (id.isValid()) {
         const UInt32 languageID = id.toUInt();
         const QVariant resource = object->property("languageResourceCaption");
@@ -103,6 +96,19 @@ void SetText(QObject *object) {
             LangSetDlgItemText(caption, languageID, languageID);
         text = caption.Text();
     }
+    return text;
+}
+
+void SetText(QObject *object) {
+    if (auto *widget = qobject_cast<QWidget *>(object))
+        if (object->property("languageToolTipEnglish").isValid())
+            widget->setToolTip(TranslateProperty(object, "languageToolTipEnglish",
+                                                 "languageToolTipContext", false));
+    const QVariant id = object->property("languageID");
+    const QVariant local = object->property("languageLocalEnglish");
+    if (!id.isValid() && !local.isValid())
+        return;
+    QString text = ControlCaption(object, id);
     text += object->property("languageSuffix").toString();
     if (auto *widget = qobject_cast<QWidget *>(object))
         text = QtWrapControlText(*widget, text);

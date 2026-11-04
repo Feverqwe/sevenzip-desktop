@@ -1,5 +1,23 @@
 # Main-menu language binding — 2026-10-17
 
+## Bound caption resolution and Qt text delivery — 2026-11-05
+
+Reviewed the complete native LangSetDlgItemText, standard control mappings,
+colon/remove-colon and window-caption helpers, their current adapter and the
+binding/reload callers. The complete original LangUtils.cpp hash matches the
+existing baseline at `b88c6bc09339de32f7d18bbab900686b244f42ba`; no source import,
+revision or native language algorithm changes.
+
+Within the existing language-control owner, translation of bound properties
+and native/resource caption resolution now have separate private functions.
+Text delivery retains tooltip-first ordering, the no-caption early return,
+suffixes, wrapping, mnemonic removal for accessibility/placeholders and the
+existing QAction/label/button/group/window destinations. Resource fallback,
+standard-control precedence, arguments and live reload retain the same bodies.
+No metadata, public interface, text, geometry or reload policy is added.
+Existing language, dialog and live-reload regressions cover observable behavior;
+no test depends on these private functions or their placement.
+
 ## Single menu population — 2026-11-04
 
 Compared the original FileManager resource menu, MyLoadMenu translation and

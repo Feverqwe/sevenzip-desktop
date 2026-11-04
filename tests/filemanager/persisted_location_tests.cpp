@@ -263,6 +263,13 @@ class PersistedLocationTests final : public QObject, protected MainWindowTestSup
                      archive + (nested ? '/' + QFileInfo(inner).fileName() : QString()) +
                          QStringLiteral("/папка space/"));
             display = window.findChild<QLineEdit *>("archivePath")->text();
+            auto *address = window.findChild<QLineEdit *>("archivePath");
+            const QString archivePrefix =
+                archive + (nested ? '/' + QFileInfo(inner).fileName() : QString());
+            address->setText(QDir::toNativeSeparators(archivePrefix) +
+                             QStringLiteral(" / папка space/"));
+            QTest::keyClick(address, Qt::Key_Return);
+            QCOMPARE(prefix(window), source);
             QVERIFY(source.contains(QFileInfo(archive).fileName()));
             QVERIFY(action(window, "saveBookmark4Action")->isEnabled());
             action(window, "saveBookmark4Action")->trigger();
@@ -361,6 +368,16 @@ class PersistedLocationTests final : public QObject, protected MainWindowTestSup
         action(window, "foldersHistoryAction")->trigger();
         QCOMPARE(prefix(window), source);
         QCOMPARE(saved(0), legacy);
+        auto *address = window.findChild<QLineEdit *>("archivePath");
+        for (const QString &typed : {archive + '/' + folder, legacy}) {
+            action(window, "openRootAction")->trigger();
+            address->setText(typed);
+            QTest::keyClick(address, Qt::Key_Return);
+            QCOMPARE(prefix(window), source);
+            QCOMPARE(
+                table(window)->model()->index(table(window)->rowCount() - 1, 0).data().toString(),
+                QString("keep.txt"));
+        }
         QCOMPARE(ExternalEditorFixture::read(archive), original);
         QCOMPARE(ExternalEditorFixture::read(fixture.filePath(entry)), QByteArray("unchanged"));
     }
