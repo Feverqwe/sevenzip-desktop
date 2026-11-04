@@ -1,9 +1,7 @@
-#include "7zip/PropID.h"
 #include "7zip/UI/FileManager/resource.h"
 #include "filemanager/panels/Panel.h"
 #include "filemanager/panels/qtpanelcontextmenu.h"
 #include "filemanager/providers/qtlocationfolder.h"
-#include "filemanager/qtfilemanagercommands.h"
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtmainwindowchrome.h"
 #include "localization/qtlanguageservices.h"
@@ -27,62 +25,6 @@ void MainWindow::showItemContextMenu(unsigned owner, QAbstractItemView *view, co
         const QPoint point = keyboard ? pos : view->viewport()->mapToGlobal(pos);
         QtPanelContextMenu menu(*this, *view);
         app_.GetFocusedPanel().OnContextMenu(view, point.x(), point.y(), menu);
-    });
-}
-
-void MainWindow::applySortMode(bool enableSorting) {
-    if (!projectedUi().table)
-        return;
-    auto &panel = app_.GetFocusedPanel();
-    auto *view = static_cast<FileTable *>(projectedUi().table);
-    int column = view->columnForProperty(panel.GetSortID());
-    if (column < 0)
-        column = panel.GetSortID() == kpidNoProperty ? 6 : 0;
-    const Qt::SortOrder order = panel._ascending ? Qt::AscendingOrder : Qt::DescendingOrder;
-    panel._sortID = view->propertyId(column);
-    panel.SetSortRawStatus();
-    if (enableSorting && !projectedUi().table->isSortingEnabled()) {
-        // Enabling Qt sorting already sorts; configure the source order first.
-        const QSignalBlocker blocker(projectedUi().table->horizontalHeader());
-        projectedUi().table->horizontalHeader()->setSortIndicator(column, order);
-        projectedUi().table->setSortingEnabled(true);
-    } else
-        projectedUi().table->sortItems(column, order);
-    saveColumns();
-}
-
-void MainWindow::sortIndicatorChanged(unsigned index, int column, Qt::SortOrder order,
-                                      bool headerClick) {
-    const bool active = index == projectedPanel_;
-    withPanelProjection(index, [this, index, column, order, active, headerClick] {
-        auto *view = static_cast<FileTable *>(projectedUi().table);
-        if (!headerClick && view->deferSourceColumnClick(
-                                [window = QPointer<MainWindow>(this), index, column, order] {
-                                    if (window)
-                                        window->sortIndicatorChanged(index, column, order, true);
-                                }))
-            return;
-        auto &panel = app_.GetFocusedPanel();
-        {
-            const QSignalBlocker blocked(projectedUi().table->horizontalHeader());
-            if (headerClick) {
-                panel.OnColumnClick(view->propertyId(column));
-            } else {
-                // Explicit Qt sort requests retain their requested direction.
-                panel._sortID = view->propertyId(column);
-                panel._ascending = order == Qt::AscendingOrder;
-                panel.SetSortRawStatus();
-            }
-            // Qt's initial automatic sort precedes this signal consumer. Project
-            // the authoritative source flag/order onto the clicked section.
-            projectedUi().table->sortItems(column, panel._ascending ? Qt::AscendingOrder
-                                                                    : Qt::DescendingOrder);
-        }
-        if (!configuringColumns_) {
-            if (active && commands_)
-                commands_->RefreshViewActions();
-            saveColumns();
-        }
     });
 }
 

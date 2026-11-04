@@ -431,6 +431,26 @@ reports or new visual-parity acceptance is involved.
 
 ## Column-click sort dispatch — 2026-11-02
 
+### Complete Qt column/sort projection owner — 2026-11-04
+
+Rechecked the original PanelSort handlers at the revision below and their
+current Qt header, explicit-command, initial-column, selection and persistence
+consumers. The complete original PanelSort hash still matches the baseline.
+The unchanged `applySortMode` and `sortIndicatorChanged` bodies now live in
+`mainwindow_columns.cpp` with column configuration and persistence, rather than
+the unrelated toolbar/view preferences unit. The existing window component,
+methods and state remain authoritative; no new controller or source import is
+introduced.
+
+Native sorting algorithms, property defaults, raw/generic binding, deferred
+header dispatch, explicit requested direction, signal blockers and inactive-peer
+state are preserved. Existing behavior checks cover these branches; no new
+private-representation test or layout change is added.
+
+Linux `panel_column_sort`, `panel_sort_commands` and `panel_columns` passed
+39 checks without failures or skips. No platform adapter changed, so no new
+Windows/macOS or rendered visual acceptance is claimed.
+
 Compared original OnColumnClick and SortItemsWithPropID at
 `b88c6bc09339de32f7d18bbab900686b244f42ba` with their current bodies and
 Qt header, panel projection, column bindings, model sorting and settings
