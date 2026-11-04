@@ -2059,6 +2059,8 @@
     "src/gui/qtguicommand.h",
     "src/gui/qtguimain.cpp",
     "src/gui/qtupdateguiservices.h",
+    "src/help/qthelpbrowser.cpp",
+    "src/help/qthelpbrowser_p.h",
     "src/help/qthelpservices.cpp",
     "src/help/qthelpservices.h",
     "src/localization/qtlangbuttonbox.cpp",

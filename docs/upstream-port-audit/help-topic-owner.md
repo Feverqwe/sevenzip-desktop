@@ -24,3 +24,25 @@ Linux focused validation: help_source and help_ui passed, 35 Qt checks without
 skips. This establishes the shared dispatch and checked GUI consumers on Linux;
 no new Windows/macOS or rendered-original appearance acceptance is claimed.
 Completed test settings were removed; incremental builds/compiler caches retained.
+
+## Help document ownership — 2026-11-04
+
+Rechecked original HelpUtils dispatch, the current topic/window service, browser
+document adapter, source link/theme audits and contextual F1 consumers. Original
+HelpUtils.cpp/.h hashes still match the recorded revision above. The local Qt
+HelpBrowser implementation and table helper now belong to qthelpbrowser.cpp
+with a private header; qthelpservices.cpp retains resource initialization,
+topic validation, modeless window construction, external-link dispatch and Back.
+The public topic/text entry points and browser class behavior are unchanged.
+
+Complete document handlers were moved without rewriting their bodies: link
+resolution uses the sourceChanged URL, CHM-relative path normalization retains
+query/fragment/case rules, original CSS is cached, palette replacement remains
+one-pass and theme reload restores both scroll positions. Table sizing, window
+ownership, title/language binding and focus are retained. No HTML/CSS, native
+algorithm, external import or provenance revision changes. Existing help_source
+and help_ui suites cover real link activation, history, palette changes,
+readability, unavailable topics and contextual Help preserving pending input;
+no test is added for the internal class/file structure.
+Both focused suites passed on Linux. Other platforms and new rendered-original
+appearance acceptance were not selected for this nonvisual ownership change.

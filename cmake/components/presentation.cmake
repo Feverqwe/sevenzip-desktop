@@ -72,6 +72,8 @@ add_library(sevenzip_panel
     src/filemanager/views/qtfilelisthover.h
     src/filemanager/HelpUtils.cpp
     src/filemanager/HelpUtils.h
+    src/help/qthelpbrowser.cpp
+    src/help/qthelpbrowser_p.h
     src/help/qthelpservices.cpp
     src/help/qthelpservices.h
     src/dialogs/compress/qtcompressoptionscontrols.cpp
