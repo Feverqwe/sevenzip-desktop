@@ -1688,6 +1688,7 @@
     "src/dialogs/compress/qtcompressoptionsdialog.h",
     "src/dialogs/copy/alias.h",
     "src/dialogs/extract/alias.h",
+    "src/filemanager/AppCopy.cpp",
     "src/filemanager/external/qtexternalapplications.cpp",
     "src/filemanager/external/qtexternalapplications.h",
     "src/filemanager/external/qtexternalfilesession.cpp",
@@ -3759,6 +3760,7 @@
     },
     "src/filemanager/App.cpp": {
       "local": [
+        "src/filemanager/AppCopy.cpp",
         "src/filemanager/panels/PanelInfo.cpp",
         "src/filemanager/panels/PanelInfo.h"
       ],
@@ -3767,7 +3769,9 @@
         "AddValuePair1",
         "AddValuePair2",
         "AddPropValueToSum",
-        "CPanel::GetItemsInfoString"
+        "CPanel::GetItemsInfoString",
+        "Reduce_Path_To_RealFileSystemPath",
+        "CApp::OnCopy (routing, staging and post-operation phases)"
       ]
     }
   },
