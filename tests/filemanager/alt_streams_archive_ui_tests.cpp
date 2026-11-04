@@ -33,8 +33,12 @@ class AltStreamsArchiveUiTests final : public QObject, protected MainWindowTestS
     }
     void sourceArchiveStreamsCommand_data() {
         QTest::addColumn<QString>("language");
-        QTest::newRow("en") << QStringLiteral("-");
-        QTest::newRow("ru") << QStringLiteral("ru");
+        QTest::addColumn<int>("streamCount");
+        QTest::newRow("en") << QStringLiteral("-") << 1;
+        QTest::newRow("ru") << QStringLiteral("ru") << 1;
+#ifdef Q_OS_WIN
+        QTest::newRow("deferred") << QStringLiteral("-") << 257;
+#endif
     }
     void sourceTreeWriterPreservesOrdinaryPayload() {
         QTemporaryDir fixture;
@@ -82,6 +86,7 @@ class AltStreamsArchiveUiTests final : public QObject, protected MainWindowTestS
     }
     void sourceArchiveStreamsCommand() {
         QFETCH(QString, language);
+        QFETCH(int, streamCount);
         SaveRegLang(ToUString(language), qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         QTemporaryDir temp;
         const QString name = QStringLiteral("файл δ with space.bin");
@@ -95,6 +100,11 @@ class AltStreamsArchiveUiTests final : public QObject, protected MainWindowTestS
         QVERIFY(stream.open(QIODevice::WriteOnly));
         QCOMPARE(stream.write("archive stream bytes"), qint64(20));
         stream.close();
+        for (int i = 1; i < streamCount; ++i) {
+            QFile extra(base.fileName() + QStringLiteral(":extra-%1").arg(i));
+            QVERIFY(extra.open(QIODevice::WriteOnly));
+            QCOMPARE(extra.write("extra stream"), qint64(12));
+        }
 #endif
         const QString archive = temp.filePath("archive streams.wim");
         QProcess creator;
@@ -141,6 +151,8 @@ class AltStreamsArchiveUiTests final : public QObject, protected MainWindowTestS
                                                           .arg(size.height())));
         }
         QTRY_VERIFY(nativeRow(window, streamName) >= 0);
+        QTRY_VERIFY(table(window)->isEnabled());
+        QVERIFY(table(window)->currentIndex().isValid());
         QCOMPARE(table(window)->model()->index(nativeRow(window, streamName), 0).data().toString(),
                  streamName);
         QVERIFY(window.findChild<QLineEdit *>("archivePath")->text().contains(archive));
@@ -180,11 +192,13 @@ class AltStreamsArchiveUiTests final : public QObject, protected MainWindowTestS
         QTRY_COMPARE(QFileInfo(copied.fileName()).size(), qint64(20));
         QVERIFY2(copied.open(QIODevice::ReadOnly), qPrintable(copied.errorString()));
         QCOMPARE(copied.readAll(), QByteArray("archive stream bytes"));
+        QTRY_VERIFY(table(window)->isEnabled());
+        QTRY_VERIFY(nativeRow(window, streamName) >= 0);
         QVERIFY(table(window)->selectionModel()->selectedRows().isEmpty());
         table(window)->selectRow(nativeRow(window, streamName));
+        table(window)->setCurrentCell(nativeRow(window, streamName), 0);
         auto *rename = action(window, "renameAction");
         QVERIFY(rename->isEnabled());
-        table(window)->setCurrentCell(nativeRow(window, streamName), 0);
         rename->trigger();
         auto *editor = table(window)->findChild<QLineEdit *>();
         QVERIFY(editor);
@@ -192,6 +206,7 @@ class AltStreamsArchiveUiTests final : public QObject, protected MainWindowTestS
         editor->setText(renamed);
         QTest::keyClick(editor, Qt::Key_Return);
         QTRY_VERIFY(nativeRow(window, renamed) >= 0);
+        QTRY_VERIFY(table(window)->isEnabled());
         QVERIFY(nativeRow(window, streamName) < 0);
         table(window)->selectRow(nativeRow(window, renamed));
         table(window)->setCurrentCell(nativeRow(window, renamed), 0);
@@ -223,6 +238,11 @@ class AltStreamsArchiveUiTests final : public QObject, protected MainWindowTestS
                 QVERIFY(nativeRow(window, renamed) < 0);
                 // Original Restore FolderItem falls back to the ordinary file
                 // owner when its final ADS directory disappears.
+                if (streamCount > 1) {
+                    QTRY_VERIFY(table(window)->isEnabled());
+                    QTRY_VERIFY(nativeRow(window, QStringLiteral("extra-1")) >= 0);
+                    action(window, "parentFolderAction")->trigger();
+                }
                 QTRY_VERIFY(nativeRow(window, name) >= 0);
             }
         }
@@ -236,7 +256,7 @@ class AltStreamsArchiveUiTests final : public QObject, protected MainWindowTestS
         const QByteArray mainName = (mainEntry + '\n').toUtf8();
         QCOMPARE(selection.write(mainName), qint64(mainName.size()));
         selection.close();
-        creator.start(engine_, {"x", "-so", "-spd", "-ssc", "-scsUTF-8",
+        creator.start(engine_, {"x", "-so", "-sns-", "-spd", "-ssc", "-scsUTF-8",
                                 "-i@" + selection.fileName(), "--", archive});
         QVERIFY(creator.waitForFinished(10000));
         QCOMPARE(creator.exitCode(), 0);

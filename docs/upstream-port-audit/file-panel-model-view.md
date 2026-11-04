@@ -1,5 +1,32 @@
 # Файловая панель: Qt Model/View — 2026-10-24
 
+## Alternate-stream navigation uses native reload publication — 2026-11-05
+
+Compared the complete original CPanel::OpenAltStreams body, its dispatch/menu
+capability callers, folder binding and guarded RefreshListCtrl with the current
+Qt command adapter and synchronous/deferred selection publication. Complete
+PanelFolderChange.cpp and PanelItems.cpp originals match the existing hashes at
+`b88c6bc09339de32f7d18bbab900686b244f42ba` from
+<https://github.com/ip7z/7zip.git>. No native algorithm, provider, import or
+baseline revision changes.
+
+The Qt command now lets the native reload callback publish its bound stream
+folder. Removing the second render preserves the resulting current item and
+avoids restarting a deferred archive list. The existing source-call scan handoff
+retains restored native guard state after OpenAltStreams returns. Final command
+availability refresh remains; unsupported/no-folder branches keep their native
+behavior without rebuilding the unchanged view.
+
+Existing WIM and Windows NTFS command scenarios check the initial current row
+before manually selecting a stream. Their copy, rename, delete cancellation and
+parent-navigation checks remain. The Windows WIM scenario additionally creates
+257 real streams to exercise deferred publication and subsequent mutation.
+
+Focused validation passed on Linux (18 Qt checks) and Windows (22):
+alt_streams_archive_ui, alt_streams_command and agent_stream_copy_ui. Windows
+covers real NTFS binding and the deferred WIM scenario. No layout changes or new
+native appearance claims are involved.
+
 ## Native reload owns complete peer-folder publication — 2026-11-05
 
 Compared complete original OnSetSameFolder/OnSetSubFolder bodies and the native

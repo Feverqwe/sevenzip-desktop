@@ -35,6 +35,7 @@ class AltStreamsCommandTests final : public QObject, protected MainWindowTestSup
         table(window)->selectRow(filesystemRow(window, name));
         action(window, "altStreamsAction")->trigger();
         QTRY_COMPARE(table(window)->rowCount(), 1);
+        QVERIFY(table(window)->currentIndex().isValid());
         table(window)->selectRow(0);
         table(window)->setCurrentCell(0, 0);
         for (const QSize size : {QSize(980, 620), QSize(640, 400)}) {
@@ -181,6 +182,7 @@ class AltStreamsCommandTests final : public QObject, protected MainWindowTestSup
             QFAIL(qPrintable(QStringLiteral("OpenAltStreams source exception %1").arg(code)));
         }
         QTRY_COMPARE(table(window)->rowCount(), 1);
+        QVERIFY(table(window)->currentIndex().isValid());
         QCOMPARE(table(window)->model()->index(0, 0).data().toString(), QStringLiteral("поток δ"));
         QCOMPARE(table(window)->model()->index(0, 0).data(Qt::UserRole + 1).toBool(), false);
         QCOMPARE(table(window)->model()->index(0, 0).data(Qt::UserRole).toString(),
