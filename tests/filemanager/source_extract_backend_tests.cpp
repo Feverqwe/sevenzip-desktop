@@ -4,6 +4,7 @@
 #include "archive/resources/qtarchivebatchextract.h"
 #include "archive/resources/qtarchivefileresource.h"
 #include "archive/resources/qtarchivefoldermanager.h"
+#include "archive/resources/virtualextractfilesystem.h"
 #include "archive/support/source_extract_fixture.h"
 #include "dialogs/overwrite/OverwriteDialog.h"
 #include "filemanager/ExtractCallback.h"

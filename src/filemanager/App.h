@@ -4,13 +4,13 @@
 
 #include "filemanager/AppState.h"
 #include "filemanager/panels/Panel.h"
+#include "filemanager/panels/panelmenuids.h"
 #include "filemanager/state/qtappoperationstate.h"
 #include "settings/RegistryUtils.h"
 #include <memory>
 
 const unsigned kNumPanelsMax = 2;
 const int kMenuCmdID_Toolbar_Start = 1070;
-const int kMenuCmdID_Plugin_Start = 1100;
 enum {
     kMenuCmdID_Toolbar_Add = kMenuCmdID_Toolbar_Start,
     kMenuCmdID_Toolbar_Extract,

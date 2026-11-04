@@ -22,19 +22,25 @@ void CreateArchiveDialog::initializeSourceControls(const NCompressDialog::CInfo 
 }
 
 NCompressDialog::CInfo CreateArchiveDialog::sourceInfo() const {
-    const CompressionOptions options = compressionOptions();
-    NCompressDialog::CInfo info = options;
+    const auto request = accepted_ ? *accepted_ : readRequest({});
+    NCompressDialog::CInfo info = request.Options;
+    info.Level = request.SourceLevel;
+    return info;
+}
+
+CreateArchiveDialog::AcceptedRequest CreateArchiveDialog::readRequest(const QString &target) const {
     // Source GetLevelSpec returns Auto for an empty or single-entry combo.
     // The standalone CLI options retain their normalized effective level.
-    info.Level = CCompressDialog::GetComboValue(*level_, 1);
+    AcceptedRequest request{compressionOptions(), CCompressDialog::GetComboValue(*level_, 1)};
+    auto &info = request.Options;
     info.KeepName = archiveNameState_.Info.KeepName;
-    info.ArcPath = target().toStdWString().c_str();
-    info.FormatIndex = codecs_ ? codecs_->formatIndex(options.format) : -1;
+    info.ArcPath = target.toStdWString().c_str();
+    info.FormatIndex = codecs_ ? codecs_->formatIndex(info.format) : -1;
     info.Password = password();
     info.EncryptHeadersIsAllowed =
         NCompressDialog::GetFormatInfo(format_->currentText()).EncryptFileNames_();
     info.EncryptHeaders = encryptHeaders();
-    return info;
+    return request;
 }
 
 HRESULT CreateArchiveDialog::PresentSource(CCompressDialog &source,

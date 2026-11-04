@@ -71,3 +71,8 @@ class IQtFileManagerMenuCommandServices : public IQtFileManagerCommandServices {
 
 class CApp;
 bool WndProc(unsigned commandID, CApp &app, IQtFileManagerMenuCommandServices &services);
+
+// Source command dispatch is shared by native window routing and Qt consumers.
+const char *GetHashMethodForCommand(unsigned id);
+bool ExecuteFileCommand(unsigned id, IQtFileManagerCommandServices &app);
+bool OnMenuCommand(unsigned id, IQtFileManagerMenuCommandServices &app);

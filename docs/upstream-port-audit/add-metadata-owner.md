@@ -1,5 +1,66 @@
 # Add metadata preparation — 2026-11-01
 
+## Accepted creation request — 2026-11-04
+
+Rechecked original CompressDialog.cpp OnOK, password/encryption, option
+collection and source ShowDialog consumers against recorded revision
+`b88c6bc09339de32f7d18bbab900686b244f42ba`. Native OnOK fills Info before
+ending the dialog. The Qt adapter instead read widgets again after exec(),
+allowing an accepted-signal observer to replace already confirmed parameters.
+A focused native PresentSource regression reproduced a returned password from
+the later draft. This is a reachable source-adapter contract gap; no existing
+production observer changing the form after acceptance was identified.
+
+The dialog now publishes one accepted request before emitting acceptance.
+It contains the existing CompressionOptions and the distinct source level:
+the native result keeps Auto for empty/single-choice controls while standalone
+options retain the effective level. Path, password, header encryption and
+both option readers use this same result. The former separate target path is
+removed. Draft queries remain live before confirmation; a new opening or
+validation attempt starts a fresh result scope. Native validation, settings
+commit order, format/method decisions and decoder/encoder operations remain
+unchanged. No external source is imported and original hashes are unchanged.
+
+Focused Linux validation passed compression, compression_preferences and
+source_compress_dialog: 60 Qt checks, no failures or skips. The regression uses
+the real source presenter and confirms that later widget changes cannot replace
+the confirmed password, header encryption or level; TAR also preserves the
+source Auto/effective-level distinction. Existing draft, cancellation and
+operation checks passed. Selected scratch was empty after validation;
+incremental builds and compiler caches were preserved. No Windows/macOS or
+new visual parity acceptance is claimed for this portable request-boundary fix.
+
+## Complete compression resource policy owner — 2026-11-04
+
+Compared original CompressDialog.cpp dictionary/order, solid size, thread
+selection, RAM normalization and memory estimate/limit bodies, declarations and
+current format/method/level transitions at recorded revision
+`b88c6bc09339de32f7d18bbab900686b244f42ba`. Complete original cpp/header hashes
+match the existing baseline. Existing Zstandard estimates remain a local
+adaptation using the same pinned dependency API; no source is imported.
+
+The complete numeric resource block and private limits now reside together in
+`CompressResources.cpp`; its option records and function declarations have a
+focused header. CompressDialog.h continues to expose that interface, preserving
+existing consumers. Both sources remain in the same sevenzip_compress_source
+object target. All moved bodies and remaining dialog/catalog bodies are
+unchanged. Format capabilities, method population, saved-profile transitions,
+Auto sentinels, SFX state and Qt control binding retain their existing owners.
+The resource block keeps its Windows/POSIX system queries and Zstandard static
+API setup. Existing extraction mappings retain the original hashes/revision.
+Memory-unit translations keep the same explicit context, strings and payload;
+only their source locations follow the moved implementation.
+
+Focused Linux validation passed compression_resources, compression_preferences
+and compression_profile_selection: 48 Qt checks, no failures or skips. Existing
+checks cover Auto limits, memory-driven thread selection, restored and invalid
+profiles, method/level/dictionary transitions and actual archive creation,
+failure and cancellation. No new implementation-presence tests were added.
+Native platform branches, compilation options, UI layout and translated payloads
+are unchanged; Windows/macOS and new visual parity are not claimed. All previous
+extraction mappings and original hashes were retained. Selected scratch was
+empty after validation; incremental builds and compiler caches were preserved.
+
 Reference: <https://github.com/ip7z/7zip.git>, commit
 `9128b80e3a471108678e2b3ec3c985861c8d7b0f`. Compared the original
 CompressDialog.cpp bool-pair merge/finalization, FormatChanged, OnOK,

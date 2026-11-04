@@ -3,6 +3,7 @@
 #include "Windows/PropVariantConv.h"
 #include "Windows/TimeUtils.h"
 #include "filemanager/MyLoadMenu.h"
+#include "filemanager/qtfilemanagercommandservices.h"
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtmainwindowchrome.h"
 #include "localization/qtlangcontrols.h"

@@ -2,6 +2,7 @@
 // Igor Pavlov, LGPL-2.1-or-later; see third_party/7zip/License.txt.
 // Source archive-link/update bodies; Qt presentation and typed manager boundary.
 #include "7zip/Common/StreamObjects.h"
+#include "7zip/UI/Common/ExtractMode.h"
 #include "7zip/UI/FileManager/PropertyNameRes.h"
 #include "7zip/UI/FileManager/resource.h"
 #include "7zip/UI/GUI/ExtractRes.h"
@@ -13,8 +14,8 @@
 #include "archive/operations/ExtractingFilePath.h"
 #include "archive/resources/archivelayercontext.h"
 #include "archive/resources/qtarchiveitemopen.h"
+#include "archive/resources/virtualextractfilesystem.h"
 #include "filemanager/App.h"
-#include "filemanager/ExtractCallback.h"
 #include "filemanager/FormatUtils.h"
 #include "filemanager/UpdateCallback100.h"
 #include "filemanager/external/qtexternalapplications.h"

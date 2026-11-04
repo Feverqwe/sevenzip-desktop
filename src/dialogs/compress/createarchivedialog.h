@@ -21,6 +21,7 @@
 #include <QPushButton>
 #include <QSpinBox>
 #include <QVBoxLayout>
+#include <optional>
 
 class QtDisclosure;
 
@@ -39,17 +40,29 @@ class CreateArchiveDialog : public QDialog {
                                  std::shared_ptr<const ArchiveCodecCatalog> codecs,
                                  QWidget *parent);
 
-    QString target() const { return target_; }
+    QString target() const {
+        return accepted_ ? QString::fromWCharArray(accepted_->Options.ArcPath.Ptr()) : QString();
+    }
     QStringList sources() const { return selected_; }
     QString password() const {
+        if (accepted_)
+            return accepted_->Options.Password;
         return password_ && password_->isEnabled() ? password_->text() : QString();
     }
     bool encryptHeaders() const {
+        if (accepted_)
+            return accepted_->Options.EncryptHeaders;
         return encryptHeaders_ && encryptHeaders_->isEnabled() && encryptHeaders_->isChecked();
     }
     CompressionOptions compressionOptions() const;
 
   private:
+    struct AcceptedRequest {
+        CompressionOptions Options;
+        UInt32 SourceLevel;
+    };
+    AcceptedRequest readRequest(const QString &target) const;
+    void showEvent(QShowEvent *event) override;
     void createArchiveForm(QVBoxLayout *layout, QVBoxLayout *windowLayout);
     void createOptionSections(QVBoxLayout *layout, QFormLayout *basic);
     void stabilizeColumnWidths();
@@ -96,7 +109,7 @@ class CreateArchiveDialog : public QDialog {
     void validateAndAccept();
     QString archivePath() const;
 
-    QString target_;
+    std::optional<AcceptedRequest> accepted_;
     std::shared_ptr<const ArchiveCodecCatalog> codecs_;
     CCompressDialog archiveNameState_;
     void configureArchiveName(const QString &format);

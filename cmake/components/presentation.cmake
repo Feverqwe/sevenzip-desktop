@@ -84,6 +84,7 @@ add_library(sevenzip_panel
     src/platform/filepicker/CommonDialog.cpp
     src/platform/filepicker/CommonDialog.h
     src/filemanager/MyLoadMenu.cpp
+    src/filemanager/nativecommanddispatch.cpp
     src/filemanager/MyLoadMenu.h
     src/filemanager/qtfilemenuservices.h
     src/filemanager/qtfilemanagercommandservices.h
@@ -109,6 +110,8 @@ add_library(sevenzip_panel
     src/fileops/links/qtlinkcontrols.cpp
     src/fileops/links/qtlinkcontrols.h
     src/filemanager/ExtractCallback.cpp
+    src/archive/resources/virtualextractfilesystem.cpp
+    src/archive/resources/virtualextractfilesystem.h
     src/filemanager/ExtractCallback.h
     src/archive/diagnostics/archiveerrormessages.cpp
     src/archive/diagnostics/archiveerrormessages.h
@@ -204,6 +207,7 @@ add_library(sevenzip_panel
     src/filemanager/panels/PanelFolderChange.cpp
     src/filemanager/panels/PanelAddress.cpp
     src/filemanager/panels/PanelMenu.cpp
+    src/filemanager/panels/panelmenuids.h
     src/filemanager/panels/PanelProperties.cpp
     src/filemanager/PropertyName.cpp
     src/filemanager/PropertyName.h
@@ -276,6 +280,8 @@ target_link_libraries(sevenzip_panel PUBLIC Qt6::Widgets sevenzip_common sevenzi
 target_sources(sevenzip_panel PRIVATE src/platform/shell/MyMessages.cpp src/archive/callbacks/qtguimessages.h)
 if(WIN32)
     target_sources(sevenzip_panel PRIVATE
+        src/filemanager/panels/PanelShellMenu_win.cpp
+        src/filemanager/panels/PanelDrag_win.cpp
         src/platform/associations/qtassociatedfilelaunch_win.cpp
         src/platform/associations/qtassociatedfilelaunch_win.h
         src/filemanager/panels/qtpaneldragnative.cpp src/filemanager/panels/qtpaneldragnative.h

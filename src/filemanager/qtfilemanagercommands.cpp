@@ -4,7 +4,6 @@
 #include "archive/codecs/archivecodeccatalog.h"
 #include "archive/resources/qtarchivefileresource.h"
 #include "archive/resources/qtarchiveproperties.h"
-#include "filemanager/MyLoadMenu.h"
 #include "filemanager/qtfilemenuprojection.h"
 #include "filemanager/qtprogramfilemenu.h"
 #include "filemanager/window/mainwindow.h"

@@ -83,3 +83,35 @@ Windows implementation changed, so Linux/macOS suites were not repeated.
 This establishes the checked native rendering and dispatch behavior; no injected
 allocation failure or new rendered-original parity acceptance is claimed.
 Completed settings were removed; incremental builds/compiler caches retained.
+
+## Complete panel shell provider owner — 2026-11-04
+
+Compared the original PanelMenu.cpp construction and invocation bodies, Panel.h
+interfaces, and App.h command range at recorded revision
+`9128b80e3a471108678e2b3ec3c985861c8d7b0f`, including callers in properties,
+the associated-file launcher and both Qt menu projections. The full native
+provider chain now resides in `panels/PanelShellMenu_win.cpp`, beside its owning
+CPanel interface, in the same sevenzip_panel target. Shared menu policy remains
+in PanelMenu.cpp; Qt rendering and retained-provider lifetimes keep their
+existing owners.
+
+The moved bodies preserve PIDL cleanup, super-path fallback, selection handling,
+submenu insertion ownership and Unicode numeric invocation. The existing
+ShellFolder_ParseDisplayName linkage also remains available to the Windows
+associated-file launcher. A focused shared command-range header supplies the
+same plugin/system boundary to provider construction and both dispatchers;
+App.h continues to expose the existing plugin start through that header.
+No algorithms, native API contracts or resources are replaced or omitted.
+The existing baseline maps these extractions without advancing original hashes.
+
+Source review confirms that the complete moved native block and all remaining
+portable method bodies are unchanged. Focused runtime validation passed on
+Linux (shell_context, shell_menu_window, source_context_menu: 44 Qt checks) and
+on interactive Windows (native_system_menu, native_menu_presentation,
+shell_menu_window, native_association_handle: 47 checks), with no failures or
+skips. The native association check exercises the real launcher and shared
+PIDL helper using a disposable helper executable. Existing checks cover Unicode
+selection, numeric invocation, failure/resource ownership and stale commands;
+no implementation-presence tests were added. No macOS or new visual-parity
+acceptance is claimed. Completed test settings were removed; incremental
+builds and compiler caches were retained.

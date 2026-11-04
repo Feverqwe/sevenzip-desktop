@@ -2,6 +2,7 @@
 #include "archive/codecs/archivecodeccatalog.h"
 #include "dialogs/compress/createarchivedialog.h"
 #include "filemanager/App.h"
+#include "filemanager/panels/panelmenuids.h"
 #include "filemanager/window/mainwindow.h"
 #include "localization/qtlanguageservices.h"
 #include "operations/CompressCall.h"
@@ -215,7 +216,7 @@ bool QtFileManagerShellMenu::HasContextMenu(bool system) const {
 
 bool QtFileManagerShellMenu::CanInvoke(unsigned id) const {
 #ifdef _WIN32
-    if (id >= kMenuCmdID_Plugin_Start + 400)
+    if (id >= kSystemStartMenuID)
         return _system && _system->CanInvoke(id);
 #endif
     if (!_context || id < kMenuCmdID_Plugin_Start)

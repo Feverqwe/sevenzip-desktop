@@ -1575,6 +1575,8 @@
     "src/archive/resources/qtextractpathpolicy.h",
     "src/archive/resources/qtfilesystemreadprompt.cpp",
     "src/archive/resources/qtfilesystemreadprompt.h",
+    "src/archive/resources/virtualextractfilesystem.cpp",
+    "src/archive/resources/virtualextractfilesystem.h",
     "src/archive/sfx/archivesfxmodule.cpp",
     "src/archive/sfx/archivesfxmodule.h",
     "src/benchmark/qtbenchmarkcontrols.cpp",
@@ -1670,6 +1672,8 @@
     "src/devices/qtdevicecommands.cpp",
     "src/dialogs/combo/alias.h",
     "src/dialogs/compress/CompressInfo.h",
+    "src/dialogs/compress/CompressResources.cpp",
+    "src/dialogs/compress/CompressResources.h",
     "src/dialogs/compress/createarchivedialog.cpp",
     "src/dialogs/compress/createarchivedialog.h",
     "src/dialogs/compress/createarchivedialog_advanced.cpp",
@@ -1693,14 +1697,18 @@
     "src/filemanager/external/qtexternalapplications.h",
     "src/filemanager/external/qtexternalfilesession.cpp",
     "src/filemanager/external/qtexternalfilesession.h",
+    "src/filemanager/nativecommanddispatch.cpp",
     "src/filemanager/panels/PanelAddress.cpp",
     "src/filemanager/panels/PanelColumns.cpp",
+    "src/filemanager/panels/PanelDrag_win.cpp",
     "src/filemanager/panels/PanelFolderOperations.cpp",
     "src/filemanager/panels/PanelFolderOperations.h",
     "src/filemanager/panels/PanelInfo.cpp",
     "src/filemanager/panels/PanelInfo.h",
     "src/filemanager/panels/PanelProperties.cpp",
     "src/filemanager/panels/PanelSelect.h",
+    "src/filemanager/panels/PanelShellMenu_win.cpp",
+    "src/filemanager/panels/panelmenuids.h",
     "src/filemanager/panels/qtnativepanelkeys.cpp",
     "src/filemanager/panels/qtnativepanelkeys.h",
     "src/filemanager/panels/qtpaneladdresscombo.cpp",
@@ -3490,11 +3498,13 @@
     },
     "src/dialogs/compress/CompressDialog.h": {
       "local": [
-        "src/dialogs/compress/CompressInfo.h"
+        "src/dialogs/compress/CompressInfo.h",
+        "src/dialogs/compress/CompressResources.h"
       ],
       "symbols": [
         "NCompressDialog::NUpdateMode",
-        "NCompressDialog::CInfo"
+        "NCompressDialog::CInfo",
+        "CCompressDialog (resource state and control results adapted as option records)"
       ]
     },
     "src/dialogs/mem/MemDialog.cpp": {
@@ -3518,7 +3528,8 @@
     "src/filemanager/ExtractCallback.cpp": {
       "local": [
         "src/archive/diagnostics/archiveerrormessages.cpp",
-        "src/archive/diagnostics/archiveerrormessages.h"
+        "src/archive/diagnostics/archiveerrormessages.h",
+        "src/archive/resources/virtualextractfilesystem.cpp"
       ],
       "symbols": [
         "SetExtractErrorMessage",
@@ -3527,7 +3538,9 @@
         "k_ErrorFlagsIds",
         "AddNewLineString",
         "ErrorInfo_Print",
-        "GetBracedType"
+        "GetBracedType",
+        "CVirtFileSystem::Write",
+        "CVirtFileSystem::FlushToDisk"
       ]
     },
     "src/filemanager/FM.cpp": {
@@ -3609,7 +3622,9 @@
     },
     "src/filemanager/panels/PanelMenu.cpp": {
       "local": [
-        "src/filemanager/panels/PanelProperties.cpp"
+        "src/filemanager/panels/PanelProperties.cpp",
+        "src/filemanager/panels/PanelShellMenu_win.cpp",
+        "src/filemanager/panels/panelmenuids.h"
       ],
       "symbols": [
         "CPanel::Properties",
@@ -3620,7 +3635,15 @@
         "AddPropertyString",
         "kSpecProps",
         "kSeparator",
-        "kSeparatorSmall"
+        "kSeparatorSmall",
+        "CPanel::InvokeSystemCommand",
+        "CFolderPidls",
+        "ShellFolder_ParseDisplayName",
+        "CPanel::CreateShellContextMenu",
+        "CPanel::CreateSystemMenu",
+        "CPanel::InvokePluginCommand (native invocation body)",
+        "kSevenZipStartMenuID",
+        "kSystemStartMenuID"
       ]
     },
     "src/filemanager/panels/PanelSort.cpp": {
@@ -3772,6 +3795,85 @@
         "CPanel::GetItemsInfoString",
         "Reduce_Path_To_RealFileSystemPath",
         "CApp::OnCopy (routing, staging and post-operation phases)"
+      ]
+    },
+    "src/filemanager/App.h": {
+      "local": [
+        "src/filemanager/panels/panelmenuids.h"
+      ],
+      "symbols": [
+        "kMenuCmdID_Plugin_Start"
+      ]
+    },
+    "src/filemanager/panels/PanelDrag.cpp": {
+      "local": [
+        "src/filemanager/panels/PanelDrag_win.cpp"
+      ],
+      "symbols": [
+        "CDataObject_TransferBase",
+        "CDataObject_GetTransfer",
+        "CTargetTransferInfo (native wire record)",
+        "CDataObject_SetTransfer",
+        "CDataObject (IDataObject protocol bodies)",
+        "CDropSource (IDropSource transport)",
+        "CopyNamesToHGlobal",
+        "DuplicateGlobalMem",
+        "Medium_CopyFrom",
+        "DataObject_GetData_GetTransfer"
+      ]
+    },
+    "src/filemanager/MyLoadMenu.cpp": {
+      "local": [
+        "src/filemanager/nativecommanddispatch.cpp"
+      ],
+      "symbols": [
+        "ExecuteFileCommand",
+        "OnMenuCommand",
+        "k_MenuID_OpenBookmark",
+        "k_MenuID_SetBookmark",
+        "kFMHelpTopic"
+      ]
+    },
+    "src/filemanager/MyLoadMenu.h": {
+      "local": [
+        "src/filemanager/qtfilemanagercommandservices.h"
+      ],
+      "symbols": [
+        "ExecuteFileCommand (adapted declaration)",
+        "OnMenuCommand (adapted declaration)"
+      ]
+    },
+    "src/filemanager/ExtractCallback.h": {
+      "local": [
+        "src/archive/resources/virtualextractfilesystem.h"
+      ],
+      "symbols": [
+        "CGrowBuf",
+        "CVirtFile",
+        "CVirtFileSystem"
+      ]
+    },
+    "src/dialogs/compress/CompressDialog.cpp": {
+      "local": [
+        "src/dialogs/compress/CompressResources.cpp"
+      ],
+      "symbols": [
+        "CCompressDialog::SetDictionary2 (numeric branches)",
+        "Combo_AddDict2 (text body)",
+        "CCompressDialog::SetOrder2 (numeric branches)",
+        "CCompressDialog::GetOrderMode",
+        "Get_Lzma2_ChunkSize",
+        "Add_Size",
+        "CCompressDialog::SetSolidBlockSize2 (numeric branches)",
+        "CCompressDialog::OnOK (solid conversion)",
+        "CCompressDialog::GetMemoryUsage_Threads_Dict_DecompMem",
+        "CCompressDialog::OnInit (RAM normalization)",
+        "CCompressDialog::SetNumThreads2 (affinity, bounds and memory policy)",
+        "AddMemUsage",
+        "AddMemSize",
+        "CCompressDialog::AddMemComboItem",
+        "CCompressDialog::SetMemUseCombo (choices and selection)",
+        "CCompressDialog::Get_MemUse_Bytes"
       ]
     }
   },

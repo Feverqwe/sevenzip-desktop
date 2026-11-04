@@ -1,5 +1,34 @@
 # Native drag session ownership — 2026-10-18
 
+## Complete Windows OLE protocol owner — 2026-11-04
+
+Rechecked the complete native protocol, its wire records, IDataObject and
+IDropSource bodies, format enumeration and source/target callers against
+PanelDrag.cpp at recorded revision
+`b88c6bc09339de32f7d18bbab900686b244f42ba`. Complete original PanelDrag,
+EnumFormatEtc.cpp/.h and MyCom2.h hashes match the existing baseline.
+
+The Windows transport now resides in `panels/PanelDrag_win.cpp`, beside its
+owning typed panel interfaces and Qt MIME adapter, in the same sevenzip_panel
+target. The complete moved block and remaining portable implementation are
+unchanged. Transfer records, validation, HGLOBAL/STGMEDIUM ownership, deferred
+archive extraction, capture restoration and receiver protection retain their
+existing behavior. The three transport entry points keep the same interfaces;
+Qt MIME presentation and shared Copy/Move, cancellation and temporary-lifetime
+policy keep their existing owners. No algorithms are replaced or omitted and
+no original hashes or source revisions advance.
+
+Focused Linux validation passed drag_drop, drag_protocol and drag_archive
+(52 Qt checks); interactive Windows passed native_drag_protocol, native_drag_qt
+and native_drag_archive (24 checks), with no failures or skips. Existing behavior
+checks cover wire validation and medium ownership, independent-process COM
+exchange, retained MIME sessions, real archive bytes, cancellation and late data
+requests after the panel closes. No new implementation-presence tests were
+added. The checked scenarios do not establish manual Explorer drag gestures or
+new visual parity. macOS was not needed for this Windows transport extraction.
+Completed test scratch directories were empty; incremental builds and compiler
+caches were retained.
+
 ## External receiver completion owner — 2026-11-04
 
 Reviewed source OnDrag, data preparation, temporary protection, native OLE and

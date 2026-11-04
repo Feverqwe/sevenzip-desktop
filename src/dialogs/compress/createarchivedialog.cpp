@@ -344,6 +344,7 @@ QString CreateArchiveDialog::archivePath() const {
 }
 
 void CreateArchiveDialog::validateAndAccept() {
+    accepted_.reset();
     if (password_) {
         const bool protect = password_->isEnabled();
         const auto error = CCompressDialog::CheckPassword(
@@ -375,18 +376,26 @@ void CreateArchiveDialog::validateAndAccept() {
         return;
     // Existing outputs are opened/validated by source UpdateArchive after OK,
     // just as for the original form. The dialog must not reject update intent.
-    target_ = resolved;
+    auto request = readRequest(resolved);
     CCompressDialog path;
-    path.m_ArchivePath = target_;
+    path.m_ArchivePath = resolved;
     path.Format = format_->currentText();
     path.ShowPassword = showPassword_ && showPassword_->isChecked();
     path.EncryptHeaders = encryptHeaders_ && encryptHeaders_->isChecked();
     path.OnOK(m_RegistryInfo);
     m_RegistryInfo.Save(compressionSettingsPath());
+    accepted_ = std::move(request);
     accept();
 }
 
+void CreateArchiveDialog::showEvent(QShowEvent *event) {
+    accepted_.reset();
+    QDialog::showEvent(event);
+}
+
 CompressionOptions CreateArchiveDialog::compressionOptions() const {
+    if (accepted_)
+        return accepted_->Options;
     CompressionOptions options;
     options.SFXMode = sfx_ && sfx_->isEnabled() && sfx_->isChecked();
     if (options.SFXMode)

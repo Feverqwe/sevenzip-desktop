@@ -1,6 +1,5 @@
 #include "7zip/UI/FileManager/resource.h"
 #include "filemanager/App.h"
-#include "filemanager/MyLoadMenu.h"
 #include "filemanager/qtfilemanagercommandservices.h"
 #include <QtTest>
 
