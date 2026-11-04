@@ -1722,6 +1722,7 @@
     "src/filemanager/external/qtexternalfilesession.h",
     "src/filemanager/nativecommanddispatch.cpp",
     "src/filemanager/panels/PanelAddress.cpp",
+    "src/filemanager/panels/PanelArchiveLifecycle.cpp",
     "src/filemanager/panels/PanelArchiveOpen.cpp",
     "src/filemanager/panels/PanelColumns.cpp",
     "src/filemanager/panels/PanelDrag_win.cpp",
@@ -3644,7 +3645,8 @@
     },
     "src/filemanager/panels/PanelFolderChange.cpp": {
       "local": [
-        "src/filemanager/panels/PanelAddress.cpp"
+        "src/filemanager/panels/PanelAddress.cpp",
+        "src/filemanager/panels/PanelArchiveLifecycle.cpp"
       ],
       "symbols": [
         "GetRealIconIndex_for_DirPath",
@@ -3653,7 +3655,9 @@
         "CPanel::OnNotifyComboBoxEnter",
         "CPanel::OnNotifyComboBoxEndEdit",
         "CPanel::AddComboBoxItem",
-        "CPanel::OnComboBoxCommand"
+        "CPanel::OnComboBoxCommand",
+        "CPanel::CloseOneLevel",
+        "CPanel::CloseOpenFolders"
       ]
     },
     "src/filemanager/panels/PanelItemOpen.cpp": {
@@ -3662,6 +3666,7 @@
         "src/filemanager/external/qtexternalapplications.h",
         "src/filemanager/external/qtexternalfilesession.cpp",
         "src/filemanager/external/qtexternalfilesession.h",
+        "src/filemanager/panels/PanelArchiveLifecycle.cpp",
         "src/filemanager/panels/PanelArchiveOpen.cpp"
       ],
       "symbols": [

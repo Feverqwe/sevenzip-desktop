@@ -1,5 +1,28 @@
 # Archive folder lifetime across rollback — 2026-10-18
 
+## Archive-layer lifecycle owner — 2026-11-04
+
+Reviewed native archive opening, parent links, materialized nested editing,
+return navigation and final panel destruction against the original
+`PanelItemOpen.cpp` and `PanelFolderChange.cpp` at
+`b88c6bc09339de32f7d18bbab900686b244f42ba`. Both complete original inventory
+hashes match the existing baseline. No external source or revision is imported.
+
+The complete OpenAsArc, message/name opening, parent-archive update and
+CloseOneLevel/CloseOpenFolders bodies now share `PanelArchiveLifecycle.cpp`
+within the existing panel component. Their bodies are unchanged. Opening an
+item still owns stream acquisition, memory/disk extraction and external
+handoff; general navigation still owns binding, path and selection publication.
+The lifecycle unit keeps the matching library/parent transfers and cleanup
+together without adding an interface, controller or state.
+
+Native release/restore order, temporary leases, sparse-bundle admission,
+container depth, password retention, modified-file prompt and update policy,
+cancel/error results and deferred Qt publication remain unchanged. The existing
+baseline records both original units and their extracted symbols; original
+hashes are unchanged. Existing nested opening/editing and parent-publication
+behavior checks provide acceptance; no source-layout test is added.
+
 ## Joined opening callback owner — 2026-11-04
 
 Compared complete original FileFolderPluginOpen.cpp/.h and OpenCallback.cpp/.h

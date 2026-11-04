@@ -121,30 +121,6 @@ void CPanel::LoadFullPath() {
         _currentFolderPrefix += GetFolderPath(_folder);
 }
 
-void CPanel::CloseOneLevel() {
-    ReleaseFolder();
-    _library.Free();
-    {
-        CFolderLink &link = _parentFolders.Back();
-        if (link.ParentFolder)
-            SetNewFolder(link.ParentFolder);
-        _library.Attach(link.Library.Detach());
-    }
-    if (_parentFolders.Size() > 1)
-        OpenParentArchiveFolder();
-    _parentFolders.DeleteBack();
-    if (_parentFolders.IsEmpty())
-        _flatMode = _flatModeForDisk;
-}
-
-void CPanel::CloseOpenFolders() {
-    while (!_parentFolders.IsEmpty())
-        CloseOneLevel();
-    _flatMode = _flatModeForDisk;
-    ReleaseFolder();
-    _library.Free();
-}
-
 void CPanel::SetToRootFolder() {
     ReleaseFolder();
     _library.Free();

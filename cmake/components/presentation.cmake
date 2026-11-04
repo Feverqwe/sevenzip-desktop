@@ -131,6 +131,7 @@ add_library(sevenzip_panel
     src/filemanager/providers/FileFolderPluginOpen.cpp
     src/filemanager/providers/FileFolderPluginOpen.h
     src/filemanager/panels/PanelItemOpen.cpp
+    src/filemanager/panels/PanelArchiveLifecycle.cpp
     src/filemanager/panels/PanelArchiveOpen.cpp
     src/filemanager/external/qtexternalapplications.cpp
     src/filemanager/external/qtexternalapplications.h
