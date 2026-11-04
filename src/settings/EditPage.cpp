@@ -6,9 +6,10 @@
 
 #include "7zip/UI/FileManager/EditPageRes.h"
 #include "dialogs/browse/BrowseDialog.h"
-#include "filemanager/panels/Panel.h"
+#include "filemanager/external/qtexternalapplications.h"
 #include "localization/qtlangcontrols.h"
 #include "settings/RegistryUtils.h"
+#include "settings/ViewSettings.h"
 #include <QCheckBox>
 #include <QGridLayout>
 #include <QLabel>

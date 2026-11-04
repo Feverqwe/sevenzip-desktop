@@ -122,6 +122,8 @@ add_library(sevenzip_panel
     src/filemanager/providers/FileFolderPluginOpen.cpp
     src/filemanager/providers/FileFolderPluginOpen.h
     src/filemanager/panels/PanelItemOpen.cpp
+    src/filemanager/external/qtexternalapplications.cpp
+    src/filemanager/external/qtexternalapplications.h
     src/archive/resources/qtarchiveitemopen.cpp
     src/archive/resources/qtarchiveitemopen.h
     src/filemanager/VerCtrl.cpp

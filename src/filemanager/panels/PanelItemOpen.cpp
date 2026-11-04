@@ -10,7 +10,6 @@
 #include "Windows/ErrorMsg.h"
 #include "Windows/FileName.h"
 #include "Windows/PropVariantConv.h"
-#include "Windows/System.h"
 #include "archive/operations/ExtractingFilePath.h"
 #include "archive/resources/archivelayercontext.h"
 #include "archive/resources/qtarchiveitemopen.h"
@@ -18,6 +17,7 @@
 #include "filemanager/ExtractCallback.h"
 #include "filemanager/FormatUtils.h"
 #include "filemanager/UpdateCallback100.h"
+#include "filemanager/external/qtexternalapplications.h"
 #include "filemanager/panels/Panel.h"
 #include "filemanager/providers/FileFolderPluginOpen.h"
 #include "filemanager/qtfilemanagerstartup.h"
@@ -618,72 +618,6 @@ void CPanel::OpenItem(unsigned index, bool tryInternal, bool tryExternal, const 
         else
             MessageBox_Error_UnsupportOperation();
     }
-}
-
-void SplitCmdLineSmart(const UString &cmd, UString &prg, UString &params) {
-    params.Empty();
-    prg = cmd;
-    prg.Trim();
-    if (prg.Len() >= 2 && prg[0] == L'"') {
-        int pos = prg.Find(L'"', 1);
-        if (pos >= 0) {
-            if ((unsigned)(pos + 1) == prg.Len() || prg[pos + 1] == ' ') {
-                params = prg.Ptr((unsigned)(pos + 1));
-                params.Trim();
-                prg.DeleteFrom((unsigned)pos);
-                prg.DeleteFrontal(1);
-            }
-        }
-    }
-}
-
-static HRESULT StartAppWithParams(const UString &cmd, const UStringVector &paramVector,
-                                  IQtExternalFileServices &process, QWidget *window,
-                                  IQtProcessHandle **knownProcess = nullptr) {
-    UString param;
-    UString prg;
-    SplitCmdLineSmart(cmd, prg, param);
-    param.Trim();
-    // The source appends quoted paths to this string. The process service keeps
-    // them as argv entries on POSIX and retains native quoting on Windows.
-    return knownProcess ? process.CreateKnownProcess(prg, param, paramVector, window, *knownProcess)
-                        : process.CreateProcess(prg, param, paramVector, window);
-}
-
-static HRESULT StartEditApplication(const UString &path, bool useEditor, QWidget *window,
-                                    IQtExternalFileServices &process, const QString &settingsPath,
-                                    IQtProcessHandle **knownProcess = nullptr) {
-    UString command;
-    ReadRegEditor(useEditor, command, settingsPath);
-    if (command.IsEmpty()) {
-#ifdef Q_OS_WIN
-        FString winDir;
-        if (!GetWindowsDir(winDir))
-            return S_OK;
-        NName::NormalizeDirPathPrefix(winDir);
-        command = fs2us(winDir);
-        command += L"notepad.exe";
-#else
-        // There is no upstream POSIX default text editor. View uses the system
-        // association; Edit requires a configured executable.
-        if (!useEditor)
-            return knownProcess
-                       ? process.StartApplicationKnown(UString(), path, window, *knownProcess)
-                       : process.StartApplication(UString(), path, window);
-#endif
-    }
-    UStringVector params;
-    params.Add(path);
-    const HRESULT res = StartAppWithParams(command, params, process, window, knownProcess);
-    if (res != S_OK) {
-        QMessageBox box(QMessageBox::Critical, QStringLiteral("7-Zip"),
-                        QString::fromWCharArray(LangString(IDS_CANNOT_START_EDITOR).Ptr()),
-                        QMessageBox::Ok, window);
-        box.setObjectName("externalEditorError");
-        box.setTextFormat(Qt::PlainText);
-        box.exec();
-    }
-    return res;
 }
 
 void CPanel::EditItem(unsigned index, bool useEditor) {
