@@ -1,6 +1,6 @@
 #include "Common/StringConvert.h"
 #include "Windows/Thread.h"
-#include "ui/progress/ProgressDialog2.h"
+#include "ui/progress/progresssync.h"
 #include <QtTest>
 #include <atomic>
 #include <functional>

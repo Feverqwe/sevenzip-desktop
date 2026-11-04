@@ -1,5 +1,39 @@
 # Progress controls without background priority
 
+## Progress synchronization source owner — 2026-11-04
+
+The complete `CProgressSync` implementation, its state declaration and final
+message types now live in `ui/progress/progresssync.cpp/.h`, compiled once by the
+existing `sevenzip_progress_sync` target. The dialog includes that interface;
+worker checkpoints, volume progress and the existing synchronization tests use
+it directly. Split-build preprocessor definitions are removed from both targets
+and from the volume adapter. The widget header and implementation now describe
+the presentation unconditionally. Existing target relationships are unchanged.
+
+Moved method bodies, fields and inline methods are preserved. The existing
+single-worker wake adaptation, native polling fallback, locking, pause/stop
+ordering, counters and diagnostic composition are unchanged. Dialog construction,
+modal lifetime, native worker join, transport, message snapshots and cancellation
+remain in their existing presentation owner. No new synchronization primitive,
+state, policy or algorithm is introduced.
+
+Compared original ProgressDialog2.cpp/.h bodies and their synchronization,
+dialog/worker and volume consumers. Complete original units match the recorded
+baseline at `b88c6bc09339de32f7d18bbab900686b244f42ba` from
+<https://github.com/ip7z/7zip.git>; the reviewed synchronization bodies also match
+the separate `9128b80e3a471108678e2b3ec3c985861c8d7b0f` reference. The complete
+Synchronization.h dependency matches its recorded hash as well. The existing
+baseline maps extracted symbols to their focused owners; original hashes and
+licenses are unchanged. Existing behavioral suites are reused without adding
+tests of file layout or compile-definition presence.
+
+Focused Linux validation passed ten synchronization, checkpoint, worker, dialog,
+cancel, formatting, archive-progress and volume suites: 184 checks without skips.
+The extraction preserves platform branches and widget behavior, so no secondary
+OS or new appearance acceptance is claimed. Builds reused incremental outputs,
+compiler cache and four configured jobs; completed temporary settings were removed.
+No full or slow gate was selected.
+
 ## Shared archive diagnostic composition — 2026-11-04
 
 The standalone native opening, extraction-result and error-flag report builders

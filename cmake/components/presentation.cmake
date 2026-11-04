@@ -1,7 +1,6 @@
 add_library(sevenzip_progress_sync STATIC
-    src/ui/progress/ProgressDialog2.cpp
+    src/ui/progress/progresssync.cpp src/ui/progress/progresssync.h
     src/ui/progress/qtworkerprogress.cpp src/ui/progress/qtworkerprogress.h)
-target_compile_definitions(sevenzip_progress_sync PRIVATE SEVENZIP_PROGRESS_SYNC_ONLY)
 target_include_directories(sevenzip_progress_sync PUBLIC src)
 target_link_libraries(sevenzip_progress_sync PUBLIC Qt6::Core sevenzip_common)
 
@@ -242,7 +241,6 @@ add_library(sevenzip_panel
 target_link_libraries(sevenzip_panel PRIVATE sevenzip_dialog_screen sevenzip_location sevenzip_panel_selection sevenzip_text_report)
 target_link_libraries(sevenzip_panel PUBLIC sevenzip_overwrite_question)
 set_target_properties(sevenzip_panel PROPERTIES AUTOUIC OFF)
-target_compile_definitions(sevenzip_panel PRIVATE SEVENZIP_PROGRESS_PRESENTATION_ONLY)
 target_link_libraries(sevenzip_panel PUBLIC sevenzip_progress_sync)
 qt_add_resources(sevenzip_panel upstream_progress_icons
     PREFIX "/upstream/7zip/UI/FileManager"

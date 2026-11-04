@@ -1,15 +1,14 @@
 // Adapted from 7-Zip CPP/7zip/UI/FileManager/ProgressDialog2.h (0766b73).
 // Igor Pavlov, LGPL-2.1-or-later; see third_party/7zip/License.txt.
-// Native CProgressSync, source presentation/modal/thread/cancel bodies;
+// Source presentation/modal/thread/cancel bodies;
 // Qt and external-engine services are narrow integration boundaries.
 #ifndef ZIP7_INC_PROGRESS_DIALOG_2_H
 #define ZIP7_INC_PROGRESS_DIALOG_2_H
 
 #include "Common/MyCom.h"
 #include "Windows/ErrorMsg.h"
-#include "Windows/Synchronization.h"
 #include "Windows/Thread.h"
-#ifndef SEVENZIP_PROGRESS_SYNC_ONLY
+#include "ui/progress/progresssync.h"
 #include "ui/progress/qtprogresscontrols.h"
 #include "ui/progress/qtprogresstransport.h"
 #include <QPointer>
@@ -20,96 +19,10 @@
 #include "ui/progress/qtprogresswait.h"
 #include "ui/progress/qttaskbarprogress.h"
 #endif
-#endif
 
 void GetTimeString(UInt64 timeValue, wchar_t *s);
 UString HResultToMessage(HRESULT errorCode);
 
-struct CProgressMessageBoxPair {
-    UString Title;
-    UString Message;
-};
-
-struct CProgressFinalMessage {
-    CProgressMessageBoxPair ErrorMessage;
-    CProgressMessageBoxPair OkMessage;
-
-    bool ThereIsMessage() const {
-        return !ErrorMessage.Message.IsEmpty() || !OkMessage.Message.IsEmpty();
-    }
-};
-
-class CProgressSync {
-    bool _stopped;
-    bool _paused;
-    NWindows::NSynchronization::CAutoResetEvent _pauseWake;
-
-  public:
-    bool _filesProgressMode;
-    bool _isDir;
-    UInt64 _totalBytes;
-    UInt64 _completedBytes;
-    UInt64 _totalFiles;
-    UInt64 _curFiles;
-    UInt64 _inSize;
-    UInt64 _outSize;
-
-    UString _titleFileName;
-    UString _status;
-    UString _filePath;
-
-    UStringVector Messages;
-    CProgressFinalMessage FinalMessage;
-
-    NWindows::NSynchronization::CCriticalSection _cs;
-
-    CProgressSync();
-    bool Get_Stopped() {
-        NWindows::NSynchronization::CCriticalSectionLock lock(_cs);
-        return _stopped;
-    }
-    void Set_Stopped(bool val) {
-        NWindows::NSynchronization::CCriticalSectionLock lock(_cs);
-        _stopped = val;
-        if (_pauseWake.IsCreated())
-            _pauseWake.Set();
-    }
-    bool Get_Paused();
-    void Set_Paused(bool val) {
-        NWindows::NSynchronization::CCriticalSectionLock lock(_cs);
-        _paused = val;
-        if (_pauseWake.IsCreated())
-            _pauseWake.Set();
-    }
-    // Configure before starting the one checkpoint thread. Native dialog
-    // callbacks keep the original polling mode, including multiple callers.
-    WRes EnableSingleWorkerWake();
-    void Set_FilesProgressMode(bool filesProgressMode) {
-        NWindows::NSynchronization::CCriticalSectionLock lock(_cs);
-        _filesProgressMode = filesProgressMode;
-    }
-    HRESULT CheckStop();
-    void Clear_Stop_Status();
-    HRESULT ScanProgress(UInt64 numFiles, UInt64 totalSize, const FString &fileName,
-                         bool isDir = false);
-    HRESULT Set_NumFilesTotal(UInt64 val);
-    void Set_NumBytesTotal(UInt64 val);
-    void Set_NumFilesCur(UInt64 val);
-    HRESULT Set_NumBytesCur(const UInt64 *val);
-    HRESULT Set_NumBytesCur(UInt64 val);
-    void Set_Ratio(const UInt64 *inSize, const UInt64 *outSize);
-    void Set_TitleFileName(const UString &fileName);
-    void Set_Status(const UString &s);
-    HRESULT Set_Status2(const UString &s, const wchar_t *path, bool isDir = false);
-    void Set_FilePath(const wchar_t *path, bool isDir = false);
-    void AddError_Message(const wchar_t *message);
-    void AddError_Message_Name(const wchar_t *message, const wchar_t *name);
-    // void AddError_Code_Name(DWORD systemError, const wchar_t *name);
-    void AddError_Code_Name(HRESULT systemError, const wchar_t *name);
-    bool ThereIsMessage() const { return !Messages.IsEmpty() || FinalMessage.ThereIsMessage(); }
-};
-
-#ifndef SEVENZIP_PROGRESS_SYNC_ONLY
 // Source dialog owner. Application consumers migrate in P0-10.1/P0-10.2.
 class CProgressDialog : public CQtProgressDialog {
     bool _isDir;
@@ -299,7 +212,5 @@ class CProgressThreadVirt : public CProgressDialog {
         return isError ? FinalMessage.ErrorMessage : FinalMessage.OkMessage;
     }
 };
-
-#endif // SEVENZIP_PROGRESS_SYNC_ONLY
 
 #endif

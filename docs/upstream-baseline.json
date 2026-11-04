@@ -2127,6 +2127,8 @@
     "src/ui/dialogs/qtmodalresult.h",
     "src/ui/progress/archiveprogresstransport.cpp",
     "src/ui/progress/archiveprogresstransport.h",
+    "src/ui/progress/progresssync.cpp",
+    "src/ui/progress/progresssync.h",
     "src/ui/progress/qtcallbackprogresstransport.cpp",
     "src/ui/progress/qtcallbackprogresstransport.h",
     "src/ui/progress/qtlauncherprogress.cpp",
@@ -3658,6 +3660,28 @@
       ],
       "symbols": [
         "NMbr::GetFileSystem"
+      ]
+    },
+    "src/ui/progress/ProgressDialog2.cpp": {
+      "local": [
+        "src/ui/progress/progresssync.cpp"
+      ],
+      "symbols": [
+        "CProgressSync",
+        "kPauseSleepTime",
+        "UNDEFINED_VAL",
+        "CHECK_STOP",
+        "CRITICAL_LOCK"
+      ]
+    },
+    "src/ui/progress/ProgressDialog2.h": {
+      "local": [
+        "src/ui/progress/progresssync.h"
+      ],
+      "symbols": [
+        "CProgressMessageBoxPair",
+        "CProgressFinalMessage",
+        "CProgressSync"
       ]
     },
     "src/formats/vhdx/VhdxHandler.cpp": {

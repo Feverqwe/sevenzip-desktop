@@ -1,5 +1,5 @@
 #include "ui/progress/qtworkerprogress.h"
-#include "ui/progress/ProgressDialog2.h"
+#include "ui/progress/progresssync.h"
 #include <QMutex>
 #include <QMutexLocker>
 
