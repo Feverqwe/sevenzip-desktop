@@ -204,6 +204,31 @@ providers/Agent/CPanel algorithms и прежние omissions не измене�
 source-visible заглушек или не подключённых model consumers в выбранном
 scope не осталось.
 
+## Column popup owner — 2026-11-04
+
+Rechecked original column menu construction, visibility mutation, sort fallback
+and persistence with the current header dispatch, panel projection and Qt binding
+consumers. Complete PanelItems.cpp, PanelSort.cpp, PanelMenu.cpp and Panel.h hashes
+match the recorded b88c baseline. No external code is imported or provenance
+advanced; native column and settings algorithms remain unchanged.
+
+The header popup now lives with the other panel context menus in
+QtPanelContextMenu. It uses its existing table and source panel throughout the
+popup, without forwarding through a window method or converting screen coordinates
+to header coordinates and back. Both panel notification guards still span action
+delivery and popup destruction; the caller restores focus after projection unwind.
+The window retains icon-view synchronization and settings dispatch. Action state,
+append/remove ordering, selection, sort indication and persistence are preserved.
+
+Existing menu, dynamic-column, duplicate-property sort and general context-menu
+regressions cover the affected behavior, including inactive panes and cancellation.
+No representation-only test or new layout/text behavior is introduced.
+
+Linux passed panel_column_menu, panel_column_changes, panel_column_sort,
+panel_columns and source_context_menu: 76 Qt checks without skips. This validates
+the shared popup ownership change; no new Windows/macOS or appearance acceptance
+is claimed. Completed settings were removed and incremental outputs/cache retained.
+
 ## Column layout projection owner — 2026-11-03
 
 Rechecked original InitColumns, SaveListViewInfo, ShowColumnsContextMenu and
