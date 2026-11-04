@@ -1,5 +1,32 @@
 # File-transfer ownership
 
+## One rollback record through publication — 2026-11-04
+
+Rechecked the complete worker, transaction, copy/merge callback, source removal
+and window completion/close consumers against original FSFolderCopy
+`CopyFile_Ask`, `IsDestChild` and `CopyFolder` at
+`b88c6bc09339de32f7d18bbab900686b244f42ba`. The complete original unit hash
+matches the baseline. No native copying, platform service or source revision
+changes.
+
+Each transaction record now retains its current owned path during staging and
+after publication. Current-item and batch rollback consume the same record,
+instead of carrying a separate path beside it and reconstructing that argument
+for completed items. Publication still updates the owned path only after the
+rename succeeds; the record is copied into the completed batch before its local
+rollback guard is dismissed. Validation, overwrite choices, backup retention,
+reverse rollback, partial Move recovery and error/cancellation messages keep
+their previous ordering and policy.
+
+Existing transfer regressions cover exceptions during staging and deletion,
+renamed and copied sources, merged/skipped files, canceled publication and
+rollback bytes. No private-record or implementation-presence test is added.
+
+Linux `file_transfer`, `file_transfer_direct` and `worker_window_progress`
+passed 72 checks without failures or skips. Native platform adapters and UI
+layout are unchanged; no new Windows/macOS or rendered visual acceptance is
+claimed.
+
 ## One overwrite decision per transfer — 2026-11-04
 
 Rechecked the full worker, transaction, native-copy callback, directory merge,

@@ -32,12 +32,13 @@ class QtFileTransferTransaction final {
         SourceState sourceState = SourceState::Intact;
         bool merged = false;
         QStringList writtenSources;
+        QString ownedPath{};
     };
     FileTransferOperation &worker_;
     QList<TransferPath> prepareTargets(QString &error) const;
     bool transferEntry(const TransferPath &path, QList<TransferEntry> &completed, QString &error);
     FileTransferOperation::Completion finish(QList<TransferEntry> &completed, QString &error);
-    void rollbackEntry(const TransferEntry &entry, const QString &ownedPath, RollbackMode mode);
+    void rollbackEntry(const TransferEntry &entry, RollbackMode mode);
     void rollback(const QList<TransferEntry> &completed,
                   RollbackMode mode = RollbackMode::RestoreSources);
     void removeSources(QList<TransferEntry> &completed, QString &error);
