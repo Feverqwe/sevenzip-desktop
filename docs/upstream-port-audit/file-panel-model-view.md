@@ -1,5 +1,32 @@
 # Файловая панель: Qt Model/View — 2026-10-24
 
+## Parent button belongs to its panel — 2026-11-05
+
+Compared original CPanel toolbar creation and complete OnCommand parent routing
+with Qt panel construction, focus classification, panel activation, command
+availability and parent loading/focus completion. Complete original Panel.cpp
+matches SHA256 `5d9369a24956a8e5f821e0369e4fe86976fa22c4a5c3dfd2bff3edd30e53b40e`
+at `b88c6bc09339de32f7d18bbab900686b244f42ba` from
+<https://github.com/ip7z/7zip.git>. Native parent binding, selection and guards
+remain unchanged; no source import or baseline change.
+
+The native toolbar creates an enabled parent button for each CPanel and routes
+its command to that owner. Qt had instead mirrored the focused panel's global
+View action into both buttons, including its disabled state. Buttons now activate
+their captured owner before dispatch through the existing guarded action. Their
+caption/accessibility binding remains shared. A focused root therefore cannot
+disable another panel's button; clicking the root's own button remains a no-op.
+No second command-availability calculation or navigation controller is added.
+
+Public behavior checks cover both owners, peer filesystem/root states, mouse and
+keyboard activation, synchronous/deferred parent listing, native current child
+restoration and unchanged peer location/draft/data. Existing navigation failure
+and parent focus cases remain in their owning suites.
+
+Focused Linux validation passed: native_navigation_window (57 Qt checks),
+navigation_reload (22) and main_shell (22). The shared Qt routing adds no native
+platform branch or geometry change; secondary-platform appearance is not claimed.
+
 ## Alternate-stream navigation uses native reload publication — 2026-11-05
 
 Compared the complete original CPanel::OpenAltStreams body, its dispatch/menu
