@@ -234,13 +234,14 @@ bool QtFmOptionsDialog::apply() {
     emit Applied();
     updateApplyButton();
     // Applied observers can leave a new draft after the pages were saved.
-    return !_settingsPage->IsModified();
+    return !hasPendingChanges();
+}
+bool QtFmOptionsDialog::hasPendingChanges() const {
+    return _editPage->IsModified() || _foldersPage->IsModified() || _settingsPage->IsModified() ||
+           _menuPage->IsModified() || _langPage->IsModified() || _systemPage->IsModified();
 }
 void QtFmOptionsDialog::updateApplyButton() {
-    _buttons->button(QDialogButtonBox::Apply)
-        ->setEnabled(_editPage->IsModified() || _foldersPage->IsModified() ||
-                     _settingsPage->IsModified() || _menuPage->IsModified() ||
-                     _langPage->IsModified() || _systemPage->IsModified());
+    _buttons->button(QDialogButtonBox::Apply)->setEnabled(hasPendingChanges());
     refreshSectionSummaries();
 }
 void QtFmOptionsDialog::reloadLangItems() {
