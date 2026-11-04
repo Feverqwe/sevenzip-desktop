@@ -422,6 +422,36 @@ guest batches — `20261018T143721Z-ea996e90` и
 `20261018T144745Z-441ad471`. Исправление относится к тестовому responder,
 а не является новым свидетельством ошибки времени жизни приложения.
 
+## Shared RAM information for memory-limit dialogs — 2026-11-04
+
+Compared complete original MemDialog.cpp/.h and SettingsPage.cpp/.h at
+`b88c6bc09339de32f7d18bbab900686b244f42ba` in
+<https://github.com/ip7z/7zip.git>; their complete original hashes match the
+baseline. Reviewed RAM detection, rounding, spinner ranges, default actions,
+raw-text validation, Apply/Continue/Cancel and extraction callback persistence.
+No external source is imported or original provenance advanced.
+
+The identical RAM query, rounded-GB value and maximum spinner limit now have
+one owner in platform/memory/qtmemorylimitinfo. The existing MemDialog OnInit
+calculation is extracted into an immutable result per opening and reused by
+SettingsPage. The baseline mapping records the selected RAM/range fragment;
+other MemDialog OnInit behavior remains with its dialog. The same platform RAM
+service, fallback, arithmetic and range branches are preserved.
+
+Each caller queries at its existing initialization point. The request dialog
+still uses exact RAM bytes for its initial Allow/Skip choice; displayed units
+and both spinner ranges use the same query result. Raw input validation,
+remember/save flags, limit persistence, callback answers and live-language
+messages remain with their existing owners. Native widgets and their different
+input/step policies are unchanged. Existing settings and extraction-prompt
+regressions cover these behaviors; no private snapshot or constant-value test
+is added.
+
+Focused Linux options-dialog, extraction-prompt and native RAR memory-callback
+acceptance passed. Shared source calculations changed ownership; the platform
+RAM service, widget layouts/text and native decoding remain unchanged. No
+secondary-platform, full/slow or new appearance acceptance is claimed.
+
 ## Длинные подписи в компактных формах
 
 Windows-прогон воспроизвёл обрезание comboPrompt, memMessage и подписи точности

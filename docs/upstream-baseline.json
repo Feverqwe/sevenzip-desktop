@@ -2058,6 +2058,8 @@
     "src/platform/associations/qtfileassociationprobe_mac.mm",
     "src/platform/associations/qtmacassociationnative.h",
     "src/platform/associations/qtsystempagepresentation.cpp",
+    "src/platform/memory/qtmemorylimitinfo.cpp",
+    "src/platform/memory/qtmemorylimitinfo.h",
     "src/platform/memory/qtmemorylockservices.cpp",
     "src/platform/memory/qtmemorylockservices.h",
     "src/platform/process/qtchildprocessreaper.cpp",
@@ -3461,6 +3463,15 @@
       "symbols": [
         "NCompressDialog::NUpdateMode",
         "NCompressDialog::CInfo"
+      ]
+    },
+    "src/dialogs/mem/MemDialog.cpp": {
+      "local": [
+        "src/platform/memory/qtmemorylimitinfo.cpp",
+        "src/platform/memory/qtmemorylimitinfo.h"
+      ],
+      "symbols": [
+        "CMemDialog::OnInit"
       ]
     },
     "src/filemanager/panels/PanelMenu.cpp": {

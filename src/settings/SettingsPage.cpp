@@ -8,11 +8,11 @@
 #include "Common/IntToString.h"
 #include "Common/StringToInt.h"
 #include "Windows/ErrorMsg.h"
-#include "Windows/System.h"
 #include "archive/callbacks/qtguimessages.h"
 #include "archive/operations/ZipRegistry.h"
 #include "filemanager/panels/Panel.h"
 #include "localization/qtlangcontrols.h"
+#include "platform/memory/qtmemorylimitinfo.h"
 #include "platform/memory/qtmemorylockservices.h"
 #include "ui/controls/qtmemorylimitspin.h"
 #include <QCheckBox>
@@ -172,24 +172,9 @@ bool CSettingsPage::OnInit() {
     else
         _largePages->setEnabled(false);
     {
-        size_t ramSize = (size_t)sizeof(size_t) << 29;
-        const bool ramSize_defined = NWindows::NSystem::GetRamSize(ramSize);
-        UInt32 ramSize_GB = (UInt32)(((UInt64)ramSize + (1u << 29)) >> 30);
-        if (ramSize_GB == 0)
-            ramSize_GB = 1;
-        QtBindMemoryLimitUnitText(findChild<QLabel *>("extractMemoryRam"), ramSize_defined,
-                                  ramSize_GB);
-        const unsigned valMin = 1;
-        unsigned valMax = 64;
-        if (ramSize_defined) {
-            const unsigned k_max_val = 1u << 14;
-            if (ramSize_GB >= k_max_val)
-                valMax = k_max_val;
-            else if (ramSize_GB > 1)
-                valMax = ramSize_GB - 1;
-            else
-                valMax = 1;
-        }
+        const auto memory = QtQueryMemoryLimitInfo();
+        QtBindMemoryLimitUnitText(findChild<QLabel *>("extractMemoryRam"), memory.RamSizeDefined,
+                                  memory.RamSizeGB);
         UInt32 limit = NExtract::Read_LimitGB(_settingsPath);
         if (limit != 0 && limit != (UInt32)(Int32)-1)
             _memSet->setChecked(true);
@@ -197,7 +182,7 @@ bool CSettingsPage::OnInit() {
             limit = 4;
             EnableSpin(false);
         }
-        _memSpin->setRange(valMin, valMax);
+        _memSpin->setRange(1, memory.MaximumGB);
         UString s;
         s.Add_UInt32(limit);
         _memSpin->setText(ToQString(s));
