@@ -218,6 +218,7 @@ add_library(sevenzip_panel
     src/localization/qtlangbuttonbox.h
     src/ui/controls/qtstatuslabel.cpp
     src/ui/controls/qtstatuslabel.h
+    src/filemanager/panels/PanelColumns.cpp
     src/filemanager/panels/PanelItems.cpp
     src/filemanager/panels/PanelOperations.cpp
     src/filemanager/panels/PanelFolderOperations.cpp

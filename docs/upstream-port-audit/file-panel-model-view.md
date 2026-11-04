@@ -204,6 +204,42 @@ providers/Agent/CPanel algorithms и прежние omissions не измене�
 source-visible заглушек или не подключённых model consumers в выбранном
 scope не осталось.
 
+## Native column policy owner — 2026-11-04
+
+The complete source column-catalog, alignment, ordering, visibility and saved
+layout methods now live together in `panels/PanelColumns.cpp`, rather than
+among item-loading and selection methods in `PanelItems.cpp`. They retain their
+existing `CPanel` methods, fields and compilation target (`sevenzip_panel`).
+The source load boundary still initializes the catalog at the same point.
+Qt table projection, header/menu delivery, sort dispatch and settings storage
+retain their existing owners; no controller, cache or state is introduced.
+
+Compared complete original column helpers, initialization, insertion/removal,
+save and popup branches, declarations/types and current load, table binding,
+menu, sort and settings consumers. Complete PanelItems.cpp, Panel.h and
+ViewSettings.cpp/.h original hashes match the recorded
+`b88c6bc09339de32f7d18bbab900686b244f42ba` baseline from
+<https://github.com/ip7z/7zip.git>. The existing manifest maps transferred
+symbols and the extracted column-order phase; no original hashes advance and
+no external source is imported.
+
+Moved bodies are unchanged; the remainder of the item implementation is
+unchanged after extraction and removal of unused includes. Name-first logical
+indices, duplicate/raw property handling, default visibility/widths, sort
+fallback and settings read/save timing are preserved. The same compilation
+context applies, without file-specific definitions to transfer. Existing
+initialization, schema-change, popup, sort and native workflow regressions
+cover observable behavior; no private representation test is added. This is
+an implementation ownership change with no layout or text change.
+
+Linux `panel_column_initialization`, `panel_column_schema`,
+`panel_column_changes`, `panel_column_menu`, `panel_column_sort` and
+`native_column_workflow` passed: 92 checks without failures or skips. The same
+target and portable bodies make Linux sufficient for this move; no additional
+Windows/macOS or appearance acceptance is claimed. Configured four-job builds
+reused incremental outputs/compiler caches, and completed temporary settings
+were removed. Source inventory and whitespace checks passed.
+
 ## Column popup owner — 2026-11-04
 
 Rechecked original column menu construction, visibility mutation, sort fallback

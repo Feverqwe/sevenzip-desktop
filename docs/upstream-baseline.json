@@ -1693,6 +1693,7 @@
     "src/filemanager/external/qtexternalfilesession.cpp",
     "src/filemanager/external/qtexternalfilesession.h",
     "src/filemanager/panels/PanelAddress.cpp",
+    "src/filemanager/panels/PanelColumns.cpp",
     "src/filemanager/panels/PanelFolderOperations.cpp",
     "src/filemanager/panels/PanelFolderOperations.h",
     "src/filemanager/panels/PanelProperties.cpp",
@@ -3734,6 +3735,23 @@
         "CThreadCombine",
         "AddInfoFileName",
         "CApp::Combine (part discovery, summary and combined-name fragments)"
+      ]
+    },
+    "src/filemanager/panels/PanelItems.cpp": {
+      "local": [
+        "src/filemanager/panels/PanelColumns.cpp"
+      ],
+      "symbols": [
+        "GetColumnVisible",
+        "GetColumnWidth",
+        "GetColumnAlign",
+        "ItemProperty_Compare_NameFirst",
+        "CPanel::InitColumns",
+        "CPanel::SaveListViewInfo",
+        "CPanel::DeleteColumn",
+        "CPanel::AddColumn",
+        "CPanel::ShowColumnsContextMenu",
+        "CPanel::InitColumns (column-order projection)"
       ]
     }
   },
