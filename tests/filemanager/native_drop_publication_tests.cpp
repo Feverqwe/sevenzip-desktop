@@ -80,22 +80,26 @@ class NativeDropPublicationTests final : public QObject, protected MainWindowTes
         QTest::addColumn<int>("scenario");
         QTest::addColumn<int>("count");
         QTest::addColumn<int>("rendered");
+        QTest::addColumn<bool>("activeTarget");
         // Four publication results, actual writer failure/Cancel and both
         // confirmation refusals. Representative cases cover both pane roles,
         // languages, views, selection modes and the bounded worker threshold.
-        QTest::newRow("success") << 0 << 2 << int(S_OK);
-        QTest::newRow("success-property-refusal") << 1 << 301 << int(S_FALSE);
-        QTest::newRow("success-property-failure") << 2 << 301 << int(E_FAIL);
-        QTest::newRow("success-property-cancel") << 3 << 2 << int(E_ABORT);
-        QTest::newRow("writer-failure") << 4 << 301 << int(S_OK);
-        QTest::newRow("writer-cancel") << 5 << 2 << int(S_OK);
-        QTest::newRow("confirmation-no") << 6 << 2 << int(S_OK);
-        QTest::newRow("confirmation-cancel") << 7 << 301 << int(S_OK);
+        QTest::newRow("success") << 0 << 2 << int(S_OK) << true;
+        QTest::newRow("success-property-refusal") << 1 << 301 << int(S_FALSE) << true;
+        QTest::newRow("success-property-failure") << 2 << 301 << int(E_FAIL) << true;
+        QTest::newRow("success-property-cancel") << 3 << 2 << int(E_ABORT) << true;
+        QTest::newRow("writer-failure") << 4 << 301 << int(S_OK) << true;
+        QTest::newRow("writer-cancel") << 5 << 2 << int(S_OK) << true;
+        QTest::newRow("confirmation-no") << 6 << 2 << int(S_OK) << true;
+        QTest::newRow("confirmation-cancel") << 7 << 301 << int(S_OK) << true;
+        QTest::newRow("inactive-left-table") << 0 << 2 << int(S_OK) << false;
+        QTest::newRow("inactive-right-icons") << 1 << 2 << int(S_OK) << false;
     }
     void boundDropUsesNativeWriterAndSourceRefresh() {
         QFETCH(int, scenario);
         QFETCH(int, count);
         QFETCH(int, rendered);
+        QFETCH(bool, activeTarget);
         const unsigned pane = unsigned(scenario % 2);
         const bool russian = scenario == 1 || scenario == 2 || scenario == 4 || scenario == 6;
         const bool icons = scenario % 2;
@@ -220,6 +224,14 @@ class NativeDropPublicationTests final : public QObject, protected MainWindowTes
         cancelDriver.start(5);
         if (attempted)
             QVERIFY(runtime_.armWriter(written));
+        if (!activeTarget) {
+            auto *peerView =
+                icons ? static_cast<QAbstractItemView *>(peer->findChild<QListView *>("iconList"))
+                      : peerList;
+            QVERIFY(peerView && peerView->isVisible());
+            peerView->setFocus();
+            QTRY_COMPARE(window.focusWidget(), static_cast<QWidget *>(peerView));
+        }
         QCOMPARE(dropFile(*view, input), succeeded);
         QVERIFY(confirmed);
         QTRY_VERIFY2(list->isEnabled() && list->updatesEnabled() &&

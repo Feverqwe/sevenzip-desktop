@@ -1,5 +1,36 @@
 # Native drag session ownership — 2026-10-18
 
+## Completion belongs to the actual drop panel — 2026-11-04
+
+Reviewed complete target positioning, Enter/Over/Leave/Drop, command choice,
+source transfer flags, CompressDropFiles and CopyFromNoAsk completion against
+recorded 7-Zip revision `b88c6bc09339de32f7d18bbab900686b244f42ba`.
+Original PanelDrag, PanelCopy and PanelItems hashes match the existing baseline.
+The native target uses the panel under the cursor; TargetPanelIndex is the
+fallback for an application-level drop and follows focus/source-drag state.
+Native CopyFromNoAsk refreshes and focuses its actual owning panel.
+
+The Qt completion previously retained that actual panel but paired it with the
+fallback index. Dropping into the inactive pane could therefore complete the
+correct archive update and then focus its peer. Completion now derives both
+projection and focus from the retained actual panel, removing the second,
+potentially conflicting identity. The pointer is captured before native Drop
+clears its target state. No new controller, persistent state or public API is
+introduced. Native transfer decisions, ownership, cancellation, errors and
+filesystem/archive operations remain unchanged; no source is imported or
+provenance advanced.
+
+Two existing-fixture regressions use the real native writer with focus on the
+peer, covering left table and right icon targets. Both failed on the old code
+at the final destination-focus check while the ten existing checks passed.
+They also retain archive-byte, selection, provider and untouched-peer checks.
+The final Linux native_drop_publication, drag_drop_ui, dropped_path_choice and
+drag_protocol suites passed. Compilation took 15.401 seconds, tests 20.484
+seconds, reusing incremental outputs, compiler cache and configured four jobs.
+Inventory and whitespace checks passed. Only shared Qt completion changed;
+Windows/macOS, physical OS gestures, rendered-original parity and full/slow
+gates were not revalidated. Failure/result logs and useful builds were retained.
+
 ## Complete Windows OLE protocol owner — 2026-11-04
 
 Rechecked the complete native protocol, its wire records, IDataObject and

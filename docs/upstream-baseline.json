@@ -1686,6 +1686,10 @@
     "src/devices/deviceselectiondialog.h",
     "src/devices/module.cmake",
     "src/devices/qtdevicecommands.cpp",
+    "src/dialogs/browse/browseiteminspection.cpp",
+    "src/dialogs/browse/browseiteminspection.h",
+    "src/dialogs/browse/qtsourcebrowsedialog_p.h",
+    "src/dialogs/browse/qtsourcebrowsepresentation.cpp",
     "src/dialogs/combo/alias.h",
     "src/dialogs/compress/CompressInfo.h",
     "src/dialogs/compress/CompressResources.cpp",
@@ -1772,6 +1776,7 @@
     "src/filemanager/qtfilemanagermountcommands.cpp",
     "src/filemanager/qtfilemanagershellmenu.cpp",
     "src/filemanager/qtfilemanagershellmenu.h",
+    "src/filemanager/qtfilemanagershellmenupresentation.cpp",
     "src/filemanager/qtfilemanagersplitter.cpp",
     "src/filemanager/qtfilemanagersplitter.h",
     "src/filemanager/qtfilemanagerstartup.h",
@@ -3506,22 +3511,30 @@
         "src/filemanager/FormatUtils.cpp",
         "src/filemanager/FormatUtils.h",
         "src/fileops/native/FileName.cpp",
-        "src/fileops/native/correctfspath.h"
+        "src/fileops/native/correctfspath.h",
+        "src/dialogs/browse/qtsourcebrowsedialog_p.h",
+        "src/dialogs/browse/qtsourcebrowsepresentation.cpp"
       ],
       "symbols": [
         "Browse_ConvertSizeToString",
         "CorrectFsPath",
-        "RemoveDotsAndSpaces"
+        "RemoveDotsAndSpaces",
+        "CBrowseDialog (private Qt presentation boundary)"
       ]
     },
     "src/dialogs/browse/BrowseDialog2.cpp": {
       "local": [
         "src/platform/associations/qtassociatedfilelaunch_win.cpp",
-        "src/platform/associations/qtassociatedfilelaunch_win.h"
+        "src/platform/associations/qtassociatedfilelaunch_win.h",
+        "src/dialogs/browse/browseiteminspection.cpp",
+        "src/dialogs/browse/browseiteminspection.h"
       ],
       "symbols": [
         "StartApplication",
-        "StartApplicationDontWait"
+        "StartApplicationDontWait",
+        "CBrowseItem",
+        "CBrowseEnumerator",
+        "PrintProps and property formatting helpers"
       ]
     },
     "src/dialogs/compress/CompressDialog.h": {

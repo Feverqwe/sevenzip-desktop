@@ -6,6 +6,7 @@
 
 class MainWindow;
 class QMenu;
+class QIcon;
 #ifdef _WIN32
 class QtNativeShellMenu;
 #endif
@@ -24,6 +25,7 @@ class QtFileManagerShellMenu final : public IQtPanelPluginServices,
     quint64 _generation = 0;
     std::function<void(unsigned)> _dispatch;
     void Render(QMenu &menu, const NQtShellMenu::CMenuHandle &tree);
+    void RenderItems(QMenu &menu, const NQtShellMenu::CMenuHandle &tree, const QIcon &icon);
     bool Available(const CZipContextMenu::CCommandMapItem &command) const;
     HRESULT Open(const UString &path, const UString &type);
     void Dispatch(unsigned id, quint64 generation);

@@ -64,6 +64,8 @@ add_library(sevenzip_panel
     src/dialogs/about/AboutDialog.h
     src/dialogs/browse/BrowseDialog2.cpp
     src/dialogs/browse/BrowseDialog2.h
+    src/dialogs/browse/browseiteminspection.cpp
+    src/dialogs/browse/browseiteminspection.h
     src/platform/temp/qttempbrowsepresentation.cpp
     src/filemanager/views/qtfilelisthover.cpp
     src/filemanager/views/qtfilelisthover.h
@@ -247,6 +249,8 @@ add_library(sevenzip_panel
     src/dialogs/password/PasswordDialog.h
     src/dialogs/browse/BrowseDialog.cpp
     src/dialogs/browse/BrowseDialog.h
+    src/dialogs/browse/qtsourcebrowsedialog_p.h
+    src/dialogs/browse/qtsourcebrowsepresentation.cpp
     src/filemanager/providers/NetFolder.cpp
     src/filemanager/providers/NetFolder.h
     src/filemanager/panels/PanelListNotify.cpp

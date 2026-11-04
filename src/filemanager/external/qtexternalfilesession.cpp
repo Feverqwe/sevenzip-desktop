@@ -64,13 +64,19 @@ class CChildProcesses {
         bool NeedWait = true;
     };
     CRecordVector<UInt32> _ids;
-
-  public:
-    IQtProcessServices *Services = nullptr;
     CObjectVector<CTrackedProcess> Entries;
     UString Path;
+
+  public:
+    enum class WaitStatus { Empty, ProcessExited, Stopped, Error };
+    struct WaitResult {
+        WaitStatus State;
+        unsigned Count;
+    };
+    IQtProcessServices *Services = nullptr;
     ~CChildProcesses() { CloseAll(); }
-    void DisableWait(unsigned index) { Entries[index].NeedWait = false; }
+    bool HasProcesses() const { return !Entries.IsEmpty(); }
+    WaitResult WaitForExit(CExitEventLauncher &launcher);
     void CloseAll() {
         Entries.Clear();
         _ids.Clear();
@@ -127,22 +133,28 @@ class CChildProcesses {
     }
 };
 
-struct CProcessWaitEntry {
-    IQtProcessHandle *Handle;
-    unsigned ProcessIndex;
-};
-
-static int WaitForProcesses(const CRecordVector<CProcessWaitEntry> &entries,
-                            CExitEventLauncher &launcher) {
+CChildProcesses::WaitResult CChildProcesses::WaitForExit(CExitEventLauncher &launcher) {
+    CUIntVector waiting;
+    FOR_VECTOR(i, Entries) {
+        if (waiting.Size() > 60)
+            break;
+        if (Entries[i].NeedWait)
+            waiting.Add(i);
+    }
+    if (waiting.IsEmpty())
+        return {WaitStatus::Empty, 0};
     for (;;) {
         if (launcher.Exiting())
-            return int(entries.Size());
-        FOR_VECTOR(i, entries) {
-            const QtProcessStatus status = entries[i].Handle->Status();
+            return {WaitStatus::Stopped, waiting.Size()};
+        FOR_VECTOR(i, waiting) {
+            auto &process = Entries[waiting[i]];
+            const QtProcessStatus status = process.Handle->Status();
             if (status == QtProcessStatus::Error)
-                return int(entries.Size()) + 1;
-            if (status == QtProcessStatus::Exited)
-                return int(i);
+                return {WaitStatus::Error, waiting.Size()};
+            if (status == QtProcessStatus::Exited) {
+                process.NeedWait = false;
+                return {WaitStatus::ProcessExited, waiting.Size()};
+            }
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(25));
     }
@@ -217,35 +229,25 @@ static bool UpdateChangedExternalFile(CTmpProcessInfo &tpi) {
 static THREAD_FUNC_DECL MyThreadFunction(void *param) try {
     CMyUniquePtr<CTmpProcessInfo> tpi((CTmpProcessInfo *)param);
     CChildProcesses &processes = tpi->Processes;
-    const bool mainProcessWasSet = !processes.Entries.IsEmpty();
+    const bool mainProcessWasSet = processes.HasProcesses();
     bool isComplexMode = true;
     if (mainProcessWasSet) {
         QElapsedTimer timer;
         timer.start();
         bool firstPass = true;
         for (;;) {
-            CRecordVector<CProcessWaitEntry> waitEntries;
-            FOR_VECTOR(i, processes.Entries) {
-                if (waitEntries.Size() > 60)
-                    break;
-                const auto &process = processes.Entries[i];
-                if (process.NeedWait) {
-                    waitEntries.Add({process.Handle.get(), i});
-                }
-            }
+            const auto wait = processes.WaitForExit(*tpi->Launcher);
             bool needFindProcessByPath = false;
-            if (waitEntries.IsEmpty()) {
+            if (wait.State == CChildProcesses::WaitStatus::Empty) {
                 if (!firstPass)
                     break;
             } else {
-                const int waitResult = WaitForProcesses(waitEntries, *tpi->Launcher);
-                if (waitResult >= int(waitEntries.Size())) {
+                if (wait.State != CChildProcesses::WaitStatus::ProcessExited) {
+                    const bool failed = wait.State == CChildProcesses::WaitStatus::Error;
                     processes.CloseAll();
-                    return (THREAD_FUNC_RET_TYPE)(uintptr_t)(waitResult > int(waitEntries.Size())
-                                                                 ? 1
-                                                                 : 0);
+                    return (THREAD_FUNC_RET_TYPE)(uintptr_t)failed;
                 }
-                if (firstPass && waitEntries.Size() == 1) {
+                if (firstPass && wait.Count == 1) {
                     const UInt32 curTime = UInt32(timer.elapsed());
                     needFindProcessByPath = (curTime < 2 * 1000);
                     if (needFindProcessByPath) {
@@ -255,7 +257,6 @@ static THREAD_FUNC_DECL MyThreadFunction(void *param) try {
                                 needFindProcessByPath = false;
                     }
                 }
-                processes.DisableWait(waitEntries[(unsigned)waitResult].ProcessIndex);
             }
             firstPass = false;
             processes.Update(needFindProcessByPath);
