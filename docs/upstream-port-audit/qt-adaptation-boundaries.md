@@ -452,6 +452,12 @@ acceptance passed. Shared source calculations changed ownership; the platform
 RAM service, widget layouts/text and native decoding remain unchanged. No
 secondary-platform, full/slow or new appearance acceptance is claimed.
 
+The later Windows path-correction integration build found that this shared
+header relied on POSIX `MyWindows.h` to provide `UInt32`. It now includes the
+native `MyTypes.h` explicitly, also making the standalone Windows translation
+unit valid. This is a declaration dependency fix; the RAM calculation and both
+dialog bodies are unchanged.
+
 ## Длинные подписи в компактных формах
 
 Windows-прогон воспроизвёл обрезание comboPrompt, memMessage и подписи точности

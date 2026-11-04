@@ -1804,6 +1804,7 @@
     "src/fileops/links/qtverctrlfileservices.cpp",
     "src/fileops/links/qtverctrlfileservices.h",
     "src/fileops/native/FilePublish.cpp",
+    "src/fileops/native/correctfspath.h",
     "src/fileops/overwrite/module.cmake",
     "src/fileops/overwrite/overwritequestion.cpp",
     "src/fileops/overwrite/overwritequestion.h",
@@ -3461,10 +3462,14 @@
     "src/dialogs/browse/BrowseDialog.cpp": {
       "local": [
         "src/filemanager/FormatUtils.cpp",
-        "src/filemanager/FormatUtils.h"
+        "src/filemanager/FormatUtils.h",
+        "src/fileops/native/FileName.cpp",
+        "src/fileops/native/correctfspath.h"
       ],
       "symbols": [
-        "Browse_ConvertSizeToString"
+        "Browse_ConvertSizeToString",
+        "CorrectFsPath",
+        "RemoveDotsAndSpaces"
       ]
     },
     "src/dialogs/browse/BrowseDialog2.cpp": {

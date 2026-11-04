@@ -5,7 +5,6 @@
 #include "platform/filepicker/CommonDialog.h"
 class QWidget;
 bool Dlg_CreateFolder(QWidget *wnd, UString &destName);
-bool CorrectFsPath(const UString &relBase, const UString &path, UString &result);
 bool MyBrowseForFolder(QWidget *owner, const UString &title, const UString &path,
                        UString &resultPath);
 

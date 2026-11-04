@@ -1,17 +1,20 @@
 // Adapted from 7-Zip CPP/Windows/FileName.cpp (0766b73).
 // Igor Pavlov, LGPL-2.1-or-later; see third_party/7zip/License.txt.
-// Only include locations change; FileDir has one authoritative adapted owner.
+// Native filename/path services; CorrectFsPath is extracted from BrowseDialog.cpp.
+// Original BrowseDialog source and scope are recorded in the port audit.
 
 #include "Windows/StdAfx.h"
 
-#ifndef _WIN32
 #include "Common/StringConvert.h"
+#ifndef _WIN32
 #include <limits.h>
 #include <unistd.h>
 #endif
 
+#include "Windows/FileFind.h"
 #include "Windows/FileName.h"
 #include "fileops/native/FileDir.h"
+#include "fileops/native/correctfspath.h"
 
 #ifndef _UNICODE
 extern bool g_IsNT;
@@ -817,3 +820,79 @@ bool GetFullPath(CFSTR path, FString &fullPath) { return GetFullPath(NULL, path,
 } // namespace NName
 } // namespace NFile
 } // namespace NWindows
+
+// Adapted from 7-Zip BrowseDialog.cpp (0766b73); same LGPL notice as above.
+#ifdef _WIN32
+static void RemoveDotsAndSpaces(UString &path) {
+    while (!path.IsEmpty()) {
+        wchar_t c = path.Back();
+        if (c != ' ' && c != '.')
+            return;
+        path.DeleteBack();
+    }
+}
+
+bool CorrectFsPath(const UString &relBase, const UString &path2, UString &result) {
+    using namespace NWindows::NFile;
+    using namespace NWindows::NFile::NName;
+    result.Empty();
+
+    UString path = path2;
+    path.Replace(L'/', WCHAR_PATH_SEPARATOR);
+    unsigned start = 0;
+    UString base;
+
+    if (IsAbsolutePath(path)) {
+#ifndef UNDER_CE
+        if (IsSuperOrDevicePath(path)) {
+            result = path;
+            return true;
+        }
+#endif
+        start = GetRootPrefixSize(path);
+    } else {
+#ifndef UNDER_CE
+        if (IsSuperOrDevicePath(relBase)) {
+            result = path;
+            return true;
+        }
+#endif
+        base = relBase;
+    }
+
+    result += path.Left(start);
+    bool checkExist = true;
+    UString cur;
+
+    for (;;) {
+        if (start == path.Len())
+            break;
+        const int slashPos = path.Find(WCHAR_PATH_SEPARATOR, start);
+        cur.SetFrom(path.Ptr(start), (slashPos < 0 ? path.Len() : (unsigned)slashPos) - start);
+        if (checkExist) {
+            NFind::CFileInfo fi;
+            if (fi.Find(us2fs(base + result + cur))) {
+                if (!fi.IsDir()) {
+                    result = path;
+                    break;
+                }
+            } else
+                checkExist = false;
+        }
+        if (!checkExist)
+            RemoveDotsAndSpaces(cur);
+        result += cur;
+        if (slashPos < 0)
+            break;
+        start = (unsigned)(slashPos + 1);
+        result.Add_PathSepar();
+    }
+
+    return true;
+}
+#else
+bool CorrectFsPath(const UString & /* relBase */, const UString &path, UString &result) {
+    result = path;
+    return true;
+}
+#endif

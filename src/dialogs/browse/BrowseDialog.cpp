@@ -18,6 +18,7 @@
 #include "filemanager/SysIconUtils.h"
 #include "filemanager/views/qtfilelisthover.h"
 #include "fileops/native/FileDir.h"
+#include "fileops/native/correctfspath.h"
 #include "fileops/patterns/Wildcard.h"
 #include "localization/qtlangbuttonbox.h"
 #include "localization/qtlangcontrols.h"
@@ -712,76 +713,3 @@ bool CBrowseInfo::BrowseForFile(const CObjectVector<CBrowseFilterInfo> &filters)
     FilterIndex = request.FilterIndex;
     return true;
 }
-
-#ifdef _WIN32
-static void RemoveDotsAndSpaces(UString &path) {
-    while (!path.IsEmpty()) {
-        wchar_t c = path.Back();
-        if (c != ' ' && c != '.')
-            return;
-        path.DeleteBack();
-    }
-}
-
-bool CorrectFsPath(const UString &relBase, const UString &path2, UString &result) {
-    result.Empty();
-
-    UString path = path2;
-    path.Replace(L'/', WCHAR_PATH_SEPARATOR);
-    unsigned start = 0;
-    UString base;
-
-    if (IsAbsolutePath(path)) {
-#ifndef UNDER_CE
-        if (IsSuperOrDevicePath(path)) {
-            result = path;
-            return true;
-        }
-#endif
-        start = GetRootPrefixSize(path);
-    } else {
-#ifndef UNDER_CE
-        if (IsSuperOrDevicePath(relBase)) {
-            result = path;
-            return true;
-        }
-#endif
-        base = relBase;
-    }
-
-    result += path.Left(start);
-    bool checkExist = true;
-    UString cur;
-
-    for (;;) {
-        if (start == path.Len())
-            break;
-        const int slashPos = path.Find(WCHAR_PATH_SEPARATOR, start);
-        cur.SetFrom(path.Ptr(start), (slashPos < 0 ? path.Len() : (unsigned)slashPos) - start);
-        if (checkExist) {
-            NFind::CFileInfo fi;
-            if (fi.Find(us2fs(base + result + cur))) {
-                if (!fi.IsDir()) {
-                    result = path;
-                    break;
-                }
-            } else
-                checkExist = false;
-        }
-        if (!checkExist)
-            RemoveDotsAndSpaces(cur);
-        result += cur;
-        if (slashPos < 0)
-            break;
-        start = (unsigned)(slashPos + 1);
-        result.Add_PathSepar();
-    }
-
-    return true;
-}
-#else
-bool CorrectFsPath(const UString & /* relBase */, const UString &path, UString &result) {
-    result = path;
-    return true;
-}
-#endif

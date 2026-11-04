@@ -1,5 +1,45 @@
 # File-picker request ownership — 2026-11-01
 
+## Filesystem path-correction owner — 2026-11-04
+
+The complete native `CorrectFsPath` implementation and its trimming helper now
+belong to the existing `fileops/native/FileName.cpp` owner in `sevenzip_common`.
+The focused `correctfspath.h` interface serves both the custom browser and panel
+create/rename/copy workflows. The browse dialog no longer provides a filesystem
+service through its UI header. Existing filename services, consumer operation
+bodies, dialog behavior and target relationships are unchanged; no target is added.
+
+Compared original BrowseDialog.cpp/.h correction and creation callers,
+PanelOperations/App consumers and the FileName.cpp/.h destination owner and
+dependencies. All four complete BrowseDialog and FileName original units match
+their recorded hashes at `9128b80e3a471108678e2b3ec3c985861c8d7b0f` from
+<https://github.com/ip7z/7zip.git>. The baseline maps transferred symbols to the
+existing adapted owner and focused header without changing original hashes.
+No external source is imported.
+
+Both platform bodies are preserved. Windows retains separator normalization,
+root/super/device-path handling, existing-component checks and trailing-dot/space
+correction for new components; POSIX retains the original identity behavior.
+Only namespace lookup is scoped inside the moved Windows function. Native
+FileFind/StringConvert dependencies are explicit. Neither old nor new source
+has a special Unicode file definition to transfer. The implementation now moves
+from the widget target to the common target, so focused Windows validation is
+required in addition to the default Linux integration checks. Existing creation,
+source-browser, rename and copy-routing regressions are reused without new
+source-layout tests.
+
+Focused runtime validation passed `source_create`, `source_browse_dialog`,
+`panel_rename_state` and `app_copy_routing` on Linux (109 checks without skips)
+and Windows. Windows acceptance combines three passing suites with the final
+interactive browser rerun (24 checks without skips); the first browser run in
+SSH session 0 could not expose its windows. The Windows build also exposed a
+missing explicit native type include in the shared RAM-info header, corrected
+without changing its calculation. Incremental builds, compiler caches and the
+configured four jobs were retained. Selected temporary settings were removed;
+no macOS, full/slow or rendered-original visual acceptance is claimed.
+
+## File-picker request publication — 2026-11-01
+
 Reference: <https://github.com/ip7z/7zip.git>, commit
 `9128b80e3a471108678e2b3ec3c985861c8d7b0f`. Compared complete
 CBrowseInfo::BrowseForFile and CCommonDialogInfo::CommonDlg_BrowseForFile bodies,

@@ -16,6 +16,7 @@
 #include "filemanager/panels/PanelFolderOperations.h"
 #include "filemanager/providers/FSFolder.h"
 #include "filemanager/providers/qtfolderpropertycapabilities.h"
+#include "fileops/native/correctfspath.h"
 #include "localization/LangUtils.h"
 #include "platform/trash/qttrashservice.h"
 #include "ui/diagnostics/qtdiagnostictext.h"
