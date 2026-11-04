@@ -331,6 +331,10 @@
     add_test(NAME mount_extraction_prompt COMMAND mount_extraction_prompt_tests -silent)
     set_tests_properties(mount_extraction_prompt PROPERTIES TIMEOUT 20
         ENVIRONMENT "QT_QPA_PLATFORM=offscreen;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
+    if(APPLE)
+        set_property(TEST mount_extraction_prompt PROPERTY ENVIRONMENT
+            "QT_QPA_PLATFORM=cocoa;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
+    endif()
     qt_add_executable(mount_session_tests tests/mount/mount_session_tests.cpp)
     target_include_directories(mount_session_tests PRIVATE tests)
     target_link_libraries(mount_session_tests PRIVATE sevenzip_location sevenzip_mount_ui Qt6::Test)

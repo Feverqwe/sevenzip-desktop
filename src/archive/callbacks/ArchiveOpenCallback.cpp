@@ -14,6 +14,8 @@
 #include "7zip/Common/StreamUtils.h"
 
 #include "archive/callbacks/ArchiveOpenCallback.h"
+#include "archive/opening/archivecontainerpath.h"
+#include <cerrno>
 
 // #define DEBUG_VOLUMES
 
@@ -35,6 +37,20 @@ HRESULT COpenCallbackImp::Init2(const FString &folderPrefix, const FString &file
     FileNames_WasUsed.Clear();
     FileSizes.Clear();
     _subArchiveMode = false;
+    UString packageFolder = fs2us(folderPrefix);
+    if (!packageFolder.IsEmpty() && IS_PATH_SEPAR(packageFolder.Back()))
+        packageFolder.DeleteBack();
+    _delayedPackageVolumes =
+        IsSparseBundleName(fs2us(fileName)) ||
+        (fs2us(fileName).IsEqualTo_NoCase(L"Info.plist") && IsSparseBundleName(packageFolder));
+    _packageVolumePrefix.Empty();
+    _packageRoot = folderPrefix;
+    if (IsSparseBundleName(fs2us(fileName))) {
+        _packageVolumePrefix = fs2us(fileName);
+        _packageVolumePrefix += L'/';
+        _packageRoot += fileName;
+        _packageRoot.Add_PathSepar();
+    }
     // TotalSize = 0;
     PasswordWasAsked = false;
     _folderPrefix = folderPrefix;
@@ -264,17 +280,53 @@ Z7_COM7F_IMF(CInFileStreamVol::GetSize(UInt64 *size)) {
 // from ArchiveExtractCallback.cpp
 bool IsSafePath(const UString &path);
 
+HRESULT COpenCallbackImp::ValidatePackageVolume(const UString &name) const {
+    UString relative = name;
+    if (!relative.IsPrefixedBy(_packageVolumePrefix))
+        return E_INVALIDARG;
+    relative.DeleteFrontal(_packageVolumePrefix.Len());
+    const bool band = relative.IsPrefixedBy(L"bands/");
+    if (band) {
+        if (relative.Len() <= 6 || relative.Len() > 22)
+            return E_INVALIDARG;
+        for (unsigned i = 6; i < relative.Len(); ++i)
+            if (!((relative[i] >= L'0' && relative[i] <= L'9') ||
+                  (relative[i] >= L'a' && relative[i] <= L'f')))
+                return E_INVALIDARG;
+    } else if (relative != L"token")
+        return E_INVALIDARG;
+    NFile::NFind::CFileInfo info;
+    FString root = _packageRoot;
+    if (!root.IsEmpty() && IS_PATH_SEPAR(root.Back()))
+        root.DeleteBack();
+    if (!info.Find(root, false))
+        return GetLastError_noZero_HRESULT();
+    if (!info.IsDir() || info.IsOsSymLink())
+        return E_INVALIDARG;
+    if (band) {
+        const FString directory = _packageRoot + us2fs(UString(L"bands"));
+        if (!info.Find(directory, false))
+            return GetLastError_noZero_HRESULT();
+        if (!info.IsDir() || info.IsOsSymLink())
+            return E_INVALIDARG;
+    }
+    return S_OK;
+}
+
 Z7_COM7F_IMF(COpenCallbackImp::GetStream(const wchar_t *name, IInStream **inStream)) {
     COM_TRY_BEGIN
     *inStream = NULL;
 
-    if (_subArchiveMode)
+    if (_subArchiveMode && !_delayedPackageVolumes)
         return S_FALSE;
     if (Callback) {
         RINOK(Callback->Open_CheckBreak())
     }
 
     UString name2 = name;
+    if (_delayedPackageVolumes) {
+        RINOK(ValidatePackageVolume(name2))
+    }
 
 #ifndef Z7_SFX
 
@@ -306,10 +358,25 @@ Z7_COM7F_IMF(COpenCallbackImp::GetStream(const wchar_t *name, IInStream **inStre
     FString fullPath;
     if (!NFile::NName::GetFullPath(_folderPrefix, us2fs(name2), fullPath))
         return S_FALSE;
-    if (!_fileInfo.Find_FollowLink(fullPath))
-        return S_FALSE;
+    if (_delayedPackageVolumes) {
+        NFile::NFind::CFileInfo link;
+        if (link.Find(fullPath, false) && link.IsOsSymLink())
+            return E_INVALIDARG;
+    }
+    if (!_fileInfo.Find_FollowLink(fullPath)) {
+        const auto error = GetLastError();
+        // Only absence represents a sparse hole. Permission and transport
+        // failures must reach the reader instead of silently becoming zeroes.
+#ifdef _WIN32
+        if (error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND)
+#else
+        if (error == ENOENT)
+#endif
+            return S_FALSE;
+        return GetLastError_noZero_HRESULT();
+    }
     if (_fileInfo.IsDir())
-        return S_FALSE;
+        return _delayedPackageVolumes ? E_INVALIDARG : S_FALSE;
 
     CMultiStreams::CSubStream s;
 
@@ -318,6 +385,13 @@ Z7_COM7F_IMF(COpenCallbackImp::GetStream(const wchar_t *name, IInStream **inStre
         CMyComPtr<IInStream> inStreamTemp = inFile;
         if (!inFile->Open(fullPath))
             return GetLastError_noZero_HRESULT();
+        if (_delayedPackageVolumes) {
+            // Sparsebundle owns a bounded band-handle cache. Returning an
+            // independent input avoids growing CMultiStreams' volume inventory
+            // for every remote-band eviction/reopen, and retains no UI pointer.
+            *inStream = inStreamTemp.Detach();
+            return S_OK;
+        }
         RINOK(Volumes.PrepareToOpenNew())
         s.FileSpec = inFile;
         s.Stream = s.FileSpec;
@@ -353,10 +427,12 @@ Z7_COM7F_IMF(COpenCallbackImp::GetFscryptKeys(BSTR *keys)) {
         if (request)
             return request->GetFscryptKeys(keys);
     }
+#if defined(__GXX_RTTI) || defined(_CPPRTTI)
     if (auto *request = dynamic_cast<IFscryptKeyUI *>(Callback)) {
         PasswordWasAsked = true;
         return request->Open_FscryptKeys(keys);
     }
+#endif
     return CryptoGetTextPassword(keys);
     COM_TRY_END
 }

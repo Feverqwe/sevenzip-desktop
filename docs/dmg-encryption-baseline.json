@@ -9,7 +9,11 @@
     "Crypto/Des.h": "86b69591e859ae9b4397a53f57e9b56396900adef2add6a39d65df6fb3452d77",
     "Crypto/TripleDes.cpp": "d4076b5a5bbb34ee680c234779d92d12a7f95c072b0dbbdb741eb90e2f559b91",
     "Crypto/TripleDes.h": "16b90bb2665ba8f7ac3ca98eb707ccd8b3ebae4a92a0c7358ac5008b4841f432",
-    "LICENSE": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643"
+    "LICENSE": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643",
+    "ApfsLib/DeviceSparseImage.cpp": "d5184dab91a780de228415f5ee6415e50e766ec98b5da9eacd2ac0253dd4d934",
+    "ApfsLib/DeviceSparseImage.h": "39718caed3d7f0c3d93eb7fd2812e56b2897571c0e1ad1c0896418167935fab0",
+    "ApfsLib/Device.cpp": "3c2ef0debeeb6be7ec1101bf32eb0733e871ca12ed5a99e14a91812b87137bb8",
+    "ApfsLib/Device.h": "c2cc23173b4794567eb5c40ed4897cf1c10b9fc301a4a37892dcd31406bb7996"
   },
   "owners": {
     "Crypto/Des.cpp": "src/dependencies/apfscrypto/Des.cpp",
@@ -18,7 +22,9 @@
     "Crypto/TripleDes.h": "src/dependencies/apfscrypto/TripleDes.h",
     "ApfsLib/DiskImageFile.cpp": "src/formats/encrypted-dmg/dmgdecryptstream.cpp",
     "ApfsLib/DiskImageFile.h": "src/formats/encrypted-dmg/dmgdecryptstream.h",
-    "LICENSE": "third_party/apfs-fuse/LICENSE"
+    "LICENSE": "third_party/apfs-fuse/LICENSE",
+    "ApfsLib/DeviceSparseImage.cpp": "src/formats/sparse-image/sparseimagestream.cpp",
+    "ApfsLib/DeviceSparseImage.h": "src/formats/sparse-image/sparseimagestream.h"
   },
   "local_integration": [
     "src/dependencies/apfscrypto/module.cmake",
@@ -65,6 +71,19 @@
         "DiskImageFile"
       ],
       "scope": "adapted stream interface and state"
+    },
+    {
+      "source": "ApfsLib/DeviceSparseImage.cpp",
+      "local": [
+        "src/formats/sparse-image/sparseimagestream.cpp"
+      ],
+      "symbols": [
+        "HeaderNode",
+        "IndexNode",
+        "DeviceSparseImage::Open",
+        "DeviceSparseImage::Read"
+      ],
+      "scope": "partial adaptation: native stream/index mapper; checked offsets, chains, variable bands, I/O errors; encryption retained in shared DMG owner"
     }
   ],
   "unchanged": {

@@ -123,13 +123,13 @@ class ArchiveBackend : public QObject {
                        std::shared_ptr<ArchiveReadOnlyView> &view, QString &error,
                        std::function<bool(const QString &, quint64)> extractionConsent = {},
                        std::function<bool(const QString &, quint64, Int32)> recoveryConsent = {},
-                       const QString &folder = {});
+                       const QString &folder = {}, bool lazyDirectories = false);
     // Capture the panel generation on its owner thread; prepare/enumerate on a worker.
     static std::shared_ptr<ArchiveReadOnlyView>
     retainReadOnlyView(IUnknown *resource, quint64 cacheLimit, const QString &password,
                        std::function<bool(const QString &, quint64)> extractionConsent = {},
                        std::function<bool(const QString &, quint64, Int32)> recoveryConsent = {},
-                       const QString &folder = {});
+                       const QString &folder = {}, bool lazyDirectories = false);
     static HRESULT prepareReadOnlyView(const std::shared_ptr<ArchiveReadOnlyView> &view,
                                        QString &error);
     virtual bool discoverCodecCatalog(const QString &module = {});

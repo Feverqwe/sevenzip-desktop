@@ -20,6 +20,8 @@ class ArchiveReadOnlyView final {
         quint64 Size = 0;
         bool Directory = false;
         quint64 Modified = 0;
+        bool ChildrenLoaded = true;
+        QString SymlinkTarget = {};
     };
     struct ReadResult {
         HRESULT Result = E_FAIL;
@@ -27,11 +29,25 @@ class ArchiveReadOnlyView final {
         QByteArray Data;
         QString Error;
     };
+    struct PreparationProgress {
+        enum class Stage { ReadingDirectories, ListingEntries, CheckingAccess };
+        Stage Phase = Stage::ReadingDirectories;
+        quint64 Processed = 0, Total = 0;
+        QString CurrentPath;
+    };
     ~ArchiveReadOnlyView();
+    struct DirectoryResult {
+        HRESULT Result = E_FAIL;
+        QList<Entry> Entries;
+        QString Error;
+    };
+    DirectoryResult listDirectory(quint64 id);
     const QList<Entry> &entries() const;
     QString limitations() const;
     const QStringList &skippedEntries() const;
     HRESULT needsCache(bool &required);
+    // Thread-safe snapshot while preparation runs on its owning worker.
+    PreparationProgress preparationProgress() const;
     // Set before serving reads, after handing a prepared view to its worker.
     void setReadOptions(quint64 quota, QString password,
                         std::function<bool(const QString &, quint64)> extractionConsent,
@@ -45,7 +61,7 @@ class ArchiveReadOnlyView final {
     ArchiveReadOnlyView(IUnknown *resource, quint64 quota, QString password,
                         std::function<bool(const QString &, quint64)> extractionConsent,
                         std::function<bool(const QString &, quint64, Int32)> recoveryConsent,
-                        const QString &folder);
+                        const QString &folder, bool lazyDirectories);
     HRESULT initialize(QString &error);
     friend class ArchiveBackend;
 };

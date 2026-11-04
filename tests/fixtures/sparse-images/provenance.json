@@ -1,0 +1,361 @@
+{
+  "creator": "ProductName:\t\tmacOS\nProductVersion:\t\t27.2\nBuildVersion:\t\t26B123\n",
+  "password": "fixture-password",
+  "entries": {
+    "pattern.bin": "56adb3e8326417816b700af01d7b4fc2b223db90d0595bec2b93a1d4a7ba323f",
+    "hello 空.txt": "6220a13f11fc2af758c5f7b1880e5098a066f449c5c23e4d2a2ee583acfcd807"
+  },
+  "fixtures": [
+    {
+      "name": "native-sparse-0",
+      "type": "SPARSE",
+      "bits": 0,
+      "size": 33554432,
+      "ranges": [
+        {
+          "offset": 0,
+          "size": 8197,
+          "sha256": "124271170f6d757f6a45e3a87c9d654d01cbf8f855934ca9fdad98fb192196c6"
+        },
+        {
+          "offset": 4093,
+          "size": 65539,
+          "sha256": "c505cd0b78fd317b39e09e0fa48bc9226ddbdfee4222d96b5673eee6984170d4"
+        },
+        {
+          "offset": 8388591,
+          "size": 10037,
+          "sha256": "9873c1f44c757ca387c57de146d721e5b53a2be3b3cf89bc8e325de6b89a75d4"
+        },
+        {
+          "offset": 16777199,
+          "size": 65539,
+          "sha256": "d4f9bcbd9be765d114b85ab79d16c218fb5c1e03315f689603d48eed00bff97f"
+        },
+        {
+          "offset": 33546235,
+          "size": 8197,
+          "sha256": "167c355ac10d5c3b05eb35fdb090f58c2670a5b1c2fa8d8586318fdedf5a0ea0"
+        }
+      ],
+      "files": [
+        {
+          "path": "image",
+          "sha256": "7571dd9ca3497cc7ddd13ccf87ced8935cda507264b649e2a8a2abbfb1a6a5d8",
+          "bytes": 9441280
+        }
+      ],
+      "reference_device": "whole disk"
+    },
+    {
+      "name": "native-sparse-128",
+      "type": "SPARSE",
+      "bits": 128,
+      "size": 33554432,
+      "ranges": [
+        {
+          "offset": 0,
+          "size": 8197,
+          "sha256": "349accd835e9bd94cd09f177ac039746ce43d95feb205cc9b8166e798a916f95"
+        },
+        {
+          "offset": 4093,
+          "size": 65539,
+          "sha256": "3136c857527bcd391ca8b3bdcf37ba4f4cdc5e665be2c7873f73e9790087c56d"
+        },
+        {
+          "offset": 8388591,
+          "size": 10037,
+          "sha256": "9873c1f44c757ca387c57de146d721e5b53a2be3b3cf89bc8e325de6b89a75d4"
+        },
+        {
+          "offset": 16777199,
+          "size": 65539,
+          "sha256": "8a587259be59604aea2b06cdea01a865f5092046f36ba701ff00c703172d5344"
+        },
+        {
+          "offset": 33546235,
+          "size": 8197,
+          "sha256": "eddf5e8ac18aa49ce467168270fc30842fd61aa1f32ddcc84b021d5734909d63"
+        }
+      ],
+      "files": [
+        {
+          "path": "image",
+          "sha256": "82a20002ca8e1f9fa9a67d407b8ada0d7fbd580c762ab45cee393526ebbe2dee",
+          "bytes": 9563648
+        }
+      ],
+      "reference_device": "whole disk"
+    },
+    {
+      "name": "native-sparse-256",
+      "type": "SPARSE",
+      "bits": 256,
+      "size": 33554432,
+      "ranges": [
+        {
+          "offset": 0,
+          "size": 8197,
+          "sha256": "ab90bebc37bb745c401b25033f7838d7fb23efd0a54ff62ed9d88eb17612974a"
+        },
+        {
+          "offset": 4093,
+          "size": 65539,
+          "sha256": "56519066cd180d077c85264fe0377a48961f1d024d9f11ebce8c9ec2b540007d"
+        },
+        {
+          "offset": 8388591,
+          "size": 10037,
+          "sha256": "9873c1f44c757ca387c57de146d721e5b53a2be3b3cf89bc8e325de6b89a75d4"
+        },
+        {
+          "offset": 16777199,
+          "size": 65539,
+          "sha256": "14619b5c0f7e5c626ac0ef85b02518ef4f563096fe6ca31a4c656c751d834534"
+        },
+        {
+          "offset": 33546235,
+          "size": 8197,
+          "sha256": "edab52992c47e43bb8a7506246dd724907615c6c2cfd368ca2d46916d3bb13c6"
+        }
+      ],
+      "files": [
+        {
+          "path": "image",
+          "sha256": "0193349d83b3e5fee0c6f993449f51ec96119fe28fe1f0b70042551ebac33187",
+          "bytes": 9563648
+        }
+      ],
+      "reference_device": "whole disk"
+    },
+    {
+      "name": "native-sparsebundle-0",
+      "type": "SPARSEBUNDLE",
+      "bits": 0,
+      "size": 33554432,
+      "ranges": [
+        {
+          "offset": 0,
+          "size": 8197,
+          "sha256": "f154fcd676d098a1f82d9db0e7fd0e531e2b7281869c035543be26faaabfef8f"
+        },
+        {
+          "offset": 4093,
+          "size": 65539,
+          "sha256": "75bb17b1ea49dff9bdf0f10f5f16b2114fd5be52a0f6918da459509f9d69c5bb"
+        },
+        {
+          "offset": 8388591,
+          "size": 10037,
+          "sha256": "9873c1f44c757ca387c57de146d721e5b53a2be3b3cf89bc8e325de6b89a75d4"
+        },
+        {
+          "offset": 16777199,
+          "size": 65539,
+          "sha256": "d4f9bcbd9be765d114b85ab79d16c218fb5c1e03315f689603d48eed00bff97f"
+        },
+        {
+          "offset": 33546235,
+          "size": 8197,
+          "sha256": "7dabce715c97c812e9f58bfd729e22285b19e1cb0899a36bf4bbfa910387f9da"
+        }
+      ],
+      "files": [
+        {
+          "path": "Info.bckup",
+          "sha256": "bee74f3b8f4a390444bc257ed21406c42ecbafd7b42313af70bd0c3b2709f9e7",
+          "bytes": 495
+        },
+        {
+          "path": "Info.plist",
+          "sha256": "bee74f3b8f4a390444bc257ed21406c42ecbafd7b42313af70bd0c3b2709f9e7",
+          "bytes": 495
+        },
+        {
+          "path": "bands/0",
+          "sha256": "2115dbe00c402cf73f5572fbada3a0abeee162ee13d419f03bbc6619c5b468f2",
+          "bytes": 3338240
+        },
+        {
+          "path": "bands/1",
+          "sha256": "2daeb1f36095b44b318410b3f4e8b5d989dcc7bb023d1426c492dab0a3053e74",
+          "bytes": 8388608
+        },
+        {
+          "path": "bands/2",
+          "sha256": "c35020473aed1b4642cd726cad727b63fff2824ad68cedd7ffb73c7cbd890479",
+          "bytes": 32768
+        },
+        {
+          "path": "bands/3",
+          "sha256": "d708ac041951c9df6fc775fe4014bb07822eb4c57d153e390587022115b1125f",
+          "bytes": 8388608
+        },
+        {
+          "path": "lock",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "token",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        }
+      ],
+      "reference_device": "whole disk"
+    },
+    {
+      "name": "native-sparsebundle-128",
+      "type": "SPARSEBUNDLE",
+      "bits": 128,
+      "size": 33554432,
+      "ranges": [
+        {
+          "offset": 0,
+          "size": 8197,
+          "sha256": "b72bed1c85fd4581d4be580b6aa1b8e831c3ec01aa5620f1a8de7517b5ac800e"
+        },
+        {
+          "offset": 4093,
+          "size": 65539,
+          "sha256": "4c571841233e6391bd1efb5e74a55691c414494f12add65d8b062818b63b3793"
+        },
+        {
+          "offset": 8388591,
+          "size": 10037,
+          "sha256": "6e4a9e171f759f5b340d2660b75f0d48e6b09d3ee6c14b0987429c8ed6336cfb"
+        },
+        {
+          "offset": 16777199,
+          "size": 65539,
+          "sha256": "d4f9bcbd9be765d114b85ab79d16c218fb5c1e03315f689603d48eed00bff97f"
+        },
+        {
+          "offset": 33546235,
+          "size": 8197,
+          "sha256": "bc259c02b5b5ff32c51a4902b2b713a5da7e80aee4f000741297e394e9679c7b"
+        }
+      ],
+      "files": [
+        {
+          "path": "Info.bckup",
+          "sha256": "bee74f3b8f4a390444bc257ed21406c42ecbafd7b42313af70bd0c3b2709f9e7",
+          "bytes": 495
+        },
+        {
+          "path": "Info.plist",
+          "sha256": "bee74f3b8f4a390444bc257ed21406c42ecbafd7b42313af70bd0c3b2709f9e7",
+          "bytes": 495
+        },
+        {
+          "path": "bands/0",
+          "sha256": "6a9ae8235ef277888de463f50600f9a599f828557a1e23d34cc56d09738d22c3",
+          "bytes": 3338240
+        },
+        {
+          "path": "bands/1",
+          "sha256": "370862175833d10c0fa8b1765619adcd294a4e9ea8589996ca94decc90a3869b",
+          "bytes": 8388608
+        },
+        {
+          "path": "bands/2",
+          "sha256": "b0354153208fe7c8120145c90fd2c60c3e73d79a26ff5d2e882e659280e3b111",
+          "bytes": 32768
+        },
+        {
+          "path": "bands/3",
+          "sha256": "129e87e6bcb25020a71fdd8056d5af8729fa8f51b5603f167d4fe12d0d423c80",
+          "bytes": 8388608
+        },
+        {
+          "path": "lock",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "token",
+          "sha256": "279a2f08826d0de7f22b4352360d28c67ba0f852ea7a5a42b965a888e1dc6120",
+          "bytes": 122368
+        }
+      ],
+      "reference_device": "whole disk"
+    },
+    {
+      "name": "native-sparsebundle-256",
+      "type": "SPARSEBUNDLE",
+      "bits": 256,
+      "size": 33554432,
+      "ranges": [
+        {
+          "offset": 0,
+          "size": 8197,
+          "sha256": "cbb9eac014efa1b65ddf3131531a0ccabdde4490532d2df0d3a7512c10b64a15"
+        },
+        {
+          "offset": 4093,
+          "size": 65539,
+          "sha256": "dce37f4c7e3a5629b8554fa69ef29adc2804a9e3072f4e5def64f631515912f5"
+        },
+        {
+          "offset": 8388591,
+          "size": 10037,
+          "sha256": "985117f0e680a40caa995eaeb1471a2d9d6dbc591c6db8a97c9bf2a25316da94"
+        },
+        {
+          "offset": 16777199,
+          "size": 65539,
+          "sha256": "d4f9bcbd9be765d114b85ab79d16c218fb5c1e03315f689603d48eed00bff97f"
+        },
+        {
+          "offset": 33546235,
+          "size": 8197,
+          "sha256": "04dba9893d4982cec54282ab7b6880220e3097aa64f3d431304d49f016a1997c"
+        }
+      ],
+      "files": [
+        {
+          "path": "Info.bckup",
+          "sha256": "bee74f3b8f4a390444bc257ed21406c42ecbafd7b42313af70bd0c3b2709f9e7",
+          "bytes": 495
+        },
+        {
+          "path": "Info.plist",
+          "sha256": "bee74f3b8f4a390444bc257ed21406c42ecbafd7b42313af70bd0c3b2709f9e7",
+          "bytes": 495
+        },
+        {
+          "path": "bands/0",
+          "sha256": "207d929f0ed692dfa94117b40eec204ec7c57475d901a811b8e23fa73a4d5ff9",
+          "bytes": 3338240
+        },
+        {
+          "path": "bands/1",
+          "sha256": "18d4b9243043dca90566ca9c4e6a0fd960954e0c0b785f38a47bf62bcbebef39",
+          "bytes": 8388608
+        },
+        {
+          "path": "bands/2",
+          "sha256": "0d956ee06827b61cac070fb06c8f198c621429488816dc9a433a4d8f5d15c7d6",
+          "bytes": 32768
+        },
+        {
+          "path": "bands/3",
+          "sha256": "f87de86b53f55ad03b4f7cea11733923fc72d89d985e94ed2b2b6005e3e7b517",
+          "bytes": 8388608
+        },
+        {
+          "path": "lock",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "token",
+          "sha256": "a955aa4086f768b82387521a07e83bac36e1b82a5f3e00bb734994e7d79dc93b",
+          "bytes": 122368
+        }
+      ],
+      "reference_device": "whole disk"
+    }
+  ]
+}

@@ -2,6 +2,7 @@
 #include "Common/Defs.h"
 #include "Windows/PropVariant.h"
 #include "Windows/PropVariantConv.h"
+#include "archive/resources/qtarchivedirectoryread.h"
 #include "archive/resources/qtarchivefileresource.h"
 #include "filemanager/FormatUtils.h"
 #include "filemanager/SysIconUtils.h"
@@ -28,6 +29,15 @@ HRESULT MainWindow::renderArchiveFolder(bool updateAddress) {
         return S_OK;
     auto *archiveFolder = static_cast<CAgentFolder *>((IFolderFolder *)folderOwner);
     const bool flat = panel.GetFlatMode();
+    const HRESULT directoryResult =
+        ReadArchiveDirectory(*archiveFolder, flat, this, toolbarSettingsPath());
+    if (directoryResult != S_OK) {
+        projectedUi().table->clearRows();
+        panel.LoadListItems(true, directoryResult);
+        if (directoryResult != E_ABORT)
+            panel.MessageBox_Error_HRESULT(directoryResult);
+        return directoryResult;
+    }
     const HRESULT loaded = panel.LoadListItems();
     if (loaded != S_OK)
         return loaded;

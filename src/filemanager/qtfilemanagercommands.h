@@ -21,7 +21,8 @@ class QtFileManagerCommands final : public IQtFileManagerMenuCommandServices {
         OpenArchivePicker,
         OpenDevicePicker,
         MountReadOnly,
-        ManageMounts
+        ManageMounts,
+        CalculateDirectorySize
     };
     explicit QtFileManagerCommands(MainWindow &window);
     void AttachActions();
@@ -95,6 +96,9 @@ class QtFileManagerCommands final : public IQtFileManagerMenuCommandServices {
     void AttachMountActions();
     void MountReadOnlyContainer();
     void ShowMounts();
+    void AttachDirectoryActions();
+    bool CanCalculateDirectorySize() const;
+    void CalculateDirectorySizes();
     void OpenDevice();
     struct TransportCapabilities {
         bool filesystem = false, archive = false, writable = false, mutationWritable = false;

@@ -48,6 +48,7 @@ void QtFileManagerCommands::AttachActions() {
     AttachPanelActions();
     AttachViewActions();
     AttachMountActions();
+    AttachDirectoryActions();
     window_.app_.AttachQtCommandServices(this);
     for (QAction *action : {window_.toolbarAdd_, window_.extract_, window_.test_, window_.copy_,
                             window_.move_, window_.remove_, window_.infoAction_})
@@ -270,6 +271,7 @@ QHash<unsigned, bool> QtFileManagerCommands::Availability() {
         const auto *folder = dynamic_cast<CAgentFolder *>(panel.GetFolder());
         availability[MountReadOnly] =
             folder && ArchiveUsesNativeItemIndexes(folder->GetArchiveProperties());
+        availability[CalculateDirectorySize] = CanCalculateDirectorySize();
     }
     availability[OpenDevicePicker] =
         availability[OpenArchivePicker] && safeFolderQueries && !w.projectedUi().scanningDisk &&

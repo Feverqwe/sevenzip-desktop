@@ -49,6 +49,7 @@ sevenzip_add_port_component(sevenzip_main_window src/filemanager/window/mainwind
     src/filemanager/window/mainwindow_backendevents.cpp
     src/filemanager/window/mainwindow_close.cpp
     src/filemanager/window/mainwindow_startup.cpp src/filemanager/qtfilemanagersplitter.cpp
+    src/filemanager/qtfilemanagerdirectorycommands.cpp
     src/filemanager/window/mainwindow_columns.cpp
     src/filemanager/window/mainwindow_refresh.cpp
     src/filemanager/window/mainwindow_dialogs.cpp
@@ -104,7 +105,7 @@ sevenzip_add_port_component(sevenzip_compress_source src/dialogs/compress/Compre
     src/dialogs/compress/CompressDialog.cpp)
 
 sevenzip_add_port_component(sevenzip_agent src/archive/agent/Agent.h
-    src/archive/agent/Agent.cpp src/archive/agent/AgentProxy.cpp)
+    src/archive/agent/Agent.cpp src/archive/agent/AgentProxy.cpp src/archive/agent/AgentDirectory.cpp)
 sevenzip_add_port_component(sevenzip_panel_selection src/filemanager/panels/PanelSelect.h
     src/filemanager/panels/PanelSelect.cpp)
 sevenzip_add_port_component(sevenzip_split_dialog src/dialogs/split/SplitDialog.h

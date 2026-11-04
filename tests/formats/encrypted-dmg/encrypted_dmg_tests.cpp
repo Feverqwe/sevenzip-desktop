@@ -29,16 +29,22 @@ class Input final : public IInStream, public CMyUnknownImp {
   public:
     UInt64 ReadBytes = 0;
     bool Fail = false;
+    UInt64 FaultAfter = UINT64_MAX;
+    HRESULT FaultResult = E_FAIL;
     explicit Input(QByteArray bytes) : bytes_(std::move(bytes)) {}
     Z7_COM7F_IMF(Read(void *data, UInt32 size, UInt32 *processed)) override {
         if (processed)
             *processed = 0;
         if (Fail)
             return E_FAIL;
+        if (size && position_ >= FaultAfter)
+            return FaultResult;
         const UInt32 count =
             position_ >= UInt64(bytes_.size())
                 ? 0
-                : UInt32(qMin<UInt64>(qMin<UInt32>(size, 13), UInt64(bytes_.size()) - position_));
+                : UInt32(qMin<UInt64>(
+                      qMin<UInt64>(qMin<UInt32>(size, 13), UInt64(bytes_.size()) - position_),
+                      FaultAfter - position_));
         if (count)
             memcpy(data, bytes_.constData() + position_, count);
         position_ += count;
@@ -193,6 +199,30 @@ class EncryptedDmgTests final : public QObject {
     void largeRandomReads() {
         const auto plain = Pattern().repeated(160);
         CheckReads(DmgFixture(plain, 256, true), plain);
+    }
+    void speculativeReadFailure() {
+        const auto plain = Pattern().repeated(8);
+        for (const HRESULT failure : {E_FAIL, E_ABORT}) {
+            CMyComPtr2<IInStream, Input> input;
+            input.SetFromCls(new Input(DmgFixture(plain, 256, true)));
+            CMyComPtr2_Create<IArchiveOpenCallback, Password> password;
+            CMyComPtr2_Create<IInStream, NArchive::NEncryptedDmg::DecryptStream> stream;
+            QCOMPARE(stream->Open(input, password), S_OK);
+            input->FaultAfter = 4096 + (96u << 10);
+            input->FaultResult = failure;
+            QByteArray data(64u << 10, '\0');
+            const auto result = ReadStream_FALSE(stream, data.data(), size_t(data.size()));
+            if (failure == E_ABORT) {
+                QCOMPARE(result, E_ABORT);
+                continue;
+            }
+            QCOMPARE(result, S_OK);
+            QCOMPARE(data, plain.left(data.size()));
+            QCOMPARE(stream.Interface()->Seek(96u << 10, STREAM_SEEK_SET, nullptr), S_OK);
+            UInt32 count = 55;
+            QCOMPARE(stream.Interface()->Read(data.data(), 512, &count), E_FAIL);
+            QCOMPARE(count, UInt32(0));
+        }
     }
     void nativeReferences() {
         for (const char *name : {"native-raw128.dmg", "native-raw256.dmg"}) {

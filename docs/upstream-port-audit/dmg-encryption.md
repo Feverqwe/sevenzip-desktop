@@ -104,14 +104,16 @@ records before accessing their bytes. Offset/length checks use the physical
 input size. IV numbering cannot wrap beyond 32 bits. Resource limits are
 64 key records, 1 MiB chunks and 10 million KDF rounds per candidate.
 Unsupported password slots do not prevent trying another usable slot.
-Certificate/keybag unlocking, sparsebundle, FileVault/CoreStorage and encrypted
-APFS volumes are outside this change.
+Certificate/keybag unlocking, FileVault/CoreStorage and encrypted APFS volumes
+are outside this change. Subsequent sparseimage/sparsebundle integration is
+recorded in the [sparse image audit](sparse-images.md).
 
 The [wrapping reference baseline](../dmg-wrapping-reference-baseline.json) pins
 `sparsebundlefs.c` at `e467aadf761ca0b55ed3972a500cc612696e9e3f` for comparison of
 the modern algorithm identifier and IV convention. No C implementation or
-embedded crypto from that repository is imported. Modern AES wrapping extends
-the C++ key-slot flow using existing SDK AES, with full padding and marker
+embedded crypto from that repository is imported by this encryption change;
+the later sparse image adapter records its separate narrow C import. Modern AES
+wrapping extends the C++ key-slot flow using existing SDK AES, with full padding and marker
 validation. Native macOS fixtures establish compatibility separately from that
 source comparison; README claims in other candidates are not acceptance.
 

@@ -121,6 +121,8 @@ install(TARGETS sevenzip_lzip LIBRARY DESTINATION "${runtime_destination}/Format
 install(TARGETS sevenzip_encrypted_dmg LIBRARY DESTINATION "${runtime_destination}/Formats")
 install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/third_party/apfs-fuse/LICENSE"
     DESTINATION "${notices_destination}/apfs-fuse")
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/third_party/sparsebundlefs/LICENSE"
+    DESTINATION "${notices_destination}/sparsebundlefs")
 install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/third_party/lzlib/COPYING"
     DESTINATION "${notices_destination}/lzlib")
 install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/third_party/lz4/lib/LICENSE"

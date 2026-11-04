@@ -13,6 +13,7 @@
 #include "Windows/PropVariantConv.h"
 #include "Windows/System.h"
 #include "archive/callbacks/ArchiveExtractCallback.h"
+#include "archive/opening/archivecontainerpath.h"
 #include "archive/resources/qtarchiveagentopen.h"
 #include "archive/resources/qtarchivefileresource.h"
 #include "archive/resources/qtarchiveproperties.h"
@@ -79,6 +80,7 @@ void CAgentFolder::LoadFolder(unsigned dirIndex) {
 Z7_COM7F_IMF(CAgentFolder::LoadItems()) {
     if (!_agentSpec || !_agentSpec->_archiveLink.IsOpen || !IsBound())
         return E_FAIL;
+    RINOK(LoadDirectoryItems(_flatMode))
     _items.Clear();
     if (_flatMode) {
         LoadFolder(_proxyDirIndex);
@@ -331,6 +333,13 @@ Z7_COM7F_IMF(CAgentFolder::GetProperty(UInt32 index, PROPID propID, PROPVARIANT 
         const unsigned realIndex = proxyItem.Index;
         const unsigned arcIndex = dir->Items[realIndex];
         const CProxyFile2 &item = _proxy2->Files[arcIndex];
+        if (item.IsDir() &&
+            (propID == kpidSize || propID == kpidPackSize || propID == kpidNumSubDirs ||
+             propID == kpidNumSubFiles) &&
+            !DirectoryItemSubtreeComplete(arcIndex)) {
+            prop.Detach(value);
+            return S_OK;
+        }
         if (!item.IsDir()) {
             switch (propID) {
             case kpidIsDir:
@@ -807,6 +816,7 @@ Z7_COM7F_IMF(CAgentFolder::BindToFolder(UInt32 index, IFolderFolder **resultFold
 
 Z7_COM7F_IMF(CAgentFolder::BindToFolder(const wchar_t *name, IFolderFolder **resultFolder)) {
     COM_TRY_BEGIN
+    RINOK(LoadDirectoryItems(false))
     *resultFolder = nullptr;
     if (!IsBound())
         return E_FAIL;
@@ -1017,6 +1027,12 @@ Z7_COM7F_IMF(CAgentFolder::GetFolderProperty(PROPID propID, PROPVARIANT *value))
         return E_FAIL;
     }
     NWindows::NCOM::CPropVariant prop;
+    if ((propID == kpidSize || propID == kpidPackSize || propID == kpidNumSubDirs ||
+         propID == kpidNumSubFiles) &&
+        DirectoryItemsNeedLoad(true)) {
+        prop.Detach(value);
+        return S_OK;
+    }
     if (propID == kpidReadOnly) {
         if ((_agentSpec->_proxy && _agentSpec->_proxy->Are_Changed_LongPaths) ||
             _agentSpec->Is_Attrib_ReadOnly())
@@ -1472,7 +1488,7 @@ Z7_COM7F_IMF(CAgent::Open(IInStream *inStream, const wchar_t *filePath, const wc
     if (!inStream) {
         if (!fi.Find(us2fs(_archiveFilePath)))
             return GetLastError_noZero_HRESULT();
-        if (fi.IsDir())
+        if (fi.IsDir() && !IsSparseBundleName(_archiveFilePath))
             return E_FAIL;
         _attrib = fi.GetWinAttrib();
 #ifdef _WIN32
@@ -1510,6 +1526,7 @@ Z7_COM7F_IMF(CAgent::Open(IInStream *inStream, const wchar_t *filePath, const wc
 
     COpenOptions options;
     options.props = NULL;
+    options.PreferDirectoryRead = true;
     options.codecs = const_cast<CCodecs *>(codecs);
     options.QtOpenService = _openServices;
     options.types = &types;
@@ -1824,6 +1841,7 @@ Z7_COM7F_IMF(CAgentFolder::Extract(const UInt32 *indices, UInt32 numItems, Int32
 
     if (!IsBound())
         return E_FAIL;
+    RINOK(LoadDirectorySelection(indices, numItems, extractCallback2))
 
     if (!testMode && _agentSpec->_isHashHandler)
         return E_NOTIMPL;
@@ -1896,8 +1914,14 @@ Z7_COM7F_IMF(CAgentFolder::Extract(const UInt32 *indices, UInt32 numItems, Int32
     extractCallbackSpec->DirPathPrefix_for_HashFiles = _agentSpec->_hashBaseFolderPrefix;
 
     CUIntVector realIndices;
+    // Match the typed directory extractor's literal Copy selection. Streams
+    // explicitly selected in their own folder remain selectable; hidden streams
+    // of a selected host must not become extra ordinary destination files.
+    const bool includeImplicitStreams =
+        IntToBool(includeAltStreams) &&
+        !(!testMode && status && status->ExtractReport.Purpose == QtArchiveExtractPurpose::Copy);
     GetRealIndices(indices, numItems,
-                   (_loadAltStreams && _flatMode) ? false : IntToBool(includeAltStreams), // v26.03
+                   (_loadAltStreams && _flatMode) ? false : includeImplicitStreams,
                    false,        // includeFolderSubItemsInFlatMode
                    realIndices); //
 

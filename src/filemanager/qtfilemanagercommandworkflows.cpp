@@ -107,6 +107,9 @@ void QtFileManagerCommands::ExtractArchives() { window_.extractArchives(); }
 void QtFileManagerCommands::TestArchives() { window_.testArchive(); }
 bool QtFileManagerCommands::ExecuteExtensionCommand(unsigned id) {
     switch (id) {
+    case CalculateDirectorySize:
+        CalculateDirectorySizes();
+        break;
     case MountReadOnly:
         MountReadOnlyContainer();
         break;

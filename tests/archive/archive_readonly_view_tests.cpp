@@ -83,6 +83,10 @@ class ArchiveReadOnlyViewTests final : public QObject {
         bool required = true;
         QCOMPARE(Worker([&] { return view->needsCache(required); }), S_OK);
         QCOMPARE(required, format == "zip");
+        const auto progress = view->preparationProgress();
+        QCOMPARE(progress.Phase, ArchiveReadOnlyView::PreparationProgress::Stage::CheckingAccess);
+        QCOMPARE(progress.Processed, quint64(1));
+        QCOMPARE(progress.Total, quint64(1));
         int extractions = 0;
         view->setReadOptions(required ? 4096 : 0, {},
                              [&](const QString &, quint64) {

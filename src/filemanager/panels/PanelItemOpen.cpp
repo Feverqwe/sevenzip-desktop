@@ -11,6 +11,7 @@
 #include "Windows/FileName.h"
 #include "Windows/PropVariantConv.h"
 #include "Windows/System.h"
+#include "archive/opening/archivecontainerpath.h"
 #include "archive/operations/ExtractingFilePath.h"
 #include "archive/resources/archivelayercontext.h"
 #include "archive/resources/qtarchiveitemopen.h"
@@ -374,7 +375,7 @@ HRESULT CPanel::OpenAsArc(IInStream *inStream, const CTempFileInfo &tempFileInfo
     else {
         if (!folderLink.FileInfo.Find(folderLink.FilePath))
             return GetLastError_noZero_HRESULT();
-        if (folderLink.FileInfo.IsDir())
+        if (folderLink.FileInfo.IsDir() && !IsSparseBundleName(virtualFilePath))
             return S_FALSE;
         folderLink.IsVirtual = false;
     }

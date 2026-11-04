@@ -1616,6 +1616,11 @@ int smb2_serve_port_async(const int fd, const int to_msecs, struct smb2_context 
 int smb2_serve_port(struct smb2_server *server, const int max_connections,
                     smb2_client_connection cb, void *cb_data);
 
+/* Server helper: encode a bounded symbolic-link CREATE error using the
+ * native reparse encoder. The returned PDU is queued by the caller. */
+struct smb2_pdu *smb2_cmd_symlink_error_reply(struct smb2_context *smb2,
+                const char *target, uint16_t unparsed, smb2_command_cb cb, void *cb_data);
+
 /*
  * Share enum (NetrShareEnum levels 0/1/2) is provided by libsmb2.
  * Full DCE/RPC lives in libdcerpc (see the dcerpc/ headers).

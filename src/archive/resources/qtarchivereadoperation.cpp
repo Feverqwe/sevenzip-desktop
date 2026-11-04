@@ -346,6 +346,8 @@ HRESULT QtArchiveReadOperation::process() {
         return result;
     OpenedFormat =
         QString::fromWCharArray(reader->nativeCodecs().GetFormatNamePtr(reader->arc().FormatIndex));
+    Output.RecoveryFormat =
+        Output.RecoveryFormat || reader->resolvedOpenType().split('.').contains("SparseBundle");
     callback->Attach(&reader->arc());
     switch (kind_) {
     case Kind::List:

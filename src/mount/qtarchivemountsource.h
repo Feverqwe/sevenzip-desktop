@@ -27,6 +27,7 @@ class QtArchiveMountSource final : public ArchiveMountSource {
     std::atomic_bool cancelled_{false};
     QHash<quint64, QSet<quint32>> reported_;
     std::optional<bool> extractionAllowed_;
+    QString entryPath(quint64 id) const;
 
   public:
     QtArchiveMountSource(IUnknown *resource, quint64 quota, QString archivePassword, QString user,
@@ -40,6 +41,7 @@ class QtArchiveMountSource final : public ArchiveMountSource {
     QString password() const override;
     QString share() const override;
     MountTreeRead read(quint64 id, quint64 offset, quint32 length) override;
+    MountTreeDirectory listDirectory(quint64 id) override;
     void listening(quint16 port) override;
     void failed(QString error) override;
 

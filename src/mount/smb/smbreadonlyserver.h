@@ -9,10 +9,16 @@ struct SmbTreeEntry {
     quint64 Id = 0, Parent = 0, Size = 0, Modified = 0;
     QString Name;
     bool Directory = false;
+    bool ChildrenLoaded = true;
+    QString SymlinkTarget = {};
 };
 struct SmbTreeRead {
     quint32 Status = 0;
     QByteArray Data;
+};
+struct SmbTreeDirectory {
+    quint32 Status = 0;
+    QList<SmbTreeEntry> Entries;
 };
 
 // Filesystem semantics and lifecycle around the bundled protocol library.
@@ -23,6 +29,8 @@ class SmbReadOnlyServer final {
     using Reader = std::function<SmbTreeRead(quint64, quint64, quint32)>;
     using ReadCompletion = std::function<void(SmbTreeRead)>;
     using AsyncReader = std::function<void(quint64, quint64, quint32, ReadCompletion)>;
+    using DirectoryCompletion = std::function<void(SmbTreeDirectory)>;
+    using AsyncDirectoryReader = std::function<void(quint64, DirectoryCompletion)>;
     SmbReadOnlyServer(QList<SmbTreeEntry> entries, QString user, QString password, Reader reader,
                       QString share = QStringLiteral("Sevenzip"));
     ~SmbReadOnlyServer();
@@ -31,6 +39,7 @@ class SmbReadOnlyServer final {
     void requestStop();
     void setDiagnosticHandler(std::function<void(QString)> handler);
     void setAsyncReader(AsyncReader reader);
+    void setAsyncDirectoryReader(AsyncDirectoryReader reader);
 
   private:
     struct State;

@@ -1,5 +1,6 @@
 #pragma once
 #include "Common/MyCom.h"
+#include "archive/opening/archivedirectoryaccess.h"
 #include "archive/resources/archivereadonlyview.h"
 #include <QHash>
 #include <QMutex>
@@ -28,6 +29,10 @@ struct ArchiveReadOnlyView::State {
     QString FolderPrefix;
     QStringList Skipped;
     QList<Entry> Entries;
+    bool LazyRequested = false;
+    CMyComPtr<IArchiveDirectoryAccess> Directories;
+    QHash<quint64, UInt32> NativeDirectories;
+    QHash<quint64, QList<quint64>> Children;
     QHash<quint64, Item> Items;
     quint64 Quota, Cached = 0, Clock = 0;
     unsigned Active = 0;
@@ -37,6 +42,8 @@ struct ArchiveReadOnlyView::State {
     std::unique_ptr<QTemporaryDir> Directory;
     std::atomic_bool Cancelled{false};
     QMutex OperationMutex;
+    mutable QMutex PreparationMutex;
+    PreparationProgress Preparation;
     QtArchiveReadOperation *Operation = nullptr;
 
     State(IUnknown *resource, quint64 quota, QString password,
@@ -44,10 +51,17 @@ struct ArchiveReadOnlyView::State {
           std::function<bool(const QString &, quint64, Int32)> recoveryConsent,
           const QString &folder);
     void skip(const QString &path, const QString &reason);
+    void reportPreparation(PreparationProgress::Stage stage, quint64 processed, quint64 total,
+                           const QString &path = {});
     CMyComPtr<IProgress> readRequest() const;
     bool release(Item &item);
     bool evict(quint64 needed);
     HRESULT stream(quint64 id, ReadResult &result);
     HRESULT materialize(quint64 id, const CMyComPtr<IProgress> &request, ReadResult &result);
     static void describe(const Item &item, ReadResult &result);
+    HRESULT initializeDirectories();
+    HRESULT isolateDirectoryReader();
+    HRESULT loadDirectory(quint64 id);
+    static bool safeComponent(const QString &name);
+    HRESULT symlinkTarget(UInt32 index, const QString &path, QString &target);
 };

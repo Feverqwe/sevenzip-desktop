@@ -33,6 +33,43 @@ operation; decrypting streams retain no UI callback. The
 [DMG source audit](upstream-port-audit/dmg-encryption.md) records provenance,
 crypto ownership, supported variants and validation limits.
 
+Apple sparseimage and sparsebundle have a separate container-mapping owner and
+reuse encrypted-DMG key setup/CBC streams. Sparseimage maps the decrypted sparse
+index; sparsebundle retains a scoped multi-file provider for token and bands.
+Both return seekable disk bytes to the same recursive readers and typed backend.
+[The sparse source audit](upstream-port-audit/sparse-images.md) records the
+different layer order, provider lifetime and damaged-band boundaries.
+
+The native APFS reader offers optional directory access to the source Agent.
+Ordinary UI opening requests it, retaining stable native item indexes as folders
+are appended. The Agent publishes refreshed directory projections while preserving
+existing folder bindings. Directory reads use the joined native progress worker;
+Cancel and failures leave already published items usable. Unknown subtree totals
+are not presented as complete sizes. Selected-directory extraction expands that
+subtree before collecting native extraction indexes. Explicit size calculation
+uses the same selected-subtree worker and the existing proxy size aggregation.
+Ordinary Copy projects literal selections, without implicitly exporting hidden
+streams as ordinary files; Move and archive staging retain their metadata scope.
+Flat View and the explicit complete read-only view request recursive enumeration;
+SMB mounting requests directory access instead. For APFS, the retained view
+opens an isolated filesystem handler over the retained, already decoded input,
+using a cursor that serializes individual transport reads through the source
+generation. Password/key setup and bounded container caches are reused; the
+panel's mutable metadata is not shared with background directory enumeration.
+The mount publishes a root and stable entry IDs, then validates and appends a directory on
+request. Failed loads remain retryable. The native directory API returns its
+direct child indexes, avoiding a scan of all previously visited objects for each
+listing. QtRO carries directory results as well as file reads; the SMB process
+validates them before publishing nodes. Deferred CREATE/QUERY_DIRECTORY replies
+stay on the SMB event loop, including related compound dependencies. Default backend
+and console enumeration retain their complete-list contract. The implementation
+and source comparison are recorded in the [sparse audit](upstream-port-audit/sparse-images.md).
+Nonlazy mount preparation publishes a mutex-protected status snapshot for the GUI timer,
+without worker access to widgets or retained GUI callbacks. A selected published
+APFS folder resolves only its ancestors before accepting directory requests.
+One mount worker serializes its native operations; a large directory can delay
+other source reads for that mount even though the SMB event loop remains available.
+
 ## Module directories and source ownership
 
 Project-owned code and adaptations belong to their functional module directories.

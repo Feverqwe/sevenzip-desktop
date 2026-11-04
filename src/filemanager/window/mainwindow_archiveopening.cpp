@@ -3,6 +3,7 @@
 #include "7zip/UI/GUI/ExtractRes.h"
 #include "Common/StringConvert.h"
 #include "Windows/PropVariant.h"
+#include "archive/resources/archiveinputpath.h"
 #include "archive/resources/qtarchivefileresource.h"
 #include "dialogs/messages/MessagesDialog.h"
 #include "filemanager/FormatUtils.h"
@@ -60,7 +61,7 @@ HRESULT MainWindow::openArchiveAs(const QString &path, const QString &type) {
     if (projectedUi().state == State::Loading || projectedUi().state == State::Operating)
         return E_ABORT;
     const QFileInfo file(path);
-    if (!file.isFile() || file.isSymLink()) {
+    if (!IsArchiveFileOrPackage(file) || file.isSymLink()) {
         statusBar()->showMessage(
             QCoreApplication::translate("mainwindow_archiveopening", "File not found: ") + path);
         return E_INVALIDARG;

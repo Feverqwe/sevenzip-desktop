@@ -1,6 +1,7 @@
 #include "archive/resources/qtarchiveitemstream.h"
 #include "Common/ComTry.h"
 #include "Common/MyCom.h"
+#include "archive/opening/archivedirectoryaccess.h"
 #include "archive/resources/archivelayercontext.h"
 #include "archive/resources/archivenativeopen.h"
 #include "archive/resources/archivereadstream.h"
@@ -95,6 +96,27 @@ class CArchiveItemStream final : public IInStream,
     }
 };
 } // namespace
+
+HRESULT CreateArchiveInputStream(IUnknown *resource, std::shared_ptr<ArchiveNativeOpen> reader,
+                                 UInt64 depth, IInStream **stream) {
+    COM_TRY_BEGIN
+    if (!stream || !reader)
+        return E_INVALIDARG;
+    *stream = nullptr;
+    CMyComPtr<IArchiveDirectoryAccess> directories;
+    RINOK(reader->arc().Archive.QueryInterface(IID_IArchiveDirectoryAccess, (void **)&directories))
+    CMyComPtr<IInStream> input;
+    {
+        ArchiveNativeReadScope scope(reader, nullptr);
+        RINOK(directories->GetDirectoryInputStream(&input))
+    }
+    if (!input)
+        return E_FAIL;
+    CMyComPtr<IInStream> retained = new CArchiveItemStream(resource, reader, input, depth);
+    *stream = retained.Detach();
+    return S_OK;
+    COM_TRY_END
+}
 
 HRESULT CreateArchiveItemStream(IUnknown *resource, UInt32 index, ISequentialInStream **stream,
                                 IProgress *request) {

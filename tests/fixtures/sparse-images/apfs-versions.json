@@ -1,0 +1,16 @@
+{
+  "source": "../devices/apfs.img.zlib",
+  "source_sha256": "3e895ab0daa7aad1396a5dcd8cdb3e2dd0117c2cb2da2d1dd40a5ad8fc4333e5",
+  "kind": "Constructed object-map version regression based on the artificial native APFS device fixture; not a native snapshot-producer sample.",
+  "mutation": "Container object-map leaf has an older, current and future version of the same volume object. Only the current version references a readable block. Entries remain sorted by object identifier and transaction; key counts and Fletcher checksum are updated.",
+  "image_sha256": "2c65b1ce2019d7086fa5a023f690b5d9153dc505ba9b858780f48019f7f6a7ce",
+  "negative_cases": {
+    "deleted": "The current mapping is a deletion marker; the otherwise readable address must not be used.",
+    "unordered": "Two object-map keys are swapped; input order remains invalid even when a readable mapping exists."
+  },
+  "derivative_sha256": {
+    "apfs-versions-deleted.img.z": "63459efdee89bbd9299cff0a6e8d469e3b2f2744d207d89761d6ef5e72ee7f43",
+    "apfs-versions-unordered.img.z": "149e50de9e5d6e83c84ee6b28222914abb4e1abb48f6cdd00d20a4e59d19e2b7",
+    "apfs-versions.img.z": "2c65b1ce2019d7086fa5a023f690b5d9153dc505ba9b858780f48019f7f6a7ce"
+  }
+}

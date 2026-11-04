@@ -1,14 +1,18 @@
 {
   "schema": 2,
   "runtime_dependencies": [
+    "src/archive/opening/archivecontainerpath.h",
+    "src/archive/opening/archivedirectoryaccess.h",
     "src/codecs/zstd/ZstdEncoder.cpp",
     "src/codecs/zstd/ZstdEncoder.h",
+    "src/crypto/fscrypt/fscryptkeyrequest.h",
     "src/dependencies/qemu/qcow.c",
     "src/dependencies/qemu/qcow.h",
     "src/dependencies/qemu/qcow2.c",
     "src/dependencies/qemu/qcow2.h",
     "src/dependencies/qemu/qemu.cppm",
     "src/dependencies/qemu/qemu.h",
+    "src/formats/apfs/apfsdirectory.inl",
     "src/formats/ext/ExtHeader.cpp",
     "src/formats/ext/ExtHeader.h",
     "src/formats/fat/FatHeader.cpp",
@@ -121,6 +125,8 @@
   "revision": "b88c6bc09339de32f7d18bbab900686b244f42ba",
   "overrides": {},
   "runtime_adapted": [
+    "src/archive/callbacks/ArchiveOpenCallback.cpp",
+    "src/archive/callbacks/ArchiveOpenCallback.h",
     "src/archive/opening/OpenArchive.cpp",
     "src/archive/opening/OpenArchive.h",
     "src/archive/streams/LimitedStreams.cpp",
@@ -1474,6 +1480,7 @@
     "src/app/main.cpp",
     "src/app/qtapplicationstartup.h",
     "src/app/qtapplicationstartup_mac.mm",
+    "src/archive/agent/AgentDirectory.cpp",
     "src/archive/backend/archivebackend.cpp",
     "src/archive/backend/archivebackend.h",
     "src/archive/backend/archivebackend_codecs.cpp",
@@ -1508,6 +1515,8 @@
     "src/archive/codecs/archivecodelocation.h",
     "src/archive/codecs/archiveexternalcodecs.cpp",
     "src/archive/hashing/qtfilecrc.h",
+    "src/archive/opening/archivecontainerpath.h",
+    "src/archive/opening/archivedirectoryaccess.h",
     "src/archive/operations/qtupdatepair.h",
     "src/archive/resources/archiveattributes.cpp",
     "src/archive/resources/archiveattributes.h",
@@ -1515,12 +1524,14 @@
     "src/archive/resources/archivedevice.h",
     "src/archive/resources/archiveinputlayer.cpp",
     "src/archive/resources/archiveinputlayer.h",
+    "src/archive/resources/archiveinputpath.h",
     "src/archive/resources/archivelayercontext.h",
     "src/archive/resources/archivenativeopen.cpp",
     "src/archive/resources/archivenativeopen.h",
     "src/archive/resources/archivepropertysource.cpp",
     "src/archive/resources/archivepropertysource.h",
     "src/archive/resources/archivereadonlycache.cpp",
+    "src/archive/resources/archivereadonlydirectory.cpp",
     "src/archive/resources/archivereadonlytree.cpp",
     "src/archive/resources/archivereadonlyview.cpp",
     "src/archive/resources/archivereadonlyview.h",
@@ -1539,6 +1550,8 @@
     "src/archive/resources/qtarchivedevicefolder.cpp",
     "src/archive/resources/qtarchivedirectoryextract.cpp",
     "src/archive/resources/qtarchivedirectoryextract.h",
+    "src/archive/resources/qtarchivedirectoryread.cpp",
+    "src/archive/resources/qtarchivedirectoryread.h",
     "src/archive/resources/qtarchiveextractstatus.h",
     "src/archive/resources/qtarchivefileresource.cpp",
     "src/archive/resources/qtarchivefileresource.h",
@@ -1718,6 +1731,7 @@
     "src/filemanager/qtfilemanagercommands.h",
     "src/filemanager/qtfilemanagercommandservices.h",
     "src/filemanager/qtfilemanagercommandworkflows.cpp",
+    "src/filemanager/qtfilemanagerdirectorycommands.cpp",
     "src/filemanager/qtfilemanagerdrag.cpp",
     "src/filemanager/qtfilemanagerdrag.h",
     "src/filemanager/qtfilemanagerdraginput.cpp",
@@ -1812,6 +1826,7 @@
     "src/fileops/volumes/qtvolumetransaction.h",
     "src/fileops/volumes/volumeoperations.cpp",
     "src/fileops/volumes/volumeoperations.h",
+    "src/formats/apfs/apfsdirectory.inl",
     "src/formats/brotli/BrotliHandler.cpp",
     "src/formats/brotli/module.cmake",
     "src/formats/btrfs/btrfsarchiveattributes.cpp",
@@ -1945,6 +1960,9 @@
     "src/formats/ntfs/ntfswofstream.cpp",
     "src/formats/ntfs/ntfswofstream.h",
     "src/formats/rar/module.cmake",
+    "src/formats/sparse-image/module.cmake",
+    "src/formats/sparse-image/sparsebundlestream.cpp",
+    "src/formats/sparse-image/sparsebundlestream.h",
     "src/formats/squashfs/module.cmake",
     "src/formats/squashfs/squashfscompat.h",
     "src/formats/squashfs/squashfsdecoder.c",
@@ -2016,6 +2034,7 @@
     "src/mount/qtsmbmountplatform.h",
     "src/mount/qtsmbmountplatform_remote.cpp",
     "src/mount/smb/smbmountconstants.h",
+    "src/mount/smb/smbreadonlydirectory.cpp",
     "src/mount/smb/smbreadonlymetadata.cpp",
     "src/mount/smb/smbreadonlypending.cpp",
     "src/mount/smb/smbreadonlyserver.cpp",
@@ -8689,6 +8708,9 @@
     "sha256": "7a44bc4f7f6dfefdffd29f65baf66f4561e371bf4c19bc122398109376d9980e"
   },
   "runtime_paths": {
+    "src/archive/opening/archivedirectoryaccess.h": "CPP/7zip/UI/Common/ArchiveDirectoryAccess.h",
+    "src/formats/apfs/apfsdirectory.inl": "CPP/7zip/Archive/ApfsDirectory.inl",
+    "src/crypto/fscrypt/fscryptkeyrequest.h": "CPP/7zip/Crypto/FscryptKeyRequest.h",
     "src/formats/ext/ExtHeader.cpp": "CPP/7zip/Archive/ExtHeader.cpp",
     "src/formats/ext/ExtHeader.h": "CPP/7zip/Archive/ExtHeader.h",
     "src/formats/fat/FatHeader.cpp": "CPP/7zip/Archive/FatHeader.cpp",
@@ -8803,7 +8825,8 @@
     "third_party/zlib/zconf.h": "zlib/zconf.h",
     "third_party/zlib/zlib.h": "zlib/zlib.h",
     "third_party/zlib/zutil.h": "zlib/zutil.h",
-    "src/formats/hfs/HfsDecmpfsStream.cpp": "CPP/7zip/Archive/HfsDecmpfsStream.cpp"
+    "src/formats/hfs/HfsDecmpfsStream.cpp": "CPP/7zip/Archive/HfsDecmpfsStream.cpp",
+    "src/archive/opening/archivecontainerpath.h": "CPP/7zip/UI/Common/ArchiveContainerPath.h"
   },
   "runtime_excluded": [
     "src/formats/cpio/CpioHandler.cpp",
@@ -8867,6 +8890,7 @@
     "docs/msdos-linux-baseline.json",
     "docs/ntfs-linux-baseline.json",
     "docs/qcow-qemu-baseline.json",
+    "docs/sparsebundle-baseline.json",
     "docs/squashfs-linux-baseline.json",
     "docs/tar-linux-baseline.json",
     "docs/udf-linux-baseline.json",
@@ -8921,7 +8945,7 @@
     },
     "libsmb2": {
       "local": "third_party/libsmb2/source.tar.xz",
-      "sha256": "fd528d7e4e3ce2ec1caf5e688b4003e780436d4377b43d098e8b2f27527bdc9d",
+      "sha256": "e3158742b95d349a78cb93c58b6719a2f0a80d4284215c878ecfff945903bc1e",
       "files": {
         "CMakeLists.txt": "e0c65d8d593cc79befddbaa92172cdb73ca7a0e7f75047a6fe8810898c3a173d",
         "COPYING": "fd87b0d474243809ec4b41c6c8e4a6563c143e5c1e1f4039adc54c0151babf76",
@@ -9004,9 +9028,7 @@
         "lib/smb2-cmd-cancel.c": "9aa2b779c2da837c96392918ff67c7cbcae9bf00525d20d763c63a03771904e3",
         "lib/smb2-cmd-close.c": "f3483a3fb3444a72a5d3624fae5fc4c51a654aa4db097a553c7e62231494cfca",
         "lib/smb2-cmd-echo.c": "a464a864f9b4d5d1c152266e122713f8752ed84955e380edcf9074fd0078bd82",
-        "lib/smb2-cmd-error.c": "659496e51ae7e7c25bcb409e7d085698c96e78fffc5e27d81d6c5a7173450227",
         "lib/smb2-cmd-flush.c": "7e877bb7cabf574904335f14993988a1feb8cb186734d60b32f59211136f4868",
-        "lib/smb2-cmd-ioctl.c": "4024e6b0410f22cac22c3dd613337bb8ef5d7fd6162b80d77d0ce148dca7b7c5",
         "lib/smb2-cmd-lock.c": "737d815e92bc677dec99c9ca9a4d4c5c16e2da509c50d254a07e209a50e72805",
         "lib/smb2-cmd-logoff.c": "4b1bccf82170908999d282ef0313cf722d11a9551ca7e3b63947cff89434e0de",
         "lib/smb2-cmd-negotiate.c": "b716f0e6080932a6808df2b1664f7b814bc0cc8afed4cd9e03c2040c563760de",
@@ -9046,7 +9068,12 @@
         "lib/smb2-cmd-read.c": "src/dependencies/smb2/smb2-cmd-read.c",
         "lib/smb2-data-file-info.c": "src/dependencies/smb2/smb2-data-file-info.c",
         "lib/socket.c": "src/dependencies/smb2/socket.c",
-        "lib/timestamps.c": "src/dependencies/smb2/timestamps.c"
+        "lib/timestamps.c": "src/dependencies/smb2/timestamps.c",
+        "lib/smb2-cmd-ioctl.c": "src/dependencies/smb2/smb2-cmd-ioctl.c",
+        "lib/smb2-cmd-error.c": "src/dependencies/smb2/smb2-cmd-error.c"
+      },
+      "asset_overlays": {
+        "lib/libsmb2.syms": "src/dependencies/smb2/libsmb2.syms"
       }
     },
     "linux": {
