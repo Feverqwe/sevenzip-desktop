@@ -2101,6 +2101,8 @@
     "src/operations/qtoperationendpoint.h",
     "src/operations/qtoperationlauncher.cpp",
     "src/operations/qtoperationlauncher.h",
+    "src/operations/qtoperationoptions.cpp",
+    "src/operations/qtoperationoptions.h",
     "src/operations/qtoperationprocess.cpp",
     "src/operations/qtoperationprocess.h",
     "src/operations/qtoperationprotocol.cpp",

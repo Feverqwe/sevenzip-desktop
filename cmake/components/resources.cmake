@@ -52,6 +52,7 @@ target_compile_features(sevenzip_archive_transfer_backup PUBLIC cxx_std_23)
 
 add_library(sevenzip_filesystem STATIC
     src/operations/qtoperationendpoint.cpp src/operations/qtoperationendpoint.h
+    src/operations/qtoperationoptions.cpp src/operations/qtoperationoptions.h
     src/archive/sfx/archivesfxmodule.cpp src/archive/sfx/archivesfxmodule.h
     src/archive/resources/qtarchivehashoperation.cpp src/archive/resources/qtarchivehashoperation.h
     src/archive/resources/qtarchivereadoperation.cpp src/archive/resources/qtarchivereadoperation.h
