@@ -1558,6 +1558,8 @@
     "src/archive/resources/qtarchivedirectoryextract.h",
     "src/archive/resources/qtarchivedirectoryread.cpp",
     "src/archive/resources/qtarchivedirectoryread.h",
+    "src/archive/resources/qtarchiveextractoptions.cpp",
+    "src/archive/resources/qtarchiveextractoptions.h",
     "src/archive/resources/qtarchiveextractstatus.h",
     "src/archive/resources/qtarchivefileresource.cpp",
     "src/archive/resources/qtarchivefileresource.h",

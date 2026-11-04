@@ -5,6 +5,7 @@
 #include "7zip/UI/GUI/ExtractRes.h"
 #include "archive/password/archivepassword.h"
 #include "archive/resources/qtarchivebatchextract.h"
+#include "archive/resources/qtarchiveextractoptions.h"
 #include "archive/resources/qtarchivefileresource.h"
 #include "archive/resources/qtarchiveproperties.h"
 #include "archive/resources/qtextractpathpolicy.h"
@@ -60,23 +61,8 @@ HRESULT ExtractPanelItems(CPanel &panel, CAgentFolder &folder, const QString &ou
     if (!explicitIndices)
         sourceOptions.NeedRegistryZone = false;
     sourceOptions.showErrorMessages = true;
-    switch (options.overwriteMode) {
-    case ExtractionOptions::OverwriteMode::Ask:
-        break;
-    case ExtractionOptions::OverwriteMode::OverwriteExisting:
-        sourceOptions.overwriteMode = NExtract::NOverwriteMode::kOverwrite;
-        break;
-    case ExtractionOptions::OverwriteMode::SkipExisting:
-    case ExtractionOptions::OverwriteMode::RejectExisting:
-        sourceOptions.overwriteMode = NExtract::NOverwriteMode::kSkip;
-        break;
-    case ExtractionOptions::OverwriteMode::RenameExtracted:
-        sourceOptions.overwriteMode = NExtract::NOverwriteMode::kRename;
-        break;
-    case ExtractionOptions::OverwriteMode::RenameExisting:
-        sourceOptions.overwriteMode = NExtract::NOverwriteMode::kRenameExisting;
-        break;
-    }
+    sourceOptions.overwriteMode =
+        QtArchiveOverwriteMode(options.overwriteMode).value_or(NExtract::NOverwriteMode::kSkip);
     if (password.isEmpty())
         return panel.CopyTo(sourceOptions, indices, &messages, &report);
     bool usePassword = true;

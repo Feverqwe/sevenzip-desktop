@@ -2,6 +2,7 @@
 #include "7zip/UI/Common/SortUtils.h"
 #include "Common/StringConvert.h"
 #include "archive/resources/qtarchivebatchopen.h"
+#include "archive/resources/qtarchiveextractoptions.h"
 #include "archive/resources/qtextractpathpolicy.h"
 #include "gui/ExtractGUI.h"
 #include <QDir>
@@ -42,25 +43,10 @@ QtArchiveBatchResult RunQtArchiveBatchExtract(ArchiveBackend &backend, const QSt
                                  : NExtract::NPathMode::kFullPaths;
     sourceOptions.ElimDup = options.ElimDup;
     sourceOptions.NtOptions.NtSecurity = options.NtSecurity;
-    switch (options.overwriteMode) {
-    case ExtractionOptions::OverwriteMode::Ask:
-        sourceOptions.OverwriteMode = NExtract::NOverwriteMode::kAsk;
-        break;
-    case ExtractionOptions::OverwriteMode::OverwriteExisting:
-        sourceOptions.OverwriteMode = NExtract::NOverwriteMode::kOverwrite;
-        break;
-    case ExtractionOptions::OverwriteMode::SkipExisting:
-        sourceOptions.OverwriteMode = NExtract::NOverwriteMode::kSkip;
-        break;
-    case ExtractionOptions::OverwriteMode::RenameExtracted:
-        sourceOptions.OverwriteMode = NExtract::NOverwriteMode::kRename;
-        break;
-    case ExtractionOptions::OverwriteMode::RenameExisting:
-        sourceOptions.OverwriteMode = NExtract::NOverwriteMode::kRenameExisting;
-        break;
-    case ExtractionOptions::OverwriteMode::RejectExisting:
+    const auto overwriteMode = QtArchiveOverwriteMode(options.overwriteMode);
+    if (!overwriteMode)
         return result;
-    }
+    sourceOptions.OverwriteMode = *overwriteMode;
     CMyComPtr2_Create<IFolderArchiveExtractCallback, CExtractCallbackImp> callback;
     callback->MultiArcMode = archives.size() > 1;
     callback->OverwriteMode = sourceOptions.OverwriteMode;
