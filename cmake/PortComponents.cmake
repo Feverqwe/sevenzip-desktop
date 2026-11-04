@@ -113,7 +113,8 @@ sevenzip_add_port_component(sevenzip_panel_split src/filemanager/panels/PanelSpl
     src/filemanager/panels/PanelSplitFile.cpp src/fileops/volumes/qtvolumeprogress.h src/fileops/volumes/qtvolumeprogress.cpp
     src/fileops/volumes/qtvolumeio.h src/fileops/volumes/qtvolumeio.cpp src/fileops/volumes/qtvolumeservices.h)
 sevenzip_add_port_component(sevenzip_file_transfer src/fileops/transfer/filetransferoperation.h
-    src/fileops/transfer/filetransferoperation.cpp src/fileops/transfer/qtfiletransfertransaction.cpp src/fileops/transfer/qtfiletransfertransaction.h)
+    src/fileops/transfer/filetransferoperation.cpp src/fileops/transfer/qtfiletransfertransaction.cpp
+    src/fileops/transfer/qtfiletransfertransaction.h src/fileops/transfer/qtfiletransfercopy.cpp)
 target_link_libraries(sevenzip_file_transfer PRIVATE sevenzip_overwrite_question)
 sevenzip_add_port_component(sevenzip_filesystem_scan src/fileops/scanner/filesystemscanner.h
     src/fileops/scanner/filesystemscanner.cpp)

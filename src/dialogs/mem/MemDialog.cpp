@@ -5,11 +5,11 @@
 #include "7zip/UI/GUI/ExtractRes.h"
 #include "Common/StringToInt.h"
 #include "Windows/ErrorMsg.h"
-#include "Windows/System.h"
 #include "archive/callbacks/qtguimessages.h"
 #include "localization/LangUtils.h"
 #include "localization/qtlangbuttonbox.h"
 #include "localization/qtlangcontrols.h"
+#include "platform/memory/qtmemorylimitinfo.h"
 #include "ui/dialogs/qtdialoglayout.h"
 #include "ui/dialogs/qtdialogunits.h"
 #include <QAbstractButton>
@@ -223,28 +223,14 @@ bool CMemDialog::OnInit() {
     QtUseContextDialogModality(*this);
     if (_controls.isEmpty())
         BuildPresentation();
-    size_t ramSize = (size_t)sizeof(size_t) << 29;
-    const bool ramSize_defined = NWindows::NSystem::GetRamSize(ramSize);
-    UInt32 ramSize_GB = (UInt32)(((UInt64)ramSize + (1u << 29)) >> 30);
-    if (ramSize_GB == 0)
-        ramSize_GB = 1;
-    const bool is_Allowed = (!ramSize_defined || ramSize > ((UInt64)Required_GB << 30));
-    _messageRam_GB = is_Allowed ? 0 : ramSize_GB;
-    ReloadInfoMessage(is_Allowed ? NULL : &ramSize_GB);
-    QtBindMemoryLimitUnitText(_controls.value(IDT_MEM_GB), ramSize_defined, ramSize_GB);
-    const UINT valMin = 1;
-    UINT valMax = 64;
-    if (ramSize_defined) {
-        const UINT k_max_val = 1u << 14;
-        if (ramSize_GB >= k_max_val)
-            valMax = k_max_val;
-        else if (ramSize_GB > 1)
-            valMax = (UINT)ramSize_GB - 1;
-        else
-            valMax = 1;
-    }
-    _spinMin = valMin;
-    _spinMax = valMax;
+    const auto memory = QtQueryMemoryLimitInfo();
+    const bool is_Allowed =
+        (!memory.RamSizeDefined || memory.RamSize > ((UInt64)Required_GB << 30));
+    _messageRam_GB = is_Allowed ? 0 : memory.RamSizeGB;
+    ReloadInfoMessage(is_Allowed ? NULL : &memory.RamSizeGB);
+    QtBindMemoryLimitUnitText(_controls.value(IDT_MEM_GB), memory.RamSizeDefined, memory.RamSizeGB);
+    _spinMin = 1;
+    _spinMax = memory.MaximumGB;
     {
         UString s;
         s.Add_UInt32(Required_GB);

@@ -26,6 +26,8 @@
 using namespace NWindows;
 
 struct CThreadArchiveOpen {
+    // This record's COM references release before its GUI callback.
+    COpenArchiveCallback OpenCallback;
     UString Path;
     UString ArcFormat;
     CMyComPtr<IInStream> InStream;
@@ -35,20 +37,12 @@ struct CThreadArchiveOpen {
     bool MaterializeStreamFile = false;
     bool MaterializedStreamFile = false;
 
-    COpenArchiveCallback *OpenCallbackSpec;
-    /*
-    CMyComPtr<IUnknown>
-    // CMyComPtr<IProgress>
-    // CMyComPtr<IArchiveOpenCallback>
-      OpenCallbackSpec_Ref;
-    */
-
     CMyComPtr<IFolderFolder> Folder;
     HRESULT Result;
 
     void Process() {
         try {
-            CProgressCloser closer(OpenCallbackSpec->ProgressDialog);
+            CProgressCloser closer(OpenCallback.ProgressDialog);
             auto *services =
                 dynamic_cast<IQtArchiveStreamOpenServices *>((IFolderManager *)FolderManager);
             if (InStream && OwnedStreamFile && services) {
@@ -68,30 +62,6 @@ struct CThreadArchiveOpen {
         return 0;
     }
 };
-
-/*
-static int FindPlugin(const CObjectVector<CPluginInfo> &plugins, const UString &pluginName)
-{
-  for (int i = 0; i < plugins.Size(); i++)
-    if (plugins[i].Name.CompareNoCase(pluginName) == 0)
-      return i;
-  return -1;
-}
-*/
-
-static void SplitNameToPureNameAndExtension(const FString &fullName, FString &pureName,
-                                            FString &extensionDelimiter, FString &extension) {
-    const int index = fullName.ReverseFind_Dot();
-    if (index < 0) {
-        pureName = fullName;
-        extensionDelimiter.Empty();
-        extension.Empty();
-    } else {
-        pureName.SetFrom(fullName, (unsigned)index);
-        extensionDelimiter = '.';
-        extension = fullName.Ptr((unsigned)index + 1);
-    }
-}
 
 struct CArcLevelInfo {
     UString Error;
@@ -239,13 +209,6 @@ HRESULT CFfpOpen::OpenFileFolderPlugin(IInStream *inStream, const FString &path,
                                        const UString &arcFormat, QWidget *parentWindow) {
     if (!FolderManager)
         return E_INVALIDARG;
-    /*
-    CObjectVector<CPluginInfo> plugins;
-    ReadFileFolderPluginInfoList(plugins);
-    */
-
-    FString extension, name, pureName, dot;
-
     const int slashPos = path.ReverseFind_PathSepar();
     FString dirPrefix;
     FString fileName;
@@ -255,70 +218,26 @@ HRESULT CFfpOpen::OpenFileFolderPlugin(IInStream *inStream, const FString &path,
     } else
         fileName = path;
 
-    SplitNameToPureNameAndExtension(fileName, pureName, dot, extension);
-
-    /*
-    if (!extension.IsEmpty())
-    {
-      CExtInfo extInfo;
-      if (ReadInternalAssociation(extension, extInfo))
-      {
-        for (int i = extInfo.Plugins.Size() - 1; i >= 0; i--)
-        {
-          int pluginIndex = FindPlugin(plugins, extInfo.Plugins[i]);
-          if (pluginIndex >= 0)
-          {
-            const CPluginInfo plugin = plugins[pluginIndex];
-            plugins.Delete(pluginIndex);
-            plugins.Insert(0, plugin);
-          }
-        }
-      }
-    }
-    */
-
     ErrorMessage.Empty();
 
-    // FOR_VECTOR (i, plugins)
-    // {
-    /*
-    const CPluginInfo &plugin = plugins[i];
-    if (!plugin.ClassID_Defined && !plugin.FilePath.IsEmpty())
-      continue;
-    */
     NWindows::NDLL::CLibrary library;
 
     CThreadArchiveOpen t;
 
-    // if (plugin.FilePath.IsEmpty())
     t.FolderManager = FolderManager;
-    /*
-    else if (library.LoadAndCreateManager(plugin.FilePath, plugin.ClassID, &t.FolderManager) !=
-    S_OK) continue;
-    */
-
-    COpenArchiveCallback OpenCallbackSpec_loc;
-    t.OpenCallbackSpec = &OpenCallbackSpec_loc;
     std::unique_ptr<IQtProgressTransport> transport;
     if (auto *services = dynamic_cast<IQtProgressServices *>((IFolderManager *)FolderManager))
-        transport = services->CreateProgressTransport(t.OpenCallbackSpec->ProgressDialog);
-    /*
-    t.OpenCallbackSpec = new COpenArchiveCallback;
-    t.OpenCallbackSpec_Ref = t.OpenCallbackSpec;
-    */
-    t.OpenCallbackSpec->PasswordIsDefined = Encrypted;
-    t.OpenCallbackSpec->Password = Password;
-    t.OpenCallbackSpec->ParentWindow = parentWindow;
-    t.OpenCallbackSpec->SettingsPath = SettingsPath;
+        transport = services->CreateProgressTransport(t.OpenCallback.ProgressDialog);
+    t.OpenCallback.PasswordIsDefined = Encrypted;
+    t.OpenCallback.Password = Password;
+    t.OpenCallback.ParentWindow = parentWindow;
+    t.OpenCallback.SettingsPath = SettingsPath;
 
     /* COpenCallbackImp object will exist after Open stage for multivolume archives */
     COpenCallbackImp *openCallbackSpec = new COpenCallbackImp;
     t.OpenCallbackProgress = openCallbackSpec;
-    // openCallbackSpec->Callback_Ref = t.OpenCallbackSpec;
     // we set pointer without reference counter:
-    openCallbackSpec->Callback =
-        // openCallbackSpec->ReOpenCallback =
-        t.OpenCallbackSpec;
+    openCallbackSpec->Callback = &t.OpenCallback;
 
     if (inStream)
         openCallbackSpec->SetSubArchiveName(fs2us(fileName));
@@ -334,7 +253,7 @@ HRESULT CFfpOpen::OpenFileFolderPlugin(IInStream *inStream, const FString &path,
 
     const UString progressTitle = LangString(IDS_OPENNING);
     {
-        CProgressDialog &pd = t.OpenCallbackSpec->ProgressDialog;
+        CProgressDialog &pd = t.OpenCallback.ProgressDialog;
         pd.MainWindow = parentWindow;
         pd.MainTitle = "7-Zip"; // LangString(IDS_APP_TITLE);
         pd.MainAddTitle = progressTitle + L' ';
@@ -346,7 +265,7 @@ HRESULT CFfpOpen::OpenFileFolderPlugin(IInStream *inStream, const FString &path,
         const WRes wres = thread.Create(CThreadArchiveOpen::MyThreadFunction, &t);
         if (wres != 0)
             return HRESULT_FROM_WIN32(wres);
-        t.OpenCallbackSpec->StartProgressDialog(progressTitle, thread);
+        t.OpenCallback.StartProgressDialog(progressTitle, thread);
     }
 
     /*
@@ -357,8 +276,8 @@ HRESULT CFfpOpen::OpenFileFolderPlugin(IInStream *inStream, const FString &path,
     */
     t.OpenCallbackProgress.Release();
     MaterializedStreamFile = t.MaterializedStreamFile;
-    if (!t.OpenCallbackSpec->DeviceOpenError.isEmpty())
-        ErrorMessage = t.OpenCallbackSpec->DeviceOpenError.toStdWString().c_str();
+    if (!t.OpenCallback.DeviceOpenError.isEmpty())
+        ErrorMessage = t.OpenCallback.DeviceOpenError.toStdWString().c_str();
 
     if (t.Result != S_FALSE && t.Result != S_OK)
         return t.Result;
@@ -378,8 +297,8 @@ HRESULT CFfpOpen::OpenFileFolderPlugin(IInStream *inStream, const FString &path,
 
     // if (openCallbackSpec->PasswordWasAsked)
     {
-        Encrypted = t.OpenCallbackSpec->PasswordIsDefined;
-        Password = t.OpenCallbackSpec->Password;
+        Encrypted = t.OpenCallback.PasswordIsDefined;
+        Password = t.OpenCallback.Password;
     }
 
     if (t.Result == S_OK) {
@@ -389,5 +308,4 @@ HRESULT CFfpOpen::OpenFileFolderPlugin(IInStream *inStream, const FString &path,
     }
 
     return t.Result;
-    // }
 }

@@ -237,15 +237,14 @@ class CBenchmarkDialog : public CQtBenchmarkWindow {
         Sync.Init();
     }
 
-    virtual bool OnInit() Z7_override;
-    virtual bool OnDestroy() Z7_override;
-    virtual bool OnSize(quintptr /* wParam */, int xSize, int ySize) Z7_override;
-    virtual bool OnMessage(UINT message, quintptr wParam, qintptr lParam) Z7_override;
-    virtual bool OnCommand(unsigned code, unsigned itemID, qintptr lParam) Z7_override;
+    virtual void OnInit() Z7_override;
+    virtual void OnDestroy() Z7_override;
+    virtual void OnMessage(UINT message, quintptr wParam) Z7_override;
+    virtual void OnCommand(unsigned code, unsigned itemID) Z7_override;
     virtual void OnHelp() Z7_override;
     virtual void OnCancel() Z7_override;
-    virtual bool OnTimer(quintptr timerID, qintptr callback) Z7_override;
-    virtual bool OnButtonClicked(unsigned buttonID, QWidget *buttonHWND) Z7_override;
+    virtual void OnTimer(quintptr timerID) Z7_override;
+    virtual void OnButtonClicked(unsigned buttonID) Z7_override;
 
     void Disable_Stop_Button();
     void OnStopButton();
@@ -369,7 +368,7 @@ static int ComboBox_Add_UInt32(CQtBenchmarkCombo &cb, UInt32 v) {
     return (int)cb.AddString_SetItemData(s, (qintptr)v);
 }
 
-bool CBenchmarkDialog::OnInit() {
+void CBenchmarkDialog::OnInit() {
 #ifdef Z7_LANG
     LangSetWindowText(*this, IDD_BENCH);
     LangSetDlgItems(*this, kLangIDs, Z7_ARRAY_SIZE(kLangIDs));
@@ -562,12 +561,6 @@ bool CBenchmarkDialog::OnInit() {
         NormalizePosition();
 
     RestartBenchmark();
-
-    return CQtBenchmarkWindow::OnInit();
-}
-
-bool CBenchmarkDialog::OnSize(quintptr wParam, int xSize, int ySize) {
-    return CQtBenchmarkWindow::OnSize(wParam, xSize, ySize);
 }
 
 UInt32 CBenchmarkDialog::GetNumberOfThreads() {
@@ -675,11 +668,10 @@ void CBenchmarkDialog::MyKillTimer() {
     }
 }
 
-bool CBenchmarkDialog::OnDestroy() {
+void CBenchmarkDialog::OnDestroy() {
     /* actually timer was removed before.
        also the timer must be removed by Windows, when window  will be removed. */
     MyKillTimer(); // it's optional code
-    return false;  // we return (false) to perform default dialog operation
 }
 
 void SetErrorMessage_MemUsage(UString &s, UInt64 reqSize, UInt64 ramSize, UInt64 ramLimit,
@@ -948,9 +940,9 @@ void CBenchmarkDialog::PrintBenchRes(const CTotalBenchRes2 &info, const UINT ids
 // static UInt32 k_Message_Finished_cnt = 0;
 // static UInt32 k_OnTimer_cnt = 0;
 
-bool CBenchmarkDialog::OnMessage(UINT message, quintptr wParam, qintptr lParam) {
+void CBenchmarkDialog::OnMessage(UINT message, quintptr wParam) {
     if (message != k_Message_Finished)
-        return CQtBenchmarkWindow::OnMessage(message, wParam, lParam);
+        return;
 
     {
         if (wParam == k_Msg_WPARM_Thread_Finished) {
@@ -980,7 +972,7 @@ bool CBenchmarkDialog::OnMessage(UINT message, quintptr wParam, qintptr lParam) 
                 // Sleep (2000);
                 // MessageBoxError(L"test");
                 CQtBenchmarkWindow::OnCancel();
-                return true;
+                return;
             }
 
             SetItemText_Empty(IDT_BENCH_ERROR_MESSAGE);
@@ -1003,20 +995,18 @@ bool CBenchmarkDialog::OnMessage(UINT message, quintptr wParam, qintptr lParam) 
 
             if (NeedRestart) {
                 StartBenchmark();
-                return true;
+                return;
             }
         }
         // k_Message_Finished_cnt++;
         UpdateGui();
-        return true;
     }
 }
 
-bool CBenchmarkDialog::OnTimer(quintptr timerID, qintptr /* callback */) {
+void CBenchmarkDialog::OnTimer(quintptr timerID) {
     // k_OnTimer_cnt++;
     if (timerID == kTimerID)
         UpdateGui();
-    return true;
 }
 
 void CBenchmarkDialog::UpdateGui() {
@@ -1157,25 +1147,22 @@ void CBenchmarkDialog::UpdateGui() {
     }
 }
 
-bool CBenchmarkDialog::OnCommand(unsigned code, unsigned itemID, qintptr lParam) {
+void CBenchmarkDialog::OnCommand(unsigned code, unsigned itemID) {
     if (code == 1 && (itemID == IDC_BENCH_DICTIONARY || itemID == IDC_BENCH_NUM_PASSES ||
                       itemID == IDC_BENCH_NUM_THREADS)) {
         RestartBenchmark();
-        return true;
     }
-    return CQtBenchmarkWindow::OnCommand(code, itemID, lParam);
 }
 
-bool CBenchmarkDialog::OnButtonClicked(unsigned buttonID, QWidget *buttonHWND) {
+void CBenchmarkDialog::OnButtonClicked(unsigned buttonID) {
     switch (buttonID) {
     case IDB_RESTART:
         RestartBenchmark();
-        return true;
+        return;
     case IDB_STOP:
         OnStopButton();
-        return true;
+        return;
     }
-    return CQtBenchmarkWindow::OnButtonClicked(buttonID, buttonHWND);
 }
 
 // ---------- Benchmark Thread ----------

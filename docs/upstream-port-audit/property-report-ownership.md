@@ -1,5 +1,33 @@
 # Property report row metadata — 2026-10-31
 
+## Complete property command owner — 2026-11-04
+
+Rechecked complete original PanelMenu.cpp and ListViewDialog.cpp/.h/.rc
+inventory at `9128b80e3a471108678e2b3ec3c985861c8d7b0f`; their original
+hashes match the baseline. Reviewed the current property command, typed/raw
+and aggregate collection, folder/nested-archive levels, diagnostics, dialog
+binding, full-value copy/detail and native Windows shell route. No external
+code is imported and original provenance is unchanged.
+
+The complete property command and its existing formatting/section helpers now
+live in PanelProperties.cpp under the same panel module and target. PanelMenu
+retains menu dispatch and read-only update gates. The extraction mapping records
+the new owner against the existing original unit; no header/API, worker or
+alternative collector is introduced.
+
+All moved tokens, comments and literals are preserved. Partial raw enumeration,
+empty/failed property handling, group order, unsigned sizes, nested levels,
+diagnostic translation and modal/shell choice keep their current behavior.
+Remaining menu and read-only gate bodies are unchanged. Existing report,
+runtime, native archive and menu consumers provide behavioral validation; no
+source-layout or private-helper regression is added.
+
+Focused Linux panel-property, list-dialog, window-property, native archive-level
+and context-menu checks passed. Normal/compact behavior remains covered by the
+existing suites. This source separation changes no native service, visible text
+or layout; no new Windows/macOS runtime, full/slow or appearance acceptance is
+claimed.
+
 Source: <https://github.com/ip7z/7zip.git>, commit
 `9128b80e3a471108678e2b3ec3c985861c8d7b0f`. Compared the complete FileManager
 ListViewDialog bodies/header/resource and PanelMenu property collector, with

@@ -50,6 +50,8 @@ add_library(sevenzip_panel
     src/ui/theme/qtsemanticcolors.h
     src/platform/memory/qtmemorylockservices.cpp
     src/platform/memory/qtmemorylockservices.h
+    src/platform/memory/qtmemorylimitinfo.cpp
+    src/platform/memory/qtmemorylimitinfo.h
     src/filemanager/panels/PanelCrc.cpp
     src/archive/hashing/qtfilecrc.h
     src/archive/operations/ArchiveName.cpp
@@ -194,6 +196,7 @@ add_library(sevenzip_panel
     src/settings/FoldersPage.h
     src/filemanager/panels/PanelFolderChange.cpp
     src/filemanager/panels/PanelMenu.cpp
+    src/filemanager/panels/PanelProperties.cpp
     src/filemanager/PropertyName.cpp
     src/filemanager/PropertyName.h
     src/localization/qtlangcontrols.cpp
@@ -210,6 +213,8 @@ add_library(sevenzip_panel
     src/ui/controls/qtstatuslabel.h
     src/filemanager/panels/PanelItems.cpp
     src/filemanager/panels/PanelOperations.cpp
+    src/filemanager/panels/PanelFolderOperations.cpp
+    src/filemanager/panels/PanelFolderOperations.h
     src/filemanager/views/qtlistview.cpp
     src/filemanager/views/qtlistview.h
     src/filemanager/AppState.h

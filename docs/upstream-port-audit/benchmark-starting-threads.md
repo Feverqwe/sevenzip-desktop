@@ -43,6 +43,33 @@ project runtime passed. No codec or benchmark test assertion was relaxed.
 No UI geometry or text change is introduced by this validation; slow suites are
 not included. The selected suites do not establish whole-project acceptance.
 
+## Qt lifecycle notifications — 2026-11-04
+
+Rechecked complete original BenchmarkDialog.cpp/.h/.rc inventory hashes at
+`b88c6bc09339de32f7d18bbab900686b244f42ba`, the original message, command,
+button, timer and resize handlers, and the current Qt builders, worker posts,
+restart/stop/close and join consumers. No external code is imported and native
+benchmark algorithms, state transitions and source provenance are unchanged.
+
+The Qt presentation adapter now declares lifecycle/event handlers as
+void notifications: its callers never consumed their former Win32 handled/default
+return values. Unused LPARAM, timer callback and button-sender arguments are
+removed at both ends. The empty resize delegation is removed; QDialog and the
+existing resize event filter retain sizing and wrapped-label handling.
+
+Message IDs and subtype checks, queued delivery, detached-post success, timer
+IDs, control IDs and selection filtering remain unchanged. Initialization and
+final timer cleanup stay at the same points around exec(); close still waits
+for the worker through the existing finish handler before rejecting. The
+normal/total layouts, metrics, text, focus and native computation are unchanged.
+Existing lifecycle and command tests cover restart, Stop, Close, failures,
+report copying and normal/compact geometry without pinning private handlers.
+
+Focused Linux lifecycle and command acceptance passed. The existing detached
+message-delivery test uses the updated notification signature and retains all
+of its assertions. No layout/text, native OS or computation changes require a
+secondary-platform, heavy-benchmark or new appearance run.
+
 ## Qt action ownership — 2026-11-03
 
 Reviewed benchmark initialization, parameter changes, restart/stop/cancel,

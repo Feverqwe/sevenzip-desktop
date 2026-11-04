@@ -1,5 +1,34 @@
 # Shared name input ownership — 2026-10-31
 
+## Joined folder operation execution — 2026-11-04
+
+Compared original PanelOperations.cpp worker, operation dispatch, callback,
+password and progress setup at recorded
+`9128b80e3a471108678e2b3ec3c985861c8d7b0f` with current creation, rename,
+delete and comment consumers. The complete original inventory matches its
+baseline hash. The existing Qt comment/progress transport and publication
+adaptations remain; no external code is imported or provenance advanced.
+
+The existing CThreadFolderOperations declaration and complete method bodies
+move into PanelFolderOperations.h/.cpp within the same panel module and target.
+PanelOperations.cpp retains dialogs, confirmation, validation, selection and
+refresh policy. The worker owns joined native execution and callback/progress
+setup. No new service, operation representation or lifetime is introduced.
+
+Moved declarations and bodies retain their tokens and literals. Windows COM
+initialization, inherited archive password, comment-specific transport choice,
+callback publication state, cancellation and error precedence are unchanged.
+Deletion still distinguishes trash refresh, ordinary source deletion and the
+deferred publication used by interarchive Move. Existing behavior suites cover
+the four worker operations and their consumers; no private/source-layout test
+is added.
+
+Focused Linux creation, deletion, rename and filesystem/native comment consumers
+passed, followed by Windows deletion and native-comment consumers for the moved
+COM initialization and progress transport. Layout/text and native filesystem
+algorithms are unchanged; no new appearance, macOS or full/slow acceptance is
+claimed for this execution-boundary extraction.
+
 Reference: <https://github.com/ip7z/7zip.git>, commit
 `9128b80e3a471108678e2b3ec3c985861c8d7b0f`. Compared complete ComboDialog
 bodies, header and resource, CreateFolder/CreateFile/ChangeComment, SelectSpec,

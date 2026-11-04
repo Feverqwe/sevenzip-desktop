@@ -1,5 +1,34 @@
 # External-process ownership
 
+## Paired process wait entries — 2026-11-04
+
+Rechecked original PanelItemOpen child discovery, wait projection, completion,
+temporary-copy and write-back flow at recorded
+`9128b80e3a471108678e2b3ec3c985861c8d7b0f`; the complete original unit matches
+its baseline hash. Reviewed the current tracked-process owners, wait/error/exit
+paths, first-pass name discovery, changed-file consent, update and cleanup.
+No external source is imported or provenance advanced.
+
+The wait projection now keeps each borrowed handle with its tracked-process
+index in one record. Collection and completion consume the same record instead
+of coordinating parallel handle/index vectors. Owned process records, admission
+order, wait limit, polling and exit/error classification retain their existing
+behavior. The first-pass timing/name rule and later child snapshots are unchanged.
+
+The wait entries remain local to one synchronous wait; they neither retain nor
+release processes. Child completion disables the same tracked record, and the
+external temporary lease is released only after the original loop proves all
+known children finished. Error, owner exit and exception retention, native
+launch/reaping and archive write-back ordering are unchanged. Existing real-child
+and returned-edit regressions cover these outcomes, including a child outliving
+its parent; no private projection or source-shape test is added.
+
+Focused Linux external-edit, lifetime and security acceptance passed. The full
+worker matches its prior body after the paired-entry substitutions, and later
+launch/open/update bodies are unchanged. Native platform services and visual
+behavior did not change; no new secondary-OS, full/slow or appearance acceptance
+is claimed.
+
 ## Returned-edit callback ownership — 2026-11-03
 
 Reviewed editor launch/tracking, changed-copy consent, the GUI handoff, source

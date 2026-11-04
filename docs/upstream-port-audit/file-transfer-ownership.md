@@ -1,5 +1,32 @@
 # File-transfer ownership
 
+## Copy traversal and transaction publication — 2026-11-04
+
+Reviewed the complete transfer worker, transaction, copy callback and direct-path
+consumer, together with native `CopyFile_Ask`, `CopyFolder` and their state and
+progress boundary. The complete original FSFolderCopy inventory at recorded
+`b88c6bc09339de32f7d18bbab900686b244f42ba` still matches its baseline hash.
+Native copying and platform services remain unchanged; no external code is
+imported or original provenance advanced.
+
+The four existing validation, copy, merge and merged-source cleanup bodies now
+live together in `src/fileops/transfer/qtfiletransfercopy.cpp`, under the same
+transfer component and private transaction interface. The transaction unit owns
+destination preparation, overwrite state, staging/publication and rollback.
+This separates recursive filesystem work and native callback adaptation from
+the publication lifecycle without adding another service or mutable state.
+
+Moved bodies retain their tokens, comments and literals, including translated
+message contexts. Cancellation, skipped-source retention, progress accounting,
+exceptions, partial Move recovery and backup cleanup keep their prior ordering.
+Existing operation and window regressions protect those observable contracts;
+no source-layout or private-helper test is added.
+
+Focused Linux acceptance passed for ordinary/direct-path transfers, EN/RU
+results and the Copy to same/destination routing window consumers. No native OS
+branch, layout or text changed; secondary-platform and appearance acceptance
+were not required for this source separation.
+
 ## Per-item transaction boundary — 2026-11-03
 
 Reviewed the complete transaction/worker/copy callback, direct-target and window

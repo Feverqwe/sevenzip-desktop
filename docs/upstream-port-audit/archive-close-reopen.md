@@ -1,5 +1,39 @@
 # Archive folder lifetime across rollback — 2026-10-18
 
+## Joined opening callback owner — 2026-11-04
+
+Compared complete original FileFolderPluginOpen.cpp/.h and OpenCallback.cpp/.h
+at `b88c6bc09339de32f7d18bbab900686b244f42ba`; their complete original hashes
+match the baseline. Reviewed source worker/modal completion, stream opening,
+spool publication, password and error results, native volume callback retention,
+panel parent links and materialized nested edit consumers. No external source
+is imported or provenance advanced.
+
+The opening record now owns its COpenArchiveCallback value instead of borrowing
+a separately assigned local callback. It is constructed with the record on the
+calling GUI thread; native work still uses the same callback through its borrowed
+IOpenCallbackUI address. The first-member position keeps it alive until the
+record's local COM references release. The outer progress transport still ends
+before the record, and the source completion boundary still finishes the native
+thread before returning. Password/settings/parent setup, explicit progress COM
+release and result publication retain their order and behavior.
+
+The unused extension split and its locals are removed with their sole disabled
+plugin-association consumer and other inactive plugin-loop scaffolding. This is
+inactive source cleanup, separate from the callback ownership adaptation; no
+active association lookup or format selection is removed. DLL transfer and
+parent-link ownership remain intact. Stream ownership/materialization flags,
+native opening, limited-read consent, diagnostics and update propagation are
+unchanged. Existing integrated behavior checks are used; no private-member or
+source-layout test is added.
+
+Focused Linux archive/native-folder opening, nested archive and nested-edit
+chain acceptance passed, covering direct streams, cancellation/passwords,
+retained readers, parent restoration and materialized write-back. All active
+opening tokens and literals match the prior code after the owned-callback
+substitution and unused parsing removal. Platform services and visible layout
+are unchanged; no new secondary-OS, full/slow or appearance acceptance is claimed.
+
 ## Nested opening spool handoff — 2026-11-01
 
 Reviewed resource-owned and panel-owned spool creation, opening, transport

@@ -87,6 +87,14 @@ void CDataObject::FinishExternalReceiver() {
         ExternalReceiverUnconfirmed = false;
 }
 
+void CDataObject::CompleteExternalDrag(bool cancellationConfirmed) {
+    if (cancellationConfirmed ||
+        (m_Transfer_WasSet && m_Transfer.Target.FuncType == k_DragTargetMode_Drop_End &&
+         (m_Transfer.Target.Flags & (k_TargetFlags_WasCanceled | k_TargetFlags_WasProcessed |
+                                     k_TargetFlags_MustBeProcessedBySource))))
+        FinishExternalReceiver();
+}
+
 void CDataObject::CopyFromPanelTo_Folder() {
     if (!Panel) {
         Copy_HRESULT = E_ABORT;
@@ -1469,11 +1477,7 @@ HRESULT DoNativePanelDrag(CDataObject &model, CDropSource &source, DWORD allowed
     }
     CMyComPtr<IDropSource> dropSource = new NPanelDragNative::CDropSource(source);
     const HRESULT result = ::DoDragDrop(data, dropSource, allowed, &effect);
-    if (result == DRAGDROP_S_CANCEL ||
-        (model.m_Transfer_WasSet && model.m_Transfer.Target.FuncType == k_DragTargetMode_Drop_End &&
-         (model.m_Transfer.Target.Flags & (k_TargetFlags_WasCanceled | k_TargetFlags_WasProcessed |
-                                           k_TargetFlags_MustBeProcessedBySource))))
-        model.FinishExternalReceiver();
+    model.CompleteExternalDrag(result == DRAGDROP_S_CANCEL);
     return result;
 }
 #endif
