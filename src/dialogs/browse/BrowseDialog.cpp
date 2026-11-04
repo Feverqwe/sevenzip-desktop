@@ -14,6 +14,7 @@
 #include "Windows/PropVariantConv.h"
 #include "Windows/TimeUtils.h"
 #include "dialogs/combo/ComboDialog.h"
+#include "filemanager/FormatUtils.h"
 #include "filemanager/SysIconUtils.h"
 #include "filemanager/views/qtfilelisthover.h"
 #include "fileops/native/FileDir.h"
@@ -47,7 +48,6 @@ using namespace NName;
 using namespace NFind;
 
 extern UString HResultToMessage(HRESULT errorCode);
-wchar_t *Browse_ConvertSizeToString(UInt64 v, wchar_t *s Z7_lifetimebound);
 
 namespace {
 const int kParentIndex = -1;
@@ -634,29 +634,6 @@ void CBrowseDialog::FinishOnOK() {
     QDialog::accept();
 }
 } // namespace
-
-// Original shared list-size formatter used by BrowseDialog2.
-wchar_t *Browse_ConvertSizeToString(UInt64 v, wchar_t *s Z7_lifetimebound) {
-    char c = 0;
-    if (v >= ((UInt64)10000 << 20)) {
-        v >>= 30;
-        c = 'G';
-    } else if (v >= ((UInt64)10000 << 10)) {
-        v >>= 20;
-        c = 'M';
-    } else if (v >= ((UInt64)10000 << 0)) {
-        v >>= 10;
-        c = 'K';
-    }
-    s = ConvertUInt64ToString(v, s);
-    if (c != 0) {
-        *s++ = ' ';
-        *s++ = (wchar_t)c;
-        *s++ = 'B';
-        *s = 0;
-    }
-    return s;
-}
 
 bool Dlg_CreateFolder(QWidget *wnd, UString &destName) {
     destName.Empty();

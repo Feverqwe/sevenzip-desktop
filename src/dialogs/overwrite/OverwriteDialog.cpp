@@ -62,31 +62,6 @@ void COverwriteDialog::ReduceString(UString &s) {
     }
 }
 
-void AddSizeValue(UString &s, UInt64 value);
-void AddSizeValue(UString &s, UInt64 value) {
-    {
-        s += MyFormatNew(IDS_FILE_SIZE, value);
-    }
-    if (value >= (1 << 10)) {
-        char c;
-        if (value >= ((UInt64)10 << 30)) {
-            value >>= 30;
-            c = 'G';
-        } else if (value >= (10 << 20)) {
-            value >>= 20;
-            c = 'M';
-        } else {
-            value >>= 10;
-            c = 'K';
-        }
-        s += " : ";
-        s.Add_UInt64(value);
-        s.Add_Space();
-        s.Add_Char(c);
-        s += "iB";
-    }
-}
-
 void COverwriteDialog::SetFileInfoControl(const NOverwriteDialog::CFileInfo &fileInfo,
                                           unsigned textID, unsigned iconID, unsigned iconID_2) {
     {

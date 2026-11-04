@@ -3450,6 +3450,15 @@
     "src/formats/vhdx/VhdxCrc.cpp"
   ],
   "extracted": {
+    "src/dialogs/browse/BrowseDialog.cpp": {
+      "local": [
+        "src/filemanager/FormatUtils.cpp",
+        "src/filemanager/FormatUtils.h"
+      ],
+      "symbols": [
+        "Browse_ConvertSizeToString"
+      ]
+    },
     "src/dialogs/browse/BrowseDialog2.cpp": {
       "local": [
         "src/platform/associations/qtassociatedfilelaunch_win.cpp",
@@ -3476,6 +3485,15 @@
       ],
       "symbols": [
         "CMemDialog::OnInit"
+      ]
+    },
+    "src/dialogs/overwrite/OverwriteDialog.cpp": {
+      "local": [
+        "src/filemanager/FormatUtils.cpp",
+        "src/filemanager/FormatUtils.h"
+      ],
+      "symbols": [
+        "AddSizeValue"
       ]
     },
     "src/filemanager/panels/Panel.h": {
@@ -3507,6 +3525,17 @@
         "SplitCmdLineSmart",
         "StartAppWithParams",
         "StartEditApplication"
+      ]
+    },
+    "src/filemanager/panels/PanelListNotify.cpp": {
+      "local": [
+        "src/filemanager/FormatUtils.cpp",
+        "src/filemanager/FormatUtils.h"
+      ],
+      "symbols": [
+        "INT_TO_STR_SPEC",
+        "ConvertSizeToString",
+        "IsSizeProp"
       ]
     },
     "src/filemanager/panels/PanelMenu.cpp": {

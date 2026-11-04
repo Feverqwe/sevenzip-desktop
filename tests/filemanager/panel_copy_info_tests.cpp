@@ -1,3 +1,4 @@
+#include "filemanager/FormatUtils.h"
 #include "filemanager/panels/Panel.h"
 
 #include <QDir>

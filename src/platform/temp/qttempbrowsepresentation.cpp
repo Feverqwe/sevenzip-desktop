@@ -9,6 +9,7 @@
 #include "Windows/PropVariantConv.h"
 #include "Windows/TimeUtils.h"
 #include "dialogs/browse/BrowseDialog2.h"
+#include "filemanager/FormatUtils.h"
 #include "filemanager/views/qtfilelisthover.h"
 #include "localization/qtlangbuttonbox.h"
 #include "localization/qtlangcontrols.h"
@@ -33,7 +34,6 @@
 #include <QTreeWidget>
 #include <QVBoxLayout>
 
-wchar_t *Browse_ConvertSizeToString(UInt64 v, wchar_t *s);
 namespace {
 QString Text(const UString &s) { return QString::fromWCharArray(s.Ptr()); }
 class BrowseRow final : public QTreeWidgetItem {
