@@ -4,6 +4,7 @@
 #include <memory>
 
 class MainWindow;
+class CPanel;
 class QAbstractItemView;
 
 // Owns one inline editor through commit/cancel and deferred source delivery.
@@ -20,6 +21,7 @@ class QtRenameController final : public QObject {
     struct Request;
     void Complete();
     void Apply(const Request &request);
+    void Finish(const Request &request, CPanel &panel);
     MainWindow &window_;
     QTimer completion_;
     std::shared_ptr<Request> request_;

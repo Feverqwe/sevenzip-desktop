@@ -3,6 +3,7 @@
 #include "filemanager/panels/qtpaneladdresscombo.h"
 #include "filemanager/panels/qtpanelcontextmenu.h"
 #include "filemanager/qtfilemanagerdrag.h"
+#include "filemanager/rename/qtrenamecontroller.h"
 #include "filemanager/views/qtfilelisthover.h"
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtapppresentation.h"
@@ -181,7 +182,7 @@ void MainWindow::createFileTable(QWidget *central) {
     projectedUi().tableHover = new QtFileListHover(*projectedUi().table);
     projectedUi().tableHover->SetEnabled(fileListSettings_.SingleClick);
     projectedUi().table->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    connectRenameEditor(*projectedUi().table);
+    renameController_->Attach(*projectedUi().table, projectedPanel_);
     projectedUi().table->setSortingEnabled(true);
     projectedUi().table->setDragEnabled(true);
     projectedUi().table->setAcceptDrops(true);
@@ -206,7 +207,7 @@ void MainWindow::createFileTable(QWidget *central) {
         fileTable,
         [fileTable](PROPID property, Int32) { return fileTable->columnForProperty(property); },
         [this, owner = projectedPanel_](int row) {
-            withPanelProjection(owner, [this, row] { beginRename(row); });
+            withPanelProjection(owner, [this, row] { renameController_->Begin(row); });
         });
 }
 
@@ -251,7 +252,7 @@ void MainWindow::createIconList(QWidget *central) {
     projectedUi().iconHover = new QtFileListHover(*projectedUi().iconList);
     projectedUi().iconHover->SetEnabled(fileListSettings_.SingleClick);
     projectedUi().iconList->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    connectRenameEditor(*projectedUi().iconList);
+    renameController_->Attach(*projectedUi().iconList, projectedPanel_);
     projectedUi().iconList->setUniformItemSizes(true);
     projectedUi().iconList->setWordWrap(false);
     projectedUi().iconList->setDragEnabled(true);

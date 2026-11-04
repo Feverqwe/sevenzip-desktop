@@ -1,5 +1,40 @@
 # File-transfer ownership
 
+## One overwrite decision per transfer — 2026-11-04
+
+Rechecked the full worker, transaction, native-copy callback, directory merge,
+source removal and rollback paths against the original FSFolderCopy CopyFile_Ask,
+IsDestChild and CopyFolder bodies and their callback types at
+`b88c6bc09339de32f7d18bbab900686b244f42ba`. The original complete unit hash
+matches the existing baseline. Native copying, rename and platform services are
+unchanged; no external source is imported and original provenance is unchanged.
+
+The transaction now interprets native overwrite answers once, returning a private
+Skip/Replace/Rename/Cancel decision to both top-level and merged-file consumers.
+Remembered answers retain operation scope and are reset at run entry. This
+removes the captured overwrite callable threaded through the copy/merge methods,
+the parallel mode-to-answer conversion and repeated All-answer handling.
+Single Yes/No answers remain local; Yes/No to all and AutoRename remain sticky.
+Unexpected native answers still take the existing failure path without setting
+the worker's cancellation flag. No public interface or shared state is added.
+
+Replacement of a top-level destination still preserves its backup until batch
+completion; a merged file still changes only its staged copy. Source removal,
+skipped-file retention, partial-Move recovery, rollback guards, metadata
+snapshots, progress and translated messages retain their existing boundaries.
+The existing overwriteDecisionAcrossFolderBoundary matrix checks all six
+answers, both top-level/nested orders and Copy/Move through actual questions,
+destination/source bytes, renamed output and cancellation rollback. Existing
+deletion/exception tests cover partial-source-removal recovery; no new private
+state or implementation-presence test is added.
+
+Linux file_transfer, file_transfer_direct, ui_copy_same and ui_copy_routing
+passed: 172 Qt checks, no failures or skips. Incremental compilation took
+14.688s and test execution 40.682s with the configured four jobs and compiler
+cache. Source inventory and whitespace checks passed. No native platform branch,
+layout or text changed; secondary platforms, full/slow gates and new appearance
+acceptance are not claimed. Completed fixtures left only disposable UI settings.
+
 ## Copy traversal and transaction publication — 2026-11-04
 
 Reviewed the complete transfer worker, transaction, copy callback and direct-path

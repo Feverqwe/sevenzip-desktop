@@ -142,3 +142,39 @@ The new fixture also skips its cross-filesystem rows when private storage on
 `native_fs_rename` passed again: ten checks without skips (build 7.554s, tests
 0.456s). Production code and the other passing suites were unchanged; selected
 scratch remained empty.
+
+## Complete inline-rename completion owner — 2026-11-04
+
+The existing rename controller now owns the complete deferred completion:
+validated source request, native label-edit call, rejected-edit restoration and
+source selection publication. Removed the window-only completion method and
+the two thin editor-entry wrappers. Table/icon setup and the source EditLabel
+callback invoke the existing controller directly. No controller, request state
+or public operation interface is added.
+
+Compared original PanelOperations OnBeginLabelEdit/OnEndLabelEdit, name
+validation and rename worker with PanelListNotify dispatch, current retained
+request/projection and result consumers at
+`b88c6bc09339de32f7d18bbab900686b244f42ba`. Both complete original unit hashes
+match the existing baseline. Native algorithms and their current adaptations
+remain unchanged; no external source is imported or provenance advanced.
+
+Folder/model/index/path checks, notification/peer guards, deferred delivery,
+editor cancellation and shared request lifetime are retained. The completion
+uses the already validated panel/context instead of classifying it again through
+MainWindow. The filesystem-parent/flat-mode gate stays after the unchanged-name
+branch and before native execution. Embedded-NUL rejection, source-owned worker
+diagnostics, rejected model text, flat-archive no-op publication and selection
+restoration retain their existing behavior and ordering. Existing public
+lifecycle, deferred, state and archive regressions cover these contracts; no
+source-layout or private-owner test is added.
+
+Linux rename_lifecycle, deferred_rename, panel_rename_state and
+archive_rename_window passed: 74 Qt checks, no failures or skips. Incremental
+compilation took 57.632s and tests 12.356s with four configured jobs and compiler
+cache. Result/rejection bodies match the prior implementation after qualifying
+the new owner/request; source inventory and whitespace checks passed. No native
+platform branch, layout or text changed. Secondary platforms, full gates, slow
+native_rename_2/native_rename_301 matrices and new appearance acceptance are not
+claimed. Completed test settings and the unreferenced retired object were removed;
+incremental build trees and compiler caches were preserved.

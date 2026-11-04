@@ -30,7 +30,6 @@
 #include <QPushButton>
 #include <QRadioButton>
 #include <QScopeGuard>
-#include <QScopedValueRollback>
 #include <QScrollArea>
 #include <QShortcut>
 #include <QStyleHints>
@@ -196,9 +195,16 @@ void QtFmOptionsDialog::showPageHelp() {
 bool QtFmOptionsDialog::apply() {
     if (_applying)
         return false;
-    QScopedValueRollback<bool> applying(_applying, true);
+    QPointer<QtFmOptionsDialog> alive(this);
+    _applying = true;
+    const auto restore = qScopeGuard([alive] {
+        if (alive) {
+            alive->setEnabled(true);
+            if (alive)
+                alive->_applying = false;
+        }
+    });
     setEnabled(false);
-    const auto enable = qScopeGuard([this] { setEnabled(true); });
     const LONG associationError = _systemPage->OnApply();
     setEnabled(true);
     if (associationError != 0) {
@@ -232,6 +238,8 @@ bool QtFmOptionsDialog::apply() {
     if (languageChanged)
         QtNotifyLanguageChanged();
     emit Applied();
+    if (!alive)
+        return false;
     updateApplyButton();
     // Applied observers can leave a new draft after the pages were saved.
     return !hasPendingChanges();
@@ -268,7 +276,8 @@ void QtFmOptionsDialog::changeEvent(QEvent *event) {
         updateNavigationGeometry();
 }
 void QtFmOptionsDialog::accept() {
-    if (apply())
+    QPointer<QtFmOptionsDialog> alive(this);
+    if (apply() && alive)
         QDialog::accept();
 }
 void QtFmOptionsDialog::reject() {

@@ -29,6 +29,30 @@ OverwriteQuestion QtFileTransferTransaction::snapshot(const OverwriteSource &sou
     return question;
 }
 
+QtFileTransferTransaction::OverwriteDecision
+QtFileTransferTransaction::decideOverwrite(const OverwriteSource &source) {
+    if (rememberedOverwrite_)
+        return *rememberedOverwrite_;
+    switch (worker_.askOverwrite(snapshot(source))) {
+    case NOverwriteAnswer::kNo:
+        return OverwriteDecision::Skip;
+    case NOverwriteAnswer::kYes:
+        return OverwriteDecision::Replace;
+    case NOverwriteAnswer::kNoToAll:
+        rememberedOverwrite_ = OverwriteDecision::Skip;
+        break;
+    case NOverwriteAnswer::kYesToAll:
+        rememberedOverwrite_ = OverwriteDecision::Replace;
+        break;
+    case NOverwriteAnswer::kAutoRename:
+        rememberedOverwrite_ = OverwriteDecision::Rename;
+        break;
+    default:
+        return OverwriteDecision::Cancel;
+    }
+    return *rememberedOverwrite_;
+}
+
 bool QtFileTransferTransaction::removeEntry(const QString &path) {
     return QtRemoveFileSystemEntry(path);
 }
@@ -155,9 +179,8 @@ FileTransferOperation::Completion QtFileTransferTransaction::finish(QList<Transf
     return {FileTransferOperation::ResultKind::Success, message};
 }
 
-bool QtFileTransferTransaction::transferEntry(
-    const TransferPath &path, const std::function<int(const OverwriteSource &)> &overwriteAnswer,
-    QList<TransferEntry> &completed, QString &error) {
+bool QtFileTransferTransaction::transferEntry(const TransferPath &path,
+                                              QList<TransferEntry> &completed, QString &error) {
     const QString &source = path.source;
     QString target = path.target;
     bool mayReplace = false;
@@ -175,16 +198,13 @@ bool QtFileTransferTransaction::transferEntry(
         if (merge) {
             mayReplace = true;
         } else {
-            const int answer = overwriteAnswer({target, target, source});
-            switch (answer) {
-            case NOverwriteAnswer::kNo:
-            case NOverwriteAnswer::kNoToAll:
+            switch (decideOverwrite({target, target, source})) {
+            case OverwriteDecision::Skip:
                 return true;
-            case NOverwriteAnswer::kYes:
-            case NOverwriteAnswer::kYesToAll:
+            case OverwriteDecision::Replace:
                 mayReplace = true;
                 break;
-            case NOverwriteAnswer::kAutoRename: {
+            case OverwriteDecision::Rename: {
                 FString renamed = us2fs(target.toStdWString().c_str());
                 if (!AutoRenamePath(renamed)) {
                     error = QCoreApplication::translate("qtfiletransfertransaction",
@@ -195,7 +215,7 @@ bool QtFileTransferTransaction::transferEntry(
                 target = QString::fromWCharArray(fs2us(renamed));
                 break;
             }
-            default:
+            case OverwriteDecision::Cancel:
                 error =
                     QCoreApplication::translate("qtfiletransfertransaction", "Operation canceled.");
                 break;
@@ -220,7 +240,7 @@ bool QtFileTransferTransaction::transferEntry(
     const bool staged =
         valid &&
         (merge ? (copyEntry(target, stage, &error, false) &&
-                  mergeEntry(source, stage, target, overwriteAnswer, &entry.writtenSources, &error))
+                  mergeEntry(source, stage, target, &entry.writtenSources, &error))
                : (entry.sourceState == SourceState::Renamed || copyEntry(source, stage, &error)));
     if (!staged && error.isEmpty())
         error = QCoreApplication::translate("qtfiletransfertransaction", "Could not move item: %1")
@@ -261,25 +281,7 @@ bool QtFileTransferTransaction::transferEntry(
 }
 
 FileTransferOperation::Completion QtFileTransferTransaction::run() {
-    enum class OverwriteMode { Ask, Skip, Overwrite, Rename };
-    OverwriteMode overwriteMode = OverwriteMode::Ask;
-    const std::function<int(const OverwriteSource &)> overwriteAnswer =
-        [this, &overwriteMode](const OverwriteSource &source) -> int {
-        if (overwriteMode == OverwriteMode::Skip)
-            return NOverwriteAnswer::kNo;
-        if (overwriteMode == OverwriteMode::Overwrite)
-            return NOverwriteAnswer::kYes;
-        if (overwriteMode == OverwriteMode::Rename)
-            return NOverwriteAnswer::kAutoRename;
-        const int answer = worker_.askOverwrite(snapshot(source));
-        if (answer == NOverwriteAnswer::kNoToAll)
-            overwriteMode = OverwriteMode::Skip;
-        else if (answer == NOverwriteAnswer::kYesToAll)
-            overwriteMode = OverwriteMode::Overwrite;
-        else if (answer == NOverwriteAnswer::kAutoRename)
-            overwriteMode = OverwriteMode::Rename;
-        return answer;
-    };
+    rememberedOverwrite_.reset();
     QString error;
     const auto targets = prepareTargets(error);
     QList<TransferEntry> completed;
@@ -291,7 +293,7 @@ FileTransferOperation::Completion QtFileTransferTransaction::run() {
             error = QCoreApplication::translate("qtfiletransfertransaction", "Operation canceled.");
             break;
         }
-        if (!transferEntry(path, overwriteAnswer, completed, error))
+        if (!transferEntry(path, completed, error))
             break;
     }
     rollbackBatch.dismiss();

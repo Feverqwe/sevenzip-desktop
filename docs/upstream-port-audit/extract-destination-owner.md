@@ -1,5 +1,39 @@
 # Extract destination preparation — 2026-11-01
 
+## Native entry output callback owner — 2026-11-04
+
+The complete output-decision and stream lifecycle of CExtractCallbackImp now
+lives in `filemanager/ExtractCallbackOutput.cpp`, in the same panel target:
+AskOverwrite/AskWrite, stream-mode selection, metadata helpers, GetStream7,
+PrepareOperation7 and SetOperationResult8. The existing callback class, COM
+interfaces, fields and initialization remain unchanged. Opening/progress,
+diagnostics, password and memory-limit presentation retain their original owner.
+No extra controller, state or public operation boundary is introduced.
+
+Compared complete original callback bodies and supporting types at
+`b88c6bc09339de32f7d18bbab900686b244f42ba`, filesystem-copy consumers and native
+archive extraction's stream preparation/result calls. The complete original
+ExtractCallback.cpp hash matches the existing baseline. Moved current bodies
+are unchanged, including overwrite answers, rename/delete errors, metadata
+validation, alternate-stream filtering, zone names, memory accounting and
+directory hash completion. Existing Qt question dispatch and file-time
+adaptations remain; no algorithm or external source is imported. The baseline
+extends the existing extracted-symbol mapping without changing original hashes
+or its previous diagnostic and memory/spill owners.
+
+The overwrite callback remains available outside the non-SFX stream guard;
+the remaining output methods retain their original non-SFX guard. Existing
+behavior tests are reused rather than adding source-presence assertions.
+
+Linux extract_prompt, source_extract_backend, source_extract_advanced,
+operation_extraction, copy_publication_order and native_hash_workflow passed:
+90 Qt checks, no failures; two existing Windows NTFS ACL/ADS checks are skipped.
+Final incremental compilation took 15.031s and tests 3.972s with four configured
+jobs and compiler cache. Source inventory, transferred-body comparison and
+whitespace checks passed. No native platform branch, layout or text changed;
+secondary platforms, full/slow suites and new appearance acceptance are not
+claimed. Completed selected scratch contained only disposable copy settings.
+
 ## Native memory and spill stream owner — 2026-11-04
 
 Reviewed the complete original ExtractCallback.cpp/.h memory/spill stream,
@@ -185,3 +219,33 @@ NTFS ACL/ADS checks require Windows and are skipped. Final incremental build
 6.394s, tests 3.473s. Selected scratch is empty, and build trees/compiler caches
 are retained. No platform-native behavior, layout or text changed; no secondary
 OS, full/slow suite or new visual acceptance is claimed.
+
+## Extraction dialog native result — 2026-11-04
+
+Compared original ExtractDialog.cpp/.h/.rc and the ExtractGUI dialog consumer at
+`b88c6bc09339de32f7d18bbab900686b244f42ba` with the Qt initialization, controls,
+settings precedence, confirmation and native extraction call. No additional
+source import or baseline revision change is involved.
+
+Removed the test-only `CExtractDialog::options()` translation into backend DTOs
+and its backend header dependency. The production consumer continues to read
+the native accepted fields. OnOK, CurrentPaths preservation, bool-pair metadata,
+password choice, destination normalization, history and Cancel remain unchanged.
+The draft destination/password accessors retain their existing roles.
+
+Dialog extraction regressions now drive the real modal ExtractGUI consumer via
+the retained shell services and its output policy. They check nested versus
+flattened output, existing-file skip/overwrite, Unicode split destinations,
+failed output and cancellation through native extraction, rather than manually
+reconstructing a second request from test-only getters. Native decoding and
+extraction path validation remain with their existing owners.
+
+Linux validation passed extract_dialog and split_destination (25 Qt checks),
+plus source_extract_advanced, operation_extraction and language_dialog. The
+initial fixture timeout on failed output was resolved by handling only the
+active modal window, so a progress Close click cannot open a nested cancellation
+question beneath a final error message. Final focused compilation took 10.078s
+and the two fixture suites 1.231s. Passing evidence for unchanged consumers was
+reused. No native platform branch, layout or text changed; no secondary platform,
+full/slow suite or new visual acceptance is claimed. Source inventory and
+whitespace checks passed; incremental outputs and compiler caches were retained.

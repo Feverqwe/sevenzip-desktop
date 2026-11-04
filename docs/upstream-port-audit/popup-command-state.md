@@ -126,3 +126,32 @@ Linux PASS: `command_policy_runtime`, `command_publication`, `flat_view`,
 Native OS branches не менялись; Windows/macOS и visual parity не проверялись.
 Full/slow gate и UI reports не запускались. После завершения удалены пять
 settings fixtures; incremental outputs и протокол проверки сохранены.
+
+## Владелец доступности команд — 2026-11-04
+
+Полностью сопоставлены native `CPanel::CreateFileMenu` и `CFileMenu::Load`,
+их вызывающие стороны и Qt publication. Оригиналы PanelMenu.cpp/MyLoadMenu.cpp
+проверены по recorded baseline b88c6bc09339de32f7d18bbab900686b244f42ba.
+Вычисление доступности, transport capabilities и повторная проверка перед
+выполнением перенесены целиком в qtcommandavailability.cpp того же компонента.
+Все перенесённые тела идентичны прежним; binding остаётся отдельным владельцем.
+Поздняя version-control projection сохраняет отдельное чтение настроек после
+QAction observers и свои query guards. Новых API, кэшей, imports и omissions нет.
+
+Linux: шесть focused suites `command_publication`, `command_policy_runtime`,
+`file_menu_policy`, `verctrl`, `codec_commands_ui`, `root_command` прошли.
+Native OS branches и layout не менялись; Windows/macOS этим запуском не проверены.
+Inventory и whitespace checks прошли; compiler cache и incremental outputs сохранены.
+
+При интеграции с актуальным master изменения sparse-bundle и защищённого
+парольного контекста сохранены в новом владельце PanelArchiveOpen.cpp.
+Все шесть перенесённых методов полностью совпадают с master; вычисление
+доступности также сохраняет добавленную в master команду размера каталогов.
+
+Интеграционная Linux-проверка: `archive_password`, `archive_readonly_view`,
+`archive_item_open`, `nested_update`, `file_manager_ram`, `sparse_image_ui`,
+`command_policy_runtime`, `command_publication` — 91 PASS без skips. Первый
+запуск выявил устаревший prepared runtime; после штатного инкрементального
+обновления engine/codecs без SFX те же проверки прошли без изменения тестов.
+Первичная сборка 197,072 с; повторная 0,378 с, тесты 19,137 с. Удалены четыре
+settings fixtures; failure/result logs, incremental outputs и кэши сохранены.

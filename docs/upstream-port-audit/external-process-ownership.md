@@ -1,5 +1,42 @@
 # External-process ownership
 
+## Archive-item opening owner — 2026-11-04
+
+The complete archive-opening path now lives in `panels/PanelArchiveOpen.cpp`,
+inside the existing panel target: native OpenAsArc result/error handling, direct
+name/index opening, changed nested-archive return and OpenItemInArchive's
+stream, bounded memory/spill, disk fallback and external-session handoff. Item
+launch policy, filename warnings, ordinary external launch, comparison and
+changed-file update presentation remain in PanelItemOpen. The common extension
+predicate is a private static panel method; its body and extension inventory
+are unchanged. No controller, state or public operation interface is added.
+
+Compared complete original opening/return/member-opening bodies, folder-link
+and temporary-file types, callers and native update dependencies at
+`b88c6bc09339de32f7d18bbab900686b244f42ba` from
+<https://github.com/ip7z/7zip.git>. The complete original PanelItemOpen.cpp hash
+matches the existing baseline. The transferred current bodies are byte-identical
+apart from terminal whitespace. Existing typed manager, ownership lease,
+password/progress, container depth, materialization, zone/ADS and async refresh
+adaptations are retained; no decoding, recovery or external code is imported.
+The baseline extends the existing extracted-symbol mapping and preserves its
+previous external-session owners and original hashes.
+
+The RAM source fixture compiles the new opening unit together with its existing
+FM and launch units, retaining the same RAM-query override. Production and
+fixture target boundaries and compile options remain unchanged. Existing
+behavior regressions are reused for nested stream/materialized opening, parent
+restoration/update, external launch, errors/cancellation and RAM/disk choices.
+
+Linux source_extract_backend, archive_item_open, panel_navigation, nested_update,
+external_launch and file_manager_ram passed: 58 Qt checks, no failures or skips.
+Final incremental compilation took 63.911s and test execution 10.572s, with the
+configured four jobs and compiler cache. Initial compilation identified missing
+explicit includes for opening error resources and the HRESULT formatter; these
+were restored before runtime acceptance. Source inventory and whitespace checks
+passed. No platform branch, layout or text changed; Windows/macOS, full/slow
+suites and new appearance acceptance are not claimed.
+
 ## Tracked external-file session owner — 2026-11-04
 
 The complete tracked launch, child discovery/wait, changed-file update and joined

@@ -2811,3 +2811,95 @@ input, secondary OS and visual parity are not claimed. Source inventory, origina
 complete-unit hashes and whitespace checks passed. Ordinary four-job builds
 retained incremental outputs and compiler cache. Disposable settings from the
 completed suites were removed; no full/slow or heavy diagnostic gate ran.
+
+## Options Apply completion lifetime — 2026-11-04
+
+Compared original OptionsDialog property-sheet ownership at
+`b88c6bc09339de32f7d18bbab900686b244f42ba`, current page Apply handlers,
+window application callback and dialog completion. The full original unit hash
+matches the existing baseline. Native page algorithms, application order,
+association-error continuation, invalid-memory veto and language/theme handling
+are unchanged; no external code is imported or provenance advanced.
+
+Apply now uses one lifetime-aware restoration guard for the enabled/applying
+state. It preserves the previous restoration order while avoiding references
+into an already destroyed widget. After Applied notification, it checks whether
+the dialog still exists before updating controls or allowing OK to close it.
+OK also checks lifetime after Apply's restoration guard has run: an enabled-state
+observer may destroy the window while that guard returns. These checks permit
+synchronous observers to destroy a heap-owned dialog after settings have been
+saved. An observer leaving a new draft still keeps OK open, as before.
+
+The regression exercises both Apply and OK through the public interface,
+destroys the dialog from Applied or its subsequent enabled-state change and
+checks the saved editor command. Existing pending-draft, partial-application,
+association failure and Cancel checks remain. Linux options_dialog and
+options_integration passed: 39 Qt checks, no failures or skips; compilation
+11.467s, tests 1.656s. Four-job incremental builds and the compiler cache were
+retained. Selected scratch scopes are empty after completion.
+Source inventory and whitespace checks passed. No layout, text or native
+platform behavior changed; no secondary-platform or new appearance acceptance
+is claimed.
+
+## Prepared recycle targets — 2026-11-04
+
+Compared the complete original PanelOperations DeleteItems recycle/permanent
+branches, Panel GetFilePaths and their path/index types at
+`b88c6bc09339de32f7d18bbab900686b244f42ba` with the Qt trash adapter, confirmation,
+native worker, command and both archive-Move consumers. Complete original unit
+hashes match the existing baseline. No external code is imported or provenance
+advanced.
+
+The native shell branch prepares all paths before handing off its delete batch.
+The Qt adapter instead resolved the next panel index after each trash-service
+call. Reloading the provider during that call could shift indices and leave a
+selected file while removing another. Recycle now uses the existing native
+GetFilePaths helper once, after the readonly/update gate and before confirmation.
+Its execution helper receives that prepared path list without a panel dependency.
+Confirmation, supported-item checks, native trash service, partial-error refresh,
+permanent deletion, explicit Move indices and deferred publication remain intact.
+
+The new regression uses a real filesystem provider and a fixture trash service
+that reloads it after the first removal. It checks that both selected paths are
+removed and the unselected file retains its bytes, without pinning directory
+enumeration order. On the prior adapter it failed while 32 existing checks passed.
+The fixture replaces only native trash side effects with private-file removal;
+this is validation of path preparation rather than new OS-trash acceptance.
+
+Linux source_delete, archive_move_completion and interarchive_move_publication
+passed: 51 Qt checks, no failures or skips. Incremental compilation took 17.183s
+and tests 8.382s with four configured jobs and compiler cache. Source inventory
+and whitespace checks passed. Completed test settings were removed; failure and
+passing logs were retained. No native OS-trash service, platform branch, layout
+or text changed; secondary-platform, full/slow and new appearance acceptance
+are not claimed.
+
+## Created-item selection preparation — 2026-11-04
+
+Compared complete original PanelOperations CreateFolder/CreateFile bodies and
+Panel selection types at `b88c6bc09339de32f7d18bbab900686b244f42ba`, with the
+current input dialogs, native operation/direct-provider boundaries, filesystem
+and archive callers and result publication. Complete original hashes match the
+existing baseline. No code is imported or provenance advanced.
+
+Both successful creation paths now use one local copy of the original selection
+preparation: first path component, existing marks under alternative selection,
+focused name and focus flags. Its body matches the previous file-creation tail
+after substituting the selection-mode parameter. Folder input now fills its
+native name directly instead of copying a second temporary value. The stale
+file comment referring to unfinished archived port scope was corrected.
+
+Distinct native contracts remain: folder creation uses the joined worker and
+refreshes after a failed operation; file creation retains its direct provider
+call and early error return. Readonly/hash gates, Cancel, path normalization,
+name validation, deferred publication and archive writing remain unchanged.
+Existing EN/RU, both-pane, normal/alternative/flat, nested-name, invalid-input,
+failure and archive-provider regressions are reused; no new test pins the helper
+or its assignments.
+
+Linux source_create and ui_operations passed: 71 Qt checks, no failures or
+skips. Incremental compilation took 18.060s and tests 24.198s with configured
+four jobs and compiler cache. Source inventory, body comparison and whitespace
+checks passed. Completed settings were removed; incremental outputs and caches
+were preserved. No platform branch, layout or text changed; secondary platforms,
+full/slow gates and new appearance acceptance are not claimed.

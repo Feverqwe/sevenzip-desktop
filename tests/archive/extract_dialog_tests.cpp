@@ -1,4 +1,5 @@
 #include "7zip/UI/GUI/ExtractRes.h"
+#include "archive/support/extract_dialog_fixture.h"
 #include "archive/support/native_archive_fixture.h"
 #include "dialogs/extract/alias.h"
 #include "localization/LangUtils.h"
@@ -8,10 +9,8 @@
 #include <QDialogButtonBox>
 #include <QDir>
 #include <QFile>
-#include <QProcess>
 #include <QPushButton>
 #include <QSettings>
-#include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QToolButton>
 #include <QtTest>
@@ -55,7 +54,6 @@ class ExtractDialogTests final : public QObject {
         QVERIFY(!advanced->isChecked());
         QApplication::processEvents();
         QVERIFY(UiInspection::writeReport(dialog, "redesign-extract-password-" + language));
-        QCOMPARE(dialog.options().pathMode, ExtractionOptions::PathMode::NoPaths);
         enabled->click();
         QVERIFY(dialog.password().isEmpty());
         QVERIFY(!password->isVisible());
@@ -66,7 +64,6 @@ class ExtractDialogTests final : public QObject {
         QVERIFY(UiInspection::writeReport(dialog, "redesign-extract-expanded-" + language));
         pathMode(dialog)->setCurrentIndex(0);
         advanced->click();
-        QCOMPARE(dialog.options().pathMode, ExtractionOptions::PathMode::FullPaths);
         QVERIFY(!pathMode(dialog)->isVisible());
         enabled->click();
         QApplication::processEvents();
@@ -81,8 +78,6 @@ class ExtractDialogTests final : public QObject {
                  QString::fromWCharArray(LangString(IDS_EXTRACT_PATHS_NO)).remove('&'));
         QCOMPARE(overwrite(dialog)->currentText(),
                  QString::fromWCharArray(LangString(IDS_EXTRACT_OVERWRITE_RENAME)).remove('&'));
-        QCOMPARE(dialog.options().pathMode, ExtractionOptions::PathMode::NoPaths);
-        QCOMPARE(dialog.options().overwriteMode, ExtractionOptions::OverwriteMode::RenameExtracted);
         dialog.accept();
         QCOMPARE(dialog.Password, QString());
         QCOMPARE(dialog.PathMode, NExtract::NPathMode::kNoPaths);
@@ -246,55 +241,57 @@ class ExtractDialogTests final : public QObject {
         QCOMPARE(path(dialog)->itemText(0), QString("/legacy/"));
         QCOMPARE(pathMode(dialog)->currentIndex(), 0);
         QCOMPARE(overwrite(dialog)->currentIndex(), 0);
-        QCOMPARE(dialog.options().overwriteMode, ExtractionOptions::OverwriteMode::Ask);
         dialog.accept();
+        QCOMPARE(dialog.OverwriteMode, NExtract::NOverwriteMode::kAsk);
         QSettings settings(settings_, QSettings::IniFormat);
         QCOMPARE(settings.value("Toolbar/labels").toBool(), false);
         settings.setValue("Extraction/ExtractMode", UInt32(NExtract::NPathMode::kAbsPaths));
         settings.sync();
         CExtractDialog absolute("/initial", {});
-        QCOMPARE(absolute.options().pathMode, ExtractionOptions::PathMode::AbsolutePaths);
+        absolute.accept();
+        QCOMPARE(absolute.PathMode, NExtract::NPathMode::kAbsPaths);
+    }
+    void realExtractionUsesDialogModes_data() {
+        QTest::addColumn<int>("pathModeIndex");
+        QTest::newRow("full-paths") << 0;
+        QTest::newRow("no-paths") << 1;
     }
     void realExtractionUsesDialogModes() {
-        const QString source = dir_.filePath(QStringLiteral("файл с пробелом.txt"));
-        QFile file(source);
-        QVERIFY(file.open(QIODevice::WriteOnly));
-        QCOMPARE(file.write("archive content"), qint64(15));
-        file.close();
+        QFETCH(int, pathModeIndex);
+        const QString leaf = QStringLiteral("файл с пробелом.txt");
         ArchiveBackend backend;
-        QSignalSpy done(&backend, &ArchiveBackend::finished);
         const QString archive = dir_.filePath("fixture.zip");
-        QVERIFY(NativeArchiveFixture::WriteFiles(archive, {source}));
-        done.clear();
-        backend.list(archive);
-        QTRY_COMPARE_WITH_TIMEOUT(done.size(), 1, 15000);
-        QVERIFY2(done.first()[0].toBool(), qPrintable(done.first()[1].toString()));
-        done.clear();
-        const QString output = dir_.filePath(QStringLiteral("папка извлечения"));
-        QVERIFY(QDir().mkpath(output));
-        QFile existing(QDir(output).filePath(QFileInfo(source).fileName()));
+        QFile::remove(archive);
+        NativeArchiveFixture::Item item;
+        item.Path = "nested/" + leaf;
+        item.Bytes = "archive content";
+        QVERIFY(NativeArchiveFixture::Write(archive, {item}, "zip"));
+        const QString output =
+            dir_.filePath(QStringLiteral("папка извлечения %1").arg(pathModeIndex));
+        const QString relative = pathModeIndex == 0 ? "nested/" + leaf : leaf;
+        QFile existing(QDir(output).filePath(relative));
+        QVERIFY(QDir().mkpath(QFileInfo(existing).absolutePath()));
         QVERIFY(existing.open(QIODevice::WriteOnly));
         QCOMPARE(existing.write("existing"), qint64(8));
         existing.close();
-        CExtractDialog dialog(output, {});
-        pathMode(dialog)->setCurrentIndex(1);
-        overwrite(dialog)->setCurrentIndex(2);
-        dialog.accept();
-        auto options = dialog.options();
-        options.ElimDup.Val = false; // This fixture exercises the basic CLI transport.
-        backend.extract(archive, dialog.destination(), {}, {}, options);
-        QTRY_COMPARE_WITH_TIMEOUT(done.size(), 1, 15000);
-        QVERIFY2(done.first()[0].toBool(), qPrintable(done.first()[1].toString()));
+        const auto extract = [&](int overwriteIndex) {
+            return ExtractDialogFixture::Run(backend, archive, output, [&](CExtractDialog &dialog) {
+                path(dialog)->setEditText(output);
+                pathMode(dialog)->setCurrentIndex(pathModeIndex);
+                overwrite(dialog)->setCurrentIndex(overwriteIndex);
+                dialog.findChild<QCheckBox *>("extractElimDup")->setChecked(false);
+                dialog.accept();
+            });
+        };
+        const auto skipped = extract(2);
+        QCOMPARE(skipped.Result, S_OK);
+        QVERIFY(skipped.CallbackOK);
         QVERIFY(existing.open(QIODevice::ReadOnly));
         QCOMPARE(existing.readAll(), QByteArray("existing"));
         existing.close();
-        done.clear();
-        overwrite(dialog)->setCurrentIndex(1);
-        options = dialog.options();
-        options.ElimDup.Val = false;
-        backend.extract(archive, dialog.destination(), {}, {}, options);
-        QTRY_COMPARE_WITH_TIMEOUT(done.size(), 1, 15000);
-        QVERIFY2(done.first()[0].toBool(), qPrintable(done.first()[1].toString()));
+        const auto overwritten = extract(1);
+        QCOMPARE(overwritten.Result, S_OK);
+        QVERIFY(overwritten.CallbackOK);
         QVERIFY(existing.open(QIODevice::ReadOnly));
         QCOMPARE(existing.readAll(), QByteArray("archive content"));
     }

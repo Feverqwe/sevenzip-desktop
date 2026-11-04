@@ -110,6 +110,7 @@ add_library(sevenzip_panel
     src/fileops/links/qtlinkcontrols.cpp
     src/fileops/links/qtlinkcontrols.h
     src/filemanager/ExtractCallback.cpp
+    src/filemanager/ExtractCallbackOutput.cpp
     src/archive/resources/virtualextractfilesystem.cpp
     src/archive/resources/virtualextractfilesystem.h
     src/filemanager/ExtractCallback.h
@@ -127,6 +128,7 @@ add_library(sevenzip_panel
     src/filemanager/providers/FileFolderPluginOpen.cpp
     src/filemanager/providers/FileFolderPluginOpen.h
     src/filemanager/panels/PanelItemOpen.cpp
+    src/filemanager/panels/PanelArchiveOpen.cpp
     src/filemanager/external/qtexternalapplications.cpp
     src/filemanager/external/qtexternalapplications.h
     src/filemanager/external/qtexternalfilesession.cpp
