@@ -1,5 +1,10 @@
+#include "7zip/UI/FileManager/resource.h"
+#include "7zip/UI/GUI/CompressDialogRes.h"
+#include "archive/callbacks/qtguimessages.h"
 #include "archive/codecs/archivecodeccatalog.h"
 #include "dialogs/compress/createarchivedialog.h"
+#include <QCoreApplication>
+#include <QEvent>
 
 // Qt controls for the source CCompressDialog::OnInit/OnOK DTO. The source
 // ShowDialog remains responsible for all update options and properties.
@@ -19,6 +24,144 @@ void CreateArchiveDialog::initializeSourceControls(const NCompressDialog::CInfo 
     }
     if (info.SFXMode && sfx_->isEnabled())
         sfx_->setChecked(true);
+}
+
+QString CreateArchiveDialog::archivePath() const {
+    if (archiveFolder_->text().contains(QChar::Null))
+        return {};
+    QString result;
+    archiveNameState_.GetFinalPath_Smart(result);
+    return result;
+}
+
+void CreateArchiveDialog::validateAndAccept() {
+    accepted_.reset();
+    if (password_) {
+        const bool protect = password_->isEnabled();
+        const auto error = CCompressDialog::CheckPassword(
+            protect ? password_->text() : QString(),
+            protect ? passwordConfirmation_->text() : QString(), showPassword_->isChecked(),
+            format_->currentText(), GetEncryptionMethodSpec());
+        if (error != CCompressDialog::kPasswordOK) {
+            const UInt32 id = error == CCompressDialog::kPasswordUseAscii  ? IDS_PASSWORD_USE_ASCII
+                              : error == CCompressDialog::kPasswordTooLong ? IDS_PASSWORD_TOO_LONG
+                                                                           : IDS_PASSWORD_NOT_MATCH;
+            ShowErrorMessageHwndResQt(this, id);
+            return;
+        }
+    }
+    if (!checkMemoryUsage())
+        return;
+    SaveOptionsInMem();
+    const QString resolved = archivePath();
+    if (resolved.isEmpty()) {
+        // Original OnOK validates GetFinalPath_Smart only. Source scanning and
+        // UpdateArchive own input errors and CreateComplexDir for new parents.
+        const std::wstring message =
+            QCoreApplication::translate("CreateArchiveDialog", "Incorrect archive path")
+                .toStdWString();
+        ShowErrorMessageQt(this, message.c_str());
+        return;
+    }
+    if (!checkVolumeSizes())
+        return;
+    // Existing outputs are opened/validated by source UpdateArchive after OK,
+    // just as for the original form. The dialog must not reject update intent.
+    auto request = readRequest(resolved);
+    CCompressDialog path;
+    path.m_ArchivePath = resolved;
+    path.Format = format_->currentText();
+    path.ShowPassword = showPassword_ && showPassword_->isChecked();
+    path.EncryptHeaders = encryptHeaders_ && encryptHeaders_->isChecked();
+    path.OnOK(m_RegistryInfo);
+    m_RegistryInfo.Save(compressionSettingsPath());
+    accepted_ = std::move(request);
+    accept();
+}
+
+void CreateArchiveDialog::showEvent(QShowEvent *event) {
+    accepted_.reset();
+    QDialog::showEvent(event);
+}
+
+CompressionOptions CreateArchiveDialog::compressionOptions() const {
+    if (accepted_)
+        return accepted_->Options;
+    CompressionOptions options;
+    options.SFXMode = sfx_ && sfx_->isEnabled() && sfx_->isChecked();
+    if (options.SFXMode)
+        options.SfxModule = sfxModule_.path();
+    options.format = format_->currentText();
+    CCompressDialog metadata;
+    prepareMetadataSource(metadata);
+    NCompression::CInfo metadataRegistry = m_RegistryInfo;
+    metadata.SaveMetadataOptions(metadataRegistry);
+    options.SymLinks = metadata.Info.SymLinks;
+    options.HardLinks = metadata.Info.HardLinks;
+    options.AltStreams = metadata.Info.AltStreams;
+    options.NtSecurity = metadata.Info.NtSecurity;
+    options.OpenShareForWrite =
+        sharedFiles_ && sharedFiles_->isEnabled() && sharedFiles_->isChecked();
+    options.DeleteAfterCompressing = deleteAfterCompressing_ &&
+                                     deleteAfterCompressing_->isEnabled() &&
+                                     deleteAfterCompressing_->isChecked();
+#ifdef Q_OS_WIN
+    options.PreserveATime = m_RegistryInfo.PreserveATime;
+#endif
+    if (parameters_) {
+        options.Options = parameters_->text().toStdWString().c_str();
+        options.Options.Trim();
+    }
+    const int index = FindRegistryFormat(registryFormat_);
+    if (index >= 0) {
+        const auto &fo = m_RegistryInfo.Formats[index];
+        options.TimePrec = fo.TimePrec;
+        options.MTime = fo.MTime;
+        options.CTime = fo.CTime;
+        options.ATime = fo.ATime;
+        options.SetArcMTime = fo.SetArcMTime;
+    }
+    if (volume_ && volume_->isEnabled())
+        CCompressDialog::OnOK(volume_->currentText(), options);
+    if (updateMode_)
+        options.UpdateMode =
+            static_cast<NCompressDialog::NUpdateMode::EEnum>(updateMode_->currentData().toInt());
+    options.PathMode = static_cast<NWildcard::ECensorPathMode>(pathMode_->currentData().toInt());
+    if (level_) {
+        if (encryption_)
+            options.EncryptionMethod = GetEncryptionMethodSpec();
+        options.Level = level_->currentData().toInt();
+        options.Method = archiveNameState_.GetMethodSpec();
+        options.OrderMode = NCompressDialog::GetOrderMode(archiveNameState_.GetMethodID());
+        const UInt32 threads = threads_->currentData().toUInt();
+        options.NumThreads = threads ? threads : UInt32(-1);
+        options.MemUsage = Get_MemUse_Spec();
+        const UInt64 dictionary =
+            dictionary_->isEnabled() ? dictionary_->currentData().toULongLong() : 0;
+        options.Dict64 = dictionary ? dictionary : UInt64(-1);
+        const UInt32 order = wordSize_->isEnabled() ? wordSize_->currentData().toUInt() : 0;
+        options.Order = order ? order : UInt32(-1);
+        options.SolidIsSpecified = solidBlock_->isEnabled();
+        NCompressDialog::OnOK(
+            solidBlock_->isEnabled() ? solidBlock_->currentData().toUInt() : UInt32(-1), options);
+    }
+    return options;
+}
+
+QString CreateArchiveDialog::target() const {
+    return accepted_ ? QString::fromWCharArray(accepted_->Options.ArcPath.Ptr()) : QString();
+}
+
+QString CreateArchiveDialog::password() const {
+    if (accepted_)
+        return accepted_->Options.Password;
+    return password_ && password_->isEnabled() ? password_->text() : QString();
+}
+
+bool CreateArchiveDialog::encryptHeaders() const {
+    if (accepted_)
+        return accepted_->Options.EncryptHeaders;
+    return encryptHeaders_ && encryptHeaders_->isEnabled() && encryptHeaders_->isChecked();
 }
 
 NCompressDialog::CInfo CreateArchiveDialog::sourceInfo() const {

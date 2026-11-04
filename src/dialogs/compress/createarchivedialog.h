@@ -41,20 +41,10 @@ class CreateArchiveDialog : public QDialog {
                                  std::shared_ptr<const ArchiveCodecCatalog> codecs,
                                  QWidget *parent);
 
-    QString target() const {
-        return accepted_ ? QString::fromWCharArray(accepted_->Options.ArcPath.Ptr()) : QString();
-    }
+    QString target() const;
     QStringList sources() const { return selected_; }
-    QString password() const {
-        if (accepted_)
-            return accepted_->Options.Password;
-        return password_ && password_->isEnabled() ? password_->text() : QString();
-    }
-    bool encryptHeaders() const {
-        if (accepted_)
-            return accepted_->Options.EncryptHeaders;
-        return encryptHeaders_ && encryptHeaders_->isEnabled() && encryptHeaders_->isChecked();
-    }
+    QString password() const;
+    bool encryptHeaders() const;
     CompressionOptions compressionOptions() const;
 
   private:

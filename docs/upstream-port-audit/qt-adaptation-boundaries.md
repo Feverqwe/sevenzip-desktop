@@ -757,3 +757,25 @@ creation and SFX behavior suites cover the affected scenario; no structural
 test is introduced for this source extraction.
 All four focused suites passed on Linux. Other platforms and visual parity
 were not revalidated for this nonvisual ownership change.
+
+## Archive creation confirmation ownership — 2026-11-04
+
+Reviewed the complete original CCompressDialog::OnOK and its result types at
+`b88c6bc09339de32f7d18bbab900686b244f42ba`, the existing Qt password/memory/path/
+volume checks, preference transaction, result conversion and PresentSource
+consumers. Original inventory hashes remain unchanged. The Qt form's complete
+confirmation and result lifecycle now lives in createarchivedialog_source.cpp,
+beside its existing source input/output adapter; the constructor retains form
+assembly and initialization. Snapshot-aware public accessors are implemented
+with their owning transaction rather than in the header. No new interface,
+source algorithm, dependency or external import is introduced.
+
+The existing validation order, failure/Cancel persistence rules and accepted
+snapshot are preserved. Source Auto level remains distinct from the effective
+compression level; accepted output remains stable when an accepted-signal
+consumer changes widgets. Existing source_compress_dialog,
+compression_preferences, compression_encryption and compression_error_policy
+suites exercise these observable contracts and their native consumers. No
+structural test is added for this ownership change.
+All four focused suites passed on Linux; other platforms and new visual
+acceptance were outside this nonvisual change.
