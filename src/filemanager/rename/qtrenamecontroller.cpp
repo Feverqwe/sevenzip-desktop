@@ -13,7 +13,8 @@ namespace {
 // Qt equivalent of rejecting the native LV_DISPINFO edit without a reload.
 void rejectLabelEdit(CPanel &panel, QTableView &view, UInt32 sourceIndex) {
     for (int row = 0; row < view.model()->rowCount(); ++row)
-        if (view.model()->index(row, 0).data(Qt::UserRole + 6).toUInt() == sourceIndex) {
+        if (view.model()->index(row, 0).data(QtPanelList::SourceIndexRole).toUInt() ==
+            sourceIndex) {
             view.model()->setData(view.model()->index(row, 0),
                                   ToQString(panel.GetItemName(sourceIndex)), Qt::EditRole);
             break;
@@ -77,9 +78,9 @@ void QtRenameController::Begin(int row) {
         row >= window_.projectedUi().table->rowCount() || panel.OnBeginLabelEdit(row))
         return;
     const QModelIndex item = window_.projectedUi().table->model()->index(row, 0);
-    if (!item.isValid() || item.data(Qt::UserRole + 6).isNull())
+    if (!item.isValid() || item.data(QtPanelList::SourceIndexRole).isNull())
         return;
-    const quint32 sourceIndex = item.data(Qt::UserRole + 6).toUInt();
+    const quint32 sourceIndex = item.data(QtPanelList::SourceIndexRole).toUInt();
     auto *view = window_.projectedUi().viewStack->currentWidget() == window_.projectedUi().iconList
                      ? static_cast<QAbstractItemView *>(window_.projectedUi().iconList)
                      : static_cast<QAbstractItemView *>(window_.projectedUi().table);

@@ -1,5 +1,23 @@
 # Файловая панель: Qt Model/View — 2026-10-24
 
+## Shared row-data role names — 2026-11-05
+
+Reviewed the model's row roles with selection/source-index lookup, rename,
+drag target lookup/highlighting, painting and language-reload consumers. Native
+GetRealItemIndex/GetItemParam still own provider-index lookup through the Qt list
+adapter. Complete original PanelItems.cpp and Windows/Control/ListView.cpp/.h
+hashes match the existing baseline at
+`b88c6bc09339de32f7d18bbab900686b244f42ba`; no native algorithm or imported scope
+changes.
+
+The list adapter now names its row-data roles together. Producers and consumers
+use those shared names in place of independent numeric expressions. Existing
+role values, QVariant data, parent-index handling, legacy missing-index fallback,
+model notifications and native selection/operation dispatch are preserved.
+This introduces no model, controller, conversion layer or runtime state. Existing
+selection, cell-text, rename, drag/drop and live-language regressions exercise the
+contract; no test pins the new names or enum layout.
+
 ## Shared table/icon input connections — 2026-11-05
 
 Reviewed native click/activation dispatch and the complete OnLeftClick body,

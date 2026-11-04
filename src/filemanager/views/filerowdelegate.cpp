@@ -1,3 +1,4 @@
+#include "filemanager/panels/qtpanellist.h"
 #include "filemanager/views/filetable.h"
 #include "ui/theme/qtsemanticcolors.h"
 #include <QEvent>
@@ -74,7 +75,7 @@ class FileRowDelegate final : public QStyledItemDelegate {
                 list->style()->pixelMetric(QStyle::PM_FocusFrameHMargin, &option, list);
             option.rect.adjust(margin, 0, -margin, 0);
         }
-        if (index.data(Qt::UserRole + 19).toBool())
+        if (index.data(QtPanelList::DropHighlightedRole).toBool())
             option.state |= QStyle::State_Selected;
         const QVariant foreground = index.data(Qt::ForegroundRole);
         if (foreground.isValid())

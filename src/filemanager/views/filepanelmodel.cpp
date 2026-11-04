@@ -30,17 +30,17 @@ QVariant FilePanelModel::data(const QModelIndex &index, int role) const {
     const bool readable = bound && panel->ShouldProcessNotifications();
     const bool parent = row.sourceIndex == quint32(-1);
     switch (role) {
-    case Qt::UserRole:
+    case QtPanelList::OperationPathRole:
         return row.operationPath;
-    case Qt::UserRole + 1:
+    case QtPanelList::DirectoryRole:
         return row.directory;
-    case Qt::UserRole + 3:
+    case QtPanelList::NameRole:
         return row.name;
-    case Qt::UserRole + 5:
+    case QtPanelList::PrefixRole:
         return row.prefix;
-    case Qt::UserRole + 6:
+    case QtPanelList::SourceIndexRole:
         return row.sourceIndex;
-    case Qt::UserRole + 19:
+    case QtPanelList::DropHighlightedRole:
         return row.dropHighlighted;
     case QtPanelList::MarkedRole:
         return row.marked;
@@ -68,7 +68,7 @@ QVariant FilePanelModel::data(const QModelIndex &index, int role) const {
             }
         }
         return {};
-    case Qt::UserRole + 2:
+    case QtPanelList::SortValueRole:
         if (parent)
             return {};
         if (column == 6)
@@ -145,7 +145,7 @@ bool FilePanelModel::setData(const QModelIndex &index, const QVariant &value, in
     case Qt::ToolTipRole:
         row.toolTip = value.toString();
         break;
-    case Qt::UserRole + 3:
+    case QtPanelList::NameRole:
         row.name = value.toString();
         row.text.clear();
         break;
@@ -156,7 +156,7 @@ bool FilePanelModel::setData(const QModelIndex &index, const QVariant &value, in
         firstColumn = 0;
         lastColumn = columnCount() - 1;
         break;
-    case Qt::UserRole + 19:
+    case QtPanelList::DropHighlightedRole:
         if (row.dropHighlighted == value.toBool())
             return true;
         row.dropHighlighted = value.toBool();

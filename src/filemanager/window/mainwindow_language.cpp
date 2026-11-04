@@ -41,7 +41,7 @@ void MainWindow::reloadLangItems() {
         }
         for (int row = 0; row < files->rowCount(); ++row) {
             const QModelIndex index = files->model()->index(row, 0);
-            if (index.data(Qt::UserRole + 6).toUInt() == UInt32(-1))
+            if (index.data(QtPanelList::SourceIndexRole).toUInt() == UInt32(-1))
                 files->model()->setData(
                     index, QCoreApplication::translate("mainwindow_language", "Parent folder"),
                     Qt::ToolTipRole);
@@ -58,11 +58,12 @@ void MainWindow::reloadLangItems() {
                     const QModelIndex item = table->model()->index(row, 0);
                     NWindows::NCOM::CPropVariant name;
                     if (static_cast<IFolderFolder *>(root)->GetProperty(
-                            item.data(Qt::UserRole + 6).toUInt(), kpidName, &name) == S_OK &&
+                            item.data(QtPanelList::SourceIndexRole).toUInt(), kpidName, &name) ==
+                            S_OK &&
                         name.vt == VT_BSTR) {
                         const QString nativeName = QString::fromWCharArray(name.bstrVal);
                         table->model()->setData(item, QVariant(), Qt::DisplayRole);
-                        table->model()->setData(item, nativeName, Qt::UserRole + 3);
+                        table->model()->setData(item, nativeName, QtPanelList::NameRole);
                     }
                 }
                 table->setSortingEnabled(sorting);

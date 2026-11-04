@@ -118,7 +118,7 @@ int QtFileManagerDrag::FolderAtPoint(unsigned i, int x, int y, UString &name) co
         view->indexAt(view->viewport()->mapFromGlobal(QPoint(x, y))).siblingAtColumn(0);
     if (!index.isValid())
         return -1;
-    const UInt32 real = index.data(Qt::UserRole + 6).toUInt();
+    const UInt32 real = index.data(QtPanelList::SourceIndexRole).toUInt();
     if (real == UInt32(-1) || !window_.app_.Panels[i].IsItem_Folder(real))
         return -1;
     name = window_.app_.Panels[i].GetItemName(real);

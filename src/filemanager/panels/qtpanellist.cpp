@@ -15,7 +15,7 @@ bool QtPanelList::IsItemSelected(int row) const {
 }
 UString QtPanelList::GetItemName(unsigned row) const {
     const QModelIndex index = view_->model()->index((int)row, 0);
-    const QVariant name = index.data(Qt::UserRole + 3);
+    const QVariant name = index.data(NameRole);
     return ToUString(name.isValid() ? name.toString() : index.data().toString());
 }
 QString QtPanelList::GetItemRelPath(unsigned row) const {
@@ -27,7 +27,7 @@ bool QtPanelList::GetItemParam(unsigned row, quintptr &param) const {
     const QModelIndex index = view_->model()->index(int(row), 0);
     if (!index.isValid())
         return false;
-    const QVariant value = index.data(Qt::UserRole + 6);
+    const QVariant value = index.data(SourceIndexRole);
     if (!value.isValid()) {
         param = row; // Fixtures/legacy snapshots without an explicit source param.
         return true;
@@ -83,7 +83,7 @@ void QtPanelList::SetItemState_DropHighlighted(QAbstractItemView *view, int row,
     if (!view || !view->model() || row < 0 || row >= view->model()->rowCount())
         return;
     for (int column = 0; column < view->model()->columnCount(); ++column)
-        view->model()->setData(view->model()->index(row, column), highlighted, Qt::UserRole + 19);
+        view->model()->setData(view->model()->index(row, column), highlighted, DropHighlightedRole);
 }
 void QtPanelList::SetFocusedItem(int row) {
     view_->selectionModel()->setCurrentIndex(view_->model()->index(row, 0),
