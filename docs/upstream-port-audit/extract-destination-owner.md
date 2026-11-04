@@ -1,5 +1,35 @@
 # Extract destination preparation — 2026-11-01
 
+## Native memory and spill stream owner — 2026-11-04
+
+Reviewed the complete original ExtractCallback.cpp/.h memory/spill stream,
+record initialization and closing paths, source panel nested-open consumers and
+current backend/progress integration at recorded revision
+`b88c6bc09339de32f7d18bbab900686b244f42ba`. Full original cpp/header hashes
+match the existing baseline.
+
+CGrowBuf, CVirtFile and CVirtFileSystem now share the focused
+`archive/resources/virtualextractfilesystem` interface and implementation in
+the same sevenzip_panel target. Their complete bodies are unchanged, including
+memory limits, allocation fallback, sanitized disk names, alternate-stream and
+zone handling, time/attribute restoration and close behavior. The extraction
+callback retains record construction, progress, password and overwrite policy;
+its header needs only the stream declaration. The source panel and tests include
+the focused stream interface directly. Existing non-SFX guards, APIs, stream
+ownership and backend/native decoding remain unchanged. No code is imported and
+no original hashes or revisions advance.
+
+Focused Linux validation passed extract_prompt, source_extract_backend and
+archive_external_lifetime: 49 Qt checks, no failures or skips. Existing tests
+exercise binary bytes in memory and after forced spill, corrected Unicode disk
+names, native extraction/nested opening, failed output, cancellation and retained
+external-file lifetimes. No test was added solely for this extraction of an
+implementation owner. Platform branches and the existing target/file options
+are unchanged; Windows/macOS validation and new visual parity are not claimed.
+Completed test settings and five ownership records whose roots no longer
+existed were removed after checking active processes. Incremental builds and
+compiler caches were retained.
+
 ## Open-archive extraction workflow owner — 2026-11-04
 
 The window's complete open-archive extraction bridge now lives in

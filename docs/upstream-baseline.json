@@ -1575,6 +1575,8 @@
     "src/archive/resources/qtextractpathpolicy.h",
     "src/archive/resources/qtfilesystemreadprompt.cpp",
     "src/archive/resources/qtfilesystemreadprompt.h",
+    "src/archive/resources/virtualextractfilesystem.cpp",
+    "src/archive/resources/virtualextractfilesystem.h",
     "src/archive/sfx/archivesfxmodule.cpp",
     "src/archive/sfx/archivesfxmodule.h",
     "src/benchmark/qtbenchmarkcontrols.cpp",
@@ -3522,7 +3524,8 @@
     "src/filemanager/ExtractCallback.cpp": {
       "local": [
         "src/archive/diagnostics/archiveerrormessages.cpp",
-        "src/archive/diagnostics/archiveerrormessages.h"
+        "src/archive/diagnostics/archiveerrormessages.h",
+        "src/archive/resources/virtualextractfilesystem.cpp"
       ],
       "symbols": [
         "SetExtractErrorMessage",
@@ -3531,7 +3534,9 @@
         "k_ErrorFlagsIds",
         "AddNewLineString",
         "ErrorInfo_Print",
-        "GetBracedType"
+        "GetBracedType",
+        "CVirtFileSystem::Write",
+        "CVirtFileSystem::FlushToDisk"
       ]
     },
     "src/filemanager/FM.cpp": {
@@ -3832,6 +3837,16 @@
       "symbols": [
         "ExecuteFileCommand (adapted declaration)",
         "OnMenuCommand (adapted declaration)"
+      ]
+    },
+    "src/filemanager/ExtractCallback.h": {
+      "local": [
+        "src/archive/resources/virtualextractfilesystem.h"
+      ],
+      "symbols": [
+        "CGrowBuf",
+        "CVirtFile",
+        "CVirtFileSystem"
       ]
     }
   },

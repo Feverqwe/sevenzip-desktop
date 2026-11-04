@@ -11,6 +11,7 @@
 
 #include "gui/HashGUI.h"
 
+#include "archive/resources/virtualextractfilesystem.h"
 #include "filemanager/ExtractCallback.h"
 #include "filemanager/UpdateCallback100.h"
 #include "filemanager/panels/Panel.h"

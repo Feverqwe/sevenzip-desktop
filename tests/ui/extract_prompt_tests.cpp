@@ -1,4 +1,5 @@
 #include "archive/operations/ZipRegistry.h"
+#include "archive/resources/virtualextractfilesystem.h"
 #include "dialogs/mem/MemDialog.h"
 #include "dialogs/messages/MessagesDialog.h"
 #include "dialogs/overwrite/OverwriteDialog.h"
