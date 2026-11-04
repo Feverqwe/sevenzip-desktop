@@ -26,6 +26,7 @@ class QtArchiveMountManager final : public QDialog {
     QAction *remove_;
     bool closingOwner_ = false;
     const Session *selected() const;
+    void bindSession(QtArchiveMountSession &session);
     void refresh();
     void updateDetails();
     void unmountSelected(bool force);
