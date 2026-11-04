@@ -1,0 +1,5 @@
+if(WIN32)
+    set(sevenzip_external_process_source src/platform/process/qtexternalprocess_win.cpp)
+else()
+    set(sevenzip_external_process_source src/platform/process/qtexternalprocess_posix.cpp)
+endif()

@@ -540,3 +540,33 @@ that header explicitly. No new test was needed for the source move. Existing
 incremental builds, four jobs and compiler caches were retained; completed
 settings and registry records for absent fixture objects were removed. No full,
 slow or macOS acceptance, screenshots or visual-parity claim is added.
+
+## Native process platform ownership — 2026-11-04
+
+Reviewed the native process interfaces, complete Windows/POSIX adapters,
+associated editor callers, child tracker, preallocated reaper and launch/update/
+shutdown ownership against the existing source comparisons above. Windows
+CProcess/Toolhelp and POSIX spawn/wait/identity implementations are now complete
+platform variants in the same process module. Its build definition selects one
+variant for both the application component and allocation/snapshot fixtures;
+the shared interface and component dependencies are unchanged.
+
+The variants preserve their previous selected bodies, including native argument
+construction, PID/start-time identity, process-group lineage, partial-launch
+handle retention, ownership before metadata allocation and detached launch.
+The original CChildProcesses/MyThreadFunction wait/update policy, archive
+publication and temporary-copy protection remain unchanged. No algorithm,
+external import, baseline revision or new process policy is introduced.
+Existing external_launch/archive_external_lifetime and allocation checks cover
+real child launches, argument boundaries, failure retention and shutdown;
+Windows process_snapshot also covers its native creation-time correction.
+No test is added to enforce source filenames or conditional structure.
+
+Focused checks passed on Linux and macOS (external launch/lifetime and POSIX
+allocation handoff), and Windows (external launch/lifetime, handle allocation
+and snapshot). The first macOS archive fixtures lacked the console runtime;
+normal codec-only preparation restored it, then only those two suites were
+repeated. Platform bodies also match an independent unifdef projection of the
+previous source. Incremental outputs, compiler caches and prepared runtime were
+retained; completed settings and records for absent test objects were removed.
+No full/slow or visual acceptance was run.

@@ -1,3 +1,4 @@
+#include "platform/process/qtchildprocessreaper.h"
 #include "platform/process/qtexternalprocess.h"
 #include "settings/ViewSettings.h"
 #include <QDir>
@@ -6,14 +7,9 @@
 #include <QHash>
 #include <QProcess>
 #include <QVector>
+#include <cerrno>
 #include <memory>
 #include <optional>
-#ifdef Q_OS_WIN
-#include "Windows/ProcessUtils.h"
-#include <TlHelp32.h>
-#else
-#include "platform/process/qtchildprocessreaper.h"
-#include <cerrno>
 #include <spawn.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -24,60 +20,8 @@
 #else
 extern char **environ;
 #endif
-#endif
 
 namespace {
-#ifdef Q_OS_WIN
-UString NativeParameters(const UString &parameters, const UStringVector &paths) {
-    UString result = parameters;
-    FOR_VECTOR(i, paths) {
-        if (!result.IsEmpty() && result.Back() != ' ')
-            result.Add_Space();
-        result.Add_Char('"');
-        result += paths[i];
-        result.Add_Char('"');
-    }
-    return result;
-}
-
-std::optional<FILETIME> ProcessCreationTime(UInt32 id) {
-    NWindows::CProcess process;
-    FILETIME created{}, exited{}, kernel{}, user{};
-    if (!process.Open(PROCESS_QUERY_LIMITED_INFORMATION, false, id) ||
-        !process.GetTimes(&created, &exited, &kernel, &user))
-        return std::nullopt;
-    return created;
-}
-
-class CWinProcessHandle final : public IQtProcessHandle {
-    NWindows::CProcess _process;
-
-  public:
-    explicit CWinProcessHandle(HANDLE handle) { _process.Attach(handle); }
-    void Attach(HANDLE handle) { _process.Attach(handle); }
-    UInt32 Id() const override { return GetProcessId(const_cast<NWindows::CProcess &>(_process)); }
-    UString FileName() const override {
-        // Resolve the API without changing the SDK target inherited by source
-        // modules. This service needs the DOS path for retained-file comparison.
-        using QueryName = BOOL(WINAPI *)(HANDLE, DWORD, LPWSTR, PDWORD);
-        const auto queryName = Z7_GET_PROC_ADDRESS(QueryName, ::GetModuleHandleA("kernel32.dll"),
-                                                   "QueryFullProcessImageNameW");
-        wchar_t name[32768];
-        DWORD size = 32768;
-        if (!queryName || !queryName(const_cast<NWindows::CProcess &>(_process), 0, name, &size))
-            return UString();
-        UString result;
-        result.SetFrom(name, size);
-        return result;
-    }
-    QtProcessStatus Status() override {
-        const DWORD result = WaitForSingleObject(_process, 0);
-        if (result == WAIT_TIMEOUT)
-            return QtProcessStatus::Running;
-        return result == WAIT_OBJECT_0 ? QtProcessStatus::Exited : QtProcessStatus::Error;
-    }
-};
-#else
 QStringList ProcessArguments(const UString &parameters, const UStringVector &paths) {
     QStringList arguments = QProcess::splitCommand(ToQString(parameters));
     FOR_VECTOR(i, paths) arguments.append(ToQString(paths[i]));
@@ -173,16 +117,9 @@ class CPidProcessHandle final : public IQtProcessHandle {
         return identity == _identity ? QtProcessStatus::Running : QtProcessStatus::Exited;
     }
 };
-#endif
 } // namespace
 
-UInt32 QtNativeProcessServices::CurrentProcessId() const {
-#ifdef Q_OS_WIN
-    return GetCurrentProcessId();
-#else
-    return UInt32(getpid());
-#endif
-}
+UInt32 QtNativeProcessServices::CurrentProcessId() const { return UInt32(getpid()); }
 
 void QtNativeProcessServices::GetSnapshot(CObjectVector<CSnapshotProcess> &items) {
     const CRecordVector<UInt32> roots;
@@ -192,42 +129,6 @@ void QtNativeProcessServices::GetSnapshot(CObjectVector<CSnapshotProcess> &items
 void QtNativeProcessServices::GetSnapshot(CObjectVector<CSnapshotProcess> &items,
                                           const CRecordVector<UInt32> &roots) {
     items.Clear();
-#ifdef Q_OS_WIN
-    const HANDLE snapshotHandle = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-    if (snapshotHandle == INVALID_HANDLE_VALUE)
-        return;
-    NWindows::CHandle snapshot;
-    snapshot.Attach(snapshotHandle);
-    PROCESSENTRY32W entry{};
-    entry.dwSize = sizeof(entry);
-    for (BOOL found = Process32FirstW(snapshot, &entry); found;
-         found = Process32NextW(snapshot, &entry)) {
-        CSnapshotProcess item;
-        item.Id = entry.th32ProcessID;
-        item.ParentId = entry.th32ParentProcessID;
-        item.Name = entry.szExeFile;
-        items.Add(item);
-    }
-    snapshot.Close();
-    // Toolhelp retains the creator's PID after it exits. A recycled PID can
-    // otherwise make an unrelated older process look like an editor child.
-    QHash<UInt32, std::optional<FILETIME>> creationTimes;
-    const auto creationTime = [&creationTimes](UInt32 id) {
-        auto found = creationTimes.constFind(id);
-        if (found == creationTimes.cend())
-            found = creationTimes.insert(id, ProcessCreationTime(id));
-        return found.value();
-    };
-    FOR_VECTOR(i, items) {
-        CSnapshotProcess &item = items[i];
-        if (!item.ParentId)
-            continue;
-        const auto child = creationTime(item.Id);
-        const auto parent = creationTime(item.ParentId);
-        if (child && parent && CompareFileTime(&*child, &*parent) < 0)
-            item.ParentId = 0;
-    }
-#else
     QVector<UInt32> ids;
 #ifdef Q_OS_MACOS
     const int count = proc_listallpids(nullptr, 0);
@@ -259,16 +160,9 @@ void QtNativeProcessServices::GetSnapshot(CObjectVector<CSnapshotProcess> &items
             items.Add(item);
         }
     }
-#endif
 }
 
 IQtProcessHandle *QtNativeProcessServices::OpenProcess(UInt32 id) {
-#ifdef Q_OS_WIN
-    NWindows::CProcess process;
-    if (!process.Open(SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION, false, id))
-        return nullptr;
-    return Adopt(process);
-#else
     CSnapshotProcess item;
     QByteArray identity;
     if (ReadProcessRecord(id, item, identity) != QtProcessStatus::Running)
@@ -276,49 +170,13 @@ IQtProcessHandle *QtNativeProcessServices::OpenProcess(UInt32 id) {
     auto handle = std::make_unique<CPidProcessHandle>();
     handle->Attach(id, item.Name, identity);
     return handle.release();
-#endif
 }
-
-#ifdef Q_OS_WIN
-IQtProcessHandle *QtNativeProcessServices::Adopt(NWindows::CProcess &process) {
-    return (HANDLE)process ? new CWinProcessHandle(process.Detach()) : nullptr;
-}
-
-HRESULT
-QtNativeProcessServices::StartNative(const std::function<HRESULT(NWindows::CProcess &)> &start,
-                                     IQtProcessHandle *&process) {
-    process = nullptr;
-    auto owner = std::make_unique<CWinProcessHandle>(nullptr);
-    NWindows::CProcess native;
-    HRESULT result;
-    try {
-        result = start(native);
-    } catch (...) {
-        result = E_OUTOFMEMORY;
-    }
-    // Preserve a launched process even if its source launcher reported failure.
-    if ((HANDLE)native) {
-        owner->Attach(native.Detach());
-        process = owner.release();
-    }
-    return result;
-}
-#endif
 
 HRESULT QtNativeProcessServices::Create(const UString &program, const UString &parameters,
                                         const UStringVector &paths, IQtProcessHandle *&process) {
     process = nullptr;
     if (program.IsEmpty())
         return E_FAIL;
-#ifdef Q_OS_WIN
-    const UString param = NativeParameters(parameters, paths);
-    return StartNative(
-        [&](NWindows::CProcess &native) {
-            const WRes result = native.Create(program, param, nullptr);
-            return result == 0 ? S_OK : HRESULT_FROM_WIN32(result);
-        },
-        process);
-#else
     auto handle = std::make_unique<CPidProcessHandle>();
     handle->Attach(0, program, QByteArray());
     handle->PrepareReaper();
@@ -364,7 +222,6 @@ HRESULT QtNativeProcessServices::Create(const UString &program, const UString &p
         return E_OUTOFMEMORY;
     }
     process = handle.release();
-#endif
     return S_OK;
 }
 
@@ -372,11 +229,6 @@ HRESULT QtNativeProcessServices::CreateDetached(const UString &program, const US
                                                 const UStringVector &paths) {
     QProcess process;
     process.setProgram(ToQString(program));
-#ifdef Q_OS_WIN
-    // Preserve original CreateProcess parameter-string interpretation on Windows.
-    process.setNativeArguments(ToQString(NativeParameters(parameters, paths)));
-#else
     process.setArguments(ProcessArguments(parameters, paths));
-#endif
     return process.startDetached() ? S_OK : E_FAIL;
 }

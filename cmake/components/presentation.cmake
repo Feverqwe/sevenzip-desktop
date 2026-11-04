@@ -41,6 +41,8 @@ target_include_directories(sevenzip_text_report PUBLIC src)
 target_link_libraries(sevenzip_text_report PUBLIC Qt6::Widgets)
 set_target_properties(sevenzip_text_report PROPERTIES AUTOMOC OFF AUTOUIC OFF)
 
+include(${PROJECT_SOURCE_DIR}/src/platform/process/module.cmake)
+
 add_library(sevenzip_panel
     STATIC
     src/filemanager/SplitUtils.cpp
@@ -150,7 +152,7 @@ add_library(sevenzip_panel
     src/fileops/links/qtverctrlfileservices.h
     src/platform/associations/qtassociatedfileservices.cpp
     src/platform/associations/qtassociatedfileservices.h
-    src/platform/process/qtexternalprocess.cpp
+    ${sevenzip_external_process_source}
     src/platform/process/qtexternalprocess.h
     src/operations/qtexternalguicall.cpp
     src/operations/qtexternalguicall.h
