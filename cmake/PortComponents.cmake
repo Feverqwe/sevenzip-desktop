@@ -58,6 +58,7 @@ sevenzip_add_port_component(sevenzip_main_window src/filemanager/window/mainwind
     src/filemanager/window/mainwindow_filelist.cpp
     src/filemanager/window/mainwindow_fileoperations.cpp
     src/filemanager/window/mainwindow_filesystemlisting.cpp
+    src/filemanager/window/mainwindow_filesystemscan.cpp
     src/filemanager/window/mainwindow_language.cpp
     src/filemanager/window/mainwindow_menus.cpp
     src/filemanager/window/mainwindow_panel.cpp

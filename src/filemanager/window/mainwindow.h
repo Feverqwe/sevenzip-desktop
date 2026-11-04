@@ -164,6 +164,11 @@ class MainWindow : public QMainWindow {
     void createPanelActions(QMenu *editMenu);
     void createIconList(QWidget *central);
     void connectFilesystemScanner();
+    void filesystemScanFolderReady(unsigned index, IFolderFolder *folder);
+    void filesystemScanBatchReady(unsigned index, quint32 firstSourceIndex, quint32 count);
+    void filesystemScanAdvanced(unsigned index, quint64 count);
+    void filesystemScanCompleted(unsigned index);
+    void filesystemScanFailed(unsigned index, qint32 result);
     void cancelListPublication();
     void failFilesystemListing(HRESULT result);
     void connectBackend();
