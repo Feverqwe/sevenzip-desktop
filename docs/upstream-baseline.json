@@ -1688,6 +1688,7 @@
     "src/dialogs/extract/alias.h",
     "src/filemanager/external/qtexternalapplications.cpp",
     "src/filemanager/external/qtexternalapplications.h",
+    "src/filemanager/panels/PanelAddress.cpp",
     "src/filemanager/panels/PanelFolderOperations.cpp",
     "src/filemanager/panels/PanelFolderOperations.h",
     "src/filemanager/panels/PanelProperties.cpp",
@@ -3526,6 +3527,20 @@
         "GetNormalizedError",
         "kBufSize",
         "CApp::CalculateCrc2 -> CalculateFileCrc filesystem worker setup"
+      ]
+    },
+    "src/filemanager/panels/PanelFolderChange.cpp": {
+      "local": [
+        "src/filemanager/panels/PanelAddress.cpp"
+      ],
+      "symbols": [
+        "GetRealIconIndex_for_DirPath",
+        "Find_FileExtension_DotPos_in_path",
+        "CPanel::LoadFullPathAndShow",
+        "CPanel::OnNotifyComboBoxEnter",
+        "CPanel::OnNotifyComboBoxEndEdit",
+        "CPanel::AddComboBoxItem",
+        "CPanel::OnComboBoxCommand"
       ]
     },
     "src/filemanager/panels/PanelItemOpen.cpp": {

@@ -418,3 +418,35 @@ panel_filesystem_sort and panel_archive_sort: 69 checks, no skips. Build
 native input and rendered parity were not newly validated. Removed two completed
 settings fixtures; other selected scratch was empty. Incremental builds and
 compiler caches retained, no full/slow gate or new reports/screenshots.
+## Panel address implementation owner — 2026-11-04
+
+The complete address presentation and edit-handler implementation is separated
+from folder binding into `panels/PanelAddress.cpp`, within the existing panel
+target. `CPanel` retains its methods and state; the Qt address widget still owns
+control services, signal delivery and deferred focus. No new controller, cache,
+navigation policy or target is introduced. Folder opening, parent/archive-link
+transitions, bookmarks and history remain in their existing implementation.
+
+Moved native helpers and methods preserve the current path/icon decisions,
+hierarchy ordering, archive boundaries, drive and namespace entries, selection
+bounds, Enter/Escape handling and successful-navigation focus behavior. Their
+bodies are unchanged apart from formatting and redundant function declarations
+now supplied by the existing root-folder header. Existing Qt adaptations for
+mounts, namespace icons and asynchronous focus remain unchanged; no branch or
+dependency is omitted in this extraction.
+
+Source comparison covered complete original PanelFolderChange.cpp address
+bodies, Panel.h state/declarations, Panel.cpp control construction and notification
+delivery, root-folder declarations and current Qt callers. All four complete
+original units match the recorded hashes at
+`9128b80e3a471108678e2b3ec3c985861c8d7b0f` from
+<https://github.com/ip7z/7zip.git>. The existing baseline maps transferred symbols
+to their new local owner; original bytes, revision and licenses are retained.
+
+Focused Linux validation passed address_combo, address_navigation,
+address_lifetime and panel_address_keys: 97 checks without skips. Existing
+regressions cover Unicode/spaces, archive hierarchy, stale paths, both panels,
+keyboard handling, rejected navigation and pending-focus teardown. No new test
+of implementation layout is added. The extraction preserves native OS branches
+and widget geometry; no secondary-platform or new appearance acceptance is
+claimed. Checks reused incremental builds, compiler cache and four jobs.

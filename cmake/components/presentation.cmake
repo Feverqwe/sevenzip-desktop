@@ -199,6 +199,7 @@ add_library(sevenzip_panel
     src/settings/FoldersPage.cpp
     src/settings/FoldersPage.h
     src/filemanager/panels/PanelFolderChange.cpp
+    src/filemanager/panels/PanelAddress.cpp
     src/filemanager/panels/PanelMenu.cpp
     src/filemanager/panels/PanelProperties.cpp
     src/filemanager/PropertyName.cpp
