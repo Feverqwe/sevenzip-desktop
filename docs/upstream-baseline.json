@@ -1798,6 +1798,7 @@
     "src/fileops/scanner/filesystemscanner.h",
     "src/fileops/transfer/filetransferoperation.cpp",
     "src/fileops/transfer/filetransferoperation.h",
+    "src/fileops/transfer/qtfiletransfercopy.cpp",
     "src/fileops/transfer/qtfiletransfercopycallback.cpp",
     "src/fileops/transfer/qtfiletransfercopycallback.h",
     "src/fileops/transfer/qtfiletransfertransaction.cpp",

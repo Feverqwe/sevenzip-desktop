@@ -6,11 +6,9 @@
 #include "filemanager/providers/FSFolder.h"
 #include "fileops/links/qtlinkservices.h"
 #include "fileops/transfer/filetransferoperation.h"
-#include "fileops/transfer/qtfiletransfercopycallback.h"
 #include "localization/qtlanguageservices.h"
 
 #include <QDir>
-#include <QDirIterator>
 #include <QFile>
 #include <QFileInfo>
 #include <QScopeGuard>
@@ -33,147 +31,6 @@ OverwriteQuestion QtFileTransferTransaction::snapshot(const OverwriteSource &sou
 
 bool QtFileTransferTransaction::removeEntry(const QString &path) {
     return QtRemoveFileSystemEntry(path);
-}
-
-bool QtFileTransferTransaction::validateEntry(const QString &source, QString *error) {
-    if (worker_.canceled_) {
-        *error = QCoreApplication::translate("qtfiletransfertransaction", "Operation canceled.");
-        return false;
-    }
-    const QFileInfo info(source);
-    if (QtIsFileSystemLink(source))
-        return true;
-    if (!info.exists() || (!info.isFile() && !info.isDir())) {
-        *error = QCoreApplication::translate("qtfiletransfertransaction", "Source unavailable: %1")
-                     .arg(source);
-        return false;
-    }
-    if (!info.isDir())
-        return true;
-    const QFileInfoList children = QDir(source).entryInfoList(
-        QDir::AllEntries | QDir::NoDotAndDotDot | QDir::Hidden | QDir::System);
-    for (const QFileInfo &child : children) {
-        if (!validateEntry(child.absoluteFilePath(), error))
-            return false;
-    }
-    return true;
-}
-
-bool QtFileTransferTransaction::copyEntry(const QString &source, const QString &target,
-                                          QString *error, bool reportProgress) {
-    NFsFolder::CCopyState state;
-    quint64 previous = 0;
-    state.Progress = [this, &previous, reportProgress](quint64 completed) {
-        if (reportProgress && completed != previous)
-            emit worker_.advanced(qint64(completed - previous));
-        previous = completed;
-        return !worker_.canceled_;
-    };
-    if (reportProgress)
-        state.CurrentFile = [this](const QString &path) { emit worker_.currentFile(path); };
-    if (!state.CallProgress()) {
-        *error = state.ErrorMessage;
-        return false;
-    }
-    const QFileInfo info(source);
-    const bool copied = info.isDir() && !QtIsFileSystemLink(source)
-                            ? NFsFolder::CopyFolder(state, source, target)
-                            : NFsFolder::CopyFile_Ask(state, source, info, target);
-    *error = state.ErrorMessage;
-    return copied;
-}
-
-bool QtFileTransferTransaction::mergeEntry(
-    const QString &source, const QString &stage, const QString &target,
-    const std::function<int(const OverwriteSource &)> &answer, QStringList *writtenSources,
-    QString *error) {
-    CFileTransferCopyCallback callback(
-        [this, &answer, &stage, &target](const OverwriteQuestion::File &incoming,
-                                         const QString &requested, QString &effective,
-                                         bool &write) -> HRESULT {
-            if (worker_.canceled_)
-                return E_ABORT;
-            const QFileInfo existing(requested);
-            if (existing.isSymLink() || (existing.exists() && !existing.isFile()))
-                return E_ABORT;
-            if (existing.exists()) {
-                const QString visible = target + requested.mid(stage.size());
-                const int decision = answer({requested, visible, incoming});
-                if (decision == NOverwriteAnswer::kNo || decision == NOverwriteAnswer::kNoToAll) {
-                    write = false;
-                    return S_OK;
-                }
-                if (decision == NOverwriteAnswer::kAutoRename) {
-                    FString renamed = us2fs(requested.toStdWString().c_str());
-                    if (!AutoRenamePath(renamed))
-                        return E_ABORT;
-                    effective = QString::fromWCharArray(fs2us(renamed));
-                } else if (decision == NOverwriteAnswer::kYes ||
-                           decision == NOverwriteAnswer::kYesToAll) {
-                    if (!QFile::remove(requested))
-                        return E_ABORT;
-                } else {
-                    return E_ABORT;
-                }
-            }
-            write = true;
-            return S_OK;
-        },
-        [this](quint64 delta) {
-            if (delta)
-                emit worker_.advanced(qint64(delta));
-            return !worker_.canceled_;
-        },
-        [this](const QString &path) { emit worker_.currentFile(path); });
-    NFsFolder::CCopyState state;
-    state.Callback = &callback;
-    const bool merged = NFsFolder::CopyFolder(state, source, stage);
-    *writtenSources = callback.writtenSources;
-    *error = !state.ErrorMessage.isEmpty() ? state.ErrorMessage : callback.errorMessage;
-    if (!merged && error->isEmpty())
-        *error =
-            QCoreApplication::translate("qtfiletransfertransaction", "Could not merge folders: %1")
-                .arg(target);
-    return merged;
-}
-
-bool QtFileTransferTransaction::removeMergedSource(const QString &source,
-                                                   const QStringList &writtenSources,
-                                                   QString *error) {
-    for (const QString &path : writtenSources) {
-        if (worker_.canceled_) {
-            *error =
-                QCoreApplication::translate("qtfiletransfertransaction", "Operation canceled.");
-            return false;
-        }
-        if (!worker_.adapter_.removeSource(path)) {
-            *error = QCoreApplication::translate("qtfiletransfertransaction",
-                                                 "Could not delete source after copying: %1")
-                         .arg(path);
-            return false;
-        }
-    }
-    QStringList directories;
-    QDirIterator iterator(source, QDir::Dirs | QDir::NoDotAndDotDot | QDir::Hidden | QDir::System,
-                          QDirIterator::Subdirectories);
-    while (iterator.hasNext()) {
-        if (worker_.canceled_) {
-            *error =
-                QCoreApplication::translate("qtfiletransfertransaction", "Operation canceled.");
-            return false;
-        }
-        directories << iterator.next();
-    }
-    std::sort(directories.begin(), directories.end(),
-              [](const QString &a, const QString &b) { return a.size() > b.size(); });
-    for (const QString &directory : directories)
-        QDir().rmdir(directory);
-    QDir().rmdir(source); // Skipped files intentionally keep the source folder.
-    if (worker_.canceled_) {
-        *error = QCoreApplication::translate("qtfiletransfertransaction", "Operation canceled.");
-        return false;
-    }
-    return true;
 }
 
 QList<QtFileTransferTransaction::TransferPath>
