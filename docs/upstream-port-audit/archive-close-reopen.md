@@ -310,3 +310,37 @@ Close→ReOpen and retained-reader behavior passed. Build took 44.014s and tests
 8.602s; existing incremental outputs, four jobs and compiler caches were retained.
 Selected scratch was empty before and after the run. No native OS branch changed;
 secondary platforms, full/slow gates and visual acceptance were not selected.
+
+## Update/property service binding — 2026-11-04
+
+Reviewed the resource's update/property attachment and dispatch, native property
+transport, Agent SetProperties/CommonUpdate/DoOperation, backend writer overloads,
+comment selection and publication/reopen consumers. Complete original AgentOut.cpp
+and Common/Update.cpp hashes match the recorded baseline at
+`9128b80e3a471108678e2b3ec3c985861c8d7b0f` from the upstream repository above.
+Native writer, property, path-validation and publication algorithms are unchanged;
+no source is imported or provenance advanced.
+
+Update and property setters had one implementation each, separately captured in
+two callables with the same backend. The resource now retains one explicit weak
+backend binding and calls those implementations directly. Optional presence
+retains the distinction between an unconfigured service and an attached service
+whose backend has expired. Existing capability checks and E_FAIL on expiration
+are preserved. Reopen, extraction and progress retain their distinct callbacks.
+
+The update body still keeps its native writer lease within the inner call,
+between the existing stop checkpoints. Comment selection, compression options,
+explicit-property precedence and output-time reset keep their original order.
+An extended real ZIP regression retains its folder after destroying the backend,
+then checks failed property delivery and Rename without changing archive bytes
+or leaving temporary outputs. This exercises the service lifetime contract;
+no test inspects the private binding representation.
+
+Linux passed `codec_update`, `source_update_backend`, `native_comment`,
+`native_archive_properties` and `agent_stream_update`: 148 checks, no failures,
+with three existing filesystem-ADS rows skipped because they require Windows.
+The real retained-folder property/Rename checks passed. Incremental build took
+34.137s and tests 42.205s; configured four jobs and compiler caches were retained.
+Selected fixture directories were empty before and after validation. No native
+OS branch changed; no secondary platform, full/slow gate or appearance check
+was selected.

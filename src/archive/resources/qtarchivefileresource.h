@@ -35,8 +35,8 @@ class QtArchiveFileResource final : public IUnknown, public CMyUnknownImp {
     Z7_COM_UNKNOWN_IMP_0
     QString _temporary;
     std::shared_ptr<QtOwnedTempLease> _temporaryLease;
-    std::function<HRESULT(ISequentialOutStream *, IInArchive *, UInt32, IArchiveUpdateCallback *)>
-        _update;
+    // An attached service remains attached if its backend expires; calls then fail.
+    std::optional<QPointer<ArchiveBackend>> _updateBackend;
     CProgressSync *_sync = nullptr;
     std::function<HRESULT(IFolderFolder **, IArchiveOpenCallback *)> _reopen;
     std::function<HRESULT(IInArchive *, bool, const UInt32 *, UInt32, Int32,
@@ -59,8 +59,9 @@ class QtArchiveFileResource final : public IUnknown, public CMyUnknownImp {
     bool _nativeMetadata = false;
     bool _nativePropertiesExplicit = false;
     QString _filesystemReadLimitations;
-    std::function<HRESULT(const wchar_t *const *, const PROPVARIANT *, UInt32)> _setProperties;
     QString _nativeOpenType;
+    HRESULT UpdateNative(ISequentialOutStream *output, UInt32 count,
+                         IArchiveUpdateCallback *callback);
     HRESULT RefreshDeviceInput(IOpenCallbackUI *callback, QString *error = nullptr);
     HRESULT ReOpenArchive(const QPointer<ArchiveBackend> &backend, const QString &format,
                           IFolderFolder **metadata, IArchiveOpenCallback *callback);
