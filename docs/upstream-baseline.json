@@ -1712,6 +1712,7 @@
     "src/dialogs/compress/qtcompressoptionsdialog.h",
     "src/dialogs/copy/alias.h",
     "src/dialogs/extract/alias.h",
+    "src/dialogs/listview/qtlistviewdialogpresentation.cpp",
     "src/filemanager/AppCopy.cpp",
     "src/filemanager/ExtractCallbackOutput.cpp",
     "src/filemanager/external/qtexternalapplications.cpp",
@@ -3550,6 +3551,15 @@
         "NCompressDialog::NUpdateMode",
         "NCompressDialog::CInfo",
         "CCompressDialog (resource state and control results adapted as option records)"
+      ]
+    },
+    "src/dialogs/listview/ListViewDialog.cpp": {
+      "local": [
+        "src/dialogs/listview/qtlistviewdialogpresentation.cpp"
+      ],
+      "symbols": [
+        "CListViewDialog::OnInit",
+        "kOneStringMaxSize"
       ]
     },
     "src/dialogs/mem/MemDialog.cpp": {

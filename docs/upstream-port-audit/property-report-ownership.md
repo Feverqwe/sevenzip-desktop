@@ -1,5 +1,34 @@
 # Property report row metadata — 2026-10-31
 
+## Complete report/list Qt presentation — 2026-11-04
+
+Reviewed the complete original ListViewDialog.cpp/.h/.rc at
+`b88c6bc09339de32f7d18bbab900686b244f42ba` from
+<https://github.com/ip7z/7zip.git>, current property collectors and dialog
+initialization, live translation, full-value detail/clipboard, history editing
+and acceptance consumers. Original dialog implementation/header hashes match
+the existing baseline; no external code or revision is imported.
+
+Constructor, initialization, display normalization and Qt language-binding
+methods now live together in `qtlistviewdialogpresentation.cpp`, in the same
+panel component and dialog instance. Their bodies are unchanged. Native-style
+selection, clipboard/detail, deletion and key/acceptance handlers retain their
+existing implementation. The stable row-identity role is a private class
+constant shared by presentation and detail lookup; the row metadata remains
+owned once by the dialog.
+
+Source collectors, raw partial enumeration, values, truncation policy, group
+order, report/history buttons, focus, geometry and accepted-only history edits
+are unchanged. No extra controller, runtime state or representation test is
+introduced. Existing report, language, list and history behavior checks cover
+the complete interaction; the native Windows shell property-sheet route is
+unchanged and requires no new acceptance for this Qt separation.
+
+Linux `list_view_dialog`, `folder_history`, `properties` and `language_dialog`
+passed 46 checks without failures or skips. Platform adapters and visible
+layout/text are unchanged; no new Windows/macOS or rendered visual acceptance
+is claimed.
+
 ## Complete filesystem property provider — 2026-11-04
 
 Compared original FSFolder.cpp/.h property readers, comparison, directory

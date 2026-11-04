@@ -242,6 +242,7 @@ add_library(sevenzip_panel
     src/filemanager/AppState.h
     src/dialogs/listview/ListViewDialog.cpp
     src/dialogs/listview/ListViewDialog.h
+    src/dialogs/listview/qtlistviewdialogpresentation.cpp
     src/dialogs/edit/EditDialog.cpp
     src/dialogs/edit/EditDialog.h
     src/dialogs/combo/ComboDialog.cpp
