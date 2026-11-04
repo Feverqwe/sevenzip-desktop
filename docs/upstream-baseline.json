@@ -1772,6 +1772,7 @@
     "src/filemanager/window/mainwindow_close.cpp",
     "src/filemanager/window/mainwindow_columns.cpp",
     "src/filemanager/window/mainwindow_dialogs.cpp",
+    "src/filemanager/window/mainwindow_extraction.cpp",
     "src/filemanager/window/mainwindow_filelist.cpp",
     "src/filemanager/window/mainwindow_fileoperations.cpp",
     "src/filemanager/window/mainwindow_filesystemlisting.cpp",
