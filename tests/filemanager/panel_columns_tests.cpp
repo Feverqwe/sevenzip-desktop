@@ -1,6 +1,6 @@
+#include "7zip/PropID.h"
 #include "Windows/PropVariant.h"
 #include "filemanager/panels/Panel.h"
-#include "filemanager/panels/PanelSort.h"
 #include "filemanager/support/panel_model_support.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"

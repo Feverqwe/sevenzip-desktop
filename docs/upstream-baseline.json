@@ -1695,7 +1695,6 @@
     "src/filemanager/panels/PanelFolderOperations.h",
     "src/filemanager/panels/PanelProperties.cpp",
     "src/filemanager/panels/PanelSelect.h",
-    "src/filemanager/panels/PanelSort.h",
     "src/filemanager/panels/PanelSplitFile.h",
     "src/filemanager/panels/qtnativepanelkeys.cpp",
     "src/filemanager/panels/qtnativepanelkeys.h",
@@ -1748,6 +1747,8 @@
     "src/filemanager/qtprogramfilemenu.h",
     "src/filemanager/rename/qtrenamecontroller.cpp",
     "src/filemanager/rename/qtrenamecontroller.h",
+    "src/filemanager/sorting/filenamesort.cpp",
+    "src/filemanager/sorting/filenamesort.h",
     "src/filemanager/state/qtappoperationstate.cpp",
     "src/filemanager/state/qtappoperationstate.h",
     "src/filemanager/views/filepanelmodel.cpp",
@@ -3598,6 +3599,16 @@
         "kSpecProps",
         "kSeparator",
         "kSeparatorSmall"
+      ]
+    },
+    "src/filemanager/panels/PanelSort.cpp": {
+      "local": [
+        "src/filemanager/sorting/filenamesort.cpp",
+        "src/filemanager/sorting/filenamesort.h"
+      ],
+      "symbols": [
+        "CompareFileNames_ForFolderList",
+        "GetExtensionPtr"
       ]
     },
     "src/filemanager/panels/PanelOperations.cpp": {
@@ -9036,7 +9047,7 @@
     "CPP/7zip/Compress/BrotliDecoder.h": "src/codecs/brotli/BrotliDecoder.h",
     "CPP/7zip/Compress/ZstdEncoder.h": "src/codecs/zstd/ZstdEncoder.h",
     "CPP/7zip/UI/FileManager/PanelSelect.h": "src/filemanager/panels/PanelSelect.h",
-    "CPP/7zip/UI/FileManager/PanelSort.h": "src/filemanager/panels/PanelSort.h",
+    "CPP/7zip/UI/FileManager/PanelSort.h": "src/filemanager/sorting/filenamesort.h",
     "CPP/7zip/UI/FileManager/PanelSplitFile.h": "src/filemanager/panels/PanelSplitFile.h",
     "CPP/7zip/Archive/Iso/IsoZisofs.h": "src/formats/iso/IsoZisofs.h"
   },

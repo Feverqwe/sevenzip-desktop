@@ -12,9 +12,9 @@ if(WIN32)
     target_link_libraries(sevenzip_system_icons PUBLIC shell32 comctl32)
 endif()
 
-add_library(sevenzip_name_sort STATIC src/filemanager/panels/PanelSort.cpp)
+add_library(sevenzip_name_sort STATIC
+    src/filemanager/sorting/filenamesort.cpp src/filemanager/sorting/filenamesort.h)
 set_target_properties(sevenzip_name_sort PROPERTIES AUTOMOC OFF AUTOUIC OFF)
-target_compile_definitions(sevenzip_name_sort PRIVATE SEVENZIP_NAME_SORT_ONLY)
 target_include_directories(sevenzip_name_sort PUBLIC src)
 target_link_libraries(sevenzip_name_sort PUBLIC Qt6::Core sevenzip_common)
 
@@ -151,7 +151,6 @@ add_library(sevenzip_panel
     src/filemanager/providers/RootFolder.cpp
     src/filemanager/providers/RootFolder.h
     src/filemanager/panels/PanelSort.cpp
-    src/filemanager/panels/PanelSort.h
     src/ui/progress/archiveprogresstransport.cpp
     src/ui/progress/archiveprogresstransport.h
     src/ui/progress/qtprogresstransport.h

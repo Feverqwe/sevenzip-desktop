@@ -19,10 +19,10 @@
 
 #include "archive/agent/IFolderArchive.h"
 
-#include "filemanager/panels/PanelSort.h"
 #include "filemanager/providers/AltStreamsFolder.h"
 #include "filemanager/providers/FSDrives.h"
 #include "filemanager/providers/FSFolder.h"
+#include "filemanager/sorting/filenamesort.h"
 
 #include "filemanager/SysIconUtils.h"
 #include "ui/diagnostics/qtdiagnostictext.h"

@@ -450,3 +450,37 @@ keyboard handling, rejected navigation and pending-focus teardown. No new test
 of implementation layout is added. The extraction preserves native OS branches
 and widget geometry; no secondary-platform or new appearance acceptance is
 claimed. Checks reused incremental builds, compiler cache and four jobs.
+
+## Natural filename comparison owner — 2026-11-04
+
+Natural filename comparison and its UTF-16/QStringView adapters now belong to
+`filemanager/sorting/filenamesort.cpp/.h`, compiled by the existing
+`sevenzip_name_sort` target. PanelSort.cpp owns only panel property comparison,
+raw-property handling and sort state. Its split-build preprocessor branch and
+target definition are removed. Filesystem and archive providers and the view
+model use the focused comparison interface; consumers needing only property IDs
+include that owner directly. The existing native header alias follows the new
+interface location. Target relationships are unchanged.
+
+The moved comparison/extension bodies and remaining panel-sort bodies are
+unchanged. Native numeric runs, leading zeros, case conversion and Windows UTF-16
+ordering remain authoritative. Existing platform adapters, parent/folder grouping,
+raw-property comparison, property/name/prefix fallbacks, direction defaults,
+selection and persistent-index behavior are retained. This is an ownership and
+build-boundary change without a new comparator, sort policy or external import.
+
+Compared complete original PanelSort.cpp bodies, Panel.h state declarations and
+current provider/model/header-command callers. Both complete original units
+match the recorded baseline hashes at
+`9128b80e3a471108678e2b3ec3c985861c8d7b0f` from
+<https://github.com/ip7z/7zip.git>. The existing manifest maps transferred symbols
+to their new owner without advancing original hashes or revisions. Existing
+sort, column and name-rendering behavior tests are reused; no source-location,
+compile-definition or private-call-count test is introduced.
+
+Focused Linux validation passed panel_sort, panel_sort_commands, panel_columns,
+panel_column_sort, panel_name_text and native_column_workflow: 90 checks without
+skips. Builds reused incremental outputs, compiler cache and four jobs; completed
+temporary settings were removed. Platform branches and widget geometry are
+unchanged, so no secondary OS or new appearance acceptance is claimed. No full
+or slow gate was selected.

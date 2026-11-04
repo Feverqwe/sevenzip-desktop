@@ -17,7 +17,7 @@
 #include "archive/resources/qtarchivefileresource.h"
 #include "archive/resources/qtarchiveproperties.h"
 #include "devices/deviceaccess.h"
-#include "filemanager/panels/PanelSort.h"
+#include "filemanager/sorting/filenamesort.h"
 #include "fileops/native/FileDir.h"
 #include "settings/ViewSettings.h"
 #include <QScopeGuard>

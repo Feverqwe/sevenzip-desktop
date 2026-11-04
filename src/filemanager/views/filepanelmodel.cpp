@@ -1,7 +1,7 @@
 #include "filemanager/views/filepanelmodel.h"
 #include "Windows/PropVariant.h"
 #include "filemanager/panels/Panel.h"
-#include "filemanager/panels/PanelSort.h"
+#include "filemanager/sorting/filenamesort.h"
 #include "filemanager/views/filetable.h"
 #include "ui/theme/qtsemanticcolors.h"
 #include <QBrush>

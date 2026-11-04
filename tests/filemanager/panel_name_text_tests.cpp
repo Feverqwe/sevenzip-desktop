@@ -1,5 +1,5 @@
+#include "7zip/PropID.h"
 #include "archive/agent/Agent.h"
-#include "filemanager/panels/PanelSort.h"
 #include "filemanager/providers/FSFolder.h"
 #include "filemanager/support/panel_load_folder.h"
 #include "filemanager/support/panel_model_support.h"
