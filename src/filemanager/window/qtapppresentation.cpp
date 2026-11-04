@@ -127,10 +127,6 @@ CPanelCallback *QtAppPresentation::PanelCallback(unsigned) {
     return nullptr;
 }
 
-void QtAppPresentation::RefreshFolder(unsigned index) {
-    window_.withPanelProjection(index, [this] { window_.renderBoundFolder(); });
-}
-
 void QtAppPresentation::PrepareFolderChange(unsigned index) {
     window_.withPanelProjection(index, [this] {
         window_.cancelListPublication();

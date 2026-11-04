@@ -1,5 +1,36 @@
 # Файловая панель: Qt Model/View — 2026-10-24
 
+## Native reload owns complete peer-folder publication — 2026-11-05
+
+Compared complete original OnSetSameFolder/OnSetSubFolder bodies and the native
+RefreshListCtrl focus/selection completion with their current callers, reload
+adapter, scanner/publication and cancellation owners. Full App.cpp and
+PanelItems.cpp originals match the existing baseline at
+`b88c6bc09339de32f7d18bbab900686b244f42ba` from
+<https://github.com/ip7z/7zip.git>. No source is imported or revision advanced;
+binding, parent/refusal branches, shared archive providers and native selection
+algorithms remain intact.
+
+Peer synchronization now publishes through the existing RefreshListCtrl reload
+callback alone. The second Qt render after native refresh was rebuilding rows
+again, discarding the current item and restarting deferred publication. The
+unused RefreshFolder presentation service is removed. Preparation still cancels
+the replaced peer publication. BindToPathAndRefresh's retained scan uses the
+existing ContinueScanAfterSourceCall handoff after its synchronous guards return;
+subfolder refresh retains its existing unguarded caller boundary. No new worker,
+operation state or selection controller is introduced.
+
+The existing end-to-end synchronization suite now checks small/large same-folder
+and subfolder navigation from both panes, default current/selected row and usable
+Copy after focusing the peer. Archive-provider cases also retain a current row
+and remain usable after the source leaves. Existing parent, virtual root,
+disappearing-folder refusal, no-op, replacement and close cases remain covered.
+The regressions check visible selection and command behavior, not reload counts.
+
+Focused Linux validation passed: panel_folder_sync (22 Qt checks),
+panel_refresh_completion (84) and navigation_reload (22). No layout or native
+platform integration changes require additional appearance or platform acceptance.
+
 ## Complete window readiness and status publication — 2026-11-05
 
 Reviewed synchronous/asynchronous filesystem and archive publication, operation

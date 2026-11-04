@@ -61,7 +61,6 @@ class IQtAppPresentation {
     virtual bool IsSmallScreen() const { return false; }
     virtual bool CreatePanel(CPanel &panel, unsigned index) = 0;
     virtual CPanelCallback *PanelCallback(unsigned index) = 0;
-    virtual void RefreshFolder(unsigned) {}
     virtual void PrepareFolderChange(unsigned) {}
     virtual void ExecuteCopy(bool, bool, unsigned, const QString &, const CRecordVector<UInt32> &,
                              QtCopyRoute) {}
