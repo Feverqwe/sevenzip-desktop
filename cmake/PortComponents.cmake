@@ -74,6 +74,7 @@ sevenzip_add_port_component(sevenzip_main_window src/filemanager/window/mainwind
     src/filemanager/window/qtapppresentation.cpp
     src/filemanager/rename/qtrenamecontroller.cpp src/filemanager/rename/qtrenamecontroller.h
     src/filemanager/qtfilemanagercommands.cpp
+    src/filemanager/qtcommandavailability.cpp
     src/filemanager/qtcommandpublication.cpp
     src/filemanager/qtfilemanagercommandworkflows.cpp
     src/filemanager/qtfilemanagershellmenu.cpp

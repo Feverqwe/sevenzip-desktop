@@ -126,3 +126,19 @@ Linux PASS: `command_policy_runtime`, `command_publication`, `flat_view`,
 Native OS branches не менялись; Windows/macOS и visual parity не проверялись.
 Full/slow gate и UI reports не запускались. После завершения удалены пять
 settings fixtures; incremental outputs и протокол проверки сохранены.
+
+## Владелец доступности команд — 2026-11-04
+
+Полностью сопоставлены native `CPanel::CreateFileMenu` и `CFileMenu::Load`,
+их вызывающие стороны и Qt publication. Оригиналы PanelMenu.cpp/MyLoadMenu.cpp
+проверены по recorded baseline b88c6bc09339de32f7d18bbab900686b244f42ba.
+Вычисление доступности, transport capabilities и повторная проверка перед
+выполнением перенесены целиком в qtcommandavailability.cpp того же компонента.
+Все перенесённые тела идентичны прежним; binding остаётся отдельным владельцем.
+Поздняя version-control projection сохраняет отдельное чтение настроек после
+QAction observers и свои query guards. Новых API, кэшей, imports и omissions нет.
+
+Linux: шесть focused suites `command_publication`, `command_policy_runtime`,
+`file_menu_policy`, `verctrl`, `codec_commands_ui`, `root_command` прошли.
+Native OS branches и layout не менялись; Windows/macOS этим запуском не проверены.
+Inventory и whitespace checks прошли; compiler cache и incremental outputs сохранены.

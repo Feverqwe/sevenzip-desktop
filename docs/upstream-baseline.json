@@ -1740,6 +1740,7 @@
     "src/filemanager/providers/qtfolderpropertycapabilities.h",
     "src/filemanager/providers/qtlocationfolder.cpp",
     "src/filemanager/providers/qtlocationfolder.h",
+    "src/filemanager/qtcommandavailability.cpp",
     "src/filemanager/qtcommandpublication.cpp",
     "src/filemanager/qtfilemanagercommands.cpp",
     "src/filemanager/qtfilemanagercommands.h",
