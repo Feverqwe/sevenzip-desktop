@@ -1,5 +1,28 @@
 # Файловая панель: Qt Model/View — 2026-10-24
 
+## Explicit filesystem scan publication handlers — 2026-11-04
+
+Reviewed the native PanelItems load/refresh and FSFolder loading boundaries,
+the retained folder loader, scanner generation/cancellation and both synchronous
+and asynchronous Qt listing consumers. Complete original PanelItems.cpp,
+Panel.h and FSFolder.cpp hashes match the existing baseline at
+`b88c6bc09339de32f7d18bbab900686b244f42ba`. No source is imported or revision
+advanced; native enumeration, sorting and selection algorithms stay unchanged.
+
+The window's five scanner event handlers now live together in
+mainwindow_filesystemscan.cpp beside the listing owner, in the same window
+target. Signal connections bind the panel index and delegate to named private
+handlers. Their complete bodies retain projection, closed-state checks,
+source-call scopes, retained folder binding, row ranges, error cancellation,
+selection/viewport restoration and final availability publication in the same
+order. Synchronous listing and row construction remain in their existing unit;
+scanner/loader ownership, generations, batches and signals are unchanged.
+
+This separates event delivery from listing initialization without a new state
+object, controller or public interface. Existing filesystem_reload,
+filesystem_selection_runtime and navigation_reload suites cover the affected
+window behavior. No test of private handler names or file structure is added.
+
 Область: таблица, значковые виды и их прямые потребители в File Manager.
 Ветка `feature/file-panel-model-view`, база Desktop `df10e42b`.
 

@@ -220,20 +220,19 @@ void MainWindow::createPanelActions(QMenu *editMenu) {
     selectAll_->setObjectName("selectAllAction");
     projectedUi().table->addAction(selectAll_);
     selectAll_->setText("Select All");
-    editMenu->addAction(selectAll_);
-    deselectAll_ = editMenu->addAction("Deselect All");
+    deselectAll_ = new QAction("Deselect All", editMenu);
     deselectAll_->setObjectName("deselectAllAction");
-    invertSelection_ = editMenu->addAction("Invert Selection");
+    invertSelection_ = new QAction("Invert Selection", editMenu);
     invertSelection_->setObjectName("invertSelectionAction");
-    selectMask_ = editMenu->addAction("Select...");
+    selectMask_ = new QAction("Select...", editMenu);
     selectMask_->setObjectName("selectMaskAction");
-    deselectMask_ = editMenu->addAction("Deselect...");
+    deselectMask_ = new QAction("Deselect...", editMenu);
     deselectMask_->setObjectName("deselectMaskAction");
-    selectType_ = editMenu->addAction("Select by Type");
+    selectType_ = new QAction("Select by Type", editMenu);
     selectType_->setObjectName("selectTypeAction");
-    deselectType_ = editMenu->addAction("Deselect by Type");
+    deselectType_ = new QAction("Deselect by Type", editMenu);
     deselectType_->setObjectName("deselectTypeAction");
-    rebuildSourceMenus();
+    populateSourceMenus();
 }
 
 void MainWindow::createIconList(QWidget *central) {

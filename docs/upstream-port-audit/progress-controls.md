@@ -1,5 +1,27 @@
 # Progress controls without background priority
 
+## Progress form and statistic-row ownership — 2026-11-04
+
+Compared original ProgressDialog2.cpp/.h, ProgressDialog2.rc and its included
+ProgressDialog2a.rc at `b88c6bc09339de32f7d18bbab900686b244f42ba` with the Qt
+form, initialization, pause/cancel and completion callers. Complete inventory
+hashes match the recorded baseline. No external code or revision is imported.
+
+The complete Qt form construction now lives in qtprogresspresentation.cpp,
+beside the native progress and control-service owners in the same panel target.
+The constructor still establishes flags, dialog units and its elapsed clock
+before building controls. Native statistics, timer, transport, message and
+worker-lifetime bodies remain unchanged.
+
+Each statistic row now records its label, value and optional second value
+together. One builder uses these records for overview and Details, replacing
+parallel arrays, independent loop lengths and the positional Files special case.
+Control creation order, resource IDs, labels, alignment, Files total suffix,
+Details scrolling, footer focus and hidden error controls retain their existing
+behavior and geometry. Existing progress_dialog, progress_cancel and
+worker_window_progress checks cover the full presentation lifecycle; no
+representation-only test was added.
+
 ## Filesystem checksum traversal ownership — 2026-11-04
 
 Compared the complete original `CPP/7zip/UI/FileManager/PanelCrc.cpp` at

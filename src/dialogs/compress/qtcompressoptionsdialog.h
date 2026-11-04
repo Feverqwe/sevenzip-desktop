@@ -2,7 +2,7 @@
 // Igor Pavlov, LGPL-2.1-or-later; see third_party/7zip/License.txt.
 // The Qt dialog declaration is kept out of the engine DTO header so Core-only
 // archive consumers do not acquire a Widgets dependency. Functional bodies
-// remain in source CPP/7zip/UI/GUI/CompressDialog.cpp.
+// are owned by CompressOptionsDialog.cpp in this module.
 #pragma once
 #include "dialogs/compress/CompressDialog.h"
 #include "dialogs/compress/qtcompressoptionscontrols.h"

@@ -25,12 +25,11 @@ QMenu *MainWindow::createMenusAndToolbar() {
     auto *viewMenu = menuBar()->addMenu("&View");
     viewMenu->setObjectName("viewMenu");
     createViewModes(viewMenu);
-    viewMenu->addSeparator();
     auto *favoritesMenu = menuBar()->addMenu("F&avorites");
     favoritesMenu->setObjectName("favoritesMenu");
     auto *toolsMenu = menuBar()->addMenu("&Tools");
     toolsMenu->setObjectName("toolsMenu");
-    settingsAction_ = toolsMenu->addAction("&Options...");
+    settingsAction_ = new QAction("&Options...", toolsMenu);
     settingsAction_->setObjectName("settingsAction");
     menuBar()->addMenu("&Help")->setObjectName("helpMenu");
     createFavoritesMenu(favoritesMenu);
@@ -46,13 +45,13 @@ void MainWindow::createFileActions(QMenu *menu, QToolBar *toolbar) {
     up_->setObjectName("upAction");
     openItem_ = new QAction("&Open", this);
     openItem_->setObjectName("openItemAction");
-    openInside_ = menu->addAction("Open &Inside");
+    openInside_ = new QAction("Open &Inside", menu);
     openInside_->setObjectName("openInsideAction");
     openInsideOne_ = new QAction("Open Inside *", this);
     openInsideOne_->setObjectName("openInsideOneAction");
     openInsideParser_ = new QAction("Open Inside #", this);
     openInsideParser_->setObjectName("openInsideParserAction");
-    openOutside_ = menu->addAction("Open O&utside");
+    openOutside_ = new QAction("Open O&utside", menu);
     openOutside_->setObjectName("openOutsideAction");
     toolbarAdd_ = toolbar->addAction("Add");
     toolbarAdd_->setObjectName("toolbarAddAction");
@@ -66,17 +65,17 @@ void MainWindow::createFileActions(QMenu *menu, QToolBar *toolbar) {
     move_->setObjectName("moveAction");
     remove_ = toolbar->addAction("&Delete");
     remove_->setObjectName("deleteAction");
-    split_ = menu->addAction("&Split file...");
+    split_ = new QAction("&Split file...", menu);
     split_->setObjectName("splitFileAction");
-    combine_ = menu->addAction("Com&bine files...");
+    combine_ = new QAction("Com&bine files...", menu);
     combine_->setObjectName("combineFilesAction");
-    rename_ = menu->addAction("Rena&me");
+    rename_ = new QAction("Rena&me", menu);
     rename_->setObjectName("renameAction");
-    viewFile_ = menu->addAction("View");
+    viewFile_ = new QAction("View", menu);
     viewFile_->setObjectName("viewFileAction");
-    editFile_ = menu->addAction("&Edit");
+    editFile_ = new QAction("&Edit", menu);
     editFile_->setObjectName("editFileAction");
-    properties_ = menu->addAction("P&roperties");
+    properties_ = new QAction("P&roperties", menu);
     properties_->setObjectName("selectedPropertiesAction");
     exitAction_ = new QAction("E&xit", this);
     exitAction_->setObjectName("exitAction");
@@ -84,7 +83,7 @@ void MainWindow::createFileActions(QMenu *menu, QToolBar *toolbar) {
 }
 
 void MainWindow::createFileExtras(QMenu *menu, QToolBar *toolbar) {
-    auto *hashMenu = menu->addMenu("CRC");
+    auto *hashMenu = new QMenu("CRC", menu);
     hashMenu->setObjectName("hashMenu");
     hashMenu->menuAction()->setObjectName("hashMenu");
     QtBindLocalText(hashMenu->menuAction(), "CommandMenus",
@@ -102,9 +101,9 @@ void MainWindow::createFileExtras(QMenu *menu, QToolBar *toolbar) {
                                   .arg(QString::fromLatin1(GetHashMethodForCommand(hash.ID))));
         hashActions_.insert(hash.ID, action);
     }
-    createFolder_ = menu->addAction("Create Folder");
+    createFolder_ = new QAction("Create Folder", menu);
     createFolder_->setObjectName("createFolderAction");
-    createFile_ = menu->addAction("Create File");
+    createFile_ = new QAction("Create File", menu);
     createFile_->setObjectName("createFileAction");
     infoAction_ = toolbar->addAction("Info");
     infoAction_->setObjectName("archiveInfoAction");
@@ -123,7 +122,7 @@ void MainWindow::createViewModes(QMenu *viewMenu) {
     auto *viewGroup = new QActionGroup(this);
     const QStringList viewLabels = {"Lar&ge Icons", "S&mall Icons", "&List", "Details"};
     for (int index = 0; index < viewLabels.size(); ++index) {
-        QAction *action = viewMenu->addAction(viewLabels[index]);
+        QAction *action = new QAction(viewLabels[index], viewMenu);
         action->setObjectName(QStringLiteral("viewMode%1Action").arg(index));
         action->setCheckable(true);
         action->setActionGroup(viewGroup);
@@ -132,13 +131,13 @@ void MainWindow::createViewModes(QMenu *viewMenu) {
 }
 
 void MainWindow::createFavoritesMenu(QMenu *favoritesMenu) {
-    auto *addFavoriteMenu = favoritesMenu->addMenu("&Add folder to Favorites as");
+    auto *addFavoriteMenu = new QMenu("&Add folder to Favorites as", favoritesMenu);
     addFavoriteMenu->setObjectName("addFavoriteMenu");
     addFavoriteMenu->menuAction()->setObjectName("addFavoriteMenu");
     for (int index = 0; index < 10; ++index) {
         auto *save = addFavoriteMenu->addAction(QString::number(index));
         save->setObjectName(QStringLiteral("saveBookmark%1Action").arg(index));
-        auto *open = favoritesMenu->addAction(QString::number(index));
+        auto *open = new QAction(QString::number(index), favoritesMenu);
         open->setObjectName(QStringLiteral("openBookmark%1Action").arg(index));
         saveBookmarks_[index] = save;
         openBookmarks_[index] = open;
@@ -150,14 +149,14 @@ void MainWindow::createViewOptions(QMenu *viewMenu) {
     auto *sortGroup = new QActionGroup(this);
     const QStringList sortLabels = {"By Name", "By Type", "By Date", "By Size", "Unsorted"};
     for (int index = 0; index < sortLabels.size(); ++index) {
-        QAction *action = viewMenu->addAction(sortLabels[index]);
+        QAction *action = new QAction(sortLabels[index], viewMenu);
         action->setObjectName(QStringLiteral("sort%1Action").arg(index));
         action->setCheckable(true);
         action->setActionGroup(sortGroup);
         sortActions_[index] = action;
     }
     sortActions_[0]->setChecked(true);
-    auto *timeMenu = viewMenu->addMenu(QStringLiteral("Time"));
+    auto *timeMenu = new QMenu(QStringLiteral("Time"), viewMenu);
     timeMenu->setObjectName(QStringLiteral("timestampMenu"));
     timeMenu->menuAction()->setObjectName("timestampMenu");
     timeMenu->menuAction()->setProperty("nativeCommandID", IDM_VIEW_TIME_POPUP);
@@ -178,26 +177,24 @@ void MainWindow::createViewOptions(QMenu *viewMenu) {
         OnMenuActivating(*menuBar(), *viewMenu, 2, app_);
         timeMenu->setTitle(QCoreApplication::translate("CommandMenus", "Time format"));
     });
-    viewMenu->addSeparator();
     fileListSettings_.Load(toolbarSettingsPath());
-    flatView_ = viewMenu->addAction("Flat View");
+    flatView_ = new QAction("Flat View", viewMenu);
     flatView_->setObjectName("flatViewAction");
     flatView_->setCheckable(true);
-    twoPanelsAction_ = viewMenu->addAction(QStringLiteral("Two Panels"));
+    twoPanelsAction_ = new QAction(QStringLiteral("Two Panels"), viewMenu);
     twoPanelsAction_->setObjectName("twoPanelsAction");
     twoPanelsAction_->setCheckable(true);
     twoPanelsAction_->setChecked(app_.NumPanels == 2);
-    viewMenu->addSeparator();
     createToolbarOptions(viewMenu);
-    root_ = viewMenu->addAction("Open Root Folder");
+    root_ = new QAction("Open Root Folder", viewMenu);
     root_->setObjectName("openRootAction");
-    refresh_ = viewMenu->addAction("&Refresh");
+    refresh_ = new QAction("&Refresh", viewMenu);
     refresh_->setObjectName("refreshAction");
-    autoRefreshAction_ = viewMenu->addAction(QStringLiteral("Auto Refresh"));
+    autoRefreshAction_ = new QAction(QStringLiteral("Auto Refresh"), viewMenu);
     autoRefreshAction_->setObjectName(QStringLiteral("autoRefreshAction"));
     autoRefreshAction_->setCheckable(true);
     autoRefreshAction_->setChecked(app_.Get_AutoRefresh_Mode());
-    foldersHistory_ = viewMenu->addAction("Folders History...");
+    foldersHistory_ = new QAction("Folders History...", viewMenu);
     foldersHistory_->setObjectName("foldersHistoryAction");
 }
 
@@ -219,7 +216,7 @@ void MainWindow::applyFlatView(bool enabled) {
 }
 
 void MainWindow::createToolbarOptions(QMenu *viewMenu) {
-    auto *toolbarsMenu = viewMenu->addMenu("&Toolbars");
+    auto *toolbarsMenu = new QMenu("&Toolbars", viewMenu);
     toolbarsMenu->setObjectName("toolbarsMenu");
     toolbarsMenu->menuAction()->setObjectName("toolbarsMenu");
     auto addToolbarOption = [this, toolbarsMenu](const QString &title, const char *name,
@@ -240,13 +237,10 @@ void MainWindow::createToolbarOptions(QMenu *viewMenu) {
     updateToolbar();
 }
 
-void MainWindow::rebuildSourceMenus() {
+void MainWindow::populateSourceMenus() {
     // resource.rc IDM_MENU is the order/grouping contract. Keep existing Qt
     // actions so the source command dispatcher and toolbar share one action.
-    auto reset = [](QMenu *menu) {
-        for (QAction *action : menu->actions())
-            menu->removeAction(action);
-    };
+    // Populate once after the first panel has created the selection actions.
     auto unavailable = [this](QMenu *menu, const QString &label, const char *name, unsigned id) {
         auto *action = new QAction(label, this);
         action->setObjectName(name);
@@ -257,7 +251,6 @@ void MainWindow::rebuildSourceMenus() {
 
     auto *file = findChild<QMenu *>("fileMenu");
     auto *hash = findChild<QMenu *>("hashMenu");
-    reset(file);
     auto *openArchive = file->addAction(QString());
     openArchive->setObjectName("openArchiveAction");
     QtBindLocalText(openArchive, "mainwindow_menus",
@@ -300,7 +293,6 @@ void MainWindow::rebuildSourceMenus() {
     }
 
     auto *edit = findChild<QMenu *>("editMenu");
-    reset(edit);
     for (QAction *action : {selectAll_, deselectAll_, invertSelection_, selectMask_, deselectMask_})
         edit->addAction(action);
     edit->addSeparator();
@@ -310,7 +302,6 @@ void MainWindow::rebuildSourceMenus() {
     auto *view = findChild<QMenu *>("viewMenu");
     auto *time = findChild<QMenu *>("timestampMenu");
     auto *toolbars = findChild<QMenu *>("toolbarsMenu");
-    reset(view);
     auto *appearance = view->addMenu(QString());
     appearance->setObjectName("appearanceMenu");
     QtBindLocalText(appearance->menuAction(), "CommandMenus",
@@ -335,14 +326,12 @@ void MainWindow::rebuildSourceMenus() {
 
     auto *favorites = findChild<QMenu *>("favoritesMenu");
     auto *addFavorite = findChild<QMenu *>("addFavoriteMenu");
-    reset(favorites);
     favorites->addMenu(addFavorite);
     favorites->addSeparator();
     for (QAction *action : openBookmarks_)
         favorites->addAction(action);
 
     auto *tools = findChild<QMenu *>("toolsMenu");
-    reset(tools);
     tools->addAction(settingsAction_);
     tools->addSeparator();
     unavailable(tools, QStringLiteral("Benchmark"), "benchmarkAction", IDM_BENCHMARK);

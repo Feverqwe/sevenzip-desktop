@@ -1692,8 +1692,11 @@
     "src/dialogs/browse/browseiteminspection.h",
     "src/dialogs/browse/qtsourcebrowsedialog_p.h",
     "src/dialogs/browse/qtsourcebrowsepresentation.cpp",
+    "src/dialogs/browse/qttempbrowseinput.cpp",
+    "src/dialogs/browse/qttempbrowsepresentation.cpp",
     "src/dialogs/combo/alias.h",
     "src/dialogs/compress/CompressInfo.h",
+    "src/dialogs/compress/CompressOptionsDialog.cpp",
     "src/dialogs/compress/CompressResources.cpp",
     "src/dialogs/compress/CompressResources.h",
     "src/dialogs/compress/createarchivedialog.cpp",
@@ -1715,6 +1718,7 @@
     "src/dialogs/compress/qtcompressoptionsdialog.h",
     "src/dialogs/copy/alias.h",
     "src/dialogs/extract/alias.h",
+    "src/dialogs/extract/qtextractpresentation.cpp",
     "src/dialogs/listview/qtlistviewdialogpresentation.cpp",
     "src/dialogs/mem/qtmemoryrequestpresentation.cpp",
     "src/dialogs/overwrite/qtoverwritepresentation.cpp",
@@ -1825,6 +1829,7 @@
     "src/filemanager/window/mainwindow_filelist.cpp",
     "src/filemanager/window/mainwindow_fileoperations.cpp",
     "src/filemanager/window/mainwindow_filesystemlisting.cpp",
+    "src/filemanager/window/mainwindow_filesystemscan.cpp",
     "src/filemanager/window/mainwindow_guioperations.cpp",
     "src/filemanager/window/mainwindow_language.cpp",
     "src/filemanager/window/mainwindow_menus.cpp",
@@ -2160,7 +2165,6 @@
     "src/platform/temp/qtownedtempidentity.h",
     "src/platform/temp/qtownedtempregistry.cpp",
     "src/platform/temp/qtownedtempregistry.h",
-    "src/platform/temp/qttempbrowsepresentation.cpp",
     "src/platform/trash/qttrashservice.h",
     "src/settings/SystemPagePresentation.cpp",
     "src/settings/dialog_alias.h",
@@ -2205,6 +2209,7 @@
     "src/ui/progress/qtlauncherprogress.h",
     "src/ui/progress/qtprogresscontrols.cpp",
     "src/ui/progress/qtprogresscontrols.h",
+    "src/ui/progress/qtprogresspresentation.cpp",
     "src/ui/progress/qtprogresstransport.h",
     "src/ui/progress/qtprogresswait.cpp",
     "src/ui/progress/qtprogresswait.h",
@@ -3981,6 +3986,7 @@
     },
     "src/dialogs/compress/CompressDialog.cpp": {
       "local": [
+        "src/dialogs/compress/CompressOptionsDialog.cpp",
         "src/dialogs/compress/CompressResources.cpp"
       ],
       "symbols": [
@@ -3999,7 +4005,8 @@
         "AddMemSize",
         "CCompressDialog::AddMemComboItem",
         "CCompressDialog::SetMemUseCombo (choices and selection)",
-        "CCompressDialog::Get_MemUse_Bytes"
+        "CCompressDialog::Get_MemUse_Bytes",
+        "COptionsDialog and its timestamp helpers"
       ]
     },
     "src/filemanager/providers/FSFolder.cpp": {

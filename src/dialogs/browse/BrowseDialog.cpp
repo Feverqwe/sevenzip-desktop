@@ -26,13 +26,11 @@
 #include <QComboBox>
 #include <QDir>
 #include <QFileDialog>
-#include <QHeaderView>
 #include <QKeyEvent>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMessageBox>
 #include <QPushButton>
-#include <QSignalBlocker>
 #include <QTreeWidget>
 
 using namespace NWindows;
@@ -44,7 +42,6 @@ extern UString HResultToMessage(HRESULT errorCode);
 
 namespace NSourceBrowse {
 namespace {
-const int kParentIndex = -1;
 #ifdef _WIN32
 const HRESULT kInvalidNameError = ERROR_INVALID_NAME;
 #else
@@ -87,28 +84,6 @@ bool BrowseNext(CEnumerator &enumerator, CFileInfo &fi, bool &found) {
 }
 
 } // namespace
-
-int CBrowseDialog::GetRealItemIndex(QTreeWidgetItem *item) const {
-    return item ? item->data(0, Qt::UserRole).toInt() : kParentIndex;
-}
-QTreeWidgetItem *CBrowseDialog::SelectedItem() const {
-    const auto items = _list->selectedItems();
-    return items.isEmpty() ? nullptr : items.front();
-}
-
-class BrowseRow final : public QTreeWidgetItem {
-    const CBrowseDialog &_dialog;
-
-  public:
-    BrowseRow(QTreeWidget *list, const CBrowseDialog &dialog, int index)
-        : QTreeWidgetItem(list), _dialog(dialog) {
-        setData(0, Qt::UserRole, index);
-    }
-    bool operator<(const QTreeWidgetItem &other) const override {
-        return _dialog.CompareItems(data(0, Qt::UserRole).toInt(),
-                                    other.data(0, Qt::UserRole).toInt()) < 0;
-    }
-};
 
 void CBrowseDialog::OnInit() {
     const auto controls = CreateControls();
@@ -195,21 +170,6 @@ bool CBrowseDialog::OnButtonClicked(unsigned buttonID) {
     }
     _list->setFocus();
     return true;
-}
-
-void CBrowseDialog::SetFolderText() {
-    const QString fullPath = ToQString(DirPrefix);
-    _folder->setText(_folder->fontMetrics().elidedText(
-        fullPath, Qt::ElideMiddle, qMax(0, _folder->contentsRect().width() - 2)));
-    _folder->setToolTip(fullPath);
-    _folder->setAccessibleName(fullPath);
-}
-
-void CBrowseDialog::changeEvent(QEvent *event) {
-    if (event->type() == QEvent::LanguageChange && _list)
-        _list->setHeaderLabels(
-            {QtLangText(IDS_PROP_NAME), QtLangText(IDS_PROP_MTIME), QtLangText(IDS_PROP_SIZE)});
-    QDialog::changeEvent(event);
 }
 
 void CBrowseDialog::OnOK() {
@@ -325,48 +285,7 @@ HRESULT CBrowseDialog::Reload(UString pathPrefix, const UString &selectedName) {
     }
     DirPrefix = pathPrefix;
     _files = files;
-    SetFolderText();
-    const QSignalBlocker blocker(_list);
-    _list->setUpdatesEnabled(false);
-    _list->clear();
-    QTreeWidgetItem *cursor = nullptr;
-    if (_showDots && _topDirPrefix != DirPrefix) {
-        auto *item = new BrowseRow(_list, *this, kParentIndex);
-        item->setText(0, "..");
-        item->setIcon(0, _extToIconMap.GetIcon(FILE_ATTRIBUTE_DIRECTORY, ToQString(DirPrefix)));
-        if (selectedName.IsEmpty())
-            cursor = item;
-    }
-    FOR_VECTOR(i, _files) {
-        const CFileInfo &fi = _files[i];
-        const UString name = fs2us(fi.Name);
-        auto *item = new BrowseRow(_list, *this, (int)i);
-        item->setText(0, ToQString(name));
-        item->setIcon(0, _extToIconMap.GetIcon(fi.GetWinAttrib(), ToQString(DirPrefix + name)));
-        if (!selectedName.IsEmpty() && CompareFileNames(name, selectedName) == 0)
-            cursor = item;
-        wchar_t s[64] = {};
-        FILETIME time;
-        FiTime_To_FILETIME(fi.MTime, time);
-        if (!FILETIME_IsZero(time))
-            ConvertUtcFileTimeToString(time, s, kTimestampPrintLevel_MIN);
-        item->setText(1, QString::fromWCharArray(s));
-        s[0] = 0;
-        if (!fi.IsDir())
-            Browse_ConvertSizeToString(fi.Size, s);
-        item->setText(2, QString::fromWCharArray(s));
-        item->setTextAlignment(2, Qt::AlignRight | Qt::AlignVCenter);
-    }
-    _list->sortItems(_sortIndex, Qt::AscendingOrder);
-    _list->header()->setSortIndicator(_sortIndex,
-                                      _ascending ? Qt::AscendingOrder : Qt::DescendingOrder);
-    if (cursor) {
-        _list->setCurrentItem(cursor);
-        cursor->setSelected(true);
-    } else if (_list->topLevelItemCount() > 0)
-        _list->setCurrentItem(_list->topLevelItem(0), 0, QItemSelectionModel::NoUpdate);
-    _list->scrollToItem(_list->currentItem());
-    _list->setUpdatesEnabled(true);
+    PopulateRows(selectedName);
     return S_OK;
 }
 

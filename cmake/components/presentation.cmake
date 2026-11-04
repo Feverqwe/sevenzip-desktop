@@ -66,7 +66,8 @@ add_library(sevenzip_panel
     src/dialogs/browse/BrowseDialog2.h
     src/dialogs/browse/browseiteminspection.cpp
     src/dialogs/browse/browseiteminspection.h
-    src/platform/temp/qttempbrowsepresentation.cpp
+    src/dialogs/browse/qttempbrowseinput.cpp
+    src/dialogs/browse/qttempbrowsepresentation.cpp
     src/filemanager/views/qtfilelisthover.cpp
     src/filemanager/views/qtfilelisthover.h
     src/filemanager/HelpUtils.cpp
@@ -185,6 +186,7 @@ add_library(sevenzip_panel
     src/gui/ExtractGUI.cpp
     src/gui/ExtractGUI.h
     src/dialogs/extract/ExtractDialog.cpp
+    src/dialogs/extract/qtextractpresentation.cpp
     src/dialogs/extract/ExtractDialog.h
     src/filemanager/UpdateCallback100.cpp
     src/filemanager/UpdateCallback100.h
@@ -193,6 +195,7 @@ add_library(sevenzip_panel
     src/crypto/fscrypt/fscryptkeydialog.cpp
     src/crypto/fscrypt/fscryptkeydialog.h
     src/ui/progress/qtprogresscontrols.cpp
+    src/ui/progress/qtprogresspresentation.cpp
     src/ui/progress/qtprogresscontrols.h
     src/ui/dialogs/qtdialogunits.cpp
     src/ui/dialogs/qtdialogunits.h

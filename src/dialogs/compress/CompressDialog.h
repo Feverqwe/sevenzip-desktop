@@ -20,6 +20,7 @@ void SetErrorMessage_MemUsage(UString &s, UInt64 reqSize, UInt64 ramSize, UInt64
 
 namespace NCompressDialog {
 QString Modify_Auto(const QString &text);
+const char *GetMethodName(int methodID);
 
 enum EMethodID {
     kCopy,

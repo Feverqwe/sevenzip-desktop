@@ -18,6 +18,7 @@ class QKeyEvent;
 
 namespace NSourceBrowse {
 class CBrowseDialog : public QDialog {
+    static constexpr int kParentIndex = -1;
     QTreeWidget *_list = nullptr;
     QLineEdit *_pathEdit = nullptr;
     QComboBox *_filterCombo = nullptr;
@@ -43,6 +44,7 @@ class CBrowseDialog : public QDialog {
     bool OnKeyDown(QKeyEvent *keyDownInfo);
     void OnInit();
     void SetFolderText();
+    void PopulateRows(const UString &selectedName);
     struct Controls {
         QDialogButtonBox *buttons;
         QPushButton *parent;

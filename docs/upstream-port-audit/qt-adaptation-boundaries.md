@@ -1,5 +1,54 @@
 # Qt adaptation boundary review — 2026-10-18
 
+## Complete format-options implementation owner — 2026-11-04
+
+Compared the complete original COptionsDialog bodies and helpers in
+CompressDialog.cpp, its declaration in CompressDialog.h and included
+CompressOptionsDialog.rc with the current Qt controls and Add transaction.
+Complete original inventory hashes match
+`b88c6bc09339de32f7d18bbab900686b244f42ba`. No external code or revision is
+imported.
+
+All COptionsDialog bodies, timestamp helpers, option language IDs and Help now
+live in CompressOptionsDialog.cpp beside their declaration and controls, in
+the same compression source component. The parent retains its own Help and
+format/method policy. A narrow name lookup reads the parent's existing method
+table with the same bounds check; no second table or method-ID scheme is added.
+The extraction mapping records the complete options component without changing
+original hashes. This preserves the coherent borrowed implementation rather
+than splitting individual timestamp branches across owners.
+
+Precision selection, format capabilities/defaults, bool-pair overrides,
+ZIP/TAR special cases, hidden values, live language, initialization and accepted
+profile publication retain their existing control flow. The Add form still owns
+its local profile transaction, so Options Cancel and Add Cancel keep their
+previous effects. Qt geometry, focus and platform services are unchanged.
+Existing compression_advanced, compression_timestamp and
+compress_options_presentation suites exercise these
+contracts; no private lookup or file-structure test is added.
+
+## Source-browser row publication — 2026-11-04
+
+Compared the complete original BrowseDialog.cpp/.h/.rc inventory hashes at
+`b88c6bc09339de32f7d18bbab900686b244f42ba`, its reload/filter/sort and
+acceptance/native-picker boundaries with the Qt browser and its callers.
+Native enumeration, path resolution, filter matching, creation and result
+contracts retain their existing owners. No source or revision is imported.
+
+The complete row builder, its private sortable row, selection accessors,
+folder-path presentation and live header translation now live together in
+qtsourcebrowsepresentation.cpp beside the dialog and its controls. Reload
+publishes rows only after successful enumeration and the existing prefix/file
+assignment. Parent-row identity belongs to the private dialog class rather
+than a translation-unit global. Same classes, state and panel target are used;
+no controller or public interface is added.
+
+Moved bodies retain signal blocking, metadata/icon formatting, sort and
+selection order, scroll position, path elision/accessibility and geometry.
+Open/Save/Folder dispatch, native-picker fallback and distinct Cancel contracts
+are unchanged. Existing source_browse_dialog checks cover
+these behaviors; no private-structure or source-presence test is added.
+
 ## Version-control completion owner — 2026-11-04
 
 Compared complete native VerCtrl.cpp Edit/Commit/Revert/Diff, helper types,
@@ -668,3 +717,21 @@ Linux `native_comment` and `native_comment_ui` passed: 27 Qt checks, no failures
 or skips; incremental build 9.785s, tests 10.743s. Completed test settings were
 removed; incremental outputs and compiler caches retained. No other platform,
 full/slow suite or new visual acceptance was needed for this shared writer change.
+## Extract form ownership — 2026-11-04
+
+Compared the complete original ExtractDialog.cpp/.h/.rc at
+`b88c6bc09339de32f7d18bbab900686b244f42ba` with the Qt dialog and its
+ExtractGUI caller; original inventory hashes match the recorded baseline.
+The native mode selection, bool-pair precedence, history, directory
+normalization and accepted-result persistence remain in ExtractDialog.cpp.
+The existing presentation construction and advanced summary now belong to
+qtextractpresentation.cpp in the same component and class. This is local Qt
+integration, without an external import or provenance revision change.
+
+Construction still establishes modality and the native ElimDup default before
+building controls, then initializes saved state, summary, size and focus.
+Signal connections, control order, password draft handling, live translation
+and the post-caller archive-title update retain their behavior. Existing
+extract_dialog and source_extract_advanced suites cover confirmation, Cancel,
+saved/forced options, history, language, geometry and native extraction; no
+test was added for file structure or private helpers.

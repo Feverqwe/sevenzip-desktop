@@ -1,5 +1,27 @@
 # Main-menu language binding — 2026-10-17
 
+## Single menu population — 2026-11-04
+
+Compared the original FileManager resource menu, MyLoadMenu translation and
+activation handlers, and application creation order with the Qt action/menu
+construction, toolbar state, first-panel hookup and command/language consumers.
+Complete original MyLoadMenu.cpp/.h, App.cpp and resource.rc/.h hashes match
+the baseline at `b88c6bc09339de32f7d18bbab900686b244f42ba`. No external
+source, resource, algorithm or revision is imported.
+
+Qt now creates the reusable actions and submenus without first inserting them
+into provisional main menus. The first panel populates those menus directly
+in the existing final order, removing the intermediate population and reset.
+Action creation order, QObject parents, submenu contents, toolbar action
+identity, language contexts, command binding and final grouping remain intact.
+Toolbar/settings initialization still precedes panel creation; complete menus
+still precede command attachment, shortcuts, language reload and window display.
+Native dynamic File-menu publication, View activation and bookmark updates
+retain their existing owners. No control geometry, wording, availability rule
+or native menu adapter changes. Existing main_shell, view_menu and language_ui
+behavior checks cover these consumers; no private initialization-order test
+is added.
+
 Source reference: <https://github.com/ip7z/7zip.git>, commit
 `0766b733fe3e06dd2a7f9a3cfbf2108ac73abd17`.
 
