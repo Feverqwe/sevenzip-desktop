@@ -45,6 +45,7 @@ class CQtProgressDialog : public QDialog {
     QElapsedTimer _clock;
     double _unitX;
     void AddControl(unsigned id, const char *name, QWidget *widget);
+    void BuildPresentation();
 
   protected:
     QWidget *GetItem(unsigned id) const;

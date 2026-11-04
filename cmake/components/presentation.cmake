@@ -195,6 +195,7 @@ add_library(sevenzip_panel
     src/crypto/fscrypt/fscryptkeydialog.cpp
     src/crypto/fscrypt/fscryptkeydialog.h
     src/ui/progress/qtprogresscontrols.cpp
+    src/ui/progress/qtprogresspresentation.cpp
     src/ui/progress/qtprogresscontrols.h
     src/ui/dialogs/qtdialogunits.cpp
     src/ui/dialogs/qtdialogunits.h
