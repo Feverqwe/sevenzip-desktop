@@ -56,7 +56,7 @@ class ReadTamperProxy final : public QObject {
     QTcpSocket peer_;
     QByteArray bytes_, responses_, held_;
     QTcpSocket *incoming_ = nullptr;
-    bool strip_, hold_;
+    bool strip_, hold_, transparent_;
 
     static QByteArray takeFrame(QByteArray &bytes) {
         if (bytes.size() < 4)
@@ -73,10 +73,16 @@ class ReadTamperProxy final : public QObject {
   public:
     quint64 ReadMessage = 0;
     int CancelReplies = 0;
-    explicit ReadTamperProxy(quint16 destination, bool strip, bool hold = false)
-        : strip_(strip), hold_(hold) {
+    int PendingReads = 0;
+    QList<quint16> FinalReadCredits;
+    explicit ReadTamperProxy(quint16 destination, bool strip, bool hold = false,
+                             bool transparent = false)
+        : strip_(strip), hold_(hold), transparent_(transparent) {
         connect(&listener_, &QTcpServer::newConnection, this, [this, destination] {
             auto *incoming = listener_.nextPendingConnection();
+            incoming->setSocketOption(QAbstractSocket::LowDelayOption, 1);
+            connect(&peer_, &QTcpSocket::connected, this,
+                    [this] { peer_.setSocketOption(QAbstractSocket::LowDelayOption, 1); });
             incoming_ = incoming;
             connect(&peer_, &QTcpSocket::readyRead, incoming, [this, incoming] {
                 responses_ += peer_.readAll();
@@ -87,6 +93,16 @@ class ReadTamperProxy final : public QObject {
                         header ? qFromLittleEndian<quint16>(frame.constData() + 16) : 0;
                     if (header && command == SMB2_CANCEL)
                         ++CancelReplies;
+                    if (header && command == SMB2_READ &&
+                        (qFromLittleEndian<quint32>(frame.constData() + 20) &
+                         SMB2_FLAGS_ASYNC_COMMAND)) {
+                        if (qFromLittleEndian<quint32>(frame.constData() + 12) ==
+                            SMB2_STATUS_PENDING)
+                            ++PendingReads;
+                        else
+                            FinalReadCredits.append(
+                                qFromLittleEndian<quint16>(frame.constData() + 18));
+                    }
                     if (hold_ && header && command == SMB2_READ)
                         held_ += frame;
                     else
@@ -103,6 +119,8 @@ class ReadTamperProxy final : public QObject {
                         if (hold_) {
                             // Preserve the signed request and delay only its
                             // reply so the client can cancel an outstanding MID.
+                        } else if (transparent_) {
+                            // Observe a real signed exchange without modifying it.
                         } else if (strip_)
                             frame[20] = char(quint8(frame[20]) & ~SMB2_FLAGS_SIGNED);
                         else
@@ -208,7 +226,8 @@ class SmbReadOnlyServerTests final : public QObject {
                                   match.hasMatch()),
                                  10000);
         Client client;
-        QCOMPARE(client.connect(match.captured(1).toUShort()), 0);
+        ReadTamperProxy proxy(match.captured(1).toUShort(), false, false, true);
+        QCOMPARE(client.connect(proxy.port()), 0);
         // Each asynchronous reader responds from another thread twice, with
         // deliberately conflicting bytes/status in the second completion.
         for (const char *name : {"hello.txt", "large.bin", "Файл с пробелом.bin"}) {
@@ -235,6 +254,43 @@ class SmbReadOnlyServerTests final : public QObject {
                 QCOMPARE(bytes.mid(count), QByteArray(bytes.size() - count, '\0'));
             }
         }
+        auto *largeRead =
+            ClientWork([&] { return smb2_open(client.Context, "Файл с пробелом.bin", O_RDONLY); });
+        QVERIFY(largeRead);
+        QByteArray range(192 * 1024, '\0');
+        QCOMPARE(ClientWork([&] {
+                     return smb2_pread(client.Context, largeRead,
+                                       reinterpret_cast<uint8_t *>(range.data()), range.size(),
+                                       4096);
+                 }),
+                 range.size());
+        for (int i = 0; i < range.size(); ++i)
+            QCOMPARE(range[i], char((4096 + i) % 251));
+        QCOMPARE(ClientWork([&] { return smb2_close(client.Context, largeRead); }), 0);
+        // Measure the server itself, without the observing proxy's event hops.
+        Client direct;
+        QCOMPARE(direct.connect(match.captured(1).toUShort()), 0);
+        auto *file = ClientWork([&] { return smb2_open(direct.Context, "hello.txt", O_RDONLY); });
+        QVERIFY(file);
+        QElapsedTimer elapsed;
+        elapsed.start();
+        for (unsigned n = 0; n < 64; ++n) {
+            QByteArray bytes(1024, '\0');
+            const auto count = ClientWork([&] {
+                return smb2_pread(direct.Context, file, reinterpret_cast<uint8_t *>(bytes.data()),
+                                  bytes.size(), 4096 + n * 37);
+            });
+            QCOMPARE(count, 1024);
+        }
+        // Small metadata/decoder reads must not each wait for an idle server
+        // poll. This workload otherwise stalls native preview/media clients.
+        QVERIFY2(elapsed.elapsed() < 3000,
+                 qPrintable(QString("64 completed reads took %1 ms").arg(elapsed.elapsed())));
+        QCOMPARE(ClientWork([&] { return smb2_close(direct.Context, file); }), 0);
+        QVERIFY(proxy.PendingReads > 0);
+        QVERIFY(!proxy.FinalReadCredits.isEmpty());
+        for (const auto credits : proxy.FinalReadCredits)
+            QCOMPARE(credits, quint16(0)); // MS-SMB2 3.3.4.3: final async replies grant no credits.
         QCOMPARE(server.state(), QProcess::Running);
     }
     void cancelHasNoReplyAndPreservesOutstandingRead() {

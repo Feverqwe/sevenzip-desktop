@@ -14,6 +14,7 @@
 #include "archive/backend/archivebackend_nativeentries.h"
 #include "archive/callbacks/ArchiveOpenCallback.h"
 #include "archive/callbacks/IFileExtractCallback.h"
+#include "archive/callbacks/archivepasswordretry.h"
 #include "archive/codecs/archivecodeccatalog.h"
 #include "archive/codecs/archivecodecprobe.h"
 #include "archive/resources/archivenativeopen.h"
@@ -27,6 +28,7 @@ class CTestCallback final : public IArchiveExtractCallback,
                             public ICryptoGetTextPassword,
                             public IArchiveRequestMemoryUseCallback,
                             public IOpenCallbackUI,
+                            public IArchivePasswordRetryUI,
                             public CMyUnknownImp {
     Z7_COM_UNKNOWN_IMP_5(IArchiveExtractCallback, IProgress, ICryptoGetTextPassword,
                          IArchiveRequestMemoryUseCallback, IArchiveExtractCallbackMessage2)
@@ -150,6 +152,7 @@ class CTestCallback final : public IArchiveExtractCallback,
     }
     HRESULT Open_Finished() override { return operation_.checkpoint(); }
     HRESULT Open_CryptoGetTextPassword(BSTR *value) override { return operation_.password(value); }
+    HRESULT ResetArchivePassword() override { return operation_.resetPassword(); }
 };
 
 HRESULT FindOutputIndex(QtArchiveReadOperation &operation, const CArc &arc, UInt32 &selected) {
@@ -275,6 +278,12 @@ void QtArchiveReadOperation::providePassword(const QString &password) {
     QMutexLocker lock(&passwordMutex_);
     password_ = password;
     passwordReady_.wakeAll();
+}
+HRESULT QtArchiveReadOperation::resetPassword() {
+    QMutexLocker lock(&passwordMutex_);
+    password_.reset();
+    passwordRequested_ = false;
+    return checkpoint();
 }
 HRESULT QtArchiveReadOperation::password(BSTR *value) {
     if (!value)

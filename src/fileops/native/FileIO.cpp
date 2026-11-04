@@ -766,6 +766,9 @@ bool COutFile::SetLength_KeepPosition(UInt64 length) throw()
 
 #include <fcntl.h>
 #include <unistd.h>
+#ifdef __APPLE__
+#include <sys/mount.h>
+#endif
 
 extern
 bool FiTime_To_timespec(const CFiTime *ft, timespec &ts);
@@ -920,7 +923,17 @@ bool CFileBase::SeekToBegin() const throw()
 
 bool CInFile::Open(const char *name)
 {
-  return CFileBase::OpenBinary(name, O_RDONLY, k_OutFile_mode_default);
+  if (!CFileBase::OpenBinary(name, O_RDONLY, k_OutFile_mode_default))
+    return false;
+#ifdef __APPLE__
+  struct statfs fs;
+  if (fstatfs(_handle, &fs) == 0 && strcmp(fs.f_fstypename, "smbfs") == 0) {
+    // Nested SMB mounts must not wait on the same kernel clustered-I/O pool.
+    // Direct source reads also avoid speculative reads during archive seeks.
+    fcntl(_handle, F_NOCACHE, 1);
+  }
+#endif
+  return true;
 }
 
 bool CInFile::OpenShared(const char *name, bool)

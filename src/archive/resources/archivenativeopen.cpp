@@ -1,5 +1,6 @@
 #include "archive/resources/archivenativeopen.h"
 #include "Windows/TimeUtils.h"
+#include "archive/callbacks/archivepasswordretry.h"
 #include "archive/codecs/archivecodeccatalog.h"
 #include "archive/resources/archiveinputlayer.h"
 #include "platform/temp/qtownedtempidentity.h"
@@ -66,12 +67,28 @@ HRESULT ArchiveNativeOpen::Open(const QString &path, const QString &type, IOpenC
     ArchiveInputReadRequestScope inputRequest(input_, readRequest);
     // Volume streams can retain the source COpenCallbackImp beyond opening.
     // Its UI pointer must remain valid, without retaining the opening dialog.
-    if (requested) {
-        COpenOptions options = *requested;
-        options.filePath = path.toStdWString().c_str();
-        RINOK(catalog_->openArchive(link_, options, this))
-    } else {
-        RINOK(catalog_->openArchive(link_, path, type, this))
+    for (;;) {
+        HRESULT result;
+        if (requested) {
+            COpenOptions options = *requested;
+            options.filePath = path.toStdWString().c_str();
+            result = catalog_->openArchive(link_, options, this);
+        } else {
+            result = catalog_->openArchive(link_, path, type, this);
+        }
+        if (result != kArchiveWrongPassword) {
+            RINOK(result)
+            break;
+        }
+        auto *retry = dynamic_cast<IArchivePasswordRetryUI *>(callback);
+        if (!retry)
+            return result;
+        const HRESULT reset = retry->ResetArchivePassword();
+        if (reset == E_NOTIMPL)
+            return result;
+        RINOK(reset)
+        RINOK(link_.Close())
+        link_.Release();
     }
     // A handler can initially scan its own SFX prefix, leaving Offset positive
     // and ArcStreamOffset zero. The source ReOpen establishes a tail stream

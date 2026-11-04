@@ -69,12 +69,19 @@ class CDecoder {
                                     IArchiveExtractCallback *extractCallback);
 
   public:
+    HRESULT DecodeResourceBlock(const Byte *packed, UInt32 packedSize, UInt32 unpackSize, bool lzvn,
+                                ISequentialOutStream *output);
     HRESULT Extract(ISequentialInStream *inStreamFork, ISequentialOutStream *realOutStream,
                     UInt64 forkSize, const CCompressHeader &compressHeader, const CByteBuffer *data,
                     UInt64 progressStart, IArchiveExtractCallback *extractCallback, int &opRes);
 
     CDecoder(bool IsAdlerOptional);
 };
+
+// Bounded random-access decoding, shared by HFS+ and APFS GetStream callers.
+HRESULT CreateDecmpfsStream(ISequentialInStream *fork, UInt64 forkSize,
+                            const CCompressHeader &header, const CByteBuffer *data,
+                            ISequentialInStream **stream);
 
 } // namespace NHfs
 } // namespace NArchive

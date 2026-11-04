@@ -1,7 +1,7 @@
 {
   "crypto": {
     "description": "Upstream crypto primitives, encrypted archives, failure/cancellation and filesystem consumers",
-    "tests": "^(crypto_aes|crypto_hash|crypto_pbkdf2|crypto_zip|runtime_cache|fscrypt_crypto|fsverity_signature|native_hash_bundle|native_rar_memory|native_source_extract|source_update_backend|shared_checksum)$",
+    "tests": "^(crypto_aes|crypto_hash|crypto_pbkdf2|crypto_zip|encrypted_dmg|encrypted_dmg_ui|runtime_cache|fscrypt_crypto|fsverity_signature|native_hash_bundle|native_rar_memory|native_source_extract|source_update_backend|shared_checksum)$",
     "interactive": false
   },
   "localization": {

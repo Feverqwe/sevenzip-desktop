@@ -173,6 +173,101 @@ class ExfatTests final : public QObject {
         QTest::newRow("texfat-fragmented-bitmap-second") << 4;
         QTest::newRow("texfat-4096-byte-sector") << 5;
     }
+    void directReads_data() { treeAndFileContents_data(); }
+    void directReads() {
+        QFETCH(int, layout);
+        ExfatFixture fixture;
+        if (layout)
+            fixture = TexfatFixture(layout == 5 ? 1 : (layout - 1) % 2, layout == 5 ? 4096 : 512,
+                                    layout == 3 || layout == 4);
+        QCOMPARE(open(fixture.image), S_OK);
+        CMyComPtr<IInArchiveGetStream> streams;
+        QCOMPARE(archive_.QueryInterface(IID_IInArchiveGetStream, &streams), S_OK);
+        const std::map<QString, QByteArray> expected{
+            {fixture.fragmentedName, QByteArray(fixture.sectorSize, 'A') + QByteArray(188, 'B')},
+            {fixture.directoryName + '/' + fixture.nestedName,
+             QByteArray("tail") + QByteArray(2 * fixture.sectorSize - 4, '\0')},
+            {"empty.txt", {}}};
+        for (const auto &[name, bytes] : expected) {
+            CMyComPtr<ISequentialInStream> sequential;
+            QCOMPARE(streams->GetStream(indexOf(name), &sequential), S_OK);
+            CMyComPtr<IInStream> input;
+            QCOMPARE(sequential.QueryInterface(IID_IInStream, &input), S_OK);
+            for (qint64 offset : {qMax<qint64>(0, bytes.size() - 45), qint64(0),
+                                  qint64(fixture.sectorSize - 8), qint64(2)}) {
+                QCOMPARE(input->Seek(offset, STREAM_SEEK_SET, nullptr), S_OK);
+                QByteArray result;
+                const int wanted = int(qMax<qint64>(0, qMin<qint64>(83, bytes.size() - offset)));
+                while (result.size() < wanted) {
+                    char data[83];
+                    UInt32 count = 0;
+                    QCOMPARE(input->Read(data, wanted - result.size(), &count), S_OK);
+                    QVERIFY(count > 0);
+                    result.append(data, int(count));
+                }
+                QCOMPARE(result, bytes.mid(offset, wanted));
+            }
+            QCOMPARE(input->Seek(0, STREAM_SEEK_END, nullptr), S_OK);
+            char data;
+            UInt32 count = 1;
+            QCOMPARE(input->Read(&data, 1, &count), S_OK);
+            QCOMPARE(count, 0u);
+            QCOMPARE(input->Seek(-1, STREAM_SEEK_SET, nullptr), HRESULT_WIN32_ERROR_NEGATIVE_SEEK);
+        }
+    }
+    void directStreamRetainsGenerationAndReportsErrors() {
+        ExfatFixture fixture;
+        CMyComPtr2<IInStream, Input> input;
+        input.SetFromCls(new Input(fixture.image));
+        QCOMPARE(archive_->Open(input, nullptr, nullptr), S_OK);
+        CMyComPtr<IInArchiveGetStream> streams;
+        QCOMPARE(archive_.QueryInterface(IID_IInArchiveGetStream, &streams), S_OK);
+        CMyComPtr<ISequentialInStream> sequential;
+        QCOMPARE(streams->GetStream(indexOf(fixture.fragmentedName), &sequential), S_OK);
+        CMyComPtr<IInStream> file;
+        QCOMPARE(sequential.QueryInterface(IID_IInStream, &file), S_OK);
+        CMyComPtr<ISequentialInStream> other;
+        QCOMPARE(streams->GetStream(indexOf(fixture.fragmentedName), &other), S_OK);
+        QCOMPARE(archive_->Close(), S_OK);
+        auto replacement = fixture.image;
+        replacement[fixture.clusterOffset(5)] = 'X';
+        QCOMPARE(open(replacement), S_OK);
+        char bytes[4] = {};
+        UInt32 count = 0;
+        QCOMPARE(file->Read(bytes, sizeof(bytes), &count), S_OK);
+        QCOMPARE(QByteArray(bytes, count), QByteArray("AAAA"));
+        QCOMPARE(other->Read(bytes, sizeof(bytes), &count), S_OK);
+        QCOMPARE(QByteArray(bytes, count), QByteArray("AAAA"));
+        input->failureOffset = fixture.clusterOffset(9);
+        input->failureEnd = input->failureOffset + fixture.sectorSize;
+        for (HRESULT failure : {E_ABORT, E_OUTOFMEMORY, E_FAIL}) {
+            input->failureResult = failure;
+            QCOMPARE(file->Seek(fixture.sectorSize, STREAM_SEEK_SET, nullptr), S_OK);
+            count = 4;
+            QCOMPARE(file->Read(bytes, sizeof(bytes), &count), failure);
+            QCOMPARE(count, 0u);
+        }
+        QCOMPARE(file->Seek(0, STREAM_SEEK_SET, nullptr), S_OK);
+        QCOMPARE(file->Read(bytes, sizeof(bytes), &count), S_OK);
+        QCOMPARE(QByteArray(bytes, count), QByteArray("AAAA"));
+    }
+    void randomSeekRejectsCyclicChain() {
+        ExfatFixture fixture;
+        fixture.fat(5, 5);
+        QCOMPARE(open(fixture.image), S_OK);
+        CMyComPtr<IInArchiveGetStream> streams;
+        QCOMPARE(archive_.QueryInterface(IID_IInArchiveGetStream, &streams), S_OK);
+        CMyComPtr<ISequentialInStream> sequential;
+        QCOMPARE(streams->GetStream(indexOf(fixture.fragmentedName), &sequential), S_OK);
+        CMyComPtr<IInStream> file;
+        QCOMPARE(sequential.QueryInterface(IID_IInStream, &file), S_OK);
+        QCOMPARE(file->Seek(fixture.sectorSize, STREAM_SEEK_SET, nullptr), S_OK);
+        char byte = 'x';
+        UInt32 count = 1;
+        QVERIFY(file->Read(&byte, 1, &count) != S_OK);
+        QCOMPARE(count, 0u);
+        QCOMPARE(byte, 'x');
+    }
     void treeAndFileContents() {
         QFETCH(int, layout);
         ExfatFixture fixture;

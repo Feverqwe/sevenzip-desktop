@@ -1,5 +1,43 @@
 # Linux exFAT read-only format module
 
+## Seekable files for mounted access — 2026-11-03
+
+The `exFAT.Dmg.EncryptedDmg` mount failure was traced to the local archive adapter:
+it exposed extraction but no `IInArchiveGetStream`. The generic mount therefore
+materialized requested files and rejected files exceeding its disk-cache quota.
+This was unrelated to the image's compression or encryption settings.
+
+The adapter now exposes a seekable file stream through the same C reader used
+by extraction. It retains the original volume/input independently of handler
+Close/reopen, with private position, hint and cycle-detection state. The shared
+input/progress/error context has a separate owner; no opening or extraction UI
+callback is retained after its operation. Direct reads share the original
+file-size, ValidDataLength zero-fill, active FAT/bitmap, allocation and physical
+source checks. Transport errors and cancellation remain failures. No decoded-file
+temporary output is created by this interface.
+
+Source comparison covered complete original `cache.c`, `iomap.c`, `inode.c`,
+`file.c`, `exfat_fs.h` and `fatent.c` at the existing pinned Linux revision above;
+retrieved bytes matched their recorded complete-unit hashes. The first requested
+cluster loop from `cache.c::exfat_get_cluster` is partially adapted into the C
+reader's file mapper, shared by extraction and seekable reads. It retains cached
+FAT-sector traversal; the stream cursor replaces VFS inode/cache lifetime. Every
+traversed cluster is cycle checked, including a first read after a forward seek.
+Backward seeks reset the cursor and visit set. Contiguous allocations retain
+direct cluster arithmetic. Kernel LRU allocation and multi-cluster aggregation
+remain omitted performance services. Full original hashes are unchanged; the
+baseline records the newly transferred symbol and local owner.
+
+Regressions cover fragmented/contiguous files, TexFAT active allocation pairs,
+4096-byte sectors, random/backward reads, EOF, unwritten tails, stream lifetime
+through Close/reopen, interleaved streams, cyclic chains and transport failures/
+cancellation. Backend and encrypted-image consumers use zero extraction quota.
+Native macOS acceptance creates encrypted UDRO and UDZO exFAT images from
+synthetic files and reads a 4 MiB file through the actual window's Mount command
+and system SMB mount, with no extraction prompt or cache controls. These fixtures
+exercise the reported reader chain without the user's private image. Existing
+recovery and directory limitations remain in effect.
+
 Current status handling includes [limited read-only access](#limited-read-only-status-2026-10-21)
 for dirty/media-failure volumes and [partial directory access](#partial-directory-access-2026-10-23).
 The original clean-only TexFAT boundary below is retained as dated evidence.

@@ -1,5 +1,124 @@
 # Local read-only SMB: implementation and evidence
 
+The subsequent first-frame/preview starvation report and delayed-source A/B
+acceptance are recorded in the owning
+[encrypted DMG transport audit](dmg-encryption.md#network-transport-buffering--2026-11-03).
+
+## Encrypted image on an SMB source — 2026-11-03
+
+The subsequent report added a necessary condition: the encrypted DMG itself was
+on an SMB-mounted disk, and repeated forward seeks stalled VLC. A synthetic
+128 MiB file in a native encrypted exFAT UDRO image reproduced the stall through
+two independent native macOS SMB mounts. Direct reads of the image bytes worked;
+the first 1 MiB read inside the image stalled. Samples showed the archive worker
+blocked in the source file's kernel read while the source server was idle.
+
+The macOS adaptation of 7-Zip `CPP/Windows/FileIO.cpp::CInFile::Open` now requests
+`F_NOCACHE` for read-only source handles on `smbfs`. This bypasses the clustered
+kernel I/O path for dependent source reads. It does not copy the image or extract
+entries. Other filesystems and platforms retain the existing path. The original
+complete FileIO unit was verified against the existing 7-Zip baseline
+(`400ffdd5921d44e8e9c04a10e8cd658ab878edd1cf774395462820551092003b`);
+open/read/seek, archive opening and retained volume-stream callers were compared.
+This is a local OS-service adaptation, with no imported algorithm or revision
+advance. Apple's reference `SMBClient` revision
+`99da2d9a4bbe17cde3cee382ad3edc16e25f5535`,
+[`kernel/smbfs/smbfs_vnops.c`](https://github.com/apple-oss-distributions/SMBClient/blob/99da2d9a4bbe17cde3cee382ad3edc16e25f5535/kernel/smbfs/smbfs_vnops.c)
+confirms that `IO_NOCACHE` bypasses `cluster_read`; no Apple code was imported.
+
+The investigation also found a separate wire defect: final asynchronous replies
+granted the credits already granted by `STATUS_PENDING`. The adapted libsmb2
+`lib/pdu.c::smb2_correlate_reply` now grants zero in the final asynchronous reply,
+as required by [MS-SMB2 3.3.4.3](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-smb2/d39a64be-b8f8-424d-b8e5-a2cf5257459e).
+The complete original unit and its read/serve/socket callers were compared with
+the existing pinned libsmb2 baseline. A signed wire regression observes interim
+and final replies, checks a multi-credit read and retains error/duplicate-result
+coverage. Fixing credits alone did not resolve the native stall.
+
+`encrypted_dmg_network` is an explicitly opt-in slow macOS regression: it compares
+source bytes, then checks 64 independent 1 MiB ranges inside the mounted encrypted
+image, including repeated 5 MiB forward jumps and deterministic random offsets.
+No temporary extraction is permitted. Enable only this requested scenario with
+`SEVENZIP_NATIVE_NETWORK_DMG_TEST=1 SEVENZIP_INCLUDE_SLOW_TESTS=1` and the usual
+CTest wrapper's `-R '^encrypted_dmg_network$'`. The private image and external
+network server were not accessed; the fixture uses two loopback SMB connections.
+
+The previously failing native network scenario passed with `F_NOCACHE` alone in
+19.76 s; the final fixture with distinct MiB markers passed in 23.67 s, including
+fixture creation and cleanup. macOS server/transport/session
+passed in 2.57 s; native encrypted exFAT QuickLook/VLC/concurrent-read acceptance
+passed in 11.97 s. Linux's four focused SMB/read-reply/transport/session suites
+passed (build 3.46 s, tests 2.12 s). The release app was rebuilt and its deep strict
+code signature verified. This accepts the synthetic network scenario, not the
+user's private image or external SMB server. No full gate or unrelated slow suite
+was run.
+
+Final wire checks passed on Linux (1.37 s), macOS (2.16 s) and Windows (29.74 s).
+The latency workload connects directly to the server; the signed-packet observer
+uses TCP_NODELAY and is kept outside that timing measurement. This avoids measuring
+the proxy's Windows event/ACK delays as server latency. The suite timeout was
+raised after observing the expanded Windows suite reach its former 30 s limit;
+the direct-read latency bound remains unchanged.
+
+## Ready-read notification and native media load — 2026-11-03
+
+The follow-up reported VLC ceasing to respond while Finder stopped producing
+previews on an encrypted exFAT DMG. A separate indefinite deadlock was not
+reproduced on the synthetic images. A source-visible latency defect was reproduced:
+an asynchronous completion stored its result but did not wake the SMB event loop.
+With no new incoming traffic, each ready response waited for the library's idle
+select timeout. The focused 64-small-read workload took 6586 ms and failed its
+bounded-completion check.
+
+The project SMB adapter now uses the existing extra-fd/service hooks to notify
+select through a nonblocking loopback socket. Completion threads still only
+publish results; the server thread owns native contexts, correlation, signing
+and reply queues. The notification object is retained with pending completions,
+including callbacks surviving client disconnect/server shutdown. Duplicate
+completions remain ignored. Stop also signals the event loop. Native descriptor
+bounds, noninheritance, close and Winsock lifetime belong to the focused platform
+helper. No dependency bytes, protocol algorithm, source revision, archive decoder
+or recovery policy changed. The current library's complete serve loop, read
+callback, PDU correlation and extra-fd types/callers were compared before editing.
+
+The previously failing macOS test passed in 418 ms total after the change
+(7016 ms total before). Linux focused `smb_readonly_server`,
+`archive_mount_transport`, `mount_session`, `encrypted_dmg_ui` passed (build
+13.27 s, tests 2.45 s). macOS server/transport/session passed in 2.63 s. Windows
+`smb_readonly_server` passed (build 17.90 s, tests 29.14 s), checking the Winsock
+branch rather than implying native Windows mounting acceptance.
+
+Native Cocoa acceptance used a freshly built SMB helper and an encrypted exFAT
+UDRO image with twelve generated JPEGs and generated video. System `qlmanage`
+produced all twelve thumbnails while an isolated installed VLC instance decoded
+multiple distinct expected-size frames and a concurrent 4 MiB read matched its
+input. VLC used a disposable configuration and disabled network metadata. This
+scenario passed in 11.75 s, including image/video generation and mounting.
+The native UI test now depends explicitly on the SMB helper so a focused build
+cannot silently reuse an older executable. Native media checks are opt-in;
+`SEVENZIP_NATIVE_SMB_TEST=1` selects native mounts and `SEVENZIP_TEST_VLC` selects
+the installed VLC executable (with ffmpeg for synthetic video generation).
+Full gates and slow suites were not run; the private user image was not accessed.
+
+## Mount-scoped extraction decision — 2026-11-03
+
+User-requested follow-up supersedes the earlier per-file consent policy below:
+one decision now covers ordinary temporary extraction throughout a mount, including
+cache eviction. Denial also persists until remount. Unverified recovery output still
+requires a separate file-specific choice. Source comparison and compressed HFS/APFS
+stream ownership are recorded in the [DMG audit](dmg-encryption.md#mounted-access-follow-up).
+The generic read-only view's per-materialization contract is unchanged.
+
+Linux x86_64 passed the seven focused suites listed in the DMG audit. The transport
+follow-up limits cache capacity to one file and reads first/second/first via SMB,
+checking exact bytes after eviction and one prompt, or no data and one decline.
+macOS arm64 passed the same changed reader, transport and prompt suites. A Cocoa
+run also passed the two consent cases and the actual native system mount through
+the manager (EN, synthetic ZIP only), with test-owned unmount cleanup. Current
+Cocoa widget JSON at 640/420 logical-pixel widths confirms visible, separate EN/RU
+actions and fitting wrapped labels. This is native macOS evidence, not Windows
+pixel parity or acceptance of every image/compression method.
+
 ## Namespace preparation ownership — 2026-11-03
 
 Reviewed retained-view preparation, native item metadata, SMB namespace projection,

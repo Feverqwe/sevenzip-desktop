@@ -2,7 +2,7 @@
 #include "mount/archivemountdecision.h"
 #include <QDialog>
 
-// One decision for one impending extraction, never a persistent permission.
+// Extraction consent belongs to one mount; unverified-data consent stays per file.
 class QtMountExtractionPrompt final : public QDialog {
     Q_OBJECT
     ArchiveMountDecisionPtr decision_;

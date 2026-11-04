@@ -5,6 +5,7 @@
 #include <QRemoteObjectPendingCallWatcher>
 #include <QTimer>
 #include <atomic>
+#include <cstdio>
 #include <thread>
 
 namespace {
@@ -61,6 +62,9 @@ int main(int argc, char **argv) {
             std::move(entries), replica->user(), replica->password(),
             [](quint64, quint64, quint32) { return SmbTreeRead{0xc0000185U, {}}; },
             replica->share());
+        if (qEnvironmentVariableIsSet("SEVENZIP_SMB_TRACE"))
+            server->setDiagnosticHandler(
+                [](const QString &message) { std::fprintf(stderr, "%s\n", qPrintable(message)); });
         server->setAsyncReader([&](quint64 id, quint64 offset, quint32 length,
                                    SmbReadOnlyServer::ReadCompletion complete) {
             // Qt owns IPC; the library event loop stays available for metadata,

@@ -14,6 +14,7 @@
     "src/formats/fat/FatHeader.cpp",
     "src/formats/fat/FatHeader.h",
     "src/formats/hfs/HfsDecmpfs.cpp",
+    "src/formats/hfs/HfsDecmpfsStream.cpp",
     "src/formats/mbr/MbrProbe.cpp",
     "src/formats/vhdx/VhdxCrc.cpp",
     "src/formats/vhdx/VhdxCrc.h",
@@ -142,6 +143,7 @@
     "src/engine/build/Arc_gcc.mak",
     "src/fileops/patterns/Wildcard.cpp",
     "src/fileops/patterns/Wildcard.h",
+    "src/formats/apfs/ApfsHandler.cpp",
     "src/formats/apm/ApmHandler.cpp",
     "src/formats/base64/Base64Handler.cpp",
     "src/formats/bzip2/Bz2Handler.cpp",
@@ -385,7 +387,6 @@
     "third_party/7zip/CPP/7zip/Archive/7z/StdAfx.h",
     "third_party/7zip/CPP/7zip/Archive/7z/makefile",
     "third_party/7zip/CPP/7zip/Archive/7z/resource.rc",
-    "third_party/7zip/CPP/7zip/Archive/ApfsHandler.cpp",
     "third_party/7zip/CPP/7zip/Archive/ArHandler.cpp",
     "third_party/7zip/CPP/7zip/Archive/Archive.def",
     "third_party/7zip/CPP/7zip/Archive/Archive2.def",
@@ -1362,6 +1363,7 @@
     "src/fileops/native/FileName.cpp",
     "src/fileops/patterns/Wildcard.cpp",
     "src/fileops/patterns/Wildcard.h",
+    "src/formats/apfs/ApfsHandler.cpp",
     "src/formats/apm/ApmHandler.cpp",
     "src/formats/base64/Base64Handler.cpp",
     "src/formats/bzip2/Bz2Handler.cpp",
@@ -1487,6 +1489,7 @@
     "src/archive/backend/archivebackend_transfer.cpp",
     "src/archive/backend/archivebackend_validation.cpp",
     "src/archive/backend/archivebackend_workerprogress.cpp",
+    "src/archive/callbacks/archivepasswordretry.h",
     "src/archive/callbacks/qtarchiveoutputidentity.cpp",
     "src/archive/callbacks/qtarchiveoutputidentity.h",
     "src/archive/callbacks/qtcallbackdialogs.cpp",
@@ -1619,6 +1622,7 @@
     "src/crypto/primitives/userspace.h",
     "src/crypto/verity/signaturecompat.h",
     "src/crypto/verity/userspace.h",
+    "src/dependencies/apfscrypto/module.cmake",
     "src/dependencies/brotli/brotli.cppm",
     "src/dependencies/brotli/brotli.h",
     "src/dependencies/grub_xfs/grub_xfs.cppm",
@@ -1823,6 +1827,12 @@
     "src/formats/btrfs/module.cmake",
     "src/formats/common/moduleexports.cpp",
     "src/formats/common/moduleexports.def",
+    "src/formats/encrypted-dmg/dmgcrypto.cpp",
+    "src/formats/encrypted-dmg/dmgcrypto.h",
+    "src/formats/encrypted-dmg/dmgheaders.h",
+    "src/formats/encrypted-dmg/encrypteddmghandler.cpp",
+    "src/formats/encrypted-dmg/module.cmake",
+    "src/formats/encrypted-dmg/passwordguid.cpp",
     "src/formats/erofs/erofsarchiveattributes.cpp",
     "src/formats/erofs/erofsarchiveattributes.h",
     "src/formats/erofs/erofsarchivereader.cpp",
@@ -1836,6 +1846,8 @@
     "src/formats/exfat/exfathandler.cpp",
     "src/formats/exfat/exfatreader.c",
     "src/formats/exfat/exfatreader.h",
+    "src/formats/exfat/exfatstream.cpp",
+    "src/formats/exfat/exfatstream.h",
     "src/formats/exfat/module.cmake",
     "src/formats/ext/ExtHeader.cpp",
     "src/formats/ext/ExtHeader.h",
@@ -1873,6 +1885,7 @@
     "src/formats/fat/fatreader.h",
     "src/formats/fat/module.cmake",
     "src/formats/hfs/HfsDecmpfs.cpp",
+    "src/formats/hfs/HfsDecmpfsStream.cpp",
     "src/formats/hfs/hfsreader.c",
     "src/formats/hfs/hfsreader.h",
     "src/formats/hfs/module.cmake",
@@ -2009,6 +2022,8 @@
     "src/mount/smb/smbreadonlyserver.h",
     "src/mount/smb/smbreadonlyserver_p.h",
     "src/mount/smb/smbservermain.cpp",
+    "src/mount/smb/smbwakeup.cpp",
+    "src/mount/smb/smbwakeup.h",
     "src/operations/operation.rep",
     "src/operations/qtexternalguicall.cpp",
     "src/operations/qtexternalguicall.h",
@@ -2931,7 +2946,6 @@
     "third_party/7zip/CPP/7zip/Archive/7z/StdAfx.h": "8de56d2017656281b63e053f17df368de1d0b64a5bd67207e4500fbabe5c3aab",
     "third_party/7zip/CPP/7zip/Archive/7z/makefile": "83ed039489429e722dc2b3e513f0bba1a2c5f36b8cc89abb96261e1607dd3e44",
     "third_party/7zip/CPP/7zip/Archive/7z/resource.rc": "446f21d760479e2ec8c58245866633967c3f801e1cfeb320c5cbc059dc28a328",
-    "third_party/7zip/CPP/7zip/Archive/ApfsHandler.cpp": "8d8398938f5ec33bc7e89fd88c9ec210e7baa31327e2b4ea379a6066ec3264cf",
     "third_party/7zip/CPP/7zip/Archive/ArHandler.cpp": "c2e3af21d131ff6d7e90465dca6a7d324cd15a4984742208414125cf69f95f77",
     "third_party/7zip/CPP/7zip/Archive/Archive.def": "1d5d39d52b349ff6283d431b84a4e052e5b64286309026b03039b85b04701613",
     "third_party/7zip/CPP/7zip/Archive/Archive2.def": "ccc6522b042a880d25eab65c9f2344393cfbd8aad57d7e0251b44ba425e043d2",
@@ -3411,12 +3425,14 @@
     "third_party/7zip/DOC/readme.txt": "fc12257598718103c65b992bd14164b49229dd62dec61cde22a55f84e0f74d5d",
     "third_party/7zip/DOC/src-history.txt": "173e3472ba08daae508ad781de3c594a3d95506ced4ea6d3bfb6915498803249",
     "third_party/7zip/DOC/unRarLicense.txt": "17bd9fa4399092c777536fff045b41df76ec9d2ac4c9b8e7345d3b8b6ccc7976",
-    "third_party/7zip/README.md": "dd529c84b78447652149940adaec231da0dc60316a8a149b45eff6dd3b1abaf5"
+    "third_party/7zip/README.md": "dd529c84b78447652149940adaec231da0dc60316a8a149b45eff6dd3b1abaf5",
+    "src/formats/apfs/ApfsHandler.cpp": "8d8398938f5ec33bc7e89fd88c9ec210e7baa31327e2b4ea379a6066ec3264cf"
   },
   "runtime_format_sources": [
     "src/formats/ext/ExtHeader.cpp",
     "src/formats/fat/FatHeader.cpp",
     "src/formats/hfs/HfsDecmpfs.cpp",
+    "src/formats/hfs/HfsDecmpfsStream.cpp",
     "src/formats/mbr/MbrProbe.cpp",
     "src/formats/vhdx/VhdxCrc.cpp"
   ],
@@ -3453,12 +3469,15 @@
     },
     "src/formats/hfs/HfsHandler.cpp": {
       "local": [
-        "src/formats/hfs/HfsDecmpfs.cpp"
+        "src/formats/hfs/HfsDecmpfs.cpp",
+        "src/formats/hfs/HfsDecmpfsStream.cpp"
       ],
       "symbols": [
         "NHfs::CCompressHeader",
         "NHfs::MethodsMaskToProp",
-        "NHfs::CDecoder"
+        "NHfs::CDecoder",
+        "NHfs::CDecoder::ExtractResourceFork_ZLIB -> random-access resource map validation",
+        "NHfs::CDecoder::ExtractResourceFork_LZFSE -> random-access resource map validation"
       ]
     },
     "src/formats/mbr/MbrHandler.cpp": {
@@ -3963,7 +3982,6 @@
     "third_party/7zip/CPP/7zip/Archive/7z/StdAfx.h": "CPP/7zip/Archive/7z/StdAfx.h",
     "third_party/7zip/CPP/7zip/Archive/7z/makefile": "CPP/7zip/Archive/7z/makefile",
     "third_party/7zip/CPP/7zip/Archive/7z/resource.rc": "CPP/7zip/Archive/7z/resource.rc",
-    "third_party/7zip/CPP/7zip/Archive/ApfsHandler.cpp": "CPP/7zip/Archive/ApfsHandler.cpp",
     "third_party/7zip/CPP/7zip/Archive/ArHandler.cpp": "CPP/7zip/Archive/ArHandler.cpp",
     "third_party/7zip/CPP/7zip/Archive/Archive.def": "CPP/7zip/Archive/Archive.def",
     "third_party/7zip/CPP/7zip/Archive/Archive2.def": "CPP/7zip/Archive/Archive2.def",
@@ -4774,7 +4792,8 @@
     "third_party/7zip/DOC/src-history.txt": "DOC/src-history.txt",
     "third_party/7zip/DOC/unRarLicense.txt": "DOC/unRarLicense.txt",
     "third_party/7zip/License.txt": "DOC/License.txt",
-    "third_party/7zip/README.md": "README.md"
+    "third_party/7zip/README.md": "README.md",
+    "src/formats/apfs/ApfsHandler.cpp": "CPP/7zip/Archive/ApfsHandler.cpp"
   },
   "originals": {
     ".gitattributes": {
@@ -8783,7 +8802,8 @@
     "third_party/zlib/adler32.c": "zlib/adler32.c",
     "third_party/zlib/zconf.h": "zlib/zconf.h",
     "third_party/zlib/zlib.h": "zlib/zlib.h",
-    "third_party/zlib/zutil.h": "zlib/zutil.h"
+    "third_party/zlib/zutil.h": "zlib/zutil.h",
+    "src/formats/hfs/HfsDecmpfsStream.cpp": "CPP/7zip/Archive/HfsDecmpfsStream.cpp"
   },
   "runtime_excluded": [
     "src/formats/cpio/CpioHandler.cpp",
@@ -8828,6 +8848,7 @@
     "docs/base64-linux-baseline.json",
     "docs/btrfs-linux-baseline.json",
     "docs/cpio-linux-baseline.json",
+    "docs/dmg-encryption-baseline.json",
     "docs/erofs-liblzma-baseline.json",
     "docs/erofs-linux-baseline.json",
     "docs/exfat-linux-baseline.json",

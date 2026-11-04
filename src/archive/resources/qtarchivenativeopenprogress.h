@@ -1,10 +1,13 @@
 #pragma once
 #include "archive/callbacks/ArchiveOpenCallback.h"
+#include "archive/callbacks/archivepasswordretry.h"
 #include "crypto/fscrypt/fscryptkeyrequest.h"
 #include <QString>
 
 // Presentation projection only; native detection/volume callbacks stay upstream.
-class CNativeOpenProgress final : public IOpenCallbackUI, public IFscryptKeyUI {
+class CNativeOpenProgress final : public IOpenCallbackUI,
+                                  public IFscryptKeyUI,
+                                  public IArchivePasswordRetryUI {
     IProgress *_progress;
     IOpenCallbackUI *_source;
     IArchiveOpenCallback *_open;
@@ -20,4 +23,5 @@ class CNativeOpenProgress final : public IOpenCallbackUI, public IFscryptKeyUI {
     HRESULT Open_Finished() override;
     HRESULT Open_CryptoGetTextPassword(BSTR *password) override;
     HRESULT Open_FscryptKeys(BSTR *keys) override;
+    HRESULT ResetArchivePassword() override;
 };

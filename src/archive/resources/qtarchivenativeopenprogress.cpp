@@ -1,5 +1,11 @@
 #include "archive/resources/qtarchivenativeopenprogress.h"
 
+HRESULT CNativeOpenProgress::ResetArchivePassword() {
+    Password.clear();
+    auto *retry = dynamic_cast<IArchivePasswordRetryUI *>(_source);
+    return retry ? retry->ResetArchivePassword() : E_NOTIMPL;
+}
+
 HRESULT CNativeOpenProgress::Open_CheckBreak() {
     if (!_source && _open)
         return _open->SetCompleted(nullptr, nullptr);

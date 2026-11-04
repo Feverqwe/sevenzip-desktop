@@ -47,6 +47,13 @@ include dependency notices; packaging details and signing limitations are in
 [CI and packaging](docs/ci.md). The repository's MIT license alone does not
 describe the licensing of an entire binary distribution.
 
+## Encrypted Apple disk images
+
+The encrypted DMG format module includes adapted apfs-fuse code by Simon Gander,
+licensed under GPL-2.0-or-later. The [original license](third_party/apfs-fuse/LICENSE)
+and [source audit](docs/upstream-port-audit/dmg-encryption.md) record its scope
+and reproducible source baseline. Existing 7-Zip primitives retain their notices.
+
 ## Tooling notice
 
 Release, packaging, Qt installation/source-fetching and Hyper-V tooling includes

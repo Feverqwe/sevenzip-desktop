@@ -67,6 +67,7 @@ class Host final : public QObject {
     bool Defer = false;
     ArchiveMountDecisionPtr Pending;
     int Confirmations = 0;
+    quint64 CacheQuota = 4 * 1024 * 1024;
     QStringList ReadIssues;
     ~Host() override {
         if (Source)
@@ -98,7 +99,7 @@ class Host final : public QObject {
         resource->AttachNativeOpen(reader);
         resource->UseNativeMetadata();
         const QUrl endpoint(QStringLiteral("local:") + Socket.filePath("source"));
-        Source = new QtArchiveMountSource(resource, 4 * 1024 * 1024, {}, "sztransport",
+        Source = new QtArchiveMountSource(resource, CacheQuota, {}, "sztransport",
                                           "SyntheticTransport427", endpoint);
         Source->moveToThread(&Worker);
         QObject::connect(&Worker, &QThread::finished, Source, &QObject::deleteLater);
@@ -153,6 +154,7 @@ class ArchiveMountTransportTests final : public QObject {
         const QString path = fixture.filePath("source." + format);
         QVERIFY(NativeArchiveFixture::Write(path, {{name, payload}}, format));
         Host host;
+        host.Allow = true;
         QVERIFY(host.start(path, format));
         QTRY_VERIFY_WITH_TIMEOUT(host.Port || !host.Error.isEmpty(), 15000);
         QVERIFY2(host.Port, qPrintable(host.Error));
@@ -163,15 +165,6 @@ class ArchiveMountTransportTests final : public QObject {
             ClientWork([&] { return smb2_open(client.Context, encoded.constData(), O_RDONLY); });
         QVERIFY2(file, smb2_get_error(client.Context));
         QByteArray bytes(4096, '\0');
-        if (format == "zip") {
-            const int denied = ClientWork([&] {
-                return smb2_pread(client.Context, file, reinterpret_cast<uint8_t *>(bytes.data()),
-                                  4096, 100003);
-            });
-            QVERIFY(denied < 0);
-            QCOMPARE(host.Confirmations, 1);
-            host.Allow = true;
-        }
         for (quint64 offset : {quint64(100003), quint64(17), quint64(175000)}) {
             const int count = ClientWork([&] {
                 return smb2_pread(client.Context, file, reinterpret_cast<uint8_t *>(bytes.data()),
@@ -180,7 +173,7 @@ class ArchiveMountTransportTests final : public QObject {
             QCOMPARE(count, 4096);
             QCOMPARE(bytes, payload.mid(qsizetype(offset), 4096));
         }
-        QCOMPARE(host.Confirmations, format == "zip" ? 2 : 0);
+        QCOMPARE(host.Confirmations, format == "zip" ? 1 : 0);
         QVERIFY(ClientWork([&] { return smb2_unlink(client.Context, encoded.constData()); }) < 0);
         QVERIFY(ClientWork([&] {
                     return smb2_rename(client.Context, encoded.constData(), "renamed.bin");
@@ -285,11 +278,12 @@ class ArchiveMountTransportTests final : public QObject {
         QCOMPARE(host.Confirmations, 1);
         QCOMPARE(ClientWork([&] { return smb2_close(client.Context, file); }), 0);
     }
-    void declinedExtractionDoesNotHideLaterReadFailure() {
+    void allowedExtractionReportsReadFailure() {
         QTemporaryDir fixture;
         const QString path = fixture.filePath("source.zip");
         QVERIFY(NativeArchiveFixture::Write(path, {{"data.bin", Payload()}}, "zip"));
         Host host;
+        host.Allow = true;
         QVERIFY(host.start(path, "zip"));
         QTRY_VERIFY_WITH_TIMEOUT(host.Port || !host.Error.isEmpty(), 15000);
         QVERIFY2(host.Port, qPrintable(host.Error));
@@ -304,17 +298,54 @@ class ArchiveMountTransportTests final : public QObject {
                                   bytes.size(), 10000);
             });
         };
-        QVERIFY(read() < 0);
-        QVERIFY(host.ReadIssues.isEmpty());
         QFile source(path);
         QVERIFY(source.open(QIODevice::WriteOnly | QIODevice::Truncate));
         source.close();
-        host.Allow = true;
         QVERIFY(read() < 0);
         QTRY_COMPARE(host.ReadIssues.size(), 1);
         QVERIFY(host.ReadIssues.front().contains("data.bin"));
         QCOMPARE(bytes, QByteArray(4096, '\0'));
         QCOMPARE(ClientWork([&] { return smb2_close(client.Context, file); }), 0);
+    }
+    void oneExtractionDecisionForMount_data() {
+        QTest::addColumn<bool>("allow");
+        QTest::newRow("allow multiple files") << true;
+        QTest::newRow("decline without repeated prompts") << false;
+    }
+    void oneExtractionDecisionForMount() {
+        QFETCH(bool, allow);
+        QTemporaryDir fixture;
+        const QString path = fixture.filePath("source.zip");
+        const auto payload = Payload();
+        QVERIFY(NativeArchiveFixture::Write(path, {{"first.bin", payload}, {"second.bin", payload}},
+                                            "zip"));
+        Host host;
+        host.Allow = allow;
+        // Only one file fits: reading first/second/first also exercises eviction.
+        host.CacheQuota = quint64(payload.size());
+        QVERIFY(host.start(path, "zip"));
+        QTRY_VERIFY_WITH_TIMEOUT(host.Port || !host.Error.isEmpty(), 15000);
+        QVERIFY2(host.Port, qPrintable(host.Error));
+        Client client;
+        QCOMPARE(ClientWork([&] { return client.connect(host.Port); }), 0);
+        for (const char *name : {"first.bin", "second.bin", "first.bin"}) {
+            auto *file = ClientWork([&] { return smb2_open(client.Context, name, O_RDONLY); });
+            QVERIFY(file);
+            QByteArray bytes(91, '\0');
+            const int count = ClientWork([&] {
+                return smb2_pread(client.Context, file, reinterpret_cast<uint8_t *>(bytes.data()),
+                                  bytes.size(), 37);
+            });
+            if (allow) {
+                QCOMPARE(count, int(bytes.size()));
+                QCOMPARE(bytes, payload.mid(37, bytes.size()));
+            } else {
+                QVERIFY(count < 0);
+                QCOMPARE(bytes, QByteArray(91, '\0'));
+            }
+            QCOMPARE(ClientWork([&] { return smb2_close(client.Context, file); }), 0);
+        }
+        QCOMPARE(host.Confirmations, 1);
     }
 #if defined(Q_OS_MACOS) || defined(Q_OS_LINUX)
     void cancellingMountSetupStartsNoSession() {

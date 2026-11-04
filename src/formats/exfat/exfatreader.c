@@ -272,8 +272,47 @@ int exfat_next_item(struct exfat_volume *v, struct exfat_cursor *c, struct exfat
     return 1;
 }
 
-int exfat_read_item(struct exfat_volume *v, const struct exfat_item *item,
-                    struct exfat_cursor *c, void *data, size_t size, size_t *processed) {
+/* First-cluster mapping from fs/exfat/cache.c:exfat_get_cluster.
+ * Written 1992,1993 by Werner Almesberger.
+ * Copyright (C) 2012-2013 Samsung Electronics Co., Ltd.
+ * The per-stream hint replaces the VFS inode LRU; preserve the cached FAT-sector walk and add
+ * userspace cycle validation for every traversed cluster, including seeks. */
+static int exfat_map_item_cluster(struct exfat_volume *v, const struct exfat_item *item,
+                                  struct exfat_cursor *c, unsigned int offset) {
+    if (c->hint_offset == EXFAT_EOF_CLUSTER) {
+        c->hint_offset = 0;
+        c->hint_cluster = item->cluster;
+        if (v->visit_cluster && v->visit_cluster(v->sb.context, c->hint_cluster))
+            return -EIO;
+    }
+    if (offset < c->hint_offset)
+        return -EINVAL;
+    if (item->flags == ALLOC_NO_FAT_CHAIN) {
+        if (offset != c->hint_offset) {
+            c->hint_cluster += offset - c->hint_offset;
+            c->hint_offset = offset;
+            if (v->visit_cluster && v->visit_cluster(v->sb.context, c->hint_cluster))
+                return -EIO;
+        }
+        return 0;
+    }
+    struct buffer_head *bh = NULL;
+    while (c->hint_offset < offset) {
+        unsigned int content;
+        if (exfat_ent_get(&v->sb, c->hint_cluster, &content, &bh) || content == EXFAT_EOF_CLUSTER ||
+            (v->visit_cluster && v->visit_cluster(v->sb.context, content))) {
+            brelse(bh);
+            return v->sb.allocation_error ? -ENOMEM : -EIO;
+        }
+        c->hint_cluster = content;
+        c->hint_offset++;
+    }
+    brelse(bh);
+    return 0;
+}
+
+int exfat_read_item(struct exfat_volume *v, const struct exfat_item *item, struct exfat_cursor *c,
+                    void *data, size_t size, size_t *processed) {
     *processed = 0;
     if (c->position >= item->size)
         return 0;
@@ -285,19 +324,11 @@ int exfat_read_item(struct exfat_volume *v, const struct exfat_item *item,
         memset(data, 0, size);
     } else {
         unsigned int offset = exfat_bytes_to_cluster(&v->info, c->position);
-        bool new_cluster = !c->position || offset != c->hint_offset;
-        if (c->hint_offset == EXFAT_EOF_CLUSTER) {
-            c->hint_offset = 0;
-            c->hint_cluster = item->cluster;
-        }
-        if (offset < c->hint_offset)
-            return -EINVAL;
-        if (exfat_cluster_walk(&v->sb, &c->hint_cluster, offset - c->hint_offset, item->flags))
-            return -EIO;
-        c->hint_offset = offset;
-        if (!is_valid_cluster(&v->info, c->hint_cluster) || !exfat_test_bitmap(&v->sb, c->hint_cluster))
-            return -EIO;
-        if (new_cluster && v->visit_cluster && v->visit_cluster(v->sb.context, c->hint_cluster))
+        int mapped = exfat_map_item_cluster(v, item, c, offset);
+        if (mapped)
+            return mapped;
+        if (!is_valid_cluster(&v->info, c->hint_cluster) ||
+            !exfat_test_bitmap(&v->sb, c->hint_cluster))
             return -EIO;
         uint64_t cluster_offset = exfat_cluster_offset(&v->info, c->position);
         size = min_t(uint64_t, size, v->info.cluster_size - cluster_offset);
@@ -307,8 +338,7 @@ int exfat_read_item(struct exfat_volume *v, const struct exfat_item *item,
         if (physical >= available)
             return -EIO;
         size = min_t(uint64_t, size, available - physical);
-        if (!size ||
-            v->sb.read(v->sb.context, physical, data, size))
+        if (!size || v->sb.read(v->sb.context, physical, data, size))
             return -EIO;
     }
     c->position += size;

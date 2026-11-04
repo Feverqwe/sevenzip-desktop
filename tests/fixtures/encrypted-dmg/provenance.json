@@ -1,0 +1,26 @@
+{
+  "generator": "macOS hdiutil, artificial files only, 2026-11-03",
+  "password": "fixture-password",
+  "raw_plaintext": "65536 zero bytes; native raw UDRW, no filesystem",
+  "hfs_file": {
+    "name": "hello 空.txt",
+    "content": "Encrypted DMG fixture\n"
+  },
+  "sha256": {
+    "native-hfs-clear.dmg": "7e34a91a05ccaa4eb5f46c8258096d39dee4cd27362b7b37d86ef49a04cf19ee",
+    "native-hfs256.dmg": "8eb1ffc61dd8b4c3d6943c9b8c005f7a0380660e6f0ca8fce60a5a54c3887efa",
+    "native-raw128.dmg": "9cf2ac93e6c20a0924067e6603955143044ce67b59abf761d23a2eb93a1f8d77",
+    "native-raw256.dmg": "44df5c1954dde35686dc3bbcee77383bf377f86738f019575484058f423ef482",
+    "native-apfs-clear.dmg": "11b08cad2a1667033d6fe0bc636f06f211bc9a6c6bf9cd90aede300684248fff"
+  },
+  "password_input": "NUL-terminated, no newline",
+  "apfs_compressed_reference": {
+    "generator": "hdiutil create -srcfolder artificial files -fs APFS -format UDZO -volname StreamFixture",
+    "inline_file": "inline.txt",
+    "inline_bytes": 32768,
+    "inline_pattern": "bytes(range(256)) * 128",
+    "inline_method": 3,
+    "independent_reference": "macOS kernel successfully read the synthetic decmpfs file before image creation; image preserves UF_COMPRESSED and ZLIB-attr",
+    "inline_sha256": "e11360251d1173650cdcd20f111d8f1ca2e412f572e8b36a4dc067121c1799b8"
+  }
+}

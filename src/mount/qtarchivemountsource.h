@@ -9,6 +9,7 @@
 #include <QStringList>
 #include <atomic>
 #include <memory>
+#include <optional>
 
 class ArchiveReadOnlyView;
 class QRemoteObjectHost;
@@ -25,6 +26,7 @@ class QtArchiveMountSource final : public ArchiveMountSource {
     std::shared_ptr<ArchiveReadOnlyView> view_;
     std::atomic_bool cancelled_{false};
     QHash<quint64, QSet<quint32>> reported_;
+    std::optional<bool> extractionAllowed_;
 
   public:
     QtArchiveMountSource(IUnknown *resource, quint64 quota, QString archivePassword, QString user,

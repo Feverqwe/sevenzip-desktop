@@ -136,6 +136,9 @@ install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/third_party/xz/COPYING.0BSD"
 install(TARGETS sevenzip_brotli RUNTIME DESTINATION bin/Formats LIBRARY DESTINATION bin/Formats)
 install(TARGETS sevenzip_lz4_frame RUNTIME DESTINATION bin/Formats LIBRARY DESTINATION bin/Formats)
 install(TARGETS sevenzip_lzip RUNTIME DESTINATION bin/Formats LIBRARY DESTINATION bin/Formats)
+install(TARGETS sevenzip_encrypted_dmg RUNTIME DESTINATION bin/Formats LIBRARY DESTINATION bin/Formats)
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/third_party/apfs-fuse/LICENSE"
+    DESTINATION share/licenses/sevenzip-desktop/apfs-fuse)
 install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/third_party/lzlib/COPYING"
     DESTINATION share/licenses/sevenzip-desktop/lzlib)
 install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/third_party/lz4/lib/LICENSE"

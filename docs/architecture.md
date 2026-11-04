@@ -26,6 +26,13 @@ The 7-Zip-based native engine remains responsible for archive formats and
 compression; project filesystem readers are shared by the application and
 console through the same external format modules.
 
+Encrypted DMG has a separate read-only format owner which exposes decrypted
+bytes on demand through `IInStream`. Recursive opening reuses the existing
+UDIF, partition and filesystem readers. Password retry belongs to the opening
+operation; decrypting streams retain no UI callback. The
+[DMG source audit](upstream-port-audit/dmg-encryption.md) records provenance,
+crypto ownership, supported variants and validation limits.
+
 ## Module directories and source ownership
 
 Project-owned code and adaptations belong to their functional module directories.

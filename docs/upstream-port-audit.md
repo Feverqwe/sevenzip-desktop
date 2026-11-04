@@ -7,6 +7,9 @@
 
 ## Дополнительные форматы
 
+[Зашифрованные DMG](upstream-port-audit/dmg-encryption.md) — seekable read-only
+оболочка, пароль, исходный baseline и границы проверок.
+
 [Read-only F2FS](upstream-port-audit/f2fs.md) — отдельный reader из GRUB,
 современная геометрия inode по f2fs-tools, provenance и границы первой версии.
 

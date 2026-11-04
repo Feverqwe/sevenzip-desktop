@@ -1197,6 +1197,12 @@ HRESULT CDatabase::LoadCatalog(const CFork &fork,
                     sevenzip_hfsplus_private_name(item.DiskName, CatalogCaseSensitive);
                 if (!LoadName(name, nameLen, item.Name, false))
                     return S_FALSE;
+                // macOS's root directory-hardlink store ends in CR. Preserve
+                // the catalog name for lookups, but expose a portable archive
+                // path, as for the file-hardlink store below.
+                if (item.ParentID == 2 && type == RECORD_TYPE_FOLDER &&
+                    item.Name == L".HFS+ Private Directory Data\r")
+                    item.Name = "[HFS+ Private Directory Data]";
                 if (item.Name.Len() <= 1) {
                     if (item.Name.IsEmpty() && nameLen == 21) {
                         if (GetUi32(name) == 0 && GetUi32(name + 4) == 0 &&
@@ -2203,9 +2209,16 @@ Z7_COM7F_IMF(CHandler::GetStream(UInt32 index, ISequentialInStream **stream)) {
             fork = &item.ResourceFork;
         else if (item.IsDir())
             return S_FALSE;
-        else if (item.CompressHeader.IsCorrect)
-            return S_FALSE;
-        else
+        else if (item.CompressHeader.IsCorrect) {
+            CMyComPtr<ISequentialInStream> resource;
+            const CByteBuffer *data = nullptr;
+            if (item.CompressHeader.IsMethod_Resource()) {
+                RINOK(GetForkStream(item.ResourceFork, &resource))
+            } else if (item.decmpfs_AttrIndex >= 0)
+                data = &Attrs[item.decmpfs_AttrIndex].Data;
+            return CreateDecmpfsStream(resource, item.ResourceFork.Size, item.CompressHeader, data,
+                                       stream);
+        } else
             fork = &item.DataFork;
     }
     return GetForkStream(*fork, stream);

@@ -1,0 +1,8 @@
+{
+  "repository": "https://github.com/jief666/sparsebundlefs-lib.git",
+  "revision": "e467aadf761ca0b55ed3972a500cc612696e9e3f",
+  "files": {
+    "src/sparsebundlefs/sparsebundlefs.c": "a75fbfdc74536d89658ee7a415ebe037284e2f8026a11bece7e8efa17bd6cca2"
+  },
+  "scope": "Format comparison only: modern AES wrapping fields and IV convention; no C implementation imported."
+}

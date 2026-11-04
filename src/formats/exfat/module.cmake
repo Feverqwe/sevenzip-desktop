@@ -1,6 +1,7 @@
 # The GPL Linux-derived reader is a separate 7-Zip format module.
 add_library(sevenzip_exfat MODULE
-    src/formats/exfat/exfathandler.cpp src/formats/common/moduleexports.cpp src/formats/exfat/exfatreader.c
+    src/formats/exfat/exfathandler.cpp src/formats/exfat/exfatstream.cpp
+    src/formats/common/moduleexports.cpp src/formats/exfat/exfatreader.c
     src/formats/exfat/dir.c src/formats/exfat/fatent.c src/formats/exfat/super.c
     src/formats/exfat/balloc.c src/formats/exfat/misc.c src/compat/linux/time/time.c src/compat/linux/core/hweight.c
     src/compat/linux/core/string.c

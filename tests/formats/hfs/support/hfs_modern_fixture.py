@@ -149,14 +149,47 @@ def volume(kind="modern"):
         for name in ("alpha", "hard-alpha", "links/second-link"):
             files["HfsFixture/" + name + ":com.sevenzip.caféxx"] = files.pop(
                 "HfsFixture/" + name + ":com.sevenzip.fixture")
-    elif kind in ("modern-zlib", "modern-lzvn"):
-        payload = bytes(range(256)) * 8
-        packed = zlib.compress(payload) if kind == "modern-zlib" else (
+    elif kind in ("modern-zlib", "modern-lzvn", "modern-zlib-resource", "modern-lzvn-resource"):
+        resource = kind.endswith("-resource")
+        is_zlib = "zlib" in kind
+        payload = bytes(range(256)) * (515 if resource else 8)
+        packed = zlib.compress(payload) if is_zlib else (
             Path(__file__).parents[3] / "fixtures/hfs/alpha.lzvn").read_bytes()
-        method = 3 if kind == "modern-zlib" else 7
+        method = (4 if is_zlib else 8) if resource else (3 if is_zlib else 7)
+        resource_data = None
+        if resource:
+            chunks = [payload[i:i + 65536] for i in range(0, len(payload), 65536)]
+            chunks = [zlib.compress(c) if is_zlib else b"\x06" + c for c in chunks]
+            if is_zlib:
+                offset = 4 + len(chunks) * 8
+                table = bytearray()
+                for chunk in chunks:
+                    table += struct.pack("<II", offset, len(chunk))
+                    offset += len(chunk)
+                data2 = struct.pack("<I", len(chunks)) + table + b"".join(chunks)
+                header = bytearray(0x100)
+                struct.pack_into(">IIII", header, 0, 0x100, 0x104 + len(data2), 4 + len(data2), 50)
+                resource_map = bytearray(50)
+                struct.pack_into(">HHHIHHHHI", resource_map, 24, 28, 50, 0,
+                                 0x636d7066, 0, 10, 1, 0xffff, 0)
+                resource_data = header + struct.pack(">I", len(data2)) + data2 + resource_map
+            else:
+                offsets = [4 * (len(chunks) + 1)]
+                for chunk in chunks:
+                    offsets.append(offsets[-1] + len(chunk))
+                resource_data = struct.pack("<" + "I" * len(offsets), *offsets) + b"".join(chunks)
+            packed = b""
         data = b"fpmc" + struct.pack("<IQ", method, len(payload)) + packed
         record = records["iNode20"]
         image[record + 88:record + 168] = bytes(80)
+        if resource:
+            blocks = (len(resource_data) + block - 1) // block
+            first = len(image) // block - 128
+            assert not any(image[first * block:(first + blocks) * block])
+            image[first * block:first * block + len(resource_data)] = resource_data
+            image[record + 168:record + 248] = bytes(80)
+            struct.pack_into(">QII", image, record + 168, len(resource_data), 0, blocks)
+            struct.pack_into(">II", image, record + 184, first, blocks)
         attr = get32(1024 + 0x160 + 16) * block
         ns = get16(attr + 32)
         leaf = attr + get32(attr + 24) * ns
@@ -184,6 +217,8 @@ def volume(kind="modern"):
         struct.pack_into(">H", image, leaf + ns - (len(entries) + 1) * 2, offset)
         for name in ("alpha", "hard-alpha", "links/second-link"):
             files["HfsFixture/" + name] = payload
+            if resource:
+                files["HfsFixture/" + name + ":rsrc"] = bytes(resource_data)
             del files["HfsFixture/" + name + ":com.sevenzip.fixture"]
     elif kind in ("modern-hfsx", "modern-binary", "modern-binary-case"):
         image[1024:1028] = b"HX\0\5"

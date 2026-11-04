@@ -13,6 +13,11 @@ void SmbReadOnlyServer::State::completeReads() {
                 continue;
             }
             smb2_read_reply reply{};
+            if (Diagnostic)
+                trace(QStringLiteral("READ complete message=%1 bytes=%2 status=%3")
+                          .arg(next->first)
+                          .arg(result->Data.size())
+                          .arg(result->Status));
             const quint32 status = quint32(readReply(std::move(*result), pending->Maximum, &reply));
             smb2_pdu *pdu;
             if (status) {

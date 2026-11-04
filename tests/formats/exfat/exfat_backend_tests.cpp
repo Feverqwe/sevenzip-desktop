@@ -1,11 +1,14 @@
 #include "archive/backend/archivebackend.h"
 #include "archive/codecs/archivecodeccatalog.h"
+#include "archive/resources/archivereadonlyview.h"
+#include "archive/resources/qtarchivefileresource.h"
 #include "formats/exfat/support/exfat_fixture.h"
 #include <QDir>
 #include <QFile>
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QtTest>
+#include <algorithm>
 
 class ExfatBackendTests final : public QObject {
     Q_OBJECT
@@ -96,6 +99,32 @@ class ExfatBackendTests final : public QObject {
         QFile nested(QDir(output).filePath(fixture.directoryName + '/' + fixture.nestedName));
         QVERIFY(nested.open(QIODevice::ReadOnly));
         QCOMPARE(nested.readAll(), QByteArray("tail") + QByteArray(1020, '\0'));
+        std::shared_ptr<ArchiveNativeOpen> reader;
+        QCOMPARE(backend.openNativeArchive(image, {}, nullptr, reader), S_OK);
+        auto *owner = new QtArchiveFileResource(image);
+        CMyComPtr<IUnknown> retained = owner;
+        owner->AttachNativeOpen(reader);
+        owner->UseNativeMetadata();
+        std::shared_ptr<ArchiveReadOnlyView> view;
+        QString error;
+        int extractions = 0;
+        QCOMPARE(ArchiveBackend::createReadOnlyView(retained, 0, {}, view, error,
+                                                    [&](const QString &, quint64) {
+                                                        ++extractions;
+                                                        return false;
+                                                    }),
+                 S_OK);
+        bool cacheRequired = true;
+        QCOMPARE(view->needsCache(cacheRequired), S_OK);
+        QVERIFY(!cacheRequired);
+        const auto file =
+            std::find_if(view->entries().begin(), view->entries().end(),
+                         [&](const auto &entry) { return entry.Name == fixture.fragmentedName; });
+        QVERIFY(file != view->entries().end());
+        const auto range = view->read(file->Id, 500, 200);
+        QCOMPARE(range.Result, S_OK);
+        QCOMPARE(range.Data, QByteArray(12, 'A') + QByteArray(188, 'B'));
+        QCOMPARE(extractions, 0);
         if (layout == 3) {
             for (const auto &name : {QStringLiteral("пустой 空"), QStringLiteral("empty2")}) {
                 const QDir directory(QDir(output).filePath(name));

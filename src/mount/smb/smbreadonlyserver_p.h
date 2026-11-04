@@ -1,5 +1,6 @@
 #pragma once
 #include "mount/smb/smbreadonlyserver.h"
+#include "mount/smb/smbwakeup.h"
 #include <QHash>
 #include <QRegularExpression>
 #include <atomic>
@@ -57,16 +58,21 @@ struct SmbReadOnlyServer::State : smb2_server {
         Info Metadata;
         std::vector<smb2_fileidbothdirectoryinformation> Directory;
         struct Pending {
-            Pending(std::shared_ptr<std::atomic_uint> count, quint32 maximum)
-                : Maximum(maximum), Count(std::move(count)) {
+            Pending(std::shared_ptr<std::atomic_uint> count, quint32 maximum,
+                    std::shared_ptr<SmbWakeup> wakeup)
+                : Maximum(maximum), Count(std::move(count)), Wakeup(std::move(wakeup)) {
                 ++*Count;
             }
             ~Pending() { --*Count; }
             const quint32 Maximum;
             void complete(SmbTreeRead result) {
-                std::lock_guard<std::mutex> lock(Mutex);
-                if (!Result)
+                {
+                    std::lock_guard<std::mutex> lock(Mutex);
+                    if (Result)
+                        return;
                     Result = std::move(result);
+                }
+                Wakeup->notify();
             }
             std::optional<SmbTreeRead> takeResult() {
                 std::lock_guard<std::mutex> lock(Mutex);
@@ -78,6 +84,7 @@ struct SmbReadOnlyServer::State : smb2_server {
 
           private:
             const std::shared_ptr<std::atomic_uint> Count;
+            const std::shared_ptr<SmbWakeup> Wakeup;
             std::mutex Mutex;
             std::optional<SmbTreeRead> Result;
         };
@@ -94,6 +101,7 @@ struct SmbReadOnlyServer::State : smb2_server {
     std::set<Client *> OpenClients;
     // Includes disconnected clients until their IPC completions expire.
     std::shared_ptr<std::atomic_uint> PendingCount = std::make_shared<std::atomic_uint>(0);
+    std::shared_ptr<SmbWakeup> Wakeup = std::make_shared<SmbWakeup>();
     smb2_server_request_handlers Handlers{};
     std::atomic_bool Stop{false};
     bool Reported = false;

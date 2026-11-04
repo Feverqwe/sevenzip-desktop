@@ -26,6 +26,7 @@ class Input final : public IInStream, public CMyUnknownImp {
     HRESULT failure = S_OK;
     HRESULT seekFailure = S_OK;
     bool eof = false;
+    UInt64 readBytes = 0;
     explicit Input(QByteArray bytes) : bytes_(std::move(bytes)) {}
     Z7_COM7F_IMF(Read(void *data, UInt32 size, UInt32 *processed)) override {
         if (processed)
@@ -39,6 +40,7 @@ class Input final : public IInStream, public CMyUnknownImp {
         if (size)
             memcpy(data, bytes_.constData() + position_, size);
         position_ += size;
+        readBytes += size;
         if (processed)
             *processed = size;
         return S_OK;
@@ -189,6 +191,49 @@ class HfsStreamTests final : public QObject {
         QVERIFY(!bytes_.isEmpty());
     }
   private slots:
+    void compressedDirectReads_data() {
+        QTest::addColumn<QString>("kind");
+        for (const char *kind :
+             {"modern-zlib", "modern-lzvn", "modern-zlib-resource", "modern-lzvn-resource"})
+            QTest::newRow(kind) << QString(kind);
+    }
+    void compressedDirectReads() {
+        QFETCH(QString, kind);
+        createArchive();
+        loadFixture(kind);
+        CMyComPtr2<IInStream, Input> input;
+        input.SetFromCls(new Input(bytes_));
+        QCOMPARE(archive_->Open(input, nullptr, nullptr), S_OK);
+        const QString name = "HfsFixture/alpha";
+        const auto before = input->readBytes;
+        auto direct = stream(name);
+        QVERIFY(direct);
+        const auto expected =
+            QByteArray::fromBase64(record_["files"].toObject()[name].toString().toLatin1());
+        if (kind.endsWith("resource")) {
+            const auto resource = QByteArray::fromBase64(
+                record_["files"].toObject()[name + ":rsrc"].toString().toLatin1());
+            QVERIFY(input->readBytes - before < UInt64(resource.size() / 2));
+            const auto initialized = input->readBytes;
+            check(direct, name, int(expected.size()) - 5, 5);
+            QVERIFY(input->readBytes - initialized < UInt64(resource.size() / 2));
+        }
+        for (int offset : {0, 17, 65530, 65536, 131060, 9})
+            check(direct, name, qMin(offset, int(expected.size()) - 1), 150);
+        UInt64 end = 0;
+        QCOMPARE(direct->Seek(0, STREAM_SEEK_END, &end), S_OK);
+        QCOMPARE(end, UInt64(expected.size()));
+        char byte;
+        UInt32 actual = 99;
+        QCOMPARE(direct->Read(&byte, 1, &actual), S_OK);
+        QCOMPARE(actual, UInt32(0));
+        if (kind.endsWith("resource")) {
+            input->failure = E_ABORT;
+            QCOMPARE(direct->Seek(65536, STREAM_SEEK_SET, nullptr), S_OK);
+            QCOMPARE(direct->Read(&byte, 1, &actual), E_ABORT);
+            QCOMPARE(actual, UInt32(0));
+        }
+    }
     void initTestCase() {
         createArchive();
         const QDir runtime(QString::fromUtf8(SEVENZIP_HFS_RUNTIME));

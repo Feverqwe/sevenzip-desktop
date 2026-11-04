@@ -128,9 +128,13 @@ SmbReadOnlyServer::State::State(QList<SmbTreeEntry> entries, QString user, QStri
     Handlers.ioctl_cmd = [](smb2_server *, smb2_context *, smb2_ioctl_request *,
                             smb2_ioctl_reply *) { return status(SMB2_STATUS_NOT_SUPPORTED); };
     Handlers.echo_cmd = [](smb2_server *, smb2_context *) { return 0; };
+    extra_fdset = [](smb2_server *server, fd_set *read, fd_set *, int *maximum) {
+        static_cast<State *>(server)->Wakeup->addTo(*read, *maximum);
+    };
     extra_service = [](smb2_server *server, fd_set *, fd_set *) {
         auto &state = *static_cast<State *>(server);
         const int result = Guard([&] {
+            state.Wakeup->drain();
             state.completeReads();
             if (state.Stop)
                 state.stop_requested = 1;
@@ -183,6 +187,10 @@ SmbReadOnlyServer::~SmbReadOnlyServer() = default;
 bool SmbReadOnlyServer::validate(QString &error) {
     auto &state = *state_;
     state.Valid = false;
+    if (!state.Wakeup->valid()) {
+        error = QStringLiteral("Could not create the SMB event-loop notification socket.");
+        return false;
+    }
     if (state.Entries.isEmpty() || state.Entries.size() > 1000000 || state.User.isEmpty() ||
         state.Password.isEmpty() || state.User.size() > 128 || state.Password.size() > 1024 ||
         state.User.contains('\0') || state.Password.contains('\0') || !state.Read) {
@@ -295,7 +303,10 @@ int SmbReadOnlyServer::serve(quint16 port, std::function<void(quint16)> listenin
     const auto result = sevenzip::smb2::serve(*state_, 16, connection);
     return state_->CallbackFailed ? -1 : result ? 0 : result.error();
 }
-void SmbReadOnlyServer::requestStop() { state_->Stop = true; }
+void SmbReadOnlyServer::requestStop() {
+    state_->Stop = true;
+    state_->Wakeup->notify();
+}
 void SmbReadOnlyServer::setDiagnosticHandler(std::function<void(QString)> handler) {
     state_->Diagnostic = std::move(handler);
 }
@@ -358,6 +369,11 @@ int SmbReadOnlyServer::State::close(smb2_context *context, smb2_close_request *r
 
 int SmbReadOnlyServer::State::read(smb2_context *context, smb2_read_request *request,
                                    smb2_read_reply *reply) {
+    if (Diagnostic)
+        trace(QStringLiteral("READ message=%1 offset=%2 length=%3")
+                  .arg(smb2_get_last_request_message_id(context))
+                  .arg(request->offset)
+                  .arg(request->length));
     const auto *opened = find(context, request->file_id);
     if (!opened)
         return status(SMB2_STATUS_FILE_CLOSED);
@@ -375,7 +391,7 @@ int SmbReadOnlyServer::State::read(smb2_context *context, smb2_read_request *req
         auto &session = client(context);
         if (PendingCount->load() >= 128 || session.Reads.size() >= 32)
             return status(SMB2_STATUS_INSUFFICIENT_RESOURCES);
-        const auto pending = std::make_shared<Client::Pending>(PendingCount, length);
+        const auto pending = std::make_shared<Client::Pending>(PendingCount, length, Wakeup);
         const quint64 message = smb2_get_last_request_message_id(context);
         if (!session.Reads.emplace(message, pending).second)
             return status(SMB2_STATUS_INVALID_PARAMETER);

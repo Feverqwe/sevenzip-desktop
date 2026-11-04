@@ -9,6 +9,7 @@
 #include "Windows/PropVariant.h"
 #include "Windows/TimeUtils.h"
 #include "formats/exfat/exfatreader.h"
+#include "formats/exfat/exfatstream.h"
 #include <algorithm>
 #include <array>
 #include <cerrno>
@@ -55,25 +56,16 @@ bool EntryTime(UInt16 date, UInt16 time, Byte cs, Byte tz, FILETIME &result) {
 }
 } // namespace
 
-class CHandler final : public IInArchive, public CMyUnknownImp {
-    Z7_COM_UNKNOWN_IMP_1(IInArchive)
+class CHandler final : public IInArchive, public IInArchiveGetStream, public CMyUnknownImp {
+    Z7_COM_UNKNOWN_IMP_2(IInArchive, IInArchiveGetStream)
     Z7_IFACE_COM7_IMP(IInArchive)
-    CMyComPtr<IInStream> stream_;
-    std::unique_ptr<exfat_volume, decltype(&exfat_close_volume)> volume_{nullptr,
-                                                                         exfat_close_volume};
+    Z7_IFACE_COM7_IMP(IInArchiveGetStream)
+    std::shared_ptr<ReadContext> input_;
+    std::shared_ptr<exfat_volume> volume_;
     std::vector<Item> items_;
-    IArchiveOpenCallback *openCallback_ = nullptr;
-    IArchiveExtractCallback *extractCallback_ = nullptr;
-    HRESULT transportResult_ = S_OK;
-    HRESULT callbackResult_ = S_OK;
-    std::set<UInt32> visitedClusters_;
-    UInt64 completed_ = 0;
     bool directoryLimitations_ = false;
     bool rootIncomplete_ = false;
     bool rootUnavailable_ = false;
-    static int Read(void *, uint64_t, void *, size_t);
-    static int Poll(void *);
-    static int VisitCluster(void *, uint32_t);
     HRESULT ReadTree();
     void MarkDirectoryIncomplete(size_t index) {
         directoryLimitations_ = true;
@@ -86,42 +78,6 @@ class CHandler final : public IInArchive, public CMyUnknownImp {
 };
 
 enum { kpidReadLimitations = kpidUserDefined };
-
-int CHandler::Poll(void *context) {
-    auto &self = *static_cast<CHandler *>(context);
-    if (self.callbackResult_ != S_OK || self.transportResult_ == E_ABORT ||
-        self.transportResult_ == E_OUTOFMEMORY)
-        return -EIO;
-    if (self.openCallback_) {
-        const UInt64 files = self.items_.size();
-        self.callbackResult_ = self.openCallback_->SetCompleted(&files, nullptr);
-    } else if (self.extractCallback_)
-        self.callbackResult_ = self.extractCallback_->SetCompleted(&self.completed_);
-    if (self.callbackResult_ != S_OK)
-        self.transportResult_ = self.callbackResult_;
-    return self.callbackResult_ == S_OK ? 0 : -EIO;
-}
-
-int CHandler::VisitCluster(void *context, uint32_t cluster) {
-    auto &self = *static_cast<CHandler *>(context);
-    try {
-        return self.visitedClusters_.insert(cluster).second ? 0 : -EIO;
-    } catch (...) {
-        self.transportResult_ = E_OUTOFMEMORY;
-        return -ENOMEM;
-    }
-}
-
-int CHandler::Read(void *context, uint64_t offset, void *buffer, size_t size) {
-    auto &self = *static_cast<CHandler *>(context);
-    if (self.callbackResult_ != S_OK || self.transportResult_ == E_ABORT ||
-        self.transportResult_ == E_OUTOFMEMORY)
-        return -EIO;
-    self.transportResult_ = InStream_SeekSet(self.stream_, offset);
-    if (self.transportResult_ == S_OK)
-        self.transportResult_ = ReadStream_FALSE(self.stream_, buffer, size);
-    return self.transportResult_ == S_OK ? 0 : -EIO;
-}
 
 HRESULT CHandler::ReadTree() {
     Pending root;
@@ -138,14 +94,14 @@ HRESULT CHandler::ReadTree() {
             if (directory.cursor.incomplete)
                 MarkDirectoryIncomplete(directory.index);
             if (result < 0) {
-                if (callbackResult_ != S_OK)
-                    return callbackResult_;
-                if (transportResult_ == E_ABORT || transportResult_ == E_OUTOFMEMORY)
-                    return transportResult_;
+                if (input_->CallbackResult != S_OK)
+                    return input_->CallbackResult;
+                if (input_->TransportResult == E_ABORT || input_->TransportResult == E_OUTOFMEMORY)
+                    return input_->TransportResult;
                 if (result == -ENOMEM)
                     return E_OUTOFMEMORY;
                 MarkDirectoryIncomplete(directory.index);
-                transportResult_ = S_OK;
+                input_->TransportResult = S_OK;
                 if (directory.cursor.position > position)
                     continue; // Linux established the next record boundary.
                 break;
@@ -177,8 +133,9 @@ HRESULT CHandler::ReadTree() {
                 }
             }
             items_.push_back(item);
-            if (Poll(this))
-                return transportResult_;
+            input_->Files = items_.size();
+            if (ReadContext::Poll(input_.get()))
+                return input_->TransportResult;
         }
     }
     return S_OK;
@@ -187,40 +144,44 @@ HRESULT CHandler::ReadTree() {
 Z7_COM7F_IMF(CHandler::Open(IInStream *stream, const UInt64 *, IArchiveOpenCallback *callback)) {
     COM_TRY_BEGIN
     Close();
-    stream_ = stream;
-    openCallback_ = callback;
+    input_ = std::make_shared<ReadContext>();
+    input_->Stream = stream;
+    input_->OpenCallback = callback;
     struct Cleanup {
         CHandler &handler;
+        std::shared_ptr<ReadContext> input;
         bool accepted = false;
         bool rootUnavailable = false;
         ~Cleanup() {
-            handler.openCallback_ = nullptr;
+            input->OpenCallback = nullptr;
             if (!accepted) {
                 handler.Close();
                 handler.rootUnavailable_ = rootUnavailable;
             }
         }
-    } cleanup{*this};
+    } cleanup{*this, input_};
     UInt64 size;
     const HRESULT sized = InStream_GetSize_SeekToEnd(stream, size);
     if (sized != S_OK) {
         Close();
         return sized;
     }
-    exfat_source source{this, size, Read, Poll, VisitCluster};
+    exfat_source source{input_.get(), size, ReadContext::Read, ReadContext::Poll,
+                        ReadContext::VisitCluster};
     exfat_volume *volume = nullptr;
     const int result = exfat_open_volume(&source, &volume);
-    volume_.reset(volume);
+    volume_.reset(volume, exfat_close_volume);
     HRESULT hr;
-    if (callbackResult_ != S_OK)
-        hr = callbackResult_;
-    else if (transportResult_ == E_ABORT || transportResult_ == E_OUTOFMEMORY)
-        hr = transportResult_;
+    if (input_->CallbackResult != S_OK)
+        hr = input_->CallbackResult;
+    else if (input_->TransportResult == E_ABORT || input_->TransportResult == E_OUTOFMEMORY)
+        hr = input_->TransportResult;
     else if (result == -ENOMEM)
         hr = E_OUTOFMEMORY;
     else
-        hr = result ? (transportResult_ == S_OK ? S_FALSE : transportResult_) : ReadTree();
-    openCallback_ = nullptr;
+        hr = result ? (input_->TransportResult == S_OK ? S_FALSE : input_->TransportResult)
+                    : ReadTree();
+    input_->OpenCallback = nullptr;
     if (hr == S_OK && rootIncomplete_ && items_.empty()) {
         hr = S_FALSE;
         cleanup.rootUnavailable = true;
@@ -234,14 +195,8 @@ Z7_COM7F_IMF(CHandler::Open(IInStream *stream, const UInt64 *, IArchiveOpenCallb
 
 Z7_COM7F_IMF(CHandler::Close()) {
     volume_.reset();
-    stream_.Release();
+    input_.reset();
     items_.clear();
-    openCallback_ = nullptr;
-    extractCallback_ = nullptr;
-    transportResult_ = S_OK;
-    callbackResult_ = S_OK;
-    visitedClusters_.clear();
-    completed_ = 0;
     directoryLimitations_ = false;
     rootIncomplete_ = false;
     rootUnavailable_ = false;
@@ -251,6 +206,15 @@ Z7_COM7F_IMF(CHandler::Close()) {
 Z7_COM7F_IMF(CHandler::GetNumberOfItems(UInt32 *count)) {
     *count = UInt32(items_.size());
     return S_OK;
+}
+
+Z7_COM7F_IMF(CHandler::GetStream(UInt32 index, ISequentialInStream **stream)) {
+    COM_TRY_BEGIN
+    *stream = nullptr;
+    if (index >= items_.size())
+        return E_INVALIDARG;
+    return CreateItemStream(input_, volume_, items_[index].entry, stream);
+    COM_TRY_END
 }
 
 Z7_COM7F_IMF(CHandler::GetProperty(UInt32 index, PROPID id, PROPVARIANT *value)) {
@@ -380,14 +344,14 @@ HRESULT CHandler::ExtractItem(UInt32 index, Int32 testMode, IArchiveExtractCallb
     CMyComPtr<ISequentialOutStream> output;
     RINOK(callback->GetStream(index, &output, askMode))
     if (!testMode && !output && !directory) {
-        completed_ += item.entry.size;
+        input_->Completed += item.entry.size;
         return S_OK;
     }
     RINOK(callback->PrepareOperation(askMode))
     Int32 operation =
         item.incomplete ? NExtract::NOperationResult::kDataError : NExtract::NOperationResult::kOK;
     if (!directory) {
-        visitedClusters_.clear();
+        input_->VisitedClusters.clear();
         exfat_cursor cursor;
         exfat_item_cursor(&item.entry, &cursor);
         std::array<Byte, 65536> buffer;
@@ -396,19 +360,19 @@ HRESULT CHandler::ExtractItem(UInt32 index, Int32 testMode, IArchiveExtractCallb
             if (exfat_read_item(volume_.get(), &item.entry, &cursor, buffer.data(), buffer.size(),
                                 &processed) ||
                 !processed) {
-                if (callbackResult_ != S_OK)
-                    return callbackResult_;
-                if (transportResult_ == E_ABORT || transportResult_ == E_OUTOFMEMORY)
-                    return transportResult_;
-                transportResult_ = S_OK;
+                if (input_->CallbackResult != S_OK)
+                    return input_->CallbackResult;
+                if (input_->TransportResult == E_ABORT || input_->TransportResult == E_OUTOFMEMORY)
+                    return input_->TransportResult;
+                input_->TransportResult = S_OK;
                 operation = NExtract::NOperationResult::kDataError;
                 break;
             }
             if (output)
                 RINOK(WriteStream(output, buffer.data(), processed))
-            completed_ += processed;
-            if (Poll(this))
-                return transportResult_;
+            input_->Completed += processed;
+            if (ReadContext::Poll(input_.get()))
+                return input_->TransportResult;
         }
     }
     output.Release();
@@ -435,18 +399,18 @@ Z7_COM7F_IMF(CHandler::Extract(const UInt32 *indices, UInt32 count, Int32 testMo
         }
     }
     RINOK(callback->SetTotal(total))
-    completed_ = 0;
-    transportResult_ = S_OK;
-    callbackResult_ = S_OK;
-    extractCallback_ = callback;
+    input_->Completed = 0;
+    input_->TransportResult = S_OK;
+    input_->CallbackResult = S_OK;
+    input_->ExtractCallback = callback;
     struct ResetCallback {
         IArchiveExtractCallback *&callback;
         ~ResetCallback() { callback = nullptr; }
-    } reset{extractCallback_};
+    } reset{input_->ExtractCallback};
     HRESULT result = S_OK;
     for (UInt32 i = 0; i < count && result == S_OK; ++i)
         result = ExtractItem(all ? i : indices[i], testMode, callback);
-    extractCallback_ = nullptr;
+    input_->ExtractCallback = nullptr;
     if (result == S_OK && rootIncomplete_ &&
         (all || (count && count == items_.size() &&
                  std::set<UInt32>(indices, indices + count).size() == count))) {

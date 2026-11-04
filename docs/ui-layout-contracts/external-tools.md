@@ -27,12 +27,12 @@ Compact resize requests respect native control minima so every action remains
 visible in EN/RU without wrapping the row.
 These new commands have no original Windows7zFM resource counterpart.
 
-Before extracting an entry for a read-only mount, show its source, relative path
-and decoded size. Explain that the temporary cache is needed for external access
-and that the source remains read-only. Treat names as plain text. Extract permits
-only this impending extraction; Cancel, Escape, Return on the initial default,
-closing the prompt and destroying it all decline. Do not offer persistent blanket
-consent. Existing cache reads and direct seekable reads need no prompt.
+Before the first extraction for a read-only mount, show its source, first requested
+path and decoded size. Explain that consent covers temporary extraction for this
+mount, including reads after cache eviction, and that the source remains read-only.
+Treat names as plain text. Cancel, Escape, Return on the initial default, closing
+the prompt and destroying it decline extraction until remount. Existing cache
+reads and direct seekable reads need no prompt.
 
 Unverified recoverable output needs a second explicit choice. Explain the risk
 of incomplete data and checksum errors; accepting extraction does not accept
@@ -46,8 +46,8 @@ release a reader waiting for consent.
 
 `mount_extraction_prompt` checks decisions and writes current widget geometry.
 `archive_readonly_view` and `archive_mount_transport` check that denial produces
-no decoded data, cache eviction requires fresh consent and cancellation releases
-a pending decision. These are feature checks, not Windows visual-parity evidence.
+no decoded data, subsequent files reuse the mount decision and cancellation
+releases a pending decision. These are feature checks, not Windows visual-parity evidence.
 
 [Все UI-спецификации](../ui-layout-contracts.md). Разделы сохраняют исходные требования,
 якоря и границы датированных свидетельств. Новые результаты проверок —

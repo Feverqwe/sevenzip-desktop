@@ -16,9 +16,14 @@ QtArchiveMountSource::QtArchiveMountSource(IUnknown *resource, quint64 quota,
     const auto consent = [this](const QString &path, quint64 size) {
         if (cancelled_)
             return false;
+        if (extractionAllowed_)
+            return *extractionAllowed_;
         const auto decision = std::make_shared<ArchiveMountDecision>();
         emit extractionRequired(path, size, decision);
-        return decision->wait(cancelled_);
+        const bool allowed = decision->wait(cancelled_);
+        if (!cancelled_)
+            extractionAllowed_ = allowed;
+        return allowed;
     };
     // This constructor runs on the panel owner thread before navigation can
     // replace its mutable resource. Enumeration and reads stay on the worker.

@@ -1,6 +1,8 @@
 #include "7zip/Common/FileStreams.h"
 #include "Common/StringConvert.h"
+#include "Windows/PropVariant.h"
 #include "archive/resources/archiveinputlayer.h"
+#include "archive/resources/archivenativeopen.h"
 #include "archive/resources/archivereadonlyview_p.h"
 #include "archive/resources/qtarchiveitemstream.h"
 #include "archive/resources/qtarchivereadoperation.h"
@@ -69,7 +71,21 @@ HRESULT ArchiveReadOnlyView::State::stream(quint64 id, ReadResult &result) {
         result.Error = QStringLiteral("The reader could not provide direct access to this entry.");
         return streamed != S_OK ? streamed : E_NOTIMPL;
     }
-    return materialize(id, request, result);
+    const HRESULT decoded = materialize(id, request, result);
+    if (decoded != S_OK && decoded != E_ABORT) {
+        NWindows::NCOM::CPropVariant method;
+        const HRESULT property =
+            Reader->arc().Archive->GetProperty(item.Index, kpidMethod, &method);
+        const QString name = property == S_OK && method.vt == VT_BSTR
+                                 ? QString::fromWCharArray(method.bstrVal)
+                                 : QString();
+        result.Error += QStringLiteral("\nDirect access unavailable: reader=%1; method=%2; "
+                                       "GetStream=0x%3; sequential stream=%4.")
+                            .arg(Reader->resolvedOpenType(), name)
+                            .arg(quint32(streamed), 8, 16, QLatin1Char('0'))
+                            .arg(sequential ? QStringLiteral("yes") : QStringLiteral("no"));
+    }
+    return decoded;
 }
 
 HRESULT ArchiveReadOnlyView::State::materialize(quint64 id, const CMyComPtr<IProgress> &request,

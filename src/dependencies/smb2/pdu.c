@@ -700,6 +700,9 @@ smb2_correlate_reply(struct smb2_context *smb2, struct smb2_pdu *pdu)
                        if (req_pdu->header.flags & SMB2_FLAGS_ASYNC_COMMAND) {
                                pdu->header.flags |= SMB2_FLAGS_ASYNC_COMMAND;
                                pdu->header.async.async_id = req_pdu->header.async.async_id;
+                               /* MS-SMB2 3.3.4.3: credits were granted in the
+                                * interim response, never again in the final. */
+                               pdu->header.credit_request_response = 0;
                        }
                        SMB2_LIST_REMOVE(&smb2->waitqueue, req_pdu);
                        smb2_free_pdu(smb2, req_pdu);

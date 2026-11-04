@@ -5,6 +5,7 @@
 #define ZIP7_INC_OPEN_CALLBACK_H
 
 #include "archive/callbacks/ArchiveOpenCallback.h"
+#include "archive/callbacks/archivepasswordretry.h"
 #include "crypto/fscrypt/fscryptkeyrequest.h"
 
 #ifdef Z7_SFX
@@ -23,7 +24,8 @@ class COpenArchiveCallback Z7_final :
     public CMyUnknownImp
     */
     public IOpenCallbackUI,
-    public IFscryptKeyUI {
+    public IFscryptKeyUI,
+    public IArchivePasswordRetryUI {
     // NWindows::NSynchronization::CCriticalSection _criticalSection;
   public:
     bool PasswordIsDefined;
@@ -32,6 +34,11 @@ class COpenArchiveCallback Z7_final :
     UString_Wipe FilesystemKeys;
     bool FilesystemKeysDefined = false;
     HRESULT Open_FscryptKeys(BSTR *keys) override;
+    HRESULT ResetArchivePassword() override {
+        Password.Empty();
+        PasswordIsDefined = false;
+        return Open_CheckBreak();
+    }
     QString DeviceOpenError;
     QPointer<QWidget> ParentWindow;
     QString SettingsPath;

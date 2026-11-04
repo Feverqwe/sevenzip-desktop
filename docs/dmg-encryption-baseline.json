@@ -1,0 +1,73 @@
+{
+  "repository": "https://github.com/sgan81/apfs-fuse.git",
+  "revision": "66b86bd525e8cb90f9012543be89b1f092b75cf3",
+  "files": {
+    "ApfsLib/DiskImageFile.cpp": "aaddd6b689459ce9eb80066e802fe66b3a88092b06d864402af9530e50c5f042",
+    "ApfsLib/DiskImageFile.h": "603e6d8058f866cd5f37daa1bf4c7f7695db7f64b563014e75b6298f92539a93",
+    "ApfsLib/DeviceDMG.cpp": "295f73b201274d32912c0de44f623f6204ae78ed7a9b5c070cafaceddafa5d33",
+    "Crypto/Des.cpp": "4d5847b4313a1b33fbd707deada5bac1d8fb38b3ab7bf7a0874ab17c5a6b87d2",
+    "Crypto/Des.h": "86b69591e859ae9b4397a53f57e9b56396900adef2add6a39d65df6fb3452d77",
+    "Crypto/TripleDes.cpp": "d4076b5a5bbb34ee680c234779d92d12a7f95c072b0dbbdb741eb90e2f559b91",
+    "Crypto/TripleDes.h": "16b90bb2665ba8f7ac3ca98eb707ccd8b3ebae4a92a0c7358ac5008b4841f432",
+    "LICENSE": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643"
+  },
+  "owners": {
+    "Crypto/Des.cpp": "src/dependencies/apfscrypto/Des.cpp",
+    "Crypto/Des.h": "src/dependencies/apfscrypto/Des.h",
+    "Crypto/TripleDes.cpp": "src/dependencies/apfscrypto/TripleDes.cpp",
+    "Crypto/TripleDes.h": "src/dependencies/apfscrypto/TripleDes.h",
+    "ApfsLib/DiskImageFile.cpp": "src/formats/encrypted-dmg/dmgdecryptstream.cpp",
+    "ApfsLib/DiskImageFile.h": "src/formats/encrypted-dmg/dmgdecryptstream.h",
+    "LICENSE": "third_party/apfs-fuse/LICENSE"
+  },
+  "local_integration": [
+    "src/dependencies/apfscrypto/module.cmake",
+    "src/formats/encrypted-dmg/dmgcrypto.cpp",
+    "src/formats/encrypted-dmg/dmgcrypto.h",
+    "src/formats/encrypted-dmg/encrypteddmghandler.cpp",
+    "src/formats/encrypted-dmg/module.cmake",
+    "src/formats/encrypted-dmg/passwordguid.cpp"
+  ],
+  "transfers": [
+    {
+      "source": "ApfsLib/DiskImageFile.cpp",
+      "local": [
+        "src/formats/encrypted-dmg/dmgheaders.h"
+      ],
+      "symbols": [
+        "DmgCryptHeaderV1",
+        "DmgCryptHeaderV2",
+        "DmgKeyPointer",
+        "DmgKeyData"
+      ],
+      "scope": "adapted structure layout; local endian adapter"
+    },
+    {
+      "source": "ApfsLib/DiskImageFile.cpp",
+      "local": [
+        "src/formats/encrypted-dmg/dmgdecryptstream.cpp"
+      ],
+      "symbols": [
+        "DiskImageFile::CheckSetupEncryption",
+        "DiskImageFile::SetupEncryptionV1",
+        "DiskImageFile::SetupEncryptionV2",
+        "DiskImageFile::Read",
+        "DiskImageFile::PkcsUnpad"
+      ],
+      "scope": "partial adaptation; stream, validation, password, cancellation and crypto boundaries changed"
+    },
+    {
+      "source": "ApfsLib/DiskImageFile.h",
+      "local": [
+        "src/formats/encrypted-dmg/dmgdecryptstream.h"
+      ],
+      "symbols": [
+        "DiskImageFile"
+      ],
+      "scope": "adapted stream interface and state"
+    }
+  ],
+  "unchanged": {
+    "LICENSE": "third_party/apfs-fuse/LICENSE"
+  }
+}

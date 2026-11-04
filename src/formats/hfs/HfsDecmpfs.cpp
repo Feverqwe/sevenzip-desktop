@@ -109,6 +109,31 @@ CDecoder::CDecoder(bool IsAdlerOptional) {
     _lzfseDecoder->LzvnMode = true;
 }
 
+// The same block decoder serves sequential extraction and seekable reads.
+HRESULT CDecoder::DecodeResourceBlock(const Byte *packed, UInt32 packedSize, UInt32 unpackSize,
+                                      bool lzvn, ISequentialOutStream *output) {
+    if (!packedSize || packedSize > kCompressionBlockSize + 1)
+        return S_FALSE;
+    if (lzvn ? packed[0] == k_LZVN_Uncompressed_Marker : (packed[0] & 0xf) == 0xf) {
+        if (packedSize - 1 != unpackSize)
+            return S_FALSE;
+        return output ? WriteStream(output, packed + 1, unpackSize) : S_OK;
+    }
+    CMyComPtr2_Create<ISequentialInStream, CBufInStream> input;
+    input->Init(packed, packedSize);
+    const UInt64 expected = unpackSize;
+    if (lzvn) {
+        const UInt64 size = packedSize;
+        return _lzfseDecoder.Interface()->Code(input, output, &size, &expected, nullptr);
+    }
+    RINOK(_zlibDecoder.Interface()->Code(input, output, nullptr, &expected, nullptr))
+    if (_zlibDecoder->GetOutputProcessedSize() != unpackSize ||
+        _zlibDecoder->GetInputProcessedSize() > packedSize)
+        return S_FALSE;
+    // As in the original resource reader, APFS permits trailing block padding.
+    return S_OK;
+}
+
 HRESULT CDecoder::ExtractResourceFork_ZLIB(ISequentialInStream *inStream,
                                            ISequentialOutStream *outStream, UInt64 forkSize,
                                            UInt64 unpackSize, UInt64 progressStart,
@@ -165,8 +190,6 @@ HRESULT CDecoder::ExtractResourceFork_ZLIB(ISequentialInStream *inStream,
     if (prev != dataSize2)
         return S_FALSE;
 
-    CMyComPtr2_Create<ISequentialInStream, CBufInStream> bufInStream;
-
     // bool padError = false;
     UInt64 outPos = 0;
 
@@ -185,44 +208,7 @@ HRESULT CDecoder::ExtractResourceFork_ZLIB(ISequentialInStream *inStream,
 
         RINOK(ReadStream_FALSE(inStream, buf, size))
 
-        if ((buf[0] & 0xF) == 0xF) {
-            // (buf[0] = 0xff) is marker of uncompressed block in APFS
-            // that code was not tested in HFS
-            if (size - 1 != blockSize)
-                return S_FALSE;
-
-            if (outStream) {
-                RINOK(WriteStream(outStream, buf + 1, blockSize))
-            }
-        } else {
-            const UInt64 blockSize64 = blockSize;
-            bufInStream->Init(buf, size);
-            RINOK(_zlibDecoder.Interface()->Code(bufInStream, outStream, NULL, &blockSize64, NULL))
-            if (_zlibDecoder->GetOutputProcessedSize() != blockSize)
-                return S_FALSE;
-            const UInt64 inSize = _zlibDecoder->GetInputProcessedSize();
-            if (inSize != size) {
-                if (inSize > size)
-                    return S_FALSE;
-                // apfs file can contain junk (non-zeros) after data block.
-                /*
-                if (!padError)
-                {
-                  const Byte *p = buf + (UInt32)inSize;
-                  const Byte *e = p + (size - (UInt32)inSize);
-                  do
-                  {
-                    if (*p != 0)
-                    {
-                      padError = true;
-                      break;
-                    }
-                  }
-                  while (++p != e);
-                }
-                */
-            }
-        }
+        RINOK(DecodeResourceBlock(buf, size, blockSize, false, outStream))
 
         outPos += blockSize;
         if ((i & 0xFF) == 0) {
@@ -297,8 +283,6 @@ HRESULT CDecoder::ExtractResourceFork_LZFSE(ISequentialInStream *inStream,
     const size_t kBufSize = kCompressionBlockSize;
     _buf.Alloc(kBufSize + 0x10); // we need 1 additional bytes for uncompressed chunk header
 
-    CMyComPtr2_Create<ISequentialInStream, CBufInStream> bufInStream;
-
     UInt64 outPos = 0;
 
     for (UInt32 i = 0; i < numBlocks; i++) {
@@ -317,20 +301,7 @@ HRESULT CDecoder::ExtractResourceFork_LZFSE(ISequentialInStream *inStream,
         RINOK(ReadStream_FALSE(inStream, _buf, size))
         const Byte *buf = _buf;
 
-        if (buf[0] == k_LZVN_Uncompressed_Marker) {
-            if (size - 1 != blockSize)
-                return S_FALSE;
-            if (outStream) {
-                RINOK(WriteStream(outStream, buf + 1, blockSize))
-            }
-        } else {
-            const UInt64 blockSize64 = blockSize;
-            const UInt64 packSize64 = size;
-            bufInStream->Init(buf, size);
-            RINOK(_lzfseDecoder.Interface()->Code(bufInStream, outStream, &packSize64, &blockSize64,
-                                                  NULL))
-            // in/out sizes were checked in Code()
-        }
+        RINOK(DecodeResourceBlock(buf, size, blockSize, true, outStream))
 
         outPos += blockSize;
         if ((i & 0xFF) == 0) {

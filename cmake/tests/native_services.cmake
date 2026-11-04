@@ -319,7 +319,7 @@
         SEVENZIP_SMB_PROBE="$<TARGET_FILE:smb2_mount_probe>")
     add_dependencies(smb_readonly_server_tests smb2_mount_probe)
     add_test(NAME smb_readonly_server COMMAND smb_readonly_server_tests -silent)
-    set_tests_properties(smb_readonly_server PROPERTIES TIMEOUT 30)
+    set_tests_properties(smb_readonly_server PROPERTIES TIMEOUT 60)
     if(WIN32)
         add_dependencies(smb_readonly_server_tests sevenzip_smb_server_smb_runtime)
     endif()

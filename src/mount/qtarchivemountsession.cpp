@@ -8,6 +8,8 @@
 
 QtArchiveMountSession::QtArchiveMountSession(QString label, QObject *parent)
     : QObject(parent), label_(std::move(label)), platform_(new QtSmbMountPlatform(this)) {
+    if (qEnvironmentVariableIsSet("SEVENZIP_SMB_TRACE"))
+        child_.setProcessChannelMode(QProcess::ForwardedErrorChannel);
     connect(platform_, &QtSmbMountPlatform::mountFinished, this,
             [this](const QString &directory, const QString &error) {
                 if (!error.isEmpty() || directory.isEmpty()) {

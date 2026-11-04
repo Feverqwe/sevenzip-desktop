@@ -35,7 +35,8 @@
     "exfat_fs.h",
     "exfat_raw.h",
     "include/linux/string.h",
-    "lib/string.c"
+    "lib/string.c",
+    "cache.c"
   ],
   "owners": {
     "fs/exfat/balloc.c": "src/formats/exfat/balloc.c",
@@ -49,6 +50,23 @@
     "lib/hweight.c": "src/compat/linux/core/hweight.c",
     "include/linux/string.h": "src/compat/linux/include/linux/string.h",
     "lib/string.c": "src/compat/linux/core/string.c",
-    "LICENSES/preferred/GPL-2.0": "third_party/linux/LICENSES/preferred/GPL-2.0"
-  }
+    "LICENSES/preferred/GPL-2.0": "third_party/linux/LICENSES/preferred/GPL-2.0",
+    "fs/exfat/cache.c": "src/formats/exfat/exfatreader.c"
+  },
+  "transfers": [
+    {
+      "source": "fs/exfat/cache.c",
+      "local": [
+        "src/formats/exfat/exfatreader.c"
+      ],
+      "symbols": [
+        "exfat_get_cluster"
+      ],
+      "scope": "partial adaptation into exfat_map_item_cluster; retain cached FAT-sector traversal; per-stream cursor replaces VFS inode/LRU, add bounds/cycle checks; omit cache allocation, LRU and contiguous multi-cluster aggregation"
+    }
+  ],
+  "local_integration": [
+    "src/formats/exfat/exfatstream.cpp",
+    "src/formats/exfat/exfatstream.h"
+  ]
 }

@@ -57,7 +57,8 @@ void exfat_root_cursor(const struct exfat_volume *, struct exfat_cursor *);
 void exfat_item_cursor(const struct exfat_item *, struct exfat_cursor *);
 // 1 = item, 0 = end, negative = error. Names remain UTF-16 until the Qt/7-Zip boundary.
 int exfat_next_item(struct exfat_volume *, struct exfat_cursor *, struct exfat_item *);
-// Read an item sequentially. The cursor is private to one extraction, never shared.
+// Read at cursor.position. A forward jump walks metadata only; a backward seek
+// first resets this private cursor and its caller's cluster-visit set.
 int exfat_read_item(struct exfat_volume *, const struct exfat_item *, struct exfat_cursor *, void *,
                     size_t, size_t *);
 #ifdef __cplusplus

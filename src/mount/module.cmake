@@ -17,6 +17,7 @@ endfunction()
 sevenzip_add_smb2()
 
 add_library(sevenzip_smb STATIC src/mount/smb/smbreadonlyserver.cpp src/mount/smb/smbreadonlymetadata.cpp src/mount/smb/smbreadonlypending.cpp
+    src/mount/smb/smbwakeup.cpp src/mount/smb/smbwakeup.h
     src/mount/smb/smbreadonlyserver.h src/mount/smb/smbreadonlyserver_p.h)
 target_include_directories(sevenzip_smb PUBLIC src)
 target_link_libraries(sevenzip_smb PUBLIC Qt6::Core PRIVATE smb2)

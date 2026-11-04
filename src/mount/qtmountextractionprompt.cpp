@@ -11,7 +11,7 @@ QtMountExtractionPrompt::QtMountExtractionPrompt(const QString &source, const QS
     : QDialog(parent), decision_(std::move(decision)) {
     setObjectName("mountExtractionPrompt");
     setWindowTitle(unverified ? tr("Use unverified extracted data")
-                              : tr("Extract for mounted access"));
+                              : tr("Extract files for this mount"));
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Cancel, this);
     auto *layout = QtCreateDialogLayout(*this, *buttons);
     const auto addText = [this, layout](const QString &text) {
@@ -22,16 +22,20 @@ QtMountExtractionPrompt::QtMountExtractionPrompt(const QString &source, const QS
     };
     addText(unverified ? tr("The reader reported damaged or incomplete data. Use the readable "
                             "output for this mount?")
-                       : tr("Extract this file into the temporary mount cache?"));
+                       : tr("Allow files from this mount to be extracted into the temporary cache "
+                            "when they are read?"));
     addText(
         (unverified
              ? tr("%1\n%2\nAvailable data: %3\n\nData may be incomplete or have checksum errors. "
                   "This choice does not repair or verify it. The source remains read-only.")
-             : tr("%1\n%2\nSize: %3\n\nThis file requires extraction before another "
-                  "application can read it. The source remains read-only."))
+             : tr("%1\nFirst requested file: %2\nSize: %3\n\nThis choice applies to all files in "
+                  "this mount, including files extracted again after cache eviction. Cancel "
+                  "disables extraction until the folder is mounted again. The source remains "
+                  "read-only."))
             .arg(source, path, QLocale().formattedDataSize(qint64(size))));
-    auto *extract = buttons->addButton(unverified ? tr("Use Unverified Data") : tr("Extract"),
-                                       QDialogButtonBox::AcceptRole);
+    auto *extract =
+        buttons->addButton(unverified ? tr("Use Unverified Data") : tr("Allow Extraction"),
+                           QDialogButtonBox::AcceptRole);
     extract->setObjectName("extractForMountButton");
     extract->setAutoDefault(false);
     buttons->button(QDialogButtonBox::Cancel)->setDefault(true);

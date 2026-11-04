@@ -142,6 +142,8 @@ HRESULT ReadNativeArchiveListing(const ArchiveNativeOpen &reader, NativeArchiveL
             NWindows::NCOM::CPropVariant prop;
             RINOK(layer.Archive->GetArchiveProperty(field.Id, &prop))
             if (prop.vt != VT_EMPTY) {
+                if (field.Id == kpidEncrypted && prop.vt == VT_BOOL)
+                    info.encrypted |= prop.boolVal != VARIANT_FALSE;
                 info.properties.insert(Text(field.Name),
                                        Text(GetListingPropertyValue(field.Id, prop)));
                 if (field.Id == kpidNumVolumes || field.Id == kpidTotalPhySize) {

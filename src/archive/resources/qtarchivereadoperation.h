@@ -56,6 +56,7 @@ class QtArchiveReadOperation final : public QThread {
     HRESULT askOverwrite(const OverwriteQuestion &question, Int32 *answer);
     HRESULT checkpoint();
     HRESULT password(BSTR *value);
+    HRESULT resetPassword();
     void report(quint64 completed, quint64 total, const QString &path);
     HRESULT Result = E_FAIL;
     std::optional<QtArchiveExtractStatus> ExtractStatus;

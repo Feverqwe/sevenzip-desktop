@@ -135,17 +135,26 @@ ArchiveReadOnlyView::ReadResult ArchiveReadOnlyView::read(quint64 id, quint64 of
     result.Data.resize(qsizetype(std::min<quint64>(length, size - offset)));
     const auto request = state.readRequest();
     UInt32 actual = 0;
-    result.Result = state.Items[id].Stream->ReadAt(offset, result.Data.data(),
-                                                   UInt32(result.Data.size()), &actual, request);
-    if (result.Result != S_OK) {
-        result.Data.clear();
-        return result;
-    }
-    if (actual > quint64(result.Data.size())) {
-        result.Data.clear();
-        result.Result = E_FAIL;
-        result.Error = QStringLiteral("The reader returned an invalid byte count.");
-        return result;
+    // Fill the bounded network range across native encryption/compression
+    // blocks; a short internal read is not the end of the requested SMB range.
+    while (actual < quint64(result.Data.size())) {
+        UInt32 count = 0;
+        const UInt32 remaining = UInt32(result.Data.size()) - actual;
+        result.Result = state.Items[id].Stream->ReadAt(offset + actual, result.Data.data() + actual,
+                                                       remaining, &count, request);
+        if (result.Result != S_OK) {
+            result.Data.clear();
+            return result;
+        }
+        if (count > remaining) {
+            result.Data.clear();
+            result.Result = E_FAIL;
+            result.Error = QStringLiteral("The reader returned an invalid byte count.");
+            return result;
+        }
+        if (!count)
+            break;
+        actual += count;
     }
     result.Data.resize(actual);
     if (!actual) {
