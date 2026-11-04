@@ -1718,6 +1718,7 @@
     "src/filemanager/panels/PanelFolderOperations.h",
     "src/filemanager/panels/PanelInfo.cpp",
     "src/filemanager/panels/PanelInfo.h",
+    "src/filemanager/panels/PanelListLoad.cpp",
     "src/filemanager/panels/PanelProperties.cpp",
     "src/filemanager/panels/PanelSelect.h",
     "src/filemanager/panels/PanelShellMenu_win.cpp",
@@ -1741,6 +1742,8 @@
     "src/filemanager/panels/qtpanellist.cpp",
     "src/filemanager/panels/qtpanellist.h",
     "src/filemanager/panels/qtpanelpluginservices.h",
+    "src/filemanager/providers/FSDrivesCopy_win.cpp",
+    "src/filemanager/providers/FSFolderProperties.cpp",
     "src/filemanager/providers/filesystemfolderloader.cpp",
     "src/filemanager/providers/filesystemfolderloader.h",
     "src/filemanager/providers/qtfolderprojection.cpp",
@@ -2162,6 +2165,7 @@
     "src/ui/dialogs/qtdialogunits.cpp",
     "src/ui/dialogs/qtdialogunits.h",
     "src/ui/dialogs/qtmodalresult.h",
+    "src/ui/progress/ProgressDisplay.cpp",
     "src/ui/progress/archiveprogresstransport.cpp",
     "src/ui/progress/archiveprogresstransport.h",
     "src/ui/progress/progresssync.cpp",
@@ -3739,14 +3743,37 @@
     },
     "src/ui/progress/ProgressDialog2.cpp": {
       "local": [
-        "src/ui/progress/progresssync.cpp"
+        "src/ui/progress/progresssync.cpp",
+        "src/ui/progress/ProgressDisplay.cpp"
       ],
       "symbols": [
         "CProgressSync",
         "kPauseSleepTime",
         "UNDEFINED_VAL",
         "CHECK_STOP",
-        "CRITICAL_LOCK"
+        "CRITICAL_LOCK",
+        "CProgressDialog::OnInit",
+        "CProgressDialog::OnSize",
+        "CProgressDialog::SetProgressRange",
+        "CProgressDialog::SetProgressPos",
+        "CProgressDialog::ShowSize",
+        "CProgressDialog::UpdateStatInfo",
+        "CProgressDialog::SetTitleText",
+        "GetTimeString",
+        "ReduceString",
+        "ConvertSizeToString",
+        "GetChangedString",
+        "GetPower32",
+        "GetPower64",
+        "MyMultAndDiv",
+        "kLangIDs",
+        "kLangIDs_Colon",
+        "kTitleFileNameSizeLimit",
+        "kCurrentFileNameSizeLimit",
+        "UINT_TO_STR_2",
+        "INIT_AS_UNDEFINED",
+        "IS_UNDEFINED_VAL",
+        "IS_DEFINED_VAL"
       ]
     },
     "src/ui/progress/ProgressDialog2.h": {
@@ -3785,7 +3812,8 @@
     },
     "src/filemanager/panels/PanelItems.cpp": {
       "local": [
-        "src/filemanager/panels/PanelColumns.cpp"
+        "src/filemanager/panels/PanelColumns.cpp",
+        "src/filemanager/panels/PanelListLoad.cpp"
       ],
       "symbols": [
         "GetColumnVisible",
@@ -3797,7 +3825,11 @@
         "CPanel::DeleteColumn",
         "CPanel::AddColumn",
         "CPanel::ShowColumnsContextMenu",
-        "CPanel::InitColumns (column-order projection)"
+        "CPanel::InitColumns (column-order projection)",
+        "CPanel::RefreshListCtrl (load, item icons and saved-selection completion)",
+        "CPanel::RefreshListCtrl_SaveFocused",
+        "CPanel::OnReload",
+        "CPanel::OnTimer"
       ]
     },
     "src/filemanager/App.cpp": {
@@ -3893,6 +3925,56 @@
         "CCompressDialog::AddMemComboItem",
         "CCompressDialog::SetMemUseCombo (choices and selection)",
         "CCompressDialog::Get_MemUse_Bytes"
+      ]
+    },
+    "src/filemanager/providers/FSFolder.cpp": {
+      "local": [
+        "src/filemanager/providers/FSFolderProperties.cpp"
+      ],
+      "symbols": [
+        "CFsFolderStat::Enumerate",
+        "MyGetCompressedFileSizeW",
+        "CFSFolder::LoadComments",
+        "CFSFolder::SaveComments",
+        "CFSFolder::ReadFileInfo",
+        "CFSFolder::ReadChangeTime",
+        "CFSFolder::CalcItemFullSize",
+        "CFSFolder::GetItemPrefix",
+        "CFSFolder::GetItemName",
+        "CFSFolder::GetItemSize",
+        "CFSFolder::GetSystemIconIndex",
+        "CFSFolder::GetNumRawProps",
+        "CFSFolder::GetRawPropInfo",
+        "CFSFolder::GetParent",
+        "CFSFolder::GetRawProp",
+        "CFSFolder::GetProperty",
+        "CFSFolder::GetNumberOfProperties",
+        "CFSFolder::GetPropertyInfo",
+        "CFSFolder::GetFolderProperty",
+        "CFSFolder::CompareItems",
+        "CFSFolder::SetProperty",
+        "kProps",
+        "kDescriptionFileName",
+        "GetExtensionPtr",
+        "CompareFileNames_ForFolderList"
+      ]
+    },
+    "src/filemanager/providers/FSDrives.cpp": {
+      "local": [
+        "src/filemanager/providers/FSDrivesCopy_win.cpp"
+      ],
+      "symbols": [
+        "CPhysTempBuffer",
+        "CopyFileSpec",
+        "CFSDrives::GetFileSize",
+        "CFSDrives::CopyTo",
+        "CFSDrives::CopyFrom",
+        "CFSDrives::CopyFromFile",
+        "CFSDrives::CreateFolder",
+        "CFSDrives::CreateFile",
+        "CFSDrives::Rename",
+        "CFSDrives::Delete",
+        "CFSDrives::SetProperty"
       ]
     }
   },

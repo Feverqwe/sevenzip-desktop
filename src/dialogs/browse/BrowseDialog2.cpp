@@ -239,7 +239,8 @@ void CBrowseDialog2::Show_FileProps_Window(const CFileInfo &file) {
 }
 
 void CBrowseDialog2::OnDelete() {
-    if (!_snapshot->Prefix.IsPrefixedBy(TempFolderPath))
+    const auto snapshot = _snapshot;
+    if (!snapshot->Prefix.IsPrefixedBy(TempFolderPath))
         return;
     CUIntVector indices;
     GetSelected_RealIndexes(indices);
@@ -250,11 +251,11 @@ void CBrowseDialog2::OnDelete() {
         UString messageParam, s2;
         if (indices.Size() == 1) {
             const unsigned index = indices[0];
-            const CBrowseItem &bi = _snapshot->Items[index];
-            const CFileInfo &file = _snapshot->Files[bi.MainFileIndex];
+            const CBrowseItem &bi = snapshot->Items[index];
+            const CFileInfo &file = snapshot->Files[bi.MainFileIndex];
             const auto properties = PrintFileProps(file);
-            // Source PrintFileProps reloads on error; those row references and
-            // selection indices are then invalid. Never confirm a different item.
+            // Source PrintFileProps reloads on error. Keep its refusal after a
+            // failed lookup even while the captured listing remains alive.
             if (!properties)
                 return;
             s2 = *properties;
@@ -275,8 +276,8 @@ void CBrowseDialog2::OnDelete() {
                     s2 += "...";
                     break;
                 }
-                const CBrowseItem &bi = _snapshot->Items[indices[i]];
-                const CFileInfo &fi = _snapshot->Files[bi.MainFileIndex];
+                const CBrowseItem &bi = snapshot->Items[indices[i]];
+                const CFileInfo &fi = snapshot->Files[bi.MainFileIndex];
                 PrintProps_Name(s2, fi);
                 s2.Add_LF();
             }
@@ -296,13 +297,13 @@ void CBrowseDialog2::OnDelete() {
     for (UInt32 i = 0; i < indices.Size(); i++) {
         const unsigned index = indices[i];
         bool result = true;
-        const CBrowseItem &bi = _snapshot->Items[index];
-        const CFileInfo &fi = _snapshot->Files[bi.MainFileIndex];
+        const CBrowseItem &bi = snapshot->Items[index];
+        const CFileInfo &fi = snapshot->Files[bi.MainFileIndex];
         if (fi.Name.IsEmpty())
             return;
-        const FString fullPath = us2fs(_snapshot->Prefix) + fi.Name;
-        auto lease = QtOwnedTempRegistry().ClaimForDeletion(_snapshot->Items[index].Owner);
-        if (!lease || !OwnedPath(_snapshot->Items[index].Owner, QtPath(fs2us(fullPath)),
+        const FString fullPath = us2fs(snapshot->Prefix) + fi.Name;
+        auto lease = QtOwnedTempRegistry().ClaimForDeletion(snapshot->Items[index].Owner);
+        if (!lease || !OwnedPath(snapshot->Items[index].Owner, QtPath(fs2us(fullPath)),
                                  QtPath(TempFolderPath))) {
             QMessageBox::warning(this, "7-Zip",
                                  QCoreApplication::translate(
@@ -413,7 +414,7 @@ HRESULT CBrowseDialog2::Reload(const UString &pathPrefix, const UStringVector &s
                                const UString &focusedName) {
     UStringVector selectedVector = selectedVector2;
     selectedVector.Sort();
-    auto snapshot = std::make_unique<Snapshot>();
+    auto snapshot = std::make_shared<Snapshot>();
     auto &files = snapshot->Files;
     auto &items = snapshot->Items;
     auto &root = snapshot->Root;
@@ -483,7 +484,7 @@ HRESULT CBrowseDialog2::Reload(const UString &pathPrefix, const UStringVector &s
             waitCursor.Set();
     }
     snapshot->Prefix = pathPrefix;
-    _snapshot.swap(snapshot);
+    _snapshot = std::move(snapshot);
     PopulateRows(selectedVector, focusedName);
     return S_OK;
 }
@@ -604,6 +605,7 @@ void CBrowseDialog2::OpenOutside(const UString &path, const QtOwnedTempEntry &ow
     Reload_WithErrorMessage();
 }
 void CBrowseDialog2::OnContextMenu(const QPoint &position) {
+    const auto snapshot = _snapshot;
     CUIntVector indices;
     GetSelected_RealIndexes(indices);
     const UInt32 k_CmdId_Delete = 1, k_CmdId_Open_Explorer = 2, k_CmdId_Open_7zip = 3,
@@ -651,7 +653,7 @@ void CBrowseDialog2::OnContextMenu(const QPoint &position) {
     if (numMenuItems == 0)
         return;
     QAction *chosen = menu.exec(_list->viewport()->mapToGlobal(position));
-    if (!chosen)
+    if (!chosen || snapshot != _snapshot)
         return;
     const unsigned menuResult = chosen->data().toUInt();
     if (menuResult == k_CmdId_Delete) {

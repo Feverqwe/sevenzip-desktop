@@ -1,5 +1,46 @@
 # Temporary-object identity and read permissions — 2026-11-01
 
+## Confirmed cleanup listing lifetime — 2026-11-04
+
+Rechecked original BrowseDialog2.cpp/.h deletion, property lookup, context-menu,
+reload and callers at recorded revision
+`b88c6bc09339de32f7d18bbab900686b244f42ba`; both complete hashes match the
+existing baseline. Native confirmation/deletion control flow remains, with
+the existing Qt ownership and path checks. No source is imported or revision
+advanced.
+
+The Qt delete command previously retained selected indices across a modal
+question but read them from the current listing after Yes. A public event
+callback could replace that listing while the question was open. The browser
+now publishes immutable shared snapshots and retains the confirmed snapshot
+through deletion. Names, paths, files and owner records come from that same
+snapshot; no separate request or copied listing is needed. Failed reloads keep
+the published listing, and final refresh still updates the currently open view.
+Commands from a context menu are discarded if its listing changed while open.
+Retaining that snapshot also prevents address reuse from hiding a replacement.
+
+Snapshot ownership does not hold a filesystem lease. Deletion still acquires
+the current registry lock and rechecks identity, external protection, ownership
+and path components. Properties failure still aborts confirmation. Native
+question choices, partial-failure ordering and read-only/link boundaries are
+unchanged. No production callback replacing the form during confirmation was
+identified; this is a reachable modal contract gap, not a reported user incident.
+
+A two-row regression opens private owned folders with matching Unicode names,
+changes the view while confirmation is open, and checks that only confirmed
+files are removed. Both isolated pre-fix rows failed. Existing tests retain
+No/Cancel, active and external protection, replaced identity, links, properties
+errors, sorting, refresh and ordinary context-menu behavior.
+
+Linux temp_cleanup, owned_temp and temp_detached_launch passed 44 Qt checks,
+without failures or skips. Initial full attempts timed out; verbose isolation
+found that the new fixture's direct activation signal inherited keyboard
+modifiers from an earlier Alt+Enter case. Using normal Enter events corrected
+the fixture. No enumeration, timeout or concurrency change was made. Temporary
+diagnostic logging was removed, affected consumers rebuilt, and the passing
+behavior evidence retained. No Windows/macOS, full/slow or new appearance
+acceptance is claimed. Incremental outputs and compiler caches are preserved.
+
 Reference: <https://github.com/ip7z/7zip.git>, read-only snapshot
 `9128b80e3a471108678e2b3ec3c985861c8d7b0f`. Compared BrowseDialog2 reload,
 Enter/parent callers, enumeration and publication, plus the native FileIO

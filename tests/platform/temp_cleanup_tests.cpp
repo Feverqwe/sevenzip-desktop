@@ -526,6 +526,66 @@ class TempCleanupTests : public QObject {
         QVERIFY(remaining.open(QIODevice::ReadOnly));
         QCOMPARE(remaining.readAll(), QByteArray("fixture"));
     }
+    void confirmedDeletionSurvivesListingChange_data() {
+        QTest::addColumn<int>("count");
+        QTest::newRow("single") << 1;
+        QTest::newRow("multiple") << 2;
+    }
+    void confirmedDeletionSurvivesListingChange() {
+        QFETCH(int, count);
+        QTemporaryDir confirmed, later;
+        QVERIFY(confirmed.isValid() && later.isValid());
+        QStringList names;
+        for (int i = 0; i < count; ++i) {
+            names << QStringLiteral("данные 文件 %1.txt").arg(i);
+            QVERIFY(file(confirmed.filePath(names.back())));
+            QVERIFY(file(later.filePath(names.back())));
+        }
+        QVERIFY(inactive(confirmed.path()) && inactive(later.path()));
+        bool changed = false;
+        QTimer::singleShot(0, qApp, [&] {
+            auto *dialog = dynamic_cast<CBrowseDialog2 *>(QApplication::activeModalWidget());
+            QVERIFY(dialog);
+            const auto close = qScopeGuard([&] { dialog->reject(); });
+            auto *list = dialog->findChild<QTreeWidget *>("tempList");
+            select(*dialog, confirmed.path());
+            QVERIFY(list->currentItem());
+            QTest::keyClick(list, Qt::Key_Return);
+            select(*dialog, confirmed.filePath(names.front()));
+            for (const auto &name : names) {
+                auto *item = row(*dialog, confirmed.filePath(name));
+                QVERIFY(item);
+                item->setSelected(true);
+            }
+            QTimer::singleShot(0, dialog, [&] {
+                auto *question = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
+                QVERIFY(question);
+                const auto refuse = qScopeGuard([&] {
+                    if (question->isVisible())
+                        question->done(QMessageBox::No);
+                });
+                for (const auto &name : names)
+                    QVERIFY(question->text().contains(name));
+                dialog->findChild<QPushButton *>("tempParent")->click();
+                select(*dialog, later.path());
+                QVERIFY(list->currentItem());
+                QTest::keyClick(list, Qt::Key_Return);
+                QCOMPARE(QDir::cleanPath(dialog->findChild<QLineEdit *>("tempPath")->text()),
+                         QDir::cleanPath(later.path()));
+                changed = true;
+                question->button(QMessageBox::Yes)->click();
+            });
+            dialog->findChild<QPushButton *>("tempDelete")->click();
+        });
+        MyBrowseForTempFolder(nullptr);
+        QVERIFY(changed);
+        for (const auto &name : names) {
+            QVERIFY(!QFileInfo::exists(confirmed.filePath(name)));
+            QFile retained(later.filePath(name));
+            QVERIFY(retained.open(QIODevice::ReadOnly));
+            QCOMPARE(retained.readAll(), QByteArray("fixture"));
+        }
+    }
     void confirmationControlsTheActualNativeDeleteLoop_data() {
         QTest::addColumn<int>("answer");
         QTest::newRow("yes") << int(QMessageBox::Yes);

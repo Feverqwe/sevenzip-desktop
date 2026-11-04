@@ -44,7 +44,7 @@ class CBrowseDialog2 : public QDialog {
         UString Prefix;
     };
     std::function<bool(const QUrl &)> _opener;
-    std::unique_ptr<Snapshot> _snapshot = std::make_unique<Snapshot>();
+    std::shared_ptr<const Snapshot> _snapshot = std::make_shared<Snapshot>();
     QTreeWidget *_list = nullptr;
     QLineEdit *_pathEdit = nullptr;
     QPushButton *_delete = nullptr, *_parent = nullptr;
