@@ -2811,3 +2811,32 @@ input, secondary OS and visual parity are not claimed. Source inventory, origina
 complete-unit hashes and whitespace checks passed. Ordinary four-job builds
 retained incremental outputs and compiler cache. Disposable settings from the
 completed suites were removed; no full/slow or heavy diagnostic gate ran.
+
+## Options Apply completion lifetime — 2026-11-04
+
+Compared original OptionsDialog property-sheet ownership at
+`b88c6bc09339de32f7d18bbab900686b244f42ba`, current page Apply handlers,
+window application callback and dialog completion. The full original unit hash
+matches the existing baseline. Native page algorithms, application order,
+association-error continuation, invalid-memory veto and language/theme handling
+are unchanged; no external code is imported or provenance advanced.
+
+Apply now uses one lifetime-aware restoration guard for the enabled/applying
+state. It preserves the previous restoration order while avoiding references
+into an already destroyed widget. After Applied notification, it checks whether
+the dialog still exists before updating controls or allowing OK to close it.
+OK also checks lifetime after Apply's restoration guard has run: an enabled-state
+observer may destroy the window while that guard returns. These checks permit
+synchronous observers to destroy a heap-owned dialog after settings have been
+saved. An observer leaving a new draft still keeps OK open, as before.
+
+The regression exercises both Apply and OK through the public interface,
+destroys the dialog from Applied or its subsequent enabled-state change and
+checks the saved editor command. Existing pending-draft, partial-application,
+association failure and Cancel checks remain. Linux options_dialog and
+options_integration passed: 39 Qt checks, no failures or skips; compilation
+11.467s, tests 1.656s. Four-job incremental builds and the compiler cache were
+retained. Selected scratch scopes are empty after completion.
+Source inventory and whitespace checks passed. No layout, text or native
+platform behavior changed; no secondary-platform or new appearance acceptance
+is claimed.

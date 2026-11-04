@@ -6,10 +6,12 @@
 #include "ui/support/layout_inspection.h"
 #include <QCheckBox>
 #include <QDialogButtonBox>
+#include <QEvent>
 #include <QFileDialog>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMessageBox>
+#include <QPointer>
 #include <QPushButton>
 #include <QRadioButton>
 #include <QScopeGuard>
@@ -24,6 +26,15 @@ extern bool g_DisableUserQuestions;
 
 namespace {
 QString qtPath(const FString &path) { return QString::fromWCharArray(fs2us(path)); }
+class DestroyOnEnable final : public QObject {
+    bool eventFilter(QObject *object, QEvent *event) override {
+        if (event->type() == QEvent::EnabledChange && static_cast<QWidget *>(object)->isEnabled()) {
+            delete object;
+            return true;
+        }
+        return false;
+    }
+};
 } // namespace
 
 class OptionsDialogTests : public QObject {
@@ -187,6 +198,38 @@ class OptionsDialogTests : public QObject {
             QCOMPARE(dialog.result(), int(QDialog::Accepted));
             QCOMPARE(NExtract::Read_LimitGB(settings), UInt32(2));
         }
+    }
+    void appliedObserverCanDestroyDialog_data() {
+        QTest::addColumn<int>("finish");
+        QTest::newRow("apply") << 0;
+        QTest::newRow("ok") << 1;
+        QTest::newRow("ok-enable-after-applied") << 2;
+    }
+    void appliedObserverCanDestroyDialog() {
+        QFETCH(int, finish);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString settings = fixture.filePath("deleted-dialog.ini");
+        QPointer<QtFmOptionsDialog> dialog = new QtFmOptionsDialog(settings);
+        const auto cleanup = qScopeGuard([&] { delete dialog.data(); });
+        const QString command = QStringLiteral("editor with spaces --open");
+        dialog->findChild<QLineEdit *>("editorCommand")->setText(command);
+        DestroyOnEnable destroyOnEnable;
+        connect(dialog, &QtFmOptionsDialog::Applied, this, [&] {
+            if (finish == 2) {
+                dialog->setEnabled(false);
+                dialog->installEventFilter(&destroyOnEnable);
+            } else
+                delete dialog.data();
+        });
+        if (finish != 0)
+            dialog->accept();
+        else
+            QVERIFY(!dialog->apply());
+        QVERIFY(dialog.isNull());
+        UString saved;
+        ReadRegEditor(true, saved, settings);
+        QCOMPARE(QString::fromWCharArray(saved.Ptr()), command);
     }
     void appliedObserverDraftIsNotDiscardedByOk_data() {
         QTest::addColumn<bool>("memory");
