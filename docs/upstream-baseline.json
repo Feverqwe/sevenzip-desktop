@@ -1712,6 +1712,8 @@
     "src/dialogs/compress/qtcompressoptionsdialog.h",
     "src/dialogs/copy/alias.h",
     "src/dialogs/extract/alias.h",
+    "src/dialogs/listview/qtlistviewdialogpresentation.cpp",
+    "src/dialogs/mem/qtmemoryrequestpresentation.cpp",
     "src/filemanager/AppCopy.cpp",
     "src/filemanager/ExtractCallbackOutput.cpp",
     "src/filemanager/external/qtexternalapplications.cpp",
@@ -1728,6 +1730,7 @@
     "src/filemanager/panels/PanelInfo.cpp",
     "src/filemanager/panels/PanelInfo.h",
     "src/filemanager/panels/PanelListLoad.cpp",
+    "src/filemanager/panels/PanelNameOperations.cpp",
     "src/filemanager/panels/PanelProperties.cpp",
     "src/filemanager/panels/PanelSelect.h",
     "src/filemanager/panels/PanelShellMenu_win.cpp",
@@ -1820,6 +1823,7 @@
     "src/filemanager/window/mainwindow_menus.cpp",
     "src/filemanager/window/mainwindow_panel.cpp",
     "src/filemanager/window/mainwindow_panelkey.cpp",
+    "src/filemanager/window/mainwindow_persistednavigation.cpp",
     "src/filemanager/window/mainwindow_preferences.cpp",
     "src/filemanager/window/mainwindow_propertyinvalidation.cpp",
     "src/filemanager/window/mainwindow_refresh.cpp",
@@ -1830,6 +1834,7 @@
     "src/filemanager/window/mainwindow_startup.cpp",
     "src/filemanager/window/mainwindow_twopanel.cpp",
     "src/filemanager/window/mainwindow_volumes.cpp",
+    "src/filemanager/window/qtappcopypresentation.cpp",
     "src/filemanager/window/qtapppresentation.cpp",
     "src/filemanager/window/qtapppresentation.h",
     "src/filemanager/window/qtguioutputrefresh.cpp",
@@ -2152,6 +2157,7 @@
     "src/settings/pagelink.h",
     "src/settings/qtfmoptionsdialog.h",
     "src/settings/qtfmoptionslayout.cpp",
+    "src/settings/qtmenupagepresentation.cpp",
     "src/text/nls/charsets.inc",
     "src/text/nls/fatnames.c",
     "src/text/nls/module.cmake",
@@ -3548,6 +3554,15 @@
         "CCompressDialog (resource state and control results adapted as option records)"
       ]
     },
+    "src/dialogs/listview/ListViewDialog.cpp": {
+      "local": [
+        "src/dialogs/listview/qtlistviewdialogpresentation.cpp"
+      ],
+      "symbols": [
+        "CListViewDialog::OnInit",
+        "kOneStringMaxSize"
+      ]
+    },
     "src/dialogs/mem/MemDialog.cpp": {
       "local": [
         "src/platform/memory/qtmemorylimitinfo.cpp",
@@ -3717,11 +3732,19 @@
     "src/filemanager/panels/PanelOperations.cpp": {
       "local": [
         "src/filemanager/panels/PanelFolderOperations.cpp",
-        "src/filemanager/panels/PanelFolderOperations.h"
+        "src/filemanager/panels/PanelFolderOperations.h",
+        "src/filemanager/panels/PanelNameOperations.cpp"
       ],
       "symbols": [
         "EFolderOpType",
-        "CThreadFolderOperations"
+        "CThreadFolderOperations",
+        "IsCorrectFsName",
+        "CPanel::CorrectFsPath",
+        "CPanel::CreateFolder",
+        "CPanel::CreateFile",
+        "CPanel::OnBeginLabelEdit",
+        "CPanel::RenameFile",
+        "CPanel::OnEndLabelEdit"
       ]
     },
     "src/fileops/native/FileDir.cpp": {

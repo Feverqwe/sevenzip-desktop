@@ -1,5 +1,58 @@
 # File-transfer ownership
 
+## Complete Qt copy-publication owner — 2026-11-04
+
+Compared original `App.cpp::OnCopy` routing, post-operation refresh/selection
+and focus branches at `b88c6bc09339de32f7d18bbab900686b244f42ba` from
+<https://github.com/ip7z/7zip.git> with current AppCopy and its Qt continuation,
+worker completion, archive Move deletion and panel-publication callers. The
+complete original App hash matches the existing baseline. Delete/trash retains
+its current confirmation, prepared paths, partial-result and refresh boundaries.
+
+The complete Qt copy execution and continuation methods now live in
+`qtappcopypresentation.cpp`, separate from child-control creation, layout and
+settings migration in the same presentation owner/component. Transferred bodies
+are unchanged. No additional controller, state, native algorithm or revision
+is introduced.
+
+Source/destination refresh eligibility, synchronous reentry guards, asynchronous
+scan waiting, already-refreshed notifications, request retirement before final
+activation, saved selections and final source focus retain their existing
+ordering. Existing phase and quick routing regressions cover operation success,
+failure/cancellation and filesystem/archive destinations. No private-layout or
+source-presence test is added.
+
+Linux `copy_publication_order` and `ui_copy_routing_quick` passed 28 checks
+without failures or skips. Platform adapters are unchanged; no new Windows/macOS
+or visual acceptance is claimed. The full routing matrix remains opt-in slow.
+
+## One rollback record through publication — 2026-11-04
+
+Rechecked the complete worker, transaction, copy/merge callback, source removal
+and window completion/close consumers against original FSFolderCopy
+`CopyFile_Ask`, `IsDestChild` and `CopyFolder` at
+`b88c6bc09339de32f7d18bbab900686b244f42ba`. The complete original unit hash
+matches the baseline. No native copying, platform service or source revision
+changes.
+
+Each transaction record now retains its current owned path during staging and
+after publication. Current-item and batch rollback consume the same record,
+instead of carrying a separate path beside it and reconstructing that argument
+for completed items. Publication still updates the owned path only after the
+rename succeeds; the record is copied into the completed batch before its local
+rollback guard is dismissed. Validation, overwrite choices, backup retention,
+reverse rollback, partial Move recovery and error/cancellation messages keep
+their previous ordering and policy.
+
+Existing transfer regressions cover exceptions during staging and deletion,
+renamed and copied sources, merged/skipped files, canceled publication and
+rollback bytes. No private-record or implementation-presence test is added.
+
+Linux `file_transfer`, `file_transfer_direct` and `worker_window_progress`
+passed 72 checks without failures or skips. Native platform adapters and UI
+layout are unchanged; no new Windows/macOS or rendered visual acceptance is
+claimed.
+
 ## One overwrite decision per transfer — 2026-11-04
 
 Rechecked the full worker, transaction, native-copy callback, directory merge,

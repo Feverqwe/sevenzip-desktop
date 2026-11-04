@@ -154,6 +154,7 @@ add_library(sevenzip_location
     src/settings/EditPage.h
     src/settings/MenuPage.cpp
     src/settings/MenuPage.h
+    src/settings/qtmenupagepresentation.cpp
     src/settings/SystemPage.cpp
     src/settings/SystemPage.h
     src/filemanager/providers/FilePlugins.cpp

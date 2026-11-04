@@ -178,3 +178,33 @@ platform branch, layout or text changed. Secondary platforms, full gates, slow
 native_rename_2/native_rename_301 matrices and new appearance acceptance are not
 claimed. Completed test settings and the unreferenced retired object were removed;
 incremental build trees and compiler caches were preserved.
+
+## Native naming-operation owner — 2026-11-04
+
+Compared the original PanelOperations label-edit, rename, CreateFolder,
+CreateFile and shared name/path validation bodies at
+`b88c6bc09339de32f7d18bbab900686b244f42ba` from
+<https://github.com/ip7z/7zip.git>, their current worker/selection dependencies
+and Qt editor/deferred-publication consumers. The complete original inventory
+hash matches the baseline; no external source or revision is imported.
+
+The complete native naming-operation bodies and their shared validation and
+created-selection helpers now live in `panels/PanelNameOperations.cpp` in the
+same panel component. Transferred bodies are unchanged. Creation and Rename
+share the existing validation rather than copying it into separate modules;
+the remaining operations unit owns comment and deletion workflows.
+The source baseline maps the transferred original symbols to the new owner.
+
+Qt request identity, editor refusal, commit/cancel phases and deferred completion
+remain in QtRenameController. The existing explicit result/rejection publication
+is retained: replacing it with general filesystem Refresh would also introduce
+viewport-preservation behavior. Native validation, collision diagnostics,
+timer/notification guards, joined worker and source refresh selection are
+unchanged. Existing Rename/Create behavior suites cover these contracts; no
+private-layout or source-presence tests are added.
+
+Linux `rename_lifecycle`, `deferred_rename`, `panel_rename_state`,
+`archive_rename_window` and `source_create` passed 108 checks without failures
+or skips. Native algorithms and platform adapters are unchanged in the same
+target; no new Windows/macOS or rendered visual acceptance is claimed. The
+opt-in slow native rename matrices were excluded.

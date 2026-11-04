@@ -12,6 +12,7 @@
 class CListView;
 class CListViewDialog : public QDialog {
     Q_OBJECT
+    static constexpr int kRowIdentityRole = Qt::UserRole + 14;
     CListView *_listView = nullptr;
     void OnOK();
     void CopyToClipboard(bool all = false);

@@ -63,6 +63,7 @@ sevenzip_add_port_component(sevenzip_main_window src/filemanager/window/mainwind
     src/filemanager/window/mainwindow_panelkey.cpp
     src/filemanager/window/mainwindow_shortcuts.cpp
     src/filemanager/window/mainwindow_preferences.cpp
+    src/filemanager/window/mainwindow_persistednavigation.cpp
     src/filemanager/window/mainwindow_propertyinvalidation.cpp
     src/filemanager/window/mainwindow_root.cpp
     src/filemanager/window/mainwindow_selection.cpp
@@ -73,6 +74,7 @@ sevenzip_add_port_component(sevenzip_main_window src/filemanager/window/mainwind
     src/filemanager/views/filepanelmodel.cpp src/filemanager/views/filepanelmodel.h
     src/filemanager/views/filetable.cpp src/filemanager/views/filetable.h src/filemanager/views/filetable_columns.cpp
     src/filemanager/window/qtapppresentation.cpp
+    src/filemanager/window/qtappcopypresentation.cpp
     src/filemanager/rename/qtrenamecontroller.cpp src/filemanager/rename/qtrenamecontroller.h
     src/filemanager/qtfilemanagercommands.cpp
     src/filemanager/qtcommandavailability.cpp

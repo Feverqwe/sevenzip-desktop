@@ -96,9 +96,8 @@ QtFileTransferTransaction::prepareTargets(QString &error) const {
     return targets;
 }
 
-void QtFileTransferTransaction::rollbackEntry(const TransferEntry &entry, const QString &ownedPath,
-                                              RollbackMode mode) {
-    if (ownedPath.isEmpty())
+void QtFileTransferTransaction::rollbackEntry(const TransferEntry &entry, RollbackMode mode) {
+    if (entry.ownedPath.isEmpty())
         return;
     if (mode == RollbackMode::KeepMovedSources && entry.sourceState != SourceState::Intact) {
         if (!entry.backup.isEmpty())
@@ -106,16 +105,16 @@ void QtFileTransferTransaction::rollbackEntry(const TransferEntry &entry, const 
         return;
     }
     if (entry.sourceState == SourceState::Renamed)
-        QDir().rename(ownedPath, entry.source);
+        QDir().rename(entry.ownedPath, entry.source);
     else
-        removeEntry(ownedPath);
+        removeEntry(entry.ownedPath);
     if (!entry.backup.isEmpty())
         QDir().rename(entry.backup, entry.target);
 }
 
 void QtFileTransferTransaction::rollback(const QList<TransferEntry> &completed, RollbackMode mode) {
     for (qsizetype i = completed.size(); i > 0; --i)
-        rollbackEntry(completed[i - 1], completed[i - 1].target, mode);
+        rollbackEntry(completed[i - 1], mode);
 }
 
 void QtFileTransferTransaction::removeSources(QList<TransferEntry> &completed, QString &error) {
@@ -228,13 +227,11 @@ bool QtFileTransferTransaction::transferEntry(const TransferPath &path,
         QStringLiteral(".sevenzip-%1").arg(QUuid::createUuid().toString(QUuid::Id128));
     const QString stage = target + suffix;
     TransferEntry entry{source, target, {}, SourceState::Intact, merge, {}};
-    QString ownedPath;
-    auto rollbackItem =
-        qScopeGuard([&] { rollbackEntry(entry, ownedPath, RollbackMode::RestoreSources); });
+    auto rollbackItem = qScopeGuard([&] { rollbackEntry(entry, RollbackMode::RestoreSources); });
     emit worker_.currentFile(source);
     const bool valid = !worker_.move_ || validateEntry(source, &error);
     if (valid)
-        ownedPath = stage;
+        entry.ownedPath = stage;
     if (valid && worker_.move_ && !merge && worker_.adapter_.trySourceRename(source, stage))
         entry.sourceState = SourceState::Renamed;
     const bool staged =
@@ -267,7 +264,7 @@ bool QtFileTransferTransaction::transferEntry(const TransferPath &path,
     }
     if (error.isEmpty()) {
         if (QDir().rename(stage, target))
-            ownedPath = target;
+            entry.ownedPath = target;
         else
             error = QCoreApplication::translate("qtfiletransfertransaction",
                                                 "Could not finish transfer: %1")

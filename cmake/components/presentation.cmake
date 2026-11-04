@@ -124,6 +124,7 @@ add_library(sevenzip_panel
     src/dialogs/overwrite/OverwriteDialog.cpp
     src/dialogs/overwrite/OverwriteDialog.h
     src/dialogs/mem/MemDialog.cpp
+    src/dialogs/mem/qtmemoryrequestpresentation.cpp
     src/dialogs/mem/MemDialog.h
     src/filemanager/OpenCallback.cpp
     src/filemanager/OpenCallback.h
@@ -234,6 +235,7 @@ add_library(sevenzip_panel
     src/filemanager/panels/PanelItems.cpp
     src/filemanager/panels/PanelListLoad.cpp
     src/filemanager/panels/PanelOperations.cpp
+    src/filemanager/panels/PanelNameOperations.cpp
     src/filemanager/panels/PanelFolderOperations.cpp
     src/filemanager/panels/PanelFolderOperations.h
     src/filemanager/views/qtlistview.cpp
@@ -241,6 +243,7 @@ add_library(sevenzip_panel
     src/filemanager/AppState.h
     src/dialogs/listview/ListViewDialog.cpp
     src/dialogs/listview/ListViewDialog.h
+    src/dialogs/listview/qtlistviewdialogpresentation.cpp
     src/dialogs/edit/EditDialog.cpp
     src/dialogs/edit/EditDialog.h
     src/dialogs/combo/ComboDialog.cpp

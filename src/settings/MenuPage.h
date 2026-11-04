@@ -10,8 +10,7 @@ class QComboBox;
 class QListWidget;
 class QListWidgetItem;
 
-// Windows source ArchiveExtractCallback can write Zone.Identifier. The shell
-// DLL/registration service remains unavailable until the P2-09 source port.
+// Windows source ArchiveExtractCallback can write Zone.Identifier.
 bool IsZonePropagationSupported();
 
 struct CShellDll {
@@ -40,6 +39,7 @@ class CMenuPage : public QWidget {
     QCheckBox *_elimDup;
     QListWidget *_listView;
     QComboBox *_zoneCombo;
+    void BuildPresentation(bool zoneSupported);
     void Clear_MenuChanged();
     bool OnButtonClicked(unsigned buttonID);
     bool OnCommand(unsigned itemID);
