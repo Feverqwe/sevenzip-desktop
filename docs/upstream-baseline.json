@@ -2179,6 +2179,7 @@
     "src/settings/pagelink.h",
     "src/settings/qtfmoptionsdialog.h",
     "src/settings/qtfmoptionslayout.cpp",
+    "src/settings/qtfmoptionsnavigation.cpp",
     "src/settings/qtmenupagepresentation.cpp",
     "src/settings/qtoptionspages.cpp",
     "src/settings/qtoptionspages.h",
