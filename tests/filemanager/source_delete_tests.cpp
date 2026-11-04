@@ -18,9 +18,13 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
       public:
         int calls = 0;
         int failAfter = 0;
+        std::function<void()> during;
         bool MoveToTrash(const QString &path) override {
             ++calls;
-            return (failAfter < 0 || calls <= failAfter) && QFile::remove(path);
+            const bool removed = (failAfter < 0 || calls <= failAfter) && QFile::remove(path);
+            if (during)
+                during();
+            return removed;
         }
     };
     // Delegate actual bytes to the original provider; inject only the terminal
@@ -95,6 +99,46 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         return static_cast<FileTable *>(ui->findChild<FileTable *>("archiveTable"));
     }
   private slots:
+    void trashKeepsPreparedPathsAcrossProviderReload() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        for (const QString &name : {QStringLiteral("a 空.bin"), QStringLiteral("b space.bin"),
+                                    QStringLiteral("keep.bin")}) {
+            QFile file(fixture.filePath(name));
+            QVERIFY(file.open(QIODevice::WriteOnly));
+            QCOMPARE(file.write("protected bytes"), qint64(15));
+        }
+        ControlledBackend backend;
+        Trash trash;
+        trash.failAfter = -1;
+        MainWindow window(&backend, {}, &trash);
+        window.show();
+        auto *view = openPanel(window, 0, fixture.path());
+        QTRY_COMPARE(view->rowCount(), 3);
+        auto &panel = *view->sourcePanel;
+        panel.Set_AutoRefresh_Mode(false);
+        CMyComPtr<IFolderFolder> folder = panel.GetFolder();
+        CRecordVector<UInt32> indices;
+        indices.Add(0);
+        indices.Add(1);
+        const QStringList selected{ToQString(panel.GetItemName(0)),
+                                   ToQString(panel.GetItemName(1))};
+        const QString kept = ToQString(panel.GetItemName(2));
+        HRESULT reload = E_FAIL;
+        trash.during = [&] {
+            if (trash.calls == 1)
+                reload = folder->LoadItems();
+        };
+        CSelectedState state;
+        QCOMPARE(panel.DeleteItems(true, trash, state, &indices, false).Result, S_OK);
+        QCOMPARE(reload, S_OK);
+        QCOMPARE(trash.calls, 2);
+        for (const QString &name : selected)
+            QVERIFY(!QFileInfo::exists(fixture.filePath(name)));
+        QFile protectedFile(fixture.filePath(kept));
+        QVERIFY(protectedFile.open(QIODevice::ReadOnly));
+        QCOMPARE(protectedFile.readAll(), QByteArray("protected bytes"));
+    }
     void refusedConfirmation_data() {
         QTest::addColumn<unsigned>("pane");
         QTest::addColumn<QString>("language");

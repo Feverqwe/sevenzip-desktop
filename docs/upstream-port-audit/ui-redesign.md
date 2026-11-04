@@ -2840,3 +2840,36 @@ retained. Selected scratch scopes are empty after completion.
 Source inventory and whitespace checks passed. No layout, text or native
 platform behavior changed; no secondary-platform or new appearance acceptance
 is claimed.
+
+## Prepared recycle targets — 2026-11-04
+
+Compared the complete original PanelOperations DeleteItems recycle/permanent
+branches, Panel GetFilePaths and their path/index types at
+`b88c6bc09339de32f7d18bbab900686b244f42ba` with the Qt trash adapter, confirmation,
+native worker, command and both archive-Move consumers. Complete original unit
+hashes match the existing baseline. No external code is imported or provenance
+advanced.
+
+The native shell branch prepares all paths before handing off its delete batch.
+The Qt adapter instead resolved the next panel index after each trash-service
+call. Reloading the provider during that call could shift indices and leave a
+selected file while removing another. Recycle now uses the existing native
+GetFilePaths helper once, after the readonly/update gate and before confirmation.
+Its execution helper receives that prepared path list without a panel dependency.
+Confirmation, supported-item checks, native trash service, partial-error refresh,
+permanent deletion, explicit Move indices and deferred publication remain intact.
+
+The new regression uses a real filesystem provider and a fixture trash service
+that reloads it after the first removal. It checks that both selected paths are
+removed and the unselected file retains its bytes, without pinning directory
+enumeration order. On the prior adapter it failed while 32 existing checks passed.
+The fixture replaces only native trash side effects with private-file removal;
+this is validation of path preparation rather than new OS-trash acceptance.
+
+Linux source_delete, archive_move_completion and interarchive_move_publication
+passed: 51 Qt checks, no failures or skips. Incremental compilation took 17.183s
+and tests 8.382s with four configured jobs and compiler cache. Source inventory
+and whitespace checks passed. Completed test settings were removed; failure and
+passing logs were retained. No native OS-trash service, platform branch, layout
+or text changed; secondary-platform, full/slow and new appearance acceptance
+are not claimed.

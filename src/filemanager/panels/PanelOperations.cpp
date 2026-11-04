@@ -277,10 +277,9 @@ static bool ConfirmDeleteItems(const CPanel &panel, const CRecordVector<UInt32> 
                                  QMessageBox::Yes) == QMessageBox::Yes;
 }
 
-static HRESULT MoveItemsToTrash(const CPanel &panel, const CRecordVector<UInt32> &indices,
-                                IQtTrashService &trash) {
-    FOR_VECTOR(i, indices) {
-        const QString path = ToQString(panel.GetItemFullPath(indices[i]));
+static HRESULT MoveItemsToTrash(const UStringVector &paths, IQtTrashService &trash) {
+    FOR_VECTOR(i, paths) {
+        const QString path = ToQString(paths[i]);
         if (QFileInfo(path).isSymLink())
             return E_NOTIMPL;
         if (!trash.MoveToTrash(path))
@@ -302,14 +301,19 @@ QtArchiveUpdateResult CPanel::DeleteItems(bool toRecycleBin, IQtTrashService &tr
     if (indices.IsEmpty())
         return {S_FALSE, false};
     SaveSelectedState(state);
-    if (!CheckBeforeUpdate(IDS_ERROR_DELETING) || (confirm && !ConfirmDeleteItems(*this, indices)))
+    if (!CheckBeforeUpdate(IDS_ERROR_DELETING))
+        return {E_ABORT, false};
+    const bool recycle = toRecycleBin && IsFSFolder();
+    UStringVector recyclePaths;
+    if (recycle)
+        GetFilePaths(indices, recyclePaths);
+    if (confirm && !ConfirmDeleteItems(*this, indices))
         return {E_ABORT, false};
 
     CDisableNotify disableNotify(*this);
-    const bool recycle = toRecycleBin && IsFSFolder();
     QtArchiveUpdateResult result{E_FAIL, std::nullopt};
     if (recycle) {
-        result.Result = MoveItemsToTrash(*this, indices, trash);
+        result.Result = MoveItemsToTrash(recyclePaths, trash);
         // QFile's native trash boundary has no shell error UI. Preserve the
         // source shell branch's refresh after a partial result.
         if (result.Result != S_OK)
