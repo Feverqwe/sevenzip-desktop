@@ -219,6 +219,8 @@ add_library(sevenzip_panel
     src/ui/controls/qtstatuslabel.cpp
     src/ui/controls/qtstatuslabel.h
     src/filemanager/panels/PanelColumns.cpp
+    src/filemanager/panels/PanelInfo.cpp
+    src/filemanager/panels/PanelInfo.h
     src/filemanager/panels/PanelItems.cpp
     src/filemanager/panels/PanelOperations.cpp
     src/filemanager/panels/PanelFolderOperations.cpp

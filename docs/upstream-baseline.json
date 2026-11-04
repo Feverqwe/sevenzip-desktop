@@ -1696,6 +1696,8 @@
     "src/filemanager/panels/PanelColumns.cpp",
     "src/filemanager/panels/PanelFolderOperations.cpp",
     "src/filemanager/panels/PanelFolderOperations.h",
+    "src/filemanager/panels/PanelInfo.cpp",
+    "src/filemanager/panels/PanelInfo.h",
     "src/filemanager/panels/PanelProperties.cpp",
     "src/filemanager/panels/PanelSelect.h",
     "src/filemanager/panels/qtnativepanelkeys.cpp",
@@ -3753,6 +3755,19 @@
         "CPanel::AddColumn",
         "CPanel::ShowColumnsContextMenu",
         "CPanel::InitColumns (column-order projection)"
+      ]
+    },
+    "src/filemanager/App.cpp": {
+      "local": [
+        "src/filemanager/panels/PanelInfo.cpp",
+        "src/filemanager/panels/PanelInfo.h"
+      ],
+      "symbols": [
+        "AddSizeValue (local AddExactSizeValue)",
+        "AddValuePair1",
+        "AddValuePair2",
+        "AddPropValueToSum",
+        "CPanel::GetItemsInfoString"
       ]
     }
   },

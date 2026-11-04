@@ -8,14 +8,12 @@
 #include "Common/StringConvert.h"
 #include "Windows/FileFind.h"
 #include "common/memory/midallocbuffer.h"
+#include "filemanager/panels/PanelInfo.h"
 #include "fileops/volumes/qtvolumeio.h"
 #include <QtGlobal>
 
 using namespace NWindows;
 using namespace NFile;
-
-// The source summary formatter remains owned by the File Manager composition.
-extern void AddValuePair2(UString &s, UINT resourceID, UInt64 num, UInt64 size);
 
 static const char *const g_Message_FileWriteError =
     QT_TRANSLATE_NOOP("SevenZipDiagnostics", "File write error");

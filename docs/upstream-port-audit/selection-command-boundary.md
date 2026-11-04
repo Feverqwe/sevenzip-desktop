@@ -1,5 +1,40 @@
 # Selection command boundary — 2026-10-31
 
+## Copy/Combine summary owner — 2026-11-04
+
+The complete selection summary and its private counting/formatting helpers now
+live in `panels/PanelInfo.cpp`, separate from application routing in App.cpp.
+The shared count/size formatter has a focused header beside its implementation;
+Combine includes it directly instead of redeclaring the function. The existing
+global symbol and `CPanel::GetItemsInfoString` interface, state and target
+(`sevenzip_panel`) are retained. No new class, cache or operation state is added.
+
+Compared original complete App.cpp summary helpers/body, panel declarations and
+copy-dialog limit with current source copy, dialog, native provider and Combine
+consumers. Complete App.cpp, Panel.h and CopyDialog.h original hashes match the
+existing `9128b80e3a471108678e2b3ec3c985861c8d7b0f` baseline from
+<https://github.com/ip7z/7zip.git>. The extraction mapping records transferred
+symbols; original bytes/hashes and native algorithms are unchanged.
+
+All moved bodies are preserved. Unknown-size propagation, zero-sized entries,
+file/folder totals, native number formatting, relative path order, directory
+suffixes and list truncation retain their existing contracts. Dialog, copy and
+Combine command bodies are unchanged; no appearance, translation or behavior
+change is intended. The same compilation context applies, without special
+source-file definitions or separately compiled App.cpp consumers. Existing
+public summary and workflow regressions are reused without new source-shape tests.
+
+Linux `panel_copy_info`, `copy_dialog`, `app_copy_routing`, `volume_dialog` and
+`volume_workflow` passed: 98 checks without failures or skips. After making the
+existing string-adapter include explicit, only `panel_copy_info` was rebuilt
+and repeated successfully; the other passing behavior evidence remains valid.
+The portable bodies and unchanged target/platform services make Linux sufficient;
+no additional Windows/macOS or appearance acceptance is claimed. Configured
+four-job incremental outputs/compiler caches were retained, completed temporary
+settings removed, and source inventory/whitespace checks passed.
+
+## Source command boundary — 2026-10-31
+
 Reference: <https://github.com/ip7z/7zip.git>, commit
 `9128b80e3a471108678e2b3ec3c985861c8d7b0f`. Compared FileManager PanelSelect
 mask/type/all/invert bodies and their selection notification, selected-index,
