@@ -216,3 +216,26 @@ The new before-next-read row failed on the baseline in
 Selected targets were rebuilt in the persistent worktree using ccache.
 This adapter is compiled only on Windows; no macOS/Linux runtime claim,
 application-wide gate, slow suite or visual acceptance follows from these tests.
+## Qt drag/drop input owner — 2026-11-04
+
+Reviewed complete current Qt drag/input/presentation units and native
+OnDrag, DragEnter/Over/Leave/Drop, target reset, command/result and panel
+publication consumers against `PanelDrag.cpp` at
+`b88c6bc09339de32f7d18bbab900686b244f42ba`. Its complete original hash matches
+the existing baseline. The original transfer/selection algorithms and recorded
+Qt adaptations are unchanged; no external code or revision is imported.
+
+The existing Qt input unit now owns event filtering, MIME acquisition, key/button
+translation, drop delivery and terminal reset alongside right-button gesture
+handling. Complete function bodies move unchanged from the general drag unit.
+The same controller instance and state remain authoritative; source startup,
+native presentation services and execution/publication continue with their
+existing owners. No interface, data model or build component is added.
+
+Rejected entry still balances native Leave, synthetic Drop still revalidates
+the target, and reset still releases external native data and restores hover
+according to the active source drag. Right/middle menus, deferred context-menu
+delivery, transfer flags, Open/Compress/Cancel, selected target publication,
+revocation and temporary-source ownership retain their current behavior.
+Existing integrated event/result regressions provide acceptance; no test of
+source placement is added.

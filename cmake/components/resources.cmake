@@ -52,10 +52,12 @@ target_compile_features(sevenzip_archive_transfer_backup PUBLIC cxx_std_23)
 
 add_library(sevenzip_filesystem STATIC
     src/operations/qtoperationendpoint.cpp src/operations/qtoperationendpoint.h
+    src/operations/qtoperationoptions.cpp src/operations/qtoperationoptions.h
     src/archive/sfx/archivesfxmodule.cpp src/archive/sfx/archivesfxmodule.h
     src/archive/resources/qtarchivehashoperation.cpp src/archive/resources/qtarchivehashoperation.h
     src/archive/resources/qtarchivereadoperation.cpp src/archive/resources/qtarchivereadoperation.h
     src/archive/resources/qtarchivedirectoryextract.cpp src/archive/resources/qtarchivedirectoryextract.h
+    src/archive/resources/qtarchiveextractoptions.cpp src/archive/resources/qtarchiveextractoptions.h
     src/archive/backend/archivebackend_nativeentries.cpp src/archive/backend/archivebackend_nativeentries.h
     src/console/List.cpp src/console/List.h
 
@@ -91,6 +93,7 @@ add_library(sevenzip_filesystem STATIC
     ${SEVENZIP_7ZIP_SOURCE_DIR}/CPP/7zip/UI/Common/SetProperties.cpp
     ${SEVENZIP_7ZIP_SOURCE_DIR}/CPP/7zip/Common/FilePathAutoRename.cpp
     src/filemanager/providers/FSFolder.cpp
+    src/filemanager/providers/FSFolderComments.cpp
     src/filemanager/providers/FSFolderProperties.cpp
     src/filemanager/providers/FSFolderCopy.cpp
     src/fileops/links/qtlinkservices.cpp src/fileops/links/qtlinkservices.h
@@ -165,6 +168,7 @@ add_library(sevenzip_location
     src/platform/associations/qtassociationservices.h
     src/platform/associations/qtassociationplatform.h
     src/settings/OptionsDialog.cpp
+    src/settings/qtoptionspages.cpp src/settings/qtoptionspages.h
     src/settings/qtfmoptionsdialog.h
     src/settings/qtfmoptionslayout.cpp
     src/settings/SystemPagePresentation.cpp

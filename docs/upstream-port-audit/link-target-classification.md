@@ -1,5 +1,27 @@
 # Relative link target classification — 2026-11-01
 
+## Link dialog presentation/type owner — 2026-11-04
+
+Reviewed the complete native LinkDialog initialization, browse, creation/error
+and application command bodies, header and resource at
+`b88c6bc09339de32f7d18bbab900686b244f42ba`, together with the Qt control adapter,
+POSIX retarget and filesystem-link services. Complete original cpp/header/resource
+hashes match the existing baseline. No external source or revision is imported.
+
+The Qt presentation now keeps each link type's resource ID, object name, caption
+and Windows-only restriction in one record. This replaces parallel arrays and a
+row-index platform test while preserving all choices, order and restrictions.
+Registration, path rows and complete control construction move unchanged to
+`qtlinkpresentation.cpp` in the same panel component. The existing window instance
+and registry still own the controls; input adaptation and modal/native hooks
+remain in `qtlinkcontrols.cpp`. No interface or runtime state is added.
+
+Native link/reparse algorithms, raw relative targets, exclusive copy destinations,
+retarget staging, error preservation, Cancel/accept and source panel refresh are
+unchanged. Caption/localization contexts, modality, geometry and default focus
+are retained. Existing real link-dialog/command and geometry/language regressions
+provide acceptance; no record-layout or source-presence test is added.
+
 ## Qt path input boundary — 2026-11-02
 
 Compared the complete original LinkDialog.cpp/.h/.rc at recorded commit

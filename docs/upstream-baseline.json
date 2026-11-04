@@ -1558,6 +1558,8 @@
     "src/archive/resources/qtarchivedirectoryextract.h",
     "src/archive/resources/qtarchivedirectoryread.cpp",
     "src/archive/resources/qtarchivedirectoryread.h",
+    "src/archive/resources/qtarchiveextractoptions.cpp",
+    "src/archive/resources/qtarchiveextractoptions.h",
     "src/archive/resources/qtarchiveextractstatus.h",
     "src/archive/resources/qtarchivefileresource.cpp",
     "src/archive/resources/qtarchivefileresource.h",
@@ -1702,6 +1704,7 @@
     "src/dialogs/compress/createarchivedialog_formats.cpp",
     "src/dialogs/compress/createarchivedialog_language.cpp",
     "src/dialogs/compress/createarchivedialog_preferences.cpp",
+    "src/dialogs/compress/createarchivedialog_presentation.cpp",
     "src/dialogs/compress/createarchivedialog_resources.cpp",
     "src/dialogs/compress/createarchivedialog_sfx.cpp",
     "src/dialogs/compress/createarchivedialog_source.cpp",
@@ -1714,6 +1717,7 @@
     "src/dialogs/extract/alias.h",
     "src/dialogs/listview/qtlistviewdialogpresentation.cpp",
     "src/dialogs/mem/qtmemoryrequestpresentation.cpp",
+    "src/dialogs/overwrite/qtoverwritepresentation.cpp",
     "src/filemanager/AppCopy.cpp",
     "src/filemanager/ExtractCallbackOutput.cpp",
     "src/filemanager/external/qtexternalapplications.cpp",
@@ -1722,6 +1726,7 @@
     "src/filemanager/external/qtexternalfilesession.h",
     "src/filemanager/nativecommanddispatch.cpp",
     "src/filemanager/panels/PanelAddress.cpp",
+    "src/filemanager/panels/PanelArchiveLifecycle.cpp",
     "src/filemanager/panels/PanelArchiveOpen.cpp",
     "src/filemanager/panels/PanelColumns.cpp",
     "src/filemanager/panels/PanelDrag_win.cpp",
@@ -1755,6 +1760,7 @@
     "src/filemanager/panels/qtpanellist.h",
     "src/filemanager/panels/qtpanelpluginservices.h",
     "src/filemanager/providers/FSDrivesCopy_win.cpp",
+    "src/filemanager/providers/FSFolderComments.cpp",
     "src/filemanager/providers/FSFolderProperties.cpp",
     "src/filemanager/providers/filesystemfolderloader.cpp",
     "src/filemanager/providers/filesystemfolderloader.h",
@@ -1797,6 +1803,7 @@
     "src/filemanager/state/qtappoperationstate.h",
     "src/filemanager/views/filepanelmodel.cpp",
     "src/filemanager/views/filepanelmodel.h",
+    "src/filemanager/views/filerowdelegate.cpp",
     "src/filemanager/views/filetable.cpp",
     "src/filemanager/views/filetable.h",
     "src/filemanager/views/filetable_columns.cpp",
@@ -1843,6 +1850,7 @@
     "src/filemanager/window/qtmainwindowchrome.h",
     "src/fileops/links/qtlinkcontrols.cpp",
     "src/fileops/links/qtlinkcontrols.h",
+    "src/fileops/links/qtlinkpresentation.cpp",
     "src/fileops/links/qtlinkservices.cpp",
     "src/fileops/links/qtlinkservices.h",
     "src/fileops/links/qtverctrlfileservices.cpp",
@@ -2098,6 +2106,8 @@
     "src/operations/qtoperationendpoint.h",
     "src/operations/qtoperationlauncher.cpp",
     "src/operations/qtoperationlauncher.h",
+    "src/operations/qtoperationoptions.cpp",
+    "src/operations/qtoperationoptions.h",
     "src/operations/qtoperationprocess.cpp",
     "src/operations/qtoperationprocess.h",
     "src/operations/qtoperationprotocol.cpp",
@@ -2158,6 +2168,9 @@
     "src/settings/qtfmoptionsdialog.h",
     "src/settings/qtfmoptionslayout.cpp",
     "src/settings/qtmenupagepresentation.cpp",
+    "src/settings/qtoptionspages.cpp",
+    "src/settings/qtoptionspages.h",
+    "src/settings/qtsettingspagepresentation.cpp",
     "src/text/nls/charsets.inc",
     "src/text/nls/fatnames.c",
     "src/text/nls/module.cmake",
@@ -3644,7 +3657,8 @@
     },
     "src/filemanager/panels/PanelFolderChange.cpp": {
       "local": [
-        "src/filemanager/panels/PanelAddress.cpp"
+        "src/filemanager/panels/PanelAddress.cpp",
+        "src/filemanager/panels/PanelArchiveLifecycle.cpp"
       ],
       "symbols": [
         "GetRealIconIndex_for_DirPath",
@@ -3653,7 +3667,9 @@
         "CPanel::OnNotifyComboBoxEnter",
         "CPanel::OnNotifyComboBoxEndEdit",
         "CPanel::AddComboBoxItem",
-        "CPanel::OnComboBoxCommand"
+        "CPanel::OnComboBoxCommand",
+        "CPanel::CloseOneLevel",
+        "CPanel::CloseOpenFolders"
       ]
     },
     "src/filemanager/panels/PanelItemOpen.cpp": {
@@ -3662,6 +3678,7 @@
         "src/filemanager/external/qtexternalapplications.h",
         "src/filemanager/external/qtexternalfilesession.cpp",
         "src/filemanager/external/qtexternalfilesession.h",
+        "src/filemanager/panels/PanelArchiveLifecycle.cpp",
         "src/filemanager/panels/PanelArchiveOpen.cpp"
       ],
       "symbols": [
@@ -3987,6 +4004,7 @@
     },
     "src/filemanager/providers/FSFolder.cpp": {
       "local": [
+        "src/filemanager/providers/FSFolderComments.cpp",
         "src/filemanager/providers/FSFolderProperties.cpp"
       ],
       "symbols": [

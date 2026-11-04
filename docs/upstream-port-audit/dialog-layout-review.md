@@ -72,8 +72,8 @@ The temp-cleanup consumer and Cocoa light/dark review captures cover the change.
 
 Compared `OverwriteDialog::OnInit` and its callers/answer mapping with the
 native extra-button visibility branch, plus `BrowseDialog.rc` and parent/create
-handlers. At the user's request, unavailable batch overwrite actions remain
-visible but disabled; the answer mapping and caller capability decision remain
+handlers. The current Qt implementation hides and disables unavailable batch
+overwrite actions; the answer mapping and caller capability decision remain
 source-owned. Reinitialization restores availability. Browse replaces native
 resource text glyphs with Qt parent-folder/new-folder icons, retaining localized
 accessible names and the original navigation/create handlers. These are explicit
@@ -82,6 +82,30 @@ Focused macOS suites `overwrite_layout`, `source_browse_dialog` and
 `panel_deleted_draw` pass. Light/dark Cocoa captures for these groups are updated,
 including the previously stale icon-caption color gallery. Other platforms and
 rendered Windows parity remain unverified.
+
+## Overwrite presentation/button owner — 2026-11-04
+
+Compared complete original OverwriteDialog.cpp/.h/.rc at
+`b88c6bc09339de32f7d18bbab900686b244f42ba`; all complete original hashes match
+the recorded baseline. Reviewed native callback answer handling, typed backend
+questions, dialog dismissal and the no-extra/default-No consumer. No external
+code or revision is imported.
+
+Complete Qt control construction and button reconfiguration now share
+`qtoverwritepresentation.cpp` in the same panel component. One immutable button
+table supplies IDs, captions and initial grid positions to both methods, replacing
+the second ordered ID list and derived full-layout positions. Existing compact
+positions and batch classification retain their rules. No interface or runtime
+state is added; native formatting, optional metadata, answer mapping and callback
+publication remain with their existing owners.
+
+Initial construction/resize still precedes OnInit's availability adjustment.
+Current hidden/disabled batch behavior, reinitialization, default focus,
+Cancel/close result, translated captions and style/language updates are preserved.
+The earlier visible-but-disabled description above was corrected to the current
+source and behavioral contract; no visibility change is made by this refactor.
+Existing answer, geometry and joined-operation checks provide acceptance; no
+source-layout or button-table test is added.
 
 ## Extract folder-name toggle — 2026-10-18
 

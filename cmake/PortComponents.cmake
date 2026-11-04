@@ -21,6 +21,7 @@ target_sources(sevenzip_archive_backend PRIVATE src/archive/codecs/archivecodecp
 
 sevenzip_add_port_component(sevenzip_compress_presentation src/dialogs/compress/createarchivedialog.h
     src/dialogs/compress/createarchivedialog.cpp
+    src/dialogs/compress/createarchivedialog_presentation.cpp
     src/dialogs/compress/createarchivedialog_advanced.cpp
     src/dialogs/compress/createarchivedialog_compression.cpp
     src/dialogs/compress/createarchivedialog_encryption.cpp
@@ -72,6 +73,7 @@ sevenzip_add_port_component(sevenzip_main_window src/filemanager/window/mainwind
     src/filemanager/window/mainwindow_volumes.cpp
     src/filemanager/panels/PanelKey.cpp
     src/filemanager/views/filepanelmodel.cpp src/filemanager/views/filepanelmodel.h
+    src/filemanager/views/filerowdelegate.cpp
     src/filemanager/views/filetable.cpp src/filemanager/views/filetable.h src/filemanager/views/filetable_columns.cpp
     src/filemanager/window/qtapppresentation.cpp
     src/filemanager/window/qtappcopypresentation.cpp

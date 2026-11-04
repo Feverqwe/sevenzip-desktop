@@ -8,6 +8,7 @@
 #include "archive/opening/archivecontainerpath.h"
 #include "archive/operations/Extract.h"
 #include "archive/resources/archivenativeopen.h"
+#include "archive/resources/qtarchiveextractoptions.h"
 #include "archive/resources/qtarchivereadoperation.h"
 #include "archive/resources/qtextractpathpolicy.h"
 #include <QDir>
@@ -161,24 +162,8 @@ CExtractOptions MakeDirectoryExtractOptions(const QtArchiveDirectoryExtractReque
                        : request.Options.pathMode == ExtractionOptions::PathMode::CurrentPaths
                            ? NExtract::NPathMode::kCurPaths
                            : NExtract::NPathMode::kFullPaths;
-    switch (request.Options.overwriteMode) {
-    case ExtractionOptions::OverwriteMode::Ask:
-    case ExtractionOptions::OverwriteMode::RejectExisting:
-        options.OverwriteMode = NExtract::NOverwriteMode::kAsk;
-        break;
-    case ExtractionOptions::OverwriteMode::SkipExisting:
-        options.OverwriteMode = NExtract::NOverwriteMode::kSkip;
-        break;
-    case ExtractionOptions::OverwriteMode::OverwriteExisting:
-        options.OverwriteMode = NExtract::NOverwriteMode::kOverwrite;
-        break;
-    case ExtractionOptions::OverwriteMode::RenameExtracted:
-        options.OverwriteMode = NExtract::NOverwriteMode::kRename;
-        break;
-    case ExtractionOptions::OverwriteMode::RenameExisting:
-        options.OverwriteMode = NExtract::NOverwriteMode::kRenameExisting;
-        break;
-    }
+    options.OverwriteMode = QtArchiveOverwriteMode(request.Options.overwriteMode)
+                                .value_or(NExtract::NOverwriteMode::kAsk);
     return options;
 }
 } // namespace

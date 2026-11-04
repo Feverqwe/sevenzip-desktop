@@ -11,6 +11,32 @@ The completed transfer is recorded in [progress controls](progress-controls.md).
 
 ## Native enumeration and testing
 
+### Shared overwrite-mode conversion — 2026-11-04
+
+Reviewed the complete Qt selected-panel, batch and directory-extraction option
+builders, their validation and result consumers, against the recorded native
+ExtractMode types, PanelCopy dispatch, ExtractGUI option handoff and
+ArchiveExtractCallback overwrite handling at
+`b88c6bc09339de32f7d18bbab900686b244f42ba`. Complete original Panel/PanelCopy,
+Extract, ExtractGUI and ArchiveExtractCallback hashes match the existing baseline.
+No external source or revision is imported.
+
+The three Qt entry points now share the five native overwrite-mode conversions
+in `qtarchiveextractoptions`, owned by the existing filesystem component.
+RejectExisting has no native mode: the converter returns no value, leaving each
+entry point's existing handling explicit. Selected-panel extraction retains Skip
+after validation; directory extraction retains Ask with collision refusal in
+its callback; batch extraction retains its early refusal until the caller has
+validated and changed the requested mode to Skip. Native enum defaults remain
+Ask. No public operation or native callback policy changes.
+
+Path-mode conversion remains with each caller because source-relative panel
+copying, native directory extraction and batch absolute paths have different
+contracts. Selection, bounded path/link validation, overwrite prompts and
+cancellation, credentials, memory limits, status and output publication remain
+unchanged. Existing byte/result regressions cover the observable contracts;
+no enum-mapping or source-presence test is added.
+
 ### Read-callback item ownership — 2026-11-04
 
 Rechecked the current read worker, Test/single-entry dispatch, callbacks and

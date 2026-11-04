@@ -1,5 +1,28 @@
 # Property report row metadata — 2026-10-31
 
+## Filesystem comment persistence owner — 2026-11-04
+
+Reviewed focused-item comment editing, joined SetProperty dispatch, filesystem
+read/cache/sort consumers, CPairsStorage parsing/serialization and archive writer
+boundaries. Compared complete original LoadComments, SaveComments and SetProperty
+bodies in `FSFolder.cpp` at `b88c6bc09339de32f7d18bbab900686b244f42ba`;
+the complete original FSFolder, PanelOperations and TextPairs inventory hashes
+match the existing baseline. No external source or revision is imported.
+
+The complete filesystem LoadComments/SaveComments/SetProperty bodies and private
+description filename now share `FSFolderComments.cpp`, beside the existing
+provider, under the same filesystem component. Bodies are unchanged. Metadata
+and comparison consumers retain their original property dispatch and cache;
+dialog, worker, archive writing and selection publication keep their owners.
+No interface, cache object or storage implementation is added.
+
+UTF-8/BOM/CRLF serialization, quoted names, trimming/deletion, lazy loading,
+reload invalidation, original save-error return policy, POSIX permissions and
+Windows file attributes remain unchanged. Existing filesystem comment and
+metadata/sort regressions cover observable behavior; no source-layout test is
+added. The baseline records the additional extracted owner against the complete
+original unit without changing its original hash.
+
 ## Complete report/list Qt presentation — 2026-11-04
 
 Reviewed the complete original ListViewDialog.cpp/.h/.rc at
@@ -38,8 +61,8 @@ enumeration/cache lifecycle at recorded revision
 <https://github.com/ip7z/7zip.git>. Complete original inventory hashes match
 the existing baseline. No source is imported or original revision advanced.
 
-FSFolderProperties.cpp now owns that complete provider scenario, including
-comment persistence and its existing SetProperty operation. Enumeration,
+FSFolderProperties.cpp owns provider metadata, comparison, statistics and icon
+lookup; comment persistence has the dedicated owner described above. Enumeration,
 navigation, change notifications and destructive file operations remain in
 FSFolder.cpp; transfer remains in FSFolderCopy.cpp. All implementations stay
 in sevenzip_filesystem with the same interfaces and compilation options.

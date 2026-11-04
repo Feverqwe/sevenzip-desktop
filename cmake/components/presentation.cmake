@@ -110,6 +110,7 @@ add_library(sevenzip_panel
     src/dialogs/link/LinkDialog.cpp
     src/dialogs/link/LinkDialog.h
     src/fileops/links/qtlinkcontrols.cpp
+    src/fileops/links/qtlinkpresentation.cpp
     src/fileops/links/qtlinkcontrols.h
     src/filemanager/ExtractCallback.cpp
     src/filemanager/ExtractCallbackOutput.cpp
@@ -122,6 +123,7 @@ add_library(sevenzip_panel
     src/archive/callbacks/qtcallbackdialogs.h
     src/ui/dialogs/qtmodalresult.h
     src/dialogs/overwrite/OverwriteDialog.cpp
+    src/dialogs/overwrite/qtoverwritepresentation.cpp
     src/dialogs/overwrite/OverwriteDialog.h
     src/dialogs/mem/MemDialog.cpp
     src/dialogs/mem/qtmemoryrequestpresentation.cpp
@@ -131,6 +133,7 @@ add_library(sevenzip_panel
     src/filemanager/providers/FileFolderPluginOpen.cpp
     src/filemanager/providers/FileFolderPluginOpen.h
     src/filemanager/panels/PanelItemOpen.cpp
+    src/filemanager/panels/PanelArchiveLifecycle.cpp
     src/filemanager/panels/PanelArchiveOpen.cpp
     src/filemanager/external/qtexternalapplications.cpp
     src/filemanager/external/qtexternalapplications.h
@@ -205,6 +208,7 @@ add_library(sevenzip_panel
     src/filemanager/App.h
     src/filemanager/panels/Panel.cpp
     src/settings/SettingsPage.cpp
+    src/settings/qtsettingspagepresentation.cpp
     src/settings/SettingsPage.h
     src/ui/controls/qtmemorylimitspin.cpp
     src/ui/controls/qtmemorylimitspin.h

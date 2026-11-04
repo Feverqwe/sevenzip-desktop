@@ -23,6 +23,7 @@ class CSettingsPage : public QDialog {
     QWidget *_appearanceControls;
     QWidget *_memoryControls;
     QWidget *_listControls;
+    void BuildControls(bool embedded);
     void reloadAppearanceText();
     void changeEvent(QEvent *event) override;
     QCheckBox *_showRealFileIcons;
