@@ -1,5 +1,33 @@
 # Stable Add columns — 2026-10-17
 
+## Add form presentation owner — 2026-11-04
+
+Rechecked original CompressDialog.cpp/.h/.rc at
+`b88c6bc09339de32f7d18bbab900686b244f42ba`; all complete original hashes match
+the baseline. Reviewed source initialization, path/history/browse and acceptance
+branches with the current Qt constructor, form, codec/source adapters and accepted
+request publication. No external source or revision is imported.
+
+The complete destination/form/footer construction, column/hidden-space geometry
+helpers and existing private scroll classes now share
+`createarchivedialog_presentation.cpp` under the same compression-presentation
+component. Destination creation is a cohesive helper returning its existing Browse
+button to the original late connection point. Scroll creation similarly retains
+the original parent, style and setup at the same constructor position. No runtime
+state or public interface is added.
+
+Reconstructing the extracted constructor/form sequence reproduces the previous
+bodies exactly. Registry/source setup, format initialization, signal ordering,
+source-control binding, language, column sizing, initial size and focus retain
+their order. Path resolution, password/memory/volume checks, accepted options,
+persistence and native DTO publication remain with their existing owners.
+The previously recorded Qt destination/layout adaptations are unchanged; no new
+source branch is omitted or replaced.
+
+Existing source/standalone dialog, naming/history, geometry and actual compression
+checks provide acceptance. No private-factory/source-placement test or new
+rendered-parity claim is introduced.
+
 ## Destination header review — 2026-10-18
 
 Screenshot review rechecked `CompressDialog.rc` folder/caption/combo/Browse

@@ -24,6 +24,7 @@
 #include <optional>
 
 class QtDisclosure;
+class QScrollArea;
 
 class CreateArchiveDialog : public QDialog {
     Q_OBJECT
@@ -63,6 +64,8 @@ class CreateArchiveDialog : public QDialog {
     };
     AcceptedRequest readRequest(const QString &target) const;
     void showEvent(QShowEvent *event) override;
+    static QScrollArea *createOptionsScrollArea(QWidget *parent);
+    QPushButton *createArchiveDestination(QVBoxLayout *windowLayout);
     void createArchiveForm(QVBoxLayout *layout, QVBoxLayout *windowLayout);
     void createOptionSections(QVBoxLayout *layout, QFormLayout *basic);
     void stabilizeColumnWidths();

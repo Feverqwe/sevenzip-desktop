@@ -21,6 +21,7 @@ target_sources(sevenzip_archive_backend PRIVATE src/archive/codecs/archivecodecp
 
 sevenzip_add_port_component(sevenzip_compress_presentation src/dialogs/compress/createarchivedialog.h
     src/dialogs/compress/createarchivedialog.cpp
+    src/dialogs/compress/createarchivedialog_presentation.cpp
     src/dialogs/compress/createarchivedialog_advanced.cpp
     src/dialogs/compress/createarchivedialog_compression.cpp
     src/dialogs/compress/createarchivedialog_encryption.cpp

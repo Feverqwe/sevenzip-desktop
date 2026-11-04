@@ -1704,6 +1704,7 @@
     "src/dialogs/compress/createarchivedialog_formats.cpp",
     "src/dialogs/compress/createarchivedialog_language.cpp",
     "src/dialogs/compress/createarchivedialog_preferences.cpp",
+    "src/dialogs/compress/createarchivedialog_presentation.cpp",
     "src/dialogs/compress/createarchivedialog_resources.cpp",
     "src/dialogs/compress/createarchivedialog_sfx.cpp",
     "src/dialogs/compress/createarchivedialog_source.cpp",
