@@ -4,6 +4,7 @@
 #include "filemanager/window/mainwindow.h"
 #include "fileops/native/Dialog.h"
 #include "ui/dialogs/qtdialogscreenservices.h"
+#include <QApplication>
 #include <QPointer>
 #include <QScopedValueRollback>
 
@@ -99,6 +100,12 @@ void QtAppPresentation::RequestListFocus(unsigned index) {
         return;
     initialFocus_ = index;
     CompleteInitialFocusIfReady();
+}
+
+void QtAppPresentation::RestoreWidgetFocus(QWidget *widget) {
+    if (!window_.app_.QtOperations().closed() && widget && widget->isVisible() &&
+        widget->isEnabled() && !QApplication::activeModalWidget())
+        widget->setFocus(Qt::OtherFocusReason);
 }
 
 void QtAppPresentation::CompleteInitialFocusIfReady() {

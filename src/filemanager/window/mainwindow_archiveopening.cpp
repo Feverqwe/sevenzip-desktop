@@ -36,9 +36,7 @@ bool MainWindow::runExternalArchiveUpdate(CPanel &panel, const QtArchiveUpdateBo
     refreshActions();
     // Qt can clear the window's remembered focus when its address control is
     // disabled during modal progress. Restore it after terminal publication.
-    if (!app_.QtOperations().closed() && focused && focused->isVisible() && focused->isEnabled() &&
-        !QApplication::activeModalWidget())
-        focused->setFocus(Qt::OtherFocusReason);
+    appPresentation_->RestoreWidgetFocus(focused);
     return result;
 }
 
@@ -52,9 +50,7 @@ HRESULT MainWindow::openArchiveAs(const QString &path, const QString &type) {
     const auto restoreFocus = qScopeGuard([this, focused] {
         // Modal archive progress can clear Qt's remembered address focus.
         // Restore the selected control after the operation call scope ends.
-        if (!app_.QtOperations().closed() && focused && focused->isVisible() &&
-            focused->isEnabled() && !QApplication::activeModalWidget())
-            focused->setFocus(Qt::OtherFocusReason);
+        appPresentation_->RestoreWidgetFocus(focused);
     });
     QtAppOperationState::CallScope call(app_.QtOperations());
     if (projectedUi().state == State::Loading || projectedUi().state == State::Operating)
@@ -212,9 +208,8 @@ void MainWindow::goParent() {
     // when disabling that view; use the existing publication/input guard.
     if (restoreListFocus)
         appPresentation_->RequestListFocus(panelIndex);
-    else if (!app_.QtOperations().closed() && focused && focused->isVisible() &&
-             focused->isEnabled() && !QApplication::activeModalWidget())
-        focused->setFocus(Qt::OtherFocusReason);
+    else
+        appPresentation_->RestoreWidgetFocus(focused);
     if (panel.IsRootFolder() && !projectedUi().history.isEmpty() &&
         projectedUi().history.last().isEmpty())
         projectedUi().history.removeLast(); // Parent consumed the virtual-root Back location.
