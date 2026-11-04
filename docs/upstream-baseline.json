@@ -2152,6 +2152,7 @@
     "src/settings/pagelink.h",
     "src/settings/qtfmoptionsdialog.h",
     "src/settings/qtfmoptionslayout.cpp",
+    "src/settings/qtmenupagepresentation.cpp",
     "src/text/nls/charsets.inc",
     "src/text/nls/fatnames.c",
     "src/text/nls/module.cmake",

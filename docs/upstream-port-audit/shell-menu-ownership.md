@@ -1,5 +1,30 @@
 # Shell submenu ownership — 2026-10-18
 
+## Context-menu settings presentation — 2026-11-04
+
+Reviewed the complete pinned `CPP/7zip/UI/FileManager/MenuPage.cpp`,
+`MenuPage.h` and `MenuPage2.rc` at
+`b88c6bc09339de32f7d18bbab900686b244f42ba` from
+<https://github.com/ip7z/7zip.git>, together with the current OptionsDialog
+Apply/language consumers and shell-service interface. Complete original hashes
+remain recorded in the baseline; no new external code or revision is imported.
+
+`src/settings/MenuPage.cpp` retains the native settings load, custom Zone.Id
+admission, list flags, changed-value tracking, registration failure/readback
+and Apply/event bodies. Qt construction and bindings now belong to
+`qtmenupagepresentation.cpp` in the same `sevenzip_location` component.
+Construction order, control properties, availability queries and connections
+are preserved. The existing native Zone.Id caption derivation is shared by
+initialization and language reload, including numeric fallback and the default
+marker. No new state, adapter, native registry implementation or layout is added.
+
+Existing page regressions cover registration discovery/failure/readback,
+Cancel, explicit settings and custom Zone.Id values, plus EN/RU normal/compact
+geometry. Linux exercises the shared Qt/page contracts through fake services;
+it does not establish Windows native registration or rendered visual parity.
+
+## Native submenu ownership
+
 Source: <https://github.com/ip7z/7zip.git>, commit
 `9128b80e3a471108678e2b3ec3c985861c8d7b0f`.
 Reviewed complete `CPP/7zip/UI/FileManager/PanelMenu.cpp::CreateSystemMenu`,

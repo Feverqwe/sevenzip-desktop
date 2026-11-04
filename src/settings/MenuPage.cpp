@@ -1,7 +1,7 @@
 // Adapted from 7-Zip MenuPage.cpp (0766b733fe3e06dd2a7f9a3cfbf2108ac73abd17).
 // Igor Pavlov, LGPL-2.1-or-later; see third_party/7zip/License.txt.
 // Source menu state/list/apply bodies; Qt replaces property-page services.
-// Shell DLL enumeration/registration and Help are owned by P2-09/P1-15.
+// Shell discovery and registration use IQtMenuPageServices.
 #include "settings/MenuPage.h"
 #include "filemanager/HelpUtils.h"
 
@@ -18,13 +18,9 @@
 #include "platform/shell/qtmenupageservices.h"
 #include "platform/shell/qtnativemenupageservices.h"
 #include "platform/shell/qtshellregistryservices.h"
-#include "ui/dialogs/qtdialogunits.h"
 #include <QCheckBox>
 #include <QComboBox>
-#include <QHBoxLayout>
-#include <QLabel>
 #include <QListWidget>
-#include <QVBoxLayout>
 
 #define kMenuTopic "fm/options.htm#sevenZip"
 void CMenuPage::OnNotifyHelp() { ShowHelpWindow(kMenuTopic, this); }
@@ -64,78 +60,7 @@ CMenuPage::CMenuPage(const QString &settingsPath, QWidget *parent, bool zoneSupp
                      std::shared_ptr<IQtMenuPageServices> services)
     : QWidget(parent), _settingsPath(settingsPath),
       _services(services ? std::move(services) : CreateNativeMenuPageServices()) {
-    setObjectName("menuPage");
-    auto *layout = new QVBoxLayout(this);
-    // MenuPage2.rc separates 10-DLU checkboxes by 4 DLU. Pixel spacing
-    // compresses their native Cocoa widget frames into each other.
-    layout->setSpacing(QtDialogUnits(font()).pixels(QSize(0, 4)).height());
-    auto addCheck = [&](const QString &text, const char *name, unsigned id) {
-        auto *check = new QCheckBox(text, this);
-        check->setObjectName(name);
-        check->setProperty("languageWrapWidth", 380);
-        check->setProperty("sourceControlID", id);
-        QtBindResourceText(check, id, text);
-        check->setEnabled(false);
-        QtBindLocalToolTip(
-            check, "MenuPage",
-            QT_TRANSLATE_NOOP("MenuPage", "Shell integration is unavailable in this build."));
-        layout->addWidget(check);
-        connect(check, &QCheckBox::clicked, this, [this, id] { OnButtonClicked(id); });
-        return check;
-    };
-    addCheck("Integrate 7-Zip to shell context menu", "shellIntegration",
-             IDX_SYSTEM_INTEGRATE_TO_MENU);
-    addCheck("Integrate 7-Zip to shell context menu", "shellIntegration32",
-             IDX_SYSTEM_INTEGRATE_TO_MENU_2);
-    _cascaded = addCheck("Cascaded context menu", "cascadedMenu", IDX_SYSTEM_CASCADED_MENU);
-    _menuIcons = addCheck("Icons in context menu", "menuIcons", IDX_SYSTEM_ICON_IN_MENU);
-    _elimDup =
-        addCheck("Eliminate duplication of root folder", "menuElimDup", IDX_EXTRACT_ELIM_DUP);
-    const bool commandsAvailable = _services && _services->CommandsAvailable();
-    for (auto *control : {_cascaded, _menuIcons, _elimDup}) {
-        control->setEnabled(commandsAvailable);
-        if (commandsAvailable)
-            QtBindLocalToolTip(control);
-    }
-    auto *zoneRow = new QHBoxLayout;
-    auto *zoneLabel = new QLabel("Propagate Zone.Id stream:", this);
-    zoneLabel->setObjectName("menuZoneLabel");
-    zoneLabel->setWordWrap(true);
-    zoneLabel->setProperty("sourceControlID", IDT_SYSTEM_ZONE);
-    QtBindResourceText(zoneLabel, IDT_SYSTEM_ZONE, "Propagate Zone.Id stream:");
-    _zoneCombo = new QComboBox(this);
-    _zoneCombo->setObjectName("menuZone");
-    _zoneCombo->setProperty("sourceControlID", IDC_SYSTEM_ZONE);
-    _zoneCombo->setEnabled(zoneSupported);
-    _zoneCombo->setVisible(zoneSupported);
-    zoneLabel->setVisible(zoneSupported);
-    if (!zoneSupported)
-        QtBindLocalToolTip(
-            _zoneCombo, "MenuPage",
-            QT_TRANSLATE_NOOP("MenuPage", "Zone.Identifier propagation is available on Windows."));
-    zoneLabel->setBuddy(_zoneCombo);
-    zoneRow->addWidget(zoneLabel, 1);
-    zoneRow->addWidget(_zoneCombo);
-    layout->addLayout(zoneRow);
-    auto *itemsLabel = new QLabel("Context menu items:", this);
-    itemsLabel->setObjectName("menuItemsLabel");
-    itemsLabel->setProperty("sourceControlID", IDT_SYSTEM_CONTEXT_MENU_ITEMS);
-    QtBindResourceText(itemsLabel, IDT_SYSTEM_CONTEXT_MENU_ITEMS, "Context menu items:");
-    layout->addWidget(itemsLabel);
-    _listView = new QListWidget(this);
-    _listView->setObjectName("menuItems");
-    _listView->setProperty("sourceControlID", IDL_SYSTEM_OPTIONS);
-    _listView->setEnabled(commandsAvailable);
-    QtBindLocalToolTip(
-        _listView, "MenuPage",
-        QT_TRANSLATE_NOOP("MenuPage", "Shell integration is unavailable in this build."));
-    if (commandsAvailable)
-        QtBindLocalToolTip(_listView);
-    _listView->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-    layout->addWidget(_listView, 1);
-    connect(_zoneCombo, &QComboBox::currentIndexChanged, this,
-            [this] { OnCommand(IDC_SYSTEM_ZONE); });
-    connect(_listView, &QListWidget::itemChanged, this, &CMenuPage::OnItemChanged);
+    BuildPresentation(zoneSupported);
     OnInit();
     ReloadLangItems();
 }
@@ -170,6 +95,21 @@ static void LoadLang_Spec(UString &s, UInt32 id, const char *eng) {
     if (s.IsEmpty())
         s = eng;
     s.RemoveChar(L'&');
+}
+
+static UString GetZoneItemText(unsigned val) {
+    UString s;
+    if (val == 0)
+        LoadLang_Spec(s, 407, "No");
+    else if (val == 1)
+        LoadLang_Spec(s, 406, "Yes");
+    else if (val == 2)
+        LangString(IDT_ZONE_FOR_OFFICE, s);
+    if (s.IsEmpty())
+        s.Add_UInt32(val);
+    if (val == 0)
+        s.Insert(0, L"* ");
+    return s;
 }
 
 static UString GetMenuItemText(const CContextMenuItem &menuItem) {
@@ -207,7 +147,7 @@ static UString GetMenuItemText(const CContextMenuItem &menuItem) {
 void CMenuPage::ReloadLangItems() {
     QtReloadLangTexts(*this);
     // MenuPage.cpp derives the other shell's caption from the translated first
-    // control and IDS_PROP_BIT64. The controls remain unavailable until P2-09.
+    // control and IDS_PROP_BIT64.
     UString s = LangString(IDX_SYSTEM_INTEGRATE_TO_MENU);
     UString bit64 = LangString(IDS_PROP_BIT64);
     if (bit64.IsEmpty())
@@ -224,16 +164,7 @@ void CMenuPage::ReloadLangItems() {
         _listView->item(int(i))->setText(QString::fromWCharArray(GetMenuItemText(kMenuItems[i])));
     for (int i = 0; i < _zoneCombo->count(); i++) {
         const unsigned val = _zoneCombo->itemData(i).toUInt();
-        UString s;
-        if (val == 0) {
-            LoadLang_Spec(s, 407, "No");
-            s.Insert(0, L"* ");
-        } else if (val == 1)
-            LoadLang_Spec(s, 406, "Yes");
-        else if (val == 2)
-            LangString(IDT_ZONE_FOR_OFFICE, s);
-        if (s.IsEmpty())
-            s.Add_UInt32(val);
+        const UString s = GetZoneItemText(val);
         _zoneCombo->setItemText(i, QString::fromWCharArray(s));
     }
 }
@@ -284,23 +215,12 @@ bool CMenuPage::OnInit() {
             wz = 0;
         for (unsigned i = 0; i <= 3; i++) {
             unsigned val = i;
-            UString s;
             if (i == 3) {
                 if (wz < 3)
                     break;
                 val = wz;
-            } else {
-                if (i == 0)
-                    LoadLang_Spec(s, 407, "No");
-                else if (i == 1)
-                    LoadLang_Spec(s, 406, "Yes");
-                else
-                    LangString(IDT_ZONE_FOR_OFFICE, s);
             }
-            if (s.IsEmpty())
-                s.Add_UInt32(val);
-            if (i == 0)
-                s.Insert(0, L"* ");
+            const UString s = GetZoneItemText(val);
             const int index = _zoneCombo->count();
             _zoneCombo->addItem(QString::fromWCharArray(s), val);
             if (val == wz)
