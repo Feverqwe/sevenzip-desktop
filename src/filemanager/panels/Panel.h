@@ -14,7 +14,6 @@
 #include "Common/MyTypes.h"
 #include "Windows/FileFind.h"
 #include "Windows/PropVariantConv.h"
-#include "Windows/Synchronization.h"
 #include "Windows/TimeUtils.h"
 #include "archive/resources/qtarchiveextractstatus.h"
 #include "archive/resources/qtarchiveupdatepublication.h"
@@ -29,7 +28,6 @@
 #include <QObject>
 #include <QPointer>
 #include <QString>
-#include <atomic>
 #include <functional>
 #include <memory>
 class IQtCompressCallServices;
@@ -43,6 +41,7 @@ class IQtCompressCallServices;
 
 class CFolderHistory;
 struct CSelectedState;
+struct CExitEventLauncher;
 class QColor;
 class QIcon;
 struct CExternalCodecs;
@@ -75,25 +74,6 @@ struct CMenuHandle;
 namespace NUpdateArchive {
 struct CActionSet;
 }
-
-// Native launcher owner, scoped to this panel rather than a process-wide global.
-struct CExitEventLauncher {
-    std::atomic_bool _exiting{false};
-    NWindows::NSynchronization::CManualResetEvent _exitEvent;
-    bool _needExit;
-    unsigned _numActiveThreads;
-    CRecordVector<::CThread> _threads;
-    CExitEventLauncher() {
-        _needExit = false;
-        if (_exitEvent.Create(false) != S_OK)
-            throw 9387173;
-        _needExit = true;
-        _numActiveThreads = 0;
-    }
-    ~CExitEventLauncher() { Exit(true); }
-    void Exit(bool hardExit);
-    bool Exiting() const { return _exiting.load(); }
-};
 
 class CPanelCallback {
   public:
@@ -278,7 +258,7 @@ class CPropColumns : public CObjectVector<CPropColumn> {
 
 class CPanel : public QObject {
   public:
-    CPanel() = default;
+    CPanel();
     ~CPanel() override;
     CPanel(const QString &prefix, const CObjectVector<CPanelItem> &items);
     explicit CPanel(IFolderFolder *folder);
@@ -705,6 +685,10 @@ class CPanel : public QObject {
     std::optional<CSelectedState> _refreshSelection;
     IQtExternalFileServices *_externalFileServices = nullptr;
     std::unique_ptr<CExitEventLauncher> _exitEventLauncher;
+    void StartExternalFileSession(NWindows::NFile::NDir::CTempDir &tempDirectory,
+                                  const CTempFileInfo &tempFileInfo, const FString &tempDirNorm,
+                                  bool usePassword, const UString &password, bool editMode,
+                                  bool useEditor);
     // Original Create initializes these to true; Qt panels exist before Create is ported.
     bool _processTimer = true;
     bool _processNotify = true;

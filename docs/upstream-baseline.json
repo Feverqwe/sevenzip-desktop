@@ -1690,6 +1690,8 @@
     "src/dialogs/extract/alias.h",
     "src/filemanager/external/qtexternalapplications.cpp",
     "src/filemanager/external/qtexternalapplications.h",
+    "src/filemanager/external/qtexternalfilesession.cpp",
+    "src/filemanager/external/qtexternalfilesession.h",
     "src/filemanager/panels/PanelAddress.cpp",
     "src/filemanager/panels/PanelFolderOperations.cpp",
     "src/filemanager/panels/PanelFolderOperations.h",
@@ -3531,10 +3533,12 @@
     },
     "src/filemanager/panels/Panel.h": {
       "local": [
-        "src/common/memory/midallocbuffer.h"
+        "src/common/memory/midallocbuffer.h",
+        "src/filemanager/external/qtexternalfilesession.h"
       ],
       "symbols": [
-        "CMyBuffer"
+        "CMyBuffer",
+        "CExitEventLauncher"
       ]
     },
     "src/filemanager/panels/PanelCrc.cpp": {
@@ -3566,12 +3570,19 @@
     "src/filemanager/panels/PanelItemOpen.cpp": {
       "local": [
         "src/filemanager/external/qtexternalapplications.cpp",
-        "src/filemanager/external/qtexternalapplications.h"
+        "src/filemanager/external/qtexternalapplications.h",
+        "src/filemanager/external/qtexternalfilesession.cpp",
+        "src/filemanager/external/qtexternalfilesession.h"
       ],
       "symbols": [
         "SplitCmdLineSmart",
         "StartAppWithParams",
-        "StartEditApplication"
+        "StartEditApplication",
+        "CExitEventLauncher::Exit",
+        "CChildProcesses",
+        "CTmpProcessInfo",
+        "MyThreadFunction",
+        "CPanel::OpenItemInArchive external-process setup -> CPanel::StartExternalFileSession"
       ]
     },
     "src/filemanager/panels/PanelListNotify.cpp": {

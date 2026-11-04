@@ -1,5 +1,5 @@
 #include "operations/qtexternalguicall.h"
-#include "filemanager/panels/Panel.h"
+#include "filemanager/external/qtexternalfilesession.h"
 #include <QCoreApplication>
 #include <QMetaObject>
 #include <QSemaphore>

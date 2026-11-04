@@ -1,5 +1,49 @@
 # External-process ownership
 
+## Tracked external-file session owner — 2026-11-04
+
+The complete tracked launch, child discovery/wait, changed-file update and joined
+shutdown implementation now belongs to
+`filemanager/external/qtexternalfilesession.cpp/.h`, within the existing panel
+target. Its helpers remain private to the implementation. The existing exit
+owner keeps its name, fields and methods in the focused header; the panel retains
+its owning pointer and includes the complete type where it joins workers. The
+worker-to-GUI adapter and its tests use that header directly.
+
+The default panel constructor is defined out of line beside its destructor, and
+the two existing constructors in App.cpp explicitly include the exit-owner
+header. This supplies the complete owned type for exception cleanup without
+exposing it through Panel.h. Constructor bodies and member initialization remain
+unchanged. The RAM probe's separately compiled PanelItemOpen.cpp fixture is also
+a direct build consumer; its override does not affect the transferred session.
+
+A private panel entry point prepares and starts the session at the same point
+after extraction and external-fallback confirmation. It receives the same file,
+normalized directory, password and launch-mode inputs. Process records, GUI
+update callbacks, guarded launch, exception cleanup, temporary-file protection,
+native waiting and stop/join behavior are unchanged. The default external update
+service also moves unchanged beside its session caller. No controller, shared
+state, worker, public operation API or target is added.
+
+Compared original PanelItemOpen.cpp child discovery, process record, wait/update,
+exit and launch preparation bodies, their callers and Panel.h exit-owner types.
+Both complete original units match the recorded hashes at
+`9128b80e3a471108678e2b3ec3c985861c8d7b0f` from
+<https://github.com/ip7z/7zip.git>. Moved current bodies and preparation statements
+are unchanged, as are the remaining archive opening and nested-update bodies.
+Existing Qt ownership and native-service adaptations remain in place. The
+baseline maps transferred symbols to the new owner without advancing original
+hashes or importing code. Existing launch, edit-return, lifetime, GUI delivery,
+nested-edit and editor-configuration regressions are reused; no implementation
+presence or private-call-count test is introduced.
+
+Focused Linux validation passed all seven selected suites: 93 checks without
+skips. The RAM source fixture built and ran with the production session owner.
+Platform services and widget geometry are unchanged, so no secondary OS or new
+appearance acceptance is claimed. Builds reused incremental outputs, compiler
+cache and four jobs; completed temporary settings and records of absent test
+objects were removed. No full or slow gate was selected.
+
 ## Configured application launch owner — 2026-11-04
 
 Rechecked original PanelItemOpen command splitting, editor/viewer launch,
