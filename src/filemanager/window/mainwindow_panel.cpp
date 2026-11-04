@@ -1,5 +1,5 @@
+#include "7zip/PropID.h"
 #include "filemanager/PropertyName.h"
-#include "filemanager/panels/PanelSort.h"
 #include "filemanager/panels/qtpaneladdresscombo.h"
 #include "filemanager/panels/qtpanelcontextmenu.h"
 #include "filemanager/qtfilemanagerdrag.h"

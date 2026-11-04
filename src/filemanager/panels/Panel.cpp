@@ -12,6 +12,7 @@
 #include "archive/operations/ZipRegistry.h"
 #include "dialogs/compress/qtcompresscallservices.h"
 #include "filemanager/App.h"
+#include "filemanager/external/qtexternalfilesession.h"
 #include "filemanager/panels/qtpanelkey.h"
 #include "localization/LangUtils.h"
 #include "operations/CompressCall.h"
@@ -70,6 +71,8 @@ bool CPanel::OnCreate() {
     RefreshListCtrl();
     return true;
 }
+
+CPanel::CPanel() = default;
 
 void CPanel::ExitExternalWorkers(bool hardExit) {
     if (_exitEventLauncher)

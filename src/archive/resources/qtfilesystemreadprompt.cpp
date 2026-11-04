@@ -3,10 +3,11 @@
 #include "Windows/PropVariant.h"
 #include "archive/callbacks/qtcallbackdialogs.h"
 #include "archive/codecs/LoadCodecs.h"
+#include "archive/diagnostics/archiveerrormessages.h"
 #include "archive/opening/OpenArchive.h"
 #include "archive/resources/archivereadpolicy.h"
-#include "filemanager/ExtractCallback.h"
 #include "ui/diagnostics/qtdiagnostictext.h"
+#include "ui/progress/ProgressDialog2.h"
 #include <QCoreApplication>
 #include <QMessageBox>
 #include <QPushButton>

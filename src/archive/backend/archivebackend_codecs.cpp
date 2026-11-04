@@ -18,6 +18,17 @@
 #include <cerrno>
 
 namespace {
+HRESULT LoadProviders(const std::shared_ptr<const ArchiveCodecCatalog> &catalog, bool hashOnly,
+                      CExternalCodecs &providers) {
+    if (!catalog || catalog->result() != S_OK)
+        return hashOnly ? S_OK : E_NOTIMPL;
+    auto &codecs = const_cast<CCodecs &>(catalog->nativeCodecs());
+    if (!hashOnly)
+        providers.GetCodecs = static_cast<ICompressCodecsInfo *>(&codecs);
+    providers.GetHashers = static_cast<IHashers *>(&codecs);
+    return providers.Load();
+}
+
 HRESULT ValidateNativeUpdatePaths(UInt32 count, IArchiveUpdateCallback *callback,
                                   bool allowAbsolute = false) {
     if (!callback)
@@ -274,23 +285,47 @@ bool ArchiveBackend::discoverCodecCatalog(const QString &module) {
 
 HRESULT ArchiveBackend::loadHashProviders(CExternalCodecs &providers) const {
     providers.ClearAndRelease();
-    const auto catalog = codecCatalog();
-    if (!catalog || catalog->result() != S_OK)
-        return S_OK; // Original registered hashers remain available without a DLL.
-    auto &codecs = const_cast<CCodecs &>(catalog->nativeCodecs());
-    providers.GetHashers = static_cast<IHashers *>(&codecs);
-    return providers.Load();
+    // Original registered hashers remain available without a DLL.
+    return LoadProviders(codecCatalog(), true, providers);
 }
 
 HRESULT ArchiveBackend::loadBenchmarkProviders(CExternalCodecs &providers) const {
     providers.ClearAndRelease();
+    return LoadProviders(codecCatalog(), false, providers);
+}
+
+bool ArchiveBackend::supportsBenchmark() const {
     const auto catalog = codecCatalog();
-    if (!catalog || catalog->result() != S_OK)
-        return E_NOTIMPL;
-    auto &codecs = const_cast<CCodecs &>(catalog->nativeCodecs());
-    providers.GetCodecs = static_cast<ICompressCodecsInfo *>(&codecs);
-    providers.GetHashers = static_cast<IHashers *>(&codecs);
-    return providers.Load();
+    CExternalCodecs providers;
+    if (LoadProviders(catalog, false, providers) != S_OK)
+        return false;
+    CMethodId method;
+    UInt32 streams;
+    bool filter;
+    return FindMethod_Index(&providers, AString("LZMA"), true, method, streams, filter) >= 0 &&
+           streams == 1 && !filter &&
+           FindMethod_Index(&providers, AString("LZMA"), false, method, streams, filter) >= 0;
+}
+
+QStringList ArchiveBackend::supportedHashMethods(const QStringList &methods) const {
+    const auto catalog = codecCatalog();
+    CExternalCodecs providers;
+    QStringList available;
+    if (LoadProviders(catalog, true, providers) != S_OK)
+        return available;
+    for (const QString &method : methods) {
+        CMethodId id;
+        bool supported;
+        if (method == QStringLiteral("*")) {
+            CRecordVector<CMethodId> hashes;
+            GetHashMethods(&providers, hashes);
+            supported = !hashes.IsEmpty();
+        } else
+            supported = FindHashMethod(&providers, AString(method.toUtf8().constData()), id);
+        if (supported)
+            available.append(method);
+    }
+    return available;
 }
 
 void ArchiveBackend::cancelCodecDiscovery() {

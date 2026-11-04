@@ -418,3 +418,69 @@ panel_filesystem_sort and panel_archive_sort: 69 checks, no skips. Build
 native input and rendered parity were not newly validated. Removed two completed
 settings fixtures; other selected scratch was empty. Incremental builds and
 compiler caches retained, no full/slow gate or new reports/screenshots.
+## Panel address implementation owner — 2026-11-04
+
+The complete address presentation and edit-handler implementation is separated
+from folder binding into `panels/PanelAddress.cpp`, within the existing panel
+target. `CPanel` retains its methods and state; the Qt address widget still owns
+control services, signal delivery and deferred focus. No new controller, cache,
+navigation policy or target is introduced. Folder opening, parent/archive-link
+transitions, bookmarks and history remain in their existing implementation.
+
+Moved native helpers and methods preserve the current path/icon decisions,
+hierarchy ordering, archive boundaries, drive and namespace entries, selection
+bounds, Enter/Escape handling and successful-navigation focus behavior. Their
+bodies are unchanged apart from formatting and redundant function declarations
+now supplied by the existing root-folder header. Existing Qt adaptations for
+mounts, namespace icons and asynchronous focus remain unchanged; no branch or
+dependency is omitted in this extraction.
+
+Source comparison covered complete original PanelFolderChange.cpp address
+bodies, Panel.h state/declarations, Panel.cpp control construction and notification
+delivery, root-folder declarations and current Qt callers. All four complete
+original units match the recorded hashes at
+`9128b80e3a471108678e2b3ec3c985861c8d7b0f` from
+<https://github.com/ip7z/7zip.git>. The existing baseline maps transferred symbols
+to their new local owner; original bytes, revision and licenses are retained.
+
+Focused Linux validation passed address_combo, address_navigation,
+address_lifetime and panel_address_keys: 97 checks without skips. Existing
+regressions cover Unicode/spaces, archive hierarchy, stale paths, both panels,
+keyboard handling, rejected navigation and pending-focus teardown. No new test
+of implementation layout is added. The extraction preserves native OS branches
+and widget geometry; no secondary-platform or new appearance acceptance is
+claimed. Checks reused incremental builds, compiler cache and four jobs.
+
+## Natural filename comparison owner — 2026-11-04
+
+Natural filename comparison and its UTF-16/QStringView adapters now belong to
+`filemanager/sorting/filenamesort.cpp/.h`, compiled by the existing
+`sevenzip_name_sort` target. PanelSort.cpp owns only panel property comparison,
+raw-property handling and sort state. Its split-build preprocessor branch and
+target definition are removed. Filesystem and archive providers and the view
+model use the focused comparison interface; consumers needing only property IDs
+include that owner directly. The existing native header alias follows the new
+interface location. Target relationships are unchanged.
+
+The moved comparison/extension bodies and remaining panel-sort bodies are
+unchanged. Native numeric runs, leading zeros, case conversion and Windows UTF-16
+ordering remain authoritative. Existing platform adapters, parent/folder grouping,
+raw-property comparison, property/name/prefix fallbacks, direction defaults,
+selection and persistent-index behavior are retained. This is an ownership and
+build-boundary change without a new comparator, sort policy or external import.
+
+Compared complete original PanelSort.cpp bodies, Panel.h state declarations and
+current provider/model/header-command callers. Both complete original units
+match the recorded baseline hashes at
+`9128b80e3a471108678e2b3ec3c985861c8d7b0f` from
+<https://github.com/ip7z/7zip.git>. The existing manifest maps transferred symbols
+to their new owner without advancing original hashes or revisions. Existing
+sort, column and name-rendering behavior tests are reused; no source-location,
+compile-definition or private-call-count test is introduced.
+
+Focused Linux validation passed panel_sort, panel_sort_commands, panel_columns,
+panel_column_sort, panel_name_text and native_column_workflow: 90 checks without
+skips. Builds reused incremental outputs, compiler cache and four jobs; completed
+temporary settings were removed. Platform branches and widget geometry are
+unchanged, so no secondary OS or new appearance acceptance is claimed. No full
+or slow gate was selected.

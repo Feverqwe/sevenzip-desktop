@@ -1,7 +1,6 @@
 #include "fileops/volumes/qtvolumeprogress.h"
-#define SEVENZIP_PROGRESS_SYNC_ONLY
 #include "filemanager/panels/PanelSplitFile.h"
-#include "ui/progress/ProgressDialog2.h"
+#include "ui/progress/progresssync.h"
 
 struct QtVolumeProgress::State {
     CProgressSync owned;

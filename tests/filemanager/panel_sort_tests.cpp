@@ -1,4 +1,4 @@
-#include "filemanager/panels/PanelSort.h"
+#include "filemanager/sorting/filenamesort.h"
 #include "filemanager/support/window_state_support.h"
 #include "ui/support/layout_inspection.h"
 #include <QHeaderView>

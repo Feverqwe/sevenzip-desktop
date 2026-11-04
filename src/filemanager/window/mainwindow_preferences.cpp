@@ -1,7 +1,7 @@
+#include "7zip/PropID.h"
 #include "7zip/UI/FileManager/resource.h"
 #include "filemanager/MyLoadMenu.h"
 #include "filemanager/panels/Panel.h"
-#include "filemanager/panels/PanelSort.h"
 #include "filemanager/panels/qtpanelcontextmenu.h"
 #include "filemanager/providers/qtlocationfolder.h"
 #include "filemanager/qtfilemanagercommands.h"

@@ -1,5 +1,36 @@
 # Shared codec owner across native workers — 2026-10-18
 
+## Command method availability — 2026-11-04
+
+Reviewed native `CExternalCodecs::Load`, `FindMethod_Index`, `FindHashMethod`
+and `GetHashMethods`, their declarations, the File Manager hash-command mapping,
+and current menu publication, dispatch, checksum and benchmark consumers.
+Complete original CreateCoder.cpp/.h and MyLoadMenu.cpp units match the recorded
+baseline at `9128b80e3a471108678e2b3ec3c985861c8d7b0f` from
+<https://github.com/ip7z/7zip.git>. No native source is imported or changed.
+
+Backend queries now own provider preparation and native method lookup. Each
+query retains one catalog snapshot until its temporary providers are released.
+Existing provider-loading consumers retain their separate catalog leases;
+provider loading still clears previous interfaces before obtaining the catalog.
+Built-in hash fallback, wildcard enumeration, case-insensitive native lookup,
+and the benchmark's LZMA encoder/decoder requirements are unchanged. Availability
+checks registration and metadata; actual operation startup retains factory and
+runtime error handling.
+
+The UI owns command identifiers, folder/selection policy and native menu rules.
+It maps requested method names to actions and repeats availability checks before
+dispatch. No capability cache or new publication state is introduced. Existing
+checksum coverage now compares advertised mixed-case method availability with
+the actual digest operation and invalid-method rejection. Existing workflow,
+benchmark, publication and shell-service checks cover direct consumers.
+
+Focused Linux validation passed all five selected suites: 36 checks without
+skips. Provider preparation and lookup remain portable; native platform loading
+and UI appearance are unchanged, so no secondary OS or appearance acceptance
+was selected. Builds reused incremental outputs, compiler cache and the configured
+four jobs. No full or slow gate is claimed.
+
 ## Checksum provider handoff — 2026-11-02
 
 Reviewed backend checksum validation, worker startup, pause/cancel, joined

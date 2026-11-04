@@ -2,6 +2,7 @@
 // Igor Pavlov, LGPL-2.1-or-later; see third_party/7zip/License.txt.
 
 #include "Common/StdAfx.h"
+#include "archive/diagnostics/archiveerrormessages.h"
 
 #include "7zip/UI/FileManager/resource.h"
 
@@ -74,8 +75,6 @@ struct CArcLevelInfo {
 struct CArcLevelsInfo {
     CObjectVector<CArcLevelInfo> Levels; // LastLevel Is NON-OPEN
 };
-
-UString GetOpenArcErrorMessage(UInt32 errorFlags);
 
 static void GetFolderLevels(CMyComPtr<IFolderFolder> &folder, CArcLevelsInfo &levels) {
     levels.Levels.Clear();

@@ -4,6 +4,7 @@
 
 #include "Common/IntToString.h"
 #include "Common/StringConvert.h"
+#include "archive/diagnostics/archiveerrormessages.h"
 
 #include "Windows/PropVariant.h"
 
@@ -24,9 +25,6 @@ void CUpdateCallbackGUI::Init() {
     CUpdateCallbackGUI2::Init();
     FailedFiles.Clear();
 }
-
-void OpenResult_GUI(UString &s, const CCodecs *codecs, const CArchiveLink &arcLink,
-                    const wchar_t *name, HRESULT result);
 
 HRESULT CUpdateCallbackGUI::OpenResult(const CCodecs *codecs, const CArchiveLink &arcLink,
                                        const wchar_t *name, HRESULT result) {
@@ -125,8 +123,6 @@ HRESULT CUpdateCallbackGUI::SetOperationResult(Int32 /* operationResult */) {
     ProgressDialog->Sync.Set_NumFilesCur(NumFiles);
     return S_OK;
 }
-
-void SetExtractErrorMessage(Int32 opRes, Int32 encrypted, const wchar_t *fileName, UString &s);
 
 HRESULT CUpdateCallbackGUI::ReportExtractResult(Int32 opRes, Int32 isEncrypted,
                                                 const wchar_t *name) {

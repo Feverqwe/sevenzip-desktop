@@ -1,7 +1,7 @@
+// Declarations for the comparison adapted from 7-Zip PanelSort.cpp (0766b73).
+// Igor Pavlov, LGPL-2.1-or-later; see third_party/7zip/License.txt.
 #pragma once
 
-#include "7zip/PropID.h"
-#include "Common/MyWindows.h"
 #include <QStringView>
 
 int CompareFileNames_ForFolderList(const char16_t *s1, const char16_t *s2);

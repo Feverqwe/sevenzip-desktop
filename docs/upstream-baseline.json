@@ -1507,6 +1507,8 @@
     "src/archive/codecs/archivecodelocation.cpp",
     "src/archive/codecs/archivecodelocation.h",
     "src/archive/codecs/archiveexternalcodecs.cpp",
+    "src/archive/diagnostics/archiveerrormessages.cpp",
+    "src/archive/diagnostics/archiveerrormessages.h",
     "src/archive/hashing/qtfilecrc.cpp",
     "src/archive/hashing/qtfilecrc.h",
     "src/archive/operations/qtupdatepair.h",
@@ -1688,11 +1690,13 @@
     "src/dialogs/extract/alias.h",
     "src/filemanager/external/qtexternalapplications.cpp",
     "src/filemanager/external/qtexternalapplications.h",
+    "src/filemanager/external/qtexternalfilesession.cpp",
+    "src/filemanager/external/qtexternalfilesession.h",
+    "src/filemanager/panels/PanelAddress.cpp",
     "src/filemanager/panels/PanelFolderOperations.cpp",
     "src/filemanager/panels/PanelFolderOperations.h",
     "src/filemanager/panels/PanelProperties.cpp",
     "src/filemanager/panels/PanelSelect.h",
-    "src/filemanager/panels/PanelSort.h",
     "src/filemanager/panels/PanelSplitFile.h",
     "src/filemanager/panels/qtnativepanelkeys.cpp",
     "src/filemanager/panels/qtnativepanelkeys.h",
@@ -1745,6 +1749,8 @@
     "src/filemanager/qtprogramfilemenu.h",
     "src/filemanager/rename/qtrenamecontroller.cpp",
     "src/filemanager/rename/qtrenamecontroller.h",
+    "src/filemanager/sorting/filenamesort.cpp",
+    "src/filemanager/sorting/filenamesort.h",
     "src/filemanager/state/qtappoperationstate.cpp",
     "src/filemanager/state/qtappoperationstate.h",
     "src/filemanager/views/filepanelmodel.cpp",
@@ -2124,6 +2130,8 @@
     "src/ui/dialogs/qtmodalresult.h",
     "src/ui/progress/archiveprogresstransport.cpp",
     "src/ui/progress/archiveprogresstransport.h",
+    "src/ui/progress/progresssync.cpp",
+    "src/ui/progress/progresssync.h",
     "src/ui/progress/qtcallbackprogresstransport.cpp",
     "src/ui/progress/qtcallbackprogresstransport.h",
     "src/ui/progress/qtlauncherprogress.cpp",
@@ -3496,6 +3504,21 @@
         "AddSizeValue"
       ]
     },
+    "src/filemanager/ExtractCallback.cpp": {
+      "local": [
+        "src/archive/diagnostics/archiveerrormessages.cpp",
+        "src/archive/diagnostics/archiveerrormessages.h"
+      ],
+      "symbols": [
+        "SetExtractErrorMessage",
+        "GetOpenArcErrorMessage",
+        "OpenResult_GUI",
+        "k_ErrorFlagsIds",
+        "AddNewLineString",
+        "ErrorInfo_Print",
+        "GetBracedType"
+      ]
+    },
     "src/filemanager/FM.cpp": {
       "local": [
         "src/filemanager/qtfilemanagersplitter.cpp",
@@ -3510,10 +3533,12 @@
     },
     "src/filemanager/panels/Panel.h": {
       "local": [
-        "src/common/memory/midallocbuffer.h"
+        "src/common/memory/midallocbuffer.h",
+        "src/filemanager/external/qtexternalfilesession.h"
       ],
       "symbols": [
-        "CMyBuffer"
+        "CMyBuffer",
+        "CExitEventLauncher"
       ]
     },
     "src/filemanager/panels/PanelCrc.cpp": {
@@ -3528,15 +3553,36 @@
         "CApp::CalculateCrc2 -> CalculateFileCrc filesystem worker setup"
       ]
     },
+    "src/filemanager/panels/PanelFolderChange.cpp": {
+      "local": [
+        "src/filemanager/panels/PanelAddress.cpp"
+      ],
+      "symbols": [
+        "GetRealIconIndex_for_DirPath",
+        "Find_FileExtension_DotPos_in_path",
+        "CPanel::LoadFullPathAndShow",
+        "CPanel::OnNotifyComboBoxEnter",
+        "CPanel::OnNotifyComboBoxEndEdit",
+        "CPanel::AddComboBoxItem",
+        "CPanel::OnComboBoxCommand"
+      ]
+    },
     "src/filemanager/panels/PanelItemOpen.cpp": {
       "local": [
         "src/filemanager/external/qtexternalapplications.cpp",
-        "src/filemanager/external/qtexternalapplications.h"
+        "src/filemanager/external/qtexternalapplications.h",
+        "src/filemanager/external/qtexternalfilesession.cpp",
+        "src/filemanager/external/qtexternalfilesession.h"
       ],
       "symbols": [
         "SplitCmdLineSmart",
         "StartAppWithParams",
-        "StartEditApplication"
+        "StartEditApplication",
+        "CExitEventLauncher::Exit",
+        "CChildProcesses",
+        "CTmpProcessInfo",
+        "MyThreadFunction",
+        "CPanel::OpenItemInArchive external-process setup -> CPanel::StartExternalFileSession"
       ]
     },
     "src/filemanager/panels/PanelListNotify.cpp": {
@@ -3564,6 +3610,16 @@
         "kSpecProps",
         "kSeparator",
         "kSeparatorSmall"
+      ]
+    },
+    "src/filemanager/panels/PanelSort.cpp": {
+      "local": [
+        "src/filemanager/sorting/filenamesort.cpp",
+        "src/filemanager/sorting/filenamesort.h"
+      ],
+      "symbols": [
+        "CompareFileNames_ForFolderList",
+        "GetExtensionPtr"
       ]
     },
     "src/filemanager/panels/PanelOperations.cpp": {
@@ -3626,6 +3682,28 @@
       ],
       "symbols": [
         "NMbr::GetFileSystem"
+      ]
+    },
+    "src/ui/progress/ProgressDialog2.cpp": {
+      "local": [
+        "src/ui/progress/progresssync.cpp"
+      ],
+      "symbols": [
+        "CProgressSync",
+        "kPauseSleepTime",
+        "UNDEFINED_VAL",
+        "CHECK_STOP",
+        "CRITICAL_LOCK"
+      ]
+    },
+    "src/ui/progress/ProgressDialog2.h": {
+      "local": [
+        "src/ui/progress/progresssync.h"
+      ],
+      "symbols": [
+        "CProgressMessageBoxPair",
+        "CProgressFinalMessage",
+        "CProgressSync"
       ]
     },
     "src/formats/vhdx/VhdxHandler.cpp": {
@@ -8980,7 +9058,7 @@
     "CPP/7zip/Compress/BrotliDecoder.h": "src/codecs/brotli/BrotliDecoder.h",
     "CPP/7zip/Compress/ZstdEncoder.h": "src/codecs/zstd/ZstdEncoder.h",
     "CPP/7zip/UI/FileManager/PanelSelect.h": "src/filemanager/panels/PanelSelect.h",
-    "CPP/7zip/UI/FileManager/PanelSort.h": "src/filemanager/panels/PanelSort.h",
+    "CPP/7zip/UI/FileManager/PanelSort.h": "src/filemanager/sorting/filenamesort.h",
     "CPP/7zip/UI/FileManager/PanelSplitFile.h": "src/filemanager/panels/PanelSplitFile.h",
     "CPP/7zip/Archive/Iso/IsoZisofs.h": "src/formats/iso/IsoZisofs.h"
   },

@@ -331,7 +331,4 @@ class CExtractCallbackImp Z7_final
     bool IsOK() const { return NumArchiveErrors == 0 && !ThereAreMessageErrors; }
 };
 
-UString GetOpenArcErrorMessage(UInt32 errorFlags);
-void SetExtractErrorMessage(Int32 opRes, Int32 encrypted, const wchar_t *fileName, UString &s);
-
 #endif

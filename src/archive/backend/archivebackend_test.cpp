@@ -1,10 +1,12 @@
+#include "7zip/Archive/IArchive.h"
 #include "archive/backend/archivebackend.h"
 #include "archive/backend/archivebackend_nativeentries.h"
 #include "archive/codecs/archivecodeccatalog.h"
+#include "archive/diagnostics/archiveerrormessages.h"
 #include "archive/resources/qtarchivedirectoryextract.h"
 #include "archive/resources/qtarchivereadoperation.h"
-#include "filemanager/ExtractCallback.h"
 #include "localization/qtlanguageservices.h"
+#include "ui/progress/ProgressDialog2.h"
 #include <QFileInfo>
 #include <QMetaMethod>
 #include <QPointer>

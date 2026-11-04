@@ -5,7 +5,6 @@
 #include "archive/resources/qtarchivefileresource.h"
 #include "filemanager/FormatUtils.h"
 #include "filemanager/SysIconUtils.h"
-#include "filemanager/panels/PanelSort.h"
 #include "filemanager/panels/PanelSplitFile.h"
 #include "filemanager/panels/qtpaneladdresscombo.h"
 #include "filemanager/providers/qtlocationfolder.h"

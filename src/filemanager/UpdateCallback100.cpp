@@ -5,6 +5,7 @@
 #include "Common/Defs.h"
 #include "Common/StringConvert.h"
 #include "Windows/ErrorMsg.h"
+#include "archive/diagnostics/archiveerrormessages.h"
 
 #include "7zip/UI/GUI/resource3.h"
 
@@ -52,8 +53,6 @@ Z7_COM7F_IMF(CUpdateCallback100Imp::OperationResult(Int32 /* operationResult */)
     ProgressDialog->Sync.Set_NumFilesCur(++NumFiles);
     return S_OK;
 }
-
-void SetExtractErrorMessage(Int32 opRes, Int32 encrypted, const wchar_t *fileName, UString &s);
 
 Z7_COM7F_IMF(CUpdateCallback100Imp::ReportExtractResult(Int32 opRes, Int32 isEncrypted,
                                                         const wchar_t *name)) {

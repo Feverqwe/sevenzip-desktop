@@ -17,6 +17,7 @@
 #include "dialogs/copy/CopyDialog.h"
 #include "filemanager/AppState.h"
 #include "filemanager/FormatUtils.h"
+#include "filemanager/external/qtexternalfilesession.h"
 #include "filemanager/panels/Panel.h"
 #include "filemanager/panels/qtpaneldragmodel.h"
 #include "filemanager/panels/qtpanelfolder.h"

@@ -1,4 +1,4 @@
-#include "filemanager/panels/Panel.h"
+#include "filemanager/external/qtexternalfilesession.h"
 #include "operations/qtexternalguicall.h"
 #include <QScopeGuard>
 #include <QThread>

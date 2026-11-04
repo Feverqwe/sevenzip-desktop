@@ -39,11 +39,16 @@ class ChecksumTests : public QObject {
         QCOMPARE(file.write("hello"), qint64(5));
         file.close();
         ArchiveBackend backend;
+        const QString method = QStringLiteral("sHa256");
+        const auto supported = backend.supportedHashMethods({method, "unsupported", "*"});
+        QVERIFY(supported.contains(method));
+        QVERIFY(supported.contains(QStringLiteral("*")));
+        QVERIFY(!supported.contains(QStringLiteral("unsupported")));
         QString output;
         connect(&backend, &ArchiveBackend::outputReceived, this,
                 [&](const QString &line) { output += line + '\n'; });
         QSignalSpy finished(&backend, &ArchiveBackend::finished);
-        backend.hash({path}, "SHA256");
+        backend.hash({path}, method);
         QVERIFY(finished.wait(30000));
         QVERIFY(finished.takeFirst().first().toBool());
         QVERIFY(output.contains(QString::fromLatin1(

@@ -1,7 +1,6 @@
 add_library(sevenzip_progress_sync STATIC
-    src/ui/progress/ProgressDialog2.cpp
+    src/ui/progress/progresssync.cpp src/ui/progress/progresssync.h
     src/ui/progress/qtworkerprogress.cpp src/ui/progress/qtworkerprogress.h)
-target_compile_definitions(sevenzip_progress_sync PRIVATE SEVENZIP_PROGRESS_SYNC_ONLY)
 target_include_directories(sevenzip_progress_sync PUBLIC src)
 target_link_libraries(sevenzip_progress_sync PUBLIC Qt6::Core sevenzip_common)
 
@@ -13,9 +12,9 @@ if(WIN32)
     target_link_libraries(sevenzip_system_icons PUBLIC shell32 comctl32)
 endif()
 
-add_library(sevenzip_name_sort STATIC src/filemanager/panels/PanelSort.cpp)
+add_library(sevenzip_name_sort STATIC
+    src/filemanager/sorting/filenamesort.cpp src/filemanager/sorting/filenamesort.h)
 set_target_properties(sevenzip_name_sort PROPERTIES AUTOMOC OFF AUTOUIC OFF)
-target_compile_definitions(sevenzip_name_sort PRIVATE SEVENZIP_NAME_SORT_ONLY)
 target_include_directories(sevenzip_name_sort PUBLIC src)
 target_link_libraries(sevenzip_name_sort PUBLIC Qt6::Core sevenzip_common)
 
@@ -110,6 +109,8 @@ add_library(sevenzip_panel
     src/fileops/links/qtlinkcontrols.h
     src/filemanager/ExtractCallback.cpp
     src/filemanager/ExtractCallback.h
+    src/archive/diagnostics/archiveerrormessages.cpp
+    src/archive/diagnostics/archiveerrormessages.h
     src/archive/callbacks/qtcallbackdialogs.cpp
     src/archive/callbacks/qtcallbackdialogs.h
     src/ui/dialogs/qtmodalresult.h
@@ -124,6 +125,8 @@ add_library(sevenzip_panel
     src/filemanager/panels/PanelItemOpen.cpp
     src/filemanager/external/qtexternalapplications.cpp
     src/filemanager/external/qtexternalapplications.h
+    src/filemanager/external/qtexternalfilesession.cpp
+    src/filemanager/external/qtexternalfilesession.h
     src/archive/resources/qtarchiveitemopen.cpp
     src/archive/resources/qtarchiveitemopen.h
     src/filemanager/VerCtrl.cpp
@@ -150,7 +153,6 @@ add_library(sevenzip_panel
     src/filemanager/providers/RootFolder.cpp
     src/filemanager/providers/RootFolder.h
     src/filemanager/panels/PanelSort.cpp
-    src/filemanager/panels/PanelSort.h
     src/ui/progress/archiveprogresstransport.cpp
     src/ui/progress/archiveprogresstransport.h
     src/ui/progress/qtprogresstransport.h
@@ -199,6 +201,7 @@ add_library(sevenzip_panel
     src/settings/FoldersPage.cpp
     src/settings/FoldersPage.h
     src/filemanager/panels/PanelFolderChange.cpp
+    src/filemanager/panels/PanelAddress.cpp
     src/filemanager/panels/PanelMenu.cpp
     src/filemanager/panels/PanelProperties.cpp
     src/filemanager/PropertyName.cpp
@@ -239,7 +242,6 @@ add_library(sevenzip_panel
 target_link_libraries(sevenzip_panel PRIVATE sevenzip_dialog_screen sevenzip_location sevenzip_panel_selection sevenzip_text_report)
 target_link_libraries(sevenzip_panel PUBLIC sevenzip_overwrite_question)
 set_target_properties(sevenzip_panel PROPERTIES AUTOUIC OFF)
-target_compile_definitions(sevenzip_panel PRIVATE SEVENZIP_PROGRESS_PRESENTATION_ONLY)
 target_link_libraries(sevenzip_panel PUBLIC sevenzip_progress_sync)
 qt_add_resources(sevenzip_panel upstream_progress_icons
     PREFIX "/upstream/7zip/UI/FileManager"

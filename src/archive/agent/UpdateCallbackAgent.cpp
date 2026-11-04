@@ -116,8 +116,6 @@ HRESULT CUpdateCallbackAgent::SetOperationResult(Int32 operationResult) {
     return S_OK;
 }
 
-void SetExtractErrorMessage(Int32 opRes, Int32 encrypted, const wchar_t *fileName, UString &s);
-
 HRESULT CUpdateCallbackAgent::ReportExtractResult(Int32 opRes, Int32 isEncrypted,
                                                   const wchar_t *name) {
     if (Callback2) {

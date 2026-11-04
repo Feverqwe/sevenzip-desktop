@@ -2,7 +2,6 @@
 #include "7zip/PropID.h"
 #include "7zip/UI/FileManager/resource.h"
 #include "archive/codecs/archivecodeccatalog.h"
-#include "archive/hashing/HashCalc.h"
 #include "archive/resources/qtarchivefileresource.h"
 #include "archive/resources/qtarchiveproperties.h"
 #include "filemanager/MyLoadMenu.h"
@@ -199,35 +198,16 @@ QtFileManagerCommands::TransportCapabilities QtFileManagerCommands::ReadTranspor
     {
         const auto catalog = w.backend_->codecCatalog();
         c.batchArchives = catalog && catalog->result() == S_OK;
-        CExternalCodecs providers;
-        if (w.backend_->loadBenchmarkProviders(providers) == S_OK) {
-            CMethodId method;
-            UInt32 streams;
-            bool filter;
-            c.benchmark =
-                FindMethod_Index(&providers, AString("LZMA"), true, method, streams, filter) >= 0 &&
-                streams == 1 && !filter &&
-                FindMethod_Index(&providers, AString("LZMA"), false, method, streams, filter) >= 0;
-        }
     }
+    c.benchmark = w.backend_->supportsBenchmark();
     if (panel.DoesItSupportOperations()) {
-        const auto catalog = w.backend_->codecCatalog();
-        CExternalCodecs providers;
-        if (w.backend_->loadHashProviders(providers) == S_OK) {
-            for (auto it = w.hashActions_.cbegin(); it != w.hashActions_.cend(); ++it) {
-                const unsigned command = it.key();
-                const char *method = GetHashMethodForCommand(command);
-                if (!method)
-                    continue;
-                CMethodId id;
-                if (command == IDM_HASH_ALL) {
-                    CRecordVector<CMethodId> methods;
-                    GetHashMethods(&providers, methods);
-                    c.hashMethods[command] = !methods.IsEmpty();
-                } else
-                    c.hashMethods[command] = FindHashMethod(&providers, AString(method), id);
-            }
-        }
+        QHash<unsigned, QString> requested;
+        for (auto it = w.hashActions_.cbegin(); it != w.hashActions_.cend(); ++it)
+            if (const char *method = GetHashMethodForCommand(it.key()))
+                requested.insert(it.key(), QString::fromLatin1(method));
+        const QStringList available = w.backend_->supportedHashMethods(requested.values());
+        for (auto it = requested.cbegin(); it != requested.cend(); ++it)
+            c.hashMethods[it.key()] = available.contains(it.value());
     }
     c.archive = panel.GetFolder() && panel.IsArcFolder();
     c.mutationWritable = c.archive && !panel.IsThereReadOnlyFolder();
