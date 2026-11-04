@@ -194,6 +194,7 @@ Z7_COM7F_IMF(CHandler::LoadDirectory(UInt32 parent, BoolInt recursive, IProgress
     struct Restore {
         CHandler &Handler;
         IInStream *Input;
+        Restore(CHandler &handler, IInStream *input) : Handler(handler), Input(input) {}
         ~Restore() {
             Handler.OpenCallback = NULL;
             Handler.DirectoryMapStream = Input;
@@ -234,6 +235,8 @@ Z7_COM7F_IMF(CHandler::LoadDirectory(UInt32 parent, BoolInt recursive, IProgress
                 unsigned Volumes, Refs;
                 UInt32 Directory;
                 bool Commit = false;
+                Rollback(CHandler &handler, unsigned volumes, unsigned refs, UInt32 directory)
+                    : Handler(handler), Volumes(volumes), Refs(refs), Directory(directory) {}
                 ~Rollback() {
                     if (!Commit) {
                         Handler.Vols.DeleteFrom(Volumes);
