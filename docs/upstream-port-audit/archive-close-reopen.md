@@ -344,3 +344,44 @@ The real retained-folder property/Rename checks passed. Incremental build took
 Selected fixture directories were empty before and after validation. No native
 OS branch changed; no secondary platform, full/slow gate or appearance check
 was selected.
+
+## Completed-output publication owner — 2026-11-04
+
+Reviewed the full Agent transaction, native Common/Update publication callers,
+WorkDir temporary ownership, FileDir move/publication and owned-temp registration.
+The complete original ArchiveFolderOut.cpp, WorkDir.cpp, FileDir.cpp and
+FileName.h inventories match the existing baseline at
+`9128b80e3a471108678e2b3ec3c985861c8d7b0f`. The original move operations remain
+in FileDir. Their Qt publication adaptation is distinct from upstream's direct
+EXDEV destination copy; the existing rationale remains in the container audit.
+
+The completed-output adapter now has its own FilePublish.cpp within the same
+native filesystem module and common target. Its public FileDir contract and
+callers are unchanged. The atomic native operation, Windows open-generation
+replacement and destination-side copy/permissions/mtime/cancellation/cleanup
+remain one implementation each, with unchanged bodies. The new translation unit
+retains the required Windows SDK level and native path macros, and POSIX rename
+declarations; no new wrapper, state, filesystem algorithm or source import is
+introduced. The baseline records this local extraction without changing original
+hashes, revisions or upstream inventory bytes.
+
+Publication state, callback-result precedence, owned spool adoption, post-write
+input deletion and native reopening remain separate and unchanged. Existing
+behavior tests cover atomic replacement, no-replace races, cross-filesystem copy
+and cancellation, retained reader generations, owned spool publication and input
+deletion. No file-presence or private-helper test is added for the extraction.
+
+Linux passed `native_update_publication`, `owned_temp_publication`,
+`archive_input_deletion` and `source_update_backend`: 75 checks, no skips,
+including real cross-filesystem copy and cancellation. Build took 12.315s,
+tests 3.806s. An initial compile exposed a formerly transitive QDateTime include;
+the new owner now includes that dependency explicitly.
+
+Windows then passed `native_update_publication` and `codec_update`: 84 checks,
+with three existing `/dev/shm` cross-filesystem rows skipped. This checks MSVC
+SDK/native path dependencies and retained-generation replacement; build took
+45.542s, tests 43.133s. No macOS acceptance is claimed. Both runs reused existing
+incremental outputs, four jobs and compiler caches. Selected scratch was empty
+after removing one Linux registry record whose temporary object was already
+absent; Windows scratch needed no cleanup. No full/slow gate, real OS mount or
+appearance validation was selected.

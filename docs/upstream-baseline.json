@@ -1790,6 +1790,7 @@
     "src/fileops/links/qtlinkservices.h",
     "src/fileops/links/qtverctrlfileservices.cpp",
     "src/fileops/links/qtverctrlfileservices.h",
+    "src/fileops/native/FilePublish.cpp",
     "src/fileops/overwrite/module.cmake",
     "src/fileops/overwrite/overwritequestion.cpp",
     "src/fileops/overwrite/overwritequestion.h",
@@ -3456,6 +3457,16 @@
       "symbols": [
         "NCompressDialog::NUpdateMode",
         "NCompressDialog::CInfo"
+      ]
+    },
+    "src/fileops/native/FileDir.cpp": {
+      "local": [
+        "src/fileops/native/FilePublish.cpp"
+      ],
+      "symbols": [
+        "MyPublishFile_with_Progress",
+        "AtomicPublish",
+        "PublishOverOpenFile"
       ]
     },
     "src/formats/ext/ExtHandler.cpp": {
