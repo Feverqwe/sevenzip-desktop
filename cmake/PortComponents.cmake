@@ -102,7 +102,8 @@ endif()
 
 sevenzip_add_port_component(sevenzip_compress_source src/dialogs/compress/CompressDialog.h
     src/dialogs/compress/CompressInfo.h
-    src/dialogs/compress/CompressDialog.cpp)
+    src/dialogs/compress/CompressDialog.cpp
+    src/dialogs/compress/CompressResources.cpp src/dialogs/compress/CompressResources.h)
 
 sevenzip_add_port_component(sevenzip_agent src/archive/agent/Agent.h
     src/archive/agent/Agent.cpp src/archive/agent/AgentProxy.cpp)

@@ -1,5 +1,36 @@
 # Add metadata preparation — 2026-11-01
 
+## Complete compression resource policy owner — 2026-11-04
+
+Compared original CompressDialog.cpp dictionary/order, solid size, thread
+selection, RAM normalization and memory estimate/limit bodies, declarations and
+current format/method/level transitions at recorded revision
+`b88c6bc09339de32f7d18bbab900686b244f42ba`. Complete original cpp/header hashes
+match the existing baseline. Existing Zstandard estimates remain a local
+adaptation using the same pinned dependency API; no source is imported.
+
+The complete numeric resource block and private limits now reside together in
+`CompressResources.cpp`; its option records and function declarations have a
+focused header. CompressDialog.h continues to expose that interface, preserving
+existing consumers. Both sources remain in the same sevenzip_compress_source
+object target. All moved bodies and remaining dialog/catalog bodies are
+unchanged. Format capabilities, method population, saved-profile transitions,
+Auto sentinels, SFX state and Qt control binding retain their existing owners.
+The resource block keeps its Windows/POSIX system queries and Zstandard static
+API setup. Existing extraction mappings retain the original hashes/revision.
+Memory-unit translations keep the same explicit context, strings and payload;
+only their source locations follow the moved implementation.
+
+Focused Linux validation passed compression_resources, compression_preferences
+and compression_profile_selection: 48 Qt checks, no failures or skips. Existing
+checks cover Auto limits, memory-driven thread selection, restored and invalid
+profiles, method/level/dictionary transitions and actual archive creation,
+failure and cancellation. No new implementation-presence tests were added.
+Native platform branches, compilation options, UI layout and translated payloads
+are unchanged; Windows/macOS and new visual parity are not claimed. All previous
+extraction mappings and original hashes were retained. Selected scratch was
+empty after validation; incremental builds and compiler caches were preserved.
+
 Reference: <https://github.com/ip7z/7zip.git>, commit
 `9128b80e3a471108678e2b3ec3c985861c8d7b0f`. Compared the original
 CompressDialog.cpp bool-pair merge/finalization, FormatChanged, OnOK,

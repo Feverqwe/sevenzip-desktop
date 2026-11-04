@@ -980,17 +980,17 @@ Are you sure you want to split archive into such volumes?</source>
             <translation>%1 МБ : </translation>
         </message>
         <message>
-            <location line="+1321" />
+            <location filename="../src/dialogs/compress/CompressResources.cpp" line="641" />
             <source>%1 MB</source>
             <translation>%1 МБ</translation>
         </message>
         <message>
-            <location line="+3" />
+            <location filename="../src/dialogs/compress/CompressResources.cpp" line="644" />
             <source>%1 GB</source>
             <translation>%1 ГБ</translation>
         </message>
         <message>
-            <location line="+6" />
+            <location filename="../src/dialogs/compress/CompressResources.cpp" line="650" />
             <source>%1 TB</source>
             <translation>%1 ТБ</translation>
         </message>
