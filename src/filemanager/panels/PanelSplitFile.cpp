@@ -9,6 +9,7 @@
 #include "Common/IntToString.h"
 #include "Common/MyCom.h"
 #include "Windows/FileName.h"
+#include "common/memory/midallocbuffer.h"
 #include "dialogs/copy/CopyDialog.h"
 #include "dialogs/split/SplitDialog.h"
 #include "filemanager/App.h"

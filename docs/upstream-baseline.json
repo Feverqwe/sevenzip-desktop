@@ -1507,6 +1507,7 @@
     "src/archive/codecs/archivecodelocation.cpp",
     "src/archive/codecs/archivecodelocation.h",
     "src/archive/codecs/archiveexternalcodecs.cpp",
+    "src/archive/hashing/qtfilecrc.cpp",
     "src/archive/hashing/qtfilecrc.h",
     "src/archive/operations/qtupdatepair.h",
     "src/archive/resources/archiveattributes.cpp",
@@ -1586,6 +1587,7 @@
     "src/codecs/brotli/brotlimodule.cpp",
     "src/codecs/brotli/brotlimodule.def",
     "src/codecs/lzo/lzocompat.h",
+    "src/common/memory/midallocbuffer.h",
     "src/compat/linux/core/asn1read.h",
     "src/compat/linux/core/framecompat.h",
     "src/compat/linux/core/oid_registry_data.c",
@@ -3472,6 +3474,26 @@
       ],
       "symbols": [
         "CMemDialog::OnInit"
+      ]
+    },
+    "src/filemanager/panels/Panel.h": {
+      "local": [
+        "src/common/memory/midallocbuffer.h"
+      ],
+      "symbols": [
+        "CMyBuffer"
+      ]
+    },
+    "src/filemanager/panels/PanelCrc.cpp": {
+      "local": [
+        "src/archive/hashing/qtfilecrc.cpp"
+      ],
+      "symbols": [
+        "CDirEnumerator",
+        "CThreadCrc",
+        "GetNormalizedError",
+        "kBufSize",
+        "CApp::CalculateCrc2 -> CalculateFileCrc filesystem worker setup"
       ]
     },
     "src/filemanager/panels/PanelMenu.cpp": {

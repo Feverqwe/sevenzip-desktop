@@ -8,7 +8,6 @@
 #include "7zip/PropID.h"
 #include "7zip/UI/Common/ExtractMode.h"
 #include "7zip/UI/FileManager/IFolder.h"
-#include "C/Alloc.h"
 #include "Common/MyBuffer.h"
 #include "Common/MyCom.h"
 #include "Common/MyString.h"
@@ -48,21 +47,6 @@ class QColor;
 class QIcon;
 struct CExternalCodecs;
 
-// Original Panel.h worker buffer, shared by the source CRC worker.
-class CMyBuffer {
-    void *_data;
-
-  public:
-    CMyBuffer() : _data(NULL) {}
-    operator void *() { return _data; }
-    bool Allocate(size_t size) {
-        if (_data)
-            return false;
-        _data = ::MidAlloc(size);
-        return _data != NULL;
-    }
-    ~CMyBuffer() { ::MidFree(_data); }
-};
 struct CAppState;
 class CFastFolders;
 class CListViewDialog;
