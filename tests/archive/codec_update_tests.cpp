@@ -546,9 +546,9 @@ class CodecUpdateTests final : public QObject, protected ArchiveBackendTestSuppo
         creator.start(engine_, {"a", "-tzip", "--", archive, name});
         QVERIFY(creator.waitForFinished(10000));
         QCOMPARE(creator.exitCode(), 0);
-        ArchiveBackend backend(nullptr, engine_);
-        QCOMPARE(backend.loadCodecCatalog(module_, version_), S_OK);
-        CMyComPtr<IFolderManager> manager = new QtArchiveFolderManager(backend);
+        auto backend = std::make_unique<ArchiveBackend>(nullptr, engine_);
+        QCOMPARE(backend->loadCodecCatalog(module_, version_), S_OK);
+        CMyComPtr<IFolderManager> manager = new QtArchiveFolderManager(*backend);
         CFfpOpen opening(manager);
         QCOMPARE(opening.OpenFileFolderPlugin(nullptr, us2fs(archive.toStdWString().c_str()),
                                               UString(L"zip"), nullptr),
@@ -615,6 +615,17 @@ class CodecUpdateTests final : public QObject, protected ArchiveBackendTestSuppo
             QCOMPARE(extractor.exitCode(), 0);
             QCOMPARE(readFile(QDir(fixture.filePath("out")).filePath(name)), replacement);
         }
+        // A retained folder may outlive the application service. It must fail
+        // property changes and writes safely, retaining the published archive.
+        backend.reset();
+        QCOMPARE(resource->SetNativeProperties(nullptr, nullptr, 0), E_FAIL);
+        const QByteArray before = readFile(archive);
+        CCodecUpdateWorker rename(operations, source);
+        rename.NewName = QStringLiteral("renamed 空.bin");
+        rename.DisableUserQuestions = true;
+        QCOMPARE(rename.Create(L"Expired archive service", nullptr), S_OK);
+        QCOMPARE(rename.Result, E_FAIL);
+        QCOMPARE(readFile(archive), before);
         QVERIFY(QDir(fixture.path())
                     .entryList({"*.tmp", ".sevenzip-*"}, QDir::Files | QDir::Hidden)
                     .isEmpty());

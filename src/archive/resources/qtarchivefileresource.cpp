@@ -99,8 +99,8 @@ bool QtArchiveFileResource::HasUpdateService() const {
     // input stream and offset are retained. A process-only plan cannot do so.
     const bool preservesPrefix = HasNativeUpdateService() && _nativeOpen->arc().InStream &&
                                  _nativeOpen->arc().ArcStreamOffset != 0;
-    return bool(_update) && (Info.offset == 0 || preservesPrefix) && !RequiresOuterOpen() &&
-           !_nativeReadOnly && _filesystemReadLimitations.isEmpty();
+    return _updateBackend.has_value() && (Info.offset == 0 || preservesPrefix) &&
+           !RequiresOuterOpen() && !_nativeReadOnly && _filesystemReadLimitations.isEmpty();
 }
 
 HRESULT QtArchiveFileResource::ApplyOutputMTime(CWorkDirTempFile &file) const {
@@ -225,8 +225,8 @@ const CCodecs *QtArchiveFileResource::NativeArchiveCodecs() const {
     return _nativeOpen ? &_nativeOpen->nativeCodecs() : nullptr;
 }
 
-HRESULT QtArchiveFileResource::Update(ISequentialOutStream *output, IInArchive *metadata,
-                                      UInt32 count, IArchiveUpdateCallback *callback) {
+HRESULT QtArchiveFileResource::Update(ISequentialOutStream *output, IInArchive *, UInt32 count,
+                                      IArchiveUpdateCallback *callback) {
     if (!HasUpdateService())
         return E_NOTIMPL;
     // A zero-item handler may never report progress. Use the source Sync at
@@ -234,7 +234,7 @@ HRESULT QtArchiveFileResource::Update(ISequentialOutStream *output, IInArchive *
     if (_sync) {
         RINOK(_sync->CheckStop())
     }
-    RINOK(_update(output, metadata, count, callback))
+    RINOK(UpdateNative(output, count, callback))
     return _sync ? _sync->CheckStop() : S_OK;
 }
 

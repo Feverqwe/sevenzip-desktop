@@ -4,6 +4,7 @@
 
 class MainWindow;
 class QMenu;
+class QWidget;
 
 // Qt child controls and legacy settings migration for the native app owner.
 class QtAppPresentation final : public IQtAppPresentation {
@@ -29,6 +30,7 @@ class QtAppPresentation final : public IQtAppPresentation {
     bool IsCopyPending() const { return copy_.has_value(); }
     void RequestInitialFocus(unsigned index);
     void RequestListFocus(unsigned index);
+    void RestoreWidgetFocus(QWidget *widget);
     void CompleteInitialFocusIfReady();
     void CancelInitialFocus() { initialFocus_.reset(); }
 

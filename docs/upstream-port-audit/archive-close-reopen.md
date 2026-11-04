@@ -310,3 +310,78 @@ Close→ReOpen and retained-reader behavior passed. Build took 44.014s and tests
 8.602s; existing incremental outputs, four jobs and compiler caches were retained.
 Selected scratch was empty before and after the run. No native OS branch changed;
 secondary platforms, full/slow gates and visual acceptance were not selected.
+
+## Update/property service binding — 2026-11-04
+
+Reviewed the resource's update/property attachment and dispatch, native property
+transport, Agent SetProperties/CommonUpdate/DoOperation, backend writer overloads,
+comment selection and publication/reopen consumers. Complete original AgentOut.cpp
+and Common/Update.cpp hashes match the recorded baseline at
+`9128b80e3a471108678e2b3ec3c985861c8d7b0f` from the upstream repository above.
+Native writer, property, path-validation and publication algorithms are unchanged;
+no source is imported or provenance advanced.
+
+Update and property setters had one implementation each, separately captured in
+two callables with the same backend. The resource now retains one explicit weak
+backend binding and calls those implementations directly. Optional presence
+retains the distinction between an unconfigured service and an attached service
+whose backend has expired. Existing capability checks and E_FAIL on expiration
+are preserved. Reopen, extraction and progress retain their distinct callbacks.
+
+The update body still keeps its native writer lease within the inner call,
+between the existing stop checkpoints. Comment selection, compression options,
+explicit-property precedence and output-time reset keep their original order.
+An extended real ZIP regression retains its folder after destroying the backend,
+then checks failed property delivery and Rename without changing archive bytes
+or leaving temporary outputs. This exercises the service lifetime contract;
+no test inspects the private binding representation.
+
+Linux passed `codec_update`, `source_update_backend`, `native_comment`,
+`native_archive_properties` and `agent_stream_update`: 148 checks, no failures,
+with three existing filesystem-ADS rows skipped because they require Windows.
+The real retained-folder property/Rename checks passed. Incremental build took
+34.137s and tests 42.205s; configured four jobs and compiler caches were retained.
+Selected fixture directories were empty before and after validation. No native
+OS branch changed; no secondary platform, full/slow gate or appearance check
+was selected.
+
+## Completed-output publication owner — 2026-11-04
+
+Reviewed the full Agent transaction, native Common/Update publication callers,
+WorkDir temporary ownership, FileDir move/publication and owned-temp registration.
+The complete original ArchiveFolderOut.cpp, WorkDir.cpp, FileDir.cpp and
+FileName.h inventories match the existing baseline at
+`9128b80e3a471108678e2b3ec3c985861c8d7b0f`. The original move operations remain
+in FileDir. Their Qt publication adaptation is distinct from upstream's direct
+EXDEV destination copy; the existing rationale remains in the container audit.
+
+The completed-output adapter now has its own FilePublish.cpp within the same
+native filesystem module and common target. Its public FileDir contract and
+callers are unchanged. The atomic native operation, Windows open-generation
+replacement and destination-side copy/permissions/mtime/cancellation/cleanup
+remain one implementation each, with unchanged bodies. The new translation unit
+retains the required Windows SDK level and native path macros, and POSIX rename
+declarations; no new wrapper, state, filesystem algorithm or source import is
+introduced. The baseline records this local extraction without changing original
+hashes, revisions or upstream inventory bytes.
+
+Publication state, callback-result precedence, owned spool adoption, post-write
+input deletion and native reopening remain separate and unchanged. Existing
+behavior tests cover atomic replacement, no-replace races, cross-filesystem copy
+and cancellation, retained reader generations, owned spool publication and input
+deletion. No file-presence or private-helper test is added for the extraction.
+
+Linux passed `native_update_publication`, `owned_temp_publication`,
+`archive_input_deletion` and `source_update_backend`: 75 checks, no skips,
+including real cross-filesystem copy and cancellation. Build took 12.315s,
+tests 3.806s. An initial compile exposed a formerly transitive QDateTime include;
+the new owner now includes that dependency explicitly.
+
+Windows then passed `native_update_publication` and `codec_update`: 84 checks,
+with three existing `/dev/shm` cross-filesystem rows skipped. This checks MSVC
+SDK/native path dependencies and retained-generation replacement; build took
+45.542s, tests 43.133s. No macOS acceptance is claimed. Both runs reused existing
+incremental outputs, four jobs and compiler caches. Selected scratch was empty
+after removing one Linux registry record whose temporary object was already
+absent; Windows scratch needed no cleanup. No full/slow gate, real OS mount or
+appearance validation was selected.

@@ -11,9 +11,8 @@ class CLinkDialog : public CQtLinkWindow {
     CQtLinkCombo _pathFromCombo;
     CQtLinkCombo _pathToCombo;
 
-    virtual bool OnInit() Z7_override;
-    virtual bool OnSize(quintptr wParam, int xSize, int ySize) Z7_override;
-    virtual bool OnButtonClicked(unsigned buttonID, QWidget *buttonHWND) Z7_override;
+    virtual void OnInit() Z7_override;
+    virtual void OnButtonClicked(unsigned buttonID) Z7_override;
     void OnButton_SetPath(bool to);
     void OnButton_Link();
 
@@ -26,9 +25,7 @@ class CLinkDialog : public CQtLinkWindow {
     UString FilePath;
     UString AnotherPath;
 
-    qintptr Create(QWidget *parentWindow = nullptr) {
-        return CQtLinkWindow::Create(IDD_LINK, parentWindow);
-    }
+    qintptr Create(QWidget *parentWindow = nullptr) { return CQtLinkWindow::Create(parentWindow); }
 };
 
 #endif

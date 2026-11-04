@@ -63,7 +63,7 @@ bool QtArchiveFileResource::HasNativeUpdateService() const {
 bool QtArchiveFileResource::HasNativePropertyService() const {
     CMyComPtr<ISetProperties> properties;
     auto *native = NativeItemProperties();
-    return HasUpdateService() && _setProperties && native &&
+    return HasUpdateService() && native &&
            native->QueryInterface(IID_ISetProperties, (void **)&properties) == S_OK && properties;
 }
 
@@ -71,7 +71,10 @@ HRESULT QtArchiveFileResource::SetNativeProperties(const wchar_t *const *names,
                                                    const PROPVARIANT *values, UInt32 count) {
     if (!HasNativePropertyService())
         return E_NOINTERFACE;
-    RINOK(_setProperties(names, values, count))
+    const auto backend = *_updateBackend;
+    if (!backend)
+        return E_FAIL;
+    RINOK(backend->setNativeArchiveProperties(_nativeOpen, names, values, count))
     // Explicit source properties take precedence over the optional Qt CInfo
     // projection. The source DoOperation's empty call resets that choice.
     _nativePropertiesExplicit = count != 0;

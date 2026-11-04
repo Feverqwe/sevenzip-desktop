@@ -40,6 +40,8 @@ bool QtRenameFileSystemEntryWithoutReplacing(const QString &source, const QStrin
     // Match source MoveFileW's no-replacement contract while allowing a change
     // of spelling on a case-insensitive volume, for files, folders and links.
     return ::renamex_np(NativePath(source), NativePath(destination), RENAME_EXCL) == 0;
+#elif defined(__linux__)
+    return NWindows::NFile::NDir::MyMoveFile_NoReplace(NativePath(source), NativePath(destination));
 #else
 #ifndef _WIN32
     const QFileInfo target(destination);

@@ -52,3 +52,40 @@ the complete transition, including Cancel, reload of saved options, native outpu
 and no-codec fallback. No handler-count/source-text assertion or pre-fix product
 failure is added. Source priorities, metadata defaults, layout and control metrics
 are unchanged.
+
+## Resource estimate and acceptance — 2026-11-04
+
+Reviewed the complete Qt thread/dictionary/solid/memory binding, format/method
+transitions, draft/source option snapshots and confirmation with original
+SetNumThreads2, memory-calculation wrappers, SetMemoryUsage and OnOK. The complete
+CompressDialog.cpp/.h/.rc originals match the existing b88c baseline above.
+Native memory/thread algorithms, limits and format policies are unchanged; no
+external code is imported or provenance advanced.
+
+Display and confirmation now share one calculation from the current controls,
+as the original form does. Confirmation no longer builds the entire compression
+request, including unrelated metadata/profile/SFX/volume values, merely to read
+its level, thread count and memory limit. Auto-thread resolution, effective
+dictionary, format, method, level and solid-block inputs retain the same values.
+The explicit/default memory limit still goes to the original OnOK refusal and
+diagnostic path before saving settings or accepting the form.
+
+Thread-combo population now restores the prior signal-blocking state within the
+same mutation range. An enclosing format/method transition therefore retains its
+own block instead of having it cleared by the nested population. No new callback
+or request state is introduced. Native sourceInfo's level semantics remain
+distinct from the standalone compression snapshot.
+
+Existing resource estimates, preference/event transitions, memory refusal and
+successful native compression regressions cover the public behavior. No test
+pins the private calculation method or merely inspects signalsBlocked. Layout,
+captions, control values and geometry are unchanged.
+
+Linux passed `compression_preferences`, `compression_error_policy` and
+`compression_event`: 78 checks, no failures or skips (build 23.085s, tests
+5.037s). The separately selected `compression_resources` then passed 15 checks,
+also without skips (build 6.173s, tests 0.235s). The unchanged passing suites
+were not repeated. Selected fixture directories were empty before and after
+the runs. Existing incremental outputs, configured four jobs and compiler caches
+were retained. No platform branch changed; no secondary OS, full/slow gate or
+appearance check was selected.

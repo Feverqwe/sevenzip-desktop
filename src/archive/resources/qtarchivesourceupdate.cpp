@@ -36,33 +36,30 @@ void QtArchiveFileResource::AttachProgressService(ArchiveBackend &backend) {
 void QtArchiveFileResource::AttachUpdateService(ArchiveBackend &backend, const QString &format) {
     AttachReopenService(backend, format);
     AttachProgressService(backend);
-    _setProperties = [this, backend = QPointer<ArchiveBackend>(&backend)](
-                         const wchar_t *const *names, const PROPVARIANT *values, UInt32 count) {
-        return backend ? backend->setNativeArchiveProperties(_nativeOpen, names, values, count)
-                       : E_FAIL;
-    };
-    _update = [this, backend = QPointer<ArchiveBackend>(&backend)](
-                  ISequentialOutStream *output, IInArchive *, UInt32 count,
-                  IArchiveUpdateCallback *callback) -> HRESULT {
-        if (!backend)
-            return E_FAIL;
-        _outputMTime.reset();
-        auto *native = NativeItemProperties();
-        if (!native)
+    _updateBackend = &backend;
+}
+
+HRESULT QtArchiveFileResource::UpdateNative(ISequentialOutStream *output, UInt32 count,
+                                            IArchiveUpdateCallback *callback) {
+    const auto backend = *_updateBackend;
+    if (!backend)
+        return E_FAIL;
+    _outputMTime.reset();
+    auto *native = NativeItemProperties();
+    if (!native)
+        return E_NOTIMPL;
+    CMyComPtr<IOutArchive> writer;
+    // AgentOut uses the bound archive's original IOutArchive interface.
+    // A missing writer cannot be replaced by a console reconstruction.
+    RINOK(native->QueryInterface(IID_IOutArchive, (void **)&writer))
+    if (const auto *source = dynamic_cast<CArchiveUpdateCallback *>(callback);
+        source && source->CommentIndex >= 0 && source->Comment) {
+        if (!HasCommentService())
             return E_NOTIMPL;
-        CMyComPtr<IOutArchive> writer;
-        // AgentOut uses the bound archive's original IOutArchive interface.
-        // A missing writer cannot be replaced by a console reconstruction.
-        RINOK(native->QueryInterface(IID_IOutArchive, (void **)&writer))
-        if (const auto *source = dynamic_cast<CArchiveUpdateCallback *>(callback);
-            source && source->CommentIndex >= 0 && source->Comment) {
-            if (!HasCommentService())
-                return E_NOTIMPL;
-            return backend->updateNativeComment(_nativeOpen, output, count, callback);
-        }
-        if (_compressionOptions && !_nativePropertiesExplicit)
-            return backend->updateNativeArchive(_nativeOpen, output, count, callback,
-                                                *_compressionOptions);
-        return backend->updateNativeArchive(_nativeOpen, output, count, callback);
-    };
+        return backend->updateNativeComment(_nativeOpen, output, count, callback);
+    }
+    if (_compressionOptions && !_nativePropertiesExplicit)
+        return backend->updateNativeArchive(_nativeOpen, output, count, callback,
+                                            *_compressionOptions);
+    return backend->updateNativeArchive(_nativeOpen, output, count, callback);
 }

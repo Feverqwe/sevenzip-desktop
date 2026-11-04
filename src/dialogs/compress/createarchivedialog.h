@@ -78,6 +78,7 @@ class CreateArchiveDialog : public QDialog {
     void SetSolidBlockSize2(UInt32 defaultBlockSize);
     UInt64 GetDict2() const;
     void SetNumThreads2();
+    UInt64 GetMemoryUsage_DecompMem(UInt64 &decompressMemory) const;
     void SetMemoryUsage();
     NCompression::CMemUse Get_MemUse_Spec() const;
     bool checkMemoryUsage();

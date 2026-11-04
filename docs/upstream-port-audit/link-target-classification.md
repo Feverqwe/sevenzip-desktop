@@ -63,3 +63,35 @@ and Windows moc slot registration were corrected in the fixture, with no product
 workaround. The final slot-registration correction leaves the POSIX test body
 unchanged. No full/slow gate or cache reset; incremental trees and compiler
 caches retained, completed scratch removed after evidence capture.
+
+## Qt event boundary — 2026-11-04
+
+Reviewed the complete LinkDialog initialization/button/creation/browse and app
+command path, its header/resources and Qt controls against the recorded b88c
+reference. Complete LinkDialog.cpp/.h/.rc hashes match the baseline. Original
+OnSize moves native controls; the port already delegates that geometry to Qt
+layouts and its OnSize adaptation was empty. Native link/reparse algorithms,
+validation, relative classification and source command refresh remain unchanged;
+no code is imported or provenance advanced.
+
+The Qt presentation no longer emulates an unused Win32 resize callback, an ignored
+dialog-resource parameter or button-handle argument. Its initialization and
+button hooks now express the void notifications actually consumed by Qt signals,
+instead of returning ignored native handled flags and calling empty base hooks.
+The three original button branches keep their order and actions. Cancel still
+rejects directly, and link success still explicitly ends the dialog. QDialog's
+existing resize handling/layouts remain responsible for the same geometry.
+
+Initialization (apart from its discarded base result), browse/creation/error
+handling and CApp::Link bodies were compared again after the change. Existing
+link dialog/command regressions cover native creation, errors, retarget/clear,
+Cancel, type/platform restrictions, language and compact/normal resizing. No test
+pins the private hook signatures or requires the empty resize bridge. No layout,
+caption, visibility or native platform policy changes are introduced.
+
+Linux passed `link_dialog` and `link_command`: 28 checks without failures or
+skips, including the existing normal/compact geometry checks. Build took 11.294s
+and tests 1.198s. Completed selected settings were removed after checking test
+processes; existing incremental builds, compiler caches and four jobs were
+retained. No platform-native branch changed, so secondary OS checks were not
+selected. No full/slow gate, screenshots or new visual-parity claim.

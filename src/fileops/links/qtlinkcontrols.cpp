@@ -11,7 +11,6 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QRadioButton>
-#include <QResizeEvent>
 #include <QScrollArea>
 #include <QStyle>
 #include <QVBoxLayout>
@@ -52,8 +51,7 @@ void CQtLinkWindow::AddPathRow(QVBoxLayout *layout, bool to) {
     browse->setFixedWidth(units.pixels(QSize(20, 0)).width());
     browse->setMinimumHeight(units.pixels(QSize(0, 16)).height());
     Register(buttonID, to ? "IDB_LINK_PATH_TO" : "IDB_LINK_PATH_FROM", browse);
-    connect(browse, &QPushButton::clicked, this,
-            [this, buttonID, browse] { OnButtonClicked(buttonID, browse); });
+    connect(browse, &QPushButton::clicked, this, [this, buttonID] { OnButtonClicked(buttonID); });
     row->addWidget(browse);
     layout->addLayout(row);
 }
@@ -122,8 +120,7 @@ void CQtLinkWindow::BuildControls() {
     auto *link = buttons->button(QDialogButtonBox::Ok);
     Register(IDB_LINK_LINK, "IDB_LINK_LINK", link);
     link->setDefault(true);
-    connect(link, &QPushButton::clicked, this,
-            [this, link] { OnButtonClicked(IDB_LINK_LINK, link); });
+    connect(link, &QPushButton::clicked, this, [this] { OnButtonClicked(IDB_LINK_LINK); });
     auto *cancel = buttons->button(QDialogButtonBox::Cancel);
     Register(2, "IDCANCEL", cancel, "Cancel");
     connect(cancel, &QPushButton::clicked, this, &QDialog::reject);
@@ -146,7 +143,7 @@ bool CQtLinkWindow::IsButtonCheckedBool(unsigned id) const {
     return radio && radio->isEnabled() && radio->isChecked();
 }
 void CQtLinkWindow::NormalizeSize() { QtNormalizeDialogSize(*this); }
-qintptr CQtLinkWindow::Create(unsigned, QWidget *parent) {
+qintptr CQtLinkWindow::Create(QWidget *parent) {
     QtInitializeLinkPlatform();
     if (parent)
         setParent(parent, windowFlags());
@@ -156,8 +153,4 @@ qintptr CQtLinkWindow::Create(unsigned, QWidget *parent) {
         ->SetAcceptText("DialogRedesign", QT_TRANSLATE_NOOP("DialogRedesign", "Create link"));
     controls_.value(IDC_LINK_PATH_FROM)->setFocus();
     return exec();
-}
-void CQtLinkWindow::resizeEvent(QResizeEvent *event) {
-    QDialog::resizeEvent(event);
-    OnSize(0, event->size().width(), event->size().height());
 }
