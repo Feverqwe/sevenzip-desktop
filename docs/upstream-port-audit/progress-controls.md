@@ -1,5 +1,46 @@
 # Progress controls without background priority
 
+## Shared archive diagnostic composition — 2026-11-04
+
+The standalone native opening, extraction-result and error-flag report builders
+now belong to `archive/diagnostics/archiveerrormessages.cpp/.h`, within the
+existing panel target. Extraction and update callbacks, backend diagnostics,
+archive properties, limited-read prompts and list presentation include this
+focused interface. Consumers no longer redeclare these functions or depend on
+the extraction callback header solely for report composition. The Agent callback
+only forwards results; its unused formatter declaration is removed.
+
+All transferred function/helper bodies are unchanged apart from formatting and
+redundant declarations. Native message ordering, localized legacy fallbacks,
+unknown flags, encryption hints, paths, nested archive levels, format warnings,
+HRESULT fallback and trailing-newline handling remain intact. Existing Qt
+translation of known diagnostics remains in its separate owner; system HRESULT
+formatting remains with the existing progress implementation. Callback state,
+error accounting, progress delivery, recovery consent and operation results are
+unchanged. No new algorithm, target, state or external import is introduced.
+
+Compared complete original ExtractCallback.cpp/.h units and formatter callers
+in UpdateCallbackGUI.cpp, UpdateCallback100.cpp and UpdateCallbackAgent.cpp at
+`9128b80e3a471108678e2b3ec3c985861c8d7b0f` from
+<https://github.com/ip7z/7zip.git>, alongside current callers and their types.
+All five complete original units match the recorded baseline hashes. The
+existing manifest maps transferred symbols to the new owner without changing
+original bytes, revisions or licenses. Existing behavior tests cover native
+diagnostic values, localized presentation and direct operation consumers;
+no source-layout or private-call-count test is added.
+
+The first focused Linux build exposed two dependencies formerly supplied by the
+callback header. Backend result reporting now includes the native archive
+interface directly; limited-read prompts explicitly include the complete progress
+dialog type. The corrected build and eight selected suites passed: 105 checks
+without skips across native archive tests, extraction contracts, shell update
+and extraction services, localized dialogs, archive error properties, panel
+properties and native folder opening. Only portable composition ownership changed;
+no secondary OS, full/slow gate or new appearance acceptance is claimed.
+Checks reused incremental outputs, compiler cache and configured four-job builds.
+
+## Original progress controls — 2026-10-23
+
 User request, 2026-10-23. Transferred
 `9808a74de17f851fc02d793a5237b0f2ef3959e2` and the guarded progress-transport
 backend reference from `33828e5a4d3849d59d2547c1cae919d80ad5e9e4`.

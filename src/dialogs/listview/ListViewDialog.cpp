@@ -2,8 +2,8 @@
 // Igor Pavlov, LGPL-2.1-or-later; see third_party/7zip/License.txt.
 // Qt replaces Win32 controls/clipboard/OnSize and activation notifications.
 #include "dialogs/listview/ListViewDialog.h"
+#include "archive/diagnostics/archiveerrormessages.h"
 #include "dialogs/edit/EditDialog.h"
-#include "filemanager/ExtractCallback.h"
 #include "filemanager/PropertyName.h"
 #include "filemanager/views/qtlistview.h"
 #include "localization/qtlangbuttonbox.h"

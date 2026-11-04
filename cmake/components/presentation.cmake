@@ -110,6 +110,8 @@ add_library(sevenzip_panel
     src/fileops/links/qtlinkcontrols.h
     src/filemanager/ExtractCallback.cpp
     src/filemanager/ExtractCallback.h
+    src/archive/diagnostics/archiveerrormessages.cpp
+    src/archive/diagnostics/archiveerrormessages.h
     src/archive/callbacks/qtcallbackdialogs.cpp
     src/archive/callbacks/qtcallbackdialogs.h
     src/ui/dialogs/qtmodalresult.h

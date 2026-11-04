@@ -1507,6 +1507,8 @@
     "src/archive/codecs/archivecodelocation.cpp",
     "src/archive/codecs/archivecodelocation.h",
     "src/archive/codecs/archiveexternalcodecs.cpp",
+    "src/archive/diagnostics/archiveerrormessages.cpp",
+    "src/archive/diagnostics/archiveerrormessages.h",
     "src/archive/hashing/qtfilecrc.cpp",
     "src/archive/hashing/qtfilecrc.h",
     "src/archive/operations/qtupdatepair.h",
@@ -3495,6 +3497,21 @@
       ],
       "symbols": [
         "AddSizeValue"
+      ]
+    },
+    "src/filemanager/ExtractCallback.cpp": {
+      "local": [
+        "src/archive/diagnostics/archiveerrormessages.cpp",
+        "src/archive/diagnostics/archiveerrormessages.h"
+      ],
+      "symbols": [
+        "SetExtractErrorMessage",
+        "GetOpenArcErrorMessage",
+        "OpenResult_GUI",
+        "k_ErrorFlagsIds",
+        "AddNewLineString",
+        "ErrorInfo_Print",
+        "GetBracedType"
       ]
     },
     "src/filemanager/FM.cpp": {
