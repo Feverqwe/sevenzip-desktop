@@ -1832,6 +1832,7 @@
     "src/filemanager/window/mainwindow_startup.cpp",
     "src/filemanager/window/mainwindow_twopanel.cpp",
     "src/filemanager/window/mainwindow_volumes.cpp",
+    "src/filemanager/window/qtappcopypresentation.cpp",
     "src/filemanager/window/qtapppresentation.cpp",
     "src/filemanager/window/qtapppresentation.h",
     "src/filemanager/window/qtguioutputrefresh.cpp",
