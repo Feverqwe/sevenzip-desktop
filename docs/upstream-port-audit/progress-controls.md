@@ -1,5 +1,41 @@
 # Progress controls without background priority
 
+## Complete progress display owner — 2026-11-04
+
+Compared original ProgressDialog2.cpp/.h/.rc initialization, range/position,
+statistics, time/size formatting, title and resize bodies with current timer,
+pause, language-change and final-completion callers. Complete original hashes
+match the recorded baseline at
+`b88c6bc09339de32f7d18bbab900686b244f42ba` from
+<https://github.com/ip7z/7zip.git>. No source is imported or revision advanced.
+
+ProgressDisplay.cpp now owns initialization of the existing display, its complete
+numeric/string helpers, range/position, statistics, title and width-based text
+reduction. All remain methods/helpers of the existing dialog in sevenzip_panel.
+Modal/worker lifetime, message handling, pause/cancel and GUI event dispatch stay
+in ProgressDialog2.cpp; synchronization and Qt widget construction retain their
+existing owners. No state, controller, timer or second snapshot is introduced.
+
+Moved and remaining method bodies are unchanged. Unknown-value initialization,
+locked counter snapshot, elapsed/remaining-time and speed calculations,
+compression/decompression direction, files/bytes mode, transport-percent fallback,
+error indication, taskbar updates, shortened paths and paused/main-window titles
+retain their existing rules and order. The display's private sentinels stay
+together with initialization and use. Both implementations use the existing
+shared native modal-result constants instead of three repeated local declarations;
+values and commands are unchanged. Previous synchronization extraction mappings,
+original hashes and compilation options are retained. Existing behavior tests
+are reused; no source-layout/private-helper test or appearance change is added.
+
+Focused Linux validation passed progress_dialog, progress_worker, progress_cancel,
+archive_progress and language_dialog: 96 Qt checks without failures or skips.
+Existing cases cover unknown totals, size/ratio and Unicode paths, range changes,
+paused rendering/elapsed time, final messages, cancellation during completion,
+transport pause and live language changes. Source separation preserves widget
+construction, native platform branches and compilation options; no new
+Windows/macOS, full/slow or appearance acceptance is claimed. Selected scratch
+was empty after validation, with incremental outputs and compiler caches retained.
+
 ## Progress synchronization source owner — 2026-11-04
 
 The complete `CProgressSync` implementation, its state declaration and final

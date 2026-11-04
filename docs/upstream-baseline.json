@@ -2146,6 +2146,7 @@
     "src/ui/dialogs/qtdialogunits.cpp",
     "src/ui/dialogs/qtdialogunits.h",
     "src/ui/dialogs/qtmodalresult.h",
+    "src/ui/progress/ProgressDisplay.cpp",
     "src/ui/progress/archiveprogresstransport.cpp",
     "src/ui/progress/archiveprogresstransport.h",
     "src/ui/progress/progresssync.cpp",
@@ -3723,14 +3724,37 @@
     },
     "src/ui/progress/ProgressDialog2.cpp": {
       "local": [
-        "src/ui/progress/progresssync.cpp"
+        "src/ui/progress/progresssync.cpp",
+        "src/ui/progress/ProgressDisplay.cpp"
       ],
       "symbols": [
         "CProgressSync",
         "kPauseSleepTime",
         "UNDEFINED_VAL",
         "CHECK_STOP",
-        "CRITICAL_LOCK"
+        "CRITICAL_LOCK",
+        "CProgressDialog::OnInit",
+        "CProgressDialog::OnSize",
+        "CProgressDialog::SetProgressRange",
+        "CProgressDialog::SetProgressPos",
+        "CProgressDialog::ShowSize",
+        "CProgressDialog::UpdateStatInfo",
+        "CProgressDialog::SetTitleText",
+        "GetTimeString",
+        "ReduceString",
+        "ConvertSizeToString",
+        "GetChangedString",
+        "GetPower32",
+        "GetPower64",
+        "MyMultAndDiv",
+        "kLangIDs",
+        "kLangIDs_Colon",
+        "kTitleFileNameSizeLimit",
+        "kCurrentFileNameSizeLimit",
+        "UINT_TO_STR_2",
+        "INIT_AS_UNDEFINED",
+        "IS_UNDEFINED_VAL",
+        "IS_DEFINED_VAL"
       ]
     },
     "src/ui/progress/ProgressDialog2.h": {

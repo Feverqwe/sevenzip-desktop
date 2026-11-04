@@ -165,6 +165,7 @@ add_library(sevenzip_panel
     src/filemanager/FormatUtils.cpp
     src/filemanager/FormatUtils.h
     src/ui/progress/ProgressDialog2.cpp
+    src/ui/progress/ProgressDisplay.cpp
     src/ui/progress/ProgressDialog2.h
     src/dialogs/messages/MessagesDialog.cpp
     src/dialogs/messages/MessagesDialog.h
