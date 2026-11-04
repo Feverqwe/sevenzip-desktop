@@ -278,6 +278,7 @@ target_sources(sevenzip_panel PRIVATE src/platform/shell/MyMessages.cpp src/arch
 if(WIN32)
     target_sources(sevenzip_panel PRIVATE
         src/filemanager/panels/PanelShellMenu_win.cpp
+        src/filemanager/panels/PanelDrag_win.cpp
         src/platform/associations/qtassociatedfilelaunch_win.cpp
         src/platform/associations/qtassociatedfilelaunch_win.h
         src/filemanager/panels/qtpaneldragnative.cpp src/filemanager/panels/qtpaneldragnative.h

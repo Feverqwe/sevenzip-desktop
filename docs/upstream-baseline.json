@@ -1695,6 +1695,7 @@
     "src/filemanager/external/qtexternalfilesession.h",
     "src/filemanager/panels/PanelAddress.cpp",
     "src/filemanager/panels/PanelColumns.cpp",
+    "src/filemanager/panels/PanelDrag_win.cpp",
     "src/filemanager/panels/PanelFolderOperations.cpp",
     "src/filemanager/panels/PanelFolderOperations.h",
     "src/filemanager/panels/PanelInfo.cpp",
@@ -3792,6 +3793,23 @@
       ],
       "symbols": [
         "kMenuCmdID_Plugin_Start"
+      ]
+    },
+    "src/filemanager/panels/PanelDrag.cpp": {
+      "local": [
+        "src/filemanager/panels/PanelDrag_win.cpp"
+      ],
+      "symbols": [
+        "CDataObject_TransferBase",
+        "CDataObject_GetTransfer",
+        "CTargetTransferInfo (native wire record)",
+        "CDataObject_SetTransfer",
+        "CDataObject (IDataObject protocol bodies)",
+        "CDropSource (IDropSource transport)",
+        "CopyNamesToHGlobal",
+        "DuplicateGlobalMem",
+        "Medium_CopyFrom",
+        "DataObject_GetData_GetTransfer"
       ]
     }
   },
