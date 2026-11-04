@@ -1,5 +1,38 @@
 # File-picker request ownership — 2026-11-01
 
+## Source-browser presentation boundary — 2026-11-04
+
+Compared the complete original BrowseDialog initialization, controls/resources,
+navigation, filtering/sorting, create-folder, acceptance and fallback callers at
+`b88c6bc09339de32f7d18bbab900686b244f42ba`. Original BrowseDialog.cpp/.h hashes
+match the recorded baseline; no source is imported or revision advanced.
+
+The private dialog declaration and Qt control construction/bindings now have
+their own browse-module files in the existing panel target. Initialization
+retains the native initial-directory resolution and parent fallback, with the
+same settings and single-click setup order. Temporary control references stay
+local to initialization; no persistent controller state or public API is added.
+Construction, signal bindings and final focus/tab/size setup are separated from
+the filesystem and command methods. The existing native/command/event bodies
+and initial path-resolution block were compared unchanged after extraction.
+
+The general selector keeps its link-following enumeration adapter, distinct
+from the temporary-file inspector. Raw path/filter publication, accepted-only
+results, Cancel, create-folder validation/errors, source long/device-path
+fallback and native-picker behavior retain their existing contracts. Controls,
+translations, geometry and native OS branches are unchanged. The private
+declaration and presentation extraction are recorded in the existing baseline.
+
+Linux focused checks passed `browse_dialog`, `source_browse_dialog`,
+`source_archive_browse` and `language_standard_buttons`, including the existing
+normal/compact source-browser geometry and its archive-picker consumer.
+Compilation took 13.666 seconds, tests 1.656 seconds. The first build exposed
+two missing explicit presentation includes, corrected before the passing run;
+no test or production behavior workaround was needed. Incremental builds,
+compiler cache and configured four-job parallelism were retained. Inventory
+and whitespace checks passed. No Windows/macOS or rendered-original acceptance,
+full/slow gate, new source-shape tests or extra visual reports are claimed.
+
 ## Filesystem path-correction owner — 2026-11-04
 
 The complete native `CorrectFsPath` implementation and its trimming helper now

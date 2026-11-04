@@ -249,6 +249,8 @@ add_library(sevenzip_panel
     src/dialogs/password/PasswordDialog.h
     src/dialogs/browse/BrowseDialog.cpp
     src/dialogs/browse/BrowseDialog.h
+    src/dialogs/browse/qtsourcebrowsedialog_p.h
+    src/dialogs/browse/qtsourcebrowsepresentation.cpp
     src/filemanager/providers/NetFolder.cpp
     src/filemanager/providers/NetFolder.h
     src/filemanager/panels/PanelListNotify.cpp
