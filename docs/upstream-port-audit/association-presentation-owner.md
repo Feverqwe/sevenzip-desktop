@@ -1,5 +1,39 @@
 # Association conflict presentation — 2026-11-01
 
+## Completed choice projection — 2026-11-04
+
+Rechecked original SystemPage initialization, row refresh, mixed-selection
+ChangeState and Apply with current Qt checkbox/bulk selection, availability,
+native alias/conflict refresh and options observers. Complete SystemPage.cpp/.h/.rc
+originals match the existing baseline at
+`9128b80e3a471108678e2b3ec3c985861c8d7b0f`. No external code is imported or
+provenance advanced.
+
+Single-row refresh now updates only its native row. The existing Changed
+notification synchronously refreshes the Qt choice projection before external
+observers run. The bulk selector's existing signal blocker therefore coalesces
+that projection along with the state notification, instead of rebuilding every
+checkbox, label and filter after each row. Initialization and Apply already finish
+with availability/choice synchronization, including failure and native alias
+redetection; those paths remain unchanged. No additional batching state is added.
+
+Native ChangeState and Apply bodies are byte-identical. Original selection
+cycles, Other-handler restoration, writes, revision conflicts, icons, error
+signals, Apply/Cancel and visible layout/text retain their existing behavior.
+The existing mass-selection regression now also observes Changed delivery and
+checks the completed selection/count view inside that public notification.
+This protects observer consistency and batch notification behavior, without
+counting private refreshes or native detection calls.
+
+Linux passed system_page, association_services, options_integration and one
+isolated native MIME presentation case: 41 Qt checks, with the existing
+Windows-registry-only case skipped. No user associations were modified. Scratch
+was empty before/after; configured four-job incremental builds and compiler
+caches were retained. Native registration, layout/text and platform branches
+are unchanged; no new Windows/macOS, full/slow or appearance acceptance is claimed.
+
+## Conflict presentation — 2026-11-01
+
 Reference: <https://github.com/ip7z/7zip.git>, commit
 `9128b80e3a471108678e2b3ec3c985861c8d7b0f`. Compared SystemPage state,
 initialization, icon selection, mixed-selection changes and Apply bodies,

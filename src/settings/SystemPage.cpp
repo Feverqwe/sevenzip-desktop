@@ -119,6 +119,9 @@ CSystemPage::CSystemPage(IFolderManager *manager, std::shared_ptr<IQtAssociation
             ChangeState(unsigned(column - 1), indices);
         }
     });
+    // Refresh the Qt choices before external state observers run. The bulk
+    // selector already blocks intermediate Changed notifications.
+    connect(this, &CSystemPage::Changed, this, &CSystemPage::RefreshFormatChoices);
     OnInit(manager);
 }
 
@@ -225,7 +228,6 @@ void CSystemPage::RefreshListItem(unsigned group, unsigned listIndex) {
     const int imageIndex = assoc.GetIconIndex();
     _listView->topLevelItem(int(listIndex))
         ->setIcon(0, imageIndex == -1 ? QIcon() : _imageList[(unsigned)imageIndex]);
-    RefreshFormatChoices();
 }
 
 void CSystemPage::ChangeState(unsigned group, const CUIntVector &requested) {
