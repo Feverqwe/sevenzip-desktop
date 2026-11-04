@@ -172,11 +172,11 @@ void QtFileManagerCommands::InvokePluginCommand(unsigned id) {
 void QtFileManagerCommands::ReleasePluginMenus() { window_.programFileMenu_->ReleasePluginMenus(); }
 void QtFileManagerCommands::VerCtrl(unsigned id) {
     auto &w = window_;
+    auto &panel = w.app_.GetFocusedPanel();
     CSelectedState selection;
-    w.app_.GetFocusedPanel().SaveSelectedState(selection);
+    panel.SaveSelectedState(selection);
     w.app_.VerCtrl(id);
-    w.showDirectory(w.projectedUi().directory, false);
-    w.restoreListSelection(selection);
+    panel.RefreshListCtrl(selection);
     w.refreshActions();
 }
 void QtFileManagerCommands::Comment() {

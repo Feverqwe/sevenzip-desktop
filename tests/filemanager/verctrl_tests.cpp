@@ -1,8 +1,10 @@
+#include "7zip/PropID.h"
 #include "Windows/FileFind.h"
 #include "dialogs/overwrite/OverwriteDialog.h"
 #include "filemanager/support/window_state_support.h"
 #include "localization/LangUtils.h"
 #include "settings/RegistryUtils.h"
+#include "settings/ViewSettings.h"
 #include "ui/support/layout_inspection.h"
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -194,6 +196,90 @@ class VerCtrlTests final : public QObject, protected MainWindowTestSupport {
             QVERIFY(readOnly(path));
             QCOMPARE(QFileInfo(path).lastModified().toSecsSinceEpoch(), qint64(1700000000));
         }
+    }
+    void revertRetainsItsPanelAfterModalFocusChange_data() {
+        QTest::addColumn<unsigned>("pane");
+        QTest::addColumn<int>("answer");
+        QTest::newRow("left-confirm") << 0u << IDYES;
+        QTest::newRow("right-cancel") << 1u << IDCANCEL;
+    }
+    void revertRetainsItsPanelAfterModalFocusChange() {
+        QFETCH(unsigned, pane);
+        QFETCH(int, answer);
+        QTemporaryDir fixture;
+        const QString source = fixture.filePath("source δ");
+        const QString peerPath = fixture.filePath("peer 空");
+        QVERIFY(QDir().mkpath(source) && QDir().mkpath(peerPath));
+        const QString path = source + "/вернуть файл.txt";
+        const QString sentinel = peerPath + "/оставить выбор.txt";
+        QVERIFY(write(path, "original") && write(sentinel, "peer unchanged"));
+        QVERIFY(setReadOnly(path));
+        configure(fixture.filePath("backup"), fixture.filePath("diff.json"));
+        const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
+        SavePanelPath(pane, ToUString(source), settings);
+        SavePanelPath(1 - pane, ToUString(peerPath), settings);
+        CWindowInfo frame{};
+        frame.rect.right = 980;
+        frame.rect.bottom = 620;
+        frame.numPanels = 2;
+        frame.currentPanel = pane;
+        frame.splitterPos = 490;
+        frame.Save(settings);
+        ArchiveBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        auto *owner = window.findChild<QWidget *>(QString("filePanel%1").arg(pane));
+        auto *peer = window.findChild<QWidget *>(QString("filePanel%1").arg(1 - pane));
+        auto *list = owner->findChild<FileTable *>("archiveTable");
+        auto *peerList = peer->findChild<FileTable *>("archiveTable");
+        QTRY_COMPARE(list->rowCount(), 1);
+        QTRY_COMPARE(peerList->rowCount(), 1);
+        list->sourcePanel->Set_AutoRefresh_Mode(false);
+        peerList->sourcePanel->Set_AutoRefresh_Mode(false);
+        peerList->setFocus();
+        peerList->selectRow(0);
+        list->setFocus();
+        list->selectRow(0);
+        QTRY_VERIFY(list->hasFocus());
+        action(window, "verEditAction")->trigger();
+        const QByteArray changed("changed version bytes");
+        QVERIFY(write(path, changed));
+        action(window, "refreshAction")->trigger();
+        const int sizeColumn = list->columnForProperty(kpidSize);
+        QCOMPARE(list->model()->index(0, sizeColumn).data(Qt::UserRole + 2).toULongLong(),
+                 quint64(changed.size()));
+        bool asked = false, peerFocused = false;
+        QTimer responder;
+        connect(&responder, &QTimer::timeout, &window, [&] {
+            auto *dialog = dynamic_cast<COverwriteDialog *>(QApplication::activeModalWidget());
+            if (!dialog)
+                return;
+            responder.stop();
+            asked = true;
+            connect(dialog, &QDialog::finished, &window, [&] {
+                window.activateWindow();
+                peerList->setFocus();
+                QTRY_VERIFY(peerList->hasFocus());
+                peerFocused = true;
+            });
+            if (answer == IDCANCEL)
+                QTest::keyClick(dialog, Qt::Key_Escape);
+            else
+                dialog->findChild<QPushButton *>("overwriteYes")->click();
+        });
+        responder.start(1);
+        action(window, "verRevertAction")->trigger();
+        QVERIFY(asked && peerFocused);
+        const QByteArray expected = answer == IDYES ? QByteArray("original") : changed;
+        QCOMPARE(read(path), expected);
+        QCOMPARE(read(sentinel), QByteArray("peer unchanged"));
+        QCOMPARE(peerList->selectionModel()->selectedRows().size(), 1);
+        QCOMPARE(peerList->selectionModel()->selectedRows().front().data().toString(),
+                 QFileInfo(sentinel).fileName());
+        QCOMPARE(list->selectionModel()->selectedRows().size(), 1);
+        QCOMPARE(list->model()->index(0, sizeColumn).data(Qt::UserRole + 2).toULongLong(),
+                 quint64(expected.size()));
     }
     void failuresPreserveSource_data() {
         QTest::addColumn<int>("failure");

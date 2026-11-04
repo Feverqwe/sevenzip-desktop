@@ -1,5 +1,38 @@
 # Qt adaptation boundary review — 2026-10-18
 
+## Version-control completion owner — 2026-11-04
+
+Compared complete native VerCtrl.cpp Edit/Commit/Revert/Diff, helper types,
+file-service dependencies, overwrite confirmation and dispatch/caller guards at
+`b88c6bc09339de32f7d18bbab900686b244f42ba`; the complete original source hash
+matches the baseline. Reviewed Qt panel reload, selection and modal-finished
+focus restoration. No source is imported or provenance advanced.
+
+The native command retains its originating panel, but the Qt wrapper previously
+reopened the current projected directory and restored the saved selection there.
+Restoring peer focus as Revert closed therefore cleared that peer's selection.
+The wrapper now retains the same originating CPanel for selection capture and
+calls its existing RefreshListCtrl completion boundary. This replaces manual
+reopening/selection publication and reuses the existing owner-specific reload,
+viewport and deferred-selection handling. Command/menu refresh remains in place.
+No new operation/controller/state or public API is introduced.
+
+Backup/history numbering, byte comparisons, timestamp rounding, attributes,
+revert consent, diff launch, native error paths and platform file services keep
+their existing bodies. The enclosing synchronous-call guard already protects
+the retained panel lifetime while permitting modal focus restoration.
+
+Two regressions confirm left-pane Revert and cancel right-pane Revert while a
+modal-finished observer restores peer focus. Both failed on the old wrapper's
+lost peer selection; the eleven existing checks passed. Final Linux verctrl
+passed thirteen checks without skips, verifying untouched peer bytes/selection
+and owner metadata alongside existing Edit/Commit/Diff/history, failure and
+Yes/No/Cancel coverage. Compilation took 8.564 seconds, tests 1.564 seconds.
+Inventory and whitespace checks passed. Configured four jobs, incremental
+outputs and compiler cache were retained; the completed settings fixture was
+removed. No native OS implementation, layout or text changed; Windows/macOS,
+full/slow gates and new visual acceptance were not repeated.
+
 ## Window shutdown ownership — 2026-11-03
 
 Reviewed the original FM `WM_CLOSE`/`WM_DESTROY`, App save/release and Panel
