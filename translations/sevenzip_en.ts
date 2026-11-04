@@ -15,7 +15,7 @@
 <context>
     <name>SettingsRedesign</name>
     <message numerus="yes">
-        <location filename="../src/platform/associations/qtsystempagepresentation.cpp" line="+86"/>
+        <location filename="../src/settings/SystemPagePresentation.cpp" line="+86"/>
         <source>%n selected formats</source>
         <translation>
             <numerusform>%n selected format</numerusform>

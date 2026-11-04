@@ -759,5 +759,4 @@ class CPanel : public QObject {
     UInt64 GetItem_UInt64Prop(UInt32 index, UInt32 propID) const;
 };
 
-void AddValuePair2(UString &s, UINT resourceID, UInt64 num, UInt64 size);
 UString GetFolderPath(IFolderFolder *folder);

@@ -1,5 +1,40 @@
 # Split/Combine plan ownership — 2026-11-01
 
+## Native worker implementation owner — 2026-11-04
+
+The complete sequence-naming, native split/combine workers, preallocation,
+part discovery and plan summary now live together under `fileops/volumes` in
+`nativevolumeworker.cpp/.h`. Their output-creation adapter moves from the progress
+adapter to the same owner. The File Manager retains its complete Split/Combine
+command bodies, dialogs and launch/completion service. All consumers include
+the volume interface directly; the progress adapter no longer depends on it.
+
+Compared the complete original PanelSplitFile.cpp at
+`9128b80e3a471108678e2b3ec3c985861c8d7b0f` from
+<https://github.com/ip7z/7zip.git>; its recorded complete-unit hash still matches.
+Reviewed the sequence/worker/command branches and current native I/O, progress,
+transaction, input-consistency, command availability and window consumers.
+Transferred bodies and declarations are unchanged, with explicit native buffer,
+file-enumeration and translation dependencies. The baseline maps the extracted
+symbols and original command fragments without changing original hashes.
+
+The existing `sevenzip_panel_split` object target and its compilation context
+are retained; no new target, controller or operation state is introduced.
+The source summary formatter remains in the File Manager composition through
+its original narrow declaration; this does not create a standalone worker
+library. Cancellation, short reads/writes, output cleanup/publication, snapshots
+and joined completion retain their existing owners and behavior. Existing
+operation, workflow, dialog and window-progress regressions are sufficient for
+this ownership move; no source-shape test is added.
+
+Linux `volume_operations`, `volume_workflow`, `volume_dialog` and
+`worker_window_progress` passed: 93 checks without failures or skips. Initial
+compilation identified two resource-header dependencies, made explicit before
+runtime checks. The same object target and unchanged native platform adapters
+make Linux sufficient for this portable ownership move; no new Windows/macOS
+or appearance acceptance is claimed. Configured four-job incremental builds
+and compiler caches were preserved; completed temporary settings were removed.
+
 ## Preserve the discovered combine plan — 2026-11-03
 
 Rechecked the complete original sequence/discovery, command and worker bodies

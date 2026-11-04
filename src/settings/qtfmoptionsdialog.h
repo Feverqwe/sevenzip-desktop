@@ -46,6 +46,7 @@ class QtFmOptionsDialog final : public QDialog {
     void updateNavigationGeometry();
     void refreshSectionSummaries();
     void revealControl(QWidget *control);
+    bool hasPendingChanges() const;
     void updateApplyButton();
     void changeEvent(QEvent *event) override;
     void reloadLangItems();

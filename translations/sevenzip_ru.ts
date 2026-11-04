@@ -1268,7 +1268,7 @@ Are you sure you want to split archive into such volumes?</source>
             <translation>Сведения об установленном переводе</translation>
         </message>
         <message>
-            <location filename="../src/platform/associations/qtsystempagepresentation.cpp" line="+119" />
+            <location filename="../src/settings/SystemPagePresentation.cpp" line="+119" />
             <source>Choose file types to open with Sevenzip.</source>
             <translation>Выберите типы файлов, которые нужно открывать в Sevenzip.</translation>
         </message>
@@ -1324,7 +1324,7 @@ Are you sure you want to split archive into such volumes?</source>
         </message>
         <message>
             <location filename="../src/settings/qtfmoptionslayout.cpp" line="+109" />
-            <location filename="../src/platform/associations/qtsystempagepresentation.cpp" line="-79" />
+            <location filename="../src/settings/SystemPagePresentation.cpp" line="-79" />
             <source>Changed</source>
             <translation>Изменено</translation>
         </message>
@@ -1349,7 +1349,7 @@ Are you sure you want to split archive into such volumes?</source>
             <translation>Временные файлы</translation>
         </message>
         <message numerus="yes">
-            <location filename="../src/platform/associations/qtsystempagepresentation.cpp" line="-11" />
+            <location filename="../src/settings/SystemPagePresentation.cpp" line="-11" />
             <source>%n selected formats</source>
             <translation>
                 <numerusform>Выбран %n формат</numerusform>
@@ -5421,7 +5421,7 @@ Use `Revert` to recover timestamp.</source>
         </message>
         <message>
             <location line="+117" />
-            <location filename="../src/platform/associations/qtsystempagepresentation.cpp" line="-109" />
+            <location filename="../src/settings/SystemPagePresentation.cpp" line="-109" />
             <source>%1 Archive</source>
             <translation>Архив %1</translation>
         </message>

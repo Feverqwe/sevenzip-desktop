@@ -1,5 +1,42 @@
 # Extract destination preparation — 2026-11-01
 
+## Open-archive extraction workflow owner — 2026-11-04
+
+The window's complete open-archive extraction bridge now lives in
+`mainwindow_extraction.cpp`: destination preparation/presentation, source option
+projection, selected/all-item dispatch, fallback and result/status delivery.
+Other archive commands retain their existing implementation. The same
+`MainWindow` methods, fields and `sevenzip_main_window` target remain; no new
+controller, operation state or public interface is introduced.
+
+Reviewed original complete PanelCopy.cpp, App.cpp::OnCopy and Panel.h option
+types with current source CopyTo, agent options, backend destination/path policy,
+archive transfer caller and completion/report consumers. Complete original hashes
+match the existing `9128b80e3a471108678e2b3ec3c985861c8d7b0f` baseline from
+<https://github.com/ip7z/7zip.git>. This window bridge is existing Qt integration;
+no native algorithm or external source is imported and provenance is unchanged.
+
+Moved method/helper bodies are unchanged. Native-index/source/extract availability,
+RAR refusal, selected/folder scoping, recovery limitations, password and zone
+defaults, overwrite/path modes and output-path validation retain their separate
+contracts. Report capture and presentation, source callback/error handling,
+fallback and completion run at the same points. Translation contexts remain
+unchanged. Compilation context is the same, without file-specific settings to
+transfer. Existing public extraction/transfer and native reader regressions are
+reused; no source-shape tests, layout or text changes are introduced.
+
+Linux `ui_operations`, `nested_archive`, `native_rar_ui`, `archive_recovery_ui`,
+`archive_metadata_ui` and `source_extract_contract` passed: 105 checks without
+failures or skips. Initial compilation exposed two formerly transitive includes
+for the extraction title and HRESULT formatter, made explicit before runtime
+checks. The same object target and unchanged platform services make Linux
+sufficient; no new Windows/macOS or appearance acceptance is claimed.
+Configured four-job incremental builds and compiler caches were preserved;
+completed selected temporary settings were removed. Source inventory and
+whitespace checks passed.
+
+## Destination preparation — 2026-11-01
+
 Reference: <https://github.com/ip7z/7zip.git>, commit
 `9128b80e3a471108678e2b3ec3c985861c8d7b0f`. Reviewed the complete ExtractDialog
 OnOK destination/history branch, initialization, source GUI caller and local

@@ -2,6 +2,43 @@
 
 2026-10-17. По запросу пользователя неподдерживаемые настройки скрыты.
 
+## Pending drafts across Options pages — 2026-11-04
+
+Options now uses one query of its existing six page-modification flags for both
+Apply availability and the final permission to close after saving. Previously
+the close decision checked only Settings, so an Applied observer could create
+an editor-page draft, enable Apply, and still have Save close the dialog without
+persisting that new text. The existing memory-page protection now covers every
+page through the same predicate; no new state or controller is introduced.
+
+The apply order, association-error handling, memory validation, language/theme
+publication and reentrancy guard are unchanged. SystemPage still clears its
+pending flag after processing failures, preserving the original property-sheet
+policy that an association error alone does not veto closing. Native page
+algorithms, persistence and visible layout/text are unchanged.
+
+Compared complete original OptionsDialog.cpp, EditPage initialization/change/
+apply and declarations with current six page-modification contracts, Apply,
+accept/reject and observer/persistence consumers. Complete OptionsDialog.cpp,
+EditPage.cpp/.h, SettingsPage.cpp and SystemPage.cpp hashes match the recorded
+`9128b80e3a471108678e2b3ec3c985861c8d7b0f` baseline from
+<https://github.com/ip7z/7zip.git>. This is a Qt dialog result-policy correction;
+no external code is imported or original provenance advanced.
+
+The existing public Save regression now covers an editor draft alongside the
+memory draft. It verifies that the first Save retains the new text and leaves
+the previous saved value unchanged; the next Save persists it and closes.
+Before the fix the editor case reproduced premature closing. This checks the
+dialog and persistence contract, not the new private query or flag representation.
+
+Linux `options_dialog`, `options_integration` and `system_page` passed:
+48 checks without failures or skips, including the editor/memory draft cases
+and the existing non-vetoing association-error case. The portable Qt close-policy
+change and unchanged native/platform bodies make Linux sufficient; no new
+Windows/macOS, full/slow or appearance acceptance is claimed. Selected scratch
+was empty before/after, configured four-job incremental builds/compiler caches
+were preserved, and whitespace checks passed.
+
 ## Исходники и границы переноса
 
 Source repository: <https://github.com/ip7z/7zip>, commit

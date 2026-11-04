@@ -21,15 +21,23 @@ bool CSystemPage::IntegrationAvailable() const {
 void CSystemPage::SelectFormat(unsigned index, bool selected) {
     if ((_items[index].Pair[0].State == kExtState_7Zip) == selected)
         return;
-    CUIntVector indices;
-    indices.Add(index);
-    const bool restoreOther = !selected && _items[index].Pair[0].OldState == kExtState_Other;
-    ChangeState(0, indices);
-    // Undoing a pending checkbox choice must not request deletion of the
-    // handler that was present before Apply. The source cycle owns restoration.
-    if ((selected && _items[index].Pair[0].State != kExtState_7Zip) ||
-        (restoreOther && _items[index].Pair[0].State == kExtState_Clear))
+    const int before = _items[index].Pair[0].State;
+    {
+        // One checkbox choice can traverse two source states. Publish only
+        // the completed choice: Changed observers may synchronously Apply.
+        const QSignalBlocker blocked(this);
+        CUIntVector indices;
+        indices.Add(index);
+        const bool restoreOther = !selected && _items[index].Pair[0].OldState == kExtState_Other;
         ChangeState(0, indices);
+        // Undoing a pending checkbox choice must not request deletion of the
+        // handler that was present before Apply. The source cycle owns restoration.
+        if ((selected && _items[index].Pair[0].State != kExtState_7Zip) ||
+            (restoreOther && _items[index].Pair[0].State == kExtState_Clear))
+            ChangeState(0, indices);
+    }
+    if (_items[index].Pair[0].State != before)
+        emit Changed();
 }
 
 void CSystemPage::SelectFormats(bool selected) {

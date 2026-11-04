@@ -1,6 +1,6 @@
 #include "dialogs/copy/CopyDialog.h"
 #include "dialogs/split/SplitDialog.h"
-#include "filemanager/panels/PanelSplitFile.h"
+#include "fileops/volumes/nativevolumeworker.h"
 #include "localization/qtlangcontrols.h"
 #include "settings/ViewSettings.h"
 #include "support/split_dialog_prompt.h"

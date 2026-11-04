@@ -1,4 +1,5 @@
-// Declarations extracted from upstream PanelSplitFile.cpp (0766b733).
+// Split/Combine declarations extracted from 7-Zip PanelSplitFile.cpp (0766b733).
+// Igor Pavlov, LGPL-2.1-or-later; see third_party/7zip/License.txt.
 #pragma once
 
 #include "Common/MyString.h"

@@ -162,7 +162,7 @@ add_library(sevenzip_location
     src/settings/OptionsDialog.cpp
     src/settings/qtfmoptionsdialog.h
     src/settings/qtfmoptionslayout.cpp
-    src/platform/associations/qtsystempagepresentation.cpp
+    src/settings/SystemPagePresentation.cpp
     src/archive/resources/qtarchivebatchopen.cpp
     src/archive/resources/qtarchivebatchopen.h
     src/archive/resources/qtarchivebatchextract.cpp

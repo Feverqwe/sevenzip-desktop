@@ -36,6 +36,34 @@ QString text(const UString &value) { return QString::fromWCharArray(value.Ptr())
 class OptionsIntegrationTests final : public QObject {
     Q_OBJECT
   private slots:
+    void undoPendingFormatChoiceDoesNotExposeDeletionToApplyObserver() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        CMyComPtr<IFolderManager> manager = new COptionsManager;
+        auto services = std::make_shared<COptionsAssociations>();
+        services->otherHandler = true;
+        QtFmOptionsDialog dialog(fixture.filePath("undo.ini"), nullptr, manager, services);
+        auto *page = dialog.findChild<CSystemPage *>();
+        auto *choice = dialog.findChild<QCheckBox *>("association-zip");
+        auto *associations = dialog.findChild<QTreeWidget *>("systemAssociations");
+        QVERIFY(page && choice && associations);
+        QCOMPARE(associations->topLevelItemCount(), 1);
+        const QString originalHandler = associations->topLevelItem(0)->text(1);
+        QVERIFY(!originalHandler.isEmpty());
+        choice->click();
+        QVERIFY(choice->isChecked());
+        QCOMPARE(services->writes, 0);
+
+        // Apply observers must see the completed undo, which retains the
+        // original handler, rather than the source cycle's temporary Clear.
+        connect(page, &CSystemPage::Changed, &dialog, [&] { QVERIFY(dialog.apply()); });
+        choice->click();
+        QVERIFY(!choice->isChecked());
+        QCOMPARE(services->writes, 0);
+        QVERIFY(!page->IsModified());
+        QCOMPARE(associations->topLevelItem(0)->text(1), originalHandler);
+    }
+
     void formatSearchAndMassSelectionPreserveSourceDraft() {
         QTemporaryDir fixture;
         auto *formats = new COptionsManager;

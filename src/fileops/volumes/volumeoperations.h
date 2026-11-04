@@ -1,6 +1,6 @@
 #pragma once
 
-#include "filemanager/panels/PanelSplitFile.h"
+#include "fileops/volumes/nativevolumeworker.h"
 #include <QStringList>
 #include <QThread>
 #include <atomic>

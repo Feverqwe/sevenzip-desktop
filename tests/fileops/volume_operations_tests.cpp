@@ -1,4 +1,4 @@
-#include "filemanager/panels/PanelSplitFile.h"
+#include "fileops/volumes/nativevolumeworker.h"
 #include "fileops/volumes/volumeoperations.h"
 #include "localization/LangUtils.h"
 #include "localization/qtlangcontrols.h"
