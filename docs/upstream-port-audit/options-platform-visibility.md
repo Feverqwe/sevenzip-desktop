@@ -2,6 +2,29 @@
 
 2026-10-17. По запросу пользователя неподдерживаемые настройки скрыты.
 
+## Settings page presentation owner — 2026-11-04
+
+Compared complete original SettingsPage.cpp/.h/.rc at
+`b88c6bc09339de32f7d18bbab900686b244f42ba`; complete original hashes match the
+baseline. Reviewed initialization/change/apply branches, standalone and embedded
+callers, memory range/spinner, privilege service and page draft/close consumers.
+No external code or revision is imported.
+
+The complete Qt control setup, appearance-text reload and language-change body
+now share `qtsettingspagepresentation.cpp` in the same panel component. Bodies
+are unchanged. The constructor retains its settings/service initialization,
+builds the same controls and then invokes the same OnInit. The existing instance,
+widgets and independent modification flags remain authoritative; no controller,
+public interface or state is added.
+
+Native OnInit/OnApply stay together, retaining list persistence before memory
+validation, supported-only privilege handling, unset/invalid limit behavior and
+appearance publication order. Initialization still suppresses change signals.
+Standalone buttons, embedded mode, captions, localization, focus, geometry and
+Cancel remain unchanged. Existing list-settings, memory-lock and full options
+behavior checks provide acceptance; no construction/source-presence test is
+added.
+
 ## Options page activation owner — 2026-11-04
 
 Rechecked complete original OptionsDialog.cpp property-sheet/page ownership at

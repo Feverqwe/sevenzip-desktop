@@ -208,6 +208,7 @@ add_library(sevenzip_panel
     src/filemanager/App.h
     src/filemanager/panels/Panel.cpp
     src/settings/SettingsPage.cpp
+    src/settings/qtsettingspagepresentation.cpp
     src/settings/SettingsPage.h
     src/ui/controls/qtmemorylimitspin.cpp
     src/ui/controls/qtmemorylimitspin.h

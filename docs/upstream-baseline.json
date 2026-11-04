@@ -2169,6 +2169,7 @@
     "src/settings/qtmenupagepresentation.cpp",
     "src/settings/qtoptionspages.cpp",
     "src/settings/qtoptionspages.h",
+    "src/settings/qtsettingspagepresentation.cpp",
     "src/text/nls/charsets.inc",
     "src/text/nls/fatnames.c",
     "src/text/nls/module.cmake",
