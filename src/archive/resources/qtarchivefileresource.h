@@ -5,6 +5,7 @@
 #include "Windows/FileFind.h"
 #include "archive/backend/archivebackend.h"
 #include "ui/progress/qtprogresstransport.h"
+#include <QPointer>
 #include <QString>
 #include <functional>
 #include <optional>
@@ -61,6 +62,8 @@ class QtArchiveFileResource final : public IUnknown, public CMyUnknownImp {
     std::function<HRESULT(const wchar_t *const *, const PROPVARIANT *, UInt32)> _setProperties;
     QString _nativeOpenType;
     HRESULT RefreshDeviceInput(IOpenCallbackUI *callback, QString *error = nullptr);
+    HRESULT ReOpenArchive(const QPointer<ArchiveBackend> &backend, const QString &format,
+                          IFolderFolder **metadata, IArchiveOpenCallback *callback);
 
   public:
     QString EnginePath;
