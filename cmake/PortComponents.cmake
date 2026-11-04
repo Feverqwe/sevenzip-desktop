@@ -109,7 +109,8 @@ sevenzip_add_port_component(sevenzip_panel_selection src/filemanager/panels/Pane
     src/filemanager/panels/PanelSelect.cpp)
 sevenzip_add_port_component(sevenzip_split_dialog src/dialogs/split/SplitDialog.h
     src/dialogs/split/SplitDialog.cpp)
-sevenzip_add_port_component(sevenzip_panel_split src/filemanager/panels/PanelSplitFile.h
+sevenzip_add_port_component(sevenzip_panel_split src/fileops/volumes/nativevolumeworker.h
+    src/fileops/volumes/nativevolumeworker.cpp
     src/filemanager/panels/PanelSplitFile.cpp src/fileops/volumes/qtvolumeprogress.h src/fileops/volumes/qtvolumeprogress.cpp
     src/fileops/volumes/qtvolumeio.h src/fileops/volumes/qtvolumeio.cpp src/fileops/volumes/qtvolumeservices.h)
 sevenzip_add_port_component(sevenzip_file_transfer src/fileops/transfer/filetransferoperation.h

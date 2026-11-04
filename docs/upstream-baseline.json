@@ -1697,7 +1697,6 @@
     "src/filemanager/panels/PanelFolderOperations.h",
     "src/filemanager/panels/PanelProperties.cpp",
     "src/filemanager/panels/PanelSelect.h",
-    "src/filemanager/panels/PanelSplitFile.h",
     "src/filemanager/panels/qtnativepanelkeys.cpp",
     "src/filemanager/panels/qtnativepanelkeys.h",
     "src/filemanager/panels/qtpaneladdresscombo.cpp",
@@ -1817,6 +1816,8 @@
     "src/fileops/transfer/qtfiletransfercopycallback.h",
     "src/fileops/transfer/qtfiletransfertransaction.cpp",
     "src/fileops/transfer/qtfiletransfertransaction.h",
+    "src/fileops/volumes/nativevolumeworker.cpp",
+    "src/fileops/volumes/nativevolumeworker.h",
     "src/fileops/volumes/qtvolumeio.cpp",
     "src/fileops/volumes/qtvolumeio.h",
     "src/fileops/volumes/qtvolumemounts.cpp",
@@ -3719,6 +3720,20 @@
       "symbols": [
         "Crc32c_GenerateTable",
         "CrcUpdateT1_vhdx"
+      ]
+    },
+    "src/filemanager/panels/PanelSplitFile.cpp": {
+      "local": [
+        "src/fileops/volumes/nativevolumeworker.cpp",
+        "src/fileops/volumes/nativevolumeworker.h"
+      ],
+      "symbols": [
+        "CVolSeqName",
+        "CPreAllocOutFile",
+        "CThreadSplit",
+        "CThreadCombine",
+        "AddInfoFileName",
+        "CApp::Combine (part discovery, summary and combined-name fragments)"
       ]
     }
   },
@@ -9064,7 +9079,7 @@
     "CPP/7zip/Compress/ZstdEncoder.h": "src/codecs/zstd/ZstdEncoder.h",
     "CPP/7zip/UI/FileManager/PanelSelect.h": "src/filemanager/panels/PanelSelect.h",
     "CPP/7zip/UI/FileManager/PanelSort.h": "src/filemanager/sorting/filenamesort.h",
-    "CPP/7zip/UI/FileManager/PanelSplitFile.h": "src/filemanager/panels/PanelSplitFile.h",
+    "CPP/7zip/UI/FileManager/PanelSplitFile.h": "src/fileops/volumes/nativevolumeworker.h",
     "CPP/7zip/Archive/Iso/IsoZisofs.h": "src/formats/iso/IsoZisofs.h"
   },
   "related_manifests": [

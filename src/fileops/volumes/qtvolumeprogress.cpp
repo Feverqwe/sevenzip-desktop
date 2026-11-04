@@ -1,5 +1,4 @@
 #include "fileops/volumes/qtvolumeprogress.h"
-#include "filemanager/panels/PanelSplitFile.h"
 #include "ui/progress/progresssync.h"
 
 struct QtVolumeProgress::State {
@@ -18,8 +17,4 @@ HRESULT QtVolumeProgress::Set_NumBytesCur(UInt64 value) {
     if (advanced)
         advanced(value);
     return state_->sync->Set_NumBytesCur(value);
-}
-
-bool QtVolumeWorker::CreateOutput(NWindows::NFile::NIO::COutFile &file, const FString &path) {
-    return createOutput ? createOutput(file, path) : file.Create_NEW(path);
 }

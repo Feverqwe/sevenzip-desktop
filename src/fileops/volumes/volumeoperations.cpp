@@ -2,7 +2,7 @@
 #include "7zip/UI/FileManager/resource.h"
 #include "filemanager/FormatUtils.h"
 #include "filemanager/SplitUtils.h"
-#include "filemanager/panels/PanelSplitFile.h"
+#include "fileops/volumes/nativevolumeworker.h"
 #include "fileops/volumes/qtvolumetransaction.h"
 #include "localization/LangUtils.h"
 #include "localization/qtlangcontrols.h"

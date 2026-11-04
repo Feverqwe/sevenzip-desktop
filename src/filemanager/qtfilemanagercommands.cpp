@@ -5,10 +5,10 @@
 #include "archive/resources/qtarchivefileresource.h"
 #include "archive/resources/qtarchiveproperties.h"
 #include "filemanager/MyLoadMenu.h"
-#include "filemanager/panels/PanelSplitFile.h"
 #include "filemanager/qtfilemenuprojection.h"
 #include "filemanager/qtprogramfilemenu.h"
 #include "filemanager/window/mainwindow.h"
+#include "fileops/volumes/nativevolumeworker.h"
 #include "ui/dialogs/qtdialogscreenservices.h"
 
 QtFileManagerCommands::QtFileManagerCommands(MainWindow &window) : window_(window) {}
