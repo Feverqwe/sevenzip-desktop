@@ -20,6 +20,37 @@ quint32 NetworkReadStatus(quint32 result) {
         return 0xc000000dU;    // STATUS_INVALID_PARAMETER
     return 0xc0000185U;        // STATUS_IO_DEVICE_ERROR
 }
+SmbReadOnlyServer::AsyncReader RemoteReader(QRemoteObjectNode &node, ArchiveMountReplica &replica,
+                                            const std::atomic_bool &stopping) {
+    return [&node, &replica, &stopping](quint64 id, quint64 offset, quint32 length,
+                                        SmbReadOnlyServer::ReadCompletion complete) {
+        // Qt owns IPC; the library event loop stays available for metadata,
+        // other clients and disconnects while extraction/consent is pending.
+        QMetaObject::invokeMethod(
+            &node,
+            [&node, &replica, &stopping, id, offset, length, complete = std::move(complete)] {
+                if (stopping || !replica.isReplicaValid()) {
+                    complete({0xc0000120U, {}});
+                    return;
+                }
+                auto pending = replica.read(id, offset, length);
+                auto *watcher = new QRemoteObjectPendingCallWatcher(pending, &node);
+                QObject::connect(
+                    watcher, &QRemoteObjectPendingCallWatcher::finished, &node,
+                    [watcher, pending, complete] {
+                        if (pending.error() != QRemoteObjectPendingCall::NoError)
+                            complete({0xc0000185U, {}});
+                        else {
+                            const auto response = pending.returnValue();
+                            complete({NetworkReadStatus(response.result()), response.data()});
+                        }
+                        watcher->deleteLater();
+                    });
+            },
+            Qt::QueuedConnection);
+    };
+}
+
 } // namespace
 
 int main(int argc, char **argv) {
@@ -65,33 +96,7 @@ int main(int argc, char **argv) {
         if (qEnvironmentVariableIsSet("SEVENZIP_SMB_TRACE"))
             server->setDiagnosticHandler(
                 [](const QString &message) { std::fprintf(stderr, "%s\n", qPrintable(message)); });
-        server->setAsyncReader([&](quint64 id, quint64 offset, quint32 length,
-                                   SmbReadOnlyServer::ReadCompletion complete) {
-            // Qt owns IPC; the library event loop stays available for metadata,
-            // other clients and disconnects while extraction/consent is pending.
-            QMetaObject::invokeMethod(
-                &node,
-                [&, id, offset, length, complete = std::move(complete)] {
-                    if (stopping || !replica->isReplicaValid()) {
-                        complete({0xc0000120U, {}});
-                        return;
-                    }
-                    auto pending = replica->read(id, offset, length);
-                    auto *watcher = new QRemoteObjectPendingCallWatcher(pending, &node);
-                    QObject::connect(
-                        watcher, &QRemoteObjectPendingCallWatcher::finished, &node,
-                        [watcher, pending, complete] {
-                            if (pending.error() != QRemoteObjectPendingCall::NoError)
-                                complete({0xc0000185U, {}});
-                            else {
-                                const auto response = pending.returnValue();
-                                complete({NetworkReadStatus(response.result()), response.data()});
-                            }
-                            watcher->deleteLater();
-                        });
-                },
-                Qt::QueuedConnection);
-        });
+        server->setAsyncReader(RemoteReader(node, *replica, stopping));
         QString error;
         if (!server->validate(error)) {
             replica->failed(error);

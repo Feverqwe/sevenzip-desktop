@@ -18,14 +18,6 @@ class QLabel;
 class QDialogButtonBox;
 class QKeyEvent;
 class QUrl;
-#ifdef _WIN32
-namespace NWindows {
-class CProcess;
-}
-HRESULT StartApplication(const UString &dir, const UString &path, QWidget *window,
-                         NWindows::CProcess &process);
-void StartApplicationDontWait(const UString &dir, const UString &path, QWidget *window);
-#endif
 
 struct CBrowseItem {
     unsigned MainFileIndex;

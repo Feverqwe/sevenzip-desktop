@@ -207,8 +207,17 @@ class DeviceFolderTests final : public QObject {
                 QByteArray range(2048, '\0');
                 UInt32 read = 0;
                 QCOMPARE(worker([&] {
-                             return requested->ReadWithRequest(range.data(), UInt32(range.size()),
-                                                               &read, request);
+                             // Native streams may return a partial read before EOF.
+                             while (read < UInt32(range.size())) {
+                                 UInt32 partial = 0;
+                                 RINOK(requested->ReadWithRequest(range.data() + read,
+                                                                  UInt32(range.size()) - read,
+                                                                  &partial, request))
+                                 if (!partial)
+                                     break;
+                                 read += partial;
+                             }
+                             return S_OK;
                          }),
                          S_OK);
                 range.resize(int(read));

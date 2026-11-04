@@ -1,4 +1,5 @@
 #include "mount/smb/smbwakeup.h"
+#include <utility>
 #ifdef _WIN32
 #include <ws2tcpip.h>
 #else
@@ -25,18 +26,18 @@ struct SmbWakeup::State {
             close(Descriptor);
     }
 #endif
-    bool Ready = false;
 };
 
-SmbWakeup::SmbWakeup() : state_(std::make_unique<State>()) {
+SmbWakeup::SmbWakeup() {
+    auto state = std::make_unique<State>();
 #ifdef _WIN32
     WSADATA data;
     if (WSAStartup(MAKEWORD(2, 2), &data))
         return;
-    state_->Started = true;
+    state->Started = true;
     const auto fd =
         WSASocketW(AF_INET, SOCK_DGRAM, IPPROTO_UDP, nullptr, 0, WSA_FLAG_NO_HANDLE_INHERIT);
-    state_->Descriptor = fd;
+    state->Descriptor = fd;
     if (fd == INVALID_SOCKET)
         return;
     u_long nonblocking = 1;
@@ -44,7 +45,7 @@ SmbWakeup::SmbWakeup() : state_(std::make_unique<State>()) {
         return;
 #else
     const int fd = socket(AF_INET, SOCK_DGRAM, 0);
-    state_->Descriptor = fd;
+    state->Descriptor = fd;
     if (fd < 0 || fd >= FD_SETSIZE || fcntl(fd, F_SETFD, FD_CLOEXEC) < 0 ||
         fcntl(fd, F_SETFL, O_NONBLOCK) < 0)
         return;
@@ -62,10 +63,10 @@ SmbWakeup::SmbWakeup() : state_(std::make_unique<State>()) {
     if (getsockname(fd, reinterpret_cast<sockaddr *>(&address), &size) ||
         connect(fd, reinterpret_cast<sockaddr *>(&address), sizeof(address)))
         return;
-    state_->Ready = true;
+    state_ = std::move(state);
 }
 SmbWakeup::~SmbWakeup() = default;
-bool SmbWakeup::valid() const { return state_->Ready; }
+bool SmbWakeup::valid() const { return bool(state_); }
 void SmbWakeup::addTo(fd_set &read, int &maximum) const {
     if (!valid())
         return;

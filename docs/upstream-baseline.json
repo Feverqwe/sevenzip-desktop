@@ -2035,6 +2035,8 @@
     "src/operations/qtoperationprocess.h",
     "src/operations/qtoperationprotocol.cpp",
     "src/operations/qtoperationprotocol.h",
+    "src/platform/associations/qtassociatedfilelaunch_win.cpp",
+    "src/platform/associations/qtassociatedfilelaunch_win.h",
     "src/platform/associations/qtassociatedfileservices.cpp",
     "src/platform/associations/qtassociatedfileservices.h",
     "src/platform/associations/qtassociationfileopen.cpp",
@@ -3437,6 +3439,16 @@
     "src/formats/vhdx/VhdxCrc.cpp"
   ],
   "extracted": {
+    "src/dialogs/browse/BrowseDialog2.cpp": {
+      "local": [
+        "src/platform/associations/qtassociatedfilelaunch_win.cpp",
+        "src/platform/associations/qtassociatedfilelaunch_win.h"
+      ],
+      "symbols": [
+        "StartApplication",
+        "StartApplicationDontWait"
+      ]
+    },
     "src/dialogs/compress/CompressDialog.h": {
       "local": [
         "src/dialogs/compress/CompressInfo.h"

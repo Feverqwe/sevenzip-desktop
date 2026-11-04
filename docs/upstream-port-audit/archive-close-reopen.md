@@ -279,3 +279,34 @@ archive ADS runs everywhere. Incremental build trees and compiler caches were
 retained, and completed temporary fixtures were removed after evidence capture.
 No full/slow gate, heavy diagnostics or visual comparison was needed for this
 nonvisual change.
+
+## ReOpen binding and execution — 2026-11-04
+
+Reviewed the complete resource ReOpen dispatch, archive/device attachments,
+joined refresh worker, update consumers, Agent folder/proxy restoration and
+CArc/CArchiveLink reopen callbacks. Complete original Agent.cpp/.h,
+OpenArchive.cpp/.h and FileFolderPluginOpen.cpp match their existing baseline
+hashes at the recorded upstream revision. No source is imported or provenance
+advanced; native reopening and binding algorithms are unchanged.
+
+The archive attachment now binds its existing captures to a named private
+resource method, rather than containing the entire request workflow. The method
+borrows the same weak backend and format captures by const reference for that
+synchronous call. Its body, exception boundary, local object order and early
+returns are unchanged. In particular, native reopening still precedes the weak
+backend check, allowing retained native readers to reopen after backend teardown.
+Direct versus outer callback password fallbacks retain their separate branches.
+
+The device-specific callback and unconfigured-service result remain unchanged;
+the existing callable still selects those distinct implementations. No service
+record, flags, additional ownership or new lifetime policy is introduced. Current
+behavior regressions exercise retained streams, backend release, cancellation,
+fallback metadata and updates; no test pins a private method or callback shape.
+
+Linux acceptance passed `archive_opening`, `archive_layer_lifetime`,
+`agent_stream_update`, `agent_opening` and `native_folder_opening`: 59 successful
+checks and three existing filesystem-ADS skips requiring Windows. Archive ADS,
+Close→ReOpen and retained-reader behavior passed. Build took 44.014s and tests
+8.602s; existing incremental outputs, four jobs and compiler caches were retained.
+Selected scratch was empty before and after the run. No native OS branch changed;
+secondary platforms, full/slow gates and visual acceptance were not selected.

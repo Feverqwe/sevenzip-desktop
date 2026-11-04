@@ -1,5 +1,4 @@
 #include "platform/associations/qtassociatedfileservices.h"
-#include "dialogs/browse/BrowseDialog2.h"
 #include "localization/qtlanguageservices.h"
 #include "platform/associations/qtfileassociationprobe.h"
 #include "settings/RegistryUtils.h"
@@ -9,6 +8,7 @@
 #include <QMessageBox>
 #ifdef Q_OS_WIN
 #include "Windows/ProcessUtils.h"
+#include "platform/associations/qtassociatedfilelaunch_win.h"
 #endif
 
 namespace {
