@@ -11,6 +11,7 @@
 #include "Windows/FileName.h"
 #include "archive/callbacks/qtguimessages.h"
 #include "archive/compression/MethodProps.h"
+#include "archive/password/archivepassword.h"
 #include "dialogs/compress/qtcompressoptionsdialog.h"
 #include "filemanager/HelpUtils.h"
 #include "filemanager/PropertyName.h"
@@ -148,7 +149,7 @@ CCompressDialog::EPasswordError CCompressDialog::CheckPassword(const QString &pa
                                                                bool showPassword,
                                                                QStringView format,
                                                                const QString &encryptionMethod) {
-    const UString Password(password.toStdWString().c_str());
+    const NativePassword Password(password);
     if (format == u"zip") {
         if (!IsAsciiString(Password))
             return kPasswordUseAscii;
@@ -159,7 +160,7 @@ CCompressDialog::EPasswordError CCompressDialog::CheckPassword(const QString &pa
         }
     }
     if (!showPassword) {
-        UString password2(confirmation.toStdWString().c_str());
+        NativePassword password2(confirmation);
         if (password2 != Password)
             return kPasswordNotMatch;
     }

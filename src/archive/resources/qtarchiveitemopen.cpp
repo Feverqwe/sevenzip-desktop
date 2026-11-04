@@ -61,6 +61,7 @@ HRESULT GetArchiveItemStream(IFolderFolder *folder, UInt32 index, ISequentialInS
         return HRESULT_FROM_WIN32(started);
     request.UI.StartProgressDialog(LangString(IDS_OPENNING), thread);
     passwordDefined = request.UI.PasswordIsDefined;
+    WipeNativePassword(password);
     password = request.UI.Password;
     if (request.Result == S_OK)
         *stream = request.Stream.Detach();

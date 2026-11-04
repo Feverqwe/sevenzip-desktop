@@ -37,10 +37,10 @@ void MainWindow::transferFromArchive(const QString &destination, bool move, bool
             ExtractionOptions fallback;
             fallback.Purpose = QtArchiveExtractPurpose::Move;
             backend_->extract(projectedUi().archive, destination, paths,
-                              projectedUi().archivePassword, fallback);
+                              projectedUi().archivePassword.toQString(), fallback);
         } else
             backend_->extract(projectedUi().archive, destination, paths,
-                              projectedUi().archivePassword, options);
+                              projectedUi().archivePassword.toQString(), options);
         return;
     }
     // A synchronous result or refused launch has no pending continuation.

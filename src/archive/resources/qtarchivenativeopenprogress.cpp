@@ -39,7 +39,7 @@ HRESULT CNativeOpenProgress::Open_FscryptKeys(BSTR *keys) {
             cryptoRequest ? cryptoRequest->GetFscryptKeys(keys) : Open_CryptoGetTextPassword(keys);
     }
     if (result == S_OK)
-        Password = QString::fromWCharArray(*keys);
+        Password = ArchivePassword(*keys, SysStringLen(*keys));
     return result;
 }
 HRESULT CNativeOpenProgress::Open_CryptoGetTextPassword(BSTR *password) {
@@ -55,6 +55,6 @@ HRESULT CNativeOpenProgress::Open_CryptoGetTextPassword(BSTR *password) {
         result = crypto ? crypto->CryptoGetTextPassword(password) : E_NOINTERFACE;
     }
     if (result == S_OK)
-        Password = QString::fromWCharArray(*password);
+        Password = ArchivePassword(*password, SysStringLen(*password));
     return result;
 }

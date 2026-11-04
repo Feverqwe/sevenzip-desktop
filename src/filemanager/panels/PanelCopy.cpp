@@ -3,6 +3,7 @@
 // Adapted from 7-Zip PanelCopy.cpp (0766b733fe3e06dd2a7f9a3cfbf2108ac73abd17).
 // Igor Pavlov, LGPL-2.1-or-later; see third_party/7zip/License.txt.
 #include "Common/StringConvert.h"
+#include "archive/password/archivepassword.h"
 #include "ui/progress/qtprogresstransport.h"
 #include <memory>
 
@@ -296,6 +297,7 @@ HRESULT CPanel::CopyTo(CCopyToOptions &options, const CRecordVector<UInt32> &ind
 
         if (res == S_OK && extracter.ExtractCallback->IsOK()) {
             usePassword = extracter.ExtractCallback->PasswordIsDefined;
+            WipeNativePassword(password);
             password = extracter.ExtractCallback->Password;
         }
 
@@ -385,7 +387,7 @@ HRESULT CPanel::CopyFrom(bool moveMode, const UString &folderPrefix, const UStri
         if (!_parentFolders.IsEmpty()) {
             const CFolderLink &fl = _parentFolders.Back();
             updater.UpdateCallback->PasswordIsDefined = fl.UsePassword;
-            updater.UpdateCallback->Password = fl.Password;
+            updater.UpdateCallback->Password = fl.Password.native();
         }
         updater.FolderOperations = _folderOperations;
         updater.FolderPrefix = folderPrefix;

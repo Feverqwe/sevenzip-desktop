@@ -3,6 +3,7 @@
 #include "7zip/UI/FileManager/resource.h"
 #include "7zip/UI/FileManager/resourceGui.h"
 #include "7zip/UI/GUI/ExtractRes.h"
+#include "archive/password/archivepassword.h"
 #include "archive/resources/qtarchivebatchextract.h"
 #include "archive/resources/qtarchivefileresource.h"
 #include "archive/resources/qtarchiveproperties.h"
@@ -79,7 +80,7 @@ HRESULT ExtractPanelItems(CPanel &panel, CAgentFolder &folder, const QString &ou
     if (password.isEmpty())
         return panel.CopyTo(sourceOptions, indices, &messages, &report);
     bool usePassword = true;
-    UString sourcePassword = ToUString(password);
+    NativePassword sourcePassword(password);
     return panel.CopyTo(sourceOptions, indices, &messages, usePassword, sourcePassword, nullptr,
                         &report);
 }
@@ -109,7 +110,8 @@ void MainWindow::extractTo(const QString &destination, bool onlySelected, const 
     setState(State::Operating);
     begin(QtLangText(IDS_PROGRESS_EXTRACTING), destination);
     backend_->extract(projectedUi().archive, destination, names,
-                      password.isEmpty() ? projectedUi().archivePassword : password, options);
+                      password.isEmpty() ? projectedUi().archivePassword.toQString() : password,
+                      options);
 }
 
 bool MainWindow::extractWithSource(const QString &destination, bool onlySelected,
@@ -189,7 +191,8 @@ bool MainWindow::extractWithSource(const QString &destination, bool onlySelected
                 sourceOptions.overwriteMode = ExtractionOptions::OverwriteMode::SkipExisting;
             result = RunQtArchiveBatchExtract(
                 *backend_, {projectedUi().archive}, output,
-                password.isEmpty() ? projectedUi().archivePassword : password, sourceOptions, this);
+                password.isEmpty() ? projectedUi().archivePassword.toQString() : password,
+                sourceOptions, this);
         } else {
             UStringVector messages;
             result.Result =

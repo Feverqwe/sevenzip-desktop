@@ -1,6 +1,7 @@
 #pragma once
 #include "Common/MyCom.h"
 #include "archive/opening/archivedirectoryaccess.h"
+#include "archive/password/archivepassword.h"
 #include "archive/resources/archivereadonlyview.h"
 #include <QHash>
 #include <QMutex>
@@ -36,7 +37,7 @@ struct ArchiveReadOnlyView::State {
     QHash<quint64, Item> Items;
     quint64 Quota, Cached = 0, Clock = 0;
     unsigned Active = 0;
-    QString Password;
+    ArchivePassword Password;
     std::function<bool(const QString &, quint64)> ExtractionConsent;
     std::function<bool(const QString &, quint64, Int32)> RecoveryConsent;
     std::unique_ptr<QTemporaryDir> Directory;

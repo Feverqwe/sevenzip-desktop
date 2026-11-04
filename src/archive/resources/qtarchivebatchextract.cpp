@@ -65,7 +65,7 @@ QtArchiveBatchResult RunQtArchiveBatchExtract(ArchiveBackend &backend, const QSt
     callback->MultiArcMode = archives.size() > 1;
     callback->OverwriteMode = sourceOptions.OverwriteMode;
     callback->SettingsPath = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
-    callback->Password = UString(password.toStdWString().c_str());
+    callback->Password = password;
     callback->PasswordIsDefined = !password.isEmpty();
     QtArchiveBatchOpen open(backend);
     open.SetExtractionPolicy(destination, options);

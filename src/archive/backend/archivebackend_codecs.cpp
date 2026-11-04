@@ -219,7 +219,7 @@ HRESULT ArchiveBackend::updateNativeArchive(const std::shared_ptr<ArchiveNativeO
     QString password;
     if (crypto) {
         Int32 defined = 0;
-        CMyComBSTR value;
+        CMyComBSTR_Wipe value;
         RINOK(crypto->CryptoGetTextPassword2(&defined, &value))
         if (defined)
             password = QString::fromWCharArray(value);

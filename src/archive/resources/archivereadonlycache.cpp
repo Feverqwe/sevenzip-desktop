@@ -121,7 +121,7 @@ HRESULT ArchiveReadOnlyView::State::materialize(quint64 id, const CMyComPtr<IPro
         return E_FAIL;
     }
     const QString path = Directory->filePath(QString::number(id));
-    QtArchiveReadOperation operation(Reader, Password);
+    QtArchiveReadOperation operation(Reader, Password.toQString());
     auto removeUncachedOutput = qScopeGuard([&] {
         if (operation.OutputCreated)
             QFile::remove(path);

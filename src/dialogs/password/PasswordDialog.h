@@ -2,6 +2,7 @@
 // Igor Pavlov, LGPL-2.1-or-later; see third_party/7zip/License.txt.
 #pragma once
 #include "Common/MyString.h"
+#include "archive/password/archivepassword.h"
 #include <QDialog>
 
 class QLineEdit;
@@ -10,7 +11,7 @@ class QCheckBox;
 class CPasswordDialog : public QDialog {
   public:
     explicit CPasswordDialog(QWidget *parent = nullptr);
-    UString Password;
+    NativePassword Password;
     bool ShowPassword = false;
     bool OnInit();
     void accept() override;

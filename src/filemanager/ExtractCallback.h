@@ -7,6 +7,7 @@
 
 #include "Common/MyCom.h"
 #include "Common/StringConvert.h"
+#include "archive/password/archivepassword.h"
 
 #ifndef Z7_SFX
 #include "archive/agent/IFolderArchive.h"
@@ -142,7 +143,7 @@ class CExtractCallbackImp Z7_final
 #endif
 
 #ifndef Z7_NO_CRYPTO
-    UString Password;
+    NativePassword Password;
 #endif
 
     UString _lang_Extracting;

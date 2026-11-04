@@ -1,3 +1,4 @@
+#include "archive/password/archivepassword.h"
 #include "archive/resources/qtarchivereopen.h"
 #include "filemanager/providers/qtlocationfolder.h"
 #include "filemanager/window/mainwindow.h"
@@ -121,7 +122,8 @@ void MainWindow::refreshCurrent(const CSelectedState *preserved) {
             const auto &parents = panel.GetParentFolders();
             result = ReOpenArchiveFolder(*folder, toolbarSettingsPath(), this, &refreshed,
                                          !parents.IsEmpty() && parents.Back().UsePassword,
-                                         parents.IsEmpty() ? UString() : parents.Back().Password);
+                                         parents.IsEmpty() ? NativePassword()
+                                                           : parents.Back().Password.native());
         }
         if (result == S_OK) {
             panel.SetNewFolder(refreshed);

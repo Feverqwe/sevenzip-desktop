@@ -59,6 +59,32 @@ class ArchiveReadOnlyViewTests final : public QObject {
         QTest::newRow("direct tar stream") << QStringLiteral("tar");
         QTest::newRow("decoded zip cache") << QStringLiteral("zip");
     }
+    void encryptedReadAfterOpeningPasswordIsReleased() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString path = fixture.filePath("encrypted.zip");
+        const QByteArray payload("protected payload");
+        const QString secret = QStringLiteral("fixture password");
+        QVERIFY(NativeArchiveFixture::Write(path, {{"data.bin", payload}}, "zip", secret));
+        CMyComPtr<IUnknown> resource;
+        std::shared_ptr<ArchiveNativeOpen> reader;
+        QCOMPARE(Worker([&] { return Open(path, "zip", resource, reader); }), S_OK);
+        ArchivePassword opening(secret);
+        std::shared_ptr<ArchiveReadOnlyView> view;
+        QString error;
+        QCOMPARE(Worker([&] {
+                     return ArchiveBackend::createReadOnlyView(
+                         resource, 4096, opening.toQString(), view, error,
+                         [](const QString &, quint64) { return true; });
+                 }),
+                 S_OK);
+        opening.clear();
+        resource.Release();
+        reader.reset();
+        const auto result = Worker([&] { return view->read(FileId(view, "data.bin"), 0, 1024); });
+        QCOMPARE(result.Result, S_OK);
+        QCOMPARE(result.Data, payload);
+    }
     void currentDirectoryEntries_data() {
         QTest::addColumn<QByteArray>("root");
         QTest::newRow("current directory") << QByteArray(".");

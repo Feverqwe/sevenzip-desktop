@@ -63,6 +63,9 @@ rg -n --no-ignore -F 'CAgent::Open' docs/archive/qt-port/upstream-port-audit/ do
 
 ## Новые изменения
 
+- [Хранение кешированных паролей](upstream-port-audit/archive-passwords.md)
+  — защищённые allocations для открытых архивов и затираемые native adapters.
+
 - [Снимок исходников для удаления после архивации](upstream-port-audit/archive-input-deletion.md)
   — цельное состояние до публикации и сохранение нативных проверок перед удалением.
 

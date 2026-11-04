@@ -2,6 +2,7 @@
 #include "7zip/IPassword.h"
 #include "Common/MyCom.h"
 #include "archive/backend/archivebackend.h"
+#include "archive/password/archivepassword.h"
 #include "ui/progress/ProgressDialog2.h"
 #include <QMetaObject>
 #include <QMutex>
@@ -34,9 +35,9 @@ HRESULT RequestPassword(ArchiveBackend &backend, const std::shared_ptr<CRequest>
             callback->QueryInterface(IID_ICryptoGetTextPassword, (void **)&crypto);
         if (!crypto)
             return E_NOINTERFACE;
-        CMyComBSTR value;
+        CMyComBSTR_Wipe value;
         RINOK(crypto->CryptoGetTextPassword(&value))
-        const QString text = QString::fromWCharArray(value);
+        const ArchivePassword text(value, SysStringLen(*&value));
         QMetaObject::invokeMethod(
             &backend,
             [&backend, request, text] {
@@ -46,7 +47,7 @@ HRESULT RequestPassword(ArchiveBackend &backend, const std::shared_ptr<CRequest>
                     provide = request->State == CRequest::Phase::Running;
                 }
                 if (provide)
-                    backend.providePassword(text);
+                    backend.providePassword(text.toQString());
             },
             Qt::QueuedConnection);
         return S_OK;

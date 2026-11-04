@@ -3,6 +3,7 @@
 #include "7zip/UI/GUI/ExtractRes.h"
 #include "Common/StringConvert.h"
 #include "Windows/PropVariant.h"
+#include "archive/password/archivepassword.h"
 #include "archive/resources/archiveinputpath.h"
 #include "archive/resources/qtarchivefileresource.h"
 #include "dialogs/messages/MessagesDialog.h"
@@ -147,8 +148,7 @@ HRESULT MainWindow::renderBoundFolder(bool updateAddress) {
         return E_NOTIMPL;
     projectedUi().archive = resource->EnginePath;
     const auto &parents = panel.GetParentFolders();
-    projectedUi().archivePassword =
-        parents.IsEmpty() ? QString() : ToQString(parents.Back().Password);
+    projectedUi().archivePassword = parents.IsEmpty() ? ArchivePassword() : parents.Back().Password;
     projectedUi().archiveFolder = QDir::fromNativeSeparators(ToQString(GetFolderPath(folder)));
     if (projectedUi().archiveFolder.endsWith('/'))
         projectedUi().archiveFolder.chop(1);

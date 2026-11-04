@@ -6,6 +6,7 @@
 
 #include "7zip/UI/FileManager/IFolder.h"
 #include "Common/MyCom.h"
+#include "archive/password/archivepassword.h"
 #include "platform/loader/DLL.h"
 #include <QWidget>
 
@@ -14,7 +15,7 @@ struct CFfpOpen {
   public:
     // out:
     bool Encrypted;
-    UString Password;
+    NativePassword Password;
     bool OwnedStreamFile = false;
     bool MaterializeStreamFile = false;
     bool MaterializedStreamFile = false;
