@@ -3,6 +3,7 @@
 // Igor Pavlov, LGPL-2.1-or-later; see third_party/7zip/License.txt.
 
 #include "archive/callbacks/qtcallbackpassword.h"
+#include "archive/password/archivepassword.h"
 #include "localization/LangUtils.h"
 
 #include "7zip/UI/FileManager/resourceGui.h"
@@ -40,7 +41,7 @@ HRESULT CUpdateCallbackGUI2::SetOperation_Base(UInt32 notifyOp, const wchar_t *n
 }
 
 HRESULT CUpdateCallbackGUI2::ShowAskPasswordDialog() {
-    UString password;
+    NativePassword password;
     if (!AskCallbackPassword(*ProgressDialog, password))
         return E_ABORT;
     Password = password;

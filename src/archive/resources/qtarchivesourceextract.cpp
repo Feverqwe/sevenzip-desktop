@@ -7,6 +7,7 @@
 #include "Common/StringConvert.h"
 #include "Windows/PropVariant.h"
 #include "archive/backend/archivebackend.h"
+#include "archive/password/archivepassword.h"
 #include "archive/resources/archivenativeopen.h"
 #include "archive/resources/qtarchivebackendrequest.h"
 #include "archive/resources/qtarchivefileresource.h"
@@ -36,13 +37,13 @@ HRESULT ExtractItems(ArchiveBackend &backend, const QString &archive, const QStr
                      IArchiveExtractCallback *callback, CProgressSync *sync, bool encrypted) {
     if (!metadata || !callback || (count != UInt32(-1) && count && !indices))
         return E_INVALIDARG;
-    QString password;
+    ArchivePassword password;
     if (encrypted) {
         CMyComPtr<ICryptoGetTextPassword> crypto;
         RINOK(callback->QueryInterface(IID_ICryptoGetTextPassword, (void **)&crypto))
-        CMyComBSTR value;
+        CMyComBSTR_Wipe value;
         RINOK(crypto->CryptoGetTextPassword(&value))
-        password = QString::fromWCharArray(value);
+        password = ArchivePassword(value, SysStringLen(*&value));
     }
     UInt32 total;
     RINOK(metadata->GetNumberOfItems(&total))
@@ -106,9 +107,9 @@ HRESULT ExtractItems(ArchiveBackend &backend, const QString &archive, const QStr
             result = RunArchiveBackendRequest(
                 backend,
                 [&] {
-                    backend.extractSourceEntry(archive, name, streamPath, format, password,
-                                               altStream.vt == VT_BOOL &&
-                                                   altStream.boolVal != VARIANT_FALSE);
+                    backend.extractSourceEntry(
+                        archive, name, streamPath, format, password.toQString(),
+                        altStream.vt == VT_BOOL && altStream.boolVal != VARIANT_FALSE);
                 },
                 callback, sync);
             if (result == S_FALSE)

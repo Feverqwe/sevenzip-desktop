@@ -34,6 +34,8 @@ set_target_properties(sevenzip_owned_temp PROPERTIES AUTOMOC OFF AUTOUIC OFF)
 target_include_directories(sevenzip_owned_temp PUBLIC src)
 target_link_libraries(sevenzip_owned_temp PUBLIC Qt6::Core PRIVATE sevenzip_native_types)
 
+add_subdirectory(src/archive/password)
+
 add_library(sevenzip_common STATIC ${SEVENZIP_7ZIP_SOURCE_DIR}/C/Sort.c ${SEVENZIP_7ZIP_SOURCE_DIR}/C/Alloc.c
     src/ui/diagnostics/qtdiagnostictext.cpp src/ui/diagnostics/qtdiagnostictext.h
     src/localization/qttranslationcatalog.cpp src/localization/qttranslationcatalog.h
@@ -90,7 +92,7 @@ set_target_properties(sevenzip_common PROPERTIES AUTOMOC OFF AUTOUIC OFF)
 target_include_directories(sevenzip_common PRIVATE src)
 target_include_directories(sevenzip_common PRIVATE ${SEVENZIP_7ZIP_SOURCE_DIR}/CPP/Windows)
 target_link_libraries(sevenzip_common PUBLIC sevenzip_native_types Qt6::Core
-    PRIVATE sevenzip_owned_temp)
+    PRIVATE sevenzip_owned_temp sevenzip_archive_password)
 target_compile_definitions(sevenzip_hash_registry PRIVATE Z7_EXTERNAL_CODECS)
 target_link_libraries(sevenzip_common PUBLIC sevenzip_hash_registration)
 target_link_libraries(sevenzip_common PUBLIC ${CMAKE_DL_LIBS})

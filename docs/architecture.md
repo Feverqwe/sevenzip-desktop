@@ -260,6 +260,16 @@ boundary and do not construct engine command syntax.
 Source extract/update callbacks and Agent folder bindings retain the original
 functional owners.
 
+Archive-opening passwords retained by panels, read operations, read-only views
+and external-editor sessions use the shared password-storage module. Its immutable
+allocations have independent page ownership, best-effort OS memory locking and
+Linux dump exclusion; the last owner wipes the allocation before releasing it.
+Native callbacks use wiping upstream string/BSTR adapters. Qt controls and native
+codecs still need plaintext while working, so these measures do not guarantee
+that every transient copy or derived key is locked or absent from a process dump.
+The [password-storage audit](upstream-port-audit/archive-passwords.md) records
+the source comparison and protection boundaries.
+
 Codec discovery loads the official native providers and their version metadata
 directly, retaining an immutable deployment image. It does not require a console
 executable; usable external format providers can supply a deployment without

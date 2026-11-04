@@ -5,6 +5,7 @@
 #ifndef ZIP7_INC_UPDATE_CALLBACK_GUI2_H
 #define ZIP7_INC_UPDATE_CALLBACK_GUI2_H
 
+#include "archive/password/archivepassword.h"
 #include "ui/progress/ProgressDialog2.h"
 
 class CUpdateCallbackGUI2 {
@@ -23,7 +24,7 @@ class CUpdateCallbackGUI2 {
     bool PasswordIsDefined;
     bool PasswordWasAsked;
     UInt64 NumFiles;
-    UString Password;
+    NativePassword Password;
 
   protected:
     UStringVector _lang_Ops;

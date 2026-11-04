@@ -435,7 +435,7 @@ HRESULT ShowDialog(CCodecs *codecs, const CObjectVector<NWildcard::CCensorPath> 
     const CArcInfoEx &archiverInfo = codecs->Formats[di.FormatIndex];
     callback->PasswordIsDefined = !di.Password.isEmpty();
     if (callback->PasswordIsDefined)
-        callback->Password = di.Password.toStdWString().c_str();
+        callback->Password = di.Password;
     options.MethodMode.Properties =
         NCompressDialog::GetCompressionProperties(di, archiverInfo.Is_7z());
     options.OpenShareForWrite = di.OpenShareForWrite;

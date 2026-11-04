@@ -17,6 +17,7 @@
 #include "archive/callbacks/archivepasswordretry.h"
 #include "archive/codecs/archivecodeccatalog.h"
 #include "archive/codecs/archivecodecprobe.h"
+#include "archive/password/archivepassword.h"
 #include "archive/resources/archivenativeopen.h"
 #include "archive/resources/qtarchivedirectoryextract.h"
 #include <QDir>
@@ -225,7 +226,8 @@ QtArchiveReadOperation::QtArchiveReadOperation(QString path, QString password,
                                                Kind kind, QString format, QString moduleLocation)
     : catalog_(std::move(catalog)), path_(std::move(path)), kind_(kind), format_(std::move(format)),
       moduleLocation_(std::move(moduleLocation)),
-      password_(password.isEmpty() ? std::nullopt : std::make_optional(std::move(password))) {}
+      password_(password.isEmpty() ? std::nullopt : std::make_optional(ArchivePassword(password))) {
+}
 
 QtArchiveReadOperation::QtArchiveReadOperation(std::shared_ptr<ArchiveNativeOpen> reader,
                                                QString password)
@@ -293,7 +295,7 @@ HRESULT QtArchiveReadOperation::password(BSTR *value) {
         RINOK(checkpoint())
         QMutexLocker lock(&passwordMutex_);
         if (password_)
-            return StringToBstr(password_->toStdWString().c_str(), value);
+            return password_->copyToBstr(value);
         if (!passwordRequested_) {
             if (!PasswordRequired)
                 return E_ABORT;

@@ -6,6 +6,7 @@
 
 #include "archive/callbacks/ArchiveOpenCallback.h"
 #include "archive/callbacks/archivepasswordretry.h"
+#include "archive/password/archivepassword.h"
 #include "crypto/fscrypt/fscryptkeyrequest.h"
 
 #ifdef Z7_SFX
@@ -30,7 +31,7 @@ class COpenArchiveCallback Z7_final :
   public:
     bool PasswordIsDefined;
     bool PasswordWasAsked;
-    UString Password;
+    NativePassword Password;
     UString_Wipe FilesystemKeys;
     bool FilesystemKeysDefined = false;
     HRESULT Open_FscryptKeys(BSTR *keys) override;
