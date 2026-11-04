@@ -163,6 +163,7 @@ class MainWindow : public QMainWindow {
     void redrawSourceProperties();
     void createPanelActions(QMenu *editMenu);
     void createIconList(QWidget *central);
+    void connectFileView(QAbstractItemView &view);
     void connectFilesystemScanner();
     void filesystemScanFolderReady(unsigned index, IFolderFolder *folder);
     void filesystemScanBatchReady(unsigned index, quint32 firstSourceIndex, quint32 count);

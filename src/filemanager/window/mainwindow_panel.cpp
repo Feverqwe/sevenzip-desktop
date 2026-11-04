@@ -121,16 +121,6 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
                     feedback->setVisible(!message.isEmpty() || !deviceReadOnly_->isHidden());
                 });
     }
-    connect(projectedUi().table, &QTableView::doubleClicked, this,
-            [this](const QModelIndex &index) {
-                const int row = index.row();
-                if (!fileListSettings_.SingleClick)
-                    activateRow(row, selectionClickModifiers_);
-            });
-    connect(projectedUi().table, &QTableView::clicked, this, [this](const QModelIndex &index) {
-        const int row = index.row();
-        activateSingleClickedRow(row);
-    });
 }
 
 void MainWindow::createFileTable(QWidget *central) {
@@ -192,17 +182,7 @@ void MainWindow::createFileTable(QWidget *central) {
             [this, owner = projectedPanel_](int column, Qt::SortOrder order) {
                 sortIndicatorChanged(owner, column, order);
             });
-    projectedUi().table->installEventFilter(this);
-    projectedUi().table->viewport()->installEventFilter(this);
-    connect(projectedUi().table, &QTableView::clicked, this, [this](const QModelIndex &index) {
-        const int row = index.row();
-        handleSelectionClick(row);
-    });
-    projectedUi().table->setContextMenuPolicy(Qt::CustomContextMenu);
-    connect(projectedUi().table, &QWidget::customContextMenuRequested, this,
-            [this, owner = projectedPanel_, view = projectedUi().table](const QPoint &pos) {
-                showItemContextMenu(owner, view, pos);
-            });
+    connectFileView(*projectedUi().table);
     app_.GetFocusedPanel().AttachSelectionView(
         fileTable,
         [fileTable](PROPID property, Int32) { return fileTable->columnForProperty(property); },
@@ -257,23 +237,26 @@ void MainWindow::createIconList(QWidget *central) {
     projectedUi().iconList->setDragEnabled(true);
     projectedUi().iconList->setAcceptDrops(true);
     projectedUi().iconList->viewport()->setAcceptDrops(true);
-    projectedUi().iconList->setContextMenuPolicy(Qt::CustomContextMenu);
-    projectedUi().iconList->installEventFilter(this);
-    projectedUi().iconList->viewport()->installEventFilter(this);
-    connect(projectedUi().iconList, &QListView::clicked, this,
-            [this](const QModelIndex &index) { handleSelectionClick(index.row()); });
     projectedUi().iconList->addAction(selectAll_);
     projectedUi().iconList->addAction(openItem_);
     projectedUi().iconList->addAction(parent_);
-    connect(projectedUi().iconList, &QListView::doubleClicked, this,
-            [this](const QModelIndex &index) {
-                if (!fileListSettings_.SingleClick)
-                    activateRow(index.row(), selectionClickModifiers_);
-            });
-    connect(projectedUi().iconList, &QListView::clicked, this,
+    connectFileView(*projectedUi().iconList);
+}
+
+void MainWindow::connectFileView(QAbstractItemView &view) {
+    view.setContextMenuPolicy(Qt::CustomContextMenu);
+    view.installEventFilter(this);
+    view.viewport()->installEventFilter(this);
+    connect(&view, &QAbstractItemView::clicked, this,
+            [this](const QModelIndex &index) { handleSelectionClick(index.row()); });
+    connect(&view, &QAbstractItemView::doubleClicked, this, [this](const QModelIndex &index) {
+        if (!fileListSettings_.SingleClick)
+            activateRow(index.row(), selectionClickModifiers_);
+    });
+    connect(&view, &QAbstractItemView::clicked, this,
             [this](const QModelIndex &index) { activateSingleClickedRow(index.row()); });
-    connect(projectedUi().iconList, &QWidget::customContextMenuRequested, this,
-            [this, owner = projectedPanel_, view = projectedUi().iconList](const QPoint &pos) {
+    connect(&view, &QWidget::customContextMenuRequested, this,
+            [this, owner = projectedPanel_, view = &view](const QPoint &pos) {
                 showItemContextMenu(owner, view, pos);
             });
 }

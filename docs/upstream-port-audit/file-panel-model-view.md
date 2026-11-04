@@ -1,5 +1,21 @@
 # Файловая панель: Qt Model/View — 2026-10-24
 
+## Shared table/icon input connections — 2026-11-05
+
+Reviewed native click/activation dispatch and the complete OnLeftClick body,
+with the Qt event filter, selection, activation and context-menu consumers.
+Complete original PanelListNotify.cpp, PanelSelect.cpp and Panel.h hashes match
+the existing baseline at `b88c6bc09339de32f7d18bbab900686b244f42ba`.
+No native algorithm, source revision or imported scope changes.
+
+Both file views now use the same private input-connection routine. It installs
+the existing view/viewport filters and connects selection before single-click
+activation, double-click activation and the owner-bound context menu. Modifier,
+drag and rename guards remain in their existing owners; model, shared selection,
+shortcuts, column setup and view presentation are unchanged. Existing activation,
+selection and context-menu behavior checks cover the integration; no assertion
+about private helper names or source structure is added.
+
 ## Explicit filesystem scan publication handlers — 2026-11-04
 
 Reviewed the native PanelItems load/refresh and FSFolder loading boundaries,
