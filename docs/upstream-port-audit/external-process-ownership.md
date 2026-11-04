@@ -325,3 +325,36 @@ This is focused ownership evidence, not full-suite or UI parity acceptance.
 The earlier broad run still has separate translation/UI failures and a Windows
 native-shell shutdown crash after its functional assertions pass. Those remain
 outside this process-registration fix. Slow suites were not run.
+
+## Windows association launcher owner — 2026-11-04
+
+Reviewed original BrowseDialog2 `StartApplication`/`StartApplicationDontWait`,
+their shell PIDL/parser, string conversion and CProcess dependencies, and both
+current consumers: associated-file services and the temporary-file browser.
+Complete BrowseDialog2.cpp/.h/.rc hashes match the recorded original baseline
+`b88c6bc09339de32f7d18bbab900686b244f42ba` from
+<https://github.com/ip7z/7zip.git>. No new source or revision is imported.
+
+The Windows launcher now belongs to the association module. Associated-file
+services include its narrow interface instead of the whole temporary-browser
+dialog; the browser consumes that same launcher. The baseline's existing
+extraction mapping records both transferred symbols and their new owner against
+the complete original inventory unit. Original hashes remain unchanged.
+
+PIDL handling, extensionless-path correction, Unicode/legacy branches, DDE flags,
+working directory, result mapping and process-handle attachment retain their
+source bodies. The empty-name error presentation is local to the launcher with
+the same critical dialog and text. Its Windows source retains the existing
+Unicode compiler definitions; the browser's definitions are preserved too.
+The shell-name parser remains with the panel menu. No new wrapper, process-wait
+policy, ownership/protection state, dialog layout or source omission is introduced.
+
+Linux passed `temp_cleanup`, `external_launch` and `archive_external_lifetime`:
+62 checks without skips (build 33.425s, tests 15.892s). Interactive Windows passed
+all four `native_association` scenarios: handle, disk, browser and workflow,
+15 checks without skips (final build 139.296s, tests 16.958s). The first Windows
+build exposed a previously transitive FileIO declaration; the final owner includes
+that header explicitly. No new test was needed for the source move. Existing
+incremental builds, four jobs and compiler caches were retained; completed
+settings and registry records for absent fixture objects were removed. No full,
+slow or macOS acceptance, screenshots or visual-parity claim is added.

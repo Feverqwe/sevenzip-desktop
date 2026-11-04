@@ -261,12 +261,16 @@ target_link_libraries(sevenzip_panel PUBLIC Qt6::Widgets sevenzip_common sevenzi
 target_sources(sevenzip_panel PRIVATE src/platform/shell/MyMessages.cpp src/archive/callbacks/qtguimessages.h)
 if(WIN32)
     target_sources(sevenzip_panel PRIVATE
+        src/platform/associations/qtassociatedfilelaunch_win.cpp
+        src/platform/associations/qtassociatedfilelaunch_win.h
         src/filemanager/panels/qtpaneldragnative.cpp src/filemanager/panels/qtpaneldragnative.h
         ${SEVENZIP_7ZIP_SOURCE_DIR}/CPP/7zip/UI/FileManager/EnumFormatEtc.cpp
         src/filemanager/providers/AltStreamsFolder.cpp
         src/filemanager/providers/AltStreamsFolder.h
         src/platform/shell/wincontextmenuservices.cpp src/platform/shell/wincontextmenuservices.h
         src/platform/shell/winshellmenupresentation.cpp src/platform/shell/winshellmenupresentation.h)
+    set_source_files_properties(src/platform/associations/qtassociatedfilelaunch_win.cpp PROPERTIES
+        COMPILE_DEFINITIONS "_UNICODE;UNICODE")
     target_link_libraries(sevenzip_panel PUBLIC shell32)
 endif()
 target_sources(sevenzip_panel PRIVATE src/ui/progress/qtprogresswait.cpp src/ui/progress/qtprogresswait.h)
