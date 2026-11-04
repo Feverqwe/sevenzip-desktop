@@ -1,5 +1,49 @@
 # Association conflict presentation — 2026-11-01
 
+## Complete checkbox choice publication — 2026-11-04
+
+An explicit checkbox choice can require two native ChangeState steps. Undoing
+an uncommitted choice over another handler passes through Clear before restoring
+Other. Previously each step emitted Changed; a synchronous Apply observer could
+request an unwanted association write while that temporary Clear was exposed.
+
+The Qt adapter now blocks its page notification across the complete checkbox
+choice and publishes the final changed state afterward. The existing outer
+bulk blocker continues to combine multiple choices into one completed update.
+Native state cycles, row refresh, disabled-format filtering, Other restoration,
+Apply/conflict/alias handling and native write policy are unchanged; no new
+state or controller is introduced. Advanced source-list actions retain their
+existing notification boundary.
+
+The complete presentation implementation now lives beside SystemPage in
+`settings/SystemPagePresentation.cpp`, in the same `sevenzip_location` target.
+Translation contexts/text are unchanged; catalog source-location filenames
+follow the move. Widget construction, layout, keyboard and focus bodies are
+unchanged. A proposed extra row record was rejected because the existing fixed
+source-index mapping already serves those consumers.
+
+Compared complete original SystemPage.cpp/.h/.rc and SystemPageRes.h at
+`9128b80e3a471108678e2b3ec3c985861c8d7b0f` from
+<https://github.com/ip7z/7zip.git>, including initialization, state cycles,
+Apply, resources and handlers, with current Qt selection and options consumers.
+All complete original hashes match the existing baseline. Native SystemPage.cpp
+and its header remain unchanged; the moved Qt adapter retains its local inventory.
+No external code is imported or original provenance advanced.
+
+The new public-signal regression stages a checkbox choice, subscribes an Apply
+observer, then undoes that choice. It checks that the original handler is retained
+without a native write through an injected service. Before the fix it reproduced
+one unwanted write; it does not assert private state or notification call counts.
+No user associations are used or modified by the checks.
+
+Linux `system_page`, `options_integration` and `options_keyboard` passed:
+40 checks without failures or skips, including the regression and the existing
+filtered/bulk, source-cycle, conflict/alias, Apply/Cancel and keyboard cases.
+The portable Qt notification boundary and unchanged platform services make Linux
+sufficient; no new Windows/macOS, full/slow or appearance acceptance is claimed.
+Selected scratch was empty before/after. Configured four-job incremental builds
+and compiler caches were retained; source inventory/whitespace checks passed.
+
 ## Completed choice projection — 2026-11-04
 
 Rechecked original SystemPage initialization, row refresh, mixed-selection
