@@ -735,3 +735,25 @@ and the post-caller archive-title update retain their behavior. Existing
 extract_dialog and source_extract_advanced suites cover confirmation, Cancel,
 saved/forced options, history, language, geometry and native extraction; no
 test was added for file structure or private helpers.
+
+## Compression format and method selection ownership — 2026-11-04
+
+Compared the original method/format tables, external encoder collection,
+OnInit format selection, SetMethod2, method ID/specification and SFX filtering
+bodies at `b88c6bc09339de32f7d18bbab900686b244f42ba` with the port and its
+CreateArchiveDialog, options and backend consumers. Complete original
+CompressDialog.cpp/.h/.rc hashes match the existing baseline.
+
+CompressMethods.cpp now owns the complete existing tables and selection bodies
+inside the same compression source component. The class interface and the
+single tables shared by dialog and backend consumers remain unchanged.
+The extraction preserves external encoder eligibility/order, saved and explicit
+selection, Auto sentinels, Store/TAR handling, SFX filtering, sorted format
+selection and dependent-control callbacks. Existing Qt control adapters and
+the recorded ZIP method adaptations are retained; no algorithm or external
+source revision changes. Memory/resource estimation and output naming stay
+with their existing owners. Existing method state, profile selection, codec
+creation and SFX behavior suites cover the affected scenario; no structural
+test is introduced for this source extraction.
+All four focused suites passed on Linux. Other platforms and visual parity
+were not revalidated for this nonvisual ownership change.
