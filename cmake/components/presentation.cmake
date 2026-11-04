@@ -110,6 +110,7 @@ add_library(sevenzip_panel
     src/dialogs/link/LinkDialog.cpp
     src/dialogs/link/LinkDialog.h
     src/fileops/links/qtlinkcontrols.cpp
+    src/fileops/links/qtlinkpresentation.cpp
     src/fileops/links/qtlinkcontrols.h
     src/filemanager/ExtractCallback.cpp
     src/filemanager/ExtractCallbackOutput.cpp

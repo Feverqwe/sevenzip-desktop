@@ -1848,6 +1848,7 @@
     "src/filemanager/window/qtmainwindowchrome.h",
     "src/fileops/links/qtlinkcontrols.cpp",
     "src/fileops/links/qtlinkcontrols.h",
+    "src/fileops/links/qtlinkpresentation.cpp",
     "src/fileops/links/qtlinkservices.cpp",
     "src/fileops/links/qtlinkservices.h",
     "src/fileops/links/qtverctrlfileservices.cpp",
