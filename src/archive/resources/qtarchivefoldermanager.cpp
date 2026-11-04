@@ -46,9 +46,7 @@ struct QtArchiveFolderManager::COpenServices final : IQtAgentOpenServices {
         return S_OK;
     }
     IUnknown *Resource() const override { return Lease; }
-    HRESULT Open(CArchiveLink &link, const COpenOptions &options, IOpenCallbackUI *) override {
-        return Manager.OpenLinkImpl(link, options, *this);
-    }
+    HRESULT Open(CArchiveLink &link, const COpenOptions &options, IOpenCallbackUI *) override;
 };
 
 HRESULT
@@ -154,14 +152,15 @@ HRESULT QtArchiveFolderManager::OpenFolderFileImpl(IInStream *inStream, const wc
     COM_TRY_END
 }
 
-HRESULT QtArchiveFolderManager::OpenLinkImpl(CArchiveLink &link, const COpenOptions &sourceOptions,
-                                             COpenServices &services) {
+HRESULT QtArchiveFolderManager::COpenServices::Open(CArchiveLink &link,
+                                                    const COpenOptions &sourceOptions,
+                                                    IOpenCallbackUI *) {
     COM_TRY_BEGIN
     IInStream *inStream = sourceOptions.stream;
     const wchar_t *filePath = sourceOptions.filePath;
-    IProgress *progress = services.Progress;
-    const bool ownedStreamFile = services.OwnedStreamFile;
-    auto *resource = services.Lease.ClsPtr();
+    IProgress *progress = Progress;
+    const bool ownedStreamFile = OwnedStreamFile;
+    auto *resource = Lease.ClsPtr();
     QString ownedPath;
     auto cleanup = qScopeGuard([&] {
         if (!ownedPath.isEmpty()) {
@@ -169,7 +168,7 @@ HRESULT QtArchiveFolderManager::OpenLinkImpl(CArchiveLink &link, const COpenOpti
             QFile::remove(ownedPath);
         }
     });
-    const QString format = QString::fromWCharArray(services.Format);
+    const QString format = QString::fromWCharArray(Format);
     auto *callback = dynamic_cast<COpenCallbackImp *>(progress);
     auto *ui = callback ? dynamic_cast<COpenArchiveCallback *>(callback->Callback) : nullptr;
     if (ui)
@@ -178,7 +177,7 @@ HRESULT QtArchiveFolderManager::OpenLinkImpl(CArchiveLink &link, const COpenOpti
         CNativeOpenProgress nativeProgress(progress, callback ? callback->Callback : nullptr);
         QString error;
         const HRESULT result =
-            resource->OpenDeviceInput(_backend, inStream, &nativeProgress, &error);
+            resource->OpenDeviceInput(Manager._backend, inStream, &nativeProgress, &error);
         // The source opening worker is joined before CFfpOpen reads this
         // per-opening diagnostic. No widget access or shared backend state.
         if (ui)
@@ -188,8 +187,8 @@ HRESULT QtArchiveFolderManager::OpenLinkImpl(CArchiveLink &link, const COpenOpti
     }
     // CopyTo's in-memory result keeps its established owned-file publication
     // and editing lifetime. Real handler streams stay direct.
-    const bool streamInput = inStream && services.Catalog && services.Catalog->result() == S_OK &&
-                             !services.MaterializeStreamFile;
+    const bool streamInput =
+        inStream && Catalog && Catalog->result() == S_OK && !MaterializeStreamFile;
     if (inStream && !streamInput) {
         if (ownedStreamFile) {
             RINOK(resource->SpoolToOwnedFile(inStream, QString::fromWCharArray(filePath), progress))
@@ -210,11 +209,11 @@ HRESULT QtArchiveFolderManager::OpenLinkImpl(CArchiveLink &link, const COpenOpti
         inputLayer = std::move(*layer);
         RINOK(inputLayer->OpenCursor(&inputCursor))
     }
-    COpenOptions nativeOptions = services.Requested ? *services.Requested : sourceOptions;
+    COpenOptions nativeOptions = Requested ? *Requested : sourceOptions;
     nativeOptions.stream = inputCursor;
     nativeOptions.QtOpenService = nullptr;
-    const HRESULT nativeResult = _backend.openNativeArchive(
-        services.Catalog, path, format, &nativeProgress, nativeOpen, &nativeOptions);
+    const HRESULT nativeResult = Manager._backend.openNativeArchive(
+        Catalog, path, format, &nativeProgress, nativeOpen, &nativeOptions);
     if (nativeOpen) {
         link.NonOpen_ArcPath = nativeOpen->archiveLink().NonOpen_ArcPath;
         link.NonOpen_ErrorInfo = nativeOpen->archiveLink().NonOpen_ErrorInfo;
@@ -237,10 +236,11 @@ HRESULT QtArchiveFolderManager::OpenLinkImpl(CArchiveLink &link, const COpenOpti
         resource->RetainStreamInput(std::move(inputLayer));
     if (resource->NativeArchiveLink()) {
         resource->UseNativeMetadata();
-        resource->AttachReopenService(_backend, streamInput ? format : resource->TransportFormat());
-        resource->AttachExtractService(_backend, resource->TransportFormat());
+        resource->AttachReopenService(Manager._backend,
+                                      streamInput ? format : resource->TransportFormat());
+        resource->AttachExtractService(Manager._backend, resource->TransportFormat());
         if (resource->HasNativeUpdateService())
-            resource->AttachUpdateService(_backend, resource->TransportFormat());
+            resource->AttachUpdateService(Manager._backend, resource->TransportFormat());
         RINOK(CreateArchiveLinkTransport(link, nullptr, resource, sourceOptions.codecs))
         cleanup.dismiss();
         return nativeResult;
@@ -252,16 +252,16 @@ HRESULT QtArchiveFolderManager::OpenLinkImpl(CArchiveLink &link, const COpenOpti
                                  : nativeProgress.Password;
     ArchiveInfo info;
     QList<ArchiveEntry> entries;
-    RINOK(ReadArchiveBackendListing(_backend, path, listingFormat, password, progress,
+    RINOK(ReadArchiveBackendListing(Manager._backend, path, listingFormat, password, progress,
                                     ui ? &ui->ProgressDialog.Sync : nullptr, info, entries))
     CMyComPtr<IFolderFolder> folder;
     try {
         resource->Info = info;
         const QString transportFormat = resource->TransportFormat();
-        resource->AttachReopenService(_backend, transportFormat);
-        resource->AttachExtractService(_backend, transportFormat);
-        if (_backend.supportsArchiveUpdate(info.format))
-            resource->AttachUpdateService(_backend, info.format);
+        resource->AttachReopenService(Manager._backend, transportFormat);
+        resource->AttachExtractService(Manager._backend, transportFormat);
+        if (Manager._backend.supportsArchiveUpdate(info.format))
+            resource->AttachUpdateService(Manager._backend, info.format);
         RINOK(CreateArchiveMetadata(entries, &folder))
     } catch (...) {
         return E_FAIL;

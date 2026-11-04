@@ -29,7 +29,6 @@ class QtArchiveFolderManager final : public QObject,
                                IFolderFolder **folder, IProgress *progress, bool ownedStreamFile,
                                const COpenOptions *options = nullptr,
                                bool materializeStream = false);
-    HRESULT OpenLinkImpl(CArchiveLink &link, const COpenOptions &options, COpenServices &services);
 
   public:
     explicit QtArchiveFolderManager(ArchiveBackend &backend);
