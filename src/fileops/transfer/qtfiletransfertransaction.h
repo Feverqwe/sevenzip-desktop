@@ -4,7 +4,7 @@
 #include <QList>
 #include <QString>
 #include <QStringList>
-#include <functional>
+#include <optional>
 #include <variant>
 
 // Filesystem staging, publication and rollback for one joined transfer worker.
@@ -16,6 +16,9 @@ class QtFileTransferTransaction final {
         std::variant<QString, OverwriteQuestion::File> Incoming;
     };
     static OverwriteQuestion snapshot(const OverwriteSource &source);
+    enum class OverwriteDecision { Skip, Replace, Rename, Cancel };
+    std::optional<OverwriteDecision> rememberedOverwrite_;
+    OverwriteDecision decideOverwrite(const OverwriteSource &source);
     enum class SourceState { Intact, Renamed, RemovalStarted };
     enum class RollbackMode { RestoreSources, KeepMovedSources };
     struct TransferPath {
@@ -32,9 +35,7 @@ class QtFileTransferTransaction final {
     };
     FileTransferOperation &worker_;
     QList<TransferPath> prepareTargets(QString &error) const;
-    bool transferEntry(const TransferPath &path,
-                       const std::function<int(const OverwriteSource &)> &answer,
-                       QList<TransferEntry> &completed, QString &error);
+    bool transferEntry(const TransferPath &path, QList<TransferEntry> &completed, QString &error);
     FileTransferOperation::Completion finish(QList<TransferEntry> &completed, QString &error);
     void rollbackEntry(const TransferEntry &entry, const QString &ownedPath, RollbackMode mode);
     void rollback(const QList<TransferEntry> &completed,
@@ -43,7 +44,6 @@ class QtFileTransferTransaction final {
     bool copyEntry(const QString &source, const QString &target, QString *error,
                    bool reportProgress = true);
     bool mergeEntry(const QString &source, const QString &stage, const QString &target,
-                    const std::function<int(const OverwriteSource &)> &answer,
                     QStringList *writtenSources, QString *error);
     bool removeMergedSource(const QString &source, const QStringList &writtenSources,
                             QString *error);

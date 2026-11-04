@@ -1,6 +1,5 @@
 #include "7zip/Common/FilePathAutoRename.h"
 #include "Common/StringConvert.h"
-#include "archive/callbacks/IFileExtractCallback.h"
 #include "filemanager/providers/FSFolder.h"
 #include "fileops/links/qtlinkservices.h"
 #include "fileops/transfer/qtfiletransfercopycallback.h"
@@ -60,14 +59,12 @@ bool QtFileTransferTransaction::copyEntry(const QString &source, const QString &
     return copied;
 }
 
-bool QtFileTransferTransaction::mergeEntry(
-    const QString &source, const QString &stage, const QString &target,
-    const std::function<int(const OverwriteSource &)> &answer, QStringList *writtenSources,
-    QString *error) {
+bool QtFileTransferTransaction::mergeEntry(const QString &source, const QString &stage,
+                                           const QString &target, QStringList *writtenSources,
+                                           QString *error) {
     CFileTransferCopyCallback callback(
-        [this, &answer, &stage, &target](const OverwriteQuestion::File &incoming,
-                                         const QString &requested, QString &effective,
-                                         bool &write) -> HRESULT {
+        [this, &stage, &target](const OverwriteQuestion::File &incoming, const QString &requested,
+                                QString &effective, bool &write) -> HRESULT {
             if (worker_.canceled_)
                 return E_ABORT;
             const QFileInfo existing(requested);
@@ -75,21 +72,22 @@ bool QtFileTransferTransaction::mergeEntry(
                 return E_ABORT;
             if (existing.exists()) {
                 const QString visible = target + requested.mid(stage.size());
-                const int decision = answer({requested, visible, incoming});
-                if (decision == NOverwriteAnswer::kNo || decision == NOverwriteAnswer::kNoToAll) {
+                switch (decideOverwrite({requested, visible, incoming})) {
+                case OverwriteDecision::Skip:
                     write = false;
                     return S_OK;
-                }
-                if (decision == NOverwriteAnswer::kAutoRename) {
+                case OverwriteDecision::Rename: {
                     FString renamed = us2fs(requested.toStdWString().c_str());
                     if (!AutoRenamePath(renamed))
                         return E_ABORT;
                     effective = QString::fromWCharArray(fs2us(renamed));
-                } else if (decision == NOverwriteAnswer::kYes ||
-                           decision == NOverwriteAnswer::kYesToAll) {
+                    break;
+                }
+                case OverwriteDecision::Replace:
                     if (!QFile::remove(requested))
                         return E_ABORT;
-                } else {
+                    break;
+                case OverwriteDecision::Cancel:
                     return E_ABORT;
                 }
             }
