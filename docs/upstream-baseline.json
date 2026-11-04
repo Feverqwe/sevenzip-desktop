@@ -1693,6 +1693,7 @@
     "src/filemanager/external/qtexternalapplications.h",
     "src/filemanager/external/qtexternalfilesession.cpp",
     "src/filemanager/external/qtexternalfilesession.h",
+    "src/filemanager/nativecommanddispatch.cpp",
     "src/filemanager/panels/PanelAddress.cpp",
     "src/filemanager/panels/PanelColumns.cpp",
     "src/filemanager/panels/PanelDrag_win.cpp",
@@ -3810,6 +3811,27 @@
         "DuplicateGlobalMem",
         "Medium_CopyFrom",
         "DataObject_GetData_GetTransfer"
+      ]
+    },
+    "src/filemanager/MyLoadMenu.cpp": {
+      "local": [
+        "src/filemanager/nativecommanddispatch.cpp"
+      ],
+      "symbols": [
+        "ExecuteFileCommand",
+        "OnMenuCommand",
+        "k_MenuID_OpenBookmark",
+        "k_MenuID_SetBookmark",
+        "kFMHelpTopic"
+      ]
+    },
+    "src/filemanager/MyLoadMenu.h": {
+      "local": [
+        "src/filemanager/qtfilemanagercommandservices.h"
+      ],
+      "symbols": [
+        "ExecuteFileCommand (adapted declaration)",
+        "OnMenuCommand (adapted declaration)"
       ]
     }
   },

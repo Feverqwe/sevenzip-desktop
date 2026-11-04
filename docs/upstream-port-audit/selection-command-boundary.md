@@ -1,5 +1,35 @@
 # Selection command boundary — 2026-10-31
 
+## Complete menu-command dispatch owner — 2026-11-04
+
+Compared the complete original MyLoadMenu.cpp command switches, header,
+resource IDs and callers at recorded revision
+`b88c6bc09339de32f7d18bbab900686b244f42ba`. Complete original cpp/header hashes
+match the existing baseline. Current CApp/window admission, Qt action/context
+dispatch, capability projection and menu activation consumers were reviewed
+together.
+
+File/main command dispatch and hash-command mapping now share
+`filemanager/nativecommanddispatch.cpp`, in the same sevenzip_panel target.
+Their declarations live beside the existing typed command-services interface;
+menu construction, translation, activation and file-menu policy keep their
+existing owner. Both switches and hash mapping are unchanged, including
+admission checks, plugin release, Shift/Delete, explicit archive types,
+selection/status updates and bookmark/timestamp dispatch. FM.cpp retains the
+window call scope, toolbar timer guards and close exception. No new dispatcher
+state, algorithm replacement or external code import is introduced. Existing
+baseline extraction mappings retain the original hashes and revision.
+
+Focused Linux validation passed native_command_dispatch, shell_menu_window,
+view_menu and command_policy_runtime: 39 Qt checks, no failures or skips.
+These cover typed archive/hash commands, Shift/Delete and plugin release,
+window menu routes, timestamp/view dispatch and stale capability/lifecycle
+rejection. Existing behavior tests were reused; no source-presence tests were
+added. Platform implementations and file-specific compilation options remain
+unchanged, so Windows/macOS acceptance was not repeated. This change does not
+claim new visual parity. Completed test settings were removed; incremental
+builds and compiler caches were retained.
+
 ## Copy/Move workflow implementation owner — 2026-11-04
 
 The complete application Copy/Move workflow now lives in `AppCopy.cpp`: native

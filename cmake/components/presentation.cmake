@@ -84,6 +84,7 @@ add_library(sevenzip_panel
     src/platform/filepicker/CommonDialog.cpp
     src/platform/filepicker/CommonDialog.h
     src/filemanager/MyLoadMenu.cpp
+    src/filemanager/nativecommanddispatch.cpp
     src/filemanager/MyLoadMenu.h
     src/filemanager/qtfilemenuservices.h
     src/filemanager/qtfilemanagercommandservices.h
