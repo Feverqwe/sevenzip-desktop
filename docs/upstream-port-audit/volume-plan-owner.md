@@ -1,5 +1,31 @@
 # Split/Combine plan ownership — 2026-11-01
 
+## Completion preserves source selection — 2026-11-04
+
+Rechecked the complete original `PanelSplitFile.cpp` commands/workers at
+`b88c6bc09339de32f7d18bbab900686b244f42ba` from
+<https://github.com/ip7z/7zip.git>, its recorded full-unit hash, the current
+plans, native command bodies, Qt worker/result bridge, progress-close and
+panel-refresh consumers. Native commands leave the source selection in place;
+the Qt completion bridge instead reopened the directory and cleared it.
+Existing two-panel Split/Combine cases reproduced that loss in both panels,
+including flat mode and Unicode paths.
+
+The Qt service retains the originating panel before the source dialog, and the
+worker launch retains its selected state. Completion restores filesystem command
+readiness before using the panel's existing `RefreshListCtrl` publication on
+success.
+Window-owned panels outlive the worker; window close already disconnects,
+cancels and joins that worker. No new controller, native algorithm or platform
+adapter is introduced. Completion callbacks, progress error/cancel handling,
+output transactions and worker joins retain their existing order. The existing
+workflow cases now also check that the operated input remains selected.
+
+Linux `volume_workflow` passed all 29 checks. The unchanged worker also passed
+all 39 `volume_operations` checks, covering cancellation, input changes,
+collisions and rollback; that evidence was retained across the window-only
+follow-up. No new Windows/macOS or appearance acceptance is claimed.
+
 ## Native worker implementation owner — 2026-11-04
 
 The complete sequence-naming, native split/combine workers, preallocation,

@@ -111,6 +111,9 @@ class VolumeWorkflowTests : public QObject, protected MainWindowTestSupport {
         // Join the operation even on the old implementation, then report the
         // wrong default without leaving a running worker during assertion exit.
         QTRY_VERIFY(action(window, "createFolderAction")->isEnabled());
+        const auto selected = source->selectionModel()->selectedRows();
+        QCOMPARE(selected.size(), 1);
+        QCOMPARE(selected.front().data(Qt::UserRole + 3).toString(), name);
         QCOMPARE(QDir::cleanPath(defaultPath), output);
         QCOMPARE(read(QDir(output).filePath("keep.txt")), QByteArray("peer bytes"));
         QCOMPARE(peer->sourcePanel->GetFolder(), (IFolderFolder *)peerProvider);
