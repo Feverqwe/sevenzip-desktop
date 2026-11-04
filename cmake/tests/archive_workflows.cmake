@@ -152,6 +152,22 @@ if(BUILD_TESTING)
     add_test(NAME source_metadata_storage COMMAND source_metadata_storage_tests -silent)
     set_tests_properties(source_metadata_storage PROPERTIES TIMEOUT 60 ENVIRONMENT
         "QT_QPA_PLATFORM=offscreen;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
+    qt_add_executable(archive_directory_command_tests tests/filemanager/archive_directory_command_tests.cpp)
+    target_link_libraries(archive_directory_command_tests PRIVATE sevenzip_window Qt6::Test)
+    target_include_directories(archive_directory_command_tests PRIVATE src tests)
+    target_compile_definitions(archive_directory_command_tests PRIVATE
+        "SEVENZIP_SPARSE_FIXTURES=\"${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/sparse-images\"")
+    if(SEVENZIP_CODEC_MODULE)
+        target_compile_definitions(archive_directory_command_tests PRIVATE
+            "SEVENZIP_CODEC_MODULE=\"${SEVENZIP_CODEC_MODULE}\"")
+    endif()
+    add_test(NAME archive_directory_command COMMAND archive_directory_command_tests -silent)
+    set_tests_properties(archive_directory_command PROPERTIES TIMEOUT 60
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/archive-directory-command.ini")
+    if(APPLE)
+        set_property(TEST archive_directory_command PROPERTY ENVIRONMENT
+            "QT_QPA_PLATFORM=cocoa;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/archive-directory-command.ini")
+    endif()
     qt_add_executable(codec_commands_ui_tests tests/filemanager/codec_commands_ui_tests.cpp)
     target_link_libraries(codec_commands_ui_tests PRIVATE sevenzip_layout_inspection)
     target_link_libraries(codec_commands_ui_tests PRIVATE sevenzip_window)

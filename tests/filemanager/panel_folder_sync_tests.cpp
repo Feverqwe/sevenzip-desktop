@@ -14,14 +14,23 @@ class PanelFolderSyncTests final : public QObject, protected MainWindowTestSuppo
         QTest::addColumn<int>("key");
         QTest::addColumn<bool>("same");
         QTest::addColumn<int>("items");
-        QTest::newRow("same-small") << int(Qt::Key_Up) << true << 3;
-        QTest::newRow("sub-left-small") << int(Qt::Key_Left) << false << 3;
-        QTest::newRow("sub-right-large") << int(Qt::Key_Right) << false << 512;
+        QTest::addColumn<unsigned>("sourcePane");
+        for (unsigned pane : {0u, 1u}) {
+            QTest::newRow(qPrintable(QString("same-small-%1").arg(pane)))
+                << int(Qt::Key_Up) << true << 3 << pane;
+            QTest::newRow(qPrintable(QString("same-large-%1").arg(pane)))
+                << int(Qt::Key_Up) << true << 512 << pane;
+            QTest::newRow(qPrintable(QString("sub-left-small-%1").arg(pane)))
+                << int(Qt::Key_Left) << false << 3 << pane;
+            QTest::newRow(qPrintable(QString("sub-right-large-%1").arg(pane)))
+                << int(Qt::Key_Right) << false << 512 << pane;
+        }
     }
     void altArrowPublishesOtherFolderWithoutMovingFocus() {
         QFETCH(int, key);
         QFETCH(bool, same);
         QFETCH(int, items);
+        QFETCH(unsigned, sourcePane);
         {
             QSettings settings(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"),
                                QSettings::IniFormat);
@@ -40,20 +49,22 @@ class PanelFolderSyncTests final : public QObject, protected MainWindowTestSuppo
             QVERIFY(file.open(QIODevice::WriteOnly));
             QCOMPARE(file.write("bytes"), qint64(5));
         }
-        SavePanelPath(1, ToUString(originalDestination),
+        SavePanelPath(1 - sourcePane, ToUString(originalDestination),
                       qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         ControlledBackend backend;
         MainWindow window(&backend);
         window.show();
         QVERIFY(QTest::qWaitForWindowActive(&window));
-        auto *left = window.findChild<QWidget *>("filePanel0");
+        action(window, "twoPanelsAction")->trigger();
+        auto *left = window.findChild<QWidget *>(QString("filePanel%1").arg(sourcePane));
         auto *sourceAddress = left->findChild<QLineEdit *>("archivePath");
         auto *sourceTable = left->findChild<FileTable *>("archiveTable");
+        sourceAddress->setFocus();
+        QTRY_VERIFY(sourceAddress->hasFocus());
         sourceAddress->setText(source);
         QTest::keyClick(sourceAddress, Qt::Key_Return);
         QTRY_VERIFY(sourceTable->isEnabled());
-        action(window, "twoPanelsAction")->trigger();
-        auto *right = window.findChild<QWidget *>("filePanel1");
+        auto *right = window.findChild<QWidget *>(QString("filePanel%1").arg(1 - sourcePane));
         QVERIFY(right);
         auto *destinationAddress = right->findChild<QLineEdit *>("archivePath");
         auto *destinationTable = right->findChild<FileTable *>("archiveTable");
@@ -71,6 +82,9 @@ class PanelFolderSyncTests final : public QObject, protected MainWindowTestSuppo
         QTRY_VERIFY(destinationTable->isEnabled());
         const int expectedRows = items + (same ? 2 : 1); // child and parent rows
         QTRY_COMPARE(destinationTable->rowCount(), expectedRows);
+        QVERIFY(destinationTable->currentIndex().isValid());
+        QVERIFY(
+            destinationTable->selectionModel()->isRowSelected(destinationTable->currentRow(), {}));
         QCOMPARE(QDir::cleanPath(sourceAddress->text()), source);
         QVERIFY(sourceTable->hasFocus());
         QVERIFY(destinationTable->updatesEnabled());
@@ -89,6 +103,14 @@ class PanelFolderSyncTests final : public QObject, protected MainWindowTestSuppo
                 window,
                 QStringLiteral("alt-folder-%1-%2").arg(QTest::currentDataTag()).arg(width)));
         }
+        destinationTable->setFocus();
+        QTRY_VERIFY(destinationTable->hasFocus());
+        const auto file = PanelMatches(*destinationTable, QStringLiteral("файл 0.txt"));
+        QVERIFY(!file.isEmpty());
+        destinationTable->selectRow(file.first().row());
+        QTRY_VERIFY(action(window, "copyAction")->isEnabled());
+        sourceTable->setFocus();
+        QTRY_VERIFY(sourceTable->hasFocus());
     }
     void noOpConditions_data() {
         QTest::addColumn<bool>("twoPanels");
@@ -330,6 +352,7 @@ class PanelFolderSyncTests final : public QObject, protected MainWindowTestSuppo
         auto *destinationTable = right->findChild<FileTable *>("archiveTable");
         QTRY_VERIFY(destinationTable->isEnabled());
         QTRY_COMPARE(destinationTable->rowCount(), items);
+        QVERIFY(destinationTable->currentIndex().isValid());
         QVERIFY(destinationTable->updatesEnabled());
         QVERIFY(table->hasFocus());
         auto *destinationPanel = static_cast<FileTable *>(destinationTable)->sourcePanel;

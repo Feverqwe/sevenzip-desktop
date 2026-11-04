@@ -121,8 +121,7 @@ void CApp::OnSetSameFolder(unsigned srcPanelIndex) {
     if (_presentation)
         _presentation->PrepareFolderChange(1 - srcPanelIndex);
     destPanel.BindToPathAndRefresh(srcPanel._currentFolderPrefix);
-    if (_presentation)
-        _presentation->RefreshFolder(1 - srcPanelIndex);
+    _qtOperations.ContinueScanAfterSourceCall(1 - srcPanelIndex);
 }
 
 void CApp::OnSetSubFolder(unsigned srcPanelIndex) {
@@ -152,8 +151,6 @@ void CApp::OnSetSubFolder(unsigned srcPanelIndex) {
                 destPanel.BindToPath(parentPrefix, UString(), openRes);
             }
             destPanel.RefreshListCtrl();
-            if (_presentation)
-                _presentation->RefreshFolder(1 - srcPanelIndex);
             return;
         }
     } else {
@@ -167,8 +164,6 @@ void CApp::OnSetSubFolder(unsigned srcPanelIndex) {
     destPanel.CloseOpenFolders();
     destPanel.SetNewFolder(newFolder);
     destPanel.RefreshListCtrl();
-    if (_presentation)
-        _presentation->RefreshFolder(1 - srcPanelIndex);
 }
 
 HRESULT CApp::CreateOnePanel(unsigned panelIndex, const UString &mainPath, const UString &arcFormat,

@@ -4,6 +4,44 @@
 Это намеренная адаптация представления; полный исходный функциональный scope
 и baseline сохраняются в [основном аудите](../upstream-port-audit.md).
 
+## Complete toolbar group projection — 2026-11-05
+
+Reviewed complete original CreateToolbar, both button tables, SetButtonText,
+AddButton, ReloadToolbars, SaveToolbarChanges and their creation/preferences
+callers at `b88c6bc09339de32f7d18bbab900686b244f42ba` from
+<https://github.com/ip7z/7zip.git>, with resource.rc's Toolbars menu.
+Complete App.cpp/resource.rc hashes match the existing baseline. Native flags,
+persistence, commands, captions and approved Qt icon/text adaptation are retained;
+no external source or revision is imported.
+
+Qt now projects the two action groups into the toolbar, following the original
+ReloadToolbars policy of constructing only enabled groups. Group membership is
+defined with action creation; the local directory-size extension joins the
+archive group and applies saved preferences after binding. A single visible-action
+pass configures buttons. This replaces independent fixed visibility/style lists
+and prevents the extension remaining visible with archive tools disabled.
+The shared menu QActions retain identity, visibility and command availability;
+the group separator appears only when both groups are shown. Existing native
+caption/tooltip publication remains separate from group selection.
+The toolbar layout completes synchronously after captions and styling, retaining
+the original AutoSize-before-return behavior without spinning the event loop.
+
+Regressions check EN/RU at 980x620 and 640x400, all group combinations, ordered
+unclipped buttons, navigation/action updates and preferences after reopening.
+The old first-toolbar-widget assertion now checks the actual Add command's
+absence/visibility. Obsolete live ExtractDialog::options assertions were removed
+from this mixed layout suite; the dedicated extract_dialog suite retains native
+accepted-result coverage without recreating the removed adapter API.
+
+Linux ui_layout, main_shell and language_ui passed 54 Qt checks without skips;
+extract_dialog passed separately during the diagnostic batch. The initial
+toolbar regression failed in all four EN/RU normal/compact rows. A follow-up
+caught deferred Qt layout after reconstruction; immediate visibility and large
+button assertions now pass unchanged. Twenty current group widget JSON reports
+confirm enabled-group counts, order and exposed bounds, including reopening.
+These are Linux/offscreen structure and behavior checks, not rendered Windows
+pixel parity, macOS runtime acceptance or a full/slow gate.
+
 ## Единое обновление назначения после Copy/Move из архива — 31 октября 2026
 
 Сопоставлено полное `CApp::OnCopy` из `CPP/7zip/UI/FileManager/App.cpp`

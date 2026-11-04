@@ -6,6 +6,7 @@
 #include "filemanager/window/qtmainwindowchrome.h"
 #include "localization/qtlanguageservices.h"
 #include "ui/theme/qtcommandicons.h"
+#include <QLayout>
 #include <QSignalBlocker>
 #include <QToolButton>
 
@@ -51,16 +52,21 @@ void MainWindow::updateToolbar() {
     standardToolbarOption_->setChecked(standard);
     largeButtonsOption_->setChecked(app_.LargeButtons);
     buttonTextOption_->setChecked(app_.ShowButtonsLables);
-    for (QAction *action : {toolbarAdd_, extract_, test_})
-        toolbar->widgetForAction(action)->setVisible(archive);
-    for (QAction *action : {copy_, move_, remove_, infoAction_})
-        toolbar->widgetForAction(action)->setVisible(standard);
-    toolbar->widgetForAction(toolbarGroupSeparator_)->setVisible(archive && standard);
-    toolbar->widgetForAction(toolbarGroupSeparator_)->setStyle(toolbar->style());
+    // Source ReloadToolbars constructs only the enabled groups. Keep QAction
+    // visibility for the shared menus; the toolbar projects group membership.
+    toolbar->clear();
+    if (archive)
+        toolbar->addActions(archiveToolbarActions_);
+    if (archive && standard) {
+        toolbar->addAction(toolbarGroupSeparator_);
+        toolbar->widgetForAction(toolbarGroupSeparator_)->setStyle(toolbar->style());
+    }
+    if (standard)
+        toolbar->addActions(standardToolbarActions_);
     toolbar->setVisible(archive || standard);
     toolbar->setIconSize(largeButtonsOption_->isChecked() ? QSize(24, 24) : QSize(16, 16));
     toolbar->setToolButtonStyle(Qt::ToolButtonIconOnly);
-    for (QAction *action : {toolbarAdd_, extract_, test_, copy_, move_, remove_, infoAction_}) {
+    for (QAction *action : toolbar->actions()) {
         if (auto *button = qobject_cast<QToolButton *>(toolbar->widgetForAction(action))) {
             QtConfigureMainToolbarButton(*button);
             const bool primary = action == toolbarAdd_ || action == extract_;
@@ -72,6 +78,7 @@ void MainWindow::updateToolbar() {
         }
     }
     refreshToolbarTexts();
+    toolbar->layout()->activate();
 }
 
 void MainWindow::showSettings() {

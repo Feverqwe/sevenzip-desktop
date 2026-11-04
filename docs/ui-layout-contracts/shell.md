@@ -136,6 +136,8 @@ File/Edit/View/Favorites/Tools/Help. File retains the RC command set;
 independent Qt archive-workflow aliases have been removed. Unsupported source commands remain
 visible disabled. The original Archive and Standard toolbar reference used seven
 large/small bitmap pairs; the approved vector adaptation is described below.
+The local folder-size command belongs to the archive group. Hiding that group
+removes its toolbar button while retaining the command in the File menu.
 Text/size/visibility derive from the native toolbar flags. `main_shell` checks
 command identity, shortcuts, availability, active-panel routing and rendering, then writes
 `main-shell-980x620.json`, `main-shell-640x400.json` and File/View popup reports

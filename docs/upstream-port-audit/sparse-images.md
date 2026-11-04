@@ -206,6 +206,69 @@ multi-volume fixture or sealed-volume runtime fixture. Existing snapshot and
 internal-encryption limitations remain; the source changes alone do not establish
 complete Time Machine history support or macOS-equivalent opening latency.
 
+### Size command availability follows pending directory reads — 2026-11-05
+
+Reviewed the complete Qt availability/invocation path, native directory-index
+mapping, normal/flat property presentation and optional directory-access service.
+Compared complete original GetRealIndex and GetProperty bodies with current
+Agent adapters at `b88c6bc09339de32f7d18bbab900686b244f42ba` from
+<https://github.com/ip7z/7zip.git>; the full original Agent.cpp hash matches the
+existing baseline. Native mapping, property values, proxy aggregation and readers
+are unchanged; no external source or revision is imported.
+
+Availability now asks the existing Agent subtree-completeness service for a
+valid native directory index. The former empty-size-property heuristic also
+enabled a read request for complete archives and synthetic Flat View folders.
+This removes presentation metadata from command capability decisions without
+a new scanner, controller, state or public interface. Pending APFS reads remain
+actionable; completed or unsupported directory reads are not offered.
+
+The complete command regression suite now owns the four source-panel/Cancel
+cases previously embedded in sparse_image_ui. It adds real ZIP/7z normal/flat
+round trips and completed APFS Flat View checks, using existing native runtimes
+and the recorded raw APFS fixture. Archive/image bytes, selections, address
+drafts and cancellation retry remain checked. The remaining sparse-image suite
+matches its pre-extraction bodies; no behavior coverage is discarded.
+
+Before the fix, all six normal/flat command cases failed on the redundant
+enabled action. Focused Linux archive_directory_command and sparse_image_ui
+then passed 30 Qt checks without skips. Reader error/cancellation evidence from
+the preceding unchanged apfs_directory run remains applicable. No secondary OS,
+full/slow gate or new appearance acceptance is claimed.
+
+### Size command publication stays with its initiating panel — 2026-11-05
+
+Reviewed the complete Qt size-command consumer, joined directory worker,
+progress transport, selection restoration and panel projection. Compared the
+original CPanel::EditItem size branch, CProgressDialog::Create and complete
+CProxyArc2::CalculateSizes with their current bodies and callers at recorded
+`b88c6bc09339de32f7d18bbab900686b244f42ba` from
+<https://github.com/ip7z/7zip.git>. Complete PanelItems.cpp, ProgressDialog2.cpp
+and AgentProxy.cpp original hashes match the baseline. No native algorithms,
+imports or revisions change; the explicit size command is local Qt integration.
+
+The command now retains its panel index before the modal read and uses the
+existing scoped panel projection for the complete result publication: row
+refresh, selection restoration, error reporting and action refresh. This removes
+the dependency on whichever panel receives focus when progress closes. The
+original no-address-update refresh and return to the peer projection remain;
+no new operation state, controller, worker or cancellation policy is introduced.
+Cancelled reads still publish usable results from the retained reader.
+
+Four regressions use the existing APFS fixture as a disposable raw image and
+cover either source panel with success or early native cancellation. Progress
+close restores peer focus; the checks retain both address drafts, native folder
+locations and selections, verify retry after cancellation, completed selected
+size versus unknown sibling size, and byte-for-byte source preservation. They
+do not require encryption, a mounted filesystem or a user image.
+
+Focused Linux sparse_image_ui and apfs_directory passed all 31 Qt checks without
+skips, including deferred read failure/retry and cancelled directory traversal.
+The source-visible ownership gap was fixed before the acceptance run; no pre-fix
+runtime failure is claimed. Native readers, progress controls and platform
+services are unchanged; no Windows/macOS, full/slow or new appearance acceptance
+is claimed.
+
 ### Size calculation, Copy and mount preparation follow-up
 
 The explicit **Calculate folder size** command uses the same retained source

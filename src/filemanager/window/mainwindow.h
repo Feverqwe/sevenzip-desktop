@@ -425,4 +425,6 @@ class MainWindow : public QMainWindow {
     QAction *largeButtonsOption_ = nullptr;
     QAction *buttonTextOption_ = nullptr;
     QAction *toolbarGroupSeparator_ = nullptr;
+    QList<QAction *> archiveToolbarActions_;
+    QList<QAction *> standardToolbarActions_;
 };

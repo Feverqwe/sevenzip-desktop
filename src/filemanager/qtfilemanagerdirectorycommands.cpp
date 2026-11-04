@@ -1,5 +1,3 @@
-#include "7zip/PropID.h"
-#include "Windows/PropVariant.h"
 #include "archive/agent/Agent.h"
 #include "archive/resources/qtarchivedirectoryread.h"
 #include "filemanager/qtfilemanagercommands.h"
@@ -9,7 +7,6 @@
 #include <QMenu>
 #include <QScopedValueRollback>
 #include <QStyle>
-#include <QToolBar>
 
 void QtFileManagerCommands::AttachDirectoryActions() {
     auto *menu = window_.findChild<QMenu *>("fileMenu");
@@ -17,8 +14,9 @@ void QtFileManagerCommands::AttachDirectoryActions() {
     action->setObjectName("calculateDirectorySizeAction");
     QtBindLocalText(action, "ArchiveDirectory", "Calculate folder size");
     action->setIcon(window_.style()->standardIcon(QStyle::SP_FileDialogDetailedView));
-    window_.findChild<QToolBar *>("archiveToolbar")->addAction(action);
+    window_.archiveToolbarActions_.append(action);
     Bind(action, CalculateDirectorySize);
+    window_.updateToolbar();
 }
 
 bool QtFileManagerCommands::CanCalculateDirectorySize() const {
@@ -28,16 +26,17 @@ bool QtFileManagerCommands::CanCalculateDirectorySize() const {
         return false;
     CUIntVector indices;
     panel.Get_ItemIndices_Operated(indices);
-    FOR_VECTOR(i, indices) {
-        NWindows::NCOM::CPropVariant size;
-        if (panel.IsItem_Folder(indices[i]) &&
-            folder->GetProperty(indices[i], kpidSize, &size) == S_OK && size.vt == VT_EMPTY)
+    FOR_VECTOR(i, indices)
+    if (panel.IsItem_Folder(indices[i])) {
+        const int nativeIndex = folder->GetRealIndex(indices[i]);
+        if (nativeIndex >= 0 && !folder->DirectoryItemSubtreeComplete(UInt32(nativeIndex)))
             return true;
     }
     return false;
 }
 
 void QtFileManagerCommands::CalculateDirectorySizes() {
+    const unsigned source = window_.app_.GetFocusedPanelIndex();
     auto &panel = window_.app_.GetFocusedPanel();
     CMyComPtr<IFolderFolder> owner = panel.GetFolder();
     auto *folder = dynamic_cast<CAgentFolder *>(owner.Interface());
@@ -57,9 +56,11 @@ void QtFileManagerCommands::CalculateDirectorySizes() {
     }
     // A cancelled recursive read can still have completed individual folders.
     // Refresh the projection from the retained reader, preserving selection.
-    if (window_.renderArchiveFolder(false) == S_OK)
-        window_.restoreListSelection(selection);
-    if (result != S_OK && result != E_ABORT)
-        panel.MessageBox_Error_HRESULT(result);
-    window_.refreshActions();
+    window_.withPanelProjection(source, [&] {
+        if (window_.renderArchiveFolder(false) == S_OK)
+            window_.restoreListSelection(selection);
+        if (result != S_OK && result != E_ABORT)
+            panel.MessageBox_Error_HRESULT(result);
+        window_.refreshActions();
+    });
 }
