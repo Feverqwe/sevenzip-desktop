@@ -1,5 +1,34 @@
 # Location history and address presentation — 2026-10-31
 
+## Complete persisted-navigation Qt owner — 2026-11-04
+
+Reviewed the original PanelFolderChange bookmark/history handlers, AppState
+stores and App history normalization at
+`b88c6bc09339de32f7d18bbab900686b244f42ba` from
+<https://github.com/ip7z/7zip.git>, their current bodies, menu consumers and Qt
+filesystem/archive/root navigation callers. Complete original PanelFolderChange,
+App and AppState hashes match the existing baseline.
+
+The complete Qt visited-path, history-selection, bookmark save/open and menu
+refresh methods now live with their legacy saved-path adapter in
+`mainwindow_persistednavigation.cpp`, in the same window component. Their bodies
+are unchanged; toolbar, sorting and view preferences retain their existing owner.
+No controller, state, native algorithm or dependency revision is added.
+Accepted-only history edits, cancellation versus empty root, originating-panel
+selection, sparse bookmark slots and literal path components retain their
+existing semantics. Existing behavior tests cover these contracts; no source
+shape or private representation test is added.
+
+The Windows network-namespace fixtures are platform-specific and unchanged.
+Linux checks the shared Qt integration; it does not establish new Windows
+namespace or rendered visual acceptance.
+
+Linux `folder_history`, `bookmarks` and `persisted_location` passed 32 checks
+without failures or skips, including accepted/canceled edits, root entries,
+literal legacy paths, nested archives and originating-panel navigation.
+
+## Shared visited-path recording
+
 Source reference: <https://github.com/ip7z/7zip.git>, commit
 `9128b80e3a471108678e2b3ec3c985861c8d7b0f`. Compared complete FileManager
 `PanelFolderChange.cpp::LoadFullPathAndShow`, history/bookmark handlers and

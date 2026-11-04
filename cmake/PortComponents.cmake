@@ -63,6 +63,7 @@ sevenzip_add_port_component(sevenzip_main_window src/filemanager/window/mainwind
     src/filemanager/window/mainwindow_panelkey.cpp
     src/filemanager/window/mainwindow_shortcuts.cpp
     src/filemanager/window/mainwindow_preferences.cpp
+    src/filemanager/window/mainwindow_persistednavigation.cpp
     src/filemanager/window/mainwindow_propertyinvalidation.cpp
     src/filemanager/window/mainwindow_root.cpp
     src/filemanager/window/mainwindow_selection.cpp

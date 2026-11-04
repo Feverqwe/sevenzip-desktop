@@ -1820,6 +1820,7 @@
     "src/filemanager/window/mainwindow_menus.cpp",
     "src/filemanager/window/mainwindow_panel.cpp",
     "src/filemanager/window/mainwindow_panelkey.cpp",
+    "src/filemanager/window/mainwindow_persistednavigation.cpp",
     "src/filemanager/window/mainwindow_preferences.cpp",
     "src/filemanager/window/mainwindow_propertyinvalidation.cpp",
     "src/filemanager/window/mainwindow_refresh.cpp",
