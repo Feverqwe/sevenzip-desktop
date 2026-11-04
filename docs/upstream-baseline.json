@@ -1776,6 +1776,7 @@
     "src/filemanager/qtfilemanagermountcommands.cpp",
     "src/filemanager/qtfilemanagershellmenu.cpp",
     "src/filemanager/qtfilemanagershellmenu.h",
+    "src/filemanager/qtfilemanagershellmenupresentation.cpp",
     "src/filemanager/qtfilemanagersplitter.cpp",
     "src/filemanager/qtfilemanagersplitter.h",
     "src/filemanager/qtfilemanagerstartup.h",

@@ -79,6 +79,7 @@ sevenzip_add_port_component(sevenzip_main_window src/filemanager/window/mainwind
     src/filemanager/qtcommandpublication.cpp
     src/filemanager/qtfilemanagercommandworkflows.cpp
     src/filemanager/qtfilemanagershellmenu.cpp
+    src/filemanager/qtfilemanagershellmenupresentation.cpp
     src/platform/shell/qtnativeshellmenu.cpp
     src/filemanager/qtprogramfilemenu.cpp
     src/filemanager/qtfilemanagerdrag.cpp

@@ -115,3 +115,35 @@ selection, numeric invocation, failure/resource ownership and stale commands;
 no implementation-presence tests were added. No macOS or new visual-parity
 acceptance is claimed. Completed test settings were removed; incremental
 builds and compiler caches were retained.
+
+## Complete Qt shell-menu projection — 2026-11-04
+
+Reviewed complete native command generation and invocation, PanelMenu creation
+and dispatch, menu activation/release callers, command-map types and the portable
+tree adapter against recorded 7-Zip revision
+`b88c6bc09339de32f7d18bbab900686b244f42ba`. Complete original ContextMenu.cpp,
+PanelMenu.cpp and MyLoadMenu.cpp hashes match the existing baseline. No external
+source is imported, native algorithm replaced or provenance advanced.
+
+The shared Qt projection now lives in qtfilemanagershellmenupresentation.cpp,
+beside its existing lifetime/invocation owner in the same main-window component.
+It contains the complete menu-tree rendering and unchanged command eligibility
+policy used both for publication and invocation. Service routing, selection,
+generation checks, retained native/system contexts and release/error behavior
+remain with the original owner and keep their previous bodies.
+
+The tree's bitmap marker denotes the same bundled logo for every marked entry.
+Its existing transparency conversion now runs once per publication; recursive
+rendering shares the local QIcon through ordinary Qt value ownership. No cache
+or new persistent state is introduced. Unmarked rows, separators, disabled
+submenus, command IDs/verbs, opening modes, captions and dynamic-row lifetimes
+retain their existing behavior. Resource initialization remains in the owner.
+
+Existing Linux shell_menu_window, shell_update_window and source_context_menu
+checks passed, covering program/context menus, nested rows/icons, stale actions,
+owning-panel selection, operation execution and geometry. Compilation took
+18.187 seconds, tests 8.682 seconds. No source-presence or icon-cache tests were
+added. Inventory and whitespace checks passed; configured four-job parallelism,
+incremental outputs and compiler cache were preserved. Native Windows bridge
+bodies were unchanged; Windows/macOS, rendered-original parity, full/slow gates
+and extra UI reports were not revalidated.
