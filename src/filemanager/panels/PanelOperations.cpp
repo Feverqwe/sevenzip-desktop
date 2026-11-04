@@ -1,7 +1,7 @@
 // PanelOperations.cpp
 // Adapted from 7-Zip 0766b733fe3e06dd2a7f9a3cfbf2108ac73abd17.
 // Igor Pavlov, LGPL-2.1-or-later; see third_party/7zip/License.txt.
-// Filesystem Create/Rename/Delete portions; archive mutations remain P1-04.
+// Source operations with Qt confirmation, joined workers and list publication.
 
 #include "7zip/UI/Common/StdAfx.h"
 
@@ -30,6 +30,18 @@ static const UInt32 kParentIndex = (UInt32)-1;
 static bool IsCorrectFsName(const UString &name) {
     const UString lastPart = name.Ptr((unsigned)(name.ReverseFind_PathSepar() + 1));
     return !lastPart.IsEqualTo(".") && !lastPart.IsEqualTo("..");
+}
+
+static void PrepareCreatedSelection(UString &newName, bool preserveSelection,
+                                    CSelectedState &state) {
+    const int pos = newName.Find(WCHAR_PATH_SEPARATOR);
+    if (pos >= 0)
+        newName.DeleteFrom((unsigned)pos);
+    if (!preserveSelection)
+        state.SelectedNames.Clear();
+    state.FocusedName = newName;
+    state.FocusedName_Defined = true;
+    state.SelectFocused = true;
 }
 
 bool CPanel::CanComment() const {
@@ -109,10 +121,9 @@ void CPanel::CreateFolder() {
     CDisableTimerProcessing disableTimerProcessing2(*this);
     CSelectedState state;
     SaveSelectedState(state);
-    UString enteredName;
-    if (!Dlg_CreateFolder(GetParent(), enteredName))
+    UString newName;
+    if (!Dlg_CreateFolder(GetParent(), newName))
         return;
-    UString newName = enteredName;
     if (!IsCorrectFsName(newName)) {
         MessageBox_Error_HRESULT(E_INVALIDARG);
         return;
@@ -135,16 +146,8 @@ void CPanel::CreateFolder() {
                              LangString(IDS_CREATE_FOLDER_ERROR));
         // fixed for 9.26: we must refresh always
     }
-    if (res == S_OK) {
-        int pos = newName.Find(WCHAR_PATH_SEPARATOR);
-        if (pos >= 0)
-            newName.DeleteFrom((unsigned)(pos));
-        if (!_mySelectMode)
-            state.SelectedNames.Clear();
-        state.FocusedName = newName;
-        state.FocusedName_Defined = true;
-        state.SelectFocused = true;
-    }
+    if (res == S_OK)
+        PrepareCreatedSelection(newName, _mySelectMode, state);
     RefreshTitleAlways();
     RefreshListCtrl(state);
 }
@@ -178,14 +181,7 @@ void CPanel::CreateFile() {
         MessageBox_Error_HRESULT_Caption(result, LangString(IDS_CREATE_FILE_ERROR));
         return;
     }
-    const int pos = newName.Find(WCHAR_PATH_SEPARATOR);
-    if (pos >= 0)
-        newName.DeleteFrom((unsigned)pos);
-    if (!_mySelectMode)
-        state.SelectedNames.Clear();
-    state.FocusedName = newName;
-    state.FocusedName_Defined = true;
-    state.SelectFocused = true;
+    PrepareCreatedSelection(newName, _mySelectMode, state);
     RefreshListCtrl(state);
 }
 

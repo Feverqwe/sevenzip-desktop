@@ -2873,3 +2873,33 @@ and whitespace checks passed. Completed test settings were removed; failure and
 passing logs were retained. No native OS-trash service, platform branch, layout
 or text changed; secondary-platform, full/slow and new appearance acceptance
 are not claimed.
+
+## Created-item selection preparation — 2026-11-04
+
+Compared complete original PanelOperations CreateFolder/CreateFile bodies and
+Panel selection types at `b88c6bc09339de32f7d18bbab900686b244f42ba`, with the
+current input dialogs, native operation/direct-provider boundaries, filesystem
+and archive callers and result publication. Complete original hashes match the
+existing baseline. No code is imported or provenance advanced.
+
+Both successful creation paths now use one local copy of the original selection
+preparation: first path component, existing marks under alternative selection,
+focused name and focus flags. Its body matches the previous file-creation tail
+after substituting the selection-mode parameter. Folder input now fills its
+native name directly instead of copying a second temporary value. The stale
+file comment referring to unfinished archived port scope was corrected.
+
+Distinct native contracts remain: folder creation uses the joined worker and
+refreshes after a failed operation; file creation retains its direct provider
+call and early error return. Readonly/hash gates, Cancel, path normalization,
+name validation, deferred publication and archive writing remain unchanged.
+Existing EN/RU, both-pane, normal/alternative/flat, nested-name, invalid-input,
+failure and archive-provider regressions are reused; no new test pins the helper
+or its assignments.
+
+Linux source_create and ui_operations passed: 71 Qt checks, no failures or
+skips. Incremental compilation took 18.060s and tests 24.198s with configured
+four jobs and compiler cache. Source inventory, body comparison and whitespace
+checks passed. Completed settings were removed; incremental outputs and caches
+were preserved. No platform branch, layout or text changed; secondary platforms,
+full/slow gates and new appearance acceptance are not claimed.
