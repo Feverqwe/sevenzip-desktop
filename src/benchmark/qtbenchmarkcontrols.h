@@ -74,13 +74,12 @@ class CQtBenchmarkWindow : public QDialog {
     static QString QtLangText(unsigned id);
 
   protected:
-    virtual bool OnInit() { return true; }
-    virtual bool OnDestroy() { return true; }
-    virtual bool OnSize(quintptr, int, int) { return false; }
-    virtual bool OnMessage(unsigned, quintptr, qintptr) { return false; }
-    virtual bool OnCommand(unsigned, unsigned, qintptr) { return false; }
-    virtual bool OnButtonClicked(unsigned, QWidget *) { return false; }
-    virtual bool OnTimer(quintptr, qintptr) { return false; }
+    virtual void OnInit() {}
+    virtual void OnDestroy() {}
+    virtual void OnMessage(unsigned, quintptr) {}
+    virtual void OnCommand(unsigned, unsigned) {}
+    virtual void OnButtonClicked(unsigned) {}
+    virtual void OnTimer(quintptr) {}
     virtual void OnHelp() {}
     virtual void OnCancel();
     QWidget *GetItem(unsigned id) const { return controls_.value(id); }
@@ -99,7 +98,6 @@ class CQtBenchmarkWindow : public QDialog {
     void Attach(QWidget *) { postsEnabled_ = false; }
     qintptr Create(unsigned resource, QWidget *parent);
     void closeEvent(QCloseEvent *event) override;
-    void resizeEvent(QResizeEvent *event) override;
     bool eventFilter(QObject *object, QEvent *event) override;
 
   public:

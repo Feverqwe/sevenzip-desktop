@@ -121,10 +121,7 @@ class BenchmarkLifecycleTests final : public QObject {
           public:
             using CQtBenchmarkWindow::Attach;
             unsigned Deliveries = 0;
-            bool OnMessage(unsigned, quintptr, qintptr) override {
-                ++Deliveries;
-                return true;
-            }
+            void OnMessage(unsigned, quintptr) override { ++Deliveries; }
         } window;
         QVERIFY(window.PostMsg(0x8001, 0));
         QCOMPARE(window.Deliveries, 0u);

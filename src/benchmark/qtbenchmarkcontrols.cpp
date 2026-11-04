@@ -79,7 +79,7 @@ QLabel *CQtBenchmarkWindow::rightLabel(unsigned id, const char *name, const QStr
 QComboBox *CQtBenchmarkWindow::combo(unsigned id, const char *name) {
     auto *view = new QComboBox(this);
     Register(id, name, view);
-    connect(view, &QComboBox::activated, this, [this, id](int) { OnCommand(1, id, 0); });
+    connect(view, &QComboBox::activated, this, [this, id](int) { OnCommand(1, id); });
     return view;
 }
 void CQtBenchmarkWindow::BuildControls(bool totalMode) {
@@ -129,7 +129,7 @@ QDialogButtonBox *CQtBenchmarkWindow::BuildFooter(bool totalMode) {
             auto *view = new QPushButton(QtLangText(entry.first), this);
             Register(entry.first, entry.second, view);
             connect(view, &QPushButton::clicked, this,
-                    [this, id = entry.first, view] { OnButtonClicked(id, view); });
+                    [this, id = entry.first] { OnButtonClicked(id); });
             footer->addButton(view, QDialogButtonBox::ActionRole);
         }
     }
@@ -268,7 +268,7 @@ void CQtBenchmarkWindow::SendMsg_NextDlgCtl_CtlId(unsigned id) {
 quintptr CQtBenchmarkWindow::SetTimer(quintptr id, unsigned milliseconds) {
     timer_.stop();
     disconnect(&timer_, nullptr, this, nullptr);
-    connect(&timer_, &QTimer::timeout, this, [this, id] { OnTimer(id, 0); });
+    connect(&timer_, &QTimer::timeout, this, [this, id] { OnTimer(id); });
     timer_.start(int(milliseconds));
     return id;
 }
@@ -278,7 +278,7 @@ bool CQtBenchmarkWindow::PostMsg(unsigned message, quintptr wparam) {
     if (!postsEnabled_)
         return true;
     return QMetaObject::invokeMethod(
-        this, [this, message, wparam] { OnMessage(message, wparam, 0); }, Qt::QueuedConnection);
+        this, [this, message, wparam] { OnMessage(message, wparam); }, Qt::QueuedConnection);
 }
 qintptr CQtBenchmarkWindow::Create(unsigned resource, QWidget *parent) {
     if (parent)
@@ -319,8 +319,4 @@ void CQtBenchmarkWindow::reject() { OnCancel(); }
 void CQtBenchmarkWindow::closeEvent(QCloseEvent *event) {
     event->ignore();
     OnCancel();
-}
-void CQtBenchmarkWindow::resizeEvent(QResizeEvent *event) {
-    QDialog::resizeEvent(event);
-    OnSize(0, event->size().width(), event->size().height());
 }
