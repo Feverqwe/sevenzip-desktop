@@ -1,5 +1,28 @@
 # Location history and address presentation — 2026-10-31
 
+## Archive picker initiating panel — 2026-11-05
+
+Reviewed native FM command dispatch and panel binding with the current Qt-only
+archive-picker extension, capability/call scopes, focus projection, opening,
+refusal/cancellation and history-selection consumers. Complete original FM.cpp
+and PanelFolderChange.cpp hashes match the existing baseline at
+`b88c6bc09339de32f7d18bbab900686b244f42ba`. No native command or opening algorithm,
+dependency revision or imported scope changes.
+
+The picker now retains its initiating panel before entering the modal dialog
+and restores that projection before opening a selected path, as history selection
+already does. It no longer takes the destination from whichever panel regained
+focus during modal close. Cancellation performs no navigation. File filtering,
+native opening, refusal diagnostics and focus restoration retain their existing
+owners; no new controller, state object or dialog interface is introduced.
+
+Existing picker regressions retain their one-panel rows and add both panel
+initiators with late peer focus for opening, cancellation and invalid input.
+They observe the source contents and the peer's path, address draft and selection.
+Before the fix Linux failed four rows: successful selection opened in the peer,
+and refused input overwrote the peer draft; cancellation passed. These behavior
+checks do not depend on the captured variable or handler structure.
+
 ## Shared display-address conversion — 2026-11-05
 
 Reviewed complete native BindToPath/BindToPathAndRefresh bodies, address edit
