@@ -107,7 +107,8 @@ add_library(sevenzip_panel
     src/gui/qtupdateguiservices.h
     src/benchmark/qtbenchmarkcontrols.cpp
     src/benchmark/qtbenchmarkcontrols.h
-    src/benchmark/qtbenchmarkmetrics.cpp
+    src/benchmark/qtbenchmarkpresentation.cpp
+    src/benchmark/qtbenchmarkreport.cpp
     src/dialogs/link/LinkDialog.cpp
     src/dialogs/link/LinkDialog.h
     src/fileops/links/qtlinkcontrols.cpp
