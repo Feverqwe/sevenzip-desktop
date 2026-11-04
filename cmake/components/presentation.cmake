@@ -204,6 +204,7 @@ add_library(sevenzip_panel
     src/filemanager/panels/PanelFolderChange.cpp
     src/filemanager/panels/PanelAddress.cpp
     src/filemanager/panels/PanelMenu.cpp
+    src/filemanager/panels/panelmenuids.h
     src/filemanager/panels/PanelProperties.cpp
     src/filemanager/PropertyName.cpp
     src/filemanager/PropertyName.h
@@ -276,6 +277,7 @@ target_link_libraries(sevenzip_panel PUBLIC Qt6::Widgets sevenzip_common sevenzi
 target_sources(sevenzip_panel PRIVATE src/platform/shell/MyMessages.cpp src/archive/callbacks/qtguimessages.h)
 if(WIN32)
     target_sources(sevenzip_panel PRIVATE
+        src/filemanager/panels/PanelShellMenu_win.cpp
         src/platform/associations/qtassociatedfilelaunch_win.cpp
         src/platform/associations/qtassociatedfilelaunch_win.h
         src/filemanager/panels/qtpaneldragnative.cpp src/filemanager/panels/qtpaneldragnative.h

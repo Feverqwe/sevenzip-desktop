@@ -8,7 +8,7 @@
 
 class QMenu;
 
-// Qt presentation of the native menu/provider produced by PanelMenu.cpp.
+// Qt presentation of the native menu/provider produced by the panel shell provider.
 // Adopts the HMENU; command generation and invocation stay with their source owners.
 class QtNativeShellMenuPresentation final {
     struct State;

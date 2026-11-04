@@ -1,16 +1,12 @@
 #include "platform/shell/qtnativeshellmenu.h"
 #ifdef _WIN32
 #include "Windows/Menu.h"
-#include "filemanager/App.h"
 #include "filemanager/panels/Panel.h"
+#include "filemanager/panels/panelmenuids.h"
 #include "platform/shell/qtnativeshellmenupresentation.h"
 #include <QMenu>
 #include <QSet>
 #include <shlobj.h>
-
-namespace {
-constexpr unsigned kSystemStart = kMenuCmdID_Plugin_Start + 400;
-}
 
 struct QtNativeShellMenu::State {
     // Balance only successful initialization; Qt may already own the STA.
@@ -40,8 +36,8 @@ bool QtNativeShellMenu::Create(CPanel &panel, bool extended, const CRecordVector
     if (!_state->context || nativeMenu.GetItemCount() == 0)
         return false;
     _state->panel = &panel;
-    _state->presentation =
-        std::make_unique<QtNativeShellMenuPresentation>(nativeMenu, _state->context, kSystemStart);
+    _state->presentation = std::make_unique<QtNativeShellMenuPresentation>(
+        nativeMenu, _state->context, kSystemStartMenuID);
     nativeMenu.Detach();
     _state->commands = _state->presentation->Render(menu, dispatch);
     return true;
@@ -50,7 +46,7 @@ bool QtNativeShellMenu::Create(CPanel &panel, bool extended, const CRecordVector
 bool QtNativeShellMenu::CanInvoke(unsigned id) const { return _state->commands.contains(id); }
 
 HRESULT QtNativeShellMenu::Invoke(unsigned offset) {
-    if (!_state->panel || !CanInvoke(kSystemStart + offset))
+    if (!_state->panel || !CanInvoke(kSystemStartMenuID + offset))
         return E_INVALIDARG;
     return _state->panel->InvokeShellContextMenu(offset, _state->context);
 }
