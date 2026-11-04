@@ -960,3 +960,30 @@ owning Winsock branch; no native OS mount or skipped-case acceptance is claimed.
 Selected fixture directories were empty before and after both runs. Existing
 incremental builds, configured four jobs and compiler caches were retained;
 no full/slow gate, macOS or appearance validation was selected.
+
+### IPC READ adapter and server startup — 2026-11-04
+
+Reviewed deferred READ admission/result ownership, the private QtRO reader,
+queued request/completion delivery and server disconnect/stop/join. The IPC
+adapter is project integration; existing SMB protocol and native reader source
+owners, algorithms and provenance remain unchanged. No external code is imported.
+
+The asynchronous reader is now built separately from server startup, with
+explicit references to its node, replica and stopping flag. Main retains those
+owners and its existing worker join. Queued delivery keeps the same node context;
+the typed pending reply and QObject watcher keep their distinct roles and
+lifetimes. Status mapping, completion capture, deleteLater and shutdown ordering
+are unchanged. No pending result/count/wakeup state is merged or added.
+
+The existing transport suite launches the production broker and observes actual
+bytes, authentication, consent waits, metadata availability during those waits
+and cancellation. A new test of the private factory would add no behavior
+coverage; native OS mounts remain behind their existing explicit opt-in.
+
+Linux passed `archive_mount_transport`: 11 checks, with five existing native OS
+mount opt-ins skipped (build 3.839s, tests 2.020s). The production broker was
+rebuilt through its test dependency. Selected fixture directories were empty
+before and after the run. Existing incremental outputs, compiler caches and
+configured four jobs were retained. No platform-specific code changed; prior
+protocol-library checks remain applicable. No full/slow gate or native OS mount
+acceptance is claimed.
