@@ -116,6 +116,8 @@ void MainWindow::createFileExtras(QMenu *menu, QToolBar *toolbar) {
     infoAction_->setIcon(toolbarIcon(6));
     toolbarGroupSeparator_ = toolbar->insertSeparator(copy_);
     toolbarGroupSeparator_->setObjectName("toolbarGroupSeparator");
+    archiveToolbarActions_ = {toolbarAdd_, extract_, test_};
+    standardToolbarActions_ = {copy_, move_, remove_, infoAction_};
 }
 
 void MainWindow::createViewModes(QMenu *viewMenu) {

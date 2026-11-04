@@ -7,7 +7,6 @@
 #include <QMenu>
 #include <QScopedValueRollback>
 #include <QStyle>
-#include <QToolBar>
 
 void QtFileManagerCommands::AttachDirectoryActions() {
     auto *menu = window_.findChild<QMenu *>("fileMenu");
@@ -15,8 +14,9 @@ void QtFileManagerCommands::AttachDirectoryActions() {
     action->setObjectName("calculateDirectorySizeAction");
     QtBindLocalText(action, "ArchiveDirectory", "Calculate folder size");
     action->setIcon(window_.style()->standardIcon(QStyle::SP_FileDialogDetailedView));
-    window_.findChild<QToolBar *>("archiveToolbar")->addAction(action);
+    window_.archiveToolbarActions_.append(action);
     Bind(action, CalculateDirectorySize);
+    window_.updateToolbar();
 }
 
 bool QtFileManagerCommands::CanCalculateDirectorySize() const {
