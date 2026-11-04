@@ -928,3 +928,35 @@ diagnostic passed all 34 reader checks. Builds used configured four-job defaults
 incremental outputs and compiler caches. Selected temporary fixture directories
 were empty afterward. Source inventory and whitespace checks passed; no full or
 slow gate, native mount or visual acceptance is claimed.
+
+### SMB wakeup initialization ownership — 2026-11-04
+
+Reviewed wakeup construction/destruction, server validation, select/extra-fdset
+and extra-service callbacks, deferred READ completion, late pending callbacks and
+stop delivery. The notification socket is project integration; the recorded
+libsmb2 server boundary and protocol implementation remain unchanged. No external
+source, new algorithm or provenance revision is imported.
+
+Initialization now retains its tentative socket/WSA resources in a local owner
+and transfers that owner only after every setup step succeeds. Owner presence
+therefore replaces the separate ready flag. Failure releases acquired resources
+before returning an unavailable wakeup; success retains the same socket and
+Winsock reference until the final shared wakeup owner expires. This cleanup
+ordering follows the existing destructors; no runtime fault-injection claim is
+made for individual socket setup failures.
+
+Nonblocking loopback setup, descriptor limits, notify/drain, server-thread reply
+ownership and stop semantics are preserved. No partially initialized owner is
+published to pending callbacks. The server's separate Winsock lifetime remains
+independent. Existing deferred-read, cancellation, repeated completion and socket
+cleanup regressions cover the affected public behavior; no private-state test
+or real system mount is needed for this ownership change.
+
+Linux passed `smb_readonly_server` and `archive_mount_transport`: 21 checks,
+with five existing native-mount opt-ins skipped (build 23.363s, tests 2.213s).
+Windows passed `smb_readonly_server`: nine checks and one existing POSIX-poll
+wire-client skip (build 17.265s, tests 30.301s). The Windows check covers the
+owning Winsock branch; no native OS mount or skipped-case acceptance is claimed.
+Selected fixture directories were empty before and after both runs. Existing
+incremental builds, configured four jobs and compiler caches were retained;
+no full/slow gate, macOS or appearance validation was selected.
