@@ -1,5 +1,27 @@
 # Qt adaptation boundary review — 2026-10-18
 
+## Source-browser row publication — 2026-11-04
+
+Compared the complete original BrowseDialog.cpp/.h/.rc inventory hashes at
+`b88c6bc09339de32f7d18bbab900686b244f42ba`, its reload/filter/sort and
+acceptance/native-picker boundaries with the Qt browser and its callers.
+Native enumeration, path resolution, filter matching, creation and result
+contracts retain their existing owners. No source or revision is imported.
+
+The complete row builder, its private sortable row, selection accessors,
+folder-path presentation and live header translation now live together in
+qtsourcebrowsepresentation.cpp beside the dialog and its controls. Reload
+publishes rows only after successful enumeration and the existing prefix/file
+assignment. Parent-row identity belongs to the private dialog class rather
+than a translation-unit global. Same classes, state and panel target are used;
+no controller or public interface is added.
+
+Moved bodies retain signal blocking, metadata/icon formatting, sort and
+selection order, scroll position, path elision/accessibility and geometry.
+Open/Save/Folder dispatch, native-picker fallback and distinct Cancel contracts
+are unchanged. Existing source_browse_dialog checks cover
+these behaviors; no private-structure or source-presence test is added.
+
 ## Version-control completion owner — 2026-11-04
 
 Compared complete native VerCtrl.cpp Edit/Commit/Revert/Diff, helper types,
