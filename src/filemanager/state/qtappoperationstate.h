@@ -10,7 +10,9 @@
 class QtAppOperationState {
   public:
     enum class Kind { Idle, Scan, Open, Operation };
-    explicit QtAppOperationState(CPanel (&panels)[2]) : panels_(panels) {}
+    template <class Panels>
+    explicit QtAppOperationState(Panels &panels)
+        : panel_([&panels](unsigned index) -> CPanel & { return panels[index]; }) {}
     bool Begin(Kind kind, unsigned scanningPanels = 3);
     void End();
     void ContinueScanAfterSourceCall(unsigned panel);
@@ -38,7 +40,7 @@ class QtAppOperationState {
         CPanel::CDisableNotify notify;
         explicit PanelGuards(CPanel &panel) : timer(&panel), notify(panel) {}
     };
-    CPanel (&panels_)[2];
+    std::function<CPanel &(unsigned)> panel_;
     std::array<std::unique_ptr<PanelGuards>, 2> guards_;
     Kind kind_ = Kind::Idle;
     bool closed_ = false;

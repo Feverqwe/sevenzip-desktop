@@ -39,6 +39,20 @@ void QtArchiveFileResource::AttachUpdateService(ArchiveBackend &backend, const Q
     _updateBackend = &backend;
 }
 
+void QtArchiveFileResource::RebindServices(ArchiveBackend &backend) {
+    // Called only for a quiescent live tab. Keep the input and native reader,
+    // and retarget the mutable services before the old window can disappear.
+    const QString format = TransportFormat();
+    if (_reopen && !_directInput)
+        AttachReopenService(backend, format);
+    if (_extract)
+        AttachExtractService(backend, format);
+    if (_progress)
+        AttachProgressService(backend);
+    if (_updateBackend)
+        _updateBackend = &backend;
+}
+
 HRESULT QtArchiveFileResource::UpdateNative(ISequentialOutStream *output, UInt32 count,
                                             IArchiveUpdateCallback *callback) {
     const auto backend = *_updateBackend;

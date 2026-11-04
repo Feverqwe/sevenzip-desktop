@@ -19,10 +19,18 @@
 #include <QClipboard>
 
 void CPanel::EditCut() {
+    if (_fileClipboardPresentation) {
+        _fileClipboardPresentation(0);
+        return;
+    }
     // InvokeSystemCommand("cut");
 }
 
 void CPanel::EditCopy() {
+    if (_fileClipboardPresentation) {
+        _fileClipboardPresentation(1);
+        return;
+    }
     UString s;
     CRecordVector<UInt32> indices;
     Get_ItemIndices_Selected(indices);
@@ -36,6 +44,10 @@ void CPanel::EditCopy() {
 }
 
 void CPanel::EditPaste() {
+    if (_fileClipboardPresentation) {
+        _fileClipboardPresentation(2);
+        return;
+    }
     // The upstream file-transfer and InvokeSystemCommand("paste") bodies
     // are commented out. Preserve its active no-op.
 }

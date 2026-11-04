@@ -1,6 +1,7 @@
 // Adapted from 7-Zip CPP/7zip/UI/FileManager/App.h (0766b73).
 // Igor Pavlov, LGPL-2.1-or-later; see third_party/7zip/License.txt.
 #pragma once
+#include "filemanager/state/qtpanelslots.h"
 
 #include "filemanager/AppState.h"
 #include "filemanager/panels/Panel.h"
@@ -84,7 +85,7 @@ class CApp {
     bool LargeButtons = false;
     CAppState AppState;
     CPanelCallbackImp m_PanelCallbackImp[kNumPanelsMax];
-    CPanel Panels[kNumPanelsMax];
+    QtPanelSlots Panels;
     CIntVector _timestampLevels;
 
     HRESULT Create(QWidget *window, const UString &mainPath, const UString &arcFormat,

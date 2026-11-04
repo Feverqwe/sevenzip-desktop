@@ -17,7 +17,7 @@
 #include <QScopedValueRollback>
 
 void MainWindow::transferFiles(const QStringList &sources, const QString &destination, bool move,
-                               bool directPath) {
+                               bool directPath, std::function<void(bool)> completed) {
     if (app_.QtOperations().closed())
         return;
     QtAppOperationState::CallScope call(app_.QtOperations());
@@ -71,31 +71,34 @@ void MainWindow::transferFiles(const QStringList &sources, const QString &destin
             sync->Set_NumBytesCur(completed);
         },
         Qt::DirectConnection);
-    connect(operation, &FileTransferOperation::result, this,
-            [this, operation](bool success, const QString &message) {
-                if (app_.QtOperations().closed())
-                    return;
-                // Join and release the worker before terminal dialogs/panels
-                // publish readiness. No second signal owns the continuation.
-                operation->wait();
-                const bool canceled =
-                    operation->resultKind() == FileTransferOperation::ResultKind::Canceled;
-                if (fileTransfer_ == operation)
-                    fileTransfer_ = nullptr;
-                operation->deleteLater();
-                if (auto *progress = progressDialog(); !success && !canceled && progress)
-                    progress->Sync.FinalMessage.ErrorMessage.Message = ToUString(message);
-                const QPointer<MainWindow> guard(this);
-                closeProgressDialog(true);
-                if (!guard || app_.QtOperations().closed())
-                    return;
-                if (success)
-                    statusBar()->showMessage(message);
-                // OnCopy's continuation owns both reloads, saved selections
-                // and final focus after this worker releases its operation.
-                setState(State::Filesystem);
-                appPresentation_->CopyFinished();
-            });
+    connect(
+        operation, &FileTransferOperation::result, this,
+        [this, operation, completed = std::move(completed)](bool success, const QString &message) {
+            if (app_.QtOperations().closed())
+                return;
+            // Join and release the worker before terminal dialogs/panels
+            // publish readiness. No second signal owns the continuation.
+            operation->wait();
+            if (completed)
+                completed(success);
+            const bool canceled =
+                operation->resultKind() == FileTransferOperation::ResultKind::Canceled;
+            if (fileTransfer_ == operation)
+                fileTransfer_ = nullptr;
+            operation->deleteLater();
+            if (auto *progress = progressDialog(); !success && !canceled && progress)
+                progress->Sync.FinalMessage.ErrorMessage.Message = ToUString(message);
+            const QPointer<MainWindow> guard(this);
+            closeProgressDialog(true);
+            if (!guard || app_.QtOperations().closed())
+                return;
+            if (success)
+                statusBar()->showMessage(message);
+            // OnCopy's continuation owns both reloads, saved selections
+            // and final focus after this worker releases its operation.
+            setState(State::Filesystem);
+            appPresentation_->CopyFinished();
+        });
     setState(State::Operating);
     fileTransfer_->start();
 }

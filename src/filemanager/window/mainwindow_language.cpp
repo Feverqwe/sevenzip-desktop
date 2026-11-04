@@ -6,6 +6,7 @@
 #include "filemanager/providers/RootFolder.h"
 #include "filemanager/views/filetable.h"
 #include "filemanager/window/mainwindow.h"
+#include "filemanager/window/qtwindowworkspace.h"
 #include "localization/qtlangcontrols.h"
 #include <QEvent>
 #include <QToolButton>
@@ -57,6 +58,8 @@ void MainWindow::reloadLangItems() {
         if (panelUi_[i].statusLabels[0])
             app_.Panels[i].Refresh_StatusBar();
     }
+    if (workspace_)
+        workspace_->Refresh();
 }
 
 void MainWindow::refreshToolbarTexts() {

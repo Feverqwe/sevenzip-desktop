@@ -1,0 +1,47 @@
+{
+  "repository": "https://github.com/lucide-icons/lucide.git",
+  "revision": "1ef60af944de207e0d5176905a0759ba12e6ee8d",
+  "files": {
+    "LICENSE": "b495047bd93a9b06913511076f504daba17d5bbeb3e0650f3bb53a4220329c57",
+    "icons/arrow-left.svg": "c5f4b88076108eb1a0d95336e1aa7e7bb1419a3a92af96f6247d88cd3456f933",
+    "icons/arrow-up.svg": "8c22c25874c80bb062bef985d207d8f1d4a4d7847237d0a8cf720a3235968518",
+    "icons/check.svg": "7f33acc9a77a61659531044525fc008edebe215bf4dcf1c789c8674ad3277db0",
+    "icons/clipboard-paste.svg": "d2e4e6df0b2fecf97a95ef244f9031fb7c1deae0c9401df2a11d93379e8d361f",
+    "icons/copy.svg": "ea80e566c7a12628a447cb53179b19aea4f60b9143e2becd0d0f20bf260e5718",
+    "icons/folder-output.svg": "be1f95fd8ed4de9eea662791b8f79ac181bf21b20f0aad0593f28c4cefa87e32",
+    "icons/folder-plus.svg": "76d62eb7796ce6c7e303c437464923de2d1ae19a5c8d010f8b36dfc1d6180890",
+    "icons/info.svg": "bc977a64eb96f3e9c1041ffd09a3fceb70e3e65c02b571f76064062ed31f3cb9",
+    "icons/move-right.svg": "5d5cd515e240654303ee557b0010988c2b4fd319b99aec9d13b7c6c846a4e08f",
+    "icons/panel-left.svg": "029f67b9e3eeb7ddf7c7c499b174c50388725e8ea50d4ea59ed7dbaf8d61cb82",
+    "icons/pencil.svg": "7e1ca7a6f5c1eb949671df762f2baadd32f5bd841d43153c3a15279af7d78d0c",
+    "icons/plus.svg": "7f6af73bf1ff6c4bca3f18351c8d1bdec6749c0c2530c4de5da85d520c21df17",
+    "icons/rotate-cw.svg": "ddcfe6d87240475946935e77411cd4d15a06f3d28a9b921bafed224ebe953668",
+    "icons/scissors.svg": "4c831fc2c903825f68565c28ffab945c34b2c60b6c564e2ae54250e1099fa550",
+    "icons/text-cursor-input.svg": "2fb7eae5bb95caed3b961e14d27a2a14ba47ae4c387bd2f9346eed3f5d08de6b",
+    "icons/trash.svg": "27299f69ad7c6272be64b1b8e2d48cbd6dcf0ef0d4f92827a1affa945c91700e"
+  },
+  "owners": {
+    "LICENSE": "third_party/lucide/LICENSE",
+    "icons/arrow-left.svg": "src/ui/theme/qtcommandicons.cpp",
+    "icons/arrow-up.svg": "src/ui/theme/qtcommandicons.cpp",
+    "icons/check.svg": "src/ui/theme/qtcommandicons.cpp",
+    "icons/clipboard-paste.svg": "src/ui/theme/qtcommandicons.cpp",
+    "icons/copy.svg": "src/ui/theme/qtcommandicons.cpp",
+    "icons/folder-output.svg": "src/ui/theme/qtcommandicons.cpp",
+    "icons/folder-plus.svg": "src/ui/theme/qtcommandicons.cpp",
+    "icons/info.svg": "src/ui/theme/qtcommandicons.cpp",
+    "icons/move-right.svg": "src/ui/theme/qtcommandicons.cpp",
+    "icons/panel-left.svg": "src/ui/theme/qtcommandicons.cpp",
+    "icons/pencil.svg": "src/ui/theme/qtcommandicons.cpp",
+    "icons/plus.svg": "src/ui/theme/qtcommandicons.cpp",
+    "icons/rotate-cw.svg": "src/ui/theme/qtcommandicons.cpp",
+    "icons/scissors.svg": "src/ui/theme/qtcommandicons.cpp",
+    "icons/text-cursor-input.svg": "src/ui/theme/qtcommandicons.cpp",
+    "icons/trash.svg": "src/ui/theme/qtcommandicons.cpp"
+  },
+  "unchanged": {
+    "LICENSE": "third_party/lucide/LICENSE"
+  },
+  "scope": "SVG geometry only, adapted into geometry(QtCommandIcon) in the existing palette-aware QPainterPath renderer. SVG XML, JavaScript packages and generated platform bindings are omitted. No runtime network or new graphics dependency.",
+  "license": "ISC and Feather-derived MIT; unchanged complete upstream LICENSE retained."
+}

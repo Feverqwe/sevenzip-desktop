@@ -4,6 +4,7 @@
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
 #include "localization/LangUtils.h"
+#include "support/panel_keys.h"
 #include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
 #include <QProcess>
@@ -35,7 +36,7 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
     static FileTable *openPanel(MainWindow &window, unsigned index, const QString &path) {
         auto *panel = window.findChild<QWidget *>(QString("filePanel%1").arg(index));
         auto *address = panel->findChild<QLineEdit *>("archivePath");
-        address->setFocus();
+        PanelKeys::focusAddress(address);
         address->setText(path);
         QTest::keyClick(address, Qt::Key_Return);
         return panel->findChild<FileTable *>("archiveTable");

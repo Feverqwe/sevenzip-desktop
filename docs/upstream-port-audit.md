@@ -63,6 +63,9 @@ rg -n --no-ignore -F 'CAgent::Open' docs/archive/qt-port/upstream-port-audit/ do
 
 ## Новые изменения
 
+- [Главное окно, вкладки и файловый clipboard](upstream-port-audit/main-window-workspace.md)
+  — project-owned workspace, сохранение native источников и baseline Lucide.
+
 - [Хранение кешированных паролей](upstream-port-audit/archive-passwords.md)
   — защищённые allocations для открытых архивов и затираемые native adapters.
 

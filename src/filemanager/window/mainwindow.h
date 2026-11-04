@@ -81,6 +81,9 @@ struct QtOperationResult;
 #include <vector>
 
 class QtFileListHover;
+class QtNavigationBar;
+class QtWindowWorkspace;
+class QtFileClipboard;
 class CProgressDialog;
 class IQtTrashService;
 struct QtFileManagerStartup;
@@ -118,6 +121,10 @@ class MainWindow : public QMainWindow {
     friend class QtPanelContextMenu;
     friend class QtFileManagerInitServices;
     friend class QtRenameController;
+    friend class QtWindowWorkspace;
+    friend class QtWorkspaceApplication;
+    friend class QtFileClipboard;
+    friend struct QtTabRuntime;
     void initializeFileManagerWindow(const QtFileManagerStartup *startup);
     void createFileManagerWindow(const QtFileManagerStartup *startup, bool panelsDefined,
                                  UInt32 splitterPos);
@@ -165,6 +172,7 @@ class MainWindow : public QMainWindow {
     void createIconList(QWidget *central);
     void connectFileView(QAbstractItemView &view);
     void connectFilesystemScanner();
+    void connectFilesystemScanner(unsigned index);
     void filesystemScanFolderReady(unsigned index, IFolderFolder *folder);
     void filesystemScanBatchReady(unsigned index, quint32 firstSourceIndex, quint32 count);
     void filesystemScanAdvanced(unsigned index, quint64 count);
@@ -291,7 +299,7 @@ class MainWindow : public QMainWindow {
     void refreshGuiOutputPanel(unsigned index, const QtGuiOutputRefresh::Outputs &output);
     void createDialog();
     void transferFiles(const QStringList &sources, const QString &destination, bool move,
-                       bool directPath = false);
+                       bool directPath = false, std::function<void(bool)> completed = {});
     void executeCopyDestination(bool move, bool copyToSame, unsigned sourceIndex,
                                 const QString &destination, const CRecordVector<UInt32> &indices,
                                 QtCopyRoute route);
@@ -308,6 +316,8 @@ class MainWindow : public QMainWindow {
     std::unique_ptr<class QtFileManagerDrag> drag_;
     std::unique_ptr<class QtFileManagerCommands> commands_;
     std::unique_ptr<class QtRenameController> renameController_;
+    std::unique_ptr<QtWindowWorkspace> workspace_;
+    std::unique_ptr<QtFileClipboard> clipboard_;
     std::unique_ptr<class QtProgramFileMenu> programFileMenu_;
     std::function<bool(const QUrl &)> fileOpener_;
     CApp app_;
@@ -336,6 +346,9 @@ class MainWindow : public QMainWindow {
         QWidget *container = nullptr;
         QLineEdit *path = nullptr;
         QComboBox *pathCombo = nullptr;
+        QtNavigationBar *navigation = nullptr;
+        QWidget *navigationNotice = nullptr;
+        QLabel *navigationError = nullptr;
         FileTable *table = nullptr;
         QListView *iconList = nullptr;
         QStackedWidget *viewStack = nullptr;
@@ -350,6 +363,7 @@ class MainWindow : public QMainWindow {
         QString archiveFolder;
         QStringList history;
         State state = State::Filesystem;
+        bool locationUnavailable = false;
         bool scanningDisk = false;
         bool scanningArchive = false;
         FilesystemScanner *filesystemScanner = nullptr;

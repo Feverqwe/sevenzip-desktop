@@ -1,0 +1,232 @@
+#include "filemanager/window/qtfavoritestore.h"
+#include "filemanager/AppState.h"
+#include "filemanager/panels/qtpaneldragnative.h"
+#include "filemanager/panels/qtpaneldragtransport.h"
+#include "filemanager/window/qtsavedlocation.h"
+#include <QDir>
+#include <QDrag>
+#include <QDragEnterEvent>
+#include <QFileInfo>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QMimeData>
+#include <QSettings>
+#include <QUrl>
+#include <QUuid>
+
+namespace {
+QString FavoriteKey(QString path) {
+    path = QDir::fromNativeSeparators(path);
+    while (path.endsWith('/') && path.size() > 1 && path != "//" &&
+           !(path.size() == 3 && path[1] == ':'))
+        path.chop(1);
+    return path;
+}
+} // namespace
+
+QtFavoriteStore::QtFavoriteStore(const QString &settingsPath, QObject *parent)
+    : QAbstractListModel(parent), settingsPath_(settingsPath) {
+    QSettings settings(settingsPath_, QSettings::IniFormat);
+    if (settings.contains("workspace/favorites")) {
+        const auto entries =
+            QJsonDocument::fromJson(settings.value("workspace/favorites").toByteArray()).array();
+        for (const auto &value : entries) {
+            const auto entry = value.toObject();
+            const QString id = entry.value("id").toString();
+            const QString path = entry.value("path").toString();
+            if (!id.isEmpty() && !path.isEmpty())
+                favorites_.append({id, entry.value("label").toString(), path});
+        }
+    } else {
+        CFastFolders legacy;
+        legacy.Read(settingsPath_);
+        FOR_VECTOR(i, legacy.Strings) {
+            const QString path = QtSavedSourcePath(ToQString(legacy.Strings[i]));
+            if (!path.isEmpty())
+                Add(path);
+        }
+        Save();
+    }
+}
+
+int QtFavoriteStore::rowCount(const QModelIndex &parent) const {
+    return parent.isValid() ? 0 : favorites_.size();
+}
+
+QtFavorite QtFavoriteStore::Favorite(int row) const {
+    return row >= 0 && row < favorites_.size() ? favorites_[row] : QtFavorite{};
+}
+
+QVariant QtFavoriteStore::data(const QModelIndex &index, int role) const {
+    if (!index.isValid() || index.row() >= favorites_.size())
+        return {};
+    const auto &entry = favorites_[index.row()];
+    switch (role) {
+    case Qt::DisplayRole:
+    case Qt::EditRole:
+        return entry.label;
+    case Qt::ToolTipRole:
+        return entry.path;
+    case Qt::UserRole:
+        return entry.id;
+    case Qt::UserRole + 1:
+        return entry.path;
+    default:
+        return {};
+    }
+}
+
+Qt::ItemFlags QtFavoriteStore::flags(const QModelIndex &index) const {
+    return index.isValid() ? Qt::ItemIsEnabled | Qt::ItemIsSelectable | Qt::ItemIsEditable |
+                                 Qt::ItemIsDragEnabled | Qt::ItemIsDropEnabled
+                           : Qt::ItemIsDropEnabled;
+}
+
+bool QtFavoriteStore::setData(const QModelIndex &index, const QVariant &value, int role) {
+    if (role != Qt::EditRole || !index.isValid() || index.row() >= favorites_.size() ||
+        value.toString().trimmed().isEmpty())
+        return false;
+    favorites_[index.row()].label = value.toString().trimmed();
+    Save();
+    emit dataChanged(index, index, {Qt::DisplayRole, Qt::EditRole});
+    return true;
+}
+
+void QtFavoriteStore::Add(const QString &path, const QString &label) {
+    if (path.isEmpty())
+        return;
+    for (const auto &entry : favorites_)
+        if (FavoriteKey(entry.path) == FavoriteKey(path))
+            return;
+    QString name = label.isEmpty() ? QFileInfo(path).fileName() : label;
+    if (name.isEmpty())
+        name = path;
+    beginInsertRows({}, favorites_.size(), favorites_.size());
+    favorites_.append({QUuid::createUuid().toString(QUuid::WithoutBraces), name, path});
+    endInsertRows();
+    Save();
+}
+
+bool QtFavoriteStore::moveRows(const QModelIndex &source, int row, int count,
+                               const QModelIndex &destination, int before) {
+    if (source.isValid() || destination.isValid() || count != 1 || row < 0 ||
+        row >= favorites_.size() || before < 0 || before > favorites_.size() || before == row ||
+        before == row + 1)
+        return false;
+    beginMoveRows({}, row, row, {}, before);
+    favorites_.move(row, before > row ? before - 1 : before);
+    endMoveRows();
+    Save();
+    return true;
+}
+
+bool QtFavoriteStore::removeRows(int row, int count, const QModelIndex &parent) {
+    if (parent.isValid() || count < 1 || row < 0 || row + count > favorites_.size())
+        return false;
+    beginRemoveRows({}, row, row + count - 1);
+    favorites_.remove(row, count);
+    endRemoveRows();
+    Save();
+    return true;
+}
+
+QStringList QtFavoriteStore::mimeTypes() const {
+    return {QStringLiteral("application/x-sevenzip-favorite"), QStringLiteral("text/uri-list")};
+}
+QMimeData *QtFavoriteStore::mimeData(const QModelIndexList &indices) const {
+    auto *mime = new QMimeData;
+    if (!indices.isEmpty()) {
+        const auto entry = Favorite(indices.first().row());
+        mime->setData("application/x-sevenzip-favorite", entry.id.toUtf8());
+    }
+    return mime;
+}
+Qt::DropActions QtFavoriteStore::supportedDropActions() const {
+    return Qt::MoveAction | Qt::CopyAction;
+}
+bool QtFavoriteStore::dropMimeData(const QMimeData *mime, Qt::DropAction action, int row, int,
+                                   const QModelIndex &parent) {
+    if (action == Qt::IgnoreAction)
+        return true;
+    if (const auto *native = dynamic_cast<const QtPanelDragMime *>(mime);
+        native && native->Data().IsTempFiles)
+        return false;
+#ifdef Q_OS_WIN
+    if (auto *converter = QtNativePanelDragConverter::ForApplication())
+        if (auto native = converter->Read(*mime)) {
+            UInt32 flags = 0;
+            if (!native->ReadTransferFlags(flags) || (flags & k_SourceFlags_TempFiles))
+                return false;
+        }
+#endif
+    const int before = row >= 0 ? row : parent.isValid() ? parent.row() : favorites_.size();
+    const QString id = QString::fromUtf8(mime->data("application/x-sevenzip-favorite"));
+    for (int i = 0; i < favorites_.size(); ++i)
+        if (!id.isEmpty() && favorites_[i].id == id)
+            return moveRows({}, i, 1, {}, before);
+    bool added = false;
+    for (const auto &url : mime->urls()) {
+        if (url.isLocalFile() && QFileInfo(url.toLocalFile()).isDir()) {
+            Add(url.toLocalFile());
+            added = true;
+        }
+    }
+    return added;
+}
+
+void QtFavoriteList::startDrag(Qt::DropActions) {
+    // The model owns reordering. QAbstractItemView's post-Move row removal
+    // would remove the favorite a second time after moveRows().
+    auto *drag = new QDrag(this);
+    drag->setMimeData(model()->mimeData(selectedIndexes()));
+    drag->exec(Qt::MoveAction, Qt::MoveAction);
+    drag->deleteLater();
+}
+
+void QtFavoriteList::dragEnterEvent(QDragEnterEvent *event) {
+    QListView::dragEnterEvent(event);
+    if (event->isAccepted() && !event->mimeData()->hasFormat("application/x-sevenzip-favorite")) {
+        if (event->possibleActions() & Qt::CopyAction)
+            event->setDropAction(Qt::CopyAction);
+        else
+            event->ignore();
+    }
+}
+
+void QtFavoriteList::dragMoveEvent(QDragMoveEvent *event) {
+    QListView::dragMoveEvent(event);
+    if (event->isAccepted() && !event->mimeData()->hasFormat("application/x-sevenzip-favorite")) {
+        if (event->possibleActions() & Qt::CopyAction)
+            event->setDropAction(Qt::CopyAction);
+        else
+            event->ignore();
+    }
+}
+
+void QtFavoriteList::dropEvent(QDropEvent *event) {
+    if (!event->mimeData()->hasFormat("application/x-sevenzip-favorite")) {
+        if (!(event->possibleActions() & Qt::CopyAction)) {
+            event->ignore();
+            return;
+        }
+        // A folder drop creates a bookmark, even when the source proposes Move.
+        const QModelIndex at = indexAt(event->position().toPoint());
+        if (model()->dropMimeData(event->mimeData(), Qt::CopyAction, at.isValid() ? at.row() : -1,
+                                  0, {})) {
+            event->setDropAction(Qt::CopyAction);
+            event->accept();
+        } else
+            event->ignore();
+        return;
+    }
+    QListView::dropEvent(event);
+}
+
+void QtFavoriteStore::Save() {
+    QJsonArray entries;
+    for (const auto &entry : favorites_)
+        entries.append(QJsonObject{{"id", entry.id}, {"label", entry.label}, {"path", entry.path}});
+    QSettings settings(settingsPath_, QSettings::IniFormat);
+    settings.setValue("workspace/favorites", QJsonDocument(entries).toJson(QJsonDocument::Compact));
+}

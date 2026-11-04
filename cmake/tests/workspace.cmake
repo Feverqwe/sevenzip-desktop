@@ -1,4 +1,24 @@
 if(BUILD_TESTING)
+    qt_add_executable(workspace_archive_tests tests/filemanager/workspace_archive_tests.cpp
+        tests/platform/support/external_editor_fixture.cpp)
+    target_link_libraries(workspace_archive_tests PRIVATE sevenzip_window sevenzip_layout_inspection
+        sevenzip_widget_dialog_fixtures Qt6::Test)
+    target_include_directories(workspace_archive_tests PRIVATE src tests)
+    add_test(NAME workspace_archive COMMAND workspace_archive_tests -silent)
+    set_tests_properties(workspace_archive PROPERTIES TIMEOUT 90 ENVIRONMENT
+        "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/workspace-archive-settings.ini")
+    qt_add_executable(workspace_navigation_tests tests/filemanager/workspace_navigation_tests.cpp)
+    target_link_libraries(workspace_navigation_tests PRIVATE sevenzip_window sevenzip_widget_dialog_fixtures Qt6::Test)
+    target_include_directories(workspace_navigation_tests PRIVATE src tests)
+    add_test(NAME workspace_navigation COMMAND workspace_navigation_tests -silent)
+    set_tests_properties(workspace_navigation PROPERTIES TIMEOUT 90 ENVIRONMENT
+        "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/workspace-navigation-settings.ini")
+    qt_add_executable(workspace_session_tests tests/filemanager/workspace_session_tests.cpp)
+    target_link_libraries(workspace_session_tests PRIVATE sevenzip_window Qt6::Test)
+    target_include_directories(workspace_session_tests PRIVATE src tests)
+    add_test(NAME workspace_session COMMAND workspace_session_tests -silent)
+    set_tests_properties(workspace_session PROPERTIES TIMEOUT 90 ENVIRONMENT
+        "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/workspace-session-settings.ini")
     qt_add_executable(rename_lifecycle_tests tests/filemanager/rename_lifecycle_tests.cpp)
     target_link_libraries(rename_lifecycle_tests PRIVATE sevenzip_window Qt6::Test)
     target_include_directories(rename_lifecycle_tests PRIVATE src tests)

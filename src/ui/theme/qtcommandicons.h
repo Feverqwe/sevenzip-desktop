@@ -11,7 +11,13 @@ enum class QtCommandIcon {
     Info,
     Parent,
     NewFolder,
-    Refresh
+    Refresh,
+    Cut,
+    Paste,
+    Rename,
+    Sidebar,
+    Back,
+    EditLocation
 };
 
 // Vector command graphics; file, namespace and application icons stay native.

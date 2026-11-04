@@ -1,5 +1,11 @@
 #include "filemanager/panels/qtnativepanelkeys.h"
 #include "filemanager/window/mainwindow.h"
+#include "filemanager/window/qtfileclipboard.h"
+#include "filemanager/window/qtnavigationbar.h"
+#include "filemanager/window/qtwindowworkspace.h"
+#include "filemanager/window/qtworkspaceapplication.h"
+#include "localization/qtlangcontrols.h"
+#include <QTabBar>
 
 void MainWindow::configureShortcuts() {
     const auto bindPanel = [this](QAction *action, const QList<QKeySequence> &keys) {
@@ -16,6 +22,13 @@ void MainWindow::configureShortcuts() {
     bindPanel(createFolder_, {modern(Qt::Key_N), QKeySequence(Qt::Key_F7)});
     bindPanel(createFile_, {QKeySequence(Qt::SHIFT | Qt::Key_F4)});
     bindPanel(selectAll_, QKeySequence::keyBindings(QKeySequence::SelectAll));
+    // Shift+Delete remains the source's explicit permanent-delete command.
+    bindPanel(clipboard_->cut, {QKeySequence(Qt::CTRL | Qt::Key_X)});
+    bindPanel(clipboard_->copy, QKeySequence::keyBindings(QKeySequence::Copy));
+    bindPanel(clipboard_->paste, QKeySequence::keyBindings(QKeySequence::Paste));
+    auto *edit = findChild<QMenu *>("editMenu");
+    for (auto *action : {clipboard_->paste, clipboard_->copy, clipboard_->cut})
+        edit->insertAction(edit->actions().first(), action);
     bindPanel(openInside_, {QKeySequence(Qt::CTRL | Qt::Key_PageDown)});
     bindPanel(openOutside_, {QKeySequence(Qt::SHIFT | Qt::Key_Return)});
     bindPanel(viewFile_, {QKeySequence(Qt::Key_F3)});
@@ -46,7 +59,6 @@ void MainWindow::configureShortcuts() {
         ->setShortcuts(QKeySequence::keyBindings(QKeySequence::Open));
     exitAction_->setShortcuts(QKeySequence::keyBindings(QKeySequence::Quit));
     foldersHistory_->setShortcut(QKeySequence(Qt::ALT | Qt::Key_F12));
-    findChild<QAction *>("helpContentsAction")->setShortcut(QKeySequence(Qt::Key_F1));
     for (int i = 0; i < 4; ++i)
         viewActions_[i]->setShortcut(QKeySequence(Qt::CTRL | (Qt::Key_1 + i)));
     for (int i = 0; i < 5; ++i)
@@ -59,15 +71,59 @@ void MainWindow::configureShortcuts() {
         if (!app_.QtOperations().closed() && !app_.QtOperations().blocking() &&
             !QApplication::activeModalWidget()) {
             projectedUi().pathCombo->hidePopup();
-            projectedUi().path->setFocus();
-            projectedUi().path->selectAll();
+            projectedUi().navigation->Edit();
         }
     });
     auto *close = new QAction(this);
+    QtBindLocalText(close, "QtWindowWorkspace",
+                    QT_TRANSLATE_NOOP("QtWindowWorkspace", "Close tab"));
+    close->setProperty("workspaceCommand", true);
     close->setObjectName("closeWindowAction");
     close->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_W));
+    panelShortcutActions_.append(close);
     addAction(close);
-    connect(close, &QAction::triggered, this, [this] { app_.ExecuteCommand(8); });
+    connect(close, &QAction::triggered, this, [this] {
+        if (auto *bar = findChild<QTabBar *>(QStringLiteral("panelTabs%1").arg(projectedPanel_)))
+            workspace_->CloseTab(projectedPanel_, bar->currentIndex());
+    });
+    auto *newTab = new QAction(tr("New tab"), this);
+    newTab->setObjectName("newTabAction");
+    QtBindLocalText(newTab, "QtWindowWorkspace", QT_TRANSLATE_NOOP("QtWindowWorkspace", "New tab"));
+    newTab->setProperty("workspaceCommand", true);
+    newTab->setShortcut(QKeySequence::AddTab);
+    panelShortcutActions_.append(newTab);
+    addAction(newTab);
+    connect(newTab, &QAction::triggered, this, [this] { workspace_->NewTab(projectedPanel_); });
+    auto *newWindow = new QAction(tr("New window"), this);
+    newWindow->setObjectName("newWindowAction");
+    QtBindLocalText(newWindow, "QtWindowWorkspace",
+                    QT_TRANSLATE_NOOP("QtWindowWorkspace", "New window"));
+    newWindow->setProperty("workspaceCommand", true);
+    newWindow->setShortcut(QKeySequence::New);
+    panelShortcutActions_.append(newWindow);
+    addAction(newWindow);
+    connect(newWindow, &QAction::triggered, this, [this] {
+        if (auto *application = QtWorkspaceApplication::Find()) {
+            application->NewWindow(workspace_->CurrentLocation());
+        }
+    });
+    auto *closeWindow = new QAction(tr("Close window"), this);
+    QtBindLocalText(closeWindow, "QtWindowWorkspace",
+                    QT_TRANSLATE_NOOP("QtWindowWorkspace", "Close window"));
+    closeWindow->setProperty("workspaceCommand", true);
+    closeWindow->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_W));
+    panelShortcutActions_.append(closeWindow);
+    addAction(closeWindow);
+    connect(closeWindow, &QAction::triggered, this, &QWidget::close);
+    auto *file = findChild<QMenu *>("fileMenu");
+    file->insertAction(file->actions().first(), newWindow);
+    file->insertAction(file->actions().first(), newTab);
+    file->addAction(closeWindow);
+    file->addAction(close);
+    if (auto *application = QtWorkspaceApplication::Find()) {
+        disconnect(exitAction_, &QAction::triggered, this, nullptr);
+        connect(exitAction_, &QAction::triggered, application, &QtWorkspaceApplication::Quit);
+    }
     for (QAction *action : findChildren<QAction *>())
         if (!action->shortcuts().isEmpty())
             action->setShortcutVisibleInContextMenu(true);

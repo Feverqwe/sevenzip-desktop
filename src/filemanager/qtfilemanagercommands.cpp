@@ -106,7 +106,6 @@ void QtFileManagerCommands::AttachViewActions() {
     Bind(w.foldersHistory_, IDM_FOLDERS_HISTORY);
     Bind(w.root_, IDM_OPEN_ROOT_FOLDER);
     Bind(w.settingsAction_, IDM_OPTIONS);
-    Bind(w.findChild<QAction *>("helpContentsAction"), IDM_HELP_CONTENTS);
     Bind(w.findChild<QAction *>("aboutAction"), IDM_ABOUT);
     Bind(w.findChild<QAction *>("tempDirAction"), IDM_TEMP_DIR);
     Bind(w.findChild<QAction *>("benchmarkAction"), IDM_BENCHMARK);

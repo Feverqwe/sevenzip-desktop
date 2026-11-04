@@ -108,11 +108,12 @@ platform resize surface. These checks establish Qt structure, not rendered parit
 Set the Unicode message before each panel toggle: creating the second panel
 must preserve it. Panel construction does not publish a new operation result.
 
-Source SetButtonText supplies the seven short button captions AND tooltips;
-shared File menu QAction captions do not replace them after language/selection
-changes. `language_ui` inspects EN/RU normal980×620 and compact640×400 reports
-`toolbar-text-{-,ru}-{980,640}.json`. Tooltip text is asserted directly, without
-a popup-pixel claim. Native rendered tooltip appearance remains unverified.
+Главная строка действий содержит «Создать» (папка/файл), Cut, Copy, Paste,
+Rename и Delete. Она действует на свою панель и использует существующую
+проекцию доступности. Архивные Add/Extract/Test находятся в меню и контексте.
+Подписи, accessible names и подсказки следуют текущему языку и сочетанию;
+обновление выбора не возвращает устаревший перевод. Copy/Cut передают реальные
+файлы, Paste использует действующий сценарий переноса с конфликтами и отменой.
 
 Opening the parent View menu runs source OnMenuActivating before display. Its
 time submenu caption is the current day; five current-time examples and UTC
@@ -131,45 +132,20 @@ popup visibility until Hide, while a newer editor/peer interaction supersedes it
 
 Reference: `CPP/7zip/UI/FileManager/resource.rc::IDM_MENU`,
 `App.cpp::g_ArchiveButtons/g_StandardButtons` and `MyLoadMenu.cpp` at
-`0766b733fe3e06dd2a7f9a3cfbf2108ac73abd17`. Six top-level menus follow
-File/Edit/View/Favorites/Tools/Help. File retains the RC command set;
-independent Qt archive-workflow aliases have been removed. Unsupported source commands remain
-visible disabled. The original Archive and Standard toolbar reference used seven
-large/small bitmap pairs; the approved vector adaptation is described below.
-The local folder-size command belongs to the archive group. Hiding that group
-removes its toolbar button while retaining the command in the File menu.
-Text/size/visibility derive from the native toolbar flags. `main_shell` checks
-command identity, shortcuts, availability, active-panel routing and rendering, then writes
-`main-shell-980x620.json`, `main-shell-640x400.json` and File/View popup reports
-for both sizes. Qt QMenu may scroll when its source command list exceeds the
-available screen; JSON records its geometry and action tests cover non-widget
-QActions. The Windows rendered menu is not yet available for pixel comparison.
+`0766b733fe3e06dd2a7f9a3cfbf2108ac73abd17`. Главные меню — File/Edit/View/Favorites/Tools. Встроенная справка исключена
+из главного окна по запросу пользователя; About/лицензии остаются в Tools
+(на macOS — системная роль About). File сохраняет исходные command IDs и
+обработчики, а архивные действия собраны в подменю. Незавершённые команды
+остаются недоступными. Настройки старой архивной toolbar больше не определяют
+новую строку файловых действий.
 
-Command icon checks render palette changes and display density; application and
-native namespace icon checks retain their separate source-resource contracts.
-
-Redesign adaptation: Add and Extract show text beside their icons when the
-existing button-label preference is enabled. Test, Copy, Move, Delete and Info
-use icons, with localized accessible names and tooltips that include their
-current native shortcut. The label preference can still hide the primary
-captions; toolbar group visibility and large/small icons keep their existing
-owners and saved values. Buttons use native hover/focus rendering and support
-keyboard focus. The vector toolbar uses 16×16 logical icons to match the concept;
-the larger preference uses 24×24 rather than the original bitmap canvas sizes.
-The toolbar reserves space around and between command buttons. Captions use the
-regular application font rather than Cocoa's smaller bold toolbar label.
-The parent button and editable address occupy a separate padded navigation row;
-the address grows with the system font and keeps an adequate input height.
-These metrics belong to main-window chrome, not shared dialog controls.
-The Extract caption uses the same translation as the redesigned
-Extract dialog. Command/navigation symbols now adapt local Lucide vectors,
-following the current palette in normal/disabled states and at display density.
-Native file, namespace and application icons retain their original owners.
-`main_shell` checks all seven buttons fit EN/RU at normal/compact widths and
-checks keyboard invocation against the active panel and cancellation.
-`language_ui` checks names/tooltips after language, selection and shortcut
-changes. These checks replace fixed bitmap-size/corner-pixel assertions;
-safe icon changes are permitted by the redesign.
+Контурные значки используют локальную адаптацию Lucide с текущей палитрой и
+масштабом экрана. Нативные файловые/namespace/application icons сохраняются.
+Кнопки поддерживают клавиатурный фокус, нативную индикацию и обычный системный
+шрифт. «Создать» показывает подпись, остальные действия — значки с локализованным
+accessible name и tooltip. Normal/compact проверки охватывают EN/RU,
+одну→две→одну панели, видимые действия, навигацию и список. Это контракт Qt
+и согласованного редизайна; совпадение пикселей с оригинальным Windows не заявлено.
 
 ### Per-panel context and status (P0-09.2)
 

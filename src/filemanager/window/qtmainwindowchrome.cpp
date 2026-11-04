@@ -4,10 +4,71 @@
 #include <QProxyStyle>
 #include <QPushButton>
 #include <QStyleOptionToolButton>
+#include <QTabBar>
 #include <QToolBar>
 #include <QToolButton>
 
 namespace {
+class PanelChromeStyle final : public QProxyStyle {
+  public:
+    explicit PanelChromeStyle(QWidget &owner) { setParent(&owner); }
+    void drawPrimitive(PrimitiveElement element, const QStyleOption *option, QPainter *painter,
+                       const QWidget *widget) const override {
+        if (element != PE_IndicatorTabClose) {
+            QProxyStyle::drawPrimitive(element, option, painter, widget);
+            return;
+        }
+        painter->save();
+        painter->setRenderHint(QPainter::Antialiasing);
+        const auto group = option->state & State_Enabled ? QPalette::Active : QPalette::Disabled;
+        painter->setPen(QPen(QApplication::palette().color(group, QPalette::WindowText), 1.3,
+                             Qt::SolidLine, Qt::RoundCap));
+        const QPointF center = option->rect.center();
+        painter->drawLine(center + QPointF(-3, -3), center + QPointF(3, 3));
+        painter->drawLine(center + QPointF(-3, 3), center + QPointF(3, -3));
+        painter->restore();
+    }
+    void drawComplexControl(ComplexControl control, const QStyleOptionComplex *option,
+                            QPainter *painter, const QWidget *widget) const override {
+        const auto *tool = qstyleoption_cast<const QStyleOptionToolButton *>(option);
+        const auto *button = qobject_cast<const QToolButton *>(widget);
+        if (control != CC_ToolButton || !tool || !button || !button->autoRaise()) {
+            QProxyStyle::drawComplexControl(control, option, painter, widget);
+            return;
+        }
+        // QMacStyle ignores autoRaise. Keep quiet navigation on every platform
+        // with palette-derived hover/pressed/focus feedback and native labels.
+        painter->save();
+        painter->setRenderHint(QPainter::Antialiasing);
+        const QRectF frame = tool->rect.adjusted(1, 1, -1, -1);
+        if (tool->state & (State_MouseOver | State_Sunken | State_On)) {
+            QColor fill = QApplication::palette().color(QPalette::Highlight);
+            fill.setAlphaF(tool->state & (State_Sunken | State_On) ? 0.20 : 0.10);
+            painter->setPen(Qt::NoPen);
+            painter->setBrush(fill);
+            painter->drawRoundedRect(frame, 4, 4);
+        }
+        if (tool->state & State_HasFocus) {
+            painter->setPen(QPen(QApplication::palette().color(QPalette::Highlight), 1));
+            painter->setBrush(Qt::NoBrush);
+            painter->drawRoundedRect(frame, 4, 4);
+        }
+        QStyleOptionToolButton label(*tool);
+        if (tool->features & QStyleOptionToolButton::HasMenu) {
+            label.rect.adjust(0, 0, -10, 0);
+            QStyleOption arrow;
+            arrow.rect =
+                visualRect(tool->direction, tool->rect,
+                           QRect(tool->rect.right() - 9, tool->rect.center().y() - 3, 7, 7));
+            arrow.palette = tool->palette;
+            arrow.state = tool->state;
+            QProxyStyle::drawPrimitive(PE_IndicatorArrowDown, &arrow, painter, widget);
+        }
+        QProxyStyle::drawControl(CE_ToolButtonLabel, &label, painter, widget);
+        painter->restore();
+    }
+};
+
 class MainChromeStyle final : public QProxyStyle {
   public:
     explicit MainChromeStyle(QWidget &owner) { setParent(&owner); }
@@ -98,6 +159,12 @@ class MainChromeStyle final : public QProxyStyle {
     }
 };
 } // namespace
+
+void QtConfigureChromeToolButton(QToolButton &button) {
+    button.setStyle(new PanelChromeStyle(button));
+    button.setFont(QApplication::font());
+}
+void QtConfigureWorkspaceTabs(QTabBar &tabs) { tabs.setStyle(new PanelChromeStyle(tabs)); }
 
 void QtConfigureMainToolbar(QToolBar &toolbar) {
     toolbar.setStyle(new MainChromeStyle(toolbar));

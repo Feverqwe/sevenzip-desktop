@@ -102,7 +102,8 @@ class RootNavigationTests final : public QObject, protected MainWindowTestSuppor
             window.resize(size);
             window.show();
             QCoreApplication::processEvents();
-            QVERIFY(UiInspection::fullyVisible(*address, window));
+            QVERIFY(UiInspection::fullyVisible(*window.findChild<QWidget *>("panelNavigation0"),
+                                               window));
             QVERIFY(UiInspection::fullyVisible(*view, window));
             QVERIFY(UiInspection::writeReport(
                 window, QSysInfo::productType() +
@@ -143,7 +144,8 @@ class RootNavigationTests final : public QObject, protected MainWindowTestSuppor
             window.resize(size);
             window.show();
             QCoreApplication::processEvents();
-            QVERIFY(UiInspection::fullyVisible(*address, window));
+            QVERIFY(UiInspection::fullyVisible(*window.findChild<QWidget *>("panelNavigation0"),
+                                               window));
             QVERIFY(UiInspection::fullyVisible(*view, window));
             QVERIFY(UiInspection::writeReport(
                 window, QSysInfo::productType() +
@@ -195,10 +197,11 @@ class RootNavigationTests final : public QObject, protected MainWindowTestSuppor
             window.resize(size);
             window.show();
             QCoreApplication::processEvents();
-            auto *toolbar = window.findChild<QToolBar *>("archiveToolbar");
+            auto *toolbar = window.findChild<QToolBar *>("panelFileActions0");
             QVERIFY(toolbar);
             QVERIFY(UiInspection::fullyVisible(*toolbar, window));
-            QVERIFY(UiInspection::fullyVisible(*address, window));
+            QVERIFY(UiInspection::fullyVisible(*window.findChild<QWidget *>("panelNavigation0"),
+                                               window));
             QVERIFY(UiInspection::fullyVisible(*view, window));
             QVERIFY(UiInspection::fullyVisible(*window.findChild<QStatusBar *>("panelStatusBar"),
                                                window));

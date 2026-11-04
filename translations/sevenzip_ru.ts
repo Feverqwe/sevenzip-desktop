@@ -7122,4 +7122,168 @@ Check that your distribution's CIFS support and cifs-utils are installed.</sourc
         <translation>Подсчёт размера папки…</translation>
     </message>
 </context>
+<context>
+    <name>MainWindow</name>
+    <message>
+        <source>Archive</source>
+        <translation>Архив</translation>
+    </message>
+    <message>
+        <source>New tab</source>
+        <translation>Новая вкладка</translation>
+    </message>
+    <message>
+        <source>New window</source>
+        <translation>Новое окно</translation>
+    </message>
+    <message>
+        <source>Close window</source>
+        <translation>Закрыть окно</translation>
+    </message>
+</context>
+<context>
+    <name>QtFileClipboard</name>
+    <message>
+        <source>Cut</source>
+        <translation>Вырезать</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>Копировать</translation>
+    </message>
+    <message>
+        <source>Paste</source>
+        <translation>Вставить</translation>
+    </message>
+    <message>
+        <source>Complete extraction could not be confirmed. The clipboard was kept unchanged.</source>
+        <translation>Не удалось подтвердить полную распаковку. Буфер обмена не изменён.</translation>
+    </message>
+</context>
+<context>
+    <name>QtNavigationBar</name>
+    <message>
+        <source>Edit location</source>
+        <translation>Изменить путь</translation>
+    </message>
+</context>
+<context>
+    <name>QtWindowWorkspace</name>
+    <message>
+        <source>Archive</source>
+        <translation>Архив</translation>
+    </message>
+    <message>
+        <source>Close tab</source>
+        <translation>Закрыть вкладку</translation>
+    </message>
+    <message>
+        <source>New tab</source>
+        <translation>Новая вкладка</translation>
+    </message>
+    <message>
+        <source>New window</source>
+        <translation>Новое окно</translation>
+    </message>
+    <message>
+        <source>Close window</source>
+        <translation>Закрыть окно</translation>
+    </message>
+    <message>
+        <source>Home</source>
+        <translation>Домашняя папка</translation>
+    </message>
+    <message>
+        <source>Locations</source>
+        <translation>Расположения</translation>
+    </message>
+    <message>
+        <source>Duplicate location</source>
+        <translation>Дублировать расположение</translation>
+    </message>
+    <message>
+        <source>Move to other panel</source>
+        <translation>Переместить в другую панель</translation>
+    </message>
+    <message>
+        <source>Move to new window</source>
+        <translation>Переместить в новое окно</translation>
+    </message>
+    <message>
+        <source>Move to window</source>
+        <translation>Переместить в окно</translation>
+    </message>
+    <message>
+        <source>Retry</source>
+        <translation>Повторить</translation>
+    </message>
+    <message>
+        <source>Parent folder</source>
+        <translation>Родительская папка</translation>
+    </message>
+    <message>
+        <source>Downloads</source>
+        <translation>Загрузки</translation>
+    </message>
+    <message>
+        <source>Documents</source>
+        <translation>Документы</translation>
+    </message>
+    <message>
+        <source>Favorites</source>
+        <translation>Избранное</translation>
+    </message>
+    <message>
+        <source>Open in new tab</source>
+        <translation>Открыть в новой вкладке</translation>
+    </message>
+    <message>
+        <source>Open in new window</source>
+        <translation>Открыть в новом окне</translation>
+    </message>
+    <message>
+        <source>Rename favorite</source>
+        <translation>Переименовать закладку</translation>
+    </message>
+    <message>
+        <source>Remove favorite</source>
+        <translation>Удалить из избранного</translation>
+    </message>
+    <message>
+        <source>Add current location</source>
+        <translation>Добавить текущее расположение</translation>
+    </message>
+    <message>
+        <source>Places sidebar</source>
+        <translation>Боковая панель мест</translation>
+    </message>
+    <message>
+        <source>Saved places</source>
+        <translation>Сохранённые места</translation>
+    </message>
+    <message>
+        <source>Add favorite</source>
+        <translation>Добавить в избранное</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>Название</translation>
+    </message>
+    <message>
+        <source>Opening canceled: %1</source>
+        <translation>Открытие отменено: %1</translation>
+    </message>
+    <message>
+        <source>Location unavailable: %1</source>
+        <translation>Расположение недоступно: %1</translation>
+    </message>
+    <message>
+        <source>Finish external editing before moving this tab to another window.</source>
+        <translation>Завершите внешнее редактирование, чтобы переместить эту вкладку в другое окно.</translation>
+    </message>
+    <message>
+        <source>Create</source>
+        <translation>Создать</translation>
+    </message>
+</context>
 </TS>

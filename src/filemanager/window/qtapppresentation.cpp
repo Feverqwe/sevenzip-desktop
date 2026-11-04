@@ -2,6 +2,9 @@
 #include "filemanager/qtfilemanagerdrag.h"
 #include "filemanager/views/qtfilelisthover.h"
 #include "filemanager/window/mainwindow.h"
+#include "filemanager/window/qtfileclipboard.h"
+#include "filemanager/window/qtnavigationbar.h"
+#include "filemanager/window/qtwindowworkspace.h"
 #include "fileops/native/Dialog.h"
 #include "ui/dialogs/qtdialogscreenservices.h"
 #include <QApplication>
@@ -55,9 +58,12 @@ bool QtAppPresentation::CreatePanel(CPanel &panel, unsigned index) {
     const bool hadPrevious = window_.panelUi_[previous].container;
     window_.projectedPanel_ = index;
     window_.app_.SetFocusedPanel(index);
+    if (!window_.panelUi_[index].filesystemScanner)
+        window_.connectFilesystemScanner(index);
     panel.LoadFullPath();
     const QSettings settings(window_.toolbarSettingsPath(), QSettings::IniFormat);
-    panel.SetFlatModeForDisk(settings.value("view/flatDisk", false).toBool());
+    if (!panel.PanelCreated)
+        panel.SetFlatModeForDisk(settings.value("view/flatDisk", false).toBool());
     panel.AttachViewModePresentation([window = QPointer<MainWindow>(&window_), index](UInt32 mode) {
         if (window)
             window->withPanelProjection(index, [window, mode] { window->setViewMode(int(mode)); });
@@ -67,6 +73,32 @@ bool QtAppPresentation::CreatePanel(CPanel &panel, unsigned index) {
             window->withPanelProjection(index, [window, flat] { window->applyFlatView(flat); });
     });
     window_.createFilePanel(editMenu_, index);
+    if (!panel.PanelCreated) {
+        panel._showDots = window_.fileListSettings_.ShowDots;
+        panel._showRealFileIcons = window_.fileListSettings_.ShowRealFileIcons;
+        SetListSettings(index, window_.fileListSettings_);
+    }
+    panel.AttachAddressFocus(
+        [navigation = window_.panelUi_[index].navigation] { navigation->Edit(); });
+    panel.AttachFileClipboard([window = QPointer<MainWindow>(&window_), index](unsigned command) {
+        if (!window)
+            return;
+        window->withPanelProjection(index, [window, command] {
+            if (command == 2)
+                window->clipboard_->Paste();
+            else
+                window->clipboard_->Copy(command == 0);
+        });
+    });
+    panel.AttachInvalidationPresentation(
+        [window = QPointer<MainWindow>(&window_), source = &panel, index] {
+            if (!window)
+                return;
+            if (!window->workspace_->SourceIsActive(*source))
+                window->workspace_->MarkDirty(*source);
+            else
+                window->withPanelProjection(index, [window] { window->redrawSourceProperties(); });
+        });
     panel.AttachStatusPresentation(
         [window = QPointer<MainWindow>(&window_), index](const CPanelStatus &status) {
             if (window)
@@ -74,10 +106,16 @@ bool QtAppPresentation::CreatePanel(CPanel &panel, unsigned index) {
         });
     // OnCreate refreshes immediately after this service returns, before the
     // next panel is bound. Install its load/publication owner with its controls.
-    panel.AttachReloadPresentation(
-        [window = QPointer<MainWindow>(&window_), index](const CSelectedState &selection) {
-            return window ? window->reloadPanelPresentation(index, selection) : E_ABORT;
-        });
+    panel.AttachReloadPresentation([window = QPointer<MainWindow>(&window_), source = &panel,
+                                    index](const CSelectedState &selection) {
+        if (!window)
+            return E_ABORT;
+        if (!window->workspace_->SourceIsActive(*source)) {
+            window->workspace_->MarkDirty(*source);
+            return S_OK;
+        }
+        return window->reloadPanelPresentation(index, selection);
+    });
     if (window_.drag_)
         window_.drag_->AttachPanel(index);
     if (hadPrevious && index != previous) {
@@ -138,6 +176,7 @@ void QtAppPresentation::SetListSettings(unsigned index, const CFmSettings &setti
     if (index >= kNumPanelsMax)
         return;
     window_.fileListSettings_ = settings;
+    window_.app_.Panels[index].SetAlternativeSelection(settings.AlternativeSelection);
     const auto &ui = window_.panelUi_[index];
     if (ui.table) {
         ui.table->setShowGrid(settings.ShowGrid);

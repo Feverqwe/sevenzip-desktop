@@ -167,7 +167,12 @@ struct CTmpProcessInfo : public CTempFileInfo {
     bool UsePassword;
     ArchivePassword Password;
     bool ReadOnly;
+    bool Registered = false;
     CTmpProcessInfo() : UsePassword(false), ReadOnly(false) {}
+    ~CTmpProcessInfo() {
+        if (Registered)
+            --Launcher->PendingSessions;
+    }
 };
 
 static int CallExternalUpdateGui(CTmpProcessInfo &tpi, const std::function<int()> &body) {
@@ -323,6 +328,8 @@ class CExternalFileLaunch MY_UNCOPYABLE {
         auto &launcher = *_info->Launcher;
         ::CThread thread;
         Thread_CONSTRUCT(&thread);
+        _info->Registered = true;
+        ++launcher.PendingSessions;
         if (Thread_Create(&thread, MyThreadFunction, _info.get()) != 0)
             throw 271824;
         launcher._threads.AddInReserved(thread);

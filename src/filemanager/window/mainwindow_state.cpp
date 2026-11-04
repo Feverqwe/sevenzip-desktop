@@ -2,6 +2,8 @@
 #include "filemanager/qtfilemanagercommands.h"
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtapppresentation.h"
+#include "filemanager/window/qtfileclipboard.h"
+#include "filemanager/window/qtwindowworkspace.h"
 #include "localization/qtlangcontrols.h"
 #include <QScopedValueRollback>
 
@@ -38,7 +40,7 @@ void MainWindow::refreshActions() {
             if (!ui.container || !ui.table || !ui.iconList || !ui.path)
                 continue;
             const bool projecting = ui.scanningDisk || ui.scanningArchive;
-            const bool panelIdle = navigating && !projecting;
+            const bool panelIdle = navigating && !projecting && !ui.locationUnavailable;
             QWidget *focused = QApplication::focusWidget();
             if (projecting && focused &&
                 (ui.table == focused || ui.table->isAncestorOf(focused) || ui.iconList == focused ||
@@ -67,6 +69,10 @@ void MainWindow::refreshActions() {
         appPresentation_->CompleteInitialFocusIfReady();
         appPresentation_->CompleteCopyIfReady();
     }
+    if (workspace_)
+        workspace_->Refresh();
+    if (clipboard_)
+        clipboard_->Refresh();
 }
 
 void MainWindow::refreshPanelStatus() {

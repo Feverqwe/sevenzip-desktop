@@ -31,7 +31,6 @@ QMenu *MainWindow::createMenusAndToolbar() {
     toolsMenu->setObjectName("toolsMenu");
     settingsAction_ = new QAction("&Options...", toolsMenu);
     settingsAction_->setObjectName("settingsAction");
-    menuBar()->addMenu("&Help")->setObjectName("helpMenu");
     createFavoritesMenu(favoritesMenu);
     createViewOptions(viewMenu);
     return editMenu;
@@ -285,6 +284,12 @@ void MainWindow::populateSourceMenus() {
     unavailable(file, QStringLiteral("&Alternate Streams"), "altStreamsAction", IDM_ALT_STREAMS);
     file->addSeparator();
     file->addAction(exitAction_);
+    auto *archives = file->addMenu(tr("Archive"));
+    QtBindLocalText(archives->menuAction(), "QtWindowWorkspace",
+                    QT_TRANSLATE_NOOP("QtWindowWorkspace", "Archive"));
+    archives->menuAction()->setProperty("workspaceCommand", true);
+    for (auto *action : {toolbarAdd_, extract_, test_, infoAction_})
+        archives->addAction(action);
     const char *verCtrlNames[] = {"verEditAction", "verCommitAction", "verRevertAction",
                                   "verDiffAction"};
     for (unsigned i = 0; i < 4; ++i) {
@@ -321,7 +326,7 @@ void MainWindow::populateSourceMenus() {
     view->addAction(twoPanelsAction_);
     view->addSeparator();
     view->addMenu(time);
-    view->addMenu(toolbars);
+    toolbars->menuAction()->setVisible(false);
     view->addSeparator();
     for (QAction *action : {root_, up_, foldersHistory_, refresh_, autoRefreshAction_})
         view->addAction(action);
@@ -340,8 +345,6 @@ void MainWindow::populateSourceMenus() {
     tools->addSeparator();
     unavailable(tools, QStringLiteral("Delete Temporary Files..."), "tempDirAction", IDM_TEMP_DIR);
 
-    auto *help = findChild<QMenu *>("helpMenu");
-    unavailable(help, QStringLiteral("Contents..."), "helpContentsAction", IDM_HELP_CONTENTS);
-    help->addSeparator();
-    unavailable(help, QStringLiteral("About 7-Zip..."), "aboutAction", IDM_ABOUT);
+    tools->addSeparator();
+    unavailable(tools, QStringLiteral("About 7-Zip..."), "aboutAction", IDM_ABOUT);
 }

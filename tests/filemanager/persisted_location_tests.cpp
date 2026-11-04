@@ -2,6 +2,7 @@
 #include "filemanager/views/filetable.h"
 #include "localization/LangUtils.h"
 #include "platform/support/external_editor_fixture.h"
+#include "support/panel_keys.h"
 #include "ui/support/layout_inspection.h"
 #include <QTreeWidget>
 
@@ -82,12 +83,12 @@ class PersistedLocationTests final : public QObject, protected MainWindowTestSup
             locations[index] = fixture.filePath(QString("panel %1").arg(index));
             QVERIFY(QDir().mkpath(locations[index]));
             QVERIFY(ExternalEditorFixture::write(locations[index] + "/initial.txt", "initial"));
-            addresses[index]->setFocus();
+            PanelKeys::focusAddress(addresses[index]);
             QTRY_VERIFY(addresses[index]->hasFocus());
             window.openPath(locations[index]);
             QTRY_VERIFY(action(window, "foldersHistoryAction")->isEnabled());
         }
-        addresses[owner]->setFocus();
+        PanelKeys::focusAddress(addresses[owner]);
         QTRY_VERIFY(addresses[owner]->hasFocus());
         const unsigned peer = 1 - owner;
         const QString peerPrefix = ToQString(tables[peer]->sourcePanel->GetCurrentFolderPrefix());
@@ -108,7 +109,7 @@ class PersistedLocationTests final : public QObject, protected MainWindowTestSup
             tree->setCurrentItem(items.front());
             connect(dialog, &QDialog::finished, &window, [&] {
                 window.activateWindow();
-                addresses[peer]->setFocus();
+                PanelKeys::focusAddress(addresses[peer]);
                 QTRY_VERIFY(addresses[peer]->hasFocus());
                 peerFocused = true;
             });
@@ -143,7 +144,7 @@ class PersistedLocationTests final : public QObject, protected MainWindowTestSup
         peer->setText(peerDraft);
         auto *address =
             window.findChild<QWidget *>("filePanel0")->findChild<QLineEdit *>("archivePath");
-        address->setFocus();
+        PanelKeys::focusAddress(address);
         QTRY_VERIFY(address->hasFocus());
         action(window, "openRootAction")->trigger();
         const QString source = prefix(window);

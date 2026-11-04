@@ -40,6 +40,18 @@ if(APPLE OR WIN32 OR CMAKE_SYSTEM_NAME STREQUAL "Linux")
     set(sevenzip_window_mount_sources src/filemanager/qtfilemanagermountcommands.cpp)
 endif()
 sevenzip_add_port_component(sevenzip_main_window src/filemanager/window/mainwindow.h
+    src/filemanager/window/qtnavigationbar.cpp
+    src/filemanager/window/qtwindowworkspace.cpp
+    src/filemanager/window/qtworkspaceapplication.cpp
+    src/filemanager/window/qtfavoritestore.cpp
+    src/filemanager/window/qtfileclipboard.cpp
+    src/filemanager/window/qtworkspacechrome.cpp
+    src/filemanager/window/qtworkspacelifecycle.cpp
+    src/filemanager/window/qtworkspacesession.cpp
+    src/filemanager/window/qtworkspacetabbar.cpp
+    src/filemanager/window/qtworkspacetransfer.cpp
+    src/filemanager/window/qtworkspacelocation.cpp
+    src/filemanager/window/qtsavedlocation.cpp
     src/filemanager/window/mainwindow.cpp
     src/filemanager/window/mainwindow_archive_transfer.cpp
     src/filemanager/window/mainwindow_archivecommands.cpp

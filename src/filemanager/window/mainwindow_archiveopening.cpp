@@ -10,6 +10,7 @@
 #include "filemanager/FormatUtils.h"
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtapppresentation.h"
+#include "filemanager/window/qtwindowworkspace.h"
 #include "localization/qtlangcontrols.h"
 #include "ui/progress/ProgressDialog2.h"
 #include <QScopeGuard>
@@ -23,6 +24,9 @@ bool MainWindow::canHandleExternalUpdate() const {
 bool MainWindow::runExternalArchiveUpdate(CPanel &panel, const QtArchiveUpdateBody &body) {
     if (!canHandleExternalUpdate())
         return false;
+    if (&app_.Panels[0] != &panel && &app_.Panels[1] != &panel)
+        return workspace_->WithSource(
+            panel, [this, &panel, &body] { return runExternalArchiveUpdate(panel, body); });
     QtAppOperationState::CallScope call(app_.QtOperations());
     const QPointer<QWidget> focused = focusWidget();
     std::optional<CSelectedState> selection;

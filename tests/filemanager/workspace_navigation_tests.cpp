@@ -1,0 +1,366 @@
+#include "filemanager/support/window_state_support.h"
+#include "filemanager/window/qtfavoritestore.h"
+#include "filemanager/window/qtwindowworkspace.h"
+#include "filemanager/window/qtworkspaceapplication.h"
+#include "support/panel_keys.h"
+#include "support/widget_dialogs.h"
+#include <QClipboard>
+#include <QCloseEvent>
+#include <QDragEnterEvent>
+#include <QDropEvent>
+#include <QTabBar>
+
+class CloseProtectedWindow final : public MainWindow {
+  public:
+    using MainWindow::MainWindow;
+
+  protected:
+    void closeEvent(QCloseEvent *event) override { event->ignore(); }
+};
+
+class WorkspaceNavigationTests final : public QObject {
+    Q_OBJECT
+    WidgetDialogFixture dialogs_;
+
+    static FileTable *visibleTable(MainWindow &window) {
+        for (auto *table : window.findChildren<FileTable *>())
+            if (table->isVisible())
+                return table;
+        return nullptr;
+    }
+    static void writeFile(const QString &path, const QByteArray &bytes) {
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        QCOMPARE(file.write(bytes), bytes.size());
+    }
+    static QtWindowWorkspace *workspace(MainWindow &window) {
+        for (auto *object : window.children())
+            if (auto *service = dynamic_cast<QtWindowWorkspace *>(object))
+                return service;
+        return nullptr;
+    }
+
+  private slots:
+    void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
+    void closingLeftPanelKeepsRightContextAndReopensHome() {
+        QTemporaryDir fixture;
+        const QString left = fixture.filePath("Left folder");
+        const QString right = fixture.filePath("Right folder");
+        QVERIFY(QDir().mkpath(left));
+        QVERIFY(QDir().mkpath(right));
+        writeFile(right + "/keep selected.txt", "right context");
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(left);
+        auto *toggle = window.findChild<QAction *>("twoPanelsAction");
+        QTRY_VERIFY(toggle->isEnabled());
+        toggle->trigger();
+        auto *pane = window.findChild<QWidget *>("filePanel1");
+        QVERIFY(pane);
+        auto *address = pane->findChild<QLineEdit *>("archivePath");
+        PanelKeys::focusAddress(address);
+        address->setText(right);
+        QTest::keyClick(address, Qt::Key_Return);
+        auto *view = pane->findChild<FileTable *>("archiveTable");
+        QTRY_VERIFY(view->isEnabled());
+        int selected = -1;
+        for (int row = 0; row < view->rowCount(); ++row)
+            if (view->model()->index(row, 0).data().toString() == "keep selected.txt")
+                selected = row;
+        QVERIFY(selected >= 0);
+        view->selectRow(selected);
+        view->setCurrentCell(selected, 0, QItemSelectionModel::NoUpdate);
+        QTRY_VERIFY(toggle->isEnabled());
+        workspace(window)->CloseTab(0, 0);
+        QTRY_VERIFY(!toggle->isChecked());
+        QVERIFY(view->isVisible());
+        QCOMPARE(QDir::cleanPath(ToQString(view->sourcePanel->GetCurrentFolderPrefix())), right);
+        QCOMPARE(view->model()->index(view->currentRow(), 0).data().toString(),
+                 "keep selected.txt");
+        QVERIFY(view->selectionModel()->isRowSelected(view->currentRow(), {}));
+        toggle->trigger();
+        QTRY_VERIFY(toggle->isChecked());
+        auto *reopened =
+            window.findChild<QWidget *>("filePanel0")->findChild<FileTable *>("archiveTable");
+        QTRY_VERIFY(reopened->isEnabled());
+        QCOMPARE(QDir::cleanPath(ToQString(reopened->sourcePanel->GetCurrentFolderPrefix())),
+                 QDir::homePath());
+        QCOMPARE(QDir::cleanPath(ToQString(view->sourcePanel->GetCurrentFolderPrefix())), right);
+    }
+
+    void tabsRetainSourceSelectionAndRemainUsableAfterClose() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString first = fixture.filePath("First папка");
+        const QString second = fixture.filePath("Second folder");
+        QVERIFY(QDir().mkpath(first));
+        QVERIFY(QDir().mkpath(second));
+        writeFile(first + "/selected.txt", "first");
+        writeFile(second + "/other.txt", "second");
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(first);
+        auto *original = visibleTable(window);
+        QVERIFY(original);
+        QTRY_VERIFY(original->isEnabled());
+        int selected = -1;
+        for (int row = 0; row < original->rowCount(); ++row)
+            if (original->model()->index(row, 0).data().toString() == "selected.txt")
+                selected = row;
+        QVERIFY(selected >= 0);
+        original->selectRow(selected);
+        original->setCurrentCell(selected, 0, QItemSelectionModel::NoUpdate);
+        auto *tabs = window.findChild<QTabBar *>("panelTabs0");
+        QVERIFY(tabs);
+        window.findChild<QAction *>("newTabAction")->trigger();
+        QTRY_COMPARE(tabs->count(), 2);
+        QTRY_VERIFY(visibleTable(window) && visibleTable(window)->isEnabled());
+        window.openPath(second);
+        tabs->setCurrentIndex(0);
+        QTRY_COMPARE(
+            QDir::cleanPath(ToQString(visibleTable(window)->sourcePanel->GetCurrentFolderPrefix())),
+            first);
+        auto *returned = visibleTable(window);
+        QCOMPARE(QDir::cleanPath(ToQString(returned->sourcePanel->GetCurrentFolderPrefix())),
+                 first);
+        QCOMPARE(returned->model()->index(returned->currentRow(), 0).data().toString(),
+                 "selected.txt");
+        QVERIFY(returned->selectionModel()->isRowSelected(returned->currentRow(), {}));
+        window.findChild<QAction *>("closeWindowAction")->trigger();
+        QTRY_COMPARE(tabs->count(), 1);
+        QVERIFY(visibleTable(window));
+        QCOMPARE(
+            QDir::cleanPath(ToQString(visibleTable(window)->sourcePanel->GetCurrentFolderPrefix())),
+            second);
+    }
+
+    void fileClipboardCopiesRealBytesAcrossTabs() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString source = fixture.filePath("Source");
+        const QString target = fixture.filePath("Target");
+        QVERIFY(QDir().mkpath(source));
+        QVERIFY(QDir().mkpath(target));
+        writeFile(source + "/данные file.txt", QByteArrayLiteral("clipboard bytes\0with zero"));
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(source);
+        auto *table = visibleTable(window);
+        QTRY_VERIFY(table && table->isEnabled());
+        int row = -1;
+        for (int i = 0; i < table->rowCount(); ++i)
+            if (table->model()->index(i, 0).data().toString() == "данные file.txt")
+                row = i;
+        QVERIFY(row >= 0);
+        table->selectRow(row);
+        window.findChild<QAction *>("copyFilesAction")->trigger();
+        QVERIFY(QApplication::clipboard()->mimeData()->hasUrls());
+        window.openPath(target);
+        auto *paste = window.findChild<QAction *>("pasteFilesAction");
+        QTRY_VERIFY(paste->isEnabled());
+        paste->trigger();
+        QTRY_VERIFY_WITH_TIMEOUT(QFileInfo::exists(target + "/данные file.txt"), 10000);
+        QTRY_VERIFY_WITH_TIMEOUT(table->isEnabled(), 10000);
+        QFile result(target + "/данные file.txt");
+        QVERIFY(result.open(QIODevice::ReadOnly));
+        QCOMPARE(result.readAll(), QByteArrayLiteral("clipboard bytes\0with zero"));
+        QVERIFY(QFileInfo::exists(source + "/данные file.txt"));
+        QApplication::clipboard()->clear();
+    }
+
+    void favoriteMigrationRenameReorderAndRemovalLeaveFilesIntact() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString first = fixture.filePath("Folder A");
+        const QString second = fixture.filePath("Folder B");
+        QVERIFY(QDir().mkpath(first));
+        QVERIFY(QDir().mkpath(second));
+        const QString settings = fixture.filePath("favorites.ini");
+        CFastFolders legacy;
+        legacy.SetString(3, ToUString(first));
+        legacy.Save(settings);
+        QString identity;
+        {
+            QtFavoriteStore store(settings);
+            QCOMPARE(store.rowCount(), 1);
+            identity = store.Favorite(0).id;
+            QVERIFY(store.setData(store.index(0), "Work", Qt::EditRole));
+            store.Add(second, "Other");
+            store.Add(first, "Duplicate");
+            store.Add(first + QDir::separator(), "Same directory from navigation");
+            QCOMPARE(store.rowCount(), 2);
+            QVERIFY(store.moveRows({}, 0, 1, {}, 2));
+            QCOMPARE(store.Favorite(1).id, identity);
+        }
+        QtFavoriteStore restored(settings);
+        QCOMPARE(restored.Favorite(1).label, "Work");
+        QCOMPARE(restored.Favorite(1).id, identity);
+        QVERIFY(restored.removeRow(1));
+        QVERIFY(QFileInfo(first).isDir());
+        QVERIFY(QFileInfo(second).isDir());
+    }
+
+    void canceledCutPastePreservesSourceAndClipboardThenSuccessfulPasteMovesBytes() {
+        QTemporaryDir fixture;
+        const QString source = fixture.filePath("Cut source");
+        const QString destination = fixture.filePath("Cut target");
+        QVERIFY(QDir().mkpath(source));
+        QVERIFY(QDir().mkpath(destination));
+        const QString name = QStringLiteral("перенос file.txt");
+        writeFile(source + '/' + name, "original bytes");
+        writeFile(destination + '/' + name, "existing bytes");
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(source);
+        auto *table = visibleTable(window);
+        QTRY_VERIFY(table->isEnabled());
+        for (int row = 0; row < table->rowCount(); ++row)
+            if (table->model()->index(row, 0).data().toString() == name)
+                table->selectRow(row);
+        auto *cut = window.findChild<QAction *>("cutFilesAction");
+        QTRY_VERIFY(cut->isEnabled());
+        cut->trigger();
+        window.openPath(destination);
+        auto *paste = window.findChild<QAction *>("pasteFilesAction");
+        QTRY_VERIFY(paste->isEnabled());
+        bool canceled = false;
+        QTimer responder;
+        dialogs_.connectResponder(responder, &window, [&] {
+            if (auto *dialog = dialogs_.activeDialog())
+                if (auto *cancel = dialog->findChild<QPushButton *>("overwriteCancel")) {
+                    canceled = true;
+                    cancel->click();
+                }
+        });
+        responder.start(1);
+        paste->trigger();
+        QTRY_VERIFY_WITH_TIMEOUT(canceled && table->isEnabled(), 10000);
+        responder.stop();
+        QFile old(destination + '/' + name);
+        QVERIFY(old.open(QIODevice::ReadOnly));
+        QCOMPARE(old.readAll(), "existing bytes");
+        old.close();
+        QVERIFY(QFileInfo::exists(source + '/' + name));
+        QVERIFY(QApplication::clipboard()->mimeData()->hasUrls());
+        QVERIFY(QFile::remove(destination + '/' + name));
+        QTRY_VERIFY(paste->isEnabled());
+        paste->trigger();
+        QTRY_VERIFY_WITH_TIMEOUT(!QFileInfo::exists(source + '/' + name) && table->isEnabled(),
+                                 10000);
+        QVERIFY(old.open(QIODevice::ReadOnly));
+        QCOMPARE(old.readAll(), "original bytes");
+        const auto *cleared = QApplication::clipboard()->mimeData();
+        QVERIFY(!cleared || !cleared->hasUrls());
+    }
+
+    void droppingFolderCreatesBookmarkWithoutMovingSource() {
+        QTemporaryDir fixture;
+        const QString folder = fixture.filePath("Folder to bookmark");
+        QVERIFY(QDir().mkpath(folder));
+        writeFile(folder + "/keep.txt", "keep original");
+        QtFavoriteStore store(fixture.filePath("drop.ini"));
+        QtFavoriteList view;
+        view.setModel(&store);
+        view.setDragDropMode(QAbstractItemView::DragDrop);
+        view.show();
+        QMimeData mime;
+        mime.setUrls({QUrl::fromLocalFile(folder)});
+        QDragEnterEvent enter(QPoint(10, 10), Qt::MoveAction | Qt::CopyAction, &mime,
+                              Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(view.viewport(), &enter);
+        QVERIFY(enter.isAccepted());
+        QDropEvent drop(QPointF(10, 10), Qt::MoveAction | Qt::CopyAction, &mime, Qt::LeftButton,
+                        Qt::NoModifier);
+        QApplication::sendEvent(view.viewport(), &drop);
+        QVERIFY(drop.isAccepted());
+        QCOMPARE(drop.dropAction(), Qt::CopyAction);
+        QCOMPARE(store.rowCount(), 1);
+        QCOMPARE(store.Favorite(0).path, folder);
+        QVERIFY(QFileInfo(folder + "/keep.txt").isFile());
+        QMimeData moveOnly;
+        moveOnly.setUrls({QUrl::fromLocalFile(fixture.path())});
+        QDragEnterEvent rejected(QPoint(10, 10), Qt::MoveAction, &moveOnly, Qt::LeftButton,
+                                 Qt::NoModifier);
+        QApplication::sendEvent(view.viewport(), &rejected);
+        QVERIFY(!rejected.isAccepted());
+        QCOMPARE(store.rowCount(), 1);
+        store.Add(fixture.path(), "Parent");
+        std::unique_ptr<QMimeData> internal(store.mimeData({store.index(0)}));
+        QVERIFY(store.dropMimeData(internal.get(), Qt::MoveAction, 2, 0, {}));
+        QCOMPARE(store.rowCount(), 2);
+        QCOMPARE(store.Favorite(1).path, folder);
+        QVERIFY(!internal->hasUrls());
+    }
+
+    void movingTabToAnotherWindowPreservesSelectionAndSurvivesSourceClose_data() {
+        QTest::addColumn<bool>("refuseClose");
+        QTest::newRow("ordinary-close") << false;
+        QTest::newRow("protected-origin") << true;
+    }
+    void movingTabToAnotherWindowPreservesSelectionAndSurvivesSourceClose() {
+        QFETCH(bool, refuseClose);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString source = fixture.filePath("Moving source");
+        const QString destination = fixture.filePath("Paste target");
+        QVERIFY(QDir().mkpath(source));
+        QVERIFY(QDir().mkpath(destination));
+        writeFile(source + "/moved context.txt", "move context");
+        auto sourceBackend = std::make_unique<ControlledBackend>();
+        std::unique_ptr<MainWindow> first;
+        if (refuseClose)
+            first = std::make_unique<CloseProtectedWindow>(sourceBackend.get());
+        else
+            first = std::make_unique<MainWindow>(sourceBackend.get());
+        ControlledBackend receiverBackend;
+        MainWindow second(&receiverBackend);
+        first->show();
+        second.show();
+        first->openPath(source);
+        second.openPath(destination);
+        auto *table = visibleTable(*first);
+        QTRY_VERIFY(table && table->isEnabled());
+        int selected = -1;
+        for (int row = 0; row < table->rowCount(); ++row)
+            if (table->model()->index(row, 0).data().toString() == "moved context.txt")
+                selected = row;
+        QVERIFY(selected >= 0);
+        table->selectRow(selected);
+        table->setCurrentCell(selected, 0, QItemSelectionModel::NoUpdate);
+        auto *tabs = first->findChild<QTabBar *>("panelTabs0");
+        QVERIFY(workspace(*first)->TransferTab(tabs->tabData(tabs->currentIndex()).toString(),
+                                               *workspace(second), 0));
+        if (refuseClose) {
+            QVERIFY(first->isVisible());
+            QTRY_VERIFY(visibleTable(*first));
+            QTRY_COMPARE(QDir::cleanPath(ToQString(
+                             visibleTable(*first)->sourcePanel->GetCurrentFolderPrefix())),
+                         QDir::homePath());
+        }
+        first.reset();
+        sourceBackend.reset();
+        auto *received = visibleTable(second);
+        QVERIFY(received);
+        QCOMPARE(QDir::cleanPath(ToQString(received->sourcePanel->GetCurrentFolderPrefix())),
+                 source);
+        QCOMPARE(received->model()->index(received->currentRow(), 0).data().toString(),
+                 "moved context.txt");
+        QVERIFY(received->selectionModel()->isRowSelected(received->currentRow(), {}));
+        second.findChild<QAction *>("copyFilesAction")->trigger();
+        second.openPath(destination);
+        second.findChild<QAction *>("pasteFilesAction")->trigger();
+        QTRY_VERIFY_WITH_TIMEOUT(QFileInfo::exists(destination + "/moved context.txt"), 10000);
+        QTRY_VERIFY_WITH_TIMEOUT(received->isEnabled(), 10000);
+        QFile result(destination + "/moved context.txt");
+        QVERIFY(result.open(QIODevice::ReadOnly));
+        QCOMPARE(result.readAll(), "move context");
+        QApplication::clipboard()->clear();
+    }
+};
+
+QTEST_MAIN(WorkspaceNavigationTests)
+#include "workspace_navigation_tests.moc"

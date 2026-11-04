@@ -14,6 +14,15 @@
 #include "settings/RegistryUtils.h"
 #include <QApplication>
 #include <QFileInfo>
+#include <QScopedValueRollback>
+
+QHash<unsigned, bool> QtFileManagerCommands::AvailabilityForPanel(unsigned panel) {
+    if (panel >= kNumPanelsMax || !window_.panelUi_[panel].table)
+        return {};
+    const QScopedValueRollback<unsigned> projected(window_.projectedPanel_, panel);
+    const QScopedValueRollback<unsigned> focused(window_.app_.LastFocusedPanel, panel);
+    return Availability();
+}
 
 bool QtFileManagerCommands::CanSwitchPanels() const {
     const auto &w = window_;
@@ -113,7 +122,8 @@ QHash<unsigned, bool> QtFileManagerCommands::Availability() {
     // Enumeration disables list notifications too, but its flat-view toggle
     // remains the cancellation command. Only folder-property queries need
     // the notification guard; native update can replace the folder proxy.
-    const bool safeFolderQueries = navigating && panel.ShouldProcessNotifications();
+    const bool safeFolderQueries =
+        navigating && !w.projectedUi().locationUnavailable && panel.ShouldProcessNotifications();
     availability[IDM_HELP_CONTENTS] = navigating && !QApplication::activeModalWidget();
     availability[IDM_ABOUT] = availability[IDM_HELP_CONTENTS];
     availability[IDM_TEMP_DIR] = availability[IDM_HELP_CONTENTS];

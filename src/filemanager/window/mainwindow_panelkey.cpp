@@ -4,6 +4,7 @@
 #include "filemanager/panels/qtpanelkey.h"
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtapppresentation.h"
+#include "filemanager/window/qtnavigationbar.h"
 #include <QMouseEvent>
 #ifdef Q_OS_WIN
 #include <windows.h>
@@ -158,6 +159,7 @@ bool MainWindow::handlePanelKey(PanelInputTarget target, QKeyEvent *key) {
                                                                    ? QtAddressEditReason::Escape
                                                                    : QtAddressEditReason::Return,
                                                                *header);
+                projectedUi().navigation->FinishEditing();
                 return true;
             }
         }

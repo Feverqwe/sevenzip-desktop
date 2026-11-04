@@ -104,6 +104,11 @@ is not inferred from those reports.
 
 ### Offline Help and About (P1-15.1)
 
+Встроенная Help UI исключена из главного окна по запросу 2026-11-05:
+главное Help-menu, Contents и его F1 больше не предлагаются. About остаётся
+в Tools с нативной системной ролью. Ниже описаны сохранённые потребители справки
+в остальных диалогах; их удаление сюда не входит.
+
 References: pinned HelpUtils/MyLoadMenu/CompressDialog topic calls and exact
 official CHM HTML/CSS with [pinned release provenance](../../third_party/7zip-help/help-provenance.json).
 QTextBrowser replaces Win32 CHM presentation, retaining pages/links/fragments.
@@ -143,7 +148,7 @@ the initial frame. `help_source` writes about-*.json and checks both link
 destinations, the offline license and Help, keyboard acceptance and codec errors.
 See the [identity adaptation](../upstream-port-audit/about-product-identity.md)
 for the source comparison and current validation scope.
-help_ui checks actual Contents/F1/modal About, source Options page callbacks and
+help_ui checks modal About, source Options page callbacks and
 Add/Extract button/F1 without applying pending state; compression_advanced checks
 original Options Help. Existing Add760/640, Extract600/470 and Options640/520
 geometry reports cover the added Help footer. The earlier original-layout About

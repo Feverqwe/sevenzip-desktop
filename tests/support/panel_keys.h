@@ -1,9 +1,22 @@
 #pragma once
+#include "filemanager/window/qtnavigationbar.h"
 #include <QAction>
 #include <QToolBar>
 #include <QtTest>
 
 namespace PanelKeys {
+inline QWidget *navigationFor(QWidget *address) {
+    for (auto *widget = address; widget; widget = widget->parentWidget())
+        if (dynamic_cast<QtNavigationBar *>(widget))
+            return widget;
+    return address;
+}
+inline void focusAddress(QWidget *address) {
+    if (auto *navigation = dynamic_cast<QtNavigationBar *>(navigationFor(address)))
+        navigation->Edit();
+    else
+        address->setFocus();
+}
 inline void command(QWidget *view, Qt::Key key, Qt::KeyboardModifiers modifiers) {
     QTest::keyClick(view, key, modifiers);
     // A synthetic keyClick supplies modifiers on both key events. Release the
@@ -27,9 +40,18 @@ inline void deletePermanently(QWidget *view, QAction *command) {
 #ifdef Q_OS_MACOS
     // The redesign intentionally reserves Command-Shift-Backspace. The source
     // Shift/menu action still provides explicit deletion without the recycle bin.
-    auto *toolbar = view->window()->findChild<QToolBar *>("archiveToolbar");
+    QToolBar *toolbar = nullptr;
+    for (auto *owner = view->parentWidget(); owner && !toolbar; owner = owner->parentWidget())
+        for (auto *candidate : owner->findChildren<QToolBar *>())
+            if (candidate->isVisible() && candidate->objectName().startsWith("panelFileActions")) {
+                toolbar = candidate;
+                break;
+            }
     QVERIFY(toolbar);
-    QWidget *button = toolbar->widgetForAction(command);
+    QWidget *button = nullptr;
+    for (auto *proxy : toolbar->actions())
+        if (proxy->property("sourceAction").value<QAction *>() == command)
+            button = toolbar->widgetForAction(proxy);
     QVERIFY(button);
     QTest::mouseClick(button, Qt::LeftButton, Qt::ShiftModifier);
     QTest::keyRelease(view, Qt::Key_Shift);

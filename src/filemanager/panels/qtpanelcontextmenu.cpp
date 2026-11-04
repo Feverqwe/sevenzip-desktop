@@ -5,6 +5,7 @@
 #include "filemanager/qtprogramfilemenu.h"
 #include "filemanager/views/filetable.h"
 #include "filemanager/window/mainwindow.h"
+#include "filemanager/window/qtfileclipboard.h"
 #include "localization/qtlangcontrols.h"
 #include "localization/qtlanguageservices.h"
 #include "ui/dialogs/qtdialogscreenservices.h"
@@ -155,6 +156,19 @@ unsigned QtPanelContextMenu::Track(int x, int y) {
     }
     QtClarifyOpenCommands(state.popup);
     QtGroupFileCommands(state.popup, true);
+    state.window.clipboard_->Refresh();
+    auto *before = state.popup.actions().isEmpty() ? nullptr : state.popup.actions().first();
+    for (auto *source : {state.window.clipboard_->cut, state.window.clipboard_->copy,
+                         state.window.clipboard_->paste}) {
+        auto *local = new QAction(source->text(), &state.popup);
+        local->setEnabled(source->isEnabled());
+        local->setProperty("fileClipboard", QVariant::fromValue(source));
+        state.popup.insertAction(before, local);
+    }
+    auto *archives =
+        state.popup.addMenu(QCoreApplication::translate("QtWindowWorkspace", "Archive"));
+    for (auto *action : {state.window.toolbarAdd_, state.window.extract_, state.window.test_})
+        AppendCommand(*archives, *action, action->isEnabled());
     // OnContextMenu dispatches the chosen ID after the popup guards restore.
     QAction *chosen;
     const unsigned owner = state.window.app_.GetFocusedPanelIndex();
@@ -166,6 +180,11 @@ unsigned QtPanelContextMenu::Track(int x, int y) {
         chosen = state.popup.exec(QPoint(x, y));
     }
     state.window.app_.SetFocusedPanel(owner);
+    if (chosen)
+        if (auto *source = chosen->property("fileClipboard").value<QAction *>()) {
+            source->trigger();
+            return 0;
+        }
     return state.pluginID ? state.pluginID
                           : (chosen ? chosen->property("nativeCommandID").toUInt() : 0u);
 }

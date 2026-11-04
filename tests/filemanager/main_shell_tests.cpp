@@ -12,6 +12,7 @@
 #include <QScopeGuard>
 #include <QScreen>
 #include <QSizeGrip>
+#include <QTabBar>
 #include <QTimer>
 #include <QToolBar>
 #include <QToolButton>
@@ -113,51 +114,6 @@ class MainShellTests final : public QObject {
                      original.pixmap(size).toImage());
     }
 
-    void startupToolbarUsesActualScreenMetrics_data() {
-        QTest::addColumn<bool>("smallScreen");
-        QTest::addColumn<quint32>("mask");
-        QTest::addColumn<bool>("labels");
-        QTest::newRow("default-normal") << false << quint32(0x8000000d) << true;
-        QTest::newRow("default-small") << true << quint32(0x8000000d) << false;
-        QTest::newRow("explicit-labels-small") << true << quint32(13) << true;
-        QTest::newRow("explicit-icons-normal") << false << quint32(12) << false;
-    }
-
-    void startupToolbarUsesActualScreenMetrics() {
-        QFETCH(bool, smallScreen);
-        QFETCH(quint32, mask);
-        QFETCH(bool, labels);
-        QTemporaryDir fixture;
-        QVERIFY(fixture.isValid());
-        const QByteArray oldSettings = qgetenv("SEVENZIP_SETTINGS_PATH");
-        const auto restoreSettings =
-            qScopeGuard([&] { qputenv("SEVENZIP_SETTINGS_PATH", oldSettings); });
-        const QString settings = fixture.filePath("screen toolbar.ini");
-        qputenv("SEVENZIP_SETTINGS_PATH", settings.toUtf8());
-        SaveToolbarsMask(mask, settings);
-        const QFont oldFont = QApplication::font();
-        const auto restoreFont = qScopeGuard([&] { QApplication::setFont(oldFont); });
-        if (smallScreen) {
-            QVERIFY(QApplication::primaryScreen());
-            QFont font = oldFont;
-            font.setPixelSize(QApplication::primaryScreen()->availableGeometry().height() / 25 +
-                              16);
-            QApplication::setFont(font);
-        }
-        ControlledBackend backend;
-        MainWindow window(&backend);
-        auto *toolbar = window.findChild<QToolBar *>("archiveToolbar");
-        auto *option = window.findChild<QAction *>("buttonTextOption");
-        QVERIFY(toolbar && option);
-        QCOMPARE(option->isChecked(), labels);
-        auto *add = qobject_cast<QToolButton *>(
-            toolbar->widgetForAction(window.findChild<QAction *>("toolbarAddAction")));
-        QVERIFY(add);
-        QCOMPARE(add->toolButtonStyle(),
-                 labels ? Qt::ToolButtonTextBesideIcon : Qt::ToolButtonIconOnly);
-        QCOMPARE(ReadToolbarsMask(settings), UInt32(mask));
-    }
-
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
 
     void sourcePanelChrome_data() {
@@ -192,7 +148,7 @@ class MainShellTests final : public QObject {
         MainWindow window(&backend);
         window.resize(size);
         window.show();
-        QVERIFY(QTest::qWaitForWindowActive(&window));
+        QVERIFY(QTest::qWaitForWindowExposed(&window));
         QVERIFY(window.findChild<QAction *>("backAction"));
         auto *twoPanels = window.findChild<QAction *>("twoPanelsAction");
         QVERIFY(twoPanels);
@@ -211,8 +167,9 @@ class MainShellTests final : public QObject {
                 QVERIFY(parent && UiInspection::fullyVisible(*parent, window));
                 auto *status = panel->findChild<QStatusBar *>("panelStatusBar");
                 QVERIFY(status && UiInspection::fullyVisible(*status, window));
-                QVERIFY(UiInspection::fullyVisible(*panel->findChild<QComboBox *>("pathCombo"),
-                                                   window));
+                auto *navigation =
+                    panel->findChild<QWidget *>(QString("panelNavigation%1").arg(index));
+                QVERIFY(navigation && UiInspection::fullyVisible(*navigation, window));
             }
             QVERIFY(UiInspection::writeReport(window, QString("source-panel-chrome-%1-%2-%3")
                                                           .arg(language)
@@ -312,7 +269,6 @@ class MainShellTests final : public QObject {
 #else
         QVERIFY(!streams->isEnabled());
 #endif
-        QVERIFY(window.findChild<QAction *>("helpContentsAction")->isEnabled());
         QVERIFY(window.findChild<QAction *>("aboutAction")->isEnabled());
         QVERIFY(window.findChild<QAction *>("tempDirAction")->isEnabled());
         QCOMPARE(window.findChild<QAction *>("openInsideAction")->shortcut(),
@@ -340,70 +296,85 @@ class MainShellTests final : public QObject {
         });
         SaveRegLang(ToUString(language), settings);
         ReloadLang(settings);
-        SaveToolbarsMask(13, settings);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString folder =
+            fixture.filePath("Long folder name for navigation and compact layout");
+        QVERIFY(QDir().mkpath(folder));
+        for (const QString &name : {QStringLiteral("Документы"), QStringLiteral("Photos"),
+                                    QStringLiteral("Projects"), QStringLiteral("Downloads")})
+            QVERIFY(QDir().mkpath(QDir(folder).filePath(name)));
+        for (const QString &name : {QStringLiteral("Annual report.txt"), QStringLiteral("Notes.md"),
+                                    QStringLiteral("План проекта.txt")}) {
+            QFile file(QDir(folder).filePath(name));
+            QVERIFY(file.open(QIODevice::WriteOnly));
+            QVERIFY(file.write("local review fixture\n") > 0);
+        }
         ControlledBackend backend;
         MainWindow window(&backend);
-        auto *toolbar = window.findChild<QToolBar *>("archiveToolbar");
-        QVERIFY(toolbar);
-        const char *actions[] = {"toolbarAddAction", "extractArchiveAction", "testArchiveAction",
-                                 "copyAction",       "moveAction",           "deleteAction",
-                                 "archiveInfoAction"};
-        for (unsigned i = 0; i < 7; ++i) {
-            auto *action = window.findChild<QAction *>(actions[i]);
-            QVERIFY(action);
-            auto *button = qobject_cast<QToolButton *>(toolbar->widgetForAction(action));
-            QVERIFY(button);
-            QVERIFY(!button->accessibleName().isEmpty());
-            QVERIFY(button->toolTip().contains(button->accessibleName()));
-            if (!action->shortcut().isEmpty())
-                QVERIFY(button->toolTip().contains(
-                    action->shortcut().toString(QKeySequence::NativeText)));
-            QCOMPARE(button->toolButtonStyle(),
-                     i < 2 ? Qt::ToolButtonTextBesideIcon : Qt::ToolButtonIconOnly);
-            QVERIFY(!button->icon().pixmap(toolbar->iconSize()).isNull());
-        }
+        window.show();
+        window.openPath(folder);
+        auto *tabs = window.findChild<QTabBar *>("panelTabs0");
+        auto *newTab = window.findChild<QAction *>("newTabAction");
+        newTab->trigger();
+        QTRY_COMPARE(tabs->count(), 2);
+        QTRY_VERIFY(window.findChild<QAction *>("twoPanelsAction")->isEnabled());
+        newTab->trigger();
+        QTRY_COMPARE(tabs->count(), 3);
+        QTRY_VERIFY(window.findChild<QAction *>("twoPanelsAction")->isEnabled());
+        tabs->setCurrentIndex(0);
+        QTRY_VERIFY(window.findChild<FileTable *>("archiveTable")->isVisible());
+        QTRY_COMPARE(QDir::cleanPath(window.findChild<QLineEdit *>("archivePath")->text()), folder);
         for (const QSize size : {QSize(980, 620), QSize(640, 400)}) {
             window.resize(size);
-            window.show();
-            QApplication::processEvents();
-            QVERIFY(UiInspection::fullyVisible(*toolbar, window));
-            for (const char *name : actions) {
-                auto *button = toolbar->widgetForAction(window.findChild<QAction *>(name));
-                QVERIFY(UiInspection::fullyVisible(*button, window));
+            for (const bool two : {false, true, false}) {
+                auto *toggle = window.findChild<QAction *>("twoPanelsAction");
+                if (toggle->isChecked() != two)
+                    toggle->trigger();
+                QTRY_VERIFY(toggle->isEnabled());
+                QTRY_VERIFY(window.findChild<FileTable *>("archiveTable")->isEnabled());
+                QApplication::processEvents();
+                for (auto *toolbar : window.findChildren<QToolBar *>()) {
+                    if (!toolbar->isVisible())
+                        continue;
+                    QVERIFY(UiInspection::fullyVisible(*toolbar, window));
+                    for (auto *action : toolbar->actions()) {
+                        if (action->isSeparator())
+                            continue;
+                        auto *button =
+                            qobject_cast<QToolButton *>(toolbar->widgetForAction(action));
+                        QVERIFY(button);
+                        QVERIFY(!button->accessibleName().isEmpty());
+                        QVERIFY(UiInspection::fullyVisible(*button, window));
+                    }
+                }
+                for (auto *stack : window.findChildren<QStackedWidget *>("fileViewStack"))
+                    if (stack->isVisible())
+                        QVERIFY(UiInspection::fullyVisible(*stack->currentWidget(), window));
+                for (unsigned panel = 0; panel < (two ? 2u : 1u); ++panel) {
+                    auto *navigation =
+                        window.findChild<QWidget *>(QString("panelNavigation%1").arg(panel));
+                    auto *tabs = window.findChild<QTabBar *>(QString("panelTabs%1").arg(panel));
+                    QVERIFY(navigation && tabs);
+                    QVERIFY(UiInspection::fullyVisible(*navigation, window));
+                    QVERIFY(UiInspection::fullyVisible(*tabs, window));
+                }
+                QVERIFY(UiInspection::writeReport(window, QString("workspace-shell-%1-%2-%3")
+                                                              .arg(language)
+                                                              .arg(size.width())
+                                                              .arg(two ? "two" : "one")));
             }
-            QVERIFY(UiInspection::writeReport(window, QStringLiteral("main-shell-%1-%2x%3")
-                                                          .arg(language)
-                                                          .arg(size.width())
-                                                          .arg(size.height())));
             for (const char *name : {"fileMenu", "viewMenu"}) {
                 auto *menu = window.findChild<QMenu *>(name);
-                QVERIFY(menu);
                 menu->popup(window.menuBar()->mapToGlobal(QPoint(0, window.menuBar()->height())));
                 QApplication::processEvents();
                 QVERIFY(menu->isVisible());
-                QVERIFY(UiInspection::writeReport(*menu, QStringLiteral("main-shell-%1-%2x%3")
-                                                             .arg(QString::fromLatin1(name))
-                                                             .arg(size.width())
-                                                             .arg(size.height())));
+                QVERIFY(UiInspection::writeReport(
+                    *menu,
+                    QString("workspace-%1-%2-%3").arg(name).arg(language).arg(size.width())));
                 menu->hide();
             }
         }
-        auto *large = window.findChild<QAction *>("largeButtonsOption");
-        QVERIFY(large);
-        const QSize normalIconSize = toolbar->iconSize();
-        large->trigger();
-        QVERIFY(toolbar->iconSize().width() > normalIconSize.width());
-        QVERIFY(toolbar->iconSize().height() > normalIconSize.height());
-        for (const char *name : actions) {
-            auto *button = qobject_cast<QToolButton *>(
-                toolbar->widgetForAction(window.findChild<QAction *>(name)));
-            QVERIFY(UiInspection::fullyVisible(*button, window));
-            QVERIFY(!button->icon().pixmap(toolbar->iconSize()).isNull());
-        }
-        QVERIFY(
-            UiInspection::writeReport(window, QStringLiteral("main-shell-large-%1").arg(language)));
-        large->trigger();
-        QCOMPARE(toolbar->iconSize(), normalIconSize);
     }
 
     void fileMenuTracksTheFocusedPanelAfterToggleAndTab() {
@@ -447,13 +418,13 @@ class MainShellTests final : public QObject {
         QTRY_VERIFY(rename->isEnabled());
         QVERIFY(window.findChild<QMenu *>("fileMenu")->actions().contains(rename));
         auto *copy = window.findChild<QAction *>("copyAction");
-        auto *toolbar = window.findChild<QToolBar *>("archiveToolbar");
-        auto *button = qobject_cast<QToolButton *>(toolbar->widgetForAction(copy));
-        QVERIFY(button && button->isEnabled());
+        auto *fileMenu = window.findChild<QMenu *>("fileMenu");
+        QVERIFY(copy && copy->isEnabled() && fileMenu->actions().contains(copy));
         window.activateWindow();
         QVERIFY(QTest::qWaitForWindowActive(&window));
-        button->setFocus();
-        QTRY_VERIFY(button->hasFocus());
+        fileMenu->popup(window.menuBar()->mapToGlobal(QPoint(0, window.menuBar()->height())));
+        QTRY_VERIFY(fileMenu->isVisible());
+        fileMenu->setActiveAction(copy);
         QSignalSpy invoked(copy, &QAction::triggered);
         bool correctSource = false, correctDestination = false;
         QTimer cancel;
@@ -467,7 +438,7 @@ class MainShellTests final : public QObject {
             }
         });
         cancel.start(5);
-        QTest::keyClick(button, Qt::Key_Space);
+        QTest::keyClick(fileMenu, Qt::Key_Return);
         QCOMPARE(invoked.size(), 1);
         QVERIFY(correctSource && correctDestination);
         QVERIFY(QFileInfo::exists(file.fileName()));

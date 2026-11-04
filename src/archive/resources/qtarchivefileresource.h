@@ -114,6 +114,7 @@ class QtArchiveFileResource final : public IUnknown, public CMyUnknownImp {
     void AttachProgressService(ArchiveBackend &backend);
     void AttachExtractService(ArchiveBackend &backend, const QString &format);
     void AttachReopenService(ArchiveBackend &backend, const QString &format);
+    void RebindServices(ArchiveBackend &backend);
     HRESULT ReOpen(IFolderFolder **metadata, IArchiveOpenCallback *callback);
     std::unique_ptr<IQtProgressTransport> CreateProgressTransport(CProgressDialog &dialog);
     std::unique_ptr<IQtProgressTransport> CreateProgressTransport(CProgressDialog &dialog,

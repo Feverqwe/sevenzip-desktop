@@ -199,7 +199,7 @@ class PanelShortcutTests final : public QObject, protected MainWindowTestSupport
         add->setEnabled(addEnabled);
         PanelKeys::command(table, Qt::Key_N, Qt::ControlModifier);
         PanelKeys::command(table, Qt::Key_Z, Qt::ControlModifier);
-        path->setFocus();
+        PanelKeys::focusAddress(path);
         path->setText("draft");
         QTest::keyClicks(path, "x");
         QTest::keySequence(path, QKeySequence::Undo);
@@ -326,7 +326,7 @@ class PanelShortcutTests final : public QObject, protected MainWindowTestSupport
         window.show();
         QVERIFY(WindowActivation::waitForActive(window));
         auto *path = window.findChild<QLineEdit *>("archivePath");
-        path->setFocus();
+        PanelKeys::focusAddress(path);
         QTRY_VERIFY(path->hasFocus());
         bool settingsSeen = false;
         QTimer answer;
@@ -343,8 +343,8 @@ class PanelShortcutTests final : public QObject, protected MainWindowTestSupport
         QVERIFY(settingsSeen);
         QVERIFY(window.isVisible() && peer.isVisible());
         QVERIFY(WindowActivation::waitForActive(window));
-        auto *toolbar = window.findChild<QToolBar *>("archiveToolbar");
-        auto *button = toolbar->widgetForAction(action(window, "toolbarAddAction"));
+        auto *toolbar = window.findChild<QToolBar *>("panelFileActions0");
+        auto *button = toolbar->widgetForAction(toolbar->actions().first());
         QVERIFY(button);
         button->setFocus();
         QTRY_VERIFY(button->hasFocus());

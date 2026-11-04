@@ -2,6 +2,7 @@
 #include "filemanager/qtfilemanagerinitservices.h"
 #include "filemanager/qtfilemanagerstartup.h"
 #include "filemanager/window/mainwindow.h"
+#include "filemanager/window/qtworkspaceapplication.h"
 #include "fileops/links/qtlinkservices.h"
 #include "localization/LangUtils.h"
 #include "platform/associations/qtassociationfileopen.h"
@@ -69,6 +70,7 @@ MainWindow *OpenSevenzipAssociatedFile(const QString &path) {
 }
 
 int RunSevenzipDesktop(QApplication &application) {
+    QtWorkspaceApplication workspace(application);
     QtAssociationFileOpen associatedFiles(application);
     QObject::connect(&associatedFiles, &QtAssociationFileOpen::OpenRequested, &application,
                      [](const QString &path) { OpenSevenzipAssociatedFile(path); });
@@ -130,6 +132,9 @@ int RunSevenzipFileManager(QApplication &application, bool associatedStartup) {
                 qScopeGuard([&] { application.setQuitOnLastWindowClosed(quitOnClose); });
             application.setQuitOnLastWindowClosed(false);
             MainWindow window(&backend, {}, nullptr, &startup);
+            if (startup.FullPath.IsEmpty())
+                if (auto *workspace = QtWorkspaceApplication::Find())
+                    workspace->Restore(window);
             if (!codecError.isEmpty())
                 window.statusBar()->showMessage(codecError);
             if (startup.ShowCommand != NQtFileManager::NShowCommand::Hide)

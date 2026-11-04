@@ -7,23 +7,27 @@
 
 void MainWindow::connectFilesystemScanner() {
     for (unsigned index = 0; index < kNumPanelsMax; ++index) {
-        auto &ui = panelUi_[index];
-        ui.listProjection = new QtFolderProjection(this);
-        ui.filesystemScanner = new FilesystemScanner(this);
-        auto *scanner = ui.filesystemScanner;
-        connect(scanner, &FilesystemScanner::folderReady, this,
-                [this, index](IFolderFolder *folder) { filesystemScanFolderReady(index, folder); });
-        connect(scanner, &FilesystemScanner::batchReady, this,
-                [this, index](quint32 first, quint32 count) {
-                    filesystemScanBatchReady(index, first, count);
-                });
-        connect(scanner, &FilesystemScanner::advanced, this,
-                [this, index](quint64 count) { filesystemScanAdvanced(index, count); });
-        connect(scanner, &FilesystemScanner::completed, this,
-                [this, index] { filesystemScanCompleted(index); });
-        connect(scanner, &FilesystemScanner::failed, this,
-                [this, index](qint32 result) { filesystemScanFailed(index, result); });
+        connectFilesystemScanner(index);
     }
+}
+
+void MainWindow::connectFilesystemScanner(unsigned index) {
+    auto &ui = panelUi_[index];
+    ui.listProjection = new QtFolderProjection(this);
+    ui.filesystemScanner = new FilesystemScanner(this);
+    auto *scanner = ui.filesystemScanner;
+    connect(scanner, &FilesystemScanner::folderReady, this,
+            [this, index](IFolderFolder *folder) { filesystemScanFolderReady(index, folder); });
+    connect(scanner, &FilesystemScanner::batchReady, this,
+            [this, index](quint32 first, quint32 count) {
+                filesystemScanBatchReady(index, first, count);
+            });
+    connect(scanner, &FilesystemScanner::advanced, this,
+            [this, index](quint64 count) { filesystemScanAdvanced(index, count); });
+    connect(scanner, &FilesystemScanner::completed, this,
+            [this, index] { filesystemScanCompleted(index); });
+    connect(scanner, &FilesystemScanner::failed, this,
+            [this, index](qint32 result) { filesystemScanFailed(index, result); });
 }
 
 void MainWindow::filesystemScanFolderReady(unsigned index, IFolderFolder *folder) {

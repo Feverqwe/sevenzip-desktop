@@ -11,6 +11,7 @@
 // Native launcher owner, scoped to this panel rather than a process-wide global.
 struct CExitEventLauncher {
     std::atomic_bool _exiting{false};
+    std::atomic_uint PendingSessions{0};
     NWindows::NSynchronization::CManualResetEvent _exitEvent;
     unsigned _numActiveThreads;
     CRecordVector<::CThread> _threads;

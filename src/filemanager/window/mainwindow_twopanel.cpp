@@ -2,6 +2,7 @@
 #include "filemanager/qtfilemanagercommands.h"
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtapppresentation.h"
+#include "filemanager/window/qtwindowworkspace.h"
 #include <QScopeGuard>
 #include <QScopedValueRollback>
 
@@ -76,6 +77,8 @@ void MainWindow::togglePanels() {
         focused && (focused == projectedUi().path || focused == projectedUi().pathCombo);
     if (app_.NumPanels == 2 && panelSplitter_)
         panelSplitter_->RememberPosition();
+    if (app_.NumPanels == 1 && !workspace_->PreparePanelForShow(1 - app_.LastFocusedPanel))
+        return;
     if (app_.SwitchOnOffOnePanel() != S_OK) {
         twoPanelsAction_->setChecked(app_.NumPanels == 2);
         return;

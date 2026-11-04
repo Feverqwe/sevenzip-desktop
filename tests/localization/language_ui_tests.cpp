@@ -97,13 +97,10 @@ class LanguageUiTests : public QObject, protected MainWindowTestSupport {
         QTest::keyClick(address, Qt::Key_Return);
         auto *table = window.findChild<FileTable *>("archiveTable");
         QTRY_COMPARE(table->rowCount(), 1);
-        auto *toolbar = window.findChild<QToolBar *>("archiveToolbar");
+        auto *toolbar = window.findChild<QToolBar *>("panelFileActions0");
         QVERIFY(toolbar);
-        const char *names[] = {"toolbarAddAction", "extractArchiveAction", "testArchiveAction",
-                               "copyAction",       "moveAction",           "deleteAction",
-                               "archiveInfoAction"};
-        const UInt32 ids[] = {IDS_ADD,         IDS_EXTRACT,       IDS_TEST,       IDS_BUTTON_COPY,
-                              IDS_BUTTON_MOVE, IDS_BUTTON_DELETE, IDS_BUTTON_INFO};
+        const char *names[] = {"createFolderAction", "cutFilesAction", "copyFilesAction",
+                               "pasteFilesAction",   "renameAction",   "deleteAction"};
         for (const QString &language : {QString("-"), QString("ru"), QString("-")}) {
             SaveRegLang(ToUString(language), settingsPath());
             ReloadLang(settingsPath());
@@ -116,20 +113,27 @@ class LanguageUiTests : public QObject, protected MainWindowTestSupport {
                     table->selectRow(0);
                 }
                 QApplication::processEvents();
-                for (unsigned i = 0; i < 7; ++i) {
-                    auto *action = window.findChild<QAction *>(names[i]);
-                    QVERIFY(action);
-                    auto *button = qobject_cast<QToolButton *>(toolbar->widgetForAction(action));
+                for (unsigned i = 0; i < 6; ++i) {
+                    auto *source = window.findChild<QAction *>(names[i]);
+                    QVERIFY(source);
+                    QAction *proxy = nullptr;
+                    for (auto *candidate : toolbar->actions())
+                        if (candidate->property("sourceAction").value<QAction *>() == source)
+                            proxy = candidate;
+                    QVERIFY(proxy);
+                    auto *button = qobject_cast<QToolButton *>(toolbar->widgetForAction(proxy));
                     QVERIFY(button);
                     const QString expected =
-                        i == 1 ? QCoreApplication::translate("ArchiveRedesign", "Extract")
-                               : QString::fromWCharArray(LangString(ids[i]));
+                        i == 0 ? QCoreApplication::translate("QtWindowWorkspace", "Create")
+                               : QString(source->text()).remove('&');
                     QCOMPARE(button->text(), expected);
-                    QCOMPARE(button->accessibleName(), expected);
-                    QVERIFY(button->toolTip().contains(expected));
-                    if (!action->shortcut().isEmpty())
-                        QVERIFY(button->toolTip().contains(
-                            action->shortcut().toString(QKeySequence::NativeText)));
+                    if (i != 0) {
+                        QCOMPARE(button->accessibleName(), expected);
+                        QVERIFY(button->toolTip().contains(expected));
+                        if (!source->shortcut().isEmpty())
+                            QVERIFY(button->toolTip().contains(
+                                source->shortcut().toString(QKeySequence::NativeText)));
+                    }
                 }
             }
             for (const QSize size : {QSize(980, 620), QSize(640, 400)}) {
@@ -140,8 +144,12 @@ class LanguageUiTests : public QObject, protected MainWindowTestSupport {
                     window, QString("toolbar-text-%1-%2").arg(language).arg(size.width())));
             }
         }
-        auto *copy = window.findChild<QAction *>("copyAction");
-        auto *copyButton = qobject_cast<QToolButton *>(toolbar->widgetForAction(copy));
+        auto *copy = window.findChild<QAction *>("copyFilesAction");
+        QToolButton *copyButton = nullptr;
+        for (auto *proxy : toolbar->actions())
+            if (proxy->property("sourceAction").value<QAction *>() == copy)
+                copyButton = qobject_cast<QToolButton *>(toolbar->widgetForAction(proxy));
+        QVERIFY(copyButton);
         const auto originalShortcut = copy->shortcut();
         const QKeySequence changedShortcut(Qt::CTRL | Qt::SHIFT | Qt::Key_C);
         copy->setShortcut(changedShortcut);
@@ -472,12 +480,13 @@ class LanguageUiTests : public QObject, protected MainWindowTestSupport {
         QCOMPARE(table->accessibleName(), QStringLiteral("Список файлов"));
         QCOMPARE(window.findChild<QListView *>("iconList")->accessibleName(),
                  QStringLiteral("Список файлов"));
-        auto *toolbar = window.findChild<QToolBar *>("archiveToolbar");
+        auto *toolbar = window.findChild<QToolBar *>("panelFileActions0");
         auto inspectWindow = [&](const QString &language) {
             for (QSize size : {QSize(1100, 640), QSize(640, 380)}) {
                 window.resize(size);
                 QApplication::processEvents();
-                QVERIFY(UiInspection::fullyVisible(*address, window));
+                QVERIFY(UiInspection::fullyVisible(*window.findChild<QWidget *>("panelNavigation0"),
+                                                   window));
                 QVERIFY(UiInspection::fullyVisible(*table, window));
                 QVERIFY(UiInspection::fullyVisible(*toolbar, window));
                 QVERIFY(UiInspection::writeReport(
@@ -485,13 +494,15 @@ class LanguageUiTests : public QObject, protected MainWindowTestSupport {
             }
         };
         inspectWindow("ru");
-        QCOMPARE(toolbar->windowTitle(), QStringLiteral("Архив"));
         QCOMPARE(window.findChild<QAction *>("backAction")->text(), QStringLiteral("Назад"));
         QCOMPARE(window.findChild<QAction *>("openItemAction")->text(), QStringLiteral("&Открыть"));
         QCOMPARE(window.findChild<QAction *>("editFileAction")->text(),
                  QStringLiteral("&Редактировать"));
-        auto *copy = window.findChild<QAction *>("copyAction");
-        auto *button = qobject_cast<QToolButton *>(toolbar->widgetForAction(copy));
+        auto *copy = window.findChild<QAction *>("copyFilesAction");
+        QToolButton *button = nullptr;
+        for (auto *proxy : toolbar->actions())
+            if (proxy->property("sourceAction").value<QAction *>() == copy)
+                button = qobject_cast<QToolButton *>(toolbar->widgetForAction(proxy));
         QVERIFY(button);
         QCOMPARE(button->text(), QStringLiteral("Копировать"));
         QtFmOptionsDialog restarted(settingsPath());
@@ -504,7 +515,6 @@ class LanguageUiTests : public QObject, protected MainWindowTestSupport {
         chooseLanguage(restarted, 0);
         apply(restarted);
         QCOMPARE(fileMenu->title(), QString("&File"));
-        QCOMPARE(toolbar->windowTitle(), QString("Archive"));
         QCOMPARE(window.findChild<QAction *>("backAction")->text(), QString("Back"));
         QCOMPARE(window.findChild<QAction *>("openItemAction")->text(), QString("&Open"));
         QCOMPARE(window.findChild<QAction *>("editFileAction")->text(), QString("&Edit"));

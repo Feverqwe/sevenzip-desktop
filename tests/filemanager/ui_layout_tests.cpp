@@ -130,7 +130,8 @@ class MainWindowLayoutTests : public QObject {
         QCOMPARE(password->echoMode(), QLineEdit::Normal);
         dialog.findChild<QCheckBox *>("extractNameEnable")->setChecked(false);
         destination->setCurrentText("/changed");
-        QCOMPARE(dialog.destination(), QString("/changed"));
+        dialog.accept();
+        QCOMPARE(QDir::cleanPath(dialog.destination()), QString("/changed"));
     }
 
     void layoutAtSizes_data() {
@@ -147,7 +148,7 @@ class MainWindowLayoutTests : public QObject {
         auto *path = window.findChild<QLineEdit *>("archivePath");
         auto *pathCombo = window.findChild<QComboBox *>("pathCombo");
         auto *table = window.findChild<FileTable *>("archiveTable");
-        auto *toolbar = window.findChild<QToolBar *>("archiveToolbar");
+        auto *toolbar = window.findChild<QToolBar *>("panelFileActions0");
         QVERIFY(path);
         QVERIFY(pathCombo);
         QVERIFY(pathCombo->isEditable());
@@ -163,6 +164,8 @@ class MainWindowLayoutTests : public QObject {
         window.resize(windowSize);
         window.show();
         QCoreApplication::processEvents();
+        window.findChild<QAction *>("focusPathAction")->trigger();
+        QCoreApplication::processEvents();
 
         QCOMPARE(window.size(), windowSize);
         QVERIFY(path->isVisible());
@@ -174,11 +177,13 @@ class MainWindowLayoutTests : public QObject {
             UiInspection::fullyVisible(*window.findChild<QStatusBar *>("panelStatusBar"), window));
 
         const QRect content = window.centralWidget()->contentsRect();
-        QVERIFY2(content.contains(pathCombo->geometry()), "Archive path escaped the content area");
+        QVERIFY2(content.contains(UiInspection::bounds(*pathCombo, *window.centralWidget())),
+                 "Archive path escaped the content area");
         const QRect tableInContent(table->mapTo(window.centralWidget(), QPoint(0, 0)),
                                    table->size());
         QVERIFY2(content.contains(tableInContent), "File table escaped the content area");
-        QVERIFY2(pathCombo->geometry().bottom() < tableInContent.top(),
+        QVERIFY2(UiInspection::bounds(*pathCombo, *window.centralWidget()).bottom() <
+                     tableInContent.top(),
                  "Archive path overlaps the file table");
         QVERIFY2(table->height() >= 120, "File table is too short to inspect archives");
         QVERIFY2(table->horizontalHeader()->sectionSize(0) > 0, "Name column is hidden");
@@ -189,113 +194,22 @@ class MainWindowLayoutTests : public QObject {
         QVERIFY(UiInspection::writeReport(window, QSysInfo::productType() + "-" + tag));
     }
 
-    void toolbarGroupsIncludeExtensions_data() {
-        QTest::addColumn<QString>("language");
-        QTest::addColumn<QSize>("size");
-        for (const QString &language : {QString("-"), QString("ru")})
-            for (const QSize size : {QSize(980, 620), QSize(640, 400)})
-                QTest::newRow(qPrintable(language + QString::number(size.width())))
-                    << language << size;
-    }
-    void toolbarGroupsIncludeExtensions() {
-        QFETCH(QString, language);
-        QFETCH(QSize, size);
-        SaveRegLang(ToUString(language), qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
-        QTemporaryDir fixture, empty;
-        QVERIFY(fixture.isValid() && empty.isValid());
-        QFile input(fixture.filePath(QStringLiteral("данные 空.txt")));
-        QVERIFY(input.open(QIODevice::WriteOnly));
-        QCOMPARE(input.write("toolbar fixture"), qint64(15));
-        input.close();
-        const auto inspect = [&](MainWindow &window, bool archive, bool standard,
-                                 const QString &phase) {
-            auto *toolbar = window.findChild<QToolBar *>("archiveToolbar");
-            QCOMPARE(toolbar->isVisible(), archive || standard);
-            const QList<const char *> archiveCommands = {"toolbarAddAction", "extractArchiveAction",
-                                                         "testArchiveAction",
-                                                         "calculateDirectorySizeAction"};
-            const QList<const char *> standardCommands = {"copyAction", "moveAction",
-                                                          "deleteAction", "archiveInfoAction"};
-            int right = 0;
-            for (bool archiveGroup : {true, false})
-                for (const char *name : archiveGroup ? archiveCommands : standardCommands) {
-                    auto *action = window.findChild<QAction *>(name);
-                    QVERIFY(action && action->isVisible()); // The menu command stays available.
-                    auto *button = toolbar->widgetForAction(action);
-                    const bool visible = archiveGroup ? archive : standard;
-                    QCOMPARE(button && button->isVisible(), visible);
-                    if (visible) {
-                        QVERIFY(UiInspection::fullyVisible(*button, window));
-                        QVERIFY(button->geometry().left() >= right);
-                        right = button->geometry().right();
-                    }
-                }
-            auto *separator =
-                toolbar->widgetForAction(window.findChild<QAction *>("toolbarGroupSeparator"));
-            QCOMPARE(separator && separator->isVisible(), archive && standard);
-            QVERIFY(UiInspection::writeReport(window, QString("toolbar-groups-%1-%2-%3-%4-%5")
-                                                          .arg(language)
-                                                          .arg(size.width())
-                                                          .arg(archive)
-                                                          .arg(standard)
-                                                          .arg(phase)));
-        };
-        {
-            MainWindow window;
-            window.resize(size);
-            window.show();
-            window.findChild<QAction *>("largeButtonsOption")->setChecked(size.width() == 980);
-            window.findChild<QAction *>("buttonTextOption")->setChecked(true);
-            for (const auto &flags : {QPair(false, true), QPair(true, false), QPair(true, true),
-                                      QPair(false, false), QPair(false, true)}) {
-                window.findChild<QAction *>("archiveToolbarOption")->setChecked(flags.first);
-                window.findChild<QAction *>("standardToolbarOption")->setChecked(flags.second);
-                window.openPath(empty.path());
-                window.openPath(fixture.path());
-                window.resize(size.width() + 20, size.height());
-                QApplication::processEvents();
-                window.resize(size);
-                QApplication::processEvents();
-                inspect(window, flags.first, flags.second, "changed");
-            }
-        }
-        MainWindow reopened;
-        reopened.resize(size);
-        reopened.show();
-        QApplication::processEvents();
-        inspect(reopened, false, true, "reopened");
-    }
-
-    void toolbarCustomizationPersists() {
+    void sidebarToggleKeepsLocationAndExpandsFileList() {
         MainWindow window;
-        auto *toolbar = window.findChild<QToolBar *>("archiveToolbar");
-        auto *archive = window.findChild<QAction *>("archiveToolbarOption");
-        auto *standard = window.findChild<QAction *>("standardToolbarOption");
-        auto *large = window.findChild<QAction *>("largeButtonsOption");
-        auto *text = window.findChild<QAction *>("buttonTextOption");
-        QVERIFY(toolbar && archive && standard && large && text);
         window.show();
-        large->setChecked(false);
-        const QSize smallIcon = toolbar->iconSize();
-        archive->setChecked(false);
-        auto *add = toolbar->widgetForAction(window.findChild<QAction *>("toolbarAddAction"));
-        QVERIFY(!add || !add->isVisible());
-        QVERIFY(toolbar->widgetForAction(window.findChild<QAction *>("copyAction"))->isVisible());
-        large->setChecked(true);
-        text->setChecked(false);
-        const QSize largeIcon = toolbar->iconSize();
-        QVERIFY(largeIcon.width() > smallIcon.width());
-        QVERIFY(largeIcon.height() > smallIcon.height());
-        standard->setChecked(false);
-        QVERIFY(!toolbar->isVisible());
-
-        MainWindow reopened;
-        QCOMPARE(reopened.findChild<QToolBar *>("archiveToolbar")->iconSize(), largeIcon);
-        QVERIFY(!reopened.findChild<QAction *>("archiveToolbarOption")->isChecked());
-        QVERIFY(!reopened.findChild<QAction *>("standardToolbarOption")->isChecked());
-        QVERIFY(reopened.findChild<QAction *>("largeButtonsOption")->isChecked());
-        QVERIFY(!reopened.findChild<QAction *>("buttonTextOption")->isChecked());
-        QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
+        QApplication::processEvents();
+        auto *table = window.findChild<FileTable *>("archiveTable");
+        auto *toggle = window.findChild<QAction *>("sidebarAction");
+        QVERIFY(table && toggle);
+        const QString path = window.findChild<QLineEdit *>("archivePath")->text();
+        const int original = table->width();
+        toggle->trigger();
+        QTRY_VERIFY(table->width() > original);
+        QCOMPARE(window.findChild<QLineEdit *>("archivePath")->text(), path);
+        const int expanded = table->width();
+        toggle->trigger();
+        QTRY_VERIFY(table->width() < expanded);
+        QCOMPARE(window.findChild<QLineEdit *>("archivePath")->text(), path);
     }
 
     void columnCustomizationPersists() {

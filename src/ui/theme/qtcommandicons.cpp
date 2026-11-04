@@ -1,5 +1,6 @@
 // Lucide geometry adapted to QPainterPath from icons/{plus,folder-output,check,
-// copy,move-right,trash,info,arrow-up,folder-plus,rotate-cw}.svg at
+// copy,move-right,trash,info,arrow-up,folder-plus,rotate-cw,scissors,
+// clipboard-paste,text-cursor-input,panel-left,arrow-left,pencil}.svg at
 // https://github.com/lucide-icons/lucide/tree/1ef60af944de207e0d5176905a0759ba12e6ee8d
 // Copyright (c) 2026 Lucide Icons and Contributors; Feather-derived icons:
 // Copyright (c) 2013-present Cole Bemis. ISC/MIT: third_party/lucide/LICENSE.
@@ -54,6 +55,78 @@ QPainterPath geometry(QtCommandIcon command) {
         p.cubicTo(2, 2.9, 2.9, 2, 4, 2);
         p.lineTo(14, 2);
         p.cubicTo(15.1, 2, 16, 2.9, 16, 4);
+        break;
+    case QtCommandIcon::Cut:
+        p.addEllipse(QPointF(6, 6), 3, 3);
+        line(8.12, 8.12, 12, 12);
+        line(20, 4, 8.12, 15.88);
+        p.addEllipse(QPointF(6, 18), 3, 3);
+        line(14.8, 14.8, 20, 20);
+        break;
+    case QtCommandIcon::Paste:
+        line(11, 14, 21, 14);
+        p.moveTo(16, 4);
+        p.lineTo(18, 4);
+        p.arcTo(16, 4, 4, 4, 90, -90);
+        p.lineTo(20, 7.344);
+        p.moveTo(17, 18);
+        p.lineTo(21, 14);
+        p.lineTo(17, 10);
+        p.moveTo(8, 4);
+        p.lineTo(6, 4);
+        p.arcTo(4, 4, 4, 4, 90, 90);
+        p.lineTo(4, 20);
+        p.arcTo(4, 18, 4, 4, 180, 90);
+        p.lineTo(18, 22);
+        p.arcTo(16, 18, 4, 4, 270, 64);
+        p.addRoundedRect(QRectF(8, 2, 8, 4), 1, 1);
+        break;
+    case QtCommandIcon::Rename:
+        p.moveTo(12, 20);
+        p.lineTo(11, 20);
+        p.arcTo(9, 16, 4, 4, 270, -90);
+        p.arcTo(5, 16, 4, 4, 0, -90);
+        p.lineTo(6, 20);
+        p.moveTo(13, 8);
+        p.lineTo(20, 8);
+        p.arcTo(18, 8, 4, 4, 90, -90);
+        p.lineTo(22, 14);
+        p.arcTo(18, 12, 4, 4, 0, -90);
+        p.lineTo(13, 16);
+        p.moveTo(5, 16);
+        p.lineTo(4, 16);
+        p.arcTo(2, 12, 4, 4, 270, -90);
+        p.lineTo(2, 10);
+        p.arcTo(2, 8, 4, 4, 180, -90);
+        p.lineTo(5, 8);
+        p.moveTo(6, 4);
+        p.lineTo(7, 4);
+        p.arcTo(5, 4, 4, 4, 90, -90);
+        p.arcTo(9, 4, 4, 4, 180, -90);
+        p.lineTo(12, 4);
+        line(9, 6, 9, 18);
+        break;
+    case QtCommandIcon::Sidebar:
+        p.addRoundedRect(QRectF(3, 3, 18, 18), 2, 2);
+        line(9, 3, 9, 21);
+        break;
+    case QtCommandIcon::Back:
+        p.moveTo(12, 19);
+        p.lineTo(5, 12);
+        p.lineTo(12, 5);
+        line(19, 12, 5, 12);
+        break;
+    case QtCommandIcon::EditLocation:
+        p.moveTo(21.174, 6.812);
+        p.arcTo(QRectF(16.362, 1.999, 5.638, 5.638), -45, 180);
+        p.lineTo(3.842, 16.174);
+        p.cubicTo(3.615, 16.401, 3.444, 16.686, 3.342, 17.004);
+        p.lineTo(2.021, 21.356);
+        p.cubicTo(1.9, 21.755, 2.246, 22.099, 2.644, 21.978);
+        p.lineTo(6.997, 20.658);
+        p.cubicTo(7.314, 20.562, 7.599, 20.391, 7.827, 20.161);
+        p.closeSubpath();
+        line(15, 5, 19, 9);
         break;
     case QtCommandIcon::Move:
         p.moveTo(18, 8);

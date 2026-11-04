@@ -199,7 +199,12 @@ void QtProgramFileMenu::Activate() {
     QtDialogScreenServices screen(&_window);
     projection.screenServices = &screen;
     QHash<unsigned, QAction *> actions;
+    QList<QAction *> workspace;
     for (QAction *action : _source) {
+        if (action->property("workspaceCommand").toBool()) {
+            workspace.append(action);
+            continue;
+        }
         const unsigned id = action->menu() ? 0 : action->property("nativeCommandID").toUInt();
         if (id < IDM_VER_EDIT || id > IDM_VER_DIFF)
             projection.sourceItems.append({id, ToUString(action->text()), action->isSeparator()});
@@ -221,10 +226,14 @@ void QtProgramFileMenu::Activate() {
     }
     QtClarifyOpenCommands(_menu);
     _dynamic.append(QtGroupFileCommands(_menu, false));
+    QAction *before = _menu.actions().isEmpty() ? nullptr : _menu.actions().first();
+    for (auto *action : workspace)
+        _menu.insertAction(before, action);
 }
 
 bool QtProgramFileMenu::CanInvoke(unsigned id) const {
     return _panel && _panel == &_window.app_.GetFocusedPanel() &&
+           !_window.projectedUi().locationUnavailable &&
            _window.projectedUi().state == MainWindow::State::Filesystem &&
            !_window.backend_->busy() && !_window.sourceArchiveProgress_ &&
            !_window.projectedUi().scanningDisk && _panel->ShouldProcessNotifications() &&

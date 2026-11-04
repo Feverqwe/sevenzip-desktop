@@ -51,6 +51,7 @@ void MainWindow::openPath(const QString &path) { navigateTo(QFileInfo(path).abso
 HRESULT MainWindow::navigateTo(const QString &path, bool sourceAddress) {
     if (projectedUi().state == State::Loading || projectedUi().state == State::Operating)
         return E_ABORT;
+    projectedUi().locationUnavailable = false;
     if (projectedUi().state == State::Viewing && path == archiveDisplayPath())
         return S_OK;
     // A typed relative address belongs to the displayed filesystem folder.

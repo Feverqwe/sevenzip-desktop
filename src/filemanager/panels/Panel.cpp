@@ -79,6 +79,18 @@ void CPanel::ExitExternalWorkers(bool hardExit) {
         _exitEventLauncher->Exit(hardExit);
 }
 
+bool CPanel::HasExternalWorkers() const {
+    return _exitEventLauncher && _exitEventLauncher->PendingSessions.load() != 0;
+}
+
+void CPanel::RebindWindowHost(QWidget *window, CPanelCallback *callback, CAppState *state) {
+    _mainWindow = window;
+    _parentWindow = window;
+    _panelCallback = callback;
+    _appState = state;
+    _createPresentation = {};
+}
+
 void CPanel::MessageBox_Error_LangID(UINT resourceID) const {
     MessageBox_Error(LangString(resourceID));
 }
@@ -292,16 +304,20 @@ void CPanel::SetFocusToList() {
 }
 
 void CPanel::SetFocusToPath() {
-    if (_headerComboBox) {
+    if (_addressFocusPresentation) {
+        _addressFocusPresentation();
+    } else if (_headerComboBox) {
         _headerComboBox->setFocus();
-        if (auto *combo = qobject_cast<QComboBox *>(_headerComboBox.data()))
-            combo->showPopup();
     }
+    if (auto *combo = qobject_cast<QComboBox *>(_headerComboBox.data()))
+        combo->showPopup();
 }
 
 void CPanel::SetFocusToLastRememberedItem() {
     if (_lastFocusedIsList)
         SetFocusToList();
+    else if (_addressFocusPresentation)
+        _addressFocusPresentation();
     else if (_headerComboBox)
         _headerComboBox->setFocus();
 }

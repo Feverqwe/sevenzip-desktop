@@ -8,6 +8,9 @@
 #include "filemanager/qtprogramfilemenu.h"
 #include "filemanager/rename/qtrenamecontroller.h"
 #include "filemanager/window/qtapppresentation.h"
+#include "filemanager/window/qtfileclipboard.h"
+#include "filemanager/window/qtwindowworkspace.h"
+#include "filemanager/window/qtworkspaceapplication.h"
 #include "localization/LangUtils.h"
 #include "localization/qtlangcontrols.h"
 #include "localization/qtlanguageservices.h"
@@ -51,6 +54,8 @@ MainWindow::MainWindow(ArchiveBackend *backend, std::function<bool(const QUrl &)
     g_Timestamp_Show_UTC = viewSettings.value(QStringLiteral("view/timestampUTC"), false).toBool();
     app_.AutoRefresh_Mode = viewSettings.value(QStringLiteral("view/autoRefresh"), true).toBool();
     app_.SetPanels_AutoRefresh_Mode();
+    workspace_ = std::make_unique<QtWindowWorkspace>(*this);
+    clipboard_ = std::make_unique<QtFileClipboard>(*this);
     initializeFileManagerWindow(startup);
     connect(backend_, &ArchiveBackend::codecCatalogReady, this,
             [this](bool, const QString &message) {
@@ -61,6 +66,8 @@ MainWindow::MainWindow(ArchiveBackend *backend, std::function<bool(const QUrl &)
     if (!backend) {
         backend_->discoverCodecCatalog();
     }
+    if (auto *application = QtWorkspaceApplication::Find())
+        application->Register(*this);
 }
 
 void MainWindow::createFileManagerWindow(const QtFileManagerStartup *startup, bool panelsDefined,
@@ -95,17 +102,18 @@ void MainWindow::createFileManagerWindow(const QtFileManagerStartup *startup, bo
     app_.QtOperations().SetCallFinishedCallback([this] {
         // Availability can be published while a synchronous source caller
         // still holds its close guard. Restore it after that caller unwinds.
-        if (!exitAction_->isEnabled())
-            QMetaObject::invokeMethod(
-                this, [this] { commands_->RefreshActions(); }, Qt::QueuedConnection);
+        QMetaObject::invokeMethod(
+            this,
+            [this] {
+                if (!app_.QtOperations().closed()) {
+                    commands_->RefreshActions();
+                    workspace_->Refresh();
+                }
+            },
+            Qt::QueuedConnection);
     });
     programFileMenu_ = std::make_unique<QtProgramFileMenu>(*this);
     drag_ = std::make_unique<QtFileManagerDrag>(*this);
-    for (unsigned index = 0; index < kNumPanelsMax; ++index)
-        app_.Panels[index].AttachInvalidationPresentation([this, index] {
-            if (index == app_.GetFocusedPanelIndex())
-                redrawSourceProperties();
-        });
     installEventFilter(this);
     if (focusedPanel != projectedPanel_)
         activatePanelUi(focusedPanel);

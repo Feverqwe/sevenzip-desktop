@@ -63,7 +63,7 @@ void MainWindow::updateToolbar() {
     }
     if (standard)
         toolbar->addActions(standardToolbarActions_);
-    toolbar->setVisible(archive || standard);
+    toolbar->hide();
     toolbar->setIconSize(largeButtonsOption_->isChecked() ? QSize(24, 24) : QSize(16, 16));
     toolbar->setToolButtonStyle(Qt::ToolButtonIconOnly);
     for (QAction *action : toolbar->actions()) {

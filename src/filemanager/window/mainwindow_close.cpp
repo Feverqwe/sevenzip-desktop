@@ -5,6 +5,9 @@
 #include "filemanager/rename/qtrenamecontroller.h"
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtapppresentation.h"
+#include "filemanager/window/qtfileclipboard.h"
+#include "filemanager/window/qtwindowworkspace.h"
+#include "filemanager/window/qtworkspaceapplication.h"
 #include "platform/associations/qtassociatedfileservices.h"
 #include "platform/trash/qttrashservice.h"
 #include <QCloseEvent>
@@ -22,6 +25,8 @@ class QtFileManagerWindowServices final : public IQtFileManagerWindowServices {
                window_.commands_->CanCloseMounts();
     }
     void Deactivate() override {
+        if (auto *application = QtWorkspaceApplication::Find())
+            application->Closing(window_);
         if (window_.autoRefreshTimer_)
             window_.autoRefreshTimer_->stop();
         for (auto &panel : window_.app_.Panels)
@@ -29,8 +34,7 @@ class QtFileManagerWindowServices final : public IQtFileManagerWindowServices {
         window_.setEnabled(false);
     }
     void ExitExternalWorkers(bool hardExit) override {
-        for (auto &panel : window_.app_.Panels)
-            panel.ExitExternalWorkers(hardExit);
+        window_.workspace_->ExitExternalWorkers(hardExit);
     }
     void RevokeDropTarget() override {
         if (window_.drag_)
@@ -78,6 +82,7 @@ MainWindow::~MainWindow() {
             table->sourcePanel = nullptr;
             table->textFolder = nullptr;
         }
+    workspace_->Dispose();
 }
 
 void MainWindow::closeEvent(QCloseEvent *event) {
@@ -102,6 +107,7 @@ void MainWindow::closeEvent(QCloseEvent *event) {
 }
 
 void MainWindow::quiesceOperations() {
+    workspace_->QuiesceInactive();
     if (guiOutputRefresh_)
         guiOutputRefresh_->Stop();
     if (renameController_)
@@ -110,9 +116,12 @@ void MainWindow::quiesceOperations() {
     if (overwriteDialog_)
         overwriteDialog_->reject();
     for (const auto &ui : panelUi_) {
-        disconnect(ui.filesystemScanner, nullptr, this, nullptr);
-        ui.listProjection->cancel();
-        ui.filesystemScanner->cancelAndWait();
+        if (ui.listProjection)
+            ui.listProjection->cancel();
+        if (ui.filesystemScanner) {
+            disconnect(ui.filesystemScanner, nullptr, this, nullptr);
+            ui.filesystemScanner->cancelAndWait();
+        }
     }
     backend_->cancelAndWait();
     if (fileTransfer_) {

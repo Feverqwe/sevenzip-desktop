@@ -158,9 +158,28 @@ operation semantics. `MainWindow` projects that state into widgets and connects
 the platform services. It must not become a second owner of archive algorithms
 or command-availability decisions.
 
-Each panel owns its Qt controls and presentation state. Command dispatch and
-temporary background callbacks select that existing state by panel identity;
-switching panels does not save and restore a second mutable window copy.
+Each live tab owns a stable source panel and its Qt list, selection and navigation
+state. `QtWindowWorkspace` projects the active tabs into CApp's two panel slots;
+switching tabs keeps the inactive source and its archive-parent chain alive.
+Operation guards capture the actual source before work starts. Switching or
+moving tabs is unavailable during protected calls, publication and native drag.
+External-edit completion returns to its original source; an inactive tab becomes
+dirty without replacing the active tab's rows or selection.
+
+`QtWorkspaceApplication` owns window discovery and session writes. Each window
+has independent mutable backend/operation state while reusing the immutable codec
+catalog. Moving a quiescent tab between windows rebinds host callbacks and archive
+services before the original window can disappear. A tab with an external editor
+still running stays in its window until that editor finishes. Window teardown
+joins external workers and retires all inactive sources before releasing services.
+
+Sessions store navigation descriptors, tab order, view preferences and window
+placement. Reopening uses the existing navigation/backend boundary and fresh
+password/recovery decisions; handles, passwords, running operations and consent
+are not persisted. A failed reopen keeps the requested location visibly failed.
+The application-wide favorites model owns stable identities, labels and ordering;
+legacy numeric bookmarks remain compatible. Removing or renaming a favorite
+does not mutate the source directory.
 
 List mode, Flat View and sort preferences stay with the source panel. Qt reads
 them when presenting controls, changing columns or returning from another panel's
@@ -198,9 +217,12 @@ cancel and stops pending work before window shutdown. Model repaint and language
 refresh are presentation updates; source CPanel still owns name validation,
 rename operations, errors and restored selection.
 
-Main-window chrome has a scoped Qt presentation adapter for toolbar spacing,
-labels and the parent button. It does not style dialogs or own commands; the
-editable address retains the original panel address/navigation owner.
+Main-window chrome presents tabs, breadcrumb navigation and a per-pane file action
+bar above the list/sidebar. Its proxies query the existing command projection for
+the owning pane. The editable address retains the original panel navigation owner.
+`QtFileClipboard` supplies native file URL formats to the existing file-transfer
+operation; exporting a container selection uses CPanel's native CopyTo and checks
+its extraction result before publishing URLs. It does not implement archive I/O.
 Address callbacks require a live source panel and share a control-owned delivery
 lifetime, so late signals and queued focus requests stop when either owner ends.
 

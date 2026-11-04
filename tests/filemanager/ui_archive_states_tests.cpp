@@ -2,6 +2,7 @@
 #include "filemanager/support/window_state_support.h"
 #include "localization/LangUtils.h"
 #include "settings/RegistryUtils.h"
+#include "support/panel_keys.h"
 #include "ui/progress/ProgressDialog2.h"
 #include "ui/progress/qtprogresscontrols.h"
 #include "ui/support/address_popup_support.h"
@@ -419,7 +420,7 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
         auto *address = window.findChild<QLineEdit *>("archivePath");
         auto *combo = window.findChild<QComboBox *>("pathCombo");
         QVERIFY(address && combo);
-        address->setFocus();
+        PanelKeys::focusAddress(address);
         QTRY_VERIFY(address->hasFocus());
         address->setText(folder);
         QTest::keyClick(address, Qt::Key_Return);

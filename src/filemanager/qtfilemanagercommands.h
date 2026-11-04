@@ -27,6 +27,7 @@ class QtFileManagerCommands final : public IQtFileManagerMenuCommandServices {
     explicit QtFileManagerCommands(MainWindow &window);
     void AttachActions();
     void RefreshActions();
+    QHash<unsigned, bool> AvailabilityForPanel(unsigned panel);
     void RefreshViewActions();
     void ActivateItems(Qt::KeyboardModifiers modifiers);
     bool CanCloseMounts();

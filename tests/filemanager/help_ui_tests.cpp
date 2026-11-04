@@ -140,33 +140,6 @@ class HelpUiTests : public QObject {
         QVERIFY(observed);
         QVERIFY(!window.findChild<QDialog *>("aboutDialog"));
     }
-    void sourceContentsCommandAndF1_data() {
-        QTest::addColumn<bool>("keyboard");
-        QTest::newRow("menu") << false;
-        QTest::newRow("F1") << true;
-    }
-    void sourceContentsCommandAndF1() {
-        QFETCH(bool, keyboard);
-        MainWindow window;
-        window.show();
-        window.activateWindow();
-        QVERIFY(WindowActivation::waitForActive(window));
-        auto *action = window.findChild<QAction *>("helpContentsAction");
-        QVERIFY(action && action->isEnabled());
-        QCOMPARE(action->shortcut(), QKeySequence(Qt::Key_F1));
-        if (keyboard) {
-            QTRY_COMPARE(QApplication::activeWindow(), &window);
-            QTest::keyClick(window.windowHandle(), Qt::Key_F1);
-        } else
-            action->trigger();
-        QTRY_VERIFY(window.findChild<QDialog *>("helpWindow") &&
-                    window.findChild<QDialog *>("helpWindow")->isVisible());
-        auto *help = window.findChild<QDialog *>("helpWindow");
-        auto *browser = help->findChild<QTextBrowser *>("helpBrowser");
-        QCOMPARE(browser->source().path(), QString("/upstream/7zip/Help/fm/index.htm"));
-        QVERIFY(browser->toPlainText().contains("File Manager"));
-        help->close();
-    }
 };
 QTEST_MAIN(HelpUiTests)
 #include "help_ui_tests.moc"

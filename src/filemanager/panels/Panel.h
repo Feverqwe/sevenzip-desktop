@@ -265,6 +265,14 @@ class CPanel : public QObject {
     explicit CPanel(IFolderFolder *folder);
     void ReleasePanel();
     void ExitExternalWorkers(bool hardExit);
+    bool HasExternalWorkers() const;
+    void RebindWindowHost(QWidget *window, CPanelCallback *callback, CAppState *state);
+    void AttachAddressFocus(std::function<void()> focus) {
+        _addressFocusPresentation = std::move(focus);
+    }
+    void AttachFileClipboard(std::function<void(unsigned)> command) {
+        _fileClipboardPresentation = std::move(command);
+    }
     HRESULT Create(QWidget *mainWindow, QWidget *parentWindow, UINT id,
                    const UString &currentFolderPrefix, const UString &arcFormat,
                    CPanelCallback *panelCallback, CAppState *appState, bool needOpenArc,
@@ -677,6 +685,8 @@ class CPanel : public QObject {
     std::function<void(const CPanelStatus &)> _statusPresentation;
     std::function<void(UInt32)> _viewModePresentation;
     std::function<void(bool)> _flatModePresentation;
+    std::function<void()> _addressFocusPresentation;
+    std::function<void(unsigned)> _fileClipboardPresentation;
     bool _portableFolderChanged = false;
     CAppState *_appState = nullptr;
     UINT _baseID = 0;

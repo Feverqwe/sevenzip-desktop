@@ -1,6 +1,7 @@
 #include "filemanager/support/panel_model_support.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
+#include "support/panel_keys.h"
 #include "ui/support/layout_inspection.h"
 #include <QScopeGuard>
 #include <QSplitterHandle>
@@ -18,18 +19,18 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
     void shiftSelectionDoesNotIncludeFollowingUnmodifiedMove_data() {
         QTest::addColumn<int>("mode");
+        QTest::addColumn<bool>("alternative");
         for (int mode = 0; mode < 4; ++mode)
-            QTest::newRow(qPrintable(QString::number(mode))) << mode;
+            for (bool alternative : {false, true})
+                QTest::newRow(qPrintable(QString("%1-%2").arg(mode).arg(alternative)))
+                    << mode << alternative;
     }
     void shiftSelectionDoesNotIncludeFollowingUnmodifiedMove() {
         QFETCH(int, mode);
+        QFETCH(bool, alternative);
         QSettings settings(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"), QSettings::IniFormat);
-        settings.setValue("FM/AlternativeSelection", true);
+        settings.setValue("FM/AlternativeSelection", alternative);
         settings.sync();
-        const auto restore = qScopeGuard([&] {
-            settings.remove("FM/AlternativeSelection");
-            settings.sync();
-        });
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         ControlledBackend backend;
@@ -48,12 +49,15 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
         target->setFocus();
         QTRY_VERIFY(target->hasFocus());
         view->setCurrentCell(0, 0);
-        action(window, "deselectAllAction")->trigger();
+        target->setCurrentIndex(view->model()->index(0, 0));
+        view->selectRow(0);
         const auto arrow = mode <= 1 ? Qt::Key_Right : Qt::Key_Down;
         QKeyEvent shiftDown(QEvent::KeyPress, arrow, Qt::ShiftModifier);
         QKeyEvent down(QEvent::KeyPress, arrow, Qt::NoModifier);
         QApplication::sendEvent(target, &shiftDown);
         QCOMPARE(view->currentRow(), 1);
+        if (!alternative)
+            QCOMPARE(view->selectionModel()->selectedRows().size(), 2);
         QApplication::sendEvent(target, &down);
         QCOMPARE(view->currentRow(), 2);
         QApplication::processEvents();
@@ -61,7 +65,7 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
         for (int row = 0; row < 3; ++row)
             QCOMPARE(
                 panel->IsItemMarked(view->model()->index(row, 0).data(Qt::UserRole + 6).toUInt()),
-                row < 2);
+                alternative ? row < 2 : row == 2);
     }
     void archiveOpenDisablesBothPanelAddresses() {
         QTemporaryDir fixture;
@@ -101,11 +105,11 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
         window.activateWindow();
         QVERIFY(QTest::qWaitForWindowActive(&window));
         auto *leftEdit = left->findChild<QLineEdit *>("archivePath");
-        leftEdit->setFocus();
+        PanelKeys::focusAddress(leftEdit);
         QTRY_VERIFY(leftEdit->hasFocus());
         QTRY_VERIFY(!action(window, "extractArchiveAction")->isEnabled());
-        QVERIFY(UiInspection::fullyVisible(*leftAddress, window));
-        QVERIFY(UiInspection::fullyVisible(*rightAddress, window));
+        QVERIFY(UiInspection::fullyVisible(*PanelKeys::navigationFor(leftAddress), window));
+        QVERIFY(UiInspection::fullyVisible(*PanelKeys::navigationFor(rightAddress), window));
         QVERIFY(UiInspection::writeReport(window, QStringLiteral("archive-open-address-ready")));
     }
     void viewSwitchRetainsPanelBindingAcrossFocusChange() {
@@ -125,7 +129,7 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
         // A native QStackedWidget switch can synchronously focus another panel.
         auto *stack = right->findChild<QStackedWidget *>("fileViewStack");
         connect(stack, &QStackedWidget::currentChanged, &window,
-                [address] { address->setFocus(); });
+                [address] { PanelKeys::focusAddress(address); });
         action(window, "viewMode1Action")->trigger();
         static_cast<FileTable *>(list)->sourcePanel->SetFocusToList();
         QTRY_VERIFY(right->findChild<QListView *>("iconList")->hasFocus());
@@ -217,8 +221,8 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
         window.resize(640, 400);
         QApplication::processEvents();
         QCOMPARE(window.width(), 640);
-        QVERIFY(UiInspection::fullyVisible(*leftAddress, window));
-        QVERIFY(UiInspection::fullyVisible(*rightAddress, window));
+        QVERIFY(UiInspection::fullyVisible(*PanelKeys::navigationFor(leftAddress), window));
+        QVERIFY(UiInspection::fullyVisible(*PanelKeys::navigationFor(rightAddress), window));
         QVERIFY(UiInspection::fullyVisible(*leftTable, window));
         QVERIFY(UiInspection::fullyVisible(*rightTable, window));
         QVERIFY(UiInspection::writeReport(window, QStringLiteral("two-panel-disk-table-640")));
@@ -278,8 +282,8 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
         for (int width : {980, 640}) {
             window.resize(width, width == 980 ? 620 : 400);
             QApplication::processEvents();
-            QVERIFY(UiInspection::fullyVisible(*leftAddress, window));
-            QVERIFY(UiInspection::fullyVisible(*rightAddress, window));
+            QVERIFY(UiInspection::fullyVisible(*PanelKeys::navigationFor(leftAddress), window));
+            QVERIFY(UiInspection::fullyVisible(*PanelKeys::navigationFor(rightAddress), window));
             QVERIFY(UiInspection::fullyVisible(*leftIcons, window));
             QVERIFY(UiInspection::fullyVisible(*rightIcons, window));
             QVERIFY(
@@ -316,7 +320,7 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
         QVERIFY(rightPanel);
         auto *rightTable = rightPanel->findChild<FileTable *>("archiveTable");
         auto *rightAddress = rightPanel->findChild<QLineEdit *>("archivePath");
-        rightAddress->setFocus();
+        PanelKeys::focusAddress(rightAddress);
         QTRY_VERIFY(rightAddress->hasFocus());
         QCOMPARE(QFileInfo(window.windowTitle()).canonicalFilePath(),
                  QFileInfo(right).canonicalFilePath());
@@ -329,9 +333,9 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
         QVERIFY(static_cast<FileTable *>(rightTable)->sourcePanel->ShouldProcessNotifications());
         action(window, "flatViewAction")->setChecked(true);
         QVERIFY(action(window, "flatViewAction")->isChecked());
-        leftAddress->setFocus();
+        PanelKeys::focusAddress(leftAddress);
         QTRY_VERIFY(leftAddress->hasFocus());
-        rightAddress->setFocus();
+        PanelKeys::focusAddress(rightAddress);
         QTRY_VERIFY(rightAddress->hasFocus());
         QTRY_VERIFY_WITH_TIMEOUT(
             !PanelMatches(*rightTable, QStringLiteral("nested/вложенный файл.txt")).isEmpty(),
@@ -413,7 +417,7 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
         QVERIFY2(leftTable->isEnabled(), "inactive disk panel stayed disabled after archive open");
         window.activateWindow();
         QApplication::processEvents();
-        leftAddress->setFocus();
+        PanelKeys::focusAddress(leftAddress);
         QTRY_VERIFY(leftAddress->hasFocus());
         QVERIFY(action(window, "toolbarAddAction")->isEnabled());
         QTRY_VERIFY2(
@@ -486,8 +490,8 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
         for (int width : {980, 640}) {
             window.resize(width, width == 980 ? 620 : 400);
             QApplication::processEvents();
-            QVERIFY(UiInspection::fullyVisible(*leftAddress, window));
-            QVERIFY(UiInspection::fullyVisible(*rightAddress, window));
+            QVERIFY(UiInspection::fullyVisible(*PanelKeys::navigationFor(leftAddress), window));
+            QVERIFY(UiInspection::fullyVisible(*PanelKeys::navigationFor(rightAddress), window));
             QVERIFY(UiInspection::fullyVisible(*leftTable, window));
             QVERIFY(UiInspection::fullyVisible(*rightIcons, window));
             QVERIFY(UiInspection::writeReport(window,
@@ -642,7 +646,7 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
             QVERIFY(address->text() != parentPath);
             const QString childPath = address->text();
             // Editing the address must never dispatch a panel navigation command.
-            address->setFocus();
+            PanelKeys::focusAddress(address);
             QTest::keyClick(address, Qt::Key_Backspace, modifiers);
             address->setText(childPath);
             view->setFocus();
@@ -702,12 +706,12 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
             QTRY_VERIFY(combo->view()->isVisible());
             QCOMPARE(address->text(), currentPath);
             combo->hidePopup();
-            address->setFocus();
+            PanelKeys::focusAddress(address);
             QTRY_VERIFY(address->hasFocus());
             QTest::keyClick(address, static_cast<Qt::Key>(key), Qt::AltModifier);
             QTRY_VERIFY(combo->view()->isVisible());
             combo->hidePopup();
-            address->setFocus();
+            PanelKeys::focusAddress(address);
             QTest::keyClick(address, Qt::Key_Tab);
             QTRY_VERIFY(view->hasFocus());
             QCOMPARE(address->text(), currentPath);
@@ -881,7 +885,7 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
         QCOMPARE(table->selectionModel()->selectedRows().size(), 0);
 
         auto *address = window.findChild<QLineEdit *>("archivePath");
-        address->setFocus();
+        PanelKeys::focusAddress(address);
         QTest::keyClick(address, Qt::Key_Asterisk, keypad);
         QCOMPARE(table->selectionModel()->selectedRows().size(), 0);
         QVERIFY(backend.prepareArchiveFixture(temp.filePath("busy.zip")));

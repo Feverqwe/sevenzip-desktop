@@ -8,6 +8,8 @@
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtapppresentation.h"
 #include "filemanager/window/qtmainwindowchrome.h"
+#include "filemanager/window/qtnavigationbar.h"
+#include "filemanager/window/qtwindowworkspace.h"
 #include "localization/qtlangcontrols.h"
 #include "ui/controls/qtstatuslabel.h"
 #include "ui/theme/qtcommandicons.h"
@@ -21,6 +23,34 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
     auto *navigation = new QHBoxLayout;
     navigation->setContentsMargins(16, 12, 16, 12);
     navigation->setSpacing(8);
+    auto *sidebar = new QToolButton(central);
+    sidebar->setObjectName(QStringLiteral("panelSidebarButton%1").arg(index));
+    sidebar->setIcon(QtCommandSymbol(QtCommandIcon::Sidebar));
+    sidebar->setCheckable(true);
+    sidebar->setAutoRaise(true);
+    QtConfigureChromeToolButton(*sidebar);
+    QtBindLocalText(sidebar, "QtWindowWorkspace",
+                    QT_TRANSLATE_NOOP("QtWindowWorkspace", "Places sidebar"), true);
+    QtBindLocalToolTip(sidebar, "QtWindowWorkspace",
+                       QT_TRANSLATE_NOOP("QtWindowWorkspace", "Places sidebar"));
+    connect(sidebar, &QToolButton::clicked, this, [this] {
+        if (auto *action = findChild<QAction *>("sidebarAction"))
+            action->trigger();
+    });
+    navigation->addWidget(sidebar);
+    auto *back = new QToolButton(central);
+    back->setObjectName(QStringLiteral("panelBackButton%1").arg(index));
+    back->setAutoRaise(true);
+    QtConfigureChromeToolButton(*back);
+    back->setIcon(QtCommandSymbol(QtCommandIcon::Back));
+    QtBindLocalText(back, "mainwindow_menus", QT_TRANSLATE_NOOP("mainwindow_menus", "Back"), true);
+    QtBindLocalToolTip(back, "mainwindow_menus", QT_TRANSLATE_NOOP("mainwindow_menus", "Back"));
+    connect(back, &QToolButton::clicked, this, [this, index] {
+        activatePanelUi(index);
+        if (projectedPanel_ == index)
+            back_->trigger();
+    });
+    navigation->addWidget(back);
     {
         auto *button = new QPushButton(central);
         // Keep the source parent command without its longer View menu caption.
@@ -36,7 +66,8 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
         connect(button, &QPushButton::clicked, this, [this, index] {
             appPresentation_->CancelInitialFocus();
             activatePanelUi(index);
-            up_->trigger();
+            if (projectedPanel_ == index)
+                up_->trigger();
         });
         QtConfigurePanelParentButton(*button);
         button->setObjectName(QString("panelParentButton%1").arg(index));
@@ -63,8 +94,17 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
     projectedUi().path->setProperty("languagePlaceholder", true);
     QtBindLocalText(projectedUi().path, "mainwindow_panel",
                     QT_TRANSLATE_NOOP("mainwindow_panel", "Path to folder or archive"), true);
-    navigation->addWidget(projectedUi().pathCombo);
+    projectedUi().navigation = new QtNavigationBar(
+        *projectedUi().pathCombo,
+        [this, index](const QString &path) {
+            activatePanelUi(index);
+            navigateTo(path, true);
+        },
+        central);
+    projectedUi().navigation->setObjectName(QStringLiteral("panelNavigation%1").arg(index));
+    navigation->addWidget(projectedUi().navigation);
     layout->addLayout(navigation);
+    workspace_->AttachPanel(index, *layout);
     createFileTable(central);
     if (!panelSplitter_)
         createPanelActions(editMenu);
@@ -73,7 +113,7 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
     projectedUi().viewStack->setObjectName("fileViewStack");
     projectedUi().viewStack->addWidget(projectedUi().table);
     projectedUi().viewStack->addWidget(projectedUi().iconList);
-    layout->addWidget(projectedUi().viewStack);
+    workspace_->AttachContent(index, *layout);
     auto *panelStatus = new QStatusBar(central);
     panelStatus->setObjectName("panelStatusBar");
     panelStatus->setSizeGripEnabled(false);
@@ -196,10 +236,10 @@ void MainWindow::createFileTable(QWidget *central) {
 
 void MainWindow::createPanelActions(QMenu *editMenu) {
     projectedUi().table->addAction(openItem_);
-    parent_ = new QAction(projectedUi().table);
+    parent_ = new QAction(this);
     parent_->setObjectName("parentFolderAction");
     projectedUi().table->addAction(parent_);
-    selectAll_ = new QAction(projectedUi().table);
+    selectAll_ = new QAction(this);
     selectAll_->setObjectName("selectAllAction");
     projectedUi().table->addAction(selectAll_);
     selectAll_->setText("Select All");
@@ -236,6 +276,7 @@ void MainWindow::createIconList(QWidget *central) {
     projectedUi().iconList->setEditTriggers(QAbstractItemView::NoEditTriggers);
     renameController_->Attach(*projectedUi().iconList, projectedPanel_);
     projectedUi().iconList->setUniformItemSizes(true);
+    projectedUi().iconList->setSelectionRectVisible(true);
     projectedUi().iconList->setWordWrap(false);
     projectedUi().iconList->setDragEnabled(true);
     projectedUi().iconList->setAcceptDrops(true);

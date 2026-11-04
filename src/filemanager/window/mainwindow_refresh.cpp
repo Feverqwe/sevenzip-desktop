@@ -157,7 +157,7 @@ void MainWindow::pollAutoRefresh() {
             return;
     for (unsigned index = 0; index < kNumPanelsMax; ++index) {
         if (!app_.IsPanelVisible(index) || !panelUi_[index].container ||
-            panelUi_[index].state != State::Filesystem)
+            panelUi_[index].state != State::Filesystem || panelUi_[index].locationUnavailable)
             continue;
         withPanelProjection(index, [&] {
             CPanel &panel = app_.GetFocusedPanel();
