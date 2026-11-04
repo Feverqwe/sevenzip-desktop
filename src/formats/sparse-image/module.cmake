@@ -49,6 +49,16 @@ if(BUILD_TESTING)
     set_tests_properties(sparse_image_ui PROPERTIES TIMEOUT 90 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
     if(APPLE)
         set_property(TEST sparse_image_ui PROPERTY ENVIRONMENT "QT_QPA_PLATFORM=cocoa")
+        add_test(NAME sparse_image_ui_quick COMMAND sparse_image_ui_tests -silent
+            browseAndCopy:native-sparse-256
+            browseAndCopy:native-sparsebundle-0
+            "browseApfsDirectories:en nested"
+            "browseApfsDirectories:ru symlink"
+            "browseApfsDirectories:en file-with-attributes"
+            "browseApfsDirectories:ru deep-file"
+            damagedWarning:en-decline damagedWarning:ru-read-only)
+        set_tests_properties(sparse_image_ui_quick PROPERTIES TIMEOUT 60 ENVIRONMENT
+            "QT_QPA_PLATFORM=cocoa;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/sparse-image-ui-quick.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
         qt_add_executable(sparse_image_network_tests
             tests/formats/sparse-image/sparse_image_network_tests.cpp
             tests/formats/sparse-image/sparsefixtures.cpp

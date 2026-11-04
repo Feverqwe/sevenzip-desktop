@@ -58,17 +58,17 @@ if(BUILD_TESTING AND WIN32)
       endif()
     endforeach()
     foreach(sevenzip_native_ui_test IN ITEMS
-            native_parent_publication native_drop_publication native_rename_2 native_rename_301 native_external_2 native_external_301 native_external_update native_nested_stream native_nested_memory native_nested_disk
-            native_renderer_failure native_renderer_copy interarchive_refresh panel_creation_publication
+            native_parent_publication native_drop_publication native_rename_2 native_rename_301 native_external_2 native_external_301 native_external_update native_nested_stream native_nested_memory native_nested_disk native_nested_stream_quick native_nested_memory_quick native_nested_disk_quick
+            native_renderer_failure native_renderer_copy interarchive_refresh panel_creation_publication panel_creation_publication_quick
             source_compress_dialog source_extract_advanced source_browse_dialog shell_archive_services shell_menu_window shell_update_window
             compression compression_advanced compression_path dialog_path_rules compression_error_policy compression_profile_selection compression_method_state compression_preferences compression_resources language_ui
             codec_commands_ui codec_creation_ui ui_geometry dialog_size
             options_dialog options_integration options_keyboard options_window appearance_settings system_page menu_page help_source help_ui temp_cleanup context_dialog
-            filesystem_selection_runtime ui_operations ui_copy_same ui_copy_routing app_copy_routing ui_update_modes archive_metadata_ui source_drop_add
+            filesystem_selection_runtime ui_operations ui_copy_same ui_copy_routing ui_copy_routing_quick app_copy_routing ui_update_modes archive_metadata_ui source_drop_add
             drag_drop_add_ui drag_drop_add_independent drag_drop_add_temporary dropped_path_choice modal_refresh_window
-            main_shell panel_shell source_context_menu panel_key window_placement panel_key_source panel_list_load panel_item_icons panel_name_text archive_rename_window panel_copy_reload copy_publication_order filesystem_reload address_navigation panel_parent_reload panel_folder_sync native_archive_properties filesystem_comment fs_drives_device_ui namespace_hash native_network_navigation native_persisted_locations address_combo address_lifetime panel_address_keys root_command persisted_location ui_navigation ui_archive_states ui_archive_volumes
+            main_shell panel_shell source_context_menu panel_key panel_key_quick window_placement panel_key_source panel_list_load panel_item_icons panel_name_text archive_rename_window panel_copy_reload copy_publication_order filesystem_reload address_navigation panel_parent_reload panel_folder_sync native_archive_properties filesystem_comment fs_drives_device_ui namespace_hash native_network_navigation native_persisted_locations address_combo address_lifetime panel_address_keys root_command persisted_location ui_navigation ui_archive_states ui_archive_volumes
             rename_lifecycle command_publication large_list_window worker_window_progress panel_sort_commands panel_refresh_drop panel_refresh_completion panel_rename_state deferred_rename navigation_reload panel_deleted_draw panel_column_menu panel_column_initialization panel_column_schema panel_column_sort panel_column_changes panel_cell_text native_column_workflow panel_item_changed
-            native_navigation_window archive_reload_command drag_reload_completion panel_creation_path copy_archive_refresh interarchive_recovery panel_load_count panel_activation progress_dialog progress_worker progress_cancel archive_progress volume_dialog language_dialog language_standard_buttons fm_settings list_settings_runtime
+            native_navigation_window archive_reload_command archive_reload_command_quick drag_reload_completion drag_reload_completion_quick panel_creation_path copy_archive_refresh interarchive_recovery panel_load_count panel_activation panel_activation_quick progress_dialog progress_worker progress_cancel archive_progress volume_dialog language_dialog language_standard_buttons fm_settings list_settings_runtime
             language_main_dialog language_focus properties_runtime
             archive_layer_chain archive_layer_lifetime
             archive_item_open archive_external_edit external_editors_ui language_archive_command overwrite_layout
@@ -131,6 +131,21 @@ if(BUILD_TESTING AND WIN32)
     # reserve twice the measured process time, rounded up to a minute.
     set_tests_properties(panel_rename_state PROPERTIES TIMEOUT 120)
     set_tests_properties(panel_activation PROPERTIES TIMEOUT 1260)
+endif()
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND TEST native_rename_2)
+    # Reserve twice the complete matrix measurements, rounded up to a minute.
+    # Per-state waits are unchanged; evidence: docs/testing/duration-audit-2026-11-04.md.
+    set_tests_properties(native_rename_2 PROPERTIES TIMEOUT 660)
+    set_tests_properties(native_rename_301 PROPERTIES TIMEOUT 720)
+    set_tests_properties(native_external_2 PROPERTIES TIMEOUT 420)
+    set_tests_properties(native_external_301 PROPERTIES TIMEOUT 480)
+    set_tests_properties(native_nested_stream native_nested_memory native_nested_disk
+        PROPERTIES TIMEOUT 360)
+    set_tests_properties(native_renderer_failure PROPERTIES TIMEOUT 480)
+    set_tests_properties(panel_creation_publication PROPERTIES TIMEOUT 600)
+    set_tests_properties(interarchive_recovery PROPERTIES TIMEOUT 300)
+    set_tests_properties(interarchive_refresh PROPERTIES TIMEOUT 360)
 endif()
 
 if(APPLE AND TEST copy_archive_refresh)

@@ -30,6 +30,21 @@
         target_compile_definitions(panel_creation_publication_tests PRIVATE "SEVENZIP_CODEC_MODULE=\"${SEVENZIP_CODEC_MODULE}\"")
     endif()
     add_test(NAME panel_creation_publication COMMAND panel_creation_publication_tests -silent)
+    set(panel_creation_quick_cases
+        creationRetainsOriginalLoadResultPolicy
+        initialPanelsPublishInSourceCreationOrder:0-0-transport-0-0-0-0-0
+        initialPanelsPublishInSourceCreationOrder:0-0-filesystem-1-1-1-1-1
+        initialPanelsPublishInSourceCreationOrder:1-1-filesystem-0-0-0-0-0)
+    if(SEVENZIP_CODEC_MODULE)
+        list(APPEND panel_creation_quick_cases
+            initialPanelsPublishInSourceCreationOrder:0-1-zip-0-1-1-0-0
+            initialPanelsPublishInSourceCreationOrder:1-0-7z-1-0-0-1-0
+            initialPanelsPublishInSourceCreationOrder:0-0-7z-0-0-1-1-0)
+    endif()
+    add_test(NAME panel_creation_publication_quick COMMAND panel_creation_publication_tests -silent
+        ${panel_creation_quick_cases})
+    set_tests_properties(panel_creation_publication_quick PROPERTIES TIMEOUT 45 ENVIRONMENT
+        "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/panel-creation-publication-quick.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
     set_tests_properties(panel_creation_publication PROPERTIES TIMEOUT 120 ENVIRONMENT "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/panel-creation-publication.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
     qt_add_executable(archive_move_completion_tests
         tests/filemanager/archive_move_completion_tests.cpp
@@ -115,6 +130,16 @@
 
     add_test(NAME drag_reload_completion COMMAND drag_reload_completion_tests -silent)
     set_tests_properties(drag_reload_completion PROPERTIES TIMEOUT 120 ENVIRONMENT "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/drag-reload-completion.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
+    # Success, failure and cancellation in both panes.
+    add_test(NAME drag_reload_completion_quick COMMAND drag_reload_completion_tests -silent
+        archiveDropUsesSourceRefresh:0-0-0-0-0
+        archiveDropUsesSourceRefresh:0-1-1-1-1
+        archiveDropUsesSourceRefresh:0-0-1-0-2
+        archiveDropUsesSourceRefresh:1-1-1-1-0
+        archiveDropUsesSourceRefresh:1-0-0-0-1
+        archiveDropUsesSourceRefresh:1-1-0-1-2)
+    set_tests_properties(drag_reload_completion_quick PROPERTIES TIMEOUT 30 ENVIRONMENT
+        "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/drag-reload-completion-quick.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
     qt_add_executable(panel_load_count_tests tests/filemanager/panel_load_count_tests.cpp)
     target_link_libraries(panel_load_count_tests PRIVATE sevenzip_layout_inspection sevenzip_panel_load_fixture)
     target_link_libraries(panel_load_count_tests PRIVATE sevenzip_window)
@@ -134,6 +159,20 @@
     endif()
     add_test(NAME panel_activation COMMAND panel_activation_tests -silent)
     set_tests_properties(panel_activation PROPERTIES TIMEOUT 180 ENVIRONMENT "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/panel-activation.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
+    # Exercise each modifier and both input routes without the full UI cross-product.
+    add_test(NAME panel_activation_quick COMMAND panel_activation_tests -silent
+        archiveOpeningFailureHasOneDialogAndCanRetry
+        failedFolderRecovery
+        modifierWorkflow:0-0-0-0-0-0
+        modifierWorkflow:1-1-3-1-1-1
+        modifierWorkflow:0-1-3-0-1-2
+        modifierWorkflow:1-0-0-1-0-3
+        modifierWorkflow:0-0-3-1-0-4
+        modifierWorkflow:1-1-0-0-1-5
+        modifierWorkflow:0-1-0-1-1-6
+        modifierWorkflow:1-0-3-0-0-7)
+    set_tests_properties(panel_activation_quick PROPERTIES TIMEOUT 45 ENVIRONMENT
+        "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/panel-activation-quick.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
     qt_add_executable(panel_item_changed_tests tests/filemanager/panel_item_changed_tests.cpp)
     target_link_libraries(panel_item_changed_tests PRIVATE sevenzip_layout_inspection sevenzip_panel_load_fixture)
     target_link_libraries(panel_item_changed_tests PRIVATE sevenzip_window)
@@ -369,6 +408,27 @@
     target_include_directories(panel_key_tests PRIVATE src)
     target_link_libraries(panel_key_tests PRIVATE Qt6::Widgets Qt6::Test sevenzip_common)
     add_test(NAME panel_key COMMAND panel_key_tests -silent)
+    add_test(NAME panel_key_quick COMMAND panel_key_tests -silent
+        shiftSelectionDoesNotIncludeFollowingUnmodifiedMove
+        archiveOpenDisablesBothPanelAddresses
+        viewSwitchRetainsPanelBindingAcrossFocusChange
+        twoPanelDiskSwitchKeepsIndependentViews
+        switchingDuringFlatScanRestartsOnlyThatPanel
+        mixedArchivePanelsRouteFocusAndDestination
+        restoresPanelCountFocusPathsAndSplitter
+        hiddenLeftPanelPathSurvivesRestart
+        parentKey:archive-0 parentKey:disk-3
+        addressKeys:archive-3 addressKeys:disk-0
+        createFileKey:0 createFileKey:3
+        keypadSelection:archive-0 keypadSelection:disk-3
+        alternativeSelection:archive-flat0-mode3
+        alternativeSelection:archive-flat1-mode0
+        alternativeSelection:disk-flat0-mode0
+        alternativeSelection:disk-flat1-mode3
+        alternativeRootUsesSourceMarks
+        alternativeMarksSurviveRemovalAndScroll)
+    set_tests_properties(panel_key_quick PROPERTIES TIMEOUT 60 ENVIRONMENT
+        "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/panel-key-quick.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
     qt_add_executable(main_shell_tests tests/filemanager/main_shell_tests.cpp)
     target_link_libraries(main_shell_tests PRIVATE sevenzip_layout_inspection)
     target_link_libraries(main_shell_tests PRIVATE sevenzip_window)
