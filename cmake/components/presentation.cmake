@@ -123,6 +123,7 @@ add_library(sevenzip_panel
     src/archive/callbacks/qtcallbackdialogs.h
     src/ui/dialogs/qtmodalresult.h
     src/dialogs/overwrite/OverwriteDialog.cpp
+    src/dialogs/overwrite/qtoverwritepresentation.cpp
     src/dialogs/overwrite/OverwriteDialog.h
     src/dialogs/mem/MemDialog.cpp
     src/dialogs/mem/qtmemoryrequestpresentation.cpp
