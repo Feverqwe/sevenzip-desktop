@@ -1576,6 +1576,8 @@
     "src/archive/resources/qtarchivenativeproperties.cpp",
     "src/archive/resources/qtarchiveproperties.cpp",
     "src/archive/resources/qtarchiveproperties.h",
+    "src/archive/resources/qtarchivereadcallback.cpp",
+    "src/archive/resources/qtarchivereadcallback_p.h",
     "src/archive/resources/qtarchivereadoperation.cpp",
     "src/archive/resources/qtarchivereadoperation.h",
     "src/archive/resources/qtarchivereopen.cpp",
@@ -3536,6 +3538,25 @@
     "src/formats/vhdx/VhdxCrc.cpp"
   ],
   "extracted": {
+    "src/archive/callbacks/ArchiveExtractCallback.cpp": {
+      "local": [
+        "src/archive/resources/qtarchivereadcallback.cpp"
+      ],
+      "symbols": [
+        "CArchiveExtractCallback::ReportExtractResult (item/block path and encryption projection)"
+      ]
+    },
+    "third_party/7zip/CPP/7zip/UI/Client7z/Client7z.cpp": {
+      "local": [
+        "src/archive/resources/qtarchivereadcallback.cpp",
+        "src/archive/resources/qtarchivereadoperation.cpp"
+      ],
+      "symbols": [
+        "CArchiveExtractCallback::GetStream (extract-mode output interface ownership)",
+        "CArchiveExtractCallback::SetOperationResult (output close/error ownership)",
+        "IInArchive::Extract caller (single-entry private output adaptation)"
+      ]
+    },
     "src/dialogs/browse/BrowseDialog.cpp": {
       "local": [
         "src/filemanager/FormatUtils.cpp",
@@ -3610,7 +3631,8 @@
         "src/archive/diagnostics/archiveerrormessages.cpp",
         "src/archive/diagnostics/archiveerrormessages.h",
         "src/archive/resources/virtualextractfilesystem.cpp",
-        "src/filemanager/ExtractCallbackOutput.cpp"
+        "src/filemanager/ExtractCallbackOutput.cpp",
+        "src/archive/resources/qtarchivereadcallback.cpp"
       ],
       "symbols": [
         "SetExtractErrorMessage",
@@ -3629,7 +3651,8 @@
         "GetItemBoolProp",
         "CExtractCallbackImp::GetStream7",
         "CExtractCallbackImp::PrepareOperation7",
-        "CExtractCallbackImp::SetOperationResult8"
+        "CExtractCallbackImp::SetOperationResult8",
+        "CExtractCallbackImp::RequestMemoryUse (already-allowed non-dialog fast path)"
       ]
     },
     "src/filemanager/FM.cpp": {

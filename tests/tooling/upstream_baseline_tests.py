@@ -233,6 +233,24 @@ class UpstreamBaselineTests(unittest.TestCase):
         self.assertIn("src/" + self.source + "` (adapted", report)
         self.assertIn("`" + self.old + "` → `" + new + "`", report)
 
+    def test_exact_source_extractions_remain_verifiable_and_visible_in_review(self):
+        original = baseline.git(self.upstream, "show", self.old + ":CPP/Windows/Net.cpp")
+        extraction = {"local": [self.local], "symbols": ["FixtureCallback::GetStream"]}
+        self.manifest["original_sha256"] = {self.exact: hashlib.sha256(original).hexdigest()}
+        self.manifest["extracted"] = {self.exact: extraction}
+        self.manifest_path.write_text(json.dumps(self.manifest))
+        data = baseline.load_manifest(self.manifest_path)
+        baseline.verify(data, self.upstream)
+        (self.port / self.local).write_text("refactored local projection\n")
+        baseline.verify(data, self.upstream)
+        (self.upstream / "CPP/Windows/Net.cpp").write_text("upstream revised vendor\n")
+        git(self.upstream, "commit", "-qam", "proposal")
+        proposed = git(self.upstream, "rev-parse", "HEAD")
+        report = baseline.review(data, self.upstream, proposed, [self.exact])
+        self.assertIn(self.local, report)
+        self.assertIn(extraction["symbols"][0], report)
+        self.assertEqual((self.port / self.exact).read_bytes(), original)
+
     def test_source_move_can_be_verified_before_staging(self):
         destination = "src/CPP/Windows/Net.cpp"
         (self.port / destination).parent.mkdir(parents=True)

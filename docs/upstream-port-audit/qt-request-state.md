@@ -476,3 +476,36 @@ rendered original-Windows pixel comparison. All checks used Qt 6.12 and the
 existing incremental trees/compiler caches. Completed fixtures were removed;
 current reports and failure/follow-up evidence were retained. No full/slow gate
 was run.
+
+## Native archive read callback ownership — 2026-11-05
+
+Reviewed the complete shared callback, list/Test/single-entry/directory dispatch,
+open/password/memory interfaces and output lifecycle. Compared original
+ArchiveExtractCallback::ReportExtractResult and ExtractCallback::RequestMemoryUse
+at `b88c6bc09339de32f7d18bbab900686b244f42ba`, and Client7z GetStream,
+SetOperationResult and Extract at the recorded
+`9128b80e3a471108678e2b3ec3c985861c8d7b0f` reference. Full original unit hashes
+match the existing baseline; original bytes and revisions are unchanged.
+
+The private QtArchiveReadCallback now owns all native callback projections in
+the existing archive resource component. The joined worker retains opening,
+selection/dispatch and output create/extract/close. All callback bodies, COM
+interfaces, mutex-protected item/progress state, output binding and worker
+reference acquisition/release order are preserved. The adapter retains its
+existing non-dialog memory fast path; interactive budget/registry UI remains
+outside this API. Client7z filesystem/metadata presentation remains omitted for
+the private single-entry spool contract. Native decoders are unchanged.
+
+The existing source-unit manifest now maps these partial projections to their
+local owners. An unchanged original can supply an adapted fragment while its
+complete inventory unit stays exact. Baseline validation accepts such hashed
+exact owners and update review reports their extracted symbols/local owners,
+as it already does for adapted owners. A fixture regression verifies baseline
+acceptance, safe local refactoring and visibility of the adaptation when the
+exact original changes, without modifying its recorded bytes. Existing native
+listing/Test/entry/directory suites cover the callback consumers; no private
+callback or source-structure test is added.
+Linux passed the four native suites (93 Qt checks, no failures/skips) and all
+36 baseline-tool tests. Incremental outputs and compiler caches were retained;
+selected scratch directories contained no disposable files. Other platforms,
+full/slow gates and visual acceptance were not selected for this shared change.

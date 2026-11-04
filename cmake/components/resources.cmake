@@ -55,6 +55,7 @@ add_library(sevenzip_filesystem STATIC
     src/operations/qtoperationoptions.cpp src/operations/qtoperationoptions.h
     src/archive/sfx/archivesfxmodule.cpp src/archive/sfx/archivesfxmodule.h
     src/archive/resources/qtarchivehashoperation.cpp src/archive/resources/qtarchivehashoperation.h
+    src/archive/resources/qtarchivereadcallback.cpp src/archive/resources/qtarchivereadcallback_p.h
     src/archive/resources/qtarchivereadoperation.cpp src/archive/resources/qtarchivereadoperation.h
     src/archive/resources/qtarchivedirectoryextract.cpp src/archive/resources/qtarchivedirectoryextract.h
     src/archive/resources/qtarchiveextractoptions.cpp src/archive/resources/qtarchiveextractoptions.h
