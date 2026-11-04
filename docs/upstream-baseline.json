@@ -1848,6 +1848,7 @@
     "src/filemanager/window/mainwindow_selectionpaths.cpp",
     "src/filemanager/window/mainwindow_shortcuts.cpp",
     "src/filemanager/window/mainwindow_startup.cpp",
+    "src/filemanager/window/mainwindow_state.cpp",
     "src/filemanager/window/mainwindow_twopanel.cpp",
     "src/filemanager/window/mainwindow_volumes.cpp",
     "src/filemanager/window/qtappcopypresentation.cpp",

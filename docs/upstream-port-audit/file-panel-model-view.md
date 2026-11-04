@@ -1,5 +1,30 @@
 # Файловая панель: Qt Model/View — 2026-10-24
 
+## Complete window readiness and status publication — 2026-11-05
+
+Reviewed synchronous/asynchronous filesystem and archive publication, operation
+guards, panel projection, command availability, focus restoration and read-only
+status consumers. Compared native RefreshTitle/RefreshTitlePanel and the complete
+four-part Refresh_StatusBar calculation with their current adapters. Complete
+App.cpp and PanelListNotify.cpp originals match the recorded baseline at
+`b88c6bc09339de32f7d18bbab900686b244f42ba` from
+<https://github.com/ip7z/7zip.git>; no source is imported or revision advanced.
+
+The complete Qt state/readiness transition and command/panel/status publication
+now reside together in mainwindow_state.cpp under the same window component.
+Archive listing retains directory reading, row construction and batched
+publication. All four moved bodies and the remaining listing bodies are
+unchanged, apart from includes following their consumers. No controller, state,
+public interface or new call boundary is introduced. Native status calculations,
+operation guards, notification/projection order, address/list enabling, focus
+completion and read-only/limited-access indications retain their behavior.
+
+Focused Linux command_publication, large_list_window, panel_refresh_completion
+and device_ui passed 132 Qt checks without skips. They cover reentrant command
+publication, disk/archive batches and cancellation, both panels' selection/status
+completion, and read-only/limited device access. No new implementation-presence
+test, secondary-platform run, full/slow gate or appearance acceptance is claimed.
+
 ## Shared row-data role names — 2026-11-05
 
 Reviewed the model's row roles with selection/source-index lookup, rename,

@@ -1,0 +1,110 @@
+#include "archive/resources/qtarchivefileresource.h"
+#include "filemanager/qtfilemanagercommands.h"
+#include "filemanager/window/mainwindow.h"
+#include "filemanager/window/qtapppresentation.h"
+#include "localization/qtlangcontrols.h"
+#include <QScopedValueRollback>
+
+void MainWindow::setState(State state) {
+    const unsigned scanningPanels = scanningPanelMask();
+    const auto kind = state == State::Loading     ? QtAppOperationState::Kind::Open
+                      : state == State::Operating ? QtAppOperationState::Kind::Operation
+                      : scanningPanels            ? QtAppOperationState::Kind::Scan
+                                                  : QtAppOperationState::Kind::Idle;
+    if (!(panelProjectionDepth_ && app_.QtOperations().blocking()) &&
+        !app_.QtOperations().Begin(kind, scanningPanels))
+        return;
+    projectedUi().state = state;
+    refreshActions();
+}
+
+void MainWindow::refreshActions() {
+    // Disabling a view can synchronously move native Qt focus. Keep the
+    // current source transition bound until its caller finishes scheduling.
+    {
+        QScopedValueRollback<unsigned> projection(panelProjectionDepth_, panelProjectionDepth_ + 1);
+        app_.RefreshTitle();
+        const bool navigating = !app_.QtOperations().closed() && !app_.QtOperations().blocking();
+        const bool idle =
+            navigating && !projectedUi().scanningDisk && !projectedUi().scanningArchive;
+        refreshBookmarks();
+        if (commands_)
+            commands_->RefreshActions();
+        if (commands_ && !projectedUi().scanningDisk && !projectedUi().scanningArchive &&
+            app_.GetFocusedPanel().ShouldProcessNotifications())
+            refreshPanelStatus();
+        for (unsigned index = 0; index < kNumPanelsMax; ++index) {
+            const auto &ui = panelUi_[index];
+            if (!ui.container || !ui.table || !ui.iconList || !ui.path)
+                continue;
+            const bool projecting = ui.scanningDisk || ui.scanningArchive;
+            const bool panelIdle = navigating && !projecting;
+            QWidget *focused = QApplication::focusWidget();
+            if (projecting && focused &&
+                (ui.table == focused || ui.table->isAncestorOf(focused) || ui.iconList == focused ||
+                 ui.iconList->isAncestorOf(focused)))
+                ui.path->setFocus();
+            // RefreshListCtrl disables redraw until native sorting and selection
+            // restoration finish. Keep that policy across Qt's asynchronous batches.
+            ui.table->setUpdatesEnabled(!projecting);
+            ui.iconList->setUpdatesEnabled(!projecting);
+            ui.table->setEnabled(panelIdle);
+            ui.iconList->setEnabled(panelIdle);
+            // Native archive progress is modal to the file manager. Qt disables
+            // its lists during the operation; disable the address controls too so
+            // focus cannot move to an inactive pane while its source guards block
+            // the corresponding focus notification.
+            ui.pathCombo->setEnabled(navigating);
+            ui.path->setReadOnly(!navigating);
+        }
+        const bool dragAvailable =
+            idle && app_.GetFocusedPanel().DoesItSupportOperations() &&
+            (projectedUi().state == State::Filesystem || projectedUi().state == State::Viewing);
+        projectedUi().table->setDragEnabled(dragAvailable);
+        projectedUi().iconList->setDragEnabled(dragAvailable);
+    }
+    if (appPresentation_ && !panelProjectionDepth_) {
+        appPresentation_->CompleteInitialFocusIfReady();
+        appPresentation_->CompleteCopyIfReady();
+    }
+}
+
+void MainWindow::refreshPanelStatus() {
+    auto &panel = app_.GetFocusedPanel();
+    panel.Refresh_StatusBar();
+    const auto direct = [](IFolderFolder *folder) {
+        const auto *agent = dynamic_cast<CAgentFolder *>(folder);
+        const auto *resource =
+            agent ? dynamic_cast<QtArchiveFileResource *>(agent->GetEngineResource()) : nullptr;
+        return resource;
+    };
+    bool device = false, limitedRead = false;
+    const auto inspect = [&](IFolderFolder *folder) {
+        if (const auto *resource = direct(folder)) {
+            const bool filesystemLimitations = !resource->FilesystemReadLimitations().isEmpty();
+            device |= resource->HasDirectInput() || filesystemLimitations;
+            limitedRead |= resource->AllowsIncompleteDeviceRead() || filesystemLimitations;
+        }
+    };
+    inspect(panel.GetFolder());
+    const auto &parents = panel.GetParentFolders();
+    FOR_VECTOR(i, parents) { inspect(parents[i].ParentFolder); }
+    QtBindLocalText(deviceReadOnly_, "mainwindow_panel",
+                    limitedRead
+                        ? QT_TRANSLATE_NOOP("mainwindow_panel", "Read only · limited access")
+                        : QT_TRANSLATE_NOOP("mainwindow_panel", "Read only"));
+    deviceReadOnly_->setVisible(device);
+    statusBar()->setVisible(device || !statusBar()->currentMessage().isEmpty());
+}
+
+void MainWindow::showPanelStatus(unsigned index, const CPanelStatus &status) {
+    if (index >= kNumPanelsMax || app_.QtOperations().closed())
+        return;
+    const auto &labels = panelUi_[index].statusLabels;
+    if (!labels[0])
+        return;
+    labels[0]->setText(QtSelectionStatusText(status.selectedCount, status.totalCount));
+    labels[1]->setText(status.selectedSize);
+    labels[2]->setText(status.focusedSize);
+    labels[3]->setText(status.focusedDate);
+}
