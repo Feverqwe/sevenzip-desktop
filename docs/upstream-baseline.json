@@ -1715,6 +1715,7 @@
     "src/dialogs/compress/qtcompressoptionsdialog.h",
     "src/dialogs/copy/alias.h",
     "src/dialogs/extract/alias.h",
+    "src/dialogs/extract/qtextractpresentation.cpp",
     "src/dialogs/listview/qtlistviewdialogpresentation.cpp",
     "src/dialogs/mem/qtmemoryrequestpresentation.cpp",
     "src/dialogs/overwrite/qtoverwritepresentation.cpp",

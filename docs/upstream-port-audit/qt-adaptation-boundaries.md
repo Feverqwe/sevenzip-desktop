@@ -668,3 +668,21 @@ Linux `native_comment` and `native_comment_ui` passed: 27 Qt checks, no failures
 or skips; incremental build 9.785s, tests 10.743s. Completed test settings were
 removed; incremental outputs and compiler caches retained. No other platform,
 full/slow suite or new visual acceptance was needed for this shared writer change.
+## Extract form ownership — 2026-11-04
+
+Compared the complete original ExtractDialog.cpp/.h/.rc at
+`b88c6bc09339de32f7d18bbab900686b244f42ba` with the Qt dialog and its
+ExtractGUI caller; original inventory hashes match the recorded baseline.
+The native mode selection, bool-pair precedence, history, directory
+normalization and accepted-result persistence remain in ExtractDialog.cpp.
+The existing presentation construction and advanced summary now belong to
+qtextractpresentation.cpp in the same component and class. This is local Qt
+integration, without an external import or provenance revision change.
+
+Construction still establishes modality and the native ElimDup default before
+building controls, then initializes saved state, summary, size and focus.
+Signal connections, control order, password draft handling, live translation
+and the post-caller archive-title update retain their behavior. Existing
+extract_dialog and source_extract_advanced suites cover confirmation, Cancel,
+saved/forced options, history, language, geometry and native extraction; no
+test was added for file structure or private helpers.

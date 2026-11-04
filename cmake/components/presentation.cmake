@@ -185,6 +185,7 @@ add_library(sevenzip_panel
     src/gui/ExtractGUI.cpp
     src/gui/ExtractGUI.h
     src/dialogs/extract/ExtractDialog.cpp
+    src/dialogs/extract/qtextractpresentation.cpp
     src/dialogs/extract/ExtractDialog.h
     src/filemanager/UpdateCallback100.cpp
     src/filemanager/UpdateCallback100.h
