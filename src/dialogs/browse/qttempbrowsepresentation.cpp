@@ -1,4 +1,4 @@
-// Qt controls for the mirrored upstream BrowseDialog2 workflow/resource.
+// Qt presentation for the upstream BrowseDialog2 workflow/resource.
 // Source samples and control flow adapted from 7-Zip BrowseDialog2.cpp
 // (0766b733fe3e06dd2a7f9a3cfbf2108ac73abd17).
 // Igor Pavlov, LGPL-2.1-or-later; see third_party/7zip/License.txt.
@@ -19,15 +19,14 @@
 #include "ui/theme/qtcommandicons.h"
 #include <QApplication>
 #include <QDialogButtonBox>
+#include <QEvent>
 #include <QFileIconProvider>
 #include <QFileInfo>
 #include <QHeaderView>
-#include <QKeyEvent>
 #include <QLabel>
 #include <QLineEdit>
 #include <QPainter>
 #include <QPushButton>
-#include <QShortcut>
 #include <QSignalBlocker>
 #include <QStyle>
 #include <QStyledItemDelegate>
@@ -165,52 +164,6 @@ void CBrowseDialog2::InitializeColumns() {
     for (int column = 0; column != 6; ++column)
         _list->resizeColumnToContents(column);
     delete sample;
-}
-void CBrowseDialog2::ConnectControls(QDialogButtonBox *buttons, QPushButton *refresh) {
-    for (auto *button : findChildren<QPushButton *>()) {
-        button->setAutoDefault(true);
-        button->setDefault(false);
-    }
-    connect(_delete, &QPushButton::clicked, this, [this] {
-        OnDelete();
-        _list->setFocus();
-    });
-    connect(refresh, &QPushButton::clicked, this, [this] {
-        Reload_WithErrorMessage();
-        _list->setFocus();
-    });
-    connect(_parent, &QPushButton::clicked, this, [this] {
-        OpenParentFolder();
-        _list->setFocus();
-    });
-    connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
-    connect(buttons, &QDialogButtonBox::helpRequested, this, &CBrowseDialog2::OnHelp);
-    connect(qApp, &QApplication::focusChanged, this, &CBrowseDialog2::OnFocusChanged);
-    connect(_list, &QTreeWidget::itemActivated, this, [this] {
-        if (!_singleClick)
-            OnItemEnter();
-    });
-    connect(_list, &QTreeWidget::itemClicked, this, [this] {
-        if (_singleClick && QApplication::keyboardModifiers() == Qt::NoModifier)
-            OnItemEnter();
-    });
-    connect(_list, &QTreeWidget::customContextMenuRequested, this, &CBrowseDialog2::OnContextMenu);
-    connect(_list, &QTreeWidget::itemSelectionChanged, this,
-            &CBrowseDialog2::UpdateDeleteAvailability);
-    connect(_list->header(), &QHeaderView::sectionClicked, this,
-            &CBrowseDialog2::ChangeSorting_and_Reload);
-    auto *help = new QShortcut(QKeySequence(Qt::Key_F1), this);
-    connect(help, &QShortcut::activated, this, &CBrowseDialog2::OnHelp);
-    auto *close = buttons->button(QDialogButtonBox::Close);
-    auto *helpButton = buttons->button(QDialogButtonBox::Help);
-    setTabOrder(close, helpButton);
-    setTabOrder(helpButton, _delete);
-    setTabOrder(_delete, refresh);
-    setTabOrder(refresh, _parent);
-    setTabOrder(_parent, _pathEdit);
-    setTabOrder(_pathEdit, _list);
-    setTabOrder(_list, close);
-    close->setFocus();
 }
 void CBrowseDialog2::PopulateRows(const UStringVector &selected, const UString &focused) {
     const QSignalBlocker selectionChanges(*_list);
@@ -354,47 +307,4 @@ void CBrowseDialog2::UpdateDeleteAvailability() {
                 }
         _scopeLabel->setText(status);
     }
-}
-void CBrowseDialog2::OnFocusChanged(QWidget *, QWidget *current) {
-    if (current == _list || current == _pathEdit) {
-        // Run after Qt's focus/default restoration; source has no permanent
-        // default button when a non-button control has focus.
-        for (auto *button : findChildren<QPushButton *>())
-            if (button->window() == this)
-                button->setDefault(false);
-    }
-}
-
-void CBrowseDialog2::keyPressEvent(QKeyEvent *event) {
-    if ((event->key() == Qt::Key_Return || event->key() == Qt::Key_Enter) &&
-        (!event->modifiers() || event->modifiers() == Qt::KeypadModifier)) {
-        OnOK();
-        event->accept();
-        return;
-    }
-    QDialog::keyPressEvent(event);
-}
-
-bool CBrowseDialog2::eventFilter(QObject *object, QEvent *event) {
-    if (object == _list && event->type() == QEvent::KeyPress) {
-        auto *key = static_cast<QKeyEvent *>(event);
-        if (OnKeyDown(key))
-            return true;
-        switch (key->key()) {
-        case Qt::Key_Return:
-        case Qt::Key_Enter:
-            OnItemEnter();
-            return true;
-        case Qt::Key_F5:
-            // Retain the established Qt Refresh convenience after source Ctrl+F5.
-            if (key->modifiers() == Qt::NoModifier) {
-                Reload_WithErrorMessage();
-                return true;
-            }
-            break;
-        default:
-            break;
-        }
-    }
-    return QDialog::eventFilter(object, event);
 }

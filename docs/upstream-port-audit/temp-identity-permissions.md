@@ -1,5 +1,25 @@
 # Temporary-object identity and read permissions — 2026-11-01
 
+## Temporary browser presentation and input owner — 2026-11-04
+
+Rechecked complete original BrowseDialog2.cpp/.h/.rc hashes at
+`b88c6bc09339de32f7d18bbab900686b244f42ba`, with its OnInit, notification,
+keyboard and Enter handlers and the current Qt callers. The existing Qt
+presentation now lives beside its dialog in `dialogs/browse`, rather than
+among platform temporary-object services. Complete signal binding, focus/default
+button handling and key-event routing have their own qttempbrowseinput.cpp in
+that same module and panel target. Original algorithms and inventory hashes
+remain unchanged; no external code was imported.
+
+The moved bodies preserve construction/connection order, the existing
+translation context, row formatting/sorting and selection, single-click rules,
+Close/Enter behavior and keyboard shortcuts. Native reload, property errors,
+modal snapshot guards, deletion leases, identity/path checks and detached-open
+protection remain with their existing owners. This changes code ownership
+without changing controls, layout, wording or platform services. Existing
+temp_cleanup and temp_detached_launch behavior checks cover this scenario;
+no file-location or private-structure regression was added.
+
 ## Shared temporary-item inspection owner — 2026-11-04
 
 Compared complete native BrowseDialog2.cpp enumeration, property formatting,
