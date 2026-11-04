@@ -1,5 +1,38 @@
 # External-process ownership
 
+## Waiting belongs to the tracked-process owner — 2026-11-04
+
+Compared complete original PanelItemOpen child discovery, process records,
+wait/update loop, changed-file handling and exit/cleanup dependencies at
+`b88c6bc09339de32f7d18bbab900686b244f42ba`; the complete original source hash
+matches the baseline. Reviewed current platform process statuses, launch,
+registration, GUI update, temporary-copy protection and joined shutdown.
+No source is imported or provenance advanced.
+
+CChildProcesses now keeps its tracked records private and owns the complete
+wait projection/poll/completion step. The worker receives an explicit empty,
+process-exited, stopped or error result and the admitted count, instead of
+reconstructing borrowed handle/index records and decoding count-relative
+integer values. A completed entry is marked inside the owner before returning;
+the subsequent timestamp check and child snapshot retain their order, and no
+handle is released or external callback added at that transition.
+
+Admission order/bound, polling and exit priority, first-pass filename discovery,
+short-process timing, later snapshots and proof required before releasing
+external temporary protection are preserved. Launch, discovery, archive update
+and thread registration bodies were compared unchanged. Empty waits, stopping,
+errors and exceptions retain their previous cleanup/return behavior. Native OS
+services, archive operations and UI behavior are unchanged; no new controller,
+public API or persistent state is introduced.
+
+Linux external_launch, archive_external_lifetime and archive_external_security
+passed, including real child survival, unchanged short/long lifetimes, owner
+exit, launch/wait/snapshot failures and protected archive write-back. Compilation
+took 15.055 seconds, tests 16.927 seconds, using configured four-job parallelism,
+incremental outputs and compiler cache. Existing behavior coverage was reused;
+no getter/private-layout tests were added. Inventory and whitespace checks
+passed. Windows/macOS, full/slow gates and visual acceptance were not repeated.
+
 ## Archive-item opening owner — 2026-11-04
 
 The complete archive-opening path now lives in `panels/PanelArchiveOpen.cpp`,
@@ -118,6 +151,9 @@ full/slow or appearance acceptance is claimed. Completed test settings and
 absent-object registry records were removed; incremental outputs/cache retained.
 
 ## Paired process wait entries — 2026-11-04
+
+This intermediate projection was subsequently absorbed by the tracked-process
+wait owner described above; its validation below records the earlier step.
 
 Rechecked original PanelItemOpen child discovery, wait projection, completion,
 temporary-copy and write-back flow at recorded
