@@ -1728,6 +1728,7 @@
     "src/filemanager/panels/PanelInfo.cpp",
     "src/filemanager/panels/PanelInfo.h",
     "src/filemanager/panels/PanelListLoad.cpp",
+    "src/filemanager/panels/PanelNameOperations.cpp",
     "src/filemanager/panels/PanelProperties.cpp",
     "src/filemanager/panels/PanelSelect.h",
     "src/filemanager/panels/PanelShellMenu_win.cpp",
@@ -3719,11 +3720,19 @@
     "src/filemanager/panels/PanelOperations.cpp": {
       "local": [
         "src/filemanager/panels/PanelFolderOperations.cpp",
-        "src/filemanager/panels/PanelFolderOperations.h"
+        "src/filemanager/panels/PanelFolderOperations.h",
+        "src/filemanager/panels/PanelNameOperations.cpp"
       ],
       "symbols": [
         "EFolderOpType",
-        "CThreadFolderOperations"
+        "CThreadFolderOperations",
+        "IsCorrectFsName",
+        "CPanel::CorrectFsPath",
+        "CPanel::CreateFolder",
+        "CPanel::CreateFile",
+        "CPanel::OnBeginLabelEdit",
+        "CPanel::RenameFile",
+        "CPanel::OnEndLabelEdit"
       ]
     },
     "src/fileops/native/FileDir.cpp": {
