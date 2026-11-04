@@ -74,6 +74,9 @@ Z7_PURE_INTERFACES_END
 bool MyMoveFile(CFSTR existFileName, CFSTR newFileName);
 // (progress == NULL) is allowed
 bool MyMoveFile_with_Progress(CFSTR oldFile, CFSTR newFile, ICopyFileProgress *progress);
+#ifdef __linux__
+bool MyMoveFile_NoReplace(CFSTR oldFile, CFSTR newFile);
+#endif
 // Publish a completed temporary file without deleting the previous destination.
 // Cross-volume copying stages beside the destination before atomic replacement.
 // published records replacement even if later temporary-file cleanup fails.

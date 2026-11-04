@@ -99,3 +99,46 @@ diagnostic/layout; secondary OS and new rendered parity were not validated.
 Removed three completed settings fixtures; incremental outputs and compiler
 caches retained. Inventory/whitespace checks passed. No full/slow gate or new
 reports/screenshots.
+
+## Atomic Linux no-replace rename — 2026-11-04
+
+Reviewed Panel label-edit validation and rename worker, CFSFolder's loaded-index
+and parent-prefix handling, Qt link adapters, native move/copy fallback and archive
+publication. Complete original PanelOperations.cpp, FSFolder.cpp and FileDir.cpp/.h
+hashes match the recorded reference above. Original CFSFolder dispatch, native
+copy, progress, stat and unlink remain authoritative; no source is imported or
+provenance advanced.
+
+The Linux no-replace adapter previously checked destination existence before
+calling ordinary rename. Another writer could create a file, directory or link
+after that check and have its entry replaced. The adapter now requests atomic
+RENAME_NOREPLACE. The original EXDEV copy/stat/unlink tail has one private owner,
+shared by ordinary native moves and the new Linux entry point; Create_NEW still
+protects a destination on another filesystem. No fallback weakens no-replace on
+unsupported-kernel/filesystem errors. Existing archive publication and its distinct
+registered staging/metadata policy are unchanged. Windows and macOS rename
+branches retain their existing behavior.
+
+The Linux-only regression uses the public IFolderOperations::Rename and native
+linker wrappers for rename/renameat2. A scoped competitor creates the selected
+destination immediately before the real kernel operation. The fixture covers
+both APIs, asserts retained source/destination contents and link targets, and
+adds no production hook or source-text assertion. Wrappers live only in this
+standalone test executable. Missing-destination success covers files, directories
+and dangling links; real cross-filesystem rows check successful file moves and
+occupied destinations with Unicode/spaced paths. Existing public filesystem/link
+and inline-rename regressions cover direct consumers.
+
+Linux passed `native_fs_rename`, `native_fs_operations`, `filesystem_link` and
+`rename_lifecycle`: 60 checks, no failures or skips. Competing file/directory/link
+destinations and both real cross-filesystem rows passed. Incremental build took
+86.973s and tests 1.282s, retaining configured four jobs and compiler caches.
+Selected scratch was empty after removing the completed Rename settings file;
+no active test processes remained. No secondary platform, full/slow gate or new
+appearance validation was selected.
+
+The new fixture also skips its cross-filesystem rows when private storage on
+`/dev/shm` cannot be created. After that fixture-only adjustment,
+`native_fs_rename` passed again: ten checks without skips (build 7.554s, tests
+0.456s). Production code and the other passing suites were unchanged; selected
+scratch remained empty.

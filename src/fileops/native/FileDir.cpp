@@ -1053,18 +1053,12 @@ static BOOL My_CopyFile(CFSTR oldFile, CFSTR newFile, ICopyFileProgress *progres
     return FALSE;
 }
 
-bool MyMoveFile_with_Progress(CFSTR oldFile, CFSTR newFile, ICopyFileProgress *progress) {
-    int res = rename(oldFile, newFile);
-    if (res == 0)
-        return true;
-    if (errno != EXDEV) // (oldFile and newFile are not on the same mounted filesystem)
-        return false;
-
+static bool MoveAcrossFilesystems(CFSTR oldFile, CFSTR newFile, ICopyFileProgress *progress) {
     if (My_CopyFile(oldFile, newFile, progress) == FALSE)
         return false;
 
     struct stat info_file;
-    res = stat(oldFile, &info_file);
+    const int res = stat(oldFile, &info_file);
     if (res != 0)
         return false;
 
@@ -1073,6 +1067,25 @@ bool MyMoveFile_with_Progress(CFSTR oldFile, CFSTR newFile, ICopyFileProgress *p
     */
     return (unlink(oldFile) == 0);
 }
+
+bool MyMoveFile_with_Progress(CFSTR oldFile, CFSTR newFile, ICopyFileProgress *progress) {
+    const int res = rename(oldFile, newFile);
+    if (res == 0)
+        return true;
+    if (errno != EXDEV) // (oldFile and newFile are not on the same mounted filesystem)
+        return false;
+    return MoveAcrossFilesystems(oldFile, newFile, progress);
+}
+
+#ifdef __linux__
+bool MyMoveFile_NoReplace(CFSTR oldFile, CFSTR newFile) {
+    if (renameat2(AT_FDCWD, oldFile, AT_FDCWD, newFile, RENAME_NOREPLACE) == 0)
+        return true;
+    if (errno != EXDEV)
+        return false;
+    return MoveAcrossFilesystems(oldFile, newFile, nullptr);
+}
+#endif
 
 bool MyMoveFile(CFSTR oldFile, CFSTR newFile) {
     return MyMoveFile_with_Progress(oldFile, newFile, NULL);
