@@ -662,6 +662,7 @@ class CPanel : public QObject {
     static UString OpenBookmark(CFastFolders &fastFolders, unsigned index);
 
   private:
+    static bool DoItemAlwaysStart(const UString &name);
     friend class CApp;
     friend class CMyComboBoxEdit;
     void OnItemChanged(unsigned index, bool oldSelected, bool newSelected);

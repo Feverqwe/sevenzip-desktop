@@ -1699,6 +1699,7 @@
     "src/filemanager/external/qtexternalfilesession.h",
     "src/filemanager/nativecommanddispatch.cpp",
     "src/filemanager/panels/PanelAddress.cpp",
+    "src/filemanager/panels/PanelArchiveOpen.cpp",
     "src/filemanager/panels/PanelColumns.cpp",
     "src/filemanager/panels/PanelDrag_win.cpp",
     "src/filemanager/panels/PanelFolderOperations.cpp",
@@ -3600,7 +3601,8 @@
         "src/filemanager/external/qtexternalapplications.cpp",
         "src/filemanager/external/qtexternalapplications.h",
         "src/filemanager/external/qtexternalfilesession.cpp",
-        "src/filemanager/external/qtexternalfilesession.h"
+        "src/filemanager/external/qtexternalfilesession.h",
+        "src/filemanager/panels/PanelArchiveOpen.cpp"
       ],
       "symbols": [
         "SplitCmdLineSmart",
@@ -3610,7 +3612,14 @@
         "CChildProcesses",
         "CTmpProcessInfo",
         "MyThreadFunction",
-        "CPanel::OpenItemInArchive external-process setup -> CPanel::StartExternalFileSession"
+        "CPanel::OpenItemInArchive external-process setup -> CPanel::StartExternalFileSession",
+        "CPanel::OpenAsArc",
+        "CPanel::OpenAsArc_Msg",
+        "CPanel::OpenAsArc_Name",
+        "CPanel::OpenAsArc_Index",
+        "CPanel::OpenParentArchiveFolder",
+        "CPanel::OpenItemInArchive (archive opening and external handoff)",
+        "kTempDirPrefix"
       ]
     },
     "src/filemanager/panels/PanelListNotify.cpp": {

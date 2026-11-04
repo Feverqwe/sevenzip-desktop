@@ -198,7 +198,8 @@ if(BUILD_TESTING)
         target_include_directories(file_manager_entry_probe PRIVATE src tests)
         target_link_libraries(file_manager_entry_probe PRIVATE Qt6::Test)
         add_library(file_manager_ram_source_fixture OBJECT
-            src/filemanager/FM.cpp src/filemanager/panels/PanelItemOpen.cpp)
+            src/filemanager/FM.cpp src/filemanager/panels/PanelItemOpen.cpp
+            src/filemanager/panels/PanelArchiveOpen.cpp)
         target_include_directories(file_manager_ram_source_fixture PRIVATE src tests)
         target_link_libraries(file_manager_ram_source_fixture PRIVATE sevenzip_window Qt6::Test)
         target_compile_definitions(file_manager_ram_source_fixture PRIVATE
