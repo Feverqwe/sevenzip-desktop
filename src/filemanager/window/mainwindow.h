@@ -136,7 +136,7 @@ class MainWindow : public QMainWindow {
     void createFavoritesMenu(QMenu *favoritesMenu);
     void createViewOptions(QMenu *viewMenu);
     void createToolbarOptions(QMenu *viewMenu);
-    void rebuildSourceMenus();
+    void populateSourceMenus();
     void activateSingleClickedRow(int row);
     void createFilePanel(QMenu *editMenu, unsigned index);
     void activatePanelUi(unsigned index);
