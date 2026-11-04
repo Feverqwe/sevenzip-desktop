@@ -195,6 +195,8 @@ class DragArchiveTests : public QObject {
         QTest::newRow("recipient-refused-drop") << 4;
         QTest::newRow("recipient-throws") << 6;
         QTest::newRow("recipient-allocation-fails") << 7;
+        QTest::newRow("recipient-confirms-drop-end") << 8;
+        QTest::newRow("recipient-over-is-not-completion") << 9;
 #ifdef Q_OS_MACOS
         QTest::newRow("native-qt-ignore-unconfirmed") << 5;
 #endif
@@ -275,6 +277,13 @@ class DragArchiveTests : public QObject {
                     claimDenied = !registry.ClaimForDeletion(entry);
             if (outcome == 0)
                 mime->Data().FinishExternalReceiver();
+            if (outcome == 8 || outcome == 9) {
+                CTargetTransferInfo transfer;
+                transfer.FuncType =
+                    outcome == 8 ? k_DragTargetMode_Drop_End : k_DragTargetMode_Over;
+                transfer.Flags = k_TargetFlags_WasProcessed;
+                mime->Data().SetTransfer(transfer);
+            }
             if (outcome == 6)
                 throw std::runtime_error("recipient service failed after reading URLs");
             if (outcome == 7)
@@ -327,9 +336,9 @@ class DragArchiveTests : public QObject {
             QCOMPARE(calls, 1);
         QCOMPARE(deliveredBytes, payload);
         QVERIFY(claimDenied);
-        QCOMPARE(row->isSelected(), outcome == 2 || outcome == 4 || outcome == 5 || outcome == 6 ||
-                                       outcome == 7);
-        if (outcome == 1 || outcome == 5 || outcome == 6 || outcome == 7) {
+        QCOMPARE(row->isSelected(),
+                 outcome == 2 || outcome == 4 || outcome == 5 || outcome == 6 || outcome == 7);
+        if (outcome == 1 || outcome == 5 || outcome == 6 || outcome == 7 || outcome == 9) {
             QCOMPARE(Read(delivered), payload);
             QtOwnedTempRegistry registry;
             bool found = false;

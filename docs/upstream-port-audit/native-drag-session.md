@@ -1,5 +1,34 @@
 # Native drag session ownership — 2026-10-18
 
+## External receiver completion owner — 2026-11-04
+
+Reviewed source OnDrag, data preparation, temporary protection, native OLE and
+Qt transport completion with the receiver protocol, lease persistence and source
+cleanup. Complete original PanelDrag.cpp at recorded
+`b88c6bc09339de32f7d18bbab900686b244f42ba` matches its baseline hash; original
+source completion and target transfer semantics remain authoritative. No native
+copy algorithm, external code import or provenance revision changes.
+
+Both transports duplicated the criterion for releasing a temporary receiver's
+protection. That criterion now belongs to CDataObject beside its existing
+BeginExternalReceiver and FinishExternalReceiver transitions. Transports supply
+their platform-specific cancellation confirmation at the same completion point;
+the model retains the existing Drop_End and terminal flag checks. Cocoa's
+uncertain native IgnoreAction rule remains in the Qt transport. Direct typed
+recipient confirmation and exception-time retention are unchanged.
+
+The existing real-ZIP receiver fixture additionally checks terminal processed
+confirmation permits cleanup while a processed flag in an Over notification
+retains readable bytes and prevents cleanup claims. Existing rows retain their
+success, cancellation, extraction failure and throwing-recipient contracts.
+No test pins the new private call structure or source layout.
+
+Focused Linux archive-byte, source/target and protocol checks passed, followed
+by Windows native archive-data and OLE protocol consumers. Source completion
+and target decision bodies remain unchanged; the common criterion matches both
+former transport conditions. Actual OS drag gestures and new Cocoa runtime
+acceptance are not claimed for this policy extraction.
+
 ## Qt gesture completion scope — 2026-11-03
 
 Rechecked original source OnDrag completion and target Enter/Over/Leave/Drop

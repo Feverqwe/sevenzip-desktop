@@ -90,6 +90,7 @@ class CDataObject : public std::enable_shared_from_this<CDataObject> {
     HRESULT GetData(UStringVector &names);
     void CopyFromPanelTo_Folder();
     bool BeginExternalReceiver();
+    void CompleteExternalDrag(bool cancellationConfirmed);
     void FinishExternalReceiver();
 };
 class CDropSource {

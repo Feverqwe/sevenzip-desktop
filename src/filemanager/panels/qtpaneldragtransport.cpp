@@ -72,11 +72,7 @@ HRESULT QtPanelDragTransport::DoDragDrop(CDataObject &data, CDropSource &source,
     if (nativeExecutor_ && data.IsTempFiles)
         cancellationConfirmed = false;
 #endif
-    if (cancellationConfirmed ||
-        (data.m_Transfer_WasSet && data.m_Transfer.Target.FuncType == k_DragTargetMode_Drop_End &&
-         (data.m_Transfer.Target.Flags & (k_TargetFlags_WasCanceled | k_TargetFlags_WasProcessed |
-                                          k_TargetFlags_MustBeProcessedBySource))))
-        data.FinishExternalReceiver();
+    data.CompleteExternalDrag(cancellationConfirmed);
     return result;
 } catch (const std::bad_alloc &) {
     // Rejoin OnDrag's normal DragEnd/error path. A receiver may already have
