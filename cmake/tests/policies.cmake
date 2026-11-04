@@ -62,7 +62,7 @@ if(BUILD_TESTING AND WIN32)
             native_renderer_failure native_renderer_copy interarchive_refresh panel_creation_publication panel_creation_publication_quick
             source_compress_dialog source_extract_advanced source_browse_dialog shell_archive_services shell_menu_window shell_update_window
             compression compression_advanced compression_path dialog_path_rules compression_error_policy compression_profile_selection compression_method_state compression_preferences compression_resources language_ui
-            codec_commands_ui codec_creation_ui ui_geometry dialog_size
+            archive_directory_command codec_commands_ui codec_creation_ui ui_geometry dialog_size
             options_dialog options_integration options_keyboard options_window appearance_settings system_page menu_page help_source help_ui temp_cleanup context_dialog
             filesystem_selection_runtime ui_operations ui_copy_same ui_copy_routing ui_copy_routing_quick app_copy_routing ui_update_modes archive_metadata_ui source_drop_add
             drag_drop_add_ui drag_drop_add_independent drag_drop_add_temporary dropped_path_choice modal_refresh_window

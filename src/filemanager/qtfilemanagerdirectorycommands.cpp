@@ -1,5 +1,3 @@
-#include "7zip/PropID.h"
-#include "Windows/PropVariant.h"
 #include "archive/agent/Agent.h"
 #include "archive/resources/qtarchivedirectoryread.h"
 #include "filemanager/qtfilemanagercommands.h"
@@ -28,10 +26,10 @@ bool QtFileManagerCommands::CanCalculateDirectorySize() const {
         return false;
     CUIntVector indices;
     panel.Get_ItemIndices_Operated(indices);
-    FOR_VECTOR(i, indices) {
-        NWindows::NCOM::CPropVariant size;
-        if (panel.IsItem_Folder(indices[i]) &&
-            folder->GetProperty(indices[i], kpidSize, &size) == S_OK && size.vt == VT_EMPTY)
+    FOR_VECTOR(i, indices)
+    if (panel.IsItem_Folder(indices[i])) {
+        const int nativeIndex = folder->GetRealIndex(indices[i]);
+        if (nativeIndex >= 0 && !folder->DirectoryItemSubtreeComplete(UInt32(nativeIndex)))
             return true;
     }
     return false;
