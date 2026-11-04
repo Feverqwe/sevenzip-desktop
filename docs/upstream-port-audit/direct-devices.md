@@ -1,5 +1,42 @@
 # Прямое read-only чтение устройств
 
+## Complete Windows device export owner — 2026-11-04
+
+Rechecked original FSDrives.cpp/.h enumeration, device paths, image naming,
+size queries, copy loop, callback decisions and operation refusals at recorded
+`b88c6bc09339de32f7d18bbab900686b244f42ba` from
+<https://github.com/ip7z/7zip.git>. Both complete original hashes match the
+baseline. Reviewed native panel copy dispatch, provider interfaces and existing
+private-device command/callback tests. No source is imported or revision advanced.
+
+The complete Windows IFolderOperations implementation, device-size query and
+private copy buffer/loop now reside in FSDrivesCopy_win.cpp under the same
+sevenzip_filesystem target, registered only for Windows. Drive enumeration,
+properties, binding, icons, device-path construction and shared image naming
+remain with the provider. Header, state and interfaces are unchanged.
+
+Moved bodies and remaining provider bodies retain their bytes. Known/unknown
+size accounting, direct-file/directory destinations, overwrite/skip decisions,
+progress/cancellation, removable-media buffer policy and error handling remain
+the original algorithms. Move and write/mutation operations retain their native
+refusals. The retained private loop's writeToDisk branch has no new caller;
+the only copy invocation still passes false. No source-device write capability,
+disk authorization, decoder or parallel copy service is introduced. Existing
+source extraction mappings and original hashes are preserved.
+
+Windows fs_drives_device and fs_drives_device_ui passed: 15 Qt checks, no
+failures or skips. Existing private read-only device fixtures cover direct and
+directory image output, byte preservation, failure, Skip, cancellation and Move
+refusal; the F5 consumer covers acceptance and Cancel in English/Russian.
+The initial Limited-token invocation built successfully but failed fixture
+preparation with ERROR_NOT_ALL_ASSIGNED (1300), before provider copying. The
+same two suites passed with the documented --interactive --elevated runner
+mode, without code or machine-policy changes. Session evidence confirms the
+existing administrator token and normal priority. Incremental outputs and
+compiler caches were retained; completed settings were removed and selected
+scratch inspected. This Windows-only extraction does not change POSIX code;
+no Linux/macOS, full/slow or new appearance acceptance is claimed.
+
 ## Volume record initialization — 2026-11-02
 
 Reviewed volume enumeration, property publication, folder binding and native

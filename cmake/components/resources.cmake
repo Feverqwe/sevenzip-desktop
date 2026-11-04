@@ -106,7 +106,9 @@ qt_add_resources(sevenzip_panel upstream_help PREFIX "/upstream/7zip/Help"
     BASE "${SEVENZIP_DEPENDENCY_DIR}/7zip-help" FILES ${sevenzip_help_assets})
 target_compile_definitions(sevenzip_panel PRIVATE SEVENZIP_DESKTOP_VERSION="${PROJECT_VERSION}")
 if(WIN32)
-    target_sources(sevenzip_filesystem PRIVATE ${SEVENZIP_7ZIP_SOURCE_DIR}/CPP/Windows/Net.cpp
+    target_sources(sevenzip_filesystem PRIVATE
+        src/filemanager/providers/FSDrivesCopy_win.cpp
+        ${SEVENZIP_7ZIP_SOURCE_DIR}/CPP/Windows/Net.cpp
         ${SEVENZIP_7ZIP_SOURCE_DIR}/CPP/Windows/Net.h)
     target_link_libraries(sevenzip_filesystem PUBLIC mpr)
 endif()

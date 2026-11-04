@@ -1728,6 +1728,7 @@
     "src/filemanager/panels/qtpanellist.cpp",
     "src/filemanager/panels/qtpanellist.h",
     "src/filemanager/panels/qtpanelpluginservices.h",
+    "src/filemanager/providers/FSDrivesCopy_win.cpp",
     "src/filemanager/providers/FSFolderProperties.cpp",
     "src/filemanager/providers/filesystemfolderloader.cpp",
     "src/filemanager/providers/filesystemfolderloader.h",
@@ -3907,6 +3908,24 @@
         "kDescriptionFileName",
         "GetExtensionPtr",
         "CompareFileNames_ForFolderList"
+      ]
+    },
+    "src/filemanager/providers/FSDrives.cpp": {
+      "local": [
+        "src/filemanager/providers/FSDrivesCopy_win.cpp"
+      ],
+      "symbols": [
+        "CPhysTempBuffer",
+        "CopyFileSpec",
+        "CFSDrives::GetFileSize",
+        "CFSDrives::CopyTo",
+        "CFSDrives::CopyFrom",
+        "CFSDrives::CopyFromFile",
+        "CFSDrives::CreateFolder",
+        "CFSDrives::CreateFile",
+        "CFSDrives::Rename",
+        "CFSDrives::Delete",
+        "CFSDrives::SetProperty"
       ]
     }
   },
