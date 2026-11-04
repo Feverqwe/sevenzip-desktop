@@ -1758,6 +1758,7 @@
     "src/filemanager/panels/qtpanellist.h",
     "src/filemanager/panels/qtpanelpluginservices.h",
     "src/filemanager/providers/FSDrivesCopy_win.cpp",
+    "src/filemanager/providers/FSFolderComments.cpp",
     "src/filemanager/providers/FSFolderProperties.cpp",
     "src/filemanager/providers/filesystemfolderloader.cpp",
     "src/filemanager/providers/filesystemfolderloader.h",
@@ -3996,6 +3997,7 @@
     },
     "src/filemanager/providers/FSFolder.cpp": {
       "local": [
+        "src/filemanager/providers/FSFolderComments.cpp",
         "src/filemanager/providers/FSFolderProperties.cpp"
       ],
       "symbols": [
