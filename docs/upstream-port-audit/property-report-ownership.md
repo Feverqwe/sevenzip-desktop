@@ -1,5 +1,42 @@
 # Property report row metadata — 2026-10-31
 
+## Complete filesystem property provider — 2026-11-04
+
+Compared original FSFolder.cpp/.h property readers, comparison, directory
+statistics, comments, raw properties and icon lookup, their callers and current
+enumeration/cache lifecycle at recorded revision
+`b88c6bc09339de32f7d18bbab900686b244f42ba` from
+<https://github.com/ip7z/7zip.git>. Complete original inventory hashes match
+the existing baseline. No source is imported or original revision advanced.
+
+FSFolderProperties.cpp now owns that complete provider scenario, including
+comment persistence and its existing SetProperty operation. Enumeration,
+navigation, change notifications and destructive file operations remain in
+FSFolder.cpp; transfer remains in FSFolderCopy.cpp. All implementations stay
+in sevenzip_filesystem with the same interfaces and compilation options.
+
+Moved bodies are unchanged, including Windows SDK declarations, lazy metadata
+queries, compressed-size fallback, native comparison and cached name keys,
+directory-stat cancellation and the existing comment-save return policy.
+POSIX stat/time and no-follow adaptations, native Windows attributes/reparse
+records and icon boundaries remain distinct. No cache, controller, property
+table or filesystem algorithm is duplicated. The baseline records extraction
+against the original complete unit and retains all previous mappings/hashes.
+Existing behavioral coverage is used; no source-layout test is added.
+
+Focused Linux validation passed fs_folder, panel_filesystem_sort,
+filesystem_comment, filesystem_link, panel_item_icons and properties:
+123 Qt checks, no failures, two expected native Windows icon skips. The checks
+cover aggregate sizes/cancellation, metadata and compressed-size caches,
+comparison/selection, comment read/write/reload/failure and actual property/icon
+consumers. Windows then passed fs_folder and alt_streams_folder: 22 checks,
+no failures or skips, validating native metadata queries and the direct ADS
+consumer of MyGetCompressedFileSizeW after moving its definition. The function
+retains its original external namespace linkage. No macOS, full/slow or new
+appearance acceptance is claimed. Completed settings were removed and selected
+scratch inspected; incremental builds, compiler caches and unrelated active
+branch checks were preserved.
+
 ## Shared size presentation owner — 2026-11-04
 
 Rechecked original OverwriteDialog size presentation and PanelListNotify numeric
