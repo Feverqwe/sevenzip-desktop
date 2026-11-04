@@ -216,6 +216,8 @@ class ArchiveBackend : public QObject {
     void hashMethods(const QStringList &paths, const QStringList &methods);
     HRESULT loadHashProviders(CExternalCodecs &providers) const;
     HRESULT loadBenchmarkProviders(CExternalCodecs &providers) const;
+    bool supportsBenchmark() const;
+    QStringList supportedHashMethods(const QStringList &methods) const;
     std::expected<std::unique_ptr<QtArchiveTransferBackup>, ArchiveTransferBackupError>
     saveArchiveTransferDestination(const QString &path) const;
     // Extract one literal member into a private spool. Source callbacks own
