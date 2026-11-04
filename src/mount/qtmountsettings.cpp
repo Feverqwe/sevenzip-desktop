@@ -6,15 +6,19 @@
 #include <QCoreApplication>
 #include <QDialog>
 #include <QDialogButtonBox>
+#include <QElapsedTimer>
 #include <QFormLayout>
 #include <QLabel>
 #include <QLineEdit>
+#include <QProgressBar>
 #include <QPushButton>
 #include <QResizeEvent>
 #include <QShortcut>
 #include <QSpinBox>
 #include <QThread>
+#include <QTimer>
 #include <QVBoxLayout>
+#include <algorithm>
 
 namespace {
 class MountPreparation;
@@ -24,6 +28,10 @@ class MountSettingsDialog final : public QDialog {
     std::unique_ptr<MountPreparation> preparation_;
     QDialogButtonBox *buttons_ = nullptr;
     QLabel *checking_ = nullptr;
+    QLabel *detail_ = nullptr, *elapsed_ = nullptr, *preparationHint_ = nullptr;
+    QProgressBar *progress_ = nullptr;
+    QElapsedTimer elapsedTime_;
+    QTimer progressTimer_;
     QFormLayout *form_ = nullptr;
     QSpinBox *quota_ = nullptr;
     QLineEdit *password_ = nullptr;
@@ -32,6 +40,7 @@ class MountSettingsDialog final : public QDialog {
     void BuildControls(const QString &label, const QString &password, bool checkReader);
     void Prepare(IUnknown *resource, const QString &password, const QString &folder);
     void PreparationFinished();
+    void UpdatePreparation();
     void ShowCache(bool required);
 
   public:
@@ -56,7 +65,7 @@ class MountPreparation final : public QThread {
     QString Error;
     bool CacheRequired = true;
     MountPreparation(IUnknown *resource, const QString &password, const QString &folder)
-        : View(ArchiveBackend::retainReadOnlyView(resource, 0, password, {}, {}, folder)) {}
+        : View(ArchiveBackend::retainReadOnlyView(resource, 0, password, {}, {}, folder, true)) {}
     void cancel() {
         View->cancel();
         requestInterruption();
@@ -111,10 +120,33 @@ void MountSettingsDialog::BuildControls(const QString &label, const QString &arc
     source->setWordWrap(true);
     layout->addWidget(source);
     checking_ = new QLabel(
-        QCoreApplication::translate("QtArchiveMountManager", "Checking file access…"), this);
+        QCoreApplication::translate("QtArchiveMountManager", "Reading folder tree…"), this);
     checking_->setWordWrap(true);
     checking_->setVisible(checkReader);
     layout->addWidget(checking_);
+    progress_ = new QProgressBar(this);
+    progress_->setObjectName("mountPreparationProgress");
+    progress_->setRange(0, 0);
+    progress_->setVisible(checkReader);
+    layout->addWidget(progress_);
+    detail_ = new QLabel(this);
+    detail_->setTextFormat(Qt::PlainText);
+    detail_->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+    detail_->setVisible(checkReader);
+    layout->addWidget(detail_);
+    elapsed_ = new QLabel(this);
+    elapsed_->setObjectName("mountPreparationElapsed");
+    elapsed_->setVisible(checkReader);
+    layout->addWidget(elapsed_);
+    preparationHint_ = new QLabel(
+        QCoreApplication::translate(
+            "QtArchiveMountManager",
+            "Mount will be available when preparation finishes. Large folders on a network "
+            "drive can take longer. File contents are not extracted during this check."),
+        this);
+    preparationHint_->setWordWrap(true);
+    preparationHint_->setVisible(checkReader);
+    layout->addWidget(preparationHint_);
     form_ = new QFormLayout;
     form_->setRowWrapPolicy(QFormLayout::WrapAllRows);
     form_->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
@@ -164,10 +196,55 @@ void MountSettingsDialog::Prepare(IUnknown *resource, const QString &password,
     preparation_ = std::make_unique<MountPreparation>(resource, password, folder);
     connect(preparation_.get(), &QThread::finished, this,
             &MountSettingsDialog::PreparationFinished);
+    elapsedTime_.start();
+    connect(&progressTimer_, &QTimer::timeout, this, &MountSettingsDialog::UpdatePreparation);
+    progressTimer_.start(200);
+    UpdatePreparation();
     preparation_->start();
 }
 
+void MountSettingsDialog::UpdatePreparation() {
+    elapsed_->setText(QCoreApplication::translate("QtArchiveMountManager", "Elapsed: %1 s")
+                          .arg(elapsedTime_.elapsed() / 1000));
+    if (phase_ != Phase::Preparing)
+        return;
+    const auto snapshot = preparation_->View->preparationProgress();
+    using Stage = ArchiveReadOnlyView::PreparationProgress::Stage;
+    switch (snapshot.Phase) {
+    case Stage::ReadingDirectories:
+        checking_->setText(
+            QCoreApplication::translate("QtArchiveMountManager", "Reading folder tree…"));
+        break;
+    case Stage::ListingEntries:
+        checking_->setText(
+            QCoreApplication::translate("QtArchiveMountManager", "Preparing file list: %1 of %2")
+                .arg(snapshot.Processed)
+                .arg(snapshot.Total));
+        break;
+    case Stage::CheckingAccess:
+        checking_->setText(
+            QCoreApplication::translate("QtArchiveMountManager", "Checking direct access: %1 of %2")
+                .arg(snapshot.Processed)
+                .arg(snapshot.Total));
+        break;
+    }
+    if (snapshot.Total) {
+        progress_->setRange(0, 1000);
+        progress_->setValue(
+            int(std::min(snapshot.Processed, snapshot.Total) * 1000 / snapshot.Total));
+    } else
+        progress_->setRange(0, 0);
+    detail_->setToolTip(snapshot.CurrentPath);
+    detail_->setText(detail_->fontMetrics().elidedText(snapshot.CurrentPath, Qt::ElideMiddle,
+                                                       detail_->contentsRect().width()));
+}
+
 void MountSettingsDialog::PreparationFinished() {
+    UpdatePreparation();
+    progressTimer_.stop();
+    progress_->hide();
+    detail_->hide();
+    preparationHint_->hide();
     if (phase_ == Phase::Cancelling) {
         phase_ = Phase::Failed;
         QDialog::reject();
@@ -183,6 +260,7 @@ void MountSettingsDialog::PreparationFinished() {
     }
     ShowCache(preparation_->CacheRequired);
     checking_->hide();
+    elapsed_->hide();
     phase_ = Phase::Ready;
     start_->setEnabled(true);
     resize(width(), sizeHint().height());

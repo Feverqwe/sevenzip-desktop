@@ -693,6 +693,7 @@ smb2_correlate_reply(struct smb2_context *smb2, struct smb2_pdu *pdu)
                         pdu->header.async.async_id = ++smb2->async_id;
                         req_pdu->header.async.async_id = pdu->header.async.async_id;
                         req_pdu->header.flags |= SMB2_FLAGS_ASYNC_COMMAND;
+                        smb2->server_chain_wait_mid = req_pdu->header.message_id;
                } else {
                        /* if this is the real-reply to an async operation, also
                         * set the async flag and id (MS-SMB2 3.2.5.1.5)
@@ -784,7 +785,15 @@ smb2_queue_pdu(struct smb2_context *smb2, struct smb2_pdu *pdu)
                 smb3_update_preauth_hash(smb2, pdu->out.niov, &pdu->out.iov[0]);
         }
 
-        smb2_add_to_outqueue(smb2, pdu);
+        {
+                const int resume = smb2_is_server(smb2) &&
+                        pdu->header.status != SMB2_STATUS_PENDING;
+                const uint64_t message_id = pdu->header.message_id;
+                const uint32_t status = pdu->header.status;
+                smb2_add_to_outqueue(smb2, pdu);
+                if (resume)
+                        smb2_server_resume_compound(smb2, message_id, status);
+        }
 }
 
 struct smb2_pdu *

@@ -1,4 +1,5 @@
 #include "archive/backend/archivebackend.h"
+#include "archive/resources/archiveinputpath.h"
 #include "archive/resources/archivereadpolicy.h"
 #include "archive/resources/qtarchivereadoperation.h"
 #include "localization/qtlanguageservices.h"
@@ -45,8 +46,9 @@ void ArchiveBackend::extractSourceEntry(const QString &archive, const QString &e
     }
     lastResult_ = E_FAIL;
     sourceExtractOperation_ = -1;
-    if (entry.isEmpty() || entry.contains(QChar(0)) || !QFileInfo(archive).isFile() ||
-        output.isEmpty() || QFileInfo::exists(output) || format.contains(QChar(0))) {
+    if (entry.isEmpty() || entry.contains(QChar(0)) ||
+        !IsArchiveFileOrPackage(QFileInfo(archive)) || output.isEmpty() ||
+        QFileInfo::exists(output) || format.contains(QChar(0))) {
         emit finished(false, QCoreApplication::translate("archivebackend_sourceextract",
                                                          "Invalid extraction file or stream."));
         return;

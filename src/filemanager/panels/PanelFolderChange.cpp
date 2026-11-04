@@ -7,6 +7,7 @@
 #include "Common/StringConvert.h"
 #include "Windows/FileName.h"
 #include "Windows/PropVariant.h"
+#include "archive/opening/archivecontainerpath.h"
 #include "dialogs/listview/ListViewDialog.h"
 #include "filemanager/AppState.h"
 #include "filemanager/panels/Panel.h"
@@ -389,7 +390,7 @@ HRESULT CPanel::BindToPath(const UString &fullPath, const UString &arcFormat,
         CMyComPtr<IFolderFolder> newFolder;
         if (sysPath.IsEmpty())
             _folder->BindToFolder(path, &newFolder);
-        else if (fileInfo.IsDir()) {
+        else if (fileInfo.IsDir() && !IsSparseBundleName(sysPath)) {
 #ifdef _WIN32
             if (DoesNameContainWildcard_SkipRoot(sysPath)) {
                 FString dirPrefix, fileName;

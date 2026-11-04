@@ -136,6 +136,7 @@ add_library(sevenzip_location
     src/filemanager/providers/qtlocationfolder.h
     src/archive/resources/archivereadonlyview.cpp
     src/archive/resources/archivereadonlytree.cpp
+    src/archive/resources/archivereadonlydirectory.cpp
     src/archive/resources/archivereadonlyview.h
     src/archive/resources/archivereadonlyview_p.h
     src/archive/resources/archivereadonlycache.cpp
@@ -174,6 +175,7 @@ add_library(sevenzip_location
     src/archive/resources/qtarchivebackendrequest.h
     src/archive/resources/qtarchivesourceupdate.cpp
     src/archive/resources/qtarchivereopen.cpp
+    src/archive/resources/qtarchivedirectoryread.cpp src/archive/resources/qtarchivedirectoryread.h
     src/archive/resources/qtarchivereopen.h
     src/archive/resources/qtarchivesourceextract.cpp
     src/archive/agent/AgentOut.cpp

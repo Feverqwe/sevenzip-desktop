@@ -103,6 +103,14 @@ HRESULT QtArchiveFileResource::ReOpenArchive(const QPointer<ArchiveBackend> &bac
     COpenOptions options;
     CObjectVector<COpenType> types;
     CIntVector excluded;
+    options.PreferDirectoryRead = _nativeOpen && _nativeOpen->directoryReadRequested();
+    if (options.PreferDirectoryRead) {
+        if (!_codecs || !_codecs->parseOpenTypes(format, types))
+            return E_INVALIDARG;
+        options.props = nullptr;
+        options.types = &types;
+        options.excludedFormats = &excluded;
+    }
     CMyComPtr<IInStream> inputCursor;
     if (_streamInput) {
         if (!_codecs || !_codecs->parseOpenTypes(format, types))
@@ -114,7 +122,8 @@ HRESULT QtArchiveFileResource::ReOpenArchive(const QPointer<ArchiveBackend> &bac
         options.excludedFormats = &excluded;
     }
     RINOK(ArchiveBackend::openNativeArchive(_codecs, path, format, &nativeProgress, nativeOpen,
-                                            _streamInput ? &options : nullptr))
+                                            _streamInput || options.PreferDirectoryRead ? &options
+                                                                                        : nullptr))
     QString limitations;
     auto *ui =
         openCallback ? dynamic_cast<COpenArchiveCallback *>(openCallback->Callback) : nullptr;

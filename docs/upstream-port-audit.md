@@ -10,6 +10,9 @@
 [Зашифрованные DMG](upstream-port-audit/dmg-encryption.md) — seekable read-only
 оболочка, пароль, исходный baseline и границы проверок.
 
+[Apple sparseimage и sparsebundle](upstream-port-audit/sparse-images.md) — общие
+native readers, отдельный token/bands input, пароль и ограниченное чтение повреждений.
+
 [Read-only F2FS](upstream-port-audit/f2fs.md) — отдельный reader из GRUB,
 современная геометрия inode по f2fs-tools, provenance и границы первой версии.
 

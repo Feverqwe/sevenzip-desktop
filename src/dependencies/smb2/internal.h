@@ -316,6 +316,8 @@ struct smb2_context {
     uint32_t server_chain_status;
     uint64_t server_chain_session;
     uint32_t server_chain_tree;
+    uint64_t server_chain_wait_mid;
+    int server_replaying;
 
     /* Server capabilities */
     uint8_t supports_multi_credit;
@@ -363,6 +365,8 @@ static inline uint32_t smb2_recv_pdu_cap(const struct smb2_context *smb2) {
 }
 
 struct smb2_pdu {
+    int server_deferred;
+    uint64_t server_dependency_mid;
     struct smb2_pdu *next;
     struct smb2_header header;
 
@@ -503,6 +507,7 @@ int smb2_process_payload_variable(struct smb2_context *smb2, struct smb2_pdu *pd
 int smb2_get_fixed_size(struct smb2_context *smb2, struct smb2_pdu *pdu);
 
 struct smb2_pdu *smb2_find_pdu(struct smb2_context *smb2, uint64_t message_id);
+void smb2_server_resume_compound(struct smb2_context *smb2, uint64_t message_id, uint32_t status);
 void smb2_free_iovector(struct smb2_context *smb2, struct smb2_io_vectors *v);
 
 /*

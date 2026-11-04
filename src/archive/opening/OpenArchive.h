@@ -128,6 +128,8 @@ struct COpenOptions {
     // bool openOnlySpecifiedByExtension,
 
     bool stdInMode;
+    bool AllowPartialImageProbe = false;
+    bool PreferDirectoryRead = false;
     UString filePath;
     class IQtArchiveOpenService *QtOpenService;
 

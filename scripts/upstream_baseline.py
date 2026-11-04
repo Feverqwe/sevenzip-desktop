@@ -477,7 +477,7 @@ def prepare_runtime_snapshot(data, snapshot, upstream=None, build_rules=True, de
     for path in dependencies:
         relative = pathlib.PurePosixPath(path)
         if (relative.parts[:1] not in (("src",), ("third_party",)) or ".." in relative.parts or
-                relative.suffix not in (".h", ".c", ".cpp", ".cppm") or path in isolated or
+                relative.suffix not in (".h", ".c", ".cpp", ".cppm", ".inl") or path in isolated or
                 (data.get("schema") == 1 and path.startswith("src/gpl/")) or
                 path in paths or not archive_sources.contains(path)):
             raise ValueError("Unsafe runtime source dependency: " + path)

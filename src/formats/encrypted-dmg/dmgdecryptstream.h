@@ -17,6 +17,7 @@ class DecryptStream final : public IInStream, public CMyUnknownImp {
     std::array<Byte, 32> key_{};
     std::array<Byte, 20> hmac_{};
     unsigned keySize_ = 0;
+    bool token_ = false;
     HRESULT ReadAt(UInt64 offset, void *data, size_t size);
     HRESULT SetupV1(IArchiveOpenCallback *callback);
     HRESULT SetupV2(IArchiveOpenCallback *callback);
@@ -24,7 +25,9 @@ class DecryptStream final : public IInStream, public CMyUnknownImp {
 
   public:
     ~DecryptStream();
-    HRESULT Open(IInStream *input, IArchiveOpenCallback *callback);
+    HRESULT Open(IInStream *input, IArchiveOpenCallback *callback, bool token = false);
+    HRESULT OpenBand(IInStream *input, IInStream **stream) const;
+    UInt32 BlockSize() const { return blockSize_; }
     UInt64 Size() const { return size_; }
     UInt64 PhysicalSize() const { return physicalSize_; }
 };

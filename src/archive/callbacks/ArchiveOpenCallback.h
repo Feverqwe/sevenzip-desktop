@@ -124,6 +124,10 @@ class COpenCallbackImp Z7_final : public IArchiveOpenCallback,
 #endif
 
     bool _subArchiveMode;
+    bool _delayedPackageVolumes = false;
+    UString _packageVolumePrefix;
+    FString _packageRoot;
+    HRESULT ValidatePackageVolume(const UString &name) const;
 
   public:
     bool PasswordWasAsked;
@@ -166,6 +170,12 @@ class COpenCallbackImp Z7_final : public IArchiveOpenCallback,
         : _subArchiveMode(false), PasswordWasAsked(false), ReOpenCallback(NULL), Callback(NULL) {}
 
     HRESULT Init2(const FString &folderPrefix, const FString &fileName);
+    void FinishOpening() {
+        if (_delayedPackageVolumes) {
+            Callback = nullptr;
+            ReOpenCallback = nullptr;
+        }
+    }
 
     bool SetSecondFileInfo(CFSTR newName) {
         return _fileInfo.Find_FollowLink(newName) && !_fileInfo.IsDir();

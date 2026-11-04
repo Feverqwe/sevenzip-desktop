@@ -4151,6 +4151,18 @@ Are you sure you want to split archive into such volumes?</source>
     <context>
         <name>SevenZipDiagnostics</name>
         <message>
+            <source>Some parts of the sparsebundle are damaged or unreadable. Readable files can still be copied; files using damaged ranges may be incomplete.</source>
+            <translation>Некоторые части образа sparsebundle повреждены или недоступны. Доступные файлы можно копировать, но файлы с данными из повреждённых областей могут оказаться неполными.</translation>
+        </message>
+        <message>
+            <source>Missing bands are treated as sparse holes. Deleted bands cannot be distinguished from unused space.</source>
+            <translation>Отсутствующие полосы считаются пустым местом. Удалённые полосы невозможно отличить от неиспользуемого пространства.</translation>
+        </message>
+        <message>
+            <source>Decryption does not verify data integrity.</source>
+            <translation>Расшифровка не проверяет целостность данных.</translation>
+        </message>
+        <message>
             <location filename="../src/ui/diagnostics/qtdiagnostictext.cpp" line="+175" />
             <source>Some FAT table entries could not be read. Free space is unknown; some files or directories may be incomplete or unreadable.</source>
             <translation>Часть таблицы FAT прочитать не удалось. Свободное место неизвестно; некоторые файлы и каталоги могут быть неполными или недоступными.</translation>
@@ -6594,6 +6606,26 @@ Use `Revert` to recover timestamp.</source>
             <translation>Проверка доступа к файлам…</translation>
         </message>
         <message>
+            <source>Reading folder tree…</source>
+            <translation>Чтение дерева папок…</translation>
+        </message>
+        <message>
+            <source>Preparing file list: %1 of %2</source>
+            <translation>Подготовка списка: %1 из %2</translation>
+        </message>
+        <message>
+            <source>Checking direct access: %1 of %2</source>
+            <translation>Проверка прямого чтения: %1 из %2</translation>
+        </message>
+        <message>
+            <source>Elapsed: %1 s</source>
+            <translation>Прошло: %1 с</translation>
+        </message>
+        <message>
+            <source>Mount will be available when preparation finishes. Large folders on a network drive can take longer. File contents are not extracted during this check.</source>
+            <translation>Кнопка «Подключить» станет доступна после подготовки. Для больших папок на сетевом диске это может занять больше времени. На этом этапе содержимое файлов не извлекается.</translation>
+        </message>
+        <message>
             <source>Could not check file access.</source>
             <translation>Не удалось проверить доступ к файлам.</translation>
         </message>
@@ -7043,6 +7075,14 @@ Check that your distribution's CIFS support and cifs-utils are installed.</sourc
     <context>
         <name>ArchiveReadOnlyView</name>
         <message>
+            <source>The macOS SMB client cannot copy this symbolic link. Extract it directly from Sevenzip to preserve it.</source>
+            <translation>SMB-клиент macOS не может скопировать эту символическую ссылку. Чтобы сохранить её, извлеките файл напрямую из Sevenzip.</translation>
+        </message>
+        <message>
+            <source>The symbolic link cannot be represented safely in SMB.</source>
+            <translation>Не удалось безопасно предоставить символическую ссылку через SMB.</translation>
+        </message>
+        <message>
             <source>Skipped %1: %2</source>
             <translation>Пропущено %1: %2</translation>
         </message>
@@ -7071,4 +7111,15 @@ Check that your distribution's CIFS support and cifs-utils are installed.</sourc
             <translation>Для этого устройства разрешён ограниченный доступ. Файлы могут отсутствовать, быть устаревшими или нечитаемыми.</translation>
         </message>
     </context>
+<context>
+    <name>ArchiveDirectory</name>
+    <message>
+        <source>Calculate folder size</source>
+        <translation>Посчитать размер папки</translation>
+    </message>
+    <message>
+        <source>Calculating folder size…</source>
+        <translation>Подсчёт размера папки…</translation>
+    </message>
+</context>
 </TS>

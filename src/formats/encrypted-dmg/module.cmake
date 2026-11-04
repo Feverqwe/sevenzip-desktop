@@ -26,6 +26,8 @@ add_library(sevenzip_encrypted_dmg MODULE
     ${SEVENZIP_7ZIP_SOURCE_DIR}/CPP/Common/MyString.cpp
     ${SEVENZIP_7ZIP_SOURCE_DIR}/CPP/Common/MyVector.cpp
     ${SEVENZIP_7ZIP_SOURCE_DIR}/CPP/Common/IntToString.cpp
+    ${SEVENZIP_7ZIP_SOURCE_DIR}/CPP/Common/MyXml.cpp
+    ${SEVENZIP_7ZIP_SOURCE_DIR}/CPP/Common/StringToInt.cpp
     ${SEVENZIP_7ZIP_SOURCE_DIR}/CPP/Common/StringConvert.cpp
     ${SEVENZIP_7ZIP_SOURCE_DIR}/CPP/Common/UTFConvert.cpp
     ${SEVENZIP_7ZIP_SOURCE_DIR}/C/Alloc.c)
@@ -91,3 +93,5 @@ if(BUILD_TESTING)
         set_tests_properties(encrypted_dmg_network PROPERTIES TIMEOUT 180)
     endif()
 endif()
+
+include(src/formats/sparse-image/module.cmake)

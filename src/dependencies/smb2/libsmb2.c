@@ -4364,6 +4364,57 @@ smb2_tree_disconnect_request_cb(struct smb2_server *server, struct smb2_context 
         smb2_disconnect_tree_id(smb2, tree_id);
 }
 
+struct smb2_pdu *
+smb2_cmd_symlink_error_reply(struct smb2_context *smb2, const char *target,
+                           uint16_t unparsed, smb2_command_cb cb, void *cb_data)
+{
+        struct smb2_reparse_data_buffer rp = {0};
+        struct smb2_error_reply err = {0};
+        struct smb2_iovec vec = {0}, header = {0};
+        struct smb2_pdu *pdu;
+        uint8_t *data;
+        size_t capacity, context;
+        int len;
+
+        if (!target || !target[0] || strlen(target) > 16384) {
+                return NULL;
+        }
+        context = smb2->dialect >= SMB2_VERSION_0311 ? 8 : 0;
+        capacity = 32 + 4 * strlen(target) + context;
+        data = calloc(1, capacity);
+        if (!data) {
+                return NULL;
+        }
+        rp.reparse_tag = SMB2_REPARSE_TAG_SYMLINK;
+        rp.symlink.flags = SMB2_SYMLINK_FLAG_RELATIVE;
+        rp.symlink.subname = rp.symlink.printname = discard_const(target);
+        vec.buf = data + context + 8;
+        vec.len = capacity - context - 8;
+        len = smb2_encode_reparse_data_buffer(smb2, &rp, &vec);
+        if (len < 0) {
+                free(data);
+                return NULL;
+        }
+        header.buf = data + context;
+        header.len = len + 8;
+        smb2_set_uint32(&header, 0, len + 4);
+        smb2_set_uint32(&header, 4, SMB2_SYMLINK_ERROR_TAG);
+        smb2_set_uint16(&header, 14, unparsed);
+        if (context) {
+                vec.buf = data;
+                vec.len = context;
+                smb2_set_uint32(&vec, 0, len + 8);
+                smb2_set_uint32(&vec, 4, 0); /* SMB2_ERROR_ID_DEFAULT */
+                err.error_context_count = 1;
+        }
+        err.byte_count = len + 8 + context;
+        err.error_data = data;
+        pdu = smb2_cmd_error_reply_async(smb2, &err, SMB2_CREATE,
+                        SMB2_STATUS_STOPPED_ON_SYMLINK, cb, cb_data);
+        free(data);
+        return pdu;
+}
+
 static void
 smb2_create_request_cb(struct smb2_server *server, struct smb2_context *smb2, void *command_data, void *cb_data)
 {
@@ -4380,14 +4431,26 @@ smb2_create_request_cb(struct smb2_server *server, struct smb2_context *smb2, vo
         if (!ret) {
                 pdu = smb2_cmd_create_reply_async(smb2, &rep, NULL, cb_data);
         }
+        else if (ret > 0) {
+                memset(&err, 0, sizeof(err));
+                pdu = smb2_cmd_error_reply_async(smb2, &err, SMB2_CREATE,
+                                SMB2_STATUS_PENDING, NULL, cb_data);
+        }
         else if (ret < 0) {
                 memset(&err, 0, sizeof(err));
-                pdu = smb2_cmd_error_reply_async(smb2,
-                                &err, SMB2_CREATE, smb2_server_handler_status(ret), NULL, cb_data);
+                if ((uint32_t)ret == SMB2_STATUS_STOPPED_ON_SYMLINK && rep.symlink_target) {
+                        pdu = smb2_cmd_symlink_error_reply(smb2, rep.symlink_target,
+                                        rep.symlink_unparsed, NULL, cb_data);
+                }
+                else {
+                        pdu = smb2_cmd_error_reply_async(smb2,
+                                        &err, SMB2_CREATE, smb2_server_handler_status(ret), NULL, cb_data);
+                }
         }
         if (pdu) {
                 if (req->name) {
                         smb2_free_data(smb2, discard_const(req->name));
+                        req->name = NULL;
                 }
                 smb2_set_pdu_message_id(smb2, pdu, smb2->message_id);
                 smb2_queue_pdu(smb2, pdu);
@@ -4676,6 +4739,10 @@ smb2_query_directory_request_cb(struct smb2_server *server, struct smb2_context 
                 pdu = smb2_cmd_error_reply_async(smb2,
                                 &err, SMB2_QUERY_DIRECTORY, smb2_server_handler_status(ret), NULL, cb_data);
         }
+        else if (ret > 0) {
+                pdu = smb2_cmd_error_reply_async(smb2, &err, SMB2_QUERY_DIRECTORY,
+                                SMB2_STATUS_PENDING, NULL, cb_data);
+        }
         else if (!ret) {
                 if (rep.output_buffer_length == 0) {
                         pdu = smb2_cmd_error_reply_async(smb2,
@@ -4691,6 +4758,7 @@ smb2_query_directory_request_cb(struct smb2_server *server, struct smb2_context 
         }
         if (req->name) {
                 smb2_free_data(smb2, discard_const(req->name));
+                req->name = NULL;
         }
         if (pdu != NULL) {
                 smb2_set_pdu_message_id(smb2, pdu, smb2->message_id);
@@ -4826,6 +4894,22 @@ smb2_server_resolve_file_id(struct smb2_context *smb2, void *request)
 }
 
 static void
+smb2_deferred_create_free(struct smb2_context *smb2, void *payload)
+{
+        struct smb2_create_request *request = payload;
+        if (request && request->name)
+                smb2_free_data(smb2, discard_const(request->name));
+}
+
+static void
+smb2_deferred_directory_free(struct smb2_context *smb2, void *payload)
+{
+        struct smb2_query_directory_request *request = payload;
+        if (request && request->name)
+                smb2_free_data(smb2, discard_const(request->name));
+}
+
+static void
 smb2_general_client_request_cb(struct smb2_context *smb2, int status, void *command_data, void *cb_data)
 {
         struct connect_data *c_data = cb_data;
@@ -4847,6 +4931,42 @@ smb2_general_client_request_cb(struct smb2_context *smb2, int status, void *comm
         if (smb2->pdu->header.command == SMB2_CANCEL) {
                 smb2_cancel_request_cb(server, smb2, command_data, cb_data);
                 goto next_request;
+        }
+
+        if (!smb2->server_replaying && smb2->server_request_related &&
+            smb2->server_chain_wait_mid) {
+                unsigned count = 0;
+                struct smb2_pdu *pending;
+                for (pending = smb2->waitqueue; pending; pending = pending->next)
+                        count += pending->server_deferred != 0;
+                if (count < 128) {
+                        size_t i;
+                        /* Variable request fields can point into the receive
+                         * vectors. Transfer their ownership to this PDU before
+                         * the connection reuses its receive buffers. */
+                        for (i = 0; i < smb2->in.niov; ++i) {
+                                struct smb2_iovec *iov = &smb2->in.iov[i];
+                                if (!iov->free)
+                                        continue;
+                                if (!smb2_add_iovector(smb2, &smb2->pdu->in,
+                                            iov->buf, iov->len, iov->free)) {
+                                        count = 128;
+                                        break;
+                                }
+                                iov->free = NULL;
+                        }
+                }
+                if (count < 128) {
+                        if (smb2->pdu->header.command == SMB2_CREATE)
+                                smb2->pdu->free_payload = smb2_deferred_create_free;
+                        else if (smb2->pdu->header.command == SMB2_QUERY_DIRECTORY)
+                                smb2->pdu->free_payload = smb2_deferred_directory_free;
+                        smb2->pdu->server_deferred = 1;
+                        smb2->pdu->server_dependency_mid = smb2->server_chain_wait_mid;
+                        smb2->server_chain_wait_mid = smb2->pdu->header.message_id;
+                        goto next_request;
+                }
+                smb2->server_chain_status = SMB2_STATUS_INSUFFICIENT_RESOURCES;
         }
 
         uint32_t chain_status = smb2_server_resolve_file_id(smb2, command_data);
@@ -4925,6 +5045,8 @@ smb2_general_client_request_cb(struct smb2_context *smb2, int status, void *comm
         }
 
 next_request:
+        if (smb2->server_replaying)
+                return;
         if (next_cb) {
                 /* alloc a pdu for next request. note that we dont really expect a tree connect, its just to
                  * allow pdu reading to know to allow for any command above negotiate and session-setup
@@ -4933,6 +5055,48 @@ next_request:
                 if (!smb2->next_pdu) {
                         smb2_set_error(smb2, "can not alloc pdu for authorization session setup request");
                         smb2_close_context(smb2);
+                }
+        }
+}
+
+/* A related compound command cannot consume the FileId of a deferred CREATE
+ * until its final reply exists. Replay the original signed/decoded request on
+ * this same event loop, preserving the unrelated receive context. */
+void
+smb2_server_resume_compound(struct smb2_context *smb2, uint64_t message_id, uint32_t status)
+{
+        struct smb2_pdu *request;
+        for (request = smb2->waitqueue; request; request = request->next) {
+                if (request->server_deferred && request->server_dependency_mid == message_id) {
+                        struct smb2_pdu *saved_pdu = smb2->pdu;
+                        uint64_t saved_mid = smb2->message_id;
+                        uint64_t saved_wait = smb2->server_chain_wait_mid;
+                        uint64_t saved_session = smb2->server_chain_session;
+                        uint32_t saved_tree = smb2->server_chain_tree;
+                        uint32_t saved_status = smb2->server_chain_status;
+                        int saved_related = smb2->server_request_related;
+                        int saved_valid = smb2->server_chain_file_valid;
+                        int saved_replaying = smb2->server_replaying;
+                        smb2_file_id saved_file;
+                        memcpy(saved_file, smb2->last_file_id, SMB2_FD_SIZE);
+                        request->server_deferred = 0;
+                        smb2->pdu = request;
+                        smb2->message_id = request->header.message_id;
+                        smb2->server_request_related = 1;
+                        smb2->server_chain_status = status;
+                        smb2->server_replaying = 1;
+                        request->cb(smb2, SMB2_STATUS_SUCCESS, request->payload, request->cb_data);
+                        smb2->pdu = saved_pdu;
+                        smb2->message_id = saved_mid;
+                        smb2->server_chain_wait_mid = saved_wait;
+                        smb2->server_chain_session = saved_session;
+                        smb2->server_chain_tree = saved_tree;
+                        smb2->server_chain_status = saved_status;
+                        smb2->server_request_related = saved_related;
+                        smb2->server_chain_file_valid = saved_valid;
+                        smb2->server_replaying = saved_replaying;
+                        memcpy(smb2->last_file_id, saved_file, SMB2_FD_SIZE);
+                        return;
                 }
         }
 }

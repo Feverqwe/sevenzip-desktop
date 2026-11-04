@@ -4,6 +4,8 @@
 // Adaptations: include owners, optional process-open service, shared default-name body.
 
 #include "7zip/UI/Common/StdAfx.h"
+#include "archive/opening/archivecontainerpath.h"
+#include "archive/opening/archivedirectoryaccess.h"
 
 // #define SHOW_DEBUG_INFO
 
@@ -1301,6 +1303,12 @@ HRESULT CArc::PrepareToOpen(const COpenOptions &op, unsigned formatIndex,
     // OutputDebugStringA("a2");
     if (!archive)
         return S_OK;
+    if (op.PreferDirectoryRead) {
+        CMyComPtr<IArchiveDirectoryAccess> directories;
+        archive.QueryInterface(IID_IArchiveDirectoryAccess, (void **)&directories);
+        if (directories)
+            RINOK(directories->SetDirectoryMode(true))
+    }
 
 #ifdef Z7_EXTERNAL_CODECS
     if (op.codecs->NeedSetLibCodecs) {
@@ -2010,7 +2018,17 @@ HRESULT CArc::OpenStream2(const COpenOptions &op) {
             byteBuffer.Alloc(bufSize);
             RINOK(InStream_SeekToBegin(op.stream))
             processedSize = bufSize;
-            RINOK(ReadStream(op.stream, byteBuffer, &processedSize))
+            const HRESULT probeResult = ReadStream(op.stream, byteBuffer, &processedSize);
+            if (probeResult != S_OK) {
+                // A sparsebundle can retain readable filesystem metadata when
+                // another band fails. Probe the available prefix, then let the
+                // real reader validate its own metadata against the unchanged
+                // failing stream. This is not permission to fabricate data.
+                if (!op.AllowPartialImageProbe || !processedSize || probeResult == E_ABORT ||
+                    probeResult == E_OUTOFMEMORY)
+                    return probeResult;
+                endOfFile = true;
+            }
             if (processedSize == 0)
                 return S_FALSE;
             if (processedSize < bufSize)
@@ -2887,7 +2905,13 @@ HRESULT CArc::OpenStreamOrFile(COpenOptions &op) {
         fileStreamSpec = new CInFileStream;
         fileStream = fileStreamSpec;
         Path = filePath;
-        if (!fileStreamSpec->Open(us2fs(Path)))
+        UString inputPath = Path;
+        NWindows::NFile::NFind::CFileInfo source;
+        if (IsSparseBundleName(Path) && source.Find_FollowLink(us2fs(Path)) && source.IsDir()) {
+            inputPath.Add_PathSepar();
+            inputPath += L"Info.plist";
+        }
+        if (!fileStreamSpec->Open(us2fs(inputPath)))
             return GetLastError_noZero_HRESULT();
         op.stream = fileStream;
 #ifdef Z7_SFX
@@ -3013,6 +3037,7 @@ HRESULT CArchiveLink::Open(COpenOptions &op) {
         return E_NOTIMPL;
 
     HRESULT resSpec;
+    bool partialImageProbe = op.AllowPartialImageProbe;
 
     for (;;) {
         resSpec = S_OK;
@@ -3080,6 +3105,9 @@ HRESULT CArchiveLink::Open(COpenOptions &op) {
         // PrintNumber("op.formatIndex 11", op.formatIndex);
 
         const CArc &arc = Arcs.Back();
+        if (arc.FormatIndex >= 0 &&
+            op.codecs->Formats[unsigned(arc.FormatIndex)].Name.IsEqualTo("SparseBundle"))
+            partialImageProbe = true;
 
         if (op.types->Size() > Arcs.Size())
             resSpec = E_NOTIMPL;
@@ -3130,6 +3158,8 @@ HRESULT CArchiveLink::Open(COpenOptions &op) {
         CIntVector excl;
 
         COpenOptions op2;
+        op2.AllowPartialImageProbe = partialImageProbe;
+        op2.PreferDirectoryRead = op.PreferDirectoryRead;
 #ifndef Z7_SFX
         op2.props = op.props;
 #endif
@@ -3180,6 +3210,7 @@ HRESULT CArchiveLink::Open2(COpenOptions &op, IOpenCallbackUI *callbackUI) {
     op.callbackSpec = openCallbackSpec.ClsPtr();
 
     HRESULT res = Open(op);
+    openCallbackSpec->FinishOpening();
 
     PasswordWasAsked = openCallbackSpec->PasswordWasAsked;
     // Password = openCallbackSpec->Password;

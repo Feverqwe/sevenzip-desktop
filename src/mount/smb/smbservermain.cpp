@@ -51,6 +51,41 @@ SmbReadOnlyServer::AsyncReader RemoteReader(QRemoteObjectNode &node, ArchiveMoun
     };
 }
 
+SmbReadOnlyServer::AsyncDirectoryReader RemoteDirectoryReader(QRemoteObjectNode &node,
+                                                              ArchiveMountReplica &replica,
+                                                              const std::atomic_bool &stopping) {
+    return [&node, &replica, &stopping](quint64 id,
+                                        SmbReadOnlyServer::DirectoryCompletion complete) {
+        QMetaObject::invokeMethod(
+            &node,
+            [&node, &replica, &stopping, id, complete = std::move(complete)] {
+                if (stopping || !replica.isReplicaValid()) {
+                    complete({0xc0000120U, {}});
+                    return;
+                }
+                auto pending = replica.listDirectory(id);
+                auto *watcher = new QRemoteObjectPendingCallWatcher(pending, &node);
+                QObject::connect(watcher, &QRemoteObjectPendingCallWatcher::finished, &node,
+                                 [watcher, pending, complete] {
+                                     SmbTreeDirectory result;
+                                     if (pending.error() != QRemoteObjectPendingCall::NoError)
+                                         result.Status = 0xc0000185U;
+                                     else {
+                                         const auto response = pending.returnValue();
+                                         result.Status = NetworkReadStatus(response.result());
+                                         for (const auto &entry : response.entries())
+                                             result.Entries.append(
+                                                 {entry.id(), entry.parent(), entry.size(),
+                                                  entry.modified(), entry.name(), entry.directory(),
+                                                  entry.childrenLoaded(), entry.symlinkTarget()});
+                                     }
+                                     complete(std::move(result));
+                                     watcher->deleteLater();
+                                 });
+            },
+            Qt::QueuedConnection);
+    };
+}
 } // namespace
 
 int main(int argc, char **argv) {
@@ -88,7 +123,8 @@ int main(int argc, char **argv) {
         QList<SmbTreeEntry> entries;
         for (const auto &entry : replica->entries())
             entries.append({entry.id(), entry.parent(), entry.size(), entry.modified(),
-                            entry.name(), entry.directory()});
+                            entry.name(), entry.directory(), entry.childrenLoaded(),
+                            entry.symlinkTarget()});
         server = std::make_unique<SmbReadOnlyServer>(
             std::move(entries), replica->user(), replica->password(),
             [](quint64, quint64, quint32) { return SmbTreeRead{0xc0000185U, {}}; },
@@ -97,6 +133,7 @@ int main(int argc, char **argv) {
             server->setDiagnosticHandler(
                 [](const QString &message) { std::fprintf(stderr, "%s\n", qPrintable(message)); });
         server->setAsyncReader(RemoteReader(node, *replica, stopping));
+        server->setAsyncDirectoryReader(RemoteDirectoryReader(node, *replica, stopping));
         QString error;
         if (!server->validate(error)) {
             replica->failed(error);

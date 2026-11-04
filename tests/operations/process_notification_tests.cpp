@@ -160,7 +160,7 @@ class ProcessNotificationTests final : public QObject {
         QTRY_COMPARE(completed.size(), 2);
         QVERIFY(requested);
         QVERIFY(listed);
-        QVERIFY(completed[0][0].toBool()); // The completed listing retains its own result.
+        QVERIFY(completed[0][0].toBool());  // The completed listing retains its own result.
         QVERIFY(!completed[1][0].toBool()); // Trailing data still makes extraction unverified.
         QCOMPARE(entries.size(), 1);
         const auto listing = qvariant_cast<QList<ArchiveEntry>>(entries[0][0]);

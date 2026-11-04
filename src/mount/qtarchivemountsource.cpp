@@ -39,7 +39,7 @@ QtArchiveMountSource::QtArchiveMountSource(IUnknown *resource, quint64 quota,
         view_->setReadOptions(quota, archivePassword, consent, recovery);
     } else {
         view_ = ArchiveBackend::retainReadOnlyView(resource, quota, archivePassword, consent,
-                                                   recovery, folder);
+                                                   recovery, folder, true);
     }
 }
 QtArchiveMountSource::~QtArchiveMountSource() = default;
@@ -61,7 +61,8 @@ void QtArchiveMountSource::initialize() {
     }
     for (const auto &entry : view->entries())
         entries_.append(MountTreeEntry(entry.Id, entry.Parent, entry.Size, entry.Modified,
-                                       entry.Name, entry.Directory));
+                                       entry.Name, entry.Directory, entry.ChildrenLoaded,
+                                       entry.SymlinkTarget));
     {
         QMutexLocker lock(&viewMutex_);
         if (cancelled_)
@@ -106,13 +107,7 @@ MountTreeRead QtArchiveMountSource::read(quint64 id, quint64 offset, quint32 len
     if (((result.Result != S_OK && result.Result != E_ABORT) || unverified) &&
         !reported_.value(id).contains(issue)) {
         reported_[id].insert(issue);
-        QString path;
-        const auto &entries = view_->entries();
-        for (quint64 current = id; current > 1 && current <= quint64(entries.size());) {
-            const auto &entry = entries.at(qsizetype(current - 1));
-            path = path.isEmpty() ? entry.Name : entry.Name + u'/' + path;
-            current = entry.Parent;
-        }
+        const QString path = entryPath(id);
         const QString error = result.Error.isEmpty()
                                   ? QStringLiteral("Reader error 0x%1")
                                         .arg(quint32(result.Result), 8, 16, QLatin1Char('0'))
@@ -127,4 +122,33 @@ void QtArchiveMountSource::listening(quint16 port) {
     if (port && !cancelled_)
         emit serverListening(port);
 }
+MountTreeDirectory QtArchiveMountSource::listDirectory(quint64 id) {
+    if (cancelled_ || !view_)
+        return MountTreeDirectory(quint32(E_ABORT), {}, {});
+    const qsizetype skipped = view_->skippedEntries().size();
+    const auto result = view_->listDirectory(id);
+    QList<MountTreeEntry> entries;
+    for (const auto &entry : result.Entries)
+        entries.append(MountTreeEntry(entry.Id, entry.Parent, entry.Size, entry.Modified,
+                                      entry.Name, entry.Directory, entry.ChildrenLoaded,
+                                      entry.SymlinkTarget));
+    if (result.Result != S_OK && result.Result != E_ABORT)
+        emit entryIssue(id, quint32(result.Result),
+                        entryPath(id) + QStringLiteral(": Reader error 0x%1")
+                                            .arg(quint32(result.Result), 8, 16, QLatin1Char('0')),
+                        -1);
+    for (qsizetype i = skipped; i < view_->skippedEntries().size(); ++i)
+        emit entryIssue(id, quint32(S_FALSE), view_->skippedEntries().at(i), -1);
+    return MountTreeDirectory(quint32(result.Result), entries, result.Error);
+}
 void QtArchiveMountSource::failed(QString error) { emit failure(std::move(error)); }
+QString QtArchiveMountSource::entryPath(quint64 id) const {
+    QString path;
+    const auto &entries = view_->entries();
+    for (quint64 current = id; current > 1 && current <= quint64(entries.size());) {
+        const auto &entry = entries.at(qsizetype(current - 1));
+        path = path.isEmpty() ? entry.Name : entry.Name + u'/' + path;
+        current = entry.Parent;
+    }
+    return path.isEmpty() ? QStringLiteral("/") : path;
+}

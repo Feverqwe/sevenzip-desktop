@@ -1,0 +1,65 @@
+#include "7zip/PropID.h"
+#include "Windows/PropVariant.h"
+#include "archive/agent/Agent.h"
+#include "archive/resources/qtarchivedirectoryread.h"
+#include "filemanager/qtfilemanagercommands.h"
+#include "filemanager/window/mainwindow.h"
+#include "localization/qtlangcontrols.h"
+#include <QAction>
+#include <QMenu>
+#include <QScopedValueRollback>
+#include <QStyle>
+#include <QToolBar>
+
+void QtFileManagerCommands::AttachDirectoryActions() {
+    auto *menu = window_.findChild<QMenu *>("fileMenu");
+    auto *action = menu->addAction(QString());
+    action->setObjectName("calculateDirectorySizeAction");
+    QtBindLocalText(action, "ArchiveDirectory", "Calculate folder size");
+    action->setIcon(window_.style()->standardIcon(QStyle::SP_FileDialogDetailedView));
+    window_.findChild<QToolBar *>("archiveToolbar")->addAction(action);
+    Bind(action, CalculateDirectorySize);
+}
+
+bool QtFileManagerCommands::CanCalculateDirectorySize() const {
+    auto &panel = window_.app_.GetFocusedPanel();
+    auto *folder = dynamic_cast<CAgentFolder *>(panel.GetFolder());
+    if (!folder)
+        return false;
+    CUIntVector indices;
+    panel.Get_ItemIndices_Operated(indices);
+    FOR_VECTOR(i, indices) {
+        NWindows::NCOM::CPropVariant size;
+        if (panel.IsItem_Folder(indices[i]) &&
+            folder->GetProperty(indices[i], kpidSize, &size) == S_OK && size.vt == VT_EMPTY)
+            return true;
+    }
+    return false;
+}
+
+void QtFileManagerCommands::CalculateDirectorySizes() {
+    auto &panel = window_.app_.GetFocusedPanel();
+    CMyComPtr<IFolderFolder> owner = panel.GetFolder();
+    auto *folder = dynamic_cast<CAgentFolder *>(owner.Interface());
+    if (!folder)
+        return;
+    CUIntVector indices;
+    panel.Get_ItemIndices_Operated(indices);
+    CSelectedState selection;
+    panel.SaveSelectedState(selection);
+    HRESULT result;
+    {
+        QScopedValueRollback<bool> progress(window_.sourceArchiveProgress_, true);
+        CPanel::CDisableNotify notify(panel);
+        CPanel::CDisableTimerProcessing timer(panel);
+        result = CalculateArchiveDirectorySizes(*folder, indices, &window_,
+                                                MainWindow::toolbarSettingsPath());
+    }
+    // A cancelled recursive read can still have completed individual folders.
+    // Refresh the projection from the retained reader, preserving selection.
+    if (window_.renderArchiveFolder(false) == S_OK)
+        window_.restoreListSelection(selection);
+    if (result != S_OK && result != E_ABORT)
+        panel.MessageBox_Error_HRESULT(result);
+    window_.refreshActions();
+}

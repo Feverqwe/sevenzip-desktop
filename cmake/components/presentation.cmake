@@ -248,6 +248,9 @@ add_library(sevenzip_panel
     src/filemanager/panels/PanelListNotify.cpp
     src/filemanager/panels/Panel.h)
 target_link_libraries(sevenzip_panel PRIVATE sevenzip_dialog_screen sevenzip_location sevenzip_panel_selection sevenzip_text_report)
+# Resource callbacks can pull the panel's archive progress transport in after
+# the first two scans of this existing static-library cycle.
+set_property(TARGET sevenzip_panel PROPERTY LINK_INTERFACE_MULTIPLICITY 3)
 target_link_libraries(sevenzip_panel PUBLIC sevenzip_overwrite_question)
 set_target_properties(sevenzip_panel PROPERTIES AUTOUIC OFF)
 target_link_libraries(sevenzip_panel PUBLIC sevenzip_progress_sync)

@@ -1069,6 +1069,7 @@ read_more_data:
                 smb2->server_request_related =
                         (smb2->hdr.flags & SMB2_FLAGS_RELATED_OPERATIONS) != 0;
                 if (!smb2->server_request_related) {
+                        smb2->server_chain_wait_mid = 0;
                         smb2->server_chain_status = SMB2_STATUS_SUCCESS;
                         smb2->server_chain_file_valid = 0;
                         smb2->server_chain_session = smb2->hdr.session_id;

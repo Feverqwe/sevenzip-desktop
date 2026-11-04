@@ -4,7 +4,7 @@
 
 inline constexpr GUID IID_IFscryptKeyRequest = {
     0x55f77674, 0xe678, 0x438d, {0xa4, 0x96, 0x9c, 0x53, 0x67, 0xa6, 0x47, 0x71}};
-struct IFscryptKeyRequest : public IUnknown {
+struct Z7_DECLSPEC_NOVTABLE IFscryptKeyRequest : public IUnknown {
     Z7_COM7F_PURE(GetFscryptKeys(BSTR *keys))
 };
 

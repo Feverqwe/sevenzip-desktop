@@ -390,6 +390,9 @@ struct smb2_create_reply {
     uint32_t create_context_length;
     uint32_t create_context_offset;
     uint8_t *create_context;
+    /* Server-only symbolic-link error metadata; not encoded in a CREATE reply. */
+    const char *symlink_target;
+    uint16_t symlink_unparsed;
 };
 
 #define SMB2_CLOSE_REQUEST_SIZE 24

@@ -15,6 +15,7 @@
 #include <QLabel>
 #include <QMenu>
 #include <QPlainTextEdit>
+#include <QProgressBar>
 #include <QPushButton>
 #include <QScopeGuard>
 #include <QSpinBox>
@@ -124,9 +125,11 @@ class MountExtractionPromptTests final : public QObject {
                 *dialog, QStringLiteral("mount-reader-%1-%2").arg(format, language));
             if (format == "zip") {
                 quota->setValue(64);
-                if (keyboard)
-                    QTest::keyClick(dialog, Qt::Key_F1);
-                else
+                if (keyboard) {
+                    dialog->activateWindow();
+                    if (QTest::qWaitForWindowActive(dialog, 1000))
+                        QTest::keySequence(dialog, QKeySequence(QKeySequence::HelpContents));
+                } else
                     help->click();
                 auto *window = dialog->findChild<QDialog *>("helpWindow");
                 auto *browser = window ? window->findChild<QTextBrowser *>("helpBrowser") : nullptr;
@@ -151,7 +154,15 @@ class MountExtractionPromptTests final : public QObject {
         if (format == "zip")
             QVERIFY(helpShown && helpKeptDialog);
     }
+    void cancellingReaderCheckKeepsEventLoopResponsive_data() { setupGeometry_data(); }
     void cancellingReaderCheckKeepsEventLoopResponsive() {
+        QFETCH(int, width);
+        QFETCH(QString, language);
+        QTranslator catalog;
+        if (language == "ru") {
+            QVERIFY(catalog.load(":/translations/sevenzip_ru.qm"));
+            qApp->installTranslator(&catalog);
+        }
         QTemporaryDir fixture;
         const QString path = fixture.filePath("source.tar");
         QVERIFY(NativeArchiveFixture::Write(path, {{"data.bin", "raw bytes"}}, "tar"));
@@ -159,14 +170,31 @@ class MountExtractionPromptTests final : public QObject {
         std::shared_ptr<ArchiveNativeOpen> reader;
         QCOMPARE(OpenMountResource(path, "tar", resource, reader), S_OK);
         std::unique_lock<std::mutex> busy(reader->itemStreamMutex());
-        bool cancelled = false, released = false;
+        bool cancelled = false, released = false, progressVisible = false, fits = true;
+        QString initialElapsed, laterElapsed;
         QTimer::singleShot(0, this, [&] {
             auto *dialog = qobject_cast<QDialog *>(QApplication::activeModalWidget());
             if (dialog) {
-                dialog->reject();
-                cancelled = dialog->isVisible();
+                dialog->resize(width, dialog->sizeHint().height());
+                auto *progress = dialog->findChild<QProgressBar *>("mountPreparationProgress");
+                auto *elapsed = dialog->findChild<QLabel *>("mountPreparationElapsed");
+                progressVisible = progress && progress->isVisible() && progress->maximum() == 0;
+                initialElapsed = elapsed ? elapsed->text() : QString();
+                for (const auto *label : dialog->findChildren<QLabel *>())
+                    if (label->isVisible())
+                        fits &= UiInspection::fullyVisible(*label, *dialog) &&
+                                UiInspection::labelFits(*label);
+                fits &= dialog->width() <= width;
+                fits &= UiInspection::writeReport(
+                    *dialog, QStringLiteral("mount-preparing-%1-%2").arg(language).arg(width));
             }
-            QTimer::singleShot(10, this, [&] {
+            QTimer::singleShot(1200, this, [&, dialog] {
+                if (dialog) {
+                    auto *elapsed = dialog->findChild<QLabel *>("mountPreparationElapsed");
+                    laterElapsed = elapsed ? elapsed->text() : QString();
+                    dialog->reject();
+                    cancelled = dialog->isVisible();
+                }
                 released = true;
                 busy.unlock();
             });
@@ -174,6 +202,8 @@ class MountExtractionPromptTests final : public QObject {
         const auto options = QtAskMountOptions(nullptr, "folder/", {}, resource);
         QVERIFY(!options.Accepted);
         QVERIFY(cancelled && released);
+        QVERIFY(progressVisible && fits);
+        QVERIFY(!initialElapsed.isEmpty() && initialElapsed != laterElapsed);
     }
     void failedReaderCheckReportsErrorAndCannotMount() {
         CMyComPtr<IUnknown> resource = new QtArchiveFileResource(QStringLiteral("unopened.img"));

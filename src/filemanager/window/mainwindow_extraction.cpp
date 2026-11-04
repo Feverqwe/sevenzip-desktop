@@ -41,6 +41,10 @@ HRESULT ExtractPanelItems(CPanel &panel, CAgentFolder &folder, const QString &ou
     CExtractNtOptions ntOptions;
     ntOptions.NtSecurity = options.NtSecurity;
     ntOptions.QtPathPolicy = &pathPolicy;
+    // Permit sibling targets such as node_modules/.bin/tsc -> ../typescript/bin/tsc.
+    // The native checks still reject traversal outside the output tree and links
+    // through another link; QtPathPolicy validates the final destination as well.
+    ntOptions.SymLinks_DangerousLevel = 9;
     QScopedValueRollback<const CExtractNtOptions *> extractOptions(folder.QtExtractNtOptions,
                                                                    &ntOptions);
     sourceOptions.extractMode = options.pathMode != ExtractionOptions::PathMode::CurrentPaths;

@@ -5,6 +5,7 @@
 #include "7zip/IPassword.h"
 #include "Common/StringConvert.h"
 #include "archive/backend/archivebackend_nativeentries.h"
+#include "archive/opening/archivecontainerpath.h"
 #include "archive/operations/Extract.h"
 #include "archive/resources/archivenativeopen.h"
 #include "archive/resources/qtarchivereadoperation.h"
@@ -152,6 +153,7 @@ CExtractOptions MakeDirectoryExtractOptions(const QtArchiveDirectoryExtractReque
                                             CQtExtractPathPolicy &policy) {
     CExtractOptions options;
     options.NtOptions.QtPathPolicy = &policy;
+    options.NtOptions.SymLinks_DangerousLevel = 9;
     options.OutputDir = us2fs(request.Destination.toStdWString().c_str());
     options.OutDirMode = NExtractOutDirMode::k_Direct;
     options.PathMode = request.Options.pathMode == ExtractionOptions::PathMode::NoPaths
@@ -190,7 +192,9 @@ HRESULT ExtractQtArchiveDirectory(QtArchiveReadOperation &operation,
     const auto &request = *operation.Directory;
     // Common/Extract's outer-file fallback for entries without an mtime.
     NWindows::NFile::NFind::CFileInfo file;
-    if (!file.Find_FollowLink(us2fs(reader->archiveLink().Arcs[0].Path)) || file.IsDir())
+    const auto &sourcePath = reader->archiveLink().Arcs[0].Path;
+    if (!file.Find_FollowLink(us2fs(sourcePath)) ||
+        (file.IsDir() && !IsSparseBundleName(sourcePath)))
         return GetLastError_noZero_HRESULT();
     reader->arc().MTime.Def = true;
     reader->arc().MTime.Set_From_FiTime(file.MTime);

@@ -52,10 +52,13 @@ CMyComPtr<IProgress> ArchiveReadOnlyView::State::readRequest() const {
 ArchiveReadOnlyView::ArchiveReadOnlyView(
     IUnknown *resource, quint64 quota, QString password,
     std::function<bool(const QString &, quint64)> extractionConsent,
-    std::function<bool(const QString &, quint64, Int32)> recoveryConsent, const QString &folder)
+    std::function<bool(const QString &, quint64, Int32)> recoveryConsent, const QString &folder,
+    bool lazyDirectories)
     : state_(std::make_unique<State>(resource, quota, std::move(password),
                                      std::move(extractionConsent), std::move(recoveryConsent),
-                                     folder)) {}
+                                     folder)) {
+    state_->LazyRequested = lazyDirectories;
+}
 ArchiveReadOnlyView::~ArchiveReadOnlyView() {
     // Close cached file handles before QTemporaryDir removes its files.
     state_->Items.clear();
@@ -65,6 +68,16 @@ const QList<ArchiveReadOnlyView::Entry> &ArchiveReadOnlyView::entries() const {
 }
 QString ArchiveReadOnlyView::limitations() const { return state_->Limitations; }
 const QStringList &ArchiveReadOnlyView::skippedEntries() const { return state_->Skipped; }
+ArchiveReadOnlyView::PreparationProgress ArchiveReadOnlyView::preparationProgress() const {
+    QMutexLocker lock(&state_->PreparationMutex);
+    return state_->Preparation;
+}
+void ArchiveReadOnlyView::State::reportPreparation(PreparationProgress::Stage stage,
+                                                   quint64 processed, quint64 total,
+                                                   const QString &path) {
+    QMutexLocker lock(&PreparationMutex);
+    Preparation = {stage, processed, total, path};
+}
 void ArchiveReadOnlyView::setReadOptions(
     quint64 quota, QString password,
     std::function<bool(const QString &, quint64)> extractionConsent,
@@ -82,11 +95,23 @@ HRESULT ArchiveReadOnlyView::needsCache(bool &required) {
     auto &state = *state_;
     if (!state.Ready)
         return E_FAIL;
+    if (state.Directories) {
+        // Unvisited files may need decoding. Keep the bounded fallback cache
+        // available without opening every file just to classify the mount.
+        required = true;
+        return state.Cancelled ? E_ABORT : S_OK;
+    }
     const auto request = state.readRequest();
+    quint64 checked = 0;
+    state.reportPreparation(PreparationProgress::Stage::CheckingAccess, 0, state.Items.size());
     for (auto item = state.Items.cbegin(); item != state.Items.cend(); ++item) {
         if (state.Cancelled || QThread::currentThread()->isInterruptionRequested())
             return E_ABORT;
-        if (!state.Entries.at(qsizetype(item.key() - 1)).Size)
+        const auto &entry = state.Entries.at(qsizetype(item.key() - 1));
+        state.reportPreparation(PreparationProgress::Stage::CheckingAccess, checked,
+                                state.Items.size(), entry.Name);
+        ++checked;
+        if (!entry.Size)
             continue;
         CMyComPtr<ISequentialInStream> stream;
         const HRESULT result = CreateArchiveItemStream(state.Resource, state.Reader, state.Depth,
@@ -101,6 +126,8 @@ HRESULT ArchiveReadOnlyView::needsCache(bool &required) {
             break;
         }
     }
+    state.reportPreparation(PreparationProgress::Stage::CheckingAccess, checked,
+                            state.Items.size());
     return state.Cancelled ? E_ABORT : S_OK;
     COM_TRY_END
 }
@@ -119,8 +146,8 @@ ArchiveReadOnlyView::ReadResult ArchiveReadOnlyView::read(quint64 id, quint64 of
         result.Result = E_ABORT;
         return result;
     }
-    if (!state.Items.contains(id) || length > 1024 * 1024 ||
-        offset > quint64(std::numeric_limits<qint64>::max())) {
+    if (!state.Items.contains(id) || !state.Entries.at(qsizetype(id - 1)).SymlinkTarget.isEmpty() ||
+        length > 1024 * 1024 || offset > quint64(std::numeric_limits<qint64>::max())) {
         result.Result = E_INVALIDARG;
         return result;
     }
@@ -172,11 +199,12 @@ HRESULT ArchiveBackend::createReadOnlyView(
     IUnknown *resource, quint64 cacheLimit, const QString &password,
     std::shared_ptr<ArchiveReadOnlyView> &view, QString &error,
     std::function<bool(const QString &, quint64)> extractionConsent,
-    std::function<bool(const QString &, quint64, Int32)> recoveryConsent, const QString &folder) {
+    std::function<bool(const QString &, quint64, Int32)> recoveryConsent, const QString &folder,
+    bool lazyDirectories) {
     COM_TRY_BEGIN
     view.reset();
     auto opened = retainReadOnlyView(resource, cacheLimit, password, std::move(extractionConsent),
-                                     std::move(recoveryConsent), folder);
+                                     std::move(recoveryConsent), folder, lazyDirectories);
     const HRESULT result = prepareReadOnlyView(opened, error);
     if (result == S_OK)
         view = std::move(opened);
@@ -187,10 +215,11 @@ HRESULT ArchiveBackend::createReadOnlyView(
 std::shared_ptr<ArchiveReadOnlyView> ArchiveBackend::retainReadOnlyView(
     IUnknown *resource, quint64 cacheLimit, const QString &password,
     std::function<bool(const QString &, quint64)> extractionConsent,
-    std::function<bool(const QString &, quint64, Int32)> recoveryConsent, const QString &folder) {
+    std::function<bool(const QString &, quint64, Int32)> recoveryConsent, const QString &folder,
+    bool lazyDirectories) {
     return std::shared_ptr<ArchiveReadOnlyView>(
         new ArchiveReadOnlyView(resource, cacheLimit, password, std::move(extractionConsent),
-                                std::move(recoveryConsent), folder));
+                                std::move(recoveryConsent), folder, lazyDirectories));
 }
 HRESULT ArchiveBackend::prepareReadOnlyView(const std::shared_ptr<ArchiveReadOnlyView> &view,
                                             QString &error) {

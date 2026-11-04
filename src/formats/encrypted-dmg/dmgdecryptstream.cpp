@@ -21,19 +21,55 @@ namespace NArchive::NEncryptedDmg {
 namespace {
 // Keep ciphertext transport separate from the format's independent CBC chunks.
 // The SDK cache supplies seek, eviction and failed-fill invalidation unchanged.
+// Small random metadata reads must not fetch a large transport window each
+// time. Read ahead only after observing a sustained contiguous miss sequence.
 class CachedInput final : public CCachedInStream {
     CMyComPtr<IInStream> input_;
-    static constexpr unsigned BlockBits = 19;
+    static constexpr unsigned BlockBits = 12;
+    static constexpr size_t ReadAhead = 1u << 19;
+    UInt64 size_ = 0, next_ = UINT64_MAX, windowBegin_ = 0;
+    size_t sequential_ = 0, windowSize_ = 0;
+    std::vector<Byte> window_;
     HRESULT ReadBlock(UInt64 index, Byte *data, size_t size) override {
-        RINOK(InStream_SeekSet(input_, index << BlockBits))
+        const UInt64 begin = index << BlockBits;
+        sequential_ = index == next_ ? std::min<size_t>(sequential_ + size, ReadAhead) : size;
+        next_ = index + 1;
+        if (begin >= windowBegin_ && begin - windowBegin_ <= windowSize_ &&
+            size <= windowSize_ - size_t(begin - windowBegin_)) {
+            memcpy(data, window_.data() + size_t(begin - windowBegin_), size);
+            return S_OK;
+        }
+        if (sequential_ >= (1u << 16)) {
+            windowSize_ = 0;
+            const auto count = size_t(std::min<UInt64>(ReadAhead, size_ - begin));
+            window_.resize(count);
+            RINOK(InStream_SeekSet(input_, begin))
+            const HRESULT result = ReadStream_FALSE(input_, window_.data(), count);
+            if (result == S_OK) {
+                windowBegin_ = begin;
+                windowSize_ = count;
+                memcpy(data, window_.data(), size);
+                return S_OK;
+            }
+            if (result == E_ABORT || result == E_OUTOFMEMORY)
+                return result;
+            // Speculation into a later damaged range must not make a readable
+            // requested block unavailable. Retry only the requested extent.
+            sequential_ = 0;
+            next_ = UINT64_MAX;
+        }
+        RINOK(InStream_SeekSet(input_, begin))
         return ReadStream_FALSE(input_, data, size);
     }
 
   public:
     explicit CachedInput(IInStream *input) : input_(input) {}
     HRESULT Open(UInt64 size) {
-        if (!Alloc(BlockBits, 3))
+        if (!Alloc(BlockBits, 8))
             return E_OUTOFMEMORY;
+        size_ = size;
+        next_ = UINT64_MAX;
+        sequential_ = windowSize_ = 0;
         Init(size);
         return S_OK;
     }
@@ -51,8 +87,22 @@ HRESULT Password(IArchiveOpenCallback *callback, AString &password) {
     if (!crypto)
         return E_NOINTERFACE;
     CMyComBSTR value;
+    struct BstrWiper {
+        CMyComBSTR &value;
+        ~BstrWiper() {
+            if (value) {
+                auto *bytes = const_cast<wchar_t *>(static_cast<LPCOLESTR>(value));
+                Wipe(bytes, size_t(SysStringLen(bytes)) * sizeof(wchar_t));
+            }
+        }
+    } wipeBstr{value};
     RINOK(crypto->CryptoGetTextPassword(&value))
-    ConvertUnicodeToUTF8(UString(value), password);
+    UString unicode(value);
+    struct UnicodeWiper {
+        UString &value;
+        ~UnicodeWiper() { Wipe(value.GetBuf(), size_t(value.Len()) * sizeof(wchar_t)); }
+    } wipeUnicode{unicode};
+    ConvertUnicodeToUTF8(unicode, password);
     return S_OK;
 }
 struct PasswordWiper {
@@ -98,11 +148,12 @@ HRESULT DecryptStream::ValidateRange(UInt64 available) const {
         return UnexpectedEnd;
     return S_OK;
 }
-HRESULT DecryptStream::Open(IInStream *input, IArchiveOpenCallback *callback) {
+HRESULT DecryptStream::Open(IInStream *input, IArchiveOpenCallback *callback, bool token) {
     COM_TRY_BEGIN
     Wipe(key_.data(), key_.size());
     Wipe(hmac_.data(), hmac_.size());
     keySize_ = 0;
+    token_ = token;
     size_ = offset_ = 0;
     input_ = input;
     position_ = 0;
@@ -117,17 +168,52 @@ HRESULT DecryptStream::Open(IInStream *input, IArchiveOpenCallback *callback) {
     if (!memcmp(signature, "encrcdsa", 8)) {
         result = SetupV2(callback);
     } else {
+        if (token_)
+            return S_FALSE;
         RINOK(ReadAt(physicalSize_ - 8, signature, sizeof(signature)))
         if (memcmp(signature, "cdsaencr", 8))
             return S_FALSE;
         result = SetupV1(callback);
     }
-    if (result != S_OK)
+    if (result != S_OK) {
+        Wipe(key_.data(), key_.size());
+        Wipe(hmac_.data(), hmac_.size());
+        keySize_ = 0;
         return result;
+    }
+    if (token_)
+        return S_OK;
     CMyComPtr2<IInStream, CachedInput> cached;
     cached.SetFromCls(new CachedInput(input_));
     RINOK(cached->Open(physicalSize_))
     input_ = cached;
+    return S_OK;
+    COM_TRY_END
+}
+HRESULT DecryptStream::OpenBand(IInStream *input, IInStream **stream) const {
+    COM_TRY_BEGIN
+    *stream = nullptr;
+    if (!token_ || !keySize_ || !input)
+        return E_INVALIDARG;
+    CMyComPtr2<IInStream, DecryptStream> band;
+    band.SetFromCls(new DecryptStream);
+    RINOK(InStream_AtBegin_GetSize(input, band->physicalSize_))
+    // CBC prefixes remain readable after truncation; an incomplete AES block
+    // itself is never padded or invented. The container reports that damaged
+    // tail separately from its normal unwritten sparse tail.
+    band->size_ = band->physicalSize_ & ~UInt64(15);
+    band->blockSize_ = blockSize_;
+    if (band->size_) {
+        RINOK(band->ValidateRange(band->physicalSize_))
+    }
+    band->key_ = key_;
+    band->hmac_ = hmac_;
+    band->keySize_ = keySize_;
+    CMyComPtr2<IInStream, CachedInput> cached;
+    cached.SetFromCls(new CachedInput(input));
+    RINOK(cached->Open(band->physicalSize_))
+    band->input_ = cached;
+    *stream = band.Detach();
     return S_OK;
     COM_TRY_END
 }
@@ -141,7 +227,16 @@ HRESULT DecryptStream::SetupV2(IArchiveOpenCallback *callback) {
     offset_ = hdr.encrypted_data_offset;
     size_ = hdr.encrypted_data_length;
     blockSize_ = hdr.block_size;
-    RINOK(ValidateRange(physicalSize_))
+    if (token_) {
+        // A bundle's data lives in separate band streams. Header data ranges
+        // are not ranges in the token; only key records are bounded by it.
+        if (blockSize_ < 16 || blockSize_ > (1u << 20) || (blockSize_ & (blockSize_ - 1)))
+            return E_INVALIDARG;
+        size_ = 0;
+        offset_ = physicalSize_;
+    } else {
+        RINOK(ValidateRange(physicalSize_))
+    }
     const UInt32 count = hdr.no_of_keys;
     if (!count || count > 64 || offset_ < sizeof(hdr) + UInt64(count) * sizeof(DmgKeyPointer))
         return E_NOTIMPL;
