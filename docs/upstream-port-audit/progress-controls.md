@@ -437,3 +437,29 @@ without native OS branches or calling conventions, so secondary platforms were
 not selected. Source inventory and whitespace checks passed. Selected scratch
 was empty before and after both runs; configured four-job incremental builds
 and compiler caches were retained. No full/slow or appearance gate ran.
+
+## Benchmark form and report ownership — 2026-11-04
+
+Reviewed the normal/total resource templates, initialization, command/button
+dispatch, close/destroy handlers and Qt control/report adapters against
+`b88c6bc09339de32f7d18bbab900686b244f42ba`. Complete original BenchmarkDialog
+cpp/header/resource hashes match the existing baseline. Native benchmark
+algorithms, worker ownership, affinity/memory policy and stop/restart/join
+control flow are unchanged; this is a local Qt presentation refactor.
+
+qtbenchmarkpresentation.cpp owns normal/total form construction, parameter,
+metric and summary builders and their existing caption/control registration.
+qtbenchmarkcontrols.cpp retains runtime widget services, timer/messages and
+modal lifecycle. The unchanged CopyReport implementation belongs to
+qtbenchmarkreport.cpp. All remain in the existing component and class.
+
+Metric header IDs and names are paired instead of maintained in parallel
+arrays. CPU/features/version/system fields are placed explicitly, removing
+index-based placement, alignment and visibility branches. Existing positions,
+creation order, names, wrapping, initial visibility, focus/tab sequence and
+normal/total report behavior are retained. Existing benchmark_lifecycle,
+native_benchmark and benchmark_command suites cover their behavior, geometry,
+translation, copying and direct native/command consumers; no source-structure
+test is added.
+All three suites passed on Linux. Platform adapters and rendered Windows
+parity were not revalidated for this shared Qt ownership change.

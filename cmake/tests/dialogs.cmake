@@ -69,7 +69,7 @@
         TIMEOUT 30)
     if(WIN32)
         add_executable(process_handle_allocation_tests tests/operations/process_handle_allocation_tests.cpp
-            src/platform/process/qtexternalprocess.cpp)
+            ${sevenzip_external_process_source})
         target_include_directories(process_handle_allocation_tests PRIVATE src)
         target_link_libraries(process_handle_allocation_tests PRIVATE sevenzip_common)
         set_target_properties(process_handle_allocation_tests PROPERTIES AUTOMOC OFF AUTOUIC OFF)
@@ -77,7 +77,7 @@
         set_tests_properties(process_handle_allocation PROPERTIES TIMEOUT 15)
     elseif(UNIX)
         add_executable(process_spawn_allocation_tests tests/operations/process_spawn_allocation_tests.cpp
-            src/platform/process/qtexternalprocess.cpp)
+            ${sevenzip_external_process_source})
         target_include_directories(process_spawn_allocation_tests PRIVATE src)
         target_link_libraries(process_spawn_allocation_tests PRIVATE sevenzip_common sevenzip_child_reaper)
         set_target_properties(process_spawn_allocation_tests PROPERTIES AUTOMOC OFF AUTOUIC OFF)

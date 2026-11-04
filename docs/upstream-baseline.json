@@ -1576,6 +1576,8 @@
     "src/archive/resources/qtarchivenativeproperties.cpp",
     "src/archive/resources/qtarchiveproperties.cpp",
     "src/archive/resources/qtarchiveproperties.h",
+    "src/archive/resources/qtarchivereadcallback.cpp",
+    "src/archive/resources/qtarchivereadcallback_p.h",
     "src/archive/resources/qtarchivereadoperation.cpp",
     "src/archive/resources/qtarchivereadoperation.h",
     "src/archive/resources/qtarchivereopen.cpp",
@@ -1599,7 +1601,8 @@
     "src/archive/sfx/archivesfxmodule.h",
     "src/benchmark/qtbenchmarkcontrols.cpp",
     "src/benchmark/qtbenchmarkcontrols.h",
-    "src/benchmark/qtbenchmarkmetrics.cpp",
+    "src/benchmark/qtbenchmarkpresentation.cpp",
+    "src/benchmark/qtbenchmarkreport.cpp",
     "src/benchmark/qtbenchmarkservices.cpp",
     "src/benchmark/qtbenchmarkservices.h",
     "src/checksums/liblzma/module.cmake",
@@ -1696,6 +1699,7 @@
     "src/dialogs/browse/qttempbrowsepresentation.cpp",
     "src/dialogs/combo/alias.h",
     "src/dialogs/compress/CompressInfo.h",
+    "src/dialogs/compress/CompressMethods.cpp",
     "src/dialogs/compress/CompressOptionsDialog.cpp",
     "src/dialogs/compress/CompressResources.cpp",
     "src/dialogs/compress/CompressResources.h",
@@ -2057,6 +2061,8 @@
     "src/gui/qtguicommand.h",
     "src/gui/qtguimain.cpp",
     "src/gui/qtupdateguiservices.h",
+    "src/help/qthelpbrowser.cpp",
+    "src/help/qthelpbrowser_p.h",
     "src/help/qthelpservices.cpp",
     "src/help/qthelpservices.h",
     "src/localization/qtlangbuttonbox.cpp",
@@ -2138,10 +2144,12 @@
     "src/platform/memory/qtmemorylimitinfo.h",
     "src/platform/memory/qtmemorylockservices.cpp",
     "src/platform/memory/qtmemorylockservices.h",
+    "src/platform/process/module.cmake",
     "src/platform/process/qtchildprocessreaper.cpp",
     "src/platform/process/qtchildprocessreaper.h",
-    "src/platform/process/qtexternalprocess.cpp",
     "src/platform/process/qtexternalprocess.h",
+    "src/platform/process/qtexternalprocess_posix.cpp",
+    "src/platform/process/qtexternalprocess_win.cpp",
     "src/platform/shell/qtcontextmenuservices.h",
     "src/platform/shell/qtmenupageservices.h",
     "src/platform/shell/qtnativemenupageservices.cpp",
@@ -3530,6 +3538,25 @@
     "src/formats/vhdx/VhdxCrc.cpp"
   ],
   "extracted": {
+    "src/archive/callbacks/ArchiveExtractCallback.cpp": {
+      "local": [
+        "src/archive/resources/qtarchivereadcallback.cpp"
+      ],
+      "symbols": [
+        "CArchiveExtractCallback::ReportExtractResult (item/block path and encryption projection)"
+      ]
+    },
+    "third_party/7zip/CPP/7zip/UI/Client7z/Client7z.cpp": {
+      "local": [
+        "src/archive/resources/qtarchivereadcallback.cpp",
+        "src/archive/resources/qtarchivereadoperation.cpp"
+      ],
+      "symbols": [
+        "CArchiveExtractCallback::GetStream (extract-mode output interface ownership)",
+        "CArchiveExtractCallback::SetOperationResult (output close/error ownership)",
+        "IInArchive::Extract caller (single-entry private output adaptation)"
+      ]
+    },
     "src/dialogs/browse/BrowseDialog.cpp": {
       "local": [
         "src/filemanager/FormatUtils.cpp",
@@ -3604,7 +3631,8 @@
         "src/archive/diagnostics/archiveerrormessages.cpp",
         "src/archive/diagnostics/archiveerrormessages.h",
         "src/archive/resources/virtualextractfilesystem.cpp",
-        "src/filemanager/ExtractCallbackOutput.cpp"
+        "src/filemanager/ExtractCallbackOutput.cpp",
+        "src/archive/resources/qtarchivereadcallback.cpp"
       ],
       "symbols": [
         "SetExtractErrorMessage",
@@ -3623,7 +3651,8 @@
         "GetItemBoolProp",
         "CExtractCallbackImp::GetStream7",
         "CExtractCallbackImp::PrepareOperation7",
-        "CExtractCallbackImp::SetOperationResult8"
+        "CExtractCallbackImp::SetOperationResult8",
+        "CExtractCallbackImp::RequestMemoryUse (already-allowed non-dialog fast path)"
       ]
     },
     "src/filemanager/FM.cpp": {
@@ -3986,6 +4015,7 @@
     },
     "src/dialogs/compress/CompressDialog.cpp": {
       "local": [
+        "src/dialogs/compress/CompressMethods.cpp",
         "src/dialogs/compress/CompressOptionsDialog.cpp",
         "src/dialogs/compress/CompressResources.cpp"
       ],
@@ -4006,6 +4036,7 @@
         "CCompressDialog::AddMemComboItem",
         "CCompressDialog::SetMemUseCombo (choices and selection)",
         "CCompressDialog::Get_MemUse_Bytes",
+        "format/method tables, SetMethods, OnInit format selection, SetMethod2, GetMethodID, GetMethodSpec, IsMethodEqualTo",
         "COptionsDialog and its timestamp helpers"
       ]
     },

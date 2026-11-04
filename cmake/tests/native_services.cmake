@@ -142,7 +142,7 @@
     set_tests_properties(native_services PROPERTIES TIMEOUT 10)
     if(WIN32 AND CMAKE_SIZEOF_VOID_P EQUAL 8)
         qt_add_executable(process_snapshot_tests tests/operations/process_snapshot_tests.cpp
-            src/platform/process/qtexternalprocess.cpp)
+            ${sevenzip_external_process_source})
         target_include_directories(process_snapshot_tests PRIVATE src)
         target_link_libraries(process_snapshot_tests PRIVATE sevenzip_common Qt6::Test)
         add_test(NAME process_snapshot COMMAND process_snapshot_tests -silent)

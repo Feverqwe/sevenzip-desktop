@@ -1,7 +1,6 @@
 #include "mount/qtarchivemountmanager.h"
 #include "Common/MyCom.h"
 #include "mount/qtarchivemountsession.h"
-#include "mount/qtmountextractionprompt.h"
 #include "mount/qtmountsettings.h"
 #include "mount/qtsmbmountplatform.h"
 #include <QDir>
@@ -34,37 +33,7 @@ void QtArchiveMountManager::mount(IUnknown *resource, const QString &label,
     }
     auto *session = new QtArchiveMountSession(label, this);
     sessions_.append(Session{session, {}});
-    connect(session, &QtArchiveMountSession::changed, this, &QtArchiveMountManager::refresh);
-    connect(session, &QtArchiveMountSession::entryIssue, this,
-            [this, session](quint64, quint32 result, const QString &error, qint32) {
-                if (result == quint32(E_ABORT))
-                    return;
-                const auto entry = std::ranges::find(sessions_, session, &Session::instance);
-                if (entry == sessions_.end())
-                    return;
-                entry->issues.append(result == quint32(S_FALSE)
-                                         ? tr("Unverified data: %1").arg(error)
-                                         : tr("Read failed: %1").arg(error));
-                refresh();
-            });
-    connect(session, &QtArchiveMountSession::extractionRequired, this,
-            [this, session](const QString &path, quint64 size,
-                            const ArchiveMountDecisionPtr &decision) {
-                auto *prompt =
-                    new QtMountExtractionPrompt(session->label(), path, size, decision, owner_);
-                prompt->setAttribute(Qt::WA_DeleteOnClose);
-                connect(session, &QtArchiveMountSession::stopped, prompt, &QDialog::reject);
-                prompt->open();
-            });
-    connect(session, &QtArchiveMountSession::unverifiedDataRequired, this,
-            [this, session](const QString &path, quint64 size, qint32,
-                            const ArchiveMountDecisionPtr &decision) {
-                auto *prompt = new QtMountExtractionPrompt(session->label(), path, size, decision,
-                                                           owner_, true);
-                prompt->setAttribute(Qt::WA_DeleteOnClose);
-                connect(session, &QtArchiveMountSession::stopped, prompt, &QDialog::reject);
-                prompt->open();
-            });
+    bindSession(*session);
     refresh();
     list_->setCurrentItem(list_->topLevelItem(sessions_.size() - 1));
     showManager();

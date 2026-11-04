@@ -41,6 +41,8 @@ target_include_directories(sevenzip_text_report PUBLIC src)
 target_link_libraries(sevenzip_text_report PUBLIC Qt6::Widgets)
 set_target_properties(sevenzip_text_report PROPERTIES AUTOMOC OFF AUTOUIC OFF)
 
+include(${PROJECT_SOURCE_DIR}/src/platform/process/module.cmake)
+
 add_library(sevenzip_panel
     STATIC
     src/filemanager/SplitUtils.cpp
@@ -72,6 +74,8 @@ add_library(sevenzip_panel
     src/filemanager/views/qtfilelisthover.h
     src/filemanager/HelpUtils.cpp
     src/filemanager/HelpUtils.h
+    src/help/qthelpbrowser.cpp
+    src/help/qthelpbrowser_p.h
     src/help/qthelpservices.cpp
     src/help/qthelpservices.h
     src/dialogs/compress/qtcompressoptionscontrols.cpp
@@ -107,7 +111,8 @@ add_library(sevenzip_panel
     src/gui/qtupdateguiservices.h
     src/benchmark/qtbenchmarkcontrols.cpp
     src/benchmark/qtbenchmarkcontrols.h
-    src/benchmark/qtbenchmarkmetrics.cpp
+    src/benchmark/qtbenchmarkpresentation.cpp
+    src/benchmark/qtbenchmarkreport.cpp
     src/dialogs/link/LinkDialog.cpp
     src/dialogs/link/LinkDialog.h
     src/fileops/links/qtlinkcontrols.cpp
@@ -147,7 +152,7 @@ add_library(sevenzip_panel
     src/fileops/links/qtverctrlfileservices.h
     src/platform/associations/qtassociatedfileservices.cpp
     src/platform/associations/qtassociatedfileservices.h
-    src/platform/process/qtexternalprocess.cpp
+    ${sevenzip_external_process_source}
     src/platform/process/qtexternalprocess.h
     src/operations/qtexternalguicall.cpp
     src/operations/qtexternalguicall.h

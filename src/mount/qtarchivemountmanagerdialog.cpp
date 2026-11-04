@@ -1,5 +1,7 @@
+#include "Common/MyWindows.h"
 #include "mount/qtarchivemountmanager.h"
 #include "mount/qtarchivemountsession.h"
+#include "mount/qtmountextractionprompt.h"
 #include <QAction>
 #include <QApplication>
 #include <QClipboard>
@@ -12,6 +14,44 @@
 #include <QPushButton>
 #include <QTreeWidget>
 #include <QVBoxLayout>
+#include <algorithm>
+
+namespace {
+void ShowMountPrompt(QtArchiveMountSession &session, const QString &path, quint64 size,
+                     const ArchiveMountDecisionPtr &decision, QWidget *owner, bool unverified) {
+    auto *prompt =
+        new QtMountExtractionPrompt(session.label(), path, size, decision, owner, unverified);
+    prompt->setAttribute(Qt::WA_DeleteOnClose);
+    QObject::connect(&session, &QtArchiveMountSession::stopped, prompt, &QDialog::reject);
+    prompt->open();
+}
+} // namespace
+
+void QtArchiveMountManager::bindSession(QtArchiveMountSession &session) {
+    connect(&session, &QtArchiveMountSession::changed, this, &QtArchiveMountManager::refresh);
+    connect(&session, &QtArchiveMountSession::entryIssue, this,
+            [this, session = &session](quint64, quint32 result, const QString &error, qint32) {
+                if (result == quint32(E_ABORT))
+                    return;
+                const auto entry = std::ranges::find(sessions_, session, &Session::instance);
+                if (entry == sessions_.end())
+                    return;
+                entry->issues.append(result == quint32(S_FALSE)
+                                         ? tr("Unverified data: %1").arg(error)
+                                         : tr("Read failed: %1").arg(error));
+                refresh();
+            });
+    connect(&session, &QtArchiveMountSession::extractionRequired, this,
+            [this, session = &session](const QString &path, quint64 size,
+                                       const ArchiveMountDecisionPtr &decision) {
+                ShowMountPrompt(*session, path, size, decision, owner_, false);
+            });
+    connect(&session, &QtArchiveMountSession::unverifiedDataRequired, this,
+            [this, session = &session](const QString &path, quint64 size, qint32,
+                                       const ArchiveMountDecisionPtr &decision) {
+                ShowMountPrompt(*session, path, size, decision, owner_, true);
+            });
+}
 
 QtArchiveMountManager::QtArchiveMountManager(QWidget *owner) : QDialog(owner), owner_(owner) {
     setObjectName("archiveMountManager");

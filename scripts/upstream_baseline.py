@@ -97,7 +97,7 @@ def load_manifest(path):
     ):
         raise ValueError("Original SHA256 values require recorded upstream source owners")
     for owner, extraction in data.get("extracted", {}).items():
-        if (owner not in data["adapted"] or owner not in hashes or
+        if (owner not in data["exact"] + data["adapted"] or owner not in hashes or
                 not extraction.get("symbols") or not extraction.get("local") or
                 set(extraction["local"]) - set(data["local"] + data["adapted"])):
             raise ValueError("Extracted source requires its original baseline and local owners")
@@ -596,13 +596,13 @@ def review(data, upstream, new_revision, paths):
         rows.append(f"- `{path}` ({kind}, `{old}` → `{new}`): `{status}`")
         if kind == "adapted":
             rows.append("  Review the upstream diff against the current Qt/platform adaptations.")
-            extraction = data.get("extracted", {}).get(path)
-            if extraction:
-                rows.append("  Extracted symbols: " + ", ".join(extraction["symbols"]) + ".")
-                rows.append("  Also compare: " + ", ".join("`" + unit + "`"
-                    for unit in extraction["local"]) + ".")
         else:
             rows.append("  Replace with exact new source only after dependency and build review.")
+        extraction = data.get("extracted", {}).get(path)
+        if extraction:
+            rows.append("  Extracted symbols: " + ", ".join(extraction["symbols"]) + ".")
+            rows.append("  Also compare: " + ", ".join("`" + unit + "`"
+                for unit in extraction["local"]) + ".")
     if len(rows) == 4:
         rows.append("No selected upstream paths changed.")
     return "\n".join(rows) + "\n"

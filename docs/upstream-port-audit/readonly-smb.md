@@ -1141,3 +1141,23 @@ before and after the run. Existing incremental outputs, compiler caches and
 configured four jobs were retained. No platform-specific code changed; prior
 protocol-library checks remain applicable. No full/slow gate or native OS mount
 acceptance is claimed.
+
+## Mount session notification ownership — 2026-11-05
+
+Reviewed the complete settings preparation/accept/cancel/join path, manager
+registration, session/source handoff, stopped-session removal and extraction/
+unverified-data decision dialogs. These are local Qt mount integration, with no
+original 7zFM counterpart or new external source import.
+
+Session UI bindings now belong to the existing manager presentation unit.
+Registration still appends the session, installs all bindings, publishes/selects
+its row, shows the manager and only then starts the session. Both consent events
+use one prompt-construction helper, preserving their distinct mode, decision,
+owner, delete-on-close and rejection when the session stops. Read issues remain
+scoped to the originating session and cancellation is not displayed as a read
+error. Preparation phases, cache consent, worker joining, native mounting and
+transport behavior are unchanged. Existing mount_extraction_prompt and
+mount_session suites cover the affected presentation and session lifecycle;
+no private-helper or source-structure test is added.
+Both focused suites passed on Linux. Other platforms, native OS mounting and
+new visual acceptance were not revalidated for this shared UI binding change.
