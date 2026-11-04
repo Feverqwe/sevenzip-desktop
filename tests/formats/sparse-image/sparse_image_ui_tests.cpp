@@ -11,6 +11,7 @@
 #include "sparsefixtures.h"
 #include "support/codec_runtime.h"
 #include "support/widget_dialogs.h"
+#include "ui/progress/ProgressDialog2.h"
 #include "ui/support/layout_inspection.h"
 #include <QAction>
 #include <QComboBox>
@@ -27,12 +28,30 @@
 #include <QTimer>
 #include <QToolBar>
 #include <QtTest>
+#include <functional>
+#include <utility>
 #ifndef Q_OS_WIN
 #include <sys/stat.h>
 #include <unistd.h>
 #endif
 
 namespace {
+class OnProgressShow final : public QObject {
+    const std::function<void(CProgressDialog &)> shown_;
+    bool eventFilter(QObject *object, QEvent *event) override {
+        if (event->type() == QEvent::Show)
+            if (auto *dialog = dynamic_cast<CProgressDialog *>(object))
+                shown_(*dialog);
+        return false;
+    }
+
+  public:
+    explicit OnProgressShow(std::function<void(CProgressDialog &)> shown)
+        : shown_(std::move(shown)) {
+        qApp->installEventFilter(this);
+    }
+    ~OnProgressShow() override { qApp->removeEventFilter(this); }
+};
 int Row(FileTable &table, const QString &name) {
     for (int row = 0; row < table.rowCount(); ++row)
         if (table.model()->index(row, 0).data().toString() == name)
@@ -326,6 +345,108 @@ class SparseImageUiTests final : public QObject {
         QCOMPARE(special.readAll(), QByteArray(directory.endsWith("00") ? "Nested APFS payload\n"
                                                                         : "APFS root payload\n"));
         QVERIFY(!QFileInfo::exists(output.filePath("directory-11")));
+    }
+    void calculationKeepsSourcePanel_data() {
+        QTest::addColumn<unsigned>("source");
+        QTest::addColumn<bool>("cancel");
+        for (unsigned source : {0u, 1u})
+            for (bool cancel : {false, true})
+                QTest::newRow(qPrintable(QString("%1-%2").arg(source).arg(cancel)))
+                    << source << cancel;
+    }
+    void calculationKeepsSourcePanel() {
+        QFETCH(unsigned, source);
+        QFETCH(bool, cancel);
+        QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
+        QFile compressed(QString::fromUtf8(SEVENZIP_SPARSE_FIXTURES) + "/apfs-directories.img.z");
+        QVERIFY(compressed.open(QIODevice::ReadOnly));
+        const QByteArray image = qUncompress(compressed.readAll());
+        QVERIFY(!image.isEmpty());
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        QFile input(fixture.filePath(QString::fromUtf8("каталоги 空.apfs")));
+        QVERIFY(input.open(QIODevice::WriteOnly));
+        QCOMPARE(input.write(image), qint64(image.size()));
+        input.close();
+        ArchiveBackend backend(nullptr, engine_);
+        QSignalSpy ready(&backend, &ArchiveBackend::codecCatalogReady);
+        QVERIFY(backend.discoverCodecCatalog(module_));
+        QTRY_COMPARE_WITH_TIMEOUT(ready.size(), 1, 15000);
+        QVERIFY(ready[0][0].toBool());
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        window.findChild<QAction *>("twoPanelsAction")->trigger();
+        const unsigned peer = 1 - source;
+        auto *peerPane = window.findChild<QWidget *>(QString("filePanel%1").arg(peer));
+        auto *peerView = peerPane->findChild<FileTable *>("archiveTable");
+        auto *peerAddress = peerPane->findChild<QLineEdit *>("archivePath");
+        peerAddress->setFocus();
+        QTRY_VERIFY(peerAddress->hasFocus());
+        window.openPath(fixture.path());
+        QTRY_VERIFY(Row(*peerView, QFileInfo(input).fileName()) >= 0);
+        peerView->selectRow(Row(*peerView, QFileInfo(input).fileName()));
+        const QString peerPrefix = ToQString(peerView->sourcePanel->GetCurrentFolderPrefix());
+        const QString peerDraft = QStringLiteral("peer черновик 空");
+        peerAddress->setText(peerDraft);
+        auto *pane = window.findChild<QWidget *>(QString("filePanel%1").arg(source));
+        auto *view = pane->findChild<FileTable *>("archiveTable");
+        auto *address = pane->findChild<QLineEdit *>("archivePath");
+        address->setFocus();
+        QTRY_VERIFY(address->hasFocus());
+        window.openPath(input.fileName());
+        const QString directory = QStringLiteral("directory-00");
+        QTRY_VERIFY(Row(*view, directory) >= 0);
+        const QString sourcePrefix = ToQString(view->sourcePanel->GetCurrentFolderPrefix());
+        view->selectRow(Row(*view, directory));
+        const int column = view->columnForProperty(kpidSize);
+        QVERIFY(column >= 0);
+        const auto size = [&] {
+            return view->model()->index(Row(*view, directory), column).data(Qt::UserRole + 2);
+        };
+        QVERIFY(!size().isValid());
+        const QString draft = QStringLiteral("source черновик 空");
+        address->setText(draft);
+        auto *calculate = window.findChild<QAction *>("calculateDirectorySizeAction");
+        QVERIFY(calculate && calculate->isEnabled());
+        bool observed = false, closed = false;
+        OnProgressShow observer([&](CProgressDialog &dialog) {
+            if (observed)
+                return;
+            observed = true;
+            connect(&dialog, &QDialog::finished, &window, [&] {
+                window.activateWindow();
+                peerAddress->setFocus();
+                QTRY_VERIFY(peerAddress->hasFocus());
+                closed = true;
+            });
+            if (cancel)
+                dialog.Sync.Set_Stopped(true);
+        });
+        calculate->trigger();
+        QVERIFY(observed && closed);
+        QCOMPARE(size().isValid(), !cancel);
+        QCOMPARE(ToQString(view->sourcePanel->GetCurrentFolderPrefix()), sourcePrefix);
+        QCOMPARE(address->text(), draft);
+        QVERIFY(view->selectionModel()->isRowSelected(Row(*view, directory), {}));
+        QCOMPARE(ToQString(peerView->sourcePanel->GetCurrentFolderPrefix()), peerPrefix);
+        QCOMPARE(peerAddress->text(), peerDraft);
+        QVERIFY(peerView->selectionModel()->isRowSelected(
+            Row(*peerView, QFileInfo(input).fileName()), {}));
+        address->setFocus();
+        QTRY_VERIFY(address->hasFocus());
+        QCOMPARE(calculate->isEnabled(), cancel);
+        if (cancel) {
+            calculate->trigger();
+            QVERIFY(size().isValid());
+        }
+        QVERIFY(size().toULongLong() > 0);
+        QVERIFY(!view->model()
+                     ->index(Row(*view, "directory-11"), column)
+                     .data(Qt::UserRole + 2)
+                     .isValid());
+        QVERIFY(input.open(QIODevice::ReadOnly));
+        QCOMPARE(input.readAll(), image);
     }
     void damagedWarning_data() {
         QTest::addColumn<bool>("accept");

@@ -38,6 +38,7 @@ bool QtFileManagerCommands::CanCalculateDirectorySize() const {
 }
 
 void QtFileManagerCommands::CalculateDirectorySizes() {
+    const unsigned source = window_.app_.GetFocusedPanelIndex();
     auto &panel = window_.app_.GetFocusedPanel();
     CMyComPtr<IFolderFolder> owner = panel.GetFolder();
     auto *folder = dynamic_cast<CAgentFolder *>(owner.Interface());
@@ -57,9 +58,11 @@ void QtFileManagerCommands::CalculateDirectorySizes() {
     }
     // A cancelled recursive read can still have completed individual folders.
     // Refresh the projection from the retained reader, preserving selection.
-    if (window_.renderArchiveFolder(false) == S_OK)
-        window_.restoreListSelection(selection);
-    if (result != S_OK && result != E_ABORT)
-        panel.MessageBox_Error_HRESULT(result);
-    window_.refreshActions();
+    window_.withPanelProjection(source, [&] {
+        if (window_.renderArchiveFolder(false) == S_OK)
+            window_.restoreListSelection(selection);
+        if (result != S_OK && result != E_ABORT)
+            panel.MessageBox_Error_HRESULT(result);
+        window_.refreshActions();
+    });
 }
