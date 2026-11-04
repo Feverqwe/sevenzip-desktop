@@ -1,5 +1,35 @@
 # Add metadata preparation — 2026-11-01
 
+## Accepted creation request — 2026-11-04
+
+Rechecked original CompressDialog.cpp OnOK, password/encryption, option
+collection and source ShowDialog consumers against recorded revision
+`b88c6bc09339de32f7d18bbab900686b244f42ba`. Native OnOK fills Info before
+ending the dialog. The Qt adapter instead read widgets again after exec(),
+allowing an accepted-signal observer to replace already confirmed parameters.
+A focused native PresentSource regression reproduced a returned password from
+the later draft. This is a reachable source-adapter contract gap; no existing
+production observer changing the form after acceptance was identified.
+
+The dialog now publishes one accepted request before emitting acceptance.
+It contains the existing CompressionOptions and the distinct source level:
+the native result keeps Auto for empty/single-choice controls while standalone
+options retain the effective level. Path, password, header encryption and
+both option readers use this same result. The former separate target path is
+removed. Draft queries remain live before confirmation; a new opening or
+validation attempt starts a fresh result scope. Native validation, settings
+commit order, format/method decisions and decoder/encoder operations remain
+unchanged. No external source is imported and original hashes are unchanged.
+
+Focused Linux validation passed compression, compression_preferences and
+source_compress_dialog: 60 Qt checks, no failures or skips. The regression uses
+the real source presenter and confirms that later widget changes cannot replace
+the confirmed password, header encryption or level; TAR also preserves the
+source Auto/effective-level distinction. Existing draft, cancellation and
+operation checks passed. Selected scratch was empty after validation;
+incremental builds and compiler caches were preserved. No Windows/macOS or
+new visual parity acceptance is claimed for this portable request-boundary fix.
+
 ## Complete compression resource policy owner — 2026-11-04
 
 Compared original CompressDialog.cpp dictionary/order, solid size, thread

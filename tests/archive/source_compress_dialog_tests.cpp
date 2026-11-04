@@ -149,6 +149,77 @@ class SourceCompressDialogTests final : public QObject {
         QCOMPARE(_catalog->result(), S_OK);
 #endif
     }
+    void acceptedSourceOptionsSurviveLaterWidgetChanges_data() {
+        QTest::addColumn<QString>("format");
+        QTest::addColumn<UInt32>("sourceLevel");
+        QTest::addColumn<UInt32>("effectiveLevel");
+        QTest::newRow("7z") << QString("7z") << UInt32(5) << UInt32(5);
+        QTest::newRow("tar-auto-level") << QString("tar") << UInt32(-1) << UInt32(0);
+    }
+    void acceptedSourceOptionsSurviveLaterWidgetChanges() {
+        QFETCH(QString, format);
+        QFETCH(UInt32, sourceLevel);
+        QFETCH(UInt32, effectiveLevel);
+        QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString input = fixture.filePath(QStringLiteral("данные с пробелом.txt"));
+        QFile file(input);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.close();
+        CCompressDialog source;
+        source.Info.FormatIndex = _catalog->formatIndex(format);
+        const QString target = fixture.filePath("confirmed." + format);
+        source.Info.ArcPath = target.toStdWString().c_str();
+        source.Info.Password = "confirmed password";
+        NWildcard::CCensor censor;
+        censor.AddPreItem_NoWildcard(UString(input.toStdWString().c_str()));
+        QCOMPARE(NCompressDialog::PrepareFormatSelection(source, _catalog->nativeCodecs(),
+                                                         censor.CensorPaths),
+                 S_OK);
+        bool changedAfterConfirmation = false;
+        QString publishedPassword;
+        bool publishedHeaders = false;
+        CompressionOptions publishedOptions;
+        QTimer::singleShot(0, [&] {
+            auto *dialog = qobject_cast<CreateArchiveDialog *>(QApplication::activeModalWidget());
+            QVERIFY(dialog);
+            const auto dismiss = qScopeGuard([dialog] {
+                if (dialog->isVisible())
+                    dialog->reject();
+            });
+            auto *level = dialog->findChild<QComboBox *>("compressionLevel");
+            auto *headers = dialog->findChild<QCheckBox *>("archiveEncryptHeaders");
+            auto *password = dialog->findChild<QLineEdit *>("archivePassword");
+            if (format == "7z")
+                level->setCurrentIndex(level->findData(5u));
+            headers->setChecked(true);
+            connect(dialog, &QDialog::accepted, dialog, [&, dialog, level, headers, password] {
+                changedAfterConfirmation = true;
+                password->setText("later draft");
+                headers->setChecked(false);
+                level->setCurrentIndex(level->findData(0u));
+                publishedPassword = dialog->password();
+                publishedHeaders = dialog->encryptHeaders();
+                publishedOptions = dialog->compressionOptions();
+            });
+            auto *ok = dialog->findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok);
+            QVERIFY(ok->isEnabled());
+            ok->click();
+        });
+        QCOMPARE(CreateArchiveDialog::PresentSource(source, censor.CensorPaths, _catalog, nullptr),
+                 S_OK);
+        QVERIFY(changedAfterConfirmation);
+        const QString password = format == "7z" ? QString("confirmed password") : QString();
+        QCOMPARE(source.Info.Password, password);
+        QCOMPARE(publishedPassword, password);
+        QCOMPARE(source.Info.Level, sourceLevel);
+        QCOMPARE(publishedOptions.Level, effectiveLevel);
+        QCOMPARE(source.Info.EncryptHeaders, format == "7z");
+        QCOMPARE(publishedHeaders, format == "7z");
+        QCOMPARE(QString::fromWCharArray(source.Info.ArcPath.Ptr()), target);
+    }
+
     void fixedSelectionRoundTrip_data() {
         QTest::addColumn<QString>("language");
         QTest::addColumn<QSize>("size");
