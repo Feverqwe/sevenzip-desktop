@@ -13,22 +13,19 @@
 #include "settings/SettingsPage.h"
 #include "settings/SystemPage.h"
 #include "settings/qtfmoptionsdialog.h"
+#include "settings/qtoptionspages.h"
 #include "ui/controls/qtdisclosure.h"
 #include "ui/dialogs/qtdialogunits.h"
 #include <QApplication>
-#include <QButtonGroup>
 #include <QCloseEvent>
 #include <QComboBox>
 #include <QDialogButtonBox>
 #include <QEvent>
-#include <QKeyEvent>
-#include <QLineEdit>
 #include <QListWidget>
 #include <QMessageBox>
 #include <QPlainTextEdit>
 #include <QPointer>
 #include <QPushButton>
-#include <QRadioButton>
 #include <QScopeGuard>
 #include <QScrollArea>
 #include <QShortcut>
@@ -36,75 +33,6 @@
 #include <QTabBar>
 #include <QTabWidget>
 #include <QVBoxLayout>
-
-namespace {
-// The native property sheet activates the new page's first tab stop after
-// Ctrl+Tab, rather than retaining a previous Qt child or focusing the tab bar.
-class QtOptionsPages final : public QTabWidget {
-  public:
-    explicit QtOptionsPages(QWidget *parent) : QTabWidget(parent) {
-        const Qt::KeyboardModifier controls[] = {
-            Qt::ControlModifier,
-#ifdef Q_OS_MACOS
-            Qt::MetaModifier, // Physical Control under Cocoa's default modifier mapping.
-#endif
-        };
-        for (const auto control : controls)
-            for (const bool reverse : {false, true}) {
-                const auto shift = reverse ? Qt::ShiftModifier : Qt::NoModifier;
-                auto *shortcut = new QShortcut(
-                    QKeySequence(QKeyCombination(control | shift, Qt::Key_Tab)), this);
-                connect(shortcut, &QShortcut::activated, this, [this, shift] {
-                    // Window context includes the footer. Keep Qt's own
-                    // enabled/visible-page selection and our source focus rule.
-                    QKeyEvent event(QEvent::KeyPress, Qt::Key_Tab, Qt::ControlModifier | shift);
-                    keyPressEvent(&event);
-                });
-            }
-    }
-    void focusInitialControl() {
-        QWidget *page = currentWidget();
-        if (page) {
-            for (QWidget *control = page->nextInFocusChain(); control != page;
-                 control = control->nextInFocusChain()) {
-                if (!page->isAncestorOf(control) || !control->isVisibleTo(page) ||
-                    !control->isEnabled() || !(control->focusPolicy() & Qt::TabFocus))
-                    continue;
-                if (auto *radio = qobject_cast<QRadioButton *>(control);
-                    radio && radio->group() && radio->group()->exclusive()) {
-                    if (auto *checked = radio->group()->checkedButton();
-                        checked && checked->isEnabled())
-                        control = checked;
-                }
-                QPointer<QWidget> target(control);
-                control->setFocus(Qt::OtherFocusReason);
-                if (auto *edit = qobject_cast<QLineEdit *>(target.data()))
-                    edit->selectAll();
-                return;
-            }
-        }
-        for (const char *name : {"settingsNavigation", "settingsSectionChoice"})
-            if (auto *navigation = parentWidget()->findChild<QListWidget *>(name);
-                navigation && navigation->isVisible() && navigation->isEnabled()) {
-                navigation->setFocus(Qt::TabFocusReason);
-                return;
-            }
-    }
-
-  private:
-    void keyPressEvent(QKeyEvent *event) override {
-        QPointer<QTabWidget> alive(this);
-        const int before = currentIndex();
-        const bool cycle = event->matches(QKeySequence::NextChild) ||
-                           event->matches(QKeySequence::PreviousChild) ||
-                           ((event->key() == Qt::Key_Tab || event->key() == Qt::Key_Backtab) &&
-                            (event->modifiers() & (Qt::ControlModifier | Qt::MetaModifier)));
-        QTabWidget::keyPressEvent(event); // Qt owns page selection and platform key bindings.
-        if (alive && cycle && event->isAccepted() && currentIndex() != before)
-            focusInitialControl();
-    }
-};
-} // namespace
 
 QtFmOptionsDialog::QtFmOptionsDialog(const QString &settingsPath, QWidget *parent,
                                      IFolderManager *manager,
@@ -127,12 +55,15 @@ QtFmOptionsDialog::QtFmOptionsDialog(const QString &settingsPath, QWidget *paren
         associations = CreateQtAssociationServices(CreateNativeAssociationPlatform());
     _systemPage = new CSystemPage(manager, std::move(associations), this);
     // Retain source owner IDs for help/resource provenance, not navigation.
-    const unsigned pageIDs[] = {2200, 2300, 2400, 2103, 2500, 2101};
-    QWidget *pagePointers[] = {_systemPage, _menuPage,     _foldersPage,
-                               _editPage,   _settingsPage, _langPage};
-    for (unsigned i = 0; i < 6; i++) {
-        pagePointers[i]->setProperty("sourcePageID", pageIDs[i]);
-    }
+    struct PageOwner {
+        unsigned Id;
+        QWidget *Page;
+    };
+    const PageOwner pageOwners[] = {{2200, _systemPage},   {2300, _menuPage},
+                                    {2400, _foldersPage},  {2103, _editPage},
+                                    {2500, _settingsPage}, {2101, _langPage}};
+    for (const auto &owner : pageOwners)
+        owner.Page->setProperty("sourcePageID", owner.Id);
     auto *helpButtons = new QtLangButtonBox(QDialogButtonBox::Help, this);
     helpButtons->UseCompactHelp();
     helpButtons->button(QDialogButtonBox::Help)->setObjectName("settingsHelp");

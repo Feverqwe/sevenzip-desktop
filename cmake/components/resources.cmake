@@ -168,6 +168,7 @@ add_library(sevenzip_location
     src/platform/associations/qtassociationservices.h
     src/platform/associations/qtassociationplatform.h
     src/settings/OptionsDialog.cpp
+    src/settings/qtoptionspages.cpp src/settings/qtoptionspages.h
     src/settings/qtfmoptionsdialog.h
     src/settings/qtfmoptionslayout.cpp
     src/settings/SystemPagePresentation.cpp

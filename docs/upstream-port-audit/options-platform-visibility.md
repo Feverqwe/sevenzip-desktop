@@ -2,6 +2,29 @@
 
 2026-10-17. По запросу пользователя неподдерживаемые настройки скрыты.
 
+## Options page activation owner — 2026-11-04
+
+Rechecked complete original OptionsDialog.cpp property-sheet/page ownership at
+`b88c6bc09339de32f7d18bbab900686b244f42ba`; its complete original hash matches
+the baseline. Reviewed current Qt page activation, initial focus, shortcuts,
+section presentation, help, draft/apply and close consumers. No external code or
+revision is imported; keyboard/focus handling remains the existing Qt adaptation.
+
+The existing QtOptionsPages class now has its own focused header/implementation
+beside the options dialog, in the same component. Constructor, focus traversal
+and key handling bodies are unchanged. The dialog still owns the same widget
+and initial-focus call; its apply/persistence and section-layout owners remain
+unchanged. Page resource IDs and their widget pointers are paired in one local
+record rather than parallel arrays, preserving help/provenance associations.
+
+Qt still selects pages before the existing focus rule runs. Window shortcuts
+include the footer, skip unavailable controls, choose the checked exclusive radio,
+select line-edit text and retain the existing destruction guards and Cocoa
+physical-Control mapping. Pending values, initial focus, language updates,
+Apply/Cancel/error semantics and geometry remain unchanged. Existing keyboard
+and options workflow checks provide acceptance; no private-class or page-table
+test is added.
+
 ## Pending drafts across Options pages — 2026-11-04
 
 Options now uses one query of its existing six page-modification flags for both
