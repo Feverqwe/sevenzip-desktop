@@ -71,7 +71,7 @@ void CLinkDialog::Set_LinkType_Radio(unsigned idb) {
                      k_LinkType_Buttons[Z7_ARRAY_SIZE(k_LinkType_Buttons) - 1], idb);
 }
 
-bool CLinkDialog::OnInit() {
+void CLinkDialog::OnInit() {
 #ifdef Z7_LANG
     LangSetWindowText(*this, IDD_LINK);
     LangSetDlgItems(*this, kLangIDs, Z7_ARRAY_SIZE(kLangIDs));
@@ -164,27 +164,20 @@ bool CLinkDialog::OnInit() {
     }
 
     NormalizeSize();
-    return CQtLinkWindow::OnInit();
 }
 
-bool CLinkDialog::OnSize(quintptr /* wParam */, int /*xSize*/, int /*ySize*/) {
-    // Qt layouts resize the original groups and controls.
-    return false;
-}
-
-bool CLinkDialog::OnButtonClicked(unsigned buttonID, QWidget *buttonHWND) {
+void CLinkDialog::OnButtonClicked(unsigned buttonID) {
     switch (buttonID) {
     case IDB_LINK_PATH_FROM:
         OnButton_SetPath(false);
-        return true;
+        return;
     case IDB_LINK_PATH_TO:
         OnButton_SetPath(true);
-        return true;
+        return;
     case IDB_LINK_LINK:
         OnButton_Link();
-        return true;
+        return;
     }
-    return CQtLinkWindow::OnButtonClicked(buttonID, buttonHWND);
 }
 
 void CLinkDialog::OnButton_SetPath(bool to) {

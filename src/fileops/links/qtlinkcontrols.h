@@ -31,17 +31,15 @@ class CQtLinkWindow : public QDialog {
     void AddPathRow(QVBoxLayout *layout, bool to);
 
   protected:
-    virtual bool OnInit() { return true; }
-    virtual bool OnSize(quintptr, int, int) { return false; }
-    virtual bool OnButtonClicked(unsigned, QWidget *) { return false; }
+    virtual void OnInit() = 0;
+    virtual void OnButtonClicked(unsigned id) = 0;
     QWidget *GetItem(unsigned id) const { return controls_.value(id); }
     void SetItemText(unsigned id, const UString &text);
     void CheckRadioButton(unsigned first, unsigned last, unsigned checked);
     bool IsButtonCheckedBool(unsigned id) const;
     void NormalizeSize();
     void End(int result) { done(result); }
-    qintptr Create(unsigned resource, QWidget *parent);
-    void resizeEvent(QResizeEvent *event) override;
+    qintptr Create(QWidget *parent);
 
   public:
     using QDialog::QDialog;
