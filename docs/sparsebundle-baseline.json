@@ -1,0 +1,28 @@
+{
+  "repository": "https://github.com/jief666/sparsebundlefs-lib.git",
+  "revision": "e467aadf761ca0b55ed3972a500cc612696e9e3f",
+  "files": {
+    "src/sparsebundlefs/sparsebundlefs.c": "a75fbfdc74536d89658ee7a415ebe037284e2f8026a11bece7e8efa17bd6cca2",
+    "src/sparsebundlefs/sparsebundlefs.h": "50d2c3b398f93a82e6b828fbc53904ac4beb17a27ed9c3e42add19d489842f35"
+  },
+  "owners": {
+    "src/sparsebundlefs/sparsebundlefs.c": "src/formats/sparse-image/bandmap.c",
+    "src/sparsebundlefs/sparsebundlefs.h": "src/formats/sparse-image/bandmap.h"
+  },
+  "transfers": [
+    {
+      "source": "src/sparsebundlefs/sparsebundlefs.c",
+      "local": [
+        "src/formats/sparse-image/bandmap.c"
+      ],
+      "symbols": [
+        "sparsebundle_iterate_bands"
+      ],
+      "scope": "portable C band iteration with native I/O callback; errors propagated, no POSIX/password/crypto/global state"
+    }
+  ],
+  "local_integration": [
+    "src/formats/sparse-image/sparsebundlestream.cpp",
+    "src/formats/sparse-image/sparsebundlestream.h"
+  ]
+}

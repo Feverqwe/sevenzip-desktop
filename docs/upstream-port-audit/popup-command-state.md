@@ -142,3 +142,16 @@ Linux: шесть focused suites `command_publication`, `command_policy_runtime`
 `file_menu_policy`, `verctrl`, `codec_commands_ui`, `root_command` прошли.
 Native OS branches и layout не менялись; Windows/macOS этим запуском не проверены.
 Inventory и whitespace checks прошли; compiler cache и incremental outputs сохранены.
+
+При интеграции с актуальным master изменения sparse-bundle и защищённого
+парольного контекста сохранены в новом владельце PanelArchiveOpen.cpp.
+Все шесть перенесённых методов полностью совпадают с master; вычисление
+доступности также сохраняет добавленную в master команду размера каталогов.
+
+Интеграционная Linux-проверка: `archive_password`, `archive_readonly_view`,
+`archive_item_open`, `nested_update`, `file_manager_ram`, `sparse_image_ui`,
+`command_policy_runtime`, `command_publication` — 91 PASS без skips. Первый
+запуск выявил устаревший prepared runtime; после штатного инкрементального
+обновления engine/codecs без SFX те же проверки прошли без изменения тестов.
+Первичная сборка 197,072 с; повторная 0,378 с, тесты 19,137 с. Удалены четыре
+settings fixtures; failure/result logs, incremental outputs и кэши сохранены.

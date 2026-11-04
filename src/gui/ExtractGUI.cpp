@@ -221,7 +221,7 @@ HRESULT ExtractGUI(
             options.ElimDup = dialog.ElimDup;
 
 #ifndef Z7_SFX
-            extractCallback->Password = ToUString(dialog.Password);
+            extractCallback->Password = dialog.Password;
             extractCallback->PasswordIsDefined = !dialog.Password.isEmpty();
             options.NtOptions.NtSecurity = dialog.NtSecurity;
 #endif

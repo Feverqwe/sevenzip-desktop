@@ -1,6 +1,7 @@
 #pragma once
 #include "archive/callbacks/ArchiveOpenCallback.h"
 #include "archive/callbacks/archivepasswordretry.h"
+#include "archive/password/archivepassword.h"
 #include "crypto/fscrypt/fscryptkeyrequest.h"
 #include <QString>
 
@@ -13,7 +14,7 @@ class CNativeOpenProgress final : public IOpenCallbackUI,
     IArchiveOpenCallback *_open;
 
   public:
-    QString Password;
+    ArchivePassword Password;
     CNativeOpenProgress(IProgress *progress, IOpenCallbackUI *source,
                         IArchiveOpenCallback *open = nullptr)
         : _progress(progress), _source(source), _open(open) {}

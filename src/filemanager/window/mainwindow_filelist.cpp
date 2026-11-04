@@ -1,3 +1,4 @@
+#include "archive/opening/archivecontainerpath.h"
 #include "filemanager/qtfilemanagercommands.h"
 #include "filemanager/rename/qtrenamecontroller.h"
 #include "filemanager/window/mainwindow.h"
@@ -58,9 +59,11 @@ HRESULT MainWindow::navigateTo(const QString &path, bool sourceAddress) {
             ? QDir(projectedUi().directory).filePath(path)
             : path;
     const QFileInfo info(nativeAddress);
-    if (!sourceAddress && info.isDir())
+    if (!sourceAddress && info.isDir() && !IsSparseBundleName(ToUString(nativeAddress)))
         return showDirectory(nativeAddress, true);
-    else if (!sourceAddress && info.isFile() && !info.isSymLink())
+    else if (!sourceAddress &&
+             (info.isFile() || (info.isDir() && IsSparseBundleName(ToUString(nativeAddress)))) &&
+             !info.isSymLink())
         return openArchiveAs(nativeAddress, {});
     else {
         QString nativePath = nativeAddress;

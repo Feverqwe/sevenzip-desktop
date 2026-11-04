@@ -1,5 +1,159 @@
 # Local read-only SMB: implementation and evidence
 
+## Symbolic links and copy attributes — 2026-11-04
+
+Compared the pinned libsmb2 create, directory-info, query-info, ioctl, reparse
+encoder/decoder and readlink client bodies and callers before integration.
+The view and QtRO transport now carry the native symbolic target. Relative
+targets remain bounded to the selected share; missing/unsafe link metadata is
+reported as skipped. The server advertises the reparse attribute/tag in lists
+and queries, supplies FSCTL_GET_REPARSE_POINT through the existing encoder,
+and returns the native symbolic-link CREATE error so clients can follow it.
+Client-normalized relative paths are bounded to the virtual share root.
+Opening the reparse point itself never reads the target as ordinary file data.
+Writes remain denied by the operation gates and read-only volume capabilities;
+the per-file READONLY attribute is no longer synthesized for every entry.
+
+`lib/smb2-cmd-ioctl.c` and `lib/smb2-cmd-error.c` move from unchanged packed
+dependencies to their adapted owners under `src/dependencies/smb2/`. Full original unit hashes,
+repository and revision remain in the existing libsmb2 baseline. Only the reply
+encoder's missing GET_REPARSE_POINT dispatch and error-data serialization are added, using the already pinned,
+unchanged `lib/smb2-data-reparse-point.c` encoder. No revision advances or codec
+replacement are introduced. The packed archive omits the newly owned units.
+The existing reference-verify/reference-review workflow verifies and compares
+those original units just like the other libsmb2 adaptations. The existing
+libsmb2 server owner adds a bounded CREATE error builder around that encoder,
+including the SMB 3.1.1 error context. Its typed reply extension carries the
+target and unparsed suffix through immediate and deferred CREATE completion.
+
+The native 7-Zip ArchiveExtractCallback link checks and POSIX attribute handling
+were also compared with the repository-owned original. Panel and typed directory
+copy select its existing level 9 for relative sibling links, retaining the native
+output-root/link-over-link checks and final Qt path policy. Console defaults are
+unchanged. No BSD flag restoration is added. A copied user's directory showed
+0700/immutable, but synthetic APFS copying preserves 0755/0644 and leaves
+UF_IMMUTABLE clear, including F5 copy from a nested directory. The source
+properties supplied for the reported file show 0644; the differing real-copy
+metadata remains an unresolved reproduction rather than a reader limitation.
+
+On macOS, the retained SMB view omits symbolic links containing a parent-directory
+component and reports each skipped path through existing mount diagnostics. This
+policy was explicitly selected by the user after reproducing Finder error -50;
+links are never substituted with ordinary empty files or copied target text.
+Direct application F5 extraction retains the original parent-relative links.
+The common target inspection serves both eager and lazy views. Other platforms
+retain bounded relative-link support; no native disk-image mount mode was added.
+
+The installed macOS 27.2 SMB module, version 579.40.9, calls
+`smb_symlink_target_is_unsafe` after parsing GET_REPARSE_POINT. Read-only inspection
+of that installed function confirmed rejection of parent-directory components
+regardless of containment inside the selected share. No Apple binary or source
+code is imported into the product. Existing portable reader and protocol
+implementations remain authoritative. The platform filter is local integration.
+Minshall–French and AAPL Unix-capability experiments did not permit these targets
+and were removed, with no additional dependency or capability left behind.
+The deferred compound reply path also captures reply identifiers before queuing:
+queueing can immediately send and free the PDU.
+
+Focused Linux validation passed `apfs_directory`, `sparse_image_ui`,
+`archive_readonly_view`, `smb_readonly_server`, `archive_mount_transport` and
+`source_link_extract` before the macOS-only filter. Its acceptance is checked on
+macOS with native SMB and the system recursive `copyfile` API: the unsupported
+link is absent, its path is reported, and every remaining file in the selected
+directory is copied with matching contents and without an unintended immutable
+flag. The preceding expected-failure exception was removed. Direct application
+extraction separately checks the preserved link and POSIX modes. The reported
+real-copy metadata still requires reproduction. Windows and full/slow suites
+are outside this focused change; incremental builds and compiler caches are reused.
+The macOS filter acceptance passed `sparse_image_network`, `sparse_image_ui` and
+`archive_readonly_view` (build 5.81 seconds, test execution 55.57 seconds). No
+expected failures remain in the native network scenario. This checks the system
+copy API; no Finder UI automation or appearance acceptance is claimed.
+
+Follow-up native macOS diagnosis for Finder error -50: the system `copyfile`
+API copies an ordinary synthetic SMB file successfully, but recursively copying
+a directory containing `../hello.txt` fails with EINVAL. Native readlink succeeds
+for plain targets of lengths 1–16 and `./hello.txt`; it fails for `../hello.txt`,
+`./../hello.txt` and `bin/../hello.txt`. A bounded loopback wire capture confirmed
+the relative flag and backslash-separated UTF-16 target in GET_REPARSE_POINT.
+An AAPL Unix-capability response did not change the failure and was removed.
+These pre-fix diagnostics isolate why exposing such links aborted recursive
+copies. Native API acceptance covers copying the readable directory with the
+explicitly reported omissions; it does not claim preservation of unsupported
+links through Finder. Direct extraction preserves those links.
+
+## Lazy APFS mount directories — 2026-11-04
+
+Mounting APFS now uses optional directory requests rather than a complete tree
+snapshot. The full read-only-view API retains its explicit complete-list default
+for other consumers. The selected native APFS module's existing B-tree decoders
+remain authoritative; direct child indexes and the already decoded filesystem
+input are exposed by the project directory interface. A mount creates an isolated
+APFS handler on that input. Its independent cursor retains the original reader,
+container/key state and range caches, serializing only individual transport
+reads. Background metadata growth therefore does not race with the panel's
+native metadata getters or hold its operation lock across a whole directory.
+No plaintext image copy, mount-time file decoding or repeated password setup is
+introduced. A cache quota remains available for subsequently discovered files
+that cannot provide a seekable stream.
+
+Compared the complete current native reader, retained view, QtRO actor/replica,
+SMB create/directory/query/read handlers and libsmb2 receive/correlation/reply
+units before adapting them. The original libsmb2 units remain pinned by
+[the existing baseline](../libsmb2-server-baseline.json), including
+`lib/libsmb2.c`, `lib/socket.c`, `lib/pdu.c` and
+`include/libsmb2-private.h`. No source revision or original hash advances.
+The native 7-Zip original inventory remains pinned separately; the optional
+directory contract is local integration, not an imported APFS replacement.
+
+QtRO now carries a directory result with stable entry IDs and a loaded marker.
+The view publishes a directory only after its records validate. The SMB owner
+validates dynamic names, parents, IDs, normalized path conflicts and bounds
+before inserting nodes. Failures remain errors and may be retried; they cannot
+publish an empty successful directory. Successful lists are retained and served
+in the existing bounded SMB pages. Existing signing, authorization and read-only
+gates remain active.
+
+CREATE can discover an unopened ancestor without prior QUERY_DIRECTORY calls.
+Both CREATE and QUERY_DIRECTORY use the existing deferred-reply/correlation
+model, with STATUS_PENDING and final replies queued on the server event loop.
+Related compound commands wait for their predecessor's final reply before
+resolving its FileId. The adapter retains decoded variable-buffer ownership while
+deferred and bounds retained dependencies. Replay preserves the unrelated
+receive context; pending metadata completions retain only their own result,
+counter and wakeup lifetime across disconnects. Request names are released even
+when a deferred compound is abandoned. The existing final-credit rule is reused.
+
+This is directory-level laziness, not incremental decoding within one enormous
+directory. A mount's native actor still serializes source operations, so such a
+directory can delay other reads for that mount while cached SMB metadata and
+other connections remain serviceable. Finder leaving a directory does not imply
+that it sends cancellation. Closing a handle makes its pending listing reply
+fail normally; completed metadata may remain cached. Disconnect cancels the
+mount's read requests cooperatively, after any outstanding synchronous source
+I/O returns. No per-window navigation cancellation guarantee is claimed.
+
+Focused regressions cover a delayed lazy directory, direct Unicode deep-path
+compound stat, another client's cached open/close during the delay, repeat
+listing without another provider call, duplicate completions, read failure,
+invalid dynamic names and retry. APFS view checks cover root-only preparation,
+deferred child/nested reads, immutable panel metadata, cached repeat access,
+deferred source errors/retry and cancellation.
+
+Focused Linux x86_64 acceptance passed `apfs_directory`, `archive_readonly_view`,
+`archive_mount_transport`, `smb_readonly_server`, `mount_session`,
+`mount_extraction_prompt` and `sparse_image_ui`. macOS ARM64 passed the same
+suites plus `sparse_image_network`. The latter now mounts the encrypted
+artificial APFS bundle from a real native SMB source and re-exports it through
+the lazy source/QtRO/SMB path. A direct deep Unicode file read matches its
+payload, without an extraction prompt or changes to the panel reader's
+directory metadata. The stream-only APFS regression exposed and fixed a false
+assumption that CArc always retains the filesystem input; the handler's retained
+input is now used. These checks cover artificial data, not the user's private
+Time Machine backup. No Windows or sealed/multi-volume native APFS acceptance
+is added by this change. The macOS release app/runtime/helper package also builds
+through the ordinary incremental `build-app.sh` workflow.
+
 The subsequent first-frame/preview starvation report and delayed-source A/B
 acceptance are recorded in the owning
 [encrypted DMG transport audit](dmg-encryption.md#network-transport-buffering--2026-11-03).

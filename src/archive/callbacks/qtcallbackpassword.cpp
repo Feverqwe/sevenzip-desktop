@@ -1,5 +1,6 @@
 #include "archive/callbacks/qtcallbackpassword.h"
 #include "archive/callbacks/qtcallbackdialogs.h"
+#include "archive/password/archivepassword.h"
 #include "crypto/fscrypt/fscryptkeydialog.h"
 #include "dialogs/password/PasswordDialog.h"
 #include "ui/progress/ProgressDialog2.h"
@@ -26,6 +27,7 @@ bool AskCallbackPassword(CProgressDialog &parent, UString &password, bool &showP
                dialog.OnInit();
                if (dialog.exec() != QDialog::Accepted)
                    return E_ABORT;
+               WipeNativePassword(password);
                password = dialog.Password;
                showPassword = dialog.ShowPassword;
                return S_OK;

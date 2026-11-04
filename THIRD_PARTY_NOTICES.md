@@ -54,6 +54,12 @@ licensed under GPL-2.0-or-later. The [original license](third_party/apfs-fuse/LI
 and [source audit](docs/upstream-port-audit/dmg-encryption.md) record its scope
 and reproducible source baseline. Existing 7-Zip primitives retain their notices.
 
+The sparseimage mapping also adapts apfs-fuse. Sparsebundle band iteration adapts
+C code by Tor Arne Vestbø and Jief Luce under
+[BSD-2-Clause](third_party/sparsebundlefs/LICENSE). The
+[sparse source audit](docs/upstream-port-audit/sparse-images.md) records the
+partial transfers, complete original inventory hashes and omitted dependencies.
+
 ## Tooling notice
 
 Release, packaging, Qt installation/source-fetching and Hyper-V tooling includes

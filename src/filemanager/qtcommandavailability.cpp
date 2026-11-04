@@ -124,6 +124,7 @@ QHash<unsigned, bool> QtFileManagerCommands::Availability() {
         const auto *folder = dynamic_cast<CAgentFolder *>(panel.GetFolder());
         availability[MountReadOnly] =
             folder && ArchiveUsesNativeItemIndexes(folder->GetArchiveProperties());
+        availability[CalculateDirectorySize] = CanCalculateDirectorySize();
     }
     availability[OpenDevicePicker] =
         availability[OpenArchivePicker] && safeFolderQueries && !w.projectedUi().scanningDisk &&

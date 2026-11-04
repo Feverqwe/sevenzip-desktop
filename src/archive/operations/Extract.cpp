@@ -15,6 +15,7 @@
 #include "archive/hashing/HashCalc.h"
 #include "archive/operations/ExtractingFilePath.h"
 
+#include "archive/opening/archivecontainerpath.h"
 #include "archive/operations/Extract.h"
 #include "ui/diagnostics/qtdiagnostictext.h"
 
@@ -274,7 +275,7 @@ HRESULT Extract(
                     errorCode, errorMessage);
                 return errorCode;
             }
-            if (fi.IsDir()) {
+            if (fi.IsDir() && !IsSparseBundleName(arcPaths[i])) {
                 HRESULT errorCode = E_FAIL;
                 SetErrorMessage(QT_TRANSLATE_NOOP("SevenZipDiagnostics", "The item is a directory"),
                                 arcPath, errorCode, errorMessage);
@@ -323,7 +324,8 @@ HRESULT Extract(
             if (!fi.SetAs_StdInFile())
                 return GetLastError_noZero_HRESULT();
         } else {
-            if (!fi.Find_FollowLink(us2fs(arcPath)) || fi.IsDir()) {
+            if (!fi.Find_FollowLink(us2fs(arcPath)) ||
+                (fi.IsDir() && !IsSparseBundleName(arcPath))) {
                 const HRESULT errorCode = GetLastError_noZero_HRESULT();
                 SetErrorMessage(
                     QT_TRANSLATE_NOOP("SevenZipDiagnostics", "Cannot find archive file"),

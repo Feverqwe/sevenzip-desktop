@@ -1,4 +1,5 @@
 #pragma once
+#include "archive/password/archivepassword.h"
 #include <optional>
 struct QtOperationResult;
 
@@ -337,7 +338,7 @@ class MainWindow : public QMainWindow {
         QString returnDirectory;
         QString archive;
         QString displayArchive;
-        QString archivePassword;
+        ArchivePassword archivePassword;
         QString archiveFolder;
         QStringList history;
         State state = State::Filesystem;

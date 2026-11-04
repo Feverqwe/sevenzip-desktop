@@ -7,6 +7,7 @@
 #include "Common/StringConvert.h"
 #include "archive/agent/Agent.h"
 #include "archive/codecs/archivecodeccatalog.h"
+#include "archive/password/archivepassword.h"
 #include "archive/resources/archiveinputlayer.h"
 #include "archive/resources/archivenativeopen.h"
 #include "archive/resources/qtarchivebackendrequest.h"
@@ -103,6 +104,14 @@ HRESULT QtArchiveFileResource::ReOpenArchive(const QPointer<ArchiveBackend> &bac
     COpenOptions options;
     CObjectVector<COpenType> types;
     CIntVector excluded;
+    options.PreferDirectoryRead = _nativeOpen && _nativeOpen->directoryReadRequested();
+    if (options.PreferDirectoryRead) {
+        if (!_codecs || !_codecs->parseOpenTypes(format, types))
+            return E_INVALIDARG;
+        options.props = nullptr;
+        options.types = &types;
+        options.excludedFormats = &excluded;
+    }
     CMyComPtr<IInStream> inputCursor;
     if (_streamInput) {
         if (!_codecs || !_codecs->parseOpenTypes(format, types))
@@ -114,7 +123,8 @@ HRESULT QtArchiveFileResource::ReOpenArchive(const QPointer<ArchiveBackend> &bac
         options.excludedFormats = &excluded;
     }
     RINOK(ArchiveBackend::openNativeArchive(_codecs, path, format, &nativeProgress, nativeOpen,
-                                            _streamInput ? &options : nullptr))
+                                            _streamInput || options.PreferDirectoryRead ? &options
+                                                                                        : nullptr))
     QString limitations;
     auto *ui =
         openCallback ? dynamic_cast<COpenArchiveCallback *>(openCallback->Callback) : nullptr;
@@ -138,7 +148,7 @@ HRESULT QtArchiveFileResource::ReOpenArchive(const QPointer<ArchiveBackend> &bac
     }
     if (!backend)
         return E_FAIL;
-    QString password;
+    ArchivePassword password;
     CMyComPtr<ICryptoGetTextPassword2> crypto;
     if (callback)
         callback->QueryInterface(IID_ICryptoGetTextPassword2, (void **)&crypto);
@@ -148,19 +158,19 @@ HRESULT QtArchiveFileResource::ReOpenArchive(const QPointer<ArchiveBackend> &bac
     }
     if (crypto) {
         Int32 defined = 0;
-        CMyComBSTR value;
+        CMyComBSTR_Wipe value;
         RINOK(crypto->CryptoGetTextPassword2(&defined, &value))
         if (defined)
-            password = QString::fromWCharArray(value);
+            password = ArchivePassword(value, SysStringLen(*&value));
     } else if (auto *open = dynamic_cast<COpenCallbackImp *>(callback)) {
         if (auto *ui = dynamic_cast<COpenArchiveCallback *>(open->Callback);
             ui && ui->PasswordIsDefined)
-            password = QString::fromWCharArray(ui->Password);
+            password = ArchivePassword(ui->Password);
     }
     ArchiveInfo info;
     QList<ArchiveEntry> entries;
-    RINOK(
-        ReadArchiveBackendListing(*backend, path, format, password, callback, _sync, info, entries))
+    RINOK(ReadArchiveBackendListing(*backend, path, format, password.toQString(), callback, _sync,
+                                    info, entries))
     RINOK(ConfirmLimitedArchiveRead(ui ? &ui->ProgressDialog : nullptr, ui,
                                     FilesystemReadLimitations(), info.readLimitations))
     RINOK(CreateArchiveMetadata(entries, metadata))

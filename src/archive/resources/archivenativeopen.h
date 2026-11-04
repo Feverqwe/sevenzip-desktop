@@ -22,6 +22,7 @@ class ArchiveNativeOpen final : public IOpenCallbackUI, public IFscryptKeyUI {
     QString sourcePath_, sourceIdentity_;
     NWindows::NFile::NFind::CFileInfo sourceInfo_;
     bool sourceStable_ = false;
+    bool directoryReadRequested_ = false;
     std::mutex itemStreamMutex_;
     HRESULT Open_CheckBreak() override;
     HRESULT Open_SetTotal(const UInt64 *files, const UInt64 *bytes) override;
@@ -45,8 +46,10 @@ class ArchiveNativeOpen final : public IOpenCallbackUI, public IFscryptKeyUI {
     const CArchiveLink &archiveLink() const { return link_; }
     IInStream *inputStream() const { return input_; }
     const CCodecs &nativeCodecs() const;
+    std::shared_ptr<const ArchiveCodecCatalog> codecCatalog() const { return catalog_; }
     std::mutex &itemStreamMutex() { return itemStreamMutex_; }
     bool hasNestedStream() const { return link_.Arcs.Size() > 1; }
+    bool directoryReadRequested() const { return directoryReadRequested_; }
     bool hasVolumes() const { return !link_.VolumePaths.IsEmpty(); }
     bool hasCommentWriter() const;
     const CArcInfoEx *formatInfo() const;

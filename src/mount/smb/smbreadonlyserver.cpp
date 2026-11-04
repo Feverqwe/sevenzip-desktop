@@ -1,5 +1,6 @@
 #include "mount/smb/smbmountconstants.h"
 #include "mount/smb/smbreadonlyserver_p.h"
+#include <QDir>
 #include <QScopeGuard>
 #include <QUuid>
 #include <algorithm>
@@ -125,8 +126,10 @@ SmbReadOnlyServer::State::State(QList<SmbTreeEntry> entries, QString user, QStri
     Handlers.set_info_cmd = [](smb2_server *, smb2_context *, smb2_set_info_request *) {
         return status(SMB2_STATUS_MEDIA_WRITE_PROTECTED);
     };
-    Handlers.ioctl_cmd = [](smb2_server *, smb2_context *, smb2_ioctl_request *,
-                            smb2_ioctl_reply *) { return status(SMB2_STATUS_NOT_SUPPORTED); };
+    Handlers.ioctl_cmd = [](smb2_server *server, smb2_context *context, smb2_ioctl_request *request,
+                            smb2_ioctl_reply *reply) {
+        return Guard([&] { return static_cast<State *>(server)->ioctl(context, request, reply); });
+    };
     Handlers.echo_cmd = [](smb2_server *, smb2_context *) { return 0; };
     extra_fdset = [](smb2_server *server, fd_set *read, fd_set *, int *maximum) {
         static_cast<State *>(server)->Wakeup->addTo(*read, *maximum);
@@ -136,6 +139,7 @@ SmbReadOnlyServer::State::State(QList<SmbTreeEntry> entries, QString user, QStri
         const int result = Guard([&] {
             state.Wakeup->drain();
             state.completeReads();
+            state.completeMetadata();
             if (state.Stop)
                 state.stop_requested = 1;
             if (state.Reported)
@@ -175,7 +179,21 @@ SmbReadOnlyServer::State::Handle *SmbReadOnlyServer::State::find(smb2_context *c
     return found == handles.end() ? nullptr : &found->second;
 }
 quint32 SmbReadOnlyServer::State::attributes(const SmbTreeEntry &entry) {
-    return SMB2_FILE_ATTRIBUTE_READONLY | (entry.Directory ? SMB2_FILE_ATTRIBUTE_DIRECTORY : 0);
+    return entry.Directory                 ? SMB2_FILE_ATTRIBUTE_DIRECTORY
+           : entry.SymlinkTarget.isEmpty() ? SMB2_FILE_ATTRIBUTE_NORMAL
+                                           : SMB2_FILE_ATTRIBUTE_REPARSE_POINT;
+}
+
+bool SmbReadOnlyServer::State::validLink(const SmbTreeEntry &entry, const QString &path) {
+    const auto &target = entry.SymlinkTarget;
+    if (target.isEmpty())
+        return true;
+    const auto slash = path.lastIndexOf(u'/');
+    const auto resolved = QDir::cleanPath((slash < 0 ? QString() : path.left(slash + 1)) + target);
+    return !entry.Directory && target.size() <= 4096 && !target.contains(QChar::Null) &&
+           !target.startsWith(u'/') && !target.contains(u'\\') && !target.contains(u':') &&
+           resolved != ".." && !resolved.startsWith("../") &&
+           QString::fromUtf8(target.toUtf8()) == target;
 }
 
 SmbReadOnlyServer::SmbReadOnlyServer(QList<SmbTreeEntry> entries, QString user, QString password,
@@ -228,6 +246,10 @@ bool SmbReadOnlyServer::validate(QString &error) {
         if (!node.Path.isEmpty())
             node.Path += u'/';
         node.Path += entry.Name;
+        if (!State::validLink(entry, node.Path)) {
+            error = QStringLiteral("Invalid symbolic link target.");
+            return false;
+        }
         node.EncodedName = entry.Name.toUtf8();
         QString windowsPath = u'\\' + node.Path;
         windowsPath.replace(u'/', u'\\');
@@ -313,9 +335,12 @@ void SmbReadOnlyServer::setDiagnosticHandler(std::function<void(QString)> handle
 void SmbReadOnlyServer::setAsyncReader(AsyncReader reader) {
     state_->ReadAsync = std::move(reader);
 }
+void SmbReadOnlyServer::setAsyncDirectoryReader(AsyncDirectoryReader reader) {
+    state_->DirectoryAsync = std::move(reader);
+}
 
 int SmbReadOnlyServer::State::create(smb2_context *context, smb2_create_request *request,
-                                     smb2_create_reply *reply) {
+                                     smb2_create_reply *reply, std::optional<quint64> message) {
     trace(QStringLiteral("CREATE access=%1 options=%2 disposition=%3")
               .arg(request->desired_access, 0, 16)
               .arg(request->create_options, 0, 16)
@@ -333,6 +358,53 @@ int SmbReadOnlyServer::State::create(smb2_context *context, smb2_create_request 
     path.replace(u'\\', u'/');
     if (path == "/")
         path.clear();
+    if (path.size() > 32767 || path.contains(QChar::Null) || path.contains(u':'))
+        return status(SMB2_STATUS_OBJECT_NAME_NOT_FOUND);
+    // Clients following a relative link can send bin/../target. Resolve only
+    // inside the virtual namespace; no host path is opened by this operation.
+    path = QDir::cleanPath(path);
+    if (path == ".." || path.startsWith("../"))
+        return status(SMB2_STATUS_ACCESS_DENIED);
+    if (path == ".")
+        path.clear();
+    QString prefix;
+    const auto components = path.split(u'/', Qt::SkipEmptyParts);
+    for (qsizetype i = 0; i < components.size(); ++i) {
+        if (!prefix.isEmpty())
+            prefix += u'/';
+        prefix += components[i];
+        const auto node = Paths.constFind(Key(prefix));
+        if (node == Paths.cend())
+            break;
+        const auto &target = Nodes[*node].Entry.SymlinkTarget;
+        if (target.isEmpty() || (i + 1 == components.size() &&
+                                 (request->create_options & SMB2_FILE_OPEN_REPARSE_POINT)))
+            continue;
+        QString windowsTarget = target;
+        windowsTarget.replace(u'/', u'\\');
+        auto &session = client(context);
+        session.LinkName = windowsTarget.toUtf8();
+        reply->symlink_target = session.LinkName.constData();
+        reply->symlink_unparsed = quint16(path.mid(prefix.size()).size() * 2);
+        return status(SMB2_STATUS_STOPPED_ON_SYMLINK);
+    }
+    if (DirectoryAsync && !Paths.contains(Key(path))) {
+        quint64 parent = 1;
+        QString prefix;
+        for (const auto &part : path.split(u'/', Qt::SkipEmptyParts)) {
+            if (!Nodes[parent].Entry.Directory)
+                break;
+            if (!Nodes[parent].Entry.ChildrenLoaded)
+                return deferDirectory(context, parent, request, nullptr, message);
+            if (!prefix.isEmpty())
+                prefix += u'/';
+            prefix += part;
+            const auto next = Paths.constFind(Key(prefix));
+            if (next == Paths.cend())
+                break;
+            parent = *next;
+        }
+    }
     const auto found = Paths.constFind(Key(path));
     if (found == Paths.cend())
         return status(SMB2_STATUS_OBJECT_NAME_NOT_FOUND);
@@ -378,12 +450,14 @@ int SmbReadOnlyServer::State::read(smb2_context *context, smb2_read_request *req
     if (!opened)
         return status(SMB2_STATUS_FILE_CLOSED);
     const auto &entry = Nodes[opened->Item].Entry;
-    if (entry.Directory)
-        return status(SMB2_STATUS_FILE_IS_A_DIRECTORY);
     if (request->length > 1024 * 1024)
         return status(SMB2_STATUS_INVALID_PARAMETER);
     if (!request->length)
         return 0;
+    if (!entry.SymlinkTarget.isEmpty())
+        return status(SMB2_STATUS_INVALID_PARAMETER);
+    if (entry.Directory)
+        return status(SMB2_STATUS_FILE_IS_A_DIRECTORY);
     if (request->offset >= entry.Size)
         return status(SMB2_STATUS_END_OF_FILE);
     const auto length = quint32(std::min<quint64>(request->length, entry.Size - request->offset));

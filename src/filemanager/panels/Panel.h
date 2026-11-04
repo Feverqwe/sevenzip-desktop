@@ -15,6 +15,7 @@
 #include "Windows/FileFind.h"
 #include "Windows/PropVariantConv.h"
 #include "Windows/TimeUtils.h"
+#include "archive/password/archivepassword.h"
 #include "archive/resources/qtarchiveextractstatus.h"
 #include "archive/resources/qtarchiveupdatepublication.h"
 #include "common/collections/MyVector.h"
@@ -193,7 +194,7 @@ struct CFolderLink : public CTempFileInfo {
         ParentFolder;         // can be NULL, if parent is FS folder (in _parentFolders[0])
     UString ParentFolderPath; // including tail slash (doesn't include paths parts of parent in next
                               // level)
-    UString Password;
+    ArchivePassword Password;
     UString VirtualPath; // without tail slash
     CByteBuffer ZoneBuf; // ZoneBuf for virtaul stream (IsVirtual)
 
@@ -418,7 +419,7 @@ class CPanel : public QObject {
     HRESULT CopyFsItems(CCopyToOptions &options, const UStringVector &filePaths,
                         UStringVector *messages) {
         bool usePassword = false;
-        UString password;
+        NativePassword password;
         CRecordVector<UInt32> indices;
         return CopyTo(options, indices, messages, usePassword, password, &filePaths);
     }
@@ -435,11 +436,11 @@ class CPanel : public QObject {
     HRESULT CopyTo(CCopyToOptions &options, const CRecordVector<UInt32> &indices,
                    UStringVector *messages, QtArchiveExtractReport *report = nullptr) {
         bool usePassword = false;
-        UString password;
+        NativePassword password;
         if (!_parentFolders.IsEmpty()) {
             const CFolderLink &fl = _parentFolders.Back();
             usePassword = fl.UsePassword;
-            password = fl.Password;
+            password = fl.Password.native();
         }
         return CopyTo(options, indices, messages, usePassword, password, nullptr, report);
     }

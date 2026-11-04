@@ -1,0 +1,18 @@
+{
+  "creator": "ProductName:\t\tmacOS\nProductVersion:\t\t27.2\nBuildVersion:\t\t26B123\n",
+  "generator": "hdiutil create -srcfolder artificial files -fs Case-sensitive APFS -size 64m -format UDSB; readonly attached whole disk; GPT APFS extent retained",
+  "root_directories": 12,
+  "files_per_directory": 128,
+  "root_file": {
+    "root.txt": "APFS root payload\n"
+  },
+  "nested_file": {
+    "directory-00/nested/\u0434\u0430\u043d\u043d\u044b\u0435 \u7a7a.txt": "Nested APFS payload\n"
+  },
+  "size": 67067904,
+  "sha256": "b100d9d4fc14255f7010aaaa9ac23df225dd399ddb155f365dd4c133e7d552e4",
+  "root_resource_fork": "Root resource fork\n",
+  "hardlink": "directory-01/linked-root.txt -> root.txt",
+  "symlink": "directory-02/root-link -> ../root.txt",
+  "empty_directory": "directory-03/empty"
+}

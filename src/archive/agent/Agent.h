@@ -127,6 +127,10 @@ class CAgentFolder final : public IFolderFolder,
     HRESULT GetArchiveItemPath(UInt32 index, UString &path) const;
     // Borrowed engine service for Qt presentation; the source agent retains it.
     IUnknown *GetEngineResource() const;
+    bool DirectoryItemsNeedLoad(bool recursive) const;
+    HRESULT LoadDirectoryItems(bool recursive, IProgress *progress = nullptr);
+    HRESULT LoadDirectorySelection(const UInt32 *indices, UInt32 count, IProgress *progress);
+    bool DirectoryItemSubtreeComplete(UInt32 nativeIndex) const;
     // File-only refresh bridge; native ReOpen and folder binding retain ownership.
     HRESULT ReOpen(IArchiveOpenCallback *callback, IFolderFolder **folder);
     HRESULT CloseArchive();
@@ -251,6 +255,7 @@ class CAgent final : public IInFolderArchive,
     friend class CAgentFolder;
     std::atomic<UInt64> _proxyGeneration{0};
     HRESULT ReadItems();
+    HRESULT RefreshDirectoryProxy(IProgress *progress);
     CMyComPtr<IUnknown> _engineResource;
     IQtAgentOpenServices *_openServices;
     const CCodecs *_openCodecs = nullptr;

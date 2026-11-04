@@ -60,6 +60,14 @@ UString QtArchiveDiagnosticText(const UString &source) {
         QT_TRANSLATE_NOOP("SevenZipDiagnostics", "32-bit overflow in headers"),
         QT_TRANSLATE_NOOP("SevenZipDiagnostics", "16-bit overflow for number of files in headers")};
     const char *const warnings[] = {
+        QT_TRANSLATE_NOOP(
+            "SevenZipDiagnostics",
+            "Some parts of the sparsebundle are damaged or unreadable. Readable "
+            "files can still be copied; files using damaged ranges may be incomplete."),
+        QT_TRANSLATE_NOOP("SevenZipDiagnostics",
+                          "Missing bands are treated as sparse holes. Deleted bands cannot be "
+                          "distinguished from unused space."),
+        QT_TRANSLATE_NOOP("SevenZipDiagnostics", "Decryption does not verify data integrity."),
         QT_TRANSLATE_NOOP("SevenZipDiagnostics",
                           "Some FAT files share clusters with directories. File contents may "
                           "include directory entries or unrelated data. Copying remains available "

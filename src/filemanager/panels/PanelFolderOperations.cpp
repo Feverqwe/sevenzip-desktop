@@ -42,7 +42,7 @@ HRESULT CThreadFolderOperations::DoOperation(CPanel &panel, const UString &progr
     if (!panel.GetParentFolders().IsEmpty()) {
         const CFolderLink &folderLink = panel.GetParentFolders().Back();
         UpdateCallback->PasswordIsDefined = folderLink.UsePassword;
-        UpdateCallback->Password = folderLink.Password;
+        UpdateCallback->Password = folderLink.Password.native();
     }
 
     MainWindow = panel.GetParent();

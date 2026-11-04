@@ -249,7 +249,7 @@ HRESULT QtArchiveFolderManager::COpenServices::Open(CArchiveLink &link,
         resource->RequiresOuterOpen() ? resource->TransportFormat() : format;
     const QString password = ui && ui->PasswordIsDefined
                                  ? QString::fromWCharArray(ui->Password.Ptr())
-                                 : nativeProgress.Password;
+                                 : nativeProgress.Password.toQString();
     ArchiveInfo info;
     QList<ArchiveEntry> entries;
     RINOK(ReadArchiveBackendListing(Manager._backend, path, listingFormat, password, progress,

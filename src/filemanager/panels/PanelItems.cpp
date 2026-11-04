@@ -8,6 +8,7 @@
 #include "Windows/PropVariant.h"
 #include "Windows/PropVariantConv.h"
 #include "Windows/WinDefs.h"
+#include "archive/opening/archivecontainerpath.h"
 #include "archive/operations/ExtractingFilePath.h"
 #include "filemanager/panels/Panel.h"
 
@@ -200,7 +201,7 @@ void CPanel::OpenFocusedItemAsInternal(const wchar_t *type) {
     if (focusedItem < 0)
         return;
     const unsigned realIndex = GetRealItemIndex(focusedItem);
-    if (IsItem_Folder(realIndex))
+    if (IsItem_Folder(realIndex) && !(IsFSFolder() && IsSparseBundleName(GetItemName(realIndex))))
         OpenFolder(realIndex);
     else
         OpenItem(realIndex, true, false, type);
@@ -222,7 +223,8 @@ void CPanel::OpenSelectedItems(bool tryInternal) {
     }
     FOR_VECTOR(i, indices) {
         UInt32 index = indices[i];
-        if (IsItem_Folder(index)) {
+        if (IsItem_Folder(index) &&
+            !(tryInternal && IsFSFolder() && IsSparseBundleName(GetItemName(index)))) {
             if (tryInternal) {
                 OpenFolder(index);
                 break;

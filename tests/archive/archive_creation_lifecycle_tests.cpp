@@ -19,18 +19,27 @@ QByteArray readFile(const QString &path) {
     QFile file(path);
     return file.open(QIODevice::ReadOnly) ? file.readAll() : QByteArray();
 }
-HRESULT snapshot(QtArchiveDeleteInputs &inputs, const QStringList &paths) {
-    if (inputs.DirItems.SymLinks) {
+HRESULT snapshot(CDirItems &items, const QStringList &paths) {
+    if (items.SymLinks) {
         NWildcard::CCensor censor;
         for (const QString &path : paths)
             censor.AddPreItem_NoWildcard(path.toStdWString().c_str());
         censor.AddPathsToCensor(NWildcard::k_RelatPath);
-        return EnumerateItems(censor, NWildcard::k_RelatPath, UString(), inputs.DirItems);
+        return EnumerateItems(censor, NWildcard::k_RelatPath, UString(), items);
     }
     FStringVector names;
     for (const QString &path : paths)
         names.Add(us2fs(path.toStdWString().c_str()));
-    return inputs.DirItems.EnumerateItems2(FString(), UString(), names, nullptr);
+    return items.EnumerateItems2(FString(), UString(), names, nullptr);
+}
+CByteBuffer processedItems(const CDirItems &items, const QStringList &skipped = {}) {
+    CByteBuffer processed(items.Items.Size());
+    for (unsigned i = 0; i < items.Items.Size(); ++i) {
+        const QString path =
+            QDir::fromNativeSeparators(QString::fromWCharArray(fs2us(items.GetPhyPath(i)).Ptr()));
+        processed[i] = skipped.contains(path) ? 0 : 1;
+    }
+    return processed;
 }
 } // namespace
 
@@ -48,19 +57,12 @@ class ArchiveCreationLifecycleTests final : public QObject {
         const QString changed = fixture.filePath("changed link");
         for (const QString &path : {processed, skipped, changed})
             QVERIFY(CreateNativeSymbolicLink(path, target));
-        QtArchiveDeleteInputs inputs;
-        inputs.SymLinks.SetTrueTrue();
-        inputs.DirItems.SymLinks = true;
-        QCOMPARE(snapshot(inputs, {processed, skipped, changed}), S_OK);
-        inputs.MarkCreatedInputsProcessed();
-        QCOMPARE(inputs.DirItems.Items.Size(), 3U);
-        for (unsigned i = 0; i < inputs.DirItems.Items.Size(); ++i) {
-            QVERIFY(inputs.DirItems.Items[i].AreReparseData());
-            const QString path = QDir::fromNativeSeparators(
-                QString::fromWCharArray(fs2us(inputs.DirItems.GetPhyPath(i)).Ptr()));
-            if (path == skipped)
-                inputs.ProcessedItems[i] = 0;
-        }
+        CDirItems items;
+        items.SymLinks = true;
+        CBoolPair symLinks;
+        symLinks.SetTrueTrue();
+        QCOMPARE(snapshot(items, {processed, skipped, changed}), S_OK);
+        QtArchiveDeleteInputs inputs(items, processedItems(items, {skipped}), symLinks);
         QVERIFY(QFile::remove(changed));
         QVERIFY(writeFile(changed, "replacement file"));
         QtUpdateDeletionCallback callback;
@@ -78,13 +80,9 @@ class ArchiveCreationLifecycleTests final : public QObject {
         const QString changed = fixture.filePath("changed.txt");
         for (const QString &path : {processed, skipped, changed})
             QVERIFY(writeFile(path, "original"));
-        QtArchiveDeleteInputs inputs;
-        QCOMPARE(snapshot(inputs, {processed, skipped, changed}), S_OK);
-        inputs.MarkCreatedInputsProcessed();
-        for (unsigned i = 0; i < inputs.DirItems.Items.Size(); ++i)
-            if (QDir::fromNativeSeparators(
-                    QString::fromWCharArray(fs2us(inputs.DirItems.GetPhyPath(i)).Ptr())) == skipped)
-                inputs.ProcessedItems[i] = 0;
+        CDirItems items;
+        QCOMPARE(snapshot(items, {processed, skipped, changed}), S_OK);
+        QtArchiveDeleteInputs inputs(items, processedItems(items, {skipped}), CBoolPair());
         QVERIFY(writeFile(changed, "changed longer bytes"));
         QtUpdateDeletionCallback callback;
         QCOMPARE(inputs.Delete(callback), S_OK);
@@ -97,9 +95,9 @@ class ArchiveCreationLifecycleTests final : public QObject {
         QVERIFY(fixture.isValid());
         const QString source = fixture.filePath("source.txt");
         QVERIFY(writeFile(source, "original"));
-        QtArchiveDeleteInputs inputs;
-        QCOMPARE(snapshot(inputs, {source}), S_OK);
-        inputs.MarkCreatedInputsProcessed();
+        CDirItems items;
+        QCOMPARE(snapshot(items, {source}), S_OK);
+        QtArchiveDeleteInputs inputs(items, processedItems(items), CBoolPair());
         QFile file(source);
         QVERIFY(file.open(QIODevice::ReadWrite));
         QVERIFY(file.setFileTime(QFileInfo(source).lastModified().addDays(-1),
@@ -109,18 +107,18 @@ class ArchiveCreationLifecycleTests final : public QObject {
         QCOMPARE(inputs.Delete(callback), S_OK);
         QCOMPARE(readFile(source), QByteArray("original"));
 #ifndef Q_OS_WIN
-        QtArchiveDeleteInputs metadata;
-        QCOMPARE(snapshot(metadata, {source}), S_OK);
-        metadata.MarkCreatedInputsProcessed();
+        CDirItems metadataItems;
+        QCOMPARE(snapshot(metadataItems, {source}), S_OK);
+        QtArchiveDeleteInputs metadata(metadataItems, processedItems(metadataItems), CBoolPair());
         // On POSIX the source CTime is inode metadata time. Changing permission
         // preserves size/mtime, and must prevent deletion of that changed input.
         NWindows::NFile::NFind::CFileInfo changedInfo;
         const auto metadataChanged = [&] {
             if (!QFile::setPermissions(source,
                                        QFile::ReadOwner | QFile::WriteOwner | QFile::ReadGroup) ||
-                !changedInfo.Find(inputs.DirItems.GetPhyPath(0)))
+                !changedInfo.Find(metadataItems.GetPhyPath(0)))
                 return false;
-            return Compare_FiTime(&changedInfo.CTime, &metadata.DirItems.Items[0].CTime) != 0;
+            return Compare_FiTime(&changedInfo.CTime, &metadataItems.Items[0].CTime) != 0;
         };
         // Some filesystems coalesce consecutive metadata changes in one tick.
         // Establish a real source CTime change before testing its deletion guard.
@@ -136,18 +134,20 @@ class ArchiveCreationLifecycleTests final : public QObject {
         QVERIFY(QDir().mkpath(root + "/nested/empty"));
         const QString a = root + "/первый.txt", b = root + "/второй.txt";
         QVERIFY(writeFile(a, "a") && writeFile(b, "b"));
-        QtArchiveDeleteInputs cancelled;
-        QCOMPARE(snapshot(cancelled, {a, b}), S_OK);
-        cancelled.MarkCreatedInputsProcessed();
+        CDirItems cancelledItems;
+        QCOMPARE(snapshot(cancelledItems, {a, b}), S_OK);
+        QtArchiveDeleteInputs cancelled(cancelledItems, processedItems(cancelledItems),
+                                        CBoolPair());
         QtUpdateDeletionCallback stop;
         int calls = 0;
         stop.Progress = [&calls](const FString &, bool) { return ++calls == 2 ? E_ABORT : S_OK; };
         QCOMPARE(cancelled.Delete(stop), E_ABORT);
         QVERIFY(!QFileInfo::exists(a));
         QCOMPARE(readFile(b), QByteArray("b"));
-        QtArchiveDeleteInputs remaining;
-        QCOMPARE(snapshot(remaining, {root}), S_OK);
-        remaining.MarkCreatedInputsProcessed();
+        CDirItems remainingItems;
+        QCOMPARE(snapshot(remainingItems, {root}), S_OK);
+        QtArchiveDeleteInputs remaining(remainingItems, processedItems(remainingItems),
+                                        CBoolPair());
         QtUpdateDeletionCallback callback;
         QStringList deletedDirectories;
         callback.Progress = [&](const FString &path, bool directory) {

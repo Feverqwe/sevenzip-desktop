@@ -7,6 +7,7 @@
 #include "Common/AutoPtr.h"
 #include "Common/StringConvert.h"
 #include "Windows/FileFind.h"
+#include "archive/password/archivepassword.h"
 #include "filemanager/FormatUtils.h"
 #include "filemanager/external/qtexternalapplications.h"
 #include "filemanager/panels/Panel.h"
@@ -155,7 +156,7 @@ struct CTmpProcessInfo : public CTempFileInfo {
     IQtExternalFileServices *ExternalServices;
     UString FullPathFolderPrefix;
     bool UsePassword;
-    UString Password;
+    ArchivePassword Password;
     bool ReadOnly;
     CTmpProcessInfo() : UsePassword(false), ReadOnly(false) {}
 };
@@ -201,7 +202,7 @@ static bool UpdateChangedExternalFile(CTmpProcessInfo &tpi) {
                    *tpi.Window,
                    [&](std::optional<CSelectedState> &selection) {
                        return tpi.Window->OnOpenItemChanged(tpi, tpi.FullPathFolderPrefix,
-                                                            tpi.UsePassword, tpi.Password,
+                                                            tpi.UsePassword, tpi.Password.native(),
                                                             &selection);
                    })
                    ? 1
@@ -347,7 +348,7 @@ void CPanel::StartExternalFileSession(CTempDir &tempDirectory, const CTempFileIn
     CMyUniquePtr<CTmpProcessInfo> tpi(new CTmpProcessInfo());
     static_cast<CTempFileInfo &>(*tpi) = tempFileInfo;
     tpi->UsePassword = usePassword;
-    tpi->Password = password;
+    tpi->Password = ArchivePassword(password);
     tpi->ReadOnly = IsThereReadOnlyFolder();
     if (IsHashFolder())
         tpi->ReadOnly = true;

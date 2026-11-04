@@ -171,6 +171,63 @@ class SmbReadOnlyServerTests final : public QObject {
         QTcpServer replacement;
         QVERIFY(replacement.listen(QHostAddress::LocalHost, port));
     }
+    void symbolicLinksCannotEscapeShare() {
+        for (const QString &target :
+             {QString("../outside"), QString("/outside"), QString("C:\\outside"),
+              QString("a\\..\\outside"), QString(QChar::Null)}) {
+            SmbReadOnlyServer server(
+                {{1, 0, 0, 0, {}, true}, {2, 1, 0, 0, "link", false, true, target}}, "probe",
+                "password", [](quint64, quint64, quint32) { return SmbTreeRead{}; });
+            QString error;
+            QVERIFY(!server.validate(error));
+            QVERIFY(!error.isEmpty());
+        }
+    }
+    void symbolicLinksKeepTheirTargets() {
+        QProcess server;
+        server.start(QStringLiteral(SEVENZIP_SMB_PROBE), {"0", "--links"});
+        QVERIFY(server.waitForStarted(10000));
+        const auto cleanup = qScopeGuard([&] {
+            server.terminate();
+            if (!server.waitForFinished(5000)) {
+                server.kill();
+                server.waitForFinished(5000);
+            }
+        });
+        QByteArray diagnostics;
+        const QRegularExpression ready("loopback SMB fixture ready on port ([0-9]+)");
+        QRegularExpressionMatch match;
+        QTRY_VERIFY_WITH_TIMEOUT((diagnostics += server.readAllStandardError(),
+                                  match = ready.match(QString::fromUtf8(diagnostics)),
+                                  match.hasMatch()),
+                                 10000);
+        Client client;
+        QCOMPARE(client.connect(match.captured(1).toUShort()), 0);
+        char target[512]{};
+        QCOMPARE(ClientWork([&] {
+                     return smb2_readlink(client.Context, "bin/relative", target, sizeof(target));
+                 }),
+                 0);
+        QCOMPARE(QByteArray(target), QByteArray("..\\hello.txt"));
+        memset(target, 0, sizeof(target));
+        QCOMPARE(ClientWork([&] {
+                     return smb2_readlink(client.Context, "unicode", target, sizeof(target));
+                 }),
+                 0);
+        QCOMPARE(QByteArray(target), QString::fromUtf8("Файл с пробелом.bin").toUtf8());
+        auto *file =
+            ClientWork([&] { return smb2_open(client.Context, "bin/relative", O_RDONLY); });
+        QVERIFY2(file, smb2_get_error(client.Context));
+        unsigned char bytes[16]{};
+        QCOMPARE(
+            ClientWork([&] { return smb2_pread(client.Context, file, bytes, sizeof(bytes), 0); }),
+            int(sizeof(bytes)));
+        for (unsigned i = 0; i < sizeof(bytes); ++i)
+            QCOMPARE(bytes[i], i);
+        QCOMPARE(ClientWork([&] { return smb2_close(client.Context, file); }), 0);
+        QVERIFY(!ClientWork([&] { return smb2_open(client.Context, "dangling", O_RDONLY); }));
+        QVERIFY(!ClientWork([&] { return smb2_open(client.Context, "cycle", O_RDONLY); }));
+    }
     void callbackFailureRejectsOnlyCurrentConnection_data() {
         QTest::addColumn<QString>("failure");
         QTest::newRow("authorize") << QStringLiteral("--throw-authorize");
@@ -206,6 +263,62 @@ class SmbReadOnlyServerTests final : public QObject {
         auto *file = ClientWork([&] { return smb2_open(accepted.Context, "hello.txt", O_RDONLY); });
         QVERIFY(file);
         QCOMPARE(ClientWork([&] { return smb2_close(accepted.Context, file); }), 0);
+    }
+    void lazyDirectoriesResolveCompoundPathsAndRetry() {
+        QProcess server;
+        server.start(QStringLiteral(SEVENZIP_SMB_PROBE), {"0", "--lazy"});
+        QVERIFY(server.waitForStarted(10000));
+        const auto cleanup = qScopeGuard([&] {
+            server.terminate();
+            if (!server.waitForFinished(5000)) {
+                server.kill();
+                server.waitForFinished(5000);
+            }
+        });
+        QByteArray diagnostics;
+        const QRegularExpression ready("loopback SMB fixture ready on port ([0-9]+)");
+        QRegularExpressionMatch match;
+        QTRY_VERIFY_WITH_TIMEOUT((diagnostics += server.readAllStandardError(),
+                                  match = ready.match(QString::fromUtf8(diagnostics)),
+                                  match.hasMatch()),
+                                 10000);
+        Client first, other;
+        QCOMPARE(first.connect(match.captured(1).toUShort()), 0);
+        QCOMPARE(other.connect(match.captured(1).toUShort()), 0);
+        smb2_stat_64 info{};
+        auto stat = std::async(std::launch::async, [&] {
+            return smb2_stat(first.Context, "lazy/nested/данные 空.bin", &info);
+        });
+        QTRY_VERIFY((diagnostics += server.readAllStandardError()).contains("lazy directory 5"));
+        auto *known = ClientWork([&] { return smb2_open(other.Context, "hello.txt", O_RDONLY); });
+        QVERIFY(known);
+        QCOMPARE(ClientWork([&] { return smb2_close(other.Context, known); }), 0);
+        QVERIFY(stat.wait_for(std::chrono::milliseconds(0)) != std::future_status::ready);
+        QTRY_VERIFY(stat.wait_for(std::chrono::milliseconds(0)) == std::future_status::ready);
+        QCOMPARE(stat.get(), 0);
+        QCOMPARE(info.smb2_size, quint64(128));
+        for (int round = 0; round < 2; ++round) {
+            auto *directory = ClientWork([&] { return smb2_opendir(first.Context, "lazy"); });
+            QVERIFY2(directory, smb2_get_error(first.Context));
+            QSet<QString> names;
+            while (auto *entry = smb2_readdir(first.Context, directory))
+                names.insert(QString::fromUtf8(entry->name));
+            QCOMPARE(names, QSet<QString>({"nested", "direct.bin"}));
+            smb2_closedir(first.Context, directory);
+        }
+        diagnostics += server.readAllStandardError();
+        QCOMPARE(diagnostics.count("lazy directory 5"), 1);
+        QCOMPARE(diagnostics.count("lazy directory 7"), 1);
+        for (int attempt = 0; attempt < 3; ++attempt) {
+            auto *directory = ClientWork([&] { return smb2_opendir(first.Context, "broken"); });
+            if (attempt < 2)
+                QVERIFY(!directory);
+            else {
+                QVERIFY2(directory, smb2_get_error(first.Context));
+                QVERIFY(!smb2_readdir(first.Context, directory));
+                smb2_closedir(first.Context, directory);
+            }
+        }
     }
     void asynchronousReadsKeepFirstResultAndRecoverAfterError() {
         QProcess server;

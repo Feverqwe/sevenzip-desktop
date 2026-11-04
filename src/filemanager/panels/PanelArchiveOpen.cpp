@@ -7,7 +7,9 @@
 #include "Common/StringConvert.h"
 #include "Windows/FileName.h"
 #include "Windows/PropVariantConv.h"
+#include "archive/opening/archivecontainerpath.h"
 #include "archive/operations/ExtractingFilePath.h"
+#include "archive/password/archivepassword.h"
 #include "archive/resources/archivelayercontext.h"
 #include "archive/resources/qtarchiveitemopen.h"
 #include "archive/resources/virtualextractfilesystem.h"
@@ -38,7 +40,7 @@ HRESULT CPanel::OpenAsArc(IInStream *inStream, const CTempFileInfo &tempFileInfo
     else {
         if (!folderLink.FileInfo.Find(folderLink.FilePath))
             return GetLastError_noZero_HRESULT();
-        if (folderLink.FileInfo.IsDir())
+        if (folderLink.FileInfo.IsDir() && !IsSparseBundleName(virtualFilePath))
             return S_FALSE;
         folderLink.IsVirtual = false;
     }
@@ -71,7 +73,7 @@ HRESULT CPanel::OpenAsArc(IInStream *inStream, const CTempFileInfo &tempFileInfo
             return GetLastError_noZero_HRESULT();
         folderLink.IsVirtual = false;
     }
-    folderLink.Password = ffp.Password;
+    folderLink.Password = ArchivePassword(ffp.Password);
     folderLink.UsePassword = ffp.Encrypted;
     if (_folder)
         folderLink.ParentFolderPath = GetFolderPath(_folder);
@@ -145,7 +147,7 @@ HRESULT CPanel::OpenParentArchiveFolder() {
             if (box.exec() == QMessageBox::Yes) {
                 if (OnOpenItemChanged(folderLink.FileIndex, fs2us(folderLink.FilePath),
                                       folderLinkPrev.UsePassword,
-                                      folderLinkPrev.Password) != S_OK) {
+                                      folderLinkPrev.Password.native()) != S_OK) {
                     MessageBox_Error(
                         MyFormatNew(IDS_CANNOT_UPDATE_FILE, fs2us(folderLink.FilePath)));
                     return S_OK;
@@ -222,12 +224,13 @@ void CPanel::OpenItemInArchive(unsigned index, bool tryInternal, bool tryExterna
         if (getStream) {
             CMyComPtr<ISequentialInStream> subSeqStream;
             bool defined = !_parentFolders.IsEmpty() && _parentFolders.Back().UsePassword;
-            UString password = defined ? _parentFolders.Back().Password : UString();
+            NativePassword password =
+                defined ? _parentFolders.Back().Password.native() : NativePassword();
             const HRESULT acquired = GetArchiveItemStream(
                 _folder, index, &subSeqStream, GetParent(), _settingsPath, defined, password);
             if (!_parentFolders.IsEmpty()) {
                 _parentFolders.Back().UsePassword = defined;
-                _parentFolders.Back().Password = password;
+                _parentFolders.Back().Password = ArchivePassword(password);
             }
             if (acquired == E_ABORT)
                 return;
@@ -265,11 +268,11 @@ void CPanel::OpenItemInArchive(unsigned index, bool tryInternal, bool tryExterna
     UStringVector messages;
 
     bool usePassword = false;
-    UString password;
+    NativePassword password;
     if (!_parentFolders.IsEmpty()) {
         const CFolderLink &fl = _parentFolders.Back();
         usePassword = fl.UsePassword;
-        password = fl.Password;
+        password = fl.Password.native();
     }
 
     /*
@@ -358,7 +361,7 @@ void CPanel::OpenItemInArchive(unsigned index, bool tryInternal, bool tryExterna
     if (!_parentFolders.IsEmpty()) {
         CFolderLink &fl = _parentFolders.Back();
         fl.UsePassword = usePassword;
-        fl.Password = password;
+        fl.Password = ArchivePassword(password);
     }
 
     if (!messages.IsEmpty())

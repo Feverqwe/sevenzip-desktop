@@ -49,6 +49,7 @@ QString ArchiveNativeOpen::resolvedOpenType() const {
 HRESULT ArchiveNativeOpen::Open(const QString &path, const QString &type, IOpenCallbackUI *callback,
                                 const COpenOptions *requested) {
     callback_ = callback;
+    directoryReadRequested_ = requested && requested->PreferDirectoryRead;
     // Preserve the empty source type's recursive intent explicitly at the
     // file-only listing/extract/reopen integration boundary.
     transportType_ = type.isEmpty() ? QStringLiteral("*:r") : type;

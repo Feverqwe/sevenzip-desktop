@@ -15,7 +15,7 @@
 CPasswordDialog::CPasswordDialog(QWidget *parent) : QDialog(parent) {}
 
 void CPasswordDialog::ReadControls() {
-    Password = _passwordEdit->text().toStdWString().c_str();
+    Password = _passwordEdit->text();
     ShowPassword = _showPassword->isChecked();
 }
 

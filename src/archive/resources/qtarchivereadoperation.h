@@ -1,5 +1,6 @@
 #pragma once
 #include "7zip/Archive/IArchive.h"
+#include "archive/password/archivepassword.h"
 #include "archive/resources/qtarchiveextractstatus.h"
 #include "fileops/overwrite/overwritequestion.h"
 #include "ui/progress/qtworkerprogress.h"
@@ -90,7 +91,7 @@ class QtArchiveReadOperation final : public QThread {
     QtWorkerProgress progress_;
     QMutex passwordMutex_;
     QWaitCondition passwordReady_;
-    std::optional<QString> password_;
+    std::optional<ArchivePassword> password_;
     bool passwordRequested_ = false;
     QMutex overwriteMutex_;
     QWaitCondition overwriteReady_;

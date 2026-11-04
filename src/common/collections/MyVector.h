@@ -39,6 +39,20 @@ class CRecordVector
 
 public:
 
+  // Project integration: publish a prepared owner without allocation or
+  // destroying the current state if preparation failed.
+  void Swap(CRecordVector &other) noexcept
+  {
+    T *items = _items;
+    unsigned size = _size, capacity = _capacity;
+    _items = other._items;
+    _size = other._size;
+    _capacity = other._capacity;
+    other._items = items;
+    other._size = size;
+    other._capacity = capacity;
+  }
+
   void ReserveOnePosition()
   {
     if (_size != _capacity)
@@ -520,6 +534,7 @@ public:
   void ClearAndReserve(unsigned newCapacity) { Clear(); _v.ClearAndReserve(newCapacity); }
 
   CObjectVector() {}
+  void Swap(CObjectVector &other) noexcept { _v.Swap(other._v); }
   CObjectVector(const CObjectVector &v) : CObjectVector() {
       const unsigned size = v.Size();
       _v.ConstructReserve(size);

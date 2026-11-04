@@ -1,4 +1,6 @@
 // ApfsHandler.cpp
+// Preserve the upstream layout of the macro-based field parsers.
+// clang-format off
 
 #include "7zip/Archive/StdAfx.h"
 
@@ -34,7 +36,10 @@
 
 #include "7zip/Archive/Common/ItemNameUtils.h"
 
+#include "archive/opening/archivedirectoryaccess.h"
 #include "formats/hfs/HfsHandler.h"
+#include <map>
+#include <set>
 
 // if APFS_SHOW_ALT_STREAMS is defined, the handler will show attribute files.
 #define APFS_SHOW_ALT_STREAMS
@@ -242,7 +247,7 @@ static const char * const g_APFS_INCOMPAT_Flags[] =
 // superblock_t
 struct CSuperBlock
 {
-  // CPhys o;
+  CPhys o;
   // UInt32 magic;
   UInt32 block_size;
   unsigned block_size_Log;
@@ -353,7 +358,6 @@ static const unsigned kApfsHeaderSize = 1 << 12;
 
 bool CSuperBlock::Parse(const Byte *p)
 {
-  CPhys o;
   o.Parse(p);
   if (o.oid != OID_NX_SUPERBLOCK)
     return false;
@@ -1527,6 +1531,7 @@ struct CRef2
 {
   unsigned VolIndex;
   unsigned RefIndex;
+  UInt32 DirectoryParent = VI_MINUS1;
 };
 
 
@@ -1654,6 +1659,7 @@ bool COutStreamWithHash::FinalCheck()
 
 struct CVol
 {
+  oid_t DirectoryFsOid = 0;
   CObjectVector<CNode> Nodes;
   CRecordVector<UInt64> NodeIDs;
   CObjectVector<CItem> Items;
@@ -1691,7 +1697,7 @@ struct CVol
 
   void AddComment(UString &s) const;
 
-  HRESULT FillRefs();
+  HRESULT FillRefs(bool directorySlice = false);
 
   CVol():
       StartRef2Index(0),
@@ -1872,8 +1878,8 @@ struct omap_key
   }
 };
 
-/*
 #define OMAP_VAL_DELETED            (1 << 0)
+/*
 #define OMAP_VAL_SAVED              (1 << 1)
 #define OMAP_VAL_ENCRYPTED          (1 << 2)
 */
@@ -1904,12 +1910,19 @@ struct CObjectMap
 {
   CRecordVector<UInt64> Keys;
   CRecordVector<omap_val> Vals;
+  oid_t LazyRoot = 0;
+  xid_t LazyXid = 0;
+  std::map<oid_t, omap_val> LazyValues;
 
-  bool Parse(const CObjectVector<CKeyValPair> &pairs);
-  int FindKey(UInt64 id) const { return Keys.FindInSorted(id); }
+  bool Parse(const CObjectVector<CKeyValPair> &pairs, xid_t xid);
+  int FindKey(UInt64 id) const
+  {
+    const int index = Keys.FindInSorted(id);
+    return index >= 0 && !(Vals[(unsigned)index].flags & OMAP_VAL_DELETED) ? index : -1;
+  }
 };
 
-bool CObjectMap::Parse(const CObjectVector<CKeyValPair> &pairs)
+bool CObjectMap::Parse(const CObjectVector<CKeyValPair> &pairs, xid_t xid)
 {
   omap_key prev;
   prev.oid = 0;
@@ -1923,13 +1936,18 @@ bool CObjectMap::Parse(const CObjectVector<CKeyValPair> &pairs)
     key.Parse(pair.Key);
     omap_val val;
     val.Parse(pair.Val);
-    /* Object map B-trees are sorted by object identifier and then by transaction identifier
-       but it's possible to have identical Ids in map ?
-       do we need to look transaction id ?
-       and search key with largest transaction id? */
-    if (key.oid <= prev.oid)
+    // Snapshots retain older versions of an object. Validate the complete
+    // ordering, then retain the newest version visible to this superblock.
+    if (!key.oid || key.oid < prev.oid || (key.oid == prev.oid && key.xid <= prev.xid))
       return false;
     prev = key;
+    if (key.xid > xid)
+      continue;
+    if (!Keys.IsEmpty() && Keys.Back() == key.oid)
+    {
+      Vals.Back() = val;
+      continue;
+    }
     Keys.Add(key.oid);
     Vals.Add(val);
   }
@@ -1939,6 +1957,8 @@ bool CObjectMap::Parse(const CObjectVector<CKeyValPair> &pairs)
 
 struct CMap
 {
+  bool HasRange = false;
+  UInt64 FirstId = 0, LastId = UINT64_MAX;
   CObjectVector<CKeyValPair> Pairs;
 
   CObjectMap Omap;
@@ -1965,6 +1985,13 @@ struct CMap
 
 struct CDatabase
 {
+  bool DirectoryMode = false;
+  UInt64 DirectoryId = ROOT_DIR_INO_NUM;
+  unsigned DirectoryVolumeCount = 0;
+  std::set<UInt32> LoadedDirectories;
+  std::set<UInt32> CompleteDirectories;
+  std::map<UInt32, CUIntVector> DirectoryChildren;
+  std::map<UInt32, CUIntVector> DirectoryItems;
   CRecordVector<CRef2> Refs2;
   CObjectVector<CVol> Vols;
 
@@ -1976,6 +2003,7 @@ struct CDatabase
   CSuperBlock sb;
 
   IInStream *OpenInStream;
+  IInStream *DirectoryMapStream = NULL;
   IArchiveOpenCallback *OpenCallback;
   UInt64 ProgressVal_Cur;
   UInt64 ProgressVal_Prev;
@@ -2001,6 +2029,13 @@ struct CDatabase
     Vols.Clear();
     Refs2.Clear();
     Buffers.Clear();
+    LoadedDirectories.clear();
+    CompleteDirectories.clear();
+    DirectoryChildren.clear();
+    DirectoryItems.clear();
+    DirectoryMapStream = NULL;
+    DirectoryId = ROOT_DIR_INO_NUM;
+    DirectoryVolumeCount = 0;
   }
 
   HRESULT SeekReadBlock_FALSE(UInt64 oid, void *data);
@@ -2008,7 +2043,12 @@ struct CDatabase
   HRESULT ReadMap(UInt64 oid, bool noHeader, CVol *vol, const Byte *hash,
       CMap &map, unsigned recurseLevel);
   HRESULT ReadObjectMap(UInt64 oid, CVol *vol, CObjectMap &map);
-  HRESULT OpenVolume(const CObjectMap &omap, const oid_t fs_oid);
+  HRESULT OpenVolume(CObjectMap &omap, const oid_t fs_oid);
+  HRESULT ResolveObjectMap(CObjectMap &omap, oid_t oid, CVol *vol, omap_val &value);
+  HRESULT ReadDirectoryPairs(CMap &map, CVol &vol, UInt64 directory, UInt64 root, bool noHeader,
+                             const Byte *hash);
+  bool IsDirectoryIndex(UInt32 index) const;
+  void IndexDirectoryChildren(unsigned first);
   HRESULT Open2();
 
   HRESULT GetAttrStream(IInStream *apfsInStream, const CVol &vol,
@@ -2028,7 +2068,7 @@ HRESULT CDatabase::SeekReadBlock_FALSE(UInt64 oid, void *data)
 {
   if (OpenCallback)
   {
-    if (ProgressVal_Cur - ProgressVal_Prev >= (1 << 22))
+    if (DirectoryMode || ProgressVal_Cur - ProgressVal_Prev >= (1 << 22))
     {
       RINOK(OpenCallback->SetCompleted(NULL, &ProgressVal_Cur))
       ProgressVal_Prev = ProgressVal_Cur;
@@ -2037,8 +2077,9 @@ HRESULT CDatabase::SeekReadBlock_FALSE(UInt64 oid, void *data)
   }
   if (oid == 0 || oid >= sb.block_count)
     return S_FALSE;
-  RINOK(InStream_SeekSet(OpenInStream, oid << sb.block_size_Log))
-  return ReadStream_FALSE(OpenInStream, data, sb.block_size);
+  IInStream *stream = DirectoryMapStream ? DirectoryMapStream : OpenInStream;
+  RINOK(InStream_SeekSet(stream, oid << sb.block_size_Log))
+  return ReadStream_FALSE(stream, data, sb.block_size);
 }
 
 
@@ -2078,7 +2119,7 @@ HRESULT CDatabase::ReadMap(UInt64 oid, bool noHeader,
     return S_FALSE;
 
   const UInt32 blockSize = sb.block_size;
-  if (Buffers.Size() <= recurseLevel)
+  if (!DirectoryMode && Buffers.Size() <= recurseLevel)
   {
     Buffers.AddNew();
     if (Buffers.Size() <= recurseLevel)
@@ -2086,6 +2127,16 @@ HRESULT CDatabase::ReadMap(UInt64 oid, bool noHeader,
     Buffers.Back().Alloc(blockSize);
   }
   const Byte *buf;
+  CByteBuffer directoryBuffer;
+  if (DirectoryMode)
+  {
+    // An on-demand object-map lookup can re-enter ReadMap while its filesystem
+    // parent node is still in use. Keep that node independent of lookup buffers.
+    directoryBuffer.Alloc(blockSize);
+    RINOK(SeekReadBlock_FALSE(oid, directoryBuffer))
+    buf = directoryBuffer;
+  }
+  else
   {
     CByteBuffer &buf2 = Buffers[recurseLevel];
     RINOK(SeekReadBlock_FALSE(oid, buf2))
@@ -2178,8 +2229,56 @@ HRESULT CDatabase::ReadMap(UInt64 oid, bool noHeader,
   if (bt.table_space.len / tocEntrySize < bt.nkeys)
     return S_FALSE;
 
+  const auto keyIdAt = [&](unsigned index, UInt64 &id) -> HRESULT
+  {
+    const Byte *entry = buf + k_Toc_offset + bt.table_space.off + index * tocEntrySize;
+    unsigned offset, length;
+    if (bt.Is_FIXED_KV_SIZE())
+    {
+      kvoff loc;
+      loc.Parse(entry);
+      offset = loc.k;
+      length = map.bti.fixed.key_size;
+    }
+    else
+    {
+      kvloc loc;
+      loc.Parse(entry);
+      offset = loc.k.off;
+      length = loc.k.len;
+    }
+    if (length < 8 || offset > keyValRange || length > keyValRange - offset)
+      return S_FALSE;
+    id = Get64(buf + k_Toc_offset + bt.table_space.len + offset);
+    if (map.Subtype == OBJECT_TYPE_FSTREE)
+      id &= OBJ_ID_MASK;
+    return S_OK;
+  };
+
   for (unsigned i = 0; i < bt.nkeys; i++)
   {
+    if (map.HasRange)
+    {
+      UInt64 id;
+      RINOK(keyIdAt(i, id))
+      if (isLeaf)
+      {
+        if (id < map.FirstId || id > map.LastId)
+          continue;
+      }
+      else
+      {
+        UInt64 next = UINT64_MAX;
+        if (i + 1 < bt.nkeys)
+        {
+          RINOK(keyIdAt(i + 1, next))
+          if (next < id)
+            return S_FALSE;
+        }
+        if (id > map.LastId || next < map.FirstId)
+          continue;
+      }
+    }
     const Byte *p = buf + k_Toc_offset + bt.table_space.off + i * tocEntrySize;
     if (bt.Is_FIXED_KV_SIZE())
     {
@@ -2301,10 +2400,8 @@ HRESULT CDatabase::ReadMap(UInt64 oid, bool noHeader,
           else
           {
             /* nodes in the B-tree use virtual object identifiers to link to their child nodes. */
-            const int index = map.Omap.FindKey(oidNext);
-            if (index == -1)
-              return S_FALSE;
-            const omap_val &ov = map.Omap.Vals[(unsigned)index];
+            omap_val ov;
+            RINOK(ResolveObjectMap(map.Omap, oidNext, vol, ov))
             if (ov.size != blockSize) // change it : it must be multiple of
               return S_FALSE;
             RINOK(ReadMap(ov.paddr, ov.IsFlag_NoHeader(), vol, hashNew,
@@ -2317,7 +2414,7 @@ HRESULT CDatabase::ReadMap(UInt64 oid, bool noHeader,
   }
 
   if (recurseLevel == 0)
-    if (!map.CheckAtFinish())
+    if (!map.HasRange && !map.CheckAtFinish())
       return S_FALSE;
   return S_OK;
 }
@@ -2333,6 +2430,12 @@ HRESULT CDatabase::ReadObjectMap(UInt64 oid, CVol *vol, CObjectMap &omap)
   C_omap_phys op;
   if (!op.Parse(buf, blockSize, oid))
     return S_FALSE;
+  if (DirectoryMode)
+  {
+    omap.LazyRoot = op.tree_oid;
+    omap.LazyXid = vol ? vol->apfs.o.xid : sb.o.xid;
+    return S_OK;
+  }
   CMap map;
   map.Subtype = OBJECT_TYPE_OMAP;
   map.IsPhysical = true;
@@ -2341,7 +2444,7 @@ HRESULT CDatabase::ReadObjectMap(UInt64 oid, CVol *vol, CObjectMap &omap)
       vol,
       NULL, /* hash */
       map, 0))
-  if (!omap.Parse(map.Pairs))
+  if (!omap.Parse(map.Pairs, vol ? vol->apfs.o.xid : sb.o.xid))
     return S_FALSE;
   return S_OK;
 }
@@ -2425,16 +2528,13 @@ HRESULT CDatabase::Open2()
   return S_OK;
 }
 
-
-HRESULT CDatabase::OpenVolume(const CObjectMap &omap, const oid_t fs_oid)
+HRESULT CDatabase::OpenVolume(CObjectMap &omap, const oid_t fs_oid)
 {
   const size_t blockSize = sb.block_size;
   CByteBuffer buf;
   {
-    const int index = omap.FindKey(fs_oid);
-    if (index == -1)
-      return S_FALSE;
-    const omap_val &ov = omap.Vals[(unsigned)index];
+    omap_val ov;
+    RINOK(ResolveObjectMap(omap, fs_oid, NULL, ov))
     if (ov.size != blockSize) // change it : it must be multiple of
       return S_FALSE;
     buf.Alloc(blockSize);
@@ -2442,83 +2542,116 @@ HRESULT CDatabase::OpenVolume(const CObjectMap &omap, const oid_t fs_oid)
   }
 
   CVol &vol = Vols.AddNew();
+  vol.DirectoryFsOid = fs_oid;
   CApfs &apfs = vol.apfs;
 
   if (!apfs.Parse(buf, blockSize))
     return S_FALSE;
 
-  if (apfs.fext_tree_oid != 0)
+  const auto loadFileExtents = [&](const CMap *selected) -> HRESULT
   {
-    if ((apfs.incompatible_features & APFS_INCOMPAT_SEALED_VOLUME) == 0)
-      return S_FALSE;
-    if ((apfs.fext_tree_type & OBJ_PHYSICAL) == 0)
-      return S_FALSE;
-    if ((apfs.fext_tree_type & OBJECT_TYPE_MASK) != OBJECT_TYPE_BTREE)
-      return S_FALSE;
-
-    CMap map2;
-    map2.Subtype = OBJECT_TYPE_FEXT_TREE;
-    map2.IsPhysical = true;
-
-    RINOK(ReadMap(apfs.fext_tree_oid,
-        false /* noHeader */,
-        &vol,
-        NULL, /* hash */
-        map2, 0))
-
-    UInt64 prevId = 1;
-
-    FOR_VECTOR (i, map2.Pairs)
+    if (apfs.fext_tree_oid != 0)
     {
-      if (OpenCallback && (i & 0xffff) == 1)
-      {
-        const UInt64 numFiles = ProgressVal_NumFilesTotal +
-            (vol.Items.Size() + vol.Nodes.Size()) / 2;
-        RINOK(OpenCallback->SetCompleted(&numFiles, &ProgressVal_Cur))
-      }
-      // The key half of a record from a file extent tree.
-      // struct fext_tree_key
-      const CKeyValPair &pair = map2.Pairs[i];
-      if (pair.Key.Size() != 16)
+      if ((apfs.incompatible_features & APFS_INCOMPAT_SEALED_VOLUME) == 0)
         return S_FALSE;
-      const Byte *p = pair.Key;
-      const UInt64 id = GetUi64(p);
-      if (id < prevId)
-        return S_FALSE;  // IDs must be sorted
-      prevId = id;
+      if ((apfs.fext_tree_type & OBJ_PHYSICAL) == 0)
+        return S_FALSE;
+      if ((apfs.fext_tree_type & OBJECT_TYPE_MASK) != OBJECT_TYPE_BTREE)
+        return S_FALSE;
 
-      CExtent ext;
-      ext.logical_offset = GetUi64(p + 8);
+      CMap map2;
+      map2.Subtype = OBJECT_TYPE_FEXT_TREE;
+      map2.IsPhysical = true;
+
+      if (selected)
       {
-        if (pair.Val.Size() != 16)
-          return S_FALSE;
-        const Byte *p2 = pair.Val;
-        ext.len_and_flags = GetUi64(p2);
-        ext.phys_block_num = GetUi64(p2 + 8);
+        std::set<UInt64> ids;
+        FOR_VECTOR(i, selected->Pairs)
+        {
+          const auto &pair = selected->Pairs[i];
+          j_key_t key;
+          key.Parse(pair.Key);
+          ids.insert(key.GetID());
+          if (key.GetType() == APFS_TYPE_INODE && pair.Val.Size() >= k_SizeOf_j_inode_val)
+          {
+            CNode inode;
+            inode.Parse(pair.Val);
+            ids.insert(inode.private_id);
+          }
+          if (key.GetType() == APFS_TYPE_XATTR && pair.Val.Size() == 12 + k_SizeOf_j_dstream &&
+              (Get16(pair.Val) & XATTR_DATA_STREAM) && !(Get16(pair.Val) & XATTR_DATA_EMBEDDED))
+            ids.insert(Get64(pair.Val + 4));
+        }
+        CObjectVector<CKeyValPair> records;
+        for (const auto id : ids)
+        {
+          map2.Pairs.Clear();
+          map2.NumNodes = 0;
+          map2.HasRange = true;
+          map2.FirstId = map2.LastId = id;
+          RINOK(ReadMap(apfs.fext_tree_oid, false, &vol, NULL, map2, 0))
+          records += map2.Pairs;
+        }
+        map2.Pairs = records;
+      }
+      else
+      {
+        RINOK(ReadMap(apfs.fext_tree_oid, false /* noHeader */, &vol, NULL, /* hash */
+                      map2, 0))
       }
 
-      PRF(printf("\n%6d: id=%6d logical_addr = %2d len_and_flags=%5x phys_block_num = %5d",
-          i, (unsigned)id,
-          (unsigned)ext.logical_offset,
-          (unsigned)ext.len_and_flags,
-          (unsigned)ext.phys_block_num));
+      UInt64 prevId = 1;
 
-      if (vol.FEXT_NodeIDs.IsEmpty() ||
-          vol.FEXT_NodeIDs.Back() != id)
+      FOR_VECTOR(i, map2.Pairs)
       {
-        vol.FEXT_NodeIDs.Add(id);
-        vol.FEXT_Nodes.AddNew();
-      }
-      CRecordVector<CExtent> &extents = vol.FEXT_Nodes.Back().Extents;
-      if (!extents.IsEmpty())
-        if (ext.logical_offset != extents.Back().GetEndOffset())
+        if (OpenCallback && (i & 0xffff) == 1)
+        {
+          const UInt64 numFiles =
+              ProgressVal_NumFilesTotal + (vol.Items.Size() + vol.Nodes.Size()) / 2;
+          RINOK(OpenCallback->SetCompleted(&numFiles, &ProgressVal_Cur))
+        }
+        // The key half of a record from a file extent tree.
+        // struct fext_tree_key
+        const CKeyValPair &pair = map2.Pairs[i];
+        if (pair.Key.Size() != 16)
           return S_FALSE;
-      extents.Add(ext);
-      continue;
+        const Byte *p = pair.Key;
+        const UInt64 id = GetUi64(p);
+        if (id < prevId)
+          return S_FALSE; // IDs must be sorted
+        prevId = id;
+
+        CExtent ext;
+        ext.logical_offset = GetUi64(p + 8);
+        {
+          if (pair.Val.Size() != 16)
+            return S_FALSE;
+          const Byte *p2 = pair.Val;
+          ext.len_and_flags = GetUi64(p2);
+          ext.phys_block_num = GetUi64(p2 + 8);
+        }
+
+        PRF(printf("\n%6d: id=%6d logical_addr = %2d len_and_flags=%5x phys_block_num = %5d", i,
+                   (unsigned)id, (unsigned)ext.logical_offset, (unsigned)ext.len_and_flags,
+                   (unsigned)ext.phys_block_num));
+
+        if (vol.FEXT_NodeIDs.IsEmpty() || vol.FEXT_NodeIDs.Back() != id)
+        {
+          vol.FEXT_NodeIDs.Add(id);
+          vol.FEXT_Nodes.AddNew();
+        }
+        CRecordVector<CExtent> &extents = vol.FEXT_Nodes.Back().Extents;
+        if (!extents.IsEmpty())
+          if (ext.logical_offset != extents.Back().GetEndOffset())
+            return S_FALSE;
+        extents.Add(ext);
+        continue;
+      }
+
+      PRF(printf("\n\n"));
     }
-
-    PRF(printf("\n\n"));
-  }
+    return S_OK;
+  };
 
   /* For each volume, read the root file system tree's virtual object
      identifier from the apfs_root_tree_oid field,
@@ -2526,7 +2659,7 @@ HRESULT CDatabase::OpenVolume(const CObjectMap &omap, const oid_t fs_oid)
      by the omap_oid field. */
 
   CMap map;
-  ReadObjectMap(apfs.omap_oid, &vol, map.Omap);
+  RINOK(ReadObjectMap(apfs.omap_oid, &vol, map.Omap))
 
   const Byte *hash_for_root = NULL;
 
@@ -2534,10 +2667,8 @@ HRESULT CDatabase::OpenVolume(const CObjectMap &omap, const oid_t fs_oid)
   {
     if ((apfs.incompatible_features & APFS_INCOMPAT_SEALED_VOLUME) == 0)
       return S_FALSE;
-    const int index = map.Omap.FindKey(apfs.integrity_meta_oid);
-    if (index == -1)
-      return S_FALSE;
-    const omap_val &ov = map.Omap.Vals[(unsigned)index];
+    omap_val ov;
+    RINOK(ResolveObjectMap(map.Omap, apfs.integrity_meta_oid, &vol, ov))
     if (ov.size != blockSize)
       return S_FALSE;
     RINOK(SeekReadBlock_FALSE(ov.paddr, buf))
@@ -2548,19 +2679,24 @@ HRESULT CDatabase::OpenVolume(const CObjectMap &omap, const oid_t fs_oid)
   }
 
   {
-    const int index = map.Omap.FindKey(apfs.root_tree_oid);
-    if (index == -1)
-      return S_FALSE;
-    const omap_val &ov = map.Omap.Vals[(unsigned)index];
+    omap_val ov;
+    RINOK(ResolveObjectMap(map.Omap, apfs.root_tree_oid, &vol, ov))
     if (ov.size != blockSize) // change it : it must be multiple of
       return S_FALSE;
     map.Subtype = OBJECT_TYPE_FSTREE;
     map.IsPhysical = false;
-    RINOK(ReadMap(ov.paddr, ov.IsFlag_NoHeader(),
-        &vol, hash_for_root,
-        map, 0))
+    if (DirectoryMode)
+    {
+      RINOK(
+          ReadDirectoryPairs(map, vol, DirectoryId, ov.paddr, ov.IsFlag_NoHeader(), hash_for_root))
+    }
+    else
+    {
+      RINOK(ReadMap(ov.paddr, ov.IsFlag_NoHeader(), &vol, hash_for_root, map, 0))
+    }
   }
 
+  RINOK(loadFileExtents(DirectoryMode ? &map : NULL))
   bool needParseAttr = false;
 
   {
@@ -2568,8 +2704,9 @@ HRESULT CDatabase::OpenVolume(const CObjectMap &omap, const oid_t fs_oid)
     UInt64 prevId = 1;
 
     {
-      const UInt64 numApfsItems = vol.apfs.GetTotalItems()
-          + 2;   // we will have 2 additional hidden directories: root and private-dir
+      const UInt64 numApfsItems =
+          (DirectoryMode ? map.Pairs.Size() : vol.apfs.GetTotalItems()) +
+          2; // we will have 2 additional hidden directories: root and private-dir
       const UInt64 numApfsItems_Reserve = numApfsItems
           + 16;  // we reserve 16 for some possible unexpected items
       if (numApfsItems_Reserve < map.Pairs.Size())
@@ -2992,8 +3129,8 @@ HRESULT CDatabase::OpenVolume(const CObjectMap &omap, const oid_t fs_oid)
         // address is a paddr_t
         const UInt64 lba = info_and_lba & J_FILE_INFO_LBA_MASK;
         // j_file_data_hash_val_t
-        /* Use this field of the union if the type stored in the info_and_lba field of j_file_info_val_t is
-           APFS_FILE_INFO_DATA_HASH */
+        /* Use this field of the union if the type stored in the info_and_lba field of
+           j_file_info_val_t is APFS_FILE_INFO_DATA_HASH */
         if (infoType != APFS_FILE_INFO_DATA_HASH)
           return S_FALSE;
         if (pair.Val.Size() != 3 + vol.integrity.HashSize)
@@ -3071,17 +3208,12 @@ HRESULT CDatabase::OpenVolume(const CObjectMap &omap, const oid_t fs_oid)
         const UInt64 sibling_id = Get64(p + 8);
         // struct j_sibling_val
         const Byte *v = pair.Val;
-        const UInt64 parent_id = Get64(v); // The object identifier for the inode that's the parent directory.
-        const unsigned name_len = Get16(v + 8); // len including the final null character
-        if (10 + name_len != pair.Val.Size())
-          return S_FALSE;
-        if (v[10 + name_len - 1] != 0)
-          return S_FALSE;
-        AString name ((const char *)(v + 10));
-        if (name.Len() != name_len - 1)
-          return S_FALSE;
-        PRF(printf(" SIBLING_LINK sibling_id = %6d : parent_id=%6d %s",
-            (unsigned)sibling_id, (unsigned)parent_id, name.Ptr()));
+                const UInt64 parent_id = Get64(v); // The object identifier for the inode that's the
+                parent directory. const unsigned name_len = Get16(v + 8); // len including the final
+                null character if (10 + name_len != pair.Val.Size()) return S_FALSE; if (v[10 +
+                name_len - 1] != 0) return S_FALSE; AString name ((const char *)(v + 10)); if
+                (name.Len() != name_len - 1) return S_FALSE; PRF(printf(" SIBLING_LINK sibling_id =
+                %6d : parent_id=%6d %s", (unsigned)sibling_id, (unsigned)parent_id, name.Ptr()));
         */
         continue;
       }
@@ -3187,7 +3319,7 @@ HRESULT CDatabase::OpenVolume(const CObjectMap &omap, const oid_t fs_oid)
     }
   }
 
-  const HRESULT res = vol.FillRefs();
+  const HRESULT res = vol.FillRefs(DirectoryMode);
 
   if (vol.ThereAreErrors())
     HeadersError = true;
@@ -3201,9 +3333,7 @@ HRESULT CDatabase::OpenVolume(const CObjectMap &omap, const oid_t fs_oid)
   return res;
 }
 
-
-
-HRESULT CVol::FillRefs()
+HRESULT CVol::FillRefs(bool directorySlice)
 {
   {
     Refs.Reserve(Items.Size());
@@ -3304,7 +3434,7 @@ HRESULT CVol::FillRefs()
     }
   }
 
-
+  if (!directorySlice)
   {
     // fill ghost nodes
     CRef ref;
@@ -3421,24 +3551,20 @@ HRESULT CVol::FillRefs()
   return S_OK;
 }
 
-
-
-Z7_class_CHandler_final:
-  public IInArchive,
-  public IArchiveGetRawProps,
-  public IInArchiveGetStream,
-  public CMyUnknownImp,
-  public CDatabase
+Z7_class_CHandler_final : public IInArchive,
+                          public IArchiveGetRawProps,
+                          public IInArchiveGetStream,
+                          public IArchiveDirectoryAccess,
+                          public CMyUnknownImp,
+                          public CDatabase
 {
-  Z7_IFACES_IMP_UNK_3(
-      IInArchive,
-      IArchiveGetRawProps,
-      IInArchiveGetStream)
+  Z7_IFACES_IMP_UNK_4(IInArchive, IArchiveGetRawProps, IInArchiveGetStream, IArchiveDirectoryAccess)
 
   CMyComPtr<IInStream> _stream;
   int FindHashIndex_for_Item(UInt32 index);
 };
 
+#include "formats/apfs/apfsdirectory.inl"
 
 Z7_COM7F_IMF(CHandler::Open(IInStream *inStream,
     const UInt64 * /* maxCheckStartPosition */,
@@ -3450,6 +3576,28 @@ Z7_COM7F_IMF(CHandler::Open(IInStream *inStream,
   OpenCallback = callback;
   RINOK(Open2())
   _stream = inStream;
+  OpenCallback = NULL;
+  if (DirectoryMode)
+  {
+    DirectoryVolumeCount = Vols.Size();
+    for (unsigned i = 0; i < Refs2.Size(); ++i)
+    {
+      CRef2 &entry = Refs2[i];
+      const CVol &vol = Vols[entry.VolIndex];
+      if (IsViDef(entry.RefIndex))
+      {
+        const auto &ref = vol.Refs[entry.RefIndex];
+        entry.DirectoryParent = IsViDef(ref.ParentRefIndex)
+                                    ? ref.ParentRefIndex + vol.StartRef2Index
+                                    : vol.RootRef2Index;
+      }
+    }
+    LoadedDirectories.insert(UINT32_MAX);
+    for (unsigned i = 0; i < Vols.Size(); ++i)
+      if (IsViDef(Vols[i].RootRef2Index))
+        LoadedDirectories.insert(Vols[i].RootRef2Index);
+    IndexDirectoryChildren(0);
+  }
   return S_OK;
   COM_TRY_END
 }
@@ -3537,7 +3685,8 @@ Z7_COM7F_IMF(CHandler::GetArchiveProperty(PROPID propID, PROPVARIANT *value))
   COM_TRY_BEGIN
   NWindows::NCOM::CPropVariant prop;
   const CApfs *apfs = NULL;
-  if (Vols.Size() == 1)
+  const unsigned volumeCount = DirectoryMode ? DirectoryVolumeCount : Vols.Size();
+  if (volumeCount == 1)
     apfs = &Vols[0].apfs;
   switch (propID)
   {
@@ -3599,9 +3748,9 @@ Z7_COM7F_IMF(CHandler::GetArchiveProperty(PROPID propID, PROPVARIANT *value))
       {
         AddComment_UInt64(s, "block_size", sb.block_size);
 
-        FOR_VECTOR (i, Vols)
+        for (unsigned i = 0; i < volumeCount; ++i)
         {
-          if (Vols.Size() > 1)
+          if (volumeCount > 1)
           {
             if (i != 0)
             {
@@ -3651,6 +3800,13 @@ Z7_COM7F_IMF(CHandler::GetParent(UInt32 index, UInt32 *parent, UInt32 *parentTyp
 
   const CRef2 &ref2 = Refs2[index];
   const CVol &vol = Vols[ref2.VolIndex];
+  if (DirectoryMode)
+  {
+    *parent = ref2.DirectoryParent;
+    if (IsViDef(ref2.RefIndex) && vol.Refs[ref2.RefIndex].IsAltStream())
+      *parentType = NParentType::kAltStream;
+    return S_OK;
+  }
   UInt32 parentIndex = (UInt32)(Int32)-1;
 
   if (IsViDef(ref2.RefIndex))
@@ -3708,6 +3864,40 @@ void CDatabase::GetItemPath(unsigned index, const CNode *inode, NWindows::NCOM::
   const unsigned kNumLevelsMax = (1 << 10);
   const unsigned kLenMax = (1 << 12);
   UString s;
+  if (DirectoryMode)
+  {
+    bool alternate = false;
+    for (unsigned level = 0; index != UINT32_MAX; ++level)
+    {
+      if (level >= kNumLevelsMax || s.Len() > kLenMax || index >= Refs2.Size())
+      {
+        s.Insert(0, UString("[LONG_PATH]"));
+        break;
+      }
+      const CRef2 &entry = Refs2[index];
+      const CVol &volume = Vols[entry.VolIndex];
+      UString name;
+      bool attr = false;
+      if (IsViNotDef(entry.RefIndex))
+        name = volume.RootName;
+      else
+      {
+        const CRef &ref = volume.Refs[entry.RefIndex];
+        attr = ref.IsAltStream();
+        if (attr && IsViDef(ref.NodeIndex))
+          Utf8Name_to_InterName(volume.Nodes[ref.NodeIndex].Attrs[ref.AttrIndex].Name, name);
+        else if (IsViDef(ref.ItemIndex))
+          Utf8Name_to_InterName(volume.Items[ref.ItemIndex].Name, name);
+      }
+      if (!s.IsEmpty())
+        name += alternate ? L':' : WCHAR_PATH_SEPARATOR;
+      s.Insert(0, name);
+      alternate = attr;
+      index = entry.DirectoryParent;
+    }
+    path = s;
+    return;
+  }
   const CRef2 &ref2 = Refs2[index];
   const CVol &vol = Vols[ref2.VolIndex];
 
@@ -4076,6 +4266,8 @@ Z7_COM7F_IMF(CHandler::Extract(const UInt32 *indices, UInt32 numItems,
 {
   COM_TRY_BEGIN
   const bool allFilesMode = (numItems == (UInt32)(Int32)-1);
+  if (allFilesMode && DirectoryMode)
+    RINOK(LoadDirectory(UINT32_MAX, true, extractCallback))
   if (allFilesMode)
     numItems = Refs2.Size();
   if (numItems == 0)
@@ -4478,3 +4670,4 @@ REGISTER_ARC_I(
   IsArc_APFS)
 
 }}
+// clang-format on

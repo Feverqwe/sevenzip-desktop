@@ -2,6 +2,7 @@
 #include "archive/codecs/archivecodeccatalog.h"
 #include "archive/codecs/archivecodecprobe.h"
 #include "archive/codecs/archivecodelocation.h"
+#include "archive/resources/archiveinputpath.h"
 #include "archive/resources/qtarchivedirectoryextract.h"
 #include "archive/resources/qtarchivehashoperation.h"
 #include "archive/resources/qtarchivereadoperation.h"
@@ -115,8 +116,8 @@ ArchiveBackend::findListedSourceArchive(const QFileInfo &file) const {
     if (busy())
         return nullptr;
     const auto found = listedSourceArchives_.constFind(file.absoluteFilePath());
-    if (found == listedSourceArchives_.cend() || !file.isFile() || file.isSymLink() ||
-        file.size() != found->Size || file.lastModified() != found->Modified ||
+    if (found == listedSourceArchives_.cend() || !IsArchiveFileOrPackage(file) ||
+        file.isSymLink() || file.size() != found->Size || file.lastModified() != found->Modified ||
         file.metadataChangeTime() != found->MetadataChanged)
         return nullptr;
     return &found.value();
@@ -200,7 +201,7 @@ void ArchiveBackend::testSourceArchive(const QString &archive, const QString &pa
         return;
     }
     const QFileInfo file(archive);
-    if (!file.isFile() || file.isSymLink()) {
+    if (!IsArchiveFileOrPackage(file) || file.isSymLink()) {
         lastResult_ = E_INVALIDARG;
         emit finished(
             false, QCoreApplication::translate("archivebackend", "Source archive is unavailable."));

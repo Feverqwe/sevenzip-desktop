@@ -183,5 +183,5 @@ void MainWindow::testArchive() {
     previousState_ = projectedUi().state;
     setState(State::Operating);
     begin(QtLangText(IDS_PROGRESS_TESTING), projectedUi().archive);
-    backend_->test(projectedUi().archive, projectedUi().archivePassword);
+    backend_->test(projectedUi().archive, projectedUi().archivePassword.toQString());
 }

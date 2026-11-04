@@ -10,13 +10,16 @@ void SmbReadOnlyServer::State::timestamps(smb2_file_basic_info &info, const SmbT
 
 int SmbReadOnlyServer::State::directory(smb2_context *context,
                                         smb2_query_directory_request *request,
-                                        smb2_query_directory_reply *reply) {
+                                        smb2_query_directory_reply *reply,
+                                        std::optional<quint64> message) {
     auto *opened = find(context, request->file_id);
     if (!opened)
         return status(SMB2_STATUS_FILE_CLOSED);
     const auto &node = Nodes[opened->Item];
     if (!node.Entry.Directory)
         return status(SMB2_STATUS_NOT_A_DIRECTORY);
+    if (!node.Entry.ChildrenLoaded && DirectoryAsync)
+        return deferDirectory(context, opened->Item, nullptr, request, message);
     const auto infoClass = request->file_information_class;
     trace(QStringLiteral("DIRECTORY class=%1").arg(infoClass));
     if (infoClass != SMB2_FILE_DIRECTORY_INFORMATION &&
@@ -66,8 +69,11 @@ int SmbReadOnlyServer::State::directory(smb2_context *context,
         smb2_fileidbothdirectoryinformation entry{};
         entry.file_index = quint32(opened->Cursor);
         entry.file_id = child.Entry.Id;
-        entry.file_attributes = attributes(child.Entry);
-        entry.allocation_size = entry.end_of_file = child.Entry.Size;
+        const auto &exported = child.Entry;
+        entry.file_attributes = attributes(exported);
+        if (!exported.SymlinkTarget.isEmpty())
+            entry.ea_size = SMB2_REPARSE_TAG_SYMLINK;
+        entry.allocation_size = entry.end_of_file = exported.Size;
         entry.name = child.EncodedName.constData();
         smb2_win_to_timeval(child.Entry.Modified, &entry.creation_time);
         entry.last_access_time = entry.last_write_time = entry.change_time = entry.creation_time;
@@ -110,8 +116,9 @@ int SmbReadOnlyServer::State::query(smb2_context *context, smb2_query_info_reque
             info.Attributes.filesystem_name = reinterpret_cast<const uint8_t *>("Sevenzip");
             info.Attributes.filesystem_name_length = 8;
             info.Attributes.maximum_component_name_length = 255;
-            info.Attributes.filesystem_attributes =
-                0x00080007; // Read-only, Unicode, preserved names, case-sensitive search.
+            info.Attributes.filesystem_attributes = 0x00080087;
+            // macOS uses its Minshall–French compatibility path when the
+            // server does not advertise native reparse points.
             reply->output_buffer_length = sizeof(info.Attributes);
             return 0;
         case SMB2_FILE_FS_SIZE_INFORMATION:
@@ -188,9 +195,41 @@ int SmbReadOnlyServer::State::query(smb2_context *context, smb2_query_info_reque
             return 0;
         case SMB2_FILE_ATTRIBUTE_TAG_INFORMATION:
             info.Tag.file_attributes = attributes(entry);
+            info.Tag.reparse_tag = entry.SymlinkTarget.isEmpty() ? 0 : SMB2_REPARSE_TAG_SYMLINK;
             reply->output_buffer_length = sizeof(info.Tag);
             return 0;
         }
     }
     return status(SMB2_STATUS_NOT_SUPPORTED);
+}
+
+int SmbReadOnlyServer::State::ioctl(smb2_context *context, smb2_ioctl_request *request,
+                                    smb2_ioctl_reply *reply) {
+    trace(QStringLiteral("IOCTL code=%1 maximum=%2")
+              .arg(request->ctl_code, 0, 16)
+              .arg(request->max_output_response));
+    if (request->ctl_code != SMB2_FSCTL_GET_REPARSE_POINT)
+        return status(SMB2_STATUS_NOT_SUPPORTED);
+    const auto *opened = find(context, request->file_id);
+    if (!opened)
+        return status(SMB2_STATUS_FILE_CLOSED);
+    const auto &target = Nodes[opened->Item].Entry.SymlinkTarget;
+    if (target.isEmpty())
+        return status(SMB2_STATUS_NOT_A_REPARSE_POINT);
+    QString windowsTarget = target;
+    windowsTarget.replace(u'/', u'\\');
+    const quint32 bytes = 24 + quint32(windowsTarget.size()) * 2;
+    if (bytes > request->max_output_response)
+        return status(SMB2_STATUS_BUFFER_TOO_SMALL);
+    auto &session = client(context);
+    session.LinkName = windowsTarget.toUtf8();
+    session.Reparse = {};
+    session.Reparse.reparse_tag = SMB2_REPARSE_TAG_SYMLINK;
+    session.Reparse.symlink.flags = SMB2_SYMLINK_FLAG_RELATIVE;
+    session.Reparse.symlink.subname = session.LinkName.data();
+    session.Reparse.symlink.printname = nullptr;
+    reply->output = &session.Reparse;
+    reply->output_count = bytes;
+    reply->flags = request->flags;
+    return 0;
 }

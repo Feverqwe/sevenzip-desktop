@@ -8,6 +8,7 @@
 #include "archive/codecs/archivecodeccatalog.h"
 #include "archive/opening/OpenArchive.h"
 #include "archive/resources/archiveinputlayer.h"
+#include "archive/resources/archiveinputpath.h"
 #include "archive/resources/archivelayercontext.h"
 #include "archive/resources/archivenativeopen.h"
 #include "archive/resources/archivepropertysource.h"
@@ -163,7 +164,7 @@ HRESULT QtArchiveFileResource::GetArchivePropertyInfo(UInt32 index, BSTR *name, 
 
 HRESULT QtArchiveFileResource::ConfigureArc(CArc &arc, const CCodecs *codecs) const {
     const QFileInfo file(EnginePath);
-    if (!HasStreamInput() && !file.isFile())
+    if (!HasStreamInput() && !IsArchiveFileOrPackage(file))
         return E_FAIL;
     arc.Path = EnginePath.toStdWString().c_str();
     if (_nativeOpen) {

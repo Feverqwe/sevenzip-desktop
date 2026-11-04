@@ -1,6 +1,6 @@
 #include "7zip/PropID.h"
-#include "archive/opening/OpenArchive.h"
 #include "archive/diagnostics/archiveerrormessages.h"
+#include "archive/opening/OpenArchive.h"
 #include "filemanager/PropertyName.h"
 
 #include <QTest>

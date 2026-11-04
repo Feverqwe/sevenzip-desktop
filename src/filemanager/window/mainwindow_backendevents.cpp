@@ -1,6 +1,7 @@
 #include "7zip/UI/FileManager/resourceGui.h"
 #include "Windows/ErrorMsg.h"
 #include "archive/callbacks/IFileExtractCallback.h"
+#include "archive/password/archivepassword.h"
 #include "dialogs/overwrite/OverwriteDialog.h"
 #include "dialogs/password/PasswordDialog.h"
 #include "filemanager/window/mainwindow.h"
@@ -37,8 +38,8 @@ void MainWindow::connectBackend() {
             backend_->cancel();
             return;
         }
-        projectedUi().archivePassword = ToQString(dialog.Password);
-        backend_->providePassword(projectedUi().archivePassword);
+        projectedUi().archivePassword = ArchivePassword(dialog.Password);
+        backend_->providePassword(projectedUi().archivePassword.toQString());
     });
     connect(backend_, &ArchiveBackend::outputReceived, this, [this](const QString &line) {
         if (!app_.QtOperations().closed()) {
