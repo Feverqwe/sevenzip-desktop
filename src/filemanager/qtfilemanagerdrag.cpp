@@ -194,17 +194,20 @@ HRESULT QtFileManagerDrag::ExecuteDrop(CDataObject *data, DWORD keys, const QPoi
         return *result;
     auto &target = window_.app_.DropTarget();
     CPanel *const owner = target.TargetPanel();
-    const unsigned index = unsigned(target.TargetPanelIndex);
     std::optional<CSelectedState> refreshSelection;
     HRESULT result;
     {
         QScopedValueRollback<bool> source(window_.sourceArchiveProgress_, true);
         result = target.Drop(data, keys, position.x(), position.y(), &effect, &refreshSelection);
     }
-    if (owner && refreshSelection && index < kNumPanelsMax) {
-        window_.withPanelProjection(index, [&] { owner->RefreshListCtrl(*refreshSelection); });
-        window_.appPresentation_->RequestListFocus(index);
-    }
+    if (refreshSelection)
+        for (unsigned index = 0; index < kNumPanelsMax; ++index)
+            if (owner == &window_.app_.Panels[index]) {
+                window_.withPanelProjection(index,
+                                            [&] { owner->RefreshListCtrl(*refreshSelection); });
+                window_.appPresentation_->RequestListFocus(index);
+                break;
+            }
     return result;
 }
 
