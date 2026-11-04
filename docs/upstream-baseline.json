@@ -1693,6 +1693,7 @@
     "src/dialogs/copy/alias.h",
     "src/dialogs/extract/alias.h",
     "src/filemanager/AppCopy.cpp",
+    "src/filemanager/ExtractCallbackOutput.cpp",
     "src/filemanager/external/qtexternalapplications.cpp",
     "src/filemanager/external/qtexternalapplications.h",
     "src/filemanager/external/qtexternalfilesession.cpp",
@@ -3534,7 +3535,8 @@
       "local": [
         "src/archive/diagnostics/archiveerrormessages.cpp",
         "src/archive/diagnostics/archiveerrormessages.h",
-        "src/archive/resources/virtualextractfilesystem.cpp"
+        "src/archive/resources/virtualextractfilesystem.cpp",
+        "src/filemanager/ExtractCallbackOutput.cpp"
       ],
       "symbols": [
         "SetExtractErrorMessage",
@@ -3545,7 +3547,15 @@
         "ErrorInfo_Print",
         "GetBracedType",
         "CVirtFileSystem::Write",
-        "CVirtFileSystem::FlushToDisk"
+        "CVirtFileSystem::FlushToDisk",
+        "CExtractCallbackImp::AskOverwrite",
+        "CExtractCallbackImp::AskWrite",
+        "CExtractCallbackImp::UseExtractToStream",
+        "GetTime",
+        "GetItemBoolProp",
+        "CExtractCallbackImp::GetStream7",
+        "CExtractCallbackImp::PrepareOperation7",
+        "CExtractCallbackImp::SetOperationResult8"
       ]
     },
     "src/filemanager/FM.cpp": {
