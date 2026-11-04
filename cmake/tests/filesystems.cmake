@@ -86,6 +86,15 @@
     add_test(NAME ntfs_stream COMMAND ntfs_stream_tests -silent)
     add_dependencies(ntfs_stream_tests sevenzip_ntfs_runtime)
     set_tests_properties(ntfs_stream PROPERTIES TIMEOUT 60)
+    add_test(NAME ntfs_stream_quick COMMAND ntfs_stream_tests -silent
+        reads
+        errorsAndRetry
+        malformed
+        backendSelectedExtraction
+        reparseMetadataIoAndCancellation
+        volumeListFailureAndCancellation
+        dataListIoFailureAndReopening)
+    set_tests_properties(ntfs_stream_quick PROPERTIES TIMEOUT 45)
     qt_add_executable(ntfs_directory_tests tests/formats/ntfs/ntfs_directory_tests.cpp tests/formats/ntfs/support/ntfs_test_support.h)
     target_include_directories(ntfs_directory_tests PRIVATE src ${SEVENZIP_7ZIP_SOURCE_DIR}/CPP)
     target_link_libraries(ntfs_directory_tests PRIVATE sevenzip_filesystem Qt6::Test)

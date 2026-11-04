@@ -78,6 +78,26 @@ if(BUILD_TESTING)
             "SEVENZIP_CODEC_MODULE=\"${SEVENZIP_CODEC_MODULE}\"")
     endif()
     add_test(NAME codec_update COMMAND codec_update_tests -silent)
+    add_test(NAME codec_update_quick COMMAND codec_update_tests -silent
+        "sourceCopyFromFilePublishesNewBytes:7zsuccess file"
+        "sourceCopyFromFilePublishesNewBytes:zipsuccess file"
+        "sourceCopyFromFilePublishesNewBytes:gzipsuccess file"
+        "sourceCopyFromFilePublishesNewBytes:bzip2success file"
+        "sourceCopyFromFilePublishesNewBytes:xzsuccess file"
+        "sourceCopyFromFilePublishesNewBytes:tarsuccess file"
+        "sourceCopyFromFilePublishesNewBytes:wimsuccess file"
+        "sourceCopyFromFilePublishesNewBytes:zipfail plan"
+        "sourceCopyFromFilePublishesNewBytes:7zcancel file"
+        "sourceCopyFromFilePublishesNewBytes:bzip2 cancel paused delete"
+        "sourceCopyFromFilePublishesNewBytes:7z SFX success plan"
+        anotherWriterBlocksNativeFolderUpdateUntilRelease
+        staleNativeFolderCannotOverwriteAnotherPublishedGeneration
+        unsafeNativeMutationDoesNotPublish
+        metadataViewsKeepIndependentNativeIndexBindings
+        sourcePropertiesReachWriterAndResetAfterUpdate
+        duplicateNamesRetainDistinctNativeIndexes)
+    set_tests_properties(codec_update_quick PROPERTIES TIMEOUT 60 ENVIRONMENT
+        "QT_QPA_PLATFORM=offscreen")
     qt_add_executable(agent_stream_update_tests tests/ui/agent_stream_update_tests.cpp)
     target_link_libraries(agent_stream_update_tests PRIVATE sevenzip_location)
     target_include_directories(agent_stream_update_tests PRIVATE src tests)
