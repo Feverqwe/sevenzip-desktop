@@ -165,7 +165,7 @@ class SourceExtractAdvancedTests final : public QObject {
         QVERIFY(saved.ElimDup.Def && !saved.ElimDup.Val);
         QVERIFY(saved.NtSecurity.Def && !saved.NtSecurity.Val);
         QCOMPARE(saved.PathMode, NExtract::NPathMode::kAbsPaths);
-        QCOMPARE(changed.options().pathMode, ExtractionOptions::PathMode::AbsolutePaths);
+        QCOMPARE(changed.PathMode, NExtract::NPathMode::kAbsPaths);
     }
     void geometryAndLanguage_data() {
         QTest::addColumn<QString>("language");

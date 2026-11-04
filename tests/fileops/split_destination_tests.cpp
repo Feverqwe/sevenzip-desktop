@@ -1,10 +1,10 @@
+#include "archive/support/extract_dialog_fixture.h"
 #include "archive/support/native_archive_fixture.h"
 #include "dialogs/extract/alias.h"
 #include "fileops/patterns/Wildcard.h"
 #include <QDir>
 #include <QFile>
 #include <QSettings>
-#include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QtTest>
 
@@ -120,47 +120,39 @@ class SplitDestinationTests final : public QObject {
         QCOMPARE(file.write("source bytes"), qint64(12));
         file.close();
         ArchiveBackend backend;
-        QSignalSpy done(&backend, &ArchiveBackend::finished);
         const QString archive = fixture.filePath("split-dest.zip");
         QVERIFY(NativeArchiveFixture::WriteFiles(archive, {source}));
-        done.clear();
-        backend.list(archive);
-        QTRY_COMPARE_WITH_TIMEOUT(done.size(), 1, 15000);
-        QVERIFY2(done.first()[0].toBool(), qPrintable(done.first()[1].toString()));
-        done.clear();
         const QString base = fixture.filePath(QStringLiteral("вывод"));
-        CExtractDialog dialog(base + "/initial", {});
-        // This fixture exercises the basic process transport's destination
-        // path; advanced ElimDup is covered by source_extract_advanced.
-        dialog.findChild<QCheckBox *>("extractElimDup")->setChecked(false);
-        name(dialog)->setText(QStringLiteral("  δ результат  "));
-        dialog.accept();
-        QCOMPARE(QDir::fromNativeSeparators(dialog.destination()),
-                 base + QStringLiteral("/δ результат/"));
-        backend.extract(archive, dialog.destination(), {}, {}, dialog.options());
-        QTRY_COMPARE_WITH_TIMEOUT(done.size(), 1, 15000);
-        QVERIFY2(done.first()[0].toBool(), qPrintable(done.first()[1].toString()));
-        QFile restored(QDir(dialog.destination()).filePath(QFileInfo(source).fileName()));
+        const auto extract = [&](const QString &leaf, bool accept) {
+            return ExtractDialogFixture::Run(
+                backend, archive, base + "/initial", [&](CExtractDialog &dialog) {
+                    enabled(dialog)->setChecked(true);
+                    path(dialog)->setEditText(base);
+                    name(dialog)->setText(leaf);
+                    dialog.findChild<QCheckBox *>("extractElimDup")->setChecked(false);
+                    if (accept)
+                        dialog.accept();
+                    else
+                        dialog.reject();
+                });
+        };
+        const auto success = extract(QStringLiteral("  δ результат  "), true);
+        QCOMPARE(success.Result, S_OK);
+        QVERIFY(success.CallbackOK);
+        QFile restored(base + QStringLiteral("/δ результат/") + QFileInfo(source).fileName());
         QVERIFY(restored.open(QIODevice::ReadOnly));
         QCOMPARE(restored.readAll(), QByteArray("source bytes"));
-        done.clear();
-        CExtractDialog invalid(base + "/initial", {});
-        invalid.findChild<QCheckBox *>("extractElimDup")->setChecked(false);
-        name(invalid)->setText("occupied");
         QFile occupied(base + "/occupied");
         QVERIFY(occupied.open(QIODevice::WriteOnly));
         QCOMPARE(occupied.write("preserve"), qint64(8));
         occupied.close();
-        invalid.accept();
-        backend.extract(archive, invalid.destination(), {}, {}, invalid.options());
-        QCOMPARE(done.size(), 1);
-        QVERIFY(!done.first()[0].toBool());
+        const auto failure = extract("occupied", true);
+        QVERIFY(failure.Result != S_OK || !failure.CallbackOK);
         QVERIFY(occupied.open(QIODevice::ReadOnly));
         QCOMPARE(occupied.readAll(), QByteArray("preserve"));
         const QString cancelledPath = base + "/cancelled";
-        CExtractDialog cancelled(cancelledPath, {});
-        cancelled.reject();
-        QCOMPARE(cancelled.result(), int(QDialog::Rejected));
+        const auto cancelled = extract("cancelled", false);
+        QCOMPARE(cancelled.Result, E_ABORT);
         QVERIFY(!QFileInfo::exists(cancelledPath));
     }
 };

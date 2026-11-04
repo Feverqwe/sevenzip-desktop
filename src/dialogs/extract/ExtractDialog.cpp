@@ -407,36 +407,3 @@ UString CExtractDialog::DraftDestination() const {
     }
     return s;
 }
-
-ExtractionOptions CExtractDialog::options() const {
-    ExtractionOptions result;
-    result.ElimDup = ElimDup;
-    result.ElimDup.Val = _elimDup->isEnabled() && _elimDup->isChecked();
-    result.NtSecurity = NtSecurity;
-    result.NtSecurity.Val = _ntSecurity->isEnabled() && _ntSecurity->isChecked();
-    const int pathMode = _pathMode->currentData().toInt();
-    if (pathMode == NExtract::NPathMode::kNoPaths)
-        result.pathMode = ExtractionOptions::PathMode::NoPaths;
-    else if (pathMode == NExtract::NPathMode::kAbsPaths)
-        result.pathMode = ExtractionOptions::PathMode::AbsolutePaths;
-    switch (_overwriteMode->currentData().toInt()) {
-    case NExtract::NOverwriteMode::kAsk:
-        result.overwriteMode = ExtractionOptions::OverwriteMode::Ask;
-        break;
-    case NExtract::NOverwriteMode::kOverwrite:
-        result.overwriteMode = ExtractionOptions::OverwriteMode::OverwriteExisting;
-        break;
-    case NExtract::NOverwriteMode::kSkip:
-        result.overwriteMode = ExtractionOptions::OverwriteMode::SkipExisting;
-        break;
-    case NExtract::NOverwriteMode::kRename:
-        result.overwriteMode = ExtractionOptions::OverwriteMode::RenameExtracted;
-        break;
-    case NExtract::NOverwriteMode::kRenameExisting:
-        result.overwriteMode = ExtractionOptions::OverwriteMode::RenameExisting;
-        break;
-    default:
-        break;
-    }
-    return result;
-}

@@ -1,12 +1,12 @@
 // Adapted from 7-Zip CPP/7zip/UI/GUI/ExtractDialog.h (0766b73).
 // Igor Pavlov, LGPL-2.1-or-later; see third_party/7zip/License.txt.
 #pragma once
-#include "archive/backend/archivebackend.h"
 #include "archive/operations/ZipRegistry.h"
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDialog>
 #include <QLineEdit>
+#include <QStringList>
 
 class QtDisclosure;
 
@@ -53,7 +53,6 @@ class CExtractDialog : public QDialog {
     QString password() const {
         return _passwordEnable->isChecked() ? _passwordControl->text() : QString();
     }
-    ExtractionOptions options() const;
     void OnHelp();
     void SetInitialOptions(NExtract::NPathMode::EEnum pathMode,
                            NExtract::NOverwriteMode::EEnum overwriteMode, const QString &password);
