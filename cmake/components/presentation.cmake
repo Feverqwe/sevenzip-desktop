@@ -53,7 +53,9 @@ add_library(sevenzip_panel
     src/platform/memory/qtmemorylimitinfo.cpp
     src/platform/memory/qtmemorylimitinfo.h
     src/filemanager/panels/PanelCrc.cpp
+    src/archive/hashing/qtfilecrc.cpp
     src/archive/hashing/qtfilecrc.h
+    src/common/memory/midallocbuffer.h
     src/archive/operations/ArchiveName.cpp
     src/filemanager/panels/qtpaneldragmodel.h
     src/filemanager/panels/qtpaneldragtransport.cpp
@@ -120,6 +122,8 @@ add_library(sevenzip_panel
     src/filemanager/providers/FileFolderPluginOpen.cpp
     src/filemanager/providers/FileFolderPluginOpen.h
     src/filemanager/panels/PanelItemOpen.cpp
+    src/filemanager/external/qtexternalapplications.cpp
+    src/filemanager/external/qtexternalapplications.h
     src/archive/resources/qtarchiveitemopen.cpp
     src/archive/resources/qtarchiveitemopen.h
     src/filemanager/VerCtrl.cpp

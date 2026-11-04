@@ -158,7 +158,6 @@ class MainWindow : public QMainWindow {
     void configureColumns();
     void updateIconColumn();
     void saveColumns();
-    void showColumnsMenu(const QPoint &pos);
     void redrawTimestampColumns();
     void redrawSourceProperties();
     void createPanelActions(QMenu *editMenu);

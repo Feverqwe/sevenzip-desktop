@@ -1,5 +1,43 @@
 # Property report row metadata — 2026-10-31
 
+## Shared size presentation owner — 2026-11-04
+
+Rechecked original OverwriteDialog size presentation and PanelListNotify numeric
+formatting/property classification with current overwrite, panel cells/status,
+property reports, App selection summaries, HashGUI/ExtractGUI reports and temporary
+browser consumers. Complete original units, plus FormatUtils.cpp/.h, App.cpp,
+HashGUI.cpp/.h and BrowseDialog.cpp/BrowseDialog2.cpp, match their existing
+recorded hashes at
+`9128b80e3a471108678e2b3ec3c985861c8d7b0f` from
+<https://github.com/ip7z/7zip.git>. No external code is imported or original
+provenance advanced.
+
+The existing shared formatting module now owns AddSizeValue, both
+ConvertSizeToString forms, IsSizeProp and Browse_ConvertSizeToString. Their callers
+use its declaration instead of manual forward declarations or declarations in the
+panel/hash GUI interfaces. The moved native bodies and integer macro remain
+unchanged; the SPACE macros stay with name presentation in PanelListNotify. All
+definitions remain in their existing linked target, without a new formatter or
+state owner.
+The browser's distinct shortening policy and returned end pointer are preserved;
+temporary-file presentation still appends its interrupted-result marker there.
+
+The private App helper is renamed AddExactSizeValue to distinguish its original
+exact-byte-only summary from the global exact-plus-binary-unit formatter. Its
+body and callers are otherwise unchanged; these display contracts are not merged.
+Unsigned grouping, thresholds, localized byte counts, property classification,
+result/error/cancellation handling and visible layout/text are preserved.
+The manifest maps the extracted symbols to their original inventory units.
+
+Existing public formatting and component regressions cover boundary values and
+their report/dialog consumers; no test of source placement is added.
+
+Linux passed overwrite_layout, hash_results, panel_copy_info, panel_property,
+panel_cell_text, temp_cleanup, operation_extraction and source_browse_dialog:
+132 Qt checks without skips. This validates shared formatting and its direct
+consumers, with no new Windows/macOS, full/slow or appearance acceptance. Completed
+settings were removed; incremental outputs and compiler caches retained.
+
 ## Complete property command owner — 2026-11-04
 
 Rechecked complete original PanelMenu.cpp and ListViewDialog.cpp/.h/.rc

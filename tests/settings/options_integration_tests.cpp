@@ -52,6 +52,18 @@ class OptionsIntegrationTests final : public QObject {
         auto *tree = dialog.findChild<QTreeWidget *>("associationChoices");
         auto *apply = dialog.findChild<QDialogButtonBox *>("settingsButtons")
                           ->button(QDialogButtonBox::Apply);
+        QList<int> changedSelections;
+        auto *page = dialog.findChild<CSystemPage *>();
+        connect(page, &CSystemPage::Changed, &dialog, [&] {
+            int selected = 0;
+            for (const char *name : {"association-7z", "association-zip", "association-tar"})
+                selected += dialog.findChild<QCheckBox *>(name)->isChecked();
+            changedSelections.append(selected);
+            // State observers must receive the completed checkbox/count view.
+            QCOMPARE(dialog.findChild<QLabel *>("associationCount")->text(),
+                     QCoreApplication::translate("SettingsRedesign", "%n selected formats", nullptr,
+                                                 selected));
+        });
         for (const QString &query : {QString("ZIP"), QString(".tar"), QString("no such format")}) {
             search->setText(query);
             QVERIFY(!apply->isEnabled());
@@ -63,6 +75,7 @@ class OptionsIntegrationTests final : public QObject {
         QVERIFY(tree->isVisible());
         QVERIFY(UiInspection::writeReport(dialog, "settings-format-search-filtered"));
         dialog.findChild<QPushButton *>("associationSelectAll")->click();
+        QCOMPARE(changedSelections, QList<int>{3});
         search->clear();
         for (const char *name : {"association-7z", "association-zip", "association-tar"})
             QVERIFY(dialog.findChild<QCheckBox *>(name)->isChecked());
@@ -74,6 +87,7 @@ class OptionsIntegrationTests final : public QObject {
         QVERIFY(dialog.findChild<QCheckBox *>("association-tar")->isChecked());
         search->setText(".zip");
         dialog.findChild<QPushButton *>("associationClearAll")->click();
+        QCOMPARE(changedSelections, (QList<int>{3, 0}));
         search->clear();
         for (const char *name : {"association-7z", "association-zip", "association-tar"})
             QVERIFY(!dialog.findChild<QCheckBox *>(name)->isChecked());

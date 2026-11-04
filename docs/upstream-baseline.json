@@ -1507,6 +1507,7 @@
     "src/archive/codecs/archivecodelocation.cpp",
     "src/archive/codecs/archivecodelocation.h",
     "src/archive/codecs/archiveexternalcodecs.cpp",
+    "src/archive/hashing/qtfilecrc.cpp",
     "src/archive/hashing/qtfilecrc.h",
     "src/archive/operations/qtupdatepair.h",
     "src/archive/resources/archiveattributes.cpp",
@@ -1586,6 +1587,7 @@
     "src/codecs/brotli/brotlimodule.cpp",
     "src/codecs/brotli/brotlimodule.def",
     "src/codecs/lzo/lzocompat.h",
+    "src/common/memory/midallocbuffer.h",
     "src/compat/linux/core/asn1read.h",
     "src/compat/linux/core/framecompat.h",
     "src/compat/linux/core/oid_registry_data.c",
@@ -1684,6 +1686,8 @@
     "src/dialogs/compress/qtcompressoptionsdialog.h",
     "src/dialogs/copy/alias.h",
     "src/dialogs/extract/alias.h",
+    "src/filemanager/external/qtexternalapplications.cpp",
+    "src/filemanager/external/qtexternalapplications.h",
     "src/filemanager/panels/PanelFolderOperations.cpp",
     "src/filemanager/panels/PanelFolderOperations.h",
     "src/filemanager/panels/PanelProperties.cpp",
@@ -3446,6 +3450,15 @@
     "src/formats/vhdx/VhdxCrc.cpp"
   ],
   "extracted": {
+    "src/dialogs/browse/BrowseDialog.cpp": {
+      "local": [
+        "src/filemanager/FormatUtils.cpp",
+        "src/filemanager/FormatUtils.h"
+      ],
+      "symbols": [
+        "Browse_ConvertSizeToString"
+      ]
+    },
     "src/dialogs/browse/BrowseDialog2.cpp": {
       "local": [
         "src/platform/associations/qtassociatedfilelaunch_win.cpp",
@@ -3472,6 +3485,69 @@
       ],
       "symbols": [
         "CMemDialog::OnInit"
+      ]
+    },
+    "src/dialogs/overwrite/OverwriteDialog.cpp": {
+      "local": [
+        "src/filemanager/FormatUtils.cpp",
+        "src/filemanager/FormatUtils.h"
+      ],
+      "symbols": [
+        "AddSizeValue"
+      ]
+    },
+    "src/filemanager/FM.cpp": {
+      "local": [
+        "src/filemanager/qtfilemanagersplitter.cpp",
+        "src/filemanager/qtfilemanagersplitter.h"
+      ],
+      "symbols": [
+        "CSplitterPos",
+        "kSplitterWidth",
+        "kSplitterRateMax",
+        "kPanelSizeMin"
+      ]
+    },
+    "src/filemanager/panels/Panel.h": {
+      "local": [
+        "src/common/memory/midallocbuffer.h"
+      ],
+      "symbols": [
+        "CMyBuffer"
+      ]
+    },
+    "src/filemanager/panels/PanelCrc.cpp": {
+      "local": [
+        "src/archive/hashing/qtfilecrc.cpp"
+      ],
+      "symbols": [
+        "CDirEnumerator",
+        "CThreadCrc",
+        "GetNormalizedError",
+        "kBufSize",
+        "CApp::CalculateCrc2 -> CalculateFileCrc filesystem worker setup"
+      ]
+    },
+    "src/filemanager/panels/PanelItemOpen.cpp": {
+      "local": [
+        "src/filemanager/external/qtexternalapplications.cpp",
+        "src/filemanager/external/qtexternalapplications.h"
+      ],
+      "symbols": [
+        "SplitCmdLineSmart",
+        "StartAppWithParams",
+        "StartEditApplication"
+      ]
+    },
+    "src/filemanager/panels/PanelListNotify.cpp": {
+      "local": [
+        "src/filemanager/FormatUtils.cpp",
+        "src/filemanager/FormatUtils.h"
+      ],
+      "symbols": [
+        "INT_TO_STR_SPEC",
+        "ConvertSizeToString",
+        "IsSizeProp"
       ]
     },
     "src/filemanager/panels/PanelMenu.cpp": {

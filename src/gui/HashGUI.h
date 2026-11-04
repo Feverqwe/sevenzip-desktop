@@ -8,7 +8,6 @@ typedef CObjectVector<CProperty> CPropNameValPairs;
 HRESULT HashCalcGUI(DECL_EXTERNAL_CODECS_LOC_VARS const NWildcard::CCensor &censor,
                     const CHashOptions &options, bool &messageWasDisplayed);
 void AddValuePair(CPropNameValPairs &pairs, UINT resourceID, UInt64 value);
-void AddSizeValue(UString &s, UInt64 value);
 void AddSizeValuePair(CPropNameValPairs &pairs, UINT resourceID, UInt64 value);
 void AddHashBundleRes(CPropNameValPairs &s, const CHashBundle &hb);
 void AddHashBundleRes(UString &s, const CHashBundle &hb);

@@ -1,6 +1,7 @@
 // OS-association boundary for the source external-open process workflow.
 #pragma once
-#include "filemanager/panels/Panel.h"
+#include "filemanager/external/qtexternalapplications.h"
+#include "platform/process/qtexternalprocess.h"
 #include <QUrl>
 #include <functional>
 

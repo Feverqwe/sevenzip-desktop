@@ -8,7 +8,6 @@
 #include "7zip/PropID.h"
 #include "7zip/UI/Common/ExtractMode.h"
 #include "7zip/UI/FileManager/IFolder.h"
-#include "C/Alloc.h"
 #include "Common/MyBuffer.h"
 #include "Common/MyCom.h"
 #include "Common/MyString.h"
@@ -20,6 +19,7 @@
 #include "archive/resources/qtarchiveextractstatus.h"
 #include "archive/resources/qtarchiveupdatepublication.h"
 #include "common/collections/MyVector.h"
+#include "filemanager/external/qtexternalapplications.h"
 #include "filemanager/panels/qtpanellist.h"
 #include "fileops/native/FileDir.h"
 #include "fileops/patterns/Wildcard.h"
@@ -43,26 +43,10 @@ class IQtCompressCallServices;
 
 class CFolderHistory;
 struct CSelectedState;
-using QtArchiveUpdateBody = std::function<bool(std::optional<CSelectedState> &)>;
 class QColor;
 class QIcon;
 struct CExternalCodecs;
 
-// Original Panel.h worker buffer, shared by the source CRC worker.
-class CMyBuffer {
-    void *_data;
-
-  public:
-    CMyBuffer() : _data(NULL) {}
-    operator void *() { return _data; }
-    bool Allocate(size_t size) {
-        if (_data)
-            return false;
-        _data = ::MidAlloc(size);
-        return _data != NULL;
-    }
-    ~CMyBuffer() { ::MidFree(_data); }
-};
 struct CAppState;
 class CFastFolders;
 class CListViewDialog;
@@ -109,35 +93,6 @@ struct CExitEventLauncher {
     ~CExitEventLauncher() { Exit(true); }
     void Exit(bool hardExit);
     bool Exiting() const { return _exiting.load(); }
-};
-
-// Default OS associations can successfully launch without a process handle.
-// Known-process/editor services are a separate mandatory transport extension.
-class IQtExternalFileServices {
-  public:
-    virtual ~IQtExternalFileServices() = default;
-    virtual bool ConfirmArchiveFallback(const UString &, QWidget *, const QString &) {
-        return true;
-    }
-    virtual HRESULT StartApplication(const UString &dir, const UString &path, QWidget *window) = 0;
-    // Qt keeps base parameters and file paths separate at the process boundary.
-    virtual HRESULT CreateProcess(const UString &, const UString &, const UStringVector &,
-                                  QWidget *) {
-        return E_NOTIMPL;
-    }
-    virtual IQtProcessServices *ProcessServices() { return nullptr; }
-    virtual bool CanHandleExternalUpdate() const { return true; }
-    virtual bool RunArchiveUpdate(CPanel &, const QtArchiveUpdateBody &body);
-    virtual HRESULT CreateKnownProcess(const UString &, const UString &, const UStringVector &,
-                                       QWidget *, IQtProcessHandle *&process) {
-        process = nullptr;
-        return E_NOTIMPL;
-    }
-    virtual HRESULT StartApplicationKnown(const UString &dir, const UString &path, QWidget *window,
-                                          IQtProcessHandle *&process) {
-        process = nullptr;
-        return StartApplication(dir, path, window);
-    }
 };
 
 class CPanelCallback {
@@ -820,9 +775,5 @@ class CPanel : public QObject {
     UInt64 GetItem_UInt64Prop(UInt32 index, UInt32 propID) const;
 };
 
-QString ConvertSizeToString(UInt64 value);
-bool IsSizeProp(UINT propID) noexcept;
 void AddValuePair2(UString &s, UINT resourceID, UInt64 num, UInt64 size);
 UString GetFolderPath(IFolderFolder *folder);
-// Source command split used by the Qt external process adapter.
-void SplitCmdLineSmart(const UString &cmd, UString &prg, UString &params);

@@ -1,3 +1,5 @@
+// Splitter policy adapted from 7-Zip CPP/7zip/UI/FileManager/FM.cpp.
+// Igor Pavlov, LGPL-2.1-or-later; see third_party/7zip/License.txt.
 #pragma once
 #include <QSplitter>
 
@@ -19,7 +21,7 @@ class CSplitterPos {
     void SetPosFromRatio(int width);
 };
 
-// Qt owns handle input and child layout; FM.cpp owns coordinate/ratio policy.
+// Qt owns handle input and child layout around the original coordinate/ratio policy.
 class QtFileManagerSplitter final : public QSplitter {
   public:
     explicit QtFileManagerSplitter(QWidget *parent);

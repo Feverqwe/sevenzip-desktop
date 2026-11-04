@@ -84,6 +84,47 @@ source-inventory checks passed, completed test settings were removed, and builds
 used configured four-job defaults with incremental outputs and compiler caches.
 No full/slow gate or new rendered appearance acceptance is claimed.
 
+## Filesystem checksum worker owner — 2026-11-04
+
+Rechecked complete original PanelCrc.cpp enumeration, scan/read loops, worker,
+result presentation and CApp dispatch with current HashGUI/HashCalc, independent
+GUI requests, archive stream hashing and backend consumers. PanelCrc.cpp,
+Panel.h, PanelSplitFile.cpp, HashGUI.cpp/.h and HashCalc.cpp match their recorded
+original hashes at
+`9128b80e3a471108678e2b3ec3c985861c8d7b0f` from
+<https://github.com/ip7z/7zip.git>. No external code is imported or baseline
+advanced; the existing mixed-revision provenance remains explicit.
+
+The complete filesystem worker and its existing CalculateFileCrc entry now live
+beside that entry's interface under archive/hashing. PanelCrc retains CApp command
+selection, archive stream routing and command result policy. Both implementation
+units remain in the same existing target; no new service, worker, result type or
+dependency cycle is introduced. The source manifest maps the extracted symbols
+and filesystem setup fragment to their original inventory unit. The unchanged
+source CMyBuffer declaration is shared under common/memory and included directly
+by its two consumers, CRC and Split/Combine; it no longer makes the reusable
+worker depend on the panel header. Allocation and release still use MidAlloc
+and MidFree with the original class body.
+
+The moved bodies preserve enumeration and path/ADS handling, native platform
+reads, method selection, progress/cancellation, partial-error accounting, joined
+worker lifetime and once-only result presentation, including the post-Create
+fallback. Independent GUI hashing, direct API calls and panel dispatch share the
+same implementation as before. The distinct censor-based HashCalcGUI and backend
+callback consumers retain their existing responsibilities.
+
+Existing native hash, checksum, independent operation and manager regressions
+exercise digests, traversal, errors, cancellation and result delivery. Existing
+volume operations cover the shared buffer's Split/Combine consumer. No
+representation test is added; native algorithms and visible layout/text remain
+unchanged.
+
+Linux passed native_hash_workflow, checksum, operation_hash,
+manager_hash_workflow and volume_operations: 83 Qt checks without skips. This
+validates shared source separation and its direct consumers, with no new
+Windows/macOS, full/slow or appearance acceptance. Completed settings were
+removed; incremental build outputs and compiler caches were retained.
+
 ## Consuming checksum result availability — 2026-11-02
 
 Reviewed complete CRC/copy worker result preparation, GUI completion hooks and

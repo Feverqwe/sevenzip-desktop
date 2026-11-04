@@ -3,6 +3,7 @@
 #include "filemanager/qtfilemanagershellmenu.h"
 #include "filemanager/qtfilemenuprojection.h"
 #include "filemanager/qtprogramfilemenu.h"
+#include "filemanager/views/filetable.h"
 #include "filemanager/window/mainwindow.h"
 #include "localization/qtlangcontrols.h"
 #include "localization/qtlanguageservices.h"
@@ -41,12 +42,51 @@ bool QtPanelContextMenu::IsHeader(QWidget *handle) const {
 }
 bool QtPanelContextMenu::IsList(QWidget *handle) const { return handle == &impl_->view; }
 void QtPanelContextMenu::ShowColumnsContextMenu(int x, int y) {
-    auto *table = qobject_cast<QTableView *>(&impl_->view);
+    auto &window = impl_->window;
+    auto *table = qobject_cast<FileTable *>(&impl_->view);
+    auto &panel = *table->sourcePanel;
     // Some Qt platforms restore peer focus before QAction::toggled. Keep
     // the source column mutation on the header's captured owner until return.
-    CPanel::CDisableNotify left(impl_->window.app_.Panels[0]);
-    CPanel::CDisableNotify right(impl_->window.app_.Panels[1]);
-    impl_->window.showColumnsMenu(table->horizontalHeader()->mapFromGlobal(QPoint(x, y)));
+    CPanel::CDisableNotify left(window.app_.Panels[0]);
+    CPanel::CDisableNotify right(window.app_.Panels[1]);
+    const CPropColumns &columns = panel.GetColumns();
+    QMenu menu(&window);
+    FOR_VECTOR(i, columns) {
+        const CPropColumn &prop = columns[i];
+        const int column = table->columnForCatalogProperty(i);
+        if (column < 0)
+            continue;
+        QAction *option = menu.addAction(ToQString(prop.Name));
+        option->setCheckable(true);
+        option->setChecked(prop.IsVisible);
+        option->setEnabled(i != 0);
+        QObject::connect(
+            option, &QAction::toggled, &window, [&window, table, &panel, index = i](bool) {
+                const int removed = panel.GetColumns()[index].IsVisible
+                                        ? panel.GetVisibleColumns().FindItem_for_PropID(
+                                              panel.GetColumns()[index].ID)
+                                        : -1;
+                panel.ShowColumnsContextMenu(index);
+                const bool visible = panel.GetColumns()[index].IsVisible;
+                {
+                    const QSignalBlocker blocker(table->horizontalHeader());
+                    if (visible)
+                        table->appendSourceColumn(index);
+                    else if (removed >= 0)
+                        table->removeSourceColumn(unsigned(removed));
+                }
+                window.updateIconColumn();
+                const int column = table->columnForProperty(panel._sortID);
+                const Qt::SortOrder order =
+                    panel._ascending ? Qt::AscendingOrder : Qt::DescendingOrder;
+                {
+                    const QSignalBlocker blocker(table->horizontalHeader());
+                    table->horizontalHeader()->setSortIndicator(column, order);
+                }
+                window.saveColumns();
+            });
+    }
+    menu.exec(QPoint(x, y));
 }
 bool QtPanelContextMenu::GetItemRect(int index, QRect &rect) const {
     const QModelIndex item = impl_->view.model()->index(index, 0);

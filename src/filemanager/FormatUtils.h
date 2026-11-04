@@ -5,6 +5,12 @@
 
 #include "Common/MyString.h"
 #include "Common/MyTypes.h"
+#include <QString>
+
+QString ConvertSizeToString(UInt64 value);
+bool IsSizeProp(UINT propID) noexcept;
+void AddSizeValue(UString &s, UInt64 value);
+wchar_t *Browse_ConvertSizeToString(UInt64 v, wchar_t *s Z7_lifetimebound);
 
 UString NumberToString(UInt64 number);
 

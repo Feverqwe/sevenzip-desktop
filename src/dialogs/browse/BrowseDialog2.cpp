@@ -43,8 +43,6 @@ static const int kParentIndex = -1;
 static const UInt32 k_EnumerateDirsLimit = 200;
 static const UInt32 k_EnumerateFilesLimit = 2000;
 extern UString HResultToMessage(HRESULT errorCode);
-void AddSizeValue(UString &s, UInt64 value);
-wchar_t *Browse_ConvertSizeToString(UInt64 v, wchar_t *s Z7_lifetimebound);
 
 namespace {
 QString QtPath(const UString &path) { return QString::fromWCharArray(path.Ptr()); }

@@ -706,12 +706,12 @@ CPanel::CPanel(IFolderFolder *folder) {
         _currentFolderPrefix = GetFolderPath(_folder);
 }
 
-static void AddSizeValue(UString &s, UInt64 size) { s += MyFormatNew(IDS_FILE_SIZE, size); }
+static void AddExactSizeValue(UString &s, UInt64 size) { s += MyFormatNew(IDS_FILE_SIZE, size); }
 
 static void AddValuePair1(UString &s, UINT resourceID, UInt64 size) {
     AddLangString(s, resourceID);
     s += ": ";
-    AddSizeValue(s, size);
+    AddExactSizeValue(s, size);
     s.Add_LF();
 }
 
@@ -723,7 +723,7 @@ void AddValuePair2(UString &s, UINT resourceID, UInt64 num, UInt64 size) {
     s += ToUString(ConvertSizeToString(num));
     if (size != (UInt64)(Int64)-1) {
         s += "    ( ";
-        AddSizeValue(s, size);
+        AddExactSizeValue(s, size);
         s += " )";
     }
     s.Add_LF();

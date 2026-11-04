@@ -1,5 +1,41 @@
 # External-process ownership
 
+## Configured application launch owner — 2026-11-04
+
+Rechecked original PanelItemOpen command splitting, editor/viewer launch,
+Diff callers and archive edit-return flow with EditPage configuration/browse,
+registry values, Qt association/process services and current consumers. Complete
+PanelItemOpen.cpp, Panel.h, EditPage.cpp/.h and RegistryUtils.cpp/.h originals match
+their recorded hashes at `9128b80e3a471108678e2b3ec3c985861c8d7b0f` from
+<https://github.com/ip7z/7zip.git>. No external source is imported or provenance
+advanced; existing platform adaptations remain explicit.
+
+Configured application launch now owns the existing command splitter and launch
+helpers beside the external-file service contract. Settings browsing and the
+association adapter include that focused contract directly, without depending on
+the panel declaration. Panel commands still select files and choose the operation;
+the archive worker retains process observation, temporary-file protection,
+changed-copy consent and write-back. Its default update service still performs
+the same panel refresh after the supplied body.
+
+All moved function and interface bodies remain unchanged. The existing native
+quote rule, separate parameter/path transport, Windows editor fallback, POSIX
+association fallback, known/detached process choice and launch-error reporting
+are preserved. Settings Apply/Cancel behavior and editor/viewer/diff independence
+are unchanged. One existing target links the implementation; no extra process
+owner, service instance or result representation is introduced. The source
+manifest maps the three extracted native functions to their original unit.
+
+Existing settings, direct launch and archive edit regressions cover the meaningful
+contracts; no test of source location or private representation is added. Visible
+layout/text, native process spawning and archive-reader behavior are unchanged.
+
+Linux passed external_launch, external_editors_ui, archive_external_edit and
+archive_external_lifetime: 61 Qt checks without skips. This validates the shared
+launch boundary and its settings/archive consumers; no new Windows/macOS,
+full/slow or appearance acceptance is claimed. Completed test settings and
+absent-object registry records were removed; incremental outputs/cache retained.
+
 ## Paired process wait entries — 2026-11-04
 
 Rechecked original PanelItemOpen child discovery, wait projection, completion,
