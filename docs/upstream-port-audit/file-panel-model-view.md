@@ -3,6 +3,29 @@
 Область: таблица, значковые виды и их прямые потребители в File Manager.
 Ветка `feature/file-panel-model-view`, база Desktop `df10e42b`.
 
+## Shared row rendering/editor owner — 2026-11-04
+
+Reviewed the complete shared Qt delegate, table/icon factories, model display
+roles, drop-highlight publication, rename signals and native begin/end label-edit
+and custom-draw consumers. Compared complete original OnCustomDraw and
+OnBeginLabelEdit/OnEndLabelEdit bodies at
+`b88c6bc09339de32f7d18bbab900686b244f42ba`; complete PanelListNotify.cpp and
+PanelOperations.cpp hashes match the existing baseline. No external code or
+revision is imported; Qt presentation remains the recorded local adaptation.
+
+The full FileRowDelegate class and existing factory now share
+`views/filerowdelegate.cpp` under the same window component. Bodies are unchanged.
+Table and icon/list consumers still create that same delegate through their
+existing factory. Header-click sorting and view-mode configuration remain in
+the view implementation. No interface, controller, model role or state is added.
+
+Modified editor text, Enter commit/close delivery, size hints, icon alignment,
+full-row/drop highlighting, semantic foreground contrast and Cocoa focus-ring
+geometry retain their previous behavior. Source rename/publication and provider
+lifetime guards are unchanged. Existing paint and real editor regressions
+provide behavioral acceptance; no source-placement test or new visual parity
+claim is introduced.
+
 ## Ошибка привязки перед filesystem scan — 2026-11-02
 
 Сверены полные тела исходного и текущего CPanel::BindToPath, его caller
