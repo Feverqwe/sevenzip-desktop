@@ -286,10 +286,6 @@ class MainWindow : public QMainWindow {
     void executeCopyDestination(bool move, bool copyToSame, unsigned sourceIndex,
                                 const QString &destination, const CRecordVector<UInt32> &indices,
                                 QtCopyRoute route);
-    void connectRenameEditor(QAbstractItemView &view);
-    void beginRename(int row);
-    void finishFilesystemRename(quint32 sourceIndex, const QString &originalPath,
-                                const QString &name);
     QStringList selectedArchivePaths();
     QStringList archivePathsForIndices(const CRecordVector<UInt32> &indices);
     CRecordVector<UInt32> sourceOperatedIndices();

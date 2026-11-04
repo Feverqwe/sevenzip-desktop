@@ -1,11 +1,28 @@
 #include "filemanager/rename/qtrenamecontroller.h"
+#include "filemanager/panels/Panel.h"
 #include "filemanager/window/mainwindow.h"
 #include <QAbstractItemDelegate>
+#include <QFileInfo>
 #include <QLineEdit>
 #include <QPersistentModelIndex>
 #include <QScopeGuard>
 #include <QScopedValueRollback>
 #include <utility>
+
+namespace {
+// Qt equivalent of rejecting the native LV_DISPINFO edit without a reload.
+void rejectLabelEdit(CPanel &panel, QTableView &view, UInt32 sourceIndex) {
+    for (int row = 0; row < view.model()->rowCount(); ++row)
+        if (view.model()->index(row, 0).data(Qt::UserRole + 6).toUInt() == sourceIndex) {
+            view.model()->setData(view.model()->index(row, 0),
+                                  ToQString(panel.GetItemName(sourceIndex)), Qt::EditRole);
+            break;
+        }
+    CSelectedState state;
+    panel.SaveSelectedState(state);
+    panel.RestoreLoadedSelection(state);
+}
+} // namespace
 
 struct QtRenameController::Request {
     enum class Phase { Editing, Committed, Cancelled };
@@ -157,6 +174,32 @@ void QtRenameController::Apply(const Request &request) {
             }
             return;
         }
-        window_.finishFilesystemRename(request.sourceIndex, path, request.name);
+        if (!archive && !streams &&
+            QFileInfo(path).absolutePath() != window_.projectedUi().directory &&
+            !panel.GetFlatMode())
+            return;
+        Finish(request, panel);
     });
+}
+
+void QtRenameController::Finish(const Request &request, CPanel &panel) {
+    {
+        QScopedValueRollback<bool> source(window_.sourceArchiveProgress_, true);
+        if (request.name.contains(QChar::Null)) {
+            CPanel::CDisableTimerProcessing disableTimer(panel);
+            panel.MessageBox_Error_HRESULT(E_INVALIDARG);
+        } else
+            panel.OnEndLabelEdit(request.sourceIndex, ToUString(request.name));
+    }
+    const auto selection = panel.TakeRefreshSelection();
+    if (!selection) {
+        // The source validation return rejects the edit without reloading.
+        rejectLabelEdit(panel, *window_.projectedUi().table, request.sourceIndex);
+        window_.refreshActions();
+        return;
+    }
+    // The source worker owns operation errors. Its posted reload ignores the
+    // publication result and must not add a second rename diagnostic.
+    if (window_.renderBoundFolder() == S_OK)
+        window_.restoreListSelection(*selection);
 }

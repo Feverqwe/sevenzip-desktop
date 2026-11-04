@@ -1800,7 +1800,6 @@
     "src/filemanager/window/mainwindow_preferences.cpp",
     "src/filemanager/window/mainwindow_propertyinvalidation.cpp",
     "src/filemanager/window/mainwindow_refresh.cpp",
-    "src/filemanager/window/mainwindow_rename.cpp",
     "src/filemanager/window/mainwindow_root.cpp",
     "src/filemanager/window/mainwindow_selection.cpp",
     "src/filemanager/window/mainwindow_selectionpaths.cpp",
