@@ -6,9 +6,11 @@
 
 void QtFileManagerCommands::OpenDevice() {
     auto &w = window_;
+    const unsigned owner = w.app_.GetFocusedPanelIndex();
     DeviceSelectionDialog dialog(w.backend_->codecCatalog(), &w, w.deviceServices_);
     if (dialog.exec() != QDialog::Accepted)
         return;
+    w.activatePanelUi(owner);
     CMyComPtr<IInStream> input = dialog.selectedStream();
     const UString name = ToUString(dialog.selectedName());
     RunNativeOpen([&](CPanel &panel) {

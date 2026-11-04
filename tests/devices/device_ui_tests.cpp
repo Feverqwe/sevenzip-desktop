@@ -289,6 +289,109 @@ class DeviceUiTests final : public QObject {
         }
         QVERIFY(completed.load());
     }
+    void pickerKeepsInitiatingPanel_data() {
+        QTest::addColumn<unsigned>("owner");
+        QTest::addColumn<bool>("accept");
+        for (unsigned owner : {0u, 1u})
+            for (bool accept : {false, true})
+                QTest::newRow(qPrintable(QString("%1-%2").arg(owner).arg(accept)))
+                    << owner << accept;
+    }
+    void pickerKeepsInitiatingPanel() {
+        QFETCH(unsigned, owner);
+        QFETCH(bool, accept);
+        auto bytes = std::make_shared<CDeviceBytes>(fixture_);
+        const QByteArray original = bytes->Bytes;
+        ArchiveBackend backend(nullptr, engine_);
+        QSignalSpy ready(&backend, &ArchiveBackend::codecCatalogReady);
+        QVERIFY(backend.discoverCodecCatalog(module_));
+        QTRY_COMPARE(ready.size(), 1);
+        QVERIFY(ready[0][0].toBool());
+        QTemporaryDir directory;
+        QVERIFY(directory.isValid());
+        MainWindow window(&backend, {}, nullptr, nullptr, Services(bytes));
+        window.show();
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        window.findChild<QAction *>("twoPanelsAction")->trigger();
+        FileTable *views[2];
+        QLineEdit *addresses[2];
+        QString prefixes[2];
+        for (unsigned index : {0u, 1u}) {
+            const QString path = directory.filePath(QString::number(index));
+            QVERIFY(QDir().mkpath(path));
+            QFile file(QDir(path).filePath("panel.txt"));
+            QVERIFY(file.open(QIODevice::WriteOnly));
+            QCOMPARE(file.write("panel payload"), qint64(13));
+            file.close();
+            auto *pane = window.findChild<QWidget *>(QString("filePanel%1").arg(index));
+            views[index] = pane->findChild<FileTable *>("archiveTable");
+            addresses[index] = pane->findChild<QLineEdit *>("archivePath");
+            addresses[index]->setFocus();
+            QTRY_VERIFY(addresses[index]->hasFocus());
+            window.openPath(path);
+            QTRY_VERIFY(Row(*views[index], "panel.txt") >= 0);
+            prefixes[index] = ToQString(views[index]->sourcePanel->GetCurrentFolderPrefix());
+        }
+        const unsigned peer = 1 - owner;
+        views[peer]->selectRow(Row(*views[peer], "panel.txt"));
+        const QString peerDraft = QStringLiteral("peer черновик 空");
+        addresses[peer]->setText(peerDraft);
+        addresses[owner]->setFocus();
+        QTRY_VERIFY(addresses[owner]->hasFocus());
+        bool closed = false;
+        bool openingError = false;
+        unsigned stage = 0;
+        QTimer automation;
+        connect(&automation, &QTimer::timeout, &window, [&] {
+            if (auto *message = window.findChild<QMessageBox *>()) {
+                openingError = true;
+                message->accept();
+                return;
+            }
+            auto *dialog = window.findChild<DeviceSelectionDialog *>();
+            if (!dialog || !Items(*dialog)->isEnabled())
+                return;
+            if (stage == 0 && Items(*dialog)->topLevelItemCount() == 2) {
+                connect(dialog, &QDialog::finished, &window, [&] {
+                    window.activateWindow();
+                    addresses[peer]->setFocus();
+                    QTRY_VERIFY(addresses[peer]->hasFocus());
+                    closed = true;
+                });
+                if (!accept) {
+                    automation.stop();
+                    dialog->reject();
+                    return;
+                }
+                Items(*dialog)->setCurrentItem(Items(*dialog)->topLevelItem(1));
+                ++stage;
+                Open(*dialog)->click();
+            } else if (stage == 1 &&
+                       dialog->findChild<QPushButton *>("deviceBackButton")->isVisible()) {
+                Items(*dialog)->setCurrentItem(Items(*dialog)->topLevelItem(0));
+                ++stage;
+                Open(*dialog)->click();
+            }
+        });
+        automation.start(10);
+        auto *open = window.findChild<QAction *>("openDeviceAction");
+        QTRY_VERIFY(open->isEnabled());
+        open->trigger();
+        automation.stop();
+        QVERIFY(closed);
+        QVERIFY(!openingError);
+        if (accept)
+            QTRY_VERIFY(Row(*views[owner], QStringLiteral("папка 空")) >= 0);
+        else {
+            QCOMPARE(ToQString(views[owner]->sourcePanel->GetCurrentFolderPrefix()),
+                     prefixes[owner]);
+            QVERIFY(Row(*views[owner], "panel.txt") >= 0);
+        }
+        QCOMPARE(ToQString(views[peer]->sourcePanel->GetCurrentFolderPrefix()), prefixes[peer]);
+        QCOMPARE(addresses[peer]->text(), peerDraft);
+        QVERIFY(views[peer]->selectionModel()->isRowSelected(Row(*views[peer], "panel.txt"), {}));
+        QCOMPARE(bytes->Bytes, original);
+    }
     void menuToSourcePanelCopyRefreshAndParent_data() {
         QTest::addColumn<QString>("language");
         QTest::addColumn<bool>("needsRecovery");
