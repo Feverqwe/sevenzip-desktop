@@ -1,5 +1,32 @@
 # Progress controls without background priority
 
+## Filesystem checksum traversal ownership — 2026-11-04
+
+Compared the complete original `CPP/7zip/UI/FileManager/PanelCrc.cpp` at
+`b88c6bc09339de32f7d18bbab900686b244f42ba` from
+<https://github.com/ip7z/7zip.git> with the current command, extracted filesystem
+worker, GUI dispatch and result consumers. Its full-unit hash and the original
+`Windows/FileFind.h` hash match the recorded baseline. No external source or
+revision is imported.
+
+The filesystem enumerator in `archive/hashing/qtfilecrc.cpp` now keeps each
+native directory enumerator with its relative prefix in one stack record.
+Push, exhaustion, failure and scan reset therefore retire one owner rather than
+coordinating two parallel collections. Native traversal order, selected-path
+iteration, error capture before destruction, drive-root handling and POSIX
+no-follow enumeration remain unchanged. Enumerators still use the native
+noncopyable handle owner; stack records are owned by `CObjectVector`.
+
+The two-pass scan/read worker, error accounting, cancellation, hashing and
+once-only result bodies are unchanged. Existing operation regressions exercise
+recursive and flat selections, literal paths, partial inputs and cancellation;
+no test of the private record representation is added. No UI layout, native I/O
+adapter, archive-stream path or independent-operation protocol changes.
+
+Linux `native_hash_workflow` and `operation_hash` passed 28 checks without
+failures or skips. The native I/O and platform branches are unchanged; no new
+Windows/macOS or visual acceptance is claimed.
+
 ## Complete progress display owner — 2026-11-04
 
 Compared original ProgressDialog2.cpp/.h/.rc initialization, range/position,

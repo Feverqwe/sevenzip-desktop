@@ -50,8 +50,11 @@ struct CDirEnumerator {
     FString BasePrefix_for_Open;
     FStringVector FilePaths;
 
-    CObjectVector<NFind::CEnumerator> Enumerators;
-    FStringVector Prefixes;
+    struct CDirectoryFrame {
+        NFind::CEnumerator Enumerator;
+        FString Prefix;
+    };
+    CObjectVector<CDirectoryFrame> Frames;
     unsigned Index;
 
     CDirEnumerator() : EnterToDirs(false), Index(0) {}
@@ -61,8 +64,7 @@ struct CDirEnumerator {
 };
 
 void CDirEnumerator::Init() {
-    Enumerators.Clear();
-    Prefixes.Clear();
+    Frames.Clear();
     Index = 0;
 }
 
@@ -82,7 +84,7 @@ DWORD CDirEnumerator::GetNextFile(NFind::CFileInfo &fi, bool &filled, FString &r
              (NName::IsSuperPath(BasePrefix) && BasePrefix[NName::kSuperPathPrefixSize] == 0));
 #endif
 
-        if (Enumerators.IsEmpty()) {
+        if (Frames.IsEmpty()) {
             if (Index >= FilePaths.Size())
                 return S_OK;
             const FString &path = FilePaths[Index++];
@@ -109,30 +111,29 @@ DWORD CDirEnumerator::GetNextFile(NFind::CFileInfo &fi, bool &filled, FString &r
         }
 
         bool found;
+        auto &frame = Frames.Back();
 
 #ifdef _WIN32
-        const bool nextOK = Enumerators.Back().Next(fi, found);
+        const bool nextOK = frame.Enumerator.Next(fi, found);
 #else
         NFind::CDirEntry entry;
-        bool nextOK = Enumerators.Back().Next(entry, found);
+        bool nextOK = frame.Enumerator.Next(entry, found);
         if (nextOK && found)
-            nextOK = Enumerators.Back().Fill_FileInfo(entry, fi, false);
+            nextOK = frame.Enumerator.Fill_FileInfo(entry, fi, false);
 #endif
         if (nextOK) {
             if (found) {
-                resPath = Prefixes.Back();
+                resPath = frame.Prefix;
                 break;
             }
         } else {
             const DWORD error = GetNormalizedError();
-            resPath = Prefixes.Back();
-            Enumerators.DeleteBack();
-            Prefixes.DeleteBack();
+            resPath = frame.Prefix;
+            Frames.DeleteBack();
             return error;
         }
 
-        Enumerators.DeleteBack();
-        Prefixes.DeleteBack();
+        Frames.DeleteBack();
     }
 
     resPath += fi.Name;
@@ -145,8 +146,9 @@ DWORD CDirEnumerator::GetNextFile(NFind::CFileInfo &fi, bool &filled, FString &r
     if (EnterToDirs && fi.IsDir()) {
         FString s = resPath;
         s.Add_PathSepar();
-        Prefixes.Add(s);
-        Enumerators.AddNew().SetDirPrefix(BasePrefix + s);
+        auto &frame = Frames.AddNew();
+        frame.Prefix = s;
+        frame.Enumerator.SetDirPrefix(BasePrefix + s);
     }
 
     filled = true;
