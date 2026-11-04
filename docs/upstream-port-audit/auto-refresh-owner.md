@@ -1,5 +1,40 @@
 # Automatic refresh state ownership — 2026-10-31
 
+## Complete panel list lifecycle — 2026-11-04
+
+Rechecked original PanelItems.cpp RefreshListCtrl, icon assignment, saved
+selection/sort completion and OnReload/OnTimer with Panel.h, current provider,
+filesystem/archive/namespace publication and refresh consumers. Complete original
+units match their recorded hashes at
+`b88c6bc09339de32f7d18bbab900686b244f42ba` from
+<https://github.com/ip7z/7zip.git>. No source is imported or provenance advanced.
+
+The complete current load, lazy icon and refresh/selection/timer block now lives
+in PanelListLoad.cpp within the same sevenzip_panel target. General item queries,
+selection capture, open/edit commands and path projection stay in PanelItems.cpp.
+The panel interface and its state remain unchanged; no controller, cache or
+publication stage is added. Existing original extraction mappings are extended,
+retaining the earlier column owner and all original hashes.
+
+Moved and remaining bodies are unchanged. Provider-result gates, directory/icon
+caches, deleted-archive flags, source sort/fallback selection, flat-path matching,
+notification/timer guards, reload completion and portable-change handling retain
+their ordering. The existing Qt split between source loading and row publication
+remains; pending selection and loaded selection keep their distinct lifetimes.
+Windows shell-icon queries and their Qt fallback use the same dependencies and
+compilation options. Existing behavioral regressions are reused; no source-layout
+or private-helper test is added. No layout or visible text changes are made.
+
+Focused Linux validation passed panel_list_load, panel_refresh_completion,
+panel_item_icons, filesystem_reload, panel_auto_refresh and
+archive_reload_command: 312 Qt checks, no failures, two expected native Windows
+icon skips. Existing cases exercise provider failures/cancellation, lazy icons,
+namespace publication, saved selection, sorting, independent panels and
+synchronous/deferred archive and filesystem reloads. Incremental builds and
+compiler caches were retained; completed settings were removed and selected
+scratch contained no other files. This validates the shared lifecycle on Linux;
+no new Windows/macOS, full/slow or appearance acceptance is claimed.
+
 ## Active view viewport — 2026-11-02
 
 Reviewed the complete refresh routing, polling, snapshot consumption, filesystem

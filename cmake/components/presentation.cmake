@@ -227,6 +227,7 @@ add_library(sevenzip_panel
     src/filemanager/panels/PanelInfo.cpp
     src/filemanager/panels/PanelInfo.h
     src/filemanager/panels/PanelItems.cpp
+    src/filemanager/panels/PanelListLoad.cpp
     src/filemanager/panels/PanelOperations.cpp
     src/filemanager/panels/PanelFolderOperations.cpp
     src/filemanager/panels/PanelFolderOperations.h

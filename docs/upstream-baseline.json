@@ -1705,6 +1705,7 @@
     "src/filemanager/panels/PanelFolderOperations.h",
     "src/filemanager/panels/PanelInfo.cpp",
     "src/filemanager/panels/PanelInfo.h",
+    "src/filemanager/panels/PanelListLoad.cpp",
     "src/filemanager/panels/PanelProperties.cpp",
     "src/filemanager/panels/PanelSelect.h",
     "src/filemanager/panels/PanelShellMenu_win.cpp",
@@ -3768,7 +3769,8 @@
     },
     "src/filemanager/panels/PanelItems.cpp": {
       "local": [
-        "src/filemanager/panels/PanelColumns.cpp"
+        "src/filemanager/panels/PanelColumns.cpp",
+        "src/filemanager/panels/PanelListLoad.cpp"
       ],
       "symbols": [
         "GetColumnVisible",
@@ -3780,7 +3782,11 @@
         "CPanel::DeleteColumn",
         "CPanel::AddColumn",
         "CPanel::ShowColumnsContextMenu",
-        "CPanel::InitColumns (column-order projection)"
+        "CPanel::InitColumns (column-order projection)",
+        "CPanel::RefreshListCtrl (load, item icons and saved-selection completion)",
+        "CPanel::RefreshListCtrl_SaveFocused",
+        "CPanel::OnReload",
+        "CPanel::OnTimer"
       ]
     },
     "src/filemanager/App.cpp": {
