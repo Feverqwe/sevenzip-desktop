@@ -1696,6 +1696,7 @@
     "src/dialogs/browse/qttempbrowsepresentation.cpp",
     "src/dialogs/combo/alias.h",
     "src/dialogs/compress/CompressInfo.h",
+    "src/dialogs/compress/CompressOptionsDialog.cpp",
     "src/dialogs/compress/CompressResources.cpp",
     "src/dialogs/compress/CompressResources.h",
     "src/dialogs/compress/createarchivedialog.cpp",
@@ -3985,6 +3986,7 @@
     },
     "src/dialogs/compress/CompressDialog.cpp": {
       "local": [
+        "src/dialogs/compress/CompressOptionsDialog.cpp",
         "src/dialogs/compress/CompressResources.cpp"
       ],
       "symbols": [
@@ -4003,7 +4005,8 @@
         "AddMemSize",
         "CCompressDialog::AddMemComboItem",
         "CCompressDialog::SetMemUseCombo (choices and selection)",
-        "CCompressDialog::Get_MemUse_Bytes"
+        "CCompressDialog::Get_MemUse_Bytes",
+        "COptionsDialog and its timestamp helpers"
       ]
     },
     "src/filemanager/providers/FSFolder.cpp": {

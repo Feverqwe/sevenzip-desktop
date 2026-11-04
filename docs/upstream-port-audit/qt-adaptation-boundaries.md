@@ -1,5 +1,32 @@
 # Qt adaptation boundary review — 2026-10-18
 
+## Complete format-options implementation owner — 2026-11-04
+
+Compared the complete original COptionsDialog bodies and helpers in
+CompressDialog.cpp, its declaration in CompressDialog.h and included
+CompressOptionsDialog.rc with the current Qt controls and Add transaction.
+Complete original inventory hashes match
+`b88c6bc09339de32f7d18bbab900686b244f42ba`. No external code or revision is
+imported.
+
+All COptionsDialog bodies, timestamp helpers, option language IDs and Help now
+live in CompressOptionsDialog.cpp beside their declaration and controls, in
+the same compression source component. The parent retains its own Help and
+format/method policy. A narrow name lookup reads the parent's existing method
+table with the same bounds check; no second table or method-ID scheme is added.
+The extraction mapping records the complete options component without changing
+original hashes. This preserves the coherent borrowed implementation rather
+than splitting individual timestamp branches across owners.
+
+Precision selection, format capabilities/defaults, bool-pair overrides,
+ZIP/TAR special cases, hidden values, live language, initialization and accepted
+profile publication retain their existing control flow. The Add form still owns
+its local profile transaction, so Options Cancel and Add Cancel keep their
+previous effects. Qt geometry, focus and platform services are unchanged.
+Existing compression_advanced, compression_timestamp and
+compress_options_presentation suites exercise these
+contracts; no private lookup or file-structure test is added.
+
 ## Source-browser row publication — 2026-11-04
 
 Compared the complete original BrowseDialog.cpp/.h/.rc inventory hashes at
