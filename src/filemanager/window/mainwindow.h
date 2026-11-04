@@ -199,6 +199,7 @@ class MainWindow : public QMainWindow {
                               bool headerClick = false);
     static QIcon toolbarIcon(int kind);
     static QString toolbarSettingsPath();
+    QString sourcePathFromDisplayPath(QString path) const;
     void recordVisitedPath(const QString &path);
     void showFoldersHistory();
     void refreshBookmarks();

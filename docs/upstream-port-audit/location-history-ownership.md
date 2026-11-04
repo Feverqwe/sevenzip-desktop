@@ -1,5 +1,28 @@
 # Location history and address presentation — 2026-10-31
 
+## Shared display-address conversion — 2026-11-05
+
+Reviewed complete native BindToPath/BindToPathAndRefresh bodies, address edit
+dispatch, current folder-chain reuse and the Qt address/history/bookmark callers.
+The complete original PanelFolderChange.cpp hash matches the existing baseline
+at `b88c6bc09339de32f7d18bbab900686b244f42ba`. No native path parsing, archive
+opening algorithm, dependency revision or imported scope changes.
+
+Manual address entry now shares the existing saved-location display adapter
+instead of replacing every spaced separator. Conversion recognizes the physical
+archive or the currently displayed open archive, including a nested archive,
+and leaves literal spaces in path components intact. Native source addresses
+from the dropdown still bypass this presentation conversion. The original
+binding, error policy, history persistence and deferred focus owners are unchanged.
+
+The persisted-location regression now also enters both source and display paths
+to the same literal-space archive folder after leaving it, checks the resulting
+provider prefix and readable row, and verifies unchanged archive/fixture bytes.
+The existing nested-archive case enters the displayed location with native path
+separators while retaining its open chain. These checks cover the old global
+replacement failure and prevent losing nested-archive context during conversion;
+no private helper or source-text assertion is added.
+
 ## Complete persisted-navigation Qt owner — 2026-11-04
 
 Reviewed the original PanelFolderChange bookmark/history handlers, AppState
