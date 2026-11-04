@@ -1684,6 +1684,8 @@
     "src/dialogs/compress/qtcompressoptionsdialog.h",
     "src/dialogs/copy/alias.h",
     "src/dialogs/extract/alias.h",
+    "src/filemanager/panels/PanelFolderOperations.cpp",
+    "src/filemanager/panels/PanelFolderOperations.h",
     "src/filemanager/panels/PanelSelect.h",
     "src/filemanager/panels/PanelSort.h",
     "src/filemanager/panels/PanelSplitFile.h",
@@ -3458,6 +3460,16 @@
       "symbols": [
         "NCompressDialog::NUpdateMode",
         "NCompressDialog::CInfo"
+      ]
+    },
+    "src/filemanager/panels/PanelOperations.cpp": {
+      "local": [
+        "src/filemanager/panels/PanelFolderOperations.cpp",
+        "src/filemanager/panels/PanelFolderOperations.h"
+      ],
+      "symbols": [
+        "EFolderOpType",
+        "CThreadFolderOperations"
       ]
     },
     "src/fileops/native/FileDir.cpp": {

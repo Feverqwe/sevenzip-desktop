@@ -12,93 +12,19 @@
 #include "dialogs/browse/BrowseDialog.h"
 #include "dialogs/combo/ComboDialog.h"
 #include "filemanager/FormatUtils.h"
-#include "filemanager/UpdateCallback100.h"
 #include "filemanager/panels/Panel.h"
+#include "filemanager/panels/PanelFolderOperations.h"
 #include "filemanager/providers/FSFolder.h"
 #include "filemanager/providers/qtfolderpropertycapabilities.h"
 #include "localization/LangUtils.h"
 #include "platform/trash/qttrashservice.h"
 #include "ui/diagnostics/qtdiagnostictext.h"
-#include "ui/progress/qtprogresstransport.h"
 
 #include <QFileInfo>
 #include <QMessageBox>
 #include <QScopeGuard>
 
-#ifdef _WIN32
-#include "Windows/COM.h"
-#endif
-
 static const UInt32 kParentIndex = (UInt32)-1;
-
-enum EFolderOpType {
-    FOLDER_TYPE_CREATE_FOLDER = 0,
-    FOLDER_TYPE_DELETE = 1,
-    FOLDER_TYPE_RENAME = 2,
-    FOLDER_TYPE_COMMENT = 4
-};
-
-class CThreadFolderOperations : public CProgressThreadVirt {
-    HRESULT ProcessVirt() Z7_override;
-
-  public:
-    EFolderOpType OpType;
-    UString Name;
-    UInt32 Index;
-    CRecordVector<UInt32> Indices;
-    CMyComPtr<IFolderOperations> FolderOperations;
-    CMyComPtr2<IProgress, CUpdateCallback100Imp> UpdateCallback;
-
-    explicit CThreadFolderOperations(EFolderOpType opType) : OpType(opType) {}
-    HRESULT DoOperation(CPanel &panel, const UString &progressTitle, const UString &titleError);
-};
-
-HRESULT CThreadFolderOperations::ProcessVirt() {
-#ifdef _WIN32
-    NWindows::NCOM::CComInitializer comInitializer;
-#endif
-    switch ((int)OpType) {
-    case FOLDER_TYPE_CREATE_FOLDER:
-        return FolderOperations->CreateFolder(Name, UpdateCallback);
-    case FOLDER_TYPE_DELETE:
-        return FolderOperations->Delete(Indices.ConstData(), Indices.Size(), UpdateCallback);
-    case FOLDER_TYPE_RENAME:
-        return FolderOperations->Rename(Index, Name, UpdateCallback);
-    case FOLDER_TYPE_COMMENT: {
-        NWindows::NCOM::CPropVariant value(Name);
-        return FolderOperations->SetProperty(Index, kpidComment, &value, UpdateCallback);
-    }
-    default:
-        return E_FAIL;
-    }
-}
-
-HRESULT CThreadFolderOperations::DoOperation(CPanel &panel, const UString &progressTitle,
-                                             const UString &titleError) {
-    UpdateCallback.SetFromCls(new CUpdateCallback100Imp);
-    UpdateCallback->ProgressDialog = this;
-
-    WaitMode = true;
-    Sync.FinalMessage.ErrorMessage.Title = titleError;
-    UpdateCallback->Init();
-
-    if (!panel.GetParentFolders().IsEmpty()) {
-        const CFolderLink &folderLink = panel.GetParentFolders().Back();
-        UpdateCallback->PasswordIsDefined = folderLink.UsePassword;
-        UpdateCallback->Password = folderLink.Password;
-    }
-
-    MainWindow = panel.GetParent();
-    MainTitle = "7-Zip";
-    MainAddTitle = progressTitle + L' ';
-
-    std::unique_ptr<IQtProgressTransport> transport;
-    if (auto *services = dynamic_cast<IQtProgressServices *>(FolderOperations.Interface()))
-        transport = OpType == FOLDER_TYPE_COMMENT ? services->CreateNativeProgressTransport(*this)
-                                                  : services->CreateProgressTransport(*this);
-    RINOK(Create(progressTitle, MainWindow))
-    return Result;
-}
 
 static bool IsCorrectFsName(const UString &name) {
     const UString lastPart = name.Ptr((unsigned)(name.ReverseFind_PathSepar() + 1));
