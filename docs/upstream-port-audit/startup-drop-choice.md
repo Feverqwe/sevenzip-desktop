@@ -61,3 +61,31 @@ Drop/Add. Условия допуска, modal guards, переходы Open/Com
 Это успешное поведенческое свидетельство повторного теста, а не успешный
 единый CTest batch или доказательство устранения исходного таймаута.
 Новые тесты для механического выделения функции не добавлялись.
+
+## Splitter policy owner — 2026-11-04
+
+Rechecked the complete original FM.cpp splitter class, initialization, resize,
+two-panel layout and saved position with current startup/window services and
+Qt handle/keyboard/reset/toggle consumers. Original FM.cpp matches its recorded
+SHA256 at `9128b80e3a471108678e2b3ec3c985861c8d7b0f`; no external source is
+imported or provenance advanced.
+
+CSplitterPos implementation and its minimum-width constant now live beside their
+declaration and Qt consumer in the existing splitter module. All moved bodies are
+identical. The original rounding, bounds, ratio and width behavior are preserved;
+FM startup/create/placement bodies, settings storage and Qt input/layout bodies
+are unchanged. The manifest maps the class and constants to the original unit.
+The implementation moves from sevenzip_panel to its consumer's existing
+sevenzip_main_window target; no new class, API, state, target or dependency edge
+is introduced.
+
+Existing window placement and startup regressions cover restored/default
+positions, compact resizing, bounds, pointer/keyboard input, panel visibility and
+initial window creation. No source-location test or new layout/text is added.
+
+Linux passed window_placement, file_manager_startup and the separate FM RAM
+compilation/probe consumer: 59 Qt checks without skips. Completed settings were
+removed; configured four-job incremental builds/compiler caches retained. This
+validates portable ownership/linkage and existing geometry/startup behavior;
+no new Windows/macOS, full/slow, native document-event or appearance acceptance
+is claimed.

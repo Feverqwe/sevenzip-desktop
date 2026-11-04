@@ -3496,6 +3496,18 @@
         "AddSizeValue"
       ]
     },
+    "src/filemanager/FM.cpp": {
+      "local": [
+        "src/filemanager/qtfilemanagersplitter.cpp",
+        "src/filemanager/qtfilemanagersplitter.h"
+      ],
+      "symbols": [
+        "CSplitterPos",
+        "kSplitterWidth",
+        "kSplitterRateMax",
+        "kPanelSizeMin"
+      ]
+    },
     "src/filemanager/panels/Panel.h": {
       "local": [
         "src/common/memory/midallocbuffer.h"
