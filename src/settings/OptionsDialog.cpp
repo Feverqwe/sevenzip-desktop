@@ -157,7 +157,12 @@ bool QtFmOptionsDialog::apply() {
         updateApplyButton();
         return false;
     }
-    _editPage->OnApply();
+    QWidget *invalidCommand = nullptr;
+    if (_editPage->OnApply(&invalidCommand) != 0) {
+        revealControl(invalidCommand);
+        updateApplyButton();
+        return false;
+    }
     if (_settingsPage->OnApply() != 0) {
         revealControl(findChild<QWidget *>("extractMemorySpin"));
         updateApplyButton();

@@ -29,7 +29,7 @@
     target_link_libraries(ui_update_modes_tests PRIVATE Qt6::Widgets Qt6::Test)
     add_test(NAME ui_update_modes COMMAND ui_update_modes_tests -silent)
     qt_add_executable(external_editors_ui_tests tests/filemanager/external_editors_ui_tests.cpp)
-    target_link_libraries(external_editors_ui_tests PRIVATE sevenzip_layout_inspection)
+    target_link_libraries(external_editors_ui_tests PRIVATE sevenzip_layout_inspection sevenzip_widget_dialog_fixtures)
     target_link_libraries(external_editors_ui_tests PRIVATE sevenzip_window)
     target_include_directories(external_editors_ui_tests PRIVATE src tests)
     target_link_libraries(external_editors_ui_tests PRIVATE Qt6::Widgets Qt6::Test)

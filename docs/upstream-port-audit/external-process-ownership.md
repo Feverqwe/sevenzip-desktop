@@ -374,6 +374,45 @@ The same six suites then passed on macOS. Windows branches are unchanged and
 were not rerun. Both platforms reused incremental builds and compiler caches;
 no full/slow gate or visual acceptance was involved.
 
+## Complete Qt application-command input — 2026-11-05
+
+Compared original EditPage initialization, per-control modified state, Apply,
+Browse and resources, registry command storage, SplitCmdLineSmart and configured
+launch callers at `b88c6bc09339de32f7d18bbab900686b244f42ba`. Complete original
+EditPage.cpp/.h, EditPage2.rc, RegistryUtils.cpp and PanelItemOpen.cpp hashes
+match the existing baseline. No source import or revision change is introduced.
+
+Browse and Apply share one Qt command-reading boundary which rejects embedded
+NUL before conversion to the native string. Previously either action could use
+only a command's shortened prefix. The existing command splitter, accepted Browse
+replacement/Trim policy, independent viewer/editor/diff settings, raw valid
+commands and native launch arguments are unchanged.
+
+Failed Apply retains that field's draft and modified state and returns its
+control directly to the options container for reveal/focus. The container keeps
+Save open and does not emit Applied. No persistent error state, controller or
+global conversion rule is added. Earlier successful page/field writes and the
+independent unknown-file confirmation preference retain their existing partial
+Apply behavior; Cancel discards remaining unapplied input.
+
+Six public scenarios cover all three programs and correction/cancellation:
+Browse refusal before the picker, Save from another section, retained text and
+saved command, focused correction in compact options, then a real external
+fixture launched through the corresponding File Manager action. Its arguments
+prove that the old or corrected saved command receives the focused file or
+selected comparison pair. The existing suites retain normal/compact geometry,
+language, ordinary Browse, source command grammar and process lifecycle coverage.
+The modal responder is linked through its existing shared fixture owner.
+
+Linux passed `external_editors_ui`, `external_launch`, `options_dialog` and
+`options_integration`: 87 checks without failures or skips. Build time was
+15.654 seconds, test execution 8.518 seconds. Constructor, initialization,
+modified-state bodies and the options owner outside failed command Apply
+handling were compared unchanged. Whitespace and recorded inventory checks
+passed; completed scratch was empty. Configured four-job incremental builds
+and compiler cache were retained. No Windows/macOS, full/slow gate or new
+rendered appearance acceptance is claimed.
+
 ## Editor settings signal routing — 2026-11-02
 
 Compared complete original EditPage.cpp/.h/.rc and its EditPage2.rc controls at

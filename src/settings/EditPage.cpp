@@ -5,6 +5,7 @@
 #include "filemanager/HelpUtils.h"
 
 #include "7zip/UI/FileManager/EditPageRes.h"
+#include "Windows/ErrorMsg.h"
 #include "dialogs/browse/BrowseDialog.h"
 #include "filemanager/external/qtexternalapplications.h"
 #include "localization/qtlangcontrols.h"
@@ -14,12 +15,25 @@
 #include <QGridLayout>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMessageBox>
 #include <QPushButton>
 
 #define kEditTopic "FM/options.htm#editor"
 void CEditPage::OnNotifyHelp() { ShowHelpWindow(kEditTopic, this); }
 
 static void Edit_BrowseForFile(QLineEdit &edit, QWidget *hwnd);
+
+static bool ReadCommand(QLineEdit &edit, UString &command) {
+    const QString text = edit.text();
+    if (text.contains(QChar::Null)) {
+        QMessageBox::critical(edit.window(), edit.window()->windowTitle(),
+                              ToQString(NWindows::NError::MyFormatMessage(E_INVALIDARG)));
+        edit.setFocus();
+        return false;
+    }
+    command = ToUString(text);
+    return true;
+}
 
 CEditPage::CEditPage(const QString &settingsPath, QWidget *parent)
     : QWidget(parent), _settingsPath(settingsPath) {
@@ -87,7 +101,9 @@ bool CEditPage::OnInit() {
     return true;
 }
 
-long CEditPage::OnApply() {
+long CEditPage::OnApply(QWidget **invalidControl) {
+    if (invalidControl)
+        *invalidControl = nullptr;
     if (_confirmChanged) {
         SaveConfirmUnknownFileOpen(_confirmUnknownFileOpen->isChecked(), _settingsPath);
         _confirmChanged = false;
@@ -95,7 +111,12 @@ long CEditPage::OnApply() {
     for (unsigned i = 0; i < 3; i++) {
         CEditPageCtrl &c = _ctrls[i];
         if (c.WasChanged) {
-            UString path = ToUString(c.Edit->text());
+            UString path;
+            if (!ReadCommand(*c.Edit, path)) {
+                if (invalidControl)
+                    *invalidControl = c.Edit;
+                return 1;
+            }
             if (i < 2)
                 SaveRegEditor(i > 0, path, _settingsPath);
             else
@@ -107,7 +128,9 @@ long CEditPage::OnApply() {
 }
 
 static void Edit_BrowseForFile(QLineEdit &edit, QWidget *hwnd) {
-    UString cmd = ToUString(edit.text());
+    UString cmd;
+    if (!ReadCommand(edit, cmd))
+        return;
     UString param;
     UString prg;
     SplitCmdLineSmart(cmd, prg, param);

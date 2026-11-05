@@ -22,7 +22,7 @@ class CEditPage : public QWidget {
     explicit CEditPage(const QString &settingsPath, QWidget *parent = nullptr);
     bool OnInit();
     void OnNotifyHelp();
-    long OnApply();
+    long OnApply(QWidget **invalidControl = nullptr);
     bool IsModified() const;
 
   signals:
