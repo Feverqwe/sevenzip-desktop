@@ -1481,6 +1481,7 @@
     "src/app/qtapplicationstartup.h",
     "src/app/qtapplicationstartup_mac.mm",
     "src/archive/agent/AgentDirectory.cpp",
+    "src/archive/agent/qtarchivefolderoperations.cpp",
     "src/archive/backend/archivebackend.cpp",
     "src/archive/backend/archivebackend.h",
     "src/archive/backend/archivebackend_codecs.cpp",

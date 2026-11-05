@@ -1,5 +1,30 @@
 # Archive folder lifetime across rollback — 2026-10-18
 
+## Archive-folder Qt operation adapter owner — 2026-11-05
+
+Reviewed the archive folder's operation-interface queries, update/extract/comment
+capabilities, resource services and joined panel progress consumers together.
+The native Agent and ArchiveFolderOut implementations retain their existing
+recorded baseline; no external source, algorithm or revision is imported.
+
+The complete project-owned CAgentFolder capability and progress-adapter bodies
+move from the general location-factory file into qtarchivefolderoperations.cpp
+beside their Agent owner, in the same sevenzip_location target. Its existing
+unsupported CreateFile result moves with the operation interface. All six bodies
+and the remaining location factories are unchanged. No class, interface or
+replacement capability cache is introduced.
+
+Native-index-dependent progress and explicitly native comment progress remain
+distinct. Read/update/comment gates, resource ownership, folder generations,
+cancellation and joined transport teardown retain their current behavior.
+Existing archive proxy, layer lifetime, native comment and extraction behavior
+checks cover the adapter and its consumers; no source-layout test is added.
+
+Linux archive_proxy, archive_layer_lifetime, native_comment and
+source_extract_backend passed 40 checks without failures or skips, reusing the
+incremental build and compiler cache. No platform adapter or visible control
+changed; no secondary-platform, full/slow or new appearance acceptance is claimed.
+
 ## Archive-layer lifecycle owner — 2026-11-04
 
 Reviewed native archive opening, parent links, materialized nested editing,
