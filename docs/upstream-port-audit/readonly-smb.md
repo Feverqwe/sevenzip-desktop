@@ -1,5 +1,25 @@
 # Local read-only SMB: implementation and evidence
 
+## Shared deferred-result slot — 2026-11-05
+
+Reviewed complete READ and lazy-directory admission, completion, reply delivery,
+client destruction and stop paths with their QtRO consumers and the existing
+libsmb2 close/reply boundaries. READ and directory requests now compose the same
+private synchronized result slot. It accepts the first completion, notifies the
+existing wakeup after releasing its mutex and retains completed state after the
+result is taken. Directory delivery no longer accesses the slot's mutex and
+optional value separately.
+
+Request metadata, admission counters, shared callback ownership, response bounds,
+status/message correlation and library reply calls remain unchanged. Counters
+still release through each request owner, including after client disconnect.
+This consolidates project integration only; no SMB/native reader algorithm,
+external source, baseline or platform adapter changes. Existing separate-process
+READ and lazy-directory regressions send conflicting duplicate completions and
+check first bytes/errors, retries, compound paths and healthy subsequent requests.
+No private-template or representation test is added; native OS-mount acceptance
+remains an explicit opt-in.
+
 ## Session cleanup has one terminal transition — 2026-11-05
 
 Reviewed the complete local session lifecycle and its source worker/server,

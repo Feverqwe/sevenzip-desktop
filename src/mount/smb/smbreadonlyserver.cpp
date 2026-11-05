@@ -470,8 +470,9 @@ int SmbReadOnlyServer::State::read(smb2_context *context, smb2_read_request *req
         if (!session.Reads.emplace(message, pending).second)
             return status(SMB2_STATUS_INVALID_PARAMETER);
         try {
-            ReadAsync(entry.Id, request->offset, length,
-                      [pending](SmbTreeRead result) { pending->complete(std::move(result)); });
+            ReadAsync(entry.Id, request->offset, length, [pending](SmbTreeRead result) {
+                pending->Result.complete(std::move(result));
+            });
         } catch (...) {
             session.Reads.erase(message);
             throw;

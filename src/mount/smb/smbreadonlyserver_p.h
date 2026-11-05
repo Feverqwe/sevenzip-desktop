@@ -51,6 +51,30 @@ struct SmbReadOnlyServer::State : smb2_server {
         smb2_file_fs_attribute_info Attributes;
         smb2_file_attribute_tag_info Tag;
     };
+    template <typename T> class Completion {
+        const std::shared_ptr<SmbWakeup> wakeup_;
+        std::mutex mutex_;
+        std::optional<T> result_;
+
+      public:
+        explicit Completion(std::shared_ptr<SmbWakeup> wakeup) : wakeup_(std::move(wakeup)) {}
+        void complete(T result) {
+            {
+                std::lock_guard<std::mutex> lock(mutex_);
+                if (result_)
+                    return;
+                result_ = std::move(result);
+            }
+            wakeup_->notify();
+        }
+        std::optional<T> takeResult() {
+            std::lock_guard<std::mutex> lock(mutex_);
+            if (!result_)
+                return std::nullopt;
+            // Keep the slot engaged so late duplicate completions stay ignored.
+            return std::move(*result_);
+        }
+    };
     struct Client {
         State *Owner;
         quint64 Next = 1;
@@ -60,64 +84,36 @@ struct SmbReadOnlyServer::State : smb2_server {
         QByteArray LinkName;
         std::vector<smb2_fileidbothdirectoryinformation> Directory;
         struct Pending {
+          private:
+            const std::shared_ptr<std::atomic_uint> Count;
+
+          public:
+            const quint32 Maximum;
+            Completion<SmbTreeRead> Result;
             Pending(std::shared_ptr<std::atomic_uint> count, quint32 maximum,
                     std::shared_ptr<SmbWakeup> wakeup)
-                : Maximum(maximum), Count(std::move(count)), Wakeup(std::move(wakeup)) {
+                : Count(std::move(count)), Maximum(maximum), Result(std::move(wakeup)) {
                 ++*Count;
             }
             ~Pending() { --*Count; }
-            const quint32 Maximum;
-            void complete(SmbTreeRead result) {
-                {
-                    std::lock_guard<std::mutex> lock(Mutex);
-                    if (Result)
-                        return;
-                    Result = std::move(result);
-                }
-                Wakeup->notify();
-            }
-            std::optional<SmbTreeRead> takeResult() {
-                std::lock_guard<std::mutex> lock(Mutex);
-                if (!Result)
-                    return std::nullopt;
-                // Keep the slot engaged so late duplicate completions stay ignored.
-                return std::move(*Result);
-            }
-
-          private:
-            const std::shared_ptr<std::atomic_uint> Count;
-            const std::shared_ptr<SmbWakeup> Wakeup;
-            std::mutex Mutex;
-            std::optional<SmbTreeRead> Result;
         };
         smb2_context *Context = nullptr;
         std::map<quint64, std::shared_ptr<Pending>> Reads;
         struct DirectoryPending {
             const quint64 Directory;
-            const std::shared_ptr<SmbWakeup> Wakeup;
             const std::shared_ptr<std::atomic_uint> Count;
             const bool Create;
             smb2_create_request Open{};
             smb2_query_directory_request List{};
             QByteArray Name;
-            std::mutex Mutex;
-            std::optional<SmbTreeDirectory> Result;
+            Completion<SmbTreeDirectory> Result;
             DirectoryPending(quint64 directory, std::shared_ptr<SmbWakeup> wakeup,
                              std::shared_ptr<std::atomic_uint> count, bool create)
-                : Directory(directory), Wakeup(std::move(wakeup)), Count(std::move(count)),
-                  Create(create) {
+                : Directory(directory), Count(std::move(count)), Create(create),
+                  Result(std::move(wakeup)) {
                 ++*Count;
             }
             ~DirectoryPending() { --*Count; }
-            void complete(SmbTreeDirectory result) {
-                {
-                    std::lock_guard<std::mutex> lock(Mutex);
-                    if (Result)
-                        return;
-                    Result = std::move(result);
-                }
-                Wakeup->notify();
-            }
         };
         std::map<quint64, std::shared_ptr<DirectoryPending>> MetadataRequests;
     };
