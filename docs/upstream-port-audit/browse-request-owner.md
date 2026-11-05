@@ -1,5 +1,41 @@
 # File-picker request ownership — 2026-11-01
 
+## Source-browser listing and complete path input — 2026-11-05
+
+Compared original BrowseDialog initialization, enumeration/filtering, row
+publication, parent/child navigation, folder creation, confirmation and fallback
+callers with the complete current Qt browser/control boundary. Original
+BrowseDialog.cpp/.h/.rc at `b88c6bc09339de32f7d18bbab900686b244f42ba` match the
+existing baseline. No source import or dependency revision is introduced.
+
+The completed native file-info vector now transfers into the browser through
+its existing vector Swap instead of copying every entry again. Enumeration
+still completes before publication; failed enumeration retains the previous
+listing. Native filtering, ordering, selection and path resolution remain
+unchanged, with the same native vector and metadata types.
+
+Confirmation rejects embedded NUL in Qt path text before native conversion,
+using the existing invalid-name diagnostic and retaining the draft for retry.
+Previously a malformed path could be accepted as its shortened prefix. File
+and folder wrappers retain their different Cancel contracts and publish the
+accepted filter/path together as before. Native picker routing, long/device
+path fallback, link handling, folder creation and layout are unchanged.
+
+Four public regressions cover correction or cancellation after invalid input in
+file and folder mode, retained rows/raw text and final path/filter publication.
+Existing browser/picker/archive-browse checks cover navigation, filtered reload,
+sorting, creation, errors and normal/compact geometry. No vector-representation,
+copy-count or source-text test is added.
+
+Linux focused checks passed `browse_dialog`, `source_archive_browse` and
+`source_browse_dialog`: 46 checks, no skips. The first run exposed a test-fixture
+mistake: folder mode begins in the selected folder's parent, so correction now
+supplies the intended absolute path. Production behavior was unchanged by that
+fixture correction. The final browser build took 5.830 seconds and its tests
+0.437 seconds; passing picker and archive-browser evidence was reused.
+Configured four-job incremental builds and compiler cache were retained.
+No Windows/macOS, full/slow gate or new rendered-original acceptance is claimed.
+
 ## Source-browser presentation boundary — 2026-11-04
 
 Compared the complete original BrowseDialog initialization, controls/resources,

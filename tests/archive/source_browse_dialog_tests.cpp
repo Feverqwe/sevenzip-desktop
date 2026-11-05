@@ -403,6 +403,83 @@ class SourceBrowseDialogTests final : public QObject {
         QVERIFY(!QFile::exists(ToQString(browse.FilePath)));
     }
 
+    void malformedPathCanBeCorrectedOrCancelled_data() {
+        QTest::addColumn<bool>("folder");
+        QTest::addColumn<bool>("cancel");
+        for (bool folder : {false, true})
+            for (bool cancel : {false, true})
+                QTest::newRow(qPrintable(QString("%1-%2").arg(folder).arg(cancel)))
+                    << folder << cancel;
+    }
+    void malformedPathCanBeCorrectedOrCancelled() {
+        QFETCH(bool, folder);
+        QFETCH(bool, cancel);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString directory = LongDirectory(fixture);
+        const QString name =
+            folder ? QStringLiteral("selected folder 空") : QStringLiteral("selected file 空.7z");
+        QVERIFY(QDir().mkpath(directory + '/' + (folder ? name : QString())));
+        const auto original = ToUString(directory + "/initial.7z");
+        CBrowseInfo browse;
+        browse.SaveMode = true;
+        browse.FilePath = original;
+        browse.FilterIndex = 0;
+        bool inspected = false;
+        QTimer::singleShot(0, [&] {
+            auto *dialog = Dialog();
+            QVERIFY(dialog);
+            const auto close = qScopeGuard([&] {
+                if (dialog->isVisible())
+                    dialog->reject();
+            });
+            auto *path = dialog->findChild<QLineEdit *>("browsePath");
+            auto *list = dialog->findChild<QTreeWidget *>("browseList");
+            const QStringList before = Names(*list);
+            auto *filter = dialog->findChild<QComboBox *>("browseFilter");
+            if (!folder)
+                filter->setCurrentIndex(1);
+            const QString invalid = QString("shortened") + QChar::Null + "suffix";
+            path->setText(invalid);
+            bool reported = false;
+            QTimer::singleShot(0, dialog, [&] {
+                if (auto *error = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                    reported = error->icon() == QMessageBox::Critical && !error->text().isEmpty();
+                    error->accept();
+                }
+            });
+            path->setFocus();
+            dialog->findChild<QDialogButtonBox *>("browseButtons")
+                ->button(QDialogButtonBox::Ok)
+                ->click();
+            QVERIFY(reported);
+            QVERIFY(dialog->isVisible());
+            QCOMPARE(path->text(), invalid);
+            QCOMPARE(Names(*list), before);
+            inspected = true;
+            if (cancel)
+                dialog->reject();
+            else {
+                path->setText(directory + '/' + name);
+                dialog->accept();
+            }
+        });
+        UString output(L"stale");
+        const bool accepted =
+            folder ? MyBrowseForFolder(nullptr, L"Folder", ToUString(directory), output)
+                   : browse.BrowseForFile(Filters());
+        QVERIFY(inspected);
+        QCOMPARE(accepted, !cancel);
+        if (folder)
+            QCOMPARE(QDir::fromNativeSeparators(ToQString(output)),
+                     cancel ? QString() : directory + '/' + name + '/');
+        else {
+            QCOMPARE(QDir::fromNativeSeparators(ToQString(browse.FilePath)),
+                     cancel ? ToQString(original) : directory + '/' + name);
+            QCOMPARE(browse.FilterIndex, cancel ? 0 : 1);
+        }
+    }
+
     void createFolderCancelAndFailureKeepBrowserOpen() {
         QTemporaryDir fixture;
         const QString directory = LongDirectory(fixture);
