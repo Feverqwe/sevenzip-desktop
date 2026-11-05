@@ -273,7 +273,7 @@ bool SmbReadOnlyServer::validate(QString &error) {
             state.Nodes[entry.Parent].Children.append(entry.Id);
         if (!entry.Directory)
             state.TotalBytes +=
-                std::min(entry.Size, std::numeric_limits<quint64>::max() - state.TotalBytes);
+                (std::min)(entry.Size, (std::numeric_limits<quint64>::max)() - state.TotalBytes);
     }
     state.Valid = true;
     return true;

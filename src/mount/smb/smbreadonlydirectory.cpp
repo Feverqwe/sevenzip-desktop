@@ -71,7 +71,8 @@ quint32 SmbReadOnlyServer::State::installDirectory(quint64 parent,
         Nodes.insert(entry.Id, std::move(node));
         Nodes[parent].Children.append(entry.Id);
         if (!entry.Directory)
-            TotalBytes += std::min(entry.Size, std::numeric_limits<quint64>::max() - TotalBytes);
+            TotalBytes +=
+                (std::min)(entry.Size, (std::numeric_limits<quint64>::max)() - TotalBytes);
     }
     Nodes[parent].Entry.ChildrenLoaded = true;
     return 0;
