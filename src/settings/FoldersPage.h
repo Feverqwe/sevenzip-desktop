@@ -3,6 +3,7 @@
 #pragma once
 #include <QWidget>
 
+class UString;
 class QButtonGroup;
 class QCheckBox;
 class QLineEdit;
@@ -20,6 +21,7 @@ class CFoldersPage : public QWidget {
     void MyEnableControls();
     void ModifiedEvent();
     void OnFoldersWorkButtonPath();
+    bool ReadPath(UString &path);
     int GetWorkMode() const;
     bool OnInit();
     bool OnButtonClicked(unsigned buttonID);

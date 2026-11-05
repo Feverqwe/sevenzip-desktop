@@ -1175,6 +1175,37 @@ incremental outputs and compiler caches. Selected temporary fixture directories
 were empty afterward. Source inventory and whitespace checks passed; no full or
 slow gate, native mount or visual acceptance is claimed.
 
+### Rejected decoded-cache output ownership — 2026-11-05
+
+Reviewed the complete cache read/materialization/release flow, native single-entry
+output creation and closure, recovery consent, cancellation and source-extraction
+results. This is local cache integration; native extraction and the recorded
+upstream algorithms and baseline are unchanged. Recovery eligibility, encryption,
+path validation and separate consent for unverified data retain their boundaries.
+
+Rejected output previously had a separate best-effort file deletion. If deletion
+failed, the file could block a later read without remaining in the cache's quota
+or eviction accounting. Failure cleanup now uses the existing cache release owner,
+retaining the bounded output's quota reservation until removal succeeds. Only an
+output created by the operation is adopted; a preexisting file is not removed.
+Successful stream publication completes its accounting before producing the
+warning, keeping ownership coherent if that reporting throws.
+
+The existing recovery-consent regression now also denies directory traversal
+while refusing consent or throwing from the consent callback. After restoring
+permissions it checks another authorized read, cached ranges and eviction for a
+different entry under a one-entry quota. Before restoring permissions, another
+entry must be refused because the retained output still occupies that quota.
+These disposable POSIX fixtures exercise public read results and bytes; Windows
+and root skip the permission-failure rows.
+
+Focused Linux validation passed archive_readonly_view, archive_mount_transport
+and mount_extraction_prompt: 87 passed checks, with five native-OS mount rows
+remaining behind their existing opt-in. Incremental four-job compilation reused
+the compiler cache; selected scratch directories were empty after completion.
+Source inventory and whitespace checks passed. No secondary-platform, native
+mount, full/slow-suite or visual acceptance is claimed.
+
 ### SMB wakeup initialization ownership — 2026-11-04
 
 Reviewed wakeup construction/destruction, server validation, select/extra-fdset

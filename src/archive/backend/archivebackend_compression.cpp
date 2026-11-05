@@ -8,6 +8,13 @@
 
 namespace {
 bool ValidateCompressionFeatures(const CompressionOptions &options, QString *error) {
+    if (QString::fromWCharArray(options.Options.Ptr(), options.Options.Len())
+            .contains(QChar::Null)) {
+        *error =
+            QCoreApplication::translate("archivebackend_compression",
+                                        "Invalid compression parameters for the selected format.");
+        return false;
+    }
     const auto *actionSet = NCompressDialog::FindUpdateActionSet(options.UpdateMode);
     if (options.DeleteAfterCompressing &&
         (!actionSet || CheckDeleteAfterCompressingActionSet(*actionSet) != S_OK)) {

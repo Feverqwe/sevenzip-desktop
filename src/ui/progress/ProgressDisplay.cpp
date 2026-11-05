@@ -3,6 +3,7 @@
 #include "7zip/UI/FileManager/ProgressDialog2Res.h"
 #include "7zip/UI/GUI/ExtractRes.h"
 #include "Common/IntToString.h"
+#include "filemanager/views/qtlistview.h"
 #include "localization/LangUtils.h"
 #include "localization/qtlangcontrols.h"
 #include "ui/dialogs/qtmodalresult.h"
@@ -156,7 +157,7 @@ bool CProgressDialog::OnInit() {
     _filesStr_Prev.Empty();
     _filesTotStr_Prev.Empty();
     m_ProgressBar.Attach(GetItem(IDC_PROGRESS1));
-    _messageList.Attach(GetItem(IDL_PROGRESS_MESSAGES));
+    _messageList = static_cast<CListView *>(GetItem(IDL_PROGRESS_MESSAGES));
     _wasCreated = true;
     _dialogCreatedEvent.Set();
     GetItemText(IDB_PAUSE, _pause_String);
@@ -166,10 +167,10 @@ bool CProgressDialog::OnInit() {
     SetPauseText();
     if (_transport && !_transport->CanPause())
         GetItem(IDB_PAUSE)->setEnabled(false);
-    _messageList.InsertColumn(0, L"", 40);
-    _messageList.InsertColumn(1, L"", 460);
-    _messageList.SetColumnWidthAuto(0);
-    _messageList.SetColumnWidthAuto(1);
+    _messageList->InsertColumn(0, L"", 40);
+    _messageList->InsertColumn(1, L"", 460);
+    _messageList->SetColumnWidthAuto(0);
+    _messageList->SetColumnWidthAuto(1);
     EnableErrorsControls(false);
     GetItemSizes(2, _buttonSizeX, _buttonSizeY);
     _numReduceSymbols = kCurrentFileNameSizeLimit;

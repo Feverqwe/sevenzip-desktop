@@ -149,6 +149,77 @@ class SourceCompressDialogTests final : public QObject {
         QCOMPARE(_catalog->result(), S_OK);
 #endif
     }
+    void parameterDraftSurvivesProfilesAndRejectsNul_data() {
+        QTest::addColumn<QSize>("size");
+        QTest::newRow("normal") << QSize(760, 720);
+        QTest::newRow("compact") << QSize(640, 480);
+    }
+    void parameterDraftSurvivesProfilesAndRejectsNul() {
+        QFETCH(QSize, size);
+        const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
+        QFile::remove(settings);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString invalid = QString("tm=off") + QChar::Null + " mt=1";
+        {
+            CreateArchiveDialog dialog(fixture.path(), {}, nullptr, _catalog);
+            auto *format = dialog.findChild<QComboBox *>("archiveFormat");
+            auto *parameters = dialog.findChild<QLineEdit *>("archiveParameters");
+            format->setCurrentIndex(format->findText("7z"));
+            parameters->setText(invalid);
+            format->setCurrentIndex(format->findText("zip"));
+            format->setCurrentIndex(format->findText("7z"));
+            QCOMPARE(parameters->text(), invalid);
+            format->setCurrentIndex(format->findText("zip"));
+            dialog.findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok)->click();
+            QCOMPARE(dialog.result(), int(QDialog::Accepted));
+        }
+        const auto savedBytes = [&] {
+            QFile file(settings);
+            return file.open(QIODevice::ReadOnly) ? file.readAll() : QByteArray();
+        };
+        const auto original = savedBytes();
+        QVERIFY(!original.isEmpty());
+        CreateArchiveDialog dialog(fixture.path(), {}, nullptr, _catalog);
+        auto *format = dialog.findChild<QComboBox *>("archiveFormat");
+        format->setCurrentIndex(format->findText("7z"));
+        auto *parameters = dialog.findChild<QLineEdit *>("archiveParameters");
+        QCOMPARE(parameters->text(), invalid);
+        auto *section = dialog.findChild<QtDisclosure *>("archiveCommandLineSection");
+        section->setExpanded(false);
+        dialog.resize(size);
+        dialog.show();
+        bool reported = false;
+        QTimer::singleShot(0, &dialog, [&] {
+            if (auto *message = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                reported = message->icon() == QMessageBox::Critical;
+                message->accept();
+            }
+        });
+        auto *ok = dialog.findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok);
+        ok->click();
+        QVERIFY(reported);
+        QCOMPARE(dialog.result(), int(QDialog::Rejected));
+        QCOMPARE(savedBytes(), original);
+        QVERIFY(dialog.isVisible());
+        QVERIFY(section->isExpanded());
+        QCOMPARE(parameters->text(), invalid);
+        QCoreApplication::processEvents();
+        QVERIFY(UiInspection::fullyVisible(*parameters, dialog));
+        parameters->setText(" -mtm=off -mmt=1 ");
+        ok->click();
+        QCOMPARE(dialog.result(), int(QDialog::Accepted));
+        const auto source = dialog.sourceInfo();
+        const auto properties = NCompressDialog::GetCompressionProperties(source, true);
+        bool timestampOff = false, singleThread = false;
+        FOR_VECTOR(i, properties) {
+            const auto &property = properties[i];
+            timestampOff |= property.Name == L"tm" && property.Value == L"off";
+            singleThread |= property.Name == L"mt" && property.Value == L"1";
+        }
+        QVERIFY(timestampOff && singleThread);
+    }
+
     void acceptedSourceOptionsSurviveLaterWidgetChanges_data() {
         QTest::addColumn<QString>("format");
         QTest::addColumn<UInt32>("sourceLevel");
@@ -191,18 +262,22 @@ class SourceCompressDialogTests final : public QObject {
             auto *level = dialog->findChild<QComboBox *>("compressionLevel");
             auto *headers = dialog->findChild<QCheckBox *>("archiveEncryptHeaders");
             auto *password = dialog->findChild<QLineEdit *>("archivePassword");
+            auto *parameters = dialog->findChild<QLineEdit *>("archiveParameters");
+            parameters->setText("tm=off");
             if (format == "7z")
                 level->setCurrentIndex(level->findData(5u));
             headers->setChecked(true);
-            connect(dialog, &QDialog::accepted, dialog, [&, dialog, level, headers, password] {
-                changedAfterConfirmation = true;
-                password->setText("later draft");
-                headers->setChecked(false);
-                level->setCurrentIndex(level->findData(0u));
-                publishedPassword = dialog->password();
-                publishedHeaders = dialog->encryptHeaders();
-                publishedOptions = dialog->compressionOptions();
-            });
+            connect(dialog, &QDialog::accepted, dialog,
+                    [&, dialog, level, headers, password, parameters] {
+                        changedAfterConfirmation = true;
+                        password->setText("later draft");
+                        parameters->setText("tm=on");
+                        headers->setChecked(false);
+                        level->setCurrentIndex(level->findData(0u));
+                        publishedPassword = dialog->password();
+                        publishedHeaders = dialog->encryptHeaders();
+                        publishedOptions = dialog->compressionOptions();
+                    });
             auto *ok = dialog->findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok);
             QVERIFY(ok->isEnabled());
             ok->click();
@@ -215,6 +290,8 @@ class SourceCompressDialogTests final : public QObject {
         QCOMPARE(publishedPassword, password);
         QCOMPARE(source.Info.Level, sourceLevel);
         QCOMPARE(publishedOptions.Level, effectiveLevel);
+        QCOMPARE(QString::fromWCharArray(source.Info.Options.Ptr()), QString("tm=off"));
+        QCOMPARE(QString::fromWCharArray(publishedOptions.Options.Ptr()), QString("tm=off"));
         QCOMPARE(source.Info.EncryptHeaders, format == "7z");
         QCOMPARE(publishedHeaders, format == "7z");
         QCOMPARE(QString::fromWCharArray(source.Info.ArcPath.Ptr()), target);

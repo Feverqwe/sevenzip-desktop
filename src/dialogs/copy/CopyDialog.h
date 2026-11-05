@@ -34,4 +34,5 @@ class CCopyDialog : public QDialog {
     bool OnInit();
     void OnButtonSetPath();
     void OnOK();
+    bool ReadPath(UString &path);
 };

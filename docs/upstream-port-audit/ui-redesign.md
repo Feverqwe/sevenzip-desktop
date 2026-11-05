@@ -2107,6 +2107,47 @@ combines the first three suites with this repeat; ordinary-token metadata
 acceptance is not claimed. Product sources and all test deadlines/assertions
 remained unchanged between platform runs.
 
+## Complete additional-parameter text — 2026-11-05
+
+Reviewed the complete Qt parameter/profile/request path, accepted-source handoff,
+settings save/load and backend admission with original CompressDialog profile
+handling, UpdateGUI option parsing/property overrides and compression registry
+bodies. Full original units at `b88c6bc09339de32f7d18bbab900686b244f42ba` match
+the recorded baseline. Native parser, property order, method override, archive
+writer and password contracts are unchanged; no external source is imported.
+
+The Qt dialog now has one conversion owner for additional-parameter text,
+retaining its full length for both the native request and format profile. Profile
+display and settings transport also preserve the full draft. Previously these
+boundaries could silently discard an embedded NUL and everything following it,
+turning invalid input into an apparently valid prefix after switching formats
+or reopening the dialog.
+
+Confirmation rejects that invalid input before memory validation or saving
+preferences, reveals its section and leaves the draft available for correction.
+Backend admission independently rejects it before native property parsing;
+source ShowDialog retains its existing accepted-dialog boundary. The same
+invalid-argument/compression-parameter diagnostics are reused. Native trimming,
+ordinary option grammar, format-specific drafts, accepted snapshots, Cancel and
+operation cancellation keep their existing owners. No global string conversion,
+parallel draft store or new normalization policy is introduced.
+
+Normal/compact regressions switch profiles, save another format, reopen the
+invalid draft, refuse confirmation without changing settings, then correct it
+and inspect native properties. Existing accepted-snapshot cases now include
+parameters changed after confirmation. A backend regression rejects malformed
+parameters without producing an archive and successfully retries with valid
+parameters through the native writer. No source-layout or private-helper test
+is added; normal layout and captions remain unchanged.
+
+Focused Linux validation passed source_compress_dialog, codec_creation_ui,
+compression_path and shell_update_gui: 83 checks without failures or skips.
+Normal/compact field reachability and corrected native creation passed. Source
+inventory and whitespace checks passed; selected scratch was empty and no selected
+test processes or disposable settings remained. Four-job incremental compilation
+reused the compiler cache. No secondary-platform, full/slow-suite or new rendered
+parity acceptance is claimed.
+
 ## Compression option handoff — 2026-10-31
 
 Compared complete repository-owned baseline

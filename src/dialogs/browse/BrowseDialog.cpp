@@ -284,7 +284,7 @@ HRESULT CBrowseDialog::Reload(UString pathPrefix, const UString &selectedName) {
         }
     }
     DirPrefix = pathPrefix;
-    _files = files;
+    _files.Swap(files);
     PopulateRows(selectedName);
     return S_OK;
 }
@@ -380,7 +380,13 @@ void CBrowseDialog::OnItemEnter() {
 }
 
 void CBrowseDialog::FinishOnOK() {
-    const UString s = ToUString(_pathEdit->text());
+    const QString text = _pathEdit->text();
+    if (text.contains(QChar::Null)) {
+        MessageBox_HResError(this, kInvalidNameError, UString());
+        _pathEdit->setFocus();
+        return;
+    }
+    const UString s = ToUString(text);
     FString destPath;
     if (!GetFullPath(us2fs(DirPrefix), us2fs(s), destPath)) {
         MessageBox_HResError(this, kInvalidNameError, s);

@@ -50,16 +50,16 @@ class CMultiStreams Z7_final {
         CMyComPtr<IInStream> Stream;
         CInFileStream *FileSpec;
         FString Path;
-        // UInt64 Size;
+        UString Name;
+        UInt64 Size;
+        bool WasUsed;
         UInt64 LocalPos;
         int Next; // next older
         int Prev; // prev newer
         // bool IsOpen;
 
         CSubStream()
-            : FileSpec(NULL),
-              // Size(0),
-              LocalPos(0), Next(-1), Prev(-1)
+            : FileSpec(NULL), Size(0), WasUsed(false), LocalPos(0), Next(-1), Prev(-1)
         // IsOpen(false)
         {}
     };
@@ -131,12 +131,8 @@ class COpenCallbackImp Z7_final : public IArchiveOpenCallback,
 
   public:
     bool PasswordWasAsked;
-    UStringVector FileNames;
-    CBoolVector FileNames_WasUsed;
-    CRecordVector<UInt64> FileSizes;
-
     void AtCloseFile(unsigned fileIndex) {
-        FileNames_WasUsed[fileIndex] = false;
+        Volumes.Streams[fileIndex].WasUsed = false;
         Volumes.CloseFile(fileIndex);
     }
 

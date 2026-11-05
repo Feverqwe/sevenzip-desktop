@@ -1,5 +1,38 @@
 # Diagnostic message dialog lifetime — 2026-10-31
 
+## One Qt message-list adapter — 2026-11-05
+
+Compared original MessagesDialog and ProgressDialog2 message insertion, splitting,
+numbering, initialization, selection and clipboard handlers, their headers and
+resources with the complete Qt list adapter and both consumers. Full original
+units at `b88c6bc09339de32f7d18bbab900686b244f42ba` match the existing baseline.
+Native message algorithms and clipboard line endings remain unchanged; no
+external source or revision is imported.
+
+Standalone diagnostics and operation reports now use their existing CListView
+widgets directly, removing CQtProgressListView's forwarding layer and the
+standalone dialog's duplicate pointer. Column insertion and the existing insertion-result calculation belong to
+the common widget adapter; the other list-dialog consumer still ignores that
+result. The progress pointer is bound at the same initialization stage as before.
+Widget ownership, registration, geometry, headers and modal results are unchanged.
+
+Line splitting, trailing empty rows, message numbering, successful-insert
+accounting, selected/all-row clipboard behavior, incremental appends and bounded
+column autosizing retain their existing source flow. This does not change the
+progress UI or result/cancel policy. Existing public diagnostics, progress,
+worker and list-dialog regressions cover these contracts, including reopening
+and normal/compact geometry. No adapter-presence or private-pointer test is added.
+
+Linux progress_dialog, progress_worker, extract_prompt, list_view_dialog and
+source_prompt_presentation passed 90 checks without failures or skips. One-off
+source comparison confirms that the full progress message/clipboard unit and
+standalone splitting/numbering/initialization bodies differ only in list binding.
+Inventory and whitespace checks passed. Four-job incremental builds retained
+the compiler cache; selected scratch was empty and no active tests or disposable
+settings remained. No native platform branch or visible behavior changed;
+secondary-platform, full/slow-suite and new rendered-parity acceptance are not
+claimed.
+
 Reference: <https://github.com/ip7z/7zip.git>, commit
 `9128b80e3a471108678e2b3ec3c985861c8d7b0f`. Compared complete
 MessagesDialog.cpp/.h/.rc, CModalDialog creation/initialization, the PanelDrag

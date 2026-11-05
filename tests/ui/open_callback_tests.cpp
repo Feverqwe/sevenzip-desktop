@@ -132,8 +132,6 @@ class OpenCallbackTests : public QObject {
         }
         QCOMPARE(volumes->GetStream(nativeName.c_str(), &stream), HRESULT(S_OK));
         QVERIFY(stream);
-        QCOMPARE(implementation->FileNames.Size(), unsigned(1));
-        QVERIFY(implementation->FileNames_WasUsed[0]);
         char data[15]{};
         UInt32 read = 0;
         QCOMPARE(stream->Read(data, 6, &read), HRESULT(S_OK));

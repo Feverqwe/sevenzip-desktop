@@ -1,7 +1,6 @@
 #include "ui/progress/qtprogresscontrols.h"
 #include "7zip/UI/FileManager/ProgressDialog2Res.h"
 #include "7zip/UI/FileManager/resourceGui.h"
-#include "filemanager/views/qtlistview.h"
 #include "settings/ViewSettings.h"
 #include "ui/dialogs/qtdialogscreenservices.h"
 #include "ui/dialogs/qtdialogunits.h"
@@ -20,29 +19,6 @@ void CQtProgressBar::SetPos(int position) {
     // out-of-range value. Preserve the source control service's behavior.
     _view->setValue(qBound(_view->minimum(), position, _view->maximum()));
 }
-
-void CQtProgressListView::Attach(QWidget *widget) { _view = static_cast<CListView *>(widget); }
-void CQtProgressListView::InsertColumn(unsigned column, const wchar_t *text, int width) {
-    if (_view->columnCount() <= int(column))
-        _view->setColumnCount(int(column) + 1);
-    _view->headerItem()->setText(int(column), QString::fromWCharArray(text));
-    _view->setColumnWidth(int(column), width);
-}
-int CQtProgressListView::InsertItem(unsigned index, const UString &text) {
-    _view->InsertItem(index, text);
-    return _view->indexOfTopLevelItem(_view->topLevelItem(int(index)));
-}
-void CQtProgressListView::SetSubItem(unsigned index, int column, const UString &text) {
-    _view->SetSubItem(index, column, text);
-}
-void CQtProgressListView::SetColumnWidthAuto(int column) { _view->SetColumnWidthAuto(column); }
-void CQtProgressListView::Move(int x, int y, int width, int height) {
-    _view->setGeometry(x, y, width, height);
-}
-int CQtProgressListView::GetNextSelectedItem(int index) const {
-    return _view->GetNextSelectedItem(index);
-}
-int CQtProgressListView::GetItemCount() const { return _view->topLevelItemCount(); }
 
 void CQtProgressDialog::AddControl(unsigned id, const char *name, QWidget *widget) {
     widget->setObjectName(QString::fromLatin1(name));

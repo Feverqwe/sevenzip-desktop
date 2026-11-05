@@ -33,9 +33,6 @@ using namespace NWindows;
 
 HRESULT COpenCallbackImp::Init2(const FString &folderPrefix, const FString &fileName) {
     Volumes.Init();
-    FileNames.Clear();
-    FileNames_WasUsed.Clear();
-    FileSizes.Clear();
     _subArchiveMode = false;
     UString packageFolder = fs2us(folderPrefix);
     if (!packageFolder.IsEmpty() && IS_PATH_SEPAR(packageFolder.Back()))
@@ -234,14 +231,16 @@ HRESULT CMultiStreams::EnsureOpen(unsigned index) {
             CMyComPtr<IInStream> inStreamTemp = inFile;
             if (!inFile->Open(s.Path))
                 return GetLastError_noZero_HRESULT();
+            if (s.LocalPos != 0) {
+                UInt64 position = s.LocalPos;
+                RINOK(inStreamTemp->Seek((Int64)s.LocalPos, STREAM_SEEK_SET, &position))
+                s.LocalPos = position;
+            }
             s.FileSpec = inFile;
             s.Stream = s.FileSpec;
             InsertToList(index);
         }
         // s.IsOpen = true;
-        if (s.LocalPos != 0) {
-            RINOK(s.Stream->Seek((Int64)s.LocalPos, STREAM_SEEK_SET, &s.LocalPos))
-        }
 #ifdef DEBUG_VOLUMES
         static int numOpens = 0;
         numOpens++;
@@ -400,15 +399,13 @@ Z7_COM7F_IMF(COpenCallbackImp::GetStream(const wchar_t *name, IInStream **inStre
         // s.IsOpen = true;
     }
 
-    const unsigned fileIndex = Volumes.Streams.Add(s);
-    Volumes.InsertToList(fileIndex);
-
-    FileSizes.Add(_fileInfo.Size);
-    FileNames.Add(name2);
-    FileNames_WasUsed.Add(true);
-
+    s.Name = name2;
+    s.Size = _fileInfo.Size;
+    s.WasUsed = true;
     CInFileStreamVol *inFile = new CInFileStreamVol;
     CMyComPtr<IInStream> inStreamTemp = inFile;
+    const unsigned fileIndex = Volumes.Streams.Add(s);
+    Volumes.InsertToList(fileIndex);
     inFile->FileIndex = fileIndex;
     inFile->OpenCallbackImp = this;
     inFile->OpenCallbackRef = this;

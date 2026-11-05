@@ -58,8 +58,7 @@ class CNativeExtractWorker final : public CProgressThreadVirt {
             virtualFiles.Create_if_Empty();
             virtualFiles->FileName = L"密碼 с пробелом.bin";
             virtualFiles->DirPrefix = qUtf8Printable(_destination + "/");
-            ui->VirtFileSystem = virtualFiles.Interface();
-            ui->VirtFileSystemSpec = virtualFiles.ClsPtr();
+            ui->VirtFileSystem.SetFromCls(virtualFiles.ClsPtr());
         }
         const UInt32 selected = 0;
         CMyComPtr<IFolderOperations> operations;

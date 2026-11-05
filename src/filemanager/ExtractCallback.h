@@ -136,8 +136,7 @@ class CExtractCallbackImp Z7_final
     CProgressDialog *ProgressDialog;
 
 #ifndef Z7_SFX
-    CVirtFileSystem *VirtFileSystemSpec;
-    CMyComPtr<ISequentialOutStream> VirtFileSystem;
+    CMyComPtr2<ISequentialOutStream, CVirtFileSystem> VirtFileSystem;
     UInt64 NumFolders;
     UInt64 NumFiles;
 #endif
@@ -152,26 +151,7 @@ class CExtractCallbackImp Z7_final
     UString _lang_Reading;
     UString _lang_Empty;
 
-    CExtractCallbackImp()
-        : _totalFiles_Defined(false), _totalBytes_Defined(false), MultiArcMode(false),
-          ProcessAltStreams(true), StreamMode(false), ThereAreMessageErrors(false),
-          Src_Is_IO_FS_Folder(false)
-#ifndef Z7_NO_CRYPTO
-          ,
-          PasswordIsDefined(false), PasswordWasAsked(false)
-#endif
-#ifndef Z7_SFX
-          ,
-          _remember(false), _skipArc(false)
-#endif
-          ,
-          YesToAll(false), TestMode(false), OverwriteMode(NExtract::NOverwriteMode::kAsk)
-#ifndef Z7_SFX
-          ,
-          _hashCalc(NULL)
-#endif
-    {
-    }
+    CExtractCallbackImp();
 
     ~CExtractCallbackImp();
     void Init();

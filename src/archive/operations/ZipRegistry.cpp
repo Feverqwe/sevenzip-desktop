@@ -282,7 +282,8 @@ void CInfo::Save(const QString &path) const {
         const CFormatOptions &fo = Formats[i];
         optionsKey.beginGroup(fo.FormatID);
         SetRegString(optionsKey, "Method", fo.Method);
-        SetRegString(optionsKey, "Options", QString::fromWCharArray(fo.Options.Ptr()));
+        SetRegString(optionsKey, "Options",
+                     QString::fromWCharArray(fo.Options.Ptr(), fo.Options.Len()));
         SetRegString(optionsKey, "EncryptionMethod", fo.EncryptionMethod);
         SetRegString(optionsKey, kMemUse, fo.MemUse);
         Key_Set_UInt32(optionsKey, "Level", fo.Level);
@@ -329,7 +330,8 @@ void CInfo::Load(const QString &path) {
         fo.FormatID = formatIDs[i];
         optionsKey.beginGroup(fo.FormatID);
         fo.Method = optionsKey.value("Method").toString();
-        fo.Options = optionsKey.value("Options").toString().toStdWString().c_str();
+        const auto parameters = optionsKey.value("Options").toString().toStdWString();
+        fo.Options.SetFrom(parameters.data(), unsigned(parameters.size()));
         fo.EncryptionMethod = optionsKey.value("EncryptionMethod").toString();
         fo.MemUse = optionsKey.value(QLatin1String(kMemUse)).toString();
         Key_Get_UInt32(optionsKey, "Level", fo.Level);

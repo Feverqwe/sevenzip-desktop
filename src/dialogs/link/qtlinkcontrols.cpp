@@ -1,4 +1,4 @@
-#include "fileops/links/qtlinkcontrols.h"
+#include "dialogs/link/qtlinkcontrols.h"
 #include "7zip/UI/FileManager/LinkDialogRes.h"
 #include "fileops/links/qtlinkservices.h"
 #include "localization/qtlangbuttonbox.h"

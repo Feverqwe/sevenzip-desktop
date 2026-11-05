@@ -1,5 +1,42 @@
 # Split/Combine plan ownership — 2026-11-01
 
+## Complete Qt input before native planning — 2026-11-05
+
+Compared original SplitDialog, CopyDialog, SplitUtils and PanelSplitFile bodies,
+their native workers, transaction and Qt completion consumers, and the original
+CompressDialog volume block. Full original units at
+`b88c6bc09339de32f7d18bbab900686b244f42ba` match their existing baselines.
+No native parser, sequence, discovery, I/O or publication algorithm is replaced;
+no external code or revision is imported.
+
+Split, archive-volume creation and the convenience parser now share the Qt text
+boundary before invoking the unchanged native volume parser. It rejects embedded
+NUL before conversion and retains native trimming, unsigned sizes, annotations,
+empty-archive-volume behavior and small-volume confirmation. Previously a valid
+prefix could silently replace the complete entered value.
+
+Split and the shared Copy/Combine dialog validate destination text for both
+confirmation and Browse before native conversion. Invalid text retains the draft
+and leaves the dialog open with the existing invalid-argument diagnostic, following
+the existing name-dialog adaptation. Convenience operation/discovery requests
+likewise reject NUL paths before native planning or file creation. Normal native
+path correction, selection, cancellation, progress and rollback remain unchanged.
+
+Regressions check invalid-size refusal and retry, Split/Combine destination
+refusal without accepting a shortened path, valid corrected submission, rejected
+convenience paths with preserved source bytes and no output, and archive-volume
+refusal without saving preferences. Existing operation/workflow, archive-volume
+and Copy/Move routing checks cover the direct consumers. No layout, caption or
+ordinary-input policy changes; no private-helper or source-text tests are added.
+
+Focused Linux validation passed volume_dialog, volume_operations, volume_workflow,
+archive_volume_creation and ui_copy_routing_quick: 123 checks without failures or
+skips. Existing normal/compact geometry and error/retry checks were included;
+new rendered parity is not claimed. Four-job incremental compilation retained
+the compiler cache. Selected scratch was empty, no disposable settings remained
+and no selected test processes were active. Inventory and whitespace checks passed; no secondary-platform,
+full or slow suite was selected.
+
 ## One owned path per output through publication — 2026-11-05
 
 Reviewed the full Split/Combine plan, worker, progress, input checks, transaction

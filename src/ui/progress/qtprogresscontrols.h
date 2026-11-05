@@ -7,7 +7,6 @@
 #include <QHash>
 #include <QIcon>
 
-class CListView;
 class QProgressBar;
 
 struct CQtProgressRect {
@@ -24,20 +23,6 @@ class CQtProgressBar {
     void Attach(QWidget *widget);
     void SetRange32(int minimum, int maximum);
     void SetPos(int position);
-};
-
-class CQtProgressListView {
-    CListView *_view = nullptr;
-
-  public:
-    void Attach(QWidget *widget);
-    void InsertColumn(unsigned column, const wchar_t *text, int width);
-    int InsertItem(unsigned index, const UString &text);
-    void SetSubItem(unsigned index, int column, const UString &text);
-    void SetColumnWidthAuto(int column);
-    void Move(int x, int y, int width, int height);
-    int GetNextSelectedItem(int index) const;
-    int GetItemCount() const;
 };
 
 class CQtProgressDialog : public QDialog {

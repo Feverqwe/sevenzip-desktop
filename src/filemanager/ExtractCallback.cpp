@@ -11,6 +11,7 @@
 
 #ifndef Z7_SFX
 #include "archive/operations/ZipRegistry.h"
+#include "archive/resources/virtualextractfilesystem.h"
 #endif
 
 #include "7zip/UI/FileManager/resourceGui.h"
@@ -27,6 +28,27 @@
 using namespace NWindows;
 
 #include "archive/callbacks/qtcallbackdialogs.h"
+
+CExtractCallbackImp::CExtractCallbackImp()
+    : _totalFiles_Defined(false), _totalBytes_Defined(false), MultiArcMode(false),
+      ProcessAltStreams(true), StreamMode(false), ThereAreMessageErrors(false),
+      Src_Is_IO_FS_Folder(false)
+#ifndef Z7_NO_CRYPTO
+      ,
+      PasswordIsDefined(false), PasswordWasAsked(false)
+#endif
+#ifndef Z7_SFX
+      ,
+      _remember(false), _skipArc(false)
+#endif
+      ,
+      YesToAll(false), TestMode(false), OverwriteMode(NExtract::NOverwriteMode::kAsk)
+#ifndef Z7_SFX
+      ,
+      _hashCalc(NULL)
+#endif
+{
+}
 
 CExtractCallbackImp::~CExtractCallbackImp() {}
 

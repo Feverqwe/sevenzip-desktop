@@ -1481,6 +1481,7 @@
     "src/app/qtapplicationstartup.h",
     "src/app/qtapplicationstartup_mac.mm",
     "src/archive/agent/AgentDirectory.cpp",
+    "src/archive/agent/qtarchivefolderoperations.cpp",
     "src/archive/backend/archivebackend.cpp",
     "src/archive/backend/archivebackend.h",
     "src/archive/backend/archivebackend_codecs.cpp",
@@ -1723,10 +1724,14 @@
     "src/dialogs/copy/alias.h",
     "src/dialogs/extract/alias.h",
     "src/dialogs/extract/qtextractpresentation.cpp",
+    "src/dialogs/link/qtlinkcontrols.cpp",
+    "src/dialogs/link/qtlinkcontrols.h",
+    "src/dialogs/link/qtlinkpresentation.cpp",
     "src/dialogs/listview/qtlistviewdialogpresentation.cpp",
     "src/dialogs/mem/qtmemoryrequestpresentation.cpp",
     "src/dialogs/overwrite/qtoverwritepresentation.cpp",
     "src/filemanager/AppCopy.cpp",
+    "src/filemanager/AppDiff.cpp",
     "src/filemanager/AppLink.cpp",
     "src/filemanager/ExtractCallbackOutput.cpp",
     "src/filemanager/external/qtexternalapplications.cpp",
@@ -1738,6 +1743,7 @@
     "src/filemanager/panels/PanelArchiveLifecycle.cpp",
     "src/filemanager/panels/PanelArchiveOpen.cpp",
     "src/filemanager/panels/PanelColumns.cpp",
+    "src/filemanager/panels/PanelDragSource.cpp",
     "src/filemanager/panels/PanelDrag_win.cpp",
     "src/filemanager/panels/PanelFolderOperations.cpp",
     "src/filemanager/panels/PanelFolderOperations.h",
@@ -1860,9 +1866,6 @@
     "src/filemanager/window/qtguioutputrefresh.h",
     "src/filemanager/window/qtmainwindowchrome.cpp",
     "src/filemanager/window/qtmainwindowchrome.h",
-    "src/fileops/links/qtlinkcontrols.cpp",
-    "src/fileops/links/qtlinkcontrols.h",
-    "src/fileops/links/qtlinkpresentation.cpp",
     "src/fileops/links/qtlinkservices.cpp",
     "src/fileops/links/qtlinkservices.h",
     "src/fileops/links/qtverctrlfileservices.cpp",
@@ -3729,6 +3732,7 @@
     },
     "src/filemanager/panels/PanelItemOpen.cpp": {
       "local": [
+        "src/filemanager/AppDiff.cpp",
         "src/filemanager/external/qtexternalapplications.cpp",
         "src/filemanager/external/qtexternalapplications.h",
         "src/filemanager/external/qtexternalfilesession.cpp",
@@ -3737,6 +3741,7 @@
         "src/filemanager/panels/PanelArchiveOpen.cpp"
       ],
       "symbols": [
+        "CApp::DiffFiles (both overloads)",
         "SplitCmdLineSmart",
         "StartAppWithParams",
         "StartEditApplication",
@@ -3997,9 +4002,13 @@
     },
     "src/filemanager/panels/PanelDrag.cpp": {
       "local": [
+        "src/filemanager/panels/PanelDragSource.cpp",
         "src/filemanager/panels/PanelDrag_win.cpp"
       ],
       "symbols": [
+        "CDataObject (portable transfer flags, data materialization and receiver lifetime)",
+        "CDropSource (portable source decisions)",
+        "CPanel::OnDrag",
         "CDataObject_TransferBase",
         "CDataObject_GetTransfer",
         "CTargetTransferInfo (native wire record)",
@@ -4035,12 +4044,14 @@
     },
     "src/filemanager/ExtractCallback.h": {
       "local": [
-        "src/archive/resources/virtualextractfilesystem.h"
+        "src/archive/resources/virtualextractfilesystem.h",
+        "src/filemanager/ExtractCallback.cpp"
       ],
       "symbols": [
         "CGrowBuf",
         "CVirtFile",
-        "CVirtFileSystem"
+        "CVirtFileSystem",
+        "CExtractCallbackImp::CExtractCallbackImp"
       ]
     },
     "src/dialogs/compress/CompressDialog.cpp": {

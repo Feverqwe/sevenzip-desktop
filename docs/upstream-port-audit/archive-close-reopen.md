@@ -1,5 +1,121 @@
 # Archive folder lifetime across rollback — 2026-10-18
 
+## One registered volume record — 2026-11-05
+
+Compared complete original ArchiveOpenCallback.cpp/.h volume initialization,
+open/retained stream, LRU eviction/reopen and close bodies with the current port,
+and original OpenArchive.cpp volume accounting. Complete original units match
+the existing `b88c6bc09339de32f7d18bbab900686b244f42ba` baseline. Current sparse
+package validation/independent stream handling and all inventory consumers were
+reviewed separately. No source import or revision is introduced.
+
+Each existing native volume record now also owns its requested name, size and
+logical-use flag. Three parallel callback vectors are removed; final volume
+paths/size use the same registered records in their original order. The logical
+wrapper's close clears its flag, while native LRU eviction still preserves it.
+Full filesystem path and requested name retain their distinct roles.
+
+GetStream prepares metadata and an RAII-held wrapper before adding the record.
+Its callback reference remains empty until registration succeeds. Record copying
+can fail without publishing a partial entry; subsequent list linking, index
+assignment, callback reference and output transfer do not allocate. This removes
+the mismatch between stream and metadata indices after an allocation failure
+without another rollback owner. Reopening an evicted stream likewise restores
+its saved position before attaching the native stream to the cache. Failed Seek
+releases that new handle and retains the intended position for retry; previously
+a failed restore left an active handle at the wrong position. Native path/error/
+Cancel/password rules, handle limit, successful seek behavior and retained
+callback lifetime remain unchanged. Delayed sparsebundle handles still bypass
+this inventory entirely.
+
+A Linux regression injects each allocation failure after opening a real fixture
+volume until the operation succeeds without injection. It checks null failed
+output, closed descriptor before retry, retry on the same callback and readable
+previous/new streams after external callback references are released, without
+pinning allocation counts or the inventory's representation. The same fixture
+uses the existing callback regression's manual eviction setup to inject an I/O
+error at position restoration, then checks retry reads the intended suffix
+after external callback references are released. Existing callback tests retain
+unsafe-path and LRU position/retained-stream behavior; two internal inventory
+presence assertions are removed. Existing native volume accounting, missing/
+corrupt/encrypted archive and sparsebundle checks cover direct consumers.
+
+Linux passed `volume_registration_allocation` plus `open_callback`,
+`archive_open_options`, `ui_archive_volumes` and `sparse_image`: the standalone
+failure/retry fixture and 44 Qt checks, without failures or skips. Compilation
+took 119.222 seconds, tests 16.824 seconds. One-off full-file comparisons confirm
+that callback bodies outside initialization/registration/restore admission and
+opening bodies outside inventory projection are unchanged. Whitespace and
+recorded inventory checks passed; completed scratch was empty. Four configured jobs, incremental
+outputs and compiler cache were retained. No secondary-platform, full/slow gate
+or new appearance acceptance is claimed.
+
+The position-restore follow-up passed the callback/accounting suites and the
+failure fixture again. A fixture-only correction clears its borrowed OS-hook
+path after injection; its standalone repeat passed. Earlier UI and sparsebundle
+evidence is reused because those paths were unaffected by the follow-up.
+
+## Native read preparation before worker start — 2026-11-05
+
+Compared original FileFolderPluginOpen worker/caller, OpenCallback and
+ProgressDialog2 creation/join with current directory reads, nested stream
+acquisition and reopen helpers. Complete original units match the recorded
+`b88c6bc09339de32f7d18bbab900686b244f42ba` baseline. No code import, source
+revision or native reader algorithm changes.
+
+All three helpers now prepare their localized progress title before starting
+the thread that borrows the stack request. Original FileFolderPluginOpen already
+uses this order. Previously a title allocation failure could leave that worker
+outside the progress dialog's joining boundary while unwinding its request.
+Directory reads also create their progress request inside the existing worker
+exception boundary, so setup failure follows the same E_FAIL/completion path
+as a reader exception instead of escaping the thread entry.
+
+The existing progress owner still releases its creation wait and joins before
+publication. Transport teardown, callback/request lifetimes, selection scope,
+usable partial directory results, cancellation, password retention, stream
+publication and reopen/update behavior remain unchanged. No separate thread
+guard, controller, persistent flag or exception policy is introduced.
+Existing native directory, nested-opening and nested-update behavior checks
+cover the affected consumers; no source-order assertion or allocation-count
+test is added. Allocation failure itself is source-reviewed rather than claimed
+as an injected runtime result.
+
+Linux passed `archive_directory_command`, `native_nested_stream_quick` and
+`nested_edit_chain`: 36 checks without failures or skips. Compilation took
+20.027 seconds and tests 17.831 seconds. This includes directory calculation
+success/Cancel/retry, confirmed cancellation of nested opening, retained source
+guards and native nested write-back. The full nested-route matrices remain
+opt-in slow and were not selected. Whitespace and recorded inventory checks
+passed; completed scratch was empty. Configured four-job incremental builds
+and compiler cache were retained. No platform adapter, visible text or layout
+changed; no secondary-platform or rendered appearance acceptance is claimed.
+
+## Archive-folder Qt operation adapter owner — 2026-11-05
+
+Reviewed the archive folder's operation-interface queries, update/extract/comment
+capabilities, resource services and joined panel progress consumers together.
+The native Agent and ArchiveFolderOut implementations retain their existing
+recorded baseline; no external source, algorithm or revision is imported.
+
+The complete project-owned CAgentFolder capability and progress-adapter bodies
+move from the general location-factory file into qtarchivefolderoperations.cpp
+beside their Agent owner, in the same sevenzip_location target. Its existing
+unsupported CreateFile result moves with the operation interface. All six bodies
+and the remaining location factories are unchanged. No class, interface or
+replacement capability cache is introduced.
+
+Native-index-dependent progress and explicitly native comment progress remain
+distinct. Read/update/comment gates, resource ownership, folder generations,
+cancellation and joined transport teardown retain their current behavior.
+Existing archive proxy, layer lifetime, native comment and extraction behavior
+checks cover the adapter and its consumers; no source-layout test is added.
+
+Linux archive_proxy, archive_layer_lifetime, native_comment and
+source_extract_backend passed 40 checks without failures or skips, reusing the
+incremental build and compiler cache. No platform adapter or visible control
+changed; no secondary-platform, full/slow or new appearance acceptance is claimed.
+
 ## Archive-layer lifecycle owner — 2026-11-04
 
 Reviewed native archive opening, parent links, materialized nested editing,

@@ -518,12 +518,25 @@ class ArchiveReadOnlyViewTests final : public QObject {
     }
     void unverifiedOutputRequiresSeparateConsent_data() {
         QTest::addColumn<bool>("throwFirstDecision");
-        QTest::newRow("refused decision") << false;
-        QTest::newRow("failed decision") << true;
+        QTest::addColumn<bool>("blockCleanup");
+        QTest::newRow("refused decision") << false << false;
+        QTest::newRow("failed decision") << true << false;
+        QTest::newRow("refused decision, failed cleanup") << false << true;
+        QTest::newRow("failed decision, failed cleanup") << true << true;
     }
     void unverifiedOutputRequiresSeparateConsent() {
         QFETCH(bool, throwFirstDecision);
+        QFETCH(bool, blockCleanup);
+#ifdef Q_OS_WIN
+        if (blockCleanup)
+            QSKIP("Directory traversal permission fixture is POSIX-only");
+#else
+        if (blockCleanup && geteuid() == 0)
+            QSKIP("Root bypasses directory traversal permissions");
+#endif
         QTemporaryDir fixture;
+        QTemporaryDir cacheRoot;
+        QVERIFY(fixture.isValid() && cacheRoot.isValid());
         const QString path = fixture.filePath("damaged.zip");
         const auto payload = Payload();
         QVERIFY(NativeArchiveFixture::Write(path, {{"data.bin", payload}, {"good.bin", payload}},
@@ -539,16 +552,31 @@ class ArchiveReadOnlyViewTests final : public QObject {
         CMyComPtr<IUnknown> resource;
         std::shared_ptr<ArchiveNativeOpen> reader;
         QCOMPARE(Worker([&] { return Open(path, "zip", resource, reader); }), S_OK);
+        const QByteArray previousTemp = qgetenv("TMPDIR");
+        const auto restoreTemp = qScopeGuard([&] {
+            if (previousTemp.isNull())
+                qunsetenv("TMPDIR");
+            else
+                qputenv("TMPDIR", previousTemp);
+        });
+        qputenv("TMPDIR", cacheRoot.path().toUtf8());
         std::shared_ptr<ArchiveReadOnlyView> view;
+        const auto permissions = QFileInfo(cacheRoot.path()).permissions();
+        const auto restorePermissions =
+            qScopeGuard([&] { QFile::setPermissions(cacheRoot.path(), permissions); });
         QString error;
         bool allow = false;
+        bool permissionsBlocked = false;
         int decisions = 0;
         QCOMPARE(Worker([&] {
                      return ArchiveBackend::createReadOnlyView(
-                         resource, payload.size() * 2, {}, view, error,
+                         resource, payload.size(), {}, view, error,
                          [](const QString &, quint64) { return true; },
                          [&](const QString &name, quint64 bytes, Int32 operation) {
                              ++decisions;
+                             if (blockCleanup && decisions == 1)
+                                 permissionsBlocked = QFile::setPermissions(
+                                     cacheRoot.path(), QFile::ReadOwner | QFile::WriteOwner);
                              if (throwFirstDecision && decisions == 1)
                                  throw std::runtime_error("recovery decision failed");
                              return allow && name == "data.bin" &&
@@ -559,6 +587,15 @@ class ArchiveReadOnlyViewTests final : public QObject {
                  S_OK);
         const auto id = FileId(view, "data.bin");
         const auto denied = Worker([&] { return view->read(id, 0, 1024); });
+        if (blockCleanup) {
+            QVERIFY(permissionsBlocked);
+            const auto blocked =
+                Worker([&] { return view->read(FileId(view, "good.bin"), 0, 1024); });
+            QCOMPARE(blocked.Result, E_OUTOFMEMORY);
+            QVERIFY(blocked.Data.isEmpty());
+        }
+        QVERIFY(QFile::setPermissions(cacheRoot.path(), permissions));
+        QCOMPARE(permissionsBlocked, blockCleanup);
         QVERIFY(denied.Result != S_OK);
         QVERIFY(denied.Data.isEmpty());
         QVERIFY(!denied.Error.isEmpty());

@@ -50,6 +50,34 @@ class CodecCreationUiTests final : public QObject {
         else
             qputenv("SEVENZIP_SETTINGS_PATH", previousSettings_);
     }
+    void malformedParametersCannotCreateAnArchive() {
+        CompressionOptions options;
+        options.format = "zip";
+        const auto text = (QString("tm=off") + QChar::Null + " mt=1").toStdWString();
+        options.Options.SetFrom(text.data(), unsigned(text.size()));
+        CObjectVector<CProperty> properties;
+        QString error;
+        QVERIFY(
+            !ArchiveBackend::compressionProperties("zip", {}, false, options, &properties, &error));
+        QVERIFY(!error.isEmpty());
+        QTemporaryDir output;
+        QVERIFY(output.isValid());
+        const QString target = output.filePath(QStringLiteral("архив 空.zip"));
+        ArchiveBackend backend;
+        QCOMPARE(backend.loadCodecCatalog(module_, catalog_->version()), S_OK);
+        QCOMPARE(SourceCreationFixture::Create(backend, target, {source_}, {}, false, options),
+                 E_INVALIDARG);
+        QVERIFY(QDir(output.path()).entryList(QDir::Files | QDir::Hidden).isEmpty());
+        options.Options = "tm=off mt=1";
+        QCOMPARE(SourceCreationFixture::Create(backend, target, {source_}, {}, false, options),
+                 S_OK);
+        std::shared_ptr<ArchiveNativeOpen> reader;
+        QCOMPARE(
+            ArchiveBackend::openNativeArchive(catalog_, target, "zip", nullptr, reader, nullptr),
+            S_OK);
+        QVERIFY(reader);
+    }
+
     void selectedFormatCreatesRealArchive_data() {
         QTest::addColumn<QString>("type");
         QTest::addColumn<QSize>("size");

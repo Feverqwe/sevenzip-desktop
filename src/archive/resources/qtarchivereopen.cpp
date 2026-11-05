@@ -68,11 +68,12 @@ HRESULT ReOpenArchiveFolder(CAgentFolder &folder, const QString &settingsPath, Q
         if (resource)
             resource->SetUpdateProgress(nullptr);
     });
+    const UString title = LangString(IDS_OPENNING);
     NWindows::CThread thread;
     const WRes started = thread.Create(CThreadArchiveReOpen::Run, &request);
     if (started != 0)
         return HRESULT_FROM_WIN32(started);
-    request.UI.StartProgressDialog(LangString(IDS_OPENNING), thread);
+    request.UI.StartProgressDialog(title, thread);
     if (request.Result == S_OK)
         *resultFolder = request.ResultFolder.Detach();
     return request.Result;

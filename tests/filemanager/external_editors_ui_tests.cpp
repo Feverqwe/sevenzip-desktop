@@ -5,6 +5,7 @@
 #include "settings/RegistryUtils.h"
 #include "settings/qtfmoptionsdialog.h"
 #include "support/options_presentation.h"
+#include "support/widget_dialogs.h"
 #include "ui/support/layout_inspection.h"
 #include <QCheckBox>
 #include <QFileDialog>
@@ -156,6 +157,111 @@ class ExternalEditorsUiTests final : public QObject, protected MainWindowTestSup
         else
             ReadRegDiff(saved, qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         QCOMPARE(ToQString(saved), selected);
+    }
+
+    void malformedCommandCanBeCorrectedOrCancelledBeforeLaunch_data() {
+        QTest::addColumn<int>("program");
+        QTest::addColumn<bool>("cancel");
+        for (int program = 0; program < 3; ++program)
+            for (bool cancel : {false, true})
+                QTest::newRow(qPrintable(QString("%1-%2").arg(program).arg(cancel)))
+                    << program << cancel;
+    }
+    void malformedCommandCanBeCorrectedOrCancelledBeforeLaunch() {
+        QFETCH(int, program);
+        QFETCH(bool, cancel);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString first = fixture.filePath("a.txt");
+        const QString second = fixture.filePath(QStringLiteral("файл 空 с пробелом.txt"));
+        QVERIFY(writeFile(first) && writeFile(second));
+        const QString oldOutput = fixture.filePath("old.json");
+        const QString newOutput = fixture.filePath("corrected.json");
+        const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
+        const QString oldCommand = command(oldOutput);
+        const auto readCommand = [&] {
+            UString value;
+            if (program < 2)
+                ReadRegEditor(program > 0, value, settings);
+            else
+                ReadRegDiff(value, settings);
+            return ToQString(value);
+        };
+        if (program < 2)
+            SaveRegEditor(program > 0, ToUString(oldCommand), settings);
+        else
+            SaveRegDiff(ToUString(oldCommand), settings);
+        WidgetDialogFixture dialogs;
+        QtFmOptionsDialog options(settings);
+        options.resize(520, 380);
+        const char *controls[] = {"viewerCommand", "editorCommand", "diffCommand"};
+        OptionsPresentation::show(options, controls[program]);
+        options.show();
+        QVERIFY(QTest::qWaitForWindowActive(&options));
+        auto *edit = options.findChild<QLineEdit *>(controls[program]);
+        const QString corrected = command(newOutput);
+        const QString invalid = corrected + QChar::Null + " ignored suffix";
+        edit->setText(invalid);
+        int errors = 0;
+        const auto answerError = [&] {
+            dialogs.respond(options, [&](QDialog &active) {
+                auto *error = qobject_cast<QMessageBox *>(&active);
+                active.reject();
+                QVERIFY(error);
+                QCOMPARE(error->icon(), QMessageBox::Critical);
+                QVERIFY(!error->text().isEmpty());
+                ++errors;
+            });
+        };
+        answerError();
+        options.findChild<QPushButton *>(QString(controls[program]) + "Browse")->click();
+        QCOMPARE(errors, 1);
+        OptionsPresentation::show(options, "gridOption");
+        QSignalSpy applied(&options, &QtFmOptionsDialog::Applied);
+        answerError();
+        options.accept();
+        QCOMPARE(errors, 2);
+        QVERIFY(options.isVisible());
+        QCOMPARE(applied.size(), 0);
+        QCOMPARE(edit->text(), invalid);
+        QCOMPARE(readCommand(), oldCommand);
+        QVERIFY(edit->isVisible());
+        QCOMPARE(options.focusWidget(), edit);
+        QVERIFY(options.findChild<QDialogButtonBox *>("settingsButtons")
+                    ->button(QDialogButtonBox::Apply)
+                    ->isEnabled());
+        if (cancel)
+            options.reject();
+        else {
+            edit->setText(corrected);
+            options.accept();
+            QCOMPARE(options.result(), int(QDialog::Accepted));
+            QCOMPARE(applied.size(), 1);
+        }
+        QCOMPARE(readCommand(), cancel ? oldCommand : corrected);
+        QVERIFY(!QFileInfo::exists(oldOutput) && !QFileInfo::exists(newOutput));
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        navigate(window, fixture.path());
+        window.show();
+        QTRY_VERIFY(filesystemRow(window, QFileInfo(second).fileName()) >= 0);
+        auto *view = table(window);
+        view->selectAll();
+        view->setCurrentCell(filesystemRow(window, QFileInfo(second).fileName()), 0,
+                             QItemSelectionModel::NoUpdate);
+        const char *actions[] = {"viewFileAction", "editFileAction", "diffAction"};
+        QTRY_VERIFY(action(window, actions[program])->isEnabled());
+        action(window, actions[program])->trigger();
+        QStringList expected = program == 2 ? QStringList{first, second} : QStringList{second};
+        expected.sort();
+        const QString output = cancel ? oldOutput : newOutput;
+        QTRY_COMPARE(([&] {
+                         auto values = readArguments(output);
+                         values.sort();
+                         return values;
+                     })(),
+                     expected);
+        QVERIFY(!QFileInfo::exists(cancel ? newOutput : oldOutput));
     }
 
     void keyboardDiskEditorsUseFocusedFileAndIndependentSettings() {

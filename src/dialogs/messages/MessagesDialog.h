@@ -5,14 +5,12 @@
 
 #include "Common/MyString.h"
 #include "ui/dialogs/qtmodalresult.h"
-#include "ui/progress/qtprogresscontrols.h"
 #include <QDialog>
 
 class CListView;
 class QPushButton;
 
 class CMessagesDialog : public QDialog {
-    CQtProgressListView _messageList;
     CListView *_list = nullptr;
     QPushButton *_close;
 

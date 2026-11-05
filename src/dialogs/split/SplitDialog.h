@@ -22,4 +22,5 @@ class CSplitDialog : public QDialog {
     bool OnInit();
     void OnOK();
     void OnButtonSetPath();
+    bool ReadPath(QString &path);
 };

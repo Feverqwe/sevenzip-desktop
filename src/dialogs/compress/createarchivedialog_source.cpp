@@ -1,8 +1,10 @@
 #include "7zip/UI/FileManager/resource.h"
 #include "7zip/UI/GUI/CompressDialogRes.h"
+#include "Windows/ErrorMsg.h"
 #include "archive/callbacks/qtguimessages.h"
 #include "archive/codecs/archivecodeccatalog.h"
 #include "dialogs/compress/createarchivedialog.h"
+#include "ui/controls/qtdisclosure.h"
 #include <QCoreApplication>
 #include <QEvent>
 
@@ -36,6 +38,12 @@ QString CreateArchiveDialog::archivePath() const {
 
 void CreateArchiveDialog::validateAndAccept() {
     accepted_.reset();
+    if (parameters_ && parameters_->text().contains(QChar::Null)) {
+        commandLineOptions_->setExpanded(true);
+        ShowErrorMessageQt(this, NWindows::NError::MyFormatMessage(E_INVALIDARG));
+        parameters_->setFocus();
+        return;
+    }
     if (password_) {
         const bool protect = password_->isEnabled();
         const auto error = CCompressDialog::CheckPassword(
@@ -108,10 +116,8 @@ CompressionOptions CreateArchiveDialog::compressionOptions() const {
 #ifdef Q_OS_WIN
     options.PreserveATime = m_RegistryInfo.PreserveATime;
 #endif
-    if (parameters_) {
-        options.Options = parameters_->text().toStdWString().c_str();
-        options.Options.Trim();
-    }
+    options.Options = parameterOptions();
+    options.Options.Trim();
     const int index = FindRegistryFormat(registryFormat_);
     if (index >= 0) {
         const auto &fo = m_RegistryInfo.Formats[index];

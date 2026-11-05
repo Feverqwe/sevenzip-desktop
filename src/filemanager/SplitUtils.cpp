@@ -4,6 +4,7 @@
 // SplitUtils.cpp
 
 #include "filemanager/SplitUtils.h"
+#include "settings/ViewSettings.h"
 
 #include <QComboBox>
 
@@ -62,6 +63,15 @@ bool ParseVolumeSizes(const UString &s, CRecordVector<UInt64> &values) {
         i += (unsigned)(end - start);
     }
     return true;
+}
+
+bool ParseVolumeSizesText(const QString &text, CRecordVector<UInt64> &values) {
+    values.Clear();
+    if (text.contains(QChar::Null))
+        return false;
+    UString native = ToUString(text);
+    native.Trim();
+    return ParseVolumeSizes(native, values);
 }
 
 static const char *const k_Sizes[] = {

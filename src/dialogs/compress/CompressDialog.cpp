@@ -533,17 +533,12 @@ bool CCompressDialog::SetArcPathFields(const QString &path, QString &name, bool 
 CCompressDialog::EVolumeResult CCompressDialog::OnOK(const QString &volumeText,
                                                      NCompressDialog::CInfo &Info) {
     // Original OnOK volume block; the Qt caller presents errors/confirmation.
-    UString volumeString(volumeText.toStdWString().c_str());
-    volumeString.Trim();
-    Info.VolumeSizes.Clear();
-    if (!volumeString.IsEmpty()) {
-        if (!ParseVolumeSizes(volumeString, Info.VolumeSizes))
-            return kIncorrectVolumeSize;
-        if (!Info.VolumeSizes.IsEmpty()) {
-            const UInt64 volumeSize = Info.VolumeSizes.Back();
-            if (volumeSize < (100 << 10))
-                return kConfirmSmallVolume;
-        }
+    if (!ParseVolumeSizesText(volumeText, Info.VolumeSizes))
+        return kIncorrectVolumeSize;
+    if (!Info.VolumeSizes.IsEmpty()) {
+        const UInt64 volumeSize = Info.VolumeSizes.Back();
+        if (volumeSize < (100 << 10))
+            return kConfirmSmallVolume;
     }
     return kVolumeOK;
 }

@@ -91,7 +91,8 @@ void CreateArchiveDialog::createLifecycleOptions(QFormLayout *form) {
 void CreateArchiveDialog::createCommandLineOptions(QFormLayout *form) {
     parameters_ = new QLineEdit(this);
     parameters_->setObjectName("archiveParameters");
-    parameters_->setText(QString::fromWCharArray(Get_FormatOptions().Options.Ptr()));
+    const auto &options = Get_FormatOptions().Options;
+    parameters_->setText(QString::fromWCharArray(options.Ptr(), options.Len()));
     QtBindLocalToolTip(parameters_, "createarchivedialog_advanced",
                        QT_TRANSLATE_NOOP("createarchivedialog_advanced",
                                          "Method parameters, for example: tm=off or mt=2."));

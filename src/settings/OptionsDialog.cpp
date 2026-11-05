@@ -151,8 +151,18 @@ bool QtFmOptionsDialog::apply() {
     // Source SystemPage reports an association error and returns
     // PSNRET_NOERROR, so the property sheet still applies the other pages.
     _menuPage->OnApply();
-    _foldersPage->OnApply();
-    _editPage->OnApply();
+    if (_foldersPage->OnApply() != 0) {
+        auto *path = findChild<QWidget *>("workPath");
+        revealControl(path->isEnabled() ? path : findChild<QWidget *>("workSpecified"));
+        updateApplyButton();
+        return false;
+    }
+    QWidget *invalidCommand = nullptr;
+    if (_editPage->OnApply(&invalidCommand) != 0) {
+        revealControl(invalidCommand);
+        updateApplyButton();
+        return false;
+    }
     if (_settingsPage->OnApply() != 0) {
         revealControl(findChild<QWidget *>("extractMemorySpin"));
         updateApplyButton();

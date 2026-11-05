@@ -216,10 +216,8 @@ HRESULT CPanel::CopyTo(CCopyToOptions &options, const CRecordVector<UInt32> &ind
             extracter.Hash.MainName = extracter.Hash.FirstFileName;
         }
 
-        if (options.VirtFileSystemSpec) {
-            extracter.ExtractCallback->VirtFileSystem = options.VirtFileSystemSpec;
-            extracter.ExtractCallback->VirtFileSystemSpec = options.VirtFileSystemSpec;
-        }
+        if (options.VirtFileSystemSpec)
+            extracter.ExtractCallback->VirtFileSystem.SetFromCls(options.VirtFileSystemSpec);
         extracter.ExtractCallback->ProcessAltStreams = options.includeAltStreams;
 
         if (!options.hashMethods.IsEmpty()) {

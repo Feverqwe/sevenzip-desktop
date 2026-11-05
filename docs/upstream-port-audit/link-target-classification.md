@@ -1,5 +1,32 @@
 # Relative link target classification — 2026-11-01
 
+## Complete Link presentation ownership — 2026-11-05
+
+Reviewed the complete original LinkDialog.cpp/.h/.rc, command selection and
+refresh, Qt presentation/input adapters and native creation/browse consumers.
+Original units at `b88c6bc09339de32f7d18bbab900686b244f42ba` match the recorded
+baseline. No source import or dependency revision changes.
+
+The dialog's Qt control adapter and presentation now live beside LinkDialog
+under its dialog owner. Filesystem link services remain with file operations;
+the File Manager command retains selection and refresh ownership. All three
+transferred files are unchanged apart from the owning include path and remain
+in the same panel target. The local source inventory follows the new owner;
+original hashes and adapted native bodies are unchanged.
+
+Input/NUL validation, relative target classification, type restrictions,
+native retarget/clear, diagnostics and accepted/Cancel results retain their
+existing implementations. Layout, translation contexts, control names, focus
+and geometry are unchanged. Existing dialog and command regressions exercise
+the complete public scenario; no source-location or private-wrapper test is added.
+
+Linux link_dialog and link_command passed 28 checks without failures or skips.
+Incremental four-job compilation reused the compiler cache. The two unreferenced
+objects at the old source paths were removed after completion; selected scratch
+was empty. Inventory and whitespace checks passed. No native platform branch or
+visible behavior changed, so no secondary-platform, full/slow-suite or new
+rendered-parity acceptance is claimed.
+
 ## File Manager Link command owner — 2026-11-05
 
 Compared complete original LinkDialog command, dialog handlers/types and

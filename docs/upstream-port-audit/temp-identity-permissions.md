@@ -1,5 +1,25 @@
 # Temporary-object identity and read permissions — 2026-11-01
 
+## Dialog-owned temporary path scope — 2026-11-05
+
+Reviewed the complete browser listing, navigation, confirmation/deletion,
+context actions and detached opening with registry claims and retained snapshots.
+Original BrowseDialog2 confirmation/enumeration and its recorded baseline remain
+unchanged; no external source or revision is imported.
+
+The existing owned-path check now belongs to the dialog and reads its temporary
+root directly. All six listing/action call sites use the same owner-bound scope
+instead of repeatedly passing that root. Identity, canonical parent, containment,
+component link/junction/existence and final root-identity checks are unchanged.
+Registry claims, active/external protection and modal snapshots remain separate.
+No path policy, native filesystem action, UI or new state/cache is introduced;
+existing cleanup and detached-launch tests exercise the observable contracts.
+
+Linux temp_cleanup and temp_detached_launch passed 32 checks without failures or
+skips. Incremental builds and compiler caches were retained. No native platform
+service, visible text or layout changed; no secondary-platform, full/slow or
+new appearance acceptance is claimed.
+
 ## Temporary browser presentation and input owner — 2026-11-04
 
 Rechecked complete original BrowseDialog2.cpp/.h/.rc hashes at

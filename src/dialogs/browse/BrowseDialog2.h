@@ -44,6 +44,7 @@ class CBrowseDialog2 : public QDialog {
     void ReloadLanguagePresentation();
     void changeEvent(QEvent *event) override;
     void UpdateDeleteAvailability();
+    bool IsOwnedPath(const QtOwnedTempEntry &owner, const QString &path) const;
     int GetRealItemIndex(int row) const;
     void GetSelected_RealIndexes(CUIntVector &vector);
     bool GetParentPath(const UString &path, UString &parentPrefix, UString &name);

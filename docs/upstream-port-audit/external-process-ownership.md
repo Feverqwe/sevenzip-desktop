@@ -1,5 +1,56 @@
 # External-process ownership
 
+## Complete File Manager comparison owner — 2026-11-05
+
+Reviewed both original CApp::DiffFiles overloads, selection/flat-path policy,
+configured launch parsing, process services, version-control Diff and Qt command
+consumers. Complete original PanelItemOpen.cpp at
+`b88c6bc09339de32f7d18bbab900686b244f42ba` matches its recorded baseline.
+No external source or native process algorithm is imported or changed.
+
+Both comparison bodies now live together in AppDiff.cpp with the File Manager
+application commands, in the same panel target. Panel item opening no longer
+depends on the application interface; it retains its element-opening and
+changed-file-update responsibilities. The baseline records both transferred
+overloads under their original unit. Their complete bodies and the remaining
+panel bodies are unchanged apart from removing the obsolete include.
+
+Selected-pair ordering, opposite-panel selection, relative and flat basename
+fallback, no-command handling, separate argv paths and launch-failure diagnostics
+retain their original owners and behavior. Existing editor-launch, comparison
+and version-control regressions cover these routes with actual synthetic
+processes. No new class, state, parser, test or visible UI change is introduced.
+
+Linux external_editors_ui, external_launch and verctrl passed 43 checks without
+failures or skips. Inventory and whitespace checks passed; selected scratch was
+empty and no active tests or disposable settings remained. Four-job incremental
+compilation reused the compiler cache. No platform process implementation changed,
+so no secondary-platform, full/slow-suite or new appearance acceptance is claimed.
+
+## One external-session stop transition — 2026-11-05
+
+Reviewed editor preference/launch, per-panel session creation, process waits,
+GUI update delivery and repeated panel release/destruction against the original
+PanelItemOpen Exit and Panel.h launcher at
+`b88c6bc09339de32f7d18bbab900686b244f42ba`. Both complete original hashes match
+the existing baseline; no external source is imported.
+
+The local atomic stop request now also owns the once-only event signal, removing
+the second mutable flag tracking that same transition. Constructor failure still
+prevents publication of the owner. Every Exit call retains the native handle
+join/retry loop, including repeated shutdown calls. Known/unknown process waits,
+pending versus delivering GUI callbacks, child discovery, archive update and
+protected temporary-copy cleanup remain distinct and unchanged. Native process
+services and platform behavior are unchanged. Existing cancellation, real-child
+lifetime and archive-edit regressions cover the workflow; no flag/getter test
+is added.
+
+Linux external_gui_call, archive_external_lifetime and archive_external_edit
+passed 38 checks without failures or skips. Existing incremental builds and
+compiler cache were retained. No native platform branch, layout or command
+parsing changed; secondary-platform, full/slow and appearance acceptance are
+outside this check.
+
 ## Explicit external-file completion — 2026-11-05
 
 Compared the complete original PanelItemOpen worker wait/update/cleanup body
@@ -322,6 +373,45 @@ external_launch, process_spawn_allocation and archive_external_lifetime.
 The same six suites then passed on macOS. Windows branches are unchanged and
 were not rerun. Both platforms reused incremental builds and compiler caches;
 no full/slow gate or visual acceptance was involved.
+
+## Complete Qt application-command input — 2026-11-05
+
+Compared original EditPage initialization, per-control modified state, Apply,
+Browse and resources, registry command storage, SplitCmdLineSmart and configured
+launch callers at `b88c6bc09339de32f7d18bbab900686b244f42ba`. Complete original
+EditPage.cpp/.h, EditPage2.rc, RegistryUtils.cpp and PanelItemOpen.cpp hashes
+match the existing baseline. No source import or revision change is introduced.
+
+Browse and Apply share one Qt command-reading boundary which rejects embedded
+NUL before conversion to the native string. Previously either action could use
+only a command's shortened prefix. The existing command splitter, accepted Browse
+replacement/Trim policy, independent viewer/editor/diff settings, raw valid
+commands and native launch arguments are unchanged.
+
+Failed Apply retains that field's draft and modified state and returns its
+control directly to the options container for reveal/focus. The container keeps
+Save open and does not emit Applied. No persistent error state, controller or
+global conversion rule is added. Earlier successful page/field writes and the
+independent unknown-file confirmation preference retain their existing partial
+Apply behavior; Cancel discards remaining unapplied input.
+
+Six public scenarios cover all three programs and correction/cancellation:
+Browse refusal before the picker, Save from another section, retained text and
+saved command, focused correction in compact options, then a real external
+fixture launched through the corresponding File Manager action. Its arguments
+prove that the old or corrected saved command receives the focused file or
+selected comparison pair. The existing suites retain normal/compact geometry,
+language, ordinary Browse, source command grammar and process lifecycle coverage.
+The modal responder is linked through its existing shared fixture owner.
+
+Linux passed `external_editors_ui`, `external_launch`, `options_dialog` and
+`options_integration`: 87 checks without failures or skips. Build time was
+15.654 seconds, test execution 8.518 seconds. Constructor, initialization,
+modified-state bodies and the options owner outside failed command Apply
+handling were compared unchanged. Whitespace and recorded inventory checks
+passed; completed scratch was empty. Configured four-job incremental builds
+and compiler cache were retained. No Windows/macOS, full/slow gate or new
+rendered appearance acceptance is claimed.
 
 ## Editor settings signal routing — 2026-11-02
 

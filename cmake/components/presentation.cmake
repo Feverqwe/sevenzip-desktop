@@ -48,6 +48,7 @@ add_library(sevenzip_panel
     src/filemanager/SplitUtils.cpp
     src/filemanager/App.cpp
     src/filemanager/AppCopy.cpp
+    src/filemanager/AppDiff.cpp
     src/filemanager/AppLink.cpp
     src/ui/theme/qtsemanticcolors.cpp
     src/ui/theme/qtsemanticcolors.h
@@ -101,6 +102,7 @@ add_library(sevenzip_panel
     src/filemanager/state/qtappoperationstate.cpp
     src/filemanager/state/qtappoperationstate.h
     src/filemanager/panels/PanelDrag.cpp
+    src/filemanager/panels/PanelDragSource.cpp
     src/gui/HashGUI.cpp
     src/gui/HashGUI.h
     src/benchmark/BenchmarkDialog.cpp
@@ -116,9 +118,9 @@ add_library(sevenzip_panel
     src/benchmark/qtbenchmarkreport.cpp
     src/dialogs/link/LinkDialog.cpp
     src/dialogs/link/LinkDialog.h
-    src/fileops/links/qtlinkcontrols.cpp
-    src/fileops/links/qtlinkpresentation.cpp
-    src/fileops/links/qtlinkcontrols.h
+    src/dialogs/link/qtlinkcontrols.cpp
+    src/dialogs/link/qtlinkpresentation.cpp
+    src/dialogs/link/qtlinkcontrols.h
     src/filemanager/ExtractCallback.cpp
     src/filemanager/ExtractCallbackOutput.cpp
     src/archive/resources/virtualextractfilesystem.cpp

@@ -92,6 +92,7 @@ class CreateArchiveDialog : public QDialog {
     unsigned FindRegistryFormat_Always(const QString &name);
     NCompression::CFormatOptions &Get_FormatOptions();
     void SaveOptionsInMem();
+    UString parameterOptions() const;
     void SetMemUseCombo();
     static QString compressionSettingsPath();
     void createFooter(QVBoxLayout *layout);

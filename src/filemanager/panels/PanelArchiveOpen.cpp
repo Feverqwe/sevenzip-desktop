@@ -156,8 +156,7 @@ void CPanel::OpenItemInArchive(unsigned index, bool tryInternal, bool tryExterna
     #endif
     */
 
-    CVirtFileSystem *virtFileSystemSpec = NULL;
-    CMyComPtr<ISequentialOutStream> virtFileSystem;
+    CMyComPtr2<ISequentialOutStream, CVirtFileSystem> virtFileSystem;
 
     const bool isAltStream = IsItem_AltStream(index);
 
@@ -195,27 +194,26 @@ void CPanel::OpenItemInArchive(unsigned index, bool tryInternal, bool tryExterna
 
         if (fileSize <= fileLimit) {
             options.streamMode = true;
-            virtFileSystemSpec = new CVirtFileSystem;
-            virtFileSystem = virtFileSystemSpec;
-            virtFileSystemSpec->FileName = name;
-            virtFileSystemSpec->IsAltStreamFile = isAltStream;
+            virtFileSystem.Create_if_Empty();
+            virtFileSystem->FileName = name;
+            virtFileSystem->IsAltStreamFile = isAltStream;
 
 #if defined(_WIN32) && !defined(UNDER_CE)
 #ifndef _UNICODE
             if (g_IsNT)
 #endif
             {
-                Get_ZoneId_Stream_from_ParentFolders(virtFileSystemSpec->ZoneBuf);
-                options.ZoneBuf = virtFileSystemSpec->ZoneBuf;
+                Get_ZoneId_Stream_from_ParentFolders(virtFileSystem->ZoneBuf);
+                options.ZoneBuf = virtFileSystem->ZoneBuf;
             }
 #endif
 
-            virtFileSystemSpec->MaxTotalAllocSize =
+            virtFileSystem->MaxTotalAllocSize =
                 (size_t)fileSize +
                 (1 << 16); // we allow additional total size for small alt streams.
-            virtFileSystemSpec->DirPrefix = tempDirNorm;
+            virtFileSystem->DirPrefix = tempDirNorm;
             // options.VirtFileSystem = virtFileSystem;
-            options.VirtFileSystemSpec = virtFileSystemSpec;
+            options.VirtFileSystemSpec = virtFileSystem.ClsPtr();
         }
     }
 
@@ -238,10 +236,10 @@ void CPanel::OpenItemInArchive(unsigned index, bool tryInternal, bool tryExterna
         return;
     }
 
-    if (virtFileSystemSpec && !virtFileSystemSpec->WasStreamFlushedToFS()) {
-        int index_in_Files = virtFileSystemSpec->Index_of_MainExtractedFile_in_Files;
+    if (virtFileSystem && !virtFileSystem->WasStreamFlushedToFS()) {
+        int index_in_Files = virtFileSystem->Index_of_MainExtractedFile_in_Files;
         if (index_in_Files < 0) {
-            if (virtFileSystemSpec->Files.Size() != 1) {
+            if (virtFileSystem->Files.Size() != 1) {
                 MessageBox_Error_HRESULT(E_FAIL);
                 return;
             }
@@ -249,17 +247,16 @@ void CPanel::OpenItemInArchive(unsigned index, bool tryInternal, bool tryExterna
             index_in_Files = 0;
         }
         {
-            const CVirtFile &file = virtFileSystemSpec->Files[index_in_Files];
+            const CVirtFile &file = virtFileSystem->Files[index_in_Files];
             CMyComPtr2_Create<IInStream, CBufInStream> bufInStream;
             bufInStream->Init(file.Data, file.WrittenSize, virtFileSystem);
             const HRESULT res =
                 OpenAsArc_Msg(bufInStream, tempFileInfo, fullVirtPath, type ? type : L"", true);
             if (res == S_OK) {
-                if (virtFileSystemSpec->Index_of_ZoneBuf_AltStream_in_Files >= 0 &&
+                if (virtFileSystem->Index_of_ZoneBuf_AltStream_in_Files >= 0 &&
                     !_parentFolders.IsEmpty()) {
                     const CVirtFile &fileZone =
-                        virtFileSystemSpec
-                            ->Files[virtFileSystemSpec->Index_of_ZoneBuf_AltStream_in_Files];
+                        virtFileSystem->Files[virtFileSystem->Index_of_ZoneBuf_AltStream_in_Files];
                     _parentFolders.Back().ZoneBuf.CopyFrom(fileZone.Data, fileZone.WrittenSize);
                 }
 
@@ -273,7 +270,7 @@ void CPanel::OpenItemInArchive(unsigned index, bool tryInternal, bool tryExterna
             if (!tryExternal)
                 return;
             tryAsArchive = false;
-            if (virtFileSystemSpec->FlushToDisk(true) != S_OK)
+            if (virtFileSystem->FlushToDisk(true) != S_OK)
                 return;
         }
     }
