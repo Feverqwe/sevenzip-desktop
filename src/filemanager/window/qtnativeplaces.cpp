@@ -22,7 +22,7 @@ QString QtNativePlaces::RootIdentity(const CPanel &panel) {
         return panel.IsDeviceDrivesPrefix() ? QStringLiteral("volumes")
                                             : QStringLiteral("computer");
 #else
-        return QStringLiteral("volumes");
+        return QStringLiteral("computer");
 #endif
     }
     return {};
@@ -77,7 +77,20 @@ void QtNativePlaces::Refresh() {
         QString label = ToQString(nativeName);
         if (label == QStringLiteral("\\\\."))
             label = QCoreApplication::translate("RootFolder", "Volumes");
-        const bool computer = nativeName == RootFolder_GetName_Computer(iconIndex);
+        const bool namedComputer = nativeName == RootFolder_GetName_Computer(iconIndex);
+#ifdef _WIN32
+        const bool computer = namedComputer;
+#else
+        IFolderFolder *bound = folder;
+        const bool computer = dynamic_cast<CFSDrives *>(bound) != nullptr;
+        // Computer is the same namespace as the menu command. The native
+        // POSIX root also exposes / separately; it remains reachable through
+        // its volume rather than becoming a second meaning of Computer.
+        if (namedComputer && !computer)
+            continue;
+        if (computer)
+            label = ToQString(RootFolder_GetName_Computer(iconIndex));
+#endif
         const bool network = nativeName == RootFolder_GetName_Network(iconIndex);
         places.append({computer  ? QStringLiteral("computer")
                        : network ? QStringLiteral("network")

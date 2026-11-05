@@ -32,6 +32,49 @@ class WorkspacePlacesTests final : public QObject {
                                 qRound(area.center().y() * image.devicePixelRatio()));
     }
   private slots:
+    void computerMenuAndSidebarUseSameNamespace_data() {
+        QTest::addColumn<QString>("language");
+        QTest::newRow("en") << QString("-");
+        QTest::newRow("ru") << QString("ru");
+    }
+    void computerMenuAndSidebarUseSameNamespace() {
+        QFETCH(QString, language);
+        const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
+        QFile::remove(settings);
+        SaveRegLang(ToUString(language), settings);
+        ReloadLang(settings);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(fixture.path());
+        auto *files = window.findChild<FileTable *>("archiveTable");
+        QTRY_VERIFY(files->isEnabled());
+        auto *create = window.findChild<QAction *>("createFolderAction");
+        QTRY_VERIFY(create->isEnabled());
+        auto *places = window.findChild<QListView *>("nativePlaces");
+        QModelIndex computer;
+        for (int row = 0; row < places->model()->rowCount(); ++row)
+            if (places->model()->index(row, 0).data(QtPlaceRoles::Identity).toString() ==
+                "computer")
+                computer = places->model()->index(row, 0);
+        QVERIFY(computer.isValid());
+        QTest::mouseClick(places->viewport(), Qt::LeftButton, Qt::NoModifier,
+                          places->visualRect(computer).center());
+        QTRY_VERIFY(files->isEnabled());
+        QVERIFY(!create->isEnabled());
+        QVERIFY(files->sourcePanel->IsFSDrivesFolder());
+        QVERIFY(computer.data(QtPlaceRoles::CurrentLocation).toBool());
+        const QString sidebarTarget = ToQString(files->sourcePanel->GetCurrentFolderPrefix());
+        window.openPath(fixture.path());
+        QTRY_VERIFY(create->isEnabled());
+        window.findChild<QAction *>("openRootAction")->trigger();
+        QTRY_VERIFY(files->isEnabled());
+        QCOMPARE(ToQString(files->sourcePanel->GetCurrentFolderPrefix()), sidebarTarget);
+        QVERIFY(!create->isEnabled());
+        QVERIFY(computer.data(QtPlaceRoles::CurrentLocation).toBool());
+    }
     void savedPlacesMenuResolvesCurrentBookmark_data() {
         QTest::addColumn<bool>("remove");
         QTest::newRow("reordered") << false;

@@ -5,6 +5,7 @@
 #include "localization/LangUtils.h"
 #include "localization/qtlangcontrols.h"
 #include "platform/support/external_editor_fixture.h"
+#include "support/panel_keys.h"
 #include "ui/support/layout_inspection.h"
 
 class RootCommandTests final : public QObject, protected MainWindowTestSupport {
@@ -18,7 +19,7 @@ class RootCommandTests final : public QObject, protected MainWindowTestSupport {
 #endif
     }
     static void enterFolder(QLineEdit &address, const QString &path) {
-        address.setFocus();
+        PanelKeys::focusAddress(&address);
         address.setText(path);
         QTest::keyClick(&address, Qt::Key_Return);
     }
@@ -92,8 +93,8 @@ class RootCommandTests final : public QObject, protected MainWindowTestSupport {
         QCOMPARE(ExternalEditorFixture::read(control), bytes);
         QCOMPARE(backend.listCalls, 0);
         if (route == 0) {
-            QVERIFY(UiInspection::fullyVisible(*leftAddress, window));
-            QVERIFY(UiInspection::fullyVisible(*rightAddress, window));
+            QVERIFY(UiInspection::fullyVisible(*PanelKeys::navigationFor(leftAddress), window));
+            QVERIFY(UiInspection::fullyVisible(*PanelKeys::navigationFor(rightAddress), window));
             QVERIFY(UiInspection::fullyVisible(*rightTable, window));
             QVERIFY(UiInspection::writeReport(
                 window, QString("root-command-%1-%2").arg(language).arg(size.width())));
@@ -148,7 +149,7 @@ class RootCommandTests final : public QObject, protected MainWindowTestSupport {
             QVERIFY(panel);
             addresses[i] = panel->findChild<QLineEdit *>("archivePath");
             views[i] = panel->findChild<FileTable *>("archiveTable");
-            addresses[i]->setFocus();
+            PanelKeys::focusAddress(addresses[i]);
             QTRY_VERIFY(addresses[i]->hasFocus());
             action(window, "viewMode3Action")->trigger();
             action(window, "openRootAction")->trigger();

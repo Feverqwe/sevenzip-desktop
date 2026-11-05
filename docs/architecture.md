@@ -187,7 +187,9 @@ and native locations. These components project navigation requests; they do not
 own file or archive operations. Native locations share an application model of
 value snapshots from the native root provider. Each sidebar projects its own
 current location independently of keyboard selection. Native root identity
-survives a language change without rebinding the open source. Favorite menu
+survives a language change without rebinding the open source. On POSIX, Computer
+projects the native drives namespace used by the menu command; the physical
+filesystem root remains accessible through its volume. Favorite menu
 actions resolve the stable bookmark identity when invoked; renaming starts after
 the menu closes. The splitter applies the original ratio policy
 to file areas, excluding the shared places width. Status belongs below each file
