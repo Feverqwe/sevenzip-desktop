@@ -127,7 +127,7 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
     const char *statusNames[] = {"selectedItemsStatus", "selectedSizeStatus", "focusedSizeStatus",
                                  "focusedDateStatus"};
     for (unsigned part = 0; part < 4; ++part) {
-        auto *label = new QtStatusLabel(panelStatus);
+        auto *label = new QtStatusLabel(panelStatus, part == 0 ? Qt::ElideLeft : Qt::ElideRight);
         label->setObjectName(statusNames[part]);
         label->setTextInteractionFlags(Qt::TextSelectableByMouse);
         panelStatus->addPermanentWidget(label, part == 0 ? 1 : 0);

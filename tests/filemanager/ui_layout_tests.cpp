@@ -256,14 +256,12 @@ class MainWindowLayoutTests : public QObject {
         QCOMPARE(list->model(), table->model());
         QCOMPARE(list->selectionModel(), table->selectionModel());
 
-        for (int mode = 0; mode < 3; ++mode) {
-            auto *action =
-                window.findChild<QAction *>(QStringLiteral("viewMode%1Action").arg(mode));
-            QVERIFY(action);
-            action->trigger();
-            QCOMPARE(stack->currentWidget(), static_cast<QWidget *>(list));
-            QVERIFY(action->isChecked());
-        }
+        auto *icons = window.findChild<QAction *>("viewMode0Action");
+        QVERIFY(icons);
+        QTRY_VERIFY(icons->isEnabled());
+        icons->trigger();
+        QCOMPARE(stack->currentWidget(), static_cast<QWidget *>(list));
+        QVERIFY(icons->isChecked());
         QVERIFY(table->rowCount() > 0);
         list->selectionModel()->select(list->model()->index(0, 0),
                                        QItemSelectionModel::ClearAndSelect |
@@ -277,10 +275,10 @@ class MainWindowLayoutTests : public QObject {
         QCOMPARE(stack->currentWidget(), static_cast<QWidget *>(table));
         QCOMPARE(table->selectionModel()->selectedRows().size(), table->rowCount());
 
-        window.findChild<QAction *>("viewMode1Action")->trigger();
+        icons->trigger();
         MainWindow reopened;
         QCOMPARE(reopened.findChild<QStackedWidget *>("fileViewStack")->currentIndex(), 1);
-        QVERIFY(reopened.findChild<QAction *>("viewMode1Action")->isChecked());
+        QVERIFY(reopened.findChild<QAction *>("viewMode0Action")->isChecked());
         QVERIFY(QDir::setCurrent(original));
         QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
     }
@@ -288,20 +286,14 @@ class MainWindowLayoutTests : public QObject {
     void iconModesKeepLabelsInsideCells_data() {
         QTest::addColumn<QSize>("windowSize");
         QTest::addColumn<bool>("largeFont");
-        QTest::addColumn<int>("mode");
-        for (int mode : {0, 1}) {
-            const QString prefix = mode == 0 ? "large-" : "small-";
-            QTest::newRow(qPrintable(prefix + "normal")) << QSize(980, 620) << false << mode;
-            QTest::newRow(qPrintable(prefix + "compact")) << QSize(640, 400) << false << mode;
-            QTest::newRow(qPrintable(prefix + "compact-large-font"))
-                << QSize(640, 400) << true << mode;
-        }
+        QTest::newRow("large-normal") << QSize(980, 620) << false;
+        QTest::newRow("large-compact") << QSize(640, 400) << false;
+        QTest::newRow("large-compact-large-font") << QSize(640, 400) << true;
     }
 
     void iconModesKeepLabelsInsideCells() {
         QFETCH(QSize, windowSize);
         QFETCH(bool, largeFont);
-        QFETCH(int, mode);
         QTemporaryDir temporary;
         QVERIFY(temporary.isValid());
         const QString original = QDir::currentPath();
@@ -334,12 +326,10 @@ class MainWindowLayoutTests : public QObject {
                     return true;
             return false;
         }());
-        // Exercise both transitions: vertical labels and column-flow lists
-        // must not leave their layout behind when returning to Small Icons.
-        for (int precedingMode : {mode == 0 ? 1 : 0, 2}) {
-            auto *preceding =
-                window.findChild<QAction *>(QStringLiteral("viewMode%1Action").arg(precedingMode));
-            auto *icons = window.findChild<QAction *>(QStringLiteral("viewMode%1Action").arg(mode));
+        // Returning from the table must restore the icon layout and its labels.
+        {
+            auto *preceding = window.findChild<QAction *>("viewMode3Action");
+            auto *icons = window.findChild<QAction *>("viewMode0Action");
             QTRY_VERIFY_WITH_TIMEOUT(preceding->isEnabled(), 15000);
             preceding->trigger();
             QTRY_VERIFY_WITH_TIMEOUT(icons->isEnabled(), 15000);
@@ -366,16 +356,12 @@ class MainWindowLayoutTests : public QObject {
                                         .arg(item.text.height())
                                         .arg(item.textHeight)
                                         .arg(item.bounds.height())));
-                if (mode == 0) {
-                    QVERIFY2(item.alignment.testFlag(Qt::AlignHCenter),
-                             "Large Icons filenames must be centered below their icons");
-                    QVERIFY2(item.icon.bottom() < item.text.top(),
-                             "Filename must be below the icon");
-                    if (item.label.startsWith(QStringLiteral("Длинное")))
-                        QVERIFY2(item.text.height() >= 2 * item.textHeight,
-                                 "Large Icons must wrap long filenames");
-                } else
-                    QVERIFY2(item.icon.right() < item.text.left(), "Filename must follow the icon");
+                QVERIFY2(item.alignment.testFlag(Qt::AlignHCenter),
+                         "Large Icons filenames must be centered below their icons");
+                QVERIFY2(item.icon.bottom() < item.text.top(), "Filename must be below the icon");
+                if (item.label.startsWith(QStringLiteral("Длинное")))
+                    QVERIFY2(item.text.height() >= 2 * item.textHeight,
+                             "Large Icons must wrap long filenames");
             }
             const QRect first = list->visualRect(list->model()->index(0, 0));
             const QRect second = list->visualRect(list->model()->index(1, 0));

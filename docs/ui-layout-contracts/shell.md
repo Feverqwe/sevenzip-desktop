@@ -173,7 +173,9 @@ size, focused size and focused date. `PanelMenu.cpp::OnContextMenu` calls
 `CreateFileMenu(programMenu=false)` and anchors keyboard invocation to the
 focused item. Qt uses four labels below each panel's file area, with adaptive
 widths for compact two-panel layout; the main-window bar displays operation
-messages. `panel_shell` checks all four labels visible and independent at
+messages. The selection part reserves room for both counts and elides its
+caption from the left; the complete text remains available in its tooltip.
+`panel_shell` checks all four labels visible and independent at
 980×620 and 640×400 and writes `panel-shell-*.json`. It also writes disk and
 archive context popup JSON at normal/compact sizes; QActions are non-widget
 objects, so their order/enabled state is asserted separately. System shell groups

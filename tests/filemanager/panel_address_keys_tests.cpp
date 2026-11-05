@@ -1,6 +1,7 @@
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
 #include "localization/LangUtils.h"
+#include "support/panel_keys.h"
 #include "ui/support/layout_inspection.h"
 
 class PanelAddressKeysTests final : public QObject, protected MainWindowTestSupport {
@@ -12,7 +13,7 @@ class PanelAddressKeysTests final : public QObject, protected MainWindowTestSupp
         QTest::addColumn<int>("mode");
         for (unsigned pane : {0u, 1u})
             for (const QString language : {QString("-"), QString("ru")})
-                for (int mode : {1, 3})
+                for (int mode : {0, 3})
                     QTest::newRow(qPrintable(QString("%1-%2-%3").arg(pane).arg(language).arg(mode)))
                         << pane << language << mode;
     }
@@ -39,7 +40,7 @@ class PanelAddressKeysTests final : public QObject, protected MainWindowTestSupp
         for (unsigned owner : {1 - pane, pane}) {
             auto *panel = window.findChild<QWidget *>(QString("filePanel%1").arg(owner));
             auto *address = panel->findChild<QLineEdit *>("archivePath");
-            address->setFocus();
+            PanelKeys::focusAddress(address);
             address->setText(fixture.path());
             QTest::keyClick(address, Qt::Key_Return);
             QTRY_VERIFY(panel->findChild<FileTable *>("archiveTable")->rowCount() > 0);
@@ -50,7 +51,7 @@ class PanelAddressKeysTests final : public QObject, protected MainWindowTestSupp
         auto *address = panel->findChild<QLineEdit *>("archivePath");
         auto *stack = panel->findChild<QStackedWidget *>("fileViewStack");
         const QString draft = QStringLiteral("unsubmitted путь with space");
-        address->setFocus();
+        PanelKeys::focusAddress(address);
         QTRY_VERIFY(address->hasFocus());
         address->setText(draft);
         QTest::keyClick(address, Qt::Key_F9);
@@ -65,12 +66,12 @@ class PanelAddressKeysTests final : public QObject, protected MainWindowTestSupp
         QTest::keyClick(address, Qt::Key_Tab);
         QTRY_VERIFY(stack->currentWidget()->hasFocus());
         QCOMPARE(address->text(), draft);
-        address->setFocus();
+        PanelKeys::focusAddress(address);
         QTRY_VERIFY(address->hasFocus());
         QTest::keyClick(address, Qt::Key_Backtab, Qt::ShiftModifier);
         QTRY_VERIFY(stack->currentWidget()->hasFocus());
         QCOMPARE(address->text(), draft);
-        address->setFocus();
+        PanelKeys::focusAddress(address);
         QTRY_VERIFY(address->hasFocus());
         for (const QSize size : {QSize(980, 620), QSize(640, 400)}) {
             window.resize(size);

@@ -5,6 +5,7 @@
 #include "filemanager/window/qtfileclipboard.h"
 #include "filemanager/window/qtwindowworkspace.h"
 #include "localization/qtlangcontrols.h"
+#include <QLocale>
 #include <QScopedValueRollback>
 
 void MainWindow::setState(State state) {
@@ -116,6 +117,9 @@ void MainWindow::showPanelStatus(unsigned index, const CPanelStatus &status) {
         return;
     }
     labels[0]->setText(QtSelectionStatusText(status.selectedCount, status.totalCount));
+    labels[0]->setMinimumWidth(labels[0]->fontMetrics().horizontalAdvance(
+        QStringLiteral("… %1 / %2")
+            .arg(QLocale().toString(status.selectedCount), QLocale().toString(status.totalCount))));
     labels[1]->setText(status.selectedSize);
     labels[2]->setText(status.focusedSize);
     labels[3]->setText(status.focusedDate);

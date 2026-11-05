@@ -270,6 +270,22 @@ outline сохранены, длинная подпись имеет две ст
 отступ сетки. Полный путь остаётся в tooltip. Windows runtime не проверялся;
 это acceptance FileRow/Icon, не всего главного окна.
 
+Повторный аудит общих FileRow/LocationBar: native operation paths, clipboard
+snapshot, selection owner, ancestor targets и transaction/focus boundary
+сохранены. Linux-проверки row states, таблицы, deleted draw, address/combo,
+workspace navigation и archive rollback прошли. Legacy fixtures актуализированы:
+геометрия/сохранение вида проверяют поддерживаемые Table/Large Icons, а клавиши
+адреса входят через видимый редактор. Проверки выбора, черновика, F9/Tab/Backtab,
+геометрии шрифта и сохранности файлов остаются. Cocoa-клавиши адреса — 10 QtTest
+PASS; light/dark captures таблицы, Cut, адреса, отказа/успеха перехода и видов
+прошли. Просмотр компактного снимка обнаружил потерю счётчиков за `Sele…`:
+selection status теперь резервирует ширину чисел и сокращает подпись слева,
+сохраняя полную подсказку. Native вычисление статуса и четыре части не меняются.
+Финальный Linux panel shell/table/layout/address keys — PASS; после уточнения
+ширины локализованных чисел и многоточия shell/table повторно прошли. Обновлённые
+Cocoa table-снимки в обеих темах прошли и просмотрены: в компактной двухпанельной
+геометрии видны оба числа, current outline и независимый selection сохранены.
+
 ## Shared secret editing
 
 2026-11-05: проверены исходные `PasswordDialog.cpp/.h`, обработчики
