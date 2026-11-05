@@ -1,5 +1,33 @@
 # Selection command boundary — 2026-10-31
 
+## Complete archive-toolbar call lifetime — 2026-11-05
+
+Compared original FM.cpp ExecuteCommand and complete WM_COMMAND routing with the
+current WndProc admission/call owner, all three toolbar consumers, native panel
+Add/Extract/Test bodies and independent 7zG output publication. Complete FM.cpp
+matches the recorded original SHA256
+`0a45a236700a226789274ece8eec1d0ac5de49642eb1b646c20ebb79a1ba9179`
+at `b88c6bc09339de32f7d18bbab900686b244f42ba` from
+<https://github.com/ip7z/7zip.git>. No imports, baseline changes or algorithm
+replacements are involved.
+
+The toolbar adapter removes two redundant native timer guards and its resulting
+unused CApp parameter. WndProc's existing CallScope excludes the sole Qt
+auto-refresh dispatcher during synchronous calls. Existing operation/scan owners
+retain asynchronous protection and output publication; a second timer snapshot
+does not need to span those transitions. The three-case switch, toolbar range,
+capability admission, close exception and all service arguments are unchanged.
+Toolbar/menu capability distinctions and native archive branches remain intact.
+
+Existing end-to-end creation, extraction and test suites cover selected/opened
+archives, both panels, Unicode paths, accepted/Cancelled operations, child
+failure/retry, output refresh after navigation and preserved input bytes. No
+implementation-presence tests or new state/controller is added.
+
+Focused Linux validation passed: toolbar_creation_workflow (14 Qt checks),
+toolbar_archive_workflow (16) and toolbar_archive_batch (6). No platform branch,
+dialog layout or appearance changes require additional platform acceptance.
+
 ## Complete menu-command dispatch owner — 2026-11-04
 
 Compared the complete original MyLoadMenu.cpp command switches, header,
@@ -16,7 +44,7 @@ menu construction, translation, activation and file-menu policy keep their
 existing owner. Both switches and hash mapping are unchanged, including
 admission checks, plugin release, Shift/Delete, explicit archive types,
 selection/status updates and bookmark/timestamp dispatch. FM.cpp retains the
-window call scope, toolbar timer guards and close exception. No new dispatcher
+window call scope and close exception. No new dispatcher
 state, algorithm replacement or external code import is introduced. Existing
 baseline extraction mappings retain the original hashes and revision.
 

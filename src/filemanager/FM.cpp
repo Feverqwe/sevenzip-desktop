@@ -212,10 +212,7 @@ void CheckFileManagerStartup(HRESULT res, const QtFileManagerStartup &startup,
     }
 }
 
-static void ExecuteCommand(unsigned commandID, CApp &g_App,
-                           IQtFileManagerMenuCommandServices &services) {
-    CPanel::CDisableTimerProcessing disableTimerProcessing1(g_App.Panels[0]);
-    CPanel::CDisableTimerProcessing disableTimerProcessing2(g_App.Panels[1]);
+static void ExecuteCommand(unsigned commandID, IQtFileManagerMenuCommandServices &services) {
     switch (commandID) {
     case kMenuCmdID_Toolbar_Add:
         services.AddToArchive();
@@ -240,7 +237,7 @@ bool WndProc(unsigned wmId, CApp &g_App, IQtFileManagerMenuCommandServices &serv
     // Original WM_COMMAND body, after Qt has supplied the action ID instead of
     // LOWORD(wParam). Control-notification messages are handled by Qt signals.
     if (wmId >= kMenuCmdID_Toolbar_Start && wmId < kMenuCmdID_Toolbar_End) {
-        ExecuteCommand(wmId, g_App, services);
+        ExecuteCommand(wmId, services);
         return true;
     }
     if (OnMenuCommand(wmId, services))
