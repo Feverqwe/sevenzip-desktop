@@ -1,5 +1,22 @@
 # Shared name input ownership — 2026-10-31
 
+## Filesystem delete cancellation owner — 2026-11-05
+
+The joined folder worker now installs and clears the filesystem deletion
+checkpoint around its native Delete call. Panel code no longer configures the
+concrete filesystem provider or captures the worker's Sync in its own callback.
+The worker retains the same provider through its existing operation interface;
+archive and forwarding providers keep their normal progress callback path.
+
+Reviewed complete original PanelOperations worker/delete dispatch with current
+filesystem Delete/recursive cancellation, confirmation, trash snapshots and
+ordinary/interarchive selection publication. Only the local Qt cancellation
+binding moves: native algorithms, trash policy, joined completion, callback reset,
+error results and refresh order remain unchanged. No public interface, native
+COM initialization, source import or baseline changes. Existing deletion,
+recursive-cancellation and Move behavior checks cover the affected consumers;
+no private-state or source-ownership test is added.
+
 ## Joined folder operation execution — 2026-11-04
 
 Compared original PanelOperations.cpp worker, operation dispatch, callback,
