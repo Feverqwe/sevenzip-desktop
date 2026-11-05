@@ -63,11 +63,6 @@ void QtArchiveMountSource::initialize() {
         entries_.append(MountTreeEntry(entry.Id, entry.Parent, entry.Size, entry.Modified,
                                        entry.Name, entry.Directory, entry.ChildrenLoaded,
                                        entry.SymlinkTarget));
-    {
-        QMutexLocker lock(&viewMutex_);
-        if (cancelled_)
-            view_->cancel();
-    }
     host_ = std::make_unique<QRemoteObjectHost>();
     QRemoteObjectHost::setLocalServerOptions(QLocalServer::UserAccessOption);
     if (!host_->setHostUrl(endpoint_) || !host_->enableRemoting<ArchiveMountSourceAPI>(this)) {
