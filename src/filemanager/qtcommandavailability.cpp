@@ -7,6 +7,7 @@
 #include "filemanager/qtfilemenuprojection.h"
 #include "filemanager/qtprogramfilemenu.h"
 #include "filemanager/window/mainwindow.h"
+#include "filemanager/window/qtwindowworkspace.h"
 #include "fileops/volumes/nativevolumeworker.h"
 #include "ui/dialogs/qtdialogscreenservices.h"
 
@@ -144,8 +145,8 @@ QHash<unsigned, bool> QtFileManagerCommands::Availability() {
     const bool namespaceChild = safeFolderQueries &&
                                 w.projectedUi().state == MainWindow::State::Namespace &&
                                 hasFolder && !panel.IsRootFolder();
-    availability[Back] = navigating && (w.projectedUi().state == MainWindow::State::Viewing ||
-                                        namespaceChild || !w.projectedUi().history.isEmpty());
+    availability[Back] = safeFolderQueries && w.workspace_->CanTravel(w.projectedPanel_, -1);
+    availability[Forward] = safeFolderQueries && w.workspace_->CanTravel(w.projectedPanel_, 1);
     availability[IDM_OPEN_PARENT_FOLDER] = safeFolderQueries && hasFolder &&
                                            !panel.IsRootFolder() &&
                                            (w.projectedUi().state == MainWindow::State::Viewing ||

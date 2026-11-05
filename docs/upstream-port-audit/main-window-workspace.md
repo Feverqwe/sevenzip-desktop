@@ -355,6 +355,61 @@ macOS offscreen: те же пять наборов — PASS. Новых обра
 или native presentation эта итерация не вводит; прежние Cocoa-свидетельства
 общих команд и отображения CFSDrives не переобозначаются как новый прогон.
 
+## История переходов вкладки — 2026-11-05
+
+Согласованный контракт: master `work/design/specs/recent-places.md`, Back/Forward
+как история вкладки и отдельный Parent. Перед изменением сверены полные original
+PanelFolderChange/PanelItemOpen bodies, CFolderLink, RefreshListCtrl, CFolderHistory
+и Qt callers; повторная проверка original PanelFolderChange/App units из
+записанного source archive дала прежние SHA256. Native Bind/Open/Parent/Close,
+архивные алгоритмы и политика изменения вложенных архивов не заменены.
+Новые requests и per-tab value snapshots — project-owned application integration.
+Global recent ordering, equality и limit остаются у CFolderHistory.
+
+Общий recorder получает результат адреса, сегментов, native activation, Parent,
+root, Places и Retry. Фоновое перечисление подтверждает terminal result; отмена
+не создаёт промежуточный визит. Back/Forward возвращают native target, выделение,
+current и viewport. Новая успешная ветка отбрасывает forward tail, повтор текущего
+места не добавляет соседний дубль. Transfer сохраняет live stack; Duplicate и
+session reopen начинают отдельный stack без сохранения passwords/providers.
+Существующий native успех с fallback к доступному предку сохранён; history Travel
+должен достичь именно записанного target. Новый диалог недавних мест этим разделом
+не объявляется реализованным.
+
+Переход между разными источниками сохраняет прежний native context до результата.
+Возврат внутри той же archive chain сохраняет reader и проходит по native parent
+interfaces и подготовленным directory targets с joined directory read. Нет нового
+парсера archive paths или decoder. Actual reload сообщает HRESULT после проверки
+раннего пропуска; suppressed S_OK не считается загрузкой и не оставляет окно
+Operating. Retained scan guards освобождаются перед checkpoint notification guard.
+Forward icon — отражение уже записанной Lucide arrow-left geometry; новых SVG
+или внешнего кода нет, original baseline hashes сохраняются.
+
+Focused Linux: history, Places, session, archive workspace/rollback и normal/compact
+UI layout — PASS после окончательной правки Retry. Отдельно прошли root navigation,
+persisted locations, общий navigation, tab menu, command publication и native Parent;
+проверка Parent обновлена для видимого LocationBar и полного отпускания клавиш.
+Регрессии проверяют 301-entry viewport/selection/current, forward branch и Parent,
+перенос вкладки, прерывание загрузки, свежий archive reader перед same-chain Back,
+единственный парольный Cancel, initial/deferred native E_FAIL/E_ABORT и отсутствие
+неуспешного визита в общей истории. Missing favorite сохраняет запрошенный адрес
+для Retry/New Window; успешный Retry создаёт правильный Back/Forward step.
+
+macOS offscreen: девять затронутых наборов — PASS. Cocoa: history — 10 QtTest PASS,
+native Open failure/cancel — 6 PASS, missing favorite/Retry — 3 PASS; нулевые
+fail/skip. Проверены реальные EN/RU shortcuts и обе panel buttons, popup password
+Cancel/Retry, notifications после rollback и terminal publication. Native fixtures
+созданы в canonical temporary root с official runtime и удалены после завершения.
+Это focused evidence; Windows и full/slow suites здесь не проверялись.
+
+Review bundle пересобран. Семь затронутых Cocoa producers обновлены в light/dark:
+main, View menu, table, history, LocationBar, unavailable и file views. Native
+EN/RU меню и обычная/компактная навигация просмотрены: обе стрелки, подписи,
+shortcut и path frame помещаются. Capture manifest сохраняет фактический dirty
+pre-commit source state; прежние снимки других компонентов не переименованы
+в новое свидетельство. Одноразовые native fixtures удалены; incremental outputs
+и compiler caches сохранены.
+
 ## Shared secret editing
 
 2026-11-05: проверены исходные `PasswordDialog.cpp/.h`, обработчики

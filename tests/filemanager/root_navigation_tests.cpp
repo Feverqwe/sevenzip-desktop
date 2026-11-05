@@ -117,6 +117,8 @@ class RootNavigationTests final : public QObject, protected MainWindowTestSuppor
         action(window, "parentFolderAction")->trigger();
         QVERIFY(address->text().isEmpty());
         action(window, "backAction")->trigger();
+        QVERIFY(view->sourcePanel->IsFSDrivesFolder());
+        action(window, "backAction")->trigger();
         QTRY_COMPARE(address->text(), network);
         action(window, "backAction")->trigger();
         QCOMPARE(view->rowCount(), 3);
@@ -222,6 +224,8 @@ class RootNavigationTests final : public QObject, protected MainWindowTestSuppor
         action(window, "backAction")->trigger();
         QVERIFY(address->text().isEmpty());
         QVERIFY(view->rowCount() > 0);
+        action(window, "backAction")->trigger();
+        QVERIFY(view->sourcePanel->IsFSDrivesFolder());
         action(window, "backAction")->trigger();
         QCOMPARE(address->text(), QFileInfo(fixture.path()).canonicalFilePath());
 #ifndef Q_OS_WIN

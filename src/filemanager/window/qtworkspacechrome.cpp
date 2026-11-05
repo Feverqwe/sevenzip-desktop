@@ -206,6 +206,10 @@ void QtWindowWorkspace::RefreshChrome() {
                 container->findChild<QToolButton *>(QStringLiteral("panelBackButton%1").arg(panel)))
             button->setEnabled(native.value(window_.back_->property("nativeCommandID").toUInt()));
         if (auto *button = container->findChild<QToolButton *>(
+                QStringLiteral("panelForwardButton%1").arg(panel)))
+            button->setEnabled(
+                native.value(window_.forward_->property("nativeCommandID").toUInt()));
+        if (auto *button = container->findChild<QToolButton *>(
                 QStringLiteral("panelSidebarButton%1").arg(panel)))
             button->setChecked(sidebarVisible_);
         for (auto *action : state.actions->actions()) {
@@ -271,12 +275,16 @@ void QtWindowWorkspace::OpenFavorite(const QString &path, int target) {
     } else {
         const unsigned panel = window_.projectedPanel_;
         window_.withPanelProjection(panel, [this, panel, &path] {
-            const QScopedValueRollback<bool> changing(changing_, true);
-            panels_[panel].tabs[panels_[panel].current].path = path;
-            panels_[panel].tabs[panels_[panel].current].nativePlaceIdentity.clear();
-            panels_[panel].tabs[panels_[panel].current].archiveLocation = {};
-            const HRESULT result = window_.navigateTo(path, true);
+            const HRESULT result = Navigate([&]() -> HRESULT {
+                const HRESULT opened = window_.navigateTo(path, true);
+                return opened == S_OK && !LocationMatches(panel, path) ? S_FALSE : opened;
+            });
             CompleteLocationOpen(panel, path, result);
+            if (panels_[panel].tabs[panels_[panel].current].unavailable) {
+                auto &tab = panels_[panel].tabs[panels_[panel].current];
+                tab.nativePlaceIdentity.clear();
+                tab.archiveLocation = {};
+            }
         });
         window_.refreshActions();
     }

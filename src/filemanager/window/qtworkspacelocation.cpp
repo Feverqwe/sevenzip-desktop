@@ -6,7 +6,7 @@
 #include <QScopedValueRollback>
 #include <QScrollBar>
 
-void QtWindowWorkspace::OpenTabLocation(unsigned panel) {
+HRESULT QtWindowWorkspace::OpenTabLocation(unsigned panel) {
     auto &tab = panels_[panel].tabs[panels_[panel].current];
     const QString identity = tab.nativePlaceIdentity;
     nativePlaces_->Refresh();
@@ -28,6 +28,7 @@ void QtWindowWorkspace::OpenTabLocation(unsigned panel) {
         }
     }
     CompleteLocationOpen(panel, tab.path, result);
+    return tab.unavailable && result == S_OK ? S_FALSE : result;
 }
 
 void QtWindowWorkspace::RestoreViewPosition(CPanel &source, QAbstractItemView &view,
@@ -44,8 +45,7 @@ void QtWindowWorkspace::RestoreViewPosition(CPanel &source, QAbstractItemView &v
     });
 }
 
-void QtWindowWorkspace::CompleteLocationOpen(unsigned panel, const QString &path, HRESULT result) {
-    auto &ui = window_.panelUi_[panel];
+bool QtWindowWorkspace::LocationMatches(unsigned panel, const QString &path) {
     auto &source = window_.app_.Panels[panel];
     source.LoadFullPath();
     const QString actual = ToQString(source.GetCurrentFolderPrefix());
@@ -55,11 +55,17 @@ void QtWindowWorkspace::CompleteLocationOpen(unsigned panel, const QString &path
     bool matched = normalized(actual) == normalized(path);
     if (!matched && QFileInfo(path).isDir())
         matched = QFileInfo(path).canonicalFilePath() == QFileInfo(actual).canonicalFilePath();
+    return matched;
+}
+
+void QtWindowWorkspace::CompleteLocationOpen(unsigned panel, const QString &path, HRESULT result) {
+    auto &ui = window_.panelUi_[panel];
     auto &tab = panels_[panel].tabs[panels_[panel].current];
-    tab.unavailable = result != S_OK || !matched;
+    tab.unavailable = result != S_OK || !LocationMatches(panel, path);
     ui.locationUnavailable = tab.unavailable;
     if (!tab.unavailable)
         return;
+    tab.path = path;
     ui.filesystemScanner->cancelAndWait();
     window_.cancelListPublication();
     window_.setState(ui.state);
@@ -84,9 +90,15 @@ void QtWindowWorkspace::RetryLocation(unsigned panel, bool parent) {
         tab.nativePlaceIdentity.clear();
         tab.archiveLocation = {};
     }
-    window_.withPanelProjection(panel, [this, panel] {
-        const QScopedValueRollback<bool> changing(changing_, true);
-        OpenTabLocation(panel);
+    const QString requested = tab.path;
+    window_.withPanelProjection(panel, [this, panel, &requested] {
+        const HRESULT result = Navigate([this, panel]() -> HRESULT {
+            ProtectNavigation();
+            const QScopedValueRollback<bool> changing(changing_, true);
+            return OpenTabLocation(panel);
+        });
+        if (result != S_OK)
+            CompleteLocationOpen(panel, requested, result);
     });
     window_.refreshActions();
 }

@@ -8,6 +8,7 @@
 #include "filemanager/panels/qtpaneladdresscombo.h"
 #include "filemanager/providers/qtlocationfolder.h"
 #include "filemanager/window/mainwindow.h"
+#include "filemanager/window/qtwindowworkspace.h"
 #include "localization/qtlanguageservices.h"
 #include <QScopedValueRollback>
 
@@ -36,7 +37,6 @@ HRESULT MainWindow::renderArchiveFolder(bool updateAddress) {
     static_cast<FileTable *>(projectedUi().table)->filesystem = false;
     panelUi_[projectedPanel_].autoRefreshSnapshot.clear();
     panel.LoadFullPath();
-    recordVisitedPath(ToQString(panel.GetCurrentFolderPrefix()));
     const QString prefix =
         projectedUi().archiveFolder.isEmpty() ? QString() : projectedUi().archiveFolder + '/';
     projectedUi().table->setSortingEnabled(false);
@@ -76,6 +76,7 @@ HRESULT MainWindow::renderArchiveFolder(bool updateAddress) {
                     applySortMode(true);
                     completeListSelection();
                     setState(State::Viewing);
+                    workspace_->NavigationFinished(result);
                     if (completed)
                         completed(result);
                     if (app_.QtOperations().closed())

@@ -6,6 +6,7 @@
 #include "filemanager/views/filetable.h"
 #include "localization/LangUtils.h"
 #include "platform/support/native_property_failure_runtime.h"
+#include "support/panel_keys.h"
 #include "support/widget_dialogs.h"
 #include "support/window_activation.h"
 #include "ui/progress/ProgressDialog2.h"
@@ -83,13 +84,14 @@ class NativeParentPublicationTests final : public QObject, protected MainWindowT
             for (unsigned pane : {0u, 1u}) {
                 auto *owner = window.findChild<QWidget *>(QString("filePanel%1").arg(pane));
                 auto *address = owner->findChild<QLineEdit *>("archivePath");
+                auto *navigation = PanelKeys::navigationFor(address);
                 auto *table = owner->findChild<FileTable *>("archiveTable");
                 QWidget *view = table->isVisible() ? static_cast<QWidget *>(table)
                                                    : owner->findChild<QListView *>("iconList");
                 QVERIFY(address->isEnabled() && view->isEnabled());
-                QVERIFY(UiInspection::fullyVisible(*address, window));
+                QVERIFY(UiInspection::fullyVisible(*navigation, window));
                 QVERIFY(UiInspection::fullyVisible(*view, window));
-                QVERIFY(UiInspection::bounds(*address, window).bottom() <
+                QVERIFY(UiInspection::bounds(*navigation, window).bottom() <
                         UiInspection::bounds(*view, window).top());
             }
             QVERIFY(UiInspection::writeReport(window, QString("native-parent-%1-%2-%3")
@@ -200,7 +202,7 @@ class NativeParentPublicationTests final : public QObject, protected MainWindowT
             if (ToQString(panel.GetItemName(i)) == "inner archive 空.7z")
                 innerIndex = i;
         QVERIFY(innerIndex != UInt32(-1));
-        owner->findChild<QLineEdit *>("archivePath")->setFocus();
+        PanelKeys::focusAddress(owner->findChild<QLineEdit *>("archivePath"));
         QVERIFY(runtime_.forceDisk(true));
         panel.OpenItem(innerIndex, true, false, L"SevenzipFixture7z");
         QTRY_COMPARE(list->rowCount(), 2);
@@ -325,7 +327,7 @@ class NativeParentPublicationTests final : public QObject, protected MainWindowT
             icons ? static_cast<QAbstractItemView *>(owner->findChild<QListView *>("iconList"))
                   : list;
         view->setFocus();
-        QTest::keyClick(view, Qt::Key_R, Qt::ControlModifier);
+        PanelKeys::command(view, Qt::Key_R, Qt::ControlModifier);
         QTRY_COMPARE(list->rowCount(), count);
         QTRY_VERIFY(list->isEnabled() && list->updatesEnabled());
         QCOMPARE(panel.GetFolder(), outer.Interface());

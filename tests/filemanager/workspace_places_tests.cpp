@@ -73,6 +73,20 @@ class WorkspacePlacesTests final : public QObject {
         QTest::mouseClick(retry, Qt::LeftButton);
         QTRY_VERIFY(errorVisible());
         QVERIFY(!window.findChild<QAction *>("createFolderAction")->isEnabled());
+        QVERIFY(!QSettings(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"), QSettings::IniFormat)
+                     .value("FolderHistory")
+                     .toStringList()
+                     .contains(missing));
+        QVERIFY(QDir().mkpath(missing));
+        QTest::mouseClick(retry, Qt::LeftButton);
+        QTRY_VERIFY(window.findChild<QAction *>("createFolderAction")->isEnabled());
+        auto *files = window.findChild<FileTable *>("archiveTable");
+        QCOMPARE(QDir::cleanPath(ToQString(files->sourcePanel->GetCurrentFolderPrefix())), missing);
+        window.findChild<QAction *>("backAction")->trigger();
+        QTRY_VERIFY(files->sourcePanel->IsFSDrivesFolder());
+        window.findChild<QAction *>("forwardAction")->trigger();
+        QTRY_COMPARE(QDir::cleanPath(ToQString(files->sourcePanel->GetCurrentFolderPrefix())),
+                     missing);
     }
     void computerMenuAndSidebarUseSameNamespace_data() {
         QTest::addColumn<QString>("language");

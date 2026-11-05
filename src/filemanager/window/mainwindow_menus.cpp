@@ -40,6 +40,9 @@ void MainWindow::createFileActions(QMenu *menu, QToolBar *toolbar) {
     back_ = new QAction("Back", this);
     back_->setObjectName("backAction");
     QtBindLocalText(back_, "mainwindow_menus", QT_TRANSLATE_NOOP("mainwindow_menus", "Back"));
+    forward_ = new QAction("Forward", this);
+    forward_->setObjectName("forwardAction");
+    QtBindLocalText(forward_, "mainwindow_menus", QT_TRANSLATE_NOOP("mainwindow_menus", "Forward"));
     up_ = new QAction("Up", this);
     up_->setObjectName("upAction");
     QtBindLocalText(up_, "CommandMenus", QT_TRANSLATE_NOOP("CommandMenus", "Up one level"));
@@ -352,7 +355,7 @@ void MainWindow::populateSourceMenus() {
     time->menuAction()->setVisible(false);
     toolbars->menuAction()->setVisible(false);
     view->addSeparator();
-    for (QAction *action : {back_, up_, root_, foldersHistory_})
+    for (QAction *action : {back_, forward_, up_, root_, foldersHistory_})
         view->addAction(action);
     view->addSeparator();
     for (QAction *action : {refresh_, autoRefreshAction_})

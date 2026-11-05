@@ -123,6 +123,7 @@ void MainWindow::quiesceOperations() {
             ui.filesystemScanner->cancelAndWait();
         }
     }
+    workspace_->QuiesceNavigation();
     backend_->cancelAndWait();
     if (fileTransfer_) {
         disconnect(fileTransfer_, nullptr, this, nullptr);

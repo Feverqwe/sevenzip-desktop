@@ -1893,6 +1893,7 @@
     "src/filemanager/window/qtworkspacefocus.cpp",
     "src/filemanager/window/qtworkspacelifecycle.cpp",
     "src/filemanager/window/qtworkspacelocation.cpp",
+    "src/filemanager/window/qtworkspacenavigation.cpp",
     "src/filemanager/window/qtworkspaceruntime.h",
     "src/filemanager/window/qtworkspacesession.cpp",
     "src/filemanager/window/qtworkspacesidebar.cpp",

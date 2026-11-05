@@ -17,6 +17,58 @@ class ArchiveNavigationRollbackTests final : public QObject, protected MainWindo
   private slots:
     void initTestCase() { UiInspection::configureReviewAppearance(); }
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
+    void nativeOpenKeepsFirstPublicationFailure_data() {
+        QTest::addColumn<quint32>("failedIndex");
+        QTest::addColumn<qint32>("failure");
+        QTest::newRow("initial-error") << quint32(0) << qint32(E_FAIL);
+        QTest::newRow("deferred-error") << quint32(257) << qint32(E_FAIL);
+        QTest::newRow("initial-cancel") << quint32(0) << qint32(E_ABORT);
+        QTest::newRow("deferred-cancel") << quint32(257) << qint32(E_ABORT);
+    }
+    void nativeOpenKeepsFirstPublicationFailure() {
+        QFETCH(quint32, failedIndex);
+        QFETCH(qint32, failure);
+        NativePropertyFailureRuntime runtime;
+        QVERIFY(runtime.prepare(QString::fromUtf8(SEVENZIP_EXTERNAL_RUNTIME),
+                                QString::fromUtf8(SEVENZIP_EXTERNAL_FORMAT_FIXTURE)));
+        QTemporaryDir fixture;
+        const QString candidate = fixture.filePath("candidate.fixture7z");
+        QVERIFY(runtime.createArchive(candidate, 301));
+        ArchiveBackend backend(nullptr, runtime.engine());
+        MainWindow window(&backend);
+        window.show();
+        QTimer responder;
+        dialogs_.connectResponder(responder, &window, [&] {
+            if (auto *message = qobject_cast<QMessageBox *>(dialogs_.activeDialog()))
+                message->accept();
+        });
+        responder.start(5);
+        window.openPath(fixture.path());
+        auto *files = table(window);
+        QTRY_VERIFY(files->isEnabled());
+        auto &panel = *files->sourcePanel;
+        const auto *provider = panel.GetFolder();
+        const UString prefix = panel.GetCurrentFolderPrefix();
+        const int row = filesystemRow(window, "candidate.fixture7z");
+        QVERIFY(row >= 0);
+        files->selectRow(row);
+        files->setCurrentCell(row, 0, QItemSelectionModel::NoUpdate);
+        QVERIFY(runtime.arm(failedIndex, HRESULT(failure), 301));
+        action(window, "openItemAction")->trigger();
+        QTRY_VERIFY(files->isEnabled());
+        QVERIFY(!runtime.receipts().isEmpty());
+        QCOMPARE(panel.GetFolder(), provider);
+        QCOMPARE(panel.GetCurrentFolderPrefix(), prefix);
+        QVERIFY(panel.ShouldProcessNotifications());
+        QCOMPARE(files->model()->index(files->currentRow(), 0).data().toString(),
+                 "candidate.fixture7z");
+        QVERIFY(files->selectionModel()->isRowSelected(files->currentRow(), {}));
+        QVERIFY(!action(window, "forwardAction")->isEnabled());
+        QVERIFY(!QSettings(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"), QSettings::IniFormat)
+                     .value("FolderHistory")
+                     .toStringList()
+                     .contains(candidate + '/'));
+    }
     void savedArchiveRejectsDeferredMetadataFailureAndRetries() {
         NativePropertyFailureRuntime runtime;
         QVERIFY(runtime.prepare(QString::fromUtf8(SEVENZIP_EXTERNAL_RUNTIME),

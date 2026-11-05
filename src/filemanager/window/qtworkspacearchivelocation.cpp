@@ -42,6 +42,33 @@ HRESULT FollowDirectories(CPanel &source, const QList<QtArchiveLocation::Directo
 }
 } // namespace
 
+HRESULT QtWindowWorkspace::OpenArchiveDirectory(unsigned panel, const QtArchiveLocation &location) {
+    QtAppOperationState::CallScope call(window_.app_.QtOperations());
+    const QScopedValueRollback<bool> progress(window_.sourceArchiveProgress_, true);
+    auto &source = window_.app_.Panels[panel];
+    window_.cancelListPublication();
+    // Walk native parent interfaces without closing this archive's reader.
+    for (;;) {
+        CMyComPtr<IFolderFolder> parent;
+        const HRESULT result = source.GetFolder()->BindToParentFolder(&parent);
+        if (result != S_OK)
+            return result;
+        if (!parent)
+            break;
+        source.SetNewFolder(parent);
+    }
+    source.LoadFullPath();
+    if (!GetFolderPath(source.GetFolder()).IsEmpty())
+        return E_FAIL;
+    HRESULT result = FollowDirectories(source, location.directories, location.folder, &window_,
+                                       window_.toolbarSettingsPath());
+    if (result == S_OK)
+        result = window_.renderBoundFolder();
+    if (result == S_OK && window_.panelUi_[panel].scanningArchive)
+        result = window_.panelUi_[panel].listProjection->waitForFinished();
+    return result;
+}
+
 HRESULT QtWindowWorkspace::OpenArchiveLocation(unsigned panel, const QtArchiveLocation &location) {
     QtAppOperationState::CallScope call(window_.app_.QtOperations());
     const QScopedValueRollback<bool> progress(window_.sourceArchiveProgress_, true);

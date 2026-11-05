@@ -51,6 +51,10 @@ bool MainWindow::runExternalArchiveUpdate(CPanel &panel, const QtArchiveUpdateBo
 void MainWindow::openArchive(const QString &path) { openArchiveAs(path, {}); }
 
 HRESULT MainWindow::openArchiveAs(const QString &path, const QString &type) {
+    return workspace_->Navigate([&] { return openArchiveAsImpl(path, type); });
+}
+
+HRESULT MainWindow::openArchiveAsImpl(const QString &path, const QString &type) {
     if (app_.QtOperations().closed())
         return E_ABORT;
     appPresentation_->CancelInitialFocus();
@@ -86,13 +90,9 @@ HRESULT MainWindow::openArchiveAs(const QString &path, const QString &type) {
     const PROPID previousSort = panel.GetSortID();
     const bool previousAscending = panel._ascending;
     const UInt32 previousMode = panel.GetListViewMode();
-    QString committedVisit;
     {
-        const QScopedValueRollback<std::optional<VisitedPathDraft>> publication(
-            visitedPathDraft_, VisitedPathDraft{projectedPanel_, {}});
         result = tryOpenPhysicalArchive(file, type, message);
         if (result == S_OK) {
-            committedVisit = visitedPathDraft_->path;
             setState(State::Viewing);
         } else {
             panel._sortID = previousSort;
@@ -102,8 +102,6 @@ HRESULT MainWindow::openArchiveAs(const QString &path, const QString &type) {
             restoreListSelection(previousSelection);
         }
     }
-    if (!committedVisit.isNull())
-        recordVisitedPath(committedVisit);
     if (result == E_ABORT)
         message = QCoreApplication::translate("mainwindow_archiveopening", "Operation canceled.");
     else if (message.isEmpty())
@@ -223,52 +221,47 @@ HRESULT MainWindow::renderBoundFolder(bool updateAddress) {
     return loaded;
 }
 
-void MainWindow::goBack() {
-    if (projectedUi().state == State::Loading || projectedUi().state == State::Operating)
-        return;
-    if (projectedUi().state == State::Viewing ||
-        (projectedUi().state == State::Namespace && !app_.GetFocusedPanel().IsRootFolder()))
-        goParent();
-    else if (!projectedUi().history.isEmpty()) {
-        const QString previous = projectedUi().history.takeLast();
-        if (previous.isEmpty())
-            goRoot(false);
-        else
-            navigateTo(previous, true);
-    }
-}
+void MainWindow::goBack() { workspace_->Travel(-1); }
 
 void MainWindow::goParent() {
+    workspace_->Navigate([this] { return goParentImpl(); });
+}
+
+HRESULT MainWindow::goParentImpl() {
     if (app_.QtOperations().closed())
-        return;
+        return E_ABORT;
     QtAppOperationState::CallScope call(app_.QtOperations());
     auto &panel = app_.GetFocusedPanel();
     if (projectedUi().state != State::Viewing && projectedUi().state != State::Filesystem &&
         (projectedUi().state != State::Namespace || panel.IsRootFolder()))
-        return;
+        return S_FALSE;
     if (!panel.GetFolder())
-        return;
+        return S_FALSE;
     const QPointer<QWidget> focused = focusWidget();
     const bool restoreListFocus =
         focused &&
         (focused == projectedUi().table || projectedUi().table->isAncestorOf(focused) ||
          focused == projectedUi().iconList || projectedUi().iconList->isAncestorOf(focused));
     const unsigned panelIndex = app_.LastFocusedPanel;
+    if (!panel.IsArcFolder() || !GetFolderPath(panel.GetFolder()).IsEmpty())
+        workspace_->RetainNavigationFolder();
     setState(State::Operating);
     {
         QScopedValueRollback<bool> source(sourceArchiveProgress_, true);
         panel.OpenParentFolder();
     }
-    renderBoundFolder();
+    const auto published = workspace_->NavigationPublication();
+    const HRESULT result = published ? *published
+                           : projectedUi().scanningDisk || projectedUi().scanningArchive
+                               ? S_OK
+                               : renderBoundFolder();
     // Win32 keeps list focus while Parent refreshes its rows. Qt can clear it
     // when disabling that view; use the existing publication/input guard.
     if (restoreListFocus)
         appPresentation_->RequestListFocus(panelIndex);
     else
         appPresentation_->RestoreWidgetFocus(focused);
-    if (panel.IsRootFolder() && !projectedUi().history.isEmpty() &&
-        projectedUi().history.last().isEmpty())
-        projectedUi().history.removeLast(); // Parent consumed the virtual-root Back location.
+    return result;
 }
 
 QString MainWindow::archiveDisplayPath() const {

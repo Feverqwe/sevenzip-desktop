@@ -6120,6 +6120,10 @@ Use `Revert` to recover timestamp.</source>
     <context>
         <name>mainwindow_menus</name>
         <message>
+            <source>Forward</source>
+            <translation>Вперёд</translation>
+        </message>
+        <message>
             <location filename="../src/filemanager/window/mainwindow_menus.cpp" line="-313" />
             <source>Archive</source>
             <translation>Архив</translation>

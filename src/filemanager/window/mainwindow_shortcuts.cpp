@@ -41,6 +41,7 @@ void MainWindow::configureShortcuts() {
     bindPanel(properties_, {QKeySequence(Qt::CTRL | Qt::Key_I)});
     bindPanel(up_, {QKeySequence(Qt::CTRL | Qt::Key_Up)});
     bindPanel(back_, {QKeySequence(Qt::CTRL | Qt::Key_BracketLeft)});
+    bindPanel(forward_, {QKeySequence(Qt::CTRL | Qt::Key_BracketRight)});
 #else
     bindPanel(openItem_, {QKeySequence(Qt::Key_Return), QKeySequence(Qt::Key_Enter)});
     bindPanel(rename_, {QKeySequence(Qt::Key_F2)});
@@ -48,6 +49,7 @@ void MainWindow::configureShortcuts() {
     bindPanel(properties_, {QKeySequence(Qt::ALT | Qt::Key_Return)});
     bindPanel(up_, {QKeySequence(Qt::ALT | Qt::Key_Up)});
     bindPanel(back_, {QKeySequence(Qt::ALT | Qt::Key_Left)});
+    bindPanel(forward_, {QKeySequence(Qt::ALT | Qt::Key_Right)});
 #endif
     findChild<QAction *>("commentAction")->setShortcuts({});
     twoPanelsAction_->setShortcuts({modern(Qt::Key_2), QKeySequence(Qt::Key_F9)});

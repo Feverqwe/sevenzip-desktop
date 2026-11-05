@@ -143,4 +143,6 @@ void MainWindow::cancelListPublication() {
     projectedUi().scanningArchive = false;
     panelUi_[projectedPanel_].pendingSelection.reset();
     panelUi_[projectedPanel_].pendingViewport.reset();
+    if (workspace_)
+        workspace_->NavigationCanceled();
 }

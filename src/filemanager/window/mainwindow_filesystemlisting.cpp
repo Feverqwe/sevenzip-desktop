@@ -7,6 +7,7 @@
 #include "filemanager/providers/qtlocationfolder.h"
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtapppresentation.h"
+#include "filemanager/window/qtwindowworkspace.h"
 #include "localization/qtlangcontrols.h"
 #include <QScopeGuard>
 
@@ -135,4 +136,5 @@ void MainWindow::failFilesystemListing(HRESULT result) {
     projectedUi().scanningDisk = false;
     setState(State::Filesystem);
     statusBar()->showMessage(QCoreApplication::translate("mainwindow", "Could not read folder."));
+    workspace_->NavigationFinished(result);
 }

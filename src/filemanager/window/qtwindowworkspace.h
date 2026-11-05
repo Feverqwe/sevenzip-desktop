@@ -1,5 +1,6 @@
 #pragma once
 #include "filemanager/panels/Panel.h"
+#include "filemanager/panels/qtpanellocationtransaction.h"
 #include "filemanager/window/qtsavedlocation.h"
 #include "ui/theme/qtcommandicons.h"
 #include <QCoreApplication>
@@ -49,18 +50,47 @@ class QtWindowWorkspace final : public QObject {
     bool TransferTab(const QString &id, QtWindowWorkspace &target, unsigned targetPanel,
                      std::function<void(bool)> finished = {});
     bool PreparePanelForShow(unsigned panel);
+    HRESULT Navigate(const std::function<HRESULT()> &body);
+    void ProtectNavigation(const QString &path = {});
+    void RetainNavigationFolder();
+    std::optional<HRESULT> NavigationPublication() const;
+    void NavigationFinished(HRESULT result);
+    void NavigationCanceled();
+    void QuiesceNavigation();
+    bool CanTravel(unsigned panel, int direction) const;
+    void Travel(int direction);
 
   protected:
     bool eventFilter(QObject *object, QEvent *event) override;
 
   private:
+    struct Visit {
+        QString path;
+        QString nativePlaceIdentity;
+        QtArchiveLocation archiveLocation;
+        CSelectedState selection;
+        QPoint scroll;
+        bool SameLocation(const Visit &other) const;
+    };
+    struct Navigation {
+        QString tab;
+        std::shared_ptr<CPanel> source;
+        std::unique_ptr<QtPanelLocationTransaction> transaction;
+        CMyComPtr<IFolderFolder> previousFolder;
+        unsigned previousDepth = 0;
+        Visit origin;
+        int destination = -1;
+        unsigned depth = 0;
+        std::optional<HRESULT> completed;
+    };
     struct Tab {
         QString id;
         QString path;
         QString nativePlaceIdentity;
         QtArchiveLocation archiveLocation;
         QtCommandIcon symbol = QtCommandIcon::Folder;
-        QStringList history;
+        std::vector<Visit> visits;
+        int cursor = -1;
         CSelectedState selection;
         QPoint scroll;
         int viewMode = 3;
@@ -84,10 +114,14 @@ class QtWindowWorkspace final : public QObject {
     };
     std::optional<TabPosition> FindTab(const QString &id) const;
     void Capture(unsigned panel, bool retainView = true);
+    Visit CaptureVisit(unsigned panel);
+    void FinishNavigation(unsigned panel, HRESULT result);
     void CreateTab(unsigned panel, const QString &path, const QString &nativeIdentity,
                    const QtArchiveLocation &archive = {});
     HRESULT OpenArchiveLocation(unsigned panel, const QtArchiveLocation &location);
-    void OpenTabLocation(unsigned panel);
+    HRESULT OpenArchiveDirectory(unsigned panel, const QtArchiveLocation &location);
+    HRESULT OpenTabLocation(unsigned panel);
+    bool LocationMatches(unsigned panel, const QString &path);
     QString TabTitle(const Tab &tab) const;
     void Activate(unsigned panel, int tab);
     void Suspend(unsigned panel);
@@ -115,4 +149,6 @@ class QtWindowWorkspace final : public QObject {
     QtNativePlaces *nativePlaces_ = nullptr;
     bool sidebarVisible_ = true;
     quint64 focusRequest_ = 0;
+    std::array<std::unique_ptr<Navigation>, 2> navigation_;
+    bool restoringNavigation_ = false;
 };

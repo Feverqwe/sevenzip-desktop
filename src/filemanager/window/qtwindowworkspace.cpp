@@ -151,7 +151,6 @@ void QtWindowWorkspace::Capture(unsigned panel, bool retainView) {
         tab.symbol = source.IsArcFolder() ? QtCommandIcon::Archive : QtCommandIcon::Folder;
         if (retainView)
             source.SaveSelectedState(tab.selection);
-        tab.history = window_.panelUi_[panel].history;
         tab.viewMode = int(source.GetListViewMode());
         tab.sort = source.GetSortID();
         tab.ascending = source._ascending;
@@ -292,7 +291,6 @@ void QtWindowWorkspace::Activate(unsigned panel, int index) {
                 source._ascending = tab.ascending;
             }
             OpenTabLocation(panel);
-            ui.history = tab.history;
         } else {
             window_.app_.Panels.Bind(panel, tab.runtime->source);
             ui = std::move(tab.runtime->ui);

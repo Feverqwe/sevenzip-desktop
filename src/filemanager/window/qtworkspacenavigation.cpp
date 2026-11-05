@@ -1,0 +1,257 @@
+#include "filemanager/window/mainwindow.h"
+#include "filemanager/window/qtnativeplaces.h"
+#include "filemanager/window/qtplaceprojection.h"
+#include "filemanager/window/qtwindowworkspace.h"
+#include <QScopedValueRollback>
+#include <QScrollBar>
+
+bool QtWindowWorkspace::Visit::SameLocation(const Visit &other) const {
+    if (!nativePlaceIdentity.isEmpty() || !other.nativePlaceIdentity.isEmpty())
+        return nativePlaceIdentity == other.nativePlaceIdentity;
+    return path == other.path && archiveLocation.Save() == other.archiveLocation.Save();
+}
+
+QtWindowWorkspace::Visit QtWindowWorkspace::CaptureVisit(unsigned panel) {
+    const auto &state = panels_[panel];
+    const auto &current = state.tabs[state.current];
+    if (window_.panelUi_[panel].locationUnavailable && current.cursor >= 0)
+        return current.visits[current.cursor];
+    Capture(panel);
+    const auto &tab = panels_[panel].tabs[panels_[panel].current];
+    return {tab.path, tab.nativePlaceIdentity, tab.archiveLocation, tab.selection, tab.scroll};
+}
+
+HRESULT QtWindowWorkspace::Navigate(const std::function<HRESULT()> &body) {
+    if (window_.app_.QtOperations().closed())
+        return E_ABORT;
+    const unsigned panel = window_.projectedPanel_;
+    auto &state = panels_[panel];
+    if (changing_ || restoringNavigation_ || state.tabs.empty())
+        return body();
+    if (navigation_[panel] && navigation_[panel]->depth == 0)
+        window_.cancelListPublication();
+    if (!navigation_[panel]) {
+        auto request = std::make_unique<Navigation>();
+        request->tab = state.tabs[state.current].id;
+        request->source = window_.app_.Panels.Share(panel);
+        request->origin = CaptureVisit(panel);
+        navigation_[panel] = std::move(request);
+    }
+    HRESULT result = E_FAIL;
+    try {
+        auto &request = *navigation_[panel];
+        const QScopedValueRollback<unsigned> depth(request.depth, request.depth + 1);
+        result = body();
+    } catch (...) {
+        if (navigation_[panel] && navigation_[panel]->depth == 0)
+            FinishNavigation(panel, E_FAIL);
+        throw;
+    }
+    auto &request = navigation_[panel];
+    if (request && request->depth == 0) {
+        const auto &ui = window_.panelUi_[panel];
+        if (result != S_OK || (!ui.scanningDisk && !ui.scanningArchive))
+            FinishNavigation(panel, result == S_OK ? request->completed.value_or(S_OK) : result);
+    }
+    return result;
+}
+
+void QtWindowWorkspace::QuiesceNavigation() {
+    const QScopedValueRollback<bool> progress(window_.sourceArchiveProgress_, true);
+    for (auto &pending : navigation_) {
+        auto request = std::move(pending);
+        if (!request)
+            continue;
+        if (request->transaction)
+            request->transaction->Rollback();
+        else if (request->previousFolder) {
+            while (request->source->GetParentFolders().Size() > request->previousDepth)
+                request->source->CloseOneLevel();
+            request->source->SetNewFolder(request->previousFolder);
+        }
+    }
+}
+
+void QtWindowWorkspace::NavigationFinished(HRESULT result) {
+    const unsigned panel = window_.projectedPanel_;
+    if (auto &request = navigation_[panel]) {
+        request->completed = result;
+        if (request->depth == 0)
+            FinishNavigation(panel, result);
+    }
+}
+
+void QtWindowWorkspace::ProtectNavigation(const QString &path) {
+    auto &request = navigation_[window_.projectedPanel_];
+    if (!request || request->transaction || request->previousFolder)
+        return;
+    auto &source = *request->source;
+    const auto &parents = source.GetParentFolders();
+    if (source.IsArcFolder() && !parents.IsEmpty()) {
+        // Match the existing native reader boundary, just as BindToPath does.
+        // Parking this chain would lose native virtual-to-materialized bindings.
+        const UString target = ToUString(path);
+        const UString &prefix = parents.Back().VirtualPath;
+        if (target.IsPrefixedBy(prefix) &&
+            (target.Len() == prefix.Len() || IS_PATH_SEPAR(target[prefix.Len()]))) {
+            request->previousFolder = source.GetFolder();
+            request->previousDepth = parents.Size();
+            return;
+        }
+    }
+    request->transaction = std::make_unique<QtPanelLocationTransaction>(source);
+}
+
+void QtWindowWorkspace::RetainNavigationFolder() {
+    auto &request = navigation_[window_.projectedPanel_];
+    if (request && !request->transaction && !request->previousFolder) {
+        request->previousFolder = request->source->GetFolder();
+        request->previousDepth = request->source->GetParentFolders().Size();
+    }
+}
+
+std::optional<HRESULT> QtWindowWorkspace::NavigationPublication() const {
+    const auto &request = navigation_[window_.projectedPanel_];
+    return request ? request->completed : std::nullopt;
+}
+
+void QtWindowWorkspace::NavigationCanceled() {
+    const unsigned panel = window_.projectedPanel_;
+    if (navigation_[panel] && navigation_[panel]->depth == 0)
+        FinishNavigation(panel, E_ABORT);
+}
+
+void QtWindowWorkspace::FinishNavigation(unsigned panel, HRESULT result) {
+    auto request = std::move(navigation_[panel]);
+    if (!request)
+        return;
+    const auto position = FindTab(request->tab);
+    if (!position || position->panel != panel ||
+        window_.app_.Panels.Share(panel) != request->source)
+        return;
+    if (result == S_FALSE && !request->completed && request->previousFolder &&
+        request->previousFolder == request->source->GetFolder())
+        request->previousFolder.Release();
+    if (request->destination >= 0) {
+        const auto &target = panels_[panel].tabs[position->index].visits[request->destination];
+        request->source->LoadFullPath();
+        if (result == S_OK &&
+            (target.nativePlaceIdentity.isEmpty()
+                 ? ToQString(request->source->GetCurrentFolderPrefix()) != target.path
+                 : QtNativePlaces::RootIdentity(*request->source) != target.nativePlaceIdentity))
+            result = S_FALSE;
+    }
+    if (request->transaction || request->previousFolder) {
+        const QScopedValueRollback<bool> restoring(restoringNavigation_, true);
+        const QScopedValueRollback<bool> progress(window_.sourceArchiveProgress_, true);
+        if (result == S_OK) {
+            if (request->transaction)
+                request->transaction->Commit();
+        } else {
+            window_.cancelListPublication();
+            // Release retained scan guards before destroying the checkpoint's
+            // notification guard, which holds the original idle state.
+            window_.setState(window_.panelUi_[panel].state);
+            if (request->transaction)
+                request->transaction->Rollback();
+            else if (request->previousFolder) {
+                while (request->source->GetParentFolders().Size() > request->previousDepth)
+                    request->source->CloseOneLevel();
+                request->source->SetNewFolder(request->previousFolder);
+            }
+        }
+        request->transaction.reset();
+        if (result != S_OK) {
+            window_.renderBoundFolder();
+            window_.restoreListSelection(request->origin.selection);
+            if (auto *view = qobject_cast<QAbstractItemView *>(
+                    window_.panelUi_[panel].viewStack->currentWidget()))
+                RestoreViewPosition(*request->source, *view, request->origin.scroll);
+        }
+    }
+    if (result != S_OK) {
+        window_.refreshActions();
+        return;
+    }
+    const Visit accepted = CaptureVisit(panel);
+    auto &tab = panels_[panel].tabs[position->index];
+    if (tab.cursor < 0) {
+        tab.visits.push_back(request->origin);
+        tab.cursor = 0;
+    } else if (tab.visits[tab.cursor].SameLocation(request->origin))
+        tab.visits[tab.cursor] = request->origin;
+    if (request->destination >= 0) {
+        tab.cursor = request->destination;
+        const auto target = tab.visits[tab.cursor];
+        window_.restoreListSelection(target.selection);
+        if (auto *view = qobject_cast<QAbstractItemView *>(
+                window_.panelUi_[panel].viewStack->currentWidget()))
+            RestoreViewPosition(*request->source, *view, target.scroll);
+    } else if (!tab.visits[tab.cursor].SameLocation(accepted)) {
+        tab.visits.resize(tab.cursor + 1);
+        tab.visits.push_back(accepted);
+        ++tab.cursor;
+    }
+    window_.recordVisitedPath(accepted.path);
+    window_.refreshActions();
+}
+
+bool QtWindowWorkspace::CanTravel(unsigned panel, int direction) const {
+    const auto &state = panels_[panel];
+    if (state.tabs.empty() || navigation_[panel])
+        return false;
+    const auto &tab = state.tabs[state.current];
+    const auto &ui = window_.panelUi_[panel];
+    const int destination = tab.cursor + direction;
+    return tab.cursor >= 0 && destination >= 0 && destination < int(tab.visits.size()) &&
+           !ui.scanningDisk && !ui.scanningArchive && !ui.locationUnavailable;
+}
+
+void QtWindowWorkspace::Travel(int direction) {
+    const unsigned panel = window_.projectedPanel_;
+    // The native command dispatcher owns a CallScope while invoking Back/Forward.
+    // That scope is safe here; the idle predicate for tab transfer excludes it.
+    if (changing_ || window_.app_.QtOperations().closed() ||
+        window_.app_.QtOperations().blocking() || window_.sourceArchiveProgress_ ||
+        QApplication::activeModalWidget() || !CanTravel(panel, direction))
+        return;
+    const auto &tab = panels_[panel].tabs[panels_[panel].current];
+    const int destination = tab.cursor + direction;
+    const Visit target = tab.visits[destination];
+    Navigate([&] {
+        auto &request = *navigation_[panel];
+        request.destination = destination;
+        auto &source = *request.source;
+        // An existing reader can bind another directory in its own chain.
+        // Different chains are probed while the previous native source is parked.
+        auto currentChain = request.origin.archiveLocation;
+        auto targetChain = target.archiveLocation;
+        currentChain.folder.clear();
+        currentChain.directories.clear();
+        targetChain.folder.clear();
+        targetChain.directories.clear();
+        const bool sameChain =
+            !targetChain.physicalPath.isEmpty() && currentChain.Save() == targetChain.Save();
+        if (sameChain) {
+            request.previousFolder = source.GetFolder();
+            request.previousDepth = source.GetParentFolders().Size();
+        } else
+            request.transaction = std::make_unique<QtPanelLocationTransaction>(source);
+        if (sameChain)
+            return OpenArchiveDirectory(panel, target.archiveLocation);
+        if (!target.archiveLocation.physicalPath.isEmpty() && !sameChain)
+            return OpenArchiveLocation(panel, target.archiveLocation);
+        QString path = target.path;
+        if (!target.nativePlaceIdentity.isEmpty()) {
+            nativePlaces_->Refresh();
+            const auto place = nativePlaces_->FindIdentity(target.nativePlaceIdentity);
+            if (target.nativePlaceIdentity == QStringLiteral("locations"))
+                path.clear();
+            else if (place.isValid())
+                path = place.data(QtPlaceRoles::Path).toString();
+            else
+                return HRESULT(E_FAIL);
+        }
+        return window_.navigateTo(path, true);
+    });
+}

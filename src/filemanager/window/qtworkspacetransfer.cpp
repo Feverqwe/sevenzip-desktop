@@ -154,7 +154,6 @@ bool QtWindowWorkspace::TransferTab(const QString &id, QtWindowWorkspace &target
             target.CompleteLocationOpen(destination, into.tabs[into.current].path, E_FAIL);
         target.window_.restoreListSelection(into.tabs[into.current].selection);
         auto &ui = target.window_.panelUi_[destination];
-        ui.history = into.tabs[into.current].history;
         auto *view = qobject_cast<QAbstractItemView *>(ui.viewStack->currentWidget());
         ui.pendingViewport =
             MainWindow::FilesystemViewport(view, ui.directory, {}, into.tabs[into.current].scroll);

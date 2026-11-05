@@ -27,6 +27,7 @@ void QtTabRuntime::ClearPresentation() {
 }
 
 void QtWindowWorkspace::Dispose() {
+    navigation_ = {};
     for (unsigned slot = 0; slot < 2; ++slot) {
         auto &panel = panels_[slot];
         if (panel.bound && window_.panelUi_[slot].container) {

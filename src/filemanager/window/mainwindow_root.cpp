@@ -2,6 +2,7 @@
 #include "Windows/PropVariant.h"
 #include "filemanager/panels/qtpaneladdresscombo.h"
 #include "filemanager/window/mainwindow.h"
+#include "filemanager/window/qtwindowworkspace.h"
 #include "localization/qtlanguageservices.h"
 
 // Source namespace folders own item names, order and binding. This file presents
@@ -50,7 +51,6 @@ HRESULT MainWindow::renderRootFolder(bool updateAddress) {
     if (result != S_OK)
         return finish(result);
     const UInt32 count = panel.GetLoadedItemCount();
-    recordVisitedPath(ToQString(panel.GetCurrentFolderPrefix()));
     configureColumns();
     appendParentEntry();
     for (UInt32 index = 0; index < count; ++index) {
@@ -83,29 +83,20 @@ HRESULT MainWindow::renderRootFolder(bool updateAddress) {
 }
 
 void MainWindow::goRoot(bool remember, RootLocation location) {
+    Q_UNUSED(remember);
+    workspace_->Navigate([&] { return goRootImpl(location); });
+}
+
+HRESULT MainWindow::goRootImpl(RootLocation location) {
     if (app_.QtOperations().closed() || projectedUi().state == State::Loading ||
         projectedUi().state == State::Operating)
-        return;
+        return E_ABORT;
     QtAppOperationState::CallScope call(app_.QtOperations());
-    std::optional<QString> previousNamespace;
-    if (remember && projectedUi().state == State::Namespace) {
-        if (auto *folder = app_.GetFocusedPanel().GetFolder())
-            previousNamespace = ToQString(GetFolderPath(folder));
-    } else if (remember && projectedUi().state == State::Filesystem &&
-               !projectedUi().directory.isEmpty())
-        projectedUi().history.append(projectedUi().directory);
-    else if (remember && projectedUi().state == State::Viewing &&
-             !projectedUi().returnDirectory.isEmpty())
-        projectedUi().history.append(projectedUi().returnDirectory);
+    workspace_->ProtectNavigation();
     setState(State::Operating);
     if (location == RootLocation::Drives)
         app_.OpenRootFolder();
     else
         app_.GetFocusedPanel().OpenRootFolder();
-    if (previousNamespace) {
-        if (auto *folder = app_.GetFocusedPanel().GetFolder();
-            folder && *previousNamespace != ToQString(GetFolderPath(folder)))
-            projectedUi().history.append(*previousNamespace);
-    }
-    renderBoundFolder();
+    return renderBoundFolder();
 }

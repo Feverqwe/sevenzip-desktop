@@ -76,6 +76,7 @@ void QtFileManagerCommands::AttachFileActions() {
     auto &w = window_;
     Bind(w.infoAction_, IDM_PROPERTIES);
     Bind(w.back_, Back, true);
+    Bind(w.forward_, Forward, true);
     Bind(w.toolbarAdd_, kMenuCmdID_Toolbar_Add);
     Bind(w.extract_, kMenuCmdID_Toolbar_Extract);
     Bind(w.test_, kMenuCmdID_Toolbar_Test);

@@ -162,6 +162,8 @@ QPainterPath geometry(QtCommandIcon command) {
         p.lineTo(12, 5);
         line(19, 12, 5, 12);
         break;
+    case QtCommandIcon::Forward:
+        return QTransform(-1, 0, 0, 1, 24, 0).map(geometry(QtCommandIcon::Back));
     case QtCommandIcon::EditLocation:
         p.moveTo(21.174, 6.812);
         p.arcTo(QRectF(16.362, 1.999, 5.638, 5.638), -45, 180);

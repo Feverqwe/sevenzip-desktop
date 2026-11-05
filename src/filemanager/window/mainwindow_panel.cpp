@@ -55,6 +55,21 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
             back_->trigger();
     });
     navigation->addWidget(back);
+    auto *forward = new QToolButton(central);
+    forward->setObjectName(QStringLiteral("panelForwardButton%1").arg(index));
+    forward->setAutoRaise(true);
+    QtConfigureChromeToolButton(*forward);
+    forward->setIcon(QtCommandSymbol(QtCommandIcon::Forward));
+    QtBindLocalText(forward, "mainwindow_menus", QT_TRANSLATE_NOOP("mainwindow_menus", "Forward"),
+                    true);
+    QtBindLocalToolTip(forward, "mainwindow_menus",
+                       QT_TRANSLATE_NOOP("mainwindow_menus", "Forward"));
+    connect(forward, &QToolButton::clicked, this, [this, index] {
+        activatePanelUi(index);
+        if (projectedPanel_ == index)
+            forward_->trigger();
+    });
+    navigation->addWidget(forward);
     {
         auto *button = new QPushButton(central);
         // Keep the source parent command without its longer View menu caption.

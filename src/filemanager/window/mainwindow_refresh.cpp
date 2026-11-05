@@ -2,6 +2,7 @@
 #include "archive/resources/qtarchivereopen.h"
 #include "filemanager/providers/qtlocationfolder.h"
 #include "filemanager/window/mainwindow.h"
+#include "filemanager/window/qtwindowworkspace.h"
 #include "localization/qtlanguageservices.h"
 
 #include <QScopedValueRollback>
@@ -24,6 +25,9 @@ HRESULT MainWindow::reloadPanelPresentation(unsigned index, const CSelectedState
         // remains on this owner. Reload the source panel that made the request.
         app_.SetFocusedPanel(index);
         result = reloadProjectedPanel(selection);
+        const auto &ui = panelUi_[index];
+        if (result != S_OK || (!ui.scanningDisk && !ui.scanningArchive))
+            workspace_->NavigationFinished(result);
     });
     return result;
 }

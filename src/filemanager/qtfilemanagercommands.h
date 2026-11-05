@@ -25,7 +25,8 @@ class QtFileManagerCommands final : public IQtFileManagerMenuCommandServices {
         ManageMounts,
         CalculateDirectorySize,
         SortAscending,
-        SortDescending
+        SortDescending,
+        Forward
     };
     explicit QtFileManagerCommands(MainWindow &window);
     void AttachActions();

@@ -166,6 +166,15 @@ moving tabs is unavailable during protected calls, publication and native drag.
 External-edit completion returns to its original source; an inactive tab becomes
 dirty without replacing the active tab's rows or selection.
 
+Back and Forward belong to the live tab, including its selected/current item and
+viewport. Parent is a new navigation visit. Only completed successful navigation
+advances the cursor or publishes a recent place through the existing
+`CFolderHistory`; refresh, tab activation and rejected/canceled requests do not.
+Changing direction retains the forward branch until a different visit succeeds.
+These live stacks follow tab transfers; they are not persisted in sessions or
+copied into a newly duplicated tab. Native address fallback to an existing
+ancestor retains its established success semantics.
+
 `QtWorkspaceApplication` owns window discovery and session writes. Each window
 has independent mutable backend/operation state while reusing the immutable codec
 catalog. Moving a quiescent tab between windows rebinds host callbacks and archive

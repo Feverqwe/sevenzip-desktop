@@ -17,6 +17,7 @@ enum class QtCommandIcon {
     Rename,
     Sidebar,
     Back,
+    Forward,
     EditLocation,
     Archive,
     Folder,

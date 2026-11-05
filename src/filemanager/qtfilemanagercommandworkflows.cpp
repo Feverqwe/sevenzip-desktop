@@ -9,6 +9,7 @@
 #include "filemanager/qtfilemanagercommands.h"
 #include "filemanager/qtprogramfilemenu.h"
 #include "filemanager/window/mainwindow.h"
+#include "filemanager/window/qtwindowworkspace.h"
 #include "filemanager/window/qtworkspaceapplication.h"
 #include "localization/qtlangcontrols.h"
 #include "operations/CompressCall.h"
@@ -40,30 +41,34 @@ void QtFileManagerCommands::ActivateItems(Qt::KeyboardModifiers modifiers) {
 
 void QtFileManagerCommands::RunNativeOpen(const std::function<void(CPanel &)> &open) {
     auto &w = window_;
-    auto &panel = w.app_.GetFocusedPanel();
-    const bool wasFilesystem = panel.IsFSFolder();
-    const bool wasRoot = panel.IsRootFolder();
-    CMyComPtr<IFolderFolder> previousFolder = panel.GetFolder();
-    const UString previousPrefix = panel.GetCurrentFolderPrefix();
-    const auto previousState = w.projectedUi().state;
-    const QString previousDirectory = w.projectedUi().directory;
-    if (wasFilesystem)
-        w.projectedUi().returnDirectory = previousDirectory;
-    w.setState(MainWindow::State::Operating);
-    {
-        QScopedValueRollback<bool> source(w.sourceArchiveProgress_, true);
-        open(panel);
-    }
-    if (wasFilesystem && panel.IsFSFolder() &&
-        QDir::cleanPath(ToQString(GetFolderPath(panel.GetFolder()))) != previousDirectory)
-        w.projectedUi().history.append(previousDirectory);
-    if (wasRoot && panel.IsFSFolder())
-        w.projectedUi().history.append(QString()); // Empty native root prefix in Qt Back history.
-    if ((IFolderFolder *)previousFolder == panel.GetFolder() &&
-        previousPrefix == panel.GetCurrentFolderPrefix())
-        w.setState(previousState);
-    else
-        w.renderBoundFolder();
+    w.workspace_->Navigate([&]() -> HRESULT {
+        auto &panel = w.app_.GetFocusedPanel();
+        const bool wasFilesystem = panel.IsFSFolder();
+        CMyComPtr<IFolderFolder> previousFolder = panel.GetFolder();
+        const UString previousPrefix = panel.GetCurrentFolderPrefix();
+        const auto previousState = w.projectedUi().state;
+        const QString previousDirectory = w.projectedUi().directory;
+        const auto focused = w.projectedUi().table->currentIndex();
+        if (focused.isValid() && focused.data(QtPanelList::SourceIndexRole).toUInt() != UInt32(-1))
+            w.workspace_->RetainNavigationFolder();
+        if (wasFilesystem)
+            w.projectedUi().returnDirectory = previousDirectory;
+        w.setState(MainWindow::State::Operating);
+        {
+            QScopedValueRollback<bool> source(w.sourceArchiveProgress_, true);
+            open(panel);
+        }
+        if (const auto published = w.workspace_->NavigationPublication())
+            return *published;
+        if (w.projectedUi().scanningDisk || w.projectedUi().scanningArchive)
+            return S_OK;
+        if ((IFolderFolder *)previousFolder == panel.GetFolder() &&
+            previousPrefix == panel.GetCurrentFolderPrefix()) {
+            w.setState(previousState);
+            return S_FALSE;
+        }
+        return w.renderBoundFolder();
+    });
 }
 
 void QtFileManagerCommands::OpenItem() { OpenNative(true, true, nullptr); }
@@ -144,6 +149,9 @@ bool QtFileManagerCommands::ExecuteExtensionCommand(unsigned id) {
     }
     case Back:
         window_.goBack();
+        break;
+    case Forward:
+        window_.workspace_->Travel(1);
         break;
     default:
         return false;

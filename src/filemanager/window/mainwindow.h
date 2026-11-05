@@ -129,6 +129,7 @@ class MainWindow : public QMainWindow {
     void createFileManagerWindow(const QtFileManagerStartup *startup, bool panelsDefined,
                                  UInt32 splitterPos);
     HRESULT openArchiveAs(const QString &path, const QString &type);
+    HRESULT openArchiveAsImpl(const QString &path, const QString &type);
     void closeEvent(QCloseEvent *event) override;
     void changeEvent(QEvent *event) override;
     void reloadLangItems();
@@ -263,12 +264,15 @@ class MainWindow : public QMainWindow {
     void SelectSpec(bool select);
     void SelectByType(bool select);
     HRESULT navigateTo(const QString &path, bool sourceAddress = false);
+    HRESULT navigateToImpl(const QString &path, bool sourceAddress);
     void activateRow(int row, Qt::KeyboardModifiers modifiers);
     void activateItems(Qt::KeyboardModifiers modifiers);
     void goBack();
     void goParent();
+    HRESULT goParentImpl();
     enum class RootLocation { Namespace, Drives };
     void goRoot(bool remember = true, RootLocation location = RootLocation::Namespace);
+    HRESULT goRootImpl(RootLocation location);
     QString archiveDisplayPath() const;
     HRESULT renderBoundFolder(bool updateAddress = true);
     HRESULT tryOpenPhysicalArchive(const QFileInfo &file, const QString &type, QString &message);
@@ -362,7 +366,6 @@ class MainWindow : public QMainWindow {
         QString displayArchive;
         ArchivePassword archivePassword;
         QString archiveFolder;
-        QStringList history;
         State state = State::Filesystem;
         bool locationUnavailable = false;
         bool scanningDisk = false;
@@ -396,16 +399,12 @@ class MainWindow : public QMainWindow {
     std::unique_ptr<WindowProgress> progress_;
     bool sourceArchiveProgress_ = false;
     bool archiveLocationPending_ = false;
-    struct VisitedPathDraft {
-        unsigned panel;
-        QString path;
-    };
-    std::optional<VisitedPathDraft> visitedPathDraft_;
     QAction *toolbarAdd_ = nullptr;
     QAction *extract_ = nullptr;
     QAction *test_ = nullptr;
     QAction *infoAction_ = nullptr;
     QAction *back_ = nullptr;
+    QAction *forward_ = nullptr;
     QAction *up_ = nullptr;
     QAction *root_ = nullptr;
     QAction *openItem_ = nullptr;

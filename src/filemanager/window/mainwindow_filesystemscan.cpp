@@ -3,6 +3,7 @@
 #include "Common/StringConvert.h"
 #include "filemanager/providers/qtlocationfolder.h"
 #include "filemanager/window/mainwindow.h"
+#include "filemanager/window/qtwindowworkspace.h"
 #include "localization/qtlangcontrols.h"
 
 void MainWindow::connectFilesystemScanner() {
@@ -89,6 +90,7 @@ void MainWindow::filesystemScanCompleted(unsigned index) {
         completeListSelection();
         restoreAutoRefreshViewport();
         setState(State::Filesystem);
+        workspace_->NavigationFinished(S_OK);
         statusBar()->showMessage(QCoreApplication::translate("mainwindow", "%1 items")
                                      .arg(projectedUi().table->rowCount()));
     });

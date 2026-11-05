@@ -3,6 +3,7 @@
 #include "filemanager/qtfilemanagercommands.h"
 #include "filemanager/rename/qtrenamecontroller.h"
 #include "filemanager/window/mainwindow.h"
+#include "filemanager/window/qtwindowworkspace.h"
 #include "settings/ViewSettings.h"
 #include <QScopedValueRollback>
 
@@ -20,10 +21,7 @@ HRESULT MainWindow::showDirectory(const QString &path, bool remember, bool sourc
         return E_FAIL;
     }
     const QString next = info.canonicalFilePath();
-    if (remember && projectedUi().state == State::Namespace)
-        projectedUi().history.append(ToQString(GetFolderPath(app_.GetFocusedPanel().GetFolder())));
-    else if (remember && !projectedUi().directory.isEmpty() && projectedUi().directory != next)
-        projectedUi().history.append(projectedUi().directory);
+    Q_UNUSED(remember);
     cancelListPublication();
     if (!sourceAlreadyBound)
         app_.GetFocusedPanel().CloseOpenFolders();
@@ -31,7 +29,6 @@ HRESULT MainWindow::showDirectory(const QString &path, bool remember, bool sourc
     auto &snapshot = panelUi_[projectedPanel_].autoRefreshSnapshot;
     snapshot.clear();
     snapshot.insert(projectedUi().directory, filesystemSignature(projectedUi().directory));
-    recordVisitedPath(projectedUi().directory);
     projectedUi().archive.clear();
     projectedUi().displayArchive.clear();
     projectedUi().archivePassword.clear();
@@ -49,6 +46,10 @@ HRESULT MainWindow::showDirectory(const QString &path, bool remember, bool sourc
 void MainWindow::openPath(const QString &path) { navigateTo(QFileInfo(path).absoluteFilePath()); }
 
 HRESULT MainWindow::navigateTo(const QString &path, bool sourceAddress) {
+    return workspace_->Navigate([&] { return navigateToImpl(path, sourceAddress); });
+}
+
+HRESULT MainWindow::navigateToImpl(const QString &path, bool sourceAddress) {
     if (projectedUi().state == State::Loading || projectedUi().state == State::Operating)
         return E_ABORT;
     projectedUi().locationUnavailable = false;
@@ -61,15 +62,17 @@ HRESULT MainWindow::navigateTo(const QString &path, bool sourceAddress) {
             ? QDir(projectedUi().directory).filePath(path)
             : path;
     const QFileInfo info(nativeAddress);
-    if (!sourceAddress && info.isDir() && !IsSparseBundleName(ToUString(nativeAddress)))
+    if (!sourceAddress && info.isDir() && !IsSparseBundleName(ToUString(nativeAddress))) {
+        workspace_->ProtectNavigation(nativeAddress);
         return showDirectory(nativeAddress, true);
-    else if (!sourceAddress && IsArchiveFileOrPackage(info))
+    } else if (!sourceAddress && IsArchiveFileOrPackage(info))
         return openArchiveAs(nativeAddress, {});
     else {
         QString nativePath = nativeAddress;
         if (!sourceAddress)
             nativePath = sourcePathFromDisplayPath(nativePath);
         auto &panel = app_.GetFocusedPanel();
+        workspace_->ProtectNavigation(nativePath);
         HRESULT result;
         {
             QScopedValueRollback<bool> source(sourceArchiveProgress_, true);
