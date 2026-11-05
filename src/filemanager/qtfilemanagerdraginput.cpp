@@ -6,17 +6,18 @@
 #include <QScopeGuard>
 
 bool QtFileManagerDrag::eventFilter(QObject *object, QEvent *event) {
-    const bool dragEvent = event->type() == QEvent::DragEnter ||
-                           event->type() == QEvent::DragMove ||
-                           event->type() == QEvent::DragLeave || event->type() == QEvent::Drop;
-    if (!dragEvent) {
-        if (auto *widget = qobject_cast<QWidget *>(object))
-            return HandleRightDrag(*widget, *event);
+    auto *widget = qobject_cast<QWidget *>(object);
+    if (!widget)
         return false;
-    }
-    if (auto *widget = qobject_cast<QWidget *>(object))
+    switch (event->type()) {
+    case QEvent::DragEnter:
+    case QEvent::DragMove:
+    case QEvent::DragLeave:
+    case QEvent::Drop:
         return HandleDropEvent(*widget, *event);
-    return false;
+    default:
+        return HandleRightDrag(*widget, *event);
+    }
 }
 CDataObject *QtFileManagerDrag::ReadData(const QMimeData &mime) {
     if (auto *internal = dynamic_cast<const QtPanelDragMime *>(&mime))
@@ -109,14 +110,11 @@ bool QtFileManagerDrag::HandleDropEvent(QWidget &widget, QEvent &event) {
     }
     auto &drop = static_cast<QDropEvent &>(event);
     const unsigned panel = window_.panelIndexFor(&widget);
-    if (revoked_ || window_.app_.QtOperations().closed() || window_.backend_->busy() ||
-        QApplication::activeModalWidget() || (window_.sourceArchiveProgress_ && !active_) ||
-        (panel < kNumPanelsMax && !PanelEnabled(panel))) {
-        ResetDropTarget();
-        drop.ignore();
-        return true;
-    }
-    CDataObject *data = ReadData(*drop.mimeData());
+    const bool blocked = revoked_ || window_.app_.QtOperations().closed() ||
+                         window_.backend_->busy() || QApplication::activeModalWidget() ||
+                         (window_.sourceArchiveProgress_ && !active_) ||
+                         (panel < kNumPanelsMax && !PanelEnabled(panel));
+    CDataObject *data = blocked ? nullptr : ReadData(*drop.mimeData());
     if (!data) {
         ResetDropTarget();
         drop.ignore();
@@ -148,8 +146,6 @@ bool QtFileManagerDrag::HandleDropEvent(QWidget &widget, QEvent &event) {
         result = target.DragOver(keys, position.x(), position.y(), &effect);
         if (result == S_OK && effect)
             result = ExecuteDrop(data, keys, position, effect);
-        else
-            target.ClearState();
     }
     if (result == S_OK && effect) {
         drop.setDropAction(effect == DROPEFFECT_MOVE ? Qt::MoveAction : Qt::CopyAction);
