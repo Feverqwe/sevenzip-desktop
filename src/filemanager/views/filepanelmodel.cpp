@@ -265,6 +265,9 @@ void FilePanelModel::sort(int column, Qt::SortOrder order) {
     if (column < 0 || column >= columnCount() || rows_.size() < 2 || !panel || !view_.textFolder ||
         panel->GetFolder() != view_.textFolder)
         return;
+    const PROPID property = view_.propertyId(column);
+    const bool raw =
+        view_.usesSourceColumns() ? panel->_isRawSortProp != 0 : view_.isRawProperty(column);
     QVector<int> permutation(rows_.size());
     std::iota(permutation.begin(), permutation.end(), 0);
     std::stable_sort(permutation.begin(), permutation.end(), [&](int a, int b) {
@@ -274,9 +277,8 @@ void FilePanelModel::sort(int column, Qt::SortOrder order) {
             return first.sourceIndex != second.sourceIndex && first.sourceIndex == quint32(-1);
         if (first.directory != second.directory)
             return first.directory;
-        const int compared = panel->CompareItemIndices(
-            first.sourceIndex, second.sourceIndex, view_.propertyId(column),
-            view_.usesSourceColumns() ? panel->_isRawSortProp != 0 : view_.isRawProperty(column));
+        const int compared =
+            panel->CompareItemIndices(first.sourceIndex, second.sourceIndex, property, raw);
         return order == Qt::AscendingOrder ? compared < 0 : compared > 0;
     });
     emit layoutAboutToBeChanged({}, QAbstractItemModel::VerticalSortHint);
