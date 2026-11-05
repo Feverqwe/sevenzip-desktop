@@ -3,6 +3,7 @@
 #include "filemanager/panels/Panel.h"
 #include "localization/LangUtils.h"
 #include "platform/associations/qtassociatedfileservices.h"
+#include "platform/temp/qtownedtempregistry.h"
 #include "settings/RegistryUtils.h"
 #include "ui/support/layout_inspection.h"
 #include <QAbstractButton>
@@ -189,16 +190,16 @@ class ExternalLaunchTests final : public QObject {
                                    : QString("Could not open file: %1"))
                               .arg(ToQString(path)));
     }
-    void associationWithoutHandleRetainsFileUntilOwnerExit_data() {
+    void associationWithoutHandlePreservesCopyAfterOwnerExit_data() {
         QTest::addColumn<bool>("changed");
         QTest::addColumn<bool>("launchFailed");
         QTest::addColumn<bool>("tryInternal");
-        QTest::newRow("unchanged-cleanup") << false << false << false;
+        QTest::newRow("unchanged-preserve") << false << false << false;
         QTest::newRow("changed-preserve") << true << false << false;
         QTest::newRow("launch-failure-cleanup") << false << true << false;
         QTest::newRow("memory-probe-fallback") << false << false << true;
     }
-    void associationWithoutHandleRetainsFileUntilOwnerExit() {
+    void associationWithoutHandlePreservesCopyAfterOwnerExit() {
         QFETCH(bool, changed);
         QFETCH(bool, launchFailed);
         QFETCH(bool, tryInternal);
@@ -229,13 +230,21 @@ class ExternalLaunchTests final : public QObject {
             if (changed)
                 QVERIFY(write(service.Opened, "changed contents retained"));
         } // Native exit event + join, not an association's presumed completion.
-        QCOMPARE(QFile::exists(service.Opened), changed);
+        QCOMPARE(QFile::exists(service.Opened), !launchFailed);
         const auto parent = QFileInfo(service.Opened).absolutePath();
-        if (changed) {
+        if (!launchFailed) {
             QFile edited(service.Opened);
             QVERIFY(edited.open(QIODevice::ReadOnly));
-            QCOMPARE(edited.readAll(), QByteArray("changed contents retained"));
+            QCOMPARE(edited.readAll(),
+                     changed ? QByteArray("changed contents retained") : QByteArray("contents"));
             edited.close();
+            bool protectedCopy = false;
+            for (const auto &entry : QtOwnedTempRegistry().Entries())
+                if (entry.path == parent) {
+                    protectedCopy = !entry.active && entry.externallyProtected;
+                    QVERIFY(!QtOwnedTempRegistry().ClaimForDeletion(entry));
+                }
+            QVERIFY(protectedCopy);
             QVERIFY(QFile::remove(
                 service.Opened)); // Fixture owns cleanup of intentionally retained data.
             QVERIFY(QDir().rmdir(parent));

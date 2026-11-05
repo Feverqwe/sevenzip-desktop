@@ -283,6 +283,11 @@ static THREAD_FUNC_DECL MyThreadFunction(void *param) try {
                 return (THREAD_FUNC_RET_TYPE)(uintptr_t)1;
         }
     }
+    // Closing the source only stops observation. A successful association
+    // without a process handle has never proved the external program ended;
+    // retain its protected copy even when it is unchanged or temporarily absent.
+    if (!mainProcessWasSet)
+        return 0;
     {
         NFind::CFileInfo newFileInfo;
         const bool finded = newFileInfo.Find(tpi->FilePath);

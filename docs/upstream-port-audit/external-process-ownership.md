@@ -1,5 +1,38 @@
 # External-process ownership
 
+## Unknown external lifetimes survive source shutdown — 2026-11-06
+
+Reviewed the complete original `CExitEventLauncher::Exit` and
+`MyThreadFunction`, temporary-process types, current launch/caller and direct
+cleanup paths. Original `CPP/7zip/UI/FileManager/PanelItemOpen.cpp` from
+`b88c6bc09339de32f7d18bbab900686b244f42ba` in the recorded local source archive
+matches SHA256
+`2e61e406b89a18a3799ea2fe7a19f2ea20d26f7ec7a485af0f8fb4c67bd93a32`.
+The existing manifest maps this unit to the external-session owner and preserves
+its verification/update procedure. No source import or baseline change is made.
+
+The source's no-handle branch waits for the owner's exit event, then deletes an
+unchanged temporary copy. In this port a successful system association does not
+necessarily return a process handle; stopping the source's observer cannot prove
+that the associated program has finished using its input. The final cleanup now
+retains such copies and their persisted external protection. This guard also
+covers a temporarily missing original filename, whose directory may still be in
+use. Known-process wait/discovery, changed-file update and proven-completion
+cleanup retain their existing control flow. A failed launch without an external
+lifetime still uses the ordinary scoped temporary-directory cleanup.
+
+The existing external-launch regression now checks original and changed bytes
+after panel destruction, inactive but externally protected ownership, and refusal
+of automatic cleanup. Its failed-launch case still checks removal. Lifetime and
+temporary-browser consumers verify the known-process and deletion boundaries.
+Focused `external_launch`, `archive_external_lifetime` and `temp_cleanup` passed
+on Linux and macOS. No dialog layout changed, so this adds behavior evidence
+without new screenshots, native desktop acceptance or a full/slow gate.
+
+This corrects loss of the protected input, not the lifetime of the editing
+session itself. Application ownership and a captured update context after a
+tab/window closes remain part of the active main-window lifecycle audit.
+
 ## Complete File Manager comparison owner — 2026-11-05
 
 Reviewed both original CApp::DiffFiles overloads, selection/flat-path policy,
