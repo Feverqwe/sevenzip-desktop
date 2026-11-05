@@ -4044,12 +4044,14 @@
     },
     "src/filemanager/ExtractCallback.h": {
       "local": [
-        "src/archive/resources/virtualextractfilesystem.h"
+        "src/archive/resources/virtualextractfilesystem.h",
+        "src/filemanager/ExtractCallback.cpp"
       ],
       "symbols": [
         "CGrowBuf",
         "CVirtFile",
-        "CVirtFileSystem"
+        "CVirtFileSystem",
+        "CExtractCallbackImp::CExtractCallbackImp"
       ]
     },
     "src/dialogs/compress/CompressDialog.cpp": {

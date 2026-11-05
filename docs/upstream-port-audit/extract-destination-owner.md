@@ -1,5 +1,42 @@
 # Extract destination preparation — 2026-11-01
 
+## One memory/spill stream owner through nested opening — 2026-11-05
+
+Reviewed complete native memory growth/spill/close bodies, output metadata and
+result callbacks, CopyTo's request attachment, nested memory/disk opening and
+external fallback. Original ExtractCallback.cpp/.h, PanelItemOpen.cpp,
+PanelCopy.cpp and MyCom.h match the existing full-unit baseline at
+`b88c6bc09339de32f7d18bbab900686b244f42ba`. No source import or revision change.
+
+The extraction callback and nested-opening local each use the existing
+CMyComPtr2 native typed owner instead of a COM owner plus a separately assigned
+concrete pointer. CopyTo attaches the borrowed request through SetFromCls;
+buffer input still retains the same interface owner. The request option remains
+a borrowed pointer, separate from the callback's ownership. The callback's
+unchanged constructor body now lives beside its existing destructor, keeping
+the memory/spill declaration out of the callback header. The baseline records
+that constructor's original header-to-implementation mapping.
+
+Memory limits, growth/spill selection, byte counts, file-name correction,
+metadata, alternate-stream/zone behavior, cancellation, error reporting,
+successful-only opening and temporary cleanup retain their source algorithms.
+The separate disk-mode, current-file readiness and actual-file-write states
+are preserved. Complete constructor, output and nested-opening bodies were
+compared unchanged after the typed-owner substitution. No new persistent state,
+controller, interface or source-layout test is introduced. Existing memory,
+forced-spill, nested memory/disk, failure/Cancel and external-lifetime regressions
+provide observable coverage.
+
+Linux passed `extract_prompt`, `source_extract_backend`,
+`native_nested_memory_quick`, `native_nested_disk_quick` and
+`archive_external_lifetime`: 75 checks without failures or skips. Compilation
+took 28.367 seconds, tests 24.361 seconds. The existing fixture now attaches the
+typed owner directly; no expected behavior is changed. Recorded inventory and
+whitespace checks passed; completed scratch was empty. Four configured jobs,
+incremental outputs and compiler cache were retained. Full nested-route matrices
+remain opt-in slow and were not selected. No platform service, visible text or
+layout changed; no secondary-platform or new appearance acceptance is claimed.
+
 ## Native entry output callback owner — 2026-11-04
 
 The complete output-decision and stream lifecycle of CExtractCallbackImp now

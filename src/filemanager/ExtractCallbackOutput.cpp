@@ -220,10 +220,9 @@ Z7_COM7F_IMF(CExtractCallbackImp::GetStream7(const wchar_t *const name, const In
 
     if (!_isFolder) // v.26.04 : we don't need dir item in VirtFileSystem
         if (VirtFileSystem && askExtractMode == NArchive::NExtract::NAskMode::kExtract) {
-            if (!VirtFileSystemSpec->Files.IsEmpty())
-                VirtFileSystemSpec->MaxTotalAllocSize -=
-                    VirtFileSystemSpec->Files.Back().Data.Size();
-            CVirtFile &file = VirtFileSystemSpec->Files.AddNew();
+            if (!VirtFileSystem->Files.IsEmpty())
+                VirtFileSystem->MaxTotalAllocSize -= VirtFileSystem->Files.Back().Data.Size();
+            CVirtFile &file = VirtFileSystem->Files.AddNew();
             _newVirtFileWasAdded = true;
             // file.IsDir = _isFolder;
             file.IsAltStream = _isAltStream;
@@ -232,26 +231,26 @@ Z7_COM7F_IMF(CExtractCallbackImp::GetStream7(const wchar_t *const name, const In
             if (size_Defined)
                 file.ExpectedSize = size;
 
-            if (VirtFileSystemSpec->Index_of_MainExtractedFile_in_Files < 0)
-                if (!file.IsAltStream || VirtFileSystemSpec->IsAltStreamFile)
-                    VirtFileSystemSpec->Index_of_MainExtractedFile_in_Files =
-                        (int)(VirtFileSystemSpec->Files.Size() - 1);
+            if (VirtFileSystem->Index_of_MainExtractedFile_in_Files < 0)
+                if (!file.IsAltStream || VirtFileSystem->IsAltStreamFile)
+                    VirtFileSystem->Index_of_MainExtractedFile_in_Files =
+                        (int)(VirtFileSystem->Files.Size() - 1);
 
             /* if we open only AltStream, then (name) contains only name without "fileName:" prefix
              */
             file.BaseName = name;
 
-            if (file.IsAltStream && !VirtFileSystemSpec->IsAltStreamFile &&
-                file.BaseName.IsPrefixedBy_NoCase(VirtFileSystemSpec->FileName)) {
-                const unsigned colonPos = VirtFileSystemSpec->FileName.Len();
+            if (file.IsAltStream && !VirtFileSystem->IsAltStreamFile &&
+                file.BaseName.IsPrefixedBy_NoCase(VirtFileSystem->FileName)) {
+                const unsigned colonPos = VirtFileSystem->FileName.Len();
                 if (file.BaseName[colonPos] == ':') {
                     file.ColonWasUsed = true;
                     file.AltStreamName = name + (size_t)colonPos + 1;
                     file.BaseName.DeleteFrom(colonPos);
                     if (Is_ZoneId_StreamName(file.AltStreamName)) {
-                        if (VirtFileSystemSpec->Index_of_ZoneBuf_AltStream_in_Files < 0)
-                            VirtFileSystemSpec->Index_of_ZoneBuf_AltStream_in_Files =
-                                (int)(VirtFileSystemSpec->Files.Size() - 1);
+                        if (VirtFileSystem->Index_of_ZoneBuf_AltStream_in_Files < 0)
+                            VirtFileSystem->Index_of_ZoneBuf_AltStream_in_Files =
+                                (int)(VirtFileSystem->Files.Size() - 1);
                     }
                 }
             }
@@ -317,7 +316,7 @@ Z7_COM7F_IMF(CExtractCallbackImp::SetOperationResult8(Int32 opRes, Int32 encrypt
         // FIXME: probably we must request file size from VirtFileSystem
         // _curSize = VirtFileSystem->GetLastFileSize()
         // _curSize_Defined = true;
-        RINOK(VirtFileSystemSpec->CloseMemFile())
+        RINOK(VirtFileSystem->CloseMemFile())
     }
     if (_hashStream && _hashStream_WasUsed) {
         _hashStream->_hash->Final(_isFolder, _isAltStream, _filePath);
