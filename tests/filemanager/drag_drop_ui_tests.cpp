@@ -305,12 +305,13 @@ class DragDropUiTests final : public QObject {
     }
 
     void externalDragSuspendsHoverWithoutOpeningFolder_data() {
-        QTest::addColumn<bool>("rejectFirst");
-        QTest::newRow("accepted") << false;
-        QTest::newRow("rejected-then-accepted") << true;
+        QTest::addColumn<int>("rejection");
+        QTest::newRow("accepted") << 0;
+        QTest::newRow("rejected-entry-then-accepted") << 1;
+        QTest::newRow("rejected-drop-then-accepted") << 2;
     }
     void externalDragSuspendsHoverWithoutOpeningFolder() {
-        QFETCH(bool, rejectFirst);
+        QFETCH(int, rejection);
         QTemporaryDir root;
         const QString folder = QStringLiteral("назначение");
         QVERIFY(QDir().mkpath(root.filePath(folder)));
@@ -335,7 +336,7 @@ class DragDropUiTests final : public QObject {
         const QPoint point = table->visualRect(destination).center();
         QMimeData mime;
         mime.setUrls({QUrl::fromLocalFile(file.fileName())});
-        if (rejectFirst) {
+        if (rejection == 1) {
             QDragEnterEvent rejected(DragEventPosition(point), Qt::LinkAction, &mime,
                                      Qt::LeftButton, Qt::NoModifier);
             QCoreApplication::sendEvent(table->viewport(), &rejected);
@@ -353,6 +354,22 @@ class DragDropUiTests final : public QObject {
         QCoreApplication::sendEvent(table->viewport(), &enter);
         QVERIFY(enter.isAccepted());
         QVERIFY(destination.data(Qt::UserRole + 19).toBool());
+        if (rejection == 2) {
+            QDropEvent rejected(point, Qt::LinkAction, &mime, Qt::LeftButton, Qt::NoModifier);
+            QCoreApplication::sendEvent(table->viewport(), &rejected);
+            QVERIFY(!rejected.isAccepted());
+            QVERIFY(!destination.data(Qt::UserRole + 19).toBool());
+            QTest::mouseMove(table->viewport(), point);
+            QTRY_COMPARE(table->currentRow(), destination.row());
+            QVERIFY(QDir(root.filePath(folder)).isEmpty());
+            table->selectRow(selected);
+            table->setCurrentCell(selected, 0);
+            QDragEnterEvent retry(DragEventPosition(point), Qt::CopyAction, &mime, Qt::LeftButton,
+                                  Qt::NoModifier);
+            QCoreApplication::sendEvent(table->viewport(), &retry);
+            QVERIFY(retry.isAccepted());
+            QVERIFY(destination.data(Qt::UserRole + 19).toBool());
+        }
         QTest::mouseMove(table->viewport(), point);
         QTest::qWait(450);
         QCOMPARE(table->currentRow(), selected);

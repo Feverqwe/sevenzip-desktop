@@ -1,5 +1,27 @@
 # Native-worker notification ownership
 
+## Shared progress producer — 2026-11-05
+
+Reviewed complete read/hash startup, workers, password/overwrite waits,
+completion snapshots, cancellation, sampled delivery and dialog transport.
+Original HashCalc progress calls, ExtractCallback byte-count delegation and
+ProgressDialog2 snapshot ownership retain their recorded baseline at
+`b88c6bc09339de32f7d18bbab900686b244f42ba`; complete original unit hashes match
+the manifest. No native algorithm or source revision changes.
+
+The existing progress owner now creates the worker callback together with its
+generation. Both read and hash startup install that callback directly. Percent
+normalization, generation rejection and mutex-protected snapshot replacement
+therefore have one implementation, removing duplicate callback bodies and the
+separate posting adapter. Timer sampling, start/finish resets, pause/cancel,
+joined lifetime and result/signal ordering remain unchanged. No new controller,
+persistent state or public worker interface is introduced.
+
+Existing backend and worker-progress regressions cover exact archive/hash
+results, bounded GUI delivery, cancellation/restart, output-driven replacement
+and deletion during callbacks. No representation or source-presence test is
+needed for this consolidation.
+
 ## Window progress lifetime — 2026-11-02
 
 Compared original ProgressDialog2 constructor, destructor/title restoration,

@@ -50,12 +50,7 @@ void ArchiveBackend::hashMethods(const QStringList &paths, const QStringList &me
     hashOperation_ =
         std::make_unique<QtArchiveHashOperation>(paths, methods, catalog, std::move(providers));
     const QPointer<QtArchiveHashOperation> operation(hashOperation_.get());
-    const quint64 progressGeneration = beginWorkerProgress();
-    hashOperation_->Progress = [this, progressGeneration](quint64 completed, quint64 total,
-                                                          const QString &path) {
-        const int percent = total ? int(qMin(100.0, 100.0 * completed / total)) : 0;
-        postWorkerProgress(progressGeneration, percent, path);
-    };
+    hashOperation_->Progress = beginWorkerProgress();
     connect(hashOperation_.get(), &QThread::finished, this, [this, operation] {
         if (operation && hashOperation_.get() == operation.data())
             finishHashOperation();

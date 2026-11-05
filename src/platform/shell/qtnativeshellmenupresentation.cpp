@@ -304,13 +304,13 @@ struct QtNativeShellMenuPresentation::State : std::enable_shared_from_this<State
                 target.addSeparator();
                 continue;
             }
-            QAction *action;
-            bool rendered = true;
-            ownerDrawKeys |= (item.fType & MFT_OWNERDRAW) != 0;
-            if (item.hSubMenu) {
-                auto *child = new QMenu(ToQString(item.StringValue), &target);
-                action = item.fType & MFT_OWNERDRAW ? OwnerDraw(handle, item, target) : nullptr;
-                rendered = !(item.fType & MFT_OWNERDRAW) || action;
+            const bool ownerDraw = (item.fType & MFT_OWNERDRAW) != 0;
+            ownerDrawKeys |= ownerDraw;
+            auto *child = item.hSubMenu ? new QMenu(ToQString(item.StringValue), &target) : nullptr;
+            QAction *action = ownerDraw ? OwnerDraw(handle, item, target) : nullptr;
+            const bool enabled =
+                (!ownerDraw || action) && !(item.fState & (MFS_DISABLED | MFS_GRAYED));
+            if (child) {
                 if (action)
                     action->setMenu(child);
                 else {
@@ -319,11 +319,9 @@ struct QtNativeShellMenuPresentation::State : std::enable_shared_from_this<State
                 }
                 Message(WM_INITMENUPOPUP, WPARAM(item.hSubMenu), MAKELPARAM(position, false));
                 const auto childCommands = Render(item.hSubMenu, *child, dispatch);
-                if (rendered && !(item.fState & (MFS_DISABLED | MFS_GRAYED)))
+                if (enabled)
                     commands.unite(childCommands);
             } else {
-                action = item.fType & MFT_OWNERDRAW ? OwnerDraw(handle, item, target) : nullptr;
-                rendered = !(item.fType & MFT_OWNERDRAW) || action;
                 if (!action)
                     action = target.addAction(ToQString(item.StringValue));
                 if (item.wID >= commandStart && item.wID <= 0x7fff) {
@@ -332,7 +330,7 @@ struct QtNativeShellMenuPresentation::State : std::enable_shared_from_this<State
                                                             nullptr, reinterpret_cast<LPSTR>(verb),
                                                             256)))
                         action->setProperty("shellVerb", QString::fromWCharArray(verb));
-                    if (rendered && !(item.fState & (MFS_DISABLED | MFS_GRAYED))) {
+                    if (enabled) {
                         commands.insert(item.wID);
                         QObject::connect(action, &QAction::triggered, &target,
                                          [dispatch, id = item.wID] { dispatch(id); });
@@ -340,7 +338,7 @@ struct QtNativeShellMenuPresentation::State : std::enable_shared_from_this<State
                 }
             }
             action->setIcon(Icon(handle, unsigned(position), item, target));
-            action->setEnabled(rendered && !(item.fState & (MFS_DISABLED | MFS_GRAYED)));
+            action->setEnabled(enabled);
             action->setProperty("shellCommandID", item.wID);
             action->setProperty("nativeShellMenu", true);
             action->setProperty("nativeShellMenuPosition", position);

@@ -271,6 +271,18 @@ is claimed.
 
 ### Size calculation, Copy and mount preparation follow-up
 
+The size command's result publication now uses the common bound-folder
+publisher, retaining its no-address-update request and selected state. The
+archive renderer therefore runs under the same call/state ownership as ordinary
+archive publication. The command dispatcher already holds a call scope through
+the joined read and publication; the command's extra native timer guard is
+unnecessary because the Qt poller excludes active source calls. The native
+notification guard still protects the worker's mutable proxy. Source-panel
+projection, partial results on Cancel, diagnostics and retry remain unchanged.
+The complete worker, Agent directory expansion/proxy refresh and existing
+publication consumers were reviewed with the original `CPanel::EditItem` size
+branch at the recorded baseline. No reader or source algorithm is replaced.
+
 The explicit **Calculate folder size** command uses the same retained source
 Agent, selected-directory expansion and existing `CProxyArc2::CalculateSizes`
 aggregation. The command and toolbar binding are local Qt integration. Reviewed

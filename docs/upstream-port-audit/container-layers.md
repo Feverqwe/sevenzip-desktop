@@ -1680,6 +1680,27 @@ This validates the portable channel/observer dispatch; native Windows/macOS
 launch and UI behavior were not newly accepted. Selected scratch directories
 were empty; incremental builds and compiler caches retained. No full/slow gate.
 
+### Independent operation panel publication — 2026-11-05
+
+Reviewed the launcher, endpoint, backend launch methods, deferred output queue
+and current-panel refresh consumers together with the complete original
+`Common/CompressCall.cpp` at `b88c6bc09339de32f7d18bbab900686b244f42ba`.
+Its original bytes match the existing baseline. Output-driven panel refresh is
+local integration; native launch and archive algorithms are unchanged.
+
+Archive refresh now selects its outcome before entering one shared panel
+projection and focus-restoration path. An explicitly reported archive retains
+priority over a missing-file directory notification. Reopening still publishes
+the resulting idle/scan state after restoring the original projection; a
+deleted archive still returns to its parent through the filesystem listing
+owner. Stream-backed archives, file identity, current-location matching and
+deferred queue admission retain their existing policy. No new controller or
+persistent state is introduced.
+
+Existing toolbar creation, archive operation and output queue tests cover real
+child output, updated/deleted archives, partial results, navigation, source modal
+deferral and nested completion delivery. No source-structure test is added.
+
 ### Selected-folder extraction path projection — 2026-11-01
 
 Rechecked original ArchiveExtractCallback CorrectPathParts and its extract/hash

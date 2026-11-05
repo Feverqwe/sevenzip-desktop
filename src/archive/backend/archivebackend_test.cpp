@@ -69,12 +69,7 @@ void ArchiveBackend::startNativeRead(
 void ArchiveBackend::startReadOperation(Job job, std::unique_ptr<QtArchiveReadOperation> worker) {
     readOperation_ = std::move(worker);
     const QPointer<QtArchiveReadOperation> operation(readOperation_.get());
-    const quint64 progressGeneration = beginWorkerProgress();
-    readOperation_->Progress = [this, progressGeneration](quint64 completed, quint64 total,
-                                                          const QString &path) {
-        const int percent = total ? int(qMin(100.0, 100.0 * completed / total)) : 0;
-        postWorkerProgress(progressGeneration, percent, path);
-    };
+    readOperation_->Progress = beginWorkerProgress();
     readOperation_->PasswordRequired = [this, operation] {
         QMetaObject::invokeMethod(
             this,

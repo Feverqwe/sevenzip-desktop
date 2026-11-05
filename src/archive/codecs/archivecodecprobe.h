@@ -18,9 +18,7 @@ class ArchiveCodecProbe final : public QObject {
     std::unique_ptr<QThread> loader_;
     std::shared_ptr<Work> work_;
     static int DefaultTimeoutMs();
-    static ArchiveCodecProbeResult Discover(const QString &module,
-                                            const std::shared_ptr<Work> &work);
-    void Complete(ArchiveCodecProbeResult result);
+    void Complete();
 
   public:
     // Blocking native loading for joined workers; never call on the GUI thread.

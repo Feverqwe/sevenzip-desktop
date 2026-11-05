@@ -1,5 +1,26 @@
 # Native drag session ownership — 2026-10-18
 
+## Qt input and terminal reset — 2026-11-05
+
+Reviewed the complete Qt event, gesture, choice, transfer and refresh path with
+the original PanelDrag Enter/Over/Leave/Drop and source completion at
+`b88c6bc09339de32f7d18bbab900686b244f42ba`; the full original unit hash matches
+the baseline. Native algorithms, transfer flags and platform transports remain
+unchanged.
+
+The Qt event filter now dispatches from one checked widget boundary. Blocked
+targets and unreadable MIME data share the same refusal path, and final Drop
+reset stays with the existing completion scope rather than a second rejection
+branch. Rejected Enter still sends native Leave before discarding state, since
+Qt does not deliver a later Leave for that refusal. Effect/acceptance publication
+still precedes terminal cleanup and action refresh.
+
+The existing hover regression adds an accepted entry followed by an unsupported
+Drop, then a supported retry. It checks cleared highlighting, resumed ordinary
+hover, no output files and a usable next drag through public events. Existing
+source transfer, right/middle button, Open/Create/Cancel and archive refresh
+checks retain their native behavior contracts.
+
 ## Completion belongs to the actual drop panel — 2026-11-04
 
 Reviewed complete target positioning, Enter/Over/Leave/Drop, command choice,

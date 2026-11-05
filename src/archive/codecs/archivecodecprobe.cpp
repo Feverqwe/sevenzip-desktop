@@ -4,8 +4,6 @@
 #include "localization/qtlanguageservices.h"
 #include <QCoreApplication>
 #include <QDeadlineTimer>
-#include <QDir>
-#include <QFileInfo>
 #include <QScopeGuard>
 #include <atomic>
 #include <new>
@@ -26,18 +24,23 @@ struct ArchiveCodecProbe::Work {
             timedOut = true;
         return cancelled || timedOut;
     }
-};
 
-ArchiveCodecProbeResult ArchiveCodecProbe::Discover(const QString &module,
-                                                    const std::shared_ptr<Work> &work) {
-    ArchiveCodecProbeResult result;
-    if (work->Stopped())
-        return result;
-    result.catalog = LoadCatalog(module);
-    result.result = result.catalog->result();
-    result.error = result.catalog->error();
-    return result;
-}
+    void Run(const QString &module) {
+        try {
+            if (!Stopped()) {
+                const auto catalog = LoadCatalog(module);
+                result = {catalog->result(), catalog->error(), catalog};
+            }
+        } catch (const std::bad_alloc &) {
+            result.result = E_OUTOFMEMORY;
+        } catch (...) {
+            result.result = E_FAIL;
+        }
+        // Native DLL calls cannot be interrupted safely. Account for their
+        // elapsed time before queueing the joined result back to the GUI.
+        Stopped();
+    }
+};
 
 std::shared_ptr<const ArchiveCodecCatalog> ArchiveCodecProbe::LoadCatalog(const QString &module) {
     // CCodecs::LoadDll obtains ABI/version metadata through GetModuleProp;
@@ -78,18 +81,7 @@ bool ArchiveCodecProbe::Start(const QString &module,
         return false;
     try {
         const auto work = std::make_shared<Work>(timeoutMs, std::move(completion));
-        std::unique_ptr<QThread> loader(QThread::create([work, module] {
-            try {
-                work->result = Discover(module, work);
-            } catch (const std::bad_alloc &) {
-                work->result.result = E_OUTOFMEMORY;
-            } catch (...) {
-                work->result.result = E_FAIL;
-            }
-            // Native DLL calls cannot be interrupted safely. Account for their
-            // elapsed time before queueing the joined result back to the GUI.
-            work->Stopped();
-        }));
+        std::unique_ptr<QThread> loader(QThread::create([work, module] { work->Run(module); }));
         const auto stopUnpublished = qScopeGuard([&] {
             if (loader) {
                 work->cancelled = true;
@@ -104,7 +96,7 @@ bool ArchiveCodecProbe::Start(const QString &module,
                     return;
                 loader_->wait();
                 loader_.reset();
-                Complete(std::move(work->result));
+                Complete();
             },
             Qt::QueuedConnection);
         loader->start();
@@ -125,8 +117,9 @@ void ArchiveCodecProbe::Cancel() {
         work_->cancelled = true;
 }
 
-void ArchiveCodecProbe::Complete(ArchiveCodecProbeResult result) {
+void ArchiveCodecProbe::Complete() {
     const auto work = std::move(work_);
+    auto &result = work->result;
     if (work->cancelled || work->timedOut) {
         result.catalog.reset();
         result.result = E_ABORT;
