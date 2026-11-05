@@ -1,5 +1,28 @@
 # Selection command boundary — 2026-10-31
 
+## Selected-state capture and restoration owner — 2026-11-05
+
+Selection queries, saved-name/focus capture, focused-item publication and loaded
+selection restoration now share `panels/PanelSelectionState.cpp`. These eight
+complete `CPanel` methods move from item actions and list loading into one
+implementation unit in the same `sevenzip_panel` target. Commands and provider
+loading retain their existing owners; no interface, state or controller is added.
+
+Compared original PanelItems selection queries, capture, focused selection and
+complete refresh/restoration branches with the current load/projection completion,
+ordinary/alternative commands and operation consumers. The complete original
+PanelItems unit at `b88c6bc09339de32f7d18bbab900686b244f42ba` matches its existing
+SHA256 baseline. The extraction manifest records the new local owner and symbols
+without changing original hashes or importing external code.
+
+Moved bodies are unchanged. Selected marks, current row and operated/smart
+fallback remain distinct; flat relative paths, parent-row handling, notification
+restoration before sorting, deferred publication and error returns are retained.
+Existing panel, source-command and refresh-snapshot regressions cover the whole
+workflow, including both panes, alternative selection, missing focused entries,
+Unicode paths and failed archive opening. No test fixes implementation ownership
+or source layout, and no visible layout/text or platform service changes.
+
 ## Complete archive-toolbar call lifetime — 2026-11-05
 
 Compared original FM.cpp ExecuteCommand and complete WM_COMMAND routing with the

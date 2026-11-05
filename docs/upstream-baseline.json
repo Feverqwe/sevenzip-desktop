@@ -1747,6 +1747,7 @@
     "src/filemanager/panels/PanelNameOperations.cpp",
     "src/filemanager/panels/PanelProperties.cpp",
     "src/filemanager/panels/PanelSelect.h",
+    "src/filemanager/panels/PanelSelectionState.cpp",
     "src/filemanager/panels/PanelShellMenu_win.cpp",
     "src/filemanager/panels/panelmenuids.h",
     "src/filemanager/panels/qtnativepanelkeys.cpp",
@@ -3933,7 +3934,8 @@
     "src/filemanager/panels/PanelItems.cpp": {
       "local": [
         "src/filemanager/panels/PanelColumns.cpp",
-        "src/filemanager/panels/PanelListLoad.cpp"
+        "src/filemanager/panels/PanelListLoad.cpp",
+        "src/filemanager/panels/PanelSelectionState.cpp"
       ],
       "symbols": [
         "GetColumnVisible",
@@ -3946,6 +3948,14 @@
         "CPanel::AddColumn",
         "CPanel::ShowColumnsContextMenu",
         "CPanel::InitColumns (column-order projection)",
+        "CPanel::Get_ItemIndices_Selected",
+        "CPanel::GetSelectedNames",
+        "CPanel::Get_ItemIndices_Operated",
+        "CPanel::Get_ItemIndices_All",
+        "CPanel::Get_ItemIndices_OperSmart",
+        "CPanel::SaveSelectedState",
+        "CPanel::SetFocusedSelectedItem",
+        "CPanel::RefreshListCtrl (saved-selection restoration in RestoreLoadedSelection)",
         "CPanel::RefreshListCtrl (load, item icons and saved-selection completion)",
         "CPanel::RefreshListCtrl_SaveFocused",
         "CPanel::OnReload",
