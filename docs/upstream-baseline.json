@@ -1738,6 +1738,7 @@
     "src/filemanager/panels/PanelArchiveLifecycle.cpp",
     "src/filemanager/panels/PanelArchiveOpen.cpp",
     "src/filemanager/panels/PanelColumns.cpp",
+    "src/filemanager/panels/PanelDragSource.cpp",
     "src/filemanager/panels/PanelDrag_win.cpp",
     "src/filemanager/panels/PanelFolderOperations.cpp",
     "src/filemanager/panels/PanelFolderOperations.h",
@@ -3997,9 +3998,13 @@
     },
     "src/filemanager/panels/PanelDrag.cpp": {
       "local": [
+        "src/filemanager/panels/PanelDragSource.cpp",
         "src/filemanager/panels/PanelDrag_win.cpp"
       ],
       "symbols": [
+        "CDataObject (portable transfer flags, data materialization and receiver lifetime)",
+        "CDropSource (portable source decisions)",
+        "CPanel::OnDrag",
         "CDataObject_TransferBase",
         "CDataObject_GetTransfer",
         "CTargetTransferInfo (native wire record)",

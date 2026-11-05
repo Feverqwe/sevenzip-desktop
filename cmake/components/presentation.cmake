@@ -101,6 +101,7 @@ add_library(sevenzip_panel
     src/filemanager/state/qtappoperationstate.cpp
     src/filemanager/state/qtappoperationstate.h
     src/filemanager/panels/PanelDrag.cpp
+    src/filemanager/panels/PanelDragSource.cpp
     src/gui/HashGUI.cpp
     src/gui/HashGUI.h
     src/benchmark/BenchmarkDialog.cpp

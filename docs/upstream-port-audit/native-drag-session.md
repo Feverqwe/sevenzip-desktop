@@ -52,6 +52,33 @@ Inventory and whitespace checks passed. Only shared Qt completion changed;
 Windows/macOS, physical OS gestures, rendered-original parity and full/slow
 gates were not revalidated. Failure/result logs and useful builds were retained.
 
+## Complete portable drag-source owner — 2026-11-05
+
+Reviewed source data preparation/transfer flags, QueryContinueDrag/GiveFeedback,
+OnDrag, Qt transport and receiver completion, target Drop and refresh callers.
+Compared the original source gesture and completion at recorded revision
+`b88c6bc09339de32f7d18bbab900686b244f42ba`; the complete PanelDrag.cpp inventory
+hash matches the existing baseline. No external source or revision is imported.
+
+The complete portable CDataObject and CDropSource bodies and CPanel::OnDrag now
+share PanelDragSource.cpp within the same panel module and target. PanelDrag.cpp
+retains target hit testing, command selection, execution and application target
+state. Native OLE remains with its existing Windows owner. The baseline maps
+the additional source owner against the same complete original inventory unit.
+
+All moved bodies and remaining target bodies are unchanged. Typed/native data,
+temporary extraction and receiver protection, source detachment, Copy/Move flags,
+selection on success/failure/cancellation, error reporting and target refresh
+keep their existing contracts and lifetime order. No new interface, state,
+controller or alternate drag implementation is introduced. Existing protocol,
+archive-byte and window regressions validate behavior rather than file layout.
+
+Linux drag_drop, drag_protocol, drag_archive and drag_drop_ui passed 77 checks
+without failures or skips. The selected shared-source extraction changes no
+platform adapter or gesture policy; no new native OLE/Cocoa runtime, physical
+drag gesture, appearance, full or slow-suite acceptance is claimed. Incremental
+builds and compiler caches were retained.
+
 ## Complete Windows OLE protocol owner — 2026-11-04
 
 Rechecked the complete native protocol, its wire records, IDataObject and
