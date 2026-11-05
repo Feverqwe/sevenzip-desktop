@@ -3,7 +3,7 @@
 #ifndef ZIP7_INC_LINK_DIALOG_H
 #define ZIP7_INC_LINK_DIALOG_H
 
-#include "fileops/links/qtlinkcontrols.h"
+#include "dialogs/link/qtlinkcontrols.h"
 
 #include "7zip/UI/FileManager/LinkDialogRes.h"
 

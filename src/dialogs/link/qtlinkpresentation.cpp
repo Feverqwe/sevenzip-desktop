@@ -1,5 +1,5 @@
 #include "7zip/UI/FileManager/LinkDialogRes.h"
-#include "fileops/links/qtlinkcontrols.h"
+#include "dialogs/link/qtlinkcontrols.h"
 #include "localization/qtlangbuttonbox.h"
 #include "localization/qtlangcontrols.h"
 #include "ui/dialogs/qtdialoglayout.h"

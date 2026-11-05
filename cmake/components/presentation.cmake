@@ -117,9 +117,9 @@ add_library(sevenzip_panel
     src/benchmark/qtbenchmarkreport.cpp
     src/dialogs/link/LinkDialog.cpp
     src/dialogs/link/LinkDialog.h
-    src/fileops/links/qtlinkcontrols.cpp
-    src/fileops/links/qtlinkpresentation.cpp
-    src/fileops/links/qtlinkcontrols.h
+    src/dialogs/link/qtlinkcontrols.cpp
+    src/dialogs/link/qtlinkpresentation.cpp
+    src/dialogs/link/qtlinkcontrols.h
     src/filemanager/ExtractCallback.cpp
     src/filemanager/ExtractCallbackOutput.cpp
     src/archive/resources/virtualextractfilesystem.cpp
