@@ -6,6 +6,13 @@
 #include <QRemoteObjectHost>
 #include <QThread>
 
+namespace {
+MountTreeEntry MountEntry(const ArchiveReadOnlyView::Entry &entry) {
+    return MountTreeEntry(entry.Id, entry.Parent, entry.Size, entry.Modified, entry.Name,
+                          entry.Directory, entry.ChildrenLoaded, entry.SymlinkTarget);
+}
+} // namespace
+
 QtArchiveMountSource::QtArchiveMountSource(IUnknown *resource, quint64 quota,
                                            QString archivePassword, QString user, QString password,
                                            QUrl endpoint, QString share, const QString &folder,
@@ -60,9 +67,7 @@ void QtArchiveMountSource::initialize() {
         return;
     }
     for (const auto &entry : view->entries())
-        entries_.append(MountTreeEntry(entry.Id, entry.Parent, entry.Size, entry.Modified,
-                                       entry.Name, entry.Directory, entry.ChildrenLoaded,
-                                       entry.SymlinkTarget));
+        entries_.append(MountEntry(entry));
     host_ = std::make_unique<QRemoteObjectHost>();
     QRemoteObjectHost::setLocalServerOptions(QLocalServer::UserAccessOption);
     if (!host_->setHostUrl(endpoint_) || !host_->enableRemoting<ArchiveMountSourceAPI>(this)) {
@@ -124,9 +129,7 @@ MountTreeDirectory QtArchiveMountSource::listDirectory(quint64 id) {
     const auto result = view_->listDirectory(id);
     QList<MountTreeEntry> entries;
     for (const auto &entry : result.Entries)
-        entries.append(MountTreeEntry(entry.Id, entry.Parent, entry.Size, entry.Modified,
-                                      entry.Name, entry.Directory, entry.ChildrenLoaded,
-                                      entry.SymlinkTarget));
+        entries.append(MountEntry(entry));
     if (result.Result != S_OK && result.Result != E_ABORT)
         emit entryIssue(id, quint32(result.Result),
                         entryPath(id) + QStringLiteral(": Reader error 0x%1")

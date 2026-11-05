@@ -1,5 +1,16 @@
 # Local read-only SMB: implementation and evidence
 
+## Initial and deferred directory IPC projection — 2026-11-05
+
+The reader source and SMB broker each share their own entry conversion between
+initial snapshots and deferred directory replies. IDs, parents, sizes, timestamps,
+names, directory/loading flags and symbolic targets retain their existing order
+and values. The initial QtRO property stays constant; lazy replies retain their
+separate status, error and request lifetimes. No protocol, reader, wakeup/socket,
+native mount, source inventory or dependency change is introduced. Existing
+session and loopback broker behavior checks cover the affected consumers; no test
+fixes the private conversion functions or current data representation.
+
 ## Initial and lazy node projection — 2026-11-05
 
 Initial tree admission and lazy-directory publication share child-name validation
