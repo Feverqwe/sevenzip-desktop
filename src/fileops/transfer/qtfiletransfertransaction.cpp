@@ -239,39 +239,41 @@ bool QtFileTransferTransaction::transferEntry(const TransferPath &path,
         (merge ? (copyEntry(target, stage, &error, false) &&
                   mergeEntry(source, stage, target, &entry.writtenSources, &error))
                : (entry.sourceState == SourceState::Renamed || copyEntry(source, stage, &error)));
-    if (!staged && error.isEmpty())
-        error = QCoreApplication::translate("qtfiletransfertransaction", "Could not move item: %1")
+    if (!staged || !error.isEmpty()) {
+        if (error.isEmpty())
+            error =
+                QCoreApplication::translate("qtfiletransfertransaction", "Could not move item: %1")
                     .arg(source);
-    if (error.isEmpty() && worker_.canceled_)
+        return false;
+    }
+    if (worker_.canceled_) {
         error = QCoreApplication::translate("qtfiletransfertransaction", "Operation canceled.");
-    if (error.isEmpty() && QFileInfo(target).isSymLink())
+        return false;
+    }
+    if (QFileInfo(target).isSymLink() || (QFileInfo::exists(target) && !mayReplace)) {
         error = QCoreApplication::translate("qtfiletransfertransaction",
                                             "Destination changed during transfer: %1")
                     .arg(target);
-    if (error.isEmpty() && QFileInfo::exists(target) && !mayReplace)
-        error = QCoreApplication::translate("qtfiletransfertransaction",
-                                            "Destination changed during transfer: %1")
-                    .arg(target);
-    if (error.isEmpty() && QFileInfo::exists(target)) {
+        return false;
+    }
+    if (QFileInfo::exists(target)) {
         // Keep the old entry until every source has published successfully.
         const QString backupPath = target + suffix + QStringLiteral("-backup");
-        if (QDir().rename(target, backupPath))
-            entry.backup = backupPath;
-        else
+        if (!QDir().rename(target, backupPath)) {
             error = QCoreApplication::translate("qtfiletransfertransaction",
                                                 "Could not preserve the previous item: %1")
                         .arg(target);
+            return false;
+        }
+        entry.backup = backupPath;
     }
-    if (error.isEmpty()) {
-        if (QDir().rename(stage, target))
-            entry.ownedPath = target;
-        else
-            error = QCoreApplication::translate("qtfiletransfertransaction",
-                                                "Could not finish transfer: %1")
-                        .arg(target);
-    }
-    if (!error.isEmpty())
+    if (!QDir().rename(stage, target)) {
+        error = QCoreApplication::translate("qtfiletransfertransaction",
+                                            "Could not finish transfer: %1")
+                    .arg(target);
         return false;
+    }
+    entry.ownedPath = target;
     completed.append(entry);
     rollbackItem.dismiss();
     return true;

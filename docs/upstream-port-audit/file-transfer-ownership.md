@@ -1,5 +1,36 @@
 # File-transfer ownership
 
+## Linear per-item staging and publication — 2026-11-05
+
+Reviewed complete transaction preparation, per-item staging, directory merge,
+overwrite callback, reverse rollback, partial source removal and worker/window
+completion. Rechecked original FSFolderCopy CopyFile_Ask, CopyFolder and
+IsDestChild bodies/callers at `b88c6bc09339de32f7d18bbab900686b244f42ba` from
+<https://github.com/ip7z/7zip.git>; the complete original unit matches recorded
+SHA256 `9e3728bf2ad8c6f809019c7f2a7059b98ef85e7094c84cdda5fb5e6443e58c86`.
+The existing whole-batch staging/rollback integration remains local; native
+copy/link/I/O algorithms are unchanged, with no import or baseline advance.
+
+Per-item publication now returns through its existing rollback guard when
+staging reports either failure or a nonempty diagnostic, cancellation occurs,
+the target changes, backup cannot be saved or publication fails. Successful
+paths proceed directly to backup/publication and completed-record registration
+instead of repeatedly using error-string emptiness to admit each next step.
+Both target-change checks retain their fresh filesystem probes and shared
+diagnostic. Existing error precedence, backup recording after successful rename,
+owned-path update after publication and guard retirement after batch acceptance
+are preserved. No new state, helper or exception policy is introduced.
+
+Existing worker/direct-path/translated-error and quick UI routing checks cover
+Copy/Move, overwrite/skip/rename, directory merge, target mutation, cancellation,
+throwing services and partial-source-removal recovery. No test pins the internal
+error-gating shape; useful behavior coverage is reused.
+
+Focused Linux validation passed: file_transfer, file_transfer_direct,
+language_file_transfer and ui_copy_routing_quick (87 Qt checks). The full UI
+routing matrix remains opt-in slow. No native platform implementation or layout
+changed; Windows/macOS and appearance acceptance are not claimed.
+
 ## Complete Qt copy-publication owner — 2026-11-04
 
 Compared original `App.cpp::OnCopy` routing, post-operation refresh/selection
