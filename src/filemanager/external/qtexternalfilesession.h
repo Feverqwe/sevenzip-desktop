@@ -12,14 +12,11 @@
 struct CExitEventLauncher {
     std::atomic_bool _exiting{false};
     NWindows::NSynchronization::CManualResetEvent _exitEvent;
-    bool _needExit;
     unsigned _numActiveThreads;
     CRecordVector<::CThread> _threads;
     CExitEventLauncher() {
-        _needExit = false;
         if (_exitEvent.Create(false) != S_OK)
             throw 9387173;
-        _needExit = true;
         _numActiveThreads = 0;
     }
     ~CExitEventLauncher() { Exit(true); }

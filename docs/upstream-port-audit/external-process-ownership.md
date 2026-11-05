@@ -1,5 +1,29 @@
 # External-process ownership
 
+## One external-session stop transition — 2026-11-05
+
+Reviewed editor preference/launch, per-panel session creation, process waits,
+GUI update delivery and repeated panel release/destruction against the original
+PanelItemOpen Exit and Panel.h launcher at
+`b88c6bc09339de32f7d18bbab900686b244f42ba`. Both complete original hashes match
+the existing baseline; no external source is imported.
+
+The local atomic stop request now also owns the once-only event signal, removing
+the second mutable flag tracking that same transition. Constructor failure still
+prevents publication of the owner. Every Exit call retains the native handle
+join/retry loop, including repeated shutdown calls. Known/unknown process waits,
+pending versus delivering GUI callbacks, child discovery, archive update and
+protected temporary-copy cleanup remain distinct and unchanged. Native process
+services and platform behavior are unchanged. Existing cancellation, real-child
+lifetime and archive-edit regressions cover the workflow; no flag/getter test
+is added.
+
+Linux external_gui_call, archive_external_lifetime and archive_external_edit
+passed 38 checks without failures or skips. Existing incremental builds and
+compiler cache were retained. No native platform branch, layout or command
+parsing changed; secondary-platform, full/slow and appearance acceptance are
+outside this check.
+
 ## Explicit external-file completion — 2026-11-05
 
 Compared the complete original PanelItemOpen worker wait/update/cleanup body

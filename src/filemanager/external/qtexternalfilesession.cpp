@@ -40,11 +40,8 @@ void CExitEventLauncher::Exit(bool hardExit) {
     // Native event/owned-thread lifecycle. Always join on POSIX/Qt: detaching
     // after the source Windows 100 ms hard-exit timeout could outlive this owner.
     (void)hardExit;
-    _exiting.store(true);
-    if (_needExit) {
+    if (!_exiting.exchange(true))
         _exitEvent.Set();
-        _needExit = false;
-    }
     if (_numActiveThreads == 0)
         return;
     FOR_VECTOR(i, _threads) {
