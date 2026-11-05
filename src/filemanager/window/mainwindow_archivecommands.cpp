@@ -61,21 +61,19 @@ void MainWindow::runArchiveBatchCommand(bool test) {
         return;
     QtAppOperationState::CallScope call(app_.QtOperations());
     auto &panel = app_.GetFocusedPanel();
-    QtShellArchiveServices::TestSink independentTest;
-    QtShellArchiveServices::ExtractSink independentExtract;
-    if (test && canLaunchGuiFilesystemOperation())
-        independentTest = [this](const UStringVector &paths, bool hashMode) {
-            return launchGuiArchiveTest(paths, hashMode);
-        };
-    if (!test && canLaunchGuiFilesystemOperation())
-        independentExtract = [this](const UStringVector &paths, const UString &folder,
+    QtShellArchiveServices::Routes routes;
+    if (canLaunchGuiFilesystemOperation()) {
+        if (test)
+            routes.Test = [this](const UStringVector &paths, bool hashMode) {
+                return launchGuiArchiveTest(paths, hashMode);
+            };
+        else
+            routes.Extract = [this](const UStringVector &paths, const UString &folder,
                                     bool showDialog, bool elimDup, UInt32 zone) {
-            return launchGuiArchiveExtract(paths, folder, showDialog, elimDup, zone);
-        };
-    QtShellArchiveServices services(
-        *backend_, this,
-        {.Test = std::move(independentTest), .Extract = std::move(independentExtract)},
-        toolbarSettingsPath());
+                return launchGuiArchiveExtract(paths, folder, showDialog, elimDup, zone);
+            };
+    }
+    QtShellArchiveServices services(*backend_, this, std::move(routes), toolbarSettingsPath());
     if (!test && !panel.GetParentFolders().IsEmpty()) {
         app_.ExtractArchives(services); // Original archive branch delegates to OnCopy.
         return;
