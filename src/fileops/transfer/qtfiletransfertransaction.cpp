@@ -67,12 +67,12 @@ QtFileTransferTransaction::prepareTargets(QString &error) const {
     const QString canonicalDestination = destinationInfo.canonicalFilePath();
     QList<TransferPath> targets;
     if (!destinationInfo.isDir() || destinationInfo.isSymLink() || worker_.sources_.isEmpty() ||
-        (directPath && worker_.sources_.size() != 1))
+        (directPath && worker_.sources_.size() != 1)) {
         error = QCoreApplication::translate("qtfiletransfertransaction",
                                             "The destination folder is unavailable.");
+        return {};
+    }
     for (const QString &source : worker_.sources_) {
-        if (!error.isEmpty())
-            break;
         const QFileInfo info(source);
         const QString target = directPath ? worker_.destination_
                                           : QDir(destinationDirectory).filePath(info.fileName());
@@ -87,10 +87,12 @@ QtFileTransferTransaction::prepareTargets(QString &error) const {
             std::any_of(targets.cbegin(), targets.cend(),
                         [&target](const TransferPath &path) { return path.target == target; }) ||
             (!sourceLink && info.isDir() &&
-             NFsFolder::IsDestChild(info.canonicalFilePath(), canonicalDestination)))
+             NFsFolder::IsDestChild(info.canonicalFilePath(), canonicalDestination))) {
             error = QCoreApplication::translate(
                 "qtfiletransfertransaction",
                 "Source or destination unavailable, or the name is already in use.");
+            return {};
+        }
         targets.append({source, target});
     }
     return targets;
@@ -229,16 +231,15 @@ bool QtFileTransferTransaction::transferEntry(const TransferPath &path,
     TransferEntry entry{source, target, {}, SourceState::Intact, merge, {}};
     auto rollbackItem = qScopeGuard([&] { rollbackEntry(entry, RollbackMode::RestoreSources); });
     emit worker_.currentFile(source);
-    const bool valid = !worker_.move_ || validateEntry(source, &error);
-    if (valid)
-        entry.ownedPath = stage;
-    if (valid && worker_.move_ && !merge && worker_.adapter_.trySourceRename(source, stage))
+    if (worker_.move_ && !validateEntry(source, &error))
+        return false;
+    entry.ownedPath = stage;
+    if (worker_.move_ && !merge && worker_.adapter_.trySourceRename(source, stage))
         entry.sourceState = SourceState::Renamed;
     const bool staged =
-        valid &&
-        (merge ? (copyEntry(target, stage, &error, false) &&
-                  mergeEntry(source, stage, target, &entry.writtenSources, &error))
-               : (entry.sourceState == SourceState::Renamed || copyEntry(source, stage, &error)));
+        merge ? (copyEntry(target, stage, &error, false) &&
+                 mergeEntry(source, stage, target, &entry.writtenSources, &error))
+              : (entry.sourceState == SourceState::Renamed || copyEntry(source, stage, &error));
     if (!staged || !error.isEmpty()) {
         if (error.isEmpty())
             error =
@@ -286,8 +287,6 @@ FileTransferOperation::Completion QtFileTransferTransaction::run() {
     QList<TransferEntry> completed;
     auto rollbackBatch = qScopeGuard([&] { rollback(completed); });
     for (const auto &path : targets) {
-        if (!error.isEmpty())
-            break;
         if (worker_.canceled_) {
             error = QCoreApplication::translate("qtfiletransfertransaction", "Operation canceled.");
             break;
