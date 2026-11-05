@@ -1,6 +1,6 @@
 // Lucide geometry adapted to QPainterPath from icons/{plus,folder-output,check,
 // copy,move-right,trash,info,arrow-up,folder-plus,rotate-cw,scissors,
-// clipboard-paste,text-cursor-input,panel-left,arrow-left,pencil}.svg at
+// clipboard-paste,text-cursor-input,panel-left,arrow-left,pencil,archive}.svg at
 // https://github.com/lucide-icons/lucide/tree/1ef60af944de207e0d5176905a0759ba12e6ee8d
 // Copyright (c) 2026 Lucide Icons and Contributors; Feather-derived icons:
 // Copyright (c) 2013-present Cole Bemis. ISC/MIT: third_party/lucide/LICENSE.
@@ -19,6 +19,16 @@ QPainterPath geometry(QtCommandIcon command) {
         p.lineTo(toX, toY);
     };
     switch (command) {
+    case QtCommandIcon::Archive:
+        p.addRoundedRect(QRectF(2, 3, 20, 5), 1, 1);
+        p.moveTo(4, 8);
+        p.lineTo(4, 19);
+        p.arcTo(4, 17, 4, 4, 180, 90);
+        p.lineTo(18, 21);
+        p.arcTo(16, 17, 4, 4, 270, 90);
+        p.lineTo(20, 8);
+        line(10, 12, 14, 12);
+        break;
     case QtCommandIcon::Add:
         line(5, 12, 19, 12);
         line(12, 5, 12, 19);

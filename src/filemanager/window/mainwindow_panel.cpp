@@ -104,7 +104,11 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
             activatePanelUi(index);
             navigateTo(path, true);
         },
-        navigationRow);
+        navigationRow,
+        [this, index] {
+            static_cast<QtPanelAddressCombo *>(panelUi_[index].pathCombo)->CancelPendingListFocus();
+            appPresentation_->CancelInitialFocus();
+        });
     projectedUi().navigation->setObjectName(QStringLiteral("panelNavigation%1").arg(index));
     navigation->addWidget(projectedUi().navigation);
     layout->addWidget(navigationRow);

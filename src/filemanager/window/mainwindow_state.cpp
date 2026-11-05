@@ -9,7 +9,8 @@
 
 void MainWindow::setState(State state) {
     const unsigned scanningPanels = scanningPanelMask();
-    const auto kind = state == State::Loading     ? QtAppOperationState::Kind::Open
+    const auto kind = archiveLocationPending_ || state == State::Loading
+                          ? QtAppOperationState::Kind::Open
                       : state == State::Operating ? QtAppOperationState::Kind::Operation
                       : scanningPanels            ? QtAppOperationState::Kind::Scan
                                                   : QtAppOperationState::Kind::Idle;

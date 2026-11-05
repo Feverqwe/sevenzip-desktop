@@ -138,9 +138,12 @@ void CPanel::LoadFullPathAndShow(IQtPanelAddressCombo &header, const UString &di
 // Original AddComboBoxItem/OnComboBoxCommand; Qt supplies control, icon,
 // drive/mount and application delivery services. Source path construction and
 // archive-link boundaries remain in this module.
-void CPanel::OnNotifyComboBoxEnter(const UString &s, IQtPanelAddressCombo &header) {
-    if (header.BindToPathAndRefresh(s, false) == S_OK)
+bool CPanel::OnNotifyComboBoxEnter(const UString &s, IQtPanelAddressCombo &header) {
+    if (header.BindToPathAndRefresh(s, false) == S_OK) {
         header.SetFocusToList();
+        return true;
+    }
+    return false;
 }
 
 bool CPanel::OnNotifyComboBoxEndEdit(QtAddressEditReason reason, IQtPanelAddressCombo &header) {
@@ -150,8 +153,7 @@ bool CPanel::OnNotifyComboBoxEndEdit(QtAddressEditReason reason, IQtPanelAddress
         return true;
     }
     if (reason == QtAddressEditReason::Return) {
-        OnNotifyComboBoxEnter(header.GetText(), header);
-        return true;
+        return OnNotifyComboBoxEnter(header.GetText(), header);
     }
     return false;
 }
@@ -166,125 +168,137 @@ void CPanel::AddComboBoxItem(IQtPanelAddressCombo &header, const UString &name, 
     }
 }
 
+std::vector<QtAddressSegment> CPanel::AddressAncestors(IQtPanelAddressCombo &header,
+                                                       bool includeCurrentNamespace) {
+    std::vector<QtAddressSegment> segments;
+    UString sumPath;
+    UStringVector pathParts;
+    {
+        UString path = _currentFolderPrefix;
+        // path = "\\\\.\\y:\\"; // for debug
+        UString prefix0;
+        if (path.IsPrefixedBy_Ascii_NoCase("\\\\")) {
+            const int separ = FindCharPosInString(path.Ptr(2), '\\');
+            if (separ > 0 && (separ > 1 || path[2] != '.')) // "\\\\.\\" will be processed later
+            {
+                const UString s = path.Left(2 + separ);
+                prefix0 = s;
+                prefix0.Add_PathSepar();
+                segments.push_back({s, prefix0,
+                                    header.GetIconIndex(prefix0, FILE_ATTRIBUTE_DIRECTORY),
+                                    QtAddressSegmentKind::Root});
+            }
+        }
+
+        unsigned rootPrefixSize = NWindows::NFile::NName::GetRootPrefixSize(path);
+
+        sumPath = path;
+
+        if (rootPrefixSize <= prefix0.Len()) {
+            rootPrefixSize = prefix0.Len();
+            sumPath.DeleteFrom(rootPrefixSize);
+        } else {
+            // rootPrefixSize > prefix0.Len()
+            sumPath.DeleteFrom(rootPrefixSize);
+
+            NWindows::NFile::NFind::CFileInfo info;
+            DWORD attrib = FILE_ATTRIBUTE_DIRECTORY;
+            if (info.Find(us2fs(sumPath)) && info.IsDir())
+                attrib = info.GetWinAttrib();
+            UString s = sumPath.Ptr(prefix0.Len());
+            if (!s.IsEmpty()) {
+                const wchar_t c = s.Back();
+                if (IS_PATH_SEPAR(c))
+                    s.DeleteBack();
+            }
+            UString path_for_icon = sumPath;
+#ifdef _WIN32
+            NWindows::NFile::NName::If_IsSuperPath_RemoveSuperPrefix(path_for_icon);
+#endif
+
+            segments.push_back({s, sumPath, header.GetIconIndex(path_for_icon, attrib),
+                                QtAddressSegmentKind::Root});
+        }
+
+        path.DeleteFrontal(rootPrefixSize);
+        SplitPathToParts(path, pathParts);
+    }
+
+    // it's expected that pathParts.Back() is empty, because _currentFolderPrefix has
+    // PathSeparator.
+    unsigned next_Arc_index = 0;
+    int iconIndex_Computer;
+    const UString name_Computer = RootFolder_GetName_Computer(iconIndex_Computer);
+
+    // const bool is_devicePrefix = (sumPath.IsEqualTo("\\\\.\\"));
+
+    if (pathParts.Size() > 1)
+        if (includeCurrentNamespace || !sumPath.IsEmpty() || pathParts.Size() != 2 ||
+            pathParts[0] != name_Computer)
+            for (unsigned i = 0; i + 1 < pathParts.Size(); i++) {
+                UString name = pathParts[i];
+                const bool virtualRoot = segments.empty() && sumPath.IsEmpty();
+                sumPath += name;
+
+                bool isRootDir_inLink = false;
+                if (next_Arc_index < _parentFolders.Size()) {
+                    const CFolderLink &link = _parentFolders[next_Arc_index];
+                    if (link.VirtualPath == sumPath) {
+                        isRootDir_inLink = true;
+                        next_Arc_index++;
+                    }
+                }
+
+                int iconIndex = -1;
+                DWORD attrib = isRootDir_inLink ? FILE_ATTRIBUTE_ARCHIVE : FILE_ATTRIBUTE_DIRECTORY;
+                if (next_Arc_index == 0 || (next_Arc_index == 1 && isRootDir_inLink)) {
+#ifdef _WIN32
+                    if (i == 0 && NWindows::NFile::NName::IsDevicePath(us2fs(sumPath))) {
+                        UString path = name;
+                        path.Add_PathSepar();
+                        attrib = FILE_ATTRIBUTE_ARCHIVE;
+                        // FILE_ATTRIBUTE_DIRECTORY;
+                    } else
+#endif
+                    {
+                        NWindows::NFile::NFind::CFileInfo info;
+                        if (info.Find(us2fs(sumPath)))
+                            attrib = info.GetWinAttrib();
+                    }
+                    iconIndex = header.GetIconIndex(sumPath, attrib);
+                }
+
+                if (iconIndex < 0)
+                    iconIndex = header.GetIconIndex(name, attrib);
+                // iconIndex = -1; // for debug
+                if (iconIndex < 0 && isRootDir_inLink)
+                    iconIndex = 0; // default file
+
+                sumPath.Add_PathSepar();
+
+                if (name.IsEmpty())
+                    name.Add_PathSepar();
+                segments.push_back({name, sumPath, iconIndex,
+                                    isRootDir_inLink ? QtAddressSegmentKind::Archive
+                                    : virtualRoot    ? QtAddressSegmentKind::Virtual
+                                                     : QtAddressSegmentKind::Folder});
+            }
+    return segments;
+}
+
 bool CPanel::OnComboBoxCommand(QtAddressCommand code, IQtPanelAddressCombo &header) {
     switch (code) {
     case QtAddressCommand::DropDown: {
         ComboBoxPaths.Clear();
         header.ResetContent();
 
-        UString sumPath;
-        UStringVector pathParts;
         unsigned indent = 0;
-        {
-            UString path = _currentFolderPrefix;
-            // path = "\\\\.\\y:\\"; // for debug
-            UString prefix0;
-            if (path.IsPrefixedBy_Ascii_NoCase("\\\\")) {
-                const int separ = FindCharPosInString(path.Ptr(2), '\\');
-                if (separ > 0 && (separ > 1 || path[2] != '.')) // "\\\\.\\" will be processed later
-                {
-                    const UString s = path.Left(2 + separ);
-                    prefix0 = s;
-                    prefix0.Add_PathSepar();
-                    AddComboBoxItem(
-                        header, s, header.GetIconIndex(prefix0, FILE_ATTRIBUTE_DIRECTORY), indent++,
-                        false); // addToList
-                    ComboBoxPaths.Add(prefix0);
-                }
-            }
-
-            unsigned rootPrefixSize = NWindows::NFile::NName::GetRootPrefixSize(path);
-
-            sumPath = path;
-
-            if (rootPrefixSize <= prefix0.Len()) {
-                rootPrefixSize = prefix0.Len();
-                sumPath.DeleteFrom(rootPrefixSize);
-            } else {
-                // rootPrefixSize > prefix0.Len()
-                sumPath.DeleteFrom(rootPrefixSize);
-
-                NWindows::NFile::NFind::CFileInfo info;
-                DWORD attrib = FILE_ATTRIBUTE_DIRECTORY;
-                if (info.Find(us2fs(sumPath)) && info.IsDir())
-                    attrib = info.GetWinAttrib();
-                UString s = sumPath.Ptr(prefix0.Len());
-                if (!s.IsEmpty()) {
-                    const wchar_t c = s.Back();
-                    if (IS_PATH_SEPAR(c))
-                        s.DeleteBack();
-                }
-                UString path_for_icon = sumPath;
-#ifdef _WIN32
-                NWindows::NFile::NName::If_IsSuperPath_RemoveSuperPrefix(path_for_icon);
-#endif
-
-                AddComboBoxItem(header, s, header.GetIconIndex(path_for_icon, attrib), indent++,
-                                false); // addToList
-                ComboBoxPaths.Add(sumPath);
-            }
-
-            path.DeleteFrontal(rootPrefixSize);
-            SplitPathToParts(path, pathParts);
+        for (const auto &segment : AddressAncestors(header, false)) {
+            AddComboBoxItem(header, segment.label, segment.iconIndex, indent++, false);
+            ComboBoxPaths.Add(segment.target);
         }
-
-        // it's expected that pathParts.Back() is empty, because _currentFolderPrefix has
-        // PathSeparator.
-        unsigned next_Arc_index = 0;
         int iconIndex_Computer;
         const UString name_Computer = RootFolder_GetName_Computer(iconIndex_Computer);
-
-        // const bool is_devicePrefix = (sumPath.IsEqualTo("\\\\.\\"));
-
-        if (pathParts.Size() > 1)
-            if (!sumPath.IsEmpty() || pathParts.Size() != 2 || pathParts[0] != name_Computer)
-                for (unsigned i = 0; i + 1 < pathParts.Size(); i++) {
-                    UString name = pathParts[i];
-                    sumPath += name;
-
-                    bool isRootDir_inLink = false;
-                    if (next_Arc_index < _parentFolders.Size()) {
-                        const CFolderLink &link = _parentFolders[next_Arc_index];
-                        if (link.VirtualPath == sumPath) {
-                            isRootDir_inLink = true;
-                            next_Arc_index++;
-                        }
-                    }
-
-                    int iconIndex = -1;
-                    DWORD attrib =
-                        isRootDir_inLink ? FILE_ATTRIBUTE_ARCHIVE : FILE_ATTRIBUTE_DIRECTORY;
-                    if (next_Arc_index == 0 || (next_Arc_index == 1 && isRootDir_inLink)) {
-#ifdef _WIN32
-                        if (i == 0 && NWindows::NFile::NName::IsDevicePath(us2fs(sumPath))) {
-                            UString path = name;
-                            path.Add_PathSepar();
-                            attrib = FILE_ATTRIBUTE_ARCHIVE;
-                            // FILE_ATTRIBUTE_DIRECTORY;
-                        } else
-#endif
-                        {
-                            NWindows::NFile::NFind::CFileInfo info;
-                            if (info.Find(us2fs(sumPath)))
-                                attrib = info.GetWinAttrib();
-                        }
-                        iconIndex = header.GetIconIndex(sumPath, attrib);
-                    }
-
-                    if (iconIndex < 0)
-                        iconIndex = header.GetIconIndex(name, attrib);
-                    // iconIndex = -1; // for debug
-                    if (iconIndex < 0 && isRootDir_inLink)
-                        iconIndex = 0; // default file
-
-                    sumPath.Add_PathSepar();
-
-                    ComboBoxPaths.Add(sumPath);
-                    if (name.IsEmpty())
-                        name.Add_PathSepar();
-                    AddComboBoxItem(header, name, iconIndex, indent++,
-                                    false); // addToList
-                }
 
 #ifndef UNDER_CE
 

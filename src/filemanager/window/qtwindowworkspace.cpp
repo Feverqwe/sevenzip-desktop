@@ -1,4 +1,5 @@
 #include "filemanager/window/qtwindowworkspace.h"
+#include "filemanager/panels/qtpaneladdresscombo.h"
 #include "filemanager/qtfilemanagerdrag.h"
 #include "filemanager/rename/qtrenamecontroller.h"
 #include "filemanager/window/mainwindow.h"
@@ -199,8 +200,13 @@ void QtWindowWorkspace::Refresh() {
         auto &tab = state.tabs[state.current];
         state.bar->setTabText(state.current, TabTitle(tab));
         state.bar->setTabToolTip(state.current, tab.path);
-        window_.panelUi_[panel].navigation->SetLocation(window_.panelUi_[panel].path->text(),
-                                                        window_.panelUi_[panel].displayArchive);
+        auto &ui = window_.panelUi_[panel];
+        if (tab.unavailable)
+            ui.navigation->SetLocation(tab.path);
+        else if (window_.app_.Panels[panel].ShouldProcessNotifications()) {
+            auto *address = static_cast<QtPanelAddressCombo *>(ui.pathCombo);
+            ui.navigation->SetLocation(tab.path, address->LocationSegments());
+        }
         state.bar->parentWidget()->setEnabled(Ready());
     }
     RefreshChrome();

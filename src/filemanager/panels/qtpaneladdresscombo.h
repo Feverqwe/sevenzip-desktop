@@ -2,9 +2,11 @@
 
 #include "Common/MyString.h"
 #include "Common/MyWindows.h"
+#include "filemanager/panels/qtaddresssegment.h"
 #include <QComboBox>
 #include <QPointer>
 #include <functional>
+#include <vector>
 
 class CPanel;
 enum class QtAddressCommand { DropDown, SelectionAccepted };
@@ -49,11 +51,13 @@ class QtPanelAddressCombo final : public QComboBox, public IQtPanelAddressCombo 
     void SetCurrentIcon(int index) override;
     void ShowCurrentPath(const QString &displayPath);
     void ReloadCurrentPath();
+    const std::vector<QtAddressSegment> &LocationSegments();
     void GetLogicalDriveStrings(FStringVector &paths) override;
     UString GetText() const override;
     void SetText(const UString &text) override;
     HRESULT BindToPathAndRefresh(const UString &path, bool sourcePath) override;
     void SetFocusToList() override;
+    void CancelPendingListFocus() { listFocusPending_ = false; }
 
   private:
     void CompleteListFocus();
@@ -63,6 +67,9 @@ class QtPanelAddressCombo final : public QComboBox, public IQtPanelAddressCombo 
     std::function<void()> focusList_;
     QAction *currentIcon_ = nullptr;
     bool listFocusPending_ = false;
+    UString segmentsPath_;
+    UInt64 segmentsRevision_ = UInt64(-1);
+    std::vector<QtAddressSegment> segments_;
     // Disconnect queued/signal callbacks before state and base widgets disappear.
     QObject callbacks_;
 };

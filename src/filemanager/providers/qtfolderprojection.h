@@ -13,11 +13,16 @@ class QtFolderProjection final : public QObject {
     void start(IFolderFolder *folder, quint32 count, std::function<HRESULT(quint32)> append,
                std::function<void(HRESULT)> completed);
     void cancel();
+    // Joined callers retain their operation guard while the normal bounded
+    // GUI batches finish. No provider/stream ownership escapes the scheduler.
+    HRESULT waitForFinished();
     bool active() const { return bool(request_); }
 
   private:
     void batch();
     struct Request;
+    struct Completion;
     std::shared_ptr<Request> request_;
+    std::shared_ptr<Completion> completion_;
     QTimer timer_{this};
 };

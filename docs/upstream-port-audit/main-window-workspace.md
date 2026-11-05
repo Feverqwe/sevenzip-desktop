@@ -46,12 +46,74 @@ native/backend владельцев. Новый код не возобновля
 Полное удаление help subsystem и переработка самостоятельных Add/Extract/Copy
 диалогов сюда не входят. Неизменённые source language и лицензии 7-Zip сохранены.
 
+## LocationBar: общий native-путь — 2026-11-05
+
+Повторно сверены полные PanelFolderChange.cpp/Panel.h и их address callers из
+локального source archive указанного baseline, включая return-result, root/UNC,
+device, namespace, `_parentFolders` и выбор из списка. Иерархия из существующего
+OnComboBoxCommand выделена в AddressAncestors в том же владельце. Dropdown
+сохраняет исходный состав, отступы и namespace entries; крошки получают готовые
+цели и типы от этой же логики, включая текущий namespace и вложенные контейнеры.
+Нет нового парсера filesystem/archive paths, внешнего импорта или новых hashes.
+
+Qt возвращает исходный success-result Enter вместо безусловного закрытия поля.
+При отказе восстанавливает отправленный текст и курсор; редактирование остаётся
+доступным после native modal. Успех передаёт фокус прежним queued-маршрутом;
+новый вход в редактор отменяет старое намерение фокуса. Workspace публикует
+успешно привязанный путь отдельно от черновика. Native deepest-existing-parent
+fallback остаётся успехом. Кэш сегментов учитывает смену binding и не удерживает
+дополнительные native folder interfaces за lifetime их библиотек.
+
+Для физического открытия другого архива повторно сверены BindToPath,
+OpenAsArc, CloseOneLevel, CloseOpenFolders и OpenParentArchiveFolder вместе с
+CFolderLink/CTempFileInfo и native/Qt loading callers. Новый project-owned
+QtPanelLocationTransaction удерживает прежние интерфейсы, parent links, DLL и
+load caches до успешной публикации кандидата. Отказ возвращает те же объекты,
+пароль и OwnedTempLease; не переоткрывает прежний архив. Commit выполняет обычное
+native-закрытие на исходном CPanel, включая modified-nested handling, временно
+отсоединяя только Qt-адаптер уже опубликованного списка. Перемещение внутри
+текущего контейнера не оборачивается новой транзакцией. QtFolderProjection
+сообщает terminal result ожидающему physical-open владельцу; отмена освобождает
+candidate provider до закрытия DLL. Это локальная интеграция, без переноса новых
+внешних алгоритмов. Список предков и native archive lifecycle остаются единственными
+реализациями своих операций.
+
+У editable QComboBox отключено implicit editingFinished label matching:
+выбор caption при потере фокуса не должен повторно активировать иерархию после
+явного popup/Return-перехода. Остальные подписчики editingFinished подключаются
+после этой настройки. Проверяется наблюдаемая навигация, не private Qt symbols.
+
+Регрессии проверяют отказ/отмену и фоновое обновление черновика, успешный переход
+и новый ввод во время Scan, реальный переход по крошке к каталогу с `.zip` в имени
+и обе границы настоящего вложенного архива. Старые fixtures используют явный
+вход в режим адреса вместо setFocus в скрытый редактор. Focused Linux-проверки
+адреса, workspace navigation/archive, сохранённых мест, главной оболочки, паролей
+и terminal projection result прошли. Новые сценарии проверяют одинаковый живой
+reader после отказа/отмены, повторное извлечение без нового пароля, stream и
+materialized nested contexts, ошибки metadata до/во время отложенной публикации
+и запись изменённого вложенного файла в родителя при принятии другого архива.
+macOS offscreen-проверки адреса, workspace navigation и rollback также прошли.
+Native Cocoa-проход проверил normal/compact filesystem breadcrumbs и encrypted
+nested → physical archive success/refusal в light/dark. Rendered-снимки сверены
+с живым каталогом: общая рамка, усечение с доступными предками, Archive glyph,
+сохранённый черновик при отказе и возврат к крошкам/списку после успеха.
+Последний обнаруженный разрыв — editor оставался видимым после modal progress —
+исправлен завершением его представления у владельца доставленного list-focus
+request; новый Edit отменяет прежний запрос. Native Cocoa подтвердил actual focus,
+Linux offscreen — remembered focus после деактивации модального окна, без
+принудительной активации приложения. Windows runtime этим проходом не проверялся.
+Эти свидетельства относятся к LocationBar, не устанавливают полную визуальную
+приёмку всех компонентов главного окна.
+
 ## Lucide
 
 [Отдельный baseline](../lucide-baseline.json) фиксирует полные исходные SVG и
 LICENSE из <https://github.com/lucide-icons/lucide.git> на
 `1ef60af944de207e0d5176905a0759ba12e6ee8d`. Он включает прежние и новые command
 symbols, чтобы обновление всего используемого набора было воспроизводимо.
+Для границы контейнера в LocationBar добавлена геометрия `icons/archive.svg`
+того же baseline; она обозначает native Archive segment и не определяет тип
+источника по расширению. Файловые и namespace icons остаются у native owner.
 Перенесена только геометрия выбранных SVG в `geometry(QtCommandIcon)` существующего
 palette-aware QPainterPath renderer. XML, JavaScript packages и generated bindings
 не используются. SVG arc geometry адаптирована к QPainterPath; точное совпадение

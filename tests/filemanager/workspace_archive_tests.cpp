@@ -6,6 +6,7 @@
 #include <QEventLoop>
 #include <QScopeGuard>
 #include <QTabBar>
+#include <QToolButton>
 
 using namespace ExternalEditorFixture;
 
@@ -26,6 +27,50 @@ class WorkspaceArchiveTests final : public QObject, protected MainWindowTestSupp
     }
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
+    void breadcrumbsNavigateBothNestedArchiveBoundaries() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString entry = QStringLiteral("данные 空.txt");
+        QVERIFY(write(fixture.filePath(entry), "nested control"));
+        const QString innerName = QStringLiteral("inner archive.zip");
+        const QString inner = fixture.filePath(innerName);
+        QVERIFY(createArchive(fixture.path(), inner, entry));
+        const QString outer = fixture.filePath("outer archive.zip");
+        QVERIFY(createArchive(fixture.path(), outer, innerName));
+        ArchiveBackend backend;
+        MainWindow window(&backend);
+        window.resize(980, 620);
+        window.show();
+        window.openArchive(outer);
+        QTRY_COMPARE(table(window)->rowCount(), 1);
+        openRow(window, rowWithPath(window, innerName));
+        QTRY_VERIFY(rowWithPath(window, entry) >= 0);
+        auto *bar = window.findChild<QWidget *>("panelNavigation0");
+        QVERIFY(bar);
+        const auto normalized = [](const QString &path) {
+            return QDir::cleanPath(QDir::fromNativeSeparators(path));
+        };
+        QToolButton *outerButton = nullptr;
+        QToolButton *innerButton = nullptr;
+        for (auto *button : bar->findChildren<QToolButton *>()) {
+            if (!button->isVisible())
+                continue;
+            const QString target = normalized(button->toolTip());
+            if (target == normalized(outer))
+                outerButton = button;
+            if (target == normalized(outer + '/' + innerName))
+                innerButton = button;
+        }
+        QVERIFY(outerButton);
+        QVERIFY(innerButton);
+        QVERIFY(!outerButton->icon().isNull());
+        QVERIFY(!innerButton->icon().isNull());
+        QTest::mouseClick(outerButton, Qt::LeftButton);
+        QTRY_VERIFY(rowWithPath(window, innerName) >= 0);
+        QCOMPARE(rowWithPath(window, entry), -1);
+        QVERIFY(table(window)->sourcePanel->IsArcFolder());
+        QCOMPARE(contents(outer, innerName), read(inner));
+    }
     void movedArchiveCanExportAfterOriginalWindowAndBackendAreDestroyed() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());

@@ -45,6 +45,9 @@ QtPanelAddressCombo::QtPanelAddressCombo(CPanel &panel,
     setAttribute(Qt::WA_LayoutUsesWidgetRect);
 #endif
     setEditable(true);
+    // Source address edits are submitted only by Return or a popup choice.
+    // Qt's implicit label matching on blur can activate a second hierarchy row.
+    disconnect(lineEdit(), SIGNAL(editingFinished()), nullptr, nullptr);
     currentIcon_ = lineEdit()->addAction(QIcon(), QLineEdit::LeadingPosition);
     currentIcon_->setObjectName("currentAddressIcon");
     lineEdit()->installEventFilter(this);
@@ -160,6 +163,18 @@ void QtPanelAddressCombo::ReloadCurrentPath() {
     if (previousText != previousPrefix)
         lineEdit()->setText(previousText);
 }
+const std::vector<QtAddressSegment> &QtPanelAddressCombo::LocationSegments() {
+    if (panel_) {
+        panel_->LoadFullPath();
+        const UString &path = panel_->GetCurrentFolderPrefix();
+        if (segmentsPath_ != path || segmentsRevision_ != panel_->FolderBindingRevision()) {
+            segmentsPath_ = path;
+            segmentsRevision_ = panel_->FolderBindingRevision();
+            segments_ = panel_->AddressAncestors(*this);
+        }
+    }
+    return segments_;
+}
 void QtPanelAddressCombo::GetLogicalDriveStrings(FStringVector &paths) {
 #ifdef _WIN32
     NWindows::NFile::NFind::MyGetLogicalDriveStrings(paths);
@@ -175,7 +190,17 @@ void QtPanelAddressCombo::GetLogicalDriveStrings(FStringVector &paths) {
 UString QtPanelAddressCombo::GetText() const { return ToUString(currentText()); }
 void QtPanelAddressCombo::SetText(const UString &text) { lineEdit()->setText(ToQString(text)); }
 HRESULT QtPanelAddressCombo::BindToPathAndRefresh(const UString &path, bool sourcePath) {
-    return panel_ ? navigate_(ToQString(CPanel::PrepareBindPath(path)), sourcePath) : E_ABORT;
+    const QString draft = currentText();
+    const int cursor = lineEdit()->cursorPosition();
+    const HRESULT result =
+        panel_ ? navigate_(ToQString(CPanel::PrepareBindPath(path)), sourcePath) : E_ABORT;
+    if (result != S_OK) {
+        lineEdit()->setText(draft);
+        lineEdit()->setCursorPosition(cursor);
+        if (window()->isActiveWindow())
+            lineEdit()->setFocus();
+    }
+    return result;
 }
 void QtPanelAddressCombo::SetFocusToList() {
     if (!panel_)

@@ -158,11 +158,12 @@ bool MainWindow::handlePanelKey(PanelInputTarget target, QKeyEvent *key) {
         if (key->key() == Qt::Key_Return || key->key() == Qt::Key_Enter ||
             key->key() == Qt::Key_Escape) {
             if (auto *header = dynamic_cast<IQtPanelAddressCombo *>(projectedUi().pathCombo)) {
-                app_.GetFocusedPanel().OnNotifyComboBoxEndEdit(key->key() == Qt::Key_Escape
-                                                                   ? QtAddressEditReason::Escape
-                                                                   : QtAddressEditReason::Return,
-                                                               *header);
-                projectedUi().navigation->FinishEditing();
+                const bool completed = app_.GetFocusedPanel().OnNotifyComboBoxEndEdit(
+                    key->key() == Qt::Key_Escape ? QtAddressEditReason::Escape
+                                                 : QtAddressEditReason::Return,
+                    *header);
+                if (!completed)
+                    projectedUi().navigation->ResumeEditing();
                 return true;
             }
         }

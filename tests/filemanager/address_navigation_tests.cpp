@@ -5,6 +5,7 @@
 #include "localization/LangUtils.h"
 #include "platform/support/external_editor_fixture.h"
 #include "platform/support/native_link_fixture.h"
+#include "support/panel_keys.h"
 
 class AddressNavigationTests final : public QObject, protected MainWindowTestSupport {
     Q_OBJECT
@@ -115,7 +116,7 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
         auto *address = window.findChild<QLineEdit *>("archivePath");
         auto *view = table(window);
         QTRY_VERIFY(view->isEnabled());
-        address->setFocus();
+        PanelKeys::focusAddress(address);
         QTRY_VERIFY(address->hasFocus());
         backend.queueListAction([&] { backend.fail("Archive opening refused", HRESULT(result)); });
         QTimer dismiss;
@@ -133,6 +134,11 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
         QCOMPARE(backend.listCalls, 1);
         QTRY_VERIFY(address->hasFocus());
         QVERIFY(view->isEnabled());
+        QVERIFY(address->isVisible());
+        QCOMPARE(address->text(), path);
+        view->sourcePanel->OnReload(true);
+        QTRY_VERIFY(view->isEnabled());
+        QCOMPARE(address->text(), path);
         QVERIFY(action(window, "twoPanelsAction")->isEnabled());
         QFile source(path);
         QVERIFY(source.open(QIODevice::ReadOnly));
@@ -174,7 +180,7 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
         QVERIFY(QTest::qWaitForWindowActive(&window));
         auto *address = window.findChild<QLineEdit *>("archivePath");
         auto *view = table(window);
-        address->setFocus();
+        PanelKeys::focusAddress(address);
         QTRY_VERIFY(address->hasFocus());
         address->setText(target);
         QTest::keyClick(address, Qt::Key_Return);
@@ -230,7 +236,7 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
         auto *ui = window.findChild<QWidget *>(QString("filePanel%1").arg(sourceIndex));
         auto *address = ui->findChild<QLineEdit *>("archivePath");
         auto *view = static_cast<FileTable *>(ui->findChild<FileTable *>("archiveTable"));
-        address->setFocus();
+        PanelKeys::focusAddress(address);
         if (archive) {
             address->setText(zip);
             QTest::keyClick(address, Qt::Key_Return);
@@ -250,7 +256,7 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
         const UString prefix = view->sourcePanel->GetCurrentFolderPrefix();
         CMyComPtr<IFolderFolder> folder = view->sourcePanel->GetFolder();
         const QString draft = QStringLiteral("draft 文件/not opened");
-        address->setFocus();
+        PanelKeys::focusAddress(address);
         QVERIFY(address->hasFocus());
         address->setText(draft);
         address->setSelection(2, 5);
@@ -308,7 +314,7 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
         action(window, "twoPanelsAction")->trigger();
         auto *peerUi = window.findChild<QWidget *>(QString("filePanel%1").arg(1 - sourceIndex));
         auto *peerAddress = peerUi->findChild<QLineEdit *>("archivePath");
-        peerAddress->setFocus();
+        PanelKeys::focusAddress(peerAddress);
         peerAddress->setText(peer);
         QTest::keyClick(peerAddress, Qt::Key_Return);
         auto *peerView = static_cast<FileTable *>(peerUi->findChild<FileTable *>("archiveTable"));
@@ -319,7 +325,7 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
         auto *ui = window.findChild<QWidget *>(QString("filePanel%1").arg(sourceIndex));
         auto *address = ui->findChild<QLineEdit *>("archivePath");
         auto *view = static_cast<FileTable *>(ui->findChild<FileTable *>("archiveTable"));
-        address->setFocus();
+        PanelKeys::focusAddress(address);
         address->setText(folder);
         QTest::keyClick(address, Qt::Key_Return);
         QTRY_COMPARE(view->rowCount(), count);
@@ -333,7 +339,7 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
         panel.Set_AutoRefresh_Mode(false);
         CMyComPtr<IFolderFolder> sourceFolder = panel.GetFolder();
         const QString draft = QStringLiteral("../draft 文件/not opened");
-        address->setFocus();
+        PanelKeys::focusAddress(address);
         address->setText(draft);
         address->setSelection(3, 7);
         const int cursor = address->cursorPosition();
@@ -428,7 +434,7 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
         action(window, "twoPanelsAction")->trigger();
         auto *peerUi = window.findChild<QWidget *>(QString("filePanel%1").arg(1 - sourceIndex));
         auto *peerAddress = peerUi->findChild<QLineEdit *>("archivePath");
-        peerAddress->setFocus();
+        PanelKeys::focusAddress(peerAddress);
         peerAddress->setText(peer);
         QTest::keyClick(peerAddress, Qt::Key_Return);
         auto *peerView = static_cast<FileTable *>(peerUi->findChild<FileTable *>("archiveTable"));
@@ -438,7 +444,7 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
         auto *ui = window.findChild<QWidget *>(QString("filePanel%1").arg(sourceIndex));
         auto *address = ui->findChild<QLineEdit *>("archivePath");
         auto *view = static_cast<FileTable *>(ui->findChild<FileTable *>("archiveTable"));
-        address->setFocus();
+        PanelKeys::focusAddress(address);
         address->setText(child);
         QTest::keyClick(address, Qt::Key_Return);
         QTRY_COMPARE(view->rowCount(), 1);
@@ -448,7 +454,7 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
             input += '/';
         if (quoted)
             input = '"' + input + '"';
-        address->setFocus();
+        PanelKeys::focusAddress(address);
         address->setText(input);
         QTest::keyClick(address, Qt::Key_Return);
         QTRY_COMPARE(view->rowCount(), 2);

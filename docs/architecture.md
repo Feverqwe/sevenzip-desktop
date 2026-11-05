@@ -242,6 +242,13 @@ rename operations, errors and restored selection.
 Main-window chrome presents tabs, breadcrumb navigation and a per-pane file action
 bar above the list/sidebar. Its proxies query the existing command projection for
 the owning pane. The editable address retains the original panel navigation owner.
+Breadcrumbs consume typed ancestors from that same owner; editor drafts do not
+define the bound location or navigation targets.
+Physical archive navigation retains the live panel source until the candidate's
+native loading and row publication succeed. A refusal restores that source and
+its selection; accepting a candidate closes the old source through the existing
+native archive lifecycle. Navigation inside the current container keeps its
+native binding route.
 `QtFileClipboard` supplies native file URL formats to the existing file-transfer
 operation; exporting a container selection uses CPanel's native CopyTo and checks
 its extraction result before publishing URLs. It does not implement archive I/O.

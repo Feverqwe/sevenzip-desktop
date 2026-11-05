@@ -8,6 +8,7 @@
 #include "archive/resources/qtarchivefileresource.h"
 #include "dialogs/messages/MessagesDialog.h"
 #include "filemanager/FormatUtils.h"
+#include "filemanager/panels/qtpanellocationtransaction.h"
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtapppresentation.h"
 #include "filemanager/window/qtwindowworkspace.h"
@@ -15,6 +16,7 @@
 #include "ui/progress/ProgressDialog2.h"
 #include <QScopeGuard>
 #include <QScopedValueRollback>
+#include <QScrollBar>
 
 bool MainWindow::canHandleExternalUpdate() const {
     return !app_.QtOperations().active() && !app_.QtOperations().closed() &&
@@ -71,37 +73,37 @@ HRESULT MainWindow::openArchiveAs(const QString &path, const QString &type) {
     if (projectedUi().state == State::Filesystem)
         projectedUi().returnDirectory = projectedUi().directory;
     auto &panel = app_.GetFocusedPanel();
-    const UString fallback = projectedUi().state == State::Namespace
-                                 ? GetFolderPath(panel.GetFolder())
-                                 : ToUString(projectedUi().returnDirectory);
+    CSelectedState previousSelection;
+    panel.SaveSelectedState(previousSelection);
+    const QPointer<QAbstractItemView> previousView =
+        qobject_cast<QAbstractItemView *>(projectedUi().viewStack->currentWidget());
+    const QPoint previousScroll = previousView
+                                      ? QPoint(previousView->horizontalScrollBar()->value(),
+                                               previousView->verticalScrollBar()->value())
+                                      : QPoint();
     QString message;
     HRESULT result;
+    const PROPID previousSort = panel.GetSortID();
+    const bool previousAscending = panel._ascending;
+    const UInt32 previousMode = panel.GetListViewMode();
+    QString committedVisit;
     {
-        const auto completion = connect(backend_, &ArchiveBackend::finished, this,
-                                        [&message](bool, const QString &text) { message = text; });
-        const auto disconnectCompletion = qScopeGuard([&] { disconnect(completion); });
-        setState(State::Loading);
-        QScopedValueRollback<bool> source(sourceArchiveProgress_, true);
-        COpenResult opened;
-        result = panel.BindToPath(ToUString(file.absoluteFilePath()), ToUString(type), opened);
-        if (!opened.ArchiveIsOpened && !opened.ErrorMessage.IsEmpty())
-            message = ToQString(opened.ErrorMessage);
-        // BindToPath can successfully bind the containing filesystem folder
-        // after its archive probe returns S_FALSE. An archive-only request
-        // must retain that refusal rather than report "Archive opened".
-        if (result == S_OK && !opened.ArchiveIsOpened) {
-            result = S_FALSE;
-            if (message.isEmpty())
-                message = ToQString(MyFormatNew(opened.Encrypted ? IDS_CANT_OPEN_ENCRYPTED_ARCHIVE
-                                                                 : IDS_CANT_OPEN_ARCHIVE,
-                                                ToUString(file.absoluteFilePath())));
+        const QScopedValueRollback<std::optional<VisitedPathDraft>> publication(
+            visitedPathDraft_, VisitedPathDraft{projectedPanel_, {}});
+        result = tryOpenPhysicalArchive(file, type, message);
+        if (result == S_OK) {
+            committedVisit = visitedPathDraft_->path;
+            setState(State::Viewing);
+        } else {
+            panel._sortID = previousSort;
+            panel._ascending = previousAscending;
+            panel.SetListViewMode(previousMode);
+            renderBoundFolder();
+            restoreListSelection(previousSelection);
         }
     }
-    if (!panel.IsArcFolder()) {
-        COpenResult restored;
-        panel.BindToPath(fallback, UString(), restored);
-    }
-    renderBoundFolder();
+    if (!committedVisit.isNull())
+        recordVisitedPath(committedVisit);
     if (result == E_ABORT)
         message = QCoreApplication::translate("mainwindow_archiveopening", "Operation canceled.");
     else if (message.isEmpty())
@@ -111,7 +113,56 @@ HRESULT MainWindow::openArchiveAs(const QString &path, const QString &type) {
     statusBar()->showMessage(message);
     if (result != S_OK && result != E_ABORT)
         QMessageBox::warning(this, QStringLiteral("Sevenzip"), message);
+    // Acknowledging the error is part of this transition. Only later input
+    // should supersede the restored source's scroll position.
+    if (result != S_OK && previousView)
+        workspace_->RestoreViewPosition(panel, *previousView, previousScroll);
     return panel.IsArcFolder() ? result : result == S_OK ? S_FALSE : result;
+}
+
+HRESULT MainWindow::tryOpenPhysicalArchive(const QFileInfo &file, const QString &type,
+                                           QString &message) {
+    const QScopedValueRollback<bool> pending(archiveLocationPending_, true);
+    const auto completion = connect(backend_, &ArchiveBackend::finished, this,
+                                    [&message](bool, const QString &text) { message = text; });
+    const auto disconnectCompletion = qScopeGuard([&] { disconnect(completion); });
+    setState(State::Loading);
+    QScopedValueRollback<bool> source(sourceArchiveProgress_, true);
+    auto &panel = app_.GetFocusedPanel();
+    QtPanelLocationTransaction location(panel);
+    // Projection retains the candidate provider. Release it before rollback
+    // closes candidate libraries, including when binding or rendering throws.
+    const auto cancelProjection = qScopeGuard([this] { cancelListPublication(); });
+    COpenResult opened;
+    HRESULT result = panel.BindToPath(ToUString(file.absoluteFilePath()), ToUString(type), opened);
+    if (!opened.ArchiveIsOpened && !opened.ErrorMessage.IsEmpty())
+        message = ToQString(opened.ErrorMessage);
+    // A successful native fallback to the containing folder is still a refusal
+    // of this archive-only request.
+    if (result == S_OK && !opened.ArchiveIsOpened) {
+        result = S_FALSE;
+        if (message.isEmpty())
+            message = ToQString(MyFormatNew(opened.Encrypted ? IDS_CANT_OPEN_ENCRYPTED_ARCHIVE
+                                                             : IDS_CANT_OPEN_ARCHIVE,
+                                            ToUString(file.absoluteFilePath())));
+    }
+    if (result == S_OK) {
+        result = renderBoundFolder();
+        if (result == S_OK && projectedUi().scanningArchive) {
+            setState(State::Loading);
+            result = projectedUi().listProjection->waitForFinished();
+        }
+        if (result != S_OK)
+            message = ToQString(HResultToMessage(result));
+    }
+    setState(State::Loading);
+    if (result == S_OK)
+        location.Commit();
+    else {
+        cancelListPublication();
+        location.Rollback();
+    }
+    return result;
 }
 
 HRESULT MainWindow::renderBoundFolder(bool updateAddress) {

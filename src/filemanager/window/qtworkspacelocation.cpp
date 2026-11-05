@@ -2,6 +2,21 @@
 #include "filemanager/window/qtnavigationbar.h"
 #include "filemanager/window/qtwindowworkspace.h"
 #include <QScopedValueRollback>
+#include <QScrollBar>
+
+void QtWindowWorkspace::RestoreViewPosition(CPanel &source, QAbstractItemView &view,
+                                            const QPoint &position) {
+    const UInt64 revision = source.FolderBindingRevision();
+    const auto request = focusRequest_;
+    WhenReady([this, owner = QPointer<CPanel>(&source), target = QPointer<QAbstractItemView>(&view),
+               position, revision, request] {
+        if (focusRequest_ != request || !owner || owner->FolderBindingRevision() != revision ||
+            !target || !target->isVisible())
+            return;
+        target->horizontalScrollBar()->setValue(position.x());
+        target->verticalScrollBar()->setValue(position.y());
+    });
+}
 
 void QtWindowWorkspace::CompleteLocationOpen(unsigned panel, const QString &path, HRESULT result) {
     auto &ui = window_.panelUi_[panel];

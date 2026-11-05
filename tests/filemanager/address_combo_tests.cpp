@@ -6,6 +6,7 @@
 #include "localization/LangUtils.h"
 #include "platform/support/external_editor_fixture.h"
 #include "support/native_shell_icon.h"
+#include "support/panel_keys.h"
 #include "support/window_activation.h"
 #include "ui/support/address_popup_support.h"
 #include "ui/support/layout_inspection.h"
@@ -73,6 +74,41 @@ class AddressComboTests final : public QObject, protected MainWindowTestSupport 
         QFile::remove(settings);
         ReloadLang(settings);
     }
+    void matchingHierarchyCaptionDoesNotNavigateOnBlur() {
+        QTemporaryDir fixture;
+        const QString child = fixture.filePath("kept location");
+        QVERIFY(QDir().mkpath(child));
+        QVERIFY(ExternalEditorFixture::write(child + "/keep.txt", "unchanged"));
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openPath(child);
+        auto *address = window.findChild<QLineEdit *>("archivePath");
+        auto *combo = window.findChild<QComboBox *>("pathCombo");
+        auto *files = table(window);
+        QTRY_VERIFY(files->isEnabled());
+        PanelKeys::focusAddress(address);
+        AddressPopupSupport::show(*combo);
+        QTRY_VERIFY(combo->view()->isVisible());
+        combo->hidePopup();
+        QVERIFY(WindowActivation::waitForActive(window));
+        PanelKeys::focusAddress(address);
+        QVERIFY(combo->count() > 0);
+        const QString draft = combo->itemText(0);
+        address->setText(draft);
+        QSignalSpy activated(combo, &QComboBox::activated);
+        files->setFocus();
+        QTRY_VERIFY(files->hasFocus());
+        QApplication::processEvents();
+        QCOMPARE(activated.size(), 0);
+        QCOMPARE(
+            QFileInfo(ToQString(files->sourcePanel->GetCurrentFolderPrefix())).canonicalFilePath(),
+            QFileInfo(child).canonicalFilePath());
+        QCOMPARE(files->rowCount(), 1);
+        QCOMPARE(files->model()->index(0, 0).data().toString(), QString("keep.txt"));
+        QCOMPARE(backend.listCalls, 0);
+    }
     void decorativeIconAllowsPaddingClipButRejectsGlyphClip() {
         QWidget window;
         window.resize(320, 80);
@@ -109,11 +145,12 @@ class AddressComboTests final : public QObject, protected MainWindowTestSupport 
         window.show();
         QVERIFY(WindowActivation::waitForActive(window));
         auto *address = window.findChild<QLineEdit *>("archivePath");
-        address->setFocus();
+        PanelKeys::focusAddress(address);
         address->setText(child);
         QTest::keyClick(address, Qt::Key_Return);
         QTRY_VERIFY(table(window)->isEnabled());
         auto *combo = window.findChild<QComboBox *>("pathCombo");
+        PanelKeys::focusAddress(address);
         AddressPopupSupport::show(*combo);
         auto *view = combo->view();
         QVERIFY(QTest::qWaitForWindowExposed(view->window()));
@@ -172,7 +209,8 @@ class AddressComboTests final : public QObject, protected MainWindowTestSupport 
         auto *combo = window.findChild<QComboBox *>("pathCombo");
         QVERIFY(combo);
         auto *currentIcon = address->findChild<QAction *>("currentAddressIcon");
-        QVERIFY2(currentIcon, "The closed address editor must expose its current-path icon.");
+        QVERIFY2(currentIcon, "The address editor must expose its current-path icon.");
+        PanelKeys::focusAddress(address);
         QVERIFY(currentIcon->isVisible());
         QVERIFY(!currentIcon->icon().isNull());
         QCOMPARE(currentIcon->icon().pixmap(16, 16).toImage(),
@@ -185,6 +223,7 @@ class AddressComboTests final : public QObject, protected MainWindowTestSupport 
                     window, QString("address-icon-clipped-%1-%2").arg(language).arg(size.width())));
             QVERIFY(UiInspection::lineEditIconVisible(*button, window));
         }
+        PanelKeys::focusAddress(address);
         AddressPopupSupport::show(*combo);
         QApplication::processEvents();
         QVERIFY2(combo->findText(QStringLiteral("родитель space")) >= 0,
@@ -203,6 +242,7 @@ class AddressComboTests final : public QObject, protected MainWindowTestSupport 
         QTRY_COMPARE(table(window)->rowCount(), 1);
         QCOMPARE(table(window)->model()->index(0, 0).data().toString(),
                  QStringLiteral("внутри 密碼"));
+        PanelKeys::focusAddress(address);
         AddressPopupSupport::show(*combo);
         QApplication::processEvents();
         const int computer = combo->findText(QString::fromWCharArray(LangString(IDS_COMPUTER)));
@@ -264,12 +304,14 @@ class AddressComboTests final : public QObject, protected MainWindowTestSupport 
         if (!nested)
             QCOMPARE(currentIcon->icon().pixmap(16, 16).toImage(),
                      QFileIconProvider().icon(QFileInfo(archive)).pixmap(16, 16).toImage());
+        PanelKeys::focusAddress(address);
         address->setText(archiveAddress + QStringLiteral(" / внешняя space/内側 密碼"));
         QTest::keyClick(address, Qt::Key_Return);
         QTRY_COMPARE(table(window)->rowCount(), 1);
         QCOMPARE(table(window)->model()->index(0, 0).data().toString(), QStringLiteral("keep.txt"));
         QCOMPARE(currentIcon->icon().pixmap(16, 16).toImage(),
                  QFileIconProvider().icon(QFileIconProvider::Folder).pixmap(16, 16).toImage());
+        PanelKeys::focusAddress(address);
         AddressPopupSupport::show(*combo);
         QApplication::processEvents();
         QVERIFY(combo->findText(QStringLiteral("архив δ.zip")) >= 0);
@@ -336,14 +378,15 @@ class AddressComboTests final : public QObject, protected MainWindowTestSupport 
         auto *address = window.findChild<QLineEdit *>("archivePath");
         auto *combo = window.findChild<QComboBox *>("pathCombo");
         QVERIFY(address && combo);
-        address->setFocus();
+        PanelKeys::focusAddress(address);
         QTRY_VERIFY(address->hasFocus());
         action(window, "viewMode3Action")->trigger();
         address->setText(child);
         QTest::keyClick(address, Qt::Key_Return);
         QTRY_VERIFY(table(window)->hasFocus());
-        address->setFocus();
+        PanelKeys::focusAddress(address);
         QTRY_VERIFY(address->hasFocus());
+        PanelKeys::focusAddress(address);
         AddressPopupSupport::show(*combo);
         QApplication::processEvents();
         const int index = combo->findText(QFileInfo(parent).fileName());
@@ -381,6 +424,7 @@ class AddressComboTests final : public QObject, protected MainWindowTestSupport 
         QVERIFY(action(window, "createFolderAction")->isEnabled());
         QCOMPARE(ExternalEditorFixture::read(control), bytes);
         QCOMPARE(backend.listCalls, 0);
+        PanelKeys::focusAddress(address);
         AddressPopupSupport::show(*combo);
         QApplication::processEvents();
         QCOMPARE(combo->findText(QFileInfo(parent).fileName()), -1);
@@ -405,7 +449,7 @@ class AddressComboTests final : public QObject, protected MainWindowTestSupport 
             QVERIFY(panels[i]);
             auto *address = panels[i]->findChild<QLineEdit *>("archivePath");
             auto *view = panels[i]->findChild<FileTable *>("archiveTable");
-            address->setFocus();
+            PanelKeys::focusAddress(address);
             QTRY_VERIFY(address->hasFocus());
             action(window, "viewMode3Action")->trigger();
             address->setText(paths[i]);
@@ -423,8 +467,9 @@ class AddressComboTests final : public QObject, protected MainWindowTestSupport 
         for (unsigned i = 0; i < 2; ++i) {
             auto *combo = panels[i]->findChild<QComboBox *>("pathCombo");
             auto *address = panels[i]->findChild<QLineEdit *>("archivePath");
-            address->setFocus();
+            PanelKeys::focusAddress(address);
             QTRY_VERIFY(address->hasFocus());
+            PanelKeys::focusAddress(address);
             AddressPopupSupport::show(*combo);
             QApplication::processEvents();
             QStringList rows;
@@ -437,7 +482,7 @@ class AddressComboTests final : public QObject, protected MainWindowTestSupport 
             QVERIFY(combo->findText(i == 0 ? QStringLiteral("右") : QStringLiteral("левый")) < 0);
             combo->hidePopup();
             QVERIFY(WindowActivation::waitForActive(window));
-            address->setFocus();
+            PanelKeys::focusAddress(address);
             QTRY_VERIFY(address->hasFocus());
             address->setText(QStringLiteral("uncommitted address"));
             QTest::keyClick(address, Qt::Key_Escape);

@@ -21,6 +21,10 @@ QString MainWindow::sourcePathFromDisplayPath(QString path) const {
 }
 
 void MainWindow::recordVisitedPath(const QString &path) {
+    if (visitedPathDraft_ && visitedPathDraft_->panel == projectedPanel_) {
+        visitedPathDraft_->path = path;
+        return;
+    }
     app_.AppState.FolderHistory.AddString(ToUString(path));
     app_.AppState.FolderHistory.Save(toolbarSettingsPath());
 }

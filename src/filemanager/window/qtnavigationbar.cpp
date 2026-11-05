@@ -4,17 +4,15 @@
 #include "localization/qtlangcontrols.h"
 #include "ui/theme/qtcommandicons.h"
 #include <QAbstractItemView>
+#include <QApplication>
 #include <QComboBox>
-#include <QDir>
 #include <QEvent>
-#include <QFileInfo>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMenu>
 #include <QPainter>
 #include <QStackedWidget>
-#include <QStyle>
 #include <QTimer>
 #include <QToolButton>
 
@@ -66,10 +64,10 @@ void QtNavigationRow::paintEvent(QPaintEvent *) {
 }
 
 QtNavigationBar::QtNavigationBar(QComboBox &address, std::function<void(const QString &)> navigate,
-                                 QWidget *parent)
+                                 QWidget *parent, std::function<void()> beginEdit)
     : QWidget(parent), address_(address), stack_(new QStackedWidget(this)),
       crumbs_(new QWidget(stack_)), layout_(new QHBoxLayout(crumbs_)),
-      navigate_(std::move(navigate)) {
+      navigate_(std::move(navigate)), beginEdit_(std::move(beginEdit)) {
     setMinimumWidth(80);
     setMinimumHeight(QtWorkspaceTheme::metric(*this, 32));
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
@@ -82,11 +80,7 @@ QtNavigationBar::QtNavigationBar(QComboBox &address, std::function<void(const QS
     stack_->addWidget(&address_);
     outer->addWidget(stack_);
     address_.lineEdit()->installEventFilter(this);
-    connect(address_.lineEdit(), &QLineEdit::textChanged, this, [this](const QString &text) {
-        if (!address_.lineEdit()->hasFocus())
-            SetLocation(text, container_);
-    });
-    SetLocation(address_.currentText());
+    SetLocation({});
 }
 
 void QtNavigationBar::paintEvent(QPaintEvent *) {
@@ -98,12 +92,14 @@ void QtNavigationBar::paintEvent(QPaintEvent *) {
     painter.drawRoundedRect(QRectF(rect()).adjusted(.5, .5, -.5, -.5), 4, 4);
 }
 
-void QtNavigationBar::SetLocation(const QString &path, const QString &container) {
+void QtNavigationBar::SetLocation(const QString &path,
+                                  const std::vector<QtAddressSegment> &segments) {
     const QString rootLabel = QCoreApplication::translate("QtWindowWorkspace", "Locations");
-    if (path_ == path && container_ == container && rootLabel_ == rootLabel && layout_->count())
+    if (path_ == path && segments_ == segments && rootLabel_ == rootLabel && layout_->count())
         return;
     path_ = path;
-    container_ = container;
+    segments_ = segments;
+    setToolTip(path);
     rootLabel_ = rootLabel;
     Rebuild();
 }
@@ -116,10 +112,6 @@ void QtNavigationBar::Rebuild() {
         }
         delete item;
     }
-    const QString normalized = QDir::fromNativeSeparators(path_);
-    QString prefix = normalized.startsWith("//")  ? QStringLiteral("//")
-                     : normalized.startsWith('/') ? QStringLiteral("/")
-                                                  : QString();
     const auto add = [this](const QString &label, const QString &target) {
         if (layout_->count()) {
             auto *separator = new QLabel(QStringLiteral("›"), crumbs_);
@@ -135,11 +127,8 @@ void QtNavigationBar::Rebuild() {
         connect(button, &QToolButton::clicked, this, [this, target] { navigate_(target); });
         layout_->addWidget(button);
     };
-    if (!prefix.isEmpty() && prefix != "//")
-        add(QStringLiteral("/"), prefix);
-    if (normalized.isEmpty())
-        add(rootLabel_, QString());
-    const QStringList parts = normalized.split('/', Qt::SkipEmptyParts);
+    if (segments_.empty())
+        add(path_.isEmpty() ? rootLabel_ : path_, path_);
     // Earlier ancestors remain available in a menu at compact widths.
     auto *ancestors = new QToolButton(crumbs_);
     ancestors->setText(QStringLiteral("…"));
@@ -148,32 +137,34 @@ void QtNavigationBar::Rebuild() {
     ancestors->setPopupMode(QToolButton::InstantPopup);
     auto *menu = new QMenu(ancestors);
     ancestors->setMenu(menu);
-    const int visibleFrom = qMax(0, parts.size() - visibleCrumbs_);
+    const int visibleFrom = qMax(0, int(segments_.size()) - visibleCrumbs_);
     if (visibleFrom)
         layout_->addWidget(ancestors);
     else {
         ancestors->hide();
         ancestors->deleteLater();
     }
-    for (int i = 0; i < parts.size(); ++i) {
-        prefix += parts[i] + '/';
-        const QString target = prefix;
-        const bool boundary =
-            !container_.isEmpty() && QDir::cleanPath(target) == QDir::cleanPath(container_);
+    for (int i = 0; i < int(segments_.size()); ++i) {
+        const auto &segment = segments_[i];
+        const QString target = QString::fromWCharArray(segment.target);
+        const QString label =
+            segment.label.IsEmpty() ? QStringLiteral("/") : QString::fromWCharArray(segment.label);
+        const bool boundary = segment.kind == QtAddressSegmentKind::Archive;
         if (i < visibleFrom) {
-            auto *ancestor = menu->addAction(parts[i]);
+            auto *ancestor = menu->addAction(label);
+            ancestor->setToolTip(target);
             if (boundary) {
-                ancestor->setIcon(style()->standardIcon(QStyle::SP_FileIcon));
+                ancestor->setIcon(QtCommandSymbol(QtCommandIcon::Archive));
                 ancestors->setIcon(ancestor->icon());
-                ancestors->setToolTip(container_);
+                ancestors->setToolTip(path_);
             }
             connect(ancestor, &QAction::triggered, this, [this, target] { navigate_(target); });
         } else {
-            add(parts[i], target);
+            add(label, target);
             if (boundary) {
                 auto *button =
                     qobject_cast<QToolButton *>(layout_->itemAt(layout_->count() - 1)->widget());
-                button->setIcon(style()->standardIcon(QStyle::SP_FileIcon));
+                button->setIcon(QtCommandSymbol(QtCommandIcon::Archive));
                 button->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
             }
         }
@@ -209,20 +200,28 @@ void QtNavigationBar::resizeEvent(QResizeEvent *event) {
 }
 
 void QtNavigationBar::Edit() {
-    stack_->setCurrentWidget(&address_);
+    if (beginEdit_)
+        beginEdit_();
+    ResumeEditing();
     address_.lineEdit()->setFocus();
     address_.lineEdit()->selectAll();
 }
 
-void QtNavigationBar::FinishEditing() {
-    SetLocation(address_.currentText(), container_);
-    stack_->setCurrentWidget(crumbs_);
+void QtNavigationBar::ResumeEditing() {
+    stack_->setCurrentWidget(&address_);
+    if (window()->isActiveWindow())
+        address_.lineEdit()->setFocus();
 }
 
+void QtNavigationBar::FinishEditing() { stack_->setCurrentWidget(crumbs_); }
+
 bool QtNavigationBar::eventFilter(QObject *object, QEvent *event) {
+    if (object == address_.lineEdit() && event->type() == QEvent::FocusIn)
+        stack_->setCurrentWidget(&address_);
     if (object == address_.lineEdit() && event->type() == QEvent::FocusOut)
         QTimer::singleShot(0, this, [this] {
-            if (!address_.hasFocus() && !address_.lineEdit()->hasFocus() &&
+            if (window()->isActiveWindow() && !QApplication::activeModalWidget() &&
+                !address_.hasFocus() && !address_.lineEdit()->hasFocus() &&
                 !address_.view()->isVisible())
                 FinishEditing();
         });

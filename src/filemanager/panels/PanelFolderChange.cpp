@@ -78,6 +78,7 @@ void CPanel::OpenFolder(unsigned index) {
 }
 
 void CPanel::ReleaseFolder() {
+    ++_folderBindingRevision;
     _refreshSelection.reset();
     DeleteListItems();
     _folder.Release();

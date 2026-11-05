@@ -3,6 +3,7 @@
   "revision": "1ef60af944de207e0d5176905a0759ba12e6ee8d",
   "files": {
     "LICENSE": "b495047bd93a9b06913511076f504daba17d5bbeb3e0650f3bb53a4220329c57",
+    "icons/archive.svg": "78c732e34e232db63af06a2330b4448045cfdf49b48b59f2d31922df54c7bb17",
     "icons/arrow-left.svg": "c5f4b88076108eb1a0d95336e1aa7e7bb1419a3a92af96f6247d88cd3456f933",
     "icons/arrow-up.svg": "8c22c25874c80bb062bef985d207d8f1d4a4d7847237d0a8cf720a3235968518",
     "icons/check.svg": "7f33acc9a77a61659531044525fc008edebe215bf4dcf1c789c8674ad3277db0",
@@ -22,6 +23,7 @@
   },
   "owners": {
     "LICENSE": "third_party/lucide/LICENSE",
+    "icons/archive.svg": "src/ui/theme/qtcommandicons.cpp",
     "icons/arrow-left.svg": "src/ui/theme/qtcommandicons.cpp",
     "icons/arrow-up.svg": "src/ui/theme/qtcommandicons.cpp",
     "icons/check.svg": "src/ui/theme/qtcommandicons.cpp",

@@ -271,6 +271,7 @@ class MainWindow : public QMainWindow {
     void goRoot(bool remember = true, RootLocation location = RootLocation::Namespace);
     QString archiveDisplayPath() const;
     HRESULT renderBoundFolder(bool updateAddress = true);
+    HRESULT tryOpenPhysicalArchive(const QFileInfo &file, const QString &type, QString &message);
     HRESULT renderArchiveFolder(bool updateAddress = true);
     HRESULT appendArchiveEntry(CAgentFolder &folder, unsigned index, const QString &prefix,
                                bool flat);
@@ -394,6 +395,12 @@ class MainWindow : public QMainWindow {
     bool rightControlPressed_ = false;
     std::unique_ptr<WindowProgress> progress_;
     bool sourceArchiveProgress_ = false;
+    bool archiveLocationPending_ = false;
+    struct VisitedPathDraft {
+        unsigned panel;
+        QString path;
+    };
+    std::optional<VisitedPathDraft> visitedPathDraft_;
     QAction *toolbarAdd_ = nullptr;
     QAction *extract_ = nullptr;
     QAction *test_ = nullptr;

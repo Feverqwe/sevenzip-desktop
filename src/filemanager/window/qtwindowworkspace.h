@@ -8,6 +8,7 @@
 #include <vector>
 
 class MainWindow;
+class QAbstractItemView;
 class QTabBar;
 class QVBoxLayout;
 class QToolBar;
@@ -33,6 +34,7 @@ class QtWindowWorkspace final : public QObject {
     bool WithSource(CPanel &source, const std::function<bool()> &body);
     bool SourceIsActive(const CPanel &source) const;
     void MarkDirty(CPanel &source);
+    void RestoreViewPosition(CPanel &source, QAbstractItemView &view, const QPoint &position);
     void ExitExternalWorkers(bool hardExit);
     void QuiesceInactive();
     void Dispose();

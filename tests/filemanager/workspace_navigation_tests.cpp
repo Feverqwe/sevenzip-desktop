@@ -1,15 +1,18 @@
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/window/qtfavoritestore.h"
+#include "filemanager/window/qtnavigationbar.h"
 #include "filemanager/window/qtwindowworkspace.h"
 #include "filemanager/window/qtworkspaceapplication.h"
 #include "support/panel_keys.h"
 #include "support/widget_dialogs.h"
+#include "ui/support/layout_inspection.h"
 #include <QClipboard>
 #include <QCloseEvent>
 #include <QDragEnterEvent>
 #include <QDropEvent>
 #include <QListWidget>
 #include <QTabBar>
+#include <QToolButton>
 
 class CloseProtectedWindow final : public MainWindow {
   public:
@@ -42,7 +45,70 @@ class WorkspaceNavigationTests final : public QObject {
     }
 
   private slots:
+    void initTestCase() { UiInspection::configureReviewAppearance(); }
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
+    void locationPublicationWaitsForSourceGuard() {
+        QTemporaryDir fixture;
+        ControlledBackend backend;
+        const QString archive = fixture.filePath("guarded archive.zip");
+        QVERIFY(backend.prepareArchiveFixture(archive));
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(fixture.path());
+        auto *table = visibleTable(window);
+        QTRY_VERIFY(table && table->isEnabled());
+        auto *bar = window.findChild<QWidget *>("panelNavigation0");
+        QVERIFY(bar);
+        const QString previous = bar->toolTip();
+        QVERIFY(!previous.isEmpty());
+        bool guarded = false;
+        bool keptPrevious = false;
+        backend.queueListAction([&] {
+            guarded = !table->sourcePanel->ShouldProcessNotifications();
+            workspace(window)->Refresh();
+            keptPrevious = bar->toolTip() == previous;
+            backend.completeList({ArchiveEntry{QStringLiteral("new.txt"), 1, 1}});
+        });
+        window.openArchive(archive);
+        QVERIFY(guarded);
+        QVERIFY(keptPrevious);
+        QTRY_VERIFY(table->isEnabled());
+        QTRY_COMPARE(QDir::cleanPath(bar->toolTip()), archive);
+    }
+    void locationBarUsesNativeParentTargets() {
+        QTemporaryDir fixture;
+        const QString parent = fixture.filePath(QStringLiteral("folder with archive.zip"));
+        const QString child = parent + QStringLiteral("/child 空");
+        QVERIFY(QDir().mkpath(child));
+        writeFile(child + "/keep.txt", "unchanged");
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.resize(980, 620);
+        window.show();
+        window.openPath(child);
+        auto *table = visibleTable(window);
+        QTRY_VERIFY(table && table->isEnabled());
+        auto *bar =
+            dynamic_cast<QtNavigationBar *>(window.findChild<QWidget *>("panelNavigation0"));
+        QVERIFY(bar);
+        QToolButton *parentButton = nullptr;
+        for (auto *button : bar->findChildren<QToolButton *>())
+            if (QDir::cleanPath(button->toolTip()) == parent && button->isVisible())
+                parentButton = button;
+        QVERIFY(parentButton);
+        QVERIFY(parentButton->icon().isNull());
+        QTest::mouseClick(parentButton, Qt::LeftButton);
+        QTRY_COMPARE(QDir::cleanPath(ToQString(table->sourcePanel->GetCurrentFolderPrefix())),
+                     parent);
+        QVERIFY(table->sourcePanel->IsFSFolder());
+        QCOMPARE(backend.listCalls, 0);
+        for (int width : {980, 640}) {
+            window.resize(width, 620);
+            QApplication::processEvents();
+            QVERIFY(UiInspection::fullyVisible(*bar, window));
+            QVERIFY(UiInspection::writeReport(window, QString("native-location-%1").arg(width)));
+        }
+    }
     void closingLeftPanelKeepsRightContextAndReopensHome() {
         QTemporaryDir fixture;
         const QString left = fixture.filePath("Left folder");

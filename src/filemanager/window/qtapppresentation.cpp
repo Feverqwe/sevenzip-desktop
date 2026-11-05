@@ -158,6 +158,10 @@ void QtAppPresentation::CompleteInitialFocusIfReady() {
     window_.activatePanelUi(index);
     window_.app_.SetFocusedPanel(index);
     window_.app_.Panels[index].SetFocusToList();
+    // Address FocusOut can occur while modal progress disables the pane.
+    // Finish its presentation only after the owning list-focus request is delivered.
+    if (window_.panelUi_[index].navigation)
+        window_.panelUi_[index].navigation->FinishEditing();
     window_.app_.RefreshTitle(true);
 }
 

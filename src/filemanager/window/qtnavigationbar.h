@@ -1,8 +1,10 @@
 #pragma once
 
+#include "filemanager/panels/qtaddresssegment.h"
 #include <QCoreApplication>
 #include <QWidget>
 #include <functional>
+#include <vector>
 
 class QComboBox;
 class QHBoxLayout;
@@ -26,10 +28,11 @@ class QtNavigationBar final : public QWidget {
     Q_DECLARE_TR_FUNCTIONS(QtNavigationBar)
   public:
     QtNavigationBar(QComboBox &address, std::function<void(const QString &)> navigate,
-                    QWidget *parent = nullptr);
+                    QWidget *parent = nullptr, std::function<void()> beginEdit = {});
     void Edit();
+    void ResumeEditing();
     void FinishEditing();
-    void SetLocation(const QString &path, const QString &container = {});
+    void SetLocation(const QString &path, const std::vector<QtAddressSegment> &segments = {});
 
   protected:
     bool eventFilter(QObject *object, QEvent *event) override;
@@ -43,8 +46,9 @@ class QtNavigationBar final : public QWidget {
     QWidget *crumbs_;
     QHBoxLayout *layout_;
     QString path_;
-    QString container_;
+    std::vector<QtAddressSegment> segments_;
     QString rootLabel_;
     int visibleCrumbs_ = 3;
     std::function<void(const QString &)> navigate_;
+    std::function<void()> beginEdit_;
 };

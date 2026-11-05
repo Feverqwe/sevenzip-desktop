@@ -28,6 +28,7 @@
 #include "settings/ViewSettings.h"
 #include <QObject>
 #include <QPointer>
+#include <vector>
 #include <QString>
 #include <functional>
 #include <memory>
@@ -64,6 +65,7 @@ class CVirtFileSystem;
 class CZipContextMenu;
 class IQtContextMenuServices;
 class IQtPanelAddressCombo;
+struct QtAddressSegment;
 enum class QtAddressCommand;
 enum class QtAddressEditReason;
 #ifdef _WIN32
@@ -495,7 +497,9 @@ class CPanel : public QObject {
     void LoadFullPath();
     void LoadFullPathAndShow(IQtPanelAddressCombo &header, const UString &displayPath);
     bool OnComboBoxCommand(QtAddressCommand code, IQtPanelAddressCombo &header);
-    void OnNotifyComboBoxEnter(const UString &text, IQtPanelAddressCombo &header);
+    bool OnNotifyComboBoxEnter(const UString &text, IQtPanelAddressCombo &header);
+    std::vector<QtAddressSegment> AddressAncestors(IQtPanelAddressCombo &header,
+                                                   bool includeCurrentNamespace = true);
     bool OnNotifyComboBoxEndEdit(QtAddressEditReason reason, IQtPanelAddressCombo &header);
     void AddComboBoxItem(IQtPanelAddressCombo &header, const UString &name, int iconIndex,
                          unsigned indent, bool addToList, UInt32 namespaceID = 0);
@@ -512,6 +516,7 @@ class CPanel : public QObject {
     const UString &GetCurrentFolderPrefix() const { return _currentFolderPrefix; }
     // Borrowed interface for Qt property rendering; ownership stays in CPanel.
     IFolderFolder *GetFolder() const { return _folder; }
+    UInt64 FolderBindingRevision() const { return _folderBindingRevision; }
     void AttachPresentation(QWidget *list, QWidget *address);
     void SetFocusToList();
     void SetFocusToPath();
@@ -678,6 +683,7 @@ class CPanel : public QObject {
   private:
     static bool DoItemAlwaysStart(const UString &name);
     friend class CApp;
+    friend class QtPanelLocationTransaction;
     friend class CMyComboBoxEdit;
     void OnItemChanged(unsigned index, bool oldSelected, bool newSelected);
     friend class CThreadFolderOperations;
@@ -721,6 +727,7 @@ class CPanel : public QObject {
     QMetaObject::Connection _itemChangedConnection;
     CRecordVector<bool> _selectedStatusVector;
     CMyComPtr<IFolderFolder> _folder;
+    UInt64 _folderBindingRevision = 0;
     CMyComPtr<IFolderCompare> _folderCompare;
     CMyComPtr<IArchiveGetRawProps> _folderRawProps;
     CMyComPtr<IFolderAltStreams> _folderAltStreams;

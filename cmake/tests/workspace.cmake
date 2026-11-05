@@ -1,4 +1,23 @@
 if(BUILD_TESTING)
+    qt_add_executable(folder_projection_tests tests/filemanager/folder_projection_tests.cpp)
+    target_link_libraries(folder_projection_tests PRIVATE sevenzip_panel sevenzip_folder_loader Qt6::Test)
+    target_include_directories(folder_projection_tests PRIVATE src)
+    add_test(NAME folder_projection COMMAND folder_projection_tests -silent)
+    set_tests_properties(folder_projection PROPERTIES TIMEOUT 30 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+    qt_add_executable(archive_navigation_rollback_tests
+        tests/filemanager/archive_navigation_rollback_tests.cpp
+        tests/platform/support/native_property_failure_runtime.cpp
+        tests/platform/support/external_editor_fixture.cpp)
+    target_link_libraries(archive_navigation_rollback_tests PRIVATE sevenzip_window
+        sevenzip_widget_dialog_fixtures sevenzip_layout_inspection Qt6::Test)
+    target_include_directories(archive_navigation_rollback_tests PRIVATE src tests)
+    target_compile_definitions(archive_navigation_rollback_tests PRIVATE
+        "SEVENZIP_EXTERNAL_RUNTIME=\"${SEVENZIP_CODEC_RUNTIME_DIR}\""
+        "SEVENZIP_EXTERNAL_FORMAT_FIXTURE=\"$<TARGET_FILE:external_format_fixture>\"")
+    add_dependencies(archive_navigation_rollback_tests external_format_fixture)
+    add_test(NAME archive_navigation_rollback COMMAND archive_navigation_rollback_tests -silent)
+    set_tests_properties(archive_navigation_rollback PROPERTIES TIMEOUT 90 ENVIRONMENT
+        "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/archive-navigation-rollback.ini")
     qt_add_executable(workspace_places_tests tests/filemanager/workspace_places_tests.cpp)
     target_link_libraries(workspace_places_tests PRIVATE sevenzip_window sevenzip_layout_inspection Qt6::Test)
     target_include_directories(workspace_places_tests PRIVATE src tests)
@@ -20,7 +39,7 @@ if(BUILD_TESTING)
     set_tests_properties(workspace_archive PROPERTIES TIMEOUT 90 ENVIRONMENT
         "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/workspace-archive-settings.ini")
     qt_add_executable(workspace_navigation_tests tests/filemanager/workspace_navigation_tests.cpp)
-    target_link_libraries(workspace_navigation_tests PRIVATE sevenzip_window sevenzip_widget_dialog_fixtures Qt6::Test)
+    target_link_libraries(workspace_navigation_tests PRIVATE sevenzip_window sevenzip_layout_inspection sevenzip_widget_dialog_fixtures Qt6::Test)
     target_include_directories(workspace_navigation_tests PRIVATE src tests)
     add_test(NAME workspace_navigation COMMAND workspace_navigation_tests -silent)
     set_tests_properties(workspace_navigation PROPERTIES TIMEOUT 90 ENVIRONMENT

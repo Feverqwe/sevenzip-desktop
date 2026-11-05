@@ -240,6 +240,9 @@ add_library(sevenzip_panel
     src/filemanager/window/qtmainwindowchrome.h
     src/filemanager/panels/qtpaneladdresscombo.cpp
     src/filemanager/panels/qtpaneladdresscombo.h
+    src/filemanager/panels/qtaddresssegment.h
+    src/filemanager/panels/qtpanellocationtransaction.cpp
+    src/filemanager/panels/qtpanellocationtransaction.h
     src/localization/qtlangbuttonbox.cpp
     src/localization/qtlangbuttonbox.h
     src/ui/controls/qtstatuslabel.cpp
