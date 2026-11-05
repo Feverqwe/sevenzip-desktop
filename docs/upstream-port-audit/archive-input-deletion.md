@@ -1,5 +1,24 @@
 # Archive input deletion snapshot — 2026-11-02
 
+## Stop Move cleanup after a deletion callback failure — 2026-11-05
+
+Reviewed source enumeration, processed statuses, native deletion, publication,
+reopen and retry with the original Common/Update and Agent/ArchiveFolderOut
+branches at the recorded b88c baseline. The native Move loop still requires a
+successful operation. The local optional post-publication deletion step can
+change that result, so Move cleanup now checks the updated result too. A callback
+failure or cancellation leaves the remaining source inputs available while the
+published archive is reopened as before. No source deletion algorithm, property
+policy or original inventory changes.
+
+The existing public folder-operation regression now covers deletion cancellation
+with both Move and DeleteAfterCompressing selected, followed by Rename or
+CreateFolder. On the old code both cases return E_ABORT but the input has already
+been removed. Checks require preserved input bytes, successful next mutation and
+matching bytes extracted from the published archive. Existing publication-failure
+cases remain. This combination exercises the typed resource adapter; production
+UI availability of that combination is not newly claimed.
+
 Compared the original deletion loop in Common/Update.cpp, AgentOut's processed
 input collection and ArchiveFolderOut's publication/Move cleanup at recorded
 7-Zip commit `b88c6bc09339de32f7d18bbab900686b244f42ba` from

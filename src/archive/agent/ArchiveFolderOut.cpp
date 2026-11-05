@@ -310,7 +310,7 @@ HRESULT CAgentFolder::CommonUpdateOperation(AGENT_OP operation, bool moveMode,
                 };
                 res = resource->DeleteInputsAfterPublication(callback);
             }
-            if (moveMode) {
+            if (moveMode && res == S_OK) {
                 unsigned i;
                 for (i = 0; i < processedPaths.Size(); i++) {
                     DeleteFileAlways(processedPaths[i]);
