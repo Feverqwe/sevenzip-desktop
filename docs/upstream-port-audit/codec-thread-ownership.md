@@ -1,5 +1,26 @@
 # Shared codec owner across native workers — 2026-10-18
 
+## Discovery result handoff — 2026-11-05
+
+Reviewed catalog construction, native module loading and release, probe startup,
+deadline/cancellation, joined completion and backend/startup/UI consumers.
+Original `CCodecs::LoadDll` and `CloseLibs` retain their recorded baseline at
+`b88c6bc09339de32f7d18bbab900686b244f42ba`; the complete original LoadCodecs.cpp
+hash matches the manifest. Native loading and platform branches are unchanged.
+
+The discovery request now owns the worker action as well as its result. The
+worker constructs a complete result before assigning it; failures retain the
+existing HRESULT mapping. Joined completion detaches the request and consumes
+that request's result directly, removing the extra result-forwarding helper and
+parameter. Deadline sampling remains on the worker after native loading, and
+the backend retains its separate queued publication boundary. Cancellation,
+module leases, unpublished-start cleanup and retry/delete from callbacks keep
+their existing owners. No new state, thread or public API is introduced.
+
+Existing probe, catalog, opening and command tests cover this handoff through
+native loading, blocked GUI delivery, timeout/cancel, joined destruction and
+reentrant retry. No test pins the private request representation.
+
 ## Command method availability — 2026-11-04
 
 Reviewed native `CExternalCodecs::Load`, `FindMethod_Index`, `FindHashMethod`
