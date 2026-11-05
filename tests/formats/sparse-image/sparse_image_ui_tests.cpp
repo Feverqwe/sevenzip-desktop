@@ -129,6 +129,25 @@ class SparseImageUiTests final : public QObject {
                                           Q_ARG(QModelIndex, table->model()->index(folder, 0))));
         const auto filename = QString::fromUtf8("hello 空.txt");
         QTRY_VERIFY(Row(*table, filename) >= 0);
+        if (fixture["bits"].toInt() == 0) {
+            auto *address = window.findChild<QLineEdit *>("archivePath");
+            QVERIFY(address);
+            const QString copiedAddress = address->text();
+            const QString nativeAddress =
+                QString::fromWCharArray(table->sourcePanel->GetCurrentFolderPrefix().Ptr());
+            for (const QString &next : {nativeAddress, copiedAddress}) {
+                window.openPath(inputs.path());
+                QTRY_VERIFY(table->isEnabled());
+                QTRY_VERIFY(Row(*table, QFileInfo(source).fileName()) >= 0);
+                address->setFocus();
+                address->setText(next);
+                QTest::keyClick(address, Qt::Key_Return);
+                QTRY_VERIFY(table->isEnabled());
+                QTRY_VERIFY2(Row(*table, filename) >= 0,
+                             qPrintable(next + QStringLiteral(" -> ") + address->text()));
+                QCOMPARE(address->text(), copiedAddress);
+            }
+        }
         table->selectRow(Row(*table, filename));
         ExtractionOptions options;
         options.overwriteMode = ExtractionOptions::OverwriteMode::OverwriteExisting;

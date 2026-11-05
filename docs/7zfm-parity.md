@@ -35,6 +35,10 @@ Qt заменяет presentation и платформенные services; арх�
 архива принимается с сохранением текущей цепочки.
 [Граница адаптации](upstream-port-audit/location-history-ownership.md#shared-display-address-conversion--2026-11-05).
 
+Скопированный отображаемый адрес подпапки sparsebundle принимается и после
+выхода из образа.
+[Открытие по адресу и проверки](upstream-port-audit/location-history-ownership.md#display-address-return-to-directory-archive-packages--2026-11-05).
+
 Команда Open archive открывает выбранный файл в панели, из которой вызван
 диалог, даже если при закрытии фокус вернулся в соседнюю. Отмена не меняет
 расположение и выделение панелей.

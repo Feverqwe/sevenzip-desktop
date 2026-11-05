@@ -7,6 +7,7 @@
 #include "archive/resources/archivereadonlyview.h"
 #include "archive/resources/qtarchivefileresource.h"
 #include "support/codec_runtime.h"
+#include <QDir>
 #include <QFile>
 #include <QSet>
 #include <QSignalSpy>
@@ -66,7 +67,7 @@ UInt32 Find(IInArchive *archive, const QString &path) {
     if (archive->GetNumberOfItems(&count) != S_OK)
         return UINT32_MAX;
     for (UInt32 i = 0; i < count; ++i)
-        if (Property(archive, i, kpidPath) == path)
+        if (QDir::fromNativeSeparators(Property(archive, i, kpidPath)) == path)
             return i;
     return UINT32_MAX;
 }
@@ -75,7 +76,7 @@ QSet<QString> Paths(IInArchive *archive) {
     UInt32 count = 0;
     archive->GetNumberOfItems(&count);
     for (UInt32 i = 0; i < count; ++i)
-        paths.insert(Property(archive, i, kpidPath));
+        paths.insert(QDir::fromNativeSeparators(Property(archive, i, kpidPath)));
     return paths;
 }
 QByteArray ReadFile(IInArchive *archive, UInt32 index) {
