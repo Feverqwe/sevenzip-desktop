@@ -358,6 +358,20 @@ class MainShellTests final : public QObject {
                     QVERIFY(navigation && tabs);
                     QVERIFY(UiInspection::fullyVisible(*navigation, window));
                     QVERIFY(UiInspection::fullyVisible(*tabs, window));
+                    if (panel == 0) {
+                        bool currentCrumbVisible = false;
+                        for (auto *button : navigation->findChildren<QToolButton *>())
+                            if (QDir::cleanPath(button->toolTip()) == folder)
+                                currentCrumbVisible |= UiInspection::fullyVisible(*button, window);
+                        QVERIFY2(
+                            currentCrumbVisible,
+                            "The current folder must remain visible after tab and pane resize");
+                    }
+                }
+                if (two) {
+                    auto *rightPanel = window.findChild<QWidget *>("filePanel1");
+                    auto *rightStack = rightPanel->findChild<QStackedWidget *>("fileViewStack");
+                    QCOMPARE(rightStack->width(), rightPanel->width());
                 }
                 QVERIFY(UiInspection::writeReport(window, QString("workspace-shell-%1-%2-%3")
                                                               .arg(language)

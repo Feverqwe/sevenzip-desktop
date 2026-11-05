@@ -8,6 +8,7 @@
 #include "filemanager/window/qtnavigationbar.h"
 #include "filemanager/window/qtworkspaceruntime.h"
 #include "filemanager/window/qtworkspacetabbar.h"
+#include "filemanager/window/qtworkspacetheme.h"
 #include "localization/qtlangcontrols.h"
 #include "platform/associations/qtassociatedfileservices.h"
 #include <QJsonArray>
@@ -60,7 +61,9 @@ void QtWindowWorkspace::AttachPanel(unsigned panel, QVBoxLayout &layout) {
     }
     auto *row = new QWidget;
     auto *tabs = new QHBoxLayout(row);
-    tabs->setContentsMargins(8, 4, 8, 0);
+    QtWorkspaceTheme::surface(*row, QtWorkspaceTheme::colors().window);
+    tabs->setContentsMargins(8, 6, 8, 0);
+    tabs->setSpacing(0);
     state.bar = new QtWorkspaceTabBar(*this, panel, row);
     state.bar->setObjectName(QStringLiteral("panelTabs%1").arg(panel));
     state.bar->setDocumentMode(true);
@@ -81,6 +84,7 @@ void QtWindowWorkspace::AttachPanel(unsigned panel, QVBoxLayout &layout) {
     add->setToolTip(tr("New tab"));
     add->setAutoRaise(true);
     QtConfigureChromeToolButton(*add);
+    add->setFixedSize(30, 30);
     tabs->addWidget(add);
     tabs->addStretch();
     layout.insertWidget(0, row);
@@ -150,7 +154,8 @@ void QtWindowWorkspace::Rebuild(unsigned panel) {
     while (state.bar->count())
         state.bar->removeTab(0);
     for (const auto &tab : state.tabs) {
-        const int index = state.bar->addTab(TabTitle(tab));
+        const int index =
+            state.bar->addTab(window_.style()->standardIcon(QStyle::SP_DirIcon), TabTitle(tab));
         state.bar->setTabToolTip(index, tab.path);
         state.bar->setTabData(index, tab.id);
         for (const auto side : {QTabBar::LeftSide, QTabBar::RightSide})

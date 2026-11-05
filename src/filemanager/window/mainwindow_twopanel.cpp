@@ -84,6 +84,7 @@ void MainWindow::togglePanels() {
         return;
     }
     twoPanelsAction_->setChecked(app_.NumPanels == 2);
+    refreshActions();
     if (panelSplitter_ && app_.NumPanels == 2) {
         panelSplitter_->UpdateSourceLayout();
     }

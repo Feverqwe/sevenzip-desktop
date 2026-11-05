@@ -5,6 +5,7 @@
 #include "filemanager/window/qtmainwindowchrome.h"
 #include "filemanager/window/qtwindowworkspace.h"
 #include "filemanager/window/qtworkspaceapplication.h"
+#include "filemanager/window/qtworkspacetheme.h"
 #include "localization/qtlangcontrols.h"
 #include "ui/theme/qtcommandicons.h"
 #include <QScopedValueRollback>
@@ -73,11 +74,9 @@ void QtWindowWorkspace::CreateActions(unsigned panel, QVBoxLayout &layout) {
         QtBindLocalToolTip(button, "QtWindowWorkspace",
                            QT_TRANSLATE_NOOP("QtWindowWorkspace", "Create"));
     }
-    state.actions->addSeparator();
     add(window_.clipboard_->cut, QtCommandSymbol(QtCommandIcon::Cut));
     add(window_.clipboard_->copy, QtCommandSymbol(QtCommandIcon::Copy));
     add(window_.clipboard_->paste, QtCommandSymbol(QtCommandIcon::Paste));
-    state.actions->addSeparator();
     add(window_.rename_, QtCommandSymbol(QtCommandIcon::Rename));
     add(window_.remove_);
     layout.addWidget(state.actions);
@@ -108,11 +107,24 @@ void QtWindowWorkspace::AttachContent(unsigned panel, QVBoxLayout &layout) {
     row->setContentsMargins(0, 0, 0, 0);
     row->setSpacing(0);
     auto *sidebar = new QWidget(body);
+    QtWorkspaceTheme::pane(*sidebar);
     sidebar->setObjectName(QStringLiteral("placesSidebar%1").arg(panel));
-    sidebar->setMinimumWidth(100);
-    sidebar->setMaximumWidth(180);
+    sidebar->setFixedWidth(window_.width() <= 700 ? 140 : 168);
     auto *places = new QVBoxLayout(sidebar);
-    places->setContentsMargins(8, 8, 8, 8);
+    places->setContentsMargins(8, 16, 8, 8);
+    places->setSpacing(2);
+    auto *heading = new QLabel(tr("Favorites"), sidebar);
+    QtBindLocalText(heading, "QtWindowWorkspace",
+                    QT_TRANSLATE_NOOP("QtWindowWorkspace", "Favorites"));
+    auto font = heading->font();
+    font.setPointSizeF(font.pointSizeF() * 11 / 13);
+    font.setWeight(QFont::DemiBold);
+    heading->setFont(font);
+    heading->setContentsMargins(10, 4, 10, 8);
+    auto headingPalette = heading->palette();
+    headingPalette.setColor(QPalette::WindowText, QtWorkspaceTheme::colors().subtle);
+    heading->setPalette(headingPalette);
+    places->addWidget(heading);
     for (const auto &[caption, path] : QList<QPair<QString, QString>>{
              {QString::fromUtf8(QT_TRANSLATE_NOOP("QtWindowWorkspace", "Home")), QDir::homePath()},
              {QString::fromUtf8(QT_TRANSLATE_NOOP("QtWindowWorkspace", "Downloads")),
@@ -130,14 +142,13 @@ void QtWindowWorkspace::AttachContent(unsigned panel, QVBoxLayout &layout) {
         places->addWidget(button, 0, Qt::AlignLeft);
         connect(button, &QToolButton::clicked, this, [this, path] { OpenFavorite(path, 0); });
     }
-    auto *heading = new QLabel(tr("Favorites"), sidebar);
-    QtBindLocalText(heading, "QtWindowWorkspace",
-                    QT_TRANSLATE_NOOP("QtWindowWorkspace", "Favorites"));
-    places->addWidget(heading);
     auto *list = new QtFavoriteList(sidebar);
     list->setObjectName(QStringLiteral("favoritePlaces%1").arg(panel));
     list->setModel(favorites_);
     list->setFrameShape(QFrame::NoFrame);
+    auto listPalette = list->palette();
+    listPalette.setColor(QPalette::Base, QtWorkspaceTheme::colors().secondary);
+    list->setPalette(listPalette);
     list->setDragDropMode(QAbstractItemView::DragDrop);
     list->setDefaultDropAction(Qt::MoveAction);
     list->setDropIndicatorShown(true);
@@ -213,9 +224,14 @@ void QtWindowWorkspace::RefreshChrome() {
         if (window_.panelUi_[panel].navigationNotice)
             window_.panelUi_[panel].navigationNotice->setVisible(
                 window_.panelUi_[panel].locationUnavailable);
-        if (state.sidebar)
+        if (state.sidebar) {
+            state.sidebar->setFixedWidth(window_.width() <= 700 ? 140 : 168);
             state.sidebar->setVisible(sidebarVisible_ &&
                                       (window_.app_.NumPanels == 1 || panel == 0));
+        }
+        state.actions->setToolButtonStyle(window_.app_.NumPanels == 1 && window_.width() > 800
+                                              ? Qt::ToolButtonTextBesideIcon
+                                              : Qt::ToolButtonIconOnly);
         const auto native = window_.commands_->AvailabilityForPanel(panel);
         const auto clipboard = window_.clipboard_->AvailabilityForPanel(panel);
         auto *container = window_.panelUi_[panel].container;
@@ -234,6 +250,9 @@ void QtWindowWorkspace::RefreshChrome() {
                 continue;
             const auto id = source->property("nativeCommandID");
             if (action->property("createMenu").toBool()) {
+                if (auto *button =
+                        qobject_cast<QToolButton *>(state.actions->widgetForAction(action)))
+                    button->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
                 bool any = false;
                 for (auto *choice : action->menu()->actions()) {
                     auto *command = choice->property("sourceAction").value<QAction *>();

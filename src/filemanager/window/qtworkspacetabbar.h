@@ -8,6 +8,8 @@ class QtWorkspaceTabBar final : public QTabBar {
     QtWorkspaceTabBar(QtWindowWorkspace &workspace, unsigned panel, QWidget *parent);
 
   protected:
+    QSize tabSizeHint(int index) const override;
+    QSize minimumTabSizeHint(int index) const override;
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
     void dragEnterEvent(QDragEnterEvent *event) override;

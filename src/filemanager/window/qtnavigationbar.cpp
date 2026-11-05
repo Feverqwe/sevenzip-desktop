@@ -1,5 +1,6 @@
 #include "filemanager/window/qtnavigationbar.h"
 #include "filemanager/window/qtmainwindowchrome.h"
+#include "filemanager/window/qtworkspacetheme.h"
 #include "localization/qtlangcontrols.h"
 #include "ui/theme/qtcommandicons.h"
 #include <QAbstractItemView>
@@ -11,6 +12,7 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QMenu>
+#include <QPainter>
 #include <QStackedWidget>
 #include <QStyle>
 #include <QTimer>
@@ -51,11 +53,13 @@ QtNavigationBar::QtNavigationBar(QComboBox &address, std::function<void(const QS
       crumbs_(new QWidget(stack_)), layout_(new QHBoxLayout(crumbs_)),
       navigate_(std::move(navigate)) {
     setMinimumWidth(80);
+    setMinimumHeight(QtWorkspaceTheme::metric(*this, 32));
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     auto *outer = new QHBoxLayout(this);
-    outer->setContentsMargins(0, 0, 0, 0);
-    layout_->setContentsMargins(0, 0, 0, 0);
-    layout_->setSpacing(0);
+    outer->setContentsMargins(1, 1, 1, 1);
+    outer->setSpacing(0);
+    layout_->setContentsMargins(4, 0, 4, 0);
+    layout_->setSpacing(2);
     stack_->addWidget(crumbs_);
     stack_->addWidget(&address_);
     outer->addWidget(stack_);
@@ -65,6 +69,15 @@ QtNavigationBar::QtNavigationBar(QComboBox &address, std::function<void(const QS
             SetLocation(text, container_);
     });
     SetLocation(address_.currentText());
+}
+
+void QtNavigationBar::paintEvent(QPaintEvent *) {
+    const auto c = QtWorkspaceTheme::colors();
+    QPainter painter(this);
+    painter.setRenderHint(QPainter::Antialiasing);
+    painter.setPen(c.stroke);
+    painter.setBrush(c.surface);
+    painter.drawRoundedRect(QRectF(rect()).adjusted(.5, .5, -.5, -.5), 4, 4);
 }
 
 void QtNavigationBar::SetLocation(const QString &path, const QString &container) {
@@ -154,6 +167,12 @@ void QtNavigationBar::Rebuild() {
     connect(edit, &QToolButton::clicked, this, &QtNavigationBar::Edit);
     layout_->addStretch();
     layout_->addWidget(edit);
+    // Rebuild can run inside resizeEvent on an already visible path field.
+    // Make the replacement crumbs visible in that same layout pass.
+    for (int i = 0; i < layout_->count(); ++i)
+        if (auto *widget = layout_->itemAt(i)->widget())
+            widget->show();
+    layout_->activate();
 }
 
 void QtNavigationBar::resizeEvent(QResizeEvent *event) {

@@ -1886,6 +1886,8 @@
     "src/filemanager/window/qtworkspacesession.cpp",
     "src/filemanager/window/qtworkspacetabbar.cpp",
     "src/filemanager/window/qtworkspacetabbar.h",
+    "src/filemanager/window/qtworkspacetheme.cpp",
+    "src/filemanager/window/qtworkspacetheme.h",
     "src/filemanager/window/qtworkspacetransfer.cpp",
     "src/fileops/links/qtlinkservices.cpp",
     "src/fileops/links/qtlinkservices.h",

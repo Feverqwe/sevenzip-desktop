@@ -5,6 +5,7 @@
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtapppresentation.h"
 #include "filemanager/window/qtnavigationbar.h"
+#include "filemanager/window/qtwindowworkspace.h"
 #include <QMouseEvent>
 #ifdef Q_OS_WIN
 #include <windows.h>
@@ -30,6 +31,8 @@ unsigned MainWindow::panelIndexFor(QObject *object) const {
 }
 
 bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
+    if (watched == this && event->type() == QEvent::Resize && workspace_)
+        workspace_->Refresh();
     if (event->type() == QEvent::KeyPress || event->type() == QEvent::KeyRelease)
         updatePanelModifier(*static_cast<QKeyEvent *>(event));
     if (event->type() == QEvent::WindowDeactivate)

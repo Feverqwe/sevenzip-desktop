@@ -1,6 +1,7 @@
 #include "filemanager/window/qtworkspacetabbar.h"
 #include "filemanager/window/qtmainwindowchrome.h"
 #include "filemanager/window/qtwindowworkspace.h"
+#include "filemanager/window/qtworkspacetheme.h"
 #include <QApplication>
 #include <QDrag>
 #include <QDragEnterEvent>
@@ -21,6 +22,17 @@ QtWorkspaceTabBar::QtWorkspaceTabBar(QtWindowWorkspace &workspace, unsigned pane
     : QTabBar(parent), workspace_(workspace), panel_(panel) {
     setAcceptDrops(true);
     QtConfigureWorkspaceTabs(*this);
+}
+
+QSize QtWorkspaceTabBar::tabSizeHint(int index) const {
+    const auto native = QTabBar::tabSizeHint(index);
+    return {qBound(QtWorkspaceTheme::metric(*this, 44), native.width(),
+                   QtWorkspaceTheme::metric(*this, 220)),
+            QtWorkspaceTheme::metric(*this, 34)};
+}
+
+QSize QtWorkspaceTabBar::minimumTabSizeHint(int) const {
+    return {QtWorkspaceTheme::metric(*this, 44), QtWorkspaceTheme::metric(*this, 34)};
 }
 
 void QtWorkspaceTabBar::mousePressEvent(QMouseEvent *event) {

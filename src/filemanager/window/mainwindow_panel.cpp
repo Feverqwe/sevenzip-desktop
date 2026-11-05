@@ -10,6 +10,7 @@
 #include "filemanager/window/qtmainwindowchrome.h"
 #include "filemanager/window/qtnavigationbar.h"
 #include "filemanager/window/qtwindowworkspace.h"
+#include "filemanager/window/qtworkspacetheme.h"
 #include "localization/qtlangcontrols.h"
 #include "ui/controls/qtstatuslabel.h"
 #include "ui/theme/qtcommandicons.h"
@@ -17,12 +18,13 @@
 void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
     QSettings settings(toolbarSettingsPath(), QSettings::IniFormat);
     auto *central = new QWidget(this);
+    QtWorkspaceTheme::pane(*central);
     auto *layout = new QVBoxLayout(central);
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(0);
     auto *navigation = new QHBoxLayout;
-    navigation->setContentsMargins(16, 12, 16, 12);
-    navigation->setSpacing(8);
+    navigation->setContentsMargins(8, 8, 8, 8);
+    navigation->setSpacing(4);
     auto *sidebar = new QToolButton(central);
     sidebar->setObjectName(QStringLiteral("panelSidebarButton%1").arg(index));
     sidebar->setIcon(QtCommandSymbol(QtCommandIcon::Sidebar));
@@ -168,6 +170,10 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
 
 void MainWindow::createFileTable(QWidget *central) {
     projectedUi().table = new FileTable(7, central);
+    QtWorkspaceTheme::fileView(*projectedUi().table);
+    QtWorkspaceTheme::header(*projectedUi().table->horizontalHeader());
+    projectedUi().table->verticalHeader()->setDefaultSectionSize(
+        QtWorkspaceTheme::metric(*projectedUi().table, 28));
     auto *fileTable = static_cast<FileTable *>(projectedUi().table);
     fileTable->setFullRowHighlight(fileListSettings_.FullRow);
     fileTable->sourcePanel = &app_.GetFocusedPanel();

@@ -1,8 +1,11 @@
 #include "filemanager/window/qtmainwindowchrome.h"
+#include "filemanager/window/qtworkspacetheme.h"
 #include <QApplication>
 #include <QPainter>
+#include <QPainterPath>
 #include <QProxyStyle>
 #include <QPushButton>
+#include <QStyleOptionTab>
 #include <QStyleOptionToolButton>
 #include <QTabBar>
 #include <QToolBar>
@@ -12,17 +15,91 @@ namespace {
 class PanelChromeStyle final : public QProxyStyle {
   public:
     explicit PanelChromeStyle(QWidget &owner) { setParent(&owner); }
+    int styleHint(StyleHint hint, const QStyleOption *option, const QWidget *widget,
+                  QStyleHintReturn *data) const override {
+        if (hint == SH_TabBar_CloseButtonPosition)
+            return QTabBar::RightSide;
+        return QProxyStyle::styleHint(hint, option, widget, data);
+    }
+    int pixelMetric(PixelMetric metric, const QStyleOption *option,
+                    const QWidget *widget) const override {
+        if (metric == PM_TabCloseIndicatorWidth || metric == PM_TabCloseIndicatorHeight)
+            return widget ? QtWorkspaceTheme::metric(*widget, 20) : 20;
+        return QProxyStyle::pixelMetric(metric, option, widget);
+    }
+    void drawControl(ControlElement element, const QStyleOption *option, QPainter *painter,
+                     const QWidget *widget) const override {
+        const auto *tab = qstyleoption_cast<const QStyleOptionTab *>(option);
+        if (tab && element == CE_TabBarTab) {
+            drawControl(CE_TabBarTabShape, option, painter, widget);
+            drawControl(CE_TabBarTabLabel, option, painter, widget);
+            return;
+        }
+        if (!tab || (element != CE_TabBarTabShape && element != CE_TabBarTabLabel)) {
+            QProxyStyle::drawControl(element, option, painter, widget);
+            return;
+        }
+        const auto c = QtWorkspaceTheme::colors();
+        const bool selected = tab->state & State_Selected;
+        painter->save();
+        painter->setRenderHint(QPainter::Antialiasing);
+        if (element == CE_TabBarTabShape) {
+            const QRectF r = tab->rect;
+            if (selected || (tab->state & State_MouseOver)) {
+                QPainterPath shape;
+                const qreal radius = qMin(10.0, r.width() / 3);
+                shape.moveTo(r.bottomLeft());
+                shape.lineTo(r.left(), r.top() + radius);
+                shape.quadTo(r.topLeft(), r.topLeft() + QPointF(radius, 0));
+                shape.lineTo(r.right() - radius, r.top());
+                shape.quadTo(r.topRight(), r.topRight() + QPointF(0, radius));
+                shape.lineTo(r.bottomRight());
+                shape.closeSubpath();
+                painter->fillPath(shape, selected ? c.secondary : c.hover);
+            } else if (tab->selectedPosition != QStyleOptionTab::NextIsSelected) {
+                painter->setPen(c.stroke);
+                painter->drawLine(r.right(), r.top() + 9, r.right(), r.top() + 25);
+            }
+        } else {
+            QRect label = tab->rect.adjusted(10, 0, -8 - tab->rightButtonSize.width(), 0);
+            if (!tab->icon.isNull()) {
+                const QRect icon(label.left(), label.center().y() - 8, 16, 16);
+                tab->icon.paint(painter, icon);
+                label.setLeft(label.left() + 23);
+            }
+            painter->setFont(widget->font());
+            painter->setPen(selected ? c.text : c.subtle);
+            const auto *bar = qobject_cast<const QTabBar *>(widget);
+            const QString title =
+                bar && tab->tabIndex >= 0 ? bar->tabText(tab->tabIndex) : tab->text;
+            painter->drawText(
+                label, Qt::AlignVCenter | Qt::AlignLeft,
+                painter->fontMetrics().elidedText(title, Qt::ElideRight, qMax(0, label.width())));
+            if (tab->state & State_HasFocus) {
+                painter->setPen(c.accent);
+                painter->drawLine(label.bottomLeft() - QPoint(0, 3),
+                                  label.bottomRight() - QPoint(0, 3));
+            }
+        }
+        painter->restore();
+    }
     void drawPrimitive(PrimitiveElement element, const QStyleOption *option, QPainter *painter,
                        const QWidget *widget) const override {
+        if (element == PE_FrameTabBarBase)
+            return;
         if (element != PE_IndicatorTabClose) {
             QProxyStyle::drawPrimitive(element, option, painter, widget);
             return;
         }
         painter->save();
         painter->setRenderHint(QPainter::Antialiasing);
-        const auto group = option->state & State_Enabled ? QPalette::Active : QPalette::Disabled;
-        painter->setPen(QPen(QApplication::palette().color(group, QPalette::WindowText), 1.3,
-                             Qt::SolidLine, Qt::RoundCap));
+        const auto c = QtWorkspaceTheme::colors();
+        if (option->state & State_MouseOver) {
+            painter->setPen(Qt::NoPen);
+            painter->setBrush(c.hover);
+            painter->drawRoundedRect(option->rect.adjusted(1, 1, -1, -1), 4, 4);
+        }
+        painter->setPen(QPen(c.subtle, 1.3, Qt::SolidLine, Qt::RoundCap));
         const QPointF center = option->rect.center();
         painter->drawLine(center + QPointF(-3, -3), center + QPointF(3, 3));
         painter->drawLine(center + QPointF(-3, 3), center + QPointF(3, -3));
@@ -163,12 +240,17 @@ class MainChromeStyle final : public QProxyStyle {
 void QtConfigureChromeToolButton(QToolButton &button) {
     button.setStyle(new PanelChromeStyle(button));
     button.setFont(QApplication::font());
+    button.setMinimumHeight(QtWorkspaceTheme::metric(button, 30));
+    button.setIconSize(QSize(16, 16));
 }
 void QtConfigureWorkspaceTabs(QTabBar &tabs) { tabs.setStyle(new PanelChromeStyle(tabs)); }
 
 void QtConfigureMainToolbar(QToolBar &toolbar) {
     toolbar.setStyle(new MainChromeStyle(toolbar));
     toolbar.setFont(QApplication::font());
+    QtWorkspaceTheme::pane(toolbar);
+    toolbar.setStyleSheet("QToolBar { border:0; border-bottom:1px solid " +
+                          QtWorkspaceTheme::colors().stroke.name() + "; }");
 }
 
 void QtConfigureMainToolbarButton(QToolButton &button) {
@@ -178,7 +260,13 @@ void QtConfigureMainToolbarButton(QToolButton &button) {
 
 void QtConfigurePanelParentButton(QPushButton &button) {
     button.setIconSize(QSize(16, 16));
-    button.setMinimumSize(42, 26);
+    button.setFixedSize(QtWorkspaceTheme::metric(button, 30), QtWorkspaceTheme::metric(button, 30));
+    const auto c = QtWorkspaceTheme::colors();
+    button.setStyleSheet(
+        QStringLiteral("QPushButton { border:0; border-radius:4px; background:transparent; }"
+                       "QPushButton:hover { background:%1; }"
+                       "QPushButton:focus { border:1px solid %2; }")
+            .arg(c.hover.name(), c.accent.name()));
     button.setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
     button.setFont(QApplication::font());
 #ifdef Q_OS_MACOS
