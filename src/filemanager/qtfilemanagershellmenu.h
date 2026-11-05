@@ -31,11 +31,10 @@ class QtFileManagerShellMenu final : public IQtPanelPluginServices,
     void Dispatch(unsigned id, quint64 generation);
 
   public:
-    QtFileManagerShellMenu(MainWindow &window, QMenu &menu,
-                           std::function<void(unsigned)> dispatch = {});
+    QtFileManagerShellMenu(MainWindow &window, QMenu &menu, std::function<void(unsigned)> dispatch);
     ~QtFileManagerShellMenu();
     bool CanInvoke(unsigned id) const;
-    void ResetResult();
+    void InvokePluginCommand(unsigned id);
     void ReleasePluginMenus() override;
     bool IsShiftDown() const override;
     bool ShowSystemMenu() const override;
