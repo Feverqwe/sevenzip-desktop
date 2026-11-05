@@ -320,12 +320,14 @@ Places-регрессия прошла. Windows runtime этим проходо�
 Notify guards ограничены joined read и синхронным bind; они завершаются до
 переходов retained scan guards и финальной projection. Retry и текущее избранное
 используют общий panel-projection scope, сохраняя адресата при Cocoa modal focus.
-Проверка encrypted Cancel/Retry охватывает две панели. Native Cocoa этого нового
-сценария пока не принят: desktop заблокирован, запрос разблокировки остаётся
-открытым; остановленный прогон модального окна не считается PASS.
+Проверка encrypted Cancel/Retry охватывает две панели. После разблокировки macOS
+native Cocoa прошёл: archive workspace — 9 QtTest PASS, archive rollback — 12,
+Retry избранного — 3; ошибок и skipped нет. Сюда входят новый reader после
+замены файла, password Cancel/Retry и deferred failure/Retry. Предыдущий
+остановленный прогон на заблокированном desktop не считается PASS.
 macOS offscreen: archive workspace/rollback/Places — PASS после окончательной
 проверки двух панелей; ранее прошли session и общий navigation scope. Эти
-результаты не заменяют недостающую native Cocoa проверку нового сценария.
+результаты относятся к отдельному offscreen-прогону; native evidence приведено выше.
 
 Повторное открытие failed candidate теперь сначала закрывает его прежнюю chain
 штатным native bind к пустому root, затем открывает physical target заново. Это
