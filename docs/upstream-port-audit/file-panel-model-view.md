@@ -1,5 +1,41 @@
 # Файловая панель: Qt Model/View — 2026-10-24
 
+## Interarchive destination reload keeps its native owner — 2026-11-05
+
+Reviewed complete interarchive Copy/Move routing, staged extraction/update,
+source deletion publication, destination backup/restore, all transfer outcomes,
+copy completion and bound-reload/reopen presentation. Original CApp::OnCopy
+refresh/selection order matches the recorded App.cpp baseline at
+`b88c6bc09339de32f7d18bbab900686b244f42ba` from
+<https://github.com/ip7z/7zip.git>, full SHA256
+`1a1acb597f26809816f27d02be394e74bf61face48db59601bcbd2c96ba63e40`.
+Native copy/update algorithms, metadata fidelity gates, rollback and source
+deletion decisions remain unchanged; no import or baseline revision changes.
+
+Destination refresh now uses the shared publication projection for both native
+RefreshListCtrl and rollback reopening. The transfer adapter no longer activates
+the peer and then the source around publication. Destination completion is still
+marked after its reload and before projection restoration. Reopening owns a new
+Loading transition; its modal guards remain held through the return to the
+original projection, then the resulting idle/scan state is published using the
+same established sequence as independent GUI-output refresh. No new operation
+state or projection mode is introduced.
+
+Existing native move-publication checks cover success, refused deletion,
+source writer/reopen failures and retained destination bytes. Focused native
+recovery checks cover destination rollback/reopen errors, Cancel, source focus,
+selection and successful Copy retry. A focused native recovery row also returns
+the destination to an existing 301-item filesystem fixture after rollback
+failure, exercising deferred publication before retry with the right source
+panel. Staging checks retain real link/stream, collision and unsupported-destination
+behavior. The full repeated presentation
+matrices remain opt-in slow suites.
+
+Focused Linux validation passed: interarchive_move_publication,
+interarchive_recovery_native and interarchive_staging (28 Qt checks). No native
+platform code changed; Windows/macOS and full slow-matrix acceptance are not
+claimed.
+
 ## Timer refresh visits panels through their publication projection — 2026-11-05
 
 Compared complete original CPanel::OnTimer and its refresh caller with the Qt

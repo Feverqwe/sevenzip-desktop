@@ -62,20 +62,17 @@ void MainWindow::transferFromArchive(const QString &destination, bool move, bool
 
 void MainWindow::refreshArchiveTransferDestination(unsigned index, const CSelectedState &selection,
                                                    ArchiveTransferReload reload) {
-    const unsigned sourceIndex = 1 - index;
-    auto &target = app_.Panels[index];
-    {
-        // CopyFrom replaced the proxy while the old rows remain visible.
-        // Preserve OnCopy's notification guard until loading begins.
-        CPanel::CDisableNotify disableNotify(target);
-        activatePanelUi(index);
-    }
+    withPanelProjection(index, [&] {
+        if (reload == ArchiveTransferReload::ReopenArchive)
+            refreshCurrent(&selection);
+        else
+            app_.Panels[index].RefreshListCtrl(selection);
+        appPresentation_->CopyDestinationRefreshed(index);
+    });
+    // As with independent GUI outputs, retain ReOpen's modal guards through
+    // projection restoration, then publish the resulting idle/scan state.
     if (reload == ArchiveTransferReload::ReopenArchive)
-        refreshCurrent(&selection);
-    else
-        target.RefreshListCtrl(selection);
-    appPresentation_->CopyDestinationRefreshed(index);
-    activatePanelUi(sourceIndex);
+        setState(projectedUi().state);
 }
 
 bool MainWindow::transferBetweenArchivePanels(const QString &destination, bool move,
