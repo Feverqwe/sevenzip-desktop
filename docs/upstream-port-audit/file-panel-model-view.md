@@ -1,5 +1,128 @@
 # Файловая панель: Qt Model/View — 2026-10-24
 
+## Interarchive destination reload keeps its native owner — 2026-11-05
+
+Reviewed complete interarchive Copy/Move routing, staged extraction/update,
+source deletion publication, destination backup/restore, all transfer outcomes,
+copy completion and bound-reload/reopen presentation. Original CApp::OnCopy
+refresh/selection order matches the recorded App.cpp baseline at
+`b88c6bc09339de32f7d18bbab900686b244f42ba` from
+<https://github.com/ip7z/7zip.git>, full SHA256
+`1a1acb597f26809816f27d02be394e74bf61face48db59601bcbd2c96ba63e40`.
+Native copy/update algorithms, metadata fidelity gates, rollback and source
+deletion decisions remain unchanged; no import or baseline revision changes.
+
+Destination refresh now uses the shared publication projection for both native
+RefreshListCtrl and rollback reopening. The transfer adapter no longer activates
+the peer and then the source around publication. Destination completion is still
+marked after its reload and before projection restoration. Reopening owns a new
+Loading transition; its modal guards remain held through the return to the
+original projection, then the resulting idle/scan state is published using the
+same established sequence as independent GUI-output refresh. No new operation
+state or projection mode is introduced.
+
+Existing native move-publication checks cover success, refused deletion,
+source writer/reopen failures and retained destination bytes. Focused native
+recovery checks cover destination rollback/reopen errors, Cancel, source focus,
+selection and successful Copy retry. A focused native recovery row also returns
+the destination to an existing 301-item filesystem fixture after rollback
+failure, exercising deferred publication before retry with the right source
+panel. Staging checks retain real link/stream, collision and unsupported-destination
+behavior. The full repeated presentation
+matrices remain opt-in slow suites.
+
+Focused Linux validation passed: interarchive_move_publication,
+interarchive_recovery_native and interarchive_staging (28 Qt checks). No native
+platform code changed; Windows/macOS and full slow-matrix acceptance are not
+claimed.
+
+## Timer refresh visits panels through their publication projection — 2026-11-05
+
+Compared complete original CPanel::OnTimer and its refresh caller with the Qt
+timer dispatcher, source change notification, portable snapshots, operation
+admission, panel projection and deferred reload/viewport restoration. Original
+PanelItems.cpp at `b88c6bc09339de32f7d18bbab900686b244f42ba` from
+<https://github.com/ip7z/7zip.git> matches the recorded full SHA256
+`7ac9d1a31d4f468cffcd3807c8ae36e8b16f040e7c81aa074ad2ae6930135802`.
+No native watcher, detection algorithm, source import or baseline changes.
+
+The Qt timer now visits visible filesystem panels through the existing temporary
+publication projection, removing manual user activation and final reactivation.
+An unchanged peer no longer publishes its title during idle timer ticks. Native
+OnTimer still decides whether to reload, including the Auto-refresh setting;
+existing operation/call/notification guards and stopping after a retained scan
+remain intact. Namespace/archive panels need no filesystem timer visit.
+
+The idle-tick regression observes real window-title signals, typed address,
+focus, selection and bound paths with either panel active. Existing automatic
+refresh checks cover native/portable change detection, content/add/remove,
+small/deferred table/icon viewports and missing-folder recovery. Modal Copy
+cancellation retains its source through actual timer ticks.
+
+Focused Linux validation passed: panel_auto_refresh, modal_refresh_window,
+filesystem_reload and large_list_window (66 Qt checks). Native watcher code and
+platform branches are unchanged; Windows/macOS acceptance is not claimed.
+
+## Native peer reload shares the publication projection — 2026-11-05
+
+Reviewed complete original CApp::OnCopy, native RefreshListCtrl/selection
+completion, current copy continuation, synchronous/error/deferred reload paths,
+panel activation and the projection used by scanner/publication callbacks.
+Original App.cpp at `b88c6bc09339de32f7d18bbab900686b244f42ba` from
+<https://github.com/ip7z/7zip.git> matches the existing baseline SHA256
+`1a1acb597f26809816f27d02be394e74bf61face48db59601bcbd2c96ba63e40`.
+Native copy routing, diagnostic order, reload results and selection algorithms
+are unchanged; no source import or baseline revision changes.
+
+The native reload callback now uses the existing temporary panel projection
+instead of activating the peer as a user action and implementing a second
+restore/status guard. The projected loader retains filesystem viewport,
+missing-folder, namespace and archive branches in one focused body. The shared
+projection selects source ownership before loading and restores the original
+panel/status after background publication without querying stale archive rows
+through an intermediate activation. Native modal focus reconciliation remains
+explicit even when the request belongs to the current Qt projection.
+
+Operation admission, deferred scan guards and copy continuation retain their
+existing owners. Source and destination refresh failures remain independent of
+the writer result; native completion still restores selection and list focus.
+Existing copy-publication and peer-load-failure scenarios exercise both owners,
+Copy/Move, cancellation/error/retry and worker failure; filesystem reload,
+large-list and native-navigation scenarios cover direct consumers.
+
+Focused Linux validation passed: panel_copy_reload, copy_publication_order,
+filesystem_reload, large_list_window and native_navigation_window (154 Qt
+checks). No layout or native platform-specific code changed; secondary-platform
+acceptance is not claimed.
+
+## Archive row publication uses the existing call/scan owners — 2026-11-05
+
+Compared original PanelItems.cpp RefreshListCtrl and OnTimer with native list
+loading, archive directory reading, the complete Qt bound-folder renderer and
+its callers, flat-mode refresh and deferred publication completion/cancellation.
+The complete original at `b88c6bc09339de32f7d18bbab900686b244f42ba` from
+<https://github.com/ip7z/7zip.git> matches the existing baseline SHA256
+`7ac9d1a31d4f468cffcd3807c8ae36e8b16f040e7c81aa074ad2ae6930135802`.
+No native load/selection algorithm, source import or baseline changes.
+
+The archive row renderer removes its additional timer guard: its sole caller,
+the bound-folder renderer, already holds the application CallScope, which
+excludes the sole Qt timer dispatcher during synchronous and modal work. Native
+LoadListItems keeps its original guards. Deferred rows retain the existing scan
+owner's guards until completion or cancellation. The separate notification
+guard remains around synchronous Qt row changes and is released before a scan
+captures notification state. No replacement guard, state or handoff is added.
+
+Existing large-list checks cover responsive publication, Flat toggle, refresh
+with selection, folder entry, navigation and close while rows are pending.
+Flat-view and sparse-image UI checks cover small lists, exact selected paths,
+native directory loading and encrypted input cancellation/retry.
+
+Focused Linux validation passed: large_list_window, flat_view and
+sparse_image_ui (49 Qt checks). This shared Qt lifecycle change introduces no
+native platform branch or visible layout change; secondary-platform acceptance
+is not claimed.
+
 ## Parent button belongs to its panel — 2026-11-05
 
 Compared original CPanel toolbar creation and complete OnCommand parent routing

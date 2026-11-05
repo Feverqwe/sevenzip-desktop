@@ -11,10 +11,10 @@
 
 class QtVolumeWindowServices final : public IQtVolumeServices {
     MainWindow &window_;
-    CPanel &panel_;
+    const unsigned panel_;
 
   public:
-    QtVolumeWindowServices(MainWindow &window, CPanel &panel) : window_(window), panel_(panel) {}
+    QtVolumeWindowServices(MainWindow &window, unsigned panel) : window_(window), panel_(panel) {}
     void StartSplit(const CSplitVolumePlan &plan, const UString &title,
                     std::function<void()> completion) override {
         const QString source = ToQString(fs2us(plan.FilePath));
@@ -36,16 +36,20 @@ void MainWindow::startVolume(VolumeOperation::Mode mode) {
     if (projectedUi().state != State::Filesystem || volumeOperation_ ||
         !(mode == VolumeOperation::Mode::Split ? split_ : combine_)->isEnabled())
         return;
-    QtVolumeWindowServices services(*this, app_.GetFocusedPanel());
+    QtVolumeWindowServices services(*this, app_.GetFocusedPanelIndex());
     if (mode == VolumeOperation::Mode::Split)
         app_.Split(services);
     else
         app_.Combine(services);
 }
 
-void MainWindow::launchVolume(CPanel &panel, VolumeOperation *operation, const UString &title,
+void MainWindow::launchVolume(unsigned index, VolumeOperation *operation, const UString &title,
                               const QString &source, UInt64 totalSize,
                               std::function<void()> completion) {
+    // Native Split/Combine retain their source across the modal plan dialog.
+    // Restore that owner before the asynchronous operation publishes state.
+    activatePanelUi(index);
+    auto &panel = app_.Panels[index];
     CSelectedState selection;
     panel.SaveSelectedState(selection);
     volumeOperation_ = operation;
@@ -58,7 +62,7 @@ void MainWindow::launchVolume(CPanel &panel, VolumeOperation *operation, const U
     progress->Sync.Set_NumBytesTotal(totalSize);
     volumeOperation_->attachProgress(progress->Sync);
     connect(volumeOperation_, &VolumeOperation::result, this,
-            [this, panel = &panel, selection, operation = volumeOperation_,
+            [this, index, selection, operation = volumeOperation_,
              completion = std::move(completion)](bool success, const QString &message) {
                 if (app_.QtOperations().closed())
                     return;
@@ -78,7 +82,7 @@ void MainWindow::launchVolume(CPanel &panel, VolumeOperation *operation, const U
                     return;
                 setState(State::Filesystem);
                 if (success) {
-                    panel->RefreshListCtrl(selection);
+                    app_.Panels[index].RefreshListCtrl(selection);
                     if (guard && !app_.QtOperations().closed() && !app_.QtOperations().blocking())
                         statusBar()->showMessage(message);
                 }

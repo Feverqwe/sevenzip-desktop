@@ -4,7 +4,6 @@
 #include "filemanager/window/mainwindow.h"
 #include "localization/qtlanguageservices.h"
 
-#include <QScopeGuard>
 #include <QScopedValueRollback>
 #include <QScrollBar>
 #include <utility>
@@ -19,24 +18,18 @@ HRESULT MainWindow::reloadPanelPresentation(unsigned index, const CSelectedState
     // OnCopy also refreshes both panels. A different panel's scan must not
     // suppress this publication; the operation owner retains each scan's guard.
     app_.Panels[index].TakeRefreshSelection();
-    const unsigned original = projectedPanel_;
-    const QString originalStatus = statusBar()->currentMessage();
-    if (index != original) {
-        // ReOpen can retire this panel's proxy before its old rows are cleared.
-        // Do not derive command state from those rows during activation.
-        CPanel::CDisableNotify notify(app_.Panels[index]);
-        activatePanelUi(index);
-    }
-    // A native modal close can restore peer focus while the Qt projection is
-    // held on this command owner. Source RefreshListCtrl reloads its own panel.
-    app_.SetFocusedPanel(index);
-    const auto restore = qScopeGuard([&] {
-        if (index != original) {
-            activatePanelUi(original);
-            statusBar()->showMessage(originalStatus);
-        }
+    HRESULT result = E_ABORT;
+    withPanelProjection(index, [&] {
+        // A native modal close can restore peer focus while the Qt projection
+        // remains on this owner. Reload the source panel that made the request.
+        app_.SetFocusedPanel(index);
+        result = reloadProjectedPanel(selection);
     });
-    const auto &panel = app_.Panels[index];
+    return result;
+}
+
+HRESULT MainWindow::reloadProjectedPanel(const CSelectedState &selection) {
+    const auto &panel = app_.GetFocusedPanel();
     const bool archive = panel.IsArcFolder();
     const bool root = !archive && (panel.IsRootFolder() || panel.IsFSDrivesFolder() ||
                                    panel.IsNetFolder() || panel.IsAltStreamsFolder());
@@ -50,7 +43,7 @@ HRESULT MainWindow::reloadPanelPresentation(unsigned index, const CSelectedState
     }
     if (!QFileInfo(projectedUi().directory).isDir()) {
         const HRESULT loaded = app_.GetFocusedPanel().LoadListItems();
-        auto &snapshot = panelUi_[index].autoRefreshSnapshot;
+        auto &snapshot = panelUi_[projectedPanel_].autoRefreshSnapshot;
         snapshot.clear();
         snapshot.insert(projectedUi().directory, filesystemSignature(projectedUi().directory));
         projectedUi().table->clearSelection();
@@ -157,18 +150,16 @@ void MainWindow::pollAutoRefresh() {
         app_.QtOperations().closed() || app_.QtOperations().callActive() || sourceArchiveProgress_)
         return;
     // Unlike native WM_TIMER, the Qt timer visits both panel projections.
-    // Their activation queries status, so honor source notification/status
-    // guards before entering either projection while a worker can reopen it.
+    // Honor source notification/status guards before querying either folder
+    // while a worker can reopen it.
     for (unsigned index = 0; index < kNumPanelsMax; ++index)
         if (app_.IsPanelVisible(index) && !app_.Panels[index].ShouldProcessNotifications())
             return;
-    const unsigned original = projectedPanel_;
     for (unsigned index = 0; index < kNumPanelsMax; ++index) {
-        if (!app_.IsPanelVisible(index) || !panelUi_[index].container)
+        if (!app_.IsPanelVisible(index) || !panelUi_[index].container ||
+            panelUi_[index].state != State::Filesystem)
             continue;
-        if (index != projectedPanel_)
-            activatePanelUi(index);
-        if (projectedUi().state == State::Filesystem) {
+        withPanelProjection(index, [&] {
             CPanel &panel = app_.GetFocusedPanel();
             const auto &snapshot = panelUi_[index].autoRefreshSnapshot;
             if (panel.AutoRefresh_Mode) {
@@ -180,12 +171,10 @@ void MainWindow::pollAutoRefresh() {
                 }
             }
             panel.OnTimer();
-        }
+        });
         if (app_.QtOperations().active())
             break;
     }
-    if (original != projectedPanel_)
-        activatePanelUi(original);
 }
 
 void MainWindow::restoreAutoRefreshViewport() {

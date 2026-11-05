@@ -97,6 +97,7 @@
     add_test(NAME interarchive_recovery_native COMMAND interarchive_recovery_tests -silent
         rollbackFailureAndRetry:native-reopen-failure
         rollbackFailureAndRetry:native-reopen-cancel
+        rollbackFailureAndRetry:native-restore-large
         rollbackFailureAndRetry:0-0-0-0-native-restore)
     set_tests_properties(interarchive_recovery_native PROPERTIES TIMEOUT 45 ENVIRONMENT "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/interarchive-recovery-native.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
     set_tests_properties(interarchive_recovery PROPERTIES TIMEOUT 120 ENVIRONMENT "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/interarchive-recovery.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")

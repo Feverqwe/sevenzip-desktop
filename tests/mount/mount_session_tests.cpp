@@ -13,17 +13,17 @@ class MountSessionTests final : public QObject {
         return file.open(QIODevice::ReadOnly) ? file.readAll() : QByteArray();
     }
   private slots:
-    void cancelPreparation_data() {
+    void preparationStopsOnce_data() {
         QTest::addColumn<QString>("format");
-        QTest::addColumn<bool>("prepared");
+        QTest::addColumn<int>("scenario");
         for (const QString &format : {QString("tar"), QString("zip")})
-            for (bool prepared : {false, true})
-                QTest::newRow(qPrintable(QString("%1-%2").arg(format).arg(prepared)))
-                    << format << prepared;
+            for (int scenario = 0; scenario < 3; ++scenario)
+                QTest::newRow(qPrintable(QString("%1-%2").arg(format).arg(scenario)))
+                    << format << scenario;
     }
-    void cancelPreparation() {
+    void preparationStopsOnce() {
         QFETCH(QString, format);
-        QFETCH(bool, prepared);
+        QFETCH(int, scenario);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString archive = fixture.filePath(QStringLiteral("контейнер 空.") + format);
@@ -45,20 +45,24 @@ class MountSessionTests final : public QObject {
         QSignalSpy stopped(&session, &QtArchiveMountSession::stopped);
         bool cancelledFromNotification = false;
         connect(&session, &QtArchiveMountSession::changed, this, [&] {
-            if (prepared && session.status() == QtArchiveMountSession::Status::Preparing) {
+            if (scenario == 1 && session.status() == QtArchiveMountSession::Status::Preparing) {
                 cancelledFromNotification = true;
                 session.unmount();
             }
         });
-        // Cancellation must stop before launching this deliberately missing server.
+        // Cancel before launch, or exercise asynchronous failure of the same
+        // deliberately missing server without reaching an OS mount.
         session.start(retained, 1024, {}, fixture.filePath("missing SMB server"));
-        if (!prepared)
+        if (scenario == 0)
             session.unmount();
         QTRY_COMPARE(session.status(), QtArchiveMountSession::Status::Stopped);
-        QCOMPARE(cancelledFromNotification, prepared);
+        QCOMPARE(cancelledFromNotification, scenario == 1);
+        const QString error = session.error();
+        QCOMPARE(error.isEmpty(), scenario != 2);
+        session.unmount();
         QCoreApplication::sendPostedEvents();
         QCoreApplication::processEvents();
-        QVERIFY2(session.error().isEmpty(), qPrintable(session.error()));
+        QCOMPARE(session.error(), error);
         QCOMPARE(stopped.size(), 1);
         QCOMPARE(session.status(), QtArchiveMountSession::Status::Stopped);
         QCOMPARE(read(archive), original);

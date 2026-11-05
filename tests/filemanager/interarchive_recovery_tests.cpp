@@ -88,6 +88,8 @@ class InterarchiveRecoveryTests final : public QObject, protected MainWindowTest
             << 0u << false << false << false << QString("native-reopen-failure");
         QTest::newRow("native-reopen-cancel")
             << 1u << true << true << true << QString("native-reopen-cancel");
+        QTest::newRow("native-restore-large")
+            << 1u << false << false << false << QString("native-restore-large");
 #endif
     }
     void rollbackFailureAndRetry() {
@@ -97,7 +99,7 @@ class InterarchiveRecoveryTests final : public QObject, protected MainWindowTest
         QFETCH(bool, alternative);
         QFETCH(QString, route);
         const bool restoreFailure = route.contains("restore");
-        const int fallbackCount = route == "restore-large" ? 301 : 1;
+        const int fallbackCount = route.endsWith("restore-large") ? 301 : 1;
         const QString settingsPath = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         QFile::remove(settingsPath);
         SaveRegLang(UString(russian ? L"ru" : L"-"), settingsPath);

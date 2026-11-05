@@ -14,9 +14,7 @@
 HRESULT MainWindow::renderArchiveFolder(bool updateAddress) {
     cancelListPublication();
     auto &panel = app_.GetFocusedPanel();
-    std::optional<CPanel::CDisableTimerProcessing> disableTimerProcessing;
     std::optional<CPanel::CDisableNotify> disableNotify;
-    disableTimerProcessing.emplace(panel);
     disableNotify.emplace(panel);
     CMyComPtr<IFolderFolder> folderOwner = panel.GetFolder();
     if (!folderOwner)
@@ -48,11 +46,10 @@ HRESULT MainWindow::renderArchiveFolder(bool updateAddress) {
     configureColumns();
     appendParentEntry();
     if (archiveFolder->GetNumberOfItems() > 256) {
-        // Finish the synchronous source guards before retaining operation
+        // Finish the synchronous notification guard before retaining operation
         // guards. Otherwise an idle flat-view change saves disabled flags
         // and leaves notifications disabled when asynchronous loading ends.
         disableNotify.reset();
-        disableTimerProcessing.reset();
         projectedUi().scanningArchive = true;
         setState(State::Viewing);
         projectedUi().listProjection->start(
