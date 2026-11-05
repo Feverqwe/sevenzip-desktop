@@ -34,21 +34,21 @@ void ArchiveBackend::hashMethods(const QStringList &paths, const QStringList &me
     }
     const auto catalog = codecCatalog();
     auto providers = std::make_unique<CExternalCodecs>();
+    CHashOptions options;
     lastResult_ = loadHashProviders(*providers);
     if (lastResult_ == S_OK) {
-        UStringVector selected;
         for (const QString &method : methods)
-            selected.Add(method.toStdWString().c_str());
+            options.Methods.Add(method.toStdWString().c_str());
         CHashBundle validation;
-        lastResult_ = validation.SetMethods(providers.get(), selected);
+        lastResult_ = validation.SetMethods(providers.get(), options.Methods);
     }
     if (lastResult_ != S_OK) {
         emit finished(
             false, QCoreApplication::translate("archivebackend_hash", "Unsupported hash method."));
         return;
     }
-    hashOperation_ =
-        std::make_unique<QtArchiveHashOperation>(paths, methods, catalog, std::move(providers));
+    hashOperation_ = std::make_unique<QtArchiveHashOperation>(paths, std::move(options), catalog,
+                                                              std::move(providers));
     const QPointer<QtArchiveHashOperation> operation(hashOperation_.get());
     hashOperation_->Progress = beginWorkerProgress();
     connect(hashOperation_.get(), &QThread::finished, this, [this, operation] {

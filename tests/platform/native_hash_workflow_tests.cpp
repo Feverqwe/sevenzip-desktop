@@ -180,7 +180,11 @@ class NativeHashWorkflowTests final : public QObject {
         QVERIFY(QDir().mkpath(root + "/empty"));
         QVERIFY(write(root + QStringLiteral("/имя.txt"), "123456789"));
         QVERIFY(write(root + "/other.txt", "abc"));
-        QtArchiveHashOperation worker({root}, methods, {}, std::make_unique<CExternalCodecs>());
+        CHashOptions options;
+        for (const QString &method : methods)
+            options.Methods.Add(method.toStdWString().c_str());
+        QtArchiveHashOperation worker({root}, std::move(options), {},
+                                      std::make_unique<CExternalCodecs>());
         QSignalSpy finished(&worker, &QThread::finished);
         worker.start();
         QTRY_COMPARE_WITH_TIMEOUT(finished.size(), 1, 30000);
@@ -211,7 +215,9 @@ class NativeHashWorkflowTests final : public QObject {
         const QString path = temporary.filePath("input.txt");
         QVERIFY(write(path, "input"));
         for (bool cancel : {false, true}) {
-            QtArchiveHashOperation worker({path}, {cancel ? "SHA256" : "unknown"}, {},
+            CHashOptions options;
+            options.Methods.Add(cancel ? L"SHA256" : L"unknown");
+            QtArchiveHashOperation worker({path}, std::move(options), {},
                                           std::make_unique<CExternalCodecs>());
             QSignalSpy finished(&worker, &QThread::finished);
             if (cancel)

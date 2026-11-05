@@ -3,11 +3,11 @@
 #include "Windows/ErrorMsg.h"
 #include <QFileInfo>
 
-QtArchiveHashOperation::QtArchiveHashOperation(QStringList paths, QStringList methods,
+QtArchiveHashOperation::QtArchiveHashOperation(QStringList paths, CHashOptions options,
                                                std::shared_ptr<const ArchiveCodecCatalog> catalog,
                                                std::unique_ptr<const CExternalCodecs> providers)
     : catalog_(std::move(catalog)), providers_(std::move(providers)), paths_(std::move(paths)),
-      methods_(std::move(methods)) {}
+      options_(std::move(options)) {}
 
 void QtArchiveHashOperation::cancel() { progress_.cancel(); }
 void QtArchiveHashOperation::setPaused(bool paused) { progress_.setPaused(paused); }
@@ -78,13 +78,10 @@ void QtArchiveHashOperation::run() {
         for (const QString &path : paths_)
             censor.AddItem(NWildcard::k_RelatPath, true,
                            QFileInfo(path).absoluteFilePath().toStdWString().c_str(), properties);
-        CHashOptions options;
-        for (const QString &method : methods_)
-            options.Methods.Add(method.toStdWString().c_str());
         // Enumerate links as link objects; never traverse a cyclic directory.
-        options.SymLinks.SetVal_as_Defined(true);
+        options_.SymLinks.SetVal_as_Defined(true);
         AString error;
-        Result = HashCalc(providers_.get(), censor, options, error, this);
+        Result = HashCalc(providers_.get(), censor, options_, error, this);
         if (!error.IsEmpty())
             Errors.append(QString::fromLatin1(error.Ptr()));
     } catch (...) {
