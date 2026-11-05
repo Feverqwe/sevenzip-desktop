@@ -4,6 +4,7 @@
 #include "platform/temp/qtownedtempidentity.h"
 #include <QDir>
 #include <QFileInfo>
+#include <algorithm>
 
 namespace {
 QStringList ArchivePaths(const UStringVector &paths) {
@@ -103,28 +104,32 @@ void MainWindow::refreshGuiOutputPanel(unsigned index, const QtGuiOutputRefresh:
         // ordinary file reuses the original source folder/subfolder workflow.
         if (!resource || resource->HasStreamInput())
             return;
-        for (const auto &archive : output.archives)
-            if (SameFile(resource->EnginePath, archive)) {
-                const QPointer<QWidget> focus = focusWidget();
-                withPanelProjection(index, [this] { refreshCurrent(); });
-                // Projection retains modal source guards while restoring the
-                // original panel. Publish the resulting idle/scan state after
-                // that restoration, before restoring the remembered focus.
-                setState(projectedUi().state);
-                if (focus && focus->isEnabled() && focus->isVisible())
-                    focus->setFocus(Qt::OtherFocusReason);
-                return;
-            }
-        if (!QFileInfo::exists(resource->EnginePath))
-            for (const auto &directory : output.directories)
-                if (ContainsDirectory(NormalPath(directory), NormalPath(resource->EnginePath))) {
-                    const QString parent = QFileInfo(resource->EnginePath).absolutePath();
-                    const QPointer<QWidget> focus = focusWidget();
-                    withPanelProjection(index, [this, parent] { showDirectory(parent, false); });
-                    if (focus && focus->isEnabled() && focus->isVisible())
-                        focus->setFocus(Qt::OtherFocusReason);
-                    return;
-                }
+        const bool changed = std::any_of(
+            output.archives.cbegin(), output.archives.cend(),
+            [&](const QString &archive) { return SameFile(resource->EnginePath, archive); });
+        const bool removed =
+            !changed && !QFileInfo::exists(resource->EnginePath) &&
+            std::any_of(output.directories.cbegin(), output.directories.cend(),
+                        [&](const QString &directory) {
+                            return ContainsDirectory(NormalPath(directory),
+                                                     NormalPath(resource->EnginePath));
+                        });
+        if (!changed && !removed)
+            return;
+        const QString parent = QFileInfo(resource->EnginePath).absolutePath();
+        const QPointer<QWidget> focus = focusWidget();
+        withPanelProjection(index, [&] {
+            if (changed)
+                refreshCurrent();
+            else
+                showDirectory(parent, false);
+        });
+        // ReOpen retains modal source guards while restoring the original
+        // projection. Publish its resulting idle/scan state before focus.
+        if (changed)
+            setState(projectedUi().state);
+        if (focus && focus->isEnabled() && focus->isVisible())
+            focus->setFocus(Qt::OtherFocusReason);
         return;
     }
     if (!panel.Is_IO_FS_Folder())
