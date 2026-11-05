@@ -144,7 +144,8 @@ Reference: `CPP/7zip/UI/FileManager/resource.rc::IDM_MENU`,
 Кнопки поддерживают клавиатурный фокус, нативную индикацию и обычный системный
 шрифт. В широкой однопанельной компоновке действия показывают подписи;
 в компактной и двухпанельной остаются значки с локализованным accessible name
-и tooltip, а «Создать» сохраняет подпись. Normal/compact проверки охватывают EN/RU,
+и tooltip. «Создать» сохраняет подпись в компактном однопанельном режиме;
+в двухпанельном все действия показываются значками. Normal/compact проверки охватывают EN/RU,
 одну→две→одну панели, видимые действия, навигацию и список. Это контракт Qt
 и согласованного редизайна; совпадение пикселей с оригинальным Windows не заявлено.
 
@@ -163,7 +164,7 @@ its list with four parts (`{220, 320, 420, -1}` Win32 boundaries), while
 `PanelListNotify.cpp::Refresh_StatusBar` supplies selected/total, selected
 size, focused size and focused date. `PanelMenu.cpp::OnContextMenu` calls
 `CreateFileMenu(programMenu=false)` and anchors keyboard invocation to the
-focused item. Qt uses four labels inside each panel status bar, with adaptive
+focused item. Qt uses four labels below each panel's file area, with adaptive
 widths for compact two-panel layout; the main-window bar displays operation
 messages. `panel_shell` checks all four labels visible and independent at
 980×620 and 640×400 and writes `panel-shell-*.json`. It also writes disk and

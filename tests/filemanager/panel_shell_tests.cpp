@@ -218,9 +218,10 @@ class PanelShellTests final : public QObject, protected MainWindowTestSupport {
         QTimer::singleShot(0, [&] {
             auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
             QVERIFY(menu);
+            const auto close = qScopeGuard([menu] { menu->close(); });
             QVERIFY(menuAction(*menu, "openItemAction"));
             QVERIFY(menuAction(*menu, "copyAction"));
-            QVERIFY(!menuAction(*menu, "extractArchiveAction"));
+            QVERIFY(menuAction(*menu, "extractArchiveAction"));
             QVERIFY(!menu->findChild<QAction *>("systemContextGroup"));
             QVERIFY(!menuAction(*menu, "exitAction"));
             QVERIFY(UiInspection::writeReport(*menu, QStringLiteral("panel-context-archive")));

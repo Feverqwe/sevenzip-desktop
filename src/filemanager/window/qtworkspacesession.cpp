@@ -85,15 +85,17 @@ void QtWindowWorkspace::Restore(const QJsonObject &value, std::function<void()> 
             sidebarVisible_ = value.value("sidebar").toBool(true);
             if (auto *action = window_.findChild<QAction *>("sidebarAction"))
                 action->setChecked(sidebarVisible_);
-            QList<int> sizes;
-            for (const auto &size : value.value("split").toArray())
-                sizes.append(size.toInt());
-            if (sizes.size() == 2)
-                window_.panelSplitter_->setSizes(sizes);
             const QByteArray geometry =
                 QByteArray::fromBase64(value.value("geometry").toString().toLatin1());
             if (!geometry.isEmpty())
                 window_.restoreGeometry(geometry);
+            QList<int> sizes;
+            for (const auto &size : value.value("split").toArray())
+                sizes.append(size.toInt());
+            if (sizes.size() == 2) {
+                window_.panelSplitter_->setSizes(sizes);
+                window_.panelSplitter_->RememberPosition();
+            }
             window_.refreshActions();
             if (value.value("activeWindow").toBool()) {
                 window_.raise();

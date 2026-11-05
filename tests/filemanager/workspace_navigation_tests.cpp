@@ -8,6 +8,7 @@
 #include <QCloseEvent>
 #include <QDragEnterEvent>
 #include <QDropEvent>
+#include <QListWidget>
 #include <QTabBar>
 
 class CloseProtectedWindow final : public MainWindow {
@@ -87,6 +88,40 @@ class WorkspaceNavigationTests final : public QObject {
         QCOMPARE(QDir::cleanPath(ToQString(reopened->sourcePanel->GetCurrentFolderPrefix())),
                  QDir::homePath());
         QCOMPARE(QDir::cleanPath(ToQString(view->sourcePanel->GetCurrentFolderPrefix())), right);
+    }
+
+    void sharedNativePlaceOpensInFocusedPanelAndKeepsPeerLocation() {
+        QTemporaryDir fixture;
+        const QString left = fixture.filePath("Kept left folder");
+        QVERIFY(QDir().mkpath(left));
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.resize(980, 620);
+        window.show();
+        window.openPath(left);
+        auto *toggle = window.findChild<QAction *>("twoPanelsAction");
+        QTRY_VERIFY(toggle->isEnabled());
+        toggle->trigger();
+        auto *splitter = window.findChild<QSplitter *>("filePanelSplitter");
+        auto *leftTable = splitter->widget(0)->findChild<FileTable *>("archiveTable");
+        auto *rightTable = splitter->widget(1)->findChild<FileTable *>("archiveTable");
+        auto *places = splitter->widget(0)->findChild<QListWidget *>("nativePlaces");
+        QTRY_VERIFY(places && places->count() > 0 && places->isVisible());
+        window.activateWindow();
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        rightTable->setFocus();
+        QTRY_VERIFY(rightTable->hasFocus());
+        const auto index = places->model()->index(0, 0);
+        const QString target = index.data(Qt::UserRole + 1).toString();
+        QVERIFY(!target.isEmpty());
+        QTest::mouseClick(places->viewport(), Qt::LeftButton, Qt::NoModifier,
+                          places->visualRect(index).center());
+        const auto path = [](const FileTable &table) {
+            return QDir::cleanPath(
+                QDir::fromNativeSeparators(ToQString(table.sourcePanel->GetCurrentFolderPrefix())));
+        };
+        QTRY_COMPARE(path(*rightTable), QDir::cleanPath(QDir::fromNativeSeparators(target)));
+        QCOMPARE(path(*leftTable), left);
     }
 
     void tabsRetainSourceSelectionAndRemainUsableAfterClose() {
@@ -257,12 +292,36 @@ class WorkspaceNavigationTests final : public QObject {
         QVERIFY(!cleared || !cleared->hasUrls());
     }
 
+    void defaultPlacesCanBeRenamedRemovedAndStayEmptyAfterRestart() {
+        QTemporaryDir fixture;
+        const QString settings = fixture.filePath("default-places.ini");
+        QString id;
+        {
+            QtFavoriteStore store(settings);
+            QVERIFY(store.rowCount() > 0);
+            id = store.Favorite(0).id;
+            QVERIFY(store.setData(store.index(0), "My personal label", Qt::EditRole));
+            store.RefreshLabels();
+            QCOMPARE(store.Favorite(0).label, "My personal label");
+        }
+        {
+            QtFavoriteStore restored(settings);
+            QCOMPARE(restored.Favorite(0).id, id);
+            QCOMPARE(restored.Favorite(0).label, "My personal label");
+            QVERIFY(restored.removeRows(0, restored.rowCount()));
+        }
+        QtFavoriteStore empty(settings);
+        QCOMPARE(empty.rowCount(), 0);
+    }
+
     void droppingFolderCreatesBookmarkWithoutMovingSource() {
         QTemporaryDir fixture;
         const QString folder = fixture.filePath("Folder to bookmark");
         QVERIFY(QDir().mkpath(folder));
         writeFile(folder + "/keep.txt", "keep original");
-        QtFavoriteStore store(fixture.filePath("drop.ini"));
+        const QString settingsPath = fixture.filePath("drop.ini");
+        QSettings(settingsPath, QSettings::IniFormat).setValue("workspace/favorites", "[]");
+        QtFavoriteStore store(settingsPath);
         QtFavoriteList view;
         view.setModel(&store);
         view.setDragDropMode(QAbstractItemView::DragDrop);

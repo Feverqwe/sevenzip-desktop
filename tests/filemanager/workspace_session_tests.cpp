@@ -3,6 +3,7 @@
 #include "filemanager/window/qtwindowworkspace.h"
 #include "filemanager/window/qtworkspaceapplication.h"
 #include <QScopeGuard>
+#include <QSplitterHandle>
 #include <QTabBar>
 
 class WorkspaceSessionTests final : public QObject {
@@ -84,6 +85,44 @@ class WorkspaceSessionTests final : public QObject {
             application.Quit();
             QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
         }
+    }
+
+    void restoringCompactWindowKeepsItsCustomFileAreaSplit() {
+        QJsonObject saved;
+        QList<int> original;
+        {
+            ControlledBackend backend;
+            MainWindow first(&backend);
+            first.resize(640, 400);
+            first.show();
+            first.findChild<QAction *>("twoPanelsAction")->trigger();
+            auto *splitter = first.findChild<QSplitter *>("filePanelSplitter");
+            QTRY_VERIFY(splitter && splitter->widget(1)->isVisible());
+            auto *handle = splitter->handle(1);
+            QTest::keyClick(handle, Qt::Key_Right, Qt::ShiftModifier);
+            original = splitter->sizes();
+            saved = workspace(first)->Save();
+        }
+        ControlledBackend backend;
+        MainWindow restored(&backend);
+        restored.resize(980, 620);
+        restored.show();
+        bool done = false;
+        workspace(restored)->Restore(saved, [&] { done = true; });
+        QTRY_VERIFY_WITH_TIMEOUT(done, 10000);
+        auto *splitter = restored.findChild<QSplitter *>("filePanelSplitter");
+        QTRY_COMPARE(splitter->sizes(), original);
+        restored.resize(980, 620);
+        QApplication::processEvents();
+        restored.resize(640, 400);
+        QApplication::processEvents();
+        const auto resized = splitter->sizes();
+        QVERIFY(qAbs(resized.value(0) - original.value(0)) <= 1);
+        auto *places = restored.findChild<QAction *>("sidebarAction");
+        places->setChecked(false);
+        places->setChecked(true);
+        QApplication::processEvents();
+        QVERIFY(qAbs(splitter->sizes().value(0) - original.value(0)) <= 1);
     }
 
     void missingSavedLocationDoesNotExposeFallbackFolderCommands() {

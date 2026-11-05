@@ -74,6 +74,27 @@ macOS: полный `main_shell` и Cocoa EN/RU light/dark normal/compact review
 Windows этим проходом не проверялся; прежние результаты ниже относятся к первой
 функциональной итерации и не подтверждают новое оформление.
 
+Следующий проход выделяет `QtPlacesSidebar`: общие строки избранного и native
+расположений, типизированные запросы открытия и общая палитра. Начальные записи
+используют тот же favorites model, что пользовательские; явное удаление не
+отменяется при запуске. Native расположения получаются через существующий
+`CRootFolder`/`IFolderFolder`, а открываются прежним navigation owner.
+Повторная сверка `FM.cpp` из записанного source archive подтверждает сохранение
+полных тел `CSplitterPos`: Qt-адаптер исключает sidebar и разницу ширины grip
+из клиентских координат. Win32 захват/WM_SIZE заменены Qt handle/events, а
+модель отношения и границ сохранена. Статус размещён под файловой областью,
+активная сторона обозначена в общем navigation-row component. Восстановление
+геометрии предшествует восстановлению разделителя. ShortcutOverride удерживает
+стрелки и Return у сфокусированного grip, исключая запуск файлового Rename.
+Колонки и выделение остаются следующим незавершённым визуальным сценарием.
+Focused-проверки этого прохода: Linux — семь suites (main shell, workspace3,
+root navigation, placement и panel shell); macOS — пять suites (main shell,
+workspace navigation/session, placement и panel shell); Windows interactive —
+main shell, workspace navigation, root navigation и placement. Все PASS.
+Финальные Cocoa EN/RU light/dark normal/compact PNG/JSON просмотрены:
+две файловые области при 640×400 имеют 246/246 логических пикселей;
+grip Return не запускает Rename, status находится под списками.
+
 Source scope и runtime evidence учитываются отдельно. Focused workspace suites
 проверяют возврат выбора вкладки, перенос живого источника после уничтожения
 исходного окна/backend, реальные clipboard bytes, сессию нескольких окон,

@@ -29,7 +29,7 @@ class QtWindowWorkspace final : public QObject {
     void Restore(const QJsonObject &state, std::function<void()> finished = {});
     void EditLocation();
     QString CurrentLocation();
-    void AttachContent(unsigned panel, QVBoxLayout &layout);
+    void AttachContent(unsigned panel, QVBoxLayout &layout, QWidget &status);
     bool WithSource(CPanel &source, const std::function<bool()> &body);
     bool SourceIsActive(const CPanel &source) const;
     void MarkDirty(CPanel &source);
@@ -70,6 +70,8 @@ class QtWindowWorkspace final : public QObject {
     void DetachTab(const QString &id);
     void CreateActions(unsigned panel, QVBoxLayout &layout);
     void RefreshChrome();
+    QWidget *CreateSidebar(unsigned panel);
+    void RefreshSidebar(unsigned panel);
     void AddFavorite();
     void OpenFavorite(const QString &path, int target);
     void WhenReady(std::function<void()> body);

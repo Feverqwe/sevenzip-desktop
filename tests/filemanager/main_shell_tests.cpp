@@ -12,6 +12,7 @@
 #include <QScopeGuard>
 #include <QScreen>
 #include <QSizeGrip>
+#include <QSplitterHandle>
 #include <QTabBar>
 #include <QTimer>
 #include <QToolBar>
@@ -369,9 +370,29 @@ class MainShellTests final : public QObject {
                     }
                 }
                 if (two) {
-                    auto *rightPanel = window.findChild<QWidget *>("filePanel1");
+                    auto *splitter = window.findChild<QSplitter *>("filePanelSplitter");
+                    splitter->handle(1)->setFocus();
+                    QTest::keyClick(splitter->handle(1), Qt::Key_Right, Qt::ShiftModifier);
+                    QSignalSpy renamed(window.findChild<QAction *>("renameAction"),
+                                       &QAction::triggered);
+                    QTest::keyClick(splitter->handle(1), Qt::Key_Return);
+                    QCOMPARE(renamed.size(), 0);
+                    QApplication::processEvents();
+                    auto *rightPanel = splitter->widget(1);
                     auto *rightStack = rightPanel->findChild<QStackedWidget *>("fileViewStack");
                     QCOMPARE(rightStack->width(), rightPanel->width());
+                    auto *leftPanel = splitter->widget(0);
+                    auto *leftStack = leftPanel->findChild<QStackedWidget *>("fileViewStack");
+                    QVERIFY2(
+                        qAbs(leftStack->width() - rightStack->width()) <= 1,
+                        qPrintable(
+                            QString(
+                                "Reset file widths: left %1, right %2, window %3; splitter %4/%5")
+                                .arg(leftStack->width())
+                                .arg(rightStack->width())
+                                .arg(window.width())
+                                .arg(splitter->sizes().value(0))
+                                .arg(splitter->sizes().value(1))));
                 }
                 QVERIFY(UiInspection::writeReport(window, QString("workspace-shell-%1-%2-%3")
                                                               .arg(language)

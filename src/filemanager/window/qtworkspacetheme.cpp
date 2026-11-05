@@ -3,7 +3,9 @@
 #include <QApplication>
 #include <QFontMetrics>
 #include <QHeaderView>
+#include <QLayout>
 #include <QPalette>
+#include <QStatusBar>
 #include <QStyleHints>
 
 namespace QtWorkspaceTheme {
@@ -89,5 +91,19 @@ void header(QWidget &header) {
         view->setDefaultAlignment(Qt::AlignLeft | Qt::AlignVCenter);
         view->setFixedHeight(metric(header, 28));
     }
+}
+void statusBar(QStatusBar &status) {
+    const auto c = colors();
+    pane(status);
+    auto p = status.palette();
+    p.setColor(QPalette::WindowText, c.subtle);
+    status.setPalette(p);
+    status.setMinimumHeight(metric(status, 32));
+    status.layout()->setContentsMargins(metric(status, 16), metric(status, 8), metric(status, 16),
+                                        metric(status, 8));
+    status.setStyleSheet(
+        QStringLiteral("QStatusBar { border-top:1px solid %1; color:%2; }"
+                       "QStatusBar::item { border:0; } QStatusBar QLabel { color:%2; }")
+            .arg(c.stroke.name(), c.subtle.name()));
 }
 } // namespace QtWorkspaceTheme

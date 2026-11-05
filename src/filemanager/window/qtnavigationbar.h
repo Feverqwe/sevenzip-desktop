@@ -8,6 +8,18 @@ class QComboBox;
 class QHBoxLayout;
 class QStackedWidget;
 
+class QtNavigationRow final : public QWidget {
+  public:
+    explicit QtNavigationRow(QWidget *parent = nullptr);
+    void SetActivePane(bool active);
+
+  protected:
+    void paintEvent(QPaintEvent *event) override;
+
+  private:
+    bool active_ = false;
+};
+
 // Presentation of the existing source address control. Native binding and
 // address validation remain with CPanel and QtPanelAddressCombo.
 class QtNavigationBar final : public QWidget {
@@ -32,6 +44,7 @@ class QtNavigationBar final : public QWidget {
     QHBoxLayout *layout_;
     QString path_;
     QString container_;
+    QString rootLabel_;
     int visibleCrumbs_ = 3;
     std::function<void(const QString &)> navigate_;
 };

@@ -12,6 +12,7 @@
 #include <QJsonObject>
 #include <QMimeData>
 #include <QSettings>
+#include <QStandardPaths>
 #include <QUrl>
 #include <QUuid>
 
@@ -36,7 +37,8 @@ QtFavoriteStore::QtFavoriteStore(const QString &settingsPath, QObject *parent)
             const QString id = entry.value("id").toString();
             const QString path = entry.value("path").toString();
             if (!id.isEmpty() && !path.isEmpty())
-                favorites_.append({id, entry.value("label").toString(), path});
+                favorites_.append({id, entry.value("label").toString(), path,
+                                   entry.value("defaultLabel").toString()});
         }
     } else {
         CFastFolders legacy;
@@ -45,6 +47,20 @@ QtFavoriteStore::QtFavoriteStore(const QString &settingsPath, QObject *parent)
             const QString path = QtSavedSourcePath(ToQString(legacy.Strings[i]));
             if (!path.isEmpty())
                 Add(path);
+        }
+        if (favorites_.isEmpty()) {
+            for (const auto &[label, path] : QList<QPair<QString, QString>>{
+                     {QStringLiteral(QT_TRANSLATE_NOOP("QtWindowWorkspace", "Home")),
+                      QDir::homePath()},
+                     {QStringLiteral(QT_TRANSLATE_NOOP("QtWindowWorkspace", "Documents")),
+                      QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)},
+                     {QStringLiteral(QT_TRANSLATE_NOOP("QtWindowWorkspace", "Downloads")),
+                      QStandardPaths::writableLocation(QStandardPaths::DownloadLocation)}}) {
+                const int before = favorites_.size();
+                Add(path, label);
+                if (favorites_.size() > before)
+                    favorites_.last().defaultLabel = label;
+            }
         }
         Save();
     }
@@ -55,7 +71,16 @@ int QtFavoriteStore::rowCount(const QModelIndex &parent) const {
 }
 
 QtFavorite QtFavoriteStore::Favorite(int row) const {
-    return row >= 0 && row < favorites_.size() ? favorites_[row] : QtFavorite{};
+    auto entry = row >= 0 && row < favorites_.size() ? favorites_[row] : QtFavorite{};
+    if (!entry.defaultLabel.isEmpty())
+        entry.label = QCoreApplication::translate("QtWindowWorkspace",
+                                                  entry.defaultLabel.toUtf8().constData());
+    return entry;
+}
+
+void QtFavoriteStore::RefreshLabels() {
+    if (!favorites_.isEmpty())
+        emit dataChanged(index(0), index(favorites_.size() - 1), {Qt::DisplayRole, Qt::EditRole});
 }
 
 QVariant QtFavoriteStore::data(const QModelIndex &index, int role) const {
@@ -65,7 +90,7 @@ QVariant QtFavoriteStore::data(const QModelIndex &index, int role) const {
     switch (role) {
     case Qt::DisplayRole:
     case Qt::EditRole:
-        return entry.label;
+        return Favorite(index.row()).label;
     case Qt::ToolTipRole:
         return entry.path;
     case Qt::UserRole:
@@ -88,6 +113,7 @@ bool QtFavoriteStore::setData(const QModelIndex &index, const QVariant &value, i
         value.toString().trimmed().isEmpty())
         return false;
     favorites_[index.row()].label = value.toString().trimmed();
+    favorites_[index.row()].defaultLabel.clear();
     Save();
     emit dataChanged(index, index, {Qt::DisplayRole, Qt::EditRole});
     return true;
@@ -103,7 +129,7 @@ void QtFavoriteStore::Add(const QString &path, const QString &label) {
     if (name.isEmpty())
         name = path;
     beginInsertRows({}, favorites_.size(), favorites_.size());
-    favorites_.append({QUuid::createUuid().toString(QUuid::WithoutBraces), name, path});
+    favorites_.append({QUuid::createUuid().toString(QUuid::WithoutBraces), name, path, {}});
     endInsertRows();
     Save();
 }
@@ -226,7 +252,10 @@ void QtFavoriteList::dropEvent(QDropEvent *event) {
 void QtFavoriteStore::Save() {
     QJsonArray entries;
     for (const auto &entry : favorites_)
-        entries.append(QJsonObject{{"id", entry.id}, {"label", entry.label}, {"path", entry.path}});
+        entries.append(QJsonObject{{"id", entry.id},
+                                   {"label", entry.label},
+                                   {"path", entry.path},
+                                   {"defaultLabel", entry.defaultLabel}});
     QSettings settings(settingsPath_, QSettings::IniFormat);
     settings.setValue("workspace/favorites", QJsonDocument(entries).toJson(QJsonDocument::Compact));
 }

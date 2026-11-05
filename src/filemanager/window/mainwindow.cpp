@@ -121,6 +121,7 @@ void MainWindow::createFileManagerWindow(const QtFileManagerStartup *startup, bo
     appPresentation_->RequestInitialFocus(focusedPanel);
     if (layout())
         layout()->activate();
+    workspace_->Refresh();
     panelSplitter_->Initialize(panelsDefined, splitterPos);
     QTimer::singleShot(0, this, [this] {
         appPresentation_->CompleteInitialFocusIfReady();

@@ -101,6 +101,15 @@ QSplitterHandle *QtFileManagerSplitter::createHandle() {
 
 bool QtFileManagerSplitter::eventFilter(QObject *object, QEvent *event) {
     if (object == handle(1) && initialized_ && HasTwoPanels()) {
+        if (event->type() == QEvent::ShortcutOverride) {
+            const auto *key = static_cast<QKeyEvent *>(event);
+            if ((key->modifiers() == Qt::NoModifier || key->modifiers() == Qt::ShiftModifier) &&
+                (key->key() == Qt::Key_Left || key->key() == Qt::Key_Right ||
+                 key->key() == Qt::Key_Return || key->key() == Qt::Key_Enter)) {
+                event->accept();
+                return true;
+            }
+        }
         bool reset = false;
         int delta = 0;
         if (event->type() == QEvent::MouseButtonDblClick) {
@@ -120,8 +129,8 @@ bool QtFileManagerSplitter::eventFilter(QObject *object, QEvent *event) {
             }
         }
         if (reset || delta) {
-            splitter_.SetPos(width(),
-                             reset ? (width() - handleWidth()) / 2 : sizes().value(0) + delta);
+            splitter_.SetPos(ContentWidth(), reset ? (ContentWidth() - kSplitterWidth) / 2
+                                                   : sizes().value(0) - leadingInset_ + delta);
             UpdateSourceLayout();
             event->accept();
             return true;
@@ -135,7 +144,7 @@ QtFileManagerSplitter::QtFileManagerSplitter(QWidget *parent) : QSplitter(Qt::Ho
     setChildrenCollapsible(false);
     connect(this, &QSplitter::splitterMoved, this, [this](int position, int) {
         if (initialized_ && HasTwoPanels()) {
-            splitter_.SetPos(width(), position);
+            splitter_.SetPos(ContentWidth(), position - leadingInset_);
             UpdateSourceLayout();
         }
     });
@@ -147,9 +156,9 @@ bool QtFileManagerSplitter::HasTwoPanels() const {
 
 void QtFileManagerSplitter::Initialize(bool panelsDefined, unsigned splitterPos) {
     if (panelsDefined)
-        splitter_.SetPos(width(), static_cast<int>(splitterPos));
+        splitter_.SetPos(ContentWidth(), static_cast<int>(splitterPos) - leadingInset_);
     else
-        splitter_.SetRatio(width(), kSplitterRateMax / 2);
+        splitter_.SetRatio(ContentWidth(), kSplitterRateMax / 2);
     initialized_ = true;
     UpdateSourceLayout();
 }
@@ -157,8 +166,8 @@ void QtFileManagerSplitter::Initialize(bool panelsDefined, unsigned splitterPos)
 void QtFileManagerSplitter::UpdateSourceLayout() {
     if (!initialized_)
         return;
-    splitter_.SetPosFromRatio(width());
-    const int position = splitter_.GetPos();
+    splitter_.SetPosFromRatio(ContentWidth());
+    const int position = splitter_.GetPos() + leadingInset_;
     const bool twoPanels = HasTwoPanels();
     const bool changed =
         appliedWidth_ != width() || appliedPosition_ != position || appliedTwoPanels_ != twoPanels;
@@ -175,11 +184,25 @@ void QtFileManagerSplitter::RememberPosition() {
     // A content minimum can temporarily clamp the requested split. Only an
     // explicit external size change replaces the preferred source ratio.
     if (initialized_ && HasTwoPanels() && sizes().value(0) != appliedLeftSize_)
-        splitter_.SetPos(width(), sizes().value(0));
+        splitter_.SetPos(ContentWidth(), sizes().value(0) - leadingInset_);
+}
+
+int QtFileManagerSplitter::ContentWidth() const {
+    // Keep FM.cpp's coordinate/ratio policy on the file areas. The shared
+    // places sidebar and the Qt grip are presentation outside that space.
+    return qMax(0, width() - leadingInset_ - handleWidth() + kSplitterWidth);
+}
+
+void QtFileManagerSplitter::SetLeadingInset(int width) {
+    if (leadingInset_ == width)
+        return;
+    leadingInset_ = width;
+    appliedWidth_ = -1;
+    UpdateSourceLayout();
 }
 
 int QtFileManagerSplitter::SourcePosition() const {
-    return HasTwoPanels() ? sizes().value(0) : splitter_.GetPos();
+    return HasTwoPanels() ? sizes().value(0) : splitter_.GetPos() + leadingInset_;
 }
 
 void QtFileManagerSplitter::resizeEvent(QResizeEvent *event) {

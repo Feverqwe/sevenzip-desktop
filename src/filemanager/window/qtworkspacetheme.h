@@ -3,6 +3,7 @@
 
 class QWidget;
 class QAbstractItemView;
+class QStatusBar;
 
 namespace QtWorkspaceTheme {
 struct Colors {
@@ -14,4 +15,5 @@ void surface(QWidget &widget, const QColor &background);
 void pane(QWidget &widget);
 void fileView(QAbstractItemView &view);
 void header(QWidget &header);
+void statusBar(QStatusBar &status);
 } // namespace QtWorkspaceTheme

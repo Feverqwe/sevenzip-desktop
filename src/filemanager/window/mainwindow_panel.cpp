@@ -22,7 +22,8 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
     auto *layout = new QVBoxLayout(central);
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(0);
-    auto *navigation = new QHBoxLayout;
+    auto *navigationRow = new QtNavigationRow(central);
+    auto *navigation = new QHBoxLayout(navigationRow);
     navigation->setContentsMargins(8, 8, 8, 8);
     navigation->setSpacing(4);
     auto *sidebar = new QToolButton(central);
@@ -102,10 +103,10 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
             activatePanelUi(index);
             navigateTo(path, true);
         },
-        central);
+        navigationRow);
     projectedUi().navigation->setObjectName(QStringLiteral("panelNavigation%1").arg(index));
     navigation->addWidget(projectedUi().navigation);
-    layout->addLayout(navigation);
+    layout->addWidget(navigationRow);
     workspace_->AttachPanel(index, *layout);
     createFileTable(central);
     if (!panelSplitter_)
@@ -115,7 +116,6 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
     projectedUi().viewStack->setObjectName("fileViewStack");
     projectedUi().viewStack->addWidget(projectedUi().table);
     projectedUi().viewStack->addWidget(projectedUi().iconList);
-    workspace_->AttachContent(index, *layout);
     auto *panelStatus = new QStatusBar(central);
     panelStatus->setObjectName("panelStatusBar");
     panelStatus->setSizeGripEnabled(false);
@@ -128,7 +128,8 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
         panelStatus->addPermanentWidget(label, part == 0 ? 1 : 0);
         panelUi_[index].statusLabels[part] = label;
     }
-    layout->addWidget(panelStatus);
+    QtWorkspaceTheme::statusBar(*panelStatus);
+    workspace_->AttachContent(index, *layout, *panelStatus);
     connect(projectedUi().table->selectionModel(), &QItemSelectionModel::selectionChanged, this,
             [this, index] {
                 if (projectedPanel_ == index && app_.Panels[index].ShouldProcessNotifications())
@@ -141,6 +142,7 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
             });
     if (!panelSplitter_) {
         panelSplitter_ = new QtFileManagerSplitter(this);
+        panelSplitter_->setHandleWidth(8);
         panelSplitter_->setObjectName("filePanelSplitter");
         setCentralWidget(panelSplitter_);
     }

@@ -168,7 +168,6 @@ void QtWindowWorkspace::Rebuild(unsigned panel) {
 void QtWindowWorkspace::Refresh() {
     if (changing_)
         return;
-    RefreshChrome();
     for (unsigned panel = 0; panel < 2; ++panel) {
         auto &state = panels_[panel];
         if (!state.bar || !window_.panelUi_[panel].viewStack)
@@ -181,6 +180,7 @@ void QtWindowWorkspace::Refresh() {
                                                         window_.panelUi_[panel].displayArchive);
         state.bar->parentWidget()->setEnabled(Ready());
     }
+    RefreshChrome();
 }
 
 void QtWindowWorkspace::NewTab(unsigned panel, const QString &path) {
@@ -255,7 +255,7 @@ void QtWindowWorkspace::Activate(unsigned panel, int index) {
                 ui.container->findChild<QWidget *>(QStringLiteral("placesSidebar%1").arg(panel));
             auto *layout = qobject_cast<QVBoxLayout *>(ui.container->layout());
             layout->insertWidget(0, state.bar->parentWidget());
-            layout->insertWidget(2, state.actions);
+            layout->insertWidget(layout->indexOf(ui.navigation->parentWidget()) + 1, state.actions);
             if (tab.runtime->dirty) {
                 const QSignalBlocker selection(ui.table->selectionModel());
                 ui.table->clearRows();

@@ -181,6 +181,14 @@ The application-wide favorites model owns stable identities, labels and ordering
 legacy numeric bookmarks remain compatible. Removing or renaming a favorite
 does not mutate the source directory.
 
+Main-window presentation shares a workspace palette and metrics, navigation-row
+and path components, and a places component with one row delegate for favorites
+and native locations. These components project navigation requests; they do not
+own file or archive operations. The splitter applies the original ratio policy
+to file areas, excluding the shared places width. Status belongs below each file
+area. Restoring geometry precedes restoring its split so resizing retains the
+user's file-area proportions.
+
 List mode, Flat View and sort preferences stay with the source panel. Qt reads
 them when presenting controls, changing columns or returning from another panel's
 callback; it does not retain a second mutable copy of those preferences. Archive

@@ -321,13 +321,25 @@ class WindowPlacementTests final : public QObject, protected MainWindowTestSuppo
         auto *splitter = window.findChild<QSplitter *>("filePanelSplitter");
         QVERIFY(splitter);
         QTRY_COMPARE_WITH_TIMEOUT(splitter->sizes().value(0), 300, 1000);
-        const int ratio = (300 + 2) * (1 << 16) / initialWidth;
+        const auto fileWidths = [&] {
+            const auto *left = window.findChild<QWidget *>("filePanel0")
+                                   ->findChild<QStackedWidget *>("fileViewStack");
+            const auto *right = window.findChild<QWidget *>("filePanel1")
+                                    ->findChild<QStackedWidget *>("fileViewStack");
+            return QPair(left->width(), right->width());
+        };
+        const auto original = fileWidths();
+        const auto sameProportion = [&] {
+            const auto current = fileWidths();
+            return qAbs(current.first * (original.first + original.second) -
+                        original.first * (current.first + current.second)) <=
+                   2 * (original.first + original.second);
+        };
         window.resize(1600, 620);
-        const int expandedPosition = 1600 * ratio / (1 << 16) - 2;
-        QTRY_COMPARE_WITH_TIMEOUT(splitter->sizes().value(0), expandedPosition, 1000);
+        QTRY_VERIFY_WITH_TIMEOUT(sameProportion(), 1000);
+        const int expandedPosition = splitter->sizes().value(0);
         window.resize(initialWidth, 620);
-        const int restoredPosition = initialWidth * ratio / (1 << 16) - 2;
-        QTRY_COMPARE_WITH_TIMEOUT(splitter->sizes().value(0), restoredPosition, 1000);
+        QTRY_VERIFY_WITH_TIMEOUT(qAbs(splitter->sizes().value(0) - 300) <= 1, 1000);
         auto *twoPanels = action(window, "twoPanelsAction");
         QTRY_VERIFY(twoPanels->isEnabled());
         twoPanels->trigger();
@@ -335,9 +347,10 @@ class WindowPlacementTests final : public QObject, protected MainWindowTestSuppo
         window.resize(1600, 620);
         twoPanels->trigger();
         QVERIFY(twoPanels->isChecked());
-        QTRY_COMPARE_WITH_TIMEOUT(splitter->sizes().value(0), expandedPosition, 1000);
+        QTRY_VERIFY_WITH_TIMEOUT(qAbs(splitter->sizes().value(0) - expandedPosition) <= 1, 1000);
         window.resize(initialWidth, 620);
-        QTRY_COMPARE_WITH_TIMEOUT(splitter->sizes().value(0), restoredPosition, 1000);
+        QTRY_VERIFY_WITH_TIMEOUT(qAbs(splitter->sizes().value(0) - 300) <= 1, 1000);
+        const int restoredPosition = splitter->sizes().value(0);
         QVERIFY(UiInspection::writeReport(window, QString("splitter-source-%1").arg(initialWidth)));
         QVERIFY(window.close());
         bool position = false, panels = false;

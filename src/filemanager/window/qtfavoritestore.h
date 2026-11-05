@@ -17,6 +17,7 @@ struct QtFavorite {
     QString id;
     QString label;
     QString path;
+    QString defaultLabel;
 };
 
 class QtFavoriteStore final : public QAbstractListModel {
@@ -36,6 +37,7 @@ class QtFavoriteStore final : public QAbstractListModel {
     Qt::DropActions supportedDropActions() const override;
     void Add(const QString &path, const QString &label = {});
     QtFavorite Favorite(int row) const;
+    void RefreshLabels();
 
   private:
     void Save();

@@ -47,6 +47,24 @@ class CrumbButton final : public QToolButton {
 };
 } // namespace
 
+QtNavigationRow::QtNavigationRow(QWidget *parent) : QWidget(parent) {
+    QtWorkspaceTheme::pane(*this);
+}
+
+void QtNavigationRow::SetActivePane(bool active) {
+    if (active_ == active)
+        return;
+    active_ = active;
+    update();
+}
+
+void QtNavigationRow::paintEvent(QPaintEvent *) {
+    if (active_) {
+        QPainter painter(this);
+        painter.fillRect(0, height() - 2, width(), 2, QtWorkspaceTheme::colors().accent);
+    }
+}
+
 QtNavigationBar::QtNavigationBar(QComboBox &address, std::function<void(const QString &)> navigate,
                                  QWidget *parent)
     : QWidget(parent), address_(address), stack_(new QStackedWidget(this)),
@@ -81,10 +99,12 @@ void QtNavigationBar::paintEvent(QPaintEvent *) {
 }
 
 void QtNavigationBar::SetLocation(const QString &path, const QString &container) {
-    if (path_ == path && container_ == container && layout_->count())
+    const QString rootLabel = QCoreApplication::translate("QtWindowWorkspace", "Locations");
+    if (path_ == path && container_ == container && rootLabel_ == rootLabel && layout_->count())
         return;
     path_ = path;
     container_ = container;
+    rootLabel_ = rootLabel;
     Rebuild();
 }
 
@@ -117,6 +137,8 @@ void QtNavigationBar::Rebuild() {
     };
     if (!prefix.isEmpty() && prefix != "//")
         add(QStringLiteral("/"), prefix);
+    if (normalized.isEmpty())
+        add(rootLabel_, QString());
     const QStringList parts = normalized.split('/', Qt::SkipEmptyParts);
     // Earlier ancestors remain available in a menu at compact widths.
     auto *ancestors = new QToolButton(crumbs_);
@@ -129,8 +151,10 @@ void QtNavigationBar::Rebuild() {
     const int visibleFrom = qMax(0, parts.size() - visibleCrumbs_);
     if (visibleFrom)
         layout_->addWidget(ancestors);
-    else
+    else {
+        ancestors->hide();
         ancestors->deleteLater();
+    }
     for (int i = 0; i < parts.size(); ++i) {
         prefix += parts[i] + '/';
         const QString target = prefix;
