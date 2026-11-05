@@ -1,5 +1,6 @@
 #pragma once
 #include "filemanager/panels/Panel.h"
+#include "filemanager/window/qtsavedlocation.h"
 #include "ui/theme/qtcommandicons.h"
 #include <QCoreApplication>
 #include <QJsonObject>
@@ -57,6 +58,7 @@ class QtWindowWorkspace final : public QObject {
         QString id;
         QString path;
         QString nativePlaceIdentity;
+        QtArchiveLocation archiveLocation;
         QtCommandIcon symbol = QtCommandIcon::Folder;
         QStringList history;
         CSelectedState selection;
@@ -82,7 +84,9 @@ class QtWindowWorkspace final : public QObject {
     };
     std::optional<TabPosition> FindTab(const QString &id) const;
     void Capture(unsigned panel, bool retainView = true);
-    void CreateTab(unsigned panel, const QString &path, const QString &nativeIdentity);
+    void CreateTab(unsigned panel, const QString &path, const QString &nativeIdentity,
+                   const QtArchiveLocation &archive = {});
+    HRESULT OpenArchiveLocation(unsigned panel, const QtArchiveLocation &location);
     void OpenTabLocation(unsigned panel);
     QString TabTitle(const Tab &tab) const;
     void Activate(unsigned panel, int tab);

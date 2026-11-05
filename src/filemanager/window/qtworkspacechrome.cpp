@@ -270,12 +270,14 @@ void QtWindowWorkspace::OpenFavorite(const QString &path, int target) {
             application->NewWindow(path);
     } else {
         const unsigned panel = window_.projectedPanel_;
-        {
+        window_.withPanelProjection(panel, [this, panel, &path] {
             const QScopedValueRollback<bool> changing(changing_, true);
             panels_[panel].tabs[panels_[panel].current].path = path;
+            panels_[panel].tabs[panels_[panel].current].nativePlaceIdentity.clear();
+            panels_[panel].tabs[panels_[panel].current].archiveLocation = {};
             const HRESULT result = window_.navigateTo(path, true);
             CompleteLocationOpen(panel, path, result);
-        }
+        });
         window_.refreshActions();
     }
 }

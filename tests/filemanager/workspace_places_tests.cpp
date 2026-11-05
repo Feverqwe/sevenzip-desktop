@@ -32,6 +32,48 @@ class WorkspacePlacesTests final : public QObject {
                                 qRound(area.center().y() * image.devicePixelRatio()));
     }
   private slots:
+    void retryMissingFavoriteKeepsItsRequestedTarget() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString missing = fixture.filePath("missing папка");
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.findChild<QAction *>("openRootAction")->trigger();
+        QtFavoriteStore *store = nullptr;
+        for (auto *object : qApp->children())
+            if (auto *favorites = dynamic_cast<QtFavoriteStore *>(object))
+                store = favorites;
+        QVERIFY(store);
+        store->Add(missing, "Unavailable target");
+        auto *list = window.findChild<QListView *>("favoritePlaces0");
+        QVERIFY(list);
+        QModelIndex target;
+        for (int row = 0; row < list->model()->rowCount(); ++row)
+            if (list->model()->index(row, 0).data(QtPlaceRoles::Path).toString() == missing)
+                target = list->model()->index(row, 0);
+        QVERIFY(target.isValid());
+        list->scrollTo(target);
+        QApplication::processEvents();
+        QTest::mouseClick(list->viewport(), Qt::LeftButton, Qt::NoModifier,
+                          list->visualRect(target).center());
+        const auto errorVisible = [&] {
+            for (auto *label : window.findChildren<QLabel *>())
+                if (label->isVisible() && label->text().contains(missing))
+                    return true;
+            return false;
+        };
+        QTRY_VERIFY(errorVisible());
+        QPushButton *retry = nullptr;
+        for (auto *button : window.findChildren<QPushButton *>())
+            if (button->isVisible() &&
+                button->text() == QCoreApplication::translate("QtWindowWorkspace", "Retry"))
+                retry = button;
+        QVERIFY(retry);
+        QTest::mouseClick(retry, Qt::LeftButton);
+        QTRY_VERIFY(errorVisible());
+        QVERIFY(!window.findChild<QAction *>("createFolderAction")->isEnabled());
+    }
     void computerMenuAndSidebarUseSameNamespace_data() {
         QTest::addColumn<QString>("language");
         QTest::newRow("en") << QString("-");

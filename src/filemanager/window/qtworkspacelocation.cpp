@@ -15,7 +15,9 @@ void QtWindowWorkspace::OpenTabLocation(unsigned panel) {
     const QString path = place.isValid() ? place.data(QtPlaceRoles::Path).toString()
                          : nativeRoot    ? QString()
                                          : tab.path;
-    HRESULT result = window_.navigateTo(path, true);
+    HRESULT result = tab.archiveLocation.physicalPath.isEmpty()
+                         ? window_.navigateTo(path, true)
+                         : OpenArchiveLocation(panel, tab.archiveLocation);
     if (nativeRoot && result == S_OK) {
         auto &source = window_.app_.Panels[panel];
         if (QtNativePlaces::RootIdentity(source) != identity)
@@ -80,10 +82,11 @@ void QtWindowWorkspace::RetryLocation(unsigned panel, bool parent) {
     if (parent) {
         tab.path = QFileInfo(QDir::cleanPath(tab.path)).absolutePath();
         tab.nativePlaceIdentity.clear();
+        tab.archiveLocation = {};
     }
-    {
+    window_.withPanelProjection(panel, [this, panel] {
         const QScopedValueRollback<bool> changing(changing_, true);
         OpenTabLocation(panel);
-    }
+    });
     window_.refreshActions();
 }

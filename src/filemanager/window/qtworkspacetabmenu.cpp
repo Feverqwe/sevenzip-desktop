@@ -23,7 +23,8 @@ void QtWindowWorkspace::TabMenu(unsigned panel, const QPoint &point) {
         const auto &tab = panels_[position->panel].tabs[position->index];
         const QString path = tab.path;
         const QString nativeIdentity = tab.nativePlaceIdentity;
-        CreateTab(position->panel, path, nativeIdentity);
+        const QtArchiveLocation archive = tab.archiveLocation;
+        CreateTab(position->panel, path, nativeIdentity, archive);
     });
     connect(menu.addAction(tr("Move to other panel")), &QAction::triggered, this, [this, id] {
         if (!Ready() || !FindTab(id))

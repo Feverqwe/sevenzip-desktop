@@ -180,6 +180,11 @@ path-only descriptors retain their existing path-based behavior. Reopening uses
 the existing navigation/backend boundary and fresh
 password/recovery decisions; handles, passwords, running operations and consent
 are not persisted. A failed reopen keeps the requested location visibly failed.
+Archive descriptors retain value snapshots of the physical archive, native
+nested links and final folder. Reopening follows those links with the native
+internal opener and accepts the tab only after the final list result. It does
+not reconstruct nested boundaries by splitting a displayed path, or persist
+temporary materialization paths.
 The application-wide favorites model owns stable identities, labels and ordering;
 legacy numeric bookmarks remain compatible. Removing or renaming a favorite
 does not mutate the source directory.

@@ -44,21 +44,30 @@ HRESULT CPanel::OpenAsArc_Index(unsigned index, const wchar_t *type) {
 
 void CPanel::OpenItemInArchive(unsigned index, bool tryInternal, bool tryExternal, bool editMode,
                                bool useEditor, const wchar_t *type) {
+    (void)OpenItemInArchiveImpl(index, tryInternal, tryExternal, editMode, useEditor, type);
+}
+
+HRESULT CPanel::OpenItemInArchiveInternal(unsigned index, const wchar_t *type) {
+    return OpenItemInArchiveImpl(index, true, false, false, false, type);
+}
+
+HRESULT CPanel::OpenItemInArchiveImpl(unsigned index, bool tryInternal, bool tryExternal,
+                                      bool editMode, bool useEditor, const wchar_t *type) {
     std::optional<CDisableTimerProcessing> disableTimerProcessing(std::in_place, *this);
     // we don't want to change hash data here
     if (IsHashFolder())
-        return;
+        return S_FALSE;
 
     const UString name = GetItemName(index);
     const UString relPath = GetItemRelPath(index);
 
     if (tryExternal)
         if (IsVirus_Message(name))
-            return;
+            return E_ABORT;
 
     if (!_folderOperations) {
         MessageBox_Error_UnsupportOperation();
-        return;
+        return E_NOTIMPL;
     }
 
     bool tryAsArchive = tryInternal && (!tryExternal || !DoItemAlwaysStart(name));
@@ -67,8 +76,9 @@ void CPanel::OpenItemInArchive(unsigned index, bool tryInternal, bool tryExterna
 
     CTempDir tempDirectory;
     if (!tempDirectory.Create(kTempDirPrefix)) {
+        const HRESULT result = GetLastError_noZero_HRESULT();
         MessageBox_LastError();
-        return;
+        return result;
     }
 
     FString tempDir = tempDirectory.GetPath();
@@ -99,10 +109,10 @@ void CPanel::OpenItemInArchive(unsigned index, bool tryInternal, bool tryExterna
                 _parentFolders.Back().Password = ArchivePassword(password);
             }
             if (acquired == E_ABORT)
-                return;
+                return acquired;
             if (acquired != S_OK && acquired != S_FALSE && acquired != E_NOTIMPL) {
                 MessageBox_Error_HRESULT(acquired);
-                return;
+                return acquired;
             }
             if (subSeqStream) {
                 CMyComPtr<IInStream> subStream;
@@ -115,13 +125,12 @@ void CPanel::OpenItemInArchive(unsigned index, bool tryInternal, bool tryExterna
                     if (res == S_OK) {
                         tempDirectory.DisableDeleting();
                         disableTimerProcessing.reset();
-                        RefreshListCtrl();
-                        return;
+                        return RefreshListCtrl();
                     }
                     if (res == E_ABORT || res != S_FALSE)
-                        return;
+                        return res;
                     if (!tryExternal)
-                        return;
+                        return res;
                     tryAsArchive = false;
                 }
             }
@@ -229,11 +238,11 @@ void CPanel::OpenItemInArchive(unsigned index, bool tryInternal, bool tryExterna
     }
 
     if (!messages.IsEmpty())
-        return;
+        return result == S_OK ? E_FAIL : result;
     if (result != S_OK) {
         if (result != E_ABORT)
             MessageBox_Error_HRESULT(result);
-        return;
+        return result;
     }
 
     if (virtFileSystem && !virtFileSystem->WasStreamFlushedToFS()) {
@@ -241,7 +250,7 @@ void CPanel::OpenItemInArchive(unsigned index, bool tryInternal, bool tryExterna
         if (index_in_Files < 0) {
             if (virtFileSystem->Files.Size() != 1) {
                 MessageBox_Error_HRESULT(E_FAIL);
-                return;
+                return E_FAIL;
             }
             // it's not expected case that index was not set, but we support that case
             index_in_Files = 0;
@@ -262,16 +271,16 @@ void CPanel::OpenItemInArchive(unsigned index, bool tryInternal, bool tryExterna
 
                 tempDirectory.DisableDeleting();
                 disableTimerProcessing.reset();
-                RefreshListCtrl();
-                return;
+                return RefreshListCtrl();
             }
             if (res == E_ABORT || res != S_FALSE)
-                return;
+                return res;
             if (!tryExternal)
-                return;
+                return res;
             tryAsArchive = false;
-            if (virtFileSystem->FlushToDisk(true) != S_OK)
-                return;
+            const HRESULT flushed = virtFileSystem->FlushToDisk(true);
+            if (flushed != S_OK)
+                return flushed;
         }
     }
 
@@ -295,24 +304,24 @@ void CPanel::OpenItemInArchive(unsigned index, bool tryInternal, bool tryExterna
         if (res == S_OK) {
             tempDirectory.DisableDeleting();
             disableTimerProcessing.reset();
-            RefreshListCtrl();
-            return;
+            return RefreshListCtrl();
         }
         if (res == E_ABORT || res != S_FALSE)
-            return;
+            return res;
     }
 
     if (!tryExternal)
-        return;
+        return S_FALSE;
 
     if (!_externalFileServices) {
         MessageBox_Error_UnsupportOperation();
-        return;
+        return E_NOTIMPL;
     }
     if (tryInternal && !editMode &&
         !_externalFileServices->ConfirmArchiveFallback(fs2us(tempFilePath), GetParent(),
                                                        _settingsPath))
-        return;
+        return E_ABORT;
     StartExternalFileSession(tempDirectory, tempFileInfo, tempDirNorm, usePassword, password,
                              editMode, useEditor);
+    return S_OK;
 }

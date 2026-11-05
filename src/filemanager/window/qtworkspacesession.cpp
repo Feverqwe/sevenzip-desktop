@@ -12,6 +12,7 @@ QJsonObject QtWindowWorkspace::Save() {
             tabs.append(QJsonObject{{"id", tab.id},
                                     {"path", tab.path},
                                     {"nativePlace", tab.nativePlaceIdentity},
+                                    {"archiveLocation", tab.archiveLocation.Save()},
                                     {"view", tab.viewMode},
                                     {"sort", int(tab.sort)},
                                     {"ascending", tab.ascending}});
@@ -77,6 +78,8 @@ void QtWindowWorkspace::RestorePanel(unsigned panel, const QJsonObject &saved,
             tab.id = object.value("id").toString(QUuid::createUuid().toString());
             tab.path = object.value("path").toString();
             tab.nativePlaceIdentity = object.value("nativePlace").toString();
+            tab.archiveLocation =
+                QtArchiveLocation::Restore(object.value("archiveLocation").toObject());
             tab.viewMode = qBound(0, object.value("view").toInt(3), 3);
             tab.sort = object.value("sort").toInt();
             tab.ascending = object.value("ascending").toBool(true);

@@ -286,6 +286,47 @@ selection status теперь резервирует ширину чисел и 
 Cocoa table-снимки в обеих темах прошли и просмотрены: в компактной двухпанельной
 геометрии видны оба числа, current outline и независимый selection сохранены.
 
+## Сохранённая цепочка вложенного архива: повторный аудит — 2026-11-05
+
+Свежий CPanel не открывает nested файл как архив одним BindToPath полного пути:
+CAgentFolder связывает этим маршрутом каталоги. Повторно прочитаны полные native
+BindToPath, LoadFullPath, OpenItemInArchive, archive links/lifecycle и их callers,
+включая исходный OpenItemInArchive из записанного source archive. Новый локальный
+value descriptor хранит physical target, ParentFolderPath/RelPath каждого nested
+звена, текущий folder и native ancestor names/targets из существующего address
+owner. Он подключён к Capture, session, Duplicate и Retry; не
+содержит паролей, COM providers, DLL или materialized temp paths.
+
+Qt replay явно связывает настоящий physical root, затем следует подготовленным
+native каталогам через BindToFolder и internal native opener для nested звеньев.
+Каждый необходимый каталог проходит прежний joined directory read с progress и
+Cancel до поиска ребёнка; строковый Binder не загружает дочернее дерево на GUI
+thread. Нового разбора UI-путей или рекурсивного чтения всего дерева нет.
+Проверяются тип provider, depth,
+RelPath и итоговый полный prefix; финальная projection отдаёт terminal HRESULT.
+UI display-path fast path здесь неприменим: после Cancel provider может уже быть
+в подпапке. Existing void OpenItemInArchive делегирует единственному полному телу;
+узкий internal-only вход возвращает существующие error/E_ABORT/refresh results.
+Stream, memory/disk fallback, password, limits, extraction и external-launch
+ветви сохранены. Это адаптация результата у Qt boundary; оригинальные inventory
+units/hashes не меняются. Новый replay unit отмечен как local integration.
+
+Linux: workspace archive/session/tab menu, archive item open, nested edit chain
+и archive rollback — PASS. Дополнительные проверки прошли для nested parent и
+конечного folder, 301 entries, извлечённых bytes, исчезнувшего nested элемента,
+Cancel→Retry пароля с `d/d`, deferred metadata failure→Retry. Отказ открытия
+избранного очищает старый root/archive descriptor: Retry сохраняет новый target;
+Places-регрессия прошла. Windows runtime этим проходом не проверялся.
+Notify guards ограничены joined read и синхронным bind; они завершаются до
+переходов retained scan guards и финальной projection. Retry и текущее избранное
+используют общий panel-projection scope, сохраняя адресата при Cocoa modal focus.
+Проверка encrypted Cancel/Retry охватывает две панели. Native Cocoa этого нового
+сценария пока не принят: desktop заблокирован, запрос разблокировки остаётся
+открытым; остановленный прогон модального окна не считается PASS.
+macOS offscreen: archive workspace/rollback/Places — PASS после окончательной
+проверки двух панелей; ранее прошли session и общий navigation scope. Эти
+результаты не заменяют недостающую native Cocoa проверку нового сценария.
+
 ## Shared secret editing
 
 2026-11-05: проверены исходные `PasswordDialog.cpp/.h`, обработчики

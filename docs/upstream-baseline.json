@@ -1888,6 +1888,7 @@
     "src/filemanager/window/qtwindowworkspace.h",
     "src/filemanager/window/qtworkspaceapplication.cpp",
     "src/filemanager/window/qtworkspaceapplication.h",
+    "src/filemanager/window/qtworkspacearchivelocation.cpp",
     "src/filemanager/window/qtworkspacechrome.cpp",
     "src/filemanager/window/qtworkspacefocus.cpp",
     "src/filemanager/window/qtworkspacelifecycle.cpp",

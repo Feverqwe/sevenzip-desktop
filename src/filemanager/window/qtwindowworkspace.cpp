@@ -142,6 +142,12 @@ void QtWindowWorkspace::Capture(unsigned panel, bool retainView) {
         source.LoadFullPath();
         tab.path = ToQString(source.GetCurrentFolderPrefix());
         tab.nativePlaceIdentity = QtNativePlaces::RootIdentity(source);
+        if (source.IsArcFolder())
+            tab.archiveLocation = QtArchiveLocation::Capture(
+                source, static_cast<QtPanelAddressCombo *>(window_.panelUi_[panel].pathCombo)
+                            ->LocationSegments());
+        else
+            tab.archiveLocation = {};
         tab.symbol = source.IsArcFolder() ? QtCommandIcon::Archive : QtCommandIcon::Folder;
         if (retainView)
             source.SaveSelectedState(tab.selection);
@@ -218,7 +224,7 @@ void QtWindowWorkspace::NewTab(unsigned panel, const QString &path) {
 }
 
 void QtWindowWorkspace::CreateTab(unsigned panel, const QString &path,
-                                  const QString &nativeIdentity) {
+                                  const QString &nativeIdentity, const QtArchiveLocation &archive) {
     if (!Ready() || panel >= 2 || !panels_[panel].bar)
         return;
     Capture(panel);
@@ -226,6 +232,7 @@ void QtWindowWorkspace::CreateTab(unsigned panel, const QString &path,
     tab.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
     tab.path = path;
     tab.nativePlaceIdentity = nativeIdentity;
+    tab.archiveLocation = archive;
     auto &state = panels_[panel];
     state.tabs.push_back(std::move(tab));
     Rebuild(panel);

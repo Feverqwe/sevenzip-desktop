@@ -1,6 +1,7 @@
 #include "archive/support/native_archive_fixture.h"
 #include "dialogs/password/PasswordDialog.h"
 #include "filemanager/support/window_state_support.h"
+#include "filemanager/window/qtwindowworkspace.h"
 #include "platform/support/external_editor_fixture.h"
 #include "platform/support/native_property_failure_runtime.h"
 #include "platform/temp/qtownedtempregistry.h"
@@ -16,6 +17,63 @@ class ArchiveNavigationRollbackTests final : public QObject, protected MainWindo
   private slots:
     void initTestCase() { UiInspection::configureReviewAppearance(); }
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
+    void savedArchiveRejectsDeferredMetadataFailureAndRetries() {
+        NativePropertyFailureRuntime runtime;
+        QVERIFY(runtime.prepare(QString::fromUtf8(SEVENZIP_EXTERNAL_RUNTIME),
+                                QString::fromUtf8(SEVENZIP_EXTERNAL_FORMAT_FIXTURE)));
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString archive = fixture.filePath("saved archive.fixture7z");
+        QVERIFY(runtime.createArchive(archive, 301));
+        ArchiveBackend backend(nullptr, runtime.engine());
+        MainWindow window(&backend);
+        window.show();
+        QTimer answer;
+        dialogs_.connectResponder(answer, &window, [&] {
+            if (auto *message = qobject_cast<QMessageBox *>(dialogs_.activeDialog()))
+                message->accept();
+        });
+        answer.start(5);
+        const auto active = [&] {
+            for (auto *files : window.findChildren<FileTable *>())
+                if (files->isVisible())
+                    return files;
+            return static_cast<FileTable *>(nullptr);
+        };
+        QtWindowWorkspace *workspace = nullptr;
+        for (auto *object : window.children())
+            if (auto *owner = dynamic_cast<QtWindowWorkspace *>(object))
+                workspace = owner;
+        QVERIFY(workspace);
+        window.openArchive(archive);
+        QTRY_VERIFY(active() && active()->isEnabled() && active()->rowCount() == 301);
+        const QString requested = ToQString(active()->sourcePanel->GetCurrentFolderPrefix());
+        const auto saved = workspace->Save();
+        window.openPath(fixture.path());
+        QTRY_VERIFY(active()->isEnabled() && active()->sourcePanel->IsFSFolder());
+        QVERIFY(runtime.arm(257, E_FAIL, 301));
+        bool finished = false;
+        workspace->Restore(saved, [&] { finished = true; });
+        QTRY_VERIFY(finished);
+        QVERIFY(!runtime.receipts().isEmpty());
+        QCOMPARE(active()->rowCount(), 0);
+        const QString error =
+            QCoreApplication::translate("QtWindowWorkspace", "Location unavailable: %1")
+                .arg(requested);
+        bool errorVisible = false;
+        for (auto *label : window.findChildren<QLabel *>())
+            errorVisible |= label->isVisible() && label->text() == error;
+        QVERIFY(errorVisible);
+        QVERIFY(runtime.clear());
+        QPushButton *retry = nullptr;
+        for (auto *button : window.findChildren<QPushButton *>())
+            if (button->isVisible() &&
+                button->text() == QCoreApplication::translate("QtWindowWorkspace", "Retry"))
+                retry = button;
+        QVERIFY(retry);
+        QTest::mouseClick(retry, Qt::LeftButton);
+        QTRY_VERIFY(active()->isEnabled() && active()->rowCount() == 301);
+    }
     void physicalOpeningKeepsOrReleasesNestedContext_data() {
         QTest::addColumn<bool>("materialized");
         QTest::addColumn<QString>("outcome");

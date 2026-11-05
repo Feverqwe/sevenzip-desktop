@@ -485,6 +485,7 @@ class CPanel : public QObject {
     bool IsFocusedFile() const { return GetFocusedFileIndex() != (UInt32)-1; }
     void OpenItemInArchive(unsigned index, bool tryInternal, bool tryExternal, bool editMode,
                            bool useEditor, const wchar_t *type = NULL);
+    HRESULT OpenItemInArchiveInternal(unsigned index, const wchar_t *type = nullptr);
     bool IsVirus_Message(const UString &name);
     HRESULT OpenParentArchiveFolder();
     HRESULT OnOpenItemChanged(UInt32 index, const wchar_t *fullFilePath, bool usePassword,
@@ -708,6 +709,8 @@ class CPanel : public QObject {
     std::optional<CSelectedState> _refreshSelection;
     IQtExternalFileServices *_externalFileServices = nullptr;
     std::unique_ptr<CExitEventLauncher> _exitEventLauncher;
+    HRESULT OpenItemInArchiveImpl(unsigned index, bool tryInternal, bool tryExternal, bool editMode,
+                                  bool useEditor, const wchar_t *type);
     void StartExternalFileSession(NWindows::NFile::NDir::CTempDir &tempDirectory,
                                   const CTempFileInfo &tempFileInfo, const FString &tempDirNorm,
                                   bool usePassword, const UString &password, bool editMode,

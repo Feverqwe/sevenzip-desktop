@@ -1,7 +1,9 @@
+#include "dialogs/password/PasswordDialog.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/window/qtwindowworkspace.h"
 #include "platform/support/external_editor_fixture.h"
 #include "support/widget_dialogs.h"
+#include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
 #include <QClipboard>
 #include <QEventLoop>
@@ -21,13 +23,203 @@ class WorkspaceArchiveTests final : public QObject, protected MainWindowTestSupp
         return nullptr;
     }
     static FileTable *active(MainWindow &window) {
-        for (auto *view : window.findChildren<FileTable *>())
-            if (view->isVisible())
-                return view;
+        for (auto *pane : window.findChildren<QWidget *>("filePanel0"))
+            if (pane->isVisible())
+                return pane->findChild<FileTable *>("archiveTable");
         return nullptr;
     }
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
+    void cancelledNestedReopenKeepsDescriptorAndCanRetry() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString entry = QStringLiteral("secret payload.txt");
+        QVERIFY(write(fixture.filePath(entry), "encrypted control"));
+        const QString password = QStringLiteral(" local 密碼 ");
+        const QString innerName = QStringLiteral("inner encrypted.7z");
+        const QString parent = QStringLiteral("d");
+        QVERIFY(QDir().mkpath(fixture.filePath(parent + '/' + parent)));
+        QVERIFY(createArchive(fixture.path(), fixture.filePath(parent + '/' + innerName), entry,
+                              "7z", password));
+        const QString outer = fixture.filePath("outer archive.zip");
+        QVERIFY(createArchive(fixture.path(), outer, parent));
+        ArchiveBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        int prompts = 0;
+        bool reject = false;
+        QTimer answer;
+        widgetDialogs_.connectResponder(answer, &window, [&] {
+            auto *dialog = dynamic_cast<CPasswordDialog *>(widgetDialogs_.activeDialog());
+            if (!dialog)
+                return;
+            ++prompts;
+            if (reject)
+                dialog->reject();
+            else {
+                dialog->findChild<QLineEdit *>("passwordEdit")->setText(password);
+                dialog->accept();
+            }
+        });
+        answer.start(1);
+        window.openArchive(outer);
+        QTRY_VERIFY(rowWithPath(window, parent) >= 0);
+        openRow(window, rowWithPath(window, parent));
+        QTRY_VERIFY(rowWithPath(window, parent + '/' + innerName) >= 0);
+        openRow(window, rowWithPath(window, parent + '/' + innerName));
+        QTRY_VERIFY(rowWithPath(window, entry) >= 0 && active(window)->isEnabled());
+        action(window, "twoPanelsAction")->trigger();
+        QTRY_VERIFY(action(window, "newTabAction")->isEnabled());
+        QVERIFY(WindowActivation::waitForActive(window));
+        active(window)->setFocus();
+        QTRY_VERIFY(active(window)->hasFocus());
+        const QString requested = ToQString(active(window)->sourcePanel->GetCurrentFolderPrefix());
+        const auto saved = workspace(window)->Save();
+        workspace(window)->NewTab(0, fixture.path());
+        QTRY_VERIFY(active(window)->isEnabled());
+        workspace(window)->CloseTab(0, 0);
+        prompts = 0;
+        reject = true;
+        bool finished = false;
+        workspace(window)->Restore(saved, [&] { finished = true; });
+        QTRY_VERIFY(finished);
+        QVERIFY(prompts > 0);
+        QVERIFY(!action(window, "copyFilesAction")->isEnabled());
+        const QString canceled =
+            QCoreApplication::translate("QtWindowWorkspace", "Opening canceled: %1").arg(requested);
+        bool errorVisible = false;
+        for (auto *label : window.findChildren<QLabel *>())
+            errorVisible |= label->isVisible() && label->text() == canceled;
+        QVERIFY(errorVisible);
+        prompts = 0;
+        reject = false;
+        QPushButton *retry = nullptr;
+        for (auto *button : window.findChildren<QPushButton *>())
+            if (button->isVisible() &&
+                button->text() == QCoreApplication::translate("QtWindowWorkspace", "Retry"))
+                retry = button;
+        QVERIFY(retry);
+        QTest::mouseClick(retry, Qt::LeftButton);
+        QTRY_VERIFY(active(window)->isEnabled());
+        QVERIFY(prompts > 0);
+        QCOMPARE(active(window)->sourcePanel->GetParentFolders().Size(), 2u);
+        QCOMPARE(active(window)->model()->index(0, 0).data().toString(), entry);
+    }
+    void nestedLocationReopensWithItsNativeChain_data() {
+        QTest::addColumn<bool>("restore");
+        QTest::addColumn<bool>("missing");
+        QTest::newRow("duplicate") << false << false;
+        QTest::newRow("session") << true << false;
+        QTest::newRow("missing-nested") << true << true;
+    }
+    void nestedLocationReopensWithItsNativeChain() {
+        QFETCH(bool, restore);
+        QFETCH(bool, missing);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString entry = QStringLiteral("данные 空.txt");
+        const QByteArray bytes("nested reopening control");
+        const QString inside = QStringLiteral("inside 空");
+        QVERIFY(QDir().mkpath(fixture.filePath(inside)));
+        QVERIFY(write(fixture.filePath(inside + '/' + entry), bytes));
+        for (int index = 0; index < 300; ++index)
+            QVERIFY(
+                write(fixture.filePath(inside + QString("/entry-%1.txt").arg(index)), "control"));
+        const QString top = QStringLiteral("level one");
+        const QString parent = top + QStringLiteral("/folder с пробелом.zip");
+        QVERIFY(QDir().mkpath(fixture.filePath(parent)));
+        const QString innerName = QStringLiteral("inner archive.zip");
+        QVERIFY(createArchive(fixture.path(), fixture.filePath(parent + '/' + innerName), inside));
+        const QString outer = fixture.filePath("outer archive.zip");
+        QVERIFY(createArchive(fixture.path(), outer, top));
+        ArchiveBackend backend;
+        MainWindow window(&backend);
+        window.resize(980, 620);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openArchive(outer);
+        QTRY_VERIFY(rowWithPath(window, top) >= 0);
+        openRow(window, rowWithPath(window, top));
+        QTRY_VERIFY(rowWithPath(window, parent) >= 0);
+        openRow(window, rowWithPath(window, parent));
+        QTRY_VERIFY(rowWithPath(window, parent + '/' + innerName) >= 0);
+        openRow(window, rowWithPath(window, parent + '/' + innerName));
+        QTRY_VERIFY(rowWithPath(window, inside) >= 0);
+        openRow(window, rowWithPath(window, inside));
+        QTRY_VERIFY(rowWithPath(window, inside + '/' + entry) >= 0);
+        QTRY_VERIFY(active(window)->isEnabled());
+        QPointer<CPanel> original(active(window)->sourcePanel);
+        const QString requested = ToQString(original->GetCurrentFolderPrefix());
+        auto *tabs = window.findChild<QTabBar *>("panelTabs0");
+        if (restore) {
+            const auto saved = workspace(window)->Save();
+            workspace(window)->NewTab(0, fixture.path());
+            QTRY_VERIFY(active(window)->isEnabled());
+            workspace(window)->CloseTab(0, 0);
+            QTRY_VERIFY(original.isNull());
+            if (missing) {
+                QVERIFY(QFile::remove(outer));
+                QVERIFY(write(fixture.filePath("replacement.txt"), "different contents"));
+                QVERIFY(createArchive(fixture.path(), outer, "replacement.txt"));
+            }
+            bool finished = false;
+            workspace(window)->Restore(saved, [&] { finished = true; });
+            QTRY_VERIFY(finished);
+            if (missing) {
+                QCOMPARE(active(window)->rowCount(), 0);
+                QVERIFY(!action(window, "copyFilesAction")->isEnabled());
+                QVERIFY(!action(window, "createFolderAction")->isEnabled());
+                bool errorVisible = false;
+                for (auto *label : window.findChildren<QLabel *>())
+                    errorVisible |= label->isVisible() && label->text().contains(requested);
+                QVERIFY(errorVisible);
+                return;
+            }
+        } else {
+            bool invoked = false;
+            QTimer choose;
+            choose.setInterval(5);
+            connect(&choose, &QTimer::timeout, &window, [&] {
+                auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
+                if (!menu)
+                    return;
+                choose.stop();
+                const auto close = qScopeGuard([menu] { menu->close(); });
+                for (auto *action : menu->actions())
+                    if (action->text() ==
+                        QCoreApplication::translate("QtWindowWorkspace", "Duplicate location")) {
+                        invoked = true;
+                        QTest::mouseClick(menu, Qt::LeftButton, Qt::NoModifier,
+                                          menu->actionGeometry(action).center());
+                        break;
+                    }
+            });
+            choose.start();
+            QVERIFY(QMetaObject::invokeMethod(tabs, "customContextMenuRequested",
+                                              Qt::DirectConnection,
+                                              Q_ARG(QPoint, tabs->tabRect(0).center())));
+            QVERIFY(invoked);
+            QTRY_COMPARE(tabs->count(), 2);
+            QVERIFY(original && original != active(window)->sourcePanel);
+            QVERIFY(original->IsArcFolder());
+        }
+        QTRY_VERIFY(active(window)->isEnabled());
+        QCOMPARE(active(window)->sourcePanel->GetParentFolders().Size(), 2u);
+        int row = -1;
+        for (int index = 0; index < active(window)->rowCount(); ++index)
+            if (active(window)->model()->index(index, 0).data().toString() == entry)
+                row = index;
+        QVERIFY(row >= 0);
+        QApplication::clipboard()->clear();
+        const auto clearClipboard = qScopeGuard([] { QApplication::clipboard()->clear(); });
+        active(window)->selectRow(row);
+        active(window)->setCurrentCell(row, 0, QItemSelectionModel::NoUpdate);
+        action(window, "copyFilesAction")->trigger();
+        QTRY_VERIFY(QApplication::clipboard()->mimeData()->hasUrls());
+        const auto exported = QApplication::clipboard()->mimeData()->urls();
+        QCOMPARE(exported.size(), 1);
+        QCOMPARE(read(exported.front().toLocalFile()), bytes);
+    }
     void breadcrumbsNavigateBothNestedArchiveBoundaries() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
