@@ -1,4 +1,5 @@
 #include "filemanager/window/qtwindowworkspace.h"
+#include "dialogs/recentplaces/qtrecentplacesdialog.h"
 #include "filemanager/panels/qtpaneladdresscombo.h"
 #include "filemanager/qtfilemanagerdrag.h"
 #include "filemanager/rename/qtrenamecontroller.h"
@@ -8,6 +9,7 @@
 #include "filemanager/window/qtmainwindowchrome.h"
 #include "filemanager/window/qtnativeplaces.h"
 #include "filemanager/window/qtnavigationbar.h"
+#include "filemanager/window/qtrecentplacesstore.h"
 #include "filemanager/window/qtworkspaceruntime.h"
 #include "filemanager/window/qtworkspacetabbar.h"
 #include "filemanager/window/qtworkspacetheme.h"
@@ -19,6 +21,15 @@
 #include <QTabBar>
 
 QtWindowWorkspace::QtWindowWorkspace(MainWindow &window) : QObject(&window), window_(window) {
+    recentPlaces_ = QtRecentPlacesStore::ForSettings(window.toolbarSettingsPath());
+    connect(recentPlaces_, &QtRecentPlacesStore::historyChanged, this,
+            [this] { window_.app_.AppState.FolderHistory.Read(window_.toolbarSettingsPath()); });
+    connect(recentPlaces_, &QAbstractItemModel::modelReset, this, [this] {
+        if (window_.commands_ && window_.panelUi_[0].table &&
+            !window_.app_.QtOperations().closed() && !window_.app_.QtOperations().active() &&
+            !window_.app_.QtOperations().callActive() && !window_.sourceArchiveProgress_)
+            window_.refreshActions();
+    });
     qApp->installEventFilter(this);
     for (auto *object : qApp->children()) {
         if (auto *places = dynamic_cast<QtNativePlaces *>(object))
@@ -38,7 +49,9 @@ QtWindowWorkspace::QtWindowWorkspace(MainWindow &window) : QObject(&window), win
 bool QtWindowWorkspace::Ready() const {
     return !changing_ && !window_.app_.QtOperations().closed() &&
            !window_.app_.QtOperations().active() && !window_.app_.QtOperations().callActive() &&
-           !window_.sourceArchiveProgress_ && !QApplication::activeModalWidget() &&
+           !window_.sourceArchiveProgress_ &&
+           (!QApplication::activeModalWidget() ||
+            QApplication::activeModalWidget() == recentDialog_) &&
            !window_.backend_->busy() && (!window_.drag_ || !window_.drag_->Active()) &&
            (!window_.appPresentation_ || !window_.appPresentation_->IsCopyPending());
 }

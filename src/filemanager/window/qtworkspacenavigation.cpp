@@ -2,6 +2,7 @@
 #include "filemanager/window/qtnativeplaces.h"
 #include "filemanager/window/qtplaceprojection.h"
 #include "filemanager/window/qtwindowworkspace.h"
+#include <QScopeGuard>
 #include <QScopedValueRollback>
 #include <QScrollBar>
 
@@ -21,7 +22,8 @@ QtWindowWorkspace::Visit QtWindowWorkspace::CaptureVisit(unsigned panel) {
     return {tab.path, tab.nativePlaceIdentity, tab.archiveLocation, tab.selection, tab.scroll};
 }
 
-HRESULT QtWindowWorkspace::Navigate(const std::function<HRESULT()> &body) {
+HRESULT QtWindowWorkspace::Navigate(const std::function<HRESULT()> &body,
+                                    std::function<void(HRESULT)> finished) {
     if (window_.app_.QtOperations().closed())
         return E_ABORT;
     const unsigned panel = window_.projectedPanel_;
@@ -35,6 +37,7 @@ HRESULT QtWindowWorkspace::Navigate(const std::function<HRESULT()> &body) {
         request->tab = state.tabs[state.current].id;
         request->source = window_.app_.Panels.Share(panel);
         request->origin = CaptureVisit(panel);
+        request->finished = std::move(finished);
         navigation_[panel] = std::move(request);
     }
     HRESULT result = E_FAIL;
@@ -49,6 +52,8 @@ HRESULT QtWindowWorkspace::Navigate(const std::function<HRESULT()> &body) {
     }
     auto &request = navigation_[panel];
     if (request && request->depth == 0) {
+        if (request->canceled)
+            result = E_ABORT;
         const auto &ui = window_.panelUi_[panel];
         if (result != S_OK || (!ui.scanningDisk && !ui.scanningArchive))
             FinishNavigation(panel, result == S_OK ? request->completed.value_or(S_OK) : result);
@@ -125,10 +130,19 @@ void QtWindowWorkspace::FinishNavigation(unsigned panel, HRESULT result) {
     auto request = std::move(navigation_[panel]);
     if (!request)
         return;
+    if (request->canceled)
+        result = E_ABORT;
+    const auto complete = qScopeGuard([&] {
+        if (request->finished)
+            request->finished(result);
+    });
     const auto position = FindTab(request->tab);
     if (!position || position->panel != panel ||
-        window_.app_.Panels.Share(panel) != request->source)
+        window_.app_.Panels.Share(panel) != request->source) {
+        result = E_ABORT;
+        request->transaction.reset();
         return;
+    }
     if (result == S_FALSE && !request->completed && request->previousFolder &&
         request->previousFolder == request->source->GetFolder())
         request->previousFolder.Release();

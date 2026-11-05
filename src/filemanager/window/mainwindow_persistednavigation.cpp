@@ -2,6 +2,7 @@
 #include "filemanager/MyLoadMenu.h"
 #include "filemanager/panels/Panel.h"
 #include "filemanager/window/mainwindow.h"
+#include "filemanager/window/qtwindowworkspace.h"
 #include <QDir>
 #include <QFileInfo>
 
@@ -20,22 +21,12 @@ QString MainWindow::sourcePathFromDisplayPath(QString path) const {
     return path;
 }
 
-void MainWindow::recordVisitedPath(const QString &path) {
-    app_.AppState.FolderHistory.AddString(ToUString(path));
-    app_.AppState.FolderHistory.Save(toolbarSettingsPath());
-}
+void MainWindow::recordVisitedPath(const QString &path) { workspace_->RecordVisit(path); }
 
 void MainWindow::showFoldersHistory() {
     if (projectedUi().state == State::Loading || projectedUi().state == State::Operating)
         return;
-    const unsigned owner = app_.GetFocusedPanelIndex();
-    const QString selected =
-        CPanel::FoldersHistory(app_.AppState.FolderHistory, toolbarSettingsPath(), this);
-    if (!selected.isNull()) {
-        activatePanelUi(owner);
-        navigateTo(sourcePathFromDisplayPath(selected), true);
-    } else
-        refreshActions();
+    workspace_->ShowRecentPlaces();
 }
 void MainWindow::refreshBookmarks() { MyLoadBookmarks(openBookmarks_, saveBookmarks_, app_); }
 

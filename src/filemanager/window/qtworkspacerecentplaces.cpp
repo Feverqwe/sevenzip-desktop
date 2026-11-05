@@ -1,0 +1,99 @@
+#include "Windows/ErrorMsg.h"
+#include "dialogs/recentplaces/qtrecentplacesdialog.h"
+#include "filemanager/window/mainwindow.h"
+#include "filemanager/window/qtnativeplaces.h"
+#include "filemanager/window/qtplaceprojection.h"
+#include "filemanager/window/qtrecentplacesstore.h"
+#include "filemanager/window/qtwindowworkspace.h"
+#include "ui/progress/ProgressDialog2.h"
+#include <QScopeGuard>
+
+void QtWindowWorkspace::RecordVisit(const QString &path) {
+    const auto visit = CaptureVisit(window_.projectedPanel_);
+    recentPlaces_->Visit({path, visit.nativePlaceIdentity, visit.archiveLocation});
+}
+
+void QtWindowWorkspace::ShowRecentPlaces() {
+    if (recentDialog_ && recentDialog_->isVisible()) {
+        recentDialog_->raise();
+        recentDialog_->activateWindow();
+        return;
+    }
+    const unsigned panel = window_.projectedPanel_;
+    if (panels_[panel].tabs.empty())
+        return;
+    const QString id = panels_[panel].tabs[panels_[panel].current].id;
+    recentPlaces_->Reload();
+    auto *dialog = new QtRecentPlacesDialog(*recentPlaces_, &window_);
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    recentDialog_ = dialog;
+    const QPointer<QtRecentPlacesDialog> target(dialog);
+    dialog->SetOpenHandler(
+        [this, id, target](const QtRecentPlace &place) { OpenRecentPlace(id, place, target); });
+    connect(dialog, &QDialog::finished, this, [this, target](int) {
+        for (unsigned panel = 0; panel < navigation_.size(); ++panel) {
+            auto &request = navigation_[panel];
+            if (!request || request->requester != target)
+                continue;
+            request->canceled = true;
+            if (request->depth == 0 && request->source == window_.app_.Panels.Share(panel))
+                window_.withPanelProjection(panel, [this] { window_.cancelListPublication(); });
+        }
+        window_.refreshActions();
+    });
+    dialog->show();
+}
+
+void QtWindowWorkspace::OpenRecentPlace(const QString &id, const QtRecentPlace &place,
+                                        QPointer<QtRecentPlacesDialog> target) {
+    const auto position = FindTab(id);
+    if (!target || !target->isVisible())
+        return;
+    if (!position || window_.app_.QtOperations().closed()) {
+        target->Complete(false, tr("The original tab is closed."));
+        return;
+    }
+    if (!Ready()) {
+        target->Complete(false, tr("The original tab is busy."));
+        return;
+    }
+    const unsigned panel = position->panel;
+    Activate(panel, position->index);
+    if (!Ready()) {
+        WhenReady([this, id, place, target] { OpenRecentPlace(id, place, target); });
+        return;
+    }
+    window_.withPanelProjection(panel, [&] {
+        Navigate(
+            [&]() -> HRESULT {
+                auto &request = *navigation_[panel];
+                request.requester = target;
+                ProtectNavigation();
+                if (!place.archive.physicalPath.isEmpty())
+                    return OpenArchiveLocation(panel, place.archive);
+                QString path = window_.sourcePathFromDisplayPath(place.path);
+                if (!place.nativeIdentity.isEmpty()) {
+                    nativePlaces_->Refresh();
+                    const auto native = nativePlaces_->FindIdentity(place.nativeIdentity);
+                    if (place.nativeIdentity == "locations")
+                        path.clear();
+                    else if (native.isValid())
+                        path = native.data(QtPlaceRoles::Path).toString();
+                    else
+                        return E_FAIL;
+                }
+                const HRESULT opened = window_.navigateTo(path, true);
+                return opened == S_OK && !LocationMatches(panel, path) ? S_FALSE : opened;
+            },
+            [target](HRESULT result) {
+                if (!target)
+                    return;
+                const QString error = result == E_ABORT ? tr("Opening canceled.")
+                                      : result == S_FALSE
+                                          ? tr("The location is unavailable or disconnected.")
+                                          : tr("Could not open this location. %1")
+                                                .arg(ToQString(HResultToMessage(result)));
+                target->Complete(result == S_OK, error);
+            });
+    });
+}

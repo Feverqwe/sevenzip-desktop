@@ -6118,6 +6118,15 @@ Use `Revert` to recover timestamp.</source>
         </message>
     </context>
     <context>
+        <name>QtRecentPlacesDialog</name>
+        <message><source>Recent places</source><translation>Недавние места</translation></message>
+        <message><source>Search by name or path</source><translation>Поиск по имени или пути</translation></message>
+        <message><source>Remove from list</source><translation>Убрать из списка</translation></message>
+        <message><source>Clear list</source><translation>Очистить список</translation></message>
+        <message><source>No recent places yet.</source><translation>Недавних мест пока нет.</translation></message>
+        <message><source>No matching places.</source><translation>Подходящих мест нет.</translation></message>
+    </context>
+    <context>
         <name>mainwindow_menus</name>
         <message>
             <source>Forward</source>
@@ -7201,6 +7210,11 @@ Check that your distribution's CIFS support and cifs-utils are installed.</sourc
 </context>
 <context>
     <name>QtWindowWorkspace</name>
+    <message><source>The original tab is closed.</source><translation>Исходная вкладка закрыта.</translation></message>
+    <message><source>The original tab is busy.</source><translation>Исходная вкладка занята.</translation></message>
+    <message><source>Opening canceled.</source><translation>Открытие отменено.</translation></message>
+    <message><source>The location is unavailable or disconnected.</source><translation>Место недоступно или отключено.</translation></message>
+    <message><source>Could not open this location. %1</source><translation>Не удалось открыть это место. %1</translation></message>
     <message>
         <source>Archive</source>
         <translation>Архив</translation>

@@ -20,6 +20,9 @@ class QToolBar;
 class QListView;
 class QtFavoriteStore;
 class QtNativePlaces;
+class QtRecentPlacesStore;
+class QtRecentPlacesDialog;
+struct QtRecentPlace;
 struct QtTabRuntime;
 
 // Tab runtimes own stable sources; CApp projects two active slots. Persistent
@@ -50,7 +53,10 @@ class QtWindowWorkspace final : public QObject {
     bool TransferTab(const QString &id, QtWindowWorkspace &target, unsigned targetPanel,
                      std::function<void(bool)> finished = {});
     bool PreparePanelForShow(unsigned panel);
-    HRESULT Navigate(const std::function<HRESULT()> &body);
+    HRESULT Navigate(const std::function<HRESULT()> &body,
+                     std::function<void(HRESULT)> finished = {});
+    void ShowRecentPlaces();
+    void RecordVisit(const QString &path);
     void ProtectNavigation(const QString &path = {});
     void RetainNavigationFolder();
     std::optional<HRESULT> NavigationPublication() const;
@@ -82,6 +88,9 @@ class QtWindowWorkspace final : public QObject {
         int destination = -1;
         unsigned depth = 0;
         std::optional<HRESULT> completed;
+        std::function<void(HRESULT)> finished;
+        QPointer<QObject> requester;
+        bool canceled = false;
     };
     struct Tab {
         QString id;
@@ -134,6 +143,8 @@ class QtWindowWorkspace final : public QObject {
     void RefreshSidebar(unsigned panel);
     void AddFavorite();
     void OpenFavorite(const QString &path, int target);
+    void OpenRecentPlace(const QString &id, const QtRecentPlace &place,
+                         QPointer<QtRecentPlacesDialog> target);
     void WhenReady(std::function<void()> body, std::function<void()> canceled = {});
     void RestoreTabFocus(unsigned panel, const QString &id, quint64 request);
     void RestoreListFocus(unsigned panel, const QString &id, quint64 request,
@@ -147,6 +158,8 @@ class QtWindowWorkspace final : public QObject {
     bool changing_ = false;
     QtFavoriteStore *favorites_ = nullptr;
     QtNativePlaces *nativePlaces_ = nullptr;
+    QtRecentPlacesStore *recentPlaces_ = nullptr;
+    QPointer<QtRecentPlacesDialog> recentDialog_;
     bool sidebarVisible_ = true;
     quint64 focusRequest_ = 0;
     std::array<std::unique_ptr<Navigation>, 2> navigation_;

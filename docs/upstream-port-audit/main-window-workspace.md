@@ -410,6 +410,63 @@ pre-commit source state; прежние снимки других компоне
 в новое свидетельство. Одноразовые native fixtures удалены; incremental outputs
 и compiler caches сохранены.
 
+## Недавние места — 2026-11-05
+
+Контракт из master `work/design/specs/recent-places.md`. Сверены original
+App/AppState, полные ListViewDialog.cpp/.h и CPanel::FoldersHistory, Delete/Enter/OK,
+ресурсная оболочка списка, current Qt callers и persistent history helpers.
+Original ListViewDialog inventory units из записанного source archive совпадают
+с прежним baseline; новых импортов нет. Новый интерфейс MainWindow отделён от
+исходного list/report dialog, который остаётся у прежних потребителей.
+
+QtRecentPlacesStore использует CFolderHistory для порядка, IsEqualTo_NoCase и
+ограничения длины. Все успешные UI visits проходят через адаптер. Immediate
+Remove/Clear публикуют сохранённое состояние во все CApp до model reset, чтобы
+закрытие окна не возвращало удалённые ссылки. Метаданные native root/archive
+следуют фактическим строкам native списка и удаляются вместе с отсутствующими
+записями; passwords, COM providers и consent не сохраняются. Directory/archive
+open использует существующие Navigate/QtArchiveLocation/native engine routes.
+Exact target проверяется внутри request до commit; обычный address fallback
+не изменён. Пустая история остаётся доступна из меню.
+
+Новая форма проецирует поиск, единственный выбор, SourceSummary и immediate
+удаление ссылок. QtCreateDialogLayout сохраняет footer вне прокрутки списка.
+Enter/двойной щелчок отправляют один запрос; ошибка сохраняет поиск и выбор.
+WindowModal форма не держит native command CallScope между действиями. UUID
+вкладки и stable source определяют владельца; повторное открытие ждёт завершения
+её activation refresh. Close отменяет только связанный publication/request;
+joined native reader остаётся присоединённым до terminal result, после чего
+отменённый результат откатывается. Отсутствующий владелец не создаёт новую вкладку.
+
+Focused Linux: Recent Places, persisted locations, Back/Forward, archive workspace
+и session — PASS в относящихся к изменениям прогонах. Финальный Recent Places
+повторно прошёл после уточнения stable source captions и settled layout.
+macOS offscreen: те же пять наборов — PASS. Native Cocoa: Recent Places 10 QtTest
+PASS и Back/Forward 10 PASS, без failed/skipped. Проверены immediate filtered
+Remove/Clear и отсутствие resurrection истории при закрытии второго окна,
+неизменность файлов/избранного/истории назначения и стека переходов при Clear,
+поиск и клавиатура EN/RU, исчезнувшее место и Retry, UUID owner после переключения
+вкладки и её удаления, cancellation собственной публикации, activation refresh
+неактивного source, closed nested chain с извлечением control bytes, native
+Computer после смены языка. Native close сохраняет original policy.
+
+Реальный Linux прогон выявил reentrant resize во время rowsInserted до установки
+itemWidget; пересчёт строк теперь отложен с QObject lifetime и проверкой виджета.
+Return поиска обрабатывается один раз. Archive display shortcut проверяет наличие
+настоящего provider перед типовым запросом — parked context не считается открытым
+архивом по старой строке Qt. Регрессия encrypted Back проверяет этот guard.
+
+Свежие light/dark Cocoa PNG/JSON показывают populated/no-results/empty/unavailable
+и wrapped long-path состояния. Проверены footer, wrapping и native focus;
+снимки сделаны после завершения layout. Review bundle пересобран. Canonical
+одноразовые native fixtures удалены, compiler cache и incremental outputs сохранены.
+Windows/full/slow acceptance здесь не объявляется. Катя проверила source boundaries
+и ограниченный diff; её вывод не заменяет приведённые runtime результаты.
+
+Отдельно при проверке обнаружена прежняя stale FastFolders snapshot: закрытие
+второго окна может перезаписать числовую закладку первого. Clear сам её не стирает;
+эта отличная от FolderHistory ошибка остаётся открытой для следующей итерации.
+
 ## Shared secret editing
 
 2026-11-05: проверены исходные `PasswordDialog.cpp/.h`, обработчики

@@ -4,10 +4,24 @@
 #include "platform/support/external_editor_fixture.h"
 #include "support/panel_keys.h"
 #include "ui/support/layout_inspection.h"
+#include <QListWidget>
 #include <QTreeWidget>
 
 class PersistedLocationTests final : public QObject, protected MainWindowTestSupport {
     Q_OBJECT
+    static QDialog *historyDialog(MainWindow &window) {
+        for (auto *dialog : window.findChildren<QDialog *>("foldersHistoryDialog"))
+            if (dialog->isVisible())
+                return dialog;
+        return nullptr;
+    }
+    static QList<QListWidgetItem *> historyItems(QListWidget &list, const QString &path) {
+        QList<QListWidgetItem *> result;
+        for (int row = 0; row < list.count(); ++row)
+            if (list.item(row)->data(Qt::UserRole).toString() == path)
+                result.append(list.item(row));
+        return result;
+    }
     static FileTable *leftTable(MainWindow &window) {
         return static_cast<FileTable *>(
             window.findChild<QWidget *>("filePanel0")->findChild<FileTable *>("archiveTable"));
@@ -21,16 +35,17 @@ class PersistedLocationTests final : public QObject, protected MainWindowTestSup
         return ToQString(folders.GetString(index));
     }
     static void openEmptyHistoryItem(MainWindow &window, const QString &phase) {
-        QTimer::singleShot(0, &window, [&window, phase] {
-            auto *dialog = window.findChild<QDialog *>("foldersHistoryDialog");
+        bool handled = false;
+        QTimer::singleShot(0, &window, [&window, phase, &handled] {
+            auto *dialog = historyDialog(window);
             QVERIFY(dialog);
             const auto close = qScopeGuard([&] {
                 if (dialog->isVisible())
                     dialog->reject();
             });
-            auto *tree = dialog->findChild<QTreeWidget *>("foldersHistoryList");
+            auto *tree = dialog->findChild<QListWidget *>("foldersHistoryList");
             QVERIFY(tree);
-            const auto items = tree->findItems(QString(), Qt::MatchExactly);
+            const auto items = historyItems(*tree, QString());
             QCOMPARE(items.size(), 1);
             tree->setCurrentItem(items.front());
             for (const QSize size : {QSize(540, 360), QSize(360, 240)}) {
@@ -42,8 +57,10 @@ class PersistedLocationTests final : public QObject, protected MainWindowTestSup
                                                                .arg(size.width())));
             }
             dialog->accept();
+            handled = true;
         });
         action(window, "foldersHistoryAction")->trigger();
+        QTRY_VERIFY(handled);
     }
   private slots:
     void init() {
@@ -96,15 +113,15 @@ class PersistedLocationTests final : public QObject, protected MainWindowTestSup
         addresses[peer]->setText(peerDraft);
         bool peerFocused = false;
         QTimer::singleShot(0, &window, [&] {
-            auto *dialog = window.findChild<QDialog *>("foldersHistoryDialog");
+            auto *dialog = historyDialog(window);
             QVERIFY(dialog);
             const auto close = qScopeGuard([&] {
                 if (dialog->isVisible())
                     dialog->reject();
             });
-            auto *tree = dialog->findChild<QTreeWidget *>("foldersHistoryList");
+            auto *tree = dialog->findChild<QListWidget *>("foldersHistoryList");
             QVERIFY(tree);
-            const auto items = tree->findItems(target, Qt::MatchExactly);
+            const auto items = historyItems(*tree, target);
             QCOMPARE(items.size(), 1);
             tree->setCurrentItem(items.front());
             connect(dialog, &QDialog::finished, &window, [&] {
@@ -116,7 +133,7 @@ class PersistedLocationTests final : public QObject, protected MainWindowTestSup
             dialog->accept();
         });
         action(window, "foldersHistoryAction")->trigger();
-        QVERIFY(peerFocused);
+        QTRY_VERIFY(peerFocused);
         QTRY_COMPARE(QDir::cleanPath(QDir::fromNativeSeparators(
                          ToQString(tables[owner]->sourcePanel->GetCurrentFolderPrefix()))),
                      target);
@@ -346,15 +363,15 @@ class PersistedLocationTests final : public QObject, protected MainWindowTestSup
                  QString("keep.txt"));
         action(window, "openRootAction")->trigger();
         QTimer::singleShot(0, &window, [&] {
-            auto *dialog = window.findChild<QDialog *>("foldersHistoryDialog");
+            auto *dialog = historyDialog(window);
             QVERIFY(dialog);
             const auto close = qScopeGuard([&] {
                 if (dialog->isVisible())
                     dialog->reject();
             });
-            auto *list = dialog->findChild<QTreeWidget *>("foldersHistoryList");
+            auto *list = dialog->findChild<QListWidget *>("foldersHistoryList");
             QVERIFY(list);
-            const auto items = list->findItems(legacy, Qt::MatchExactly);
+            const auto items = historyItems(*list, legacy);
             QCOMPARE(items.size(), 1);
             list->setCurrentItem(items.front());
             for (const QSize size : {QSize(540, 360), QSize(360, 240)}) {
@@ -367,7 +384,7 @@ class PersistedLocationTests final : public QObject, protected MainWindowTestSup
             dialog->accept();
         });
         action(window, "foldersHistoryAction")->trigger();
-        QCOMPARE(prefix(window), source);
+        QTRY_COMPARE(prefix(window), source);
         QCOMPARE(saved(0), legacy);
         auto *address = window.findChild<QLineEdit *>("archivePath");
         for (const QString &typed : {archive + '/' + folder, legacy}) {

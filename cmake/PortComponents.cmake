@@ -61,6 +61,11 @@ sevenzip_add_port_component(sevenzip_main_window src/filemanager/window/mainwind
     src/filemanager/window/qtworkspacelocation.cpp
     src/filemanager/window/qtworkspacearchivelocation.cpp
     src/filemanager/window/qtworkspacenavigation.cpp
+    src/filemanager/window/qtworkspacerecentplaces.cpp
+    src/filemanager/window/qtrecentplacesstore.cpp
+    src/filemanager/window/qtrecentplacesstore.h
+    src/dialogs/recentplaces/qtrecentplacesdialog.cpp
+    src/dialogs/recentplaces/qtrecentplacesdialog.h
     src/filemanager/window/qtsavedlocation.cpp
     src/filemanager/window/mainwindow.cpp
     src/filemanager/window/mainwindow_archive_transfer.cpp

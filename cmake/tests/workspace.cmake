@@ -52,6 +52,13 @@ if(BUILD_TESTING)
     add_test(NAME workspace_history COMMAND workspace_history_tests -silent)
     set_tests_properties(workspace_history PROPERTIES TIMEOUT 60 ENVIRONMENT
         "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/workspace-history.ini")
+    qt_add_executable(recent_places_tests tests/filemanager/recent_places_tests.cpp
+        tests/platform/support/external_editor_fixture.cpp)
+    target_link_libraries(recent_places_tests PRIVATE sevenzip_window sevenzip_layout_inspection Qt6::Test)
+    target_include_directories(recent_places_tests PRIVATE src tests)
+    add_test(NAME recent_places COMMAND recent_places_tests -silent)
+    set_tests_properties(recent_places PROPERTIES TIMEOUT 60 ENVIRONMENT
+        "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/recent-places.ini")
     target_link_libraries(workspace_navigation_tests PRIVATE sevenzip_window sevenzip_layout_inspection sevenzip_widget_dialog_fixtures Qt6::Test)
     target_include_directories(workspace_navigation_tests PRIVATE src tests)
     add_test(NAME workspace_navigation COMMAND workspace_navigation_tests -silent)

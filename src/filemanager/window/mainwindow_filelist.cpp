@@ -53,7 +53,8 @@ HRESULT MainWindow::navigateToImpl(const QString &path, bool sourceAddress) {
     if (projectedUi().state == State::Loading || projectedUi().state == State::Operating)
         return E_ABORT;
     projectedUi().locationUnavailable = false;
-    if (projectedUi().state == State::Viewing && path == archiveDisplayPath())
+    if (projectedUi().state == State::Viewing && app_.GetFocusedPanel().GetFolder() &&
+        app_.GetFocusedPanel().IsArcFolder() && path == archiveDisplayPath())
         return S_OK;
     // A typed relative address belongs to the displayed filesystem folder.
     // CPanel::BindToPath still resolves the resulting native path.

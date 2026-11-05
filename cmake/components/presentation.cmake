@@ -213,6 +213,8 @@ add_library(sevenzip_panel
     src/ui/controls/qtdisclosure.h
     src/ui/controls/qtsecretedit.cpp
     src/ui/controls/qtsecretedit.h
+    src/ui/controls/qtsourcesummary.cpp
+    src/ui/controls/qtsourcesummary.h
     src/filemanager/panels/qtpanellist.cpp
     src/filemanager/panels/qtpanellist.h
     src/filemanager/panels/qtpanelfolder.cpp

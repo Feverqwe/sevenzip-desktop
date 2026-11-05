@@ -175,6 +175,16 @@ These live stacks follow tab transfers; they are not persisted in sessions or
 copied into a newly duplicated tab. Native address fallback to an existing
 ancestor retains its established success semantics.
 
+Recent Places has a shared settings-scoped adapter around `CFolderHistory`.
+The native history still owns comparison, order and limits; immediate removal
+and clearing update every window's state before notifying views. Recent links
+retain value-only native root/archive descriptors for reopening, with no handles,
+passwords or consent. Other favorites and destination histories have separate
+owners. The dialog uses the shared dialog layout and two-line `QtSourceSummary`;
+its search and selection remain visible when opening fails. A request captures
+the originating tab, waits for its retained publication if needed, and checks
+the exact target before accepting it. Closing the form retires only that request.
+
 `QtWorkspaceApplication` owns window discovery and session writes. Each window
 has independent mutable backend/operation state while reusing the immutable codec
 catalog. Moving a quiescent tab between windows rebinds host callbacks and archive
