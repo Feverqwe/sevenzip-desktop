@@ -11,11 +11,13 @@
 #include <QFileInfo>
 #include <QLabel>
 #include <QLocale>
+#include <QMessageBox>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QScopeGuard>
 #include <QTemporaryDir>
 #include <QtTest>
+#include <memory>
 
 class VolumeDialogTests : public QObject {
     Q_OBJECT
@@ -72,6 +74,8 @@ class VolumeDialogTests : public QObject {
         QTest::addColumn<QString>("bad");
         QTest::newRow("leading-nbsp") << QString(QChar(0x00a0)) + "10";
         QTest::newRow("leading-cr") << QString("\r10");
+        QTest::newRow("embedded-nul") << QString("10") + QChar::Null + " 20";
+        QTest::newRow("nul-after-unit") << QString("10M") + QChar::Null + " 20M";
     }
     void splitUsesSourceTrimAndAllowsRetry() {
         QFETCH(QString, bad);
@@ -94,6 +98,46 @@ class VolumeDialogTests : public QObject {
         QCOMPARE(dialog.VolumeSizes[0], UInt64(10));
         QCOMPARE(dialog.VolumeSizes[1], UInt64(20));
         QVERIFY(!QFileInfo::exists(dialog.Path));
+    }
+
+    void destinationRejectsNulAndAllowsRetry_data() {
+        QTest::addColumn<bool>("combine");
+        QTest::newRow("split") << false;
+        QTest::newRow("combine") << true;
+    }
+    void destinationRejectsNulAndAllowsRetry() {
+        QFETCH(bool, combine);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        std::unique_ptr<QDialog> dialog;
+        if (combine)
+            dialog = std::make_unique<CCopyDialog>("Combine", "Combine to:", fixture.path(), "");
+        else
+            dialog = std::make_unique<CSplitDialog>("source.bin", fixture.path());
+        auto *path =
+            dialog->findChild<QComboBox *>(combine ? "copyDestination" : "volumeDestination");
+        const QString invalid = fixture.filePath("shortened") + QChar::Null + "suffix";
+        path->setCurrentText(invalid);
+        dialog->show();
+        bool reported = false;
+        QTimer::singleShot(0, dialog.get(), [&] {
+            if (auto *message = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                reported = message->icon() == QMessageBox::Critical;
+                message->accept();
+            }
+        });
+        dialog->accept();
+        QVERIFY(reported);
+        QCOMPARE(dialog->result(), int(QDialog::Rejected));
+        QVERIFY(dialog->isVisible());
+        QCOMPARE(path->currentText(), invalid);
+        const QString corrected = fixture.filePath(QStringLiteral("результат 空"));
+        path->setCurrentText(corrected);
+        dialog->accept();
+        QCOMPARE(dialog->result(), int(QDialog::Accepted));
+        const QString accepted = combine ? ToQString(static_cast<CCopyDialog &>(*dialog).Value)
+                                         : static_cast<CSplitDialog &>(*dialog).Path;
+        QCOMPARE(accepted, corrected);
     }
 
     void splitInitAndConfirmation_data() {

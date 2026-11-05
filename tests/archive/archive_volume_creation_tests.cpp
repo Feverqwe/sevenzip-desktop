@@ -211,18 +211,24 @@ class ArchiveVolumeCreationTests final : public QObject {
         QVERIFY(UiInspection::separate(*volume, *footer, dialog));
         QVERIFY(UiInspection::writeReport(dialog, "archive-volumes-" + QString::number(width)));
         const QByteArray original = readFile(settings_);
-        volume->setEditText("0");
         auto *section = dialog.findChild<QtDisclosure *>("archiveVolumesSection");
-        section->setExpanded(false);
-        QTimer::singleShot(0, &dialog, [&] {
-            auto *message = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
-            QVERIFY(message);
-            message->accept();
-        });
-        footer->button(QDialogButtonBox::Ok)->click();
-        QCOMPARE(dialog.result(), int(QDialog::Rejected));
-        QCOMPARE(readFile(settings_), original);
-        QVERIFY(section->isExpanded());
+        for (const auto &invalid : {QString("0"), QString("128K") + QChar::Null + " 256K"}) {
+            volume->setEditText(invalid);
+            section->setExpanded(false);
+            bool reported = false;
+            QTimer::singleShot(0, &dialog, [&] {
+                if (auto *message =
+                        qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                    reported = true;
+                    message->accept();
+                }
+            });
+            footer->button(QDialogButtonBox::Ok)->click();
+            QVERIFY(reported);
+            QCOMPARE(dialog.result(), int(QDialog::Rejected));
+            QCOMPARE(readFile(settings_), original);
+            QVERIFY(section->isExpanded());
+        }
         QCoreApplication::processEvents();
         QVERIFY(UiInspection::fullyVisible(*volume, dialog));
         volume->setEditText("64K 128K");

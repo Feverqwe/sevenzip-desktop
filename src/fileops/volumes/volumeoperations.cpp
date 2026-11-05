@@ -53,10 +53,8 @@ VolumeOperation::VolumeOperation(const CCombineVolumePlan &plan, QObject *parent
 void VolumeOperation::cancel() { canceled_ = true; }
 
 QList<qint64> VolumeOperation::parseSizes(const QString &text) {
-    UString s = ToUString(text);
-    s.Trim();
     CRecordVector<UInt64> values;
-    if (!ParseVolumeSizes(s, values) || values.IsEmpty())
+    if (!ParseVolumeSizesText(text, values) || values.IsEmpty())
         return {};
     QList<qint64> result;
     FOR_VECTOR(i, values) {
@@ -73,6 +71,10 @@ qint64 VolumeOperation::parseSize(const QString &text) {
 
 namespace {
 bool InspectCombinePlan(const QString &firstPart, CCombineVolumePlan &combiner, QString *error) {
+    if (firstPart.contains(QChar::Null)) {
+        *error = ToQString(HResultToMessage(E_INVALIDARG));
+        return false;
+    }
     const QFileInfo first(firstPart);
     CVolSeqName sequence;
     if (!sequence.ParseName(ToUString(first.fileName()))) {
@@ -248,6 +250,10 @@ bool VolumeOperation::combine(const CCombineVolumePlan &plan, QString *error) {
 }
 
 void VolumeOperation::run() {
+    if (source_.contains(QChar::Null) || destination_.contains(QChar::Null)) {
+        emit result(false, ToQString(HResultToMessage(E_INVALIDARG)));
+        return;
+    }
     QString error;
     const auto *splitPlan = std::get_if<CSplitVolumePlan>(&plan_);
     const bool ok = splitPlan ? split(*splitPlan, &error)

@@ -5,6 +5,7 @@
 #include "dialogs/copy/CopyDialog.h"
 #include "7zip/UI/FileManager/CopyDialogRes.h"
 #include "7zip/UI/FileManager/resource.h"
+#include "Windows/ErrorMsg.h"
 #include "Windows/FileName.h"
 #include "dialogs/browse/BrowseDialog.h"
 #include "localization/qtlangcontrols.h"
@@ -19,6 +20,7 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMessageBox>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QTextDocument>
@@ -121,18 +123,32 @@ bool CCopyDialog::OnInit() {
 }
 
 void CCopyDialog::OnButtonSetPath() {
-    const QString currentPath = _path->currentText();
+    UString currentPath;
+    if (!ReadPath(currentPath))
+        return;
     UString selectedPath;
-    if (!MyBrowseForFolder(this, ToUString(QtLangText(IDS_SET_FOLDER)), ToUString(currentPath),
-                           selectedPath))
+    if (!MyBrowseForFolder(this, ToUString(QtLangText(IDS_SET_FOLDER)), currentPath, selectedPath))
         return;
     NWindows::NFile::NName::NormalizeDirPathPrefix(selectedPath);
     _path->setCurrentIndex(-1);
     _path->setCurrentText(ToQString(selectedPath));
 }
 
+bool CCopyDialog::ReadPath(UString &path) {
+    const QString text = _path->currentText();
+    if (text.contains(QChar::Null)) {
+        QMessageBox::critical(this, windowTitle(),
+                              ToQString(NWindows::NError::MyFormatMessage(E_INVALIDARG)));
+        _path->setFocus();
+        return false;
+    }
+    path = ToUString(text);
+    return true;
+}
+
 void CCopyDialog::OnOK() {
-    Value = ToUString(_path->currentText());
+    if (!ReadPath(Value))
+        return;
     QDialog::accept();
 }
 

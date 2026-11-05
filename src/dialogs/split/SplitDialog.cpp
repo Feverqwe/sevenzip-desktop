@@ -7,6 +7,7 @@
 #include "7zip/UI/FileManager/SplitDialogRes.h"
 #include "7zip/UI/FileManager/resource.h"
 #include "7zip/UI/FileManager/resourceGui.h"
+#include "Windows/ErrorMsg.h"
 #include "Windows/FileName.h"
 #include "dialogs/browse/BrowseDialog.h"
 #include "filemanager/SplitUtils.h"
@@ -92,7 +93,9 @@ bool CSplitDialog::OnInit() {
 }
 
 void CSplitDialog::OnButtonSetPath() {
-    const QString currentPath = _pathCombo->currentText();
+    QString currentPath;
+    if (!ReadPath(currentPath))
+        return;
     UString selectedPath;
     if (!MyBrowseForFolder(this, ToUString(QtLangText(IDS_SET_FOLDER)), ToUString(currentPath),
                            selectedPath))
@@ -102,11 +105,22 @@ void CSplitDialog::OnButtonSetPath() {
     _pathCombo->setCurrentText(ToQString(selectedPath));
 }
 
+bool CSplitDialog::ReadPath(QString &path) {
+    const QString text = _pathCombo->currentText();
+    if (text.contains(QChar::Null)) {
+        QMessageBox::critical(this, windowTitle(),
+                              ToQString(NWindows::NError::MyFormatMessage(E_INVALIDARG)));
+        _pathCombo->setFocus();
+        return false;
+    }
+    path = text;
+    return true;
+}
+
 void CSplitDialog::OnOK() {
-    Path = _pathCombo->currentText();
-    UString volumeString(_volumeCombo->currentText().toStdWString().c_str());
-    volumeString.Trim();
-    if (!ParseVolumeSizes(volumeString, VolumeSizes) || VolumeSizes.Size() == 0) {
+    if (!ReadPath(Path))
+        return;
+    if (!ParseVolumeSizesText(_volumeCombo->currentText(), VolumeSizes) || VolumeSizes.IsEmpty()) {
         QMessageBox box(QMessageBox::Critical, "7-Zip", QtLangText(IDS_INCORRECT_VOLUME_SIZE),
                         QMessageBox::Ok, this);
         box.setObjectName("splitVolumeError");

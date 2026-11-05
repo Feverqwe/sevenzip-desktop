@@ -113,6 +113,7 @@ class VolumeOperationsTests : public QObject {
         QCOMPARE(VolumeOperation::parseSize(" 2 k "), qint64(2048));
         QCOMPARE(VolumeOperation::parseSize("0M"), qint64(0));
         QCOMPARE(VolumeOperation::parseSize("999999999999T"), qint64(0));
+        QCOMPARE(VolumeOperation::parseSize(QString("10M") + QChar::Null + " 20M"), qint64(0));
     }
     void parsesSizeSequences() {
         QCOMPARE(VolumeOperation::parseSizes(" 10M 20M "),
@@ -123,6 +124,50 @@ class VolumeOperationsTests : public QObject {
         QVERIFY(VolumeOperation::parseSizes(" ").isEmpty());
         QVERIFY(VolumeOperation::parseSizes("wrong").isEmpty());
     }
+    void rejectsNulPathsWithoutOutput_data() {
+        QTest::addColumn<bool>("combine");
+        QTest::addColumn<bool>("badSource");
+        for (bool combine : {false, true})
+            for (bool badSource : {false, true})
+                QTest::newRow(qPrintable(QString("%1-%2").arg(combine).arg(badSource)))
+                    << combine << badSource;
+    }
+    void rejectsNulPathsWithoutOutput() {
+        QFETCH(bool, combine);
+        QFETCH(bool, badSource);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString name = combine ? "source.bin.001" : "source.bin";
+        const QString source = fixture.filePath(name);
+        for (const QString &path : {source, fixture.filePath("source.bin.002")}) {
+            QFile file(path);
+            QVERIFY(file.open(QIODevice::WriteOnly));
+            QCOMPARE(file.write("preserved bytes"), qint64(15));
+        }
+        const QString output = fixture.filePath("output");
+        QVERIFY(QDir().mkpath(output));
+        const QString target = combine ? QDir(output).filePath("combined.bin") : output;
+        const QString bad = QChar::Null + QString("suffix");
+        if (combine && badSource) {
+            QString error;
+            QVERIFY(VolumeOperation::inspectParts(source + bad, &error).paths.isEmpty());
+            QVERIFY(!error.isEmpty());
+        }
+        VolumeOperation operation(
+            combine ? VolumeOperation::Mode::Combine : VolumeOperation::Mode::Split,
+            source + (badSource ? bad : QString()), target + (badSource ? QString() : bad), 5);
+        QSignalSpy results(&operation, &VolumeOperation::result);
+        operation.start();
+        QVERIFY(operation.wait());
+        QCOMPARE(results.size(), 1);
+        QVERIFY(!results.first().first().toBool());
+        QVERIFY(!results.first()[1].toString().isEmpty());
+        QVERIFY(QDir(output).entryList(QDir::Files | QDir::Hidden).isEmpty());
+        QFile original(source);
+        QVERIFY(original.open(QIODevice::ReadOnly));
+        QCOMPARE(original.readAll(), QByteArray("preserved bytes"));
+    }
+
     void splitsWithSizeSequence_data() {
         QTest::addColumn<QList<qint64>>("sizes");
         QTest::addColumn<QList<qint64>>("expected");
