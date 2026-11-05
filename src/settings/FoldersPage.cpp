@@ -6,6 +6,7 @@
 
 #include "7zip/UI/FileManager/FoldersPageRes.h"
 #include "Common/StringConvert.h"
+#include "Windows/ErrorMsg.h"
 #include "archive/operations/ZipRegistry.h"
 #include "dialogs/browse/BrowseDialog.h"
 #include "filemanager/panels/Panel.h"
@@ -16,6 +17,7 @@
 #include <QGridLayout>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMessageBox>
 #include <QPushButton>
 #include <QRadioButton>
 
@@ -136,17 +138,33 @@ bool CFoldersPage::OnButtonClicked(unsigned buttonID) {
 }
 
 void CFoldersPage::OnFoldersWorkButtonPath() {
-    QString currentPath = m_WorkPath->text();
+    UString currentPath;
+    if (!ReadPath(currentPath))
+        return;
     QString title = QtLangText(IDS_FOLDERS_SET_WORK_PATH_TITLE);
     UString resultPath;
-    if (MyBrowseForFolder(this, ToUString(title), ToUString(currentPath), resultPath))
+    if (MyBrowseForFolder(this, ToUString(title), currentPath, resultPath))
         m_WorkPath->setText(ToQString(resultPath));
+}
+
+bool CFoldersPage::ReadPath(UString &path) {
+    const QString text = m_WorkPath->text();
+    if (text.contains(QChar::Null)) {
+        QMessageBox::critical(this, QtLangText(IDS_FOLDERS_SET_WORK_PATH_TITLE),
+                              ToQString(NWindows::NError::MyFormatMessage(E_INVALIDARG)));
+        m_WorkPath->setFocus();
+        return false;
+    }
+    path = ToUString(text);
+    return true;
 }
 
 long CFoldersPage::OnApply() {
     if (_needSave) {
         NWorkDir::CInfo workDirInfo;
-        UString s = ToUString(m_WorkPath->text());
+        UString s;
+        if (!ReadPath(s))
+            return 1;
         workDirInfo.Path = us2fs(s);
         workDirInfo.ForRemovableOnly = _forRemovable->isChecked();
         workDirInfo.Mode = NWorkDir::NMode::EEnum(GetWorkMode());

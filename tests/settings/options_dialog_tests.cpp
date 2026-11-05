@@ -366,6 +366,99 @@ class OptionsDialogTests : public QObject {
             QVERIFY(!QFileInfo::exists(temporary));
         }
     }
+    void malformedWorkPathCanBeCorrectedOrCancelled_data() {
+        QTest::addColumn<QSize>("size");
+        QTest::addColumn<int>("mode");
+        QTest::addColumn<bool>("cancel");
+        for (const QSize size : {QSize(640, 390), QSize(520, 380)})
+            for (int mode = 0; mode < 3; ++mode)
+                for (bool cancel : {false, true})
+                    QTest::newRow(
+                        qPrintable(QString("%1-%2-%3").arg(size.width()).arg(mode).arg(cancel)))
+                        << size << mode << cancel;
+    }
+    void malformedWorkPathCanBeCorrectedOrCancelled() {
+        QFETCH(QSize, size);
+        QFETCH(int, mode);
+        QFETCH(bool, cancel);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString settings = fixture.filePath("options.ini");
+        NWorkDir::CInfo old;
+        old.SetDefault();
+        old.ForRemovableOnly = false;
+        old.Save(settings);
+        QtFmOptionsDialog dialog(settings);
+        dialog.resize(size);
+        OptionsPresentation::show(dialog, "workSpecified");
+        dialog.show();
+        QVERIFY(QTest::qWaitForWindowActive(&dialog));
+        dialog.findChild<QRadioButton *>("workSpecified")->click();
+        auto *path = dialog.findChild<QLineEdit *>("workPath");
+        const QString shortened = fixture.filePath(QStringLiteral("shortened рабочая папка"));
+        const QString invalid = shortened + QChar::Null + "/lost suffix";
+        path->setText(invalid);
+        int errors = 0;
+        const auto answerError = [&] {
+            widgetDialogs_.respond(dialog, [&](QDialog &active) {
+                auto *error = qobject_cast<QMessageBox *>(&active);
+                active.reject();
+                QVERIFY(error);
+                QCOMPARE(error->icon(), QMessageBox::Critical);
+                QVERIFY(!error->text().isEmpty());
+                ++errors;
+            });
+        };
+        answerError();
+        dialog.findChild<QPushButton *>("workPathBrowse")->click();
+        QCOMPARE(errors, 1);
+        const char *modes[] = {"workSystem", "workCurrent", "workSpecified"};
+        dialog.findChild<QRadioButton *>(modes[mode])->click();
+        OptionsPresentation::show(dialog, "gridOption");
+        auto *apply = dialog.findChild<QDialogButtonBox *>("settingsButtons")
+                          ->button(QDialogButtonBox::Apply);
+        QSignalSpy applied(&dialog, &QtFmOptionsDialog::Applied);
+        answerError();
+        dialog.accept();
+        QCOMPARE(errors, 2);
+        QCOMPARE(applied.size(), 0);
+        QVERIFY(dialog.isVisible());
+        QCOMPARE(dialog.result(), int(QDialog::Rejected));
+        QVERIFY(apply->isEnabled());
+        QCOMPARE(path->text(), invalid);
+        auto *modeControl = dialog.findChild<QRadioButton *>(modes[mode]);
+        QVERIFY(modeControl->isChecked());
+        auto *correction =
+            mode == 2 ? static_cast<QWidget *>(path) : dialog.findChild<QWidget *>("workSpecified");
+        QVERIFY(correction->isEnabled() && correction->isVisible());
+        QCOMPARE(dialog.focusWidget(), correction);
+        NWorkDir::CInfo loaded;
+        loaded.Load(settings);
+        QCOMPARE(loaded.Mode, old.Mode);
+        QVERIFY(loaded.Path.IsEmpty());
+        QVERIFY(!QFileInfo::exists(shortened));
+        const QString corrected = fixture.filePath(QStringLiteral("corrected рабочая папка 空"));
+        if (cancel)
+            dialog.reject();
+        else {
+            dialog.findChild<QRadioButton *>("workSpecified")->click();
+            path->setText(corrected);
+            dialog.accept();
+            QCOMPARE(dialog.result(), int(QDialog::Accepted));
+            QCOMPARE(applied.size(), 1);
+            CWorkDirTempFile file;
+            QCOMPARE(file.CreateTempFile(
+                         us2fs(fixture.filePath("archive.zip").toStdWString().c_str()), settings),
+                     HRESULT(S_OK));
+            QVERIFY(QDir::fromNativeSeparators(qtPath(file.Get_TempFilePath()))
+                        .startsWith(corrected + '/'));
+        }
+        loaded.Load(settings);
+        QCOMPARE(loaded.Mode, cancel ? old.Mode : NWorkDir::NMode::kSpecified);
+        QCOMPARE(qtPath(loaded.Path), cancel ? QString() : corrected);
+        QVERIFY(!QFileInfo::exists(shortened));
+    }
+
     void foldersGeometryAndInvalidConfiguration() {
         QTemporaryDir fixture;
         const QString settings = fixture.filePath("options.ini");

@@ -1,5 +1,44 @@
 # Working-directory settings draft — 2026-11-01
 
+## Complete Qt working-path input — 2026-11-05
+
+Compared complete original FoldersPage.cpp/.h, FoldersPage2.rc, WorkDir.cpp,
+OptionsDialog.cpp and the NWorkDir registry bodies with the current page,
+Apply/Save/Cancel owner and temporary-file consumer. Original inventory hashes
+match `b88c6bc09339de32f7d18bbab900686b244f42ba`; no source import or revision
+change is introduced.
+
+Folder browsing and Apply now share one page-owned path-reading boundary.
+It rejects embedded NUL before native conversion rather than browsing or saving
+only a shortened prefix. The page retains the complete draft and modified state;
+the options container honors its failed Apply and keeps Save open for correction
+or cancellation. It reveals the path when enabled, or the existing specified-mode
+radio when the path is disabled, without changing the selected mode.
+
+The same check covers a malformed inactive draft because the original Apply
+saves that path in every mode. Ordinary inactive paths, empty/relative paths,
+native mode and removable-drive policy, settings representation, page application
+order and temporary creation/publication algorithms remain unchanged. No new
+controller, persistent state, global conversion rule or filesystem policy is
+added. Existing earlier-page partial application remains possible.
+
+Public regressions exercise Browse refusal, Save refusal from another section,
+retained draft/mode/settings and reachable correction at normal/compact sizes,
+then cancellation or correction and real temporary creation in the accepted
+Unicode directory. Existing tests retain Apply-then-Cancel and full options
+integration coverage. No source-shape or private-helper test is added.
+
+Linux passed `options_dialog`, `options_integration`, `options_window` and
+`work_dir`: 64 checks without failures or skips. Compilation took 6.489 seconds,
+test execution 4.178 seconds. An initial build caught an unavailable conversion
+helper in the new fixture; the fixture now uses the suite's existing conversion
+style. Production code needed no correction after that build. The original
+mode/init/modified-state bodies and all options code outside the failed folder
+Apply handling were compared unchanged. Whitespace and recorded inventory checks
+passed; completed scratch was empty. Configured four-job incremental builds and
+compiler cache were retained. No secondary-platform, full/slow or new rendered
+appearance acceptance is claimed.
+
 ## Native temporary creation ownership — 2026-11-02
 
 Reviewed settings-to-work-directory creation, native temporary file/directory
