@@ -122,11 +122,36 @@ macOS arm64: шесть focused CTest suites (таблица, columns/changes, d
 sort commands и main shell) — PASS, offscreen QPA.
 Native Cocoa EN/RU light/dark normal/compact review обычной таблицы обновлён;
 геометрия selection/current/inactive дополнительно проверена offscreen.
-Native focus acceptance пока не получена: AppKit сообщил переднее приложение
-`com.apple.loginwindow`, видимое/exposed окно не стало active. Эксперименты с
-активацией удалены; продукт не содержит обхода блокировки рабочего стола.
+Первый focus run был заблокирован рабочим столом macOS: AppKit сообщил
+`com.apple.loginwindow`. После подтверждённой пользователем разблокировки
+native Cocoa selection/current/inactive прошли в EN/RU, light/dark, normal/compact;
+все 24 PNG обновлены и просмотрены. Эксперименты с активацией удалены.
 MIME-комментарии Qt могут иметь язык системы; собственные заголовки и fallback
 строки переводятся приложением. Windows новым проходом не проверялся.
+
+Компактный workspace: общий tab bar скрывает подписи в самых узких вкладках,
+сохраняя полное имя/путь и доступное закрытие active/hover. Home/End и стрелки
+переключают реальные источники; middle click использует существующий lifecycle
+закрытия с проверкой стабильного id. Hover пересчитывается по актуальному hit
+после layout/scroll. Native scroll arrows подключены к общему chrome style;
+Qt рисует и обрабатывает само управление прокруткой. Явный show после reparent
+исправляет скрытые общие tabs/actions при возврате к retained runtime.
+Deferred focus ждёт не только завершения операции, но и visible/enabled виджета;
+новые ввод, shortcut или смена контекста отменяют прежнее намерение.
+Native reader, CPanel selection, операции и async transport не заменены.
+
+Linux: восемь focused suites workspace/places/tabs/main shell/shortcuts/rename —
+PASS; после локальных уточнений повторены только затронутые tabs/main shell/rename,
+затем финальный tabs suite — PASS. macOS/offscreen: workspace tabs/places,
+navigation/session, main shell — PASS; rename lifecycle — PASS после открытия
+редактора пути через действующее публичное управление, а не скрытый QLineEdit.
+Native Cocoa tabs suite: keyboard, middle click и обе async focus ветви — PASS.
+Физический hover scenario имеет явный SKIP: QCursor::setPos не переместил
+реальный указатель в этой сессии. Он полностью проверен Linux/offscreen;
+не выдаётся за native физическое наведение. Dense Cocoa EN/RU light/dark
+normal/compact PNG/JSON просмотрены: значок и close помещаются, стрелки quiet.
+Отдельный behavior test проверяет достижимость последнего native места и
+добавления избранного при компактном sidebar и длинных подписях.
 
 Source scope и runtime evidence учитываются отдельно. Focused workspace suites
 проверяют возврат выбора вкладки, перенос живого источника после уничтожения

@@ -17,6 +17,7 @@
 #include <QTabBar>
 
 QtWindowWorkspace::QtWindowWorkspace(MainWindow &window) : QObject(&window), window_(window) {
+    qApp->installEventFilter(this);
     for (auto *object : qApp->children()) {
         if (auto *store = dynamic_cast<QtFavoriteStore *>(object);
             store && store->property("settingsPath").toString() == window.toolbarSettingsPath())
@@ -26,6 +27,28 @@ QtWindowWorkspace::QtWindowWorkspace(MainWindow &window) : QObject(&window), win
         favorites_ = new QtFavoriteStore(window.toolbarSettingsPath(), qApp);
         favorites_->setProperty("settingsPath", window.toolbarSettingsPath());
     }
+}
+
+bool QtWindowWorkspace::eventFilter(QObject *object, QEvent *event) {
+    if (event->type() == QEvent::ShortcutOverride || event->type() == QEvent::KeyPress ||
+        event->type() == QEvent::MouseButtonPress || event->type() == QEvent::Wheel)
+        if (const auto *widget = qobject_cast<QWidget *>(object);
+            widget && (widget->window() == &window_ || window_.isAncestorOf(widget)))
+            ++focusRequest_;
+    return QObject::eventFilter(object, event);
+}
+
+void QtWindowWorkspace::RestoreTabFocus(unsigned panel, const QString &id, quint64 request) {
+    auto &target = panels_[panel];
+    if (focusRequest_ != request || !window_.isActiveWindow() ||
+        window_.app_.GetFocusedPanelIndex() != panel || !target.bar || target.current < 0 ||
+        target.current >= int(target.tabs.size()) || target.tabs[target.current].id != id)
+        return;
+    if (!Ready() || !target.bar->isVisible() || !target.bar->isEnabled()) {
+        WhenReady([this, panel, id, request] { RestoreTabFocus(panel, id, request); });
+        return;
+    }
+    target.bar->setFocus();
 }
 
 bool QtWindowWorkspace::Ready() const {
@@ -210,6 +233,8 @@ void QtWindowWorkspace::Activate(unsigned panel, int index) {
         state.bar->setCurrentIndex(state.current);
         return;
     }
+    const bool keepTabFocus = state.bar->hasFocus();
+    const auto request = ++focusRequest_;
     if (index != state.current)
         Capture(panel);
     {
@@ -256,6 +281,8 @@ void QtWindowWorkspace::Activate(unsigned panel, int index) {
             auto *layout = qobject_cast<QVBoxLayout *>(ui.container->layout());
             layout->insertWidget(0, state.bar->parentWidget());
             layout->insertWidget(layout->indexOf(ui.navigation->parentWidget()) + 1, state.actions);
+            state.bar->parentWidget()->show();
+            state.actions->show();
             if (tab.runtime->dirty) {
                 const QSignalBlocker selection(ui.table->selectionModel());
                 ui.table->clearRows();
@@ -272,7 +299,10 @@ void QtWindowWorkspace::Activate(unsigned panel, int index) {
         Rebuild(panel);
     }
     window_.refreshActions();
-    window_.app_.Panels[panel].SetFocusToList();
+    if (keepTabFocus)
+        RestoreTabFocus(panel, state.tabs[state.current].id, request);
+    else
+        window_.app_.Panels[panel].SetFocusToList();
 }
 
 void QtWindowWorkspace::Suspend(unsigned panel) {

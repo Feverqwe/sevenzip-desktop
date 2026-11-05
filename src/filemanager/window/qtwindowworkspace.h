@@ -39,6 +39,9 @@ class QtWindowWorkspace final : public QObject {
     bool TransferTab(const QString &id, QtWindowWorkspace &target, unsigned targetPanel);
     bool PreparePanelForShow(unsigned panel);
 
+  protected:
+    bool eventFilter(QObject *object, QEvent *event) override;
+
   private:
     struct Tab {
         QString id;
@@ -75,6 +78,7 @@ class QtWindowWorkspace final : public QObject {
     void AddFavorite();
     void OpenFavorite(const QString &path, int target);
     void WhenReady(std::function<void()> body);
+    void RestoreTabFocus(unsigned panel, const QString &id, quint64 request);
     void RestorePanel(unsigned panel, const QJsonObject &saved, std::function<void()> finished);
     void CompleteLocationOpen(unsigned panel, const QString &path, HRESULT result);
     void RetryLocation(unsigned panel, bool parent);
@@ -83,4 +87,5 @@ class QtWindowWorkspace final : public QObject {
     bool changing_ = false;
     QtFavoriteStore *favorites_ = nullptr;
     bool sidebarVisible_ = true;
+    quint64 focusRequest_ = 0;
 };

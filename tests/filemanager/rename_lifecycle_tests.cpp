@@ -1,4 +1,5 @@
 #include "filemanager/support/window_state_support.h"
+#include "support/panel_keys.h"
 #include "support/window_activation.h"
 #include <QInputMethodEvent>
 #include <QStyledItemDelegate>
@@ -55,7 +56,7 @@ class RenameLifecycleTests final : public QObject, protected MainWindowTestSuppo
         auto *ui = window.findChild<QWidget *>(QString("filePanel%1").arg(pane));
         auto *view = ui->findChild<FileTable *>("archiveTable");
         auto *address = ui->findChild<QLineEdit *>("archivePath");
-        address->setFocus();
+        PanelKeys::focusAddress(address);
         address->setText(fixture.path());
         QTest::keyClick(address, Qt::Key_Return);
         QTRY_COMPARE(view->rowCount(), 1);

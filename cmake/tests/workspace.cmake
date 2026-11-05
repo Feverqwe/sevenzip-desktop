@@ -1,4 +1,16 @@
 if(BUILD_TESTING)
+    qt_add_executable(workspace_places_tests tests/filemanager/workspace_places_tests.cpp)
+    target_link_libraries(workspace_places_tests PRIVATE sevenzip_window sevenzip_layout_inspection Qt6::Test)
+    target_include_directories(workspace_places_tests PRIVATE src tests)
+    add_test(NAME workspace_places COMMAND workspace_places_tests -silent)
+    set_tests_properties(workspace_places PROPERTIES TIMEOUT 30 ENVIRONMENT
+        "QT_QPA_PLATFORM=offscreen;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
+    qt_add_executable(workspace_tabs_tests tests/filemanager/workspace_tabs_tests.cpp)
+    target_link_libraries(workspace_tabs_tests PRIVATE sevenzip_window sevenzip_layout_inspection Qt6::Test)
+    target_include_directories(workspace_tabs_tests PRIVATE src tests)
+    add_test(NAME workspace_tabs COMMAND workspace_tabs_tests -silent)
+    set_tests_properties(workspace_tabs PROPERTIES TIMEOUT 30 ENVIRONMENT
+        "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/workspace-tabs.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
     qt_add_executable(workspace_archive_tests tests/filemanager/workspace_archive_tests.cpp
         tests/platform/support/external_editor_fixture.cpp)
     target_link_libraries(workspace_archive_tests PRIVATE sevenzip_window sevenzip_layout_inspection

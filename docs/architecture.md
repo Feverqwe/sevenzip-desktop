@@ -188,6 +188,10 @@ own file or archive operations. The splitter applies the original ratio policy
 to file areas, excluding the shared places width. Status belongs below each file
 area. Restoring geometry precedes restoring its split so resizing retains the
 user's file-area proportions.
+The tab bar owns compact rendering and tab input. Workspace activation retains
+strip focus through asynchronous publication only while the same request and
+tab remain current; subsequent input takes priority. Shared chrome is shown
+after moving it between retained views, rather than inheriting hidden state.
 
 The workspace table owns adaptive presentation, descriptive file types and the
 current-row outline through the existing model and row delegate. Native column

@@ -61,31 +61,37 @@ class PanelChromeStyle final : public QProxyStyle {
                 painter->drawLine(r.right(), r.top() + 9, r.right(), r.top() + 25);
             }
         } else {
-            QRect label = tab->rect.adjusted(10, 0, -8 - tab->rightButtonSize.width(), 0);
+            const auto *bar = qobject_cast<const QTabBar *>(widget);
+            const auto *close = bar ? bar->tabButton(tab->tabIndex, QTabBar::RightSide) : nullptr;
+            const int closeWidth = close && close->isHidden() ? 0 : tab->rightButtonSize.width();
+            const bool tiny = tab->rect.width() < QtWorkspaceTheme::metric(*widget, 64);
+            QRect label = tab->rect.adjusted(tiny ? 4 : 10, 0, -(tiny ? 4 : 8) - closeWidth, 0);
             if (!tab->icon.isNull()) {
-                const QRect icon(label.left(), label.center().y() - 8, 16, 16);
+                const QRect icon(tiny ? label.center().x() - 7 : label.left(),
+                                 label.center().y() - 8, 16, 16);
                 tab->icon.paint(painter, icon);
                 label.setLeft(label.left() + 23);
             }
             painter->setFont(widget->font());
             painter->setPen(selected ? c.text : c.subtle);
-            const auto *bar = qobject_cast<const QTabBar *>(widget);
             const QString title =
                 bar && tab->tabIndex >= 0 ? bar->tabText(tab->tabIndex) : tab->text;
-            painter->drawText(
-                label, Qt::AlignVCenter | Qt::AlignLeft,
-                painter->fontMetrics().elidedText(title, Qt::ElideRight, qMax(0, label.width())));
+            if (!tiny)
+                painter->drawText(label, Qt::AlignVCenter | Qt::AlignLeft,
+                                  painter->fontMetrics().elidedText(title, Qt::ElideRight,
+                                                                    qMax(0, label.width())));
             if (tab->state & State_HasFocus) {
                 painter->setPen(c.accent);
-                painter->drawLine(label.bottomLeft() - QPoint(0, 3),
-                                  label.bottomRight() - QPoint(0, 3));
+                const QRect focus = tab->rect.adjusted(4, 0, -4, -3);
+                painter->drawLine(focus.bottomLeft(), focus.bottomRight());
             }
         }
         painter->restore();
     }
     void drawPrimitive(PrimitiveElement element, const QStyleOption *option, QPainter *painter,
                        const QWidget *widget) const override {
-        if (element == PE_FrameTabBarBase)
+        if (element == PE_FrameTabBarBase || element == PE_IndicatorTabTearLeft ||
+            element == PE_IndicatorTabTearRight)
             return;
         if (element != PE_IndicatorTabClose) {
             QProxyStyle::drawPrimitive(element, option, painter, widget);
@@ -109,7 +115,8 @@ class PanelChromeStyle final : public QProxyStyle {
                             QPainter *painter, const QWidget *widget) const override {
         const auto *tool = qstyleoption_cast<const QStyleOptionToolButton *>(option);
         const auto *button = qobject_cast<const QToolButton *>(widget);
-        if (control != CC_ToolButton || !tool || !button || !button->autoRaise()) {
+        const bool tabScroll = button && qobject_cast<const QTabBar *>(button->parentWidget());
+        if (control != CC_ToolButton || !tool || !button || (!button->autoRaise() && !tabScroll)) {
             QProxyStyle::drawComplexControl(control, option, painter, widget);
             return;
         }
@@ -243,7 +250,14 @@ void QtConfigureChromeToolButton(QToolButton &button) {
     button.setMinimumHeight(QtWorkspaceTheme::metric(button, 30));
     button.setIconSize(QSize(16, 16));
 }
-void QtConfigureWorkspaceTabs(QTabBar &tabs) { tabs.setStyle(new PanelChromeStyle(tabs)); }
+void QtConfigureWorkspaceTabs(QTabBar &tabs) {
+    tabs.setStyle(new PanelChromeStyle(tabs));
+    // QStyle assigned to the bar is not inherited by its scroll buttons.
+    for (auto *button : tabs.findChildren<QToolButton *>(QString(), Qt::FindDirectChildrenOnly)) {
+        QtConfigureChromeToolButton(*button);
+        button->setAutoRaise(true);
+    }
+}
 
 void QtConfigureMainToolbar(QToolBar &toolbar) {
     toolbar.setStyle(new MainChromeStyle(toolbar));
