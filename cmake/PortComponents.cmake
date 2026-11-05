@@ -46,6 +46,7 @@ sevenzip_add_port_component(sevenzip_main_window src/filemanager/window/mainwind
     src/filemanager/window/qtwindowworkspace.cpp
     src/filemanager/window/qtworkspaceapplication.cpp
     src/filemanager/window/qtfavoritestore.cpp
+    src/filemanager/window/qtfastfoldersstore.cpp src/filemanager/window/qtfastfoldersstore.h
     src/filemanager/window/qtnativeplaces.cpp src/filemanager/window/qtnativeplaces.h
     src/filemanager/window/qtplaceprojection.cpp src/filemanager/window/qtplaceprojection.h
     src/filemanager/window/qtfileclipboard.cpp

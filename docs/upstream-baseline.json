@@ -1870,6 +1870,8 @@
     "src/filemanager/window/qtappcopypresentation.cpp",
     "src/filemanager/window/qtapppresentation.cpp",
     "src/filemanager/window/qtapppresentation.h",
+    "src/filemanager/window/qtfastfoldersstore.cpp",
+    "src/filemanager/window/qtfastfoldersstore.h",
     "src/filemanager/window/qtfavoritestore.cpp",
     "src/filemanager/window/qtfavoritestore.h",
     "src/filemanager/window/qtfileclipboard.cpp",

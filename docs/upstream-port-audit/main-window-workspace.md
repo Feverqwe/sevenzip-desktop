@@ -465,7 +465,32 @@ Windows/full/slow acceptance здесь не объявляется. Катя п
 
 Отдельно при проверке обнаружена прежняя stale FastFolders snapshot: закрытие
 второго окна может перезаписать числовую закладку первого. Clear сам её не стирает;
-эта отличная от FolderHistory ошибка остаётся открытой для следующей итерации.
+эта отличная от FolderHistory ошибка исправлена в следующей описанной итерации.
+
+## Межоконные числовые закладки — 2026-11-05
+
+Проверены полные original CApp::Save/AppState/CFastFolders, Set/OpenBookmark,
+MyLoadBookmarks и Qt mutation/close callers. Исходный native алгоритм хранения
+слотов и сохранение при закрытии остаются на своих местах. Локальный общий
+адаптер перечитывает native persisted slots перед изменением и использует
+существующий CPanel::SetBookmark. Затем обновляет CApp snapshots всех окон,
+включая закрывающиеся, и лишь после этого публикует изменения меню. Обновление
+меню читает только FastFolders и QAction, без запросов к folder provider.
+Новых импортов нет, original baseline hashes не меняются.
+
+Поведенческая проверка создаёт два окна до записи, проверяет меню и открытие
+из соседнего окна, сохраняет разные слоты и изменение через native persistence
+API, закрывает окна в обоих порядках и реально открывает три targets после
+повторного создания окна. Former Clear+close regression теперь также проверяет
+сохранность числовой закладки после закрытия второго окна.
+
+Linux focused: fast-folders window/persisted locations/Recent Places/session —
+PASS; окончательная двухфазная публикация и Clear+close повторно — PASS.
+macOS offscreen: те же четыре набора — PASS. Native Cocoa: оба порядка закрытия
+и повторное открытие слотов — 4 QtTest PASS; Clear+close — 3 PASS. Нет failed/skipped.
+Review bundle пересобран. Layout/видимость/оформление не менялись; прежние снимки
+не переобозначаются как новые. Canonical native fixtures удалены, incremental
+outputs и compiler cache сохранены. Windows/full/slow checks не выполнялись.
 
 ## Shared secret editing
 

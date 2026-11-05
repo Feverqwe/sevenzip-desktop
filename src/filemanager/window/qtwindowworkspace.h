@@ -19,6 +19,7 @@ class QVBoxLayout;
 class QToolBar;
 class QListView;
 class QtFavoriteStore;
+class QtFastFoldersStore;
 class QtNativePlaces;
 class QtRecentPlacesStore;
 class QtRecentPlacesDialog;
@@ -57,6 +58,7 @@ class QtWindowWorkspace final : public QObject {
                      std::function<void(HRESULT)> finished = {});
     void ShowRecentPlaces();
     void RecordVisit(const QString &path);
+    void SetBookmark(unsigned index, const UString &path);
     void ProtectNavigation(const QString &path = {});
     void RetainNavigationFolder();
     std::optional<HRESULT> NavigationPublication() const;
@@ -157,6 +159,7 @@ class QtWindowWorkspace final : public QObject {
     std::array<Panel, 2> panels_;
     bool changing_ = false;
     QtFavoriteStore *favorites_ = nullptr;
+    QtFastFoldersStore *fastFolders_ = nullptr;
     QtNativePlaces *nativePlaces_ = nullptr;
     QtRecentPlacesStore *recentPlaces_ = nullptr;
     QPointer<QtRecentPlacesDialog> recentDialog_;

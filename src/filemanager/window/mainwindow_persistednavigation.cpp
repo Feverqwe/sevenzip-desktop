@@ -36,8 +36,7 @@ void MainWindow::saveBookmark(int index) {
         return;
     auto &panel = app_.GetFocusedPanel();
     panel.LoadFullPath();
-    CPanel::SetBookmark(app_.AppState.FastFolders, (unsigned)index, panel.GetCurrentFolderPrefix());
-    app_.AppState.FastFolders.Save(toolbarSettingsPath());
+    workspace_->SetBookmark(unsigned(index), panel.GetCurrentFolderPrefix());
     refreshActions();
 }
 

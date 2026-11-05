@@ -5,6 +5,7 @@
 #include "filemanager/rename/qtrenamecontroller.h"
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtapppresentation.h"
+#include "filemanager/window/qtfastfoldersstore.h"
 #include "filemanager/window/qtfavoritestore.h"
 #include "filemanager/window/qtmainwindowchrome.h"
 #include "filemanager/window/qtnativeplaces.h"
@@ -21,6 +22,14 @@
 #include <QTabBar>
 
 QtWindowWorkspace::QtWindowWorkspace(MainWindow &window) : QObject(&window), window_(window) {
+    fastFolders_ = QtFastFoldersStore::ForSettings(window.toolbarSettingsPath());
+    connect(fastFolders_, &QtFastFoldersStore::changed, this,
+            [this] { fastFolders_->CopyTo(window_.app_.AppState.FastFolders); });
+    connect(fastFolders_, &QtFastFoldersStore::published, this, [this] {
+        if (!window_.app_.QtOperations().closed() && window_.openBookmarks_[0] &&
+            window_.saveBookmarks_[0])
+            window_.refreshBookmarks();
+    });
     recentPlaces_ = QtRecentPlacesStore::ForSettings(window.toolbarSettingsPath());
     connect(recentPlaces_, &QtRecentPlacesStore::historyChanged, this,
             [this] { window_.app_.AppState.FolderHistory.Read(window_.toolbarSettingsPath()); });
@@ -44,6 +53,10 @@ QtWindowWorkspace::QtWindowWorkspace(MainWindow &window) : QObject(&window), win
         favorites_ = new QtFavoriteStore(window.toolbarSettingsPath(), qApp);
         favorites_->setProperty("settingsPath", window.toolbarSettingsPath());
     }
+}
+
+void QtWindowWorkspace::SetBookmark(unsigned index, const UString &path) {
+    fastFolders_->Set(index, path);
 }
 
 bool QtWindowWorkspace::Ready() const {

@@ -185,6 +185,12 @@ its search and selection remain visible when opening fails. A request captures
 the originating tab, waits for its retained publication if needed, and checks
 the exact target before accepting it. Closing the form retires only that request.
 
+Numeric bookmarks have their own settings-scoped publication adapter around
+`CFastFolders`. Saving merges the selected slot into the current native persisted
+state, updates every window snapshot, and then refreshes bookmark menus. Closing
+another window therefore preserves the latest slots. Named favorites and recent
+places remain separate owners.
+
 `QtWorkspaceApplication` owns window discovery and session writes. Each window
 has independent mutable backend/operation state while reusing the immutable codec
 catalog. Moving a quiescent tab between windows rebinds host callbacks and archive

@@ -97,10 +97,10 @@ class RecentPlacesTests final : public QObject, protected MainWindowTestSupport 
         QCOMPARE(form->findChild<QLineEdit *>("recentPlacesSearch")->text(), "Previous");
         QVERIFY(!form->findChild<QPushButton *>("recentPlacesOpen")->isEnabled());
         form->reject();
+        second.close(); // Its native AppState must not resurrect old history.
         CFastFolders bookmarks;
         bookmarks.Read(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         QCOMPARE(QDir::cleanPath(ToQString(bookmarks.GetString(4))), a);
-        second.close(); // Its native AppState must not resurrect old history.
         CFolderHistory saved;
         saved.Read(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         UStringVector paths;
