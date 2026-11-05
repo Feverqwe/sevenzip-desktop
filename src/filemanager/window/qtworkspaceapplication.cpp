@@ -89,11 +89,14 @@ void QtWorkspaceApplication::ApplyWhenReady(MainWindow &window, const QJsonObjec
             return;
         timer->stop();
         timer->deleteLater();
-        window.workspace_->Restore(state, [finish, ready] {
-            finish();
-            if (ready)
-                ready();
-        });
+        window.workspace_->Restore(
+            state,
+            [finish, ready] {
+                finish();
+                if (ready)
+                    ready();
+            },
+            finish);
     });
     timer->start();
 }

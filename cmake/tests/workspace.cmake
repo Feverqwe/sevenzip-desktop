@@ -50,6 +50,12 @@ if(BUILD_TESTING)
     add_test(NAME workspace_navigation COMMAND workspace_navigation_tests -silent)
     set_tests_properties(workspace_navigation PROPERTIES TIMEOUT 90 ENVIRONMENT
         "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/workspace-navigation-settings.ini")
+    qt_add_executable(workspace_tab_menu_tests tests/filemanager/workspace_tab_menu_tests.cpp)
+    target_link_libraries(workspace_tab_menu_tests PRIVATE sevenzip_window Qt6::Test)
+    target_include_directories(workspace_tab_menu_tests PRIVATE src tests)
+    add_test(NAME workspace_tab_menu COMMAND workspace_tab_menu_tests -silent)
+    set_tests_properties(workspace_tab_menu PROPERTIES TIMEOUT 30 ENVIRONMENT
+        "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/workspace-tab-menu.ini")
     qt_add_executable(workspace_session_tests tests/filemanager/workspace_session_tests.cpp)
     target_link_libraries(workspace_session_tests PRIVATE sevenzip_window sevenzip_layout_inspection Qt6::Test)
     target_include_directories(workspace_session_tests PRIVATE src tests)

@@ -56,6 +56,7 @@ sevenzip_add_port_component(sevenzip_main_window src/filemanager/window/mainwind
     src/filemanager/window/qtworkspacesession.cpp
     src/filemanager/window/qtworkspacetabbar.cpp
     src/filemanager/window/qtworkspacetransfer.cpp
+    src/filemanager/window/qtworkspacetabmenu.cpp
     src/filemanager/window/qtworkspacelocation.cpp
     src/filemanager/window/qtsavedlocation.cpp
     src/filemanager/window/mainwindow.cpp

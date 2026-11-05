@@ -5,6 +5,7 @@
 #include "filemanager/window/qtworkspaceapplication.h"
 #include "filemanager/window/qtworkspaceruntime.h"
 #include "platform/associations/qtassociatedfileservices.h"
+#include <QScopeGuard>
 #include <QScopedValueRollback>
 #include <QTabBar>
 
@@ -28,29 +29,40 @@ void RebindArchiveResources(CPanel &panel, ArchiveBackend &backend) {
 } // namespace
 
 bool QtWindowWorkspace::TransferTab(const QString &id, QtWindowWorkspace &target,
-                                    unsigned destination) {
+                                    unsigned destination, std::function<void(bool)> finished) {
+    const auto rejected = qScopeGuard([&] {
+        if (finished)
+            finished(false);
+    });
     if (!Ready() || !target.Ready() || destination >= 2 || !target.panels_[destination].bar)
         return false;
-    unsigned origin = 0;
-    int index = -1;
-    for (unsigned panel = 0; panel < 2; ++panel)
-        for (int tab = 0; tab < int(panels_[panel].tabs.size()); ++tab)
-            if (panels_[panel].tabs[tab].id == id) {
-                origin = panel;
-                index = tab;
-            }
-    if (index < 0 || (this == &target && origin == destination))
+    const auto position = FindTab(id);
+    if (!position || (this == &target && position->panel == destination))
         return false;
+    const auto [origin, index] = *position;
     auto &from = panels_[origin];
     if (index == from.current)
         Capture(origin);
     if (!from.tabs[index].runtime) {
+        const QString previous = from.tabs[from.current].id;
         Activate(origin, index);
+        const auto request = focusRequest_;
         const QPointer<QtWindowWorkspace> receiver(&target);
-        WhenReady([this, receiver, id, destination] {
-            if (receiver)
-                TransferTab(id, *receiver, destination);
-        });
+        const auto complete = std::exchange(finished, {});
+        WhenReady(
+            [this, receiver, id, destination, previous, request, complete] {
+                if (focusRequest_ == request)
+                    if (const auto position = FindTab(previous))
+                        Activate(position->panel, position->index);
+                if (receiver)
+                    TransferTab(id, *receiver, destination, complete);
+                else if (complete)
+                    complete(false);
+            },
+            [complete] {
+                if (complete)
+                    complete(false);
+            });
         return true;
     }
     auto runtime = from.tabs[index].runtime;
@@ -136,19 +148,48 @@ bool QtWindowWorkspace::TransferTab(const QString &id, QtWindowWorkspace &target
         target.window_.restoreAutoRefreshViewport();
     target.window_.refreshActions();
     source.SetFocusToList();
+    if (const auto complete = std::exchange(finished, {}))
+        complete(true);
     return true;
 }
 
 void QtWindowWorkspace::DetachTab(const QString &id) {
     auto *application = QtWorkspaceApplication::Find();
-    if (!application || !Ready())
+    if (!application || !Ready() || !FindTab(id))
         return;
     const QPointer<QtWindowWorkspace> origin(this);
     application->NewWindow(QDir::homePath(), {}, [origin, id](MainWindow &window) {
-        if (!origin)
-            return;
         auto *target = window.workspace_.get();
-        if (origin->TransferTab(id, *target, target->window_.projectedPanel_))
-            target->CloseTab(target->window_.projectedPanel_, 0);
+        const unsigned panel = target->window_.projectedPanel_;
+        const QString placeholder = target->panels_[panel].tabs[target->panels_[panel].current].id;
+        const auto initialPanels = target->Save().value("panels");
+        const auto initialCount = target->window_.app_.NumPanels;
+        const auto request = target->focusRequest_;
+        const QPointer<QtWindowWorkspace> receiver(target);
+        const auto complete = [receiver, placeholder, initialPanels, initialCount,
+                               request](bool moved) {
+            if (!receiver)
+                return;
+            receiver->WhenReady(
+                [receiver, placeholder, initialPanels, initialCount, request, moved] {
+                    const auto position = receiver->FindTab(placeholder);
+                    if (!position)
+                        return;
+                    receiver->Capture(position->panel);
+                    const auto &state = receiver->panels_[position->panel];
+                    if (receiver->focusRequest_ != request ||
+                        QDir::cleanPath(state.tabs[position->index].path) != QDir::homePath())
+                        return;
+                    if (moved)
+                        receiver->CloseTab(position->panel, position->index);
+                    else if (receiver->window_.app_.NumPanels == initialCount &&
+                             receiver->Save().value("panels") == initialPanels)
+                        receiver->window_.close();
+                });
+        };
+        if (origin)
+            origin->TransferTab(id, *target, panel, complete);
+        else
+            complete(false);
     });
 }

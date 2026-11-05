@@ -197,6 +197,12 @@ The tab bar owns compact rendering and tab input. Workspace activation retains
 strip focus through asynchronous publication only while the same request and
 tab remain current; subsequent input takes priority. Shared chrome is shown
 after moving it between retained views, rather than inheriting hidden state.
+Tab menu commands retain the selected tab identity across reordering and moves.
+Transfers of restored tabs report completion after their native context is ready;
+opening that context does not replace a newer source-tab choice. A detached window
+retires its untouched startup tab only after a successful transfer. Cancellation
+and window destruction settle pending restoration so surviving windows can save
+their sessions.
 
 The workspace table owns adaptive presentation, descriptive file types and the
 current-row outline through the existing model and row delegate. Native column

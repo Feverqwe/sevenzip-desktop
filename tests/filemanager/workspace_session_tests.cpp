@@ -5,6 +5,7 @@
 #include "localization/LangUtils.h"
 #include "settings/RegistryUtils.h"
 #include "ui/support/layout_inspection.h"
+#include <QJsonDocument>
 #include <QScopeGuard>
 #include <QSplitterHandle>
 #include <QTabBar>
@@ -39,6 +40,68 @@ class WorkspaceSessionTests final : public QObject {
 
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
+    void closingDuringRestoreDoesNotBlockPeerPersistence() {
+        const bool quit = qApp->quitOnLastWindowClosed();
+        qApp->setQuitOnLastWindowClosed(false);
+        const auto restoreQuit = qScopeGuard([quit] { qApp->setQuitOnLastWindowClosed(quit); });
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString saved = fixture.filePath("Saved папка");
+        const QString other = fixture.filePath("Other folder");
+        const QString peerPath = fixture.filePath("Peer final");
+        for (const auto &path : {saved, other, peerPath})
+            QVERIFY(QDir().mkpath(path));
+        QtWorkspaceApplication application(*qApp);
+        ControlledBackend firstBackend, peerBackend;
+        MainWindow first(&firstBackend);
+        first.show();
+        first.openPath(saved);
+        QTRY_COMPARE(location(first), saved);
+        application.Save();
+        first.openPath(other);
+        QTRY_COMPARE(location(first), other);
+        MainWindow peer(&peerBackend);
+        peer.show();
+        peer.openPath(other);
+        QTRY_COMPARE(location(peer), other);
+        bool closeScheduled = false;
+        QTimer closeRestored;
+        closeRestored.setInterval(1);
+        connect(&closeRestored, &QTimer::timeout, &first, [&] {
+            if (location(first) == saved) {
+                closeScheduled = true;
+                closeRestored.stop();
+                first.close();
+            }
+        });
+        closeRestored.start();
+        application.Restore(first);
+        QTRY_VERIFY(closeScheduled);
+        QTRY_VERIFY(!first.isVisible());
+        QVERIFY(peer.isVisible());
+        peer.openPath(peerPath);
+        QTRY_COMPARE(location(peer), peerPath);
+        const auto persistedPath = [&] {
+            application.Save();
+            const QSettings settings(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"),
+                                     QSettings::IniFormat);
+            const auto windows =
+                QJsonDocument::fromJson(settings.value("workspace/session").toByteArray()).array();
+            if (windows.size() != 1)
+                return QString();
+            return windows[0]
+                .toObject()
+                .value("panels")
+                .toArray()[0]
+                .toObject()
+                .value("tabs")
+                .toArray()[0]
+                .toObject()
+                .value("path")
+                .toString();
+        };
+        QTRY_COMPARE(QDir::cleanPath(persistedPath()), peerPath);
+    }
     void sessionRestoresWindowOrderAndIndependentTabs() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());

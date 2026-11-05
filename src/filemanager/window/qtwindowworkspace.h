@@ -6,6 +6,7 @@
 #include <QObject>
 #include <QPoint>
 #include <array>
+#include <optional>
 #include <vector>
 
 class MainWindow;
@@ -29,7 +30,8 @@ class QtWindowWorkspace final : public QObject {
     void NewTab(unsigned panel, const QString &path = {});
     void CloseTab(unsigned panel, int tab);
     QJsonObject Save();
-    void Restore(const QJsonObject &state, std::function<void()> finished = {});
+    void Restore(const QJsonObject &state, std::function<void()> finished = {},
+                 std::function<void()> canceled = {});
     void EditLocation();
     QString CurrentLocation();
     void AttachContent(unsigned panel, QVBoxLayout &layout, QWidget &status);
@@ -40,7 +42,9 @@ class QtWindowWorkspace final : public QObject {
     void ExitExternalWorkers(bool hardExit);
     void QuiesceInactive();
     void Dispose();
-    bool TransferTab(const QString &id, QtWindowWorkspace &target, unsigned targetPanel);
+    // Acceptance may precede opening a restored tab; finished reports the actual result.
+    bool TransferTab(const QString &id, QtWindowWorkspace &target, unsigned targetPanel,
+                     std::function<void(bool)> finished = {});
     bool PreparePanelForShow(unsigned panel);
 
   protected:
@@ -70,6 +74,11 @@ class QtWindowWorkspace final : public QObject {
         std::shared_ptr<QtTabRuntime> bound;
     };
     bool Ready() const;
+    struct TabPosition {
+        unsigned panel;
+        int index;
+    };
+    std::optional<TabPosition> FindTab(const QString &id) const;
     void Capture(unsigned panel, bool retainView = true);
     QString TabTitle(const Tab &tab) const;
     void Activate(unsigned panel, int tab);
@@ -83,9 +92,10 @@ class QtWindowWorkspace final : public QObject {
     void RefreshSidebar(unsigned panel);
     void AddFavorite();
     void OpenFavorite(const QString &path, int target);
-    void WhenReady(std::function<void()> body);
+    void WhenReady(std::function<void()> body, std::function<void()> canceled = {});
     void RestoreTabFocus(unsigned panel, const QString &id, quint64 request);
-    void RestorePanel(unsigned panel, const QJsonObject &saved, std::function<void()> finished);
+    void RestorePanel(unsigned panel, const QJsonObject &saved, std::function<void()> finished,
+                      std::function<void()> canceled);
     void CompleteLocationOpen(unsigned panel, const QString &path, HRESULT result);
     void RetryLocation(unsigned panel, bool parent);
     MainWindow &window_;

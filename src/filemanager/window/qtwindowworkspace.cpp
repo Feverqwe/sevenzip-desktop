@@ -65,6 +65,16 @@ bool QtWindowWorkspace::Ready() const {
            (!window_.appPresentation_ || !window_.appPresentation_->IsCopyPending());
 }
 
+std::optional<QtWindowWorkspace::TabPosition> QtWindowWorkspace::FindTab(const QString &id) const {
+    if (id.isEmpty())
+        return {};
+    for (unsigned panel = 0; panel < panels_.size(); ++panel)
+        for (int index = 0; index < int(panels_[panel].tabs.size()); ++index)
+            if (panels_[panel].tabs[index].id == id)
+                return TabPosition{panel, index};
+    return {};
+}
+
 void QtWindowWorkspace::AttachPanel(unsigned panel, QVBoxLayout &layout) {
     auto &state = panels_[panel];
     if (state.bar) {
@@ -372,43 +382,6 @@ void QtWindowWorkspace::CloseTab(unsigned panel, int index) {
     Rebuild(panel);
     if (active)
         Activate(panel, state.current);
-}
-
-void QtWindowWorkspace::TabMenu(unsigned panel, const QPoint &point) {
-    const int index = panels_[panel].bar->tabAt(point);
-    if (index < 0)
-        return;
-    QMenu menu;
-    connect(menu.addAction(tr("New tab")), &QAction::triggered, this,
-            [this, panel] { NewTab(panel); });
-    connect(menu.addAction(tr("Duplicate location")), &QAction::triggered, this,
-            [this, panel, index] { NewTab(panel, panels_[panel].tabs[index].path); });
-    const QString id = panels_[panel].tabs[index].id;
-    connect(menu.addAction(tr("Move to other panel")), &QAction::triggered, this,
-            [this, panel, id] {
-                if (window_.app_.NumPanels == 1)
-                    window_.togglePanels();
-                WhenReady([this, panel, id] { TransferTab(id, *this, 1 - panel); });
-            });
-    connect(menu.addAction(tr("Move to new window")), &QAction::triggered, this,
-            [this, id] { DetachTab(id); });
-    auto *windows = menu.addMenu(tr("Move to window"));
-    for (auto *widget : QApplication::topLevelWidgets()) {
-        auto *window = dynamic_cast<MainWindow *>(widget);
-        if (!window || window == &window_ || !window->isVisible())
-            continue;
-        const QPointer<MainWindow> receiver(window);
-        connect(windows->addAction(window->windowTitle()), &QAction::triggered, this,
-                [this, receiver, id] {
-                    if (receiver)
-                        TransferTab(id, *receiver->workspace_, receiver->projectedPanel_);
-                });
-    }
-    windows->setEnabled(!windows->actions().isEmpty());
-    menu.addSeparator();
-    connect(menu.addAction(tr("Close tab")), &QAction::triggered, this,
-            [this, panel, index] { CloseTab(panel, index); });
-    menu.exec(panels_[panel].bar->mapToGlobal(point));
 }
 
 void QtWindowWorkspace::EditLocation() { window_.projectedUi().navigation->Edit(); }
