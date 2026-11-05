@@ -209,8 +209,9 @@ static bool UpdateChangedExternalFile(CTmpProcessInfo &tpi) {
         tpi, MyFormatNew(IDS_WANT_UPDATE_MODIFIED_FILE, tpi.RelPath), true);
     if (tpi.Launcher->Exiting())
         return false;
+    // Declining publication does not authorize discarding the edited copy.
     if (answer != QMessageBox::Yes)
-        return true;
+        return false;
     const int updated = CallExternalUpdateGui(tpi, [&] {
         return tpi.ExternalServices->RunArchiveUpdate(
                    *tpi.Window,

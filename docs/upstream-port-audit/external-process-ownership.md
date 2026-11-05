@@ -1,5 +1,31 @@
 # External-process ownership
 
+## Declining publication retains the edited copy — 2026-11-06
+
+Compared the complete original `MyThreadFunction`, changed-file update and final
+cleanup branches with the local callback, process completion, owned-temp registry
+and all current prompt consumers. The complete original `PanelItemOpen.cpp`
+matches the existing manifest's `b88c6bc09339de32f7d18bbab900686b244f42ba` unit hash;
+no import, process policy or archive-writing algorithm is changed.
+
+The original Yes/No/Cancel branch permits cleanup after any non-error answer.
+The agreed external-file design distinguishes declining publication from
+discarding a changed copy. Non-Yes answers now stop before cleanup, retaining
+the edited bytes and the owned temporary directory. Successful native update
+still removes its completed temporary copy; failed publication/read-only and
+unknown external lifetimes retain their existing protection. Confirmed process
+completion clears external protection, so a retained inactive copy remains
+available for explicit deletion in the existing temporary-file browser.
+
+Existing editor/viewer prompt and known-process lifetime regressions now check
+actual changed bytes and registry access after No/Escape, unchanged archive
+contents, successful Yes publication and its cleanup. The native launch and
+thread ownership boundaries are preserved. This narrow fix does not transfer
+the session to an application owner or add the new external-file detail form.
+Focused Linux archive-edit, external-lifetime and temporary-browser checks
+passed. The change does not alter dialog layout or platform process adapters;
+it adds no native Cocoa, Windows or full/slow-suite acceptance claim.
+
 ## Unknown external lifetimes survive source shutdown — 2026-11-06
 
 Reviewed the complete original `CExitEventLauncher::Exit` and

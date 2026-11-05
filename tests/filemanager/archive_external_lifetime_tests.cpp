@@ -306,9 +306,15 @@ class ArchiveExternalLifetimeTests final : public QObject {
         QVERIFY(write(control + ".exit", "exit"));
         QTRY_VERIFY(QFileInfo(control + ".finished").exists());
         QTRY_VERIFY(prompt);
-        QTRY_VERIFY(!QFileInfo(temporary).exists());
+        QTRY_VERIFY(!panel.HasExternalWorkers());
+        QCOMPARE(read(temporary), modified);
+        QTRY_VERIFY(!ownedDirectory(temporary).active);
+        const auto retained = ownedDirectory(temporary);
+        QVERIFY(!retained.key.isEmpty());
+        QVERIFY(!retained.active && !retained.externallyProtected);
         QCOMPARE(contents(archive, name), QByteArray("original"));
         panel.ExitExternalWorkers(false);
+        QVERIFY(QDir(QFileInfo(temporary).absolutePath()).removeRecursively());
     }
     void unchangedLifetime_data() {
         QTest::addColumn<bool>("longRunning");

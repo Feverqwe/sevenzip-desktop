@@ -5,6 +5,7 @@
 #include "filemanager/views/filetable.h"
 #include "localization/LangUtils.h"
 #include "platform/support/external_editor_fixture.h"
+#include "platform/temp/qtownedtempregistry.h"
 #include "settings/RegistryUtils.h"
 #include "support/widget_dialogs.h"
 #include "ui/progress/ProgressDialog2.h"
@@ -139,6 +140,11 @@ class ArchiveExternalEditTests final : public QObject, protected MainWindowTestS
         QVERIFY(QFileInfo(temporary).isFile());
         QCOMPARE(QFileInfo(temporary).fileName().normalized(QString::NormalizationForm_C), name);
         const QString temporaryDirectory = QFileInfo(temporary).absolutePath();
+        const auto cleanup = qScopeGuard([&] {
+            table(window)->sourcePanel->ExitExternalWorkers(false);
+            if (QFileInfo::exists(control + ".finished"))
+                QDir(temporaryDirectory).removeRecursively();
+        });
         bool asked = false;
         bool geometry = false;
         QEventLoop promptDelivery;
@@ -184,7 +190,23 @@ class ArchiveExternalEditTests final : public QObject, protected MainWindowTestS
                                     ? QApplication::activeModalWidget()->objectName()
                                     : QStringLiteral("none"))));
         QVERIFY(geometry);
-        QTRY_VERIFY(!QDir(temporaryDirectory).exists());
+        QTRY_VERIFY(!table(window)->sourcePanel->HasExternalWorkers());
+        if (answer == QMessageBox::Yes)
+            QVERIFY(!QDir(temporaryDirectory).exists());
+        else {
+            QCOMPARE(read(temporary), modified);
+            QtOwnedTempEntry retained;
+            const auto copyRetired = [&] {
+                for (const auto &entry : QtOwnedTempRegistry().Entries())
+                    if (entry.path == temporaryDirectory) {
+                        retained = entry;
+                        return !entry.active;
+                    }
+                return false;
+            };
+            QTRY_VERIFY(copyRetired());
+            QVERIFY(!retained.externallyProtected);
+        }
         responder.stop();
         QCOMPARE(contents(archive, name),
                  answer == QMessageBox::Yes ? modified : QByteArray("original"));
