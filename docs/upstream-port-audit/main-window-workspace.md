@@ -337,6 +337,24 @@ POSIX-регрессия заменяет открытый outer archive пос�
 workspace/rollback и macOS offscreen — PASS; Windows replacement semantics этим сценарием не
 проверяются.
 
+## Единый маршрут Computer из общего корня — 2026-11-05
+
+Повторно сверены полные RootFolder index/name bindings из записанного original
+unit, CFSDrives и native Parent/activation callers. POSIX Computer в composite
+root теперь использует тот же существующий CFSDrives, что меню и Places. Прежний
+InitToRoot перенесён в явный bind `/`, сохраняя физический filesystem root.
+Legacy Mounts/Volumes остаётся alias logical namespace с прежним prefix; Places
+проецирует identity Computer один раз. Windows Computer/device Volumes режимы
+и raw device picker не меняются. Это локальная адаптация выбора provider под
+согласованный дизайн; native перечисление и original baseline hashes прежние.
+Linux root navigation/command, Places/navigation и persisted location — PASS:
+EN/RU три входа Computer дают тот же namespace и disabled Create, sidebar не
+дублирует alias, явный `/` остаётся FS folder. Старые address fixtures входят
+через видимый редактор. Native alias rows в composite root сохранены.
+macOS offscreen: те же пять наборов — PASS. Новых обработчиков ввода, геометрии
+или native presentation эта итерация не вводит; прежние Cocoa-свидетельства
+общих команд и отображения CFSDrives не переобозначаются как новый прогон.
+
 ## Shared secret editing
 
 2026-11-05: проверены исходные `PasswordDialog.cpp/.h`, обработчики

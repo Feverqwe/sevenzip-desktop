@@ -97,10 +97,14 @@ class WorkspacePlacesTests final : public QObject {
         QTRY_VERIFY(create->isEnabled());
         auto *places = window.findChild<QListView *>("nativePlaces");
         QModelIndex computer;
+        int computerRows = 0;
         for (int row = 0; row < places->model()->rowCount(); ++row)
             if (places->model()->index(row, 0).data(QtPlaceRoles::Identity).toString() ==
-                "computer")
+                "computer") {
                 computer = places->model()->index(row, 0);
+                ++computerRows;
+            }
+        QCOMPARE(computerRows, 1);
         QVERIFY(computer.isValid());
         QTest::mouseClick(places->viewport(), Qt::LeftButton, Qt::NoModifier,
                           places->visualRect(computer).center());
@@ -116,6 +120,21 @@ class WorkspacePlacesTests final : public QObject {
         QCOMPARE(ToQString(files->sourcePanel->GetCurrentFolderPrefix()), sidebarTarget);
         QVERIFY(!create->isEnabled());
         QVERIFY(computer.data(QtPlaceRoles::CurrentLocation).toBool());
+        window.findChild<QAction *>("parentFolderAction")->trigger();
+        QTRY_VERIFY(files->sourcePanel->IsRootFolder());
+        int icon = 0;
+        const QString name = ToQString(RootFolder_GetName_Computer(icon));
+        int rootComputer = -1;
+        for (int row = 0; row < files->rowCount(); ++row)
+            if (files->model()->index(row, 0).data().toString() == name)
+                rootComputer = row;
+        QVERIFY(rootComputer >= 0);
+        files->selectRow(rootComputer);
+        files->setCurrentCell(rootComputer, 0, QItemSelectionModel::NoUpdate);
+        window.findChild<QAction *>("openItemAction")->trigger();
+        QTRY_VERIFY(files->sourcePanel->IsFSDrivesFolder());
+        QCOMPARE(ToQString(files->sourcePanel->GetCurrentFolderPrefix()), sidebarTarget);
+        QVERIFY(!create->isEnabled());
     }
     void savedPlacesMenuResolvesCurrentBookmark_data() {
         QTest::addColumn<bool>("remove");

@@ -4,6 +4,7 @@
 #include "filemanager/views/filetable.h"
 #include "localization/LangUtils.h"
 #include "localization/qtlangcontrols.h"
+#include "support/panel_keys.h"
 #include "ui/support/layout_inspection.h"
 
 class RootNavigationTests final : public QObject, protected MainWindowTestSupport {
@@ -166,10 +167,12 @@ class RootNavigationTests final : public QObject, protected MainWindowTestSuppor
         auto *address = window.findChild<QLineEdit *>("archivePath");
         auto *view = table(window);
         QVERIFY(address && view);
+        PanelKeys::focusAddress(address);
         address->setText(fixture.path());
         QTest::keyClick(address, Qt::Key_Return);
         auto *root = action(window, "openRootAction");
         root->trigger();
+        const QString drivesPrefix = address->text();
         action(window, "parentFolderAction")->trigger();
 #ifdef Q_OS_WIN
         QCOMPARE(view->rowCount(), 4);
@@ -214,21 +217,21 @@ class RootNavigationTests final : public QObject, protected MainWindowTestSuppor
         QVERIFY(!action(window, "openOutsideAction")->isEnabled());
         QVERIFY(!action(window, "copyAction")->isEnabled());
         action(window, "openItemAction")->trigger();
-#ifndef Q_OS_WIN
-        QCOMPARE(address->text(), QStringLiteral("/"));
-        action(window, "parentFolderAction")->trigger();
-        QVERIFY(address->text().isEmpty());
-        view->selectRow(computerRow);
-        action(window, "openItemAction")->trigger();
-        QCOMPARE(address->text(), QStringLiteral("/"));
-#else
-        QVERIFY(!address->text().isEmpty());
-#endif
+        QVERIFY(view->sourcePanel->IsFSDrivesFolder());
+        QCOMPARE(address->text(), drivesPrefix);
         action(window, "backAction")->trigger();
         QVERIFY(address->text().isEmpty());
         QVERIFY(view->rowCount() > 0);
         action(window, "backAction")->trigger();
         QCOMPARE(address->text(), QFileInfo(fixture.path()).canonicalFilePath());
+#ifndef Q_OS_WIN
+        PanelKeys::focusAddress(address);
+        address->setText(QStringLiteral("/"));
+        QTest::keyClick(address, Qt::Key_Return);
+        QTRY_VERIFY(view->sourcePanel->IsFSFolder());
+        QVERIFY(!view->sourcePanel->IsFSDrivesFolder());
+        QCOMPARE(address->text(), QStringLiteral("/"));
+#endif
     }
 
     void keyboardRootAndTypedRelativeAddressUseNativeBinding() {
@@ -240,8 +243,10 @@ class RootNavigationTests final : public QObject, protected MainWindowTestSuppor
         window.show();
         auto *address = window.findChild<QLineEdit *>("archivePath");
         auto *view = table(window);
+        PanelKeys::focusAddress(address);
         address->setText(fixture.path());
         QTest::keyClick(address, Qt::Key_Return);
+        PanelKeys::focusAddress(address);
         address->setText(QStringLiteral("папка с пробелом"));
         QTest::keyClick(address, Qt::Key_Return);
         QCOMPARE(
@@ -252,6 +257,7 @@ class RootNavigationTests final : public QObject, protected MainWindowTestSuppor
         QVERIFY(view->rowCount() > 0);
         QVERIFY(!address->text().isEmpty());
         QVERIFY(static_cast<FileTable *>(view)->sourcePanel->IsFSDrivesFolder());
+        PanelKeys::focusAddress(address);
         address->setText(fixture.path());
         QTest::keyClick(address, Qt::Key_Return);
         QCOMPARE(address->text(), QFileInfo(fixture.path()).canonicalFilePath());

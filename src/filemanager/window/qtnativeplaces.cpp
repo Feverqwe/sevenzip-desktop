@@ -8,6 +8,7 @@
 #include "filemanager/window/qtplaceprojection.h"
 #include "localization/LangUtils.h"
 #include <QApplication>
+#include <algorithm>
 
 QtNativePlaces::QtNativePlaces(QObject *parent) : QAbstractListModel(parent) { Refresh(); }
 
@@ -86,16 +87,16 @@ void QtNativePlaces::Refresh() {
         QString label = ToQString(nativeName);
         if (label == QStringLiteral("\\\\."))
             label = QCoreApplication::translate("RootFolder", "Volumes");
-        const bool namedComputer = nativeName == RootFolder_GetName_Computer(iconIndex);
 #ifdef _WIN32
-        const bool computer = namedComputer;
+        const bool computer = nativeName == RootFolder_GetName_Computer(iconIndex);
 #else
         IFolderFolder *bound = folder;
         const bool computer = dynamic_cast<CFSDrives *>(bound) != nullptr;
-        // Computer is the same namespace as the menu command. The native
-        // POSIX root also exposes / separately; it remains reachable through
-        // its volume rather than becoming a second meaning of Computer.
-        if (namedComputer && !computer)
+        // POSIX retains the older Volumes alias in its native root. Project
+        // that shared namespace only once in Places.
+        if (computer && std::ranges::any_of(places, [](const Place &place) {
+                return place.id == QStringLiteral("computer");
+            }))
             continue;
         if (computer)
             label = ToQString(RootFolder_GetName_Computer(iconIndex));

@@ -142,9 +142,9 @@ Z7_COM7F_IMF(CRootFolder::BindToFolder(UInt32 index, IFolderFolder **resultFolde
     }
 #else
     if (index == ROOT_INDEX_COMPUTER) {
-        NFsFolder::CFSFolder *fsFolder = new NFsFolder::CFSFolder;
-        subFolder = fsFolder;
-        fsFolder->InitToRoot();
+        CFSDrives *drives = new CFSDrives;
+        subFolder = drives;
+        drives->Init();
     } else if (index == ROOT_INDEX_MOUNTS) {
         CFSDrives *mounts = new CFSDrives;
         subFolder = mounts;
@@ -186,8 +186,13 @@ Z7_COM7F_IMF(CRootFolder::BindToFolder(const wchar_t *name, IFolderFolder **resu
     if (AreEqualNames(name2, L"My Documents") || AreEqualNames(name2, L"Documents"))
         return BindToFolder((UInt32)ROOT_INDEX_DOCUMENTS, resultFolder);
 #else
-    if (name2.IsEqualTo(STRING_PATH_SEPARATOR))
-        return BindToFolder((UInt32)ROOT_INDEX_COMPUTER, resultFolder);
+    if (name2.IsEqualTo(STRING_PATH_SEPARATOR)) {
+        NFsFolder::CFSFolder *fsFolder = new NFsFolder::CFSFolder;
+        CMyComPtr<IFolderFolder> root = fsFolder;
+        fsFolder->InitToRoot();
+        *resultFolder = root.Detach();
+        return S_OK;
+    }
 #endif
     if (AreEqualNames(name2, L"My Computer") || AreEqualNames(name2, L"Computer"))
         return BindToFolder((UInt32)ROOT_INDEX_COMPUTER, resultFolder);
