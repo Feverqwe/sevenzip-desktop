@@ -501,5 +501,6 @@ class MountExtractionPromptTests final : public QObject {
         QVERIFY(fits);
     }
 };
-QTEST_MAIN(MountExtractionPromptTests)
+#include "ui/support/review_test_main.h"
+SEVENZIP_UI_TEST_MAIN(MountExtractionPromptTests)
 #include "mount_extraction_prompt_tests.moc"

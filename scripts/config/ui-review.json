@@ -37,5 +37,9 @@
   {"id":"delete-confirmation","title":"Подтверждение удаления","target":"source_delete_tests","functions":["refusedConfirmation"]},
   {"id":"selection-mask","title":"Выделение файлов по маске","target":"source_selection_tests","functions":["selection"]},
   {"id":"extraction-prompts","title":"Распаковка: память, перезапись каталогов и отчёт","target":"extract_prompt_tests","functions":["geometry","sourceMessagesModalLifetime"]},
-  {"id":"password-states","title":"Пароль: скрытый и показанный ввод","target":"password_dialog_tests","functions":["geometry"]}
+  {"id":"password-states","title":"Пароль: скрытый и показанный ввод","target":"password_dialog_tests","functions":["geometry"]},
+  {"id":"devices","title":"Открытие устройства и выбор раздела","target":"device_ui_tests","functions":["geometryAndPartitionSelection"]},
+  {"id":"fscrypt-keys","title":"Ключи зашифрованной файловой системы","target":"fscrypt_key_ui_tests","functions":["geometry"]},
+  {"id":"mount-dialogs","title":"Подключения архивов: параметры, список и извлечение","target":"mount_extraction_prompt_tests","functions":["setupGeometry","cacheControlsFollowReader","managerActionsGeometry","geometry"]},
+  {"id":"archive-recovery","title":"Открытие повреждённого архива","target":"archive_recovery_ui_tests","functions":["opensReadablePart"]}
 ]

@@ -293,5 +293,6 @@ class FscryptKeyUiTests final : public QObject {
 #endif
     }
 };
-QTEST_MAIN(FscryptKeyUiTests)
+#include "ui/support/review_test_main.h"
+SEVENZIP_UI_TEST_MAIN(FscryptKeyUiTests)
 #include "fscrypt_key_ui_tests.moc"

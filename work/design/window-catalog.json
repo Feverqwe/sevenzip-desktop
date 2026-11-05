@@ -1,6 +1,6 @@
 {
   "description": "Review representations, including menus and separate workflows. Source keys identify functional owners, not separate windows or tabs. Source reports link the implemented Qt views; their capture metadata and the source audit record validation scope. Platform omissions are explicit.",
-  "gallery": "build/dev/ui-theme-review/manifest.json",
+  "gallery": "../../build/branches/codex~2fdesign-concept/artifacts/macos-arm64/dev/ui-theme-review/manifest.json",
   "windows": [
     {
       "id": "main",
@@ -32,6 +32,48 @@
       "group": "Файловый менеджер",
       "sourceKey": "panelContextMenu",
       "sourceReport": "macos/light/context-menu/source-context-0-ru-0-640-0.json"
+    },
+    {
+      "id": "devices",
+      "title": "Открытие устройства",
+      "group": "Устройства и подключения",
+      "sourceKey": "deviceSelectionDialog",
+      "sourceReport": "macos/light/devices/devices-ru-620-devices.json"
+    },
+    {
+      "id": "fscrypt",
+      "title": "Ключи fscrypt",
+      "group": "Устройства и подключения",
+      "sourceKey": "fscryptKeyDialog",
+      "sourceReport": "macos/light/fscrypt-keys/fscrypt-keys-ru560-v2.json"
+    },
+    {
+      "id": "mount-settings",
+      "title": "Подключить для чтения",
+      "group": "Устройства и подключения",
+      "sourceKey": "archiveMountSettings",
+      "sourceReport": "macos/light/mount-dialogs/mount-reader-zip-ru.json"
+    },
+    {
+      "id": "mount-manager",
+      "title": "Подключённые папки",
+      "group": "Устройства и подключения",
+      "sourceKey": "archiveMountManager",
+      "sourceReport": "macos/light/mount-dialogs/mount-manager-actions-ru-780.json"
+    },
+    {
+      "id": "mount-extraction",
+      "title": "Извлечение для подключения",
+      "group": "Устройства и подключения",
+      "sourceKey": "mountExtractionPrompt",
+      "sourceReport": "macos/light/mount-dialogs/mount-extraction-ru-640.json"
+    },
+    {
+      "id": "archive-recovery",
+      "title": "Чтение повреждённого архива",
+      "group": "Архивы",
+      "sourceKey": "archiveReadLimitationsWarning",
+      "sourceReport": "macos/light/archive-recovery/archive-recovery-ru-native.json"
     },
     {
       "id": "copy",
@@ -71,7 +113,7 @@
     },
     {
       "id": "link",
-      "title": "Создание ссылки",
+      "title": "Создание и изменение ссылок",
       "group": "Файловые операции",
       "sourceKey": "IDD_LINK",
       "sourceReport": "macos/light/link/link-initial-ru-520.json"
@@ -85,7 +127,7 @@
     },
     {
       "id": "history",
-      "title": "История папок",
+      "title": "Недавние места",
       "group": "Файловые операции",
       "sourceKey": "foldersHistoryDialog",
       "sourceReport": "macos/light/properties-history/list-source-initial-ru-1.json"
@@ -98,8 +140,15 @@
       "sourceReport": "macos/light/temporary-files/temp-cleanup-ru-900.json"
     },
     {
+      "id": "external-edit",
+      "title": "Файл во внешней программе",
+      "group": "Файловые операции",
+      "sourceKey": "externalUpdatePrompt",
+      "sourceReport": null
+    },
+    {
       "id": "add",
-      "title": "Добавить к архиву",
+      "title": "Создание и обновление архива",
       "group": "Архивы",
       "sourceKey": "createArchiveDialog",
       "sourceReport": "macos/light/add-sections/redesign-add-collapsed-ru.json"
@@ -168,11 +217,40 @@
       "sourceReport": "macos/light/hash-results/hash-results-540.json"
     },
     {
+      "id": "hash-file",
+      "title": "Создать файл контрольных сумм",
+      "group": "Файловые операции",
+      "sourceKey": "Hash native writer",
+      "sourceReport": null
+    },
+    {
+      "id": "hash-verify",
+      "title": "Проверить файл контрольных сумм",
+      "group": "Файловые операции",
+      "sourceKey": "Hash native reader",
+      "sourceReport": null
+    },
+    {
+      "id": "hash-verification",
+      "title": "Результат проверки файлов",
+      "group": "Результаты и отчёты",
+      "sourceKey": "Hash native test callbacks",
+      "sourceReport": null
+    },
+    {
       "id": "text",
       "title": "Подробный текстовый отчёт",
       "group": "Результаты и отчёты",
       "sourceKey": "editDialog",
       "sourceReport": "macos/light/source-prompts/source-prompt-initial-ru-0.json"
+    },
+    {
+      "id": "licenses",
+      "title": "Лицензии и уведомления",
+      "group": "Результаты и отчёты",
+      "sourceKey": "aboutDialog / editDialog",
+      "sourceReport": null,
+      "conceptSection": "Локальный просмотр лицензий вместо справки"
     },
     {
       "id": "benchmark",
@@ -263,30 +341,39 @@
       "title": "Справка",
       "group": "Справка и сообщения",
       "sourceKey": "helpWindow",
-      "sourceReport": "macos/light/help/help-ru-760.json"
+      "sourceReport": "macos/light/help/help-ru-760.json",
+      "conceptVisible": false,
+      "conceptExclusion": "Встроенная справка исключена из продукта решением пользователя 5 ноября 2026; снимки текущей реализации сохранены."
     },
     {
       "id": "about",
       "title": "О приложении",
-      "group": "Справка и сообщения",
+      "group": "Приложение и сообщения",
       "sourceKey": "aboutDialog",
       "sourceReport": "macos/light/common-dialogs/standard-buttons-about-ru-360.json"
     },
     {
       "id": "error",
       "title": "Ошибка операции",
-      "group": "Справка и сообщения",
+      "group": "Приложение и сообщения",
       "sourceKey": "errors/QMessageBox",
       "sourceReport": "macos/light/errors/gui-error-output-0-0---320.json"
     },
     {
       "id": "split-error",
-      "title": "Неверный размер тома",
-      "group": "Справка и сообщения",
+      "title": "Ошибка размера части",
+      "group": "Приложение и сообщения",
       "sourceKey": "splitVolumeError",
       "sourceReport": "macos/light/split-combine/split-invalid-volume-340.json"
     }
   ],
-  "reviewRevision": "6ee7db6ba2bd0c55727340cf5a7db9fb08405f1c",
-  "reviewScope": "Current macOS Cocoa light/dark gallery; per-run revision and working-tree digest are in the manifest. Windows-only shell menu is omitted on macOS; this is not cross-platform visual acceptance."
+  "reviewRevision": "e16690f70176d26b00b2ffdad4823ced96e8b8cb",
+  "reviewScope": "macOS Cocoa, client areas in light/dark; EN/RU and normal/compact states provided by each producer. Native OS pickers, window frames and Windows-only Explorer integration are excluded. Concept is editable design, not pixel parity or behavior acceptance. Per-run source revisions, capture dates, failures and adaptations remain in the gallery manifest.",
+  "galleryBase": "../../build/branches/codex~2fdesign-concept/artifacts/macos-arm64/dev/ui-theme-review/",
+  "reviewDate": "5 ноября 2026",
+  "reviewFixtureState": {
+    "diffSha256": "3c265c411873a274934292827071341111a1bb90a09246598d5055fdcd508b9a",
+    "captureConfigSha256": "db09f8a322903a51d6f8ccfe3e4c6b4c59724ccf8afe2406035f5ea276ad1527",
+    "modified": true
+  }
 }

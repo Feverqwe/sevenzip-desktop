@@ -25,6 +25,12 @@
       {
         "class": "QToolButton",
         "name": "",
+        "text": "Посчитать размер папки",
+        "enabled": false
+      },
+      {
+        "class": "QToolButton",
+        "name": "",
         "text": "Копировать",
         "enabled": true
       },
@@ -63,14 +69,9 @@
         "enabled": true
       },
       {
-        "class": "QTableWidget",
-        "name": "archiveTable",
-        "enabled": true
-      },
-      {
         "class": "QLabel",
         "name": "selectedItemsStatus",
-        "text": "Выделено: 0 / 30",
+        "text": "Выделено: 0 / 32",
         "enabled": true
       },
       {
@@ -92,17 +93,32 @@
         "enabled": true
       }
     ],
-    "revision": "aca1e36dbadd77b1c189dd9cd28345e46decb2ff",
+    "revision": "e16690f70176d26b00b2ffdad4823ced96e8b8cb",
     "capture": {
-      "qpa": "cocoa",
       "colorScheme": "light",
-      "qtVersion": "6.12.0",
+      "coordinateSpace": "root-client-logical-pixels",
+      "devicePixelRatio": 2,
       "fontFamily": ".AppleSystemUIFont",
-      "fontPointSize": 13
+      "fontPointSize": 13,
+      "logicalDpi": 72,
+      "palette": {
+        "0": "#000000",
+        "10": "#ffffff",
+        "12": "#a5cdff",
+        "13": "#000000",
+        "14": "#094fd1",
+        "6": "#000000",
+        "9": "#ffffff"
+      },
+      "platform": "darwin",
+      "qpa": "cocoa",
+      "qtVersion": "6.12.0",
+      "requestedColorScheme": "light",
+      "schema": 1
     },
     "sourceState": {
-      "modified": true,
-      "diffSha256": "690814a489abf63fc4fd7488eaa6a152544ee8bf57697e37d3abf63a2d9a7d55"
+      "modified": false,
+      "diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
   },
   {
@@ -116,17 +132,32 @@
         "enabled": true
       }
     ],
-    "revision": "dcd316a1d23b7504ed921a69e7bd9d5cc74223d1",
+    "revision": "e16690f70176d26b00b2ffdad4823ced96e8b8cb",
     "capture": {
-      "qpa": "cocoa",
       "colorScheme": "light",
-      "qtVersion": "6.12.0",
+      "coordinateSpace": "root-client-logical-pixels",
+      "devicePixelRatio": 2,
       "fontFamily": ".AppleSystemUIFont",
-      "fontPointSize": 13
+      "fontPointSize": 13,
+      "logicalDpi": 72,
+      "palette": {
+        "0": "#000000",
+        "10": "#ffffff",
+        "12": "#548fff",
+        "13": "#ffffff",
+        "14": "#094fd1",
+        "6": "#000000",
+        "9": "#ffffff"
+      },
+      "platform": "darwin",
+      "qpa": "cocoa",
+      "qtVersion": "6.12.0",
+      "requestedColorScheme": "light",
+      "schema": 1
     },
     "sourceState": {
-      "modified": true,
-      "diffSha256": "9afdc6ed65d3262e756c2b340e3fdf7cd07f3026f6010f59304abb8a14cf381c"
+      "modified": false,
+      "diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
   },
   {
@@ -140,17 +171,32 @@
         "enabled": true
       }
     ],
-    "revision": "dcd316a1d23b7504ed921a69e7bd9d5cc74223d1",
+    "revision": "e16690f70176d26b00b2ffdad4823ced96e8b8cb",
     "capture": {
-      "qpa": "cocoa",
       "colorScheme": "light",
-      "qtVersion": "6.12.0",
+      "coordinateSpace": "root-client-logical-pixels",
+      "devicePixelRatio": 2,
       "fontFamily": ".AppleSystemUIFont",
-      "fontPointSize": 13
+      "fontPointSize": 13,
+      "logicalDpi": 72,
+      "palette": {
+        "0": "#000000",
+        "10": "#ffffff",
+        "12": "#548fff",
+        "13": "#ffffff",
+        "14": "#094fd1",
+        "6": "#000000",
+        "9": "#ffffff"
+      },
+      "platform": "darwin",
+      "qpa": "cocoa",
+      "qtVersion": "6.12.0",
+      "requestedColorScheme": "light",
+      "schema": 1
     },
     "sourceState": {
-      "modified": true,
-      "diffSha256": "9afdc6ed65d3262e756c2b340e3fdf7cd07f3026f6010f59304abb8a14cf381c"
+      "modified": false,
+      "diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
   },
   {
@@ -164,17 +210,498 @@
         "enabled": true
       }
     ],
-    "revision": "dcd316a1d23b7504ed921a69e7bd9d5cc74223d1",
+    "revision": "e16690f70176d26b00b2ffdad4823ced96e8b8cb",
     "capture": {
-      "qpa": "cocoa",
       "colorScheme": "light",
-      "qtVersion": "6.12.0",
+      "coordinateSpace": "root-client-logical-pixels",
+      "devicePixelRatio": 2,
       "fontFamily": ".AppleSystemUIFont",
-      "fontPointSize": 13
+      "fontPointSize": 13,
+      "logicalDpi": 72,
+      "palette": {
+        "0": "#000000",
+        "10": "#ffffff",
+        "12": "#548fff",
+        "13": "#ffffff",
+        "14": "#094fd1",
+        "6": "#000000",
+        "9": "#ffffff"
+      },
+      "platform": "darwin",
+      "qpa": "cocoa",
+      "qtVersion": "6.12.0",
+      "requestedColorScheme": "light",
+      "schema": 1
     },
     "sourceState": {
-      "modified": true,
-      "diffSha256": "9afdc6ed65d3262e756c2b340e3fdf7cd07f3026f6010f59304abb8a14cf381c"
+      "modified": false,
+      "diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  {
+    "key": "deviceSelectionDialog",
+    "title": "Открытие устройства",
+    "source": "macos/light/devices/devices-ru-620-devices.json",
+    "controls": [
+      {
+        "class": "QLabel",
+        "name": "",
+        "text": "Чтение поддерживаемых файловых систем без изменения устройства. Копируйте файлы на другой диск.",
+        "enabled": true
+      },
+      {
+        "class": "QTreeWidget",
+        "name": "deviceItems",
+        "enabled": true
+      },
+      {
+        "class": "QLabel",
+        "name": "deviceMessage",
+        "text": "Выберите устройство. Используемые тома нужно сначала размонтировать.",
+        "enabled": true
+      },
+      {
+        "class": "QPushButton",
+        "name": "deviceOpenButton",
+        "text": "Открыть",
+        "enabled": true
+      },
+      {
+        "class": "QPushButton",
+        "name": "",
+        "text": "Отмена",
+        "enabled": true
+      },
+      {
+        "class": "QPushButton",
+        "name": "deviceRefreshButton",
+        "text": "Обновить",
+        "enabled": true
+      }
+    ],
+    "revision": "e16690f70176d26b00b2ffdad4823ced96e8b8cb",
+    "capture": {
+      "colorScheme": "light",
+      "coordinateSpace": "root-client-logical-pixels",
+      "devicePixelRatio": 2,
+      "fontFamily": ".AppleSystemUIFont",
+      "fontPointSize": 13,
+      "language": "ru",
+      "logicalDpi": 72,
+      "palette": {
+        "0": "#000000",
+        "10": "#ffffff",
+        "12": "#a5cdff",
+        "13": "#000000",
+        "14": "#094fd1",
+        "6": "#000000",
+        "9": "#ffffff"
+      },
+      "platform": "darwin",
+      "qpa": "cocoa",
+      "qtVersion": "6.12.0",
+      "requestedColorScheme": "light",
+      "schema": 1,
+      "state": "devices"
+    },
+    "sourceState": {
+      "modified": false,
+      "diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  {
+    "key": "fscryptKeyDialog",
+    "title": "Ключи fscrypt",
+    "source": "macos/light/fscrypt-keys/fscrypt-keys-ru560-v2.json",
+    "controls": [
+      {
+        "class": "QPushButton",
+        "name": "fscryptOpen",
+        "text": "Открыть",
+        "enabled": false
+      },
+      {
+        "class": "QPushButton",
+        "name": "",
+        "text": "Отмена",
+        "enabled": true
+      },
+      {
+        "class": "QPushButton",
+        "name": "fscryptWithoutKeys",
+        "text": "Просмотреть без ключей",
+        "enabled": true
+      },
+      {
+        "class": "QLabel",
+        "name": "",
+        "text": "Эта файловая система ext зашифрована с помощью fscrypt. Введите мастер-ключи, полученные у администратора или из резервной копии ключей. Пароль входа в систему или шифрования диска здесь не подойдёт.",
+        "enabled": true
+      },
+      {
+        "class": "QLabel",
+        "name": "",
+        "text": "Без ключей можно просматривать содержимое, но зашифрованные имена будут скрыты, а зашифрованные файлы нельзя будет скопировать.",
+        "enabled": true
+      },
+      {
+        "class": "QGroupBox",
+        "name": "",
+        "text": "Ключ 1",
+        "enabled": true
+      },
+      {
+        "class": "QComboBox",
+        "name": "fscryptVersion",
+        "text": "fscrypt v2",
+        "enabled": true
+      },
+      {
+        "class": "QLabel",
+        "name": "",
+        "text": "Версия ключа:",
+        "enabled": true
+      },
+      {
+        "class": "QLineEdit",
+        "name": "fscryptMasterKey",
+        "enabled": true
+      },
+      {
+        "class": "QLabel",
+        "name": "",
+        "text": "Мастер-ключ (hex):",
+        "enabled": true
+      },
+      {
+        "class": "QPushButton",
+        "name": "fscryptAddKey",
+        "text": "Добавить ещё ключ",
+        "enabled": true
+      },
+      {
+        "class": "QCheckBox",
+        "name": "fscryptShowKeys",
+        "text": "Показать ключи",
+        "enabled": true
+      },
+      {
+        "class": "QLabel",
+        "name": "fscryptValidation",
+        "text": "",
+        "enabled": true
+      }
+    ],
+    "revision": "e16690f70176d26b00b2ffdad4823ced96e8b8cb",
+    "capture": {
+      "colorScheme": "light",
+      "coordinateSpace": "root-client-logical-pixels",
+      "devicePixelRatio": 2,
+      "fontFamily": ".AppleSystemUIFont",
+      "fontPointSize": 13,
+      "language": "ru",
+      "logicalDpi": 72,
+      "palette": {
+        "0": "#000000",
+        "10": "#ffffff",
+        "12": "#a5cdff",
+        "13": "#000000",
+        "14": "#094fd1",
+        "6": "#000000",
+        "9": "#ffffff"
+      },
+      "platform": "darwin",
+      "qpa": "cocoa",
+      "qtVersion": "6.12.0",
+      "requestedColorScheme": "light",
+      "schema": 1,
+      "state": "v2"
+    },
+    "sourceState": {
+      "modified": false,
+      "diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  {
+    "key": "archiveMountSettings",
+    "title": "Подключить для чтения",
+    "source": "macos/light/mount-dialogs/mount-reader-zip-ru.json",
+    "controls": [
+      {
+        "class": "QPushButton",
+        "name": "",
+        "text": "Отмена",
+        "enabled": true
+      },
+      {
+        "class": "QPushButton",
+        "name": "mountCacheHelpButton",
+        "text": "Справка",
+        "enabled": true
+      },
+      {
+        "class": "QPushButton",
+        "name": "",
+        "text": "Подключить",
+        "enabled": true
+      },
+      {
+        "class": "QLabel",
+        "name": "",
+        "text": "folder/",
+        "enabled": true
+      },
+      {
+        "class": "QSpinBox",
+        "name": "mountCacheLimit",
+        "enabled": true
+      },
+      {
+        "class": "QLineEdit",
+        "name": "qt_spinbox_lineedit",
+        "enabled": true
+      },
+      {
+        "class": "QLineEdit",
+        "name": "mountArchivePassword",
+        "enabled": true
+      },
+      {
+        "class": "QLabel",
+        "name": "",
+        "text": "Лимит временного кеша:",
+        "enabled": true
+      },
+      {
+        "class": "QLabel",
+        "name": "",
+        "text": "Пароль архива (если нужен):",
+        "enabled": true
+      }
+    ],
+    "revision": "e16690f70176d26b00b2ffdad4823ced96e8b8cb",
+    "capture": {
+      "colorScheme": "light",
+      "coordinateSpace": "root-client-logical-pixels",
+      "devicePixelRatio": 2,
+      "fontFamily": ".AppleSystemUIFont",
+      "fontPointSize": 13,
+      "logicalDpi": 72,
+      "palette": {
+        "0": "#000000",
+        "10": "#ffffff",
+        "12": "#a5cdff",
+        "13": "#000000",
+        "14": "#094fd1",
+        "6": "#000000",
+        "9": "#ffffff"
+      },
+      "platform": "darwin",
+      "qpa": "cocoa",
+      "qtVersion": "6.12.0",
+      "requestedColorScheme": "light",
+      "schema": 1
+    },
+    "sourceState": {
+      "modified": false,
+      "diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  {
+    "key": "archiveMountManager",
+    "title": "Подключённые папки",
+    "source": "macos/light/mount-dialogs/mount-manager-actions-ru-780.json",
+    "controls": [
+      {
+        "class": "QTreeWidget",
+        "name": "mountList",
+        "enabled": true
+      },
+      {
+        "class": "QPlainTextEdit",
+        "name": "mountDetails",
+        "enabled": true
+      },
+      {
+        "class": "QPushButton",
+        "name": "openMountFolderButton",
+        "text": "Открыть папку",
+        "enabled": false
+      },
+      {
+        "class": "QPushButton",
+        "name": "copyMountPathButton",
+        "text": "Копировать путь",
+        "enabled": false
+      },
+      {
+        "class": "QPushButton",
+        "name": "unmountButton",
+        "text": "Отключить",
+        "enabled": false
+      },
+      {
+        "class": "QPushButton",
+        "name": "forceUnmountButton",
+        "text": "Принудительно…",
+        "enabled": true
+      },
+      {
+        "class": "QPushButton",
+        "name": "",
+        "text": "Закрыть",
+        "enabled": true
+      }
+    ],
+    "revision": "e16690f70176d26b00b2ffdad4823ced96e8b8cb",
+    "capture": {
+      "colorScheme": "light",
+      "coordinateSpace": "root-client-logical-pixels",
+      "devicePixelRatio": 2,
+      "fontFamily": ".AppleSystemUIFont",
+      "fontPointSize": 13,
+      "logicalDpi": 72,
+      "palette": {
+        "0": "#000000",
+        "10": "#ffffff",
+        "12": "#a5cdff",
+        "13": "#000000",
+        "14": "#094fd1",
+        "6": "#000000",
+        "9": "#ffffff"
+      },
+      "platform": "darwin",
+      "qpa": "cocoa",
+      "qtVersion": "6.12.0",
+      "requestedColorScheme": "light",
+      "schema": 1
+    },
+    "sourceState": {
+      "modified": false,
+      "diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  {
+    "key": "mountExtractionPrompt",
+    "title": "Извлечение для подключения",
+    "source": "macos/light/mount-dialogs/mount-extraction-ru-640.json",
+    "controls": [
+      {
+        "class": "QPushButton",
+        "name": "",
+        "text": "Отмена",
+        "enabled": true
+      },
+      {
+        "class": "QPushButton",
+        "name": "extractForMountButton",
+        "text": "Разрешить извлечение",
+        "enabled": true
+      },
+      {
+        "class": "QLabel",
+        "name": "",
+        "text": "Разрешить извлекать файлы этого подключения во временный кеш при чтении?",
+        "enabled": true
+      },
+      {
+        "class": "QLabel",
+        "name": "",
+        "text": "Synthetic image with spaces.img\nПервый запрошенный файл: folder/длинное имя с пробелами/данные 空 для внешнего приложения.bin\nРазмер: 195,31 KiB\n\nВыбор действует для всех файлов этого подключения, в том числе при повторном извлечении после очистки кеша. Отмена запрещает извлечение до следующего подключения папки. Источник останется доступным только для чтения.",
+        "enabled": true
+      }
+    ],
+    "revision": "e16690f70176d26b00b2ffdad4823ced96e8b8cb",
+    "capture": {
+      "colorScheme": "light",
+      "coordinateSpace": "root-client-logical-pixels",
+      "devicePixelRatio": 2,
+      "fontFamily": ".AppleSystemUIFont",
+      "fontPointSize": 13,
+      "logicalDpi": 72,
+      "palette": {
+        "0": "#000000",
+        "10": "#ffffff",
+        "12": "#a5cdff",
+        "13": "#000000",
+        "14": "#094fd1",
+        "6": "#000000",
+        "9": "#ffffff"
+      },
+      "platform": "darwin",
+      "qpa": "cocoa",
+      "qtVersion": "6.12.0",
+      "requestedColorScheme": "light",
+      "schema": 1
+    },
+    "sourceState": {
+      "modified": false,
+      "diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  {
+    "key": "archiveReadLimitationsWarning",
+    "title": "Чтение повреждённого архива",
+    "source": "macos/light/archive-recovery/archive-recovery-ru-native.json",
+    "controls": [
+      {
+        "class": "QLabel",
+        "name": "qt_msgboxex_icon_label",
+        "text": "",
+        "enabled": true
+      },
+      {
+        "class": "QLabel",
+        "name": "qt_msgbox_label",
+        "text": "Архив может быть повреждён или неполон. Доступные файлы можно скопировать, но часть файлов может отсутствовать или не читаться. Извлечённые данные могут быть неполными или не пройти проверку целостности. Исходный архив не будет изменён.",
+        "enabled": true
+      },
+      {
+        "class": "QPushButton",
+        "name": "",
+        "text": "Отмена",
+        "enabled": true
+      },
+      {
+        "class": "QPushButton",
+        "name": "archiveOpenReadOnlyButton",
+        "text": "Открыть для чтения",
+        "enabled": true
+      },
+      {
+        "class": "QLabel",
+        "name": "qt_msgbox_informativelabel",
+        "text": "zip: Неожиданный конец данных",
+        "enabled": true
+      }
+    ],
+    "revision": "e16690f70176d26b00b2ffdad4823ced96e8b8cb",
+    "capture": {
+      "colorScheme": "light",
+      "coordinateSpace": "root-client-logical-pixels",
+      "devicePixelRatio": 2,
+      "fontFamily": ".AppleSystemUIFont",
+      "fontPointSize": 13,
+      "language": "ru",
+      "logicalDpi": 72,
+      "palette": {
+        "0": "#000000",
+        "10": "#ffffff",
+        "12": "#d4d4d4",
+        "13": "#000000",
+        "14": "#0000ff",
+        "6": "#000000",
+        "9": "#ffffff"
+      },
+      "platform": "darwin",
+      "qpa": "cocoa",
+      "qtVersion": "6.12.0",
+      "requestedColorScheme": "light",
+      "schema": 1
+    },
+    "sourceState": {
+      "modified": false,
+      "diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
   },
   {
@@ -222,17 +749,32 @@
         "enabled": true
       }
     ],
-    "revision": "dcd316a1d23b7504ed921a69e7bd9d5cc74223d1",
+    "revision": "e16690f70176d26b00b2ffdad4823ced96e8b8cb",
     "capture": {
-      "qpa": "cocoa",
       "colorScheme": "light",
-      "qtVersion": "6.12.0",
+      "coordinateSpace": "root-client-logical-pixels",
+      "devicePixelRatio": 2,
       "fontFamily": ".AppleSystemUIFont",
-      "fontPointSize": 13
+      "fontPointSize": 13,
+      "logicalDpi": 72,
+      "palette": {
+        "0": "#000000",
+        "10": "#ffffff",
+        "12": "#a5cdff",
+        "13": "#000000",
+        "14": "#094fd1",
+        "6": "#000000",
+        "9": "#ffffff"
+      },
+      "platform": "darwin",
+      "qpa": "cocoa",
+      "qtVersion": "6.12.0",
+      "requestedColorScheme": "light",
+      "schema": 1
     },
     "sourceState": {
-      "modified": true,
-      "diffSha256": "9afdc6ed65d3262e756c2b340e3fdf7cd07f3026f6010f59304abb8a14cf381c"
+      "modified": false,
+      "diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
   },
   {
@@ -291,17 +833,32 @@
         "enabled": true
       }
     ],
-    "revision": "dcd316a1d23b7504ed921a69e7bd9d5cc74223d1",
+    "revision": "e16690f70176d26b00b2ffdad4823ced96e8b8cb",
     "capture": {
-      "qpa": "cocoa",
       "colorScheme": "light",
-      "qtVersion": "6.12.0",
+      "coordinateSpace": "root-client-logical-pixels",
+      "devicePixelRatio": 2,
       "fontFamily": ".AppleSystemUIFont",
-      "fontPointSize": 13
+      "fontPointSize": 13,
+      "logicalDpi": 72,
+      "palette": {
+        "0": "#000000",
+        "10": "#ffffff",
+        "12": "#a5cdff",
+        "13": "#000000",
+        "14": "#094fd1",
+        "6": "#000000",
+        "9": "#ffffff"
+      },
+      "platform": "darwin",
+      "qpa": "cocoa",
+      "qtVersion": "6.12.0",
+      "requestedColorScheme": "light",
+      "schema": 1
     },
     "sourceState": {
-      "modified": true,
-      "diffSha256": "9afdc6ed65d3262e756c2b340e3fdf7cd07f3026f6010f59304abb8a14cf381c"
+      "modified": false,
+      "diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
   },
   {
@@ -349,17 +906,32 @@
         "enabled": true
       }
     ],
-    "revision": "dcd316a1d23b7504ed921a69e7bd9d5cc74223d1",
+    "revision": "e16690f70176d26b00b2ffdad4823ced96e8b8cb",
     "capture": {
-      "qpa": "cocoa",
       "colorScheme": "light",
-      "qtVersion": "6.12.0",
+      "coordinateSpace": "root-client-logical-pixels",
+      "devicePixelRatio": 2,
       "fontFamily": ".AppleSystemUIFont",
-      "fontPointSize": 13
+      "fontPointSize": 13,
+      "logicalDpi": 72,
+      "palette": {
+        "0": "#000000",
+        "10": "#ffffff",
+        "12": "#a5cdff",
+        "13": "#000000",
+        "14": "#094fd1",
+        "6": "#000000",
+        "9": "#ffffff"
+      },
+      "platform": "darwin",
+      "qpa": "cocoa",
+      "qtVersion": "6.12.0",
+      "requestedColorScheme": "light",
+      "schema": 1
     },
     "sourceState": {
-      "modified": true,
-      "diffSha256": "9afdc6ed65d3262e756c2b340e3fdf7cd07f3026f6010f59304abb8a14cf381c"
+      "modified": false,
+      "diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
   },
   {
@@ -396,17 +968,32 @@
         "enabled": true
       }
     ],
-    "revision": "dcd316a1d23b7504ed921a69e7bd9d5cc74223d1",
+    "revision": "e16690f70176d26b00b2ffdad4823ced96e8b8cb",
     "capture": {
-      "qpa": "cocoa",
       "colorScheme": "light",
-      "qtVersion": "6.12.0",
+      "coordinateSpace": "root-client-logical-pixels",
+      "devicePixelRatio": 2,
       "fontFamily": ".AppleSystemUIFont",
-      "fontPointSize": 13
+      "fontPointSize": 13,
+      "logicalDpi": 72,
+      "palette": {
+        "0": "#000000",
+        "10": "#ffffff",
+        "12": "#a5cdff",
+        "13": "#000000",
+        "14": "#094fd1",
+        "6": "#000000",
+        "9": "#ffffff"
+      },
+      "platform": "darwin",
+      "qpa": "cocoa",
+      "qtVersion": "6.12.0",
+      "requestedColorScheme": "light",
+      "schema": 1
     },
     "sourceState": {
-      "modified": true,
-      "diffSha256": "9afdc6ed65d3262e756c2b340e3fdf7cd07f3026f6010f59304abb8a14cf381c"
+      "modified": false,
+      "diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
   },
   {
@@ -445,17 +1032,32 @@
         "enabled": true
       }
     ],
-    "revision": "dcd316a1d23b7504ed921a69e7bd9d5cc74223d1",
+    "revision": "e16690f70176d26b00b2ffdad4823ced96e8b8cb",
     "capture": {
-      "qpa": "cocoa",
       "colorScheme": "light",
-      "qtVersion": "6.12.0",
+      "coordinateSpace": "root-client-logical-pixels",
+      "devicePixelRatio": 2,
       "fontFamily": ".AppleSystemUIFont",
-      "fontPointSize": 13
+      "fontPointSize": 13,
+      "logicalDpi": 72,
+      "palette": {
+        "0": "#000000",
+        "10": "#ffffff",
+        "12": "#a5cdff",
+        "13": "#000000",
+        "14": "#094fd1",
+        "6": "#000000",
+        "9": "#ffffff"
+      },
+      "platform": "darwin",
+      "qpa": "cocoa",
+      "qtVersion": "6.12.0",
+      "requestedColorScheme": "light",
+      "schema": 1
     },
     "sourceState": {
-      "modified": true,
-      "diffSha256": "9afdc6ed65d3262e756c2b340e3fdf7cd07f3026f6010f59304abb8a14cf381c"
+      "modified": false,
+      "diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
   },
   {
@@ -473,11 +1075,6 @@
         "class": "QPushButton",
         "name": "IDCANCEL",
         "text": "Отмена",
-        "enabled": true
-      },
-      {
-        "class": "QScrollArea",
-        "name": "linkControlsScroll",
         "enabled": true
       },
       {
@@ -561,17 +1158,32 @@
         "enabled": false
       }
     ],
-    "revision": "dcd316a1d23b7504ed921a69e7bd9d5cc74223d1",
+    "revision": "e16690f70176d26b00b2ffdad4823ced96e8b8cb",
     "capture": {
-      "qpa": "cocoa",
       "colorScheme": "light",
-      "qtVersion": "6.12.0",
+      "coordinateSpace": "root-client-logical-pixels",
+      "devicePixelRatio": 2,
       "fontFamily": ".AppleSystemUIFont",
-      "fontPointSize": 13
+      "fontPointSize": 13,
+      "logicalDpi": 72,
+      "palette": {
+        "0": "#000000",
+        "10": "#ffffff",
+        "12": "#a5cdff",
+        "13": "#000000",
+        "14": "#094fd1",
+        "6": "#000000",
+        "9": "#ffffff"
+      },
+      "platform": "darwin",
+      "qpa": "cocoa",
+      "qtVersion": "6.12.0",
+      "requestedColorScheme": "light",
+      "schema": 1
     },
     "sourceState": {
-      "modified": true,
-      "diffSha256": "9afdc6ed65d3262e756c2b340e3fdf7cd07f3026f6010f59304abb8a14cf381c"
+      "modified": false,
+      "diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
   },
   {
@@ -606,7 +1218,7 @@
       {
         "class": "QLabel",
         "name": "browseFolder",
-        "text": "/var/folders/zh/35p9zk4j7q17_n…th-spaces-and-another-segment/",
+        "text": "/Users/anton/git/sevenzip-deskt…ith-spaces-and-another-segment/",
         "enabled": true
       },
       {
@@ -638,17 +1250,32 @@
         "enabled": true
       }
     ],
-    "revision": "dcd316a1d23b7504ed921a69e7bd9d5cc74223d1",
+    "revision": "e16690f70176d26b00b2ffdad4823ced96e8b8cb",
     "capture": {
-      "qpa": "cocoa",
       "colorScheme": "light",
-      "qtVersion": "6.12.0",
+      "coordinateSpace": "root-client-logical-pixels",
+      "devicePixelRatio": 2,
       "fontFamily": ".AppleSystemUIFont",
-      "fontPointSize": 13
+      "fontPointSize": 13,
+      "logicalDpi": 72,
+      "palette": {
+        "0": "#000000",
+        "10": "#ffffff",
+        "12": "#a5cdff",
+        "13": "#000000",
+        "14": "#094fd1",
+        "6": "#000000",
+        "9": "#ffffff"
+      },
+      "platform": "darwin",
+      "qpa": "cocoa",
+      "qtVersion": "6.12.0",
+      "requestedColorScheme": "light",
+      "schema": 1
     },
     "sourceState": {
-      "modified": true,
-      "diffSha256": "9afdc6ed65d3262e756c2b340e3fdf7cd07f3026f6010f59304abb8a14cf381c"
+      "modified": false,
+      "diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
   },
   {
@@ -674,17 +1301,32 @@
         "enabled": true
       }
     ],
-    "revision": "dcd316a1d23b7504ed921a69e7bd9d5cc74223d1",
+    "revision": "e16690f70176d26b00b2ffdad4823ced96e8b8cb",
     "capture": {
-      "qpa": "cocoa",
       "colorScheme": "light",
-      "qtVersion": "6.12.0",
+      "coordinateSpace": "root-client-logical-pixels",
+      "devicePixelRatio": 2,
       "fontFamily": ".AppleSystemUIFont",
-      "fontPointSize": 13
+      "fontPointSize": 13,
+      "logicalDpi": 72,
+      "palette": {
+        "0": "#000000",
+        "10": "#ffffff",
+        "12": "#a5cdff",
+        "13": "#000000",
+        "14": "#094fd1",
+        "6": "#000000",
+        "9": "#ffffff"
+      },
+      "platform": "darwin",
+      "qpa": "cocoa",
+      "qtVersion": "6.12.0",
+      "requestedColorScheme": "light",
+      "schema": 1
     },
     "sourceState": {
-      "modified": true,
-      "diffSha256": "9afdc6ed65d3262e756c2b340e3fdf7cd07f3026f6010f59304abb8a14cf381c"
+      "modified": false,
+      "diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
   },
   {
@@ -739,17 +1381,32 @@
         "enabled": true
       }
     ],
-    "revision": "dcd316a1d23b7504ed921a69e7bd9d5cc74223d1",
+    "revision": "e16690f70176d26b00b2ffdad4823ced96e8b8cb",
     "capture": {
-      "qpa": "cocoa",
       "colorScheme": "light",
-      "qtVersion": "6.12.0",
+      "coordinateSpace": "root-client-logical-pixels",
+      "devicePixelRatio": 2,
       "fontFamily": ".AppleSystemUIFont",
-      "fontPointSize": 13
+      "fontPointSize": 13,
+      "logicalDpi": 72,
+      "palette": {
+        "0": "#000000",
+        "10": "#ffffff",
+        "12": "#a5cdff",
+        "13": "#000000",
+        "14": "#094fd1",
+        "6": "#000000",
+        "9": "#ffffff"
+      },
+      "platform": "darwin",
+      "qpa": "cocoa",
+      "qtVersion": "6.12.0",
+      "requestedColorScheme": "light",
+      "schema": 1
     },
     "sourceState": {
-      "modified": true,
-      "diffSha256": "9afdc6ed65d3262e756c2b340e3fdf7cd07f3026f6010f59304abb8a14cf381c"
+      "modified": false,
+      "diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
   },
   {
@@ -757,11 +1414,6 @@
     "title": "Добавить к архиву",
     "source": "macos/light/add-sections/redesign-add-collapsed-ru.json",
     "controls": [
-      {
-        "class": "QScrollArea",
-        "name": "archiveOptionsScrollArea",
-        "enabled": true
-      },
       {
         "class": "QComboBox",
         "name": "archiveFormat",
@@ -868,17 +1520,32 @@
         "enabled": true
       }
     ],
-    "revision": "dcd316a1d23b7504ed921a69e7bd9d5cc74223d1",
+    "revision": "e16690f70176d26b00b2ffdad4823ced96e8b8cb",
     "capture": {
-      "qpa": "cocoa",
       "colorScheme": "light",
-      "qtVersion": "6.12.0",
+      "coordinateSpace": "root-client-logical-pixels",
+      "devicePixelRatio": 2,
       "fontFamily": ".AppleSystemUIFont",
-      "fontPointSize": 13
+      "fontPointSize": 13,
+      "logicalDpi": 72,
+      "palette": {
+        "0": "#000000",
+        "10": "#ffffff",
+        "12": "#a5cdff",
+        "13": "#000000",
+        "14": "#094fd1",
+        "6": "#000000",
+        "9": "#ffffff"
+      },
+      "platform": "darwin",
+      "qpa": "cocoa",
+      "qtVersion": "6.12.0",
+      "requestedColorScheme": "light",
+      "schema": 1
     },
     "sourceState": {
-      "modified": true,
-      "diffSha256": "e0f2cfd9d126b7efba4eaba82cd080ccaa6747ccd64c36f4964fe1f47da202c3"
+      "modified": false,
+      "diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
   },
   {
@@ -971,17 +1638,34 @@
         "enabled": true
       }
     ],
-    "revision": "dcd316a1d23b7504ed921a69e7bd9d5cc74223d1",
+    "revision": "e16690f70176d26b00b2ffdad4823ced96e8b8cb",
     "capture": {
-      "qpa": "cocoa",
       "colorScheme": "light",
-      "qtVersion": "6.12.0",
+      "coordinateSpace": "root-client-logical-pixels",
+      "devicePixelRatio": 2,
       "fontFamily": ".AppleSystemUIFont",
-      "fontPointSize": 13
+      "fontPointSize": 13,
+      "language": "ru",
+      "logicalDpi": 72,
+      "palette": {
+        "0": "#000000",
+        "10": "#ffffff",
+        "12": "#a5cdff",
+        "13": "#000000",
+        "14": "#094fd1",
+        "6": "#000000",
+        "9": "#ffffff"
+      },
+      "platform": "darwin",
+      "qpa": "cocoa",
+      "qtVersion": "6.12.0",
+      "requestedColorScheme": "light",
+      "schema": 1,
+      "state": "compress-options-7z-initial"
     },
     "sourceState": {
-      "modified": true,
-      "diffSha256": "9afdc6ed65d3262e756c2b340e3fdf7cd07f3026f6010f59304abb8a14cf381c"
+      "modified": false,
+      "diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
   },
   {
@@ -1065,17 +1749,32 @@
         "enabled": true
       }
     ],
-    "revision": "dcd316a1d23b7504ed921a69e7bd9d5cc74223d1",
+    "revision": "e16690f70176d26b00b2ffdad4823ced96e8b8cb",
     "capture": {
-      "qpa": "cocoa",
       "colorScheme": "light",
-      "qtVersion": "6.12.0",
+      "coordinateSpace": "root-client-logical-pixels",
+      "devicePixelRatio": 2,
       "fontFamily": ".AppleSystemUIFont",
-      "fontPointSize": 13
+      "fontPointSize": 13,
+      "logicalDpi": 72,
+      "palette": {
+        "0": "#000000",
+        "10": "#ffffff",
+        "12": "#a5cdff",
+        "13": "#000000",
+        "14": "#094fd1",
+        "6": "#000000",
+        "9": "#ffffff"
+      },
+      "platform": "darwin",
+      "qpa": "cocoa",
+      "qtVersion": "6.12.0",
+      "requestedColorScheme": "light",
+      "schema": 1
     },
     "sourceState": {
-      "modified": true,
-      "diffSha256": "9afdc6ed65d3262e756c2b340e3fdf7cd07f3026f6010f59304abb8a14cf381c"
+      "modified": false,
+      "diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
   },
   {
@@ -1113,17 +1812,32 @@
         "enabled": true
       }
     ],
-    "revision": "dcd316a1d23b7504ed921a69e7bd9d5cc74223d1",
+    "revision": "e16690f70176d26b00b2ffdad4823ced96e8b8cb",
     "capture": {
-      "qpa": "cocoa",
       "colorScheme": "light",
-      "qtVersion": "6.12.0",
+      "coordinateSpace": "root-client-logical-pixels",
+      "devicePixelRatio": 2,
       "fontFamily": ".AppleSystemUIFont",
-      "fontPointSize": 13
+      "fontPointSize": 13,
+      "logicalDpi": 72,
+      "palette": {
+        "0": "#000000",
+        "10": "#ffffff",
+        "12": "#a5cdff",
+        "13": "#000000",
+        "14": "#094fd1",
+        "6": "#000000",
+        "9": "#ffffff"
+      },
+      "platform": "darwin",
+      "qpa": "cocoa",
+      "qtVersion": "6.12.0",
+      "requestedColorScheme": "light",
+      "schema": 1
     },
     "sourceState": {
-      "modified": true,
-      "diffSha256": "9afdc6ed65d3262e756c2b340e3fdf7cd07f3026f6010f59304abb8a14cf381c"
+      "modified": false,
+      "diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
   },
   {
@@ -1203,17 +1917,32 @@
         "enabled": true
       }
     ],
-    "revision": "dcd316a1d23b7504ed921a69e7bd9d5cc74223d1",
+    "revision": "e16690f70176d26b00b2ffdad4823ced96e8b8cb",
     "capture": {
-      "qpa": "cocoa",
       "colorScheme": "light",
-      "qtVersion": "6.12.0",
+      "coordinateSpace": "root-client-logical-pixels",
+      "devicePixelRatio": 2,
       "fontFamily": ".AppleSystemUIFont",
-      "fontPointSize": 13
+      "fontPointSize": 13,
+      "logicalDpi": 72,
+      "palette": {
+        "0": "#000000",
+        "10": "#ffffff",
+        "12": "#a5cdff",
+        "13": "#000000",
+        "14": "#094fd1",
+        "6": "#000000",
+        "9": "#ffffff"
+      },
+      "platform": "darwin",
+      "qpa": "cocoa",
+      "qtVersion": "6.12.0",
+      "requestedColorScheme": "light",
+      "schema": 1
     },
     "sourceState": {
-      "modified": true,
-      "diffSha256": "9afdc6ed65d3262e756c2b340e3fdf7cd07f3026f6010f59304abb8a14cf381c"
+      "modified": false,
+      "diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
   },
   {
@@ -1282,17 +2011,32 @@
         "enabled": true
       }
     ],
-    "revision": "dcd316a1d23b7504ed921a69e7bd9d5cc74223d1",
+    "revision": "e16690f70176d26b00b2ffdad4823ced96e8b8cb",
     "capture": {
-      "qpa": "cocoa",
       "colorScheme": "light",
-      "qtVersion": "6.12.0",
+      "coordinateSpace": "root-client-logical-pixels",
+      "devicePixelRatio": 2,
       "fontFamily": ".AppleSystemUIFont",
-      "fontPointSize": 13
+      "fontPointSize": 13,
+      "logicalDpi": 72,
+      "palette": {
+        "0": "#000000",
+        "10": "#ffffff",
+        "12": "#a5cdff",
+        "13": "#000000",
+        "14": "#094fd1",
+        "6": "#000000",
+        "9": "#ffffff"
+      },
+      "platform": "darwin",
+      "qpa": "cocoa",
+      "qtVersion": "6.12.0",
+      "requestedColorScheme": "light",
+      "schema": 1
     },
     "sourceState": {
-      "modified": true,
-      "diffSha256": "9afdc6ed65d3262e756c2b340e3fdf7cd07f3026f6010f59304abb8a14cf381c"
+      "modified": false,
+      "diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
   },
   {
@@ -1300,12 +2044,6 @@
     "title": "Ход операции",
     "source": "macos/light/progress/progress-dialog-760-0-0-collapsed.json",
     "controls": [
-      {
-        "class": "QPushButton",
-        "name": "IDB_PROGRESS_BACKGROUND",
-        "text": "&Background",
-        "enabled": true
-      },
       {
         "class": "QPushButton",
         "name": "IDB_PAUSE",
@@ -1319,19 +2057,9 @@
         "enabled": true
       },
       {
-        "class": "QScrollArea",
-        "name": "progressControlsScroll",
-        "enabled": true
-      },
-      {
         "class": "QLabel",
         "name": "IDT_PROGRESS_STATUS",
         "text": "",
-        "enabled": true
-      },
-      {
-        "class": "QProgressBar",
-        "name": "IDC_PROGRESS1",
         "enabled": true
       },
       {
@@ -1389,17 +2117,32 @@
         "enabled": true
       }
     ],
-    "revision": "dcd316a1d23b7504ed921a69e7bd9d5cc74223d1",
+    "revision": "e16690f70176d26b00b2ffdad4823ced96e8b8cb",
     "capture": {
-      "qpa": "cocoa",
       "colorScheme": "light",
-      "qtVersion": "6.12.0",
+      "coordinateSpace": "root-client-logical-pixels",
+      "devicePixelRatio": 2,
       "fontFamily": ".AppleSystemUIFont",
-      "fontPointSize": 13
+      "fontPointSize": 13,
+      "logicalDpi": 72,
+      "palette": {
+        "0": "#000000",
+        "10": "#ffffff",
+        "12": "#a5cdff",
+        "13": "#000000",
+        "14": "#094fd1",
+        "6": "#000000",
+        "9": "#ffffff"
+      },
+      "platform": "darwin",
+      "qpa": "cocoa",
+      "qtVersion": "6.12.0",
+      "requestedColorScheme": "light",
+      "schema": 1
     },
     "sourceState": {
-      "modified": true,
-      "diffSha256": "9afdc6ed65d3262e756c2b340e3fdf7cd07f3026f6010f59304abb8a14cf381c"
+      "modified": false,
+      "diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
   },
   {
@@ -1419,17 +2162,32 @@
         "enabled": true
       }
     ],
-    "revision": "dcd316a1d23b7504ed921a69e7bd9d5cc74223d1",
+    "revision": "e16690f70176d26b00b2ffdad4823ced96e8b8cb",
     "capture": {
-      "qpa": "cocoa",
       "colorScheme": "light",
-      "qtVersion": "6.12.0",
+      "coordinateSpace": "root-client-logical-pixels",
+      "devicePixelRatio": 2,
       "fontFamily": ".AppleSystemUIFont",
-      "fontPointSize": 13
+      "fontPointSize": 13,
+      "logicalDpi": 72,
+      "palette": {
+        "0": "#000000",
+        "10": "#ffffff",
+        "12": "#a5cdff",
+        "13": "#000000",
+        "14": "#094fd1",
+        "6": "#000000",
+        "9": "#ffffff"
+      },
+      "platform": "darwin",
+      "qpa": "cocoa",
+      "qtVersion": "6.12.0",
+      "requestedColorScheme": "light",
+      "schema": 1
     },
     "sourceState": {
-      "modified": true,
-      "diffSha256": "9afdc6ed65d3262e756c2b340e3fdf7cd07f3026f6010f59304abb8a14cf381c"
+      "modified": false,
+      "diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
   },
   {
@@ -1455,17 +2213,32 @@
         "enabled": true
       }
     ],
-    "revision": "dcd316a1d23b7504ed921a69e7bd9d5cc74223d1",
+    "revision": "e16690f70176d26b00b2ffdad4823ced96e8b8cb",
     "capture": {
-      "qpa": "cocoa",
       "colorScheme": "light",
-      "qtVersion": "6.12.0",
+      "coordinateSpace": "root-client-logical-pixels",
+      "devicePixelRatio": 2,
       "fontFamily": ".AppleSystemUIFont",
-      "fontPointSize": 13
+      "fontPointSize": 13,
+      "logicalDpi": 72,
+      "palette": {
+        "0": "#000000",
+        "10": "#ffffff",
+        "12": "#a5cdff",
+        "13": "#000000",
+        "14": "#094fd1",
+        "6": "#000000",
+        "9": "#ffffff"
+      },
+      "platform": "darwin",
+      "qpa": "cocoa",
+      "qtVersion": "6.12.0",
+      "requestedColorScheme": "light",
+      "schema": 1
     },
     "sourceState": {
-      "modified": true,
-      "diffSha256": "9afdc6ed65d3262e756c2b340e3fdf7cd07f3026f6010f59304abb8a14cf381c"
+      "modified": false,
+      "diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
   },
   {
@@ -1491,17 +2264,32 @@
         "enabled": true
       }
     ],
-    "revision": "dcd316a1d23b7504ed921a69e7bd9d5cc74223d1",
+    "revision": "e16690f70176d26b00b2ffdad4823ced96e8b8cb",
     "capture": {
-      "qpa": "cocoa",
       "colorScheme": "light",
-      "qtVersion": "6.12.0",
+      "coordinateSpace": "root-client-logical-pixels",
+      "devicePixelRatio": 2,
       "fontFamily": ".AppleSystemUIFont",
-      "fontPointSize": 13
+      "fontPointSize": 13,
+      "logicalDpi": 72,
+      "palette": {
+        "0": "#000000",
+        "10": "#ffffff",
+        "12": "#a5cdff",
+        "13": "#000000",
+        "14": "#094fd1",
+        "6": "#000000",
+        "9": "#ffffff"
+      },
+      "platform": "darwin",
+      "qpa": "cocoa",
+      "qtVersion": "6.12.0",
+      "requestedColorScheme": "light",
+      "schema": 1
     },
     "sourceState": {
-      "modified": true,
-      "diffSha256": "9afdc6ed65d3262e756c2b340e3fdf7cd07f3026f6010f59304abb8a14cf381c"
+      "modified": false,
+      "diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
   },
   {
@@ -1527,17 +2315,32 @@
         "enabled": true
       }
     ],
-    "revision": "dcd316a1d23b7504ed921a69e7bd9d5cc74223d1",
+    "revision": "e16690f70176d26b00b2ffdad4823ced96e8b8cb",
     "capture": {
-      "qpa": "cocoa",
       "colorScheme": "light",
-      "qtVersion": "6.12.0",
+      "coordinateSpace": "root-client-logical-pixels",
+      "devicePixelRatio": 2,
       "fontFamily": ".AppleSystemUIFont",
-      "fontPointSize": 13
+      "fontPointSize": 13,
+      "logicalDpi": 72,
+      "palette": {
+        "0": "#000000",
+        "10": "#ffffff",
+        "12": "#a5cdff",
+        "13": "#000000",
+        "14": "#094fd1",
+        "6": "#000000",
+        "9": "#ffffff"
+      },
+      "platform": "darwin",
+      "qpa": "cocoa",
+      "qtVersion": "6.12.0",
+      "requestedColorScheme": "light",
+      "schema": 1
     },
     "sourceState": {
-      "modified": true,
-      "diffSha256": "9afdc6ed65d3262e756c2b340e3fdf7cd07f3026f6010f59304abb8a14cf381c"
+      "modified": false,
+      "diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
   },
   {
@@ -1573,11 +2376,6 @@
         "class": "QPushButton",
         "name": "IDB_STOP",
         "text": "Стоп",
-        "enabled": true
-      },
-      {
-        "class": "QScrollArea",
-        "name": "benchmarkControlsScroll",
         "enabled": true
       },
       {
@@ -1889,27 +2687,42 @@
       {
         "class": "QLabel",
         "name": "IDT_BENCH_CPU_FEATURE",
-        "text": "Darwin : 27.0.0 : Darwin Kernel Version 27.0.0: Tue Aug 11 21:02:59 PDT 2026; root:xnu-13432.1.9~1/RELEASE_ARM64_T8142 : arm64 :  PageSize:16KB",
+        "text": "Darwin : 27.2.0 : Darwin Kernel Version 27.2.0: Wed Oct 14 23:48:06 PDT 2026; root:xnu-13432.41.4~25/RELEASE_ARM64_T8142 : arm64 :  PageSize:16KB",
         "enabled": true
       },
       {
         "class": "QLabel",
         "name": "IDT_BENCH_VER",
-        "text": "7-Zip 26.04 (arm64)",
+        "text": "7-Zip 26.05 (arm64)",
         "enabled": true
       }
     ],
-    "revision": "dcd316a1d23b7504ed921a69e7bd9d5cc74223d1",
+    "revision": "e16690f70176d26b00b2ffdad4823ced96e8b8cb",
     "capture": {
-      "qpa": "cocoa",
       "colorScheme": "light",
-      "qtVersion": "6.12.0",
+      "coordinateSpace": "root-client-logical-pixels",
+      "devicePixelRatio": 2,
       "fontFamily": ".AppleSystemUIFont",
-      "fontPointSize": 13
+      "fontPointSize": 13,
+      "logicalDpi": 72,
+      "palette": {
+        "0": "#000000",
+        "10": "#ffffff",
+        "12": "#a5cdff",
+        "13": "#000000",
+        "14": "#094fd1",
+        "6": "#000000",
+        "9": "#ffffff"
+      },
+      "platform": "darwin",
+      "qpa": "cocoa",
+      "qtVersion": "6.12.0",
+      "requestedColorScheme": "light",
+      "schema": 1
     },
     "sourceState": {
-      "modified": true,
-      "diffSha256": "9afdc6ed65d3262e756c2b340e3fdf7cd07f3026f6010f59304abb8a14cf381c"
+      "modified": false,
+      "diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
   },
   {
@@ -1953,17 +2766,32 @@
         "enabled": true
       }
     ],
-    "revision": "dcd316a1d23b7504ed921a69e7bd9d5cc74223d1",
+    "revision": "e16690f70176d26b00b2ffdad4823ced96e8b8cb",
     "capture": {
-      "qpa": "cocoa",
       "colorScheme": "light",
-      "qtVersion": "6.12.0",
+      "coordinateSpace": "root-client-logical-pixels",
+      "devicePixelRatio": 2,
       "fontFamily": ".AppleSystemUIFont",
-      "fontPointSize": 13
+      "fontPointSize": 13,
+      "logicalDpi": 72,
+      "palette": {
+        "0": "#000000",
+        "10": "#ffffff",
+        "12": "#a5cdff",
+        "13": "#000000",
+        "14": "#094fd1",
+        "6": "#000000",
+        "9": "#ffffff"
+      },
+      "platform": "darwin",
+      "qpa": "cocoa",
+      "qtVersion": "6.12.0",
+      "requestedColorScheme": "light",
+      "schema": 1
     },
     "sourceState": {
-      "modified": true,
-      "diffSha256": "9afdc6ed65d3262e756c2b340e3fdf7cd07f3026f6010f59304abb8a14cf381c"
+      "modified": false,
+      "diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
   },
   {
@@ -1971,16 +2799,6 @@
     "title": "Настройки · Открытие файлов",
     "source": "macos/light/settings-sections/settings-integration-choices.json",
     "controls": [
-      {
-        "class": "QTabWidget",
-        "name": "optionsPages",
-        "enabled": true
-      },
-      {
-        "class": "QScrollArea",
-        "name": "fileOpeningSection",
-        "enabled": true
-      },
       {
         "class": "QLabel",
         "name": "settingsHeading",
@@ -2046,11 +2864,6 @@
         "enabled": true
       },
       {
-        "class": "QListWidget",
-        "name": "settingsNavigation",
-        "enabled": true
-      },
-      {
         "class": "QPushButton",
         "name": "settingsHelp",
         "text": "?",
@@ -2075,42 +2888,39 @@
         "enabled": false
       }
     ],
-    "revision": "dcd316a1d23b7504ed921a69e7bd9d5cc74223d1",
+    "revision": "e16690f70176d26b00b2ffdad4823ced96e8b8cb",
     "capture": {
-      "qpa": "cocoa",
       "colorScheme": "light",
-      "qtVersion": "6.12.0",
+      "coordinateSpace": "root-client-logical-pixels",
+      "devicePixelRatio": 2,
       "fontFamily": ".AppleSystemUIFont",
-      "fontPointSize": 13
+      "fontPointSize": 13,
+      "logicalDpi": 72,
+      "palette": {
+        "0": "#000000",
+        "10": "#ffffff",
+        "12": "#a5cdff",
+        "13": "#000000",
+        "14": "#094fd1",
+        "6": "#000000",
+        "9": "#ffffff"
+      },
+      "platform": "darwin",
+      "qpa": "cocoa",
+      "qtVersion": "6.12.0",
+      "requestedColorScheme": "light",
+      "schema": 1
     },
     "sourceState": {
-      "modified": true,
-      "diffSha256": "5f2bf014df8ad06898d43e2f4baa9b6775db705218229a93a54d098f2465bf6a"
+      "modified": false,
+      "diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
-  },
-  {
-    "key": "settingsDialog/menuPage",
-    "title": "Настройки · Системное меню",
-    "source": null,
-    "controls": [],
-    "omitted": true,
-    "reason": "Explorer menu integration is unsupported on macOS; omit the section and its review navigation entry."
   },
   {
     "key": "settingsDialog/foldersPage",
     "title": "Настройки · Временные файлы",
     "source": "macos/light/settings-sections/settings-navigation-ru-780-3.json",
     "controls": [
-      {
-        "class": "QTabWidget",
-        "name": "optionsPages",
-        "enabled": true
-      },
-      {
-        "class": "QScrollArea",
-        "name": "temporarySection",
-        "enabled": true
-      },
       {
         "class": "QLabel",
         "name": "settingsHeading",
@@ -2159,11 +2969,6 @@
         "enabled": false
       },
       {
-        "class": "QListWidget",
-        "name": "settingsNavigation",
-        "enabled": true
-      },
-      {
         "class": "QPushButton",
         "name": "settingsHelp",
         "text": "?",
@@ -2188,34 +2993,39 @@
         "enabled": false
       }
     ],
-    "revision": "dcd316a1d23b7504ed921a69e7bd9d5cc74223d1",
+    "revision": "e16690f70176d26b00b2ffdad4823ced96e8b8cb",
     "capture": {
-      "qpa": "cocoa",
       "colorScheme": "light",
-      "qtVersion": "6.12.0",
+      "coordinateSpace": "root-client-logical-pixels",
+      "devicePixelRatio": 2,
       "fontFamily": ".AppleSystemUIFont",
-      "fontPointSize": 12
+      "fontPointSize": 12,
+      "logicalDpi": 72,
+      "palette": {
+        "0": "#000000",
+        "10": "#ffffff",
+        "12": "#a5cdff",
+        "13": "#000000",
+        "14": "#094fd1",
+        "6": "#000000",
+        "9": "#ffffff"
+      },
+      "platform": "darwin",
+      "qpa": "cocoa",
+      "qtVersion": "6.12.0",
+      "requestedColorScheme": "light",
+      "schema": 1
     },
     "sourceState": {
-      "modified": true,
-      "diffSha256": "5f2bf014df8ad06898d43e2f4baa9b6775db705218229a93a54d098f2465bf6a"
+      "modified": false,
+      "diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
   },
   {
     "key": "settingsDialog/editorPage",
-    "title": "Настройки · Приложения",
-    "source": "macos/light/settings-sections/settings-navigation-ru-780-4.json",
+    "title": "Настройки · Внешние приложения",
+    "source": "macos/light/settings-sections/settings-external-apps-expanded.json",
     "controls": [
-      {
-        "class": "QTabWidget",
-        "name": "optionsPages",
-        "enabled": true
-      },
-      {
-        "class": "QScrollArea",
-        "name": "applicationsSection",
-        "enabled": true
-      },
       {
         "class": "QLabel",
         "name": "settingsHeading",
@@ -2280,14 +3090,15 @@
         "enabled": true
       },
       {
-        "class": "QLabel",
-        "name": "",
-        "text": "Можно указать программу и аргументы командной строки.",
+        "class": "QCheckBox",
+        "name": "confirmUnknownFileOpenOption",
+        "text": "Спрашивать перед открытием неизвестных типов файлов",
         "enabled": true
       },
       {
-        "class": "QListWidget",
-        "name": "settingsNavigation",
+        "class": "QLabel",
+        "name": "",
+        "text": "Можно указать программу и аргументы командной строки.",
         "enabled": true
       },
       {
@@ -2312,37 +3123,42 @@
         "class": "QPushButton",
         "name": "",
         "text": "Применить",
-        "enabled": false
+        "enabled": true
       }
     ],
-    "revision": "dcd316a1d23b7504ed921a69e7bd9d5cc74223d1",
+    "revision": "e16690f70176d26b00b2ffdad4823ced96e8b8cb",
     "capture": {
-      "qpa": "cocoa",
       "colorScheme": "light",
-      "qtVersion": "6.12.0",
+      "coordinateSpace": "root-client-logical-pixels",
+      "devicePixelRatio": 2,
       "fontFamily": ".AppleSystemUIFont",
-      "fontPointSize": 12
+      "fontPointSize": 13,
+      "logicalDpi": 72,
+      "palette": {
+        "0": "#000000",
+        "10": "#ffffff",
+        "12": "#a5cdff",
+        "13": "#000000",
+        "14": "#094fd1",
+        "6": "#000000",
+        "9": "#ffffff"
+      },
+      "platform": "darwin",
+      "qpa": "cocoa",
+      "qtVersion": "6.12.0",
+      "requestedColorScheme": "light",
+      "schema": 1
     },
     "sourceState": {
-      "modified": true,
-      "diffSha256": "5f2bf014df8ad06898d43e2f4baa9b6775db705218229a93a54d098f2465bf6a"
+      "modified": false,
+      "diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
   },
   {
     "key": "settingsDialog/settingsPage",
     "title": "Настройки · Основные",
-    "source": "macos/light/settings-sections/settings-navigation-ru-780-0.json",
+    "source": "macos/light/settings-sections/settings-general.json",
     "controls": [
-      {
-        "class": "QTabWidget",
-        "name": "optionsPages",
-        "enabled": true
-      },
-      {
-        "class": "QScrollArea",
-        "name": "generalSection",
-        "enabled": true
-      },
       {
         "class": "QLabel",
         "name": "settingsHeading",
@@ -2386,11 +3202,6 @@
         "enabled": true
       },
       {
-        "class": "QListWidget",
-        "name": "settingsNavigation",
-        "enabled": true
-      },
-      {
         "class": "QPushButton",
         "name": "settingsHelp",
         "text": "?",
@@ -2412,20 +3223,35 @@
         "class": "QPushButton",
         "name": "",
         "text": "Применить",
-        "enabled": false
+        "enabled": true
       }
     ],
-    "revision": "dcd316a1d23b7504ed921a69e7bd9d5cc74223d1",
+    "revision": "e16690f70176d26b00b2ffdad4823ced96e8b8cb",
     "capture": {
-      "qpa": "cocoa",
       "colorScheme": "light",
-      "qtVersion": "6.12.0",
+      "coordinateSpace": "root-client-logical-pixels",
+      "devicePixelRatio": 2,
       "fontFamily": ".AppleSystemUIFont",
-      "fontPointSize": 12
+      "fontPointSize": 13,
+      "logicalDpi": 72,
+      "palette": {
+        "0": "#000000",
+        "10": "#ffffff",
+        "12": "#a5cdff",
+        "13": "#000000",
+        "14": "#094fd1",
+        "6": "#000000",
+        "9": "#ffffff"
+      },
+      "platform": "darwin",
+      "qpa": "cocoa",
+      "qtVersion": "6.12.0",
+      "requestedColorScheme": "light",
+      "schema": 1
     },
     "sourceState": {
-      "modified": true,
-      "diffSha256": "5f2bf014df8ad06898d43e2f4baa9b6775db705218229a93a54d098f2465bf6a"
+      "modified": false,
+      "diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
   },
   {
@@ -2433,16 +3259,6 @@
     "title": "Настройки · Сведения о переводе",
     "source": "macos/light/settings-sections/settings-translation-expanded.json",
     "controls": [
-      {
-        "class": "QTabWidget",
-        "name": "optionsPages",
-        "enabled": true
-      },
-      {
-        "class": "QScrollArea",
-        "name": "generalSection",
-        "enabled": true
-      },
       {
         "class": "QLabel",
         "name": "settingsHeading",
@@ -2485,11 +3301,6 @@
         "enabled": true
       },
       {
-        "class": "QListWidget",
-        "name": "settingsNavigation",
-        "enabled": true
-      },
-      {
         "class": "QPushButton",
         "name": "settingsHelp",
         "text": "?",
@@ -2514,229 +3325,39 @@
         "enabled": true
       }
     ],
-    "revision": "dcd316a1d23b7504ed921a69e7bd9d5cc74223d1",
+    "revision": "e16690f70176d26b00b2ffdad4823ced96e8b8cb",
     "capture": {
-      "qpa": "cocoa",
       "colorScheme": "light",
-      "qtVersion": "6.12.0",
+      "coordinateSpace": "root-client-logical-pixels",
+      "devicePixelRatio": 2,
       "fontFamily": ".AppleSystemUIFont",
-      "fontPointSize": 13
+      "fontPointSize": 13,
+      "logicalDpi": 72,
+      "palette": {
+        "0": "#000000",
+        "10": "#ffffff",
+        "12": "#a5cdff",
+        "13": "#000000",
+        "14": "#094fd1",
+        "6": "#000000",
+        "9": "#ffffff"
+      },
+      "platform": "darwin",
+      "qpa": "cocoa",
+      "qtVersion": "6.12.0",
+      "requestedColorScheme": "light",
+      "schema": 1
     },
     "sourceState": {
-      "modified": true,
-      "diffSha256": "5f2bf014df8ad06898d43e2f4baa9b6775db705218229a93a54d098f2465bf6a"
+      "modified": false,
+      "diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
   },
   {
-    "key": "helpWindow",
-    "title": "Справка",
-    "source": "macos/light/help/help-ru-760.json",
-    "controls": [
-      {
-        "class": "QPushButton",
-        "name": "",
-        "text": "&Закрыть",
-        "enabled": true
-      },
-      {
-        "class": "QPushButton",
-        "name": "helpBack",
-        "text": "Назад",
-        "enabled": false
-      },
-      {
-        "class": "QTextBrowser",
-        "name": "helpBrowser",
-        "enabled": true
-      }
-    ],
-    "revision": "dcd316a1d23b7504ed921a69e7bd9d5cc74223d1",
-    "capture": {
-      "qpa": "cocoa",
-      "colorScheme": "light",
-      "qtVersion": "6.12.0",
-      "fontFamily": ".AppleSystemUIFont",
-      "fontPointSize": 13
-    },
-    "sourceState": {
-      "modified": true,
-      "diffSha256": "9afdc6ed65d3262e756c2b340e3fdf7cd07f3026f6010f59304abb8a14cf381c"
-    }
-  },
-  {
-    "key": "aboutDialog",
-    "title": "О приложении",
-    "source": "macos/light/common-dialogs/standard-buttons-about-ru-360.json",
-    "controls": [
-      {
-        "class": "QPushButton",
-        "name": "aboutProjectHomepage",
-        "text": "Сайт проекта",
-        "enabled": true
-      },
-      {
-        "class": "QPushButton",
-        "name": "",
-        "text": "Закрыть",
-        "enabled": true
-      },
-      {
-        "class": "QLabel",
-        "name": "aboutApplicationName",
-        "text": "Sevenzip",
-        "enabled": true
-      },
-      {
-        "class": "QLabel",
-        "name": "aboutApplicationVersion",
-        "text": "0.1.3",
-        "enabled": true
-      },
-      {
-        "class": "QLabel",
-        "name": "aboutDescription",
-        "text": "Независимый файловый менеджер на основе 7‑Zip.",
-        "enabled": true
-      },
-      {
-        "class": "QLabel",
-        "name": "aboutText101",
-        "text": "На основе 7-Zip 26.04 (arm64)",
-        "enabled": true
-      },
-      {
-        "class": "QLabel",
-        "name": "aboutText102",
-        "text": "Дата выпуска 7-Zip: 2026-10-05",
-        "enabled": true
-      },
-      {
-        "class": "QLabel",
-        "name": "aboutText2901",
-        "text": "7-Zip является свободно распространяемой программой.",
-        "enabled": true
-      },
-      {
-        "class": "QLabel",
-        "name": "aboutUpstreamCopyright",
-        "text": "Copyright (c) 1999-2026 Igor Pavlov",
-        "enabled": true
-      },
-      {
-        "class": "QPushButton",
-        "name": "aboutLicense",
-        "text": "Лицензия 7-Zip",
-        "enabled": true
-      },
-      {
-        "class": "QPushButton",
-        "name": "aboutHomepage",
-        "text": "www.7-zip.org",
-        "enabled": true
-      }
-    ],
-    "revision": "dcd316a1d23b7504ed921a69e7bd9d5cc74223d1",
-    "capture": {
-      "qpa": "cocoa",
-      "colorScheme": "light",
-      "qtVersion": "6.12.0",
-      "fontFamily": ".AppleSystemUIFont",
-      "fontPointSize": 13
-    },
-    "sourceState": {
-      "modified": true,
-      "diffSha256": "9afdc6ed65d3262e756c2b340e3fdf7cd07f3026f6010f59304abb8a14cf381c"
-    }
-  },
-  {
-    "key": "errors/QMessageBox",
-    "title": "Ошибка операции",
-    "source": "macos/light/errors/gui-error-output-0-0---320.json",
-    "controls": [
-      {
-        "class": "QLabel",
-        "name": "qt_msgboxex_icon_label",
-        "text": "",
-        "enabled": true
-      },
-      {
-        "class": "QLabel",
-        "name": "qt_msgbox_label",
-        "text": "Incorrect output directory path",
-        "enabled": true
-      },
-      {
-        "class": "QPushButton",
-        "name": "",
-        "text": "OK",
-        "enabled": true
-      }
-    ],
-    "revision": "dcd316a1d23b7504ed921a69e7bd9d5cc74223d1",
-    "capture": {
-      "qpa": "cocoa",
-      "colorScheme": "light",
-      "qtVersion": "6.12.0",
-      "fontFamily": ".AppleSystemUIFont",
-      "fontPointSize": 13
-    },
-    "sourceState": {
-      "modified": true,
-      "diffSha256": "9afdc6ed65d3262e756c2b340e3fdf7cd07f3026f6010f59304abb8a14cf381c"
-    }
-  },
-  {
-    "key": "splitVolumeError",
-    "title": "Неверный размер тома",
-    "source": "macos/light/split-combine/split-invalid-volume-340.json",
-    "controls": [
-      {
-        "class": "QLabel",
-        "name": "qt_msgboxex_icon_label",
-        "text": "",
-        "enabled": true
-      },
-      {
-        "class": "QLabel",
-        "name": "qt_msgbox_label",
-        "text": "Incorrect volume size",
-        "enabled": true
-      },
-      {
-        "class": "QPushButton",
-        "name": "",
-        "text": "OK",
-        "enabled": true
-      }
-    ],
-    "revision": "dcd316a1d23b7504ed921a69e7bd9d5cc74223d1",
-    "capture": {
-      "qpa": "cocoa",
-      "colorScheme": "light",
-      "qtVersion": "6.12.0",
-      "fontFamily": ".AppleSystemUIFont",
-      "fontPointSize": 13
-    },
-    "sourceState": {
-      "modified": true,
-      "diffSha256": "9afdc6ed65d3262e756c2b340e3fdf7cd07f3026f6010f59304abb8a14cf381c"
-    }
-  },
-  {
-    "key": "settingsDialog/memory",
+    "key": "settingsDialog/settingsPage",
     "title": "Настройки · Память",
     "source": "macos/light/settings-sections/settings-navigation-ru-780-2.json",
     "controls": [
-      {
-        "class": "QTabWidget",
-        "name": "optionsPages",
-        "enabled": true
-      },
-      {
-        "class": "QScrollArea",
-        "name": "memorySection",
-        "enabled": true
-      },
       {
         "class": "QLabel",
         "name": "settingsHeading",
@@ -2762,11 +3383,6 @@
         "enabled": true
       },
       {
-        "class": "QtMemoryLimitSpin",
-        "name": "extractMemorySpin",
-        "enabled": false
-      },
-      {
         "class": "QLineEdit",
         "name": "extractMemoryEdit",
         "enabled": false
@@ -2775,11 +3391,6 @@
         "class": "QLabel",
         "name": "extractMemoryRam",
         "text": "На этом компьютере: 16 ГБ",
-        "enabled": true
-      },
-      {
-        "class": "QListWidget",
-        "name": "settingsNavigation",
         "enabled": true
       },
       {
@@ -2807,34 +3418,39 @@
         "enabled": false
       }
     ],
-    "revision": "dcd316a1d23b7504ed921a69e7bd9d5cc74223d1",
+    "revision": "e16690f70176d26b00b2ffdad4823ced96e8b8cb",
     "capture": {
-      "qpa": "cocoa",
       "colorScheme": "light",
-      "qtVersion": "6.12.0",
+      "coordinateSpace": "root-client-logical-pixels",
+      "devicePixelRatio": 2,
       "fontFamily": ".AppleSystemUIFont",
-      "fontPointSize": 12
+      "fontPointSize": 12,
+      "logicalDpi": 72,
+      "palette": {
+        "0": "#000000",
+        "10": "#ffffff",
+        "12": "#a5cdff",
+        "13": "#000000",
+        "14": "#094fd1",
+        "6": "#000000",
+        "9": "#ffffff"
+      },
+      "platform": "darwin",
+      "qpa": "cocoa",
+      "qtVersion": "6.12.0",
+      "requestedColorScheme": "light",
+      "schema": 1
     },
     "sourceState": {
-      "modified": true,
-      "diffSha256": "5f2bf014df8ad06898d43e2f4baa9b6775db705218229a93a54d098f2465bf6a"
+      "modified": false,
+      "diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
   },
   {
-    "key": "settingsDialog/fileList",
+    "key": "settingsDialog/settingsPage",
     "title": "Настройки · Список файлов",
     "source": "macos/light/settings-sections/settings-navigation-ru-780-5.json",
     "controls": [
-      {
-        "class": "QTabWidget",
-        "name": "optionsPages",
-        "enabled": true
-      },
-      {
-        "class": "QScrollArea",
-        "name": "fileListSection",
-        "enabled": true
-      },
       {
         "class": "QLabel",
         "name": "settingsHeading",
@@ -2896,11 +3512,6 @@
         "enabled": true
       },
       {
-        "class": "QListWidget",
-        "name": "settingsNavigation",
-        "enabled": true
-      },
-      {
         "class": "QPushButton",
         "name": "settingsHelp",
         "text": "?",
@@ -2925,17 +3536,287 @@
         "enabled": false
       }
     ],
-    "revision": "dcd316a1d23b7504ed921a69e7bd9d5cc74223d1",
+    "revision": "e16690f70176d26b00b2ffdad4823ced96e8b8cb",
     "capture": {
-      "qpa": "cocoa",
       "colorScheme": "light",
-      "qtVersion": "6.12.0",
+      "coordinateSpace": "root-client-logical-pixels",
+      "devicePixelRatio": 2,
       "fontFamily": ".AppleSystemUIFont",
-      "fontPointSize": 12
+      "fontPointSize": 12,
+      "logicalDpi": 72,
+      "palette": {
+        "0": "#000000",
+        "10": "#ffffff",
+        "12": "#a5cdff",
+        "13": "#000000",
+        "14": "#094fd1",
+        "6": "#000000",
+        "9": "#ffffff"
+      },
+      "platform": "darwin",
+      "qpa": "cocoa",
+      "qtVersion": "6.12.0",
+      "requestedColorScheme": "light",
+      "schema": 1
     },
     "sourceState": {
-      "modified": true,
-      "diffSha256": "5f2bf014df8ad06898d43e2f4baa9b6775db705218229a93a54d098f2465bf6a"
+      "modified": false,
+      "diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  {
+    "key": "helpWindow",
+    "title": "Справка",
+    "source": "macos/light/help/help-ru-760.json",
+    "controls": [
+      {
+        "class": "QPushButton",
+        "name": "",
+        "text": "&Закрыть",
+        "enabled": true
+      },
+      {
+        "class": "QPushButton",
+        "name": "helpBack",
+        "text": "Назад",
+        "enabled": false
+      },
+      {
+        "class": "QTextBrowser",
+        "name": "helpBrowser",
+        "enabled": true
+      }
+    ],
+    "revision": "e16690f70176d26b00b2ffdad4823ced96e8b8cb",
+    "capture": {
+      "colorScheme": "light",
+      "coordinateSpace": "root-client-logical-pixels",
+      "devicePixelRatio": 2,
+      "fontFamily": ".AppleSystemUIFont",
+      "fontPointSize": 13,
+      "logicalDpi": 72,
+      "palette": {
+        "0": "#000000",
+        "10": "#ffffff",
+        "12": "#a5cdff",
+        "13": "#000000",
+        "14": "#094fd1",
+        "6": "#000000",
+        "9": "#ffffff"
+      },
+      "platform": "darwin",
+      "qpa": "cocoa",
+      "qtVersion": "6.12.0",
+      "requestedColorScheme": "light",
+      "schema": 1
+    },
+    "sourceState": {
+      "modified": false,
+      "diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  {
+    "key": "aboutDialog",
+    "title": "О приложении",
+    "source": "macos/light/common-dialogs/standard-buttons-about-ru-360.json",
+    "controls": [
+      {
+        "class": "QPushButton",
+        "name": "aboutProjectHomepage",
+        "text": "Сайт проекта",
+        "enabled": true
+      },
+      {
+        "class": "QPushButton",
+        "name": "",
+        "text": "Закрыть",
+        "enabled": true
+      },
+      {
+        "class": "QLabel",
+        "name": "aboutApplicationName",
+        "text": "Sevenzip",
+        "enabled": true
+      },
+      {
+        "class": "QLabel",
+        "name": "aboutApplicationVersion",
+        "text": "0.1.13",
+        "enabled": true
+      },
+      {
+        "class": "QLabel",
+        "name": "aboutDescription",
+        "text": "Независимый файловый менеджер на основе 7‑Zip.",
+        "enabled": true
+      },
+      {
+        "class": "QLabel",
+        "name": "aboutText101",
+        "text": "На основе 7-Zip 26.05",
+        "enabled": true
+      },
+      {
+        "class": "QLabel",
+        "name": "aboutText102",
+        "text": "Дата выпуска 7-Zip: 2026-10-21",
+        "enabled": true
+      },
+      {
+        "class": "QLabel",
+        "name": "aboutText2901",
+        "text": "7-Zip является свободно распространяемой программой.",
+        "enabled": true
+      },
+      {
+        "class": "QLabel",
+        "name": "aboutUpstreamCopyright",
+        "text": "Copyright (c) 1999-2026 Igor Pavlov",
+        "enabled": true
+      },
+      {
+        "class": "QPushButton",
+        "name": "aboutLicense",
+        "text": "Лицензия 7-Zip",
+        "enabled": true
+      },
+      {
+        "class": "QPushButton",
+        "name": "aboutHomepage",
+        "text": "www.7-zip.org",
+        "enabled": true
+      }
+    ],
+    "revision": "e16690f70176d26b00b2ffdad4823ced96e8b8cb",
+    "capture": {
+      "colorScheme": "light",
+      "coordinateSpace": "root-client-logical-pixels",
+      "devicePixelRatio": 2,
+      "fontFamily": ".AppleSystemUIFont",
+      "fontPointSize": 13,
+      "logicalDpi": 72,
+      "palette": {
+        "0": "#000000",
+        "10": "#ffffff",
+        "12": "#a5cdff",
+        "13": "#000000",
+        "14": "#094fd1",
+        "6": "#000000",
+        "9": "#ffffff"
+      },
+      "platform": "darwin",
+      "qpa": "cocoa",
+      "qtVersion": "6.12.0",
+      "requestedColorScheme": "light",
+      "schema": 1
+    },
+    "sourceState": {
+      "modified": false,
+      "diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  {
+    "key": "errors/QMessageBox",
+    "title": "Ошибка операции",
+    "source": "macos/light/errors/gui-error-output-0-0---320.json",
+    "controls": [
+      {
+        "class": "QLabel",
+        "name": "qt_msgboxex_icon_label",
+        "text": "",
+        "enabled": true
+      },
+      {
+        "class": "QLabel",
+        "name": "qt_msgbox_label",
+        "text": "Incorrect output directory path",
+        "enabled": true
+      },
+      {
+        "class": "QPushButton",
+        "name": "",
+        "text": "OK",
+        "enabled": true
+      }
+    ],
+    "revision": "e16690f70176d26b00b2ffdad4823ced96e8b8cb",
+    "capture": {
+      "colorScheme": "light",
+      "coordinateSpace": "root-client-logical-pixels",
+      "devicePixelRatio": 2,
+      "fontFamily": ".AppleSystemUIFont",
+      "fontPointSize": 13,
+      "logicalDpi": 72,
+      "palette": {
+        "0": "#000000",
+        "10": "#ffffff",
+        "12": "#d4d4d4",
+        "13": "#000000",
+        "14": "#0000ff",
+        "6": "#000000",
+        "9": "#ffffff"
+      },
+      "platform": "darwin",
+      "qpa": "cocoa",
+      "qtVersion": "6.12.0",
+      "requestedColorScheme": "light",
+      "schema": 1
+    },
+    "sourceState": {
+      "modified": false,
+      "diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  {
+    "key": "splitVolumeError",
+    "title": "Неверный размер тома",
+    "source": "macos/light/split-combine/split-invalid-volume-340.json",
+    "controls": [
+      {
+        "class": "QLabel",
+        "name": "qt_msgboxex_icon_label",
+        "text": "",
+        "enabled": true
+      },
+      {
+        "class": "QLabel",
+        "name": "qt_msgbox_label",
+        "text": "Incorrect volume size",
+        "enabled": true
+      },
+      {
+        "class": "QPushButton",
+        "name": "",
+        "text": "OK",
+        "enabled": true
+      }
+    ],
+    "revision": "e16690f70176d26b00b2ffdad4823ced96e8b8cb",
+    "capture": {
+      "colorScheme": "light",
+      "coordinateSpace": "root-client-logical-pixels",
+      "devicePixelRatio": 2,
+      "fontFamily": ".AppleSystemUIFont",
+      "fontPointSize": 13,
+      "logicalDpi": 72,
+      "palette": {
+        "0": "#000000",
+        "10": "#ffffff",
+        "12": "#d4d4d4",
+        "13": "#000000",
+        "14": "#0000ff",
+        "6": "#000000",
+        "9": "#ffffff"
+      },
+      "platform": "darwin",
+      "qpa": "cocoa",
+      "qtVersion": "6.12.0",
+      "requestedColorScheme": "light",
+      "schema": 1
+    },
+    "sourceState": {
+      "modified": false,
+      "diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
   }
 ]

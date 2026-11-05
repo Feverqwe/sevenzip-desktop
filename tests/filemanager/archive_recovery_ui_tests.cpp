@@ -301,5 +301,6 @@ class ArchiveRecoveryUiTests final : public QObject {
         QCOMPARE(source.readAll(), bytes);
     }
 };
-QTEST_MAIN(ArchiveRecoveryUiTests)
+#include "ui/support/review_test_main.h"
+SEVENZIP_UI_TEST_MAIN(ArchiveRecoveryUiTests)
 #include "archive_recovery_ui_tests.moc"
