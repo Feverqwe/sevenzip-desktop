@@ -173,17 +173,16 @@ void QtArchiveMountSession::cleanup() {
     finishCleanup();
 }
 void QtArchiveMountSession::finishCleanup() {
-    if (!cleanupStarted() || worker_.isRunning() || child_.state() != QProcess::NotRunning)
+    if (status_ != Status::Stopping || worker_.isRunning() ||
+        child_.state() != QProcess::NotRunning)
         return;
     if (directory_ && directory_->isValid()) {
         QDir root(directory_->path());
         root.rmdir("volume");
         QDir().rmdir(root.path());
     }
-    if (status_ != Status::Stopped) {
-        setStatus(Status::Stopped);
-        emit stopped();
-    }
+    setStatus(Status::Stopped);
+    emit stopped();
 }
 bool QtArchiveMountSession::cleanupStarted() const {
     return status_ == Status::Stopping || status_ == Status::Stopped;

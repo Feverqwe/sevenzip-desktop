@@ -1,5 +1,32 @@
 # Local read-only SMB: implementation and evidence
 
+## Session cleanup has one terminal transition — 2026-11-05
+
+Reviewed the complete local session lifecycle and its source worker/server,
+native-client bridge, manager disconnect/retry/owner-close and stopped-record
+consumers together. These are project-owned Qt integration, with no 7zFM mount
+counterpart; existing archive readers and recorded SMB/native dependencies are
+unchanged. No external implementation is imported or baseline revision advanced.
+
+Cleanup completion now admits only Stopping sessions, after both the reader
+worker and SMB child have exited. It removes only the known empty private
+directories and publishes Stopped once. Late completion notifications return at
+the same admission boundary instead of retrying directory removal and separately
+checking whether to repeat the stopped signal. Mount/unmount ordering, server
+retention during native mounting, retry/force policy and abnormal-shutdown
+directory retention remain unchanged; no state or timer is added.
+
+Session behavior checks retain cancellation before/after preparation and add
+failed server launch for real TAR/ZIP retained readers. Repeated disconnect and
+queued completions preserve the terminal error, emit stopped once and leave
+source bytes unchanged. Manager and loopback transport consumers retain their
+existing checks; native OS-mount acceptance remains a separate explicit opt-in.
+
+Focused Linux validation passed: mount_session, mount_extraction_prompt and
+ordinary archive_mount_transport checks (58 Qt checks). The five native
+OS-mount cases in the transport suite were skipped by their existing opt-in
+gate. No Windows/macOS, native mount or appearance acceptance is claimed.
+
 ## Symbolic links and copy attributes — 2026-11-04
 
 Compared the pinned libsmb2 create, directory-info, query-info, ioctl, reparse
