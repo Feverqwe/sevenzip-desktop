@@ -1,3 +1,4 @@
+#include "7zip/PropID.h"
 #include "7zip/UI/FileManager/LinkDialogRes.h"
 #include "filemanager/support/panel_model_support.h"
 #include "filemanager/support/window_state_support.h"
@@ -5,20 +6,57 @@
 
 class LinkCommandTests final : public QObject, protected MainWindowTestSupport {
     Q_OBJECT
+    static void showLinkColumn(FileTable &view) {
+        QString label;
+        const auto &columns = view.sourcePanel->GetColumns();
+        FOR_VECTOR(i, columns)
+        if (columns[i].ID == kpidNtReparse)
+            label = ToQString(columns[i].Name);
+        QVERIFY(!label.isEmpty());
+        bool found = false;
+        QTimer::singleShot(0, &view, [&] {
+            auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
+            QVERIFY(menu);
+            for (auto *option : menu->actions())
+                if (option->text() == label) {
+                    if (!option->isChecked())
+                        option->trigger();
+                    found = true;
+                    break;
+                }
+            menu->close();
+        });
+        QVERIFY(QMetaObject::invokeMethod(view.horizontalHeader(), "customContextMenuRequested",
+                                          Qt::DirectConnection, Q_ARG(QPoint, QPoint(10, 5))));
+        QVERIFY(found);
+    }
+
   private slots:
+    void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
     void sourceMenuCreatesLinkAndKeepsSelection_data() {
         QTest::addColumn<bool>("cancel");
-        QTest::newRow("create") << false;
-        QTest::newRow("cancel") << true;
+        QTest::addColumn<bool>("deferred");
+        QTest::newRow("create") << false << false;
+        QTest::newRow("cancel") << true << false;
+#ifdef Q_OS_WIN
+        QTest::newRow("deferred-create") << false << true;
+        QTest::newRow("deferred-cancel") << true << true;
+#endif
     }
     void sourceMenuCreatesLinkAndKeepsSelection() {
         QFETCH(bool, cancel);
+        QFETCH(bool, deferred);
         QTemporaryDir temp;
         const QString name = QStringLiteral("исходный файл 空.txt");
         QFile input(temp.filePath(name));
         QVERIFY(input.open(QIODevice::WriteOnly));
         QCOMPARE(input.write("source bytes"), qint64(12));
         input.close();
+        if (deferred)
+            for (int i = 0; i < 257; ++i) {
+                QFile extra(temp.filePath(QString("extra-%1.txt").arg(i)));
+                QVERIFY(extra.open(QIODevice::WriteOnly));
+            }
         ControlledBackend backend;
         MainWindow window(&backend);
         window.show();
@@ -26,10 +64,18 @@ class LinkCommandTests final : public QObject, protected MainWindowTestSupport {
         address->setText(temp.path());
         QTest::keyClick(address, Qt::Key_Return);
         QTRY_VERIFY(filesystemRow(window, name) >= 0);
+        QTRY_VERIFY(table(window)->isEnabled());
+        if (deferred) {
+            showLinkColumn(*table(window));
+            QVERIFY(!QTest::currentTestFailed());
+        }
+        if (!action(window, "autoRefreshAction")->isChecked())
+            action(window, "autoRefreshAction")->trigger();
         table(window)->selectRow(filesystemRow(window, name));
         auto *link = action(window, "linkAction");
         QTRY_VERIFY(link->isEnabled());
         const QString output = temp.filePath(QStringLiteral("новая ссылка.txt"));
+        const QString duringName = QStringLiteral("во время диалога 空.txt");
         bool opened = false;
         QStringList errors;
         QTimer responder;
@@ -57,11 +103,21 @@ class LinkCommandTests final : public QObject, protected MainWindowTestSupport {
                          temp.filePath(name).normalized(QString::NormalizationForm_C));
                 from->setEditText(output);
                 dialog->findChild<QRadioButton *>("IDR_LINK_TYPE_HARD")->setChecked(true);
-                if (cancel)
-                    dialog->reject();
-                else
-                    QTimer::singleShot(0, dialog->findChild<QPushButton *>("IDB_LINK_LINK"),
-                                       &QPushButton::click);
+                if (!deferred) {
+                    QFile during(temp.filePath(duringName));
+                    QVERIFY(during.open(QIODevice::WriteOnly));
+                    during.close();
+                }
+                QTimer::singleShot(deferred ? 0 : 1200, dialog, [&, dialog] {
+                    const bool changed = filesystemRow(window, duringName) >= 0;
+                    if (changed)
+                        dialog->reject();
+                    QVERIFY(!changed);
+                    if (cancel)
+                        dialog->reject();
+                    else
+                        dialog->findChild<QPushButton *>("IDB_LINK_LINK")->click();
+                });
                 guard.armed = false;
             }
         });
@@ -71,6 +127,7 @@ class LinkCommandTests final : public QObject, protected MainWindowTestSupport {
         QVERIFY(opened);
         QVERIFY2(errors.isEmpty(), qPrintable(errors.join(';')));
         QCOMPARE(QFileInfo::exists(output), !cancel);
+        QTRY_VERIFY(table(window)->isEnabled());
         QTRY_VERIFY(link->isEnabled());
         QTRY_VERIFY(filesystemRow(window, name) >= 0);
         QVERIFY(PanelIndexSelected(table(window)->model()->index(filesystemRow(window, name), 0)));
@@ -84,6 +141,12 @@ class LinkCommandTests final : public QObject, protected MainWindowTestSupport {
         }
         QCOMPARE(backend.listCalls, 0);
         QVERIFY(!QApplication::activeModalWidget());
+        const QString nextName = QStringLiteral("после диалога 空.txt");
+        QFile next(temp.filePath(nextName));
+        QVERIFY(next.open(QIODevice::WriteOnly));
+        QCOMPARE(next.write("next bytes"), qint64(10));
+        next.close();
+        QTRY_VERIFY(filesystemRow(window, nextName) >= 0);
     }
     void unavailableForMultipleSelectionAndArchive() {
         QTemporaryDir temp;
