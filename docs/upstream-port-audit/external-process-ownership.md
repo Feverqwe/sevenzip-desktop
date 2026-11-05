@@ -1,5 +1,32 @@
 # External-process ownership
 
+## Complete File Manager comparison owner — 2026-11-05
+
+Reviewed both original CApp::DiffFiles overloads, selection/flat-path policy,
+configured launch parsing, process services, version-control Diff and Qt command
+consumers. Complete original PanelItemOpen.cpp at
+`b88c6bc09339de32f7d18bbab900686b244f42ba` matches its recorded baseline.
+No external source or native process algorithm is imported or changed.
+
+Both comparison bodies now live together in AppDiff.cpp with the File Manager
+application commands, in the same panel target. Panel item opening no longer
+depends on the application interface; it retains its element-opening and
+changed-file-update responsibilities. The baseline records both transferred
+overloads under their original unit. Their complete bodies and the remaining
+panel bodies are unchanged apart from removing the obsolete include.
+
+Selected-pair ordering, opposite-panel selection, relative and flat basename
+fallback, no-command handling, separate argv paths and launch-failure diagnostics
+retain their original owners and behavior. Existing editor-launch, comparison
+and version-control regressions cover these routes with actual synthetic
+processes. No new class, state, parser, test or visible UI change is introduced.
+
+Linux external_editors_ui, external_launch and verctrl passed 43 checks without
+failures or skips. Inventory and whitespace checks passed; selected scratch was
+empty and no active tests or disposable settings remained. Four-job incremental
+compilation reused the compiler cache. No platform process implementation changed,
+so no secondary-platform, full/slow-suite or new appearance acceptance is claimed.
+
 ## One external-session stop transition — 2026-11-05
 
 Reviewed editor preference/launch, per-panel session creation, process waits,

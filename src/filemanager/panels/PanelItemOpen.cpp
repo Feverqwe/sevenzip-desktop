@@ -4,7 +4,6 @@
 #include "7zip/UI/FileManager/resource.h"
 #include "Common/StringConvert.h"
 #include "Windows/ErrorMsg.h"
-#include "filemanager/App.h"
 #include "filemanager/FormatUtils.h"
 #include "filemanager/UpdateCallback100.h"
 #include "filemanager/external/qtexternalapplications.h"
@@ -151,59 +150,6 @@ void CPanel::EditItem(unsigned index, bool useEditor) {
     }
     StartEditApplication(GetItemFullPath(index), useEditor, GetParent(), *_externalFileServices,
                          _settingsPath);
-}
-
-void CApp::DiffFiles() {
-    const CPanel &panel = GetFocusedPanel();
-    if (!panel.Is_IO_FS_Folder()) {
-        panel.MessageBox_Error_UnsupportOperation();
-        return;
-    }
-    CRecordVector<UInt32> indices;
-    panel.Get_ItemIndices_Selected(indices);
-    UString path1, path2;
-    if (indices.Size() == 2) {
-        path1 = panel.GetItemFullPath(indices[0]);
-        path2 = panel.GetItemFullPath(indices[1]);
-    } else if (indices.Size() == 1 && NumPanels >= 2) {
-        const CPanel &destPanel = Panels[1 - LastFocusedPanel];
-        if (!destPanel.Is_IO_FS_Folder()) {
-            panel.MessageBox_Error_UnsupportOperation();
-            return;
-        }
-        path1 = panel.GetItemFullPath(indices[0]);
-        CRecordVector<UInt32> indices2;
-        destPanel.Get_ItemIndices_Selected(indices2);
-        if (indices2.Size() == 1)
-            path2 = destPanel.GetItemFullPath(indices2[0]);
-        else {
-            UString relPath = panel.GetItemRelPath2(indices[0]);
-            if (panel._flatMode && !destPanel._flatMode)
-                relPath = panel.GetItemName(indices[0]);
-            path2 = destPanel._currentFolderPrefix + relPath;
-        }
-    } else
-        return;
-    DiffFiles(path1, path2);
-}
-
-void CApp::DiffFiles(const UString &path1, const UString &path2) {
-    UString command;
-    ReadRegDiff(command, _settingsPath);
-    if (command.IsEmpty())
-        return;
-    UStringVector params;
-    params.Add(path1);
-    params.Add(path2);
-    auto *process = GetFocusedPanel()._externalFileServices;
-    if (!process) {
-        GetFocusedPanel().MessageBox_Error_UnsupportOperation();
-        return;
-    }
-    const HRESULT res = StartAppWithParams(command, params, *process, _window);
-    if (res == S_OK)
-        return;
-    GetFocusedPanel().MessageBox_Error(LangString(IDS_CANNOT_START_EDITOR));
 }
 
 bool CPanel::IsVirus_Message(const UString &name) {

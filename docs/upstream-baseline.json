@@ -1731,6 +1731,7 @@
     "src/dialogs/mem/qtmemoryrequestpresentation.cpp",
     "src/dialogs/overwrite/qtoverwritepresentation.cpp",
     "src/filemanager/AppCopy.cpp",
+    "src/filemanager/AppDiff.cpp",
     "src/filemanager/AppLink.cpp",
     "src/filemanager/ExtractCallbackOutput.cpp",
     "src/filemanager/external/qtexternalapplications.cpp",
@@ -3731,6 +3732,7 @@
     },
     "src/filemanager/panels/PanelItemOpen.cpp": {
       "local": [
+        "src/filemanager/AppDiff.cpp",
         "src/filemanager/external/qtexternalapplications.cpp",
         "src/filemanager/external/qtexternalapplications.h",
         "src/filemanager/external/qtexternalfilesession.cpp",
@@ -3739,6 +3741,7 @@
         "src/filemanager/panels/PanelArchiveOpen.cpp"
       ],
       "symbols": [
+        "CApp::DiffFiles (both overloads)",
         "SplitCmdLineSmart",
         "StartAppWithParams",
         "StartEditApplication",
