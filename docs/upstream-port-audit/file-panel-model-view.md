@@ -1,5 +1,37 @@
 # Файловая панель: Qt Model/View — 2026-10-24
 
+## Native peer reload shares the publication projection — 2026-11-05
+
+Reviewed complete original CApp::OnCopy, native RefreshListCtrl/selection
+completion, current copy continuation, synchronous/error/deferred reload paths,
+panel activation and the projection used by scanner/publication callbacks.
+Original App.cpp at `b88c6bc09339de32f7d18bbab900686b244f42ba` from
+<https://github.com/ip7z/7zip.git> matches the existing baseline SHA256
+`1a1acb597f26809816f27d02be394e74bf61face48db59601bcbd2c96ba63e40`.
+Native copy routing, diagnostic order, reload results and selection algorithms
+are unchanged; no source import or baseline revision changes.
+
+The native reload callback now uses the existing temporary panel projection
+instead of activating the peer as a user action and implementing a second
+restore/status guard. The projected loader retains filesystem viewport,
+missing-folder, namespace and archive branches in one focused body. The shared
+projection selects source ownership before loading and restores the original
+panel/status after background publication without querying stale archive rows
+through an intermediate activation. Native modal focus reconciliation remains
+explicit even when the request belongs to the current Qt projection.
+
+Operation admission, deferred scan guards and copy continuation retain their
+existing owners. Source and destination refresh failures remain independent of
+the writer result; native completion still restores selection and list focus.
+Existing copy-publication and peer-load-failure scenarios exercise both owners,
+Copy/Move, cancellation/error/retry and worker failure; filesystem reload,
+large-list and native-navigation scenarios cover direct consumers.
+
+Focused Linux validation passed: panel_copy_reload, copy_publication_order,
+filesystem_reload, large_list_window and native_navigation_window (154 Qt
+checks). No layout or native platform-specific code changed; secondary-platform
+acceptance is not claimed.
+
 ## Archive row publication uses the existing call/scan owners — 2026-11-05
 
 Compared original PanelItems.cpp RefreshListCtrl and OnTimer with native list

@@ -4,7 +4,6 @@
 #include "filemanager/window/mainwindow.h"
 #include "localization/qtlanguageservices.h"
 
-#include <QScopeGuard>
 #include <QScopedValueRollback>
 #include <QScrollBar>
 #include <utility>
@@ -19,24 +18,18 @@ HRESULT MainWindow::reloadPanelPresentation(unsigned index, const CSelectedState
     // OnCopy also refreshes both panels. A different panel's scan must not
     // suppress this publication; the operation owner retains each scan's guard.
     app_.Panels[index].TakeRefreshSelection();
-    const unsigned original = projectedPanel_;
-    const QString originalStatus = statusBar()->currentMessage();
-    if (index != original) {
-        // ReOpen can retire this panel's proxy before its old rows are cleared.
-        // Do not derive command state from those rows during activation.
-        CPanel::CDisableNotify notify(app_.Panels[index]);
-        activatePanelUi(index);
-    }
-    // A native modal close can restore peer focus while the Qt projection is
-    // held on this command owner. Source RefreshListCtrl reloads its own panel.
-    app_.SetFocusedPanel(index);
-    const auto restore = qScopeGuard([&] {
-        if (index != original) {
-            activatePanelUi(original);
-            statusBar()->showMessage(originalStatus);
-        }
+    HRESULT result = E_ABORT;
+    withPanelProjection(index, [&] {
+        // A native modal close can restore peer focus while the Qt projection
+        // remains on this owner. Reload the source panel that made the request.
+        app_.SetFocusedPanel(index);
+        result = reloadProjectedPanel(selection);
     });
-    const auto &panel = app_.Panels[index];
+    return result;
+}
+
+HRESULT MainWindow::reloadProjectedPanel(const CSelectedState &selection) {
+    const auto &panel = app_.GetFocusedPanel();
     const bool archive = panel.IsArcFolder();
     const bool root = !archive && (panel.IsRootFolder() || panel.IsFSDrivesFolder() ||
                                    panel.IsNetFolder() || panel.IsAltStreamsFolder());
@@ -50,7 +43,7 @@ HRESULT MainWindow::reloadPanelPresentation(unsigned index, const CSelectedState
     }
     if (!QFileInfo(projectedUi().directory).isDir()) {
         const HRESULT loaded = app_.GetFocusedPanel().LoadListItems();
-        auto &snapshot = panelUi_[index].autoRefreshSnapshot;
+        auto &snapshot = panelUi_[projectedPanel_].autoRefreshSnapshot;
         snapshot.clear();
         snapshot.insert(projectedUi().directory, filesystemSignature(projectedUi().directory));
         projectedUi().table->clearSelection();
