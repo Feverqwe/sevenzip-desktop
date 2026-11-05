@@ -63,7 +63,10 @@ QString TempPathKey(const QString &path) {
     return path;
 #endif
 }
-bool OwnedPath(const QtOwnedTempEntry &owner, const QString &path, const QString &temp) {
+} // namespace
+
+bool CBrowseDialog2::IsOwnedPath(const QtOwnedTempEntry &owner, const QString &path) const {
+    const QString temp = QtPath(TempFolderPath);
     if (owner.key.isEmpty() || !QtOwnedTempMatchesIdentity(owner.path, owner.identity) ||
         QFileInfo(owner.path).dir().canonicalPath() != QFileInfo(temp).canonicalFilePath())
         return false;
@@ -85,7 +88,6 @@ bool OwnedPath(const QtOwnedTempEntry &owner, const QString &path, const QString
         current = parent;
     }
 }
-} // namespace
 
 std::optional<UString> CBrowseDialog2::PrintFileProps(const CFileInfo &file) {
     CFileInfo file2;
@@ -176,8 +178,7 @@ void CBrowseDialog2::OnDelete() {
             return;
         const FString fullPath = us2fs(snapshot->Prefix) + fi.Name;
         auto lease = QtOwnedTempRegistry().ClaimForDeletion(snapshot->Items[index].Owner);
-        if (!lease || !OwnedPath(snapshot->Items[index].Owner, QtPath(fs2us(fullPath)),
-                                 QtPath(TempFolderPath))) {
+        if (!lease || !IsOwnedPath(snapshot->Items[index].Owner, QtPath(fs2us(fullPath)))) {
             QMessageBox::warning(this, "7-Zip",
                                  QCoreApplication::translate(
                                      "BrowseDialog2", "This temporary item is active, protected, "
@@ -302,12 +303,12 @@ HRESULT CBrowseDialog2::Reload(const UString &pathPrefix, const UStringVector &s
                 rootOwners.insert(TempPathKey(QFileInfo(entry.path).fileName()), entry);
     } else {
         for (const auto &entry : entries)
-            if (OwnedPath(entry, QtPath(pathPrefix), QtPath(TempFolderPath))) {
+            if (IsOwnedPath(entry, QtPath(pathPrefix))) {
                 root = entry;
                 break;
             }
     }
-    if (!isTempFolder && !OwnedPath(root, QtPath(pathPrefix), QtPath(TempFolderPath)))
+    if (!isTempFolder && !IsOwnedPath(root, QtPath(pathPrefix)))
         return HRESULT(0x80070005L); // E_ACCESSDENIED is absent from POSIX MyWindows.h.
     {
         CEnumerator enumerator;
@@ -323,7 +324,7 @@ HRESULT CBrowseDialog2::Reload(const UString &pathPrefix, const UStringVector &s
             if (isTempFolder) {
                 owner = rootOwners.value(TempPathKey(QtPath(fs2us(fi.Name))));
                 const QString fullPath = QtPath(pathPrefix + fs2us(fi.Name));
-                if (!OwnedPath(owner, fullPath, QtPath(TempFolderPath)))
+                if (!IsOwnedPath(owner, fullPath))
                     continue;
             }
             OwnedItem item;
@@ -426,8 +427,7 @@ void CBrowseDialog2::OnItemEnter() {
         return;
     }
     const UString fullPath = _snapshot->Prefix + fs2us(file.Name);
-    if (file.IsOsSymLink() ||
-        !OwnedPath(_snapshot->Items[realIndex].Owner, QtPath(fullPath), QtPath(TempFolderPath))) {
+    if (file.IsOsSymLink() || !IsOwnedPath(_snapshot->Items[realIndex].Owner, QtPath(fullPath))) {
         QMessageBox::warning(
             this, "7-Zip",
             QCoreApplication::translate("BrowseDialog2", "Link opening was blocked by 7-Zip."));
@@ -453,8 +453,7 @@ void CBrowseDialog2::OpenOutside(const UString &path, const QtOwnedTempEntry &ow
     // This source browser does not wait. Retain protection after closing any
     // native handle; only the archive-open worker proves associated completion.
     auto lease = QtOwnedTempRegistry().ClaimForDeletion(owner);
-    if (!lease || !OwnedPath(owner, QtPath(path), QtPath(TempFolderPath)) ||
-        !lease->ProtectExternal())
+    if (!lease || !IsOwnedPath(owner, QtPath(path)) || !lease->ProtectExternal())
         return;
     bool opened;
     if (sevenzip)
