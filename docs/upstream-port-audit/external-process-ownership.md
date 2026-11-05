@@ -1,5 +1,27 @@
 # External-process ownership
 
+## Explicit external-file completion — 2026-11-05
+
+Compared the complete original PanelItemOpen worker wait/update/cleanup body
+at recorded revision `b88c6bc09339de32f7d18bbab900686b244f42ba`, whose full source
+hash matches the existing baseline, with current launch, process tracking,
+GUI update, password, temporary-copy and shutdown consumers. No native process
+service, archive writer, dependency revision or imported scope changes.
+
+The final file check now expresses its terminal outcomes directly instead of
+using a single-pass loop and carrying a timestamp-policy flag into cleanup.
+A handled modification deletes its copy and returns; an unsuccessful update
+retains it. Unknown launches and short unchanged launches still wait for owner
+exit. Other paths retain the fresh final metadata check before deleting an
+unchanged or missing file. A changed file discovered after waiting remains
+available for recovery. Process discovery, timing, external-lease protection,
+joined shutdown, update prompts and error handling retain their existing owners.
+
+Existing editor, security, lifetime, launch and nested-edit tests observe real
+processes, accepted/rejected/canceled updates, unchanged short/long launches,
+shutdown, writer failures and retained copies. No test fixes the private loop
+or flag representation, and no UI layout or caption changes are introduced.
+
 ## One reservation spans GUI readiness and delivery — 2026-11-05
 
 Reviewed the complete external editor round trip: native process wait/discovery,

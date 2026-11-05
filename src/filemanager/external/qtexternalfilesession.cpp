@@ -268,30 +268,23 @@ static THREAD_FUNC_DECL MyThreadFunction(void *param) try {
             tpi->OwnedTempLease->ExternalFinished();
         isComplexMode = (curTime < 2 * 1000);
     }
-    bool needCheckTimestamp = true;
-    for (;;) {
+    {
         NFind::CFileInfo newFileInfo;
-        if (!newFileInfo.Find(tpi->FilePath))
-            break;
-        if (mainProcessWasSet) {
-            if (tpi->WasChanged_from_TempFileInfo(newFileInfo)) {
+        if (newFileInfo.Find(tpi->FilePath)) {
+            if (mainProcessWasSet && tpi->WasChanged_from_TempFileInfo(newFileInfo)) {
                 if (!UpdateChangedExternalFile(*tpi))
                     return 0;
-                needCheckTimestamp = false;
-                break;
+                tpi->DeleteDirAndFile();
+                return 0;
             }
-            if (!isComplexMode)
-                break;
+            if ((!mainProcessWasSet || isComplexMode) && tpi->Launcher->_exitEvent.Lock() != 0)
+                return (THREAD_FUNC_RET_TYPE)(uintptr_t)1;
         }
-        const WRes waitResult = tpi->Launcher->_exitEvent.Lock();
-        if (waitResult == 0)
-            break;
-        return (THREAD_FUNC_RET_TYPE)(uintptr_t)1;
     }
     {
         NFind::CFileInfo newFileInfo;
         const bool finded = newFileInfo.Find(tpi->FilePath);
-        if (!needCheckTimestamp || !finded || !tpi->WasChanged_from_TempFileInfo(newFileInfo))
+        if (!finded || !tpi->WasChanged_from_TempFileInfo(newFileInfo))
             tpi->DeleteDirAndFile();
     }
     return 0;
