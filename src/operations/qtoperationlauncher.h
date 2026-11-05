@@ -15,9 +15,14 @@ class QtOperationLauncher final : public QObject {
                                        QString &error);
     bool start(const QString &program, const QtOperationJob &job, QString &error);
     quint64 processId() const;
+    bool active() const;
+    QtOperationPresentation presentation() const;
+    void Show();
+    static QList<QtOperationLauncher *> Active();
   signals:
     void accepted();
     void finished(const QtOperationResult &result);
+    void presentationChanged();
 
   private:
     class Channel;
@@ -25,6 +30,7 @@ class QtOperationLauncher final : public QObject {
     void rejectRequest(const QString &error);
     void recordOutputs(const QStringList &directories, const QStringList &archives);
     bool completeRequest(const OperationReport &report);
+    void updatePresentation(int phase, const QString &title, bool hasWindow);
     void observe();
     void finish(QtOperationResult result);
     void protocolFailure(const QString &error);

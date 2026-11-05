@@ -3,6 +3,7 @@
 #include "operations/qtoperationoptions.h"
 #include "operations/qtoperationprotocol.h"
 #include "rep_operation_merged.h"
+#include "ui/lifecycle/qttaskpresentation.h"
 #include <QApplication>
 #include <QCoreApplication>
 #include <QFileInfo>
@@ -30,6 +31,17 @@ int RunGUIOperationEndpoint(QApplication &application, const QString &channel,
     startup.setSingleShot(true);
     bool accepted = false;
     QObject context; // Disconnect stack callbacks before node/timer destruction.
+    auto &presentation = QtTaskPresentation::Application();
+    const auto publish = [&] {
+        if (!accepted || !replica->isReplicaValid())
+            return;
+        const auto state = presentation.snapshot();
+        replica->presentation(TaskPresentation(int(state.phase), state.title, state.hasWindow));
+    };
+    const auto presentationConnection =
+        QObject::connect(&presentation, &QtTaskPresentation::changed, &context, publish);
+    QObject::connect(replica.get(), &OperationReplica::showRequested, &context,
+                     [&] { presentation.Show(); });
     QObject::connect(&startup, &QTimer::timeout, &context,
                      [&] { application.exit(NExitCode::kUserError); });
     QObject::connect(replica.get(), &QRemoteObjectReplica::stateChanged, &context,
@@ -54,6 +66,7 @@ int RunGUIOperationEndpoint(QApplication &application, const QString &channel,
         accepted = true;
         startup.stop();
         replica->accept();
+        publish();
         QTimer::singleShot(0, &context, [&, job = *validated] {
             QStringList changedDirectories;
             QStringList changedArchives;
@@ -74,6 +87,7 @@ int RunGUIOperationEndpoint(QApplication &application, const QString &channel,
                 if (replica->isReplicaValid())
                     replica->outputs(changedDirectories, changedArchives);
             });
+            QObject::disconnect(presentationConnection);
             if (replica->isReplicaValid()) {
                 auto result = Result(code);
                 result.ChangedDirectories = changedDirectories;

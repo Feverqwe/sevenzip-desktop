@@ -5,6 +5,8 @@
 #include "support/operation_parent.h"
 #include "support/operation_program.h"
 #include "support/operation_temp_cleanup.h"
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QPointer>
 #include <QScopeGuard>
 #include <QSignalSpy>
@@ -29,6 +31,61 @@ class OperationLauncherTests final : public QObject {
             qunsetenv("SEVENZIP_SETTINGS_PATH");
         else
             qputenv("SEVENZIP_SETTINGS_PATH", oldSettings_);
+    }
+    void taskWindowCanBeShownUntilReviewed_data() {
+        QTest::addColumn<bool>("draft");
+        QTest::newRow("unstarted-extract-form") << true;
+        QTest::newRow("completed-hash-awaiting-review") << false;
+    }
+    void taskWindowCanBeShownUntilReviewed() {
+        QFETCH(bool, draft);
+        QTemporaryDir directory;
+        QVERIFY(directory.isValid());
+        const auto archive = SourceExtractFixture::makeArchive(directory.path(), "retained bytes");
+        QVERIFY(!archive.isEmpty());
+        const auto original = SourceExtractFixture::readFile(archive);
+        const auto report = directory.filePath("window.json");
+        const auto release = directory.filePath("release");
+        qputenv("SEVENZIP_OPERATION_WINDOW_REPORT", report.toUtf8());
+        qputenv("SEVENZIP_OPERATION_RELEASE_WINDOW", release.toUtf8());
+        const auto restore = qScopeGuard([] {
+            qunsetenv("SEVENZIP_OPERATION_WINDOW_REPORT");
+            qunsetenv("SEVENZIP_OPERATION_RELEASE_WINDOW");
+        });
+        QtOperationJob job;
+        job.Operation = draft ? QtOperationJob::Command::Extract : QtOperationJob::Command::Hash;
+        job.Paths = {archive};
+        job.Destination = directory.filePath("unapplied extraction");
+        job.HashMethod = QStringLiteral("SHA256");
+        QString error;
+        QPointer<QtOperationLauncher> launcher =
+            QtOperationLauncher::Launch(QStringLiteral(SEVENZIP_OPERATION_HOST), job, error);
+        QVERIFY2(launcher, qPrintable(error));
+        const auto stopOnFailure = qScopeGuard([&] {
+            if (launcher && launcher->active())
+                KillOperationProbe(launcher->processId());
+        });
+        QSignalSpy finished(launcher, &QtOperationLauncher::finished);
+        const auto expected = draft ? QtOperationPhase::Draft : QtOperationPhase::Reviewing;
+        QTRY_VERIFY_WITH_TIMEOUT(launcher && launcher->presentation().Phase == expected, 15000);
+        QVERIFY(launcher->presentation().HasWindow);
+        QVERIFY(QtOperationLauncher::Active().contains(launcher));
+        const auto windowState = [&] {
+            return QJsonDocument::fromJson(SourceExtractFixture::readFile(report)).object();
+        };
+        QTRY_VERIFY(windowState().value("minimized").toBool());
+        QVERIFY(finished.isEmpty());
+        launcher->Show();
+        QTRY_VERIFY(windowState().contains("minimized") &&
+                    !windowState().value("minimized").toBool());
+        QVERIFY(finished.isEmpty());
+        QCOMPARE(SourceExtractFixture::readFile(archive), original);
+        QVERIFY(!QFileInfo::exists(job.Destination));
+        QVERIFY(SourceExtractFixture::writeFile(release, "close the task window"));
+        QTRY_COMPARE_WITH_TIMEOUT(finished.size(), 1, 15000);
+        const auto result = qvariant_cast<QtOperationResult>(finished[0][0]);
+        QCOMPARE(result.Status, draft ? QtOperationResult::Outcome::Cancelled
+                                      : QtOperationResult::Outcome::Success);
     }
     void nativeTest_data() {
         QTest::addColumn<bool>("damaged");

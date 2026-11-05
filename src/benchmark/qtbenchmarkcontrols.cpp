@@ -3,6 +3,7 @@
 #include "localization/qtlangcontrols.h"
 #include "ui/dialogs/qtdialogscreenservices.h"
 #include "ui/dialogs/qtmodalresult.h"
+#include "ui/lifecycle/qttaskpresentation.h"
 #include <QApplication>
 #include <QCloseEvent>
 #include <QLabel>
@@ -12,6 +13,7 @@
 #include <QStyle>
 
 CQtBenchmarkWindow::CQtBenchmarkWindow(QWidget *parent) : QDialog(parent) {
+    QtTaskPresentation::Watch(*this, QtOperationPhase::Working);
     setWindowFlag(Qt::WindowMinMaxButtonsHint);
     setWindowFlag(Qt::WindowContextHelpButtonHint, false);
     clock_.start();

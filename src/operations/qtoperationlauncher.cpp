@@ -4,6 +4,7 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QElapsedTimer>
+#include <QEventLoopLocker>
 #include <QLocalServer>
 #include <QRemoteObjectHost>
 #include <QTemporaryDir>
@@ -26,6 +27,9 @@ class QtOperationLauncher::Channel final : public OperationSource {
         owner_.recordOutputs(directories, archives);
     }
     bool complete(OperationReport report) override { return owner_.completeRequest(report); }
+    void presentation(TaskPresentation state) override {
+        owner_.updatePresentation(state.phase(), state.title(), state.hasWindow());
+    }
 };
 
 struct QtOperationLauncher::State {
@@ -40,6 +44,9 @@ struct QtOperationLauncher::State {
     QStringList changedDirectories_;
     QStringList changedArchives_;
     Phase phase_ = Phase::Ready;
+    QtOperationPresentation presentation_;
+    std::unique_ptr<QEventLoopLocker> keepAlive_;
+    bool showPending_ = false;
     explicit State(QtOperationLauncher &owner) : channel_(owner) {}
     bool isAccepted() const {
         return phase_ == Phase::AcceptanceQueued || phase_ == Phase::Accepted;
@@ -74,6 +81,8 @@ void QtOperationLauncher::acceptRequest() {
         this,
         [this] {
             state_->phase_ = State::Phase::Accepted;
+            if (std::exchange(state_->showPending_, false))
+                emit state_->channel_.showRequested();
             emit accepted();
         },
         Qt::QueuedConnection);
@@ -127,6 +136,42 @@ QString QtOperationLauncher::GuiProgram() {
 
 quint64 QtOperationLauncher::processId() const { return state_->process_.processId(); }
 
+bool QtOperationLauncher::active() const {
+    return state_->phase_ != State::Phase::Ready && state_->phase_ != State::Phase::Finished;
+}
+
+QtOperationPresentation QtOperationLauncher::presentation() const { return state_->presentation_; }
+
+QList<QtOperationLauncher *> QtOperationLauncher::Active() {
+    QList<QtOperationLauncher *> result;
+    if (auto *application = QCoreApplication::instance())
+        for (auto *operation : application->findChildren<QtOperationLauncher *>())
+            if (operation->active())
+                result.append(operation);
+    return result;
+}
+
+void QtOperationLauncher::Show() {
+    if (!active())
+        return;
+    if (!state_->isAccepted()) {
+        state_->showPending_ = true;
+        return;
+    }
+    emit state_->channel_.showRequested();
+}
+
+void QtOperationLauncher::updatePresentation(int phase, const QString &title, bool hasWindow) {
+    if (!state_->isAccepted() || state_->result_ || phase < int(QtOperationPhase::Preparing) ||
+        phase > int(QtOperationPhase::Reviewing)) {
+        protocolFailure(
+            QCoreApplication::translate("QtOperation", "Unexpected operation protocol message."));
+        return;
+    }
+    state_->presentation_ = {QtOperationPhase(phase), title, hasWindow};
+    QMetaObject::invokeMethod(this, [this] { emit presentationChanged(); }, Qt::QueuedConnection);
+}
+
 QtOperationLauncher *QtOperationLauncher::Launch(const QString &program, const QtOperationJob &job,
                                                  QString &error) {
     auto *application = QCoreApplication::instance();
@@ -177,6 +222,7 @@ bool QtOperationLauncher::start(const QString &program, const QtOperationJob &jo
         return false;
     }
     const auto started = state_->process_.start(program, channel).transform([&] {
+        state_->keepAlive_ = std::make_unique<QEventLoopLocker>();
         state_->phase_ = State::Phase::AwaitingAcceptance;
         state_->startup_.start(10000);
         state_->poll_.start();
@@ -244,5 +290,6 @@ void QtOperationLauncher::finish(QtOperationResult result) {
     state_->poll_.stop();
     state_->startup_.stop();
     state_->host_.disableRemoting(&state_->channel_);
+    const auto keepAlive = std::move(state_->keepAlive_);
     emit finished(result);
 }

@@ -15,6 +15,7 @@ class SelectionSource final : public OperationSource {
     void accept() override { Accepted = true; }
     void reject(QString) override {}
     void outputs(QStringList, QStringList) override {}
+    void presentation(TaskPresentation) override {}
     bool complete(OperationReport report) override {
         return Accepted && OperationResultFromReport(report);
     }

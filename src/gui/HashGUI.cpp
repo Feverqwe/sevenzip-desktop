@@ -15,6 +15,7 @@
 #include "dialogs/listview/ListViewDialog.h"
 #include "filemanager/FormatUtils.h"
 #include "localization/LangUtils.h"
+#include "ui/lifecycle/qttaskpresentation.h"
 #include "ui/progress/ProgressDialog2.h"
 
 #include "gui/HashGUI.h"
@@ -261,6 +262,7 @@ HRESULT HashCalcGUI(DECL_EXTERNAL_CODECS_LOC_VARS const NWildcard::CCensor &cens
 
 void ShowHashResults(const CPropNameValPairs &propPairs, QWidget *hwnd) {
     CListViewDialog lv(hwnd);
+    QtTaskPresentation::Watch(lv, QtOperationPhase::Reviewing);
 
     FOR_VECTOR(i, propPairs) {
         const CProperty &pair = propPairs[i];

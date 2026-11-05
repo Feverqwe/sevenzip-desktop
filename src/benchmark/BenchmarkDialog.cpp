@@ -27,6 +27,7 @@
 #include "benchmark/qtbenchmarkcontrols.h"
 #include "benchmark/qtbenchmarkservices.h"
 #include "ui/diagnostics/qtdiagnostictext.h"
+#include "ui/lifecycle/qttaskpresentation.h"
 #include <QMessageBox>
 #include <cwchar>
 
@@ -733,6 +734,8 @@ void CBenchmarkDialog::StartBenchmark() {
 
     _timer = SetTimer(kTimerID, kTimerElapse);
     const WRes threadResult = _thread.Create(CThreadBenchmark::MyThreadFunction, &_threadBenchmark);
+    if (threadResult == 0)
+        QtTaskPresentation::BeginWork(*this);
     if (threadResult != 0) {
         StartResult = HRESULT_FROM_WIN32(threadResult);
         MyKillTimer();
@@ -946,6 +949,7 @@ void CBenchmarkDialog::OnMessage(UINT message, quintptr wParam) {
 
     {
         if (wParam == k_Msg_WPARM_Thread_Finished) {
+            QtTaskPresentation::SetPhase(*this, QtOperationPhase::Reviewing);
             _finishTime = GetTickCount();
             _finishTime_WasSet = true;
             MyKillTimer();

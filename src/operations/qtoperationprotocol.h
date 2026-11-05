@@ -7,6 +7,14 @@
 class OperationRequest;
 class OperationReport;
 
+enum class QtOperationPhase { Preparing, Draft, Working, Question, Reviewing };
+struct QtOperationPresentation {
+    QtOperationPhase Phase = QtOperationPhase::Preparing;
+    QString Title;
+    bool HasWindow = false;
+};
+Q_DECLARE_METATYPE(QtOperationPhase)
+
 struct QtOperationResult {
     enum class Outcome {
         Success,

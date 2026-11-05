@@ -1,5 +1,6 @@
 #include "dialogs/compress/createarchivedialog.h"
 #include "ui/dialogs/qtdialoglayout.h"
+#include "ui/lifecycle/qttaskpresentation.h"
 #include <QScreen>
 #include <QScrollArea>
 #include <QScrollBar>
@@ -11,6 +12,7 @@ CreateArchiveDialog::CreateArchiveDialog(const QString &directory,
                                          const CCompressDialog *sourceDialog)
     : QDialog(parent), codecs_(std::move(codecs)) {
     QtUseContextDialogModality(*this);
+    QtTaskPresentation::Watch(*this, QtOperationPhase::Draft);
     setObjectName("createArchiveDialog");
     auto *layout = new QVBoxLayout(this);
     const int horizontalMargin = 16;

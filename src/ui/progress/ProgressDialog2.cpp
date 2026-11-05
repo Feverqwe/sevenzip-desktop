@@ -11,6 +11,7 @@
 #include "settings/ViewSettings.h"
 #include "ui/diagnostics/qtdiagnostictext.h"
 #include "ui/dialogs/qtmodalresult.h"
+#include "ui/lifecycle/qttaskpresentation.h"
 #include <QApplication>
 #include <QEvent>
 #include <QKeyEvent>
@@ -280,6 +281,7 @@ struct CWaitCursor {
 
 qintptr CProgressDialog::Create(const UString &title, NWindows::CThread &thread,
                                 QWidget *wndParent) {
+    QtTaskPresentation::BeginWork(*this);
     qintptr res = 0;
     try {
         if (WaitMode) {
@@ -314,6 +316,7 @@ qintptr CProgressDialog::Create(const UString &title, NWindows::CThread &thread,
 }
 
 bool CProgressDialog::OnExternalCloseMessage() {
+    QtTaskPresentation::SetPhase(*this, QtOperationPhase::Reviewing);
     SetTaskbarProgressState(TBPF_NOPROGRESS);
     UpdateStatInfo(true);
     SetItemText(IDCANCEL, LangString(IDS_CLOSE));

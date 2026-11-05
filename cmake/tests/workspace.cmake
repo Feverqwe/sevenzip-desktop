@@ -82,6 +82,15 @@ if(BUILD_TESTING)
     add_test(NAME workspace_session COMMAND workspace_session_tests -silent)
     set_tests_properties(workspace_session PROPERTIES TIMEOUT 90 ENVIRONMENT
         "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/workspace-session-settings.ini")
+    qt_add_executable(task_lifecycle_window_tests tests/filemanager/task_lifecycle_window_tests.cpp)
+    target_link_libraries(task_lifecycle_window_tests PRIVATE sevenzip_window Qt6::Test)
+    target_include_directories(task_lifecycle_window_tests PRIVATE src tests)
+    target_compile_definitions(task_lifecycle_window_tests PRIVATE
+        "SEVENZIP_OPERATION_HOST=\"$<TARGET_FILE:operation_host>\"")
+    add_dependencies(task_lifecycle_window_tests operation_host)
+    add_test(NAME task_lifecycle_window COMMAND task_lifecycle_window_tests -silent)
+    set_tests_properties(task_lifecycle_window PROPERTIES TIMEOUT 45 ENVIRONMENT
+        "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/task-lifecycle-window.ini")
     qt_add_executable(rename_lifecycle_tests tests/filemanager/rename_lifecycle_tests.cpp)
     target_link_libraries(rename_lifecycle_tests PRIVATE sevenzip_window Qt6::Test)
     target_include_directories(rename_lifecycle_tests PRIVATE src tests)

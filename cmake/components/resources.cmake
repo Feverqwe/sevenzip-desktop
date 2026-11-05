@@ -4,6 +4,11 @@ target_include_directories(sevenzip_operation_contract PUBLIC src "${CMAKE_CURRE
 target_link_libraries(sevenzip_operation_contract PUBLIC Qt6::Core Qt6::Network Qt6::RemoteObjects)
 qt_add_repc_merged(sevenzip_operation_contract src/operations/operation.rep)
 
+add_library(sevenzip_task_presentation STATIC
+    src/ui/lifecycle/qttaskpresentation.cpp src/ui/lifecycle/qttaskpresentation.h)
+target_include_directories(sevenzip_task_presentation PUBLIC src)
+target_link_libraries(sevenzip_task_presentation PUBLIC sevenzip_operation_contract Qt6::Widgets)
+
 add_library(sevenzip_operation_process STATIC src/operations/qtoperationprocess.cpp src/operations/qtoperationprocess.h)
 target_compile_features(sevenzip_operation_process PUBLIC cxx_std_23)
 target_include_directories(sevenzip_operation_process PUBLIC src)
@@ -136,6 +141,8 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
         "SEVENZIP_BUILD_CODEC_RUNTIME=\"${SEVENZIP_CODEC_RUNTIME_DIR}\"")
 endif()
 target_link_libraries(sevenzip_panel PUBLIC sevenzip_filesystem)
+target_link_libraries(sevenzip_panel PUBLIC sevenzip_task_presentation)
+target_link_libraries(sevenzip_filesystem PRIVATE sevenzip_task_presentation)
 
 add_library(sevenzip_location
     STATIC

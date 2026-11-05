@@ -8,6 +8,7 @@
 #include "filemanager/FormatUtils.h"
 #include "localization/LangUtils.h"
 #include "ui/dialogs/qtdialoglayout.h"
+#include "ui/lifecycle/qttaskpresentation.h"
 #include <QEvent>
 #include <QFileIconProvider>
 #include <QFileInfo>
@@ -132,6 +133,7 @@ bool COverwriteDialog::OnButtonClicked(unsigned buttonID, QWidget *) {
 }
 
 INT_PTR COverwriteDialog::Create(QWidget *parent) {
+    QtTaskPresentation::Watch(*this, QtOperationPhase::Question);
     if (parent && parent != parentWidget())
         setParent(parent, windowFlags());
     OnInit();

@@ -510,8 +510,8 @@ modeless окна операций/результатов не получают 
 
 Это исправление atomic veto, а не реализация полного нового lifecycle.
 Подтверждение отказа от draft и «Продолжить операции» пока не реализованы:
-in-process/external владельцы ещё связаны с файловым окном, а sidecar IPC
-не сообщает рабочую фазу и не предоставляет команду показа задачи.
+in-process/external владельцы ещё связаны с файловым окном. Последующая
+граница состояния и показа независимой задачи описана ниже.
 Перенос владельцев, общий реестр задач и ожидание просмотра результатов
 остаются открытой границей приёмки. Обычное закрытие окна сохраняет прежнюю
 политику; source-port полнота не выводится из passing runtime tests.
@@ -525,6 +525,47 @@ Linux focused: workspace session, window close и native close pipeline — тр
 Review bundle пересобран; геометрия не менялась, прежние снимки не переобозначены.
 Одноразовые Cocoa fixtures удалены, incremental build и compiler cache сохранены.
 Windows/full/slow checks не запускались.
+
+## Окно независимой задачи и удержание приложения — 2026-11-05
+
+Сверены launcher/process/endpoint, GUI callers, исходные progress/thread/result
+границы и benchmark. Новые локальные UI hooks не заменяют native workers,
+archive inputs, отмену или результат операции. Новых импортов нет; original
+baseline не меняется, общий presentation owner зарегистрирован как local.
+
+Независимый процесс передаёт initial snapshot и изменения реального владельца
+окна отдельно от transport acceptance: незапущенная форма, работа, вопрос,
+результат для просмотра. Начало работы отмечается на native progress/benchmark
+границе. Закрытие/скрытие виджета не считается завершением задачи; observer
+ждёт настоящий выход процесса и проверяет его report. Hash result, progress
+final message и benchmark result имеют явную роль просмотра. Неизвестный
+вложенный modal считается вопросом, а не безопасно закрываемым draft.
+
+Команда показа передаётся существующему процессу и выбирает актуальный modal
+owner, разворачивая его и свёрнутого родителя. Ранний запрос до acceptance
+сохраняется, затем передаётся child; при отсутствии окна child ждёт его показа.
+Команда не создаёт вторую задачу и не открывает закрытый результат заново.
+Quit при независимой задаче возвращает к её окну до закрытия файловых окон.
+Application-owned observer удерживает цикл приложения до actual finish, включая
+обработчики finished. Обычное закрытие последнего файлового окна не обрывает
+форму, вопрос или просмотр результата независимой задачи.
+
+Это завершённая phase/show граница, но не весь lifecycle из макета. Общий вопрос
+Continue/Cancel/Show, generation+ack для отказа от draft, app-owned просмотр
+startup/protocol/crash failure и перенос in-process/external владельцев остаются
+открытыми. В частности, выход child без своего итогового окна пока требует
+отдельного application result owner перед реализацией deferred Quit.
+
+Linux: protocol/observer/launcher, session, progress и оба benchmark consumers —
+семь наборов PASS; после выделения lifecycle suite отдельно task-lifecycle/session
+— два PASS. macOS offscreen: все восемь соответствующих наборов PASS.
+Native Cocoa: real child Draft/Reviewing → minimize → Show → явное закрытие,
+password cancellation — 5 QtTest PASS; Quit с двумя file peers и настоящий
+application event loop после last-window close — ещё 4 PASS. Failed/skipped нет.
+Review bundle пересобран. Геометрия/тексты не менялись, прежние снимки сохраняют
+исходную provenance. Canonical native fixtures удалены, incremental build/cache
+сохранены. Windows/full/slow checks не выполнялись. Катя проверила ограниченный
+source diff; это не заменяет runtime evidence и не закрывает перечисленные gaps.
 
 ## Shared secret editing
 

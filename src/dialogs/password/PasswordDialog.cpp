@@ -7,13 +7,16 @@
 #include "localization/qtlangcontrols.h"
 #include "ui/controls/qtsecretedit.h"
 #include "ui/dialogs/qtdialoglayout.h"
+#include "ui/lifecycle/qttaskpresentation.h"
 #include <QCheckBox>
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QVBoxLayout>
 
-CPasswordDialog::CPasswordDialog(QWidget *parent) : QDialog(parent) {}
+CPasswordDialog::CPasswordDialog(QWidget *parent) : QDialog(parent) {
+    QtTaskPresentation::Watch(*this, QtOperationPhase::Question);
+}
 
 void CPasswordDialog::ReadControls() {
     Password = _passwordEdit->text();

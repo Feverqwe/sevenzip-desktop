@@ -58,7 +58,7 @@ if(BUILD_TESTING AND WIN32)
       endif()
     endforeach()
     foreach(sevenzip_native_ui_test IN ITEMS
-            workspace_navigation workspace_history recent_places fast_folders_window workspace_session workspace_archive
+            workspace_navigation workspace_history recent_places fast_folders_window workspace_session workspace_archive task_lifecycle_window
             native_parent_publication native_drop_publication native_rename_2 native_rename_301 native_external_2 native_external_301 native_external_update native_nested_stream native_nested_memory native_nested_disk native_nested_stream_quick native_nested_memory_quick native_nested_disk_quick
             native_renderer_failure native_renderer_copy interarchive_refresh panel_creation_publication panel_creation_publication_quick
             source_compress_dialog source_extract_advanced source_browse_dialog shell_archive_services shell_menu_window shell_update_window

@@ -2262,6 +2262,8 @@
     "src/ui/dialogs/qtdialogunits.cpp",
     "src/ui/dialogs/qtdialogunits.h",
     "src/ui/dialogs/qtmodalresult.h",
+    "src/ui/lifecycle/qttaskpresentation.cpp",
+    "src/ui/lifecycle/qttaskpresentation.h",
     "src/ui/progress/ProgressDisplay.cpp",
     "src/ui/progress/archiveprogresstransport.cpp",
     "src/ui/progress/archiveprogresstransport.h",

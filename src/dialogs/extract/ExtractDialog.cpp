@@ -10,6 +10,7 @@
 #include "localization/qtlangcontrols.h"
 #include "settings/ViewSettings.h"
 #include "ui/dialogs/qtdialoglayout.h"
+#include "ui/lifecycle/qttaskpresentation.h"
 #include <QDir>
 #include <QEvent>
 #include <QShowEvent>
@@ -52,6 +53,7 @@ CExtractDialog::CExtractDialog(const QString &initialPath, const QStringList &hi
                                QWidget *parent)
     : QDialog(parent), DirPath(initialPath) {
     QtUseContextDialogModality(*this);
+    QtTaskPresentation::Watch(*this, QtOperationPhase::Draft);
     ElimDup.Val = true;
     BuildPresentation();
     OnInit(history);

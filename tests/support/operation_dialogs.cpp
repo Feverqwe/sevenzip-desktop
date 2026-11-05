@@ -48,6 +48,32 @@ void DriveOperationDialogs() {
             continue;
         if (auto *modal = QApplication::activeModalWidget(); modal && modal != widget)
             continue;
+        const QString windowReport = qEnvironmentVariable("SEVENZIP_OPERATION_WINDOW_REPORT");
+        const bool draft =
+            qobject_cast<CExtractDialog *>(widget) || qobject_cast<CreateArchiveDialog *>(widget);
+        const bool hashResult = qobject_cast<CListViewDialog *>(widget) &&
+                                widget->findChild<QTreeWidget *>("propertiesList");
+        if (!windowReport.isEmpty() && (draft || hashResult)) {
+            if (!widget->property("fixtureMinimized").toBool()) {
+                widget->setProperty("fixtureMinimized", true);
+                widget->showMinimized();
+            }
+            QSaveFile file(windowReport);
+            if (file.open(QIODevice::WriteOnly)) {
+                file.write(QJsonDocument(QJsonObject{{"minimized", widget->isMinimized()},
+                                                     {"name", widget->objectName()}})
+                               .toJson());
+                file.commit();
+            }
+            if (QFileInfo::exists(qEnvironmentVariable("SEVENZIP_OPERATION_RELEASE_WINDOW"))) {
+                auto *dialog = qobject_cast<QDialog *>(widget);
+                if (draft)
+                    dialog->reject();
+                else
+                    dialog->accept();
+            }
+            continue;
+        }
         if (widget->objectName() == "IDD_BENCH" || widget->objectName() == "IDD_BENCH_TOTAL") {
             auto *dialog = qobject_cast<QDialog *>(widget);
             auto *stop = widget->findChild<QPushButton *>("IDB_STOP");

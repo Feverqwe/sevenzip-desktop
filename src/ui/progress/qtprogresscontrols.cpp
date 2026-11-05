@@ -4,6 +4,7 @@
 #include "settings/ViewSettings.h"
 #include "ui/dialogs/qtdialogscreenservices.h"
 #include "ui/dialogs/qtdialogunits.h"
+#include "ui/lifecycle/qttaskpresentation.h"
 #include <QApplication>
 #include <QClipboard>
 #include <QLabel>
@@ -26,6 +27,7 @@ void CQtProgressDialog::AddControl(unsigned id, const char *name, QWidget *widge
 }
 
 CQtProgressDialog::CQtProgressDialog(QWidget *parent) : QDialog(parent) {
+    QtTaskPresentation::Watch(*this, QtOperationPhase::Working);
     setWindowFlag(Qt::WindowMinMaxButtonsHint);
     setWindowFlag(Qt::WindowContextHelpButtonHint, false);
     setObjectName("progressDialog");
@@ -37,6 +39,7 @@ CQtProgressDialog::CQtProgressDialog(QWidget *parent) : QDialog(parent) {
 
 QWidget *CQtProgressDialog::GetItem(unsigned id) const { return _controls.value(id); }
 qintptr CQtProgressDialog::CreateModal(QWidget *parent) {
+    QtTaskPresentation::SetPhase(*this, QtOperationPhase::Working);
     if (parentWidget() != parent)
         setParent(parent, windowFlags());
     return exec();
@@ -57,6 +60,7 @@ void CQtProgressDialog::MessageBox(QWidget *parent, const UString &message, cons
                     QString::fromWCharArray(title.Ptr()), QString::fromWCharArray(message.Ptr()),
                     QMessageBox::Ok, parent);
     box.setObjectName("progressFinalMessage");
+    QtTaskPresentation::Watch(box, QtOperationPhase::Reviewing);
     box.setTextFormat(Qt::PlainText);
     box.exec();
 }
@@ -65,6 +69,7 @@ int CQtProgressDialog::AskCancel(QWidget *parent, const UString &message, const 
                     QString::fromWCharArray(message.Ptr()),
                     QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel, parent);
     box.setObjectName("progressCancelQuestion");
+    QtTaskPresentation::Watch(box, QtOperationPhase::Question);
     box.setTextFormat(Qt::PlainText);
     box.setDefaultButton(QMessageBox::Yes);
     box.setEscapeButton(QMessageBox::Cancel);

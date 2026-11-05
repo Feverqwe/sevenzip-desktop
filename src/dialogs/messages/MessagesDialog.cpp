@@ -10,6 +10,7 @@
 #include "ui/dialogs/qtdialoglayout.h"
 #include "ui/dialogs/qtdialogscreenservices.h"
 #include "ui/dialogs/qtdialogunits.h"
+#include "ui/lifecycle/qttaskpresentation.h"
 #include <QDialogButtonBox>
 #include <QEvent>
 #include <QPushButton>
@@ -47,6 +48,7 @@ void CMessagesDialog::OnInit() {
 }
 
 CMessagesDialog::CMessagesDialog(QWidget *parent) : QDialog(parent) {
+    QtTaskPresentation::Watch(*this, QtOperationPhase::Reviewing);
     setObjectName("operationMessagesDialog");
     setWindowFlag(Qt::WindowMinMaxButtonsHint);
     setWindowFlag(Qt::WindowContextHelpButtonHint, false);

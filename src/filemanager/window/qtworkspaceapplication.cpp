@@ -2,6 +2,7 @@
 #include "filemanager/qtfilemanagerstartup.h"
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtwindowworkspace.h"
+#include "operations/qtoperationlauncher.h"
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QScopeGuard>
@@ -85,6 +86,14 @@ void QtWorkspaceApplication::Quit() {
         blocker->show();
         blocker->raise();
         blocker->activateWindow();
+        return;
+    }
+    // Independent jobs retain their own native form/questions/results. Until
+    // the application-wide continuation decision is committed, return to an
+    // actual task owner rather than silently closing all file contexts.
+    const auto tasks = QtOperationLauncher::Active();
+    if (!tasks.isEmpty()) {
+        tasks.front()->Show();
         return;
     }
     Save();
