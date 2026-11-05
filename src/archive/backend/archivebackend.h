@@ -298,9 +298,8 @@ class ArchiveBackend : public QObject {
         QString Path;
     };
     std::optional<WorkerProgress> pendingWorkerProgress_;
-    quint64 beginWorkerProgress();
+    std::function<void(quint64, quint64, const QString &)> beginWorkerProgress();
     bool startWorkerPhase(QThread &worker, std::function<void()> launch = {});
-    void postWorkerProgress(quint64 generation, int percent, const QString &path);
     void reportWorkerProgress();
     void finishWorkerProgress();
     void finishHashOperation();
