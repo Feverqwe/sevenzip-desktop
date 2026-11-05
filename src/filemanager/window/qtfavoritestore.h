@@ -37,6 +37,7 @@ class QtFavoriteStore final : public QAbstractListModel {
     Qt::DropActions supportedDropActions() const override;
     void Add(const QString &path, const QString &label = {});
     QtFavorite Favorite(int row) const;
+    QModelIndex IndexForId(const QString &id) const;
     void RefreshLabels();
 
   private:

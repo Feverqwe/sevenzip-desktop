@@ -78,9 +78,17 @@ QtFavorite QtFavoriteStore::Favorite(int row) const {
     return entry;
 }
 
+QModelIndex QtFavoriteStore::IndexForId(const QString &id) const {
+    for (int row = 0; row < favorites_.size(); ++row)
+        if (favorites_[row].id == id)
+            return index(row);
+    return {};
+}
+
 void QtFavoriteStore::RefreshLabels() {
     if (!favorites_.isEmpty())
-        emit dataChanged(index(0), index(favorites_.size() - 1), {Qt::DisplayRole, Qt::EditRole});
+        emit dataChanged(index(0), index(favorites_.size() - 1),
+                         {Qt::DisplayRole, Qt::EditRole, Qt::ToolTipRole});
 }
 
 QVariant QtFavoriteStore::data(const QModelIndex &index, int role) const {
@@ -92,7 +100,7 @@ QVariant QtFavoriteStore::data(const QModelIndex &index, int role) const {
     case Qt::EditRole:
         return Favorite(index.row()).label;
     case Qt::ToolTipRole:
-        return entry.path;
+        return Favorite(index.row()).label + '\n' + entry.path;
     case Qt::UserRole:
         return entry.id;
     case Qt::UserRole + 1:
@@ -115,7 +123,7 @@ bool QtFavoriteStore::setData(const QModelIndex &index, const QVariant &value, i
     favorites_[index.row()].label = value.toString().trimmed();
     favorites_[index.row()].defaultLabel.clear();
     Save();
-    emit dataChanged(index, index, {Qt::DisplayRole, Qt::EditRole});
+    emit dataChanged(index, index, {Qt::DisplayRole, Qt::EditRole, Qt::ToolTipRole});
     return true;
 }
 

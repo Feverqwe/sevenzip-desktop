@@ -3,6 +3,7 @@
   {"id":"workspace-table","title":"Таблица: выделение и текущая строка","target":"workspace_table_tests","functions":["selectionGeometry"]},
   {"id":"file-states","title":"Общие состояния: Cut, выделение и текущий элемент","target":"workspace_file_states_tests","functions":["fileStateGeometry"]},
   {"id":"workspace-tabs","title":"Плотные вкладки","target":"workspace_tabs_tests","functions":["denseGeometry"]},
+  {"id":"workspace-places","title":"Места: текущее расположение, фокус и компактный список","target":"workspace_places_tests","functions":["currentPlaceStaysIndependentOfKeyboardCursorAndOtherWindow","compactPlacesRemainReachable"]},
   {"id":"location-bar","title":"Адрес: native-сегменты","target":"workspace_navigation_tests","functions":["locationBarUsesNativeParentTargets"]},
   {"id":"location-transition","title":"Адрес: успех и отказ перехода","target":"archive_navigation_rollback_tests","functions":["physicalOpeningKeepsOrReleasesNestedContext:0-refused","physicalOpeningKeepsOrReleasesNestedContext:0-success"]},
   {"id":"file-views","title":"Виды списка файлов","target":"ui_layout_tests","functions":["layoutAtSizes","iconModesKeepLabelsInsideCells"]},

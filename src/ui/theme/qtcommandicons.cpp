@@ -1,6 +1,7 @@
 // Lucide geometry adapted to QPainterPath from icons/{plus,folder-output,check,
 // copy,move-right,trash,info,arrow-up,folder-plus,rotate-cw,scissors,
-// clipboard-paste,text-cursor-input,panel-left,arrow-left,pencil,archive}.svg at
+// clipboard-paste,text-cursor-input,panel-left,arrow-left,pencil,archive,folder,
+// monitor,network,hard-drive}.svg at
 // https://github.com/lucide-icons/lucide/tree/1ef60af944de207e0d5176905a0759ba12e6ee8d
 // Copyright (c) 2026 Lucide Icons and Contributors; Feather-derived icons:
 // Copyright (c) 2013-present Cole Bemis. ISC/MIT: third_party/lucide/LICENSE.
@@ -19,6 +20,41 @@ QPainterPath geometry(QtCommandIcon command) {
         p.lineTo(toX, toY);
     };
     switch (command) {
+    case QtCommandIcon::Computer:
+        p.addRoundedRect(QRectF(2, 3, 20, 14), 2, 2);
+        line(8, 21, 16, 21);
+        line(12, 17, 12, 21);
+        break;
+    case QtCommandIcon::Network:
+        p.addRoundedRect(QRectF(16, 16, 6, 6), 1, 1);
+        p.addRoundedRect(QRectF(2, 16, 6, 6), 1, 1);
+        p.addRoundedRect(QRectF(9, 2, 6, 6), 1, 1);
+        p.moveTo(5, 16);
+        p.lineTo(5, 13);
+        p.arcTo(5, 12, 2, 2, 180, -90);
+        p.lineTo(18, 12);
+        p.arcTo(17, 12, 2, 2, 90, -90);
+        p.lineTo(19, 16);
+        line(12, 12, 12, 8);
+        break;
+    case QtCommandIcon::Volumes:
+        line(10, 16, 10.01, 16);
+        line(6, 16, 6.01, 16);
+        line(21.946, 12.013, 2.054, 12.013);
+        p.moveTo(2.212, 11.577);
+        p.cubicTo(2.072, 11.855, 2, 12.162, 2, 12.473);
+        p.lineTo(2, 18);
+        p.arcTo(2, 16, 4, 4, 180, 90);
+        p.lineTo(20, 20);
+        p.arcTo(18, 16, 4, 4, 270, 90);
+        p.lineTo(22, 12.473);
+        p.cubicTo(22, 12.162, 21.928, 11.855, 21.788, 11.577);
+        p.lineTo(18.55, 5.11);
+        p.cubicTo(18.21, 4.43, 17.52, 4, 16.76, 4);
+        p.lineTo(7.24, 4);
+        p.cubicTo(6.48, 4, 5.79, 4.43, 5.45, 5.11);
+        p.closeSubpath();
+        break;
     case QtCommandIcon::Archive:
         p.addRoundedRect(QRectF(2, 3, 20, 5), 1, 1);
         p.moveTo(4, 8);
@@ -182,8 +218,11 @@ QPainterPath geometry(QtCommandIcon command) {
         p.lineTo(16, 8);
         break;
     case QtCommandIcon::NewFolder:
-        line(12, 10, 12, 16);
-        line(9, 13, 15, 13);
+    case QtCommandIcon::Folder:
+        if (command == QtCommandIcon::NewFolder) {
+            line(12, 10, 12, 16);
+            line(9, 13, 15, 13);
+        }
         p.moveTo(20, 20);
         p.arcTo(18, 16, 4, 4, 270, 90);
         p.lineTo(22, 8);

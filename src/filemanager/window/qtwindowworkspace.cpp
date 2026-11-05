@@ -6,6 +6,7 @@
 #include "filemanager/window/qtapppresentation.h"
 #include "filemanager/window/qtfavoritestore.h"
 #include "filemanager/window/qtmainwindowchrome.h"
+#include "filemanager/window/qtnativeplaces.h"
 #include "filemanager/window/qtnavigationbar.h"
 #include "filemanager/window/qtworkspaceruntime.h"
 #include "filemanager/window/qtworkspacetabbar.h"
@@ -20,10 +21,14 @@
 QtWindowWorkspace::QtWindowWorkspace(MainWindow &window) : QObject(&window), window_(window) {
     qApp->installEventFilter(this);
     for (auto *object : qApp->children()) {
+        if (auto *places = dynamic_cast<QtNativePlaces *>(object))
+            nativePlaces_ = places;
         if (auto *store = dynamic_cast<QtFavoriteStore *>(object);
             store && store->property("settingsPath").toString() == window.toolbarSettingsPath())
             favorites_ = store;
     }
+    if (!nativePlaces_)
+        nativePlaces_ = new QtNativePlaces(qApp);
     if (!favorites_) {
         favorites_ = new QtFavoriteStore(window.toolbarSettingsPath(), qApp);
         favorites_->setProperty("settingsPath", window.toolbarSettingsPath());
@@ -148,6 +153,7 @@ void QtWindowWorkspace::Capture(unsigned panel, bool retainView) {
         tab.unavailable = false;
         source.LoadFullPath();
         tab.path = ToQString(source.GetCurrentFolderPrefix());
+        tab.nativePlaceIdentity = QtNativePlaces::RootIdentity(source);
         if (retainView)
             source.SaveSelectedState(tab.selection);
         tab.history = window_.panelUi_[panel].history;

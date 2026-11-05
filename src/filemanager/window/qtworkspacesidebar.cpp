@@ -1,18 +1,15 @@
 #include "filemanager/window/qtworkspacesidebar.h"
-#include "7zip/PropID.h"
-#include "Windows/PropVariant.h"
-#include "filemanager/panels/Panel.h"
-#include "filemanager/providers/RootFolder.h"
 #include "filemanager/window/qtfavoritestore.h"
 #include "filemanager/window/qtmainwindowchrome.h"
+#include "filemanager/window/qtnativeplaces.h"
+#include "filemanager/window/qtplaceprojection.h"
 #include "filemanager/window/qtworkspacetheme.h"
-#include "localization/LangUtils.h"
 #include "localization/qtlangcontrols.h"
+#include "ui/theme/qtcommandicons.h"
 #include <QApplication>
-#include <QDir>
 #include <QHBoxLayout>
 #include <QLabel>
-#include <QListWidget>
+#include <QListView>
 #include <QMenu>
 #include <QPainter>
 #include <QScrollArea>
@@ -33,22 +30,18 @@ class PlaceDelegate final : public QStyledItemDelegate {
         auto option = original;
         initStyleOption(&option, index);
         const auto c = QtWorkspaceTheme::colors();
-        const bool selected = option.state & QStyle::State_Selected;
+        const bool current = index.data(QtPlaceRoles::CurrentLocation).toBool();
         const bool focused = option.state & QStyle::State_HasFocus;
         const QRect frame = option.rect.adjusted(2, 1, -2, -1);
         painter->save();
         painter->setRenderHint(QPainter::Antialiasing);
-        if (selected || (option.state & QStyle::State_MouseOver)) {
+        if (current || (option.state & QStyle::State_MouseOver)) {
             painter->setPen(Qt::NoPen);
-            painter->setBrush(selected ? c.selection : c.hover);
+            painter->setBrush(current ? c.selection : c.hover);
             painter->drawRoundedRect(frame, 5, 5);
         }
-        if (option.icon.isNull()) {
-            const QString path = index.data(Qt::UserRole + 1).toString();
-            option.icon = QApplication::style()->standardIcon(
-                QDir::cleanPath(path) == QDir::homePath() ? QStyle::SP_DirHomeIcon
-                                                          : QStyle::SP_DirIcon);
-        }
+        if (option.icon.isNull())
+            option.icon = QtCommandSymbol(QtCommandIcon::Folder);
         const QRect icon(frame.left() + 8, frame.center().y() - 8, 16, 16);
         option.icon.paint(painter, icon);
         const QRect text = frame.adjusted(32, 0, -8, 0);
@@ -92,9 +85,10 @@ QLabel *Heading(QWidget &parent, const char *text) {
 }
 } // namespace
 
-QtPlacesSidebar::QtPlacesSidebar(QtFavoriteStore &favorites, QtPlaceActions actions, unsigned panel,
-                                 QWidget *parent)
-    : QScrollArea(parent), favorites_(favorites), actions_(std::move(actions)) {
+QtPlacesSidebar::QtPlacesSidebar(QtFavoriteStore &favorites, QtNativePlaces &locations,
+                                 QtPlaceActions actions, unsigned panel, QWidget *parent)
+    : QScrollArea(parent), favorites_(favorites), nativePlaces_(locations),
+      actions_(std::move(actions)) {
     setWidgetResizable(true);
     setFrameShape(QFrame::NoFrame);
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
@@ -108,12 +102,17 @@ QtPlacesSidebar::QtPlacesSidebar(QtFavoriteStore &favorites, QtPlaceActions acti
     CreateFavorites(*places, panel);
     places->addSpacing(20);
     places->addWidget(Heading(*this, QT_TRANSLATE_NOOP("QtWindowWorkspace", "Locations")));
-    locations_ = new QListWidget(this);
+    locations_ = new QListView(this);
+    locationPlaces_ = new QtPlaceProjection(nativePlaces_, locations_);
+    locations_->setModel(locationPlaces_);
     locations_->setObjectName("nativePlaces");
     ConfigurePlaces(*locations_);
+    const auto labelsChanged = [this] { favorites_.RefreshLabels(); };
+    connect(&nativePlaces_, &QAbstractItemModel::dataChanged, this, labelsChanged);
+    connect(&nativePlaces_, &QAbstractItemModel::modelReset, this, labelsChanged);
     places->addWidget(locations_);
     places->addStretch();
-    connect(locations_, &QListWidget::clicked, this, [this](const QModelIndex &index) {
+    connect(locations_, &QListView::clicked, this, [this](const QModelIndex &index) {
         actions_.open(index.data(Qt::UserRole + 1).toString(), QtPlaceTarget::Current);
     });
     auto *open = new QShortcut(QKeySequence(Qt::Key_Return), locations_);
@@ -145,7 +144,8 @@ void QtPlacesSidebar::CreateFavorites(QVBoxLayout &places, unsigned panel) {
     auto *list = new QtFavoriteList(this);
     favoritesView_ = list;
     list->setObjectName(QStringLiteral("favoritePlaces%1").arg(panel));
-    list->setModel(&favorites_);
+    favoritePlaces_ = new QtPlaceProjection(favorites_, list);
+    list->setModel(favoritePlaces_);
     ConfigurePlaces(*list);
     list->setDragDropMode(QAbstractItemView::DragDrop);
     list->setDefaultDropAction(Qt::MoveAction);
@@ -154,13 +154,13 @@ void QtPlacesSidebar::CreateFavorites(QVBoxLayout &places, unsigned panel) {
     list->setContextMenuPolicy(Qt::CustomContextMenu);
     places.addWidget(list);
     connect(list, &QListView::clicked, this, [this](const QModelIndex &index) {
-        actions_.open(favorites_.Favorite(index.row()).path, QtPlaceTarget::Current);
+        actions_.open(index.data(QtPlaceRoles::Path).toString(), QtPlaceTarget::Current);
     });
     auto *open = new QShortcut(QKeySequence(Qt::Key_Return), list);
     open->setContext(Qt::WidgetShortcut);
     connect(open, &QShortcut::activated, this, [this] {
         if (favoritesView_->currentIndex().isValid())
-            actions_.open(favorites_.Favorite(favoritesView_->currentIndex().row()).path,
+            actions_.open(favoritesView_->currentIndex().data(QtPlaceRoles::Path).toString(),
                           QtPlaceTarget::Current);
     });
     connect(list, &QListView::customContextMenuRequested, this, &QtPlacesSidebar::ShowFavoriteMenu);
@@ -175,22 +175,38 @@ void QtPlacesSidebar::CreateFavorites(QVBoxLayout &places, unsigned panel) {
 
 void QtPlacesSidebar::ShowFavoriteMenu(const QPoint &point) {
     const auto index = favoritesView_->indexAt(point);
-    const QString path = favorites_.Favorite(index.row()).path;
+    const QString id = index.data(QtPlaceRoles::Identity).toString();
+    const auto open = [this, id](QtPlaceTarget target) {
+        const auto current = favorites_.IndexForId(id);
+        if (current.isValid())
+            actions_.open(favorites_.Favorite(current.row()).path, target);
+    };
     QMenu menu;
+    QAction *rename = nullptr;
     if (index.isValid()) {
         connect(menu.addAction(tr("Open in new tab")), &QAction::triggered, this,
-                [this, path] { actions_.open(path, QtPlaceTarget::NewTab); });
+                [open] { open(QtPlaceTarget::NewTab); });
         connect(menu.addAction(tr("Open in new window")), &QAction::triggered, this,
-                [this, path] { actions_.open(path, QtPlaceTarget::NewWindow); });
+                [open] { open(QtPlaceTarget::NewWindow); });
         menu.addSeparator();
-        connect(menu.addAction(tr("Rename favorite")), &QAction::triggered, this,
-                [this, index] { favoritesView_->edit(index); });
-        connect(menu.addAction(tr("Remove favorite")), &QAction::triggered, this,
-                [this, index] { favorites_.removeRow(index.row()); });
+        rename = menu.addAction(tr("Rename favorite"));
+        connect(menu.addAction(tr("Remove favorite")), &QAction::triggered, this, [this, id] {
+            const auto current = favorites_.IndexForId(id);
+            if (current.isValid())
+                favorites_.removeRow(current.row());
+        });
     }
     connect(menu.addAction(tr("Add current location")), &QAction::triggered, this,
             [this] { actions_.add(); });
-    menu.exec(favoritesView_->viewport()->mapToGlobal(point));
+    const auto *chosen = menu.exec(favoritesView_->viewport()->mapToGlobal(point));
+    if (rename && chosen == rename) {
+        const auto current = favorites_.IndexForId(id);
+        if (current.isValid()) {
+            const auto index = favoritePlaces_->mapFromSource(current);
+            favoritesView_->setCurrentIndex(index);
+            favoritesView_->edit(index);
+        }
+    }
 }
 
 void QtPlacesSidebar::SetCompact(bool compact) {
@@ -200,54 +216,13 @@ void QtPlacesSidebar::SetCompact(bool compact) {
 }
 
 void QtPlacesSidebar::RefreshLocations() {
-    const QString language = ToQString(g_LangID) + ':' + tr("Locations");
-    if (language_ == language)
-        return;
-    language_ = language;
-    favorites_.RefreshLabels();
-    locations_->clear();
-    CRootFolder root;
-    root.Init();
-    IFolderFolder &source = root;
-    UInt32 count = 0;
-    source.GetNumberOfItems(&count);
-    int iconIndex = 0;
-    for (UInt32 i = 0; i < count; ++i) {
-        NWindows::NCOM::CPropVariant name;
-        if (source.GetProperty(i, kpidName, &name) != S_OK || name.vt != VT_BSTR)
-            continue;
-        if (UString(name.bstrVal) == RootFolder_GetName_Documents(iconIndex))
-            continue;
-        CMyComPtr<IFolderFolder> folder;
-        if (source.BindToFolder(i, &folder) != S_OK || !folder)
-            continue;
-        QString label = ToQString(UString(name.bstrVal));
-        if (label == QStringLiteral("\\\\."))
-            label = QCoreApplication::translate("RootFolder", "Volumes");
-        const auto icon = UString(name.bstrVal) == RootFolder_GetName_Computer(iconIndex)
-                              ? QStyle::SP_ComputerIcon
-                          : UString(name.bstrVal) == RootFolder_GetName_Network(iconIndex)
-                              ? QStyle::SP_DriveNetIcon
-                              : QStyle::SP_DriveHDIcon;
-        auto *item = new QListWidgetItem(style()->standardIcon(icon), label, locations_);
-        item->setData(Qt::UserRole + 1, ToQString(GetFolderPath(folder)));
-    }
-    locations_->setFixedHeight(locations_->count() *
+    nativePlaces_.Refresh();
+    locations_->setFixedHeight(locationPlaces_->rowCount() *
                                qMax(30, locations_->fontMetrics().height() + 12));
 }
 
-void QtPlacesSidebar::SetCurrentLocation(const QString &path) {
+void QtPlacesSidebar::SetCurrentLocation(const QString &path, const QString &nativeIdentity) {
     RefreshLocations();
-    const QString current = QDir::cleanPath(path);
-    for (auto *view :
-         {static_cast<QListView *>(favoritesView_), static_cast<QListView *>(locations_)}) {
-        QModelIndex matching;
-        for (int row = 0; row < view->model()->rowCount(); ++row) {
-            const auto index = view->model()->index(row, 0);
-            if (QDir::cleanPath(index.data(Qt::UserRole + 1).toString()) == current)
-                matching = index;
-        }
-        if (!view->hasFocus() && !view->isAncestorOf(QApplication::focusWidget()))
-            view->setCurrentIndex(matching);
-    }
+    favoritePlaces_->SetCurrentLocation(path);
+    locationPlaces_->SetCurrentLocation(path, nativeIdentity);
 }

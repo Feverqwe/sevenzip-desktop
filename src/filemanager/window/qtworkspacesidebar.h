@@ -5,7 +5,9 @@
 
 class QtFavoriteStore;
 class QtFavoriteList;
-class QListWidget;
+class QtNativePlaces;
+class QtPlaceProjection;
+class QListView;
 class QVBoxLayout;
 
 enum class QtPlaceTarget { Current, NewTab, NewWindow };
@@ -19,18 +21,20 @@ struct QtPlaceActions {
 class QtPlacesSidebar final : public QScrollArea {
     Q_DECLARE_TR_FUNCTIONS(QtWindowWorkspace)
   public:
-    QtPlacesSidebar(QtFavoriteStore &favorites, QtPlaceActions actions, unsigned panel,
-                    QWidget *parent = nullptr);
+    QtPlacesSidebar(QtFavoriteStore &favorites, QtNativePlaces &locations, QtPlaceActions actions,
+                    unsigned panel, QWidget *parent = nullptr);
     void SetCompact(bool compact);
-    void SetCurrentLocation(const QString &path);
+    void SetCurrentLocation(const QString &path, const QString &nativeIdentity = {});
 
   private:
     void CreateFavorites(QVBoxLayout &layout, unsigned panel);
     void ShowFavoriteMenu(const QPoint &point);
     void RefreshLocations();
     QtFavoriteStore &favorites_;
+    QtNativePlaces &nativePlaces_;
     QtPlaceActions actions_;
     QtFavoriteList *favoritesView_ = nullptr;
-    QListWidget *locations_ = nullptr;
-    QString language_;
+    QListView *locations_ = nullptr;
+    QtPlaceProjection *favoritePlaces_ = nullptr;
+    QtPlaceProjection *locationPlaces_ = nullptr;
 };

@@ -184,7 +184,12 @@ does not mutate the source directory.
 Main-window presentation shares a workspace palette and metrics, navigation-row
 and path components, and a places component with one row delegate for favorites
 and native locations. These components project navigation requests; they do not
-own file or archive operations. The splitter applies the original ratio policy
+own file or archive operations. Native locations share an application model of
+value snapshots from the native root provider. Each sidebar projects its own
+current location independently of keyboard selection. Native root identity
+survives a language change without rebinding the open source. Favorite menu
+actions resolve the stable bookmark identity when invoked; renaming starts after
+the menu closes. The splitter applies the original ratio policy
 to file areas, excluding the shared places width. Status belongs below each file
 area. Restoring geometry precedes restoring its split so resizing retains the
 user's file-area proportions.

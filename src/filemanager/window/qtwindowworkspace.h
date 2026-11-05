@@ -14,6 +14,7 @@ class QVBoxLayout;
 class QToolBar;
 class QListView;
 class QtFavoriteStore;
+class QtNativePlaces;
 struct QtTabRuntime;
 
 // Tab runtimes own stable sources; CApp projects two active slots. Persistent
@@ -48,6 +49,7 @@ class QtWindowWorkspace final : public QObject {
     struct Tab {
         QString id;
         QString path;
+        QString nativePlaceIdentity;
         QStringList history;
         CSelectedState selection;
         QPoint scroll;
@@ -88,6 +90,7 @@ class QtWindowWorkspace final : public QObject {
     std::array<Panel, 2> panels_;
     bool changing_ = false;
     QtFavoriteStore *favorites_ = nullptr;
+    QtNativePlaces *nativePlaces_ = nullptr;
     bool sidebarVisible_ = true;
     quint64 focusRequest_ = 0;
 };

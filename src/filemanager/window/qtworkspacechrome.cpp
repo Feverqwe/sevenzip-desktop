@@ -155,7 +155,7 @@ void QtWindowWorkspace::AttachContent(unsigned panel, QVBoxLayout &layout, QWidg
 }
 
 QWidget *QtWindowWorkspace::CreateSidebar(unsigned panel) {
-    return new QtPlacesSidebar(*favorites_,
+    return new QtPlacesSidebar(*favorites_, *nativePlaces_,
                                {[this] { AddFavorite(); },
                                 [this](const QString &path, QtPlaceTarget target) {
                                     OpenFavorite(path, static_cast<int>(target));
@@ -169,8 +169,11 @@ void QtWindowWorkspace::RefreshSidebar(unsigned panel) {
         return;
     sidebar->SetCompact(window_.width() <= 700);
     sidebar->setVisible(sidebarVisible_ && (window_.app_.NumPanels == 1 || panel == 0));
-    const auto &active = panels_[window_.projectedPanel_];
-    sidebar->SetCurrentLocation(active.tabs.empty() ? QString() : active.tabs[active.current].path);
+    const auto &active = panels_[window_.app_.GetFocusedPanelIndex()];
+    const bool available = !active.tabs.empty() && !active.tabs[active.current].unavailable;
+    sidebar->SetCurrentLocation(available ? active.tabs[active.current].path : QString(),
+                                available ? active.tabs[active.current].nativePlaceIdentity
+                                          : QString());
 }
 
 void QtWindowWorkspace::RefreshChrome() {

@@ -14,6 +14,14 @@
 #include <QFileInfo>
 #endif
 
+bool CNetFolder::IsRootLocation() const {
+#ifdef _WIN32
+    return !_parentFolder && !_netResourcePointer;
+#else
+    return !_parentFolder;
+#endif
+}
+
 using namespace NWindows;
 #ifdef _WIN32
 using namespace NNet;

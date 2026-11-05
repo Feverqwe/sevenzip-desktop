@@ -139,6 +139,11 @@ class WorkspaceSessionTests final : public QObject {
             MainWindow window(&backend);
             window.show();
             window.openPath(gone);
+            QTRY_VERIFY(active(window)->isEnabled());
+            QMimeData bookmark;
+            bookmark.setUrls({QUrl::fromLocalFile(gone)});
+            auto *favorites = window.findChild<QListView *>("favoritePlaces0");
+            QVERIFY(favorites->model()->dropMimeData(&bookmark, Qt::CopyAction, -1, 0, {}));
             saved = workspace(window)->Save();
         }
         QVERIFY(QDir().rmdir(gone));
@@ -157,10 +162,10 @@ class WorkspaceSessionTests final : public QObject {
         QCOMPARE(location(restored), usable);
         QVERIFY(restored.findChild<QAction *>("createFolderAction")->isEnabled());
         auto *favorites = restored.findChild<QListView *>("favoritePlaces0");
-        auto *store = dynamic_cast<QtFavoriteStore *>(favorites->model());
-        QVERIFY(store);
-        store->Add(gone, "Unavailable location");
-        const QModelIndex favorite = store->index(store->rowCount() - 1);
+        const auto matching = favorites->model()->match(
+            favorites->model()->index(0, 0), Qt::UserRole + 1, gone, 1, Qt::MatchExactly);
+        QCOMPARE(matching.size(), 1);
+        const QModelIndex favorite = matching.first();
         favorites->scrollTo(favorite);
         QTest::mouseClick(favorites->viewport(), Qt::LeftButton, Qt::NoModifier,
                           favorites->visualRect(favorite).center());

@@ -1,6 +1,7 @@
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/window/qtfavoritestore.h"
 #include "filemanager/window/qtnavigationbar.h"
+#include "filemanager/window/qtplaceprojection.h"
 #include "filemanager/window/qtwindowworkspace.h"
 #include "filemanager/window/qtworkspaceapplication.h"
 #include "support/panel_keys.h"
@@ -171,8 +172,8 @@ class WorkspaceNavigationTests final : public QObject {
         auto *splitter = window.findChild<QSplitter *>("filePanelSplitter");
         auto *leftTable = splitter->widget(0)->findChild<FileTable *>("archiveTable");
         auto *rightTable = splitter->widget(1)->findChild<FileTable *>("archiveTable");
-        auto *places = splitter->widget(0)->findChild<QListWidget *>("nativePlaces");
-        QTRY_VERIFY(places && places->count() > 0 && places->isVisible());
+        auto *places = splitter->widget(0)->findChild<QListView *>("nativePlaces");
+        QTRY_VERIFY(places && places->model()->rowCount() > 0 && places->isVisible());
         window.activateWindow();
         QVERIFY(QTest::qWaitForWindowActive(&window));
         rightTable->setFocus();
@@ -187,6 +188,7 @@ class WorkspaceNavigationTests final : public QObject {
                 QDir::fromNativeSeparators(ToQString(table.sourcePanel->GetCurrentFolderPrefix())));
         };
         QTRY_COMPARE(path(*rightTable), QDir::cleanPath(QDir::fromNativeSeparators(target)));
+        QTRY_VERIFY(index.data(QtPlaceRoles::CurrentLocation).toBool());
         QCOMPARE(path(*leftTable), left);
     }
 

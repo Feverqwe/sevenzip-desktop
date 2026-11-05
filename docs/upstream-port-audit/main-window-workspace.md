@@ -6,6 +6,30 @@
 
 ## Native scope
 
+PlacesSidebar, дополнительная сверка 2026-11-05: перечисление native мест
+перенесено из виджета в общий value model без удержания COM-интерфейсов.
+Повторно проверены полные `RootFolder.cpp/.h`, `NetFolder.cpp/.h`, `FSDrives`
+и panel path/capture callers. Узкий локальный `CNetFolder::IsRootLocation`
+читает существующее состояние корня; native перечисление, binding, parent
+и сетевые операции не изменены. Типизированная идентичность native корня
+сохраняет подсветку после смены языка, даже когда открытый provider сохраняет
+первоначальное имя пути. Новые Qt model/projection units — project-owned
+integration; оригинальные baseline units и хеши не меняются.
+
+Текущее место отделено от клавиатурного курсора и локально для каждого sidebar;
+общая боковая панель использует активную сторону окна. Действия меню повторно
+разрешают идентичность закладки после перестановки/удаления, а редактор имени
+открывается после закрытия меню. Linux x86_64: `workspace_places`,
+`workspace_navigation`, `workspace_session` — PASS, включая MIME-перестановку
+через proxy, переименование и смену языка native корня. Windows runtime новым
+проходом не проверялся; Win/POSIX ветви дополнительно просмотрены по исходникам.
+После уточнения общих контурных значков Linux Places/navigation/main shell —
+PASS. macOS arm64: Places/navigation/session offscreen — PASS; native Cocoa
+Places — 9 сценариев PASS, включая меню/редактор и независимый фокус.
+Светлая/тёмная Cocoa геометрия и компактные EN/RU снимки обновлены и просмотрены
+против живого каталога v38. Подсветка места, контур курсора, сокращение длинной
+подписи и прокрутка сохраняются; sidebar использует общие контурные symbols.
+
 Исходный репозиторий 7-Zip: <https://github.com/ip7z/7zip.git>, полная ревизия
 `0766b733fe3e06dd2a7f9a3cfbf2108ac73abd17`. Полные исходные inventory units,
 хеши и текущие локальные владельцы остаются в [основном baseline](../upstream-baseline.json).
@@ -149,7 +173,12 @@ LICENSE из <https://github.com/lucide-icons/lucide.git> на
 symbols, чтобы обновление всего используемого набора было воспроизводимо.
 Для границы контейнера в LocationBar добавлена геометрия `icons/archive.svg`
 того же baseline; она обозначает native Archive segment и не определяет тип
-источника по расширению. Файловые и namespace icons остаются у native owner.
+источника по расширению. Для Places добавлены `folder`, `monitor`, `network`,
+`hard-drive` того же baseline: полная геометрия, без SVG XML и package bindings.
+Папка использует общий контур с существующим folder-plus; остальные фигуры
+адаптированы к тому же QPainterPath renderer. Значки списка файлов и namespace
+внутри списка остаются у native owner; sidebar получает chrome symbols по
+типизированной идентичности места.
 Перенесена только геометрия выбранных SVG в `geometry(QtCommandIcon)` существующего
 palette-aware QPainterPath renderer. XML, JavaScript packages и generated bindings
 не используются. SVG arc geometry адаптирована к QPainterPath; точное совпадение

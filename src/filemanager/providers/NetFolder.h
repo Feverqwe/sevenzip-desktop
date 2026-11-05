@@ -48,6 +48,7 @@ explicit CNetFolder(QtVolumeMountProvider provider = QtSystemVolumeMounts)
     : _mountProvider(std::move(provider)) {}
 #endif
 void Init(const UString &path);
+bool IsRootLocation() const;
 #ifdef _WIN32
 void Init(const NWindows::NNet::CResourceW *netResource, IFolderFolder *parentFolder,
           const UString &path);

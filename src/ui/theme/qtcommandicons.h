@@ -18,8 +18,12 @@ enum class QtCommandIcon {
     Sidebar,
     Back,
     EditLocation,
-    Archive
+    Archive,
+    Folder,
+    Computer,
+    Network,
+    Volumes
 };
 
-// Vector command/location graphics; file, namespace and application icons stay native.
+// Vector chrome graphics; file-list and application icons stay native.
 QIcon QtCommandSymbol(QtCommandIcon command);
