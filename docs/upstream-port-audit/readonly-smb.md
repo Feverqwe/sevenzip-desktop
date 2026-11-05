@@ -1,5 +1,17 @@
 # Local read-only SMB: implementation and evidence
 
+## Initial and lazy node projection — 2026-11-05
+
+Initial tree admission and lazy-directory publication share child-name validation
+and the node's wire-metadata preparation. Timestamp precision and encoded names/
+paths now have one implementation. Root exceptions, ID/parent checks, link and
+collision policy, lazy path bounds and whole-batch validation remain with their
+existing callers; no new acceptance or refusal rule is introduced. Wire encoding
+still follows validation of the candidate's link/path. This is local integration,
+with no SMB library, native reader, imported inventory or platform-adapter change.
+Existing wire and loopback checks cover Unicode paths, links, lazy traversal,
+invalid children, retry and subsequent reads; no private-helper test is added.
+
 ## Shared deferred-result slot — 2026-11-05
 
 Reviewed complete READ and lazy-directory admission, completion, reply delivery,

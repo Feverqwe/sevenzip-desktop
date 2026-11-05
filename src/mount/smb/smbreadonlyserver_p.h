@@ -29,6 +29,7 @@ struct SmbReadOnlyServer::State : smb2_server {
         QString Path;
         QByteArray EncodedName, EncodedPath;
         QList<quint64> Children;
+        void prepareWireMetadata();
     };
     struct Handle {
         quint64 Item;
@@ -150,6 +151,7 @@ struct SmbReadOnlyServer::State : smb2_server {
     static Handle *find(smb2_context *context, const smb2_file_id fileId);
     static int status(quint32 value) { return qint32(value); }
     static quint32 attributes(const SmbTreeEntry &entry);
+    static bool validName(const QString &name);
     static bool validLink(const SmbTreeEntry &entry, const QString &path);
     static void timestamps(smb2_file_basic_info &info, const SmbTreeEntry &entry);
     int create(smb2_context *, smb2_create_request *, smb2_create_reply *,

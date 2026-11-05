@@ -50,24 +50,17 @@ quint32 SmbReadOnlyServer::State::installDirectory(quint64 parent,
     QSet<QString> paths;
     for (const auto &entry : entries) {
         if (!entry.Id || entry.Parent != parent || entry.Id <= parent || Nodes.contains(entry.Id) ||
-            ids.contains(entry.Id) || entry.Name.isEmpty() || entry.Name.size() > 255 ||
-            entry.Name == "." || entry.Name == ".." || entry.Name.contains(u'/') ||
-            entry.Name.contains(u'\\') || entry.Name.contains(u':') ||
-            entry.Name.contains(QChar::Null))
+            ids.contains(entry.Id) || !validName(entry.Name))
             return SMB2_STATUS_IO_DEVICE_ERROR;
         Node node;
         node.Entry = entry;
-        node.Entry.Modified -= node.Entry.Modified % 10;
         node.Path = owner->Path.isEmpty() ? entry.Name : owner->Path + u'/' + entry.Name;
         if (!validLink(entry, node.Path))
             return SMB2_STATUS_IO_DEVICE_ERROR;
         const auto key = node.Path.normalized(QString::NormalizationForm_C);
         if (node.Path.size() > 32767 || Paths.contains(key) || paths.contains(key))
             return SMB2_STATUS_IO_DEVICE_ERROR;
-        node.EncodedName = entry.Name.toUtf8();
-        QString windowsPath = u'\\' + node.Path;
-        windowsPath.replace(u'/', u'\\');
-        node.EncodedPath = windowsPath.toUtf8();
+        node.prepareWireMetadata();
         paths.insert(key);
         ids.insert(entry.Id);
         additions.append(std::move(node));
