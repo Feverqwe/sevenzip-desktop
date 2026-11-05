@@ -4,7 +4,9 @@
 #include "Common/MyCom.h"
 #include "fileops/overwrite/overwritequestion.h"
 #include <QStringList>
+#include <expected>
 #include <functional>
+#include <optional>
 
 // Bridges the source FSFolderCopy AskWrite/progress contract to the staged
 // filesystem transaction. It holds no widget or archive backend state.
@@ -13,8 +15,9 @@ class CFileTransferCopyCallback final : public IFolderOperationsExtractCallback,
     Z7_COM_UNKNOWN_IMP_1(IFolderOperationsExtractCallback)
 
   public:
-    using Decide =
-        std::function<HRESULT(const OverwriteQuestion::File &, const QString &, QString &, bool &)>;
+    // A destination writes the file; an empty optional skips it; an error aborts.
+    using WriteDecision = std::expected<std::optional<QString>, HRESULT>;
+    using Decide = std::function<WriteDecision(const OverwriteQuestion::File &, const QString &)>;
     CFileTransferCopyCallback(Decide decide, std::function<bool(quint64)> advance,
                               std::function<void(const QString &)> currentFile);
 

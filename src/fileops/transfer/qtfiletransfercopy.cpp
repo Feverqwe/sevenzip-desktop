@@ -63,36 +63,35 @@ bool QtFileTransferTransaction::mergeEntry(const QString &source, const QString 
                                            const QString &target, QStringList *writtenSources,
                                            QString *error) {
     CFileTransferCopyCallback callback(
-        [this, &stage, &target](const OverwriteQuestion::File &incoming, const QString &requested,
-                                QString &effective, bool &write) -> HRESULT {
+        [this, &stage, &target](const OverwriteQuestion::File &incoming, const QString &requested)
+            -> CFileTransferCopyCallback::WriteDecision {
             if (worker_.canceled_)
-                return E_ABORT;
+                return std::unexpected(E_ABORT);
             const QFileInfo existing(requested);
             if (existing.isSymLink() || (existing.exists() && !existing.isFile()))
-                return E_ABORT;
+                return std::unexpected(E_ABORT);
+            QString effective = requested;
             if (existing.exists()) {
                 const QString visible = target + requested.mid(stage.size());
                 switch (decideOverwrite({requested, visible, incoming})) {
                 case OverwriteDecision::Skip:
-                    write = false;
-                    return S_OK;
+                    return std::nullopt;
                 case OverwriteDecision::Rename: {
                     FString renamed = us2fs(requested.toStdWString().c_str());
                     if (!AutoRenamePath(renamed))
-                        return E_ABORT;
+                        return std::unexpected(E_ABORT);
                     effective = QString::fromWCharArray(fs2us(renamed));
                     break;
                 }
                 case OverwriteDecision::Replace:
                     if (!QFile::remove(requested))
-                        return E_ABORT;
+                        return std::unexpected(E_ABORT);
                     break;
                 case OverwriteDecision::Cancel:
-                    return E_ABORT;
+                    return std::unexpected(E_ABORT);
                 }
             }
-            write = true;
-            return S_OK;
+            return effective;
         },
         [this](quint64 delta) {
             if (delta)

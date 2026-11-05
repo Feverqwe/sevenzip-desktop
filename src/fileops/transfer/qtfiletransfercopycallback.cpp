@@ -39,15 +39,13 @@ Z7_COM7F_IMF(CFileTransferCopyCallback::AskWrite(const wchar_t *srcPath, Int32 s
     *writeAnswer = 0;
     const auto source =
         NativeOverwriteFile(QString::fromWCharArray(srcPath), srcTime, srcSize, true);
-    QString effective = QString::fromWCharArray(destPath);
-    bool write = false;
-    const HRESULT result = decide_(source, effective, effective, write);
-    if (result != S_OK)
-        return result;
-    if (!write)
+    const auto decision = decide_(source, QString::fromWCharArray(destPath));
+    if (!decision)
+        return decision.error();
+    if (!*decision)
         return S_OK;
     *writeAnswer = 1;
     writtenSources << source.Path;
-    const std::wstring wide = effective.toStdWString();
+    const std::wstring wide = (**decision).toStdWString();
     return StringToBstr(wide.c_str(), destPathResult);
 }
