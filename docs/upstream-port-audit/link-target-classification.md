@@ -1,5 +1,28 @@
 # Relative link target classification — 2026-11-01
 
+## File Manager Link command owner — 2026-11-05
+
+Compared complete original LinkDialog command, dialog handlers/types and
+resources at `b88c6bc09339de32f7d18bbab900686b244f42ba` with the Qt command,
+modal call guard, reload, native link adapters and public behavior checks.
+Complete original cpp/header/resource hashes match the existing baseline.
+No native link algorithm, resource or dependency revision changes.
+
+The complete CApp::Link body now belongs to AppLink.cpp beside the other File
+Manager application commands, in the same sevenzip_panel target. Dialog state,
+browse/type/error handlers and native link creation remain in LinkDialog.cpp,
+which no longer includes the application interface. The moved body is unchanged:
+source/destination selection, captured selection, accepted/Cancel handling,
+optional reparse-column refresh and title publication keep their existing order.
+The existing baseline maps the extracted symbol without advancing original bytes.
+No new class, helper, operation state or public interface is introduced.
+
+Existing link-command, dialog and deferred GUI-output tests exercise creation,
+Cancel, preserved selection/bytes, modal refresh exclusion and post-dialog
+readiness. Native retarget/clear, type restrictions and relative target handling
+retain their existing implementation. No layout or caption changes are made,
+and no test fixes the internal file ownership.
+
 ## Link command lifetime and deferred refresh — 2026-11-05
 
 Compared complete original CApp::Link and menu routing, LinkDialog resources and

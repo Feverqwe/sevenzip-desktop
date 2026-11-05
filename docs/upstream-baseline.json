@@ -1727,6 +1727,7 @@
     "src/dialogs/mem/qtmemoryrequestpresentation.cpp",
     "src/dialogs/overwrite/qtoverwritepresentation.cpp",
     "src/filemanager/AppCopy.cpp",
+    "src/filemanager/AppLink.cpp",
     "src/filemanager/ExtractCallbackOutput.cpp",
     "src/filemanager/external/qtexternalapplications.cpp",
     "src/filemanager/external/qtexternalapplications.h",
@@ -3540,6 +3541,14 @@
     "src/formats/vhdx/VhdxCrc.cpp"
   ],
   "extracted": {
+    "src/dialogs/link/LinkDialog.cpp": {
+      "local": [
+        "src/filemanager/AppLink.cpp"
+      ],
+      "symbols": [
+        "CApp::Link"
+      ]
+    },
     "src/archive/callbacks/ArchiveExtractCallback.cpp": {
       "local": [
         "src/archive/resources/qtarchivereadcallback.cpp"
