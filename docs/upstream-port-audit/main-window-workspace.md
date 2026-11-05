@@ -327,6 +327,14 @@ macOS offscreen: archive workspace/rollback/Places — PASS после окон�
 проверки двух панелей; ранее прошли session и общий navigation scope. Эти
 результаты не заменяют недостающую native Cocoa проверку нового сценария.
 
+Повторное открытие failed candidate теперь сначала закрывает его прежнюю chain
+штатным native bind к пустому root, затем открывает physical target заново. Это
+не позволяет Retry использовать cached reader после замены архива на диске.
+POSIX-регрессия заменяет открытый outer archive после missing-nested отказа и
+проверяет восстановленную цепочку/301 entries и извлечённые bytes. Linux archive
+workspace/rollback и macOS offscreen — PASS; Windows replacement semantics этим сценарием не
+проверяются.
+
 ## Shared secret editing
 
 2026-11-05: проверены исходные `PasswordDialog.cpp/.h`, обработчики

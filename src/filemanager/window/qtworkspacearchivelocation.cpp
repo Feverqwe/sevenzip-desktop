@@ -49,8 +49,13 @@ HRESULT QtWindowWorkspace::OpenArchiveLocation(unsigned panel, const QtArchiveLo
     window_.cancelListPublication();
     // Retry can still display the old archive root while the candidate source
     // is in a subfolder. Bind the native source, bypassing display-path shortcuts.
+    // Drop a previous failed candidate so Retry reads a replaced archive too.
+    COpenResult reset;
+    HRESULT result = source.BindToPath(UString(), UString(), reset);
+    if (result != S_OK)
+        return result;
     COpenResult physical;
-    HRESULT result = source.BindToPath(ToUString(location.physicalPath), UString(), physical);
+    result = source.BindToPath(ToUString(location.physicalPath), UString(), physical);
     if (result != S_OK)
         return result;
 

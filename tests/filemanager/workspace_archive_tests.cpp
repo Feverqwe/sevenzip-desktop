@@ -173,7 +173,21 @@ class WorkspaceArchiveTests final : public QObject, protected MainWindowTestSupp
                 for (auto *label : window.findChildren<QLabel *>())
                     errorVisible |= label->isVisible() && label->text().contains(requested);
                 QVERIFY(errorVisible);
+#ifndef Q_OS_WIN
+                // POSIX permits replacing an archive while its old reader is
+                // alive. Retry must read the new file rather than that reader.
+                QVERIFY(QFile::rename(outer, outer + ".stale"));
+                QVERIFY(createArchive(fixture.path(), outer, top));
+                QPushButton *retry = nullptr;
+                for (auto *button : window.findChildren<QPushButton *>())
+                    if (button->isVisible() &&
+                        button->text() == QCoreApplication::translate("QtWindowWorkspace", "Retry"))
+                        retry = button;
+                QVERIFY(retry);
+                QTest::mouseClick(retry, Qt::LeftButton);
+#else
                 return;
+#endif
             }
         } else {
             bool invoked = false;
