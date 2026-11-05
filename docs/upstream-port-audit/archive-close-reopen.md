@@ -1,5 +1,41 @@
 # Archive folder lifetime across rollback — 2026-10-18
 
+## Native read preparation before worker start — 2026-11-05
+
+Compared original FileFolderPluginOpen worker/caller, OpenCallback and
+ProgressDialog2 creation/join with current directory reads, nested stream
+acquisition and reopen helpers. Complete original units match the recorded
+`b88c6bc09339de32f7d18bbab900686b244f42ba` baseline. No code import, source
+revision or native reader algorithm changes.
+
+All three helpers now prepare their localized progress title before starting
+the thread that borrows the stack request. Original FileFolderPluginOpen already
+uses this order. Previously a title allocation failure could leave that worker
+outside the progress dialog's joining boundary while unwinding its request.
+Directory reads also create their progress request inside the existing worker
+exception boundary, so setup failure follows the same E_FAIL/completion path
+as a reader exception instead of escaping the thread entry.
+
+The existing progress owner still releases its creation wait and joins before
+publication. Transport teardown, callback/request lifetimes, selection scope,
+usable partial directory results, cancellation, password retention, stream
+publication and reopen/update behavior remain unchanged. No separate thread
+guard, controller, persistent flag or exception policy is introduced.
+Existing native directory, nested-opening and nested-update behavior checks
+cover the affected consumers; no source-order assertion or allocation-count
+test is added. Allocation failure itself is source-reviewed rather than claimed
+as an injected runtime result.
+
+Linux passed `archive_directory_command`, `native_nested_stream_quick` and
+`nested_edit_chain`: 36 checks without failures or skips. Compilation took
+20.027 seconds and tests 17.831 seconds. This includes directory calculation
+success/Cancel/retry, confirmed cancellation of nested opening, retained source
+guards and native nested write-back. The full nested-route matrices remain
+opt-in slow and were not selected. Whitespace and recorded inventory checks
+passed; completed scratch was empty. Configured four-job incremental builds
+and compiler cache were retained. No platform adapter, visible text or layout
+changed; no secondary-platform or rendered appearance acceptance is claimed.
+
 ## Archive-folder Qt operation adapter owner — 2026-11-05
 
 Reviewed the archive folder's operation-interface queries, update/extract/comment

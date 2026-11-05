@@ -55,11 +55,12 @@ HRESULT GetArchiveItemStream(IFolderFolder *folder, UInt32 index, ISequentialInS
     request.UI.ProgressDialog.MainWindow = parent;
     request.UI.ProgressDialog.MainTitle = L"7-Zip";
     request.UI.ProgressDialog.WaitMode = true;
+    const UString title = LangString(IDS_OPENNING);
     NWindows::CThread thread;
     const WRes started = thread.Create(CItemOpen::Run, &request);
     if (started != 0)
         return HRESULT_FROM_WIN32(started);
-    request.UI.StartProgressDialog(LangString(IDS_OPENNING), thread);
+    request.UI.StartProgressDialog(title, thread);
     passwordDefined = request.UI.PasswordIsDefined;
     WipeNativePassword(password);
     password = request.UI.Password;

@@ -23,9 +23,9 @@ HRESULT RunDirectoryRead(CAgentFolder &folder, bool recursive, const CUIntVector
         static THREAD_FUNC_DECL Run(void *opaque) {
             auto &request = *static_cast<Request *>(opaque);
             CProgressCloser closer(request.UI.ProgressDialog);
-            request.UI.ProgressDialog.WaitCreating();
-            auto progress = CreateArchiveOpenReadRequest(&request.UI);
             try {
+                request.UI.ProgressDialog.WaitCreating();
+                auto progress = CreateArchiveOpenReadRequest(&request.UI);
                 request.Result =
                     request.Selection
                         ? request.Folder.LoadDirectorySelection(request.Selection->ConstData(),
@@ -47,16 +47,16 @@ HRESULT RunDirectoryRead(CAgentFolder &folder, bool recursive, const CUIntVector
         return E_FAIL;
     auto transport = resource->CreateProgressTransport(request.UI.ProgressDialog, true);
     request.UI.ProgressDialog.AttachTransport(transport.get());
-    NWindows::CThread thread;
-    const auto started = thread.Create(Request::Run, &request);
-    if (started)
-        return HRESULT_FROM_WIN32(started);
     const UString title =
         selection
             ? UString(QCoreApplication::translate("ArchiveDirectory", "Calculating folder size…")
                           .toStdWString()
                           .c_str())
             : LangString(IDS_OPENNING);
+    NWindows::CThread thread;
+    const auto started = thread.Create(Request::Run, &request);
+    if (started)
+        return HRESULT_FROM_WIN32(started);
     request.UI.StartProgressDialog(title, thread);
     return request.Result;
 }
