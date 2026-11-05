@@ -3218,10 +3218,11 @@ HRESULT CArchiveLink::Open2(COpenOptions &op, IOpenCallbackUI *callbackUI) {
     RINOK(res)
     // VolumePaths.Add(fs2us(prefix + name));
 
-    FOR_VECTOR(i, openCallbackSpec->FileNames_WasUsed) {
-        if (openCallbackSpec->FileNames_WasUsed[i]) {
-            VolumePaths.Add(fs2us(prefix) + openCallbackSpec->FileNames[i]);
-            VolumesSize += openCallbackSpec->FileSizes[i];
+    FOR_VECTOR(i, openCallbackSpec->Volumes.Streams) {
+        const auto &volume = openCallbackSpec->Volumes.Streams[i];
+        if (volume.WasUsed) {
+            VolumePaths.Add(fs2us(prefix) + volume.Name);
+            VolumesSize += volume.Size;
         }
     }
     // VolumesSize = openCallbackSpec->TotalSize;

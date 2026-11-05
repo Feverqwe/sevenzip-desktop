@@ -1,5 +1,60 @@
 # Archive folder lifetime across rollback — 2026-10-18
 
+## One registered volume record — 2026-11-05
+
+Compared complete original ArchiveOpenCallback.cpp/.h volume initialization,
+open/retained stream, LRU eviction/reopen and close bodies with the current port,
+and original OpenArchive.cpp volume accounting. Complete original units match
+the existing `b88c6bc09339de32f7d18bbab900686b244f42ba` baseline. Current sparse
+package validation/independent stream handling and all inventory consumers were
+reviewed separately. No source import or revision is introduced.
+
+Each existing native volume record now also owns its requested name, size and
+logical-use flag. Three parallel callback vectors are removed; final volume
+paths/size use the same registered records in their original order. The logical
+wrapper's close clears its flag, while native LRU eviction still preserves it.
+Full filesystem path and requested name retain their distinct roles.
+
+GetStream prepares metadata and an RAII-held wrapper before adding the record.
+Its callback reference remains empty until registration succeeds. Record copying
+can fail without publishing a partial entry; subsequent list linking, index
+assignment, callback reference and output transfer do not allocate. This removes
+the mismatch between stream and metadata indices after an allocation failure
+without another rollback owner. Reopening an evicted stream likewise restores
+its saved position before attaching the native stream to the cache. Failed Seek
+releases that new handle and retains the intended position for retry; previously
+a failed restore left an active handle at the wrong position. Native path/error/
+Cancel/password rules, handle limit, successful seek behavior and retained
+callback lifetime remain unchanged. Delayed sparsebundle handles still bypass
+this inventory entirely.
+
+A Linux regression injects each allocation failure after opening a real fixture
+volume until the operation succeeds without injection. It checks null failed
+output, closed descriptor before retry, retry on the same callback and readable
+previous/new streams after external callback references are released, without
+pinning allocation counts or the inventory's representation. The same fixture
+uses the existing callback regression's manual eviction setup to inject an I/O
+error at position restoration, then checks retry reads the intended suffix
+after external callback references are released. Existing callback tests retain
+unsafe-path and LRU position/retained-stream behavior; two internal inventory
+presence assertions are removed. Existing native volume accounting, missing/
+corrupt/encrypted archive and sparsebundle checks cover direct consumers.
+
+Linux passed `volume_registration_allocation` plus `open_callback`,
+`archive_open_options`, `ui_archive_volumes` and `sparse_image`: the standalone
+failure/retry fixture and 44 Qt checks, without failures or skips. Compilation
+took 119.222 seconds, tests 16.824 seconds. One-off full-file comparisons confirm
+that callback bodies outside initialization/registration/restore admission and
+opening bodies outside inventory projection are unchanged. Whitespace and
+recorded inventory checks passed; completed scratch was empty. Four configured jobs, incremental
+outputs and compiler cache were retained. No secondary-platform, full/slow gate
+or new appearance acceptance is claimed.
+
+The position-restore follow-up passed the callback/accounting suites and the
+failure fixture again. A fixture-only correction clears its borrowed OS-hook
+path after injection; its standalone repeat passed. Earlier UI and sparsebundle
+evidence is reused because those paths were unaffected by the follow-up.
+
 ## Native read preparation before worker start — 2026-11-05
 
 Compared original FileFolderPluginOpen worker/caller, OpenCallback and
