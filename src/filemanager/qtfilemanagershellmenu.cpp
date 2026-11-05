@@ -67,16 +67,7 @@ QtFileManagerShellMenu::~QtFileManagerShellMenu() = default;
 void QtFileManagerShellMenu::Dispatch(unsigned id, quint64 generation) {
     if (generation != _generation || !CanInvoke(id))
         return;
-    if (_dispatch) {
-        _dispatch(id);
-        return;
-    }
-    _services.ResetResult();
-    {
-        QScopedValueRollback<bool> source(_window.sourceArchiveProgress_, true);
-        _window.app_.GetFocusedPanel().InvokePluginCommand(id, *this);
-    }
-    _window.refreshActions();
+    _dispatch(id);
 }
 
 HRESULT QtFileManagerShellMenu::Open(const UString &path, const UString &type) {
@@ -112,7 +103,11 @@ bool QtFileManagerShellMenu::CanInvoke(unsigned id) const {
            !_context->Commands()[offset].IsPopup;
 }
 
-void QtFileManagerShellMenu::ResetResult() { _services.ResetResult(); }
+void QtFileManagerShellMenu::InvokePluginCommand(unsigned id) {
+    _services.ResetResult();
+    QScopedValueRollback<bool> source(_window.sourceArchiveProgress_, true);
+    _window.app_.GetFocusedPanel().InvokePluginCommand(id, *this);
+}
 
 HRESULT QtFileManagerShellMenu::InvokeCommand(unsigned offset, bool system, const UString &) {
 #ifdef _WIN32

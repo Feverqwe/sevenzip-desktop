@@ -35,6 +35,18 @@ bool CPanel::CorrectFsPath(const UString &path2, UString &result) {
     return ::CorrectFsPath(GetFsPath(), path2, result);
 }
 
+static bool PrepareFilesystemName(CPanel &panel, UString &name) {
+    if (!panel.IsFSFolder())
+        return true;
+    UString correctName;
+    if (!panel.CorrectFsPath(name, correctName)) {
+        panel.MessageBox_Error_HRESULT(E_INVALIDARG);
+        return false;
+    }
+    name = correctName;
+    return true;
+}
+
 void CPanel::CreateFolder() {
     if (IsHashFolder())
         return;
@@ -50,14 +62,8 @@ void CPanel::CreateFolder() {
         MessageBox_Error_HRESULT(E_INVALIDARG);
         return;
     }
-    if (IsFSFolder()) {
-        UString correctName;
-        if (!CorrectFsPath(newName, correctName)) {
-            MessageBox_Error_HRESULT(E_INVALIDARG);
-            return;
-        }
-        newName = correctName;
-    }
+    if (!PrepareFilesystemName(*this, newName))
+        return;
     HRESULT res;
     CDisableNotify disableNotify(*this);
     {
@@ -90,14 +96,8 @@ void CPanel::CreateFile() {
         return;
     CDisableNotify disableNotify(*this);
     UString newName = dlg.Value;
-    if (IsFSFolder()) {
-        UString correctName;
-        if (!CorrectFsPath(newName, correctName)) {
-            MessageBox_Error_HRESULT(E_INVALIDARG);
-            return;
-        }
-        newName = correctName;
-    }
+    if (!PrepareFilesystemName(*this, newName))
+        return;
     const HRESULT result = _folderOperations->CreateFile(newName, NULL);
     if (result != S_OK) {
         MessageBox_Error_HRESULT_Caption(result, LangString(IDS_CREATE_FILE_ERROR));
@@ -133,14 +133,8 @@ HRESULT CPanel::OnEndLabelEdit(UInt32 realIndex, const UString &enteredName) {
         return E_INVALIDARG;
     }
     UString newName = enteredName;
-    if (IsFSFolder()) {
-        UString correctName;
-        if (!CorrectFsPath(newName, correctName)) {
-            MessageBox_Error_HRESULT(E_INVALIDARG);
-            return E_INVALIDARG;
-        }
-        newName = correctName;
-    }
+    if (!PrepareFilesystemName(*this, newName))
+        return E_INVALIDARG;
     CSelectedState state;
     SaveSelectedState(state);
     if (realIndex == kParentIndex)

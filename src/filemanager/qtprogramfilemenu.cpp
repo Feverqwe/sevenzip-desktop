@@ -6,7 +6,6 @@
 #include "filemanager/window/mainwindow.h"
 #include "localization/qtlangcontrols.h"
 #include "ui/dialogs/qtdialogscreenservices.h"
-#include <QScopedValueRollback>
 #include <algorithm>
 
 QList<QAction *> QtGroupFileCommands(QMenu &menu, bool contextMenu) {
@@ -232,11 +231,7 @@ bool QtProgramFileMenu::CanInvoke(unsigned id) const {
            _shell->CanInvoke(id);
 }
 
-void QtProgramFileMenu::InvokePluginCommand(unsigned id) {
-    _shell->ResetResult();
-    QScopedValueRollback<bool> progress(_window.sourceArchiveProgress_, true);
-    _window.app_.GetFocusedPanel().InvokePluginCommand(id, *_shell);
-}
+void QtProgramFileMenu::InvokePluginCommand(unsigned id) { _shell->InvokePluginCommand(id); }
 
 void QtProgramFileMenu::ReleasePluginMenus() {
     _shell->ReleasePluginMenus();

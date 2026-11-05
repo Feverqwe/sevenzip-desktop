@@ -11,6 +11,24 @@ The completed transfer is recorded in [progress controls](progress-controls.md).
 
 ## Native enumeration and testing
 
+### Batch route configuration owner — 2026-11-05
+
+Compared original Panel.cpp ExtractArchives/TestArchives bodies and their
+application wrappers at `b88c6bc09339de32f7d18bbab900686b244f42ba` with current
+toolbar, shell-service, independent launcher and source CopyTo/OnCopy consumers.
+The complete original Panel unit matches the existing baseline; native selection,
+batch option construction, testing and archive-folder copy behavior are unchanged.
+
+The manager now configures its existing Routes value directly, selecting Test
+or Extract under one independent-operation admission branch. This replaces
+separate temporary function objects and their subsequent reassembly into Routes.
+An unavailable independent route still uses the same in-process service; archive
+extraction still delegates to OnCopy before the batch modal scope. Saved panel,
+state/focus restoration, source progress exclusion and result ownership keep
+their order. No controller, state, interface, native algorithm or source import
+is added. Existing toolbar and archive-state regressions cover the workflow;
+no test requires the route configuration's representation.
+
 ### Shared overwrite-mode conversion — 2026-11-04
 
 Reviewed the complete Qt selected-panel, batch and directory-extraction option

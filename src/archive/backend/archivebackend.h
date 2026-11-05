@@ -299,7 +299,7 @@ class ArchiveBackend : public QObject {
     };
     std::optional<WorkerProgress> pendingWorkerProgress_;
     std::function<void(quint64, quint64, const QString &)> beginWorkerProgress();
-    bool startWorkerPhase(QThread &worker, std::function<void()> launch = {});
+    void startWorkerPhase(QThread &worker);
     void reportWorkerProgress();
     void finishWorkerProgress();
     void finishHashOperation();

@@ -1,5 +1,28 @@
 # Shell submenu ownership — 2026-10-18
 
+## Shared Qt command invocation — 2026-11-05
+
+Reviewed program/context menu construction, generation and panel admission,
+native command dispatch, service results and popup destruction against the
+original PanelMenu invocation and context-menu bodies at recorded revision
+`b88c6bc09339de32f7d18bbab900686b244f42ba`. The complete original hash still
+matches the existing baseline; native command selection, invocation, selection
+cleanup and error handling remain unchanged.
+
+The retained Qt shell owner now resets its operation result and guards source
+panel access for both program and context command invocation. Callers retain
+their distinct dispatch policy: the program menu executes through application
+admission; a popup records its selected ID and invokes after tracking returns.
+Both actual constructors supply that policy, so the unused implicit dispatch
+fallback and default constructor argument are removed. Generation and panel
+checks remain independent.
+
+Popup action publication remains with its destructor, after popup and call
+guards have ended. The redundant intermediate refresh during guarded invocation
+is removed. Existing shell-menu, shell-update and source-context regressions
+cover command results, cancellation, retained selection, owning panels and
+obsolete actions; no implementation-presence test or UI layout change is added.
+
 ## Windows native row preparation — 2026-11-05
 
 Reviewed the complete Qt native menu renderer, retained COM/menu state,

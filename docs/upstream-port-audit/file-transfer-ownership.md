@@ -1,5 +1,27 @@
 # File-transfer ownership
 
+## Transfer admission before staging — 2026-11-05
+
+Rechecked target preparation, source validation, staging, overwrite callbacks,
+rollback and worker/window completion with original FSFolderCopy CopyFile_Ask,
+CopyFolder and IsDestChild at recorded revision
+`b88c6bc09339de32f7d18bbab900686b244f42ba`. The complete original unit still
+matches its existing baseline. Native copy/link/I/O algorithms are unchanged.
+
+Target preparation now returns an empty list immediately on an invalid batch,
+instead of returning partial or invalid entries guarded by the error string.
+Its consumer can iterate admitted targets without another error gate. Move
+source validation likewise exits before claiming a staging path, removing the
+validation flag from rename and copy/merge expressions. Diagnostics, current-file
+notification order, cancellation, owned paths, publication and reverse rollback
+retain their existing contracts. No new state or helper is introduced.
+
+Existing invalid-batch tests verify that a later missing source or duplicate
+destination prevents every overwrite prompt and preserves all bytes. Direct-path,
+conflict, tree-copy, exception, cancellation and partial-Move tests cover the
+remaining affected behavior. No private preparation-list or source-shape test is
+added; native platform adapters and UI presentation remain unchanged.
+
 ## Linear per-item staging and publication — 2026-11-05
 
 Reviewed complete transaction preparation, per-item staging, directory merge,

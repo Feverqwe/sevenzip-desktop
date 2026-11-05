@@ -111,6 +111,28 @@ links through Finder. Direct extraction preserves those links.
 
 ## Lazy APFS mount directories — 2026-11-04
 
+### Directory publication rollback — 2026-11-05
+
+Rechecked the complete read-only directory projection, isolated reader, native
+directory interface, actor and SMB consumers. The optional directory contract
+and transactional Qt projection are local integration described below; native
+APFS decoding, source baselines and reader algorithms remain unchanged.
+
+Publication now uses the existing Qt scope-guard facility instead of a bespoke
+rollback type with a commit flag and copies of its surrounding context. The
+guard retains the previous entry count and performs the same resize, child-map
+removal and added-item/native-directory removal on unwinding. It is dismissed
+only after all maps and the loaded marker are published. Validation, entry IDs,
+skipped-name reporting, cancellation, retry and isolated-reader ownership retain
+their existing behavior. No new state, interface or reader implementation is
+introduced.
+
+Existing direct directory tests cover lazy enumeration, stable cached results,
+payload reads, cancellation and failed-read retry without partial entries.
+Read-only view and SMB behavior checks cover their consumers. Allocation-failure
+unwinding is compared from source here; no injected allocation-failure acceptance
+is claimed, and no test requires a particular guard representation.
+
 Mounting APFS now uses optional directory requests rather than a complete tree
 snapshot. The full read-only-view API retains its explicit complete-list default
 for other consumers. The selected native APFS module's existing B-tree decoders

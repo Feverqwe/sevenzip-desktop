@@ -48,6 +48,7 @@ add_library(sevenzip_panel
     src/filemanager/SplitUtils.cpp
     src/filemanager/App.cpp
     src/filemanager/AppCopy.cpp
+    src/filemanager/AppLink.cpp
     src/ui/theme/qtsemanticcolors.cpp
     src/ui/theme/qtsemanticcolors.h
     src/platform/memory/qtmemorylockservices.cpp

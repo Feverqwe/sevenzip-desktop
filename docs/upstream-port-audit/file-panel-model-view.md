@@ -1,5 +1,25 @@
 # Файловая панель: Qt Model/View — 2026-10-24
 
+## Immutable Qt sort parameters — 2026-11-05
+
+Reviewed the complete property-report, column binding, model sorting and
+persistent-index publication path with native PanelSort comparison and sort
+dispatch at `b88c6bc09339de32f7d18bbab900686b244f42ba`. The complete original
+PanelSort unit matches its existing baseline. Native comparison, raw-property
+handling, fallback keys and source index tie-breaking remain unchanged.
+
+The Qt model now resolves the selected property and raw/generic mode once before
+sorting its row permutation. The comparator consumes those immutable values
+instead of repeatedly looking up column and panel configuration for each pair.
+Parent/directory ordering, stable sorting, requested direction, row movement and
+persistent-index remapping retain their existing implementation. No new cache,
+state, interface or source algorithm is introduced.
+
+Existing column-click, explicit sort-command and archive-property checks cover
+duplicate captions, raw versus typed properties, both panes, directions and
+selection. No test pins the number of configuration lookups, and no performance
+benchmark or UI layout/appearance change is claimed.
+
 ## Interarchive destination reload keeps its native owner — 2026-11-05
 
 Reviewed complete interarchive Copy/Move routing, staged extraction/update,

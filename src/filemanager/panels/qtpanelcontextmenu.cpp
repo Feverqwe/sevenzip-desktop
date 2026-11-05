@@ -8,7 +8,6 @@
 #include "localization/qtlangcontrols.h"
 #include "localization/qtlanguageservices.h"
 #include "ui/dialogs/qtdialogscreenservices.h"
-#include <QScopedValueRollback>
 
 struct QtPanelContextMenu::Impl {
     MainWindow &window;
@@ -170,13 +169,7 @@ unsigned QtPanelContextMenu::Track(int x, int y) {
     return state.pluginID ? state.pluginID
                           : (chosen ? chosen->property("nativeCommandID").toUInt() : 0u);
 }
-void QtPanelContextMenu::InvokePluginCommand(unsigned id) {
-    auto &state = *impl_;
-    state.shell.ResetResult();
-    QScopedValueRollback<bool> progress(state.window.sourceArchiveProgress_, true);
-    state.window.app_.GetFocusedPanel().InvokePluginCommand(id, state.shell);
-    state.window.refreshActions();
-}
+void QtPanelContextMenu::InvokePluginCommand(unsigned id) { impl_->shell.InvokePluginCommand(id); }
 bool QtPanelContextMenu::ExecuteFileCommand(unsigned id) {
     return impl_->window.app_.ExecuteCommand(id);
 }
