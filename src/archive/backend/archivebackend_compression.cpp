@@ -33,24 +33,23 @@ bool ValidateCompressionFeatures(const CompressionOptions &options, QString *err
     return true;
 }
 
-bool ValidateCompressionEncoding(const QString &suffix, const CompressionOptions &options,
-                                 int &methodID, QString *error) {
+std::expected<int, QString> ValidateCompressionEncoding(const QString &suffix,
+                                                        const CompressionOptions &options) {
     const auto &formatInfo = NCompressDialog::GetFormatInfo(suffix);
     const QStringList methods = NCompressDialog::GetMethodNames(suffix);
     const QString requestedMethod = QString::fromWCharArray(options.Method.Ptr());
     if (options.Level > 9 || !(formatInfo.LevelsMask & (UInt32(1) << options.Level)) ||
         (!requestedMethod.isEmpty() && !methods.contains(requestedMethod))) {
-        *error =
+        return std::unexpected(
             QCoreApplication::translate("archivebackend_compression",
-                                        "Invalid compression parameters for the selected format.");
-        return false;
+                                        "Invalid compression parameters for the selected format."));
     }
     const QString method = requestedMethod.isEmpty() ? (suffix == "7z" ? QStringLiteral("LZMA2")
                                                         : methods.isEmpty() ? QString()
                                                                             : methods.front())
                                                      : requestedMethod;
     const int selectedMethodID = NCompressDialog::GetMethodID(method, suffix);
-    methodID = options.Level == 0 && suffix != "tar" ? -1 : selectedMethodID;
+    const int methodID = options.Level == 0 && suffix != "tar" ? -1 : selectedMethodID;
     const auto dictionary = NCompressDialog::SetDictionary2(methodID, UInt32(options.Level));
     const UInt64 dict = options.Dict64 != UInt64(-1)        ? options.Dict64
                         : dictionary.AutoDict == UInt32(-1) ? UInt64(-1)
@@ -72,10 +71,9 @@ bool ValidateCompressionEncoding(const QString &suffix, const CompressionOptions
     const auto threadOptions = NCompressDialog::SetNumThreads2(
         suffix, methodID, UInt32(options.Level), dict, blockSizeLog, system, options.MemUsage);
     if (options.NumThreads != UInt32(-1) && !threadOptions.Values.contains(options.NumThreads)) {
-        *error = QCoreApplication::translate(
+        return std::unexpected(QCoreApplication::translate(
             "archivebackend_compression",
-            "The thread count is invalid for the selected compression method.");
-        return false;
+            "The thread count is invalid for the selected compression method."));
     }
     bool validSolid = !options.SolidIsSpecified;
     if (options.SolidIsSpecified) {
@@ -98,10 +96,9 @@ bool ValidateCompressionEncoding(const QString &suffix, const CompressionOptions
               .Values.contains(options.Order)) ||
         !validSolid ||
         (options.Level == 0 && (options.Dict64 != UInt64(-1) || options.Order != UInt32(-1)))) {
-        *error = QCoreApplication::translate("archivebackend_compression",
-                                             "The dictionary, word or solid block size is invalid "
-                                             "for the selected compression method.");
-        return false;
+        return std::unexpected(QCoreApplication::translate(
+            "archivebackend_compression", "The dictionary, word or solid block size is invalid "
+                                          "for the selected compression method."));
     }
     UInt64 decompressMemory;
     const UInt64 memUsage = NCompressDialog::GetMemoryUsage_Threads_Dict_DecompMem(
@@ -110,10 +107,9 @@ bool ValidateCompressionEncoding(const QString &suffix, const CompressionOptions
         blockSizeLog, decompressMemory);
     UString memoryError;
     if (!CCompressDialog::OnOK(memUsage, system, options.MemUsage, memoryError)) {
-        *error = QString::fromWCharArray(memoryError.Ptr());
-        return false;
+        return std::unexpected(QString::fromWCharArray(memoryError.Ptr()));
     }
-    return true;
+    return methodID;
 }
 
 bool ValidateCompressionEncryption(const QString &suffix, const QString &password,
@@ -143,17 +139,21 @@ bool ValidateCompressionEncryption(const QString &suffix, const QString &passwor
 bool ArchiveBackend::compressionProperties(const QString &suffix, const QString &password,
                                            bool encryptHeaders, const CompressionOptions &options,
                                            CObjectVector<CProperty> *properties, QString *error) {
-    int methodID;
-    if (!ValidateCompressionFeatures(options, error) ||
-        !ValidateCompressionEncoding(suffix, options, methodID, error) ||
-        !ValidateCompressionEncryption(suffix, password, encryptHeaders, options, error))
+    if (!ValidateCompressionFeatures(options, error))
+        return false;
+    const auto method = ValidateCompressionEncoding(suffix, options);
+    if (!method) {
+        *error = method.error();
+        return false;
+    }
+    if (!ValidateCompressionEncryption(suffix, password, encryptHeaders, options, error))
         return false;
     // The request already carries the original GUI property DTO. Source
     // SetOutProperties/parser owns method selection, overrides and time props.
     NCompressDialog::CInfo info = options;
     if (options.Level == 0 && suffix != "tar")
         info.Method.Empty();
-    info.OrderMode = NCompressDialog::GetOrderMode(methodID);
+    info.OrderMode = NCompressDialog::GetOrderMode(*method);
     info.EncryptHeadersIsAllowed = !password.isEmpty() && suffix == "7z";
     info.EncryptHeaders = encryptHeaders;
     if (password.isEmpty())

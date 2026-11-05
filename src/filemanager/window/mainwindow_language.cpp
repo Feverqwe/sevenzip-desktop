@@ -2,7 +2,6 @@
 #include "Windows/PropVariant.h"
 #include "filemanager/FormatUtils.h"
 #include "filemanager/MyLoadMenu.h"
-#include "filemanager/PropertyName.h"
 #include "filemanager/panels/qtpaneladdresscombo.h"
 #include "filemanager/providers/RootFolder.h"
 #include "filemanager/views/filetable.h"
@@ -27,27 +26,8 @@ void MainWindow::reloadLangItems() {
     refreshBookmarks();
     QtReloadLangTexts(*this);
     refreshToolbarTexts();
-    for (FileTable *files : findChildren<FileTable *>()) {
-        for (int i = 0; i < files->columnCount(); ++i) {
-            if (files->isRawProperty(i))
-                continue;
-            const CPropColumn *column = files->sourceColumn(i);
-            const QString label =
-                files->propertyId(i) == kpidNoProperty
-                    ? QCoreApplication::translate("mainwindow_language", "Order")
-                    : QString::fromWCharArray(GetNameOfProperty(
-                          files->propertyId(i), column ? column->Name.Ptr() : nullptr));
-            files->model()->setHeaderData(i, Qt::Horizontal, label);
-        }
-        for (int row = 0; row < files->rowCount(); ++row) {
-            const QModelIndex index = files->model()->index(row, 0);
-            if (index.data(QtPanelList::SourceIndexRole).toUInt() == UInt32(-1))
-                files->model()->setData(
-                    index, QCoreApplication::translate("mainwindow_language", "Parent folder"),
-                    Qt::ToolTipRole);
-        }
-        files->invalidateLanguageText();
-    }
+    for (FileTable *files : findChildren<FileTable *>())
+        files->refreshLanguageText();
     for (unsigned i = 0; i < kNumPanelsMax; i++) {
         if (auto *root = dynamic_cast<CRootFolder *>(app_.Panels[i].GetFolder())) {
             root->Init();

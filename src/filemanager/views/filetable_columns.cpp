@@ -12,6 +12,27 @@ bool sameColumnIdentity(const CPropColumn &left, const CPropColumn &right) {
 }
 } // namespace
 
+void FileTable::refreshLanguageText() {
+    for (int column = 0; column < columnCount(); ++column) {
+        if (isRawProperty(column))
+            continue;
+        const CPropColumn *prop = sourceColumn(column);
+        const QString label = propertyId(column) == kpidNoProperty
+                                  ? QCoreApplication::translate("mainwindow_language", "Order")
+                                  : QString::fromWCharArray(GetNameOfProperty(
+                                        propertyId(column), prop ? prop->Name.Ptr() : nullptr));
+        model_->setHeaderData(column, Qt::Horizontal, label);
+    }
+    for (int row = 0; row < rowCount(); ++row) {
+        const QModelIndex index = model_->index(row, 0);
+        if (index.data(QtPanelList::SourceIndexRole).toUInt() == UInt32(-1))
+            model_->setData(index,
+                            QCoreApplication::translate("mainwindow_language", "Parent folder"),
+                            Qt::ToolTipRole);
+    }
+    model_->invalidateLanguageText();
+}
+
 void FileTable::setColumnProperties(const QVector<PROPID> &properties, bool raw) {
     columns_.clear();
     for (PROPID property : properties)

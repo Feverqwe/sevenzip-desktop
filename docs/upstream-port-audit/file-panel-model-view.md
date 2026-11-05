@@ -1,5 +1,23 @@
 # Файловая панель: Qt Model/View — 2026-10-24
 
+## Live table language refresh owner — 2026-11-05
+
+The table now owns its complete presentation refresh after a language change:
+translated typed-property headers, unchanged raw-property captions, parent-row
+tooltips and lazy cell-text invalidation. These existing bodies moved from the
+window into the column-binding owner, replacing the table's invalidation-only
+forwarder. The window keeps language notification, menus/toolbars, root-provider
+refresh, address controls and status bars in their existing order.
+
+Reviewed the complete Qt reload, binding/publication and model-cache paths with
+native property naming, column initialization and original App/FM language
+dispatch at the recorded b88c baseline. This moves local Qt integration only;
+no upstream algorithm, source inventory or translation catalog changes. Explicit
+translation contexts are retained, as are raw/typed identity, notification guards,
+language generations, selection and persistent indexes. Existing live-language,
+cell-text and column behavior checks cover the affected consumers; no test of
+private ownership or a new visible layout/text contract is added.
+
 ## Immutable Qt sort parameters — 2026-11-05
 
 Reviewed the complete property-report, column binding, model sorting and

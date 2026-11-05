@@ -184,6 +184,22 @@ quint32 SmbReadOnlyServer::State::attributes(const SmbTreeEntry &entry) {
                                            : SMB2_FILE_ATTRIBUTE_REPARSE_POINT;
 }
 
+void SmbReadOnlyServer::State::Node::prepareWireMetadata() {
+    // The library's public timestamp structures carry microseconds. Use
+    // the same precision in CREATE's raw FILETIME fields and QUERY replies.
+    Entry.Modified -= Entry.Modified % 10;
+    EncodedName = Entry.Name.toUtf8();
+    QString windowsPath = u'\\' + Path;
+    windowsPath.replace(u'/', u'\\');
+    EncodedPath = windowsPath.toUtf8();
+}
+
+bool SmbReadOnlyServer::State::validName(const QString &name) {
+    return !name.isEmpty() && name.size() <= 255 && name != "." && name != ".." &&
+           !name.contains(u'/') && !name.contains(u'\\') && !name.contains(u':') &&
+           !name.contains(QChar::Null);
+}
+
 bool SmbReadOnlyServer::State::validLink(const SmbTreeEntry &entry, const QString &path) {
     const auto &target = entry.SymlinkTarget;
     if (target.isEmpty())
@@ -229,19 +245,14 @@ bool SmbReadOnlyServer::validate(QString &error) {
         const bool root = i == 0;
         if (entry.Id != quint64(i) + 1 ||
             (root && (entry.Parent || !entry.Name.isEmpty() || !entry.Directory)) ||
-            (!root && (!entry.Parent || entry.Parent >= entry.Id ||
-                       !state.Nodes[entry.Parent].Entry.Directory || entry.Name.isEmpty() ||
-                       entry.Name.size() > 255 || entry.Name == "." || entry.Name == ".." ||
-                       entry.Name.contains(u'/') || entry.Name.contains(u'\\') ||
-                       entry.Name.contains(u':') || entry.Name.contains(QChar::Null)))) {
+            (!root &&
+             (!entry.Parent || entry.Parent >= entry.Id ||
+              !state.Nodes[entry.Parent].Entry.Directory || !State::validName(entry.Name)))) {
             error = QStringLiteral("Invalid virtual directory entry.");
             return false;
         }
         State::Node node;
         node.Entry = entry;
-        // The library's public timestamp structures carry microseconds. Use
-        // the same precision in CREATE's raw FILETIME fields and QUERY replies.
-        node.Entry.Modified -= node.Entry.Modified % 10;
         node.Path = root ? QString() : state.Nodes[entry.Parent].Path;
         if (!node.Path.isEmpty())
             node.Path += u'/';
@@ -250,10 +261,7 @@ bool SmbReadOnlyServer::validate(QString &error) {
             error = QStringLiteral("Invalid symbolic link target.");
             return false;
         }
-        node.EncodedName = entry.Name.toUtf8();
-        QString windowsPath = u'\\' + node.Path;
-        windowsPath.replace(u'/', u'\\');
-        node.EncodedPath = windowsPath.toUtf8();
+        node.prepareWireMetadata();
         const auto key = Key(node.Path);
         if (state.Paths.contains(key)) {
             error = QStringLiteral("Conflicting virtual directory entries.");
@@ -470,8 +478,9 @@ int SmbReadOnlyServer::State::read(smb2_context *context, smb2_read_request *req
         if (!session.Reads.emplace(message, pending).second)
             return status(SMB2_STATUS_INVALID_PARAMETER);
         try {
-            ReadAsync(entry.Id, request->offset, length,
-                      [pending](SmbTreeRead result) { pending->complete(std::move(result)); });
+            ReadAsync(entry.Id, request->offset, length, [pending](SmbTreeRead result) {
+                pending->Result.complete(std::move(result));
+            });
         } catch (...) {
             session.Reads.erase(message);
             throw;

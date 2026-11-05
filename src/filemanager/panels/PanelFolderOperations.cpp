@@ -4,7 +4,9 @@
 #include "7zip/PropID.h"
 #include "Windows/PropVariant.h"
 #include "filemanager/panels/Panel.h"
+#include "filemanager/providers/FSFolder.h"
 #include "ui/progress/qtprogresstransport.h"
+#include <QScopeGuard>
 #include <memory>
 #ifdef _WIN32
 #include "Windows/COM.h"
@@ -17,8 +19,19 @@ HRESULT CThreadFolderOperations::ProcessVirt() {
     switch ((int)OpType) {
     case FOLDER_TYPE_CREATE_FOLDER:
         return FolderOperations->CreateFolder(Name, UpdateCallback);
-    case FOLDER_TYPE_DELETE:
+    case FOLDER_TYPE_DELETE: {
+        auto *folder = dynamic_cast<NFsFolder::CFSFolder *>(FolderOperations.Interface());
+        const auto clearCheckBreak = qScopeGuard([folder] {
+            if (folder)
+                folder->CheckBreak = {};
+        });
+        if (folder)
+            folder->CheckBreak = [this](const QString &path) {
+                Sync.Set_FilePath(path.toStdWString().c_str());
+                return Sync.CheckStop() == S_OK;
+            };
         return FolderOperations->Delete(Indices.ConstData(), Indices.Size(), UpdateCallback);
+    }
     case FOLDER_TYPE_RENAME:
         return FolderOperations->Rename(Index, Name, UpdateCallback);
     case FOLDER_TYPE_COMMENT: {

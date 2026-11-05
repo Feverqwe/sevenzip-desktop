@@ -20,7 +20,7 @@ class FileTable : public QTableView {
     explicit FileTable(int columns, QWidget *parent = nullptr);
     void setFullRowHighlight(bool enabled);
     void handleDefaultKeyPress(QKeyEvent *event);
-    void invalidateLanguageText();
+    void refreshLanguageText();
     bool fullRowHighlight() const { return fullRowHighlight_; }
     FilePanelModel *panelModel() const { return model_; }
     int rowCount() const { return model_->rowCount(); }

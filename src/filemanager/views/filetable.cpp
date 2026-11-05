@@ -57,8 +57,6 @@ FileTable::FileTable(int columns, QWidget *parent)
     horizontalHeader()->setSectionsClickable(true);
 }
 
-void FileTable::invalidateLanguageText() { model_->invalidateLanguageText(); }
-
 bool FileTable::deferSourceColumnClick(std::function<void()> action) {
     auto *header = dynamic_cast<FileColumnHeader *>(horizontalHeader());
     if (!header || !header->dispatchingClick)

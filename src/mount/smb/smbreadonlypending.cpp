@@ -7,7 +7,7 @@ void SmbReadOnlyServer::State::completeReads() {
     for (auto *client : OpenClients) {
         for (auto next = client->Reads.begin(); next != client->Reads.end();) {
             const auto pending = next->second;
-            auto result = pending->takeResult();
+            auto result = pending->Result.takeResult();
             if (!result) {
                 ++next;
                 continue;

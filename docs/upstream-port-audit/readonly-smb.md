@@ -1,5 +1,48 @@
 # Local read-only SMB: implementation and evidence
 
+## Initial and deferred directory IPC projection — 2026-11-05
+
+The reader source and SMB broker each share their own entry conversion between
+initial snapshots and deferred directory replies. IDs, parents, sizes, timestamps,
+names, directory/loading flags and symbolic targets retain their existing order
+and values. The initial QtRO property stays constant; lazy replies retain their
+separate status, error and request lifetimes. No protocol, reader, wakeup/socket,
+native mount, source inventory or dependency change is introduced. Existing
+session and loopback broker behavior checks cover the affected consumers; no test
+fixes the private conversion functions or current data representation.
+
+## Initial and lazy node projection — 2026-11-05
+
+Initial tree admission and lazy-directory publication share child-name validation
+and the node's wire-metadata preparation. Timestamp precision and encoded names/
+paths now have one implementation. Root exceptions, ID/parent checks, link and
+collision policy, lazy path bounds and whole-batch validation remain with their
+existing callers; no new acceptance or refusal rule is introduced. Wire encoding
+still follows validation of the candidate's link/path. This is local integration,
+with no SMB library, native reader, imported inventory or platform-adapter change.
+Existing wire and loopback checks cover Unicode paths, links, lazy traversal,
+invalid children, retry and subsequent reads; no private-helper test is added.
+
+## Shared deferred-result slot — 2026-11-05
+
+Reviewed complete READ and lazy-directory admission, completion, reply delivery,
+client destruction and stop paths with their QtRO consumers and the existing
+libsmb2 close/reply boundaries. READ and directory requests now compose the same
+private synchronized result slot. It accepts the first completion, notifies the
+existing wakeup after releasing its mutex and retains completed state after the
+result is taken. Directory delivery no longer accesses the slot's mutex and
+optional value separately.
+
+Request metadata, admission counters, shared callback ownership, response bounds,
+status/message correlation and library reply calls remain unchanged. Counters
+still release through each request owner, including after client disconnect.
+This consolidates project integration only; no SMB/native reader algorithm,
+external source, baseline or platform adapter changes. Existing separate-process
+READ and lazy-directory regressions send conflicting duplicate completions and
+check first bytes/errors, retries, compound paths and healthy subsequent requests.
+No private-template or representation test is added; native OS-mount acceptance
+remains an explicit opt-in.
+
 ## Session cleanup has one terminal transition — 2026-11-05
 
 Reviewed the complete local session lifecycle and its source worker/server,

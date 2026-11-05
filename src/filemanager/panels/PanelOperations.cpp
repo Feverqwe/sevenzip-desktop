@@ -13,7 +13,6 @@
 #include "filemanager/FormatUtils.h"
 #include "filemanager/panels/Panel.h"
 #include "filemanager/panels/PanelFolderOperations.h"
-#include "filemanager/providers/FSFolder.h"
 #include "filemanager/providers/qtfolderpropertycapabilities.h"
 #include "localization/LangUtils.h"
 #include "platform/trash/qttrashservice.h"
@@ -21,7 +20,6 @@
 
 #include <QFileInfo>
 #include <QMessageBox>
-#include <QScopeGuard>
 
 static const UInt32 kParentIndex = (UInt32)-1;
 
@@ -163,16 +161,6 @@ QtArchiveUpdateResult CPanel::DeleteItems(bool toRecycleBin, IQtTrashService &tr
         CThreadFolderOperations op(FOLDER_TYPE_DELETE);
         op.FolderOperations = _folderOperations;
         op.Indices = indices;
-        auto *folder = dynamic_cast<NFsFolder::CFSFolder *>((IFolderFolder *)_folder);
-        const auto clearCheckBreak = qScopeGuard([folder] {
-            if (folder)
-                folder->CheckBreak = {};
-        });
-        if (folder)
-            folder->CheckBreak = [&op](const QString &path) {
-                op.Sync.Set_FilePath(path.toStdWString().c_str());
-                return op.Sync.CheckStop() == S_OK;
-            };
         result.Result =
             op.DoOperation(*this, LangString(IDS_DELETING), LangString(IDS_ERROR_DELETING));
         result.Published = op.UpdateCallback->Published;
