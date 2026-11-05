@@ -63,24 +63,21 @@ bool FilesystemScanner::start(const QString &directory, bool flat, IFolderFolder
 void FilesystemScanner::loaderFinished(FilesystemFolderLoader *loader, quint64 generation) {
     loader->wait();
     loaders_.removeOne(loader);
-    const bool current = generation == generation_ && loader == loader_;
-    if (current) {
-        loader_ = nullptr;
-        progressTimer_.stop();
-    }
+    loader->deleteLater();
+    if (generation != generation_ || loader != loader_)
+        return;
+    loader_ = nullptr;
+    progressTimer_.stop();
     const quint64 count = loader->completedCount();
     const HRESULT result = loader->result();
     CMyComPtr<IFolderFolder> loaded;
     loaded.Attach(loader->takeFolder());
-    loader->deleteLater();
-    if (!current)
-        return;
-    const QPointer<FilesystemScanner> progressGuard(this);
+    const QPointer<FilesystemScanner> guard(this);
     if (count != progressCount_) {
         progressCount_ = count;
         emit advanced(count);
     }
-    if (!progressGuard || generation != generation_)
+    if (!guard || generation != generation_)
         return;
     if (result != S_OK) {
         emit failed(qint32(result));
@@ -88,11 +85,8 @@ void FilesystemScanner::loaderFinished(FilesystemFolderLoader *loader, quint64 g
     }
     const auto presentation = std::make_shared<Presentation>(loaded);
     presentation_ = presentation;
-    const QPointer<FilesystemScanner> guard(this);
     emit folderReady(presentation->folder);
-    if (!guard)
-        return;
-    if (presentation == presentation_)
+    if (guard && presentation == presentation_)
         QTimer::singleShot(0, this, [this, generation] { scanBatch(generation); });
 }
 
@@ -122,9 +116,7 @@ void FilesystemScanner::scanBatch(quint64 generation) {
     const QPointer<FilesystemScanner> guard(this);
     if (count)
         emit batchReady(firstIndex, count);
-    if (!guard)
-        return;
-    if (presentation != presentation_)
+    if (!guard || presentation != presentation_)
         return;
     if (presentation->nextIndex < spec->Files.Size()) {
         QTimer::singleShot(0, this, [this, generation] { scanBatch(generation); });

@@ -338,6 +338,51 @@ class FilesystemScannerTests : public QObject {
         QCOMPARE(paths, QStringList{second.filePath("only.txt")});
         QVERIFY(failed.isEmpty());
     }
+    void navigationBeforeQueuedCompletionDiscardsOldResult_data() {
+        QTest::addColumn<bool>("oldFailure");
+        QTest::newRow("old-success") << false;
+        QTest::newRow("old-failure") << true;
+    }
+    void navigationBeforeQueuedCompletionDiscardsOldResult() {
+        QFETCH(bool, oldFailure);
+        QTemporaryDir first, second;
+        QVERIFY(first.isValid() && second.isValid());
+        createFiles(first.path(), 30);
+        QFile file(second.filePath(QStringLiteral("only 空.txt")));
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        QCOMPARE(file.write("latest folder"), qint64(13));
+        file.close();
+        FilesystemScanner scanner;
+        CMyComPtr<IFolderFolder> retained;
+        QStringList paths;
+        int owners = 0;
+        connect(&scanner, &FilesystemScanner::folderReady, this, [&](IFolderFolder *folder) {
+            ++owners;
+            retained = folder;
+        });
+        connect(&scanner, &FilesystemScanner::batchReady, this,
+                [&](quint32 first, quint32 count) { appendPaths(retained, first, count, paths); });
+        QSignalSpy completed(&scanner, &FilesystemScanner::completed);
+        QSignalSpy failed(&scanner, &FilesystemScanner::failed);
+        QSignalSpy progress(&scanner, &FilesystemScanner::advanced);
+        QVERIFY(scanner.start(oldFailure ? first.filePath("missing") : first.path()));
+        auto *loader = scanner.findChild<FilesystemFolderLoader *>();
+        QVERIFY(loader);
+        // Finish the native read without dispatching its queued GUI completion,
+        // then navigate. The old success/error must not retire the new listing.
+        QVERIFY(loader->wait(3000));
+        QVERIFY(scanner.start(second.path()));
+        QTRY_COMPARE(completed.size(), 1);
+        QCOMPARE(owners, 1);
+        QVERIFY(failed.isEmpty());
+        QCOMPARE(paths, QStringList{second.filePath(QStringLiteral("only 空.txt"))});
+        QVERIFY(!progress.isEmpty());
+        for (const auto &update : progress)
+            QCOMPARE(update.first().toULongLong(), quint64(1));
+        QVERIFY(!scanner.isRunning());
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        QCOMPARE(file.readAll(), QByteArray("latest folder"));
+    }
     void invalidDirectoryHasNoPartialListing() {
         QTemporaryDir temp;
         QVERIFY(temp.isValid());

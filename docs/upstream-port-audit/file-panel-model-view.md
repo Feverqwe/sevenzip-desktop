@@ -269,6 +269,19 @@ about private helper names or source structure is added.
 
 ## Explicit filesystem scan publication handlers — 2026-11-04
 
+Follow-up, 2026-11-05: scanner completion now retires an obsolete worker before
+collecting publication data. Current completion uses one lifetime guard across
+progress and folder delivery; generation and presentation identity still reject
+reentrant navigation. Workers remain joined before reading their result, and
+deferred QObject deletion releases retained native folders on the GUI thread.
+No native enumeration, batch scheduling or cancellation policy changes.
+The complete scanner/loader/window pipeline and existing reentrant/close tests
+were reviewed against the recorded original FSFolder load and PanelItems
+publication owners; their full original hashes still match the baseline.
+Additional behavior rows cover navigation after an old successful or failed
+native read finishes but before its queued GUI completion is dispatched. Only
+the new folder's progress, rows and completion may be published.
+
 Reviewed the native PanelItems load/refresh and FSFolder loading boundaries,
 the retained folder loader, scanner generation/cancellation and both synchronous
 and asynchronous Qt listing consumers. Complete original PanelItems.cpp,
