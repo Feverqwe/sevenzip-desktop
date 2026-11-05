@@ -1,4 +1,5 @@
 #include "ui/dialogs/qtdialoglayout.h"
+#include "ui/dialogs/qtdialogsurface.h"
 #include <QDialog>
 #include <QPushButton>
 #include <QResizeEvent>
@@ -29,6 +30,7 @@ class DialogContentScroll final : public QScrollArea {
 } // namespace
 
 QVBoxLayout *QtCreateDialogLayout(QWidget &window, QWidget &footer, QtDialogContent mode) {
+    QtApplyDialogSurface(window);
     auto *frame = new QVBoxLayout(&window);
     frame->setContentsMargins(16, 16, 16, 16);
     frame->setSpacing(16);

@@ -4,6 +4,11 @@ add_library(sevenzip_progress_sync STATIC
 target_include_directories(sevenzip_progress_sync PUBLIC src)
 target_link_libraries(sevenzip_progress_sync PUBLIC Qt6::Core sevenzip_common)
 
+add_library(sevenzip_ui_theme STATIC src/ui/theme/qtuitheme.cpp src/ui/theme/qtuitheme.h)
+target_include_directories(sevenzip_ui_theme PUBLIC src)
+target_link_libraries(sevenzip_ui_theme PUBLIC Qt6::Widgets)
+set_target_properties(sevenzip_ui_theme PROPERTIES AUTOMOC OFF AUTOUIC OFF)
+
 add_library(sevenzip_system_icons STATIC
     src/filemanager/SysIconUtils.cpp src/filemanager/SysIconUtils.h)
 set_target_properties(sevenzip_system_icons PROPERTIES AUTOMOC OFF AUTOUIC OFF)
@@ -209,6 +214,7 @@ add_library(sevenzip_panel
     src/ui/dialogs/qtdialogunits.h
     src/ui/dialogs/qtdialoglayout.cpp
     src/ui/dialogs/qtdialoglayout.h
+    src/ui/dialogs/qtdialogsurface.cpp src/ui/dialogs/qtdialogsurface.h
     src/ui/controls/qtdisclosure.cpp
     src/ui/controls/qtdisclosure.h
     src/ui/controls/qtsecretedit.cpp
@@ -281,7 +287,8 @@ add_library(sevenzip_panel
     src/filemanager/providers/NetFolder.h
     src/filemanager/panels/PanelListNotify.cpp
     src/filemanager/panels/Panel.h)
-target_link_libraries(sevenzip_panel PRIVATE sevenzip_dialog_screen sevenzip_location sevenzip_panel_selection sevenzip_text_report)
+target_link_libraries(sevenzip_panel PRIVATE sevenzip_dialog_screen sevenzip_location sevenzip_panel_selection sevenzip_text_report
+    PUBLIC sevenzip_ui_theme)
 # Resource callbacks can pull the panel's archive progress transport in after
 # the first two scans of this existing static-library cycle.
 set_property(TARGET sevenzip_panel PROPERTY LINK_INTERFACE_MULTIPLICITY 3)

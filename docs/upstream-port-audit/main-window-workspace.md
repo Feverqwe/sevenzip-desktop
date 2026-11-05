@@ -614,13 +614,44 @@ rendered. Снимки сохраняют pre-commit dirty provenance, а пре
 incremental build/cache сохранены. Windows/full/slow checks не выполнялись.
 Катя проверила source boundaries и последующий focus diff, без runtime claims.
 
-Визуальная граница остаётся открытой: общий DialogLayout пока наследует palette
-Qt, тогда как macOS DialogSurface макета использует общие surface/window tokens.
-Это видно на новом отчёте и относится к общему владельцу форм. Не выдаём
-функциональную приёмку owner за завершённое соответствие всей компонентной
-системе; следующий визуальный шаг — общий theme owner для затронутых форм.
+Обнаруженное здесь расхождение DialogLayout с surface/window tokens макета
+устранено следующей общей итерацией, описанной ниже. Функциональная приёмка
+owner сама по себе не подтверждает соответствие всей компонентной системе.
 Полный Continue/Cancel/Show, безопасный draft discard и transfer in-process/
 external владельцев также не закрыты этой итерацией.
+
+## Shared dialog palette
+
+2026-11-05: существующий project-owned theme вынесен из workspace в общий
+UI target без изменения цветов и политики выделения главного окна. Общий
+DialogSurface использует window/surface tokens согласованного master-макета;
+его подключают DialogLayout и форма создания архива с собственным scroll layout.
+Изменение не переносит заново алгоритмы upstream: новые local units добавлены
+в baseline inventory, оригинальные upstream units и их hashes не менялись.
+
+Диалог получает native brushes приложения для кнопок и выделения, включая
+gradient/texture, вместо наследования file-selection palette родительского окна.
+Смена темы обновляет palette существующих виджетов, сохраняя draft, password
+echo mode, caret, selection и focus. Нативные controls и scrollbars сохранены.
+Поведенческий regression проверяет также parent propagation и отсутствие
+editingFinished при смене темы; значения цветовых constants тестом не закреплены.
+
+Linux: девять focused suites dialog-surface/context/archive forms/volume/source
+prompts/recent-places/task-result/layout — PASS. После test-only уточнения
+Button brush fixture повторён dialog-surface — PASS. macOS offscreen: те же
+девять наборов PASS и финальный dialog-surface PASS. Native Cocoa: dialog-surface
+6, context-dialog 10, password-dialog 6, task-result 8 QtTest PASS, failed/skipped
+нет. Финальный dialog-surface повторён после уточнения fixture: 6 PASS.
+
+Bundle пересобран, десять affected capture producers обновлены: 224 Cocoa
+PNG/JSON, light/dark, без capture errors. Просмотрены main window в обеих темах,
+compact RU report и recent places, create/extract, password/edit и split формы.
+Снимки имеют честный pre-commit dirty provenance; последующее изменение только
+test fixture не меняет captured production views. Эти проверки подтверждают
+общую палитру затронутых потребителей, а не полную реализацию всех каталоговых
+страниц Create/Extract/Split. Windows/full/slow проверки не запускались.
+Катя проверила source diff; после исправления brushes и проверки inheritance
+замечаний не осталось. Полный application lifecycle contract остаётся открытым.
 
 ## Shared secret editing
 

@@ -214,7 +214,10 @@ The application-wide favorites model owns stable identities, labels and ordering
 legacy numeric bookmarks remain compatible. Removing or renaming a favorite
 does not mutate the source directory.
 
-Main-window presentation shares a workspace palette and metrics, navigation-row
+Shared UI theme owns the color tokens used by workspace and dialog surfaces.
+Dialog surfaces retain native application brushes for selection and controls;
+theme changes update existing widgets without replacing active drafts.
+Main-window presentation shares workspace metrics, navigation-row
 and path components, and a places component with one row delegate for favorites
 and native locations. These components project navigation requests; they do not
 own file or archive operations. Native locations share an application model of

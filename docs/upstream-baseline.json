@@ -2264,6 +2264,8 @@
     "src/ui/dialogs/qtdialoglayout.h",
     "src/ui/dialogs/qtdialogscreenservices.cpp",
     "src/ui/dialogs/qtdialogscreenservices.h",
+    "src/ui/dialogs/qtdialogsurface.cpp",
+    "src/ui/dialogs/qtdialogsurface.h",
     "src/ui/dialogs/qtdialogunits.cpp",
     "src/ui/dialogs/qtdialogunits.h",
     "src/ui/dialogs/qtmodalresult.h",
@@ -2293,7 +2295,9 @@
     "src/ui/reports/qttextreport.h",
     "src/ui/theme/qtcommandicons.h",
     "src/ui/theme/qtsemanticcolors.cpp",
-    "src/ui/theme/qtsemanticcolors.h"
+    "src/ui/theme/qtsemanticcolors.h",
+    "src/ui/theme/qtuitheme.cpp",
+    "src/ui/theme/qtuitheme.h"
   ],
   "original_sha256": {
     "src/platform/cpu/CpuArch.h": "259145c6f4b085f44284014574f39f3f562fc78466746bfb388efe06b4dd59b4",
