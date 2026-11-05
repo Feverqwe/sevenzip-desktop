@@ -1,5 +1,39 @@
 # External-process ownership
 
+## One reservation spans GUI readiness and delivery — 2026-11-05
+
+Reviewed the complete external editor round trip: native process wait/discovery,
+changed-file prompt, GUI dispatch/readiness, native update/password/selection,
+temporary-copy protection and joined shutdown. Complete original
+PanelItemOpen.cpp at `b88c6bc09339de32f7d18bbab900686b244f42ba` from
+<https://github.com/ip7z/7zip.git> matches recorded SHA256
+`2e61e406b89a18a3799ea2fe7a19f2ea20d26f7ec7a485af0f8fb4c67bd93a32`.
+Its synchronous SendMessage/MessageBox lifetime is adapted by the existing Qt
+bridge; native update/wait/cleanup algorithms remain unchanged. No source is
+imported or baseline revision advanced.
+
+The bridge replaces separate Checking/Running phases with one Delivering
+reservation. Both already prevented pending cancellation and retained worker
+captures until the GUI released completion. Readiness still returns a deferred
+request to Pending; execution no longer requires an additional atomic phase
+transition after readiness. The exception path still retires delivery, including
+failure while rescheduling a deferred request, before waking the worker.
+Cancellation, retry cadence, result/exception propagation and context/thread
+selection are unchanged; no new state or synchronization primitive is added.
+
+Existing bridge behavior checks retain the worker during readiness and during
+the body, cancel before readiness and return predicate/body exceptions. Archive
+editor, security and lifetime scenarios cover busy/changed owner, shutdown,
+accepted/rejected write-back, passwords, real child lifetimes, launch/snapshot
+failures and retained copies. No tests pin the internal phase names.
+
+Focused Linux validation passed: external_gui_call, archive_external_edit,
+archive_external_security, archive_external_lifetime and the direct nested
+editor consumer nested_edit_chain (58 Qt checks). Nested checks retain native
+inner/outer failures and cancellation, parent-update refusal, passwords and
+read-only levels. No platform process implementation changed; Windows/macOS,
+full/slow and native appearance acceptance are not claimed.
+
 ## Waiting belongs to the tracked-process owner — 2026-11-04
 
 Compared complete original PanelItemOpen child discovery, process records,

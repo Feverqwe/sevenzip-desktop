@@ -11,14 +11,14 @@
 #include <memory>
 
 namespace {
-enum class Phase { Pending, Checking, Running, Cancelled };
+enum class Phase { Pending, Delivering, Cancelled };
 
 struct Request {
     Request(const std::function<int()> &body, const std::function<bool()> &canDeliver)
         : body(body), canDeliver(canDeliver) {}
     QSemaphore ready;
-    // Checking and Running retain worker captures. Only Pending can be
-    // cancelled; modal closure of delivered work uses CanCloseNow.
+    // Delivery retains worker captures through readiness and the callback.
+    // Only Pending can be cancelled; modal closure uses CanCloseNow.
     std::atomic<Phase> phase{Phase::Pending};
     const std::function<int()> body;
     const std::function<bool()> canDeliver;
@@ -28,7 +28,7 @@ struct Request {
 
 void Deliver(const std::shared_ptr<Request> &request, QObject *context) {
     auto pending = Phase::Pending;
-    if (!request->phase.compare_exchange_strong(pending, Phase::Checking)) {
+    if (!request->phase.compare_exchange_strong(pending, Phase::Delivering)) {
         request->ready.release();
         return;
     }
@@ -38,11 +38,10 @@ void Deliver(const std::shared_ptr<Request> &request, QObject *context) {
             QTimer::singleShot(25, context, [request, context] { Deliver(request, context); });
             return;
         }
-        request->phase.store(Phase::Running);
         request->result = request->body();
     } catch (...) {
         // Retire delivery even if readiness or rescheduling failed first.
-        request->phase.store(Phase::Running);
+        request->phase.store(Phase::Delivering);
         request->error = std::current_exception();
     }
     request->ready.release();
