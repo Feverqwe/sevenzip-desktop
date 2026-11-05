@@ -1,5 +1,32 @@
 # Файловая панель: Qt Model/View — 2026-10-24
 
+## Timer refresh visits panels through their publication projection — 2026-11-05
+
+Compared complete original CPanel::OnTimer and its refresh caller with the Qt
+timer dispatcher, source change notification, portable snapshots, operation
+admission, panel projection and deferred reload/viewport restoration. Original
+PanelItems.cpp at `b88c6bc09339de32f7d18bbab900686b244f42ba` from
+<https://github.com/ip7z/7zip.git> matches the recorded full SHA256
+`7ac9d1a31d4f468cffcd3807c8ae36e8b16f040e7c81aa074ad2ae6930135802`.
+No native watcher, detection algorithm, source import or baseline changes.
+
+The Qt timer now visits visible filesystem panels through the existing temporary
+publication projection, removing manual user activation and final reactivation.
+An unchanged peer no longer publishes its title during idle timer ticks. Native
+OnTimer still decides whether to reload, including the Auto-refresh setting;
+existing operation/call/notification guards and stopping after a retained scan
+remain intact. Namespace/archive panels need no filesystem timer visit.
+
+The idle-tick regression observes real window-title signals, typed address,
+focus, selection and bound paths with either panel active. Existing automatic
+refresh checks cover native/portable change detection, content/add/remove,
+small/deferred table/icon viewports and missing-folder recovery. Modal Copy
+cancellation retains its source through actual timer ticks.
+
+Focused Linux validation passed: panel_auto_refresh, modal_refresh_window,
+filesystem_reload and large_list_window (66 Qt checks). Native watcher code and
+platform branches are unchanged; Windows/macOS acceptance is not claimed.
+
 ## Native peer reload shares the publication projection — 2026-11-05
 
 Reviewed complete original CApp::OnCopy, native RefreshListCtrl/selection

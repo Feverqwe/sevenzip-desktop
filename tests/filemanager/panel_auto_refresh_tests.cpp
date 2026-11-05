@@ -201,6 +201,57 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         }
     }
 
+    void idleTicksKeepActiveTitleAndAddressDraft_data() {
+        QTest::addColumn<unsigned>("owner");
+        QTest::newRow("left") << 0u;
+        QTest::newRow("right") << 1u;
+    }
+    void idleTicksKeepActiveTitleAndAddressDraft() {
+        QFETCH(unsigned, owner);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        action(window, "twoPanelsAction")->trigger();
+        QLineEdit *addresses[2];
+        FileTable *views[2];
+        QString folders[2];
+        for (unsigned pane = 0; pane < 2; ++pane) {
+            folders[pane] = fixture.filePath(QString("panel %1 文件").arg(pane));
+            QVERIFY(QDir().mkpath(folders[pane]));
+            QVERIFY(writeFile(QDir(folders[pane]).filePath("control.txt"), "unchanged"));
+            auto *ui = window.findChild<QWidget *>(QString("filePanel%1").arg(pane));
+            addresses[pane] = ui->findChild<QLineEdit *>("archivePath");
+            views[pane] = ui->findChild<FileTable *>("archiveTable");
+            addresses[pane]->setFocus();
+            window.openPath(folders[pane]);
+            QTRY_VERIFY(views[pane]->isEnabled() && views[pane]->rowCount() == 1);
+            views[pane]->selectRow(0);
+        }
+        addresses[owner]->setFocus();
+        QTRY_VERIFY(addresses[owner]->hasFocus());
+        const QString draft = QStringLiteral("черновик адреса δ");
+        addresses[owner]->setText(draft);
+        const QString title = window.windowTitle();
+        QVERIFY(QDir::fromNativeSeparators(title).startsWith(folders[owner]));
+        QSignalSpy titles(&window, &QWidget::windowTitleChanged);
+        QTest::qWait(1250); // Cross the actual application timer interval while idle.
+        for (const auto &event : titles)
+            QCOMPARE(event.first().toString(), title);
+        QCOMPARE(window.windowTitle(), title);
+        QCOMPARE(addresses[owner]->text(), draft);
+        QVERIFY(addresses[owner]->hasFocus());
+        for (unsigned pane = 0; pane < 2; ++pane) {
+            QCOMPARE(views[pane]->rowCount(), 1);
+            QCOMPARE(views[pane]->selectionModel()->selectedRows().size(), 1);
+            QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(
+                         ToQString(views[pane]->sourcePanel->GetCurrentFolderPrefix()))),
+                     folders[pane]);
+        }
+    }
+
     void togglePersistsAndGatesTimer() {
         QTemporaryDir temp;
         QVERIFY(temp.isValid());

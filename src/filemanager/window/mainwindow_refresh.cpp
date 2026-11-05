@@ -150,18 +150,16 @@ void MainWindow::pollAutoRefresh() {
         app_.QtOperations().closed() || app_.QtOperations().callActive() || sourceArchiveProgress_)
         return;
     // Unlike native WM_TIMER, the Qt timer visits both panel projections.
-    // Their activation queries status, so honor source notification/status
-    // guards before entering either projection while a worker can reopen it.
+    // Honor source notification/status guards before querying either folder
+    // while a worker can reopen it.
     for (unsigned index = 0; index < kNumPanelsMax; ++index)
         if (app_.IsPanelVisible(index) && !app_.Panels[index].ShouldProcessNotifications())
             return;
-    const unsigned original = projectedPanel_;
     for (unsigned index = 0; index < kNumPanelsMax; ++index) {
-        if (!app_.IsPanelVisible(index) || !panelUi_[index].container)
+        if (!app_.IsPanelVisible(index) || !panelUi_[index].container ||
+            panelUi_[index].state != State::Filesystem)
             continue;
-        if (index != projectedPanel_)
-            activatePanelUi(index);
-        if (projectedUi().state == State::Filesystem) {
+        withPanelProjection(index, [&] {
             CPanel &panel = app_.GetFocusedPanel();
             const auto &snapshot = panelUi_[index].autoRefreshSnapshot;
             if (panel.AutoRefresh_Mode) {
@@ -173,12 +171,10 @@ void MainWindow::pollAutoRefresh() {
                 }
             }
             panel.OnTimer();
-        }
+        });
         if (app_.QtOperations().active())
             break;
     }
-    if (original != projectedPanel_)
-        activatePanelUi(original);
 }
 
 void MainWindow::restoreAutoRefreshViewport() {
