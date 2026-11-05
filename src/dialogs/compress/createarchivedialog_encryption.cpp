@@ -2,6 +2,7 @@
 // Igor Pavlov, LGPL-2.1-or-later; see third_party/7zip/License.txt.
 #include "dialogs/compress/createarchivedialog.h"
 #include "localization/qtlangcontrols.h"
+#include "ui/controls/qtsecretedit.h"
 
 void CreateArchiveDialog::createEncryptionOptions(QVBoxLayout *form) {
     passwordEnabled_ = new QCheckBox(form->parentWidget());
@@ -18,15 +19,19 @@ void CreateArchiveDialog::createEncryptionOptions(QVBoxLayout *form) {
     encryptionForm_->setContentsMargins(24, 0, 0, 4);
     encryptionForm_->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
     encryptionForm_->setRowWrapPolicy(QFormLayout::WrapLongRows);
-    password_ = new QLineEdit(group);
+    auto *password = new QtSecretEdit(group);
+    password_ = password;
     password_->setObjectName("archivePassword");
     encryptionForm_->addRow("Password", password_);
-    passwordConfirmation_ = new QLineEdit(group);
+    auto *confirmation = new QtSecretEdit(group);
+    passwordConfirmation_ = confirmation;
     passwordConfirmation_->setObjectName("archivePasswordConfirmation");
     encryptionForm_->addRow("Reenter password:", passwordConfirmation_);
     showPassword_ = new QCheckBox("&Show password", group);
     showPassword_->setObjectName("archiveShowPassword");
     showPassword_->setChecked(m_RegistryInfo.ShowPassword);
+    password->BindRevealControl(*showPassword_);
+    confirmation->BindRevealControl(*showPassword_);
     encryptionForm_->addRow(showPassword_);
     encryption_ = new QComboBox(group);
     encryption_->setObjectName("archiveEncryption");
@@ -80,8 +85,5 @@ QString CreateArchiveDialog::GetEncryptionMethodSpec() const {
 
 void CreateArchiveDialog::UpdatePasswordControl() {
     const bool showPassword = showPassword_->isChecked();
-    const auto mode = showPassword ? QLineEdit::Normal : QLineEdit::Password;
-    password_->setEchoMode(mode);
-    passwordConfirmation_->setEchoMode(mode);
     encryptionForm_->setRowVisible(passwordConfirmation_, !showPassword);
 }

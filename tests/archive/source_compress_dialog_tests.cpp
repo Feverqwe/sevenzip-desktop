@@ -6,6 +6,7 @@
 #include "platform/shell/qtshellarchiveservices.h"
 #include "settings/RegistryUtils.h"
 #include "support/archive_sections.h"
+#include "support/secret_visibility.h"
 #include "ui/progress/ProgressDialog2.h"
 #include "ui/support/layout_inspection.h"
 #include <QProxyStyle>
@@ -52,6 +53,21 @@ class SourceCompressDialogTests final : public QObject {
     std::shared_ptr<const ArchiveCodecCatalog> _catalog;
     QString _module;
   private slots:
+    void revealPreservesEditingPositionAndConfirmationDraft() {
+        QTemporaryDir fixture;
+        CreateArchiveDialog dialog(fixture.path());
+        dialog.findChild<QCheckBox *>("archivePasswordEnabled")->setChecked(true);
+        auto *password = dialog.findChild<QLineEdit *>("archivePassword");
+        auto *confirmation = dialog.findChild<QLineEdit *>("archivePasswordConfirmation");
+        auto *show = dialog.findChild<QCheckBox *>("archiveShowPassword");
+        confirmation->setText(QStringLiteral("  отдельный черновик 密碼  "));
+        SecretVisibility::verify(dialog, *password, *show);
+        QVERIFY(!QTest::currentTestFailed());
+        QCOMPARE(confirmation->text(), QStringLiteral("  отдельный черновик 密碼  "));
+        const QString passwordDraft = password->text();
+        SecretVisibility::verify(dialog, *confirmation, *show);
+        QCOMPARE(password->text(), passwordDraft);
+    }
     void collapsedSectionsKeepEffectiveOptionsAndPasswordDraft_data() {
         QTest::addColumn<QString>("language");
         QTest::newRow("en") << QString("-");

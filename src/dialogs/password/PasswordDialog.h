@@ -19,7 +19,6 @@ class CPasswordDialog : public QDialog {
   private:
     void OnOK();
     void OnButtonClicked();
-    void SetTextSpec();
     void ReadControls();
     QLineEdit *_passwordEdit = nullptr;
     QCheckBox *_showPassword = nullptr;

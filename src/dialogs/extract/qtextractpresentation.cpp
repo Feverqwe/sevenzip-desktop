@@ -5,6 +5,7 @@
 #include "localization/qtlangbuttonbox.h"
 #include "localization/qtlangcontrols.h"
 #include "ui/controls/qtdisclosure.h"
+#include "ui/controls/qtsecretedit.h"
 #include "ui/dialogs/qtdialoglayout.h"
 #include <QGroupBox>
 #include <QHBoxLayout>
@@ -94,14 +95,15 @@ void CExtractDialog::BuildPresentation() {
                     QT_TRANSLATE_NOOP("ArchiveRedesign", "Use a password"));
     layout->addWidget(_passwordEnable);
     auto *passwordLayout = new QVBoxLayout(passwordGroup);
-    _passwordControl = new QLineEdit(passwordGroup);
+    auto *password = new QtSecretEdit(passwordGroup);
+    _passwordControl = password;
     _passwordControl->setObjectName("extractPassword");
     QtBindLangText(_passwordControl, IDG_PASSWORD, "Password", true);
-    _passwordControl->setEchoMode(QLineEdit::Password);
     passwordLayout->addWidget(_passwordControl);
     _showPassword = new QCheckBox(passwordGroup);
     QtBindResourceText(_showPassword, IDX_PASSWORD_SHOW, "Show Password");
     _showPassword->setObjectName("extractShowPassword");
+    password->BindRevealControl(*_showPassword);
     passwordLayout->addWidget(_showPassword);
     layout->addWidget(passwordGroup);
     passwordGroup->hide();
@@ -135,7 +137,6 @@ void CExtractDialog::BuildPresentation() {
     connect(buttons, &QDialogButtonBox::accepted, this, &CExtractDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     connect(browse, &QPushButton::clicked, this, &CExtractDialog::OnButtonSetPath);
-    connect(_showPassword, &QCheckBox::toggled, this, &CExtractDialog::UpdatePasswordControl);
     // Keep the source name row in place. Disabling preserves its caption,
     // pending value and geometry while OnOK still obeys the checkbox.
     connect(_nameEnable, &QCheckBox::toggled, _pathName, &QWidget::setEnabled);

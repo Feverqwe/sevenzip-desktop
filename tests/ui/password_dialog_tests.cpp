@@ -1,4 +1,5 @@
 #include "dialogs/password/PasswordDialog.h"
+#include "support/secret_visibility.h"
 #include "ui/support/layout_inspection.h"
 #include <QCheckBox>
 #include <QDialogButtonBox>
@@ -10,6 +11,12 @@
 class PasswordDialogTests final : public QObject {
     Q_OBJECT
   private slots:
+    void revealPreservesEditingPosition() {
+        CPasswordDialog dialog;
+        dialog.OnInit();
+        SecretVisibility::verify(dialog, *dialog.findChild<QLineEdit *>("passwordEdit"),
+                                 *dialog.findChild<QCheckBox *>("passwordShow"));
+    }
     void initialValueAndShowTransitions() {
         CPasswordDialog dialog;
         const QString password = QStringLiteral("пароль 密碼 с пробелом");

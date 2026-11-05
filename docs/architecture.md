@@ -276,6 +276,11 @@ Shared dialog presentation offers fixed content or a vertically scrollable form
 with completion actions outside the scrolling region. Split and Password use the
 scrollable form; their native validation and result ownership stay unchanged.
 Copy retains its bounded, independently scrolling selection summary.
+Password request, extraction and creation forms share a secret edit control for
+reveal and editing-position retention. It retains no second secret value and
+performs no validation or persistence. Dialogs still own drafts, confirmation
+visibility, accepted results and cancellation; operation owners retain secure
+password lifetime and retry policy.
 
 Contextual forms opt into parent-window modality on macOS through the shared
 presentation adapter. Layout construction itself does not make windows modal.

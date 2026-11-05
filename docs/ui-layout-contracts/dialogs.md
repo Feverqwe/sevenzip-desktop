@@ -30,6 +30,15 @@ screen-reader announcements on a particular platform.
 An expanded section hides its collapsed-state indicator. The header and chevron
 keep their position when that indicator disappears; expanding never clears a draft.
 
+### Secret reveal and editing position
+
+Password request, Extract and Create forms preserve the exact Unicode text,
+cursor and selection direction when Show password changes. Mouse activation and
+Space on the checkbox use the same behavior; keyboard focus stays on that checkbox.
+Showing a password neither normalizes its text nor submits the form. Create keeps
+the confirmation field's own draft when hiding and showing it. Validation,
+accepted values and cancellation remain with the dialog and operation owner.
+
 ### Contextual modality on macOS (redesign, 2026-10-18)
 
 Contextual name/mask/comment, Copy/Move/Combine, Split, Link, password, memory,

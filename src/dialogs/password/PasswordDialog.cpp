@@ -5,6 +5,7 @@
 #include "7zip/UI/FileManager/PasswordDialogRes.h"
 #include "localization/qtlangbuttonbox.h"
 #include "localization/qtlangcontrols.h"
+#include "ui/controls/qtsecretedit.h"
 #include "ui/dialogs/qtdialoglayout.h"
 #include <QCheckBox>
 #include <QLabel>
@@ -17,11 +18,6 @@ CPasswordDialog::CPasswordDialog(QWidget *parent) : QDialog(parent) {}
 void CPasswordDialog::ReadControls() {
     Password = _passwordEdit->text();
     ShowPassword = _showPassword->isChecked();
-}
-
-void CPasswordDialog::SetTextSpec() {
-    _passwordEdit->setEchoMode(ShowPassword ? QLineEdit::Normal : QLineEdit::Password);
-    _passwordEdit->setText(QString::fromWCharArray(Password.Ptr(), Password.Len()));
 }
 
 bool CPasswordDialog::OnInit() {
@@ -38,7 +34,8 @@ bool CPasswordDialog::OnInit() {
     QtBindResourceText(label, IDT_PASSWORD_ENTER, "&Enter password:");
     label->setObjectName("passwordPrompt");
     layout->addWidget(label);
-    _passwordEdit = new QLineEdit(this);
+    auto *password = new QtSecretEdit(this);
+    _passwordEdit = password;
     _passwordEdit->setObjectName("passwordEdit");
     QtBindLangText(_passwordEdit, IDT_PASSWORD_ENTER, "Enter password:", true);
     label->setBuddy(_passwordEdit);
@@ -49,7 +46,8 @@ bool CPasswordDialog::OnInit() {
     _showPassword->setObjectName("passwordShow");
     layout->addWidget(_showPassword);
     _showPassword->setChecked(ShowPassword);
-    SetTextSpec();
+    password->BindRevealControl(*_showPassword);
+    _passwordEdit->setText(QString::fromWCharArray(Password.Ptr(), Password.Len()));
     connect(_showPassword, &QCheckBox::clicked, this, &CPasswordDialog::OnButtonClicked);
     connect(buttons, &QDialogButtonBox::accepted, this, &CPasswordDialog::OnOK);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
@@ -58,10 +56,7 @@ bool CPasswordDialog::OnInit() {
     return true;
 }
 
-void CPasswordDialog::OnButtonClicked() {
-    ReadControls();
-    SetTextSpec();
-}
+void CPasswordDialog::OnButtonClicked() { ReadControls(); }
 
 void CPasswordDialog::OnOK() {
     ReadControls();

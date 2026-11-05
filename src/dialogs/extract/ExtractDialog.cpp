@@ -134,7 +134,6 @@ void CExtractDialog::OnInit(const QStringList &history) {
     _showPassword->setChecked(_info.ShowPassword.Val);
     CheckButton_TwoBools(_elimDup, ElimDup, _info.ElimDup);
     CheckButton_TwoBools(_ntSecurity, NtSecurity, _info.NtSecurity);
-    UpdatePasswordControl();
     QString pathPrefix = DirPath;
     if (_info.SplitDest.Val) {
         _nameEnable->setChecked(true);
@@ -178,10 +177,6 @@ void CExtractDialog::changeEvent(QEvent *event) {
         UpdateAdvancedSummary();
 }
 
-void CExtractDialog::UpdatePasswordControl() {
-    _passwordControl->setEchoMode(IsShowPasswordChecked() ? QLineEdit::Normal
-                                                          : QLineEdit::Password);
-}
 void CExtractDialog::OnButtonSetPath() {
     UString path;
     if (MyBrowseForFolder(this, ToUString(QtLangText(IDS_EXTRACT_SET_FOLDER)),

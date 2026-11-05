@@ -5,6 +5,7 @@
 #include "localization/LangUtils.h"
 #include "localization/qtlangcontrols.h"
 #include "settings/RegistryUtils.h"
+#include "support/secret_visibility.h"
 #include "ui/support/layout_inspection.h"
 #include <QDialogButtonBox>
 #include <QDir>
@@ -33,6 +34,12 @@ class ExtractDialogTests final : public QObject {
         return dialog.findChild<QComboBox *>("extractOverwriteMode");
     }
   private slots:
+    void revealPreservesEditingPosition() {
+        CExtractDialog dialog(dir_.path(), {});
+        dialog.findChild<QCheckBox *>("extractPasswordEnabled")->setChecked(true);
+        SecretVisibility::verify(dialog, *dialog.findChild<QLineEdit *>("extractPassword"),
+                                 *dialog.findChild<QCheckBox *>("extractShowPassword"));
+    }
     void optionalSectionsKeepDraftAndEffectiveOptions_data() {
         QTest::addColumn<QString>("language");
         QTest::newRow("en") << QString("-");

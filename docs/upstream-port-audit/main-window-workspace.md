@@ -165,6 +165,28 @@ outline сохранены, длинная подпись имеет две ст
 отступ сетки. Полный путь остаётся в tooltip. Windows runtime не проверялся;
 это acceptance FileRow/Icon, не всего главного окна.
 
+## Shared secret editing
+
+2026-11-05: проверены исходные `PasswordDialog.cpp/.h`, обработчики
+`ExtractDialog::UpdatePasswordControl` и `CCompressDialog::UpdatePasswordControl`
+с их инициализацией/callers в записанном оригинальном архиве. `QtSecretEdit` —
+общий project-owned presentation control. Win32 смена password char и повторная
+запись текста заменены Qt echo-only переключением с сохранением числовых
+cursor/selection positions. Нет дополнительного снимка секрета. Восстановление
+выделения после native FocusOut ограничено связанным переключателем, клавиатурный
+фокус не возвращается в поле. Изменившееся состояние восстанавливается без
+безусловной повторной установки selection. Original Password/ShowPassword
+ReadControls, accepted results, настройки и cancellation сохранены. Скрытие
+подтверждения остаётся у формы создания; отдельный черновик не заменяется.
+
+Linux x86_64: password_dialog/extract_dialog/source_compress_dialog — PASS.
+macOS arm64: те же три offscreen suites — PASS, затем три focused native Cocoa
+cases — PASS. Проверены реальный клик, перевод фокуса и Space, оба направления
+показа, курсор в середине, forward/backward selection, Unicode/пробелы,
+отсутствие textChanged при показе и независимый confirmation draft.
+Геометрия формы не менялась; прежние rendered snapshots сохраняют применимость.
+Windows runtime этим проходом не проверялся.
+
 ## Lucide
 
 [Отдельный baseline](../lucide-baseline.json) фиксирует полные исходные SVG и

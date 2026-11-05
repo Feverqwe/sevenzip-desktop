@@ -2236,6 +2236,8 @@
     "src/ui/controls/qtdisclosure.h",
     "src/ui/controls/qtmemorylimitspin.cpp",
     "src/ui/controls/qtmemorylimitspin.h",
+    "src/ui/controls/qtsecretedit.cpp",
+    "src/ui/controls/qtsecretedit.h",
     "src/ui/controls/qtstatuslabel.cpp",
     "src/ui/controls/qtstatuslabel.h",
     "src/ui/diagnostics/qtdiagnostictext.cpp",
