@@ -25,11 +25,19 @@ NCompression::CFormatOptions &CreateArchiveDialog::Get_FormatOptions() {
     return m_RegistryInfo.Formats[FindRegistryFormat_Always(registryFormat_)];
 }
 
+UString CreateArchiveDialog::parameterOptions() const {
+    UString options;
+    if (parameters_) {
+        const auto text = parameters_->text().toStdWString();
+        options.SetFrom(text.data(), unsigned(text.size()));
+    }
+    return options;
+}
+
 void CreateArchiveDialog::SaveOptionsInMem() {
     // Upstream saves the format that was selected before FormatChanged.
     NCompressDialog::CInfo info;
-    if (parameters_)
-        info.Options = parameters_->text().toStdWString().c_str();
+    info.Options = parameterOptions();
     info.Level = CCompressDialog::GetComboValue(*level_, 1);
     // Qt Auto uses 0; source GetComboValue(control, 1) returns all ones.
     const UInt64 dictionary = dictionary_->currentData().toULongLong();
@@ -70,7 +78,7 @@ void CreateArchiveDialog::FormatChanged() {
         orderBlock(wordSize_), solidBlock(solidBlock_), threadsBlock(threads_);
     const NCompression::CFormatOptions fo = Get_FormatOptions();
     if (parameters_)
-        parameters_->setText(QString::fromWCharArray(fo.Options.Ptr()));
+        parameters_->setText(QString::fromWCharArray(fo.Options.Ptr(), fo.Options.Len()));
     updateAdvancedSummary();
     SetMemUseCombo();
     SetLevel2();
