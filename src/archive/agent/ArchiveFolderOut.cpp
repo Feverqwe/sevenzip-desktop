@@ -157,13 +157,13 @@ HRESULT CAgentFolder::CommonUpdateOperation(AGENT_OP operation, bool moveMode,
     }
 
     try {
-        CMyComPtr<IUnknown> deletionOwner = _agentSpec->GetEngineResource();
-        auto *deletionResource = dynamic_cast<QtArchiveFileResource *>(deletionOwner.Interface());
-        if (deletionResource)
-            deletionResource->DiscardDeleteInputs();
+        CMyComPtr<IUnknown> resourceOwner = _agentSpec->GetEngineResource();
+        auto *resource = dynamic_cast<QtArchiveFileResource *>(resourceOwner.Interface());
+        if (resource)
+            resource->DiscardDeleteInputs();
         const auto discardDeleteInputs = qScopeGuard([&] {
-            if (deletionResource)
-                deletionResource->DiscardDeleteInputs();
+            if (resource)
+                resource->DiscardDeleteInputs();
         });
 
         RINOK(_agentSpec->SetFolder(this))
@@ -232,8 +232,7 @@ HRESULT CAgentFolder::CommonUpdateOperation(AGENT_OP operation, bool moveMode,
             }
 
             RINOK(result)
-            if (auto *resource =
-                    dynamic_cast<QtArchiveFileResource *>(_agentSpec->GetEngineResource())) {
+            if (resource) {
                 RINOK(resource->ApplyOutputMTime(tempFile))
             }
         }
@@ -256,8 +255,7 @@ HRESULT CAgentFolder::CommonUpdateOperation(AGENT_OP operation, bool moveMode,
         HRESULT res;
         HRESULT ownedTempResult = S_OK;
         const auto adoptPublishedTemp = [&] {
-            if (auto *resource =
-                    dynamic_cast<QtArchiveFileResource *>(_agentSpec->GetEngineResource()))
+            if (resource)
                 ownedTempResult = resource->AdoptPublishedOwnedTemp(tempFile);
         };
         if (updateCallback_MoveArc) {
@@ -301,8 +299,7 @@ HRESULT CAgentFolder::CommonUpdateOperation(AGENT_OP operation, bool moveMode,
 
         // RINOK(res);
         if (res == S_OK) {
-            if (auto *resource =
-                    dynamic_cast<QtArchiveFileResource *>(_agentSpec->GetEngineResource())) {
+            if (resource) {
                 QtUpdateDeletionCallback callback;
                 callback.Progress = [updateCallback100](const FString &path, bool) {
                     return updateCallback100 ? updateCallback100->DeleteOperation(fs2us(path))
