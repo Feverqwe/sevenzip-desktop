@@ -366,6 +366,34 @@
     <context>
         <name>CommandMenus</name>
         <message>
+            <source>Up one level</source>
+            <translation>На уровень вверх</translation>
+        </message>
+        <message>
+            <source>Two panels</source>
+            <translation>Две панели</translation>
+        </message>
+        <message>
+            <source>Computer</source>
+            <translation>Компьютер</translation>
+        </message>
+        <message>
+            <source>Refresh automatically</source>
+            <translation>Обновлять автоматически</translation>
+        </message>
+        <message>
+            <source>Recent places…</source>
+            <translation>Недавние места…</translation>
+        </message>
+        <message>
+            <source>Ascending</source>
+            <translation>По возрастанию</translation>
+        </message>
+        <message>
+            <source>Descending</source>
+            <translation>По убыванию</translation>
+        </message>
+        <message>
             <location filename="../src/filemanager/window/mainwindow_menus.cpp" line="+90" />
             <location filename="../src/filemanager/panels/qtpanelcontextmenu.cpp" line="+108" />
             <source>Checksums</source>

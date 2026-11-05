@@ -32,12 +32,17 @@ void QtFileManagerCommands::PublishActions() {
         return !owner || actionRefresh_ == ActionRefresh::Pending;
     };
     const auto availability = Availability();
+    const auto menuPanel = CapturedViewPanel();
+    const auto menuAvailability = !viewMenuSource_ ? availability
+                                  : menuPanel      ? AvailabilityForPanel(*menuPanel)
+                                                   : QHash<unsigned, bool>{};
     if (interrupted())
         return;
     for (auto it = actions_.cbegin(); it != actions_.cend(); ++it) {
-        const bool enabled = availability.value(it.key(), false);
         for (QAction *action : it.value()) {
-            action->setEnabled(enabled);
+            const auto &commands =
+                action->property("workspaceViewContext").toBool() ? menuAvailability : availability;
+            action->setEnabled(commands.value(it.key(), false));
             if (interrupted())
                 return;
         }
@@ -73,23 +78,29 @@ void QtFileManagerCommands::PublishActions() {
 }
 
 void QtFileManagerCommands::RefreshViewActions() {
-    const auto &panel = window_.app_.GetFocusedPanel();
+    const auto *panel = viewMenuSource_ ? viewMenuSource_->data() : &window_.app_.GetFocusedPanel();
+    for (const auto &[name, ascending] :
+         {std::pair{"sortAscendingAction", true}, std::pair{"sortDescendingAction", false}})
+        if (auto *action = window_.findChild<QAction *>(QString::fromLatin1(name))) {
+            const QSignalBlocker block(action);
+            action->setChecked(panel && panel->_ascending == ascending);
+        }
     {
         const QSignalBlocker block(window_.twoPanelsAction_);
         window_.twoPanelsAction_->setChecked(window_.app_.NumPanels == 2);
     }
     {
         const QSignalBlocker block(window_.flatView_);
-        window_.flatView_->setChecked(panel.GetFlatMode());
+        window_.flatView_->setChecked(panel && panel->GetFlatMode());
     }
     for (unsigned i = 0; i < 4; ++i) {
         const QSignalBlocker block(window_.viewActions_[i]);
-        window_.viewActions_[i]->setChecked(i == panel.GetListViewMode());
+        window_.viewActions_[i]->setChecked(panel && i == panel->GetListViewMode());
     }
     for (unsigned i = 0; i < 5; ++i) {
         const QSignalBlocker block(window_.sortActions_[i]);
         window_.sortActions_[i]->setChecked(
-            window_.sortActions_[i]->property("nativeCommandID").toUInt() ==
-            GetSortControlID(panel.GetSortID()));
+            panel && window_.sortActions_[i]->property("nativeCommandID").toUInt() ==
+                         GetSortControlID(panel->GetSortID()));
     }
 }

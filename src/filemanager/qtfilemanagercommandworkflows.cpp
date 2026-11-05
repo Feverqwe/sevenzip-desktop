@@ -9,6 +9,7 @@
 #include "filemanager/qtfilemanagercommands.h"
 #include "filemanager/qtprogramfilemenu.h"
 #include "filemanager/window/mainwindow.h"
+#include "filemanager/window/qtworkspaceapplication.h"
 #include "localization/qtlangcontrols.h"
 #include "operations/CompressCall.h"
 #include <QScopedValueRollback>
@@ -107,6 +108,14 @@ void QtFileManagerCommands::ExtractArchives() { window_.extractArchives(); }
 void QtFileManagerCommands::TestArchives() { window_.testArchive(); }
 bool QtFileManagerCommands::ExecuteExtensionCommand(unsigned id) {
     switch (id) {
+    case SortAscending:
+    case SortDescending: {
+        auto &panel = window_.app_.GetFocusedPanel();
+        if (panel._ascending != (id == SortAscending))
+            panel.SortItemsWithPropID(panel.GetSortID());
+        window_.refreshActions();
+        break;
+    }
     case CalculateDirectorySize:
         CalculateDirectorySizes();
         break;
@@ -207,6 +216,10 @@ void QtFileManagerCommands::OpenAltStreams() {
     w.refreshActions();
 }
 void QtFileManagerCommands::Change_AutoRefresh_Mode() {
+    if (auto *application = QtWorkspaceApplication::Find()) {
+        application->SetAutoRefresh(!window_.app_.Get_AutoRefresh_Mode());
+        return;
+    }
     window_.app_.Change_AutoRefresh_Mode();
     window_.autoRefreshAction_->setChecked(window_.app_.Get_AutoRefresh_Mode());
     QSettings settings(MainWindow::toolbarSettingsPath(), QSettings::IniFormat);

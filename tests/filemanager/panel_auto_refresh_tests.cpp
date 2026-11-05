@@ -1,10 +1,14 @@
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
+#include "filemanager/window/qtwindowworkspace.h"
+#include "filemanager/window/qtworkspaceapplication.h"
 #include "localization/LangUtils.h"
 #include "settings/RegistryUtils.h"
+#include "support/panel_keys.h"
 
 #include <QScrollBar>
 #include <QStackedWidget>
+#include <QTabBar>
 
 namespace {
 struct CurrentDirectoryGuard {
@@ -154,7 +158,7 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
             auto *address = ui->findChild<QLineEdit *>("archivePath");
             views[pane] = ui->findChild<FileTable *>("archiveTable");
             auto *view = views[pane];
-            address->setFocus();
+            PanelKeys::focusAddress(address);
             address->setText(folders[int(pane)]);
             QTest::keyClick(address, Qt::Key_Return);
             QTRY_VERIFY(view->isEnabled() && view->rowCount() == 270);
@@ -196,8 +200,7 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
                 QCOMPARE(view->model()->index(view->rowAt(0), 1).data().toString(),
                          topPaths[int(pane)]);
             }
-            auto *peer = window.findChild<QWidget *>("filePanel1");
-            QVERIFY(peer->isAncestorOf(window.focusWidget()));
+            QTRY_VERIFY(views[1]->hasFocus());
         }
     }
 
@@ -225,12 +228,12 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
             auto *ui = window.findChild<QWidget *>(QString("filePanel%1").arg(pane));
             addresses[pane] = ui->findChild<QLineEdit *>("archivePath");
             views[pane] = ui->findChild<FileTable *>("archiveTable");
-            addresses[pane]->setFocus();
+            PanelKeys::focusAddress(addresses[pane]);
             window.openPath(folders[pane]);
             QTRY_VERIFY(views[pane]->isEnabled() && views[pane]->rowCount() == 1);
             views[pane]->selectRow(0);
         }
-        addresses[owner]->setFocus();
+        PanelKeys::focusAddress(addresses[owner]);
         QTRY_VERIFY(addresses[owner]->hasFocus());
         const QString draft = QStringLiteral("черновик адреса δ");
         addresses[owner]->setText(draft);
@@ -250,6 +253,54 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
                          ToQString(views[pane]->sourcePanel->GetCurrentFolderPrefix()))),
                      folders[pane]);
         }
+    }
+
+    void toggleUpdatesPeerWindowsAndNewTabs() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString a = fixture.filePath("A folder");
+        const QString b = fixture.filePath("B папка");
+        const QString c = fixture.filePath("C folder");
+        for (const auto &path : {a, b, c})
+            QVERIFY(QDir().mkpath(path));
+        QtWorkspaceApplication application(*qApp);
+        ControlledBackend firstBackend, secondBackend;
+        MainWindow first(&firstBackend), second(&secondBackend);
+        first.show();
+        second.show();
+        first.openPath(a);
+        second.openPath(c);
+        const auto files = [](MainWindow &window) -> FileTable * {
+            for (auto *view : window.findChildren<FileTable *>())
+                if (view->isVisible())
+                    return view;
+            return nullptr;
+        };
+        QTRY_VERIFY(files(first) && files(first)->isEnabled());
+        QTRY_VERIFY(files(second) && files(second)->isEnabled());
+        action(first, "autoRefreshAction")->trigger();
+        QVERIFY(!action(second, "autoRefreshAction")->isChecked());
+        QtWindowWorkspace *owner = nullptr;
+        for (auto *object : first.children())
+            if (auto *workspace = dynamic_cast<QtWindowWorkspace *>(object))
+                owner = workspace;
+        QVERIFY(owner);
+        owner->NewTab(0, b);
+        QTRY_COMPARE(QDir::cleanPath(owner->CurrentLocation()), b);
+        QTRY_VERIFY(files(first)->isEnabled());
+        QVERIFY(writeFile(QDir(b).filePath("new.txt")));
+        QVERIFY(writeFile(QDir(c).filePath("new.txt")));
+        QTest::qWait(1500);
+        QCOMPARE(files(first)->rowCount(), 0);
+        QCOMPARE(files(second)->rowCount(), 0);
+        action(second, "autoRefreshAction")->trigger();
+        QVERIFY(action(first, "autoRefreshAction")->isChecked());
+        QTRY_COMPARE_WITH_TIMEOUT(files(first)->rowCount(), 1, 5000);
+        QTRY_COMPARE_WITH_TIMEOUT(files(second)->rowCount(), 1, 5000);
+        first.findChild<QTabBar *>("panelTabs0")->setCurrentIndex(0);
+        QTRY_COMPARE(QDir::cleanPath(owner->CurrentLocation()), a);
+        QVERIFY(writeFile(QDir(a).filePath("new.txt")));
+        QTRY_COMPARE_WITH_TIMEOUT(files(first)->rowCount(), 1, 5000);
     }
 
     void togglePersistsAndGatesTimer() {

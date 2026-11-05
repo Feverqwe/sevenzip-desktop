@@ -46,7 +46,7 @@ void MainWindow::refreshActions() {
             if (projecting && focused &&
                 (ui.table == focused || ui.table->isAncestorOf(focused) || ui.iconList == focused ||
                  ui.iconList->isAncestorOf(focused)))
-                ui.path->setFocus();
+                workspace_->RetainListFocus(index);
             // RefreshListCtrl disables redraw until native sorting and selection
             // restoration finish. Keep that policy across Qt's asynchronous batches.
             ui.table->setUpdatesEnabled(!projecting);

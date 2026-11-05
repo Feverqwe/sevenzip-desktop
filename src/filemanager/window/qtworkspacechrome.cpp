@@ -121,7 +121,8 @@ void QtWindowWorkspace::AttachContent(unsigned panel, QVBoxLayout &layout, QWidg
     layout.addWidget(body, 1);
     if (!window_.findChild<QAction *>("sidebarAction")) {
         auto *view = window_.findChild<QMenu *>("viewMenu");
-        auto *toggle = view->addAction(tr("Places sidebar"));
+        auto *toggle = new QAction(tr("Places sidebar"), view);
+        view->insertAction(window_.twoPanelsAction_, toggle);
         toggle->setObjectName("sidebarAction");
         QtBindLocalText(toggle, "QtWindowWorkspace",
                         QT_TRANSLATE_NOOP("QtWindowWorkspace", "Places sidebar"));
@@ -138,6 +139,7 @@ void QtWindowWorkspace::AttachContent(unsigned panel, QVBoxLayout &layout, QWidg
         favorites->insertAction(favorites->actions().first(), add);
         connect(add, &QAction::triggered, this, &QtWindowWorkspace::AddFavorite);
         auto *saved = favorites->addMenu(tr("Saved places"));
+        saved->setObjectName("savedPlacesMenu");
         saved->menuAction()->setProperty("nativeCommandID", 1 << 16);
         QtBindLocalText(saved->menuAction(), "QtWindowWorkspace",
                         QT_TRANSLATE_NOOP("QtWindowWorkspace", "Saved places"));
@@ -147,8 +149,11 @@ void QtWindowWorkspace::AttachContent(unsigned panel, QVBoxLayout &layout, QWidg
                 const auto entry = favorites_->Favorite(row);
                 auto *action = saved->addAction(entry.label);
                 action->setToolTip(entry.path);
-                connect(action, &QAction::triggered, this,
-                        [this, path = entry.path] { OpenFavorite(path, 0); });
+                connect(action, &QAction::triggered, this, [this, id = entry.id] {
+                    const auto index = favorites_->IndexForId(id);
+                    if (index.isValid())
+                        OpenFavorite(favorites_->Favorite(index.row()).path, 0);
+                });
             }
         });
     }

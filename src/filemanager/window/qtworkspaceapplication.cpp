@@ -42,6 +42,18 @@ void QtWorkspaceApplication::Save() {
     settings.setValue("workspace/session", QJsonDocument(session).toJson(QJsonDocument::Compact));
 }
 
+void QtWorkspaceApplication::SetAutoRefresh(bool enabled) {
+    QSettings settings(MainWindow::toolbarSettingsPath(), QSettings::IniFormat);
+    settings.setValue("view/autoRefresh", enabled);
+    for (const auto &window : windows_)
+        if (window && !window->app_.QtOperations().closed()) {
+            window->app_.AutoRefresh_Mode = enabled;
+            window->app_.SetPanels_AutoRefresh_Mode();
+            const QSignalBlocker block(window->autoRefreshAction_);
+            window->autoRefreshAction_->setChecked(enabled);
+        }
+}
+
 void QtWorkspaceApplication::Closing(MainWindow &window) {
     if (restoring_ || quitting_)
         return;

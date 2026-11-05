@@ -172,6 +172,8 @@ QHash<unsigned, bool> QtFileManagerCommands::Availability() {
             availability[it.key()] =
                 menu.IsEnabled(it.key()) && TransportAllows(it.key(), capabilities);
     }
+    availability[SortAscending] = availability.value(IDM_VIEW_ARANGE_BY_NAME);
+    availability[SortDescending] = availability[SortAscending];
     return availability;
 }
 

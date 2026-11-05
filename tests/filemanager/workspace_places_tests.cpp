@@ -4,6 +4,7 @@
 #include "filemanager/window/qtfavoritestore.h"
 #include "filemanager/window/qtnativeplaces.h"
 #include "filemanager/window/qtplaceprojection.h"
+#include "filemanager/window/qtwindowworkspace.h"
 #include "filemanager/window/qtworkspacesidebar.h"
 #include "localization/LangUtils.h"
 #include "settings/RegistryUtils.h"
@@ -31,6 +32,67 @@ class WorkspacePlacesTests final : public QObject {
                                 qRound(area.center().y() * image.devicePixelRatio()));
     }
   private slots:
+    void savedPlacesMenuResolvesCurrentBookmark_data() {
+        QTest::addColumn<bool>("remove");
+        QTest::newRow("reordered") << false;
+        QTest::newRow("removed") << true;
+    }
+    void savedPlacesMenuResolvesCurrentBookmark() {
+        QFETCH(bool, remove);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QByteArray previous = qgetenv("SEVENZIP_SETTINGS_PATH");
+        const auto restore = qScopeGuard([&] {
+            if (previous.isNull())
+                qunsetenv("SEVENZIP_SETTINGS_PATH");
+            else
+                qputenv("SEVENZIP_SETTINGS_PATH", previous);
+        });
+        const QString settings = fixture.filePath("favorites.ini");
+        qputenv("SEVENZIP_SETTINGS_PATH", settings.toUtf8());
+        QSettings(settings, QSettings::IniFormat).setValue("workspace/favorites", "[]");
+        const QString a = fixture.filePath("A folder");
+        const QString b = fixture.filePath("B папка");
+        QVERIFY(QDir().mkpath(a));
+        QVERIFY(QDir().mkpath(b));
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QtFavoriteStore *favorites = nullptr;
+        for (auto *object : qApp->children())
+            if (auto *store = dynamic_cast<QtFavoriteStore *>(object);
+                store && store->property("settingsPath").toString() == settings)
+                favorites = store;
+        QVERIFY(favorites);
+        favorites->Add(a, "A");
+        favorites->Add(b, "B");
+        const QString id = favorites->Favorite(1).id;
+        QtWindowWorkspace *owner = nullptr;
+        for (auto *object : window.children())
+            if (auto *workspace = dynamic_cast<QtWindowWorkspace *>(object))
+                owner = workspace;
+        QVERIFY(owner);
+        window.openPath(a);
+        QTRY_COMPARE(QDir::cleanPath(owner->CurrentLocation()), a);
+        auto *menu = window.findChild<QMenu *>("savedPlacesMenu");
+        QVERIFY(menu);
+        menu->popup(window.mapToGlobal(QPoint(20, 20)));
+        QTRY_VERIFY(menu->isVisible());
+        QAction *selected = nullptr;
+        for (auto *action : menu->actions())
+            if (action->text() == "B")
+                selected = action;
+        QVERIFY(selected);
+        if (remove)
+            QVERIFY(favorites->removeRow(favorites->IndexForId(id).row()));
+        else
+            QVERIFY(favorites->moveRow({}, 1, {}, 0));
+        QTest::mouseClick(menu, Qt::LeftButton, Qt::NoModifier,
+                          menu->actionGeometry(selected).center());
+        QTRY_VERIFY(!menu->isVisible());
+        QTRY_COMPARE(QDir::cleanPath(owner->CurrentLocation()), remove ? a : b);
+        QVERIFY(QFileInfo(b).isDir());
+    }
     void compactPlacesRemainReachable_data() {
         QTest::addColumn<QString>("language");
         QTest::newRow("en") << QStringLiteral("-");

@@ -5,6 +5,7 @@
 #include <QList>
 #include <QPointer>
 #include <functional>
+#include <optional>
 
 class QAction;
 class CApp;
@@ -22,7 +23,9 @@ class QtFileManagerCommands final : public IQtFileManagerMenuCommandServices {
         OpenDevicePicker,
         MountReadOnly,
         ManageMounts,
-        CalculateDirectorySize
+        CalculateDirectorySize,
+        SortAscending,
+        SortDescending
     };
     explicit QtFileManagerCommands(MainWindow &window);
     void AttachActions();
@@ -123,11 +126,15 @@ class QtFileManagerCommands final : public IQtFileManagerMenuCommandServices {
     void AttachFileActions();
     void AttachPanelActions();
     void AttachViewActions();
-    void Bind(QAction *action, unsigned id);
+    void Bind(QAction *action, unsigned id, bool viewContext = false);
+    void InvokeViewCommand(unsigned id);
+    std::optional<unsigned> CapturedViewPanel() const;
     void BindToggle(QAction *action, unsigned id, bool (*readState)(CApp &));
     void OpenNative(bool internal, bool external, const wchar_t *type);
     void RunNativeOpen(const std::function<void(CPanel &)> &open);
     MainWindow &window_;
     QHash<unsigned, QList<QAction *>> actions_;
+    std::optional<QPointer<CPanel>> viewMenuSource_;
+    quint64 viewMenuRequest_ = 0;
     ActionRefresh actionRefresh_ = ActionRefresh::Idle;
 };

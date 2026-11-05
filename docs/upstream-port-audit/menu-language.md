@@ -41,6 +41,47 @@ main_shell — PASS. Native Cocoa: EN/RU context menu, раскрытые Archiv
 Windows native этим проходом не проверялся. Это завершённый menu integration
 scope; новая задача сквозной перепроверки остального UI остаётся активной.
 
+## Workspace View projection — 2026-11-05
+
+Актуальный контракт и rendered меню из `master` (`ed197ad2`) исключают старые
+режимы и toolbar/time настройки из нового View. Их native команды и сохранённые
+настройки остаются доступны существующим владельцам. Qt показывает согласованные
+варианты представления, явное направление сортировки, группы панелей, навигации
+и обновления. Локальные EN/RU подписи не меняют command IDs и shortcuts.
+
+Повторно прочитаны native `PanelSort.cpp::SortItemsWithPropID`, его header callers,
+`App.h` auto-refresh helpers, dispatch и полные View activation/translation
+branches. Для `MyLoadMenu.cpp::GetSortControlID` прочитан полный исходный helper
+из записанного `third_party/7zip/source.tar.xz`: его default отмечает Name для
+других метаданных. Узкая Qt presentation адаптация возвращает отсутствие пункта,
+сохраняя реальное свойство и native сортировку. Направление использует тот же
+native comparator, raw-property flag и selection owner. Нового внешнего импорта
+и изменения original baseline hashes нет.
+
+Popup удерживает исходный CPanel через guarded identity. Доступность, radio state
+и вызов команды разрешают тот же сохранившийся bound source; смена проекции не
+перенаправляет выбор в соседнюю панель. Удалённый или уже не bound источник
+не получает действие. Снятие popup-контекста отделено от доставки QAction.
+Saved places использует общий UUID закладки вместо сохранённого пути удалённой
+записи. Auto-refresh публикует native flag всем зарегистрированным окнам и
+синхронизирует новые/перенесённые tab bindings, без отдельного watcher.
+
+Проверка автообновления выявила попытку передать фокус скрытому address editor
+при отключении списка. Общий workspace focus owner удерживает видимый tab strip,
+затем возвращает исходный FileView при сохранённых вкладке и input request.
+Новый пользовательский ввод отменяет отложенный возврат.
+
+Focused Linux проверки связанной проекции и фокуса — PASS. macOS offscreen
+меню, сортировка, язык, места, вкладки и автообновление — PASS. Native Cocoa
+перенос/сессия/автообновление — PASS. Native main/View/направления сортировки
+прошли в light/dark; просмотрены реальные PNG корня, представления и сортировки.
+EN/RU, normal/compact и обе панели входят в menu producer. После последующего
+уточнения projection guards переноса повторены его прямые Linux и Cocoa проверки;
+неизменённая геометрия меню повторно не снималась.
+Общий Forward action и forward history пока отсутствуют: это открытый разрыв
+с новым контрактом навигации, не закрытый изменением состава меню. Новые Quit
+и independent-operation lifecycle контракты также не входят в эту итерацию.
+
 ## Bound caption resolution and Qt text delivery — 2026-11-05
 
 Reviewed the complete native LangSetDlgItemText, standard control mappings,

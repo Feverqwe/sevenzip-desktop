@@ -42,6 +42,7 @@ void MainWindow::createFileActions(QMenu *menu, QToolBar *toolbar) {
     QtBindLocalText(back_, "mainwindow_menus", QT_TRANSLATE_NOOP("mainwindow_menus", "Back"));
     up_ = new QAction("Up", this);
     up_->setObjectName("upAction");
+    QtBindLocalText(up_, "CommandMenus", QT_TRANSLATE_NOOP("CommandMenus", "Up one level"));
     openItem_ = new QAction("&Open", this);
     openItem_->setObjectName("openItemAction");
     openInside_ = new QAction("Open &Inside", menu);
@@ -184,19 +185,26 @@ void MainWindow::createViewOptions(QMenu *viewMenu) {
     flatView_->setCheckable(true);
     twoPanelsAction_ = new QAction(QStringLiteral("Two Panels"), viewMenu);
     twoPanelsAction_->setObjectName("twoPanelsAction");
+    QtBindLocalText(twoPanelsAction_, "CommandMenus",
+                    QT_TRANSLATE_NOOP("CommandMenus", "Two panels"));
     twoPanelsAction_->setCheckable(true);
     twoPanelsAction_->setChecked(app_.NumPanels == 2);
     createToolbarOptions(viewMenu);
     root_ = new QAction("Open Root Folder", viewMenu);
     root_->setObjectName("openRootAction");
+    QtBindLocalText(root_, "CommandMenus", QT_TRANSLATE_NOOP("CommandMenus", "Computer"));
     refresh_ = new QAction("&Refresh", viewMenu);
     refresh_->setObjectName("refreshAction");
     autoRefreshAction_ = new QAction(QStringLiteral("Auto Refresh"), viewMenu);
     autoRefreshAction_->setObjectName(QStringLiteral("autoRefreshAction"));
+    QtBindLocalText(autoRefreshAction_, "CommandMenus",
+                    QT_TRANSLATE_NOOP("CommandMenus", "Refresh automatically"));
     autoRefreshAction_->setCheckable(true);
     autoRefreshAction_->setChecked(app_.Get_AutoRefresh_Mode());
     foldersHistory_ = new QAction("Folders History...", viewMenu);
     foldersHistory_->setObjectName("foldersHistoryAction");
+    QtBindLocalText(foldersHistory_, "CommandMenus",
+                    QT_TRANSLATE_NOOP("CommandMenus", "Recent places…"));
 }
 
 void MainWindow::applyFlatView(bool enabled) {
@@ -313,22 +321,41 @@ void MainWindow::populateSourceMenus() {
     appearance->setObjectName("appearanceMenu");
     QtBindLocalText(appearance->menuAction(), "CommandMenus",
                     QT_TRANSLATE_NOOP("CommandMenus", "Presentation"));
-    for (QAction *action : viewActions_)
-        appearance->addAction(action);
+    for (unsigned i = 0; i < 4; ++i) {
+        appearance->addAction(viewActions_[i]);
+        viewActions_[i]->setVisible(i == 0 || i == 3);
+    }
     auto *sort = view->addMenu(QString());
     sort->setObjectName("sortMenu");
     QtBindLocalText(sort->menuAction(), "CommandMenus",
                     QT_TRANSLATE_NOOP("CommandMenus", "Sort by"));
     for (QAction *action : sortActions_)
         sort->addAction(action);
+    sortActions_[4]->setVisible(false);
+    sort->addSeparator();
+    auto *direction = new QActionGroup(sort);
+    for (const auto &[name, text] :
+         {std::pair{"sortAscendingAction", QT_TRANSLATE_NOOP("CommandMenus", "Ascending")},
+          std::pair{"sortDescendingAction", QT_TRANSLATE_NOOP("CommandMenus", "Descending")}}) {
+        auto *action = sort->addAction(QString());
+        action->setObjectName(QString::fromLatin1(name));
+        QtBindLocalText(action, "CommandMenus", text);
+        action->setCheckable(true);
+        direction->addAction(action);
+    }
     view->addSeparator();
     view->addAction(flatView_);
+    flatView_->setVisible(false);
     view->addAction(twoPanelsAction_);
     view->addSeparator();
     view->addMenu(time);
+    time->menuAction()->setVisible(false);
     toolbars->menuAction()->setVisible(false);
     view->addSeparator();
-    for (QAction *action : {root_, up_, foldersHistory_, refresh_, autoRefreshAction_})
+    for (QAction *action : {back_, up_, root_, foldersHistory_})
+        view->addAction(action);
+    view->addSeparator();
+    for (QAction *action : {refresh_, autoRefreshAction_})
         view->addAction(action);
 
     auto *favorites = findChild<QMenu *>("favoritesMenu");

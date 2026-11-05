@@ -203,6 +203,12 @@ opening that context does not replace a newer source-tab choice. A detached wind
 retires its untouched startup tab only after a successful transfer. Cancellation
 and window destruction settle pending restoration so surviving windows can save
 their sessions.
+View menus retain their source context through popup delivery and resolve it
+before dispatch. A removed or no longer bound source cannot redirect a pending
+choice to another tab. Checked state and availability use that same context.
+Automatic refresh is an application preference shared by open windows and
+applied when a tab is bound. List publication retains focus within its pane
+and restores the original view only while the tab and input request still match.
 
 The workspace table owns adaptive presentation, descriptive file types and the
 current-row outline through the existing model and row delegate. Native column

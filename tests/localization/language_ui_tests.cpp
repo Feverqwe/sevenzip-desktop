@@ -111,7 +111,7 @@ class LanguageUiTests : public QObject, protected MainWindowTestSupport {
                 QApplication::processEvents();
                 view->hide();
                 QCOMPARE(panels->text(),
-                         language == "ru" ? QStringLiteral("&2 Панели") : QString("&2 Panels"));
+                         language == "ru" ? QStringLiteral("Две панели") : QString("Two panels"));
                 QCOMPARE(panels->isChecked(), checked);
                 QCOMPARE(panels->shortcut(), shortcut);
                 const QStringList archiveCaptions =

@@ -11,10 +11,12 @@
 и системные расширения — в «Дополнительно». Все алгоритмы контрольных сумм
 остаются в отдельном подменю. Контекстное меню использует те же варианты
 открытия и контрольные суммы, а редкие действия и расширения собирает в «Ещё».
-В «Вид» режимы представления и сортировка находятся в подменю; навигация,
-две панели, плоский вид и обновление остаются доступны непосредственно.
-«Формат времени» имеет постоянную подпись, исходные актуальные примеры и UTC
-сохраняются внутри. Эти изменения заменяют прежнее требование плоского RC-порядка.
+В «Вид» представление и сортировка находятся в подменю; явное направление
+сортировки отражает native порядок. Группы мест/панелей, навигации и обновления
+следуют актуальному каталогу дизайна в master. Старые варианты представления,
+плоский вид и time/toolbar настройки скрыты в новом меню; их native команды
+и сохранённые настройки сохраняются. Эти изменения заменяют прежнее требование
+плоского RC-порядка. Forward пока остаётся открытым разрывом с новым контрактом.
 
 Группировка применяется после исходного отбора/проверок доступности и сохраняет
 command ID, состояние и обработчики. Главный File-menu сохраняет QAction;
@@ -120,14 +122,14 @@ Rename и Delete. Она действует на свою панель и исп
 обновление выбора не возвращает устаревший перевод. Copy/Cut передают реальные
 файлы, Paste использует действующий сценарий переноса с конфликтами и отменой.
 
-Opening the parent View menu runs source OnMenuActivating before display. Its
-time submenu caption is the current day; five current-time examples and UTC
-reflect the focused source panel and shared UTC flag. Source view/sort/two-panel,
-flat/toolbar/auto-refresh checks are projected without executing commands.
-`view_menu` covers both panes and EN/RU at980×620 and640×400, writing24
-`view-menu-*-main.json`, `view-menu-*.json` and `view-menu-*-time.json` reports.
-Both addresses and the actual visible table/icon lists must fit. Command bindings
-are retained in the new groups; reports do not establish rendered Windows parity.
+Opening View runs the source activation before display. The popup retains its
+source for command delivery, checked state and availability; a removed source
+cannot redirect a pending choice. Metadata absent from the menu has no false
+Name check. The retained native time commands still update examples and UTC,
+but their hidden submenu is outside the new visible menu contract.
+`view_menu` checks both panes and EN/RU at normal/compact geometry and emits
+opt-in reports for the actual visible menu groups. Navigation and visible file
+views must fit; reports do not establish rendered Windows parity.
 For the closed address's decorative image, verify the complete painted glyph.
 Qt6.12 Cocoa can clip one transparent pixel of its QLineEdit side-widget padding
 while exposing the full16×16 logical icon. Reports retain strict widget bounds

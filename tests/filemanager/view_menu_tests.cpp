@@ -2,7 +2,9 @@
 #include "Windows/TimeUtils.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
+#include "filemanager/window/qtwindowworkspace.h"
 #include "localization/LangUtils.h"
+#include "support/panel_keys.h"
 #include "ui/support/layout_inspection.h"
 #include <QScopeGuard>
 
@@ -18,7 +20,7 @@ class ViewMenuTests final : public QObject, protected MainWindowTestSupport {
     static FileTable *openPanel(MainWindow &window, unsigned pane, const QString &path) {
         auto *panel = window.findChild<QWidget *>(QString("filePanel%1").arg(pane));
         auto *address = panel->findChild<QLineEdit *>("archivePath");
-        address->setFocus();
+        PanelKeys::focusAddress(address);
         address->setText(path);
         QTest::keyClick(address, Qt::Key_Return);
         return static_cast<FileTable *>(panel->findChild<FileTable *>("archiveTable"));
@@ -31,6 +33,57 @@ class ViewMenuTests final : public QObject, protected MainWindowTestSupport {
     }
 
   private slots:
+    void openMenuKeepsItsSourcePanel() {
+        QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        for (const auto &[name, size] :
+             {std::pair{"a-small.txt", 2}, std::pair{"z-large.txt", 100}}) {
+            QFile file(fixture.filePath(QString::fromLatin1(name)));
+            QVERIFY(file.open(QIODevice::WriteOnly));
+            QCOMPARE(file.write(QByteArray(size, 'x')), qint64(size));
+        }
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        action(window, "twoPanelsAction")->trigger();
+        auto *peer = openPanel(window, 1, fixture.path());
+        QTRY_VERIFY(peer->isEnabled() && peer->rowCount() == 2);
+        auto *source = openPanel(window, 0, fixture.path());
+        QTRY_VERIFY(source->isEnabled() && source->rowCount() == 2);
+        source->setFocus();
+        QTRY_VERIFY(source->hasFocus());
+        action(window, "sort2Action")->trigger();
+        openView(window);
+        auto *view = window.findChild<QMenu *>("viewMenu");
+        QtWindowWorkspace *owner = nullptr;
+        for (auto *object : window.children())
+            if (auto *workspace = dynamic_cast<QtWindowWorkspace *>(object))
+                owner = workspace;
+        QVERIFY(owner);
+        bool statePreserved = false;
+        QVERIFY(owner->WithSource(*peer->sourcePanel, [&] {
+            peer->selectRow(0);
+            statePreserved = view->isVisible() && action(window, "sort2Action")->isChecked() &&
+                             !action(window, "sort0Action")->isChecked();
+            auto *sort = window.findChild<QMenu *>("sortMenu");
+            view->setActiveAction(sort->menuAction());
+            QTest::keyClick(view, Qt::Key_Right);
+            QApplication::processEvents();
+            if (!sort->isVisible())
+                return false;
+            auto *size = action(window, "sort3Action");
+            QTest::mouseClick(sort, Qt::LeftButton, Qt::NoModifier,
+                              sort->actionGeometry(size).center());
+            return true;
+        }));
+        QVERIFY(statePreserved);
+        QTRY_VERIFY(!view->isVisible());
+        QCOMPARE(source->model()->index(0, 0).data().toString(), QString("z-large.txt"));
+        QCOMPARE(peer->model()->index(0, 0).data().toString(), QString("a-small.txt"));
+        QCOMPARE(source->horizontalHeader()->sortIndicatorOrder(), Qt::DescendingOrder);
+        QCOMPARE(peer->horizontalHeader()->sortIndicatorOrder(), Qt::AscendingOrder);
+    }
     void activationAndCommands_data() {
         QTest::addColumn<unsigned>("pane");
         QTest::addColumn<QString>("language");
@@ -70,6 +123,7 @@ class ViewMenuTests final : public QObject, protected MainWindowTestSupport {
         auto *time = window.findChild<QMenu *>("timestampMenu");
         auto *utc = action(window, "timestampUtcAction");
         openView(window);
+        QVERIFY(!time->menuAction()->isVisible());
         FILETIME now;
         NWindows::NTime::GetCurUtcFileTime(now);
         char expected[64];
@@ -101,21 +155,21 @@ class ViewMenuTests final : public QObject, protected MainWindowTestSupport {
         QTest::keyClick(view, Qt::Key_Right);
         QApplication::processEvents();
         QVERIFY(appearance->isVisible());
-        appearance->setActiveAction(action(window, "viewMode1Action"));
+        appearance->setActiveAction(action(window, "viewMode0Action"));
         QTest::keyClick(appearance, Qt::Key_Return);
-        QCOMPARE(source->sourcePanel->GetListViewMode(), 1u);
+        QCOMPARE(source->sourcePanel->GetListViewMode(), 0u);
         QCOMPARE(peer->sourcePanel->GetListViewMode(), peerMode);
         action(window, "sort3Action")->trigger();
         source->sourcePanel->SortItemsWithPropID(kpidCTime);
         openView(window);
-        QVERIFY(action(window, "sort0Action")->isChecked()); // Source fallback for other columns.
+        QVERIFY(!action(window, "sort0Action")->isChecked());
         QVERIFY(!action(window, "sort3Action")->isChecked());
         action(window, "selectAllAction")->trigger();
         QCOMPARE(source->sourcePanel->GetSortID(), PROPID(kpidCTime));
-        QVERIFY(action(window, "sort0Action")->isChecked());
+        QVERIFY(!action(window, "sort0Action")->isChecked());
         QVERIFY(!action(window, "sort3Action")->isChecked());
         QVERIFY(action(window, "timestampLevel4Action")->isChecked());
-        QVERIFY(action(window, "viewMode1Action")->isChecked());
+        QVERIFY(action(window, "viewMode0Action")->isChecked());
         QVERIFY(action(window, "twoPanelsAction")->isChecked());
         QCOMPARE(action(window, "flatViewAction")->isChecked(), source->sourcePanel->GetFlatMode());
         QCOMPARE(utc->isChecked(), utcValue);
@@ -133,8 +187,8 @@ class ViewMenuTests final : public QObject, protected MainWindowTestSupport {
                 if (!list->isVisible())
                     list = panel->findChild<QWidget *>("iconList");
                 QVERIFY(UiInspection::fullyVisible(*list, window));
-                QVERIFY(UiInspection::fullyVisible(*panel->findChild<QWidget *>("archivePath"),
-                                                   window));
+                QVERIFY(UiInspection::fullyVisible(
+                    *PanelKeys::navigationFor(panel->findChild<QWidget *>("archivePath")), window));
             }
             QVERIFY(UiInspection::writeReport(window, tag + "-main"));
             QVERIFY(UiInspection::writeReport(*view, tag));
@@ -145,14 +199,11 @@ class ViewMenuTests final : public QObject, protected MainWindowTestSupport {
                 sub->popup(window.mapToGlobal(QPoint(30, 50)));
                 QApplication::processEvents();
                 for (auto *entry : sub->actions())
-                    QVERIFY(sub->rect().contains(sub->actionGeometry(entry)));
+                    if (entry->isVisible())
+                        QVERIFY(sub->rect().contains(sub->actionGeometry(entry)));
                 QVERIFY(UiInspection::writeReport(*sub, tag + '-' + sub->objectName()));
                 sub->hide();
             }
-            time->popup(window.mapToGlobal(QPoint(30, 50)));
-            QApplication::processEvents();
-            QVERIFY(UiInspection::writeReport(*time, tag + "-time"));
-            time->hide();
         }
         QCOMPARE(source->sourcePanel->GetFolder(), provider);
         QCOMPARE(peer->sourcePanel->GetFolder(), peerProvider);

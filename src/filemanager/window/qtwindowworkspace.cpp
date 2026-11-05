@@ -35,28 +35,6 @@ QtWindowWorkspace::QtWindowWorkspace(MainWindow &window) : QObject(&window), win
     }
 }
 
-bool QtWindowWorkspace::eventFilter(QObject *object, QEvent *event) {
-    if (event->type() == QEvent::ShortcutOverride || event->type() == QEvent::KeyPress ||
-        event->type() == QEvent::MouseButtonPress || event->type() == QEvent::Wheel)
-        if (const auto *widget = qobject_cast<QWidget *>(object);
-            widget && (widget->window() == &window_ || window_.isAncestorOf(widget)))
-            ++focusRequest_;
-    return QObject::eventFilter(object, event);
-}
-
-void QtWindowWorkspace::RestoreTabFocus(unsigned panel, const QString &id, quint64 request) {
-    auto &target = panels_[panel];
-    if (focusRequest_ != request || !window_.isActiveWindow() ||
-        window_.app_.GetFocusedPanelIndex() != panel || !target.bar || target.current < 0 ||
-        target.current >= int(target.tabs.size()) || target.tabs[target.current].id != id)
-        return;
-    if (!Ready() || !target.bar->isVisible() || !target.bar->isEnabled()) {
-        WhenReady([this, panel, id, request] { RestoreTabFocus(panel, id, request); });
-        return;
-    }
-    target.bar->setFocus();
-}
-
 bool QtWindowWorkspace::Ready() const {
     return !changing_ && !window_.app_.QtOperations().closed() &&
            !window_.app_.QtOperations().active() && !window_.app_.QtOperations().callActive() &&
@@ -262,6 +240,10 @@ void QtWindowWorkspace::Activate(unsigned panel, int index) {
         Capture(panel);
     {
         const QScopedValueRollback<bool> changing(changing_, true);
+        const auto peer = window_.app_.Panels.Share(1 - panel);
+        const CPanel::CDisableNotify peerNotifications(*peer);
+        const QScopedValueRollback<unsigned> projection(window_.panelProjectionDepth_,
+                                                        window_.panelProjectionDepth_ + 1);
         if (window_.panelUi_[panel].container)
             window_.activatePanelUi(panel);
         else {
@@ -317,6 +299,7 @@ void QtWindowWorkspace::Activate(unsigned panel, int index) {
             }
         }
         state.bound = tab.runtime;
+        window_.app_.SetPanels_AutoRefresh_Mode();
         if (window_.drag_)
             window_.drag_->AttachPanel(panel);
         Rebuild(panel);

@@ -5,6 +5,7 @@
 #include <QJsonObject>
 #include <QObject>
 #include <QPoint>
+#include <QPointer>
 #include <array>
 #include <optional>
 #include <vector>
@@ -39,6 +40,7 @@ class QtWindowWorkspace final : public QObject {
     bool SourceIsActive(const CPanel &source) const;
     void MarkDirty(CPanel &source);
     void RestoreViewPosition(CPanel &source, QAbstractItemView &view, const QPoint &position);
+    void RetainListFocus(unsigned panel);
     void ExitExternalWorkers(bool hardExit);
     void QuiesceInactive();
     void Dispose();
@@ -94,6 +96,8 @@ class QtWindowWorkspace final : public QObject {
     void OpenFavorite(const QString &path, int target);
     void WhenReady(std::function<void()> body, std::function<void()> canceled = {});
     void RestoreTabFocus(unsigned panel, const QString &id, quint64 request);
+    void RestoreListFocus(unsigned panel, const QString &id, quint64 request,
+                          QPointer<QWidget> widget);
     void RestorePanel(unsigned panel, const QJsonObject &saved, std::function<void()> finished,
                       std::function<void()> canceled);
     void CompleteLocationOpen(unsigned panel, const QString &path, HRESULT result);

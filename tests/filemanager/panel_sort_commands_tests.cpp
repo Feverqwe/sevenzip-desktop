@@ -9,6 +9,70 @@
 class PanelSortCommandsTests final : public QObject, protected MainWindowTestSupport {
     Q_OBJECT
   private slots:
+    void directionMenuUsesNativeSortAndRetainsSelection_data() {
+        QTest::addColumn<bool>("russian");
+        QTest::newRow("en") << false;
+        QTest::newRow("ru") << true;
+    }
+    void directionMenuUsesNativeSortAndRetainsSelection() {
+        QFETCH(bool, russian);
+        QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
+        SaveRegLang(UString(russian ? L"ru" : L"-"),
+                    qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
+        ReloadLang(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
+        QTemporaryDir fixture;
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        openListedArchive(window, backend, fixture.filePath("menu sort.zip"),
+                          {{"small.txt", 2, 2}, {"large.txt", 100, 100}, {"middle.txt", 10, 10}});
+        window.show();
+        auto *view = table(window);
+        view->setCurrentCell(1, 0);
+        view->selectRow(1);
+        const QString selected = view->model()->index(1, 0).data(Qt::UserRole + 3).toString();
+        auto *sort = window.findChild<QMenu *>("sortMenu");
+        QVERIFY(sort);
+        action(window, "sort3Action")->trigger();
+        auto *ascending = action(window, "sortAscendingAction");
+        auto *descending = action(window, "sortDescendingAction");
+        QCOMPARE(ascending->text(), russian ? QString("По возрастанию") : QString("Ascending"));
+        QCOMPARE(descending->text(), russian ? QString("По убыванию") : QString("Descending"));
+        QVERIFY(descending->isChecked());
+        for (auto *direction : {ascending, descending, descending}) {
+            sort->popup(window.mapToGlobal(QPoint(20, 20)));
+            QTRY_VERIFY(sort->isVisible());
+            QVERIFY(UiInspection::writeReport(
+                *sort, QString("workspace-sort-menu-%1-%2")
+                           .arg(russian ? "ru" : "en",
+                                ascending->isChecked() ? "ascending" : "descending")));
+            QTest::mouseClick(sort, Qt::LeftButton, Qt::NoModifier,
+                              sort->actionGeometry(direction).center());
+            QTRY_VERIFY(!sort->isVisible());
+            QVERIFY(direction->isChecked());
+            const bool up = direction == ascending;
+            QCOMPARE(view->horizontalHeader()->sortIndicatorOrder(),
+                     up ? Qt::AscendingOrder : Qt::DescendingOrder);
+            QCOMPARE(view->model()->index(0, 0).data(Qt::UserRole + 3).toString(),
+                     up ? QString("small.txt") : QString("large.txt"));
+            QCOMPARE(view->model()->index(view->currentRow(), 0).data(Qt::UserRole + 3).toString(),
+                     selected);
+            QVERIFY(view->selectionModel()->isRowSelected(view->currentRow(), {}));
+        }
+        auto *appearance = window.findChild<QMenu *>("appearanceMenu");
+        QVERIFY(appearance);
+        QList<QAction *> visible;
+        for (auto *choice : appearance->actions())
+            if (choice->isVisible() && !choice->isSeparator())
+                visible.append(choice);
+        QCOMPARE(visible.size(), 2);
+        QVERIFY(visible.contains(action(window, "viewMode0Action")));
+        QVERIFY(visible.contains(action(window, "viewMode3Action")));
+        action(window, "viewMode0Action")->trigger();
+        action(window, "viewMode3Action")->trigger();
+        QCOMPARE(view->horizontalHeader()->sortIndicatorOrder(), Qt::DescendingOrder);
+        QCOMPARE(view->model()->index(view->currentRow(), 0).data(Qt::UserRole + 3).toString(),
+                 selected);
+    }
     void rawCommandUsesSourceColumnFlag() {
         QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         QTemporaryDir fixture;
@@ -179,5 +243,6 @@ class PanelSortCommandsTests final : public QObject, protected MainWindowTestSup
     }
 };
 
-QTEST_MAIN(PanelSortCommandsTests)
+#include "ui/support/review_test_main.h"
+SEVENZIP_UI_TEST_MAIN(PanelSortCommandsTests)
 #include "panel_sort_commands_tests.moc"

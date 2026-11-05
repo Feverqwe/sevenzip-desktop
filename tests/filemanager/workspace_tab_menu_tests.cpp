@@ -21,6 +21,12 @@ class WorkspaceTabMenuTests final : public QObject {
                 return true;
         return false;
     }
+    static FileTable *visibleFiles(MainWindow &window, unsigned panel) {
+        for (auto *pane : window.findChildren<QWidget *>(QString("filePanel%1").arg(panel)))
+            if (pane->isVisible())
+                return pane->findChild<FileTable *>("archiveTable");
+        return nullptr;
+    }
 
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
@@ -45,6 +51,11 @@ class WorkspaceTabMenuTests final : public QObject {
             paths.append(fixture.filePath(name));
             QVERIFY(QDir().mkpath(paths.last()));
         }
+        const QString markerName = QStringLiteral("transfer δ.txt");
+        QFile marker(QDir(paths[2]).filePath(markerName));
+        QVERIFY(marker.open(QIODevice::WriteOnly));
+        QCOMPARE(marker.write("control"), qint64(7));
+        marker.close();
         ControlledBackend backend;
         MainWindow window(&backend);
         window.show();
@@ -120,6 +131,10 @@ class WorkspaceTabMenuTests final : public QObject {
             QTRY_COMPARE(destination->count(), navigateReceiver ? 2 : 1);
             QCOMPARE(destination->tabData(destination->currentIndex()).toString(), lastId);
             QTRY_COMPARE(QDir::cleanPath(workspace(*receiver)->CurrentLocation()), paths[2]);
+            FileTable *files = nullptr;
+            QTRY_VERIFY((files = visibleFiles(*receiver, 0)));
+            QTRY_COMPARE(files->rowCount(), 1);
+            QCOMPARE(files->model()->index(0, 0).data().toString(), markerName);
             QCOMPARE(QDir::cleanPath(owner->CurrentLocation()), paths[0]);
             if (navigateReceiver) {
                 QVERIFY(navigated);
@@ -147,6 +162,10 @@ class WorkspaceTabMenuTests final : public QObject {
         QVERIFY(destination);
         QCOMPARE(destination->tabData(destination->currentIndex()).toString(), lastId);
         QCOMPARE(QDir::cleanPath(owner->CurrentLocation()), paths[2]);
+        FileTable *files = nullptr;
+        QTRY_VERIFY((files = visibleFiles(window, 1)));
+        QTRY_COMPARE(files->rowCount(), 1);
+        QCOMPARE(files->model()->index(0, 0).data().toString(), markerName);
         bar->setCurrentIndex(1);
         bar->setCurrentIndex(0);
         QTRY_COMPARE(QDir::cleanPath(owner->CurrentLocation()), paths[0]);

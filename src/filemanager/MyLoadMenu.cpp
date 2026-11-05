@@ -56,7 +56,7 @@ unsigned GetSortControlID(PROPID propID) {
     case kpidNoProperty:
         return IDM_VIEW_ARANGE_NO_SORT;
     }
-    return IDM_VIEW_ARANGE_BY_NAME;
+    return 0; // A native metadata column need not have a matching workspace menu item.
 }
 
 static QAction *MenuItemByID(QMenu &menu, unsigned id) {

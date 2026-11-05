@@ -90,7 +90,16 @@ bool QtWindowWorkspace::TransferTab(const QString &id, QtWindowWorkspace &target
     {
         const QScopedValueRollback<bool> originChange(changing_, true);
         const QScopedValueRollback<bool> destinationChange(target.changing_, true);
+        const auto sourcePeer = window_.app_.Panels.Share(1 - origin);
+        const auto targetPeer = target.window_.app_.Panels.Share(1 - destination);
+        const CPanel::CDisableNotify sourceNotifications(*sourcePeer);
+        const CPanel::CDisableNotify targetNotifications(*targetPeer);
+        const QScopedValueRollback<unsigned> sourceProjection(window_.panelProjectionDepth_,
+                                                              window_.panelProjectionDepth_ + 1);
+        const QScopedValueRollback<unsigned> targetProjection(
+            target.window_.panelProjectionDepth_, target.window_.panelProjectionDepth_ + 1);
         target.window_.app_.Panels.Bind(destination, runtime->source);
+        target.window_.app_.SetPanels_AutoRefresh_Mode();
         target.window_.projectedPanel_ = destination;
         target.window_.app_.SetFocusedPanel(destination);
         source.RebindWindowHost(&target.window_,
@@ -133,21 +142,27 @@ bool QtWindowWorkspace::TransferTab(const QString &id, QtWindowWorkspace &target
             NewTab(origin);
         }
     }
-    target.window_.projectedPanel_ = destination;
-    target.window_.app_.SetFocusedPanel(destination);
-    target.window_.renderBoundFolder();
-    if (into.tabs[into.current].unavailable)
-        target.CompleteLocationOpen(destination, into.tabs[into.current].path, E_FAIL);
-    target.window_.restoreListSelection(into.tabs[into.current].selection);
-    auto &ui = target.window_.panelUi_[destination];
-    ui.history = into.tabs[into.current].history;
-    auto *view = qobject_cast<QAbstractItemView *>(ui.viewStack->currentWidget());
-    ui.pendingViewport =
-        MainWindow::FilesystemViewport(view, ui.directory, {}, into.tabs[into.current].scroll);
-    if (!ui.scanningDisk && !ui.scanningArchive)
-        target.window_.restoreAutoRefreshViewport();
-    target.window_.refreshActions();
-    source.SetFocusToList();
+    {
+        const auto peer = target.window_.app_.Panels.Share(1 - destination);
+        const CPanel::CDisableNotify peerNotifications(*peer);
+        const QScopedValueRollback<unsigned> projection(target.window_.panelProjectionDepth_,
+                                                        target.window_.panelProjectionDepth_ + 1);
+        target.window_.projectedPanel_ = destination;
+        target.window_.app_.SetFocusedPanel(destination);
+        target.window_.renderBoundFolder();
+        if (into.tabs[into.current].unavailable)
+            target.CompleteLocationOpen(destination, into.tabs[into.current].path, E_FAIL);
+        target.window_.restoreListSelection(into.tabs[into.current].selection);
+        auto &ui = target.window_.panelUi_[destination];
+        ui.history = into.tabs[into.current].history;
+        auto *view = qobject_cast<QAbstractItemView *>(ui.viewStack->currentWidget());
+        ui.pendingViewport =
+            MainWindow::FilesystemViewport(view, ui.directory, {}, into.tabs[into.current].scroll);
+        if (!ui.scanningDisk && !ui.scanningArchive)
+            target.window_.restoreAutoRefreshViewport();
+        target.window_.refreshActions();
+        source.SetFocusToList();
+    }
     if (const auto complete = std::exchange(finished, {}))
         complete(true);
     return true;

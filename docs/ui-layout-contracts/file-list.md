@@ -310,6 +310,11 @@ recorded separately under P1-10.
 
 ### Time precision and UTC (P0-06.3)
 
+The current workspace menu hides this legacy submenu under the agreed
+[menu contract](shell.md#согласованная-группировка-меню). The native command,
+formatting and persistence behavior below remains compatible; these historical
+popup reports do not establish acceptance of the current visible menu.
+
 Reference: pinned `0766b733fe3e06dd2a7f9a3cfbf2108ac73abd17`,
 `MyLoadMenu.cpp` View/Time popup construction and command dispatch,
 `PanelListNotify.cpp` property-to-text branch, and unchanged portable
