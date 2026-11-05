@@ -17,7 +17,7 @@ class QtArchiveHashOperation final : public QThread, private IHashCallbackUI {
     std::unique_ptr<const CExternalCodecs> providers_;
 
   public:
-    QtArchiveHashOperation(QStringList paths, QStringList methods,
+    QtArchiveHashOperation(QStringList paths, CHashOptions options,
                            std::shared_ptr<const ArchiveCodecCatalog> catalog,
                            std::unique_ptr<const CExternalCodecs> providers);
     void cancel();
@@ -44,7 +44,7 @@ class QtArchiveHashOperation final : public QThread, private IHashCallbackUI {
     HRESULT SetOperationResult(UInt64 size, const CHashBundle &hb, bool showHash) override;
     HRESULT AfterLastFile(CHashBundle &hb) override;
     QStringList paths_;
-    QStringList methods_;
+    CHashOptions options_;
     QString currentPath_;
     UString firstFileName_;
     UInt64 files_ = 0;

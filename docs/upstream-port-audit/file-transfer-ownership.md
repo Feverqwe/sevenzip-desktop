@@ -674,6 +674,31 @@ repeat passed on all three platforms; the other six suites were unchanged and
 already passing. Builds reused the existing trees and compiler caches. No full/slow gate,
 appearance change or rendered visual-parity acceptance is claimed.
 
+## Typed merge write decision — 2026-11-05
+
+Reviewed the original `FSFolderCopy.cpp::CopyFile_Ask` and `CopyFolder`, callback
+types and callers at `b88c6bc09339de32f7d18bbab900686b244f42ba` in
+<https://github.com/ip7z/7zip.git>, together with the complete Qt transaction,
+copy callback, worker and window completion/cancellation consumers. The recorded
+original inventory and native copy implementation are unchanged.
+
+The project-owned merge callback now returns one typed write decision: an
+effective destination, a skipped file, or an HRESULT error. Its caller no longer
+passes an aliased input/output path and a separate mutable write flag. The COM
+adapter still initializes its output parameters, propagates errors, records
+written sources only for accepted writes and converts the chosen path to BSTR
+in the same order. Per-file and remembered answers, automatic naming, source
+metadata, progress, cancellation and partial-move rollback retain their owners.
+No native algorithm or interface, UI layout, external source or baseline pin
+changes. Existing mixed file/folder Copy/Move regressions exercise all answers,
+both conflict orders, published bytes and retained sources; no representation
+test is added for the internal result type.
+
+Focused Linux validation passed `file_transfer`, `file_transfer_direct`,
+`language_file_transfer` and `ui_copy_routing_quick`, reusing incremental builds
+and the compiler cache. No platform adapter changed; other platforms, the slow
+copy-routing suite and appearance acceptance were outside this check.
+
 ## Exception ownership — 2026-10-18
 
 Source reference: <https://github.com/ip7z/7zip.git>, commit

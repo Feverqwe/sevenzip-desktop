@@ -6,6 +6,10 @@
 #include "archive/compression/MethodProps.h"
 #include "common/collections/MyVector.h"
 #include <QString>
+
+// Shared native history deduplication for archive creation and extraction.
+void AddUniqueString(CObjectVector<QString> &list, const QString &s);
+
 struct CContextMenuInfo {
     CBoolPair Cascaded;
     CBoolPair MenuIcons;

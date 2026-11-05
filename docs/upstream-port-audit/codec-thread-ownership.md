@@ -1,5 +1,33 @@
 # Shared codec owner across native workers — 2026-10-18
 
+## Native checksum options handoff — 2026-11-05
+
+Compared original HashGUI worker setup/ProcessVirt and HashCalc method parsing,
+enumeration and callback contract at
+`b88c6bc09339de32f7d18bbab900686b244f42ba` in
+<https://github.com/ip7z/7zip.git>, with backend admission, the complete Qt hash
+worker, cancellation/join and result consumers. Native algorithms and their
+recorded baseline remain unchanged; no new source is imported.
+
+The backend now prepares native CHashOptions once and passes that owned record
+to the worker after synchronous method validation. The worker no longer keeps
+a second QString method list and reconstructs native method strings. As in the
+original HashGUI handoff, native HashCalc consumes the prepared options; its
+own SetMethods call still creates the hashers on the worker. Provider/catalog
+lifetime, pre-start rejection, no-follow link policy, path enumeration,
+pause/cancel, errors and detached completion publication are unchanged.
+
+Existing direct-worker fixtures now construct native options and retain their
+digest, scan-total, invalid-method and early-cancellation assertions. Backend
+checksum and worker-progress regressions cover public dispatch, output,
+pause/cancel, retry and reentrant completion; no test pins the private record.
+
+Focused Linux validation passed checksum, native_hash_workflow and
+worker_progress: 29 checks, no failures or skips. Existing incremental trees,
+compiler cache and configured parallelism were retained. No platform adapter or
+visible control changed; no secondary-platform, full/slow or appearance
+acceptance is claimed.
+
 ## Discovery result handoff — 2026-11-05
 
 Reviewed catalog construction, native module loading and release, probe startup,
