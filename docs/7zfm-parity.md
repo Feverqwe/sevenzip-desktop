@@ -40,6 +40,10 @@ Qt заменяет presentation и платформенные services; арх�
 расположение и выделение панелей.
 [Владелец открытия и проверки](upstream-port-audit/location-history-ownership.md#archive-picker-initiating-panel--2026-11-05).
 
+Файловая ссылка на архив открывается через Open archive, адрес или Open Inside;
+открытие и извлечение сохраняют саму ссылку и исходные байты архива.
+[Native-привязка и проверки](upstream-port-audit/location-history-ownership.md#native-archive-opening-through-a-filesystem-link--2026-11-05).
+
 При внешнем Drop папки или распознанного архива в файловую панель приложение
 предлагает открыть объект или создать архив. Это запрошенное расширение
 исходного Add-сценария. Обычное окно при запуске показывается после подготовки

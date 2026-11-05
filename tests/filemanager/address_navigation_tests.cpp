@@ -1,8 +1,10 @@
+#include "archive/support/native_archive_fixture.h"
 #include "filemanager/panels/Panel.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
 #include "localization/LangUtils.h"
 #include "platform/support/external_editor_fixture.h"
+#include "platform/support/native_link_fixture.h"
 
 class AddressNavigationTests final : public QObject, protected MainWindowTestSupport {
     Q_OBJECT
@@ -12,6 +14,86 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
     }
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
+    void archiveLinkUsesNativeOpening_data() {
+        QTest::addColumn<QString>("route");
+        QTest::addColumn<QString>("kind");
+        for (const QString &route :
+             {QString("explicit"), QString("path"), QString("address"), QString("item")})
+            for (const QString &kind :
+                 {QString("archive"), QString("ordinary"), QString("missing")})
+                QTest::newRow(qPrintable(route + '-' + kind)) << route << kind;
+    }
+    void archiveLinkUsesNativeOpening() {
+        QFETCH(QString, route);
+        QFETCH(QString, kind);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString target = fixture.filePath(QStringLiteral("источник 空.zip"));
+        const QString link = fixture.filePath(QStringLiteral("ссылка space 空.zip"));
+        const QByteArray payload("archive through link");
+        if (kind == "archive") {
+            NativeArchiveFixture::Item item;
+            item.Path = QStringLiteral("данные 空.txt");
+            item.Bytes = payload;
+            QVERIFY(NativeArchiveFixture::Write(target, {item}, "zip"));
+        } else if (kind == "ordinary")
+            QVERIFY(writeFile(target, "ordinary file bytes"));
+        QVERIFY(CreateNativeSymbolicLink(link, QFileInfo(target).fileName()));
+        const auto sourceBytes = [&] {
+            QFile source(target);
+            return source.open(QIODevice::ReadOnly) ? source.readAll() : QByteArray();
+        };
+        const QByteArray original = sourceBytes();
+        ArchiveBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        window.openPath(fixture.path());
+        auto *address = window.findChild<QLineEdit *>("archivePath");
+        auto *view = table(window);
+        QTRY_VERIFY(view->isEnabled());
+        QTimer dismiss;
+        connect(&dismiss, &QTimer::timeout, &window, [] {
+            if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget()))
+                box->accept();
+        });
+        dismiss.start(5);
+        if (route == "explicit")
+            window.openArchive(link);
+        else if (route == "path")
+            window.openPath(link);
+        else if (route == "address") {
+            address->setFocus();
+            address->setText(link);
+            QTest::keyClick(address, Qt::Key_Return);
+        } else {
+            const int row = filesystemRow(window, QFileInfo(link).fileName());
+            QVERIFY(row >= 0);
+            view->selectRow(row);
+            view->setCurrentCell(row, 0);
+            action(window, "openInsideAction")->trigger();
+        }
+        QTRY_VERIFY(view->isEnabled());
+        QCOMPARE(view->sourcePanel->IsArcFolder(), kind == "archive");
+        if (kind == "archive") {
+            QTRY_COMPARE(view->rowCount(), 1);
+            QCOMPARE(view->model()->index(0, 0).data().toString(), QStringLiteral("данные 空.txt"));
+            QVERIFY(address->text().contains(QFileInfo(link).fileName()));
+            const QString output = fixture.filePath("output");
+            window.extractTo(output);
+            QFile extracted(QDir(output).filePath(QStringLiteral("данные 空.txt")));
+            QTRY_VERIFY(QFileInfo::exists(extracted.fileName()));
+            QVERIFY(extracted.open(QIODevice::ReadOnly));
+            QCOMPARE(extracted.readAll(), payload);
+            action(window, "parentFolderAction")->trigger();
+            QTRY_VERIFY(view->isEnabled());
+            QCOMPARE(QDir::cleanPath(address->text()), fixture.path());
+        }
+        dismiss.stop();
+        QVERIFY(QFileInfo(link).isSymLink());
+        QCOMPARE(sourceBytes(), original);
+        QCOMPARE(QFileInfo(target).exists(), kind != "missing");
+    }
     void rejectedArchiveAddressKeepsEditingFocus_data() {
         QTest::addColumn<qint32>("result");
         QTest::newRow("refused") << qint32(S_FALSE);

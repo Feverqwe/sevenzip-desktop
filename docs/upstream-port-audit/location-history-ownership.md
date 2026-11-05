@@ -1,5 +1,35 @@
 # Location history and address presentation — 2026-10-31
 
+## Native archive opening through a filesystem link — 2026-11-05
+
+Compared original OpenItem/OpenAsArc_Index and BindToPath file/parent fallback
+with current explicit/path/address/item callers, native archive binding,
+resource-backed extraction and parent navigation. Complete PanelItemOpen.cpp and
+PanelFolderChange.cpp originals match the existing baseline at
+`b88c6bc09339de32f7d18bbab900686b244f42ba` from
+<https://github.com/ip7z/7zip.git>. No source import, revision or native opening
+algorithm changes.
+
+Qt explicit opening no longer rejects an existing file solely because it is a
+symbolic link. Path navigation reuses the existing file/package classification
+instead of repeating its file/sparsebundle test with another link exclusion.
+Native binding owns the actual archive probe and result, including the existing
+archive-only refusal when BindToPath returns a containing filesystem folder.
+The address path and native item opener already support this native path.
+Drop classification retains its separately reviewed original Add behavior for
+links. Reader/decoding and extraction destination validation retain their owners.
+
+Public regressions cover explicit opening, openPath, typed address and Open
+Inside with a real ZIP link, ordinary-file link and dangling link. Successful
+cases extract the real Unicode payload and return to the link's parent;
+all cases preserve the link object and underlying source bytes. Existing
+refusal/cancellation, deferred focus and native navigation cases remain covered.
+
+Focused validation passed on Linux: address_navigation (77 Qt checks) and
+native_navigation_window (57). Windows address_navigation passed 93 checks,
+including actual reparse links. No appearance changes or native pixel acceptance
+are involved.
+
 ## Archive picker initiating panel — 2026-11-05
 
 Reviewed native FM command dispatch and panel binding with the current Qt-only
