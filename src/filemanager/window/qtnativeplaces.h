@@ -12,6 +12,7 @@ class QtNativePlaces final : public QAbstractListModel {
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
     void Refresh();
     static QString RootIdentity(const CPanel &panel);
+    QModelIndex FindIdentity(const QString &identity) const;
 
   private:
     struct Place {

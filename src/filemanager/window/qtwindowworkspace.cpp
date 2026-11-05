@@ -158,6 +158,10 @@ void QtWindowWorkspace::Capture(unsigned panel, bool retainView) {
 }
 
 QString QtWindowWorkspace::TabTitle(const Tab &tab) const {
+    if (tab.nativePlaceIdentity == QStringLiteral("locations"))
+        return tr("Locations");
+    if (const auto place = nativePlaces_->FindIdentity(tab.nativePlaceIdentity); place.isValid())
+        return place.data().toString();
     const QString clean = QDir::cleanPath(tab.path);
     if (clean == QDir::homePath())
         return tr("Home");
@@ -186,13 +190,15 @@ void QtWindowWorkspace::Rebuild(unsigned panel) {
 void QtWindowWorkspace::Refresh() {
     if (changing_)
         return;
+    nativePlaces_->Refresh();
     for (unsigned panel = 0; panel < 2; ++panel) {
         auto &state = panels_[panel];
         if (!state.bar || !window_.panelUi_[panel].viewStack)
             continue;
         Capture(panel, false);
         auto &tab = state.tabs[state.current];
-        state.bar->setTabText(state.current, TabTitle(tab));
+        for (int index = 0; index < int(state.tabs.size()); ++index)
+            state.bar->setTabText(index, TabTitle(state.tabs[index]));
         state.bar->setTabIcon(state.current, QtCommandSymbol(tab.symbol));
         state.bar->setTabToolTip(state.current, tab.path);
         auto &ui = window_.panelUi_[panel];
@@ -208,12 +214,18 @@ void QtWindowWorkspace::Refresh() {
 }
 
 void QtWindowWorkspace::NewTab(unsigned panel, const QString &path) {
+    CreateTab(panel, path.isEmpty() ? QDir::homePath() : path, {});
+}
+
+void QtWindowWorkspace::CreateTab(unsigned panel, const QString &path,
+                                  const QString &nativeIdentity) {
     if (!Ready() || panel >= 2 || !panels_[panel].bar)
         return;
     Capture(panel);
     Tab tab;
     tab.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
-    tab.path = path.isNull() || path.isEmpty() ? QDir::homePath() : path;
+    tab.path = path;
+    tab.nativePlaceIdentity = nativeIdentity;
     auto &state = panels_[panel];
     state.tabs.push_back(std::move(tab));
     Rebuild(panel);
@@ -272,8 +284,7 @@ void QtWindowWorkspace::Activate(unsigned panel, int index) {
                 source._sortID = tab.sort;
                 source._ascending = tab.ascending;
             }
-            const HRESULT result = window_.navigateTo(tab.path, true);
-            CompleteLocationOpen(panel, tab.path, result);
+            OpenTabLocation(panel);
             ui.history = tab.history;
         } else {
             window_.app_.Panels.Bind(panel, tab.runtime->source);

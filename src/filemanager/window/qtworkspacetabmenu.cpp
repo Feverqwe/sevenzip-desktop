@@ -20,8 +20,10 @@ void QtWindowWorkspace::TabMenu(unsigned panel, const QPoint &point) {
             return;
         if (panels_[position->panel].current == position->index)
             Capture(position->panel, false);
-        const QString path = panels_[position->panel].tabs[position->index].path;
-        NewTab(position->panel, path);
+        const auto &tab = panels_[position->panel].tabs[position->index];
+        const QString path = tab.path;
+        const QString nativeIdentity = tab.nativePlaceIdentity;
+        CreateTab(position->panel, path, nativeIdentity);
     });
     connect(menu.addAction(tr("Move to other panel")), &QAction::triggered, this, [this, id] {
         if (!Ready() || !FindTab(id))

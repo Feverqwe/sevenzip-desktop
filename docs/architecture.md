@@ -174,7 +174,10 @@ still running stays in its window until that editor finishes. Window teardown
 joins external workers and retires all inactive sources before releasing services.
 
 Sessions store navigation descriptors, tab order, view preferences and window
-placement. Reopening uses the existing navigation/backend boundary and fresh
+placement. Native root descriptors retain their identity across language changes;
+reopening resolves the current native target and verifies its provider. Older
+path-only descriptors retain their existing path-based behavior. Reopening uses
+the existing navigation/backend boundary and fresh
 password/recovery decisions; handles, passwords, running operations and consent
 are not persisted. A failed reopen keeps the requested location visibly failed.
 The application-wide favorites model owns stable identities, labels and ordering;

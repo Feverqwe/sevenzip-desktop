@@ -1,4 +1,6 @@
+#include "filemanager/panels/qtpaneladdresscombo.h"
 #include "filemanager/support/window_state_support.h"
+#include "filemanager/window/qtnativeplaces.h"
 #include "filemanager/window/qtwindowworkspace.h"
 #include "filemanager/window/qtworkspaceapplication.h"
 #include "support/window_activation.h"
@@ -30,6 +32,60 @@ class WorkspaceTabMenuTests final : public QObject {
 
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
+    void duplicateKeepsNativeRoot_data() {
+        QTest::addColumn<bool>("locations");
+        QTest::newRow("computer") << false;
+        QTest::newRow("locations") << true;
+    }
+    void duplicateKeepsNativeRoot() {
+        QFETCH(bool, locations);
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        if (locations) {
+            auto *address =
+                dynamic_cast<QtPanelAddressCombo *>(window.findChild<QComboBox *>("pathCombo"));
+            QVERIFY(address);
+            QCOMPARE(address->BindToPathAndRefresh(UString(), true), S_OK);
+        } else
+            window.findChild<QAction *>("openRootAction")->trigger();
+        const QString identity = locations ? QString("locations") : QString("computer");
+        QTRY_COMPARE(QtNativePlaces::RootIdentity(*visibleFiles(window, 0)->sourcePanel), identity);
+        auto *tabs = window.findChild<QTabBar *>("panelTabs0");
+        QTRY_VERIFY(tabs->isVisible() && tabs->width() > 0);
+        QTRY_COMPARE(tabs->tabAt(tabs->tabRect(0).center()), 0);
+        bool clicked = false;
+        QStringList captions;
+        const QString duplicate =
+            QCoreApplication::translate("QtWindowWorkspace", "Duplicate location");
+        QTimer choose;
+        choose.setInterval(5);
+        connect(&choose, &QTimer::timeout, &window, [&] {
+            auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
+            if (!menu)
+                return;
+            choose.stop();
+            for (auto *action : menu->actions())
+                captions.append(action->text());
+            for (auto *action : menu->actions())
+                if (action->text() == duplicate) {
+                    clicked = true;
+                    QTest::mouseClick(menu, Qt::LeftButton, Qt::NoModifier,
+                                      menu->actionGeometry(action).center());
+                    return;
+                }
+            menu->close();
+        });
+        choose.start();
+        QVERIFY(QMetaObject::invokeMethod(tabs, "customContextMenuRequested", Qt::DirectConnection,
+                                          Q_ARG(QPoint, tabs->tabRect(0).center())));
+        QVERIFY2(clicked, qPrintable(captions.join(" | ")));
+        QTRY_COMPARE(tabs->count(), 2);
+        QCOMPARE(QtNativePlaces::RootIdentity(*visibleFiles(window, 0)->sourcePanel), identity);
+        QCOMPARE(tabs->currentIndex(), 1);
+        QVERIFY(!window.findChild<QAction *>("createFolderAction")->isEnabled());
+    }
     void coldTabTransferPreservesActiveSource_data() {
         QTest::addColumn<bool>("detach");
         QTest::addColumn<bool>("navigateReceiver");

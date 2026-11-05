@@ -1,5 +1,8 @@
+#include "filemanager/panels/qtpaneladdresscombo.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/window/qtfavoritestore.h"
+#include "filemanager/window/qtnativeplaces.h"
+#include "filemanager/window/qtplaceprojection.h"
 #include "filemanager/window/qtwindowworkspace.h"
 #include "filemanager/window/qtworkspaceapplication.h"
 #include "localization/LangUtils.h"
@@ -40,6 +43,64 @@ class WorkspaceSessionTests final : public QObject {
 
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
+    void nativeRootSessionSurvivesLanguageChange_data() {
+        QTest::addColumn<QString>("identity");
+        QTest::addColumn<bool>("cold");
+        QStringList roots{QString("computer"), QString("locations")};
+#ifndef Q_OS_WIN
+        roots.append(QStringLiteral("network"));
+#endif
+        for (const auto &identity : roots) {
+            QTest::newRow(qPrintable(identity + "-active")) << identity << false;
+            QTest::newRow(qPrintable(identity + "-cold")) << identity << true;
+        }
+    }
+    void nativeRootSessionSurvivesLanguageChange() {
+        QFETCH(QString, identity);
+        QFETCH(bool, cold);
+        const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
+        SaveRegLang(L"-", settings);
+        ReloadLang(settings);
+        const auto resetLanguage = qScopeGuard([&] {
+            SaveRegLang(L"-", settings);
+            ReloadLang(settings);
+        });
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        if (identity == "computer")
+            window.findChild<QAction *>("openRootAction")->trigger();
+        else {
+            QtNativePlaces places;
+            const QString path = places.FindIdentity(identity).data(QtPlaceRoles::Path).toString();
+            auto *address =
+                dynamic_cast<QtPanelAddressCombo *>(window.findChild<QComboBox *>("pathCombo"));
+            QVERIFY(address);
+            QCOMPARE(address->BindToPathAndRefresh(ToUString(path), true), S_OK);
+        }
+        QTRY_VERIFY(active(window));
+        QCOMPARE(QtNativePlaces::RootIdentity(*active(window)->sourcePanel), identity);
+        if (cold) {
+            workspace(window)->NewTab(0, fixture.path());
+            QTRY_COMPARE(location(window), fixture.path());
+        }
+        const auto saved = workspace(window)->Save();
+        window.openPath(fixture.path());
+        QTRY_COMPARE(location(window), fixture.path());
+        SaveRegLang(L"ru", settings);
+        ReloadLang(settings);
+        bool restored = false;
+        workspace(window)->Restore(saved, [&] { restored = true; });
+        QTRY_VERIFY(restored);
+        if (cold) {
+            auto *tabs = window.findChild<QTabBar *>("panelTabs0");
+            tabs->setCurrentIndex(0);
+        }
+        QTRY_COMPARE(QtNativePlaces::RootIdentity(*active(window)->sourcePanel), identity);
+        QVERIFY(!window.findChild<QAction *>("createFolderAction")->isEnabled());
+    }
     void closingDuringRestoreDoesNotBlockPeerPersistence() {
         const bool quit = qApp->quitOnLastWindowClosed();
         qApp->setQuitOnLastWindowClosed(false);

@@ -82,6 +82,8 @@ class QtWindowWorkspace final : public QObject {
     };
     std::optional<TabPosition> FindTab(const QString &id) const;
     void Capture(unsigned panel, bool retainView = true);
+    void CreateTab(unsigned panel, const QString &path, const QString &nativeIdentity);
+    void OpenTabLocation(unsigned panel);
     QString TabTitle(const Tab &tab) const;
     void Activate(unsigned panel, int tab);
     void Suspend(unsigned panel);

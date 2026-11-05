@@ -101,6 +101,26 @@ Native Cocoa: EN/RU переходы Computer — PASS; компактный Pla
 фокус — PASS в обеих темах. Обновлённые снимки просмотрены; Windows runtime
 этой POSIX-адаптацией не проверялся.
 
+Повторная проверка сессии выявила потерю типа Computer после EN→RU: сохранённый
+локализованный путь попадал в обычный Binder. Сессия и Duplicate теперь сохраняют
+известную native root identity. Общий Qt-адаптер разрешает её в актуальный native
+Path из модели Places (Locations — пустой native root), использует прежний Binder
+и проверяет итоговый provider. Descriptor обновляется фактическим prefix только
+после успешного bind/render; ошибка binding сохраняет приоритет над render.
+Отсутствующая/неизвестная identity оставляет прежний path route. Native bindings,
+алгоритмы перечисления и baseline hashes не изменены. Подписи всех root-вкладок
+обновляются при смене языка; пустой Locations при Duplicate не становится Home.
+Linux: session/tab menu/Places/language — PASS, включая active/cold Computer,
+Locations и POSIX Network после EN→RU и реальные меню Duplicate. Ранее прошли
+прямые потребители tabs/archive/address/rollback; Windows runtime не проверялся.
+Native Cocoa обнаружил reentrant callback при уничтожении скрытых списков внутри
+RestorePanel: обновление команд читало заменяемый набор вкладок. Замена теперь
+защищена workspace transition и native notify guard активного слота; активация
+начинается после их восстановления. Повторный Linux session/tab menu — PASS;
+Cocoa session — 13 QtTest PASS, tab menu — 19 QtTest PASS, включая Duplicate.
+Сценарии native focus выполнялись после разблокировки macOS; неуспешный прогон
+меню на заблокированном desktop не считается свидетельством приёмки.
+
 Текущее место отделено от клавиатурного курсора и локально для каждого sidebar;
 общая боковая панель использует активную сторону окна. Действия меню повторно
 разрешают идентичность закладки после перестановки/удаления, а редактор имени

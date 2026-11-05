@@ -12,6 +12,8 @@
 QtNativePlaces::QtNativePlaces(QObject *parent) : QAbstractListModel(parent) { Refresh(); }
 
 QString QtNativePlaces::RootIdentity(const CPanel &panel) {
+    if (panel.IsRootFolder())
+        return QStringLiteral("locations");
     if (const auto *network = dynamic_cast<const CNetFolder *>(panel.GetFolder());
         network && network->IsRootLocation())
         return QStringLiteral("network");
@@ -25,6 +27,13 @@ QString QtNativePlaces::RootIdentity(const CPanel &panel) {
         return QStringLiteral("computer");
 #endif
     }
+    return {};
+}
+
+QModelIndex QtNativePlaces::FindIdentity(const QString &identity) const {
+    for (int row = 0; row < places_.size(); ++row)
+        if (places_[row].id == identity)
+            return index(row, 0);
     return {};
 }
 

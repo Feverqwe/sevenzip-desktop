@@ -1,6 +1,7 @@
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtwindowworkspace.h"
 #include <QJsonArray>
+#include <QScopedValueRollback>
 
 QJsonObject QtWindowWorkspace::Save() {
     QJsonArray panels;
@@ -10,6 +11,7 @@ QJsonObject QtWindowWorkspace::Save() {
         for (const auto &tab : panels_[index].tabs)
             tabs.append(QJsonObject{{"id", tab.id},
                                     {"path", tab.path},
+                                    {"nativePlace", tab.nativePlaceIdentity},
                                     {"view", tab.viewMode},
                                     {"sort", int(tab.sort)},
                                     {"ascending", tab.ascending}});
@@ -62,19 +64,27 @@ void QtWindowWorkspace::RestorePanel(unsigned panel, const QJsonObject &saved,
         return;
     }
     auto &state = panels_[panel];
-    state.tabs.clear();
-    for (const auto &value : tabs) {
-        const auto object = value.toObject();
-        Tab tab;
-        tab.id = object.value("id").toString(QUuid::createUuid().toString());
-        tab.path = object.value("path").toString();
-        tab.viewMode = qBound(0, object.value("view").toInt(3), 3);
-        tab.sort = object.value("sort").toInt();
-        tab.ascending = object.value("ascending").toBool(true);
-        state.tabs.push_back(std::move(tab));
+    {
+        const auto source = window_.app_.Panels.Share(panel);
+        const CPanel::CDisableNotify notifications(*source);
+        const QScopedValueRollback<bool> changing(changing_, true);
+        // Releasing retained lists emits selection signals. Do not publish
+        // workspace state while its previous tabs are being replaced.
+        state.tabs.clear();
+        for (const auto &value : tabs) {
+            const auto object = value.toObject();
+            Tab tab;
+            tab.id = object.value("id").toString(QUuid::createUuid().toString());
+            tab.path = object.value("path").toString();
+            tab.nativePlaceIdentity = object.value("nativePlace").toString();
+            tab.viewMode = qBound(0, object.value("view").toInt(3), 3);
+            tab.sort = object.value("sort").toInt();
+            tab.ascending = object.value("ascending").toBool(true);
+            state.tabs.push_back(std::move(tab));
+        }
+        state.current = qBound(0, saved.value("active").toInt(), int(state.tabs.size()) - 1);
+        Rebuild(panel);
     }
-    state.current = qBound(0, saved.value("active").toInt(), int(state.tabs.size()) - 1);
-    Rebuild(panel);
     Activate(panel, state.current);
     WhenReady(std::move(finished), std::move(canceled));
 }

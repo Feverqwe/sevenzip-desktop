@@ -1,8 +1,32 @@
 #include "filemanager/window/mainwindow.h"
+#include "filemanager/window/qtnativeplaces.h"
 #include "filemanager/window/qtnavigationbar.h"
+#include "filemanager/window/qtplaceprojection.h"
 #include "filemanager/window/qtwindowworkspace.h"
 #include <QScopedValueRollback>
 #include <QScrollBar>
+
+void QtWindowWorkspace::OpenTabLocation(unsigned panel) {
+    auto &tab = panels_[panel].tabs[panels_[panel].current];
+    const QString identity = tab.nativePlaceIdentity;
+    nativePlaces_->Refresh();
+    const auto place = nativePlaces_->FindIdentity(identity);
+    const bool nativeRoot = identity == QStringLiteral("locations") || place.isValid();
+    const QString path = place.isValid() ? place.data(QtPlaceRoles::Path).toString()
+                         : nativeRoot    ? QString()
+                                         : tab.path;
+    HRESULT result = window_.navigateTo(path, true);
+    if (nativeRoot && result == S_OK) {
+        auto &source = window_.app_.Panels[panel];
+        if (QtNativePlaces::RootIdentity(source) != identity)
+            result = E_FAIL;
+        else {
+            source.LoadFullPath();
+            tab.path = ToQString(source.GetCurrentFolderPrefix());
+        }
+    }
+    CompleteLocationOpen(panel, tab.path, result);
+}
 
 void QtWindowWorkspace::RestoreViewPosition(CPanel &source, QAbstractItemView &view,
                                             const QPoint &position) {
@@ -53,13 +77,13 @@ void QtWindowWorkspace::RetryLocation(unsigned panel, bool parent) {
         return;
     window_.activatePanelUi(panel);
     auto &tab = panels_[panel].tabs[panels_[panel].current];
-    if (parent)
+    if (parent) {
         tab.path = QFileInfo(QDir::cleanPath(tab.path)).absolutePath();
+        tab.nativePlaceIdentity.clear();
+    }
     {
         const QScopedValueRollback<bool> changing(changing_, true);
-        const QString path = tab.path;
-        const HRESULT result = window_.navigateTo(path, true);
-        CompleteLocationOpen(panel, path, result);
+        OpenTabLocation(panel);
     }
     window_.refreshActions();
 }

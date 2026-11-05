@@ -76,7 +76,9 @@ HRESULT MainWindow::navigateTo(const QString &path, bool sourceAddress) {
             COpenResult opened;
             result = panel.BindToPath(ToUString(nativePath), UString(), opened);
         }
-        renderBoundFolder();
+        const HRESULT rendered = renderBoundFolder();
+        if (result == S_OK)
+            result = rendered;
         if (result != S_OK && result != E_ABORT)
             statusBar()->showMessage(
                 QCoreApplication::translate("mainwindow_filelist", "Path not found: ") + path);
