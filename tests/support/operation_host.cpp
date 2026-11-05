@@ -4,6 +4,7 @@
 #include "gui/qtguicommand.h"
 #include "operations/qtoperationendpoint.h"
 #include "support/operation_dialogs.h"
+#include "support/operation_kill.h"
 #include "ui/progress/ProgressDialog2.h"
 #include <QApplication>
 #include <QDialog>
@@ -13,6 +14,7 @@
 #include <QJsonObject>
 #include <QSaveFile>
 #include <QTimer>
+#include <cstdlib>
 
 class Diagnostics final : public QObject {
     QPointer<ArchiveBackend> backend_;
@@ -80,6 +82,11 @@ int main(int argc, char **argv) {
         [&](const QtGUICommandSource &command, const QtGUIOutputSink &outputReady) {
             if (!WaitForBarrier(barrier))
                 return 101;
+            const auto terminal = qEnvironmentVariable("SEVENZIP_OPERATION_FORCE_EXIT");
+            if (terminal == "crash")
+                KillOperationProbe(QCoreApplication::applicationPid());
+            if (terminal == "missing-report")
+                std::_Exit(0);
             auto source = command;
             const auto profile = qEnvironmentVariable("SEVENZIP_OPERATION_BENCHMARK_PROFILE");
             if (!profile.isEmpty()) {

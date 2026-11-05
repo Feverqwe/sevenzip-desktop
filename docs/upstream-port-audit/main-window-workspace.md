@@ -551,10 +551,9 @@ Application-owned observer удерживает цикл приложения д
 форму, вопрос или просмотр результата независимой задачи.
 
 Это завершённая phase/show граница, но не весь lifecycle из макета. Общий вопрос
-Continue/Cancel/Show, generation+ack для отказа от draft, app-owned просмотр
-startup/protocol/crash failure и перенос in-process/external владельцев остаются
-открытыми. В частности, выход child без своего итогового окна пока требует
-отдельного application result owner перед реализацией deferred Quit.
+Continue/Cancel/Show, generation+ack для отказа от draft и перенос
+in-process/external владельцев остаются открытыми. Владение результатом при
+сбое child без своего итогового окна добавлено следующей описанной итерацией.
 
 Linux: protocol/observer/launcher, session, progress и оба benchmark consumers —
 семь наборов PASS; после выделения lifecycle suite отдельно task-lifecycle/session
@@ -566,6 +565,62 @@ Review bundle пересобран. Геометрия/тексты не мен�
 исходную provenance. Canonical native fixtures удалены, incremental build/cache
 сохранены. Windows/full/slow checks не выполнялись. Катя проверила ограниченный
 source diff; это не заменяет runtime evidence и не закрывает перечисленные gaps.
+
+## Просмотр непроверенного результата без файлового окна — 2026-11-05
+
+Проверены все пять production GUI launch factories, общий finished consumer,
+process poll/acceptance/report/exit и native error callers. Алгоритмы запуска,
+проверки результата и независимость child сохранены. Новый application registry
+регистрирует observer до старта и хранит только значения request/result.
+Новых внешних импортов нет, original baseline hashes не меняются.
+
+При crash или нарушении протокола наблюдаемого child результат больше не
+теряется вместе с исходным MainWindow. Registry удерживает application lifetime
+до явного просмотра: новый hold приобретается до освобождения hold observer.
+Обычные ошибки/предупреждения, которые уже показал 7zG, повторно не открываются.
+Немедленный отказ factory до запуска остаётся в прежнем protected-caller error
+path; отказ started child и потеря полного report принадлежат application review.
+
+Немодальный просмотр использует общие DialogLayout/TextReport/ActionBar,
+сохраняет полную исходную диагностику и значения путей, не разбирая их как
+локализованный текст. «Копировать» берёт весь отчёт, включая невидимый текст
+и независимо от выделения. Close/Escape подтверждает только выбранный UUID.
+Quit показывает непроверенный результат до закрытия файловых окон.
+Уничтожение presentation owner само по себе результат не подтверждает.
+Ни request/result, ни разрешения/секреты не добавлены в восстановление сессии.
+
+Реальный Linux regression обнаружил потерю фокуса при одном только
+WA_ShowWithoutActivating. Автопоказ теперь откладывается до закрытия чужого
+modal или завершения пользователем редактирования поля; уведомление не вызывает
+editingFinished. Явный Show/Quit возвращает к результату. Существующий view не
+разворачивается автоматически от позднего события. Callback привязан к application
+owner и защищён QPointer; скрытие modal возобновляет показ без polling.
+
+Linux: observer/launcher/session/task-lifecycle/task-result — пять наборов PASS;
+окончательная защита modeless input — три связанных набора PASS; финальные
+Escape/live-language cases — task-result PASS. macOS offscreen: те же пять
+наборов PASS, финальный task-result повторно PASS. Native Cocoa: task-result
+8 QtTest PASS, task-lifecycle 4 PASS; после Escape/live-language дополнения
+task-result 8 PASS. Failed/skipped нет. Проверены настоящий child crash и выход
+без report после last-file-window close, удержание event loop, повторный Quit,
+полное копирование, исходные bytes, modal/modeless ввод и EN/RU.
+
+Review bundle пересобран; новый producer task-result дал 12 Cocoa PNG/JSON:
+light/dark, EN/RU, 600×380, 480×360 и 480×640. Реальные light EN/dark compact RU
+снимки просмотрены; footer и прокрутка доступны, исходная диагностика не
+переписывается при смене языка. Макет master text/messages также просмотрен
+rendered. Снимки сохраняют pre-commit dirty provenance, а прежние producers
+не переобозначены. Canonical fixtures и временное удержание экрана завершены,
+incremental build/cache сохранены. Windows/full/slow checks не выполнялись.
+Катя проверила source boundaries и последующий focus diff, без runtime claims.
+
+Визуальная граница остаётся открытой: общий DialogLayout пока наследует palette
+Qt, тогда как macOS DialogSurface макета использует общие surface/window tokens.
+Это видно на новом отчёте и относится к общему владельцу форм. Не выдаём
+функциональную приёмку owner за завершённое соответствие всей компонентной
+системе; следующий визуальный шаг — общий theme owner для затронутых форм.
+Полный Continue/Cancel/Show, безопасный draft discard и transfer in-process/
+external владельцев также не закрыты этой итерацией.
 
 ## Shared secret editing
 

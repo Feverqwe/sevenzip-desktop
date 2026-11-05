@@ -1,6 +1,8 @@
 #include "archive/resources/qtarchivefileresource.h"
 #include "filemanager/window/mainwindow.h"
+#include "filemanager/window/qtworkspaceapplication.h"
 #include "operations/qtoperationlauncher.h"
+#include "operations/qtoperationregistry.h"
 #include "platform/temp/qtownedtempidentity.h"
 #include <QDir>
 #include <QFileInfo>
@@ -78,15 +80,20 @@ HRESULT MainWindow::observeGuiArchiveOperation(QtOperationLauncher *operation,
         app_.Panels[source].MessageBox_Error(ToUString(error));
         return E_FAIL;
     }
+    const QUuid review = QtOperationRegistry::Application().Registration(*operation);
     connect(operation, &QtOperationLauncher::finished, this,
-            [this, source](const QtOperationResult &result) {
+            [this, source, review](const QtOperationResult &result) {
                 if (app_.QtOperations().closed())
                     return;
                 guiOutputRefresh_->Enqueue(result.ChangedDirectories, result.ChangedArchives);
                 using Outcome = QtOperationResult::Outcome;
-                if (result.Status == Outcome::LaunchFailed ||
-                    result.Status == Outcome::ProtocolFailed || result.Status == Outcome::Crashed)
+                if ((!QtWorkspaceApplication::Find() || review.isNull()) &&
+                    (result.Status == Outcome::LaunchFailed ||
+                     result.Status == Outcome::ProtocolFailed ||
+                     result.Status == Outcome::Crashed)) {
                     app_.Panels[source].MessageBox_Error(ToUString(result.Error));
+                    QtOperationRegistry::Application().Acknowledge(review);
+                }
                 // Source dialogs in 7zG own ordinary errors and cancellation.
             });
     return S_OK;

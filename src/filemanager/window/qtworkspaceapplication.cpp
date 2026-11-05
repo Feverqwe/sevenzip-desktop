@@ -3,6 +3,7 @@
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtwindowworkspace.h"
 #include "operations/qtoperationlauncher.h"
+#include "operations/qtoperationregistry.h"
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QScopeGuard>
@@ -10,6 +11,7 @@
 QtWorkspaceApplication::QtWorkspaceApplication(QApplication &application) : QObject(&application) {
     setObjectName(QStringLiteral("sevenzipWorkspaceApplication"));
     connect(&application, &QCoreApplication::aboutToQuit, this, [this] { Save(); });
+    InitializeTaskResults();
 }
 
 QtWorkspaceApplication *QtWorkspaceApplication::Find() {
@@ -91,6 +93,11 @@ void QtWorkspaceApplication::Quit() {
     // Independent jobs retain their own native form/questions/results. Until
     // the application-wide continuation decision is committed, return to an
     // actual task owner rather than silently closing all file contexts.
+    const auto reviews = QtOperationRegistry::Application().Reviews();
+    if (!reviews.isEmpty()) {
+        ShowTaskReview(reviews.first().Id, true);
+        return;
+    }
     const auto tasks = QtOperationLauncher::Active();
     if (!tasks.isEmpty()) {
         tasks.front()->Show();

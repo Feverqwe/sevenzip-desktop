@@ -7340,4 +7340,13 @@ Check that your distribution's CIFS support and cifs-utils are installed.</sourc
     <message><source>Folder</source><translation>Папка</translation></message>
     <message><source>File</source><translation>Файл</translation></message>
 </context>
+<context>
+    <name>QtTaskResultDialog</name>
+    <message><source>Operation result</source><translation>Результат операции</translation></message>
+    <message><source>Copy</source><translation>Копировать</translation></message>
+    <message><source>The operation result could not be verified.</source><translation>Не удалось подтвердить результат операции.</translation></message>
+    <message><source>Selected items</source><translation>Выбранные объекты</translation></message>
+    <message><source>Requested archive</source><translation>Указанный архив</translation></message>
+    <message><source>Requested destination</source><translation>Указанное назначение</translation></message>
+</context>
 </TS>

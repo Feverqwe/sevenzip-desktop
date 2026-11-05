@@ -7,6 +7,7 @@
   {"id":"workspace-tabs","title":"Плотные вкладки","target":"workspace_tabs_tests","functions":["denseGeometry"]},
   {"id":"workspace-history","title":"Назад и вперёд: история вкладки, EN/RU","target":"workspace_history_tests","functions":["keyboardAndNavigationGeometry"]},
   {"id":"recent-places","title":"Недавние места: поиск, пустой список и отказ открытия, EN/RU","target":"recent_places_tests","functions":["searchKeyboardEmptyStatesAndWrappedRows","missingPlaceKeepsFormSourceAndHistoryCursor"]},
+  {"id":"task-result","title":"Неподтверждённый результат независимой задачи, EN/RU","target":"task_result_window_tests","functions":["compactReportKeepsFullDiagnostic"]},
   {"id":"workspace-places","title":"Места: текущее расположение, фокус и компактный список","target":"workspace_places_tests","functions":["currentPlaceStaysIndependentOfKeyboardCursorAndOtherWindow","compactPlacesRemainReachable"]},
   {"id":"location-bar","title":"Адрес: native-сегменты","target":"workspace_navigation_tests","functions":["locationBarUsesNativeParentTargets"]},
   {"id":"archive-tabs","title":"Вкладка и адрес вложенного архива","target":"workspace_archive_tests","functions":["breadcrumbsNavigateBothNestedArchiveBoundaries"]},

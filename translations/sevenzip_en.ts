@@ -73,4 +73,13 @@ Are you sure you want to split archive into such volumes?</numerusform>
     <message><source>Folder</source><translation>Folder</translation></message>
     <message><source>File</source><translation>File</translation></message>
 </context>
+<context>
+    <name>QtTaskResultDialog</name>
+    <message><source>Operation result</source><translation>Operation result</translation></message>
+    <message><source>Copy</source><translation>Copy</translation></message>
+    <message><source>The operation result could not be verified.</source><translation>The operation result could not be verified.</translation></message>
+    <message><source>Selected items</source><translation>Selected items</translation></message>
+    <message><source>Requested archive</source><translation>Requested archive</translation></message>
+    <message><source>Requested destination</source><translation>Requested destination</translation></message>
+</context>
 </TS>

@@ -26,7 +26,8 @@ elseif(UNIX)
     target_link_libraries(sevenzip_panel PRIVATE sevenzip_child_reaper)
 endif()
 
-add_library(sevenzip_operation_client STATIC src/operations/qtoperationlauncher.cpp src/operations/qtoperationlauncher.h)
+add_library(sevenzip_operation_client STATIC src/operations/qtoperationlauncher.cpp src/operations/qtoperationlauncher.h
+    src/operations/qtoperationregistry.cpp src/operations/qtoperationregistry.h)
 target_link_libraries(sevenzip_operation_client PUBLIC sevenzip_operation_contract
     PRIVATE sevenzip_operation_process)
 

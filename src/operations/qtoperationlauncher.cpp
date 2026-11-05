@@ -1,5 +1,6 @@
 #include "operations/qtoperationlauncher.h"
 #include "operations/qtoperationprocess.h"
+#include "operations/qtoperationregistry.h"
 #include "rep_operation_merged.h"
 #include <QCoreApplication>
 #include <QDir>
@@ -143,12 +144,9 @@ bool QtOperationLauncher::active() const {
 QtOperationPresentation QtOperationLauncher::presentation() const { return state_->presentation_; }
 
 QList<QtOperationLauncher *> QtOperationLauncher::Active() {
-    QList<QtOperationLauncher *> result;
-    if (auto *application = QCoreApplication::instance())
-        for (auto *operation : application->findChildren<QtOperationLauncher *>())
-            if (operation->active())
-                result.append(operation);
-    return result;
+    if (!QCoreApplication::instance())
+        return {};
+    return QtOperationRegistry::Application().Active();
 }
 
 void QtOperationLauncher::Show() {
@@ -181,6 +179,7 @@ QtOperationLauncher *QtOperationLauncher::Launch(const QString &program, const Q
         return nullptr;
     }
     auto operation = std::make_unique<QtOperationLauncher>(application);
+    QtOperationRegistry::Application().Register(*operation, job);
     connect(operation.get(), &QtOperationLauncher::finished, operation.get(),
             &QObject::deleteLater);
     if (!operation->start(program, job, error))
