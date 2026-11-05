@@ -1,5 +1,33 @@
 # Файловая панель: Qt Model/View — 2026-10-24
 
+## Archive row publication uses the existing call/scan owners — 2026-11-05
+
+Compared original PanelItems.cpp RefreshListCtrl and OnTimer with native list
+loading, archive directory reading, the complete Qt bound-folder renderer and
+its callers, flat-mode refresh and deferred publication completion/cancellation.
+The complete original at `b88c6bc09339de32f7d18bbab900686b244f42ba` from
+<https://github.com/ip7z/7zip.git> matches the existing baseline SHA256
+`7ac9d1a31d4f468cffcd3807c8ae36e8b16f040e7c81aa074ad2ae6930135802`.
+No native load/selection algorithm, source import or baseline changes.
+
+The archive row renderer removes its additional timer guard: its sole caller,
+the bound-folder renderer, already holds the application CallScope, which
+excludes the sole Qt timer dispatcher during synchronous and modal work. Native
+LoadListItems keeps its original guards. Deferred rows retain the existing scan
+owner's guards until completion or cancellation. The separate notification
+guard remains around synchronous Qt row changes and is released before a scan
+captures notification state. No replacement guard, state or handoff is added.
+
+Existing large-list checks cover responsive publication, Flat toggle, refresh
+with selection, folder entry, navigation and close while rows are pending.
+Flat-view and sparse-image UI checks cover small lists, exact selected paths,
+native directory loading and encrypted input cancellation/retry.
+
+Focused Linux validation passed: large_list_window, flat_view and
+sparse_image_ui (49 Qt checks). This shared Qt lifecycle change introduces no
+native platform branch or visible layout change; secondary-platform acceptance
+is not claimed.
+
 ## Parent button belongs to its panel — 2026-11-05
 
 Compared original CPanel toolbar creation and complete OnCommand parent routing
