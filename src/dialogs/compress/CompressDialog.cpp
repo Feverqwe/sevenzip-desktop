@@ -548,9 +548,6 @@ CCompressDialog::EVolumeResult CCompressDialog::OnOK(const QString &volumeText,
     return kVolumeOK;
 }
 
-// Original shared helper is owned by ExtractDialog.cpp.
-extern void AddUniqueString(CObjectVector<QString> &strings, const QString &srcString);
-
 void CCompressDialog::OnOK(NCompression::CInfo &registry) const {
     CObjectVector<QString> arcPaths;
     QString s;

@@ -7,6 +7,15 @@
 #include <QMutexLocker>
 #include <QSettings>
 
+// Adapted from 7-Zip UI/GUI/ExtractDialog.cpp; both dialog histories use it.
+void AddUniqueString(CObjectVector<QString> &list, const QString &s) {
+    const UString source(s.toStdWString().c_str());
+    FOR_VECTOR(i, list)
+    if (source.IsEqualTo_NoCase(UString(list[i].toStdWString().c_str())))
+        return;
+    list.Add(s);
+}
+
 // Source g_CS serializes whole settings operations, including group replacement.
 static QMutex g_CS;
 

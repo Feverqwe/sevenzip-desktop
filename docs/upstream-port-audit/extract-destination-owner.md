@@ -160,6 +160,32 @@ Windows skips the ordinary POSIX filename-with-colons row. Existing incremental
 builds and compiler caches were retained. Completed suite scratch was removed
 after saving results; no full/slow gate or visual change was involved.
 
+## Shared archive-path history owner — 2026-11-05
+
+Compared the complete original ExtractDialog initialization/confirmation,
+AddUniqueString and CompressDialog confirmation/history callers at
+`b88c6bc09339de32f7d18bbab900686b244f42ba` in
+<https://github.com/ip7z/7zip.git>, with the current dialog, native GUI consumer
+and settings types. No original source or baseline revision is imported.
+
+The shared AddUniqueString body moves unchanged from ExtractDialog to
+ZipRegistry beside the two persisted history types. Both dialogs use its header
+declaration; compression no longer depends on a function implemented in the
+extraction dialog through a handwritten extern declaration. The existing common
+target already owns ZipRegistry and is linked by both consumers. No new target,
+history abstraction or alternate implementation is added.
+
+Native case-insensitive comparison, first spelling and order, distinct history
+limits, extraction trimming/current-item rules, compression path resolution,
+settings precedence and accepted-only persistence remain unchanged. The existing
+history and Cancel regressions exercise both workflows rather than the helper's
+location or declaration.
+
+Linux `extract_dialog`, `compression_path` and `split_destination` passed
+44 checks without failures or skips. Incremental builds and compiler caches
+were retained; no layout, platform adapter, full/slow or secondary-platform
+acceptance is claimed.
+
 ## Batch input preparation — 2026-11-02
 
 Reviewed the dialog/caller chain, complete Qt batch extraction/opening adapters,
