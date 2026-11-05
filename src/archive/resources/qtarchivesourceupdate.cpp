@@ -8,17 +8,17 @@
 
 namespace {
 class CResourceProgress final : public IQtProgressTransport {
-    CMyComPtr<IUnknown> _resource;
-    QtArchiveFileResource *_resourceSpec;
+    CMyComPtr2<IUnknown, QtArchiveFileResource> _resource;
     ArchiveProgressTransport _transport;
 
   public:
     CResourceProgress(QtArchiveFileResource *resource, CProgressDialog &dialog,
                       ArchiveBackend &backend, bool nativeWorker)
-        : _resource(resource), _resourceSpec(resource), _transport(dialog, backend, nativeWorker) {
-        resource->SetUpdateProgress(&dialog.Sync);
+        : _transport(dialog, backend, nativeWorker) {
+        _resource.SetFromCls(resource);
+        _resource->SetUpdateProgress(&dialog.Sync);
     }
-    ~CResourceProgress() override { _resourceSpec->SetUpdateProgress(nullptr); }
+    ~CResourceProgress() override { _resource->SetUpdateProgress(nullptr); }
     HRESULT SetPaused(bool paused) override { return _transport.SetPaused(paused); }
     void Cancel() override { _transport.Cancel(); }
 };
