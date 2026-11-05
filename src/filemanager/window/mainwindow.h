@@ -135,6 +135,7 @@ class MainWindow : public QMainWindow {
     void reloadLangItems();
     void refreshToolbarTexts();
     void quiesceOperations();
+    QWidget *applicationQuitBlocker() const;
     bool canHandleExternalUpdate() const;
     bool runExternalArchiveUpdate(CPanel &panel, const QtArchiveUpdateBody &body);
     QMenu *createMenusAndToolbar();

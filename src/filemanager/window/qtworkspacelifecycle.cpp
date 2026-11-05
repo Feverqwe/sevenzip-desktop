@@ -108,6 +108,14 @@ void QtWindowWorkspace::ExitExternalWorkers(bool hardExit) {
                 tab.runtime->source->ExitExternalWorkers(hardExit);
 }
 
+bool QtWindowWorkspace::HasExternalWorkers() const {
+    for (const auto &panel : panels_)
+        for (const auto &tab : panel.tabs)
+            if (tab.runtime && tab.runtime->source->HasExternalWorkers())
+                return true;
+    return false;
+}
+
 void QtWindowWorkspace::QuiesceInactive() {
     for (auto &panel : panels_)
         for (auto &tab : panel.tabs) {

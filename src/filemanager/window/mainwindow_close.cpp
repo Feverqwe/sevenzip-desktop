@@ -106,6 +106,15 @@ void MainWindow::closeEvent(QCloseEvent *event) {
         event->ignore();
 }
 
+QWidget *MainWindow::applicationQuitBlocker() const {
+    const auto &operations = app_.QtOperations();
+    if (operations.callActive() || operations.blocking() || sourceArchiveProgress_ ||
+        (fileTransfer_ && fileTransfer_->isRunning()) ||
+        (volumeOperation_ && volumeOperation_->isRunning()) || workspace_->HasExternalWorkers())
+        return const_cast<MainWindow *>(this);
+    return commands_->MountCloseBlocker();
+}
+
 void MainWindow::quiesceOperations() {
     workspace_->QuiesceInactive();
     if (guiOutputRefresh_)

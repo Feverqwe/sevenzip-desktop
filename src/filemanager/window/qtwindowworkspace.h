@@ -48,6 +48,7 @@ class QtWindowWorkspace final : public QObject {
     void RestoreViewPosition(CPanel &source, QAbstractItemView &view, const QPoint &position);
     void RetainListFocus(unsigned panel);
     void ExitExternalWorkers(bool hardExit);
+    bool HasExternalWorkers() const;
     void QuiesceInactive();
     void Dispose();
     // Acceptance may precede opening a restored tab; finished reports the actual result.

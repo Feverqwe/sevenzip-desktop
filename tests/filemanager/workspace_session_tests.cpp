@@ -43,6 +43,100 @@ class WorkspaceSessionTests final : public QObject {
 
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
+    void quitWithProtectedPeer_data() {
+        QTest::addColumn<bool>("protectFirst");
+        QTest::newRow("first-owner") << true;
+        QTest::newRow("second-owner") << false;
+    }
+    void quitWithProtectedPeer() {
+        QFETCH(bool, protectFirst);
+        const bool quit = qApp->quitOnLastWindowClosed();
+        qApp->setQuitOnLastWindowClosed(false);
+        const auto restoreQuit = qScopeGuard([quit] { qApp->setQuitOnLastWindowClosed(quit); });
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        QtWorkspaceApplication application(*qApp);
+        ControlledBackend firstBackend, secondBackend;
+        MainWindow first(&firstBackend), second(&secondBackend);
+        first.show();
+        second.show();
+        first.openPath(fixture.path());
+        second.openPath(fixture.path());
+        MainWindow &owner = protectFirst ? first : second;
+        ControlledBackend &backend = protectFirst ? firstBackend : secondBackend;
+        const QString archive = fixture.filePath("protected source.zip");
+        QVERIFY(backend.prepareArchiveFixture(archive));
+        bool attempted = false;
+        backend.queueListAction([&] {
+            attempted = true;
+            application.Quit();
+            QVERIFY(first.isVisible() && first.isEnabled());
+            QVERIFY(second.isVisible() && second.isEnabled());
+            backend.completeList({ArchiveEntry{"payload.txt", 1, 1}});
+        });
+        owner.openArchive(archive);
+        QVERIFY(attempted);
+        QTRY_VERIFY(active(owner) && active(owner)->rowCount() == 1 && active(owner)->isEnabled());
+        application.Quit();
+        QVERIFY(!first.isVisible() && !second.isVisible());
+        const QSettings settings(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"),
+                                 QSettings::IniFormat);
+        QCOMPARE(QJsonDocument::fromJson(settings.value("workspace/session").toByteArray())
+                     .array()
+                     .size(),
+                 2);
+    }
+    void quitPreservesOpenForm_data() { quitWithProtectedPeer_data(); }
+    void quitPreservesOpenForm() {
+        QFETCH(bool, protectFirst);
+        const bool quit = qApp->quitOnLastWindowClosed();
+        qApp->setQuitOnLastWindowClosed(false);
+        const auto restoreQuit = qScopeGuard([quit] { qApp->setQuitOnLastWindowClosed(quit); });
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        QtWorkspaceApplication application(*qApp);
+        ControlledBackend firstBackend, secondBackend;
+        MainWindow first(&firstBackend), second(&secondBackend);
+        first.show();
+        second.show();
+        first.openPath(fixture.path());
+        second.openPath(fixture.path());
+        QDialog form(protectFirst ? &first : &second);
+        QLineEdit input(&form);
+        input.setText(QStringLiteral("Unapplied ввод"));
+        form.setWindowModality(Qt::WindowModal);
+        form.show();
+        QTRY_COMPARE(QApplication::activeModalWidget(), &form);
+        application.Quit();
+        QVERIFY(first.isVisible() && first.isEnabled());
+        QVERIFY(second.isVisible() && second.isEnabled());
+        QVERIFY(form.isVisible());
+        QCOMPARE(input.text(), QStringLiteral("Unapplied ввод"));
+        QCOMPARE(location(first), fixture.path());
+        QCOMPARE(location(second), fixture.path());
+        form.reject();
+        QTRY_VERIFY(!QApplication::activeModalWidget());
+        // A separate result window is not a file context and must not receive
+        // a close request from the workspace's Quit commit.
+        QDialog result;
+        result.show();
+        application.Quit();
+        QVERIFY(!first.isVisible() && !second.isVisible());
+        QVERIFY(result.isVisible());
+        const QSettings settings(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"),
+                                 QSettings::IniFormat);
+        QCOMPARE(QJsonDocument::fromJson(settings.value("workspace/session").toByteArray())
+                     .array()
+                     .size(),
+                 2);
+        ControlledBackend reopenedBackend;
+        MainWindow reopened(&reopenedBackend);
+        reopened.show();
+        reopened.openPath(fixture.path());
+        application.Quit();
+        QVERIFY(!reopened.isVisible());
+        QVERIFY(result.isVisible());
+    }
     void nativeRootSessionSurvivesLanguageChange_data() {
         QTest::addColumn<QString>("identity");
         QTest::addColumn<bool>("cold");

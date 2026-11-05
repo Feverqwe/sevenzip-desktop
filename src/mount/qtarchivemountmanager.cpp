@@ -89,10 +89,14 @@ void QtArchiveMountManager::refresh() {
         QTimer::singleShot(0, owner_, &QWidget::close);
     }
 }
+bool QtArchiveMountManager::hasActiveSessions() const {
+    return std::any_of(sessions_.cbegin(), sessions_.cend(), [](const Session &entry) {
+        return entry.instance->status() != QtArchiveMountSession::Status::Stopped;
+    });
+}
+
 bool QtArchiveMountManager::canCloseOwner() {
-    if (std::all_of(sessions_.cbegin(), sessions_.cend(), [](const Session &entry) {
-            return entry.instance->status() == QtArchiveMountSession::Status::Stopped;
-        }))
+    if (!hasActiveSessions())
         return true;
     if (closingOwner_)
         return false;

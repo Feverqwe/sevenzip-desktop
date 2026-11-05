@@ -42,4 +42,5 @@ class QtArchiveMountManager final : public QDialog {
     void mount(IUnknown *resource, const QString &label, const QString &archivePassword,
                const QString &folder = {});
     bool canCloseOwner();
+    bool hasActiveSessions() const;
 };

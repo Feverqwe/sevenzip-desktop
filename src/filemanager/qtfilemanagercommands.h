@@ -8,6 +8,7 @@
 #include <optional>
 
 class QAction;
+class QWidget;
 class CApp;
 class MainWindow;
 class CPanel;
@@ -35,6 +36,7 @@ class QtFileManagerCommands final : public IQtFileManagerMenuCommandServices {
     void RefreshViewActions();
     void ActivateItems(Qt::KeyboardModifiers modifiers);
     bool CanCloseMounts();
+    QWidget *MountCloseBlocker() const;
     bool CanExecuteCommand(unsigned id) override;
     bool IsShiftDown() const override;
     void InvokePluginCommand(unsigned id) override;

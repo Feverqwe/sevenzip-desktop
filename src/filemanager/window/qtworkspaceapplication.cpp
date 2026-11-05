@@ -21,6 +21,8 @@ void QtWorkspaceApplication::Register(MainWindow &window) {
         if (existing == &window)
             return;
     windows_.push_back(&window);
+    // A newly requested file context resumes ordinary session persistence.
+    quitting_ = false;
 }
 
 QJsonArray QtWorkspaceApplication::ReadSession() const {
@@ -66,9 +68,30 @@ void QtWorkspaceApplication::Closing(MainWindow &window) {
 }
 
 void QtWorkspaceApplication::Quit() {
+    if (quitting_)
+        return;
+    // Inspect every owner before the first close. closeAllWindows can tear down
+    // an idle peer before a protected source refuses, and also closes unrelated
+    // operation/result windows. Mount inspection must not initiate unmounting.
+    QPointer<QWidget> blocker = QApplication::activeModalWidget();
+    std::vector<QPointer<MainWindow>> closing;
+    for (const auto &window : windows_)
+        if (window && !window->app_.QtOperations().closed()) {
+            closing.push_back(window);
+            if (!blocker)
+                blocker = window->applicationQuitBlocker();
+        }
+    if (blocker) {
+        blocker->show();
+        blocker->raise();
+        blocker->activateWindow();
+        return;
+    }
     Save();
     quitting_ = true;
-    qApp->closeAllWindows();
+    for (const auto &window : closing)
+        if (window)
+            window->close();
     // A protected operation may refuse shutdown. Resume ordinary persistence.
     for (const auto &window : windows_)
         if (window && !window->app_.QtOperations().closed()) {

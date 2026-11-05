@@ -39,3 +39,6 @@ void QtFileManagerCommands::ShowMounts() {
     mounts_->activateWindow();
 }
 bool QtFileManagerCommands::CanCloseMounts() { return !mounts_ || mounts_->canCloseOwner(); }
+QWidget *QtFileManagerCommands::MountCloseBlocker() const {
+    return mounts_ && mounts_->hasActiveSessions() ? mounts_.data() : nullptr;
+}

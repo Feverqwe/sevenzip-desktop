@@ -492,6 +492,40 @@ Review bundle пересобран. Layout/видимость/оформлени
 не переобозначаются как новые. Canonical native fixtures удалены, incremental
 outputs и compiler cache сохранены. Windows/full/slow checks не выполнялись.
 
+## Предварительная проверка Quit — 2026-11-05
+
+Сопоставлены исходный FM close pipeline, Qt close/quiesce callers, external
+sessions, mount manager и контракт application-lifecycle из master. Native
+CloseFileManager остаётся окончательным teardown, а не пробным запросом:
+он освобождает источники после остановки workers. Нового внешнего кода нет.
+
+Общий Quit сначала проверяет все зарегистрированные файловые окна. Modal input,
+защищённый source call, работающая in-process операция, external session или
+живое подключение возвращают к владельцу до закрытия любого соседнего окна.
+Проверка подключения не показывает вопрос отключения и не вызывает unmount.
+После разрешения закрывается сохранённый список файловых окон; отдельные
+modeless окна операций/результатов не получают общий closeAllWindows.
+Сессия сохраняется перед teardown. Новое файловое окно снова разрешает
+обычную публикацию сессии и последующий запрос Quit.
+
+Это исправление atomic veto, а не реализация полного нового lifecycle.
+Подтверждение отказа от draft и «Продолжить операции» пока не реализованы:
+in-process/external владельцы ещё связаны с файловым окном, а sidecar IPC
+не сообщает рабочую фазу и не предоставляет команду показа задачи.
+Перенос владельцев, общий реестр задач и ожидание просмотра результатов
+остаются открытой границей приёмки. Обычное закрытие окна сохраняет прежнюю
+политику; source-port полнота не выводится из passing runtime tests.
+
+Linux focused: workspace session, window close и native close pipeline — три
+набора PASS. macOS offscreen: те же три набора PASS. Native Cocoa: два порядка
+защищённого окна и формы, сохранение ввода, повторный Quit, отдельное окно
+результата, новое файловое окно и восстановление сессии — 7 QtTest PASS;
+защищённый source open — ещё 3 PASS. Failed/skipped нет. Live mount/external
+и полный сценарий продолжения операций этим прогоном не проверены.
+Review bundle пересобран; геометрия не менялась, прежние снимки не переобозначены.
+Одноразовые Cocoa fixtures удалены, incremental build и compiler cache сохранены.
+Windows/full/slow checks не запускались.
+
 ## Shared secret editing
 
 2026-11-05: проверены исходные `PasswordDialog.cpp/.h`, обработчики
