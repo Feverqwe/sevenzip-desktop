@@ -1,5 +1,27 @@
 # Deferred Rename ownership — 2026-10-18
 
+## Shared filesystem-name preparation — 2026-11-05
+
+Rechecked complete original CreateFolder, CreateFile and label-edit handlers,
+their path-correction bodies and current filesystem/archive providers, worker,
+modal guards and deferred selection consumers. Original PanelOperations.cpp
+at `b88c6bc09339de32f7d18bbab900686b244f42ba` matches the existing full-unit
+baseline. Native correction and operation algorithms remain unchanged.
+
+The existing naming-operation owner now shares filesystem-only correction,
+temporary corrected-name storage and its invalid-argument diagnostic across
+creation and rename. Archive names still bypass filesystem correction. Each
+caller retains its validation position and return contract; file creation keeps
+its direct operation and success-only refresh, while folder creation retains
+its joined worker and refresh after failure. Modal guards, saved selection and
+rename publication retain their order. Copy destinations and Browse preserve
+their separate correction/error policies.
+
+Existing creation and filesystem/archive rename regressions cover actual names,
+Unicode paths, collisions, cancellation, deferred lists and selection. No new
+test requires the helper or duplicates the correction algorithm. No platform
+adapter, layout, caption or public interface changes.
+
 Source: <https://github.com/ip7z/7zip.git>, commit
 `9128b80e3a471108678e2b3ec3c985861c8d7b0f`.
 Reviewed `CPP/7zip/UI/FileManager/PanelOperations.cpp` label-edit handlers,
