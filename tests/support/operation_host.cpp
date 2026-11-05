@@ -112,7 +112,8 @@ int main(int argc, char **argv) {
                     options.NumIterations_Defined = true;
                     // Cancellation must interrupt unfinished work even when
                     // the GUI thread is scheduled after a short native pass.
-                    options.NumIterations = profile == "normal-cancel" ? 1000 : 1;
+                    options.NumIterations =
+                        profile == "normal-cancel" || profile == "normal-stop" ? 1000 : 1;
                 };
             }
             return RunSevenzipGUICommand(

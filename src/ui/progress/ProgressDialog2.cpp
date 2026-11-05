@@ -344,7 +344,7 @@ bool CProgressDialog::OnExternalCloseMessage() {
         }
     }
     if (!DisableUserQuestions)
-        if (thereAreMessages && !_cancelWasPressed) {
+        if (thereAreMessages) {
             _waitCloseByCancelButton = true;
             UpdateMessagesDialog();
             return true;
@@ -376,9 +376,10 @@ bool CProgressDialog::OnButtonClicked(unsigned buttonID) {
     switch (buttonID) {
     case IDCANCEL:
         if (_waitCloseByCancelButton) {
+            QtTaskPresentation::ResultReviewed();
             MessagesDisplayed = true;
             End(IDCLOSE);
-            break;
+            return true;
         }
         if (_cancelWasPressed)
             return true;

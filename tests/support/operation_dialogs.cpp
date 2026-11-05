@@ -3,6 +3,7 @@
 #include "dialogs/compress/createarchivedialog.h"
 #include "dialogs/extract/ExtractDialog.h"
 #include "dialogs/listview/ListViewDialog.h"
+#include "ui/lifecycle/qttaskpresentation.h"
 #include "ui/support/layout_inspection.h"
 #include <QApplication>
 #include <QDialogButtonBox>
@@ -80,8 +81,15 @@ void DriveOperationDialogs() {
             auto *text = widget->findChild<QPlainTextEdit *>("IDE_BENCH2_EDIT");
             const auto profile = qEnvironmentVariable("SEVENZIP_OPERATION_BENCHMARK_PROFILE");
             const bool cancel = profile == "cancel" || profile == "normal-cancel";
+            if (profile == "normal-stop" && stop && stop->isEnabled()) {
+                stop->click();
+                continue;
+            }
             const bool finished =
-                stop ? !stop->isEnabled()
+                stop ? (profile == "normal-stop"
+                            ? QtTaskPresentation::Application().snapshot().phase ==
+                                  QtOperationPhase::Reviewing
+                            : !stop->isEnabled())
                      : text && text->toPlainText().contains(
                                    QCoreApplication::translate("BenchmarkReport", "Avg:"));
             if ((cancel || finished) && !widget->property("fixtureClosing").toBool()) {

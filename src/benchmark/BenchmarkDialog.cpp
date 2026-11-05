@@ -788,8 +788,10 @@ void CBenchmarkDialog::OnCancel() {
 
     if (_thread.IsCreated())
         SendExit_Status(QtDiagnosticText(QT_TRANSLATE_NOOP("SevenZipDiagnostics", "Cancel ...")));
-    else
+    else {
+        QtTaskPresentation::ResultReviewed();
         CQtBenchmarkWindow::OnCancel();
+    }
 }
 
 void CBenchmarkDialog::OnHelp() { ShowHelpWindow(kHelpTopic); }

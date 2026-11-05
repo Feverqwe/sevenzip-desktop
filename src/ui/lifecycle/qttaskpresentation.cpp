@@ -36,9 +36,13 @@ void QtTaskPresentation::SetPhase(QWidget &window, Phase phase) { Watch(window, 
 
 void QtTaskPresentation::BeginWork(QWidget &window) {
     auto &owner = Application();
+    owner.workStarted_ = true;
+    owner.resultReviewed_ = false;
     owner.fallback_ = Phase::Working;
     Watch(window, Phase::Working);
 }
+
+void QtTaskPresentation::ResultReviewed() { Application().resultReviewed_ = true; }
 
 const QtTaskPresentation::Entry *QtTaskPresentation::currentEntry() const {
     const Entry *current = nullptr;

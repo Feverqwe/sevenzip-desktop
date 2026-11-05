@@ -225,7 +225,6 @@ class ProgressWorkerTests : public QObject {
         QVERIFY(worker.MessagesDisplayed);
         QCOMPARE(worker.result(), 8); // Original IDCLOSE.
         QCOMPARE(worker.Sync.Messages.Size(), 1u);
-        QVERIFY(worker.Sync.Get_Stopped());
     }
     void actualFinalMessageBoxes_data() {
         QTest::addColumn<int>("mode");

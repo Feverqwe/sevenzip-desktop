@@ -653,6 +653,68 @@ test fixture не меняет captured production views. Эти проверк�
 Катя проверила source diff; после исправления brushes и проверки inheritance
 замечаний не осталось. Полный application lifecycle contract остаётся открытым.
 
+## Cancelled independent work requires a final review
+
+2026-11-05: полные original ProgressDialog2 cancellation/finish bodies сверены
+с локальным source archive, включая callers, WaitMode и deferred finish внутри
+вопроса. В оригинале сообщения после подтверждённого Stop не удерживают progress.
+Это сознательно адаптировано к текущему lifecycle-контракту: сообщения остаются
+до Close. Close завершённого отчёта больше не проходит в OnCancel и не посылает
+повторную отмену transport. Подтверждение Stop само по себе не меняет итог worker:
+завершение внутри вопроса по-прежнему может вернуть успех.
+
+Qt task presentation фиксирует начало работы и явный просмотр результата.
+Endpoint передаёт признак непросмотренной отмены только при фактическом native
+user-break outcome. Незапущенные формы не создают отчёт. Source-проверка реальных
+GUI routes подтвердила: codec discovery и подготовка Compress/Extract до формы
+не вызывают BeginWork. WaitMode early return сохраняет факт запуска worker.
+Алгоритмы native progress, архивирования и benchmark не заменены; оригинальные
+baseline units/hashes не менялись, новых внешних imports нет.
+
+Benchmark OnCancel и завершение сверены с полными original bodies. Close во время
+работы запрашивает остановку; его автоматическое закрытие после worker finish
+не считается просмотром. Stop → finished → явный Close отмечает просмотр,
+поэтому application не показывает второй cancellation report. Restart сбрасывает
+признак просмотра. Blanket-исключения всех benchmark results нет.
+
+Application registry принимает итог до освобождения observer hold и сохраняет
+его после закрытия последнего файлового окна. Общий report показывает отмену,
+сохраняет исходный outcome и reported output paths, позволяет полное Copy/Close.
+Он не объявляет частичные outputs успешно завершёнными или проверенными.
+Обычные ошибки остаются у native owner; секреты и разрешения в сессию не попадают.
+Признак отмены несовместим с success/warning/failure и отвергается validator.
+
+Linux: восемь focused suites protocol/launcher/hash/benchmark/benchmark-lifecycle/
+progress-cancel/task-result/task-lifecycle PASS; после уточнения EN/RU report
+fixture повторён task-result PASS. Финальная правка Close проверена четырьмя
+прямыми consumers: progress-cancel/progress-worker/task-result/benchmark PASS.
+macOS offscreen: восемь suites PASS, затем те же четыре финальных consumers PASS.
+Первый Linux запуск выявил ошибку fixture: native mnemonic `&Close` сравнивался
+с `Close`; исправлена проверка видимой подписи. Это не product failure.
+
+Native Cocoa: launcher 5, benchmark 9, task-result 11 QtTest PASS. Финальный
+progress-cancel 9 и progress-worker 4 PASS; failed/skipped нет. Проверены реальная
+отмена hash после закрытия последнего файлового окна, удержание event loop до
+Copy/Close/Escape, repeated Quit, draft cancel без report, benchmark active Close
+и Stop → review → Close без повторного report, завершение worker внутри вопроса.
+Первый direct native запуск не имел runtime `7z` в PATH; исправлен только harness,
+прогон повторён успешно. Windows/full/slow проверки не запускались. Катя провела
+source review, нашла и подтвердила исправление повторного Cancel; runtime у неё
+не запускался. Временные native fixtures и awake helper удалены, cache сохранён.
+
+Review bundle пересобран. Producer task-result обновлён: 24 Cocoa PNG/JSON,
+EN/RU, light/dark, обычный и compact размеры, сбой и отмена; capture errors нет.
+Compact dark RU и light EN cancellation снимки просмотрены: footer доступен,
+исходный текст прокручивается, полное Copy сохраняет также output paths.
+Подписи путей не обещают фактическую запись всех outputs. Последнее уточнение
+этих подписей проверено focused Linux task-result и обоими native capture runs.
+Capture provenance остаётся pre-commit dirty, остальные producers не переименованы
+как новые проверки. Общая gallery обновлена без повторного захвата тех же кадров.
+
+Полный Continue/Cancel/Show coordinator, draft-discard handshake и перенос
+in-process/external/mount owners остаются отдельными незавершёнными границами
+этого же активного аудита.
+
 ## Shared secret editing
 
 2026-11-05: проверены исходные `PasswordDialog.cpp/.h`, обработчики

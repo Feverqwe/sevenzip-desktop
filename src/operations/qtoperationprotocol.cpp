@@ -104,7 +104,7 @@ QtOperationJob OperationJobFromRequest(const OperationRequest &request) {
 
 OperationReport OperationReportFromResult(const QtOperationResult &result) {
     return OperationReport(int(result.Status), result.ExitCode, result.ChangedDirectories,
-                           result.ChangedArchives);
+                           result.ChangedArchives, result.CancellationNeedsReview);
 }
 
 bool ValidateOperationOutputs(const QStringList &directories, const QStringList &archives) {
@@ -137,8 +137,13 @@ OperationResultFromReport(const OperationReport &report) {
     default:
         break;
     }
-    if (!valid || !ValidateOperationOutputs(report.changedDirectories(), report.changedArchives()))
+    if (!valid || (report.cancellationNeedsReview() && status != Outcome::Cancelled) ||
+        !ValidateOperationOutputs(report.changedDirectories(), report.changedArchives()))
         return std::unexpected(Outcome::ProtocolFailed);
-    return QtOperationResult{
-        status, code, {}, report.changedDirectories(), report.changedArchives()};
+    return QtOperationResult{status,
+                             code,
+                             {},
+                             report.changedDirectories(),
+                             report.changedArchives(),
+                             report.cancellationNeedsReview()};
 }

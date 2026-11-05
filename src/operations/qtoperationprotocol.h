@@ -30,6 +30,7 @@ struct QtOperationResult {
     QString Error;
     QStringList ChangedDirectories;
     QStringList ChangedArchives;
+    bool CancellationNeedsReview = false;
 };
 Q_DECLARE_METATYPE(QtOperationResult)
 

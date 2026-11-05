@@ -15,7 +15,7 @@ struct QtOperationReview {
 };
 
 // Application lifetime for independent observations and results whose child
-// could not present a verified native outcome. No worker or decoder lives here.
+// need review after the child exits. No worker or decoder lives here.
 class QtOperationRegistry final : public QObject {
     Q_OBJECT
   public:

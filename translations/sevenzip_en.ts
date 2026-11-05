@@ -75,6 +75,9 @@ Are you sure you want to split archive into such volumes?</numerusform>
 </context>
 <context>
     <name>QtTaskResultDialog</name>
+    <message><source>Reported output folders</source><translation>Reported output folders</translation></message>
+    <message><source>Reported output archives</source><translation>Reported output archives</translation></message>
+    <message><source>The operation was cancelled.</source><translation>The operation was cancelled.</translation></message>
     <message><source>Operation result</source><translation>Operation result</translation></message>
     <message><source>Copy</source><translation>Copy</translation></message>
     <message><source>The operation result could not be verified.</source><translation>The operation result could not be verified.</translation></message>

@@ -1,4 +1,5 @@
 #include "archive/resources/qtarchivefileresource.h"
+#include "dialogs/taskresult/qttaskresultdialog.h"
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtworkspaceapplication.h"
 #include "operations/qtoperationlauncher.h"
@@ -87,6 +88,15 @@ HRESULT MainWindow::observeGuiArchiveOperation(QtOperationLauncher *operation,
                     return;
                 guiOutputRefresh_->Enqueue(result.ChangedDirectories, result.ChangedArchives);
                 using Outcome = QtOperationResult::Outcome;
+                if (!QtWorkspaceApplication::Find())
+                    for (const auto &pending : QtOperationRegistry::Application().Reviews())
+                        if (pending.Id == review && result.Status == Outcome::Cancelled) {
+                            QtTaskResultDialog dialog(pending);
+                            dialog.setAttribute(Qt::WA_DeleteOnClose, false);
+                            dialog.exec();
+                            QtOperationRegistry::Application().Acknowledge(review);
+                            return;
+                        }
                 if ((!QtWorkspaceApplication::Find() || review.isNull()) &&
                     (result.Status == Outcome::LaunchFailed ||
                      result.Status == Outcome::ProtocolFailed ||
@@ -94,7 +104,8 @@ HRESULT MainWindow::observeGuiArchiveOperation(QtOperationLauncher *operation,
                     app_.Panels[source].MessageBox_Error(ToUString(result.Error));
                     QtOperationRegistry::Application().Acknowledge(review);
                 }
-                // Source dialogs in 7zG own ordinary errors and cancellation.
+                // Source dialogs in 7zG own ordinary errors. Cancelled work
+                // gets a final application-owned review after native exit.
             });
     return S_OK;
 }

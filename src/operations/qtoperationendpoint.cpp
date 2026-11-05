@@ -90,6 +90,9 @@ int RunGUIOperationEndpoint(QApplication &application, const QString &channel,
             QObject::disconnect(presentationConnection);
             if (replica->isReplicaValid()) {
                 auto result = Result(code);
+                result.CancellationNeedsReview = code == NExitCode::kUserBreak &&
+                                                 presentation.workStarted() &&
+                                                 !presentation.resultReviewed();
                 result.ChangedDirectories = changedDirectories;
                 result.ChangedArchives = changedArchives;
                 auto completion = replica->complete(OperationReportFromResult(result));

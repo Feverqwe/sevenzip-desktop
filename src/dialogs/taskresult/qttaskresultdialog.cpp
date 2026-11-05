@@ -29,9 +29,12 @@ QtTaskResultDialog::QtTaskResultDialog(const QtOperationReview &review) {
     summary->setObjectName("taskResultSummary");
     summary->setTextFormat(Qt::PlainText);
     summary->setWordWrap(true);
-    QtBindLocalText(
-        summary, "QtTaskResultDialog",
-        QT_TRANSLATE_NOOP("QtTaskResultDialog", "The operation result could not be verified."));
+    const bool cancelled = review.Result.Status == QtOperationResult::Outcome::Cancelled;
+    QtBindLocalText(summary, "QtTaskResultDialog",
+                    cancelled
+                        ? QT_TRANSLATE_NOOP("QtTaskResultDialog", "The operation was cancelled.")
+                        : QT_TRANSLATE_NOOP("QtTaskResultDialog",
+                                            "The operation result could not be verified."));
     body->addWidget(summary);
     auto *report = new QPlainTextEdit(this);
     report->setObjectName("taskResultReport");
@@ -39,7 +42,11 @@ QtTaskResultDialog::QtTaskResultDialog(const QtOperationReview &review) {
     report->setMinimumSize(160, 100);
     // Keep native diagnostic text intact; no parsing of localized messages or
     // untrusted paths. The selected inputs are values, never provider handles.
-    QStringList lines{review.Result.Error};
+    QStringList lines;
+    if (cancelled)
+        lines.append(tr("The operation was cancelled."));
+    if (!review.Result.Error.isEmpty())
+        lines.append(review.Result.Error);
     if (!review.Job.Paths.isEmpty()) {
         lines.append(QString());
         lines.append(tr("Selected items"));
@@ -54,6 +61,16 @@ QtTaskResultDialog::QtTaskResultDialog(const QtOperationReview &review) {
         lines.append(QString());
         lines.append(tr("Requested destination"));
         lines.append(review.Job.Destination);
+    }
+    if (!review.Result.ChangedDirectories.isEmpty()) {
+        lines.append(QString());
+        lines.append(tr("Reported output folders"));
+        lines.append(review.Result.ChangedDirectories);
+    }
+    if (!review.Result.ChangedArchives.isEmpty()) {
+        lines.append(QString());
+        lines.append(tr("Reported output archives"));
+        lines.append(review.Result.ChangedArchives);
     }
     report->setPlainText(lines.join('\n'));
     body->addWidget(report, 1);

@@ -6,6 +6,7 @@
 #include <QPushButton>
 #include <QThread>
 #include <QTimer>
+#include <QTreeWidget>
 #include <QtTest>
 #include <atomic>
 
@@ -81,8 +82,17 @@ class ProgressCancelTests : public QObject {
         cancel->click();
         QCOMPARE(cancellations, 1u);
         QVERIFY(dialog.Sync.Get_Stopped());
+        dialog.Sync.AddError_Message(L"Unreadable source 空 with spaces");
         dialog.ProcessWasFinished();
+        QTRY_COMPARE(cancel->text().remove('&'), QStringLiteral("Close"));
+        QVERIFY(dialog.isVisible());
+        auto *messages = dialog.findChild<QTreeWidget *>("IDL_PROGRESS_MESSAGES");
+        QVERIFY(messages);
+        QTRY_COMPARE(messages->topLevelItemCount(), 1);
+        QVERIFY(messages->topLevelItem(0)->text(1).contains("Unreadable source 空 with spaces"));
+        cancel->click();
         QTRY_VERIFY(!dialog.isVisible());
+        QCOMPARE(cancellations, 1u);
         dialog.AttachTransport(nullptr);
     }
 

@@ -9,6 +9,7 @@
 #include "ui/support/layout_inspection.h"
 #include <QClipboard>
 #include <QDialogButtonBox>
+#include <QLabel>
 #include <QPlainTextEdit>
 #include <QScopeGuard>
 #include <QSignalSpy>
@@ -41,6 +42,7 @@ class TaskResultWindowTests final : public QObject {
         QTest::addColumn<QString>("locale");
         QTest::newRow("crashed-child-en") << QString("crash") << QString("-");
         QTest::newRow("missing-report-ru") << QString("missing-report") << QString("ru");
+        QTest::newRow("cancelled-work-ru") << QString("cancelled-work") << QString("ru");
     }
     void failureAfterLastWindowRequiresReview() {
         QFETCH(QString, terminal);
@@ -52,6 +54,14 @@ class TaskResultWindowTests final : public QObject {
         QVERIFY(!archive.isEmpty());
         const auto original = SourceExtractFixture::readFile(archive);
         const auto barrier = fixture.filePath("continue");
+        const bool cancelled = terminal == "cancelled-work";
+        const auto hashInput = fixture.filePath("hash 空 with spaces.bin");
+        if (cancelled) {
+            QFile input(hashInput);
+            QVERIFY(input.open(QIODevice::WriteOnly));
+            QVERIFY(input.resize(256LL * 1024 * 1024));
+            qputenv("SEVENZIP_OPERATION_CANCEL_HASH", "1");
+        }
         qputenv("SEVENZIP_OPERATION_BARRIER", barrier.toUtf8());
         qputenv("SEVENZIP_OPERATION_FORCE_EXIT", terminal.toUtf8());
         const bool quit = qApp->quitOnLastWindowClosed();
@@ -59,6 +69,7 @@ class TaskResultWindowTests final : public QObject {
         const auto restore = qScopeGuard([quit] {
             qunsetenv("SEVENZIP_OPERATION_BARRIER");
             qunsetenv("SEVENZIP_OPERATION_FORCE_EXIT");
+            qunsetenv("SEVENZIP_OPERATION_CANCEL_HASH");
             qApp->setQuitOnLastWindowClosed(quit);
         });
         QtWorkspaceApplication application(*qApp);
@@ -68,6 +79,11 @@ class TaskResultWindowTests final : public QObject {
         window.openPath(fixture.path());
         QtOperationJob job;
         job.Paths = {archive};
+        if (cancelled) {
+            job.Operation = QtOperationJob::Command::Hash;
+            job.HashMethod = "*";
+            job.Paths.append(hashInput);
+        }
         QString error;
         QPointer<QtOperationLauncher> operation =
             QtOperationLauncher::Launch(QStringLiteral(SEVENZIP_OPERATION_HOST), job, error);
@@ -131,15 +147,24 @@ class TaskResultWindowTests final : public QObject {
         QCOMPARE(qApp->exec(), 0);
         QVERIFY(!timedOut);
         QVERIFY(closed && released && retained && quitRetained && copied);
-        QCOMPARE(observed.Status, terminal == "crash" ? QtOperationResult::Outcome::Crashed
-                                                      : QtOperationResult::Outcome::ProtocolFailed);
+        QCOMPARE(observed.Status, cancelled ? QtOperationResult::Outcome::Cancelled
+                                  : terminal == "crash"
+                                      ? QtOperationResult::Outcome::Crashed
+                                      : QtOperationResult::Outcome::ProtocolFailed);
+        if (cancelled) {
+            QVERIFY(observed.CancellationNeedsReview);
+            QCOMPARE(QFileInfo(hashInput).size(), 256LL * 1024 * 1024);
+        }
         QVERIFY(QtOperationRegistry::Application().Reviews().isEmpty());
         QCOMPARE(SourceExtractFixture::readFile(archive), original);
     }
     void compactReportKeepsFullDiagnostic_data() {
         QTest::addColumn<QString>("locale");
-        QTest::newRow("en") << QString("-");
-        QTest::newRow("ru") << QString("ru");
+        QTest::addColumn<bool>("cancelled");
+        QTest::newRow("en") << QString("-") << false;
+        QTest::newRow("ru") << QString("ru") << false;
+        QTest::newRow("cancelled-en") << QString("-") << true;
+        QTest::newRow("cancelled-ru") << QString("ru") << true;
     }
     void lateFailurePreservesAnotherQuestion_data() {
         QTest::addColumn<bool>("modal");
@@ -216,14 +241,20 @@ class TaskResultWindowTests final : public QObject {
     }
     void compactReportKeepsFullDiagnostic() {
         QFETCH(QString, locale);
+        QFETCH(bool, cancelled);
         language(locale);
         QtOperationReview review;
         review.Id = QUuid::createUuid();
         review.Job.Paths = {"/" + QString("длинный path 空/").repeated(12) + "archive.zip"};
-        review.Result.Status = QtOperationResult::Outcome::ProtocolFailed;
+        review.Result.Status = cancelled ? QtOperationResult::Outcome::Cancelled
+                                         : QtOperationResult::Outcome::ProtocolFailed;
+        review.Result.ChangedDirectories = {"/output/частичный результат 空"};
+        review.Result.ChangedArchives = {"/output/изменённый архив 空.7z"};
         review.Result.Error =
-            QCoreApplication::translate("QtOperation",
-                                        "Operation process exited without a complete result.") +
+            (cancelled
+                 ? QString("Native messages before cancellation")
+                 : QCoreApplication::translate(
+                       "QtOperation", "Operation process exited without a complete result.")) +
             "\n" + QString("Original diagnostic: item 空.txt: input/output detail\n").repeated(80);
         QPointer<QtTaskResultDialog> dialog = new QtTaskResultDialog(review);
         const auto close = qScopeGuard([&] {
@@ -231,6 +262,9 @@ class TaskResultWindowTests final : public QObject {
                 delete dialog.data();
         });
         dialog->show();
+        QCOMPARE(dialog->findChild<QLabel *>("taskResultSummary")->text(),
+                 QtTaskResultDialog::tr(cancelled ? "The operation was cancelled."
+                                                  : "The operation result could not be verified."));
         auto *text = dialog->findChild<QPlainTextEdit *>("taskResultReport");
         auto *actions = dialog->findChild<QDialogButtonBox *>("taskResultActions");
         for (const QSize size : {QSize(600, 380), QSize(480, 360), QSize(480, 640)}) {
@@ -240,7 +274,8 @@ class TaskResultWindowTests final : public QObject {
             QVERIFY(UiInspection::fullyVisible(*actions, *dialog));
             QVERIFY(UiInspection::separate(*text, *actions, *dialog));
             QVERIFY(UiInspection::writeReport(
-                *dialog, "task-result-" + (locale == "ru" ? QString("ru") : QString("en")) + '-' +
+                *dialog, "task-result-" + QString(cancelled ? "cancelled-" : "") +
+                             (locale == "ru" ? QString("ru") : QString("en")) + '-' +
                              QString::number(size.width()) + 'x' + QString::number(size.height())));
         }
         text->selectAll();
@@ -249,6 +284,12 @@ class TaskResultWindowTests final : public QObject {
         dialog->findChild<QPushButton *>("taskResultCopy")->click();
         QVERIFY(QApplication::clipboard()->text().contains(review.Result.Error));
         QVERIFY(QApplication::clipboard()->text().contains(review.Job.Paths.first()));
+        QVERIFY(
+            QApplication::clipboard()->text().contains(review.Result.ChangedDirectories.first()));
+        QVERIFY(QApplication::clipboard()->text().contains(review.Result.ChangedArchives.first()));
+        if (cancelled)
+            QVERIFY(QApplication::clipboard()->text().contains(
+                QtTaskResultDialog::tr("The operation was cancelled.")));
         QCOMPARE(dialog->windowTitle(), QtTaskResultDialog::tr("Operation result"));
         QCOMPARE(dialog->findChild<QPushButton *>("taskResultCopy")->text(),
                  QtTaskResultDialog::tr("Copy"));

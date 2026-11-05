@@ -7342,6 +7342,9 @@ Check that your distribution's CIFS support and cifs-utils are installed.</sourc
 </context>
 <context>
     <name>QtTaskResultDialog</name>
+    <message><source>Reported output folders</source><translation>Указанные операцией папки вывода</translation></message>
+    <message><source>Reported output archives</source><translation>Указанные операцией выходные архивы</translation></message>
+    <message><source>The operation was cancelled.</source><translation>Операция отменена.</translation></message>
     <message><source>Operation result</source><translation>Результат операции</translation></message>
     <message><source>Copy</source><translation>Копировать</translation></message>
     <message><source>The operation result could not be verified.</source><translation>Не удалось подтвердить результат операции.</translation></message>

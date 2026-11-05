@@ -86,6 +86,7 @@ class OperationLauncherTests final : public QObject {
         const auto result = qvariant_cast<QtOperationResult>(finished[0][0]);
         QCOMPARE(result.Status, draft ? QtOperationResult::Outcome::Cancelled
                                       : QtOperationResult::Outcome::Success);
+        QVERIFY(!result.CancellationNeedsReview);
     }
     void nativeTest_data() {
         QTest::addColumn<bool>("damaged");

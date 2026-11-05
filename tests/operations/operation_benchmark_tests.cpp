@@ -26,6 +26,7 @@ class OperationBenchmarkTests final : public QObject {
         QTest::newRow("native error") << QString("failure") << false << Outcome::Failure;
         QTest::newRow("normal cancel") << QString("normal-cancel") << false << Outcome::Cancelled;
         QTest::newRow("total cancel") << QString("cancel") << true << Outcome::Cancelled;
+        QTest::newRow("stop then review") << QString("normal-stop") << false << Outcome::Cancelled;
         QTest::newRow("total native hash report") << QString("total") << true << Outcome::Success;
     }
     void nativeResultAndCancellation() {
@@ -63,6 +64,8 @@ class OperationBenchmarkTests final : public QObject {
         });
         wait.exec();
         QCOMPARE(result.Status, expected);
+        QCOMPARE(result.CancellationNeedsReview,
+                 expected == Outcome::Cancelled && profile != "normal-stop");
         QVERIFY(result.ChangedArchives.isEmpty() && result.ChangedDirectories.isEmpty());
         QVERIFY(readFile(report).contains(total ? "IDD_BENCH_TOTAL" : "IDD_BENCH"));
         if (profile == "total")

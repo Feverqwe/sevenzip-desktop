@@ -23,6 +23,9 @@ class QtTaskPresentation final : public QObject {
     static void SetPhase(QWidget &window, Phase phase);
     static void BeginWork(QWidget &window);
     Snapshot snapshot() const;
+    bool workStarted() const { return workStarted_; }
+    bool resultReviewed() const { return resultReviewed_; }
+    static void ResultReviewed();
     void Show();
   signals:
     void changed();
@@ -43,4 +46,6 @@ class QtTaskPresentation final : public QObject {
     Phase fallback_ = Phase::Preparing;
     Snapshot published_;
     bool showPending_ = false;
+    bool workStarted_ = false;
+    bool resultReviewed_ = false;
 };

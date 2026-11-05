@@ -36,7 +36,8 @@ void QtOperationRegistry::Register(QtOperationLauncher &operation, const QtOpera
                 observations_.removeIf([&](const Observation &entry) { return entry.id == id; });
                 using Outcome = QtOperationResult::Outcome;
                 if (result.Status == Outcome::LaunchFailed ||
-                    result.Status == Outcome::ProtocolFailed || result.Status == Outcome::Crashed) {
+                    result.Status == Outcome::ProtocolFailed || result.Status == Outcome::Crashed ||
+                    result.CancellationNeedsReview) {
                     // Acquire the review hold before the observer releases its
                     // own hold after all finished receivers have returned.
                     pending_.push_back(
