@@ -108,6 +108,8 @@ void QtPanelContextMenu::CreatePopup() {
     ReadReg_VerCtrlPath(state.projection.versionControlPath, MainWindow::toolbarSettingsPath());
     state.projection.screenServices = &state.screen;
     for (QAction *action : state.window.programFileMenu_->SourceActions()) {
+        if (action->property("workspaceCommand").toBool())
+            continue;
         const bool separator = action->isSeparator();
         const unsigned id = action->menu() ? 0u : action->property("nativeCommandID").toUInt();
         if (id < IDM_VER_EDIT || id > IDM_VER_DIFF)
@@ -169,6 +171,7 @@ unsigned QtPanelContextMenu::Track(int x, int y) {
     }
     auto *archives =
         state.popup.addMenu(QCoreApplication::translate("QtWindowWorkspace", "Archive"));
+    archives->setObjectName("contextArchiveMenu");
     for (auto *action : {state.window.toolbarAdd_, state.window.extract_, state.window.test_})
         AppendCommand(*archives, *action, action->isEnabled());
     // OnContextMenu dispatches the chosen ID after the popup guards restore.

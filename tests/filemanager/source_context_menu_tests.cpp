@@ -7,6 +7,7 @@
 #include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
 #include <QScopeGuard>
+#include <QToolButton>
 
 class SourceContextMenuTests final : public QObject, protected MainWindowTestSupport {
     Q_OBJECT
@@ -23,7 +24,17 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
     static FileTable *openPanel(MainWindow &window, unsigned pane, const QString &path) {
         auto *ui = window.findChild<QWidget *>(QString("filePanel%1").arg(pane));
         auto *address = ui->findChild<QLineEdit *>("archivePath");
-        address->setFocus();
+        QToolButton *edit = nullptr;
+        for (auto *button : ui->findChildren<QToolButton *>())
+            if (button->isVisible() &&
+                button->accessibleName() ==
+                    QCoreApplication::translate("QtNavigationBar", "Edit location"))
+                edit = button;
+        if (!edit)
+            return nullptr;
+        QTest::mouseClick(edit, Qt::LeftButton);
+        if (!address->isVisible() || !address->hasFocus())
+            return nullptr;
         address->setText(path);
         QTest::keyClick(address, Qt::Key_Return);
         return static_cast<FileTable *>(ui->findChild<FileTable *>("archiveTable"));
@@ -79,6 +90,7 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
         QVERIFY(WindowActivation::waitForActive(window));
         action(window, "twoPanelsAction")->trigger();
         auto *owner = openPanel(window, pane, fixture.path());
+        QVERIFY(owner);
         QTRY_COMPARE(owner->rowCount(), 1);
         owner->sourcePanel->Set_AutoRefresh_Mode(false);
         owner->setCurrentCell(row(*owner, original), 0);
@@ -90,6 +102,7 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
             QVERIFY(iconView);
         }
         auto *peer = openPanel(window, 1 - pane, peerDirectory.path());
+        QVERIFY(peer);
         QTRY_COMPARE(peer->rowCount(), 1);
         peer->setCurrentCell(0, 0);
         peer->selectRow(0);
@@ -159,6 +172,32 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
                     QVERIFY(menu->actions().indexOf(open) < menu->actions().indexOf(rename));
                     auto *more = menu->findChild<QMenu *>("moreCommandsMenu");
                     QVERIFY(more && more->actions().contains(create));
+                    const auto hashes = menu->findChildren<QMenu *>("contextHashMenu");
+                    QCOMPARE(hashes.size(), 1);
+                    QVERIFY(!hashes.first()->actions().isEmpty());
+                    const auto archives = menu->findChildren<QMenu *>("contextArchiveMenu");
+                    QCOMPARE(archives.size(), 1);
+                    const QStringList archiveCaptions =
+                        language == "ru"
+                            ? QStringList{QStringLiteral("Добавить"), QStringLiteral("Извлечь"),
+                                          QStringLiteral("Тестировать")}
+                            : QStringList{"Add", "Extract", "Test"};
+                    QStringList actualCaptions;
+                    for (auto *command : archives.first()->actions())
+                        actualCaptions.append(command->text());
+                    QCOMPARE(actualCaptions, archiveCaptions);
+                    if (!keyboard && width == 980 && pane == 0 && !icons) {
+                        for (auto *sub : {hashes.first(), archives.first()}) {
+                            const QPoint position = menu->mapToGlobal(
+                                menu->actionGeometry(sub->menuAction()).topRight());
+                            sub->popup(position);
+                            QTRY_VERIFY(sub->isVisible());
+                            QVERIFY(UiInspection::writeReport(
+                                *sub, QString("source-context-submenu-%1-%2")
+                                          .arg(sub->objectName(), language)));
+                            sub->hide();
+                        }
+                    }
                     QVERIFY(
                         UiInspection::writeReport(*menu, QString("source-context-%1-%2-%3-%4-%5")
                                                              .arg(pane)
@@ -175,6 +214,7 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
                 QVERIFY(QMetaObject::invokeMethod(view, "customContextMenuRequested",
                                                   Qt::DirectConnection, Q_ARG(QPoint, point)));
                 QVERIFY(cancelled);
+                QVERIFY(!QTest::currentTestFailed());
                 QVERIFY(action(window, "settingsAction")->isEnabled());
                 QCOMPARE(owner->sourcePanel->GetFolder(), (IFolderFolder *)ownerFolder);
                 QCOMPARE(peer->sourcePanel->GetFolder(), (IFolderFolder *)peerFolder);
@@ -272,12 +312,14 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
         QVERIFY(WindowActivation::waitForActive(window));
         action(window, "twoPanelsAction")->trigger();
         auto *owner = openPanel(window, 0, fixture.path());
+        QVERIFY(owner);
         QTRY_COMPARE(owner->rowCount(), showDots ? 1 : 0);
         if (showDots) {
             owner->setCurrentCell(0, 0);
             owner->selectRow(0);
         }
         auto *peer = openPanel(window, 1, peerDirectory.path());
+        QVERIFY(peer);
         QTRY_COMPARE(peer->rowCount(), showDots ? 1 : 0);
         QTRY_VERIFY(owner->isEnabled() && peer->isEnabled());
         peer->setFocus();

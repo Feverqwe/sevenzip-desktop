@@ -24,6 +24,55 @@ class MainShellTests final : public QObject {
     Q_OBJECT
 
   private slots:
+    void fileMenuRetiresProviderCommandsDuringSourceReplacement() {
+        QTemporaryDir fixture;
+        ControlledBackend backend;
+        const QString archive = fixture.filePath("pending archive.zip");
+        QVERIFY(backend.prepareArchiveFixture(archive));
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(fixture.path());
+        auto *files = window.findChild<FileTable *>("archiveTable");
+        QTRY_VERIFY(files->isEnabled() && files->rowCount() > 0);
+        files->selectRow(0);
+        auto *file = window.findChild<QMenu *>("fileMenu");
+        const std::function<int(QMenu &)> providers = [&](QMenu &menu) {
+            int count = 0;
+            for (auto *action : menu.actions()) {
+                count += action->property("shellCommandID").isValid();
+                if (action->menu())
+                    count += providers(*action->menu());
+            }
+            return count;
+        };
+        file->popup(window.mapToGlobal(QPoint(20, 40)));
+        QApplication::processEvents();
+        QVERIFY(providers(*file) > 0);
+        file->hide();
+        bool guarded = false, retired = false;
+        backend.queueListAction([&] {
+            guarded = !files->sourcePanel->ShouldProcessNotifications();
+            file->popup(window.mapToGlobal(QPoint(20, 40)));
+            QApplication::processEvents();
+            retired = providers(*file) == 0;
+            file->hide();
+            backend.completeList({ArchiveEntry{QStringLiteral("new.txt"), 1, 1}});
+        });
+        window.openArchive(archive);
+        QVERIFY(guarded);
+        QVERIFY(retired);
+        QTRY_VERIFY(files->isEnabled());
+        QCOMPARE(files->rowCount(), 1);
+        file->popup(window.mapToGlobal(QPoint(20, 40)));
+        QApplication::processEvents();
+        bool openAsReturned = false;
+        for (auto *action : file->actions())
+            openAsReturned |=
+                action->isVisible() && action->menu() &&
+                action->text() == QCoreApplication::translate("CommandMenus", "Open as");
+        QVERIFY(openAsReturned);
+        file->hide();
+    }
     void commandIconsFollowPaletteAndScale() {
         const auto original = QApplication::palette();
         const auto restore = qScopeGuard([&] { QApplication::setPalette(original); });

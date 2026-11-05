@@ -10,7 +10,7 @@
   {"id":"location-transition","title":"Адрес: успех и отказ перехода","target":"archive_navigation_rollback_tests","functions":["physicalOpeningKeepsOrReleasesNestedContext:0-refused","physicalOpeningKeepsOrReleasesNestedContext:0-success"]},
   {"id":"file-views","title":"Виды списка файлов","target":"ui_layout_tests","functions":["layoutAtSizes","iconModesKeepLabelsInsideCells"]},
   {"id":"file-colors","title":"Отмеченные и удалённые файлы","target":"panel_deleted_draw_tests","functions":["owningProviderColorsDeletedItems"]},
-  {"id":"context-menu","title":"Контекстное меню","target":"source_context_menu_tests","functions":["owningPanel:0-ru-0","emptyAndParent"]},
+  {"id":"context-menu","title":"Контекстное меню и вложенные команды, EN/RU","target":"source_context_menu_tests","functions":["owningPanel:0---0","owningPanel:0-ru-0","emptyAndParent"]},
   {"id":"common-dialogs","title":"Основные диалоги, EN/RU","target":"language_standard_buttons_tests","functions":["sourceDialogsTranslateTheirStandardControls"]},
   {"id":"context-forms","title":"Контекстные формы и вложенная отмена","target":"context_dialog_tests","functions":["contextualTaskBlocksItsOwner","nestedPromptCancelKeepsParentDraft"]},
   {"id":"dialog-surface","title":"Общая форма: прокрутка и доступные действия","target":"dialog_surface_tests","functions":["compactSurfaceKeepsActionsAndKeyboardReachable"]},

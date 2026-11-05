@@ -4,6 +4,7 @@
 #include "filemanager/MyLoadMenu.h"
 #include "filemanager/panels/qtpaneladdresscombo.h"
 #include "filemanager/providers/RootFolder.h"
+#include "filemanager/qtprogramfilemenu.h"
 #include "filemanager/views/filetable.h"
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtwindowworkspace.h"
@@ -15,6 +16,8 @@ void MainWindow::reloadLangItems() {
     if (app_.QtOperations().closed())
         return;
     MyLoadMenu(*menuBar(), true);
+    if (programFileMenu_)
+        programFileMenu_->ReloadLanguage();
     // Qt renders the active primary shortcut. Retain manually described
     // bookmark keys, but remove obsolete resource hints from rebound actions.
     for (QAction *action : findChildren<QAction *>()) {

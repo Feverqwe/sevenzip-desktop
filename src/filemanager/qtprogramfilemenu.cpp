@@ -172,6 +172,8 @@ QtProgramFileMenu::QtProgramFileMenu(MainWindow &window)
 
 QtProgramFileMenu::~QtProgramFileMenu() = default;
 
+void QtProgramFileMenu::ReloadLanguage() { MyReloadFileMenu(_source); }
+
 void QtProgramFileMenu::ClearDynamicRows() {
     for (QAction *action : _dynamic) {
         _menu.removeAction(action);
@@ -189,6 +191,7 @@ void QtProgramFileMenu::Activate() {
     if (_window.app_.QtOperations().callActive() || _window.sourceArchiveProgress_ ||
         _window.projectedUi().scanningDisk || !panel.ShouldProcessNotifications()) {
         ReleasePluginMenus();
+        ClearDynamicRows();
         return;
     }
     ClearDynamicRows();

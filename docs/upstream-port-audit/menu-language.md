@@ -1,5 +1,46 @@
 # Main-menu language binding — 2026-10-17
 
+## Workspace menu integration regressions — 2026-11-05
+
+Пользовательские снимки после `da86ecee` установили два дефекта интеграции.
+Команды workspace без native ID попадали в `CFileMenu` как нулевые записи,
+а контекстный Qt adapter трактовал каждую как CRC submenu. Отбор теперь
+исключает workspace actions на той же границе, что главное File-menu.
+Переводчик считал toolbar command IDs идентификаторами language resources;
+для них используется исходный `SetButtonText` с уже существующим соответствием
+command/caption. QAction identity, shortcut, enabled state и dispatch сохранены.
+
+Дополнительная сверка исходников нашла два соседних пропуска. Перевод только
+текущего дерева оставлял старые подписи у временно отфильтрованных File actions;
+теперь тот же `MyChangeMenu` обрабатывает весь исходный набор до Qt bindings.
+Ранний выход при notification/operation guard освобождал shell context, сохраняя
+его видимые команды; теперь динамические строки очищаются без запроса provider.
+Повторное открытие в ready state использует прежний native projection owner.
+
+До изменения повторно прочитаны полные исходные `MyChangeMenu`, создание
+File-menu и `App.cpp` button/caption mapping, текущие callers и source adapters.
+Новая source adaptation ограничена Qt menu presentation/reload boundary.
+Новых upstream units, импортов и изменений original hashes нет.
+
+Linux x86_64: source_context_menu, language_ui, file_menu_policy, shell_context,
+main_shell — PASS. Реальные подменю проверяются EN/RU, повторно, в обеих панелях
+и table/icon видах. Проверки охватывают единственный CRC submenu, Archive
+captions, возврат отфильтрованного Diff после смены языка и отсутствие старых
+shell commands в удерживаемом native list callback. Исправлен устаревший тестовый
+ввод в скрытую строку пути: fixture сначала открывает видимый редактор и проверяет
+фокус. Это исправление достоверности проверки, а не изменение навигации продукта.
+Возврат Diff проверяется через реальный Settings Apply с обновлением видимости,
+а не одной прямой записью registry/settings. После завершения list callback
+проверяется повторное открытие обычных групп File-menu.
+macOS arm64: source_context_menu/language_ui/main_shell/startup smoke — PASS;
+после уточнения Settings-Apply и ready-menu проверок повторены language_ui и
+main_shell — PASS. Native Cocoa: EN/RU context menu, раскрытые Archive/Checksums
+и More, повторные мышь/клавиатурные открытия — PASS в светлой и тёмной теме.
+Снимки просмотрены: одно CRC submenu и правильные подписи архивных действий.
+Отдельные Cocoa cases startup/live-language, Settings Apply и guard→ready — PASS.
+Windows native этим проходом не проверялся. Это завершённый menu integration
+scope; новая задача сквозной перепроверки остального UI остаётся активной.
+
 ## Bound caption resolution and Qt text delivery — 2026-11-05
 
 Reviewed the complete native LangSetDlgItemText, standard control mappings,

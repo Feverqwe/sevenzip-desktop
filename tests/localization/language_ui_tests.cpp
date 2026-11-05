@@ -41,6 +41,60 @@ class LanguageUiTests : public QObject, protected MainWindowTestSupport {
     }
 
   private slots:
+    void hiddenFileCommandUsesNewLanguageWhenItReturns() {
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        auto *file = window.findChild<QMenu *>("fileMenu");
+        auto *diff = window.findChild<QAction *>("diffAction");
+        const auto configureDiff = [&](const QString &command) {
+            bool configured = false;
+            QTimer::singleShot(0, &window, [&] {
+                auto *dialog = window.findChild<QDialog *>("settingsDialog");
+                QVERIFY(dialog);
+                const auto close = qScopeGuard([&] { dialog->reject(); });
+                QVERIFY(OptionsPresentation::show(*dialog, "diffCommand"));
+                dialog->findChild<QLineEdit *>("diffCommand")->setText(command);
+                auto *applyButton = dialog->findChild<QDialogButtonBox *>("settingsButtons")
+                                        ->button(QDialogButtonBox::Apply);
+                if (applyButton->isEnabled())
+                    apply(*dialog);
+                configured = true;
+            });
+            window.findChild<QAction *>("settingsAction")->trigger();
+            return configured;
+        };
+        const auto contains = [](QMenu &root, QAction *target) {
+            const std::function<bool(QMenu &)> visit = [&](QMenu &menu) {
+                for (auto *action : menu.actions()) {
+                    if (action == target)
+                        return true;
+                    if (action->menu() && visit(*action->menu()))
+                        return true;
+                }
+                return false;
+            };
+            return visit(root);
+        };
+        for (const char *language : {"ru", "-", "ru"}) {
+            QVERIFY(configureDiff({}));
+            file->popup(window.mapToGlobal(QPoint(20, 40)));
+            QApplication::processEvents();
+            QVERIFY(!contains(*file, diff));
+            file->hide();
+            SaveRegLang(UString(language), settingsPath());
+            ReloadLang(settingsPath());
+            QtNotifyLanguageChanged();
+            QVERIFY(configureDiff(QStringLiteral("fixture-diff-tool")));
+            file->popup(window.mapToGlobal(QPoint(20, 40)));
+            QApplication::processEvents();
+            QVERIFY(contains(*file, diff));
+            QVERIFY(diff->isVisible());
+            QCOMPARE(diff->text(),
+                     language == QString("ru") ? QStringLiteral("Сравнить") : QString("Diff"));
+            file->hide();
+        }
+    }
     void mainMenusFollowLanguageAtStartupAndAfterReload() {
         ControlledBackend backend;
         for (const char *initial : {"-", "ru"}) {
@@ -60,6 +114,16 @@ class LanguageUiTests : public QObject, protected MainWindowTestSupport {
                          language == "ru" ? QStringLiteral("&2 Панели") : QString("&2 Panels"));
                 QCOMPARE(panels->isChecked(), checked);
                 QCOMPARE(panels->shortcut(), shortcut);
+                const QStringList archiveCaptions =
+                    language == "ru"
+                        ? QStringList{QStringLiteral("Добавить"), QStringLiteral("Извлечь"),
+                                      QStringLiteral("Тестировать")}
+                        : QStringList{"Add", "Extract", "Test"};
+                const char *archiveCommands[] = {"toolbarAddAction", "extractArchiveAction",
+                                                 "testArchiveAction"};
+                for (int i = 0; i < archiveCaptions.size(); ++i)
+                    QCOMPARE(window.findChild<QAction *>(archiveCommands[i])->text(),
+                             archiveCaptions[i]);
                 if (language != "ru") {
                     const QRegularExpression cyrillic(QStringLiteral("[А-Яа-яЁё]"));
                     for (QMenu *menu : window.findChildren<QMenu *>())

@@ -30,6 +30,7 @@ class QtProgramFileMenu final {
     ~QtProgramFileMenu();
     const QList<QAction *> &SourceActions() const { return _source; }
     void Activate();
+    void ReloadLanguage();
     bool CanInvoke(unsigned id) const;
     void InvokePluginCommand(unsigned id);
     void ReleasePluginMenus();

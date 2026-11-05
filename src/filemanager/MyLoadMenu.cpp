@@ -209,7 +209,11 @@ static void MyChangeMenu(const QList<QAction *> &menu, unsigned menuID, unsigned
             const UInt32 langID = langPos >= 0 ? kIDLangPairs[langPos].LangID : id;
             if (langID == 0)
                 continue;
-            if (langID == IDM_OPEN_INSIDE_ONE || langID == IDM_OPEN_INSIDE_PARSER) {
+            if (id >= kMenuCmdID_Toolbar_Start && id < kMenuCmdID_Toolbar_End) {
+                // Toolbar commands also appear in the redesigned Archive menu;
+                // their command IDs are not language resource IDs.
+                SetButtonText(id, newString);
+            } else if (langID == IDM_OPEN_INSIDE_ONE || langID == IDM_OPEN_INSIDE_PARSER) {
                 MenuLangString(IDM_OPEN_INSIDE, newString);
                 if (newString.IsEmpty())
                     continue;
@@ -244,6 +248,10 @@ void MyLoadMenu(QMenuBar &menu, bool needResetMenu) {
     // objects. This preserves active shortcuts, signals and current state.
     if (needResetMenu || g_LangID != L"-")
         MyChangeMenu(menu.actions(), 0, 0, 0);
+}
+
+void MyReloadFileMenu(const QList<QAction *> &sourceActions) {
+    MyChangeMenu(sourceActions, IDM_FILE, 1, 0);
 }
 
 // Source OnMenuActivating bookmark branch; keep the existing Qt actions.
