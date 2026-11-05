@@ -8,6 +8,7 @@
 #include "archive/resources/qtarchiveitemstream.h"
 #include "archive/resources/qtarchivenativeopenprogress.h"
 #include <QCoreApplication>
+#include <QScopeGuard>
 #include <QSet>
 
 namespace {
@@ -148,23 +149,15 @@ HRESULT ArchiveReadOnlyView::State::loadDirectory(quint64 id) {
         }
         names.insert(text.normalized(QString::NormalizationForm_C));
     }
-    struct Rollback {
-        State &Owner;
-        qsizetype OldSize;
-        quint64 Parent;
-        const QList<Entry> &Added;
-        bool Committed = false;
-        ~Rollback() {
-            if (Committed)
-                return;
-            Owner.Entries.resize(OldSize);
-            Owner.Children.remove(Parent);
-            for (const auto &entry : Added) {
-                Owner.Items.remove(entry.Id);
-                Owner.NativeDirectories.remove(entry.Id);
-            }
+    const qsizetype oldSize = Entries.size();
+    auto rollback = qScopeGuard([&, oldSize] {
+        Entries.resize(oldSize);
+        Children.remove(id);
+        for (const auto &entry : additions) {
+            Items.remove(entry.Id);
+            NativeDirectories.remove(entry.Id);
         }
-    } rollback{*this, Entries.size(), id, additions};
+    });
     QList<quint64> children;
     for (const auto &entry : additions)
         children.append(entry.Id);
@@ -173,7 +166,7 @@ HRESULT ArchiveReadOnlyView::State::loadDirectory(quint64 id) {
     NativeDirectories.insert(directories);
     Children.insert(id, std::move(children));
     Entries[qsizetype(id - 1)].ChildrenLoaded = true;
-    rollback.Committed = true;
+    rollback.dismiss();
     return S_OK;
 }
 
