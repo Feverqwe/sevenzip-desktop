@@ -38,6 +38,7 @@ void QtWindowWorkspace::CompleteLocationOpen(unsigned panel, const QString &path
     window_.cancelListPublication();
     window_.setState(ui.state);
     ui.table->clearRows();
+    window_.showPanelStatus(panel, {});
     ui.path->setText(path);
     ui.navigation->SetLocation(path);
     const QString message = result == E_ABORT ? tr("Opening canceled: %1").arg(path)

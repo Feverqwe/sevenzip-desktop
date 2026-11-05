@@ -5,6 +5,8 @@
   {"id":"workspace-tabs","title":"Плотные вкладки","target":"workspace_tabs_tests","functions":["denseGeometry"]},
   {"id":"workspace-places","title":"Места: текущее расположение, фокус и компактный список","target":"workspace_places_tests","functions":["currentPlaceStaysIndependentOfKeyboardCursorAndOtherWindow","compactPlacesRemainReachable"]},
   {"id":"location-bar","title":"Адрес: native-сегменты","target":"workspace_navigation_tests","functions":["locationBarUsesNativeParentTargets"]},
+  {"id":"archive-tabs","title":"Вкладка и адрес вложенного архива","target":"workspace_archive_tests","functions":["breadcrumbsNavigateBothNestedArchiveBoundaries"]},
+  {"id":"workspace-unavailable","title":"Недоступное сохранённое место, EN/RU","target":"workspace_session_tests","functions":["missingSavedLocationDoesNotExposeFallbackFolderCommands"]},
   {"id":"location-transition","title":"Адрес: успех и отказ перехода","target":"archive_navigation_rollback_tests","functions":["physicalOpeningKeepsOrReleasesNestedContext:0-refused","physicalOpeningKeepsOrReleasesNestedContext:0-success"]},
   {"id":"file-views","title":"Виды списка файлов","target":"ui_layout_tests","functions":["layoutAtSizes","iconModesKeepLabelsInsideCells"]},
   {"id":"file-colors","title":"Отмеченные и удалённые файлы","target":"panel_deleted_draw_tests","functions":["owningProviderColorsDeletedItems"]},

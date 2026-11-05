@@ -51,7 +51,7 @@ if(BUILD_TESTING)
     set_tests_properties(workspace_navigation PROPERTIES TIMEOUT 90 ENVIRONMENT
         "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/workspace-navigation-settings.ini")
     qt_add_executable(workspace_session_tests tests/filemanager/workspace_session_tests.cpp)
-    target_link_libraries(workspace_session_tests PRIVATE sevenzip_window Qt6::Test)
+    target_link_libraries(workspace_session_tests PRIVATE sevenzip_window sevenzip_layout_inspection Qt6::Test)
     target_include_directories(workspace_session_tests PRIVATE src tests)
     add_test(NAME workspace_session COMMAND workspace_session_tests -silent)
     set_tests_properties(workspace_session PROPERTIES TIMEOUT 90 ENVIRONMENT

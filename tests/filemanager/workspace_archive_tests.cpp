@@ -2,6 +2,7 @@
 #include "filemanager/window/qtwindowworkspace.h"
 #include "platform/support/external_editor_fixture.h"
 #include "support/widget_dialogs.h"
+#include "ui/support/layout_inspection.h"
 #include <QClipboard>
 #include <QEventLoop>
 #include <QScopeGuard>
@@ -41,8 +42,17 @@ class WorkspaceArchiveTests final : public QObject, protected MainWindowTestSupp
         MainWindow window(&backend);
         window.resize(980, 620);
         window.show();
+        const QString directory = fixture.filePath("ordinary folder.zip");
+        QVERIFY(QDir().mkpath(directory));
+        window.openPath(directory);
+        QTRY_COMPARE(
+            QDir::cleanPath(ToQString(active(window)->sourcePanel->GetCurrentFolderPrefix())),
+            directory);
+        auto *tabs = window.findChild<QTabBar *>("panelTabs0");
+        const QImage folderSymbol = tabs->tabIcon(0).pixmap(24, 24).toImage();
         window.openArchive(outer);
         QTRY_COMPARE(table(window)->rowCount(), 1);
+        QTRY_VERIFY(tabs->tabIcon(0).pixmap(24, 24).toImage() != folderSymbol);
         openRow(window, rowWithPath(window, innerName));
         QTRY_VERIFY(rowWithPath(window, entry) >= 0);
         auto *bar = window.findChild<QWidget *>("panelNavigation0");
@@ -65,6 +75,7 @@ class WorkspaceArchiveTests final : public QObject, protected MainWindowTestSupp
         QVERIFY(innerButton);
         QVERIFY(!outerButton->icon().isNull());
         QVERIFY(!innerButton->icon().isNull());
+        QVERIFY(UiInspection::writeReport(window, "workspace-nested-archive-tab"));
         QTest::mouseClick(outerButton, Qt::LeftButton);
         QTRY_VERIFY(rowWithPath(window, innerName) >= 0);
         QCOMPARE(rowWithPath(window, entry), -1);
@@ -199,6 +210,7 @@ int main(int argc, char **argv) {
     if (fixture >= 0)
         return fixture;
     QApplication app(argc, argv);
+    UiInspection::configureReviewAppearance();
     WorkspaceArchiveTests tests;
     return QTest::qExec(&tests, argc, argv);
 }

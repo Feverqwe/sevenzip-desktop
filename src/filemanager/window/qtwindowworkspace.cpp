@@ -154,6 +154,7 @@ void QtWindowWorkspace::Capture(unsigned panel, bool retainView) {
         source.LoadFullPath();
         tab.path = ToQString(source.GetCurrentFolderPrefix());
         tab.nativePlaceIdentity = QtNativePlaces::RootIdentity(source);
+        tab.symbol = source.IsArcFolder() ? QtCommandIcon::Archive : QtCommandIcon::Folder;
         if (retainView)
             source.SaveSelectedState(tab.selection);
         tab.history = window_.panelUi_[panel].history;
@@ -184,8 +185,7 @@ void QtWindowWorkspace::Rebuild(unsigned panel) {
     while (state.bar->count())
         state.bar->removeTab(0);
     for (const auto &tab : state.tabs) {
-        const int index =
-            state.bar->addTab(window_.style()->standardIcon(QStyle::SP_DirIcon), TabTitle(tab));
+        const int index = state.bar->addTab(QtCommandSymbol(tab.symbol), TabTitle(tab));
         state.bar->setTabToolTip(index, tab.path);
         state.bar->setTabData(index, tab.id);
         for (const auto side : {QTabBar::LeftSide, QTabBar::RightSide})
@@ -205,6 +205,7 @@ void QtWindowWorkspace::Refresh() {
         Capture(panel, false);
         auto &tab = state.tabs[state.current];
         state.bar->setTabText(state.current, TabTitle(tab));
+        state.bar->setTabIcon(state.current, QtCommandSymbol(tab.symbol));
         state.bar->setTabToolTip(state.current, tab.path);
         auto &ui = window_.panelUi_[panel];
         if (tab.unavailable)

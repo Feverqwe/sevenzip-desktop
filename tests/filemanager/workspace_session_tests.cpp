@@ -2,6 +2,9 @@
 #include "filemanager/window/qtfavoritestore.h"
 #include "filemanager/window/qtwindowworkspace.h"
 #include "filemanager/window/qtworkspaceapplication.h"
+#include "localization/LangUtils.h"
+#include "settings/RegistryUtils.h"
+#include "ui/support/layout_inspection.h"
 #include <QScopeGuard>
 #include <QSplitterHandle>
 #include <QTabBar>
@@ -125,9 +128,26 @@ class WorkspaceSessionTests final : public QObject {
         QVERIFY(qAbs(splitter->sizes().value(0) - original.value(0)) <= 1);
     }
 
+    void missingSavedLocationDoesNotExposeFallbackFolderCommands_data() {
+        QTest::addColumn<QString>("language");
+        QTest::newRow("en") << QString("-");
+        QTest::newRow("ru") << QString("ru");
+    }
     void missingSavedLocationDoesNotExposeFallbackFolderCommands() {
+        QFETCH(QString, language);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
+        const QByteArray previousSettings = qgetenv("SEVENZIP_SETTINGS_PATH");
+        const auto restoreSettings = qScopeGuard([&] {
+            if (previousSettings.isNull())
+                qunsetenv("SEVENZIP_SETTINGS_PATH");
+            else
+                qputenv("SEVENZIP_SETTINGS_PATH", previousSettings);
+        });
+        const QString settings = fixture.filePath("session.ini");
+        qputenv("SEVENZIP_SETTINGS_PATH", settings.toUtf8());
+        SaveRegLang(ToUString(language), settings);
+        ReloadLang(settings);
         const QString gone = fixture.filePath("Removed folder");
         const QString usable = fixture.filePath("Available folder");
         QtWorkspaceApplication application(*qApp);
@@ -156,11 +176,27 @@ class WorkspaceSessionTests final : public QObject {
         QVERIFY(active(restored));
         QVERIFY(!active(restored)->isEnabled());
         QVERIFY(!restored.findChild<QAction *>("createFolderAction")->isEnabled());
+        QVERIFY(restored.findChild<QLabel *>("selectedItemsStatus")->text().isEmpty());
         QCOMPARE(QDir::cleanPath(restored.findChild<QLineEdit *>("archivePath")->text()), gone);
+        QLabel *message = nullptr;
+        for (auto *label : restored.findChildren<QLabel *>())
+            if (label->text().contains(gone))
+                message = label;
+        QVERIFY(message);
+        for (const QSize size : {QSize(980, 620), QSize(640, 400)}) {
+            restored.resize(size);
+            QTRY_VERIFY(UiInspection::fullyVisible(*message, restored));
+            QVERIFY(UiInspection::labelFits(*message));
+            for (auto *button : message->parentWidget()->findChildren<QPushButton *>())
+                QVERIFY(UiInspection::fullyVisible(*button, restored));
+            QVERIFY(UiInspection::writeReport(
+                restored, QString("workspace-unavailable-%1-%2").arg(language).arg(size.width())));
+        }
         restored.openPath(usable);
         QTRY_VERIFY(active(restored)->isEnabled());
         QCOMPARE(location(restored), usable);
         QVERIFY(restored.findChild<QAction *>("createFolderAction")->isEnabled());
+        QVERIFY(!restored.findChild<QLabel *>("selectedItemsStatus")->text().isEmpty());
         auto *favorites = restored.findChild<QListView *>("favoritePlaces0");
         const auto matching = favorites->model()->match(
             favorites->model()->index(0, 0), Qt::UserRole + 1, gone, 1, Qt::MatchExactly);
@@ -187,5 +223,6 @@ class WorkspaceSessionTests final : public QObject {
     }
 };
 
-QTEST_MAIN(WorkspaceSessionTests)
+#include "ui/support/review_test_main.h"
+SEVENZIP_UI_TEST_MAIN(WorkspaceSessionTests)
 #include "workspace_session_tests.moc"

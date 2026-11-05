@@ -110,6 +110,11 @@ void MainWindow::showPanelStatus(unsigned index, const CPanelStatus &status) {
     const auto &labels = panelUi_[index].statusLabels;
     if (!labels[0])
         return;
+    if (panelUi_[index].locationUnavailable) {
+        for (auto *label : labels)
+            label->clear();
+        return;
+    }
     labels[0]->setText(QtSelectionStatusText(status.selectedCount, status.totalCount));
     labels[1]->setText(status.selectedSize);
     labels[2]->setText(status.focusedSize);

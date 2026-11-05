@@ -1,5 +1,6 @@
 #pragma once
 #include "filemanager/panels/Panel.h"
+#include "ui/theme/qtcommandicons.h"
 #include <QCoreApplication>
 #include <QJsonObject>
 #include <QObject>
@@ -50,6 +51,7 @@ class QtWindowWorkspace final : public QObject {
         QString id;
         QString path;
         QString nativePlaceIdentity;
+        QtCommandIcon symbol = QtCommandIcon::Folder;
         QStringList history;
         CSelectedState selection;
         QPoint scroll;
