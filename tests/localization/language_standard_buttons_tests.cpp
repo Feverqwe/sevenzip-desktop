@@ -19,6 +19,7 @@
 #include <QPushButton>
 #include <QSignalSpy>
 #include <QTemporaryDir>
+#include <QVBoxLayout>
 #include <QtTest>
 #include <memory>
 
@@ -176,6 +177,26 @@ class LanguageStandardButtonsTests final : public QObject {
 
   private slots:
     void cleanup() { language(false); }
+    void fontChangeKeepsActionCaptionAndFits() {
+        QDialog dialog;
+        auto *layout = new QVBoxLayout(&dialog);
+        auto *buttons =
+            new QtLangButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+        layout->addWidget(buttons);
+        auto *cancel = buttons->button(QDialogButtonBox::Cancel);
+        const QString caption = QStringLiteral("Keep pending changes");
+        cancel->setText(caption);
+        for (int points : {24, 12}) {
+            auto font = buttons->font();
+            font.setPointSize(points);
+            buttons->setFont(font);
+            dialog.adjustSize();
+            dialog.show();
+            QApplication::processEvents();
+            QCOMPARE(cancel->text(), caption);
+            QVERIFY(cancel->width() >= cancel->fontMetrics().horizontalAdvance(caption));
+        }
+    }
     void allStandardMappingsKeepResourceFallbackOnReload() {
         language(false);
         QDialog dialog;

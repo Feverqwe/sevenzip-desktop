@@ -161,6 +161,12 @@
     target_link_libraries(panel_copy_info_tests PRIVATE sevenzip_panel Qt6::Test)
     add_test(NAME panel_copy_info COMMAND panel_copy_info_tests -silent)
     set_tests_properties(panel_copy_info PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+    qt_add_executable(dialog_surface_tests tests/ui/dialog_surface_tests.cpp)
+    target_include_directories(dialog_surface_tests PRIVATE src tests)
+    target_link_libraries(dialog_surface_tests PRIVATE sevenzip_panel sevenzip_layout_inspection Qt6::Test)
+    add_test(NAME dialog_surface COMMAND dialog_surface_tests -silent)
+    set_tests_properties(dialog_surface PROPERTIES TIMEOUT 30 ENVIRONMENT
+        "QT_QPA_PLATFORM=offscreen;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
     qt_add_executable(dialog_size_tests tests/ui/dialog_size_tests.cpp)
     target_include_directories(dialog_size_tests PRIVATE src)
     target_link_libraries(dialog_size_tests PRIVATE sevenzip_panel Qt6::Test)

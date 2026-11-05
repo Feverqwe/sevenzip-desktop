@@ -18,6 +18,7 @@ class QtLangButtonBox final : public QDialogButtonBox, private IQtLangDialogCont
     bool HasItem(UInt32 controlID) const override;
     void SetItemText(UInt32 controlID, const wchar_t *text) override;
     void ReloadText();
+    void UpdateButtonWidths();
     UInt32 acceptID_;
     QByteArray acceptContext_;
     QByteArray acceptSource_;

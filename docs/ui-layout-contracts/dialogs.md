@@ -329,6 +329,8 @@ Implemented views: `SplitDialog.cpp` and the existing `CopyDialog.cpp`.
 - OK/Cancel remain at the bottom. Invalid volume input opens the source
   Critical/7-Zip/OK modal message and keeps Split open, including accept().
   OK or Escape dismisses only the message; raw input remains available for retry.
+- At constrained height the Split form scrolls independently of its completion
+  buttons. Keyboard traversal reveals focused fields without moving the footer.
 - Combine uses the original shared Copy dialog: destination, Browse,
   read-only scrolling summary and footer. The summary lists the count and
   size, source prefix, first two names, ellipsis when needed and final name.

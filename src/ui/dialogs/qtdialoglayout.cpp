@@ -2,16 +2,54 @@
 #include <QDialog>
 #include <QPushButton>
 #include <QResizeEvent>
+#include <QScrollArea>
 #include <QVBoxLayout>
 #include <QWidget>
 
-QVBoxLayout *QtCreateDialogLayout(QWidget &window, QWidget &footer) {
+namespace {
+class DialogBody final : public QWidget {
+  public:
+    using QWidget::QWidget;
+    int heightForWidth(int width) const override {
+        const int minimum = layout() ? layout()->minimumHeightForWidth(width) : -1;
+        return minimum >= 0 ? minimum : QWidget::heightForWidth(width);
+    }
+};
+
+class DialogContentScroll final : public QScrollArea {
+  public:
+    using QScrollArea::QScrollArea;
+    QSize sizeHint() const override {
+        if (!widget())
+            return QScrollArea::sizeHint();
+        return (widget()->minimumSizeHint() + QSize(frameWidth() * 2, frameWidth() * 2))
+            .expandedTo(minimumSizeHint());
+    }
+};
+} // namespace
+
+QVBoxLayout *QtCreateDialogLayout(QWidget &window, QWidget &footer, QtDialogContent mode) {
     auto *frame = new QVBoxLayout(&window);
     frame->setContentsMargins(16, 16, 16, 16);
     frame->setSpacing(16);
     auto *content = new QVBoxLayout;
     content->setSpacing(8);
-    frame->addLayout(content, 1);
+    if (mode == QtDialogContent::Scrollable) {
+        auto *body = new DialogBody(&window);
+        content->setContentsMargins(0, 0, 0, 0);
+        content->setSizeConstraint(QLayout::SetMinAndMaxSize);
+        body->setLayout(content);
+        auto *scroll = new DialogContentScroll(&window);
+        scroll->setObjectName("dialogContentScroll");
+        scroll->setFrameShape(QFrame::NoFrame);
+        scroll->setWidgetResizable(true);
+        scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        scroll->setFocusPolicy(Qt::NoFocus);
+        scroll->setWidget(body);
+        frame->addWidget(scroll, 1);
+    } else {
+        frame->addLayout(content, 1);
+    }
     frame->addWidget(&footer);
     return content;
 }

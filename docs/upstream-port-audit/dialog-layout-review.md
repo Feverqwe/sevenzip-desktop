@@ -1,5 +1,37 @@
 # Dialog layout review — 2026-10-17
 
+## Shared scrollable form — 2026-11-05
+
+Compared complete CopyDialog, SplitDialog and PasswordDialog `.cpp`, `.h` and
+`.rc` inventory units from the recorded local 7-Zip source archive, baseline
+`0766b733fe3e06dd2a7f9a3cfbf2108ac73abd17` at
+<https://github.com/ip7z/7zip.git>. Reviewed Copy/Combine, Split and backend
+password consumers before changing presentation. No external code is imported
+and original hashes remain unchanged.
+
+The project-owned shared form now optionally scrolls its body independently of
+the footer. Split and Password opt in; Copy retains its existing independently
+scrolling summary. Native folder browsing, volume parsing/error retry, password
+read/show/commit, raw values and Cancel results remain with their existing owners.
+Native modality, button order, fonts and focus traversal remain Qt adaptations.
+This step does not implement the catalog's separate secret-entry caret contract.
+
+The focused surface regression checks reachable completion actions and keyboard
+traversal at constrained height with normal/large fonts. A flexible text child
+must shrink and scroll internally before causing unnecessary outer scrolling.
+Existing dialog suites cover values, errors, confirmation and cancellation.
+Native Cocoa review exposed a clipped Cancel caption at a large font. The shared
+translated button box now protects caption width using font and style metrics,
+including after language/font/style changes; native ordering and roles remain.
+
+Validation: final Linux eight focused suites PASS (build 10.29s, tests 9.92s).
+macOS eight focused suites PASS across the final action-box check and direct
+consumer rerun; context modality uses Cocoa, other CTest UI checks use offscreen.
+Separate Cocoa light/dark captures of the common form, Split/Combine, Password
+and contextual forms passed and were reviewed, including the formerly clipped
+large-font Cancel caption. Inventory and whitespace checks passed. Windows and
+fresh rendered upstream pixel comparison are unverified; no full/slow gate ran.
+
 ## Memory-request presentation owner — 2026-11-04
 
 Compared original MemDialog.cpp/.h/.rc initialization, action/limit controls,

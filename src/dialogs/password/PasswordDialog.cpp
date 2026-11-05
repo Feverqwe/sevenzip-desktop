@@ -32,7 +32,7 @@ bool CPasswordDialog::OnInit() {
     auto *buttons = new QtLangButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     buttons->setObjectName("passwordButtons");
     buttons->SetAcceptText("DialogRedesign", QT_TRANSLATE_NOOP("DialogRedesign", "Continue"));
-    auto *layout = QtCreateDialogLayout(*this, *buttons);
+    auto *layout = QtCreateDialogLayout(*this, *buttons, QtDialogContent::Scrollable);
     auto *label = new QtWrappingLabel(this);
     label->setWordWrap(true);
     QtBindResourceText(label, IDT_PASSWORD_ENTER, "&Enter password:");
@@ -53,7 +53,7 @@ bool CPasswordDialog::OnInit() {
     connect(_showPassword, &QCheckBox::clicked, this, &CPasswordDialog::OnButtonClicked);
     connect(buttons, &QDialogButtonBox::accepted, this, &CPasswordDialog::OnOK);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
-    resize(QSize(360, minimumSizeHint().height()).expandedTo(minimumSizeHint()));
+    resize(QSize(360, sizeHint().height()).expandedTo(minimumSizeHint()));
     _passwordEdit->setFocus();
     return true;
 }

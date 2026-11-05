@@ -255,6 +255,11 @@ decisions. Qt owns widget construction, native-font geometry, focus and signal
 transport. Shared geometry services adapt dialog units and work-area positioning;
 the [text specifications](ui-layout-contracts.md) own observable layout contracts.
 
+Shared dialog presentation offers fixed content or a vertically scrollable form
+with completion actions outside the scrolling region. Split and Password use the
+scrollable form; their native validation and result ownership stay unchanged.
+Copy retains its bounded, independently scrolling selection summary.
+
 Contextual forms opt into parent-window modality on macOS through the shared
 presentation adapter. Layout construction itself does not make windows modal.
 Operation progress blocks its owning process;

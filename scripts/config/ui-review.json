@@ -7,6 +7,7 @@
   {"id":"context-menu","title":"Контекстное меню","target":"source_context_menu_tests","functions":["owningPanel:0-ru-0","emptyAndParent"]},
   {"id":"common-dialogs","title":"Основные диалоги, EN/RU","target":"language_standard_buttons_tests","functions":["sourceDialogsTranslateTheirStandardControls"]},
   {"id":"context-forms","title":"Контекстные формы и вложенная отмена","target":"context_dialog_tests","functions":["contextualTaskBlocksItsOwner","nestedPromptCancelKeepsParentDraft"]},
+  {"id":"dialog-surface","title":"Общая форма: прокрутка и доступные действия","target":"dialog_surface_tests","functions":["compactSurfaceKeepsActionsAndKeyboardReachable"]},
   {"id":"archive-forms","title":"Создание и распаковка архива","target":"ui_geometry_tests","functions":["dialogs"]},
   {"id":"add-sections","title":"Создание архива: основные поля, пароль и раскрытые параметры","target":"source_compress_dialog_tests","functions":["collapsedSectionsKeepEffectiveOptionsAndPasswordDraft"]},
   {"id":"extract-sections","title":"Распаковка: основные поля, пароль и раскрытые параметры","target":"extract_dialog_tests","functions":["optionalSectionsKeepDraftAndEffectiveOptions"]},

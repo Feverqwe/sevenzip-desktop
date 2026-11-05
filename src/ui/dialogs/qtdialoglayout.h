@@ -8,7 +8,9 @@ class QPushButton;
 class QDialog;
 
 // Shared presentation for redesigned dialogs; callers own fields and actions.
-QVBoxLayout *QtCreateDialogLayout(QWidget &window, QWidget &footer);
+enum class QtDialogContent { Fixed, Scrollable };
+QVBoxLayout *QtCreateDialogLayout(QWidget &window, QWidget &footer,
+                                  QtDialogContent content = QtDialogContent::Fixed);
 void QtSizeIconButton(QPushButton &button);
 // Opt in only for contextual forms, never modeless reports or operation progress.
 void QtUseContextDialogModality(QDialog &dialog);

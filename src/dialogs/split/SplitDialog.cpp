@@ -41,7 +41,7 @@ bool CSplitDialog::OnInit() {
     auto *buttons = new QtLangButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     buttons->setObjectName("splitButtons");
     buttons->SetAcceptText("DialogRedesign", QT_TRANSLATE_NOOP("DialogRedesign", "Split"));
-    auto *layout = QtCreateDialogLayout(*this, *buttons);
+    auto *layout = QtCreateDialogLayout(*this, *buttons, QtDialogContent::Scrollable);
     auto *pathLabel = new QtWrappingLabel(this);
     pathLabel->setWordWrap(true);
     QtBindResourceText(pathLabel, IDT_SPLIT_PATH, "&Split to:");
@@ -87,7 +87,7 @@ bool CSplitDialog::OnInit() {
     _volumeCombo->setCurrentIndex(0);
     _pathCombo->setFocus();
     _pathCombo->lineEdit()->selectAll();
-    resize(QSize(480, minimumSizeHint().height()).expandedTo(minimumSizeHint()));
+    resize(QSize(480, sizeHint().height()).expandedTo(minimumSizeHint()));
     QtNormalizeDialogSize(*this);
     return true;
 }

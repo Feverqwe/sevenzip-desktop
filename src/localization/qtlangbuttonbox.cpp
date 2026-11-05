@@ -3,6 +3,7 @@
 #include <QCoreApplication>
 #include <QEvent>
 #include <QPushButton>
+#include <QStyle>
 #include <utility>
 
 QtLangButtonBox::QtLangButtonBox(StandardButtons buttons, QWidget *parent, UInt32 acceptID)
@@ -73,6 +74,19 @@ void QtLangButtonBox::ReloadText() {
 #endif
         help->setFixedWidth(help->sizeHint().height());
     }
+    UpdateButtonWidths();
+}
+
+void QtLangButtonBox::UpdateButtonWidths() {
+    for (auto *control : buttons()) {
+        if (control == button(Help) && compactHelp_)
+            continue;
+        const int margin = control->style()->pixelMetric(QStyle::PM_ButtonMargin, nullptr, control);
+        const int textWidth =
+            control->fontMetrics().size(Qt::TextShowMnemonic, control->text()).width();
+        const int iconWidth = control->icon().isNull() ? 0 : control->iconSize().width() + margin;
+        control->setMinimumWidth(textWidth + iconWidth + 2 * margin);
+    }
 }
 
 void QtLangButtonBox::changeEvent(QEvent *event) {
@@ -82,4 +96,6 @@ void QtLangButtonBox::changeEvent(QEvent *event) {
         ((event->type() == QEvent::FontChange || event->type() == QEvent::StyleChange) &&
          compactHelp_))
         ReloadText();
+    else if (event->type() == QEvent::FontChange || event->type() == QEvent::StyleChange)
+        UpdateButtonWidths();
 }
