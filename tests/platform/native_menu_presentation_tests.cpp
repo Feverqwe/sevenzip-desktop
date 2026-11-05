@@ -158,19 +158,34 @@ class NativeMenuPresentationTests final : public QObject {
         QVERIFY(!IsMenu(native));
     }
 
+    void failedOwnerDrawMeasurementDisablesUnrenderableCommand_data() {
+        QTest::addColumn<bool>("submenu");
+        QTest::newRow("command") << false;
+        QTest::newRow("submenu") << true;
+    }
     void failedOwnerDrawMeasurementDisablesUnrenderableCommand() {
+        QFETCH(bool, submenu);
         ProviderReport report;
         report.refuseMeasure = true;
         CMyComPtr<IContextMenu> context = new BitmapProvider(report);
         const HMENU native = CreatePopupMenu();
         QVERIFY(native);
-        QVERIFY(AppendMenuW(native, MF_OWNERDRAW, 104, nullptr));
+        if (submenu) {
+            const HMENU child = CreatePopupMenu();
+            QVERIFY(child);
+            QVERIFY(AppendMenuW(native, MF_OWNERDRAW | MF_POPUP, UINT_PTR(child), nullptr));
+        } else
+            QVERIFY(AppendMenuW(native, MF_OWNERDRAW, 104, nullptr));
         QMenu target;
         unsigned invoked = 0;
         QtNativeShellMenuPresentation presentation(native, context, 100);
         QVERIFY(presentation.Render(target, [&](unsigned id) { invoked = id; }).isEmpty());
         QCOMPARE(target.actions().size(), 1);
         QVERIFY(!target.actions()[0]->isEnabled());
+        if (submenu) {
+            QVERIFY(target.actions()[0]->menu());
+            QCOMPARE(target.actions()[0]->menu()->actions().size(), 1);
+        }
         target.actions()[0]->trigger();
         QCOMPARE(invoked, unsigned(0));
     }

@@ -1,5 +1,27 @@
 # Shell submenu ownership — 2026-10-18
 
+## Windows native row preparation — 2026-11-05
+
+Reviewed the complete Qt native menu renderer, retained COM/menu state,
+owner-draw messages, keyboard dispatch and File Manager command consumers with
+original PanelMenu system-menu construction/invocation at
+`b88c6bc09339de32f7d18bbab900686b244f42ba`. The full original PanelMenu.cpp hash
+matches the existing baseline; native command generation and invocation remain
+unchanged.
+
+Leaf commands and submenus now share owner-draw action preparation and one
+immutable enabled decision. Submenu widget creation still precedes owner-draw
+measurement, lazy native population still precedes recursion, and disabled or
+unrenderable parents still exclude their descendants from admitted command IDs.
+Fallback actions, icons, checked/default state, keyboard messages and provider
+lifetimes retain their existing behavior. No new helper, state or UI layout is
+introduced.
+
+The existing refused-measurement regression now also covers an owner-drawn
+submenu with a populated child: the parent remains disabled and no descendant
+command is admitted. Existing tests cover enabled/disabled submenus, painting,
+bitmap ownership, mouse/keyboard dispatch and subsequent native-menu release.
+
 ## Context-menu settings presentation — 2026-11-04
 
 Reviewed the complete pinned `CPP/7zip/UI/FileManager/MenuPage.cpp`,
