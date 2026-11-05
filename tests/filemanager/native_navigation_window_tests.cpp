@@ -49,6 +49,89 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         SaveRegLang(UString("-"), settings);
         ReloadLang(settings);
     }
+    void parentButtonBelongsToItsPanel_data() {
+        QTest::addColumn<unsigned>("pane");
+        QTest::addColumn<bool>("peerRoot");
+        QTest::addColumn<bool>("deferred");
+        for (unsigned pane : {0u, 1u})
+            for (bool root : {false, true})
+                for (bool deferred : {false, true})
+                    QTest::newRow(qPrintable(QString("%1-%2-%3").arg(pane).arg(root).arg(deferred)))
+                        << pane << root << deferred;
+    }
+    void parentButtonBelongsToItsPanel() {
+        QFETCH(unsigned, pane);
+        QFETCH(bool, peerRoot);
+        QFETCH(bool, deferred);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString childName = QStringLiteral("child папка 空");
+        const QString child = fixture.filePath(childName);
+        QVERIFY(QDir().mkpath(child));
+        QFile payload(QDir(child).filePath("protected.txt"));
+        QVERIFY(payload.open(QIODevice::WriteOnly));
+        QCOMPARE(payload.write("protected bytes"), qint64(15));
+        payload.close();
+        if (deferred)
+            for (int i = 0; i < 257; ++i) {
+                QFile extra(fixture.filePath(QString("entry-%1.txt").arg(i)));
+                QVERIFY(extra.open(QIODevice::WriteOnly));
+            }
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        if (!action(window, "twoPanelsAction")->isChecked())
+            action(window, "twoPanelsAction")->trigger();
+        for (unsigned index : {pane, 1 - pane}) {
+            openFilesystemPanel(window, index, child);
+            QVERIFY(!QTest::currentTestFailed());
+        }
+        auto *owner = window.findChild<QWidget *>(QString("filePanel%1").arg(pane));
+        auto *peer = window.findChild<QWidget *>(QString("filePanel%1").arg(1 - pane));
+        auto *list = owner->findChild<FileTable *>("archiveTable");
+        auto *peerList = peer->findChild<FileTable *>("archiveTable");
+        auto *address = owner->findChild<QLineEdit *>("archivePath");
+        auto *peerAddress = peer->findChild<QLineEdit *>("archivePath");
+        auto *button = owner->findChild<QPushButton *>(QString("panelParentButton%1").arg(pane));
+        QVERIFY(button);
+        if (peerRoot) {
+            action(window, "openRootAction")->trigger();
+            action(window, "parentFolderAction")->trigger();
+            QVERIFY(peerList->sourcePanel->IsRootFolder());
+            QVERIFY(!action(window, "parentFolderAction")->isEnabled());
+        }
+        const UString peerPrefix = peerList->sourcePanel->GetCurrentFolderPrefix();
+        const int peerRows = peerList->rowCount();
+        const QString draft = QStringLiteral("peer черновик");
+        peerAddress->setText(draft);
+        QVERIFY(button->isEnabled());
+        if (deferred) {
+            button->setFocus();
+            QTRY_VERIFY(button->hasFocus());
+            QTest::keyClick(button, Qt::Key_Space);
+        } else
+            QTest::mouseClick(button, Qt::LeftButton);
+        QTRY_COMPARE(address->text(), QFileInfo(fixture.path()).canonicalFilePath());
+        QTRY_VERIFY(list->isEnabled());
+        QTRY_COMPARE(list->rowCount(), deferred ? 258 : 1);
+        QVERIFY(list->currentIndex().isValid());
+        QCOMPARE(list->currentIndex().data().toString(), childName);
+        QCOMPARE(peerList->sourcePanel->GetCurrentFolderPrefix(), peerPrefix);
+        QCOMPARE(peerList->rowCount(), peerRows);
+        QCOMPARE(peerAddress->text(), draft);
+        if (peerRoot) {
+            auto *rootButton =
+                peer->findChild<QPushButton *>(QString("panelParentButton%1").arg(1 - pane));
+            QVERIFY(rootButton && rootButton->isEnabled());
+            QTest::mouseClick(rootButton, Qt::LeftButton);
+            QVERIFY(peerList->sourcePanel->IsRootFolder());
+            QCOMPARE(address->text(), QFileInfo(fixture.path()).canonicalFilePath());
+            QCOMPARE(list->rowCount(), deferred ? 258 : 1);
+        }
+        QVERIFY(payload.open(QIODevice::ReadOnly));
+        QCOMPARE(payload.readAll(), QByteArray("protected bytes"));
+    }
     void changedDirectoryKeepsBindFailure_data() {
         QTest::addColumn<bool>("flat");
         QTest::newRow("normal") << false;

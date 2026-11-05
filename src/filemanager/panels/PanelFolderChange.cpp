@@ -362,6 +362,13 @@ HRESULT CPanel::BindToPath(const UString &fullPath, const UString &arcFormat,
                 sysPath.DeleteFrom((unsigned)pos);
             }
         }
+        // The directory probe retains a separator. A package must be opened
+        // by its container name before binding the remaining virtual suffix.
+        if (!sysPath.IsEmpty() && IsPathSepar(sysPath.Back()) && fileInfo.IsDir()) {
+            const UString directoryName = sysPath.Left(sysPath.Len() - 1);
+            if (IsSparseBundleName(directoryName))
+                sysPath = directoryName;
+        }
         SetToRootFolder();
         CMyComPtr<IFolderFolder> newFolder;
         if (sysPath.IsEmpty())

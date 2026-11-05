@@ -1,3 +1,4 @@
+#include "archive/resources/archiveinputpath.h"
 #include "filemanager/MyLoadMenu.h"
 #include "filemanager/panels/Panel.h"
 #include "filemanager/window/mainwindow.h"
@@ -10,7 +11,7 @@ QString MainWindow::sourcePathFromDisplayPath(QString path) const {
     const QString separator = QStringLiteral(" / ");
     for (int pos = path.indexOf(separator); pos >= 0;
          pos = path.indexOf(separator, pos + separator.size()))
-        if (QFileInfo(path.left(pos)).isFile() ||
+        if (IsArchiveFileOrPackage(QFileInfo(path.left(pos))) ||
             (projectedUi().state == State::Viewing &&
              QDir::fromNativeSeparators(path.left(pos)) == projectedUi().displayArchive)) {
             path.replace(pos, separator.size(), QStringLiteral("/"));

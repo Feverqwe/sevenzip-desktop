@@ -1,5 +1,74 @@
 # Location history and address presentation — 2026-10-31
 
+## Display-address return to directory archive packages — 2026-11-05
+
+Reviewed native address Enter/BindToPath, the current source/display conversion,
+package opening, rendered archive paths and history/bookmark consumers together.
+Complete original PanelFolderChange.cpp matches the existing baseline at
+`b88c6bc09339de32f7d18bbab900686b244f42ba` from
+<https://github.com/ip7z/7zip.git>. Sparse image/bundle readers and their recorded
+source scope remain unchanged; no import or baseline revision changes.
+
+Display conversion now reuses the existing archive-file/package classification
+for its physical container boundary. A sparsebundle is a directory, so the old
+isFile-only check could not recognize its copied display address after the panel
+left it. Existing literal-space handling, currently open nested-archive handling
+and native-source-path bypass remain intact. No second package classifier,
+path parser or reader is introduced.
+
+The existing-directory probe in native binding retains a trailing separator.
+The package adapter now removes that separator from a recognized sparsebundle
+container before its existing archive-open branch consumes the remaining virtual
+suffix. Ordinary directories keep their native binding behavior. This narrow
+container adaptation also fixes native subfolder paths into a closed bundle.
+
+The existing sparse-image browse/extract workflow now leaves each unencrypted
+file/bundle container and re-enters both native and copied subfolder addresses
+before extracting the actual Unicode payload. It reuses the same fixtures and
+rows; encrypted Cancel/wrong-password/retry paths are unchanged. Existing
+persisted-location tests cover literal spaces and nested archive addresses.
+
+The direct APFS traversal test normalizes native path separators only when
+matching enumerated paths against fixture expectations; symbolic-link targets
+remain byte-for-byte comparisons. This preserves the reader's Windows path
+contract while checking the same directory loading, cancellation and retry.
+
+Focused runtime checks passed on Linux (sparse-image UI, native navigation,
+persisted locations and direct APFS traversal) and Windows (sparse-image UI and
+direct APFS traversal with the current prepared native runtime). Source review
+is limited to the address/package adaptation above; no decoder transfer or
+macOS acceptance is claimed.
+
+## Native archive opening through a filesystem link — 2026-11-05
+
+Compared original OpenItem/OpenAsArc_Index and BindToPath file/parent fallback
+with current explicit/path/address/item callers, native archive binding,
+resource-backed extraction and parent navigation. Complete PanelItemOpen.cpp and
+PanelFolderChange.cpp originals match the existing baseline at
+`b88c6bc09339de32f7d18bbab900686b244f42ba` from
+<https://github.com/ip7z/7zip.git>. No source import, revision or native opening
+algorithm changes.
+
+Qt explicit opening no longer rejects an existing file solely because it is a
+symbolic link. Path navigation reuses the existing file/package classification
+instead of repeating its file/sparsebundle test with another link exclusion.
+Native binding owns the actual archive probe and result, including the existing
+archive-only refusal when BindToPath returns a containing filesystem folder.
+The address path and native item opener already support this native path.
+Drop classification retains its separately reviewed original Add behavior for
+links. Reader/decoding and extraction destination validation retain their owners.
+
+Public regressions cover explicit opening, openPath, typed address and Open
+Inside with a real ZIP link, ordinary-file link and dangling link. Successful
+cases extract the real Unicode payload and return to the link's parent;
+all cases preserve the link object and underlying source bytes. Existing
+refusal/cancellation, deferred focus and native navigation cases remain covered.
+
+Focused validation passed on Linux: address_navigation (77 Qt checks) and
+native_navigation_window (57). Windows address_navigation passed 93 checks,
+including actual reparse links. No appearance changes or native pixel acceptance
+are involved.
+
 ## Archive picker initiating panel — 2026-11-05
 
 Reviewed native FM command dispatch and panel binding with the current Qt-only

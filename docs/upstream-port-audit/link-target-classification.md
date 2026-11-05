@@ -1,5 +1,34 @@
 # Relative link target classification — 2026-11-01
 
+## Link command lifetime and deferred refresh — 2026-11-05
+
+Compared complete original CApp::Link and menu routing, LinkDialog resources and
+current dialog/binding, timer, reload and scan-completion owners. Complete
+LinkDialog.cpp and LinkDialog.rc originals match the existing baseline hashes at
+`b88c6bc09339de32f7d18bbab900686b244f42ba` from
+<https://github.com/ip7z/7zip.git>. Native link algorithms, selection, accepted/
+Cancel results and the visible kpidNtReparse-column refresh condition are unchanged.
+No source is imported or baseline revision advanced.
+
+The Qt Link wrapper removes its redundant pair of native timer guards. Its
+existing CallScope already prevents the only Qt auto-refresh dispatcher from
+visiting either panel throughout the modal call. Retaining an extra disabled
+timer snapshot through the source's optional deferred reload could leave that
+panel's auto-refresh disabled after publication. The existing call owner now
+protects the synchronous phase, and existing scan guards own deferred loading;
+no new guard handoff, operation state or rendering pass is needed.
+
+Command regressions check that a file created while the dialog is open does not
+appear during the modal call, and that a new file appears automatically afterward.
+Create/Cancel, original selection, Unicode paths and hard-link content identity
+remain covered. Windows adds bounded large-list Create/Cancel cases and enables
+the real Link column through its header menu: POSIX intentionally has no NT raw
+reparse column, so that source refresh branch is checked on Windows.
+
+Focused validation passed: Linux link_command (5 Qt checks) and unchanged
+link_dialog (23); Windows link_command (7), including the real raw-column cases.
+No dialog layout or native appearance changes are involved.
+
 ## Link dialog presentation/type owner — 2026-11-04
 
 Reviewed the complete native LinkDialog initialization, browse, creation/error

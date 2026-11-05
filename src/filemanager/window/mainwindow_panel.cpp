@@ -26,15 +26,18 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
         // Keep the source parent command without its longer View menu caption.
         const auto updateButton = [this, button] {
             button->setIcon(QtCommandSymbol(QtCommandIcon::Parent));
-            button->setEnabled(up_->isEnabled());
             button->setAccessibleName(up_->toolTip());
             button->setToolTip(up_->toolTip());
         };
         updateButton();
-        // Project the existing command state and caption; the button itself
-        // does not own navigation or command availability.
+        // Native panel toolbar buttons belong to their panel, independently of
+        // the focused panel's View menu. Reuse command gating after activation.
         connect(up_, &QAction::changed, button, updateButton);
-        connect(button, &QPushButton::clicked, up_, &QAction::trigger);
+        connect(button, &QPushButton::clicked, this, [this, index] {
+            appPresentation_->CancelInitialFocus();
+            activatePanelUi(index);
+            up_->trigger();
+        });
         QtConfigurePanelParentButton(*button);
         button->setObjectName(QString("panelParentButton%1").arg(index));
         navigation->addWidget(button);

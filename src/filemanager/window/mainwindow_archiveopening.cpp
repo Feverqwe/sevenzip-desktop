@@ -58,7 +58,7 @@ HRESULT MainWindow::openArchiveAs(const QString &path, const QString &type) {
     if (projectedUi().state == State::Loading || projectedUi().state == State::Operating)
         return E_ABORT;
     const QFileInfo file(path);
-    if (!IsArchiveFileOrPackage(file) || file.isSymLink()) {
+    if (!IsArchiveFileOrPackage(file)) {
         statusBar()->showMessage(
             QCoreApplication::translate("mainwindow_archiveopening", "File not found: ") + path);
         return E_INVALIDARG;

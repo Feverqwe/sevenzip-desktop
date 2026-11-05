@@ -195,16 +195,15 @@ void QtFileManagerCommands::Comment() {
 void QtFileManagerCommands::Link() {
     auto &w = window_;
     QtAppOperationState::CallScope call(w.app_.QtOperations());
-    CPanel::CDisableTimerProcessing disableTimerProcessing1(w.app_.Panels[0]);
-    CPanel::CDisableTimerProcessing disableTimerProcessing2(w.app_.Panels[1]);
     w.app_.Link();
     w.refreshActions();
 }
 void QtFileManagerCommands::OpenAltStreams() {
     auto &w = window_;
     QtAppOperationState::CallScope call(w.app_.QtOperations());
-    w.app_.GetFocusedPanel().OpenAltStreams();
-    w.renderBoundFolder();
+    const unsigned index = w.app_.GetFocusedPanelIndex();
+    w.app_.Panels[index].OpenAltStreams();
+    w.app_.QtOperations().ContinueScanAfterSourceCall(index);
     w.refreshActions();
 }
 void QtFileManagerCommands::Change_AutoRefresh_Mode() {
