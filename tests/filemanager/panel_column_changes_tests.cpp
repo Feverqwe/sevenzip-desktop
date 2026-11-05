@@ -1,6 +1,7 @@
 #include "archive/support/schema_folder.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
+#include "filemanager/window/qtnavigationbar.h"
 #include "localization/LangUtils.h"
 #include "ui/support/layout_inspection.h"
 #include <QPainter>
@@ -35,7 +36,7 @@ class PanelColumnChangesTests final : public QObject, protected MainWindowTestSu
                  "The source main subitem must visibly retain selection");
         if (count > 1) {
             const int secondary = view.columnForVisibleProperty(1);
-            QCOMPARE(paint(secondary, true), paint(secondary, false));
+            QCOMPARE(paint(secondary, true) != paint(secondary, false), view.fullRowHighlight());
         }
     }
     static void inspectSchema(MainWindow &window, FileTable &view, FileTable &peer,
@@ -100,10 +101,12 @@ class PanelColumnChangesTests final : public QObject, protected MainWindowTestSu
             QApplication::processEvents();
             QWidget &visibleView = icons->isVisible() ? static_cast<QWidget &>(*icons) : view;
             QVERIFY(UiInspection::fullyVisible(visibleView, window));
-            QVERIFY(UiInspection::fullyVisible(peer, window));
+            auto *peerStack = qobject_cast<QStackedWidget *>(peer.parentWidget());
+            QVERIFY(peerStack);
+            QVERIFY(UiInspection::fullyVisible(*peerStack->currentWidget(), window));
             if (view.isVisible()) {
                 if (columns.IsEmpty())
-                    QCOMPARE(view.horizontalHeader()->height(), 0);
+                    QVERIFY(!view.horizontalHeader()->isVisible());
                 else
                     QVERIFY(UiInspection::fullyVisible(*view.horizontalHeader(), window));
             }
@@ -153,7 +156,9 @@ class PanelColumnChangesTests final : public QObject, protected MainWindowTestSu
         action(window, "twoPanelsAction")->trigger();
         auto *ui = window.findChild<QWidget *>(QString("filePanel%1").arg(pane));
         auto *view = static_cast<FileTable *>(ui->findChild<FileTable *>("archiveTable"));
-        ui->findChild<QLineEdit *>("archivePath")->setFocus();
+        static_cast<QtNavigationBar *>(
+            ui->findChild<QWidget *>(QString("panelNavigation%1").arg(pane)))
+            ->Edit();
         action(window, "openRootAction")->trigger();
         action(window, qPrintable(QString("viewMode%1Action").arg(mode)))->trigger();
         auto *spec = new SchemaFolder;
@@ -170,7 +175,9 @@ class PanelColumnChangesTests final : public QObject, protected MainWindowTestSu
         peer->sourcePanel->Set_AutoRefresh_Mode(false);
         CMyComPtr<IFolderFolder> peerProvider = peer->sourcePanel->GetFolder();
         const int peerRows = peer->rowCount();
-        peerUi->findChild<QLineEdit *>("archivePath")->setFocus();
+        static_cast<QtNavigationBar *>(
+            peerUi->findChild<QWidget *>(QString("panelNavigation%1").arg(1 - pane)))
+            ->Edit();
         QWidget *const focused = window.focusWidget();
         auto reload = [&](const QString &phase, unsigned columns) {
             panel.OnReload();
@@ -186,10 +193,13 @@ class PanelColumnChangesTests final : public QObject, protected MainWindowTestSu
             spec->propertyCountResult = spec->rawCountResult = failure ? E_FAIL : S_FALSE;
             reload("written", 4);
         } else {
+            view->sortItems(view->columnForProperty(kpidSize), Qt::DescendingOrder);
+            QCOMPARE(panel.GetSortID(), PROPID(kpidSize));
             spec->properties = {
                 {kpidCRC, VT_UI4}, {kpidIsDir, VT_BOOL}, {kpidName, VT_BSTR, E_FAIL}};
             spec->rawId = kpidName;
             reload("raw-name", 2);
+            QCOMPARE(panel.GetSortID(), PROPID(kpidName));
             QVERIFY(view->isColumnHidden(0));
             QVERIFY(panel.GetVisibleColumns()[0].IsRawProp);
             QCOMPARE(panel.GetVisibleColumns()[0].ID, PROPID(kpidName));

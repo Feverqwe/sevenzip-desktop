@@ -5,6 +5,7 @@
 #include "filemanager/qtfilemanagerdrag.h"
 #include "filemanager/rename/qtrenamecontroller.h"
 #include "filemanager/views/qtfilelisthover.h"
+#include "filemanager/views/qtworkspacefiletable.h"
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtapppresentation.h"
 #include "filemanager/window/qtmainwindowchrome.h"
@@ -171,11 +172,7 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
 }
 
 void MainWindow::createFileTable(QWidget *central) {
-    projectedUi().table = new FileTable(7, central);
-    QtWorkspaceTheme::fileView(*projectedUi().table);
-    QtWorkspaceTheme::header(*projectedUi().table->horizontalHeader());
-    projectedUi().table->verticalHeader()->setDefaultSectionSize(
-        QtWorkspaceTheme::metric(*projectedUi().table, 28));
+    projectedUi().table = new QtWorkspaceFileTable(toolbarSettingsPath(), central);
     auto *fileTable = static_cast<FileTable *>(projectedUi().table);
     fileTable->setFullRowHighlight(fileListSettings_.FullRow);
     fileTable->sourcePanel = &app_.GetFocusedPanel();
@@ -197,7 +194,6 @@ void MainWindow::createFileTable(QWidget *central) {
     projectedUi().table->setColumnWidth(4, 150);
     projectedUi().table->setShowGrid(fileListSettings_.ShowGrid);
     projectedUi().table->setWordWrap(false);
-    projectedUi().table->setTextElideMode(Qt::ElideMiddle);
     projectedUi().table->horizontalHeader()->setContextMenuPolicy(Qt::CustomContextMenu);
     const unsigned columnOwner = projectedPanel_;
     connect(projectedUi().table->horizontalHeader(), &QWidget::customContextMenuRequested, this,

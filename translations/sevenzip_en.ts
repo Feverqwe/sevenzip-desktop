@@ -65,4 +65,12 @@ Are you sure you want to split archive into such volumes?</numerusform>
         </translation>
     </message>
 </context>
+<context>
+    <name>QtWorkspaceFileTable</name>
+    <message><source>Text document</source><translation>Text document</translation></message>
+    <message><source>%1 file</source><translation>%1 file</translation></message>
+    <message><source>Type</source><translation>Type</translation></message>
+    <message><source>Folder</source><translation>Folder</translation></message>
+    <message><source>File</source><translation>File</translation></message>
+</context>
 </TS>

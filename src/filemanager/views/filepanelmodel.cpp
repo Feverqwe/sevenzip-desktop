@@ -45,6 +45,8 @@ QVariant FilePanelModel::data(const QModelIndex &index, int role) const {
     case QtPanelList::MarkedRole:
         return row.marked;
     case Qt::ToolTipRole:
+        if (column == 5 && !parent)
+            return view_.typeLabel(row.name, row.directory);
         return row.toolTip;
     case Qt::DecorationRole:
         return column == 0 || column == view_.columnForVisibleProperty(0) ? QVariant(row.icon)
@@ -95,7 +97,7 @@ QVariant FilePanelModel::data(const QModelIndex &index, int role) const {
         if (column == 1)
             return row.path;
         if (column == 5)
-            return parent ? QString() : GetExtensionPtr(QStringView(row.name)).toString();
+            return parent ? QString() : view_.typeLabel(row.name, row.directory);
         if (column == 6)
             return parent ? QString() : QString::number(row.sourceIndex);
         if (const auto found = row.text.constFind(column);
@@ -190,6 +192,9 @@ QVariant FilePanelModel::headerData(int section, Qt::Orientation orientation, in
         return {};
     if (role == Qt::DisplayRole)
         return labels_[section];
+    if (role == Qt::TextAlignmentRole)
+        if (const auto *property = view_.sourceColumn(section))
+            return int(GetColumnAlign(property->ID, property->Type));
     if (role == Qt::InitialSortOrderRole)
         return int(CPanel::GetDefaultSortAscending(view_.propertyId(section))
                        ? Qt::AscendingOrder

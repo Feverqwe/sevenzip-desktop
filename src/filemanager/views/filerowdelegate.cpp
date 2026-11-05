@@ -1,6 +1,7 @@
 #include "filemanager/panels/qtpanellist.h"
 #include "filemanager/views/filetable.h"
 #include "ui/theme/qtsemanticcolors.h"
+#include <QApplication>
 #include <QEvent>
 #include <QKeyEvent>
 #include <QLineEdit>
@@ -10,8 +11,11 @@
 
 namespace {
 class FileRowDelegate final : public QStyledItemDelegate {
+    bool workspace_;
+
   public:
-    using QStyledItemDelegate::QStyledItemDelegate;
+    FileRowDelegate(QWidget *parent, bool workspace)
+        : QStyledItemDelegate(parent), workspace_(workspace) {}
     void setEditorData(QWidget *editor, const QModelIndex &index) const override {
         if (const auto *line = qobject_cast<QLineEdit *>(editor); line && line->isModified())
             return;
@@ -86,6 +90,39 @@ class FileRowDelegate final : public QStyledItemDelegate {
                                                option.palette.color(group, QPalette::Highlight)));
         auto *table = dynamic_cast<const FileTable *>(parent());
         const int primary = table ? table->columnForVisibleProperty(0) : -1;
+        if (workspace_ && table) {
+            initStyleOption(&option, index);
+            const bool selected = option.state.testFlag(QStyle::State_Selected) &&
+                                  (table->fullRowHighlight() || index.column() == qMax(0, primary));
+            const QBrush marked = option.backgroundBrush;
+            if (!selected && option.state.testFlag(QStyle::State_Selected))
+                painter->fillRect(option.rect, option.palette.base());
+            if (selected || marked.style() != Qt::NoBrush) {
+                const QBrush fill = selected ? option.palette.highlight() : marked;
+                painter->fillRect(option.rect, fill);
+                option.backgroundBrush = QBrush();
+                if (selected && marked.style() != Qt::NoBrush && index.column() == qMax(0, primary))
+                    painter->fillRect(
+                        QRect(option.rect.left(), option.rect.top(), 3, option.rect.height()),
+                        QtSemanticColors::readable(marked.color(), fill.color()));
+                option.state &= ~QStyle::State_MouseOver;
+                if (foreground.isValid())
+                    for (const auto group :
+                         {QPalette::Active, QPalette::Inactive, QPalette::Disabled})
+                        option.palette.setColor(
+                            group, QPalette::Text,
+                            QtSemanticColors::readable(
+                                qvariant_cast<QBrush>(foreground).color(),
+                                selected ? option.palette.color(group, QPalette::Highlight)
+                                         : marked.color()));
+            }
+            option.state &= ~(QStyle::State_Selected | QStyle::State_HasFocus);
+            option.rect.adjust(index.column() == qMax(0, primary) ? 12 : 8, 0, -8, 0);
+            const auto *widget = option.widget;
+            (widget ? widget->style() : QApplication::style())
+                ->drawControl(QStyle::CE_ItemViewItem, &option, painter, widget);
+            return;
+        }
         if (!table || table->fullRowHighlight() || index.column() == (primary < 0 ? 0 : primary)) {
             QStyledItemDelegate::paint(painter, option, index);
             return;
@@ -99,6 +136,6 @@ class FileRowDelegate final : public QStyledItemDelegate {
 };
 } // namespace
 
-QAbstractItemDelegate *CreateFileRowDelegate(QWidget *parent) {
-    return new FileRowDelegate(parent);
+QAbstractItemDelegate *CreateFileRowDelegate(QWidget *parent, bool workspace) {
+    return new FileRowDelegate(parent, workspace);
 }

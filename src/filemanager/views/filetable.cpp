@@ -1,4 +1,5 @@
 #include "filemanager/views/filetable.h"
+#include "filemanager/sorting/filenamesort.h"
 
 #include <QEvent>
 #include <QHeaderView>
@@ -55,6 +56,12 @@ FileTable::FileTable(int columns, QWidget *parent)
     setItemDelegate(CreateFileRowDelegate(this));
     setHorizontalHeader(new FileColumnHeader(Qt::Horizontal, this));
     horizontalHeader()->setSectionsClickable(true);
+}
+
+void FileTable::invalidateLanguageText() { model_->invalidateLanguageText(); }
+
+QString FileTable::typeLabel(const QString &name, bool) const {
+    return GetExtensionPtr(QStringView(name)).toString();
 }
 
 bool FileTable::deferSourceColumnClick(std::function<void()> action) {

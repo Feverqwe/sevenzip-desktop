@@ -12,7 +12,8 @@
 class CPanel;
 class CPropColumns;
 struct CPropColumn;
-QAbstractItemDelegate *CreateFileRowDelegate(QWidget *parent);
+class QMenu;
+QAbstractItemDelegate *CreateFileRowDelegate(QWidget *parent, bool workspace = false);
 
 class FileTable : public QTableView {
     Q_OBJECT
@@ -21,6 +22,7 @@ class FileTable : public QTableView {
     void setFullRowHighlight(bool enabled);
     void handleDefaultKeyPress(QKeyEvent *event);
     void refreshLanguageText();
+    virtual void invalidateLanguageText();
     bool fullRowHighlight() const { return fullRowHighlight_; }
     FilePanelModel *panelModel() const { return model_; }
     int rowCount() const { return model_->rowCount(); }
@@ -41,7 +43,10 @@ class FileTable : public QTableView {
     IFolderFolder *textFolder = nullptr;
     std::function<void()> dragStarter;
     void setColumnProperties(const QVector<PROPID> &properties, bool raw = false);
-    void configureSourceColumns();
+    virtual void configureSourceColumns();
+    virtual QString typeLabel(const QString &name, bool directory) const;
+    virtual void appendPresentationColumnActions(QMenu &) {}
+    virtual void sourceColumnVisibilityChanged() {}
     CPropColumns sourceColumnLayout() const;
     bool usesSourceColumns() const { return sourceColumnsBound_; }
     const CPropColumn *sourceColumn(int column) const;

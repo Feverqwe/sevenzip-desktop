@@ -1,5 +1,6 @@
 [
   {"id":"main","title":"Главное окно и меню","target":"main_shell_tests","functions":["sourcePanelChrome","toolbarCommandsFitBothSizes"]},
+  {"id":"workspace-table","title":"Таблица: выделение и текущая строка","target":"workspace_table_tests","functions":["selectionGeometry"]},
   {"id":"file-views","title":"Виды списка файлов","target":"ui_layout_tests","functions":["layoutAtSizes","iconModesKeepLabelsInsideCells"]},
   {"id":"file-colors","title":"Отмеченные и удалённые файлы","target":"panel_deleted_draw_tests","functions":["owningProviderColorsDeletedItems"]},
   {"id":"context-menu","title":"Контекстное меню","target":"source_context_menu_tests","functions":["owningPanel:0-ru-0","emptyAndParent"]},

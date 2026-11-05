@@ -13,7 +13,9 @@ void MainWindow::configureColumns() {
     fileTable->configureSourceColumns();
     updateIconColumn();
     const int sortColumn = fileTable->columnForProperty(panel.GetSortID());
-    if (sortColumn < 0 || projectedUi().table->isColumnHidden(sortColumn)) {
+    if (sortColumn < 0 ||
+        (!fileTable->sourceColumn(sortColumn) && panel.GetSortID() != kpidExtension &&
+         panel.GetSortID() != kpidNoProperty)) {
         const int fallback = panel.GetSortID() == kpidNoProperty ? 6 : 0;
         panel._sortID = fileTable->propertyId(fallback);
         panel.SetSortRawStatus();

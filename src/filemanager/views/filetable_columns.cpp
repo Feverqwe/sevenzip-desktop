@@ -30,7 +30,7 @@ void FileTable::refreshLanguageText() {
                             QCoreApplication::translate("mainwindow_language", "Parent folder"),
                             Qt::ToolTipRole);
     }
-    model_->invalidateLanguageText();
+    invalidateLanguageText();
 }
 
 void FileTable::setColumnProperties(const QVector<PROPID> &properties, bool raw) {
@@ -106,7 +106,7 @@ CPropColumns FileTable::sourceColumnLayout() const {
     int order = 0;
     for (int visual = 0; visual < header->count(); ++visual) {
         const int column = header->logicalIndex(visual);
-        if (!isColumnHidden(column))
+        if (!isColumnHidden(column) && sourceColumn(column))
             orders[column] = order++;
     }
     CPropColumns layout;

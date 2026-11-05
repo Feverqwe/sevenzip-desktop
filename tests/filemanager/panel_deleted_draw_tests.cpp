@@ -14,7 +14,6 @@ class ItemPaletteProbe final : public QProxyStyle {
   public:
     using QProxyStyle::QProxyStyle;
     mutable bool observed = false;
-    mutable QStyle::State state;
     mutable QPalette colors;
 
     void drawControl(ControlElement element, const QStyleOption *option, QPainter *painter,
@@ -22,7 +21,6 @@ class ItemPaletteProbe final : public QProxyStyle {
         if (element == CE_ItemViewItem)
             if (const auto *item = qstyleoption_cast<const QStyleOptionViewItem *>(option)) {
                 observed = true;
-                state = item->state;
                 colors = item->palette;
             }
         QProxyStyle::drawControl(element, option, painter, widget);
@@ -69,6 +67,7 @@ class PanelDeletedDrawTests final : public QObject, protected MainWindowTestSupp
             colors.setColor(QPalette::Inactive, QPalette::Highlight, QColor("#9e9e9e"));
             colors.setColor(QPalette::Disabled, QPalette::Highlight, QColor("#596577"));
             QApplication::setPalette(colors);
+            view->setPalette(colors);
             QApplication::processEvents();
             for (int row = 0; row < view->rowCount(); ++row) {
                 const auto index = view->model()->index(row, 0);
@@ -92,17 +91,27 @@ class PanelDeletedDrawTests final : public QObject, protected MainWindowTestSupp
                 QPainter painter(&image);
                 view->itemDelegate()->paint(&painter, option, index);
                 painter.end();
-                QVERIFY(style->observed && style->state.testFlag(QStyle::State_Selected));
+                QVERIFY(style->observed);
                 // Contrast applies to the chosen style colors. Antialiased glyph
                 // edges blend with the background; normal rendering is checked below.
                 for (const auto group :
                      {QPalette::Active, QPalette::Inactive, QPalette::Disabled}) {
-                    const QColor text = style->colors.color(group, QPalette::HighlightedText);
-                    const QColor background = style->colors.color(group, QPalette::Highlight);
+                    const QColor text = style->colors.color(group, QPalette::Text);
+                    const QColor background = view->palette().color(group, QPalette::Highlight);
                     QVERIFY(text.red() > text.green());
                     QVERIFY2(textContrast(text, background) >= 4.5,
                              qPrintable(text.name() + " on " + background.name()));
                 }
+                const auto middle = image.height() / 2;
+                QCOMPARE(image.pixelColor(image.width() - 2, middle).rgba(),
+                         view->palette().color(QPalette::Highlight).rgba());
+                option.state &= ~QStyle::State_Selected;
+                image.fill(Qt::transparent);
+                QPainter resting(&image);
+                view->itemDelegate()->paint(&resting, option, index);
+                resting.end();
+                QCOMPARE(image.pixelColor(0, middle).rgba(), mark.rgba());
+                QCOMPARE(image.pixelColor(image.width() - 2, middle).rgba(), mark.rgba());
             }
         }
     }
@@ -149,8 +158,9 @@ class PanelDeletedDrawTests final : public QObject, protected MainWindowTestSupp
         auto *ui = window.findChild<QWidget *>(QString("filePanel%1").arg(pane));
         auto *view = static_cast<FileTable *>(ui->findChild<FileTable *>("archiveTable"));
         auto *iconView = ui->findChild<QListView *>("iconList");
-        auto *address = ui->findChild<QLineEdit *>("archivePath");
-        address->setFocus();
+        auto *navigation = ui->findChild<QWidget *>(QString("panelNavigation%1").arg(pane));
+        QVERIFY(navigation);
+        view->setFocus();
         action(window, "openRootAction")->trigger();
         if (icons)
             action(window, "viewMode0Action")->trigger();
@@ -225,7 +235,7 @@ class PanelDeletedDrawTests final : public QObject, protected MainWindowTestSupp
             QWidget &visibleView =
                 icons ? static_cast<QWidget &>(*iconView) : static_cast<QWidget &>(*view);
             QVERIFY(UiInspection::fullyVisible(visibleView, window));
-            QVERIFY(UiInspection::fullyVisible(*address, window));
+            QVERIFY(UiInspection::fullyVisible(*navigation, window));
             QVERIFY(UiInspection::writeReport(
                 window,
                 QString("deleted-draw-%1-%2").arg(QTest::currentDataTag()).arg(size.width())));

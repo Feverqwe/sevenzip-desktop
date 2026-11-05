@@ -1828,6 +1828,8 @@
     "src/filemanager/views/qtfilelisthover.h",
     "src/filemanager/views/qtlistview.cpp",
     "src/filemanager/views/qtlistview.h",
+    "src/filemanager/views/qtworkspacefiletable.cpp",
+    "src/filemanager/views/qtworkspacefiletable.h",
     "src/filemanager/window/mainwindow.cpp",
     "src/filemanager/window/mainwindow.h",
     "src/filemanager/window/mainwindow_archive_transfer.cpp",

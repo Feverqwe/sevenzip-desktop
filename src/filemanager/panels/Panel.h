@@ -647,6 +647,11 @@ class CPanel : public QObject {
     void SaveListViewInfo(const CPropColumns &visibleColumns);
     const CPropColumns &GetColumns() const { return _columns; }
     const CPropColumns &GetVisibleColumns() const { return _visibleColumns; }
+    bool HasSavedColumnLayout() const { return _listViewInfo.IsLoaded; }
+    void
+    AttachColumnDefaultsPresentation(std::function<void(const CPanel &, CPropColumns &)> defaults) {
+        _columnDefaultsPresentation = std::move(defaults);
+    }
     QString GetItemText(UInt32 itemIndex, const CPropColumn &property) const;
     bool IsItem_AltStream(unsigned itemIndex) const;
     HRESULT RefreshListCtrl(const CSelectedState &state);
@@ -732,6 +737,7 @@ class CPanel : public QObject {
     bool _needSaveInfo = false;
     UString _typeIDString;
     CListViewInfo _listViewInfo;
+    std::function<void(const CPanel &, CPropColumns &)> _columnDefaultsPresentation;
     CPropColumns _columns;
     CPropColumns _visibleColumns;
 

@@ -189,6 +189,16 @@ to file areas, excluding the shared places width. Status belongs below each file
 area. Restoring geometry precedes restoring its split so resizing retains the
 user's file-area proportions.
 
+The workspace table owns adaptive presentation, descriptive file types and the
+current-row outline through the existing model and row delegate. Native column
+catalogs, sorting and saved layouts remain authoritative. Initial file views use
+Name, Size, Type and Modified; provider-specific metadata remains available from
+the header menu. Presentation preferences extend native settings without adding
+synthetic columns to the native column order. Type descriptions use Qt's filename
+metadata; they do not probe file contents or implement format recognition.
+Qt MIME descriptions follow the system's available language metadata; application
+translations own the column heading and fallback descriptions.
+
 List mode, Flat View and sort preferences stay with the source panel. Qt reads
 them when presenting controls, changing columns or returning from another panel's
 callback; it does not retain a second mutable copy of those preferences. Archive

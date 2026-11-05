@@ -85,7 +85,8 @@ void header(QWidget &header) {
     header.setStyleSheet(
         QStringLiteral("QHeaderView { background:%1; }"
                        "QHeaderView::section { background:%1; color:%2; border:0;"
-                       "border-bottom:1px solid %3; padding:0 12px; font-weight:400; }")
+                       "border-bottom:1px solid %3; padding:0 12px; font-weight:400; }"
+                       "QHeaderView::section:first { padding-left:16px; }")
             .arg(c.secondary.name(), c.subtle.name(), c.stroke.name()));
     if (auto *view = qobject_cast<QHeaderView *>(&header)) {
         view->setDefaultAlignment(Qt::AlignLeft | Qt::AlignVCenter);

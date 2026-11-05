@@ -81,6 +81,12 @@
     target_link_libraries(panel_columns_tests PRIVATE sevenzip_location sevenzip_folder_loader Qt6::Test)
 
     add_test(NAME panel_columns COMMAND panel_columns_tests -silent)
+    qt_add_executable(workspace_table_tests tests/filemanager/workspace_table_tests.cpp)
+    target_link_libraries(workspace_table_tests PRIVATE sevenzip_layout_inspection sevenzip_window Qt6::Test)
+    target_include_directories(workspace_table_tests PRIVATE src tests)
+    add_test(NAME workspace_table COMMAND workspace_table_tests -silent)
+    set_tests_properties(workspace_table PROPERTIES TIMEOUT 30 ENVIRONMENT
+        "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/workspace-table.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
     qt_add_executable(panel_column_schema_tests tests/filemanager/panel_column_schema_tests.cpp tests/archive/support/schema_folder.cpp)
     target_link_libraries(panel_column_schema_tests PRIVATE sevenzip_layout_inspection sevenzip_panel_load_fixture)
     target_link_libraries(panel_column_schema_tests PRIVATE sevenzip_window)

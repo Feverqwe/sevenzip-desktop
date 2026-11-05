@@ -1,6 +1,7 @@
 #include "filemanager/window/qtapppresentation.h"
 #include "filemanager/qtfilemanagerdrag.h"
 #include "filemanager/views/qtfilelisthover.h"
+#include "filemanager/views/qtworkspacefiletable.h"
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtfileclipboard.h"
 #include "filemanager/window/qtnavigationbar.h"
@@ -57,6 +58,7 @@ bool QtAppPresentation::CreatePanel(CPanel &panel, unsigned index) {
     const unsigned previous = window_.projectedPanel_;
     const bool hadPrevious = window_.panelUi_[previous].container;
     window_.projectedPanel_ = index;
+    panel.AttachColumnDefaultsPresentation(QtWorkspaceFileTable::DefaultColumns);
     window_.app_.SetFocusedPanel(index);
     if (!window_.panelUi_[index].filesystemScanner)
         window_.connectFilesystemScanner(index);

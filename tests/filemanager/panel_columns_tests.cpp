@@ -230,14 +230,17 @@ class PanelColumnsTests final : public QObject, protected MainWindowTestSupport 
             QVERIFY(accessTimeColumn >= 0);
             QVERIFY(createdTimeColumn >= 0);
             QVERIFY(files->isColumnHidden(accessTimeColumn));
-            QVERIFY(!files->isColumnHidden(createdTimeColumn));
             accessTimeLabel =
                 files->model()->headerData(accessTimeColumn, Qt::Horizontal).toString();
             QTimer::singleShot(0, [&] {
                 auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
                 QVERIFY(menu);
                 for (QAction *option : menu->actions())
-                    if (option->text() == accessTimeLabel)
+                    if (!option->isChecked() &&
+                        (option->text() == accessTimeLabel ||
+                         option->text() == files->model()
+                                               ->headerData(createdTimeColumn, Qt::Horizontal)
+                                               .toString()))
                         option->trigger();
                 menu->close();
             });
@@ -321,6 +324,18 @@ class PanelColumnsTests final : public QObject, protected MainWindowTestSupport 
                           {{QStringLiteral("архив/файл с пробелом.txt"), 45, 18}});
         const int packedSize = files->columnForProperty(kpidPackSize);
         QVERIFY(packedSize >= 0);
+        QTimer::singleShot(0, [&] {
+            auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
+            QVERIFY(menu);
+            for (QAction *option : menu->actions())
+                if (!option->isChecked() &&
+                    option->text() ==
+                        files->model()->headerData(packedSize, Qt::Horizontal).toString())
+                    option->trigger();
+            menu->close();
+        });
+        QVERIFY(QMetaObject::invokeMethod(header, "customContextMenuRequested",
+                                          Qt::DirectConnection, Q_ARG(QPoint, QPoint(10, 5))));
         QVERIFY(!files->isColumnHidden(packedSize));
         QVERIFY(files->columnForProperty(kpidNumSubFiles) >= 0);
         auto *address = window.findChild<QLineEdit *>("archivePath");

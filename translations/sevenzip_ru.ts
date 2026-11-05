@@ -7286,4 +7286,12 @@ Check that your distribution's CIFS support and cifs-utils are installed.</sourc
         <translation>Создать</translation>
     </message>
 </context>
+<context>
+    <name>QtWorkspaceFileTable</name>
+    <message><source>Text document</source><translation>Текстовый файл</translation></message>
+    <message><source>%1 file</source><translation>Файл %1</translation></message>
+    <message><source>Type</source><translation>Тип</translation></message>
+    <message><source>Folder</source><translation>Папка</translation></message>
+    <message><source>File</source><translation>Файл</translation></message>
+</context>
 </TS>

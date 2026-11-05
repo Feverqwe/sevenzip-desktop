@@ -1,5 +1,6 @@
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
+#include "filemanager/window/qtnavigationbar.h"
 #include "localization/LangUtils.h"
 #include "ui/support/layout_inspection.h"
 #include <QHeaderView>
@@ -50,16 +51,21 @@ class PanelSortCommandsTests final : public QObject, protected MainWindowTestSup
         action(window, "twoPanelsAction")->trigger();
         QList<FileTable *> views;
         QList<QLineEdit *> addresses;
+        QList<QtNavigationBar *> navigation;
         for (unsigned index = 0; index < 2; ++index) {
             auto *pane = window.findChild<QWidget *>(QString("filePanel%1").arg(index));
             QVERIFY(pane);
             views.append(static_cast<FileTable *>(pane->findChild<FileTable *>("archiveTable")));
             addresses.append(pane->findChild<QLineEdit *>("archivePath"));
+            navigation.append(static_cast<QtNavigationBar *>(
+                pane->findChild<QWidget *>(QString("panelNavigation%1").arg(index))));
+            QVERIFY(navigation.back());
+            navigation.back()->Edit();
             addresses.back()->setFocus();
             addresses.back()->setText(fixture.path());
             QTest::keyClick(addresses.back(), Qt::Key_Return);
         }
-        addresses[0]->setFocus();
+        navigation[0]->Edit();
         const PROPID peerSort = views[0]->sourcePanel->_sortID;
         const bool peerAscending = views[0]->sourcePanel->_ascending;
         QVERIFY(action(window, "sort0Action")->isChecked());
@@ -73,12 +79,12 @@ class PanelSortCommandsTests final : public QObject, protected MainWindowTestSup
         QVERIFY(addresses[0]->hasFocus());
         QVERIFY(action(window, "sort0Action")->isChecked());
         action(window, "viewMode2Action")->trigger();
-        addresses[1]->setFocus();
+        navigation[1]->Edit();
         QTRY_VERIFY(addresses[1]->hasFocus());
         QVERIFY(action(window, "sort3Action")->isChecked());
         QVERIFY(action(window, "viewMode3Action")->isChecked());
         action(window, "viewMode0Action")->trigger();
-        addresses[0]->setFocus();
+        navigation[0]->Edit();
         QTRY_VERIFY(addresses[0]->hasFocus());
         QVERIFY(action(window, "sort0Action")->isChecked());
         QVERIFY(action(window, "viewMode2Action")->isChecked());

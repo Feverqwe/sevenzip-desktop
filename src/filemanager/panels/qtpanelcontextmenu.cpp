@@ -75,6 +75,7 @@ void QtPanelContextMenu::ShowColumnsContextMenu(int x, int y) {
                     else if (removed >= 0)
                         table->removeSourceColumn(unsigned(removed));
                 }
+                table->sourceColumnVisibilityChanged();
                 window.updateIconColumn();
                 const int column = table->columnForProperty(panel._sortID);
                 const Qt::SortOrder order =
@@ -86,6 +87,7 @@ void QtPanelContextMenu::ShowColumnsContextMenu(int x, int y) {
                 window.saveColumns();
             });
     }
+    table->appendPresentationColumnActions(menu);
     menu.exec(QPoint(x, y));
 }
 bool QtPanelContextMenu::GetItemRect(int index, QRect &rect) const {

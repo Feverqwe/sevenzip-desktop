@@ -154,11 +154,7 @@ void CFmSettings::Save(const QString &settingsPath) const {
 void CFmSettings::Load(const QString &settingsPath) {
     ShowDots = false;
     ShowRealFileIcons = false;
-    /* if (FullRow == false), we can use mouse click on another columns
-       to select group of files. We need to implement additional
-       way to select files in any column as in Explorer.
-       Then we can enable (FullRow == true) default mode. */
-    FullRow = false;
+    FullRow = true;
     ShowGrid = false;
     SingleClick = false;
     AlternativeSelection = false;

@@ -26,6 +26,19 @@
   перенос между окнами; завершение inactive источника не перезаписывает peer UI.
 - `resource.rc`, `MyLoadMenu.cpp`: command IDs/dispatch сохранены. Группировка
   меню, убранная главная Help UI и файловая toolbar — запрошенная адаптация.
+- `PanelColumns.cpp`, `PanelItems.cpp`, `RegistryUtils.cpp`: сверены полные
+  native каталог, загрузка/сохранение раскладки, sort/extension и FullRow
+  ветви с callers. Начальные видимость и ширина файловых колонок применяются
+  Qt callback после построения полного каталога и до существующей обработки
+  сохранённой раскладки. Callback не меняет идентичности, порядок и raw свойства.
+  Сохранённая раскладка и явно сохранённый FullRow имеют приоритет; обычное
+  выделение всей строки стало начальным выбором. Native сортировка по доступному
+  свойству сохраняется и при скрытой колонке; исчезнувшее из native binding
+  свойство получает прежний fallback. Extension и исходный порядок остаются
+  допустимыми synthetic sort keys. Qt-подпись
+  типа использует только filename metadata и не заменяет native сортировку
+  либо reader. Исходный формат native сохранения не расширен синтетическими
+  колонками; их presentation preferences имеют отдельного Qt владельца.
 
 Навигация, вложенные archive parents, CopyTo, валидация extraction paths,
 ограниченное чтение, пароли, update/reopen и отмена остаются у существующих
@@ -95,6 +108,26 @@ main shell, workspace navigation, root navigation и placement. Все PASS.
 две файловые области при 640×400 имеют 246/246 логических пикселей;
 grip Return не запускает Rename, status находится под списками.
 
+Следующий проход выделяет общий компонент `QtWorkspaceFileTable` и использует
+существующий row delegate для presentation. Начальная файловая раскладка стала
+Name/Size/Type/Modified, с приоритетом пользовательских native настроек.
+Исправлены восстановление Type после скрытия native колонки, сохранение сортировки
+скрытого свойства, fallback при исчезновении свойства из provider и current outline
+при горизонтальной прокрутке. FullRow=false сохранён. Marked и selected различимы;
+фон рисуется до отступов контента, а deleted text сохраняет контраст в active,
+inactive и disabled палитрах. Отсутствующий native каталог скрывает заголовок.
+Linux x86_64: 12 focused suites (таблица, native columns/schema/changes,
+sort/commands, deleted draw, list settings, main shell и workspace3) — PASS.
+macOS arm64: шесть focused CTest suites (таблица, columns/changes, deleted draw,
+sort commands и main shell) — PASS, offscreen QPA.
+Native Cocoa EN/RU light/dark normal/compact review обычной таблицы обновлён;
+геометрия selection/current/inactive дополнительно проверена offscreen.
+Native focus acceptance пока не получена: AppKit сообщил переднее приложение
+`com.apple.loginwindow`, видимое/exposed окно не стало active. Эксперименты с
+активацией удалены; продукт не содержит обхода блокировки рабочего стола.
+MIME-комментарии Qt могут иметь язык системы; собственные заголовки и fallback
+строки переводятся приложением. Windows новым проходом не проверялся.
+
 Source scope и runtime evidence учитываются отдельно. Focused workspace suites
 проверяют возврат выбора вкладки, перенос живого источника после уничтожения
 исходного окна/backend, реальные clipboard bytes, сессию нескольких окон,
@@ -111,8 +144,10 @@ external edit, Copy routing, archive states и operations — PASS. После �
 уточнений повторяются затронутые suites, а не весь набор. macOS arm64 — PASS:
 workspace, source process/clipboard, commands и language consumers; Cocoa review
 покрывает EN/RU, light/dark, 980×620/640×400, одну/две панели и несколько вкладок.
-Windows x86_64 — PASS: native QPA и интерактивный desktop для clipboard,
-workspace lifecycle, shell и shortcuts. Заключительные workspace reruns на всех
+Windows x86_64 — PASS: interactive runner для workspace lifecycle, shell,
+clipboard scenarios и shortcuts; зарегистрированные CTest suites используют
+offscreen QPA, поэтому эти результаты не подтверждают native Qt focus/clipboard.
+Заключительные workspace reruns на всех
 трёх ОС включают отказ закрытия исходного окна, повторное открытие закрытой панели,
 дубликаты избранного и недоступное место через session/favorites/new window.
 Финальный macOS bundle собран, изолированный startup smoke завершился успешно.

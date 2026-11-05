@@ -117,6 +117,8 @@ HRESULT CPanel::InitColumns() {
             _columns.Add(prop);
         }
     }
+    if (!_listViewInfo.IsLoaded && _columnDefaultsPresentation)
+        _columnDefaultsPresentation(*this, _columns);
     unsigned order = 0;
     unsigned i;
     for (i = 0; i < _listViewInfo.Columns.Size(); i++) {
