@@ -12,10 +12,17 @@ class CListView : public QTreeWidget {
     explicit CListView(QWidget *parent);
     // Qt adapters for LVS_EX_ONECLICKACTIVATE | LVS_EX_TRACKSELECT.
     void SetSingleClickActivation(bool enabled);
-    void InsertItem(unsigned index, const UString &s) {
+    void InsertColumn(unsigned column, const wchar_t *text, int width) {
+        if (columnCount() <= int(column))
+            setColumnCount(int(column) + 1);
+        headerItem()->setText(int(column), QString::fromWCharArray(text));
+        setColumnWidth(int(column), width);
+    }
+    int InsertItem(unsigned index, const UString &s) {
         auto *item = new QTreeWidgetItem;
         item->setText(0, ToQString(s));
         insertTopLevelItem((int)index, item);
+        return indexOfTopLevelItem(topLevelItem(int(index)));
     }
     void SetSubItem(unsigned index, int column, const UString &s) {
         topLevelItem((int)index)->setText(column, ToQString(s));

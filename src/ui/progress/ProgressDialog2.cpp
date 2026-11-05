@@ -123,8 +123,8 @@ void CProgressDialog::AddMessageDirect(const wchar_t *message, bool needNumber) 
     if (needNumber)
         ConvertUInt32ToString(_numMessages + 1, sz);
     const unsigned itemIndex = _messageStrings.Size();
-    if (_messageList.InsertItem(itemIndex, sz) == (int)itemIndex) {
-        _messageList.SetSubItem(itemIndex, 1, message);
+    if (_messageList->InsertItem(itemIndex, sz) == (int)itemIndex) {
+        _messageList->SetSubItem(itemIndex, 1, message);
         _messageStrings.Add(message);
     }
 }
@@ -162,14 +162,14 @@ void CProgressDialog::UpdateMessagesDialog() {
         if (_numPostedMessages < 1000000 || _numAutoSizeMessages < 100)
             if (_numAutoSizeMessages < 100 ||
                 GetNumDigits(_numPostedMessages) > GetNumDigits(_numAutoSizeMessages)) {
-                _messageList.SetColumnWidthAuto(0);
-                _messageList.SetColumnWidthAuto(1);
+                _messageList->SetColumnWidthAuto(0);
+                _messageList->SetColumnWidthAuto(1);
                 _numAutoSizeMessages = _numPostedMessages;
             }
     }
 }
 
-static void ListView_GetSelected(CQtProgressListView &listView, CUIntVector &vector) {
+static void ListView_GetSelected(CListView &listView, CUIntVector &vector) {
     vector.Clear();
     int index = -1;
     for (;;) {
@@ -182,11 +182,11 @@ static void ListView_GetSelected(CQtProgressListView &listView, CUIntVector &vec
 
 void CProgressDialog::CopyToClipboard() {
     CUIntVector indexes;
-    ListView_GetSelected(_messageList, indexes);
+    ListView_GetSelected(*_messageList, indexes);
     UString s;
     unsigned numIndexes = indexes.Size();
     if (numIndexes == 0)
-        numIndexes = (unsigned)_messageList.GetItemCount();
+        numIndexes = (unsigned)_messageList->topLevelItemCount();
     for (unsigned i = 0; i < numIndexes; i++) {
         const unsigned index = (i < indexes.Size() ? indexes[i] : i);
         s += _messageStrings[index];

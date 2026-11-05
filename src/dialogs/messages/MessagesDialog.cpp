@@ -16,11 +16,11 @@
 #include <QVBoxLayout>
 
 void CMessagesDialog::AddMessageDirect(const wchar_t *message) {
-    const unsigned i = unsigned(_messageList.GetItemCount());
+    const unsigned i = unsigned(_list->topLevelItemCount());
     wchar_t sz[16];
     ConvertUInt32ToString(i, sz);
-    _messageList.InsertItem(i, sz);
-    _messageList.SetSubItem(i, 1, message);
+    _list->InsertItem(i, sz);
+    _list->SetSubItem(i, 1, message);
 }
 
 void CMessagesDialog::AddMessage(const wchar_t *message) {
@@ -41,8 +41,8 @@ void CMessagesDialog::OnInit() {
         FOR_VECTOR(i, *Messages)
     AddMessage((*Messages)[i]);
 
-    _messageList.SetColumnWidthAuto(0);
-    _messageList.SetColumnWidthAuto(1);
+    _list->SetColumnWidthAuto(0);
+    _list->SetColumnWidthAuto(1);
     QtNormalizeDialogSize(*this);
 }
 
@@ -56,9 +56,8 @@ CMessagesDialog::CMessagesDialog(QWidget *parent) : QDialog(parent) {
     _list->setObjectName("IDL_MESSAGE");
     _list->setColumnCount(2);
     _list->setHeaderHidden(false);
-    _messageList.Attach(_list);
-    _messageList.InsertColumn(0, L"", 30);
-    _messageList.InsertColumn(1, LangString(IDS_MESSAGE), 600);
+    _list->InsertColumn(0, L"", 30);
+    _list->InsertColumn(1, LangString(IDS_MESSAGE), 600);
     _close = new QPushButton(this);
     QtBindResourceText(_close, IDS_CLOSE, "&Close");
     _close->setObjectName("IDOK");

@@ -20,6 +20,7 @@
 #include "ui/progress/qttaskbarprogress.h"
 #endif
 
+class CListView;
 void GetTimeString(UInt64 timeValue, wchar_t *s);
 UString HResultToMessage(HRESULT errorCode);
 
@@ -78,7 +79,7 @@ class CProgressDialog : public CQtProgressDialog {
     UInt64 _progressBar_Pos;
     UInt64 _progressBar_Range;
     CQtProgressBar m_ProgressBar;
-    CQtProgressListView _messageList;
+    CListView *_messageList = nullptr;
     UStringVector _messageStrings;
 #ifdef _WIN32
     CMyComPtr<ITaskbarList3> _taskbarList;
