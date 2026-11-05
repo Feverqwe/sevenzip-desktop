@@ -1,5 +1,28 @@
 # Split/Combine plan ownership — 2026-11-01
 
+## One owned path per output through publication — 2026-11-05
+
+Reviewed the full Split/Combine plan, worker, progress, input checks, transaction
+and panel completion path against the original PanelSplitFile workers at
+`b88c6bc09339de32f7d18bbab900686b244f42ba`. The complete original unit matches
+its existing baseline. Native sequence, discovery, preallocation and I/O bodies
+are unchanged; no source import or revision changes.
+
+Each transaction output now retains its current owned path. It starts with the
+private stage and switches to the target after successful no-overwrite rename.
+Rollback removes that path directly, replacing separate staged cleanup and
+published-prefix bookkeeping. A completed publication releases all records,
+so no separate commit flag is needed. Registration still precedes file creation,
+and failed creation retires its record. QString path assignment shares existing
+storage, without allocating after publication. Target admission, publication
+order, failure paths, input consistency and cancellation retain their behavior.
+
+Existing late-collision coverage observes rollback of a published prefix while
+preserving the other owner's bytes and removing every remaining stage. Round-trip,
+cancellation, changed/missing inputs and workflow checks cover both operations.
+No test requires the old counter/flag representation or the cleanup order of
+independent files. Native adapters, modal ownership and UI layout are unchanged.
+
 ## One panel owner spans the modal plan and worker — 2026-11-05
 
 Compared complete native Split/Combine command bodies, plans/workers,

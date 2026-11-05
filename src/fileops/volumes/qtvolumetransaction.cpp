@@ -7,12 +7,8 @@
 #include <QUuid>
 
 QtVolumeTransaction::~QtVolumeTransaction() {
-    if (committed_)
-        return;
     for (const auto &output : outputs_)
-        QFile::remove(output.staged);
-    for (qsizetype i = 0; i < publishedCount_; ++i)
-        QFile::remove(outputs_[i].target);
+        QFile::remove(output.ownedPath);
 }
 
 bool QtVolumeTransaction::create(NWindows::NFile::NIO::COutFile &file, const FString &target) {
@@ -35,15 +31,15 @@ bool QtVolumeTransaction::create(NWindows::NFile::NIO::COutFile &file, const FSt
 }
 
 bool QtVolumeTransaction::publish() {
-    for (const auto &output : outputs_) {
+    for (auto &output : outputs_) {
         const QString &target = output.target;
         if (QFileInfo::exists(target) || QFileInfo(target).isSymLink() ||
-            !QFile::rename(output.staged, target)) {
+            !QFile::rename(output.ownedPath, target)) {
             failedPath_ = target;
             return false;
         }
-        ++publishedCount_;
+        output.ownedPath = target;
     }
-    committed_ = true;
+    outputs_.clear();
     return true;
 }

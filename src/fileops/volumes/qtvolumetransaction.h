@@ -9,11 +9,9 @@
 class QtVolumeTransaction final {
     struct Output {
         QString target;
-        QString staged;
+        QString ownedPath;
     };
     QList<Output> outputs_;
-    qsizetype publishedCount_ = 0;
-    bool committed_ = false;
     QString failedPath_;
 
   public:
