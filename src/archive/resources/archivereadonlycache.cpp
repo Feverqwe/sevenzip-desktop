@@ -122,9 +122,14 @@ HRESULT ArchiveReadOnlyView::State::materialize(quint64 id, const CMyComPtr<IPro
     }
     const QString path = Directory->filePath(QString::number(id));
     QtArchiveReadOperation operation(Reader, Password.toQString());
-    auto removeUncachedOutput = qScopeGuard([&] {
-        if (operation.OutputCreated)
-            QFile::remove(path);
+    auto releaseUncachedOutput = qScopeGuard([&] {
+        if (operation.OutputCreated) {
+            item.Path = path;
+            // Reserve the bounded output until release actually removes it.
+            item.Bytes = size;
+            Cached += item.Bytes;
+            release(item);
+        }
     });
     operation.Output.NativeIndex = item.Index;
     operation.Output.Path = path;
@@ -170,10 +175,10 @@ HRESULT ArchiveReadOnlyView::State::materialize(quint64 id, const CMyComPtr<IPro
     item.Path = path;
     item.Bytes = quint64(actual);
     item.Operation = operation.OutputOperation;
-    describe(item, result);
     Cached += item.Bytes;
     ++Active;
-    removeUncachedOutput.dismiss();
+    releaseUncachedOutput.dismiss();
+    describe(item, result);
     return S_OK;
 }
 
