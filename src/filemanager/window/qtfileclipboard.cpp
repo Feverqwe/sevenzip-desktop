@@ -7,6 +7,20 @@
 #include <QScopedValueRollback>
 #include <QtEndian>
 
+namespace {
+bool ClipboardMovesFiles(const QMimeData &mime) {
+    bool move = mime.data("application/x-kde-cutselection") == "1" ||
+                mime.data("x-special/gnome-copied-files").startsWith("cut\n");
+#ifdef Q_OS_WIN
+    const QByteArray preferred =
+        mime.data("application/x-qt-windows-mime;value=\"Preferred DropEffect\"");
+    if (preferred.size() == 4)
+        move |= qFromLittleEndian<quint32>(preferred.constData()) == 2;
+#endif
+    return move;
+}
+} // namespace
+
 QtFileClipboard::QtFileClipboard(MainWindow &window) : QObject(&window), window_(window) {
     cut = new QAction(tr("Cut"), this);
     copy = new QAction(tr("Copy"), this);
@@ -20,8 +34,10 @@ QtFileClipboard::QtFileClipboard(MainWindow &window) : QObject(&window), window_
     connect(cut, &QAction::triggered, this, [this] { Copy(true); });
     connect(copy, &QAction::triggered, this, [this] { Copy(false); });
     connect(paste, &QAction::triggered, this, &QtFileClipboard::Paste);
-    connect(QApplication::clipboard(), &QClipboard::dataChanged, this,
-            [this] { window_.refreshActions(); });
+    connect(QApplication::clipboard(), &QClipboard::dataChanged, this, [this] {
+        cutDirty_ = true;
+        window_.refreshActions();
+    });
 }
 
 QtFileClipboard::Availability QtFileClipboard::AvailabilityForPanel(unsigned panel) const {
@@ -45,6 +61,23 @@ QtFileClipboard::Availability QtFileClipboard::AvailabilityForPanel(unsigned pan
 }
 
 void QtFileClipboard::Refresh() {
+    if (cutDirty_) {
+        cutDirty_ = false;
+        cutPaths_.clear();
+        const auto *mime = QApplication::clipboard()->mimeData();
+        if (mime && ClipboardMovesFiles(*mime))
+            for (const auto &url : mime->urls()) {
+                if (!url.isLocalFile()) {
+                    cutPaths_.clear();
+                    break;
+                }
+                cutPaths_.insert(QDir::cleanPath(QDir::fromNativeSeparators(url.toLocalFile())));
+            }
+    }
+    // Hidden tabs retain their model; every window observes clipboard changes.
+    // New/restored models receive the same snapshot at their next publication.
+    for (auto *table : window_.findChildren<FileTable *>())
+        table->panelModel()->setCutPaths(cutPaths_);
     const auto available = AvailabilityForPanel(window_.projectedPanel_);
     copy->setEnabled(available.copy);
     cut->setEnabled(available.cut);
@@ -125,14 +158,7 @@ void QtFileClipboard::Paste() {
             return;
         paths.append(url.toLocalFile());
     }
-    bool move = mime->data("application/x-kde-cutselection") == "1" ||
-                mime->data("x-special/gnome-copied-files").startsWith("cut\n");
-#ifdef Q_OS_WIN
-    const QByteArray preferred =
-        mime->data("application/x-qt-windows-mime;value=\"Preferred DropEffect\"");
-    if (preferred.size() == 4)
-        move |= qFromLittleEndian<quint32>(preferred.constData()) == 2;
-#endif
+    const bool move = ClipboardMovesFiles(*mime);
     if (paths.isEmpty())
         return;
     // Existing transfer owns collisions, path validation, cancellation,

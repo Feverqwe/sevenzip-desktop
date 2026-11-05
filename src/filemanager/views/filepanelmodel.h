@@ -3,6 +3,7 @@
 #include <QAbstractTableModel>
 #include <QHash>
 #include <QIcon>
+#include <QSet>
 #include <QVector>
 #include <optional>
 
@@ -25,6 +26,7 @@ class FilePanelModel final : public QAbstractTableModel {
         QString toolTip;
         QIcon icon;
         bool directory = false;
+        bool filesystem = false;
         bool marked = false;
         bool dropHighlighted = false;
         std::optional<QString> editName;
@@ -48,10 +50,12 @@ class FilePanelModel final : public QAbstractTableModel {
     void setColumns(const QStringList &labels);
     void invalidateText(int column = -1);
     void invalidateLanguageText();
+    void setCutPaths(const QSet<QString> &paths);
 
   private:
     FileTable &view_;
     QVector<Row> rows_;
     QStringList labels_;
+    QSet<QString> cutPaths_;
     quint64 languageGeneration_ = 0;
 };

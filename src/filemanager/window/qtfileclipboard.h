@@ -1,6 +1,7 @@
 #pragma once
 #include <QCoreApplication>
 #include <QObject>
+#include <QSet>
 
 class MainWindow;
 class QAction;
@@ -22,4 +23,6 @@ class QtFileClipboard final : public QObject {
 
   private:
     MainWindow &window_;
+    QSet<QString> cutPaths_;
+    bool cutDirty_ = true;
 };

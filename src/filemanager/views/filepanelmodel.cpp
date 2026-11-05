@@ -5,6 +5,7 @@
 #include "filemanager/views/filetable.h"
 #include "ui/theme/qtsemanticcolors.h"
 #include <QBrush>
+#include <QDir>
 #include <QMimeData>
 #include <QSet>
 #include <QUrl>
@@ -12,6 +13,15 @@
 #include <numeric>
 
 FilePanelModel::FilePanelModel(FileTable &view) : QAbstractTableModel(&view), view_(view) {}
+
+void FilePanelModel::setCutPaths(const QSet<QString> &paths) {
+    if (paths == cutPaths_)
+        return;
+    cutPaths_ = paths;
+    if (!rows_.isEmpty() && !labels_.isEmpty())
+        emit dataChanged(index(0, 0), index(rows_.size() - 1, labels_.size() - 1),
+                         {QtPanelList::CutRole});
+}
 int FilePanelModel::rowCount(const QModelIndex &parent) const {
     return parent.isValid() ? 0 : rows_.size();
 }
@@ -44,6 +54,11 @@ QVariant FilePanelModel::data(const QModelIndex &index, int role) const {
         return row.dropHighlighted;
     case QtPanelList::MarkedRole:
         return row.marked;
+    case QtPanelList::CutRole:
+        // Match the concrete filesystem entry, including a symlink itself.
+        // Container entry paths and the synthetic parent have different identities.
+        return !parent && row.filesystem &&
+               cutPaths_.contains(QDir::cleanPath(QDir::fromNativeSeparators(row.operationPath)));
     case Qt::ToolTipRole:
         if (column == 5 && !parent)
             return view_.typeLabel(row.name, row.directory);

@@ -105,6 +105,42 @@ Linux offscreen — remembered focus после деактивации мода�
 Эти свидетельства относятся к LocationBar, не устанавливают полную визуальную
 приёмку всех компонентов главного окна.
 
+## FileRow/Icon: общее состояние записи — 2026-11-05
+
+Перед подключением Cut повторно сверены существующие native GetFilePaths,
+GetFsPath, Add_ItemRelPath2_To_String/GetItemRelPath2, filesystem publication и
+общая Qt selection/model binding. Алгоритмы путей и операций не заменяются:
+filesystem row получает операционный путь через тот же GetFilePaths, что Copy/Cut,
+сохраняя directory symlink alias отдельно от canonical display directory.
+Новые filesystem/Cut признаки — project-owned presentation; внешнего импорта нет.
+
+QtFileClipboard использует общий decoder GNOME/KDE/Windows Move hints для Paste
+и Cut snapshot. Смена clipboard обновляет модели существующих окон и скрытых
+вкладок; новая модель получает актуальный snapshot при публикации. CutRole читает
+только опубликованные row values, исключая parent/container entries. Paint не
+обращается к provider или filesystem для определения Cut. Исходная selection,
+rename, drag/drop и операция Move остаются у прежних владельцев.
+
+Общий FileRowDelegate отделяет content dimming от selection/marked/drop fill и
+current outline. Текущий item определяется записью, а не колонкой QModelIndex.
+Крупный вид сохраняет native иконки и Qt layout text/decoration, увеличивая
+изображение и оставляя две строки активного шрифта. macOS-адаптация повторяет
+состав каталога: нейтральная область изображения, акцентная подпись selected и
+рамка current вокруг изображения. Остальные виды используют общий row/tile
+контракт. Новые rendering helpers — Qt-интеграция проекта, не копия private Qt.
+
+Focused Linux-проход проверил shared states, table layout, native Move Cancel/success,
+normal/compact/font icon geometry и marked/deleted draw. macOS offscreen нашёл
+потерю красного deleted-emphasis на акцентной selected caption; для source-colored
+caption сохранён читаемый оттенок через более мягкий selection background.
+После исправления color/state проверки прошли. Диагностический рендер длинной
+подписи нашёл третью обрезанную строку; ограничение text layout двумя строками
+проверено повторно. Native Cocoa light/dark normal/compact снимки таблицы и значков
+сверены с живым каталогом: Cut приглушает content, selection background/current
+outline сохранены, длинная подпись имеет две строки с многоточием, есть верхний
+отступ сетки. Полный путь остаётся в tooltip. Windows runtime не проверялся;
+это acceptance FileRow/Icon, не всего главного окна.
+
 ## Lucide
 
 [Отдельный baseline](../lucide-baseline.json) фиксирует полные исходные SVG и

@@ -1,4 +1,10 @@
 if(BUILD_TESTING)
+    qt_add_executable(workspace_file_states_tests tests/filemanager/workspace_file_states_tests.cpp)
+    target_link_libraries(workspace_file_states_tests PRIVATE sevenzip_window sevenzip_layout_inspection Qt6::Test)
+    target_include_directories(workspace_file_states_tests PRIVATE src tests)
+    add_test(NAME workspace_file_states COMMAND workspace_file_states_tests -silent)
+    set_tests_properties(workspace_file_states PROPERTIES TIMEOUT 45 ENVIRONMENT
+        "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/workspace-file-states.ini")
     qt_add_executable(folder_projection_tests tests/filemanager/folder_projection_tests.cpp)
     target_link_libraries(folder_projection_tests PRIVATE sevenzip_panel sevenzip_folder_loader Qt6::Test)
     target_include_directories(folder_projection_tests PRIVATE src)

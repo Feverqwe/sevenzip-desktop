@@ -268,11 +268,12 @@ void MainWindow::createPanelActions(QMenu *editMenu) {
 
 void MainWindow::createIconList(QWidget *central) {
     projectedUi().iconList = new FileIconList(central);
+    QtWorkspaceTheme::fileView(*projectedUi().iconList);
     projectedUi().iconList->setObjectName("iconList");
     QtBindLocalText(projectedUi().iconList, "mainwindow_panel",
                     QT_TRANSLATE_NOOP("mainwindow_panel", "File list"), true);
     projectedUi().iconList->setModel(projectedUi().table->model());
-    projectedUi().iconList->setItemDelegate(CreateFileRowDelegate(projectedUi().iconList));
+    projectedUi().iconList->setItemDelegate(CreateFileRowDelegate(projectedUi().iconList, true));
     projectedUi().iconList->setModelColumn(0);
     projectedUi().iconList->setSelectionModel(projectedUi().table->selectionModel());
     projectedUi().iconList->setSelectionMode(fileListSettings_.AlternativeSelection

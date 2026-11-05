@@ -1,5 +1,6 @@
 #include "filemanager/views/filetable.h"
 #include "filemanager/sorting/filenamesort.h"
+#include "filemanager/window/qtworkspacetheme.h"
 
 #include <QEvent>
 #include <QHeaderView>
@@ -100,15 +101,30 @@ void FileIconList::SetListViewMode(int mode) {
     const bool drag = dragEnabled();
     mode_ = mode;
     setViewMode(mode == 0 ? QListView::IconMode : QListView::ListMode);
-    const int icon = style()->pixelMetric(
-        mode == 0 ? QStyle::PM_LargeIconSize : QStyle::PM_SmallIconSize, nullptr, this);
+    setBackgroundRole(QPalette::Base);
+    setAutoFillBackground(true);
+    setViewportMargins(mode == 0 ? QMargins(0, QtWorkspaceTheme::metric(*this, 20), 0,
+                                            QtWorkspaceTheme::metric(*this, 28))
+                                 : QMargins());
+    int icon = style()->pixelMetric(mode == 0 ? QStyle::PM_LargeIconSize : QStyle::PM_SmallIconSize,
+                                    nullptr, this);
+    if (mode == 0)
+        icon = qMax(icon, QtWorkspaceTheme::metric(*this,
+#ifdef Q_OS_MACOS
+                                                   72
+#else
+                                                   64
+#endif
+                                                   ));
     setIconSize(QSize(icon, icon));
     const QFontMetrics metrics = fontMetrics();
     const int margin = qMax(2, style()->pixelMetric(QStyle::PM_FocusFrameHMargin, nullptr, this));
     // Native LVS_ICON wraps labels. Keep room for two lines using the active
     // platform's icon/font metrics, rather than a fixed pixel-height cell.
     const int width = qMax(icon + 2 * margin, 12 * metrics.averageCharWidth() + 2 * margin);
-    setGridSize(mode == 0   ? QSize(width, icon + 2 * metrics.lineSpacing() + 3 * margin)
+    setGridSize(mode == 0   ? QSize(qMax(width, QtWorkspaceTheme::metric(*this, 112)),
+                                    qMax(icon + 2 * metrics.lineSpacing() + 3 * margin,
+                                         QtWorkspaceTheme::metric(*this, 116)))
                 : mode == 1 ? QSize(qMax(180, width), qMax(icon, metrics.height()) + 2 * margin)
                             : QSize());
     setWordWrap(mode == 0);

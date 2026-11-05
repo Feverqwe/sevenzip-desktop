@@ -216,7 +216,8 @@ void QtWorkspaceFileTable::paintEvent(QPaintEvent *event) {
         }
     if (!hasFocus() || !currentIndex().isValid())
         return;
-    const QRect item = visualRect(currentIndex());
+    const QRect item =
+        visualRect(currentIndex().siblingAtColumn(qMax(0, columnForVisibleProperty(0))));
     if (!item.isValid() || item.bottom() < 0 || item.top() >= viewport()->height())
         return;
     painter.setPen(QtWorkspaceTheme::colors().accent);

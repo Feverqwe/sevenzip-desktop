@@ -1,5 +1,6 @@
 #include "filemanager/panels/qtpanellist.h"
 #include "filemanager/views/filetable.h"
+#include "filemanager/window/qtworkspacetheme.h"
 #include "ui/theme/qtsemanticcolors.h"
 #include <QApplication>
 #include <QEvent>
@@ -10,6 +11,107 @@
 #include <QStyledItemDelegate>
 
 namespace {
+void DrawItemContent(QPainter &painter, const QStyleOptionViewItem &option, bool cut) {
+    painter.save();
+    if (cut)
+        painter.setOpacity(painter.opacity() * .5);
+    const auto *widget = option.widget;
+    (widget ? widget->style() : QApplication::style())
+        ->drawControl(QStyle::CE_ItemViewItem, &option, &painter, widget);
+    painter.restore();
+}
+
+void UseSelectedText(QStyleOptionViewItem &option) {
+    for (const auto group : {QPalette::Active, QPalette::Inactive, QPalette::Disabled})
+        option.palette.setColor(group, QPalette::Text,
+                                option.palette.color(group, QPalette::HighlightedText));
+}
+
+#ifdef Q_OS_MACOS
+QRectF PaintMacIconSelection(QPainter &painter, QStyleOptionViewItem &option, const QListView &view,
+                             const QModelIndex &index, bool selected, bool hovered) {
+    const auto colors = QtWorkspaceTheme::colors();
+    const auto *style = view.style();
+    const QRect art = style->subElementRect(QStyle::SE_ItemViewItemDecoration, &option, &view);
+    const QRectF frame = QRectF(art.adjusted(-8, -4, 8, 4)).intersected(option.rect);
+    if (selected || hovered) {
+        painter.setBrush(colors.hover);
+        painter.drawRoundedRect(frame, 6, 6);
+    }
+    if (selected) {
+        const QRect text = style->subElementRect(QStyle::SE_ItemViewItemText, &option, &view);
+        const int flags =
+            Qt::AlignHCenter | Qt::AlignTop |
+            (option.features.testFlag(QStyleOptionViewItem::WrapText) ? Qt::TextWordWrap
+                                                                      : Qt::TextSingleLine);
+        QRect label =
+            option.fontMetrics.boundingRect(QRect(QPoint(), text.size()), flags, option.text);
+        label.setWidth(qMin(label.width(), text.width()));
+        label.setHeight(qMin(label.height(), text.height()));
+        label.moveTopLeft(QPoint(text.center().x() - label.width() / 2, text.top()));
+        const bool colored = index.data(Qt::ForegroundRole).isValid();
+        // Keep source emphasis (for example deleted entries) chromatic and
+        // readable; an opaque accent can wash a red label into near-white.
+        const QColor caption = colored ? option.palette.color(QPalette::Highlight) : colors.accent;
+        painter.setBrush(caption);
+        painter.drawRoundedRect(QRectF(label.adjusted(-4, -1, 4, 1)).intersected(option.rect), 4,
+                                4);
+        for (const auto group : {QPalette::Active, QPalette::Inactive, QPalette::Disabled})
+            option.palette.setColor(group, QPalette::Text,
+                                    colored
+                                        ? QtSemanticColors::readable(
+                                              option.palette.color(group, QPalette::Text), caption)
+                                        : QColor(Qt::white));
+    }
+    return frame;
+}
+#endif
+
+void PaintWorkspaceIcon(QPainter &painter, QStyleOptionViewItem option, const QModelIndex &index,
+                        const QListView &view, bool cut) {
+    const bool selected = option.state.testFlag(QStyle::State_Selected);
+    const bool current = view.hasFocus() && view.currentIndex().model() == index.model() &&
+                         view.currentIndex().row() == index.row();
+    const bool hovered = option.state.testFlag(QStyle::State_MouseOver);
+    const QBrush marked = option.backgroundBrush;
+    const QRectF tile = QRectF(option.rect).adjusted(1, 1, -1, -1);
+    QRectF focus = tile;
+    painter.save();
+    painter.setPen(Qt::NoPen);
+    if (marked.style() != Qt::NoBrush) {
+        painter.setBrush(marked);
+        painter.drawRoundedRect(tile, 4, 4);
+    }
+#ifdef Q_OS_MACOS
+    if (view.viewMode() == QListView::IconMode)
+        focus = PaintMacIconSelection(painter, option, view, index, selected, hovered);
+    else
+#endif
+    {
+        if (selected || hovered) {
+            painter.setBrush(selected ? option.palette.highlight()
+                                      : QBrush(QtWorkspaceTheme::colors().hover));
+            painter.drawRoundedRect(tile, 4, 4);
+        }
+        if (selected)
+            UseSelectedText(option);
+    }
+    if (selected && marked.style() != Qt::NoBrush)
+        painter.fillRect(
+            QRect(option.rect.left() + 2, option.rect.top() + 4, 3,
+                  qMax(0, option.rect.height() - 8)),
+            QtSemanticColors::readable(marked.color(), option.palette.highlight().color()));
+    option.backgroundBrush = QBrush();
+    option.state &= ~(QStyle::State_Selected | QStyle::State_HasFocus | QStyle::State_MouseOver);
+    DrawItemContent(painter, option, cut);
+    if (current) {
+        painter.setPen(QtWorkspaceTheme::colors().accent);
+        painter.setBrush(Qt::NoBrush);
+        painter.drawRoundedRect(focus.adjusted(.5, .5, -.5, -.5), 4, 4);
+    }
+    painter.restore();
+}
+
 class FileRowDelegate final : public QStyledItemDelegate {
     bool workspace_;
 
@@ -26,8 +128,17 @@ class FileRowDelegate final : public QStyledItemDelegate {
         const auto *list = qobject_cast<QListView *>(parent());
         // The shared table model aligns names to the left. LVS_ICON labels
         // belong below the icon, centered within their own cell.
-        if (list && list->viewMode() == QListView::IconMode)
+        if (list && list->viewMode() == QListView::IconMode) {
             option->displayAlignment = Qt::AlignHCenter | Qt::AlignTop;
+            if (workspace_ && option->rect.isValid()) {
+                const QRect text =
+                    list->style()->subElementRect(QStyle::SE_ItemViewItemText, option, list);
+                const int height = 2 * option->fontMetrics.lineSpacing();
+                if (text.height() > height)
+                    option->rect.setBottom(option->rect.bottom() - text.height() + height);
+                option->textElideMode = Qt::ElideRight;
+            }
+        }
     }
     QSize sizeHint(const QStyleOptionViewItem &option, const QModelIndex &index) const override {
         const QSize size = QStyledItemDelegate::sizeHint(option, index);
@@ -90,6 +201,12 @@ class FileRowDelegate final : public QStyledItemDelegate {
                                                option.palette.color(group, QPalette::Highlight)));
         auto *table = dynamic_cast<const FileTable *>(parent());
         const int primary = table ? table->columnForVisibleProperty(0) : -1;
+        const bool cut = index.data(QtPanelList::CutRole).toBool();
+        if (workspace_ && list) {
+            initStyleOption(&option, index);
+            PaintWorkspaceIcon(*painter, option, index, *list, cut);
+            return;
+        }
         if (workspace_ && table) {
             initStyleOption(&option, index);
             const bool selected = option.state.testFlag(QStyle::State_Selected) &&
@@ -117,10 +234,10 @@ class FileRowDelegate final : public QStyledItemDelegate {
                                          : marked.color()));
             }
             option.state &= ~(QStyle::State_Selected | QStyle::State_HasFocus);
+            if (selected && !foreground.isValid())
+                UseSelectedText(option);
             option.rect.adjust(index.column() == qMax(0, primary) ? 12 : 8, 0, -8, 0);
-            const auto *widget = option.widget;
-            (widget ? widget->style() : QApplication::style())
-                ->drawControl(QStyle::CE_ItemViewItem, &option, painter, widget);
+            DrawItemContent(*painter, option, cut);
             return;
         }
         if (!table || table->fullRowHighlight() || index.column() == (primary < 0 ? 0 : primary)) {

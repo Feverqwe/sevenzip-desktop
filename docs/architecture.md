@@ -252,6 +252,11 @@ native binding route.
 `QtFileClipboard` supplies native file URL formats to the existing file-transfer
 operation; exporting a container selection uses CPanel's native CopyTo and checks
 its extraction result before publishing URLs. It does not implement archive I/O.
+Its Cut snapshot is published into the shared file model, including inactive tab
+models. Rows retain the native operation path separately from the display path;
+Cut rendering consumes that presentation state without querying providers or
+resolving symlinks during painting. Table and icon views retain the same selection/current
+owner and render Cut independently from selection, marks and the current outline.
 Address callbacks require a live source panel and share a control-owned delivery
 lifetime, so late signals and queued focus requests stop when either owner ends.
 

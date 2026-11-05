@@ -16,7 +16,8 @@ class QtPanelList {
         PrefixRole = Qt::UserRole + 5,
         SourceIndexRole = Qt::UserRole + 6,
         DropHighlightedRole = Qt::UserRole + 19,
-        MarkedRole = Qt::UserRole + 20
+        MarkedRole = Qt::UserRole + 20,
+        CutRole = Qt::UserRole + 21
     };
     using SortColumnResolver = std::function<int(PROPID, Int32)>;
     void Attach(QAbstractItemView *view, SortColumnResolver sortColumn = {},

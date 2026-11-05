@@ -347,6 +347,15 @@ class WorkspaceNavigationTests final : public QObject {
         old.close();
         QVERIFY(QFileInfo::exists(source + '/' + name));
         QVERIFY(QApplication::clipboard()->mimeData()->hasUrls());
+        window.openPath(source);
+        QTRY_VERIFY(table->isEnabled());
+        bool stillCut = false;
+        for (int row = 0; row < table->rowCount(); ++row)
+            if (table->model()->index(row, 0).data().toString() == name)
+                stillCut = table->model()->index(row, 0).data(QtPanelList::CutRole).toBool();
+        QVERIFY(stillCut);
+        window.openPath(destination);
+        QTRY_VERIFY(table->isEnabled());
         QVERIFY(QFile::remove(destination + '/' + name));
         QTRY_VERIFY(paste->isEnabled());
         paste->trigger();
@@ -356,6 +365,8 @@ class WorkspaceNavigationTests final : public QObject {
         QCOMPARE(old.readAll(), "original bytes");
         const auto *cleared = QApplication::clipboard()->mimeData();
         QVERIFY(!cleared || !cleared->hasUrls());
+        for (int row = 0; row < table->rowCount(); ++row)
+            QVERIFY(!table->model()->index(row, 0).data(QtPanelList::CutRole).toBool());
     }
 
     void defaultPlacesCanBeRenamedRemovedAndStayEmptyAfterRestart() {

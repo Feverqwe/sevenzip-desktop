@@ -106,6 +106,12 @@ HRESULT MainWindow::appendFilesystemEntry(const QString &baseDirectory, quint32 
     row.name = nativeName;
     row.prefix = app_.GetFocusedPanel().GetFlatMode() ? nativePrefix : QString();
     row.path = file.absoluteFilePath();
+    CRecordVector<UInt32> indices;
+    indices.Add(sourceIndex);
+    UStringVector operationPaths;
+    app_.GetFocusedPanel().GetFilePaths(indices, operationPaths);
+    row.operationPath = ToQString(operationPaths.Front());
+    row.filesystem = true;
     row.toolTip = row.path;
     row.directory = directory;
     row.icon = icon;
