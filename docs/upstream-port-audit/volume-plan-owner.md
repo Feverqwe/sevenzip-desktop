@@ -1,5 +1,34 @@
 # Split/Combine plan ownership — 2026-11-01
 
+## One panel owner spans the modal plan and worker — 2026-11-05
+
+Compared complete native Split/Combine command bodies, plans/workers,
+dialog completion and the Qt asynchronous launch/result/progress/selection
+consumers. Original PanelSplitFile.cpp at
+`b88c6bc09339de32f7d18bbab900686b244f42ba` from
+<https://github.com/ip7z/7zip.git> matches recorded full SHA256
+`10d60b7081dbcef2da034ee732d2d4e3ad9b42589ae9b264d2fb3b89bef84bf8`.
+Native naming, input/destination validation, worker algorithms and transaction
+publication remain unchanged; no source import or baseline revision changes.
+
+The Qt launch service now retains the captured source panel index throughout
+the operation rather than a panel reference alongside an implicit current UI
+projection. Launch restores that owner before saving selection and publishing
+Operating; completion reloads the same captured owner. A modal plan dialog can
+return focus to the peer, which previously let an operation on a filesystem
+source publish Filesystem state into an unchanged namespace peer.
+
+The regression accepts real Split/Combine plans from either source panel while
+the dialog's finished signal focuses a drives peer. It checks resulting bytes,
+unchanged input and peer presentation, then Back to the virtual root: that
+navigation detects the peer's lost namespace state without inspecting a private
+UI enum. Existing cases retain destination choice, flat selection, cancellation,
+invalid destinations, worker failure/rollback and window-progress lifetime.
+
+Focused Linux validation passed: volume_workflow, volume_operations and
+worker_window_progress (81 Qt checks). No native platform implementation or
+dialog geometry changed; Windows/macOS and appearance acceptance are not claimed.
+
 ## Completion preserves source selection — 2026-11-04
 
 Rechecked the complete original `PanelSplitFile.cpp` commands/workers at

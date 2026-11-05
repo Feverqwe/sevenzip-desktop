@@ -191,7 +191,7 @@ class MainWindow : public QMainWindow {
 
   private:
     void startVolume(VolumeOperation::Mode mode);
-    void launchVolume(CPanel &panel, VolumeOperation *operation, const UString &title,
+    void launchVolume(unsigned index, VolumeOperation *operation, const UString &title,
                       const QString &source, UInt64 totalSize, std::function<void()> completion);
     void showItemContextMenu(unsigned owner, QAbstractItemView *view, const QPoint &pos);
     void applySortMode(bool enableSorting = false);
