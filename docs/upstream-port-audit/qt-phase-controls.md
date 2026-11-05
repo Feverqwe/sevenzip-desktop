@@ -1,5 +1,28 @@
 # Controls across asynchronous phases — 2026-10-18
 
+## One current worker-launch path — 2026-11-05
+
+Reviewed the complete current backend read/hash launch and completion paths,
+retained pause transport, worker checkpoint/cancellation and synchronous receiver
+lifetimes. The original ProgressDialog2.cpp CheckStop body at
+`b88c6bc09339de32f7d18bbab900686b244f42ba` matches the recorded full-unit hash;
+its native stop/pause policy is unchanged. The Qt phase-launch boundary is local
+integration, with no new imported code or source revision.
+
+The private phase starter now directly starts its retained QThread after
+phaseStarted delivery. Both actual callers use this path; the unused alternate
+launch callback and discarded boolean result are removed. Pause synchronization
+still precedes native work, and both backend and worker lifetime checks remain
+after synchronous notification. A receiver may still cancel/join, delete the
+backend or replace the operation without starting a retired worker. No new
+state, public API, worker, UI control or native synchronization rule is added.
+
+Existing real read/hash regressions cover pause/cancel/join, replacement after
+queued completion and deletion during phase notification. Transport checks cover
+retained pause and failed pause application. These observe behavior rather than
+requiring a private function signature; no additional test is needed for the
+removed unused launch branch.
+
 Source: <https://github.com/ip7z/7zip.git>, commit
 `0766b733fe3e06dd2a7f9a3cfbf2108ac73abd17`.
 
