@@ -9,6 +9,8 @@
   {"id":"workspace-history","title":"Назад и вперёд: история вкладки, EN/RU","target":"workspace_history_tests","functions":["keyboardAndNavigationGeometry"]},
   {"id":"recent-places","title":"Недавние места: поиск, пустой список и отказ открытия, EN/RU","target":"recent_places_tests","functions":["searchKeyboardEmptyStatesAndWrappedRows","missingPlaceKeepsFormSourceAndHistoryCursor"]},
   {"id":"task-result","title":"Результаты независимых задач: сбой и отмена, EN/RU","target":"task_result_window_tests","functions":["compactReportKeepsFullDiagnostic"]},
+  {"id":"local-tasks","title":"Локальная операция: защита владельца, конфликт, пропуск и отмена, EN/RU","target":"local_task_lifecycle_tests","functions":["overwriteKeepsOwnerUntilAnswered"]},
+  {"id":"external-details","title":"Внешний файл: неизвестное завершение, сведения и компактное окно, EN/RU","target":"external_task_lifecycle_tests","functions":["editedFileWhileTabIsOpen:fast-editor-keeps-protected-copy"]},
   {"id":"workspace-places","title":"Места: текущее расположение, фокус и компактный список","target":"workspace_places_tests","functions":["currentPlaceStaysIndependentOfKeyboardCursorAndOtherWindow","compactPlacesRemainReachable"]},
   {"id":"location-bar","title":"Адрес: native-сегменты","target":"workspace_navigation_tests","functions":["locationBarUsesNativeParentTargets"]},
   {"id":"archive-tabs","title":"Вкладка и адрес вложенного архива","target":"workspace_archive_tests","functions":["breadcrumbsNavigateBothNestedArchiveBoundaries"]},

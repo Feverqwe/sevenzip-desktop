@@ -38,7 +38,7 @@ struct CItemOpen {
 
 HRESULT GetArchiveItemStream(IFolderFolder *folder, UInt32 index, ISequentialInStream **stream,
                              QWidget *parent, const QString &settingsPath, bool &passwordDefined,
-                             UString &password) {
+                             UString &password, bool disableQuestions) {
     COM_TRY_BEGIN
     if (!folder || !stream)
         return E_INVALIDARG;
@@ -49,6 +49,7 @@ HRESULT GetArchiveItemStream(IFolderFolder *folder, UInt32 index, ISequentialInS
         return S_OK;
     request.Index = index;
     request.UI.SettingsPath = settingsPath;
+    request.UI.ProgressDialog.DisableUserQuestions |= disableQuestions;
     request.UI.ParentWindow = parent;
     request.UI.PasswordIsDefined = passwordDefined;
     request.UI.Password = password;

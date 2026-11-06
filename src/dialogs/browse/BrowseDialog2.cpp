@@ -601,13 +601,27 @@ int CBrowseDialog2::Create() {
         MessageBox_HResError(this, res, TempFolderPath);
     return exec();
 }
-void MyBrowseForTempFolder(QWidget *owner, std::function<bool(const QUrl &)> opener) {
+void CBrowseDialog2::OnDetails() {
+    CUIntVector indices;
+    GetSelected_RealIndexes(indices);
+    if (!_details || indices.Size() != 1)
+        return;
+    const auto &item = _snapshot->Items[indices[0]];
+    const auto &file = _snapshot->Files[item.MainFileIndex];
+    const QString path = QtPath(_snapshot->Prefix + fs2us(file.Name));
+    if (IsOwnedPath(item.Owner, path) && _details(item.Owner, path, true))
+        reject();
+}
+
+void MyBrowseForTempFolder(
+    QWidget *owner, std::function<bool(const QUrl &)> opener,
+    std::function<bool(const QtOwnedTempEntry &, const QString &, bool)> details) {
     FString tempPathF;
     if (!NDir::MyGetTempPath(tempPathF) || tempPathF.IsEmpty()) {
         MessageBox_LastError_path(owner, tempPathF);
         return;
     }
-    CBrowseDialog2 dialog(owner, std::move(opener));
+    CBrowseDialog2 dialog(owner, std::move(opener), std::move(details));
     dialog.setProperty("sourceTitleLanguageID", IDM_TEMP_DIR);
     LangString_OnlyFromLangFile(IDM_TEMP_DIR, dialog.Title);
     dialog.Title.Replace(L"...", L"");

@@ -143,7 +143,8 @@ template <class Worker> bool VolumeOperation::process(Worker &worker, QString *e
         *error = QCoreApplication::translate("volumeoperations", "Volume operation failed");
         return false;
     }
-    if (canceled_ || result == E_ABORT) {
+    if (result == E_ABORT || (result == S_OK && canceled_)) {
+        resultKind_ = ResultKind::Canceled;
         *error = QCoreApplication::translate("volumeoperations", "Operation canceled.");
         return false;
     }
@@ -258,6 +259,8 @@ void VolumeOperation::run() {
     const auto *splitPlan = std::get_if<CSplitVolumePlan>(&plan_);
     const bool ok = splitPlan ? split(*splitPlan, &error)
                               : combine(std::get<CCombineVolumePlan>(plan_), &error);
+    if (ok)
+        resultKind_ = ResultKind::Success;
     emit result(ok, ok ? (splitPlan
                               ? QCoreApplication::translate("volumeoperations", "File split.")
                               : QCoreApplication::translate("volumeoperations", "Files combined."))

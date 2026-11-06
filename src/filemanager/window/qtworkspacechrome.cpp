@@ -94,9 +94,11 @@ void QtWindowWorkspace::AttachContent(unsigned panel, QVBoxLayout &layout, QWidg
     ui.navigationError->setWordWrap(true);
     notice->addWidget(ui.navigationError, 1);
     auto *retry = new QPushButton(ui.navigationNotice);
+    retry->setObjectName(QStringLiteral("navigationRetry%1").arg(panel));
     QtBindLocalText(retry, "QtWindowWorkspace", QT_TRANSLATE_NOOP("QtWindowWorkspace", "Retry"));
     notice->addWidget(retry);
     auto *parent = new QPushButton(ui.navigationNotice);
+    parent->setObjectName(QStringLiteral("navigationParent%1").arg(panel));
     QtBindLocalText(parent, "QtWindowWorkspace",
                     QT_TRANSLATE_NOOP("QtWindowWorkspace", "Parent folder"));
     notice->addWidget(parent);
@@ -186,9 +188,14 @@ void QtWindowWorkspace::RefreshChrome() {
         const auto &state = panels_[panel];
         if (!state.actions || !window_.commands_ || !window_.panelUi_[panel].table)
             continue;
+        if (!state.tabs.empty() &&
+            state.tabs[state.current].archiveRevision != state.tabs[state.current].archiveApplied)
+            ShowArchiveChangeNotice(panel);
         if (window_.panelUi_[panel].navigationNotice)
             window_.panelUi_[panel].navigationNotice->setVisible(
-                window_.panelUi_[panel].locationUnavailable);
+                window_.panelUi_[panel].locationUnavailable ||
+                (!state.tabs.empty() && state.tabs[state.current].archiveRevision !=
+                                            state.tabs[state.current].archiveApplied));
         RefreshSidebar(panel);
         if (auto *row =
                 dynamic_cast<QtNavigationRow *>(window_.panelUi_[panel].navigation->parentWidget()))

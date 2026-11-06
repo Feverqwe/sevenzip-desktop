@@ -196,7 +196,10 @@ class DialogPathRulesTests final : public QObject {
         reports(extract, QString("dialog-path-extract-%1-%2").arg(language).arg(split), true);
         extract.findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok)->click();
         QCOMPARE(normalized(extract.destination()), output + '/');
-        backend.extract(archive, extract.destination(), {}, {}, extract.options());
+        ExtractionOptions options;
+        options.ElimDup = extract.ElimDup;
+        options.NtSecurity = extract.NtSecurity;
+        backend.extract(archive, extract.destination(), {}, {}, options);
         QTRY_COMPARE_WITH_TIMEOUT(done.size(), 1, 15000);
         QVERIFY2(done[0][0].toBool(), qPrintable(done[0][1].toString()));
         QCOMPARE(SourceExtractFixture::readFile(QDir(output).filePath(QFileInfo(input).fileName())),

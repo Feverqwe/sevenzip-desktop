@@ -4,6 +4,8 @@
 #include <QThread>
 
 HRESULT RunCallbackDialog(CProgressDialog &parent, const std::function<HRESULT()> &body) {
+    if (parent.DisableUserQuestions)
+        return E_ABORT;
     if (QThread::currentThread() == parent.thread())
         return body();
     parent.WaitCreating();

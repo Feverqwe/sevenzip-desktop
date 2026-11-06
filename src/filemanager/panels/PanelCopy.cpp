@@ -196,6 +196,7 @@ HRESULT CPanel::CopyTo(CCopyToOptions &options, const CRecordVector<UInt32> &ind
            extracter must be declared after g_ExternalCodecs for correct destructor order !!! */
 
         CPanelCopyThread extracter;
+        extracter.DisableUserQuestions |= options.DisableUserQuestions;
 
         extracter.ExtractCallback.SetFromCls(new CExtractCallbackImp);
         extracter.ExtractCallback->Src_Is_IO_FS_Folder = IsFSFolder() || IsAltStreamsFolder();

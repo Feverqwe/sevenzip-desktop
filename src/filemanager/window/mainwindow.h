@@ -83,6 +83,7 @@ struct QtOperationResult;
 class QtFileListHover;
 class QtNavigationBar;
 class QtWindowWorkspace;
+class QtLocalFileTask;
 class QtFileClipboard;
 class CProgressDialog;
 class IQtTrashService;
@@ -90,6 +91,7 @@ struct QtFileManagerStartup;
 
 class MainWindow : public QMainWindow {
   public:
+    void ArchivePublished(const QString &archive);
     explicit MainWindow(ArchiveBackend *backend = nullptr,
                         std::function<bool(const QUrl &)> fileOpener = {},
                         IQtTrashService *trashService = nullptr,
@@ -190,8 +192,6 @@ class MainWindow : public QMainWindow {
                            const ExtractionOptions &options, const QStringList &names,
                            const CRecordVector<UInt32> *explicitIndices = nullptr);
     void closeProgressDialog(bool finished = false);
-    void beginWorkerProgress(const QString &label, const QString &detail,
-                             std::function<void()> cancel);
 
     enum class State { Filesystem, Namespace, Loading, Viewing, Operating };
     void setViewMode(int mode);
@@ -422,8 +422,7 @@ class MainWindow : public QMainWindow {
     QAction *rename_ = nullptr;
     QAction *split_ = nullptr;
     QAction *combine_ = nullptr;
-    VolumeOperation *volumeOperation_ = nullptr;
-    FileTransferOperation *fileTransfer_ = nullptr;
+    QPointer<QtLocalFileTask> fileTask_;
     QPointer<QDialog> overwriteDialog_;
     QAction *viewFile_ = nullptr;
     QAction *editFile_ = nullptr;

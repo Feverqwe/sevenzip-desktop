@@ -1,6 +1,8 @@
 #include "filemanager/panels/qtpanellocationtransaction.h"
 #include "filemanager/panels/Panel.h"
+#include "platform/temp/qtownedtempidentity.h"
 #include <QScopeGuard>
+#include <algorithm>
 #include <utility>
 
 struct QtPanelLocationTransaction::Location {
@@ -25,6 +27,7 @@ struct QtPanelLocationTransaction::Location {
     bool drivesIcons = false;
     bool archiveIcons = false;
     bool flat = false;
+    bool outdated = false;
     bool deleted = false;
     explicit Location(CPanel &panel)
         : timer(panel), notifications(panel), prefix(panel.GetCurrentFolderPrefix()) {}
@@ -54,6 +57,7 @@ template <typename T> void ExchangeInterface(CMyComPtr<T> &left, CMyComPtr<T> &r
 
 QtPanelLocationTransaction::QtPanelLocationTransaction(CPanel &panel)
     : panel_(panel), previous_(std::make_unique<Location>(panel)) {
+    panel_._locationTransactions.push_back(this);
     Exchange();
     panel_._currentFolderPrefix.Empty();
     // The caller captured the visible selection. Pending refresh hints belong
@@ -69,6 +73,18 @@ QtPanelLocationTransaction::~QtPanelLocationTransaction() {
             // Rollback restores ownership even if candidate close fails.
         }
     }
+    std::erase(panel_._locationTransactions, this);
+}
+
+bool QtPanelLocationTransaction::MarkArchiveOutdated(const QString &path) {
+    if (finished_ || previous_->parents.IsEmpty())
+        return false;
+    const QString saved = ToQString(previous_->parents.Front().VirtualPath);
+    const QString identity = QtOwnedTempIdentity(path);
+    if (saved != path && (identity.isEmpty() || identity != QtOwnedTempIdentity(saved)))
+        return false;
+    previous_->outdated = true;
+    return true;
 }
 
 void QtPanelLocationTransaction::Exchange() {
@@ -85,6 +101,7 @@ void QtPanelLocationTransaction::Exchange() {
     panel_._library.Attach(saved.library.Detach());
     saved.library.Attach(library);
     std::swap(panel_._flatMode, saved.flat);
+    std::swap(panel_._archiveContextOutdated, saved.outdated);
     std::swap(panel_._thereAreDeletedItems, saved.deleted);
     panel_._isDirVector.Swap(saved.directories);
     panel_._itemIconIndices.Swap(saved.itemIcons);

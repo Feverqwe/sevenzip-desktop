@@ -4,6 +4,80 @@
 сессия, именованное избранное и breadcrumb chrome — project-owned Qt integration.
 Они не заимствуют алгоритмы архивов или файловых систем.
 
+## Срез повторной приёмки — 2026-11-06
+
+Уточнение пользователя 6 ноября имеет приоритет над прежними расширениями
+дизайна: вкладка — самостоятельный контекст прежнего приложения. Её закрытие
+сохраняет прежнее завершение работы этого контекста. При запуске восстанавливается
+директория, а не ранее открытый архив. Приведённые ниже исторические результаты
+архивного session reopen не задают новое требование к восстановлению.
+
+Сверены десять согласованных пунктов `implementation-main-window.md` из master
+`ed197ad2`, дополнения к действиям/меню/history/lifecycle и текущий checkout
+`9b65290b` с незакоммиченными изменениями task ownership/Quit
+и владельца внешнего редактора. Таблица относится
+к сделанному главному окну и затронутым общим компонентам. Датированные source
+сравнения и runtime-свидетельства раскрыты в разделах ниже; passing suite или
+кадр отдельного виджета не устанавливает готовность всего пункта.
+
+| Пункт | Текущая реализация и наблюдаемая проверка | Граница доказательства |
+| --- | --- | --- |
+| 1. Одна панель, Places ниже chrome | Общая композиция `QtWindowWorkspace`/main chrome; `main_shell` проверяет одну/две панели, status и normal/compact EN/RU. Cocoa producer `main` содержит обе темы и размеры. | Прежние Cocoa-снимки проверены; текущая lifecycle-итерация не меняет их компоновку. Это не новая native-проверка состояния задач. |
+| 2. Вкладки, адрес, действия и история каждой панели | `QtNavigationBar` использует native address segments; history хранится у вкладки. `workspace_navigation`, `workspace_history`, address-key suites проверяют actual provider, Escape, отказ/Retry, Back/Forward и перенос курсора истории. | Прежние Cocoa address/history кадры и клавиатурные прогоны применяются к этим неизменённым владельцам. |
+| 3. Файловые команды и общий availability | Toolbar proxies вызывают общие QAction после привязки панели; native availability и clipboard availability остаются у общих владельцев. File-menu/context/lang suites проверяют EN/RU, обе панели, table/icons, повторное открытие и исходные намерения Open/View/Edit. | Файловые операции проверяют bytes/ошибку/отмену. Текущий source-owned cancel/join и Cut/clipboard проверены Linux/macOS offscreen и Cocoa; новые local-task кадры EN/RU в обеих темах заменяют прежний after-close producer. |
+| 4. Выбор, текущий объект, table/icons, drag | Общие selection model/native marks и row delegate; `workspace_file_states`, `workspace_table`, selection/key, sort и `drag_drop_ui` проверяют Cut, current/selected, клавиши, выбор потребителей и реальный drop результата. Новый общий blank-area gesture проверяет рамку, Ctrl/Shift, Escape, release, autoscroll и Copy. | Прежние Cocoa кадры подтверждают painting Cut/current/selection и две строки подписей. У таблицы найден и исправлен фактический отказ рамочного выбора; новые gesture-сценарии прошли Linux; Cocoa table/icons кадры и Cut/current обновлены в обеих темах. |
+| 5. New/Duplicate/Move tab и New window | Workspace хранит отдельные runtimes; duplicate копирует место, а transfer перепривязывает source services. Navigation/tab-menu suites проверяют source-close, stable tab identity, отказ/успех cold transfer, архив и native root. Mount manager также следует своей вкладке. | Прежний Cocoa перенос/меню вкладок проверен. Новая привязка mount manager проверена Linux/macOS offscreen и Cocoa. Отложенный Quit отменён, его дополнительные сценарии больше не являются требованием. |
+| 6. Последняя вкладка/панель/окно | Закрытие сохраняет соседний контекст, прекращает наблюдение за редактором и освобождает собственный source. Редактор не завершается принудительно. Собственные локальные workers отменяются и ожидаются до освобождения папок; mount-close продолжает закрытие нужной вкладки. | Editor shutdown, локальные workers и mount ownership проверены Linux/macOS offscreen и Cocoa, включая forced destruction внутри overwrite/result/Cancel. Mount continuation проверяет адресат закрытия без настоящего OS mount; native unmount всех файловых систем этим сценарием не доказывается. |
+| 7. Независимые окна и восстановление | Общий session writer сохраняет порядок вкладок, директории, activity/view и placement. Архивная вкладка возобновляется в родительской директории внешнего архива по прежнему правилу приложения. Старые archive descriptors мигрируют без открытия архива и запроса пароля. | Directory resume, включая encrypted current/legacy session, проверен Linux/macOS и Cocoa. Секреты, операции и открытые архивы не восстанавливаются. Continue/Discard и их протокол удалены. |
+| 8. Именованное избранное | Общий `QtFavoriteStore` хранит stable IDs, label/order и миграцию; navigation/Places suites проверяют rename/reorder/remove без изменения файлов, folder drop как bookmark, повторное открытие и обновление общей модели. | Прежние Places Cocoa кадры/read-only runtime проверены. Статические меню дополнительно разрешают stable ID заново при действии; числовые native bookmarks остаются отдельным владельцем. |
+| 9. Архив/образ/устройство и ограничения | Native provider задаёт команды/границу контейнера; `QtArchiveLocation` сохраняет значения цепочки без secrets/handles. Archive/navigation/source-selection suites проверяют binding, nested export и отказ восстановления с видимой ошибкой. | Provenance и source algorithms проверяются отдельно от runtime. Текущий audit не устанавливает новую native-приёмку всех устройств/образов и не переносит HTML-эвристики в reader. |
+| 10. Help убран из главного окна | Main-window menus/chrome не создают Help UI; источник panel keys не маршрутизирует обычный F1 в Help. About/лицензии и существующие непереработанные формы имеют отдельные роли. | Удаление help subsystem всех форм не входит в согласованный пункт. Остаточный native command/service сам по себе не является видимым действием нового окна. |
+
+Дополнительные обязательные части текущего среза:
+
+- Исходные пользовательские дефекты меню имеют source исправление и Cocoa
+  EN/RU root/submenu evidence: один CRC submenu; Archive показывает Add/Extract/Test.
+  При повторном просмотре сохранённых PNG 2026-11-05 это подтверждено визуально.
+  Полная граница и source/caller comparison — в [аудите меню](menu-language.md).
+- Component boundaries остаются общими для FileRow/Icon, LocationBar, Places,
+  tabs/workspace, command availability и палитры/secret edit форм. Геометрия
+  и native scope каждого выделенного владельца описаны ниже.
+- Source-owned local tasks и mount continuation проверены focused Linux/macOS
+  offscreen и Cocoa. В текущей галерее 20 новых local-task PNG/JSON, EN/RU,
+  обе native темы. Отменённые диалоги выхода исключены; старые файлы сохранены
+  только как исторические свидетельства. Обычный и увеличенный шрифт общих
+  кнопок проверяются существующими language/surface suites.
+- Галерея хранит `revision`, `sourceState.diffSha256`, `capturedAt` и `qpa`
+  отдельно для каждого producer/theme. Старые PNG остаются датированным
+  свидетельством своего scope и не переобозначаются как текущий shutdown test.
+- Windows дополнительно проверен узким `external_archive_context` /
+  `external_archive_restore` проходом для сохранения и восстановления native
+  FILETIME и исходной версии архива. Это не Windows UI-приёмка. Fixture
+  сравнивает относительные пути с учётом native разделителей; проверки байтов,
+  stale-generation отказа и повторного запроса пароля сохранены.
+
+Живой каталог повторно просмотрен; его файлы совпадают с master.
+Изменённые local-task состояния, blank-area gesture и editor shutdown имеют
+перечисленные ниже native-свидетельства. Это подготовка к повторной
+пользовательской приёмке, а не утверждение о визуальном равенстве всех окон
+на всех ОС. Итоговая пользовательская визуальная приёмка ещё не выполнена.
+
+Выявленное прямое удаление неизменённой no-handle копии при закрытии источника
+исправлено отдельно в `d72de867`: копия и её external protection сохраняются,
+failed launch очищается как прежде. Linux/macOS external-launch/lifetime/temp
+consumers PASS; [source comparison и граница](external-process-ownership.md#unknown-external-lifetimes-survive-source-shutdown--2026-11-06).
+Это сохраняет вход внешней программы, но не реализует продолжение её сеанса.
+Отдельный `29bc0d02` также сохраняет изменённую копию после отказа от записи
+или Escape; source comparison и Linux byte/registry evidence находятся в
+[том же аудите](external-process-ownership.md#declining-publication-retains-the-edited-copy--2026-11-06).
+Это не доказывает независимость самого сеанса от закрытого окна.
+В `9d2c2ba8` добавлен value snapshot исходной версии и проверка фактической
+цели под native writer lease. Повторное открытие после чужой записи больше
+не разрешает старой внешней правке заменить новую версию. Linux/macOS focused
+evidence и ограничения описаны в
+[аудите внешних процессов](external-process-ownership.md#captured-external-edit-source-generation--2026-11-06).
+Процесс, GUI delivery и вложенная цепочка всё ещё требуют app-owned контекста.
+
 ## Рамочный выбор в общей файловой панели — 2026-11-06
 
 Диагностический жест из пустой области действительно оставлял таблицу без
@@ -747,6 +821,144 @@ Capture provenance остаётся pre-commit dirty, остальные produce
 in-process/external/mount owners остаются отдельными незавершёнными границами
 этого же активного аудита.
 
+## Application-owned filesystem and volume tasks
+
+2026-11-06: перенесён lifecycle существующих FileTransferOperation и
+VolumeOperation к общему application task owner. Полные локальные callers,
+overwrite wait/answer, cancellation, publication/rollback и volume plans сверены
+до изменения. Original PanelSplitFile и ProgressDialog2 bodies прочитаны из
+записанного source archive; их baseline hashes совпадают с manifest. Native
+read/write/rename/archive algorithms и файловые transaction owners не заменены.
+Новые Qt task units project-owned и включены в local inventory; внешнего импорта
+и изменения original hashes нет.
+
+Task владеет worker, progress Sync, transport и overwrite receiver. Worker
+присоединяется до освобождения Sync. После close файлового окна его completion
+connections отключаются до ReleaseApp: raw CApp/selection refresh не вызываются
+позднее. Clipboard completion отдельно принадлежит task и сохраняет проверку
+исходного MIME payload. MainWindow и backend не удерживаются скрытыми.
+
+У Volume terminal result отделён от изменяемого запроса Stop: поздняя отмена не
+маскирует полученную ошибку. Copy сохраняет прежний bool success для обработанного
+запроса с пропусками, но отдельный partial outcome удерживает итог и запрещает
+очищать Cut как после полного move. Общий partial признак учитывает No/NoToAll,
+вложенные merge и оставшийся source. Алгоритмы копирования и rollback сохранены.
+
+Progress modeless; overwrite, Stop и итог WindowModal относительно задачи на
+всех поддерживаемых платформах. Автопоказ вопроса/итога отложен при чужом modal
+или редактировании поля по общей политике task presentation. Pending callback
+и event-loop hold сохраняются; завершение заменяет устаревший вопрос. Явный Show
+разворачивает progress до показа pending sheet. Успех закрывается автоматически;
+пропуски, отмена и ошибка требуют просмотра. Quit возвращает к local task, сохраняя
+прежние source-call/archive/mount/external preflight; общего Continue coordinator
+эта итерация не подменяет.
+
+Linux: десять из одиннадцати focused suites прошли в общей партии; единственный
+неверный navigation fixture ожидал файловую папку после отмены нового архива,
+хотя действующая транзакция сохраняет последний успешно открытый архив. Fixture
+теперь проверяет сохранённый путь и archive provider; финальные ui-operations и
+local-task suites PASS. Дополнительный worker-window-progress PASS проверяет
+Quit → Show свёрнутой работающей задачи, затем close/destroy файлового окна и
+полные bytes Copy/Split/Combine. Совокупность включает file-transfer, volume,
+workspace navigation, copy routing, source progress и оба task consumers.
+macOS offscreen: девять window/clipboard/progress/task consumers PASS.
+Финальный pending-result Close не запрашивает отмену законченного worker:
+узкий task progress adapter показывает сохранённый итог, а рабочий Stop и
+source Close готового списка сохраняют прежние handlers. Focused Linux local-task
+и worker-window-progress после этой правки PASS. Native проверка этого Close
+входит в оставшийся Cocoa scope.
+
+Новые observable сценарии: реальный qApp.exec с закрытием последних двух файловых
+окон во время overwrite; Replace/Skip/Cancel в EN/RU, исходные и выходные bytes,
+clipboard, удержание итога и автоматическое завершение после просмотра. Отдельно
+проверены late Stop после volume failure и late failure при чужом текстовом вводе
+с editingFinished=0, сохранением текста/caret/selection и явным Show свёрнутой
+задачи. Старое ожидание уничтожения worker вместе с окном заменено проверкой
+полного результата после уничтожения окна, без ослабления проверки bytes.
+
+Native Cocoa и новая gallery этого сценария пока ожидают разблокировки macOS;
+offscreen PASS не выдаётся за native acceptance. Windows/full/slow не запускались.
+External/mount владельцы и полный Continue/Cancel/Show coordinator остаются
+незавершённой частью активного аудита. Следующая итерация добавляет draft discard.
+
+## Подтверждённое закрытие незапущенных форм — 2026-11-06
+
+Сверены текущие source-backed Extract/Compress handlers, accepted-only публикация
+путей в CommonDialog/BrowseDialog, operation endpoint/launcher и workspace close
+pipeline с контрактом application-lifecycle из master ready-v55. Native обработка
+форм, валидация, выбор путей и результат worker не заменяются. Новый controller и
+IPC handshake — локальная Qt-интеграция; внешних импортов и смены original hashes нет.
+
+Если все независимые 7zG задачи ещё показывают незапущенные формы, Quit предлагает
+закрыть их без применения. Cancel/Escape сохраняет ввод и файловые окна. Список
+форм и поколения черновиков фиксируются до вопроса; подтверждение ждёт ответа
+именно на свой запрос и проверенного завершения каждого native процесса.
+Повторный Quit не создаёт второе намерение; новое файловое окно отменяет выход.
+Вложенный picker или validation question запрещает закрытие родительской формы,
+включая native picker без видимого QWidget modal. Отложенный результат снова
+предлагается после завершения такого вопроса без зависимости от focusChanged.
+
+Сессия сохраняется перед запросами закрытия и удерживается до повторного полного
+preflight. Отказ, таймаут, несовпадающий результат или новый владелец запрещают
+teardown файловых окон. Когда файловых окон уже нет, отказ имеет отдельное видимое
+сообщение. Работающие local tasks проверяются до предложения закрыть черновики.
+Ресурсные veto и native работа сохраняют прежние границы; полный Continue/Cancel/
+Show и закрытие legacy host-modal форм этой итерацией не объявляются завершёнными.
+
+Linux focused: draft-quit/presentation, operation launcher, source browse,
+dialog paths, workspace session и local/task-result consumers — восемь suites PASS.
+Проверены Escape, две реальные Extract/Compress формы, ACK и native outcome,
+естественное закрытие во время вопроса, новое окно во время ожидания, восстановление
+обеих папок, видимый отказ без файловых окон и настоящий вложенный выбор папки.
+Дополнительный Linux local-task PASS проверяет автоматический показ отложенной
+ошибки после завершения native question без смены фокуса. macOS offscreen:
+те же восемь suites и task-lifecycle/worker-window-progress — десять PASS.
+Финальная начальная/компактная геометрия EN/RU отдельно PASS на Linux и macOS;
+четыре widget JSON с qpa=offscreen проверены, временные отчёты удалены.
+Cocoa-приёмка текущей итерации пока не завершена; снимки нового вопроса не
+выдаются за проверенные. Windows/full/slow не запускались.
+
+## Продолжение независимых задач после выхода — 2026-11-06
+
+Сверены source-backed CloseFileManager, оконные services, launcher/registry и
+local-task result/overwrite boundaries с application-lifecycle из master.
+Shared DialogSurface/ActionBar теперь предлагает Cancel, Show и Continue при
+работающих независимых или local задачах и непроверенных результатах. Escape
+сохраняет рабочее пространство; Show возвращает к владельцу. Continue закрывает
+только файловые окна после повторного preflight и ждёт штатного завершения и
+просмотра за счёт существующих владельцев задач и результатов. Дополнительный
+реестр/hold, убийство процессов и общая фиктивная отмена не добавляются.
+
+При смешанных состояниях открытые незапущенные формы сначала проходят прежний
+generation/request ACK и native termination. Новый draft требует нового согласия,
+а незапущенная форма с активным вопросом возвращается к своему владельцу.
+Повторный Quit показывает оставшуюся задачу без замены сохранённой сессии.
+Запрос NewWindow отменяет намерение выхода ещё до конструирования окна.
+
+Task-owned overwrite/final questions проверяются по их явному владельцу и
+цепочке parentWidget, а не visual ancestry между отдельными top-level окнами.
+Для собственного диалога файлового окна та же логическая цепочка сохраняет
+source запрет программного Close отключённого modal parent. Kind::Open всегда
+запрещает teardown, в том числе при живой local task. Archive/staging, mount и
+external-session veto сохранены; их перенос к независимому owner этим изменением
+не объявляется завершённым. Внешнего кода не импортировали, original hashes
+не менялись; новые файлы диалога — локальная Qt-презентация.
+
+Linux: Continue и шесть прямых workspace/task/progress consumers PASS. Проверены
+Cancel/Show и EN/RU initial/compact caption fit; реальный qApp.exec во время
+overwrite, Replace/Skip/Cancel, удержание вопроса и итогового сообщения,
+автоматическое завершение, NewWindow и последующее восстановление сессии.
+Смешанная Extract-форма закрывается через ACK до закрытия файлового окна;
+поздний crash независимой задачи удерживает review. Новый host modal между
+подтверждением и teardown запрещает закрытие обоих соседей, сохраняя ввод.
+Отдельная проверка собственного modal сохраняет отказ обычного Close.
+macOS offscreen: те же семь наборов PASS. NewWindow fixture ждёт публичный
+callback готовности перед сохранением, чтобы проверять целевую папку после
+асинхронной навигации, а не промежуточный Home. Четыре widget JSON нового вопроса
+EN/RU initial/compact проверены с qpa=offscreen, временные отчёты удалены.
+Native Cocoa не запускалась: CGSSessionScreenIsLocked=Yes после финальной сборки.
+Gallery не обновлялась; Windows/full/slow не запускались.
+
 ## Shared secret editing
 
 2026-11-05: проверены исходные `PasswordDialog.cpp/.h`, обработчики
@@ -912,3 +1124,185 @@ offscreen QPA, поэтому эти результаты не подтверж�
 Qt client chrome; pixel parity с оригинальным Windows и физические жесты
 перетаскивания/раскладки клавиатуры ими не установлены. Финальная пользовательская
 визуальная приёмка остаётся отдельным review согласованного редизайна.
+
+## Внешний редактор: независимый владелец — 2026-11-06
+
+Повторно сопоставлен полный `MyThreadFunction` из исходного
+`CPP/7zip/UI/FileManager/PanelItemOpen.cpp`, его process discovery, callers,
+temporary records и CopyFromFile-ветвь с текущим port. Базовый revision
+`b88c6bc09339de32f7d18bbab900686b244f42ba`, original units и их SHA256 остаются
+в существующем baseline. Новый код — локальная Qt-интеграция; архивные алгоритмы,
+native wait/discovery и writer transaction не заменяются.
+
+File Manager передаёт native observer владельцу приложения. Он захватывает
+значения исходной цели, native индексы/пути и формат каждого уровня, секреты
+только в памяти и фабрику независимого backend с теми же immutable codecs.
+Закрытие исходной панели, окна или backend не требует удерживать скрытое окно.
+Свежий контекст использует прежние native открытия/материализацию/CopyFromFile;
+успех всей цепочки требует фактической публикации каждого уровня. Отказ внешнего
+writer сохраняет изменённый input и уже обновлённые внутренние копии.
+
+Unknown включает no-handle association и быстрый native complex-mode launcher.
+Это намеренная адаптация исходного changed-пути: он не подтверждает завершение
+документа, поэтому автоматические Update, снятие защиты и timestamp cleanup
+не выполняются. Подтверждение пользователя разрешает ручную подготовку стабильного
+входа, но не переводит Unknown в Completed. Экспорт использует read pin и обычный
+FileTransfer; удаление защищённого объекта по-прежнему запрещено. Решение Save Copy
+завершает вопрос обновления без автоматической очистки. Stop запрашивает остановку
+наблюдения и откладывает join до завершения доставленного GUI callback, включая
+его вложенную форму CopyMove. Внешнюю программу он не завершает.
+
+Focused Linux и macOS offscreen проверяют реальные process fixtures после
+уничтожения окна/backend: Update, Later, изменившийся архив, fast Unknown,
+Stop в вопросе и CopyMove, экспорт с сохранением исходной копии. Отдельные native
+контексты проверяют обычный/вложенный/encrypted архив, выбор из подпапки и
+partial publication. Source scope и эти результаты не устанавливают Cocoa
+appearance/focus или полную готовность external-file UX.
+
+Durable nonsecret сведения добавлены в существующий реестр временных владельцев.
+Они сохраняют исходную generation и цепочку записи; пароли остаются в памяти.
+Восстановление из команды временных файлов не запускает внешнюю программу и
+не пишет архив автоматически. Сохранённая отметка публикации исключает повторное
+предложение той же записи после следующего запуска. Старые копии без контекста
+доступны как копии для экспорта, без угаданной архивной цели.
+
+Два отдельных процесса проверяют restart обычного/encrypted открытия, свежий
+запрос пароля, отказ при сменившемся исходнике, Later и просмотр опубликованной
+копии после ещё одного запуска. Проверки реестра защищают read pin, external flag
+и отказ при сменившемся filesystem identity. Native cleanup также повторно
+сверяет владельца каталога перед удалением. Эти изменения не импортируют новых
+архивных алгоритмов; original baseline и provenance сохраняются.
+
+Обновление живых вложенных/inactive представлений и их UI regressions описано ниже.
+Native Cocoa и review gallery остаются отдельной неполученной приёмкой.
+
+Итоговые focused suites этой серии прошли Linux и macOS offscreen:
+`external_archive_context`, `external_archive_restore`, `external_task_lifecycle`,
+`external_session_recovery`, `archive_external_edit`, `external_gui_call`,
+`archive_external_lifetime`, `owned_temp`, `browse_dialog`, `temp_cleanup`.
+Сценарии живого контекста и восстановления разделены без изменения 45-секундных
+лимитов: общий macOS diagnostic прошёл все 12 строк за 43,7 секунды, а в общем
+прогоне превысил deadline. После разделения штатный macOS запуск прошёл.
+Отдельные NFC/NFD-файлы проверены на Linux; на APFS эти две строки пропущены,
+поскольку имена обозначают один объект. Это не устанавливает native focus.
+
+## Публикация архива и живые вкладки — 2026-11-06
+
+До изменения повторно прочитаны полные исходные `OpenParentArchiveFolder`,
+`CloseOneLevel`/`CloseOpenFolders`, `CFolderLink::WasChanged_from_FolderLink`,
+открытие через `CFfpOpen` и вызывающие Qt-маршруты. Original units из
+`CPP/7zip/UI/FileManager/PanelItemOpen.cpp`, `PanelFolderChange.cpp`, `Panel.h`,
+`FileFolderPluginOpen.cpp` и callbacks остаются закреплёнными существующим
+baseline `b88c6bc09339de32f7d18bbab900686b244f42ba`. Новых внешних исходников
+или алгоритмов декодирования/публикации эта серия не импортирует.
+
+Qt-владелец вкладок сопоставляет уведомление с physical root всей цепочки,
+включая неактивные и перенесённые вкладки. Нативное переоткрытие сохраняет
+принятый формат каждого уровня и использует секреты только из памяти.
+Повторяющееся имя, исчезнувший child, новый пароль или согласие оставляют старый
+читаемый контекст с явным повтором. Фоновые callbacks не показывают новые вопросы.
+Выделение, scroll и история не подменяются автоматическим переходом.
+
+Признак устаревшего источника принадлежит панели и всем её location checkpoints,
+включая локальную транзакцию открытия другого физического архива. Rollback
+возвращает этот признак вместе со старой цепочкой. Её обычное закрытие больше
+не предлагает записать старый child в изменившийся root; изменённые копии получают
+nonsecret сведения до освобождения владельца. Native size/time/IsVirtual
+классификация сохранена. Отсутствующий materialized input не считается доказанно
+безопасным для автоматического освобождения. У неизменённого direct stream нет
+файловой копии; освобождение его пустого temporary directory проверено отдельно.
+Повторная проверка после уже открытого modified-child вопроса закрывает гонку
+с поздним уведомлением о публикации.
+
+Частичные inner-to-outer обновления сохраняют настоящие промежуточные архивы
+с привязкой к исходному physical root. Lease файла разрешает удалить только этот
+файл; право удаления родительского каталога требует его собственного владельца.
+Безопасная замена объекта на том же пути не превращает новый объект в прежний.
+
+Linux focused проверки охватывают реальные nested update/error/cancel/read-only
+операции, активную/неактивную вкладку, dirty spool, Retry/Parent, смену пароля,
+неоднозначное имя/формат, publication во время чтения и отменённого перехода,
+ожидающий перенос вкладки и живой draft. Normal/compact notice и вопрос обновления
+проверяются по геометрии. История защищена наблюдаемым Back/Forward-сценарием.
+Те же девять focused suites прошли macOS offscreen; проверка сообщений результата
+учитывает текущий перевод вместо предположения об английском языке системы.
+Отдельный Cocoa-прогон подтвердил восстановление свёрнутого окна 7zG через Show
+и сохранение задачи после закрытия последнего файлового окна до её завершения.
+Это не доказывает весь сценарий Quit с восстановленными информационными окнами.
+Полная переработка temporary/details UX остаётся открыта.
+
+## Native lifecycle и компактный footer — 2026-11-06
+
+На разблокированном macOS Cocoa выполнены оба сценария
+`task_lifecycle_window`: последняя файловая форма закрывается без уничтожения
+незавершённой задачи; Show восстанавливает свёрнутое окно отдельного 7zG,
+сохраняя файловые окна. Использован существующий fixture-host с production
+endpoint и настоящими Qt-формами, не установленный executable целиком.
+
+В review-галерее обновлены light/dark producers `selection-gesture`, `file-states`,
+`local-tasks`, `quit-drafts` и `quit-tasks`. Последние два включают EN/RU,
+обычный и компактный размеры. Native compact-run выявил обрезание Cancel:
+расчёт минимальной ширины общего button box учитывал текст и margin, но мог
+разрешить ширину меньше штатного `sizeHint()` Cocoa. Общий компонент теперь
+сохраняет и этот минимум. Существующий тест обнаружил ошибку без новой матрицы;
+кадр и размеры записываются до проверки, чтобы сохранять свидетельство отказа.
+Linux `continue_quit`, `dialog_surface`, `language_standard_buttons` прошли;
+macOS прошли два последних suite и native producers выхода в обеих темах.
+На исправленных compact PNG подписи Cancel/Отмена полностью видны.
+
+Эти результаты уточняют срез выше: рамочное выделение table/icons, Cut/current,
+local last-window question/result и диалоги выхода имеют новые Cocoa-кадры.
+Они не устанавливают native-приёмку NewWindow после Continue, весь сценарий
+автовыхода с восстановленными external details или полную переработку temp UX.
+
+## Вкладка как прежнее приложение — уточнение пользователя 2026-11-06
+
+Ранее проверенные Continue/Discard и соответствующие кадры выхода отменены
+этим уточнением. Этих диалогов и протокола отбрасывания форм больше нет в
+реализации; прежние записи выше описывают историческую проверку, а не текущий
+пользовательский контракт. Quit возвращает пользователя к уже открытой форме,
+задаче или результату без отдельного вопроса выхода.
+
+Восстановление открытого архива отменено по прямому указанию пользователя.
+Общее native правило сохранения места выделено из прежнего `CApp::Save`:
+для архивного контекста сохраняется родительская директория внешнего архива,
+для обычной директории — её текущий путь. Workspace применяет то же правило
+к активным и неактивным вкладкам. Старые archive descriptors используются только
+для перехода к директории при чтении старых настроек, без открытия/декодирования
+архива и запроса пароля. Живые Duplicate/Move/history не являются restart.
+
+Закрытие вкладки выполняет завершение её native source до удаления runtime
+и привязки соседнего UI: прекращает rename/list callbacks, останавливает её
+наблюдателей внешних программ и освобождает source через прежний ReleasePanel.
+Внешняя программа не завершается; неподтверждённая копия остаётся защищённой.
+Закрытый источник больше не инициирует автоматическую запись архива.
+Закрытие открытой формы экспорта сначала отклоняет её и возвращается из exec,
+затем закрывает окно сведений. Явный последующий экспорт оставшихся байтов
+не запрещается одним лишь фактом остановки наблюдателя.
+
+Это уточнение заменяет расширенный restart/after-close update контракт предыдущих
+разделов; оно не вводит новую модель восстановления или собственный алгоритм
+завершения архивных операций.
+
+Directory-only resume и закрытие editor-наблюдателя прошли focused Linux и macOS
+проверки. Cocoa отдельно проверяет закрытие активной/неактивной вкладки,
+последнее окно с настоящим выходом event loop при живом редакторе, закрытие
+во время формы копирования и current/legacy encrypted session без повторного
+открытия архива. Промежуточные копии проверены реальными native update сценариями.
+
+Выбор назначения и асинхронный экспорт удерживают только используемую копию
+и владельца своего диалога. Это не удержание закрытой вкладки. Native cleanup
+учитывает чтение через тот же temporary owner, а перед экспортом снова проверяется
+identity каталога. Проверки охватывают завершение неизменённого редактора,
+исчезновение файла и подмену каталога во время открытой формы. Общая защита
+временного владельца и эти lifetime-сценарии прошли Linux, macOS offscreen и
+Cocoa. Сведения сняты и просмотрены в обеих native темах, EN/RU, normal/compact.
+
+Эта проверка не объявляет весь изменённый lifecycle эквивалентным прежнему
+приложению. В частности, прежнее закрытие отменяло и дожидалось собственных
+файловых/volume workers. В текущем WIP восстановлены source-owned cancel/join
+до освобождения папок, отсечение поздних continuations и привязка mount manager
+к runtime вкладки. Focused проверки прошли Linux, macOS offscreen и Cocoa.
+Обычные запросы закрытия во время собственных вопросов отклоняются; forced
+destruction останавливает и дожидается worker, не публикуя поздний callback.
+Исторические Continue/after-close результаты не доказывают эту эквивалентность.

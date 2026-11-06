@@ -14,7 +14,7 @@ class FileTransferOperation : public QThread {
 
   public:
     enum class DestinationKind { Directory, DirectPath };
-    enum class ResultKind { Success, Failure, Canceled };
+    enum class ResultKind { Success, PartialSuccess, Failure, Canceled };
     struct FileSystemAdapter {
         std::function<bool(const QString &, const QString &)> trySourceRename;
         std::function<bool(const QString &)> removeSource;

@@ -1,6 +1,7 @@
 #include "ui/lifecycle/qttaskpresentation.h"
 #include <QApplication>
 #include <QEvent>
+#include <QLineEdit>
 #include <QTimer>
 #include <QWidget>
 
@@ -14,6 +15,17 @@ QtTaskPresentation &QtTaskPresentation::Application() {
         if (auto *presentation = qobject_cast<QtTaskPresentation *>(object))
             return *presentation;
     return *new QtTaskPresentation(qApp);
+}
+
+QtTaskPresentation::QuestionScope::QuestionScope() : owner_(&Application()) {
+    ++owner_->questionDepth_;
+    owner_->Publish();
+}
+QtTaskPresentation::QuestionScope::~QuestionScope() {
+    if (owner_) {
+        --owner_->questionDepth_;
+        owner_->Publish();
+    }
 }
 
 void QtTaskPresentation::Watch(QWidget &window, Phase phase) {
@@ -44,6 +56,12 @@ void QtTaskPresentation::BeginWork(QWidget &window) {
 
 void QtTaskPresentation::ResultReviewed() { Application().resultReviewed_ = true; }
 
+bool QtTaskPresentation::CanPresent(const QWidget *owner) {
+    const auto *modal = QApplication::activeModalWidget();
+    return !Application().questionDepth_ && (!modal || modal == owner) &&
+           !qobject_cast<QLineEdit *>(QApplication::focusWidget());
+}
+
 const QtTaskPresentation::Entry *QtTaskPresentation::currentEntry() const {
     const Entry *current = nullptr;
     for (const auto &entry : entries_)
@@ -53,7 +71,7 @@ const QtTaskPresentation::Entry *QtTaskPresentation::currentEntry() const {
 }
 
 QWidget *QtTaskPresentation::currentWindow() const {
-    if (auto *modal = QApplication::activeModalWidget(); modal && modal->isVisible())
+    if (auto *modal = QApplication::activeModalWidget())
         return modal;
     const auto *entry = currentEntry();
     return entry ? entry->window.data() : nullptr;
@@ -61,13 +79,14 @@ QWidget *QtTaskPresentation::currentWindow() const {
 
 QtTaskPresentation::Snapshot QtTaskPresentation::snapshot() const {
     auto *window = currentWindow();
+    if (questionDepth_)
+        return {Phase::Question, window ? window->windowTitle() : QString(), bool(window)};
     if (!window)
         return {fallback_, {}, false};
     for (const auto &entry : entries_)
         if (entry.window == window)
             return {entry.phase, window->windowTitle(), true};
-    // An unregistered nested modal cannot authorize discarding a draft or
-    // imply that native work has finished (e.g. a file picker or conflict).
+    // A native picker or conflict remains a question owned by its dialog.
     return {Phase::Question, window->windowTitle(), true};
 }
 

@@ -5,6 +5,7 @@
 #include "operations/qtoperationendpoint.h"
 #include "support/operation_dialogs.h"
 #include "support/operation_kill.h"
+#include "ui/lifecycle/qttaskpresentation.h"
 #include "ui/progress/ProgressDialog2.h"
 #include <QApplication>
 #include <QDialog>

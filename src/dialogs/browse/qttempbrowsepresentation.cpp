@@ -73,8 +73,10 @@ class BrowseAppearance final : public QStyledItemDelegate {
     }
 };
 } // namespace
-CBrowseDialog2::CBrowseDialog2(QWidget *parent, std::function<bool(const QUrl &)> opener)
-    : QDialog(parent), _opener(std::move(opener)) {
+CBrowseDialog2::CBrowseDialog2(
+    QWidget *parent, std::function<bool(const QUrl &)> opener,
+    std::function<bool(const QtOwnedTempEntry &, const QString &, bool)> details)
+    : QDialog(parent), _opener(std::move(opener)), _details(std::move(details)) {
     BuildControls();
 }
 CBrowseDialog2::~CBrowseDialog2() {
@@ -104,6 +106,14 @@ void CBrowseDialog2::BuildControls() {
     QtBindResourceText(refresh, IDM_VIEW_REFRESH, "Refresh");
     commands->addWidget(_delete);
     commands->addWidget(refresh);
+    if (_details) {
+        _sessionDetails = new QPushButton(this);
+        _sessionDetails->setObjectName("tempSessionDetails");
+        QtBindLocalText(_sessionDetails, "qttempbrowsepresentation",
+                        QT_TRANSLATE_NOOP("qttempbrowsepresentation", "Session details"));
+        commands->addWidget(_sessionDetails);
+        connect(_sessionDetails, &QPushButton::clicked, this, &CBrowseDialog2::OnDetails);
+    }
     commands->addStretch();
     layout->addLayout(commands);
     auto *path = new QHBoxLayout;
@@ -291,6 +301,16 @@ void CBrowseDialog2::UpdateDeleteAvailability() {
             enabled = false;
     }
     _delete->setEnabled(enabled);
+    if (_sessionDetails) {
+        bool available = false;
+        if (selected.Size() == 1) {
+            const auto &item = _snapshot->Items[selected[0]];
+            const auto &file = _snapshot->Files[item.MainFileIndex];
+            const QString path = Text(_snapshot->Prefix + fs2us(file.Name));
+            available = IsOwnedPath(item.Owner, path) && _details(item.Owner, path, false);
+        }
+        _sessionDetails->setEnabled(available);
+    }
     if (_scopeLabel) {
         QString status = QCoreApplication::translate("qttempbrowsepresentation",
                                                      "Sevenzip owned temporary files");

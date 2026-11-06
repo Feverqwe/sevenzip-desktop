@@ -151,8 +151,13 @@ add_library(sevenzip_panel
     src/filemanager/panels/PanelArchiveOpen.cpp
     src/filemanager/external/qtexternalapplications.cpp
     src/filemanager/external/qtexternalapplications.h
+    src/filemanager/external/qtexternalarchivetarget.cpp
+    src/filemanager/external/qtexternalarchivetarget.h
     src/filemanager/external/qtexternalfilesession.cpp
     src/filemanager/external/qtexternalfilesession.h
+    src/filemanager/external/qtexternalfilerecord.cpp
+    src/filemanager/external/qtexternalfilerecord.h
+    src/filemanager/external/qtexternalsessionowner.h
     src/archive/resources/qtarchiveitemopen.cpp
     src/archive/resources/qtarchiveitemopen.h
     src/filemanager/VerCtrl.cpp
@@ -221,6 +226,8 @@ add_library(sevenzip_panel
     src/ui/controls/qtsecretedit.h
     src/ui/controls/qtsourcesummary.cpp
     src/ui/controls/qtsourcesummary.h
+    src/ui/controls/qtmetadatarows.cpp
+    src/ui/controls/qtmetadatarows.h
     src/filemanager/panels/qtpanellist.cpp
     src/filemanager/panels/qtpanellist.h
     src/filemanager/panels/qtpanelfolder.cpp

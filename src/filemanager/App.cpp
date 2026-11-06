@@ -343,12 +343,7 @@ void CApp::Save() {
         const CPanel &panel = Panels[i];
         if (!panel.PanelCreated)
             continue;
-        UString path;
-        if (panel._parentFolders.IsEmpty())
-            path = panel._currentFolderPrefix;
-        else
-            path = panel._parentFolders[0].ParentFolderPath;
-        SavePanelPath(i, path, _settingsPath);
+        SavePanelPath(i, panel.GetResumeFolderPath(), _settingsPath);
         listMode.Panels[i] = panel.GetListViewMode();
         SaveFlatView(i, panel._flatModeForArc, _settingsPath);
     }

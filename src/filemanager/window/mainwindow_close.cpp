@@ -6,6 +6,7 @@
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtapppresentation.h"
 #include "filemanager/window/qtfileclipboard.h"
+#include "filemanager/window/qtlocalfiletask.h"
 #include "filemanager/window/qtwindowworkspace.h"
 #include "filemanager/window/qtworkspaceapplication.h"
 #include "platform/associations/qtassociatedfileservices.h"
@@ -19,10 +20,13 @@ class QtFileManagerWindowServices final : public IQtFileManagerWindowServices {
   public:
     explicit QtFileManagerWindowServices(MainWindow &window) : window_(window) {}
     bool CanCloseNow() const override {
-        const QWidget *modal = QApplication::activeModalWidget();
-        return !window_.sourceArchiveProgress_ &&
-               !(modal && (modal == &window_ || window_.isAncestorOf(modal))) &&
-               window_.commands_->CanCloseMounts();
+        if (window_.sourceArchiveProgress_)
+            return false;
+        for (const auto *owner = QApplication::activeModalWidget(); owner;
+             owner = owner->parentWidget())
+            if (owner == &window_)
+                return false;
+        return window_.commands_->CanCloseMounts();
     }
     void Deactivate() override {
         if (auto *application = QtWorkspaceApplication::Find())
@@ -108,14 +112,17 @@ void MainWindow::closeEvent(QCloseEvent *event) {
 
 QWidget *MainWindow::applicationQuitBlocker() const {
     const auto &operations = app_.QtOperations();
-    if (operations.callActive() || operations.blocking() || sourceArchiveProgress_ ||
-        (fileTransfer_ && fileTransfer_->isRunning()) ||
-        (volumeOperation_ && volumeOperation_->isRunning()) || workspace_->HasExternalWorkers())
+    if (operations.callActive() || operations.kind() == QtAppOperationState::Kind::Open ||
+        (operations.blocking() && !fileTask_) || sourceArchiveProgress_)
         return const_cast<MainWindow *>(this);
     return commands_->MountCloseBlocker();
 }
 
 void MainWindow::quiesceOperations() {
+    if (fileTask_) {
+        fileTask_->StopAndWait();
+        fileTask_ = nullptr;
+    }
     workspace_->QuiesceInactive();
     if (guiOutputRefresh_)
         guiOutputRefresh_->Stop();
@@ -134,15 +141,5 @@ void MainWindow::quiesceOperations() {
     }
     workspace_->QuiesceNavigation();
     backend_->cancelAndWait();
-    if (fileTransfer_) {
-        disconnect(fileTransfer_, nullptr, this, nullptr);
-        fileTransfer_->cancel();
-        fileTransfer_->wait();
-    }
-    if (volumeOperation_) {
-        disconnect(volumeOperation_, nullptr, this, nullptr);
-        volumeOperation_->cancel();
-        volumeOperation_->wait();
-    }
     closeProgressDialog();
 }

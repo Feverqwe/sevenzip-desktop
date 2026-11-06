@@ -55,6 +55,13 @@ releases a pending decision. These are feature checks, not Windows visual-parity
 
 ### Native external update publication (P3-05.15)
 
+The following source callback contract applies to standalone panel services.
+The redesigned File Manager uses the application-owned session described in
+[the workspace audit](../upstream-port-audit/main-window-workspace.md): one explicit
+decision covers the captured nested chain, and published outputs invalidate the
+physical root in every affected tab. A failed fresh opening retains the previous
+readable view and offers Retry; it does not publish a stale nested copy on close.
+
 After the original modified-file Yes prompt, native CopyFromFile retains the
 source unconditional RefreshListCtrl policy for writer success/failure/Cancel.
 The refresh HRESULT is ignored, including deferred S_FALSE/E_FAIL/E_ABORT;

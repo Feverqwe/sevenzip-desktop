@@ -586,8 +586,11 @@ class FileTransferTests : public QObject {
         QTRY_COMPARE(result.size(), 1);
         const bool canceled = answer == NOverwriteAnswer::kCancel;
         QCOMPARE(result.first().first().toBool(), !canceled);
-        QCOMPARE(operation.resultKind(), canceled ? FileTransferOperation::ResultKind::Canceled
-                                                  : FileTransferOperation::ResultKind::Success);
+        QCOMPARE(operation.resultKind(),
+                 canceled ? FileTransferOperation::ResultKind::Canceled
+                 : answer != NOverwriteAnswer::kYesToAll && answer != NOverwriteAnswer::kAutoRename
+                     ? FileTransferOperation::ResultKind::PartialSuccess
+                     : FileTransferOperation::ResultKind::Success);
         const bool all = answer == NOverwriteAnswer::kYesToAll ||
                          answer == NOverwriteAnswer::kNoToAll ||
                          answer == NOverwriteAnswer::kAutoRename;
@@ -843,7 +846,7 @@ class FileTransferTests : public QObject {
         QVERIFY(copy.wait(30000));
         QCOMPARE(result.first().first().toBool(), !cancel);
         QCOMPARE(copy.resultKind(), cancel ? FileTransferOperation::ResultKind::Canceled
-                                           : FileTransferOperation::ResultKind::Success);
+                                           : FileTransferOperation::ResultKind::PartialSuccess);
         QCOMPARE(requested.size(), 1);
         for (const QString &source : sources) {
             QVERIFY(QFile::exists(source));

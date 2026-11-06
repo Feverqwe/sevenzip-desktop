@@ -19,6 +19,7 @@ struct CFfpOpen {
     bool OwnedStreamFile = false;
     bool MaterializeStreamFile = false;
     bool MaterializedStreamFile = false;
+    bool DisableUserQuestions = false;
 
     NWindows::NDLL::CLibrary Library;
     CMyComPtr<IFolderFolder> Folder;

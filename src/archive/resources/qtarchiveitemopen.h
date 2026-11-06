@@ -7,4 +7,4 @@ class QWidget;
 // Source OpenItemInArchive acquisition, with the ordinary joined open dialog.
 HRESULT GetArchiveItemStream(IFolderFolder *folder, UInt32 index, ISequentialInStream **stream,
                              QWidget *parent, const QString &settingsPath, bool &passwordDefined,
-                             UString &password);
+                             UString &password, bool disableQuestions = false);

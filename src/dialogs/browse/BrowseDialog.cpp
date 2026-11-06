@@ -23,6 +23,7 @@
 #include "settings/ViewSettings.h"
 #include "ui/dialogs/qtdialoglayout.h"
 #include "ui/dialogs/qtdialogscreenservices.h"
+#include "ui/lifecycle/qttaskpresentation.h"
 #include <QComboBox>
 #include <QDir>
 #include <QFileDialog>
@@ -416,6 +417,7 @@ bool Dlg_CreateFolder(QWidget *wnd, UString &destName) {
 
 bool MyBrowseForFolder(QWidget *owner, const UString &title, const UString &path,
                        UString &resultPath) {
+    const QtTaskPresentation::QuestionScope question;
     resultPath.Empty();
     if (NeedsSourceBrowser(path)) {
         CBrowseDialog dialog(owner);
@@ -439,6 +441,7 @@ bool MyBrowseForFolder(QWidget *owner, const UString &title, const UString &path
 }
 
 bool CBrowseInfo::BrowseForFile(const CObjectVector<CBrowseFilterInfo> &filters) {
+    const QtTaskPresentation::QuestionScope question;
     if (NeedsSourceBrowser(FilePath)) {
         CBrowseDialog dialog(hwndOwner);
         dialog.FolderMode = false;

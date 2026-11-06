@@ -9,7 +9,8 @@
 
 namespace {
 HRESULT RunDirectoryRead(CAgentFolder &folder, bool recursive, const CUIntVector *selection,
-                         QWidget *parent, const QString &settingsPath) {
+                         QWidget *parent, const QString &settingsPath,
+                         bool disableQuestions = false) {
     // Reuse the joined native opening lifecycle. The folder and source proxy
     // remain quiescent until this modal worker has finished, including Cancel.
     struct Request {
@@ -38,6 +39,7 @@ HRESULT RunDirectoryRead(CAgentFolder &folder, bool recursive, const CUIntVector
         }
     } request{folder, recursive, selection};
     request.UI.SettingsPath = settingsPath;
+    request.UI.ProgressDialog.DisableUserQuestions |= disableQuestions;
     request.UI.ParentWindow = parent;
     request.UI.ProgressDialog.MainWindow = parent;
     request.UI.ProgressDialog.MainTitle = L"7-Zip";
@@ -63,9 +65,10 @@ HRESULT RunDirectoryRead(CAgentFolder &folder, bool recursive, const CUIntVector
 } // namespace
 
 HRESULT ReadArchiveDirectory(CAgentFolder &folder, bool recursive, QWidget *parent,
-                             const QString &settingsPath) {
+                             const QString &settingsPath, bool disableQuestions) {
     return folder.DirectoryItemsNeedLoad(recursive)
-               ? RunDirectoryRead(folder, recursive, nullptr, parent, settingsPath)
+               ? RunDirectoryRead(folder, recursive, nullptr, parent, settingsPath,
+                                  disableQuestions)
                : S_OK;
 }
 

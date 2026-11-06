@@ -52,11 +52,13 @@ def review_metadata(output, run, shot):
 
 
 def gallery(output, runs):
-    platforms = {row["id"]: row.get("platforms")
-                 for row in json.loads(CATALOG.read_text(encoding="utf-8"))}
+    catalog = {row["id"]: row for row in json.loads(CATALOG.read_text(encoding="utf-8"))}
     hosts = {"macos": "Darwin", "windows": "Windows", "linux": "Linux"}
-    runs = [run for run in runs if not platforms.get(run["id"]) or
-            hosts.get(run["host"]) in platforms[run["id"]]]
+    runs = [run for run in runs if run["id"] in catalog and
+            run.get("target") == catalog[run["id"]]["target"] and
+            run.get("functions") == catalog[run["id"]]["functions"] and
+            (not catalog[run["id"]].get("platforms") or
+             hosts.get(run["host"]) in catalog[run["id"]]["platforms"])]
     cards = []
     for run in runs:
         for shot in run["captures"]:

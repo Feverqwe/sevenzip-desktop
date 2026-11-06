@@ -3,6 +3,7 @@
 #include <QDialog>
 #include <QList>
 #include <QStringList>
+#include <functional>
 
 class QtArchiveMountSession;
 struct IUnknown;
@@ -25,6 +26,7 @@ class QtArchiveMountManager final : public QDialog {
     QPushButton *open_, *copy_, *unmount_, *force_;
     QAction *remove_;
     bool closingOwner_ = false;
+    std::function<void()> closeOwner_;
     const Session *selected() const;
     void bindSession(QtArchiveMountSession &session);
     void refresh();
@@ -41,6 +43,7 @@ class QtArchiveMountManager final : public QDialog {
     explicit QtArchiveMountManager(QWidget *owner);
     void mount(IUnknown *resource, const QString &label, const QString &archivePassword,
                const QString &folder = {});
-    bool canCloseOwner();
+    bool canCloseOwner(std::function<void()> close = {});
+    void rebindOwner(QWidget &owner);
     bool hasActiveSessions() const;
 };

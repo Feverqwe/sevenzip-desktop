@@ -13,12 +13,14 @@
 #include "archive/resources/qtarchivefileresource.h"
 #include "filemanager/FormatUtils.h"
 #include "filemanager/external/qtexternalapplications.h"
+#include "filemanager/external/qtexternalsessionowner.h"
 #include "filemanager/panels/Panel.h"
 #include "fileops/native/FileDir.h"
 #include "localization/LangUtils.h"
 #include "operations/qtexternalguicall.h"
 #include "platform/process/qtexternalprocess.h"
 #include "platform/temp/qtownedtempregistry.h"
+#include <QCoreApplication>
 #include <QElapsedTimer>
 #include <QMessageBox>
 #include <QWidget>
@@ -43,8 +45,11 @@ void CExitEventLauncher::Exit(bool hardExit) {
     // Native event/owned-thread lifecycle. Always join on POSIX/Qt: detaching
     // after the source Windows 100 ms hard-exit timeout could outlive this owner.
     (void)hardExit;
-    if (!_exiting.exchange(true))
-        _exitEvent.Set();
+    RequestExit();
+    Join();
+}
+
+void CExitEventLauncher::Join() {
     if (_numActiveThreads == 0)
         return;
     FOR_VECTOR(i, _threads) {
@@ -166,6 +171,8 @@ struct CTmpProcessInfo : public CTempFileInfo {
     CPanel *Window;
     QWidget *Parent;
     IQtExternalFileServices *ExternalServices;
+    std::shared_ptr<IQtExternalSessionOwner> Session;
+    QtExternalObservation Observation = QtExternalObservation::NotStarted;
     std::optional<ArchiveSourceSnapshot> ExpectedSource;
     UString FullPathFolderPrefix;
     bool UsePassword;
@@ -176,12 +183,16 @@ struct CTmpProcessInfo : public CTempFileInfo {
     ~CTmpProcessInfo() {
         if (Registered)
             --Launcher->PendingSessions;
+        if (Session)
+            Session->Finished(Observation);
     }
 };
 
 static int CallExternalUpdateGui(CTmpProcessInfo &tpi, const std::function<int()> &body) {
-    return QtExternalGuiCall(tpi.Parent, *tpi.Launcher, body,
-                             [&] { return tpi.ExternalServices->CanHandleExternalUpdate(); });
+    return QtExternalGuiCall(tpi.Parent, *tpi.Launcher, body, [&] {
+        return tpi.Session ? tpi.Session->CanPresent()
+                           : tpi.ExternalServices->CanHandleExternalUpdate();
+    });
 }
 
 static int ShowExternalUpdateMessage(CTmpProcessInfo &tpi, const UString &text,
@@ -199,6 +210,8 @@ static int ShowExternalUpdateMessage(CTmpProcessInfo &tpi, const UString &text,
 }
 
 static bool UpdateChangedExternalFile(CTmpProcessInfo &tpi) {
+    if (tpi.Session)
+        return CallExternalUpdateGui(tpi, [&] { return tpi.Session->Update() ? 1 : 0; }) == 1;
     const UString error = MyFormatNew(IDS_CANNOT_UPDATE_FILE, fs2us(tpi.FilePath));
     if (tpi.ReadOnly) {
         UString message = error;
@@ -251,7 +264,14 @@ static THREAD_FUNC_DECL MyThreadFunction(void *param) try {
             } else {
                 if (wait.State != CChildProcesses::WaitStatus::ProcessExited) {
                     const bool failed = wait.State == CChildProcesses::WaitStatus::Error;
+                    tpi->Observation =
+                        failed ? QtExternalObservation::Failed : QtExternalObservation::Stopped;
                     processes.CloseAll();
+                    if (failed && tpi->Session)
+                        CallExternalUpdateGui(*tpi, [&] {
+                            tpi->Session->PresentObservation(QtExternalObservation::Failed);
+                            return 0;
+                        });
                     return (THREAD_FUNC_RET_TYPE)(uintptr_t)failed;
                 }
                 if (firstPass && wait.Count == 1) {
@@ -270,10 +290,23 @@ static THREAD_FUNC_DECL MyThreadFunction(void *param) try {
         }
         const UInt32 curTime = UInt32(timer.elapsed());
         processes.CloseAll();
-        // The native wait/snapshot loop has proved all known children finished.
-        if (tpi->OwnedTempLease)
-            tpi->OwnedTempLease->ExternalFinished();
         isComplexMode = (curTime < 2 * 1000);
+        tpi->Observation = tpi->Session && isComplexMode ? QtExternalObservation::Unknown
+                                                         : QtExternalObservation::Completed;
+        // A fast launcher may have handed the document to an untracked process.
+        if (tpi->OwnedTempLease && (!tpi->Session || !isComplexMode))
+            tpi->OwnedTempLease->ExternalFinished();
+    }
+    if (tpi->Session && (!mainProcessWasSet || isComplexMode)) {
+        NFind::CFileInfo current;
+        if (current.Find(tpi->FilePath) && tpi->WasChanged_from_TempFileInfo(current))
+            CallExternalUpdateGui(*tpi, [&] {
+                tpi->Session->PresentObservation(QtExternalObservation::Unknown);
+                return 0;
+            });
+        // The application retains the protected record, including a temporarily
+        // missing file. Unknown completion cannot authorize timestamp cleanup.
+        return 0;
     }
     {
         NFind::CFileInfo newFileInfo;
@@ -284,8 +317,10 @@ static THREAD_FUNC_DECL MyThreadFunction(void *param) try {
                 tpi->DeleteDirAndFile();
                 return 0;
             }
-            if ((!mainProcessWasSet || isComplexMode) && tpi->Launcher->_exitEvent.Lock() != 0)
-                return (THREAD_FUNC_RET_TYPE)(uintptr_t)1;
+            if (!mainProcessWasSet || isComplexMode) {
+                if (tpi->Launcher->_exitEvent.Lock() != 0)
+                    return (THREAD_FUNC_RET_TYPE)(uintptr_t)1;
+            }
         }
     }
     // Closing the source only stops observation. A successful association
@@ -331,7 +366,10 @@ class CExternalFileLaunch MY_UNCOPYABLE {
         // Both known processes and successful no-handle associations retain
         // the copy if registration or thread creation subsequently fails.
         _directory.DisableDeleting();
-        _info->Processes.Services = _info->ExternalServices->ProcessServices();
+        _info->Processes.Services = _info->Session ? &_info->Session->ProcessServices()
+                                                   : _info->ExternalServices->ProcessServices();
+        if (_info->Session)
+            _info->Session->Launched(_process != nullptr);
         if (_process)
             _info->Processes.SetMainProcess(std::exchange(_process, nullptr));
         // The worker can finish and delete its record immediately after Create.
@@ -339,6 +377,7 @@ class CExternalFileLaunch MY_UNCOPYABLE {
         ::CThread thread;
         Thread_CONSTRUCT(&thread);
         _info->Registered = true;
+        _info->Observation = QtExternalObservation::Unknown;
         ++launcher.PendingSessions;
         if (Thread_Create(&thread, MyThreadFunction, _info.get()) != 0)
             throw 271824;
@@ -367,11 +406,22 @@ void CPanel::StartExternalFileSession(CTempDir &tempDirectory, const CTempFileIn
         tpi->ReadOnly = true;
     if (!tpi->FileInfo.Find(tempFilePath))
         return;
-    if (!_exitEventLauncher)
+    tpi->Session = _externalFileServices->CreateExternalSession(*this, *tpi, _settingsPath,
+                                                                ToQString(_currentFolderPrefix));
+    if (tpi->Session && !tpi->Session->ReadyToLaunch()) {
+        MessageBox_Error(ToUString(QCoreApplication::translate(
+            "QtExternalFileTask",
+            "Could not save external session details. The file was not opened.")));
+        return;
+    }
+    if (!tpi->Session && !_exitEventLauncher)
         _exitEventLauncher = std::make_unique<CExitEventLauncher>();
+    if (tpi->Session)
+        _externalSessions.emplace_back(tpi->Session);
     // Allocate tracking before launch/thread creation; Add must not throw while
     // the worker already owns this temp record.
-    _exitEventLauncher->_threads.ReserveOnePosition();
+    tpi->Launcher = tpi->Session ? &tpi->Session->Launcher() : _exitEventLauncher.get();
+    tpi->Launcher->_threads.ReserveOnePosition();
     // A no-handle association or shutdown during a known process must never
     // turn an unproven external lifetime into an inactive cleanup candidate.
     if (tpi->OwnedTempLease && !tpi->OwnedTempLease->ProtectExternal()) {
@@ -381,10 +431,9 @@ void CPanel::StartExternalFileSession(CTempDir &tempDirectory, const CTempFileIn
     // Prepare allocating tracking metadata before an external program can own
     // the copy. The process output remains guarded even inside launch errors.
     tpi->FullPathFolderPrefix = _currentFolderPrefix;
-    tpi->Window = this;
-    tpi->Parent = GetParent();
-    tpi->ExternalServices = _externalFileServices;
-    tpi->Launcher = _exitEventLauncher.get();
+    tpi->Window = tpi->Session ? nullptr : this;
+    tpi->Parent = tpi->Session ? nullptr : GetParent();
+    tpi->ExternalServices = tpi->Session ? nullptr : _externalFileServices;
     CExternalFileLaunch(tempDirectory, tpi).Start([&](IQtProcessHandle *&process) {
         return editMode ? StartEditApplication(fs2us(tempFilePath), useEditor, GetParent(),
                                                *_externalFileServices, _settingsPath, &process)

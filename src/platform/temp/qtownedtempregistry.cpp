@@ -12,6 +12,7 @@
 #include <optional>
 
 namespace {
+constexpr qsizetype kRecordLimit = 1024 * 1024;
 QString RecordPath(const QString &root, const QString &key) { return root + '/' + key + ".json"; }
 QString IdentityKey(const QString &identity) {
     return QUuid::createUuidV5(QUuid("ae8d385e-4ab9-4bbf-818e-088be7c96ef2"), identity.toUtf8())
@@ -34,12 +35,16 @@ std::unique_ptr<QLockFile> ClaimLock(const QString &root, const QString &key) {
     return lock->tryLock() ? std::move(lock) : nullptr;
 }
 bool WriteRecord(const QString &root, const QtOwnedTempEntry &entry) {
-    const QJsonObject data{{"version", 1},
-                           {"path", entry.path},
-                           {"identity", entry.identity},
-                           {"external", entry.externallyProtected}};
+    QJsonObject data{{"version", 1},
+                     {"path", entry.path},
+                     {"identity", entry.identity},
+                     {"external", entry.externallyProtected}};
+    if (!entry.context.isEmpty())
+        data.insert("context", entry.context);
     QSaveFile file(RecordPath(root, entry.key));
     const QByteArray bytes = QJsonDocument(data).toJson(QJsonDocument::Compact);
+    if (bytes.size() > kRecordLimit)
+        return false;
     return file.open(QIODevice::WriteOnly) && file.write(bytes) == bytes.size() && file.commit();
 }
 std::optional<QtOwnedTempEntry> ReadRecord(const QString &root, const QString &key) {
@@ -51,7 +56,7 @@ std::optional<QtOwnedTempEntry> ReadRecord(const QString &root, const QString &k
     const QFileInfo record(file);
     if (record.isSymLink() || record.isJunction())
         return std::nullopt;
-    if (!file.open(QIODevice::ReadOnly) || file.size() > 16384)
+    if (!file.open(QIODevice::ReadOnly) || file.size() > kRecordLimit)
         return std::nullopt;
     const QJsonObject object = QJsonDocument::fromJson(file.readAll()).object();
     if (object.value("version").toInt() != 1 || !object.value("external").isBool())
@@ -60,6 +65,7 @@ std::optional<QtOwnedTempEntry> ReadRecord(const QString &root, const QString &k
     entry.path = object.value("path").toString();
     entry.identity = object.value("identity").toString();
     entry.externallyProtected = object.value("external").toBool();
+    entry.context = object.value("context").toObject();
     if (!QDir::isAbsolutePath(entry.path) || entry.identity.isEmpty())
         return std::nullopt;
     return entry;
@@ -80,6 +86,7 @@ QtOwnedTempLease::~QtOwnedTempLease() {
         QFile::remove(RecordPath(root_, entry_.key));
 }
 bool QtOwnedTempLease::setExternalProtection(bool value) {
+    const std::lock_guard access(access_);
     QtOwnedTempEntry next = entry_;
     next.externallyProtected = value;
     if (!WriteRecord(root_, next))
@@ -89,20 +96,56 @@ bool QtOwnedTempLease::setExternalProtection(bool value) {
 }
 bool QtOwnedTempLease::ProtectExternal() { return setExternalProtection(true); }
 bool QtOwnedTempLease::ExternalFinished() { return setExternalProtection(false); }
+bool QtOwnedTempLease::SetContext(const QJsonObject &context) {
+    const std::lock_guard access(access_);
+    auto next = entry_;
+    next.context = context;
+    if (!Matches(next) || !WriteRecord(root_, next))
+        return false;
+    entry_ = std::move(next);
+    return true;
+}
 bool QtOwnedTempLease::MatchesObjectAt(const QString &path) const {
+    const std::lock_guard access(access_);
     return QtOwnedTempMatchesIdentity(path, entry_.identity);
 }
 bool QtOwnedTempLease::RelocateAfterMove(const QString &path) {
+    const std::lock_guard access(access_);
     const QString destination = QDir::cleanPath(QFileInfo(path).absoluteFilePath());
     if (destination == entry_.path)
         return Matches(entry_);
-    if (Matches(entry_) || !MatchesObjectAt(destination) || !SafeRoot(root_, false))
+    if (Matches(entry_) || !QtOwnedTempMatchesIdentity(destination, entry_.identity) ||
+        !SafeRoot(root_, false))
         return false;
     auto next = entry_;
     next.path = destination;
     if (!WriteRecord(root_, next))
         return false;
     entry_ = std::move(next);
+    return true;
+}
+
+std::shared_ptr<const QtOwnedTempLease> QtOwnedTempLease::PinForRead() {
+    auto owner = shared_from_this();
+    {
+        const std::lock_guard access(access_);
+        if (!Matches(entry_))
+            return {};
+        ++readers_;
+    }
+    return {this, [owner = std::move(owner)](const QtOwnedTempLease *) {
+                const std::lock_guard access(owner->access_);
+                --owner->readers_;
+            }};
+}
+
+bool QtOwnedTempLease::RemoveIfUnused(const QString &ownedPath,
+                                      const std::function<void()> &remove) {
+    const std::lock_guard access(access_);
+    if (readers_ || entry_.externallyProtected ||
+        !QtOwnedTempMatchesIdentity(ownedPath, entry_.identity))
+        return false;
+    remove();
     return true;
 }
 
@@ -159,6 +202,22 @@ QVector<QtOwnedTempEntry> QtOwnedTempRegistry::Entries() const {
 
 std::shared_ptr<QtOwnedTempLease>
 QtOwnedTempRegistry::ClaimForDeletion(const QtOwnedTempEntry &requested) const {
+    return ClaimInactive(requested, false);
+}
+
+std::shared_ptr<const QtOwnedTempLease>
+QtOwnedTempRegistry::PinForRead(const QtOwnedTempEntry &requested) const {
+    return ClaimInactive(requested, true);
+}
+
+bool QtOwnedTempRegistry::SetContext(const QtOwnedTempEntry &entry,
+                                     const QJsonObject &context) const {
+    auto lease = ClaimInactive(entry, true);
+    return lease && lease->SetContext(context);
+}
+
+std::shared_ptr<QtOwnedTempLease>
+QtOwnedTempRegistry::ClaimInactive(const QtOwnedTempEntry &requested, bool allowExternal) const {
     if (!SafeRoot(root_, false) || QUuid(requested.key).isNull())
         return {};
     auto lock = ClaimLock(root_, requested.key);
@@ -166,7 +225,7 @@ QtOwnedTempRegistry::ClaimForDeletion(const QtOwnedTempEntry &requested) const {
         return {};
     const auto entry = ReadRecord(root_, requested.key);
     if (!entry || entry->path != requested.path || entry->identity != requested.identity ||
-        entry->externallyProtected || !Matches(*entry))
+        (!allowExternal && entry->externallyProtected) || !Matches(*entry))
         return {};
     return std::shared_ptr<QtOwnedTempLease>(new QtOwnedTempLease(root_, *entry, std::move(lock)));
 }

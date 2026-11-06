@@ -107,6 +107,7 @@ class WorkspaceSessionTests final : public QObject {
         form.setWindowModality(Qt::WindowModal);
         form.show();
         QTRY_COMPARE(QApplication::activeModalWidget(), &form);
+        QVERIFY(!(protectFirst ? first : second).close());
         application.Quit();
         QVERIFY(first.isVisible() && first.isEnabled());
         QVERIFY(second.isVisible() && second.isEnabled());

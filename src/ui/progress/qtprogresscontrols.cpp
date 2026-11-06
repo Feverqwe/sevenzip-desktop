@@ -2,6 +2,7 @@
 #include "7zip/UI/FileManager/ProgressDialog2Res.h"
 #include "7zip/UI/FileManager/resourceGui.h"
 #include "settings/ViewSettings.h"
+#include "ui/dialogs/qtdialoglayout.h"
 #include "ui/dialogs/qtdialogscreenservices.h"
 #include "ui/dialogs/qtdialogunits.h"
 #include "ui/lifecycle/qttaskpresentation.h"
@@ -12,6 +13,17 @@
 #include <QProgressBar>
 #include <QPushButton>
 #include <cmath>
+
+namespace {
+void ConfigureQuestion(QDialog &dialog, QWidget *parent) {
+    // Both independent tasks and source-owned window-modal progress keep
+    // their nested questions scoped to that same owner on every platform.
+    if (parent && parent->windowModality() != Qt::ApplicationModal)
+        dialog.setWindowModality(Qt::WindowModal);
+    else
+        QtUseContextDialogModality(dialog);
+}
+} // namespace
 
 void CQtProgressBar::Attach(QWidget *widget) { _view = static_cast<QProgressBar *>(widget); }
 void CQtProgressBar::SetRange32(int minimum, int maximum) { _view->setRange(minimum, maximum); }
@@ -60,6 +72,7 @@ void CQtProgressDialog::MessageBox(QWidget *parent, const UString &message, cons
                     QString::fromWCharArray(title.Ptr()), QString::fromWCharArray(message.Ptr()),
                     QMessageBox::Ok, parent);
     box.setObjectName("progressFinalMessage");
+    ConfigureQuestion(box, parent);
     QtTaskPresentation::Watch(box, QtOperationPhase::Reviewing);
     box.setTextFormat(Qt::PlainText);
     box.exec();
@@ -69,6 +82,7 @@ int CQtProgressDialog::AskCancel(QWidget *parent, const UString &message, const 
                     QString::fromWCharArray(message.Ptr()),
                     QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel, parent);
     box.setObjectName("progressCancelQuestion");
+    ConfigureQuestion(box, parent);
     QtTaskPresentation::Watch(box, QtOperationPhase::Question);
     box.setTextFormat(Qt::PlainText);
     box.setDefaultButton(QMessageBox::Yes);

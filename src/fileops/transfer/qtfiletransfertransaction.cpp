@@ -35,10 +35,12 @@ QtFileTransferTransaction::decideOverwrite(const OverwriteSource &source) {
         return *rememberedOverwrite_;
     switch (worker_.askOverwrite(snapshot(source))) {
     case NOverwriteAnswer::kNo:
+        skipped_ = true;
         return OverwriteDecision::Skip;
     case NOverwriteAnswer::kYes:
         return OverwriteDecision::Replace;
     case NOverwriteAnswer::kNoToAll:
+        skipped_ = true;
         rememberedOverwrite_ = OverwriteDecision::Skip;
         break;
     case NOverwriteAnswer::kYesToAll:
@@ -168,16 +170,25 @@ FileTransferOperation::Completion QtFileTransferTransaction::finish(QList<Transf
         if (!entry.backup.isEmpty())
             removeEntry(entry.backup);
     QString message;
-    if (!worker_.move_)
+    const bool partial =
+        skipped_ ||
+        (worker_.move_ &&
+         std::any_of(completed.cbegin(), completed.cend(), [](const TransferEntry &entry) {
+             return entry.merged && QFileInfo::exists(entry.source);
+         }));
+    if (!worker_.move_ && partial)
+        message =
+            QCoreApplication::translate("qtfiletransfertransaction", "Some items were skipped.");
+    else if (!worker_.move_)
         message = QCoreApplication::translate("qtfiletransfertransaction", "Items copied.");
-    else if (std::any_of(completed.cbegin(), completed.cend(), [](const TransferEntry &entry) {
-                 return entry.merged && QFileInfo::exists(entry.source);
-             }))
+    else if (partial)
         message = QCoreApplication::translate("qtfiletransfertransaction",
                                               "Some files skipped; sources retained.");
     else
         message = QCoreApplication::translate("qtfiletransfertransaction", "Items moved.");
-    return {FileTransferOperation::ResultKind::Success, message};
+    return {partial ? FileTransferOperation::ResultKind::PartialSuccess
+                    : FileTransferOperation::ResultKind::Success,
+            message};
 }
 
 bool QtFileTransferTransaction::transferEntry(const TransferPath &path,

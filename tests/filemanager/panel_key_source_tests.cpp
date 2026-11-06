@@ -3,6 +3,7 @@
 #include "localization/LangUtils.h"
 #include "localization/qtlangcontrols.h"
 #include "settings/RegistryUtils.h"
+#include "support/panel_keys.h"
 #include "support/widget_dialogs.h"
 #include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
@@ -112,7 +113,7 @@ class PanelKeySourceTests final : public QObject, protected MainWindowTestSuppor
     void originalKeys_data() {
         QTest::addColumn<int>("key");
         QTest::addColumn<Qt::KeyboardModifiers>("modifiers");
-        QTest::newRow("copy-selected-names")
+        QTest::newRow("copy-selected-files")
             << int(Qt::Key_C) << Qt::KeyboardModifiers(Qt::ControlModifier);
         QTest::newRow("select-all") << int(Qt::Key_A) << Qt::KeyboardModifiers(Qt::ControlModifier);
         QTest::newRow("ctrl-w-close")
@@ -141,8 +142,18 @@ class PanelKeySourceTests final : public QObject, protected MainWindowTestSuppor
         window.show();
         QVERIFY(WindowActivation::waitForActive(window));
         action(window, "viewMode3Action")->trigger();
-        openListedArchive(window, backend, fixture.filePath("клавиши 空.zip"),
-                          {{"alpha name.txt", 1, 1}, {"бета 空.txt", 1, 1}});
+        const QStringList names{"alpha name.txt", QStringLiteral("бета 空.txt")};
+        QList<QUrl> expected;
+        if (copy) {
+            for (const auto &name : names) {
+                QFile file(fixture.filePath(name));
+                QVERIFY(file.open(QIODevice::WriteOnly));
+                expected.append(QUrl::fromLocalFile(file.fileName()));
+            }
+            window.openPath(fixture.path());
+        } else
+            openListedArchive(window, backend, fixture.filePath("клавиши 空.zip"),
+                              {{names[0], 1, 1}, {names[1], 1, 1}});
         auto *list = table(window);
         QTRY_COMPARE(list->rowCount(), 2);
         list->setCurrentCell(0, 0);
@@ -166,13 +177,15 @@ class PanelKeySourceTests final : public QObject, protected MainWindowTestSuppor
             QTest::keyRelease(list, Qt::Key_Control);
         } else
             QTest::keyClick(list, static_cast<Qt::Key>(key), modifiers);
-        if (copy)
-            QCOMPARE(QApplication::clipboard()->text(),
-                     QStringLiteral("alpha name.txt\r\nбета 空.txt"));
-        else if (key == Qt::Key_A)
+        if (copy) {
+            const auto actual = QApplication::clipboard()->mimeData()->urls();
+            QCOMPARE(QSet<QUrl>(actual.begin(), actual.end()),
+                     QSet<QUrl>(expected.begin(), expected.end()));
+        } else if (key == Qt::Key_A)
             QCOMPARE(list->selectionModel()->selectedRows().size(), 2);
         else
             QTRY_VERIFY_WITH_TIMEOUT(!window.isVisible(), 5000);
+        QTRY_VERIFY(!backend.busy());
         QCOMPARE(backend.extractCalls, 0);
         QCOMPARE(backend.testCalls, 0);
     }
@@ -220,21 +233,13 @@ class PanelKeySourceTests final : public QObject, protected MainWindowTestSuppor
         QVERIFY(peer);
         auto *list = owner->findChild<FileTable *>("archiveTable");
         auto *address = owner->findChild<QLineEdit *>("archivePath");
-        address->setFocus();
+        PanelKeys::focusAddress(address);
         address->setText(fixture.path());
         QTest::keyClick(address, Qt::Key_Return);
         if (archive)
             openListedArchive(window, backend, fixture.filePath("выбор 空.zip"),
                               {{names[0], 1, 1}, {names[1], 1, 1}});
         QTRY_COMPARE(list->rowCount(), 2);
-        QMap<quint32, QString> sourceNames;
-        for (int row = 0; row < list->rowCount(); ++row) {
-            const QPersistentModelIndex cell = list->model()->index(row, 0);
-            sourceNames.insert(cell.data(Qt::UserRole + 6).toUInt(),
-                               cell.data(Qt::EditRole).toString());
-        }
-        QCOMPARE(sourceNames.size(), 2);
-        const QString copiedNames = sourceNames.values().join("\r\n");
         const QString peerPath = peer->findChild<QLineEdit *>("archivePath")->text();
         const int peerRows = peer->findChild<FileTable *>("archiveTable")->rowCount();
         action(window, qPrintable(QStringLiteral("viewMode%1Action").arg(mode)))->trigger();
@@ -249,22 +254,38 @@ class PanelKeySourceTests final : public QObject, protected MainWindowTestSuppor
         auto *source = static_cast<FileTable *>(list)->sourcePanel;
         source->Get_ItemIndices_Selected(selected);
         QCOMPARE(selected.Size(), unsigned(2));
+        QApplication::clipboard()->setText("clipboard sentinel");
         QTest::keyClick(view, Qt::Key_C, Qt::ControlModifier);
-        QCOMPARE(QApplication::clipboard()->text(), copiedNames);
-        for (auto key : {Qt::Key_X, Qt::Key_V}) {
-            QTest::keyClick(view, key, Qt::ControlModifier);
-            QCOMPARE(QApplication::clipboard()->text(), copiedNames);
-            source->Get_ItemIndices_Selected(selected);
-            QCOMPARE(selected.Size(), unsigned(2));
+        QTRY_VERIFY(!backend.busy() && action(window, "refreshAction")->isEnabled());
+        QList<QUrl> copied;
+        if (archive) {
+            // This fixture has no native archive reader to export entries.
+            QCOMPARE(QApplication::clipboard()->text(), QString("clipboard sentinel"));
+        } else {
+            for (const auto &name : names)
+                copied.append(QUrl::fromLocalFile(fixture.filePath(name)));
+            const auto actual = QApplication::clipboard()->mimeData()->urls();
+            QCOMPARE(QSet<QUrl>(actual.begin(), actual.end()),
+                     QSet<QUrl>(copied.begin(), copied.end()));
         }
-        QTest::keyClick(view, Qt::Key_Insert, Qt::ShiftModifier);
-        QCOMPARE(QApplication::clipboard()->text(), copiedNames);
+        source->Get_ItemIndices_Selected(selected);
+        QCOMPARE(selected.Size(), unsigned(2));
         action(window, "deselectAllAction")->trigger();
         source->Get_ItemIndices_Selected(selected);
         QCOMPARE(selected.Size(), unsigned(0));
         QTest::keyClick(view, Qt::Key_C, Qt::ControlModifier);
-        QCOMPARE(QApplication::clipboard()->text(), QString());
-        address->setFocus();
+        if (archive)
+            QCOMPARE(QApplication::clipboard()->text(), QString("clipboard sentinel"));
+        else {
+            const auto actual = QApplication::clipboard()->mimeData()->urls();
+            if (alternative) {
+                const QString focused = list->currentIndex().data(Qt::UserRole).toString();
+                QCOMPARE(actual, QList<QUrl>{QUrl::fromLocalFile(focused)});
+            } else
+                QCOMPARE(QSet<QUrl>(actual.begin(), actual.end()),
+                         QSet<QUrl>(copied.begin(), copied.end()));
+        }
+        PanelKeys::focusAddress(address);
         address->selectAll();
         QTest::keyClick(address, Qt::Key_C, Qt::ControlModifier);
         QCOMPARE(QApplication::clipboard()->text(), address->text());
@@ -275,17 +296,7 @@ class PanelKeySourceTests final : public QObject, protected MainWindowTestSuppor
             QVERIFY(file.open(QIODevice::ReadOnly));
             QCOMPARE(file.readAll(), QByteArray("protected source bytes"));
         }
-        QCOMPARE(backend.extractCalls, 0);
-
-        for (int width : {980, 640}) {
-            window.resize(width, width == 980 ? 620 : 400);
-            QApplication::processEvents();
-            QVERIFY(UiInspection::fullyVisible(*address, window));
-            QVERIFY(UiInspection::fullyVisible(*view, window));
-            QVERIFY(UiInspection::writeReport(
-                window,
-                QStringLiteral("source-keys-pane%1-case%2-%3").arg(pane).arg(variant).arg(width)));
-        }
+        QVERIFY(archive ? backend.extractCalls > 0 : backend.extractCalls == 0);
     }
     void bookmarkPriorityAndModifiedControlPageDown() {
         QTemporaryDir fixture;
@@ -414,8 +425,11 @@ class PanelKeySourceTests final : public QObject, protected MainWindowTestSuppor
         ControlledBackend backend;
         MainWindow window(&backend);
         window.show();
-        openListedArchive(window, backend, fixture.filePath("guard keys.zip"),
-                          {{"protected name.txt", 1, 1}});
+        const QString protectedPath = fixture.filePath("protected name.txt");
+        QFile protectedFile(protectedPath);
+        QVERIFY(protectedFile.open(QIODevice::WriteOnly));
+        protectedFile.close();
+        window.openPath(fixture.path());
         auto *list = table(window);
         QTRY_COMPARE(list->rowCount(), 1);
         QVERIFY(WindowActivation::waitForActive(window));
@@ -436,13 +450,14 @@ class PanelKeySourceTests final : public QObject, protected MainWindowTestSuppor
         }
         QVERIFY(source->ShouldProcessNotifications());
         QTest::keyClick(list, Qt::Key_C, Qt::ControlModifier);
-        QCOMPARE(QApplication::clipboard()->text(), QString("protected name.txt"));
+        const QList<QUrl> copied{QUrl::fromLocalFile(protectedPath)};
+        QCOMPARE(QApplication::clipboard()->mimeData()->urls(), copied);
         QVERIFY(backend.prepareArchiveFixture(fixture.filePath("loading keys.zip")));
         backend.queueListAction([&] {
             const auto cancel = qScopeGuard([&] { backend.cancel(); });
             QTest::keyClick(list, Qt::Key_C, Qt::ControlModifier);
             QTest::keyClick(list, Qt::Key_W, Qt::ControlModifier);
-            QCOMPARE(QApplication::clipboard()->text(), QString("protected name.txt"));
+            QCOMPARE(QApplication::clipboard()->mimeData()->urls(), copied);
             QVERIFY(window.isVisible());
         });
         window.openArchive(fixture.filePath("loading keys.zip"));

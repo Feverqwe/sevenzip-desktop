@@ -201,6 +201,8 @@ static bool IsReadOnlyFolder(IFolderFolder *folder) {
 }
 
 bool CPanel::IsThereReadOnlyFolder() const {
+    if (_archiveContextOutdated)
+        return true;
     if (!_folderOperations)
         return true;
     if (IsReadOnlyFolder(_folder))

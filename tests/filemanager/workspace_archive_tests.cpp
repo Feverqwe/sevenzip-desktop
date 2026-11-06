@@ -28,9 +28,23 @@ class WorkspaceArchiveTests final : public QObject, protected MainWindowTestSupp
                 return pane->findChild<FileTable *>("archiveTable");
         return nullptr;
     }
+    static int filesystemRow(MainWindow &window, const QString &name) {
+        auto *files = active(window);
+        if (files)
+            for (int row = 0; row < files->rowCount(); ++row)
+                if (files->model()->index(row, 0).data().toString() == name)
+                    return row;
+        return -1;
+    }
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
-    void cancelledNestedReopenKeepsDescriptorAndCanRetry() {
+    void encryptedArchiveSessionResumesItsDirectory_data() {
+        QTest::addColumn<bool>("legacy");
+        QTest::newRow("current-session") << false;
+        QTest::newRow("earlier-archive-descriptor") << true;
+    }
+    void encryptedArchiveSessionResumesItsDirectory() {
+        QFETCH(bool, legacy);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString entry = QStringLiteral("secret payload.txt");
@@ -73,8 +87,19 @@ class WorkspaceArchiveTests final : public QObject, protected MainWindowTestSupp
         QVERIFY(WindowActivation::waitForActive(window));
         active(window)->setFocus();
         QTRY_VERIFY(active(window)->hasFocus());
-        const QString requested = ToQString(active(window)->sourcePanel->GetCurrentFolderPrefix());
-        const auto saved = workspace(window)->Save();
+        auto saved = workspace(window)->Save();
+        if (legacy) {
+            auto panels = saved.value("panels").toArray();
+            auto panel = panels[0].toObject();
+            auto tabs = panel.value("tabs").toArray();
+            auto tab = tabs[0].toObject();
+            tab.insert("path", ToQString(active(window)->sourcePanel->GetCurrentFolderPrefix()));
+            tab.insert("archiveLocation", QJsonObject{{"physical", outer}});
+            tabs[0] = tab;
+            panel.insert("tabs", tabs);
+            panels[0] = panel;
+            saved.insert("panels", panels);
+        }
         workspace(window)->NewTab(0, fixture.path());
         QTRY_VERIFY(active(window)->isEnabled());
         workspace(window)->CloseTab(0, 0);
@@ -83,36 +108,20 @@ class WorkspaceArchiveTests final : public QObject, protected MainWindowTestSupp
         bool finished = false;
         workspace(window)->Restore(saved, [&] { finished = true; });
         QTRY_VERIFY(finished);
-        QVERIFY(prompts > 0);
-        QVERIFY(!action(window, "copyFilesAction")->isEnabled());
-        const QString canceled =
-            QCoreApplication::translate("QtWindowWorkspace", "Opening canceled: %1").arg(requested);
-        bool errorVisible = false;
-        for (auto *label : window.findChildren<QLabel *>())
-            errorVisible |= label->isVisible() && label->text() == canceled;
-        QVERIFY(errorVisible);
-        prompts = 0;
-        reject = false;
-        QPushButton *retry = nullptr;
-        for (auto *button : window.findChildren<QPushButton *>())
-            if (button->isVisible() &&
-                button->text() == QCoreApplication::translate("QtWindowWorkspace", "Retry"))
-                retry = button;
-        QVERIFY(retry);
-        QTest::mouseClick(retry, Qt::LeftButton);
-        QTRY_VERIFY(active(window)->isEnabled());
-        QVERIFY(prompts > 0);
-        QCOMPARE(active(window)->sourcePanel->GetParentFolders().Size(), 2u);
-        QCOMPARE(active(window)->model()->index(0, 0).data().toString(), entry);
+        QCOMPARE(prompts, 0);
+        QVERIFY(active(window)->sourcePanel->IsFSFolder());
+        QCOMPARE(QDir::cleanPath(ToQString(active(window)->sourcePanel->GetCurrentFolderPrefix())),
+                 QDir::cleanPath(fixture.path()));
+        QTRY_VERIFY(filesystemRow(window, QFileInfo(outer).fileName()) >= 0);
     }
-    void nestedLocationReopensWithItsNativeChain_data() {
+    void nestedLocationDuplicatesButSessionResumesDirectory_data() {
         QTest::addColumn<bool>("restore");
         QTest::addColumn<bool>("missing");
         QTest::newRow("duplicate") << false << false;
         QTest::newRow("session") << true << false;
         QTest::newRow("missing-nested") << true << true;
     }
-    void nestedLocationReopensWithItsNativeChain() {
+    void nestedLocationDuplicatesButSessionResumesDirectory() {
         QFETCH(bool, restore);
         QFETCH(bool, missing);
         QTemporaryDir fixture;
@@ -149,7 +158,6 @@ class WorkspaceArchiveTests final : public QObject, protected MainWindowTestSupp
         QTRY_VERIFY(rowWithPath(window, inside + '/' + entry) >= 0);
         QTRY_VERIFY(active(window)->isEnabled());
         QPointer<CPanel> original(active(window)->sourcePanel);
-        const QString requested = ToQString(original->GetCurrentFolderPrefix());
         auto *tabs = window.findChild<QTabBar *>("panelTabs0");
         if (restore) {
             const auto saved = workspace(window)->Save();
@@ -165,30 +173,12 @@ class WorkspaceArchiveTests final : public QObject, protected MainWindowTestSupp
             bool finished = false;
             workspace(window)->Restore(saved, [&] { finished = true; });
             QTRY_VERIFY(finished);
-            if (missing) {
-                QCOMPARE(active(window)->rowCount(), 0);
-                QVERIFY(!action(window, "copyFilesAction")->isEnabled());
-                QVERIFY(!action(window, "createFolderAction")->isEnabled());
-                bool errorVisible = false;
-                for (auto *label : window.findChildren<QLabel *>())
-                    errorVisible |= label->isVisible() && label->text().contains(requested);
-                QVERIFY(errorVisible);
-#ifndef Q_OS_WIN
-                // POSIX permits replacing an archive while its old reader is
-                // alive. Retry must read the new file rather than that reader.
-                QVERIFY(QFile::rename(outer, outer + ".stale"));
-                QVERIFY(createArchive(fixture.path(), outer, top));
-                QPushButton *retry = nullptr;
-                for (auto *button : window.findChildren<QPushButton *>())
-                    if (button->isVisible() &&
-                        button->text() == QCoreApplication::translate("QtWindowWorkspace", "Retry"))
-                        retry = button;
-                QVERIFY(retry);
-                QTest::mouseClick(retry, Qt::LeftButton);
-#else
-                return;
-#endif
-            }
+            QVERIFY(active(window)->sourcePanel->IsFSFolder());
+            QCOMPARE(
+                QDir::cleanPath(ToQString(active(window)->sourcePanel->GetCurrentFolderPrefix())),
+                QDir::cleanPath(fixture.path()));
+            QTRY_VERIFY(filesystemRow(window, QFileInfo(outer).fileName()) >= 0);
+            return;
         } else {
             bool invoked = false;
             QTimer choose;
@@ -374,16 +364,18 @@ class WorkspaceArchiveTests final : public QObject, protected MainWindowTestSupp
         QString errors;
         QTimer responder;
         widgetDialogs_.connectResponder(responder, &window, [&] {
-            auto *box = qobject_cast<QMessageBox *>(widgetDialogs_.activeDialog());
-            if (box && box->objectName() == "externalUpdatePrompt") {
+            auto *dialog = widgetDialogs_.activeDialog();
+            auto *box = qobject_cast<QMessageBox *>(dialog);
+            if (dialog && dialog->objectName() == "externalUpdatePrompt") {
                 asked = true;
-                box->button(QMessageBox::Yes)->click();
+                dialog->findChild<QPushButton *>("externalUpdateCommit")->click();
             } else if (box) {
                 errors += box->text();
                 box->accept();
             }
         });
         responder.start(1);
+        waitForKnownEditor();
         QVERIFY(write(control, "change"));
         QVERIFY(write(control + ".exit", "exit"));
         QEventLoop delivery;

@@ -66,6 +66,7 @@ add_library(sevenzip_common STATIC ${SEVENZIP_7ZIP_SOURCE_DIR}/C/Sort.c ${SEVENZ
     ${SEVENZIP_7ZIP_SOURCE_DIR}/CPP/Common/MyString.cpp ${SEVENZIP_7ZIP_SOURCE_DIR}/CPP/Common/IntToString.cpp
     ${SEVENZIP_7ZIP_SOURCE_DIR}/CPP/Common/MyWindows.cpp
     src/fileops/native/FileDir.cpp src/fileops/native/FileDir.h
+    src/fileops/native/qtnativefilestamp.cpp src/fileops/native/qtnativefilestamp.h
     src/fileops/native/FilePublish.cpp
     src/fileops/native/FileName.cpp
     src/fileops/native/correctfspath.h

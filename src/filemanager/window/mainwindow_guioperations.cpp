@@ -1,6 +1,7 @@
 #include "archive/resources/qtarchivefileresource.h"
 #include "dialogs/taskresult/qttaskresultdialog.h"
 #include "filemanager/window/mainwindow.h"
+#include "filemanager/window/qtwindowworkspace.h"
 #include "filemanager/window/qtworkspaceapplication.h"
 #include "operations/qtoperationlauncher.h"
 #include "operations/qtoperationregistry.h"
@@ -8,6 +9,13 @@
 #include <QDir>
 #include <QFileInfo>
 #include <algorithm>
+
+void MainWindow::ArchivePublished(const QString &archive) {
+    if (!app_.QtOperations().closed() && guiOutputRefresh_) {
+        workspace_->InvalidateArchive(archive);
+        guiOutputRefresh_->Enqueue({}, {archive});
+    }
+}
 
 namespace {
 QStringList ArchivePaths(const UStringVector &paths) {
@@ -86,7 +94,9 @@ HRESULT MainWindow::observeGuiArchiveOperation(QtOperationLauncher *operation,
             [this, source, review](const QtOperationResult &result) {
                 if (app_.QtOperations().closed())
                     return;
-                guiOutputRefresh_->Enqueue(result.ChangedDirectories, result.ChangedArchives);
+                for (const auto &archive : result.ChangedArchives)
+                    ArchivePublished(archive);
+                guiOutputRefresh_->Enqueue(result.ChangedDirectories, {});
                 using Outcome = QtOperationResult::Outcome;
                 if (!QtWorkspaceApplication::Find())
                     for (const auto &pending : QtOperationRegistry::Application().Reviews())
@@ -111,6 +121,8 @@ HRESULT MainWindow::observeGuiArchiveOperation(QtOperationLauncher *operation,
 }
 
 void MainWindow::refreshGuiOutputPanel(unsigned index, const QtGuiOutputRefresh::Outputs &output) {
+    if (workspace_->RefreshPublishedArchive(index))
+        return;
     auto &panel = app_.Panels[index];
     if (!panel.PanelCreated)
         return;

@@ -13,6 +13,7 @@
 #include "dialogs/compress/qtcompresscallservices.h"
 #include "filemanager/App.h"
 #include "filemanager/external/qtexternalfilesession.h"
+#include "filemanager/external/qtexternalsessionowner.h"
 #include "filemanager/panels/qtpanelkey.h"
 #include "localization/LangUtils.h"
 #include "operations/CompressCall.h"
@@ -74,13 +75,25 @@ bool CPanel::OnCreate() {
 
 CPanel::CPanel() = default;
 
+UString CPanel::GetResumeFolderPath() const {
+    return _parentFolders.IsEmpty() ? _currentFolderPrefix : _parentFolders[0].ParentFolderPath;
+}
+
 void CPanel::ExitExternalWorkers(bool hardExit) {
     if (_exitEventLauncher)
         _exitEventLauncher->Exit(hardExit);
+    for (const auto &weak : _externalSessions)
+        if (const auto session = weak.lock())
+            session->Stop();
 }
 
 bool CPanel::HasExternalWorkers() const {
-    return _exitEventLauncher && _exitEventLauncher->PendingSessions.load() != 0;
+    if (_exitEventLauncher && _exitEventLauncher->PendingSessions.load() != 0)
+        return true;
+    for (const auto &weak : _externalSessions)
+        if (const auto session = weak.lock(); session && session->Launcher().PendingSessions.load())
+            return true;
+    return false;
 }
 
 void CPanel::RebindWindowHost(QWidget *window, CPanelCallback *callback, CAppState *state) {
@@ -96,6 +109,8 @@ void CPanel::MessageBox_Error_LangID(UINT resourceID) const {
 }
 
 void CPanel::MessageBox_Error_Caption(LPCWSTR message, LPCWSTR caption) const {
+    if (!_archiveOpenDialogs)
+        return;
     QMessageBox box(QMessageBox::Critical, QString::fromWCharArray(caption),
                     QString::fromWCharArray(message), QMessageBox::Ok, GetParent());
     box.setObjectName("panelArchiveError");
@@ -140,8 +155,7 @@ void CPanel::ReleasePanel() {
     Disable_Processing_Timer_Notify_StatusBar();
     // Local per-panel launcher replaces the original global exit owner. Join
     // before folder cleanup, since its workers may still refer to this panel.
-    if (_exitEventLauncher)
-        _exitEventLauncher->Exit(true);
+    ExitExternalWorkers(true);
     // It's for unloading COM dll's: don't change it.
     CloseOpenFolders();
     // Win32 context-menu COM objects have no Qt owner here. Their mandatory
@@ -152,8 +166,7 @@ CPanel::~CPanel() {
     // Native destructor folder cleanup, after stopping Qt notifications and
     // joining the per-panel external-file workers that can refer to this owner.
     Disable_Processing_Timer_Notify_StatusBar();
-    if (_exitEventLauncher)
-        _exitEventLauncher->Exit(true);
+    ExitExternalWorkers(true);
     CloseOpenFolders();
 }
 

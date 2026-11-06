@@ -208,6 +208,10 @@ void QtWindowWorkspace::FinishNavigation(unsigned panel, HRESULT result) {
     }
     window_.recordVisitedPath(accepted.path);
     window_.refreshActions();
+    if (tab.archiveRevision != tab.archiveApplied) {
+        tab.archiveAttempted = 0;
+        RefreshPublishedArchive(panel);
+    }
 }
 
 bool QtWindowWorkspace::CanTravel(unsigned panel, int direction) const {

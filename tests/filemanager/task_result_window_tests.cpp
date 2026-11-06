@@ -1,5 +1,6 @@
 #include "archive/support/source_extract_fixture.h"
 #include "dialogs/taskresult/qttaskresultdialog.h"
+#include "filemanager/support/task_quit_support.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/window/qtworkspaceapplication.h"
 #include "localization/LangUtils.h"
@@ -116,7 +117,7 @@ class TaskResultWindowTests final : public QObject {
                 retained = closed && !window.isVisible() && dialog->isVisible() &&
                            finished.size() == 1 &&
                            !QtOperationRegistry::Application().Reviews().isEmpty();
-                application.Quit();
+                ShowTasksOnQuit(application);
                 quitRetained =
                     dialog->isVisible() && !QtOperationRegistry::Application().Reviews().isEmpty();
                 auto *text = dialog->findChild<QPlainTextEdit *>("taskResultReport");
@@ -225,12 +226,12 @@ class TaskResultWindowTests final : public QObject {
         QCOMPARE(commits, 0);
         QTest::keyClick(&input, Qt::Key_End);
         QTest::keyClicks(&input, " retained");
-        application.Quit();
+        ShowTasksOnQuit(application);
         QCOMPARE(QApplication::activeModalWidget(), modal ? &question : nullptr);
         QCOMPARE(input.text(), QString("unfinished input-draft retained"));
         question.reject();
         QTRY_VERIFY(!QApplication::activeModalWidget());
-        application.Quit();
+        ShowTasksOnQuit(application);
         QTRY_VERIFY(reportWindow());
         QVERIFY(!reportWindow()
                      ->findChild<QPlainTextEdit *>("taskResultReport")

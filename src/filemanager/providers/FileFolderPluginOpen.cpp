@@ -231,6 +231,7 @@ HRESULT CFfpOpen::OpenFileFolderPlugin(IInStream *inStream, const FString &path,
     t.OpenCallback.Password = Password;
     t.OpenCallback.ParentWindow = parentWindow;
     t.OpenCallback.SettingsPath = SettingsPath;
+    t.OpenCallback.ProgressDialog.DisableUserQuestions |= DisableUserQuestions;
 
     /* COpenCallbackImp object will exist after Open stage for multivolume archives */
     COpenCallbackImp *openCallbackSpec = new COpenCallbackImp;

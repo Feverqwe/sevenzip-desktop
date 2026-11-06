@@ -69,5 +69,7 @@ void FileTransferOperation::run() {
         }
     }();
     resultKind_ = completion.kind;
-    emit result(completion.kind == ResultKind::Success, completion.message);
+    emit result(completion.kind == ResultKind::Success ||
+                    completion.kind == ResultKind::PartialSuccess,
+                completion.message);
 }

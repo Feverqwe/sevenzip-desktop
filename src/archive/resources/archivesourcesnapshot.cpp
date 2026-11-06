@@ -1,6 +1,7 @@
 #include "archive/resources/archivesourcesnapshot.h"
 #include "Common/StringConvert.h"
 #include "Windows/TimeUtils.h"
+#include "fileops/native/qtnativefilestamp.h"
 #include "platform/temp/qtownedtempidentity.h"
 #include <QFileInfo>
 #include <utility>
@@ -22,4 +23,24 @@ bool ArchiveSourceSnapshot::IsCurrent() const {
 bool ArchiveSourceSnapshot::IsCurrentFor(const QString &path) const {
     return IsCurrent() &&
            QFileInfo(path).canonicalFilePath() == QFileInfo(path_).canonicalFilePath();
+}
+
+QJsonObject ArchiveSourceSnapshot::Save() const {
+    if (!stable_)
+        return {};
+    return {{"path", path_},
+            {"identity", identity_},
+            {"stamp", QtNativeFileStamp{size_, mtime_}.Save()}};
+}
+
+std::optional<ArchiveSourceSnapshot> ArchiveSourceSnapshot::Restore(const QJsonObject &value) {
+    const auto stamp = QtNativeFileStamp::Restore(value.value("stamp").toObject());
+    const QString path = value.value("path").toString();
+    const QString identity = value.value("identity").toString();
+    if (!stamp || !QFileInfo(path).isAbsolute() || path.contains(QChar::Null) || identity.isEmpty())
+        return {};
+    NWindows::NFile::NFind::CFileInfo info;
+    info.Size = stamp->size;
+    info.MTime = stamp->modified;
+    return ArchiveSourceSnapshot(path, identity, info, true);
 }

@@ -33,10 +33,12 @@ void MainWindowOperationsTests::stage7ArchiveCommandStates() {
     QVERIFY(!action(window, "deleteAction")->isEnabled());
     QVERIFY(!action(window, "renameAction")->isEnabled());
     QVERIFY(action(window, "testArchiveAction")->isEnabled());
+    const auto retained = ToQString(table(window)->sourcePanel->GetCurrentFolderPrefix());
     QVERIFY(backend.prepareArchiveFixture("cancel.7z"));
     backend.queueListAction([&] { backend.cancel(); });
     window.openArchive("cancel.7z");
-    QTRY_VERIFY(static_cast<FileTable *>(table(window))->sourcePanel->IsFSFolder());
+    QTRY_COMPARE(ToQString(table(window)->sourcePanel->GetCurrentFolderPrefix()), retained);
+    QVERIFY(table(window)->sourcePanel->IsArcFolder());
     QTRY_VERIFY(action(window, "copyAction")->isEnabled());
     QCOMPARE(backend.extractCalls, extractCalls);
 }

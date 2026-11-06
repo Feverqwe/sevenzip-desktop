@@ -1,9 +1,9 @@
 #include "dialogs/taskresult/qttaskresultdialog.h"
 #include "filemanager/window/qtworkspaceapplication.h"
 #include "operations/qtoperationregistry.h"
+#include "ui/lifecycle/qttaskpresentation.h"
 #include <QApplication>
 #include <QEvent>
-#include <QLineEdit>
 #include <QTimer>
 
 QtWorkspaceApplication::~QtWorkspaceApplication() {
@@ -16,6 +16,8 @@ void QtWorkspaceApplication::InitializeTaskResults() {
     auto &registry = QtOperationRegistry::Application();
     connect(&registry, &QtOperationRegistry::reviewRequired, this,
             [this](const QUuid &id) { ShowTaskReview(id, false); });
+    connect(&QtTaskPresentation::Application(), &QtTaskPresentation::changed, this,
+            [this] { QTimer::singleShot(0, this, &QtWorkspaceApplication::PresentTaskReviews); });
     connect(qApp, &QApplication::focusChanged, this, [this] {
         for (const auto &review : QtOperationRegistry::Application().Reviews())
             if (!taskResults_.value(review.Id)) {
@@ -31,7 +33,7 @@ void QtWorkspaceApplication::ShowTaskReview(const QUuid &id, bool activate) {
     // Never undo the user's minimize/hide choice on a later notification.
     if (!activate && taskResults_.value(id))
         return;
-    if (!activate)
+    if (!activate && !QtTaskPresentation::CanPresent()) {
         if (auto *modal = QApplication::activeModalWidget()) {
             if (reviewModal_ != modal) {
                 reviewModal_ = modal;
@@ -40,12 +42,9 @@ void QtWorkspaceApplication::ShowTaskReview(const QUuid &id, bool activate) {
                     QTimer::singleShot(0, this, &QtWorkspaceApplication::PresentTaskReviews);
                 });
             }
-            return;
         }
-    // Showing a dialog can finish an edit even on platforms that honour the
-    // native no-activation hint. Wait for the user's own focus transition.
-    if (!activate && qobject_cast<QLineEdit *>(QApplication::focusWidget()))
         return;
+    }
     const QPointer<QWidget> previousWindow = QApplication::activeWindow();
     const QPointer<QWidget> previousFocus = QApplication::focusWidget();
     auto dialog = taskResults_.value(id);

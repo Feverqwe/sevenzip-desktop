@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QString>
 #include <memory>
 
 class CPanel;
@@ -14,6 +15,7 @@ class QtPanelLocationTransaction final {
     QtPanelLocationTransaction &operator=(const QtPanelLocationTransaction &) = delete;
     void Commit();
     void Rollback();
+    bool MarkArchiveOutdated(const QString &path);
 
   private:
     struct Location;

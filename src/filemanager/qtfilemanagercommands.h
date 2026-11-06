@@ -99,7 +99,6 @@ class QtFileManagerCommands final : public IQtFileManagerMenuCommandServices {
   private:
     bool CanSwitchPanels() const;
     bool CanExit() const;
-    QPointer<QtArchiveMountManager> mounts_;
     void AttachMountActions();
     void MountReadOnlyContainer();
     void ShowMounts();

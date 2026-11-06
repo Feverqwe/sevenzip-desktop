@@ -1,10 +1,13 @@
 #include "7zip/UI/FileManager/ProgressDialog2Res.h"
 #include "dialogs/password/PasswordDialog.h"
+#include "filemanager/external/qtexternalfilerecord.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
+#include "filemanager/window/qtexternalfiletask.h"
 #include "localization/LangUtils.h"
 #include "platform/support/external_editor_fixture.h"
 #include "platform/support/native_property_failure_runtime.h"
+#include "platform/temp/qtownedtempregistry.h"
 #include "support/widget_dialogs.h"
 #include "ui/progress/ProgressDialog2.h"
 #include "ui/support/layout_inspection.h"
@@ -36,8 +39,8 @@ class NestedEditChainTests final : public QObject, protected MainWindowTestSuppo
         QTest::newRow("outer-write-failure") << 2;
         QTest::newRow("inner-write-cancel") << 3;
         QTest::newRow("outer-write-cancel") << 4;
-        QTest::newRow("parent-prompt-no") << 5;
-        QTest::newRow("parent-prompt-escape") << 6;
+        QTest::newRow("update-later") << 5;
+        QTest::newRow("update-escape") << 6;
         QTest::newRow("protected-inner-and-outer") << 7;
     }
     void nativeEditorUpdatesParentChain() {
@@ -73,12 +76,33 @@ class NestedEditChainTests final : public QObject, protected MainWindowTestSuppo
         int passwords = 0;
         bool cleaningUp = false;
         QString openingMessage;
-        QString editedOutput, nestedSpool;
+        QString editedOutput;
+        QStringList retained;
         QTimer responder;
         widgetDialogs_.connectResponder(responder, this, [&] {
             auto *modal = widgetDialogs_.activeDialog();
-            if (auto *question = qobject_cast<QMessageBox *>(modal);
-                question && question->objectName() == "progressCancelQuestion") {
+            if (modal && modal->objectName() == "externalUpdatePrompt") {
+                editPrompt = true;
+                promptGeometry &=
+                    UiInspection::writeReport(*modal, outcome == 6 ? "nested-edit-update-compact"
+                                                                   : "nested-edit-update-normal");
+                auto *later = modal->findChild<QPushButton *>("externalUpdateLater");
+                promptGeometry &= later && later->isDefault();
+                for (auto *button : modal->findChildren<QPushButton *>())
+                    if (button->isVisible())
+                        promptGeometry &= UiInspection::fullyVisible(*button, *modal);
+                for (auto *label : modal->findChildren<QLabel *>())
+                    if (label->isVisible() && !label->text().isEmpty())
+                        promptGeometry &= UiInspection::fullyVisible(*label, *modal) &&
+                                          UiInspection::labelFits(*label);
+                if (outcome == 6)
+                    QTest::keyClick(modal, Qt::Key_Escape);
+                else if (outcome == 5)
+                    later->click();
+                else
+                    modal->findChild<QPushButton *>("externalUpdateCommit")->click();
+            } else if (auto *question = qobject_cast<QMessageBox *>(modal);
+                       question && question->objectName() == "progressCancelQuestion") {
                 question->button(QMessageBox::Yes)->click();
             } else if (auto *password = dynamic_cast<CPasswordDialog *>(modal)) {
                 ++passwords;
@@ -90,31 +114,9 @@ class NestedEditChainTests final : public QObject, protected MainWindowTestSuppo
                     ->setText(passwords == 1 ? outerPassword : innerPassword);
                 password->accept();
             } else if (auto *box = qobject_cast<QMessageBox *>(modal)) {
-                if (box->objectName() == "externalUpdatePrompt") {
-                    editPrompt = true;
-                    box->button(QMessageBox::Yes)->click();
-                } else if (box->objectName() == "modifiedArchiveQuestion") {
-                    if (cleaningUp) {
-                        box->button(QMessageBox::No)->click();
-                        return;
-                    }
+                if (box->objectName() == "modifiedArchiveQuestion") {
                     parentPrompt = true;
-                    promptGeometry &= UiInspection::writeReport(
-                        *box, outcome == 6 ? "nested-parent-prompt-compact"
-                                           : "nested-parent-prompt-normal");
-                    promptGeometry &= box->defaultButton() == box->button(QMessageBox::Yes);
-                    promptGeometry &= box->escapeButton() == box->button(QMessageBox::Cancel);
-                    for (auto *button : box->buttons())
-                        promptGeometry &= UiInspection::fullyVisible(*button, *box);
-                    for (auto *label : box->findChildren<QLabel *>())
-                        if (label->isVisible() && !label->text().isEmpty())
-                            promptGeometry &= UiInspection::fullyVisible(*label, *box) &&
-                                              UiInspection::labelFits(*label);
-                    if (outcome == 6) {
-                        responder.stop();
-                        QTest::keyClick(box, Qt::Key_Escape);
-                    } else
-                        box->button(outcome == 5 ? QMessageBox::No : QMessageBox::Yes)->click();
+                    box->button(QMessageBox::No)->click();
                 } else {
                     error = true;
                     openingMessage += box->text() + '\n';
@@ -143,7 +145,11 @@ class NestedEditChainTests final : public QObject, protected MainWindowTestSuppo
             cleaningUp = true;
             responder.start(1);
             window.close();
-            for (const auto &path : {editedOutput, nestedSpool})
+            for (auto *widget : QApplication::topLevelWidgets())
+                if (widget->objectName() == "externalFileDetails")
+                    widget->close();
+            retained.append(editedOutput);
+            for (const auto &path : retained)
                 if (!path.isEmpty() && QFile::exists(path)) {
                     QFile::remove(path);
                     QDir().rmdir(QFileInfo(path).absolutePath());
@@ -170,26 +176,46 @@ class NestedEditChainTests final : public QObject, protected MainWindowTestSuppo
         const QString temporary = QString::fromUtf8(read(control + ".ready"));
         editedOutput = temporary;
         QCOMPARE(read(temporary), QByteArray("original"));
+        waitForKnownEditor();
         QVERIFY(write(control, "change"));
         QVERIFY(write(control + ".exit", "exit"));
         QTRY_VERIFY(QFileInfo::exists(control + ".finished"));
         QTRY_VERIFY2(editPrompt, qPrintable(openingMessage));
-        const bool innerFailed = outcome == 1 || outcome == 3;
-        if (innerFailed) {
-            QTRY_VERIFY(error);
+        QTRY_VERIFY(QtExternalFileTask::Active().isEmpty());
+        const bool success = outcome == 0 || outcome == 7;
+        if (!success) {
             QCOMPARE(read(temporary), modified);
-        } else
+            QCOMPARE(read(outer), originalOuter);
+        } else {
             QTRY_VERIFY2(!QFileInfo(temporary).exists(), qPrintable(openingMessage));
-        QCOMPARE(read(outer), originalOuter);
-        nestedSpool = ToQString(fs2us(static_cast<FileTable *>(table(window))
-                                          ->sourcePanel->GetParentFolders()
-                                          .Back()
-                                          .FilePath));
+            const auto visibleSize = [&]() -> UInt64 {
+                NWindows::NCOM::CPropVariant value;
+                UInt64 size;
+                if (table(window)->sourcePanel->GetFolder()->GetProperty(0, kpidSize, &value) !=
+                        S_OK ||
+                    !ConvertPropVariantToUInt64(value, size))
+                    return UInt64(-1);
+                return size;
+            };
+            QTRY_COMPARE(visibleSize(), UInt64(modified.size()));
+        }
+        if (outcome >= 1 && outcome <= 4) {
+            bool failureVisible = false;
+            for (auto *widget : QApplication::topLevelWidgets())
+                if (widget->objectName() == "externalFileDetails")
+                    for (auto *label : widget->findChildren<QLabel *>())
+                        failureVisible |=
+                            label->text() ==
+                            QCoreApplication::translate(
+                                "QtExternalFileTask",
+                                "The archive was not fully updated. The edited copy was kept.");
+            QVERIFY(failureVisible);
+        }
         action(window, "upAction")->trigger();
         QTRY_COMPARE(table(window)->model()->index(0, 0).data().toString().normalized(
                          QString::NormalizationForm_C),
                      innerName);
-        QCOMPARE(parentPrompt, !innerFailed);
+        QVERIFY(!parentPrompt);
         QVERIFY(promptGeometry);
         QCOMPARE(table(window)->currentRow(), 0);
         QVERIFY(window.findChild<QLineEdit *>("archivePath")
@@ -213,11 +239,28 @@ class NestedEditChainTests final : public QObject, protected MainWindowTestSuppo
         } else
             QCOMPARE(read(outer), originalOuter);
         if (outerFailed) {
-            QVERIFY(error);
-            QCOMPARE(contents(nestedSpool, name, innerPassword), modified);
+            QDialog *details = nullptr;
+            for (auto *widget : QApplication::topLevelWidgets())
+                if (auto *path = widget->findChild<QLabel *>("externalFilePath");
+                    widget->objectName() == "externalFileDetails" && path &&
+                    path->text() == temporary)
+                    details = qobject_cast<QDialog *>(widget);
+            QVERIFY(details);
+            auto *retainedPaths = details->findChild<QLabel *>("externalFileRetained");
+            QVERIFY(retainedPaths && retainedPaths->isVisibleTo(details));
+            for (const auto &entry : QtOwnedTempRegistry().Entries()) {
+                const auto record = QtExternalFileRecord::Restore(entry.context);
+                if (record && record->entry.normalized(QString::NormalizationForm_C) == innerName &&
+                    record->prefix.contains(QFileInfo(outer).fileName())) {
+                    const auto path = QDir(entry.path).filePath(record->fileName);
+                    QCOMPARE(contents(path, name, innerPassword), modified);
+                    QVERIFY2(retainedPaths->text().contains(path),
+                             qPrintable(retainedPaths->text()));
+                    retained.append(path);
+                }
+            }
+            QVERIFY(!retained.isEmpty());
         }
-        if (innerFailed)
-            QVERIFY(QDir(QFileInfo(temporary).absolutePath()).removeRecursively());
         responder.stop();
     }
     void readOnlyLevelPreventsChainWrites_data() {
@@ -246,11 +289,11 @@ class NestedEditChainTests final : public QObject, protected MainWindowTestSuppo
         ArchiveBackend backend(nullptr, readOnlyRuntime_.engine());
         MainWindow window(&backend);
         window.show();
-        bool error = false;
+        bool unexpectedError = false;
         QTimer responder;
         widgetDialogs_.connectResponder(responder, this, [&] {
             if (auto *box = qobject_cast<QMessageBox *>(widgetDialogs_.activeDialog())) {
-                error = box->objectName() == "externalUpdateError";
+                unexpectedError = true;
                 box->accept();
             }
         });
@@ -275,9 +318,28 @@ class NestedEditChainTests final : public QObject, protected MainWindowTestSuppo
         action(window, "editFileAction")->trigger();
         QTRY_VERIFY(QFileInfo(control + ".ready").size() > 0);
         const QString temporary = QString::fromUtf8(read(control + ".ready"));
+        waitForKnownEditor();
         QVERIFY(write(control, "change"));
         QVERIFY(write(control + ".exit", "exit"));
-        QTRY_VERIFY(error);
+        QTRY_VERIFY(QFileInfo::exists(control + ".finished"));
+        QTRY_VERIFY(QtExternalFileTask::Active().isEmpty());
+        bool readOnlyResult = false;
+        for (auto *widget : QApplication::topLevelWidgets())
+            if (widget->objectName() == "externalFileDetails") {
+                for (auto *label : widget->findChildren<QLabel *>())
+                    readOnlyResult |=
+                        label->text() ==
+                        QCoreApplication::translate(
+                            "QtExternalFileTask",
+                            "This archive cannot be updated. Save a copy of the edited file.");
+                widget->close();
+            }
+        QVERIFY(readOnlyResult);
+        for (auto *widget : QApplication::topLevelWidgets())
+            if (widget->objectName() == "externalFileDetails")
+                QVERIFY(
+                    !widget->findChild<QPushButton *>("externalFileCheck")->isVisibleTo(widget));
+        QVERIFY(!unexpectedError);
         QCOMPARE(read(temporary), modified);
         action(window, "upAction")->trigger();
         QCOMPARE(read(outer), originalOuter);

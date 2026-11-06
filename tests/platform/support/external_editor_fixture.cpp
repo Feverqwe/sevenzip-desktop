@@ -2,6 +2,7 @@
 #include "settings/RegistryUtils.h"
 #include "settings/ViewSettings.h"
 #include <QCoreApplication>
+#include <QEventLoop>
 #include <QFile>
 #include <QFileInfo>
 #include <QProcess>
@@ -18,6 +19,11 @@ extern char **environ;
 #endif
 
 namespace ExternalEditorFixture {
+void waitForKnownEditor() {
+    QEventLoop loop;
+    QTimer::singleShot(2200, &loop, &QEventLoop::quit);
+    loop.exec();
+}
 bool write(const QString &path, const QByteArray &bytes) {
     QFile file(path);
     return file.open(QIODevice::WriteOnly) && file.write(bytes) == bytes.size();

@@ -9,6 +9,7 @@
 #include "filemanager/providers/qtlocationfolder.h"
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtapppresentation.h"
+#include "filemanager/window/qtlocalfiletask.h"
 #include "localization/qtlangcontrols.h"
 #include "platform/trash/qttrashservice.h"
 #include "settings/ViewSettings.h"
@@ -31,76 +32,34 @@ void MainWindow::transferFiles(const QStringList &sources, const QString &destin
                                                          "The destination folder is unavailable."));
         return;
     }
-    fileTransfer_ =
-        new FileTransferOperation(sources, destination, move, this, {},
+    auto *operation =
+        new FileTransferOperation(sources, destination, move, nullptr, {},
                                   directPath ? FileTransferOperation::DestinationKind::DirectPath
                                              : FileTransferOperation::DestinationKind::Directory);
-    auto *operation = fileTransfer_;
-    connect(operation, &FileTransferOperation::overwriteRequested, this,
-            [this, operation](const OverwriteQuestion &question) {
-                if (app_.QtOperations().closed() || operation->isCanceled()) {
-                    operation->submitOverwriteAnswer(NOverwriteAnswer::kCancel);
+    auto *task =
+        new QtLocalFileTask(*operation, QtLangText(move ? IDS_MOVING : IDS_COPYING), destination);
+    fileTask_ = task;
+    task->BindOwner(app_.Panels[projectedPanel_], *this);
+    if (completed)
+        connect(task, &QtLocalFileTask::transferCompleted, task, std::move(completed));
+    connect(task, &QtLocalFileTask::finished, this,
+            [this, task](bool success, bool, const QString &message) {
+                if (app_.QtOperations().closed())
                     return;
-                }
-                COverwriteDialog dialog(this);
-                overwriteDialog_ = &dialog;
-                dialog.SetQuestion(question);
-                connect(operation, &FileTransferOperation::dismissOverwriteRequested, &dialog,
-                        &QDialog::reject, Qt::QueuedConnection);
-                if (operation->isCanceled()) {
-                    operation->submitOverwriteAnswer(NOverwriteAnswer::kCancel);
+                const QPointer<MainWindow> guard(this);
+                if (!guard || app_.QtOperations().closed())
                     return;
-                }
-                const int answer = NOverwriteDialog::MapButtonResult(dialog.Create(this));
-                overwriteDialog_ = nullptr;
-                operation->submitOverwriteAnswer(answer);
+                if (fileTask_ == task)
+                    fileTask_ = nullptr;
+                if (success)
+                    statusBar()->showMessage(message);
+                // OnCopy's continuation owns both reloads, saved selections
+                // and final focus after this worker releases its operation.
+                setState(State::Filesystem);
+                appPresentation_->CopyFinished();
             });
-    beginWorkerProgress(QtLangText(move ? IDS_MOVING : IDS_COPYING), destination,
-                        [operation = fileTransfer_] { operation->cancel(); });
-    // The source mutex snapshot is worker-safe. Completion or close joins the
-    // worker before releasing this dialog; no QWidget/MainWindow state is read.
-    CProgressSync *sync = &progressDialog()->Sync;
-    connect(
-        fileTransfer_, &FileTransferOperation::currentFile, this,
-        [sync](const QString &path) { sync->Set_FilePath(path.toStdWString().c_str()); },
-        Qt::DirectConnection);
-    connect(
-        fileTransfer_, &FileTransferOperation::advanced, this,
-        [sync, completed = UInt64(0)](qint64 bytes) mutable {
-            completed += quint64(qMax<qint64>(0, bytes));
-            sync->Set_NumBytesCur(completed);
-        },
-        Qt::DirectConnection);
-    connect(
-        operation, &FileTransferOperation::result, this,
-        [this, operation, completed = std::move(completed)](bool success, const QString &message) {
-            if (app_.QtOperations().closed())
-                return;
-            // Join and release the worker before terminal dialogs/panels
-            // publish readiness. No second signal owns the continuation.
-            operation->wait();
-            if (completed)
-                completed(success);
-            const bool canceled =
-                operation->resultKind() == FileTransferOperation::ResultKind::Canceled;
-            if (fileTransfer_ == operation)
-                fileTransfer_ = nullptr;
-            operation->deleteLater();
-            if (auto *progress = progressDialog(); !success && !canceled && progress)
-                progress->Sync.FinalMessage.ErrorMessage.Message = ToUString(message);
-            const QPointer<MainWindow> guard(this);
-            closeProgressDialog(true);
-            if (!guard || app_.QtOperations().closed())
-                return;
-            if (success)
-                statusBar()->showMessage(message);
-            // OnCopy's continuation owns both reloads, saved selections
-            // and final focus after this worker releases its operation.
-            setState(State::Filesystem);
-            appPresentation_->CopyFinished();
-        });
     setState(State::Operating);
-    fileTransfer_->start();
+    task->Start();
 }
 
 void MainWindow::executeCopyDestination(bool move, bool copyToSame, unsigned sourceIndex,

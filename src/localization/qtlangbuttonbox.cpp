@@ -85,7 +85,8 @@ void QtLangButtonBox::UpdateButtonWidths() {
         const int textWidth =
             control->fontMetrics().size(Qt::TextShowMnemonic, control->text()).width();
         const int iconWidth = control->icon().isNull() ? 0 : control->iconSize().width() + margin;
-        control->setMinimumWidth(textWidth + iconWidth + 2 * margin);
+        control->setMinimumWidth(
+            qMax(control->sizeHint().width(), textWidth + iconWidth + 2 * margin));
     }
 }
 

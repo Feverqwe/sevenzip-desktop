@@ -80,11 +80,15 @@ HRESULT ValidateNativeUpdatePaths(UInt32 count, IArchiveUpdateCallback *callback
 } // namespace
 
 ArchiveBackend *ArchiveBackend::createIndependentBackend(QObject *parent) const {
-    auto *backend = new ArchiveBackend(parent, configuredModule_);
-    // A new File Manager window owns its process/operation state. Only the
-    // immutable module lease is shared, as with existing native readers.
-    backend->codecCatalog_.store(codecCatalog());
-    return backend;
+    return independentBackendFactory()(parent);
+}
+
+ArchiveBackend::IndependentFactory ArchiveBackend::independentBackendFactory() const {
+    return [module = configuredModule_, catalog = codecCatalog()](QObject *parent) {
+        auto *backend = new ArchiveBackend(parent, module);
+        backend->codecCatalog_.store(catalog);
+        return backend;
+    };
 }
 
 HRESULT ArchiveBackend::openNativeArchive(const QString &path, const QString &type,

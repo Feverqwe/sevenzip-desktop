@@ -9,6 +9,7 @@
 #include "filemanager/qtfilemanagercommands.h"
 #include "filemanager/qtprogramfilemenu.h"
 #include "filemanager/window/mainwindow.h"
+#include "filemanager/window/qtexternalfiletask.h"
 #include "filemanager/window/qtwindowworkspace.h"
 #include "filemanager/window/qtworkspaceapplication.h"
 #include "localization/qtlangcontrols.h"
@@ -174,7 +175,12 @@ void QtFileManagerCommands::OpenRootFolder() {
 void QtFileManagerCommands::OpenParentFolder() { window_.goParent(); }
 void QtFileManagerCommands::FoldersHistory() { window_.showFoldersHistory(); }
 void QtFileManagerCommands::ChangeFlatMode() { window_.app_.ChangeFlatMode(); }
-void QtFileManagerCommands::RefreshView() { window_.app_.RefreshView(); }
+void QtFileManagerCommands::RefreshView() {
+    if (window_.app_.GetFocusedPanel().ArchiveContextOutdated())
+        window_.workspace_->RefreshPublishedArchive(window_.projectedPanel_, true);
+    else
+        window_.app_.RefreshView();
+}
 void QtFileManagerCommands::SwitchStandardToolbar() { window_.app_.SwitchStandardToolbar(); }
 void QtFileManagerCommands::SwitchArchiveToolbar() { window_.app_.SwitchArchiveToolbar(); }
 void QtFileManagerCommands::SwitchButtonsLables() { window_.app_.SwitchButtonsLables(); }
@@ -265,5 +271,10 @@ void QtFileManagerCommands::AboutDialog() {
     dialog.Create();
 }
 void QtFileManagerCommands::MyBrowseForTempFolder() {
-    ::MyBrowseForTempFolder(&window_, window_.fileOpener_);
+    ::MyBrowseForTempFolder(&window_, window_.fileOpener_,
+                            [this](const QtOwnedTempEntry &entry, const QString &path, bool show) {
+                                return QtExternalFileTask::Details(entry, path, *window_.backend_,
+                                                                   window_.toolbarSettingsPath(),
+                                                                   show);
+                            });
 }

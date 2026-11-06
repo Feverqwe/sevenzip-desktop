@@ -85,10 +85,19 @@ void QtWindowWorkspace::RetryLocation(unsigned panel, bool parent) {
         return;
     window_.activatePanelUi(panel);
     auto &tab = panels_[panel].tabs[panels_[panel].current];
+    if (parent && tab.archiveRevision != tab.archiveApplied) {
+        window_.goParent();
+        return;
+    }
+    if (!parent && tab.archiveRevision != tab.archiveApplied) {
+        RefreshPublishedArchive(panel, true);
+        return;
+    }
     if (parent) {
         tab.path = QFileInfo(QDir::cleanPath(tab.path)).absolutePath();
         tab.nativePlaceIdentity.clear();
         tab.archiveLocation = {};
+        tab.archiveApplied = tab.archiveRevision;
     }
     const QString requested = tab.path;
     window_.withPanelProjection(panel, [this, panel, &requested] {

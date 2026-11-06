@@ -3,6 +3,7 @@
 #include "archive/resources/qtarchiveproperties.h"
 #include "filemanager/qtfilemanagercommands.h"
 #include "filemanager/window/mainwindow.h"
+#include "filemanager/window/qtwindowworkspace.h"
 #include "localization/qtlangcontrols.h"
 #include "mount/qtarchivemountmanager.h"
 #include <QAction>
@@ -25,20 +26,21 @@ void QtFileManagerCommands::MountReadOnlyContainer() {
         folder ? dynamic_cast<QtArchiveFileResource *>(folder->GetEngineResource()) : nullptr;
     if (!resource || !ArchiveUsesNativeItemIndexes(folder->GetArchiveProperties()))
         return;
-    if (!mounts_)
-        mounts_ = new QtArchiveMountManager(&window_);
+    auto *mounts = window_.workspace_->CurrentMountManager(true);
+    if (!mounts)
+        return;
     const QString path = ToQString(GetFolderPath(folder));
     const QString label = path.isEmpty() ? QStringLiteral("/") : path;
-    mounts_->mount(resource, label, window_.projectedUi().archivePassword.toQString(), path);
+    mounts->mount(resource, label, window_.projectedUi().archivePassword.toQString(), path);
 }
 void QtFileManagerCommands::ShowMounts() {
-    if (!mounts_)
-        mounts_ = new QtArchiveMountManager(&window_);
-    mounts_->show();
-    mounts_->raise();
-    mounts_->activateWindow();
+    if (auto *mounts = window_.workspace_->CurrentMountManager(true)) {
+        mounts->show();
+        mounts->raise();
+        mounts->activateWindow();
+    }
 }
-bool QtFileManagerCommands::CanCloseMounts() { return !mounts_ || mounts_->canCloseOwner(); }
+bool QtFileManagerCommands::CanCloseMounts() { return window_.workspace_->CanCloseMounts(); }
 QWidget *QtFileManagerCommands::MountCloseBlocker() const {
-    return mounts_ && mounts_->hasActiveSessions() ? mounts_.data() : nullptr;
+    return window_.workspace_->MountCloseBlocker();
 }

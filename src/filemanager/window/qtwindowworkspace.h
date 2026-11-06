@@ -25,6 +25,7 @@ class QtRecentPlacesStore;
 class QtRecentPlacesDialog;
 struct QtRecentPlace;
 struct QtTabRuntime;
+class QtArchiveMountManager;
 
 // Tab runtimes own stable sources; CApp projects two active slots. Persistent
 // sessions contain navigation values and never live handles or passwords.
@@ -45,12 +46,18 @@ class QtWindowWorkspace final : public QObject {
     bool WithSource(CPanel &source, const std::function<bool()> &body);
     bool SourceIsActive(const CPanel &source) const;
     void MarkDirty(CPanel &source);
+    void InvalidateArchive(const QString &path);
+    bool RefreshPublishedArchive(unsigned panel, bool interactive = false);
+    bool CanRefreshPublishedArchives() const;
     void RestoreViewPosition(CPanel &source, QAbstractItemView &view, const QPoint &position);
     void RetainListFocus(unsigned panel);
     void ExitExternalWorkers(bool hardExit);
     bool HasExternalWorkers() const;
     void QuiesceInactive();
     void Dispose();
+    QtArchiveMountManager *CurrentMountManager(bool create);
+    bool CanCloseMounts();
+    QWidget *MountCloseBlocker() const;
     // Acceptance may precede opening a restored tab; finished reports the actual result.
     bool TransferTab(const QString &id, QtWindowWorkspace &target, unsigned targetPanel,
                      std::function<void(bool)> finished = {});
@@ -98,6 +105,7 @@ class QtWindowWorkspace final : public QObject {
     struct Tab {
         QString id;
         QString path;
+        std::optional<QString> resumePath;
         QString nativePlaceIdentity;
         QtArchiveLocation archiveLocation;
         QtCommandIcon symbol = QtCommandIcon::Folder;
@@ -109,6 +117,9 @@ class QtWindowWorkspace final : public QObject {
         PROPID sort = 0;
         bool ascending = true;
         bool unavailable = false;
+        quint64 archiveRevision = 0;
+        quint64 archiveApplied = 0;
+        quint64 archiveAttempted = 0;
         std::shared_ptr<QtTabRuntime> runtime;
     };
     struct Panel {
@@ -130,18 +141,26 @@ class QtWindowWorkspace final : public QObject {
     void FinishNavigation(unsigned panel, HRESULT result);
     void CreateTab(unsigned panel, const QString &path, const QString &nativeIdentity,
                    const QtArchiveLocation &archive = {});
-    HRESULT OpenArchiveLocation(unsigned panel, const QtArchiveLocation &location);
+    struct ReopenLayer {
+        QString format;
+        std::optional<ArchivePassword> password;
+    };
+    HRESULT OpenArchiveLocation(unsigned panel, const QtArchiveLocation &location,
+                                const std::vector<ReopenLayer> *layers = nullptr,
+                                bool interactive = true);
     HRESULT OpenArchiveDirectory(unsigned panel, const QtArchiveLocation &location);
     HRESULT OpenTabLocation(unsigned panel);
     bool LocationMatches(unsigned panel, const QString &path);
     QString TabTitle(const Tab &tab) const;
     void Activate(unsigned panel, int tab);
     void Suspend(unsigned panel);
+    bool CloseRuntime(unsigned panel, int index);
     void Rebuild(unsigned panel);
     void TabMenu(unsigned panel, const QPoint &point);
     void DetachTab(const QString &id);
     void CreateActions(unsigned panel, QVBoxLayout &layout);
     void RefreshChrome();
+    void ShowArchiveChangeNotice(unsigned panel);
     QWidget *CreateSidebar(unsigned panel);
     void RefreshSidebar(unsigned panel);
     void AddFavorite();

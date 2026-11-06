@@ -6,10 +6,12 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QMessageBox>
+#include <QPointer>
 #include <QPushButton>
 #include <QTimer>
 #include <QTreeWidget>
 #include <algorithm>
+#include <utility>
 
 void QtArchiveMountManager::mount(IUnknown *resource, const QString &label,
                                   const QString &archivePassword, const QString &folder) {
@@ -81,12 +83,13 @@ void QtArchiveMountManager::refresh() {
                    !entry.instance->error().isEmpty();
         })) {
         closingOwner_ = false;
+        closeOwner_ = {};
         showManager();
     } else if (std::all_of(sessions_.cbegin(), sessions_.cend(), [](const Session &entry) {
                    return entry.instance->status() == Status::Stopped;
                })) {
         closingOwner_ = false;
-        QTimer::singleShot(0, owner_, &QWidget::close);
+        QTimer::singleShot(0, this, std::exchange(closeOwner_, {}));
     }
 }
 bool QtArchiveMountManager::hasActiveSessions() const {
@@ -95,13 +98,23 @@ bool QtArchiveMountManager::hasActiveSessions() const {
     });
 }
 
-bool QtArchiveMountManager::canCloseOwner() {
+void QtArchiveMountManager::rebindOwner(QWidget &owner) {
+    const bool visible = isVisible();
+    owner_ = &owner;
+    setParent(&owner, windowFlags());
+    if (visible)
+        show();
+}
+
+bool QtArchiveMountManager::canCloseOwner(std::function<void()> closeOwner) {
     if (!hasActiveSessions())
         return true;
     if (closingOwner_)
         return false;
+    const QPointer<QWidget> requestedWindow(owner_);
     QMessageBox prompt(QMessageBox::Question, tr("Disconnect mounts before closing"),
-                       tr("Unmount the active connections and close this window?"),
+                       closeOwner ? tr("Unmount the active connections and close this tab?")
+                                  : tr("Unmount the active connections and close this window?"),
                        QMessageBox::Cancel, owner_);
     auto *close = prompt.addButton(tr("Unmount and Close"), QMessageBox::AcceptRole);
     prompt.setDefaultButton(QMessageBox::Cancel);
@@ -109,6 +122,13 @@ bool QtArchiveMountManager::canCloseOwner() {
     if (prompt.clickedButton() != close)
         return false;
     closingOwner_ = true;
+    if (!closeOwner) {
+        closeOwner = [requestedWindow] {
+            if (requestedWindow)
+                requestedWindow->close();
+        };
+    }
+    closeOwner_ = std::move(closeOwner);
     for (const auto &entry : sessions_)
         entry.instance->unmount();
     refresh();

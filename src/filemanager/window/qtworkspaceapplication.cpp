@@ -1,12 +1,16 @@
 #include "filemanager/window/qtworkspaceapplication.h"
+
 #include "filemanager/qtfilemanagerstartup.h"
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtwindowworkspace.h"
-#include "operations/qtoperationlauncher.h"
-#include "operations/qtoperationregistry.h"
 #include <QJsonArray>
 #include <QJsonDocument>
-#include <QScopeGuard>
+
+void QtWorkspaceApplication::ArchivePublished(const QString &archive) {
+    for (const auto &window : windows_)
+        if (window && !window->app_.QtOperations().closed())
+            window->ArchivePublished(archive);
+}
 
 QtWorkspaceApplication::QtWorkspaceApplication(QApplication &application) : QObject(&application) {
     setObjectName(QStringLiteral("sevenzipWorkspaceApplication"));
@@ -68,52 +72,6 @@ void QtWorkspaceApplication::Closing(MainWindow &window) {
             session.append(other->workspace_->Save());
     QSettings settings(MainWindow::toolbarSettingsPath(), QSettings::IniFormat);
     settings.setValue("workspace/session", QJsonDocument(session).toJson(QJsonDocument::Compact));
-}
-
-void QtWorkspaceApplication::Quit() {
-    if (quitting_)
-        return;
-    // Inspect every owner before the first close. closeAllWindows can tear down
-    // an idle peer before a protected source refuses, and also closes unrelated
-    // operation/result windows. Mount inspection must not initiate unmounting.
-    QPointer<QWidget> blocker = QApplication::activeModalWidget();
-    std::vector<QPointer<MainWindow>> closing;
-    for (const auto &window : windows_)
-        if (window && !window->app_.QtOperations().closed()) {
-            closing.push_back(window);
-            if (!blocker)
-                blocker = window->applicationQuitBlocker();
-        }
-    if (blocker) {
-        blocker->show();
-        blocker->raise();
-        blocker->activateWindow();
-        return;
-    }
-    // Independent jobs retain their own native form/questions/results. Until
-    // the application-wide continuation decision is committed, return to an
-    // actual task owner rather than silently closing all file contexts.
-    const auto reviews = QtOperationRegistry::Application().Reviews();
-    if (!reviews.isEmpty()) {
-        ShowTaskReview(reviews.first().Id, true);
-        return;
-    }
-    const auto tasks = QtOperationLauncher::Active();
-    if (!tasks.isEmpty()) {
-        tasks.front()->Show();
-        return;
-    }
-    Save();
-    quitting_ = true;
-    for (const auto &window : closing)
-        if (window)
-            window->close();
-    // A protected operation may refuse shutdown. Resume ordinary persistence.
-    for (const auto &window : windows_)
-        if (window && !window->app_.QtOperations().closed()) {
-            quitting_ = false;
-            return;
-        }
 }
 
 void QtWorkspaceApplication::ApplyWhenReady(MainWindow &window, const QJsonObject &state,

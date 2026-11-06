@@ -6381,6 +6381,7 @@ Use `Revert` to recover timestamp.</source>
     </context>
     <context>
         <name>qtfiletransfertransaction</name>
+        <message><source>Some items were skipped.</source><translation>Некоторые объекты пропущены.</translation></message>
         <message>
             <location filename="../src/fileops/transfer/qtfiletransfertransaction.cpp" line="+261" />
             <source> Some items may have been moved.</source>
@@ -6865,6 +6866,10 @@ The limit is the total size of these extracted files. Older cached files are rem
             <translation>Отключить активные подключения и закрыть окно?</translation>
         </message>
         <message>
+            <source>Unmount the active connections and close this tab?</source>
+            <translation>Отключить активные подключения и закрыть вкладку?</translation>
+        </message>
+        <message>
             <location line="+2" />
             <source>Unmount and Close</source>
             <translation>Отключить и закрыть</translation>
@@ -7210,6 +7215,7 @@ Check that your distribution's CIFS support and cifs-utils are installed.</sourc
 </context>
 <context>
     <name>QtWindowWorkspace</name>
+    <message><source>The archive changed. Reopen it to see the saved changes. The previous view is available for copying.</source><translation>Архив изменился. Откройте его заново, чтобы увидеть сохранённые изменения. Из прежнего представления можно копировать файлы.</translation></message>
     <message><source>The original tab is closed.</source><translation>Исходная вкладка закрыта.</translation></message>
     <message><source>The original tab is busy.</source><translation>Исходная вкладка занята.</translation></message>
     <message><source>Opening canceled.</source><translation>Открытие отменено.</translation></message>
@@ -7351,5 +7357,127 @@ Check that your distribution's CIFS support and cifs-utils are installed.</sourc
     <message><source>Selected items</source><translation>Выбранные объекты</translation></message>
     <message><source>Requested archive</source><translation>Указанный архив</translation></message>
     <message><source>Requested destination</source><translation>Указанное назначение</translation></message>
+</context>
+<context>
+    <name>QtExternalFileTask</name>
+    <message><source>The archive was not fully updated. The copies were kept, but their session details could not be saved.</source><translation>Не удалось полностью обновить архив. Копии сохранены, но сведения о них записать не удалось.</translation></message>
+    <message><source>Archive</source><translation>Архив</translation></message>
+    <message><source>Entry</source><translation>Запись</translation></message>
+    <message><source>Temporary copy</source><translation>Временная копия</translation></message>
+    <message><source>Retained archive copies</source><translation>Сохранённые копии архивов</translation></message>
+    <message><source>Retained file copy</source><translation>Сохранённая копия файла</translation></message>
+    <message><source>This retained copy can be saved separately. Its source cannot be updated.</source><translation>Эту копию можно сохранить отдельно. Обновление исходного архива недоступно.</translation></message>
+    <message><source>The archive is being updated. The temporary copy is in use.</source><translation>Архив обновляется. Временная копия используется операцией.</translation></message>
+    <message><source>Could not save external session details. The file was not opened.</source><translation>Не удалось сохранить сведения о внешнем сеансе. Файл не открыт.</translation></message>
+    <message><source>The archive was updated, but session details could not be saved. The copy was kept.</source><translation>Архив обновлён, но сведения о сеансе сохранить не удалось. Копия сохранена.</translation></message>
+    <message><source>The archive was saved, but completing the operation failed. The copy was kept.</source><translation>Архив сохранён, но завершить операцию не удалось. Копия сохранена.</translation></message>
+    <message><source>Retained temporary copy. Confirm the external file is closed before checking changes.</source><translation>Сохранённая временная копия. Перед проверкой изменений подтвердите, что файл закрыт во внешней программе.</translation></message>
+    <message>
+        <location filename="../src/filemanager/window/qtexternalfiletask.cpp" line="+67" />
+        <source>Preparing edited file</source>
+        <translation>Подготовка изменённого файла</translation>
+    </message>
+    <message>
+        <location line="+150" />
+        <source>This archive cannot be updated. Save a copy of the edited file.</source>
+        <translation>Этот архив нельзя обновить. Сохраните копию изменённого файла.</translation>
+    </message>
+    <message>
+        <location line="+10" />
+        <location filename="../src/filemanager/window/qtexternalfiletask_presentation.cpp" line="+99" />
+        <source>The temporary file is unavailable. The archive was not updated.</source>
+        <translation>Временный файл недоступен. Архив не обновлён.</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>No saved changes were detected.</source>
+        <translation>Сохранённых изменений не обнаружено.</translation>
+    </message>
+    <message>
+        <location line="+27" />
+        <source>The temporary file changed during preparation. Check it again.</source>
+        <translation>Временный файл изменился во время подготовки. Проверьте его ещё раз.</translation>
+    </message>
+    <message>
+        <location line="+12" />
+        <source>The archive was not fully updated. The edited copy was kept.</source>
+        <translation>Не удалось полностью обновить архив. Изменённая копия сохранена.</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>The archive was updated.</source>
+        <translation>Архив обновлён.</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>The archive was updated, but the temporary file changed again. Its copy was kept.</source>
+        <translation>Архив обновлён, но временный файл снова изменился. Его копия сохранена.</translation>
+    </message>
+    <message>
+        <location filename="../src/filemanager/window/qtexternalfiletask_presentation.cpp" line="-78" />
+        <source>The external program is still running.</source>
+        <translation>Внешняя программа ещё работает.</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>The external program finished. The temporary copy was kept.</source>
+        <translation>Внешняя программа завершила работу. Временная копия сохранена.</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Process observation failed. The temporary copy is protected.</source>
+        <translation>Не удалось отследить работу программы. Временная копия защищена от очистки.</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>The external program's completion is unknown. The temporary copy is protected.</source>
+        <translation>Неизвестно, завершена ли работа внешней программы. Временная копия защищена от очистки.</translation>
+    </message>
+    <message>
+        <location line="+22" />
+        <source>File in external application</source>
+        <translation>Файл во внешней программе</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <location line="+88" />
+        <source>Save copy…</source>
+        <translation>Сохранить копию…</translation>
+    </message>
+    <message>
+        <location line="-83" />
+        <source>Check changes</source>
+        <translation>Проверить изменения</translation>
+    </message>
+    <message>
+        <location line="+19" />
+        <source>I saved and closed the file in the external program</source>
+        <translation>Я сохранил и закрыл файл во внешней программе</translation>
+    </message>
+    <message>
+        <location line="+38" />
+        <source>Save copy</source>
+        <translation>Сохранение копии</translation>
+    </message>
+    <message>
+        <location line="+15" />
+        <source>Save changes to archive?</source>
+        <translation>Сохранить изменения в архиве?</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Later</source>
+        <translation>Позже</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Update archive</source>
+        <translation>Обновить архив</translation>
+    </message>
+</context>
+
+<context>
+    <name>qttempbrowsepresentation</name>
+    <message><source>Session details</source><translation>Сведения о сеансе</translation></message>
 </context>
 </TS>

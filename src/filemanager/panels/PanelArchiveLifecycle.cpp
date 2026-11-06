@@ -3,14 +3,20 @@
 #include "7zip/UI/FileManager/resource.h"
 #include "7zip/UI/GUI/ExtractRes.h"
 #include "Common/StringConvert.h"
+#include "archive/agent/Agent.h"
 #include "archive/opening/archivecontainerpath.h"
 #include "archive/password/archivepassword.h"
 #include "archive/resources/archivelayercontext.h"
+#include "archive/resources/qtarchivefileresource.h"
 #include "filemanager/FormatUtils.h"
+#include "filemanager/external/qtexternalfilerecord.h"
 #include "filemanager/panels/Panel.h"
+#include "filemanager/panels/qtpanellocationtransaction.h"
 #include "filemanager/providers/FileFolderPluginOpen.h"
 #include "localization/LangUtils.h"
+#include "platform/temp/qtownedtempidentity.h"
 #include "ui/progress/ProgressDialog2.h"
+#include <QFileInfo>
 #include <QMessageBox>
 
 using namespace NWindows;
@@ -33,6 +39,11 @@ HRESULT CPanel::OpenAsArc(IInStream *inStream, const CTempFileInfo &tempFileInfo
     }
     folderLink.VirtualPath = virtualFilePath;
     CFfpOpen ffp(_folderManager);
+    ffp.DisableUserQuestions = !_archiveOpenDialogs;
+    if (_archiveOpenPassword) {
+        ffp.Encrypted = true;
+        ffp.Password = _archiveOpenPassword->native();
+    }
     ffp.SettingsPath = _settingsPath;
     ffp.OwnedStreamFile = inStream && tempFileInfo.NeedDelete && !tempFileInfo.FilePath.IsEmpty();
     ffp.MaterializeStreamFile = materializeStream;
@@ -120,6 +131,12 @@ HRESULT CPanel::OpenParentArchiveFolder() {
         return S_OK;
     const CFolderLink &folderLinkPrev = _parentFolders[_parentFolders.Size() - 2];
     const CFolderLink &folderLink = _parentFolders.Back();
+    if (_archiveContextOutdated) {
+        if (folderLink.KeepOnOutdatedClose)
+            return S_OK;
+        folderLink.DeleteDirAndFile();
+        return S_OK;
+    }
     NFind::CFileInfo newFileInfo;
     if (newFileInfo.Find(folderLink.FilePath)) {
         if (folderLink.WasChanged_from_FolderLink(newFileInfo)) {
@@ -131,7 +148,12 @@ HRESULT CPanel::OpenParentArchiveFolder() {
             box.setTextFormat(Qt::PlainText);
             box.setDefaultButton(QMessageBox::Yes);
             box.setEscapeButton(QMessageBox::Cancel);
-            if (box.exec() == QMessageBox::Yes) {
+            const int answer = box.exec();
+            if (_archiveContextOutdated) {
+                PreserveOutdatedArchiveCopies();
+                return S_OK;
+            }
+            if (answer == QMessageBox::Yes) {
                 if (OnOpenItemChanged(folderLink.FileIndex, fs2us(folderLink.FilePath),
                                       folderLinkPrev.UsePassword,
                                       folderLinkPrev.Password.native()) != S_OK) {
@@ -147,6 +169,8 @@ HRESULT CPanel::OpenParentArchiveFolder() {
 }
 
 void CPanel::CloseOneLevel() {
+    if (_archiveContextOutdated)
+        PreserveOutdatedArchiveCopies();
     ReleaseFolder();
     _library.Free();
     {
@@ -159,6 +183,8 @@ void CPanel::CloseOneLevel() {
         OpenParentArchiveFolder();
     _parentFolders.DeleteBack();
     if (_parentFolders.IsEmpty())
+        _archiveContextOutdated = false;
+    if (_parentFolders.IsEmpty())
         _flatMode = _flatModeForDisk;
 }
 
@@ -168,4 +194,81 @@ void CPanel::CloseOpenFolders() {
     _flatMode = _flatModeForDisk;
     ReleaseFolder();
     _library.Free();
+    _archiveContextOutdated = false;
+}
+
+void CPanel::ReleaseArchiveContext(bool removeTemporaryFiles) {
+    // An operation owns its publication decisions. Destruction must not ask
+    // navigation questions or turn a failed inner update into outer success.
+    Disable_Processing_Timer_Notify_StatusBar();
+    ReleaseFolder();
+    _library.Free();
+    while (!_parentFolders.IsEmpty()) {
+        if (removeTemporaryFiles)
+            _parentFolders.Back().DeleteDirAndFile();
+        _parentFolders.DeleteBack();
+    }
+    _archiveContextOutdated = false;
+}
+
+bool CPanel::MarkArchiveOutdated(const QString &path) {
+    bool matched = false;
+    if (!_parentFolders.IsEmpty()) {
+        const QString current = ToQString(_parentFolders.Front().VirtualPath);
+        const QString identity = QtOwnedTempIdentity(path);
+        if (QFileInfo(current).absoluteFilePath() == QFileInfo(path).absoluteFilePath() ||
+            (!identity.isEmpty() && identity == QtOwnedTempIdentity(current))) {
+            _archiveContextOutdated = true;
+            matched = true;
+        }
+    }
+    for (auto *transaction : _locationTransactions)
+        matched = transaction->MarkArchiveOutdated(path) || matched;
+    return matched;
+}
+
+bool CPanel::PreserveOutdatedArchiveCopies() {
+    if (!_archiveContextOutdated)
+        return true;
+    bool complete = true;
+    for (unsigned level = 1; level < _parentFolders.Size(); ++level) {
+        auto &link = _parentFolders[level];
+        if (!link.NeedDelete || link.FilePath.IsEmpty())
+            continue;
+        NFind::CFileInfo current;
+        const bool found = current.Find(link.FilePath);
+        if (!found) {
+            IFolderFolder *folder = level + 1 < _parentFolders.Size()
+                                        ? _parentFolders[level + 1].ParentFolder.Interface()
+                                        : GetFolder();
+            const auto *native = dynamic_cast<CAgentFolder *>(folder);
+            const auto *resource =
+                native ? dynamic_cast<QtArchiveFileResource *>(native->GetEngineResource())
+                       : nullptr;
+            // Direct streams have no materialized copy. A missing file-backed
+            // input cannot prove that its private edits are safe to release.
+            if (link.IsVirtual && resource && resource->HasStreamInput())
+                continue;
+            link.KeepOnOutdatedClose = true;
+            complete = false;
+            continue;
+        }
+        if (!link.WasChanged_from_FolderLink(current))
+            continue;
+        link.KeepOnOutdatedClose = true;
+        if (!link.OwnedTempLease) {
+            complete = false;
+            continue;
+        }
+        const QtExternalFileRecord record{QFileInfo(ToQString(fs2us(link.FilePath))).fileName(),
+                                          ToQString(link.RelPath),
+                                          ToQString(link.VirtualPath),
+                                          {},
+                                          QtNativeFileStamp{current.Size, current.MTime},
+                                          {},
+                                          false};
+        if (!link.OwnedTempLease->SetContext(record.Save()))
+            complete = false;
+    }
+    return complete;
 }

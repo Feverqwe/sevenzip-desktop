@@ -5,6 +5,7 @@
 #include "Common/MyWindows.h"
 #include <QString>
 #include <functional>
+#include <memory>
 #include <optional>
 
 class CPanel;
@@ -12,6 +13,10 @@ struct CSelectedState;
 class QWidget;
 class IQtProcessHandle;
 class IQtProcessServices;
+class IQtExternalSessionOwner;
+struct CTempFileInfo;
+using QtExternalSessionFactory = std::function<std::shared_ptr<IQtExternalSessionOwner>(
+    CPanel &, const CTempFileInfo &, const QString &, const QString &)>;
 using QtArchiveUpdateBody = std::function<bool(std::optional<CSelectedState> &)>;
 
 // Default OS associations can successfully launch without a process handle.
@@ -29,6 +34,10 @@ class IQtExternalFileServices {
         return E_NOTIMPL;
     }
     virtual IQtProcessServices *ProcessServices() { return nullptr; }
+    virtual std::shared_ptr<IQtExternalSessionOwner>
+    CreateExternalSession(CPanel &, const CTempFileInfo &, const QString &, const QString &) {
+        return {};
+    }
     virtual bool CanHandleExternalUpdate() const { return true; }
     virtual bool RunArchiveUpdate(CPanel &, const QtArchiveUpdateBody &body);
     virtual HRESULT CreateKnownProcess(const UString &, const UString &, const UStringVector &,

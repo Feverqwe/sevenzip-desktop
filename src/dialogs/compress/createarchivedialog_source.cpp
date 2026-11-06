@@ -5,6 +5,7 @@
 #include "archive/codecs/archivecodeccatalog.h"
 #include "dialogs/compress/createarchivedialog.h"
 #include "ui/controls/qtdisclosure.h"
+#include "ui/lifecycle/qttaskpresentation.h"
 #include <QCoreApplication>
 #include <QEvent>
 
@@ -37,6 +38,7 @@ QString CreateArchiveDialog::archivePath() const {
 }
 
 void CreateArchiveDialog::validateAndAccept() {
+    const QtTaskPresentation::QuestionScope validation;
     accepted_.reset();
     if (parameters_ && parameters_->text().contains(QChar::Null)) {
         commandLineOptions_->setExpanded(true);

@@ -11,8 +11,18 @@ class QtAssociatedFileServices final : public IQtExternalFileServices {
     std::function<bool(CPanel &, const QtArchiveUpdateBody &)> _updateRunner;
     std::function<bool()> _updateReady;
     std::function<bool(const QString &)> _hasAssociation;
+    QtExternalSessionFactory _sessionFactory;
 
   public:
+    void SetExternalSessionFactory(QtExternalSessionFactory factory) {
+        _sessionFactory = std::move(factory);
+    }
+    std::shared_ptr<IQtExternalSessionOwner> CreateExternalSession(CPanel &source,
+                                                                   const CTempFileInfo &file,
+                                                                   const QString &settings,
+                                                                   const QString &prefix) override {
+        return _sessionFactory ? _sessionFactory(source, file, settings, prefix) : nullptr;
+    }
     explicit QtAssociatedFileServices(
         std::function<bool(const QUrl &)> opener,
         std::function<bool(CPanel &, const QtArchiveUpdateBody &)> updateRunner = {},

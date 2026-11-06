@@ -69,7 +69,7 @@ class ArchiveNavigationRollbackTests final : public QObject, protected MainWindo
                      .toStringList()
                      .contains(candidate + '/'));
     }
-    void savedArchiveRejectsDeferredMetadataFailureAndRetries() {
+    void sessionResumesDirectoryWithoutReadingArchive() {
         NativePropertyFailureRuntime runtime;
         QVERIFY(runtime.prepare(QString::fromUtf8(SEVENZIP_EXTERNAL_RUNTIME),
                                 QString::fromUtf8(SEVENZIP_EXTERNAL_FORMAT_FIXTURE)));
@@ -99,7 +99,6 @@ class ArchiveNavigationRollbackTests final : public QObject, protected MainWindo
         QVERIFY(workspace);
         window.openArchive(archive);
         QTRY_VERIFY(active() && active()->isEnabled() && active()->rowCount() == 301);
-        const QString requested = ToQString(active()->sourcePanel->GetCurrentFolderPrefix());
         const auto saved = workspace->Save();
         window.openPath(fixture.path());
         QTRY_VERIFY(active()->isEnabled() && active()->sourcePanel->IsFSFolder());
@@ -107,24 +106,11 @@ class ArchiveNavigationRollbackTests final : public QObject, protected MainWindo
         bool finished = false;
         workspace->Restore(saved, [&] { finished = true; });
         QTRY_VERIFY(finished);
-        QVERIFY(!runtime.receipts().isEmpty());
-        QCOMPARE(active()->rowCount(), 0);
-        const QString error =
-            QCoreApplication::translate("QtWindowWorkspace", "Location unavailable: %1")
-                .arg(requested);
-        bool errorVisible = false;
-        for (auto *label : window.findChildren<QLabel *>())
-            errorVisible |= label->isVisible() && label->text() == error;
-        QVERIFY(errorVisible);
-        QVERIFY(runtime.clear());
-        QPushButton *retry = nullptr;
-        for (auto *button : window.findChildren<QPushButton *>())
-            if (button->isVisible() &&
-                button->text() == QCoreApplication::translate("QtWindowWorkspace", "Retry"))
-                retry = button;
-        QVERIFY(retry);
-        QTest::mouseClick(retry, Qt::LeftButton);
-        QTRY_VERIFY(active()->isEnabled() && active()->rowCount() == 301);
+        QVERIFY(runtime.receipts().isEmpty());
+        QVERIFY(active()->sourcePanel->IsFSFolder());
+        QCOMPARE(QDir::cleanPath(ToQString(active()->sourcePanel->GetCurrentFolderPrefix())),
+                 QDir::cleanPath(fixture.path()));
+        QVERIFY(filesystemRow(window, "saved archive.fixture7z") >= 0);
     }
     void physicalOpeningKeepsOrReleasesNestedContext_data() {
         QTest::addColumn<bool>("materialized");
@@ -219,7 +205,7 @@ class ArchiveNavigationRollbackTests final : public QObject, protected MainWindo
             native.RelPath = ToUString(innerName);
             native.FileIndex = 0;
             native.NeedDelete = true;
-            native.OwnedTempLease = registry.RegisterCreated(ownedPath);
+            native.OwnedTempLease = registry.RegisterCreated(directory);
             QVERIFY(native.OwnedTempLease);
             COpenResult opened;
             panel.LoadFullPath();

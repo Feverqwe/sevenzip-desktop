@@ -8,6 +8,7 @@
 #include "filemanager/qtprogramfilemenu.h"
 #include "filemanager/rename/qtrenamecontroller.h"
 #include "filemanager/window/qtapppresentation.h"
+#include "filemanager/window/qtexternalfiletask.h"
 #include "filemanager/window/qtfileclipboard.h"
 #include "filemanager/window/qtwindowworkspace.h"
 #include "filemanager/window/qtworkspaceapplication.h"
@@ -38,6 +39,12 @@ MainWindow::MainWindow(ArchiveBackend *backend, std::function<bool(const QUrl &)
             return runExternalArchiveUpdate(panel, body);
         },
         [this] { return canHandleExternalUpdate(); });
+    associatedFileServices_->SetExternalSessionFactory(
+        [this](CPanel &source, const CTempFileInfo &file, const QString &settings,
+               const QString &prefix) {
+            auto owner = QtExternalFileTask::Create(source, file, *backend_, settings, prefix);
+            return owner;
+        });
     for (auto &panel : app_.Panels) {
         panel.AttachFolderManager(folderManager_, toolbarSettingsPath());
         panel.AttachExternalFileServices(associatedFileServices_.get());
@@ -77,7 +84,8 @@ void MainWindow::createFileManagerWindow(const QtFileManagerStartup *startup, bo
     guiOutputRefresh_ = std::make_unique<QtGuiOutputRefresh>(
         [this] {
             const auto &operations = app_.QtOperations();
-            return !operations.closed() && !operations.active() && !operations.callActive();
+            return !operations.closed() && !operations.active() && !operations.callActive() &&
+                   workspace_->CanRefreshPublishedArchives();
         },
         [this](unsigned index, const QtGuiOutputRefresh::Outputs &output) {
             refreshGuiOutputPanel(index, output);

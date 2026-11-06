@@ -28,10 +28,13 @@ class CBrowseDialog2 : public QDialog {
         UString Prefix;
     };
     std::function<bool(const QUrl &)> _opener;
+    using Details = std::function<bool(const QtOwnedTempEntry &, const QString &, bool)>;
+    Details _details;
     std::shared_ptr<const Snapshot> _snapshot = std::make_shared<Snapshot>();
     QTreeWidget *_list = nullptr;
     QLineEdit *_pathEdit = nullptr;
     QPushButton *_delete = nullptr, *_parent = nullptr;
+    QPushButton *_sessionDetails = nullptr;
     QLabel *_scopeLabel = nullptr;
     int _sortIndex = 1;
     bool _ascending = true;
@@ -64,14 +67,16 @@ class CBrowseDialog2 : public QDialog {
     void OnContextMenu(const QPoint &position);
     void OpenOutside(const UString &path, const QtOwnedTempEntry &owner, bool sevenzip);
     void OnDelete();
+    void OnDetails();
     void OnHelp();
     bool eventFilter(QObject *object, QEvent *event) override;
     void keyPressEvent(QKeyEvent *event) override;
 
   public:
     UString TempFolderPath, Title;
-    explicit CBrowseDialog2(QWidget *parent = nullptr,
-                            std::function<bool(const QUrl &)> opener = {});
+    explicit CBrowseDialog2(
+        QWidget *parent = nullptr, std::function<bool(const QUrl &)> opener = {},
+        std::function<bool(const QtOwnedTempEntry &, const QString &, bool)> details = {});
     ~CBrowseDialog2() override;
     bool IsExactTempFolder(const UString &pathPrefix) const;
     int CompareItems(int index1, int index2) const;
@@ -79,5 +84,7 @@ class CBrowseDialog2 : public QDialog {
     void accept() override;
 };
 
-void MyBrowseForTempFolder(QWidget *owner, std::function<bool(const QUrl &)> opener = {});
+void MyBrowseForTempFolder(
+    QWidget *owner, std::function<bool(const QUrl &)> opener = {},
+    std::function<bool(const QtOwnedTempEntry &, const QString &, bool)> details = {});
 #endif

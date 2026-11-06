@@ -11,6 +11,14 @@ class QWidget;
 class QtTaskPresentation final : public QObject {
     Q_OBJECT
   public:
+    class QuestionScope final {
+        QPointer<QtTaskPresentation> owner_;
+
+      public:
+        QuestionScope();
+        ~QuestionScope();
+        Q_DISABLE_COPY_MOVE(QuestionScope)
+    };
     using Phase = QtOperationPhase;
     struct Snapshot {
         Phase phase = Phase::Preparing;
@@ -26,6 +34,7 @@ class QtTaskPresentation final : public QObject {
     bool workStarted() const { return workStarted_; }
     bool resultReviewed() const { return resultReviewed_; }
     static void ResultReviewed();
+    static bool CanPresent(const QWidget *owner = nullptr);
     void Show();
   signals:
     void changed();
@@ -48,4 +57,5 @@ class QtTaskPresentation final : public QObject {
     bool showPending_ = false;
     bool workStarted_ = false;
     bool resultReviewed_ = false;
+    unsigned questionDepth_ = 0;
 };

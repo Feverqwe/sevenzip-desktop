@@ -306,9 +306,17 @@ HRESULT CThreadCopyFrom::ProcessVirt() {
 HRESULT CPanel::OnOpenItemChanged(UInt32 index, const wchar_t *fullFilePath, bool usePassword,
                                   const UString &password,
                                   std::optional<ArchiveSourceSnapshot> expectedSource) {
+    return UpdateExternalFile(index, fullFilePath, usePassword, password, std::move(expectedSource))
+        .Result;
+}
+
+QtArchiveUpdateResult
+CPanel::UpdateExternalFile(UInt32 index, const wchar_t *fullFilePath, bool usePassword,
+                           const UString &password,
+                           std::optional<ArchiveSourceSnapshot> expectedSource) {
     if (!_folderOperations) {
         MessageBox_Error_UnsupportOperation();
-        return E_FAIL;
+        return {E_FAIL, false};
     }
     CThreadCopyFrom t;
     t.UpdateCallback.SetFromCls(new CUpdateCallback100Imp);
@@ -324,6 +332,6 @@ HRESULT CPanel::OnOpenItemChanged(UInt32 index, const wchar_t *fullFilePath, boo
     t.UpdateCallback->PasswordIsDefined = usePassword;
     t.UpdateCallback->Password = password;
     t.UpdateCallback->ExpectedSource = std::move(expectedSource);
-    RINOK(t.Create(GetItemName(index), GetParent()))
-    return t.Result;
+    const HRESULT created = t.Create(GetItemName(index), GetParent());
+    return {created == S_OK ? t.Result : created, t.UpdateCallback->Published};
 }

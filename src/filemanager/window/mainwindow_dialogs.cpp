@@ -4,7 +4,6 @@
 #include "localization/qtlangcontrols.h"
 #include "ui/progress/ProgressDialog2.h"
 #include "ui/progress/archiveprogresstransport.h"
-#include "ui/progress/qtcallbackprogresstransport.h"
 #include <utility>
 
 void MainWindow::showSelectedProperties() {
@@ -24,18 +23,6 @@ void MainWindow::begin(const QString &label, const QString &detail) {
                     statusBar()->showMessage(label + ": " + path);
             });
     progress->transport = std::move(transport);
-    progress_ = std::move(progress);
-    progressDialog()->OnInit();
-    progressDialog()->show();
-}
-
-void MainWindow::beginWorkerProgress(const QString &label, const QString &detail,
-                                     std::function<void()> cancel) {
-    auto progress = createProgressDialog(label, detail);
-    progress->dialog->CompressingMode = false;
-    progress->dialog->ShowCompressionInfo = false;
-    progress->transport = std::make_unique<QtCallbackProgressTransport>(std::move(cancel));
-    progress->dialog->AttachTransport(progress->transport.get());
     progress_ = std::move(progress);
     progressDialog()->OnInit();
     progressDialog()->show();

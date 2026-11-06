@@ -1,6 +1,8 @@
 #pragma once
 #include "Windows/FileFind.h"
+#include <QJsonObject>
 #include <QString>
+#include <optional>
 
 // File-generation identity without retaining an archive reader or its handles.
 class ArchiveSourceSnapshot final {
@@ -15,4 +17,6 @@ class ArchiveSourceSnapshot final {
   public:
     bool IsCurrent() const;
     bool IsCurrentFor(const QString &path) const;
+    QJsonObject Save() const;
+    static std::optional<ArchiveSourceSnapshot> Restore(const QJsonObject &value);
 };

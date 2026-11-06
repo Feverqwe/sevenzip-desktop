@@ -22,5 +22,10 @@ struct CExitEventLauncher {
     }
     ~CExitEventLauncher() { Exit(true); }
     void Exit(bool hardExit);
+    void Join();
+    void RequestExit() {
+        if (!_exiting.exchange(true))
+            _exitEvent.Set();
+    }
     bool Exiting() const { return _exiting.load(); }
 };

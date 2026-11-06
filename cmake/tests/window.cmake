@@ -65,6 +65,39 @@
     target_include_directories(archive_external_edit_tests PRIVATE src tests)
     target_link_libraries(archive_external_edit_tests PRIVATE Qt6::Widgets Qt6::Test)
     add_test(NAME archive_external_edit COMMAND archive_external_edit_tests -v1)
+    qt_add_executable(external_archive_context_tests tests/filemanager/external_archive_context_tests.cpp)
+    target_link_libraries(external_archive_context_tests PRIVATE sevenzip_location sevenzip_widget_dialog_fixtures Qt6::Test)
+    target_include_directories(external_archive_context_tests PRIVATE src tests)
+    add_test(NAME external_archive_context COMMAND external_archive_context_tests updateSurvivesSourceDestruction -silent)
+    add_test(NAME external_archive_restore COMMAND external_archive_context_tests restoredTarget -silent)
+    qt_add_executable(external_task_lifecycle_tests
+        tests/filemanager/external_task_lifecycle_tests.cpp
+        tests/platform/support/external_editor_fixture.cpp)
+    target_link_libraries(external_task_lifecycle_tests PRIVATE sevenzip_window sevenzip_widget_dialog_fixtures sevenzip_layout_inspection Qt6::Test)
+    target_include_directories(external_task_lifecycle_tests PRIVATE src tests)
+    add_test(NAME external_task_lifecycle COMMAND external_task_lifecycle_tests -v1)
+    qt_add_executable(external_copy_lifetime_tests
+        tests/filemanager/external_copy_lifetime_tests.cpp
+        tests/platform/support/external_editor_fixture.cpp)
+    target_link_libraries(external_copy_lifetime_tests PRIVATE sevenzip_window sevenzip_widget_dialog_fixtures Qt6::Test)
+    target_include_directories(external_copy_lifetime_tests PRIVATE src tests)
+    add_test(NAME external_copy_lifetime COMMAND external_copy_lifetime_tests -v1)
+    set_tests_properties(external_copy_lifetime PROPERTIES TIMEOUT 45 ENVIRONMENT
+        "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/external-copy-lifetime.ini")
+    qt_add_executable(external_session_recovery_tests
+        tests/filemanager/external_session_recovery_tests.cpp
+        tests/platform/support/external_editor_fixture.cpp)
+    target_link_libraries(external_session_recovery_tests PRIVATE sevenzip_window sevenzip_widget_dialog_fixtures Qt6::Test)
+    target_include_directories(external_session_recovery_tests PRIVATE src tests)
+    add_test(NAME external_session_recovery COMMAND external_session_recovery_tests -v1)
+    set_tests_properties(external_session_recovery PROPERTIES TIMEOUT 120 ENVIRONMENT
+        "QT_QPA_PLATFORM=offscreen")
+    set_tests_properties(external_task_lifecycle PROPERTIES TIMEOUT 60 ENVIRONMENT
+        "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/external-task-lifecycle.ini")
+    set_tests_properties(external_archive_context PROPERTIES TIMEOUT 45 ENVIRONMENT
+        "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/external-archive-context.ini")
+    set_tests_properties(external_archive_restore PROPERTIES TIMEOUT 45 ENVIRONMENT
+        "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/external-archive-restore.ini")
     qt_add_executable(archive_external_security_tests
         tests/filemanager/archive_external_security_tests.cpp
         tests/platform/support/external_editor_fixture.cpp)
@@ -132,6 +165,7 @@
     )
     add_test(NAME ui_state COMMAND ui_state_tests -silent)
     add_test(NAME ui_operations COMMAND ui_operations_tests -silent)
+    set_tests_properties(ui_operations PROPERTIES TIMEOUT 120)
     add_test(NAME ui_navigation COMMAND ui_navigation_tests -silent)
     add_test(NAME ui_archive_states COMMAND ui_archive_states_tests -silent)
     foreach(suite ui_operations ui_navigation ui_archive_states)

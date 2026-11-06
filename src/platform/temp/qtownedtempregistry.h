@@ -1,7 +1,10 @@
 #pragma once
+#include <QJsonObject>
 #include <QString>
 #include <QVector>
+#include <functional>
 #include <memory>
+#include <mutex>
 class QLockFile;
 
 struct QtOwnedTempEntry {
@@ -10,15 +13,18 @@ struct QtOwnedTempEntry {
     QString identity;
     bool externallyProtected = false;
     bool active = false;
+    QJsonObject context;
 };
 
 // Creation/active-session ownership only. Native BrowseDialog2 owns deletion.
 // There is no source registry: Win32 BrowseDialog2 enumerates arbitrary OS temp.
-class QtOwnedTempLease final {
+class QtOwnedTempLease final : public std::enable_shared_from_this<QtOwnedTempLease> {
     friend class QtOwnedTempRegistry;
     QString root_;
     QtOwnedTempEntry entry_;
     std::unique_ptr<QLockFile> lock_;
+    mutable std::mutex access_;
+    unsigned readers_ = 0;
     QtOwnedTempLease(QString root, QtOwnedTempEntry entry, std::unique_ptr<QLockFile> lock);
     bool setExternalProtection(bool value);
 
@@ -28,11 +34,19 @@ class QtOwnedTempLease final {
     bool ExternalFinished();
     bool MatchesObjectAt(const QString &path) const;
     bool RelocateAfterMove(const QString &path);
-    const QString &path() const { return entry_.path; }
+    bool SetContext(const QJsonObject &context);
+    std::shared_ptr<const QtOwnedTempLease> PinForRead();
+    bool RemoveIfUnused(const QString &ownedPath, const std::function<void()> &remove);
+    QString path() const {
+        const std::lock_guard access(access_);
+        return entry_.path;
+    }
 };
 
 class QtOwnedTempRegistry final {
     QString root_;
+    std::shared_ptr<QtOwnedTempLease> ClaimInactive(const QtOwnedTempEntry &entry,
+                                                    bool allowExternal) const;
 
   public:
     explicit QtOwnedTempRegistry(const QString &root = {});
@@ -42,5 +56,8 @@ class QtOwnedTempRegistry final {
     QVector<QtOwnedTempEntry> Entries() const;
     // Claims one inactive object and revalidates its persisted OS identity.
     std::shared_ptr<QtOwnedTempLease> ClaimForDeletion(const QtOwnedTempEntry &entry) const;
+    // Pins a retained copy for reading without granting permission to clear it.
+    std::shared_ptr<const QtOwnedTempLease> PinForRead(const QtOwnedTempEntry &entry) const;
+    bool SetContext(const QtOwnedTempEntry &entry, const QJsonObject &context) const;
     const QString &root() const { return root_; }
 };

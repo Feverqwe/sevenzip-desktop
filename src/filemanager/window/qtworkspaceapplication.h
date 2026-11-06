@@ -27,6 +27,7 @@ class QtWorkspaceApplication final : public QObject {
                           std::function<void(MainWindow &)> ready = {});
     void Save();
     void SetAutoRefresh(bool enabled);
+    void ArchivePublished(const QString &archive);
     void Quit();
 
   private:

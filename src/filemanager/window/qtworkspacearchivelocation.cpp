@@ -1,24 +1,27 @@
 #include "archive/resources/qtarchivedirectoryread.h"
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtwindowworkspace.h"
+#include <QScopeGuard>
 #include <QScopedValueRollback>
 
 namespace {
-HRESULT ReadDirectory(CPanel &source, QWidget *parent, const QString &settings) {
+HRESULT ReadDirectory(CPanel &source, QWidget *parent, const QString &settings,
+                      bool interactive = true) {
     // The joined worker owns provider reads only within this scope. Release
     // the guard before render can replace retained scan-operation guards.
     const CPanel::CDisableNotify notifications(source);
     return ReadArchiveDirectory(*static_cast<CAgentFolder *>(source.GetFolder()),
-                                source.GetFlatMode(), parent, settings);
+                                source.GetFlatMode(), parent, settings, !interactive);
 }
 
 HRESULT FollowDirectories(CPanel &source, const QList<QtArchiveLocation::Directory> &directories,
-                          const QString &folder, QWidget *parent, const QString &settings) {
+                          const QString &folder, QWidget *parent, const QString &settings,
+                          bool interactive = true) {
     const unsigned depth = source.GetParentFolders().Size();
     for (const auto &directory : directories) {
         if (directory.name.isEmpty() || directory.target.isEmpty())
             return E_INVALIDARG;
-        HRESULT read = ReadDirectory(source, parent, settings);
+        HRESULT read = ReadDirectory(source, parent, settings, interactive);
         if (read != S_OK)
             return read;
         {
@@ -38,7 +41,7 @@ HRESULT FollowDirectories(CPanel &source, const QList<QtArchiveLocation::Directo
     }
     if (ToQString(GetFolderPath(source.GetFolder())) != folder)
         return E_FAIL;
-    return ReadDirectory(source, parent, settings);
+    return ReadDirectory(source, parent, settings, interactive);
 }
 } // namespace
 
@@ -69,10 +72,15 @@ HRESULT QtWindowWorkspace::OpenArchiveDirectory(unsigned panel, const QtArchiveL
     return result;
 }
 
-HRESULT QtWindowWorkspace::OpenArchiveLocation(unsigned panel, const QtArchiveLocation &location) {
+HRESULT QtWindowWorkspace::OpenArchiveLocation(unsigned panel, const QtArchiveLocation &location,
+                                               const std::vector<ReopenLayer> *layers,
+                                               bool interactive) {
     QtAppOperationState::CallScope call(window_.app_.QtOperations());
     const QScopedValueRollback<bool> progress(window_.sourceArchiveProgress_, true);
     auto &source = window_.app_.Panels[panel];
+    if (layers && layers->size() != size_t(location.nested.size() + 1))
+        return E_INVALIDARG;
+    const auto resetPassword = qScopeGuard([&] { source.SetArchiveOpenPassword(std::nullopt); });
     window_.cancelListPublication();
     // Retry can still display the old archive root while the candidate source
     // is in a subfolder. Bind the native source, bypassing display-path shortcuts.
@@ -82,7 +90,9 @@ HRESULT QtWindowWorkspace::OpenArchiveLocation(unsigned panel, const QtArchiveLo
     if (result != S_OK)
         return result;
     COpenResult physical;
-    result = source.BindToPath(ToUString(location.physicalPath), UString(), physical);
+    source.SetArchiveOpenPassword(layers ? layers->front().password : std::nullopt);
+    result = source.BindToPath(ToUString(location.physicalPath),
+                               layers ? ToUString(layers->front().format) : UString(), physical);
     if (result != S_OK)
         return result;
 
@@ -91,16 +101,17 @@ HRESULT QtWindowWorkspace::OpenArchiveLocation(unsigned panel, const QtArchiveLo
         ToQString(parents.Front().VirtualPath) != location.physicalPath ||
         !GetFolderPath(source.GetFolder()).IsEmpty())
         return S_FALSE;
-    result = ReadDirectory(source, &window_, window_.toolbarSettingsPath());
+    result = ReadDirectory(source, &window_, window_.toolbarSettingsPath(), interactive);
     if (result != S_OK)
         return result;
 
     // Each boundary comes from a recorded native link, not from splitting a
     // displayed archive path. The native opener retains stream/password/temp
     // policy and performs all archive decoding.
+    unsigned level = 1;
     for (const auto &link : location.nested) {
         result = FollowDirectories(source, link.directories, link.parentFolder, &window_,
-                                   window_.toolbarSettingsPath());
+                                   window_.toolbarSettingsPath(), interactive);
         if (result != S_OK)
             return result;
         result = source.LoadListItems();
@@ -109,14 +120,18 @@ HRESULT QtWindowWorkspace::OpenArchiveLocation(unsigned panel, const QtArchiveLo
         std::optional<UInt32> entry;
         for (UInt32 index = 0; index < source.GetLoadedItemCount(); ++index)
             if (ToQString(source.GetItemRelPath(index)) == link.entry) {
+                if (entry)
+                    return E_INVALIDARG;
                 entry = index;
-                break;
             }
         if (!entry || source.IsItem_Folder(*entry))
             return E_INVALIDARG;
         const unsigned depth = source.GetParentFolders().Size();
         source.LoadFullPath();
-        result = source.OpenItemInArchiveInternal(*entry);
+        source.SetArchiveOpenPassword(layers ? (*layers)[level].password : std::nullopt);
+        const UString format = layers ? ToUString((*layers)[level].format) : UString();
+        result = source.OpenItemInArchiveInternal(*entry, layers ? format.Ptr() : nullptr);
+        ++level;
         window_.cancelListPublication();
         if (result != S_OK)
             return result;
@@ -125,7 +140,7 @@ HRESULT QtWindowWorkspace::OpenArchiveLocation(unsigned panel, const QtArchiveLo
             return S_FALSE;
     }
     result = FollowDirectories(source, location.directories, location.folder, &window_,
-                               window_.toolbarSettingsPath());
+                               window_.toolbarSettingsPath(), interactive);
     if (result != S_OK)
         return result;
     if (!source.IsArcFolder() || source.GetParentFolders().Size() != location.nested.size() + 1 ||

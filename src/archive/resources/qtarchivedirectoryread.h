@@ -5,6 +5,6 @@
 class CAgentFolder;
 class QWidget;
 HRESULT ReadArchiveDirectory(CAgentFolder &folder, bool recursive, QWidget *parent,
-                             const QString &settingsPath);
+                             const QString &settingsPath, bool disableQuestions = false);
 HRESULT CalculateArchiveDirectorySizes(CAgentFolder &folder, const CUIntVector &indices,
                                        QWidget *parent, const QString &settingsPath);

@@ -163,10 +163,17 @@ void QtWindowWorkspace::Capture(unsigned panel, bool retainView) {
         return;
     auto &tab = state.tabs[state.current];
     auto &source = window_.app_.Panels[panel];
+    if (source.ShouldProcessNotifications() && tab.archiveRevision != tab.archiveApplied &&
+        !source.ArchiveContextOutdated() &&
+        (!source.IsArcFolder() || source.GetParentFolders().IsEmpty() ||
+         ToQString(source.GetParentFolders().Front().VirtualPath) !=
+             tab.archiveLocation.physicalPath))
+        tab.archiveApplied = tab.archiveRevision;
     if (!window_.panelUi_[panel].locationUnavailable && source.ShouldProcessNotifications()) {
         tab.unavailable = false;
         source.LoadFullPath();
         tab.path = ToQString(source.GetCurrentFolderPrefix());
+        tab.resumePath = ToQString(source.GetResumeFolderPath());
         tab.nativePlaceIdentity = QtNativePlaces::RootIdentity(source);
         if (source.IsArcFolder())
             tab.archiveLocation = QtArchiveLocation::Capture(
@@ -271,6 +278,7 @@ void QtWindowWorkspace::Activate(unsigned panel, int index) {
     if (state.current == index && state.bound == state.tabs[index].runtime &&
         window_.panelUi_[panel].container) {
         window_.activatePanelUi(panel);
+        RefreshPublishedArchive(panel);
         return;
     }
     if (!Ready()) {
@@ -330,12 +338,13 @@ void QtWindowWorkspace::Activate(unsigned panel, int index) {
             layout->insertWidget(layout->indexOf(ui.navigation->parentWidget()) + 1, state.actions);
             state.bar->parentWidget()->show();
             state.actions->show();
-            if (tab.runtime->dirty) {
+            const bool reload = tab.runtime->dirty && tab.archiveRevision == tab.archiveApplied;
+            if (reload) {
                 const QSignalBlocker selection(ui.table->selectionModel());
                 ui.table->clearRows();
             }
             window_.setState(ui.state);
-            if (tab.runtime->dirty) {
+            if (reload) {
                 tab.runtime->dirty = false;
                 window_.refreshCurrent(&tab.selection);
             }
@@ -347,6 +356,7 @@ void QtWindowWorkspace::Activate(unsigned panel, int index) {
         Rebuild(panel);
     }
     window_.refreshActions();
+    RefreshPublishedArchive(panel);
     if (keepTabFocus)
         RestoreTabFocus(panel, state.tabs[state.current].id, request);
     else
@@ -372,11 +382,13 @@ void QtWindowWorkspace::CloseTab(unsigned panel, int index) {
     if (!Ready() || index < 0 || index >= int(panels_[panel].tabs.size()))
         return;
     auto &state = panels_[panel];
+    if (state.tabs.size() == 1 && window_.app_.NumPanels == 1) {
+        window_.close();
+        return;
+    }
+    if (!CloseRuntime(panel, index))
+        return;
     if (state.tabs.size() == 1) {
-        if (window_.app_.NumPanels == 1) {
-            window_.close();
-            return;
-        }
         window_.activatePanelUi(1 - panel);
         window_.togglePanels();
         window_.withPanelProjection(panel, [this, panel] { Suspend(panel); });

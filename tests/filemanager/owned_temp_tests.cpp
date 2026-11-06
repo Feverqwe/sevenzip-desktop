@@ -64,6 +64,136 @@ class OwnedTempTests : public QObject {
         qputenv("SEVENZIP_OWNED_TEMP_REGISTRY", registryPath.toUtf8());
     }
     void cleanup() { qputenv("SEVENZIP_OWNED_TEMP_REGISTRY", previousRoot); }
+    void retainedContextSurvivesRestartWithoutWeakeningProtection() {
+        QtOwnedTempRegistry registry;
+        QTemporaryDir directory(fixture.filePath("session-XXXXXX"));
+        QVERIFY(directory.isValid());
+        QVERIFY(write(directory.filePath("edited.txt")));
+        auto owner = registry.RegisterCreated(directory.path());
+        QVERIFY(owner && owner->ProtectExternal());
+        const QJsonObject context{{"description", QStringLiteral("правка 空.txt")}};
+        QVERIFY(owner->SetContext(context));
+        owner.reset();
+        QtOwnedTempRegistry restarted(registry.root());
+        auto entry = restarted.Entries().first();
+        QCOMPARE(entry.context, context);
+        QVERIFY(!entry.active && entry.externallyProtected);
+        auto pin = restarted.PinForRead(entry);
+        QVERIFY(pin);
+        QVERIFY(!restarted.SetContext(entry, {{"description", "busy"}}));
+        QVERIFY(!restarted.ClaimForDeletion(entry));
+        pin.reset();
+        const QJsonObject updated{{"description", "reviewed"}};
+        QVERIFY(restarted.SetContext(entry, updated));
+        entry = restarted.Entries().first();
+        QCOMPARE(entry.context, updated);
+        QVERIFY(!entry.active && entry.externallyProtected);
+        QVERIFY(!restarted.ClaimForDeletion(entry));
+        const QString moved = directory.path() + "-moved";
+        QVERIFY(QDir().rename(directory.path(), moved));
+        QVERIFY(QDir().mkpath(directory.path()));
+        QVERIFY(write(directory.filePath("foreign.txt")));
+        QVERIFY(!restarted.SetContext(entry, context));
+        QVERIFY(QFileInfo::exists(directory.filePath("foreign.txt")));
+        QVERIFY(QDir(moved).removeRecursively());
+    }
+    void nativeCleanupDoesNotDeleteReplacementDirectory() {
+        QtOwnedTempRegistry registry;
+        QTemporaryDir directory(fixture.filePath("native-copy-XXXXXX"));
+        QVERIFY(directory.isValid());
+        const QString original = directory.filePath("edited.txt");
+        QVERIFY(write(original));
+        CTempFileInfo temp;
+        temp.FolderPath = us2fs(UString(directory.path().toStdWString().c_str()));
+        temp.FilePath = us2fs(UString(original.toStdWString().c_str()));
+        temp.OwnedTempLease = registry.RegisterCreated(directory.path());
+        QVERIFY(temp.OwnedTempLease);
+        temp.NeedDelete = true;
+        const QString moved = directory.path() + "-moved";
+        QVERIFY(QDir().rename(directory.path(), moved));
+        QVERIFY(QDir().mkpath(directory.path()));
+        QVERIFY(write(original));
+        temp.DeleteDirAndFile();
+        QVERIFY(QFileInfo::exists(original));
+        QVERIFY(QFileInfo::exists(QDir(moved).filePath("edited.txt")));
+        QVERIFY(QDir(moved).removeRecursively());
+    }
+    void nativeFileLeaseDoesNotGrantDirectoryOwnership_data() {
+        QTest::addColumn<bool>("replace");
+        QTest::newRow("owned-file") << false;
+        QTest::newRow("replacement-is-foreign") << true;
+    }
+    void readingCopyBlocksNativeCleanupUntilReadingEnds() {
+        QtOwnedTempRegistry registry;
+        QTemporaryDir directory(fixture.filePath("reading-native-copy-XXXXXX"));
+        const auto path = directory.filePath("copy.txt");
+        QVERIFY(write(path));
+        CTempFileInfo temp;
+        temp.FolderPath = us2fs(ToUString(directory.path()));
+        temp.FilePath = us2fs(ToUString(path));
+        temp.NeedDelete = true;
+        temp.OwnedTempLease = registry.RegisterCreated(directory.path());
+        QVERIFY(temp.OwnedTempLease);
+        auto reading = temp.OwnedTempLease->PinForRead();
+        QVERIFY(reading);
+        temp.DeleteDirAndFile();
+        QVERIFY(QFileInfo::exists(path));
+        reading.reset();
+        temp.DeleteDirAndFile();
+        QVERIFY(!QFileInfo::exists(path));
+        QVERIFY(!QFileInfo::exists(directory.path()));
+    }
+    void nativeFileLeaseDoesNotGrantDirectoryOwnership() {
+        QFETCH(bool, replace);
+        QtOwnedTempRegistry registry;
+        QTemporaryDir directory(fixture.filePath("native-file-XXXXXX"));
+        QVERIFY(directory.isValid());
+        const QString path = directory.filePath("edited.txt");
+        QVERIFY(write(path));
+        CTempFileInfo temp;
+        temp.FolderPath = us2fs(UString(directory.path().toStdWString().c_str()));
+        temp.FilePath = us2fs(UString(path.toStdWString().c_str()));
+        temp.OwnedTempLease = registry.RegisterCreated(path);
+        QVERIFY(temp.OwnedTempLease);
+        temp.NeedDelete = true;
+        if (replace) {
+            QVERIFY(QFile::rename(path, directory.filePath("moved.txt")));
+            QVERIFY(write(path));
+        }
+        temp.DeleteDirAndFile();
+        QCOMPARE(QFileInfo::exists(path), replace);
+        QVERIFY(QFileInfo::exists(directory.path()));
+        if (replace)
+            QVERIFY(QFileInfo::exists(directory.filePath("moved.txt")));
+    }
+    void protectedRetainedCopyCanBePinnedForExportWithoutAllowingDeletion() {
+        QtOwnedTempRegistry registry;
+        QTemporaryDir directory(fixture.filePath("protected-copy-XXXXXX"));
+        QVERIFY(directory.isValid());
+        const QString source = directory.filePath(QStringLiteral("изменённый 文件.txt"));
+        QVERIFY(write(source));
+        auto owner = registry.RegisterCreated(directory.path());
+        QVERIFY(owner);
+        QVERIFY(owner->ProtectExternal());
+        owner.reset();
+        const auto entries = registry.Entries();
+        QCOMPARE(entries.size(), 1);
+        auto pin = registry.PinForRead(entries.first());
+        QVERIFY(pin);
+        QVERIFY(!registry.ClaimForDeletion(entries.first()));
+        const QString exported = fixture.filePath("exported-copy.txt");
+        QVERIFY(QFile::copy(source, exported));
+        QFile result(exported);
+        QVERIFY(result.open(QIODevice::ReadOnly));
+        QCOMPARE(result.readAll(), QByteArray("fixture"));
+        pin.reset();
+        const auto retained = registry.Entries();
+        QCOMPARE(retained.size(), 1);
+        QVERIFY(!retained.first().active);
+        QVERIFY(retained.first().externallyProtected);
+        QVERIFY(!registry.ClaimForDeletion(retained.first()));
+        QVERIFY(QFileInfo::exists(source));
+    }
 #ifdef __linux__
     void previousRegistryPreservesActiveLeaseAndRetainedFiles() {
         const QString path = fixture.filePath(QStringLiteral("old retained 文件"));

@@ -14,6 +14,7 @@
 #include <QHeaderView>
 #include <QLabel>
 #include <QMenu>
+#include <QMessageBox>
 #include <QPlainTextEdit>
 #include <QProgressBar>
 #include <QPushButton>
@@ -240,6 +241,54 @@ class MountExtractionPromptTests final : public QObject {
         const auto options = QtAskMountOptions(nullptr, "unopened", {}, resource);
         QVERIFY(!options.Accepted);
         QVERIFY(reported && blocked);
+    }
+    void unmountContinuationKeepsItsRequestedOwner_data() {
+        QTest::addColumn<bool>("tab");
+        QTest::newRow("tab-close-follows-its-continuation") << true;
+        QTest::newRow("window-close-stays-with-original-window") << false;
+    }
+    void unmountContinuationKeepsItsRequestedOwner() {
+        QFETCH(bool, tab);
+        const auto unavailable = QtSmbMountPlatform::unavailableReason();
+        if (!unavailable.isEmpty())
+            QSKIP(qPrintable(unavailable));
+        QWidget owner;
+        QWidget receiver;
+        owner.show();
+        receiver.show();
+        QtArchiveMountManager manager(&owner);
+        QTimer answer;
+        connect(&answer, &QTimer::timeout, this, [] {
+            if (auto *dialog = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+                dialog && dialog->objectName() == "archiveMountSettings")
+                dialog->accept();
+            else if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget()))
+                for (auto *button : box->buttons())
+                    if (box->buttonRole(button) == QMessageBox::AcceptRole) {
+                        button->click();
+                        return;
+                    }
+        });
+        answer.start(5);
+        // As in stopped-record coverage, an absent reader exercises the
+        // Preparing -> Stopped lifecycle without starting an OS mount.
+        manager.mount(nullptr, "Synthetic preparing source", {});
+        QVERIFY(manager.hasActiveSessions());
+        int continued = 0;
+        std::function<void()> close;
+        if (tab)
+            close = [&] { ++continued; };
+        QVERIFY(!manager.canCloseOwner(close));
+        manager.rebindOwner(receiver);
+        QTRY_VERIFY(!manager.hasActiveSessions());
+        if (tab) {
+            QTRY_COMPARE(continued, 1);
+            QVERIFY(owner.isVisible());
+        } else
+            QTRY_VERIFY(!owner.isVisible());
+        QVERIFY(receiver.isVisible());
+        QTest::qWait(20);
+        QCOMPARE(continued, tab ? 1 : 0);
     }
     void removesOnlySelectedStoppedRecord() {
         const auto unavailable = QtSmbMountPlatform::unavailableReason();

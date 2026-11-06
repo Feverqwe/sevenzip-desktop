@@ -117,6 +117,8 @@ class ArchiveBackend : public QObject {
     HRESULT loadCodecCatalog(const QString &module, quint32 engineVersion);
     std::shared_ptr<const ArchiveCodecCatalog> codecCatalog() const { return codecCatalog_.load(); }
     ArchiveBackend *createIndependentBackend(QObject *parent = nullptr) const;
+    using IndependentFactory = std::function<ArchiveBackend *(QObject *)>;
+    IndependentFactory independentBackendFactory() const;
     // Worker-only snapshot/read service, retaining the exact opened resource.
     static HRESULT
     createReadOnlyView(IUnknown *resource, quint64 cacheLimit, const QString &password,

@@ -4,6 +4,7 @@
 #include "filemanager/window/qtwindowworkspace.h"
 #include "filemanager/window/qtworkspaceapplication.h"
 #include "filemanager/window/qtworkspaceruntime.h"
+#include "mount/qtarchivemountmanager.h"
 #include "platform/associations/qtassociatedfileservices.h"
 #include <QScopeGuard>
 #include <QScopedValueRollback>
@@ -114,6 +115,8 @@ bool QtWindowWorkspace::TransferTab(const QString &id, QtWindowWorkspace &target
             return false;
         runtime->ClearPresentation();
         into.tabs.push_back(std::move(incoming));
+        if (runtime->mounts)
+            runtime->mounts->rebindOwner(target.window_);
         into.current = int(into.tabs.size()) - 1;
         into.bound = runtime;
         from.tabs.erase(from.tabs.begin() + index);
@@ -162,6 +165,7 @@ bool QtWindowWorkspace::TransferTab(const QString &id, QtWindowWorkspace &target
         target.window_.refreshActions();
         source.SetFocusToList();
     }
+    target.RefreshPublishedArchive(destination);
     if (const auto complete = std::exchange(finished, {}))
         complete(true);
     return true;

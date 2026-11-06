@@ -4,11 +4,13 @@
 // filter ordering, mode, flags and accepted-only publication remain.
 #include "platform/filepicker/CommonDialog.h"
 #include "ui/dialogs/qtdialoglayout.h"
+#include "ui/lifecycle/qttaskpresentation.h"
 #include <QFileDialog>
 
 namespace NWindows {
 bool CCommonDialogInfo::CommonDlg_BrowseForFile(const wchar_t *lpstrInitialDir,
                                                 const UStringVector &filters) {
+    const QtTaskPresentation::QuestionScope question;
     QStringList names;
     for (unsigned i = 0; i + 1 < filters.Size(); i += 2) {
         const QString description = QString::fromWCharArray(filters[i].Ptr());

@@ -4,8 +4,10 @@
 #include "filemanager/window/qtplaceprojection.h"
 #include "filemanager/window/qtwindowworkspace.h"
 #include "filemanager/window/qtworkspaceapplication.h"
+#include "mount/qtarchivemountmanager.h"
 #include "support/panel_keys.h"
 #include "support/widget_dialogs.h"
+#include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
 #include <QClipboard>
 #include <QCloseEvent>
@@ -326,13 +328,18 @@ class WorkspaceNavigationTests final : public QObject {
                 table->selectRow(row);
         auto *cut = window.findChild<QAction *>("cutFilesAction");
         QTRY_VERIFY(cut->isEnabled());
-        cut->trigger();
+        QVERIFY(WindowActivation::waitForActive(window));
+        table->setFocus();
+        QTRY_VERIFY(table->hasFocus());
+        QTest::keySequence(table, QKeySequence::Cut);
         window.openPath(destination);
         auto *paste = window.findChild<QAction *>("pasteFilesAction");
         QTRY_VERIFY(paste->isEnabled());
         bool canceled = false;
         QTimer responder;
         dialogs_.connectResponder(responder, &window, [&] {
+            if (auto *box = qobject_cast<QMessageBox *>(dialogs_.activeDialog()))
+                box->accept();
             if (auto *dialog = dialogs_.activeDialog())
                 if (auto *cancel = dialog->findChild<QPushButton *>("overwriteCancel")) {
                     canceled = true;
@@ -340,7 +347,9 @@ class WorkspaceNavigationTests final : public QObject {
                 }
         });
         responder.start(1);
-        paste->trigger();
+        table->setFocus();
+        QTRY_VERIFY(table->hasFocus());
+        QTest::keySequence(table, QKeySequence::Paste);
         QTRY_VERIFY_WITH_TIMEOUT(canceled && table->isEnabled(), 10000);
         responder.stop();
         QFile old(destination + '/' + name);
@@ -434,6 +443,42 @@ class WorkspaceNavigationTests final : public QObject {
         QVERIFY(!internal->hasUrls());
     }
 
+    void mountManagersFollowTabsAcrossWindows() {
+        ControlledBackend firstBackend, secondBackend;
+        auto first = std::make_unique<MainWindow>(&firstBackend);
+        MainWindow second(&secondBackend);
+        first->show();
+        second.show();
+        first->findChild<QAction *>("manageMountsAction")->trigger();
+        const QPointer<QtArchiveMountManager> firstMounts = dynamic_cast<QtArchiveMountManager *>(
+            first->findChild<QDialog *>("archiveMountManager"));
+        QVERIFY(firstMounts && firstMounts->isVisible());
+        workspace(*first)->NewTab(0);
+        auto *tabs = first->findChild<QTabBar *>("panelTabs0");
+        QTRY_COMPARE(tabs->count(), 2);
+        first->findChild<QAction *>("manageMountsAction")->trigger();
+        QPointer<QtArchiveMountManager> secondMounts;
+        for (auto *dialog : first->findChildren<QDialog *>())
+            if (auto *manager = dynamic_cast<QtArchiveMountManager *>(dialog);
+                manager && manager != firstMounts)
+                secondMounts = manager;
+        QVERIFY(secondMounts && secondMounts->isVisible());
+        const auto moving = tabs->tabData(tabs->currentIndex()).toString();
+        workspace(*first)->CloseTab(0, 0);
+        QTRY_COMPARE(tabs->count(), 1);
+        QVERIFY(!firstMounts);
+        QVERIFY(secondMounts && secondMounts->isVisible());
+        QVERIFY(workspace(*first)->TransferTab(moving, *workspace(second), 0));
+        first.reset();
+        QVERIFY(secondMounts && secondMounts->isVisible());
+        QCOMPARE(secondMounts->parentWidget(), &second);
+        auto *receiverTabs = second.findChild<QTabBar *>("panelTabs0");
+        QTRY_COMPARE(receiverTabs->count(), 2);
+        workspace(second)->CloseTab(0, receiverTabs->currentIndex());
+        QTRY_COMPARE(receiverTabs->count(), 1);
+        QVERIFY(!secondMounts);
+        QVERIFY(second.isVisible());
+    }
     void movingTabToAnotherWindowPreservesSelectionAndSurvivesSourceClose_data() {
         QTest::addColumn<bool>("refuseClose");
         QTest::newRow("ordinary-close") << false;

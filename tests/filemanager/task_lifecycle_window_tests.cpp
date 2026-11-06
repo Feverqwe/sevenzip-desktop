@@ -1,4 +1,5 @@
 #include "archive/support/source_extract_fixture.h"
+#include "filemanager/support/task_quit_support.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/window/qtworkspaceapplication.h"
 #include "support/operation_kill.h"
@@ -91,9 +92,9 @@ class TaskLifecycleWindowTests final : public QObject {
         first.openPath(fixture.path());
         second.openPath(fixture.path());
         QtOperationJob job;
-        job.Operation = QtOperationJob::Command::Extract;
+        job.Operation = QtOperationJob::Command::Hash;
         job.Paths = {archive};
-        job.Destination = fixture.filePath("unapplied extraction");
+        job.HashMethod = "SHA256";
         QString error;
         QPointer<QtOperationLauncher> operation =
             QtOperationLauncher::Launch(QStringLiteral(SEVENZIP_OPERATION_HOST), job, error);
@@ -104,14 +105,14 @@ class TaskLifecycleWindowTests final : public QObject {
         });
         QSignalSpy finished(operation, &QtOperationLauncher::finished);
         QTRY_VERIFY_WITH_TIMEOUT(
-            operation && operation->presentation().Phase == QtOperationPhase::Draft, 15000);
+            operation && operation->presentation().Phase == QtOperationPhase::Reviewing, 15000);
         const auto minimized = [&] {
             return QJsonDocument::fromJson(SourceExtractFixture::readFile(report))
                 .object()
                 .value("minimized");
         };
         QTRY_VERIFY(minimized().toBool());
-        application.Quit();
+        ShowTasksOnQuit(application);
         QVERIFY(first.isVisible() && second.isVisible());
         QTRY_VERIFY(minimized().isBool() && !minimized().toBool());
         QVERIFY(finished.isEmpty());

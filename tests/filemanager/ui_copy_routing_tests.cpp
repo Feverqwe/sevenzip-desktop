@@ -180,6 +180,9 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
                 cancel ? dialog->reject() : dialog->accept();
             }
             for (QWidget *widget : QApplication::topLevelWidgets())
+                if (auto *box = qobject_cast<QMessageBox *>(widget); box && box->isVisible())
+                    box->accept();
+            for (QWidget *widget : QApplication::topLevelWidgets())
                 if (auto *box = dynamic_cast<COverwriteDialog *>(widget); box && box->isVisible())
                     box->findChild<QPushButton *>("overwriteCancel")->click();
         });

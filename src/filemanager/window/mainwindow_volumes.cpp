@@ -4,6 +4,7 @@
 #include "filemanager/FormatUtils.h"
 #include "filemanager/SplitUtils.h"
 #include "filemanager/window/mainwindow.h"
+#include "filemanager/window/qtlocalfiletask.h"
 #include "fileops/volumes/nativevolumeworker.h"
 #include "fileops/volumes/qtvolumeservices.h"
 #include "localization/qtlangcontrols.h"
@@ -33,7 +34,7 @@ void MainWindow::startVolume(VolumeOperation::Mode mode) {
     if (app_.QtOperations().closed())
         return;
     QtAppOperationState::CallScope call(app_.QtOperations());
-    if (projectedUi().state != State::Filesystem || volumeOperation_ ||
+    if (projectedUi().state != State::Filesystem || fileTask_ ||
         !(mode == VolumeOperation::Mode::Split ? split_ : combine_)->isEnabled())
         return;
     QtVolumeWindowServices services(*this, app_.GetFocusedPanelIndex());
@@ -52,32 +53,18 @@ void MainWindow::launchVolume(unsigned index, VolumeOperation *operation, const 
     auto &panel = app_.Panels[index];
     CSelectedState selection;
     panel.SaveSelectedState(selection);
-    volumeOperation_ = operation;
-    beginWorkerProgress(ToQString(title), source,
-                        [operation = volumeOperation_] { operation->cancel(); });
-    auto *progress = progressDialog();
-    progress->MainAddTitle = title;
-    progress->MainAddTitle.Add_Space();
-    progress->Sync.Set_TitleFileName(ToUString(QFileInfo(source).fileName()));
-    progress->Sync.Set_NumBytesTotal(totalSize);
-    volumeOperation_->attachProgress(progress->Sync);
-    connect(volumeOperation_, &VolumeOperation::result, this,
-            [this, index, selection, operation = volumeOperation_,
-             completion = std::move(completion)](bool success, const QString &message) {
+    auto *task = new QtLocalFileTask(*operation, ToQString(title), source, totalSize);
+    fileTask_ = task;
+    task->BindOwner(panel, *this);
+    connect(task, &QtLocalFileTask::finished, this,
+            [this, index, selection, task,
+             completion = std::move(completion)](bool success, bool, const QString &message) {
                 if (app_.QtOperations().closed())
                     return;
-                operation->wait();
-                const bool canceled = operation->isCanceled();
-                if (volumeOperation_ == operation)
-                    volumeOperation_ = nullptr;
-                operation->deleteLater();
+                if (fileTask_ == task)
+                    fileTask_ = nullptr;
                 const QPointer<MainWindow> guard(this);
                 completion();
-                if (!guard || app_.QtOperations().closed())
-                    return;
-                if (auto *progress = progressDialog(); !success && !canceled && progress)
-                    progress->Sync.FinalMessage.ErrorMessage.Message = ToUString(message);
-                closeProgressDialog(true);
                 if (!guard || app_.QtOperations().closed())
                     return;
                 setState(State::Filesystem);
@@ -88,5 +75,5 @@ void MainWindow::launchVolume(unsigned index, VolumeOperation *operation, const 
                 }
             });
     setState(State::Operating);
-    volumeOperation_->start();
+    task->Start();
 }

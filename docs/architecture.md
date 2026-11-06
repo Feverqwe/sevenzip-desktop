@@ -163,8 +163,9 @@ state. `QtWindowWorkspace` projects the active tabs into CApp's two panel slots;
 switching tabs keeps the inactive source and its archive-parent chain alive.
 Operation guards capture the actual source before work starts. Switching or
 moving tabs is unavailable during protected calls, publication and native drag.
-External-edit completion returns to its original source; an inactive tab becomes
-dirty without replacing the active tab's rows or selection.
+External edits capture an immutable native target rather than depending on the
+current tab. Publication notifies file windows by affected archive path; a source
+view does not own the editor session or authorize writing a different archive.
 
 Back and Forward belong to the live tab, including its selected/current item and
 viewport. Parent is a new navigation visit. Only completed successful navigation
@@ -191,25 +192,87 @@ state, updates every window snapshot, and then refreshes bookmark menus. Closing
 another window therefore preserves the latest slots. Named favorites and recent
 places remain separate owners.
 
+Each tab is an independent application context: closing it applies the existing
+source shutdown to that tab before releasing its UI or activating a neighbour.
+The native saved-location rule is shared with the original single-window app:
+an open archive resumes at its containing directory. Persistent workspace state
+does not reopen archive chains; older saved archive locations migrate to the
+containing directory without reading the archive or requesting its password.
+Live navigation history and explicit duplication retain their own archive values.
+
 `QtWorkspaceApplication` owns window discovery and session writes. Each window
 has independent mutable backend/operation state while reusing the immutable codec
 catalog. Moving a quiescent tab between windows rebinds host callbacks and archive
-services before the original window can disappear. A tab with an external editor
-still running stays in its window until that editor finishes. Window teardown
-joins external workers and retires all inactive sources before releasing services.
+services before the original window can disappear. File Manager external-editor
+sessions own their native process services, launcher, retained copy and update
+context without retaining a file window. The originating tab tracks those owners
+weakly and stops its observers through the existing shutdown boundary; closing
+the tab does not terminate the external editor or later publish its edits.
+Their codec factory captures immutable metadata,
+without retaining the original backend or a hidden file window. Standalone
+source-panel services can still use the joined panel-scoped transport.
+Filesystem Copy/Move and Split/Combine tasks keep their value plans, workers,
+progress, overwrite questions and results with the originating source context.
+Closing that context cancels and joins the worker before releasing its folders.
+Completion continuations stop with the owner; complete success clears the
+original Cut payload, while skips retain a reviewable partial result. Questions
+belong to the source's task window; automatic presentation waits while another
+question or text edit owns input. Explicit Show restores a minimized task.
+Archive/staging and mount resource owners retain their protected close boundaries.
 
-Sessions store navigation descriptors, tab order, view preferences and window
-placement. Native root descriptors retain their identity across language changes;
-reopening resolves the current native target and verifies its provider. Older
-path-only descriptors retain their existing path-based behavior. Reopening uses
-the existing navigation/backend boundary and fresh
-password/recovery decisions; handles, passwords, running operations and consent
-are not persisted. A failed reopen keeps the requested location visibly failed.
-Archive descriptors retain value snapshots of the physical archive, native
-nested links and final folder. Reopening follows those links with the native
-internal opener and accepts the tab only after the final list result. It does
-not reconstruct nested boundaries by splitting a displayed path, or persist
-temporary materialization paths.
+External-editor observation keeps the native wait/discovery algorithm. Unknown
+completion, including a fast launcher or a no-handle association, retains cleanup
+protection. Manual confirmation permits checking a stable copied input; it does
+not prove process termination or clear that protection. Native archive publication
+checks the captured root generation under the writer lease and reports each
+inner-to-outer update. Partial results retain recoverable inputs. Exports pin
+their source for reading without weakening deletion eligibility. GUI delivery
+finishes before the observer is joined and its captures are retired.
+
+The existing owned-temp registry retains nonsecret external-session context:
+the original source generation, native entry chain and initial file stamp.
+Explicitly opening a retained copy's details creates a fresh context and requests passwords again;
+it never launches an editor or publishes automatically. Published-copy metadata
+prevents a later restart from offering the same publication again. The temporary
+files dialog hands off to session details after closing its own modal surface.
+File identities distinguish selected copies, including canonically equivalent
+names on filesystems that treat them as separate files.
+
+Workspace archive invalidation follows the physical root across active and
+suspended tabs. Reopening uses the existing native archive chain with its accepted
+formats and in-memory passwords, preserving selection, scroll and navigation
+history. Automatic attempts defer to editing, questions and unstarted forms;
+new consent or an unavailable chain leaves the previous readable view with Retry
+and Parent actions. A later publication remains pending until its own generation
+has been read.
+
+The panel owns invalidation of both its bound source and parked location
+checkpoints, including local archive-opening transactions. A superseded chain
+cannot publish its private child back into the changed root. Changed copies get
+retained context before their owners are released; unmaterialized read-only
+streams keep their separate lifetime. Candidate failure restores the old chain
+and its restriction on writing. Ordinary navigation retains the native close
+workflow for sources that have not been superseded.
+
+Quit preflights every file/resource owner before closing peers. An existing
+operation form, question or unreviewed result is shown to the user instead of
+closing its owner. Independent 7zG operations retain their native lifecycle and
+keep the event loop alive through completion and required review.
+
+Local filesystem and volume workers belong to their source context. Closing
+that context cancels and joins its workers before releasing folders; callbacks
+cannot publish after that teardown. Their window-modal progress keeps ordinary
+close requests out of an active question. Read-only mount managers belong to
+the same tab runtime and move with it; disconnect-before-close resumes the
+requested tab rather than closing its neighbouring contexts.
+
+Sessions retain directory locations, tab order, view preferences and window
+placement according to the native saved-location rule above. A failed directory
+reopen keeps the requested location visibly failed. Live history, duplication
+and transfer retain typed archive descriptors for the physical archive, native
+nested links and final folder. Their navigation uses the native internal opener;
+workspace persistence excludes those archive chains, temporary materialization
+paths, handles, passwords, running operations and consent.
 The application-wide favorites model owns stable identities, labels and ordering;
 legacy numeric bookmarks remain compatible. Removing or renaming a favorite
 does not mutate the source directory.

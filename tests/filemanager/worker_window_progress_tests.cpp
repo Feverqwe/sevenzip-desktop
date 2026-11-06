@@ -1,11 +1,16 @@
 #include "dialogs/copy/alias.h"
 #include "dialogs/split/SplitDialog.h"
+#include "filemanager/support/task_quit_support.h"
 #include "filemanager/support/window_state_support.h"
+#include "filemanager/window/qtlocalfiletask.h"
+#include "filemanager/window/qtworkspaceapplication.h"
 #include "ui/progress/ProgressDialog2.h"
 #include <QAbstractEventDispatcher>
 #include <QCryptographicHash>
+#include <QScopeGuard>
 #include <QSemaphore>
 #include <QTimerEvent>
+#include <thread>
 
 namespace {
 class MetaCallCounter final : public QObject {
@@ -96,6 +101,8 @@ class WorkerWindowProgressTests final : public QObject, protected MainWindowTest
         QTRY_VERIFY(requested);
         QTRY_COMPARE(dialogs, 2);
         QTRY_VERIFY(QFileInfo::exists(QDir(second).filePath(name + ".004")));
+        QTRY_VERIFY(ready->isEnabled());
+        QTRY_VERIFY(QtLocalFileTask::Active().isEmpty());
         for (const QString &destination : {first, second}) {
             QFile part(QDir(destination).filePath(name + ".001"));
             QVERIFY(part.open(QIODevice::ReadOnly));
@@ -115,6 +122,7 @@ class WorkerWindowProgressTests final : public QObject, protected MainWindowTest
     void nativeWorkerUpdatesVisibleProgressWithoutGuiQueue() {
         QFETCH(int, mode);
         QFETCH(bool, destroyDuringCallback);
+        QtWorkspaceApplication application(*qApp);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString name = QStringLiteral("источник с пробелом.bin");
@@ -155,20 +163,31 @@ class WorkerWindowProgressTests final : public QObject, protected MainWindowTest
             ->trigger();
         QVERIFY(accepted);
         auto *worker = mode == 0
-                           ? static_cast<QThread *>(window.findChild<FileTransferOperation *>())
-                           : static_cast<QThread *>(window.findChild<VolumeOperation *>());
+                           ? static_cast<QThread *>(qApp->findChild<FileTransferOperation *>())
+                           : static_cast<QThread *>(qApp->findChild<VolumeOperation *>());
         QVERIFY(worker);
-        auto *progress =
-            dynamic_cast<CProgressDialog *>(window.findChild<QDialog *>("progressDialog"));
+        CProgressDialog *progress = nullptr;
+        for (auto *widget : QApplication::topLevelWidgets())
+            if (widget->isVisible())
+                if (auto *dialog = dynamic_cast<CProgressDialog *>(widget))
+                    progress = dialog;
         QVERIFY(progress);
         if (destroyDuringCallback) {
+            QSignalSpy completed(QtLocalFileTask::Active().first(), &QtLocalFileTask::finished);
+            const QPointer<QThread> retainedWorker(worker);
             QSemaphore entered;
+            auto hold = std::make_shared<std::atomic<bool>>(true);
+            const auto release = qScopeGuard([&] {
+                *hold = false;
+                if (retainedWorker)
+                    retainedWorker->wait();
+            });
             if (auto *copy = qobject_cast<FileTransferOperation *>(worker))
                 connect(
                     copy, &FileTransferOperation::advanced, copy,
-                    [copy, &entered](qint64) {
+                    [hold, &entered](qint64) {
                         entered.release();
-                        while (!copy->isCanceled())
+                        while (*hold)
                             QThread::msleep(1);
                     },
                     Qt::DirectConnection);
@@ -176,28 +195,38 @@ class WorkerWindowProgressTests final : public QObject, protected MainWindowTest
                 auto *volume = qobject_cast<VolumeOperation *>(worker);
                 connect(
                     volume, &VolumeOperation::advanced, volume,
-                    [volume, &entered](qint64) {
+                    [hold, &entered](qint64) {
                         entered.release();
-                        while (!volume->isCanceled())
+                        while (*hold)
                             QThread::msleep(1);
                     },
                     Qt::DirectConnection);
             }
             QVERIFY(entered.tryAcquire(1, 2000));
-            const QPointer<QThread> retainedWorker(worker);
             const QPointer<QDialog> retainedProgress(progress);
+            progress->showMinimized();
+            ShowTasksOnQuit(application);
+            QVERIFY(window.isVisible());
+            QVERIFY(!progress->isMinimized());
+            QVERIFY(worker->isRunning());
+            QVERIFY(!window.close());
+            std::thread releaseWorker([hold] {
+                QThread::msleep(50);
+                *hold = false;
+            });
             owner.reset();
-            QVERIFY(!retainedWorker);
-            QVERIFY(!retainedProgress);
-            QCoreApplication::sendPostedEvents(nullptr, QEvent::MetaCall);
+            releaseWorker.join();
+            QVERIFY(retainedWorker);
+            QVERIFY(!retainedWorker->isRunning());
+            QVERIFY(!retainedProgress || !retainedProgress->isVisible());
             QVERIFY(QFileInfo::exists(fixture.filePath(selected)));
-            QVERIFY(QDir(destination)
-                        .entryList(QDir::AllEntries | QDir::Hidden | QDir::NoDotAndDotDot)
-                        .isEmpty());
+            QTRY_VERIFY(QtLocalFileTask::Active().isEmpty());
+            QVERIFY(completed.isEmpty());
             return;
         }
         MetaCallCounter counter;
-        window.installEventFilter(&counter);
+        if (owner)
+            window.installEventFilter(&counter);
         // Join the public worker without pumping GUI events. Its source progress
         // snapshot must already be usable by the dialog's real timer handler.
         QVERIFY(worker->wait(30000));
@@ -211,12 +240,15 @@ class WorkerWindowProgressTests final : public QObject, protected MainWindowTest
         auto *processed = progress->findChild<QLabel *>("IDT_PROGRESS_PROCESSED_VAL");
         QVERIFY(processed);
         const QString visibleBytes = processed->text();
-        QCoreApplication::sendPostedEvents(&window, QEvent::MetaCall);
-        window.removeEventFilter(&counter);
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::MetaCall);
+        if (owner)
+            window.removeEventFilter(&counter);
         QCOMPARE(visibleBytes, QString("65536 KB"));
         QVERIFY2(counter.calls <= 4,
                  qPrintable(QString("%1 queued window callbacks").arg(counter.calls)));
-        QTRY_VERIFY(action(window, "createFolderAction")->isEnabled());
+        if (owner)
+            QTRY_VERIFY(action(window, "createFolderAction")->isEnabled());
+        QTRY_VERIFY(QtLocalFileTask::Active().isEmpty());
         QStringList outputs;
         if (mode == 1)
             outputs = {QDir(destination).filePath(name + ".001"),

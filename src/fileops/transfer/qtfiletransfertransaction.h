@@ -18,6 +18,7 @@ class QtFileTransferTransaction final {
     static OverwriteQuestion snapshot(const OverwriteSource &source);
     enum class OverwriteDecision { Skip, Replace, Rename, Cancel };
     std::optional<OverwriteDecision> rememberedOverwrite_;
+    bool skipped_ = false;
     OverwriteDecision decideOverwrite(const OverwriteSource &source);
     enum class SourceState { Intact, Renamed, RemovalStarted };
     enum class RollbackMode { RestoreSources, KeepMovedSources };

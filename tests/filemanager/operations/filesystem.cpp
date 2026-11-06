@@ -287,8 +287,11 @@ void MainWindowOperationsTests::stage7FilesystemCommands() {
     QVERIFY(copyInfo.endsWith(QStringLiteral("  имя с пробелом.txt")));
     const QString copied = QDir(destination).filePath(QStringLiteral("имя с пробелом.txt"));
     QVERIFY(!action(window, "copyAction")->isEnabled());
-    auto *copyProgress =
-        dynamic_cast<CProgressDialog *>(window.findChild<QDialog *>("progressDialog"));
+    CProgressDialog *copyProgress = nullptr;
+    for (auto *widget : QApplication::topLevelWidgets())
+        if (widget->isVisible())
+            if (auto *dialog = dynamic_cast<CProgressDialog *>(widget))
+                copyProgress = dialog;
     QVERIFY(copyProgress);
     QVERIFY(!copyProgress->findChild<QPushButton *>("IDB_PAUSE")->isEnabled());
     QVERIFY(!copyProgress->findChild<QPushButton *>("IDB_PROGRESS_BACKGROUND"));
@@ -337,6 +340,8 @@ void MainWindowOperationsTests::stage7FilesystemCommands() {
     bool cancelAnswered = false;
     connect(&cancelTimer, &QTimer::timeout, &window, [destination, &cancelAnswered] {
         for (QWidget *widget : QApplication::topLevelWidgets()) {
+            if (auto *box = qobject_cast<QMessageBox *>(widget); box && box->isVisible())
+                box->accept();
             if (auto *dialog = qobject_cast<CopyDialog *>(widget); dialog && dialog->isVisible()) {
                 dialog->findChild<QComboBox *>("copyDestination")->setCurrentText(destination);
                 dialog->accept();

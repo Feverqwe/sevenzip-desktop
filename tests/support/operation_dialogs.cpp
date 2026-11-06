@@ -7,6 +7,7 @@
 #include "ui/support/layout_inspection.h"
 #include <QApplication>
 #include <QDialogButtonBox>
+#include <QFileDialog>
 #include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -21,6 +22,11 @@
 // Public widget interactions in the fixture process only. Production 7zG owns
 // these same source dialogs; no automation flags are added to its entrypoint.
 void DriveOperationDialogs() {
+    const QString picker = qEnvironmentVariable("SEVENZIP_OPERATION_BROWSE_HOLD");
+    if (!picker.isEmpty() && QFileInfo::exists(picker))
+        for (auto *widget : QApplication::topLevelWidgets())
+            if (auto *dialog = qobject_cast<QFileDialog *>(widget))
+                dialog->reject();
     const QString report = qEnvironmentVariable("SEVENZIP_OPERATION_UI_REPORT");
     if (!report.isEmpty()) {
         QJsonArray widgets;
@@ -55,14 +61,34 @@ void DriveOperationDialogs() {
         const bool hashResult = qobject_cast<CListViewDialog *>(widget) &&
                                 widget->findChild<QTreeWidget *>("propertiesList");
         if (!windowReport.isEmpty() && (draft || hashResult)) {
-            if (!widget->property("fixtureMinimized").toBool()) {
+            if (draft && !picker.isEmpty() && QFileInfo::exists(picker + ".start") &&
+                !widget->property("fixtureBrowseStarted").toBool()) {
+                widget->setProperty("fixtureBrowseStarted", true);
+                if (auto *browse = widget->findChild<QPushButton *>("extractBrowseButton"))
+                    QTimer::singleShot(0, browse, &QPushButton::click);
+            }
+            const auto text = qEnvironmentVariable("SEVENZIP_OPERATION_DRAFT_TEXT");
+            if (draft && !text.isEmpty() && !widget->property("fixtureDraftText").toBool()) {
+                widget->setProperty("fixtureDraftText", true);
+                if (auto *field = widget->findChild<QComboBox *>("extractDestination"))
+                    field->setEditText(text);
+                if (auto *field = widget->findChild<QLineEdit *>("archiveName"))
+                    field->setText(text);
+            }
+            QString draftValue;
+            if (auto *field = widget->findChild<QComboBox *>("extractDestination"))
+                draftValue = field->currentText();
+            if (auto *field = widget->findChild<QLineEdit *>("archiveName"))
+                draftValue = field->text();
+            if (picker.isEmpty() && !widget->property("fixtureMinimized").toBool()) {
                 widget->setProperty("fixtureMinimized", true);
                 widget->showMinimized();
             }
             QSaveFile file(windowReport);
             if (file.open(QIODevice::WriteOnly)) {
                 file.write(QJsonDocument(QJsonObject{{"minimized", widget->isMinimized()},
-                                                     {"name", widget->objectName()}})
+                                                     {"name", widget->objectName()},
+                                                     {"draftValue", draftValue}})
                                .toJson());
                 file.commit();
             }

@@ -47,12 +47,14 @@ void CPanel::OpenItemInArchive(unsigned index, bool tryInternal, bool tryExterna
     (void)OpenItemInArchiveImpl(index, tryInternal, tryExternal, editMode, useEditor, type);
 }
 
-HRESULT CPanel::OpenItemInArchiveInternal(unsigned index, const wchar_t *type) {
-    return OpenItemInArchiveImpl(index, true, false, false, false, type);
+HRESULT CPanel::OpenItemInArchiveInternal(unsigned index, const wchar_t *type,
+                                          bool materializeStream) {
+    return OpenItemInArchiveImpl(index, true, false, false, false, type, materializeStream);
 }
 
 HRESULT CPanel::OpenItemInArchiveImpl(unsigned index, bool tryInternal, bool tryExternal,
-                                      bool editMode, bool useEditor, const wchar_t *type) {
+                                      bool editMode, bool useEditor, const wchar_t *type,
+                                      bool materializeStream) {
     std::optional<CDisableTimerProcessing> disableTimerProcessing(std::in_place, *this);
     // we don't want to change hash data here
     if (IsHashFolder())
@@ -102,8 +104,9 @@ HRESULT CPanel::OpenItemInArchiveImpl(unsigned index, bool tryInternal, bool try
             bool defined = !_parentFolders.IsEmpty() && _parentFolders.Back().UsePassword;
             NativePassword password =
                 defined ? _parentFolders.Back().Password.native() : NativePassword();
-            const HRESULT acquired = GetArchiveItemStream(
-                _folder, index, &subSeqStream, GetParent(), _settingsPath, defined, password);
+            const HRESULT acquired =
+                GetArchiveItemStream(_folder, index, &subSeqStream, GetParent(), _settingsPath,
+                                     defined, password, !_archiveOpenDialogs);
             if (!_parentFolders.IsEmpty()) {
                 _parentFolders.Back().UsePassword = defined;
                 _parentFolders.Back().Password = ArchivePassword(password);
@@ -118,10 +121,8 @@ HRESULT CPanel::OpenItemInArchiveImpl(unsigned index, bool tryInternal, bool try
                 CMyComPtr<IInStream> subStream;
                 subSeqStream.QueryInterface(IID_IInStream, &subStream);
                 if (subStream) {
-                    HRESULT res =
-                        OpenAsArc_Msg(subStream, tempFileInfo, fullVirtPath, type ? type : L""
-                                      // , true // showErrorMessage
-                        );
+                    HRESULT res = OpenAsArc_Msg(subStream, tempFileInfo, fullVirtPath,
+                                                type ? type : L"", materializeStream);
                     if (res == S_OK) {
                         tempDirectory.DisableDeleting();
                         disableTimerProcessing.reset();
@@ -227,7 +228,8 @@ HRESULT CPanel::OpenItemInArchiveImpl(unsigned index, bool tryInternal, bool try
     }
 
     options.folder = fs2us(tempDirNorm);
-    options.showErrorMessages = true;
+    options.showErrorMessages = _archiveOpenDialogs;
+    options.DisableUserQuestions = !_archiveOpenDialogs;
 
     const HRESULT result = CopyTo(options, indices, &messages, usePassword, password);
 

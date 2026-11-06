@@ -17,6 +17,7 @@ class VolumeOperation : public QThread {
 
   public:
     enum class Mode { Split, Combine };
+    enum class ResultKind { Success, Failure, Canceled };
     VolumeOperation(Mode mode, QString source, QString destination, qint64 volumeSize = 0,
                     QObject *parent = nullptr);
     VolumeOperation(Mode mode, QString source, QString destination, QList<qint64> volumeSizes,
@@ -25,6 +26,7 @@ class VolumeOperation : public QThread {
     VolumeOperation(const CCombineVolumePlan &plan, QObject *parent = nullptr);
     void cancel();
     bool isCanceled() const { return canceled_.load(); }
+    ResultKind resultKind() const { return resultKind_.load(); }
     void attachProgress(CProgressSync &sync) { progressSync_ = &sync; }
     static QList<qint64> parseSizes(const QString &text);
     static qint64 parseSize(const QString &text);
@@ -49,4 +51,5 @@ class VolumeOperation : public QThread {
     bool invalidSizes_ = false;
     CProgressSync *progressSync_ = nullptr;
     std::atomic_bool canceled_{false};
+    std::atomic<ResultKind> resultKind_{ResultKind::Failure};
 };

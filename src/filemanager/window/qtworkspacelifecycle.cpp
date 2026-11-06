@@ -1,11 +1,17 @@
+#include "filemanager/rename/qtrenamecontroller.h"
+#include "filemanager/window/qtlocalfiletask.h"
 #include "filemanager/window/qtwindowworkspace.h"
 #include "filemanager/window/qtworkspaceruntime.h"
+#include "mount/qtarchivemountmanager.h"
 #include <QScopeGuard>
 #include <QScopedValueRollback>
 
 QtTabRuntime::~QtTabRuntime() {
-    if (source)
+    delete mounts.data();
+    if (source) {
+        QtLocalFileTask::StopForSource(*source);
         source->ReleasePanel();
+    }
     ClearPresentation();
 }
 
@@ -37,6 +43,64 @@ void QtWindowWorkspace::Dispose() {
         panel.tabs.clear();
         panel.bound.reset();
     }
+}
+
+bool QtWindowWorkspace::CloseRuntime(unsigned panel, int index) {
+    const auto runtime = panels_[panel].tabs[index].runtime;
+    if (!runtime)
+        return true;
+    if (runtime->closing)
+        return false;
+    if (runtime->mounts) {
+        const QPointer<CPanel> source(runtime->source.get());
+        const auto id = panels_[panel].tabs[index].id;
+        if (!runtime->mounts->canCloseOwner([source, id] {
+                if (!source)
+                    return;
+                auto *window = dynamic_cast<MainWindow *>(source->GetParent());
+                if (window)
+                    if (const auto position = window->workspace_->FindTab(id))
+                        window->workspace_->CloseTab(position->panel, position->index);
+            }))
+            return false;
+    }
+    return WithSource(*runtime->source, [this, runtime, panel, index] {
+        const QScopedValueRollback<bool> changing(changing_, true);
+        runtime->closing = true;
+        QtLocalFileTask::StopForSource(*runtime->source);
+        panels_[panel].tabs[index].resumePath = ToQString(runtime->source->GetResumeFolderPath());
+        window_.renameController_->Cancel(window_.projectedPanel_);
+        window_.cancelListPublication();
+        window_.projectedUi().filesystemScanner->cancelAndWait();
+        runtime->source->ExitExternalWorkers(false);
+        runtime->source->ReleasePanel();
+        return true;
+    });
+}
+
+QtArchiveMountManager *QtWindowWorkspace::CurrentMountManager(bool create) {
+    const auto runtime = panels_[window_.projectedPanel_].bound;
+    if (!runtime)
+        return nullptr;
+    if (!runtime->mounts && create)
+        runtime->mounts = new QtArchiveMountManager(&window_);
+    return runtime->mounts.data();
+}
+
+bool QtWindowWorkspace::CanCloseMounts() {
+    for (const auto &panel : panels_)
+        for (const auto &tab : panel.tabs)
+            if (tab.runtime && tab.runtime->mounts && !tab.runtime->mounts->canCloseOwner())
+                return false;
+    return true;
+}
+
+QWidget *QtWindowWorkspace::MountCloseBlocker() const {
+    for (const auto &panel : panels_)
+        for (const auto &tab : panel.tabs)
+            if (tab.runtime && tab.runtime->mounts && tab.runtime->mounts->hasActiveSessions())
+                return tab.runtime->mounts.data();
+    return nullptr;
 }
 
 bool QtWindowWorkspace::SourceIsActive(const CPanel &source) const {

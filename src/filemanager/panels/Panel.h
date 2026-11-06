@@ -12,6 +12,7 @@
 #include "Common/MyCom.h"
 #include "Common/MyString.h"
 #include "Common/MyTypes.h"
+#include "Common/StringConvert.h"
 #include "Windows/FileFind.h"
 #include "Windows/PropVariantConv.h"
 #include "Windows/TimeUtils.h"
@@ -25,13 +26,14 @@
 #include "fileops/patterns/Wildcard.h"
 #include "platform/loader/DLL.h"
 #include "platform/process/qtexternalprocess.h"
+#include "platform/temp/qtownedtempregistry.h"
 #include "settings/ViewSettings.h"
 #include <QObject>
 #include <QPointer>
-#include <vector>
 #include <QString>
 #include <functional>
 #include <memory>
+#include <vector>
 class IQtCompressCallServices;
 #include <optional>
 
@@ -99,6 +101,7 @@ struct CCopyToOptions {
     bool includeAltStreams;
     bool replaceAltStreamChars;
     bool showErrorMessages;
+    bool DisableUserQuestions = false;
     bool NeedRegistryZone;
     NExtract::NZoneIdMode::EEnum ZoneIdMode;
     CByteBuffer ZoneBuf;
@@ -173,10 +176,22 @@ struct CTempFileInfo {
 
     CTempFileInfo() : FileIndex((UInt32)(Int32)-1), NeedDelete(false) {}
     void DeleteDirAndFile() const {
-        if (NeedDelete) {
+        if (!NeedDelete)
+            return;
+        const bool ownedDirectory =
+            !OwnedTempLease || OwnedTempLease->MatchesObjectAt(ToQString(fs2us(FolderPath)));
+        if (!ownedDirectory && !OwnedTempLease->MatchesObjectAt(ToQString(fs2us(FilePath))))
+            return;
+        const auto remove = [&] {
             NWindows::NFile::NDir::DeleteFileAlways(FilePath);
-            NWindows::NFile::NDir::RemoveDir(FolderPath);
-        }
+            if (ownedDirectory)
+                NWindows::NFile::NDir::RemoveDir(FolderPath);
+        };
+        if (OwnedTempLease)
+            OwnedTempLease->RemoveIfUnused(ToQString(fs2us(ownedDirectory ? FolderPath : FilePath)),
+                                           remove);
+        else
+            remove();
     }
     bool WasChanged_from_TempFileInfo(const NWindows::NFile::NFind::CFileInfo &newFileInfo) const {
         return newFileInfo.Size != FileInfo.Size ||
@@ -184,7 +199,10 @@ struct CTempFileInfo {
     }
 };
 
+class QtPanelLocationTransaction;
+
 struct CFolderLink : public CTempFileInfo {
+    bool KeepOnOutdatedClose = false;
     bool IsVirtual; // == true (if archive was open via IInStream):
                     //    archive was open from another archive,
                     //    archive size meets the size conditions derived from g_RAM_Size.
@@ -266,6 +284,7 @@ class CPanel : public QObject {
     CPanel(const QString &prefix, const CObjectVector<CPanelItem> &items);
     explicit CPanel(IFolderFolder *folder);
     void ReleasePanel();
+    UString GetResumeFolderPath() const;
     void ExitExternalWorkers(bool hardExit);
     bool HasExternalWorkers() const;
     void RebindWindowHost(QWidget *window, CPanelCallback *callback, CAppState *state);
@@ -462,6 +481,9 @@ class CPanel : public QObject {
                      const NUpdateArchive::CActionSet *actionSet = nullptr,
                      std::optional<NWildcard::ECensorPathMode> pathMode = std::nullopt);
     void SetNewFolder(IFolderFolder *folder);
+    void SetArchiveOpenPassword(std::optional<ArchivePassword> password) {
+        _archiveOpenPassword = std::move(password);
+    }
     void AttachFolderManager(IFolderManager *manager, const QString &settingsPath) {
         _folderManager = manager;
         _settingsPath = settingsPath;
@@ -485,12 +507,26 @@ class CPanel : public QObject {
     bool IsFocusedFile() const { return GetFocusedFileIndex() != (UInt32)-1; }
     void OpenItemInArchive(unsigned index, bool tryInternal, bool tryExternal, bool editMode,
                            bool useEditor, const wchar_t *type = NULL);
-    HRESULT OpenItemInArchiveInternal(unsigned index, const wchar_t *type = nullptr);
+    HRESULT OpenItemInArchiveInternal(unsigned index, const wchar_t *type = nullptr,
+                                      bool materializeStream = false);
     bool IsVirus_Message(const UString &name);
     HRESULT OpenParentArchiveFolder();
     HRESULT OnOpenItemChanged(UInt32 index, const wchar_t *fullFilePath, bool usePassword,
                               const UString &password,
                               std::optional<ArchiveSourceSnapshot> expectedSource = {});
+    QtArchiveUpdateResult UpdateExternalFile(UInt32 index, const wchar_t *fullFilePath,
+                                             bool usePassword, const UString &password,
+                                             std::optional<ArchiveSourceSnapshot> expectedSource);
+    void ReleaseArchiveContext(bool removeTemporaryFiles);
+    void MarkArchiveOutdated() { _archiveContextOutdated = true; }
+    bool MarkArchiveOutdated(const QString &path);
+    bool ArchiveContextOutdated() const { return _archiveContextOutdated; }
+    bool PreserveOutdatedArchiveCopies();
+    bool SetArchiveOpenDialogs(bool allow) {
+        const bool previous = _archiveOpenDialogs;
+        _archiveOpenDialogs = allow;
+        return previous;
+    }
     bool OnOpenItemChanged(const CTempFileInfo &tpi, const UString &fullPathFolderPrefix,
                            bool usePassword, const UString &password,
                            std::optional<CSelectedState> *refreshSelection = nullptr,
@@ -709,10 +745,16 @@ class CPanel : public QObject {
     CPanelCallback *_panelCallback = nullptr;
     IQtPanelDragServices *_dragServices = nullptr;
     std::optional<CSelectedState> _refreshSelection;
+    std::optional<ArchivePassword> _archiveOpenPassword;
+    bool _archiveOpenDialogs = true;
+    bool _archiveContextOutdated = false;
+    std::vector<QtPanelLocationTransaction *> _locationTransactions;
     IQtExternalFileServices *_externalFileServices = nullptr;
     std::unique_ptr<CExitEventLauncher> _exitEventLauncher;
+    std::vector<std::weak_ptr<IQtExternalSessionOwner>> _externalSessions;
     HRESULT OpenItemInArchiveImpl(unsigned index, bool tryInternal, bool tryExternal, bool editMode,
-                                  bool useEditor, const wchar_t *type);
+                                  bool useEditor, const wchar_t *type,
+                                  bool materializeStream = false);
     void StartExternalFileSession(NWindows::NFile::NDir::CTempDir &tempDirectory,
                                   const CTempFileInfo &tempFileInfo, const FString &tempDirNorm,
                                   bool usePassword, const UString &password, bool editMode,
