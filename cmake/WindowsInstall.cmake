@@ -1,4 +1,5 @@
 # Qt and the retained Windows entrypoints share one deployment directory.
+set(notices_destination share/licenses/sevenzip-desktop)
 # Registration is a separate Menu-page operation; installing files never writes
 # associations or registers the extension on the build machine.
 if(VCPKG_MANIFEST_MODE)

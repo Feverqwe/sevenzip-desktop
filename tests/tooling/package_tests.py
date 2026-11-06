@@ -2,6 +2,7 @@
 import hashlib
 import importlib.util
 import io
+import json
 import os
 from pathlib import Path
 import shutil
@@ -28,6 +29,52 @@ release = load_script("release")
 
 
 class PackageTests(unittest.TestCase):
+    def test_notice_index_follows_deployed_documents_without_changing_text(self):
+        with tempfile.TemporaryDirectory(prefix="notices 空 ") as temporary:
+            runtime = Path(temporary)
+            root = runtime / "share/licenses/sevenzip-desktop"
+            root.mkdir(parents=True)
+            binary = runtime / "bin/sevenzip_desktop"
+            binary.parent.mkdir()
+            binary.write_bytes(b"runtime")
+            payload = {"THIRD_PARTY_NOTICES.md": "overview δ\n",
+                       "7zip/LICENSE.txt": "original <text>\n" * 100}
+            for name, text in payload.items():
+                path = root / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(text, encoding="utf-8")
+            obsolete = root / "Qt/include/stale.txt"
+            obsolete.parent.mkdir(parents=True)
+            obsolete.write_bytes(b"development-only payload")
+            package.write_notice_index(root)
+            # Qt and other deployment owners add their documents later.
+            extra = root / "Qt/LGPL.txt"
+            extra.parent.mkdir(exist_ok=True)
+            extra.write_text("Qt original text\n", encoding="utf-8")
+            payload["Qt/LGPL.txt"] = "Qt original text\n"
+            package.finalize_runtime(runtime, "Windows" if os.name == "nt" else "Linux")
+            index = json.loads((root / "index.json").read_text(encoding="utf-8"))
+            actual = {row["path"]: (root / row["path"]).read_text(encoding="utf-8")
+                      for row in index["documents"]}
+            self.assertEqual(actual, payload)
+            self.assertEqual(len(index["documents"]), len(payload))
+            self.assertEqual(index["documents"][0]["path"], "THIRD_PARTY_NOTICES.md")
+
+    def test_notice_index_rejects_empty_or_escaping_payload(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "Notices"
+            root.mkdir()
+            with self.assertRaises(ValueError):
+                package.write_notice_index(root)
+            outside = Path(temporary) / "outside.txt"
+            outside.write_text("not a deployed license")
+            try:
+                (root / "external.txt").symlink_to(outside)
+            except OSError:
+                self.skipTest("Symbolic links unavailable on this host")
+            with self.assertRaises(ValueError):
+                package.write_notice_index(root)
+
     def test_local_install_replaces_old_dependencies_only_after_success(self):
         with tempfile.TemporaryDirectory(prefix="install 空 ") as temporary:
             install = Path(temporary) / "dist"
@@ -60,6 +107,9 @@ class PackageTests(unittest.TestCase):
             binary.parent.mkdir()
             binary.write_text('#!/bin/sh\nbasename "$0"\n')
             binary.chmod(0o755)
+            notices = root / "share/licenses/sevenzip-desktop"
+            notices.mkdir(parents=True)
+            (notices / "LICENSE").write_text("original license\n")
             for alias in ("7zFM", "7zG"):
                 shutil.copy2(binary, binary.parent / alias)
             for _ in range(2):
@@ -67,7 +117,7 @@ class PackageTests(unittest.TestCase):
                 for alias in ("7zFM", "7zG"):
                     self.assertEqual(subprocess.check_output([str(binary.parent / alias)], text=True),
                                      alias + "\n")
-                payload_bytes = sum(path.stat().st_size for path in root.rglob("*")
+                payload_bytes = sum(path.stat().st_size for path in binary.parent.rglob("*")
                                     if path.is_file() and not path.is_symlink())
                 self.assertEqual(payload_bytes, binary.stat().st_size)
 

@@ -103,7 +103,6 @@ void COverwriteDialog::BuildPresentation() {
     for (const auto &spec : kChoices) {
         auto *button = new QPushButton(this);
         button->setObjectName(spec.Name);
-        button->setAttribute(Qt::WA_LayoutUsesWidgetRect);
         QtBindLocalText(button, spec.Id == IDB_AUTO_RENAME ? "ConflictRedesign" : "DialogRedesign",
                         spec.Text);
         _controls.insert(spec.Id, button);

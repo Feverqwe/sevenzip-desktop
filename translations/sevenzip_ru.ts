@@ -127,6 +127,20 @@
     </context>
     <context>
         <name>AboutDialog</name>
+        <message><source>Version %1</source><translation>Версия %1</translation></message>
+        <message><source>7-Zip website</source><translation>Сайт 7-Zip</translation></message>
+        <message><source>Copy information</source><translation>Копировать сведения</translation></message>
+        <message><source>Licenses and notices…</source><translation>Лицензии и уведомления…</translation></message>
+        <message><source>Some archive modules could not be loaded.</source><translation>Не удалось загрузить некоторые архивные модули.</translation></message>
+        <message><source>Details…</source><translation>Подробнее…</translation></message>
+        <message><source>Architecture</source><translation>Архитектура</translation></message>
+        <message><source>Qt version</source><translation>Версия Qt</translation></message>
+        <message><source>Revision</source><translation>Ревизия</translation></message>
+        <message><source>Build information</source><translation>Сведения о сборке</translation></message>
+        <message><source>Copy address</source><translation>Копировать адрес</translation></message>
+        <message><source>Unknown</source><translation>Неизвестно</translation></message>
+        <message><source>Archive module diagnostics</source><translation>Диагностика архивных модулей</translation></message>
+        <message><source>Could not open the browser. Address: %1</source><translation>Не удалось открыть браузер. Адрес: %1</translation></message>
         <message>
             <location filename="../src/dialogs/about/AboutDialog.cpp" line="+67" />
             <source>An independent file manager based on 7‑Zip.</source>
@@ -7664,4 +7678,23 @@ Check that your distribution's CIFS support and cifs-utils are installed.</sourc
     <message><source>This source is read-only. Deletion is unavailable.</source><translation>Источник доступен только для чтения. Удаление недоступно.</translation></message>
     <message><source>Selected items: %1</source><translation>Выбрано объектов: %1</translation></message>
 </context>
+    <context>
+        <name>LicenseDocuments</name>
+        <message><source>Invalid document path in the license index.</source><translation>Недопустимый путь документа в индексе лицензий.</translation></message>
+        <message><source>The license document is unavailable.</source><translation>Документ лицензии недоступен.</translation></message>
+        <message><source>The license index could not be read.</source><translation>Не удалось прочитать индекс лицензий.</translation></message>
+        <message><source>Unnamed document</source><translation>Документ без названия</translation></message>
+        <message><source>No document is selected.</source><translation>Документ не выбран.</translation></message>
+        <message><source>The license document is not valid UTF-8 text.</source><translation>Документ лицензии содержит некорректный текст UTF-8.</translation></message>
+    </context>
+    <context>
+        <name>LicensesDialog</name>
+        <message><source>Licenses and notices</source><translation>Лицензии и уведомления</translation></message>
+        <message><source>Copy text</source><translation>Копировать текст</translation></message>
+        <message><source>Search components or licenses</source><translation>Найти компонент или лицензию</translation></message>
+        <message><source>Documents</source><translation>Документы</translation></message>
+        <message><source>License text</source><translation>Текст лицензии</translation></message>
+        <message><source>No license documents in this package.</source><translation>В этом пакете нет документов лицензий.</translation></message>
+        <message><source>No documents match your search.</source><translation>По вашему запросу ничего не найдено.</translation></message>
+    </context>
 </TS>

@@ -139,20 +139,26 @@ Close remain exposed.
 
 About uses the requested independent Sevenzip identity rather than the original
 logo and layout. The application name and release precede its description.
-The release sits beside the application heading. A separate 7-Zip
-panel shows the source version, explicitly labeled
-upstream release date, original copyright and free-software notice, with license
-and upstream-homepage buttons. The project link and OK form the footer.
-The attribution panel and version badge follow the application palette; links
-use its link color, retain keyboard focus and leave OK as the native default
-button. Light/dark checks cover readable attribution and fitting controls.
-OK owns initial focus/default Return; F1 retains the source Help topic.
-Both versions remain unchanged across live language switches. Explanatory text,
-title and project/license captions follow the selected language. Normal and
-compact EN/RU resize requests expand to native font/control minima; all labels
-and buttons must remain exposed, with no clipped text. Larger fonts must enlarge
-the initial frame. `help_source` writes about-*.json and checks both link
-destinations, the offline license and Help, keyboard acceptance and codec errors.
+The release appears beneath the application heading beside the archive icon.
+Project and license actions precede a separate palette-based 7-Zip panel with
+source version, upstream release date, original copyright and homepage action.
+Build information is a disclosure; unavailable values are explicitly unknown.
+Module-load diagnostics appear inline, with the complete report available through
+Details. Failed browser handoff keeps the exact address available for copying.
+The scrollable body preserves access to content at compact sizes; Copy information
+and Close remain in the fixed footer. Close owns initial focus/default Return.
+About has no F1/Help action. Both versions remain unchanged across live language
+switches. Explanatory text, title and action captions follow the selected language.
+Light/dark checks cover rendered attribution contrast and reachable controls.
+
+Licenses opens an independent offline document viewer from the installed package.
+Search filters document names and paths without editing their content; an existing
+selection is retained when still visible. A missing document or empty result clears
+the text and disables copying. The read-only report wraps long lines; Copy text
+copies the entire original document, while ordinary selection copy stays available.
+Compact windows stack the list above the text. Closing returns focus to About.
+The package index describes the supplied documents, not loaded format capabilities.
+No checkout fallback, replacement license or automatic download is used.
 See the [identity adaptation](../upstream-port-audit/about-product-identity.md)
 for the source comparison and current validation scope.
 help_ui checks modal About, source Options page callbacks and

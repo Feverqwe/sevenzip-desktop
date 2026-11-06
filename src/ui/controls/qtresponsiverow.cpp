@@ -122,6 +122,9 @@ class ResponsiveLayout final : public QLayout {
 QtResponsiveRow::QtResponsiveRow(const QList<QWidget *> &items, QWidget *parent) : QWidget(parent) {
     auto *row = new ResponsiveLayout(this);
     for (auto *item : items) {
+        // Native optical button margins must not extend beyond the row's
+        // allocated rectangle, especially when it is inside a scroll viewport.
+        item->setAttribute(Qt::WA_LayoutUsesWidgetRect);
         row->addWidget(item);
         item->show();
     }

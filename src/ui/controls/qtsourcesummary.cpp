@@ -1,20 +1,21 @@
 #include "ui/controls/qtsourcesummary.h"
 #include "ui/dialogs/qtdialoglayout.h"
+#include <QEvent>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QVBoxLayout>
 
 QtSourceSummary::QtSourceSummary(const QIcon &icon, const QString &name, const QString &path,
                                  QWidget *parent)
-    : QWidget(parent), name_(new QtWrappingLabel(name, this)),
-      path_(new QtWrappingLabel(path, this)), detail_(new QtWrappingLabel(this)) {
+    : QWidget(parent), icon_(icon), symbol_(new QLabel(this)),
+      name_(new QtWrappingLabel(name, this)), path_(new QtWrappingLabel(path, this)),
+      detail_(new QtWrappingLabel(this)) {
     auto *row = new QHBoxLayout(this);
     row->setContentsMargins(12, 10, 12, 10);
     row->setSpacing(12);
-    auto *symbol = new QLabel(this);
-    symbol->setPixmap(icon.pixmap(24, 24));
-    symbol->setFixedSize(24, 24);
-    row->addWidget(symbol, 0, Qt::AlignTop);
+    symbol_->setPixmap(icon.pixmap(24, 24));
+    symbol_->setFixedSize(24, 24);
+    row->addWidget(symbol_, 0, Qt::AlignTop);
     auto *text = new QVBoxLayout;
     text->setContentsMargins(0, 0, 0, 0);
     text->setSpacing(4);
@@ -59,6 +60,35 @@ void QtSourceSummary::SetDetail(const QString &detail) {
     detail_->setText(detail);
     detail_->setVisible(!detail.isEmpty());
     setAccessibleDescription(detail.isEmpty() ? path_->text() : path_->text() + '\n' + detail);
+}
+
+void QtSourceSummary::SetIdentityPresentation() {
+    identity_ = true;
+    layout()->setContentsMargins(0, 0, 0, 0);
+    layout()->setSpacing(16);
+    RefreshIdentity();
+}
+
+void QtSourceSummary::RefreshIdentity() {
+    const int extent = identity_ ? 48 : 24;
+    symbol_->setFixedSize(extent, extent);
+    symbol_->setPixmap(icon_.pixmap(extent, extent));
+    if (identity_) {
+        QFont title = font();
+        if (title.pointSizeF() > 0)
+            title.setPointSizeF(title.pointSizeF() * 1.6);
+        else
+            title.setPixelSize(qMax(1, qRound(title.pixelSize() * 1.6)));
+        title.setWeight(QFont::DemiBold);
+        name_->setFont(title);
+    }
+}
+
+void QtSourceSummary::changeEvent(QEvent *event) {
+    QWidget::changeEvent(event);
+    if (event->type() == QEvent::PaletteChange || event->type() == QEvent::StyleChange ||
+        event->type() == QEvent::FontChange)
+        RefreshIdentity();
 }
 
 int QtSourceSummary::heightForWidth(int width) const {

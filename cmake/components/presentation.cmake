@@ -1,3 +1,8 @@
+add_library(sevenzip_license_documents STATIC
+    src/dialogs/licenses/qtlicensedocuments.cpp src/dialogs/licenses/qtlicensedocuments.h)
+target_include_directories(sevenzip_license_documents PUBLIC src)
+target_link_libraries(sevenzip_license_documents PUBLIC Qt6::Core)
+
 add_library(sevenzip_progress_sync STATIC
     src/ui/progress/progresssync.cpp src/ui/progress/progresssync.h
     src/ui/progress/qtworkerprogress.cpp src/ui/progress/qtworkerprogress.h)
@@ -71,6 +76,9 @@ add_library(sevenzip_panel
     src/filemanager/panels/qtpaneldragtransport.h
     src/dialogs/about/AboutDialog.cpp
     src/dialogs/about/AboutDialog.h
+    src/dialogs/about/qtaboutpresentation.cpp
+    src/dialogs/licenses/qtlicensesdialog.cpp
+    src/dialogs/licenses/qtlicensesdialog.h
     src/dialogs/browse/BrowseDialog2.cpp
     src/dialogs/browse/BrowseDialog2.h
     src/dialogs/browse/browseiteminspection.cpp
@@ -307,7 +315,7 @@ add_library(sevenzip_panel
     src/filemanager/providers/NetFolder.h
     src/filemanager/panels/PanelListNotify.cpp
     src/filemanager/panels/Panel.h)
-target_link_libraries(sevenzip_panel PRIVATE sevenzip_dialog_screen sevenzip_location sevenzip_panel_selection sevenzip_text_report
+target_link_libraries(sevenzip_panel PRIVATE sevenzip_dialog_screen sevenzip_location sevenzip_panel_selection sevenzip_text_report sevenzip_license_documents
     PUBLIC sevenzip_ui_theme)
 # Resource callbacks can pull the panel's archive progress transport in after
 # the first two scans of this existing static-library cycle.

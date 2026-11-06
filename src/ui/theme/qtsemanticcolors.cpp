@@ -1,5 +1,6 @@
 #include "ui/theme/qtsemanticcolors.h"
 #include <QEvent>
+#include <QTimer>
 #include <QWidget>
 #include <cmath>
 
@@ -29,8 +30,19 @@ class PaletteStyle final : public QObject {
     QWidget &widget_;
     Style kind_;
     int radius_;
+    bool updatePending_ = false;
+    void scheduleUpdate() {
+        if (updatePending_)
+            return;
+        updatePending_ = true;
+        QTimer::singleShot(0, this, [this] {
+            updatePending_ = false;
+            update();
+        });
+    }
     void update() {
-        QPalette palette = widget_.parentWidget()->palette();
+        QPalette palette =
+            widget_.parentWidget() ? widget_.parentWidget()->palette() : widget_.palette();
         palette.setCurrentColorGroup(!widget_.isEnabled()       ? QPalette::Disabled
                                      : widget_.isActiveWindow() ? QPalette::Active
                                                                 : QPalette::Inactive);
@@ -43,9 +55,14 @@ class PaletteStyle final : public QObject {
                       .arg(QtSemanticColors::readable(palette.color(QPalette::Link),
                                                       palette.color(QPalette::Window))
                                .name());
-        const QString style =
-            QString("%1#%2 { %3 }")
-                .arg(widget_.metaObject()->className(), widget_.objectName(), rule);
+        QString style = QString("%1#%2 { %3 }")
+                            .arg(widget_.metaObject()->className(), widget_.objectName(), rule);
+        // Qt stylesheets do not inherit a parent's foreground like ordinary
+        // widget palettes. Keep panel labels on the same palette as its surface.
+        if (kind_ == Style::Surface)
+            style += QString(" %1#%2 QLabel { color: %3; }")
+                         .arg(widget_.metaObject()->className(), widget_.objectName(),
+                              palette.color(QPalette::WindowText).name());
         if (widget_.styleSheet() != style)
             widget_.setStyleSheet(style);
     }
@@ -53,6 +70,8 @@ class PaletteStyle final : public QObject {
         if (event->type() == QEvent::PaletteChange || event->type() == QEvent::WindowActivate ||
             event->type() == QEvent::WindowDeactivate || event->type() == QEvent::EnabledChange)
             update();
+        if (event->type() == QEvent::PaletteChange || event->type() == QEvent::ParentChange)
+            scheduleUpdate(); // Ancestor palettes can propagate after the window event.
         return false;
     }
 

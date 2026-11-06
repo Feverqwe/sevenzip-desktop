@@ -86,13 +86,14 @@ class HelpUiTests : public QObject {
         name->setText(QStringLiteral("новый архив с пробелом"));
         const auto showHelp = [keyboard](QDialog &dialog, const QString &topic) {
             auto *buttons = dialog.findChild<QDialogButtonBox *>();
-            if (keyboard) {
+            auto *helpButton = buttons->button(QDialogButtonBox::Help);
+            if (keyboard || !helpButton) {
                 if (!WindowActivation::waitForActive(dialog) ||
                     !QTest::qWaitFor([&] { return QApplication::activeWindow() == &dialog; }))
                     return false;
                 QTest::keyClick(dialog.windowHandle(), Qt::Key_F1);
             } else
-                buttons->button(QDialogButtonBox::Help)->click();
+                helpButton->click();
             if (!QTest::qWaitFor([&] {
                     auto *help = dialog.findChild<QDialog *>("helpWindow");
                     return help && help->isVisible();

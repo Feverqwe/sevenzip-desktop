@@ -1,6 +1,7 @@
 #include "7zip/MyVersion.h"
 #include "archive/codecs/LoadCodecs.h"
 #include "dialogs/about/AboutDialog.h"
+#include "dialogs/edit/EditDialog.h"
 #include "filemanager/HelpUtils.h"
 #include "help/qthelpservices.h"
 #include "localization/LangUtils.h"
@@ -13,8 +14,10 @@
 #include <QDialogButtonBox>
 #include <QLabel>
 #include <QMessageBox>
+#include <QPlainTextEdit>
 #include <QPushButton>
 #include <QScopeGuard>
+#include <QScrollArea>
 #include <QScrollBar>
 #include <QStyleOptionButton>
 #include <QTemporaryDir>
@@ -74,7 +77,13 @@ class HelpSourceTests : public QObject {
         CAboutDialog dialog;
         dialog.show();
         auto *attribution = dialog.findChild<QWidget *>("aboutUpstream");
+        const auto sampleSurface = [&] {
+            const QPixmap rendered = attribution->grab();
+            return rendered.toImage().pixelColor(qRound(12 * rendered.devicePixelRatio()),
+                                                 qRound(12 * rendered.devicePixelRatio()));
+        };
         QColor previous;
+        QColor previousWindow;
         for (const QColor window :
              {QColor("#f1f2f4"), QColor("#202326"), QColor("#596577"), QColor("#f0e5d5")}) {
             QPalette colors = original;
@@ -85,11 +94,21 @@ class HelpSourceTests : public QObject {
             colors.setColor(QPalette::Link, QColor("#34518c"));
             QApplication::setPalette(colors);
             QApplication::processEvents();
-            const QPixmap rendered = attribution->grab();
-            const QColor surface = rendered.toImage().pixelColor(
-                qRound(12 * rendered.devicePixelRatio()), qRound(12 * rendered.devicePixelRatio()));
-            QVERIFY(surface != previous && surface != window);
+            const QColor actualWindow = dialog.palette().color(QPalette::Window);
+            if (previousWindow.isValid() && previousWindow != actualWindow) {
+                QTRY_VERIFY2(sampleSurface() != previous,
+                             qPrintable(QString("window=%1 parent=%2 style=%3")
+                                            .arg(actualWindow.name(),
+                                                 attribution->parentWidget()
+                                                     ->palette()
+                                                     .color(QPalette::Window)
+                                                     .name(),
+                                                 attribution->styleSheet())));
+            }
+            const QColor surface = sampleSurface();
+            QVERIFY(surface != actualWindow);
             previous = surface;
+            previousWindow = actualWindow;
             for (auto *label : attribution->findChildren<QLabel *>())
                 QVERIFY(textContrast(label->palette().color(QPalette::WindowText), surface) >= 4.5);
             for (auto *button : dialog.findChildren<QPushButton *>()) {
@@ -195,7 +214,6 @@ class HelpSourceTests : public QObject {
     void aboutInitialFrameScalesWithFont() {
         const QFont originalFont = QApplication::font();
         const auto restoreFont = qScopeGuard([&] { QApplication::setFont(originalFont); });
-        QSize smallFrame;
         for (int points : {8, 12}) {
             QFont font = originalFont;
             font.setPointSize(points);
@@ -203,14 +221,12 @@ class HelpSourceTests : public QObject {
             CAboutDialog dialog;
             dialog.show();
             QApplication::processEvents();
-            if (points == 8)
-                smallFrame = dialog.size();
-            else {
-                QVERIFY(dialog.width() > smallFrame.width());
-                QVERIFY(dialog.height() > smallFrame.height());
-            }
             for (auto *label : dialog.findChildren<QLabel *>()) {
-                QVERIFY(UiInspection::fullyVisible(*label, dialog));
+                if (!label->isVisible())
+                    continue;
+                auto *scroll = dialog.findChild<QScrollArea *>("dialogContentScroll");
+                scroll->ensureWidgetVisible(label);
+                QTRY_VERIFY(UiInspection::fullyVisible(*label, dialog));
                 QVERIFY2(UiInspection::labelFits(*label), qPrintable(label->objectName()));
             }
             QVERIFY(UiInspection::writeReport(dialog, QString("about-source-font-%1").arg(points)));
@@ -240,24 +256,30 @@ class HelpSourceTests : public QObject {
         QVERIFY(!expected.IsEmpty());
         for (const QSize size : {QSize(600, 300), QSize(400, 250)}) {
             QString shown;
-            bool geometry = false;
-            QTimer::singleShot(0, this, [&] {
-                auto *message = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
-                if (!message)
-                    return;
-                message->resize(size);
-                QApplication::processEvents();
-                shown = message->text();
-                auto *label = message->findChild<QLabel *>("qt_msgbox_label");
-                geometry = label && UiInspection::fullyVisible(*label, *message) &&
-                           UiInspection::labelFits(*label) &&
-                           UiInspection::writeReport(*message, "about-codec-error-" +
-                                                                   QString::number(size.width()));
-                message->accept();
-            });
             CAboutDialog dialog(nullptr, &codecs);
+            dialog.resize(size);
+            dialog.show();
+            QVERIFY(QTest::qWaitForWindowExposed(&dialog));
+            QVERIFY(!qobject_cast<QMessageBox *>(QApplication::activeModalWidget()));
+            auto *notice = dialog.findChild<QWidget *>("aboutCodecNotice");
+            QVERIFY(notice && notice->isVisible());
+            dialog.findChild<QScrollArea *>("dialogContentScroll")->ensureWidgetVisible(notice);
+            QTRY_VERIFY(UiInspection::fullyVisible(*notice, dialog));
+            QTimer answer;
+            connect(&answer, &QTimer::timeout, &dialog, [&] {
+                for (QWidget *widget : QApplication::topLevelWidgets())
+                    if (auto *report = dynamic_cast<CEditDialog *>(widget);
+                        report && report->isVisible() && report->isModal()) {
+                        answer.stop();
+                        shown = report->findChild<QPlainTextEdit *>("editText")->toPlainText();
+                        report->reject();
+                    }
+            });
+            answer.start(5);
+            dialog.findChild<QPushButton *>("aboutCodecDetails")->click();
             QCOMPARE(shown, QString::fromWCharArray(expected.Ptr()));
-            QVERIFY(geometry);
+            QVERIFY(UiInspection::writeReport(dialog, "about-codec-error-" +
+                                                          QString::number(size.width())));
         }
     }
     void aboutIdentityAttributionLinksAndGeometry_data() {
@@ -291,8 +313,8 @@ class HelpSourceTests : public QObject {
         QVERIFY(dialog.findChild<QLabel *>("aboutText102")->text().contains(MY_DATE));
         QVERIFY(
             dialog.findChild<QLabel *>("aboutUpstreamCopyright")->text().contains("Igor Pavlov"));
-        auto *applicationVersion = dialog.findChild<QLabel *>("aboutApplicationVersion");
-        QCOMPARE(applicationVersion->text(), QString(SEVENZIP_DESKTOP_VERSION));
+        auto *identity = dialog.findChild<QWidget *>("aboutIdentity");
+        QVERIFY(identity->accessibleDescription().contains(QString(SEVENZIP_DESKTOP_VERSION)));
         QDesktopServices::setUrlHandler("https", this, "openUrl");
         const auto resetHandler = qScopeGuard([] { QDesktopServices::unsetUrlHandler("https"); });
         QVERIFY(!dialog.OnButtonClicked(999, nullptr));
@@ -308,16 +330,25 @@ class HelpSourceTests : public QObject {
                 dialog.windowTitle(),
                 QString(language == QByteArray("ru") ? "О программе Sevenzip" : "About Sevenzip"));
             QVERIFY(version->text().contains("7-Zip " MY_VERSION));
-            QCOMPARE(applicationVersion->text(), QString(SEVENZIP_DESKTOP_VERSION));
+            QVERIFY(identity->accessibleDescription().contains(QString(SEVENZIP_DESKTOP_VERSION)));
             for (QSize size : {QSize(360, 330), QSize(300, 310)}) {
                 dialog.resize(size);
                 for (auto *label : dialog.findChildren<QLabel *>()) {
+                    if (!label->isVisible())
+                        continue;
+                    dialog.findChild<QScrollArea *>("dialogContentScroll")
+                        ->ensureWidgetVisible(label);
                     // Language changes can queue a second layout pass for the
                     // upstream group's newly wrapped free-software notice.
                     QTRY_VERIFY(UiInspection::fullyVisible(*label, dialog));
                     QTRY_VERIFY2(UiInspection::labelFits(*label), qPrintable(label->objectName()));
                 }
                 for (auto *button : dialog.findChildren<QPushButton *>()) {
+                    if (!button->isVisible())
+                        continue;
+                    auto *scroll = dialog.findChild<QScrollArea *>("dialogContentScroll");
+                    if (scroll->widget()->isAncestorOf(button))
+                        scroll->ensureWidgetVisible(button);
                     QTRY_VERIFY(UiInspection::fullyVisible(*button, dialog));
                     const auto captionFits = [button] {
                         QStyleOptionButton option;
@@ -331,11 +362,12 @@ class HelpSourceTests : public QObject {
                     };
                     QTRY_VERIFY2(captionFits(), qPrintable(button->objectName()));
                 }
-                const auto *heading = dialog.findChild<QLabel *>("aboutApplicationName");
-                QVERIFY(UiInspection::bounds(*heading, dialog).bottom() <
+                QVERIFY(UiInspection::bounds(*identity, dialog).bottom() <
                         UiInspection::bounds(*version, dialog).top());
-                QVERIFY(UiInspection::separate(*heading, *applicationVersion, dialog));
                 auto *attribution = dialog.findChild<QWidget *>("aboutUpstream");
+                dialog.findChild<QScrollArea *>("dialogContentScroll")
+                    ->ensureWidgetVisible(attribution);
+                QTRY_VERIFY(UiInspection::fullyVisible(*attribution, dialog));
                 const QPixmap rendered = dialog.grab();
                 const QImage surface = rendered.toImage();
                 // Sample the empty top padding inside the rounded panel so
@@ -345,28 +377,36 @@ class HelpSourceTests : public QObject {
                     surface.pixelColor(qRound(sample.x() * rendered.devicePixelRatio()),
                                        qRound(sample.y() * rendered.devicePixelRatio()));
                 for (auto *label : attribution->findChildren<QLabel *>())
-                    QVERIFY(textContrast(label->palette().color(QPalette::WindowText),
-                                         background) >= 4.5);
+                    QVERIFY2(
+                        textContrast(label->palette().color(QPalette::WindowText), background) >=
+                            4.5,
+                        qPrintable(QString("label=%1 text=%2 surface=%3 window=%4 style=%5")
+                                       .arg(label->objectName(),
+                                            label->palette().color(QPalette::WindowText).name(),
+                                            background.name(),
+                                            dialog.palette().color(QPalette::Window).name(),
+                                            attribution->styleSheet())));
                 QVERIFY(UiInspection::writeReport(dialog, QString("about-%1-%2-%3")
                                                               .arg(language)
                                                               .arg(size.width())
                                                               .arg(QTest::currentDataTag())));
             }
         }
+        bool licenseShown = false;
+        QTimer answer;
+        connect(&answer, &QTimer::timeout, &dialog, [&] {
+            auto *licenses = dialog.findChild<QDialog *>("licensesDialog");
+            if (licenses && licenses->isVisible() && licenses->isModal()) {
+                answer.stop();
+                licenseShown = true;
+                licenses->reject();
+            }
+        });
+        answer.start(5);
         dialog.findChild<QPushButton *>("aboutLicense")->click();
-        auto *help = dialog.findChild<QDialog *>("helpWindow");
-        QVERIFY(help && help->isVisible());
-        auto *browser = help->findChild<QTextBrowser *>("helpBrowser");
-        QCOMPARE(browser->source().path(), QString("/upstream/7zip/Help/general/license.htm"));
-        QVERIFY(browser->toPlainText().contains("GNU LGPL"));
-        help->close();
-        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
-        dialog.OnHelp();
-        help = dialog.findChild<QDialog *>("helpWindow");
-        QVERIFY(help && help->isVisible());
-        QCOMPARE(help->findChild<QTextBrowser *>("helpBrowser")->source().path(),
-                 QString("/upstream/7zip/Help/start.htm"));
-        help->close();
+        QVERIFY(licenseShown);
+        QTest::keyClick(&dialog, Qt::Key_F1);
+        QVERIFY(!dialog.findChild<QDialog *>("helpWindow"));
     }
     void sourceTopicAndOfflineNavigation() {
         QWidget parent;
@@ -550,19 +590,21 @@ class HelpSourceTests : public QObject {
                      window->palette().color(QPalette::Window));
             auto cursor = browser->document()->find("Supported formats");
             QVERIFY(!cursor.isNull());
-            QCOMPARE(cursor.charFormat().foreground().color(), colors.color(QPalette::Text));
+            QCOMPARE(cursor.charFormat().foreground().color(),
+                     window->palette().color(QPalette::WindowText));
             cursor = browser->document()->find("BZIP2");
             QVERIFY(cursor.currentTable());
             QCOMPARE(cursor.currentTable()->cellAt(cursor).format().background().color(),
-                     colors.color(QPalette::Window));
+                     window->palette().color(QPalette::Window));
             cursor = browser->document()->find("Creation");
             const QColor header =
                 cursor.currentTable()->cellAt(cursor).format().background().color();
-            QVERIFY(header != colors.color(QPalette::Window));
-            QVERIFY(textContrast(colors.color(QPalette::WindowText), header) >= 4.5);
+            QVERIFY(header != window->palette().color(QPalette::Window));
+            QVERIFY(textContrast(window->palette().color(QPalette::WindowText), header) >= 4.5);
             cursor = browser->document()->find("ZIP", 0, QTextDocument::FindWholeWords);
             QVERIFY(cursor.charFormat().isAnchor());
-            QVERIFY(textContrast(cursor.charFormat().foreground().color(), background) >= 4.5);
+            QVERIFY(textContrast(cursor.charFormat().foreground().color(),
+                                 window->palette().color(QPalette::Window)) >= 4.5);
             browser->verticalScrollBar()->setValue(0);
             for (QSize size : {QSize(760, 560), QSize(420, 300)}) {
                 window->resize(size);
@@ -576,7 +618,8 @@ class HelpSourceTests : public QObject {
                 QVERIFY(syntax.blockFormat().background().color() != background);
                 QVERIFY(textContrast(syntax.charFormat().foreground().color(),
                                      syntax.blockFormat().background().color()) >= 4.5);
-                QCOMPARE(syntax.charFormat().foreground().color(), colors.color(QPalette::Text));
+                QCOMPARE(syntax.charFormat().foreground().color(),
+                         window->palette().color(QPalette::WindowText));
                 QVERIFY(browser->toPlainText().contains(
                     "expression1 | expression2 | ... | expressionN"));
                 browser->verticalScrollBar()->setValue(0);

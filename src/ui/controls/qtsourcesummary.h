@@ -12,10 +12,16 @@ class QtSourceSummary final : public QWidget {
     void SetSelected(bool selected);
     void SetSource(const QString &name, const QString &path);
     void SetDetail(const QString &detail);
+    void SetIdentityPresentation();
     int heightForWidth(int width) const override;
     bool hasHeightForWidth() const override { return true; }
 
   private:
+    void RefreshIdentity();
+    void changeEvent(QEvent *event) override;
+    QIcon icon_;
+    QLabel *symbol_;
+    bool identity_ = false;
     QLabel *name_;
     QLabel *path_;
     QLabel *detail_;

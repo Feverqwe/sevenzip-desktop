@@ -18,5 +18,9 @@ void QtCopyTextReport(QPlainTextEdit &edit) {
     if (edit.textCursor().hasSelection())
         edit.copy();
     else
-        QApplication::clipboard()->setText(edit.toPlainText());
+        QtCopyFullTextReport(edit);
 }
+
+void QtCopyFullTextReport(const QPlainTextEdit &edit) { QtCopyFullTextReport(edit.toPlainText()); }
+
+void QtCopyFullTextReport(const QString &text) { QApplication::clipboard()->setText(text); }

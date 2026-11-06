@@ -77,3 +77,35 @@ composited rendered background. The final `help_source` and `help_ui` suites pas
 native Cocoa system/light/dark EN/RU normal/compact reports and About-only
 screenshots pass and were reviewed. This supersedes the earlier checks that
 only used favorable custom alternate-base colors.
+
+## Live catalog adaptation, 2026-11-06
+
+The About/notice viewer now follows the agreed live component catalog. Re-review
+of the original About initialization and command handlers retains native version,
+date, copyright, codec-error text and upstream-homepage dispatch. The existing
+modal owner and default Return remain. The separate free-software sentence and
+the About Help/F1 route are intentionally replaced by the offline installed
+license viewer; the original legal documents are retained in the package.
+No new upstream code is imported and no archive behavior changes.
+
+Shared identity, disclosure, metadata rows, responsive actions and scrollable
+dialog components provide the presentation. Codec errors are an inline notice
+with the complete existing report available on request. Build information copies
+only displayed build values and applicable module diagnostics; an unavailable
+application revision is labeled unknown. Browser handoff refusal offers the exact
+address without claiming the website is unavailable.
+
+The independent license viewer reads the actual installed notice index and full
+original UTF-8 documents. The packaging owner creates that index after platform
+install owners, and refreshes it after additional runtime notices and pruning,
+before signing. It is a document inventory, not a report of loaded modules.
+Install-only staging contains its local installed notices; external Qt/VC/ICU
+notice inputs remain part of the existing release archive pipeline.
+
+Focused Linux checks cover About, viewer/model, packaging and direct shared-control
+consumers. Actual Cocoa checks cover modal routing, EN/RU, normal/compact geometry,
+palette changes and rendered attribution contrast. A separate Cocoa run read and
+copied all 69 documents in the local installed review payload. These checks do not
+establish full release-package acceptance or original Windows pixel parity.
+Windows interactive checks also passed for both forms; document-path and packaging
+fixtures passed with the runner's elevated token for native symbolic links.

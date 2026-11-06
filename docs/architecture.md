@@ -402,6 +402,15 @@ performs no validation or persistence. Dialogs still own drafts, confirmation
 visibility, accepted results and cancellation; operation owners retain secure
 password lifetime and retry policy.
 
+About presents application identity separately from upstream attribution and
+build/module diagnostics. Its offline license viewer has an independent document
+model; it reads complete original text from the installed notices payload.
+Packaging indexes the documents actually supplied after deployment and pruning,
+before signing. This index does not determine available archive formats. License
+errors remain local to the selected document, without a network or source-checkout
+fallback. Shared TextReport keeps its ordinary selection-copy behavior; the license
+viewer separately offers copying the complete original document.
+
 Contextual forms opt into parent-window modality on macOS through the shared
 presentation adapter. Layout construction itself does not make windows modal.
 Operation progress blocks its owning process;
