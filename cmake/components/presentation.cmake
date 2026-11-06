@@ -140,6 +140,10 @@ add_library(sevenzip_panel
     src/dialogs/overwrite/OverwriteDialog.cpp
     src/dialogs/overwrite/qtoverwritepresentation.cpp
     src/dialogs/overwrite/OverwriteDialog.h
+    src/dialogs/delete/qtdeleteconfirmation.cpp
+    src/dialogs/delete/qtdeleteconfirmation.h
+    src/platform/trash/qttrashoperation.cpp
+    src/platform/trash/qttrashoperation.h
     src/dialogs/mem/MemDialog.cpp
     src/dialogs/mem/qtmemoryrequestpresentation.cpp
     src/dialogs/mem/MemDialog.h

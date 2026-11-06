@@ -1,6 +1,8 @@
 #include "archive/codecs/archivecodeccatalog.h"
 #include "dialogs/copy/alias.h"
 #include "filemanager/support/window_state_support.h"
+#include "support/delete_reply.h"
+#include "support/panel_keys.h"
 #include "ui/support/layout_inspection.h"
 #include <QLineEdit>
 
@@ -20,6 +22,7 @@ class AltStreamsArchiveUiTests final : public QObject, protected MainWindowTestS
         return -1;
     }
   private slots:
+    void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
     void initTestCase() {
 #ifndef SEVENZIP_CODEC_MODULE
         QSKIP("Official module unavailable; archive streams UI remains unverified");
@@ -59,8 +62,6 @@ class AltStreamsArchiveUiTests final : public QObject, protected MainWindowTestS
         MainWindow window(&backend);
         window.show();
         window.openArchive(archive);
-        QTRY_VERIFY(action(window, "flatViewAction")->isEnabled());
-        action(window, "flatViewAction")->setChecked(true);
         QTRY_VERIFY(nativeRow(window, name) >= 0);
         table(window)->selectRow(nativeRow(window, name));
         table(window)->setCurrentCell(nativeRow(window, name), 0);
@@ -133,8 +134,6 @@ class AltStreamsArchiveUiTests final : public QObject, protected MainWindowTestS
         MainWindow window(&backend);
         window.show();
         window.openArchive(archive);
-        QTRY_VERIFY(action(window, "flatViewAction")->isEnabled());
-        action(window, "flatViewAction")->setChecked(true);
         QTRY_VERIFY(nativeRow(window, name) >= 0);
         auto *streams = action(window, "altStreamsAction");
         table(window)->selectRow(nativeRow(window, name));
@@ -144,8 +143,8 @@ class AltStreamsArchiveUiTests final : public QObject, protected MainWindowTestS
             window.resize(size);
             QApplication::processEvents();
             QVERIFY(UiInspection::fullyVisible(*table(window), window));
-            QVERIFY(
-                UiInspection::fullyVisible(*window.findChild<QLineEdit *>("archivePath"), window));
+            QVERIFY(UiInspection::fullyVisible(
+                *PanelKeys::navigationFor(window.findChild<QLineEdit *>("archivePath")), window));
             QVERIFY(UiInspection::writeReport(window, QStringLiteral("archive-alt-streams-%1-%2x%3")
                                                           .arg(language)
                                                           .arg(size.width())
@@ -218,14 +217,16 @@ class AltStreamsArchiveUiTests final : public QObject, protected MainWindowTestS
             QStringList mutationErrors;
             QTimer confirmation;
             connect(&confirmation, &QTimer::timeout, &window, [&] {
-                if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                if (auto *box =
+                        dynamic_cast<QtDeleteConfirmation *>(QApplication::activeModalWidget())) {
                     asked = true;
-                    if (auto *button = box->button(answer))
-                        button->click();
-                    else {
-                        mutationErrors << box->text();
-                        box->accept();
-                    }
+                    QCOMPARE(box->windowTitle(),
+                             QCoreApplication::translate("DeleteRedesign", "Delete from archive?"));
+                    ReplyDelete(*box, answer == QMessageBox::Yes);
+                } else if (auto *box =
+                               qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                    mutationErrors << box->text();
+                    box->accept();
                 }
             });
             confirmation.start(1);

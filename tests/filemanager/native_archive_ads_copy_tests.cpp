@@ -2,6 +2,7 @@
 #include "archive/codecs/archivecodeccatalog.h"
 #include "archive/support/source_extract_fixture.h"
 #include "dialogs/copy/alias.h"
+#include "dialogs/delete/qtdeleteconfirmation.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
 #include "localization/LangUtils.h"
@@ -96,6 +97,11 @@ class NativeArchiveAdsCopyTests final : public QObject, protected MainWindowTest
                 outcome == DialogCancel ? dialog->reject() : dialog->accept();
             }
             for (auto *widget : QApplication::topLevelWidgets()) {
+                if (auto *confirmation = dynamic_cast<QtDeleteConfirmation *>(widget);
+                    confirmation && confirmation->isVisible()) {
+                    deleteQuestion = true;
+                    confirmation->reject();
+                }
                 if (widget->objectName() == "overwriteDialog" && widget->isVisible()) {
                     overwrite = true;
                     widget

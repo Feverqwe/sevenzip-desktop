@@ -8,6 +8,7 @@
 #include "localization/LangUtils.h"
 #include "platform/support/native_property_failure_runtime.h"
 #include "settings/RegistryUtils.h"
+#include "support/delete_reply.h"
 #include "support/overwrite_reply.h"
 #include "support/widget_dialogs.h"
 #include "ui/progress/ProgressDialog2.h"
@@ -197,14 +198,12 @@ class ArchiveMoveCompletionTests final : public QObject, protected MainWindowTes
                     ReplyOverwrite(*overwrite, IDB_NO_TO_ALL);
                 else
                     overwrite->findChild<QPushButton *>(answer)->click();
+            } else if (auto *confirmation = dynamic_cast<QtDeleteConfirmation *>(modal)) {
+                deletionAsked = true;
+                ReplyDelete(*confirmation);
             } else if (auto *box = qobject_cast<QMessageBox *>(modal)) {
-                if (box->button(QMessageBox::Yes)) {
-                    deletionAsked = true;
-                    box->button(QMessageBox::Yes)->click();
-                } else {
-                    errors << box->text();
-                    box->accept();
-                }
+                errors << box->text();
+                box->accept();
             } else if (auto *progress = dynamic_cast<CProgressDialog *>(modal)) {
                 auto *close = progress->findChild<QPushButton *>("IDCANCEL");
                 if (close && close->text() == ToQString(LangString(IDS_CLOSE))) {

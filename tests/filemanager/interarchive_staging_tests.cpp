@@ -9,6 +9,7 @@
 #include "localization/LangUtils.h"
 #include "platform/support/native_link_fixture.h"
 #include "settings/RegistryUtils.h"
+#include "support/delete_reply.h"
 #include "support/widget_dialogs.h"
 #include "ui/progress/ProgressDialog2.h"
 #include "ui/support/layout_inspection.h"
@@ -211,27 +212,25 @@ class InterarchiveStagingTests final : public QObject, protected MainWindowTestS
             } else if (auto *question = dynamic_cast<COverwriteDialog *>(modal)) {
                 overwrite = true;
                 question->findChild<QPushButton *>("overwriteYes")->click();
+            } else if (auto *box = dynamic_cast<QtDeleteConfirmation *>(modal)) {
+                confirmed = true;
+                ReplyDelete(*box);
             } else if (auto *box = qobject_cast<QMessageBox *>(modal)) {
                 const auto dismiss = qScopeGuard([&] {
                     if (box->isVisible())
                         box->reject();
                 });
-                if (box->button(QMessageBox::Yes)) {
-                    confirmed = true;
-                    box->button(QMessageBox::Yes)->click();
-                } else {
-                    errors << box->text();
-                    for (const QSize size : {QSize(440, 220), QSize(340, 220)}) {
-                        box->resize(size);
-                        QApplication::processEvents();
-                        auto *label = box->findChild<QLabel *>("qt_msgbox_label");
-                        auto *ok = box->button(QMessageBox::Ok);
-                        QVERIFY(label && ok);
-                        QVERIFY(UiInspection::fullyVisible(*label, *box));
-                        QVERIFY(UiInspection::fullyVisible(*ok, *box));
-                    }
-                    box->accept();
+                errors << box->text();
+                for (const QSize size : {QSize(440, 220), QSize(340, 220)}) {
+                    box->resize(size);
+                    QApplication::processEvents();
+                    auto *label = box->findChild<QLabel *>("qt_msgbox_label");
+                    auto *ok = box->button(QMessageBox::Ok);
+                    QVERIFY(label && ok);
+                    QVERIFY(UiInspection::fullyVisible(*label, *box));
+                    QVERIFY(UiInspection::fullyVisible(*ok, *box));
                 }
+                box->accept();
             } else if (auto *progress = dynamic_cast<CProgressDialog *>(modal)) {
                 auto *close = progress->findChild<QPushButton *>("IDCANCEL");
                 if (close && close->text() == ToQString(LangString(IDS_CLOSE))) {

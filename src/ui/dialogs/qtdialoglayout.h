@@ -20,7 +20,9 @@ class QtWrappingLabel final : public QLabel {
   public:
     using QLabel::QLabel;
     QSize minimumSizeHint() const override;
+    int heightForWidth(int width) const override;
 
   protected:
+    void paintEvent(QPaintEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
 };

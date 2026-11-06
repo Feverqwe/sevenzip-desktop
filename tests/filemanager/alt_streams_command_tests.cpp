@@ -1,6 +1,8 @@
 #include "dialogs/copy/alias.h"
 #include "filemanager/support/window_state_support.h"
 #include "localization/LangUtils.h"
+#include "support/delete_reply.h"
+#include "support/panel_keys.h"
 #include "ui/support/layout_inspection.h"
 #include <QLineEdit>
 
@@ -30,6 +32,7 @@ class AltStreamsCommandTests final : public QObject, protected MainWindowTestSup
         MainWindow window(&backend);
         window.show();
         auto *address = window.findChild<QLineEdit *>("archivePath");
+        PanelKeys::focusAddress(address);
         address->setText(temp.path());
         QTest::keyClick(address, Qt::Key_Return);
         QTRY_VERIFY(filesystemRow(window, name) >= 0);
@@ -43,7 +46,7 @@ class AltStreamsCommandTests final : public QObject, protected MainWindowTestSup
             window.resize(size);
             QApplication::processEvents();
             QVERIFY(UiInspection::fullyVisible(*table(window), window));
-            QVERIFY(UiInspection::fullyVisible(*address, window));
+            QVERIFY(UiInspection::fullyVisible(*PanelKeys::navigationFor(address), window));
             QVERIFY(UiInspection::writeReport(window, QStringLiteral("alt-streams-%1-%2x%3")
                                                           .arg(language)
                                                           .arg(size.width())
@@ -73,11 +76,13 @@ class AltStreamsCommandTests final : public QObject, protected MainWindowTestSup
             bool asked = false;
             QTimer confirmation;
             connect(&confirmation, &QTimer::timeout, &window, [&] {
-                auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
+                auto *box = dynamic_cast<QtDeleteConfirmation *>(QApplication::activeModalWidget());
                 if (!box)
                     return;
                 asked = true;
-                box->button(answer)->click();
+                QCOMPARE(box->windowTitle(),
+                         QCoreApplication::translate("DeleteRedesign", "Delete permanently?"));
+                ReplyDelete(*box, answer == QMessageBox::Yes);
             });
             confirmation.start(1);
             remove->trigger();

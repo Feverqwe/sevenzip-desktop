@@ -119,18 +119,32 @@ QtStatusLabel may elide selectedItemsStatus, with full source text in its toolti
 this is separate from clipping address/list controls. These are Qt geometry/key delivery
 checks, not a rendered original Windows or physical-input claim.
 
-Source Delete uses PanelOperations.cpp's file/folder/count language IDs and
-standard Yes/No/Cancel question. Refusal keeps the source selection/list.
-Yes is the source default button; Enter confirms, while explicit No/Cancel
-returns before refresh. Deferred consumers exercise real Return-key dispatch.
-Accepted worker error/Cancel refreshes it. Native message boxes retain wrapping,
-auto-fit and standard button grouping rather than a fixed resource rectangle.
-Trash failures reuse Panel.cpp's captioned HRESULT presentation; macOS exposes
-the caption as a heading because native window captions are omitted. The
-bounded source_delete consumers inspect both languages/panes at400×200 and
-300×180 probes:32 current JSON reports check reachable buttons and fitted text.
-Source scope/evidence are in the [receipt](../archive/qt-port/upstream-port-audit.md#p3-05--source-delete-lifecycle-2026-10-10);
-these probes do not establish rendered Windows pixel parity.
+Delete distinguishes moving filesystem items to Trash, explicit permanent
+deletion and removal of archive entries. The shared form shows the captured
+selection and source, consequences, and an optional disclosure of multiple names.
+No size is invented. The folder consequence excludes filesystem links according
+to the native classification. Cancel initially has focus/default; Return on it,
+Escape and close leave the source selection/list unchanged. Confirmation requires
+the explicit destructive action. Read-only sources cannot start deletion.
+
+The body wraps/scrolls while both footer actions remain reachable. EN/RU,
+normal/compact widths, disclosure, language switching, long Unicode names and a
+read-only presentation are covered by delete_confirmation; source_delete and
+archive/ADS consumers verify the actual mode and operation result. On macOS,
+Command–Backspace uses Trash and Command–Shift–Backspace explicitly deletes
+permanently; text editors retain their own key handling. One permanent command
+does not change the next ordinary command.
+
+Trash uses the common joined progress with current path and selected-object
+counts, without byte/compression details. Stop is observed between native calls;
+an individual call cannot be interrupted through the platform service. Partial
+failure/Cancel refreshes the source without undoing completed moves or falling
+back to permanent deletion. Archive/permanent deletion retains the existing
+worker, password and publication boundaries. Temporary-file Browse has its own
+lease/protection confirmation and is a separate scenario. Historical source
+evidence remains in the [receipt](../archive/qt-port/upstream-port-audit.md#p3-05--source-delete-lifecycle-2026-10-10);
+new presentation differences are recorded in the current redesign audit. These
+checks do not establish rendered Windows pixel parity.
 
 Find the affected dialog, command or plan ID with `rg -n` and read its contract
 before changing layout/text/visibility. [Commands and reports](dialogs.md#commands-and-reports)

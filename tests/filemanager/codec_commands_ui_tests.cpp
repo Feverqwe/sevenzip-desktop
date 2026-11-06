@@ -2,6 +2,7 @@
 #include "dialogs/compress/createarchivedialog.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
+#include "support/delete_reply.h"
 #include "support/progress_dialog.h"
 #include "support/widget_dialogs.h"
 #include "ui/progress/ProgressDialog2.h"
@@ -34,7 +35,10 @@ class CMessageAnswers {
         : dialogs_(dialogs), cancelQuestions_(cancelQuestions) {
         dialogs_.connectResponder(timer_, &timer_, [this] {
             auto *widget = dialogs_.activeDialog();
-            if (auto *box = qobject_cast<QMessageBox *>(widget)) {
+            if (auto *confirmation = dynamic_cast<QtDeleteConfirmation *>(widget)) {
+                CancelledQuestion |= cancelQuestions_;
+                ReplyDelete(*confirmation, !cancelQuestions_);
+            } else if (auto *box = qobject_cast<QMessageBox *>(widget)) {
                 if (box->icon() == QMessageBox::Warning || box->icon() == QMessageBox::Critical)
                     Errors.append(box->text());
                 if (box->icon() == QMessageBox::Question && box->button(QMessageBox::Yes)) {

@@ -3,13 +3,17 @@
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
 #include "localization/LangUtils.h"
+#include "platform/support/native_link_fixture.h"
+#include "platform/trash/qttrashoperation.h"
 #include "platform/trash/qttrashservice.h"
 #include "settings/RegistryUtils.h"
+#include "support/delete_reply.h"
 #include "support/panel_keys.h"
 #include "support/widget_dialogs.h"
 #include "ui/progress/ProgressDialog2.h"
 #include "ui/support/layout_inspection.h"
 #include <QScopeGuard>
+#include <QSemaphore>
 
 class SourceDeleteTests final : public QObject, protected MainWindowTestSupport {
     Q_OBJECT
@@ -93,12 +97,170 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
     static FileTable *openPanel(MainWindow &window, unsigned index, const QString &path) {
         auto *ui = window.findChild<QWidget *>(QString("filePanel%1").arg(index));
         auto *address = ui->findChild<QLineEdit *>("archivePath");
-        address->setFocus();
+        PanelKeys::focusAddress(address);
         address->setText(path);
         QTest::keyClick(address, Qt::Key_Return);
         return static_cast<FileTable *>(ui->findChild<FileTable *>("archiveTable"));
     }
   private slots:
+    void nativeMacTrashAcceptsTheWorkerThread() {
+#ifndef Q_OS_MACOS
+        QSKIP("The macOS native Trash integration is checked on its owning platform.");
+#else
+        QTemporaryDir fixture;
+        const QString path = fixture.filePath("worker trash fixture.txt");
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        QCOMPARE(file.write("fixture bytes"), qint64(13));
+        file.close();
+        class NativeTrashReceipt final : public IQtTrashService {
+          public:
+            QString moved;
+            bool MoveToTrash(const QString &source) override {
+                return QFile::moveToTrash(source, &moved);
+            }
+        } trash;
+        const auto cleanup = qScopeGuard([&] {
+            if (!trash.moved.isEmpty())
+                QFile::remove(trash.moved);
+        });
+        QTimer errors;
+        dialogs_.connectResponder(errors, &errors, [&] {
+            if (auto *box = qobject_cast<QMessageBox *>(dialogs_.activeDialog()))
+                box->accept();
+        });
+        errors.start(1);
+        UStringVector paths;
+        paths.Add(ToUString(path));
+        QCOMPARE(QtMoveItemsToTrash(paths, trash, nullptr), S_OK);
+        QVERIFY(!QFileInfo::exists(path));
+        QVERIFY(!trash.moved.isEmpty());
+        QFile moved(trash.moved);
+        QVERIFY(moved.open(QIODevice::ReadOnly));
+        QCOMPARE(moved.readAll(), QByteArray("fixture bytes"));
+        moved.close();
+        QVERIFY(QFile::remove(trash.moved));
+        trash.moved.clear();
+#endif
+    }
+    void cancelledTrashStopsBeforeTheNextItem() {
+        QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
+        QTemporaryDir fixture;
+        for (const QString &name : {QString("a.bin"), QString("b.bin")}) {
+            QFile file(fixture.filePath(name));
+            QVERIFY(file.open(QIODevice::WriteOnly));
+            QCOMPARE(file.write("protected"), qint64(9));
+        }
+        ControlledBackend backend;
+        Trash trash;
+        trash.failAfter = -1;
+        MainWindow window(&backend, {}, &trash);
+        window.show();
+        auto *view = openPanel(window, 0, fixture.path());
+        QTRY_COMPARE(view->rowCount(), 2);
+        auto &panel = *view->sourcePanel;
+        CRecordVector<UInt32> indices;
+        indices.Add(0);
+        indices.Add(1);
+        const QString first = ToQString(panel.GetItemRelPath2(indices[0]));
+        const QString second = ToQString(panel.GetItemRelPath2(indices[1]));
+        bool stopped = false;
+        QSemaphore firstMoved, resume;
+        trash.during = [&] {
+            firstMoved.release();
+            resume.acquire();
+        };
+        QTimer responder;
+        dialogs_.connectResponder(responder, &window, [&] {
+            if (auto *confirmation = dynamic_cast<QtDeleteConfirmation *>(dialogs_.activeDialog()))
+                ReplyDelete(*confirmation);
+            else if (auto *question = qobject_cast<QMessageBox *>(dialogs_.activeDialog());
+                     question && question->objectName() == "progressCancelQuestion")
+                question->button(QMessageBox::Yes)->click();
+            else if (auto *progress = dynamic_cast<CProgressDialog *>(dialogs_.activeDialog());
+                     progress && firstMoved.tryAcquire()) {
+                const auto release = qScopeGuard([&] { resume.release(); });
+                QVERIFY(!progress->findChild<QWidget *>("progressDetailsSection")->isVisible());
+                QTRY_VERIFY(progress->findChild<QLabel *>("IDT_PROGRESS_FILE_NAME")
+                                ->text()
+                                .contains(first));
+                QVERIFY(UiInspection::writeReport(*progress, "trash-progress-before-cancel"));
+                auto *cancel = progress->findChild<QPushButton *>("IDCANCEL");
+                QVERIFY(cancel);
+                stopped = true;
+                cancel->click();
+            }
+        });
+        responder.start(1);
+        CSelectedState selected;
+        QCOMPARE(panel.DeleteItems(true, trash, selected, &indices).Result, E_ABORT);
+        responder.stop();
+        QVERIFY(stopped);
+        QCOMPARE(trash.calls, 1);
+        QVERIFY(!QFileInfo::exists(fixture.filePath(first)));
+        QFile remaining(fixture.filePath(second));
+        QVERIFY(remaining.open(QIODevice::ReadOnly));
+        QCOMPARE(remaining.readAll(), QByteArray("protected"));
+        QTRY_COMPARE(view->rowCount(), 1);
+        QVERIFY(panel.ShouldProcessNotifications());
+    }
+    void folderAndLinkConsequences_data() {
+        QTest::addColumn<bool>("link");
+        QTest::newRow("folder") << false;
+        QTest::newRow("directory-link") << true;
+    }
+    void folderAndLinkConsequences() {
+        QFETCH(bool, link);
+        QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
+        QTemporaryDir fixture;
+        const QString directory = fixture.filePath("folder 空");
+        const QString alias = fixture.filePath("link 空");
+        QVERIFY(QDir().mkpath(directory));
+        QFile payload(directory + "/protected.txt");
+        QVERIFY(payload.open(QIODevice::WriteOnly));
+        QCOMPARE(payload.write("protected bytes"), qint64(15));
+        payload.close();
+        if (link)
+            QVERIFY(CreateNativeSymbolicLink(alias, directory));
+        ControlledBackend backend;
+        Trash trash;
+        MainWindow window(&backend, {}, &trash);
+        window.show();
+        auto *view = openPanel(window, 0, fixture.path());
+        const QString name = QFileInfo(link ? alias : directory).fileName();
+        const auto row = [&] {
+            for (int i = 0; i < view->rowCount(); ++i)
+                if (view->model()->index(i, 0).data().toString() == name)
+                    return i;
+            return -1;
+        };
+        QTRY_VERIFY(row() >= 0);
+        view->setCurrentCell(row(), 0);
+        view->selectRow(row());
+        view->setFocus();
+        bool seen = false;
+        QTimer responder;
+        dialogs_.connectResponder(responder, &window, [&] {
+            if (auto *confirmation =
+                    dynamic_cast<QtDeleteConfirmation *>(dialogs_.activeDialog())) {
+                seen = true;
+                QCOMPARE(confirmation->findChild<QLabel *>("deleteFolders")->isVisible(), !link);
+                ReplyDelete(*confirmation);
+            }
+        });
+        responder.start(1);
+        PanelKeys::deletePermanently(view, action(window, "deleteAction"));
+        responder.stop();
+        QVERIFY(seen);
+        QTRY_VERIFY(row() < 0);
+        QCOMPARE(trash.calls, 0);
+        if (link) {
+            QVERIFY(!QFileInfo(alias).isSymLink());
+            QVERIFY(payload.open(QIODevice::ReadOnly));
+            QCOMPARE(payload.readAll(), QByteArray("protected bytes"));
+        } else
+            QVERIFY(!QFileInfo::exists(directory));
+    }
     void trashKeepsPreparedPathsAcrossProviderReload() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
@@ -192,32 +354,32 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         CMyComPtr<IFolderFolder> folder = panel.GetFolder();
         const auto selection = view->selectionModel()->selection();
         bool observed = false;
-        bool sourceDefault = false;
+        bool cancelDefault = false;
         QString title, message;
         bool reports = true;
         QTimer refusal;
         dialogs_.connectResponder(refusal, &window, [&] {
-            auto *box = qobject_cast<QMessageBox *>(dialogs_.activeDialog());
+            auto *box = dynamic_cast<QtDeleteConfirmation *>(dialogs_.activeDialog());
             if (!box)
                 return;
             refusal.stop();
             observed = true;
-            sourceDefault = box->defaultButton() == box->button(QMessageBox::Yes);
+            cancelDefault = box->findChild<QPushButton *>("deleteCancel")->isDefault();
             title = box->windowTitle();
-            message = box->text();
+            message = box->findChild<QWidget *>("deleteSourceSummary")->accessibleName();
             for (const QSize size : {QSize(400, 200), QSize(300, 180)}) {
                 box->resize(size);
                 QApplication::processEvents();
                 reports &= UiInspection::writeReport(*box, QString("source-delete-refused-%1-%2")
                                                                .arg(QTest::currentDataTag())
                                                                .arg(size.width()));
-                for (auto *button : box->buttons())
+                for (auto *button : box->findChild<QDialogButtonBox *>("deleteButtons")->buttons())
                     reports &= UiInspection::fullyVisible(*button, *box);
             }
             QFile external(fixture.filePath("external.bin"));
             if (external.open(QIODevice::WriteOnly))
                 external.write("external bytes");
-            box->button(cancel ? QMessageBox::Cancel : QMessageBox::No)->click();
+            QTest::keyClick(box, cancel ? Qt::Key_Escape : Qt::Key_Return);
         });
         refusal.start(5);
 #ifdef Q_OS_MACOS
@@ -227,10 +389,8 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
 #endif
         refusal.stop();
         QVERIFY(observed);
-        QVERIFY(sourceDefault);
-#ifndef Q_OS_MACOS
-        QCOMPARE(title, ToQString(LangString(IDS_CONFIRM_FILE_DELETE)));
-#endif
+        QVERIFY(cancelDefault);
+        QCOMPARE(title, QCoreApplication::translate("DeleteRedesign", "Move to Trash?"));
         QVERIFY(message.contains(name));
         QVERIFY(reports);
         // Original Delete returns before RefreshListCtrl on No or Cancel.
@@ -343,32 +503,34 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         QString errorTitle;
         QTimer responder;
         dialogs_.connectResponder(responder, &window, [&] {
+            if (auto *confirmation =
+                    dynamic_cast<QtDeleteConfirmation *>(dialogs_.activeDialog())) {
+                ++confirmations;
+                QCOMPARE(confirmation->windowTitle(),
+                         QCoreApplication::translate(
+                             "DeleteRedesign", recycle ? "Move to Trash?" : "Delete permanently?"));
+                ReplyDelete(*confirmation);
+                return;
+            }
             auto *box = qobject_cast<QMessageBox *>(dialogs_.activeDialog());
             if (!box)
                 return;
-            if (auto *yes = box->button(QMessageBox::Yes)) {
-                ++confirmations;
-                yes->click();
-            } else {
-                ++errors;
-                errorTitle = box->windowTitle();
+            ++errors;
+            errorTitle = box->windowTitle();
 #ifdef Q_OS_MACOS
-                if (recycle)
-                    errorTitle = box->text();
-                else if (auto *progress = dynamic_cast<CProgressDialog *>(box->parentWidget()))
-                    errorTitle = ToQString(progress->Sync.FinalMessage.ErrorMessage.Title);
+            if (auto *progress = dynamic_cast<CProgressDialog *>(box->parentWidget()))
+                errorTitle = ToQString(progress->Sync.FinalMessage.ErrorMessage.Title);
 #endif
-                for (const QSize size : {QSize(400, 200), QSize(300, 180)}) {
-                    box->resize(size);
-                    QApplication::processEvents();
-                    reports &= UiInspection::writeReport(*box, QString("source-delete-error-%1-%2")
-                                                                   .arg(QTest::currentDataTag())
-                                                                   .arg(size.width()));
-                    for (auto *button : box->buttons())
-                        reports &= UiInspection::fullyVisible(*button, *box);
-                }
-                box->accept();
+            for (const QSize size : {QSize(400, 200), QSize(300, 180)}) {
+                box->resize(size);
+                QApplication::processEvents();
+                reports &= UiInspection::writeReport(*box, QString("source-delete-error-%1-%2")
+                                                               .arg(QTest::currentDataTag())
+                                                               .arg(size.width()));
+                for (auto *button : box->buttons())
+                    reports &= UiInspection::fullyVisible(*button, *box);
             }
+            box->accept();
         });
         responder.start(1);
         if (mode == 1 || mode == 2) {
@@ -444,9 +606,11 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         const QString removed = view->model()->index(0, 0).data(Qt::UserRole + 3).toString();
         QTimer answer;
         dialogs_.connectResponder(answer, &window, [&] {
-            if (auto *box = qobject_cast<QMessageBox *>(dialogs_.activeDialog())) {
+            if (auto *box = dynamic_cast<QtDeleteConfirmation *>(dialogs_.activeDialog())) {
                 answer.stop();
-                QTest::keyClick(box, Qt::Key_Return);
+                auto *confirm = box->findChild<QPushButton *>("deleteConfirm");
+                confirm->setFocus();
+                QTest::keyClick(confirm, Qt::Key_Return);
             }
         });
         answer.start(5);

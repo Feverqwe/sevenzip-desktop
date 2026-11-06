@@ -6,8 +6,8 @@
 
 QtSourceSummary::QtSourceSummary(const QIcon &icon, const QString &name, const QString &path,
                                  QWidget *parent)
-    : QWidget(parent), name_(new QLabel(name, this)), path_(new QtWrappingLabel(path, this)),
-      detail_(new QtWrappingLabel(this)) {
+    : QWidget(parent), name_(new QtWrappingLabel(name, this)),
+      path_(new QtWrappingLabel(path, this)), detail_(new QtWrappingLabel(this)) {
     auto *row = new QHBoxLayout(this);
     row->setContentsMargins(12, 10, 12, 10);
     row->setSpacing(12);

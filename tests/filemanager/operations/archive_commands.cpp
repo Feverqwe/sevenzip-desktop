@@ -1,3 +1,4 @@
+#include "support/delete_reply.h"
 #include "window_operations.h"
 
 void MainWindowOperationsTests::stage7ArchiveCommandStates() {
@@ -87,15 +88,15 @@ void MainWindowOperationsTests::stage7ArchiveMutations() {
     table(window)->selectRow(archiveRow(QStringLiteral("новое имя.txt")));
     QTimer::singleShot(0, &window, [] {
         for (QWidget *widget : QApplication::topLevelWidgets())
-            if (auto *box = qobject_cast<QMessageBox *>(widget); box && box->isVisible())
-                box->button(QMessageBox::No)->click();
+            if (auto *box = dynamic_cast<QtDeleteConfirmation *>(widget); box && box->isVisible())
+                ReplyDelete(*box, false);
     });
     action(window, "deleteAction")->trigger();
     QVERIFY(archiveRow(QStringLiteral("новое имя.txt")) >= 0);
     QTimer::singleShot(0, &window, [] {
         for (QWidget *widget : QApplication::topLevelWidgets())
-            if (auto *box = qobject_cast<QMessageBox *>(widget); box && box->isVisible())
-                box->button(QMessageBox::Yes)->click();
+            if (auto *box = dynamic_cast<QtDeleteConfirmation *>(widget); box && box->isVisible())
+                ReplyDelete(*box);
     });
     action(window, "deleteAction")->trigger();
     QTRY_VERIFY(archiveRow(QStringLiteral("новое имя.txt")) < 0);
@@ -159,8 +160,8 @@ void MainWindowOperationsTests::encryptedArchiveMutationReusesSourcePassword() {
     table(window)->selectRow(archiveRow(QStringLiteral("новый секрет.txt")));
     QTimer::singleShot(0, &window, [] {
         for (QWidget *widget : QApplication::topLevelWidgets())
-            if (auto *box = qobject_cast<QMessageBox *>(widget); box && box->isVisible())
-                box->button(QMessageBox::Yes)->click();
+            if (auto *box = dynamic_cast<QtDeleteConfirmation *>(widget); box && box->isVisible())
+                ReplyDelete(*box);
     });
     action(window, "deleteAction")->trigger();
     QTRY_VERIFY(archiveRow(QStringLiteral("новый секрет.txt")) < 0);

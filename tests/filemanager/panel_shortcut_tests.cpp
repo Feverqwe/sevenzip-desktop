@@ -205,7 +205,10 @@ class PanelShortcutTests final : public QObject, protected MainWindowTestSupport
         QTest::keySequence(path, QKeySequence::Undo);
         QCOMPARE(path->text(), QStringLiteral("draft"));
         QSignalSpy copy(action(window, "copyAction"), &QAction::triggered);
+        QSignalSpy deleted(action(window, "deleteAction"), &QAction::triggered);
         PanelKeys::command(path, Qt::Key_C, Qt::ControlModifier | Qt::ShiftModifier);
+        PanelKeys::command(path, Qt::Key_Backspace, Qt::ControlModifier | Qt::ShiftModifier);
+        QCOMPARE(deleted.size(), 0);
         QCOMPARE(copy.size(), 0);
         path->setText(fixture.path());
         table->setFocus();
@@ -223,6 +226,8 @@ class PanelShortcutTests final : public QObject, protected MainWindowTestSupport
         QCOMPARE(editor->text(), QStringLiteral("draft"));
         PanelKeys::command(editor, Qt::Key_C, Qt::ControlModifier | Qt::ShiftModifier);
         PanelKeys::command(editor, Qt::Key_A, Qt::ControlModifier | Qt::ShiftModifier);
+        PanelKeys::command(editor, Qt::Key_Backspace, Qt::ControlModifier | Qt::ShiftModifier);
+        QCOMPARE(deleted.size(), 0);
         QCOMPARE(copy.size(), 0);
         QTest::keyClick(editor, Qt::Key_Escape);
         rejectUnexpected.stop();

@@ -10,16 +10,21 @@
 
 #include "Windows/ErrorMsg.h"
 #include "dialogs/combo/ComboDialog.h"
+#include "dialogs/delete/qtdeleteconfirmation.h"
 #include "filemanager/FormatUtils.h"
 #include "filemanager/panels/Panel.h"
 #include "filemanager/panels/PanelFolderOperations.h"
 #include "filemanager/providers/qtfolderpropertycapabilities.h"
+#include "fileops/links/qtlinkservices.h"
 #include "localization/LangUtils.h"
+#include "platform/trash/qttrashoperation.h"
 #include "platform/trash/qttrashservice.h"
 #include "ui/diagnostics/qtdiagnostictext.h"
 
+#include <QFileIconProvider>
 #include <QFileInfo>
 #include <QMessageBox>
+#include <utility>
 
 static const UInt32 kParentIndex = (UInt32)-1;
 
@@ -88,43 +93,28 @@ void CPanel::ChangeComment() {
     RefreshListCtrl(state);
 }
 
-static bool ConfirmDeleteItems(const CPanel &panel, const CRecordVector<UInt32> &indices) {
-    UInt32 titleID, messageID;
-    UString messageParam;
+static bool ConfirmDeleteItems(const CPanel &panel, const CRecordVector<UInt32> &indices,
+                               bool recycle) {
+    QtDeleteConfirmation::Request request;
+    request.mode = recycle               ? QtDeleteConfirmation::Mode::Trash
+                   : panel.IsArcFolder() ? QtDeleteConfirmation::Mode::Archive
+                                         : QtDeleteConfirmation::Mode::Permanent;
+    request.location = ToQString(panel.GetCurrentFolderPrefix());
     if (indices.Size() == 1) {
-        const unsigned index = indices[0];
-        messageParam = panel.GetItemRelPath2(index);
-        if (panel.IsItem_Folder(index)) {
-            titleID = IDS_CONFIRM_FOLDER_DELETE;
-            messageID = IDS_WANT_TO_DELETE_FOLDER;
-        } else {
-            titleID = IDS_CONFIRM_FILE_DELETE;
-            messageID = IDS_WANT_TO_DELETE_FILE;
-        }
-    } else {
-        titleID = IDS_CONFIRM_ITEMS_DELETE;
-        messageID = IDS_WANT_TO_DELETE_ITEMS;
+        QFileIconProvider icons;
+        request.icon = panel.IsFSFolder()
+                           ? icons.icon(QFileInfo(ToQString(panel.GetItemFullPath(indices[0]))))
+                           : icons.icon(panel.IsItem_Folder(indices[0]) ? QFileIconProvider::Folder
+                                                                        : QFileIconProvider::File);
     }
-    // The source shell branch presents the platform confirmation itself. Qt's
-    // native trash API does not, so use the same source prompt for both modes.
-    const QString title = ToQString(LangString(titleID));
-    const QString message =
-        ToQString(indices.Size() == 1 ? MyFormatNew(messageID, messageParam)
-                                      : MyFormatNew(messageID, UInt64(indices.Size())));
-    return QMessageBox::question(panel.GetParent(), title, message,
-                                 QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel,
-                                 QMessageBox::Yes) == QMessageBox::Yes;
-}
-
-static HRESULT MoveItemsToTrash(const UStringVector &paths, IQtTrashService &trash) {
-    FOR_VECTOR(i, paths) {
-        const QString path = ToQString(paths[i]);
-        if (QFileInfo(path).isSymLink())
-            return E_NOTIMPL;
-        if (!trash.MoveToTrash(path))
-            return E_FAIL;
+    FOR_VECTOR(i, indices) {
+        request.names.append(ToQString(panel.GetItemRelPath2(indices[i])));
+        const bool filesystemLink =
+            panel.IsFSFolder() && QtIsFileSystemLink(ToQString(panel.GetItemFullPath(indices[i])));
+        request.includesFolders |= panel.IsItem_Folder(indices[i]) && !filesystemLink;
     }
-    return S_OK;
+    QtDeleteConfirmation dialog(std::move(request), panel.GetParent());
+    return dialog.exec() == QDialog::Accepted;
 }
 
 QtArchiveUpdateResult CPanel::DeleteItems(bool toRecycleBin, IQtTrashService &trash,
@@ -146,17 +136,15 @@ QtArchiveUpdateResult CPanel::DeleteItems(bool toRecycleBin, IQtTrashService &tr
     UStringVector recyclePaths;
     if (recycle)
         GetFilePaths(indices, recyclePaths);
-    if (confirm && !ConfirmDeleteItems(*this, indices))
+    if (confirm && !ConfirmDeleteItems(*this, indices, recycle))
         return {E_ABORT, false};
 
     CDisableNotify disableNotify(*this);
     QtArchiveUpdateResult result{E_FAIL, std::nullopt};
     if (recycle) {
-        result.Result = MoveItemsToTrash(recyclePaths, trash);
-        // QFile's native trash boundary has no shell error UI. Preserve the
-        // source shell branch's refresh after a partial result.
-        if (result.Result != S_OK)
-            MessageBox_Error_HRESULT_Caption(result.Result, LangString(IDS_ERROR_DELETING));
+        result.Result = QtMoveItemsToTrash(recyclePaths, trash, GetParent());
+        // The joined Trash operation owns progress/errors. Preserve the source
+        // shell branch's refresh after a partial result or cancellation.
     } else {
         CThreadFolderOperations op(FOLDER_TYPE_DELETE);
         op.FolderOperations = _folderOperations;

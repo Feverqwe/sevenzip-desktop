@@ -1,3 +1,4 @@
+#include "support/delete_reply.h"
 #include "window_operations.h"
 #include <QLineEdit>
 
@@ -205,9 +206,9 @@ void MainWindowOperationsTests::archivePanelsCopyAndMoveThroughStaging() {
     QTimer answerDelete;
     connect(&answerDelete, &QTimer::timeout, &window, [&] {
         for (QWidget *widget : QApplication::topLevelWidgets())
-            if (auto *box = qobject_cast<QMessageBox *>(widget); box && box->isVisible())
-                if (auto *answer = box->button(approveDelete ? QMessageBox::Yes : QMessageBox::No))
-                    answer->click();
+            if (auto *confirmation = dynamic_cast<QtDeleteConfirmation *>(widget);
+                confirmation && confirmation->isVisible())
+                ReplyDelete(*confirmation, approveDelete);
     });
     answerDelete.start(1);
     QTimer::singleShot(0, &window, [&] {

@@ -181,6 +181,12 @@
     set_tests_properties(copy_dialog PROPERTIES ENVIRONMENT
         "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/copy-dialog-settings.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports" TIMEOUT 30)
     qt_add_executable(copy_destination_tests tests/filemanager/copy_destination_tests.cpp)
+    qt_add_executable(delete_confirmation_tests tests/ui/delete_confirmation_tests.cpp)
+    target_link_libraries(delete_confirmation_tests PRIVATE sevenzip_panel sevenzip_layout_inspection Qt6::Test)
+    target_include_directories(delete_confirmation_tests PRIVATE src tests)
+    add_test(NAME delete_confirmation COMMAND delete_confirmation_tests -silent)
+    set_tests_properties(delete_confirmation PROPERTIES TIMEOUT 30 RESOURCE_LOCK sevenzip_ui_artifacts
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
     target_link_libraries(copy_destination_tests PRIVATE Qt6::Widgets Qt6::Test sevenzip_panel sevenzip_layout_inspection)
     target_include_directories(copy_destination_tests PRIVATE src tests)
     add_test(NAME copy_destination COMMAND copy_destination_tests -silent)

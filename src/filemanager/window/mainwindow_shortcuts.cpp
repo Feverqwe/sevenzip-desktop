@@ -37,7 +37,8 @@ void MainWindow::configureShortcuts() {
     bindPanel(openItem_, {QKeySequence(Qt::CTRL | Qt::Key_Down)});
     bindPanel(rename_, {QKeySequence(Qt::Key_Return), QKeySequence(Qt::Key_Enter),
                         QKeySequence(Qt::Key_F2)});
-    bindPanel(remove_, {QKeySequence(Qt::CTRL | Qt::Key_Backspace)});
+    bindPanel(remove_, {QKeySequence(Qt::CTRL | Qt::Key_Backspace),
+                        QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_Backspace)});
     bindPanel(properties_, {QKeySequence(Qt::CTRL | Qt::Key_I)});
     bindPanel(up_, {QKeySequence(Qt::CTRL | Qt::Key_Up)});
     bindPanel(back_, {QKeySequence(Qt::CTRL | Qt::Key_BracketLeft)});
@@ -151,8 +152,7 @@ bool MainWindow::reservedPanelKey(const QKeyEvent &key) const {
                                      QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_Z)}))
         return true;
 #ifdef Q_OS_MACOS
-    if (key.key() == Qt::Key_Delete ||
-        QtPanelShortcutMatches(key, {QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_Backspace)}))
+    if (key.key() == Qt::Key_Delete)
         return true;
 #endif
     return false;

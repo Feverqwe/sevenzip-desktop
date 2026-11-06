@@ -6,6 +6,7 @@
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
 #include "localization/LangUtils.h"
+#include "support/delete_reply.h"
 #include "ui/progress/ProgressDialog2.h"
 #include "ui/support/layout_inspection.h"
 
@@ -168,19 +169,14 @@ class InterarchiveRefreshTests final : public QObject, protected MainWindowTestS
             if (auto *dialog = dynamic_cast<CopyDialog *>(modal); dialog && !submitted) {
                 submitted = true;
                 dialog->accept();
+            } else if (auto *box = dynamic_cast<QtDeleteConfirmation *>(modal)) {
+                deleteConfirmed = true;
+                destinationCommitted =
+                    SourceExtractFixture::readFile(targetArchive) != targetBefore;
+                ReplyDelete(*box, route != "delete-no" && route != "delete-refuse");
             } else if (auto *box = qobject_cast<QMessageBox *>(modal)) {
-                if (box->button(QMessageBox::Yes)) {
-                    deleteConfirmed = true;
-                    destinationCommitted =
-                        SourceExtractFixture::readFile(targetArchive) != targetBefore;
-                    const auto answer = route == "delete-no"       ? QMessageBox::No
-                                        : route == "delete-refuse" ? QMessageBox::Cancel
-                                                                   : QMessageBox::Yes;
-                    box->button(answer)->click();
-                } else {
-                    errors << box->text();
-                    box->accept();
-                }
+                errors << box->text();
+                box->accept();
             } else if (auto *progress = dynamic_cast<CProgressDialog *>(modal)) {
                 auto *close = progress->findChild<QPushButton *>("IDCANCEL");
                 if (close && close->text() == ToQString(LangString(IDS_CLOSE)))

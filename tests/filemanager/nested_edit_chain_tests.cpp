@@ -8,6 +8,7 @@
 #include "platform/support/external_editor_fixture.h"
 #include "platform/support/native_property_failure_runtime.h"
 #include "platform/temp/qtownedtempregistry.h"
+#include "support/delete_reply.h"
 #include "support/widget_dialogs.h"
 #include "ui/progress/ProgressDialog2.h"
 #include "ui/support/layout_inspection.h"
@@ -424,6 +425,11 @@ class NestedEditChainTests final : public QObject, protected MainWindowTestSuppo
         bool unexpectedError = false, parentPrompt = false;
         QTimer responder;
         widgetDialogs_.connectResponder(responder, this, [&] {
+            if (auto *confirmation =
+                    dynamic_cast<QtDeleteConfirmation *>(widgetDialogs_.activeDialog())) {
+                ReplyDelete(*confirmation);
+                return;
+            }
             if (auto *box = qobject_cast<QMessageBox *>(widgetDialogs_.activeDialog())) {
                 unexpectedError |=
                     box->icon() == QMessageBox::Critical || box->icon() == QMessageBox::Warning;

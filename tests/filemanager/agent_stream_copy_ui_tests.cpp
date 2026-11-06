@@ -5,6 +5,7 @@
 #include "filemanager/views/filetable.h"
 #include "filemanager/window/qtnavigationbar.h"
 #include "localization/LangUtils.h"
+#include "support/delete_reply.h"
 #include "ui/support/layout_inspection.h"
 #include <QScopeGuard>
 #include <QScrollArea>
@@ -67,14 +68,14 @@ class AgentStreamCopyUiTests final : public QObject, protected MainWindowTestSup
         QStringList errors;
         QTimer driver;
         connect(&driver, &QTimer::timeout, &window, [&] {
+            if (auto *confirmation =
+                    dynamic_cast<QtDeleteConfirmation *>(QApplication::activeModalWidget())) {
+                if (deleteConfirmed)
+                    *deleteConfirmed = true;
+                ReplyDelete(*confirmation, deleteAnswer == QMessageBox::Yes);
+                return;
+            }
             if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
-                if (move && !cancel && box->button(QMessageBox::Yes)) {
-                    if (deleteConfirmed)
-                        *deleteConfirmed = true;
-                    QVERIFY(box->button(deleteAnswer));
-                    box->button(deleteAnswer)->click();
-                    return;
-                }
                 errors << box->text();
                 box->accept();
                 return;

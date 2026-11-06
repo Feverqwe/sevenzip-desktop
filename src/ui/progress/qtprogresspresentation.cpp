@@ -132,6 +132,7 @@ void CQtProgressDialog::BuildPresentation() {
     stats->setColumnStretch(1, 1);
     addRows(*stats, kDetailRows);
     auto *details = new QtDisclosure(detailsBody, body);
+    _byteStatistics = details;
     details->setObjectName("progressDetailsSection");
     details->button()->setObjectName("progressDetailsToggle");
     QtBindLocalText(details->button(), "DialogRedesign",

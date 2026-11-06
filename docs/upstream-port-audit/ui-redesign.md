@@ -3215,3 +3215,104 @@ scroll positions; other gallery producers retain their own dated evidence and
 any existing failures. Resolved intermediate layout JSON and the one-off native
 driver were removed; current review artifacts, small failure logs, incremental
 outputs and compiler caches were retained. No full, slow or cold-build gate ran.
+
+## Delete confirmation and native Trash progress — 2026-11-06
+
+Compared complete original CPanel::DeleteItems, its shell recycle branch,
+confirmation, selected-index handling, worker and refresh ordering in pinned
+7-Zip PanelOperations.cpp with the current owner and all production callers.
+Also reviewed CheckBeforeUpdate, FSFolder deletion/link classification, the
+interarchive Move confirmation/rollback and archive-to-filesystem confirm=false
+consumer. Original resources, CThreadFolderOperations and CProgressThreadVirt /
+CProgressSync bodies remain at the existing baseline revision
+`0766b733fe3e06dd2a7f9a3cfbf2108ac73abd17`. No new external source is imported;
+the new Qt confirmation and Trash adapter are local integration owners.
+
+The agreed confirmation replaces Yes/No/Cancel with a named destructive action
+and initial/default Cancel. Captured names, source and consequences use the
+shared dialog surface, SourceSummary and disclosure; the destructive action
+stays outside scrolling. Filesystem Trash, explicit permanent deletion and
+archive deletion have distinct captions. Physical ADS are permanent deletion,
+not archive mutation. Folder consequences exclude filesystem links using the
+native classification. Read-only/update guards, captured indices, native worker,
+password and publication paths remain with their owners. Temporary Browse's
+lease/protection confirmation is a separate scenario and was not replaced.
+
+The macOS permanent-delete chord was still reserved and swallowed. It now uses
+the existing Delete action with Shift, while editors keep their own key input.
+Its test helper now sends the actual Command–Shift–Backspace chord instead of a
+Shift-click on the toolbar. Ordinary deletion does not remember that choice.
+
+Source comparison exposed another gap: the Qt Trash loop ran synchronously on
+the GUI thread without the agreed common progress. A narrow joined operation
+now owns that existing loop and the captured paths/service, with no panel access
+from its worker. CProgressSync reports current path and selected-object counts.
+Byte/compression details are hidden through the presentation owner; sizes and
+recursive totals are not invented. Windows initializes COM;
+[Qt's macOS Trash implementation](https://github.com/qt/qtbase/blob/6.12/src/corelib/io/qfilesystemengine_mac.mm)
+supplies its autorelease pool. No Qt implementation is copied. Native service policy is retained,
+including the existing link refusal and no permanent-delete fallback.
+Stop is checked between native calls; the service cannot interrupt an individual
+call. Common messages report failure and the affected path once. The source is
+refreshed after failure or Cancel, preserving already completed moves.
+
+The consumer audit migrated Delete responders across filesystem, archive, nested
+archive, stream and interarchive suites, retaining rollback fault injection
+before refusal. Runtime checks exposed obsolete fixture assumptions: direct
+input into a hidden LocationBar editor and assertions that it must remain
+visible. They now use the public editing interaction and visible navigation
+surface. The archive ADS fixture also required the old Flat View action that
+the agreed main-window menu explicitly removed. That obsolete prerequisite was
+removed; actual archive rows, payloads, rename/delete/cancel and protected base
+bytes remain checked. The source flat-view algorithm was not removed or changed.
+
+Linux's integrated 13-suite batch passed. After adding native folder/link and
+production-mode checks, source_delete, interarchive_move_publication and
+panel_shortcut passed again. The subsequent Trash change passed ui_operations;
+its first cancellation fixture exposed a readiness race, then passed after a
+semaphore barrier let the real progress become ready before Cancel/Yes. It
+requires E_ABORT, exactly one completed move, preserved second-file bytes and
+source refresh. The final source_delete/progress_dialog batch passed with the
+byte-details boundary; the macOS-only native Trash probe is explicitly skipped
+on Linux. These results are focused checks, not full-catalog acceptance.
+
+Actual Cocoa confirmation, SourceDelete, panel shortcuts and interarchive Move
+passed after the LocationBar fixture correction. The final changed source_delete
+and progress_dialog runs passed 37 and 31 checks without skips. This includes a
+native macOS QFile Trash call from the joined worker, a receipt read-back and
+cleanup of exactly that disposable file's returned Trash path. It does not
+establish Windows native Trash-service success. Windows compiled the COM branch
+and passed source_delete with its controlled service, physical ADS deletion and
+the native ADS Copy consumer. The final archive ADS rerun passed after removing
+the obsolete Flat View prerequisite and checking the visible navigation surface;
+its archive/base-file payload and refusal checks remain intact. Earlier failed
+receipts are retained separately from this final evidence.
+
+The rendered Cocoa review exposed defects that geometry checks alone had not
+detected: an unbroken path component was clipped by QLabel's word wrapping,
+the destructive button role placed Delete before Cancel, and fitting the hidden
+scroll viewport produced excess initial height. Delete now fits its first shown
+viewport and uses the native acceptance position while Cancel retains initial
+focus/default. SourceSummary uses the selected object's icon and wraps its name
+as well as its path. The shared wrapping label uses Qt's text-document layout
+for explicit, nonselectable plain text, with word-boundary-or-anywhere wrapping;
+measurement and painting share content margins, text direction, font and widget
+DPI. Rich text, selectable text, buddies and framed/indented labels retain QLabel
+behavior. Raw names, paths and accessible values are preserved.
+
+The final Linux six-suite batch passed Delete, SourceDelete, Copy, Overwrite,
+dialog surface and Recent Places. The same six suites passed in actual Cocoa,
+including the new native button-order, unbroken-path wrapping and natural-height
+checks. These checks cover the changed shared consumers; they do not establish
+whole-catalog or rendered Windows acceptance.
+
+The review application was rebuilt and the five affected Cocoa producers were
+refreshed in both themes: 26 Delete, one controlled Trash-progress, 12 Copy,
+24 Overwrite and 11 Recent Places states per theme. All selected producers
+completed without errors. Inspected renders show the unbroken path wrapping,
+Cancel before the named action, the short read-only form and reachable compact
+actions. Other gallery producers retain their own evidence and failures.
+The common progress view still has the old time/count statistics and Cancel
+presentation; its separately agreed simplified operation-progress design remains
+an open implementation scope, including the Trash consumer. This iteration
+connects Trash to its existing joined owner, not a new independent task lifetime.

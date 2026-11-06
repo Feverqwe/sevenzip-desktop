@@ -6,6 +6,8 @@
 #include "localization/LangUtils.h"
 #include "platform/support/native_property_failure_runtime.h"
 #include "settings/RegistryUtils.h"
+#include "support/delete_reply.h"
+#include "support/panel_keys.h"
 #include "support/widget_dialogs.h"
 #include "ui/progress/ProgressDialog2.h"
 #include "ui/support/layout_inspection.h"
@@ -71,7 +73,7 @@ class InterarchiveMovePublicationTests final : public QObject, protected MainWin
             auto *ui = window.findChild<QWidget *>(QString("filePanel%1").arg(i));
             views[i] = ui->findChild<FileTable *>("archiveTable");
             auto *address = ui->findChild<QLineEdit *>("archivePath");
-            address->setFocus();
+            PanelKeys::focusAddress(address);
             address->setText(i == 0 ? source : target);
             QTest::keyClick(address, Qt::Key_Return);
             QTRY_COMPARE(views[i]->rowCount(), i == 0 ? 2 : 1);
@@ -104,31 +106,31 @@ class InterarchiveMovePublicationTests final : public QObject, protected MainWin
                 QCOMPARE(QDir::cleanPath(copy->destination()),
                          QDir::cleanPath(ToQString(views[1]->sourcePanel->GetFsPath())));
                 copy->accept();
+            } else if (auto *confirmation = dynamic_cast<QtDeleteConfirmation *>(modal)) {
+                QCOMPARE(confirmation->windowTitle(),
+                         QCoreApplication::translate("DeleteRedesign", "Delete from archive?"));
+                confirmed = true;
+                if (failure == 2)
+                    QVERIFY(runtime.arm(UInt32(-1), E_FAIL, 1));
+                if (failure == 3)
+                    QVERIFY(runtime.armWriter(E_FAIL, false));
+                ReplyDelete(*confirmation, failure != 1);
             } else if (auto *box = qobject_cast<QMessageBox *>(modal)) {
                 const auto dismiss = qScopeGuard([&] {
                     if (box->isVisible())
                         box->reject();
                 });
-                if (box->button(QMessageBox::Yes)) {
-                    confirmed = true;
-                    if (failure == 2)
-                        QVERIFY(runtime.arm(UInt32(-1), E_FAIL, 1));
-                    if (failure == 3)
-                        QVERIFY(runtime.armWriter(E_FAIL, false));
-                    box->button(failure == 1 ? QMessageBox::Cancel : QMessageBox::Yes)->click();
-                } else {
-                    errors << box->text();
-                    for (const QSize size : {QSize(440, 220), QSize(340, 220)}) {
-                        box->resize(size);
-                        QApplication::processEvents();
-                        auto *label = box->findChild<QLabel *>("qt_msgbox_label");
-                        auto *ok = box->button(QMessageBox::Ok);
-                        QVERIFY(label && ok);
-                        QVERIFY(UiInspection::fullyVisible(*label, *box));
-                        QVERIFY(UiInspection::fullyVisible(*ok, *box));
-                    }
-                    box->accept();
+                errors << box->text();
+                for (const QSize size : {QSize(440, 220), QSize(340, 220)}) {
+                    box->resize(size);
+                    QApplication::processEvents();
+                    auto *label = box->findChild<QLabel *>("qt_msgbox_label");
+                    auto *ok = box->button(QMessageBox::Ok);
+                    QVERIFY(label && ok);
+                    QVERIFY(UiInspection::fullyVisible(*label, *box));
+                    QVERIFY(UiInspection::fullyVisible(*ok, *box));
                 }
+                box->accept();
             } else if (auto *progress = dynamic_cast<CProgressDialog *>(modal)) {
                 auto *close = progress->findChild<QPushButton *>("IDCANCEL");
                 if (close && close->text() == ToQString(LangString(IDS_CLOSE)))

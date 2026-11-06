@@ -8,6 +8,7 @@
 #include "filemanager/views/filetable.h"
 #include "localization/LangUtils.h"
 #include "platform/support/native_property_failure_runtime.h"
+#include "support/delete_reply.h"
 #include "support/signal_wait_support.h"
 #include "ui/progress/ProgressDialog2.h"
 #include "ui/support/layout_inspection.h"
@@ -219,27 +220,25 @@ class InterarchiveRecoveryTests final : public QObject, protected MainWindowTest
             if (auto *dialog = dynamic_cast<CopyDialog *>(modal); dialog && !submitted) {
                 submitted = true;
                 dialog->accept();
-            } else if (auto *box = qobject_cast<QMessageBox *>(modal)) {
-                if (box->button(QMessageBox::Yes)) {
-                    refused = true;
-                    committed = SourceExtractFixture::readFile(targetArchive) != targetBefore;
-                    if (restoreFailure) {
-                        // Quiesce this private native fixture before replacing
-                        // its read-shared Windows file with a sentinel directory.
-                        auto *folder = dynamic_cast<CAgentFolder *>(destination.GetFolder());
-                        const bool released = folder && folder->CloseArchive() == S_OK;
-                        replaced = released && QFile::remove(targetArchive) &&
-                                   QDir().mkdir(targetArchive) &&
-                                   SourceExtractFixture::writeFile(sentinel, QByteArray("keep"));
-                    } else {
-                        QVERIFY(runtime_.arm(0, route.endsWith("reopen-cancel") ? E_ABORT : E_FAIL,
-                                             2, kpidPath));
-                    }
-                    box->button(QMessageBox::No)->click();
+            } else if (auto *box = dynamic_cast<QtDeleteConfirmation *>(modal)) {
+                refused = true;
+                committed = SourceExtractFixture::readFile(targetArchive) != targetBefore;
+                if (restoreFailure) {
+                    // Quiesce this private native fixture before replacing
+                    // its read-shared Windows file with a sentinel directory.
+                    auto *folder = dynamic_cast<CAgentFolder *>(destination.GetFolder());
+                    const bool released = folder && folder->CloseArchive() == S_OK;
+                    replaced = released && QFile::remove(targetArchive) &&
+                               QDir().mkdir(targetArchive) &&
+                               SourceExtractFixture::writeFile(sentinel, QByteArray("keep"));
                 } else {
-                    errors << box->text();
-                    box->accept();
+                    QVERIFY(runtime_.arm(0, route.endsWith("reopen-cancel") ? E_ABORT : E_FAIL, 2,
+                                         kpidPath));
                 }
+                ReplyDelete(*box, false);
+            } else if (auto *box = qobject_cast<QMessageBox *>(modal)) {
+                errors << box->text();
+                box->accept();
             } else if (auto *progress = dynamic_cast<CProgressDialog *>(modal)) {
                 auto *close = progress->findChild<QPushButton *>("IDCANCEL");
                 if (close && close->text() == ToQString(LangString(IDS_CLOSE)))

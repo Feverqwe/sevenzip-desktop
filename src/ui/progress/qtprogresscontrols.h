@@ -29,10 +29,12 @@ class CQtProgressDialog : public QDialog {
     QHash<unsigned, QWidget *> _controls;
     QElapsedTimer _clock;
     double _unitX;
+    QWidget *_byteStatistics = nullptr;
     void AddControl(unsigned id, const char *name, QWidget *widget);
     void BuildPresentation();
 
   protected:
+    void ShowByteStatistics(bool visible);
     QWidget *GetItem(unsigned id) const;
     void SetItemText(unsigned id, const UString &text);
     void GetItemText(unsigned id, UString &text) const;

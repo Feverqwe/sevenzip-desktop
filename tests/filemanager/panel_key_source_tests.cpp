@@ -3,6 +3,7 @@
 #include "localization/LangUtils.h"
 #include "localization/qtlangcontrols.h"
 #include "settings/RegistryUtils.h"
+#include "support/delete_reply.h"
 #include "support/panel_keys.h"
 #include "support/widget_dialogs.h"
 #include "support/window_activation.h"
@@ -500,10 +501,10 @@ class PanelKeySourceTests final : public QObject, protected MainWindowTestSuppor
             QTimer timer;
             dialogs_.connectResponder(timer, &window, [&] {
                 for (QWidget *widget : QApplication::topLevelWidgets())
-                    if (auto *box = qobject_cast<QMessageBox *>(widget);
-                        box && dialogs_.ready(*box) && box->button(QMessageBox::No)) {
+                    if (auto *box = dynamic_cast<QtDeleteConfirmation *>(widget);
+                        box && dialogs_.ready(*box)) {
                         ++confirmations;
-                        box->button(QMessageBox::No)->click();
+                        ReplyDelete(*box, false);
                     }
             });
             timer.start(1);

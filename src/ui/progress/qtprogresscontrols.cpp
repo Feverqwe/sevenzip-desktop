@@ -118,6 +118,7 @@ void CQtProgressDialog::ShowItem_Bool(unsigned id, bool visible) {
     GetItem(id)->setVisible(visible);
 }
 void CQtProgressDialog::HideItem(unsigned id) { ShowItem_Bool(id, false); }
+void CQtProgressDialog::ShowByteStatistics(bool visible) { _byteStatistics->setVisible(visible); }
 void CQtProgressDialog::GetItemSizes(unsigned id, int &width, int &height) const {
     width = GetItem(id)->width();
     height = GetItem(id)->height();

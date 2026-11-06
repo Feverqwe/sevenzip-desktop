@@ -1,3 +1,4 @@
+#include "support/delete_reply.h"
 #include "window_operations.h"
 #include <QLineEdit>
 
@@ -84,14 +85,17 @@ void MainWindowOperationsTests::deleteRoutesTrashAndShiftPermanent() {
     QTimer dialogTimer;
     connect(&dialogTimer, &QTimer::timeout, &window, [&] {
         for (QWidget *widget : QApplication::topLevelWidgets()) {
+            if (auto *confirmationDialog = dynamic_cast<QtDeleteConfirmation *>(widget);
+                confirmationDialog && confirmationDialog->isVisible()) {
+                confirmation = confirmationDialog->findChild<QWidget *>("deleteSourceSummary")
+                                   ->accessibleName();
+                ReplyDelete(*confirmationDialog, approve);
+                continue;
+            }
             auto *box = qobject_cast<QMessageBox *>(widget);
             if (!box || !box->isVisible())
                 continue;
-            if (box->button(QMessageBox::Yes)) {
-                confirmation = box->text();
-                box->button(approve ? QMessageBox::Yes : QMessageBox::No)->click();
-            } else
-                box->accept();
+            box->accept();
         }
     });
 
@@ -410,8 +414,9 @@ void MainWindowOperationsTests::stage7FilesystemCommands() {
                           temp.filePath("forged-delete.txt"), Qt::EditRole));
     QTimer::singleShot(0, &window, [] {
         for (QWidget *widget : QApplication::topLevelWidgets()) {
-            if (auto *box = qobject_cast<QMessageBox *>(widget); box && box->isVisible())
-                box->button(QMessageBox::No)->click();
+            if (auto *confirmationDialog = dynamic_cast<QtDeleteConfirmation *>(widget);
+                confirmationDialog && confirmationDialog->isVisible())
+                ReplyDelete(*confirmationDialog, false);
         }
     });
     action(window, "deleteAction")->trigger();
@@ -419,11 +424,13 @@ void MainWindowOperationsTests::stage7FilesystemCommands() {
     QTimer deleteDialogTimer;
     connect(&deleteDialogTimer, &QTimer::timeout, &window, [] {
         for (QWidget *widget : QApplication::topLevelWidgets()) {
+            if (auto *confirmationDialog = dynamic_cast<QtDeleteConfirmation *>(widget);
+                confirmationDialog && confirmationDialog->isVisible()) {
+                ReplyDelete(*confirmationDialog);
+                continue;
+            }
             if (auto *box = qobject_cast<QMessageBox *>(widget); box && box->isVisible()) {
-                if (auto *yes = box->button(QMessageBox::Yes))
-                    yes->click();
-                else
-                    box->accept();
+                box->accept();
             }
         }
     });

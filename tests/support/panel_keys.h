@@ -37,26 +37,10 @@ inline void openSelection(QWidget *view) {
 }
 
 inline void deletePermanently(QWidget *view, QAction *command) {
-#ifdef Q_OS_MACOS
-    // The redesign intentionally reserves Command-Shift-Backspace. The source
-    // Shift/menu action still provides explicit deletion without the recycle bin.
-    QToolBar *toolbar = nullptr;
-    for (auto *owner = view->parentWidget(); owner && !toolbar; owner = owner->parentWidget())
-        for (auto *candidate : owner->findChildren<QToolBar *>())
-            if (candidate->isVisible() && candidate->objectName().startsWith("panelFileActions")) {
-                toolbar = candidate;
-                break;
-            }
-    QVERIFY(toolbar);
-    QWidget *button = nullptr;
-    for (auto *proxy : toolbar->actions())
-        if (proxy->property("sourceAction").value<QAction *>() == command)
-            button = toolbar->widgetForAction(proxy);
-    QVERIFY(button);
-    QTest::mouseClick(button, Qt::LeftButton, Qt::ShiftModifier);
-    QTest::keyRelease(view, Qt::Key_Shift);
-#else
     Q_UNUSED(command);
+#ifdef Q_OS_MACOS
+    PanelKeys::command(view, Qt::Key_Backspace, Qt::ControlModifier | Qt::ShiftModifier);
+#else
     QTest::keyClick(view, Qt::Key_Delete, Qt::ShiftModifier);
 #endif
 }
