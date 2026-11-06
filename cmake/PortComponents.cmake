@@ -48,6 +48,7 @@ sevenzip_add_port_component(sevenzip_main_window src/filemanager/window/mainwind
     src/filemanager/window/qtworkspaceapplication.cpp
     src/filemanager/window/qtworkspacequit.cpp
     src/filemanager/window/qtworkspacetaskresults.cpp
+    src/filemanager/window/qtoperationsbutton.cpp src/filemanager/window/qtoperationsbutton.h
     src/filemanager/window/qtlocalfiletask.cpp src/filemanager/window/qtlocalfiletask.h
     src/filemanager/window/qtexternalfiletask.cpp src/filemanager/window/qtexternalfiletask.h
     src/filemanager/window/qtexternalfiletask_p.h

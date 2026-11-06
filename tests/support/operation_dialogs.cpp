@@ -273,9 +273,19 @@ void DriveOperationDialogs() {
             });
         } else if (widget->objectName() == "progressDialog") {
             auto *close = widget->findChild<QPushButton *>("IDCANCEL");
-            if (close && close->property("languageID").toUInt() == IDS_CLOSE)
+            if (close && close->property("languageID").toUInt() == IDS_CLOSE) {
+                const QString review = qEnvironmentVariable("SEVENZIP_OPERATION_REVIEW_BARRIER");
+                if (!review.isEmpty()) {
+                    QSaveFile ready(review + ".ready");
+                    if (ready.open(QIODevice::WriteOnly)) {
+                        ready.write("ready");
+                        ready.commit();
+                    }
+                    if (!QFileInfo::exists(review))
+                        return;
+                }
                 QTimer::singleShot(0, close, &QPushButton::click);
-            else if (close && qEnvironmentVariableIsSet("SEVENZIP_OPERATION_CANCEL_HASH"))
+            } else if (close && qEnvironmentVariableIsSet("SEVENZIP_OPERATION_CANCEL_HASH"))
                 QTimer::singleShot(0, close, &QPushButton::click);
         }
         // Let the source slot unwind before inspecting another modal. A Close

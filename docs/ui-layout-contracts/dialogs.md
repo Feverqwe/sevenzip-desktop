@@ -403,6 +403,16 @@ reports check reachability and grouping. The new presentation is undergoing
 runtime acceptance. Source-resource comparison is not rendered Windows pixel
 parity or proof of the complete operation catalog.
 
+Independent 7zG operations are reachable from Operations in each file panel's
+command bar. The same application-wide entries appear in other file windows.
+Two-panel mode uses a compact clock button with the complete accessible caption.
+Selecting a live entry returns its existing draft, question, progress or result;
+it never starts the command again. A pending parent-owned result returns the same
+result window. Completed successes are informational recent entries, without a
+second result window or a process-lifetime hold. Pending problems take precedence
+in the button caption and remain until their actual result is closed. This list
+does not change source-owned local task cancellation or session restoration.
+
 MessagesDialog.rc (`IDD_MESSAGES`) uses a two-column numbered/message list and
 Close footer,456×176DLU initial client and resize/minimize/maximize capabilities
 without context-help. Assigning a parent must preserve those source flags.

@@ -38,14 +38,14 @@ class TaskResultWindowTests final : public QObject {
             QtOperationRegistry::Application().Acknowledge(review.Id);
         language("-");
     }
-    void failureAfterLastWindowRequiresReview_data() {
+    void lastFileWindowKeepsCorrectResultOwner_data() {
         QTest::addColumn<QString>("terminal");
         QTest::addColumn<QString>("locale");
         QTest::newRow("crashed-child-en") << QString("crash") << QString("-");
         QTest::newRow("missing-report-ru") << QString("missing-report") << QString("ru");
         QTest::newRow("cancelled-work-ru") << QString("cancelled-work") << QString("ru");
     }
-    void failureAfterLastWindowRequiresReview() {
+    void lastFileWindowKeepsCorrectResultOwner() {
         QFETCH(QString, terminal);
         QFETCH(QString, locale);
         language(locale);
@@ -55,6 +55,7 @@ class TaskResultWindowTests final : public QObject {
         QVERIFY(!archive.isEmpty());
         const auto original = SourceExtractFixture::readFile(archive);
         const auto barrier = fixture.filePath("continue");
+        const auto reviewBarrier = fixture.filePath("review-result");
         const bool cancelled = terminal == "cancelled-work";
         const auto hashInput = fixture.filePath("hash 空 with spaces.bin");
         if (cancelled) {
@@ -62,6 +63,7 @@ class TaskResultWindowTests final : public QObject {
             QVERIFY(input.open(QIODevice::WriteOnly));
             QVERIFY(input.resize(256LL * 1024 * 1024));
             qputenv("SEVENZIP_OPERATION_CANCEL_HASH", "1");
+            qputenv("SEVENZIP_OPERATION_REVIEW_BARRIER", reviewBarrier.toUtf8());
         }
         qputenv("SEVENZIP_OPERATION_BARRIER", barrier.toUtf8());
         qputenv("SEVENZIP_OPERATION_FORCE_EXIT", terminal.toUtf8());
@@ -71,6 +73,7 @@ class TaskResultWindowTests final : public QObject {
             qunsetenv("SEVENZIP_OPERATION_BARRIER");
             qunsetenv("SEVENZIP_OPERATION_FORCE_EXIT");
             qunsetenv("SEVENZIP_OPERATION_CANCEL_HASH");
+            qunsetenv("SEVENZIP_OPERATION_REVIEW_BARRIER");
             qApp->setQuitOnLastWindowClosed(quit);
         });
         QtWorkspaceApplication application(*qApp);
@@ -100,6 +103,7 @@ class TaskResultWindowTests final : public QObject {
         QTRY_COMPARE_WITH_TIMEOUT(accepted.size(), 1, 10000);
         bool closed = false, released = false, retained = false, copied = false;
         bool quitRetained = false, timedOut = false;
+        bool childRetained = false, childReviewed = false;
         QtOperationResult observed;
         QTimer::singleShot(0, &window, [&] { closed = window.close(); });
         QTimer drive;
@@ -107,6 +111,22 @@ class TaskResultWindowTests final : public QObject {
         connect(&drive, &QTimer::timeout, &application, [&] {
             if (!released && closed)
                 released = SourceExtractFixture::writeFile(barrier, "finish child");
+            if (cancelled) {
+                if (!QFileInfo::exists(reviewBarrier + ".ready") || !operation ||
+                    operation->presentation().Phase != QtOperationPhase::Reviewing)
+                    return;
+                drive.stop();
+                QTimer::singleShot(150, &application, [&] {
+                    childRetained =
+                        closed && !window.isVisible() && operation && operation->active() &&
+                        finished.isEmpty() &&
+                        operation->presentation().Phase == QtOperationPhase::Reviewing &&
+                        QtOperationRegistry::Application().Reviews().isEmpty() && !reportWindow();
+                    ShowTasksOnQuit(application);
+                    childReviewed = SourceExtractFixture::writeFile(reviewBarrier, "reviewed");
+                });
+                return;
+            }
             const auto reviews = QtOperationRegistry::Application().Reviews();
             auto *dialog = reportWindow();
             if (reviews.isEmpty() || !dialog)
@@ -147,15 +167,26 @@ class TaskResultWindowTests final : public QObject {
         deadline.start(10000);
         QCOMPARE(qApp->exec(), 0);
         QVERIFY(!timedOut);
-        QVERIFY(closed && released && retained && quitRetained && copied);
-        QCOMPARE(observed.Status, cancelled ? QtOperationResult::Outcome::Cancelled
-                                  : terminal == "crash"
-                                      ? QtOperationResult::Outcome::Crashed
-                                      : QtOperationResult::Outcome::ProtocolFailed);
         if (cancelled) {
-            QVERIFY(observed.CancellationNeedsReview);
+            QVERIFY(closed && released && childRetained && childReviewed);
+            QCOMPARE(finished.size(), 1);
+            const auto result = qvariant_cast<QtOperationResult>(finished[0][0]);
+            QCOMPARE(result.Status, QtOperationResult::Outcome::Cancelled);
+            QVERIFY(!result.CancellationNeedsReview);
+            QVERIFY(QtOperationRegistry::Application().Reviews().isEmpty());
             QCOMPARE(QFileInfo(hashInput).size(), 256LL * 1024 * 1024);
+            QCOMPARE(SourceExtractFixture::readFile(archive), original);
+            return;
         }
+        QVERIFY2(closed && released && retained && quitRetained && copied,
+                 qPrintable(QString("closed=%1 released=%2 retained=%3 quitRetained=%4 copied=%5")
+                                .arg(closed)
+                                .arg(released)
+                                .arg(retained)
+                                .arg(quitRetained)
+                                .arg(copied)));
+        QCOMPARE(observed.Status, terminal == "crash" ? QtOperationResult::Outcome::Crashed
+                                                      : QtOperationResult::Outcome::ProtocolFailed);
         QVERIFY(QtOperationRegistry::Application().Reviews().isEmpty());
         QCOMPARE(SourceExtractFixture::readFile(archive), original);
     }

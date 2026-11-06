@@ -7697,4 +7697,21 @@ Check that your distribution's CIFS support and cifs-utils are installed.</sourc
         <message><source>No license documents in this package.</source><translation>В этом пакете нет документов лицензий.</translation></message>
         <message><source>No documents match your search.</source><translation>По вашему запросу ничего не найдено.</translation></message>
     </context>
+    <context>
+        <name>QtOperationsButton</name>
+        <message><source>Operations</source><translation>Операции</translation></message>
+        <message><source>Operations · %1</source><translation>Операции · %1</translation></message>
+        <message><source>Test archive</source><translation>Проверка архива</translation></message>
+        <message><source>Extract</source><translation>Распаковка</translation></message>
+        <message><source>Create archive</source><translation>Создание архива</translation></message>
+        <message><source>Checksums</source><translation>Контрольные суммы</translation></message>
+        <message><source>Benchmark</source><translation>Тест производительности</translation></message>
+        <message><source>Done</source><translation>Готово</translation></message>
+        <message><source>Review result</source><translation>Просмотр результата</translation></message>
+        <message><source>Preparing</source><translation>Подготовка</translation></message>
+        <message><source>Options</source><translation>Параметры</translation></message>
+        <message><source>Working</source><translation>Выполняется</translation></message>
+        <message><source>Waiting for input</source><translation>Ожидание ответа</translation></message>
+        <message><source>Results</source><translation>Результаты</translation></message>
+    </context>
 </TS>

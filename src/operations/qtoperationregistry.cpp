@@ -4,6 +4,15 @@
 #include <QEventLoopLocker>
 #include <algorithm>
 
+namespace {
+QtOperationListing Listing(const QUuid &id, const QtOperationJob &job,
+                           const QtOperationPresentation &presentation,
+                           std::optional<QtOperationResult::Outcome> result) {
+    return {id, job.Operation, job.Paths.isEmpty() ? job.ArchivePath : job.Paths.first(),
+            presentation, result};
+}
+} // namespace
+
 struct QtOperationRegistry::Pending {
     QtOperationReview review;
     QEventLoopLocker keepAlive;
@@ -26,7 +35,12 @@ void QtOperationRegistry::Register(QtOperationLauncher &operation, const QtOpera
         if (entry.operation == &operation)
             return;
     const QUuid id = QUuid::createUuid();
-    observations_.append({id, &operation});
+    observations_.append({id, &operation, job});
+    // Launch() registers before start(); publish after that synchronous attempt.
+    QMetaObject::invokeMethod(this, &QtOperationRegistry::changed, Qt::QueuedConnection);
+    connect(&operation, &QtOperationLauncher::presentationChanged, this,
+            &QtOperationRegistry::changed);
+    connect(&operation, &QtOperationLauncher::accepted, this, &QtOperationRegistry::changed);
     connect(&operation, &QObject::destroyed, this, [this, id] {
         observations_.removeIf([&](const Observation &entry) { return entry.id == id; });
         emit changed();
@@ -35,6 +49,13 @@ void QtOperationRegistry::Register(QtOperationLauncher &operation, const QtOpera
             [this, id, job](const QtOperationResult &result) {
                 observations_.removeIf([&](const Observation &entry) { return entry.id == id; });
                 using Outcome = QtOperationResult::Outcome;
+                if (result.Status == Outcome::Success) {
+                    // Recent display values have no keep-alive hold or full job.
+                    completed_.prepend(Listing(id, job, {}, result.Status));
+                    constexpr qsizetype recentSuccessLimit = 20;
+                    if (completed_.size() > recentSuccessLimit)
+                        completed_.removeLast();
+                }
                 if (result.Status == Outcome::LaunchFailed ||
                     result.Status == Outcome::ProtocolFailed || result.Status == Outcome::Crashed ||
                     result.CancellationNeedsReview) {
@@ -46,6 +67,33 @@ void QtOperationRegistry::Register(QtOperationLauncher &operation, const QtOpera
                 }
                 emit changed();
             });
+}
+
+QList<QtOperationListing> QtOperationRegistry::Listings() const {
+    QList<QtOperationListing> result;
+    for (const auto &entry : observations_)
+        if (entry.operation && entry.operation->active())
+            result.append(
+                Listing(entry.id, entry.job, entry.operation->presentation(), std::nullopt));
+    for (const auto &entry : pending_)
+        result.append(
+            Listing(entry->review.Id, entry->review.Job, {}, entry->review.Result.Status));
+    for (const auto &entry : completed_)
+        result.append(entry);
+    return result;
+}
+
+void QtOperationRegistry::Show(const QUuid &id) {
+    for (const auto &entry : observations_)
+        if (entry.id == id && entry.operation && entry.operation->active()) {
+            entry.operation->Show();
+            return;
+        }
+    for (const auto &entry : pending_)
+        if (entry->review.Id == id) {
+            emit reviewActivated(id);
+            return;
+        }
 }
 
 QList<QtOperationLauncher *> QtOperationRegistry::Active() const {

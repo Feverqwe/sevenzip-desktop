@@ -78,8 +78,8 @@ bool QtWindowWorkspace::TransferTab(const QString &id, QtWindowWorkspace &target
         Suspend(origin);
         from.bar->parentWidget()->setParent(&window_);
         from.bar->parentWidget()->hide();
-        from.actions->setParent(&window_);
-        from.actions->hide();
+        from.actionRow->setParent(&window_);
+        from.actionRow->hide();
         from.sidebar = nullptr;
     }
     target.Capture(destination);

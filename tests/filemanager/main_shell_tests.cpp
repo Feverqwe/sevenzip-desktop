@@ -389,11 +389,12 @@ class MainShellTests final : public QObject {
                         continue;
                     QVERIFY(UiInspection::fullyVisible(*toolbar, window));
                     for (auto *action : toolbar->actions()) {
-                        if (action->isSeparator())
+                        if (action->isSeparator() || !action->isVisible())
                             continue;
                         auto *button =
                             qobject_cast<QToolButton *>(toolbar->widgetForAction(action));
-                        QVERIFY(button);
+                        if (!button)
+                            continue; // Layout spacers are not interactive commands.
                         QVERIFY(!button->accessibleName().isEmpty());
                         QVERIFY(UiInspection::fullyVisible(*button, window));
                     }

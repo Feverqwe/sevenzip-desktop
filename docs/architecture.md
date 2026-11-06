@@ -220,6 +220,12 @@ belong to the source's task window; automatic presentation waits while another
 question or text edit owns input. Explicit Show restores a minimized task.
 Archive/staging and mount resource owners retain their protected close boundaries.
 
+The independent-operation registry projects live presentation and pending reviews
+to the Operations menu. UI entries carry stable IDs; activation resolves their
+current owner again, so a stale menu cannot restart finished work. Recent successes
+retain only bounded display values and have no event-loop hold or session storage.
+They do not replace pending review ownership or the child's own terminal view.
+
 External-editor observation keeps the native wait/discovery algorithm. Unknown
 completion, including a fast launcher or a no-handle association, retains cleanup
 protection. Manual confirmation permits checking a stable copied input; it does

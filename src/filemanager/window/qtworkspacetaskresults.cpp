@@ -16,6 +16,8 @@ void QtWorkspaceApplication::InitializeTaskResults() {
     auto &registry = QtOperationRegistry::Application();
     connect(&registry, &QtOperationRegistry::reviewRequired, this,
             [this](const QUuid &id) { ShowTaskReview(id, false); });
+    connect(&registry, &QtOperationRegistry::reviewActivated, this,
+            [this](const QUuid &id) { ShowTaskReview(id, true); });
     connect(&QtTaskPresentation::Application(), &QtTaskPresentation::changed, this,
             [this] { QTimer::singleShot(0, this, &QtWorkspaceApplication::PresentTaskReviews); });
     connect(qApp, &QApplication::focusChanged, this, [this] {

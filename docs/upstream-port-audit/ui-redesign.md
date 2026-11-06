@@ -4,6 +4,46 @@
 Это намеренная адаптация представления; полный исходный функциональный scope
 и baseline сохраняются в [основном аудите](../upstream-port-audit.md).
 
+## Operations menu and return route — 2026-11-07
+
+The agreed operation view is connected to the existing independent 7zG launcher,
+presentation protocol, application registry and parent-owned result presenter.
+Compared their complete start/accept/finish, Show and review-hold paths before
+adding the UI projection. No upstream algorithm, new process launcher, worker,
+archive policy or session recovery is introduced.
+
+Each panel's command bar uses the same Operations button/menu component. It
+subscribes to application-wide start/presentation/result changes; menu entries
+resolve stable IDs at activation. A live task returns its existing child window;
+a pending parent review returns the existing result window. Stale entries do not
+restart work. Two-panel mode has a compact clock glyph with the full accessible
+caption. That simple glyph is project-owned presentation within the shared icon
+engine; the existing Lucide-derived geometry and original baseline are unchanged.
+
+Only confirmed successful process completion adds a bounded recent informational
+entry, retaining display values rather than the full job or a keep-alive hold.
+Pending problems remain separate, are not evicted by successes and take precedence
+in the button caption. No password or operation continuation is saved to session.
+Source-owned local operations keep their existing joined close behavior.
+
+Behavior checks use actual independent GUI children: selecting one of two
+minimized tasks, late completion with a stale menu, success versus pending result,
+live EN/RU switching and reopening the same result. Normal/compact and one/two-panel
+checks cover the return control's reachability. Existing terminal tests now hold
+the real cancelled result in the child until explicit review; after review they
+assert no duplicate parent result. Crash and missing-protocol-result cases still
+require the parent-owned review. The fixture barrier does not enter production.
+
+Focused Linux checks passed for the menu, main chrome, terminal ownership and
+tab menus/transfers; unchanged launcher/hash consumers were checked separately.
+Actual Cocoa checks passed the menu, main chrome, terminal ownership and tab
+menus. Native screenshot review exposed a toolbar-overflow case that hid the
+return button, and tab-separated menu text that ran together. The shared action
+row now keeps Operations outside toolbar overflow; tab reparenting moves the
+whole row. The test requires visible return controls in shown panel contexts.
+Menu status uses an ordinary text separator rather than a shortcut column.
+No Windows or original Windows pixel acceptance is claimed for this iteration.
+
 ## Extract: source summary — 2026-11-06
 
 The form now reuses QtSourceSummary for the supplied archive name/count and

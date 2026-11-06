@@ -127,6 +127,7 @@ class QtWindowWorkspace final : public QObject {
         std::vector<Tab> tabs;
         int current = 0;
         QToolBar *actions = nullptr;
+        QWidget *actionRow = nullptr;
         QWidget *sidebar = nullptr;
         std::shared_ptr<QtTabRuntime> bound;
     };

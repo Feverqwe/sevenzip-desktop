@@ -4,6 +4,7 @@
 #include "filemanager/window/qtfileclipboard.h"
 #include "filemanager/window/qtmainwindowchrome.h"
 #include "filemanager/window/qtnavigationbar.h"
+#include "filemanager/window/qtoperationsbutton.h"
 #include "filemanager/window/qtwindowworkspace.h"
 #include "filemanager/window/qtworkspaceapplication.h"
 #include "filemanager/window/qtworkspacesidebar.h"
@@ -81,7 +82,13 @@ void QtWindowWorkspace::CreateActions(unsigned panel, QVBoxLayout &layout) {
     add(window_.clipboard_->paste, QtCommandSymbol(QtCommandIcon::Paste));
     add(window_.rename_, QtCommandSymbol(QtCommandIcon::Rename));
     add(window_.remove_);
-    layout.addWidget(state.actions);
+    state.actionRow = new QWidget;
+    auto *row = new QHBoxLayout(state.actionRow);
+    row->setContentsMargins(0, 0, 8, 0);
+    row->setSpacing(0);
+    row->addWidget(state.actions, 1);
+    row->addWidget(new QtOperationsButton(state.actionRow));
+    layout.addWidget(state.actionRow);
 }
 
 void QtWindowWorkspace::AttachContent(unsigned panel, QVBoxLayout &layout, QWidget &status) {
@@ -203,6 +210,9 @@ void QtWindowWorkspace::RefreshChrome() {
         state.actions->setToolButtonStyle(window_.app_.NumPanels == 1 && window_.width() > 800
                                               ? Qt::ToolButtonTextBesideIcon
                                               : Qt::ToolButtonIconOnly);
+        if (auto *operations = dynamic_cast<QtOperationsButton *>(
+                state.actionRow->findChild<QToolButton *>("operationsButton")))
+            operations->SetCompact(window_.app_.NumPanels == 2);
         const auto native = window_.commands_->AvailabilityForPanel(panel);
         const auto clipboard = window_.clipboard_->AvailabilityForPanel(panel);
         auto *container = window_.panelUi_[panel].container;

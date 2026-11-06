@@ -20,6 +20,12 @@ QPainterPath geometry(QtCommandIcon command) {
         p.lineTo(toX, toY);
     };
     switch (command) {
+    case QtCommandIcon::Operations:
+        // Project-owned clock glyph for returning to independent operations.
+        p.addEllipse(QRectF(3, 3, 18, 18));
+        line(12, 7, 12, 12);
+        line(12, 12, 16, 14);
+        break;
     case QtCommandIcon::Computer:
         p.addRoundedRect(QRectF(2, 3, 20, 14), 2, 2);
         line(8, 21, 16, 21);

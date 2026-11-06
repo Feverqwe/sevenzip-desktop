@@ -97,9 +97,9 @@ void QtWindowWorkspace::AttachPanel(unsigned panel, QVBoxLayout &layout) {
             state.bound = runtime;
         }
         layout.insertWidget(0, state.bar->parentWidget());
-        layout.addWidget(state.actions);
+        layout.addWidget(state.actionRow);
         state.bar->parentWidget()->show();
-        state.actions->show();
+        state.actionRow->show();
         return;
     }
     auto *row = new QWidget;
@@ -335,9 +335,10 @@ void QtWindowWorkspace::Activate(unsigned panel, int index) {
                 ui.container->findChild<QWidget *>(QStringLiteral("placesSidebar%1").arg(panel));
             auto *layout = qobject_cast<QVBoxLayout *>(ui.container->layout());
             layout->insertWidget(0, state.bar->parentWidget());
-            layout->insertWidget(layout->indexOf(ui.navigation->parentWidget()) + 1, state.actions);
+            layout->insertWidget(layout->indexOf(ui.navigation->parentWidget()) + 1,
+                                 state.actionRow);
             state.bar->parentWidget()->show();
-            state.actions->show();
+            state.actionRow->show();
             const bool reload = tab.runtime->dirty && tab.archiveRevision == tab.archiveApplied;
             if (reload) {
                 const QSignalBlocker selection(ui.table->selectionModel());
@@ -394,8 +395,8 @@ void QtWindowWorkspace::CloseTab(unsigned panel, int index) {
         window_.withPanelProjection(panel, [this, panel] { Suspend(panel); });
         state.bar->parentWidget()->setParent(&window_);
         state.bar->parentWidget()->hide();
-        state.actions->setParent(&window_);
-        state.actions->hide();
+        state.actionRow->setParent(&window_);
+        state.actionRow->hide();
         state.sidebar = nullptr;
         state.bound.reset();
         state.tabs.front() = Tab{};
