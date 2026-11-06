@@ -1,9 +1,13 @@
+#include "filemanager/properties/qtpropertieswindow.h"
 #include "filemanager/support/panel_model_support.h"
 #include "filemanager/support/window_state_support.h"
 #include "localization/LangUtils.h"
+#include "ui/controls/qtdisclosure.h"
 #include "ui/support/layout_inspection.h"
 #include <QHeaderView>
+#include <QLabel>
 #include <QMap>
+#include <QScrollArea>
 #include <QTreeWidget>
 
 class PropertiesRuntimeTests : public QObject, protected MainWindowTestSupport {
@@ -43,45 +47,55 @@ class PropertiesRuntimeTests : public QObject, protected MainWindowTestSupport {
     static Inspection inspect(MainWindow &window, const QString &reportTag = {},
                               const char *command = "selectedPropertiesAction") {
         Inspection result;
-        QTimer::singleShot(0, &window, [&] {
+        action(window, command)->trigger();
+        {
             auto *dialog = window.findChild<QDialog *>("selectedPropertiesDialog");
             if (!dialog)
-                return;
-            auto *list = dialog->findChild<QTreeWidget *>("propertiesList");
-            result.shown = list && dialog->windowTitle() == QStringLiteral("Свойства");
-            if (list) {
-                bool firstSection = true;
-                for (int i = 0; i < list->topLevelItemCount(); ++i) {
-                    const auto *item = list->topLevelItem(i);
-                    if (item->text(0).startsWith("----"))
-                        firstSection = false;
-                    if (firstSection)
-                        result.values.insert(item->text(0), item->text(1));
-                    else if (item->text(0) == "Имя" && result.folderPath.isEmpty())
-                        result.folderPath = item->text(1);
+                return result;
+            result.shown =
+                dialog->windowTitle() == QStringLiteral("Свойства") && !dialog->isModal();
+            if (auto *selection = dialog->findChild<QWidget *>("propertiesSelection")) {
+                for (auto *label : selection->findChildren<QLabel *>()) {
+                    QString caption = label->accessibleName();
+                    if (caption == QCoreApplication::translate(
+                                       "PropertiesWindow", "Reported packed size (may be partial)"))
+                        caption = "Сжатый";
+                    if (caption == QCoreApplication::translate("PropertiesWindow",
+                                                               "Reported size (may be partial)"))
+                        caption = "Размер";
+                    if (!caption.isEmpty())
+                        result.values.insert(caption, label->text());
                 }
-                if (!reportTag.isEmpty()) {
-                    auto *buttons = dialog->findChild<QDialogButtonBox *>("listViewButtons");
-                    result.geometry = buttons && list->columnCount() == 2;
-                    for (const QSize &size : {QSize(540, 360), QSize(360, 240)}) {
-                        dialog->resize(size);
-                        QCoreApplication::processEvents();
-                        result.geometry &= UiInspection::fullyVisible(*list, *dialog) &&
-                                           UiInspection::fullyVisible(*list->header(), *dialog);
-                        if (buttons) {
-                            result.geometry &= UiInspection::fullyVisible(*buttons, *dialog) &&
-                                               UiInspection::separate(*list, *buttons, *dialog);
-                            for (auto *button : buttons->buttons())
-                                result.geometry &= UiInspection::fullyVisible(*button, *dialog);
-                        }
-                        result.geometry &= UiInspection::writeReport(
-                            *dialog, reportTag + QString("-%1").arg(size.width()));
+            }
+            if (auto *folder = dialog->findChild<QWidget *>("propertiesFolder")) {
+                for (auto *label : folder->findChildren<QLabel *>())
+                    if (label->accessibleName() ==
+                        QCoreApplication::translate("PropertiesWindow", "Location")) {
+                        result.folderPath = label->text();
+                        break;
                     }
+            }
+            if (!reportTag.isEmpty()) {
+                auto *buttons = dialog->findChild<QDialogButtonBox *>("propertiesActions");
+                auto *body = dialog->findChild<QScrollArea *>();
+                result.geometry = buttons && body;
+                for (const QSize &size : {QSize(540, 360), QSize(360, 240)}) {
+                    dialog->resize(size);
+                    QCoreApplication::processEvents();
+                    result.geometry &= body && UiInspection::fullyVisible(*body, *dialog);
+                    if (buttons) {
+                        result.geometry &= UiInspection::fullyVisible(*buttons, *dialog) &&
+                                           UiInspection::separate(*body, *buttons, *dialog);
+                        for (auto *button : buttons->buttons())
+                            result.geometry &= UiInspection::fullyVisible(*button, *dialog);
+                    }
+                    result.geometry &= UiInspection::writeReport(
+                        *dialog, reportTag + QString("-%1").arg(size.width()));
                 }
             }
             dialog->reject();
-        });
-        action(window, command)->trigger();
+            QCoreApplication::sendPostedEvents(dialog, QEvent::DeferredDelete);
+        }
         return result;
     }
 

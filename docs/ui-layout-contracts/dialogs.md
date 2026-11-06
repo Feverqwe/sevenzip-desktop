@@ -212,35 +212,33 @@ visible, separate text area and footer. Coverage is described in
 
 ## Selected properties
 
-Window Properties now reads the bound source folder/operated indices. File
-packed size is visible for filesystem and archive owners; empty source values
-are omitted. Rows follow the source property catalog, with the existing full
-current-location footer. Archive Modified text remains sparse raw compatibility
-data until native time parsing; it is not a precision/timezone acceptance claim.
+The approved v34 design replaces the selected-properties list with a nonmodal
+information window. The bound native source collector supplies a snapshot of
+the selected objects, current folder and each archive level; subsequent
+navigation cannot silently change it. Windows ordinary files retain the native
+shell sheet. [Source comparison and adaptations](../upstream-port-audit/property-report-ownership.md#selected-properties-snapshot-and-information-window--2026-11-07).
 
-Reference: ListViewDialog.rc; source scope and baseline are recorded in the
-[properties audit](../archive/qt-port/upstream-port-audit.md#свойства-и-двухколоночный-список-2026-09-28).
-Two columns (property/value) fill the body with a visible empty header,
-followed by OK/Cancel. No label form or custom selection title remains.
-The same496×336DLU source frame and native-font/margin/footer policy as folder
-history apply; header visibility remains controlled by NumColumns.
-The value shown in the list is limited to 1024 upstream wchar_t units,
-then ` ...`; CRLF/LF become spaces. Copy and Enter/double-click detail
-use the full value. Delete is disabled for properties.
-Geometry: list/header/footer at 540×360 and 360×240, long Unicode paths and
-horizontal scrolling. Test coverage is described in [testing](../testing.md).
-`panel_property` writes `typed-properties-540` and `typed-properties-360` reports
-with source typed maximum-size and multiline error values. List/header/footer
-remain visible and separated; names/values remain two columns, long values use
-the existing source truncation/detail contract and error LF displays as spaces.
-Only structural Qt usability is verified; a rendered Windows reference
-was unavailable.
+SourceSummary shows the selected name/type or selected-object counts.
+MetadataRows shows location, data size and known modification text. Unknown
+is distinct from zero; folder and multiple-selection contents are not newly
+calculated. Existing source totals remain in additional information, qualified
+as potentially partial. A packed size is not presented as an exact independent
+file size, and stored CRC is explicitly metadata rather than a content check.
 
-`properties_runtime` produces `properties-runtime-flat*-mode*-*.json`,
-`properties-directory-flat*-mode*-*.json` and
-`properties-summary-flat*-mode*-*.json` for file, directory and aggregate states
-in all normal/flat/four-view combinations at 540×360 and 360×240. The same list,
-empty two-column header and separate visible OK/Cancel footer apply to each.
+Comments, technical values, current-folder metadata, parent archive entries and
+archive levels have distinct disclosures. Duplicate property IDs across those
+owners remain distinct. Unknown custom properties are preserved. Values wrap
+and scroll; Copy information copies full values even while collapsed. Ordinary
+text selection supports copying a fragment. Copy/Close stay outside the scroll
+viewport. Escape closes and returns focus to the surviving source view.
+
+The new form has EN/RU normal/compact geometry producers in `properties_window`;
+`properties_runtime` retains source ownership checks across normal/flat and all
+four views. Legacy `panel_property`/`source_properties` projections still exercise
+the generic report's native formatting, truncation, detail and clipboard paths;
+they are not geometry acceptance for this new window. Source/runtime validation
+scope is recorded in the linked audit. Rendered original Windows pixel parity
+is not claimed for the approved redesign.
 
 ## GUI early error messages
 

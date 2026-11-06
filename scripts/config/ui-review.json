@@ -47,7 +47,7 @@
   {"id":"browse","title":"Встроенный выбор файла или каталога","target":"source_browse_dialog_tests","functions":["sourceInitialFrame","geometry"]},
   {"id":"temporary-files","title":"Удаление временных файлов","target":"temp_cleanup_tests","functions":["sourceInitialFrame","sourceNavigationHelpAndNormalCompactGeometry","activeAndUnknownExternalSessionsSurviveActualDeleteAttempts"]},
   {"id":"properties-history","title":"Свойства и история папок","target":"list_view_dialog_tests","functions":["sourceFrame"]},
-  {"id":"selected-properties","title":"Свойства выбранных объектов","target":"properties_tests","functions":["geometry"]},
+  {"id":"selected-properties","title":"Свойства выбранных объектов","target":"properties_window_tests","functions":["geometry","unknownZeroFoldersAndPartialSelectionStayDistinct","fullCopyKeepsOwnedArchiveLevelsAndUnopenedDiagnostics","withoutSelectionUsesCurrentFolder","filesystemCommentUsesItsOwnDisclosure"]},
   {"id":"hash-results","title":"Результаты вычисления контрольных сумм","target":"hash_results_tests","functions":["nativeBundleResultsAndModalLayout"]},
   {"id":"options-pages","title":"Настройки: отдельные страницы, EN/RU","target":"options_keyboard_tests","functions":["sourcePageActivation"]},
   {"id":"settings-sections","title":"Настройки: страницы и поиск типов файлов","target":"options_integration_tests","functions":["formatChoicesUseSourceStatesAndApplyOnlyOnConfirmation","pageChangesKeepDraftAndApplyCancel","translatedNavigationFitsNormalAndCompactWindows","formatSearchAndMassSelectionPreserveSourceDraft"]},

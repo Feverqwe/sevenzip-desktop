@@ -4,6 +4,8 @@
 #include "archive/support/schema_folder.h"
 #include "dialogs/listview/ListViewDialog.h"
 #include "filemanager/panels/Panel.h"
+#include "filemanager/properties/qtpropertieswindow.h"
+#include "filemanager/support/property_projection_support.h"
 #include "localization/LangUtils.h"
 #include "localization/qtlangcontrols.h"
 #include "settings/RegistryUtils.h"
@@ -12,6 +14,7 @@
 #include <QAbstractButton>
 #include <QDialogButtonBox>
 #include <QHeaderView>
+#include <QLabel>
 #include <QScopedValueRollback>
 #include <QTemporaryDir>
 #include <QTest>
@@ -100,7 +103,7 @@ class PanelPropertyTests : public QObject {
         CPanel panel(folder);
         CRecordVector<UInt32> selected;
         selected.Add(0);
-        panel.Properties(selected, dialog);
+        CollectPropertyProjection(panel, selected, dialog);
     }
 
   private slots:
@@ -142,6 +145,18 @@ class PanelPropertyTests : public QObject {
         QCOMPARE(value(dialog, "Свойство й"), QStringLiteral("значение с пробелом"));
         QCOMPARE(value(dialog, "123456"), QString("42"));
     }
+    void sparseProviderKeepsKnownSizeWithoutObjectType() {
+        CObjectVector<TestProperty> props;
+        props.Add({kpidSize, L"", CPropVariant(UInt64(128))});
+        CMyComPtr<IFolderFolder> folder = new PropertyFolder(props);
+        CPanel panel(folder);
+        CRecordVector<UInt32> selected;
+        selected.Add(0);
+        QtPropertyReport report;
+        panel.Properties(selected, report);
+        QtPropertiesWindow window(std::move(report));
+        QCOMPARE(window.findChild<QLabel *>("propertiesSize")->text(), QString("128"));
+    }
 
     void rawCatalogKeepsAvailableProperties_data() {
         QTest::addColumn<HRESULT>("result");
@@ -165,7 +180,7 @@ class PanelPropertyTests : public QObject {
         CRecordVector<UInt32> selected;
         selected.Add(0);
         CListViewDialog dialog;
-        panel.Properties(selected, dialog);
+        CollectPropertyProjection(panel, selected, dialog);
         dialog.OnInit();
         QCOMPARE(value(dialog, "Имя"), QStringLiteral("документ 空.txt"));
         QCOMPARE(value(dialog, "CRC"), writeCount ? QString("DEADBEEF") : QString());
@@ -276,7 +291,7 @@ class PanelPropertyTests : public QObject {
         indices.Add(0);
         indices.Add(1);
         CListViewDialog dialog;
-        panel.Properties(indices, dialog);
+        CollectPropertyProjection(panel, indices, dialog);
         QCOMPARE(value(dialog, "Папок"), QString("1 234"));
         QCOMPARE(value(dialog, "Файлов"), QString("5 678"));
         QCOMPARE(value(dialog, "Размер"), QString("10 345"));

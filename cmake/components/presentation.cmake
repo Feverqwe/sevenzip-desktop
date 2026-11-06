@@ -268,6 +268,10 @@ add_library(sevenzip_panel
     src/filemanager/panels/PanelMenu.cpp
     src/filemanager/panels/panelmenuids.h
     src/filemanager/panels/PanelProperties.cpp
+    src/filemanager/properties/qtpropertyreport.cpp
+    src/filemanager/properties/qtpropertyreport.h
+    src/filemanager/properties/qtpropertieswindow.cpp
+    src/filemanager/properties/qtpropertieswindow.h
     src/filemanager/PropertyName.cpp
     src/filemanager/PropertyName.h
     src/localization/qtlangcontrols.cpp
@@ -301,6 +305,8 @@ add_library(sevenzip_panel
     src/dialogs/listview/ListViewDialog.cpp
     src/dialogs/listview/ListViewDialog.h
     src/dialogs/listview/qtlistviewdialogpresentation.cpp
+    src/dialogs/listview/qtreportdata.cpp
+    src/dialogs/listview/qtreportdata.h
     src/dialogs/edit/EditDialog.cpp
     src/dialogs/edit/EditDialog.h
     src/dialogs/combo/ComboDialog.cpp

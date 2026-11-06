@@ -1733,6 +1733,8 @@
     "src/dialogs/link/qtlinkcontrols.h",
     "src/dialogs/link/qtlinkpresentation.cpp",
     "src/dialogs/listview/qtlistviewdialogpresentation.cpp",
+    "src/dialogs/listview/qtreportdata.cpp",
+    "src/dialogs/listview/qtreportdata.h",
     "src/dialogs/mem/qtmemoryrequestpresentation.cpp",
     "src/dialogs/overwrite/qtoverwritepresentation.cpp",
     "src/dialogs/recentplaces/qtrecentplacesdialog.cpp",
@@ -1792,6 +1794,10 @@
     "src/filemanager/panels/qtpanellocationtransaction.cpp",
     "src/filemanager/panels/qtpanellocationtransaction.h",
     "src/filemanager/panels/qtpanelpluginservices.h",
+    "src/filemanager/properties/qtpropertieswindow.cpp",
+    "src/filemanager/properties/qtpropertieswindow.h",
+    "src/filemanager/properties/qtpropertyreport.cpp",
+    "src/filemanager/properties/qtpropertyreport.h",
     "src/filemanager/providers/FSDrivesCopy_win.cpp",
     "src/filemanager/providers/FSFolderComments.cpp",
     "src/filemanager/providers/FSFolderProperties.cpp",
@@ -4223,6 +4229,17 @@
         "CFSDrives::Rename",
         "CFSDrives::Delete",
         "CFSDrives::SetProperty"
+      ]
+    },
+    "src/dialogs/listview/ListViewDialog.h": {
+      "local": [
+        "src/dialogs/listview/qtreportdata.h"
+      ],
+      "symbols": [
+        "CListViewDialog::Title",
+        "CListViewDialog::Strings",
+        "CListViewDialog::Values",
+        "CListViewDialog::NumColumns"
       ]
     }
   },

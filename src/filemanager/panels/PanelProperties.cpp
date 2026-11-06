@@ -10,32 +10,40 @@
 #include "Windows/PropVariantConv.h"
 #include "archive/diagnostics/archiveerrormessages.h"
 #include "archive/opening/OpenArchive.h"
-#include "dialogs/listview/ListViewDialog.h"
 #include "filemanager/FormatUtils.h"
 #include "filemanager/PropertyName.h"
 #include "filemanager/panels/Panel.h"
+#include "filemanager/properties/qtpropertieswindow.h"
+#include "filemanager/properties/qtpropertyreport.h"
 #include "localization/LangUtils.h"
 #include "localization/qtlangcontrols.h"
 #include "ui/diagnostics/qtdiagnostictext.h"
+#include <limits>
+
+static void AddReportedTotal(UInt64 &total, UInt64 value, UInt32 property,
+                             QtPropertyReport &report) {
+    if (value > std::numeric_limits<UInt64>::max() - total)
+        report.overflowedTotals.insert(property);
+    total += value;
+}
 
 static const char *const kSeparator = "------------------------";
 static const char *const kSeparatorSmall = "----------------";
 
-static void AddListAscii(CListViewDialog &dialog, const char *s) {
+static void AddListAscii(QtPropertyReport &dialog, const char *s) {
     dialog.Strings.Add((UString)s);
     dialog.Values.AddNew();
 }
 
-static void AddSeparator(CListViewDialog &dialog) { AddListAscii(dialog, kSeparator); }
-static void AddSeparatorSmall(CListViewDialog &dialog) { AddListAscii(dialog, kSeparatorSmall); }
+static void AddSeparator(QtPropertyReport &dialog) { AddListAscii(dialog, kSeparator); }
+static void AddSeparatorSmall(QtPropertyReport &dialog) { AddListAscii(dialog, kSeparatorSmall); }
 
-static void AddPropertyPair(const UString &name, const UString &val, CListViewDialog &dialog) {
-    dialog.Strings.Add(name);
-    dialog.Values.Add(val);
+static void AddPropertyPair(const UString &name, const UString &val, QtPropertyReport &dialog) {
+    dialog.AddValue(name, val);
 }
 
 static void AddPropertyString(PROPID propID, const wchar_t *nameBSTR,
-                              const NWindows::NCOM::CPropVariant &prop, CListViewDialog &dialog) {
+                              const NWindows::NCOM::CPropVariant &prop, QtPropertyReport &dialog) {
     if (prop.vt != VT_EMPTY) {
         UString val;
 
@@ -68,6 +76,13 @@ static void AddPropertyString(PROPID propID, const wchar_t *nameBSTR,
             AddPropertyPair(GetNameOfProperty(propID, nameBSTR), val, dialog);
             dialog.QtBindPropertyName(dialog.Strings.Size() - 1, propID, nameBSTR);
             const unsigned row = dialog.Strings.Size() - 1;
+            auto availability = QtPropertyReport::Availability::Known;
+            if (dialog.items.size() > 1 && !dialog.groups.isEmpty() &&
+                dialog.groups.last().scope == QtPropertyReport::Scope::Selection)
+                availability = dialog.overflowedTotals.contains(propID)
+                                   ? QtPropertyReport::Availability::Unknown
+                                   : QtPropertyReport::Availability::Partial;
+            dialog.nativeValues.insert(row, {propID, prop, availability});
             if (propID == kpidErrorFlags || propID == kpidWarningFlags)
                 dialog.QtBindArchiveFlagsValue(row, GetOpenArcErrorFlags(prop));
             else if (propID == kpidError || propID == kpidWarning) {
@@ -78,7 +93,7 @@ static void AddPropertyString(PROPID propID, const wchar_t *nameBSTR,
     }
 }
 
-static void AddPropertyString(PROPID propID, UInt64 val, CListViewDialog &dialog) {
+static void AddPropertyString(PROPID propID, UInt64 val, QtPropertyReport &dialog) {
     NWindows::NCOM::CPropVariant prop = val;
     AddPropertyString(propID, NULL, prop, dialog);
 }
@@ -96,21 +111,36 @@ void CPanel::Properties() {
         return;
     }
 #endif
-    // The existing projection supplies Qt's modal creation around the retained
-    // source collector. Unix has no Windows shell property-sheet provider.
+    // Unix has no Windows shell property-sheet provider. Snapshot the native
+    // collector before showing independent information windows.
     CRecordVector<UInt32> operatedIndices;
     Get_ItemIndices_Operated(operatedIndices);
-    CListViewDialog message(GetParent());
+    QtPropertyReport message;
     Properties(operatedIndices, message);
-    message.OnInit();
-    message.setObjectName("selectedPropertiesDialog");
-    message.exec();
+    auto *window =
+        new QtPropertiesWindow(std::move(message), GetParent(), _selectionList.FocusTarget());
+    window->setAttribute(Qt::WA_DeleteOnClose);
+    window->show();
 }
 
 void CPanel::Properties(const CRecordVector<UInt32> &operatedIndices,
-                        CListViewDialog &message) const {
+                        QtPropertyReport &message) const {
     CMyComPtr<IGetFolderArcProps> getFolderArcProps;
     _folder.QueryInterface(IID_IGetFolderArcProps, &getFolderArcProps);
+    message.location = ToQString(_currentFolderPrefix);
+    FOR_VECTOR(i, operatedIndices) {
+        const auto index = operatedIndices[i];
+        QtPropertyReport::Item item;
+        NWindows::NCOM::CPropVariant name, directory, prefix;
+        if (_folder->GetProperty(index, kpidName, &name) == S_OK && name.vt == VT_BSTR)
+            item.name = ToQString(UString(name.bstrVal));
+        if (_folder->GetProperty(index, kpidIsDir, &directory) == S_OK && directory.vt == VT_BOOL)
+            item.directory = VARIANT_BOOLToBool(directory.boolVal);
+        if (_folder->GetProperty(index, kpidPrefix, &prefix) == S_OK && prefix.vt == VT_BSTR)
+            item.prefix = ToQString(UString(prefix.bstrVal));
+        message.items.append(std::move(item));
+    }
+    message.BeginGroup(QtPropertyReport::Scope::Selection);
     // Public collector for archive metadata and the Unix presentation fallback.
     // The no-argument source entry invokes the native Windows property sheet.
     if (operatedIndices.Size() == 1) {
@@ -162,6 +192,13 @@ void CPanel::Properties(const CRecordVector<UInt32> &operatedIndices,
                         }
                     }
                     AddPropertyPair(GetNameOfProperty(propID, name), (UString)s.Ptr(), message);
+                    message.QtBindPropertyName(message.Strings.Size() - 1, propID, name);
+                    message.rawValues.insert(
+                        message.Strings.Size() - 1,
+                        {propID, propType, dataSize,
+                         dataSize <= 256
+                             ? QByteArray(static_cast<const char *>(data), int(dataSize))
+                             : QByteArray{}});
                 }
             }
         }
@@ -173,19 +210,23 @@ void CPanel::Properties(const CRecordVector<UInt32> &operatedIndices,
         UInt64 numDirs = 0;
         FOR_VECTOR(i, operatedIndices) {
             const UInt32 index = operatedIndices[i];
-            unpackSize += GetItemSize(index);
-            packSize += GetItem_UInt64Prop(index, kpidPackSize);
+            AddReportedTotal(unpackSize, GetItemSize(index), kpidSize, message);
+            AddReportedTotal(packSize, GetItem_UInt64Prop(index, kpidPackSize), kpidPackSize,
+                             message);
             if (IsItem_Folder(index)) {
-                numDirs++;
-                numDirs += GetItem_UInt64Prop(index, kpidNumSubDirs);
-                numFiles += GetItem_UInt64Prop(index, kpidNumSubFiles);
+                AddReportedTotal(numDirs, 1, kpidNumSubDirs, message);
+                AddReportedTotal(numDirs, GetItem_UInt64Prop(index, kpidNumSubDirs), kpidNumSubDirs,
+                                 message);
+                AddReportedTotal(numFiles, GetItem_UInt64Prop(index, kpidNumSubFiles),
+                                 kpidNumSubFiles, message);
             } else
-                numFiles++;
+                AddReportedTotal(numFiles, 1, kpidNumSubFiles, message);
         }
         {
             const std::wstring selected =
                 QtSelectedItemsText(int(operatedIndices.Size())).toStdWString();
             AddPropertyPair(L"", UString(selected.c_str()), message);
+            message.selectionSummaryRow = message.Strings.Size() - 1;
         }
         if (numDirs != 0)
             AddPropertyString(kpidNumSubDirs, numDirs, message);
@@ -195,10 +236,19 @@ void CPanel::Properties(const CRecordVector<UInt32> &operatedIndices,
         AddPropertyString(kpidPackSize, packSize, message);
         AddSeparator(message);
     }
+    message.BeginGroup(QtPropertyReport::Scope::Folder);
     {
         NWindows::NCOM::CPropVariant prop;
-        if (_folder->GetFolderProperty(kpidPath, &prop) == S_OK)
+        if (_folder->GetFolderProperty(kpidPath, &prop) == S_OK) {
+            const auto before = message.Strings.Size();
             AddPropertyString(kpidName, L"Path", prop, message);
+            if (message.Strings.Size() > before)
+                message.nativeValues.insert(
+                    message.Strings.Size() - 1,
+                    {kpidPath, prop, QtPropertyReport::Availability::Known});
+            if (message.location.isEmpty() && prop.vt == VT_BSTR)
+                message.location = ToQString(UString(prop.bstrVal));
+        }
     }
     CMyComPtr<IFolderProperties> folderProperties;
     _folder.QueryInterface(IID_IFolderProperties, &folderProperties);
@@ -232,6 +282,7 @@ void CPanel::Properties(const CRecordVector<UInt32> &operatedIndices,
                     if (getProps->GetArcNumProps(level, &numProps) == S_OK) {
                         const int kNumSpecProps = Z7_ARRAY_SIZE(kSpecProps);
                         AddSeparator(message);
+                        message.BeginGroup(QtPropertyReport::Scope::Archive, level);
                         for (Int32 i = -(int)kNumSpecProps; i < (Int32)numProps; i++) {
                             CMyComBSTR name;
                             PROPID propID;
@@ -253,6 +304,7 @@ void CPanel::Properties(const CRecordVector<UInt32> &operatedIndices,
                     UInt32 numProps;
                     if (getProps->GetArcNumProps2(level, &numProps) == S_OK) {
                         AddSeparatorSmall(message);
+                        message.BeginGroup(QtPropertyReport::Scope::ArchiveLink, level);
                         for (UInt32 i = 0; i < numProps; i++) {
                             CMyComBSTR name;
                             PROPID propID;
@@ -279,6 +331,7 @@ void CPanel::Properties(const CRecordVector<UInt32> &operatedIndices,
                     if (needSep) {
                         AddSeparator(message);
                         AddSeparator(message);
+                        message.BeginGroup(QtPropertyReport::Scope::UnopenedArchive, numLevels);
                         needSep = false;
                     }
                     AddPropertyString(propID, name, prop, message);
@@ -287,6 +340,6 @@ void CPanel::Properties(const CRecordVector<UInt32> &operatedIndices,
         }
     }
     message.Title = LangString(IDS_PROPERTIES);
-    QtBindLangText(&message, IDS_PROPERTIES);
+    message.TitleID = IDS_PROPERTIES;
     message.NumColumns = 2;
 }

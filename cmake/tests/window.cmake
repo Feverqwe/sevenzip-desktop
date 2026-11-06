@@ -149,6 +149,12 @@
     target_include_directories(properties_tests PRIVATE src)
     target_link_libraries(properties_tests PRIVATE Qt6::Widgets Qt6::Test)
     add_test(NAME properties COMMAND properties_tests -silent)
+    qt_add_executable(properties_window_tests tests/filemanager/properties_window_tests.cpp)
+    target_include_directories(properties_window_tests PRIVATE src tests)
+    target_link_libraries(properties_window_tests PRIVATE sevenzip_window sevenzip_layout_inspection Qt6::Test)
+    add_test(NAME properties_window COMMAND properties_window_tests -silent)
+    set_tests_properties(properties_window PROPERTIES TIMEOUT 45 ENVIRONMENT
+        "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/properties-window-settings.ini")
     qt_add_executable(checksum_tests tests/filemanager/checksum_tests.cpp)
     target_link_libraries(checksum_tests PRIVATE sevenzip_window)
     target_include_directories(checksum_tests PRIVATE src)

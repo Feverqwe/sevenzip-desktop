@@ -55,6 +55,7 @@ enum class QtDeleteResultReview { Operation, Caller };
 struct CAppState;
 class CFastFolders;
 class CListViewDialog;
+class QtPropertyReport;
 class CPanel;
 class CApp;
 struct QtPanelKeyDown;
@@ -712,7 +713,7 @@ class CPanel : public QObject {
     CPanelItemTotals GetItemTotals(const CRecordVector<UInt32> &indices) const;
     QString GetItemsInfoString(const CRecordVector<UInt32> &indices,
                                const CPanelItemTotals *totals = nullptr) const;
-    void Properties(const CRecordVector<UInt32> &operatedIndices, CListViewDialog &message) const;
+    void Properties(const CRecordVector<UInt32> &operatedIndices, QtPropertyReport &message) const;
     void Properties();
     static QString FoldersHistory(CFolderHistory &history, const QString &settingsPath,
                                   QWidget *parent);

@@ -8,7 +8,12 @@ class QLabel;
 // values remain literal, selectable text, including archive entry names/paths.
 class QtMetadataRows final : public QWidget {
   public:
+    struct Row {
+        QLabel *caption;
+        QLabel *value;
+    };
     explicit QtMetadataRows(QWidget *parent = nullptr);
+    Row AddLiteralRow(const QString &caption, const QString &value, const QString &name = {});
     QLabel *AddRow(const char *context, const char *caption, const QString &value,
                    const QString &name = {});
 

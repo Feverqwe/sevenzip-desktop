@@ -126,6 +126,30 @@
         </message>
     </context>
     <context>
+        <name>PropertiesWindow</name>
+        <message><source>Not available</source><translation>Недоступно</translation></message>
+        <message><source>Location</source><translation>Расположение</translation></message>
+        <message><source>Size</source><translation>Размер</translation></message>
+        <message><source>Modified</source><translation>Изменён</translation></message>
+        <message><source>Selected objects</source><translation>Выбранные объекты</translation></message>
+        <message><source>Files: %1 · Folders: %2</source><translation>Файлов: %1 · Папок: %2</translation></message>
+        <message><source>Folder</source><translation>Папка</translation></message>
+        <message><source>File</source><translation>Файл</translation></message>
+        <message><source>File inside archive</source><translation>Файл внутри архива</translation></message>
+        <message><source>Not calculated</source><translation>Не подсчитан</translation></message>
+        <message><source>Not applicable</source><translation>Не применимо</translation></message>
+        <message><source>Source totals (may be partial)</source><translation>Итоги источника (могут быть неполными)</translation></message>
+        <message><source>Technical information</source><translation>Технические сведения</translation></message>
+        <message><source>Current folder</source><translation>Текущая папка</translation></message>
+        <message><source>Archive %1</source><translation>Архив %1</translation></message>
+        <message><source>Parent archive entry %1</source><translation>Запись во внешнем архиве %1</translation></message>
+        <message><source>Unopened archive</source><translation>Неоткрытый архив</translation></message>
+        <message><source>Comment</source><translation>Комментарий</translation></message>
+        <message><source>(stored metadata)</source><translation>(из метаданных)</translation></message>
+        <message><source>Reported packed size (may be partial)</source><translation>Сжатый размер по данным источника (может быть неполным)</translation></message>
+        <message><source>Reported size (may be partial)</source><translation>Размер по данным источника (может быть неполным)</translation></message>
+    </context>
+    <context>
         <name>AboutDialog</name>
         <message><source>Version %1</source><translation>Версия %1</translation></message>
         <message><source>7-Zip website</source><translation>Сайт 7-Zip</translation></message>

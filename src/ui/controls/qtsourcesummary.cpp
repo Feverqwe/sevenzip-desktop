@@ -62,6 +62,13 @@ void QtSourceSummary::SetDetail(const QString &detail) {
     setAccessibleDescription(detail.isEmpty() ? path_->text() : path_->text() + '\n' + detail);
 }
 
+void QtSourceSummary::SetSelectable(bool selectable) {
+    for (auto *label : {name_, path_, detail_})
+        label->setTextInteractionFlags(selectable ? Qt::TextSelectableByMouse |
+                                                        Qt::TextSelectableByKeyboard
+                                                  : Qt::NoTextInteraction);
+}
+
 void QtSourceSummary::SetIdentityPresentation() {
     identity_ = true;
     layout()->setContentsMargins(0, 0, 0, 0);

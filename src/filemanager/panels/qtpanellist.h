@@ -31,6 +31,9 @@ class QtPanelList {
             editLabel_(row);
     }
     void SetPresentationView(QAbstractItemView *view) { presentationView_ = view; }
+    QWidget *FocusTarget() const {
+        return presentationView_ ? presentationView_.data() : view_.data();
+    }
     bool IsBound() const { return view_ && view_->model() && view_->selectionModel(); }
     int GetItemCount() const;
     int GetSelectedCount() const;

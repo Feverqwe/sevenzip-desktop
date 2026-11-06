@@ -14,13 +14,21 @@ QtMetadataRows::QtMetadataRows(QWidget *parent) : QWidget(parent), rows_(new QGr
 
 QLabel *QtMetadataRows::AddRow(const char *context, const char *caption, const QString &value,
                                const QString &name) {
+    const auto row = AddLiteralRow({}, value, name);
+    QtBindLocalText(row.caption, context, caption);
+    return row.value;
+}
+
+QtMetadataRows::Row QtMetadataRows::AddLiteralRow(const QString &caption, const QString &value,
+                                                  const QString &name) {
     auto *label = new QtWrappingLabel(this);
     label->setTextFormat(Qt::PlainText);
     label->setWordWrap(true);
     label->setForegroundRole(QPalette::PlaceholderText);
-    QtBindLocalText(label, context, caption);
+    label->setText(caption);
     auto *text = new QtWrappingLabel(value, this);
     text->setObjectName(name);
+    text->setAccessibleName(caption);
     text->setTextFormat(Qt::PlainText);
     text->setTextInteractionFlags(Qt::TextSelectableByMouse | Qt::TextSelectableByKeyboard);
     text->setWordWrap(true);
@@ -33,7 +41,7 @@ QLabel *QtMetadataRows::AddRow(const char *context, const char *caption, const Q
     const int row = rows_->rowCount();
     rows_->addWidget(label, row, 0, Qt::AlignTop);
     rows_->addWidget(text, row, 1);
-    return text;
+    return {label, text};
 }
 
 bool QtMetadataRows::eventFilter(QObject *object, QEvent *event) {

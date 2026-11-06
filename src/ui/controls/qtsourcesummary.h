@@ -13,6 +13,7 @@ class QtSourceSummary final : public QWidget {
     void SetSource(const QString &name, const QString &path);
     void SetDetail(const QString &detail);
     void SetIdentityPresentation();
+    void SetSelectable(bool selectable);
     int heightForWidth(int width) const override;
     bool hasHeightForWidth() const override { return true; }
 

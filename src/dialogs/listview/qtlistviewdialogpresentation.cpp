@@ -1,14 +1,11 @@
 // Qt projection and language bindings for the native list/report dialog.
 // Igor Pavlov, LGPL-2.1-or-later; source mapping remains with ListViewDialog.cpp.
-#include "archive/diagnostics/archiveerrormessages.h"
 #include "dialogs/listview/ListViewDialog.h"
-#include "filemanager/PropertyName.h"
 #include "filemanager/views/qtlistview.h"
 #include "localization/qtlangbuttonbox.h"
 #include "localization/qtlangcontrols.h"
 #include "settings/RegistryUtils.h"
 #include "settings/ViewSettings.h"
-#include "ui/diagnostics/qtdiagnostictext.h"
 #include "ui/dialogs/qtdialoglayout.h"
 #include "ui/dialogs/qtdialogscreenservices.h"
 #include <QApplication>
@@ -34,6 +31,8 @@ bool CListViewDialog::OnInit() {
     setWindowFlag(Qt::WindowMinMaxButtonsHint);
     setWindowFlag(Qt::WindowContextHelpButtonHint, false);
     setWindowTitle(ToQString(Title));
+    if (TitleID)
+        QtBindLangText(this, *TitleID);
     _listView = new CListView(this);
     _listView->setObjectName(NumColumns > 1 ? "propertiesList" : "foldersHistoryList");
     _listView->setColumnCount((int)NumColumns);
@@ -96,55 +95,16 @@ bool CListViewDialog::OnInit() {
     return true;
 }
 
-void CListViewDialog::QtBindPropertyName(unsigned row, UInt32 id, const wchar_t *fallback) {
-    _rowBindings[row].Property =
-        CPropertyNameBinding{id, fallback ? std::make_optional<UString>(fallback) : std::nullopt};
-}
-
-void CListViewDialog::QtBindDiagnosticRow(unsigned row, const char *name, const char *value) {
-    _rowBindings[row].Diagnostic = {name, value};
-}
-
-void CListViewDialog::QtBindArchiveDiagnosticValue(unsigned row, const UString &source) {
-    _rowBindings[row].ArchiveValue = source;
-}
-
-void CListViewDialog::QtBindArchiveFlagsValue(unsigned row, UInt32 flags) {
-    _rowBindings[row].ArchiveValue = flags;
-}
-
 void CListViewDialog::changeEvent(QEvent *event) {
     if (event->type() == QEvent::LanguageChange && _listView) {
         for (int i = 0; i < _listView->topLevelItemCount(); ++i) {
             auto *item = _listView->topLevelItem(i);
-            const auto binding = _rowBindings.value(item->data(0, kRowIdentityRole).toUInt());
-            const auto *flags = std::get_if<UInt32>(&binding.ArchiveValue);
-            const auto *source = std::get_if<UString>(&binding.ArchiveValue);
-            if ((flags || source) && unsigned(i) < Values.Size()) {
-                const UString value =
-                    flags ? GetOpenArcErrorMessage(*flags) : QtArchiveDiagnosticText(*source);
-                Values[unsigned(i)] = value;
-                item->setText(1, ToQString(ListValueText(value)));
-            }
-            for (int column = 0; column < 2; ++column) {
-                const QByteArray &key =
-                    column == 0 ? binding.Diagnostic.first : binding.Diagnostic.second;
-                if (key.isEmpty())
-                    continue;
-                const UString text = QtDiagnosticText(key.constData());
-                auto &values = column == 0 ? Strings : Values;
-                if (unsigned(i) < values.Size())
-                    values[unsigned(i)] = text;
-                item->setText(column, ToQString(text));
-            }
-            if (!binding.Property)
-                continue;
-            const auto &property = *binding.Property;
-            const UString text = GetNameOfProperty(
-                property.ID, property.Fallback ? property.Fallback->Ptr() : nullptr);
+            const auto row = item->data(0, kRowIdentityRole).toUInt();
+            RefreshRow(unsigned(i), row);
             if (unsigned(i) < Strings.Size())
-                Strings[unsigned(i)] = text;
-            item->setText(0, ToQString(text));
+                item->setText(0, ToQString(Strings[unsigned(i)]));
+            if (NumColumns > 1 && unsigned(i) < Values.Size())
+                item->setText(1, ToQString(ListValueText(Values[unsigned(i)])));
         }
         _listView->SetColumnWidthAuto(0);
         if (NumColumns > 1)

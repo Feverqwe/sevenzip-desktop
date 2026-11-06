@@ -226,6 +226,13 @@ current owner again, so a stale menu cannot restart finished work. Recent succes
 retain only bounded display values and have no event-loop hold or session storage.
 They do not replace pending review ownership or the child's own terminal view.
 
+Selected properties use an owned snapshot from the native panel collector.
+Typed membership separates selected entries, folder metadata and each archive
+level before presentation. The nonmodal information window composes shared UI
+controls and holds no reader or panel; its parent file window owns its lifetime.
+Generic report rows share storage and language bindings with that snapshot.
+Windows filesystem Properties retains the existing shell provider.
+
 External-editor observation keeps the native wait/discovery algorithm. Unknown
 completion, including a fast launcher or a no-handle association, retains cleanup
 protection. Manual confirmation permits checking a stable copied input; it does

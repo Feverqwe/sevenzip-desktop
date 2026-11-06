@@ -1,5 +1,71 @@
 # Property report row metadata — 2026-10-31
 
+## Selected properties snapshot and information window — 2026-11-07
+
+Compared complete original CPanel::Properties, its property-formatting helpers,
+ListViewDialog.cpp/.h/.rc, bound folder interfaces and filesystem property/cache
+consumers at `b88c6bc09339de32f7d18bbab900686b244f42ba`, from
+<https://github.com/ip7z/7zip.git>. Complete original PanelMenu and ListViewDialog
+inventory hashes match the existing baseline. No external source or revision is
+imported. The approved design is `master:work/design/specs/file-properties.md`
+(v34, design commit `ed197ad2`).
+
+The native item/raw/folder/archive enumeration and formatting remain in
+PanelProperties. It now records row membership at enumeration time, including
+parent-entry and unopened-archive levels; translated names and legacy separators
+are not parsed to recover ownership. The snapshot owns full formatted values,
+copied native scalar/string/time variants, bounded native raw previews and
+language bindings. Unsupported variant types retain the native formatted marker
+and type tag without retaining an interface or borrowed reference. The
+folder-path source identity remains distinct from its original display-name ID.
+Unknown reader fields remain absent. Native aggregates are qualified as possibly
+partial; checked addition marks an overflowing total unavailable instead of
+presenting its wrapped result as a size. Selected-object counts are separate
+from the original descendant totals. No recursive scan, hash, extraction,
+metadata editor or new provider is introduced.
+
+QtReportData shares full report storage/language bindings between the retained
+generic list and the new properties snapshot. The original native header fields
+are mapped to their extracted owner in the baseline without changing the
+original hash. Existing report/history interaction remains with ListViewDialog.
+The test-only PropertyProjection adapts the authoritative collector into that
+generic list; its old list geometry does not establish acceptance of the new
+properties window.
+
+The command shows a nonmodal snapshot window assembled from SourceSummary,
+MetadataRows, Disclosure and the shared scroll/fixed-footer layout. Navigation
+and subsequent selection do not retarget it. Copy information includes full
+collapsed values; ordinary text selection remains available. Filesystem and
+archive paths remain literal text. Stored CRC is identified as metadata rather
+than a content check; packed-size values are qualified. Close/Escape return to
+the source focus when it still exists. Windows ordinary files retain their
+existing native shell property sheet; this does not replace its editors.
+
+Focused Linux checks cover the native collector and its direct generic-report,
+history/language, source-provider and About consumers, plus the new window.
+The initial sparse-provider and source-focus failures were corrected rather
+than waived. Actual Cocoa checks cover the new form, view-mode consumers and
+retained report interactions. A native-archive diagnostic suite first timed out;
+the affected row then passed alone and the complete suite passed without a
+production or timeout change. The original timeout remains recorded rather than
+assigned an unproven cause.
+
+Native screenshot review found an EN-to-RU capture taken before Qt had settled
+its new layout. The language-change test now requires readable labels,
+disclosures and exposed footer buttons before capture. The corrected Cocoa
+producer passed and its light/dark images were inspected: normal/compact EN/RU,
+unknown versus zero, directory/selection summaries, current-folder opening,
+nested contexts and an actual filesystem comment. Captions and the Close button
+are no longer clipped in the language-change capture. Explicit compact frames
+remain compact, scrolling content keeps the footer exposed, and full-copy and
+fragment-copy behavior are checked separately.
+No Windows runtime, original Windows pixel or VoiceOver acceptance is claimed.
+
+This iteration retains native property value formatting. The newer shared
+size/date and single-status contract in the designer's `status-v56` is separate
+presentation work; these checks do not establish that acceptance. Its formatter
+must consume the copied numeric/time values rather than parse property labels.
+
 ## Filesystem comment persistence owner — 2026-11-04
 
 Reviewed focused-item comment editing, joined SetProperty dispatch, filesystem

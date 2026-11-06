@@ -1,3 +1,4 @@
+#include "filemanager/properties/qtpropertieswindow.h"
 #include "filemanager/providers/FSFolder.h"
 #include "filemanager/providers/qtlocationfolder.h"
 #include "filemanager/support/panel_model_support.h"
@@ -29,8 +30,16 @@ class PropertiesTests : public QObject, protected MainWindowTestSupport {
     }
     static QString value(const QDialog &dialog, const QString &name) {
         auto *list = dialog.findChild<QTreeWidget *>("propertiesList");
-        if (!list)
+        if (!list) {
+            QString caption = name;
+            if (name == "Сжатый")
+                caption = QCoreApplication::translate("PropertiesWindow",
+                                                      "Reported packed size (may be partial)");
+            for (auto *label : dialog.findChildren<QLabel *>())
+                if (label->accessibleName() == caption)
+                    return label->text();
             return QString();
+        }
         const auto found = list->findItems(name, Qt::MatchExactly, 0);
         return found.isEmpty() ? QString() : found.first()->text(1);
     }
@@ -89,8 +98,8 @@ class PropertiesTests : public QObject, protected MainWindowTestSupport {
         auto *action = window.findChild<QAction *>("selectedPropertiesAction");
         QCOMPARE(table->rowCount(), 1);
         table->selectRow(0);
-        bool checked = false;
-        QTimer::singleShot(0, [&] {
+        action->trigger();
+        {
             auto *dialog = window.findChild<QDialog *>("selectedPropertiesDialog");
             QVERIFY(dialog);
             const auto closeDialog = qScopeGuard([dialog] { dialog->reject(); });
@@ -98,11 +107,8 @@ class PropertiesTests : public QObject, protected MainWindowTestSupport {
             QCOMPARE(value(*dialog, "Папок"), QString("1"));
             QCOMPARE(value(*dialog, "Размер"), QString("20"));
             QCOMPARE(value(*dialog, "Сжатый"), QString("8"));
-            checked = true;
             dialog->reject();
-        });
-        action->trigger();
-        QVERIFY(checked);
+        }
     }
 
     void sourceSummaryUsesDescendantsOfTheSelectedFolder() {
@@ -130,36 +136,6 @@ class PropertiesTests : public QObject, protected MainWindowTestSupport {
         QCOMPARE(value(dialog, "Сжатый"), QString("3"));
         QCOMPARE(value(dialog, "Файлов"), QString("1")); // Source folder totals follow item.
         QCOMPARE(value(dialog, "Папок"), QString("0"));
-        auto *list = dialog.findChild<QTreeWidget *>();
-        QVERIFY(!list->header()->isHidden());
-        QCOMPARE(list->columnCount(), 2);
-    }
-
-    void geometry_data() {
-        QTest::addColumn<QSize>("size");
-        QTest::newRow("normal") << QSize(540, 360);
-        QTest::newRow("compact") << QSize(360, 240);
-    }
-    void geometry() {
-        QFETCH(QSize, size);
-        auto folder =
-            archiveFolder({ArchiveEntry{QStringLiteral("длинное имя 😀.txt"), 12345, 5432}});
-        QVERIFY(folder);
-        CPanel panel(folder);
-        panel.SetCurrentFolderPrefix("archive.zip" + QString("/long path/").repeated(150));
-        PropertyProjection dialog(panel, allIndices(folder));
-        dialog.resize(size);
-        dialog.show();
-        QApplication::processEvents();
-        auto *list = dialog.findChild<QTreeWidget *>();
-        auto *buttons = dialog.findChild<QDialogButtonBox *>();
-        QVERIFY(UiInspection::fullyVisible(*list, dialog));
-        QVERIFY(UiInspection::fullyVisible(*buttons, dialog));
-        QVERIFY(UiInspection::separate(*list, *buttons, dialog));
-        QVERIFY(UiInspection::fullyVisible(*list->header(), dialog));
-        for (auto *button : buttons->buttons())
-            QVERIFY(UiInspection::fullyVisible(*button, dialog));
-        QVERIFY(UiInspection::writeReport(dialog, QString("properties-%1").arg(size.width())));
     }
 
     void filesystemPropertiesUseLoadedMetadataUntilReload() {
@@ -211,28 +187,16 @@ class PropertiesTests : public QObject, protected MainWindowTestSupport {
         SetPanelData(table->model()->index(unknownRow, 2), "999", Qt::EditRole);
         SetPanelData(table->model()->index(unknownRow, 3), "888", Qt::EditRole);
         SetPanelData(table->model()->index(unknownRow, 4), "changed presentation", Qt::EditRole);
-        bool inspected = false;
-        QTimer::singleShot(0, [&] {
+        action->trigger();
+        {
             auto *dialog = window.findChild<QDialog *>("selectedPropertiesDialog");
             QVERIFY(dialog);
             const auto closeDialog = qScopeGuard([dialog] { dialog->reject(); });
             QCOMPARE(value(*dialog, "Имя"), QString("unknown.txt"));
-            // The undefined item fields are omitted before the separator;
-            // source folder totals are still enumerated afterward.
-            auto *properties = dynamic_cast<CListViewDialog *>(dialog);
-            QVERIFY(properties);
-            for (unsigned i = 0; i < properties->Strings.Size(); ++i) {
-                const QString name = ToQString(properties->Strings[i]);
-                if (name.startsWith("----"))
-                    break;
-                QVERIFY(name != "Размер" && name != "Сжатый");
-            }
+            QCOMPARE(dialog->findChild<QLabel *>("propertiesSize")->text(), QString("Недоступно"));
             QCOMPARE(value(*dialog, "Изменен"), QString("2026-09-28 12:34:56.1234567"));
-            inspected = true;
             dialog->reject();
-        });
-        action->trigger();
-        QVERIFY(inspected);
+        }
     }
 };
 #include "ui/support/review_test_main.h"
