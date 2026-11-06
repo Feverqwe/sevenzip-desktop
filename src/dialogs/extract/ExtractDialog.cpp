@@ -184,8 +184,10 @@ void CExtractDialog::changeEvent(QEvent *event) {
                     QtLangText(combo->itemData(index, kModeCaptionRole).toUInt()).remove('&'));
     }
     QDialog::changeEvent(event);
-    if (event->type() == QEvent::LanguageChange)
+    if (event->type() == QEvent::LanguageChange) {
         UpdateAdvancedSummary();
+        RefreshSourceSummary();
+    }
 }
 
 void CExtractDialog::OnButtonSetPath() {

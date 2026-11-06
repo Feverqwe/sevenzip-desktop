@@ -9,6 +9,8 @@
 #include <QStringList>
 
 class QtDisclosure;
+class QtSourceSummary;
+class QPlainTextEdit;
 
 class CExtractDialog : public QDialog {
     Q_OBJECT
@@ -23,10 +25,16 @@ class CExtractDialog : public QDialog {
     QCheckBox *_ntSecurity = nullptr;
     QCheckBox *_passwordEnable = nullptr;
     QtDisclosure *_advancedSection = nullptr;
+    QtSourceSummary *_sourceSummary = nullptr;
+    QtDisclosure *_sourcesSection = nullptr;
+    QPlainTextEdit *_sourcePaths = nullptr;
+    QStringList _archiveSources;
+    bool _allContents = true;
     QSize _initialPresentationSize;
     bool _initialPresentation = true;
     void BuildPresentation();
     void UpdateAdvancedSummary();
+    void RefreshSourceSummary();
     NExtract::CInfo _info;
     void OnInit(const QStringList &history);
     void OnOK();
@@ -59,6 +67,8 @@ class CExtractDialog : public QDialog {
     void SetInitialOptions(NExtract::NPathMode::EEnum pathMode,
                            NExtract::NOverwriteMode::EEnum overwriteMode, const QString &password);
     void SetMetadataOptions(const CBoolPair &elimDup, const CBoolPair &ntSecurity);
+    // Display the caller's existing sources and effective selection scope.
+    void SetArchiveSources(const QStringList &sources, bool allContents);
   public slots:
     void accept() override { OnOK(); }
 };

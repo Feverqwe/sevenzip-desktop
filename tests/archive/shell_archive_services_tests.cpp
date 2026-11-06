@@ -21,29 +21,33 @@ using namespace SourceExtractFixture;
 UString us(const QString &s) { return UString(s.toStdWString().c_str()); }
 class CDismissal {
     QTimer _timer;
+    bool _waitForHashResult;
 
   public:
     QStringList ResultValues;
     QStringList Errors;
-    CDismissal() {
+    explicit CDismissal(bool waitForHashResult = false) : _waitForHashResult(waitForHashResult) {
         QObject::connect(&_timer, &QTimer::timeout, [this] {
             for (auto *widget : QApplication::topLevelWidgets()) {
                 if (!widget->isVisible())
                     continue;
                 if (auto *message = qobject_cast<QMessageBox *>(widget)) {
                     if (message->icon() == QMessageBox::Critical ||
-                        message->icon() == QMessageBox::Warning)
+                        message->icon() == QMessageBox::Warning) {
                         Errors.append(message->text());
+                        _waitForHashResult = false;
+                    }
                     message->accept();
                     return;
                 }
                 if (auto *results = qobject_cast<CListViewDialog *>(widget)) {
+                    _waitForHashResult = false;
                     FOR_VECTOR(i, results->Values)
                     ResultValues.append(QString::fromWCharArray(results->Values[i].Ptr()));
                     results->accept();
                     return;
                 }
-                if (widget->objectName() == "progressDialog" &&
+                if (!_waitForHashResult && widget->objectName() == "progressDialog" &&
                     QApplication::activeModalWidget() == widget) {
                     auto *close = widget->findChild<QPushButton *>("IDCANCEL");
                     if (close && close->property("languageID").toUInt() == IDS_CLOSE)
@@ -175,7 +179,9 @@ class ShellArchiveServicesTests final : public QObject {
             backend, nullptr, {.Error = [&](HRESULT result, const UString &) { error = result; }});
         UStringVector paths;
         paths.Add(us(path));
-        CDismissal dismissal;
+        // Progress exposes Close before its native callback opens the nested
+        // hash report. A programmatic click must not retire that parent first.
+        CDismissal dismissal(true);
         QCOMPARE(::CalcChecksum(paths, UString(L"SHA256"), UString(), UString(), service), S_OK);
         QCOMPARE(error, S_OK);
         QVERIFY(dismissal.Errors.isEmpty());

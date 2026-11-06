@@ -6,10 +6,14 @@
 #include "localization/qtlangcontrols.h"
 #include "ui/controls/qtdisclosure.h"
 #include "ui/controls/qtsecretedit.h"
+#include "ui/controls/qtsourcesummary.h"
 #include "ui/dialogs/qtdialoglayout.h"
+#include "ui/theme/qtcommandicons.h"
+#include <QFileInfo>
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QPlainTextEdit>
 #include <QPushButton>
 #include <QShortcut>
 #include <QToolButton>
@@ -22,6 +26,22 @@ void CExtractDialog::BuildPresentation() {
     buttons->SetAcceptText("ArchiveRedesign", QT_TRANSLATE_NOOP("ArchiveRedesign", "Extract"));
     auto *layout = QtCreateDialogLayout(*this, *buttons, QtDialogContent::Scrollable);
     layout->setSpacing(12);
+    _sourceSummary = new QtSourceSummary(QtCommandSymbol(QtCommandIcon::Extract), {}, {}, this);
+    _sourceSummary->setObjectName("extractSourceSummary");
+    layout->addWidget(_sourceSummary);
+    _sourceSummary->hide();
+    _sourcePaths = new QPlainTextEdit(this);
+    _sourcePaths->setObjectName("extractArchiveSources");
+    QtBindLocalText(_sourcePaths, "ArchiveRedesign",
+                    QT_TRANSLATE_NOOP("ArchiveRedesign", "Sources"), true);
+    _sourcePaths->setReadOnly(true);
+    _sourcePaths->setMaximumHeight(fontMetrics().lineSpacing() * 6);
+    _sourcesSection = new QtDisclosure(_sourcePaths, this);
+    _sourcesSection->setObjectName("extractSourcesSection");
+    QtBindLocalText(_sourcesSection->button(), "ArchiveRedesign",
+                    QT_TRANSLATE_NOOP("ArchiveRedesign", "Show archives"));
+    layout->addWidget(_sourcesSection);
+    _sourcesSection->hide();
     auto *destinationLabel = new QLabel(this);
     destinationLabel->setObjectName("extractDestinationLabel");
     QtBindResourceText(destinationLabel, IDT_EXTRACT_EXTRACT_TO, "E&xtract to:");
@@ -145,9 +165,35 @@ void CExtractDialog::BuildPresentation() {
             &CExtractDialog::UpdateAdvancedSummary);
     connect(_elimDup, &QCheckBox::toggled, this, &CExtractDialog::UpdateAdvancedSummary);
     connect(_ntSecurity, &QCheckBox::toggled, this, &CExtractDialog::UpdateAdvancedSummary);
-    QWidget::setTabOrder({_path, browse, _nameEnable, _pathName, _passwordEnable, _passwordControl,
-                          _showPassword, _advancedSection->button(), _overwriteMode, _pathMode,
-                          _elimDup, _ntSecurity});
+    QWidget::setTabOrder({_sourcesSection->button(), _sourcePaths, _path, browse, _nameEnable,
+                          _pathName, _passwordEnable, _passwordControl, _showPassword,
+                          _advancedSection->button(), _overwriteMode, _pathMode, _elimDup,
+                          _ntSecurity});
+}
+
+void CExtractDialog::SetArchiveSources(const QStringList &sources, bool allContents) {
+    _archiveSources = sources;
+    _allContents = allContents;
+    _sourcePaths->setPlainText(sources.join('\n'));
+    _sourceSummary->setVisible(!sources.isEmpty());
+    _sourcesSection->setVisible(sources.size() > 1);
+    RefreshSourceSummary();
+}
+
+void CExtractDialog::RefreshSourceSummary() {
+    if (_archiveSources.isEmpty())
+        return;
+    const QString scope = _allContents
+                              ? QCoreApplication::translate("ArchiveRedesign", "Entire contents")
+                              : QCoreApplication::translate("ArchiveRedesign", "Filtered contents");
+    const QString name = _archiveSources.size() == 1
+                             ? QFileInfo(_archiveSources.first()).fileName()
+                             : QCoreApplication::translate("ArchiveRedesign", "%n archives",
+                                                           nullptr, int(_archiveSources.size()));
+    _sourceSummary->SetSource(name, scope);
+    const QString paths = _archiveSources.join('\n');
+    _sourceSummary->setToolTip(paths);
+    _sourceSummary->setAccessibleDescription(scope + '\n' + paths);
 }
 
 void CExtractDialog::UpdateAdvancedSummary() {

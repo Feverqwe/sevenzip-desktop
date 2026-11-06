@@ -11,6 +11,7 @@
 #include <QDir>
 #include <QFile>
 #include <QLabel>
+#include <QPlainTextEdit>
 #include <QPushButton>
 #include <QScopeGuard>
 #include <QScrollArea>
@@ -162,6 +163,143 @@ class ExtractDialogTests final : public QObject {
         QApplication::processEvents();
         QCOMPARE(dialog.size(), compactSize);
         dialog.reject();
+    }
+
+    void archiveSourcesAreReadOnlyAndFollowLanguage() {
+        for (int count : {1, 2, 5, 21}) {
+            QStringList sources;
+            for (int i = 0; i < count; ++i)
+                sources << dir_.filePath(QStringLiteral("Длинное имя <архив> 空 %1.7z").arg(i));
+            CExtractDialog dialog(dir_.filePath("output"), {});
+            dialog.SetArchiveSources(sources, count != 5);
+            dialog.show();
+            QVERIFY(QTest::qWaitForWindowExposed(&dialog));
+            QApplication::processEvents();
+            auto *summary = dialog.findChild<QWidget *>("extractSourceSummary");
+            auto *section = dialog.findChild<QWidget *>("extractSourcesSection");
+            auto *names = dialog.findChild<QPlainTextEdit *>("extractArchiveSources");
+            auto *scroll = dialog.findChild<QScrollArea *>("dialogContentScroll");
+            QVERIFY(summary && section && names && scroll);
+            const QString destination = dialog.destination();
+            for (const char *language : {"-", "ru"}) {
+                SaveRegLang(UString(language), settings_);
+                ReloadLang(settings_);
+                QtNotifyLanguageChanged();
+                const bool russian = QString(language) == "ru";
+                const QString name = count == 1   ? QFileInfo(sources.first()).fileName()
+                                     : !russian   ? QString("%1 archives").arg(count)
+                                     : count == 2 ? QStringLiteral("2 архива")
+                                     : count == 5 ? QStringLiteral("5 архивов")
+                                                  : QStringLiteral("21 архив");
+                QCOMPARE(summary->accessibleName(), name);
+                const QString scope = count == 5 ? (russian ? QStringLiteral("По заданным фильтрам")
+                                                            : QString("Filtered contents"))
+                                                 : (russian ? QStringLiteral("Всё содержимое")
+                                                            : QString("Entire contents"));
+                QCOMPARE(summary->accessibleDescription(), scope + '\n' + sources.join('\n'));
+                QCOMPARE(summary->toolTip(), sources.join('\n'));
+                QCOMPARE(names->toPlainText(), sources.join('\n'));
+                QVERIFY(names->isReadOnly());
+                QCOMPARE(section->isVisible(), count > 1);
+                for (const QSize size : {QSize(640, 420), QSize(360, 300)}) {
+                    dialog.resize(size);
+                    scroll->ensureWidgetVisible(summary);
+                    QTRY_VERIFY(UiInspection::fullyVisible(*summary, dialog));
+                    for (auto *label : summary->findChildren<QLabel *>())
+                        if (label->isVisible())
+                            QVERIFY(UiInspection::labelFits(*label));
+                    QVERIFY(UiInspection::fullyVisible(*dialog.findChild<QDialogButtonBox *>(),
+                                                       dialog));
+                    QTRY_COMPARE(scroll->horizontalScrollBar()->maximum(), 0);
+                    QVERIFY(UiInspection::writeReport(dialog, QString("extract-source-%1-%2-%3")
+                                                                  .arg(language)
+                                                                  .arg(count)
+                                                                  .arg(size.width())));
+                }
+                if (count > 1) {
+                    auto *toggle = section->findChild<QToolButton *>();
+                    toggle->setChecked(true);
+                    QVERIFY(names->isVisible());
+                    scroll->ensureWidgetVisible(names);
+                    QTRY_VERIFY(UiInspection::fullyVisible(*names, dialog));
+                    if (count == 2)
+                        QVERIFY(UiInspection::writeReport(dialog, "extract-source-list-" +
+                                                                      QString(language)));
+                    toggle->setChecked(false);
+                }
+                QCOMPARE(dialog.destination(), destination);
+            }
+            dialog.reject();
+        }
+    }
+
+    void realCallerShowsSourcesWithoutChangingFilters() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString first = fixture.filePath(QStringLiteral("1 архив 空.zip"));
+        const QString second = fixture.filePath(QStringLiteral("2 архив δ.zip"));
+        NativeArchiveFixture::Item wanted, omitted, other, directory;
+        wanted.Path = "wanted.txt";
+        wanted.Bytes = "first payload";
+        omitted.Path = "omitted.txt";
+        omitted.Bytes = "excluded payload";
+        other.Path = "other.txt";
+        other.Bytes = "second payload";
+        directory.Path = "empty";
+        directory.Directory = true;
+        QVERIFY(NativeArchiveFixture::Write(first, {wanted, omitted, directory}, "zip"));
+        QVERIFY(NativeArchiveFixture::Write(second, {other}, "zip"));
+        ArchiveBackend backend;
+        const QString cancelledOutput = fixture.filePath("cancelled");
+        const auto cancelled =
+            ExtractDialogFixture::Run(backend, QStringList{first, second}, cancelledOutput,
+                                      [](CExtractDialog &dialog) { dialog.reject(); });
+        QCOMPARE(cancelled.Result, E_ABORT);
+        QVERIFY(!QFileInfo::exists(cancelledOutput));
+        for (int mode : {0, 1, 2, 3}) {
+            const bool filtered = mode != 0;
+            const QStringList archives = filtered ? QStringList{first} : QStringList{first, second};
+            const QString output = fixture.filePath(QString("output-%1").arg(mode));
+            bool sourceMatches = false;
+            const auto result = ExtractDialogFixture::Run(
+                backend, archives, output,
+                [&](CExtractDialog &dialog) {
+                    auto *summary = dialog.findChild<QWidget *>("extractSourceSummary");
+                    auto *names = dialog.findChild<QPlainTextEdit *>("extractArchiveSources");
+                    sourceMatches = summary && names && summary->isVisible() &&
+                                    names->toPlainText() == archives.join('\n') &&
+                                    summary->accessibleDescription().startsWith(
+                                        filtered ? "Filtered contents\n" : "Entire contents\n");
+                    if (sourceMatches)
+                        dialog.accept();
+                    else
+                        dialog.reject();
+                },
+                [&](NWildcard::CCensorNode &censor, CExtractOptions &options) {
+                    options.ExcludeFileItems = mode == 2;
+                    options.ExcludeDirItems = mode == 3;
+                    if (mode != 1)
+                        return;
+                    NWildcard::CItem exclusion;
+                    exclusion.PathParts.Add(L"omitted.txt");
+                    exclusion.ForFile = exclusion.ForDir = true;
+                    exclusion.Recursive = exclusion.WildcardMatching = false;
+                    censor.AddItem(false, exclusion);
+                });
+            QVERIFY(sourceMatches);
+            QCOMPARE(result.Result, S_OK);
+            QVERIFY(result.CallbackOK);
+            const auto bytes = [](const QString &path) {
+                QFile file(path);
+                return file.open(QIODevice::ReadOnly) ? file.readAll() : QByteArray();
+            };
+            QCOMPARE(bytes(QDir(output).filePath("wanted.txt")),
+                     mode == 2 ? QByteArray() : wanted.Bytes);
+            QCOMPARE(QFileInfo::exists(QDir(output).filePath("omitted.txt")),
+                     mode == 0 || mode == 3);
+            QCOMPARE(QFileInfo::exists(QDir(output).filePath("other.txt")), !filtered);
+            QCOMPARE(QFileInfo(QDir(output).filePath("empty")).isDir(), mode != 3);
+        }
     }
 
     void initTestCase() {

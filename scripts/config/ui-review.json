@@ -24,7 +24,7 @@
   {"id":"dialog-surface","title":"Общая форма: прокрутка и доступные действия","target":"dialog_surface_tests","functions":["compactSurfaceKeepsActionsAndKeyboardReachable"]},
   {"id":"archive-forms","title":"Создание и распаковка архива","target":"ui_geometry_tests","functions":["dialogs"]},
   {"id":"add-sections","title":"Создание архива: основные поля, пароль и раскрытые параметры","target":"source_compress_dialog_tests","functions":["collapsedSectionsKeepEffectiveOptionsAndPasswordDraft"]},
-  {"id":"extract-sections","title":"Распаковка: основные поля, пароль и раскрытые параметры","target":"extract_dialog_tests","functions":["optionalSectionsKeepDraftAndEffectiveOptions","compactFieldsRemainReachable"]},
+  {"id":"extract-sections","title":"Распаковка: источники, основные поля и дополнительные параметры","target":"extract_dialog_tests","functions":["optionalSectionsKeepDraftAndEffectiveOptions","compactFieldsRemainReachable","archiveSourcesAreReadOnlyAndFollowLanguage"]},
   {"id":"compression-options","title":"Параметры сжатия и дополнительные настройки","target":"compression_advanced_tests","functions":["optionsStatesAndGeometry","lifecycleFormGeometry","addFormGeometry"]},
   {"id":"compression-language","title":"Создание архива и дополнительные параметры, EN/RU","target":"language_ui_tests","functions":["addDialogRetainsPendingConfiguration","advancedDialogRetainsPendingTimePolicy"]},
   {"id":"create-protection","title":"Создание архива: сохранение защиты при смене формата, EN/RU","target":"compression_encryption_tests","functions":["unsupportedFormatKeepsProtectionUntilExplicitDecision"]},

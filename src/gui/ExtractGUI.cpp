@@ -185,6 +185,9 @@ HRESULT ExtractGUI(
         progressServices ? progressServices->CreateProgressTransport(extracter) : nullptr;
     extracter.FormatIndices = &formatIndices;
     extracter.ExcludedFormatIndices = &excludedFormatIndices;
+    QStringList sourceLocations;
+    FOR_VECTOR(i, archivePathsFull)
+    sourceLocations.append(ToQString(archivePathsFull[i]));
 
     if (!options.TestMode) {
         FString outputDir = options.OutputDir;
@@ -203,6 +206,9 @@ HRESULT ExtractGUI(
             CExtractDialog dialog(ToQString(fs2us(outputDirFull)), {}, hwndParent);
             if (archivePathsFull.Size() == 1)
                 dialog.ArcPath = archivePathsFull[0];
+            dialog.SetArchiveSources(sourceLocations, wildcardCensor.AreAllAllowed() &&
+                                                          !options.ExcludeDirItems &&
+                                                          !options.ExcludeFileItems);
 
             dialog.OverwriteMode_Force = options.OverwriteMode_Force;
             dialog.PathMode_Force = options.PathMode_Force;
@@ -267,9 +273,6 @@ HRESULT ExtractGUI(
 
     extracter.ArchivePaths = &archivePaths;
     extracter.ArchivePathsFull = &archivePathsFull;
-    QStringList sourceLocations;
-    FOR_VECTOR(i, archivePathsFull)
-    sourceLocations.append(QString::fromWCharArray(archivePathsFull[i]));
     extracter.SetLocations(sourceLocations.join('\n'),
                            options.TestMode ? QString()
                                             : QString::fromWCharArray(fs2us(options.OutputDir)));

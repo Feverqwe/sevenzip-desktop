@@ -161,6 +161,26 @@
     <context>
         <name>ArchiveRedesign</name>
         <message>
+            <source>Show archives</source>
+            <translation>Показать архивы</translation>
+        </message>
+        <message>
+            <source>Entire contents</source>
+            <translation>Всё содержимое</translation>
+        </message>
+        <message>
+            <source>Filtered contents</source>
+            <translation>По заданным фильтрам</translation>
+        </message>
+        <message numerus="yes">
+            <source>%n archives</source>
+            <translation>
+                <numerusform>%n архив</numerusform>
+                <numerusform>%n архива</numerusform>
+                <numerusform>%n архивов</numerusform>
+            </translation>
+        </message>
+        <message>
             <source>Additional options</source>
             <translation>Дополнительно</translation>
         </message>

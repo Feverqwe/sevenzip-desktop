@@ -16,9 +16,10 @@
 namespace ExtractDialogFixture {
 // Exercise the real modal consumer rather than translating widget values into
 // a second request in the test. The callback chooses OK or Cancel itself.
-inline QtArchiveBatchResult Run(ArchiveBackend &backend, const QString &archive,
-                                const QString &destination,
-                                const std::function<void(CExtractDialog &)> &interact) {
+inline QtArchiveBatchResult
+Run(ArchiveBackend &backend, const QStringList &archives, const QString &destination,
+    const std::function<void(CExtractDialog &)> &interact,
+    const std::function<void(NWildcard::CCensorNode &, CExtractOptions &)> &configure = {}) {
     QTimer timer;
     bool presented = false;
     QObject::connect(&timer, &QTimer::timeout, [&] {
@@ -46,13 +47,16 @@ inline QtArchiveBatchResult Run(ArchiveBackend &backend, const QString &archive,
     CCodecs codecs;
     CObjectVector<COpenType> types;
     UStringVector paths, fullPaths;
-    paths.Add(UString(QFileInfo(archive).absoluteFilePath().toStdWString().c_str()));
+    for (const QString &archive : archives)
+        paths.Add(UString(QFileInfo(archive).absoluteFilePath().toStdWString().c_str()));
     fullPaths = paths;
     NWildcard::CCensorNode censor;
     censor.Add_Wildcard();
     CExtractOptions options;
     options.OutputDir = us2fs(UString(destination.toStdWString().c_str()));
     options.OutDirMode = NExtractOutDirMode::k_Direct;
+    if (configure)
+        configure(censor, options);
     CMyComPtr2_Create<IFolderArchiveExtractCallback, CExtractCallbackImp> callback;
     callback->SettingsPath = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
     QtShellArchiveServices services(backend, nullptr);
@@ -61,5 +65,10 @@ inline QtArchiveBatchResult Run(ArchiveBackend &backend, const QString &archive,
                                         result.MessageWasDisplayed, *callback.ClsPtr());
     result.CallbackOK = callback->IsOK();
     return result;
+}
+inline QtArchiveBatchResult Run(ArchiveBackend &backend, const QString &archive,
+                                const QString &destination,
+                                const std::function<void(CExtractDialog &)> &interact) {
+    return Run(backend, QStringList{archive}, destination, interact);
 }
 } // namespace ExtractDialogFixture

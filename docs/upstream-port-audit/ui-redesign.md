@@ -4,6 +4,39 @@
 Это намеренная адаптация представления; полный исходный функциональный scope
 и baseline сохраняются в [основном аудите](../upstream-port-audit.md).
 
+## Extract: source summary — 2026-11-06
+
+The form now reuses QtSourceSummary for the supplied archive name/count and
+scope, and QtDisclosure for a read-only multiple-source list. Full paths remain
+in the tooltip and accessibility description. Counts have Russian plural forms;
+language changes preserve sources, scope and the pending destination.
+
+Compared the existing native ExtractGUI caller, Extract's item selection and
+Panel::ExtractArchives with their recorded original bodies. Presentation uses
+the same native AreAllAllowed predicate and both existing ExcludeDirItems and
+ExcludeFileItems flags. The actual archivePathsFull snapshot is shared with
+progress presentation. No filters, source naming, output policy or native
+algorithms are replaced, and no new external source or baseline is imported.
+The archive-provider Extract command still delegates to OnCopy as upstream does;
+its selected-item Copy form and operation remain unchanged. This change does not
+add batch destination policy or promise a unified replacement for that route.
+
+The focused real-caller regression verifies the displayed source list/scope,
+Cancel without creating output, extraction from two archives, a filename
+exclusion and the file/directory exclusion flags against actual extracted files
+and directories. EN/RU normal/compact checks cover readable wrapped names,
+counts, the read-only expanded list, footer exposure and live language changes.
+
+The four focused suites (extract_dialog, language_dialog, dialog_path_rules and
+shell_archive_services) passed on Linux. A final extract_dialog rerun covers
+settled native layout timing. Actual Cocoa checks passed the source form,
+language/path consumers and the native shell workflows. The shell fixture now
+waits for its expected nested checksum report before acknowledging the parent
+progress window: native finalization exposes Close before invoking that report.
+This prevents a direct test-button click from retiring the parent prematurely;
+production progress/hash behavior is unchanged. No Windows or original Windows
+pixel comparison was added for this shared presentation iteration.
+
 ## Extract: compact form and hidden overwrite options — 2026-11-06
 
 Compared the pinned original ExtractDialog initialization, OnOK, browse handler,
