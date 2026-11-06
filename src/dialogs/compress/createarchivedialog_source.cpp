@@ -40,6 +40,10 @@ QString CreateArchiveDialog::archivePath() const {
 void CreateArchiveDialog::validateAndAccept() {
     const QtTaskPresentation::QuestionScope validation;
     accepted_.reset();
+    if (!updateProtectionControls()) {
+        passwordEnabled_->setFocus();
+        return;
+    }
     if (parameters_ && parameters_->text().contains(QChar::Null)) {
         commandLineOptions_->setExpanded(true);
         ShowErrorMessageQt(this, NWindows::NError::MyFormatMessage(E_INVALIDARG));

@@ -41,18 +41,30 @@ class TrashOperation final : public CProgressThreadVirt {
     TrashOperation(const UStringVector &paths, IQtTrashService &trash)
         : paths_(paths), trash_(trash) {
         ShowCompressionInfo = false;
-        ShowByteStatistics(false);
     }
 };
 } // namespace
 
-HRESULT QtMoveItemsToTrash(const UStringVector &paths, IQtTrashService &trash, QWidget *parent) {
+HRESULT QtMoveItemsToTrash(const UStringVector &paths, IQtTrashService &trash, QWidget *parent,
+                           bool deferResultReview, QStringList *diagnostics) {
     TrashOperation operation(paths, trash);
+    operation.DeferResultReview = deferResultReview;
     operation.WaitMode = true;
     operation.MainWindow = parent;
     operation.MainTitle = L"7-Zip";
     operation.MainAddTitle = LangString(IDS_DELETING);
+    QStringList sources;
+    FOR_VECTOR(i, paths)
+    sources.append(QString::fromWCharArray(paths[i]));
+    operation.SetLocations(sources.join('\n'));
     operation.Sync.FinalMessage.ErrorMessage.Title = LangString(IDS_ERROR_DELETING);
     RINOK(operation.Create(LangString(IDS_DELETING), parent))
+    if (diagnostics) {
+        FOR_VECTOR(i, operation.Sync.Messages)
+        diagnostics->append(QString::fromWCharArray(operation.Sync.Messages[i]));
+        if (!operation.Sync.FinalMessage.ErrorMessage.Message.IsEmpty())
+            diagnostics->append(
+                QString::fromWCharArray(operation.Sync.FinalMessage.ErrorMessage.Message));
+    }
     return operation.Result;
 }

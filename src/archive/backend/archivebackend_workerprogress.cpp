@@ -24,7 +24,7 @@ std::function<void(quint64, quint64, const QString &)> ArchiveBackend::beginWork
     workerProgressTimer_.start();
     const quint64 generation = ++workerProgressGeneration_;
     return [this, generation](quint64 completed, quint64 total, const QString &path) {
-        const int percent = total ? int(qMin(100.0, 100.0 * completed / total)) : 0;
+        const int percent = total ? int(qMin(100.0, 100.0 * completed / total)) : -1;
         QMutexLocker lock(&workerProgressMutex_);
         if (generation == workerProgressGeneration_)
             pendingWorkerProgress_ = WorkerProgress{percent, path};

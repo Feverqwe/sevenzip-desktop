@@ -11,7 +11,13 @@
 // require their separate platform/manual acceptance rather than these fixtures.
 class WidgetDialogFixture final : public QObject {
     const bool previous_;
-    QHash<const QDialog *, int> showLevels_;
+    struct Shown {
+        int loop;
+        quint64 generation;
+        bool settled = false;
+    };
+    QHash<const QDialog *, Shown> shown_;
+    quint64 generation_ = 0;
     QSet<const QDialog *> answering_;
     bool eventFilter(QObject *watched, QEvent *event) override;
 

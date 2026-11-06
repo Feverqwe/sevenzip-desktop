@@ -1,11 +1,14 @@
 #include "ui/dialogs/qtdialoglayout.h"
+#include "ui/dialogs/qtdialogscreenservices.h"
 #include "ui/dialogs/qtdialogsurface.h"
 #include <QAbstractTextDocumentLayout>
 #include <QDialog>
+#include <QEvent>
 #include <QPainter>
 #include <QPushButton>
 #include <QResizeEvent>
 #include <QScrollArea>
+#include <QScrollBar>
 #include <QStyle>
 #include <QTextDocument>
 #include <QTextOption>
@@ -52,8 +55,29 @@ class DialogBody final : public QWidget {
 };
 
 class DialogContentScroll final : public QScrollArea {
+    void updateScrollbarSpace() {
+        auto *bar = verticalScrollBar();
+        int overlap = style()->pixelMetric(QStyle::PM_ScrollView_ScrollBarOverlap, nullptr, bar);
+        if (style()->styleHint(QStyle::SH_ScrollBar_Transient, nullptr, bar))
+            overlap = qMax(overlap, style()->pixelMetric(QStyle::PM_ScrollBarExtent, nullptr, bar));
+        const int space = bar->maximum() > bar->minimum() ? qMax(0, overlap) : 0;
+        const bool rtl = layoutDirection() == Qt::RightToLeft;
+        const QMargins margins(rtl ? space : 0, 0, rtl ? 0 : space, 0);
+        if (viewportMargins() != margins)
+            setViewportMargins(margins);
+    }
+    void changeEvent(QEvent *event) override {
+        QScrollArea::changeEvent(event);
+        if (event->type() == QEvent::StyleChange || event->type() == QEvent::FontChange ||
+            event->type() == QEvent::LayoutDirectionChange)
+            updateScrollbarSpace();
+    }
+
   public:
-    using QScrollArea::QScrollArea;
+    explicit DialogContentScroll(QWidget *parent) : QScrollArea(parent) {
+        connect(verticalScrollBar(), &QScrollBar::rangeChanged, this,
+                [this] { updateScrollbarSpace(); });
+    }
     QSize minimumSizeHint() const override {
         QSize hint = QScrollArea::minimumSizeHint();
         if (widget())
@@ -100,6 +124,20 @@ QVBoxLayout *QtCreateDialogLayout(QWidget &window, QWidget &footer, QtDialogCont
     }
     frame->addWidget(&footer);
     return content;
+}
+
+void QtFitScrollableDialog(QWidget &window) {
+    auto *scroll = window.findChild<QScrollArea *>("dialogContentScroll");
+    if (!scroll || !scroll->widget())
+        return;
+    window.layout()->activate();
+    scroll->widget()->resize(scroll->viewport()->width(), scroll->widget()->height());
+    scroll->widget()->layout()->invalidate();
+    scroll->widget()->layout()->activate();
+    const int bodyHeight = scroll->widget()->heightForWidth(scroll->viewport()->width());
+    window.resize(window.width(), qMax(window.minimumSizeHint().height(),
+                                       bodyHeight + window.height() - scroll->height()));
+    QtNormalizeDialogSize(window, true);
 }
 
 void QtSizeIconButton(QPushButton &button) {

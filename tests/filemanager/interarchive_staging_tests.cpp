@@ -249,6 +249,8 @@ class InterarchiveStagingTests final : public QObject, protected MainWindowTestS
         });
         responder.start(2);
         action(window, "moveAction")->trigger();
+        if (!accepted)
+            QTRY_VERIFY(!errors.isEmpty());
         responder.stop();
         QVERIFY(submitted);
         QVERIFY(!overwrite);
@@ -256,7 +258,8 @@ class InterarchiveStagingTests final : public QObject, protected MainWindowTestS
         if (!accepted) {
             QVERIFY(!errors.isEmpty());
             if (russian)
-                QVERIFY(errors.last().contains(QStringLiteral("Формат целевого архива")));
+                QVERIFY2(errors.join('\n').contains(QStringLiteral("Формат целевого архива")),
+                         qPrintable(errors.join('\n')));
             QCOMPARE(SourceExtractFixture::readFile(source), sourceBefore);
             QCOMPARE(SourceExtractFixture::readFile(target), targetBefore);
             return;

@@ -119,6 +119,7 @@ class CExtractCallbackImp Z7_final
     bool TestMode;
 
     UInt32 NumArchiveErrors;
+    bool SomeItemsSkipped = false;
     NExtract::NOverwriteMode::EEnum OverwriteMode;
 
   private:

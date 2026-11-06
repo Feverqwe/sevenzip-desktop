@@ -1,9 +1,11 @@
+#include "support/progress_dialog.h"
 #include "support/widget_dialogs.h"
 #include "ui/progress/ProgressDialog2.h"
 #include "ui/progress/qtcallbackprogresstransport.h"
 #include "ui/support/layout_inspection.h"
 #include <QMessageBox>
 #include <QPushButton>
+#include <QScopeGuard>
 #include <QThread>
 #include <QTimer>
 #include <QTreeWidget>
@@ -17,6 +19,7 @@ class CWorker : public CProgressThreadVirt {
     std::atomic<bool> Finish{false};
     std::atomic<bool> Returned{false};
     bool HonorPauseStop = true;
+    bool HoldStopped = false;
     unsigned GuiFinishes = 0;
     HRESULT ProcessVirt() override {
         Sync.Set_NumBytesTotal(100);
@@ -25,6 +28,8 @@ class CWorker : public CProgressThreadVirt {
             if (HonorPauseStop) {
                 const HRESULT result = Sync.CheckStop();
                 if (result != S_OK) {
+                    while (HoldStopped && !Finish)
+                        QThread::msleep(5);
                     Returned = true;
                     return result;
                 }
@@ -65,7 +70,7 @@ class ProgressCancelTests : public QObject {
         auto *pause = dialog.findChild<QPushButton *>("IDB_PAUSE");
         auto *cancel = dialog.findChild<QPushButton *>("IDCANCEL");
         QVERIFY(pause && cancel);
-        QVERIFY(!pause->isEnabled());
+        QVERIFY(!pause->isVisible());
         widgetDialogs_.respond(dialog, [this](QDialog &) {
             auto *question = Question(widgetDialogs_);
             QVERIFY(question);
@@ -101,24 +106,25 @@ class ProgressCancelTests : public QObject {
         QTest::addColumn<int>("answer");
         QTest::addColumn<QSize>("size");
         for (bool paused : {false, true})
-            for (int answer :
-                 {int(QMessageBox::Yes), int(QMessageBox::No), int(QMessageBox::Cancel), 0})
-                for (int width : {760, 640})
+            for (int answer : {int(QMessageBox::Yes), int(QMessageBox::No), 0})
+                for (int width : {560, 360})
                     QTest::newRow(
                         qPrintable(QString("%1-%2-%3").arg(paused).arg(answer).arg(width)))
-                        << paused << answer << QSize(width, width == 760 ? 450 : 380);
+                        << paused << answer << QSize(width, width == 560 ? 300 : 240);
     }
     void sourcePromptRestoresPauseAndStopsOnlyOnYes() {
         QFETCH(bool, paused);
         QFETCH(int, answer);
         QFETCH(QSize, size);
         CWorker worker;
+        worker.HoldStopped = answer == int(QMessageBox::Yes);
         worker.resize(size);
         worker.Sync.Set_Paused(paused);
         bool clicked = false;
         bool observed = false;
         bool promptPaused = false;
         bool restored = false;
+        bool stoppingShown = false;
         bool visibleAfterDenial = false;
         bool parentActive = false;
         bool geometry = false;
@@ -126,6 +132,13 @@ class ProgressCancelTests : public QObject {
         QMessageBox::Icon promptIcon = QMessageBox::Critical;
         QTimer responder, trigger;
         widgetDialogs_.connectResponder(responder, &worker, [&] {
+            if (worker.Returned && widgetDialogs_.activeDialog() == &worker &&
+                TestProgressDialog::IsCloseButton(Button(worker, "IDCANCEL"))) {
+                responder.stop();
+                QVERIFY(!worker.findChild<QWidget *>("IDC_PROGRESS1")->isVisible());
+                Button(worker, "IDCANCEL")->click();
+                return;
+            }
             if (observed)
                 return;
             if (auto *box = Question(widgetDialogs_)) {
@@ -134,21 +147,20 @@ class ProgressCancelTests : public QObject {
                 const bool controlsExposed = QTest::qWaitFor(
                     [&] {
                         return UiInspection::fullyVisible(*box->button(QMessageBox::Yes), *box) &&
-                               UiInspection::fullyVisible(*box->button(QMessageBox::No), *box) &&
-                               UiInspection::fullyVisible(*box->button(QMessageBox::Cancel), *box);
+                               UiInspection::fullyVisible(*box->button(QMessageBox::No), *box);
                     },
                     1000);
                 promptPaused = worker.Sync.Get_Paused();
                 promptText = box->text();
                 promptIcon = box->icon();
                 geometry = parentActive && promptActive && controlsExposed &&
-                           worker.size() == size &&
+                           worker.size() == size.expandedTo(worker.minimumSizeHint()) &&
                            UiInspection::fullyVisible(*Button(worker, "IDCANCEL"), worker) &&
                            UiInspection::fullyVisible(*box->button(QMessageBox::Yes), *box) &&
                            UiInspection::fullyVisible(*box->button(QMessageBox::No), *box) &&
-                           UiInspection::fullyVisible(*box->button(QMessageBox::Cancel), *box) &&
-                           box->defaultButton() == box->button(QMessageBox::Yes) &&
-                           box->escapeButton() == box->button(QMessageBox::Cancel) &&
+                           box->buttons().size() == 2 &&
+                           box->defaultButton() == box->button(QMessageBox::No) &&
+                           box->escapeButton() == box->button(QMessageBox::No) &&
                            !box->button(QMessageBox::Yes)->text().isEmpty() &&
                            !box->button(QMessageBox::No)->text().isEmpty() &&
                            UiInspection::writeReport(*box, QString("progress-cancel-%1-%2-%3")
@@ -167,6 +179,13 @@ class ProgressCancelTests : public QObject {
                 parentActive = QTest::qWaitForWindowActive(&worker);
                 Button(worker, "IDCANCEL")->click();
                 restored = worker.Sync.Get_Paused() == paused;
+                if (answer == int(QMessageBox::Yes)) {
+                    const auto finish = qScopeGuard([&] { worker.Finish = true; });
+                    stoppingShown = !Button(worker, "IDCANCEL")->isEnabled() &&
+                                    !Button(worker, "IDB_PAUSE")->isVisible();
+                    QVERIFY(UiInspection::writeReport(
+                        worker, QString("progress-stopping-%1").arg(QTest::currentDataTag())));
+                }
                 if (answer != int(QMessageBox::Yes)) {
                     visibleAfterDenial = worker.isVisible() && !worker.Sync.Get_Stopped();
                     if (paused)
@@ -181,8 +200,10 @@ class ProgressCancelTests : public QObject {
         QVERIFY(observed);
         QVERIFY(promptPaused);
         QVERIFY(restored);
+        if (answer == int(QMessageBox::Yes))
+            QVERIFY(stoppingShown);
         QVERIFY(geometry);
-        QCOMPARE(promptText, QStringLiteral("Are you sure you want to cancel?"));
+        QCOMPARE(promptText, QStringLiteral("Stop this operation?"));
         // Original MB_YESNOCANCEL adds no icon flags.
         QCOMPARE(promptIcon, QMessageBox::NoIcon);
         QCOMPARE(worker.Sync.Get_Stopped(), answer == int(QMessageBox::Yes));
@@ -195,37 +216,29 @@ class ProgressCancelTests : public QObject {
         if (answer != int(QMessageBox::Yes))
             QVERIFY(visibleAfterDenial);
     }
-    void sourceFinishDuringPromptIsDeferred_data() {
+    void completionDismissesObsoleteStopQuestion_data() {
         QTest::addColumn<bool>("paused");
-        QTest::addColumn<int>("answer");
         for (bool paused : {false, true})
-            for (int answer :
-                 {int(QMessageBox::Yes), int(QMessageBox::No), int(QMessageBox::Cancel)})
-                QTest::newRow(qPrintable(QString("%1-%2").arg(paused).arg(answer)))
-                    << paused << answer;
+            QTest::newRow(paused ? "paused" : "running") << paused;
     }
-    void sourceFinishDuringPromptIsDeferred() {
+    void completionDismissesObsoleteStopQuestion() {
         QFETCH(bool, paused);
-        QFETCH(int, answer);
         CWorker worker;
         worker.HonorPauseStop = false;
         worker.Sync.Set_Paused(paused);
         bool clicked = false;
-        bool deferred = false;
-        bool answered = false;
+        bool observed = false;
+        QPointer<QMessageBox> question;
         QTimer responder, trigger;
         widgetDialogs_.connectResponder(responder, &worker, [&] {
             auto *box = Question(widgetDialogs_);
-            if (!box || answered)
+            if (!box || observed)
                 return;
+            question = box;
+            observed = true;
+            // The worker completes while its question is live. No answer is
+            // sent: completion must retire the obsolete request itself.
             worker.Finish = true;
-            if (!worker.Returned)
-                return;
-            answered = true;
-            // Deliver the native worker's queued close while the question stays open.
-            QTest::qWait(30);
-            deferred = worker.GuiFinishes == 0 && worker.isVisible() && box->isVisible();
-            Reply(*box, answer);
         });
         connect(
             &trigger, &QTimer::timeout, &worker,
@@ -239,8 +252,8 @@ class ProgressCancelTests : public QObject {
         responder.start(5);
         trigger.start(5);
         QCOMPARE(worker.Create(L"Завершение во время вопроса"), S_OK);
-        QVERIFY(answered);
-        QVERIFY(deferred);
+        QVERIFY(observed);
+        QVERIFY(!question || !question->isVisible());
         QCOMPARE(worker.GuiFinishes, 1u);
         QCOMPARE(worker.Result, S_OK);
         QCOMPARE(worker.Sync.Get_Paused(), paused);
@@ -251,5 +264,6 @@ class ProgressCancelTests : public QObject {
     }
 };
 
-QTEST_MAIN(ProgressCancelTests)
+#include "ui/support/review_test_main.h"
+SEVENZIP_UI_TEST_MAIN(ProgressCancelTests)
 #include "progress_cancel_tests.moc"

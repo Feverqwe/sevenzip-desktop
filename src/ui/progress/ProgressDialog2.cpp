@@ -90,11 +90,7 @@ void CProgressDialog::SetTaskbarProgressState() {
     }
 }
 
-void CProgressDialog::EnableErrorsControls(bool enable) {
-    ShowItem_Bool(IDT_PROGRESS_ERRORS, enable);
-    ShowItem_Bool(IDT_PROGRESS_ERRORS_VAL, enable);
-    ShowItem_Bool(IDL_PROGRESS_MESSAGES, enable);
-}
+void CProgressDialog::EnableErrorsControls(bool enable) { ShowMessages(enable); }
 
 void CProgressDialog::SetPauseText() {
     SetItemText(IDB_PAUSE, Sync.Get_Paused() ? _continue_String : _pause_String);
@@ -113,6 +109,10 @@ void CProgressDialog::OnPauseButton() {
     UInt32 curTime = GetTickCount();
     if (paused)
         _elapsedTime += (curTime - _prevTime);
+    if (_progressBar_Range == ~UInt64(0)) {
+        m_ProgressBar.SetRange32(0, paused ? 1 : 0);
+        m_ProgressBar.SetPos(0);
+    }
     SetTaskbarProgressState();
     _prevTime = curTime;
     SetPauseText();
@@ -220,7 +220,10 @@ void CProgressDialog::changeEvent(QEvent *event) {
         LangString(IDB_PAUSE, _pause_String);
         LangString(IDS_CONTINUE, _continue_String);
         LangString(IDS_PROGRESS_PAUSED, _paused_String);
-        SetPauseText();
+        if (_waitCloseByCancelButton)
+            SetText(_title);
+        else
+            SetPauseText();
         OnSize(width(), height());
     }
     CQtProgressDialog::changeEvent(event);
@@ -307,7 +310,7 @@ qintptr CProgressDialog::Create(const UString &title, NWindows::CThread &thread,
         _dialogCreatedEvent.Set();
     }
     thread.Wait_Close();
-    if (!MessagesDisplayed)
+    if (!MessagesDisplayed && !DeferResultReview)
         if (!DisableUserQuestions)
             MessageBox(wndParent,
                        QtDiagnosticText(QT_TRANSLATE_NOOP("SevenZipDiagnostics", "Progress Error")),
@@ -316,9 +319,13 @@ qintptr CProgressDialog::Create(const UString &title, NWindows::CThread &thread,
 }
 
 bool CProgressDialog::OnExternalCloseMessage() {
-    QtTaskPresentation::SetPhase(*this, QtOperationPhase::Reviewing);
+    if (!DeferResultReview)
+        QtTaskPresentation::SetPhase(*this, QtOperationPhase::Reviewing);
     SetTaskbarProgressState(TBPF_NOPROGRESS);
     UpdateStatInfo(true);
+    HideItem(IDC_PROGRESS1);
+    ShowProgressPercent({});
+    SetText(_title);
     SetItemText(IDCANCEL, LangString(IDS_CLOSE));
     QtBindLangText(GetItem(IDCANCEL), IDS_CLOSE);
     HideItem(IDB_PAUSE);
@@ -332,23 +339,32 @@ bool CProgressDialog::OnExternalCloseMessage() {
         thereAreMessages = !Sync.Messages.IsEmpty();
         fm = Sync.FinalMessage;
     }
-    const bool isError = !fm.ErrorMessage.Message.IsEmpty();
-    if (isError || !thereAreMessages) {
-        MessagesDisplayed = true;
-        CProgressMessageBoxPair &message = isError ? fm.ErrorMessage : fm.OkMessage;
-        if (!message.Message.IsEmpty()) {
-            if (message.Title.IsEmpty())
-                message.Title = "7-Zip";
-            if (!DisableUserQuestions)
-                MessageBox(this, message.Message, message.Title, isError);
-        }
+    const HRESULT result = fm.Result.value_or(Sync.Get_Stopped() ? E_ABORT : S_OK);
+    const bool isError = !fm.ErrorMessage.Message.IsEmpty() ||
+                         (result != E_ABORT && (fm.HadErrors || FAILED(result)));
+    const bool cancelled = !isError && result == E_ABORT;
+    if (!DisableUserQuestions && !DeferResultReview &&
+        (isError || cancelled || fm.Partial || thereAreMessages)) {
+        _waitCloseByCancelButton = true;
+        UpdateMessagesDialog();
+        const UString &detail = isError ? fm.ErrorMessage.Message : fm.OkMessage.Message;
+        if (!detail.IsEmpty())
+            AddMessage(detail);
+        else if (isError && _messageStrings.IsEmpty())
+            AddMessage(HResultToMessage(result == S_OK ? E_FAIL : result));
+        EnableErrorsControls(!_messageStrings.IsEmpty());
+        const char *summary =
+            isError ? QT_TRANSLATE_NOOP("ProgressRedesign", "Operation failed")
+            : cancelled
+                ? QT_TRANSLATE_NOOP("ProgressRedesign",
+                                    "Operation cancelled. Some changes may have completed.")
+                : QT_TRANSLATE_NOOP("ProgressRedesign", "Completed with skipped items or messages");
+        QtBindLocalText(GetItem(IDT_PROGRESS_STATUS), "ProgressRedesign", summary);
+        GetItem(IDT_PROGRESS_STATUS)->show();
+        return true;
     }
-    if (!DisableUserQuestions)
-        if (thereAreMessages) {
-            _waitCloseByCancelButton = true;
-            UpdateMessagesDialog();
-            return true;
-        }
+    MessagesDisplayed =
+        !DeferResultReview || !(isError || cancelled || fm.Partial || thereAreMessages);
     End(0);
     return true;
 }
@@ -362,6 +378,7 @@ bool CProgressDialog::OnMessage(unsigned message) {
         }
         if (_inCancelMessageBox) {
             _externalCloseMessageWasReceived = true;
+            DismissStopQuestion();
             break;
         }
         return OnExternalCloseMessage();
@@ -389,7 +406,7 @@ bool CProgressDialog::OnButtonClicked(unsigned buttonID) {
             if (!paused && canPause)
                 OnPauseButton();
             _inCancelMessageBox = true;
-            const int res = AskCancel(this, LangString(IDS_PROGRESS_ASK_CANCEL), _title);
+            const int res = AskCancel(this, _title);
             _inCancelMessageBox = false;
             if (res == IDYES)
                 _cancelWasPressed = true;
@@ -411,6 +428,10 @@ bool CProgressDialog::OnButtonClicked(unsigned buttonID) {
         return false;
     }
     // Original CModalDialog::OnButtonClicked dispatches IDCANCEL to OnCancel.
+    HideItem(IDB_PAUSE);
+    GetItem(IDCANCEL)->setEnabled(false);
+    QtBindLocalText(GetItem(IDCANCEL), "ProgressRedesign",
+                    QT_TRANSLATE_NOOP("ProgressRedesign", "Stopping…"));
     OnCancel();
     return true;
 }
@@ -434,6 +455,14 @@ void CProgressDialog::ProcessWasFinished() {
     _startWait.SignalFinished();
 #endif
 }
+
+void CProgressDialog::SetOperationResult(HRESULT result, bool partial) {
+    NSynchronization::CCriticalSectionLock lock(Sync._cs);
+    Sync.FinalMessage.Result = result;
+    Sync.FinalMessage.Partial = partial;
+}
+
+void CProgressDialog::RetireStopQuestion() { DismissStopQuestion(); }
 
 THREAD_FUNC_DECL CProgressThreadVirt::MyThreadFunction(void *param) {
     auto *p = static_cast<CProgressThreadVirt *>(param);
@@ -501,6 +530,9 @@ void CProgressThreadVirt::Process() {
         if (Result == S_OK)
             Result = E_FAIL;
     }
+    sync.FinalMessage.Result = Result;
+    sync.FinalMessage.Partial = FinalMessage.Partial;
+    sync.FinalMessage.HadErrors = FinalMessage.HadErrors;
 }
 UString HResultToMessage(HRESULT errorCode) {
     if (errorCode == E_OUTOFMEMORY)

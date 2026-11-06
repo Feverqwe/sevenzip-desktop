@@ -12,6 +12,7 @@
 #include "ui/progress/qtprogresscontrols.h"
 #include "ui/progress/qtprogresstransport.h"
 #include <QPointer>
+#include <QStringList>
 #include <atomic>
 #ifdef _WIN32
 #include "7zip/UI/FileManager/MyWindowsNew.h"
@@ -40,6 +41,8 @@ class CProgressDialog : public CQtProgressDialog {
     bool MessagesDisplayed;
     bool CompressingMode;
     bool ShowCompressionInfo;
+    // A composed operation reviews its settled result after publication/rollback.
+    bool DeferResultReview = false;
 
   private:
     unsigned _numPostedMessages;
@@ -166,7 +169,7 @@ class CProgressDialog : public CQtProgressDialog {
     bool DisableUserQuestions = false;
     void AttachTransport(IQtProgressTransport *transport) { _transport = transport; }
     void SetTransportPercent(int percent) {
-        if (percent >= 0 && percent <= 100)
+        if (percent >= -1 && percent <= 100)
             TransportPercent.store(percent);
     }
     explicit CProgressDialog(QWidget *parent = nullptr, const UString &title = UString());
@@ -181,6 +184,17 @@ class CProgressDialog : public CQtProgressDialog {
     }
     qintptr Create(const UString &title, NWindows::CThread &thread, QWidget *wndParent = nullptr);
     void ProcessWasFinished();
+    void SetOperationResult(HRESULT result, bool partial = false);
+    void RetireStopQuestion();
+    struct ResultPresentation {
+        QString title;
+        HRESULT result = S_OK;
+        QStringList diagnostics;
+        QString source;
+        QString destination;
+        bool partial = false;
+    };
+    static void PresentResult(QWidget *parent, const ResultPresentation &request);
     virtual void ProcessWasFinished_GuiVirt() {}
     void accept() override;
     void reject() override;

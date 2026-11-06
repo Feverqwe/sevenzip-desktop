@@ -16,5 +16,6 @@ class ArchiveProgressTransport final : public QObject, public IQtProgressTranspo
                              bool nativeWorker = false);
     ~ArchiveProgressTransport() override;
     HRESULT SetPaused(bool paused) override;
+    bool UsesPercentProgress() const override;
     void Cancel() override;
 };

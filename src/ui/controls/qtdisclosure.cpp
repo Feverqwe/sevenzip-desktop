@@ -1,4 +1,5 @@
 #include "ui/controls/qtdisclosure.h"
+#include "ui/dialogs/qtdialoglayout.h"
 #include <QAccessibleWidget>
 #include <QFrame>
 #include <QKeySequence>
@@ -108,7 +109,7 @@ class DisclosureButton final : public QToolButton {
 
 QtDisclosure::QtDisclosure(QWidget *content, QWidget *parent, QWidget *description)
     : QWidget(parent), content_(content), description_(description),
-      button_(new DisclosureButton(this)), summary_(new QLabel(this)) {
+      button_(new DisclosureButton(this)), summary_(new QtWrappingLabel(this)) {
     // Qt owns the interface for the lifetime of this button.
     QAccessible::registerAccessibleInterface(new AccessibleDisclosure(button_));
     auto *layout = new QVBoxLayout(this);
@@ -131,6 +132,7 @@ QtDisclosure::QtDisclosure(QWidget *content, QWidget *parent, QWidget *descripti
     header->addWidget(button_, 0, Qt::AlignLeading | Qt::AlignTop);
     summary_->setTextFormat(Qt::PlainText);
     summary_->setWordWrap(true);
+    summary_->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
     summary_->setObjectName("disclosureSummary");
     summary_->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
     header->addWidget(summary_, 1, Qt::AlignVCenter);

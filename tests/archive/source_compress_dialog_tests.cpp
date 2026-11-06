@@ -6,6 +6,7 @@
 #include "platform/shell/qtshellarchiveservices.h"
 #include "settings/RegistryUtils.h"
 #include "support/archive_sections.h"
+#include "support/progress_dialog.h"
 #include "support/secret_visibility.h"
 #include "ui/progress/ProgressDialog2.h"
 #include "ui/support/layout_inspection.h"
@@ -258,7 +259,8 @@ class SourceCompressDialogTests final : public QObject {
         source.Info.FormatIndex = _catalog->formatIndex(format);
         const QString target = fixture.filePath("confirmed." + format);
         source.Info.ArcPath = target.toStdWString().c_str();
-        source.Info.Password = "confirmed password";
+        if (format == "7z")
+            source.Info.Password = "confirmed password";
         NWildcard::CCensor censor;
         censor.AddPreItem_NoWildcard(UString(input.toStdWString().c_str()));
         QCOMPARE(NCompressDialog::PrepareFormatSelection(source, _catalog->nativeCodecs(),
@@ -649,9 +651,14 @@ class SourceCompressDialogTests final : public QObject {
                 box->accept();
             } else if (auto *progress =
                            dynamic_cast<CProgressDialog *>(QApplication::activeModalWidget())) {
-                auto *button = progress->findChild<QPushButton *>("IDCANCEL");
-                if (button && button->property("languageID").toUInt() == IDS_CLOSE)
-                    button->click();
+                if (TestProgressDialog::ResultWindow(progress)) {
+                    const auto close =
+                        qScopeGuard([&] { TestProgressDialog::CloseResult(*progress); });
+                    QCOMPARE(progress->findChild<QLabel *>("IDT_PROGRESS_STATUS")->text(),
+                             QCoreApplication::translate("ProgressRedesign", "Operation failed"));
+                    QVERIFY(!TestProgressDialog::ReportText(*progress).isEmpty());
+                    ++errors;
+                }
             }
         });
         dismissal.start(5);

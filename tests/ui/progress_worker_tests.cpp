@@ -1,13 +1,16 @@
 #include "Common/StringConvert.h"
 #include "support/progress_dialog.h"
+#include "ui/controls/qtdisclosure.h"
 #include "ui/progress/ProgressDialog2.h"
 #include "ui/support/layout_inspection.h"
 #include <QLabel>
 #include <QLayout>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QScopeGuard>
 #include <QThread>
 #include <QTimer>
+#include <QTreeWidget>
 #include <QtTest>
 #include <stdexcept>
 
@@ -69,6 +72,13 @@ class CWorker : public CProgressThreadVirt {
             WaitCreating();
             Sync.Set_NumBytesTotal(100);
             return Sync.Set_NumBytesCur(100);
+        case 12:
+            FinalMessage.Partial = true;
+            return S_OK;
+        case 13:
+            FinalMessage.HadErrors = true;
+            Sync.AddError_Message(L"callback error <file with spaces>");
+            return S_OK;
         }
         return S_OK;
     }
@@ -212,7 +222,7 @@ class ProgressWorkerTests : public QObject {
                        UiInspection::fullyVisible(*close, worker) &&
                        close->sizeHint().width() <= close->width() &&
                        !worker.findChild<QPushButton *>("IDB_PAUSE")->isVisible() &&
-                       worker.findChild<QLabel *>("IDT_PROGRESS_ERRORS")->isVisible() && report;
+                       worker.findChild<QWidget *>("progressDiagnostics")->isVisible() && report;
             QTest::keyClick(close, Qt::Key_Return);
         });
         timer.start(10);
@@ -226,58 +236,59 @@ class ProgressWorkerTests : public QObject {
         QCOMPARE(worker.result(), 8); // Original IDCLOSE.
         QCOMPARE(worker.Sync.Messages.Size(), 1u);
     }
-    void actualFinalMessageBoxes_data() {
+    void finalOutcomeRemainsVisibleOnlyWhenNeeded_data() {
         QTest::addColumn<int>("mode");
-        QTest::addColumn<QString>("title");
         QTest::addColumn<QString>("message");
-        QTest::newRow("error") << 3 << QStringLiteral("7-Zip")
-                               << QStringLiteral("Ошибка wide <файл с пробелом>");
-        QTest::newRow("success") << 10 << QStringLiteral("Готово")
-                                 << QStringLiteral("Архив с пробелом <готов>");
+        QTest::addColumn<bool>("retained");
+        QTest::newRow("error") << 3 << QStringLiteral("Ошибка wide <файл с пробелом>") << true;
+        QTest::newRow("cancelled") << 1 << QString() << true;
+        QTest::newRow("skipped") << 12 << QString() << true;
+        QTest::newRow("callback-error")
+            << 13 << QString("callback error <file with spaces>") << true;
+        QTest::newRow("success") << 10 << QString() << false;
     }
-    void actualFinalMessageBoxes() {
+    void finalOutcomeRemainsVisibleOnlyWhenNeeded() {
         QFETCH(int, mode);
-        QFETCH(QString, title);
         QFETCH(QString, message);
+        QFETCH(bool, retained);
         CWorker worker;
         worker.Mode = mode;
         bool observed = false;
         bool geometry = true;
-        QString actualTitle, actualMessage;
-        Qt::TextFormat format = Qt::AutoText;
-        QMessageBox::Icon icon = QMessageBox::Question;
+        QString actualMessage;
         QTimer timer;
         connect(&timer, &QTimer::timeout, &worker, [&] {
-            if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+            auto *close = worker.findChild<QPushButton *>("IDCANCEL");
+            if (worker.isVisible() && TestProgressDialog::IsCloseButton(close)) {
+                timer.stop();
+                const auto dismiss = qScopeGuard([&] { close->click(); });
                 observed = true;
-                actualTitle = box->windowTitle();
-                actualMessage = box->text();
-                format = box->textFormat();
-                icon = box->icon();
-                for (const QSize size : {QSize(480, 200), QSize(320, 200)}) {
-                    box->resize(size);
-                    box->layout()->activate();
+                const char *summary = mode == 1
+                                          ? "Operation cancelled. Some changes may have completed."
+                                      : mode == 12 ? "Completed with skipped items or messages"
+                                                   : "Operation failed";
+                QCOMPARE(worker.findChild<QLabel *>("IDT_PROGRESS_STATUS")->text(),
+                         QCoreApplication::translate("ProgressRedesign", summary));
+                QVERIFY(!worker.findChild<QWidget *>("IDC_PROGRESS1")->isVisible());
+                auto *diagnostics = dynamic_cast<QtDisclosure *>(
+                    worker.findChild<QWidget *>("progressDiagnostics"));
+                diagnostics->setExpanded(true);
+                actualMessage = TestProgressDialog::ReportText(worker);
+                for (const QSize size : {QSize(560, 260), QSize(360, 240)}) {
+                    worker.resize(size);
+                    worker.layout()->activate();
+                    QTRY_VERIFY(UiInspection::fullyVisible(*close, worker));
                     geometry &=
-                        UiInspection::writeReport(*box, QString("progress-final-message-%1-%2")
-                                                            .arg(QTest::currentDataTag())
-                                                            .arg(size.width()));
+                        UiInspection::writeReport(worker, QString("progress-final-message-%1-%2")
+                                                              .arg(QTest::currentDataTag())
+                                                              .arg(size.width()));
                 }
-                box->button(QMessageBox::Ok)->click();
             }
         });
         timer.start(10);
         QCOMPARE(worker.Create(L"Итоговый результат"), S_OK);
-        QVERIFY(observed);
-#ifdef __APPLE__
-        // QMessageBox follows macOS convention and ignores window titles.
-        QVERIFY(actualTitle.isEmpty());
-#else
-        QCOMPARE(actualTitle, title);
-#endif
+        QCOMPARE(observed, retained);
         QCOMPARE(actualMessage, message);
-        QCOMPARE(format, Qt::PlainText);
-        // Source MB_ICONERROR for failure, plain MB_OK for success.
-        QCOMPARE(icon, mode == 3 ? QMessageBox::Critical : QMessageBox::NoIcon);
         QVERIFY(geometry);
         QVERIFY(worker.ThreadFinishedOK);
         QVERIFY(worker.MessagesDisplayed);

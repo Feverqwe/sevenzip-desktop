@@ -12,6 +12,7 @@ struct QtArchiveBatchResult {
     bool CallbackOK = false;
     bool MessageWasDisplayed = false;
     std::optional<QtArchiveExtractStatus> ExtractStatus;
+    QStringList Diagnostics;
 };
 
 QtArchiveBatchResult RunQtArchiveBatchExtract(ArchiveBackend &backend, const QStringList &archives,

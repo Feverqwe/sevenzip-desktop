@@ -163,6 +163,7 @@ class InterarchiveRefreshTests final : public QObject, protected MainWindowTestS
         QSignalSpy publication(target->model(), &QAbstractItemModel::rowsRemoved);
         QStringList errors;
         bool submitted = false, deleteConfirmed = false, destinationCommitted = false;
+        bool reviewed = false;
         QTimer driver;
         connect(&driver, &QTimer::timeout, &window, [&] {
             auto *modal = QApplication::activeModalWidget();
@@ -179,12 +180,16 @@ class InterarchiveRefreshTests final : public QObject, protected MainWindowTestS
                 box->accept();
             } else if (auto *progress = dynamic_cast<CProgressDialog *>(modal)) {
                 auto *close = progress->findChild<QPushButton *>("IDCANCEL");
-                if (close && close->text() == ToQString(LangString(IDS_CLOSE)))
+                if (close && close->text() == ToQString(LangString(IDS_CLOSE))) {
+                    reviewed = true;
                     close->click();
+                }
             }
         });
         driver.start(1);
         QTest::keyClick(view, move ? Qt::Key_F6 : Qt::Key_F5);
+        if (rollback)
+            QTRY_VERIFY(reviewed);
         QVERIFY(submitted);
         QTRY_COMPARE(target->rowCount(), originalCount + (success ? 1 : 0));
         QTRY_VERIFY(action(window, "refreshAction")->isEnabled());

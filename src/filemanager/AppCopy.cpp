@@ -317,6 +317,8 @@ QtArchiveTransferResult CApp::CopyArchiveToArchive(unsigned srcPanelIndex,
     QtArchiveExtractReport report;
     report.Purpose = QtArchiveExtractPurpose::ArchiveStaging;
     HRESULT result = srcPanel.CopyTo(options, indices, messages, &report);
+    if (result == S_OK && report.HadErrors)
+        result = E_FAIL;
 
     if (result == S_OK && (!messages || messages->IsEmpty())) {
         if (!report.Status || !report.Status->Complete || !report.Status->StagingCompatible)
@@ -347,7 +349,7 @@ QtArchiveTransferResult CApp::CopyArchiveToArchive(unsigned srcPanelIndex,
         std::optional<QScopedValueRollback<std::optional<QtArchiveTransferInputs>>> transferInputs;
         if (resource)
             transferInputs.emplace(resource->TransferInputs(), inputs);
-        result = destPanel.CopyFrom(false, fs2us(tempDirPrefix), filePaths, true, messages);
+        result = destPanel.CopyFrom(false, fs2us(tempDirPrefix), filePaths, false, messages);
     }
     return {result, {}};
 }

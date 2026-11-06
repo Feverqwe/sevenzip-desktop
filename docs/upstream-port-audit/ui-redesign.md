@@ -3316,3 +3316,99 @@ The common progress view still has the old time/count statistics and Cancel
 presentation; its separately agreed simplified operation-progress design remains
 an open implementation scope, including the Trash consumer. This iteration
 connects Trash to its existing joined owner, not a new independent task lifetime.
+
+## Simplified operation presentation — in progress, 2026-11-06
+
+Compared the pinned ProgressDialog2 implementation/resources, its complete local
+presentation, pause/stop, final-message, worker and transport boundaries. Also
+compared original ExtractCallback AskOverwrite/AskWrite and the common archive
+callback's CheckExistFile with their current owners. The agreed design removes
+statistic controls, adds current-file/percentage above the bar, accepted locations,
+Minimize and named Stop/Continue actions. Source counters, range conversion,
+message splitting, worker algorithms and joined ownership remain authoritative.
+The existing source multiply/divide helper also supplies bounded percentage
+arithmetic for 64-bit totals. Unknown transport phases clear their prior value.
+
+The result view consumes the terminal HRESULT and completeness facts, rather
+than treating a full bar or empty error list as success. Callback-only Pause is
+hidden. Confirmed Stop becomes unavailable while the owner finishes; completion
+retires that operation's obsolete Stop question. The local asynchronous owner
+retains its former completion-publication boundary through result review without
+using a nested final-message box. It still stops/joins when its source is closed.
+Independent 7zG jobs keep their existing typed process/endpoint lifetime.
+
+Composed transfers defer the nested stage's terminal review. Deletion diagnostics
+return to the existing Move owner; its result appears after rollback/publication
+and source/destination refresh. The result presenter owns only widgets and an
+immutable presentation snapshot, not another worker or operation. Native skip
+decisions and existing extraction status supply incomplete-result facts. The
+GUI dispatcher carries these through its warning exit code; archive algorithms
+and overwrite decisions are unchanged. The common Extract dispatcher now returns
+the existing archive callback status to its receiver, combining archive facts
+for a multi-archive request. No external source was imported or baseline advanced.
+
+Native extraction can return S_OK while its per-file callback recorded errors.
+The result keeps that separate fact and the original messages; informational
+Skip remains incomplete rather than a hard error. The stream callback's existing
+successful output now also updates the local completeness observer. Composed
+archive transfers consequently do not publish success for damaged inputs or
+delete sources skipped during extraction. File-transfer cleanup retains the
+failure that initiated rollback even if Stop arrives during that cleanup.
+
+The shared scroll body reserves the active native scrollbar's overlap using Qt
+style metrics. Its initial fitting is shared with Delete; an explicit compact
+window size is preserved. Disclosure summaries use the shared wrapping label.
+These changes need direct-consumer geometry checks as well as progress checks.
+
+Direct consumer checks exposed obsolete final-message responders and a fixture
+that required a nested exec loop for shown asynchronous results. Those adapters
+now handle the retained result while preserving payload, publication, rollback,
+owner-destruction and foreign-question checks. The final focused Linux batch
+passed nine suites: progress rendering, worker, archive transport and contract,
+operation extraction, main-window operations, interarchive staging/publication
+and local-task lifecycle. This includes real CRC failures, skipped-source Move
+and the fallback result after publication. Separate file-transfer/direct-transfer
+and local-task checks passed with the late-Stop fix; an injected public cancel
+during rollback also retained the existing missing-source Failure result.
+
+Earlier native Cocoa checks passed the changed progress and shared-form
+consumers. The final callback-error, zero-total and fallback-location changes
+still require their focused Cocoa rerun. Rendered review and gallery refresh
+remain pending. The Operations list/return
+surface is also not yet implemented; this section does not establish complete
+operation-design or whole-catalog acceptance.
+
+## Create-archive catalog reconciliation — open, 2026-11-06
+
+Compared the current CreateArchiveDialog presentation, option sections,
+encryption, source DTO and nested COptionsDialog with the November 5
+create-archive specification. The current form still places compression level
+in the basic form, exposes separate compression/file/volume/property sections
+and offers the nested source metadata dialog. The agreed design instead has
+one Additional section containing level/volumes and a separate expert draft
+for method/resources, paths, metadata and method properties. The metadata
+dialog's existing copy/apply boundary is useful but does not implement that
+complete expert transaction. The current form also still exposes update mode
+and Delete after compression within creation; creation and update must be
+reconciled with their separate catalog scenarios.
+
+The encryption audit found that switching a protected draft to an unsupported
+format hid protection and allowed an unprotected request. The Qt adapter now
+keeps the selected intent, gives an inline explanation and requires a supported
+format or an explicit uncheck before submission. Returning to a supported format
+retains the draft. The single 7z method no longer occupies a choice row; ZIP
+keeps its source-provided choices. The pinned SetEncryptionMethod/OnOK bodies,
+their local password validator and source DTO caller were compared before this
+change. Native password/method checks, naming, profiles and the writer are
+unchanged; this is the catalog's explicit presentation/acceptance adaptation.
+No external code was imported. EN/RU checks cover both explicit decisions and
+Cancel without settings writes. Source-modal writer consumers also retain
+their error diagnostics through the shared result view. The focused Linux batch
+passed encryption (including real encrypted archive read-back), format,
+preferences and source-modal creation. The macOS application and changed test
+targets compile. Native Cocoa acceptance and fresh renders of these latest
+states remain pending; a locked desktop is not a runtime PASS.
+
+This is a source comparison, not acceptance of the rendered creation form.
+The current common-progress iteration does not implement these separate draft
+and expert-editor changes or claim that the archival-form catalog is complete.

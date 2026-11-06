@@ -3,6 +3,7 @@
 #include "filemanager/UpdateCallback100.h"
 #include "localization/LangUtils.h"
 #include "settings/RegistryUtils.h"
+#include "support/progress_dialog.h"
 #include <QApplication>
 #include <QLabel>
 #include <QLineEdit>
@@ -51,10 +52,9 @@ class UpdateCallbackTests : public QObject {
                                                                             L"файл с пробелом", 1),
                  HRESULT(S_OK));
         progress.show();
-        QTRY_COMPARE(progress.findChild<QLabel *>("IDT_PROGRESS_TOTAL_VAL")->text(),
-                     QString("4096"));
-        QTRY_COMPARE(progress.findChild<QLabel *>("IDT_PROGRESS_FILES_TOTAL")->text(),
-                     QString(" / 7"));
+        QTRY_VERIFY(progress.findChild<QLabel *>("IDT_PROGRESS_FILE_NAME")
+                        ->text()
+                        .contains(QStringLiteral("файл с пробелом")));
         QCOMPARE(owner->SetNumFiles(9), HRESULT(S_OK));
         QCOMPARE(owner->SetTotal(8192), HRESULT(S_OK));
         UInt64 completed = 512, packed = 128;
@@ -66,13 +66,7 @@ class UpdateCallbackTests : public QObject {
         QCOMPARE(static_cast<IArchiveOpenCallback *>(callback)->SetTotal(&packed, &packed),
                  HRESULT(S_OK));
         QCOMPARE(owner->SetCompleted(nullptr), HRESULT(S_OK));
-        QTRY_COMPARE(progress.findChild<QLabel *>("IDT_PROGRESS_TOTAL_VAL")->text(),
-                     QString("8192"));
-        QTRY_COMPARE(progress.findChild<QLabel *>("IDT_PROGRESS_PROCESSED_VAL")->text(),
-                     QString("512"));
-        QTRY_COMPARE(progress.findChild<QLabel *>("IDT_PROGRESS_PACKED_VAL")->text(),
-                     QString("128"));
-        QTRY_COMPARE(progress.findChild<QLabel *>("IDT_PROGRESS_FILES_VAL")->text(), QString("1"));
+        QTRY_COMPARE(progress.findChild<QLabel *>("progressPercent")->text(), QString("6%"));
     }
     void errorsOperationsAndReopen() {
         CProgressDialog progress;
@@ -183,6 +177,11 @@ class UpdateCallbackTests : public QObject {
         QTimer responder;
         responder.setInterval(5);
         connect(&responder, &QTimer::timeout, &worker, [&] {
+            if (auto *result =
+                    TestProgressDialog::ResultWindow(QApplication::activeModalWidget())) {
+                TestProgressDialog::CloseResult(*result);
+                return;
+            }
             auto *dialog = dynamic_cast<CPasswordDialog *>(QApplication::activeModalWidget());
             if (!dialog || observed)
                 return;

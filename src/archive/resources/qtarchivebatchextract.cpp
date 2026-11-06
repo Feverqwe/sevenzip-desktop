@@ -53,11 +53,14 @@ QtArchiveBatchResult RunQtArchiveBatchExtract(ArchiveBackend &backend, const QSt
     callback->SettingsPath = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
     callback->Password = password;
     callback->PasswordIsDefined = !password.isEmpty();
+    callback->ExtractReport.Purpose = options.Purpose;
     QtArchiveBatchOpen open(backend);
     open.SetExtractionPolicy(destination, options);
     result.Result = ExtractGUI(&codecs, types, excludedFormats, archivePaths, archivePathsFull,
                                censor, sourceOptions, nullptr, false, result.MessageWasDisplayed,
                                callback.ClsPtr(), &open, &open, parent);
     result.CallbackOK = callback->IsOK();
+    result.ExtractStatus = callback->ExtractReport.Status;
+    result.Diagnostics = callback->ExtractReport.Diagnostics;
     return result;
 }

@@ -2,6 +2,25 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="ru_RU" sourcelanguage="en">
     <context>
+        <name>ProgressRedesign</name>
+        <message><source>Stop</source><translation>Остановить</translation></message>
+        <message><source>Preparing…</source><translation>Подготовка…</translation></message>
+        <message><source>Continue working</source><translation>Продолжить работу</translation></message>
+        <message><source>Stop this operation?</source><translation>Остановить операцию?</translation></message>
+        <message><source>Stopping…</source><translation>Останавливаем…</translation></message>
+        <message><source>Stop…</source><translation>Остановить…</translation></message>
+        <message><source>Minimize</source><translation>Свернуть</translation></message>
+        <message><source>Locations</source><translation>Расположения</translation></message>
+        <message><source>Source locations</source><translation>Источники</translation></message>
+        <message><source>Destination</source><translation>Назначение</translation></message>
+        <message><source>What happened</source><translation>Что произошло</translation></message>
+        <message><source>Source: %1</source><translation>Источник: %1</translation></message>
+        <message><source>Destination: %1</source><translation>Назначение: %1</translation></message>
+        <message><source>Operation failed</source><translation>Операция завершилась с ошибкой</translation></message>
+        <message><source>Operation cancelled. Some changes may have completed.</source><translation>Операция отменена. Часть изменений могла быть выполнена.</translation></message>
+        <message><source>Completed with skipped items or messages</source><translation>Завершено с пропусками или сообщениями</translation></message>
+    </context>
+    <context>
         <name>ConflictRedesign</name>
         <message>
             <source>File already exists</source>
@@ -141,6 +160,10 @@
     </context>
     <context>
         <name>ArchiveRedesign</name>
+        <message>
+            <source>This format does not support password protection. Choose another format or turn off password protection.</source>
+            <translation>Этот формат не поддерживает защиту паролем. Выберите другой формат или отключите защиту паролем.</translation>
+        </message>
         <message>
             <location filename="../src/dialogs/compress/createarchivedialog_language.cpp" line="+60" />
             <source>Metadata settings…</source>
@@ -6030,6 +6053,10 @@ Use `Revert` to recover timestamp.</source>
     </context>
     <context>
         <name>mainwindow_archive_transfer</name>
+        <message>
+            <source>The destination archive was restored.</source>
+            <translation>Целевой архив восстановлен.</translation>
+        </message>
         <message>
             <source>Source removal did not finish cleanly. The destination copy was retained; check both archives.</source>
             <translation>Удаление из исходного архива завершилось с ошибкой. Копия в целевом архиве сохранена; проверьте оба архива.</translation>

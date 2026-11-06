@@ -50,6 +50,7 @@ struct CExitEventLauncher;
 class QColor;
 class QIcon;
 struct CExternalCodecs;
+enum class QtDeleteResultReview { Operation, Caller };
 
 struct CAppState;
 class CFastFolders;
@@ -654,10 +655,10 @@ class CPanel : public QObject {
     void RenameFile();
     bool OnBeginLabelEdit(int row);
     HRESULT OnEndLabelEdit(UInt32 realIndex, const UString &enteredName);
-    QtArchiveUpdateResult DeleteItems(bool toRecycleBin, class IQtTrashService &trash,
-                                      CSelectedState &selection,
-                                      const CRecordVector<UInt32> *explicitIndices = nullptr,
-                                      bool confirm = true);
+    QtArchiveUpdateResult
+    DeleteItems(bool toRecycleBin, class IQtTrashService &trash, CSelectedState &selection,
+                const CRecordVector<UInt32> *explicitIndices = nullptr, bool confirm = true,
+                QtDeleteResultReview resultReview = QtDeleteResultReview::Operation);
     bool CanComment() const;
     void ChangeComment();
     bool IsDeviceDrivesPrefix() const { return _currentFolderPrefix.IsEqualTo("\\\\.\\"); }

@@ -74,6 +74,7 @@ class CreateArchiveDialog : public QDialog {
     void updateAdvancedSummary();
     bool checkVolumeSizes();
     void SetEncryptionMethod();
+    bool updateProtectionControls();
     QString GetEncryptionMethodSpec() const;
     void UpdatePasswordControl();
     void SetLevel2();
@@ -146,6 +147,7 @@ class CreateArchiveDialog : public QDialog {
     QCheckBox *showPassword_ = nullptr;
     QCheckBox *encryptHeaders_ = nullptr;
     QCheckBox *passwordEnabled_ = nullptr;
+    QLabel *protectionWarning_ = nullptr;
     QtDisclosure *fileOptions_ = nullptr;
     QtDisclosure *volumeOptions_ = nullptr;
     QtDisclosure *commandLineOptions_ = nullptr;

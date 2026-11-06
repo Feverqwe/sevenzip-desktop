@@ -10,139 +10,326 @@
     "CPP/7zip/UI/FileManager/ProgressDialog2.cpp": "eb3c583acf055af5ae75b75c92d8fec93ee591779a67ca9dca526c2cd1596a8c"
   },
   "controls": {
-    "IDB_PROGRESS_BACKGROUND": {"omit": "User instruction 2026-10-23: remove Background/Foreground and all operation priority switching."},
-    "IDB_PAUSE": {"selector": {"name": "IDB_PAUSE"}, "textAdaptation": "Fixed Russian Pause/Continue captions; source pause transition."},
-    "IDCANCEL": {"selector": {"name": "IDCANCEL"}, "textAdaptation": "Fixed Russian Cancel/Close captions; source confirmation/finish flow."},
-    "IDT_PROGRESS_ELAPSED": {"selector": {"name": "IDT_PROGRESS_ELAPSED"}, "textAdaptation": "Fixed Russian label."},
-    "IDT_PROGRESS_REMAINING": {"selector": {"name": "IDT_PROGRESS_REMAINING"}, "textAdaptation": "Fixed Russian label."},
-    "IDT_PROGRESS_FILES": {"selector": {"name": "IDT_PROGRESS_FILES"}, "textAdaptation": "Fixed Russian label."},
-    "IDT_PROGRESS_ERRORS": {"selector": {"name": "IDT_PROGRESS_ERRORS"}, "textAdaptation": "Fixed Russian label."},
-    "IDT_PROGRESS_TOTAL": {"selector": {"name": "IDT_PROGRESS_TOTAL"}, "textAdaptation": "Fixed Russian label."},
-    "IDT_PROGRESS_SPEED": {"selector": {"name": "IDT_PROGRESS_SPEED"}, "textAdaptation": "Fixed Russian label."},
-    "IDT_PROGRESS_PROCESSED": {"selector": {"name": "IDT_PROGRESS_PROCESSED"}, "textAdaptation": "Fixed Russian label."},
-    "IDT_PROGRESS_PACKED": {"selector": {"name": "IDT_PROGRESS_PACKED"}, "textAdaptation": "Fixed Russian label."},
-    "IDT_PROGRESS_RATIO": {"selector": {"name": "IDT_PROGRESS_RATIO"}, "textAdaptation": "Fixed Russian label."},
-    "IDT_PROGRESS_ELAPSED_VAL": {"selector": {"name": "IDT_PROGRESS_ELAPSED_VAL"}},
-    "IDT_PROGRESS_REMAINING_VAL": {"selector": {"name": "IDT_PROGRESS_REMAINING_VAL"}},
-    "IDT_PROGRESS_FILES_VAL": {"selector": {"name": "IDT_PROGRESS_FILES_VAL"}},
-    "IDT_PROGRESS_FILES_TOTAL": {"selector": {"name": "IDT_PROGRESS_FILES_TOTAL"}},
-    "IDT_PROGRESS_ERRORS_VAL": {"selector": {"name": "IDT_PROGRESS_ERRORS_VAL"}},
-    "IDT_PROGRESS_TOTAL_VAL": {"selector": {"name": "IDT_PROGRESS_TOTAL_VAL"}},
-    "IDT_PROGRESS_SPEED_VAL": {"selector": {"name": "IDT_PROGRESS_SPEED_VAL"}},
-    "IDT_PROGRESS_PROCESSED_VAL": {"selector": {"name": "IDT_PROGRESS_PROCESSED_VAL"}},
-    "IDT_PROGRESS_PACKED_VAL": {"selector": {"name": "IDT_PROGRESS_PACKED_VAL"}},
-    "IDT_PROGRESS_RATIO_VAL": {"selector": {"name": "IDT_PROGRESS_RATIO_VAL"}},
-    "IDT_PROGRESS_STATUS": {"selector": {"name": "IDT_PROGRESS_STATUS"}},
-    "IDT_PROGRESS_FILE_NAME": {"selector": {"name": "IDT_PROGRESS_FILE_NAME"}, "qtClass": "QLabel", "classAdaptation": "Static SS_LEFTNOWORDWRAP becomes plain QLabel; source directory/name LF split and middle truncation retained."},
-    "IDC_PROGRESS1": {"selector": {"name": "IDC_PROGRESS1"}, "qtClass": "QProgressBar", "classAdaptation": "Native progress control becomes QProgressBar with source integer converter/range/cache.", "textAdaptation": "Resource Progress1 is a control identifier; bar text stays hidden and percentage is in source title."},
-    "IDL_PROGRESS_MESSAGES": {"selector": {"name": "IDL_PROGRESS_MESSAGES"}, "qtClass": "QTreeWidget", "classAdaptation": "Native report list becomes existing CListView Qt service with two columns, hidden header, row selection and source numbering.", "textAdaptation": "Resource List1 is a control identifier; message text comes from CProgressSync."}
+    "IDB_PROGRESS_BACKGROUND": {
+      "omit": "User instruction 2026-10-23: remove Background/Foreground and all operation priority switching."
+    },
+    "IDB_PAUSE": {
+      "selector": {
+        "name": "IDB_PAUSE"
+      },
+      "textAdaptation": "Fixed Russian Pause/Continue captions; source pause transition."
+    },
+    "IDCANCEL": {
+      "selector": {
+        "name": "IDCANCEL"
+      },
+      "textAdaptation": "Named Stop, Stopping and Close states; two-choice confirmation defaults to Continue working."
+    },
+    "IDT_PROGRESS_ELAPSED": {
+      "omit": "Agreed simplified operation design, 2026-11-05: no time, size, speed, ratio or count statistics in the UI; source counters remain with the operation."
+    },
+    "IDT_PROGRESS_REMAINING": {
+      "omit": "Agreed simplified operation design, 2026-11-05: no time, size, speed, ratio or count statistics in the UI; source counters remain with the operation."
+    },
+    "IDT_PROGRESS_FILES": {
+      "omit": "Agreed simplified operation design, 2026-11-05: no time, size, speed, ratio or count statistics in the UI; source counters remain with the operation."
+    },
+    "IDT_PROGRESS_ERRORS": {
+      "omit": "Agreed simplified operation design, 2026-11-05: no time, size, speed, ratio or count statistics in the UI; source counters remain with the operation."
+    },
+    "IDT_PROGRESS_TOTAL": {
+      "omit": "Agreed simplified operation design, 2026-11-05: no time, size, speed, ratio or count statistics in the UI; source counters remain with the operation."
+    },
+    "IDT_PROGRESS_SPEED": {
+      "omit": "Agreed simplified operation design, 2026-11-05: no time, size, speed, ratio or count statistics in the UI; source counters remain with the operation."
+    },
+    "IDT_PROGRESS_PROCESSED": {
+      "omit": "Agreed simplified operation design, 2026-11-05: no time, size, speed, ratio or count statistics in the UI; source counters remain with the operation."
+    },
+    "IDT_PROGRESS_PACKED": {
+      "omit": "Agreed simplified operation design, 2026-11-05: no time, size, speed, ratio or count statistics in the UI; source counters remain with the operation."
+    },
+    "IDT_PROGRESS_RATIO": {
+      "omit": "Agreed simplified operation design, 2026-11-05: no time, size, speed, ratio or count statistics in the UI; source counters remain with the operation."
+    },
+    "IDT_PROGRESS_ELAPSED_VAL": {
+      "omit": "Agreed simplified operation design, 2026-11-05: no time, size, speed, ratio or count statistics in the UI; source counters remain with the operation."
+    },
+    "IDT_PROGRESS_REMAINING_VAL": {
+      "omit": "Agreed simplified operation design, 2026-11-05: no time, size, speed, ratio or count statistics in the UI; source counters remain with the operation."
+    },
+    "IDT_PROGRESS_FILES_VAL": {
+      "omit": "Agreed simplified operation design, 2026-11-05: no time, size, speed, ratio or count statistics in the UI; source counters remain with the operation."
+    },
+    "IDT_PROGRESS_FILES_TOTAL": {
+      "omit": "Agreed simplified operation design, 2026-11-05: no time, size, speed, ratio or count statistics in the UI; source counters remain with the operation."
+    },
+    "IDT_PROGRESS_ERRORS_VAL": {
+      "omit": "Agreed simplified operation design, 2026-11-05: no time, size, speed, ratio or count statistics in the UI; source counters remain with the operation."
+    },
+    "IDT_PROGRESS_TOTAL_VAL": {
+      "omit": "Agreed simplified operation design, 2026-11-05: no time, size, speed, ratio or count statistics in the UI; source counters remain with the operation."
+    },
+    "IDT_PROGRESS_SPEED_VAL": {
+      "omit": "Agreed simplified operation design, 2026-11-05: no time, size, speed, ratio or count statistics in the UI; source counters remain with the operation."
+    },
+    "IDT_PROGRESS_PROCESSED_VAL": {
+      "omit": "Agreed simplified operation design, 2026-11-05: no time, size, speed, ratio or count statistics in the UI; source counters remain with the operation."
+    },
+    "IDT_PROGRESS_PACKED_VAL": {
+      "omit": "Agreed simplified operation design, 2026-11-05: no time, size, speed, ratio or count statistics in the UI; source counters remain with the operation."
+    },
+    "IDT_PROGRESS_RATIO_VAL": {
+      "omit": "Agreed simplified operation design, 2026-11-05: no time, size, speed, ratio or count statistics in the UI; source counters remain with the operation."
+    },
+    "IDT_PROGRESS_STATUS": {
+      "selector": {
+        "name": "IDT_PROGRESS_STATUS"
+      }
+    },
+    "IDT_PROGRESS_FILE_NAME": {
+      "selector": {
+        "name": "IDT_PROGRESS_FILE_NAME"
+      },
+      "qtClass": "QLabel",
+      "classAdaptation": "Static SS_LEFTNOWORDWRAP becomes a wrapping plain-text label. Show the current filename (directory during scanning); retain the full raw path in tooltip/accessibility and source middle truncation."
+    },
+    "IDC_PROGRESS1": {
+      "selector": {
+        "name": "IDC_PROGRESS1"
+      },
+      "qtClass": "QProgressBar",
+      "classAdaptation": "Native progress control becomes QProgressBar with source integer converter/range/cache.",
+      "textAdaptation": "Bar text hidden; separate percentage above it. Unknown totals use indeterminate progress; final results hide the bar."
+    },
+    "IDL_PROGRESS_MESSAGES": {
+      "selector": {
+        "name": "IDL_PROGRESS_MESSAGES"
+      },
+      "qtClass": "QTreeWidget",
+      "classAdaptation": "CListView Qt service in the shared diagnostics disclosure. The ordinal column is hidden; raw message order and copy selection/all remain intact.",
+      "textAdaptation": "Resource List1 is a control identifier; message text comes from CProgressSync."
+    }
   },
-  "relations": [
-    {"a": "IDT_PROGRESS_ELAPSED", "kind": "left_of", "b": "IDT_PROGRESS_ELAPSED_VAL"},
-    {"a": "IDT_PROGRESS_ELAPSED", "kind": "above", "b": "IDT_PROGRESS_REMAINING"},
-    {"a": "IDT_PROGRESS_REMAINING", "kind": "above", "b": "IDT_PROGRESS_FILES"},
-    {"a": "IDT_PROGRESS_FILES", "kind": "above", "b": "IDT_PROGRESS_ERRORS"},
-    {"a": "IDT_PROGRESS_STATUS", "kind": "above", "b": "IDT_PROGRESS_ERRORS", "adaptation": "Approved redesign: status precedes overview counters; errors remain outside Details."},
-    {"a": "IDT_PROGRESS_STATUS", "kind": "above", "b": "IDT_PROGRESS_FILE_NAME"},
-    {"a": "IDC_PROGRESS1", "kind": "above", "b": "IDT_PROGRESS_FILE_NAME", "adaptation": "Approved redesign: progress bar precedes the current path."},
-    {"a": "IDB_PAUSE", "kind": "left_of", "b": "IDCANCEL"}
-  ],
+  "relations": [],
   "states": [
     {
-      "name": "finished-transport-controls-errors",
-      "reports": ["archive-progress-760-controls-close.json", "archive-progress-640-controls-close.json"],
-      "evidence": [{"source": "CPP/7zip/UI/FileManager/ProgressDialog2.cpp", "symbol": "CProgressDialog::OnExternalCloseMessage", "requirement": "Native transport failures retain source errors and Close; percent-only transport does not invent byte totals."}],
+      "name": "finished-transport-errors",
+      "reports": [
+        "archive-progress-760-controls-close.json",
+        "archive-progress-640-controls-close.json"
+      ],
+      "evidence": [
+        {
+          "source": "CPP/7zip/UI/FileManager/ProgressDialog2.cpp",
+          "symbol": "CProgressDialog::OnExternalCloseMessage",
+          "requirement": "Retain native transport errors for review; hide running progress and Pause."
+        }
+      ],
       "assert": [
-        {"id": "IDCANCEL", "property": "text", "equals": "&Close"},
-        {"id": "IDCANCEL", "property": "fullyVisible", "equals": true},
-        {"id": "IDB_PAUSE", "property": "visible", "equals": false},
-        {"id": "IDT_PROGRESS_TOTAL_VAL", "property": "text", "equals": ""},
-        {"id": "IDT_PROGRESS_ERRORS_VAL", "property": "text", "equals": "1"}
+        {
+          "id": "IDCANCEL",
+          "property": "enabled",
+          "equals": true
+        },
+        {
+          "id": "IDCANCEL",
+          "property": "fullyVisible",
+          "equals": true
+        },
+        {
+          "id": "IDB_PAUSE",
+          "property": "visible",
+          "equals": false
+        },
+        {
+          "id": "IDC_PROGRESS1",
+          "property": "visible",
+          "equals": false
+        }
       ]
     },
     {
-      "name": "finished-error-list-close",
-      "reports": ["progress-worker-760-errors-close.json", "progress-worker-640-errors-close.json"],
-      "evidence": [{"source": "CPP/7zip/UI/FileManager/ProgressDialog2.cpp", "symbol": "CProgressDialog::OnExternalCloseMessage", "requirement": "Finished errors remain visible until the default Close button is acknowledged; Pause is hidden."}],
+      "name": "finished-worker-errors",
+      "reports": [
+        "progress-worker-760-errors-close.json",
+        "progress-worker-640-errors-close.json"
+      ],
+      "evidence": [
+        {
+          "source": "CPP/7zip/UI/FileManager/ProgressDialog2.cpp",
+          "symbol": "CProgressDialog::OnExternalCloseMessage",
+          "requirement": "Keep source worker diagnostics and default Close until acknowledged; the agreed design collapses diagnostics initially."
+        }
+      ],
       "assert": [
-        {"id": "IDCANCEL", "property": "text", "equals": "&Close"},
-        {"id": "IDCANCEL", "property": "enabled", "equals": true},
-        {"id": "IDCANCEL", "property": "fullyVisible", "equals": true},
-        {"id": "IDB_PAUSE", "property": "visible", "equals": false},
-        {"id": "IDT_PROGRESS_ERRORS", "property": "visible", "equals": true},
-        {"id": "IDL_PROGRESS_MESSAGES", "property": "visible", "equals": true}
+        {
+          "id": "IDCANCEL",
+          "property": "enabled",
+          "equals": true
+        },
+        {
+          "id": "IDCANCEL",
+          "property": "fullyVisible",
+          "equals": true
+        },
+        {
+          "id": "IDB_PAUSE",
+          "property": "visible",
+          "equals": false
+        },
+        {
+          "id": "IDC_PROGRESS1",
+          "property": "visible",
+          "equals": false
+        }
       ]
     },
     {
-      "name": "compression-no-errors",
-      "reports": ["progress-dialog-760-1-0.json", "progress-dialog-640-1-0.json"],
-      "evidence": [{"source": "CPP/7zip/UI/FileManager/ProgressDialog2.cpp", "symbol": "CProgressDialog::OnInit", "requirement": "Error controls initially hidden; compression labels shown."}, {"source": "CPP/7zip/UI/FileManager/ProgressDialog2.cpp", "symbol": "CProgressDialog::OnSize", "requirement": "Retain source two columns, status/path, bar, error list and footer at normal/compact sizes."}],
+      "name": "running-without-messages",
+      "reports": [
+        "progress-dialog-560-0.json",
+        "progress-dialog-360-0.json"
+      ],
+      "evidence": [
+        {
+          "source": "CPP/7zip/UI/FileManager/ProgressDialog2.cpp",
+          "symbol": "CProgressDialog::OnInit",
+          "requirement": "Agreed simplified presentation keeps current file above progress and footer outside scrolling."
+        }
+      ],
       "assert": [
-        {"id": "IDT_PROGRESS_ERRORS", "property": "visible", "equals": false},
-        {"id": "IDL_PROGRESS_MESSAGES", "property": "visible", "equals": false},
-        {"id": "IDT_PROGRESS_PACKED", "property": "visible", "equals": true},
-        {"id": "IDT_PROGRESS_RATIO", "property": "visible", "equals": true},
-        {"id": "IDCANCEL", "property": "enabled", "equals": true},
-        {"id": "IDB_PAUSE", "property": "enabled", "equals": true},
-        {"id": "IDB_PAUSE", "property": "fullyVisible", "equals": true},
-        {"id": "IDB_PAUSE", "property": "text", "equals": "&Pause"}
+        {
+          "id": "IDCANCEL",
+          "property": "enabled",
+          "equals": true
+        },
+        {
+          "id": "IDCANCEL",
+          "property": "fullyVisible",
+          "equals": true
+        },
+        {
+          "id": "IDB_PAUSE",
+          "property": "visible",
+          "equals": true
+        },
+        {
+          "id": "IDL_PROGRESS_MESSAGES",
+          "property": "visible",
+          "equals": false
+        }
       ]
     },
     {
-      "name": "compression-errors",
-      "reports": ["progress-dialog-760-1-1.json", "progress-dialog-640-1-1.json"],
-      "evidence": [{"source": "CPP/7zip/UI/FileManager/ProgressDialog2.cpp", "symbol": "CProgressDialog::UpdateStatInfo", "requirement": "New Sync errors show error count/list without moving source groups."}],
+      "name": "running-with-expanded-messages",
+      "reports": [
+        "progress-dialog-560-1.json",
+        "progress-dialog-360-1.json"
+      ],
+      "evidence": [
+        {
+          "source": "CPP/7zip/UI/FileManager/ProgressDialog2.cpp",
+          "symbol": "CProgressDialog::UpdateStatInfo",
+          "requirement": "Preserve source diagnostics and order in an independently expandable section."
+        }
+      ],
       "assert": [
-        {"id": "IDT_PROGRESS_ERRORS", "property": "visible", "equals": true},
-        {"id": "IDT_PROGRESS_ERRORS_VAL", "property": "text", "equals": "1"},
-        {"id": "IDL_PROGRESS_MESSAGES", "property": "fullyVisible", "equals": true},
-        {"id": "IDT_PROGRESS_PACKED", "property": "visible", "equals": true},
-        {"id": "IDT_PROGRESS_RATIO", "property": "visible", "equals": true}
+        {
+          "id": "IDCANCEL",
+          "property": "enabled",
+          "equals": true
+        },
+        {
+          "id": "IDCANCEL",
+          "property": "fullyVisible",
+          "equals": true
+        },
+        {
+          "id": "IDL_PROGRESS_MESSAGES",
+          "property": "visible",
+          "equals": true
+        }
       ]
     },
     {
-      "name": "no-compression-no-errors",
-      "reports": ["progress-dialog-760-0-0.json", "progress-dialog-640-0-0.json"],
-      "evidence": [{"source": "CPP/7zip/UI/FileManager/ProgressDialog2.cpp", "symbol": "CProgressDialog::OnInit", "requirement": "ShowCompressionInfo=false hides packed/ratio labels and values, retaining original positions."}],
+      "name": "paused",
+      "reports": [
+        "progress-dialog-560-0-paused.json",
+        "progress-dialog-560-1-paused.json",
+        "progress-dialog-360-0-paused.json",
+        "progress-dialog-360-1-paused.json"
+      ],
+      "evidence": [
+        {
+          "source": "CPP/7zip/UI/FileManager/ProgressDialog2.cpp",
+          "symbol": "CProgressDialog::OnPauseButton",
+          "requirement": "Retain source pause/continue transition while the native transport supports it."
+        }
+      ],
       "assert": [
-        {"id": "IDT_PROGRESS_PACKED", "property": "visible", "equals": false},
-        {"id": "IDT_PROGRESS_PACKED_VAL", "property": "visible", "equals": false},
-        {"id": "IDT_PROGRESS_RATIO", "property": "visible", "equals": false},
-        {"id": "IDT_PROGRESS_RATIO_VAL", "property": "visible", "equals": false},
-        {"id": "IDT_PROGRESS_ERRORS", "property": "visible", "equals": false}
+        {
+          "id": "IDB_PAUSE",
+          "property": "fullyVisible",
+          "equals": true
+        },
+        {
+          "id": "IDCANCEL",
+          "property": "enabled",
+          "equals": true
+        }
       ]
     },
     {
-      "name": "no-compression-errors",
-      "reports": ["progress-dialog-760-0-1.json", "progress-dialog-640-0-1.json"],
-      "evidence": [{"source": "CPP/7zip/UI/FileManager/ProgressDialog2.cpp", "symbol": "CProgressDialog::OnInit", "requirement": "Compression controls hidden."}, {"source": "CPP/7zip/UI/FileManager/ProgressDialog2.cpp", "symbol": "CProgressDialog::UpdateStatInfo", "requirement": "Errors shown independently of compression mode."}],
+      "name": "reviewable-final-outcomes",
+      "reports": [
+        "progress-final-message-error-560.json",
+        "progress-final-message-error-360.json",
+        "progress-final-message-cancelled-560.json",
+        "progress-final-message-cancelled-360.json",
+        "progress-final-message-skipped-560.json",
+        "progress-final-message-skipped-360.json",
+        "progress-final-message-callback-error-560.json",
+        "progress-final-message-callback-error-360.json"
+      ],
+      "evidence": [
+        {
+          "source": "CPP/7zip/UI/FileManager/ProgressDialog2.cpp",
+          "symbol": "CProgressDialog::OnExternalCloseMessage",
+          "requirement": "Agreed result presentation retains failure, cancellation and skipped-item outcomes without a filled progress bar."
+        }
+      ],
       "assert": [
-        {"id": "IDT_PROGRESS_PACKED", "property": "visible", "equals": false},
-        {"id": "IDT_PROGRESS_RATIO", "property": "visible", "equals": false},
-        {"id": "IDT_PROGRESS_ERRORS", "property": "visible", "equals": true},
-        {"id": "IDL_PROGRESS_MESSAGES", "property": "fullyVisible", "equals": true}
-      ]
-    },
-    {
-      "name": "paused-all-compression-error-states",
-      "reports": ["progress-dialog-760-1-0-paused.json", "progress-dialog-640-1-0-paused.json", "progress-dialog-760-1-1-paused.json", "progress-dialog-640-1-1-paused.json", "progress-dialog-760-0-0-paused.json", "progress-dialog-640-0-0-paused.json", "progress-dialog-760-0-1-paused.json", "progress-dialog-640-0-1-paused.json"],
-      "evidence": [{"source": "CPP/7zip/UI/FileManager/ProgressDialog2.cpp", "symbol": "CProgressDialog::OnPauseButton", "requirement": "Pause sets native state and replaces caption with Continue, preserving geometry."}],
-      "assert": [
-        {"id": "IDB_PAUSE", "property": "text", "equals": "&Continue"},
-        {"id": "IDB_PAUSE", "property": "fullyVisible", "equals": true},
-        {"id": "IDCANCEL", "property": "enabled", "equals": true}
+        {
+          "id": "IDCANCEL",
+          "property": "enabled",
+          "equals": true
+        },
+        {
+          "id": "IDCANCEL",
+          "property": "fullyVisible",
+          "equals": true
+        },
+        {
+          "id": "IDB_PAUSE",
+          "property": "visible",
+          "equals": false
+        },
+        {
+          "id": "IDC_PROGRESS1",
+          "property": "visible",
+          "equals": false
+        }
       ]
     }
   ],
   "behavioralTests": {
     "ctest": "^(progress_dialog|progress_worker|progress_cancel|update_callback|archive_progress)$",
-    "CProgressDialog::UpdateStatInfo": "initialUnknownStateAndSourceCommands; countersRatioTitleAndUnicodePath; decompressingAndFilesProgress",
-    "CProgressDialog::SetProgressRange": "sourceRangeConverterAndBackwardProgress: zero, 32767/32768, 64-bit range, completion and backward reset; nativeProgressControlClampsOutOfRangePosition checks native control boundary semantics",
-    "CProgressDialog::OnPauseButton": "pauseStopsRenderingAndPreservesElapsedTime",
-    "CProgressDialog::UpdateMessagesDialog": "errorLinesAppendNumberingAndClipboard",
-    "CProgressDialog::OnInit": "sourceIconIDAndEmbeddedFrames: conditional default/source/invalid ID and native embedded image frames; sourceLayoutStates covers normal/compact states",
-    "CProgressDialog::OnExternalCloseMessage": "sourceErrorListCloseState: native completion, normal/compact Close geometry/default/Enter, hidden Pause; source modal results, final messages and worker exception composition",
-    "CProgressDialog::OnButtonClicked": "progress_cancel: YES/NO/CANCEL/Escape, prior pause restoration and native finish deferred while the confirmation is open",
-    "scope": "Integrated source modal/worker/cancel/callback component and first ArchiveBackend Add/drop consumer were accepted in P0-10.1. P0-10.2 connects the remaining current archive/filesystem/volume consumers and source MessagesDialog. Geometry and decoded icon frames are not Windows pixel parity."
+    "progress": "Unknown/known phase transitions, Unicode current file, count or byte progress, 64-bit ranges and backward reset; no invented byte totals.",
+    "pause": "Supported native pause freezes rendering and restores prior state after refusing Stop; unsupported callback Pause is hidden.",
+    "stop": "Continue/Stop with safe default and Escape; repeated Stop disabled while awaiting actual completion. Completion retires an obsolete Stop question without user input.",
+    "result": "Native HRESULT and partial facts select retained failure/cancel/skipped results; full success closes automatically. Worker join, source exception composition and default Close remain covered.",
+    "messages": "Source message splitting, ordering, append and selection/all clipboard; ordinal column omitted from the UI.",
+    "scope": "Reviewed Qt adaptations to the pinned source component. This contract does not prove independent task lifetime, rendered Windows parity or whole-catalog acceptance."
   }
 }

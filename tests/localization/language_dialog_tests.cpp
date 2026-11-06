@@ -23,6 +23,7 @@
 #include <QDialogButtonBox>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMessageBox>
 #include <QPushButton>
 #include <QRadioButton>
 #include <QScopeGuard>
@@ -325,7 +326,7 @@ class LanguageDialogTests final : public QObject {
         memory.findChild<QRadioButton *>("memSkip")->click();
         memory.findChild<QCheckBox *>("memRemember")->click();
         language("ru");
-        QCOMPARE(overwrite.windowTitle(), QStringLiteral("Подтверждение замены файла"));
+        QCOMPARE(overwrite.windowTitle(), QStringLiteral("Файл уже существует"));
         QVERIFY(overwrite.findChild<QPushButton *>("overwriteNo")->isDefault());
         QVERIFY(overwrite.findChild<QLabel *>("overwriteOldFile")->text() != oldInfo);
         QVERIFY(overwrite.findChild<QLabel *>("overwriteOldFile")->text().contains("old.bin"));
@@ -417,6 +418,42 @@ class LanguageDialogTests final : public QObject {
                 inspect(dialog, "language-extract-" + QString(lang), width, 330);
         }
     }
+    void progressStopQuestionPreservesItsRequestAcrossLanguages() {
+        language("-");
+        CProgressDialog dialog(nullptr, L"operation 密碼");
+        dialog.show();
+        bool inspected = false;
+        QTimer::singleShot(0, &dialog, [&] {
+            auto *question = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
+            QVERIFY(question);
+            auto *continueButton = question->button(QMessageBox::No);
+            const auto resume = qScopeGuard([&] { continueButton->click(); });
+            QSignalSpy finished(question, &QDialog::finished);
+            for (const char *locale : {"ru", "-"}) {
+                language(locale);
+                QCOMPARE(QApplication::activeModalWidget(), question);
+                QCOMPARE(finished.size(), 0);
+                QCOMPARE(question->text(),
+                         QCoreApplication::translate("ProgressRedesign", "Stop this operation?"));
+                QTRY_COMPARE(question->button(QMessageBox::Yes)->text(),
+                             QCoreApplication::translate("ProgressRedesign", "Stop"));
+                QCOMPARE(continueButton->text(),
+                         QCoreApplication::translate("ProgressRedesign", "Continue working"));
+                QCOMPARE(question->defaultButton(), continueButton);
+                QCOMPARE(question->escapeButton(), continueButton);
+                QVERIFY(UiInspection::fullyVisible(*continueButton, *question));
+                QVERIFY(UiInspection::fullyVisible(*question->button(QMessageBox::Yes), *question));
+                QVERIFY(UiInspection::writeReport(*question,
+                                                  "progress-stop-language-" + QString(locale)));
+            }
+            inspected = true;
+        });
+        dialog.findChild<QPushButton *>("IDCANCEL")->click();
+        QVERIFY(inspected);
+        QVERIFY(!dialog.Sync.Get_Stopped());
+        QVERIFY(!dialog.Sync.Get_Paused());
+        dialog.done(0);
+    }
     void progressPreservesPausedOperationAndFinishedClose() {
         LanguageProgressTransport transport;
         LanguageProgressDialog dialog(nullptr, L"operation 密碼");
@@ -465,8 +502,11 @@ class LanguageDialogTests final : public QObject {
         QCOMPARE(cancel->text(), QStringLiteral("&Закрыть"));
         QVERIFY(!pause->isVisible());
         QCOMPARE(list->topLevelItemCount(), rows);
+        QVERIFY(!dialog.windowTitle().contains('%'));
+        QVERIFY(UiInspection::writeReport(dialog, "language-progress-result-ru"));
         language("-");
         QCOMPARE(cancel->text(), QString("&Close"));
+        QVERIFY(UiInspection::writeReport(dialog, "language-progress-result-en"));
         cancel->click();
     }
 };

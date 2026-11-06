@@ -244,8 +244,7 @@ void CreateArchiveDialog::createFooter(QVBoxLayout *layout) {
     auto *help = new QShortcut(QKeySequence(Qt::Key_F1), this);
     connect(help, &QShortcut::activated, this, showHelp);
     layout->addWidget(buttons_);
-    if (format_->currentIndex() < 0)
-        buttons_->button(QDialogButtonBox::Ok)->setEnabled(false);
+    updateProtectionControls();
 
     connect(buttons_, &QDialogButtonBox::rejected, this, &QDialog::reject);
     connect(buttons_, &QDialogButtonBox::accepted, this, &CreateArchiveDialog::validateAndAccept);

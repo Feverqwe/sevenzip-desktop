@@ -21,21 +21,30 @@ WidgetDialogFixture::~WidgetDialogFixture() {
 bool WidgetDialogFixture::eventFilter(QObject *watched, QEvent *event) {
     if (event->type() == QEvent::Show)
         if (auto *dialog = qobject_cast<QDialog *>(watched)) {
-            if (!showLevels_.contains(dialog))
+            if (!shown_.contains(dialog))
                 connect(dialog, &QObject::destroyed, this, [this, dialog] {
-                    showLevels_.remove(dialog);
+                    shown_.remove(dialog);
                     answering_.remove(dialog);
                 });
-            showLevels_.insert(dialog, QThread::currentThread()->loopLevel());
+            const quint64 generation = ++generation_;
+            shown_.insert(dialog, {QThread::currentThread()->loopLevel(), generation});
+            const QPointer<QDialog> liveDialog(dialog);
+            // A shown window-modal result uses the existing event loop. It
+            // becomes answerable after that show returns, without requiring exec().
+            QTimer::singleShot(0, this, [this, liveDialog, generation] {
+                auto shown = shown_.find(liveDialog);
+                if (shown != shown_.end() && shown->generation == generation)
+                    shown->settled = true;
+            });
         }
     return QObject::eventFilter(watched, event);
 }
 
 bool WidgetDialogFixture::ready(QDialog &dialog) const {
-    const auto level = showLevels_.constFind(&dialog);
-    if (level == showLevels_.cend() || !dialog.isVisible() ||
-        QThread::currentThread()->loopLevel() <= *level || !dialog.windowHandle() ||
-        !dialog.windowHandle()->isExposed())
+    const auto shown = shown_.constFind(&dialog);
+    if (shown == shown_.cend() || !dialog.isVisible() ||
+        (QThread::currentThread()->loopLevel() <= shown->loop && !shown->settled) ||
+        !dialog.windowHandle() || !dialog.windowHandle()->isExposed())
         return false;
     if (!dialog.isActiveWindow()) {
         dialog.raise();

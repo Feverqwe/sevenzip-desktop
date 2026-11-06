@@ -9,6 +9,7 @@
 #include "settings/RegistryUtils.h"
 #include "support/delete_reply.h"
 #include "support/panel_keys.h"
+#include "support/progress_dialog.h"
 #include "support/widget_dialogs.h"
 #include "ui/progress/ProgressDialog2.h"
 #include "ui/support/layout_inspection.h"
@@ -178,9 +179,12 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
                      question && question->objectName() == "progressCancelQuestion")
                 question->button(QMessageBox::Yes)->click();
             else if (auto *progress = dynamic_cast<CProgressDialog *>(dialogs_.activeDialog());
-                     progress && firstMoved.tryAcquire()) {
+                     progress && TestProgressDialog::IsCloseButton(
+                                     progress->findChild<QPushButton *>("IDCANCEL"))) {
+                progress->findChild<QPushButton *>("IDCANCEL")->click();
+            } else if (auto *progress = dynamic_cast<CProgressDialog *>(dialogs_.activeDialog());
+                       progress && firstMoved.tryAcquire()) {
                 const auto release = qScopeGuard([&] { resume.release(); });
-                QVERIFY(!progress->findChild<QWidget *>("progressDetailsSection")->isVisible());
                 QTRY_VERIFY(progress->findChild<QLabel *>("IDT_PROGRESS_FILE_NAME")
                                 ->text()
                                 .contains(first));
@@ -512,6 +516,24 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
                 ReplyDelete(*confirmation);
                 return;
             }
+            if (auto *progress = TestProgressDialog::ResultWindow(dialogs_.activeDialog())) {
+                if (!progress->Sync.FinalMessage.ErrorMessage.Message.IsEmpty()) {
+                    ++errors;
+                    errorTitle = progress->findChild<QLabel *>("IDT_PROGRESS_STATUS")->text();
+                }
+                for (const QSize size : {QSize(400, 240), QSize(340, 220)}) {
+                    progress->resize(size);
+                    QApplication::processEvents();
+                    reports &=
+                        UiInspection::writeReport(*progress, QString("source-delete-error-%1-%2")
+                                                                 .arg(QTest::currentDataTag())
+                                                                 .arg(size.width()));
+                    reports &= UiInspection::fullyVisible(
+                        *progress->findChild<QPushButton *>("IDCANCEL"), *progress);
+                }
+                TestProgressDialog::CloseResult(*progress);
+                return;
+            }
             auto *box = qobject_cast<QMessageBox *>(dialogs_.activeDialog());
             if (!box)
                 return;
@@ -548,7 +570,8 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         QCOMPARE(errors, mode == 1 || mode == 4 ? 1 : 0);
         QVERIFY(reports);
         if (errors)
-            QCOMPARE(errorTitle, ToQString(LangString(IDS_ERROR_DELETING)));
+            QCOMPARE(errorTitle,
+                     QCoreApplication::translate("ProgressRedesign", "Operation failed"));
         QTRY_COMPARE(view->rowCount(), partial ? 2 : 1);
         QCOMPARE(panel.GetFolder(), (IFolderFolder *)folder);
         QVERIFY(panel.ShouldProcessNotifications());

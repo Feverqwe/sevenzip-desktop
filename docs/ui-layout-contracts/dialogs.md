@@ -362,52 +362,46 @@ was unavailable and pixel-level parity remains unverified.
 ## Progress dialog and modal lifecycle
 
 Reference: upstream `0766b733fe3e06dd2a7f9a3cfbf2108ac73abd17`,
-ProgressDialog2.rc/ProgressDialog2a.rc (`IDD_PROGRESS`) and the complete handlers
-and statistic/message dependencies in ProgressDialog2.cpp. The approved redesign
-shows status, progress bar and the two-line directory/name first, then elapsed,
-remaining and the completed/total file count. Errors stay in the overview and an
-independent two-column message list. Details reveals total/speed/processed/packed/
-ratio in a label/value grid with right-aligned values. Pause/Cancel
-use the common footer with native button roles. Percentage belongs in the title;
-hide text inside the bar.
+ProgressDialog2.rc/ProgressDialog2a.rc and complete progress, message, pause,
+stop and worker handlers. The agreed November 5 operation design replaces the
+old statistics presentation: current file and a separate percentage precede
+the bar; accepted source/destination locations expand separately. Times, byte
+statistics, counts and a disclosure containing those statistics are absent.
+The source counters and range conversion remain operation state.
 
-Initially errors label/value/list are hidden. New messages show all three and
-use source numbered first lines and unnumbered continuations; copy selected
-rows or all rows if none selected. ShowCompressionInfo=false hides packed and
-ratio labels/values inside Details. Collapsing Details does not stop statistics
-updates, change pause or hide errors. Pause changes to
-Continue, prefixes the title and freezes timer rendering/elapsed accumulation;
-resume preserves elapsed time. Files-progress scales by count, while speed
-remains byte based. Unknown totals clear size/remaining totals according to
-the original cached state. Native endpoint/unknown/overflow behavior is retained.
+Unknown totals use an indeterminate indicator without a percentage. Known
+native byte/count totals and percent-only transports drive the same display;
+a new unknown phase clears the previous percentage. Preparation has a short
+state caption. Pause freezes rendering and preserves reached progress. It is
+available only when supported by that operation's transport; callback-only
+filesystem/volume operations hide it. Minimize, Pause/Continue and Stop remain
+in the footer, reachable when the body scrolls. Full locations come from the
+accepted operation plan, not from the changing current-file string.
 
-Qt layouts and native size hints own geometry; source OnSize retains its
-width-dependent string reduction. The overview/details area scrolls at compact
-sizes; the error list and footer remain outside that viewport. Initial height
-follows the collapsed content. Source NormalizeSize retains work-area protection.
-Normal 760×450 and compact 640×380 geometry tests check collapsed/expanded states,
-reachability, text/button fitting and footer/list separation. `ui_parity_progress` maps all
-26 source IDs with Background explicitly omitted by user instruction (2026-10-23).
-Current reports cover compression/errors/paused and finish-Close states.
-Captions follow source language bindings; clipboard shortcuts also accept macOS Meta.
-Cancel is the default button and receives initial focus; Enter on focused Pause
-still toggles pause. Background/Foreground, title markers and process-priority
-switching are removed, including inheritance into subsequent engine phases.
-Cancel uses source YES/NO/CANCEL and Escape-as-Cancel, temporarily
-pausing and restoring prior pause. Native completion while the question is open
-is deferred until the answer; completed errors hide Pause and focus
-the default Close button. Native message boxes use plain text. Their Qt platform
-layout is checked separately from the 26-control source resource; macOS ignores
-message-box window titles. Source MB_YESNOCANCEL and success MB_OK have no icon
-flags: both Qt boxes use NoIcon; MB_ICONERROR uses Critical. Cancel's existing
-normal/compact answer matrix checks the public icon. Final-error/success reports
-request480×200/320×200, but native QMessageBox auto-fit determines actual sizes;
-these requests do not establish two distinct rendered sizes. On Windows all
-four progress-report producers and Cancel use the native QPA/font database,
-as the main dialog already does. The offscreen plugin's missing-font fallback
-metrics are unsuitable for application geometry. Add in an open archive was the first operation consumer
-under P0-10.1. P0-10.2 connects the other current archive, filesystem and volume
-operations. Filesystem/volume workers expose cancellation, but Pause is disabled because they have no worker pause capability.
+Stop and closing a running window ask Continue working / Stop. Continue is the
+default and Escape answer. Refusal restores the former pause state. Confirmed
+Stop disables repeated requests and shows Stopping until the owner finishes;
+completion retires an obsolete question without waiting for user input. Neither
+an empty message list nor a full bar proves success. The operation supplies its
+result and completeness after required publication/source removal. Full success
+closes automatically. Failure, cancellation, skipped items or messages keep a
+short result and optional diagnostics until Close, with the running bar hidden.
+Cancellation warns that changes may already have completed.
+
+Diagnostics preserve source strings, line splitting and order. The ordinal
+column is hidden. Copy selects the chosen messages, or all messages if nothing
+is selected; macOS Meta is accepted along with Control. Long paths wrap and the
+body scrolls; final actions remain separate. Existing source-owned tasks keep
+their original owner and joined lifetime. Independent 7zG tasks retain their
+existing process/typed-job boundary. Changing the form does not detach work
+from a tab or add session recovery.
+
+The reviewed source mapping records explicit omissions and Qt adaptations in
+`progress-dialog.contract.json`. Focused behavior checks cover range boundaries,
+unknown phases, pause, Stop races, worker results and clipboard; normal/compact
+reports check reachability and grouping. The new presentation is undergoing
+runtime acceptance. Source-resource comparison is not rendered Windows pixel
+parity or proof of the complete operation catalog.
 
 MessagesDialog.rc (`IDD_MESSAGES`) uses a two-column numbered/message list and
 Close footer,456×176DLU initial client and resize/minimize/maximize capabilities

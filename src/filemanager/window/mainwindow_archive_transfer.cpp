@@ -22,7 +22,9 @@ void MainWindow::transferFromArchive(const QString &destination, bool move, bool
     options.overwriteMode = ExtractionOptions::OverwriteMode::Ask;
     options.Purpose = move ? QtArchiveExtractPurpose::Move : QtArchiveExtractPurpose::Copy;
     if (move)
-        archiveMove_ = std::make_unique<PendingArchiveMove>(sourceIndex, indices);
+        archiveMove_ = std::make_unique<PendingArchiveMove>(
+            sourceIndex, indices, ToQString(app_.Panels[sourceIndex].GetCurrentFolderPrefix()),
+            destination);
     const bool handled = extractWithSource(destination, true, {}, options, paths, &indices);
     if (handled && projectedUi().state == State::Operating)
         return; // Asynchronous completion owns the pending transfer.
@@ -30,7 +32,8 @@ void MainWindow::transferFromArchive(const QString &destination, bool move, bool
         (!move || (QFileInfo(destination).isDir() && !QFileInfo(destination).isSymLink()))) {
         previousState_ = projectedUi().state;
         setState(State::Operating);
-        begin(QtLangText(move ? IDS_MOVING : IDS_PROGRESS_EXTRACTING), destination);
+        begin(QtLangText(move ? IDS_MOVING : IDS_PROGRESS_EXTRACTING), projectedUi().archive,
+              destination);
         // Source refusal permits fallback only at the archive root. Retain
         // Move's full-path transport and Copy's explicit extraction options.
         if (move) {
@@ -98,9 +101,12 @@ bool MainWindow::transferBetweenArchivePanels(const QString &destination, bool m
     }
     if (indices.IsEmpty())
         return true;
+    const QString sourceLocation = ToQString(source.GetCurrentFolderPrefix());
+    const QString destinationLocation = ToQString(target.GetCurrentFolderPrefix());
     CSelectedState destinationSelection;
     target.SaveSelectedState(destinationSelection);
     UStringVector messages;
+    QStringList terminalDiagnostics;
     HRESULT result;
     QtArchiveTransferResult transfer{E_FAIL, {}};
     std::unique_ptr<QtArchiveTransferBackup> rollback;
@@ -129,7 +135,9 @@ bool MainWindow::transferBetweenArchivePanels(const QString &destination, bool m
         if (result == S_OK && messages.IsEmpty()) {
             outcome = Outcome::Updated;
             if (move) {
-                const auto removed = source.DeleteItems(false, *trashService_, selected, &indices);
+                const auto removed = source.DeleteItems(false, *trashService_, selected, &indices,
+                                                        true, QtDeleteResultReview::Caller);
+                terminalDiagnostics = removed.Diagnostics;
                 result = removed.Result;
                 if (result != S_OK) {
                     if (removed.Published == false) {
@@ -158,10 +166,15 @@ bool MainWindow::transferBetweenArchivePanels(const QString &destination, bool m
                                           retainedUpdate ? ArchiveTransferReload::BoundFolder
                                                          : ArchiveTransferReload::ReopenArchive);
     if (outcome == Outcome::RollbackFailed) {
-        QMessageBox::warning(this, QtLangText(IDS_MOVING),
-                             QCoreApplication::translate(
-                                 "mainwindow_archive_transfer",
-                                 "Could not roll back destination archive. Check both archives."));
+        terminalDiagnostics.prepend(QCoreApplication::translate(
+            "mainwindow_archive_transfer",
+            "Could not roll back destination archive. Check both archives."));
+        CProgressDialog::PresentResult(this, {.title = QtLangText(IDS_MOVING),
+                                              .result = E_FAIL,
+                                              .diagnostics = terminalDiagnostics,
+                                              .source = sourceLocation,
+                                              .destination = destinationLocation,
+                                              .partial = true});
         return true;
     }
     if (outcome == Outcome::Retained) {
@@ -170,8 +183,23 @@ bool MainWindow::transferBetweenArchivePanels(const QString &destination, bool m
             "Source removal did not finish cleanly. The destination copy was retained; check "
             "both archives.");
         statusBar()->showMessage(message);
-        QMessageBox::warning(this, QtLangText(IDS_MOVING),
-                             message + '\n' + QString::fromWCharArray(HResultToMessage(result)));
+        terminalDiagnostics.prepend(message);
+        CProgressDialog::PresentResult(this, {.title = QtLangText(IDS_MOVING),
+                                              .result = result,
+                                              .diagnostics = terminalDiagnostics,
+                                              .source = sourceLocation,
+                                              .destination = destinationLocation,
+                                              .partial = true});
+        return true;
+    }
+    if (outcome == Outcome::RolledBack) {
+        terminalDiagnostics.prepend(QCoreApplication::translate(
+            "mainwindow_archive_transfer", "The destination archive was restored."));
+        CProgressDialog::PresentResult(this, {.title = QtLangText(IDS_MOVING),
+                                              .result = result,
+                                              .diagnostics = terminalDiagnostics,
+                                              .source = sourceLocation,
+                                              .destination = destinationLocation});
         return true;
     }
     if (outcome == Outcome::Updated) {
@@ -180,11 +208,17 @@ bool MainWindow::transferBetweenArchivePanels(const QString &destination, bool m
                                                "Items moved between archives.")
                  : QCoreApplication::translate("mainwindow_archive_transfer",
                                                "Items copied into the archive."));
-    } else if (result != S_OK && result != E_ABORT) {
-        QMessageBox::warning(this, QtLangText(IDS_COPYING),
-                             transfer.Error.isEmpty()
-                                 ? QString::fromWCharArray(HResultToMessage(result).Ptr())
-                                 : transfer.Error);
+    } else if (result != S_OK || !messages.IsEmpty()) {
+        FOR_VECTOR(i, messages)
+        terminalDiagnostics.append(ToQString(messages[i]));
+        if (!transfer.Error.isEmpty())
+            terminalDiagnostics.append(transfer.Error);
+        CProgressDialog::PresentResult(this, {.title = QtLangText(move ? IDS_MOVING : IDS_COPYING),
+                                              .result = result,
+                                              .diagnostics = terminalDiagnostics,
+                                              .source = sourceLocation,
+                                              .destination = destinationLocation,
+                                              .partial = result == S_OK});
     }
     return true;
 }

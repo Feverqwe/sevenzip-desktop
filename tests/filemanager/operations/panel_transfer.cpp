@@ -232,6 +232,9 @@ void MainWindowOperationsTests::stage7ArchiveCopyAndDropCancellation() {
              QStringLiteral("nested/file.txt"));
     QVERIFY(!action(window, "copyAction")->isEnabled());
     backend.cancel();
+    QTRY_VERIFY(TestProgressDialog::ResultWindow(QApplication::activeModalWidget()));
+    TestProgressDialog::CloseResult(
+        *TestProgressDialog::ResultWindow(QApplication::activeModalWidget()));
     QVERIFY(action(window, "copyAction")->isEnabled());
     QDragEnterEvent archiveEnter(DragEventPosition(QPoint(5, 5)), Qt::CopyAction, &mime,
                                  Qt::LeftButton, Qt::NoModifier);
@@ -252,6 +255,60 @@ void MainWindowOperationsTests::stage7ArchiveCopyAndDropCancellation() {
 
     QVERIFY(cancelRequested);
     QVERIFY(action(window, "copyAction")->isEnabled());
+}
+
+void MainWindowOperationsTests::fallbackMoveRetainsOneSettledResult_data() {
+    QTest::addColumn<int>("outcome");
+    QTest::newRow("failure") << 0;
+    QTest::newRow("cancel") << 1;
+    QTest::newRow("unconfirmed extraction") << 2;
+}
+
+void MainWindowOperationsTests::fallbackMoveRetainsOneSettledResult() {
+    QFETCH(int, outcome);
+    QTemporaryDir fixture;
+    QVERIFY(fixture.isValid());
+    ControlledBackend backend;
+    MainWindow window(&backend);
+    window.show();
+    QVERIFY(WindowActivation::waitForActive(window));
+    const QString name = QStringLiteral("retained 空.txt");
+    openListedArchive(window, backend, fixture.filePath("source.zip"), {ArchiveEntry{name, 4, 4}});
+    table(window)->selectRow(0);
+    QTimer::singleShot(0, &window, [&] {
+        if (auto *dialog = window.findChild<CopyDialog *>("copyDialog")) {
+            dialog->findChild<QLineEdit *>("copyDestination")->setText(fixture.path());
+            dialog->accept();
+        }
+    });
+    action(window, "moveAction")->trigger();
+    QCOMPARE(backend.extractCalls, 1);
+    auto *working = window.findChild<QDialog *>("progressDialog");
+    QVERIFY(working);
+    QCOMPARE(working->findChild<QLabel *>("progressSource")->accessibleDescription(),
+             backend.lastArchive);
+    QCOMPARE(working->findChild<QLabel *>("progressDestination")->accessibleDescription(),
+             backend.lastExtractDestination);
+    QVERIFY(working->findChild<QLabel *>("IDT_PROGRESS_FILE_NAME")->text().isEmpty());
+    if (outcome == 2)
+        backend.completeExtraction();
+    else
+        backend.fail(QStringLiteral("fixture extraction result"), outcome == 1 ? E_ABORT : E_FAIL);
+    QTRY_VERIFY(TestProgressDialog::ResultWindow(QApplication::activeModalWidget()));
+    QApplication::processEvents();
+    QList<CProgressDialog *> results;
+    for (auto *widget : QApplication::topLevelWidgets())
+        if (auto *result = TestProgressDialog::ResultWindow(widget);
+            result && result->isVisible() && result->parentWidget() == &window)
+            results.append(result);
+    const auto dismiss = qScopeGuard([&] {
+        for (auto *result : results)
+            TestProgressDialog::CloseResult(*result);
+    });
+    QCOMPARE(results.size(), 1);
+    QVERIFY(action(window, "moveAction")->isEnabled());
+    QCOMPARE(table(window)->rowCount(), 1);
+    QCOMPARE(table(window)->model()->index(0, 0).data().toString(), name);
 }
 
 void MainWindowOperationsTests::diskPanelCopiesIntoOppositeArchive() {

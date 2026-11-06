@@ -38,6 +38,10 @@ Z7_COM7F_IMF(CExtractCallbackImp::AskOverwrite(const wchar_t *existName, const F
         if (mapped == NOverwriteAnswer::kCancel && writeAnswer != IDCANCEL)
             return E_FAIL;
         *answer = mapped;
+        if (mapped == NOverwriteAnswer::kNo || mapped == NOverwriteAnswer::kNoToAll) {
+            SomeItemsSkipped = true;
+            ProgressDialog->Sync.AddError_Message_Name(_lang_Skipping, newName);
+        }
         return writeAnswer == IDCANCEL ? E_ABORT : S_OK;
     });
 }
@@ -83,6 +87,8 @@ Z7_COM7F_IMF(CExtractCallbackImp::AskWrite(const wchar_t *srcPath, Int32 srcIsFo
 
         switch ((int)OverwriteMode) {
         case NExtract::NOverwriteMode::kSkip:
+            SomeItemsSkipped = true;
+            ProgressDialog->Sync.AddError_Message_Name(_lang_Skipping, srcPath);
             return S_OK;
         case NExtract::NOverwriteMode::kAsk: {
             Int32 overwriteResult;

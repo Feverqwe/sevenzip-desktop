@@ -13,19 +13,22 @@ class UnixGuiEntryTests final : public QObject {
         QTest::addColumn<bool>("excluded");
         QTest::addColumn<bool>("broken");
         QTest::addColumn<bool>("moduleOnly");
-        QTest::newRow("create") << QString("a") << false << false << false;
-        QTest::newRow("test") << QString("t") << false << false << false;
-        QTest::newRow("extract") << QString("x") << false << false << false;
-        QTest::newRow("excluded-handler") << QString("x") << true << false << false;
-        QTest::newRow("broken-archive") << QString("t") << false << true << false;
-        QTest::newRow("test-without-console") << QString("t") << false << false << true;
-        QTest::newRow("damaged-without-console") << QString("t") << false << true << true;
+        QTest::addColumn<bool>("skip");
+        QTest::newRow("create") << QString("a") << false << false << false << false;
+        QTest::newRow("test") << QString("t") << false << false << false << false;
+        QTest::newRow("extract") << QString("x") << false << false << false << false;
+        QTest::newRow("skip-existing") << QString("x") << false << false << false << true;
+        QTest::newRow("excluded-handler") << QString("x") << true << false << false << false;
+        QTest::newRow("broken-archive") << QString("t") << false << true << false << false;
+        QTest::newRow("test-without-console") << QString("t") << false << false << true << false;
+        QTest::newRow("damaged-without-console") << QString("t") << false << true << true << false;
     }
     void sourceDispatch() {
         QFETCH(QString, command);
         QFETCH(bool, excluded);
         QFETCH(bool, broken);
         QFETCH(bool, moduleOnly);
+        QFETCH(bool, skip);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QByteArray bytes("Unix source GUI entry payload");
@@ -40,7 +43,12 @@ class UnixGuiEntryTests final : public QObject {
         const QString output = fixture.filePath(QStringLiteral("выход 空 \"quoted\""));
         const QString sentinel = QDir(output).filePath("existing.bin");
         QVERIFY(SourceExtractFixture::writeFile(sentinel, "keep"));
+        if (skip)
+            QVERIFY(SourceExtractFixture::writeFile(
+                QDir(output).filePath(SourceExtractFixture::kName), "existing bytes"));
         QStringList arguments{command, "-y", "-o" + output};
+        if (skip)
+            arguments << "-aos";
         if (excluded)
             arguments << "-stxzip";
         const QString created = fixture.filePath(QStringLiteral("новый 空 \"quoted\".zip"));
@@ -68,10 +76,11 @@ class UnixGuiEntryTests final : public QObject {
         QVERIFY(helper.waitForStarted(5000));
         QVERIFY2(helper.waitForFinished(30000), "source GUI dispatch did not complete");
         QCOMPARE(helper.exitStatus(), QProcess::NormalExit);
-        QCOMPARE(helper.exitCode(), excluded || broken ? 2 : 0);
+        QCOMPARE(helper.exitCode(), excluded || broken ? 2 : skip ? 1 : 0);
         const QString extracted = QDir(output).filePath(SourceExtractFixture::kName);
         if (command == "x" && !excluded)
-            QCOMPARE(SourceExtractFixture::readFile(extracted), bytes);
+            QCOMPARE(SourceExtractFixture::readFile(extracted),
+                     skip ? QByteArray("existing bytes") : bytes);
         else
             QVERIFY(!QFileInfo::exists(extracted));
         if (command == "a") {

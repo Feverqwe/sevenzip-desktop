@@ -9,6 +9,7 @@
 #include "localization/LangUtils.h"
 #include "platform/support/native_property_failure_runtime.h"
 #include "support/delete_reply.h"
+#include "support/progress_dialog.h"
 #include "support/signal_wait_support.h"
 #include "ui/progress/ProgressDialog2.h"
 #include "ui/support/layout_inspection.h"
@@ -213,6 +214,7 @@ class InterarchiveRecoveryTests final : public QObject, protected MainWindowTest
         QVERIFY(sourceUi->isAncestorOf(window.focusWidget()));
         QStringList errors;
         bool submitted = false, refused = false, committed = false, replaced = false;
+        bool reviewed = false;
         const QString sentinel = QDir(targetArchive).filePath("keep sentinel δ.txt");
         QTimer driver;
         connect(&driver, &QTimer::timeout, &window, [&] {
@@ -241,12 +243,17 @@ class InterarchiveRecoveryTests final : public QObject, protected MainWindowTest
                 box->accept();
             } else if (auto *progress = dynamic_cast<CProgressDialog *>(modal)) {
                 auto *close = progress->findChild<QPushButton *>("IDCANCEL");
-                if (close && close->text() == ToQString(LangString(IDS_CLOSE)))
+                if (TestProgressDialog::IsCloseButton(close)) {
+                    reviewed = true;
+                    if (progress->Sync.FinalMessage.Result != E_ABORT)
+                        errors << TestProgressDialog::ReportText(*progress);
                     close->click();
+                }
             }
         });
         driver.start(1);
         QTest::keyClick(view(sourceUi), Qt::Key_F6);
+        QTRY_VERIFY(reviewed);
         QVERIFY(submitted);
         QVERIFY(refused);
         QVERIFY(committed);

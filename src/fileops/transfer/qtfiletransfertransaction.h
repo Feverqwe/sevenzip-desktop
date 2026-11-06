@@ -18,6 +18,7 @@ class QtFileTransferTransaction final {
     static OverwriteQuestion snapshot(const OverwriteSource &source);
     enum class OverwriteDecision { Skip, Replace, Rename, Cancel };
     std::optional<OverwriteDecision> rememberedOverwrite_;
+    std::optional<FileTransferOperation::ResultKind> failureKind_;
     bool skipped_ = false;
     OverwriteDecision decideOverwrite(const OverwriteSource &source);
     enum class SourceState { Intact, Renamed, RemovalStarted };
@@ -39,6 +40,7 @@ class QtFileTransferTransaction final {
     QList<TransferPath> prepareTargets(QString &error) const;
     bool transferEntry(const TransferPath &path, QList<TransferEntry> &completed, QString &error);
     FileTransferOperation::Completion finish(QList<TransferEntry> &completed, QString &error);
+    void rememberFailure(const QString &error) noexcept;
     void rollbackEntry(const TransferEntry &entry, RollbackMode mode);
     void rollback(const QList<TransferEntry> &completed,
                   RollbackMode mode = RollbackMode::RestoreSources);

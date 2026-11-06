@@ -61,6 +61,7 @@ void MainWindowOperationsTests::damagedArchiveTransferPreservesBothArchives() {
     source->selectRow(0);
 
     QStringList sourceErrors, warnings;
+    bool failedResult = false;
     QTimer driver;
     connect(&driver, &QTimer::timeout, &window, [&] {
         auto *modal = QApplication::activeModalWidget();
@@ -72,6 +73,8 @@ void MainWindowOperationsTests::damagedArchiveTransferPreservesBothArchives() {
         } else if (auto *progress = dynamic_cast<CProgressDialog *>(modal)) {
             auto *close = progress->findChild<QPushButton *>("IDCANCEL");
             if (TestProgressDialog::IsCloseButton(close)) {
+                failedResult = progress->findChild<QLabel *>("IDT_PROGRESS_STATUS")->text() ==
+                               QCoreApplication::translate("ProgressRedesign", "Operation failed");
                 FOR_VECTOR(i, progress->Sync.Messages)
                 sourceErrors.append(ToQString(progress->Sync.Messages[i]));
                 close->click();
@@ -80,7 +83,9 @@ void MainWindowOperationsTests::damagedArchiveTransferPreservesBothArchives() {
     });
     driver.start(1);
     action(window, move ? "moveAction" : "copyAction")->trigger();
+    QTRY_VERIFY(!sourceErrors.isEmpty());
     driver.stop();
+    QVERIFY(failedResult);
     QVERIFY2(sourceErrors.join('\n').contains(name), qPrintable(sourceErrors.join('\n')));
     QVERIFY2(warnings.isEmpty(), qPrintable(warnings.join('\n')));
     QCOMPARE(read(sourceArchive), damaged);

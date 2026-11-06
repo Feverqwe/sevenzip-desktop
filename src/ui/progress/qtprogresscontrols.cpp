@@ -1,6 +1,7 @@
 #include "ui/progress/qtprogresscontrols.h"
 #include "7zip/UI/FileManager/ProgressDialog2Res.h"
 #include "7zip/UI/FileManager/resourceGui.h"
+#include "localization/qtlangcontrols.h"
 #include "settings/ViewSettings.h"
 #include "ui/dialogs/qtdialoglayout.h"
 #include "ui/dialogs/qtdialogscreenservices.h"
@@ -8,11 +9,15 @@
 #include "ui/lifecycle/qttaskpresentation.h"
 #include <QApplication>
 #include <QClipboard>
+#include <QEvent>
 #include <QLabel>
 #include <QMessageBox>
 #include <QProgressBar>
 #include <QPushButton>
+#include <QShowEvent>
+#include <QTimer>
 #include <cmath>
+#include <utility>
 
 namespace {
 void ConfigureQuestion(QDialog &dialog, QWidget *parent) {
@@ -23,6 +28,33 @@ void ConfigureQuestion(QDialog &dialog, QWidget *parent) {
     else
         QtUseContextDialogModality(dialog);
 }
+
+class ProgressStopQuestion final : public QMessageBox {
+    void refreshText() {
+        setText(QCoreApplication::translate("ProgressRedesign", "Stop this operation?"));
+        QtBindLocalText(button(QMessageBox::Yes), "ProgressRedesign",
+                        QT_TRANSLATE_NOOP("ProgressRedesign", "Stop"));
+        QtBindLocalText(button(QMessageBox::No), "ProgressRedesign",
+                        QT_TRANSLATE_NOOP("ProgressRedesign", "Continue working"));
+    }
+    void changeEvent(QEvent *event) override {
+        QMessageBox::changeEvent(event);
+        if (event->type() == QEvent::LanguageChange) {
+            refreshText();
+            // QMessageBox also retranslates its standard button box. Restore
+            // these operation-specific captions after that child notification.
+            QTimer::singleShot(0, this, [this] { refreshText(); });
+        }
+    }
+
+  public:
+    ProgressStopQuestion(const UString &title, QWidget *parent)
+        : QMessageBox(QMessageBox::NoIcon, QString::fromWCharArray(title.Ptr()), {},
+                      QMessageBox::Yes | QMessageBox::No, parent) {
+        setTextFormat(Qt::PlainText);
+        refreshText();
+    }
+};
 } // namespace
 
 void CQtProgressBar::Attach(QWidget *widget) { _view = static_cast<QProgressBar *>(widget); }
@@ -47,6 +79,14 @@ CQtProgressDialog::CQtProgressDialog(QWidget *parent) : QDialog(parent) {
     _unitX = units.horizontalScale();
     _clock.start();
     BuildPresentation();
+    _initialSize = size();
+}
+
+void CQtProgressDialog::showEvent(QShowEvent *event) {
+    const bool fit = std::exchange(_firstShow, false) && size() == _initialSize;
+    QDialog::showEvent(event);
+    if (fit)
+        QtFitScrollableDialog(*this);
 }
 
 QWidget *CQtProgressDialog::GetItem(unsigned id) const { return _controls.value(id); }
@@ -77,22 +117,26 @@ void CQtProgressDialog::MessageBox(QWidget *parent, const UString &message, cons
     box.setTextFormat(Qt::PlainText);
     box.exec();
 }
-int CQtProgressDialog::AskCancel(QWidget *parent, const UString &message, const UString &title) {
-    QMessageBox box(QMessageBox::NoIcon, QString::fromWCharArray(title.Ptr()),
-                    QString::fromWCharArray(message.Ptr()),
-                    QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel, parent);
+int CQtProgressDialog::AskCancel(QWidget *parent, const UString &title) {
+    ProgressStopQuestion box(title, parent);
     box.setObjectName("progressCancelQuestion");
     ConfigureQuestion(box, parent);
     QtTaskPresentation::Watch(box, QtOperationPhase::Question);
     box.setTextFormat(Qt::PlainText);
-    box.setDefaultButton(QMessageBox::Yes);
-    box.setEscapeButton(QMessageBox::Cancel);
+    box.setDefaultButton(QMessageBox::No);
+    box.setEscapeButton(QMessageBox::No);
+    _stopQuestion = &box;
     const int result = box.exec();
+    _stopQuestion = nullptr;
     if (result == QMessageBox::Yes)
         return 6; // Native IDYES.
     if (result == QMessageBox::No)
         return 7; // Native IDNO.
-    return 2;     // Native IDCANCEL, including Escape/window close.
+    return 2;     // Native IDCANCEL if the owner dismisses the nested dialog.
+}
+void CQtProgressDialog::DismissStopQuestion() {
+    if (_stopQuestion)
+        _stopQuestion->done(QMessageBox::No);
 }
 #ifdef _WIN32
 HWND CQtProgressDialog::GetNativeTaskbarWindow(QWidget *widget) {
@@ -101,9 +145,11 @@ HWND CQtProgressDialog::GetNativeTaskbarWindow(QWidget *widget) {
 #endif
 void CQtProgressDialog::SetItemText(unsigned id, const UString &text) {
     QWidget *widget = GetItem(id);
-    if (auto *label = qobject_cast<QLabel *>(widget))
+    if (auto *label = qobject_cast<QLabel *>(widget)) {
         label->setText(ToQString(text));
-    else if (auto *button = qobject_cast<QPushButton *>(widget))
+        if (id == IDT_PROGRESS_STATUS || id == IDT_PROGRESS_FILE_NAME)
+            label->setVisible(!text.IsEmpty());
+    } else if (auto *button = qobject_cast<QPushButton *>(widget))
         button->setText(ToQString(text));
 }
 void CQtProgressDialog::GetItemText(unsigned id, UString &text) const {
@@ -115,10 +161,10 @@ void CQtProgressDialog::GetItemText(unsigned id, UString &text) const {
 }
 void CQtProgressDialog::SetText(const UString &text) { setWindowTitle(ToQString(text)); }
 void CQtProgressDialog::ShowItem_Bool(unsigned id, bool visible) {
-    GetItem(id)->setVisible(visible);
+    if (auto *item = GetItem(id))
+        item->setVisible(visible);
 }
 void CQtProgressDialog::HideItem(unsigned id) { ShowItem_Bool(id, false); }
-void CQtProgressDialog::ShowByteStatistics(bool visible) { _byteStatistics->setVisible(visible); }
 void CQtProgressDialog::GetItemSizes(unsigned id, int &width, int &height) const {
     width = GetItem(id)->width();
     height = GetItem(id)->height();

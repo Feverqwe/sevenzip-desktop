@@ -18,6 +18,7 @@
 #include "support/operation_kill.h"
 #include "support/operation_temp_cleanup.h"
 #include "support/panel_keys.h"
+#include "support/progress_dialog.h"
 #include "support/scoped_environment.h"
 #include "support/widget_dialogs.h"
 #include "ui/support/layout_inspection.h"
@@ -108,7 +109,10 @@ bool makeArchive(const QString &directory, const QString &path, const QString &t
 }
 void dismissResults(WidgetDialogFixture &dialogs, QStringList &errors, QStringList &successes) {
     if (auto *widget = dialogs.activeDialog()) {
-        if (auto *box = qobject_cast<QMessageBox *>(widget)) {
+        if (auto *result = TestProgressDialog::ResultWindow(widget)) {
+            errors << TestProgressDialog::ReportText(*result);
+            TestProgressDialog::CloseResult(*result);
+        } else if (auto *box = qobject_cast<QMessageBox *>(widget)) {
             // Source ProgressDialog2 success MB_OK carries no icon flags.
             if (box->objectName() == "progressFinalMessage" && box->icon() == QMessageBox::NoIcon)
                 successes << box->text();
@@ -148,7 +152,7 @@ class ToolbarArchiveWorkflowTests final : public QObject, protected MainWindowTe
     static FileTable *openPanel(MainWindow &window, unsigned pane, const QString &path) {
         auto *ui = window.findChild<QWidget *>(QString("filePanel%1").arg(pane));
         auto *address = ui->findChild<QLineEdit *>("archivePath");
-        address->setFocus();
+        PanelKeys::focusAddress(address);
         address->setText(path);
         QTest::keyClick(address, Qt::Key_Return);
         return static_cast<FileTable *>(ui->findChild<FileTable *>("archiveTable"));
@@ -213,7 +217,7 @@ class ToolbarArchiveWorkflowTests final : public QObject, protected MainWindowTe
             PanelKeys::command(source, Qt::Key_T, Qt::ControlModifier | Qt::ShiftModifier);
             QVERIFY2(errors.isEmpty(), qPrintable(errors.join('\n')));
             if (opened)
-                QCOMPARE(successes.size(), attempt + 1);
+                QVERIFY(successes.isEmpty());
             else {
                 QVERIFY(action(window, "refreshAction")->isEnabled());
                 QTRY_COMPARE_WITH_TIMEOUT(backend.Results.size(), attempt + 1, 30000);

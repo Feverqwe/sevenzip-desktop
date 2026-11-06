@@ -83,6 +83,11 @@ HRESULT UpdateGUI(CCodecs *codecs, const CObjectVector<COpenType> &formatIndices
     }
     tu.WildcardCensor = &censor;
     tu.Options = &options;
+    QStringList sourceLocations;
+    FOR_VECTOR(i, censor.CensorPaths)
+    sourceLocations.append(QString::fromWCharArray(censor.CensorPaths[i].Path));
+    tu.SetLocations(sourceLocations.join('\n'),
+                    QString::fromWCharArray(options.ArchivePath.GetFinalPath()));
     tu.IconID = IDI_ICON;
     if (outputReady)
         outputReady();

@@ -46,7 +46,7 @@ class TaskProgress final : public CProgressDialog {
 };
 } // namespace
 
-QtLocalFileTask::QtLocalFileTask(QThread &worker, const QString &title, const QString &detail,
+QtLocalFileTask::QtLocalFileTask(QThread &worker, const QString &title, const QString &,
                                  std::function<void()> cancel)
     : QObject(qApp), worker_(worker), cancel_(std::move(cancel)) {
     worker.setParent(this);
@@ -70,8 +70,6 @@ QtLocalFileTask::QtLocalFileTask(QThread &worker, const QString &title, const QS
     progress_->setWindowModality(Qt::NonModal);
     progress_->CompressingMode = false;
     progress_->ShowCompressionInfo = false;
-    progress_->Sync.Set_Status(ToUString(title));
-    progress_->Sync.Set_FilePath(detail.toStdWString().c_str());
     transport_ = std::make_unique<QtCallbackProgressTransport>(cancel_);
     progress_->AttachTransport(transport_.get());
     connect(progress_, &QDialog::finished, this, &QObject::deleteLater);
@@ -118,6 +116,7 @@ QtLocalFileTask::QtLocalFileTask(VolumeOperation &worker, const QString &title,
     progress_->MainAddTitle = ToUString(title);
     progress_->MainAddTitle.Add_Space();
     progress_->Sync.Set_TitleFileName(ToUString(QFileInfo(detail).fileName()));
+    progress_->Sync.Set_FilePath(ToUString(detail));
     progress_->Sync.Set_NumBytesTotal(total);
     worker.attachProgress(progress_->Sync);
     connect(&worker, &VolumeOperation::result, this,
@@ -155,6 +154,10 @@ void QtLocalFileTask::BindOwner(CPanel &source, QWidget &window) {
     progress_->setWindowModality(Qt::WindowModal);
     connect(&source, &QObject::destroyed, this, [this] { StopAndWait(); });
     connect(&window, &QObject::destroyed, this, [this] { StopAndWait(); });
+}
+
+void QtLocalFileTask::SetLocations(const QString &source, const QString &destination) {
+    progress_->SetLocations(source, destination);
 }
 
 void QtLocalFileTask::StopForSource(CPanel &source) {
@@ -234,8 +237,10 @@ void QtLocalFileTask::Finish(bool success, bool cancelled, const QString &messag
         return;
     progress_->AttachTransport(nullptr);
     transport_.reset();
+    progress_->SetOperationResult(cancelled ? E_ABORT : success ? S_OK : E_FAIL, partial);
     QtTaskPresentation::SetPhase(*progress_, QtOperationPhase::Reviewing);
     static_cast<TaskProgress *>(progress_.data())->Ready();
+    progress_->RetireStopQuestion();
     RequestPresentation([this, success, cancelled, message, partial] {
         PresentFinish(success, cancelled, message, partial);
     });
@@ -261,8 +266,15 @@ void QtLocalFileTask::PresentFinish(bool success, bool cancelled, const QString 
     });
     progress_->ProcessWasFinished();
     QCoreApplication::sendPostedEvents(progress_, QEvent::MetaCall);
-    if (guard && !stopped_)
-        emit finished(success, cancelled, message);
+    if (guard && !stopped_) {
+        if (progress_->isVisible()) {
+            connect(progress_, &QDialog::finished, this, [this, success, cancelled, message] {
+                if (!stopped_)
+                    emit finished(success, cancelled, message);
+            });
+        } else
+            emit finished(success, cancelled, message);
+    }
 }
 
 QList<QtLocalFileTask *> QtLocalFileTask::Active() {

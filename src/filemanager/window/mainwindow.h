@@ -187,7 +187,8 @@ class MainWindow : public QMainWindow {
     void connectBackend();
     void backendFinished(bool ok, const QString &message, HRESULT result,
                          bool messageDisplayed = false,
-                         std::optional<QtArchiveExtractStatus> extraction = std::nullopt);
+                         std::optional<QtArchiveExtractStatus> extraction = std::nullopt,
+                         const QStringList &diagnostics = {});
     bool extractWithSource(const QString &destination, bool onlySelected, const QString &password,
                            const ExtractionOptions &options, const QStringList &names,
                            const CRecordVector<UInt32> *explicitIndices = nullptr);
@@ -202,7 +203,8 @@ class MainWindow : public QMainWindow {
   private:
     void startVolume(VolumeOperation::Mode mode);
     void launchVolume(unsigned index, VolumeOperation *operation, const UString &title,
-                      const QString &source, UInt64 totalSize, std::function<void()> completion);
+                      const QString &source, const QString &destination, UInt64 totalSize,
+                      std::function<void()> completion);
     void showItemContextMenu(unsigned owner, QAbstractItemView *view, const QPoint &pos);
     void applySortMode(bool enableSorting = false);
     void sortIndicatorChanged(unsigned panel, int column, Qt::SortOrder order,
@@ -286,9 +288,9 @@ class MainWindow : public QMainWindow {
     void showPanelStatus(unsigned panel, const CPanelStatus &status);
     void showSelectedProperties();
     void calculateHash(const QString &method);
-    void begin(const QString &label, const QString &detail);
-    std::unique_ptr<WindowProgress> createProgressDialog(const QString &label,
-                                                         const QString &detail);
+    void begin(const QString &label, const QString &source, const QString &destination = {});
+    std::unique_ptr<WindowProgress>
+    createProgressDialog(const QString &label, const QString &source, const QString &destination);
     CProgressDialog *progressDialog() const;
     void extractArchives();
     void runArchiveBatchCommand(bool test);
@@ -387,10 +389,14 @@ class MainWindow : public QMainWindow {
     std::unique_ptr<QtGuiOutputRefresh> guiOutputRefresh_;
     State previousState_ = State::Filesystem;
     struct PendingArchiveMove {
-        PendingArchiveMove(unsigned index, const CRecordVector<UInt32> &selected)
-            : source(index), indices(selected) {}
+        PendingArchiveMove(unsigned index, const CRecordVector<UInt32> &selected,
+                           const QString &sourcePath, const QString &destinationPath)
+            : source(index), indices(selected), sourceLocation(sourcePath),
+              destination(destinationPath) {}
         const unsigned source;
         const CRecordVector<UInt32> indices;
+        const QString sourceLocation;
+        const QString destination;
     };
     std::unique_ptr<PendingArchiveMove> archiveMove_;
     Qt::KeyboardModifiers selectionClickModifiers_ = Qt::NoModifier;

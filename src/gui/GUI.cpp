@@ -253,6 +253,9 @@ static int Main2(const QtGUIServiceFactory &factory, const QtGUICommandSource &c
         }
         if (!ecs->IsOK())
             return NExitCode::kFatalError;
+        if (ecs->SomeItemsSkipped ||
+            (ecs->ExtractReport.Status && !ecs->ExtractReport.Status->Complete))
+            return NExitCode::kWarning;
     } else if (options.Command.IsFromUpdateGroup()) {
 #ifndef Z7_NO_CRYPTO
         bool passwordIsDefined = options.PasswordEnabled && !options.Password.IsEmpty();

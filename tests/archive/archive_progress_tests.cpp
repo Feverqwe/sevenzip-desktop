@@ -38,6 +38,26 @@ class ArchiveProgressTests : public QObject {
     Q_OBJECT
     WidgetDialogFixture widgetDialogs_;
   private slots:
+    void unknownTransportProgressClearsThePreviousPhase() {
+        CControlledTransport backend;
+        CProgressDialog dialog;
+        ArchiveProgressTransport transport(dialog, backend);
+        dialog.show();
+        backend.Start();
+        auto *bar = dialog.findChild<QProgressBar *>("IDC_PROGRESS1");
+        auto *percent = dialog.findChild<QLabel *>("progressPercent");
+        QTRY_COMPARE(percent->text(), QString("42%"));
+        emit backend.progress(-1, QStringLiteral("чтение метаданных 空"));
+        QTRY_COMPARE(bar->maximum(), 0);
+        QTRY_VERIFY(percent->text().isEmpty());
+        emit backend.progress(73, QStringLiteral("запись файла 空"));
+        QTRY_COMPARE(percent->text(), QString("73%"));
+        dialog.Sync.Set_NumBytesTotal(100);
+        dialog.Sync.Set_NumBytesCur(100);
+        emit backend.phaseStarted();
+        QTRY_COMPARE(bar->maximum(), 0);
+        QTRY_VERIFY(percent->text().isEmpty());
+    }
     void newEngineRetainsPauseOrReportsFailure_data() {
         QTest::addColumn<bool>("failure");
         QTest::newRow("paused") << false;
@@ -87,7 +107,7 @@ class ArchiveProgressTests : public QObject {
                 operation.findChild<QProgressBar *>("IDC_PROGRESS1")->value() == 42 &&
                 operation.windowTitle().contains(QStringLiteral("42%"))) {
                 stage = 1;
-                QVERIFY(operation.findChild<QLabel *>("IDT_PROGRESS_TOTAL_VAL")->text().isEmpty());
+                QCOMPARE(operation.findChild<QLabel *>("progressPercent")->text(), QString("42%"));
                 QVERIFY(!operation.findChild<QPushButton *>("IDB_PROGRESS_BACKGROUND"));
                 QCOMPARE(operation.Sync.Messages.Size(), 0u);
                 backend.PauseResult = E_FAIL;

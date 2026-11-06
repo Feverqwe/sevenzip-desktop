@@ -240,13 +240,13 @@ class WorkerWindowProgressTests final : public QObject, protected MainWindowTest
             timerDelivered = true;
         }
         QVERIFY(timerDelivered);
-        auto *processed = progress->findChild<QLabel *>("IDT_PROGRESS_PROCESSED_VAL");
-        QVERIFY(processed);
-        const QString visibleBytes = processed->text();
+        auto *file = progress->findChild<QLabel *>("IDT_PROGRESS_FILE_NAME");
+        QVERIFY(file);
+        const QString currentFile = file->text();
         QCoreApplication::sendPostedEvents(nullptr, QEvent::MetaCall);
         if (owner)
             window.removeEventFilter(&counter);
-        QCOMPARE(visibleBytes, QString("65536 KB"));
+        QVERIFY(currentFile.contains(name));
         QVERIFY2(counter.calls <= 4,
                  qPrintable(QString("%1 queued window callbacks").arg(counter.calls)));
         if (owner)

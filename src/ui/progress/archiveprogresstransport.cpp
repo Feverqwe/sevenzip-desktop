@@ -7,6 +7,7 @@ ArchiveProgressTransport::ArchiveProgressTransport(CProgressDialog &dialog, Arch
     : _dialog(dialog), _backend(&backend), _nativeWorker(nativeWorker) {
     _dialog.AttachTransport(this);
     connect(&backend, &ArchiveBackend::phaseStarted, this, [this] {
+        _dialog.SetTransportPercent(-1);
         if (!_backend)
             return;
         const HRESULT result = _backend->setPaused(_dialog.Sync.Get_Paused());
@@ -27,6 +28,8 @@ ArchiveProgressTransport::ArchiveProgressTransport(CProgressDialog &dialog, Arch
 }
 
 ArchiveProgressTransport::~ArchiveProgressTransport() { _dialog.AttachTransport(nullptr); }
+
+bool ArchiveProgressTransport::UsesPercentProgress() const { return _backend && _backend->busy(); }
 
 HRESULT ArchiveProgressTransport::SetPaused(bool paused) {
     if (_backend && _backend->busy())

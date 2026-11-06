@@ -18,6 +18,7 @@
 #include "archive/opening/archivecontainerpath.h"
 #include "archive/operations/Extract.h"
 #include "ui/diagnostics/qtdiagnostictext.h"
+#include <utility>
 
 using namespace NWindows;
 using namespace NFile;
@@ -256,6 +257,10 @@ HRESULT Extract(
 #endif
     UString &errorMessage, CDecompressStat &st, IQtArchiveOpenService *qtOpenService) {
     st.Clear();
+    auto *statusReceiver = dynamic_cast<QtArchiveExtractStatusReceiver *>(faeCallback);
+    if (statusReceiver)
+        statusReceiver->ExtractReport.Status.reset();
+    QtArchiveExtractStatus combinedStatus;
     UInt64 totalPackSize = 0;
     CRecordVector<UInt64> arcSizes;
 
@@ -291,6 +296,8 @@ HRESULT Extract(
         skipArcs[i] = false;
 
     CArchiveExtractCallback *ecs = new CArchiveExtractCallback;
+    if (statusReceiver)
+        ecs->QtExtractPurpose = statusReceiver->ExtractReport.Purpose;
     CMyComPtr<IArchiveExtractCallback> ec(ecs);
 
     const bool multi = (numArcs > 1);
@@ -492,6 +499,11 @@ HRESULT Extract(
         RINOK(DecompressArchive(codecs, arcLink, fi.Size + arcLink.VolumesSize, wildcardCensor,
                                 options, calcCrc, extractCallback, faeCallback, ecs, errorMessage,
                                 packProcessed))
+        combinedStatus.Complete &= ecs->QtExtractStatus.Complete;
+        combinedStatus.StagingCompatible &= ecs->QtExtractStatus.StagingCompatible;
+        combinedStatus.Inputs.SymLinks |= ecs->QtExtractStatus.Inputs.SymLinks;
+        combinedStatus.Inputs.HardLinks |= ecs->QtExtractStatus.Inputs.HardLinks;
+        combinedStatus.Inputs.AltStreamPaths.append(ecs->QtExtractStatus.Inputs.AltStreamPaths);
 
         if (!options.StdInMode)
             packProcessed = fi.Size + arcLink.VolumesSize;
@@ -514,5 +526,7 @@ HRESULT Extract(
     st.AltStreams_UnpackSize = ecs->AltStreams_UnpackSize;
     st.NumArchives = arcPaths.Size();
     st.PackSize = ecs->LocalProgressSpec->InSize;
+    if (statusReceiver && !options.TestMode)
+        statusReceiver->ExtractReport.Status = std::move(combinedStatus);
     return S_OK;
 }

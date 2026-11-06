@@ -125,6 +125,8 @@ void MainWindowOperationsTests::extractAskUsesSourceOverwriteDialog() {
     QTimer answer;
     connect(&answer, &QTimer::timeout, &window, [&] {
         for (QWidget *widget : QApplication::topLevelWidgets()) {
+            if (TestProgressDialog::DismissVisibleResult(widget))
+                continue;
             if (auto *dialog = dynamic_cast<COverwriteDialog *>(widget);
                 dialog && dialog->isVisible()) {
                 answered = true;
@@ -177,6 +179,60 @@ void MainWindowOperationsTests::extractAskUsesSourceOverwriteDialog() {
     QCOMPARE(preflight.size(), 0);
     QVERIFY(old.open(QIODevice::ReadOnly));
     QCOMPARE(old.readAll(), QByteArray("preserved"));
+}
+
+void MainWindowOperationsTests::skippedArchiveMoveKeepsSourceAndShowsPartialResult() {
+    QTemporaryDir fixture;
+    QVERIFY(fixture.isValid());
+    const QString name = QStringLiteral("retained 空.txt");
+    const QString input = fixture.filePath(name);
+    const QString archive = fixture.filePath("source.7z");
+    const QString output = fixture.filePath("output");
+    QVERIFY(QDir().mkpath(output));
+    const auto write = [](const QString &path, const QByteArray &bytes) {
+        QFile file(path);
+        return file.open(QIODevice::WriteOnly) && file.write(bytes) == bytes.size();
+    };
+    const auto read = [](const QString &path) {
+        QFile file(path);
+        return file.open(QIODevice::ReadOnly) ? file.readAll() : QByteArray();
+    };
+    QVERIFY(write(input, "incoming bytes"));
+    QVERIFY(write(QDir(output).filePath(name), "kept bytes"));
+    QVERIFY(NativeArchiveFixture::WriteFiles(archive, {input}));
+    const auto before = read(archive);
+    ArchiveBackend backend;
+    MainWindow window(&backend);
+    window.show();
+    QVERIFY(WindowActivation::waitForActive(window));
+    window.openArchive(archive);
+    QTRY_COMPARE(table(window)->rowCount(), 1);
+    table(window)->selectRow(0);
+    bool skipped = false, reviewed = false;
+    QTimer driver;
+    connect(&driver, &QTimer::timeout, &window, [&] {
+        auto *modal = QApplication::activeModalWidget();
+        if (auto *copy = dynamic_cast<CopyDialog *>(modal)) {
+            copy->findChild<QLineEdit *>("copyDestination")->setText(output);
+            copy->accept();
+        } else if (auto *question = dynamic_cast<COverwriteDialog *>(modal)) {
+            skipped = true;
+            question->findChild<QPushButton *>("overwriteNo")->click();
+        } else if (auto *result = TestProgressDialog::ResultWindow(modal)) {
+            const auto close = qScopeGuard([&] { TestProgressDialog::CloseResult(*result); });
+            reviewed = true;
+            QCOMPARE(result->findChild<QLabel *>("IDT_PROGRESS_STATUS")->text(),
+                     QCoreApplication::translate("ProgressRedesign",
+                                                 "Completed with skipped items or messages"));
+        }
+    });
+    driver.start(5);
+    action(window, "moveAction")->trigger();
+    QTRY_VERIFY(reviewed);
+    QVERIFY(skipped);
+    QCOMPARE(read(archive), before);
+    QCOMPARE(read(QDir(output).filePath(name)), QByteArray("kept bytes"));
+    QCOMPARE(table(window)->rowCount(), 1);
 }
 
 void MainWindowOperationsTests::sourceNoPathsAskFlattensSelectedFolder() {
@@ -318,7 +374,10 @@ void MainWindowOperationsTests::nestedFolderAskUsesSourceRelativePath() {
     QCOMPARE(moveConflict.write("keep bytes"), qint64(10));
     moveConflict.close();
     QTimer cancelPrompt;
+    bool cancellationReviewed = false;
     connect(&cancelPrompt, &QTimer::timeout, &window, [&] {
+        if (TestProgressDialog::DismissVisibleResult(QApplication::activeModalWidget()))
+            cancellationReviewed = true;
         if (auto *dialog = window.findChild<CopyDialog *>("copyDialog");
             dialog && dialog->isVisible()) {
             dialog->findChild<QLineEdit *>("copyDestination")->setText(moveOutput);
@@ -329,6 +388,7 @@ void MainWindowOperationsTests::nestedFolderAskUsesSourceRelativePath() {
     });
     cancelPrompt.start(1);
     action(window, "moveAction")->trigger();
+    QTRY_VERIFY(cancellationReviewed);
     cancelPrompt.stop();
     QVERIFY(moveConflict.open(QIODevice::ReadOnly));
     QCOMPARE(moveConflict.readAll(), QByteArray("keep bytes"));
@@ -412,20 +472,14 @@ void MainWindowOperationsTests::encryptedAskUsesSourceCallback() {
         for (QWidget *widget : QApplication::topLevelWidgets()) {
             if (!widget->isVisible())
                 continue;
-            if (auto *message = qobject_cast<QMessageBox *>(widget)) {
-                if (message->objectName() == "progressFinalMessage") {
-                    sawFailure = true;
-                    if (!closeScheduled) {
-                        closeScheduled = true;
-                        QTimer::singleShot(50, &window, [&window] {
-                            auto *progress = window.findChild<QDialog *>("progressDialog");
-                            auto *close =
-                                progress ? progress->findChild<QPushButton *>("IDCANCEL") : nullptr;
-                            if (TestProgressDialog::IsCloseButton(close))
-                                close->click();
-                        });
-                    }
+            if (auto *result = TestProgressDialog::ResultWindow(widget)) {
+                sawFailure = true;
+                if (!closeScheduled) {
+                    closeScheduled = true;
+                    QTimer::singleShot(50, result,
+                                       [result] { TestProgressDialog::CloseResult(*result); });
                 }
+            } else if (auto *message = qobject_cast<QMessageBox *>(widget)) {
                 message->accept();
             }
         }

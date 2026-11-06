@@ -40,7 +40,9 @@ void MainWindowOperationsTests::inlineRenameCollisionRestoresSelection() {
     bool answeredWarning = false;
     connect(&warningTimer, &QTimer::timeout, &window, [&] {
         for (QWidget *widget : QApplication::topLevelWidgets())
-            if (auto *box = qobject_cast<QMessageBox *>(widget); box && box->isVisible()) {
+            if (TestProgressDialog::DismissVisibleResult(widget)) {
+                answeredWarning = true;
+            } else if (auto *box = qobject_cast<QMessageBox *>(widget); box && box->isVisible()) {
                 answeredWarning = true;
                 box->accept();
             }
@@ -85,6 +87,8 @@ void MainWindowOperationsTests::deleteRoutesTrashAndShiftPermanent() {
     QTimer dialogTimer;
     connect(&dialogTimer, &QTimer::timeout, &window, [&] {
         for (QWidget *widget : QApplication::topLevelWidgets()) {
+            if (TestProgressDialog::DismissVisibleResult(widget))
+                continue;
             if (auto *confirmationDialog = dynamic_cast<QtDeleteConfirmation *>(widget);
                 confirmationDialog && confirmationDialog->isVisible()) {
                 confirmation = confirmationDialog->findChild<QWidget *>("deleteSourceSummary")
@@ -189,7 +193,9 @@ void MainWindowOperationsTests::sourceFilesystemCreateAndInlineRename() {
     QTimer warningTimer;
     connect(&warningTimer, &QTimer::timeout, &window, [] {
         for (QWidget *widget : QApplication::topLevelWidgets())
-            if (auto *box = qobject_cast<QMessageBox *>(widget); box && box->isVisible())
+            if (TestProgressDialog::DismissVisibleResult(widget))
+                continue;
+            else if (auto *box = qobject_cast<QMessageBox *>(widget); box && box->isVisible())
                 box->accept();
     });
     warningTimer.start(1);
@@ -268,6 +274,8 @@ void MainWindowOperationsTests::stage7FilesystemCommands() {
 
     QTimer::singleShot(0, &window, [] {
         for (QWidget *widget : QApplication::topLevelWidgets()) {
+            if (TestProgressDialog::DismissVisibleResult(widget))
+                continue;
             if (auto *dialog = qobject_cast<CopyDialog *>(widget))
                 dialog->reject();
         }
@@ -279,6 +287,8 @@ void MainWindowOperationsTests::stage7FilesystemCommands() {
     QString copyInfo;
     QTimer::singleShot(0, &window, [destination, &copyInfo] {
         for (QWidget *widget : QApplication::topLevelWidgets()) {
+            if (TestProgressDialog::DismissVisibleResult(widget))
+                continue;
             if (auto *dialog = qobject_cast<CopyDialog *>(widget)) {
                 copyInfo = ToQString(static_cast<CopyDialog *>(dialog)->Info);
                 dialog->findChild<QLineEdit *>("copyDestination")->setText(destination);
@@ -298,7 +308,7 @@ void MainWindowOperationsTests::stage7FilesystemCommands() {
             if (auto *dialog = dynamic_cast<CProgressDialog *>(widget))
                 copyProgress = dialog;
     QVERIFY(copyProgress);
-    QVERIFY(!copyProgress->findChild<QPushButton *>("IDB_PAUSE")->isEnabled());
+    QVERIFY(!copyProgress->findChild<QPushButton *>("IDB_PAUSE")->isVisible());
     QVERIFY(!copyProgress->findChild<QPushButton *>("IDB_PROGRESS_BACKGROUND"));
     QTRY_VERIFY(action(window, "copyAction")->isEnabled());
     QFile copiedFile(copied);
@@ -313,6 +323,8 @@ void MainWindowOperationsTests::stage7FilesystemCommands() {
     connect(&warningTimer, &QTimer::timeout, &window,
             [destination, &renameAnswered, &finalMessage] {
                 for (QWidget *widget : QApplication::topLevelWidgets()) {
+                    if (TestProgressDialog::DismissVisibleResult(widget))
+                        continue;
                     if (auto *dialog = qobject_cast<CopyDialog *>(widget);
                         dialog && dialog->isVisible()) {
                         dialog->findChild<QLineEdit *>("copyDestination")->setText(destination);
@@ -345,6 +357,8 @@ void MainWindowOperationsTests::stage7FilesystemCommands() {
     bool cancelAnswered = false;
     connect(&cancelTimer, &QTimer::timeout, &window, [destination, &cancelAnswered] {
         for (QWidget *widget : QApplication::topLevelWidgets()) {
+            if (TestProgressDialog::DismissVisibleResult(widget))
+                continue;
             if (auto *box = qobject_cast<QMessageBox *>(widget); box && box->isVisible())
                 box->accept();
             if (auto *dialog = qobject_cast<CopyDialog *>(widget); dialog && dialog->isVisible()) {
@@ -369,6 +383,8 @@ void MainWindowOperationsTests::stage7FilesystemCommands() {
     table(window)->selectRow(filesystemRow(window, QStringLiteral("имя с пробелом.txt")));
     connect(&moveErrorTimer, &QTimer::timeout, &window, [destination] {
         for (QWidget *widget : QApplication::topLevelWidgets()) {
+            if (TestProgressDialog::DismissVisibleResult(widget))
+                continue;
             if (auto *dialog = qobject_cast<CopyDialog *>(widget); dialog && dialog->isVisible()) {
                 dialog->findChild<QLineEdit *>("copyDestination")->setText(destination);
                 dialog->accept();
@@ -414,6 +430,8 @@ void MainWindowOperationsTests::stage7FilesystemCommands() {
                           temp.filePath("forged-delete.txt"), Qt::EditRole));
     QTimer::singleShot(0, &window, [] {
         for (QWidget *widget : QApplication::topLevelWidgets()) {
+            if (TestProgressDialog::DismissVisibleResult(widget))
+                continue;
             if (auto *confirmationDialog = dynamic_cast<QtDeleteConfirmation *>(widget);
                 confirmationDialog && confirmationDialog->isVisible())
                 ReplyDelete(*confirmationDialog, false);
@@ -424,6 +442,8 @@ void MainWindowOperationsTests::stage7FilesystemCommands() {
     QTimer deleteDialogTimer;
     connect(&deleteDialogTimer, &QTimer::timeout, &window, [] {
         for (QWidget *widget : QApplication::topLevelWidgets()) {
+            if (TestProgressDialog::DismissVisibleResult(widget))
+                continue;
             if (auto *confirmationDialog = dynamic_cast<QtDeleteConfirmation *>(widget);
                 confirmationDialog && confirmationDialog->isVisible()) {
                 ReplyDelete(*confirmationDialog);
@@ -458,6 +478,8 @@ void MainWindowOperationsTests::stage7FilesystemCommands() {
                           temp.filePath("forged-move.txt"), Qt::EditRole));
     QTimer::singleShot(0, &window, [destination] {
         for (QWidget *widget : QApplication::topLevelWidgets()) {
+            if (TestProgressDialog::DismissVisibleResult(widget))
+                continue;
             if (auto *dialog = qobject_cast<CopyDialog *>(widget); dialog && dialog->isVisible()) {
                 dialog->findChild<QLineEdit *>("copyDestination")->setText(destination);
                 dialog->accept();

@@ -3,7 +3,6 @@
 #include "ui/controls/qtdisclosure.h"
 #include "ui/controls/qtsourcesummary.h"
 #include "ui/dialogs/qtdialoglayout.h"
-#include "ui/dialogs/qtdialogscreenservices.h"
 #include "ui/theme/qtcommandicons.h"
 #include <QCoreApplication>
 #include <QDialogButtonBox>
@@ -11,7 +10,6 @@
 #include <QLabel>
 #include <QPlainTextEdit>
 #include <QPushButton>
-#include <QScrollArea>
 #include <QShowEvent>
 #include <QStyle>
 #include <QToolButton>
@@ -33,14 +31,7 @@ void QtDeleteConfirmation::showEvent(QShowEvent *event) {
     if (!initialSize_)
         return;
     initialSize_ = false;
-    layout()->activate();
-    auto *scroll = findChild<QScrollArea *>("dialogContentScroll");
-    scroll->widget()->resize(scroll->viewport()->width(), scroll->widget()->height());
-    scroll->widget()->layout()->invalidate();
-    scroll->widget()->layout()->activate();
-    const int bodyHeight = scroll->widget()->heightForWidth(scroll->viewport()->width());
-    resize(width(), qMax(minimumSizeHint().height(), bodyHeight + height() - scroll->height()));
-    QtNormalizeDialogSize(*this, true);
+    QtFitScrollableDialog(*this);
 }
 
 void QtDeleteConfirmation::buildPresentation() {

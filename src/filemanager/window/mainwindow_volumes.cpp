@@ -20,13 +20,15 @@ class QtVolumeWindowServices final : public IQtVolumeServices {
                     std::function<void()> completion) override {
         const QString source = ToQString(fs2us(plan.FilePath));
         window_.launchVolume(panel_, new VolumeOperation(plan, &window_), title, source,
-                             UInt64(QFileInfo(source).size()), std::move(completion));
+                             ToQString(fs2us(plan.VolBasePath)), UInt64(QFileInfo(source).size()),
+                             std::move(completion));
     }
     void StartCombine(const CCombineVolumePlan &plan, const UString &title,
                       std::function<void()> completion) override {
         window_.launchVolume(panel_, new VolumeOperation(plan, &window_), title,
                              ToQString(fs2us(plan.InputDirPrefix + plan.Names.Front())),
-                             plan.TotalSize, std::move(completion));
+                             ToQString(fs2us(plan.OutputPath)), plan.TotalSize,
+                             std::move(completion));
     }
 };
 
@@ -45,7 +47,7 @@ void MainWindow::startVolume(VolumeOperation::Mode mode) {
 }
 
 void MainWindow::launchVolume(unsigned index, VolumeOperation *operation, const UString &title,
-                              const QString &source, UInt64 totalSize,
+                              const QString &source, const QString &destination, UInt64 totalSize,
                               std::function<void()> completion) {
     // Native Split/Combine retain their source across the modal plan dialog.
     // Restore that owner before the asynchronous operation publishes state.
@@ -54,6 +56,7 @@ void MainWindow::launchVolume(unsigned index, VolumeOperation *operation, const 
     CSelectedState selection;
     panel.SaveSelectedState(selection);
     auto *task = new QtLocalFileTask(*operation, ToQString(title), source, totalSize);
+    task->SetLocations(source, destination);
     fileTask_ = task;
     task->BindOwner(panel, *this);
     connect(task, &QtLocalFileTask::finished, this,

@@ -61,6 +61,7 @@ HRESULT CThreadFolderOperations::DoOperation(CPanel &panel, const UString &progr
     MainWindow = panel.GetParent();
     MainTitle = "7-Zip";
     MainAddTitle = progressTitle + L' ';
+    SetLocations(QString::fromWCharArray(panel.GetCurrentFolderPrefix()));
 
     std::unique_ptr<IQtProgressTransport> transport;
     if (auto *services = dynamic_cast<IQtProgressServices *>(FolderOperations.Interface()))

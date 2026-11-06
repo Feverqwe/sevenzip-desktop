@@ -33,6 +33,8 @@ class MainWindowOperationsTests : public QObject, protected MainWindowTestSuppor
     void twoPanelArchiveCopyRefreshesFilesystemDestination();
     void stage7FilesystemCommands();
     void stage7ArchiveCopyAndDropCancellation();
+    void fallbackMoveRetainsOneSettledResult_data();
+    void fallbackMoveRetainsOneSettledResult();
     void diskPanelCopiesIntoOppositeArchive();
     void archivePanelsCopyAndMoveThroughStaging_data();
     void archivePanelsCopyAndMoveThroughStaging();
@@ -42,6 +44,7 @@ class MainWindowOperationsTests : public QObject, protected MainWindowTestSuppor
     void nestedArchivePanelCannotWriteIntoOppositeArchive();
     void stage7ArchiveCommandStates();
     void extractAskUsesSourceOverwriteDialog();
+    void skippedArchiveMoveKeepsSourceAndShowsPartialResult();
     void backendOverwriteDisplaysNativeMetadata_data();
     void backendOverwriteDisplaysNativeMetadata();
     void sourceNoPathsAskFlattensSelectedFolder();

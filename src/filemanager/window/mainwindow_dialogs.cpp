@@ -14,8 +14,8 @@ void MainWindow::showSelectedProperties() {
     panel.Properties();
 }
 
-void MainWindow::begin(const QString &label, const QString &detail) {
-    auto progress = createProgressDialog(label, detail);
+void MainWindow::begin(const QString &label, const QString &source, const QString &destination) {
+    auto progress = createProgressDialog(label, source, destination);
     auto transport = std::make_unique<ArchiveProgressTransport>(*progress->dialog, *backend_);
     connect(backend_, &ArchiveBackend::progress, transport.get(),
             [this, label](int, const QString &path) {
@@ -29,15 +29,17 @@ void MainWindow::begin(const QString &label, const QString &detail) {
 }
 
 std::unique_ptr<MainWindow::WindowProgress>
-MainWindow::createProgressDialog(const QString &label, const QString &detail) {
+MainWindow::createProgressDialog(const QString &label, const QString &source,
+                                 const QString &destination) {
     closeProgressDialog();
     auto progress = std::make_unique<WindowProgress>();
     auto *dialog = new CProgressDialog(this, ToUString(label));
     dialog->MainWindow = this;
     dialog->MainTitle = "7-Zip";
     dialog->setWindowModality(Qt::ApplicationModal);
-    dialog->Sync.Set_Status(ToUString(label));
-    dialog->Sync.Set_FilePath(detail.toStdWString().c_str());
+    dialog->SetLocations(source, destination);
+    if (destination.isEmpty())
+        dialog->Sync.Set_FilePath(ToUString(source));
     progress->dialog = dialog;
     return progress;
 }

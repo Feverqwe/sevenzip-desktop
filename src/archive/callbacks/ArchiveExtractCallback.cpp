@@ -1192,8 +1192,10 @@ HRESULT CArchiveExtractCallback::CheckExistFile(FString &fullProcessedPath, bool
             QtExtractStatus.Complete = false;
         if (QtExtractPurpose == QtArchiveExtractPurpose::ArchiveStaging)
             return S_OK;
-        if (_overwriteMode == NExtract::NOverwriteMode::kSkip)
+        if (_overwriteMode == NExtract::NOverwriteMode::kSkip) {
+            QtExtractStatus.Complete = false;
             return S_OK;
+        }
 
         if (_overwriteMode == NExtract::NOverwriteMode::kAsk) {
             const int slashPos = fullProcessedPath.ReverseFind_PathSepar();
@@ -1216,8 +1218,10 @@ HRESULT CArchiveExtractCallback::CheckExistFile(FString &fullProcessedPath, bool
             case NOverwriteAnswer::kCancel:
                 return E_ABORT;
             case NOverwriteAnswer::kNo:
+                QtExtractStatus.Complete = false;
                 return S_OK;
             case NOverwriteAnswer::kNoToAll:
+                QtExtractStatus.Complete = false;
                 _overwriteMode = NExtract::NOverwriteMode::kSkip;
                 return S_OK;
 
@@ -1854,8 +1858,11 @@ Z7_COM7F_IMF(CArchiveExtractCallback::GetStream(const UInt32 index,
         }
 #endif
 
-        return ExtractToStreamCallback->GetStream7(name, BoolToInt(_item.IsDir), outStream,
-                                                   askExtractMode, GetProp);
+        const HRESULT result = ExtractToStreamCallback->GetStream7(
+            name, BoolToInt(_item.IsDir), outStream, askExtractMode, GetProp);
+        if (result == S_OK && (_item.IsDir || *outStream))
+            outputAccepted = true;
+        return result;
     }
 
 #endif // Z7_SFX

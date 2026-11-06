@@ -59,6 +59,9 @@ void CExtractCallbackImp::Init() {
     _lang_Reading = QtDiagnosticText(QT_TRANSLATE_NOOP("SevenZipDiagnostics", "Reading"));
 
     NumArchiveErrors = 0;
+    SomeItemsSkipped = false;
+    ExtractReport.Diagnostics.clear();
+    ExtractReport.HadErrors = false;
     ThereAreMessageErrors = false;
 #ifndef Z7_SFX
     NumFolders = NumFiles = 0;
@@ -442,6 +445,8 @@ Z7_COM7F_IMF(CExtractCallbackImp::RequestMemoryUse(UInt32 flags, UInt32 indexTyp
             flags |= NRequestMemoryUseFlags::k_Report_SkipArc;
         }
 
+        if (*answerFlags & NRequestMemoryAnswerFlags::k_SkipArc)
+            SomeItemsSkipped = true;
         if ((flags & NRequestMemoryUseFlags::k_NoErrorMessage) == 0) {
             UString s = QtDiagnosticText(QT_TRANSLATE_NOOP("SevenZipDiagnostics", "ERROR: "));
             dialog.AddInfoMessage_To_String(s);

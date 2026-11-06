@@ -6,8 +6,10 @@
 #include <QElapsedTimer>
 #include <QHash>
 #include <QIcon>
+#include <QPointer>
 
 class QProgressBar;
+class QLabel;
 
 struct CQtProgressRect {
     int left;
@@ -29,12 +31,21 @@ class CQtProgressDialog : public QDialog {
     QHash<unsigned, QWidget *> _controls;
     QElapsedTimer _clock;
     double _unitX;
-    QWidget *_byteStatistics = nullptr;
+    QLabel *_percent = nullptr;
+    QLabel *_source = nullptr;
+    QLabel *_destination = nullptr;
+    QWidget *_locations = nullptr;
+    QWidget *_diagnostics = nullptr;
+    QPointer<QDialog> _stopQuestion;
+    QSize _initialSize;
+    bool _firstShow = true;
     void AddControl(unsigned id, const char *name, QWidget *widget);
     void BuildPresentation();
 
   protected:
-    void ShowByteStatistics(bool visible);
+    void showEvent(QShowEvent *event) override;
+    void ShowProgressPercent(const QString &percent);
+    void ShowMessages(bool visible);
     QWidget *GetItem(unsigned id) const;
     void SetItemText(unsigned id, const UString &text);
     void GetItemText(unsigned id, UString &text) const;
@@ -56,11 +67,13 @@ class CQtProgressDialog : public QDialog {
     void SetDefaultButton(unsigned id);
     static void MessageBox(QWidget *parent, const UString &message, const UString &title,
                            bool error);
-    static int AskCancel(QWidget *parent, const UString &message, const UString &title);
+    int AskCancel(QWidget *parent, const UString &title);
+    void DismissStopQuestion();
 #ifdef _WIN32
     static HWND GetNativeTaskbarWindow(QWidget *widget);
 #endif
 
   public:
     explicit CQtProgressDialog(QWidget *parent = nullptr);
+    void SetLocations(const QString &source, const QString &destination = {});
 };

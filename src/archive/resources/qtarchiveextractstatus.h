@@ -20,6 +20,8 @@ struct QtArchiveExtractStatus {
 struct QtArchiveExtractReport {
     QtArchiveExtractPurpose Purpose = QtArchiveExtractPurpose::Copy;
     std::optional<QtArchiveExtractStatus> Status;
+    QStringList Diagnostics;
+    bool HadErrors = false;
 };
 
 class QtArchiveExtractStatusReceiver {

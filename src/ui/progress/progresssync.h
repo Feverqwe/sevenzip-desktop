@@ -4,6 +4,7 @@
 
 #include "Common/MyString.h"
 #include "Windows/Synchronization.h"
+#include <optional>
 
 struct CProgressMessageBoxPair {
     UString Title;
@@ -13,9 +14,13 @@ struct CProgressMessageBoxPair {
 struct CProgressFinalMessage {
     CProgressMessageBoxPair ErrorMessage;
     CProgressMessageBoxPair OkMessage;
+    std::optional<HRESULT> Result;
+    bool Partial = false;
+    bool HadErrors = false;
 
     bool ThereIsMessage() const {
-        return !ErrorMessage.Message.IsEmpty() || !OkMessage.Message.IsEmpty();
+        return !ErrorMessage.Message.IsEmpty() || !OkMessage.Message.IsEmpty() || Partial ||
+               HadErrors || (Result && FAILED(*Result));
     }
 };
 

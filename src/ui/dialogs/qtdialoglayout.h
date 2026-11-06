@@ -12,6 +12,7 @@ enum class QtDialogContent { Fixed, Scrollable };
 QVBoxLayout *QtCreateDialogLayout(QWidget &window, QWidget &footer,
                                   QtDialogContent content = QtDialogContent::Fixed);
 void QtSizeIconButton(QPushButton &button);
+void QtFitScrollableDialog(QWidget &window);
 // Opt in only for contextual forms, never modeless reports or operation progress.
 void QtUseContextDialogModality(QDialog &dialog);
 

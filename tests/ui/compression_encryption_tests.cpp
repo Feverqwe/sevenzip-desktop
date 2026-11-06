@@ -1,6 +1,9 @@
 #include "archive/support/source_creation_fixture.h"
 #include "dialogs/compress/createarchivedialog.h"
+#include "localization/LangUtils.h"
+#include "settings/RegistryUtils.h"
 #include "ui/support/layout_inspection.h"
+#include <QScopeGuard>
 #include <QScrollArea>
 #include <QSettings>
 #include <QSignalSpy>
@@ -72,6 +75,7 @@ class CompressionEncryptionTests final : public QObject {
         dialog.show();
         dialog.findChild<QCheckBox *>("archivePasswordEnabled")->setChecked(true);
         QCOMPARE(method->currentText(), QString("AES-256"));
+        QVERIFY(!method->isVisible());
         QVERIFY(headers->isEnabled());
         QVERIFY(dialog.compressionOptions().EncryptionMethod.isEmpty());
         headers->setChecked(true);
@@ -94,6 +98,7 @@ class CompressionEncryptionTests final : public QObject {
         QVERIFY(!maskedReport.contains("different"));
         show->setChecked(true);
         dialog.findChild<QComboBox *>("archiveFormat")->setCurrentText("zip");
+        QVERIFY(method->isVisible());
         QVERIFY(!headers->isEnabled());
         QVERIFY(!dialog.encryptHeaders());
         QCOMPARE(method->currentText(), QString("ZipCrypto"));
@@ -137,13 +142,7 @@ class CompressionEncryptionTests final : public QObject {
         QCOMPARE(restored.findChild<QComboBox *>("archiveFormat")->currentText(), QString("7z"));
         QVERIFY(!restored.findChild<QCheckBox *>("archiveShowPassword")->isChecked());
     }
-    void disabledPasswordDraftDoesNotBlockSubmission_data() {
-        QTest::addColumn<bool>("switchFormat");
-        QTest::newRow("format-without-encryption") << true;
-        QTest::newRow("unchecked-protection") << false;
-    }
     void disabledPasswordDraftDoesNotBlockSubmission() {
-        QFETCH(bool, switchFormat);
         const auto catalog = NativeArchiveFixture::Catalog();
         QVERIFY(catalog && catalog->result() == S_OK);
         CreateArchiveDialog dialog(directory_.path(), {source_}, nullptr, catalog);
@@ -154,11 +153,8 @@ class CompressionEncryptionTests final : public QObject {
         format->setCurrentText("7z");
         password->setText("draft password");
         confirmation->setText("different draft");
-        if (switchFormat)
-            format->setCurrentText("tar");
-        else
-            protect->setChecked(false);
-        QCOMPARE(format->currentText(), switchFormat ? QString("tar") : QString("7z"));
+        protect->setChecked(false);
+        QCOMPARE(format->currentText(), QString("7z"));
         QVERIFY(!password->isEnabled());
         QVERIFY(dialog.password().isEmpty());
         bool errorShown = false;
@@ -177,6 +173,78 @@ class CompressionEncryptionTests final : public QObject {
         QVERIFY(dialog.sourceInfo().Password.isEmpty());
         QCOMPARE(password->text(), QString("draft password"));
         QCOMPARE(confirmation->text(), QString("different draft"));
+    }
+    void unsupportedFormatKeepsProtectionUntilExplicitDecision_data() {
+        QTest::addColumn<QString>("language");
+        QTest::addColumn<int>("decision");
+        for (const QString &language : {QString("-"), QString("ru")})
+            for (int decision = 0; decision < 3; ++decision)
+                QTest::newRow(qPrintable(QString("%1-%2").arg(language).arg(decision)))
+                    << language << decision;
+    }
+    void unsupportedFormatKeepsProtectionUntilExplicitDecision() {
+        QFETCH(QString, language);
+        QFETCH(int, decision);
+        SaveRegLang(UString(language.toStdWString().c_str()), settings_);
+        ReloadLang(settings_);
+        const auto restoreLanguage = qScopeGuard([&] {
+            SaveRegLang(L"-", settings_);
+            ReloadLang(settings_);
+        });
+        QFile settingsFile(settings_);
+        QVERIFY(settingsFile.open(QIODevice::ReadOnly));
+        const QByteArray before = settingsFile.readAll();
+        settingsFile.close();
+        const auto catalog = NativeArchiveFixture::Catalog();
+        QVERIFY(catalog && catalog->result() == S_OK);
+        CreateArchiveDialog dialog(directory_.path(), {source_}, nullptr, catalog);
+        auto *format = dialog.findChild<QComboBox *>("archiveFormat");
+        auto *protect = dialog.findChild<QCheckBox *>("archivePasswordEnabled");
+        auto *password = dialog.findChild<QLineEdit *>("archivePassword");
+        auto *warning = dialog.findChild<QLabel *>("archiveProtectionWarning");
+        auto *create = dialog.findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok);
+        format->setCurrentText("7z");
+        setPassword(dialog, "draft password");
+        dialog.show();
+        QSignalSpy accepted(&dialog, &QDialog::accepted);
+        format->setCurrentText("tar");
+        QVERIFY(protect->isChecked());
+        QVERIFY(protect->isEnabled());
+        QVERIFY(protect->isVisible());
+        QVERIFY(warning->isVisible());
+        QCOMPARE(warning->text(),
+                 QCoreApplication::translate(
+                     "ArchiveRedesign", "This format does not support password protection. Choose "
+                                        "another format or turn off password protection."));
+        QVERIFY(!create->isEnabled());
+        submit(dialog);
+        QCOMPARE(accepted.size(), 0);
+        auto *scroll = dialog.findChild<QScrollArea *>("archiveOptionsScrollArea");
+        scroll->ensureWidgetVisible(warning);
+        QTRY_VERIFY(UiInspection::fullyVisible(*warning, dialog));
+        QVERIFY(UiInspection::writeReport(
+            dialog, QString("create-protection-unavailable-%1-%2").arg(language).arg(decision)));
+        if (decision == 2) {
+            dialog.reject();
+            QVERIFY(settingsFile.open(QIODevice::ReadOnly));
+            QCOMPARE(settingsFile.readAll(), before);
+            QCOMPARE(accepted.size(), 0);
+            return;
+        }
+        if (decision == 0) {
+            format->setCurrentText("7z");
+            QVERIFY(protect->isChecked());
+            QCOMPARE(password->text(), QString("draft password"));
+            QVERIFY(password->isVisible());
+        } else
+            protect->setChecked(false);
+        QVERIFY(!warning->isVisible());
+        QVERIFY(create->isEnabled());
+        submit(dialog);
+        QCOMPARE(accepted.size(), 1);
+        QCOMPARE(dialog.sourceInfo().Password,
+                 decision == 0 ? QString("draft password") : QString());
+        QCOMPARE(format->currentText(), decision == 0 ? QString("7z") : QString("tar"));
     }
     void realArchives_data() {
         QTest::addColumn<QString>("format");
@@ -282,8 +350,11 @@ class CompressionEncryptionTests final : public QObject {
                 auto *password = dialog.findChild<QLineEdit *>("archivePassword");
                 QVERIFY2(UiInspection::fullyVisible(*group, dialog),
                          qPrintable(UiInspection::dump(dialog)));
-                QVERIFY(UiInspection::separate(*password, *method, dialog));
-                QVERIFY(UiInspection::separate(*method, *headers, dialog));
+                QVERIFY(UiInspection::separate(*password, *headers, dialog));
+                if (method->isVisible()) {
+                    QVERIFY(UiInspection::separate(*password, *method, dialog));
+                    QVERIFY(UiInspection::separate(*method, *headers, dialog));
+                }
                 QVERIFY(UiInspection::writeReport(
                     dialog, QString("encryption-%1-%2").arg(size.width()).arg(shown)));
             }

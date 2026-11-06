@@ -108,6 +108,10 @@ HRESULT CPanelCopyThread::ProcessVirt() {
                                            BoolToInt(options->replaceAltStreamChars),
                                            options->folder, ExtractCallback);
 
+    FinalMessage.HadErrors = ExtractCallback->ThereAreMessageErrors;
+    FinalMessage.Partial =
+        ExtractCallback->SomeItemsSkipped ||
+        (ExtractCallback->ExtractReport.Status && !ExtractCallback->ExtractReport.Status->Complete);
     if (result2 == S_OK && !ExtractCallback->ThereAreMessageErrors) {
         if (!options->hashMethods.IsEmpty())
             ResultsPending = true;
@@ -197,11 +201,14 @@ HRESULT CPanel::CopyTo(CCopyToOptions &options, const CRecordVector<UInt32> &ind
 
         CPanelCopyThread extracter;
         extracter.DisableUserQuestions |= options.DisableUserQuestions;
+        extracter.DeferResultReview = report && report->Purpose != QtArchiveExtractPurpose::Copy;
 
         extracter.ExtractCallback.SetFromCls(new CExtractCallbackImp);
         extracter.ExtractCallback->Src_Is_IO_FS_Folder = IsFSFolder() || IsAltStreamsFolder();
         // options.src_Is_IO_FS_Folder;
         extracter.options = &options;
+        extracter.SetLocations(QString::fromWCharArray(GetCurrentFolderPrefix()),
+                               QString::fromWCharArray(options.folder));
         extracter.ExtractCallback->ProgressDialog = &extracter;
         extracter.ExtractCallback->SettingsPath = _settingsPath;
         std::unique_ptr<IQtProgressTransport> transport;
@@ -282,15 +289,21 @@ HRESULT CPanel::CopyTo(CCopyToOptions &options, const CRecordVector<UInt32> &ind
 
         RINOK(extracter.Create(title, GetParent()))
 
-        if (messages)
+        if (messages) {
             *messages = extracter.Sync.Messages;
+            if (extracter.DeferResultReview &&
+                !extracter.Sync.FinalMessage.ErrorMessage.Message.IsEmpty())
+                messages->Add(extracter.Sync.FinalMessage.ErrorMessage.Message);
+        }
 
         // res = extracter.Result2;
         res = extracter.Result;
 
         if (report) {
+            report->HadErrors = !extracter.ExtractCallback->IsOK();
             report->Status = extracter.ExtractCallback->ExtractReport.Status;
-            if (report->Status && !extracter.ExtractCallback->IsOK())
+            if (report->Status &&
+                (!extracter.ExtractCallback->IsOK() || extracter.ExtractCallback->SomeItemsSkipped))
                 report->Status->Complete = false;
         }
 
@@ -373,6 +386,7 @@ HRESULT CPanel::CopyFrom(bool moveMode, const UString &folderPrefix, const UStri
         res = E_NOINTERFACE;
     else {
         CThreadUpdate updater;
+        updater.DeferResultReview = !showErrorMessages && messages;
         updater.MoveMode = moveMode;
         updater.ActionSet = actionSet;
         updater.PathMode = pathMode;
@@ -402,6 +416,9 @@ HRESULT CPanel::CopyFrom(bool moveMode, const UString &folderPrefix, const UStri
         RINOK(updater.Create(title, GetParent()))
         if (messages)
             *messages = updater.Sync.Messages;
+        if (messages && updater.DeferResultReview &&
+            !updater.Sync.FinalMessage.ErrorMessage.Message.IsEmpty())
+            messages->Add(updater.Sync.FinalMessage.ErrorMessage.Message);
         res = updater.Result;
     }
     if (res == E_NOINTERFACE) {

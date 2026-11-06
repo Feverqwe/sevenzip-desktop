@@ -120,7 +120,7 @@ static bool ConfirmDeleteItems(const CPanel &panel, const CRecordVector<UInt32> 
 QtArchiveUpdateResult CPanel::DeleteItems(bool toRecycleBin, IQtTrashService &trash,
                                           CSelectedState &state,
                                           const CRecordVector<UInt32> *explicitIndices,
-                                          bool confirm) {
+                                          bool confirm, QtDeleteResultReview resultReview) {
     CDisableTimerProcessing disableTimerProcessing(*this);
     CRecordVector<UInt32> indices;
     if (explicitIndices)
@@ -142,16 +142,23 @@ QtArchiveUpdateResult CPanel::DeleteItems(bool toRecycleBin, IQtTrashService &tr
     CDisableNotify disableNotify(*this);
     QtArchiveUpdateResult result{E_FAIL, std::nullopt};
     if (recycle) {
-        result.Result = QtMoveItemsToTrash(recyclePaths, trash, GetParent());
+        result.Result =
+            QtMoveItemsToTrash(recyclePaths, trash, GetParent(),
+                               resultReview == QtDeleteResultReview::Caller, &result.Diagnostics);
         // The joined Trash operation owns progress/errors. Preserve the source
         // shell branch's refresh after a partial result or cancellation.
     } else {
         CThreadFolderOperations op(FOLDER_TYPE_DELETE);
+        op.DeferResultReview = resultReview == QtDeleteResultReview::Caller;
         op.FolderOperations = _folderOperations;
         op.Indices = indices;
         result.Result =
             op.DoOperation(*this, LangString(IDS_DELETING), LangString(IDS_ERROR_DELETING));
         result.Published = op.UpdateCallback->Published;
+        FOR_VECTOR(i, op.Sync.Messages)
+        result.Diagnostics.append(ToQString(op.Sync.Messages[i]));
+        if (!op.Sync.FinalMessage.ErrorMessage.Message.IsEmpty())
+            result.Diagnostics.append(ToQString(op.Sync.FinalMessage.ErrorMessage.Message));
     }
     if (!recycle)
         RefreshTitleAlways();

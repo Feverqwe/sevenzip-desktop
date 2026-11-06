@@ -3,6 +3,7 @@
 #include "dialogs/compress/createarchivedialog.h"
 #include "localization/qtlangcontrols.h"
 #include "ui/controls/qtsecretedit.h"
+#include "ui/dialogs/qtdialoglayout.h"
 
 void CreateArchiveDialog::createEncryptionOptions(QVBoxLayout *form) {
     passwordEnabled_ = new QCheckBox(form->parentWidget());
@@ -10,6 +11,17 @@ void CreateArchiveDialog::createEncryptionOptions(QVBoxLayout *form) {
     QtBindLocalText(passwordEnabled_, "ArchiveRedesign",
                     QT_TRANSLATE_NOOP("ArchiveRedesign", "Protect with a password"));
     form->addWidget(passwordEnabled_);
+    protectionWarning_ = new QtWrappingLabel(form->parentWidget());
+    protectionWarning_->setObjectName("archiveProtectionWarning");
+    protectionWarning_->setTextFormat(Qt::PlainText);
+    protectionWarning_->setWordWrap(true);
+    protectionWarning_->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+    QtBindLocalText(
+        protectionWarning_, "ArchiveRedesign",
+        QT_TRANSLATE_NOOP("ArchiveRedesign",
+                          "This format does not support password protection. Choose another "
+                          "format or turn off password protection."));
+    form->addWidget(protectionWarning_);
     auto *group = new QGroupBox(this);
     group->setObjectName("archiveEncryptionGroup");
     group->setFlat(true);
@@ -44,10 +56,7 @@ void CreateArchiveDialog::createEncryptionOptions(QVBoxLayout *form) {
     encryptionForm_->addRow(encryptHeaders_);
     form->addWidget(group);
     group->hide();
-    connect(passwordEnabled_, &QCheckBox::toggled, this, [this, group](bool enabled) {
-        group->setVisible(enabled && passwordEnabled_->isEnabled());
-        group->setEnabled(enabled && passwordEnabled_->isEnabled());
-    });
+    connect(passwordEnabled_, &QCheckBox::toggled, this, [this] { updateProtectionControls(); });
     // A source-supplied password or programmatic restoration must never stay
     // active in an invisible section. Unchecking keeps the draft, but excludes it.
     connect(password_, &QLineEdit::textChanged, this, [this](const QString &value) {
@@ -67,12 +76,26 @@ void CreateArchiveDialog::SetEncryptionMethod() {
     encryption_->addItems(dialog._encryptionMethod);
     encryption_->setCurrentIndex(dialog._encryptionMethod_Index);
     const auto &fi = NCompressDialog::GetFormatInfo(format_->currentText());
-    passwordEnabled_->setEnabled(fi.Encrypt_());
-    passwordEnabled_->setVisible(fi.Encrypt_());
-    password_->parentWidget()->setEnabled(fi.Encrypt_() && passwordEnabled_->isChecked());
-    password_->parentWidget()->setVisible(fi.Encrypt_() && passwordEnabled_->isChecked());
+    encryptionForm_->setRowVisible(encryption_, encryption_->count() > 1);
     encryptHeaders_->setEnabled(fi.EncryptFileNames_());
     encryptHeaders_->setVisible(fi.EncryptFileNames_());
+    updateProtectionControls();
+}
+
+bool CreateArchiveDialog::updateProtectionControls() {
+    const bool supported = NCompressDialog::GetFormatInfo(format_->currentText()).Encrypt_();
+    const bool requested = passwordEnabled_->isChecked();
+    const bool unavailable = requested && !supported;
+    // Preserve the user's choice across format changes. Only an explicit
+    // uncheck may remove protection from a previously protected draft.
+    passwordEnabled_->setVisible(supported || requested);
+    password_->parentWidget()->setEnabled(supported && requested);
+    password_->parentWidget()->setVisible(supported && requested);
+    protectionWarning_->setVisible(unavailable);
+    if (buttons_)
+        buttons_->button(QDialogButtonBox::Ok)
+            ->setEnabled(format_->currentIndex() >= 0 && !unavailable);
+    return !unavailable;
 }
 
 QString CreateArchiveDialog::GetEncryptionMethodSpec() const {

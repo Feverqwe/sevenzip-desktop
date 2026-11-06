@@ -148,7 +148,9 @@ class OperationExtractionTests final : public QObject {
         job.YesToAll = false;
         const auto result = Run(QStringLiteral(SEVENZIP_OPERATION_HOST), job);
         QVERIFY2(
-            result.Status == (cancel ? Outcome::Cancelled : Outcome::Success),
+            result.Status == (cancel    ? Outcome::Cancelled
+                              : replace ? Outcome::Success
+                                        : Outcome::Warning),
             qPrintable(
                 QString("Operation outcome %1: %2").arg(int(result.Status)).arg(result.Error)));
         QCOMPARE(readFile(QDir(output).filePath(kName)),
@@ -236,7 +238,9 @@ class OperationExtractionTests final : public QObject {
         if (cancel)
             cancellation = std::make_unique<Environment>("SEVENZIP_OPERATION_CANCEL_PASSWORD", "1");
         const auto output = directory.filePath("output");
-        const auto result = Run(QStringLiteral(SEVENZIP_OPERATION_HOST), Extract(archive, output));
+        auto job = Extract(archive, output);
+        job.YesToAll = false;
+        const auto result = Run(QStringLiteral(SEVENZIP_OPERATION_HOST), job);
         const bool correct = !cancel && password == "fixture-password";
         QCOMPARE(result.Status, cancel    ? Outcome::Cancelled
                                 : correct ? Outcome::Success

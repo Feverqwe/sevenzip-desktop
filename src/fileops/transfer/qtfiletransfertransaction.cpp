@@ -154,13 +154,19 @@ void QtFileTransferTransaction::removeSources(QList<TransferEntry> &completed, Q
     }
 }
 
+void QtFileTransferTransaction::rememberFailure(const QString &error) noexcept {
+    // Cleanup can outlive a later Stop request; retain the cause that started it.
+    if (!error.isEmpty() && !failureKind_)
+        failureKind_ = worker_.canceled_ ? FileTransferOperation::ResultKind::Canceled
+                                         : FileTransferOperation::ResultKind::Failure;
+}
+
 FileTransferOperation::Completion QtFileTransferTransaction::finish(QList<TransferEntry> &completed,
                                                                     QString &error) {
     if (!error.isEmpty()) {
+        rememberFailure(error);
         rollback(completed);
-        return {worker_.canceled_ ? FileTransferOperation::ResultKind::Canceled
-                                  : FileTransferOperation::ResultKind::Failure,
-                error};
+        return {*failureKind_, error};
     }
     if (worker_.move_) {
         removeSources(completed, error);
@@ -245,7 +251,10 @@ bool QtFileTransferTransaction::transferEntry(const TransferPath &path,
         QStringLiteral(".sevenzip-%1").arg(QUuid::createUuid().toString(QUuid::Id128));
     const QString stage = target + suffix;
     TransferEntry entry{source, target, {}, SourceState::Intact, merge, {}};
-    auto rollbackItem = qScopeGuard([&] { rollbackEntry(entry, RollbackMode::RestoreSources); });
+    auto rollbackItem = qScopeGuard([&] {
+        rememberFailure(error);
+        rollbackEntry(entry, RollbackMode::RestoreSources);
+    });
     emit worker_.currentFile(source);
     if (worker_.move_ && !validateEntry(source, &error))
         return false;
@@ -298,6 +307,7 @@ bool QtFileTransferTransaction::transferEntry(const TransferPath &path,
 
 FileTransferOperation::Completion QtFileTransferTransaction::run() {
     rememberedOverwrite_.reset();
+    failureKind_.reset();
     QString error;
     const auto targets = prepareTargets(error);
     QList<TransferEntry> completed;

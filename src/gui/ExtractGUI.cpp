@@ -123,7 +123,11 @@ if (HashBundle)
 #endif
         FinalMessage.ErrorMessage.Message, Stat, QtOpenService);
 
+    FinalMessage.HadErrors = ExtractCallback->ThereAreMessageErrors;
 #ifndef Z7_SFX
+    FinalMessage.Partial =
+        ExtractCallback->SomeItemsSkipped ||
+        (ExtractCallback->ExtractReport.Status && !ExtractCallback->ExtractReport.Status->Complete);
     if (res == S_OK && ExtractCallback->IsOK()) {
         if (HashBundle) {
             AddValuePair(Pairs, IDS_ARCHIVES_COLON, Stat.NumArchives);
@@ -256,11 +260,19 @@ HRESULT ExtractGUI(
     extractCallback->ProgressDialog = &extracter;
     extracter.ExtractCallback.SetFromCls(extractCallback);
     extracter.ExtractCallback->Init();
+    extracter.DeferResultReview =
+        extractCallback->ExtractReport.Purpose != QtArchiveExtractPurpose::Copy;
 
     extracter.CompressingMode = false;
 
     extracter.ArchivePaths = &archivePaths;
     extracter.ArchivePathsFull = &archivePathsFull;
+    QStringList sourceLocations;
+    FOR_VECTOR(i, archivePathsFull)
+    sourceLocations.append(QString::fromWCharArray(archivePathsFull[i]));
+    extracter.SetLocations(sourceLocations.join('\n'),
+                           options.TestMode ? QString()
+                                            : QString::fromWCharArray(fs2us(options.OutputDir)));
     extracter.WildcardCensor = &wildcardCensor;
     extracter.Options = &options;
 #ifndef Z7_SFX
@@ -272,6 +284,14 @@ HRESULT ExtractGUI(
     if (!options.TestMode && outputReady)
         outputReady();
     RINOK(extracter.Create(title, hwndParent))
+    extractCallback->ExtractReport.HadErrors = !extractCallback->IsOK();
+    if (extractCallback->ExtractReport.Status && extractCallback->SomeItemsSkipped)
+        extractCallback->ExtractReport.Status->Complete = false;
+    FOR_VECTOR(i, extracter.Sync.Messages)
+    extractCallback->ExtractReport.Diagnostics.append(ToQString(extracter.Sync.Messages[i]));
+    if (!extracter.Sync.FinalMessage.ErrorMessage.Message.IsEmpty())
+        extractCallback->ExtractReport.Diagnostics.append(
+            ToQString(extracter.Sync.FinalMessage.ErrorMessage.Message));
     messageWasDisplayed = extracter.ThreadFinishedOK && extracter.MessagesDisplayed;
     return extracter.Result;
 }

@@ -17,6 +17,12 @@ an explicit enable control; its dependent fields appear together, without a
 large framed heading. A source-supplied password enables the section. Turning
 protection off excludes the password/headers from the effective request while
 retaining the draft for re-enabling. Format support still comes from the source.
+Changing a protected draft to an unsupported format keeps the protection choice
+visible and blocks Create with an inline explanation. Choosing a supported format
+restores the password draft; explicitly turning protection off permits an
+unprotected request. Cancel does not save that decision. A single encryption
+method does not occupy a selectable row; formats with multiple methods retain
+their source-provided choice.
 
 Compression settings contain method, dictionary, order, solid size, threads and
 memory. Separate sections contain file settings

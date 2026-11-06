@@ -24,6 +24,7 @@ class QtLocalFileTask final : public QObject {
                     quint64 total);
     ~QtLocalFileTask() override;
     void BindOwner(CPanel &source, QWidget &window);
+    void SetLocations(const QString &source, const QString &destination);
     void StopAndWait();
     static void StopForSource(CPanel &source);
     void Start();

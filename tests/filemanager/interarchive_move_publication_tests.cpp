@@ -8,6 +8,7 @@
 #include "settings/RegistryUtils.h"
 #include "support/delete_reply.h"
 #include "support/panel_keys.h"
+#include "support/progress_dialog.h"
 #include "support/widget_dialogs.h"
 #include "ui/progress/ProgressDialog2.h"
 #include "ui/support/layout_inspection.h"
@@ -93,6 +94,7 @@ class InterarchiveMovePublicationTests final : public QObject, protected MainWin
         QTRY_VERIFY(views[0]->hasFocus());
         QTRY_VERIFY(action(window, "moveAction")->isEnabled());
         bool submitted = false, confirmed = false;
+        bool reviewed = false;
         QStringList errors;
         QTimer driver;
         dialogs_.connectResponder(driver, &window, [&] {
@@ -133,12 +135,22 @@ class InterarchiveMovePublicationTests final : public QObject, protected MainWin
                 box->accept();
             } else if (auto *progress = dynamic_cast<CProgressDialog *>(modal)) {
                 auto *close = progress->findChild<QPushButton *>("IDCANCEL");
-                if (close && close->text() == ToQString(LangString(IDS_CLOSE)))
-                    close->click();
+                if (TestProgressDialog::IsCloseButton(close)) {
+                    const auto dismiss = qScopeGuard([&] { close->click(); });
+                    reviewed = true;
+                    if (failure == 1 || failure == 3) {
+                        QCOMPARE(SourceExtractFixture::readFile(source), sourceBefore);
+                        QCOMPARE(SourceExtractFixture::readFile(target), targetBefore);
+                    }
+                    if (progress->Sync.FinalMessage.Result != E_ABORT)
+                        errors << TestProgressDialog::ReportText(*progress);
+                }
             }
         });
         driver.start(2);
         action(window, "moveAction")->trigger();
+        if (failure)
+            QTRY_VERIFY(reviewed);
         driver.stop();
         QVERIFY(submitted);
         QVERIFY(confirmed);

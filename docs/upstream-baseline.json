@@ -2316,6 +2316,7 @@
     "src/ui/progress/qtprogresscontrols.cpp",
     "src/ui/progress/qtprogresscontrols.h",
     "src/ui/progress/qtprogresspresentation.cpp",
+    "src/ui/progress/qtprogressresult.cpp",
     "src/ui/progress/qtprogresstransport.h",
     "src/ui/progress/qtprogresswait.cpp",
     "src/ui/progress/qtprogresswait.h",

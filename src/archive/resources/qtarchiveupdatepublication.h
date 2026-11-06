@@ -1,6 +1,7 @@
 #pragma once
 #include "Common/MyWindows.h"
 #include "archive/resources/archivesourcesnapshot.h"
+#include <QStringList>
 #include <optional>
 
 // One joined update callback owns this state. A provider that does not report
@@ -16,4 +17,5 @@ class QtArchiveUpdatePublication {
 struct QtArchiveUpdateResult {
     HRESULT Result;
     std::optional<bool> Published;
+    QStringList Diagnostics = {};
 };

@@ -8,14 +8,12 @@
 #include "localization/qtlangcontrols.h"
 #include "ui/dialogs/qtmodalresult.h"
 #include "ui/progress/ProgressDialog2.h"
+#include <QCoreApplication>
 #include <QLabel>
 
 using namespace NWindows;
 
-static const UInt32 kLangIDs[] = {
-    IDT_PROGRESS_ELAPSED,   IDT_PROGRESS_REMAINING, IDT_PROGRESS_TOTAL,  IDT_PROGRESS_SPEED,
-    IDT_PROGRESS_PROCESSED, IDT_PROGRESS_RATIO,     IDT_PROGRESS_ERRORS, IDB_PAUSE};
-static const UInt32 kLangIDs_Colon[] = {IDT_PROGRESS_PACKED, IDT_PROGRESS_FILES};
+static const UInt32 kLangIDs[] = {IDB_PAUSE};
 
 #define UNDEFINED_VAL ((UInt64)(Int64) - 1)
 #define INIT_AS_UNDEFINED(v) v = UNDEFINED_VAL;
@@ -130,12 +128,8 @@ bool CProgressDialog::OnInit() {
         else
             QtBindLangText(GetItem(id), id);
     }
-    for (UInt32 id : kLangIDs_Colon) {
-        GetItem(id)->setProperty("languageColon", true);
-        QString caption = static_cast<QLabel *>(GetItem(id))->text();
-        QtBindResourceText(GetItem(id), id, caption);
-    }
-    QtBindStandardResourceText(GetItem(IDCANCEL), IDCANCEL, "Cancel");
+    QtBindLocalText(GetItem(IDCANCEL), "ProgressRedesign",
+                    QT_TRANSLATE_NOOP("ProgressRedesign", "Stop…"));
     _hwndForTaskbar = MainWindow;
     if (!_hwndForTaskbar)
         _hwndForTaskbar = parentWidget();
@@ -165,10 +159,10 @@ bool CProgressDialog::OnInit() {
     LangString(IDS_PROGRESS_PAUSED, _paused_String);
     SetText(_title);
     SetPauseText();
-    if (_transport && !_transport->CanPause())
-        GetItem(IDB_PAUSE)->setEnabled(false);
+    GetItem(IDB_PAUSE)->setVisible(!_transport || _transport->CanPause());
     _messageList->InsertColumn(0, L"", 40);
     _messageList->InsertColumn(1, L"", 460);
+    _messageList->setColumnHidden(0, true);
     _messageList->SetColumnWidthAuto(0);
     _messageList->SetColumnWidthAuto(1);
     EnableErrorsControls(false);
@@ -186,6 +180,7 @@ bool CProgressDialog::OnInit() {
         SetIcon(icon);
     }
     _timer = startTimer(200);
+    UpdateStatInfo(true);
     CheckNeedClose();
     SetTaskbarProgressState();
     GetItem(IDCANCEL)->setFocus();
@@ -265,16 +260,23 @@ void CProgressDialog::UpdateStatInfo(bool showAll) {
         numErrors = Sync.Messages.Size();
     }
     UInt32 curTime = GetTickCount();
-    const UInt64 progressTotal = filesProgressMode ? totalFiles : total;
+    const UInt64 progressTotal = _transport && _transport->UsesPercentProgress() ? UNDEFINED_VAL
+                                 : filesProgressMode                             ? totalFiles
+                                                                                 : total;
     const UInt64 progressCompleted = filesProgressMode ? completedFiles : completed;
+    const bool progressUnknown = IS_UNDEFINED_VAL(progressTotal) || progressTotal == 0;
     {
-        if (IS_UNDEFINED_VAL(progressTotal)) {
+        if (progressUnknown) {
             // SetPos(0);
             // SetRange(progressCompleted);
             const int percent = TransportPercent.load();
             if (percent >= 0) {
                 SetProgressRange(100);
                 SetProgressPos(UInt64(percent));
+            } else {
+                m_ProgressBar.SetRange32(0, 0);
+                INIT_AS_UNDEFINED(_progressBar_Range)
+                INIT_AS_UNDEFINED(_progressBar_Pos)
             }
         } else {
             if (_progressBar_Pos != 0 || progressCompleted != 0 ||
@@ -360,15 +362,15 @@ void CProgressDialog::UpdateStatInfo(bool showAll) {
             }
         }
         {
-            UInt64 percent = 0;
+            UInt64 percent = UNDEFINED_VAL;
             const int transportPercent = TransportPercent.load();
-            if (IS_UNDEFINED_VAL(progressTotal) && transportPercent >= 0)
+            if (progressUnknown && transportPercent >= 0)
                 percent = UInt64(transportPercent);
             {
-                if (IS_DEFINED_VAL(progressTotal)) {
-                    percent = progressCompleted * 100;
-                    if (progressTotal != 0)
-                        percent /= progressTotal;
+                if (!progressUnknown) {
+                    percent = progressCompleted >= progressTotal
+                                  ? 100
+                                  : MyMultAndDiv(progressCompleted, 100, progressTotal);
                 }
             }
             if (percent != _prevPercentValue) {
@@ -416,10 +418,17 @@ void CProgressDialog::UpdateStatInfo(bool showAll) {
     }
     if (needSetTitle || titleFileName_Changed)
         SetTitleText();
+    ShowProgressPercent(IS_DEFINED_VAL(_prevPercentValue) ? QString::number(_prevPercentValue) + '%'
+                                                          : QString());
     if (status_Changed) {
         UString s = _status;
         ReduceString(s, _numReduceSymbols);
         SetItemText(IDT_PROGRESS_STATUS, s);
+    } else if (_status.IsEmpty()) {
+        const QString status = _filePath.IsEmpty() && progressUnknown && TransportPercent.load() < 0
+                                   ? QCoreApplication::translate("ProgressRedesign", "Preparing…")
+                                   : QString();
+        SetItemText(IDT_PROGRESS_STATUS, UString(status.toStdWString().c_str()));
     }
     if (curFilePath_Changed) {
         UString s1, s2;
@@ -435,9 +444,10 @@ void CProgressDialog::UpdateStatInfo(bool showAll) {
         }
         ReduceString(s1, _numReduceSymbols);
         ReduceString(s2, _numReduceSymbols);
-        s1.Add_LF();
-        s1 += s2;
-        SetItemText(IDT_PROGRESS_FILE_NAME, s1);
+        SetItemText(IDT_PROGRESS_FILE_NAME, _isDir ? s1 : s2);
+        const QString fullPath = QString::fromWCharArray(_filePath.Ptr());
+        GetItem(IDT_PROGRESS_FILE_NAME)->setToolTip(fullPath);
+        GetItem(IDT_PROGRESS_FILE_NAME)->setAccessibleDescription(fullPath);
     }
 }
 

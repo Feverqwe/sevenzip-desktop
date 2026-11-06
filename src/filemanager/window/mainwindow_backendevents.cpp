@@ -56,14 +56,19 @@ void MainWindow::connectBackend() {
 
 void MainWindow::backendFinished(bool ok, const QString &message, HRESULT result,
                                  bool messageDisplayed,
-                                 std::optional<QtArchiveExtractStatus> extraction) {
+                                 std::optional<QtArchiveExtractStatus> extraction,
+                                 const QStringList &diagnostics) {
     if (app_.QtOperations().closed())
         return;
     QtAppOperationState::CallScope call(app_.QtOperations());
     if (sourceArchiveProgress_)
         return; // Source worker owns completion until its modal lifecycle joins.
     QString resultMessage = message;
+    QStringList terminalDiagnostics = diagnostics;
+    bool reviewAfterPublication = false;
     const auto move = std::move(archiveMove_);
+    reviewAfterPublication =
+        move && (!ok || !extraction || !extraction->Complete || !terminalDiagnostics.isEmpty());
     if (move && ok) {
         if (!extraction || !extraction->Complete)
             resultMessage = QCoreApplication::translate(
@@ -77,8 +82,8 @@ void MainWindow::backendFinished(bool ok, const QString &message, HRESULT result
                 withPanelProjection(move->source, [&] {
                     auto &panel = app_.Panels[move->source];
                     CSelectedState selection;
-                    removed =
-                        panel.DeleteItems(false, *trashService_, selection, &move->indices, false);
+                    removed = panel.DeleteItems(false, *trashService_, selection, &move->indices,
+                                                false, QtDeleteResultReview::Caller);
                     app_.QtOperations().End();
                     renderBoundFolder();
                     panel.RestoreLoadedSelection(selection);
@@ -86,7 +91,9 @@ void MainWindow::backendFinished(bool ok, const QString &message, HRESULT result
             }
             result = removed.Result;
             ok = result == S_OK;
-            messageDisplayed = !ok; // The source worker owns deletion diagnostics.
+            reviewAfterPublication = !ok;
+            terminalDiagnostics = removed.Diagnostics;
+            messageDisplayed = !ok; // The composed owner presents after publication below.
             if (ok)
                 resultMessage = QCoreApplication::translate("mainwindow_backendevents",
                                                             "Items moved out of archive.");
@@ -109,6 +116,15 @@ void MainWindow::backendFinished(bool ok, const QString &message, HRESULT result
     auto *progress = progressDialog();
     const bool hadProgress = progress != nullptr;
     const bool canceled = result == E_ABORT;
+    if (progress) {
+        progress->DeferResultReview = reviewAfterPublication;
+        if (reviewAfterPublication) {
+            FOR_VECTOR(i, progress->Sync.Messages)
+            terminalDiagnostics.append(ToQString(progress->Sync.Messages[i]));
+        }
+        progress->SetOperationResult(result, (extraction && !extraction->Complete) ||
+                                                 (move && ok && !extraction));
+    }
     if (hadProgress && !ok && !canceled)
         progress->Sync.FinalMessage.ErrorMessage.Message = ToUString(resultMessage);
     closeProgressDialog(true);
@@ -118,7 +134,15 @@ void MainWindow::backendFinished(bool ok, const QString &message, HRESULT result
         setState(previousState_ == State::Viewing ? State::Viewing : State::Filesystem);
     appPresentation_->CopyFinished();
     statusBar()->showMessage(resultMessage);
-    if (!ok && !hadProgress && !messageDisplayed && !canceled)
+    if (reviewAfterPublication) {
+        terminalDiagnostics.prepend(resultMessage);
+        CProgressDialog::PresentResult(this, {.title = QtLangText(IDS_MOVING),
+                                              .result = !ok && result == S_OK ? E_FAIL : result,
+                                              .diagnostics = terminalDiagnostics,
+                                              .source = move->sourceLocation,
+                                              .destination = move->destination,
+                                              .partial = extraction && !extraction->Complete});
+    } else if (!ok && !hadProgress && !messageDisplayed && !canceled)
         QMessageBox::warning(this, "Sevenzip", resultMessage);
 }
 

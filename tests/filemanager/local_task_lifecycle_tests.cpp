@@ -4,6 +4,7 @@
 #include "filemanager/window/qtworkspaceapplication.h"
 #include "localization/LangUtils.h"
 #include "settings/RegistryUtils.h"
+#include "support/progress_dialog.h"
 #include "support/widget_dialogs.h"
 #include "support/window_activation.h"
 #include "ui/lifecycle/qttaskpresentation.h"
@@ -15,6 +16,23 @@
 #include <QSignalSpy>
 #include <atomic>
 #include <thread>
+
+namespace {
+class CompletingVolume final : public VolumeOperation {
+    QSemaphore &started_;
+    QSemaphore &finish_;
+    void run() override {
+        started_.release();
+        finish_.acquire();
+        emit result(false, QStringLiteral("fixture failure"));
+    }
+
+  public:
+    CompletingVolume(QSemaphore &started, QSemaphore &finish)
+        : VolumeOperation(Mode::Split, QString(), QString(), 1), started_(started),
+          finish_(finish) {}
+};
+} // namespace
 
 class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSupport {
     Q_OBJECT
@@ -32,6 +50,8 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
     void cleanup() {
         QTimer answer;
         connect(&answer, &QTimer::timeout, this, [] {
+            for (auto *window : QApplication::topLevelWidgets())
+                TestProgressDialog::DismissVisibleResult(window);
             if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget()))
                 box->accept();
             if (auto *question =
@@ -53,6 +73,54 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         QApplication::clipboard()->clear();
         SaveRegLang(UString("-"), qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         ReloadLang(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
+    }
+    void completionRetiresItsOwnStopQuestionBeforeReview() {
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        QSemaphore started, finish;
+        QPointer<CompletingVolume> worker = new CompletingVolume(started, finish);
+        QPointer<QtLocalFileTask> task = new QtLocalFileTask(*worker, "Split", "source 空", 1);
+        task->BindOwner(*table(window)->sourcePanel, window);
+        const auto settle = qScopeGuard([&] {
+            finish.release();
+            if (worker)
+                worker->wait();
+            if (task)
+                task->StopAndWait();
+        });
+        QSignalSpy completed(task, &QtLocalFileTask::finished);
+        task->Start();
+        QTRY_VERIFY(started.available() > 0);
+        started.acquire();
+        auto *progress =
+            dynamic_cast<CProgressDialog *>(window.findChild<QDialog *>("progressDialog"));
+        QVERIFY(progress);
+        QPointer<QMessageBox> question;
+        bool opened = false, reviewed = false;
+        QTimer observe;
+        connect(&observe, &QTimer::timeout, &window, [&] {
+            if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
+                box && box->objectName() == "progressCancelQuestion" && !opened) {
+                opened = true;
+                question = box;
+                finish.release();
+            } else if (auto *result =
+                           TestProgressDialog::ResultWindow(QApplication::activeModalWidget())) {
+                const auto close = qScopeGuard([&] { TestProgressDialog::CloseResult(*result); });
+                reviewed = true;
+                QVERIFY(!question || !question->isVisible());
+                QVERIFY(!result->Sync.Get_Stopped());
+                QCOMPARE(TestProgressDialog::ReportText(*result), QString("fixture failure"));
+            }
+        });
+        observe.start(5);
+        progress->findChild<QPushButton *>("IDCANCEL")->click();
+        QTRY_COMPARE(completed.size(), 1);
+        QVERIFY(opened && reviewed);
+        QVERIFY(!completed[0][0].toBool());
+        QVERIFY(!completed[0][1].toBool());
     }
     void overwriteKeepsOwnerUntilAnswered_data() {
         QTest::addColumn<QString>("choice");
@@ -113,9 +181,8 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
                 sourceWindow.reset();
                 retained = question->isVisible() && destinationWindow->isVisible();
                 question->findChild<QPushButton *>(choice)->click();
-            } else if (auto *report = qobject_cast<QMessageBox *>(modal);
-                       report && report->objectName() == "progressFinalMessage" && !reviewed &&
-                       dialogs_.ready(*report)) {
+            } else if (auto *report = TestProgressDialog::ResultWindow(modal);
+                       report && !reviewed && dialogs_.ready(*report)) {
                 reviewed = true;
                 drive.stop();
                 contextModal &= report->windowModality() == Qt::WindowModal;
@@ -124,7 +191,7 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
                 QTimer::singleShot(150, report, [&, report] {
                     retained &= report->isVisible() && !QtLocalFileTask::Active().isEmpty() &&
                                 QApplication::clipboard()->mimeData() == original;
-                    report->accept();
+                    TestProgressDialog::CloseResult(*report);
                 });
             }
         });
@@ -194,9 +261,8 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
                 question->findChild<QPushButton *>("overwriteNo")->click();
                 return;
             }
-            auto *report = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
-            if (result ? (!report || report->objectName() != "progressFinalMessage" ||
-                          !dialogs_.ready(*report))
+            auto *report = TestProgressDialog::ResultWindow(QApplication::activeModalWidget());
+            if (result ? (!report || !dialogs_.ready(*report))
                        : (!question || !dialogs_.ready(*question)))
                 return;
             destroyed = true;
@@ -299,11 +365,12 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         bool shown = false;
         QTimer answer;
         connect(&answer, &QTimer::timeout, this, [&] {
-            if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
-                box && box->objectName() == "progressFinalMessage") {
-                shown = true;
-                box->accept();
-            }
+            for (auto *window : QApplication::topLevelWidgets())
+                if (auto *report = TestProgressDialog::ResultWindow(window);
+                    report && report->isVisible()) {
+                    shown = true;
+                    TestProgressDialog::CloseResult(*report);
+                }
         });
         answer.start(5);
         std::unique_ptr<QtTaskPresentation::QuestionScope> question;
@@ -386,11 +453,10 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         QTimer answer;
         bool reviewed = false, restored = false, askedToCancel = false;
         connect(&answer, &QTimer::timeout, &peer, [&] {
-            if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
-                box && box->objectName() == "progressFinalMessage") {
+            if (auto *report = TestProgressDialog::ResultWindow(progress)) {
                 reviewed = true;
                 restored = progress && !progress->isMinimized();
-                box->accept();
+                TestProgressDialog::CloseResult(*report);
             } else if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
                        box && box->objectName() == "progressCancelQuestion") {
                 askedToCancel = true;
@@ -402,7 +468,7 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
             progress->close();
         else
             task->Show();
-        QCOMPARE(finished.size(), 1);
+        QTRY_COMPARE(finished.size(), 1);
         QVERIFY(reviewed);
         QVERIFY(restored);
         QVERIFY(!askedToCancel);
