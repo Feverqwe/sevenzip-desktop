@@ -286,6 +286,11 @@ publishes source item identities and row presentation metadata; property text an
 comparison remain delegated to the source panel and its folder providers. Model
 changes preserve Qt persistent indexes and selection across sorting and column
 changes. The model does not retain providers beyond the panel's lifetime.
+Workspace blank-area selection has one view-owned gesture controller for table
+and icon modes. It projects into that shared selection model, owns cancellation
+and edge scrolling, and leaves item-content dragging with the native Qt view.
+The row delegate supplies content hit geometry; moving a retained view rebinds
+its pane activation without retaining the previous window.
 The table owns each Qt column's property and source-catalog/visible-column
 binding together. Window code applies layout and persists the source panel's
 settings through that binding rather than maintaining parallel property maps.

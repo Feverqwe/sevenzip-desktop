@@ -24,6 +24,12 @@ if(BUILD_TESTING)
     add_test(NAME archive_navigation_rollback COMMAND archive_navigation_rollback_tests -silent)
     set_tests_properties(archive_navigation_rollback PROPERTIES TIMEOUT 90 ENVIRONMENT
         "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/archive-navigation-rollback.ini")
+    qt_add_executable(workspace_selection_gesture_tests tests/filemanager/workspace_selection_gesture_tests.cpp)
+    target_link_libraries(workspace_selection_gesture_tests PRIVATE sevenzip_window sevenzip_layout_inspection Qt6::Test)
+    target_include_directories(workspace_selection_gesture_tests PRIVATE src tests)
+    add_test(NAME workspace_selection_gesture COMMAND workspace_selection_gesture_tests -silent)
+    set_tests_properties(workspace_selection_gesture PROPERTIES TIMEOUT 30 ENVIRONMENT
+        "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/workspace-selection-gesture.ini")
     qt_add_executable(workspace_places_tests tests/filemanager/workspace_places_tests.cpp)
     target_link_libraries(workspace_places_tests PRIVATE sevenzip_window sevenzip_layout_inspection Qt6::Test)
     target_include_directories(workspace_places_tests PRIVATE src tests)

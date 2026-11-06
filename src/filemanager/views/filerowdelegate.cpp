@@ -11,6 +11,16 @@
 #include <QStyledItemDelegate>
 
 namespace {
+QRect LabelBounds(const QStyleOptionViewItem &option, const QWidget &view) {
+    const QRect text = view.style()->subElementRect(QStyle::SE_ItemViewItemText, &option, &view);
+    const bool wrapped = option.features.testFlag(QStyleOptionViewItem::WrapText);
+    const int flags = option.displayAlignment | (wrapped ? Qt::TextWordWrap : Qt::TextSingleLine);
+    const QString label =
+        wrapped ? option.text
+                : option.fontMetrics.elidedText(option.text, option.textElideMode, text.width());
+    return option.fontMetrics.boundingRect(text, flags, label).intersected(text);
+}
+
 void DrawItemContent(QPainter &painter, const QStyleOptionViewItem &option, bool cut) {
     painter.save();
     if (cut)
@@ -39,16 +49,7 @@ QRectF PaintMacIconSelection(QPainter &painter, QStyleOptionViewItem &option, co
         painter.drawRoundedRect(frame, 6, 6);
     }
     if (selected) {
-        const QRect text = style->subElementRect(QStyle::SE_ItemViewItemText, &option, &view);
-        const int flags =
-            Qt::AlignHCenter | Qt::AlignTop |
-            (option.features.testFlag(QStyleOptionViewItem::WrapText) ? Qt::TextWordWrap
-                                                                      : Qt::TextSingleLine);
-        QRect label =
-            option.fontMetrics.boundingRect(QRect(QPoint(), text.size()), flags, option.text);
-        label.setWidth(qMin(label.width(), text.width()));
-        label.setHeight(qMin(label.height(), text.height()));
-        label.moveTopLeft(QPoint(text.center().x() - label.width() / 2, text.top()));
+        const QRect label = LabelBounds(option, view);
         const bool colored = index.data(Qt::ForegroundRole).isValid();
         // Keep source emphasis (for example deleted entries) chromatic and
         // readable; an opaque accent can wash a red label into near-white.
@@ -115,9 +116,34 @@ void PaintWorkspaceIcon(QPainter &painter, QStyleOptionViewItem option, const QM
 class FileRowDelegate final : public QStyledItemDelegate {
     bool workspace_;
 
+    void PrepareContent(QStyleOptionViewItem &option, const QModelIndex &index) const {
+        const auto *list = qobject_cast<QListView *>(parent());
+        if (list && list->viewMode() == QListView::IconMode) {
+            const int margin =
+                list->style()->pixelMetric(QStyle::PM_FocusFrameHMargin, &option, list);
+            option.rect.adjust(margin, 0, -margin, 0);
+        }
+        initStyleOption(&option, index);
+    }
+
   public:
     FileRowDelegate(QWidget *parent, bool workspace)
         : QStyledItemDelegate(parent), workspace_(workspace) {}
+    bool ContainsPoint(QStyleOptionViewItem option, const QModelIndex &index, QPoint point) const {
+        PrepareContent(option, index);
+        const auto *view = qobject_cast<QWidget *>(parent());
+        if (!view)
+            return option.rect.contains(point);
+        if (workspace_)
+            if (const auto *table = dynamic_cast<const FileTable *>(view))
+                option.rect.adjust(
+                    index.column() == qMax(0, table->columnForVisibleProperty(0)) ? 12 : 8, 0, -8,
+                    0);
+        const QRect art =
+            view->style()->subElementRect(QStyle::SE_ItemViewItemDecoration, &option, view);
+        return (!option.icon.isNull() && art.contains(point)) ||
+               LabelBounds(option, *view).contains(point);
+    }
     void setEditorData(QWidget *editor, const QModelIndex &index) const override {
         if (const auto *line = qobject_cast<QLineEdit *>(editor); line && line->isModified())
             return;
@@ -183,13 +209,6 @@ class FileRowDelegate final : public QStyledItemDelegate {
                const QModelIndex &index) const override {
         QStyleOptionViewItem option(original);
         const auto *list = qobject_cast<QListView *>(parent());
-        if (list && list->viewMode() == QListView::IconMode) {
-            // Native styles can extend the label's focus/text area beyond
-            // the content rect. Reserve that margin inside the icon cell.
-            const int margin =
-                list->style()->pixelMetric(QStyle::PM_FocusFrameHMargin, &option, list);
-            option.rect.adjust(margin, 0, -margin, 0);
-        }
         if (index.data(QtPanelList::DropHighlightedRole).toBool())
             option.state |= QStyle::State_Selected;
         const QVariant foreground = index.data(Qt::ForegroundRole);
@@ -203,7 +222,7 @@ class FileRowDelegate final : public QStyledItemDelegate {
         const int primary = table ? table->columnForVisibleProperty(0) : -1;
         const bool cut = index.data(QtPanelList::CutRole).toBool();
         if (workspace_ && list) {
-            initStyleOption(&option, index);
+            PrepareContent(option, index);
             PaintWorkspaceIcon(*painter, option, index, *list, cut);
             return;
         }
@@ -241,6 +260,12 @@ class FileRowDelegate final : public QStyledItemDelegate {
             return;
         }
         if (!table || table->fullRowHighlight() || index.column() == (primary < 0 ? 0 : primary)) {
+            // Preserve the same native icon margin as the workspace delegate.
+            if (list && list->viewMode() == QListView::IconMode) {
+                const int margin =
+                    list->style()->pixelMetric(QStyle::PM_FocusFrameHMargin, &option, list);
+                option.rect.adjust(margin, 0, -margin, 0);
+            }
             QStyledItemDelegate::paint(painter, option, index);
             return;
         }
@@ -255,4 +280,11 @@ class FileRowDelegate final : public QStyledItemDelegate {
 
 QAbstractItemDelegate *CreateFileRowDelegate(QWidget *parent, bool workspace) {
     return new FileRowDelegate(parent, workspace);
+}
+
+bool FileRowContainsPoint(const QAbstractItemDelegate &delegate, QStyleOptionViewItem option,
+                          const QModelIndex &index, QPoint point) {
+    if (const auto *row = dynamic_cast<const FileRowDelegate *>(&delegate))
+        return row->ContainsPoint(option, index, point);
+    return option.rect.contains(point);
 }

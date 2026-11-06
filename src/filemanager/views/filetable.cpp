@@ -1,5 +1,6 @@
 #include "filemanager/views/filetable.h"
 #include "filemanager/sorting/filenamesort.h"
+#include "filemanager/views/qtfileselectiongesture.h"
 #include "filemanager/window/qtworkspacetheme.h"
 
 #include <QEvent>
@@ -8,6 +9,7 @@
 #include <QMimeData>
 #include <QMouseEvent>
 #include <QScopedValueRollback>
+#include <QStyleOptionViewItem>
 #include <QUrl>
 
 namespace {
@@ -88,6 +90,57 @@ void FileTable::startDrag(Qt::DropActions actions) {
         QTableView::startDrag(actions);
 }
 void FileTable::handleDefaultKeyPress(QKeyEvent *event) { QTableView::keyPressEvent(event); }
+
+void FileTable::InstallSelectionGesture(std::function<bool()> activate,
+                                        std::function<void(bool)> activity) {
+    QtInstallFileSelectionGesture(
+        *this,
+        {[this](QRect area, QItemSelectionModel::SelectionFlags flags) {
+             // QTableView requires both corners inside real cells, including
+             // when the gesture starts below the final row.
+             const QRect contents(-horizontalOffset(), -verticalOffset(),
+                                  horizontalHeader()->length(), verticalHeader()->length());
+             area = area.intersected(contents);
+             if (area.isEmpty())
+                 selectionModel()->select(QItemSelection(), flags);
+             else
+                 QTableView::setSelection(area, flags);
+         },
+         [this](QPoint point) {
+             const auto index = indexAt(point);
+             if (!index.isValid())
+                 return false;
+             QStyleOptionViewItem option;
+             initViewItemOption(&option);
+             option.rect = visualRect(index);
+             return FileRowContainsPoint(*itemDelegateForIndex(index), option, index, point);
+         },
+         [this] { return QPoint(horizontalOffset(), verticalOffset()); }},
+        std::move(activate), std::move(activity));
+}
+
+void FileIconList::InstallSelectionGesture(std::function<bool()> activate,
+                                           std::function<void(bool)> activity) {
+    QtInstallFileSelectionGesture(
+        *this,
+        {[this](const QRect &area, QItemSelectionModel::SelectionFlags flags) {
+             const auto previous = state();
+             setState(QAbstractItemView::DragSelectingState);
+             QListView::setSelection(area, flags);
+             setState(previous);
+         },
+         [this](QPoint point) {
+             const auto index = indexAt(point);
+             if (!index.isValid())
+                 return false;
+             QStyleOptionViewItem option;
+             initViewItemOption(&option);
+             option.rect = visualRect(index);
+             return FileRowContainsPoint(*itemDelegateForIndex(index), option, index, point);
+         },
+         [this] { return QPoint(horizontalOffset(), verticalOffset()); }},
+        std::move(activate), std::move(activity));
+}
 void FileIconList::handleDefaultKeyPress(QKeyEvent *event) { QListView::keyPressEvent(event); }
 void FileIconList::startDrag(Qt::DropActions actions) {
     if (dragStarter)

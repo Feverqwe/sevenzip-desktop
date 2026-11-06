@@ -3,6 +3,7 @@
   {"id":"view-menu","title":"Меню «Вид»: контекст панели, EN/RU","target":"view_menu_tests","functions":["openMenuKeepsItsSourcePanel","activationAndCommands"]},
   {"id":"sort-direction","title":"Сортировка: направление и выделение, EN/RU","target":"panel_sort_commands_tests","functions":["directionMenuUsesNativeSortAndRetainsSelection"]},
   {"id":"workspace-table","title":"Таблица: выделение и текущая строка","target":"workspace_table_tests","functions":["selectionGeometry"]},
+  {"id":"selection-gesture","title":"Рамочное выделение в таблице и значках","target":"workspace_selection_gesture_tests","functions":["blankAreaSelectsIntersectedEntries:table-0-0","blankAreaSelectsIntersectedEntries:icons-0-0"]},
   {"id":"file-states","title":"Общие состояния: Cut, выделение и текущий элемент","target":"workspace_file_states_tests","functions":["fileStateGeometry"]},
   {"id":"workspace-tabs","title":"Плотные вкладки","target":"workspace_tabs_tests","functions":["denseGeometry"]},
   {"id":"workspace-history","title":"Назад и вперёд: история вкладки, EN/RU","target":"workspace_history_tests","functions":["keyboardAndNavigationGeometry"]},

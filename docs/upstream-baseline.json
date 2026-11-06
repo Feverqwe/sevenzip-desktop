@@ -1835,6 +1835,8 @@
     "src/filemanager/views/filetable_columns.cpp",
     "src/filemanager/views/qtfilelisthover.cpp",
     "src/filemanager/views/qtfilelisthover.h",
+    "src/filemanager/views/qtfileselectiongesture.cpp",
+    "src/filemanager/views/qtfileselectiongesture.h",
     "src/filemanager/views/qtlistview.cpp",
     "src/filemanager/views/qtlistview.h",
     "src/filemanager/views/qtworkspacefiletable.cpp",

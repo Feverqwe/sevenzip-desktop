@@ -327,6 +327,27 @@ void MainWindow::connectFileView(QAbstractItemView &view) {
             [this, owner = projectedPanel_, view = &view](const QPoint &pos) {
                 showItemContextMenu(owner, view, pos);
             });
+    const QPointer<MainWindow> host(this);
+    const unsigned owner = projectedPanel_;
+    const auto activate = [host, owner] {
+        if (!host || !host->isVisible() || host->isPanelEditorFocused())
+            return false;
+        host->activatePanelUi(owner);
+        if (host->projectedPanel_ != owner)
+            return false;
+        host->renameController_->Cancel(owner);
+        return true;
+    };
+    const QPointer<QtFileListHover> hover(&view == projectedUi().table ? projectedUi().tableHover
+                                                                       : projectedUi().iconHover);
+    const auto activity = [hover](bool active) {
+        if (hover)
+            hover->SetSuspended(active);
+    };
+    if (auto *table = dynamic_cast<FileTable *>(&view))
+        table->InstallSelectionGesture(activate, activity);
+    else if (auto *icons = dynamic_cast<FileIconList *>(&view))
+        icons->InstallSelectionGesture(activate, activity);
 }
 
 void MainWindow::appendParentEntry() {

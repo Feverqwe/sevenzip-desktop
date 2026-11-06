@@ -13,7 +13,10 @@ class CPanel;
 class CPropColumns;
 struct CPropColumn;
 class QMenu;
+class QStyleOptionViewItem;
 QAbstractItemDelegate *CreateFileRowDelegate(QWidget *parent, bool workspace = false);
+bool FileRowContainsPoint(const QAbstractItemDelegate &delegate, QStyleOptionViewItem option,
+                          const QModelIndex &index, QPoint point);
 
 class FileTable : public QTableView {
     Q_OBJECT
@@ -22,6 +25,8 @@ class FileTable : public QTableView {
     void setFullRowHighlight(bool enabled);
     void handleDefaultKeyPress(QKeyEvent *event);
     void refreshLanguageText();
+    void InstallSelectionGesture(std::function<bool()> activate,
+                                 std::function<void(bool)> activity);
     virtual void invalidateLanguageText();
     bool fullRowHighlight() const { return fullRowHighlight_; }
     FilePanelModel *panelModel() const { return model_; }
@@ -80,6 +85,8 @@ class FileIconList final : public QListView {
   public:
     using QListView::QListView;
     void SetListViewMode(int mode);
+    void InstallSelectionGesture(std::function<bool()> activate,
+                                 std::function<void(bool)> activity);
     void handleDefaultKeyPress(QKeyEvent *event);
     std::function<void()> dragStarter;
 

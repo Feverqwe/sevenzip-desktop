@@ -107,6 +107,7 @@ sevenzip_add_port_component(sevenzip_main_window src/filemanager/window/mainwind
     src/filemanager/panels/PanelKey.cpp
     src/filemanager/views/filepanelmodel.cpp src/filemanager/views/filepanelmodel.h
     src/filemanager/views/filerowdelegate.cpp
+    src/filemanager/views/qtfileselectiongesture.cpp src/filemanager/views/qtfileselectiongesture.h
     src/filemanager/views/qtworkspacefiletable.cpp src/filemanager/views/qtworkspacefiletable.h
     src/filemanager/views/filetable.cpp src/filemanager/views/filetable.h src/filemanager/views/filetable_columns.cpp
     src/filemanager/window/qtapppresentation.cpp
