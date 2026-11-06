@@ -59,17 +59,19 @@ class CreateArchiveDialog : public QDialog {
     QPushButton *createArchiveDestination(QVBoxLayout *windowLayout);
     void createArchiveForm(QVBoxLayout *layout, QVBoxLayout *windowLayout);
     void createOptionSections(QVBoxLayout *layout, QFormLayout *basic);
+    QtDisclosure *createSourcesSection(QWidget *parent);
     void stabilizeColumnWidths();
     void createCompressionOptions(QFormLayout *form);
     void createEncryptionOptions(QVBoxLayout *form);
     void updateRedesignSummary();
     void createVolumeOptions(QFormLayout *form);
-    void createAdvancedOptions(QFormLayout *form);
     void createCommandLineOptions(QFormLayout *form);
     void createLifecycleOptions(QFormLayout *form);
     void updateSfxControls();
     void toggleSfx(bool enabled);
-    void showAdvancedOptions();
+    void configureMetadataSource(CCompressDialog &source) const;
+    void applyMetadataSource(CCompressDialog &source, const CCompressDialog &initial,
+                             const NCompression::CFormatOptions &profile);
     struct ExpertDraft;
     std::unique_ptr<ExpertDraft> captureExpertDraft();
     void restoreExpertDraft(const ExpertDraft &draft);
@@ -126,8 +128,10 @@ class CreateArchiveDialog : public QDialog {
     QComboBox *pathMode_ = nullptr;
     QComboBox *volume_ = nullptr;
     QLineEdit *parameters_ = nullptr;
-    QPushButton *advanced_ = nullptr;
     bool hasMetadataOptions_ = false;
+    QtDisclosure *compressionSection_ = nullptr;
+    QtDisclosure *filesSection_ = nullptr;
+    QtDisclosure *parametersSection_ = nullptr;
     QCheckBox *sharedFiles_ = nullptr;
     QCheckBox *sfx_ = nullptr;
     ArchiveSfxModule sfxModule_;

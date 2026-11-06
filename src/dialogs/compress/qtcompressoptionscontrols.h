@@ -1,8 +1,8 @@
 // Qt presentation services for the original COptionsDialog functional bodies.
 #pragma once
 #include "Common/MyString.h"
-#include <QDialog>
 #include <QHash>
+#include <QWidget>
 
 class QComboBox;
 class CQtCompressCombo {
@@ -19,15 +19,13 @@ class CQtCompressCombo {
     void SetCurSel(int index);
 };
 
-class CQtCompressOptionsDialog : public QDialog {
+class CQtCompressOptionsPanel : public QWidget {
     QHash<unsigned, QWidget *> controls_;
     bool initialized_ = false;
     void buildControls();
-    bool focusControl(QWidget *start, bool next, Qt::FocusReason reason);
     void changeEvent(QEvent *event) override;
 
   protected:
-    bool focusNextPrevChild(bool next) override;
 #ifndef CBN_SELCHANGE
     static constexpr unsigned CBN_SELCHANGE = 1;
 #endif
@@ -37,16 +35,16 @@ class CQtCompressOptionsDialog : public QDialog {
     void ShowItem_Bool(unsigned id, bool visible);
     void EnableItem(unsigned id, bool enabled);
     void SetItemText(unsigned id, const UString &text);
-    void NormalizePosition();
     virtual bool OnInit() { return true; }
     virtual void OnLanguageChange() {}
     virtual bool OnCommand(unsigned, unsigned, qintptr) { return false; }
     virtual bool OnButtonClicked(unsigned id, QWidget *);
-    virtual void OnOK() { QDialog::accept(); }
+    virtual void OnOK() {}
     virtual void OnHelp() {}
 
   public:
-    explicit CQtCompressOptionsDialog(QWidget *parent = nullptr);
-    void setVisible(bool visible) override;
-    void accept() override { OnOK(); }
+    explicit CQtCompressOptionsPanel(QWidget *parent = nullptr);
+    void initialize();
+    void apply() { OnOK(); }
+    void showHelp() { OnHelp(); }
 };

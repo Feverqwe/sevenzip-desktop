@@ -37,15 +37,24 @@ void CreateArchiveDialog::createOptionSections(QVBoxLayout *layout, QFormLayout 
     level_->show();
     delete level.labelItem;
     delete level.fieldItem;
-    expert->addWidget(compression->parentWidget());
+    compressionSection_ = new QtDisclosure(compression->parentWidget(), expertContent_);
+    compressionSection_->setObjectName("archiveCompressionSection");
+    QtBindLocalText(compressionSection_->button(), "ArchiveRedesign",
+                    QT_TRANSLATE_NOOP("ArchiveRedesign", "Compression settings"));
+    compressionSection_->setExpanded(true);
+    expert->addWidget(compressionSection_);
 
     auto *files = form();
     files->setContentsMargins(0, 0, 0, 0);
     files->addRow("Update mode:", updateMode_);
     files->addRow("Path mode:", pathMode_);
     createLifecycleOptions(files);
-    createAdvancedOptions(files);
-    expert->addWidget(files->parentWidget());
+    filesSection_ = new QtDisclosure(files->parentWidget(), expertContent_);
+    filesSection_->setObjectName("archiveFilesSection");
+    QtBindLocalText(filesSection_->button(), "ArchiveRedesign",
+                    QT_TRANSLATE_NOOP("ArchiveRedesign", "File settings"));
+    filesSection_->setExpanded(true);
+    expert->addWidget(filesSection_);
     createVolumeOptions(additional);
     auto *edit = new QPushButton(additional->parentWidget());
     edit->setObjectName("archiveExpertOptions");
@@ -56,22 +65,32 @@ void CreateArchiveDialog::createOptionSections(QVBoxLayout *layout, QFormLayout 
                     QT_TRANSLATE_NOOP("ArchiveRedesign", "Expert options…"));
     additional->addRow(edit);
     connect(edit, &QPushButton::clicked, this, [this] { showExpertOptions(); });
-    auto *sources = new QPlainTextEdit(selected_.join('\n'), additional->parentWidget());
+    additional->addRow(createSourcesSection(additional->parentWidget()));
+    expert->insertWidget(0, createSourcesSection(expertContent_));
+    auto *commandLine = form();
+    commandLine->setContentsMargins(0, 0, 0, 0);
+    createCommandLineOptions(commandLine);
+    parametersSection_ = new QtDisclosure(commandLine->parentWidget(), expertContent_);
+    parametersSection_->setObjectName("archiveParametersSection");
+    QtBindLocalText(parametersSection_->button(), "ArchiveRedesign",
+                    QT_TRANSLATE_NOOP("ArchiveRedesign", "Method properties"));
+    parametersSection_->setExpanded(true);
+    expert->addWidget(parametersSection_);
+    expertContent_->hide();
+}
+
+QtDisclosure *CreateArchiveDialog::createSourcesSection(QWidget *parent) {
+    auto *sources = new QPlainTextEdit(selected_.join('\n'), parent);
     sources->setObjectName("archiveSources");
     sources->setReadOnly(true);
     sources->setMaximumHeight(fontMetrics().lineSpacing() * 6);
     QtBindLocalText(sources, "ArchiveRedesign", QT_TRANSLATE_NOOP("ArchiveRedesign", "Sources"),
                     true);
-    auto *sourceSection = new QtDisclosure(sources, additional->parentWidget());
+    auto *sourceSection = new QtDisclosure(sources, parent);
     sourceSection->setObjectName("archiveSourcesSection");
     QtBindLocalText(sourceSection->button(), "ArchiveRedesign",
                     QT_TRANSLATE_NOOP("ArchiveRedesign", "Sources"));
-    additional->addRow(sourceSection);
-    auto *commandLine = form();
-    commandLine->setContentsMargins(0, 0, 0, 0);
-    createCommandLineOptions(commandLine);
-    expert->addWidget(commandLine->parentWidget());
-    expertContent_->hide();
+    return sourceSection;
 }
 
 void CreateArchiveDialog::createLifecycleOptions(QFormLayout *form) {
@@ -121,22 +140,7 @@ void CreateArchiveDialog::createCommandLineOptions(QFormLayout *form) {
     form->addRow(parametersForm);
 }
 
-void CreateArchiveDialog::createAdvancedOptions(QFormLayout *form) {
-    advanced_ = new QPushButton("&Parameters:", this);
-    advanced_->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed);
-#ifdef Q_OS_MACOS
-    advanced_->setAttribute(Qt::WA_LayoutUsesWidgetRect);
-#endif
-    advanced_->setObjectName("archiveAdvancedOptions");
-    form->addRow(advanced_);
-    updateAdvancedSummary();
-    connect(advanced_, &QPushButton::clicked, this, &CreateArchiveDialog::showAdvancedOptions);
-}
-
-void CreateArchiveDialog::showAdvancedOptions() {
-    // The exact registered handler flags supply the original dialog capability
-    // owner while codecs/compression remain in the official external engine.
-    CCompressDialog source;
+void CreateArchiveDialog::configureMetadataSource(CCompressDialog &source) const {
     source.Format = registryFormat_;
     source.MethodID = archiveNameState_.GetMethodID();
 #ifdef Q_OS_WIN
@@ -151,26 +155,47 @@ void CreateArchiveDialog::showAdvancedOptions() {
         source.ArcInfo.TimeFlags |= TIME_PREC_TO_ARC_FLAGS_MASK(NFileTimeType::kUnix) |
                                     TIME_PREC_TO_ARC_FLAGS_MASK(NFileTimeType::kDOS);
     prepareMetadataSource(source);
-    // Local profile copy is source COptionsDialog's in-memory transaction:
-    // Options Cancel does not mutate the Add form; Add Cancel never saves disk.
-    NCompression::CFormatOptions profile = Get_FormatOptions();
-    source.FormatOptions = &profile;
-    COptionsDialog dialog(&source);
-    if (dialog.Create(advanced_->window()) == QDialog::Accepted) {
-        Get_FormatOptions() = profile;
-        source.SaveMetadataOptions(m_RegistryInfo);
+}
+
+void CreateArchiveDialog::applyMetadataSource(CCompressDialog &source,
+                                              const CCompressDialog &initial,
+                                              const NCompression::CFormatOptions &profile) {
+    // Publish only metadata. Method/resource edits still belong to their controls.
+    auto &target = Get_FormatOptions();
+    target.TimePrec = profile.TimePrec;
+    target.MTime = profile.MTime;
+    target.CTime = profile.CTime;
+    target.ATime = profile.ATime;
+    target.SetArcMTime = profile.SetArcMTime;
+    auto converted = m_RegistryInfo;
+    source.SaveMetadataOptions(converted);
+    const auto publish = [&](const CBool1 &value, const CBool1 &before, CBoolPair &registry,
+                             const CBoolPair &convertedRegistry, CBoolPair &request,
+                             const CBoolPair &convertedRequest, const CBoolPair &initialRequest) {
+        if (value.Val == before.Val)
+            return;
+        registry = convertedRegistry;
         if (fixedSources_) {
-            archiveNameState_.Info.SymLinks = source.Info.SymLinks;
-            archiveNameState_.Info.HardLinks = source.Info.HardLinks;
-            archiveNameState_.Info.AltStreams = source.Info.AltStreams;
-            archiveNameState_.Info.NtSecurity = source.Info.NtSecurity;
+            request = convertedRequest;
+            // Source acceptance normalizes false into an implicit request.
+            // This form is read again: retain an explicit command override
+            // so a saved true value cannot override the user's false choice.
+            if (initialRequest.Def)
+                request.Def = true;
         }
-        if (source.PreserveATime.Supported) {
-            m_RegistryInfo.PreserveATime.Val = source.PreserveATime.Val;
-            m_RegistryInfo.PreserveATime.Def = true;
-        }
+    };
+    publish(source.SymLinks, initial.SymLinks, m_RegistryInfo.SymLinks, converted.SymLinks,
+            archiveNameState_.Info.SymLinks, source.Info.SymLinks, initial.Info.SymLinks);
+    publish(source.HardLinks, initial.HardLinks, m_RegistryInfo.HardLinks, converted.HardLinks,
+            archiveNameState_.Info.HardLinks, source.Info.HardLinks, initial.Info.HardLinks);
+    publish(source.AltStreams, initial.AltStreams, m_RegistryInfo.AltStreams, converted.AltStreams,
+            archiveNameState_.Info.AltStreams, source.Info.AltStreams, initial.Info.AltStreams);
+    publish(source.NtSecurity, initial.NtSecurity, m_RegistryInfo.NtSecurity, converted.NtSecurity,
+            archiveNameState_.Info.NtSecurity, source.Info.NtSecurity, initial.Info.NtSecurity);
+    if (source.PreserveATime.Supported && source.PreserveATime.Val != initial.PreserveATime.Val) {
+        m_RegistryInfo.PreserveATime.Val = source.PreserveATime.Val;
+        m_RegistryInfo.PreserveATime.Def = true;
     }
-    updateAdvancedSummary();
 }
 
 void CreateArchiveDialog::prepareMetadataSource(CCompressDialog &source) const {
@@ -203,18 +228,20 @@ void CreateArchiveDialog::updateRedesignSummary() {
     for (auto *combo : {method_, dictionary_, wordSize_, solidBlock_, threads_})
         if (combo->isEnabled() && combo->currentIndex() > 0)
             compressionModified = true;
-    bool filesModified = hasMetadataOptions_ ||
-                         updateMode_->currentData().toInt() != NCompressDialog::NUpdateMode::kAdd ||
+    bool filesModified = updateMode_->currentData().toInt() != NCompressDialog::NUpdateMode::kAdd ||
                          pathMode_->currentData().toInt() != NWildcard::k_RelatPath;
     for (auto *check : {sfx_, sharedFiles_, deleteAfterCompressing_})
         if (check->isEnabled() && check->isChecked())
             filesModified = true;
+    compressionSection_->setSummary(compressionModified ? modified : QString());
+    filesSection_->setSummary(filesModified ? modified : QString());
+    parametersSection_->setSummary(parameters_->text().isEmpty() ? QString() : modified);
     QStringList summary;
     if (level_->count() > 1)
         summary.append(level_->currentText());
     if (volume_->isEnabled() && !volume_->currentText().trimmed().isEmpty())
         summary.append(volume_->currentText());
-    if (compressionModified || filesModified ||
+    if (compressionModified || filesModified || hasMetadataOptions_ ||
         (parameters_->isEnabled() && !parameters_->text().isEmpty()))
         summary.append(modified);
     additionalOptions_->setSummary(summary.join(QStringLiteral(" · ")));

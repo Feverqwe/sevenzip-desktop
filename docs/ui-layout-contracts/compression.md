@@ -29,22 +29,24 @@ selected sources and Expert options. It starts collapsed. Its summary exposes
 the selected level/volumes and marks changed expert options; collapsing does not
 reset them. An invalid volume specification reveals the field.
 
-The separate Expert editor contains method/resources, paths, metadata and method
-properties, with a fixed Apply/Cancel footer. Fields with no applicable source
+The separate Expert editor groups sources, method/resources, files, metadata/time
+and method properties in disclosures, with a fixed Apply/Cancel footer. Sources
+and metadata start collapsed. Metadata uses the same source-backed controls as
+the standalone format-options window. Switching method refreshes its capabilities
+while retaining pending overrides. Fields with no applicable source
 choices are hidden. Apply changes only the parent draft: it neither creates an
 archive nor writes settings. Cancel, Escape and closing the editor restore the
 prior choices, including Auto versus explicit values, raw parameter text and any
-name affected by SFX changes. Saving nested metadata and then cancelling Expert
-also restores those metadata changes. Only confirmation of the main form
-publishes its request and settings. Invalid properties or memory limits lead to
+name affected by SFX changes and pending inline metadata. Only confirmation of
+the main form publishes its request and settings. Invalid properties or memory limits lead to
 their actual editor fields instead of leaving an error behind hidden controls.
 
 The compact form keeps a separate scrollbar gutter and a visible native footer.
 Short settings use aligned label/field rows and wrap when needed; long parameter
 input keeps its label above it. Fields may reflow after a language/value change;
 fixed column rectangles are no longer a contract. Unsupported Windows shared-file
-controls are hidden on POSIX. Validation, saved format profiles, nested Options
-Cancel, SFX transitions and official-engine operations retain their source owners.
+controls are hidden on POSIX. Validation, saved format profiles, SFX transitions
+and official-engine operations retain their source owners.
 The primary action is named Create archive, with live localization. Evidence:
 [redesign audit](../upstream-port-audit/ui-redesign.md).
 

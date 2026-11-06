@@ -8,6 +8,7 @@
 #include "localization/LangUtils.h"
 #include "platform/support/native_security_fixture.h"
 #include "settings/RegistryUtils.h"
+#include "support/archive_expert.h"
 #include "ui/support/layout_inspection.h"
 #include <QScopeGuard>
 #include <QSignalSpy>
@@ -54,13 +55,8 @@ class SourceMetadataStorageTests final : public QObject {
         QVERIFY(ready[0][0].toBool());
         const auto configure = [&](CreateArchiveDialog &form, bool accept) {
             form.findChild<QComboBox *>("archiveFormat")->setCurrentText("wim");
-            QTimer::singleShot(0, &form, [&, accept] {
-                auto *dialog = qobject_cast<QDialog *>(QApplication::activeModalWidget());
-                QVERIFY(dialog);
-                const auto close = qScopeGuard([&] {
-                    if (dialog->isVisible())
-                        dialog->reject();
-                });
+            QVERIFY(EditArchiveMetadata(form, accept, [&](QDialog &editor) {
+                auto *dialog = &editor;
                 dialog->resize(size);
                 QApplication::processEvents();
                 QVERIFY(UiInspection::writeReport(
@@ -70,22 +66,25 @@ class SourceMetadataStorageTests final : public QObject {
                 for (const char *name : {"IDX_COMPRESS_NT_ALT_STREAMS", "IDX_COMPRESS_NT_SECUR"}) {
                     auto *control = dialog->findChild<QCheckBox *>(name);
                     QVERIFY(control && control->isVisible() && control->isEnabled());
-                    QVERIFY(UiInspection::fullyVisible(*control, *dialog));
+                    dialog->findChild<QScrollArea *>("dialogContentScroll")
+                        ->ensureWidgetVisible(control);
+                    QApplication::processEvents();
+                    QTRY_VERIFY(UiInspection::fullyVisible(*control, *dialog));
                     QVERIFY(control->width() >= control->sizeHint().width());
                     control->setChecked(true);
                 }
                 for (const char *name : {"IDX_COMPRESS_MTIME", "IDX_COMPRESS_CTIME",
                                          "IDX_COMPRESS_ATIME", "IDX_COMPRESS_PRESERVE_ATIME"}) {
                     auto *control = dialog->findChild<QCheckBox *>(name);
-                    QVERIFY(control && UiInspection::fullyVisible(*control, *dialog));
+                    QVERIFY(control);
+                    dialog->findChild<QScrollArea *>("dialogContentScroll")
+                        ->ensureWidgetVisible(control);
+                    QTRY_VERIFY(UiInspection::fullyVisible(*control, *dialog));
                     QVERIFY(control->width() >= control->sizeHint().width());
                 }
-                auto *buttons = dialog->findChild<QDialogButtonBox *>("compressOptionsButtons");
+                auto *buttons = dialog->findChild<QDialogButtonBox *>();
                 QVERIFY(buttons && UiInspection::fullyVisible(*buttons, *dialog));
-                if (accept)
-                    buttons->button(QDialogButtonBox::Ok)->click();
-            });
-            form.findChild<QPushButton *>("archiveAdvancedOptions")->click();
+            }));
         };
         CreateArchiveDialog cancelled(fixture.path(), {source}, nullptr, backend.codecCatalog());
         configure(cancelled, false);

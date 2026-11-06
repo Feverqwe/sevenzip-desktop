@@ -11,11 +11,11 @@
 
 using namespace NCompressDialog;
 
-void COptionsDialog::CheckButton_Bool1(UINT id, const CBool1 &b1) { CheckButton(id, b1.Val); }
+void COptionsPanel::CheckButton_Bool1(UINT id, const CBool1 &b1) { CheckButton(id, b1.Val); }
 
-void COptionsDialog::GetButton_Bool1(UINT id, CBool1 &b1) { b1.Val = IsButtonCheckedBool(id); }
+void COptionsPanel::GetButton_Bool1(UINT id, CBool1 &b1) { b1.Val = IsButtonCheckedBool(id); }
 
-void COptionsDialog::CheckButton_BoolBox(bool supported, const CBoolPair &b2, CBoolBox &bb) {
+void COptionsPanel::CheckButton_BoolBox(bool supported, const CBoolPair &b2, CBoolBox &bb) {
     const bool isSet = b2.Def;
     const bool val = isSet ? b2.Val : bb.DefaultVal;
 
@@ -28,13 +28,13 @@ void COptionsDialog::CheckButton_BoolBox(bool supported, const CBoolPair &b2, CB
     ShowItem_Bool(bb.Id, supported);
 }
 
-void COptionsDialog::GetButton_BoolBox(CBoolBox &bb) {
+void COptionsPanel::GetButton_BoolBox(CBoolBox &bb) {
     // we save value for invisible buttons too
     bb.BoolPair.Val = IsButtonCheckedBool(bb.Id);
     bb.BoolPair.Def = IsButtonCheckedBool(bb.Set_Id);
 }
 
-void COptionsDialog::Store_TimeBoxes() {
+void COptionsPanel::Store_TimeBoxes() {
     TimePrec = GetPrecSpec();
     GetButton_BoolBox(MTime);
     GetButton_BoolBox(CTime);
@@ -42,7 +42,7 @@ void COptionsDialog::Store_TimeBoxes() {
     GetButton_BoolBox(ZTime);
 }
 
-UInt32 COptionsDialog::GetComboValue(CQtCompressCombo &c, int defMax) {
+UInt32 COptionsPanel::GetComboValue(CQtCompressCombo &c, int defMax) {
     if (c.GetCount() <= defMax)
         return (UInt32)(Int32)-1;
     return (UInt32)c.GetItemData_of_CurSel();
@@ -64,7 +64,7 @@ static void AddTimeOption(UString &s, UInt32 val, const UString &unit, const cha
     }
 }
 
-int COptionsDialog::AddPrec(unsigned prec, bool isDefault, UString *textOnly) {
+int COptionsPanel::AddPrec(unsigned prec, bool isDefault, UString *textOnly) {
     UString s;
     UInt32 writePrec = prec;
     if (isDefault) {
@@ -95,7 +95,7 @@ int COptionsDialog::AddPrec(unsigned prec, bool isDefault, UString *textOnly) {
     return (int)m_Prec.AddString_SetItemData(s, (qintptr)writePrec);
 }
 
-void COptionsDialog::OnLanguageChange() {
+void COptionsPanel::OnLanguageChange() {
     LangString(IDS_COMPRESS_SEC, SecString);
     if (SecString.IsEmpty())
         SecString = "sec";
@@ -114,7 +114,7 @@ void COptionsDialog::OnLanguageChange() {
                 GetNameOfProperty(kpidType, L"type") + UString(suffix.toStdWString().c_str()));
 }
 
-void COptionsDialog::SetPrec() {
+void COptionsPanel::SetPrec() {
     // const CFormatInfo &fi = g_Formats[cd->GetStaticFormatIndex()];
     const CArcInfoEx &ai = cd->Get_ArcInfoEx();
 
@@ -208,7 +208,7 @@ void COptionsDialog::SetPrec() {
     SetTimeMAC();
 }
 
-void COptionsDialog::SetTimeMAC() {
+void COptionsPanel::SetTimeMAC() {
     const CArcInfoEx &ai = cd->Get_ArcInfoEx();
 
     const bool m_allow = ai.Flags_MTime();
@@ -268,7 +268,7 @@ void COptionsDialog::SetTimeMAC() {
     // mtime for Gz can be
 }
 
-void COptionsDialog::On_CheckBoxSet_Prec_Clicked() {
+void COptionsPanel::On_CheckBoxSet_Prec_Clicked() {
     const bool isSet = IsButtonCheckedBool(IDX_COMPRESS_PREC_SET);
     if (!isSet) {
         // We save current MAC boxes to memory before SetPrec()
@@ -279,7 +279,7 @@ void COptionsDialog::On_CheckBoxSet_Prec_Clicked() {
     EnableItem(IDC_COMPRESS_TIME_PREC, isSet);
 }
 
-void COptionsDialog::On_CheckBoxSet_Clicked(const CBoolBox &bb) {
+void COptionsPanel::On_CheckBoxSet_Clicked(const CBoolBox &bb) {
     const bool isSet = IsButtonCheckedBool(bb.Set_Id);
     if (!isSet)
         CheckButton(bb.Id, bb.DefaultVal);
@@ -296,7 +296,7 @@ static const UInt32 kLangIDs_Options[] = {IDX_COMPRESS_NT_SYM_LINKS,   IDX_COMPR
                                           IDX_COMPRESS_PRESERVE_ATIME};
 #endif
 
-bool COptionsDialog::OnInit() {
+bool COptionsPanel::OnInit() {
 #ifdef Z7_LANG
     LangSetWindowText(*this, IDB_COMPRESS_OPTIONS); // IDS_OPTIONS
     LangSetDlgItems(*this, kLangIDs_Options, Z7_ARRAY_SIZE(kLangIDs_Options));
@@ -353,12 +353,10 @@ bool COptionsDialog::OnInit() {
 
     SetPrec();
 
-    NormalizePosition();
-
-    return CQtCompressOptionsDialog::OnInit();
+    return CQtCompressOptionsPanel::OnInit();
 }
 
-bool COptionsDialog::OnCommand(unsigned code, unsigned itemID, qintptr lParam) {
+bool COptionsPanel::OnCommand(unsigned code, unsigned itemID, qintptr lParam) {
     if (code == CBN_SELCHANGE) {
         switch (itemID) {
         case IDC_COMPRESS_TIME_PREC: {
@@ -368,10 +366,10 @@ bool COptionsDialog::OnCommand(unsigned code, unsigned itemID, qintptr lParam) {
         }
         }
     }
-    return CQtCompressOptionsDialog::OnCommand(code, itemID, lParam);
+    return CQtCompressOptionsPanel::OnCommand(code, itemID, lParam);
 }
 
-bool COptionsDialog::OnButtonClicked(unsigned buttonID, QWidget *buttonHWND) {
+bool COptionsPanel::OnButtonClicked(unsigned buttonID, QWidget *buttonHWND) {
     switch (buttonID) {
     case IDX_COMPRESS_PREC_SET: {
         On_CheckBoxSet_Prec_Clicked();
@@ -394,10 +392,10 @@ bool COptionsDialog::OnButtonClicked(unsigned buttonID, QWidget *buttonHWND) {
         return true;
     }
     }
-    return CQtCompressOptionsDialog::OnButtonClicked(buttonID, buttonHWND);
+    return CQtCompressOptionsPanel::OnButtonClicked(buttonID, buttonHWND);
 }
 
-void COptionsDialog::OnOK() {
+void COptionsPanel::OnOK() {
     GetButton_Bool1(IDX_COMPRESS_NT_SYM_LINKS, cd->SymLinks);
     GetButton_Bool1(IDX_COMPRESS_NT_HARD_LINKS, cd->HardLinks);
     GetButton_Bool1(IDX_COMPRESS_NT_ALT_STREAMS, cd->AltStreams);
@@ -414,8 +412,15 @@ void COptionsDialog::OnOK() {
         fo.SetArcMTime = ZTime.BoolPair;
     }
 
-    CQtCompressOptionsDialog::OnOK();
+    CQtCompressOptionsPanel::OnOK();
 }
 
 #define kHelpTopic_Options "fm/plugins/7-zip/add.htm#options"
-void COptionsDialog::OnHelp() { ShowHelpWindow(kHelpTopic_Options, this); }
+void COptionsPanel::OnHelp() { ShowHelpWindow(kHelpTopic_Options, this); }
+
+void COptionsPanel::refreshContext() {
+    // Publish current controls into the local profile before source capability
+    // recalculation reads it. Hidden overrides retain the source contract.
+    apply();
+    SetPrec();
+}

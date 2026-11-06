@@ -4,6 +4,7 @@
 #include "filemanager/support/window_state_support.h"
 #include "localization/LangUtils.h"
 #include "platform/support/native_link_fixture.h"
+#include "support/archive_expert.h"
 #include <QScopeGuard>
 
 namespace {
@@ -90,22 +91,13 @@ class ArchiveMetadataUiTests final : public QObject, protected MainWindowTestSup
             QCOMPARE(form->sources(), QStringList{root});
             form->findChild<QComboBox *>("archiveFormat")->setCurrentText("tar");
             form->findChild<QLineEdit *>("archiveName")->setText(archive);
-            QTimer::singleShot(0, form, [&] {
-                auto *options = qobject_cast<QDialog *>(QApplication::activeModalWidget());
-                QVERIFY(options);
-                const auto rejectOptions = qScopeGuard([&] {
-                    if (options->isVisible())
-                        options->reject();
-                });
+            QVERIFY(EditArchiveMetadata(*form, true, [&](QDialog &editor) {
+                auto *options = &editor;
                 auto *sym = options->findChild<QCheckBox *>("IDX_COMPRESS_NT_SYM_LINKS");
                 QVERIFY(sym && sym->isVisible() && sym->isEnabled());
                 sym->setChecked(true);
                 optionsSeen = true;
-                options->findChild<QDialogButtonBox *>("compressOptionsButtons")
-                    ->button(QDialogButtonBox::Ok)
-                    ->click();
-            });
-            form->findChild<QPushButton *>("archiveAdvancedOptions")->click();
+            }));
             QVERIFY(optionsSeen && form->compressionOptions().SymLinks.Val);
             form->findChild<QCheckBox *>("archiveDeleteAfterCompression")->setChecked(true);
             formAnswered = true;

@@ -244,6 +244,14 @@
             <translation>Параметры файлов</translation>
         </message>
         <message>
+            <source>Method properties</source>
+            <translation>Параметры метода</translation>
+        </message>
+        <message>
+            <source>Metadata and time</source>
+            <translation>Метаданные и время</translation>
+        </message>
+        <message>
             <location line="+4" />
             <source>Split to volumes</source>
             <translation>Разделение на тома</translation>

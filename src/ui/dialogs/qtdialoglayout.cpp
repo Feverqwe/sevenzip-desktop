@@ -55,6 +55,17 @@ class DialogBody final : public QWidget {
 };
 
 class DialogContentScroll final : public QScrollArea {
+    bool eventFilter(QObject *object, QEvent *event) override {
+        const bool result = QScrollArea::eventFilter(object, event);
+        if (object == widget() && event->type() == QEvent::LayoutRequest) {
+            // Disclosures and live translation can change the content minimum
+            // after show. Propagate it to the enclosing form before clipping.
+            updateGeometry();
+            if (window()->layout())
+                window()->layout()->activate();
+        }
+        return result;
+    }
     void updateScrollbarSpace() {
         auto *bar = verticalScrollBar();
         int overlap = style()->pixelMetric(QStyle::PM_ScrollView_ScrollBarOverlap, nullptr, bar);

@@ -3,9 +3,11 @@
 #include "support/widget_dialogs.h"
 #include "ui/controls/qtdisclosure.h"
 #include <QApplication>
+#include <QCheckBox>
 #include <QDialogButtonBox>
 #include <QPushButton>
 #include <QScopeGuard>
+#include <QScrollArea>
 #include <QtTest>
 
 // Visit the actual modal editor through the same button as the user. Failed
@@ -36,4 +38,22 @@ inline bool EditArchiveExpert(QWidget &form, bool apply,
     });
     button->click();
     return visited;
+}
+
+inline bool EditArchiveMetadata(QWidget &form, bool apply,
+                                const std::function<void(QDialog &)> &edit) {
+    return EditArchiveExpert(form, apply, [&](QDialog &editor) {
+        auto *section = editor.findChild<QtDisclosure *>("archiveMetadataSection");
+        QVERIFY(section);
+        section->setExpanded(true);
+        QApplication::processEvents();
+        for (auto *control : section->findChildren<QCheckBox *>())
+            if (control->isVisible() && control->isEnabled()) {
+                editor.findChild<QScrollArea *>("dialogContentScroll")
+                    ->ensureWidgetVisible(control);
+                break;
+            }
+        QApplication::processEvents();
+        edit(editor);
+    });
 }

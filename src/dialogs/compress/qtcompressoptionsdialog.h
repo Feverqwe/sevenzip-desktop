@@ -7,8 +7,9 @@
 #include "dialogs/compress/CompressDialog.h"
 #include "dialogs/compress/qtcompressoptionscontrols.h"
 #include "ui/dialogs/qtdialoglayout.h"
+#include <QDialog>
 
-class COptionsDialog : public CQtCompressOptionsDialog {
+class COptionsPanel : public CQtCompressOptionsPanel {
     struct CBoolBox {
         bool IsSupported;
         bool DefaultVal;
@@ -75,17 +76,25 @@ class COptionsDialog : public CQtCompressOptionsDialog {
     virtual void OnHelp() override;
 
   public:
-    int Create(QWidget *wndParent = nullptr) {
-        if (wndParent)
-            setParent(wndParent, windowFlags());
-        QtUseContextDialogModality(*this);
-        return exec();
-    }
-
-    COptionsDialog(CCompressDialog *cdLoc Z7_lifetimebound)
-        : cd(cdLoc)
+    COptionsPanel(CCompressDialog *cdLoc Z7_lifetimebound, QWidget *parent = nullptr)
+        : CQtCompressOptionsPanel(parent), cd(cdLoc)
     // , TimePrec(0)
     {
         Reset_TimePrec();
     }
+    void refreshContext();
+};
+
+// Standalone shell; the same source-backed panel also lives in the Expert draft.
+class COptionsDialog : public QDialog {
+    COptionsPanel *panel_;
+    bool initialized_ = false;
+    bool focusControl(QWidget *start, bool next, Qt::FocusReason reason);
+    bool focusNextPrevChild(bool next) override;
+
+  public:
+    explicit COptionsDialog(CCompressDialog *source Z7_lifetimebound);
+    int Create(QWidget *parent = nullptr);
+    void setVisible(bool visible) override;
+    void accept() override;
 };

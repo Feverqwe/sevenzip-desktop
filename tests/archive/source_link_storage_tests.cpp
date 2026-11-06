@@ -11,7 +11,7 @@
 #include "localization/LangUtils.h"
 #include "platform/support/native_link_fixture.h"
 #include "settings/RegistryUtils.h"
-#include "support/widget_dialogs.h"
+#include "support/archive_expert.h"
 #include "ui/support/layout_inspection.h"
 #include <QScopeGuard>
 #include <QStandardPaths>
@@ -25,7 +25,6 @@ QByteArray readFile(const QString &path) {
 
 class SourceLinkStorageTests final : public QObject, protected ArchiveBackendTestSupport {
     Q_OBJECT
-    WidgetDialogFixture widgetDialogs_;
   private slots:
     void optionsTransactionAndGeometry_data() {
         QTest::addColumn<QString>("language");
@@ -64,16 +63,10 @@ class SourceLinkStorageTests final : public QObject, protected ArchiveBackendTes
         QVERIFY(ready[0][0].toBool());
         CreateArchiveDialog form(fixture.path(), {source}, nullptr, backend.codecCatalog());
         form.findChild<QComboBox *>("archiveFormat")->setCurrentText("tar");
-        auto *advanced = form.findChild<QPushButton *>("archiveAdvancedOptions");
-        QVERIFY(advanced);
         bool inspected = false;
         const auto changeOptions = [&](bool accept) {
-            widgetDialogs_.respond(form, [&, accept](QDialog &active) {
+            QVERIFY(EditArchiveMetadata(form, accept, [&](QDialog &active) {
                 auto *dialog = &active;
-                const auto close = qScopeGuard([&] {
-                    if (dialog->isVisible())
-                        dialog->reject();
-                });
                 dialog->resize(size);
                 QApplication::processEvents();
                 // Native control/font minima may enlarge a compact request.
@@ -81,21 +74,20 @@ class SourceLinkStorageTests final : public QObject, protected ArchiveBackendTes
                 auto *sym = dialog->findChild<QCheckBox *>("IDX_COMPRESS_NT_SYM_LINKS");
                 auto *hard = dialog->findChild<QCheckBox *>("IDX_COMPRESS_NT_HARD_LINKS");
                 QVERIFY(sym && hard && sym->isVisible() && hard->isVisible());
+                dialog->findChild<QScrollArea *>("dialogContentScroll")->ensureWidgetVisible(hard);
+                QApplication::processEvents();
                 QVERIFY(UiInspection::fullyVisible(*sym, *dialog));
                 QVERIFY(UiInspection::fullyVisible(*hard, *dialog));
                 QVERIFY(sym->width() >= sym->sizeHint().width());
                 QVERIFY(hard->width() >= hard->sizeHint().width());
-                auto *buttons = dialog->findChild<QDialogButtonBox *>("compressOptionsButtons");
+                auto *buttons = dialog->findChild<QDialogButtonBox *>();
                 QVERIFY(buttons && UiInspection::fullyVisible(*buttons, *dialog));
                 QVERIFY(UiInspection::writeReport(
                     *dialog, QString("source-metadata-%1-%2").arg(language).arg(size.width())));
                 sym->setChecked(true);
                 hard->setChecked(true);
                 inspected = true;
-                if (accept)
-                    buttons->button(QDialogButtonBox::Ok)->click();
-            });
-            advanced->click();
+            }));
         };
         changeOptions(false);
         QVERIFY(inspected);

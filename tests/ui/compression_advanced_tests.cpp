@@ -304,17 +304,17 @@ class CompressionAdvancedTests final : public QObject {
         QVERIFY(EditArchiveExpert(dialog, false, [&](QDialog &editor) {
             editor.resize(size);
             auto *parameters = editor.findChild<QLineEdit *>("archiveParameters");
-            auto *advanced = editor.findChild<QPushButton *>("archiveAdvancedOptions");
+            auto *metadata = editor.findChild<QtDisclosure *>("archiveMetadataSection");
             auto *scroll = editor.findChild<QScrollArea *>("dialogContentScroll");
             auto *buttons = editor.findChild<QDialogButtonBox *>();
             scroll->ensureWidgetVisible(parameters);
             QTRY_VERIFY(UiInspection::fullyVisible(*parameters, editor));
             QVERIFY(UiInspection::writeReport(editor,
                                               QString("archive-parameters-%1").arg(size.width())));
-            scroll->ensureWidgetVisible(advanced);
-            QTRY_VERIFY(UiInspection::fullyVisible(*advanced, editor));
+            scroll->ensureWidgetVisible(metadata);
+            QTRY_VERIFY(UiInspection::fullyVisible(*metadata, editor));
             QVERIFY(UiInspection::fullyVisible(*buttons, editor));
-            QVERIFY(UiInspection::separate(*parameters, *advanced, editor));
+            QVERIFY(UiInspection::separate(*parameters, *metadata, editor));
             QVERIFY(UiInspection::writeReport(editor,
                                               QString("archive-advanced-%1").arg(size.width())));
         }));
@@ -360,19 +360,28 @@ class CompressionAdvancedTests final : public QObject {
         QCOMPARE(form.findChild<QComboBox *>("archiveFormat")->currentText(), QString("tar"));
         QCOMPARE(form.compressionOptions().SymLinks.Val, expected);
         bool inspected = false;
-        QTimer::singleShot(0, &form, [&] {
-            auto *options = dynamic_cast<COptionsDialog *>(QApplication::activeModalWidget());
-            QVERIFY(options);
-            const auto cancel = qScopeGuard([&] { options->reject(); });
-            auto *links = check(*options, "IDX_COMPRESS_NT_SYM_LINKS");
+        QVERIFY(EditArchiveMetadata(form, false, [&](QDialog &options) {
+            auto *links = check(options, "IDX_COMPRESS_NT_SYM_LINKS");
             QVERIFY(links && links->isEnabled() && links->isVisible());
             QCOMPARE(links->isChecked(), expected);
             links->setChecked(!expected);
             inspected = true;
-        });
-        form.findChild<QPushButton *>("archiveAdvancedOptions")->click();
+        }));
         QVERIFY(inspected);
         QCOMPARE(form.compressionOptions().SymLinks.Val, expected);
+        QVERIFY(EditArchiveExpert(form, true, [](QDialog &) {}));
+        QCOMPARE(form.compressionOptions().SymLinks.Val, expected);
+        QVERIFY(EditArchiveMetadata(form, true, [&](QDialog &options) {
+            check(options, "IDX_COMPRESS_ZTIME_SET")->click();
+            check(options, "IDX_COMPRESS_ZTIME")->setChecked(true);
+        }));
+        QCOMPARE(form.compressionOptions().SymLinks.Val, expected);
+        for (bool value : {!expected, expected}) {
+            QVERIFY(EditArchiveMetadata(form, true, [&](QDialog &options) {
+                check(options, "IDX_COMPRESS_NT_SYM_LINKS")->setChecked(value);
+            }));
+            QCOMPARE(form.compressionOptions().SymLinks.Val, value);
+        }
         form.reject();
         QCOMPARE(readFile(settings_), before);
     }
@@ -384,7 +393,6 @@ class CompressionAdvancedTests final : public QObject {
         CreateArchiveDialog dialog(fixture.path(), {source});
         auto *format = dialog.findChild<QComboBox *>("archiveFormat");
         auto *parameters = dialog.findChild<QLineEdit *>("archiveParameters");
-        auto *advanced = dialog.findChild<QPushButton *>("archiveAdvancedOptions");
         parameters->setText("  -mtm=off mt=2  ");
         format->setCurrentText("zip");
         QVERIFY(parameters->text().isEmpty());
@@ -392,17 +400,10 @@ class CompressionAdvancedTests final : public QObject {
         format->setCurrentText("7z");
         QCOMPARE(parameters->text(), QString("-mtm=off mt=2"));
         const auto setTime = [&](bool accept) {
-            QTimer::singleShot(0, [&] {
-                auto *options = dynamic_cast<COptionsDialog *>(QApplication::activeModalWidget());
-                QVERIFY(options);
-                check(*options, "IDX_COMPRESS_CTIME_SET")->click();
-                check(*options, "IDX_COMPRESS_CTIME")->click();
-                if (accept)
-                    options->accept();
-                else
-                    options->reject();
-            });
-            advanced->click();
+            QVERIFY(EditArchiveMetadata(dialog, accept, [&](QDialog &options) {
+                check(options, "IDX_COMPRESS_CTIME_SET")->click();
+                check(options, "IDX_COMPRESS_CTIME")->click();
+            }));
         };
         setTime(false);
         QVERIFY(!dialog.compressionOptions().CTime.Def);
@@ -413,9 +414,8 @@ class CompressionAdvancedTests final : public QObject {
         QVERIFY(!QFileInfo::exists(settings_));
         // A separate confirmed Add saves both per-format property sets.
         CreateArchiveDialog confirmed(fixture.path(), {source});
-        QTimer::singleShot(0, [&] {
-            auto *options = dynamic_cast<COptionsDialog *>(QApplication::activeModalWidget());
-            QVERIFY(options);
+        const bool editedMetadata = EditArchiveMetadata(confirmed, true, [&](QDialog &editor) {
+            auto *options = &editor;
             check(*options, "IDX_COMPRESS_CTIME_SET")->click();
             check(*options, "IDX_COMPRESS_CTIME")->click();
 #ifdef Q_OS_WIN
@@ -423,21 +423,17 @@ class CompressionAdvancedTests final : public QObject {
 #endif
             check(*options, "IDX_COMPRESS_ZTIME_SET")->click();
             check(*options, "IDX_COMPRESS_ZTIME")->click();
-            options->accept();
         });
-        confirmed.findChild<QPushButton *>("archiveAdvancedOptions")->click();
+        QVERIFY(editedMetadata);
         confirmed.findChild<QLineEdit *>("archiveParameters")->setText("mt=2");
         confirmed.findChild<QComboBox *>("archiveFormat")->setCurrentText("zip");
         confirmed.findChild<QLineEdit *>("archiveParameters")->setText("m=Store");
-        QTimer::singleShot(0, [&] {
-            auto *options = dynamic_cast<COptionsDialog *>(QApplication::activeModalWidget());
-            QVERIFY(options);
+        QVERIFY(EditArchiveMetadata(confirmed, true, [&](QDialog &editor) {
+            auto *options = &editor;
             check(*options, "IDX_COMPRESS_PREC_SET")->click();
             auto *precision = options->findChild<QComboBox *>("IDC_COMPRESS_TIME_PREC");
             precision->setCurrentIndex(precision->findData(UInt32(NFileTimeType::kUnix)));
-            options->accept();
-        });
-        confirmed.findChild<QPushButton *>("archiveAdvancedOptions")->click();
+        }));
         confirmed.findChild<QComboBox *>("archiveFormat")->setCurrentText("7z");
         confirmed.findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok)->click();
         QCOMPARE(confirmed.result(), int(QDialog::Accepted));

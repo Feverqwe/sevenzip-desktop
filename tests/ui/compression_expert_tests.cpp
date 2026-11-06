@@ -127,12 +127,12 @@ class CompressionExpertTests final : public QObject {
         QCOMPARE(properties(form.sourceInfo()), selected);
         QVERIFY(!bytes(settings_).isEmpty());
     }
-    void metadataApplyCanBeCancelledByOuterEditor_data() {
+    void inlineMetadataCanBeCancelled_data() {
         QTest::addColumn<bool>("sourceBound");
         QTest::newRow("standalone") << false;
         QTest::newRow("source-bound") << true;
     }
-    void metadataApplyCanBeCancelledByOuterEditor() {
+    void inlineMetadataCanBeCancelled() {
         QFETCH(bool, sourceBound);
         const auto catalog = NativeArchiveFixture::Catalog();
         const QString input = fixture_.filePath("selected.txt");
@@ -153,30 +153,50 @@ class CompressionExpertTests final : public QObject {
         combo(form, "archiveFormat")->setCurrentText("tar");
         const auto before = form.sourceInfo().SymLinks;
         form.show();
-        bool applied = false;
-        QVERIFY(EditArchiveExpert(form, false, [&](QDialog &editor) {
-            WidgetDialogFixture metadata;
-            metadata.respond(editor, [&](QDialog &dialog) {
-                if (dialog.objectName() != "compressOptionsDialog")
-                    return;
-                const auto dismiss = qScopeGuard([&] {
-                    if (dialog.isVisible())
-                        dialog.reject();
-                });
-                auto *links = dialog.findChild<QCheckBox *>("IDX_COMPRESS_NT_SYM_LINKS");
-                QVERIFY(links && links->isVisible() && links->isEnabled());
-                links->setChecked(!before.Val);
-                dialog.findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok)->click();
-                applied = true;
-            });
-            editor.findChild<QPushButton *>("archiveAdvancedOptions")->click();
-            QVERIFY(applied);
-            QCOMPARE(form.sourceInfo().SymLinks.Val, !before.Val);
+        bool edited = false;
+        QVERIFY(EditArchiveMetadata(form, false, [&](QDialog &editor) {
+            auto *links = editor.findChild<QCheckBox *>("IDX_COMPRESS_NT_SYM_LINKS");
+            QVERIFY(links && links->isVisible() && links->isEnabled());
+            links->setChecked(!before.Val);
+            edited = true;
+            // Inline edits stay within Expert until its Apply.
+            QCOMPARE(form.sourceInfo().SymLinks.Val, before.Val);
         }));
-        QVERIFY(applied);
+        QVERIFY(edited);
         QCOMPARE(form.sourceInfo().SymLinks.Val, before.Val);
         QCOMPARE(form.sourceInfo().SymLinks.Def, before.Def);
         QVERIFY(!QFile::exists(settings_));
+    }
+    void tarMethodChangesKeepPendingTimeOverrides() {
+        CreateArchiveDialog form(fixture_.path(), {}, nullptr, NativeArchiveFixture::Catalog());
+        combo(form, "archiveFormat")->setCurrentText("tar");
+        form.show();
+        QVERIFY(EditArchiveMetadata(form, true, [&](QDialog &editor) {
+            auto *method = combo(editor, "compressionMethod");
+            const int posix = method->findData(int(NCompressDialog::kPosix));
+            // The source represents its default GNU method with the Auto item.
+            const int gnu = method->findData(-1);
+            QVERIFY(posix >= 0 && gnu >= 0);
+            method->setCurrentIndex(posix);
+            auto *overrideTime = editor.findChild<QCheckBox *>("IDX_COMPRESS_ATIME_SET");
+            auto *accessTime = editor.findChild<QCheckBox *>("IDX_COMPRESS_ATIME");
+            QVERIFY(overrideTime->isVisible() && accessTime->isVisible());
+            if (!overrideTime->isChecked())
+                overrideTime->click();
+            accessTime->setChecked(true);
+            method->setCurrentIndex(gnu);
+            QVERIFY(accessTime->isHidden());
+            method->setCurrentIndex(posix);
+            QVERIFY(accessTime->isVisible());
+            QVERIFY(overrideTime->isChecked() && accessTime->isChecked());
+        }));
+        QVERIFY(form.compressionOptions().ATime.Def);
+        QVERIFY(form.compressionOptions().ATime.Val);
+        QVERIFY(!QFile::exists(settings_));
+        QVERIFY(EditArchiveMetadata(form, false, [&](QDialog &editor) {
+            editor.findChild<QCheckBox *>("IDX_COMPRESS_ATIME")->setChecked(false);
+        }));
+        QVERIFY(form.compressionOptions().ATime.Val);
     }
     void languageChangesKeepLiveEditorAndCompactActions() {
         CreateArchiveDialog form(fixture_.path(), {}, nullptr, NativeArchiveFixture::Catalog());
@@ -211,6 +231,20 @@ class CompressionExpertTests final : public QObject {
                     QVERIFY(UiInspection::writeReport(
                         editor,
                         QString("archive-expert-language-%1-%2").arg(language).arg(size.width())));
+                    auto *metadata = editor.findChild<QtDisclosure *>("archiveMetadataSection");
+                    metadata->setExpanded(true);
+                    auto *time = editor.findChild<QCheckBox *>("IDX_COMPRESS_CTIME");
+                    QApplication::processEvents();
+                    scroll->ensureWidgetVisible(time);
+                    QTRY_VERIFY(UiInspection::fullyVisible(*time, editor));
+                    QVERIFY(time->width() >= time->sizeHint().width());
+                    QVERIFY(time->height() >= time->sizeHint().height());
+                    QTRY_VERIFY(UiInspection::fullyVisible(*buttons, editor));
+                    QTRY_COMPARE(scroll->horizontalScrollBar()->maximum(), 0);
+                    QVERIFY(UiInspection::writeReport(
+                        editor,
+                        QString("archive-expert-metadata-%1-%2").arg(language).arg(size.width())));
+                    metadata->setExpanded(false);
                 }
             }
         }));

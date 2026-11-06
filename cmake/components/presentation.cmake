@@ -86,6 +86,7 @@ add_library(sevenzip_panel
     src/help/qthelpservices.cpp
     src/help/qthelpservices.h
     src/dialogs/compress/qtcompressoptionscontrols.cpp
+    src/dialogs/compress/qtcompressoptionsdialog.cpp
     src/dialogs/compress/qtcompressoptionscontrols.h
     src/dialogs/compress/qtcompressoptionsdialog.h
     src/gui/UpdateGUI.cpp

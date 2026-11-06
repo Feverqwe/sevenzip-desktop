@@ -1,18 +1,14 @@
 #include "dialogs/compress/qtcompressoptionscontrols.h"
 #include "7zip/UI/GUI/CompressDialogRes.h"
 #include "localization/LangUtils.h"
-#include "localization/qtlangbuttonbox.h"
 #include "localization/qtlangcontrols.h"
 #include "ui/dialogs/qtdialoglayout.h"
-#include "ui/dialogs/qtdialogscreenservices.h"
 #include <QCheckBox>
 #include <QComboBox>
-#include <QDialogButtonBox>
 #include <QEvent>
 #include <QGridLayout>
 #include <QGroupBox>
 #include <QLabel>
-#include <QShortcut>
 #include <QVBoxLayout>
 
 void CQtCompressCombo::Attach(QWidget *widget) { view_ = static_cast<QComboBox *>(widget); }
@@ -40,15 +36,13 @@ int CQtCompressCombo::AddString_SetItemData(const UString &text, qintptr value) 
 void CQtCompressCombo::ResetContent() { view_->clear(); }
 void CQtCompressCombo::SetCurSel(int index) { view_->setCurrentIndex(index); }
 
-CQtCompressOptionsDialog::CQtCompressOptionsDialog(QWidget *parent) : QDialog(parent) {
-    setObjectName("compressOptionsDialog");
-    QtBindLangText(this, IDB_COMPRESS_OPTIONS, "Options");
+CQtCompressOptionsPanel::CQtCompressOptionsPanel(QWidget *parent) : QWidget(parent) {
+    setObjectName("compressOptionsContent");
     buildControls();
 }
 
-void CQtCompressOptionsDialog::buildControls() {
-    auto *content = new QWidget(this);
-    content->setObjectName("compressOptionsContent");
+void CQtCompressOptionsPanel::buildControls() {
+    auto *content = this;
     auto *layout = new QVBoxLayout(content);
     layout->setContentsMargins(0, 0, 0, 0);
 #ifdef Q_OS_MACOS
@@ -186,59 +180,16 @@ void CQtCompressOptionsDialog::buildControls() {
     grid->addWidget(preserve, row, 0, 1, 3);
     layout->addWidget(time);
     layout->addStretch();
-    auto *buttons = new QtLangButtonBox(
-        QDialogButtonBox::Ok | QDialogButtonBox::Cancel | QDialogButtonBox::Help, this);
-    buttons->setObjectName("compressOptionsButtons");
-    buttons->SetAcceptText("DialogRedesign", QT_TRANSLATE_NOOP("DialogRedesign", "Save"));
-    connect(buttons, &QDialogButtonBox::helpRequested, this, [this] { OnHelp(); });
-    auto *help = new QShortcut(QKeySequence(Qt::Key_F1), this);
-    connect(help, &QShortcut::activated, this, [this] { OnHelp(); });
-    connect(buttons, &QDialogButtonBox::accepted, this, &CQtCompressOptionsDialog::accept);
-    connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
-    QtCreateDialogLayout(*this, *buttons)->addWidget(content);
 }
 
-void CQtCompressOptionsDialog::setVisible(bool visible) {
-    // Apply source capability visibility before Qt computes the initial
-    // minimum size, so a hidden NTFS group does not enlarge compact dialogs.
-    const bool initialize = visible && !initialized_;
-    if (initialize) {
-        initialized_ = true;
-        OnInit();
-        QtBindLocalText(this, "ArchiveRedesign",
-                        QT_TRANSLATE_NOOP("ArchiveRedesign", "Format options"));
-        // Size after applying format/platform visibility, without reserving
-        // space for groups that the user cannot use.
-        if (!testAttribute(Qt::WA_Resized))
-            adjustSize();
-        NormalizePosition();
-    }
-    QDialog::setVisible(visible);
-    if (initialize)
-        focusControl(this, true, Qt::OtherFocusReason);
+void CQtCompressOptionsPanel::initialize() {
+    if (initialized_)
+        return;
+    initialized_ = true;
+    OnInit();
 }
 
-bool CQtCompressOptionsDialog::focusControl(QWidget *start, bool next, Qt::FocusReason reason) {
-    // Win32's dialog manager traverses visible, enabled WS_TABSTOP controls.
-    // Keep that source contract even when the native Qt style prefers only
-    // text inputs for keyboard traversal. Qt still owns the actual tab chain.
-    QWidget *control = start;
-    do {
-        control = next ? control->nextInFocusChain() : control->previousInFocusChain();
-        if (isAncestorOf(control) && control->isVisibleTo(this) && control->isEnabled() &&
-            (control->focusPolicy() & Qt::TabFocus)) {
-            control->setFocus(reason);
-            return true;
-        }
-    } while (control != start);
-    return false;
-}
-
-bool CQtCompressOptionsDialog::focusNextPrevChild(bool next) {
-    return focusControl(focusWidget() ? focusWidget() : this, next,
-                        next ? Qt::TabFocusReason : Qt::BacktabFocusReason);
-}
-void CQtCompressOptionsDialog::changeEvent(QEvent *event) {
+void CQtCompressOptionsPanel::changeEvent(QEvent *event) {
     if (event->type() == QEvent::LanguageChange && initialized_) {
         OnLanguageChange();
         // Resource bindings retain the descriptive accessible option names.
@@ -250,30 +201,29 @@ void CQtCompressOptionsDialog::changeEvent(QEvent *event) {
                     "qtcompressoptionscontrols",
                     id == IDX_COMPRESS_PREC_SET ? "Set time precision" : "Set"));
     }
-    QDialog::changeEvent(event);
+    QWidget::changeEvent(event);
 }
-QWidget *CQtCompressOptionsDialog::GetItem(unsigned id) const { return controls_.value(id); }
-void CQtCompressOptionsDialog::CheckButton(unsigned id, bool value) {
+QWidget *CQtCompressOptionsPanel::GetItem(unsigned id) const { return controls_.value(id); }
+void CQtCompressOptionsPanel::CheckButton(unsigned id, bool value) {
     static_cast<QCheckBox *>(GetItem(id))->setChecked(value);
 }
-bool CQtCompressOptionsDialog::IsButtonCheckedBool(unsigned id) const {
+bool CQtCompressOptionsPanel::IsButtonCheckedBool(unsigned id) const {
     return static_cast<QCheckBox *>(GetItem(id))->isChecked();
 }
-void CQtCompressOptionsDialog::ShowItem_Bool(unsigned id, bool visible) {
+void CQtCompressOptionsPanel::ShowItem_Bool(unsigned id, bool visible) {
     GetItem(id)->setVisible(visible);
     if (id == IDG_COMPRESS_NTFS) {
         GetItem(id)->parentWidget()->setVisible(visible);
     }
 }
-void CQtCompressOptionsDialog::EnableItem(unsigned id, bool enabled) {
+void CQtCompressOptionsPanel::EnableItem(unsigned id, bool enabled) {
     GetItem(id)->setEnabled(enabled);
 }
-void CQtCompressOptionsDialog::SetItemText(unsigned id, const UString &text) {
+void CQtCompressOptionsPanel::SetItemText(unsigned id, const UString &text) {
     QString value = QString::fromWCharArray(text.Ptr());
     if (id == IDT_COMPRESS_TIME_INFO && value.contains(':'))
         value = QtLangText(IDT_COMPRESS_FORMAT, "Archive format:").remove('&') +
                 value.mid(value.indexOf(':') + 1);
     static_cast<QLabel *>(GetItem(id))->setText(value);
 }
-void CQtCompressOptionsDialog::NormalizePosition() { QtNormalizeDialogPosition(*this); }
-bool CQtCompressOptionsDialog::OnButtonClicked(unsigned, QWidget *) { return false; }
+bool CQtCompressOptionsPanel::OnButtonClicked(unsigned, QWidget *) { return false; }

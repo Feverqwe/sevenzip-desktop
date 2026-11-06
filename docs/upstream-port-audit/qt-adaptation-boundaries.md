@@ -1,5 +1,63 @@
 # Qt adaptation boundary review — 2026-10-18
 
+## Shared inline format-options panel — 2026-11-06
+
+Recompared the complete recorded COptionsDialog declaration, functional bodies,
+CompressOptionsDialog.rc and the Add callers before splitting the presentation.
+The original inventory and revision remain unchanged. In the same compression
+owner, the borrowed COptionsDialog implementation now has the local name
+COptionsPanel in CompressOptionsDialog.cpp/qtcompressoptionsdialog.h. Its Qt
+control services are a QWidget in qtcompressoptionscontrols.cpp/.h. No second
+timestamp or metadata policy is introduced. COptionsDialog is a project-owned
+standalone shell in qtcompressoptionsdialog.cpp, recorded as local integration.
+
+The panel retains precision/default selection, capability flags, bool-pair
+overrides, hidden values, ZIP/TAR branches, language handling and Help. Window
+normalization, standalone initialization sizing, closed dialog Tab traversal,
+Save/Cancel/Help and accept/reject belong to the shell. Initialization occurs
+once before measuring the panel. The native accepted-value transfer is shared;
+only the standalone shell closes its window afterward.
+
+Expert embeds that same panel within a Metadata and time disclosure. Its local
+source and profile outlive the temporary panel. A method transition transfers
+pending controls into the local profile before the original precision/capability
+recalculation reads it. Apply publishes only metadata to the parent draft;
+Cancel discards it together with the existing Expert snapshot. Main confirmation
+still owns settings and the operation request. Fixed-source command-line
+precedence and platform capability limits retain their existing owners.
+
+The adapter publishes only changed link/security values. This is necessary
+because native acceptance consumes its normalized request once, whereas the Qt
+draft is read repeatedly: normalizing an unchanged explicit false override
+could otherwise expose a saved true value on the next read. Existing explicit
+command precedence is retained for changed fixed-source values too. The
+regression covers untouched Apply, unrelated timestamp edits and switching the
+link flag back under explicit-on, explicit-off and saved-default inputs.
+
+The shared scrolling form propagates content LayoutRequest changes to its
+parent layout. Expanding metadata or changing language can increase its native
+minimum width after first show; the form must accommodate it instead of leaving
+hidden horizontal overflow. This does not refit the window to the full content
+height. Compact inline geometry and the existing general surface/progress
+consumers exercise that boundary.
+
+The surrounding Expert editor now uses the catalog's source, compression, files,
+metadata/time and method-property disclosures. A shared read-only source-section
+builder is used in Additional and Expert. Collapse preserves values; changes
+remain visible through summaries. Creation/update intent and the operation-list
+surface remain separate outstanding catalog work.
+
+Focused validation: Linux passed the Expert, advanced compression, common
+scrolling surface/progress, source Add, geometry and language consumers, plus
+link-storage and archive-metadata workflows. Standalone options presentation and
+timestamp suites also passed. Actual Cocoa passed twelve affected suites,
+including the standalone and inline presentations and engine-backed link
+storage. Interactive Windows passed advanced compression and WIM metadata
+storage, including PreserveATime; its first session0 native run was not valid
+focus evidence. Compact WIM checks now scroll to each field rather than require
+all metadata to fit simultaneously. No full or slow suite was run; these checks
+do not establish complete catalog or rendered Windows-reference parity.
+
 ## Complete format-options implementation owner — 2026-11-04
 
 Compared the complete original COptionsDialog bodies and helpers in

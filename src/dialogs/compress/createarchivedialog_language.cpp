@@ -56,8 +56,6 @@ void CreateArchiveDialog::BindLanguage() {
     row(encryption_, IDT_COMPRESS_ENCRYPTION_METHOD, "&Encryption method:");
     if (auto *label = findChild<QLabel *>("archiveEncryptionMethodLabel"))
         QtBindResourceText(label, IDT_COMPRESS_ENCRYPTION_METHOD, "&Encryption method:");
-    QtBindLocalText(advanced_, "ArchiveRedesign",
-                    QT_TRANSLATE_NOOP("ArchiveRedesign", "Metadata settings…"));
     QtBindResourceText(sharedFiles_, IDX_COMPRESS_SHARED, "Compress shared files");
     QtBindResourceText(sfx_, IDX_COMPRESS_SFX, "Create SFX archive");
     QtBindResourceText(deleteAfterCompressing_, IDX_COMPRESS_DEL, "Delete files after compression");

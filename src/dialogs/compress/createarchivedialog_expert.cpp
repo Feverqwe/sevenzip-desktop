@@ -1,8 +1,10 @@
 #include "Windows/ErrorMsg.h"
 #include "archive/callbacks/qtguimessages.h"
 #include "dialogs/compress/createarchivedialog.h"
+#include "dialogs/compress/qtcompressoptionsdialog.h"
 #include "localization/qtlangbuttonbox.h"
 #include "localization/qtlangcontrols.h"
+#include "ui/controls/qtdisclosure.h"
 #include "ui/dialogs/qtdialoglayout.h"
 #include "ui/lifecycle/qttaskpresentation.h"
 #include <QApplication>
@@ -10,6 +12,7 @@
 #include <QScrollArea>
 #include <QSignalBlocker>
 #include <QTimer>
+#include <QToolButton>
 
 namespace {
 struct Choice {
@@ -132,6 +135,39 @@ void CreateArchiveDialog::showExpertOptions(QWidget *focus) {
         expertContent_->setParent(this);
         expertContent_->hide();
     });
+    // The source/profile outlive the temporary panel; neither is stored in the
+    // reusable content widget. Cancel discards this entire metadata draft.
+    CCompressDialog metadataSource;
+    configureMetadataSource(metadataSource);
+    const CCompressDialog initialMetadataSource = metadataSource;
+    NCompression::CFormatOptions metadataProfile = Get_FormatOptions();
+    metadataSource.FormatOptions = &metadataProfile;
+    auto *metadata = new COptionsPanel(&metadataSource);
+    auto metadataSection = std::make_unique<QtDisclosure>(metadata, expertContent_);
+    metadataSection->setObjectName("archiveMetadataSection");
+    QtBindLocalText(metadataSection->button(), "ArchiveRedesign",
+                    QT_TRANSLATE_NOOP("ArchiveRedesign", "Metadata and time"));
+    metadata->initialize();
+    static_cast<QVBoxLayout *>(expertContent_->layout())->insertWidget(3, metadataSection.get());
+    const auto summarizeMetadata = [&] {
+        metadata->apply();
+        metadataSource.ShowOptionsString();
+        metadataSection->setSummary(
+            metadataSource.OptionsString.IsEmpty()
+                ? QString()
+                : QCoreApplication::translate("ArchiveRedesign", "Modified"));
+    };
+    connect(metadataSection->button(), &QToolButton::toggled, metadata, summarizeMetadata);
+    for (auto *check : metadata->findChildren<QCheckBox *>())
+        connect(check, &QCheckBox::clicked, metadata, summarizeMetadata);
+    for (auto *combo : metadata->findChildren<QComboBox *>())
+        connect(combo, &QComboBox::activated, metadata, summarizeMetadata);
+    connect(method_, &QComboBox::currentTextChanged, metadata, [&] {
+        metadataSource.MethodID = archiveNameState_.GetMethodID();
+        metadata->refreshContext();
+        summarizeMetadata();
+    });
+    summarizeMetadata();
     auto *buttons = new QtLangButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &editor);
     buttons->SetAcceptText("ArchiveRedesign", QT_TRANSLATE_NOOP("ArchiveRedesign", "Apply"));
     auto *layout = QtCreateDialogLayout(editor, *buttons, QtDialogContent::Scrollable);
@@ -144,12 +180,18 @@ void CreateArchiveDialog::showExpertOptions(QWidget *focus) {
             parameters_->setFocus();
             return;
         }
+        metadata->apply();
+        applyMetadataSource(metadataSource, initialMetadataSource, metadataProfile);
         editor.accept();
     });
     editor.resize(width(), 480);
     QTimer::singleShot(0, &editor, [&] {
-        QtFitScrollableDialog(editor);
         QWidget *target = focus ? focus : method_;
+        if (focus == parameters_)
+            parametersSection_->setExpanded(true);
+        else
+            compressionSection_->setExpanded(true);
+        QtFitScrollableDialog(editor);
         editor.findChild<QScrollArea *>("dialogContentScroll")->ensureWidgetVisible(target);
         if (QApplication::activeModalWidget() != &editor)
             return;
