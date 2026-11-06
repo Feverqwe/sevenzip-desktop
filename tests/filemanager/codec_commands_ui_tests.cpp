@@ -7,6 +7,7 @@
 #include "ui/progress/ProgressDialog2.h"
 #include "ui/support/layout_inspection.h"
 #include <QCheckBox>
+#include <QLineEdit>
 #include <QScopeGuard>
 #include <QScrollArea>
 #include <QStandardPaths>
@@ -200,9 +201,9 @@ class CodecCommandsUiTests final : public QObject, protected MainWindowTestSuppo
                 if (!submitted)
                     dialog->reject();
             });
-            auto *destination = dialog->findChild<QComboBox *>("copyDestination");
+            auto *destination = dialog->findChild<QLineEdit *>("copyDestination");
             QVERIFY(destination);
-            QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(destination->currentText())),
+            QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(destination->text())),
                      QDir::cleanPath(archive));
             dialog->resize(cancel ? QSize(480, 320) : QSize(640, 400));
             QApplication::processEvents();

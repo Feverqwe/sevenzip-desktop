@@ -7,6 +7,7 @@
 #include "support/widget_dialogs.h"
 #include "ui/progress/ProgressDialog2.h"
 #include "ui/support/layout_inspection.h"
+#include <QLineEdit>
 #include <QScrollArea>
 
 class UiCopySameTests final : public QObject, protected MainWindowTestSupport {
@@ -91,15 +92,15 @@ class UiCopySameTests final : public QObject, protected MainWindowTestSupport {
             dialogSeen = true;
             dialog->resize(size);
             dialog->layout()->activate();
-            auto *destination = dialog->findChild<QComboBox *>("copyDestination");
+            auto *destination = dialog->findChild<QLineEdit *>("copyDestination");
             auto *scroll = dialog->findChild<QScrollArea *>("dialogContentScroll");
             const QPoint center =
                 destination->mapTo(scroll->widget(), destination->rect().center());
             scroll->ensureVisible(center.x(), center.y(), (destination->width() + 2) / 2,
                                   (destination->height() + 2) / 2);
-            initial = dialog->findChild<QComboBox *>("copyDestination")->currentText();
+            initial = dialog->findChild<QLineEdit *>("copyDestination")->text();
             inspected =
-                UiInspection::fullyVisible(*dialog->findChild<QComboBox *>("copyDestination"),
+                UiInspection::fullyVisible(*dialog->findChild<QLineEdit *>("copyDestination"),
                                            *dialog) &&
                 UiInspection::writeReport(*dialog, QString("source-copy-default-%1-%2-%3-%4")
                                                        .arg(language)
@@ -305,7 +306,7 @@ class UiCopySameTests final : public QObject, protected MainWindowTestSupport {
             if (!dialog)
                 return;
             dialogSeen = true;
-            dialog->findChild<QComboBox *>("copyDestination")->setCurrentText(target);
+            dialog->findChild<QLineEdit *>("copyDestination")->setText(target);
             dialog->accept();
         });
         QTest::keyClick(view, Qt::Key_F5);
@@ -363,7 +364,7 @@ class UiCopySameTests final : public QObject, protected MainWindowTestSupport {
             if (!dialog)
                 return;
             defaultSeen = true;
-            ordinaryDefault = dialog->findChild<QComboBox *>("copyDestination")->currentText();
+            ordinaryDefault = dialog->findChild<QLineEdit *>("copyDestination")->text();
             dialog->reject();
         });
         QTest::keyClick(view, Qt::Key_F5);
@@ -383,7 +384,7 @@ class UiCopySameTests final : public QObject, protected MainWindowTestSupport {
             if (!dialog)
                 return;
             dialogSeen = true;
-            dialog->findChild<QComboBox *>("copyDestination")->setCurrentText(destination);
+            dialog->findChild<QLineEdit *>("copyDestination")->setText(destination);
             dialog->accept();
         });
         QTest::keyClick(view, Qt::Key_F5, Qt::ShiftModifier);
@@ -402,7 +403,7 @@ class UiCopySameTests final : public QObject, protected MainWindowTestSupport {
             if (!dialog)
                 return;
             dialogSeen = true;
-            dialog->findChild<QComboBox *>("copyDestination")->setCurrentText(movedDestination);
+            dialog->findChild<QLineEdit *>("copyDestination")->setText(movedDestination);
             dialog->accept();
         });
         QTest::keyClick(view, Qt::Key_F6, Qt::ShiftModifier);

@@ -7,10 +7,12 @@
 #include "formats/exfat/support/exfat_fixture.h"
 #include "localization/LangUtils.h"
 #include "localization/qtlanguageservices.h"
+#include "support/panel_keys.h"
 #include "ui/support/layout_inspection.h"
 #include <QDialogButtonBox>
 #include <QFileInfo>
 #include <QHeaderView>
+#include <QLineEdit>
 #include <QPushButton>
 #include <QSignalSpy>
 #include <QStandardPaths>
@@ -326,7 +328,7 @@ class DeviceUiTests final : public QObject {
             auto *pane = window.findChild<QWidget *>(QString("filePanel%1").arg(index));
             views[index] = pane->findChild<FileTable *>("archiveTable");
             addresses[index] = pane->findChild<QLineEdit *>("archivePath");
-            addresses[index]->setFocus();
+            PanelKeys::focusAddress(addresses[index]);
             QTRY_VERIFY(addresses[index]->hasFocus());
             window.openPath(path);
             QTRY_VERIFY(Row(*views[index], "panel.txt") >= 0);
@@ -335,8 +337,10 @@ class DeviceUiTests final : public QObject {
         const unsigned peer = 1 - owner;
         views[peer]->selectRow(Row(*views[peer], "panel.txt"));
         const QString peerDraft = QStringLiteral("peer черновик 空");
+        PanelKeys::focusAddress(addresses[peer]);
+        QTRY_VERIFY(addresses[peer]->hasFocus());
         addresses[peer]->setText(peerDraft);
-        addresses[owner]->setFocus();
+        PanelKeys::focusAddress(addresses[owner]);
         QTRY_VERIFY(addresses[owner]->hasFocus());
         bool closed = false;
         bool openingError = false;
@@ -354,7 +358,7 @@ class DeviceUiTests final : public QObject {
             if (stage == 0 && Items(*dialog)->topLevelItemCount() == 2) {
                 connect(dialog, &QDialog::finished, &window, [&] {
                     window.activateWindow();
-                    addresses[peer]->setFocus();
+                    PanelKeys::focusAddress(addresses[peer]);
                     QTRY_VERIFY(addresses[peer]->hasFocus());
                     closed = true;
                 });
@@ -629,7 +633,7 @@ class DeviceUiTests final : public QObject {
             QTimer::singleShot(0, &window, [&] {
                 if (auto *dialog = window.findChild<CopyDialog *>("copyDialog")) {
                     dialogSeen = true;
-                    dialog->findChild<QComboBox *>("copyDestination")->setCurrentText(output + '/');
+                    dialog->findChild<QLineEdit *>("copyDestination")->setText(output + '/');
                     dialog->accept();
                 }
             });

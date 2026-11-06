@@ -54,6 +54,7 @@ class CCopyDialog : public QDialog {
 
   private:
     QComboBox *_path = nullptr;
+    QLineEdit *_pathEdit = nullptr;
     QStringList _sources;
     QtSourceSummary *_sourceSummary = nullptr;
     QString _sourceLocation;
@@ -76,4 +77,5 @@ class CCopyDialog : public QDialog {
     void OnButtonSetPath();
     void OnOK();
     bool ReadPath(UString &path);
+    void SetPathText(const QString &path);
 };

@@ -4,6 +4,7 @@
 #include <QPushButton>
 #include <QResizeEvent>
 #include <QScrollArea>
+#include <QStyle>
 #include <QVBoxLayout>
 #include <QWidget>
 
@@ -20,6 +21,14 @@ class DialogBody final : public QWidget {
 class DialogContentScroll final : public QScrollArea {
   public:
     using QScrollArea::QScrollArea;
+    QSize minimumSizeHint() const override {
+        QSize hint = QScrollArea::minimumSizeHint();
+        if (widget())
+            hint.setWidth(qMax(hint.width(), widget()->minimumSizeHint().width() +
+                                                 frameWidth() * 2 +
+                                                 style()->pixelMetric(QStyle::PM_ScrollBarExtent)));
+        return hint;
+    }
     QSize sizeHint() const override {
         if (!widget())
             return QScrollArea::sizeHint();
@@ -38,6 +47,7 @@ QVBoxLayout *QtCreateDialogLayout(QWidget &window, QWidget &footer, QtDialogCont
     content->setSpacing(8);
     if (mode == QtDialogContent::Scrollable) {
         auto *body = new DialogBody(&window);
+        content->setAlignment(Qt::AlignTop);
         content->setContentsMargins(0, 0, 0, 0);
         content->setSizeConstraint(QLayout::SetMinAndMaxSize);
         body->setLayout(content);

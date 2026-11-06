@@ -1,4 +1,5 @@
 #include "window_operations.h"
+#include <QLineEdit>
 
 void MainWindowOperationsTests::damagedArchiveTransferPreservesBothArchives_data() {
     QTest::addColumn<bool>("move");
@@ -486,7 +487,7 @@ void MainWindowOperationsTests::movesRealArchiveEntryToDirectory() {
     QTimer::singleShot(0, &window, [&destination] {
         for (QWidget *widget : QApplication::topLevelWidgets()) {
             if (auto *dialog = qobject_cast<CopyDialog *>(widget); dialog && dialog->isVisible()) {
-                dialog->findChild<QComboBox *>("copyDestination")->setCurrentText(destination);
+                dialog->findChild<QLineEdit *>("copyDestination")->setText(destination);
                 dialog->accept();
             }
         }

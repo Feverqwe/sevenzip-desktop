@@ -6,6 +6,7 @@
 #include "platform/support/native_property_failure_runtime.h"
 #include "ui/progress/ProgressDialog2.h"
 #include "ui/support/layout_inspection.h"
+#include <QLineEdit>
 
 class NativeRendererCopyTests final : public QObject, protected MainWindowTestSupport {
     Q_OBJECT
@@ -147,7 +148,7 @@ class NativeRendererCopyTests final : public QObject, protected MainWindowTestSu
             if (auto *dialog = window.findChild<CopyDialog *>("copyDialog");
                 dialog && dialog->isVisible() && !submitted) {
                 submitted = true;
-                dialog->findChild<QComboBox *>("copyDestination")->setEditText(output);
+                dialog->findChild<QLineEdit *>("copyDestination")->setText(output);
                 dialog->accept();
             }
             for (QWidget *widget : QApplication::topLevelWidgets())

@@ -10,10 +10,14 @@
 #include <QFile>
 #include <QLabel>
 #include <QLayout>
+#include <QLineEdit>
+#include <QMenu>
 #include <QMessageBox>
+#include <QPushButton>
 #include <QTableWidget>
 #include <QTemporaryDir>
 #include <QTimer>
+#include <QToolButton>
 #include <QtTest>
 
 namespace {
@@ -81,10 +85,13 @@ CopyInteraction chooseDestination(CApp &app, QWidget &window, const QString &pat
         auto *dialog = window.findChild<CCopyDialog *>("copyDialog");
         if (dialog && dialog->isVisible() && !result.shown) {
             result.shown = true;
-            auto *destination = dialog->findChild<QComboBox *>("copyDestination");
-            for (int i = 0; i < destination->count(); ++i)
-                result.history.append(destination->itemText(i));
-            destination->setCurrentText(path);
+            auto *destination = dialog->findChild<QLineEdit *>("copyDestination");
+            for (auto *entry :
+                 dialog->findChild<QPushButton *>("copyRecentDestinations")->menu()->actions()) {
+                entry->trigger();
+                result.history.append(destination->text());
+            }
+            destination->setText(path);
             if (cancel)
                 dialog->reject();
             else

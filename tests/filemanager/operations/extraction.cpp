@@ -2,6 +2,7 @@
 #include "Windows/PropVariantConv.h"
 #include "ui/support/layout_inspection.h"
 #include "window_operations.h"
+#include <QLineEdit>
 #include <QScopedValueRollback>
 
 void MainWindowOperationsTests::backendOverwriteDisplaysNativeMetadata_data() {
@@ -300,7 +301,7 @@ void MainWindowOperationsTests::nestedFolderAskUsesSourceRelativePath() {
         auto *dialog = window.findChild<CopyDialog *>("copyDialog");
         QVERIFY(dialog);
         summary = ToQString(static_cast<CopyDialog *>(dialog)->Info);
-        dialog->findChild<QComboBox *>("copyDestination")->setCurrentText(copyOutput);
+        dialog->findChild<QLineEdit *>("copyDestination")->setText(copyOutput);
         dialog->accept();
     });
     action(window, "copyAction")->trigger();
@@ -320,7 +321,7 @@ void MainWindowOperationsTests::nestedFolderAskUsesSourceRelativePath() {
     connect(&cancelPrompt, &QTimer::timeout, &window, [&] {
         if (auto *dialog = window.findChild<CopyDialog *>("copyDialog");
             dialog && dialog->isVisible()) {
-            dialog->findChild<QComboBox *>("copyDestination")->setCurrentText(moveOutput);
+            dialog->findChild<QLineEdit *>("copyDestination")->setText(moveOutput);
             dialog->accept();
         }
         if (auto *dialog = dynamic_cast<COverwriteDialog *>(QApplication::activeModalWidget()))
@@ -337,7 +338,7 @@ void MainWindowOperationsTests::nestedFolderAskUsesSourceRelativePath() {
     QTimer::singleShot(0, &window, [&] {
         auto *dialog = window.findChild<CopyDialog *>("copyDialog");
         QVERIFY(dialog);
-        dialog->findChild<QComboBox *>("copyDestination")->setCurrentText(moveOutput);
+        dialog->findChild<QLineEdit *>("copyDestination")->setText(moveOutput);
         dialog->accept();
     });
     action(window, "moveAction")->trigger();

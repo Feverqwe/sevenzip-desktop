@@ -2,6 +2,7 @@
 #include "filemanager/support/window_state_support.h"
 #include "localization/LangUtils.h"
 #include "ui/support/layout_inspection.h"
+#include <QLineEdit>
 
 class AltStreamsCommandTests final : public QObject, protected MainWindowTestSupport {
     Q_OBJECT
@@ -202,7 +203,7 @@ class AltStreamsCommandTests final : public QObject, protected MainWindowTestSup
                 if (!dialog)
                     return;
                 dialogSeen = true;
-                dialog->findChild<QComboBox *>("copyDestination")->setCurrentText(destination);
+                dialog->findChild<QLineEdit *>("copyDestination")->setText(destination);
                 dialog->accept();
             });
             try {

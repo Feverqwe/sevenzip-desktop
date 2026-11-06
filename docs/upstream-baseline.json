@@ -2275,6 +2275,8 @@
     "src/ui/controls/qtmemorylimitspin.h",
     "src/ui/controls/qtmetadatarows.cpp",
     "src/ui/controls/qtmetadatarows.h",
+    "src/ui/controls/qtrecentpathbutton.cpp",
+    "src/ui/controls/qtrecentpathbutton.h",
     "src/ui/controls/qtsecretedit.cpp",
     "src/ui/controls/qtsecretedit.h",
     "src/ui/controls/qtsourcesummary.cpp",

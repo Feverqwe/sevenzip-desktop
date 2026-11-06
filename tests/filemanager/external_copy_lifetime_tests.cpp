@@ -4,6 +4,7 @@
 #include "platform/temp/qtownedtempregistry.h"
 #include "support/widget_dialogs.h"
 #include <QComboBox>
+#include <QLineEdit>
 #include <QPointer>
 #include <QScopeGuard>
 
@@ -59,7 +60,7 @@ class ExternalCopyLifetimeTests final : public QObject, protected MainWindowTest
                 QVERIFY(QDir().rename(directory, moved));
                 QVERIFY(QDir().mkpath(directory));
                 QVERIFY(write(copy, "foreign replacement"));
-                choice.findChild<QComboBox *>("copyDestination")->setEditText(exported);
+                choice.findChild<QLineEdit *>("copyDestination")->setText(exported);
                 survived = details && choice.isVisible();
                 choice.accept();
                 return;

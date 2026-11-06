@@ -4,6 +4,7 @@
 #include "localization/LangUtils.h"
 #include "support/read_only_virtual_disk.h"
 #include "ui/support/layout_inspection.h"
+#include <QLineEdit>
 
 class FsDrivesDeviceUiTests final : public QObject, protected MainWindowTestSupport {
     Q_OBJECT
@@ -118,8 +119,8 @@ class FsDrivesDeviceUiTests final : public QObject, protected MainWindowTestSupp
             if (seen || !dialog || !dialog->isVisible())
                 return;
             seen = true;
-            auto *destination = dialog->findChild<QComboBox *>("copyDestination");
-            destination->setCurrentText(target);
+            auto *destination = dialog->findChild<QLineEdit *>("copyDestination");
+            destination->setText(target);
             for (const QSize size : {QSize(640, 400), QSize(480, 320)}) {
                 dialog->resize(size);
                 QApplication::processEvents();

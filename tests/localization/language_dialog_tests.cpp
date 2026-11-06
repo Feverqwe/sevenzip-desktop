@@ -203,10 +203,10 @@ class LanguageDialogTests final : public QObject {
         CComboDialog folder(QtLangText(IDS_CREATE_FOLDER), QtLangText(IDS_CREATE_FOLDER_NAME),
                             QtLangText(IDS_CREATE_FOLDER_DEFAULT_NAME));
         folder.BindLanguage(IDS_CREATE_FOLDER, IDS_CREATE_FOLDER_NAME);
-        auto *destination = copy.findChild<QComboBox *>("copyDestination");
+        auto *destination = copy.findChild<QLineEdit *>("copyDestination");
         auto *volume = split.findChild<QComboBox *>("volumeSize");
         auto *name = folder.findChild<QComboBox *>("comboValue");
-        destination->setEditText(QStringLiteral(" /pending path 密碼 "));
+        destination->setText(QStringLiteral(" /pending path 密碼 "));
         volume->setEditText("bad-volume");
         name->setEditText(QStringLiteral(" pending folder 密碼 "));
         split.show();
@@ -219,8 +219,7 @@ class LanguageDialogTests final : public QObject {
         const QString englishError = englishPrompt.text;
         language("ru");
         QCOMPARE(copy.windowTitle(), QStringLiteral("Копировать"));
-        QCOMPARE(destination->currentText(), QStringLiteral(" /pending path 密碼 "));
-        QCOMPARE(destination->count(), 1);
+        QCOMPARE(destination->text(), QStringLiteral(" /pending path 密碼 "));
         QCOMPARE(volume->currentText(), QString("bad-volume"));
         QCOMPARE(name->currentText(), QStringLiteral(" pending folder 密碼 "));
         QVERIFY(split.windowTitle().endsWith(" file 密碼.bin"));

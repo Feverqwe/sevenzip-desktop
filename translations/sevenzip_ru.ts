@@ -4,8 +4,20 @@
     <context>
         <name>CopyRedesign</name>
         <message>
-            <source>Destination</source>
-            <translation>Назначение</translation>
+            <source>From: %1</source>
+            <translation>Из: %1</translation>
+        </message>
+        <message>
+            <source>Recent folders</source>
+            <translation>Недавние папки</translation>
+        </message>
+        <message>
+            <source>Destination folder</source>
+            <translation>Папка назначения</translation>
+        </message>
+        <message>
+            <source>Choose…</source>
+            <translation>Выбрать…</translation>
         </message>
         <message>
             <source>Other panel</source>

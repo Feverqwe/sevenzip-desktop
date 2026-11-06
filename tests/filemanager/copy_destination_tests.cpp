@@ -1,16 +1,20 @@
 #include "dialogs/copy/CopyDialog.h"
 #include "settings/ViewSettings.h"
+#include "support/window_activation.h"
+#include "ui/support/layout_inspection.h"
 #include <QComboBox>
 #include <QDialogButtonBox>
 #include <QDir>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QLineEdit>
+#include <QMenu>
 #include <QPushButton>
 #include <QScopeGuard>
 #include <QTemporaryDir>
 #include <QTest>
 #include <QTimer>
+#include <QToolButton>
 
 class CopyDestinationTests final : public QObject {
     Q_OBJECT
@@ -24,7 +28,10 @@ class CopyDestinationTests final : public QObject {
     }
 
   private slots:
-    void initTestCase() { QApplication::setAttribute(Qt::AA_DontUseNativeDialogs); }
+    void initTestCase() {
+        QApplication::setAttribute(Qt::AA_DontUseNativeDialogs);
+        UiInspection::configureReviewAppearance();
+    }
 
     void singleNameCancelAndAcceptance() {
         QTemporaryDir fixture;
@@ -45,10 +52,10 @@ class CopyDestinationTests final : public QObject {
         QCOMPARE(ToQString(dialog.Value), directory);
         name->setText("../outside");
         QVERIFY(!ok->isEnabled());
-        auto *destination = dialog.findChild<QComboBox *>("copyDestination");
-        destination->setCurrentText(source);
+        auto *destination = dialog.findChild<QLineEdit *>("copyDestination");
+        destination->setText(source);
         QVERIFY(!ok->isEnabled());
-        destination->setCurrentText(directory);
+        destination->setText(directory);
         name->setText(QStringLiteral(" копия δ "));
         QVERIFY(ok->isEnabled());
         dialog.reject();
@@ -67,13 +74,57 @@ class CopyDestinationTests final : public QObject {
         CCopyDialog dialog(false, fixture.path() + '/', {source}, {saved});
         configure(dialog, source);
         dialog.show();
-        auto *path = dialog.findChild<QComboBox *>("copyDestination");
-        path->setCurrentIndex(0);
+        dialog.findChild<QPushButton *>("copyRecentDestinations")
+            ->menu()
+            ->actions()
+            .first()
+            ->trigger();
         auto *name = dialog.findChild<QLineEdit *>("copyDestinationName");
         QVERIFY(name && !name->isVisible());
         dialog.accept();
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
         QCOMPARE(ToQString(dialog.Value), saved);
+    }
+
+    void historyKeyboardChangesOnlyTheDraft() {
+        const QString initial = QStringLiteral("/initial/");
+        const QString chosen = QStringLiteral(" /папка & 空/old copy.txt ");
+        CCopyDialog dialog(false, initial, {"/source/file.txt"}, {"/first/", chosen});
+        dialog.show();
+        QVERIFY(QTest::qWaitForWindowActive(&dialog));
+        auto *path = dialog.findChild<QLineEdit *>("copyDestination");
+        auto *recent = dialog.findChild<QPushButton *>("copyRecentDestinations");
+        auto *menu = recent->menu();
+        bool answered = false;
+        QTimer::singleShot(0, &dialog, [&] {
+            QVERIFY(menu->isVisible());
+            QVERIFY(UiInspection::writeReport(*menu, "copy-recent-destinations"));
+            menu->setActiveAction(menu->actions().first());
+            QTest::keyClick(menu, Qt::Key_Down);
+            QTest::keyClick(menu, Qt::Key_Return);
+            answered = true;
+        });
+        QTest::mouseClick(recent, Qt::LeftButton);
+        QTRY_VERIFY(answered);
+        QCOMPARE(path->text(), chosen);
+        QCOMPARE(ToQString(dialog.Value), initial);
+        QVERIFY(dialog.isVisible());
+        QVERIFY(WindowActivation::waitForActive(dialog));
+        QTRY_VERIFY(path->hasFocus());
+        QCOMPARE(path->selectedText(), chosen);
+        QVERIFY(UiInspection::writeReport(dialog, "copy-recent-destination-chosen"));
+        answered = false;
+        QTimer::singleShot(0, &dialog, [&] {
+            QVERIFY(menu->isVisible());
+            QTest::keyClick(menu, Qt::Key_Escape);
+            answered = true;
+        });
+        QTest::mouseClick(recent, Qt::LeftButton);
+        QTRY_VERIFY(answered);
+        QVERIFY(dialog.isVisible());
+        QCOMPARE(path->text(), chosen);
+        dialog.reject();
+        QCOMPARE(ToQString(dialog.Value), initial);
     }
 
     void peerRouteKeepsIdentity() {
@@ -160,7 +211,7 @@ class CopyDestinationTests final : public QObject {
         dialog.show();
         auto *name = dialog.findChild<QLineEdit *>("copyDestinationName");
         name->setText("draft.txt");
-        const QString destination = dialog.findChild<QComboBox *>("copyDestination")->currentText();
+        const QString destination = dialog.findChild<QLineEdit *>("copyDestination")->text();
         bool found = false;
         QTimer::singleShot(0, [&] {
             for (auto *widget : QApplication::topLevelWidgets())
@@ -173,7 +224,7 @@ class CopyDestinationTests final : public QObject {
         dialog.findChild<QPushButton *>("copyBrowseButton")->click();
         QVERIFY(found);
         QCOMPARE(name->text(), QString("draft.txt"));
-        QCOMPARE(dialog.findChild<QComboBox *>("copyDestination")->currentText(), destination);
+        QCOMPARE(dialog.findChild<QLineEdit *>("copyDestination")->text(), destination);
         dialog.reject();
         QCOMPARE(ToQString(dialog.Value), fixture.path() + '/');
     }

@@ -32,7 +32,7 @@ must keep their label and OK visible at normal/compact message sizes. Native
 extraction diagnostics retain their existing progress-message presentation.
 
 Copy history values follow source UStringVector/IsEqualTo_NoCase, retaining
-source-distinct K/K spellings through save/reload and the actual editable combo.
+source-distinct K/K spellings through save/reload and selection into the destination.
 Cancel preserves order; accepted CApp Copy moves its destination to the front.
 `copy_dialog` and `app_copy_routing` assert those values; existing normal/compact
 Copy/error geometry reports retain the same control structure.
@@ -392,6 +392,11 @@ Implemented view: `src/dialogs/copy/CopyDialog.cpp`.
 - Destination label precedes the editable path; Browse stays to its right and
   uses a translated caption with the platform's ordinary button size.
   The generic Combine caller retains its twenty-DLU utility button and text summary.
+- Copy/Move uses a plain path field and a separate Recent folders menu beside
+  the peer shortcut. Selecting history changes only the draft and returns focus
+  to the path; closing the menu with Escape leaves the form open. Historical
+  full-file entries, significant spaces, Unicode and ampersands remain unchanged.
+  Empty history disables its shortcut. Source location has a localized From label.
 - A writable peer panel supplies the initial destination; Other panel restores
   that proposal after editing. An unavailable peer leaves the current source
   filesystem location as the proposal and disables the peer shortcut.

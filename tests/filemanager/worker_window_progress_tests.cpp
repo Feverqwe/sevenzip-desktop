@@ -150,8 +150,11 @@ class WorkerWindowProgressTests final : public QObject, protected MainWindowTest
                                                                    : "copyDialog");
             if (!dialog)
                 return;
-            dialog->findChild<QComboBox *>(mode == 1 ? "volumeDestination" : "copyDestination")
-                ->setCurrentText(destination);
+            if (mode == 0)
+                dialog->findChild<QLineEdit *>("copyDestination")->setText(destination);
+            else
+                dialog->findChild<QComboBox *>(mode == 1 ? "volumeDestination" : "copyDestination")
+                    ->setCurrentText(destination);
             if (mode == 1)
                 dialog->findChild<QComboBox *>("volumeSize")->setCurrentText("32M");
             accepted = true;

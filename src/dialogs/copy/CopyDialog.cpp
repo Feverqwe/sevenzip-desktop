@@ -63,9 +63,9 @@ void CCopyDialog::BindLanguage(UInt32 titleID, UInt32 promptID, const QString &t
     QtBindLangText(this, titleID, ToQString(Title));
     if (_copyMove) {
         QtBindLocalText(findChild<QLabel *>("copyDestinationLabel"), "CopyRedesign",
-                        QT_TRANSLATE_NOOP("CopyRedesign", "Destination"));
-        QtBindLocalText(_path, "CopyRedesign", QT_TRANSLATE_NOOP("CopyRedesign", "Destination"),
-                        true);
+                        QT_TRANSLATE_NOOP("CopyRedesign", "Destination folder"));
+        QtBindLocalText(_pathEdit, "CopyRedesign",
+                        QT_TRANSLATE_NOOP("CopyRedesign", "Destination folder"), true);
     } else {
         QtBindLangText(findChild<QLabel *>("copyDestinationLabel"), promptID, ToQString(Static));
         QtBindLangText(_path, promptID, ToQString(Static), true);
@@ -118,23 +118,28 @@ bool CCopyDialog::OnInit() {
     label->setObjectName("copyDestinationLabel");
     layout->addWidget(label);
     auto *pathRow = new QHBoxLayout;
-    _path = new QComboBox(this);
-    _path->setObjectName("copyDestination");
-    _path->setAccessibleName(ToQString(Static));
-    _path->setEditable(true);
-    _path->setAttribute(Qt::WA_LayoutUsesWidgetRect);
-    _path->setInsertPolicy(QComboBox::NoInsert);
-    FOR_VECTOR(i, Strings)
-    _path->addItem(ToQString(Strings[i]));
-    _path->setCurrentText(ToQString(Value));
-    label->setBuddy(_path);
-    _path->setMinimumContentsLength(_copyMove ? 1 : 12);
     if (_copyMove) {
-        _path->setMinimumWidth(0);
-        _path->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
+        _pathEdit = new QLineEdit(ToQString(Value), this);
+        _pathEdit->setObjectName("copyDestination");
+        _pathEdit->setMinimumWidth(0);
+        label->setBuddy(_pathEdit);
+        pathRow->addWidget(_pathEdit, 1);
+    } else {
+        _path = new QComboBox(this);
+        _path->setObjectName("copyDestination");
+        _path->setEditable(true);
+        _path->setAttribute(Qt::WA_LayoutUsesWidgetRect);
+        _path->setInsertPolicy(QComboBox::NoInsert);
+        FOR_VECTOR(i, Strings)
+        _path->addItem(ToQString(Strings[i]));
+        _path->setCurrentText(ToQString(Value));
+        _path->setAccessibleName(ToQString(Static));
+        _path->setMinimumContentsLength(12);
+        _path->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+        _pathEdit = _path->lineEdit();
+        label->setBuddy(_path);
+        pathRow->addWidget(_path, 1);
     }
-    _path->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
-    pathRow->addWidget(_path, 1);
     auto *browse = new QPushButton(this);
     browse->setObjectName("copyBrowseButton");
     browse->setAttribute(Qt::WA_LayoutUsesWidgetRect);
@@ -143,7 +148,7 @@ bool CCopyDialog::OnInit() {
         QtBindLangText(browse, IDS_SET_FOLDER, "Select folder", true);
         browse->setFixedWidth(QtDialogUnits(font()).pixels(QSize(20, 0)).width());
     } else {
-        QtBindLocalText(browse, "ArchiveRedesign", QT_TRANSLATE_NOOP("ArchiveRedesign", "Browse…"));
+        QtBindLocalText(browse, "CopyRedesign", QT_TRANSLATE_NOOP("CopyRedesign", "Choose…"));
     }
     pathRow->addWidget(browse);
     layout->addLayout(pathRow);
@@ -166,12 +171,12 @@ bool CCopyDialog::OnInit() {
     connect(buttons, &QDialogButtonBox::accepted, this, &CCopyDialog::OnOK);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     connect(browse, &QPushButton::clicked, this, &CCopyDialog::OnButtonSetPath);
-    connect(_path, &QComboBox::editTextChanged, this, &CCopyDialog::UpdateDestination);
+    connect(_pathEdit, &QLineEdit::textChanged, this, &CCopyDialog::UpdateDestination);
     UpdateDestination();
     resize(560, minimumSizeHint().height() + fontMetrics().lineSpacing() * 2);
     QtNormalizeDialogSize(*this, true);
-    _path->setFocus();
-    _path->lineEdit()->selectAll();
+    _pathEdit->setFocus();
+    _pathEdit->selectAll();
     return true;
 }
 
@@ -188,7 +193,8 @@ void CCopyDialog::RefreshSourceSummary() {
         _sources.size() == 1
             ? QFileInfo(_sources.first()).fileName()
             : QCoreApplication::translate("CopyRedesign", "Selected: %1").arg(_sources.size());
-    _sourceSummary->SetSource(name, _sourceLocation);
+    _sourceSummary->SetSource(
+        name, QCoreApplication::translate("CopyRedesign", "From: %1").arg(_sourceLocation));
     _sourceSummary->SetDetail(_knownSize ? ToQString(MyFormatNew(IDS_FILE_SIZE, *_knownSize))
                                          : QString());
 }
@@ -208,21 +214,20 @@ void CCopyDialog::OnButtonSetPath() {
     UString selectedPath;
     const bool chosen =
         MyBrowseForFolder(this, ToUString(QtLangText(IDS_SET_FOLDER)), currentPath, selectedPath);
-    _path->setFocus();
+    _pathEdit->setFocus();
     if (!chosen)
         return;
     NWindows::NFile::NName::NormalizeDirPathPrefix(selectedPath);
-    _path->setCurrentIndex(-1);
-    _path->setCurrentText(ToQString(selectedPath));
-    _path->setFocus();
+    SetPathText(ToQString(selectedPath));
+    _pathEdit->setFocus();
 }
 
 bool CCopyDialog::ReadPath(UString &path) {
-    const QString text = _path->currentText();
+    const QString text = _pathEdit->text();
     if (text.contains(QChar::Null)) {
         QMessageBox::critical(this, windowTitle(),
                               ToQString(NWindows::NError::MyFormatMessage(E_INVALIDARG)));
-        _path->setFocus();
+        _pathEdit->setFocus();
         return false;
     }
     path = ToUString(text);
@@ -245,4 +250,12 @@ void CCopyDialog::accept() { OnOK(); }
 
 QString CCopyDialog::destination() const {
     return result() == QDialog::Accepted ? ToQString(Value) : DraftDestination();
+}
+
+void CCopyDialog::SetPathText(const QString &path) {
+    if (_path) {
+        _path->setCurrentIndex(-1);
+        _path->setCurrentText(path);
+    } else
+        _pathEdit->setText(path);
 }

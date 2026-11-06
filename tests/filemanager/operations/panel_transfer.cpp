@@ -1,4 +1,5 @@
 #include "window_operations.h"
+#include <QLineEdit>
 
 void MainWindowOperationsTests::twoPanelFilesystemCopyRefreshesDestination() {
     QTemporaryDir root;
@@ -52,9 +53,9 @@ void MainWindowOperationsTests::twoPanelFilesystemCopyRefreshesDestination() {
     QTimer::singleShot(0, &window, [&] {
         auto *dialog = window.findChild<CopyDialog *>("copyDialog");
         QVERIFY(dialog);
-        auto *destination = dialog->findChild<QComboBox *>("copyDestination");
+        auto *destination = dialog->findChild<QLineEdit *>("copyDestination");
         QVERIFY(destination);
-        dialogDefault = destination->currentText();
+        dialogDefault = destination->text();
         dialog->accept();
     });
     action(window, "copyAction")->trigger();
@@ -214,9 +215,9 @@ void MainWindowOperationsTests::stage7ArchiveCopyAndDropCancellation() {
     QTimer::singleShot(0, &window, [&temp, &copyInfo] {
         for (QWidget *widget : QApplication::topLevelWidgets()) {
             if (auto *dialog = qobject_cast<QDialog *>(widget); dialog && dialog->isVisible()) {
-                if (auto *destination = dialog->findChild<QComboBox *>("copyDestination")) {
+                if (auto *destination = dialog->findChild<QLineEdit *>("copyDestination")) {
                     copyInfo = ToQString(static_cast<CopyDialog *>(dialog)->Info);
-                    destination->setCurrentText(temp.filePath("out"));
+                    destination->setText(temp.filePath("out"));
                     dialog->accept();
                 }
             }

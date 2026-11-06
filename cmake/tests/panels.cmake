@@ -351,7 +351,7 @@
     target_link_libraries(panel_copy_reload_tests PRIVATE sevenzip_location sevenzip_folder_loader Qt6::Test)
 
     add_test(NAME panel_copy_reload COMMAND panel_copy_reload_tests -silent)
-    set_tests_properties(panel_copy_reload PROPERTIES ENVIRONMENT
+    set_tests_properties(panel_copy_reload PROPERTIES TIMEOUT 120 ENVIRONMENT
         "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/panel-copy-reload-settings.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
     qt_add_executable(filesystem_reload_tests tests/filemanager/filesystem_reload_tests.cpp)
     target_link_libraries(filesystem_reload_tests PRIVATE sevenzip_window)

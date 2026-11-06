@@ -12,6 +12,7 @@
 #include <QComboBox>
 #include <QDialogButtonBox>
 #include <QEventLoop>
+#include <QLineEdit>
 #include <QPointer>
 #include <QPushButton>
 #include <QScopeGuard>
@@ -206,7 +207,7 @@ class ExternalTaskLifecycleTests final : public QObject, protected MainWindowTes
                     for (auto *task : QtExternalFileTask::Active())
                         task->Stop();
                 } else {
-                    dialog->findChild<QComboBox *>("copyDestination")->setEditText(exported);
+                    dialog->findChild<QLineEdit *>("copyDestination")->setText(exported);
                     dialog->accept();
                 }
             }

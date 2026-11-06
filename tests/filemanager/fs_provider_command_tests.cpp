@@ -3,6 +3,7 @@
 #include "filemanager/views/filetable.h"
 #include "localization/LangUtils.h"
 #include "ui/support/layout_inspection.h"
+#include <QLineEdit>
 
 class FsProviderCommandTests final : public QObject, protected MainWindowTestSupport {
     Q_OBJECT
@@ -171,7 +172,7 @@ class FsProviderCommandTests final : public QObject, protected MainWindowTestSup
             auto *dialog = window.findChild<CopyDialog *>("copyDialog");
             if (dialog && dialog->isVisible() && !dialogSeen) {
                 dialogSeen = true;
-                destination = dialog->findChild<QComboBox *>("copyDestination")->currentText();
+                destination = dialog->findChild<QLineEdit *>("copyDestination")->text();
                 for (const QSize size : {QSize(440, 250), QSize(340, 220)}) {
                     dialog->resize(size);
                     dialog->layout()->activate();

@@ -7,6 +7,7 @@
 #include "support/panel_keys.h"
 #include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
+#include <QLineEdit>
 #include <QProcess>
 #include <QStandardPaths>
 
@@ -175,7 +176,7 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
             if (dialog && dialog->isVisible() && !seen) {
                 seen = true;
                 write(QDir(peer).filePath("new while guarded.txt"), "new control");
-                dialog->findChild<QComboBox *>("copyDestination")->setCurrentText(output + '/');
+                dialog->findChild<QLineEdit *>("copyDestination")->setText(output + '/');
                 cancel ? dialog->reject() : dialog->accept();
             }
             for (QWidget *widget : QApplication::topLevelWidgets())

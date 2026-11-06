@@ -3,16 +3,18 @@
 #include "fileops/patterns/Wildcard.h"
 #include "localization/qtlangcontrols.h"
 #include "settings/ViewSettings.h"
+#include "ui/controls/qtrecentpathbutton.h"
 #include "ui/dialogs/qtdialoglayout.h"
 #include "ui/dialogs/qtdialogscreenservices.h"
-#include <QComboBox>
 #include <QCoreApplication>
 #include <QDialogButtonBox>
 #include <QDir>
 #include <QFileInfo>
+#include <QHBoxLayout>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QScrollArea>
+#include <QTimer>
 #include <QVBoxLayout>
 #include <utility>
 
@@ -44,19 +46,37 @@ bool IsName(const QString &name) {
 } // namespace
 
 void CCopyDialog::BuildDestinationOptions(QVBoxLayout &layout) {
+    auto *shortcuts = new QHBoxLayout;
+    QStringList history;
+    FOR_VECTOR(i, Strings)
+    history << ToQString(Strings[i]);
+    auto *recent = new QtRecentPathButton(history, this);
+    recent->setObjectName("copyRecentDestinations");
+    QtBindLocalText(recent, "CopyRedesign", QT_TRANSLATE_NOOP("CopyRedesign", "Recent folders"));
+    shortcuts->addWidget(recent);
+    connect(recent, &QtRecentPathButton::pathSelected, this, [this](const QString &path) {
+        SetPathText(path);
+        // The popup restores its previous focus while closing. Return to the
+        // destination after that restoration, without accepting the form.
+        QTimer::singleShot(0, _pathEdit, [this] {
+            _pathEdit->setFocus();
+            _pathEdit->selectAll();
+        });
+    });
     _peer = new QPushButton(this);
     _peer->setObjectName("copyPeerDestination");
     _peer->setAutoDefault(false);
     QtBindLocalText(_peer, "CopyRedesign", QT_TRANSLATE_NOOP("CopyRedesign", "Other panel"));
     _peer->hide();
-    layout.addWidget(_peer, 0, Qt::AlignLeft);
+    shortcuts->addStretch();
+    shortcuts->addWidget(_peer);
+    layout.addLayout(shortcuts);
     connect(_peer, &QPushButton::clicked, this, [this] {
         if (!_destinationContext || !_destinationContext->PeerWritable)
             return;
-        _path->setCurrentIndex(-1);
-        _path->setCurrentText(_destinationContext->PeerDestination);
-        _path->setFocus();
-        _path->lineEdit()->selectAll();
+        SetPathText(_destinationContext->PeerDestination);
+        _pathEdit->setFocus();
+        _pathEdit->selectAll();
     });
     if (_sources.size() == 1) {
         _nameLabel = new QtWrappingLabel(this);
@@ -111,8 +131,8 @@ void CCopyDialog::ConfigureDestination(QtCopyDestinationContext context) {
 
 QString CCopyDialog::DraftDestination() const {
     if (!_useName || !_name)
-        return _path->currentText();
-    return ToQString(DirectoryPrefix(_path->currentText()) + ToUString(_name->text()));
+        return _pathEdit->text();
+    return ToQString(DirectoryPrefix(_pathEdit->text()) + ToUString(_name->text()));
 }
 
 QString CCopyDialog::PreviewDestination(const QString &value) const {
@@ -125,9 +145,9 @@ QString CCopyDialog::PreviewDestination(const QString &value) const {
 }
 
 void CCopyDialog::UpdateDestination() {
-    if (!_copyMove || !_path || !_destinationMessage)
+    if (!_copyMove || !_pathEdit || !_destinationMessage)
         return;
-    const QString path = _path->currentText();
+    const QString path = _pathEdit->text();
     const QString preview = PreviewDestination(path);
     const QFileInfo destination(preview);
     const bool directory =

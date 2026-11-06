@@ -3072,7 +3072,71 @@ visibility before scrolling. Refreshed light/dark Copy/Move captures contain
 12 frames per theme, EN/RU and compact states, from the modified source tree.
 They are dated WIP evidence, not clean-commit or full-gallery acceptance.
 
-This remains part of the full catalog implementation. Separate recent-destination
-presentation and source-path labeling still need catalog alignment; conflict
-answers, Delete and other remaining forms require their own completion checks.
+This was part of the full catalog implementation. At that checkpoint, separate
+recent-destination presentation and source-path labeling still needed catalog
+alignment; conflict answers, Delete and other remaining forms required their
+own completion checks. The following iteration addresses the destination history.
 Passing these suites does not establish completion of Copy/Move or the full design.
+
+## Copy/Move recent destinations and compact layout — 2026-11-06
+
+Compared the pinned original CopyDialog.cpp/.rc initialization, history population,
+Browse selection reset and acceptance with the current Copy/Move, generic Combine
+and external Save Copy consumers. No external source is imported. Modern Copy/Move
+now has a plain path editor and a separate recent-path menu beside Other panel,
+matching the catalog structure. Combine retains its editable combo. The shared
+recent-path button only presents caller-owned entries: no normalization, sorting,
+deduplication or persistence. Ampersands are escaped solely for menu display;
+selected values retain their original bytes/Unicode and significant spaces.
+Selection changes the draft without accepting; Escape dismisses the menu.
+Source location now has the localized From label, and Copy/Move field/Browse
+captions follow the catalog.
+
+Focused geometry exposed horizontal clipping at 32pt: the native history button
+required more width than the scroll viewport, whose horizontal scrollbar is
+intentionally disabled. The shared scroll area now exposes its content's minimum
+width, including the style's scrollbar extent. This permits the platform minimum
+window size instead of clipping controls. Vertical scrolling remains available.
+Native captures then exposed stretched vertical gaps; scrollable form contents
+now pack at the top. These are Qt layout adaptations, not changes to path parsing
+or archive operations. Remaining catalog fidelity is assessed separately from
+these integrated controls; the full design is not complete.
+
+Consumer fixtures now operate the visible editor rather than assuming a combo.
+The panel reload fixture had sent Return to a hidden LocationBar editor before
+starting Copy/Move; its GDB stack reached the external-application picker. It now
+enters address editing through the existing public interaction helper. The device
+picker fixture uses the same interaction for initiating/peer drafts. History
+verification uses the public history reader rather than an obsolete private INI
+representation. The history-menu focus check also exposed offscreen loss of window
+activation: diagnostics showed no popup and the correct destination focus target
+in an inactive dialog. The existing activation fixture restores only the window;
+the test still verifies the destination target. Product focus delivery is queued
+past popup restoration without activating an inactive application window.
+
+The integrated Linux consumer batch passed 14 of 18 suites initially. After the
+fixture corrections, ui_archive_states, panel_copy_reload and device_ui passed;
+the focused history rerun passed after the activation diagnostic. Final shared
+layout validation passed copy_dialog, copy_destination, dialog_surface,
+volume_dialog, password_dialog and local_task_lifecycle. The final flat-button
+rerun passed copy_dialog, copy_destination and app_copy_routing: incremental
+build 15.11s, test execution 1.13s. The earlier failed and interrupted receipts
+remain available rather than being presented as a single all-green run.
+
+Actual Cocoa shared-form validation passed 79 checks without skips across
+Copy/Move, destination history, dialog surface, Split/Combine, Password and local
+task forms. After the final button adaptation, Copy/Move and destination history
+passed again (22 and 10 checks). A toolbutton's native menu indicator overlapped
+its caption edge on Cocoa; the shared shortcut now uses a flat native menu button.
+Current light/dark captures contain 12 Copy/Move and two history states per theme;
+initial/compact forms and the actual popup were inspected. The review application
+was rebuilt from the same source. Captures identify their modified source tree;
+this does not establish clean-OS deployment, Windows pixels, system alert/picker
+acceptance or completion of the full catalog. Earlier unrelated gallery failures
+are not cleared by these successful producers. No full or slow gate was run.
+
+Katya's source reviews found no confirmed contract or layout blocker, separately
+from runtime evidence. The content minimum intentionally reserves one native
+scrollbar extent even when no bar is shown. Small stack/failure logs were retained;
+no full debug build, cache reset or new disk was needed. The temporary debugger
+logs were collected from the guest and removed from its source directory.

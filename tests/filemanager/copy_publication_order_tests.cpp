@@ -7,6 +7,7 @@
 #include "support/widget_dialogs.h"
 #include "support/window_activation.h"
 #include "ui/progress/ProgressDialog2.h"
+#include <QLineEdit>
 
 namespace {
 // Use original filesystem byte operations behind the stream-route interface.
@@ -154,7 +155,7 @@ class CopyPublicationOrderTests final : public QObject, protected MainWindowTest
             if (auto *dialog = window.findChild<CopyDialog *>("copyDialog");
                 dialog && dialog->isVisible() && !submitted) {
                 submitted = true;
-                dialog->findChild<QComboBox *>("copyDestination")->setCurrentText(output + '/');
+                dialog->findChild<QLineEdit *>("copyDestination")->setText(output + '/');
                 dialog->accept();
             }
             for (auto *widget : QApplication::topLevelWidgets())

@@ -15,6 +15,7 @@
 #include <QFileDialog>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMenu>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QScopeGuard>
@@ -45,15 +46,16 @@ class CopyDialogTests : public QObject {
     }
     static void inspectSourceFrame(CCopyDialog &dialog, const QString &tag) {
         QVERIFY(UiInspection::writeReport(dialog, tag));
-        auto *path = dialog.findChild<QComboBox *>("copyDestination");
+        auto *path = dialog.findChild<QLineEdit *>("copyDestination");
         auto *browse = dialog.findChild<QPushButton *>("copyBrowseButton");
+        auto *recent = dialog.findChild<QPushButton *>("copyRecentDestinations");
         auto *source = dialog.findChild<QWidget *>("copySourceSummary");
         auto *name = dialog.findChild<QLineEdit *>("copyDestinationName");
         auto *scroll = dialog.findChild<QScrollArea *>("dialogContentScroll");
         auto *buttons = dialog.findChild<QDialogButtonBox *>("copyButtons");
         auto *label = dialog.findChild<QLabel *>("copyDestinationLabel");
-        QVERIFY(path && browse && source && name && scroll && buttons && label);
-        for (QWidget *widget : QList<QWidget *>{source, label, path, browse, name}) {
+        QVERIFY(path && browse && recent && source && name && scroll && buttons && label);
+        for (QWidget *widget : QList<QWidget *>{source, label, path, browse, recent, name}) {
             QApplication::processEvents();
             const QRect rect(widget->mapTo(scroll->widget(), QPoint()), widget->size());
             scroll->ensureVisible(rect.left(), rect.top(), 0, 0);
@@ -122,13 +124,13 @@ class CopyDialogTests : public QObject {
         const QSize work = dialog.screen()->availableGeometry().size();
         QTRY_VERIFY(dialog.width() <= work.width());
         QTRY_VERIFY(dialog.height() <= work.height());
-        auto *path = dialog.findChild<QComboBox *>("copyDestination");
+        auto *path = dialog.findChild<QLineEdit *>("copyDestination");
         auto *browse = dialog.findChild<QPushButton *>("copyBrowseButton");
         auto *name = dialog.findChild<QLineEdit *>("copyDestinationName");
         auto *buttons = dialog.findChild<QDialogButtonBox *>("copyButtons");
         QVERIFY(path && browse && name && buttons);
-        QVERIFY(path->hasFocus() || path->lineEdit()->hasFocus());
-        QCOMPARE(path->lineEdit()->selectedText(), initial);
+        QVERIFY(path->hasFocus());
+        QCOMPARE(path->selectedText(), initial);
         QCOMPARE(name->text(), sourceName);
         QVERIFY(UiInspection::fullyVisible(*name, dialog));
         QVERIFY(UiInspection::fullyVisible(*path, dialog));
@@ -142,7 +144,7 @@ class CopyDialogTests : public QObject {
         dialog.setProperty("uiInspection_state", move ? "move-compact" : "copy-compact");
         inspectSourceFrame(dialog, tag + "-compact");
         const QSet<QWidget *> allowed{path,
-                                      path->lineEdit(),
+                                      dialog.findChild<QPushButton *>("copyRecentDestinations"),
                                       browse,
                                       name,
                                       buttons->button(QDialogButtonBox::Ok),
@@ -151,10 +153,10 @@ class CopyDialogTests : public QObject {
             QTest::keyClick(dialog.focusWidget(), Qt::Key_Tab);
             QVERIFY(allowed.contains(dialog.focusWidget()));
         }
-        path->lineEdit()->setFocus();
+        path->setFocus();
         const QString changed = QStringLiteral("  /changed space 空/  ");
-        path->setCurrentText(changed);
-        QTest::keyClick(path->lineEdit(), Qt::Key_Return);
+        path->setText(changed);
+        QTest::keyClick(path, Qt::Key_Return);
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
         QCOMPARE(ToQString(dialog.Value), changed);
         CCopyDialog cancelled(move, initial, {"/source/" + sourceName}, {});
@@ -162,7 +164,7 @@ class CopyDialogTests : public QObject {
             {"/source/", sourceName, {}, false, [](const QString &) { return true; }});
         cancelled.show();
         QVERIFY(QTest::qWaitForWindowActive(&cancelled));
-        cancelled.findChild<QComboBox *>("copyDestination")->setCurrentText(changed);
+        cancelled.findChild<QLineEdit *>("copyDestination")->setText(changed);
         QTest::keyClick(cancelled.focusWidget(), Qt::Key_Escape);
         QCOMPARE(cancelled.result(), int(QDialog::Rejected));
         QCOMPARE(ToQString(cancelled.Value), initial);
@@ -171,20 +173,22 @@ class CopyDialogTests : public QObject {
     void copiesFieldsAndCommitsOnlyOnOK() {
         CCopyDialog dialog(false, QStringLiteral("/начальная папка/"),
                            {QStringLiteral("/tmp/имя с пробелом.txt")}, {"/one", "/two"});
-        auto *path = dialog.findChild<QComboBox *>("copyDestination");
+        auto *path = dialog.findChild<QLineEdit *>("copyDestination");
         QVERIFY(path);
-        QCOMPARE(path->count(), 2);
-        QCOMPARE(path->itemText(1), QString("/two"));
+        auto *recent = dialog.findChild<QPushButton *>("copyRecentDestinations");
+        QVERIFY(recent && recent->isEnabled());
+        recent->menu()->actions().at(1)->trigger();
+        QCOMPARE(path->text(), QString("/two"));
         auto *source = dialog.findChild<QWidget *>("copySourceSummary");
         QVERIFY(source);
         QCOMPARE(source->accessibleName(), QStringLiteral("имя с пробелом.txt"));
-        path->setCurrentText(QStringLiteral("  /новая папка/  "));
+        path->setText(QStringLiteral("  /новая папка/  "));
         dialog.reject();
         QCOMPARE(ToQString(dialog.Value), QStringLiteral("/начальная папка/"));
         dialog.accept();
         QCOMPARE(ToQString(dialog.Value), QStringLiteral("  /новая папка/  "));
         CCopyDialog move(true, "/initial", {"/source/file"}, {});
-        move.findChild<QComboBox *>("copyDestination")->setCurrentText("/by-button");
+        move.findChild<QLineEdit *>("copyDestination")->setText("/by-button");
         move.findChild<QDialogButtonBox *>("copyButtons")->button(QDialogButtonBox::Ok)->click();
         QCOMPARE(ToQString(move.Value), QString("/by-button"));
         QCOMPARE(move.result(), int(QDialog::Accepted));
@@ -221,9 +225,13 @@ class CopyDialogTests : public QObject {
         ReadCopyHistory(restarted, ini);
         QCOMPARE(QtStrings(restarted), QtStrings(sourceCase));
         CCopyDialog sourceHistory(false, "/destination", {}, QtStrings(restarted));
-        auto *destinations = sourceHistory.findChild<QComboBox *>("copyDestination");
-        QCOMPARE(destinations->count(), 3);
-        QCOMPARE(destinations->itemText(1), QStringLiteral("/\u212A"));
+        auto *destinations = sourceHistory.findChild<QLineEdit *>("copyDestination");
+        sourceHistory.findChild<QPushButton *>("copyRecentDestinations")
+            ->menu()
+            ->actions()
+            .at(1)
+            ->trigger();
+        QCOMPARE(destinations->text(), QStringLiteral("/\u212A"));
         SaveCopyHistory(history, ini);
         history.Clear();
         ReadCopyHistory(history, ini);
@@ -244,7 +252,7 @@ class CopyDialogTests : public QObject {
         const QString chosen = temp.filePath(QStringLiteral("папка назначения"));
         QVERIFY(QDir().mkdir(chosen));
         CCopyDialog dialog(false, temp.path(), {temp.filePath("source")}, {chosen});
-        auto *path = dialog.findChild<QComboBox *>("copyDestination");
+        auto *path = dialog.findChild<QLineEdit *>("copyDestination");
         auto *browse = dialog.findChild<QPushButton *>("copyBrowseButton");
         dialog.show();
         bool found = false;
@@ -259,7 +267,7 @@ class CopyDialogTests : public QObject {
         });
         browse->click();
         QVERIFY(found);
-        QCOMPARE(path->currentText(), temp.path());
+        QCOMPARE(path->text(), temp.path());
         found = false;
         QTimer::singleShot(0, [&found, &chosen] {
             for (QWidget *widget : QApplication::topLevelWidgets()) {
@@ -273,8 +281,7 @@ class CopyDialogTests : public QObject {
         });
         browse->click();
         QVERIFY(found);
-        QCOMPARE(path->currentIndex(), -1);
-        QCOMPARE(QDir::fromNativeSeparators(path->currentText()), chosen + '/');
+        QCOMPARE(QDir::fromNativeSeparators(path->text()), chosen + '/');
         dialog.accept();
         QCOMPARE(QDir::fromNativeSeparators(ToQString(dialog.Value)), chosen + '/');
     }
@@ -290,11 +297,11 @@ class CopyDialogTests : public QObject {
         dialog.show();
         auto *source = dialog.findChild<QWidget *>("copySourceSummary");
         auto *selection = dialog.findChild<QtDisclosure *>("copySelectionDisclosure");
-        auto *path = dialog.findChild<QComboBox *>("copyDestination");
+        auto *path = dialog.findChild<QLineEdit *>("copyDestination");
         QVERIFY(source && selection && path);
         const QString original = source->accessibleName();
         const QString draft = QStringLiteral(" /новое назначение/ ");
-        path->setCurrentText(draft);
+        path->setText(draft);
         selection->setExpanded(true);
         const QString settings = fixture.filePath("language.ini");
         SaveRegLang(UString(L"ru"), settings);
@@ -303,7 +310,7 @@ class CopyDialogTests : public QObject {
         QVERIFY(source->accessibleName() != original);
         QVERIFY(source->accessibleName().contains('2'));
         QVERIFY(selection->isExpanded());
-        QCOMPARE(path->currentText(), draft);
+        QCOMPARE(path->text(), draft);
         dialog.reject();
         QCOMPARE(ToQString(dialog.Value), QString("/initial/"));
     }
@@ -334,7 +341,7 @@ class CopyDialogTests : public QObject {
         dialog.show();
         QCoreApplication::processEvents();
         auto *label = dialog.findChild<QLabel *>("copyDestinationLabel");
-        auto *path = dialog.findChild<QComboBox *>("copyDestination");
+        auto *path = dialog.findChild<QLineEdit *>("copyDestination");
         auto *browse = dialog.findChild<QPushButton *>("copyBrowseButton");
         auto *source = dialog.findChild<QWidget *>("copySourceSummary");
         auto *selection = dialog.findChild<QtDisclosure *>("copySelectionDisclosure");
@@ -372,7 +379,8 @@ class CopyDialogTests : public QObject {
         QVERIFY(UiInspection::fullyVisible(*buttons, dialog));
         selection->button()->click();
         dialog.SetSourceDetails("/tmp/", std::nullopt);
-        QCOMPARE(source->accessibleDescription(), QString("/tmp/"));
+        QVERIFY(source->accessibleDescription().contains("/tmp/"));
+        QVERIFY(!source->accessibleDescription().contains('\n'));
         QVERIFY(UiInspection::writeReport(
             dialog, QString("copy-dialog-%1-%2").arg(move).arg(size.width())));
     }

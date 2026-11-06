@@ -203,7 +203,7 @@ class SparseImageUiTests final : public QObject {
                 password->findChild<QLineEdit *>("passwordEdit")->setText("fixture-password");
                 password->accept();
             } else if (auto *copy = dynamic_cast<CopyDialog *>(dialogs.activeDialog())) {
-                copy->findChild<QComboBox *>("copyDestination")->setEditText(output.path() + '/');
+                copy->findChild<QLineEdit *>("copyDestination")->setText(output.path() + '/');
                 copy->accept();
             } else if (auto *messages = dynamic_cast<CMessagesDialog *>(dialogs.activeDialog())) {
                 if (messages->Messages)

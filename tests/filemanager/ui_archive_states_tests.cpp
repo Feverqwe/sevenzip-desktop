@@ -2,11 +2,13 @@
 #include "filemanager/support/window_state_support.h"
 #include "localization/LangUtils.h"
 #include "settings/RegistryUtils.h"
+#include "settings/ViewSettings.h"
 #include "support/panel_keys.h"
 #include "ui/progress/ProgressDialog2.h"
 #include "ui/progress/qtprogresscontrols.h"
 #include "ui/support/address_popup_support.h"
 #include "ui/support/layout_inspection.h"
+#include <QLineEdit>
 #include <QProgressBar>
 #include <QScopeGuard>
 #include <QTreeWidget>
@@ -44,9 +46,9 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
             auto *dialog = dynamic_cast<CopyDialog *>(QApplication::activeModalWidget());
             QVERIFY(dialog);
             dialogSeen = true;
-            auto *destination = dialog->findChild<QComboBox *>("copyDestination");
+            auto *destination = dialog->findChild<QLineEdit *>("copyDestination");
             QVERIFY(destination);
-            destination->setCurrentText("/temporary/selected output");
+            destination->setText("/temporary/selected output");
             dialog->reject();
         });
         action(window, "extractArchiveAction")->trigger();
@@ -425,10 +427,12 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
         address->setText(folder);
         QTest::keyClick(address, Qt::Key_Return);
         QCOMPARE(address->text(), QFileInfo(folder).canonicalFilePath());
-        QSettings settings(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"), QSettings::IniFormat);
-        QVERIFY(settings.value("FolderHistory")
-                    .toStringList()
-                    .contains(QFileInfo(folder).canonicalFilePath()));
+        UStringVector history;
+        ReadFolderHistory(history, qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
+        bool recorded = false;
+        FOR_VECTOR(i, history)
+        recorded |= QDir::cleanPath(ToQString(history[i])) == QFileInfo(folder).canonicalFilePath();
+        QVERIFY(recorded);
         const QString archive = temp.filePath("archive.7z");
         openListedArchive(window, backend, archive, {});
         AddressPopupSupport::show(*combo);

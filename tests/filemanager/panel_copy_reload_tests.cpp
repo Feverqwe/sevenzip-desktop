@@ -4,10 +4,12 @@
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
 #include "fileops/scanner/filesystemscanner.h"
+#include "support/panel_keys.h"
 #include "support/widget_dialogs.h"
 #include "support/window_activation.h"
 #include "ui/progress/ProgressDialog2.h"
 #include "ui/support/layout_inspection.h"
+#include <QLineEdit>
 #include <new>
 
 class PanelCopyReloadTests final : public QObject, protected MainWindowTestSupport {
@@ -81,7 +83,8 @@ class PanelCopyReloadTests final : public QObject, protected MainWindowTestSuppo
                 }
             auto *peerAddress = peerUi->findChild<QLineEdit *>("archivePath");
             QVERIFY(peerAddress);
-            peerAddress->setFocus();
+            PanelKeys::focusAddress(peerAddress);
+            QTRY_VERIFY(peerAddress->hasFocus());
             peerAddress->setText(peer);
             QTest::keyClick(peerAddress, Qt::Key_Return);
             QTRY_COMPARE(peerView->rowCount(), peerRows);
@@ -100,7 +103,8 @@ class PanelCopyReloadTests final : public QObject, protected MainWindowTestSuppo
         peerView->selectRow(0);
         auto *sourceUi = window.findChild<QWidget *>(QString("filePanel%1").arg(sourceIndex));
         auto *address = sourceUi->findChild<QLineEdit *>("archivePath");
-        address->setFocus();
+        PanelKeys::focusAddress(address);
+        QTRY_VERIFY(address->hasFocus());
         address->setText(input);
         QTest::keyClick(address, Qt::Key_Return);
         auto *sourceView =
@@ -144,7 +148,7 @@ class PanelCopyReloadTests final : public QObject, protected MainWindowTestSuppo
                     spec->directoryType = phase == "type" ? VT_UI4 : VT_BOOL;
                     spec->loadedCountResult = phase == "count" ? E_INVALIDARG : S_OK;
                 }
-                dialog->findChild<QComboBox *>("copyDestination")->setCurrentText(output + '/');
+                dialog->findChild<QLineEdit *>("copyDestination")->setText(output + '/');
                 dialog->accept();
             }
             for (QWidget *widget : QApplication::topLevelWidgets())

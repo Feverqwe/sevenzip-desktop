@@ -1,4 +1,5 @@
 #include "window_operations.h"
+#include <QLineEdit>
 
 namespace {
 class FakeTrashService final : public IQtTrashService {
@@ -276,7 +277,7 @@ void MainWindowOperationsTests::stage7FilesystemCommands() {
         for (QWidget *widget : QApplication::topLevelWidgets()) {
             if (auto *dialog = qobject_cast<CopyDialog *>(widget)) {
                 copyInfo = ToQString(static_cast<CopyDialog *>(dialog)->Info);
-                dialog->findChild<QComboBox *>("copyDestination")->setCurrentText(destination);
+                dialog->findChild<QLineEdit *>("copyDestination")->setText(destination);
                 dialog->accept();
             }
         }
@@ -305,25 +306,25 @@ void MainWindowOperationsTests::stage7FilesystemCommands() {
     QTimer warningTimer;
     bool renameAnswered = false;
     QString finalMessage;
-    connect(
-        &warningTimer, &QTimer::timeout, &window, [destination, &renameAnswered, &finalMessage] {
-            for (QWidget *widget : QApplication::topLevelWidgets()) {
-                if (auto *dialog = qobject_cast<CopyDialog *>(widget);
-                    dialog && dialog->isVisible()) {
-                    dialog->findChild<QComboBox *>("copyDestination")->setCurrentText(destination);
-                    dialog->accept();
+    connect(&warningTimer, &QTimer::timeout, &window,
+            [destination, &renameAnswered, &finalMessage] {
+                for (QWidget *widget : QApplication::topLevelWidgets()) {
+                    if (auto *dialog = qobject_cast<CopyDialog *>(widget);
+                        dialog && dialog->isVisible()) {
+                        dialog->findChild<QLineEdit *>("copyDestination")->setText(destination);
+                        dialog->accept();
+                    }
+                    if (auto *box = qobject_cast<QMessageBox *>(widget); box && box->isVisible()) {
+                        finalMessage = box->text() + box->informativeText();
+                        box->accept();
+                    }
+                    if (auto *dialog = dynamic_cast<COverwriteDialog *>(widget);
+                        dialog && dialog->isVisible()) {
+                        renameAnswered = true;
+                        dialog->findChild<QPushButton *>("overwriteRename")->click();
+                    }
                 }
-                if (auto *box = qobject_cast<QMessageBox *>(widget); box && box->isVisible()) {
-                    finalMessage = box->text() + box->informativeText();
-                    box->accept();
-                }
-                if (auto *dialog = dynamic_cast<COverwriteDialog *>(widget);
-                    dialog && dialog->isVisible()) {
-                    renameAnswered = true;
-                    dialog->findChild<QPushButton *>("overwriteRename")->click();
-                }
-            }
-        });
+            });
     warningTimer.start(1);
     action(window, "copyAction")->trigger();
     QTRY_VERIFY(action(window, "copyAction")->isEnabled());
@@ -343,7 +344,7 @@ void MainWindowOperationsTests::stage7FilesystemCommands() {
             if (auto *box = qobject_cast<QMessageBox *>(widget); box && box->isVisible())
                 box->accept();
             if (auto *dialog = qobject_cast<CopyDialog *>(widget); dialog && dialog->isVisible()) {
-                dialog->findChild<QComboBox *>("copyDestination")->setCurrentText(destination);
+                dialog->findChild<QLineEdit *>("copyDestination")->setText(destination);
                 dialog->accept();
             }
             if (auto *dialog = dynamic_cast<COverwriteDialog *>(widget);
@@ -365,7 +366,7 @@ void MainWindowOperationsTests::stage7FilesystemCommands() {
     connect(&moveErrorTimer, &QTimer::timeout, &window, [destination] {
         for (QWidget *widget : QApplication::topLevelWidgets()) {
             if (auto *dialog = qobject_cast<CopyDialog *>(widget); dialog && dialog->isVisible()) {
-                dialog->findChild<QComboBox *>("copyDestination")->setCurrentText(destination);
+                dialog->findChild<QLineEdit *>("copyDestination")->setText(destination);
                 dialog->accept();
             }
             if (auto *box = qobject_cast<QMessageBox *>(widget); box && box->isVisible())
@@ -451,7 +452,7 @@ void MainWindowOperationsTests::stage7FilesystemCommands() {
     QTimer::singleShot(0, &window, [destination] {
         for (QWidget *widget : QApplication::topLevelWidgets()) {
             if (auto *dialog = qobject_cast<CopyDialog *>(widget); dialog && dialog->isVisible()) {
-                dialog->findChild<QComboBox *>("copyDestination")->setCurrentText(destination);
+                dialog->findChild<QLineEdit *>("copyDestination")->setText(destination);
                 dialog->accept();
             }
         }

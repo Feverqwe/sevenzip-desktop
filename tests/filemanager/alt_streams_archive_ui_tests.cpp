@@ -2,6 +2,7 @@
 #include "dialogs/copy/alias.h"
 #include "filemanager/support/window_state_support.h"
 #include "ui/support/layout_inspection.h"
+#include <QLineEdit>
 
 class AltStreamsArchiveUiTests final : public QObject, protected MainWindowTestSupport {
     Q_OBJECT
@@ -172,7 +173,7 @@ class AltStreamsArchiveUiTests final : public QObject, protected MainWindowTestS
             if (!dialog || !dialog->isVisible())
                 return;
             dialogSeen = true;
-            dialog->findChild<QComboBox *>("copyDestination")->setCurrentText(output + '/');
+            dialog->findChild<QLineEdit *>("copyDestination")->setText(output + '/');
             dialog->accept();
         });
         responder.start(1);

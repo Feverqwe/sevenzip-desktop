@@ -1,6 +1,7 @@
 #include "dialogs/listview/ListViewDialog.h"
 #include "filemanager/support/panel_model_support.h"
 #include "filemanager/support/window_state_support.h"
+#include <QLineEdit>
 #include <QTreeWidget>
 
 class PathHashBackend : public ControlledBackend {
@@ -57,8 +58,8 @@ class ArchiveSelectionRuntimeTests : public QObject, protected MainWindowTestSup
                 dialog->findChild<QCheckBox *>("extractNameEnable")->setChecked(false);
                 combo->setCurrentText(destination);
             }
-            if (auto *combo = dialog->findChild<QComboBox *>("copyDestination"))
-                combo->setCurrentText(destination);
+            if (auto *combo = dialog->findChild<QLineEdit *>("copyDestination"))
+                combo->setText(destination);
             if (accepted)
                 dialog->accept();
             else
