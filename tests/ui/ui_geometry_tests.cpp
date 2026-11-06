@@ -178,20 +178,7 @@ class UiGeometryTests final : public QObject {
         // A native window manager can acknowledge minimum-size changes after
         // the first layout pass. Check usable controls rather than its exact
         // choice of client size.
-        const auto contentsFit = [&] {
-            if (!footerFits(*dialog))
-                return false;
-            if (!create)
-                for (const char *name :
-                     {"extractDestination", "extractPathName", "extractOverwriteMode",
-                      "extractPassword", "extractShowPassword", "extractPathMode"})
-                    if (auto *control = dialog->findChild<QWidget *>(name);
-                        !control || !UiInspection::fullyVisible(*control, *dialog) ||
-                        control->height() < control->minimumSizeHint().height())
-                        return false;
-            return true;
-        };
-        QTRY_VERIFY2(contentsFit(), qPrintable(UiInspection::dump(*dialog)));
+        QTRY_VERIFY2(footerFits(*dialog), qPrintable(UiInspection::dump(*dialog)));
         QVERIFY(UiInspection::writeReport(*dialog, tag));
         if (create) {
             auto *scroll = dialog->findChild<QScrollArea *>("archiveOptionsScrollArea");
@@ -276,10 +263,12 @@ class UiGeometryTests final : public QObject {
             QVERIFY(UiInspection::separate(*destination, *browse, *dialog));
             QVERIFY(UiInspection::bounds(*destination, *dialog).bottom() <
                     UiInspection::bounds(*pathMode, *dialog).top());
-            QVERIFY(UiInspection::bounds(*overwrite, *dialog).bottom() <
-                    UiInspection::bounds(*password, *dialog).top());
             QVERIFY(UiInspection::bounds(*password, *dialog).bottom() <
+                    UiInspection::bounds(*overwrite, *dialog).top());
+            QVERIFY(UiInspection::bounds(*overwrite, *dialog).bottom() <
                     UiInspection::bounds(*pathMode, *dialog).top());
+            auto *scroll = dialog->findChild<QScrollArea *>("dialogContentScroll");
+            QVERIFY(scroll);
             auto *nameEnabled = dialog->findChild<QCheckBox *>("extractNameEnable");
             auto *folderName = dialog->findChild<QLineEdit *>("extractPathName");
             QVERIFY(nameEnabled && folderName);
@@ -287,6 +276,7 @@ class UiGeometryTests final : public QObject {
             QApplication::processEvents();
             const QString pendingName = folderName->text();
             const QSize windowSize = dialog->size();
+            const int scrollPosition = scroll->verticalScrollBar()->value();
             const QList<QWidget *> stableControls = {destination, browse,     pathMode,   overwrite,
                                                      password,    folderName, nameEnabled};
             QList<QRect> positions;
@@ -295,6 +285,7 @@ class UiGeometryTests final : public QObject {
             for (bool enabled : {false, true, false}) {
                 nameEnabled->setChecked(enabled);
                 QApplication::processEvents();
+                scroll->verticalScrollBar()->setValue(scrollPosition);
                 QVERIFY(folderName->isVisible());
                 QCOMPARE(folderName->isEnabled(), enabled);
                 QCOMPARE(folderName->text(), pendingName);
@@ -302,9 +293,12 @@ class UiGeometryTests final : public QObject {
                 for (int i = 0; i < stableControls.size(); ++i)
                     QCOMPARE(UiInspection::bounds(*stableControls[i], *dialog), positions[i]);
                 QVERIFY2(footerFits(*dialog), qPrintable(UiInspection::dump(*dialog)));
-                for (QWidget *control : {destination, browse, pathMode, overwrite, password})
-                    QVERIFY2(UiInspection::fullyVisible(*control, *dialog),
-                             qPrintable(UiInspection::dump(*dialog)));
+                for (QWidget *control : {destination, browse, pathMode, overwrite, password}) {
+                    scroll->ensureWidgetVisible(control);
+                    QTRY_VERIFY2(UiInspection::fullyVisible(*control, *dialog),
+                                 qPrintable(UiInspection::dump(*dialog)));
+                    QVERIFY(control->height() >= control->minimumSizeHint().height());
+                }
                 for (QLabel *label : dialog->findChildren<QLabel *>())
                     if (label->isVisible())
                         QVERIFY2(UiInspection::labelFits(*label), qPrintable(label->text()));

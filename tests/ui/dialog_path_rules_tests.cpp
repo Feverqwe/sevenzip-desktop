@@ -11,6 +11,7 @@
 #include "ui/support/layout_inspection.h"
 #include <QDialogButtonBox>
 #include <QPushButton>
+#include <QScrollArea>
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QToolButton>
@@ -39,12 +40,20 @@ void reports(QDialog &dialog, const QString &tag, bool extract) {
                                      "extractOverwriteMode", "extractPassword", "extractElimDup"}) {
                 auto *control = dialog.findChild<QWidget *>(name);
                 QVERIFY(control);
-                QVERIFY(UiInspection::fullyVisible(*control, dialog));
+                dialog.findChild<QScrollArea *>("dialogContentScroll")
+                    ->ensureWidgetVisible(control);
+                QTRY_VERIFY(UiInspection::fullyVisible(*control, dialog));
             }
             auto *leaf = dialog.findChild<QLineEdit *>("extractPathName");
             QVERIFY(leaf);
-            if (leaf->isVisible())
-                QVERIFY(UiInspection::fullyVisible(*leaf, dialog));
+            if (leaf->isVisible()) {
+                auto *scroll = dialog.findChild<QScrollArea *>("dialogContentScroll");
+                const QPoint center = leaf->mapTo(scroll->widget(), leaf->rect().center());
+                scroll->ensureVisible(center.x(), center.y(), leaf->width() / 2 + 1,
+                                      leaf->height() / 2 + 1);
+                QTRY_VERIFY2(UiInspection::fullyVisible(*leaf, dialog),
+                             qPrintable(UiInspection::dump(dialog)));
+            }
         } else {
             auto *name = dialog.findChild<QLineEdit *>("archiveName");
             QVERIFY(name);

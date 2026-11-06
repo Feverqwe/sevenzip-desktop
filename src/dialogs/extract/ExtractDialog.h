@@ -23,6 +23,8 @@ class CExtractDialog : public QDialog {
     QCheckBox *_ntSecurity = nullptr;
     QCheckBox *_passwordEnable = nullptr;
     QtDisclosure *_advancedSection = nullptr;
+    QSize _initialPresentationSize;
+    bool _initialPresentation = true;
     void BuildPresentation();
     void UpdateAdvancedSummary();
     NExtract::CInfo _info;

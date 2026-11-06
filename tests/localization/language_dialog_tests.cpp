@@ -27,6 +27,7 @@
 #include <QPushButton>
 #include <QRadioButton>
 #include <QScopeGuard>
+#include <QScrollArea>
 #include <QStyle>
 #include <QStyleOptionButton>
 #include <QTemporaryDir>
@@ -83,13 +84,19 @@ class LanguageDialogTests final : public QObject {
         QVERIFY(UiInspection::writeReport(dialog, name + '-' + QString::number(width)));
         for (auto *label : dialog.findChildren<QLabel *>())
             if (label->isVisible() && !label->text().isEmpty()) {
-                QVERIFY2(UiInspection::fullyVisible(*label, dialog),
-                         qPrintable(label->objectName()));
+                if (auto *scroll = dialog.findChild<QScrollArea *>("dialogContentScroll");
+                    scroll && scroll->widget()->isAncestorOf(label))
+                    scroll->ensureWidgetVisible(label);
+                QTRY_VERIFY2(UiInspection::fullyVisible(*label, dialog),
+                             qPrintable(label->objectName()));
                 QVERIFY2(UiInspection::labelFits(*label), qPrintable(label->objectName()));
             }
         for (auto *button : dialog.findChildren<QPushButton *>())
             if (button->isVisible()) {
-                QVERIFY(UiInspection::fullyVisible(*button, dialog));
+                if (auto *scroll = dialog.findChild<QScrollArea *>("dialogContentScroll");
+                    scroll && scroll->widget()->isAncestorOf(button))
+                    scroll->ensureWidgetVisible(button);
+                QTRY_VERIFY(UiInspection::fullyVisible(*button, dialog));
                 // Source Browse controls can be narrower than the style's
                 // preferred footer button width. Check the displayed caption.
                 QStyleOptionButton option;
@@ -242,6 +249,8 @@ class LanguageDialogTests final : public QObject {
         }
         language("-");
         split.show();
+        split.raise();
+        split.activateWindow();
         QVERIFY(QTest::qWaitForWindowActive(&split));
         const auto restoredPrompt = SubmitInvalidSplit(split);
         QVERIFY(restoredPrompt.shown);

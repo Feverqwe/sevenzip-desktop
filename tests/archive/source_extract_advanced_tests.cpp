@@ -15,6 +15,7 @@
 #include <QDialogButtonBox>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QScrollArea>
 #include <QTemporaryDir>
 #include <QTimer>
 #include <QToolButton>
@@ -188,9 +189,12 @@ class SourceExtractAdvancedTests final : public QObject {
         QVERIFY(advanced && passwordEnabled);
         advanced->click();
         passwordEnabled->click();
-        dialog.resize(size);
         dialog.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&dialog));
         QApplication::processEvents();
+        dialog.resize(size);
+        auto *scroll = dialog.findChild<QScrollArea *>("dialogContentScroll");
+        QVERIFY(scroll);
         for (const char *name : {"extractElimDup", "extractNtSecurity", "extractPathMode",
                                  "extractOverwriteMode", "extractPassword"}) {
             auto *control = dialog.findChild<QWidget *>(name);
@@ -201,7 +205,8 @@ class SourceExtractAdvancedTests final : public QObject {
                 continue;
             }
 #endif
-            QVERIFY2(UiInspection::fullyVisible(*control, dialog), name);
+            scroll->ensureWidgetVisible(control);
+            QTRY_VERIFY2(UiInspection::fullyVisible(*control, dialog), name);
             if (auto *button = qobject_cast<QCheckBox *>(control))
                 QVERIFY2(button->width() >= button->sizeHint().width(), name);
         }
@@ -303,6 +308,8 @@ class SourceExtractAdvancedTests final : public QObject {
         bool answered = false;
         QTimer answer;
         connect(&answer, &QTimer::timeout, &backend, [&] {
+            if (answered)
+                return;
             for (QWidget *widget : QApplication::topLevelWidgets())
                 if (auto *dialog = dynamic_cast<COverwriteDialog *>(widget);
                     dialog && dialog->isVisible()) {
@@ -314,6 +321,7 @@ class SourceExtractAdvancedTests final : public QObject {
         ExtractionOptions options;
         options.ElimDup.SetTrueTrue();
         options.overwriteMode = ExtractionOptions::OverwriteMode::Ask;
+        CErrorDismissal dismissal;
         const auto cancelled =
             RunQtArchiveBatchExtract(backend, {archive}, destination, {}, options, nullptr);
         answer.stop();

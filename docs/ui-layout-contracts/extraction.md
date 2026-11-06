@@ -50,11 +50,13 @@ copying or extracting readable entries. See the
 ## Redesign: Extract form
 
 The [approved redesign](../archive/plans/ui-redesign-plan.md) replaces the fixed columns with
-one form: destination/history and browse, optional subfolder name, overwrite mode,
-optional password, then Advanced settings. Path mode and root-folder duplication
+one form: destination/history and browse, optional subfolder name, optional
+password, then Advanced settings. Overwrite mode, path mode and root-folder duplication
 remain effective when Advanced settings is collapsed. A short Modified indicator
 identifies nondefault hidden options; expanded fields have no value summary.
 Windows security is shown only on Windows.
+The form body scrolls at compact heights while Extract/Cancel remain visible.
+The footer omits Help; the existing F1 help action remains available.
 
 A supplied password enables/reveals its section. Disabling the section excludes
 the password from the accepted request and retains its draft for re-enabling.

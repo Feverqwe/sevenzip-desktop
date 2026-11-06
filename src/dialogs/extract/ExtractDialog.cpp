@@ -15,6 +15,7 @@
 #include <QEvent>
 #include <QShowEvent>
 #include <QStandardPaths>
+#include <QTimer>
 #include <span>
 
 #define kHelpTopic "fm/plugins/7-zip/extract.htm"
@@ -59,6 +60,7 @@ CExtractDialog::CExtractDialog(const QString &initialPath, const QStringList &hi
     OnInit(history);
     UpdateAdvancedSummary();
     resize(QSize(520, sizeHint().height()).expandedTo(minimumSizeHint()));
+    _initialPresentationSize = size();
     _path->setFocus();
 }
 
@@ -164,6 +166,13 @@ void CExtractDialog::showEvent(QShowEvent *event) {
     QtReloadLangTexts(*this);
     QDialog::showEvent(event);
     UpdateAdvancedSummary();
+    if (_initialPresentation) {
+        _initialPresentation = false;
+        QTimer::singleShot(0, this, [this] {
+            if (isVisible() && size() == _initialPresentationSize)
+                QtFitScrollableDialog(*this);
+        });
+    }
 }
 
 void CExtractDialog::changeEvent(QEvent *event) {

@@ -18,10 +18,9 @@
 void CExtractDialog::BuildPresentation() {
     setObjectName("extractDialog");
     QtBindResourceText(this, IDD_EXTRACT, "Extract");
-    auto *buttons = new QtLangButtonBox(
-        QDialogButtonBox::Ok | QDialogButtonBox::Cancel | QDialogButtonBox::Help, this);
+    auto *buttons = new QtLangButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     buttons->SetAcceptText("ArchiveRedesign", QT_TRANSLATE_NOOP("ArchiveRedesign", "Extract"));
-    auto *layout = QtCreateDialogLayout(*this, *buttons);
+    auto *layout = QtCreateDialogLayout(*this, *buttons, QtDialogContent::Scrollable);
     layout->setSpacing(12);
     auto *destinationLabel = new QLabel(this);
     destinationLabel->setObjectName("extractDestinationLabel");
@@ -36,9 +35,9 @@ void CExtractDialog::BuildPresentation() {
     _path->setInsertPolicy(QComboBox::NoInsert);
 
     pathRow->addWidget(_path, 1);
-    auto *browse = new QPushButton("…", this);
+    auto *browse = new QPushButton(this);
     browse->setObjectName("extractBrowseButton");
-    QtBindLangText(browse, IDS_EXTRACT_SET_FOLDER, {}, true);
+    QtBindLocalText(browse, "ArchiveRedesign", QT_TRANSLATE_NOOP("ArchiveRedesign", "Browse…"));
     pathRow->addWidget(browse);
     layout->addLayout(pathRow);
 
@@ -79,12 +78,12 @@ void CExtractDialog::BuildPresentation() {
     auto *overwriteLabel = new QLabel(this);
     overwriteLabel->setObjectName("extractOverwriteModeLabel");
     QtBindResourceText(overwriteLabel, IDT_EXTRACT_OVERWRITE_MODE, "Overwrite mode:");
-    layout->addWidget(overwriteLabel);
+    modeColumn->insertWidget(0, overwriteLabel);
     _overwriteMode = new QComboBox(this);
     _overwriteMode->setObjectName("extractOverwriteMode");
     QtBindLangText(_overwriteMode, IDT_EXTRACT_OVERWRITE_MODE, "Overwrite mode", true);
     overwriteLabel->setBuddy(_overwriteMode);
-    layout->addWidget(_overwriteMode);
+    modeColumn->insertWidget(1, _overwriteMode);
 
     auto *passwordGroup = new QGroupBox(this);
     passwordGroup->setFlat(true);
@@ -142,14 +141,20 @@ void CExtractDialog::BuildPresentation() {
     connect(_nameEnable, &QCheckBox::toggled, _pathName, &QWidget::setEnabled);
     connect(_pathMode, &QComboBox::currentIndexChanged, this,
             &CExtractDialog::UpdateAdvancedSummary);
+    connect(_overwriteMode, &QComboBox::currentIndexChanged, this,
+            &CExtractDialog::UpdateAdvancedSummary);
     connect(_elimDup, &QCheckBox::toggled, this, &CExtractDialog::UpdateAdvancedSummary);
     connect(_ntSecurity, &QCheckBox::toggled, this, &CExtractDialog::UpdateAdvancedSummary);
+    QWidget::setTabOrder({_path, browse, _nameEnable, _pathName, _passwordEnable, _passwordControl,
+                          _showPassword, _advancedSection->button(), _overwriteMode, _pathMode,
+                          _elimDup, _ntSecurity});
 }
 
 void CExtractDialog::UpdateAdvancedSummary() {
     if (!_advancedSection || _pathMode->currentIndex() < 0)
         return;
     const bool modified = _pathMode->currentData().toInt() != NExtract::NPathMode::kFullPaths ||
+                          _overwriteMode->currentData().toInt() != NExtract::NOverwriteMode::kAsk ||
                           !_elimDup->isChecked() ||
                           (_ntSecurity->isEnabled() && _ntSecurity->isChecked());
     _advancedSection->setSummary(

@@ -10,8 +10,13 @@
 #include <QDialogButtonBox>
 #include <QDir>
 #include <QFile>
+#include <QLabel>
 #include <QPushButton>
+#include <QScopeGuard>
+#include <QScrollArea>
+#include <QScrollBar>
 #include <QSettings>
+#include <QStyleHints>
 #include <QTemporaryDir>
 #include <QToolButton>
 #include <QtTest>
@@ -50,15 +55,27 @@ class ExtractDialogTests final : public QObject {
         SaveRegLang(UString(language.toStdWString().c_str()), settings_);
         ReloadLang(settings_);
         CExtractDialog dialog(dir_.path(), {});
-        dialog.SetInitialOptions(NExtract::NPathMode::kNoPaths, NExtract::NOverwriteMode::kRename,
+        dialog.SetInitialOptions(NExtract::NPathMode::kFullPaths, NExtract::NOverwriteMode::kRename,
                                  QStringLiteral("пароль 密碼"));
         dialog.show();
         QVERIFY(QTest::qWaitForWindowExposed(&dialog));
         auto *enabled = dialog.findChild<QCheckBox *>("extractPasswordEnabled");
         auto *password = dialog.findChild<QLineEdit *>("extractPassword");
         auto *advanced = dialog.findChild<QToolButton *>("extractAdvancedToggle");
+        auto *scroll = dialog.findChild<QScrollArea *>("dialogContentScroll");
+        QVERIFY(scroll);
         QVERIFY(enabled->isChecked());
         QVERIFY(!advanced->isChecked());
+        QVERIFY(!overwrite(dialog)->isVisible());
+        auto *summary = dialog.findChild<QWidget *>("extractAdvancedSection")
+                            ->findChild<QLabel *>("disclosureSummary");
+        QVERIFY(summary && summary->isVisible());
+        overwrite(dialog)->setCurrentIndex(
+            overwrite(dialog)->findData(NExtract::NOverwriteMode::kAsk));
+        QVERIFY(!summary->isVisible());
+        overwrite(dialog)->setCurrentIndex(
+            overwrite(dialog)->findData(NExtract::NOverwriteMode::kRename));
+        QVERIFY(summary->isVisible());
         QApplication::processEvents();
         QVERIFY(UiInspection::writeReport(dialog, "redesign-extract-password-" + language));
         enabled->click();
@@ -67,11 +84,14 @@ class ExtractDialogTests final : public QObject {
         enabled->click();
         QCOMPARE(dialog.password(), QStringLiteral("пароль 密碼"));
         advanced->click();
+        scroll->ensureWidgetVisible(overwrite(dialog));
+        QTRY_VERIFY(UiInspection::fullyVisible(*overwrite(dialog), dialog));
         QApplication::processEvents();
         QVERIFY(UiInspection::writeReport(dialog, "redesign-extract-expanded-" + language));
         pathMode(dialog)->setCurrentIndex(0);
         advanced->click();
         QVERIFY(!pathMode(dialog)->isVisible());
+        QVERIFY(!overwrite(dialog)->isVisible());
         enabled->click();
         QApplication::processEvents();
         QVERIFY(UiInspection::writeReport(dialog, "redesign-extract-collapsed-" + language));
@@ -89,6 +109,59 @@ class ExtractDialogTests final : public QObject {
         QCOMPARE(dialog.Password, QString());
         QCOMPARE(dialog.PathMode, NExtract::NPathMode::kNoPaths);
         QCOMPARE(dialog.OverwriteMode, NExtract::NOverwriteMode::kRename);
+    }
+
+    void compactFieldsRemainReachable_data() {
+        QTest::addColumn<QString>("language");
+        QTest::newRow("en") << QString("-");
+        QTest::newRow("ru") << QString("ru");
+    }
+    void compactFieldsRemainReachable() {
+        QFETCH(QString, language);
+        auto *hints = QGuiApplication::styleHints();
+        const auto previousTabFocus = hints->tabFocusBehavior();
+        const auto restoreTabFocus =
+            qScopeGuard([&] { hints->setTabFocusBehavior(previousTabFocus); });
+        hints->setTabFocusBehavior(Qt::TabFocusAllControls);
+        SaveRegLang(UString(language.toStdWString().c_str()), settings_);
+        ReloadLang(settings_);
+        CExtractDialog dialog(dir_.filePath(QStringLiteral("длинная папка 空")), {});
+        dialog.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&dialog));
+        dialog.activateWindow();
+        QVERIFY(QTest::qWaitForWindowActive(&dialog));
+        QApplication::processEvents();
+        auto *advanced = dialog.findChild<QToolButton *>("extractAdvancedToggle");
+        auto *scroll = dialog.findChild<QScrollArea *>("dialogContentScroll");
+        auto *buttons = dialog.findChild<QDialogButtonBox *>();
+        QVERIFY(advanced && scroll && buttons);
+        dialog.resize(360, 300);
+        dialog.findChild<QCheckBox *>("extractPasswordEnabled")->setChecked(true);
+        advanced->setChecked(true);
+        auto *showPassword = dialog.findChild<QCheckBox *>("extractShowPassword");
+        showPassword->setFocus();
+        QTest::keyClick(showPassword, Qt::Key_Tab);
+        QTRY_VERIFY(advanced->hasFocus());
+        QTest::keyClick(advanced, Qt::Key_Tab);
+        QTRY_VERIFY(overwrite(dialog)->hasFocus());
+        for (const char *name :
+             {"extractDestination", "extractPathName", "extractPassword", "extractShowPassword",
+              "extractOverwriteMode", "extractPathMode", "extractElimDup"}) {
+            auto *control = dialog.findChild<QWidget *>(name);
+            QVERIFY(control);
+            scroll->ensureWidgetVisible(control);
+            QTRY_VERIFY2(UiInspection::fullyVisible(*control, dialog), name);
+            QVERIFY(control->height() >= control->minimumSizeHint().height());
+            QVERIFY(UiInspection::fullyVisible(*buttons, dialog));
+        }
+        QCOMPARE(scroll->horizontalScrollBar()->maximum(), 0);
+        QVERIFY(UiInspection::writeReport(dialog, "redesign-extract-compact-" + language));
+        const QSize compactSize = dialog.size();
+        dialog.hide();
+        dialog.show();
+        QApplication::processEvents();
+        QCOMPARE(dialog.size(), compactSize);
+        dialog.reject();
     }
 
     void initTestCase() {

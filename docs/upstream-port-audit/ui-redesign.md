@@ -4,6 +4,38 @@
 Это намеренная адаптация представления; полный исходный функциональный scope
 и baseline сохраняются в [основном аудите](../upstream-port-audit.md).
 
+## Extract: compact form and hidden overwrite options — 2026-11-06
+
+Compared the pinned original ExtractDialog initialization, OnOK, browse handler,
+resource and ExtractGUI caller with the current form. No external source is
+imported and the recorded baseline is unchanged. Native destination parsing,
+history, force-mode precedence, password callbacks and metadata bool-pairs remain
+with their existing owners.
+
+Overwrite joins path mode and root-folder duplication inside Advanced. Its
+nondefault value contributes to the collapsed Modified indicator. The same
+controls remain effective while hidden. The shared scrolling dialog body keeps
+Extract/Cancel outside the viewport; the visible Help button is omitted while F1
+retains its existing handler. Browse uses a live translated caption. Tab follows
+the visual order. Initial content fitting yields to an explicitly supplied size
+and does not run again when the same dialog is shown later.
+
+Focused checks cover hidden accepted options, Cancel persistence, source force
+modes, real extraction, scrolling to each compact field, footer exposure and
+retaining a compact size after hide/show. The native cancellation fixture now
+acknowledges the terminal progress result before checking extracted/existing bytes.
+This layout iteration does not establish completion of the catalog's source and
+selection summaries or batch presentation.
+
+Linux focused acceptance passed six suites: extract_dialog,
+source_extract_advanced, dialog_path_rules, ui_geometry, ui_layout and
+language_dialog. The three changed test fixtures passed again after the final
+native-geometry/focus adjustments. The same six suites passed under actual Cocoa;
+NTFS security and alternate-stream cases are explicitly skipped on these systems.
+Native Windows and rendered original Windows pixel parity were not checked in
+this iteration. Shared portable behavior uses Linux as its primary acceptance;
+Cocoa adds native control metrics, keyboard focus and compact layout evidence.
+
 ## Complete toolbar group projection — 2026-11-05
 
 Reviewed complete original CreateToolbar, both button tables, SetButtonText,
