@@ -10,7 +10,7 @@ h1{font-size:14px;margin:0;font-weight:600;white-space:nowrap}p{margin:6px 0;col
 .tools{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.tools label{white-space:nowrap}select,a,button{font:inherit}select,button{padding:4px 8px;border:1px solid light-dark(#c9c9cf,#48484d);border-radius:6px;background:light-dark(#fff,#333336);color:inherit}a{color:light-dark(#0068d9,#69adff)}select{max-width:100%}button{cursor:pointer}.review-info{margin-left:auto;position:relative}.review-info summary{cursor:pointer;color:light-dark(#626267,#b5b5bd)}.review-info-body{position:absolute;right:0;top:28px;width:min(440px,calc(100vw - 24px));max-height:65dvh;overflow:auto;padding:12px 16px;border:1px solid light-dark(#c9c9cf,#48484d);border-radius:8px;background:light-dark(#fff,#2c2c2e);box-shadow:0 6px 24px #0002;z-index:10}.review-info-body nav{display:flex;flex-wrap:wrap;gap:8px 16px}
 main{display:grid;grid-template-columns:minmax(0,1fr);flex:1;min-height:0}main.compare{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
 iframe{width:100%;height:100%;border:0}section{min-width:0;overflow:auto}#reference{padding:16px 20px;border-left:1px solid light-dark(#c9c9cf,#48484d)}#reference img{display:block;max-width:100%;height:auto;margin:20px auto;background:light-dark(#fff,#252527)}#reference h2{font-size:16px;margin:0 0 10px}#reference small{overflow-wrap:anywhere;color:light-dark(#626267,#b5b5bd)}[hidden]{display:none!important}#status{font-size:12px}
-@media(max-width:1000px){main.compare{grid-template-columns:1fr;overflow:auto;display:block}main.compare iframe{height:850px}#reference{border-left:0;border-top:1px solid GrayText}}@media(max-width:600px){.tools{gap:8px}.tools h1{display:none}#window{max-width:calc(100vw - 24px)}}
+@media(max-width:1000px){main.compare{grid-template-columns:1fr;overflow:auto;display:flex;flex-direction:column}main.compare>section:first-child{flex:none;height:100%}main.compare iframe{height:100%}#reference{flex:none;border-left:0;border-top:1px solid GrayText}}@media(max-width:600px){.tools{gap:8px}.tools h1{display:none}#window{max-width:calc(100vw - 24px)}}
 </style>
 <header>
 <div class="tools">
@@ -24,10 +24,12 @@ iframe{width:100%;height:100%;border:0}section{min-width:0;overflow:auto}#refere
 <nav><a id="gallery" href="#" target="_blank">Все снимки ↗</a>
 <a href="sevenzip-preview.html" target="_blank">Концепт отдельно ↗</a>
 <a href="design-plan.md" target="_blank">Порядок проработки ↗</a>
+<a href="specs/implementation-scope.md" target="_blank">Границы реализации ↗</a>
 <a href="scenarios.md" target="_blank">Сквозные сценарии ↗</a>
 <a href="review-audit.md" target="_blank">Аудит готовности ↗</a>
 <a href="specs/names-and-selection.md" target="_blank">Имена и выделение ↗</a>
 <a href="specs/main-window.md" target="_blank">Главное окно: решения ↗</a>
+<a href="specs/main-window-status-formatting.md" target="_blank">Статус, размеры и даты ↗</a>
 <a href="specs/main-window-menus.md" target="_blank">Меню и навигация ↗</a>
 <a href="specs/main-window-actions.md" target="_blank">Файловые действия и проверка архива ↗</a>
 <a href="specs/application-lifecycle.md" target="_blank">Сервис и выход приложения ↗</a>
@@ -56,13 +58,13 @@ iframe{width:100%;height:100%;border:0}section{min-width:0;overflow:auto}#refere
 </div></details></div>
 </header>
 <main class="compare">
-<section><iframe id="concept" src="sevenzip-preview.html" title="Интерактивный концепт Sevenzip"></iframe></section>
+<section><iframe id="concept" src="sevenzip-preview.html?previewVersion=layout-v62" title="Интерактивный концепт Sevenzip"></iframe></section>
 <section id="reference"><h2>Снимок реализации</h2><select id="shot" aria-label="Состояние на снимке реализации"></select><p id="capture"></p><img id="image" alt=""><small id="filename"></small><p><a id="png" target="_blank">PNG</a> · <a id="json" target="_blank">Состав и размеры виджетов</a></p></section>
 </main>
 <script>
 let catalog,manifest,rows=[],selected=decodeURIComponent(location.hash.slice(1))||'main',conceptReady=false;
 const $=id=>document.getElementById(id),frame=$('concept');
-if(location.search)frame.src='sevenzip-preview.html'+location.search;
+const previewUrl=new URL('sevenzip-preview.html',location.href);previewUrl.search=location.search;previewUrl.searchParams.set('previewVersion','layout-v62');frame.src=previewUrl.href;
 function navigate(id){selected=id;$('window').value=id;history.replaceState(null,'','#'+encodeURIComponent(id));frame.contentWindow.postMessage({type:'sevenzip-design-navigate',screen:id},location.origin);renderReference()}
 function applyReviewTheme(){document.documentElement.style.colorScheme=$('scheme').value;frame.contentWindow.postMessage({type:'sevenzip-design-theme',scheme:$('scheme').value},location.origin);renderReference()}
 function showShot(){const s=rows[+$('shot').value];$('image').hidden=!s;$('png').hidden=$('json').hidden=!s;if(!s)return;const run=manifest.runs.find(r=>r.captures.includes(s));$('image').src=catalog.galleryBase+s.image;$('image').alt=`${$('window').selectedOptions[0].textContent} · ${s.tag}`;$('png').href=$('image').src;$('json').href=catalog.galleryBase+s.report;$('filename').textContent=s.image;$('capture').textContent=`macOS · ${s.qpa} · ${s.size.join(' × ')} · ${new Date(run.capturedAt).toLocaleString('ru-RU',{timeZone:'Europe/Moscow'})} МСК${run.error?' · Сценарий завершился с ошибкой; снимок доступен':''}`}
