@@ -93,6 +93,7 @@ class SourceCompressDialogTests final : public QObject {
         QVERIFY(!dialog.findChild<QComboBox *>("compressionLevel")->isVisible());
         QVERIFY(!parameters->isVisible());
         QVERIFY(!enabled->isChecked());
+        QTRY_VERIFY(enabled->height() >= enabled->sizeHint().height());
         QVERIFY(UiInspection::writeReport(dialog, "redesign-add-collapsed-" + language));
         QString chosenMethod;
         QVERIFY(EditArchiveExpert(dialog, true, [&](QDialog &editor) {

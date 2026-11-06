@@ -115,6 +115,7 @@ void CreateArchiveDialog::createCommandLineOptions(QFormLayout *form) {
                        QT_TRANSLATE_NOOP("createarchivedialog_advanced",
                                          "Method parameters, for example: tm=off or mt=2."));
     auto *parametersForm = new QFormLayout;
+    parametersForm->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
     parametersForm->setRowWrapPolicy(QFormLayout::WrapAllRows);
     parametersForm->addRow("&Parameters:", parameters_);
     form->addRow(parametersForm);

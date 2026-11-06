@@ -252,6 +252,26 @@ class CompressionExpertTests final : public QObject {
         QCOMPARE(text(form, "archiveName")->text(), custom);
         QVERIFY(!QFile::exists(settings_));
     }
+    void inputsGrowWithTheirForms() {
+        CreateArchiveDialog form(fixture_.path(), {}, nullptr, NativeArchiveFixture::Catalog());
+        form.show();
+        auto *additional = form.findChild<QtDisclosure *>("archiveAdditionalSection");
+        additional->setExpanded(true);
+        form.resize(640, form.height());
+        QApplication::processEvents();
+        auto *volume = combo(form, "archiveVolumeSize");
+        const int narrowVolume = volume->width();
+        form.resize(form.width() + 160, form.height());
+        QTRY_VERIFY(volume->width() > narrowVolume);
+        QVERIFY(EditArchiveExpert(form, false, [&](QDialog &editor) {
+            editor.resize(360, 300);
+            QApplication::processEvents();
+            auto *parameters = text(editor, "archiveParameters");
+            const int narrowParameters = parameters->width();
+            editor.resize(editor.width() + 160, editor.height());
+            QTRY_VERIFY(parameters->width() > narrowParameters);
+        }));
+    }
 };
 
 #include "ui/support/review_test_main.h"

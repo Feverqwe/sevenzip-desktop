@@ -128,6 +128,10 @@ QPushButton *CreateArchiveDialog::createArchiveDestination(QVBoxLayout *windowLa
 }
 
 void CreateArchiveDialog::stabilizeColumnWidths() {
+#ifdef Q_OS_MACOS
+    for (auto *check : findChildren<QCheckBox *>())
+        check->setMinimumHeight(check->sizeHint().height());
+#endif
     // Keep the value row steady when the memory figures use one or two lines.
     memoryUsage_->setMinimumHeight(2 * memoryUsage_->fontMetrics().lineSpacing());
     for (auto *label : findChildren<QLabel *>())

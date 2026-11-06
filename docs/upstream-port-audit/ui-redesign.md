@@ -3456,3 +3456,13 @@ catalog. Existing update mode and source-deletion behavior remain available in
 Expert while the separately designed creation/update-intent workflow is open.
 Independent operation-list/return behavior and whole-catalog acceptance likewise
 remain open; this evidence does not establish rendered Windows parity.
+
+The first light/dark image review then exposed two visual defects despite those
+passing checks: the main password checkbox was shorter than its native size hint,
+clipping its indicator, and the properties/volume inputs did not grow with their
+forms. The creation owner now respects the current Cocoa checkbox height hint;
+both nested field layouts use the shared growing-field policy. Focused regressions
+check the initial indicator height and responsive input growth. Linux expert,
+source creation and volumes passed; the six affected Cocoa consumers also passed.
+The original captures retain their provenance; the affected producers require a
+fresh capture after this correction.

@@ -18,6 +18,7 @@ void CreateArchiveDialog::createVolumeOptions(QFormLayout *form) {
         QT_TRANSLATE_NOOP("createarchivedialog_volumes",
                           "For example: 10M or 10M 20M. Leave empty for a single archive."));
     auto *volumeForm = new QFormLayout;
+    volumeForm->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
     volumeForm->setRowWrapPolicy(QFormLayout::WrapAllRows);
     volumeForm->addRow("Split to volumes, bytes:", volume_);
     form->addRow(volumeForm);
