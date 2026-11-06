@@ -518,7 +518,7 @@ class CArchiveExtractCallback Z7_final : public IArchiveExtractCallback,
     // HRESULT MyCopyFile(ISequentialOutStream *outStream);
     HRESULT ReadLink();
     HRESULT SetLink(const FString &fullProcessedPath_from, const CLinkInfo &linkInfo,
-                    bool &linkWasSet);
+                    bool &linkWasSet, bool preserveExisting = false);
     HRESULT SetPostLinks();
 
   public:

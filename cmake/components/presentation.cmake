@@ -225,6 +225,10 @@ add_library(sevenzip_panel
     src/ui/controls/qtdisclosure.h
     src/ui/controls/qtrecentpathbutton.cpp
     src/ui/controls/qtrecentpathbutton.h
+    src/ui/controls/qtresponsiverow.cpp
+    src/ui/controls/qtresponsiverow.h
+    src/ui/controls/qtwrappingcheckbox.cpp
+    src/ui/controls/qtwrappingcheckbox.h
     src/ui/controls/qtsecretedit.cpp
     src/ui/controls/qtsecretedit.h
     src/ui/controls/qtsourcesummary.cpp

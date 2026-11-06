@@ -22,7 +22,7 @@ Z7_PURE_INTERFACES_BEGIN
 #define Z7_IFACE_CONSTR_FOLDERARC(i, n) Z7_IFACE_CONSTR_FOLDERARC_SUB(i, IUnknown, n)
 
 namespace NOverwriteAnswer {
-enum EEnum { kYes, kYesToAll, kNo, kNoToAll, kAutoRename, kCancel };
+enum EEnum { kYes, kYesToAll, kNo, kNoToAll, kAutoRename, kCancel, kAutoRenameOnce };
 }
 
 /* ---------- IFolderArchiveExtractCallback ----------

@@ -30,7 +30,7 @@ static HRESULT CopyFileSpec(CFSTR fromPath, CFSTR toPath, bool writeToDisk, UInt
     if (writeToDisk) {
         if (!outFile.Open(toPath, FILE_SHARE_WRITE, OPEN_EXISTING, 0))
             return GetLastError_noZero_HRESULT();
-    } else if (!outFile.Create_ALWAYS(toPath))
+    } else if (!outFile.Create_NEW(toPath))
         return GetLastError_noZero_HRESULT();
 
     CPhysTempBuffer tempBuffer;

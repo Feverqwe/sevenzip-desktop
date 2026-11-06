@@ -151,15 +151,23 @@ extra buttons enabled/disabled, and MemDialog reports at 700×460 / 560×460 wit
 limit editing disabled/enabled. `ui_parity_overwrite` / `ui_parity_mem` run
 that current-build producer fixture before comparing pinned RC contracts.
 
-The redesign places existing/incoming file details side by side beneath the
-destination notice, with shared dialog margins and a compact footer aligned right.
-Replace/Replace all/Auto rename and Skip/Skip all/Cancel retain all six source
-result IDs. When batch answers are disallowed they are hidden and the remaining
-actions share one row. Source ReduceString, byte size and timestamp formatting
-are preserved. Skip is the default when No is requested by the source.
-Widths follow native text hints rather than fixed ratios; details start beside
-the top of each icon. The earlier gallery's disabled extra actions are superseded
-by this redesign, restoring the source's visibility condition.
+The agreed conflict form offers Replace, Skip and Keep both, with one unchecked
+Apply to remaining conflicts in this operation checkbox. A known single-file
+transfer hides that checkbox; one selected root directory does not establish a
+single conflict. Cancel operation is separate and always cancels, including when
+the checkbox is checked. Initial focus/default is Skip. Keep both without the
+checkbox changes only the current conflict; the existing native auto-name algorithm
+chooses an available name. Operation policy must not leak into another operation.
+
+Existing/incoming metadata stays in separate areas, side by side when readable
+and stacked at narrower widths. Full filenames/locations wrap in the modern form;
+unknown size/time is explicit. Known byte sizes and timestamps retain source
+formatting. Three equal decisions also stack when necessary. The body scrolls
+independently of the cancellation footer. Native minimum button sizes remain fitted.
+The restricted Revert caller retains its original Yes/No/Cancel result contract,
+source default preference and bounded name formatting; Keep both and the scope
+checkbox are unavailable there. Existing native result values are preserved;
+the one-conflict rename answer is a separate project extension.
 `overwrite_layout` covers EN/RU, normal/compact widths, extra-action availability
 and reinitialization. Its initial-frame case checks readable controls at
 8pt and 12pt fonts. Responsive Qt layouts and

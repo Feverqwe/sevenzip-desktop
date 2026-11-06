@@ -8,6 +8,7 @@
 #include "localization/LangUtils.h"
 #include "platform/support/native_property_failure_runtime.h"
 #include "settings/RegistryUtils.h"
+#include "support/overwrite_reply.h"
 #include "support/widget_dialogs.h"
 #include "ui/progress/ProgressDialog2.h"
 #include <QScopeGuard>
@@ -192,7 +193,10 @@ class ArchiveMoveCompletionTests final : public QObject, protected MainWindowTes
                 copy->accept();
             } else if (auto *overwrite = dynamic_cast<COverwriteDialog *>(modal)) {
                 ++overwriteQuestions;
-                overwrite->findChild<QPushButton *>(answer)->click();
+                if (noToAll)
+                    ReplyOverwrite(*overwrite, IDB_NO_TO_ALL);
+                else
+                    overwrite->findChild<QPushButton *>(answer)->click();
             } else if (auto *box = qobject_cast<QMessageBox *>(modal)) {
                 if (box->button(QMessageBox::Yes)) {
                     deletionAsked = true;

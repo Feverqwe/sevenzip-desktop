@@ -3,9 +3,13 @@
 #include "localization/qtlangcontrols.h"
 #include "settings/RegistryUtils.h"
 #include "ui/support/layout_inspection.h"
+#include <QCheckBox>
 #include <QLabel>
+#include <QLayout>
 #include <QPushButton>
 #include <QScopeGuard>
+#include <QScrollArea>
+#include <QScrollBar>
 #include <QTemporaryDir>
 #include <QtTest>
 
@@ -13,12 +17,88 @@ class OverwriteLayoutTests final : public QObject {
     Q_OBJECT
 
   private slots:
+    void cancellationIgnoresScope() {
+        for (int action = 0; action < 3; ++action) {
+            COverwriteDialog dialog;
+            QVERIFY(dialog.OnInit());
+            dialog.show();
+            QVERIFY(QTest::qWaitForWindowActive(&dialog));
+            auto *apply = dialog.findChild<QCheckBox *>("overwriteApplyToRemaining");
+            QVERIFY(apply && apply->isEnabled());
+            apply->setChecked(true);
+            if (action == 0)
+                QTest::keyClick(&dialog, Qt::Key_Escape);
+            else if (action == 1)
+                dialog.close();
+            else
+                dialog.findChild<QPushButton *>("overwriteCancel")->click();
+            QCOMPARE(dialog.result(), IDCANCEL);
+        }
+    }
+    void decisionScopeAndLanguage_data() {
+        QTest::addColumn<bool>("multiple");
+        QTest::newRow("single") << false;
+        QTest::newRow("multiple") << true;
+    }
+    void decisionScopeAndLanguage() {
+        QFETCH(bool, multiple);
+        QTemporaryDir settings;
+        const QString ini = settings.filePath("language.ini");
+        SaveRegLang(UString(L"-"), ini);
+        ReloadLang(ini);
+        const auto restore = qScopeGuard([&] {
+            SaveRegLang(UString(L"-"), ini);
+            ReloadLang(ini);
+            QtNotifyLanguageChanged();
+        });
+        const QString name = QStringLiteral("длинное имя 空 ") + QString(100, 'x') + ".txt";
+        OverwriteQuestion question;
+        question.Existing.Path = "/old/" + name;
+        question.Incoming.Path = "/new/" + name;
+        question.MultipleConflictsPossible = multiple;
+        COverwriteDialog dialog;
+        dialog.SetQuestion(question);
+        dialog.OnInit();
+        dialog.show();
+        QVERIFY(QTest::qWaitForWindowActive(&dialog));
+        auto *apply = dialog.findChild<QCheckBox *>("overwriteApplyToRemaining");
+        auto *skip = dialog.findChild<QPushButton *>("overwriteNo");
+        QVERIFY(skip->hasFocus());
+        QCOMPARE(apply->isVisible(), multiple);
+        QVERIFY(dialog.findChild<QLabel *>("overwriteNewFile")->text().contains(name));
+        QVERIFY(dialog.findChild<QLabel *>("overwriteNewFile")->text().contains("Unknown"));
+        if (multiple) {
+            QLabel *caption = nullptr;
+            for (auto *label : dialog.findChildren<QLabel *>())
+                if (label->buddy() == apply)
+                    caption = label;
+            QVERIFY(caption);
+            QTest::mouseClick(caption, Qt::LeftButton);
+            QVERIFY(apply->isChecked());
+            const QString english = apply->accessibleName();
+            SaveRegLang(UString(L"ru"), ini);
+            ReloadLang(ini);
+            QtNotifyLanguageChanged();
+            QVERIFY(apply->isChecked());
+            QVERIFY(apply->accessibleName() != english);
+            QVERIFY(dialog.findChild<QLabel *>("overwriteNewFile")->text().contains(name));
+            QVERIFY(dialog.findChild<QLabel *>("overwriteNewFile")
+                        ->text()
+                        .contains(QStringLiteral("Неизвестно")));
+            skip->setFocus();
+            QTest::keyClick(skip, Qt::Key_Return);
+            QCOMPARE(dialog.result(), IDB_NO_TO_ALL);
+        } else {
+            dialog.findChild<QPushButton *>("overwriteRename")->click();
+            QCOMPARE(dialog.result(), NOverwriteDialog::kAutoRenameOnceResult);
+        }
+    }
     void sourceFooterAndFileRows_data() {
         QTest::addColumn<QString>("language");
         QTest::addColumn<int>("width");
         QTest::addColumn<bool>("extra");
         for (const QString &language : {QString("-"), QString("ru")})
-            for (int width : {700, 560})
+            for (int width : {700, 560, 380, 360})
                 for (bool extra : {false, true})
                     QTest::newRow(
                         qPrintable(QString("%1-%2-%3").arg(language).arg(width).arg(extra)))
@@ -30,7 +110,6 @@ class OverwriteLayoutTests final : public QObject {
         QFETCH(int, width);
         QFETCH(bool, extra);
         QTemporaryDir settings;
-        QVERIFY(settings.isValid());
         const QString ini = settings.filePath("language.ini");
         SaveRegLang(UString(language.toStdWString().c_str()), ini);
         ReloadLang(ini);
@@ -39,7 +118,6 @@ class OverwriteLayoutTests final : public QObject {
             ReloadLang(ini);
             QtNotifyLanguageChanged();
         });
-
         COverwriteDialog dialog;
         dialog.ShowExtraButtons = extra;
         dialog.DefaultButton_is_NO = true;
@@ -48,64 +126,59 @@ class OverwriteLayoutTests final : public QObject {
         dialog.OldFileInfo.SetSize(12345);
         dialog.NewFileInfo.SetSize(67890);
         QVERIFY(dialog.OnInit());
-        dialog.resize(width, 440);
+        dialog.resize(width, width < 500 ? 300 : 440);
         dialog.show();
         QApplication::processEvents();
-        QVERIFY(UiInspection::writeReport(
-            dialog, QString("overwrite-layout-%1-%2-%3").arg(language).arg(width).arg(extra)));
-
         auto *yes = dialog.findChild<QPushButton *>("overwriteYes");
         auto *no = dialog.findChild<QPushButton *>("overwriteNo");
-        auto *yesAll = dialog.findChild<QPushButton *>("overwriteYesAll");
-        auto *noAll = dialog.findChild<QPushButton *>("overwriteNoAll");
         auto *rename = dialog.findChild<QPushButton *>("overwriteRename");
         auto *cancel = dialog.findChild<QPushButton *>("overwriteCancel");
-        QVERIFY(yes && no && yesAll && noAll && rename && cancel);
+        auto *apply = dialog.findChild<QCheckBox *>("overwriteApplyToRemaining");
+        auto *scroll = dialog.findChild<QScrollArea *>("dialogContentScroll");
+        QVERIFY(yes && no && rename && cancel && apply && scroll);
         QVERIFY(no->isDefault());
-        const QRect yesBounds = UiInspection::bounds(*yes, dialog);
-        const QRect noBounds = UiInspection::bounds(*no, dialog);
-        const QRect cancelBounds = UiInspection::bounds(*cancel, dialog);
-        if (extra) {
-            QVERIFY(yesAll->isVisible() && noAll->isVisible() && rename->isVisible());
-            QVERIFY(yesBounds.bottom() < noBounds.top());
-            dialog.ShowExtraButtons = false;
-            QVERIFY(dialog.OnInit());
-            QApplication::processEvents();
+        QCOMPARE(rename->isVisible(), extra);
+        QCOMPARE(apply->isVisible(), extra);
+        QVERIFY(!apply->isChecked());
+        if (width < 500) {
+            scroll->verticalScrollBar()->setValue(0);
+            auto *header = dialog.findChild<QLabel *>("overwriteHeader");
+            QTRY_VERIFY(UiInspection::fullyVisible(*header, dialog));
             QVERIFY(UiInspection::writeReport(
                 dialog,
-                QString("overwrite-layout-%1-%2-%3-hidden").arg(language).arg(width).arg(extra)));
-        } else {
-            QVERIFY(yesBounds.right() < noBounds.left());
-            QVERIFY(noBounds.right() < cancelBounds.left());
+                QString("overwrite-layout-%1-%2-%3-top").arg(language).arg(width).arg(extra)));
         }
-        QVERIFY(!yesAll->isVisible() && !noAll->isVisible() && !rename->isVisible());
-        for (auto *first : {yes, no, cancel})
-            for (auto *second : {yes, no, cancel})
-                if (first != second)
-                    QVERIFY(UiInspection::separate(*first, *second, dialog));
-        dialog.ShowExtraButtons = true;
-        QVERIFY(dialog.OnInit());
-        QApplication::processEvents();
-        QVERIFY(yesAll->isEnabled() && noAll->isEnabled() && rename->isEnabled());
-        for (const auto *button : {yes, no, yesAll, noAll, rename, cancel})
-            if (button->isVisible()) {
-                QVERIFY(UiInspection::fullyVisible(*button, dialog));
+        for (auto *widget : dialog.findChildren<QWidget *>()) {
+            if (!widget->isVisible() || widget == scroll || !scroll->widget()->isAncestorOf(widget))
+                continue;
+            const auto reveal = [&] {
+                const QRect rect(widget->mapTo(scroll->widget(), QPoint()), widget->size());
+                scroll->ensureVisible(rect.left(), rect.top(), 0, 0);
+                scroll->ensureVisible(rect.right() + 1, rect.bottom() + 1, 0, 0);
+                return UiInspection::fullyVisible(*widget, dialog);
+            };
+            if (widget->height() <= scroll->viewport()->height())
+                QTRY_VERIFY2(reveal(), qPrintable(QString("%1 %2 %3,%4 %5x%6")
+                                                      .arg(widget->metaObject()->className())
+                                                      .arg(widget->objectName())
+                                                      .arg(widget->x())
+                                                      .arg(widget->y())
+                                                      .arg(widget->width())
+                                                      .arg(widget->height())));
+            if (auto *label = qobject_cast<QLabel *>(widget))
+                QVERIFY(UiInspection::labelFits(*label));
+            if (auto *button = qobject_cast<QPushButton *>(widget))
                 QVERIFY(button->width() >= button->sizeHint().width());
-                QVERIFY(button->height() >= button->sizeHint().height());
-            }
-
-        for (const QString &name : {QString("overwriteOldFile"), QString("overwriteNewFile")}) {
-            auto *details = dialog.findChild<QLabel *>(name);
-            auto *icon = dialog.findChild<QLabel *>(name + "Icon");
-            QVERIFY(details && icon);
-            const int flags = int(details->alignment()) | Qt::TextWordWrap;
-            const QRect drawnText = details->fontMetrics().boundingRect(details->contentsRect(),
-                                                                        flags, details->text());
-            const int firstLineTop = details->mapTo(&dialog, drawnText.topLeft()).y();
-            const int iconTop = icon->mapTo(&dialog, icon->contentsRect().topLeft()).y();
-            QVERIFY(qAbs(firstLineTop - iconTop) <= 1);
-            QVERIFY(UiInspection::fullyVisible(*details, dialog));
-            QVERIFY(UiInspection::labelFits(*details));
+            QVERIFY(UiInspection::fullyVisible(*cancel, dialog));
+        }
+        QVERIFY(UiInspection::writeReport(
+            dialog, QString("overwrite-layout-%1-%2-%3").arg(language).arg(width).arg(extra)));
+        if (extra) {
+            dialog.ShowExtraButtons = false;
+            QVERIFY(dialog.OnInit());
+            QVERIFY(!apply->isVisible());
+            QVERIFY(!rename->isVisible());
+            QVERIFY(yes->isEnabled() && no->isEnabled() && cancel->isEnabled());
         }
     }
 

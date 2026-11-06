@@ -33,12 +33,17 @@ QtFileTransferTransaction::OverwriteDecision
 QtFileTransferTransaction::decideOverwrite(const OverwriteSource &source) {
     if (rememberedOverwrite_)
         return *rememberedOverwrite_;
-    switch (worker_.askOverwrite(snapshot(source))) {
+    auto question = snapshot(source);
+    question.MultipleConflictsPossible =
+        worker_.sources_.size() != 1 || !QFileInfo(worker_.sources_.first()).isFile();
+    switch (worker_.askOverwrite(question)) {
     case NOverwriteAnswer::kNo:
         skipped_ = true;
         return OverwriteDecision::Skip;
     case NOverwriteAnswer::kYes:
         return OverwriteDecision::Replace;
+    case NOverwriteAnswer::kAutoRenameOnce:
+        return OverwriteDecision::Rename;
     case NOverwriteAnswer::kNoToAll:
         skipped_ = true;
         rememberedOverwrite_ = OverwriteDecision::Skip;

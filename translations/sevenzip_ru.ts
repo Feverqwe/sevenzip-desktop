@@ -2,6 +2,41 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="ru_RU" sourcelanguage="en">
     <context>
+        <name>ConflictRedesign</name>
+        <message>
+            <source>File already exists</source>
+            <translation>Файл уже существует</translation>
+        </message>
+        <message>
+            <source>At destination</source>
+            <translation>В назначении</translation>
+        </message>
+        <message>
+            <source>Incoming file</source>
+            <translation>Входящий файл</translation>
+        </message>
+        <message>
+            <source>Keep both</source>
+            <translation>Сохранить оба</translation>
+        </message>
+        <message>
+            <source>Cancel operation</source>
+            <translation>Отменить операцию</translation>
+        </message>
+        <message>
+            <source>Apply to remaining conflicts in this operation</source>
+            <translation>Применить к остальным конфликтам этой операции</translation>
+        </message>
+        <message>
+            <source>Keep both preserves the existing file and gives the incoming file a free name.</source>
+            <translation>«Сохранить оба» оставит существующий файл и запишет входящий под свободным именем.</translation>
+        </message>
+        <message>
+            <source>Unknown</source>
+            <translation>Неизвестно</translation>
+        </message>
+    </context>
+    <context>
         <name>CopyRedesign</name>
         <message>
             <source>From: %1</source>

@@ -132,7 +132,7 @@ HRESULT QtArchiveReadOperation::askOverwrite(const OverwriteQuestion &question, 
         QMutexLocker lock(&overwriteMutex_);
         if (overwriteAnswer_) {
             *answer = *overwriteAnswer_;
-            return *answer >= NOverwriteAnswer::kYes && *answer <= NOverwriteAnswer::kCancel
+            return *answer >= NOverwriteAnswer::kYes && *answer <= NOverwriteAnswer::kAutoRenameOnce
                        ? S_OK
                        : E_FAIL;
         }

@@ -5,8 +5,10 @@
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
 #include "localization/LangUtils.h"
+#include "support/panel_keys.h"
 #include "ui/support/layout_inspection.h"
 #include <QScopeGuard>
+#include <QScrollArea>
 
 using namespace SourceExtractFixture;
 
@@ -25,7 +27,7 @@ class NativeArchiveAdsCopyTests final : public QObject, protected MainWindowTest
     static FileTable *openPanel(MainWindow &window, unsigned pane, const QString &path) {
         auto *panel = window.findChild<QWidget *>(QString("filePanel%1").arg(pane));
         auto *address = panel->findChild<QLineEdit *>("archivePath");
-        address->setFocus();
+        PanelKeys::focusAddress(address);
         address->setText(path);
         QTest::keyClick(address, Qt::Key_Return);
         return static_cast<FileTable *>(panel->findChild<FileTable *>("archiveTable"));
@@ -68,10 +70,23 @@ class NativeArchiveAdsCopyTests final : public QObject, protected MainWindowTest
                 for (const QSize size : {QSize(440, 250), QSize(340, 220)}) {
                     dialog->resize(size);
                     dialog->layout()->activate();
-                    for (const char *control : {"copyDestination", "copyBrowseButton",
-                                                "copySourceSummary", "copyButtons"})
-                        QVERIFY(UiInspection::fullyVisible(*dialog->findChild<QWidget *>(control),
-                                                           *dialog));
+                    auto *scroll = dialog->findChild<QScrollArea *>("dialogContentScroll");
+                    QVERIFY(scroll);
+                    for (const char *control :
+                         {"copyDestination", "copyBrowseButton", "copySourceSummary"}) {
+                        auto *widget = dialog->findChild<QWidget *>(control);
+                        QVERIFY(widget);
+                        const auto reveal = [&] {
+                            const QRect bounds(widget->mapTo(scroll->widget(), QPoint()),
+                                               widget->size());
+                            scroll->ensureVisible(bounds.left(), bounds.top(), 0, 0);
+                            scroll->ensureVisible(bounds.right() + 1, bounds.bottom() + 1, 0, 0);
+                            return UiInspection::fullyVisible(*widget, *dialog);
+                        };
+                        QTRY_VERIFY2(reveal(), control);
+                        QVERIFY(UiInspection::fullyVisible(
+                            *dialog->findChild<QWidget *>("copyButtons"), *dialog));
+                    }
                     QVERIFY(UiInspection::writeReport(*dialog,
                                                       QString("native-archive-ads-copy-%1-%2x%3")
                                                           .arg(tag)

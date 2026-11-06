@@ -3140,3 +3140,78 @@ from runtime evidence. The content minimum intentionally reserves one native
 scrollbar extent even when no bar is shown. Small stack/failure logs were retained;
 no full debug build, cache reset or new disk was needed. The temporary debugger
 logs were collected from the guest and removed from its source directory.
+
+## File-conflict decisions and responsive comparison — 2026-11-06
+
+Compared the complete pinned 7-Zip OverwriteDialog.cpp/.h/.rc initialization,
+formatting, focus and result handlers with the Qt form and its callers. Also
+reviewed ExtractCallbackOutput::AskWrite, ArchiveExtractCallback::CheckExistFile,
+GetExtractStream and SetLink, their alternate-stream/link/split branches, the
+existing FilePathAutoRename implementation, output-stream creation APIs and
+FSDrives export. The reference remains ip7z/7zip commit
+`0766b733fe3e06dd2a7f9a3cfbf2108ac73abd17`, with original inventory hashes and
+owner mappings in the existing baseline. No new external code or revision is
+imported. Native naming, split-file handling, attributes and extraction-path
+validation are retained. Source review applies to these conflict consumers,
+not a renewed whole-engine port audit.
+
+The agreed form replaces six decisions with Replace, Skip and Keep both plus
+an unchecked operation-scope checkbox. A separate appended project answer means
+Keep both for the current conflict; existing answer values and COM signatures
+remain unchanged. File transfer, native extraction and the file-manager callback
+handle it without remembering a rule. Checked decisions retain the existing
+operation-owned all-conflict modes. Restricted external-editor Revert retains
+Yes/No/Cancel and its source default preference, without Keep both or a scope
+checkbox. A known single regular-file transfer hides the scope control; a
+single selected directory does not establish one conflict.
+
+The Qt presentation preserves full modern paths/names and known source size/time
+formatting, makes unknown metadata explicit, and initially focuses Skip. Shared
+native controls provide a clickable wrapping checkbox caption and equal decision
+columns that stack when the longest minimum width cannot fit. The comparison
+cards stack independently. Scrollable forms now use an outer layout and a lower
+stretch instead of layout-level AlignTop: the latter capped content at its wide
+preferred height and clipped stacked cards. The compact regression waits for
+Qt's deferred layout/scroll update, then requires full visibility of each
+reachable child and readable labels/buttons; it does not waive clipping.
+
+Keep-both outputs use the native Create_NEW boundary so a newly occupied name
+cannot truncate foreign bytes. Metadata-link placeholders follow the same
+preservation rule, and a failed placeholder is not registered for deferred link
+creation. Existing reparse-data conversion of this operation's own output is
+unchanged. FSDrives image-file export likewise uses Create_NEW after the native
+AskWrite decision; its raw-device Open_EXISTING branch is unchanged.
+
+Focused Linux checks cover one/all-conflict scope, occupied generated names,
+copy/move, native callbacks, actual ZIP/7z extraction, cancellation and existing
+link extraction/refusals. UI checks cover EN/RU, live language change, unknown and
+long Unicode metadata, known-single scope, restricted Revert, initial focus,
+native button minimum widths and normal/intermediate/compact geometry. Copy and
+dialog-surface consumers also passed after the shared-body correction. Actual
+Cocoa runs passed Overwrite, extraction prompts, Revert, Copy and dialog surface;
+the checked-scope Escape/close/Cancel case passed separately. Light/dark captures
+include the compact form's top and scrolled positions. These are current Qt
+renderings, not proof of Windows pixel parity or full catalog completion.
+
+Windows compiled the affected native consumers, including FSDrivesCopy_win.
+Overwrite layout, native extraction callback, file transfer and extraction options
+passed in the focused five-suite batch. Its ADS-copy consumer initially failed:
+the old fixture sent Return into the hidden address editor and required the
+entire new scrollable Copy form to be visible at once. It now enters LocationBar
+editing through the existing public interaction helper and reveals each body
+control while requiring the footer to remain visible. The focused ADS rerun
+passed all four pane/language cases, preserving base-file, peer-stream and archive
+bytes. An intermediate activation assertion failed on Windows offscreen and was
+removed: these targeted widget events do not require foreground-window acceptance.
+This is Windows native filesystem/engine plus offscreen widget evidence, not a
+rendered Windows desktop comparison. No virtual-disk fixture was run; actual
+device-image export remains unverified. The exact create-time collision between
+name selection and placeholder creation was source-reviewed, not injected by a
+deterministic runtime fixture.
+
+The current macOS review application and both overwrite themes were refreshed
+from the same product sources. Each theme has 24 states, including both compact
+scroll positions; other gallery producers retain their own dated evidence and
+any existing failures. Resolved intermediate layout JSON and the one-off native
+driver were removed; current review artifacts, small failure logs, incremental
+outputs and compiler caches were retained. No full, slow or cold-build gate ran.

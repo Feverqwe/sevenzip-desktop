@@ -16,6 +16,7 @@ struct OverwriteQuestion {
     };
     File Existing;
     File Incoming;
+    bool MultipleConflictsPossible = true;
 };
 Q_DECLARE_METATYPE(OverwriteQuestion)
 

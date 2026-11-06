@@ -15,12 +15,15 @@ class CExtractUi final : public IFolderArchiveExtractCallback, public CMyUnknown
     bool Stopped = false;
     Int32 LastResult = -1;
     QStringList Errors;
+    QList<Int32> Answers;
+    int Questions = 0;
     Z7_COM7F_IMF(SetTotal(UInt64)) override { return S_OK; }
     Z7_COM7F_IMF(SetCompleted(const UInt64 *)) override { return Stopped ? E_ABORT : S_OK; }
     Z7_COM7F_IMF(AskOverwrite(const wchar_t *, const FILETIME *, const UInt64 *, const wchar_t *,
                               const FILETIME *, const UInt64 *, Int32 *answer))
     override {
-        *answer = NOverwriteAnswer::kNo;
+        ++Questions;
+        *answer = Answers.isEmpty() ? Int32(NOverwriteAnswer::kNo) : Answers.takeFirst();
         return S_OK;
     }
     Z7_COM7F_IMF(PrepareOperation(const wchar_t *, Int32, Int32, const UInt64 *)) override {
@@ -41,13 +44,18 @@ struct CExtractFixture {
     CMyComPtr2_Create<IFolderArchiveExtractCallback, CExtractUi> Ui;
     CMyComPtr2_Create<IArchiveExtractCallback, CArchiveExtractCallback> Callback;
     CExtractFixture(const QString &root, const QString &name,
+                    NExtract::NOverwriteMode::EEnum mode = NExtract::NOverwriteMode::kAsk)
+        : CExtractFixture(root, QStringList{name}, mode) {}
+    CExtractFixture(const QString &root, const QStringList &names,
                     NExtract::NOverwriteMode::EEnum mode = NExtract::NOverwriteMode::kAsk) {
         CObjectVector<CPanelItem> items;
-        CPanelItem item;
-        item.RelPath = name;
-        item.SizeDefined = true;
-        item.Size = 7;
-        items.Add(item);
+        for (const auto &name : names) {
+            CPanelItem item;
+            item.RelPath = name;
+            item.SizeDefined = true;
+            item.Size = 7;
+            items.Add(item);
+        }
         CMyComPtr<IFolderFolder> metadata =
             new QtPanelFolder({}, items, QtPanelFolder::PropertyCatalog::ArchiveTransport);
         if (metadata.QueryInterface(IID_IInArchive, &Arc.Archive) != S_OK)
@@ -70,6 +78,55 @@ QByteArray readFile(const QString &path) {
 class NativeExtractCallbackTests final : public QObject {
     Q_OBJECT
   private slots:
+    void keepBothScope_data() {
+        QTest::addColumn<bool>("all");
+        QTest::newRow("current") << false;
+        QTest::newRow("remaining") << true;
+    }
+    void keepBothScope() {
+        QFETCH(bool, all);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        for (const QString &name :
+             {QString("first.txt"), QString("first_1.txt"), QString("second.txt")}) {
+            QFile file(fixture.filePath(name));
+            QVERIFY(file.open(QIODevice::WriteOnly));
+            QCOMPARE(file.write("existing"), qint64(8));
+        }
+        CExtractFixture extraction(fixture.path(), QStringList{"first.txt", "second.txt"});
+        extraction.Ui->Answers = {all ? NOverwriteAnswer::kAutoRename
+                                      : NOverwriteAnswer::kAutoRenameOnce,
+                                  NOverwriteAnswer::kNo};
+        for (UInt32 index : {0u, 1u}) {
+            CMyComPtr<ISequentialOutStream> stream;
+            QCOMPARE(extraction.Callback.Interface()->GetStream(
+                         index, &stream, NArchive::NExtract::NAskMode::kExtract),
+                     S_OK);
+            QCOMPARE(bool(stream), index == 0 || all);
+            QCOMPARE(extraction.Callback.Interface()->PrepareOperation(
+                         NArchive::NExtract::NAskMode::kExtract),
+                     S_OK);
+            if (stream) {
+                UInt32 written = 0;
+                QCOMPARE(stream->Write("payload", 7, &written), S_OK);
+                QCOMPARE(written, UInt32(7));
+            }
+            stream.Release();
+            QCOMPARE(extraction.Callback.Interface()->SetOperationResult(
+                         NArchive::NExtract::NOperationResult::kOK),
+                     S_OK);
+        }
+        QCOMPARE(extraction.Callback->CloseArc(), S_OK);
+        QCOMPARE(extraction.Ui->Questions, all ? 1 : 2);
+        QVERIFY(extraction.Ui->Errors.isEmpty());
+        for (const QString &name :
+             {QString("first.txt"), QString("first_1.txt"), QString("second.txt")})
+            QCOMPARE(readFile(fixture.filePath(name)), QByteArray("existing"));
+        QCOMPARE(readFile(fixture.filePath("first_2.txt")), QByteArray("payload"));
+        QCOMPARE(QFileInfo::exists(fixture.filePath("second_1.txt")), all);
+        if (all)
+            QCOMPARE(readFile(fixture.filePath("second_1.txt")), QByteArray("payload"));
+    }
     void sourceStreamCreatesUnicodePathAndReportsResult() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());

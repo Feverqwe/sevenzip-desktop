@@ -322,8 +322,8 @@ class ExtractionOptionsTests : public QObject {
         const QString output = temp.filePath("output");
         QVERIFY(QDir().mkpath(source));
         QVERIFY(QDir().mkpath(output + QStringLiteral("/источник с пробелом")));
-        for (const QString &name :
-             {QStringLiteral("α.txt"), QStringLiteral("β.txt"), QStringLiteral("γ.txt")}) {
+        for (const QString &name : {QStringLiteral("α.txt"), QStringLiteral("β.txt"),
+                                    QStringLiteral("γ.txt"), QStringLiteral("δ.txt")}) {
             writeFile(source + "/" + name, "new");
             writeFile(output + QStringLiteral("/источник с пробелом/") + name, "old");
         }
@@ -342,13 +342,15 @@ class ExtractionOptionsTests : public QObject {
                             ? NOverwriteAnswer::kNo
                         : question.Incoming.Path.endsWith(QStringLiteral("β.txt"))
                             ? NOverwriteAnswer::kYes
-                            : NOverwriteAnswer::kAutoRename);
+                        : question.Incoming.Path.endsWith(QStringLiteral("γ.txt"))
+                            ? NOverwriteAnswer::kAutoRenameOnce
+                            : NOverwriteAnswer::kNo);
                 });
         ExtractionOptions options;
         options.overwriteMode = ExtractionOptions::OverwriteMode::Ask;
         backend.extract(archive, output, {}, {}, options);
         await(backend, true);
-        QCOMPARE(requested.size(), 3);
+        QCOMPARE(requested.size(), 4);
         QCOMPARE(readFile(output + QStringLiteral("/источник с пробелом/α.txt")),
                  QByteArray("old"));
         QCOMPARE(readFile(output + QStringLiteral("/источник с пробелом/β.txt")),
@@ -357,15 +359,18 @@ class ExtractionOptionsTests : public QObject {
                  QByteArray("old"));
         const QStringList names = QDir(output + QStringLiteral("/источник с пробелом"))
                                       .entryList(QDir::Files | QDir::NoDotAndDotDot);
-        QCOMPARE(names.size(), 5);
+        QCOMPARE(names.size(), 6);
         QCOMPARE(readFile(output + QStringLiteral("/источник с пробелом/γ_1.txt")),
                  QByteArray("occupied rename"));
         for (const QString &name : names)
             if (name != QStringLiteral("α.txt") && name != QStringLiteral("β.txt") &&
-                name != QStringLiteral("γ.txt") && name != QStringLiteral("γ_1.txt"))
+                name != QStringLiteral("γ.txt") && name != QStringLiteral("δ.txt") &&
+                name != QStringLiteral("γ_1.txt"))
                 QCOMPARE(readFile(output + QStringLiteral("/источник с пробелом/") + name),
                          QByteArray("new"));
 
+        QCOMPARE(readFile(output + QStringLiteral("/источник с пробелом/δ.txt")),
+                 QByteArray("old"));
         const QString flat = temp.filePath("flat output");
         QVERIFY(QDir().mkpath(flat));
         writeFile(flat + QStringLiteral("/β.txt"), "flat old");

@@ -7,18 +7,25 @@
 #include "archive/callbacks/IFileExtractCallback.h"
 #include "filemanager/FormatUtils.h"
 #include "localization/LangUtils.h"
+#include "localization/qtlangcontrols.h"
 #include "ui/dialogs/qtdialoglayout.h"
+#include "ui/dialogs/qtdialogscreenservices.h"
 #include "ui/lifecycle/qttaskpresentation.h"
+#include <QCheckBox>
+#include <QCoreApplication>
 #include <QEvent>
 #include <QFileIconProvider>
 #include <QFileInfo>
 #include <QLabel>
 #include <QPushButton>
+#include <QScrollArea>
+#include <QVBoxLayout>
 
 using namespace NWindows;
 static const unsigned kCurrentFileNameSizeLimit = 72;
 
 void COverwriteDialog::SetQuestion(const OverwriteQuestion &question) {
+    _multipleConflictsPossible = question.MultipleConflictsPossible;
     const auto setFile = [](NOverwriteDialog::CFileInfo &info,
                             const OverwriteQuestion::File &file) {
         info.Path = file.Path.toStdWString().c_str();
@@ -43,6 +50,8 @@ int NOverwriteDialog::MapButtonResult(INT_PTR button) {
         return NOverwriteAnswer::kNoToAll;
     case IDB_AUTO_RENAME:
         return NOverwriteAnswer::kAutoRename;
+    case kAutoRenameOnceResult:
+        return NOverwriteAnswer::kAutoRenameOnce;
     default:
         return NOverwriteAnswer::kCancel;
     }
@@ -66,16 +75,23 @@ void COverwriteDialog::SetFileInfoControl(const NOverwriteDialog::CFileInfo &fil
         const UString &path = fileInfo.Path;
         const int slashPos = path.ReverseFind_PathSepar();
         UString s = path.Left((unsigned)(slashPos + 1));
-        ReduceString(s);
+        if (!ShowExtraButtons)
+            ReduceString(s);
         s.Add_LF();
         {
             UString s2 = path.Ptr((unsigned)(slashPos + 1));
-            ReduceString(s2);
+            if (!ShowExtraButtons)
+                ReduceString(s2);
             s += s2;
         }
         s.Add_LF();
         if (fileInfo.Size_IsDefined)
             AddSizeValue(s, fileInfo.Size);
+        else if (ShowExtraButtons)
+            s += UString((QtLangText(IDS_PROP_SIZE) + ": " +
+                          QCoreApplication::translate("ConflictRedesign", "Unknown"))
+                             .toStdWString()
+                             .c_str());
         s.Add_LF();
         if (fileInfo.Time_IsDefined) {
             AddLangString(s, IDS_PROP_MTIME);
@@ -83,7 +99,11 @@ void COverwriteDialog::SetFileInfoControl(const NOverwriteDialog::CFileInfo &fil
             char t[64];
             ConvertUtcFileTimeToString(fileInfo.Time, t);
             s += t;
-        }
+        } else if (ShowExtraButtons)
+            s += UString((QtLangText(IDS_PROP_MTIME) + ": " +
+                          QCoreApplication::translate("ConflictRedesign", "Unknown"))
+                             .toStdWString()
+                             .c_str());
         SetItemText(textID, s);
     }
     // Qt owns native file icons. Shell extraction of a second EXE/ICO icon
@@ -104,14 +124,27 @@ bool COverwriteDialog::OnInit() {
     QtUseContextDialogModality(*this);
     if (_controls.isEmpty())
         BuildPresentation();
+    _applyToRemaining->setChecked(false);
     SetFileInfoControl(OldFileInfo, IDT_OVERWRITE_OLD_FILE_SIZE_TIME, IDI_OVERWRITE_OLD_FILE,
                        IDI_OVERWRITE_OLD_FILE_2);
     SetFileInfoControl(NewFileInfo, IDT_OVERWRITE_NEW_FILE_SIZE_TIME, IDI_OVERWRITE_NEW_FILE,
                        IDI_OVERWRITE_NEW_FILE_2);
     UpdateButtonSizes();
-    auto *button = static_cast<QPushButton *>(_controls.value(DefaultButton_is_NO ? IDNO : IDYES));
+    const UString &path = NewFileInfo.Path;
+    SetItemText(IDT_OVERWRITE_HEADER, path.Ptr((unsigned)(path.ReverseFind_PathSepar() + 1)));
+    auto *button = static_cast<QPushButton *>(
+        _controls.value(ShowExtraButtons || DefaultButton_is_NO ? IDNO : IDYES));
     button->setDefault(true);
     button->setFocus();
+    ensurePolished();
+    layout()->activate();
+    if (auto *scroll = findChild<QScrollArea *>("dialogContentScroll")) {
+        scroll->widget()->layout()->activate();
+        const int contentHeight = scroll->widget()->heightForWidth(scroll->viewport()->width());
+        resize(width(),
+               qMax(minimumSizeHint().height(), contentHeight + height() - scroll->height()));
+    }
+    QtNormalizeDialogSize(*this, true);
     return true;
 }
 
@@ -119,11 +152,16 @@ bool COverwriteDialog::OnButtonClicked(unsigned buttonID, QWidget *) {
     switch (buttonID) {
     case IDYES:
     case IDNO:
-    case IDB_YES_TO_ALL:
-    case IDB_NO_TO_ALL:
-    case IDB_AUTO_RENAME:
-        done(int(buttonID));
+    case IDB_AUTO_RENAME: {
+        const bool batch =
+            _applyToRemaining && _applyToRemaining->isEnabled() && _applyToRemaining->isChecked();
+        const int result = buttonID == IDYES  ? (batch ? IDB_YES_TO_ALL : IDYES)
+                           : buttonID == IDNO ? (batch ? IDB_NO_TO_ALL : IDNO)
+                           : batch            ? IDB_AUTO_RENAME
+                                              : NOverwriteDialog::kAutoRenameOnceResult;
+        done(result);
         return true;
+    }
     case IDCANCEL:
         reject();
         return true;

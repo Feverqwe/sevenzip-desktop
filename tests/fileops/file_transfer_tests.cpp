@@ -531,7 +531,8 @@ class FileTransferTests : public QObject {
         QTest::addColumn<bool>("move");
         for (const int answer :
              {NOverwriteAnswer::kYes, NOverwriteAnswer::kNo, NOverwriteAnswer::kYesToAll,
-              NOverwriteAnswer::kNoToAll, NOverwriteAnswer::kAutoRename, NOverwriteAnswer::kCancel})
+              NOverwriteAnswer::kNoToAll, NOverwriteAnswer::kAutoRename,
+              NOverwriteAnswer::kAutoRenameOnce, NOverwriteAnswer::kCancel})
             for (bool nestedFirst : {false, true})
                 for (bool move : {false, true})
                     QTest::newRow(qPrintable(QString("%1-%2-%3")
@@ -586,11 +587,12 @@ class FileTransferTests : public QObject {
         QTRY_COMPARE(result.size(), 1);
         const bool canceled = answer == NOverwriteAnswer::kCancel;
         QCOMPARE(result.first().first().toBool(), !canceled);
-        QCOMPARE(operation.resultKind(),
-                 canceled ? FileTransferOperation::ResultKind::Canceled
-                 : answer != NOverwriteAnswer::kYesToAll && answer != NOverwriteAnswer::kAutoRename
-                     ? FileTransferOperation::ResultKind::PartialSuccess
-                     : FileTransferOperation::ResultKind::Success);
+        QCOMPARE(operation.resultKind(), canceled ? FileTransferOperation::ResultKind::Canceled
+                                         : answer != NOverwriteAnswer::kYesToAll &&
+                                                 answer != NOverwriteAnswer::kAutoRename &&
+                                                 answer != NOverwriteAnswer::kAutoRenameOnce
+                                             ? FileTransferOperation::ResultKind::PartialSuccess
+                                             : FileTransferOperation::ResultKind::Success);
         const bool all = answer == NOverwriteAnswer::kYesToAll ||
                          answer == NOverwriteAnswer::kNoToAll ||
                          answer == NOverwriteAnswer::kAutoRename;
@@ -605,10 +607,13 @@ class FileTransferTests : public QObject {
         QCOMPARE(prompted, expectedPrompts);
         for (int i = 0; i < names.size(); ++i) {
             const bool first = i == (nestedFirst ? 1 : 0);
-            const bool renamed = answer == NOverwriteAnswer::kAutoRename;
-            const bool written = !canceled && (renamed || answer == NOverwriteAnswer::kYesToAll ||
-                                               (answer == NOverwriteAnswer::kYes && first) ||
-                                               (answer == NOverwriteAnswer::kNo && !first));
+            const bool renamed = answer == NOverwriteAnswer::kAutoRename ||
+                                 (answer == NOverwriteAnswer::kAutoRenameOnce && first);
+            const bool written =
+                !canceled && (renamed || answer == NOverwriteAnswer::kYesToAll ||
+                              (answer == NOverwriteAnswer::kYes && first) ||
+                              (answer == NOverwriteAnswer::kNo && !first) ||
+                              (answer == NOverwriteAnswer::kAutoRenameOnce && !first));
             QFile target(QDir(destination).filePath(names[i]));
             QVERIFY(target.open(QIODevice::ReadOnly));
             QCOMPARE(target.readAll(), written && !renamed ? QByteArray("new") : QByteArray("old"));

@@ -9,9 +9,11 @@
 #include <QDialog>
 #include <QHash>
 
-class QGridLayout;
+class QCheckBox;
+class QLabel;
 
 namespace NOverwriteDialog {
+inline constexpr int kAutoRenameOnceResult = 0x10000;
 int MapButtonResult(INT_PTR button);
 struct CFileInfo {
     bool Size_IsDefined;
@@ -49,7 +51,10 @@ struct CFileInfo {
 
 class COverwriteDialog final : public QDialog {
     QHash<unsigned, QWidget *> _controls;
-    QGridLayout *_buttons = nullptr;
+    QCheckBox *_applyToRemaining = nullptr;
+    QWidget *_applyRow = nullptr;
+    QLabel *_renameHint = nullptr;
+    bool _multipleConflictsPossible = true;
     void SetFileInfoControl(const NOverwriteDialog::CFileInfo &info, unsigned textID,
                             unsigned iconID, unsigned iconID_2);
     void SetItemText(unsigned id, const UString &text);

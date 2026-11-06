@@ -6,6 +6,7 @@
 #include "settings/RegistryUtils.h"
 #include "settings/ViewSettings.h"
 #include "ui/support/layout_inspection.h"
+#include <QCheckBox>
 #include <QJsonArray>
 #include <QJsonDocument>
 
@@ -156,8 +157,7 @@ class VerCtrlTests final : public QObject, protected MainWindowTestSupport {
             QApplication::processEvents();
             asked = !dialog->ShowExtraButtons && dialog->DefaultButton_is_NO &&
                     dialog->findChild<QPushButton *>("overwriteNo")->isDefault() &&
-                    !dialog->findChild<QPushButton *>("overwriteYesAll")->isEnabled() &&
-                    !dialog->findChild<QPushButton *>("overwriteNoAll")->isEnabled() &&
+                    !dialog->findChild<QCheckBox *>("overwriteApplyToRemaining")->isEnabled() &&
                     !dialog->findChild<QPushButton *>("overwriteRename")->isEnabled();
             for (auto *button : dialog->findChildren<QPushButton *>())
                 if (button->isVisible())

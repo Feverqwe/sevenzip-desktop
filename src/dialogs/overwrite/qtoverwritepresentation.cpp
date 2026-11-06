@@ -1,128 +1,138 @@
 #include "dialogs/overwrite/OverwriteDialog.h"
 #include "localization/qtlangcontrols.h"
+#include "ui/controls/qtresponsiverow.h"
+#include "ui/controls/qtwrappingcheckbox.h"
 #include "ui/dialogs/qtdialoglayout.h"
+#include <QCheckBox>
+#include <QDialogButtonBox>
 #include <QFrame>
-#include <QGridLayout>
 #include <QPushButton>
 #include <QVBoxLayout>
 
 namespace {
-struct Button {
+struct Choice {
     unsigned Id;
     const char *Name;
     const char *Text;
-    int Row;
-    int Column;
 };
-const Button kButtons[] = {{IDYES, "overwriteYes", "&Yes", 0, 0},
-                           {IDB_YES_TO_ALL, "overwriteYesAll", "Yes to &All", 0, 1},
-                           {IDB_AUTO_RENAME, "overwriteRename", "A&uto Rename", 0, 2},
-                           {IDNO, "overwriteNo", "&No", 1, 0},
-                           {IDB_NO_TO_ALL, "overwriteNoAll", "No to A&ll", 1, 1},
-                           {IDCANCEL, "overwriteCancel", "&Cancel", 1, 2}};
+constexpr Choice kChoices[] = {
+    {IDYES, "overwriteYes", QT_TRANSLATE_NOOP("DialogRedesign", "Replace")},
+    {IDNO, "overwriteNo", QT_TRANSLATE_NOOP("DialogRedesign", "Skip")},
+    {IDB_AUTO_RENAME, "overwriteRename", QT_TRANSLATE_NOOP("ConflictRedesign", "Keep both")}};
 } // namespace
 
 void COverwriteDialog::BuildPresentation() {
     setObjectName("overwriteDialog");
-    QtBindResourceText(this, IDD_OVERWRITE, "Confirm File Replace");
-    auto *footer = new QWidget(this);
-    auto *layout = QtCreateDialogLayout(*this, *footer);
-    const auto label = [&](unsigned id, const char *name, const QString &text) {
-        auto *control = new QtWrappingLabel(text, this);
+    auto *footer = new QDialogButtonBox(QDialogButtonBox::Cancel, this);
+    auto *cancel = footer->button(QDialogButtonBox::Cancel);
+    cancel->setObjectName("overwriteCancel");
+    _controls.insert(IDCANCEL, cancel);
+    connect(footer, &QDialogButtonBox::rejected, this, &COverwriteDialog::reject);
+    auto *layout = QtCreateDialogLayout(*this, *footer, QtDialogContent::Scrollable);
+    const auto label = [&](unsigned id, const char *name) {
+        auto *control = new QtWrappingLabel(this);
         control->setObjectName(name);
         control->setTextFormat(Qt::PlainText);
         control->setWordWrap(true);
         _controls.insert(id, control);
-        if (id == IDT_OVERWRITE_HEADER || id == IDT_OVERWRITE_QUESTION_BEGIN ||
-            id == IDT_OVERWRITE_QUESTION_END)
-            QtBindResourceText(control, id, text);
         return control;
     };
-    layout->addWidget(label(IDT_OVERWRITE_HEADER, "overwriteHeader",
-                            "Destination folder already contains processed file."));
-    auto *comparison = new QHBoxLayout;
-    comparison->setSpacing(20);
-    const auto fileRow = [&](unsigned textID, unsigned iconID, unsigned secondID,
-                             unsigned headingID, const char *name, const char *headingName,
-                             const char *heading) {
-        auto *card = new QFrame(this);
-        card->setFrameShape(QFrame::StyledPanel);
-        auto *column = new QVBoxLayout(card);
+    auto *header = label(IDT_OVERWRITE_HEADER, "overwriteHeader");
+    header->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+    header->setMinimumWidth(0);
+    QFont heading = header->font();
+    heading.setWeight(QFont::DemiBold);
+    header->setFont(heading);
+    layout->addWidget(header);
+    const auto card = [&](unsigned textID, unsigned iconID, unsigned secondID, unsigned headingID,
+                          const char *name, const char *headingName, const char *headingText) {
+        auto *frame = new QFrame(this);
+        frame->setMinimumWidth(fontMetrics().averageCharWidth() * 24 + 56);
+        frame->setFrameShape(QFrame::StyledPanel);
+        auto *column = new QVBoxLayout(frame);
         column->setContentsMargins(12, 12, 12, 12);
         column->setSpacing(8);
-        auto *title = label(headingID, headingName, {});
-        QtBindLocalText(title, "DialogRedesign", heading);
+        auto *title = label(headingID, headingName);
+        QtBindLocalText(title, "ConflictRedesign", headingText);
         column->addWidget(title);
         auto *row = new QHBoxLayout;
-        auto *icons = new QVBoxLayout;
-        icons->addWidget(label(iconID, (QByteArray(name) + "Icon").constData(), {}));
-        auto *second = label(secondID, (QByteArray(name) + "SecondIcon").constData(), {});
-        second->hide();
-        icons->addWidget(second);
-        icons->addStretch();
-        row->addLayout(icons);
-        auto *details = label(textID, name, {});
+        auto *icon = label(iconID, (QByteArray(name) + "Icon").constData());
+        icon->setFixedSize(32, 32);
+        row->addWidget(icon, 0, Qt::AlignTop);
+        label(secondID, (QByteArray(name) + "SecondIcon").constData())->hide();
+        auto *details = label(textID, name);
+        details->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+        details->setMinimumWidth(0);
         details->setAlignment(Qt::AlignLeft | Qt::AlignTop);
         row->addWidget(details, 1);
-        column->addLayout(row, 1);
-        comparison->addWidget(card, 1);
+        column->addLayout(row);
+        return frame;
     };
-    fileRow(IDT_OVERWRITE_OLD_FILE_SIZE_TIME, IDI_OVERWRITE_OLD_FILE, IDI_OVERWRITE_OLD_FILE_2,
-            IDT_OVERWRITE_QUESTION_BEGIN, "overwriteOldFile", "overwriteQuestionBegin",
-            QT_TRANSLATE_NOOP("DialogRedesign", "Existing file"));
-    fileRow(IDT_OVERWRITE_NEW_FILE_SIZE_TIME, IDI_OVERWRITE_NEW_FILE, IDI_OVERWRITE_NEW_FILE_2,
-            IDT_OVERWRITE_QUESTION_END, "overwriteNewFile", "overwriteQuestionEnd",
-            QT_TRANSLATE_NOOP("DialogRedesign", "Incoming file"));
-    layout->addLayout(comparison);
-    _buttons = new QGridLayout;
-    _buttons->setHorizontalSpacing(8);
-    _buttons->setVerticalSpacing(8);
-    for (const auto &spec : kButtons) {
-        auto *button = new QPushButton(QString::fromUtf8(spec.Text), this);
-        button->setAttribute(Qt::WA_LayoutUsesWidgetRect);
+    auto *existing =
+        card(IDT_OVERWRITE_OLD_FILE_SIZE_TIME, IDI_OVERWRITE_OLD_FILE, IDI_OVERWRITE_OLD_FILE_2,
+             IDT_OVERWRITE_QUESTION_BEGIN, "overwriteOldFile", "overwriteQuestionBegin",
+             QT_TRANSLATE_NOOP("ConflictRedesign", "At destination"));
+    auto *incoming =
+        card(IDT_OVERWRITE_NEW_FILE_SIZE_TIME, IDI_OVERWRITE_NEW_FILE, IDI_OVERWRITE_NEW_FILE_2,
+             IDT_OVERWRITE_QUESTION_END, "overwriteNewFile", "overwriteQuestionEnd",
+             QT_TRANSLATE_NOOP("ConflictRedesign", "Incoming file"));
+    auto *comparison = new QtResponsiveRow({existing, incoming}, this);
+    comparison->setObjectName("overwriteComparison");
+    layout->addWidget(comparison);
+    _renameHint = new QtWrappingLabel(this);
+    _renameHint->setWordWrap(true);
+    QtBindLocalText(
+        _renameHint, "ConflictRedesign",
+        QT_TRANSLATE_NOOP(
+            "ConflictRedesign",
+            "Keep both preserves the existing file and gives the incoming file a free name."));
+    layout->addWidget(_renameHint);
+    auto *apply = new QtWrappingCheckBox(this);
+    _applyRow = apply;
+    _applyToRemaining = apply->checkBox();
+    _applyToRemaining->setObjectName("overwriteApplyToRemaining");
+    QtBindLocalText(
+        _applyToRemaining, "ConflictRedesign",
+        QT_TRANSLATE_NOOP("ConflictRedesign", "Apply to remaining conflicts in this operation"),
+        true);
+    QtBindLocalText(
+        apply->label(), "ConflictRedesign",
+        QT_TRANSLATE_NOOP("ConflictRedesign", "Apply to remaining conflicts in this operation"));
+    layout->addWidget(apply);
+    QList<QWidget *> choices;
+    for (const auto &spec : kChoices) {
+        auto *button = new QPushButton(this);
         button->setObjectName(spec.Name);
-        const unsigned langID = spec.Id == IDYES      ? 406
-                                : spec.Id == IDNO     ? 407
-                                : spec.Id == IDCANCEL ? 402
-                                                      : spec.Id;
-        QtBindResourceText(button, langID, QString::fromUtf8(spec.Text));
-        if (spec.Id == IDYES)
-            QtBindLocalText(button, "DialogRedesign",
-                            QT_TRANSLATE_NOOP("DialogRedesign", "Replace"));
-        else if (spec.Id == IDNO)
-            QtBindLocalText(button, "DialogRedesign", QT_TRANSLATE_NOOP("DialogRedesign", "Skip"));
-        else if (spec.Id == IDB_YES_TO_ALL)
-            QtBindLocalText(button, "DialogRedesign",
-                            QT_TRANSLATE_NOOP("DialogRedesign", "Replace all"));
-        else if (spec.Id == IDB_NO_TO_ALL)
-            QtBindLocalText(button, "DialogRedesign",
-                            QT_TRANSLATE_NOOP("DialogRedesign", "Skip all"));
+        button->setAttribute(Qt::WA_LayoutUsesWidgetRect);
+        QtBindLocalText(button, spec.Id == IDB_AUTO_RENAME ? "ConflictRedesign" : "DialogRedesign",
+                        spec.Text);
         _controls.insert(spec.Id, button);
-        _buttons->addWidget(button, spec.Row, spec.Column);
+        choices.append(button);
         connect(button, &QPushButton::clicked, this,
                 [this, id = spec.Id, button] { OnButtonClicked(id, button); });
     }
-    auto *actions = new QHBoxLayout(footer);
-    actions->setContentsMargins(0, 0, 0, 0);
-    actions->addStretch();
-    actions->addLayout(_buttons);
+    auto *actions = new QtResponsiveRow(choices, this);
+    actions->setObjectName("overwriteChoices");
+    layout->addWidget(actions);
     resize(620, minimumSizeHint().height());
 }
 
 void COverwriteDialog::UpdateButtonSizes() {
-    if (!_buttons || !_controls.contains(IDCANCEL))
+    if (!_applyToRemaining)
         return;
-    for (const auto &spec : kButtons) {
-        auto *button = static_cast<QPushButton *>(_controls.value(spec.Id));
-        _buttons->removeWidget(button);
-        const bool batch =
-            spec.Id == IDB_YES_TO_ALL || spec.Id == IDB_NO_TO_ALL || spec.Id == IDB_AUTO_RENAME;
-        button->setVisible(!batch || ShowExtraButtons);
-        button->setEnabled(!batch || ShowExtraButtons);
-        _buttons->addWidget(button, ShowExtraButtons ? spec.Row : 0,
-                            ShowExtraButtons ? spec.Column
-                                             : (spec.Id == IDYES  ? 0
-                                                : spec.Id == IDNO ? 1
-                                                                  : 2));
+    const bool allowBatch = ShowExtraButtons && _multipleConflictsPossible;
+    _applyRow->setVisible(allowBatch);
+    _applyToRemaining->setEnabled(allowBatch);
+    _renameHint->setVisible(ShowExtraButtons);
+    _controls.value(IDB_AUTO_RENAME)->setVisible(ShowExtraButtons);
+    _controls.value(IDB_AUTO_RENAME)->setEnabled(ShowExtraButtons);
+    if (ShowExtraButtons) {
+        QtBindLocalText(this, "ConflictRedesign",
+                        QT_TRANSLATE_NOOP("ConflictRedesign", "File already exists"));
+        QtBindLocalText(_controls.value(IDCANCEL), "ConflictRedesign",
+                        QT_TRANSLATE_NOOP("ConflictRedesign", "Cancel operation"));
+    } else {
+        QtBindResourceText(this, IDD_OVERWRITE, "Confirm File Replace");
+        QtBindResourceText(_controls.value(IDCANCEL), 402, "Cancel");
     }
 }

@@ -58,6 +58,7 @@ Z7_COM7F_IMF(CExtractCallbackImp::AskWrite(const wchar_t *srcPath, Int32 srcIsFo
     FString destPathSys = us2fs(destPath);
     const bool srcIsFolderSpec = IntToBool(srcIsFolder);
     CFileInfo destFileInfo;
+    bool renameOnce = false;
 
     if (destFileInfo.Find(destPathSys)) {
         if (srcIsFolderSpec) {
@@ -111,6 +112,9 @@ Z7_COM7F_IMF(CExtractCallbackImp::AskWrite(const wchar_t *srcPath, Int32 srcIsFo
             case NOverwriteAnswer::kAutoRename:
                 OverwriteMode = NExtract::NOverwriteMode::kRename;
                 break;
+            case NOverwriteAnswer::kAutoRenameOnce:
+                renameOnce = true;
+                break;
             default:
                 return E_FAIL;
             }
@@ -120,7 +124,7 @@ Z7_COM7F_IMF(CExtractCallbackImp::AskWrite(const wchar_t *srcPath, Int32 srcIsFo
             break;
         }
 
-        if (OverwriteMode == NExtract::NOverwriteMode::kRename) {
+        if (renameOnce || OverwriteMode == NExtract::NOverwriteMode::kRename) {
             if (!AutoRenamePath(destPathSys)) {
                 RINOK(MessageError(
                     QT_TRANSLATE_NOOP("SevenZipDiagnostics", "Cannot create name for file"),

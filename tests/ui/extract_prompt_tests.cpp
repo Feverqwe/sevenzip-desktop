@@ -4,6 +4,7 @@
 #include "dialogs/messages/MessagesDialog.h"
 #include "dialogs/overwrite/OverwriteDialog.h"
 #include "filemanager/ExtractCallback.h"
+#include "support/overwrite_reply.h"
 #include "ui/support/layout_inspection.h"
 #include <QCheckBox>
 #include <QDialogButtonBox>
@@ -131,25 +132,21 @@ class ExtractPromptTests final : public QObject {
         QCOMPARE(callback.ThereAreMessageErrors, report);
     }
     void overwriteResultsAndDefaults() {
-        for (const auto &item : {qMakePair("overwriteYes", IDYES), qMakePair("overwriteNo", IDNO),
-                                 qMakePair("overwriteYesAll", IDB_YES_TO_ALL),
-                                 qMakePair("overwriteNoAll", IDB_NO_TO_ALL),
-                                 qMakePair("overwriteRename", IDB_AUTO_RENAME),
-                                 qMakePair("overwriteCancel", IDCANCEL)}) {
+        for (int result : {IDYES, IDNO, IDB_YES_TO_ALL, IDB_NO_TO_ALL, IDB_AUTO_RENAME,
+                           NOverwriteDialog::kAutoRenameOnceResult, IDCANCEL}) {
             COverwriteDialog dialog;
-            dialog.DefaultButton_is_NO = true;
             dialog.OnInit();
             dialog.show();
             QVERIFY(dialog.findChild<QPushButton *>("overwriteNo")->isDefault());
-            dialog.findChild<QPushButton *>(item.first)->click();
-            QCOMPARE(dialog.result(), item.second);
+            ReplyOverwrite(dialog, result);
+            QCOMPARE(dialog.result(), result);
         }
         COverwriteDialog dialog;
         dialog.ShowExtraButtons = false;
         dialog.OnInit();
         dialog.show();
-        for (const auto *name : {"overwriteYesAll", "overwriteNoAll", "overwriteRename"})
-            QVERIFY(!dialog.findChild<QPushButton *>(name)->isEnabled());
+        QVERIFY(!dialog.findChild<QCheckBox *>("overwriteApplyToRemaining")->isEnabled());
+        QVERIFY(!dialog.findChild<QPushButton *>("overwriteRename")->isEnabled());
         QTest::keyClick(&dialog, Qt::Key_Escape);
         QCOMPARE(dialog.result(), IDCANCEL);
     }
@@ -162,10 +159,58 @@ class ExtractPromptTests final : public QObject {
         dialog.OnInit();
         const auto old = dialog.findChild<QLabel *>("overwriteOldFile")->text();
         QVERIFY(old.contains("temporary folder/\n"));
-        QVERIFY(old.contains(" ... "));
-        QVERIFY(old.contains("\"密碼 "));
+        QVERIFY(old.contains(name));
         QVERIFY(old.contains(" : 10 GiB"));
         QVERIFY(!dialog.findChild<QLabel *>("overwriteNewFile")->text().contains("GiB"));
+    }
+    void nativeWriteKeepBothIsOnlyForCurrentConflict() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        for (const QString &name :
+             {QString("first.txt"), QString("first_1.txt"), QString("second.txt")}) {
+            QFile file(fixture.filePath(name));
+            QVERIFY(file.open(QIODevice::WriteOnly));
+            QCOMPARE(file.write("existing"), qint64(8));
+        }
+        CProgressDialog progress;
+        CMyComPtr2<IFolderArchiveExtractCallback, CExtractCallbackImp> callback;
+        callback.Create_if_Empty();
+        callback->ProgressDialog = &progress;
+        callback->Src_Is_IO_FS_Folder = true;
+        callback->OverwriteMode = NExtract::NOverwriteMode::kAsk;
+        auto *writer = static_cast<IFolderOperationsExtractCallback *>(callback.operator->());
+        int questions = 0;
+        QTimer responder;
+        connect(&responder, &QTimer::timeout, &progress, [&] {
+            auto *dialog = dynamic_cast<COverwriteDialog *>(QApplication::activeModalWidget());
+            if (dialog)
+                ReplyOverwrite(*dialog,
+                               questions++ == 0 ? NOverwriteDialog::kAutoRenameOnceResult : IDNO);
+        });
+        responder.start(5);
+        for (const QString &name : {QString("first.txt"), QString("second.txt")}) {
+            CMyComBSTR chosen;
+            Int32 write = 0;
+            const std::wstring path = fixture.filePath(name).toStdWString();
+            QCOMPARE(writer->AskWrite(L"incoming.txt", false, nullptr, nullptr, path.c_str(),
+                                      &chosen, &write),
+                     S_OK);
+            QCOMPARE(write, name == "first.txt" ? 1 : 0);
+            if (write) {
+                const QString target = QString::fromWCharArray(chosen);
+                QVERIFY(target != fixture.filePath("first.txt"));
+                QVERIFY(target != fixture.filePath("first_1.txt"));
+                QVERIFY(!QFileInfo::exists(target));
+            }
+        }
+        responder.stop();
+        QCOMPARE(questions, 2);
+        for (const QString &name :
+             {QString("first.txt"), QString("first_1.txt"), QString("second.txt")}) {
+            QFile file(fixture.filePath(name));
+            QVERIFY(file.open(QIODevice::ReadOnly));
+            QCOMPARE(file.readAll(), QByteArray("existing"));
+        }
     }
     void memoryStateAndCommit() {
         CMemDialog dialog;
@@ -366,7 +411,7 @@ class ExtractPromptTests final : public QObject {
                 directory.show();
                 QApplication::processEvents();
                 QCOMPARE(directory.findChild<QLabel *>("overwriteHeader")->text(),
-                         QStringLiteral("Destination folder already contains processed file."));
+                         QStringLiteral("папка с пробелом"));
                 for (auto *label : directory.findChildren<QLabel *>())
                     if (label->isVisible()) {
                         QVERIFY(UiInspection::fullyVisible(*label, directory));

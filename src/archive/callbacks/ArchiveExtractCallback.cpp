@@ -1181,6 +1181,7 @@ void CArchiveExtractCallback::CreateFolders() {
 
 HRESULT CArchiveExtractCallback::CheckExistFile(FString &fullProcessedPath, bool &needExit) {
     needExit = true; // it was set already before
+    bool renameOnce = false;
 
     NFind::CFileInfo fileInfo;
 
@@ -1228,12 +1229,15 @@ HRESULT CArchiveExtractCallback::CheckExistFile(FString &fullProcessedPath, bool
             case NOverwriteAnswer::kAutoRename:
                 _overwriteMode = NExtract::NOverwriteMode::kRename;
                 break;
+            case NOverwriteAnswer::kAutoRenameOnce:
+                renameOnce = true;
+                break;
             default:
                 return E_FAIL;
             }
         } // NExtract::NOverwriteMode::kAsk
 
-        if (_overwriteMode == NExtract::NOverwriteMode::kRename) {
+        if (renameOnce || _overwriteMode == NExtract::NOverwriteMode::kRename) {
             if (!AutoRenamePath(fullProcessedPath)) {
                 RINOK(SendMessageError(kCantAutoRename, fullProcessedPath))
                 return E_FAIL;
@@ -1336,6 +1340,7 @@ HRESULT CArchiveExtractCallback::GetExtractStream(CMyComPtr<ISequentialOutStream
             UString s(_item.AltStreamName);
             Correct_AltStream_Name(s);
             fullProcessedPath += us2fs(s);
+            _isRenamed = true;
         }
     }
 #endif // SUPPORT_ALT_STREAMS
@@ -1410,7 +1415,8 @@ HRESULT CArchiveExtractCallback::GetExtractStream(CMyComPtr<ISequentialOutStream
 #ifndef UNDER_CE
         {
             bool linkWasSet = false;
-            RINOK(SetLink(fullProcessedPath, _link, linkWasSet))
+            RINOK(SetLink(fullProcessedPath, _link, linkWasSet,
+                          _isRenamed || _overwriteMode == NExtract::NOverwriteMode::kRename))
             /*
                   // we don't set attributes for placeholder.
                   if (linkWasSet)
@@ -1506,7 +1512,12 @@ HRESULT CArchiveExtractCallback::GetExtractStream(CMyComPtr<ISequentialOutStream
 #endif
 
     // printf("\n GetExtractStream Create_ALWAYS_or_Open_ALWAYS : %s\n", fullProcessedPath.Ptr());
-    if (!_outFileStreamSpec->Create_ALWAYS_or_Open_ALWAYS(fullProcessedPath, !_isSplit)) {
+    const bool createNew =
+        !_isSplit && (_isRenamed || _overwriteMode == NExtract::NOverwriteMode::kRename);
+    const bool created =
+        createNew ? _outFileStreamSpec->Create_NEW(fullProcessedPath)
+                  : _outFileStreamSpec->Create_ALWAYS_or_Open_ALWAYS(fullProcessedPath, !_isSplit);
+    if (!created) {
         // if (::GetLastError() != ERROR_FILE_EXISTS || !isSplit)
         {
             RINOK(SendMessageError_with_LastError(kCantOpenOutFile, fullProcessedPath))
@@ -2093,8 +2104,8 @@ void CArchiveExtractCallback::RecordQtOutputIdentity(const FString &path) noexce
 }
 
 HRESULT CArchiveExtractCallback::SetLink(const FString &fullProcessedPath_from,
-                                         const CLinkInfo &link,
-                                         bool &linkWasSet) // placeholder was created
+                                         const CLinkInfo &link, bool &linkWasSet,
+                                         bool preserveExisting) // placeholder was created
 {
     linkWasSet = false;
     if (link.LinkPath.IsEmpty()) {
@@ -2121,18 +2132,19 @@ HRESULT CArchiveExtractCallback::SetLink(const FString &fullProcessedPath_from,
     postLink.item_FileInfo = _fi;
     postLink.fullProcessedPath_from = fullProcessedPath_from;
     postLink.LinkInfo = link;
-    _postLinks.Add(postLink);
-
     // file doesn't exist in most cases. So we don't check for error.
-    DeleteLinkFileAlways_or_RemoveEmptyDir(fullProcessedPath_from,
-                                           false); // checkThatFileIsEmpty = false
+    if (!preserveExisting)
+        DeleteLinkFileAlways_or_RemoveEmptyDir(fullProcessedPath_from,
+                                               false); // checkThatFileIsEmpty = false
 
     {
         NIO::COutFile outFile;
-        if (!outFile.Create_NEW(fullProcessedPath_from))
+        if (!outFile.Create_NEW(fullProcessedPath_from)) {
+            QtExtractStatus.Complete = false;
             return SendMessageError(
                 QT_TRANSLATE_NOOP("SevenZipDiagnostics", "Cannot create temporary link file"),
                 fullProcessedPath_from);
+        }
 #if 0 // 1 for debug
   // here we can write link path to temporary link file placeholder,
   // but empty placeholder is better, because we don't want to get any non-empty data instead of link file.
@@ -2141,6 +2153,7 @@ HRESULT CArchiveExtractCallback::SetLink(const FString &fullProcessedPath_from,
   outFile.WriteFull(s, s.Len());
 #endif
     }
+    _postLinks.Add(postLink);
     linkWasSet = true;
     RecordQtOutputIdentity(fullProcessedPath_from);
     return S_OK;

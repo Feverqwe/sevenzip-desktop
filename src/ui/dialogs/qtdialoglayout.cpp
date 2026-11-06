@@ -47,10 +47,13 @@ QVBoxLayout *QtCreateDialogLayout(QWidget &window, QWidget &footer, QtDialogCont
     content->setSpacing(8);
     if (mode == QtDialogContent::Scrollable) {
         auto *body = new DialogBody(&window);
-        content->setAlignment(Qt::AlignTop);
         content->setContentsMargins(0, 0, 0, 0);
-        content->setSizeConstraint(QLayout::SetMinAndMaxSize);
-        body->setLayout(content);
+        auto *bodyLayout = new QVBoxLayout(body);
+        bodyLayout->setContentsMargins(0, 0, 0, 0);
+        bodyLayout->setSpacing(0);
+        bodyLayout->setSizeConstraint(QLayout::SetMinAndMaxSize);
+        bodyLayout->addLayout(content);
+        bodyLayout->addStretch(1);
         auto *scroll = new DialogContentScroll(&window);
         scroll->setObjectName("dialogContentScroll");
         scroll->setFrameShape(QFrame::NoFrame);
