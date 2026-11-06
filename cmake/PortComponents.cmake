@@ -25,6 +25,7 @@ sevenzip_add_port_component(sevenzip_compress_presentation src/dialogs/compress/
     src/dialogs/compress/createarchivedialog_advanced.cpp
     src/dialogs/compress/createarchivedialog_compression.cpp
     src/dialogs/compress/createarchivedialog_encryption.cpp
+    src/dialogs/compress/createarchivedialog_expert.cpp
     src/dialogs/compress/createarchivedialog_formats.cpp
     src/dialogs/compress/createarchivedialog_language.cpp
     src/dialogs/compress/createarchivedialog_preferences.cpp

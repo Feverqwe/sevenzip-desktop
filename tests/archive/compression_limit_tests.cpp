@@ -3,6 +3,7 @@
 #include "archive/support/source_creation_fixture.h"
 #include "dialogs/compress/createarchivedialog.h"
 #include "localization/LangUtils.h"
+#include "support/archive_expert.h"
 #include "support/archive_sections.h"
 #include "ui/support/layout_inspection.h"
 #include <QScrollArea>
@@ -99,28 +100,38 @@ class CompressionLimitTests final : public QObject {
         ExpandArchiveSections(dialog);
         dialog.show();
         bool rejectedForMemory = false;
-        QTimer::singleShot(0, &dialog, [&] {
-            auto *message = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
-            if (message) {
+        QTimer responder;
+        connect(&responder, &QTimer::timeout, &dialog, [&] {
+            if (auto *message = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
                 rejectedForMemory = message->text().contains(
                     QString::fromWCharArray(LangString(IDS_MEM_USAGE_LIMIT_SET_BY_7ZIP).Ptr()));
                 message->accept();
+            } else if (auto *editor = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+                       editor && editor->objectName() == "archiveExpertDialog") {
+                responder.stop();
+                editor->reject();
             }
         });
+        responder.start(1);
         dialog.findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok)->click();
+        responder.stop();
         QVERIFY(rejectedForMemory);
         QCOMPARE(dialog.result(), 0);
+        const auto retainedLimit = dialog.compressionOptions().MemUsage;
+        QVERIFY(retainedLimit.IsDefined);
+        QVERIFY(!retainedLimit.IsPercent);
+        QCOMPARE(retainedLimit.Val, UInt64(0));
         limit->setCurrentIndex(limit->findData("256M"));
-        for (QSize size : {QSize(760, 720), QSize(640, 480)}) {
-            dialog.resize(size);
-            QApplication::processEvents();
-            dialog.findChild<QScrollArea *>("archiveOptionsScrollArea")
-                ->ensureWidgetVisible(limit, 0, 80);
-            QApplication::processEvents();
-            QVERIFY(UiInspection::fullyVisible(*limit, dialog));
-            QVERIFY(
-                UiInspection::writeReport(dialog, QString("memory-limit-%1").arg(size.width())));
-        }
+        QVERIFY(EditArchiveExpert(dialog, false, [&](QDialog &editor) {
+            for (QSize size : {QSize(760, 720), QSize(640, 480)}) {
+                editor.resize(size);
+                editor.findChild<QScrollArea *>("dialogContentScroll")
+                    ->ensureWidgetVisible(limit, 0, 80);
+                QTRY_VERIFY(UiInspection::fullyVisible(*limit, editor));
+                QVERIFY(UiInspection::writeReport(editor,
+                                                  QString("memory-limit-%1").arg(size.width())));
+            }
+        }));
         limit->setCurrentIndex(0);
         dialog.findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok)->click();
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
@@ -147,16 +158,22 @@ class CompressionLimitTests final : public QObject {
         ExpandArchiveSections(dialog);
         dialog.show();
         bool rejected = false;
-        QTimer::singleShot(0, &dialog, [&] {
-            auto *message = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
-            if (message) {
+        QTimer responder;
+        connect(&responder, &QTimer::timeout, &dialog, [&] {
+            if (auto *message = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
                 rejected = message->text().contains(
                     QString::fromWCharArray(LangString(IDS_MEM_USAGE_LIMIT_SET_BY_7ZIP).Ptr()));
                 message->accept();
+            } else if (auto *editor = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+                       editor && editor->objectName() == "archiveExpertDialog") {
+                responder.stop();
+                editor->reject();
             }
         });
+        responder.start(1);
         auto *buttons = dialog.findChild<QDialogButtonBox *>();
         buttons->button(QDialogButtonBox::Ok)->click();
+        responder.stop();
         QVERIFY(rejected);
         QVERIFY(dialog.isVisible());
         buttons->button(QDialogButtonBox::Cancel)->click();

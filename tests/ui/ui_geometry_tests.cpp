@@ -1,5 +1,6 @@
 #include "dialogs/compress/createarchivedialog.h"
 #include "dialogs/extract/alias.h"
+#include "support/archive_expert.h"
 #include "support/archive_sections.h"
 #include "ui/support/layout_inspection.h"
 
@@ -195,9 +196,9 @@ class UiGeometryTests final : public QObject {
         if (create) {
             auto *scroll = dialog->findChild<QScrollArea *>("archiveOptionsScrollArea");
             QVERIFY(scroll);
-            auto *compression = dialog->findChild<QWidget *>("archiveCompressionColumn");
+            auto *additional = dialog->findChild<QWidget *>("archiveAdditionalSection");
             auto *encryption = dialog->findChild<QGroupBox *>("archiveEncryptionGroup");
-            QVERIFY(compression && encryption);
+            QVERIFY(additional && encryption);
             auto *archivePath = dialog->findChild<QComboBox *>("archivePath");
             QVERIFY(archivePath);
             auto *folder = dialog->findChild<QLineEdit *>("archiveFolder");
@@ -214,10 +215,10 @@ class UiGeometryTests final : public QObject {
             QTest::keyClick(folder, Qt::Key_Tab);
             QTRY_VERIFY(browse->hasFocus());
             QVERIFY(UiInspection::bounds(*encryption, *dialog).bottom() <
-                    UiInspection::bounds(*compression, *dialog).top());
-            for (const char *name : {"archiveFormat", "compressionLevel", "compressionMethod",
-                                     "compressionMemoryLimit", "archivePassword",
-                                     "archivePasswordConfirmation", "archiveBrowse"}) {
+                    UiInspection::bounds(*additional, *dialog).top());
+            for (const char *name :
+                 {"archiveFormat", "compressionLevel", "archiveExpertOptions", "archivePassword",
+                  "archivePasswordConfirmation", "archiveBrowse"}) {
                 auto *control = dialog->findChild<QWidget *>(name);
                 QVERIFY2(control, name);
                 // ensureWidgetVisible can accept an already exposed input-method
@@ -242,23 +243,27 @@ class UiGeometryTests final : public QObject {
                 QApplication::processEvents();
                 QVERIFY2(footerFits(*dialog), qPrintable(UiInspection::dump(*dialog)));
                 QVERIFY(UiInspection::bounds(*encryption, *dialog).bottom() <
-                        UiInspection::bounds(*compression, *dialog).top());
+                        UiInspection::bounds(*additional, *dialog).top());
                 auto *methodLabel = dialog->findChild<QLabel *>("archiveEncryptionMethodLabel");
                 auto *method = dialog->findChild<QComboBox *>("archiveEncryption");
                 QVERIFY(methodLabel && method);
-                const QRect labelBounds = UiInspection::bounds(*methodLabel, *dialog);
-                const QRect methodBounds = UiInspection::bounds(*method, *dialog);
-                QVERIFY(labelBounds.right() < methodBounds.left());
-                // Native combo backing can extend beyond its text line.
-                // Verify a shared reading line rather than identical frame centres.
-                QVERIFY(qAbs(labelBounds.center().y() - methodBounds.center().y()) <
-                        methodLabel->fontMetrics().height() / 2);
-                auto *memory = dialog->findChild<QLabel *>("compressionDecompressionMemory");
-                QVERIFY(memory);
-                scroll->ensureWidgetVisible(memory);
-                QApplication::processEvents();
-                QVERIFY(UiInspection::fullyVisible(*memory, *dialog));
-                QVERIFY(UiInspection::labelFits(*memory));
+                if (method->isVisible()) {
+                    const QRect labelBounds = UiInspection::bounds(*methodLabel, *dialog);
+                    const QRect methodBounds = UiInspection::bounds(*method, *dialog);
+                    QVERIFY(labelBounds.right() < methodBounds.left());
+                    QVERIFY(qAbs(labelBounds.center().y() - methodBounds.center().y()) <
+                            methodLabel->fontMetrics().height() / 2);
+                }
+                QVERIFY(EditArchiveExpert(*dialog, false, [&](QDialog &editor) {
+                    editor.resize(requestedSize);
+                    auto *memory = editor.findChild<QLabel *>("compressionDecompressionMemory");
+                    QVERIFY(memory);
+                    editor.findChild<QScrollArea *>("dialogContentScroll")
+                        ->ensureWidgetVisible(memory);
+                    QTRY_VERIFY(UiInspection::fullyVisible(*memory, editor));
+                    QVERIFY(UiInspection::labelFits(*memory));
+                    QVERIFY(UiInspection::writeReport(editor, tag + "-expert-" + format));
+                }));
                 QVERIFY(UiInspection::writeReport(*dialog, tag + "-" + format));
             }
         } else {

@@ -29,7 +29,7 @@ bool CreateArchiveDialog::checkVolumeSizes() {
     NCompressDialog::CInfo info;
     const auto result = CCompressDialog::OnOK(volume_->currentText(), info);
     if (result == CCompressDialog::kIncorrectVolumeSize) {
-        volumeOptions_->setExpanded(true);
+        additionalOptions_->setExpanded(true);
         ShowErrorMessageHwndResQt(this, IDS_INCORRECT_VOLUME_SIZE);
         volume_->setFocus();
         return false;

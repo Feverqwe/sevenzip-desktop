@@ -2,6 +2,7 @@
 #include "archive/support/source_creation_fixture.h"
 #include "dialogs/compress/createarchivedialog.h"
 #include "dialogs/compress/qtcompressoptionsdialog.h"
+#include "support/archive_expert.h"
 #include "support/archive_sections.h"
 #include "ui/support/layout_inspection.h"
 #include <QDateTime>
@@ -241,43 +242,46 @@ class CompressionAdvancedTests final : public QObject {
         dialog.show();
         ExpandArchiveSections(dialog);
         QCoreApplication::processEvents();
-        QCOMPARE(dialog.size(), size);
-        auto *group = dialog.findChild<QWidget *>("archiveLifecycleOptions");
-        auto *shared = check(dialog, "archiveSharedFiles");
-        auto *remove = check(dialog, "archiveDeleteAfterCompression");
-        QVERIFY(group && shared && remove);
-        auto *scroll = dialog.findChild<QScrollArea *>("archiveOptionsScrollArea");
-        scroll->ensureWidgetVisible(group);
-        QCoreApplication::processEvents();
-        for (QWidget *widget : {static_cast<QWidget *>(group), static_cast<QWidget *>(remove)})
-            QVERIFY(UiInspection::fullyVisible(*widget, dialog));
-        QVERIFY(remove->width() >= remove->sizeHint().width());
+        const bool edited = EditArchiveExpert(dialog, true, [&](QDialog &editor) {
+            editor.resize(size);
+            auto *group = dialog.findChild<QWidget *>("archiveLifecycleOptions");
+            auto *shared = check(dialog, "archiveSharedFiles");
+            auto *remove = check(dialog, "archiveDeleteAfterCompression");
+            QVERIFY(group && shared && remove);
+            auto *scroll = editor.findChild<QScrollArea *>("dialogContentScroll");
+            scroll->ensureWidgetVisible(group);
+            QCoreApplication::processEvents();
+            for (QWidget *widget : {static_cast<QWidget *>(group), static_cast<QWidget *>(remove)})
+                QVERIFY(UiInspection::fullyVisible(*widget, editor));
+            QVERIFY(remove->width() >= remove->sizeHint().width());
 #ifdef Q_OS_WIN
-        QVERIFY(UiInspection::fullyVisible(*shared, dialog));
-        QVERIFY(shared->width() >= shared->sizeHint().width());
-        QVERIFY(UiInspection::bounds(*shared, dialog).bottom() <
-                UiInspection::bounds(*remove, dialog).top());
-        QVERIFY(shared->isEnabled());
-        shared->setChecked(true);
-        QVERIFY(dialog.compressionOptions().OpenShareForWrite);
+            QVERIFY(UiInspection::fullyVisible(*shared, editor));
+            QVERIFY(shared->width() >= shared->sizeHint().width());
+            QVERIFY(UiInspection::bounds(*shared, editor).bottom() <
+                    UiInspection::bounds(*remove, editor).top());
+            QVERIFY(shared->isEnabled());
+            shared->setChecked(true);
+            QVERIFY(dialog.compressionOptions().OpenShareForWrite);
 #else
         QVERIFY(!shared->isVisible());
         QVERIFY(!shared->isEnabled());
         QVERIFY(!shared->toolTip().isEmpty());
         QVERIFY(!dialog.compressionOptions().OpenShareForWrite);
 #endif
-        QVERIFY(remove->isEnabled());
-        remove->setChecked(true);
-        QVERIFY(dialog.compressionOptions().DeleteAfterCompressing);
-        auto *mode = dialog.findChild<QComboBox *>("archiveUpdateMode");
-        mode->setCurrentIndex(mode->findData(int(NCompressDialog::NUpdateMode::kFresh)));
-        QVERIFY(remove->isEnabled());
-        QVERIFY(dialog.compressionOptions().DeleteAfterCompressing);
-        mode->setCurrentIndex(mode->findData(int(NCompressDialog::NUpdateMode::kAdd)));
-        QVERIFY(remove->isEnabled());
-        QVERIFY(dialog.compressionOptions().DeleteAfterCompressing);
-        QVERIFY(
-            UiInspection::writeReport(dialog, QString("archive-lifecycle-%1").arg(size.width())));
+            QVERIFY(remove->isEnabled());
+            remove->setChecked(true);
+            QVERIFY(dialog.compressionOptions().DeleteAfterCompressing);
+            auto *mode = dialog.findChild<QComboBox *>("archiveUpdateMode");
+            mode->setCurrentIndex(mode->findData(int(NCompressDialog::NUpdateMode::kFresh)));
+            QVERIFY(remove->isEnabled());
+            QVERIFY(dialog.compressionOptions().DeleteAfterCompressing);
+            mode->setCurrentIndex(mode->findData(int(NCompressDialog::NUpdateMode::kAdd)));
+            QVERIFY(remove->isEnabled());
+            QVERIFY(dialog.compressionOptions().DeleteAfterCompressing);
+            QVERIFY(UiInspection::writeReport(editor,
+                                              QString("archive-lifecycle-%1").arg(size.width())));
+        });
+        QVERIFY(edited);
         dialog.reject();
         CreateArchiveDialog reopened(fixture.path(), {source});
         QVERIFY(!reopened.compressionOptions().DeleteAfterCompressing);
@@ -292,31 +296,30 @@ class CompressionAdvancedTests final : public QObject {
         dialog.resize(size);
         dialog.show();
         ExpandArchiveSections(dialog);
-        auto *parameters = dialog.findChild<QLineEdit *>("archiveParameters");
-        auto *advanced = dialog.findChild<QPushButton *>("archiveAdvancedOptions");
         auto *volume = dialog.findChild<QComboBox *>("archiveVolumeSize");
-        auto *scroll = dialog.findChild<QScrollArea *>();
-        auto *buttons = dialog.findChild<QDialogButtonBox *>();
-        QVERIFY(scroll);
-        QCoreApplication::processEvents();
-        scroll->ensureWidgetVisible(parameters);
-        // QLineEdit exposes its input cursor to ensureWidgetVisible. Scroll
-        // horizontally as well to inspect the full field, not just that cursor.
-        scroll->horizontalScrollBar()->setValue(scroll->horizontalScrollBar()->maximum());
-        QCoreApplication::processEvents();
-        QVERIFY(
-            UiInspection::writeReport(dialog, QString("archive-parameters-%1").arg(size.width())));
-        QVERIFY(UiInspection::fullyVisible(*parameters, dialog));
-        scroll->ensureWidgetVisible(advanced);
-        QCoreApplication::processEvents();
-        QVERIFY(
-            UiInspection::writeReport(dialog, QString("archive-advanced-%1").arg(size.width())));
-        QVERIFY(UiInspection::fullyVisible(*advanced, dialog));
-        QVERIFY(UiInspection::fullyVisible(*buttons, dialog));
-        QVERIFY(UiInspection::separate(*parameters, *advanced, dialog));
-        QVERIFY(UiInspection::bounds(*volume, dialog).bottom() <
-                UiInspection::bounds(*parameters, dialog).top());
+        auto *scroll = dialog.findChild<QScrollArea *>("archiveOptionsScrollArea");
+        scroll->ensureWidgetVisible(volume);
+        QTRY_VERIFY(UiInspection::fullyVisible(*volume, dialog));
+        QVERIFY(UiInspection::writeReport(dialog, QString("archive-volumes-%1").arg(size.width())));
+        QVERIFY(EditArchiveExpert(dialog, false, [&](QDialog &editor) {
+            editor.resize(size);
+            auto *parameters = editor.findChild<QLineEdit *>("archiveParameters");
+            auto *advanced = editor.findChild<QPushButton *>("archiveAdvancedOptions");
+            auto *scroll = editor.findChild<QScrollArea *>("dialogContentScroll");
+            auto *buttons = editor.findChild<QDialogButtonBox *>();
+            scroll->ensureWidgetVisible(parameters);
+            QTRY_VERIFY(UiInspection::fullyVisible(*parameters, editor));
+            QVERIFY(UiInspection::writeReport(editor,
+                                              QString("archive-parameters-%1").arg(size.width())));
+            scroll->ensureWidgetVisible(advanced);
+            QTRY_VERIFY(UiInspection::fullyVisible(*advanced, editor));
+            QVERIFY(UiInspection::fullyVisible(*buttons, editor));
+            QVERIFY(UiInspection::separate(*parameters, *advanced, editor));
+            QVERIFY(UiInspection::writeReport(editor,
+                                              QString("archive-advanced-%1").arg(size.width())));
+        }));
     }
+
     void sourceMetadataPriority_data() {
         QTest::addColumn<bool>("stored");
         QTest::addColumn<bool>("defined");

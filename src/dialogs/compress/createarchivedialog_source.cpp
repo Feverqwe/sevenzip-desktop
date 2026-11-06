@@ -45,9 +45,7 @@ void CreateArchiveDialog::validateAndAccept() {
         return;
     }
     if (parameters_ && parameters_->text().contains(QChar::Null)) {
-        commandLineOptions_->setExpanded(true);
-        ShowErrorMessageQt(this, NWindows::NError::MyFormatMessage(E_INVALIDARG));
-        parameters_->setFocus();
+        showExpertOptions(parameters_);
         return;
     }
     if (password_) {
@@ -64,8 +62,10 @@ void CreateArchiveDialog::validateAndAccept() {
             return;
         }
     }
-    if (!checkMemoryUsage())
+    if (!checkMemoryUsage()) {
+        showExpertOptions(memUse_);
         return;
+    }
     SaveOptionsInMem();
     const QString resolved = archivePath();
     if (resolved.isEmpty()) {

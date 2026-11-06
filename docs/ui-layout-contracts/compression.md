@@ -6,13 +6,13 @@
 
 ## Redesign: Add form
 
-The [approved redesign](../archive/plans/ui-redesign-plan.md) supersedes the older two-column
+The agreed November 5 catalog supersedes the older two-column and four-section
 presentation requirements below for the Add form. Archive name/destination remain
 visible above the scrolling form as separate editable rows with leading labels.
 Destination edits use the existing source path resolver. Browse selects a folder
 through the existing folder picker, retaining the name and format; history can
 still restore the source folder/name/format split.
-Format and compression level are immediately available. Password protection has
+Format is immediately available. Password protection has
 an explicit enable control; its dependent fields appear together, without a
 large framed heading. A source-supplied password enables the section. Turning
 protection off excludes the password/headers from the effective request while
@@ -24,15 +24,20 @@ unprotected request. Cancel does not save that decision. A single encryption
 method does not occupy a selectable row; formats with multiple methods retain
 their source-provided choice.
 
-Compression settings contain method, dictionary, order, solid size, threads and
-memory. Separate sections contain file settings
-(update/path modes, lifecycle and the existing metadata Options dialog), volumes
-and command-line parameters. All four sections initially remain collapsed,
-including compression settings. Collapsing changes visibility only; options remain
-effective. Hidden nondefault compression/file settings, a volume specification or custom
-parameters receive a short Modified indicator. Expanded sections show their
-fields directly, without a value summary. An invalid volume specification
-reveals its section and returns focus to the field.
+One Additional section contains compression level, volumes, a read-only list of
+selected sources and Expert options. It starts collapsed. Its summary exposes
+the selected level/volumes and marks changed expert options; collapsing does not
+reset them. An invalid volume specification reveals the field.
+
+The separate Expert editor contains method/resources, paths, metadata and method
+properties, with a fixed Apply/Cancel footer. Fields with no applicable source
+choices are hidden. Apply changes only the parent draft: it neither creates an
+archive nor writes settings. Cancel, Escape and closing the editor restore the
+prior choices, including Auto versus explicit values, raw parameter text and any
+name affected by SFX changes. Saving nested metadata and then cancelling Expert
+also restores those metadata changes. Only confirmation of the main form
+publishes its request and settings. Invalid properties or memory limits lead to
+their actual editor fields instead of leaving an error behind hidden controls.
 
 The compact form keeps a separate scrollbar gutter and a visible native footer.
 Short settings use aligned label/field rows and wrap when needed; long parameter

@@ -148,20 +148,6 @@ void CreateArchiveDialog::stabilizeColumnWidths() {
     findChild<QLabel *>("archiveFolderLabel")->setFixedWidth(labelWidth);
 }
 
-QWidget *CreateArchiveDialog::reserveControlSpace(QWidget *control) {
-    // QFormLayout collapses hidden rows. Keep the source rectangle through a
-    // visible slot whose box layout retains the hidden control's native size.
-    auto *slot = new QWidget(control->parentWidget());
-    auto *layout = new QVBoxLayout(slot);
-    layout->setContentsMargins(0, 0, 0, 0);
-    layout->setSpacing(0);
-    auto policy = control->sizePolicy();
-    policy.setRetainSizeWhenHidden(true);
-    control->setSizePolicy(policy);
-    layout->addWidget(control);
-    return slot;
-}
-
 void CreateArchiveDialog::createArchiveForm(QVBoxLayout *layout, QVBoxLayout *windowLayout) {
     auto *basic = new QWidget(layout->parentWidget());
     auto *form = new QFormLayout(basic);

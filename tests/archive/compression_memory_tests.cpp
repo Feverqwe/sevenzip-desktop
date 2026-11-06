@@ -1,6 +1,7 @@
 #include "archive/backend/archivebackend.h"
 #include "archive/support/source_creation_fixture.h"
 #include "dialogs/compress/createarchivedialog.h"
+#include "support/archive_expert.h"
 #include "support/archive_sections.h"
 #include "ui/support/layout_inspection.h"
 #include <QScrollArea>
@@ -47,19 +48,19 @@ class CompressionMemoryTests final : public QObject {
             QCOMPARE(dictionary->itemText(0), QStringLiteral("*  500 KB"));
         }
         QCOMPARE(dialog.compressionOptions().Dict64, UInt64(-1));
-        ExpandArchiveSections(dialog);
         dialog.show();
-        dictionary->setCurrentIndex(0);
-        for (QSize size : {QSize(760, 720), QSize(640, 480)}) {
-            dialog.resize(size);
-            QApplication::processEvents();
-            dialog.findChild<QScrollArea *>("archiveOptionsScrollArea")
-                ->ensureWidgetVisible(dictionary, 0, 80);
-            QApplication::processEvents();
-            QVERIFY(UiInspection::fullyVisible(*dictionary, dialog));
-            QVERIFY(UiInspection::writeReport(
-                dialog, QString("memory-%1-%2-%3").arg(methodName, formatName).arg(size.width())));
-        }
+        QVERIFY(EditArchiveExpert(dialog, false, [&](QDialog &editor) {
+            dictionary->setCurrentIndex(0);
+            for (QSize size : {QSize(760, 720), QSize(640, 480)}) {
+                editor.resize(size);
+                editor.findChild<QScrollArea *>("dialogContentScroll")
+                    ->ensureWidgetVisible(dictionary, 0, 80);
+                QTRY_VERIFY(UiInspection::fullyVisible(*dictionary, editor));
+                QVERIFY(UiInspection::writeReport(
+                    editor,
+                    QString("memory-%1-%2-%3").arg(methodName, formatName).arg(size.width())));
+            }
+        }));
         QCOMPARE(dialog.compressionOptions().Dict64, UInt64(-1));
         level->setCurrentIndex(level->findData(0u));
         QVERIFY(!dictionary->isEnabled());
@@ -89,18 +90,17 @@ class CompressionMemoryTests final : public QObject {
             QCOMPARE(dictionary->itemText(0), QStringLiteral("*  %1").arg(sizeText));
             QCOMPARE(dialog.compressionOptions().Dict64, UInt64(-1));
         }
-        ExpandArchiveSections(dialog);
         dialog.show();
-        for (QSize size : {QSize(760, 720), QSize(640, 480)}) {
-            dialog.resize(size);
-            QApplication::processEvents();
-            dialog.findChild<QScrollArea *>("archiveOptionsScrollArea")
-                ->ensureWidgetVisible(dictionary, 0, 80);
-            QApplication::processEvents();
-            QVERIFY(UiInspection::fullyVisible(*dictionary, dialog));
-            QVERIFY(UiInspection::writeReport(
-                dialog, QString("memory-%1-zip-%2").arg(methodName).arg(size.width())));
-        }
+        QVERIFY(EditArchiveExpert(dialog, false, [&](QDialog &editor) {
+            for (QSize size : {QSize(760, 720), QSize(640, 480)}) {
+                editor.resize(size);
+                editor.findChild<QScrollArea *>("dialogContentScroll")
+                    ->ensureWidgetVisible(dictionary, 0, 80);
+                QTRY_VERIFY(UiInspection::fullyVisible(*dictionary, editor));
+                QVERIFY(UiInspection::writeReport(
+                    editor, QString("memory-%1-zip-%2").arg(methodName).arg(size.width())));
+            }
+        }));
     }
     void operations_data() {
         QTest::addColumn<QString>("formatName");

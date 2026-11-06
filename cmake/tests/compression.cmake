@@ -211,8 +211,9 @@
         "QT_QPA_PLATFORM=offscreen;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
     qt_add_executable(compression_memory_tests tests/archive/compression_memory_tests.cpp)
     target_link_libraries(compression_memory_tests PRIVATE sevenzip_compression_ui sevenzip_layout_inspection sevenzip_location)
-    target_include_directories(compression_memory_tests PRIVATE src)
+    target_include_directories(compression_memory_tests PRIVATE src tests)
     target_link_libraries(compression_memory_tests PRIVATE Qt6::Widgets Qt6::Test sevenzip_common)
+    target_link_libraries(compression_memory_tests PRIVATE sevenzip_widget_dialog_fixtures)
     add_test(NAME compression_memory COMMAND compression_memory_tests -silent)
     set_tests_properties(compression_memory PROPERTIES ENVIRONMENT
         "QT_QPA_PLATFORM=offscreen;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
@@ -222,8 +223,9 @@
     add_test(NAME memory_limit COMMAND memory_limit_tests -silent)
     qt_add_executable(compression_limit_tests tests/archive/compression_limit_tests.cpp)
     target_link_libraries(compression_limit_tests PRIVATE sevenzip_compression_ui sevenzip_layout_inspection sevenzip_location)
-    target_include_directories(compression_limit_tests PRIVATE src)
+    target_include_directories(compression_limit_tests PRIVATE src tests)
     target_link_libraries(compression_limit_tests PRIVATE Qt6::Widgets Qt6::Test sevenzip_common)
+    target_link_libraries(compression_limit_tests PRIVATE sevenzip_widget_dialog_fixtures)
     add_test(NAME compression_limit COMMAND compression_limit_tests -silent)
     set_tests_properties(compression_limit PROPERTIES ENVIRONMENT
         "QT_QPA_PLATFORM=offscreen;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
@@ -233,9 +235,18 @@
     target_link_libraries(compression_preferences_tests PRIVATE Qt6::Widgets Qt6::Test sevenzip_common)
     add_test(NAME compression_preferences COMMAND compression_preferences_tests -silent)
     qt_add_executable(source_compress_dialog_tests tests/archive/source_compress_dialog_tests.cpp)
+    qt_add_executable(compression_expert_tests tests/ui/compression_expert_tests.cpp)
+    target_include_directories(compression_expert_tests PRIVATE src tests)
+    target_link_libraries(compression_expert_tests PRIVATE sevenzip_compression_ui sevenzip_location
+        sevenzip_layout_inspection sevenzip_widget_dialog_fixtures Qt6::Widgets Qt6::Test sevenzip_common)
+    target_compile_definitions(compression_expert_tests PRIVATE Z7_EXTERNAL_CODECS)
+    add_test(NAME compression_expert COMMAND compression_expert_tests -silent)
+    set_tests_properties(compression_expert PROPERTIES TIMEOUT 30
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
     target_link_libraries(source_compress_dialog_tests PRIVATE sevenzip_compression_ui sevenzip_layout_inspection sevenzip_location)
     target_include_directories(source_compress_dialog_tests PRIVATE src tests)
     target_link_libraries(source_compress_dialog_tests PRIVATE Qt6::Widgets Qt6::Test sevenzip_common)
+    target_link_libraries(source_compress_dialog_tests PRIVATE sevenzip_widget_dialog_fixtures)
     target_compile_definitions(source_compress_dialog_tests PRIVATE Z7_EXTERNAL_CODECS)
     if(SEVENZIP_CODEC_MODULE)
         target_compile_definitions(source_compress_dialog_tests PRIVATE

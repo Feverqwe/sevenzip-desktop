@@ -3382,9 +3382,9 @@ operation-design or whole-catalog acceptance.
 
 Compared the current CreateArchiveDialog presentation, option sections,
 encryption, source DTO and nested COptionsDialog with the November 5
-create-archive specification. The current form still places compression level
-in the basic form, exposes separate compression/file/volume/property sections
-and offers the nested source metadata dialog. The agreed design instead has
+create-archive specification. The comparison found compression level in the
+basic form, separate compression/file/volume/property sections and only the
+nested source metadata dialog. The agreed design instead has
 one Additional section containing level/volumes and a separate expert draft
 for method/resources, paths, metadata and method properties. The metadata
 dialog's existing copy/apply boundary is useful but does not implement that
@@ -3410,5 +3410,49 @@ targets compile. Native Cocoa acceptance and fresh renders of these latest
 states remain pending; a locked desktop is not a runtime PASS.
 
 This is a source comparison, not acceptance of the rendered creation form.
-The current common-progress iteration does not implement these separate draft
+The common-progress iteration did not implement these separate draft
 and expert-editor changes or claim that the archival-form catalog is complete.
+
+## Additional and expert archive draft — 2026-11-06
+
+The main creation form now has one collapsed Additional section for level,
+volumes, accepted sources and the expert editor. Methods/resources, paths,
+metadata and method properties move into a separate Apply/Cancel draft window.
+The existing source-backed controls keep their original owner and algorithms;
+the new window reuses the shared disclosure, dialog body/footer, localization
+and scrolling components. Native method/resource calculations, naming,
+properties, password checks and archive writing were not independently replaced.
+No external code was imported or original baseline advanced.
+
+Compared complete source selection/resource/persistence bodies and their local
+callers before changing the draft boundary. A saved format profile is not the
+whole live draft: normalization can discard an Auto choice or raw text, and SFX
+can change the proposed name. Expert Cancel therefore retains the prior choices,
+metadata and text; Apply affects only the parent draft. Main confirmation still
+owns persistence and the accepted operation request. Nested metadata Apply can
+be cancelled by the outer editor. Returning the editor's controls to their owner
+also covers Escape and closing the window. Invalid properties/memory reveal the
+actual editor field; unavailable source choices do not reserve blank rows.
+
+Focused Linux checks covered the editor, source-modal creation, volumes, common
+geometry, advanced options, memory, limits and language. The integrated run found
+a real rollback defect: a valid zero-byte memory token was normalized to another
+equivalent spelling and was then treated as a missing choice. Matching through
+the existing memory parser fixes that case without adding unsupported options or
+substituting Auto. Affected checks passed again, including explicit zero-limit
+preservation, source-bound metadata rollback and SFX name restoration. The SFX
+scenario ran without a skip.
+
+Actual Cocoa passed twelve selected suites: progress/worker, local task lifetime,
+the three changed main-window archive-transfer scenarios, expert/source creation,
+volumes, common geometry, memory/limits, advanced options and language. The expert
+suite passed all twelve checks without skips. The main-window operations evidence
+is specifically fallback Move, skipped-source Move and damaged Copy/Move, not the
+entire Cocoa operations suite. The review app and changed targets were rebuilt.
+Rendered light/dark review and refreshed gallery evidence remain separate work.
+
+This completes the Additional/Expert draft boundary, not the full creation/update
+catalog. Existing update mode and source-deletion behavior remain available in
+Expert while the separately designed creation/update-intent workflow is open.
+Independent operation-list/return behavior and whole-catalog acceptance likewise
+remain open; this evidence does not establish rendered Windows parity.

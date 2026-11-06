@@ -83,7 +83,7 @@ void CreateArchiveDialog::createCompressionOptions(QFormLayout *form) {
         label->setForegroundRole(QPalette::PlaceholderText);
     }
     memoryForm->addRow(memoryHint);
-    compressionForm->addRow(reserveControlSpace(memoryGroup));
+    compressionForm->addRow(memoryGroup);
     registryFormat_ = format_->currentText();
     connect(format_, &QComboBox::currentTextChanged, this, [this] {
         SaveOptionsInMem();

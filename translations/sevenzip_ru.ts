@@ -161,6 +161,26 @@
     <context>
         <name>ArchiveRedesign</name>
         <message>
+            <source>Additional options</source>
+            <translation>Дополнительно</translation>
+        </message>
+        <message>
+            <source>Expert options…</source>
+            <translation>Экспертные параметры…</translation>
+        </message>
+        <message>
+            <source>Expert options</source>
+            <translation>Экспертные параметры</translation>
+        </message>
+        <message>
+            <source>Apply</source>
+            <translation>Применить</translation>
+        </message>
+        <message>
+            <source>Sources</source>
+            <translation>Источники</translation>
+        </message>
+        <message>
             <source>This format does not support password protection. Choose another format or turn off password protection.</source>
             <translation>Этот формат не поддерживает защиту паролем. Выберите другой формат или отключите защиту паролем.</translation>
         </message>

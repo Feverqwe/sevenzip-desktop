@@ -21,6 +21,7 @@
 #include <QPushButton>
 #include <QSpinBox>
 #include <QVBoxLayout>
+#include <memory>
 #include <optional>
 
 class QtDisclosure;
@@ -59,7 +60,6 @@ class CreateArchiveDialog : public QDialog {
     void createArchiveForm(QVBoxLayout *layout, QVBoxLayout *windowLayout);
     void createOptionSections(QVBoxLayout *layout, QFormLayout *basic);
     void stabilizeColumnWidths();
-    static QWidget *reserveControlSpace(QWidget *control);
     void createCompressionOptions(QFormLayout *form);
     void createEncryptionOptions(QVBoxLayout *form);
     void updateRedesignSummary();
@@ -70,6 +70,10 @@ class CreateArchiveDialog : public QDialog {
     void updateSfxControls();
     void toggleSfx(bool enabled);
     void showAdvancedOptions();
+    struct ExpertDraft;
+    std::unique_ptr<ExpertDraft> captureExpertDraft();
+    void restoreExpertDraft(const ExpertDraft &draft);
+    void showExpertOptions(QWidget *focus = nullptr);
     void prepareMetadataSource(CCompressDialog &source) const;
     void updateAdvancedSummary();
     bool checkVolumeSizes();
@@ -148,9 +152,8 @@ class CreateArchiveDialog : public QDialog {
     QCheckBox *encryptHeaders_ = nullptr;
     QCheckBox *passwordEnabled_ = nullptr;
     QLabel *protectionWarning_ = nullptr;
-    QtDisclosure *fileOptions_ = nullptr;
-    QtDisclosure *volumeOptions_ = nullptr;
-    QtDisclosure *commandLineOptions_ = nullptr;
+    QtDisclosure *additionalOptions_ = nullptr;
+    QWidget *expertContent_ = nullptr;
     QFormLayout *encryptionForm_ = nullptr;
     QDialogButtonBox *buttons_ = nullptr;
 };

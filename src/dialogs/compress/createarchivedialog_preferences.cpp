@@ -112,6 +112,12 @@ void CreateArchiveDialog::MethodChanged() {
     dictionary_->setEnabled(dictionary_->count() > 1);
     wordSize_->setEnabled(wordSize_->count() > 1);
     solidBlock_->setEnabled(solidBlock_->count() > 1);
+    for (auto *field : {dictionary_, wordSize_, solidBlock_})
+        if (auto *form = qobject_cast<QFormLayout *>(field->parentWidget()->layout()))
+            form->setRowVisible(field, field->count() > 0);
+    if (auto *form =
+            qobject_cast<QFormLayout *>(threads_->parentWidget()->parentWidget()->layout()))
+        form->setRowVisible(threads_->parentWidget(), threads_->count() > 0);
     SetMemoryUsage();
     updateSfxControls();
 }

@@ -5,12 +5,10 @@
 #include "dialogs/compress/qtcompressoptionsdialog.h"
 #include "localization/qtlangcontrols.h"
 #include "ui/controls/qtdisclosure.h"
+#include <QPlainTextEdit>
 #include <QToolButton>
 
 void CreateArchiveDialog::createOptionSections(QVBoxLayout *layout, QFormLayout *basic) {
-    auto *sections = new QVBoxLayout;
-    sections->setSpacing(8);
-    layout->addLayout(sections);
     const auto form = [this] {
         auto *result = new QFormLayout(new QWidget(this));
         result->setContentsMargins(24, 4, 0, 4);
@@ -18,42 +16,62 @@ void CreateArchiveDialog::createOptionSections(QVBoxLayout *layout, QFormLayout 
         result->setRowWrapPolicy(QFormLayout::WrapLongRows);
         return result;
     };
-    const auto section = [layout, sections](QFormLayout *content, const char *name,
-                                            const char *title) {
-        auto *result = new QtDisclosure(content->parentWidget(), layout->parentWidget());
-        result->setObjectName(QString::fromLatin1(name) + "Section");
-        result->button()->setObjectName(QString::fromLatin1(name) + "Toggle");
-        QtBindLocalText(result->button(), "ArchiveRedesign", title);
-        sections->addWidget(result);
-        return result;
-    };
+    auto *additional = form();
+    additionalOptions_ = new QtDisclosure(additional->parentWidget(), layout->parentWidget());
+    additionalOptions_->setObjectName("archiveAdditionalSection");
+    QtBindLocalText(additionalOptions_->button(), "ArchiveRedesign",
+                    QT_TRANSLATE_NOOP("ArchiveRedesign", "Additional options"));
+    layout->addWidget(additionalOptions_);
+    expertContent_ = new QWidget(this);
+    expertContent_->setObjectName("archiveExpertContent");
+    auto *expert = new QVBoxLayout(expertContent_);
+    expert->setContentsMargins(0, 0, 0, 0);
+    expert->setSpacing(16);
     auto *compression = form();
+    compression->setContentsMargins(0, 0, 0, 0);
     compression->parentWidget()->setObjectName("archiveCompressionColumn");
     basic->addRow("Archive format:", format_);
     createCompressionOptions(compression);
     const auto level = compression->takeRow(level_);
-    basic->addRow(level.labelItem->widget(), level.fieldItem->widget());
+    additional->addRow(level.labelItem->widget(), level.fieldItem->widget());
     level_->show();
     delete level.labelItem;
     delete level.fieldItem;
-    section(compression, "archiveCompression",
-            QT_TRANSLATE_NOOP("ArchiveRedesign", "Compression settings"));
+    expert->addWidget(compression->parentWidget());
 
     auto *files = form();
+    files->setContentsMargins(0, 0, 0, 0);
     files->addRow("Update mode:", updateMode_);
     files->addRow("Path mode:", pathMode_);
     createLifecycleOptions(files);
     createAdvancedOptions(files);
-    fileOptions_ =
-        section(files, "archiveFileOptions", QT_TRANSLATE_NOOP("ArchiveRedesign", "File settings"));
-    auto *volumes = form();
-    createVolumeOptions(volumes);
-    volumeOptions_ = section(volumes, "archiveVolumes",
-                             QT_TRANSLATE_NOOP("ArchiveRedesign", "Split to volumes"));
+    expert->addWidget(files->parentWidget());
+    createVolumeOptions(additional);
+    auto *edit = new QPushButton(additional->parentWidget());
+    edit->setObjectName("archiveExpertOptions");
+    edit->setEnabled(format_->currentIndex() >= 0);
+    connect(format_, &QComboBox::currentIndexChanged, edit,
+            [edit](int index) { edit->setEnabled(index >= 0); });
+    QtBindLocalText(edit, "ArchiveRedesign",
+                    QT_TRANSLATE_NOOP("ArchiveRedesign", "Expert options…"));
+    additional->addRow(edit);
+    connect(edit, &QPushButton::clicked, this, [this] { showExpertOptions(); });
+    auto *sources = new QPlainTextEdit(selected_.join('\n'), additional->parentWidget());
+    sources->setObjectName("archiveSources");
+    sources->setReadOnly(true);
+    sources->setMaximumHeight(fontMetrics().lineSpacing() * 6);
+    QtBindLocalText(sources, "ArchiveRedesign", QT_TRANSLATE_NOOP("ArchiveRedesign", "Sources"),
+                    true);
+    auto *sourceSection = new QtDisclosure(sources, additional->parentWidget());
+    sourceSection->setObjectName("archiveSourcesSection");
+    QtBindLocalText(sourceSection->button(), "ArchiveRedesign",
+                    QT_TRANSLATE_NOOP("ArchiveRedesign", "Sources"));
+    additional->addRow(sourceSection);
     auto *commandLine = form();
+    commandLine->setContentsMargins(0, 0, 0, 0);
     createCommandLineOptions(commandLine);
-    commandLineOptions_ = section(commandLine, "archiveCommandLine",
-                                  QT_TRANSLATE_NOOP("ArchiveRedesign", "Command-line settings"));
+    expert->addWidget(commandLine->parentWidget());
+    expertContent_->hide();
 }
 
 void CreateArchiveDialog::createLifecycleOptions(QFormLayout *form) {
@@ -137,7 +155,7 @@ void CreateArchiveDialog::showAdvancedOptions() {
     NCompression::CFormatOptions profile = Get_FormatOptions();
     source.FormatOptions = &profile;
     COptionsDialog dialog(&source);
-    if (dialog.Create(this) == QDialog::Accepted) {
+    if (dialog.Create(advanced_->window()) == QDialog::Accepted) {
         Get_FormatOptions() = profile;
         source.SaveMetadataOptions(m_RegistryInfo);
         if (fixedSources_) {
@@ -175,24 +193,28 @@ void CreateArchiveDialog::updateAdvancedSummary() {
 }
 
 void CreateArchiveDialog::updateRedesignSummary() {
-    if (!fileOptions_ || !volumeOptions_ || !commandLineOptions_)
+    if (!additionalOptions_ || !volume_ || !parameters_)
         return;
+    if (auto *form = qobject_cast<QFormLayout *>(level_->parentWidget()->layout()))
+        form->setRowVisible(level_, level_->count() > 1);
     const QString modified = QCoreApplication::translate("ArchiveRedesign", "Modified");
     bool compressionModified = memUse_->isEnabled() && Get_MemUse_Spec().IsDefined;
     for (auto *combo : {method_, dictionary_, wordSize_, solidBlock_, threads_})
         if (combo->isEnabled() && combo->currentIndex() > 0)
             compressionModified = true;
-    findChild<QtDisclosure *>("archiveCompressionSection")
-        ->setSummary(compressionModified ? modified : QString());
     bool filesModified = hasMetadataOptions_ ||
                          updateMode_->currentData().toInt() != NCompressDialog::NUpdateMode::kAdd ||
                          pathMode_->currentData().toInt() != NWildcard::k_RelatPath;
     for (auto *check : {sfx_, sharedFiles_, deleteAfterCompressing_})
         if (check->isEnabled() && check->isChecked())
             filesModified = true;
-    fileOptions_->setSummary(filesModified ? modified : QString());
-    volumeOptions_->setSummary(
-        volume_->isEnabled() && !volume_->currentText().trimmed().isEmpty() ? modified : QString());
-    commandLineOptions_->setSummary(
-        parameters_->isEnabled() && !parameters_->text().isEmpty() ? modified : QString());
+    QStringList summary;
+    if (level_->count() > 1)
+        summary.append(level_->currentText());
+    if (volume_->isEnabled() && !volume_->currentText().trimmed().isEmpty())
+        summary.append(volume_->currentText());
+    if (compressionModified || filesModified ||
+        (parameters_->isEnabled() && !parameters_->text().isEmpty()))
+        summary.append(modified);
+    additionalOptions_->setSummary(summary.join(QStringLiteral(" · ")));
 }

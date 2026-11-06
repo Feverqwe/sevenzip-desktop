@@ -487,6 +487,7 @@
     target_link_libraries(ui_geometry_tests PRIVATE sevenzip_compression_ui sevenzip_layout_inspection sevenzip_location)
     target_include_directories(ui_geometry_tests PRIVATE src tests)
     target_link_libraries(ui_geometry_tests PRIVATE Qt6::Widgets Qt6::Test sevenzip_panel)
+    target_link_libraries(ui_geometry_tests PRIVATE sevenzip_widget_dialog_fixtures)
     add_test(NAME ui_geometry COMMAND ui_geometry_tests -silent)
     set_tests_properties(ui_geometry PROPERTIES ENVIRONMENT
         "QT_QPA_PLATFORM=offscreen;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
