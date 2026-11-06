@@ -9,6 +9,7 @@
 #include "archive/resources/qtarchivefileresource.h"
 #include "dialogs/copy/CopyDialog.h"
 #include "filemanager/App.h"
+#include "filemanager/panels/PanelInfo.h"
 #include "fileops/native/FileDir.h"
 #include "fileops/patterns/Wildcard.h"
 #include "settings/ViewSettings.h"
@@ -97,8 +98,47 @@ void CApp::OnCopy(bool move, bool copyToSame, unsigned srcPanelIndex) {
     QStringList sourcePaths;
     FOR_VECTOR(i, indices)
     sourcePaths << ToQString(srcPanel.GetItemFullPath(indices[i]));
+    const bool renameSource = srcPanel.IsFSFolder() || srcPanel.IsAltStreamsFolder();
+    const bool peerWritable = NumPanels == 2 && destPanel.DoesItSupportOperations() &&
+                              !destPanel.IsThereReadOnlyFolder() && !destPanel.IsRootFolder() &&
+                              !destPanel.IsFSDrivesFolder();
+    if ((copyToSame && renameSource) || (!copyToSame && NumPanels == 2 && !peerWritable)) {
+        destPath = srcPanel.GetFsPath();
+        if (!copyToSame)
+            Reduce_Path_To_RealFileSystemPath(destPath);
+    }
+    const auto totals = srcPanel.GetItemTotals(indices);
     CCopyDialog copyDialog(move, ToQString(destPath), sourcePaths, copyHistory, _window,
-                           srcPanel.GetItemsInfoString(indices));
+                           srcPanel.GetItemsInfoString(indices, &totals));
+    const UInt64 unknown = (UInt64)(Int64)-1;
+    copyDialog.SetSourceDetails(
+        ToQString(srcPanel.GetFsPath()),
+        totals.filesSize == unknown || totals.foldersSize == unknown
+            ? std::nullopt
+            : std::optional<quint64>(totals.filesSize + totals.foldersSize));
+    QtCopyDestinationContext destinationContext;
+    destinationContext.SourceDirectory = ToQString(srcPanel.GetFsPath());
+    destinationContext.RelativeBase = ToQString(srcPanel.GetFsPath());
+    if (indices.Size() == 1)
+        destinationContext.SourceName = ToQString(srcPanel.GetItemName(indices[0]));
+    if (NumPanels == 2) {
+        destinationContext.PeerDestination = ToQString(destPanel.GetFsPath());
+        destinationContext.PeerWritable = peerWritable;
+    }
+    const UString peerPath = NumPanels == 2 ? destPanel.GetFsPath() : UString();
+    const bool peerIsFilesystem = NumPanels == 2 && destPanel.IsFSFolder();
+    destinationContext.CanRename = [renameSource, peerPath, peerIsFilesystem](const QString &path) {
+        const UString native = ToUString(path);
+        bool alternate = false;
+#ifdef _WIN32
+        alternate = NWindows::NFile::NName::IsAltPathPrefix(us2fs(native));
+#endif
+        return renameSource &&
+               (peerPath.IsEmpty() || peerIsFilesystem ||
+                CompareFileNames(native, peerPath) != 0) &&
+               !alternate;
+    };
+    copyDialog.ConfigureDestination(std::move(destinationContext));
     if (copyDialog.exec() != QDialog::Accepted)
         return;
     destPath = copyDialog.Value;
@@ -178,6 +218,10 @@ void CApp::OnCopy(bool move, bool copyToSame, unsigned srcPanelIndex) {
     }
     if (!destIsFsPath)
         useDestPanel = true;
+    if (copyDialog.usesDestinationName() && useDestPanel) {
+        srcPanel.MessageBox_Error_UnsupportOperation();
+        return;
+    }
 
     // Qt filesystem execution consumes portable slashes; classification above
     // retains the source path and provider rules before this string boundary.
@@ -205,9 +249,10 @@ void CApp::OnCopy(bool move, bool copyToSame, unsigned srcPanelIndex) {
     // Unwind the source stack in reverse order before that owner snapshots it.
     disableTimerProcessing2.Restore();
     disableTimerProcessing1.Restore();
-    const auto route = !useDestPanel ? QtCopyRoute::FileSystem
-                       : useTemp     ? QtCopyRoute::StagedDestinationPanel
-                                     : QtCopyRoute::DestinationPanel;
+    const auto route = copyDialog.usesDestinationName() ? QtCopyRoute::DirectFileSystem
+                       : !useDestPanel                  ? QtCopyRoute::FileSystem
+                       : useTemp                        ? QtCopyRoute::StagedDestinationPanel
+                                                        : QtCopyRoute::DestinationPanel;
     _presentation->ExecuteCopy(move, copyToSame, srcPanelIndex, output, indices, route);
 }
 

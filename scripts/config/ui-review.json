@@ -27,7 +27,7 @@
   {"id":"extract-sections","title":"Распаковка: основные поля, пароль и раскрытые параметры","target":"extract_dialog_tests","functions":["optionalSectionsKeepDraftAndEffectiveOptions"]},
   {"id":"compression-options","title":"Параметры сжатия и дополнительные настройки","target":"compression_advanced_tests","functions":["optionsStatesAndGeometry","lifecycleFormGeometry","addFormGeometry"]},
   {"id":"compression-language","title":"Создание архива и дополнительные параметры, EN/RU","target":"language_ui_tests","functions":["addDialogRetainsPendingConfiguration","advancedDialogRetainsPendingTimePolicy"]},
-  {"id":"copy-move","title":"Копирование и перемещение","target":"copy_dialog_tests","functions":["geometryAndLongSelection"]},
+  {"id":"copy-move","title":"Копирование и перемещение","target":"copy_dialog_tests","functions":["sourceFrameAndKeyboard:0-0-12","sourceFrameAndKeyboard:0-1-12","sourceFrameAndKeyboard:1-0-12","sourceFrameAndKeyboard:1-1-12","geometryAndLongSelection"]},
   {"id":"split-combine","title":"Разделение и объединение файлов","target":"volume_dialog_tests","functions":["splitGeometry","combineUsesCopyDialogAndUpstreamSummary"]},
   {"id":"overwrite","title":"Подтверждение перезаписи","target":"overwrite_layout_tests","functions":["sourceFooterAndFileRows"]},
   {"id":"source-prompts","title":"Пароль, память, текст и сообщения","target":"source_prompt_presentation_tests","functions":["sourceInitialFrame"]},

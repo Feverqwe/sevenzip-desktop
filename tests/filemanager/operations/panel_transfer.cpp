@@ -215,8 +215,7 @@ void MainWindowOperationsTests::stage7ArchiveCopyAndDropCancellation() {
         for (QWidget *widget : QApplication::topLevelWidgets()) {
             if (auto *dialog = qobject_cast<QDialog *>(widget); dialog && dialog->isVisible()) {
                 if (auto *destination = dialog->findChild<QComboBox *>("copyDestination")) {
-                    copyInfo =
-                        dialog->findChild<QPlainTextEdit *>("copySelectionInfo")->toPlainText();
+                    copyInfo = ToQString(static_cast<CopyDialog *>(dialog)->Info);
                     destination->setCurrentText(temp.filePath("out"));
                     dialog->accept();
                 }

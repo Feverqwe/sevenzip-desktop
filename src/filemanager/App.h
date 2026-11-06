@@ -51,7 +51,7 @@ class CPanelCallbackImp final : public CPanelCallback {
     void RefreshTitle(bool always) override;
 };
 
-enum class QtCopyRoute { FileSystem, DestinationPanel, StagedDestinationPanel };
+enum class QtCopyRoute { FileSystem, DirectFileSystem, DestinationPanel, StagedDestinationPanel };
 
 // Qt replaces menu/toolbar handles and panel child-control construction. Native
 // creation, path binding, per-panel state and release order remain CApp/CPanel.

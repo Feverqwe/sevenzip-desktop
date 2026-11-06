@@ -69,7 +69,7 @@ class NativeArchiveAdsCopyTests final : public QObject, protected MainWindowTest
                     dialog->resize(size);
                     dialog->layout()->activate();
                     for (const char *control : {"copyDestination", "copyBrowseButton",
-                                                "copySelectionInfo", "copyButtons"})
+                                                "copySourceSummary", "copyButtons"})
                         QVERIFY(UiInspection::fullyVisible(*dialog->findChild<QWidget *>(control),
                                                            *dialog));
                     QVERIFY(UiInspection::writeReport(*dialog,

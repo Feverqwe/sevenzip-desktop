@@ -53,8 +53,7 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
             seen = true;
             dialog->resize(size);
             dialog->layout()->activate();
-            summary = dialog->findChild<QPlainTextEdit *>("copySelectionInfo")
-                          ->toPlainText()
+            summary = ToQString(static_cast<CopyDialog *>(dialog)->Info)
                           .normalized(QString::NormalizationForm_C);
             inspected = UiInspection::writeReport(*dialog, tag);
             dialog->reject();

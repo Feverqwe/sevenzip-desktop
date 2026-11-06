@@ -66,9 +66,15 @@ class PanelRuntimeTests : public QObject, protected MainWindowTestSupport {
         QTimer::singleShot(0, &window, [&] {
             auto *dialog = window.findChild<QDialog *>("copyDialog");
             QVERIFY(dialog);
-            auto *info = dialog->findChild<QPlainTextEdit *>("copySelectionInfo");
+            auto *info = dialog->findChild<QWidget *>("copySourceSummary");
             QVERIFY(info);
-            summary = info->toPlainText().normalized(QString::NormalizationForm_C);
+            summary = ToQString(static_cast<CopyDialog *>(dialog)->Info)
+                          .normalized(QString::NormalizationForm_C);
+            const QString visibleSummary = info->accessibleDescription();
+            QVERIFY(visibleSummary.contains("source-summary.zip"));
+            QCOMPARE(visibleSummary.contains("bytes"), !flat);
+            if (!flat)
+                QVERIFY(visibleSummary.contains("18 bytes"));
             for (const QSize &size : {QSize(440, 250), QSize(340, 220)}) {
                 dialog->resize(size);
                 QCoreApplication::processEvents();
@@ -94,7 +100,7 @@ class PanelRuntimeTests : public QObject, protected MainWindowTestSupport {
         QTimer::singleShot(0, &window, [&] {
             auto *dialog = window.findChild<QDialog *>("copyDialog");
             QVERIFY(dialog);
-            summary = dialog->findChild<QPlainTextEdit *>("copySelectionInfo")->toPlainText();
+            summary = ToQString(static_cast<CopyDialog *>(dialog)->Info);
             dialog->reject();
         });
         action(window, "moveAction")->trigger();

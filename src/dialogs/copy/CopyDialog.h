@@ -5,8 +5,25 @@
 
 #include <QDialog>
 #include <QStringList>
+#include <functional>
+#include <optional>
 
 class QComboBox;
+class QtSourceSummary;
+class QLineEdit;
+class QLabel;
+class QPushButton;
+class QVBoxLayout;
+
+struct QtCopyDestinationContext {
+    QString SourceDirectory;
+    QString SourceName;
+    QString PeerDestination;
+    bool PeerWritable = false;
+    std::function<bool(const QString &)> CanRename;
+    // Null uses the caller's ordinary process-relative filesystem contract.
+    QString RelativeBase = {};
+};
 
 const int kCopyDialog_NumInfoLines = 11;
 
@@ -28,9 +45,33 @@ class CCopyDialog : public QDialog {
     QString destination() const;
     void BindLanguage(UInt32 titleID, UInt32 promptID, const QString &titleSuffix = {});
     void accept() override;
+    void SetSourceDetails(const QString &location, std::optional<quint64> knownSize);
+    void ConfigureDestination(QtCopyDestinationContext context);
+    bool usesDestinationName() const { return _acceptedNamedDestination; }
+
+  protected:
+    void changeEvent(QEvent *event) override;
 
   private:
     QComboBox *_path = nullptr;
+    QStringList _sources;
+    QtSourceSummary *_sourceSummary = nullptr;
+    QString _sourceLocation;
+    std::optional<quint64> _knownSize;
+    bool _copyMove = false;
+    bool _acceptedNamedDestination = false;
+    std::optional<QtCopyDestinationContext> _destinationContext;
+    QLineEdit *_name = nullptr;
+    QLabel *_nameLabel = nullptr;
+    QLabel *_destinationMessage = nullptr;
+    QPushButton *_peer = nullptr;
+    bool _canAccept = true;
+    bool _useName = false;
+    void BuildDestinationOptions(QVBoxLayout &layout);
+    void UpdateDestination();
+    QString DraftDestination() const;
+    QString PreviewDestination(const QString &value) const;
+    void RefreshSourceSummary();
     bool OnInit();
     void OnButtonSetPath();
     void OnOK();

@@ -2,6 +2,53 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="ru_RU" sourcelanguage="en">
     <context>
+        <name>CopyRedesign</name>
+        <message>
+            <source>Destination</source>
+            <translation>Назначение</translation>
+        </message>
+        <message>
+            <source>Other panel</source>
+            <translation>Другая панель</translation>
+        </message>
+        <message>
+            <source>Name at destination</source>
+            <translation>Имя в назначении</translation>
+        </message>
+        <message>
+            <source>Select one or more items.</source>
+            <translation>Выберите один или несколько объектов.</translation>
+        </message>
+        <message>
+            <source>Choose a destination.</source>
+            <translation>Выберите назначение.</translation>
+        </message>
+        <message>
+            <source>The destination is invalid.</source>
+            <translation>Недопустимое назначение.</translation>
+        </message>
+        <message>
+            <source>Enter a file or folder name.</source>
+            <translation>Введите имя файла или папки.</translation>
+        </message>
+        <message>
+            <source>The destination is read-only.</source>
+            <translation>Назначение доступно только для чтения.</translation>
+        </message>
+        <message>
+            <source>Choose another destination or change the name.</source>
+            <translation>Выберите другое назначение или измените имя.</translation>
+        </message>
+        <message>
+            <source>Selected: %1</source>
+            <translation>Выбрано: %1</translation>
+        </message>
+        <message>
+            <source>Show selected items</source>
+            <translation>Показать выбранные объекты</translation>
+        </message>
+    </context>
+    <context>
         <name>DroppedPath</name>
         <message>
             <source>Choose an action</source>

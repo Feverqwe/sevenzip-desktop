@@ -176,7 +176,7 @@ class FsProviderCommandTests final : public QObject, protected MainWindowTestSup
                     dialog->resize(size);
                     dialog->layout()->activate();
                     for (const char *control : {"copyDestination", "copyBrowseButton",
-                                                "copySelectionInfo", "copyButtons"})
+                                                "copySourceSummary", "copyButtons"})
                         QVERIFY(UiInspection::fullyVisible(*dialog->findChild<QWidget *>(control),
                                                            *dialog));
                     QVERIFY(UiInspection::writeReport(*dialog, QString("fs-provider-copy-%1-%2x%3")

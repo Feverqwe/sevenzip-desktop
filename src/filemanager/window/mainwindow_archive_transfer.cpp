@@ -120,8 +120,10 @@ bool MainWindow::transferBetweenArchivePanels(const QString &destination, bool m
     enum class Outcome { Stopped, Updated, Retained, RolledBack, RollbackFailed };
     Outcome outcome = Outcome::Stopped;
     CSelectedState selected;
+    // CopyFrom can replace the peer's archive indices. Until both panels have
+    // published their new rows, chrome must not query the old peer selection.
+    QScopedValueRollback<bool> progressOwner(sourceArchiveProgress_, true);
     {
-        QScopedValueRollback<bool> progressOwner(sourceArchiveProgress_, true);
         transfer = app_.CopyArchiveToArchive(sourceIndex, indices, &messages);
         result = transfer.Result;
         if (result == S_OK && messages.IsEmpty()) {

@@ -275,7 +275,7 @@ void MainWindowOperationsTests::stage7FilesystemCommands() {
     QTimer::singleShot(0, &window, [destination, &copyInfo] {
         for (QWidget *widget : QApplication::topLevelWidgets()) {
             if (auto *dialog = qobject_cast<CopyDialog *>(widget)) {
-                copyInfo = dialog->findChild<QPlainTextEdit *>("copySelectionInfo")->toPlainText();
+                copyInfo = ToQString(static_cast<CopyDialog *>(dialog)->Info);
                 dialog->findChild<QComboBox *>("copyDestination")->setCurrentText(destination);
                 dialog->accept();
             }

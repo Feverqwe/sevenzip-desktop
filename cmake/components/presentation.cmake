@@ -92,6 +92,7 @@ add_library(sevenzip_panel
     src/gui/UpdateGUI.h
     src/filemanager/SplitUtils.h
     src/dialogs/copy/CopyDialog.cpp
+    src/dialogs/copy/CopyDialogDestination.cpp
     src/dialogs/copy/CopyDialog.h
     src/fileops/native/Dialog.cpp
     src/fileops/native/Dialog.h

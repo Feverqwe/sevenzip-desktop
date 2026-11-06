@@ -2982,3 +2982,97 @@ four jobs and compiler cache. Source inventory, body comparison and whitespace
 checks passed. Completed settings were removed; incremental outputs and caches
 were preserved. No platform branch, layout or text changed; secondary platforms,
 full/slow gates and new appearance acceptance are not claimed.
+
+## Copy/Move source and destination integration — 2026-11-06
+
+Compared the pinned original App.cpp::OnCopy/GetItemsInfoString, CopyDialog
+implementation and their current panel, filesystem, archive and external-copy
+consumers. The existing baseline retains the complete original units at
+`0766b733fe3e06dd2a7f9a3cfbf2108ac73abd17`; the local symbol mapping now records
+the extracted counting loop. No external source or new algorithm is imported.
+Counts, metadata queries and unknown-size propagation retain the original body;
+the existing text formatter and the new source card share that calculation.
+
+Copy/Move now presents SourceSummary above the destination. Multiple selected
+paths are disclosed in a bounded scrollable list, including entries beyond the
+old five-name preview. Unknown total size is omitted; no directory traversal is
+started to fill it. The body scrolls independently of the footer. The same source
+component supplies optional size details in external Save Copy, while Combine
+retains its generic text-summary presentation.
+
+The single-object destination name now joins a supported filesystem directory
+only when changed. Unchanged names, legacy full-file history entries and peer
+archive/stream identities retain their original route. A writable peer supplies
+the initial proposal and a shortcut back to it; unavailable peers fall back to
+the source filesystem location. Inline validation rejects empty/invalid input,
+known unwritable destinations and an unchanged source location. Final native
+normalization, provider checks, history updates and operation execution remain
+with their existing owners. Explicit new names use the existing direct-object
+transfer mode so an occupied directory cannot become an unintended container.
+External Save Copy uses the same form while retaining its process-relative path
+contract; panel Copy/Move previews relative paths from its native panel prefix.
+
+Linux copy_dialog, app_copy_routing, ui_copy_routing_quick, panel_runtime,
+ui_operations, recent_places and local_task_lifecycle passed. The first build
+caught an invalid typed QObject search in the new test; that was corrected.
+The archived-stream consumer initially stopped before Copy/Move because its
+fixture waited for the now-hidden Flat View menu action. Its setup now uses the
+existing provider API. Its geometry checks are being updated to inspect the
+actual navigation surface and reach fields through the designed body scroll.
+The compact scrolling check initially left the outer edge of an even-height
+control one pixel outside its requested reveal rectangle. The test now reveals
+the complete rectangle before checking visibility, without changing the dialog's
+geometry or accepting clipping. Source-card/count live language changes retain
+the destination draft and disclosure state. macOS offscreen copy_dialog,
+panel_runtime, recent_places and local_task_lifecycle passed. At that checkpoint
+native appearance and captures were pending while the desktop was locked;
+subsequent Cocoa evidence is recorded below.
+
+Once those fixture issues were resolved, archive-to-archive Move exposed an
+actual publication defect. A caught-exception GDB stack showed peer chrome
+calling CreateFileMenu with the old selected indices after the archive writer
+had replaced its item table, between source and destination row publication.
+Original OnCopy holds both notification guards until both lists are refreshed.
+The Qt transfer now retains its existing command-query guard through publication
+of both panels; asynchronous list publication retains its existing owner and
+notification guards. No provider error is swallowed or selection fabricated.
+Linux agent_stream_copy_ui, interarchive_move_publication and
+archive_move_completion passed after the fix. macOS offscreen publication and
+Move-completion suites passed outside the filesystem/process sandbox; the
+sandboxed attempt could not obtain archive write locks and denied `/bin/ps`.
+The stream fixture also needed to enter address editing through LocationBar
+before sending Return to the right panel. Its complete macOS offscreen rerun
+passed after that correction; the final Linux fixture rerun also passed.
+Katya's source review found no blocker in guard lifetime, early returns,
+asynchronous scan handoff or action recovery; that review is separate from
+runtime evidence. The diagnostic used the existing lite binary's function symbols;
+no full debug build, cache reset or new runner disk was needed. Its one-off script
+and resolved local clipping report were removed; failure and stack logs remain.
+
+Katya's destination review identified the difference between panel-relative and
+process-relative paths; the preview now takes an explicit caller base and a
+behavior check contrasts both contracts. No other confirmed routing blocker was
+reported. Review is separate from runtime evidence.
+
+The integrated Linux selection copy_dialog, copy_destination, ui_copy_same,
+app_copy_routing, ui_copy_routing_quick, agent_stream_copy_ui and
+local_task_lifecycle passed. Subsequent focused reruns verified the large-font
+initial name visibility and occupied-directory refusal. The final ui_copy_same
+fixture rerun passed in 4.23s, after 10.53s incremental compilation. It uses the
+existing widget-dialog fixture: an earlier native NSAlert prevented the Qt timer
+responder from answering; product error presentation was not changed for testing.
+
+With the desktop unlocked, actual Cocoa copy_dialog (22 checks),
+copy_destination (9), app_copy_routing (17), local_task_lifecycle (15) and the
+final ui_copy_same (24, 26.12s) passed without skips. Error/picker automation uses
+Qt widget dialogs under Cocoa; native OS alert/picker acceptance and Windows
+validation are not claimed. Initial large-font geometry first exposed a hidden
+name field; content-based sizing fixed it and initial-state checks now protect
+visibility before scrolling. Refreshed light/dark Copy/Move captures contain
+12 frames per theme, EN/RU and compact states, from the modified source tree.
+They are dated WIP evidence, not clean-commit or full-gallery acceptance.
+
+This remains part of the full catalog implementation. Separate recent-destination
+presentation and source-path labeling still need catalog alignment; conflict
+answers, Delete and other remaining forms require their own completion checks.
+Passing these suites does not establish completion of Copy/Move or the full design.

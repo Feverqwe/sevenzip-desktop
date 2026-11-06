@@ -5,3 +5,7 @@
 #include "Common/MyWindows.h"
 
 void AddValuePair2(UString &s, UINT resourceID, UInt64 num, UInt64 size);
+
+struct CPanelItemTotals {
+    UInt64 numDirs = 0, numFiles = 0, filesSize = 0, foldersSize = 0;
+};

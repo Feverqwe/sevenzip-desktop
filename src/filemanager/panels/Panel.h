@@ -35,6 +35,7 @@
 #include <memory>
 #include <vector>
 class IQtCompressCallServices;
+struct CPanelItemTotals;
 #include <optional>
 
 #ifdef _WIN32
@@ -710,7 +711,9 @@ class CPanel : public QObject {
         return state;
     }
     bool _lastFocusedIsList = true;
-    QString GetItemsInfoString(const CRecordVector<UInt32> &indices) const;
+    CPanelItemTotals GetItemTotals(const CRecordVector<UInt32> &indices) const;
+    QString GetItemsInfoString(const CRecordVector<UInt32> &indices,
+                               const CPanelItemTotals *totals = nullptr) const;
     void Properties(const CRecordVector<UInt32> &operatedIndices, CListViewDialog &message) const;
     void Properties();
     static QString FoldersHistory(CFolderHistory &history, const QString &settingsPath,

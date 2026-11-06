@@ -991,8 +991,7 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
                 auto *dialog = window.findChild<QDialog *>("copyDialog");
                 QVERIFY(dialog);
                 const auto close = qScopeGuard([dialog] { dialog->reject(); });
-                const QString summary = dialog->findChild<QPlainTextEdit *>("copySelectionInfo")
-                                            ->toPlainText()
+                const QString summary = ToQString(static_cast<CopyDialog *>(dialog)->Info)
                                             .normalized(QString::NormalizationForm_C);
                 for (int row : {1, 2})
                     QVERIFY2(

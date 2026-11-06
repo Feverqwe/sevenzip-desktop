@@ -299,7 +299,7 @@ void MainWindowOperationsTests::nestedFolderAskUsesSourceRelativePath() {
     QTimer::singleShot(0, &window, [&] {
         auto *dialog = window.findChild<CopyDialog *>("copyDialog");
         QVERIFY(dialog);
-        summary = dialog->findChild<QPlainTextEdit *>("copySelectionInfo")->toPlainText();
+        summary = ToQString(static_cast<CopyDialog *>(dialog)->Info);
         dialog->findChild<QComboBox *>("copyDestination")->setCurrentText(copyOutput);
         dialog->accept();
     });

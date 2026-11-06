@@ -1723,6 +1723,7 @@
     "src/dialogs/compress/qtcompressoptionscontrols.cpp",
     "src/dialogs/compress/qtcompressoptionscontrols.h",
     "src/dialogs/compress/qtcompressoptionsdialog.h",
+    "src/dialogs/copy/CopyDialogDestination.cpp",
     "src/dialogs/copy/alias.h",
     "src/dialogs/extract/alias.h",
     "src/dialogs/extract/qtextractpresentation.cpp",
@@ -4068,7 +4069,7 @@
         "AddValuePair1",
         "AddValuePair2",
         "AddPropValueToSum",
-        "CPanel::GetItemsInfoString",
+        "CPanel::GetItemsInfoString (counting loop shared through CPanel::GetItemTotals)",
         "Reduce_Path_To_RealFileSystemPath",
         "CApp::OnCopy (routing, staging and post-operation phases)"
       ]

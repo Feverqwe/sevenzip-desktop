@@ -97,8 +97,9 @@ void MainWindow::executeCopyDestination(bool move, bool copyToSame, unsigned sou
             app_.Panels[sourceIndex].MessageBox_Error_HRESULT(result);
         return;
     }
-    const bool directPath = indices.Size() == 1 && !destination.endsWith('/') &&
-                            !QFileInfo(destination).isDir() && route == QtCopyRoute::FileSystem;
+    const bool directPath = route == QtCopyRoute::DirectFileSystem ||
+                            (indices.Size() == 1 && !destination.endsWith('/') &&
+                             !QFileInfo(destination).isDir() && route == QtCopyRoute::FileSystem);
     if (projectedUi().state == State::Viewing) {
         if (route == QtCopyRoute::StagedDestinationPanel &&
             transferBetweenArchivePanels(destination, move, indices))

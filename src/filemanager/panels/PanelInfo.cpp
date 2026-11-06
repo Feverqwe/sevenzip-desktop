@@ -48,21 +48,26 @@ static void AddPropValueToSum(IFolderFolder *folder, UInt32 index, PROPID propID
         sum = (UInt64)(Int64)-1;
 }
 
-QString CPanel::GetItemsInfoString(const CRecordVector<UInt32> &indices) const {
-    UString info;
-    UInt64 numDirs, numFiles, filesSize, foldersSize;
-    numDirs = numFiles = filesSize = foldersSize = 0;
-    unsigned i;
-    for (i = 0; i < indices.Size(); i++) {
+CPanelItemTotals CPanel::GetItemTotals(const CRecordVector<UInt32> &indices) const {
+    CPanelItemTotals totals;
+    for (unsigned i = 0; i < indices.Size(); i++) {
         const UInt32 index = indices[i];
         if (IsItem_Folder(index)) {
-            AddPropValueToSum(_folder, index, kpidSize, foldersSize);
-            numDirs++;
+            AddPropValueToSum(_folder, index, kpidSize, totals.foldersSize);
+            totals.numDirs++;
         } else {
-            AddPropValueToSum(_folder, index, kpidSize, filesSize);
-            numFiles++;
+            AddPropValueToSum(_folder, index, kpidSize, totals.filesSize);
+            totals.numFiles++;
         }
     }
+    return totals;
+}
+
+QString CPanel::GetItemsInfoString(const CRecordVector<UInt32> &indices,
+                                   const CPanelItemTotals *totals) const {
+    UString info;
+    const auto [numDirs, numFiles, filesSize, foldersSize] =
+        totals ? *totals : GetItemTotals(indices);
     AddValuePair2(info, IDS_PROP_FOLDERS, numDirs, foldersSize);
     AddValuePair2(info, IDS_PROP_FILES, numFiles, filesSize);
     int numDefined = ((foldersSize != (UInt64)(Int64)-1) && foldersSize != 0) ? 1 : 0;
@@ -71,6 +76,7 @@ QString CPanel::GetItemsInfoString(const CRecordVector<UInt32> &indices) const {
         AddValuePair1(info, IDS_PROP_SIZE, filesSize + foldersSize);
     info.Add_LF();
     info += _currentFolderPrefix;
+    unsigned i;
     for (i = 0; i < indices.Size() && (int)i < (int)kCopyDialog_NumInfoLines - 6; i++) {
         info.Add_LF();
         info += "  ";

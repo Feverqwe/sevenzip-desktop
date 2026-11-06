@@ -10,10 +10,13 @@ class QtSourceSummary final : public QWidget {
     QtSourceSummary(const QIcon &icon, const QString &name, const QString &path,
                     QWidget *parent = nullptr);
     void SetSelected(bool selected);
+    void SetSource(const QString &name, const QString &path);
+    void SetDetail(const QString &detail);
     int heightForWidth(int width) const override;
     bool hasHeightForWidth() const override { return true; }
 
   private:
     QLabel *name_;
     QLabel *path_;
+    QLabel *detail_;
 };

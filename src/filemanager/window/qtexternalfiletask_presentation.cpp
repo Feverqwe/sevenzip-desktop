@@ -149,6 +149,15 @@ void QtExternalFileTask::SaveCopy(QWidget *parent, bool fromUpdate) {
             destination = folder.absoluteFilePath();
     }
     CCopyDialog dialog(false, destination, {source}, {}, parent);
+    const QFileInfo sourceInfo(source);
+    dialog.SetSourceDetails(sourceInfo.absolutePath(),
+                            sourceInfo.exists() && sourceInfo.size() >= 0
+                                ? std::optional<quint64>(sourceInfo.size())
+                                : std::nullopt);
+    dialog.ConfigureDestination(
+        {sourceInfo.absolutePath(), sourceInfo.fileName(), {}, false, [](const QString &) {
+             return true;
+         }});
     const bool alreadyStopped = state_->launcher.Exiting();
     state_->question = &dialog;
     const int answer = dialog.exec();
@@ -162,7 +171,8 @@ void QtExternalFileTask::SaveCopy(QWidget *parent, bool fromUpdate) {
         return;
     }
     destination = dialog.destination();
-    const bool direct = !destination.endsWith('/') && !QFileInfo(destination).isDir();
+    const bool direct = dialog.usesDestinationName() ||
+                        (!destination.endsWith('/') && !QFileInfo(destination).isDir());
     auto *worker = new FileTransferOperation(
         {ToQString(fs2us(state_->file.FilePath))}, destination, false, nullptr, {},
         direct ? FileTransferOperation::DestinationKind::DirectPath

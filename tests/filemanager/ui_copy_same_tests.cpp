@@ -1,12 +1,17 @@
+#include "7zip/UI/FileManager/ProgressDialog2Res.h"
 #include "archive/support/native_archive_fixture.h"
 #include "dialogs/copy/alias.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
 #include "localization/LangUtils.h"
+#include "support/widget_dialogs.h"
+#include "ui/progress/ProgressDialog2.h"
 #include "ui/support/layout_inspection.h"
+#include <QScrollArea>
 
 class UiCopySameTests final : public QObject, protected MainWindowTestSupport {
     Q_OBJECT
+    WidgetDialogFixture dialogs_;
 
   private slots:
     void init() {
@@ -16,7 +21,7 @@ class UiCopySameTests final : public QObject, protected MainWindowTestSupport {
         ReloadLang(settings);
     }
 
-    void drivePeerLeavesCopyDestinationEmpty_data() {
+    void drivePeerUsesCurrentDirectory_data() {
         QTest::addColumn<QString>("language");
         QTest::addColumn<QSize>("size");
         QTest::addColumn<bool>("move");
@@ -32,7 +37,7 @@ class UiCopySameTests final : public QObject, protected MainWindowTestSupport {
                                                      .arg(root)))
                             << QString::fromLatin1(language) << size << move << root;
     }
-    void drivePeerLeavesCopyDestinationEmpty() {
+    void drivePeerUsesCurrentDirectory() {
         QFETCH(QString, language);
         QFETCH(QSize, size);
         QFETCH(bool, move);
@@ -86,6 +91,12 @@ class UiCopySameTests final : public QObject, protected MainWindowTestSupport {
             dialogSeen = true;
             dialog->resize(size);
             dialog->layout()->activate();
+            auto *destination = dialog->findChild<QComboBox *>("copyDestination");
+            auto *scroll = dialog->findChild<QScrollArea *>("dialogContentScroll");
+            const QPoint center =
+                destination->mapTo(scroll->widget(), destination->rect().center());
+            scroll->ensureVisible(center.x(), center.y(), (destination->width() + 2) / 2,
+                                  (destination->height() + 2) / 2);
             initial = dialog->findChild<QComboBox *>("copyDestination")->currentText();
             inspected =
                 UiInspection::fullyVisible(*dialog->findChild<QComboBox *>("copyDestination"),
@@ -100,7 +111,7 @@ class UiCopySameTests final : public QObject, protected MainWindowTestSupport {
         QTest::keyClick(source, move ? Qt::Key_F6 : Qt::Key_F5);
         QVERIFY(dialogSeen);
         QVERIFY(inspected);
-        QCOMPARE(initial, QString());
+        QCOMPARE(QDir::cleanPath(initial), fixture.path());
         QVERIFY(input.open(QIODevice::ReadOnly));
         QCOMPARE(input.readAll(), QByteArray("control bytes"));
         QCOMPARE(QDir(fixture.path()).entryList(QDir::Files), QStringList{name});
@@ -140,9 +151,10 @@ class UiCopySameTests final : public QObject, protected MainWindowTestSupport {
             if (!dialog)
                 return;
             dialogSeen = true;
-            auto *destination = dialog->findChild<QComboBox *>("copyDestination");
-            initial = destination->currentText();
-            destination->setCurrentText(QStringLiteral("новое имя.txt"));
+            auto *name = dialog->findChild<QLineEdit *>("copyDestinationName");
+            QVERIFY(name && name->isVisible());
+            initial = name->text();
+            name->setText(QStringLiteral("новое имя.txt"));
             dialog->accept();
         });
         QTest::keyClick(view, Qt::Key_F5, Qt::ShiftModifier);
@@ -188,8 +200,9 @@ class UiCopySameTests final : public QObject, protected MainWindowTestSupport {
             if (!dialog)
                 return;
             dialogSeen = true;
-            dialog->findChild<QComboBox *>("copyDestination")
-                ->setCurrentText(QStringLiteral("второе имя.txt"));
+            auto *name = dialog->findChild<QLineEdit *>("copyDestinationName");
+            QVERIFY(name && name->isVisible());
+            name->setText(QStringLiteral("второе имя.txt"));
             dialog->accept();
         });
         QTest::keyClick(view, Qt::Key_F6, Qt::ShiftModifier);
@@ -199,6 +212,69 @@ class UiCopySameTests final : public QObject, protected MainWindowTestSupport {
         QFile moved(target);
         QVERIFY(moved.open(QIODevice::ReadOnly));
         QCOMPARE(moved.readAll(), QByteArray("move bytes"));
+    }
+
+    void newNameDoesNotBecomeDirectoryContainer_data() {
+        QTest::addColumn<bool>("move");
+        QTest::newRow("copy") << false;
+        QTest::newRow("move") << true;
+    }
+    void newNameDoesNotBecomeDirectoryContainer() {
+        QFETCH(bool, move);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString source = fixture.filePath("source.txt");
+        const QString target = fixture.filePath("occupied");
+        QVERIFY(QDir().mkdir(target));
+        QFile original(source);
+        QVERIFY(original.open(QIODevice::WriteOnly));
+        original.write("source bytes");
+        original.close();
+        QFile control(QDir(target).filePath("keep.txt"));
+        QVERIFY(control.open(QIODevice::WriteOnly));
+        control.write("keep bytes");
+        control.close();
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(fixture.path());
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        auto *view = table(window);
+        QTRY_VERIFY(filesystemRow(window, "source.txt") >= 0);
+        const int row = filesystemRow(window, "source.txt");
+        view->selectRow(row);
+        view->setCurrentCell(row, 0);
+        view->setFocus();
+        QTRY_VERIFY(view->hasFocus());
+        bool submitted = false;
+        QString failure;
+        QTimer driver;
+        dialogs_.connectResponder(driver, &window, [&] {
+            if (auto *dialog = window.findChild<CopyDialog *>("copyDialog");
+                dialog && dialogs_.ready(*dialog) && !submitted) {
+                auto *name = dialog->findChild<QLineEdit *>("copyDestinationName");
+                QVERIFY(name && name->isVisible());
+                name->setText("occupied");
+                submitted = true;
+                dialog->accept();
+                return;
+            }
+            if (auto *message = qobject_cast<QMessageBox *>(dialogs_.activeDialog())) {
+                failure = message->text();
+                message->accept();
+                return;
+            }
+        });
+        driver.start(2);
+        QTest::keyClick(view, move ? Qt::Key_F6 : Qt::Key_F5);
+        QVERIFY(submitted);
+        QTRY_VERIFY(!failure.isEmpty());
+        driver.stop();
+        QVERIFY(original.open(QIODevice::ReadOnly));
+        QCOMPARE(original.readAll(), QByteArray("source bytes"));
+        QVERIFY(control.open(QIODevice::ReadOnly));
+        QCOMPARE(control.readAll(), QByteArray("keep bytes"));
+        QVERIFY(!QFileInfo::exists(QDir(target).filePath("source.txt")));
     }
 
     void ordinaryF5AcceptsSingleFilenameDestination() {

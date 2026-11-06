@@ -6,7 +6,8 @@
 
 QtSourceSummary::QtSourceSummary(const QIcon &icon, const QString &name, const QString &path,
                                  QWidget *parent)
-    : QWidget(parent), name_(new QLabel(name, this)), path_(new QtWrappingLabel(path, this)) {
+    : QWidget(parent), name_(new QLabel(name, this)), path_(new QtWrappingLabel(path, this)),
+      detail_(new QtWrappingLabel(this)) {
     auto *row = new QHBoxLayout(this);
     row->setContentsMargins(12, 10, 12, 10);
     row->setSpacing(12);
@@ -17,13 +18,19 @@ QtSourceSummary::QtSourceSummary(const QIcon &icon, const QString &name, const Q
     auto *text = new QVBoxLayout;
     text->setContentsMargins(0, 0, 0, 0);
     text->setSpacing(4);
-    for (auto *label : {name_, path_}) {
+    for (auto *label : {name_, path_, detail_}) {
         label->setTextFormat(Qt::PlainText);
         label->setWordWrap(true);
         label->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
         label->setMinimumWidth(0);
-        text->addWidget(label);
     }
+    auto *heading = new QHBoxLayout;
+    heading->addWidget(name_, 1);
+    heading->addWidget(detail_);
+    text->addLayout(heading);
+    text->addWidget(path_);
+    detail_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
+    detail_->hide();
     QFont title = name_->font();
     title.setWeight(QFont::DemiBold);
     name_->setFont(title);
@@ -37,6 +44,21 @@ QtSourceSummary::QtSourceSummary(const QIcon &icon, const QString &name, const Q
 void QtSourceSummary::SetSelected(bool selected) {
     name_->setForegroundRole(selected ? QPalette::HighlightedText : QPalette::Text);
     path_->setForegroundRole(selected ? QPalette::HighlightedText : QPalette::PlaceholderText);
+    detail_->setForegroundRole(selected ? QPalette::HighlightedText : QPalette::PlaceholderText);
+}
+
+void QtSourceSummary::SetSource(const QString &name, const QString &path) {
+    name_->setText(name);
+    path_->setText(path);
+    setToolTip(path);
+    setAccessibleName(name);
+    setAccessibleDescription(detail_->text().isEmpty() ? path : path + '\n' + detail_->text());
+}
+
+void QtSourceSummary::SetDetail(const QString &detail) {
+    detail_->setText(detail);
+    detail_->setVisible(!detail.isEmpty());
+    setAccessibleDescription(detail.isEmpty() ? path_->text() : path_->text() + '\n' + detail);
 }
 
 int QtSourceSummary::heightForWidth(int width) const {

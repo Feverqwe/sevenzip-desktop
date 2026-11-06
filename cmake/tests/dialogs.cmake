@@ -180,6 +180,12 @@
     set_tests_properties(copy_dialog PROPERTIES FIXTURES_SETUP ui_reference_copy)
     set_tests_properties(copy_dialog PROPERTIES ENVIRONMENT
         "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/copy-dialog-settings.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports" TIMEOUT 30)
+    qt_add_executable(copy_destination_tests tests/filemanager/copy_destination_tests.cpp)
+    target_link_libraries(copy_destination_tests PRIVATE Qt6::Widgets Qt6::Test sevenzip_panel sevenzip_layout_inspection)
+    target_include_directories(copy_destination_tests PRIVATE src tests)
+    add_test(NAME copy_destination COMMAND copy_destination_tests -silent)
+    set_tests_properties(copy_destination PROPERTIES TIMEOUT 30 ENVIRONMENT
+        "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/copy-destination-settings.ini")
     qt_add_executable(archive_backend_tests tests/archive/archive_backend_tests.cpp)
     target_link_libraries(archive_backend_tests PRIVATE sevenzip_location)
     qt_add_executable(process_notification_tests tests/operations/process_notification_tests.cpp)
@@ -223,10 +229,12 @@
     target_link_libraries(ui_state_tests PRIVATE Qt6::Widgets Qt6::Test)
     target_link_libraries(ui_operations_tests PRIVATE Qt6::Widgets Qt6::Test)
     qt_add_executable(ui_copy_same_tests tests/filemanager/ui_copy_same_tests.cpp)
+    target_link_libraries(ui_copy_same_tests PRIVATE sevenzip_widget_dialog_fixtures)
     target_link_libraries(ui_copy_same_tests PRIVATE sevenzip_layout_inspection)
     target_link_libraries(ui_copy_same_tests PRIVATE sevenzip_window)
     target_include_directories(ui_copy_same_tests PRIVATE src tests)
     target_link_libraries(ui_copy_same_tests PRIVATE Qt6::Widgets Qt6::Test)
     add_test(NAME ui_copy_same COMMAND ui_copy_same_tests -silent)
+    set_tests_properties(ui_copy_same PROPERTIES TIMEOUT 60)
     set_tests_properties(ui_copy_same PROPERTIES ENVIRONMENT
         "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/ui-copy-same-settings.ini")

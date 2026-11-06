@@ -3,9 +3,11 @@
 #include "dialogs/copy/alias.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
+#include "filemanager/window/qtnavigationbar.h"
 #include "localization/LangUtils.h"
 #include "ui/support/layout_inspection.h"
 #include <QScopeGuard>
+#include <QScrollArea>
 
 using namespace SourceExtractFixture;
 
@@ -21,6 +23,12 @@ class AgentStreamCopyUiTests final : public QObject, protected MainWindowTestSup
     static FileTable *openPanel(MainWindow &window, unsigned index, const QString &path) {
         auto *panel = window.findChild<QWidget *>(QString("filePanel%1").arg(index));
         auto *address = panel->findChild<QLineEdit *>("archivePath");
+        auto *navigation = dynamic_cast<QtNavigationBar *>(
+            panel->findChild<QWidget *>(QString("panelNavigation%1").arg(index)));
+        if (!navigation ||
+            !QTest::qWaitFor([&] { return address->isEnabled() && !address->isReadOnly(); }))
+            return nullptr;
+        navigation->Edit();
         address->setFocus();
         address->setText(path);
         QTest::keyClick(address, Qt::Key_Return);
@@ -34,8 +42,8 @@ class AgentStreamCopyUiTests final : public QObject, protected MainWindowTestSup
                 auto *ui = window.findChild<QWidget *>(QString("filePanel%1").arg(pane));
                 QVERIFY(UiInspection::fullyVisible(*ui->findChild<FileTable *>("archiveTable"),
                                                    window));
-                QVERIFY(
-                    UiInspection::fullyVisible(*ui->findChild<QLineEdit *>("archivePath"), window));
+                auto *navigation = ui->findChild<QWidget *>(QString("panelNavigation%1").arg(pane));
+                QVERIFY(navigation && UiInspection::fullyVisible(*navigation, window));
             }
             QVERIFY(UiInspection::writeReport(
                 window, QString("%1-%2x%3").arg(tag).arg(size.width()).arg(size.height())));
@@ -80,16 +88,35 @@ class AgentStreamCopyUiTests final : public QObject, protected MainWindowTestSup
                     dialog->reject();
             });
             QCOMPARE(QDir::cleanPath(dialog->destination()), QDir::cleanPath(destination));
-            auto *summary = dialog->findChild<QPlainTextEdit *>("copySelectionInfo");
+            auto *summary = dialog->findChild<QWidget *>("copySourceSummary");
             QVERIFY(summary);
-            QVERIFY(summary->toPlainText().normalized(QString::NormalizationForm_C).contains(name));
+            QVERIFY(
+                summary->accessibleName().normalized(QString::NormalizationForm_C).contains(name));
             for (const QSize size : {QSize(440, 250), QSize(340, 220)}) {
                 dialog->resize(size);
                 QApplication::processEvents();
+                auto *scroll = dialog->findChild<QScrollArea *>("dialogContentScroll");
+                QVERIFY(scroll);
                 for (const char *control :
-                     {"copyDestination", "copyBrowseButton", "copySelectionInfo", "copyButtons"})
-                    QVERIFY(UiInspection::fullyVisible(*dialog->findChild<QWidget *>(control),
+                     {"copySourceSummary", "copyDestination", "copyBrowseButton"}) {
+                    auto *widget = dialog->findChild<QWidget *>(control);
+                    QVERIFY(widget);
+                    QApplication::processEvents();
+                    const QPoint center = widget->mapTo(scroll->widget(), widget->rect().center());
+                    scroll->ensureVisible(center.x(), center.y(), (widget->width() + 2) / 2,
+                                          (widget->height() + 2) / 2);
+                    QVERIFY2(UiInspection::fullyVisible(*widget, *dialog),
+                             qPrintable(QString("%1 at %2,%3 %4x%5; dialog %6x%7")
+                                            .arg(control)
+                                            .arg(UiInspection::bounds(*widget, *dialog).x())
+                                            .arg(UiInspection::bounds(*widget, *dialog).y())
+                                            .arg(widget->width())
+                                            .arg(widget->height())
+                                            .arg(dialog->width())
+                                            .arg(dialog->height())));
+                    QVERIFY(UiInspection::fullyVisible(*dialog->findChild<QWidget *>("copyButtons"),
                                                        *dialog));
+                }
                 QVERIFY(UiInspection::writeReport(*dialog,
                                                   QString("%1-%2").arg(tag).arg(size.width())));
             }
@@ -169,8 +196,11 @@ class AgentStreamCopyUiTests final : public QObject, protected MainWindowTestSup
         if (!action(window, "twoPanelsAction")->isChecked())
             action(window, "twoPanelsAction")->trigger();
         auto *target = openPanel(window, targetPane, archive);
-        QTRY_VERIFY(action(window, "flatViewAction")->isEnabled());
-        action(window, "flatViewAction")->setChecked(true);
+        QTRY_VERIFY(target && target->isEnabled() && target->sourcePanel->IsArcFolder());
+        // Flat view remains a provider capability; it is absent from the
+        // agreed View menu. Prepare the stream-owner fixture through its API.
+        if (!target->sourcePanel->GetFlatMode())
+            target->sourcePanel->ChangeFlatMode();
         const QString owner = QStringLiteral("файл δ with space.bin");
         const QString oldStream = QStringLiteral("поток δ");
         QTRY_VERIFY(row(*target, owner) >= 0);
@@ -192,6 +222,7 @@ class AgentStreamCopyUiTests final : public QObject, protected MainWindowTestSup
         const QString destination = ToQString(target->sourcePanel->GetFsPath());
         QVERIFY(destination.endsWith(':'));
         auto *source = openPanel(window, 1 - targetPane, sourceArchive ? inputArchive : input);
+        QVERIFY(source);
         QTRY_VERIFY(row(*source, copied) >= 0 && row(*source, moved) >= 0);
         const int sourceRows = source->rowCount();
         const QString tag =

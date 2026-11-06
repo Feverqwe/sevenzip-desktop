@@ -383,40 +383,56 @@ Reference: upstream `0766b733fe3e06dd2a7f9a3cfbf2108ac73abd17`,
 `CPP/7zip/UI/FileManager/CopyDialog.rc` and `CopyDialog.cpp::OnSize`.
 Implemented view: `src/dialogs/copy/CopyDialog.cpp`.
 
-- Destination label precedes the editable path; Browse stays to its right.
-- Browse retains the original twenty-DLU utility-button width instead of the
-  native style's ordinary push-button minimum, leaving the row for the path.
+- Copy/Move begins with the shared source summary: one name or selection count,
+  source location and the total size only when all selected sizes are known.
+  It reads provider metadata without walking the selected directories.
+- Multiple selected paths are available in a collapsed disclosure with a bounded,
+  independently scrollable list. The last selected path remains reachable.
+  Expanding it must not displace the dialog footer outside the window.
+- Destination label precedes the editable path; Browse stays to its right and
+  uses a translated caption with the platform's ordinary button size.
+  The generic Combine caller retains its twenty-DLU utility button and text summary.
+- A writable peer panel supplies the initial destination; Other panel restores
+  that proposal after editing. An unavailable peer leaves the current source
+  filesystem location as the proposal and disables the peer shortcut.
+- A single filesystem object offers Name at destination for supported directory
+  destinations. An unchanged name preserves the existing provider route and raw
+  destination. A changed name denotes the destination object, including when an
+  existing directory occupies that name; it must not silently become a container.
+  Full-file history entries and unsupported providers retain their existing path
+  interpretation without an added name.
+- Empty or invalid input, a known unwritable destination and an unchanged source
+  location disable acceptance with an inline explanation. Native operation checks
+  remain authoritative. Cancel preserves the original value and history; accepted
+  input preserves significant spaces and Unicode. Relative paths keep the caller's
+  existing base directory.
 - The redesigned form uses the shared dialog margins/footer and sizes the
   initial summary by its content area rather than the old RC frame.
   Source NormalizeSize(true) applies once at first native
   Show when the frame overlaps and exceeds the work area. EN/RU Copy/Move
   regressions cover9/12/32pt initial/compact states. Source resizable chrome
   requests minimize/maximize, subject to native modal-window conventions.
-- Selection counts and known sizes precede the source path and first five
-  relative names; a larger selection ends with an ellipsis. Folder names end
-  in a separator. The summary stays below the destination and above the footer.
-  The primary action names Copy, Move or Combine according to the caller,
+- The primary action names Copy, Move or Combine according to the caller,
   including live localization; its existing acceptance role is unchanged.
 - Names preserve line boundaries. Read-only scrolling makes the displayed
-  summary and long filenames reachable without enlarging the footer.
-  The summary has no Tab stop, as the original static control; destination,
+  selection and long filenames reachable without enlarging the footer.
+  The source text has no Tab stop; the disclosure, destination,
   Browse and footer remain keyboard targets. Enter preserves raw destination
   spaces/Unicode; Escape preserves the original public value.
 - At 440×250 and 340×220 in Copy and Move states, the label fits, path and
-  Browse do not overlap, the selection area and footer stay fully visible,
+  Browse do not overlap, the collapsed source and footer stay fully visible,
   and primary/Cancel remain separate. Qt may enforce its style minimum size.
 
-Adaptations: Qt layouts replace Win32 resize arithmetic; QPlainTextEdit with
-no wrapping replaces the static text. `CPanel::GetItemsInfoString` supplies
-the upstream summary and eleven-line limit from the active source folder. `copy_dialog`
-writes four JSON reports and checks these relationships with a large selection.
-`agent_stream_copy_ui` also produces 56 Copy/Move/Cancel reports for FS/ZIP→WIM
-archived ADS, both panes/languages, at 440×250 and 340×220; its 32 main-window
-reports inspect both address/list pairs at 980×620 and 640×400. Current evidence
-applies the same CopyDialog RC controls/relations/assertions, with source Russian
-prompt IDs 6002/6003. It verifies transitions and retained marks/focus/rollback
-through public tests; JSON alone does not prove those behaviors or native pixels.
-These checks establish structure and usability on macOS, not pixel parity.
-`panel_runtime` additionally writes `copy-source-flat*-mode*-*.json` for normal/
-flat source summary values in all four views. Flat archive directory size is
-absent by the source folder contract and must not be replaced by a proxy total.
+Adaptations: Qt layouts replace Win32 resize arithmetic. The agreed catalog
+replaces the always-visible source text in Copy/Move with SourceSummary and
+Disclosure; Combine retains its native summary format. Native provider counting
+and unknown-size propagation are shared with the existing formatter. Flat archive
+directory size remains unknown rather than becoming a proxy total.
+
+`copy_dialog` covers the bounded list, footer, draft preservation and language
+change. `panel_runtime` covers normal/flat archive metadata, including unknown
+sizes; provider and operation suites cover routing and cancellation. Historical
+resource reports describe the earlier text-summary form and do not establish
+acceptance of the redesigned source presentation. Current runtime evidence and
+remaining design work belong in the source audit. Geometry reports alone do not
+establish rendered native or pixel acceptance.
