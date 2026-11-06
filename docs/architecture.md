@@ -230,13 +230,13 @@ External-editor observation keeps the native wait/discovery algorithm. Unknown
 completion, including a fast launcher or a no-handle association, retains cleanup
 protection. Manual confirmation permits checking a stable copied input; it does
 not prove process termination or clear that protection. Native archive publication
-checks the captured root generation under the writer lease and reports each
+uses the existing writer lease and current-reader checks and reports each
 inner-to-outer update. Partial results retain recoverable inputs. Exports pin
 their source for reading without weakening deletion eligibility. GUI delivery
 finishes before the observer is joined and its captures are retired.
 
 The existing owned-temp registry retains nonsecret external-session context:
-the original source generation, native entry chain and initial file stamp.
+the archive path, native entry chain and initial temporary-file stamp.
 Explicitly opening a retained copy's details creates a fresh context and requests passwords again;
 it never launches an editor or publishes automatically. Published-copy metadata
 prevents a later restart from offering the same publication again. The temporary

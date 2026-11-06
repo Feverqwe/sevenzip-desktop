@@ -3,12 +3,10 @@
 #include "Windows/FileFind.h"
 #include "archive/opening/OpenArchive.h"
 #include "archive/resources/archiveinputlayer.h"
-#include "archive/resources/archivesourcesnapshot.h"
 #include "crypto/fscrypt/fscryptkeyrequest.h"
 #include <QString>
 #include <memory>
 #include <mutex>
-#include <optional>
 
 class ArchiveCodecCatalog;
 CMyComPtr<IProgress> CreateArchiveOpenReadRequest(IOpenCallbackUI *callback);
@@ -43,7 +41,6 @@ class ArchiveNativeOpen final : public IOpenCallbackUI, public IFscryptKeyUI {
     // Reading a retained generation stays valid after publication. A writer
     // replacing its physical source must first check that generation is current.
     bool sourceIsCurrent() const;
-    std::optional<ArchiveSourceSnapshot> SourceSnapshot() const;
     const CArc &arc() const { return *link_.GetArc(); }
     CArc &arc() { return link_.Arcs.Back(); }
     const CArchiveLink &archiveLink() const { return link_; }

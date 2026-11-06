@@ -145,12 +145,6 @@ HRESULT CAgentFolder::CommonUpdateOperation(AGENT_OP operation, bool moveMode,
         QtArchiveWriteLease::Acquire({QString::fromWCharArray(_agentSpec->_archiveFilePath)});
     QString error = writeLease ? QString{} : writeLease.error();
     if (writeLease)
-        if (publication && publication->ExpectedSource &&
-            !publication->ExpectedSource->IsCurrentFor(
-                QString::fromWCharArray(_agentSpec->_archiveFilePath)))
-            error = QCoreApplication::translate(
-                "QtOperation", "The archive changed on disk. Refresh it before editing.");
-    if (writeLease)
         if (auto *resource = dynamic_cast<QtArchiveFileResource *>(_agentSpec->GetEngineResource()))
             if (const auto reader = resource->NativeReaderLease();
                 reader && !reader->sourceIsCurrent())

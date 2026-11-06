@@ -1,5 +1,26 @@
 # External-process ownership
 
+## Scope correction: remove captured-generation policy — 2026-11-07
+
+The user excluded new archive-target substitution policy from the design task.
+The implementation below had already been committed in this branch and was
+therefore not removed by discarding the later uncommitted write-intent work.
+Its captured ArchiveSourceSnapshot/ExpectedSource propagation and serialized
+generation are now removed, including their additional external-edit veto.
+The native reader's sourceIsCurrent body is restored to the existing master
+implementation; its original writer lease, stale-reader check, entry mapping,
+password callbacks and nested publication algorithms remain. Native entry/path
+failures still report their ordinary results. No new archive rules replace the
+removed policy. The following dated section records superseded work, not a
+current acceptance requirement.
+
+Focused Linux and Cocoa checks cover ordinary backend publication, external
+editing, nested success/failure/cancellation, restored targets and source-tab
+lifetime. A Cocoa test could stall when its queued editor callback entered a
+modal prompt from QtTest polling; that fixture now runs a bounded event loop
+for delivery without changing production dialog or archive behavior. No Windows
+runtime acceptance is claimed for this rollback.
+
 ## Captured external-edit source generation — 2026-11-06
 
 Compared complete original `CommonUpdateOperation`, `CopyFromFile` and

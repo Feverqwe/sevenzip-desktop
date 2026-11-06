@@ -1,6 +1,5 @@
 #pragma once
 #include "Common/MyWindows.h"
-#include "archive/resources/archivesourcesnapshot.h"
 #include <QStringList>
 #include <optional>
 
@@ -10,8 +9,6 @@ class QtArchiveUpdatePublication {
   public:
     virtual ~QtArchiveUpdatePublication() = default;
     std::optional<bool> Published;
-    // An external edit targets the generation that supplied its temporary copy.
-    std::optional<ArchiveSourceSnapshot> ExpectedSource;
 };
 
 struct QtArchiveUpdateResult {

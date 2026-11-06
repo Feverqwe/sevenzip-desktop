@@ -134,21 +134,18 @@ class ExternalTaskLifecycleTests final : public QObject, protected MainWindowTes
     }
     void editedFileWhileTabIsOpen_data() {
         QTest::addColumn<bool>("update");
-        QTest::addColumn<bool>("replaceArchive");
         QTest::addColumn<bool>("stopDuringPrompt");
         QTest::addColumn<bool>("fast");
         QTest::addColumn<int>("exportChoice");
-        QTest::newRow("update-while-tab-open") << true << false << false << false << 0;
-        QTest::newRow("later-while-tab-open") << false << false << false << false << 0;
-        QTest::newRow("changed-source-while-tab-open") << true << true << false << false << 0;
-        QTest::newRow("stop-during-delivered-callback") << false << false << true << false << 0;
-        QTest::newRow("fast-editor-keeps-protected-copy") << false << false << false << true << 0;
-        QTest::newRow("stop-during-export-choice") << false << false << false << false << 1;
-        QTest::newRow("export-keeps-source-copy") << false << false << false << false << 2;
+        QTest::newRow("update-while-tab-open") << true << false << false << 0;
+        QTest::newRow("later-while-tab-open") << false << false << false << 0;
+        QTest::newRow("stop-during-delivered-callback") << false << true << false << 0;
+        QTest::newRow("fast-editor-keeps-protected-copy") << false << false << true << 0;
+        QTest::newRow("stop-during-export-choice") << false << false << false << 1;
+        QTest::newRow("export-keeps-source-copy") << false << false << false << 2;
     }
     void editedFileWhileTabIsOpen() {
         QFETCH(bool, update);
-        QFETCH(bool, replaceArchive);
         QFETCH(bool, stopDuringPrompt);
         QFETCH(bool, fast);
         QFETCH(int, exportChoice);
@@ -178,10 +175,6 @@ class ExternalTaskLifecycleTests final : public QObject, protected MainWindowTes
         QCOMPARE(read(copy), QByteArray("original"));
         QVERIFY(!QtExternalFileTask::Active().isEmpty());
         QCOMPARE(read(copy), QByteArray("original"));
-        if (replaceArchive) {
-            QVERIFY(write(fixture.filePath("added.txt"), "another publication"));
-            QVERIFY(createArchive(fixture.path(), archive, "added.txt"));
-        }
         const QByteArray accepted = read(archive);
         bool asked = false;
         bool copyDialogSeen = false;
@@ -235,7 +228,7 @@ class ExternalTaskLifecycleTests final : public QObject, protected MainWindowTes
             QTRY_VERIFY(QtLocalFileTask::Active().isEmpty());
         }
         QTRY_VERIFY(QFileInfo::exists(control + ".finished"));
-        if (update && !replaceArchive) {
+        if (update) {
             QCOMPARE(contents(archive, name), modified);
             QVERIFY(!QFileInfo::exists(copy));
         } else {

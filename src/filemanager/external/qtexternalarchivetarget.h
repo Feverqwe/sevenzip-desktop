@@ -1,8 +1,8 @@
 #pragma once
 #include "Common/MyWindows.h"
 #include "archive/password/archivepassword.h"
-#include "archive/resources/archivesourcesnapshot.h"
 #include "archive/resources/qtarchiveupdatepublication.h"
+#include <QJsonObject>
 #include <QString>
 #include <QStringList>
 #include <functional>
@@ -15,7 +15,7 @@ class QObject;
 struct CTempFileInfo;
 class QWidget;
 
-// Captured native identities and secrets; no panel, reader, backend or window.
+// Native entry paths and ordinary password state; no retained reader or window.
 class QtExternalArchiveTarget final {
   public:
     struct UpdateResult {
@@ -45,7 +45,6 @@ class QtExternalArchiveTarget final {
         ArchivePassword password;
     };
     QString physical_, settings_;
-    std::optional<ArchiveSourceSnapshot> source_;
     std::vector<Layer> layers_;
     UInt32 version_ = 0;
     std::function<ArchiveBackend *(QObject *)> backendFactory_;

@@ -266,7 +266,6 @@ class ArchiveExternalEditTests final : public QObject, protected MainWindowTestS
         QTest::newRow("close-pending") << 1;
         QTest::newRow("changed-location") << 2;
         QTest::newRow("other-focused-panel") << 3;
-        QTest::newRow("changed-and-reopened-source") << 4;
     }
     void deferredUpdateAndOwnerChanges() {
         QFETCH(int, outcome);
@@ -276,7 +275,6 @@ class ArchiveExternalEditTests final : public QObject, protected MainWindowTestS
         QVERIFY(write(fixture.filePath(name), "original"));
         QVERIFY(createArchive(fixture.path(), archive, name));
         const QByteArray originalArchive = read(archive);
-        QByteArray acceptedArchive = originalArchive;
         const QString control = fixture.filePath("control");
         const auto stopEditor = qScopeGuard([&] { write(control + ".exit", "exit"); });
         configure(control);
@@ -302,22 +300,6 @@ class ArchiveExternalEditTests final : public QObject, protected MainWindowTestS
         }
         if (outcome == 2) {
             window->openPath(fixture.path());
-        } else if (outcome == 4) {
-            window->openPath(fixture.path());
-            QVERIFY(write(fixture.filePath(name), "published by another operation"));
-            QVERIFY(createArchive(fixture.path(), archive, name));
-            acceptedArchive = read(archive);
-            QVERIFY(acceptedArchive != originalArchive);
-            window->openArchive(archive);
-            QTRY_COMPARE(table(*window)->rowCount(), 1);
-            const QString current = fixture.filePath("accepted replacement.txt");
-            const QByteArray currentBytes("published by the reopened source");
-            QVERIFY(write(current, currentBytes));
-            QCOMPARE(table(*window)->sourcePanel->OnOpenItemChanged(
-                         0, current.toStdWString().c_str(), false, UString()),
-                     S_OK);
-            QCOMPARE(contents(archive, name), currentBytes);
-            acceptedArchive = read(archive);
         }
         if (auto *focused = QApplication::focusWidget())
             focused->clearFocus();
@@ -369,7 +351,7 @@ class ArchiveExternalEditTests final : public QObject, protected MainWindowTestS
         completion.exec();
         QVERIFY(asked);
         QVERIFY(QtExternalFileTask::Active().isEmpty());
-        if (outcome != 4) {
+        {
             QVERIFY(!QFileInfo(temporary).exists());
             QCOMPARE(contents(archive, name), modified);
             if (outcome == 3)
@@ -383,11 +365,6 @@ class ArchiveExternalEditTests final : public QObject, protected MainWindowTestS
                              QString::number(modified.size()));
         }
         responder.stop();
-        if (outcome == 4) {
-            QCOMPARE(read(archive), acceptedArchive);
-            QCOMPARE(read(temporary), modified);
-            QVERIFY(QDir(QFileInfo(temporary).absolutePath()).removeRecursively());
-        }
         for (auto *widget : QApplication::topLevelWidgets())
             if (widget->objectName() == "externalFileDetails")
                 widget->close();

@@ -180,9 +180,23 @@ class NestedEditChainTests final : public QObject, protected MainWindowTestSuppo
         waitForKnownEditor();
         QVERIFY(write(control, "change"));
         QVERIFY(write(control + ".exit", "exit"));
-        QTRY_VERIFY(QFileInfo::exists(control + ".finished"));
-        QTRY_VERIFY2(editPrompt, qPrintable(openingMessage));
-        QTRY_VERIFY(QtExternalFileTask::Active().isEmpty());
+        // Cocoa must deliver the queued editor callback from a running event
+        // loop: entering its modal prompt from QTest's processEvents polling
+        // can leave the native loop without timer delivery for the responder.
+        QEventLoop editorDelivery;
+        QTimer deliveryPoll;
+        connect(&deliveryPoll, &QTimer::timeout, &editorDelivery, [&] {
+            if (QFileInfo::exists(control + ".finished") && editPrompt &&
+                QtExternalFileTask::Active().isEmpty())
+                editorDelivery.quit();
+        });
+        deliveryPoll.start(5);
+        QTimer::singleShot(5000, &editorDelivery, &QEventLoop::quit);
+        editorDelivery.exec();
+        deliveryPoll.stop();
+        QVERIFY(QFileInfo::exists(control + ".finished"));
+        QVERIFY2(editPrompt, qPrintable(openingMessage));
+        QVERIFY(QtExternalFileTask::Active().isEmpty());
         const bool success = outcome == 0 || outcome == 7;
         if (!success) {
             QCOMPARE(read(temporary), modified);

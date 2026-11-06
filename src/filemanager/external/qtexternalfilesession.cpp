@@ -7,10 +7,7 @@
 #include "Common/AutoPtr.h"
 #include "Common/StringConvert.h"
 #include "Windows/FileFind.h"
-#include "archive/agent/Agent.h"
 #include "archive/password/archivepassword.h"
-#include "archive/resources/archivenativeopen.h"
-#include "archive/resources/qtarchivefileresource.h"
 #include "filemanager/FormatUtils.h"
 #include "filemanager/external/qtexternalapplications.h"
 #include "filemanager/external/qtexternalsessionowner.h"
@@ -173,7 +170,6 @@ struct CTmpProcessInfo : public CTempFileInfo {
     IQtExternalFileServices *ExternalServices;
     std::shared_ptr<IQtExternalSessionOwner> Session;
     QtExternalObservation Observation = QtExternalObservation::NotStarted;
-    std::optional<ArchiveSourceSnapshot> ExpectedSource;
     UString FullPathFolderPrefix;
     bool UsePassword;
     ArchivePassword Password;
@@ -235,7 +231,7 @@ static bool UpdateChangedExternalFile(CTmpProcessInfo &tpi) {
                    [&](std::optional<CSelectedState> &selection) {
                        return tpi.Window->OnOpenItemChanged(tpi, tpi.FullPathFolderPrefix,
                                                             tpi.UsePassword, tpi.Password.native(),
-                                                            &selection, tpi.ExpectedSource);
+                                                            &selection);
                    })
                    ? 1
                    : 0;
@@ -397,11 +393,6 @@ void CPanel::StartExternalFileSession(CTempDir &tempDirectory, const CTempFileIn
     tpi->UsePassword = usePassword;
     tpi->Password = ArchivePassword(password);
     tpi->ReadOnly = IsThereReadOnlyFolder();
-    if (const auto *folder = dynamic_cast<CAgentFolder *>(GetFolder()))
-        if (const auto *resource =
-                dynamic_cast<QtArchiveFileResource *>(folder->GetEngineResource()))
-            if (const auto reader = resource->NativeReaderLease())
-                tpi->ExpectedSource = reader->SourceSnapshot();
     if (IsHashFolder())
         tpi->ReadOnly = true;
     if (!tpi->FileInfo.Find(tempFilePath))

@@ -254,8 +254,7 @@ bool CPanel::IsVirus_Message(const UString &name) {
 // the window handle; the external service retains the temp file during the call.
 bool CPanel::OnOpenItemChanged(const CTempFileInfo &tpi, const UString &fullPathFolderPrefix,
                                bool usePassword, const UString &password,
-                               std::optional<CSelectedState> *refreshSelection,
-                               std::optional<ArchiveSourceSnapshot> expectedSource) {
+                               std::optional<CSelectedState> *refreshSelection) {
     if (refreshSelection)
         refreshSelection->reset();
     if (fullPathFolderPrefix != _currentFolderPrefix || !_folder)
@@ -278,8 +277,7 @@ bool CPanel::OnOpenItemChanged(const CTempFileInfo &tpi, const UString &fullPath
     CSelectedState state;
     SaveSelectedState(state);
     CDisableNotify disableNotify(*this);
-    HRESULT result = OnOpenItemChanged(fileIndex, fs2us(tpi.FilePath), usePassword, password,
-                                       std::move(expectedSource));
+    HRESULT result = OnOpenItemChanged(fileIndex, fs2us(tpi.FilePath), usePassword, password);
     // Publish the reached source refresh phase after the caller's operation
     // guards unwind, including when the native writer failed.
     if (refreshSelection)
@@ -304,16 +302,12 @@ HRESULT CThreadCopyFrom::ProcessVirt() {
 }
 
 HRESULT CPanel::OnOpenItemChanged(UInt32 index, const wchar_t *fullFilePath, bool usePassword,
-                                  const UString &password,
-                                  std::optional<ArchiveSourceSnapshot> expectedSource) {
-    return UpdateExternalFile(index, fullFilePath, usePassword, password, std::move(expectedSource))
-        .Result;
+                                  const UString &password) {
+    return UpdateExternalFile(index, fullFilePath, usePassword, password).Result;
 }
 
-QtArchiveUpdateResult
-CPanel::UpdateExternalFile(UInt32 index, const wchar_t *fullFilePath, bool usePassword,
-                           const UString &password,
-                           std::optional<ArchiveSourceSnapshot> expectedSource) {
+QtArchiveUpdateResult CPanel::UpdateExternalFile(UInt32 index, const wchar_t *fullFilePath,
+                                                 bool usePassword, const UString &password) {
     if (!_folderOperations) {
         MessageBox_Error_UnsupportOperation();
         return {E_FAIL, false};
@@ -331,7 +325,6 @@ CPanel::UpdateExternalFile(UInt32 index, const wchar_t *fullFilePath, bool usePa
     t.UpdateCallback->Init();
     t.UpdateCallback->PasswordIsDefined = usePassword;
     t.UpdateCallback->Password = password;
-    t.UpdateCallback->ExpectedSource = std::move(expectedSource);
     const HRESULT created = t.Create(GetItemName(index), GetParent());
     return {created == S_OK ? t.Result : created, t.UpdateCallback->Published};
 }

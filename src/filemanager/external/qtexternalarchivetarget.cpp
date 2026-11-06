@@ -70,10 +70,7 @@ QtExternalArchiveTarget::Capture(CPanel &source, const CTempFileInfo &file,
         if (!reader)
             return {};
         if (level == 0) {
-            target.source_ = reader->SourceSnapshot();
             target.version_ = reader->codecCatalog()->version();
-            if (!target.source_)
-                return {};
         }
         const UInt32 index =
             level + 1 < parents.Size() ? parents[level + 1].FileIndex : file.FileIndex;
@@ -93,18 +90,12 @@ QtExternalArchiveTarget::Capture(CPanel &source, const CTempFileInfo &file,
 }
 
 QJsonObject QtExternalArchiveTarget::Save() const {
-    if (!source_)
-        return {};
     QJsonArray layers;
     for (const auto &layer : layers_)
         layers.append(QJsonObject{{"index", qint64(layer.entry.index)},
                                   {"path", ToQString(layer.entry.path)},
                                   {"format", layer.format}});
-    return {{"version", 1},
-            {"codecs", int(version_)},
-            {"physical", physical_},
-            {"source", source_->Save()},
-            {"layers", layers}};
+    return {{"version", 1}, {"codecs", int(version_)}, {"physical", physical_}, {"layers", layers}};
 }
 
 QString QtExternalArchiveTarget::description() const {
@@ -119,14 +110,13 @@ QtExternalArchiveTarget::Restore(const QJsonObject &value, const ArchiveBackend 
                                  const QString &settingsPath) {
     QtExternalArchiveTarget target;
     target.physical_ = value.value("physical").toString();
-    target.source_ = ArchiveSourceSnapshot::Restore(value.value("source").toObject());
     const auto codecs = value.value("codecs");
     const qint64 version = codecs.toInteger(-1);
     const auto layers = value.value("layers").toArray();
-    if (value.value("version").toInt() != 1 || !target.source_ || !codecs.isDouble() ||
-        version <= 0 || version > std::numeric_limits<UInt32>::max() ||
-        codecs.toDouble() != double(version) || !QFileInfo(target.physical_).isAbsolute() ||
-        target.physical_.contains(QChar::Null) || layers.isEmpty() || layers.size() > 64)
+    if (value.value("version").toInt() != 1 || !codecs.isDouble() || version <= 0 ||
+        version > std::numeric_limits<UInt32>::max() || codecs.toDouble() != double(version) ||
+        !QFileInfo(target.physical_).isAbsolute() || target.physical_.contains(QChar::Null) ||
+        layers.isEmpty() || layers.size() > 64)
         return {};
     target.version_ = UInt32(version);
     for (const auto &element : layers) {
@@ -148,7 +138,7 @@ QtExternalArchiveTarget::Restore(const QJsonObject &value, const ArchiveBackend 
 
 QtExternalArchiveTarget::UpdateResult QtExternalArchiveTarget::Update(const QString &file,
                                                                       QWidget *parent) const {
-    if (!source_ || !source_->IsCurrentFor(physical_) || layers_.empty())
+    if (layers_.empty())
         return {E_FAIL, false, {}};
     std::unique_ptr<ArchiveBackend> backend(backendFactory_(nullptr));
     CMyComPtr<IFolderManager> manager = new QtArchiveFolderManager(*backend);
@@ -195,8 +185,7 @@ QtExternalArchiveTarget::UpdateResult QtExternalArchiveTarget::Update(const QStr
         return finish(result == S_OK ? E_FAIL : result);
     if (auto *resource = Resource(panel.GetFolder())) {
         const auto reader = resource->NativeReaderLease();
-        if (!reader || reader->codecCatalog()->version() != version_ ||
-            !reader->sourceIsCurrent() || !source_->IsCurrentFor(physical_))
+        if (!reader || reader->codecCatalog()->version() != version_ || !reader->sourceIsCurrent())
             return finish(E_FAIL);
     } else
         return finish(E_FAIL);
@@ -237,17 +226,12 @@ QtExternalArchiveTarget::UpdateResult QtExternalArchiveTarget::Update(const QStr
         result = FindEntry(panel, layers_[level].entry.index, layers_[level].entry.path, index);
         if (result != S_OK)
             return finish(result);
-        auto *resource = Resource(panel.GetFolder());
-        const auto reader = resource ? resource->NativeReaderLease() : nullptr;
-        const auto expected = level == 0 ? source_
-                              : reader   ? reader->SourceSnapshot()
-                                         : std::nullopt;
         const auto &layer = layers_[level];
         const auto &openedLayer = panel.GetParentFolders()[unsigned(level)];
         const bool usePassword = layer.usePassword || openedLayer.UsePassword;
         const auto password = layer.usePassword ? layer.password : openedLayer.Password;
         const auto updated = panel.UpdateExternalFile(index, input.toStdWString().c_str(),
-                                                      usePassword, password.native(), expected);
+                                                      usePassword, password.native());
         if (updated.Published.value_or(false))
             removeTemporary = false;
         if (updated.Result != S_OK || updated.Published != std::optional<bool>(true))
