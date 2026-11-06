@@ -36,9 +36,11 @@ template <typename Work> auto ClientWork(Work work) {
 }
 struct Client {
     smb2_context *Context = smb2_init_context();
-    Client() {
+    explicit Client(bool signing = false) {
         smb2_set_version(Context, SMB2_VERSION_0210);
-        smb2_set_sign(Context, 1);
+        smb2_set_sign(Context, signing);
+        smb2_set_security_mode(Context, SMB2_NEGOTIATE_SIGNING_ENABLED |
+                                            (signing ? SMB2_NEGOTIATE_SIGNING_REQUIRED : 0));
         smb2_set_timeout(Context, 3);
         smb2_set_user(Context, "szprobe");
         smb2_set_password(Context, "LocalProbeOnly427");
@@ -75,6 +77,8 @@ class ReadTamperProxy final : public QObject {
     int CancelReplies = 0;
     int PendingReads = 0;
     QList<quint16> FinalReadCredits;
+    int SignedReads = 0;
+    int UnsignedReads = 0;
     explicit ReadTamperProxy(quint16 destination, bool strip, bool hold = false,
                              bool transparent = false)
         : strip_(strip), hold_(hold), transparent_(transparent) {
@@ -93,6 +97,12 @@ class ReadTamperProxy final : public QObject {
                         header ? qFromLittleEndian<quint16>(frame.constData() + 16) : 0;
                     if (header && command == SMB2_CANCEL)
                         ++CancelReplies;
+                    if (header && command == SMB2_READ) {
+                        if (qFromLittleEndian<quint32>(frame.constData() + 20) & SMB2_FLAGS_SIGNED)
+                            ++SignedReads;
+                        else
+                            ++UnsignedReads;
+                    }
                     if (header && command == SMB2_READ &&
                         (qFromLittleEndian<quint32>(frame.constData() + 20) &
                          SMB2_FLAGS_ASYNC_COMMAND)) {
@@ -117,10 +127,10 @@ class ReadTamperProxy final : public QObject {
                     if (frame.size() >= 68 && quint8(frame[16]) == SMB2_READ && frame[17] == 0) {
                         ReadMessage = qFromLittleEndian<quint64>(frame.constData() + 28);
                         if (hold_) {
-                            // Preserve the signed request and delay only its
+                            // Preserve the request and delay only its
                             // reply so the client can cancel an outstanding MID.
                         } else if (transparent_) {
-                            // Observe a real signed exchange without modifying it.
+                            // Observe the exchange without modifying it.
                         } else if (strip_)
                             frame[20] = char(quint8(frame[20]) & ~SMB2_FLAGS_SIGNED);
                         else
@@ -320,7 +330,13 @@ class SmbReadOnlyServerTests final : public QObject {
             }
         }
     }
+    void asynchronousReadsKeepFirstResultAndRecoverAfterError_data() {
+        QTest::addColumn<bool>("signing");
+        QTest::newRow("unsigned loopback") << false;
+        QTest::newRow("client requires signing") << true;
+    }
     void asynchronousReadsKeepFirstResultAndRecoverAfterError() {
+        QFETCH(bool, signing);
         QProcess server;
         server.start(QStringLiteral(SEVENZIP_SMB_PROBE), {"0", "--async"});
         QVERIFY(server.waitForStarted(10000));
@@ -338,8 +354,13 @@ class SmbReadOnlyServerTests final : public QObject {
                                   match = ready.match(QString::fromUtf8(diagnostics)),
                                   match.hasMatch()),
                                  10000);
-        Client client;
+        Client client(signing);
         ReadTamperProxy proxy(match.captured(1).toUShort(), false, false, true);
+        {
+            Client rejected(signing);
+            smb2_set_password(rejected.Context, "incorrect password");
+            QVERIFY(rejected.connect(match.captured(1).toUShort()) < 0);
+        }
         QCOMPARE(client.connect(proxy.port()), 0);
         // Each asynchronous reader responds from another thread twice, with
         // deliberately conflicting bytes/status in the second completion.
@@ -402,6 +423,8 @@ class SmbReadOnlyServerTests final : public QObject {
         QCOMPARE(ClientWork([&] { return smb2_close(direct.Context, file); }), 0);
         QVERIFY(proxy.PendingReads > 0);
         QVERIFY(!proxy.FinalReadCredits.isEmpty());
+        QVERIFY(signing ? proxy.SignedReads > 0 : proxy.UnsignedReads > 0);
+        QCOMPARE(signing ? proxy.UnsignedReads : proxy.SignedReads, 0);
         for (const auto credits : proxy.FinalReadCredits)
             QCOMPARE(credits, quint16(0)); // MS-SMB2 3.3.4.3: final async replies grant no credits.
         QCOMPARE(server.state(), QProcess::Running);
@@ -498,7 +521,7 @@ class SmbReadOnlyServerTests final : public QObject {
         const quint16 port = match.captured(1).toUShort();
         ReadTamperProxy proxy(port, stripSignatureFlag);
         QVERIFY(proxy.port());
-        Client attacker;
+        Client attacker(true);
         QCOMPARE(attacker.connect(proxy.port()), 0);
         auto *file = ClientWork([&] { return smb2_open(attacker.Context, "hello.txt", O_RDONLY); });
         QVERIFY(file);

@@ -107,11 +107,11 @@ def mount(port, temporary, kernel_probe, global_mapping):
                        "$owner = [Security.Principal.WindowsIdentity]::GetCurrent().Name\n"
                        f"New-SmbGlobalMapping -LocalPath '{drive}' -RemotePath '\\\\127.0.0.1\\Sevenzip' "
                        f"-Credential $credential -TcpPort {port} -FullAccess @($owner) "
-                       "-RequireIntegrity $true -Persistent $false | Out-Null\n")
+                       "-RequireIntegrity $false -Persistent $false | Out-Null\n")
         else:
             powershell(f"New-SmbMapping -LocalPath '{drive}' -RemotePath '\\\\127.0.0.1\\Sevenzip' "
                        f"-UserName 'SevenzipLocal\\szprobe' -Password 'LocalProbeOnly427' -TcpPort {port} "
-                       "-RequireIntegrity $true -Persistent $false | Out-Null\n")
+                       "-RequireIntegrity $false -Persistent $false | Out-Null\n")
         remove = 'Remove-SmbGlobalMapping' if global_mapping else 'Remove-SmbMapping'
         return Path(drive + '\\'), lambda: powershell(
             f"{remove} -LocalPath '{drive}' -Force -Confirm:$false\n")
@@ -131,7 +131,7 @@ def mount(port, temporary, kernel_probe, global_mapping):
     credentials = temporary / 'credentials'
     credentials.write_text('username=szprobe\npassword=LocalProbeOnly427\n')
     credentials.chmod(0o600)
-    options = (f'ro,nosuid,nodev,port={port},vers=2.1,sec=ntlmsspi,nounix,'
+    options = (f'ro,nosuid,nodev,port={port},vers=2.1,sec=ntlmssp,nounix,'
                f'uid={os.getuid()},gid={os.getgid()},file_mode=0400,dir_mode=0500,cache=none,noserverino')
     if helper:
         command([*privilege, helper, '//127.0.0.1/Sevenzip', str(target), '-o',

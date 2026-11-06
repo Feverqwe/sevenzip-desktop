@@ -160,7 +160,7 @@ void QtNativeMountJob::mount(const QtNativeMountParameters &parameters, const QU
     }
     credentials.close();
     const QString options =
-        QStringLiteral("ro,nosuid,nodev,port=%1,vers=2.1,sec=ntlmsspi,nounix,uid=%2,gid=%3,"
+        QStringLiteral("ro,nosuid,nodev,port=%1,vers=2.1,sec=ntlmssp,nounix,uid=%2,gid=%3,"
                        "file_mode=0400,dir_mode=0500,cache=none,noserverino,credentials=%4")
             .arg(parameters.Port)
             .arg(owner)

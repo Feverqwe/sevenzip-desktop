@@ -31,7 +31,7 @@ try {
         $secret=ConvertTo-SecureString ([string]$p.password) -AsPlainText -Force
         $credential=[PSCredential]::new([string]$p.user,$secret)
         New-SmbGlobalMapping -LocalPath $drive -RemotePath ([string]$p.remote) `
-            -Credential $credential -TcpPort ([uint16]$p.port) -RequireIntegrity $true `
+            -Credential $credential -TcpPort ([uint16]$p.port) -RequireIntegrity $false `
             -Persistent $false -FullAccess @($account) | Out-Null
         @{path=($drive+'\');error=''} | ConvertTo-Json -Compress
     } elseif ($p.operation -eq 'unmount') {

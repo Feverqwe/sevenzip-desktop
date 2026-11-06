@@ -325,10 +325,8 @@ int SmbReadOnlyServer::serve(quint16 port, std::function<void(quint16)> listenin
                     }
                 }
             });
-        // Only this server dialect is accepted so far. Signing
-        // remains mandatory; no client policy is changed.
+        // Loopback sessions need signing only when the client's policy requires it.
         smb2_set_version(context, SMB2_VERSION_0210);
-        smb2_set_sign(context, 1);
     };
     const auto result = sevenzip::smb2::serve(*state_, 16, connection);
     return state_->CallbackFailed ? -1 : result ? 0 : result.error();

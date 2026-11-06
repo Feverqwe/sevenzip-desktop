@@ -45,7 +45,7 @@ struct Client {
     Client() {
         smb2_set_timeout(Context, 3);
         smb2_set_version(Context, SMB2_VERSION_0210);
-        smb2_set_sign(Context, 1);
+        smb2_set_sign(Context, 0);
         smb2_set_user(Context, "sztransport");
         smb2_set_password(Context, "SyntheticTransport427");
     }

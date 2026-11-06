@@ -1,5 +1,44 @@
 # Local read-only SMB: implementation and evidence
 
+## Optional loopback signing — 2026-11-06
+
+The local SMB 2.1 adapter no longer requires message signing. Linux mounts use
+NTLMSSP without the integrity-required option; Windows mappings no longer request
+integrity. Native client and system policies may still require signing, which the
+server continues to support without changing global OS settings. Authentication,
+loopback binding, read-only access and path/range validation remain enforced.
+
+Compared the pinned libsmb2 `smb2_negotiate_request_cb`, session establishment,
+key derivation, PDU signing and receive verification with their local callers.
+The only dependency change removes the original SMB 2.1 branch that forced
+signing even when neither endpoint required it. Explicit client requirements and
+the other dialect branches remain intact. The complete original `lib/libsmb2.c`
+matches the SHA256 in the existing baseline at
+`1395c54006f0cfb4da5df4b9fd9bf531feffe56a`; no import or revision advance occurs.
+
+Wire regressions cover unsigned asynchronous reads/errors and clients requiring
+signing, including wrong-password refusal and rejection of forged signed requests.
+The transport consumer also exercises unsigned sessions. SMB encryption is
+inactive for this dialect; diagnostic READ logging is opt-in. No additional whole-file hash or verification
+pass was found in the SMB transport. Linux's existing `cache=none` controls client
+data caching rather than integrity checks; it is retained because the mounted
+reader is not an immutable snapshot of an externally changeable source.
+
+Focused Linux validation passed `smb_readonly_server`, `archive_mount_transport`,
+`native_mount_client` and `mount_session`; the explicit production native-client
+probe also passed all five checks without skips. macOS passed the same four
+suites, with native lifecycle/transport opt-ins enabled. A separate synthetic
+macOS OS-client probe passed Unicode/spaces, parallel ranges, offsets beyond
+4 GiB, EOF, mmap and write refusal; `smbutil statshares` reported SMB 2.1 with
+signing supported and no active/required signing indication. No throughput
+improvement is claimed from these correctness checks.
+
+Windows passed the same four focused suites and the explicit production
+native-client probe (six checks without skips), including native mapping,
+read-only access, disconnect and broker-loss recovery. The scoped adaptation
+retains the recorded upstream authentication/signature algorithms; these native
+checks establish client interoperability rather than a broader dialect port.
+
 ## Initial and deferred directory IPC projection — 2026-11-05
 
 The reader source and SMB broker each share their own entry conversion between
@@ -788,7 +827,8 @@ The fork retains upstream module boundaries. Current changes are:
   level, while session cancellation aborts its reader and pending consent.
 - POSIX select descriptors are checked against FD_SETSIZE before use.
 
-Only signed SMB 2.1 is accepted. This is a local read-only application adapter,
+At that stage only signed SMB 2.1 was accepted; the optional-signing change above
+supersedes that policy. This is a local read-only application adapter,
 not acceptance of the library as a general network server. Forged READ signature
 and cleared-signed-flag regressions verify rejection before invoking the reader;
 broader hostile-protocol fuzzing and additional dialects are outside this evidence.

@@ -5467,11 +5467,6 @@ smb2_negotiate_request_cb(struct smb2_context *smb2, int status, void *command_d
 
                 if (!server->allow_anonymous ||
                                 (smb2->password && smb2->password[0])) {
-                        if (smb2->dialect == SMB2_VERSION_0210) {
-                                /* smb2.1 requires signing if enabled on both sides
-                                 * regardless of what the flags say */
-                                will_sign = 1;
-                        }
                         if (smb2->dialect >= SMB2_VERSION_0311) {
                                 /* smb3.1.1 requires signing if enabled on both sides
                                  * regardless of what the flags say */
