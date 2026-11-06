@@ -5,6 +5,7 @@
 #include "ui/support/layout_inspection.h"
 #include <QScopeGuard>
 #include <QScrollArea>
+#include <QScrollBar>
 #include <QSettings>
 #include <QSignalSpy>
 #include <QTemporaryDir>
@@ -221,6 +222,8 @@ class CompressionEncryptionTests final : public QObject {
         QCOMPARE(accepted.size(), 0);
         auto *scroll = dialog.findChild<QScrollArea *>("archiveOptionsScrollArea");
         scroll->ensureWidgetVisible(warning);
+        QTRY_COMPARE(scroll->horizontalScrollBar()->maximum(), 0);
+        QTRY_VERIFY(!scroll->horizontalScrollBar()->isVisible());
         QTRY_VERIFY(UiInspection::fullyVisible(*warning, dialog));
         QVERIFY(UiInspection::writeReport(
             dialog, QString("create-protection-unavailable-%1-%2").arg(language).arg(decision)));
