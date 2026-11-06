@@ -43,8 +43,13 @@
   tabs/workspace, command availability и палитры/secret edit форм. Геометрия
   и native scope каждого выделенного владельца описаны ниже.
 - Source-owned local tasks и mount continuation проверены focused Linux/macOS
-  offscreen и Cocoa. В текущей галерее 20 новых local-task PNG/JSON, EN/RU,
-  обе native темы. Отменённые диалоги выхода исключены; старые файлы сохранены
+  offscreen и Cocoa. В проходе 6 ноября получены и просмотрены 20 local-task
+  PNG/JSON, EN/RU, обе native темы. При последующей финальной пересъёмке desktop
+  снова заблокировался: светлая local-task серия требует повторного захвата,
+  прерванная тёмная серия context-menu помечена как частичная. Фактическая
+  доступность кадров и ошибок отражена в manifest галереи. Захват теперь
+  сохраняет предыдущую успешную серию при отказе нового producer.
+  Отменённые диалоги выхода исключены; старые файлы сохранены
   только как исторические свидетельства. Обычный и увеличенный шрифт общих
   кнопок проверяются существующими language/surface suites.
 - Галерея хранит `revision`, `sourceState.diffSha256`, `capturedAt` и `qpa`

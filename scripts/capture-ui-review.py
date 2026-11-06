@@ -10,6 +10,8 @@ import platform
 import re
 import subprocess
 import sys
+import shutil
+import tempfile
 sys.dont_write_bytecode = True
 from datetime import datetime, timezone
 from lib.hyperv_source import runner_context
@@ -230,19 +232,15 @@ def main():
         for scheme in args.schemes:
             directory = output / host / scheme / row["id"]
             directory.mkdir(parents=True, exist_ok=True)
-            # Only replace prior artifacts recorded for this exact producer.
+            # Capture separately: a blocked desktop or failed producer must
+            # leave the last successful review and its provenance usable.
             old = [run for run in runs if (run["id"], run["scheme"], run["host"]) ==
                    (row["id"], scheme, host)]
-            for run in old:
-                for shot in run["captures"]:
-                    for key in ("image", "report"):
-                        artifact = (output / shot[key]).resolve()
-                        if artifact.parent == directory:
-                            artifact.unlink(missing_ok=True)
-            settings = directory / "settings.ini"
+            pending = Path(tempfile.mkdtemp(prefix=f'.{row["id"]}-{scheme}-', dir=output))
+            settings = pending / "settings.ini"
             env = os.environ | {"QT_QPA_PLATFORM": qpa, "SEVENZIP_REVIEW_COLOR_SCHEME": scheme,
                                 "SEVENZIP_CAPTURE_SCREENSHOTS": "1",
-                                "SEVENZIP_UI_REPORT_DIR": str(directory),
+                                "SEVENZIP_UI_REPORT_DIR": str(pending),
                                 "SEVENZIP_SETTINGS_PATH": str(settings)}
             runtime = os.environ.get("SEVENZIP_CODEC_MODULE_DIR", str(codec_runtime(ROOT)))
             env["PATH"] = runtime + os.pathsep + env.get("PATH", "")
@@ -251,7 +249,7 @@ def main():
                 executable = executable.with_suffix(".exe")
             print(f'Capture {host}/{scheme}/{row["id"]}', flush=True)
             error = []
-            with (directory / "run.log").open("w", encoding="utf-8") as log:
+            with (pending / "run.log").open("w", encoding="utf-8") as log:
                 try:
                     result = subprocess.run([str(executable), *row["functions"], "-silent"],
                                             cwd=ROOT, env=env, stdout=log, stderr=subprocess.STDOUT,
@@ -260,15 +258,34 @@ def main():
                         error.append(f'Producer exited {result.returncode}; see run.log')
                 except subprocess.TimeoutExpired:
                     error.append("Producer timed out; see run.log")
-            captures, issues = collect(directory, output, scheme, qpa)
+            captures, issues = collect(pending, output, scheme, qpa)
             error.extend(issues)
             settings.unlink(missing_ok=True)
+            if error:
+                failures += 1
+                print("; ".join(error), flush=True)
+                shutil.copy2(pending / "run.log", directory / "last-failed-run.log")
+                shutil.rmtree(pending)
+                if old:
+                    continue
+                captures = []
+            else:
+                for run in old:
+                    for shot in run["captures"]:
+                        for key in ("image", "report"):
+                            artifact = (output / shot[key]).resolve()
+                            if artifact.parent == directory:
+                                artifact.unlink(missing_ok=True)
+                for artifact in pending.iterdir():
+                    artifact.replace(directory / artifact.name)
+                for shot in captures:
+                    for key in ("image", "report"):
+                        shot[key] = (directory / Path(shot[key]).name).relative_to(output).as_posix()
+                pending.rmdir()
             run = {**row, "scheme": scheme, "host": host, "revision": revision, "sourceState": source_state,
                    "capturedAt": datetime.now(timezone.utc).isoformat(), "captures": captures}
             if error:
-                failures += 1
                 run["error"] = "; ".join(error)
-                print(run["error"], flush=True)
             runs = [r for r in runs if r not in old] + [run]
             previous.write_text(json.dumps({"runs": runs}, ensure_ascii=False, indent=2), encoding="utf-8")
             gallery(output, runs)
