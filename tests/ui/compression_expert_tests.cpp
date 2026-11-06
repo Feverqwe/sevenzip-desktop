@@ -241,10 +241,17 @@ class CompressionExpertTests final : public QObject {
                     QVERIFY(time->height() >= time->sizeHint().height());
                     QTRY_VERIFY(UiInspection::fullyVisible(*buttons, editor));
                     QTRY_COMPARE(scroll->horizontalScrollBar()->maximum(), 0);
+                    if (metadata->height() <= scroll->viewport()->height()) {
+                        scroll->ensureWidgetVisible(metadata, 0, 0);
+                        QTRY_VERIFY(UiInspection::fullyVisible(*metadata, editor));
+                    }
                     QVERIFY(UiInspection::writeReport(
                         editor,
                         QString("archive-expert-metadata-%1-%2").arg(language).arg(size.width())));
                     metadata->setExpanded(false);
+                    // Wait for the nested layout to release the expanded body
+                    // before capturing the next language/size state.
+                    QTRY_VERIFY(metadata->height() <= metadata->sizeHint().height());
                 }
             }
         }));
