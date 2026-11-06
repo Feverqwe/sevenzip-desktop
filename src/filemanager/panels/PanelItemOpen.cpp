@@ -13,6 +13,7 @@
 #include <QMessageBox>
 #include <QWidget>
 #include <memory>
+#include <utility>
 
 using namespace NWindows;
 using namespace NFile;
@@ -253,7 +254,8 @@ bool CPanel::IsVirus_Message(const UString &name) {
 // the window handle; the external service retains the temp file during the call.
 bool CPanel::OnOpenItemChanged(const CTempFileInfo &tpi, const UString &fullPathFolderPrefix,
                                bool usePassword, const UString &password,
-                               std::optional<CSelectedState> *refreshSelection) {
+                               std::optional<CSelectedState> *refreshSelection,
+                               std::optional<ArchiveSourceSnapshot> expectedSource) {
     if (refreshSelection)
         refreshSelection->reset();
     if (fullPathFolderPrefix != _currentFolderPrefix || !_folder)
@@ -276,7 +278,8 @@ bool CPanel::OnOpenItemChanged(const CTempFileInfo &tpi, const UString &fullPath
     CSelectedState state;
     SaveSelectedState(state);
     CDisableNotify disableNotify(*this);
-    HRESULT result = OnOpenItemChanged(fileIndex, fs2us(tpi.FilePath), usePassword, password);
+    HRESULT result = OnOpenItemChanged(fileIndex, fs2us(tpi.FilePath), usePassword, password,
+                                       std::move(expectedSource));
     // Publish the reached source refresh phase after the caller's operation
     // guards unwind, including when the native writer failed.
     if (refreshSelection)
@@ -301,7 +304,8 @@ HRESULT CThreadCopyFrom::ProcessVirt() {
 }
 
 HRESULT CPanel::OnOpenItemChanged(UInt32 index, const wchar_t *fullFilePath, bool usePassword,
-                                  const UString &password) {
+                                  const UString &password,
+                                  std::optional<ArchiveSourceSnapshot> expectedSource) {
     if (!_folderOperations) {
         MessageBox_Error_UnsupportOperation();
         return E_FAIL;
@@ -319,6 +323,7 @@ HRESULT CPanel::OnOpenItemChanged(UInt32 index, const wchar_t *fullFilePath, boo
     t.UpdateCallback->Init();
     t.UpdateCallback->PasswordIsDefined = usePassword;
     t.UpdateCallback->Password = password;
+    t.UpdateCallback->ExpectedSource = std::move(expectedSource);
     RINOK(t.Create(GetItemName(index), GetParent()))
     return t.Result;
 }

@@ -92,6 +92,7 @@ add_library(sevenzip_filesystem STATIC
     src/archive/opening/OpenArchive.cpp src/archive/opening/OpenArchive.h
     src/archive/codecs/archivecodeccatalog.cpp src/archive/codecs/archivecodeccatalog.h
     src/archive/resources/archivenativeopen.cpp src/archive/resources/archivenativeopen.h
+    src/archive/resources/archivesourcesnapshot.cpp src/archive/resources/archivesourcesnapshot.h
     src/archive/resources/archivedevice.cpp src/archive/resources/archivedevice.h
     src/archive/backend/archivebackend_device.cpp
     src/devices/deviceinput.cpp src/devices/deviceaccess.h

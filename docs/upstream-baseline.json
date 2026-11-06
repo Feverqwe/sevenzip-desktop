@@ -1545,6 +1545,8 @@
     "src/archive/resources/archivereadonlyview_p.h",
     "src/archive/resources/archivereadpolicy.h",
     "src/archive/resources/archivereadstream.h",
+    "src/archive/resources/archivesourcesnapshot.cpp",
+    "src/archive/resources/archivesourcesnapshot.h",
     "src/archive/resources/qtarchiveagentopen.h",
     "src/archive/resources/qtarchivebackendrequest.cpp",
     "src/archive/resources/qtarchivebackendrequest.h",

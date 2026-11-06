@@ -1,5 +1,6 @@
 #pragma once
 #include "Common/MyWindows.h"
+#include "archive/resources/archivesourcesnapshot.h"
 #include <optional>
 
 // One joined update callback owns this state. A provider that does not report
@@ -8,6 +9,8 @@ class QtArchiveUpdatePublication {
   public:
     virtual ~QtArchiveUpdatePublication() = default;
     std::optional<bool> Published;
+    // An external edit targets the generation that supplied its temporary copy.
+    std::optional<ArchiveSourceSnapshot> ExpectedSource;
 };
 
 struct QtArchiveUpdateResult {

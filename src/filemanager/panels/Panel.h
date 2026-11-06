@@ -489,10 +489,12 @@ class CPanel : public QObject {
     bool IsVirus_Message(const UString &name);
     HRESULT OpenParentArchiveFolder();
     HRESULT OnOpenItemChanged(UInt32 index, const wchar_t *fullFilePath, bool usePassword,
-                              const UString &password);
+                              const UString &password,
+                              std::optional<ArchiveSourceSnapshot> expectedSource = {});
     bool OnOpenItemChanged(const CTempFileInfo &tpi, const UString &fullPathFolderPrefix,
                            bool usePassword, const UString &password,
-                           std::optional<CSelectedState> *refreshSelection = nullptr);
+                           std::optional<CSelectedState> *refreshSelection = nullptr,
+                           std::optional<ArchiveSourceSnapshot> expectedSource = {});
     void CloseOneLevel();
     void CloseOpenFolders();
     void LoadFullPath();

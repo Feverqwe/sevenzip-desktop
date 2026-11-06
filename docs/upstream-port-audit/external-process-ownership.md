@@ -1,5 +1,51 @@
 # External-process ownership
 
+## Captured external-edit source generation — 2026-11-06
+
+Compared complete original `CommonUpdateOperation`, `CopyFromFile` and
+`MyThreadFunction`/changed-file delivery, their callers, progress/publication
+callback and current native resource generation handling. Complete original
+`ArchiveFolderOut.cpp` hash
+`db5a8d6cbf61423de5ef3ee65ad798d015c88a70d7da1fa1200eeda42d5a3d83`
+and the recorded `PanelItemOpen.cpp` hash match the existing
+`b88c6bc09339de32f7d18bbab900686b244f42ba` baseline. No external import or
+baseline revision changes.
+
+An editor's temporary copy belongs to its original source generation. Previously
+the update request retained a panel prefix and relative name; navigating away,
+changing the archive and reopening that same prefix let the current reader's
+new generation satisfy the write preflight. The external session now captures
+the opened reader's file-generation values at launch. This value passes through
+the existing update callback and is checked inside the existing native writer
+lease, in addition to the current-reader check, before any temporary output is
+created. The snapshot must also match that transaction's canonical writer path;
+a still-current snapshot from a different archive cannot authorize publication.
+A mismatch leaves publication false and retains the edited copy.
+
+`ArchiveSourceSnapshot` owns only path, OS identity, size, modification time and
+the original stability result. The existing `sourceIsCurrent` comparison has
+one implementation in that resource owner. Snapshotting does not hold a native
+reader, input handle, backend or window. Stream/device inputs retain their
+existing no-file-snapshot policy. Source update algorithms, names, password
+callbacks and atomic publication remain unchanged.
+
+The regression uses a real editor copy, a separately published archive revision
+and a reopened original panel; it checks that the new archive bytes survive,
+the edited copy remains and a concrete error is shown. Ordinary external update,
+native backend/codec and nested-update consumers are checked separately.
+A separate native writer case rejects a different archive's snapshot after its
+reader has been destroyed, checks publication false and preserves both archives
+and the replacement bytes. This establishes the captured-generation/target
+guard, not application ownership: the current panel still owns delivery.
+A future independent context must retain the complete nested input/publication
+chain and own GUI/process services beyond the file window.
+Focused Linux external-edit/lifetime, native source-update, codec quick and
+nested-update checks passed; after strengthening target-binding regressions,
+the affected external-edit/source-update checks passed again. macOS passed
+external-edit/lifetime, source-update and nested-update with its native filesystem
+identity/time handling and offscreen QPA. No new layout, Cocoa focus, Windows,
+full-suite or slow-suite acceptance is claimed.
+
 ## Declining publication retains the edited copy — 2026-11-06
 
 Compared the complete original `MyThreadFunction`, changed-file update and final

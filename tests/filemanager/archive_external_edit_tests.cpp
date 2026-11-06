@@ -8,6 +8,7 @@
 #include "platform/temp/qtownedtempregistry.h"
 #include "settings/RegistryUtils.h"
 #include "support/widget_dialogs.h"
+#include "ui/lifecycle/qttaskpresentation.h"
 #include "ui/progress/ProgressDialog2.h"
 #include "ui/support/layout_inspection.h"
 #include <QCoreApplication>
@@ -251,6 +252,7 @@ class ArchiveExternalEditTests final : public QObject, protected MainWindowTestS
         QTest::newRow("close-pending") << 1;
         QTest::newRow("changed-location") << 2;
         QTest::newRow("other-focused-panel") << 3;
+        QTest::newRow("changed-and-reopened-source") << 4;
     }
     void deferredUpdateAndOwnerChanges() {
         QFETCH(int, outcome);
@@ -260,6 +262,7 @@ class ArchiveExternalEditTests final : public QObject, protected MainWindowTestS
         QVERIFY(write(fixture.filePath(name), "original"));
         QVERIFY(createArchive(fixture.path(), archive, name));
         const QByteArray originalArchive = read(archive);
+        QByteArray acceptedArchive = originalArchive;
         const QString control = fixture.filePath("control");
         const auto stopEditor = qScopeGuard([&] { write(control + ".exit", "exit"); });
         configure(control);
@@ -289,6 +292,12 @@ class ArchiveExternalEditTests final : public QObject, protected MainWindowTestS
         QPointer<QMessageBox> closingMessage;
         QTimer responder;
         widgetDialogs_.connectResponder(responder, this, [&] {
+            if (auto *progress = dynamic_cast<CProgressDialog *>(widgetDialogs_.activeDialog());
+                progress &&
+                QtTaskPresentation::Application().snapshot().phase == QtOperationPhase::Reviewing) {
+                progress->reject();
+                return;
+            }
             if (closingMessage)
                 return;
             if (auto *box = qobject_cast<QMessageBox *>(widgetDialogs_.activeDialog())) {
@@ -300,7 +309,8 @@ class ArchiveExternalEditTests final : public QObject, protected MainWindowTestS
                     failed = true;
                     connect(box, &QObject::destroyed, &completion, &QEventLoop::quit);
                     box->accept();
-                }
+                } else if (box->objectName() == "progressFinalMessage")
+                    box->accept();
             }
         });
         responder.start(1);
@@ -320,6 +330,24 @@ class ArchiveExternalEditTests final : public QObject, protected MainWindowTestS
                 auto *address = leftPanel->findChild<QLineEdit *>("archivePath");
                 address->setText(fixture.path());
                 QTest::keyClick(address, Qt::Key_Return);
+            } else if (outcome == 4) {
+                window->openPath(fixture.path());
+                QVERIFY(write(fixture.filePath(name), "published by another operation"));
+                QVERIFY(createArchive(fixture.path(), archive, name));
+                acceptedArchive = read(archive);
+                QVERIFY(acceptedArchive != originalArchive);
+                window->openArchive(archive);
+                QTRY_COMPARE(table(*window)->rowCount(), 1);
+                // Prove the reopened provider can publish a fresh edit. The
+                // stale-reader guard alone must not explain the later refusal.
+                const QString current = fixture.filePath("accepted replacement.txt");
+                const QByteArray currentBytes("published by the reopened source");
+                QVERIFY(write(current, currentBytes));
+                QCOMPARE(table(*window)->sourcePanel->OnOpenItemChanged(
+                             0, current.toStdWString().c_str(), false, UString()),
+                         S_OK);
+                QCOMPARE(contents(archive, name), currentBytes);
+                acceptedArchive = read(archive);
             }
             QTimer published;
             connect(&published, &QTimer::timeout, &completion, [&] {
@@ -331,7 +359,7 @@ class ArchiveExternalEditTests final : public QObject, protected MainWindowTestS
             backend.HoldBusy = false;
             completion.exec();
             QVERIFY(asked);
-            if (outcome == 2)
+            if (outcome == 2 || outcome == 4)
                 QVERIFY(failed);
             else {
                 QVERIFY(!QFileInfo(temporary).exists());
@@ -347,8 +375,8 @@ class ArchiveExternalEditTests final : public QObject, protected MainWindowTestS
             }
         }
         responder.stop();
-        if (outcome == 1 || outcome == 2) {
-            QCOMPARE(read(archive), originalArchive);
+        if (outcome == 1 || outcome == 2 || outcome == 4) {
+            QCOMPARE(read(archive), acceptedArchive);
             QCOMPARE(read(temporary), modified);
             QVERIFY(QDir(QFileInfo(temporary).absolutePath()).removeRecursively());
         }

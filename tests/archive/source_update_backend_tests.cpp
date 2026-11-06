@@ -4,6 +4,7 @@
 #include "archive/agent/UpdateCallbackAgent.h"
 #include "archive/backend/archivebackend.h"
 #include "archive/operations/EnumDirItems.h"
+#include "archive/resources/archivenativeopen.h"
 #include "archive/resources/qtarchivebackendrequest.h"
 #include "archive/resources/qtarchivefileresource.h"
 #include "archive/resources/qtarchivefoldermanager.h"
@@ -109,11 +110,15 @@ class CNativeUpdateWorker final : public CProgressThreadVirt {
         CMyComPtr2_Create<IFolderArchiveUpdateCallback, CUpdateCallback100Imp> ui;
         ui->ProgressDialog = this;
         ui->Init();
+        ui->ExpectedSource = ExpectedSource;
         const UInt32 selected = 0;
         if (Publish) {
             CMyComPtr<IFolderOperations> operations;
             RINOK(inside.QueryInterface(IID_IFolderOperations, &operations))
-            RINOK(operations->CopyFromFile(selected, _disk.toStdWString().c_str(), ui))
+            const HRESULT result =
+                operations->CopyFromFile(selected, _disk.toStdWString().c_str(), ui);
+            Published = ui->Published;
+            RINOK(result)
             RINOK(inside->LoadItems())
             NWindows::NCOM::CPropVariant size;
             RINOK(inside->GetProperty(0, kpidSize, &size))
@@ -134,6 +139,8 @@ class CNativeUpdateWorker final : public CProgressThreadVirt {
     bool CancelBeforeUpdate = false;
     bool Publish = false;
     UInt64 ReopenedSize = 0;
+    std::optional<ArchiveSourceSnapshot> ExpectedSource;
+    std::optional<bool> Published;
     CNativeUpdateWorker(ArchiveBackend &backend, const QString &archive, const QString &disk,
                         const QString &output)
         : _archive(archive), _disk(disk), _output(output),
@@ -811,11 +818,14 @@ class SourceUpdateBackendTests final : public QObject {
     }
     void nativeCallbackKeepsArchiveNameAndClosesInputStreams_data() {
         QTest::addColumn<bool>("publish");
-        QTest::newRow("separate-output") << false;
-        QTest::newRow("native-workdir-publish-reopen") << true;
+        QTest::addColumn<bool>("foreignSource");
+        QTest::newRow("separate-output") << false << false;
+        QTest::newRow("native-workdir-publish-reopen") << true << false;
+        QTest::newRow("wrong-writer-target") << true << true;
     }
     void nativeCallbackKeepsArchiveNameAndClosesInputStreams() {
         QFETCH(bool, publish);
+        QFETCH(bool, foreignSource);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString root = fixture.filePath("original");
@@ -831,9 +841,25 @@ class SourceUpdateBackendTests final : public QObject {
         ArchiveBackend backend(nullptr, enginePath());
         CNativeUpdateWorker worker(backend, archive, disk, output);
         worker.Publish = publish;
+        const QString foreignArchive = fixture.filePath("another archive.zip");
+        if (foreignSource) {
+            QVERIFY(QFile::copy(archive, foreignArchive));
+            QtArchiveFileResource foreign(foreignArchive);
+            CProgressDialog opening;
+            QCOMPARE(OpenResource(foreign, "zip", opening), S_OK);
+            worker.ExpectedSource = foreign.NativeReaderLease()->SourceSnapshot();
+        }
         auto transport = worker.CreateProgressTransport();
         QVERIFY(transport);
         QCOMPARE(worker.Create(L"Source update", nullptr), S_OK);
+        if (foreignSource) {
+            QCOMPARE(worker.Result, E_FAIL);
+            QCOMPARE(worker.Published, std::optional<bool>(false));
+            QCOMPARE(readFile(archive), original);
+            QCOMPARE(readFile(foreignArchive), original);
+            QCOMPARE(readFile(disk), QByteArray("replacement"));
+            return;
+        }
         QCOMPARE(worker.Result, S_OK);
         if (publish)
             QCOMPARE(worker.ReopenedSize, UInt64(11));

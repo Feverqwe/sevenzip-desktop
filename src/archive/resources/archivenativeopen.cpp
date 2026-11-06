@@ -1,5 +1,4 @@
 #include "archive/resources/archivenativeopen.h"
-#include "Windows/TimeUtils.h"
 #include "archive/callbacks/archivepasswordretry.h"
 #include "archive/codecs/archivecodeccatalog.h"
 #include "archive/resources/archiveinputlayer.h"
@@ -114,15 +113,14 @@ HRESULT ArchiveNativeOpen::Open(const QString &path, const QString &type, IOpenC
 }
 
 bool ArchiveNativeOpen::sourceIsCurrent() const {
+    const auto snapshot = SourceSnapshot();
+    return !snapshot || snapshot->IsCurrent();
+}
+
+std::optional<ArchiveSourceSnapshot> ArchiveNativeOpen::SourceSnapshot() const {
     if (sourcePath_.isEmpty())
-        return true; // Explicit stream/device input keeps its existing owner policy.
-    if (!sourceStable_ ||
-        sourceIdentity_ != QtOwnedTempIdentity(QFileInfo(sourcePath_).canonicalFilePath()))
-        return false;
-    NWindows::NFile::NFind::CFileInfo current;
-    return current.Find_FollowLink(us2fs(sourcePath_.toStdWString().c_str())) &&
-           current.Size == sourceInfo_.Size &&
-           Compare_FiTime(&current.MTime, &sourceInfo_.MTime) == 0;
+        return {}; // Explicit stream/device input keeps its existing owner policy.
+    return ArchiveSourceSnapshot(sourcePath_, sourceIdentity_, sourceInfo_, sourceStable_);
 }
 
 HRESULT ArchiveNativeOpen::Open_CheckBreak() {
