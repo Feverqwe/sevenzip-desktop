@@ -6,7 +6,7 @@
 #include "localization/LangUtils.h"
 #include "platform/support/native_link_fixture.h"
 #include "support/panel_keys.h"
-#include "ui/progress/ProgressDialog2.h"
+#include "support/progress_dialog.h"
 #include "ui/support/layout_inspection.h"
 #include <QEventLoop>
 #include <QFile>
@@ -239,7 +239,12 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
         QEventLoop errorDelivery;
         QTimer closeError;
         connect(&closeError, &QTimer::timeout, &window, [&] {
-            for (QWidget *widget : QApplication::topLevelWidgets())
+            for (QWidget *widget : QApplication::topLevelWidgets()) {
+                if (collision && TestProgressDialog::DismissVisibleResult(widget)) {
+                    errorShown = true;
+                    errorDelivery.quit();
+                    continue;
+                }
                 if (auto *box = qobject_cast<QMessageBox *>(widget); box && box->isVisible()) {
                     errorShown = true;
                     errorText = box->text();
@@ -262,6 +267,7 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
                     box->accept();
                     errorDelivery.quit();
                 }
+            }
         });
         closeError.start(2);
         CMyComPtr<IFolderFolder> retained = view->sourcePanel->GetFolder();
@@ -392,6 +398,8 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
             for (QWidget *widget : QApplication::topLevelWidgets())
                 if (auto *box = qobject_cast<QMessageBox *>(widget); box && box->isVisible())
                     box->accept();
+                else
+                    TestProgressDialog::DismissVisibleResult(widget);
         });
         closeError.start(2);
         const HRESULT result = panel.OnEndLabelEdit(UInt32(row), ToUString(renamed));
