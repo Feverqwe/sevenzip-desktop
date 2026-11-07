@@ -11,6 +11,7 @@
 #include <QFileDialog>
 #include <QMenuBar>
 #include <QScopeGuard>
+#include <QTreeWidget>
 
 namespace {
 QAction *findCommand(QMenu &menu, const char *name) {
@@ -155,16 +156,20 @@ class ShellMenuWindowTests final : public QObject, protected MainWindowTestSuppo
     void archivePicker_data() {
         QTest::addColumn<QString>("outcome");
         QTest::addColumn<int>("owner");
+        QTest::addColumn<bool>("longPath");
         for (const QString &outcome : {QString("open"), QString("cancel"), QString("invalid")}) {
-            QTest::newRow(qPrintable(outcome)) << outcome << -1;
+            QTest::newRow(qPrintable(outcome)) << outcome << -1 << false;
             for (int owner : {0, 1})
                 QTest::newRow(qPrintable(QString("%1-peer-focus-%2").arg(outcome).arg(owner)))
-                    << outcome << owner;
+                    << outcome << owner << false;
         }
+        QTest::newRow("long-open") << QString("open") << -1 << true;
+        QTest::newRow("long-cancel") << QString("cancel") << -1 << true;
     }
     void archivePicker() {
         QFETCH(QString, outcome);
         QFETCH(int, owner);
+        QFETCH(bool, longPath);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         CurrentDirectoryGuard guard;
@@ -172,7 +177,7 @@ class ShellMenuWindowTests final : public QObject, protected MainWindowTestSuppo
         QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         const QString name = QStringLiteral("содержимое 密碼.txt");
         QVERIFY(write(fixture.filePath(name), "picker payload"));
-        const QString archive = fixture.filePath(QStringLiteral("архив с пробелами.zip"));
+        QString archive = fixture.filePath(QStringLiteral("архив с пробелами.zip"));
         QProcess create;
         create.setWorkingDirectory(fixture.path());
         create.start(engine_, {"a", "-tzip", archive, name});
@@ -180,6 +185,18 @@ class ShellMenuWindowTests final : public QObject, protected MainWindowTestSuppo
         QCOMPARE(create.exitCode(), 0);
         ArchiveBackend backend(nullptr, engine_);
         QCOMPARE(backend.loadCodecCatalog(module_, version_), S_OK);
+        QString initialDirectory = fixture.path();
+        if (longPath) {
+            const QString segment(95, 'a');
+            while (initialDirectory.size() < 260)
+                initialDirectory = QDir(initialDirectory).filePath(segment);
+            QVERIFY(QDir().mkpath(initialDirectory));
+            const QString longArchive =
+                QDir(initialDirectory).filePath(QFileInfo(archive).fileName());
+            QVERIFY(QFile::rename(archive, longArchive));
+            archive = longArchive;
+            QVERIFY(QFile::copy(fixture.filePath(name), QDir(initialDirectory).filePath(name)));
+        }
         MainWindow window(&backend);
         window.show();
         QVERIFY(QTest::qWaitForWindowActive(&window));
@@ -213,14 +230,14 @@ class ShellMenuWindowTests final : public QObject, protected MainWindowTestSuppo
         }
         editLocation(*source);
         QTRY_VERIFY(sourceAddress->hasFocus());
-        window.openPath(fixture.path());
+        window.openPath(initialDirectory);
         QTRY_VERIFY(rowNamed(*source, name) >= 0);
         auto *open = action(window, "openArchiveAction");
         auto *menu = window.findChild<QMenu *>("fileMenu");
         QVERIFY(QMetaObject::invokeMethod(menu, "aboutToShow", Qt::DirectConnection));
         QVERIFY(menu->actions().contains(open));
         QVERIFY(open->isEnabled());
-        bool shown = false, error = false, peerFocused = false;
+        bool shown = false, fallback = false, error = false, peerFocused = false;
         QTimer responder;
         widgetDialogs_.connectResponder(responder, &window, [&] {
             auto *dialog = widgetDialogs_.activeDialog();
@@ -243,6 +260,22 @@ class ShellMenuWindowTests final : public QObject, protected MainWindowTestSuppo
                     picker->selectFile(outcome == "invalid" ? fixture.filePath(name) : archive);
                     QMetaObject::invokeMethod(picker, "accept", Qt::DirectConnection);
                 }
+            } else if (dialog && dialog->objectName() == "browseDialog") {
+                shown = fallback = true;
+                if (outcome == "cancel")
+                    dialog->reject();
+                else {
+                    const auto dismiss = qScopeGuard([dialog] {
+                        if (dialog->isVisible())
+                            dialog->reject();
+                    });
+                    auto *files = dialog->findChild<QTreeWidget *>("browseList");
+                    const auto matches =
+                        files->findItems(QFileInfo(archive).fileName(), Qt::MatchExactly);
+                    QCOMPARE(matches.size(), 1);
+                    files->setCurrentItem(matches.front());
+                    dialog->accept();
+                }
             } else if (auto *message = qobject_cast<QMessageBox *>(dialog)) {
                 error = true;
                 message->accept();
@@ -252,6 +285,7 @@ class ShellMenuWindowTests final : public QObject, protected MainWindowTestSuppo
         open->trigger();
         responder.stop();
         QVERIFY(shown);
+        QCOMPARE(fallback, longPath);
         QCOMPARE(error, outcome == "invalid");
         QTRY_VERIFY(rowNamed(*source, name) >= 0);
         if (outcome == "open") {

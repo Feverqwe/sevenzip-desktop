@@ -61,6 +61,7 @@ class CBrowseDialog : public QDialog {
   public:
     bool SaveMode = false;
     bool FolderMode = false;
+    bool StartInDirectory = false;
     int FilterIndex = -1;
     CObjectVector<CBrowseFilterInfo> Filters;
     UString FilePath;

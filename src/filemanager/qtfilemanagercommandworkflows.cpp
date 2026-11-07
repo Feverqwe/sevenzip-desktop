@@ -1,6 +1,7 @@
 #include "7zip/PropID.h"
 #include "7zip/UI/FileManager/resource.h"
 #include "dialogs/about/AboutDialog.h"
+#include "dialogs/browse/BrowseDialog.h"
 #include "filemanager/qtfilemanagercommands.h"
 #include "filemanager/qtprogramfilemenu.h"
 #include "filemanager/window/mainwindow.h"
@@ -207,7 +208,7 @@ bool QtFileManagerCommands::ExecuteExtensionCommand(unsigned id) {
         const QString directory = window_.projectedUi().state == MainWindow::State::Viewing
                                       ? QFileInfo(window_.projectedUi().archive).absolutePath()
                                       : window_.projectedUi().directory;
-        const QString path = QFileDialog::getOpenFileName(
+        const QString path = BrowseForExistingFile(
             &window_, QCoreApplication::translate("qtfilemanagercommandworkflows", "Open archive"),
             directory, window_.backend_->openDialogFilter());
         if (!path.isEmpty()) {

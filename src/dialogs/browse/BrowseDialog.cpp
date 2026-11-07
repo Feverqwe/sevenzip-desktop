@@ -102,7 +102,9 @@ void CBrowseDialog::OnInit() {
 #endif
     _topDirPrefix.SetFrom(FilePath, rootSize);
     UString name;
-    if (!GetParentPath(FilePath, DirPrefix, name))
+    if (StartInDirectory)
+        DirPrefix = FilePath;
+    else if (!GetParentPath(FilePath, DirPrefix, name))
         DirPrefix = _topDirPrefix;
     for (;;) {
         if (Reload(DirPrefix, name) == S_OK)
@@ -437,6 +439,35 @@ bool MyBrowseForFolder(QWidget *owner, const UString &title, const UString &path
     const QString selected = dialog.selectedFiles().front();
     resultPath = ToUString(QDir::cleanPath(selected));
     return true;
+}
+
+QString BrowseForExistingFile(QWidget *owner, const QString &title, const QString &directory,
+                              const QString &nameFilters) {
+    const QtTaskPresentation::QuestionScope question;
+    UString path = ToUString(directory);
+    if (!NeedsSourceBrowser(path))
+        return QFileDialog::getOpenFileName(owner, title, directory, nameFilters);
+
+    CBrowseDialog dialog(owner);
+    dialog.Title = ToUString(title);
+    dialog.StartInDirectory = true;
+    NormalizeDirPathPrefix(path);
+    dialog.FilePath = path;
+    dialog.FilterIndex = 0;
+    for (const auto &nameFilter : nameFilters.split(";;", Qt::SkipEmptyParts)) {
+        // Qt name filters end with a parenthesized, space-separated pattern list.
+        const qsizetype patterns = nameFilter.lastIndexOf('(');
+        if (patterns < 0 || !nameFilter.endsWith(')'))
+            continue;
+        auto &filter = dialog.Filters.AddNew();
+        filter.Description = ToUString(nameFilter.left(patterns).trimmed());
+        const auto masks = nameFilter.sliced(patterns + 1, nameFilter.size() - patterns - 2);
+        for (const auto &mask : masks.split(' ', Qt::SkipEmptyParts))
+            filter.Masks.Add(ToUString(mask));
+    }
+    if (dialog.Create() != QDialog::Accepted)
+        return {};
+    return ToQString(dialog.FilePath);
 }
 
 bool CBrowseInfo::BrowseForFile(const CObjectVector<CBrowseFilterInfo> &filters) {

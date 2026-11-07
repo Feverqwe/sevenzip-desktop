@@ -4,9 +4,13 @@
 #include "Common/MyString.h"
 #include "platform/filepicker/CommonDialog.h"
 class QWidget;
+class QString;
 bool Dlg_CreateFolder(QWidget *wnd, UString &destName);
 bool MyBrowseForFolder(QWidget *owner, const UString &title, const UString &path,
                        UString &resultPath);
+
+QString BrowseForExistingFile(QWidget *owner, const QString &title, const QString &directory,
+                              const QString &nameFilters);
 
 // Original BrowseDialog.h filter DTO; Qt translates only the native dialog
 // presentation syntax, retaining the source filter order and selected index.
