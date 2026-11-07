@@ -83,6 +83,7 @@ class QtWindowWorkspace final : public QObject {
         CMyComPtr<IFolderFolder> previousFolder;
         unsigned previousDepth = 0;
         Visit origin;
+        std::optional<Visit> unavailableOrigin;
         int destination = -1;
         unsigned depth = 0;
         std::optional<HRESULT> completed;

@@ -35,6 +35,11 @@ HRESULT QtWindowWorkspace::Navigate(const std::function<HRESULT()> &body,
         auto request = std::make_unique<Navigation>();
         request->source = window_.app_.Panels.Share(panel);
         request->origin = CaptureVisit(panel);
+        if (window_.panelUi_[panel].locationUnavailable) {
+            const auto &location = panels_[panel].location;
+            request->unavailableOrigin = Visit{
+                location.path, location.nativePlaceIdentity, location.archiveLocation, {}, {}};
+        }
         request->finished = std::move(finished);
         navigation_[panel] = std::move(request);
     }
@@ -167,7 +172,7 @@ void QtWindowWorkspace::FinishNavigation(unsigned panel, HRESULT result) {
             }
         }
         request->transaction.reset();
-        if (result != S_OK) {
+        if (result != S_OK && !request->unavailableOrigin) {
             window_.renderBoundFolder();
             window_.restoreListSelection(request->origin.selection);
             if (auto *view = qobject_cast<QAbstractItemView *>(
@@ -176,6 +181,12 @@ void QtWindowWorkspace::FinishNavigation(unsigned panel, HRESULT result) {
         }
     }
     if (result != S_OK) {
+        if (const auto &origin = request->unavailableOrigin) {
+            auto &location = panels_[panel].location;
+            location.nativePlaceIdentity = origin->nativePlaceIdentity;
+            location.archiveLocation = origin->archiveLocation;
+            CompleteLocationOpen(panel, origin->path, result);
+        }
         window_.refreshActions();
         return;
     }

@@ -274,11 +274,39 @@ class RecentPlacesTests final : public QObject, protected MainWindowTestSupport 
         if (favorite)
             addFavorite(window, savedName);
         window.openPath(plain);
+        const auto openRecent = [&](const QString &path) {
+            action(window, "foldersHistoryAction")->trigger();
+            QTRY_VERIFY(RecentPlacesMenu::Visible(window));
+            auto *popup = RecentPlacesMenu::Visible(window);
+            auto *recent = RecentPlacesMenu::Find(*popup, path);
+            QVERIFY(recent);
+            RecentPlacesMenu::Choose(*popup, *recent);
+        };
+        const auto refuseRecent = [&](const QString &path, const QString &retryPath) {
+            auto *address = window.findChild<QLineEdit *>("archivePath");
+            QVERIFY(address);
+            window.statusBar()->clearMessage();
+            openRecent(path);
+            QTRY_VERIFY(!window.statusBar()->currentMessage().isEmpty());
+            QVERIFY(!active(window)->isEnabled());
+            QCOMPARE(active(window)->rowCount(), 0);
+            QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(address->text())),
+                     QDir::cleanPath(QDir::fromNativeSeparators(retryPath)));
+        };
         if (fromUnavailable) {
             QVERIFY(QDir().rmdir(missing));
             openFavorite(window, missingLabel);
             QTRY_VERIFY(!active(window)->isEnabled());
             QVERIFY(window.findChild<QPushButton *>("navigationRetry0")->isVisible());
+        }
+        if (fromUnavailable && !favorite) {
+            const QString absent = fixture.filePath("Another missing folder");
+            store().Visit({absent, {}, {}});
+            refuseRecent(absent, missing);
+            const QString parked = fixture.filePath("temporarily missing.zip");
+            QVERIFY(QFile::rename(outer, parked));
+            refuseRecent(requested, missing);
+            QVERIFY(QFile::rename(parked, outer));
         }
         if (favorite && !fromUnavailable) {
             const QString parked = fixture.filePath("temporarily missing.zip");
@@ -287,18 +315,16 @@ class RecentPlacesTests final : public QObject, protected MainWindowTestSupport 
             auto *retry = window.findChild<QPushButton *>("navigationRetry0");
             QVERIFY(retry);
             QTRY_VERIFY(retry->isVisible());
+            const QString absent = fixture.filePath("Another missing folder");
+            store().Visit({absent, {}, {}});
+            refuseRecent(absent, requested);
             QVERIFY(QFile::rename(parked, outer));
             retry->click();
             QTRY_VERIFY(!retry->isVisible());
         } else if (favorite) {
             openFavorite(window, savedName);
         } else {
-            action(window, "foldersHistoryAction")->trigger();
-            QTRY_VERIFY(RecentPlacesMenu::Visible(window));
-            auto *popup = RecentPlacesMenu::Visible(window);
-            auto *recent = RecentPlacesMenu::Find(*popup, requested);
-            QVERIFY(recent);
-            RecentPlacesMenu::Choose(*popup, *recent);
+            openRecent(requested);
         }
         QTRY_COMPARE(ToQString(active(window)->sourcePanel->GetCurrentFolderPrefix()), requested);
         QTRY_VERIFY(active(window)->isEnabled());
