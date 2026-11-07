@@ -28,7 +28,13 @@ class SplitDestinationTests final : public QObject {
         qputenv("SEVENZIP_SETTINGS_PATH", settings_.toUtf8());
     }
     void init() { QFile::remove(settings_); }
+    void historyRestoresTheCompleteExtractionDestination_data() {
+        QTest::addColumn<bool>("relative");
+        QTest::newRow("saved-absolute") << false;
+        QTest::newRow("relative-from-another-working-directory") << true;
+    }
     void historyRestoresTheCompleteExtractionDestination() {
+        QFETCH(bool, relative);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString source = fixture.filePath("payload.txt");
@@ -39,12 +45,33 @@ class SplitDestinationTests final : public QObject {
         const QString archive = fixture.filePath("current.zip");
         QVERIFY(NativeArchiveFixture::WriteFiles(archive, {source}));
         const QString previous = fixture.filePath(QStringLiteral("вывод/прошлый результат"));
-        NExtract::CInfo settings;
-        settings.Load(settings_);
-        settings.Paths.Add(previous + '/');
-        settings.Save(settings_);
         ArchiveBackend backend;
         QCOMPARE(NativeArchiveFixture::Attach(backend), S_OK);
+        const QString cwd = QDir::currentPath();
+        const auto restore = qScopeGuard([&] { QDir::setCurrent(cwd); });
+        if (relative) {
+            QVERIFY(QDir::setCurrent(fixture.path()));
+            const auto first = ExtractDialogFixture::Run(
+                backend, archive, fixture.filePath("current"), [&](CExtractDialog &dialog) {
+                    enabled(dialog)->setChecked(true);
+                    path(dialog)->setEditText(QStringLiteral("вывод"));
+                    name(dialog)->setText(QStringLiteral("прошлый результат"));
+                    dialog.accept();
+                    if (dialog.isVisible())
+                        dialog.reject();
+                });
+            QCOMPARE(first.Result, S_OK);
+            QVERIFY(first.CallbackOK);
+            QVERIFY(QFile::remove(QDir(previous).filePath("payload.txt")));
+            const QString otherDirectory = fixture.filePath("different working directory");
+            QVERIFY(QDir().mkdir(otherDirectory));
+            QVERIFY(QDir::setCurrent(otherDirectory));
+        } else {
+            NExtract::CInfo settings;
+            settings.Load(settings_);
+            settings.Paths.Add(previous + '/');
+            settings.Save(settings_);
+        }
         const auto result = ExtractDialogFixture::Run(
             backend, archive, fixture.filePath("current"), [&](CExtractDialog &dialog) {
                 const auto close = qScopeGuard([&] {

@@ -63,6 +63,8 @@ For a concrete destination, it also reports a known lack of write access in
 the destination or in the folder where it would be created.
 Choosing a history entry restores the saved destination, including its own
 subfolder when the split fields are enabled.
+New relative destinations are saved as resolved paths so they can be reused
+from a different working directory.
 The caller supplies the actual source archive names. One archive shows its name;
 multiple archives show a translated count and an optional read-only list. Full
 paths remain available in the source tooltip and accessibility description.

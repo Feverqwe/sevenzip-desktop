@@ -222,13 +222,16 @@ void CExtractDialog::OnOK() {
     UString s = DraftDestination();
     const QString base = _path->currentText().trimmed();
     const QString requested = ToQString(s);
-    const auto directoryError = [this](const QString &candidate) -> QString {
+    const auto directoryError = [this](const QString &candidate,
+                                       FString *resolvedPath = nullptr) -> QString {
         if (candidate.isEmpty() || candidate.contains(QChar::Null))
             return InvalidOutputDirectory();
         FString resolved;
         if (!NWindows::NFile::NDir::MyGetFullPathName(
                 us2fs(ToUString(QDir::toNativeSeparators(candidate))), resolved))
             return InvalidOutputDirectory();
+        if (resolvedPath)
+            *resolvedPath = resolved;
         QString path = QDir::cleanPath(ToQString(fs2us(resolved)));
         if (_destinationErrorForPath)
             return _destinationErrorForPath(path);
@@ -242,9 +245,10 @@ void CExtractDialog::OnOK() {
             path = parent;
         }
     };
+    FString resolvedDestination;
     const QString error = base.isEmpty()
                               ? QCoreApplication::translate("CopyRedesign", "Choose a destination.")
-                              : directoryError(requested);
+                              : directoryError(requested, &resolvedDestination);
     if (!error.isEmpty()) {
         _destinationError->setText(error);
         _destinationError->show();
@@ -281,7 +285,10 @@ void CExtractDialog::OnOK() {
     }
     DirPath = QString::fromWCharArray(s.Ptr());
     _info.Paths.Clear();
-    AddUniqueString(_info.Paths, DirPath);
+    UString historyPath =
+        NWindows::NFile::NName::IsAbsolutePath(s) ? s : fs2us(resolvedDestination);
+    NWindows::NFile::NName::NormalizeDirPathPrefix(historyPath);
+    AddUniqueString(_info.Paths, ToQString(historyPath));
     for (int i = 0; i < _path->count() && _info.Paths.Size() < kHistorySize; ++i) {
         UString saved = ToUString(_path->itemText(i));
         saved.Trim();
