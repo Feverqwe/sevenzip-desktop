@@ -345,7 +345,8 @@ its selection; accepting a candidate closes the old source through the existing
 native archive lifecycle. Navigation inside the current container keeps its
 native binding route.
 `QtFileClipboard` supplies native file URL formats to the existing file-transfer
-operation; exporting a container selection uses CPanel's native CopyTo and checks
+operation, including GNOME file lists provided without a separate URL list.
+Exporting a container selection uses CPanel's native CopyTo and checks
 its extraction result before publishing URLs. It does not implement archive I/O.
 Its Cut snapshot is published to the file models across windows. Rows retain the native operation path separately from the display path;
 Cut rendering consumes that presentation state without querying providers or

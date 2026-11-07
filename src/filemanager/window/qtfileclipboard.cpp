@@ -9,12 +9,22 @@
 #include <QtEndian>
 
 namespace {
+constexpr auto gnomeFilesFormat = "x-special/gnome-copied-files";
+
 QStringList ClipboardFilePaths(const QMimeData *mime) {
     if (!mime)
         return {};
+    QList<QUrl> urls = mime->urls();
+    if (urls.isEmpty() && !mime->hasUrls()) {
+        const auto lines = mime->data(gnomeFilesFormat).split('\n');
+        if (lines.size() < 2 || (lines.front() != "cut" && lines.front() != "copy"))
+            return {};
+        for (qsizetype i = 1; i < lines.size(); ++i)
+            urls.append(QUrl::fromEncoded(lines[i], QUrl::StrictMode));
+    }
     QStringList paths;
-    for (const auto &url : mime->urls()) {
-        if (!url.isLocalFile())
+    for (const auto &url : urls) {
+        if (!url.isValid() || !url.isLocalFile())
             return {};
         const QString path = url.toLocalFile();
         if (!QDir::isAbsolutePath(path) || path.contains(QChar::Null))
@@ -26,7 +36,7 @@ QStringList ClipboardFilePaths(const QMimeData *mime) {
 
 bool ClipboardMovesFiles(const QMimeData &mime) {
     bool move = mime.data("application/x-kde-cutselection") == "1" ||
-                mime.data("x-special/gnome-copied-files").startsWith("cut\n");
+                mime.data(gnomeFilesFormat).startsWith("cut\n");
 #ifdef Q_OS_WIN
     const QByteArray preferred =
         mime.data("application/x-qt-windows-mime;value=\"Preferred DropEffect\"");
@@ -42,7 +52,7 @@ void PublishFileClipboard(const QList<QUrl> &urls, bool move) {
     QByteArray gnome = move ? QByteArray("cut") : QByteArray("copy");
     for (const auto &url : urls)
         gnome += '\n' + url.toEncoded();
-    mime->setData("x-special/gnome-copied-files", gnome);
+    mime->setData(gnomeFilesFormat, gnome);
     mime->setData("application/x-kde-cutselection", move ? "1" : "0");
 #ifdef Q_OS_WIN
     mime->setData("application/x-qt-windows-mime;value=\"Preferred DropEffect\"",

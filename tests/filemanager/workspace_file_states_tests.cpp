@@ -98,6 +98,36 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
             << QByteArray("\x02\x00\x00\x00", 4);
 #endif
     }
+
+    void gnomeFileListKeepsCopyAndCutDistinct() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString path = fixture.filePath(QStringLiteral("External 空 cut.txt"));
+        write(path);
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(fixture.path());
+        auto *files = table(window);
+        const QString name = QFileInfo(path).fileName();
+        QTRY_VERIFY(files->isEnabled() && rowFor(*files, name) >= 0);
+        auto *paste = action(window, "pasteFilesAction");
+        const auto putFiles = [](const QByteArray &data) {
+            auto *mime = new QMimeData;
+            mime->setData("x-special/gnome-copied-files", data);
+            QApplication::clipboard()->setMimeData(mime);
+        };
+        const QByteArray url = QUrl::fromLocalFile(path).toEncoded();
+        putFiles("copy\n" + url);
+        QTRY_VERIFY(paste->isEnabled());
+        QVERIFY(!cut(*files, name));
+        putFiles("cut\n" + url);
+        QTRY_VERIFY(paste->isEnabled());
+        QVERIFY(cut(*files, name));
+        putFiles("cut\n" + url + "\nhttps://example.invalid/file");
+        QTRY_VERIFY(!paste->isEnabled());
+        QVERIFY(!cut(*files, name));
+    }
     void externalCutHints() {
         QFETCH(QByteArray, format);
         QFETCH(QByteArray, hint);

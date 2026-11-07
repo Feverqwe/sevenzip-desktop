@@ -48,11 +48,14 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
     void partialCutCanBeRetried_data() {
         QTest::addColumn<bool>("replaceClipboard");
-        QTest::newRow("retry-skipped-file") << false;
-        QTest::newRow("keep-new-clipboard") << true;
+        QTest::addColumn<bool>("gnomeOnly");
+        QTest::newRow("retry-skipped-file") << false << false;
+        QTest::newRow("keep-new-clipboard") << true << false;
+        QTest::newRow("retry-gnome-cut") << false << true;
     }
     void partialCutCanBeRetried() {
         QFETCH(bool, replaceClipboard);
+        QFETCH(bool, gnomeOnly);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const auto cleanup = qScopeGuard([] { QApplication::clipboard()->clear(); });
@@ -80,6 +83,14 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
                 QItemSelectionModel::Select | QItemSelectionModel::Rows);
         action(sourceWindow, "cutFilesAction")->trigger();
         QTRY_COMPARE(QApplication::clipboard()->mimeData()->urls().size(), 2);
+        if (gnomeOnly) {
+            auto *external = new QMimeData;
+            external->setData("x-special/gnome-copied-files",
+                              QByteArray("cut\n") +
+                                  QUrl::fromLocalFile(source + '/' + moved).toEncoded() + '\n' +
+                                  QUrl::fromLocalFile(source + '/' + skipped).toEncoded());
+            QApplication::clipboard()->setMimeData(external);
+        }
 
         bool answered = false;
         QTimer drive;
