@@ -392,9 +392,17 @@ class CompressionPathTests final : public QObject {
         QVERIFY(occupied.open(QIODevice::ReadOnly));
         QCOMPARE(occupied.readAll(), QByteArray("keep"));
     }
+    void destinationPickerRetainsNameAndCancelDraft_data() {
+        QTest::addColumn<bool>("fullPath");
+        QTest::newRow("filename") << false;
+        QTest::newRow("absolute-path") << true;
+    }
     void destinationPickerRetainsNameAndCancelDraft() {
+        QFETCH(bool, fullPath);
         QTemporaryDir destination;
+        QTemporaryDir original;
         QVERIFY(destination.isValid());
+        QVERIFY(original.isValid());
         const bool nativeDisabled = QApplication::testAttribute(Qt::AA_DontUseNativeDialogs);
         QApplication::setAttribute(Qt::AA_DontUseNativeDialogs);
         const auto restore = qScopeGuard(
@@ -404,9 +412,11 @@ class CompressionPathTests final : public QObject {
         auto *folder = dialog.findChild<QLineEdit *>("archiveFolder");
         auto *format = dialog.findChild<QComboBox *>("archiveFormat");
         const QString draft = QStringLiteral("имя with spaces 空.7z");
-        name->setText(draft);
+        const QString entered =
+            fullPath ? QDir::toNativeSeparators(original.filePath(draft)) : draft;
+        name->setText(entered);
         dialog.show();
-        for (bool accept : {true, false}) {
+        for (bool accept : {false, true}) {
             const QString previousFolder = folder->text();
             bool observed = false;
             QTimer answer;
@@ -422,6 +432,9 @@ class CompressionPathTests final : public QObject {
                             picker->reject();
                     });
                     QCOMPARE(picker->fileMode(), QFileDialog::Directory);
+                    if (fullPath)
+                        QCOMPARE(picker->directory().canonicalPath(),
+                                 QFileInfo(original.path()).canonicalFilePath());
                     if (accept) {
                         picker->setDirectory(destination.path());
                         picker->selectFile(destination.path());
@@ -437,7 +450,7 @@ class CompressionPathTests final : public QObject {
             dialog.findChild<QPushButton *>("archiveBrowse")->click();
             answer.stop();
             QVERIFY(observed);
-            QCOMPARE(name->text(), draft);
+            QCOMPARE(name->text(), accept ? draft : entered);
             QCOMPARE(format->currentText(), QString("7z"));
             if (accept)
                 QCOMPARE(QFileInfo(folder->text()).canonicalFilePath(),
@@ -445,6 +458,9 @@ class CompressionPathTests final : public QObject {
             else
                 QCOMPARE(folder->text(), previousFolder);
         }
+        submit(dialog);
+        QCOMPARE(dialog.result(), int(QDialog::Accepted));
+        QCOMPARE(QDir::fromNativeSeparators(dialog.target()), destination.filePath(draft));
     }
     void emptyDestinationKeepsInitialPrefixForBrowseAndAccept() {
         QTemporaryDir fixture;

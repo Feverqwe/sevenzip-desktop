@@ -12,6 +12,8 @@ visible above the scrolling form as separate editable rows with leading labels.
 Destination edits use the existing source path resolver. Browse selects a folder
 through the existing folder picker, retaining the name and format; history can
 still restore the source folder/name/format split.
+When the name field contains a full path, choosing a folder moves the archive
+name to that folder. Cancelling preserves the full path as entered.
 If a file blocks the destination folder, the form stays open so the user can
 correct the path and keep the archive options.
 Format is immediately available. Password protection has

@@ -1,3 +1,4 @@
+#include "Windows/FileName.h"
 #include "archive/callbacks/qtguimessages.h"
 #include "archive/codecs/archivecodeccatalog.h"
 #include "dialogs/browse/BrowseDialog.h"
@@ -173,17 +174,26 @@ void CreateArchiveDialog::createArchiveForm(QVBoxLayout *layout, QVBoxLayout *wi
     for (auto *check : findChildren<QCheckBox *>())
         connect(check, &QCheckBox::toggled, this, &CreateArchiveDialog::updateRedesignSummary);
     connect(browse, &QPushButton::clicked, this, [this] {
-        if (archivePath().isEmpty()) {
+        const QString resolved = archivePath();
+        if (resolved.isEmpty()) {
             ShowErrorMessageQt(this, QtDiagnosticText(QT_TRANSLATE_NOOP("SevenZipDiagnostics",
                                                                         "Incorrect archive path")));
             return;
         }
+        UString draft = ToUString(QDir::toNativeSeparators(name_->text()));
+        draft.Trim();
+        const bool hasRoot = NWindows::NFile::NName::GetRootPrefixSize(draft) != 0;
+        const QFileInfo target(resolved);
+        const QString initial = hasRoot ? target.absolutePath() : archiveFolder_->text();
         UString folder;
         if (MyBrowseForFolder(
                 this,
                 ToUString(QCoreApplication::translate("ArchiveRedesign", "Destination folder")),
-                ToUString(archiveFolder_->text()), folder))
+                ToUString(initial), folder)) {
             archiveFolder_->setText(QDir::toNativeSeparators(ToQString(folder)));
+            if (hasRoot)
+                name_->setText(target.fileName());
+        }
     });
     connect(archivePath_, &QComboBox::activated, this, [this](int index) {
         CCompressDialog path = archiveNameState_;
