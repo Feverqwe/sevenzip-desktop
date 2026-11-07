@@ -25,7 +25,8 @@ method does not occupy a selectable row; formats with multiple methods retain
 their source-provided choice.
 
 One Additional section contains compression level, volumes, a read-only list of
-selected sources and Expert options. It starts collapsed. Its summary exposes
+selected sources, Expert options and the Metadata and time dialog. It starts
+collapsed. Its summary exposes
 the selected level/volumes and marks changed expert options; collapsing does not
 reset them. An invalid volume specification reveals the field.
 

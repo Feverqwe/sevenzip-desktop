@@ -65,6 +65,26 @@ void CreateArchiveDialog::createOptionSections(QVBoxLayout *layout, QFormLayout 
                     QT_TRANSLATE_NOOP("ArchiveRedesign", "Expert options…"));
     additional->addRow(edit);
     connect(edit, &QPushButton::clicked, this, [this] { showExpertOptions(); });
+    auto *metadata = new QPushButton(additional->parentWidget());
+    metadata->setObjectName("archiveMetadataOptions");
+    metadata->setEnabled(format_->currentIndex() >= 0);
+    connect(format_, &QComboBox::currentIndexChanged, metadata,
+            [metadata](int index) { metadata->setEnabled(index >= 0); });
+    QtBindLocalText(metadata, "ArchiveRedesign",
+                    QT_TRANSLATE_NOOP("ArchiveRedesign", "Metadata and time"));
+    additional->addRow(metadata);
+    connect(metadata, &QPushButton::clicked, this, [this] {
+        CCompressDialog source;
+        configureMetadataSource(source);
+        const CCompressDialog initial = source;
+        NCompression::CFormatOptions profile = Get_FormatOptions();
+        source.FormatOptions = &profile;
+        COptionsDialog dialog(&source);
+        if (dialog.Create(this) == QDialog::Accepted) {
+            applyMetadataSource(source, initial, profile);
+            updateAdvancedSummary();
+        }
+    });
     additional->addRow(createSourcesSection(additional->parentWidget()));
     expert->insertWidget(0, createSourcesSection(expertContent_));
     auto *commandLine = form();

@@ -361,11 +361,28 @@ class CompressionAdvancedTests final : public QObject {
         parameters->setText("m=Store");
         format->setCurrentText("7z");
         QCOMPARE(parameters->text(), QString("-mtm=off mt=2"));
+        dialog.show();
+        auto *additional = dialog.findChild<QtDisclosure *>("archiveAdditionalSection");
+        additional->setExpanded(true);
+        auto *metadata = dialog.findChild<QPushButton *>("archiveMetadataOptions");
+        QVERIFY(metadata && metadata->isVisible());
         const auto setTime = [&](bool accept) {
-            QVERIFY(EditArchiveMetadata(dialog, accept, [&](QDialog &options) {
+            WidgetDialogFixture dialogs;
+            bool visited = false;
+            dialogs.respond(dialog, [&](QDialog &options) {
+                const auto dismiss = qScopeGuard([&] {
+                    if (options.isVisible())
+                        options.reject();
+                });
+                QCOMPARE(options.windowTitle(), QString("Metadata and time"));
+                visited = true;
                 check(options, "IDX_COMPRESS_CTIME_SET")->click();
                 check(options, "IDX_COMPRESS_CTIME")->click();
-            }));
+                auto *buttons = options.findChild<QDialogButtonBox *>();
+                buttons->button(accept ? QDialogButtonBox::Ok : QDialogButtonBox::Cancel)->click();
+            });
+            metadata->click();
+            QVERIFY(visited);
         };
         setTime(false);
         QVERIFY(!dialog.compressionOptions().CTime.Def);

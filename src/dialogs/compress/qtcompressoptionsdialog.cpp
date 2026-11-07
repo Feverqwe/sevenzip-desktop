@@ -8,7 +8,7 @@
 COptionsDialog::COptionsDialog(CCompressDialog *source) : panel_(new COptionsPanel(source, this)) {
     setObjectName("compressOptionsDialog");
     QtBindLocalText(this, "ArchiveRedesign",
-                    QT_TRANSLATE_NOOP("ArchiveRedesign", "Format options"));
+                    QT_TRANSLATE_NOOP("ArchiveRedesign", "Metadata and time"));
     auto *buttons = new QtLangButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     buttons->setObjectName("compressOptionsButtons");
     buttons->SetAcceptText("DialogRedesign", QT_TRANSLATE_NOOP("DialogRedesign", "Save"));
