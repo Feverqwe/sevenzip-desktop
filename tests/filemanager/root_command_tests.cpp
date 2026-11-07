@@ -6,10 +6,15 @@
 #include "localization/qtlangcontrols.h"
 #include "platform/support/external_editor_fixture.h"
 #include "support/panel_keys.h"
+#include "support/widget_dialogs.h"
 #include "ui/support/layout_inspection.h"
+#include <QComboBox>
+#include <QDialogButtonBox>
+#include <QPushButton>
 
 class RootCommandTests final : public QObject, protected MainWindowTestSupport {
     Q_OBJECT
+    WidgetDialogFixture widgetDialogs_;
     static QString drivePrefix(const QString &language) {
 #ifdef Q_OS_WIN
         Q_UNUSED(language);
@@ -161,13 +166,19 @@ class RootCommandTests final : public QObject, protected MainWindowTestSupport {
         QVERIFY(selected.isValid() && PanelIndexSelected(selected));
         const int count = views[1]->rowCount();
         const QString edit = QStringLiteral("черновик / path 密碼");
-        if (pending)
+        if (pending) {
             addresses[0]->setText(edit);
+            addresses[0]->setSelection(10, -4);
+        }
         for (const QString language : {QStringLiteral("ru"), QStringLiteral("-")}) {
             SaveRegLang(ToUString(language), qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
             ReloadLang(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
             QtNotifyLanguageChanged();
             QCOMPARE(addresses[0]->text(), pending ? edit : drivePrefix(language));
+            if (pending) {
+                QCOMPARE(addresses[0]->cursorPosition(), 6);
+                QCOMPARE(addresses[0]->selectedText(), edit.mid(6, 4));
+            }
             QCOMPARE(addresses[1]->text(), drivePrefix(language));
             QCOMPARE(window.windowTitle(), drivePrefix(language));
             QCOMPARE(views[1]->rowCount(), count);
@@ -184,6 +195,23 @@ class RootCommandTests final : public QObject, protected MainWindowTestSupport {
                                                               .arg(language)
                                                               .arg(size.width())));
             }
+        }
+        if (pending) {
+            widgetDialogs_.respond(window, [](QDialog &dialog) {
+                auto *language = dialog.findChild<QComboBox *>("languageChoice");
+                auto *buttons = dialog.findChild<QDialogButtonBox *>("settingsButtons");
+                if (language && buttons)
+                    language->setCurrentIndex(language->findData(QStringLiteral("ru")));
+                if (buttons)
+                    buttons->button(QDialogButtonBox::Ok)->click();
+                if (dialog.isVisible())
+                    dialog.reject();
+            });
+            action(window, "settingsAction")->trigger();
+            QCOMPARE(addresses[1]->text(), drivePrefix("ru"));
+            QCOMPARE(addresses[0]->text(), edit);
+            QCOMPARE(addresses[0]->cursorPosition(), 6);
+            QCOMPARE(addresses[0]->selectedText(), edit.mid(6, 4));
         }
         QCOMPARE(backend.listCalls, 0);
     }

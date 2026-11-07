@@ -382,6 +382,7 @@ class MainWindow : public QMainWindow {
     bool rightControlPressed_ = false;
     std::unique_ptr<WindowProgress> progress_;
     bool sourceArchiveProgress_ = false;
+    bool reloadingFileListSettings_ = false;
     bool archiveLocationPending_ = false;
     QAction *toolbarAdd_ = nullptr;
     QAction *extract_ = nullptr;

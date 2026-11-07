@@ -4,6 +4,7 @@
 #include "filemanager/providers/qtlocationfolder.h"
 #include "filemanager/window/mainwindow.h"
 #include "localization/qtlanguageservices.h"
+#include <QScopedValueRollback>
 #include <QSignalBlocker>
 
 void MainWindow::showItemContextMenu(unsigned owner, QAbstractItemView *view, const QPoint &pos) {
@@ -34,6 +35,7 @@ void MainWindow::showSettings() {
 }
 
 void MainWindow::applyFileListSettings() {
+    const QScopedValueRollback<bool> settingsReload(reloadingFileListSettings_, true);
     app_.SetListSettings();
     app_.RefreshAllPanels();
     refreshActions();

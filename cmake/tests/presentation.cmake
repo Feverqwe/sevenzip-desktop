@@ -390,7 +390,7 @@ if(BUILD_TESTING)
     set_tests_properties(panel_address_keys PROPERTIES TIMEOUT 30 RESOURCE_LOCK sevenzip_ui_artifacts ENVIRONMENT
         "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/panel-address-keys.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
     qt_add_executable(root_command_tests tests/filemanager/root_command_tests.cpp tests/platform/support/external_editor_fixture.cpp)
-    target_link_libraries(root_command_tests PRIVATE sevenzip_layout_inspection)
+    target_link_libraries(root_command_tests PRIVATE sevenzip_layout_inspection sevenzip_widget_dialog_fixtures)
     target_link_libraries(root_command_tests PRIVATE sevenzip_window)
     target_include_directories(root_command_tests PRIVATE src tests)
     target_link_libraries(root_command_tests PRIVATE Qt6::Test)

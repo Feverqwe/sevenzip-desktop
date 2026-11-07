@@ -157,11 +157,12 @@ void QtPanelAddressCombo::ReloadCurrentPath() {
     if (!panel_)
         return;
     const QString previousPrefix = ToQString(panel_->GetCurrentFolderPrefix());
-    const QString previousText = currentText();
+    const bool editing = currentText() != previousPrefix;
     panel_->LoadFullPath();
-    ShowCurrentPath(ToQString(panel_->GetCurrentFolderPrefix()));
-    if (previousText != previousPrefix)
-        lineEdit()->setText(previousText);
+    if (editing)
+        panel_->LoadFullPathAndShow(*this, std::nullopt);
+    else
+        ShowCurrentPath(ToQString(panel_->GetCurrentFolderPrefix()));
 }
 const std::vector<QtAddressSegment> &QtPanelAddressCombo::LocationSegments() {
     if (panel_) {

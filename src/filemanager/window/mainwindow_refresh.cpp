@@ -39,8 +39,9 @@ HRESULT MainWindow::reloadProjectedPanel(const CSelectedState &selection) {
                                    panel.IsNetFolder() || panel.IsAltStreamsFolder());
     if (archive || root || projectedUi().state != State::Filesystem ||
         QDir::cleanPath(ToQString(GetFolderPath(panel.GetFolder()))) != projectedUi().directory) {
-        const HRESULT loaded = root ? renderRootFolder(!selection.CalledFromTimer)
-                                    : renderBoundFolder(!selection.CalledFromTimer);
+        const bool updateAddress = !selection.CalledFromTimer && !reloadingFileListSettings_;
+        const HRESULT loaded =
+            root ? renderRootFolder(updateAddress) : renderBoundFolder(updateAddress);
         if (loaded == S_OK)
             restoreListSelection(selection);
         return loaded;
@@ -71,7 +72,7 @@ HRESULT MainWindow::reloadProjectedPanel(const CSelectedState &selection) {
 HRESULT MainWindow::refreshFilesystem(const CSelectedState &selection, bool sourceAlreadyBound,
                                       std::optional<FilesystemViewport> viewport) {
     const HRESULT loaded = showDirectory(projectedUi().directory, false, sourceAlreadyBound,
-                                         !selection.CalledFromTimer);
+                                         !selection.CalledFromTimer && !reloadingFileListSettings_);
     if (loaded != S_OK)
         return loaded;
     panelUi_[projectedPanel_].pendingViewport = std::move(viewport);

@@ -515,7 +515,8 @@ class CPanel : public QObject {
     void CloseOneLevel();
     void CloseOpenFolders();
     void LoadFullPath();
-    void LoadFullPathAndShow(IQtPanelAddressCombo &header, const UString &displayPath);
+    void LoadFullPathAndShow(IQtPanelAddressCombo &header,
+                             const std::optional<UString> &displayPath);
     bool OnComboBoxCommand(QtAddressCommand code, IQtPanelAddressCombo &header);
     bool OnNotifyComboBoxEnter(const UString &text, IQtPanelAddressCombo &header);
     std::vector<QtAddressSegment> AddressAncestors(IQtPanelAddressCombo &header,

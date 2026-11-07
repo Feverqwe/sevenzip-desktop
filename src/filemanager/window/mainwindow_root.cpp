@@ -26,11 +26,10 @@ HRESULT MainWindow::renderRootFolder(bool updateAddress) {
     projectedUi().archiveFolder.clear();
     panelUi_[projectedPanel_].autoRefreshSnapshot.clear();
     static_cast<FileTable *>(projectedUi().table)->filesystem = false;
+    const QString folderPath =
+        drives || network || streams ? ToQString(GetFolderPath(folder)) : QString();
     if (updateAddress)
-        static_cast<QtPanelAddressCombo *>(projectedUi().pathCombo)
-            ->ShowCurrentPath(drives || network || streams
-                                  ? QString::fromWCharArray(GetFolderPath(folder))
-                                  : QString());
+        static_cast<QtPanelAddressCombo *>(projectedUi().pathCombo)->ShowCurrentPath(folderPath);
     const auto finish = [&](HRESULT result) {
         if (result != S_OK)
             projectedUi().table->clearRows();
@@ -68,7 +67,7 @@ HRESULT MainWindow::renderRootFolder(bool updateAddress) {
         row.name = nativeName;
         row.directory = isDirectory;
         if (!isDirectory)
-            row.operationPath = projectedUi().path->text() + nativeName;
+            row.operationPath = folderPath + nativeName;
         row.icon = QApplication::style()->standardIcon(!isDirectory ? QStyle::SP_FileIcon
                                                        : drives     ? QStyle::SP_DriveHDIcon
                                                        : network    ? QStyle::SP_DirIcon

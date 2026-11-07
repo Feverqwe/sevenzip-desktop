@@ -1,5 +1,20 @@
 # Location history and address presentation — 2026-10-31
 
+## Address editing while applying a language change — 2026-11-07
+
+Compared the recorded OptionsDialog.cpp and App.cpp language-apply and
+panel-refresh flow with the Qt settings and address owners. Qt updates the
+bound namespace label without replacing an unsubmitted edit. Applying list
+settings still reloads the bound folders and keeps the address editor intact.
+Namespace operations use the provider path even when the editor contains a
+draft. No upstream source import or revision change.
+
+On Linux, both live-language cases passed, including saving through Options
+with a backwards selection in an address. The options dialog, panel address
+keys, filesystem reload and quick archive reload suites passed. The full
+root-command suite timed out on its earlier Back-history expectation, so its
+language cases were run directly with the same built QtTest executable.
+
 ## Address retry after a deferred read failure — 2026-11-07
 
 Reviewed original Panel.cpp address Enter and PanelFolderChange.cpp binding
