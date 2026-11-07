@@ -229,9 +229,10 @@ void CCopyDialog::OnButtonSetPath() {
     UString currentPath;
     if (!ReadPath(currentPath))
         return;
+    const UString initialDirectory = ToUString(PreviewDestination(ToQString(currentPath)));
     UString selectedPath;
-    const bool chosen =
-        MyBrowseForFolder(this, ToUString(QtLangText(IDS_SET_FOLDER)), currentPath, selectedPath);
+    const bool chosen = MyBrowseForFolder(this, ToUString(QtLangText(IDS_SET_FOLDER)),
+                                          initialDirectory, selectedPath);
     _pathEdit->setFocus();
     if (!chosen)
         return;

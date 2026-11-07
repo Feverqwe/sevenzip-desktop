@@ -134,6 +134,18 @@ class CopyDestinationTests final : public QObject {
         auto *name = panelDialog.findChild<QLineEdit *>("copyDestinationName");
         QVERIFY(name && name->isVisible());
         name->setText("renamed.txt");
+        QString browsedDirectory;
+        QTimer::singleShot(0, &panelDialog, [&] {
+            for (auto *picker : panelDialog.findChildren<QFileDialog *>())
+                if (picker->isVisible()) {
+                    browsedDirectory = picker->directory().canonicalPath();
+                    picker->reject();
+                }
+        });
+        panelDialog.findChild<QPushButton *>("copyBrowseButton")->click();
+        QCOMPARE(browsedDirectory, QFileInfo(sourceDirectory + "/target").canonicalFilePath());
+        QCOMPARE(panelDialog.findChild<QLineEdit *>("copyDestination")->text(), QString("target"));
+        QCOMPARE(name->text(), QString("renamed.txt"));
         panelDialog.accept();
         QCOMPARE(panelDialog.result(), int(QDialog::Accepted));
         QCOMPARE(QDir::fromNativeSeparators(ToQString(panelDialog.Value)),

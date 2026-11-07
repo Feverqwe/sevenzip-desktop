@@ -253,6 +253,8 @@ Classify filesystem/ADS/archive/root/drives through source capabilities/prefixes
 preserving relative/direct/multiple-item normalization, path diagnostics and
 unsupported root/ADS refusals before publication. Original copy options, naming,
 selection/row refresh, title and source focus must survive the async continuation.
+The folder picker resolves a relative destination from the same base as Copy
+or Move. Cancelling the picker preserves the entered path and name.
 Accepted archive Move keeps its checked source Copy/Delete/rollback extension.
 Verify both panels, F5/F6 and Shift routes, success/failure/Cancel, Unicode/spaces,
 no unintended output/input changes and operation guards. Inspect EN/RU normal/
