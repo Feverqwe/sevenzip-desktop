@@ -1,5 +1,4 @@
 #include "dialogs/edit/EditDialog.h"
-#include "dialogs/mem/MemDialog.h"
 #include "dialogs/messages/MessagesDialog.h"
 #include "dialogs/password/PasswordDialog.h"
 #include "localization/LangUtils.h"
@@ -54,7 +53,7 @@ class SourcePromptPresentationTests final : public QObject {
         QTest::addColumn<QString>("language");
         QTest::addColumn<int>("kind");
         for (const char *language : {"-", "ru"})
-            for (int kind = 0; kind < 4; ++kind)
+            for (int kind = 0; kind < 3; ++kind)
                 QTest::newRow(qPrintable(QString("%1-%2").arg(language).arg(kind)))
                     << QString::fromLatin1(language) << kind;
     }
@@ -88,31 +87,6 @@ class SourcePromptPresentationTests final : public QObject {
                 UiInspection::bounds(*view.findChild<QCheckBox *>("passwordShow"), view);
             const QRect footer = view.layout()->itemAt(view.layout()->count() - 1)->geometry();
             QVERIFY(footer.top() > show.bottom());
-        } else if (kind == 2) {
-            CMemDialog view;
-            view.FilePath = L"fixture 文件.bin";
-            view.OnInit();
-            view.show();
-            QVERIFY(QTest::qWaitForWindowExposed(&view));
-            inspect(view, QSize(336, 216), false, tag);
-            QCOMPARE(view.focusWidget(), view.findChild<QCheckBox *>("memSaveLimit"));
-            auto *pair = view.findChild<QWidget *>("memLimitPair");
-            QVERIFY(pair);
-            const auto *edit = view.findChild<QLineEdit *>("memLimit");
-            const auto *spin = view.findChild<QWidget *>("memSpin");
-            QVERIFY(spin);
-            QVERIFY(spin->height() <= edit->height());
-            QCOMPARE(view.findChild<QLineEdit *>("memLimit")->alignment(),
-                     Qt::Alignment(Qt::AlignCenter));
-            auto *remember = view.findChild<QCheckBox *>("memRemember");
-            const QRect group = UiInspection::bounds(*view.findChild<QWidget *>("memAction"), view);
-            const QRect footer = view.layout()->itemAt(view.layout()->count() - 1)->geometry();
-            const QRect save =
-                UiInspection::bounds(*view.findChild<QCheckBox *>("memSaveLimit"), view);
-            QVERIFY(group.bottom() < save.top());
-            QVERIFY(UiInspection::bounds(*pair, view).bottom() <
-                    UiInspection::bounds(*remember, view).top());
-            QVERIFY(footer.top() > UiInspection::bounds(*remember, view).bottom());
         } else {
             QWidget owner;
             owner.show();

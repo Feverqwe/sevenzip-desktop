@@ -131,9 +131,6 @@ add_library(sevenzip_panel
     src/dialogs/delete/qtdeleteconfirmation.h
     src/platform/trash/qttrashoperation.cpp
     src/platform/trash/qttrashoperation.h
-    src/dialogs/mem/MemDialog.cpp
-    src/dialogs/mem/qtmemoryrequestpresentation.cpp
-    src/dialogs/mem/MemDialog.h
     src/filemanager/OpenCallback.cpp
     src/filemanager/OpenCallback.h
     src/filemanager/providers/FileFolderPluginOpen.cpp

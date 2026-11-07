@@ -154,10 +154,9 @@ EN/RU and current native results are in the
 
 ### Source extraction prompts (P0-04.1 prerequisite)
 
-`extract_prompt` produces OverwriteDialog reports at 700×440 / 560×440 with
-extra buttons enabled/disabled, and MemDialog reports at 700×460 / 560×460 with
-limit editing disabled/enabled. `ui_parity_overwrite` / `ui_parity_mem` run
-that current-build producer fixture before comparing pinned RC contracts.
+`extract_prompt` checks OverwriteDialog at 700×440 and 560×440. When the
+extraction memory limit is exceeded, the operation reports the required and
+allowed memory. The user can change the limit in Settings and retry.
 
 The agreed conflict form offers Replace, Skip and Keep both, with one unchecked
 Apply to remaining conflicts in this operation checkbox. A known single-file

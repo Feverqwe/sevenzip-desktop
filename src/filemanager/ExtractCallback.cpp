@@ -17,10 +17,11 @@
 #include "7zip/UI/FileManager/resourceGui.h"
 #include "7zip/UI/GUI/ExtractRes.h"
 
-#include "dialogs/mem/MemDialog.h"
+#include "7zip/UI/FileManager/MemDialogRes.h"
 #include "filemanager/ExtractCallback.h"
 #include "filemanager/FormatUtils.h"
 #include "localization/LangUtils.h"
+#include "ui/formatting/qtregionalformat.h"
 #ifndef Z7_NO_CRYPTO
 #include "archive/callbacks/qtcallbackpassword.h"
 #endif
@@ -37,12 +38,8 @@ CExtractCallbackImp::CExtractCallbackImp()
       ,
       PasswordIsDefined(false), PasswordWasAsked(false)
 #endif
-#ifndef Z7_SFX
       ,
-      _remember(false), _skipArc(false)
-#endif
-      ,
-      YesToAll(false), TestMode(false), OverwriteMode(NExtract::NOverwriteMode::kAsk)
+      YesToAll(false), OverwriteMode(NExtract::NOverwriteMode::kAsk)
 #ifndef Z7_SFX
       ,
       _hashCalc(NULL)
@@ -370,104 +367,54 @@ Z7_COM7F_IMF(CExtractCallbackImp::CryptoGetTextPassword(BSTR *password)) {
 
 #ifndef Z7_SFX
 
-Z7_COM7F_IMF(CExtractCallbackImp::RequestMemoryUse(UInt32 flags, UInt32 indexType,
-                                                   UInt32 /* index */, const wchar_t *path,
-                                                   UInt64 requiredSize, UInt64 *allowedSize,
-                                                   UInt32 *answerFlags)) {
-    return RunCallbackDialog(*ProgressDialog, [&]() -> HRESULT {
-        UInt32 limit_GB = (UInt32)((*allowedSize + ((1u << 30) - 1)) >> 30);
-
-        if ((flags & NRequestMemoryUseFlags::k_IsReport) == 0) {
-            UInt64 limit_bytes = *allowedSize;
-            const UInt32 limit_GB_Registry = NExtract::Read_LimitGB(SettingsPath);
-            if (limit_GB_Registry != 0 && limit_GB_Registry != (UInt32)(Int32)-1) {
-                const UInt64 limit_bytes_Registry = (UInt64)limit_GB_Registry << 30;
-                // registry_WasForced = true;
-                if ((flags & NRequestMemoryUseFlags::k_AllowedSize_WasForced) == 0 ||
-                    limit_bytes < limit_bytes_Registry) {
-                    limit_bytes = limit_bytes_Registry;
-                    limit_GB = limit_GB_Registry;
-                }
-            }
-            *allowedSize = limit_bytes;
-            if (requiredSize <= limit_bytes) {
-                *answerFlags = NRequestMemoryAnswerFlags::k_Allow;
-                return S_OK;
-            }
-            // default answer can be k_Allow, if limit was not forced,
-            // so we change answer to non-allowed here,
-            // because user has chance to change limit in GUI.
-            *answerFlags = NRequestMemoryAnswerFlags::k_Limit_Exceeded;
-            if (flags & NRequestMemoryUseFlags::k_SkipArc_IsExpected)
-                *answerFlags |= NRequestMemoryAnswerFlags::k_SkipArc;
+Z7_COM7F_IMF(CExtractCallbackImp::RequestMemoryUse(UInt32 flags, UInt32, UInt32,
+                                                   const wchar_t *path, UInt64 requiredSize,
+                                                   UInt64 *allowedSize, UInt32 *answerFlags)) {
+    const bool report = (flags & NRequestMemoryUseFlags::k_IsReport) != 0;
+    if (!report) {
+        const UInt32 savedLimit = NExtract::Read_LimitGB(SettingsPath);
+        if (savedLimit != 0 && savedLimit != UInt32(-1)) {
+            const UInt64 savedBytes = UInt64(savedLimit) << 30;
+            if (!(flags & NRequestMemoryUseFlags::k_AllowedSize_WasForced) ||
+                *allowedSize < savedBytes)
+                *allowedSize = savedBytes;
         }
-
-        const UInt32 required_GB = (UInt32)((requiredSize + ((1u << 30) - 1)) >> 30);
-
-        CMemDialog dialog;
-        dialog.Limit_GB = limit_GB;
-        dialog.Required_GB = required_GB;
-        dialog.TestMode = TestMode;
-        if (MultiArcMode)
-            dialog.ArcPath = _currentArchivePath;
-        if (path)
-            dialog.FilePath = path;
-
-        if (!DisableUserQuestions && (flags & NRequestMemoryUseFlags::k_IsReport) == 0) {
-            if (_remember)
-                dialog.SkipArc = _skipArc;
-            else {
-                if (ProgressDialog->Sync.Get_Stopped()) {
-                    *answerFlags = NRequestMemoryAnswerFlags::k_Stop;
-                    return E_ABORT;
-                }
-                dialog.ShowRemember =
-                    (MultiArcMode || indexType != NArchive::NEventIndexType::kNoIndex || path);
-                if (dialog.Create(ProgressDialog) != IDCONTINUE) {
-                    *answerFlags = NRequestMemoryAnswerFlags::k_Stop;
-                    return E_ABORT;
-                }
-                if (dialog.NeedSave)
-                    NExtract::Save_LimitGB(SettingsPath, dialog.Limit_GB);
-                if (dialog.Remember) {
-                    _remember = true;
-                    _skipArc = dialog.SkipArc;
-                }
-            }
-
-            *allowedSize = (UInt64)dialog.Limit_GB << 30;
-            if (!dialog.SkipArc) {
-                *answerFlags = NRequestMemoryAnswerFlags::k_Allow;
-                return S_OK;
-            }
-            *answerFlags =
-                NRequestMemoryAnswerFlags::k_SkipArc | NRequestMemoryAnswerFlags::k_Limit_Exceeded;
-            flags |= NRequestMemoryUseFlags::k_Report_SkipArc;
+        if (requiredSize <= *allowedSize) {
+            *answerFlags = NRequestMemoryAnswerFlags::k_Allow;
+            return S_OK;
         }
-
-        if (*answerFlags & NRequestMemoryAnswerFlags::k_SkipArc)
-            SomeItemsSkipped = true;
-        if ((flags & NRequestMemoryUseFlags::k_NoErrorMessage) == 0) {
-            UString s = QtDiagnosticText(QT_TRANSLATE_NOOP("SevenZipDiagnostics", "ERROR: "));
-            dialog.AddInfoMessage_To_String(s);
-            s.Add_LF();
-            // if (indexType == NArchive::NEventIndexType::kNoIndex)
-            if ((flags & NRequestMemoryUseFlags::k_SkipArc_IsExpected) ||
-                (flags & NRequestMemoryUseFlags::k_Report_SkipArc))
-                AddLangString(s, IDS_MSG_ARC_UNPACKING_WAS_SKIPPED);
-            /*
-                else
-                  AddLangString(, IDS_MSG_ARC_FILES_UNPACKING_WAS_SKIPPED);
-            */
-            AddError_Message_ShowArcPath(s);
+        if (ProgressDialog->Sync.Get_Stopped()) {
+            *answerFlags = NRequestMemoryAnswerFlags::k_Stop;
+            return E_ABORT;
         }
+        *answerFlags = NRequestMemoryAnswerFlags::k_Limit_Exceeded;
+        if (flags & NRequestMemoryUseFlags::k_SkipArc_IsExpected)
+            *answerFlags |= NRequestMemoryAnswerFlags::k_SkipArc;
+    }
 
-        /*
-          if ((flags & NRequestMemoryUseFlags::k_IsReport) == 0)
-            *answerFlags |= NRequestMemoryAnswerFlags::k_Limit_Exceeded;
-        */
-        return S_OK;
-    });
+    const bool skipped = (*answerFlags & NRequestMemoryAnswerFlags::k_SkipArc) != 0;
+    SomeItemsSkipped |= skipped;
+    if (!(flags & NRequestMemoryUseFlags::k_NoErrorMessage)) {
+        UString message = LangString(IDS_MEM_REQUIRES_BIG_MEM);
+        const auto addSize = [&message](UInt32 label, UInt64 bytes) {
+            message.Add_LF();
+            AddLangString(message, label);
+            message += L": ";
+            message += UString(QtRegionalFormat::exactBytes(bytes).toStdWString().c_str());
+        };
+        addSize(IDS_MEM_REQUIRED_MEM_SIZE, requiredSize);
+        addSize(IDS_MEM_CURRENT_MEM_LIMIT, *allowedSize);
+        if (path && *path) {
+            message.Add_LF();
+            message += path;
+        }
+        if (skipped || (flags & NRequestMemoryUseFlags::k_Report_SkipArc)) {
+            message.Add_LF();
+            AddLangString(message, IDS_MSG_ARC_UNPACKING_WAS_SKIPPED);
+        }
+        AddError_Message_ShowArcPath(message);
+    }
+    return S_OK;
 }
 
 #endif

@@ -7,7 +7,6 @@
 #include "dialogs/edit/EditDialog.h"
 #include "dialogs/extract/ExtractDialog.h"
 #include "dialogs/listview/ListViewDialog.h"
-#include "dialogs/mem/MemDialog.h"
 #include "dialogs/password/PasswordDialog.h"
 #include "localization/LangUtils.h"
 #include "localization/qtlangbuttonbox.h"
@@ -47,8 +46,6 @@ class LanguageStandardButtonsTests final : public QObject {
             return std::make_unique<CComboDialog>("Title", "Name", "pending 空 value");
         if (name == "password")
             return initialize<CPasswordDialog>();
-        if (name == "memory")
-            return initialize<CMemDialog>();
         if (name == "edit")
             return initialize<CEditDialog>();
         if (name == "list")
@@ -69,10 +66,9 @@ class LanguageStandardButtonsTests final : public QObject {
             return std::make_unique<CreateArchiveDialog>("/pending 空 path", QStringList{"file"});
         return std::make_unique<CExtractDialog>("/pending 空 path", QStringList{});
     }
-    static QString expected(QDialogButtonBox::StandardButton button, bool russian, bool memory) {
+    static QString expected(QDialogButtonBox::StandardButton button, bool russian) {
         if (button == QDialogButtonBox::Ok)
-            return memory ? (russian ? QStringLiteral("&Продолжить") : QString("Continue"))
-                          : QString("OK");
+            return QString("OK");
         if (button == QDialogButtonBox::Cancel)
             return russian ? QStringLiteral("Отмена") : QString("Cancel");
         if (button == QDialogButtonBox::Close)
@@ -107,7 +103,7 @@ class LanguageStandardButtonsTests final : public QObject {
                     QCOMPARE(control->text(),
                              russian ? QStringLiteral("Закрыть") : QString("Close"));
                 else
-                    QCOMPARE(control->text(), expected(button, russian, name == "memory"));
+                    QCOMPARE(control->text(), expected(button, russian));
             }
     }
     void inspect(QDialog &dialog, const QString &name, bool russian) {
@@ -118,9 +114,6 @@ class LanguageStandardButtonsTests final : public QObject {
         } else if (name == "password" || name == "combo") {
             normal = QSize(360, 170);
             compact = QSize(260, 170);
-        } else if (name == "memory") {
-            normal = QSize(700, 460);
-            compact = QSize(560, 460);
         } else if (name == "edit") {
             normal = QSize(480, 320);
             compact = QSize(320, 240);
@@ -211,8 +204,8 @@ class LanguageStandardButtonsTests final : public QObject {
     void sourceDialogsTranslateTheirStandardControls_data() {
         QTest::addColumn<QString>("name");
         QTest::addColumn<bool>("russian");
-        for (const char *name : {"copy", "combo", "password", "memory", "edit", "list", "about",
-                                 "extract", "browse", "compress-options", "compress"})
+        for (const char *name : {"copy", "combo", "password", "edit", "list", "about", "extract",
+                                 "browse", "compress-options", "compress"})
             for (bool russian : {false, true})
                 QTest::newRow(qPrintable(QString("%1-%2").arg(name).arg(russian)))
                     << QString::fromLatin1(name) << russian;

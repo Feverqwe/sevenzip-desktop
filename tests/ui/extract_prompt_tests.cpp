@@ -1,6 +1,5 @@
 #include "archive/operations/ZipRegistry.h"
 #include "archive/resources/virtualextractfilesystem.h"
-#include "dialogs/mem/MemDialog.h"
 #include "dialogs/messages/MessagesDialog.h"
 #include "dialogs/overwrite/OverwriteDialog.h"
 #include "filemanager/ExtractCallback.h"
@@ -13,16 +12,12 @@
 #include <QLineEdit>
 #include <QMessageBox>
 #include <QPushButton>
-#include <QRadioButton>
 #include <QScopeGuard>
-#include <QScopedValueRollback>
 #include <QTemporaryDir>
 #include <QTimer>
 #include <QToolButton>
 #include <QTreeWidget>
 #include <QtTest>
-
-extern bool g_DisableUserQuestions;
 
 class ExtractPromptTests final : public QObject {
     Q_OBJECT
@@ -111,7 +106,7 @@ class ExtractPromptTests final : public QObject {
         bool prompted = false;
         QTimer responder;
         connect(&responder, &QTimer::timeout, this, [&] {
-            if (auto *dialog = dynamic_cast<CMemDialog *>(QApplication::activeModalWidget())) {
+            if (auto *dialog = qobject_cast<QDialog *>(QApplication::activeModalWidget())) {
                 prompted = true;
                 dialog->reject();
             }
@@ -211,116 +206,6 @@ class ExtractPromptTests final : public QObject {
             QVERIFY(file.open(QIODevice::ReadOnly));
             QCOMPARE(file.readAll(), QByteArray("existing"));
         }
-    }
-    void memoryStateAndCommit() {
-        CMemDialog dialog;
-        dialog.Required_GB = 0;
-        dialog.Limit_GB = 4;
-        dialog.ShowRemember = false;
-        dialog.OnInit();
-        dialog.show();
-        QApplication::processEvents();
-        QVERIFY(UiInspection::writeReport(dialog, "redesign-memory-no-remember"));
-        auto *edit = dialog.findChild<QLineEdit *>("memLimit");
-        auto *save = dialog.findChild<QCheckBox *>("memSaveLimit");
-        QVERIFY(!edit->isEnabled());
-        QVERIFY(!dialog.findChild<QCheckBox *>("memRemember")->isVisible());
-        QVERIFY(dialog.findChild<QRadioButton *>("memAllow")->isChecked());
-        save->click();
-        QVERIFY(edit->isEnabled());
-        edit->setText("0"); // The upstream text parser accepts zero.
-        dialog.findChild<QRadioButton *>("memSkip")->click();
-        dialog.OnContinue();
-        QCOMPARE(dialog.result(), IDCONTINUE);
-        QCOMPARE(dialog.Limit_GB, UInt32(0));
-        QVERIFY(dialog.NeedSave);
-        QVERIFY(dialog.SkipArc);
-        CMemDialog cancelled;
-        cancelled.OnInit();
-        cancelled.findChild<QCheckBox *>("memSaveLimit")->click();
-        cancelled.findChild<QLineEdit *>("memLimit")->setText("99");
-        cancelled.reject();
-        QCOMPARE(cancelled.result(), IDCANCEL);
-        QCOMPARE(cancelled.Limit_GB, UInt32(4));
-        QVERIFY(!cancelled.NeedSave);
-    }
-    void memorySpinnerKeysUseTheSourceBuddyEdit_data() {
-        QTest::addColumn<bool>("up");
-        QTest::newRow("up") << true;
-        QTest::newRow("down") << false;
-    }
-    void memorySpinnerKeysUseTheSourceBuddyEdit() {
-        QFETCH(bool, up);
-        CMemDialog dialog;
-        dialog.OnInit();
-        dialog.show();
-        auto *edit = dialog.findChild<QLineEdit *>("memLimit");
-        const QString disabledValue = edit->text();
-        QTest::keyClick(edit, up ? Qt::Key_Up : Qt::Key_Down);
-        QCOMPARE(edit->text(), disabledValue);
-        dialog.findChild<QCheckBox *>("memSaveLimit")->click();
-        auto *button = dialog.findChild<QToolButton *>(up ? "memSpinUp" : "memSpinDown");
-        edit->setText("2");
-        button->click();
-        const QString expected = edit->text();
-        edit->setText("2");
-        edit->setFocus();
-        QTest::keyClick(edit, up ? Qt::Key_Up : Qt::Key_Down);
-        QCOMPARE(edit->text(), expected);
-        QCOMPARE(button->focusPolicy(), Qt::NoFocus);
-    }
-    void memoryInvalidInput_data() {
-        QTest::addColumn<QString>("text");
-        QTest::addColumn<bool>("disabled");
-        QTest::newRow("empty") << QString() << false;
-        QTest::newRow("trailing") << QString("2x") << false;
-        QTest::newRow("over-source-limit") << QString("1073741825") << false;
-        QTest::newRow("suppressed-empty") << QString() << true;
-    }
-    void memoryInvalidInput() {
-        QFETCH(QString, text);
-        QFETCH(bool, disabled);
-        QScopedValueRollback<bool> questions(g_DisableUserQuestions, disabled);
-        CMemDialog dialog;
-        dialog.OnInit();
-        dialog.resize(text.isEmpty() ? QSize(560, 460) : QSize(700, 460));
-        dialog.show();
-        dialog.findChild<QCheckBox *>("memSaveLimit")->click();
-        auto *edit = dialog.findChild<QLineEdit *>("memLimit");
-        edit->setText(text);
-        bool errorShown = false;
-        bool report = false;
-        QMessageBox::Icon errorIcon = QMessageBox::NoIcon;
-        QString errorTitle;
-        QTimer::singleShot(0, &dialog, [&] {
-            if (auto *error = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
-                errorShown = true;
-                errorIcon = error->icon();
-                errorTitle = error->windowTitle();
-                report = UiInspection::writeReport(
-                    *error, QString("mem-input-error-%1").arg(QTest::currentDataTag()));
-                error->accept();
-            }
-        });
-        dialog.findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok)->click();
-        QCOMPARE(errorShown, !disabled);
-        if (errorShown) {
-            QCOMPARE(errorIcon, QMessageBox::Critical);
-#ifndef Q_OS_MACOS
-            QCOMPARE(errorTitle, QString("7-Zip"));
-#endif
-            QVERIFY(report);
-        }
-        QVERIFY(dialog.isVisible());
-        QCOMPARE(dialog.result(), 0);
-        QCOMPARE(dialog.Limit_GB, UInt32(4));
-        QCOMPARE(edit->text(), text);
-        QVERIFY(dialog.NeedSave); // Source reads action fields before validating the limit.
-        edit->setText("2");
-        dialog.findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok)->click();
-        QCOMPARE(dialog.result(), IDCONTINUE);
-        QCOMPARE(dialog.Limit_GB, UInt32(2));
-        QVERIFY(!dialog.isVisible());
     }
     void sourceMessagesModalLifetime_data() {
         QTest::addColumn<int>("decision");
@@ -444,31 +329,6 @@ class ExtractPromptTests final : public QObject {
                     }
                 QVERIFY(UiInspection::writeReport(
                     dialog, QString("overwrite-%1-%2").arg(width).arg(extra)));
-            }
-            for (bool change : {false, true}) {
-                CMemDialog dialog;
-                dialog.Required_GB = 4;
-                dialog.ArcPath = L"/каталог с пробелом/archive.7z";
-                dialog.FilePath = L"密碼.bin";
-                dialog.OnInit();
-                dialog.resize(width, 460);
-                dialog.show();
-                if (change)
-                    dialog.findChild<QCheckBox *>("memSaveLimit")->click();
-                QApplication::processEvents();
-                for (const auto *name :
-                     {"memMessage", "memSaveLimit", "memLimit", "memSpin", "memGB", "memAction",
-                      "memAllow", "memSkip", "memRemember", "memButtons"}) {
-                    auto *control = dialog.findChild<QWidget *>(name);
-                    QVERIFY(control);
-                    QVERIFY(UiInspection::fullyVisible(*control, dialog));
-                    if (qobject_cast<QLabel *>(control))
-                        QVERIFY(UiInspection::labelFits(*control));
-                    else if (qobject_cast<QAbstractButton *>(control))
-                        QVERIFY(control->width() >= control->sizeHint().width());
-                }
-                QVERIFY(
-                    UiInspection::writeReport(dialog, QString("mem-%1-%2").arg(width).arg(change)));
             }
         }
     }

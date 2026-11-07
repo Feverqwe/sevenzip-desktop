@@ -1289,8 +1289,6 @@
     "src/dialogs/extract/ExtractDialog.h",
     "src/dialogs/listview/ListViewDialog.cpp",
     "src/dialogs/listview/ListViewDialog.h",
-    "src/dialogs/mem/MemDialog.cpp",
-    "src/dialogs/mem/MemDialog.h",
     "src/dialogs/messages/MessagesDialog.cpp",
     "src/dialogs/messages/MessagesDialog.h",
     "src/dialogs/messages/MessagesDialogRes.h",
@@ -1431,6 +1429,7 @@
     "src/platform/loader/DLL.cpp",
     "src/platform/loader/DLL.h",
     "src/platform/loader/DllSecur.c",
+    "src/platform/memory/qtmemorylimitinfo.cpp",
     "src/platform/shell/ContextMenu.cpp",
     "src/platform/shell/ContextMenu.h",
     "src/platform/shell/DllExportsExplorer.cpp",
@@ -1716,7 +1715,6 @@
     "src/dialogs/listview/qtlistviewdialogpresentation.cpp",
     "src/dialogs/listview/qtreportdata.cpp",
     "src/dialogs/listview/qtreportdata.h",
-    "src/dialogs/mem/qtmemoryrequestpresentation.cpp",
     "src/dialogs/overwrite/qtoverwritepresentation.cpp",
     "src/dialogs/taskresult/qttaskresultdialog.cpp",
     "src/dialogs/taskresult/qttaskresultdialog.h",
@@ -2183,7 +2181,6 @@
     "src/platform/locale/qtregionalsettings.h",
     "src/platform/locale/qtregionalsettings_mac.mm",
     "src/platform/locale/qtregionalsettings_win.cpp",
-    "src/platform/memory/qtmemorylimitinfo.cpp",
     "src/platform/memory/qtmemorylimitinfo.h",
     "src/platform/memory/qtmemorylockservices.cpp",
     "src/platform/memory/qtmemorylockservices.h",
@@ -2859,8 +2856,7 @@
     "src/localization/LangUtils.h": "e0af42e936a158a2e56af848b7bfa76ebead5878774a710bc8ce122882cfc615",
     "src/dialogs/listview/ListViewDialog.cpp": "fc3dabdbb278aae7790b7dfdd617e1827fc53b731651d4cc0cf2e4fa66d950df",
     "src/dialogs/listview/ListViewDialog.h": "ce463374762ea774e0d8dabbd4a0f7e5f423ee015ad38f3a9926366ae2084da0",
-    "src/dialogs/mem/MemDialog.cpp": "62740983f93a104e7299483f83020e158bb7bdf775d2fb6aaed2a1e57e809c5d",
-    "src/dialogs/mem/MemDialog.h": "5fe9065297115cb529ec4e69a6820ecfec6a65e2934305cbfb4756c6110a6575",
+    "src/platform/memory/qtmemorylimitinfo.cpp": "62740983f93a104e7299483f83020e158bb7bdf775d2fb6aaed2a1e57e809c5d",
     "src/settings/MenuPage.cpp": "33a9842f133d6d6c01755efbcd3775ee46556e4957f7bfb400315814bbfba8f0",
     "src/settings/MenuPage.h": "4ddb43bb772ee4f563242f12a0d48e1724d2336221d2a0c8d17aa0dbba16ce09",
     "src/dialogs/messages/MessagesDialog.cpp": "f3fffa473490b54c43cf113d63886743bac32ae1ee1060cb3e2d1f28cd64f888",
@@ -3595,8 +3591,12 @@
   ],
   "extracted": {
     "third_party/7zip/CPP/7zip/UI/Common/PropIDUtils.cpp": {
-      "local": ["src/filemanager/properties/qtpropertyformat.cpp"],
-      "symbols": ["ConvertPropertyToShortString2 (FILETIME precision decoding)"]
+      "local": [
+        "src/filemanager/properties/qtpropertyformat.cpp"
+      ],
+      "symbols": [
+        "ConvertPropertyToShortString2 (FILETIME precision decoding)"
+      ]
     },
     "src/archive/callbacks/ArchiveExtractCallback.cpp": {
       "local": [
@@ -3677,9 +3677,8 @@
         "kOneStringMaxSize"
       ]
     },
-    "src/dialogs/mem/MemDialog.cpp": {
+    "src/platform/memory/qtmemorylimitinfo.cpp": {
       "local": [
-        "src/platform/memory/qtmemorylimitinfo.cpp",
         "src/platform/memory/qtmemorylimitinfo.h"
       ],
       "symbols": [
@@ -4331,8 +4330,7 @@
     "src/localization/LangUtils.h": "CPP/7zip/UI/FileManager/LangUtils.h",
     "src/dialogs/listview/ListViewDialog.cpp": "CPP/7zip/UI/FileManager/ListViewDialog.cpp",
     "src/dialogs/listview/ListViewDialog.h": "CPP/7zip/UI/FileManager/ListViewDialog.h",
-    "src/dialogs/mem/MemDialog.cpp": "CPP/7zip/UI/FileManager/MemDialog.cpp",
-    "src/dialogs/mem/MemDialog.h": "CPP/7zip/UI/FileManager/MemDialog.h",
+    "src/platform/memory/qtmemorylimitinfo.cpp": "CPP/7zip/UI/FileManager/MemDialog.cpp",
     "src/settings/MenuPage.cpp": "CPP/7zip/UI/FileManager/MenuPage.cpp",
     "src/settings/MenuPage.h": "CPP/7zip/UI/FileManager/MenuPage.h",
     "src/dialogs/messages/MessagesDialog.cpp": "CPP/7zip/UI/FileManager/MessagesDialog.cpp",

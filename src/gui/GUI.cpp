@@ -184,9 +184,7 @@ static int Main2(const QtGUIServiceFactory &factory, const QtGUICommandSource &c
         eo.StdOutMode = options.StdOutMode;
         eo.YesToAll = options.YesToAll;
         ecs->YesToAll = options.YesToAll;
-        ecs->DisableUserQuestions = options.YesToAll;
         eo.TestMode = options.Command.IsTestCommand();
-        ecs->TestMode = eo.TestMode;
 
 #ifndef Z7_SFX
         eo.Properties = options.Properties;

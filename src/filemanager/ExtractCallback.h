@@ -87,7 +87,6 @@ class CExtractCallbackImp Z7_final
 
   public:
     QString SettingsPath;
-    bool DisableUserQuestions = false;
     bool MultiArcMode;
     bool ProcessAltStreams;
     bool StreamMode; // set to true, if you want the callee to call GetStream7()
@@ -110,13 +109,10 @@ class CExtractCallbackImp Z7_final
     bool _curSize_Defined;
     bool NeedAddFile;
 
-    bool _remember;
-    bool _skipArc;
 #endif
 
   public:
     bool YesToAll;
-    bool TestMode;
 
     UInt32 NumArchiveErrors;
     bool SomeItemsSkipped = false;

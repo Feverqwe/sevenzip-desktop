@@ -1,7 +1,6 @@
 #include "dialogs/combo/ComboDialog.h"
 #include "dialogs/copy/CopyDialog.h"
 #include "dialogs/extract/alias.h"
-#include "dialogs/mem/MemDialog.h"
 #include "dialogs/overwrite/OverwriteDialog.h"
 #include "dialogs/password/PasswordDialog.h"
 #include "settings/RegistryUtils.h"
@@ -51,7 +50,7 @@ class ContextDialogTests final : public QObject {
     }
     void contextualTaskBlocksItsOwner_data() {
         QTest::addColumn<QString>("kind");
-        for (const char *kind : {"name", "copy", "password", "memory", "overwrite", "extract"})
+        for (const char *kind : {"name", "copy", "password", "overwrite", "extract"})
             QTest::newRow(kind) << QString(kind);
     }
     void contextualTaskBlocksItsOwner() {
@@ -83,10 +82,6 @@ class ContextDialogTests final : public QObject {
             auto prompt = std::make_unique<CPasswordDialog>(&owner);
             prompt->OnInit();
             dialog = std::move(prompt);
-        } else if (kind == "memory") {
-            auto prompt = std::make_unique<CMemDialog>(&owner);
-            prompt->OnInit();
-            dialog = std::move(prompt);
         } else if (kind == "overwrite") {
             auto prompt = std::make_unique<COverwriteDialog>(&owner);
             prompt->OnInit();
@@ -115,8 +110,7 @@ class ContextDialogTests final : public QObject {
             QVERIFY(UiInspection::writeReport(*dialog, "context-task-" + kind));
             observed = true;
         });
-        const int cancelled =
-            kind == "memory" || kind == "overwrite" ? IDCANCEL : int(QDialog::Rejected);
+        const int cancelled = kind == "overwrite" ? IDCANCEL : int(QDialog::Rejected);
         QCOMPARE(dialog->exec(), cancelled);
         QVERIFY(observed);
         QVERIFY(WindowActivation::waitForActive(owner));

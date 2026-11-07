@@ -5,21 +5,16 @@
 #include "archive/resources/qtarchivefileresource.h"
 #include "archive/resources/qtarchivefoldermanager.h"
 #include "archive/resources/qtarchiveproperties.h"
-#include "dialogs/mem/MemDialog.h"
 #include "filemanager/ExtractCallback.h"
 #include "filemanager/providers/FileFolderPluginOpen.h"
 #include "filemanager/providers/qtlocationfolder.h"
 #include "formats/rar/support/rar_memory_fixture.h"
 #include "gui/ExtractGUI.h"
-#include "ui/support/layout_inspection.h"
+#include "ui/formatting/qtregionalformat.h"
 #include <QApplication>
-#include <QCheckBox>
-#include <QDialogButtonBox>
 #include <QFile>
 #include <QMessageBox>
 #include <QPushButton>
-#include <QRadioButton>
-#include <QScopeGuard>
 #include <QStandardPaths>
 #include <QTemporaryDir>
 #include <QtTest>
@@ -105,9 +100,8 @@ class CRarExtractWorker final : public CProgressThreadVirt {
         Callback = new CObservedExtractCallback;
         owner_ = Callback;
         Callback->Source->ProgressDialog = this;
-        Callback->Source->TestMode = test;
         Callback->Source->Init();
-        DisableUserQuestions = true; // The original callback still owns memory decisions.
+        DisableUserQuestions = true;
     }
 };
 QByteArray read(const QString &path) {
@@ -140,22 +134,22 @@ class NativeRarMemoryTests final : public QObject {
         QTest::addColumn<unsigned>("algorithm");
         QTest::addColumn<bool>("selected");
         QTest::addColumn<bool>("test");
-        QTest::addColumn<QString>("decision");
+        QTest::addColumn<bool>("raiseLimit");
         QTest::addColumn<bool>("corrupt");
         for (unsigned algorithm : {0u, 1u})
             for (bool selected : {false, true})
                 for (bool test : {false, true})
-                    for (const QString &decision : {"allow", "skip", "cancel"})
+                    for (bool raiseLimit : {false, true})
                         QTest::newRow(qPrintable(QString("%1-%2-%3-%4")
                                                      .arg(algorithm)
                                                      .arg(selected)
                                                      .arg(test)
-                                                     .arg(decision)))
-                            << algorithm << selected << test << decision << false;
+                                                     .arg(raiseLimit)))
+                            << algorithm << selected << test << raiseLimit << false;
         for (unsigned algorithm : {0u, 1u})
             for (bool test : {false, true})
                 QTest::newRow(qPrintable(QString("crc-error-%1-%2").arg(algorithm).arg(test)))
-                    << algorithm << false << test << QString("allow") << true;
+                    << algorithm << false << test << true << true;
     }
     void sourceCompressedDecoderMatchesIndependentEngine() {
         QTemporaryDir fixture;
@@ -234,17 +228,7 @@ class NativeRarMemoryTests final : public QObject {
         QVERIFY(!QFileInfo::exists(refusedOutput + "/test.bin"));
         QCOMPARE(read(archive), original);
     }
-    void batchRememberAndPersistence_data() {
-        QTest::addColumn<QString>("decision");
-        QTest::addColumn<bool>("save");
-        QTest::newRow("remember-allow") << QString("allow") << false;
-        QTest::newRow("remember-skip") << QString("skip") << false;
-        QTest::newRow("save-limit") << QString("allow") << true;
-        QTest::newRow("cancel-batch") << QString("cancel") << false;
-    }
-    void batchRememberAndPersistence() {
-        QFETCH(QString, decision);
-        QFETCH(bool, save);
+    void batchCanRetryAfterChangingSettings() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         ArchiveBackend backend(nullptr, engine_);
@@ -260,22 +244,9 @@ class NativeRarMemoryTests final : public QObject {
             fullPaths.Add(paths.Back());
         }
         const QString settings = fixture.filePath("settings.ini");
-        unsigned prompts = 0;
         QTimer responder;
         connect(&responder, &QTimer::timeout, this, [&] {
-            auto *dialog = dynamic_cast<CMemDialog *>(QApplication::activeModalWidget());
-            if (dialog) {
-                ++prompts;
-                if (decision == "cancel") {
-                    dialog->reject();
-                    return;
-                }
-                dialog->findChild<QRadioButton *>(decision == "allow" ? "memAllow" : "memSkip")
-                    ->click();
-                dialog->findChild<QCheckBox *>("memRemember")->setChecked(!save);
-                dialog->findChild<QCheckBox *>("memSaveLimit")->setChecked(save);
-                dialog->OnContinue();
-            } else if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget()))
+            if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget()))
                 box->accept();
             else if (auto *progress =
                          dynamic_cast<CProgressDialog *>(QApplication::activeModalWidget())) {
@@ -310,28 +281,22 @@ class NativeRarMemoryTests final : public QObject {
                               false, displayed, callback, &open, &open);
         };
         const QString output = fixture.filePath("output");
-        QCOMPARE(run(output), decision == "cancel" ? E_ABORT : S_OK);
-        QCOMPARE(prompts, 1u);
-        if (decision == "allow")
-            QCOMPARE(read(output + "/" + RarMemoryFixture::name()), RarMemoryFixture::payload());
-        else
-            QVERIFY(!QFileInfo::exists(output + "/" + RarMemoryFixture::name()));
+        QVERIFY(run(output) != E_ABORT);
+        QVERIFY(!QFileInfo::exists(output + "/" + RarMemoryFixture::name()));
+        QCOMPARE(NExtract::Read_LimitGB(settings), UInt32(-1));
+        NExtract::Save_LimitGB(settings, 1);
+        QCOMPARE(run(fixture.filePath("retried-output")), S_OK);
+        QCOMPARE(read(fixture.filePath("retried-output/") + RarMemoryFixture::name()),
+                 RarMemoryFixture::payload());
         for (unsigned algorithm : {0u, 1u})
             QCOMPARE(read(fixture.filePath(QString("batch-%1.rar").arg(algorithm))),
                      RarMemoryFixture::archive(algorithm));
-        if (save) {
-            QCOMPARE(NExtract::Read_LimitGB(settings), UInt32(1));
-            QCOMPARE(run(fixture.filePath("persisted-output")), S_OK);
-            QCOMPARE(prompts, 1u);
-            QCOMPARE(read(fixture.filePath("persisted-output/") + RarMemoryFixture::name()),
-                     RarMemoryFixture::payload());
-        }
     }
     void actualHandlerCallsSourceGui() {
         QFETCH(unsigned, algorithm);
         QFETCH(bool, selected);
         QFETCH(bool, test);
-        QFETCH(QString, decision);
+        QFETCH(bool, raiseLimit);
         QFETCH(bool, corrupt);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
@@ -376,59 +341,26 @@ class NativeRarMemoryTests final : public QObject {
         CRarExtractWorker worker(archiveFolder, archive, output, selected, test);
         worker.Callback->Source->SettingsPath = fixture.filePath("settings.ini");
         auto transport = resource->CreateProgressTransport(worker, true);
-        bool shown = false;
-        QTimer responder;
-        connect(&responder, &QTimer::timeout, this, [&] {
-            auto *dialog = dynamic_cast<CMemDialog *>(QApplication::activeModalWidget());
-            if (!dialog || shown)
-                return;
-            shown = true;
-            const auto rescue = qScopeGuard([&] {
-                if (dialog->isVisible())
-                    dialog->reject();
-            });
-            QCOMPARE(dialog->Required_GB, UInt32(1));
-            QCOMPARE(dialog->Limit_GB, UInt32(1));
-            QCOMPARE(dialog->TestMode, test);
-            if (algorithm == 0 && !selected && decision == "allow" && !corrupt) {
-                for (int width : {700, 560}) {
-                    dialog->resize(width, 460);
-                    QApplication::processEvents();
-                    for (const char *name : {"memMessage", "memAction", "memAllow", "memSkip",
-                                             "memRemember", "memButtons"}) {
-                        auto *control = dialog->findChild<QWidget *>(name);
-                        QVERIFY(control);
-                        if (control->isVisible())
-                            QVERIFY2(UiInspection::fullyVisible(*control, *dialog), name);
-                    }
-                    // Handler asks once for the archive, without an item index.
-                    QVERIFY(!dialog->ShowRemember);
-                    QVERIFY(UiInspection::writeReport(
-                        *dialog, QString("rar-memory-%1-%2").arg(test).arg(width)));
-                }
-            }
-            if (decision == "cancel")
-                dialog->reject();
-            else {
-                dialog->findChild<QRadioButton *>(decision == "allow" ? "memAllow" : "memSkip")
-                    ->click();
-                dialog->OnContinue();
-            }
-        });
-        responder.start(2);
+        if (raiseLimit)
+            NExtract::Save_LimitGB(worker.Callback->Source->SettingsPath, 1);
         QCOMPARE(worker.Create(L"Source RAR memory", nullptr), S_OK);
-        QVERIFY(shown);
         QCOMPARE(worker.Callback->Requests, 1u);
         QCOMPARE(worker.Callback->Required, UInt64(2) << 20);
         QCOMPARE(worker.Callback->Allowed, UInt64(1) << 20);
         QVERIFY(worker.Callback->Flags & NRequestMemoryUseFlags::k_MLimit_Exceeded);
         QVERIFY(worker.Callback->Flags & NRequestMemoryUseFlags::k_AllowedSize_WasForced);
-        QCOMPARE(worker.Result, decision == "allow"  ? S_OK
-                                : decision == "skip" ? E_OUTOFMEMORY
-                                                     : E_ABORT);
+        QCOMPARE(worker.Result, raiseLimit ? S_OK : E_OUTOFMEMORY);
         QCOMPARE(read(archive), original);
-        QCOMPARE(worker.Callback->Source->IsOK(), decision != "skip" && !corrupt);
-        if (decision == "allow" && !test) {
+        QCOMPARE(worker.Callback->Source->IsOK(), raiseLimit && !corrupt);
+        if (!raiseLimit) {
+            QStringList details;
+            FOR_VECTOR(i, worker.Sync.Messages)
+            details.append(QString::fromWCharArray(worker.Sync.Messages[i]));
+            const QString report = details.join('\n');
+            QVERIFY(report.contains(QtRegionalFormat::exactBytes(UInt64(2) << 20)));
+            QVERIFY(report.contains(QtRegionalFormat::exactBytes(UInt64(1) << 20)));
+        }
+        if (raiseLimit && !test) {
             if (!corrupt)
                 QCOMPARE(read(output + "/" + RarMemoryFixture::name()),
                          RarMemoryFixture::payload());

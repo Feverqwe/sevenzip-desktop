@@ -3,7 +3,6 @@
 #include "dialogs/copy/CopyDialog.h"
 #include "dialogs/extract/ExtractDialog.h"
 #include "dialogs/listview/ListViewDialog.h"
-#include "dialogs/mem/MemDialog.h"
 #include "dialogs/messages/MessagesDialog.h"
 #include "dialogs/overwrite/OverwriteDialog.h"
 #include "dialogs/password/PasswordDialog.h"
@@ -23,7 +22,6 @@
 #include <QLineEdit>
 #include <QMessageBox>
 #include <QPushButton>
-#include <QRadioButton>
 #include <QScopeGuard>
 #include <QScrollArea>
 #include <QStyle>
@@ -272,7 +270,7 @@ class LanguageDialogTests final : public QObject {
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
         QCOMPARE(ToQString(dialog.Value), draft);
     }
-    void overwriteMemoryPreserveDecisions() {
+    void overwritePreservesDecisions() {
         COverwriteDialog overwrite;
         overwrite.DefaultButton_is_NO = true;
         overwrite.OldFileInfo.Path = L"/folder 密碼/old.bin";
@@ -280,41 +278,18 @@ class LanguageDialogTests final : public QObject {
         overwrite.NewFileInfo.Path = L"/folder 密碼/new.bin";
         overwrite.OnInit();
         const QString oldInfo = overwrite.findChild<QLabel *>("overwriteOldFile")->text();
-        CMemDialog memory;
-        memory.Required_GB = 0;
-        memory.FilePath = L"File: %1 файл 空 with spaces.bin";
-        memory.OnInit();
-        const QString sourceMessage = memory.findChild<QLabel *>("memMessage")->text();
-        const QString sourceUnits = memory.findChild<QLabel *>("memGB")->text();
-        memory.findChild<QCheckBox *>("memSaveLimit")->click();
-        auto *limit = memory.findChild<QLineEdit *>("memLimit");
-        limit->setText(" 007 pending ");
-        memory.findChild<QRadioButton *>("memSkip")->click();
-        memory.findChild<QCheckBox *>("memRemember")->click();
         language("ru");
         QCOMPARE(overwrite.windowTitle(), QStringLiteral("Файл уже существует"));
         QVERIFY(overwrite.findChild<QPushButton *>("overwriteNo")->isDefault());
         QVERIFY(overwrite.findChild<QLabel *>("overwriteOldFile")->text() != oldInfo);
         QVERIFY(overwrite.findChild<QLabel *>("overwriteOldFile")->text().contains("old.bin"));
-        QCOMPARE(limit->text(), QString(" 007 pending "));
-        QVERIFY(limit->isEnabled());
-        QVERIFY(memory.findChild<QRadioButton *>("memSkip")->isChecked());
-        QVERIFY(memory.findChild<QCheckBox *>("memRemember")->isChecked());
-        QVERIFY(memory.findChild<QLabel *>("memMessage")
-                    ->text()
-                    .contains(QString::fromUtf8("Файл: File: %1 файл 空 with spaces.bin")));
-        QVERIFY(memory.findChild<QLabel *>("memGB")->text().startsWith(QString::fromUtf8("ГБ")));
         for (int width : {700, 560}) {
             inspect(overwrite, "language-overwrite-ru", width, 440);
-            inspect(memory, "language-memory-ru", width, 460);
         }
         language("-");
         QCOMPARE(overwrite.findChild<QLabel *>("overwriteOldFile")->text(), oldInfo);
-        QCOMPARE(memory.findChild<QLabel *>("memMessage")->text(), sourceMessage);
-        QCOMPARE(memory.findChild<QLabel *>("memGB")->text(), sourceUnits);
         for (int width : {700, 560}) {
             inspect(overwrite, "language-overwrite-en", width, 440);
-            inspect(memory, "language-memory-en", width, 460);
         }
     }
     void modalMessagesPreserveRowsAcrossLanguageChanges() {
