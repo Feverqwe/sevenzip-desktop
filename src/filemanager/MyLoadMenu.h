@@ -23,11 +23,10 @@ struct CFileMenu {
     bool isHashFolder;
     bool isFsFolder;
     bool allAreFiles;
-    bool isAltStreamsSupported;
     unsigned numItems;
 
     CFileMenu()
         : programMenu(false), readOnly(false), isHashFolder(false), isFsFolder(false),
-          allAreFiles(false), isAltStreamsSupported(true), numItems(0) {}
+          allAreFiles(false), numItems(0) {}
     void Load(IQtFileMenuServices &menu, unsigned startPos);
 };

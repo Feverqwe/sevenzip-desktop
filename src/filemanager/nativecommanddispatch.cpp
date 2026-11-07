@@ -112,9 +112,6 @@ bool ExecuteFileCommand(unsigned id, IQtFileManagerCommandServices &g_App) {
     case IDM_LINK:
         g_App.Link();
         break;
-    case IDM_ALT_STREAMS:
-        g_App.OpenAltStreams();
-        break;
 #endif
     default:
         return false;

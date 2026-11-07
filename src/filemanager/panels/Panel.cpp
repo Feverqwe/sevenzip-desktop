@@ -169,17 +169,6 @@ CPanel::~CPanel() {
     CloseOpenFolders();
 }
 
-bool CPanel::IsFolder_with_FsItems() const {
-    if (IsFsOrPureDrivesFolder())
-        return true;
-#if defined(_WIN32) && !defined(UNDER_CE)
-    FString prefix = us2fs(GetFsPath());
-    return (prefix.Len() == NWindows::NFile::NName::GetNetworkServerPrefixSize(prefix));
-#else
-    return false;
-#endif
-}
-
 int CPanel::FindDir_InOperatedList(const CRecordVector<UInt32> &operatedIndices) const {
     const UInt32 *indices = operatedIndices.ConstData();
     const unsigned numItems = operatedIndices.Size();

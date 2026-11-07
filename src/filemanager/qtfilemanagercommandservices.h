@@ -22,7 +22,6 @@ class IQtFileManagerCommandServices {
     virtual void Comment() = 0;
     virtual void CreateFolder() = 0;
     virtual void Link() = 0;
-    virtual void OpenAltStreams() = 0;
 };
 
 class IQtFileManagerMenuCommandServices : public IQtFileManagerCommandServices {

@@ -488,7 +488,6 @@ class CPanel : public QObject {
     HRESULT OpenAsArc_Name(const UString &relPath, const UString &arcFormat);
     HRESULT OpenAsArc_Index(unsigned index, const wchar_t *type = NULL);
     void OpenFolder(unsigned index);
-    void OpenAltStreams();
     void OpenFolderExternal(unsigned index);
     void OpenItem(unsigned index, bool tryInternal, bool tryExternal, const wchar_t *type = NULL);
     void OpenFocusedItemAsInternal(const wchar_t *type);
@@ -607,7 +606,6 @@ class CPanel : public QObject {
     bool IsFsOrPureDrivesFolder() const {
         return IsFSFolder() || (IsFSDrivesFolder() && !IsDeviceDrivesPrefix());
     }
-    bool IsFolder_with_FsItems() const;
     int FindDir_InOperatedList(const CRecordVector<UInt32> &indices) const;
     void CreateFileMenu(class IQtFileMenuServices &menu, bool programMenu,
                         class IQtPanelPluginMenuServices *plugins = nullptr);

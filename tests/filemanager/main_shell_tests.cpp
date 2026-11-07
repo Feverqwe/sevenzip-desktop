@@ -308,13 +308,6 @@ class MainShellTests final : public QObject {
         MainWindow window(&backend);
         auto *link = window.findChild<QAction *>("linkAction");
         QVERIFY(link && !link->isEnabled());
-        auto *streams = window.findChild<QAction *>("altStreamsAction");
-        QVERIFY(streams);
-#ifdef Q_OS_WIN
-        QVERIFY(streams->isEnabled()); // Source allows opening the current folder's ADS.
-#else
-        QVERIFY(!streams->isEnabled());
-#endif
         QVERIFY(window.findChild<QAction *>("aboutAction")->isEnabled());
         QVERIFY(window.findChild<QAction *>("tempDirAction")->isEnabled());
         QCOMPARE(window.findChild<QAction *>("openInsideAction")->shortcut(),

@@ -118,24 +118,6 @@ void CPanel::CreateFileMenu(IQtFileMenuServices &menu, bool programMenu,
     fm.programMenu = programMenu;
     fm.allAreFiles = (firstDirIndex == -1);
     fm.numItems = operatedIndices.Size();
-    fm.isAltStreamsSupported = false;
-    if (_folderAltStreams) {
-        if (operatedIndices.Size() <= 1) {
-            UInt32 realIndex = (UInt32)(Int32)-1;
-            if (operatedIndices.Size() == 1)
-                realIndex = operatedIndices[0];
-            Int32 val = 0;
-            if (_folderAltStreams->AreAltStreamsSupported(realIndex, &val) == S_OK)
-                fm.isAltStreamsSupported = IntToBool(val);
-        }
-    } else {
-#if defined(_WIN32) && !defined(UNDER_CE)
-        if (fm.numItems == 0)
-            fm.isAltStreamsSupported = IsFSFolder();
-        else
-            fm.isAltStreamsSupported = IsFolder_with_FsItems();
-#endif
-    }
     // Qt stores/renders plugin rows separately from CFileMenu's projection;
     // its zero position is the original menu.GetItemCount() insertion point.
     fm.Load(menu, 0);

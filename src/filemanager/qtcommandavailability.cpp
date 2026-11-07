@@ -203,8 +203,6 @@ bool QtFileManagerCommands::TransportAllows(unsigned id, const TransportCapabili
         return c.comment;
     case IDM_LINK:
         return c.filesystem && c.one;
-    case IDM_ALT_STREAMS:
-        return !c.operated || c.one; // Source OpenAltStreams accepts zero or one item.
     case IDM_CRC32:
     case IDM_CRC64:
     case IDM_XXH64:

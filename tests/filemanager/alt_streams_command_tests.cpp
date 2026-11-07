@@ -36,10 +36,8 @@ class AltStreamsCommandTests final : public QObject, protected MainWindowTestSup
         address->setText(temp.path());
         QTest::keyClick(address, Qt::Key_Return);
         QTRY_VERIFY(filesystemRow(window, name) >= 0);
-        table(window)->selectRow(filesystemRow(window, name));
-        action(window, "altStreamsAction")->trigger();
+        window.openPath(temp.filePath(name) + ':');
         QTRY_COMPARE(table(window)->rowCount(), 1);
-        QVERIFY(table(window)->currentIndex().isValid());
         table(window)->selectRow(0);
         table(window)->setCurrentCell(0, 0);
         for (const QSize size : {QSize(980, 620), QSize(640, 400)}) {
@@ -114,8 +112,7 @@ class AltStreamsCommandTests final : public QObject, protected MainWindowTestSup
         address->setText(temp.path());
         QTest::keyClick(address, Qt::Key_Return);
         QTRY_VERIFY(filesystemRow(window, QFileInfo(basePath).fileName()) >= 0);
-        table(window)->selectRow(filesystemRow(window, QFileInfo(basePath).fileName()));
-        action(window, "altStreamsAction")->trigger();
+        window.openPath(basePath + ':');
         QTRY_COMPARE(table(window)->rowCount(), 1);
         QVERIFY(!action(window, "createFolderAction")->isEnabled());
         table(window)->selectRow(0);
@@ -160,23 +157,14 @@ class AltStreamsCommandTests final : public QObject, protected MainWindowTestSup
         address->setText(temp.path());
         QTest::keyClick(address, Qt::Key_Return);
         QTRY_VERIFY(filesystemRow(window, name) >= 0);
-        table(window)->selectRow(filesystemRow(window, name));
-        auto *streams = action(window, "altStreamsAction");
 #ifdef Q_OS_WIN
-        QTRY_VERIFY(streams->isEnabled());
-        try {
-            streams->trigger();
-        } catch (int code) {
-            QFAIL(qPrintable(QStringLiteral("OpenAltStreams source exception %1").arg(code)));
-        }
+        window.openPath(base.fileName() + ':');
         QTRY_COMPARE(table(window)->rowCount(), 1);
-        QVERIFY(table(window)->currentIndex().isValid());
         QCOMPARE(table(window)->model()->index(0, 0).data().toString(), QStringLiteral("поток δ"));
         QCOMPARE(table(window)->model()->index(0, 0).data(Qt::UserRole + 1).toBool(), false);
         QCOMPARE(table(window)->model()->index(0, 0).data(Qt::UserRole).toString(),
                  address->text() + QStringLiteral("поток δ"));
         QVERIFY(address->text().endsWith(name + ':'));
-        QVERIFY(!streams->isEnabled());
         auto *view = table(window);
         view->selectRow(0);
         view->setCurrentCell(0, 0);
@@ -221,7 +209,6 @@ class AltStreamsCommandTests final : public QObject, protected MainWindowTestSup
         QTRY_VERIFY(filesystemRow(window, name) >= 0);
         QCOMPARE(QDir::fromNativeSeparators(address->text()), temp.path());
 #else
-        QTRY_VERIFY(!streams->isEnabled());
         QCOMPARE(QDir::fromNativeSeparators(address->text()), temp.path());
 #endif
         QFile verify(base.fileName());

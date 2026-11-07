@@ -35,7 +35,7 @@ class AltStreamsArchiveUiTests final : public QObject, protected MainWindowTestS
         version_ = catalog.version();
 #endif
     }
-    void sourceArchiveStreamsCommand_data() {
+    void sourceArchiveStreamsPath_data() {
         QTest::addColumn<QString>("language");
         QTest::addColumn<int>("streamCount");
         QTest::newRow("en") << QStringLiteral("-") << 1;
@@ -86,7 +86,7 @@ class AltStreamsArchiveUiTests final : public QObject, protected MainWindowTestS
         QVERIFY(file.open(QIODevice::ReadOnly));
         QCOMPARE(file.readAll(), QByteArray("tree writer payload"));
     }
-    void sourceArchiveStreamsCommand() {
+    void sourceArchiveStreamsPath() {
         QFETCH(QString, language);
         QFETCH(int, streamCount);
         SaveRegLang(ToUString(language), qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
@@ -135,10 +135,8 @@ class AltStreamsArchiveUiTests final : public QObject, protected MainWindowTestS
         window.show();
         window.openArchive(archive);
         QTRY_VERIFY(nativeRow(window, name) >= 0);
-        auto *streams = action(window, "altStreamsAction");
-        table(window)->selectRow(nativeRow(window, name));
-        QTRY_VERIFY(streams->isEnabled());
-        streams->trigger();
+        window.openPath(archive + '/' + name + ':');
+        QTRY_VERIFY(nativeRow(window, streamName) >= 0);
         for (const QSize size : {QSize(980, 620), QSize(640, 400)}) {
             window.resize(size);
             QApplication::processEvents();
@@ -152,10 +150,10 @@ class AltStreamsArchiveUiTests final : public QObject, protected MainWindowTestS
         }
         QTRY_VERIFY(nativeRow(window, streamName) >= 0);
         QTRY_VERIFY(table(window)->isEnabled());
-        QVERIFY(table(window)->currentIndex().isValid());
         QCOMPARE(table(window)->model()->index(nativeRow(window, streamName), 0).data().toString(),
                  streamName);
         QVERIFY(window.findChild<QLineEdit *>("archivePath")->text().contains(archive));
+        table(window)->setCurrentCell(nativeRow(window, streamName), 0);
         table(window)->selectRow(nativeRow(window, streamName));
         const QString output = temp.filePath("copied streams");
         QVERIFY(QDir().mkpath(output));

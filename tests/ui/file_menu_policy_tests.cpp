@@ -98,9 +98,9 @@ class FileMenuPolicyTests : public QObject {
                  QList<unsigned>({IDM_OPEN, IDM_COPY_TO, IDM_FILE_EDIT, IDM_CREATE_FOLDER}));
     }
     void removedCommandsStayOutOfFileMenu() {
-        auto menu =
-            commands({IDM_DIFF, IDM_VER_EDIT, IDM_VER_COMMIT, IDM_VER_REVERT, IDM_VER_DIFF,
-                      IDM_BENCHMARK2, IDM_SPLIT, IDM_COMBINE, IDM_CREATE_FILE, IDM_PROPERTIES});
+        auto menu = commands({IDM_DIFF, IDM_VER_EDIT, IDM_VER_COMMIT, IDM_VER_REVERT, IDM_VER_DIFF,
+                              IDM_BENCHMARK2, IDM_SPLIT, IDM_COMBINE, IDM_CREATE_FILE,
+                              IDM_ALT_STREAMS, IDM_PROPERTIES});
         CFileMenu policy;
         policy.isFsFolder = policy.allAreFiles = true;
         policy.numItems = 1;

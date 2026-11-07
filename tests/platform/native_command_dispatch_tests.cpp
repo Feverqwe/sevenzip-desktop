@@ -40,7 +40,6 @@ class Commands final : public IQtFileManagerCommandServices {
     RECORD_COMMAND(Comment)
     RECORD_COMMAND(CreateFolder)
     RECORD_COMMAND(Link)
-    RECORD_COMMAND(OpenAltStreams)
 #undef RECORD_COMMAND
 };
 } // namespace

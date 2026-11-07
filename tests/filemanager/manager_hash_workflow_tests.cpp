@@ -301,10 +301,9 @@ class ManagerHashWorkflowTests final : public QObject, protected MainWindowTestS
         window.show();
         auto *table = openPanel(window, 0, input.path());
         QTRY_COMPARE(table->rowCount(), 1);
-        table->selectRow(0);
-        table->setFocus();
-        action(window, "altStreamsAction")->trigger();
+        window.openPath(base + ':');
         QTRY_COMPARE(table->rowCount(), 1);
+        QTRY_COMPARE(table->model()->index(0, 0).data().toString(), streamName);
         table->setCurrentCell(0, 0);
         table->selectRow(0);
         auto *hash = action(window, "hashSHA256Action");

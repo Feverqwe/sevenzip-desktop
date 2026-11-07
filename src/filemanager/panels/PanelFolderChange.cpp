@@ -20,43 +20,6 @@
 
 static const UInt32 kParentIndex = (UInt32)-1;
 
-void CPanel::OpenAltStreams() {
-    CRecordVector<UInt32> indices;
-    Get_ItemIndices_Operated(indices);
-    Int32 realIndex = -1;
-    if (indices.Size() > 1)
-        return;
-    if (indices.Size() == 1)
-        realIndex = (Int32)indices[0];
-
-    if (_folderAltStreams) {
-        CMyComPtr<IFolderFolder> newFolder;
-        _folderAltStreams->BindToAltStreams((UInt32)realIndex, &newFolder);
-        if (newFolder) {
-            CDisableTimerProcessing disableTimerProcessing(*this);
-            CDisableNotify disableNotify(*this);
-            SetNewFolder(newFolder);
-            RefreshListCtrl();
-            return;
-        }
-        return;
-    }
-
-#if defined(_WIN32) && !defined(UNDER_CE)
-    UString path;
-    if (realIndex >= 0)
-        path = GetItemFullPath((UInt32)realIndex);
-    else {
-        path = GetFsPath();
-        if (!NWindows::NFile::NName::IsDriveRootPath_SuperAllowed(us2fs(path)))
-            if (!path.IsEmpty() && IS_PATH_SEPAR(path.Back()))
-                path.DeleteBack();
-    }
-    path.Add_Colon();
-    BindToPathAndRefresh(path);
-#endif
-}
-
 void CPanel::OpenFolder(unsigned index) {
     if (index == kParentIndex) {
         OpenParentFolder();

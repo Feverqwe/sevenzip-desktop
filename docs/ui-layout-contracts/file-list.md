@@ -170,9 +170,10 @@ structure and usability on the tested Qt platform, not pixel-level Windows parit
 
 ### Alternate streams namespace (P2-06)
 
-Reference: pinned FileManager.rc IDM_ALT_STREAMS and
-PanelFolderChange.cpp::OpenAltStreams, AltStreamsFolder properties and original
-Agent CProxyArc2 folder/parent binding. Keep the existing main shell and file
+The File menu has no separate stream browser command. Explicit stream paths
+remain usable for supported file operations. The source reference for path
+binding is the original AltStreamsFolder and Agent CProxyArc2 folder/parent
+binding. Keep the existing main shell and file
 list order: address, Name/Size/Packed/etc. columns and per-panel status. A colon
 folder prefix names an ADS namespace, not a filesystem subdirectory. Stream
 rows are files; no synthetic Unix xattr rows. Parent returns to the original

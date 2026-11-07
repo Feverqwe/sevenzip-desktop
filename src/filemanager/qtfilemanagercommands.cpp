@@ -71,7 +71,6 @@ void QtFileManagerCommands::AttachFileActions() {
     Bind(w.properties_, IDM_PROPERTIES);
     Bind(w.findChild<QAction *>("commentAction"), IDM_COMMENT);
     Bind(w.findChild<QAction *>("linkAction"), IDM_LINK);
-    Bind(w.findChild<QAction *>("altStreamsAction"), IDM_ALT_STREAMS);
     Bind(w.createFolder_, IDM_CREATE_FOLDER);
     Bind(w.exitAction_, 8);
     for (auto it = w.hashActions_.cbegin(); it != w.hashActions_.cend(); ++it)

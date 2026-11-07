@@ -65,6 +65,8 @@ class AgentStreamCopyUiTests final : public QObject, protected MainWindowTestSup
         QVERIFY(QTest::qWaitForWindowActive(&window));
         source.setFocus();
         QTRY_VERIFY(source.hasFocus());
+        QTRY_VERIFY2(action(window, move ? "moveAction" : "copyAction")->isEnabled(),
+                     qPrintable(tag));
         bool seen = false;
         QStringList errors;
         QTimer driver;
@@ -127,7 +129,7 @@ class AgentStreamCopyUiTests final : public QObject, protected MainWindowTestSup
         driver.start(1);
         QTest::keyClick(&source, move ? Qt::Key_F6 : Qt::Key_F5);
         driver.stop();
-        QVERIFY(seen);
+        QVERIFY2(seen, qPrintable(tag + QStringLiteral(": ") + errors.join(QLatin1Char('\n'))));
         QVERIFY2(errors.isEmpty(), qPrintable(errors.join('\n')));
         QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
     }
@@ -207,10 +209,7 @@ class AgentStreamCopyUiTests final : public QObject, protected MainWindowTestSup
         const QString oldStream = QStringLiteral("поток δ");
         QTRY_VERIFY(row(*target, owner) >= 0);
         QTRY_VERIFY(target->isEnabled());
-        target->selectRow(row(*target, owner));
-        target->setCurrentCell(row(*target, owner), 0);
-        QTRY_VERIFY(action(window, "altStreamsAction")->isEnabled());
-        action(window, "altStreamsAction")->trigger();
+        QCOMPARE(openPanel(window, targetPane, archive + '/' + owner + ':'), target);
         QTRY_VERIFY(row(*target, oldStream) >= 0);
         QTRY_VERIFY(target->isEnabled());
         CMyComPtr<IFolderFolder> provider = target->sourcePanel->GetFolder();

@@ -190,14 +190,6 @@ void QtFileManagerCommands::Link() {
     w.app_.Link();
     w.refreshActions();
 }
-void QtFileManagerCommands::OpenAltStreams() {
-    auto &w = window_;
-    QtAppOperationState::CallScope call(w.app_.QtOperations());
-    const unsigned index = w.app_.GetFocusedPanelIndex();
-    w.app_.Panels[index].OpenAltStreams();
-    w.app_.QtOperations().ContinueScanAfterSourceCall(index);
-    w.refreshActions();
-}
 void QtFileManagerCommands::SwitchOnOffOnePanel() { window_.togglePanels(); }
 void QtFileManagerCommands::AboutDialog() {
     CAboutDialog dialog(&window_);
