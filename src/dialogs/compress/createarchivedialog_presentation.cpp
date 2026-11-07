@@ -6,8 +6,8 @@
 #include "localization/qtlangcontrols.h"
 #include "settings/ViewSettings.h"
 #include "ui/diagnostics/qtdiagnostictext.h"
+#include "ui/dialogs/qtdialoglayout.h"
 #include <QEvent>
-#include <QGridLayout>
 #include <QProxyStyle>
 #include <QScrollArea>
 #include <QScrollBar>
@@ -67,7 +67,8 @@ QScrollArea *CreateArchiveDialog::createOptionsScrollArea(QWidget *parent) {
 QPushButton *CreateArchiveDialog::createArchiveDestination(QVBoxLayout *windowLayout) {
     auto *archiveField = new QWidget(this);
     archiveField->setObjectName("archiveNameField");
-    auto *fieldLayout = new QGridLayout(archiveField);
+    auto *fieldLayout = QtCreateDialogForm();
+    archiveField->setLayout(fieldLayout);
     fieldLayout->setContentsMargins(0, 0, windowLayout->contentsMargins().left(), 0);
     archiveFolder_ = new QLineEdit(archiveField);
     archiveFolder_->setText(QDir::toNativeSeparators(archiveNameState_.DirPrefix));
@@ -102,13 +103,10 @@ QPushButton *CreateArchiveDialog::createArchiveDestination(QVBoxLayout *windowLa
     QtBindLocalText(browse, "ArchiveRedesign", QT_TRANSLATE_NOOP("ArchiveRedesign", "Browse…"));
     folderLayout->addWidget(browse);
     archiveRow->setFocusProxy(archivePath_);
-    fieldLayout->addWidget(archiveRow, 0, 1);
-    fieldLayout->addWidget(folderRow, 1, 1);
     auto *archiveLabel = new QLabel("&Archive:", this);
     archiveLabel->setObjectName("archiveLabel");
     archiveLabel->setBuddy(archivePath_);
     archiveLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-    fieldLayout->addWidget(archiveLabel, 0, 0);
     auto *folderLabel = new QLabel(archiveField);
     folderLabel->setObjectName("archiveFolderLabel");
     folderLabel->setBuddy(archiveFolder_);
@@ -116,10 +114,8 @@ QPushButton *CreateArchiveDialog::createArchiveDestination(QVBoxLayout *windowLa
                     QT_TRANSLATE_NOOP("ArchiveRedesign", "Destination folder"));
     QtBindLocalText(archiveFolder_, "ArchiveRedesign",
                     QT_TRANSLATE_NOOP("ArchiveRedesign", "Destination folder"), true);
-    fieldLayout->addWidget(folderLabel, 1, 0);
-    fieldLayout->setHorizontalSpacing(12);
-    fieldLayout->setVerticalSpacing(8);
-    fieldLayout->setColumnStretch(1, 1);
+    fieldLayout->addRow(archiveLabel, archiveRow);
+    fieldLayout->addRow(folderLabel, folderRow);
     windowLayout->addWidget(archiveField);
     QWidget::setTabOrder(archivePath_, archiveFolder_);
     QWidget::setTabOrder(archiveFolder_, browse);
@@ -137,6 +133,8 @@ void CreateArchiveDialog::stabilizeColumnWidths() {
         label->setWordWrap(true);
     const int labelWidth = fontMetrics().averageCharWidth() * 24;
     for (auto *form : findChildren<QFormLayout *>()) {
+        if (form->parentWidget()->objectName() == "archiveNameField")
+            continue;
         if (form->rowWrapPolicy() == QFormLayout::WrapAllRows)
             continue;
         form->setLabelAlignment(Qt::AlignLeading | Qt::AlignVCenter);
@@ -147,8 +145,6 @@ void CreateArchiveDialog::stabilizeColumnWidths() {
                 if (auto *label = qobject_cast<QLabel *>(item->widget()))
                     label->setFixedWidth(labelWidth);
     }
-    findChild<QLabel *>("archiveLabel")->setFixedWidth(labelWidth);
-    findChild<QLabel *>("archiveFolderLabel")->setFixedWidth(labelWidth);
 }
 
 void CreateArchiveDialog::createArchiveForm(QVBoxLayout *layout, QVBoxLayout *windowLayout) {
