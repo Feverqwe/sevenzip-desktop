@@ -35,11 +35,16 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
 
     void iconViewsKeepTheirScrollAcrossChanges_data() {
         QTest::addColumn<int>("count");
+        QTest::addColumn<bool>("manual");
         for (int count : {160, 320})
-            QTest::newRow(qPrintable(QString("items-%1").arg(count))) << count;
+            for (bool manual : {false, true})
+                QTest::newRow(qPrintable(
+                    QString("items-%1-%2").arg(count).arg(manual ? "manual" : "automatic")))
+                    << count << manual;
     }
     void iconViewsKeepTheirScrollAcrossChanges() {
         QFETCH(int, count);
+        QFETCH(bool, manual);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         CurrentDirectoryGuard directoryGuard;
@@ -51,6 +56,8 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         window.show();
         auto *files = table(window);
         QTRY_VERIFY(files->isEnabled() && files->rowCount() == count);
+        if (manual)
+            files->sourcePanel->Set_AutoRefresh_Mode(false);
         action(window, "viewMode0Action")->trigger();
         auto *view = qobject_cast<QAbstractItemView *>(
             window.findChild<QStackedWidget *>("fileViewStack")->currentWidget());
@@ -70,6 +77,8 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         QVERIFY(scroll->value() > 0);
         const QByteArray changed("changed contents");
         QVERIFY(writeFile(fixture.filePath(selected), changed));
+        if (manual)
+            action(window, "refreshAction")->trigger();
         QTRY_VERIFY_WITH_TIMEOUT(view->isEnabled() && files->rowCount() == count, 5000);
         QTRY_COMPARE_WITH_TIMEOUT(
             files->model()->index(files->currentRow(), 2).data(Qt::UserRole + 2).toLongLong(),
@@ -95,6 +104,8 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         QVERIFY(columns < count);
         for (int column = 0; column < columns; ++column)
             QVERIFY(writeFile(fixture.filePath(QString("000-new-%1.txt").arg(column))));
+        if (manual)
+            action(window, "refreshAction")->trigger();
         QTRY_VERIFY_WITH_TIMEOUT(view->isEnabled() && files->rowCount() == count + columns, 5000);
         const QModelIndex restored = view->model()->index(filesystemRow(window, anchorName), 0);
         QVERIFY(restored.isValid());
