@@ -1,5 +1,19 @@
 # Location history and address presentation — 2026-10-31
 
+## Numeric bookmarks for system places across languages — 2026-11-07
+
+Reviewed the original PanelFolderChange.cpp bookmark save/open bodies,
+MyLoadMenu.cpp bookmark captions and RootFolder.cpp name binding. The Qt
+numbered bookmark store retains the native path value and records a system
+place identity when available. System bookmarks resolve through the shared
+native places model so the destination and menu caption follow the active
+language. Path-only settings retain native binding and fallback behavior.
+
+Linux checks covered saving in one window, opening in another after changing
+language, reloading persisted settings and replacing the slot with a regular
+directory. Existing bookmarks, root commands, workspace places and recent
+places also passed.
+
 ## Diagnostics for a rejected address — 2026-11-07
 
 Reviewed the recorded address Enter, native BindToPath and RefreshListCtrl

@@ -1,4 +1,7 @@
 #include "filemanager/support/window_state_support.h"
+#include "localization/LangUtils.h"
+#include "localization/qtlangcontrols.h"
+#include <QScopeGuard>
 
 class FastFoldersWindowTests final : public QObject, protected MainWindowTestSupport {
     Q_OBJECT
@@ -13,6 +16,65 @@ class FastFoldersWindowTests final : public QObject, protected MainWindowTestSup
     }
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
+    void nativeBookmarkReopensAfterChangingLanguage() {
+        const QByteArray settings = qgetenv("SEVENZIP_SETTINGS_PATH");
+        const QString settingsPath = QString::fromUtf8(settings);
+        SaveRegLang(UString("-"), settingsPath);
+        ReloadLang(settingsPath);
+        const auto restore = qScopeGuard([&] {
+            qputenv("SEVENZIP_SETTINGS_PATH", settings);
+            SaveRegLang(UString("-"), settingsPath);
+            ReloadLang(settingsPath);
+        });
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString directory = fixture.filePath("ordinary папка");
+        folder(directory);
+
+        ControlledBackend firstBackend, secondBackend;
+        MainWindow first(&firstBackend), second(&secondBackend);
+        first.show();
+        second.show();
+        first.openPath(directory);
+        second.openPath(directory);
+        action(first, "openRootAction")->trigger();
+        QVERIFY(table(first)->sourcePanel->IsFSDrivesFolder());
+        action(first, "saveBookmark4Action")->trigger();
+        const QString originalLabel = action(second, "openBookmark4Action")->toolTip();
+        QCOMPARE(originalLabel, ToQString(table(first)->sourcePanel->GetCurrentFolderPrefix()));
+
+        SaveRegLang(UString("ru"), settingsPath);
+        ReloadLang(settingsPath);
+        QtNotifyLanguageChanged();
+        action(second, "openBookmark4Action")->trigger();
+        QVERIFY(table(second)->sourcePanel->IsFSDrivesFolder());
+        const QString translatedLabel =
+            ToQString(table(second)->sourcePanel->GetCurrentFolderPrefix());
+        QCOMPARE(action(second, "openBookmark4Action")->toolTip(), translatedLabel);
+#ifndef Q_OS_WIN
+        QVERIFY(translatedLabel != originalLabel);
+#endif
+
+        first.close();
+        second.close();
+        const QString restoredSettings = fixture.filePath("restored.ini");
+        QVERIFY(QFile::copy(settingsPath, restoredSettings));
+        qputenv("SEVENZIP_SETTINGS_PATH", restoredSettings.toUtf8());
+        ControlledBackend restoredBackend;
+        MainWindow restored(&restoredBackend);
+        restored.show();
+        restored.openPath(directory);
+        auto *bookmark = action(restored, "openBookmark4Action");
+        QCOMPARE(bookmark->toolTip(), translatedLabel);
+        bookmark->trigger();
+        QVERIFY(table(restored)->sourcePanel->IsFSDrivesFolder());
+
+        restored.openPath(directory);
+        action(restored, "saveBookmark4Action")->trigger();
+        action(restored, "openRootAction")->trigger();
+        bookmark->trigger();
+        QCOMPARE(location(restored), QFileInfo(directory).canonicalFilePath());
+    }
     void sharedSlotsSurviveWindowClose_data() {
         QTest::addColumn<bool>("closeFirst");
         QTest::newRow("close-first-editor") << true;

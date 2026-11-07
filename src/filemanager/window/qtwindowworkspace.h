@@ -57,7 +57,9 @@ class QtWindowWorkspace final : public QObject {
                      NavigationHistory history = NavigationHistory::Record);
     void ShowRecentPlaces(unsigned panel, QWidget &anchor);
     void RecordVisit(const QString &path);
-    void SetBookmark(unsigned index, const UString &path);
+    void SetBookmark(unsigned index);
+    void OpenBookmark(unsigned index);
+    CFastFolders BookmarkDisplayPaths();
     void ProtectNavigation(const QString &path = {});
     void RetainNavigationFolder();
     std::optional<HRESULT> NavigationPublication() const;

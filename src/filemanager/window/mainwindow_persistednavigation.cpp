@@ -33,15 +33,15 @@ void MainWindow::showFoldersHistory() {
                            [this, panel, anchor] { workspace_->ShowRecentPlaces(panel, *anchor); });
     }
 }
-void MainWindow::refreshBookmarks() { MyLoadBookmarks(openBookmarks_, saveBookmarks_, app_); }
+void MainWindow::refreshBookmarks() {
+    MyLoadBookmarks(openBookmarks_, saveBookmarks_, workspace_->BookmarkDisplayPaths());
+}
 
 void MainWindow::saveBookmark(int index) {
     if (index < 0 || index >= 10 || projectedUi().state == State::Loading ||
         projectedUi().state == State::Operating)
         return;
-    auto &panel = app_.GetFocusedPanel();
-    panel.LoadFullPath();
-    workspace_->SetBookmark(unsigned(index), panel.GetCurrentFolderPrefix());
+    workspace_->SetBookmark(unsigned(index));
     refreshActions();
 }
 
@@ -49,7 +49,5 @@ void MainWindow::openBookmark(int index) {
     if (index < 0 || index >= 10 || projectedUi().state == State::Loading ||
         projectedUi().state == State::Operating)
         return;
-    const QString path =
-        ToQString(CPanel::OpenBookmark(app_.AppState.FastFolders, (unsigned)index));
-    navigateTo(sourcePathFromDisplayPath(path), true);
+    workspace_->OpenBookmark(unsigned(index));
 }

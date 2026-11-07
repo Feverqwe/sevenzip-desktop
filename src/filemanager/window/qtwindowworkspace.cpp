@@ -43,8 +43,40 @@ QtWindowWorkspace::QtWindowWorkspace(MainWindow &window) : QObject(&window), win
     }
 }
 
-void QtWindowWorkspace::SetBookmark(unsigned index, const UString &path) {
-    fastFolders_->Set(index, path);
+void QtWindowWorkspace::SetBookmark(unsigned index) {
+    auto &source = window_.app_.GetFocusedPanel();
+    source.LoadFullPath();
+    fastFolders_->Set(index, source.GetCurrentFolderPrefix(), QtNativePlaces::RootIdentity(source));
+}
+
+void QtWindowWorkspace::OpenBookmark(unsigned index) {
+    const UString stored = CPanel::OpenBookmark(window_.app_.AppState.FastFolders, index);
+    const QString path = ToQString(stored);
+    const QString identity = fastFolders_->NativeIdentity(index, stored);
+    if (identity.isEmpty()) {
+        window_.navigateTo(window_.sourcePathFromDisplayPath(path), true);
+        return;
+    }
+    const unsigned panel = window_.projectedPanel_;
+    Navigate([&] {
+        const HRESULT result = OpenRecordedLocation(panel, path, identity, {});
+        if (result != S_OK && result != E_ABORT)
+            ReportNavigationFailure(tr("Location unavailable: %1").arg(path));
+        return result;
+    });
+}
+
+CFastFolders QtWindowWorkspace::BookmarkDisplayPaths() {
+    auto paths = window_.app_.AppState.FastFolders;
+    nativePlaces_->Refresh();
+    for (unsigned index = 0; index < 10; ++index) {
+        const QString identity = fastFolders_->NativeIdentity(index, paths.GetString(index));
+        if (identity == "locations")
+            paths.SetString(index, ToUString(tr("Locations")));
+        else if (const auto place = nativePlaces_->FindIdentity(identity); place.isValid())
+            paths.SetString(index, ToUString(place.data(QtPlaceRoles::Path).toString()));
+    }
+    return paths;
 }
 
 bool QtWindowWorkspace::Ready() const {

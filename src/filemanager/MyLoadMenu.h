@@ -7,6 +7,7 @@ class IQtFileMenuServices;
 class QMenuBar;
 class QAction;
 class CApp;
+class CFastFolders;
 class QMenu;
 class IQtPanelPluginMenuServices;
 void OnMenuActivating(QMenuBar &mainMenu, QMenu &menu, int position, CApp &app);
@@ -14,7 +15,7 @@ void OnMenuActivating(QMenuBar &mainMenu, QMenu &menu, int position, CApp &app,
                       IQtFileMenuServices &projection, IQtPanelPluginMenuServices &plugins);
 void MyLoadMenu(QMenuBar &menu, bool needResetMenu);
 void MyReloadFileMenu(const QList<QAction *> &sourceActions);
-void MyLoadBookmarks(QAction *const *openActions, QAction *const *setActions, CApp &app);
+void MyLoadBookmarks(QAction *const *openActions, QAction *const *setActions, CFastFolders paths);
 unsigned GetSortControlID(PROPID propID);
 
 struct CFileMenu {
