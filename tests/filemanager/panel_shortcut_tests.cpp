@@ -130,13 +130,18 @@ class PanelShortcutTests final : public QObject, protected MainWindowTestSupport
         table->setFocus();
         QTRY_VERIFY(table->hasFocus());
         QTRY_COMPARE(table->selectionModel()->selectedRows().size(), 1);
+        auto *open = action(window, "openItemAction");
+        QTRY_VERIFY(open->isEnabled() && open->isVisible());
+        QSignalSpy opened(open, &QAction::triggered);
 #ifdef Q_OS_MACOS
         PanelKeys::command(table, Qt::Key_Down, Qt::ControlModifier);
 #else
         QTest::keyClick(table, Qt::Key_Return);
 #endif
-        QTRY_COMPARE(QFileInfo(path->text()).canonicalFilePath(),
-                     QFileInfo(fixture.filePath(created)).canonicalFilePath());
+        QCOMPARE(opened.size(), 1);
+        QTRY_COMPARE(
+            QFileInfo(ToQString(table->sourcePanel->GetCurrentFolderPrefix())).canonicalFilePath(),
+            QFileInfo(fixture.filePath(created)).canonicalFilePath());
         QTRY_VERIFY(table->isEnabled());
         table->setFocus();
 #ifdef Q_OS_MACOS
@@ -144,8 +149,9 @@ class PanelShortcutTests final : public QObject, protected MainWindowTestSupport
 #else
         PanelKeys::command(table, Qt::Key_Up, Qt::AltModifier);
 #endif
-        QTRY_COMPARE(QFileInfo(path->text()).canonicalFilePath(),
-                     QFileInfo(fixture.path()).canonicalFilePath());
+        QTRY_COMPARE(
+            QFileInfo(ToQString(table->sourcePanel->GetCurrentFolderPrefix())).canonicalFilePath(),
+            QFileInfo(fixture.path()).canonicalFilePath());
         QTRY_VERIFY(table->isEnabled());
         QVERIFY(WindowActivation::waitForActive(window));
         table->setFocus();

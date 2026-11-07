@@ -4,6 +4,8 @@
 #include "filemanager/views/filetable.h"
 #include "localization/LangUtils.h"
 #include "settings/RegistryUtils.h"
+#include "support/panel_keys.h"
+#include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
 #include <QScopeGuard>
 
@@ -12,7 +14,7 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
     static FileTable *openPanel(MainWindow &window, unsigned index, const QString &path) {
         auto *ui = window.findChild<QWidget *>(QString("filePanel%1").arg(index));
         auto *address = ui->findChild<QLineEdit *>("archivePath");
-        address->setFocus();
+        PanelKeys::focusAddress(address);
         address->setText(path);
         QTest::keyClick(address, Qt::Key_Return);
         return static_cast<FileTable *>(ui->findChild<FileTable *>("archiveTable"));
@@ -86,7 +88,7 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         ControlledBackend backend;
         MainWindow window(&backend);
         window.show();
-        QVERIFY(QTest::qWaitForWindowActive(&window));
+        QVERIFY(WindowActivation::waitForActive(window));
         action(window, "twoPanelsAction")->trigger();
         auto *peer = openPanel(window, 1 - pane, peerDirectory.path());
         QTRY_COMPARE(peer->rowCount(), 0);
