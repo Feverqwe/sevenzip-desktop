@@ -30,7 +30,6 @@
   {"id":"create-protection","title":"Создание архива: сохранение защиты при смене формата, EN/RU","target":"compression_encryption_tests","functions":["unsupportedFormatKeepsProtectionUntilExplicitDecision"]},
   {"id":"create-expert","title":"Экспертные параметры: живой черновик, язык и компактное окно","target":"compression_expert_tests","functions":["languageChangesKeepLiveEditorAndCompactActions","unsupportedMethodFieldsDoNotOccupyTheEditor"]},
   {"id":"copy-move","title":"Копирование и перемещение","target":"copy_dialog_tests","functions":["sourceFrameAndKeyboard:0-0-12","sourceFrameAndKeyboard:0-1-12","sourceFrameAndKeyboard:1-0-12","sourceFrameAndKeyboard:1-1-12","geometryAndLongSelection"]},
-  {"id":"copy-history","title":"Недавние назначения Copy/Move","target":"copy_destination_tests","functions":["historyKeyboardChangesOnlyTheDraft"]},
   {"id":"mount-forms","title":"Подключения: настройки, согласие и действия записи, EN/RU","target":"mount_extraction_prompt_tests","functions":["geometry","setupGeometry","managerActionsGeometry","removesOnlySelectedStoppedRecord"]},
   {"id":"overwrite","title":"Подтверждение перезаписи","target":"overwrite_layout_tests","functions":["sourceFooterAndFileRows"]},
   {"id":"source-prompts","title":"Пароль, память, текст и сообщения","target":"source_prompt_presentation_tests","functions":["sourceInitialFrame"]},

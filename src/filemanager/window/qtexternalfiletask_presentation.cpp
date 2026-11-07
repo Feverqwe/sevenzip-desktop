@@ -153,7 +153,7 @@ void QtExternalFileTask::SaveCopy(QWidget *parent, bool fromUpdate) {
         if (folder.isDir() && folder.isReadable())
             destination = folder.absoluteFilePath();
     }
-    CCopyDialog dialog(false, destination, {source}, {}, parent);
+    CCopyDialog dialog(false, destination, {source}, parent);
     const QFileInfo sourceInfo(source);
     dialog.SetSourceDetails(sourceInfo.absolutePath(),
                             sourceInfo.exists() && sourceInfo.size() >= 0

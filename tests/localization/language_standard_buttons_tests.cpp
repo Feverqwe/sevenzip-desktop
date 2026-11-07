@@ -42,8 +42,7 @@ class LanguageStandardButtonsTests final : public QObject {
     }
     std::unique_ptr<QDialog> create(const QString &name) {
         if (name == "copy")
-            return std::make_unique<CCopyDialog>(false, "/pending 空 path", QStringList{"file"},
-                                                 QStringList{});
+            return std::make_unique<CCopyDialog>(false, "/pending 空 path", QStringList{"file"});
         if (name == "combo")
             return std::make_unique<CComboDialog>("Title", "Name", "pending 空 value");
         if (name == "password")

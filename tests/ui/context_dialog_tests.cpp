@@ -78,7 +78,7 @@ class ContextDialogTests final : public QObject {
             dialog = std::make_unique<CComboDialog>("Create", "Name", "initial", &owner);
         else if (kind == "copy")
             dialog = std::make_unique<CCopyDialog>(false, settings_.path(), QStringList{"fixture"},
-                                                   QStringList{}, &owner);
+                                                   &owner);
         else if (kind == "password") {
             auto prompt = std::make_unique<CPasswordDialog>(&owner);
             prompt->OnInit();

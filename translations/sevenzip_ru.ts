@@ -62,10 +62,6 @@
             <translation>Из: %1</translation>
         </message>
         <message>
-            <source>Recent folders</source>
-            <translation>Недавние папки</translation>
-        </message>
-        <message>
             <source>Destination folder</source>
             <translation>Папка назначения</translation>
         </message>

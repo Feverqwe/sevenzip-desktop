@@ -128,7 +128,6 @@ void CWindowInfo::Read(bool &windowPosDefined, bool &panelInfoDefined,
     }
 }
 
-static const char *const kCopyHistoryValueName = "CopyHistory";
 static const char *const kFolderHistoryValueName = "FolderHistory";
 static const char *const kFastFoldersValueName = "FolderShortcuts";
 
@@ -207,14 +206,6 @@ void SaveFastFolders(const UStringVector &folders, const QString &settingsPath) 
 
 void ReadFastFolders(UStringVector &folders, const QString &settingsPath) {
     ReadStringList(kFastFoldersValueName, folders, settingsPath);
-}
-
-void SaveCopyHistory(const UStringVector &folders, const QString &settingsPath) {
-    SaveStringList(kCopyHistoryValueName, folders, settingsPath);
-}
-
-void ReadCopyHistory(UStringVector &folders, const QString &settingsPath) {
-    ReadStringList(kCopyHistoryValueName, folders, settingsPath);
 }
 
 void AddUniqueStringToHeadOfList(UStringVector &list, const UString &s) {

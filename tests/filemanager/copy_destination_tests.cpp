@@ -8,7 +8,6 @@
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QLineEdit>
-#include <QMenu>
 #include <QPushButton>
 #include <QScopeGuard>
 #include <QTemporaryDir>
@@ -38,7 +37,7 @@ class CopyDestinationTests final : public QObject {
         QVERIFY(fixture.isValid());
         const QString source = fixture.filePath(QStringLiteral("source δ.txt"));
         const QString directory = fixture.path() + '/';
-        CCopyDialog dialog(false, directory, {source}, {});
+        CCopyDialog dialog(false, directory, {source});
         configure(dialog, source);
         dialog.show();
         auto *name = dialog.findChild<QLineEdit *>("copyDestinationName");
@@ -66,19 +65,15 @@ class CopyDestinationTests final : public QObject {
                  fixture.filePath(QStringLiteral(" копия δ ")));
     }
 
-    void historyKeepsDirectValue() {
+    void typedPathKeepsDirectValue() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString source = fixture.filePath("source.txt");
         const QString saved = fixture.filePath(QStringLiteral("old copy δ.txt"));
-        CCopyDialog dialog(false, fixture.path() + '/', {source}, {saved});
+        CCopyDialog dialog(false, fixture.path() + '/', {source});
         configure(dialog, source);
         dialog.show();
-        dialog.findChild<QPushButton *>("copyRecentDestinations")
-            ->menu()
-            ->actions()
-            .first()
-            ->trigger();
+        dialog.findChild<QLineEdit *>("copyDestination")->setText(saved);
         auto *name = dialog.findChild<QLineEdit *>("copyDestinationName");
         QVERIFY(name && !name->isVisible());
         dialog.accept();
@@ -86,53 +81,12 @@ class CopyDestinationTests final : public QObject {
         QCOMPARE(ToQString(dialog.Value), saved);
     }
 
-    void historyKeyboardChangesOnlyTheDraft() {
-        const QString initial = QStringLiteral("/initial/");
-        const QString chosen = QStringLiteral(" /папка & 空/old copy.txt ");
-        CCopyDialog dialog(false, initial, {"/source/file.txt"}, {"/first/", chosen});
-        dialog.show();
-        QVERIFY(QTest::qWaitForWindowActive(&dialog));
-        auto *path = dialog.findChild<QLineEdit *>("copyDestination");
-        auto *recent = dialog.findChild<QPushButton *>("copyRecentDestinations");
-        auto *menu = recent->menu();
-        bool answered = false;
-        QTimer::singleShot(0, &dialog, [&] {
-            QVERIFY(menu->isVisible());
-            QVERIFY(UiInspection::writeReport(*menu, "copy-recent-destinations"));
-            menu->setActiveAction(menu->actions().first());
-            QTest::keyClick(menu, Qt::Key_Down);
-            QTest::keyClick(menu, Qt::Key_Return);
-            answered = true;
-        });
-        QTest::mouseClick(recent, Qt::LeftButton);
-        QTRY_VERIFY(answered);
-        QCOMPARE(path->text(), chosen);
-        QCOMPARE(ToQString(dialog.Value), initial);
-        QVERIFY(dialog.isVisible());
-        QVERIFY(WindowActivation::waitForActive(dialog));
-        QTRY_VERIFY(path->hasFocus());
-        QCOMPARE(path->selectedText(), chosen);
-        QVERIFY(UiInspection::writeReport(dialog, "copy-recent-destination-chosen"));
-        answered = false;
-        QTimer::singleShot(0, &dialog, [&] {
-            QVERIFY(menu->isVisible());
-            QTest::keyClick(menu, Qt::Key_Escape);
-            answered = true;
-        });
-        QTest::mouseClick(recent, Qt::LeftButton);
-        QTRY_VERIFY(answered);
-        QVERIFY(dialog.isVisible());
-        QCOMPARE(path->text(), chosen);
-        dialog.reject();
-        QCOMPARE(ToQString(dialog.Value), initial);
-    }
-
     void peerRouteKeepsIdentity() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString source = fixture.filePath("source.txt");
         const QString peer = fixture.filePath("archive.zip/nested/");
-        CCopyDialog dialog(false, fixture.path() + '/', {source}, {});
+        CCopyDialog dialog(false, fixture.path() + '/', {source});
         dialog.ConfigureDestination({fixture.path(), "source.txt", peer, true,
                                      [peer](const QString &path) { return path != peer; }});
         dialog.show();
@@ -151,7 +105,7 @@ class CopyDestinationTests final : public QObject {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString peer = fixture.filePath("readonly.zip/");
-        CCopyDialog dialog(false, peer, {fixture.filePath("source")}, {});
+        CCopyDialog dialog(false, peer, {fixture.filePath("source")});
         dialog.ConfigureDestination({fixture.path(), "source", peer, false, {}});
         auto *ok =
             dialog.findChild<QDialogButtonBox *>("copyButtons")->button(QDialogButtonBox::Ok);
@@ -171,7 +125,7 @@ class CopyDestinationTests final : public QObject {
         const auto restore = qScopeGuard([&] { QDir::setCurrent(previous); });
         QVERIFY(QDir::setCurrent(processDirectory));
         const QString source = sourceDirectory + "/source.txt";
-        CCopyDialog panelDialog(false, "target", {source}, {});
+        CCopyDialog panelDialog(false, "target", {source});
         QtCopyDestinationContext context{
             sourceDirectory, "source.txt", {}, false, [](const QString &) { return true; }};
         context.RelativeBase = sourceDirectory + '/';
@@ -187,7 +141,7 @@ class CopyDestinationTests final : public QObject {
 
         // Save Copy keeps its process-relative contract for the same raw input.
         context.RelativeBase = QString();
-        CCopyDialog processDialog(false, "target", {source}, {});
+        CCopyDialog processDialog(false, "target", {source});
         processDialog.ConfigureDestination(context);
         processDialog.show();
         QVERIFY(!processDialog.findChild<QLineEdit *>("copyDestinationName")->isVisible());
@@ -197,7 +151,7 @@ class CopyDestinationTests final : public QObject {
     }
 
     void noSelectionCannotStart() {
-        CCopyDialog dialog(false, "/destination/", {}, {});
+        CCopyDialog dialog(false, "/destination/", {});
         dialog.accept();
         QCOMPARE(dialog.result(), int(QDialog::Rejected));
         QCOMPARE(ToQString(dialog.Value), QString("/destination/"));
@@ -206,7 +160,7 @@ class CopyDestinationTests final : public QObject {
     void browseCancelKeepsNameDraft() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
-        CCopyDialog dialog(false, fixture.path() + '/', {fixture.filePath("source.txt")}, {});
+        CCopyDialog dialog(false, fixture.path() + '/', {fixture.filePath("source.txt")});
         configure(dialog, fixture.filePath("source.txt"));
         dialog.show();
         auto *name = dialog.findChild<QLineEdit *>("copyDestinationName");

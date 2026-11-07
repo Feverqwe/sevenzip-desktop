@@ -4,6 +4,7 @@
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
 #include "localization/LangUtils.h"
+#include "support/progress_dialog.h"
 #include "support/widget_dialogs.h"
 #include "ui/progress/ProgressDialog2.h"
 #include "ui/support/layout_inspection.h"
@@ -260,10 +261,12 @@ class UiCopySameTests final : public QObject, protected MainWindowTestSupport {
                 dialog->accept();
                 return;
             }
-            if (auto *message = qobject_cast<QMessageBox *>(dialogs_.activeDialog())) {
+            if (auto *report = TestProgressDialog::ResultWindow(dialogs_.activeDialog())) {
+                failure = ToQString(report->Sync.FinalMessage.ErrorMessage.Message);
+                TestProgressDialog::CloseResult(*report);
+            } else if (auto *message = qobject_cast<QMessageBox *>(dialogs_.activeDialog())) {
                 failure = message->text();
                 message->accept();
-                return;
             }
         });
         driver.start(2);

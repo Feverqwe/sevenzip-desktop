@@ -17,47 +17,31 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
-#include <QMenu>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QScopeGuard>
 #include <QScreen>
 #include <QScrollArea>
 #include <QSet>
-#include <QSettings>
 #include <QTemporaryDir>
 #include <QTest>
 #include <QTimer>
 #include <QToolButton>
-#include <initializer_list>
 
 class CopyDialogTests : public QObject {
     Q_OBJECT
 
-    static UStringVector SourceStrings(std::initializer_list<const wchar_t *> values) {
-        UStringVector strings;
-        for (const wchar_t *value : values)
-            strings.Add(value);
-        return strings;
-    }
-    static QStringList QtStrings(const UStringVector &values) {
-        QStringList strings;
-        FOR_VECTOR(i, values)
-        strings.append(ToQString(values[i]));
-        return strings;
-    }
     static void inspectSourceFrame(CCopyDialog &dialog, const QString &tag) {
         QVERIFY(UiInspection::writeReport(dialog, tag));
         auto *path = dialog.findChild<QLineEdit *>("copyDestination");
         auto *browse = dialog.findChild<QPushButton *>("copyBrowseButton");
-        auto *recent = dialog.findChild<QPushButton *>("copyRecentDestinations");
         auto *source = dialog.findChild<QWidget *>("copySourceSummary");
         auto *name = dialog.findChild<QLineEdit *>("copyDestinationName");
         auto *scroll = dialog.findChild<QScrollArea *>("dialogContentScroll");
         auto *buttons = dialog.findChild<QDialogButtonBox *>("copyButtons");
         auto *label = dialog.findChild<QLabel *>("copyDestinationLabel");
-        QVERIFY(path && browse && recent && source && name && scroll && buttons && label);
-        for (QWidget *widget : QList<QWidget *>{source, label, path, browse, recent, name}) {
+        QVERIFY(path && browse && source && name && scroll && buttons && label);
+        for (QWidget *widget : QList<QWidget *>{source, label, path, browse, name}) {
             QApplication::processEvents();
             const QRect rect(widget->mapTo(scroll->widget(), QPoint()), widget->size());
             scroll->ensureVisible(rect.left(), rect.top(), 0, 0);
@@ -115,7 +99,7 @@ class CopyDialogTests : public QObject {
         ReloadLang(settings);
         const QString initial = QStringLiteral("/destination space 空/");
         const QString sourceName = QStringLiteral("имя с пробелом 空.txt");
-        CCopyDialog dialog(move, initial, {"/source/" + sourceName}, {"/one", "/two"});
+        CCopyDialog dialog(move, initial, {"/source/" + sourceName});
         dialog.ConfigureDestination(
             {"/source/", sourceName, {}, false, [](const QString &) { return true; }});
         QVERIFY(dialog.windowFlags().testFlag(Qt::WindowMinimizeButtonHint));
@@ -145,11 +129,7 @@ class CopyDialogTests : public QObject {
         QApplication::processEvents();
         dialog.setProperty("uiInspection_state", move ? "move-compact" : "copy-compact");
         inspectSourceFrame(dialog, tag + "-compact");
-        const QSet<QWidget *> allowed{path,
-                                      dialog.findChild<QPushButton *>("copyRecentDestinations"),
-                                      browse,
-                                      name,
-                                      buttons->button(QDialogButtonBox::Ok),
+        const QSet<QWidget *> allowed{path, browse, name, buttons->button(QDialogButtonBox::Ok),
                                       buttons->button(QDialogButtonBox::Cancel)};
         for (int i = 0; i < 5; ++i) {
             QTest::keyClick(dialog.focusWidget(), Qt::Key_Tab);
@@ -161,7 +141,7 @@ class CopyDialogTests : public QObject {
         QTest::keyClick(path, Qt::Key_Return);
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
         QCOMPARE(ToQString(dialog.Value), changed);
-        CCopyDialog cancelled(move, initial, {"/source/" + sourceName}, {});
+        CCopyDialog cancelled(move, initial, {"/source/" + sourceName});
         cancelled.ConfigureDestination(
             {"/source/", sourceName, {}, false, [](const QString &) { return true; }});
         cancelled.show();
@@ -174,13 +154,9 @@ class CopyDialogTests : public QObject {
 
     void copiesFieldsAndCommitsOnlyOnOK() {
         CCopyDialog dialog(false, QStringLiteral("/начальная папка/"),
-                           {QStringLiteral("/tmp/имя с пробелом.txt")}, {"/one", "/two"});
+                           {QStringLiteral("/tmp/имя с пробелом.txt")});
         auto *path = dialog.findChild<QLineEdit *>("copyDestination");
         QVERIFY(path);
-        auto *recent = dialog.findChild<QPushButton *>("copyRecentDestinations");
-        QVERIFY(recent && recent->isEnabled());
-        recent->menu()->actions().at(1)->trigger();
-        QCOMPARE(path->text(), QString("/two"));
         auto *source = dialog.findChild<QWidget *>("copySourceSummary");
         QVERIFY(source);
         QCOMPARE(source->accessibleName(), QStringLiteral("имя с пробелом.txt"));
@@ -189,63 +165,11 @@ class CopyDialogTests : public QObject {
         QCOMPARE(ToQString(dialog.Value), QStringLiteral("/начальная папка/"));
         dialog.accept();
         QCOMPARE(ToQString(dialog.Value), QStringLiteral("  /новая папка/  "));
-        CCopyDialog move(true, "/initial", {"/source/file"}, {});
+        CCopyDialog move(true, "/initial", {"/source/file"});
         move.findChild<QLineEdit *>("copyDestination")->setText("/by-button");
         move.findChild<QDialogButtonBox *>("copyButtons")->button(QDialogButtonBox::Ok)->click();
         QCOMPARE(ToQString(move.Value), QString("/by-button"));
         QCOMPARE(move.result(), int(QDialog::Accepted));
-    }
-
-    void historyRemovesAllCaseVariantsAndIgnoresMvpINI() {
-        QTemporaryDir temp;
-        QVERIFY(temp.isValid());
-        const QString ini = temp.filePath(QStringLiteral("настройки с пробелом.ini"));
-        {
-            QSettings settings(ini, QSettings::IniFormat);
-            settings.setValue("copy/history", QStringList{"/old", "/OLDER"});
-            settings.setValue("unrelated/value", 17);
-        }
-        UStringVector history = SourceStrings({L"stale"});
-        ReadCopyHistory(history, ini);
-        QVERIFY(history.IsEmpty());
-        SaveCopyHistory(SourceStrings({L"/old", L"/OLDER"}), ini);
-        ReadCopyHistory(history, ini);
-        QCOMPARE(QtStrings(history), (QStringList{"/old", "/OLDER"}));
-        history.Add(L"/NEW");
-        history.Add(L"/new");
-        history.Add(L"/NeW");
-        AddUniqueStringToHeadOfList(history, L"/new");
-        QCOMPARE(QtStrings(history), (QStringList{"/new", "/old", "/OLDER"}));
-        UStringVector unicode = SourceStrings({L"/ПАПКА", L"/keep", L"/папка"});
-        AddUniqueStringToHeadOfList(unicode, L"/Папка");
-        QCOMPARE(QtStrings(unicode), (QStringList{QStringLiteral("/Папка"), "/keep"}));
-        UStringVector sourceCase = SourceStrings({L"/\u212A", L"/k", L"/K", L"/keep"});
-        AddUniqueStringToHeadOfList(sourceCase, L"/K");
-        QCOMPARE(QtStrings(sourceCase), (QStringList{"/K", QStringLiteral("/\u212A"), "/keep"}));
-        SaveCopyHistory(sourceCase, ini);
-        UStringVector restarted;
-        ReadCopyHistory(restarted, ini);
-        QCOMPARE(QtStrings(restarted), QtStrings(sourceCase));
-        CCopyDialog sourceHistory(false, "/destination", {}, QtStrings(restarted));
-        auto *destinations = sourceHistory.findChild<QLineEdit *>("copyDestination");
-        sourceHistory.findChild<QPushButton *>("copyRecentDestinations")
-            ->menu()
-            ->actions()
-            .at(1)
-            ->trigger();
-        QCOMPARE(destinations->text(), QStringLiteral("/\u212A"));
-        SaveCopyHistory(history, ini);
-        history.Clear();
-        ReadCopyHistory(history, ini);
-        QCOMPARE(QtStrings(history), (QStringList{"/new", "/old", "/OLDER"}));
-        QSettings settings(ini, QSettings::IniFormat);
-        QCOMPARE(settings.value("unrelated/value").toInt(), 17);
-        QCOMPARE(settings.value("copy/history").toStringList(), (QStringList{"/old", "/OLDER"}));
-        SaveCopyHistory({}, ini);
-        ReadCopyHistory(history, ini);
-        QVERIFY(history.IsEmpty());
-        ReadCopyHistory(history, temp.filePath("missing.ini"));
-        QVERIFY(history.IsEmpty());
     }
 
     void browseNormalizesDirectoryAndCancelPreservesText() {
@@ -253,7 +177,7 @@ class CopyDialogTests : public QObject {
         QVERIFY(temp.isValid());
         const QString chosen = temp.filePath(QStringLiteral("папка назначения"));
         QVERIFY(QDir().mkdir(chosen));
-        CCopyDialog dialog(false, temp.path(), {temp.filePath("source")}, {chosen});
+        CCopyDialog dialog(false, temp.path(), {temp.filePath("source")});
         auto *path = dialog.findChild<QLineEdit *>("copyDestination");
         auto *browse = dialog.findChild<QPushButton *>("copyBrowseButton");
         dialog.show();
@@ -295,7 +219,7 @@ class CopyDialogTests : public QObject {
             ReloadLang(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
             QtNotifyLanguageChanged();
         });
-        CCopyDialog dialog(false, "/initial/", {"/source/one", "/source/two"}, {});
+        CCopyDialog dialog(false, "/initial/", {"/source/one", "/source/two"});
         dialog.show();
         auto *source = dialog.findChild<QWidget *>("copySourceSummary");
         auto *selection = dialog.findChild<QtDisclosure *>("copySelectionDisclosure");
@@ -337,7 +261,7 @@ class CopyDialogTests : public QObject {
             indices.Add(items.Add({QFileInfo(sources.last()).fileName(), i == 0, true, 1000}));
         }
         const QString summary = CPanel("/initial/", items).GetItemsInfoString(indices);
-        CCopyDialog dialog(move, "/initial", sources, {"/one"}, nullptr, summary);
+        CCopyDialog dialog(move, "/initial", sources, nullptr, summary);
         dialog.SetSourceDetails("/tmp/", 40000);
         dialog.resize(size);
         dialog.show();

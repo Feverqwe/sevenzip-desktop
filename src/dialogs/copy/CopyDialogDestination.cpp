@@ -3,18 +3,15 @@
 #include "fileops/patterns/Wildcard.h"
 #include "localization/qtlangcontrols.h"
 #include "settings/ViewSettings.h"
-#include "ui/controls/qtrecentpathbutton.h"
 #include "ui/dialogs/qtdialoglayout.h"
 #include "ui/dialogs/qtdialogscreenservices.h"
 #include <QCoreApplication>
 #include <QDialogButtonBox>
 #include <QDir>
 #include <QFileInfo>
-#include <QHBoxLayout>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QScrollArea>
-#include <QTimer>
 #include <QVBoxLayout>
 #include <utility>
 
@@ -46,31 +43,12 @@ bool IsName(const QString &name) {
 } // namespace
 
 void CCopyDialog::BuildDestinationOptions(QVBoxLayout &layout) {
-    auto *shortcuts = new QHBoxLayout;
-    QStringList history;
-    FOR_VECTOR(i, Strings)
-    history << ToQString(Strings[i]);
-    auto *recent = new QtRecentPathButton(history, this);
-    recent->setObjectName("copyRecentDestinations");
-    QtBindLocalText(recent, "CopyRedesign", QT_TRANSLATE_NOOP("CopyRedesign", "Recent folders"));
-    shortcuts->addWidget(recent);
-    connect(recent, &QtRecentPathButton::pathSelected, this, [this](const QString &path) {
-        SetPathText(path);
-        // The popup restores its previous focus while closing. Return to the
-        // destination after that restoration, without accepting the form.
-        QTimer::singleShot(0, _pathEdit, [this] {
-            _pathEdit->setFocus();
-            _pathEdit->selectAll();
-        });
-    });
     _peer = new QPushButton(this);
     _peer->setObjectName("copyPeerDestination");
     _peer->setAutoDefault(false);
     QtBindLocalText(_peer, "CopyRedesign", QT_TRANSLATE_NOOP("CopyRedesign", "Other panel"));
     _peer->hide();
-    shortcuts->addStretch();
-    shortcuts->addWidget(_peer);
-    layout.addLayout(shortcuts);
+    layout.addWidget(_peer, 0, Qt::AlignRight);
     connect(_peer, &QPushButton::clicked, this, [this] {
         if (!_destinationContext || !_destinationContext->PeerWritable)
             return;

@@ -34,13 +34,11 @@ class CCopyDialog : public QDialog {
     CCopyDialog(const QString &title, const QString &label, const QString &path,
                 const QString &info, QWidget *parent = nullptr);
     CCopyDialog(bool move, const QString &initialPath, const QStringList &sources,
-                const QStringList &history, QWidget *parent = nullptr,
-                const QString &info = QString());
+                QWidget *parent = nullptr, const QString &info = QString());
     UString Title;
     UString Static;
     UString Value;
     UString Info;
-    UStringVector Strings;
 
     QString destination() const;
     void BindLanguage(UInt32 titleID, UInt32 promptID, const QString &titleSuffix = {});

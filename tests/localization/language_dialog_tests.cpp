@@ -204,7 +204,7 @@ class LanguageDialogTests final : public QObject {
             inspect(dialog, "language-password-en", width, 170);
     }
     void copyAndComboPreserveRawValues() {
-        CCopyDialog copy(false, "/initial", {"Unicode file 密碼"}, {"/history"});
+        CCopyDialog copy(false, "/initial", {"Unicode file 密碼"});
         CComboDialog folder(QtLangText(IDS_CREATE_FOLDER), QtLangText(IDS_CREATE_FOLDER_NAME),
                             QtLangText(IDS_CREATE_FOLDER_DEFAULT_NAME));
         folder.BindLanguage(IDS_CREATE_FOLDER, IDS_CREATE_FOLDER_NAME);

@@ -83,6 +83,4 @@ void ReadFastFolders(UStringVector &folders, const QString &settingsPath);
 inline UString ToUString(const QString &s) { return UString(s.toStdWString().c_str()); }
 inline QString ToQString(const UString &s) { return QString::fromWCharArray(s.Ptr(), s.Len()); }
 
-void SaveCopyHistory(const UStringVector &folders, const QString &settingsPath);
-void ReadCopyHistory(UStringVector &folders, const QString &settingsPath);
 void AddUniqueStringToHeadOfList(UStringVector &list, const UString &s);

@@ -44,12 +44,10 @@ CCopyDialog::CCopyDialog(const QString &title, const QString &label, const QStri
 }
 
 CCopyDialog::CCopyDialog(bool move, const QString &initialPath, const QStringList &sources,
-                         const QStringList &history, QWidget *parent, const QString &info)
+                         QWidget *parent, const QString &info)
     : QDialog(parent), Title(ToUString(QtLangText(move ? IDS_MOVE : IDS_COPY))),
       Static(ToUString(QtLangText(move ? IDS_MOVE_TO : IDS_COPY_TO))),
       Value(ToUString(initialPath)), Info(ToUString(info)), _sources(sources), _copyMove(true) {
-    for (const QString &s : history)
-        Strings.Add(ToUString(s));
     // The Qt caller supplies filenames, rather than IFolder property indices.
     if (info.isNull())
         for (const QString &source : sources) {
@@ -143,8 +141,6 @@ bool CCopyDialog::OnInit() {
         _path->setEditable(true);
         _path->setAttribute(Qt::WA_LayoutUsesWidgetRect);
         _path->setInsertPolicy(QComboBox::NoInsert);
-        FOR_VECTOR(i, Strings)
-        _path->addItem(ToQString(Strings[i]));
         _path->setCurrentText(ToQString(Value));
         _path->setAccessibleName(ToQString(Static));
         _path->setMinimumContentsLength(12);

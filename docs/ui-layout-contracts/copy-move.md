@@ -31,12 +31,6 @@ private staging collisions do not open an overwrite question. EN/RU warnings
 must keep their label and OK visible at normal/compact message sizes. Native
 extraction diagnostics retain their existing progress-message presentation.
 
-Copy history values follow source UStringVector/IsEqualTo_NoCase, retaining
-source-distinct K/K spellings through save/reload and selection into the destination.
-Cancel preserves order; accepted CApp Copy moves its destination to the front.
-`copy_dialog` and `app_copy_routing` assert those values; existing normal/compact
-Copy/error geometry reports retain the same control structure.
-
 Interarchive F5/F6 preserves the destination provider and pre-update marked/focused
 names after success. Refused source deletion or a known failure before source
 publication restores backup bytes and physically reopens the destination with
@@ -251,7 +245,7 @@ recovered and retried states at980×620/640×400 in both panes and EN/RU.
 
 Reference: pinned App.cpp::OnCopy/Reduce_Path_To_RealFileSystemPath,
 PanelKey Shift consumers, CopyDialog.cpp/.rc and Panel/Agent/FSFolder CopyTo/
-CopyFrom interfaces. Keep the original title/prompt/summary/history and focused
+CopyFrom interfaces. Keep the original title/prompt/summary and focused
 versus operated selection. Ordinary destination begins with the source opposite-
 panel rule; one-panel reduction follows the original filesystem/root-prefix
 algorithm. Qt must not replace an empty peer target with its own current folder.
@@ -392,11 +386,8 @@ Implemented view: `src/dialogs/copy/CopyDialog.cpp`.
 - Destination label precedes the editable path; Browse stays to its right and
   uses a translated caption with the platform's ordinary button size.
   The generic Combine caller retains its twenty-DLU utility button and text summary.
-- Copy/Move uses a plain path field and a separate Recent folders menu beside
-  the peer shortcut. Selecting history changes only the draft and returns focus
-  to the path; closing the menu with Escape leaves the form open. Historical
-  full-file entries, significant spaces, Unicode and ampersands remain unchanged.
-  Empty history disables its shortcut. Source location does not add a separate From row.
+- Copy/Move uses a plain path field, a system folder picker and an Other panel
+  shortcut when the second panel is present.
 - A writable peer panel supplies the initial destination; Other panel restores
   that proposal after editing. An unavailable peer leaves the current source
   filesystem location as the proposal and disables the peer shortcut.
@@ -404,11 +395,11 @@ Implemented view: `src/dialogs/copy/CopyDialog.cpp`.
   destinations. An unchanged name preserves the existing provider route and raw
   destination. A changed name denotes the destination object, including when an
   existing directory occupies that name; it must not silently become a container.
-  Full-file history entries and unsupported providers retain their existing path
+  Typed file paths and unsupported providers retain their existing path
   interpretation without an added name.
 - Empty or invalid input, a known unwritable destination and an unchanged source
   location disable acceptance with an inline explanation. Native operation checks
-  remain authoritative. Cancel preserves the original value and history; accepted
+  remain authoritative. Cancel preserves the original value; accepted
   input preserves significant spaces and Unicode. Relative paths keep the caller's
   existing base directory.
 - The redesigned form uses the shared dialog margins/footer and sizes the

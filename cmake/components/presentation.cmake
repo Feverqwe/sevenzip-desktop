@@ -216,8 +216,6 @@ add_library(sevenzip_panel
     src/ui/dialogs/qtdialogsurface.cpp src/ui/dialogs/qtdialogsurface.h
     src/ui/controls/qtdisclosure.cpp
     src/ui/controls/qtdisclosure.h
-    src/ui/controls/qtrecentpathbutton.cpp
-    src/ui/controls/qtrecentpathbutton.h
     src/ui/controls/qtresponsiverow.cpp
     src/ui/controls/qtresponsiverow.h
     src/ui/controls/qtwrappingcheckbox.cpp

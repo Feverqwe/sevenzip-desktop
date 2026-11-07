@@ -90,11 +90,6 @@ void CApp::OnCopy(bool move, bool copyToSame, unsigned srcPanelIndex) {
         }
     }
 
-    UStringVector copyFolders;
-    ReadCopyHistory(copyFolders, _settingsPath);
-    QStringList copyHistory;
-    FOR_VECTOR(i, copyFolders)
-    copyHistory << ToQString(copyFolders[i]);
     QStringList sourcePaths;
     FOR_VECTOR(i, indices)
     sourcePaths << ToQString(srcPanel.GetItemFullPath(indices[i]));
@@ -108,7 +103,7 @@ void CApp::OnCopy(bool move, bool copyToSame, unsigned srcPanelIndex) {
             Reduce_Path_To_RealFileSystemPath(destPath);
     }
     const auto totals = srcPanel.GetItemTotals(indices);
-    CCopyDialog copyDialog(move, ToQString(destPath), sourcePaths, copyHistory, _window,
+    CCopyDialog copyDialog(move, ToQString(destPath), sourcePaths, _window,
                            srcPanel.GetItemsInfoString(indices, &totals));
     const UInt64 unknown = (UInt64)(Int64)-1;
     copyDialog.SetSourceDetails(
@@ -228,10 +223,6 @@ void CApp::OnCopy(bool move, bool copyToSame, unsigned srcPanelIndex) {
     QString output = QDir::cleanPath(ToQString(destPath));
     if (!destPath.IsEmpty() && IsPathSepar(destPath.Back()) && !output.endsWith('/'))
         output += '/';
-    AddUniqueStringToHeadOfList(copyFolders, ToUString(output));
-    while (copyFolders.Size() > 20)
-        copyFolders.DeleteBack();
-    SaveCopyHistory(copyFolders, _settingsPath);
 
     const bool useSrcPanel = !useDestPanel || !srcPanel.Is_IO_FS_Folder();
     const bool useTemp = useSrcPanel && useDestPanel;
