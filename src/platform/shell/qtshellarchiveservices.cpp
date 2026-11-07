@@ -9,6 +9,7 @@
 #include "gui/UpdateGUI.h"
 #include "localization/LangUtils.h"
 #include "operations/CompressCall.h"
+#include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
 #include <QMessageBox>
@@ -29,6 +30,28 @@ class COutputPolicy final : public IQtExtractPathPolicy {
     }
 
     explicit COutputPolicy(const CExtractOptions &options) : _options(options) {}
+    QString DestinationError(const QString &destination) const {
+        QString error;
+        if (!ArchiveBackend::validateExtractionOutput(destination, destination, true, &error))
+            return error;
+        // The source engine picks the actual directory for these templates.
+        if (_options.OutDirMode == NExtractOutDirMode::k_AddArcName ||
+            (_options.OutDirMode == NExtractOutDirMode::k_ReplaceAsterisk &&
+             destination.contains('*')))
+            return {};
+        QString path = destination;
+        for (;;) {
+            const QFileInfo entry(path);
+            if (entry.exists())
+                return entry.isWritable() ? QString()
+                                          : QCoreApplication::translate(
+                                                "CopyRedesign", "The destination is read-only.");
+            const QString parent = entry.absolutePath();
+            if (parent == path)
+                return {};
+            path = parent;
+        }
+    }
     HRESULT CheckPath(const FString &path, bool directory, bool stream, UString &message) override {
         return CQtExtractPathPolicy(Root()).CheckPath(path, directory, stream, message);
     }
@@ -116,11 +139,7 @@ HRESULT QtShellArchiveServices::ExtractGUI(CCodecs &codecs, const CObjectVector<
             if (_routes.OutputReady)
                 _routes.OutputReady(policy.Root(), QtGUIOutputKind::Directory);
         },
-        [](const QString &destination) {
-            QString error;
-            ArchiveBackend::validateExtractionOutput(destination, destination, true, &error);
-            return error;
-        });
+        [&](const QString &destination) { return policy.DestinationError(destination); });
     return result;
 }
 HRESULT QtShellArchiveServices::HashCalcGUI(const CExternalCodecs *providers,

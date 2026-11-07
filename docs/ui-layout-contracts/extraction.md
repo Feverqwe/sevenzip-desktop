@@ -59,6 +59,8 @@ The form body scrolls at compact heights while Extract/Cancel remain visible.
 An invalid destination keeps the form open and focuses the destination or
 subfolder field that needs correction. If the extraction policy disallows a
 link in the destination path, the dialog shows the error before extraction.
+For a concrete destination, it also reports a known lack of write access in
+the destination or in the folder where it would be created.
 Choosing a history entry restores the saved destination, including its own
 subfolder when the split fields are enabled.
 The caller supplies the actual source archive names. One archive shows its name;

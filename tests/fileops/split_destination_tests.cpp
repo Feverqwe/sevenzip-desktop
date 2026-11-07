@@ -289,6 +289,59 @@ class SplitDestinationTests final : public QObject {
         QVERIFY(!QFileInfo::exists(cancelledPath));
     }
 #ifndef Q_OS_WIN
+    void readOnlyDestinationCanBeCorrected() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString blocked = fixture.filePath("read only");
+        const QString writable = blocked + "/writable";
+        QVERIFY(QDir().mkpath(writable));
+        const auto permissions = QFile::permissions(blocked);
+        const auto restore = qScopeGuard([&] { QFile::setPermissions(blocked, permissions); });
+        if (!QFile::setPermissions(blocked, QFile::ReadOwner | QFile::ExeOwner) ||
+            QFileInfo(blocked).isWritable())
+            QSKIP("The test filesystem does not enforce this directory permission");
+
+        const QString source = fixture.filePath("payload.txt");
+        QFile file(source);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        QCOMPARE(file.write("source bytes"), qint64(12));
+        file.close();
+        const QString archive = fixture.filePath("source.zip");
+        QVERIFY(NativeArchiveFixture::WriteFiles(archive, {source}));
+        ArchiveBackend backend;
+        const auto result = ExtractDialogFixture::Run(
+            backend, archive, fixture.path(), [&](CExtractDialog &dialog) {
+                const auto close = qScopeGuard([&] {
+                    if (dialog.isVisible())
+                        dialog.reject();
+                });
+                auto *error = dialog.findChild<QLabel *>("extractDestinationError");
+                QVERIFY(error);
+                enabled(dialog)->setChecked(true);
+                path(dialog)->setEditText(fixture.path());
+                name(dialog)->setText("read only/missing/deeper");
+                dialog.accept();
+                QVERIFY(dialog.isVisible() && error->isVisible());
+                QCOMPARE(dialog.focusWidget(), name(dialog));
+                QCOMPARE(name(dialog)->text(), QString("read only/missing/deeper"));
+
+                path(dialog)->setEditText(blocked);
+                name(dialog)->clear();
+                dialog.accept();
+                QVERIFY(dialog.isVisible() && error->isVisible());
+                QVERIFY(dialog.focusWidget() == path(dialog) ||
+                        dialog.focusWidget() == path(dialog)->lineEdit());
+                name(dialog)->setText("writable");
+                dialog.accept();
+            });
+        QCOMPARE(result.Result, S_OK);
+        QVERIFY(result.CallbackOK);
+        QVERIFY(!QFileInfo::exists(blocked + "/missing"));
+        QFile extracted(writable + "/payload.txt");
+        QVERIFY(extracted.open(QIODevice::ReadOnly));
+        QCOMPARE(extracted.readAll(), QByteArray("source bytes"));
+    }
+
     void destinationLinkCanBeCorrected() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
