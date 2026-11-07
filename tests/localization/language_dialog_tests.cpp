@@ -348,8 +348,7 @@ class LanguageDialogTests final : public QObject {
         const QString archive = QStringLiteral("/archives/исходный 空.zip");
         dialog.ArcPath = archive.toStdWString().c_str();
         dialog.show();
-        dialog.SetInitialOptions(NExtract::NPathMode::kNoPaths,
-                                 NExtract::NOverwriteMode::kRenameExisting,
+        dialog.SetInitialOptions(NExtract::NPathMode::kNoPaths, NExtract::NOverwriteMode::kRename,
                                  QStringLiteral("密碼 pending secret"));
         auto *destination = dialog.findChild<QComboBox *>("extractDestination");
         auto *pathMode = dialog.findChild<QComboBox *>("extractPathMode");

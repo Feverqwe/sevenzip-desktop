@@ -160,13 +160,14 @@ class SourceExtractAdvancedTests final : public QObject {
         CExtractDialog changed(_settings.path(), {});
         changed.findChild<QCheckBox *>("extractElimDup")->setChecked(false);
         changed.findChild<QCheckBox *>("extractNtSecurity")->setChecked(false);
-        changed.findChild<QComboBox *>("extractPathMode")->setCurrentIndex(2);
+        auto *paths = changed.findChild<QComboBox *>("extractPathMode");
+        paths->setCurrentIndex(paths->findData(int(NExtract::NPathMode::kNoPaths)));
         changed.accept();
         saved.Load(settings);
         QVERIFY(saved.ElimDup.Def && !saved.ElimDup.Val);
         QVERIFY(saved.NtSecurity.Def && !saved.NtSecurity.Val);
-        QCOMPARE(saved.PathMode, NExtract::NPathMode::kAbsPaths);
-        QCOMPARE(changed.PathMode, NExtract::NPathMode::kAbsPaths);
+        QCOMPARE(saved.PathMode, NExtract::NPathMode::kNoPaths);
+        QCOMPARE(changed.PathMode, NExtract::NPathMode::kNoPaths);
     }
     void geometryAndLanguage_data() {
         QTest::addColumn<QString>("language");

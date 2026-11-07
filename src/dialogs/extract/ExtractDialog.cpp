@@ -24,14 +24,12 @@ struct CExtractModeItem {
 };
 static constexpr CExtractModeItem kPathModes[] = {
     {NExtract::NPathMode::kFullPaths, IDS_EXTRACT_PATHS_FULL},
-    {NExtract::NPathMode::kNoPaths, IDS_EXTRACT_PATHS_NO},
-    {NExtract::NPathMode::kAbsPaths, IDS_EXTRACT_PATHS_ABS}};
+    {NExtract::NPathMode::kNoPaths, IDS_EXTRACT_PATHS_NO}};
 static constexpr CExtractModeItem kOverwriteModes[] = {
     {NExtract::NOverwriteMode::kAsk, IDS_EXTRACT_OVERWRITE_ASK},
     {NExtract::NOverwriteMode::kOverwrite, IDS_EXTRACT_OVERWRITE_WITHOUT_PROMPT},
     {NExtract::NOverwriteMode::kSkip, IDS_EXTRACT_OVERWRITE_SKIP_EXISTING},
-    {NExtract::NOverwriteMode::kRename, IDS_EXTRACT_OVERWRITE_RENAME},
-    {NExtract::NOverwriteMode::kRenameExisting, IDS_EXTRACT_OVERWRITE_RENAME_EXISTING}};
+    {NExtract::NOverwriteMode::kRename, IDS_EXTRACT_OVERWRITE_RENAME}};
 static constexpr int kModeCaptionRole = Qt::UserRole + 1;
 static const unsigned kHistorySize = 16;
 
@@ -102,11 +100,9 @@ void CExtractDialog::SetInitialOptions(NExtract::NPathMode::EEnum pathMode,
     OverwriteMode = overwriteMode;
     const int pathIndex = _pathMode->findData(int(
         pathMode == NExtract::NPathMode::kCurPaths ? NExtract::NPathMode::kFullPaths : pathMode));
-    if (pathIndex >= 0)
-        _pathMode->setCurrentIndex(pathIndex);
+    _pathMode->setCurrentIndex(qMax(0, pathIndex));
     const int overwriteIndex = _overwriteMode->findData(int(overwriteMode));
-    if (overwriteIndex >= 0)
-        _overwriteMode->setCurrentIndex(overwriteIndex);
+    _overwriteMode->setCurrentIndex(qMax(0, overwriteIndex));
     _passwordControl->setText(password);
 }
 

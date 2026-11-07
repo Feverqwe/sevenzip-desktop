@@ -349,20 +349,22 @@ class ExtractDialogTests final : public QObject {
             QCOMPARE(overwrite(dialog)->itemText(1), QStringLiteral("Overwrite without prompt"));
             QCOMPARE(overwrite(dialog)->itemText(2), QStringLiteral("Skip existing files"));
             pathMode(dialog)->setCurrentIndex(1);
-            overwrite(dialog)->setCurrentIndex(4);
+            overwrite(dialog)->setCurrentIndex(
+                overwrite(dialog)->findData(int(NExtract::NOverwriteMode::kRename)));
             dialog.findChild<QCheckBox *>("extractShowPassword")->setChecked(true);
             dialog.findChild<QLineEdit *>("extractPassword")
                 ->setText(QStringLiteral("секрет с пробелом"));
             dialog.findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok)->click();
             QCOMPARE(dialog.result(), int(QDialog::Accepted));
             QCOMPARE(dialog.PathMode, NExtract::NPathMode::kNoPaths);
-            QCOMPARE(dialog.OverwriteMode, NExtract::NOverwriteMode::kRenameExisting);
+            QCOMPARE(dialog.OverwriteMode, NExtract::NOverwriteMode::kRename);
             QCOMPARE(dialog.Password, QStringLiteral("секрет с пробелом"));
             QVERIFY(QDir::fromNativeSeparators(dialog.destination()).endsWith('/'));
         }
         CExtractDialog restarted(dir_.path(), {});
         QCOMPARE(pathMode(restarted)->currentIndex(), 1);
-        QCOMPARE(overwrite(restarted)->currentIndex(), 4);
+        QCOMPARE(overwrite(restarted)->currentData().toInt(),
+                 int(NExtract::NOverwriteMode::kRename));
         QCOMPARE(restarted.findChild<QLineEdit *>("extractPassword")->echoMode(),
                  QLineEdit::Normal);
         QVERIFY(restarted.password().isEmpty());
@@ -374,7 +376,24 @@ class ExtractDialogTests final : public QObject {
         restarted.reject();
         CExtractDialog afterCancel(dir_.path(), {});
         QCOMPARE(pathMode(afterCancel)->currentIndex(), 1);
-        QCOMPARE(overwrite(afterCancel)->currentIndex(), 4);
+        QCOMPARE(overwrite(afterCancel)->currentData().toInt(),
+                 int(NExtract::NOverwriteMode::kRename));
+    }
+    void legacyModesUseSafeDialogDefaults() {
+        NExtract::CInfo saved;
+        saved.PathMode = NExtract::NPathMode::kAbsPaths;
+        saved.PathMode_Force = true;
+        saved.OverwriteMode = NExtract::NOverwriteMode::kRenameExisting;
+        saved.OverwriteMode_Force = true;
+        saved.Save(settings_);
+        CExtractDialog dialog(dir_.path(), {});
+        QVERIFY(pathMode(dialog)->findData(int(saved.PathMode)) < 0);
+        QVERIFY(overwrite(dialog)->findData(int(saved.OverwriteMode)) < 0);
+        QCOMPARE(pathMode(dialog)->currentData().toInt(), int(NExtract::NPathMode::kFullPaths));
+        QCOMPARE(overwrite(dialog)->currentData().toInt(), int(NExtract::NOverwriteMode::kAsk));
+        dialog.accept();
+        QCOMPARE(dialog.PathMode, NExtract::NPathMode::kFullPaths);
+        QCOMPARE(dialog.OverwriteMode, NExtract::NOverwriteMode::kAsk);
     }
     void sourceOptionsRespectForcedAndSavedModes() {
         NExtract::CInfo saved;
@@ -463,11 +482,6 @@ class ExtractDialogTests final : public QObject {
         QCOMPARE(dialog.OverwriteMode, NExtract::NOverwriteMode::kAsk);
         QSettings settings(settings_, QSettings::IniFormat);
         QCOMPARE(settings.value("Toolbar/labels").toBool(), false);
-        settings.setValue("Extraction/ExtractMode", UInt32(NExtract::NPathMode::kAbsPaths));
-        settings.sync();
-        CExtractDialog absolute("/initial", {});
-        absolute.accept();
-        QCOMPARE(absolute.PathMode, NExtract::NPathMode::kAbsPaths);
     }
     void realExtractionUsesDialogModes_data() {
         QTest::addColumn<int>("pathModeIndex");
