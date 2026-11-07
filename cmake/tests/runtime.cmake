@@ -12,18 +12,6 @@
         set_tests_properties(svg_icon PROPERTIES TIMEOUT 10
             ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
     endif()
-    qt_add_executable(file_list_hover_tests tests/ui/file_list_hover_tests.cpp
-        src/filemanager/views/qtfilelisthover.cpp src/filemanager/views/qtfilelisthover.h)
-    target_link_libraries(file_list_hover_tests PRIVATE Qt6::Widgets Qt6::Test)
-    if(SEVENZIP_ENABLE_SANITIZERS AND NOT MSVC)
-        target_compile_options(file_list_hover_tests PRIVATE
-            $<$<CONFIG:Debug,RelWithDebInfo>:-fsanitize=vptr>)
-        target_link_options(file_list_hover_tests PRIVATE
-            $<$<CONFIG:Debug,RelWithDebInfo>:-fsanitize=vptr>)
-    endif()
-    add_test(NAME file_list_hover COMMAND file_list_hover_tests -silent)
-    set_tests_properties(file_list_hover PROPERTIES TIMEOUT 10
-        ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
     qt_add_executable(archive_write_lease_tests tests/archive/archive_write_lease_tests.cpp)
     target_link_libraries(archive_write_lease_tests PRIVATE sevenzip_archive_write_lease Qt6::Test)
     add_test(NAME archive_write_lease COMMAND archive_write_lease_tests -silent)

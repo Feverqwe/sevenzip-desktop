@@ -4,7 +4,6 @@
 #include "filemanager/panels/qtpanelcontextmenu.h"
 #include "filemanager/qtfilemanagerdrag.h"
 #include "filemanager/rename/qtrenamecontroller.h"
-#include "filemanager/views/qtfilelisthover.h"
 #include "filemanager/views/qtworkspacefiletable.h"
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtapppresentation.h"
@@ -207,8 +206,6 @@ void MainWindow::createFileTable(QWidget *central) {
             [this, columnOwner] { withPanelProjection(columnOwner, [this] { saveColumns(); }); });
     projectedUi().table->setSelectionBehavior(QAbstractItemView::SelectRows);
     projectedUi().table->setSelectionMode(QAbstractItemView::ExtendedSelection);
-    projectedUi().tableHover = new QtFileListHover(*projectedUi().table);
-    projectedUi().tableHover->SetEnabled(fileListSettings_.SingleClick);
     projectedUi().table->setEditTriggers(QAbstractItemView::NoEditTriggers);
     renameController_->Attach(*projectedUi().table, projectedPanel_);
     projectedUi().table->setSortingEnabled(true);
@@ -257,8 +254,6 @@ void MainWindow::createIconList(QWidget *central) {
                                                  ? QAbstractItemView::SingleSelection
                                                  : QAbstractItemView::ExtendedSelection);
     projectedUi().iconList->setSelectionBehavior(QAbstractItemView::SelectRows);
-    projectedUi().iconHover = new QtFileListHover(*projectedUi().iconList);
-    projectedUi().iconHover->SetEnabled(fileListSettings_.SingleClick);
     projectedUi().iconList->setEditTriggers(QAbstractItemView::NoEditTriggers);
     renameController_->Attach(*projectedUi().iconList, projectedPanel_);
     projectedUi().iconList->setUniformItemSizes(true);
@@ -280,11 +275,8 @@ void MainWindow::connectFileView(QAbstractItemView &view) {
     connect(&view, &QAbstractItemView::clicked, this,
             [this](const QModelIndex &index) { handleSelectionClick(index.row()); });
     connect(&view, &QAbstractItemView::doubleClicked, this, [this](const QModelIndex &index) {
-        if (!fileListSettings_.SingleClick)
-            activateRow(index.row(), selectionClickModifiers_);
+        activateRow(index.row(), selectionClickModifiers_);
     });
-    connect(&view, &QAbstractItemView::clicked, this,
-            [this](const QModelIndex &index) { activateSingleClickedRow(index.row()); });
     connect(&view, &QWidget::customContextMenuRequested, this,
             [this, owner = projectedPanel_, view = &view](const QPoint &pos) {
                 showItemContextMenu(owner, view, pos);
@@ -300,16 +292,10 @@ void MainWindow::connectFileView(QAbstractItemView &view) {
         host->renameController_->Cancel(owner);
         return true;
     };
-    const QPointer<QtFileListHover> hover(&view == projectedUi().table ? projectedUi().tableHover
-                                                                       : projectedUi().iconHover);
-    const auto activity = [hover](bool active) {
-        if (hover)
-            hover->SetSuspended(active);
-    };
     if (auto *table = dynamic_cast<FileTable *>(&view))
-        table->InstallSelectionGesture(activate, activity);
+        table->InstallSelectionGesture(activate);
     else if (auto *icons = dynamic_cast<FileIconList *>(&view))
-        icons->InstallSelectionGesture(activate, activity);
+        icons->InstallSelectionGesture(activate);
 }
 
 void MainWindow::appendParentEntry() {
@@ -324,14 +310,4 @@ void MainWindow::appendParentEntry() {
     row.toolTip = QCoreApplication::translate("mainwindow_panel", "Parent folder");
     projectedUi().table->panelModel()->append(std::move(row));
     projectedUi().table->setSortingEnabled(sorting);
-}
-
-void MainWindow::activateSingleClickedRow(int row) {
-    if (drag_ && drag_->Active())
-        return;
-    // Selection modifiers must keep the Qt multi-selection gesture intact.
-    const auto modifiers = selectionClickModifiers_;
-    if (fileListSettings_.SingleClick &&
-        !(modifiers & (Qt::ControlModifier | Qt::MetaModifier | Qt::ShiftModifier)))
-        activateRow(row, modifiers);
 }

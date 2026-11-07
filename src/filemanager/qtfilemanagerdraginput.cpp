@@ -135,7 +135,6 @@ bool QtFileManagerDrag::HandleDropEvent(QWidget &widget, QEvent &event) {
             window_.refreshActions();
         }
     });
-    SuspendHover(true);
     if (event.type() == QEvent::DragMove)
         result = target.DragOver(keys, position.x(), position.y(), &effect);
     else if (event.type() == QEvent::DragEnter)
@@ -165,5 +164,4 @@ bool QtFileManagerDrag::HandleDropEvent(QWidget &widget, QEvent &event) {
 void QtFileManagerDrag::ResetDropTarget() {
     window_.app_.DropTarget().ClearState();
     external_.NativeData.reset();
-    SuspendHover(active_);
 }

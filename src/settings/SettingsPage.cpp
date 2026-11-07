@@ -32,7 +32,6 @@ bool CSettingsPage::OnInit() {
     _showDots->setChecked(_settings.ShowDots);
     _fullRow->setChecked(_settings.FullRow);
     _showGrid->setChecked(_settings.ShowGrid);
-    _singleClick->setChecked(_settings.SingleClick);
     _alternativeSelection->setChecked(_settings.AlternativeSelection);
     {
         const auto memory = QtQueryMemoryLimitInfo();
@@ -69,7 +68,6 @@ long CSettingsPage::OnApply() {
         st.ShowDots = _showDots->isChecked();
         st.FullRow = _fullRow->isChecked();
         st.ShowGrid = _showGrid->isChecked();
-        st.SingleClick = _singleClick->isChecked();
         st.AlternativeSelection = _alternativeSelection->isChecked();
         st.Save(_settingsPath);
         _settings = st;

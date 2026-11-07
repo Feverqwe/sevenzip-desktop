@@ -2,7 +2,6 @@
 #include "7zip/UI/FileManager/resource.h"
 #include "archive/codecs/archivecodeccatalog.h"
 #include "filemanager/views/filetable.h"
-#include "filemanager/views/qtfilelisthover.h"
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtapppresentation.h"
 #include "localization/LangUtils.h"
@@ -58,14 +57,6 @@ void QtFileManagerDrag::Revoke() {
             ui.iconList->viewport()->removeEventFilter(this);
     }
 }
-void QtFileManagerDrag::SuspendHover(bool suspended) {
-    for (const auto &ui : window_.panelUi_) {
-        if (ui.tableHover)
-            ui.tableHover->SetSuspended(suspended);
-        if (ui.iconHover)
-            ui.iconHover->SetSuspended(suspended);
-    }
-}
 void QtFileManagerDrag::StartDrag(unsigned panel, bool rightButton) {
     if (revoked_ || active_ || panel >= kNumPanelsMax || window_.backend_->busy() ||
         window_.sourceArchiveProgress_ || window_.app_.QtOperations().closed() ||
@@ -75,11 +66,7 @@ void QtFileManagerDrag::StartDrag(unsigned panel, bool rightButton) {
     if (rightButton && !window_.app_.Panels[panel].IsFSFolder())
         return; // Native OnDrag permits right-button sources only in the filesystem.
     QScopedValueRollback<bool> active(active_, true);
-    SuspendHover(true);
-    const auto finishDrag = qScopeGuard([this] {
-        window_.app_.DropTarget().ClearState();
-        SuspendHover(false);
-    });
+    const auto finishDrag = qScopeGuard([this] { window_.app_.DropTarget().ClearState(); });
     {
         QScopedValueRollback<bool> source(window_.sourceArchiveProgress_, true);
         window_.app_.Panels[panel].OnDrag(rightButton);

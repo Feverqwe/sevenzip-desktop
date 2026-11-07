@@ -92,7 +92,6 @@ void CBrowseDialog::OnInit() {
     CFmSettings st;
     st.Load(FmSettingsPath());
     _showDots = st.ShowDots;
-    ConfigureSingleClick(st.SingleClick);
 
     unsigned rootSize = GetRootPrefixSize(FilePath);
 #ifdef _WIN32

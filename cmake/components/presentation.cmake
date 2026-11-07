@@ -82,8 +82,6 @@ add_library(sevenzip_panel
     src/dialogs/browse/browseiteminspection.h
     src/dialogs/browse/qttempbrowseinput.cpp
     src/dialogs/browse/qttempbrowsepresentation.cpp
-    src/filemanager/views/qtfilelisthover.cpp
-    src/filemanager/views/qtfilelisthover.h
     src/dialogs/compress/qtcompressoptionscontrols.cpp
     src/dialogs/compress/qtcompressoptionsdialog.cpp
     src/dialogs/compress/qtcompressoptionscontrols.h

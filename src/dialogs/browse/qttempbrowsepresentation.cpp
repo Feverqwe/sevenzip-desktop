@@ -10,7 +10,6 @@
 #include "Windows/TimeUtils.h"
 #include "dialogs/browse/BrowseDialog2.h"
 #include "filemanager/FormatUtils.h"
-#include "filemanager/views/qtfilelisthover.h"
 #include "localization/qtlangbuttonbox.h"
 #include "localization/qtlangcontrols.h"
 #include "localization/qtlanguageservices.h"
@@ -143,10 +142,7 @@ void CBrowseDialog2::BuildControls() {
     CFmSettings st;
     st.Load(FmSettingsPath());
     _showDots = st.ShowDots;
-    _singleClick = st.SingleClick;
     _list->setItemDelegate(new BrowseAppearance(st.FullRow, st.ShowGrid, _list));
-    auto *hover = new QtFileListHover(*_list);
-    hover->SetEnabled(st.SingleClick);
     ReloadLanguagePresentation();
     InitializeColumns();
     _list->installEventFilter(this);

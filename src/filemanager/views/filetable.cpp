@@ -99,8 +99,7 @@ void FileTable::startDrag(Qt::DropActions actions) {
 }
 void FileTable::handleDefaultKeyPress(QKeyEvent *event) { QTableView::keyPressEvent(event); }
 
-void FileTable::InstallSelectionGesture(std::function<bool()> activate,
-                                        std::function<void(bool)> activity) {
+void FileTable::InstallSelectionGesture(std::function<bool()> activate) {
     QtInstallFileSelectionGesture(
         *this,
         {[this](QRect area, QItemSelectionModel::SelectionFlags flags) {
@@ -124,11 +123,10 @@ void FileTable::InstallSelectionGesture(std::function<bool()> activate,
              return FileRowContainsPoint(*itemDelegateForIndex(index), option, index, point);
          },
          [this] { return QPoint(horizontalOffset(), verticalOffset()); }},
-        std::move(activate), std::move(activity));
+        std::move(activate));
 }
 
-void FileIconList::InstallSelectionGesture(std::function<bool()> activate,
-                                           std::function<void(bool)> activity) {
+void FileIconList::InstallSelectionGesture(std::function<bool()> activate) {
     QtInstallFileSelectionGesture(
         *this,
         {[this](const QRect &area, QItemSelectionModel::SelectionFlags flags) {
@@ -147,7 +145,7 @@ void FileIconList::InstallSelectionGesture(std::function<bool()> activate,
              return FileRowContainsPoint(*itemDelegateForIndex(index), option, index, point);
          },
          [this] { return QPoint(horizontalOffset(), verticalOffset()); }},
-        std::move(activate), std::move(activity));
+        std::move(activate));
 }
 void FileIconList::handleDefaultKeyPress(QKeyEvent *event) { QListView::keyPressEvent(event); }
 void FileIconList::startDrag(Qt::DropActions actions) {

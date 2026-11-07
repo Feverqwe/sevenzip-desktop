@@ -80,7 +80,6 @@ class QtWindowStatusBar;
 #include <memory>
 #include <vector>
 
-class QtFileListHover;
 class QtNavigationBar;
 class QtWindowWorkspace;
 class QtLocalFileTask;
@@ -144,7 +143,6 @@ class MainWindow : public QMainWindow {
     void createFavoritesMenu(QMenu *favoritesMenu);
     void createViewOptions(QMenu *viewMenu);
     void populateSourceMenus();
-    void activateSingleClickedRow(int row);
     void createFilePanel(QMenu *editMenu, unsigned index);
     void activatePanelUi(unsigned index);
     void withPanelProjection(unsigned index, const std::function<void()> &body);
@@ -343,8 +341,6 @@ class MainWindow : public QMainWindow {
         QListView *iconList = nullptr;
         QStackedWidget *viewStack = nullptr;
         QLabel *readOnlyIndicator = nullptr;
-        QtFileListHover *tableHover = nullptr;
-        QtFileListHover *iconHover = nullptr;
         QString directory;
         QString returnDirectory;
         QString archive;

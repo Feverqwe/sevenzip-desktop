@@ -3,36 +3,21 @@
 #include "settings/RegistryUtils.h"
 #include "settings/ViewSettings.h"
 #include <QApplication>
-#include <QMouseEvent>
 #include <QPlainTextEdit>
-#include <QProxyStyle>
+#include <QSettings>
 #include <QTemporaryDir>
 #include <QTimer>
 #include <QTreeWidget>
-#include <QWheelEvent>
 #include <QtTest>
-#include <memory>
-
-class HoverDelayStyle final : public QProxyStyle {
-  public:
-    int delay = 0;
-    int styleHint(StyleHint hint, const QStyleOption *option = nullptr,
-                  const QWidget *widget = nullptr,
-                  QStyleHintReturn *data = nullptr) const override {
-        return hint == SH_ToolTip_WakeUpDelay ? delay
-                                              : QProxyStyle::styleHint(hint, option, widget, data);
-    }
-};
 
 class ListActivationTests : public QObject {
     Q_OBJECT
     QTemporaryDir _dir;
     void prepare(CListViewDialog &dialog, bool singleClick, unsigned columns = 1) {
         dialog.SettingsPath = _dir.filePath("настройки списка.ini");
-        CFmSettings settings;
-        settings.Load(dialog.SettingsPath);
-        settings.SingleClick = singleClick;
-        settings.Save(dialog.SettingsPath);
+        QSettings legacy(dialog.SettingsPath, QSettings::IniFormat);
+        legacy.setValue("FM/SingleClick", singleClick);
+        legacy.sync();
         dialog.NumColumns = columns;
         dialog.SelectFirst = true;
         for (int i = 0; i < 3; ++i) {
@@ -46,44 +31,7 @@ class ListActivationTests : public QObject {
     static QPoint position(QTreeWidget *list, int row) {
         return list->visualItemRect(list->topLevelItem(row)).center();
     }
-    static void move(QTreeWidget *list, int row, Qt::KeyboardModifiers modifiers = Qt::NoModifier) {
-        const QPoint pos = position(list, row);
-        if (modifiers == Qt::NoModifier) {
-            auto *window = list->window();
-            QTest::mouseMove(
-                window->windowHandle(),
-                list->viewport()->mapTo(window, QPoint(1, list->viewport()->height() - 2)));
-            QTest::mouseMove(window->windowHandle(), list->viewport()->mapTo(window, pos));
-            return;
-        }
-        QMouseEvent event(QEvent::MouseMove, QPointF(pos),
-                          QPointF(list->viewport()->mapToGlobal(pos)), Qt::NoButton, Qt::NoButton,
-                          modifiers);
-        QApplication::sendEvent(list->viewport(), &event);
-    }
-
   private slots:
-    void hoverUsesThePlatformStyleDelay() {
-#ifdef Q_OS_WIN
-        QSKIP("Windows uses the system mouse hover timeout rather than the Qt style");
-#else
-        HoverDelayStyle style;
-        CListViewDialog dialog;
-        prepare(dialog, true);
-        auto *list = dialog.findChild<QTreeWidget *>();
-        list->setStyle(&style);
-        style.delay = 20;
-        move(list, 1);
-        QTRY_COMPARE_WITH_TIMEOUT(list->currentItem(), list->topLevelItem(1), 250);
-        style.delay = 600;
-        move(list, 2);
-        QTest::qWait(300);
-        QCOMPARE(list->currentItem(), list->topLevelItem(1));
-        QTRY_COMPARE(list->currentItem(), list->topLevelItem(2));
-        QVERIFY(dialog.isVisible());
-#endif
-    }
-
     void historyActivation_data() {
         QTest::addColumn<bool>("singleClick");
         QTest::newRow("single") << true;
@@ -95,10 +43,8 @@ class ListActivationTests : public QObject {
         prepare(dialog, singleClick);
         auto *list = dialog.findChild<QTreeWidget *>();
         QTest::mouseClick(list->viewport(), Qt::LeftButton, Qt::NoModifier, position(list, 1));
-        if (!singleClick) {
-            QVERIFY(dialog.isVisible());
-            QTest::mouseDClick(list->viewport(), Qt::LeftButton, Qt::NoModifier, position(list, 1));
-        }
+        QVERIFY(dialog.isVisible());
+        QTest::mouseDClick(list->viewport(), Qt::LeftButton, Qt::NoModifier, position(list, 1));
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
         QCOMPARE(dialog.FocusedItemIndex, 1);
     }
@@ -114,19 +60,21 @@ class ListActivationTests : public QObject {
         dialog.reject();
         QCOMPARE(dialog.FocusedItemIndex, -1);
     }
-    void singleClickDetail_data() {
+    void doubleClickDetail_data() {
         QTest::addColumn<unsigned>("columns");
         QTest::addColumn<Qt::KeyboardModifiers>("modifiers");
         QTest::newRow("properties") << 2u << Qt::KeyboardModifiers(Qt::NoModifier);
         QTest::newRow("alt-history") << 1u << Qt::KeyboardModifiers(Qt::AltModifier);
     }
-    void singleClickDetail() {
+    void doubleClickDetail() {
         QFETCH(unsigned, columns);
         QFETCH(Qt::KeyboardModifiers, modifiers);
         CListViewDialog dialog;
         prepare(dialog, true, columns);
         auto *list = dialog.findChild<QTreeWidget *>();
         int opened = 0;
+        QTest::mouseClick(list->viewport(), Qt::LeftButton, modifiers, position(list, 1));
+        QVERIFY(dialog.isVisible());
         QTimer::singleShot(0, &dialog, [&] {
             auto *detail = dialog.findChild<QDialog *>("listItemInfoDialog");
             QVERIFY(detail);
@@ -135,111 +83,12 @@ class ListActivationTests : public QObject {
             ++opened;
             detail->reject();
         });
-        QTest::mouseClick(list->viewport(), Qt::LeftButton, modifiers, position(list, 1));
+        QTest::mouseDClick(list->viewport(), Qt::LeftButton, modifiers, position(list, 1));
         if (modifiers.testFlag(Qt::AltModifier))
             QTest::keyRelease(list, Qt::Key_Alt);
         QCOMPARE(opened, 1);
         QVERIFY(dialog.isVisible());
         QCOMPARE(dialog.FocusedItemIndex, -1);
-    }
-    void hoverSelectsWithoutActivating_data() { historyActivation_data(); }
-    void hoverSelectsWithoutActivating() {
-        QFETCH(bool, singleClick);
-        CListViewDialog dialog;
-        prepare(dialog, singleClick);
-        auto *list = dialog.findChild<QTreeWidget *>();
-        move(list, 1);
-        if (singleClick)
-            QTRY_COMPARE(list->currentItem(), list->topLevelItem(1));
-        else {
-            QTest::qWait(450);
-            QCOMPARE(list->currentItem(), list->topLevelItem(0));
-        }
-        QVERIFY(dialog.isVisible());
-        QCOMPARE(dialog.FocusedItemIndex, -1);
-    }
-    void hoverStopsOnLeaveModifiersAndRemovedRows() {
-        CListViewDialog dialog;
-        prepare(dialog, true);
-        auto *list = dialog.findChild<QTreeWidget *>();
-        move(list, 1, Qt::ShiftModifier);
-        QTest::qWait(450);
-        QCOMPARE(list->currentItem(), list->topLevelItem(0));
-        QTest::keyRelease(list, Qt::Key_Shift);
-        move(list, 1);
-        QEvent leave(QEvent::Leave);
-        QApplication::sendEvent(list->viewport(), &leave);
-        QTest::qWait(450);
-        QCOMPARE(list->currentItem(), list->topLevelItem(0));
-        move(list, 1);
-        delete list->takeTopLevelItem(1);
-        QTest::qWait(450);
-        QCOMPARE(list->currentItem(), list->topLevelItem(0));
-        QVERIFY(dialog.isVisible());
-    }
-    void hoverCancelsBeforeDelayedSelection_data() {
-        QTest::addColumn<QString>("action");
-        for (const char *action : {"wheel", "disable", "hide-show", "close"})
-            QTest::newRow(action) << QString::fromLatin1(action);
-    }
-    void disablingWidgetCancelsPendingHover_data() {
-        QTest::addColumn<bool>("reenable");
-        QTest::newRow("disabled") << false;
-        QTest::newRow("disable-enable") << true;
-    }
-    void disablingWidgetCancelsPendingHover() {
-        QFETCH(bool, reenable);
-        CListViewDialog dialog;
-        prepare(dialog, true);
-        auto *list = dialog.findChild<QTreeWidget *>();
-        move(list, 1);
-        list->setEnabled(false);
-        if (reenable)
-            list->setEnabled(true);
-        QTest::qWait(1200);
-        QCOMPARE(list->currentItem(), list->topLevelItem(0));
-        QVERIFY(dialog.isVisible());
-        QCOMPARE(dialog.FocusedItemIndex, -1);
-        list->setEnabled(true);
-        move(list, 2);
-        QTRY_COMPARE(list->currentItem(), list->topLevelItem(2));
-    }
-    void hoverCancelsBeforeDelayedSelection() {
-        QFETCH(QString, action);
-        auto dialog = std::make_unique<CListViewDialog>();
-        prepare(*dialog, true);
-        auto *list = dynamic_cast<CListView *>(dialog->findChild<QTreeWidget *>());
-        QVERIFY(list);
-        move(list, 1);
-        if (action == "wheel") {
-            const QPoint pos = position(list, 1);
-            QWheelEvent wheel(QPointF(pos), QPointF(list->viewport()->mapToGlobal(pos)), QPoint(),
-                              QPoint(0, 120), Qt::NoButton, Qt::NoModifier, Qt::NoScrollPhase,
-                              false);
-            QApplication::sendEvent(list->viewport(), &wheel);
-        } else if (action == "disable") {
-            list->SetSingleClickActivation(false);
-        } else if (action == "hide-show") {
-            list->hide();
-            list->show();
-        } else {
-            QPointer<QTreeWidget> lifetime(list);
-            dialog.reset();
-            QVERIFY(lifetime.isNull());
-            QTest::qWait(450);
-            return;
-        }
-        QTest::qWait(450);
-        QCOMPARE(list->currentItem(), list->topLevelItem(0));
-        QCOMPARE(dialog->FocusedItemIndex, -1);
-        QVERIFY(dialog->isVisible());
-        move(list, 2);
-        if (action != "disable")
-            QTRY_COMPARE_WITH_TIMEOUT(list->currentItem(), list->topLevelItem(2), 1200);
-        else {
-            QTest::qWait(450);
-            QCOMPARE(list->currentItem(), list->topLevelItem(0));
-        }
     }
 };
 QTEST_MAIN(ListActivationTests)

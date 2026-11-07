@@ -54,8 +54,8 @@ class OptionsDialogTests : public QObject {
             // change the requested size. Check the actual content below.
             QWidget *previous = nullptr;
             for (const char *name :
-                 {"showDotsOption", "fullRowOption", "gridOption", "singleClickOption",
-                  "alternativeSelectionOption", "extractMemoryLabel", "extractMemorySpin"}) {
+                 {"showDotsOption", "fullRowOption", "gridOption", "alternativeSelectionOption",
+                  "extractMemoryLabel", "extractMemorySpin"}) {
                 auto *control = dialog.findChild<QWidget *>(name);
                 QVERIFY(control);
                 OptionsPresentation::show(dialog, control);
@@ -309,7 +309,6 @@ class OptionsDialogTests : public QObject {
         old.SetDefault();
         old.Save(settings);
         QtFmOptionsDialog dialog(settings);
-        auto *pages = dialog.findChild<QTabWidget *>("optionsPages");
         OptionsPresentation::show(dialog, "workSystem");
         auto *path = dialog.findChild<QLineEdit *>("workPath");
         auto *browse = dialog.findChild<QPushButton *>("workPathBrowse");

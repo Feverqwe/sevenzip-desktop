@@ -13,5 +13,4 @@ struct QtFileSelectionGeometry {
 };
 
 void QtInstallFileSelectionGesture(QAbstractItemView &view, QtFileSelectionGeometry geometry,
-                                   std::function<bool()> activate,
-                                   std::function<void(bool)> activity);
+                                   std::function<bool()> activate);

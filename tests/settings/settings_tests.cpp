@@ -16,11 +16,7 @@ class SettingsTests : public QObject, protected MainWindowTestSupport {
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
 
-    void cleanup() {
-        QSettings settings(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"), QSettings::IniFormat);
-        settings.setValue("FM/SingleClick", false);
-    }
-    void singleClickSelection_data() {
+    void clickSelectsAndDoubleClickOpens_data() {
         QTest::addColumn<int>("mode");
         QTest::addColumn<bool>("archive");
         QTest::addColumn<bool>("singleClick");
@@ -33,7 +29,7 @@ class SettingsTests : public QObject, protected MainWindowTestSupport {
                     << mode << true << singleClick;
             }
     }
-    void singleClickSelection() {
+    void clickSelectsAndDoubleClickOpens() {
         QFETCH(int, mode);
         QFETCH(bool, archive);
         QFETCH(bool, singleClick);
@@ -85,30 +81,13 @@ class SettingsTests : public QObject, protected MainWindowTestSupport {
         QVERIFY(table->selectionModel()->selectedRows().size() >= 2);
         click(0, Qt::MetaModifier);
         QCOMPARE(address->text(), before);
-        if (singleClick && (mode == 0 || mode == 3) &&
-            qEnvironmentVariableIntValue("SEVENZIP_CAPTURE_SCREENSHOTS") == 1) {
-            const QString screenshots = QDir::currentPath() + "/ui-screenshots";
-            QVERIFY(QDir().mkpath(screenshots));
-            for (int width : {980, 640}) {
-                window.resize(width, width == 980 ? 620 : 400);
-                QApplication::processEvents();
-                QVERIFY(
-                    window.grab().save(screenshots + QStringLiteral("/single-click-%1-%2-%3.png")
-                                                         .arg(archive ? "archive" : "disk")
-                                                         .arg(mode)
-                                                         .arg(width)));
-            }
-        }
         click(0, Qt::NoModifier);
-        if (!singleClick) {
-            QCOMPARE(address->text(), before);
-            const QModelIndex index = table->model()->index(0, 0);
-            QTest::mouseDClick(view->viewport(), Qt::LeftButton, Qt::NoModifier,
-                               view->visualRect(index).center());
-        }
+        QCOMPARE(address->text(), before);
+        const QModelIndex index = table->model()->index(0, 0);
+        QTest::mouseDClick(view->viewport(), Qt::LeftButton, Qt::NoModifier,
+                           view->visualRect(index).center());
         QVERIFY(address->text() != before);
         QCOMPARE(backend.extractCalls, 0);
-        settings.setValue("FM/SingleClick", false);
         settings.sync();
     }
 
@@ -129,7 +108,6 @@ class SettingsTests : public QObject, protected MainWindowTestSupport {
             auto *dialog = window.findChild<QDialog *>("settingsDialog");
             QVERIFY(dialog);
             dialog->findChild<QCheckBox *>("gridOption")->setChecked(true);
-            dialog->findChild<QCheckBox *>("singleClickOption")->setChecked(true);
             dialog->reject();
         });
         action->trigger();
@@ -139,23 +117,10 @@ class SettingsTests : public QObject, protected MainWindowTestSupport {
             auto *dialog = window.findChild<QDialog *>("settingsDialog");
             QVERIFY(dialog);
             dialog->findChild<QCheckBox *>("gridOption")->setChecked(true);
-            dialog->findChild<QCheckBox *>("singleClickOption")->setChecked(true);
             dialog->accept();
         });
         action->trigger();
         QVERIFY(table->showGrid());
-
-        int folderRow = -1;
-        for (int row = 0; row < table->rowCount(); ++row)
-            if (table->model()->index(row, 0).data().toString() ==
-                QStringLiteral("папка с пробелом"))
-                folderRow = row;
-        QVERIFY(folderRow >= 0);
-        QVERIFY(QMetaObject::invokeMethod(table, "clicked", Qt::DirectConnection,
-                                          Q_ARG(QModelIndex, table->model()->index(folderRow, 0))));
-        QCOMPARE(
-            window.findChild<QLineEdit *>("archivePath")->text(),
-            QFileInfo(temporary.filePath(QStringLiteral("папка с пробелом"))).canonicalFilePath());
 
         MainWindow reopened;
         QVERIFY(reopened.findChild<FileTable *>("archiveTable")->showGrid());

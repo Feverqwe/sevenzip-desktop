@@ -3,15 +3,10 @@
 #include "settings/ViewSettings.h"
 #include <QTreeWidget>
 
-class QtFileListHover;
-
 class CListView : public QTreeWidget {
-    QtFileListHover *_hover;
 
   public:
     explicit CListView(QWidget *parent);
-    // Qt adapters for LVS_EX_ONECLICKACTIVATE | LVS_EX_TRACKSELECT.
-    void SetSingleClickActivation(bool enabled);
     void InsertColumn(unsigned column, const wchar_t *text, int width) {
         if (columnCount() <= int(column))
             setColumnCount(int(column) + 1);

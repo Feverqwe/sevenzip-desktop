@@ -52,7 +52,6 @@ class CBrowseDialog : public QDialog {
     };
     Controls CreateControls();
     void ConnectControls(const Controls &controls);
-    void ConfigureSingleClick(bool enabled);
     void CompletePresentation(const Controls &controls);
     int GetRealItemIndex(QTreeWidgetItem *item) const;
     QTreeWidgetItem *SelectedItem() const;

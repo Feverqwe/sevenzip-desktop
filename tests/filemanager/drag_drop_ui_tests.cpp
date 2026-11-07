@@ -141,9 +141,6 @@ class DragDropUiTests final : public QObject {
     void archiveSourceCancelsThroughLiveController() {
         QFETCH(bool, icons);
         QFETCH(bool, right);
-        QSettings settings(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"), QSettings::IniFormat);
-        settings.setValue("FM/SingleClick", 1);
-        settings.sync();
         QTemporaryDir root;
         const QString name = QStringLiteral("исходный с пробелом.txt");
         QFile input(root.filePath(name));
@@ -295,18 +292,21 @@ class DragDropUiTests final : public QObject {
             const int hoverRow = Row(*table, hoverName);
             QVERIFY(hoverRow >= 0);
             const QModelIndex hovered = view->model()->index(hoverRow, 0);
-            QTest::mouseMove(view->viewport(), view->visualRect(hovered).center());
+            const QRect cell = view->visualRect(hovered);
+            const QPoint namePoint(cell.left() + 26, cell.center().y());
+            QTest::mouseClick(view->viewport(), Qt::LeftButton, Qt::NoModifier,
+                              icons ? cell.center() : namePoint);
             QTRY_COMPARE(view->currentIndex().siblingAtColumn(0).data().toString(), hoverName);
         }
     }
 
-    void externalDragSuspendsHoverWithoutOpeningFolder_data() {
+    void externalDragKeepsSelectionAndDoesNotOpenFolder_data() {
         QTest::addColumn<int>("rejection");
         QTest::newRow("accepted") << 0;
         QTest::newRow("rejected-entry-then-accepted") << 1;
         QTest::newRow("rejected-drop-then-accepted") << 2;
     }
-    void externalDragSuspendsHoverWithoutOpeningFolder() {
+    void externalDragKeepsSelectionAndDoesNotOpenFolder() {
         QFETCH(int, rejection);
         QTemporaryDir root;
         const QString folder = QStringLiteral("назначение");
@@ -314,9 +314,6 @@ class DragDropUiTests final : public QObject {
         QFile file(root.filePath("selected.txt"));
         QVERIFY(file.open(QIODevice::WriteOnly));
         file.close();
-        QSettings settings(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"), QSettings::IniFormat);
-        settings.setValue("FM/SingleClick", 1);
-        settings.sync();
         SavePanelPath(0, ToUString(root.path()), qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         ControlledBackend backend;
         MainWindow window(&backend);
@@ -329,7 +326,9 @@ class DragDropUiTests final : public QObject {
         table->selectRow(selected);
         table->setCurrentCell(selected, 0);
         const QModelIndex destination = table->model()->index(Row(*table, folder), 0);
-        const QPoint point = table->visualRect(destination).center();
+        const QRect cell = table->visualRect(destination);
+        const QPoint point = cell.center();
+        const QPoint namePoint(cell.left() + 26, point.y());
         QMimeData mime;
         mime.setUrls({QUrl::fromLocalFile(file.fileName())});
         if (rejection == 1) {
@@ -338,9 +337,9 @@ class DragDropUiTests final : public QObject {
             QCoreApplication::sendEvent(table->viewport(), &rejected);
             QVERIFY(!rejected.isAccepted());
             QVERIFY(!destination.data(Qt::UserRole + 19).toBool());
-            // A rejected entry has no matching DragLeave. Ordinary hover must
-            // resume, and the next supported drag must still be accepted.
-            QTest::mouseMove(table->viewport(), point);
+            // A rejected entry has no matching DragLeave. Selection and the
+            // next supported drag still work.
+            QTest::mouseClick(table->viewport(), Qt::LeftButton, Qt::NoModifier, namePoint);
             QTRY_COMPARE(table->currentRow(), destination.row());
             table->selectRow(selected);
             table->setCurrentCell(selected, 0);
@@ -355,7 +354,7 @@ class DragDropUiTests final : public QObject {
             QCoreApplication::sendEvent(table->viewport(), &rejected);
             QVERIFY(!rejected.isAccepted());
             QVERIFY(!destination.data(Qt::UserRole + 19).toBool());
-            QTest::mouseMove(table->viewport(), point);
+            QTest::mouseClick(table->viewport(), Qt::LeftButton, Qt::NoModifier, namePoint);
             QTRY_COMPARE(table->currentRow(), destination.row());
             QVERIFY(QDir(root.filePath(folder)).isEmpty());
             table->selectRow(selected);
@@ -372,7 +371,7 @@ class DragDropUiTests final : public QObject {
         QDragLeaveEvent leave;
         QCoreApplication::sendEvent(table->viewport(), &leave);
         QVERIFY(!destination.data(Qt::UserRole + 19).toBool());
-        QTest::mouseMove(table->viewport(), point + QPoint(1, 0));
+        QTest::mouseClick(table->viewport(), Qt::LeftButton, Qt::NoModifier, namePoint);
         QTRY_COMPARE(table->currentRow(), destination.row());
         QCOMPARE(
             QFileInfo(window.findChild<QLineEdit *>("archivePath")->text()).canonicalFilePath(),

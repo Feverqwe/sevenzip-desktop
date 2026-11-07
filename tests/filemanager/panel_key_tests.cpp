@@ -970,12 +970,10 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
         QSettings settings(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"), QSettings::IniFormat);
         settings.setValue("FM/AlternativeSelection", true);
         settings.setValue("FM/ShowDots", true);
-        settings.setValue("FM/SingleClick", true);
         settings.sync();
         const auto restore = qScopeGuard([&] {
             settings.remove("FM/AlternativeSelection");
             settings.remove("FM/ShowDots");
-            settings.remove("FM/SingleClick");
             settings.sync();
         });
         QTemporaryDir temp;
@@ -1011,23 +1009,6 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
         icons->scrollTo(icons->model()->index(49, 0));
         QApplication::processEvents();
         QVERIFY(files->model()->index(49, 0).data(Qt::BackgroundRole).isValid());
-        const QModelIndex hovered = icons->model()->index(49, 0);
-        QTRY_VERIFY(icons->viewport()->rect().contains(icons->visualRect(hovered)));
-        // QWidget's no-button overload only moves the system cursor. Deliver
-        // a QPA event so hover does not depend on native cursor notifications.
-        QTest::mouseMove(window.windowHandle(),
-                         icons->viewport()->mapTo(&window, icons->visualRect(hovered).center()));
-        QTRY_VERIFY2_WITH_TIMEOUT(
-            files->currentRow() == 49,
-            qPrintable(
-                QString("row=%1 mouse=%2 modifiers=%3 active=%4 visible=%5 cursorRow=%6")
-                    .arg(files->currentRow())
-                    .arg(int(QApplication::mouseButtons()))
-                    .arg(int(QApplication::keyboardModifiers()))
-                    .arg(window.isActiveWindow())
-                    .arg(icons->isVisible())
-                    .arg(icons->indexAt(icons->viewport()->mapFromGlobal(QCursor::pos())).row())),
-            1200);
         static_cast<FileTable *>(files)->sourcePanel->Get_ItemIndices_Selected(marks);
         QCOMPARE(marks.Size(), unsigned(49));
         QVERIFY(UiInspection::fullyVisible(*icons, window));

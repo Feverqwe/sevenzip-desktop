@@ -40,7 +40,6 @@ class QtFileManagerDrag final : public QObject,
     DroppedPathAction ChooseDroppedPathAction(const QString &path);
     CDataObject *ReadData(const QMimeData &);
     bool HandleRightDrag(QWidget &, QEvent &);
-    void SuspendHover(bool suspended);
     void ResetDropTarget();
     MainWindow &window_;
     CDataObject external_;

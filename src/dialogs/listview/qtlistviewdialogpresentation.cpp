@@ -41,10 +41,6 @@ bool CListViewDialog::OnInit() {
     _listView->setColumnWidth(0, NumColumns > 1 ? 100 : 400);
     if (NumColumns > 1)
         _listView->setColumnWidth(1, 300);
-    CFmSettings st;
-    st.Load(SettingsPath.isEmpty() ? FmSettingsPath() : SettingsPath);
-    if (st.SingleClick)
-        _listView->SetSingleClickActivation(true);
     _listView->installEventFilter(this);
     FOR_VECTOR(i, Strings) {
         _listView->InsertItem(i, Strings[i]);
@@ -81,14 +77,7 @@ bool CListViewDialog::OnInit() {
     }
     QtCreateDialogLayout(*this, *buttons)->addWidget(_listView, 1);
     connect(buttons, &QDialogButtonBox::accepted, this, &CListViewDialog::OnOK);
-    if (st.SingleClick)
-        connect(_listView, &QTreeWidget::itemClicked, this, [this] {
-            const auto modifiers = QApplication::keyboardModifiers();
-            if (!(modifiers & (Qt::ControlModifier | Qt::MetaModifier | Qt::ShiftModifier)))
-                OnEnter();
-        });
-    else
-        connect(_listView, &QTreeWidget::itemDoubleClicked, this, &CListViewDialog::OnEnter);
+    connect(_listView, &QTreeWidget::itemDoubleClicked, this, &CListViewDialog::OnEnter);
     resize((report ? QSize(640, 420) : QSize(560, 360)).expandedTo(minimumSizeHint()));
     QtNormalizeDialogSize(*this);
     _listView->setFocus();

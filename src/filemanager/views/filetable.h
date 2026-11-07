@@ -25,8 +25,7 @@ class FileTable : public QTableView {
     void setFullRowHighlight(bool enabled);
     void handleDefaultKeyPress(QKeyEvent *event);
     void refreshLanguageText();
-    void InstallSelectionGesture(std::function<bool()> activate,
-                                 std::function<void(bool)> activity);
+    void InstallSelectionGesture(std::function<bool()> activate);
     virtual void invalidateLanguageText();
     bool fullRowHighlight() const { return fullRowHighlight_; }
     FilePanelModel *panelModel() const { return model_; }
@@ -86,8 +85,7 @@ class FileIconList final : public QListView {
   public:
     using QListView::QListView;
     void ConfigureLargeIcons();
-    void InstallSelectionGesture(std::function<bool()> activate,
-                                 std::function<void(bool)> activity);
+    void InstallSelectionGesture(std::function<bool()> activate);
     void handleDefaultKeyPress(QKeyEvent *event);
     std::function<void()> dragStarter;
 

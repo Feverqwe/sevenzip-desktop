@@ -47,7 +47,6 @@ class SelectionFrame final : public QWidget {
 class FileSelectionGesture final : public QObject {
     QtFileSelectionGeometry geometry_;
     std::function<bool()> activate_;
-    std::function<void(bool)> activity_;
     SelectionFrame *frame_;
     QTimer scroll_;
     QItemSelection baseline_;
@@ -93,8 +92,6 @@ class FileSelectionGesture final : public QObject {
         pressed_ = dragging_ = cancelled_ = false;
         baseline_ = {};
         current_ = QPersistentModelIndex();
-        if (activity_)
-            activity_(false);
     }
     void WatchModel(QAbstractItemModel &model) {
         if (model_ == &model)
@@ -205,8 +202,6 @@ class FileSelectionGesture final : public QObject {
             // replacing this gesture's SelectCurrent/ToggleCurrent segment.
             view->selectionModel()->select(QItemSelection(), QItemSelectionModel::Select);
             pressed_ = true;
-            if (activity_)
-                activity_(true);
             view->viewport()->grabMouse();
             event->accept();
             return true;
@@ -247,18 +242,16 @@ class FileSelectionGesture final : public QObject {
 
   public:
     FileSelectionGesture(QAbstractItemView &view, QtFileSelectionGeometry geometry,
-                         std::function<bool()> activate, std::function<void(bool)> activity)
+                         std::function<bool()> activate)
         : QObject(&view), frame_(new SelectionFrame(*view.viewport())) {
         scroll_.setInterval(30);
         connect(&scroll_, &QTimer::timeout, this, &FileSelectionGesture::Scroll);
-        Reset(std::move(geometry), std::move(activate), std::move(activity));
+        Reset(std::move(geometry), std::move(activate));
     }
-    void Reset(QtFileSelectionGeometry geometry, std::function<bool()> activate,
-               std::function<void(bool)> activity) {
+    void Reset(QtFileSelectionGeometry geometry, std::function<bool()> activate) {
         Finish(true);
         geometry_ = std::move(geometry);
         activate_ = std::move(activate);
-        activity_ = std::move(activity);
         auto *view = View();
         view->installEventFilter(this);
         view->viewport()->installEventFilter(this);
@@ -267,12 +260,11 @@ class FileSelectionGesture final : public QObject {
 } // namespace
 
 void QtInstallFileSelectionGesture(QAbstractItemView &view, QtFileSelectionGeometry geometry,
-                                   std::function<bool()> activate,
-                                   std::function<void(bool)> activity) {
+                                   std::function<bool()> activate) {
     for (auto *child : view.children())
         if (auto *gesture = dynamic_cast<FileSelectionGesture *>(child)) {
-            gesture->Reset(std::move(geometry), std::move(activate), std::move(activity));
+            gesture->Reset(std::move(geometry), std::move(activate));
             return;
         }
-    new FileSelectionGesture(view, std::move(geometry), std::move(activate), std::move(activity));
+    new FileSelectionGesture(view, std::move(geometry), std::move(activate));
 }

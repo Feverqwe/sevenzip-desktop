@@ -28,14 +28,7 @@ void CBrowseDialog2::ConnectControls(QDialogButtonBox *buttons, QPushButton *ref
     });
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     connect(qApp, &QApplication::focusChanged, this, &CBrowseDialog2::OnFocusChanged);
-    connect(_list, &QTreeWidget::itemActivated, this, [this] {
-        if (!_singleClick)
-            OnItemEnter();
-    });
-    connect(_list, &QTreeWidget::itemClicked, this, [this] {
-        if (_singleClick && QApplication::keyboardModifiers() == Qt::NoModifier)
-            OnItemEnter();
-    });
+    connect(_list, &QTreeWidget::itemDoubleClicked, this, [this] { OnItemEnter(); });
     connect(_list, &QTreeWidget::customContextMenuRequested, this, &CBrowseDialog2::OnContextMenu);
     connect(_list, &QTreeWidget::itemSelectionChanged, this,
             &CBrowseDialog2::UpdateDeleteAvailability);

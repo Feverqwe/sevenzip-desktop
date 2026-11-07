@@ -51,14 +51,6 @@ bool setListOptions(MainWindow &window, QAction *settingsAction, bool enabled) {
     return applied;
 }
 
-void moveOver(QAbstractItemView &view, const QModelIndex &index) {
-    auto *window = view.window();
-    QTest::mouseMove(window->windowHandle(),
-                     view.viewport()->mapTo(window, QPoint(1, view.viewport()->height() - 2)));
-    QTest::mouseMove(window->windowHandle(),
-                     view.viewport()->mapTo(window, view.visualRect(index).center()));
-}
-
 QString screenshotPath(const QString &name) {
     const QDir report(qEnvironmentVariable("SEVENZIP_UI_REPORT_DIR"));
     const QString folder = report.filePath(QStringLiteral("../ui-screenshots"));
@@ -186,79 +178,6 @@ class ListSettingsRuntimeTests final : public QObject, protected MainWindowTestS
         if (qEnvironmentVariableIntValue("SEVENZIP_CAPTURE_SCREENSHOTS") == 1)
             QVERIFY(files->viewport()->grab().save(
                 screenshotPath(QStringLiteral("list-settings-name-only.png"))));
-    }
-
-    void hoverSelectsWithoutOpeningAndIgnoresScroll() {
-        QTemporaryDir temp;
-        QVERIFY(temp.isValid());
-        CurrentDirectoryGuard directoryGuard;
-        QVERIFY(QDir::setCurrent(temp.path()));
-        for (int i = 0; i < 60; ++i)
-            QVERIFY(
-                writeFile(temp.filePath(QStringLiteral("file-%1.txt").arg(i, 3, 10, QChar('0')))));
-        QSettings settings(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"), QSettings::IniFormat);
-        settings.setValue("FM/SingleClick", true);
-        settings.sync();
-        MainWindow window;
-        window.resize(640, 400);
-        window.show();
-        QVERIFY(QTest::qWaitForWindowExposed(&window));
-        auto *files = table(window);
-        auto *icons = window.findChild<QListView *>("iconList");
-        QCOMPARE(icons->accessibleName(), QStringLiteral("File list"));
-        const QString path = window.findChild<QLineEdit *>("archivePath")->text();
-        for (int mode : {3, 0}) {
-            action(window, mode == 3 ? "viewMode3Action" : "viewMode0Action")->trigger();
-            QAbstractItemView *view = mode == 3 ? static_cast<QAbstractItemView *>(files)
-                                                : static_cast<QAbstractItemView *>(icons);
-            const QModelIndex target = files->model()->index(4, 0);
-            view->scrollTo(target);
-            moveOver(*view, target);
-            QTRY_COMPARE_WITH_TIMEOUT(files->currentRow(), 4, 1200);
-            QCOMPARE(window.findChild<QLineEdit *>("archivePath")->text(), path);
-            const QModelIndex delayed = files->model()->index(12, 0);
-            view->scrollTo(delayed);
-            moveOver(*view, delayed);
-            view->verticalScrollBar()->setValue(view->verticalScrollBar()->maximum());
-            QTest::qWait(550);
-            QCOMPARE(files->currentRow(), 4);
-
-            for (const auto gesture : {Qt::ControlModifier, Qt::ShiftModifier}) {
-                view->scrollTo(delayed);
-                const QPoint position = view->visualRect(delayed).center();
-                QMouseEvent move(QEvent::MouseMove, QPointF(position),
-                                 QPointF(view->viewport()->mapToGlobal(position)), Qt::NoButton,
-                                 Qt::NoButton, gesture);
-                QApplication::sendEvent(view->viewport(), &move);
-                QTest::qWait(450);
-                QCOMPARE(files->currentRow(), 4);
-            }
-            view->scrollTo(delayed);
-            const QPoint dragPosition = view->visualRect(delayed).center();
-            QMouseEvent dragging(QEvent::MouseMove, QPointF(dragPosition),
-                                 QPointF(view->viewport()->mapToGlobal(dragPosition)), Qt::NoButton,
-                                 Qt::LeftButton, Qt::NoModifier);
-            QApplication::sendEvent(view->viewport(), &dragging);
-            files->setCurrentCell(4, 0);
-            QTest::qWait(450);
-            QCOMPARE(files->currentRow(), 4);
-            view->scrollTo(delayed);
-            moveOver(*view, delayed);
-            QEvent leave(QEvent::Leave);
-            QApplication::sendEvent(view->viewport(), &leave);
-            QTest::qWait(450);
-            QCOMPARE(files->currentRow(), 4);
-        }
-
-        const QString focusedName = files->model()->index(files->currentRow(), 0).data().toString();
-        const QModelIndex removed = files->model()->index(12, 0);
-        icons->scrollTo(removed);
-        moveOver(*icons, removed);
-        QVERIFY(QFile::remove(files->model()->index(12, 1).data().toString()));
-        action(window, "refreshAction")->trigger();
-        QCOMPARE(files->rowCount(), 59);
-        QTest::qWait(500);
-        QCOMPARE(files->model()->index(files->currentRow(), 0).data().toString(), focusedName);
     }
 
     void parentItemInArchiveAndVirtualRoot() {

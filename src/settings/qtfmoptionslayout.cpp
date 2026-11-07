@@ -80,7 +80,7 @@ QWidget *listPage(CSettingsPage *owner) {
         rows->addWidget(heading);
         for (const QString &name :
              group == 0 ? QStringList{"showDotsOption", "fullRowOption", "gridOption"}
-                        : QStringList{"singleClickOption", "alternativeSelectionOption"})
+                        : QStringList{"alternativeSelectionOption"})
             rows->addWidget(body->findChild<QCheckBox *>(name));
         layout->addWidget(part);
     }

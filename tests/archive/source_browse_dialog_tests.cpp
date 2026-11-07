@@ -61,7 +61,6 @@ class SourceBrowseDialogTests final : public QObject {
         qputenv("SEVENZIP_SETTINGS_PATH", settings_.filePath("browser.ini").toUtf8());
         CFmSettings settings;
         settings.Load(FmSettingsPath());
-        settings.SingleClick = false;
         settings.ShowDots = true;
         settings.Save(FmSettingsPath());
         SaveRegLang(UString("-"), FmSettingsPath());

@@ -1,6 +1,5 @@
 #include "filemanager/window/qtapppresentation.h"
 #include "filemanager/qtfilemanagerdrag.h"
-#include "filemanager/views/qtfilelisthover.h"
 #include "filemanager/views/qtworkspacefiletable.h"
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtfileclipboard.h"
@@ -149,10 +148,6 @@ void QtAppPresentation::SetListSettings(unsigned index, const CFmSettings &setti
         ui.table->setShowGrid(settings.ShowGrid);
         static_cast<FileTable *>(ui.table)->setFullRowHighlight(settings.FullRow);
     }
-    if (ui.tableHover)
-        ui.tableHover->SetEnabled(settings.SingleClick);
-    if (ui.iconHover)
-        ui.iconHover->SetEnabled(settings.SingleClick);
     if (ui.iconList)
         ui.iconList->setSelectionMode(settings.AlternativeSelection
                                           ? QAbstractItemView::SingleSelection

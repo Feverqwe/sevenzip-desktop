@@ -386,14 +386,14 @@ class TempCleanupTests : public QObject {
         QVERIFY(QFileInfo::exists(outside.filePath("keep.txt")));
         QVERIFY(QFileInfo(link).isSymLink());
     }
-    void sourceShowDotsAndSingleClickRetainExternalProtection() {
+    void sourceShowDotsAndDoubleClickRetainExternalProtection() {
         QTemporaryDir root;
         QVERIFY(root.isValid());
         QVERIFY(file(root.filePath("inside.txt")));
         QVERIFY(inactive(root.path()));
         CFmSettings prefs;
         prefs.Load(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
-        prefs.ShowDots = prefs.SingleClick = prefs.FullRow = prefs.ShowGrid = true;
+        prefs.ShowDots = prefs.FullRow = prefs.ShowGrid = true;
         prefs.Save(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         opened = QUrl();
         QDesktopServices::setUrlHandler("file", this, "captureFile");
@@ -403,13 +403,17 @@ class TempCleanupTests : public QObject {
             if (!dialog)
                 return;
             auto *list = dialog->findChild<QTreeWidget *>("tempList");
-            if (auto *item = row(*dialog, root.path()))
-                QTest::mouseClick(list->viewport(), Qt::LeftButton, Qt::NoModifier,
-                                  list->visualItemRect(item).center());
+            if (auto *item = row(*dialog, root.path())) {
+                const QPoint point = list->visualItemRect(item).center();
+                QTest::mouseClick(list->viewport(), Qt::LeftButton, Qt::NoModifier, point);
+                QTest::mouseDClick(list->viewport(), Qt::LeftButton, Qt::NoModifier, point);
+            }
             dots = !list->findItems("..", Qt::MatchExactly).isEmpty();
-            if (auto *item = row(*dialog, root.filePath("inside.txt")))
-                QTest::mouseClick(list->viewport(), Qt::LeftButton, Qt::NoModifier,
-                                  list->visualItemRect(item).center());
+            if (auto *item = row(*dialog, root.filePath("inside.txt"))) {
+                const QPoint point = list->visualItemRect(item).center();
+                QTest::mouseClick(list->viewport(), Qt::LeftButton, Qt::NoModifier, point);
+                QTest::mouseDClick(list->viewport(), Qt::LeftButton, Qt::NoModifier, point);
+            }
             for (const auto &entry : QtOwnedTempRegistry().Entries())
                 if (entry.path == root.path())
                     launchProtected = entry.externallyProtected && !entry.active;

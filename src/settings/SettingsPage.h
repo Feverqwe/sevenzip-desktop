@@ -25,7 +25,6 @@ class CSettingsPage : public QDialog {
     void changeEvent(QEvent *event) override;
     QCheckBox *_fullRow;
     QCheckBox *_showGrid;
-    QCheckBox *_singleClick;
     QCheckBox *_alternativeSelection;
     QCheckBox *_memSet;
     QtMemoryLimitSpin *_memSpin;

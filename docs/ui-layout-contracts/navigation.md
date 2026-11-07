@@ -391,7 +391,8 @@ handlers. OK outside the list resolves raw input through source GetFullPath;
 Cancel preserves the caller's FilePath/filter. Folder acceptance adds a separator.
 Ordinary native pickers use source CommonDialog flags: Open permits a new name,
 Save does not add an overwrite prompt; callers own subsequent validation.
-Source settings control dots and single-click behavior. Qt layouts, icons,
+Source settings control the parent row. A single click selects an item and a
+double click opens it. Qt layouts, icons,
 accessible button names and locale time presentation replace Win32 services.
 The current-folder caption elides in the middle; tooltip and accessible name
 retain the full source prefix, while the editable path keeps the raw value.

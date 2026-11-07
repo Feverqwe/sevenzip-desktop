@@ -52,14 +52,11 @@ void CSettingsPage::BuildControls(bool embedded) {
     _showGrid = new QCheckBox(this);
     QtBindResourceText(_showGrid, IDX_SETTINGS_SHOW_GRID, "Show &grid lines");
     _showGrid->setObjectName("gridOption");
-    _singleClick = new QCheckBox(this);
-    QtBindResourceText(_singleClick, IDX_SETTINGS_SINGLE_CLICK, "&Single-click to open an item");
-    _singleClick->setObjectName("singleClickOption");
     _alternativeSelection = new QCheckBox(this);
     QtBindResourceText(_alternativeSelection, IDX_SETTINGS_ALTERNATIVE_SELECTION,
                        "&Alternative selection mode");
     _alternativeSelection->setObjectName(QStringLiteral("alternativeSelectionOption"));
-    for (auto *control : {_showDots, _fullRow, _showGrid, _singleClick, _alternativeSelection}) {
+    for (auto *control : {_showDots, _fullRow, _showGrid, _alternativeSelection}) {
         listLayout->addWidget(control);
         connect(control, &QCheckBox::toggled, this, &CSettingsPage::OnButtonClicked);
     }

@@ -9,7 +9,6 @@
 #include "Windows/TimeUtils.h"
 #include "dialogs/browse/qtsourcebrowsedialog_p.h"
 #include "filemanager/FormatUtils.h"
-#include "filemanager/views/qtfilelisthover.h"
 #include "fileops/patterns/Wildcard.h"
 #include "localization/qtlangbuttonbox.h"
 #include "localization/qtlangcontrols.h"
@@ -208,6 +207,7 @@ void CBrowseDialog::ConnectControls(const Controls &controls) {
     connect(create, &QPushButton::clicked, this,
             [this] { OnButtonClicked(IDB_BROWSE_CREATE_DIR); });
     connect(_filterCombo, &QComboBox::currentIndexChanged, this, [this] { Reload(); });
+    connect(_list, &QTreeWidget::itemDoubleClicked, this, [this] { OnItemEnter(); });
     connect(_list, &QTreeWidget::itemSelectionChanged, this, &CBrowseDialog::SetPathEditText);
     connect(_list->header(), &QHeaderView::sectionClicked, this, [this](int index) {
         if (index == _sortIndex)
@@ -220,15 +220,6 @@ void CBrowseDialog::ConnectControls(const Controls &controls) {
                                           _ascending ? Qt::AscendingOrder : Qt::DescendingOrder);
         Reload();
     });
-}
-
-void CBrowseDialog::ConfigureSingleClick(bool enabled) {
-    auto *hover = new QtFileListHover(*_list);
-    hover->SetEnabled(enabled);
-    if (enabled)
-        connect(_list, &QTreeWidget::itemClicked, this, [this] { OnItemEnter(); });
-    else
-        connect(_list, &QTreeWidget::itemDoubleClicked, this, [this] { OnItemEnter(); });
 }
 
 void CBrowseDialog::CompletePresentation(const Controls &controls) {

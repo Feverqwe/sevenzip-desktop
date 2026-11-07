@@ -38,7 +38,7 @@ class CBrowseDialog2 : public QDialog {
     QLabel *_scopeLabel = nullptr;
     int _sortIndex = 1;
     bool _ascending = true;
-    bool _showDots = false, _singleClick = false;
+    bool _showDots = false;
     UString _topDirPrefix;
     void BuildControls();
     void InitializeColumns();

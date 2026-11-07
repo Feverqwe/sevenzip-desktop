@@ -16,21 +16,18 @@ class FmSettingsTests : public QObject {
         QSettings ini(path, QSettings::IniFormat);
         ini.setValue("FM/ShowGrid", "corrupt");
         ini.setValue("list/singleClick", true);
-        ini.setValue("FM/SingleClick", 1);
         ini.setValue("FM/FullRow", 2);
         ini.sync();
         CFmSettings st;
         st.Load(path);
         QVERIFY(!st.ShowDots && !st.ShowGrid);
         QVERIFY(st.FullRow);
-        QVERIFY(st.SingleClick);
         QVERIFY(!st.AlternativeSelection);
         st.ShowDots = st.FullRow = st.AlternativeSelection = true;
         st.Save(path);
         CFmSettings loaded;
         loaded.Load(path);
-        QVERIFY(loaded.ShowDots && loaded.FullRow && loaded.AlternativeSelection &&
-                loaded.SingleClick);
+        QVERIFY(loaded.ShowDots && loaded.FullRow && loaded.AlternativeSelection);
         QVERIFY(!loaded.ShowGrid);
     }
     void confirmCancelAndPersistListFlags() {
@@ -41,8 +38,8 @@ class FmSettingsTests : public QObject {
         st.Save(path);
         for (bool confirm : {false, true}) {
             CSettingsPage page(path);
-            for (const char *name : {"showDotsOption", "fullRowOption", "gridOption",
-                                     "singleClickOption", "alternativeSelectionOption"})
+            for (const char *name :
+                 {"showDotsOption", "fullRowOption", "gridOption", "alternativeSelectionOption"})
                 page.findChild<QCheckBox *>(name)->click();
             QVERIFY(page.findChild<QCheckBox *>("alternativeSelectionOption")->isEnabled());
             if (confirm)
@@ -53,7 +50,6 @@ class FmSettingsTests : public QObject {
             QCOMPARE(st.ShowDots, confirm);
             QCOMPARE(st.FullRow, !confirm);
             QCOMPARE(st.ShowGrid, confirm);
-            QCOMPARE(st.SingleClick, confirm);
             QCOMPARE(st.AlternativeSelection, confirm);
         }
     }
@@ -67,8 +63,8 @@ class FmSettingsTests : public QObject {
             auto *buttons = page.findChild<QDialogButtonBox *>("settingsButtons");
             QWidget *previous = nullptr;
             for (const char *name :
-                 {"showDotsOption", "fullRowOption", "gridOption", "singleClickOption",
-                  "alternativeSelectionOption", "extractMemoryLabel", "extractMemorySpin"}) {
+                 {"showDotsOption", "fullRowOption", "gridOption", "alternativeSelectionOption",
+                  "extractMemoryLabel", "extractMemorySpin"}) {
                 auto *control = page.findChild<QWidget *>(name);
                 QVERIFY(control);
                 QVERIFY(UiInspection::fullyVisible(*control, page));
