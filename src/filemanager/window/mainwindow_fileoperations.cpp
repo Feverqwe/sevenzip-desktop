@@ -19,7 +19,7 @@
 
 void MainWindow::transferFiles(const QStringList &sources, const QString &destination, bool move,
                                bool directPath,
-                               std::function<void(const QStringList &)> sourcesMoved) {
+                               std::function<void(const QStringList &)> transferOutput) {
     if (app_.QtOperations().closed())
         return;
     QtAppOperationState::CallScope call(app_.QtOperations());
@@ -42,8 +42,8 @@ void MainWindow::transferFiles(const QStringList &sources, const QString &destin
     fileTask_ = task;
     task->SetLocations(sources.join('\n'), destination);
     task->BindOwner(app_.Panels[projectedPanel_], *this);
-    if (sourcesMoved)
-        connect(task, &QtLocalFileTask::sourcesMoved, task, std::move(sourcesMoved));
+    if (transferOutput)
+        connect(task, &QtLocalFileTask::transferOutput, task, std::move(transferOutput));
     connect(task, &QtLocalFileTask::finished, this,
             [this, task](bool success, bool, const QString &message) {
                 if (app_.QtOperations().closed())

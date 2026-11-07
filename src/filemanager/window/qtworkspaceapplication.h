@@ -4,6 +4,7 @@
 #include <QJsonObject>
 #include <QObject>
 #include <QPointer>
+#include <QStringList>
 #include <QUuid>
 #include <functional>
 #include <vector>
@@ -27,6 +28,7 @@ class QtWorkspaceApplication final : public QObject {
     void NewWindowFrom(MainWindow &source);
     void Save();
     void ArchivePublished(const QString &archive);
+    void FilesystemPublished(const QStringList &directories);
     void Quit();
 
   private:

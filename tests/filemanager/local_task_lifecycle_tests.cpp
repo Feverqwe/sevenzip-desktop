@@ -46,6 +46,33 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
     }
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
+    void clipboardCopyPublishesDestinationWithoutAutoRefresh() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString source = fixture.filePath(QStringLiteral("source 空.txt"));
+        const QString destination = fixture.filePath("destination folder");
+        QVERIFY(write(source, "source bytes"));
+        QVERIFY(QDir().mkpath(destination));
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(destination);
+        auto *view = table(window);
+        QTRY_VERIFY(view->isEnabled());
+        view->sourcePanel->Set_AutoRefresh_Mode(false);
+        auto *mime = new QMimeData;
+        mime->setUrls({QUrl::fromLocalFile(source)});
+        QApplication::clipboard()->setMimeData(mime);
+        auto *paste = action(window, "pasteFilesAction");
+        QTRY_VERIFY(paste->isEnabled());
+        paste->trigger();
+        const QString name = QFileInfo(source).fileName();
+        QTRY_VERIFY(filesystemRow(window, name) >= 0);
+        QCOMPARE(read(QDir(destination).filePath(name)), QByteArray("source bytes"));
+        QCOMPARE(read(source), QByteArray("source bytes"));
+        QVERIFY(paste->isEnabled());
+    }
+
     void partialCutCanBeRetried_data() {
         QTest::addColumn<bool>("replaceClipboard");
         QTest::addColumn<bool>("gnomeOnly");
@@ -68,6 +95,7 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         QVERIFY(write(source + '/' + skipped, "skipped bytes"));
         QVERIFY(write(destination + '/' + skipped, "existing bytes"));
 
+        QtWorkspaceApplication application(*qApp);
         ControlledBackend sourceBackend, destinationBackend;
         MainWindow sourceWindow(&sourceBackend), destinationWindow(&destinationBackend);
         sourceWindow.show();
@@ -76,7 +104,10 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         destinationWindow.openPath(destination);
         QTRY_VERIFY(filesystemRow(sourceWindow, moved) >= 0 &&
                     filesystemRow(sourceWindow, skipped) >= 0);
+        QTRY_VERIFY(filesystemRow(destinationWindow, skipped) >= 0);
         auto *view = table(sourceWindow);
+        view->sourcePanel->Set_AutoRefresh_Mode(false);
+        table(destinationWindow)->sourcePanel->Set_AutoRefresh_Mode(false);
         for (const auto &name : {moved, skipped})
             view->selectionModel()->select(
                 view->model()->index(filesystemRow(sourceWindow, name), 0),
@@ -115,6 +146,8 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         QVERIFY(!QFileInfo::exists(source + '/' + moved));
         QCOMPARE(read(destination + '/' + skipped), QByteArray("existing bytes"));
         QCOMPARE(read(source + '/' + skipped), QByteArray("skipped bytes"));
+        QTRY_VERIFY(filesystemRow(sourceWindow, moved) < 0);
+        QTRY_VERIFY(filesystemRow(destinationWindow, moved) >= 0);
         if (replaceClipboard) {
             QCOMPARE(QApplication::clipboard()->text(), QString("new clipboard data"));
             return;
@@ -127,6 +160,7 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         QTRY_VERIFY(QtLocalFileTask::Active().isEmpty());
         QCOMPARE(read(destination + '/' + skipped), QByteArray("skipped bytes"));
         QVERIFY(!QFileInfo::exists(source + '/' + skipped));
+        QTRY_VERIFY(filesystemRow(sourceWindow, skipped) < 0);
         QVERIFY(!paste->isEnabled());
     }
     void cleanup() {

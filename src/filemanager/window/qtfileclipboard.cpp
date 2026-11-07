@@ -1,9 +1,11 @@
 #include "filemanager/window/qtfileclipboard.h"
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtapppresentation.h"
+#include "filemanager/window/qtworkspaceapplication.h"
 #include "localization/qtlangcontrols.h"
 #include "platform/temp/qtownedtempregistry.h"
 #include <QClipboard>
+#include <QFileInfo>
 #include <QScopedValueRollback>
 #include <QSet>
 #include <QtEndian>
@@ -187,22 +189,31 @@ void QtFileClipboard::Paste() {
     const QPointer<const QMimeData> original(mime);
     const QPointer<QtFileClipboard> owner(this);
     const auto revision = revision_;
-    window_.transferFiles(paths, window_.projectedUi().directory, move, false,
-                          [owner, original, paths, revision](const QStringList &movedSources) {
-                              if (!owner || owner->revision_ != revision || !original ||
-                                  QApplication::clipboard()->mimeData() != original ||
-                                  ClipboardFilePaths(original) != paths ||
-                                  !ClipboardMovesFiles(*original))
-                                  return;
-                              const QSet<QString> moved(movedSources.cbegin(), movedSources.cend());
-                              QList<QUrl> remaining;
-                              for (const auto &path : paths)
-                                  if (!moved.contains(path))
-                                      remaining.append(QUrl::fromLocalFile(path));
-                              if (remaining.isEmpty())
-                                  QApplication::clipboard()->clear();
-                              else
-                                  PublishFileClipboard(remaining, true);
-                          });
-    window_.app_.Panels[window_.projectedPanel_].MarkPortableFolderChanged();
+    const QString destination = window_.projectedUi().directory;
+    window_.transferFiles(
+        paths, destination, move, false,
+        [owner, original, paths, revision, destination](const QStringList &movedSources) {
+            if (!owner)
+                return;
+            QStringList changed{destination};
+            for (const auto &source : movedSources)
+                changed.append(QFileInfo(source).absolutePath());
+            if (auto *application = QtWorkspaceApplication::Find())
+                application->FilesystemPublished(changed);
+            else
+                owner->window_.guiOutputRefresh_->Enqueue(changed, {});
+            if (movedSources.isEmpty() || owner->revision_ != revision || !original ||
+                QApplication::clipboard()->mimeData() != original ||
+                ClipboardFilePaths(original) != paths || !ClipboardMovesFiles(*original))
+                return;
+            const QSet<QString> moved(movedSources.cbegin(), movedSources.cend());
+            QList<QUrl> remaining;
+            for (const auto &path : paths)
+                if (!moved.contains(path))
+                    remaining.append(QUrl::fromLocalFile(path));
+            if (remaining.isEmpty())
+                QApplication::clipboard()->clear();
+            else
+                PublishFileClipboard(remaining, true);
+        });
 }

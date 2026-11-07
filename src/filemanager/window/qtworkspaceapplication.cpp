@@ -12,6 +12,12 @@ void QtWorkspaceApplication::ArchivePublished(const QString &archive) {
             window->ArchivePublished(archive);
 }
 
+void QtWorkspaceApplication::FilesystemPublished(const QStringList &directories) {
+    for (const auto &window : windows_)
+        if (window && !window->app_.QtOperations().closed() && window->guiOutputRefresh_)
+            window->guiOutputRefresh_->Enqueue(directories, {});
+}
+
 QtWorkspaceApplication::QtWorkspaceApplication(QApplication &application) : QObject(&application) {
     setObjectName(QStringLiteral("sevenzipWorkspaceApplication"));
     connect(&application, &QCoreApplication::aboutToQuit, this, [this] { Save(); });

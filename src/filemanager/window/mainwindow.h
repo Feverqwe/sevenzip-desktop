@@ -294,7 +294,7 @@ class MainWindow : public QMainWindow {
     void createDialog();
     void transferFiles(const QStringList &sources, const QString &destination, bool move,
                        bool directPath = false,
-                       std::function<void(const QStringList &)> sourcesMoved = {});
+                       std::function<void(const QStringList &)> transferOutput = {});
     void executeCopyDestination(bool move, bool copyToSame, unsigned sourceIndex,
                                 const QString &destination, const CRecordVector<UInt32> &indices,
                                 QtCopyRoute route);

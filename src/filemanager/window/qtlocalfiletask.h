@@ -31,7 +31,7 @@ class QtLocalFileTask final : public QObject {
   signals:
     void finished(bool success, bool cancelled, const QString &message);
     void transferCompleted(bool complete);
-    void sourcesMoved(const QStringList &paths);
+    void transferOutput(const QStringList &movedSources);
 
   private:
     QtLocalFileTask(QThread &worker, const QString &title, const QString &detail,
