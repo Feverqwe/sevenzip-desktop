@@ -420,6 +420,11 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         QVERIFY(writeFile(folder + QStringLiteral("/new.txt")));
         QTRY_COMPARE_WITH_TIMEOUT(table(window)->rowCount(), 1, 3500);
         QCOMPARE(table(window)->model()->index(0, 0).data().toString(), QStringLiteral("new.txt"));
+        const QByteArray changed("changed after the folder came back");
+        QVERIFY(writeFile(folder + "/new.txt", changed));
+        QTRY_COMPARE_WITH_TIMEOUT(
+            table(window)->model()->index(0, 2).data(Qt::UserRole + 2).toLongLong(),
+            qint64(changed.size()), 3500);
     }
 };
 

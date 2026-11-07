@@ -15,6 +15,7 @@
 #include "localization/qtlanguageservices.h"
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 
 namespace NFsFolder {
 namespace {
@@ -33,13 +34,20 @@ CFSFolder::CFSFolder(QString path) {
     Init(prefix);
 }
 
+#ifdef _WIN32
+static void StartWatchingChanges(NWindows::NFile::NFind::CFindChangeNotification &watch,
+                                 const FString &path) {
+    watch.FindFirst(path, false,
+                    FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_DIR_NAME |
+                        FILE_NOTIFY_CHANGE_ATTRIBUTES | FILE_NOTIFY_CHANGE_SIZE |
+                        FILE_NOTIFY_CHANGE_LAST_WRITE);
+}
+#endif
+
 HRESULT CFSFolder::Init(const FString &path) {
     _path = path;
 #ifdef _WIN32
-    _findChangeNotification.FindFirst(_path, false,
-                                      FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_DIR_NAME |
-                                          FILE_NOTIFY_CHANGE_ATTRIBUTES | FILE_NOTIFY_CHANGE_SIZE |
-                                          FILE_NOTIFY_CHANGE_LAST_WRITE);
+    StartWatchingChanges(_findChangeNotification, _path);
     if (!_findChangeNotification.IsHandleAllocated()) {
         const HRESULT lastError = GetLastError_noZero_HRESULT();
         NWindows::NFile::NFind::CFindFile findFile;
@@ -134,8 +142,17 @@ HRESULT CFSFolder::LoadSubItems(int dirItem, const FString &relPrefix) {
 
 Z7_COM7F_IMF(CFSFolder::LoadItems()) {
     COM_TRY_BEGIN
+#ifdef _WIN32
+    const bool directoryExists = QFileInfo(QDir::cleanPath(QtPath(_path))).isDir();
+    if (!directoryExists)
+        _findChangeNotification.Close();
+#endif
     Int32 dummy;
     WasChanged(&dummy);
+#ifdef _WIN32
+    if (directoryExists && !_findChangeNotification.IsHandleAllocated())
+        StartWatchingChanges(_findChangeNotification, _path);
+#endif
     Clear();
     HRESULT result;
     try {
@@ -238,8 +255,11 @@ Z7_COM7F_IMF(CFSFolder::WasChanged(Int32 *wasChanged)) {
         DWORD waitResult = ::WaitForSingleObject(_findChangeNotification, 0);
         if (waitResult != WAIT_OBJECT_0)
             break;
-        _findChangeNotification.FindNext();
         wasChangedMain = true;
+        if (!_findChangeNotification.FindNext()) {
+            _findChangeNotification.Close();
+            break;
+        }
     }
 #endif
     *wasChanged = BoolToInt(wasChangedMain);
