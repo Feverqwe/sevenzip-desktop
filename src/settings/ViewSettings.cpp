@@ -149,7 +149,8 @@ void CListMode::Read(const QString &settingsPath) {
         return;
     UInt32 t = static_cast<UInt32>(value);
     for (int i = 0; i < 2; i++) {
-        Panels[i] = t & 0xFF;
+        // Old Small Icons and List settings fall back to the table.
+        Panels[i] = (t & 0xFF) == 0 ? 0 : 3;
         t >>= 8;
     }
 }

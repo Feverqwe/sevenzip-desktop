@@ -280,7 +280,7 @@ class PanelColumnsTests final : public QObject, protected MainWindowTestSupport 
             QCOMPARE(header->sortIndicatorOrder(), Qt::DescendingOrder);
             for (const QSize size : {QSize(980, 620), QSize(640, 400)}) {
                 reopened.resize(size);
-                for (int mode = 0; mode < 4; ++mode) {
+                for (int mode : {0, 3}) {
                     auto *modeAction =
                         reopened.findChild<QAction *>(QStringLiteral("viewMode%1Action").arg(mode));
                     QVERIFY(modeAction);

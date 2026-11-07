@@ -40,15 +40,11 @@ class DragDropUiTests final : public QObject {
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
 
     void viewModesPreserveDragInteraction_data() {
-        QTest::addColumn<int>("mode");
         QTest::addColumn<bool>("enabled");
-        for (int mode : {0, 1, 2})
-            for (bool enabled : {false, true})
-                QTest::newRow(qPrintable(QString("%1-%2").arg(mode).arg(enabled)))
-                    << mode << enabled;
+        QTest::newRow("enabled") << true;
+        QTest::newRow("disabled") << false;
     }
     void viewModesPreserveDragInteraction() {
-        QFETCH(int, mode);
         QFETCH(bool, enabled);
         const std::unique_ptr<QStyle> style(QStyleFactory::create(QStringLiteral("Fusion")));
         QVERIFY(style);
@@ -59,7 +55,7 @@ class DragDropUiTests final : public QObject {
         view.setDragEnabled(enabled);
         int exports = 0;
         view.dragStarter = [&] { ++exports; };
-        view.SetListViewMode(mode);
+        view.ConfigureLargeIcons();
         view.resize(640, 320);
         view.show();
         QVERIFY(QTest::qWaitForWindowExposed(&view));

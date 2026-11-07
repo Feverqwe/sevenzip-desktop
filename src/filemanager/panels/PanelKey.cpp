@@ -260,8 +260,6 @@ bool CPanel::OnKeyDown(const QtPanelKeyDown &keyDownInfo, CApp &g_App) {
         }
         return false;
     case '1':
-    case '2':
-    case '3':
     case '4':
         if (ctrl) {
             const unsigned styleIndex = (unsigned)(keyDownInfo.VKey - '1');

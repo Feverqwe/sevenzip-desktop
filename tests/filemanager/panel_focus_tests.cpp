@@ -1,4 +1,5 @@
 #include "filemanager/support/window_state_support.h"
+#include "support/panel_keys.h"
 #include <QFocusEvent>
 
 class PanelFocusTests : public QObject, protected MainWindowTestSupport {
@@ -22,7 +23,7 @@ class PanelFocusTests : public QObject, protected MainWindowTestSupport {
 
     void windowFocusReturnsToRememberedControl_data() {
         QTest::addColumn<int>("mode");
-        for (int mode = 0; mode < 4; ++mode)
+        for (int mode : {0, 3})
             QTest::newRow(qPrintable(QString::number(mode))) << mode;
     }
 
@@ -41,7 +42,10 @@ class PanelFocusTests : public QObject, protected MainWindowTestSupport {
         focusSink.show();
         const QString path = address->text();
         for (QWidget *target : {static_cast<QWidget *>(address), view}) {
-            target->setFocus();
+            if (target == address)
+                PanelKeys::focusAddress(address);
+            else
+                target->setFocus();
             QTRY_VERIFY_WITH_TIMEOUT(target->hasFocus(), 1000);
             focusSink.setFocus();
             QTRY_VERIFY(focusSink.hasFocus());

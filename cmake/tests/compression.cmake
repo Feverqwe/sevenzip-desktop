@@ -403,7 +403,7 @@
     target_include_directories(archive_selection_runtime_tests PRIVATE src tests)
     target_link_libraries(archive_selection_runtime_tests PRIVATE sevenzip_panel sevenzip_filesystem Qt6::Test)
     add_test(NAME archive_selection_runtime COMMAND archive_selection_runtime_tests -silent)
-    set_tests_properties(archive_selection_runtime PROPERTIES ENVIRONMENT
+    set_tests_properties(archive_selection_runtime PROPERTIES TIMEOUT 90 ENVIRONMENT
         "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/archive-selection-runtime-settings.ini")
     qt_add_executable(property_formatting_tests tests/ui/property_formatting_tests.cpp)
     qt_add_executable(binding_lifecycle_tests tests/filemanager/binding_lifecycle_tests.cpp)

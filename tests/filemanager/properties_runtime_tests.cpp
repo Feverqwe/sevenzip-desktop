@@ -113,7 +113,7 @@ class PropertiesRuntimeTests : public QObject, protected MainWindowTestSupport {
         QTest::addColumn<bool>("flat");
         QTest::addColumn<int>("mode");
         for (bool flat : {false, true})
-            for (int mode = 0; mode < 4; ++mode)
+            for (int mode : {0, 3})
                 QTest::newRow(qPrintable(QString("flat%1-mode%2").arg(flat).arg(mode)))
                     << flat << mode;
     }

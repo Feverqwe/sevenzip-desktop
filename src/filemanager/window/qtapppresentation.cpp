@@ -18,8 +18,8 @@ void QtAppPresentation::Initialize(CApp &app) {
         CListMode modes;
         bool ok = false;
         const int mode = key.value("view/mode", 3).toInt(&ok);
-        if (ok && mode >= 0 && mode < 4)
-            modes.Panels[app.LastFocusedPanel < kNumPanelsMax ? app.LastFocusedPanel : 0] = mode;
+        if (ok && mode == 0)
+            modes.Panels[app.LastFocusedPanel < kNumPanelsMax ? app.LastFocusedPanel : 0] = 0;
         modes.Save(window_.toolbarSettingsPath());
     }
     const QString flatKey =

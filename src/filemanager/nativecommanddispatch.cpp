@@ -170,14 +170,9 @@ bool OnMenuCommand(unsigned id, IQtFileManagerMenuCommandServices &g_App) {
         g_App.Refresh_StatusBar();
         break;
     case IDM_VIEW_LARGE_ICONS:
-    case IDM_VIEW_SMALL_ICONS:
-    case IDM_VIEW_LIST:
-    case IDM_VIEW_DETAILS: {
-        unsigned index = id - IDM_VIEW_LARGE_ICONS;
-        if (index < 4)
-            g_App.SetListViewMode(index);
+    case IDM_VIEW_DETAILS:
+        g_App.SetListViewMode(id - IDM_VIEW_LARGE_ICONS);
         break;
-    }
     case IDM_VIEW_ARANGE_BY_NAME:
         g_App.SortItemsWithPropID(kpidName);
         break;

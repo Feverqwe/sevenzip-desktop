@@ -131,7 +131,7 @@ class PanelColumnChangesTests final : public QObject, protected MainWindowTestSu
                             QString("count-%1-%2-%3").arg(pane).arg(russian).arg(failure)))
                             << pane << russian << failure;
                 } else
-                    for (int mode = 0; mode < 4; ++mode)
+                    for (int mode : {0, 3})
                         QTest::newRow(
                             qPrintable(QString("schema-%1-%2-%3").arg(pane).arg(russian).arg(mode)))
                             << pane << russian << mode;

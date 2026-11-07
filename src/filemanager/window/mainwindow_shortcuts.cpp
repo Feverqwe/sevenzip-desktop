@@ -61,7 +61,7 @@ void MainWindow::configureShortcuts() {
         ->setShortcuts(QKeySequence::keyBindings(QKeySequence::Open));
     exitAction_->setShortcuts(QKeySequence::keyBindings(QKeySequence::Quit));
     foldersHistory_->setShortcut(QKeySequence(Qt::ALT | Qt::Key_F12));
-    for (int i = 0; i < 4; ++i)
+    for (int i : {0, 3})
         viewActions_[i]->setShortcut(QKeySequence(Qt::CTRL | (Qt::Key_1 + i)));
     for (int i = 0; i < 5; ++i)
         sortActions_[i]->setShortcut(QKeySequence(Qt::CTRL | (Qt::Key_F3 + i)));

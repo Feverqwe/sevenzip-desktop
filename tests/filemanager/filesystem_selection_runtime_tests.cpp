@@ -116,7 +116,7 @@ class FilesystemSelectionRuntimeTests : public QObject, protected MainWindowTest
         QTest::addColumn<bool>("flat");
         QTest::addColumn<int>("mode");
         for (bool flat : {false, true})
-            for (int mode = 0; mode < 4; ++mode)
+            for (int mode : {0, 3})
                 QTest::newRow(qPrintable(QString("%1-%2").arg(flat ? "flat" : "normal").arg(mode)))
                     << flat << mode;
     }

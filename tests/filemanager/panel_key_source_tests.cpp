@@ -205,7 +205,7 @@ class PanelKeySourceTests final : public QObject, protected MainWindowTestSuppor
         QFETCH(int, variant);
         const bool archive = variant < 4;
         const bool alternative = variant % 2;
-        const int mode = variant % 4;
+        const int mode = variant % 2 ? 3 : 0;
         const QString settingsPath = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         QSettings settings(settingsPath, QSettings::IniFormat);
         settings.setValue("FM/AlternativeSelection", alternative);

@@ -62,9 +62,8 @@ bool CPanel::OnCreate() {
     _ascending = true;
     _lastFocusedIsList = true;
     _comboBoxEdit._panel = this;
-    const UInt32 kNumListModes = 4;
-    if (_listViewMode >= kNumListModes)
-        _listViewMode = kNumListModes - 1;
+    if (_listViewMode != 0)
+        _listViewMode = 3;
     // Original list/header/up/status child controls are Qt presentation. The
     // source owner retains mode, sort, focus, binding and processing state.
     if (!_createPresentation(*this))
@@ -238,12 +237,10 @@ UString CPanel::GetDriveOrNetworkPrefix() const {
 }
 
 void CPanel::SetListViewMode(UInt32 index) {
-    if (index >= 4)
-        return;
-    _listViewMode = index;
+    _listViewMode = index == 0 ? 0 : 3;
     // Qt style/stack setters replace GetStyle/SetStyle on the native list.
     if (_viewModePresentation)
-        _viewModePresentation(index);
+        _viewModePresentation(_listViewMode);
 }
 
 void CPanel::ChangeFlatMode() {

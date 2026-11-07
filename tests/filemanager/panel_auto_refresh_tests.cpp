@@ -34,15 +34,11 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
     }
 
     void iconViewsKeepTheirScrollAcrossChanges_data() {
-        QTest::addColumn<int>("mode");
         QTest::addColumn<int>("count");
-        for (int mode : {0, 1, 2})
-            for (int count : {160, 320})
-                QTest::newRow(qPrintable(QString("mode-%1-items-%2").arg(mode).arg(count)))
-                    << mode << count;
+        for (int count : {160, 320})
+            QTest::newRow(qPrintable(QString("items-%1").arg(count))) << count;
     }
     void iconViewsKeepTheirScrollAcrossChanges() {
-        QFETCH(int, mode);
         QFETCH(int, count);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
@@ -55,7 +51,7 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         window.show();
         auto *files = table(window);
         QTRY_VERIFY(files->isEnabled() && files->rowCount() == count);
-        action(window, qPrintable(QString("viewMode%1Action").arg(mode)))->trigger();
+        action(window, "viewMode0Action")->trigger();
         auto *view = qobject_cast<QAbstractItemView *>(
             window.findChild<QStackedWidget *>("fileViewStack")->currentWidget());
         QVERIFY(view && view != files);
@@ -66,7 +62,7 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         files->selectRow(row);
         view->setFocus();
         QApplication::processEvents();
-        auto *scroll = mode == 2 ? view->horizontalScrollBar() : view->verticalScrollBar();
+        auto *scroll = view->verticalScrollBar();
         QVERIFY(scroll->maximum() > 0);
         scroll->setValue((scroll->maximum() + 1) / 2);
         const int horizontal = view->horizontalScrollBar()->value();

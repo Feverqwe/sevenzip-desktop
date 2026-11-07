@@ -85,7 +85,7 @@ class FileTable : public QTableView {
 class FileIconList final : public QListView {
   public:
     using QListView::QListView;
-    void SetListViewMode(int mode);
+    void ConfigureLargeIcons();
     void InstallSelectionGesture(std::function<bool()> activate,
                                  std::function<void(bool)> activity);
     void handleDefaultKeyPress(QKeyEvent *event);
@@ -96,5 +96,5 @@ class FileIconList final : public QListView {
     void changeEvent(QEvent *event) override;
 
   private:
-    int mode_ = -1;
+    bool largeIconsConfigured_ = false;
 };

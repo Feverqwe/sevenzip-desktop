@@ -110,9 +110,8 @@ void MainWindow::createFileExtras(QMenu *menu) {
 
 void MainWindow::createViewModes(QMenu *viewMenu) {
     auto *viewGroup = new QActionGroup(this);
-    const QStringList viewLabels = {"Lar&ge Icons", "S&mall Icons", "&List", "Details"};
-    for (int index = 0; index < viewLabels.size(); ++index) {
-        QAction *action = new QAction(viewLabels[index], viewMenu);
+    for (const auto &[index, label] : {std::pair{0, "Lar&ge Icons"}, std::pair{3, "Details"}}) {
+        QAction *action = new QAction(label, viewMenu);
         action->setObjectName(QStringLiteral("viewMode%1Action").arg(index));
         action->setCheckable(true);
         action->setActionGroup(viewGroup);
@@ -273,10 +272,8 @@ void MainWindow::populateSourceMenus() {
     appearance->setObjectName("appearanceMenu");
     QtBindLocalText(appearance->menuAction(), "CommandMenus",
                     QT_TRANSLATE_NOOP("CommandMenus", "Presentation"));
-    for (unsigned i = 0; i < 4; ++i) {
-        appearance->addAction(viewActions_[i]);
-        viewActions_[i]->setVisible(i == 0 || i == 3);
-    }
+    appearance->addAction(viewActions_[0]);
+    appearance->addAction(viewActions_[3]);
     auto *sort = view->addMenu(QString());
     sort->setObjectName("sortMenu");
     QtBindLocalText(sort->menuAction(), "CommandMenus",

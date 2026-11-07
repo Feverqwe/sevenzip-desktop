@@ -5,6 +5,7 @@
 #include "filemanager/window/mainwindow.h"
 #include "localization/LangUtils.h"
 #include "settings/RegistryUtils.h"
+#include "support/panel_keys.h"
 #include "support/progress_dialog.h"
 #include "ui/progress/ProgressDialog2.h"
 #include "ui/support/layout_inspection.h"
@@ -29,7 +30,7 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         auto *address = panel->findChild<QLineEdit *>("archivePath");
         auto *list = panel->findChild<FileTable *>("archiveTable");
         QVERIFY(address && list);
-        address->setFocus();
+        PanelKeys::focusAddress(address);
         QTRY_VERIFY(address->hasFocus());
         address->setText(path);
         QTest::keyClick(address, Qt::Key_Return);
@@ -342,7 +343,7 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         QTest::addColumn<bool>("addressFocus");
         for (const QString &lang : {QString("-"), QString("ru")})
             for (unsigned pane : {0u, 1u})
-                for (int mode : {0, 1, 2, 3})
+                for (int mode : {0, 3})
                     for (bool address : {false, true})
                         QTest::newRow(qPrintable(QString("%1-%2-%3-%4")
                                                      .arg(lang)

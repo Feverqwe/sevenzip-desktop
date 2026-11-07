@@ -99,7 +99,7 @@ void QtWindowWorkspace::RestorePanel(unsigned panel, const QJsonObject &saved,
         locationState.path = QFileInfo(locationState.path).absolutePath();
         locationState.nativePlaceIdentity.clear();
     }
-    locationState.viewMode = qBound(0, object.value("view").toInt(3), 3);
+    locationState.viewMode = object.value("view").toInt(3) == 0 ? 0 : 3;
     locationState.sort = object.value("sort").toInt();
     locationState.ascending = object.value("ascending").toBool(true);
     window_.withPanelProjection(panel, [this, panel, &locationState] {

@@ -40,7 +40,7 @@ void MainWindow::applyFileListSettings() {
 }
 
 void MainWindow::setViewMode(int mode) {
-    if (mode < 0 || mode > 3 || !projectedUi().viewStack)
+    if ((mode != 0 && mode != 3) || !projectedUi().viewStack)
         return;
     auto &panel = app_.GetFocusedPanel();
     auto *stack = projectedUi().viewStack;
@@ -51,7 +51,7 @@ void MainWindow::setViewMode(int mode) {
         previousView && focused && (focused == previousView || previousView->isAncestorOf(focused));
     viewActions_[mode]->setChecked(true);
     if (mode != 3)
-        static_cast<FileIconList *>(projectedUi().iconList)->SetListViewMode(mode);
+        static_cast<FileIconList *>(projectedUi().iconList)->ConfigureLargeIcons();
     // Upstream changes the style of the same list control. Qt replaces the
     // visible view, which can synchronously focus another panel while hiding
     // the old widget. Bind the captured source owner and retain its list focus.

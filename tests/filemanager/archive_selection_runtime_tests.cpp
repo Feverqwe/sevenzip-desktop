@@ -1,6 +1,7 @@
 #include "dialogs/listview/ListViewDialog.h"
 #include "filemanager/support/panel_model_support.h"
 #include "filemanager/support/window_state_support.h"
+#include "support/progress_dialog.h"
 #include <QLineEdit>
 #include <QTreeWidget>
 
@@ -146,7 +147,7 @@ class ArchiveSelectionRuntimeTests : public QObject, protected MainWindowTestSup
         QTest::addColumn<bool>("flat");
         QTest::addColumn<int>("mode");
         for (bool flat : {false, true})
-            for (int mode = 0; mode < 4; ++mode)
+            for (int mode : {0, 3})
                 QTest::newRow(qPrintable(QString("flat%1-mode%2").arg(flat).arg(mode)))
                     << flat << mode;
     }
@@ -215,7 +216,14 @@ class ArchiveSelectionRuntimeTests : public QObject, protected MainWindowTestSup
 
         QVERIFY(table(window)->selectionModel()->selectedRows().isEmpty());
         selectRequest();
+        QTimer closeResult;
+        connect(&closeResult, &QTimer::timeout, &window, [] {
+            TestProgressDialog::DismissVisibleResult(QApplication::activeModalWidget());
+            dismissWarnings();
+        });
+        closeResult.start(5);
         action(window, "hashSHA256Action")->trigger();
+        closeResult.stop();
         QCOMPARE(backend.extractCalls, 4);
         QCOMPARE(backend.lastSelected, QStringList{"root.bin"}); // First source stream cancels.
         QVERIFY(action(window, "hashSHA256Action")->isEnabled());

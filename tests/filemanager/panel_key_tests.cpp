@@ -20,7 +20,7 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
     void shiftSelectionDoesNotIncludeFollowingUnmodifiedMove_data() {
         QTest::addColumn<int>("mode");
         QTest::addColumn<bool>("alternative");
-        for (int mode = 0; mode < 4; ++mode)
+        for (int mode : {0, 3})
             for (bool alternative : {false, true})
                 QTest::newRow(qPrintable(QString("%1-%2").arg(mode).arg(alternative)))
                     << mode << alternative;
@@ -130,7 +130,7 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
         auto *stack = right->findChild<QStackedWidget *>("fileViewStack");
         connect(stack, &QStackedWidget::currentChanged, &window,
                 [address] { PanelKeys::focusAddress(address); });
-        action(window, "viewMode1Action")->trigger();
+        action(window, "viewMode0Action")->trigger();
         static_cast<FileTable *>(list)->sourcePanel->SetFocusToList();
         QTRY_VERIFY(right->findChild<QListView *>("iconList")->hasFocus());
     }
@@ -237,7 +237,7 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
         QCOMPARE(QFileInfo(window.windowTitle()).canonicalFilePath(),
                  QFileInfo(right).canonicalFilePath());
         QVERIFY(action(window, "copyAction")->isEnabled());
-        action(window, "viewMode2Action")->trigger();
+        action(window, "viewMode0Action")->trigger();
         QCOMPARE(rightPanel->findChild<QStackedWidget *>("fileViewStack")->currentIndex(), 1);
         QCOMPARE(rightTable->selectionModel()->selectedRows().size(), 1);
         rightAddress->setText(QDir(right).filePath("nested"));
@@ -412,7 +412,7 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
                 rightEntry = row;
         QVERIFY(rightEntry >= 0);
         rightTable->selectRow(rightEntry);
-        action(window, "viewMode1Action")->trigger();
+        action(window, "viewMode0Action")->trigger();
         QCOMPARE(rightPanel->findChild<QStackedWidget *>("fileViewStack")->currentIndex(), 1);
         QVERIFY2(leftTable->isEnabled(), "inactive disk panel stayed disabled after archive open");
         window.activateWindow();
@@ -738,7 +738,7 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
 
     void createFileKey_data() {
         QTest::addColumn<int>("mode");
-        for (int mode = 0; mode < 4; ++mode)
+        for (int mode : {0, 3})
             QTest::newRow(qPrintable(QString::number(mode))) << mode;
     }
     void createFileKey() {
@@ -802,7 +802,7 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
     void keypadSelection_data() {
         QTest::addColumn<int>("mode");
         QTest::addColumn<bool>("archive");
-        for (int mode = 0; mode < 4; ++mode) {
+        for (int mode : {0, 3}) {
             QTest::newRow(qPrintable(QStringLiteral("archive-%1").arg(mode))) << mode << true;
             QTest::newRow(qPrintable(QStringLiteral("disk-%1").arg(mode))) << mode << false;
         }
@@ -902,7 +902,7 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
         QTest::addColumn<int>("mode");
         QTest::addColumn<bool>("archive");
         QTest::addColumn<bool>("flat");
-        for (int mode = 0; mode < 4; ++mode)
+        for (int mode : {0, 3})
             for (bool archive : {false, true})
                 for (bool flat : {false, true})
                     QTest::newRow(qPrintable(QStringLiteral("%1-flat%2-mode%3")

@@ -25,10 +25,8 @@
 
 ### Icon views
 
-Small Icons places each filename to the right of its icon and fills rows before
-wrapping. Icons and labels fit inside separate, nonoverlapping cells; long names
-may elide horizontally, while the full text height remains visible. Switching
-from Large Icons or List preserves this arrangement and the shared selection.
+The file panel offers the table and Large Icons. Older preferences for Small
+Icons or List open the table. Switching views preserves the shared selection.
 Large Icons centers wrapped labels below the icons. Cell geometry accommodates
 the platform icon and two lines of the active font; longer names remain available
 through the full-path tooltip. Font/style changes recalculate geometry, and
@@ -43,7 +41,7 @@ after Insert; list activation/settings suites cover hover cancellation and
 selection without opening. Windows uses the system hover timeout; other
 platforms use the Qt style's tooltip wake-up delay. FullRow remains a
 name-only/full-row highlight policy. This does not establish rendered Windows
-pixel parity. [Source review](../upstream-port-audit/small-icons-layout.md).
+pixel parity.
 
 ### Rename validation error (P3-05, 2026-10-15)
 

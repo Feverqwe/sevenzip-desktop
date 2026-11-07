@@ -24,7 +24,7 @@ class SettingsTests : public QObject, protected MainWindowTestSupport {
         QTest::addColumn<int>("mode");
         QTest::addColumn<bool>("archive");
         QTest::addColumn<bool>("singleClick");
-        for (int mode = 0; mode < 4; ++mode)
+        for (int mode : {0, 3})
             for (bool singleClick : {false, true}) {
                 QTest::newRow(qPrintable(QStringLiteral("disk-%1-%2").arg(mode).arg(singleClick)))
                     << mode << false << singleClick;
@@ -71,8 +71,10 @@ class SettingsTests : public QObject, protected MainWindowTestSupport {
         const auto click = [&](int row, Qt::KeyboardModifiers modifiers) {
             const QModelIndex index = table->model()->index(row, 0);
             view->scrollTo(index);
-            QTest::mouseClick(view->viewport(), Qt::LeftButton, modifiers,
-                              view->visualRect(index).center());
+            const QRect cell = view->visualRect(index);
+            const QPoint point =
+                mode == 3 ? QPoint(cell.left() + 20, cell.center().y()) : cell.center();
+            QTest::mouseClick(view->viewport(), Qt::LeftButton, modifiers, point);
         };
         click(0, Qt::ControlModifier);
         QCOMPARE(address->text(), before);

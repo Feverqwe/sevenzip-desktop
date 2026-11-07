@@ -142,7 +142,7 @@ class PanelSortCommandsTests final : public QObject, protected MainWindowTestSup
         QCOMPARE(views[0]->sourcePanel->GetFolder(), peer.Interface());
         QVERIFY(addresses[0]->hasFocus());
         QVERIFY(action(window, "sort0Action")->isChecked());
-        action(window, "viewMode2Action")->trigger();
+        action(window, "viewMode0Action")->trigger();
         navigation[1]->Edit();
         QTRY_VERIFY(addresses[1]->hasFocus());
         QVERIFY(action(window, "sort3Action")->isChecked());
@@ -151,7 +151,7 @@ class PanelSortCommandsTests final : public QObject, protected MainWindowTestSup
         navigation[0]->Edit();
         QTRY_VERIFY(addresses[0]->hasFocus());
         QVERIFY(action(window, "sort0Action")->isChecked());
-        QVERIFY(action(window, "viewMode2Action")->isChecked());
+        QVERIFY(action(window, "viewMode0Action")->isChecked());
         QCOMPARE(views[0]->sourcePanel->GetFolder(), peer.Interface());
     }
     void headerDefaults_data() {

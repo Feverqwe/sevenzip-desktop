@@ -142,7 +142,7 @@ void QtFileManagerCommands::AttachViewActions() {
     Bind(w.findChild<QAction *>("aboutAction"), IDM_ABOUT);
     Bind(w.findChild<QAction *>("tempDirAction"), IDM_TEMP_DIR);
     BindToggle(w.flatView_, IDM_VIEW_FLAT_VIEW, [](CApp &app) { return app.GetFlatMode(); });
-    for (unsigned i = 0; i < 4; ++i)
+    for (unsigned i : {0u, 3u})
         Bind(w.viewActions_[i], IDM_VIEW_LARGE_ICONS + i, true);
     const unsigned sortIDs[] = {IDM_VIEW_ARANGE_BY_NAME, IDM_VIEW_ARANGE_BY_TYPE,
                                 IDM_VIEW_ARANGE_BY_DATE, IDM_VIEW_ARANGE_BY_SIZE,

@@ -238,8 +238,8 @@ class AppLifecycleTests : public QObject {
         QCOMPARE(presentation.created, QList<unsigned>({0}));
         QCOMPARE(app.Panels[0]._xSize, 600);
         QVERIFY(!app.Panels[1].PanelCreated);
-        QCOMPARE(app.Panels[0].GetListViewMode(), 2u);
-        QCOMPARE(app.Panels[1].GetListViewMode(), 1u);
+        QCOMPARE(app.Panels[0].GetListViewMode(), 3u);
+        QCOMPARE(app.Panels[1].GetListViewMode(), 3u);
         QCOMPARE(app.CreateOnePanel(1, UString(), UString(), false, opened), S_OK);
         QCOMPARE(presentation.created, QList<unsigned>({0, 1}));
         QCOMPARE(QDir::cleanPath(ToQString(app.Panels[1].GetCurrentFolderPrefix())),
@@ -434,7 +434,7 @@ class AppLifecycleTests : public QObject {
         CListMode read;
         read.Read(settings);
         QCOMPARE(read.Panels[0], 0u);
-        QCOMPARE(read.Panels[1], 2u);
+        QCOMPARE(read.Panels[1], 3u);
         UString path;
         QVERIFY(ReadPanelPath(0, path, settings));
         QCOMPARE(ToQString(path), QStringLiteral("/папка с пробелом/"));

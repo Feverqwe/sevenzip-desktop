@@ -210,7 +210,7 @@ void MainWindowOperationsTests::inlineRenameCancel_data() {
     QTest::addColumn<int>("mode");
     QTest::addColumn<int>("width");
     for (int width : {700, 400})
-        for (int mode = 0; mode < 4; ++mode)
+        for (int mode : {0, 3})
             QTest::newRow(qPrintable(QStringLiteral("mode-%1-width-%2").arg(mode).arg(width)))
                 << mode << width;
 }

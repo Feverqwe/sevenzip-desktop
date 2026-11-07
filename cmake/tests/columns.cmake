@@ -21,7 +21,7 @@
     target_include_directories(binding_lifecycle_tests PRIVATE src tests)
     target_link_libraries(binding_lifecycle_tests PRIVATE sevenzip_panel sevenzip_filesystem Qt6::Test)
     add_test(NAME binding_lifecycle COMMAND binding_lifecycle_tests -silent)
-    set_tests_properties(binding_lifecycle PROPERTIES ENVIRONMENT
+    set_tests_properties(binding_lifecycle PROPERTIES TIMEOUT 90 ENVIRONMENT
         "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/binding-lifecycle-settings.ini")
     qt_add_executable(filesystem_selection_runtime_tests tests/filemanager/filesystem_selection_runtime_tests.cpp)
     target_link_libraries(filesystem_selection_runtime_tests PRIVATE sevenzip_window)

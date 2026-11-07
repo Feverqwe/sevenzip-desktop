@@ -19,7 +19,7 @@ class NativePropertiesWindowTests final : public QObject, protected MainWindowTe
         QTest::addColumn<int>("mode");
         QTest::addColumn<bool>("directory");
         for (bool flat : {false, true})
-            for (int mode = 0; mode < 4; ++mode)
+            for (int mode : {0, 3})
                 for (bool directory : {false, true})
                     QTest::newRow(qPrintable(
                         QString("flat%1-mode%2-dir%3").arg(flat).arg(mode).arg(directory)))

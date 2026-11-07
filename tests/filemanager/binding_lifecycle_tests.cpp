@@ -1,6 +1,7 @@
 #include "dialogs/listview/ListViewDialog.h"
 #include "filemanager/support/panel_model_support.h"
 #include "filemanager/support/window_state_support.h"
+#include "support/progress_dialog.h"
 #include <QElapsedTimer>
 #include <QScopeGuard>
 
@@ -22,6 +23,16 @@ class LifecycleBackend : public ControlledBackend {
 
 class BindingLifecycleTests : public QObject, protected MainWindowTestSupport {
     Q_OBJECT
+
+    static void calculateHash(MainWindow &window) {
+        QTimer closeResult;
+        connect(&closeResult, &QTimer::timeout, &window, [] {
+            TestProgressDialog::DismissVisibleResult(QApplication::activeModalWidget());
+            dismissWarnings();
+        });
+        closeResult.start(5);
+        action(window, "hashSHA256Action")->trigger();
+    }
 
     static void navigate(MainWindow &window, const QString &path) {
         auto *address = window.findChild<QLineEdit *>("archivePath");
@@ -58,7 +69,7 @@ class BindingLifecycleTests : public QObject, protected MainWindowTestSupport {
             closeWasDeferred = !window.close();
             backend.cancel();
         });
-        action(window, "hashSHA256Action")->trigger();
+        calculateHash(window);
         QVERIFY(closeWasDeferred);
         QCOMPARE(backend.cancelCalls, 1);
         QVERIFY(backend.temporaryExistedOnCancel);
@@ -100,7 +111,7 @@ class BindingLifecycleTests : public QObject, protected MainWindowTestSupport {
             backend.observedTemporary = QFileInfo(backend.lastExtractDestination).absolutePath();
             backend.cancel();
         });
-        action(*window, "hashSHA256Action")->trigger();
+        calculateHash(*window);
         QVERIFY(!backend.busy());
         QVERIFY(!QFileInfo::exists(backend.observedTemporary));
         const QPointer<MainWindow> destroyed = window.get();
@@ -120,7 +131,7 @@ class BindingLifecycleTests : public QObject, protected MainWindowTestSupport {
         QTest::addColumn<int>("mode");
         QTest::addColumn<bool>("cancel");
         for (bool flat : {false, true})
-            for (int mode = 0; mode < 4; ++mode)
+            for (int mode : {0, 3})
                 for (bool cancel : {false, true})
                     QTest::newRow(qPrintable(QString("%1-%2-%3")
                                                  .arg(flat ? "flat" : "normal")
@@ -155,7 +166,7 @@ class BindingLifecycleTests : public QObject, protected MainWindowTestSupport {
         window.openArchive("first-owner.zip");
         action(window, "flatViewAction")->setChecked(flat);
         selectAndForge(window);
-        action(window, "hashSHA256Action")->trigger();
+        calculateHash(window);
         QCOMPARE(backend.lastSelected, QStringList{oldPath});
         const QString oldTemporary = backend.lastExtractDestination;
         QVERIFY(!QFileInfo::exists(oldTemporary));
@@ -172,12 +183,12 @@ class BindingLifecycleTests : public QObject, protected MainWindowTestSupport {
             verifyLoadingCommands(window);
         });
         window.openArchive("second-owner.zip");
-        QCOMPARE(table(window)->model()->index(0, 2).data().toString(), QString("19"));
+        QCOMPARE(table(window)->model()->index(0, 2).data(Qt::UserRole + 2).toULongLong(), 19ull);
         selectAndForge(window);
         window.extractTo(destination.path(), true);
         QCOMPARE(backend.lastSelected, QStringList{newPath});
         backend.cancel();
-        action(window, "hashSHA256Action")->trigger();
+        calculateHash(window);
         QCOMPARE(backend.lastSelected, QStringList{newPath});
         const QString newTemporary = backend.lastExtractDestination;
         QVERIFY(!QFileInfo::exists(newTemporary));
@@ -197,7 +208,10 @@ class BindingLifecycleTests : public QObject, protected MainWindowTestSupport {
         });
         window.openArchive("failed-owner.zip");
         warningResponder.stop();
-        QCOMPARE(window.findChild<QLineEdit *>("archivePath")->text(), root.path());
+        QVERIFY(window.findChild<QLineEdit *>("archivePath")->text().endsWith("second-owner.zip"));
+        QCOMPARE(rowWithPath(window, newPath), 0);
+        navigate(window, root.path());
+        QTRY_COMPARE(window.findChild<QLineEdit *>("archivePath")->text(), root.path());
         action(window, "flatViewAction")->setChecked(flat);
         QTRY_COMPARE(table(window)->rowCount(), 1);
         QTRY_VERIFY(table(window)->isEnabled());

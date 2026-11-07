@@ -64,7 +64,7 @@ void QtFileManagerCommands::RefreshViewActions() {
         const QSignalBlocker block(window_.flatView_);
         window_.flatView_->setChecked(panel && panel->GetFlatMode());
     }
-    for (unsigned i = 0; i < 4; ++i) {
+    for (unsigned i : {0u, 3u}) {
         const QSignalBlocker block(window_.viewActions_[i]);
         window_.viewActions_[i]->setChecked(panel && i == panel->GetListViewMode());
     }

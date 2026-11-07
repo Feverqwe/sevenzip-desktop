@@ -157,20 +157,17 @@ void FileIconList::startDrag(Qt::DropActions actions) {
         QListView::startDrag(actions);
 }
 
-void FileIconList::SetListViewMode(int mode) {
+void FileIconList::ConfigureLargeIcons() {
     // Qt's Static movement resets dragEnabled; retain the provider's policy.
     const bool drag = dragEnabled();
-    mode_ = mode;
-    setViewMode(mode == 0 ? QListView::IconMode : QListView::ListMode);
+    largeIconsConfigured_ = true;
+    setViewMode(QListView::IconMode);
     setBackgroundRole(QPalette::Base);
     setAutoFillBackground(true);
-    setViewportMargins(mode == 0 ? QMargins(0, QtWorkspaceTheme::metric(*this, 20), 0,
-                                            QtWorkspaceTheme::metric(*this, 28))
-                                 : QMargins());
-    int icon = style()->pixelMetric(mode == 0 ? QStyle::PM_LargeIconSize : QStyle::PM_SmallIconSize,
-                                    nullptr, this);
-    if (mode == 0)
-        icon = qMax(icon, QtWorkspaceTheme::metric(*this,
+    setViewportMargins(0, QtWorkspaceTheme::metric(*this, 20), 0,
+                       QtWorkspaceTheme::metric(*this, 28));
+    const int icon = qMax(style()->pixelMetric(QStyle::PM_LargeIconSize, nullptr, this),
+                          QtWorkspaceTheme::metric(*this,
 #ifdef Q_OS_MACOS
                                                    72
 #else
@@ -183,13 +180,11 @@ void FileIconList::SetListViewMode(int mode) {
     // Native LVS_ICON wraps labels. Keep room for two lines using the active
     // platform's icon/font metrics, rather than a fixed pixel-height cell.
     const int width = qMax(icon + 2 * margin, 12 * metrics.averageCharWidth() + 2 * margin);
-    setGridSize(mode == 0   ? QSize(qMax(width, QtWorkspaceTheme::metric(*this, 112)),
-                                    qMax(icon + 2 * metrics.lineSpacing() + 3 * margin,
-                                         QtWorkspaceTheme::metric(*this, 116)))
-                : mode == 1 ? QSize(qMax(180, width), qMax(icon, metrics.height()) + 2 * margin)
-                            : QSize());
-    setWordWrap(mode == 0);
-    setFlow(mode == 2 ? QListView::TopToBottom : QListView::LeftToRight);
+    setGridSize(QSize(
+        qMax(width, QtWorkspaceTheme::metric(*this, 112)),
+        qMax(icon + 2 * metrics.lineSpacing() + 3 * margin, QtWorkspaceTheme::metric(*this, 116))));
+    setWordWrap(true);
+    setFlow(QListView::LeftToRight);
     setWrapping(true);
     setResizeMode(QListView::Adjust);
     setMovement(QListView::Static);
@@ -198,6 +193,7 @@ void FileIconList::SetListViewMode(int mode) {
 
 void FileIconList::changeEvent(QEvent *event) {
     QListView::changeEvent(event);
-    if (mode_ >= 0 && (event->type() == QEvent::FontChange || event->type() == QEvent::StyleChange))
-        SetListViewMode(mode_);
+    if (largeIconsConfigured_ &&
+        (event->type() == QEvent::FontChange || event->type() == QEvent::StyleChange))
+        ConfigureLargeIcons();
 }

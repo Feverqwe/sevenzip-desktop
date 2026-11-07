@@ -189,7 +189,7 @@ class AppLifecycleWindowTests : public QObject, protected MainWindowTestSupport 
         ControlledBackend backend;
         {
             MainWindow window(&backend);
-            QVERIFY(action(window, "viewMode2Action")->isChecked());
+            QVERIFY(action(window, "viewMode3Action")->isChecked());
             openListedArchive(window, backend, fixture.filePath("архив с пробелом.zip"),
                               {ArchiveEntry{"folder/item.txt", 1, 1}});
             QVERIFY(action(window, "flatViewAction")->isChecked());
@@ -202,7 +202,7 @@ class AppLifecycleWindowTests : public QObject, protected MainWindowTestSupport 
             QVERIFY(childVisible);
         }
         QSettings key(settings, QSettings::IniFormat);
-        QCOMPARE(key.value("ListMode").toUInt() & 0xFF, 2u);
+        QCOMPARE(key.value("ListMode").toUInt() & 0xFF, 3u);
         QVERIFY(key.value("FM/FlatViewArc0").toBool());
         QCOMPARE(QDir::cleanPath(key.value("PanelPath0").toString()), fixture.path());
     }
@@ -224,7 +224,7 @@ class AppLifecycleWindowTests : public QObject, protected MainWindowTestSupport 
         ControlledBackend backend;
         {
             MainWindow window(&backend);
-            QVERIFY(action(window, "viewMode1Action")->isChecked());
+            QVERIFY(action(window, "viewMode3Action")->isChecked());
             openListedArchive(window, backend, fixture.filePath("archive.zip"),
                               {ArchiveEntry{"folder/item.txt", 1, 1}});
             QVERIFY(!action(window, "flatViewAction")->isChecked());

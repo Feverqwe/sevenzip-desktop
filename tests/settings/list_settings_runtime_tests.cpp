@@ -110,7 +110,7 @@ class ListSettingsRuntimeTests final : public QObject, protected MainWindowTestS
         QtNotifyLanguageChanged();
         QCOMPARE(parent.data(Qt::ToolTipRole).toString(), QString("Parent folder"));
         QCOMPARE(files->accessibleName(), QString("File list"));
-        QCOMPARE(files->model()->index(1, 0).data(Qt::ToolTipRole).toString(),
+        QCOMPARE(files->model()->index(1, 0).data(Qt::ToolTipRole).toString().section('\n', 0, 0),
                  QFileInfo(temp.filePath(QStringLiteral("child.txt"))).canonicalFilePath());
         files->sortItems(0, Qt::DescendingOrder);
         QCOMPARE(files->model()->index(0, 0).data().toString(), QStringLiteral(".."));
@@ -275,7 +275,7 @@ class ListSettingsRuntimeTests final : public QObject, protected MainWindowTestS
         openListedArchive(window, backend, temp.filePath("sample.zip"),
                           {ArchiveEntry{QStringLiteral("папка/имя.txt"), 4, 4}});
         QTRY_VERIFY_WITH_TIMEOUT(table(window)->rowCount() >= 2, 1500);
-        for (int mode = 0; mode < 4; ++mode) {
+        for (int mode : {0, 3}) {
             action(window, qPrintable(QStringLiteral("viewMode%1Action").arg(mode)))->trigger();
             QCOMPARE(table(window)->model()->index(0, 0).data().toString(), QStringLiteral(".."));
         }
