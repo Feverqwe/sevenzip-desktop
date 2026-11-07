@@ -300,7 +300,10 @@ class CompressionPathTests final : public QObject {
     }
     void historySelectionAndCancel() {
         NCompression::CInfo registry;
-        registry.ArcPaths.Add(dir_.filePath(QStringLiteral("готовый архив.ZIP")));
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString archive = fixture.filePath(QStringLiteral("готовый архив.ZIP"));
+        registry.ArcPaths.Add(archive);
         registry.Save(settings_);
         CreateArchiveDialog dialog(dir_.path(), {source_});
         auto *combo = dialog.findChild<QComboBox *>("archivePath");
@@ -312,12 +315,41 @@ class CompressionPathTests final : public QObject {
         QCOMPARE(dialog.findChild<QComboBox *>("archiveFormat")->currentText(), QString("zip"));
         QCOMPARE(combo->currentText(), QStringLiteral("готовый архив.ZIP"));
         QCOMPARE(dialog.findChild<QLineEdit *>("archiveFolder")->text(),
-                 QDir::toNativeSeparators(dir_.path() + '/'));
+                 QDir::toNativeSeparators(fixture.path() + '/'));
         dialog.reject();
         NCompression::CInfo loaded;
         loaded.Load(settings_);
         QCOMPARE(loaded.ArcType, QString("7z"));
         QCOMPARE(loaded.ArcPaths[0], registry.ArcPaths[0]);
+
+        const QString original = fixture.filePath("original.txt");
+        QFile originalFile(original);
+        QVERIFY(originalFile.open(QIODevice::WriteOnly));
+        QCOMPARE(originalFile.write("original"), qint64(8));
+        originalFile.close();
+        QVERIFY(NativeArchiveFixture::WriteFiles(archive, {original}, "zip"));
+        CreateArchiveDialog update(dir_.path(), {source_});
+        auto *history = update.findChild<QComboBox *>("archivePath");
+        history->setCurrentIndex(0);
+        QVERIFY(QMetaObject::invokeMethod(history, "activated", Q_ARG(int, 0)));
+        submit(update);
+        QCOMPARE(update.result(), int(QDialog::Accepted));
+        QCOMPARE(QDir::fromNativeSeparators(update.target()), archive);
+        ArchiveBackend backend;
+        QCOMPARE(SourceCreationFixture::Create(backend, update.target(), update.sources(), {},
+                                               false, update.compressionOptions()),
+                 S_OK);
+        QProcess process;
+        process.start("7z", {"x", "-o" + fixture.filePath("out"), "--", archive});
+        QVERIFY(process.waitForFinished(30000));
+        QCOMPARE(process.exitCode(), 0);
+        for (const auto &[input, expected] :
+             {std::pair{original, QByteArray("original")},
+              std::pair{source_, QByteArray("archive path regression")}}) {
+            QFile extracted(fixture.filePath("out/" + QFileInfo(input).fileName()));
+            QVERIFY(extracted.open(QIODevice::ReadOnly));
+            QCOMPARE(extracted.readAll(), expected);
+        }
     }
     void archiveFolderUsesInitialPrefix() {
         CreateArchiveDialog dialog(dir_.path(), {source_});
