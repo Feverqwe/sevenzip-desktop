@@ -244,7 +244,9 @@ class ProgressWorkerTests : public QObject {
         QTest::newRow("skipped") << 12 << QString() << true;
         QTest::newRow("callback-error")
             << 13 << QString("callback error <file with spaces>") << true;
-        QTest::newRow("success") << 10 << QString() << false;
+        QTest::newRow("success") << 0 << QString() << false;
+        QTest::newRow("success-with-report")
+            << 10 << QStringLiteral("Архив с пробелом <готов>") << true;
     }
     void finalOutcomeRemainsVisibleOnlyWhenNeeded() {
         QFETCH(int, mode);
@@ -265,6 +267,7 @@ class ProgressWorkerTests : public QObject {
                 const char *summary = mode == 1
                                           ? "Operation cancelled. Some changes may have completed."
                                       : mode == 12 ? "Completed with skipped items or messages"
+                                      : mode == 10 ? "Operation completed"
                                                    : "Operation failed";
                 QCOMPARE(worker.findChild<QLabel *>("IDT_PROGRESS_STATUS")->text(),
                          QCoreApplication::translate("ProgressRedesign", summary));

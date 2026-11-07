@@ -181,8 +181,9 @@ Stop disables repeated requests and shows Stopping until the owner finishes;
 completion retires an obsolete question without waiting for user input. Neither
 an empty message list nor a full bar proves success. The operation supplies its
 result and completeness after required publication/source removal. Full success
-closes automatically. Failure, cancellation, skipped items or messages keep a
-short result and any diagnostics until Close, with the running bar hidden.
+closes automatically unless the operation supplies a report, as when testing
+the contents of an open archive. A report, failure, cancellation, skipped items
+or messages keep the result visible until Close, with the running bar hidden.
 Diagnostics appear directly in a scrollable list when messages are available.
 Cancellation warns that changes may already have completed.
 

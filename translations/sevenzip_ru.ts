@@ -19,6 +19,7 @@
         <message><source>Source: %1</source><translation>Источник: %1</translation></message>
         <message><source>Destination: %1</source><translation>Назначение: %1</translation></message>
         <message><source>Operation failed</source><translation>Операция завершилась с ошибкой</translation></message>
+        <message><source>Operation completed</source><translation>Операция завершена</translation></message>
         <message><source>Operation cancelled. Some changes may have completed.</source><translation>Операция отменена. Часть изменений могла быть выполнена.</translation></message>
         <message><source>Completed with skipped items or messages</source><translation>Завершено с пропусками или сообщениями</translation></message>
     </context>

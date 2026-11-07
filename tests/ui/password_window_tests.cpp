@@ -1,8 +1,10 @@
+#include "7zip/UI/FileManager/resourceGui.h"
 #include "archive/support/native_archive_fixture.h"
 #include "archive/support/source_extract_fixture.h"
 #include "dialogs/overwrite/OverwriteDialog.h"
 #include "dialogs/password/PasswordDialog.h"
 #include "filemanager/support/window_state_support.h"
+#include "localization/LangUtils.h"
 #include "support/progress_dialog.h"
 #include "support/widget_dialogs.h"
 #include "ui/progress/ProgressDialog2.h"
@@ -53,16 +55,16 @@ class PasswordWindowTests final : public QObject, protected MainWindowTestSuppor
                 ++overwrites;
                 dialog->reject();
             } else if (auto *progress = dynamic_cast<CProgressDialog *>(modal)) {
-                auto *close = progress->findChild<QPushButton *>("IDCANCEL");
-                if (TestProgressDialog::IsCloseButton(close))
-                    close->click();
+                if (auto *result = TestProgressDialog::ResultWindow(progress)) {
+                    const QString report = TestProgressDialog::ReportText(*result);
+                    if (report.contains(QString::fromWCharArray(LangString(IDS_MESSAGE_NO_ERRORS))))
+                        ++testResults;
+                    else if (!report.isEmpty())
+                        errors.append(report);
+                    TestProgressDialog::CloseResult(*result);
+                }
             } else if (auto *box = qobject_cast<QMessageBox *>(modal)) {
-                if ((box->icon() == QMessageBox::Information ||
-                     box->icon() == QMessageBox::NoIcon) &&
-                    box->standardButtons() == QMessageBox::Ok)
-                    ++testResults;
-                else
-                    errors.append(box->text());
+                errors.append(box->text());
                 if (auto *yes = box->button(QMessageBox::Yes))
                     yes->click();
                 else

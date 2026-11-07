@@ -290,13 +290,15 @@
         "progress-final-message-skipped-560.json",
         "progress-final-message-skipped-360.json",
         "progress-final-message-callback-error-560.json",
-        "progress-final-message-callback-error-360.json"
+        "progress-final-message-callback-error-360.json",
+        "progress-final-message-success-with-report-560.json",
+        "progress-final-message-success-with-report-360.json"
       ],
       "evidence": [
         {
           "source": "CPP/7zip/UI/FileManager/ProgressDialog2.cpp",
           "symbol": "CProgressDialog::OnExternalCloseMessage",
-          "requirement": "Agreed result presentation retains failure, cancellation and skipped-item outcomes without a filled progress bar."
+          "requirement": "Result presentation retains explicit reports, failures, cancellation and skipped-item outcomes without a filled progress bar."
         }
       ],
       "assert": [
@@ -328,7 +330,7 @@
     "progress": "Unknown/known phase transitions, Unicode current file, count or byte progress, 64-bit ranges and backward reset; no invented byte totals.",
     "pause": "Supported native pause freezes rendering and restores prior state after refusing Stop; unsupported callback Pause is hidden.",
     "stop": "Continue/Stop with safe default and Escape; repeated Stop disabled while awaiting actual completion. Completion retires an obsolete Stop question without user input.",
-    "result": "Native HRESULT and partial facts select retained failure/cancel/skipped results; full success closes automatically. Worker join, source exception composition and default Close remain covered.",
+    "result": "Native HRESULT and partial facts select retained failure/cancel/skipped results. An explicit report remains visible after success. Other successes close automatically. Worker join, source exception composition and default Close remain covered.",
     "messages": "Source message splitting, ordering, append and selection/all clipboard; ordinal column omitted from the UI.",
     "scope": "Reviewed Qt adaptations to the pinned source component. This contract does not prove independent task lifetime, rendered Windows parity or whole-catalog acceptance."
   }

@@ -1,8 +1,9 @@
+#include "7zip/UI/FileManager/resourceGui.h"
 #include "archive/support/source_creation_fixture.h"
 #include "dialogs/password/PasswordDialog.h"
 #include "filemanager/support/window_state_support.h"
+#include "localization/LangUtils.h"
 #include "support/progress_dialog.h"
-#include <QTreeWidget>
 
 namespace {
 bool writeFile(const QString &path, const QByteArray &bytes) {
@@ -32,13 +33,12 @@ class CDialogAnswers {
                     if (box->icon() == QMessageBox::Critical || box->icon() == QMessageBox::Warning)
                         ++Errors;
                     box->accept();
-                } else if (widget->objectName() == "progressDialog") {
-                    auto *messages = widget->findChild<QTreeWidget *>("IDL_PROGRESS_MESSAGES");
-                    if (messages && messages->isVisible() && messages->topLevelItemCount() > 0)
+                } else if (auto *result = TestProgressDialog::ResultWindow(widget)) {
+                    const auto report = TestProgressDialog::ReportText(*result);
+                    if (!report.isEmpty() && !report.contains(QString::fromWCharArray(
+                                                 LangString(IDS_MESSAGE_NO_ERRORS))))
                         ++Errors;
-                    auto *close = widget->findChild<QPushButton *>("IDCANCEL");
-                    if (TestProgressDialog::IsCloseButton(close))
-                        QTimer::singleShot(20, close, &QPushButton::click);
+                    TestProgressDialog::CloseResult(*result);
                 }
             }
         });
