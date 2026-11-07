@@ -37,9 +37,9 @@ void QtWindowWorkspace::CreateActions(unsigned panel, QVBoxLayout &layout) {
     state.actions->setIconSize(QSize(16, 16));
     state.actions->setToolButtonStyle(Qt::ToolButtonIconOnly);
     state.actions->setMovable(false);
-    const auto add = [this, panel, &state](QAction *source, const QIcon &icon = QIcon()) {
+    const auto add = [this, panel, &state](QAction *source, QtCommandIcon icon) {
         auto *action =
-            state.actions->addAction(icon.isNull() ? source->icon() : icon, source->text());
+            state.actions->addAction(QtCommandSymbol(icon, state.actions), source->text());
         action->setProperty("sourceAction", QVariant::fromValue(source));
         connect(source, &QAction::changed, action, [toolbar = state.actions, action, source] {
             RefreshCommandCaption(*toolbar, *action, *source);
@@ -50,12 +50,12 @@ void QtWindowWorkspace::CreateActions(unsigned panel, QVBoxLayout &layout) {
                 source->trigger();
         });
     };
-    add(window_.createFolder_, QtCommandSymbol(QtCommandIcon::NewFolder));
-    add(window_.clipboard_->cut, QtCommandSymbol(QtCommandIcon::Cut));
-    add(window_.clipboard_->copy, QtCommandSymbol(QtCommandIcon::Copy));
-    add(window_.clipboard_->paste, QtCommandSymbol(QtCommandIcon::Paste));
-    add(window_.rename_, QtCommandSymbol(QtCommandIcon::Rename));
-    add(window_.remove_);
+    add(window_.createFolder_, QtCommandIcon::NewFolder);
+    add(window_.clipboard_->cut, QtCommandIcon::Cut);
+    add(window_.clipboard_->copy, QtCommandIcon::Copy);
+    add(window_.clipboard_->paste, QtCommandIcon::Paste);
+    add(window_.rename_, QtCommandIcon::Rename);
+    add(window_.remove_, QtCommandIcon::Delete);
     state.actionRow = new QWidget;
     auto *row = new QHBoxLayout(state.actionRow);
     row->setContentsMargins(0, 0, 8, 0);

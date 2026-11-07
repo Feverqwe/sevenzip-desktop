@@ -13,6 +13,7 @@
 #include <QSettings>
 #include <QSizeGrip>
 #include <QSplitterHandle>
+#include <QStyleHints>
 #include <QTimer>
 #include <QToolBar>
 #include <QToolButton>
@@ -111,6 +112,84 @@ class MainShellTests final : public QObject {
                         QVERIFY(image.rect().adjusted(1, 1, -1, -1).contains(ink));
                     }
         }
+    }
+    void panelChromeIsReadableWithMixedDarkPalette() {
+        const auto original = QApplication::palette();
+        auto *hints = QApplication::styleHints();
+        const auto originalScheme = hints->colorScheme();
+        const auto restore = qScopeGuard([&] {
+            hints->setColorScheme(originalScheme);
+            QApplication::setPalette(original);
+        });
+        hints->setColorScheme(Qt::ColorScheme::Dark);
+        QApplication::processEvents();
+        auto mixed = QApplication::palette();
+        mixed.setColor(QPalette::Window, QColor("#252527"));
+        mixed.setColor(QPalette::ButtonText, QColor("#202022"));
+        QApplication::setPalette(mixed);
+
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        QVERIFY(QDir().mkdir(fixture.filePath("child")));
+        QFile file(fixture.filePath("child/control.txt"));
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.close();
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.resize(1120, 650);
+        window.show();
+        auto *split = window.findChild<QAction *>("twoPanelsAction");
+        QVERIFY(split);
+        if (split->isChecked())
+            split->trigger();
+        window.openPath(fixture.path());
+        window.openPath(fixture.filePath("child"));
+        auto *view = window.findChild<FileTable *>("archiveTable");
+        QVERIFY(view);
+        QTRY_COMPARE(view->rowCount(), 1);
+        view->setCurrentCell(0, 0);
+        view->selectRow(0);
+
+        auto *back = window.findChild<QToolButton *>("panelBackButton0");
+        auto *forward = window.findChild<QToolButton *>("panelForwardButton0");
+        QToolButton *edit = nullptr;
+        for (auto *button : window.findChildren<QToolButton *>("editLocationButton"))
+            if (button->isVisible())
+                edit = button;
+        auto *toolbar = window.findChild<QToolBar *>("panelFileActions0");
+        auto *renameAction = window.findChild<QAction *>("renameAction");
+        QVERIFY(back && forward && edit && toolbar && renameAction);
+        QToolButton *rename = nullptr;
+        for (auto *action : toolbar->actions())
+            if (action->property("sourceAction").value<QAction *>() == renameAction)
+                rename = qobject_cast<QToolButton *>(toolbar->widgetForAction(action));
+        QVERIFY(rename);
+        QTRY_VERIFY(back->isEnabled() && !forward->isEnabled() && edit->isEnabled() &&
+                    rename->isEnabled());
+        QCOMPARE(rename->toolButtonStyle(), Qt::ToolButtonTextBesideIcon);
+        QVERIFY(toolbar->palette().color(QPalette::Window).lightness() < 90);
+        const auto brightPixels = [](const QImage &image, int left, int right) {
+            int count = 0;
+            for (int y = 0; y < image.height(); ++y)
+                for (int x = left; x < right; ++x) {
+                    const QColor pixel = image.pixelColor(x, y);
+                    if (pixel.alpha() >= 128 && pixel.lightness() >= 140)
+                        ++count;
+                }
+            return count;
+        };
+        for (const auto *button : {back, forward, edit, rename}) {
+            QVERIFY2(UiInspection::fullyVisible(*button, window),
+                     qPrintable(button->objectName() + ' ' + button->text()));
+            const auto mode = button->isEnabled() ? QIcon::Normal : QIcon::Disabled;
+            const auto icon = button->icon().pixmap(button->iconSize(), mode).toImage();
+            QVERIFY(brightPixels(icon, 0, icon.width()) >= 5);
+        }
+        const auto paintedRename = rename->grab().toImage();
+        QVERIFY(UiInspection::writeReport(window, "panel-chrome-dark-contrast"));
+        QVERIFY2(brightPixels(paintedRename, paintedRename.width() / 2, paintedRename.width()) >=
+                     12,
+                 qPrintable(rename->text()));
     }
     void elidedStatusUsesInactiveAndDisabledColors() {
         QWidget window;

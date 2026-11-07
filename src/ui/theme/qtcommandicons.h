@@ -1,6 +1,8 @@
 #pragma once
 #include <QIcon>
 
+class QWidget;
+
 enum class QtCommandIcon {
     Add,
     Extract,
@@ -28,4 +30,4 @@ enum class QtCommandIcon {
 };
 
 // Vector chrome graphics; file-list and application icons stay native.
-QIcon QtCommandSymbol(QtCommandIcon command);
+QIcon QtCommandSymbol(QtCommandIcon command, const QWidget *surface = nullptr);

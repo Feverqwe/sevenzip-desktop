@@ -56,7 +56,7 @@ QtOperationsButton::QtOperationsButton(QWidget *parent)
     setMenu(menu_);
     setPopupMode(QToolButton::InstantPopup);
     setToolButtonStyle(Qt::ToolButtonTextOnly);
-    setIcon(QtCommandSymbol(QtCommandIcon::Operations));
+    setIcon(QtCommandSymbol(QtCommandIcon::Operations, this));
     setAutoRaise(true);
     setFocusPolicy(Qt::StrongFocus);
     setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);

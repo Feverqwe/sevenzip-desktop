@@ -134,7 +134,7 @@ void QtNavigationBar::Rebuild() {
         connect(ancestor, &QAction::triggered, this, [this, target] { navigate_(target); });
         if (archive) {
             ancestor->setIcon(QtCommandSymbol(QtCommandIcon::Archive));
-            button->setIcon(ancestor->icon());
+            button->setIcon(QtCommandSymbol(QtCommandIcon::Archive, this));
             button->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
         }
         crumbButtons_.push_back({button, separator, ancestor});
@@ -149,7 +149,7 @@ void QtNavigationBar::Rebuild() {
     }
     auto *edit = new QToolButton(crumbs_);
     edit->setObjectName("editLocationButton");
-    edit->setIcon(QtCommandSymbol(QtCommandIcon::EditLocation));
+    edit->setIcon(QtCommandSymbol(QtCommandIcon::EditLocation, this));
     edit->setAutoRaise(true);
     QtConfigureChromeToolButton(*edit);
     edit->setToolTip(tr("Edit location"));

@@ -30,7 +30,7 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
     back->setObjectName(QStringLiteral("panelBackButton%1").arg(index));
     back->setAutoRaise(true);
     QtConfigureChromeToolButton(*back);
-    back->setIcon(QtCommandSymbol(QtCommandIcon::Back));
+    back->setIcon(QtCommandSymbol(QtCommandIcon::Back, navigationRow));
     QtBindLocalText(back, "mainwindow_menus", QT_TRANSLATE_NOOP("mainwindow_menus", "Back"), true);
     QtBindLocalToolTip(back, "mainwindow_menus", QT_TRANSLATE_NOOP("mainwindow_menus", "Back"));
     connect(back, &QToolButton::clicked, this, [this, index] {
@@ -43,7 +43,7 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
     forward->setObjectName(QStringLiteral("panelForwardButton%1").arg(index));
     forward->setAutoRaise(true);
     QtConfigureChromeToolButton(*forward);
-    forward->setIcon(QtCommandSymbol(QtCommandIcon::Forward));
+    forward->setIcon(QtCommandSymbol(QtCommandIcon::Forward, navigationRow));
     QtBindLocalText(forward, "mainwindow_menus", QT_TRANSLATE_NOOP("mainwindow_menus", "Forward"),
                     true);
     QtBindLocalToolTip(forward, "mainwindow_menus",
@@ -57,8 +57,8 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
     {
         auto *button = new QPushButton(central);
         // Keep the source parent command without its longer View menu caption.
+        button->setIcon(QtCommandSymbol(QtCommandIcon::Parent, navigationRow));
         const auto updateButton = [this, button] {
-            button->setIcon(QtCommandSymbol(QtCommandIcon::Parent));
             button->setAccessibleName(up_->toolTip());
             button->setToolTip(up_->toolTip());
         };
@@ -135,7 +135,7 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
     recent->setObjectName(QStringLiteral("panelRecentPlacesButton%1").arg(index));
     recent->setAutoRaise(true);
     QtConfigureChromeToolButton(*recent);
-    recent->setIcon(QtCommandSymbol(QtCommandIcon::History));
+    recent->setIcon(QtCommandSymbol(QtCommandIcon::History, navigationRow));
     QtBindLocalText(recent, "CommandMenus", QT_TRANSLATE_NOOP("CommandMenus", "Recent places…"),
                     true);
     QtBindLocalToolTip(recent, "CommandMenus", QT_TRANSLATE_NOOP("CommandMenus", "Recent places…"));
