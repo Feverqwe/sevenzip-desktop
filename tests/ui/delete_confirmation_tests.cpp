@@ -2,7 +2,6 @@
 #include "localization/LangUtils.h"
 #include "localization/qtlangcontrols.h"
 #include "settings/RegistryUtils.h"
-#include "ui/controls/qtdisclosure.h"
 #include "ui/support/layout_inspection.h"
 #include <QDialogButtonBox>
 #include <QHelpEvent>
@@ -14,7 +13,6 @@
 #include <QScrollBar>
 #include <QSignalSpy>
 #include <QTemporaryDir>
-#include <QToolButton>
 #include <QToolTip>
 #include <QtTest>
 
@@ -53,10 +51,8 @@ class DeleteConfirmationTests final : public QObject {
         auto *confirm = dialog.findChild<QPushButton *>("deleteConfirm");
         auto *source = dialog.findChild<QWidget *>("deleteSourceSummary");
         auto *names = dialog.findChild<QPlainTextEdit *>("deleteSelectedNames");
-        auto *selection =
-            dynamic_cast<QtDisclosure *>(dialog.findChild<QWidget *>("deleteSelectionDisclosure"));
         auto *scroll = dialog.findChild<QScrollArea *>("dialogContentScroll");
-        QVERIFY(cancel && confirm && source && names && selection && scroll);
+        QVERIFY(cancel && confirm && source && names && scroll);
         QVERIFY(cancel->hasFocus() && cancel->isDefault());
 #ifdef Q_OS_MACOS
         if (QGuiApplication::platformName() == QStringLiteral("cocoa"))
@@ -74,45 +70,37 @@ class DeleteConfirmationTests final : public QObject {
         for (auto *label : source->findChildren<QLabel *>())
             if (label->window() == dialog.window())
                 QVERIFY(!label->isVisible() || label->text() != request.location);
+        QVERIFY(names->isVisible());
         QCOMPARE(names->toPlainText(), request.names.join('\n'));
         const char *actions[] = {"Move to Trash", "Delete from archive"};
         QCOMPARE(confirm->text(), QCoreApplication::translate("DeleteRedesign", actions[mode]));
         for (const QSize size : {QSize(560, 380), QSize(340, 240)}) {
             dialog.resize(size);
             QApplication::processEvents();
-            for (bool expanded : {false, true}) {
-                selection->setExpanded(expanded);
-                QCOMPARE(names->isVisible(), expanded);
-                for (auto *widget : dialog.findChildren<QWidget *>()) {
-                    if (!widget->isVisible() || !scroll->widget()->isAncestorOf(widget))
-                        continue;
-                    const auto reveal = [&] {
-                        const QRect bounds(widget->mapTo(scroll->widget(), QPoint()),
-                                           widget->size());
-                        scroll->ensureVisible(bounds.left(), bounds.top(), 0, 0);
-                        scroll->ensureVisible(bounds.right() + 1, bounds.bottom() + 1, 0, 0);
-                        return UiInspection::fullyVisible(*widget, dialog);
-                    };
-                    if (widget->height() <= scroll->viewport()->height())
-                        QTRY_VERIFY2(reveal(), qPrintable(widget->objectName()));
-                    if (auto *label = qobject_cast<QLabel *>(widget))
-                        QTRY_VERIFY2(
-                            UiInspection::labelFits(*label),
-                            qPrintable(QString("%1 %2 %3x%4 needs %5")
-                                           .arg(label->objectName(), label->text().left(40))
-                                           .arg(label->width())
-                                           .arg(label->height())
-                                           .arg(label->heightForWidth(label->width()))));
-                    QVERIFY(UiInspection::fullyVisible(*cancel, dialog));
-                    QVERIFY(UiInspection::fullyVisible(*confirm, dialog));
-                }
-                QVERIFY(UiInspection::writeReport(dialog, QString("delete-%1-%2-%3")
-                                                              .arg(QTest::currentDataTag())
-                                                              .arg(size.width())
-                                                              .arg(expanded)));
+            for (auto *widget : dialog.findChildren<QWidget *>()) {
+                if (!widget->isVisible() || !scroll->widget()->isAncestorOf(widget))
+                    continue;
+                const auto reveal = [&] {
+                    const QRect bounds(widget->mapTo(scroll->widget(), QPoint()), widget->size());
+                    scroll->ensureVisible(bounds.left(), bounds.top(), 0, 0);
+                    scroll->ensureVisible(bounds.right() + 1, bounds.bottom() + 1, 0, 0);
+                    return UiInspection::fullyVisible(*widget, dialog);
+                };
+                if (widget->height() <= scroll->viewport()->height())
+                    QTRY_VERIFY2(reveal(), qPrintable(widget->objectName()));
+                if (auto *label = qobject_cast<QLabel *>(widget))
+                    QTRY_VERIFY2(UiInspection::labelFits(*label),
+                                 qPrintable(QString("%1 %2 %3x%4 needs %5")
+                                                .arg(label->objectName(), label->text().left(40))
+                                                .arg(label->width())
+                                                .arg(label->height())
+                                                .arg(label->heightForWidth(label->width()))));
+                QVERIFY(UiInspection::fullyVisible(*cancel, dialog));
+                QVERIFY(UiInspection::fullyVisible(*confirm, dialog));
             }
+            QVERIFY(UiInspection::writeReport(
+                dialog, QString("delete-%1-%2").arg(QTest::currentDataTag()).arg(size.width())));
         }
-        selection->setExpanded(false);
         const QString before = confirm->text();
         SaveRegLang(UString(language == "ru" ? L"-" : L"ru"), ini);
         ReloadLang(ini);

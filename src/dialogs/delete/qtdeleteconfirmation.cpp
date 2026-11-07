@@ -1,6 +1,5 @@
 #include "dialogs/delete/qtdeleteconfirmation.h"
 #include "localization/qtlangcontrols.h"
-#include "ui/controls/qtdisclosure.h"
 #include "ui/controls/qtsourcesummary.h"
 #include "ui/dialogs/qtdialoglayout.h"
 #include "ui/theme/qtcommandicons.h"
@@ -14,7 +13,6 @@
 #include <QPushButton>
 #include <QShowEvent>
 #include <QStyle>
-#include <QToolButton>
 #include <QVBoxLayout>
 #include <utility>
 
@@ -82,10 +80,7 @@ void QtDeleteConfirmation::buildPresentation() {
         names->setLineWrapMode(QPlainTextEdit::WidgetWidth);
         names->setMinimumHeight(fontMetrics().lineSpacing() * 3);
         names->setMaximumHeight(fontMetrics().lineSpacing() * 8);
-        auto *selection = new QtDisclosure(names, this);
-        selection->setObjectName("deleteSelectionDisclosure");
-        QtBindLocalText(selection->button(), "CopyRedesign", "Show selected items");
-        body->addWidget(selection);
+        body->addWidget(names);
     }
 }
 
