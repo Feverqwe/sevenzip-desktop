@@ -156,7 +156,7 @@ DWORD CDirEnumerator::GetNextFile(NFind::CFileInfo &fi, bool &filled, FString &r
 }
 
 class CThreadCrc : public CProgressThreadVirt {
-    bool ResultsPending;
+    bool ResultsShown = false;
 
     HRESULT ProcessVirt() Z7_override;
     virtual void ProcessWasFinished_GuiVirt() Z7_override;
@@ -164,22 +164,28 @@ class CThreadCrc : public CProgressThreadVirt {
   public:
     CDirEnumerator Enumerator;
     CHashBundle Hash;
+    CPropNameValPairs CompletedFiles;
     std::function<bool(const CHashBundle &)> PresentResult;
     // FString FirstFilePath;
 
     void SetStatus(const UString &s);
     void AddErrorMessage(DWORD systemError, const FChar *name);
     void ShowFinalResults(QWidget *hwnd);
-
-    CThreadCrc() : ResultsPending(false) {}
 };
 
 void CThreadCrc::ShowFinalResults(QWidget *hwnd) {
-    if (!ResultsPending)
+    if (ResultsShown || (Result != S_OK && CompletedFiles.IsEmpty()))
         return;
-    ResultsPending = false;
-    if (!PresentResult || !PresentResult(Hash))
-        ShowHashResults(Hash, hwnd);
+    ResultsShown = true;
+    if (Result == S_OK && PresentResult && PresentResult(Hash))
+        return;
+    CPropNameValPairs report;
+    if (Result == S_OK)
+        AddHashBundleRes(report, Hash);
+    if (Result != S_OK || Hash.NumFiles > 1 || Hash.NumDirs != 0 || Hash.NumErrors != 0)
+        report += CompletedFiles;
+    ShowHashResults(report, hwnd, Result == S_OK && Hash.NumErrors ? S_FALSE : Result,
+                    &Sync.Messages);
 }
 
 void CThreadCrc::ProcessWasFinished_GuiVirt() { ShowFinalResults(this); }
@@ -311,8 +317,11 @@ HRESULT CThreadCrc::ProcessVirt() {
                 }
             }
         }
-        if (error == 0)
+        if (error == 0) {
             Hash.Final(fi.IsDir(), false, fs2us(path));
+            if (!fi.IsDir())
+                AddCompletedFileHashes(CompletedFiles, fs2us(path), Hash);
+        }
         RINOK(sync.Set_NumBytesCur(errorsFilesSize + Hash.FilesSize))
     }
     RINOK(sync.Set_NumBytesCur(errorsFilesSize + Hash.FilesSize))
@@ -322,7 +331,6 @@ HRESULT CThreadCrc::ProcessVirt() {
     SetStatus(L"");
 
     CProgressMessageBoxPair &pair = GetMessagePair(Hash.NumErrors != 0);
-    ResultsPending = true;
     LangString(IDS_CHECKSUM_INFORMATION, pair.Title);
     return S_OK;
 }

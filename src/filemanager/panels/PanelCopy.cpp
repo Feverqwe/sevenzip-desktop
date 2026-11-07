@@ -36,6 +36,7 @@ class CPanelCopyThread : public CProgressThreadVirt {
     CMyComPtr2<IFolderOperationsExtractCallback, CExtractCallbackImp> ExtractCallback;
 
     CHashBundle Hash;
+    CPropNameValPairs CompletedFiles;
     // UString FirstFilePath;
 
     // HRESULT Result2;
@@ -52,8 +53,16 @@ void CPanelCopyThread::ShowFinalResults(QWidget *hwnd) {
     if (!ResultsPending)
         return;
     ResultsPending = false;
-    if (!options->PresentHashResult || !options->PresentHashResult(Hash))
-        ShowHashResults(Hash, hwnd);
+    const bool complete =
+        Result == S_OK && ExtractCallback->IsOK() && !ExtractCallback->SomeItemsSkipped;
+    if (complete && options->PresentHashResult && options->PresentHashResult(Hash))
+        return;
+    CPropNameValPairs report;
+    if (complete)
+        AddHashBundleRes(report, Hash);
+    if (!complete || Hash.NumFiles > 1 || Hash.NumDirs != 0)
+        report += CompletedFiles;
+    ShowHashResults(report, hwnd, !complete && Result == S_OK ? S_FALSE : Result, &Sync.Messages);
 }
 
 void CPanelCopyThread::ProcessWasFinished_GuiVirt() { ShowFinalResults(this); }
@@ -113,10 +122,11 @@ HRESULT CPanelCopyThread::ProcessVirt() {
     FinalMessage.Partial =
         ExtractCallback->SomeItemsSkipped ||
         (ExtractCallback->ExtractReport.Status && !ExtractCallback->ExtractReport.Status->Complete);
-    if (result2 == S_OK && !ExtractCallback->ThereAreMessageErrors) {
-        if (!options->hashMethods.IsEmpty())
-            ResultsPending = true;
-        else if (options->testMode) {
+    if (!options->hashMethods.IsEmpty()) {
+        ResultsPending = !CompletedFiles.IsEmpty() ||
+                         (result2 == S_OK && !ExtractCallback->ThereAreMessageErrors);
+    } else if (result2 == S_OK && !ExtractCallback->ThereAreMessageErrors) {
+        if (options->testMode) {
             CProgressMessageBoxPair &pair =
                 GetMessagePair(false); // GetMessagePair(ExtractCallback->Hash.NumErrors != 0);
             AddHashBundleRes(pair.Message, Hash);
@@ -241,6 +251,9 @@ HRESULT CPanel::CopyTo(CCopyToOptions &options, const CRecordVector<UInt32> &ind
 
             RINOK(extracter.Hash.SetMethods(options.ExternalCodecs, options.hashMethods))
             extracter.ExtractCallback->SetHashMethods(&extracter.Hash);
+            extracter.ExtractCallback->OnCompletedFileHash = [&extracter](const UString &path) {
+                AddCompletedFileHashes(extracter.CompletedFiles, path, extracter.Hash);
+            };
         } else if (options.testMode) {
             extracter.ExtractCallback->SetHashCalc(&extracter.Hash);
         }

@@ -4,13 +4,14 @@
 #include "archive/codecs/archivecodeccatalog.h"
 #include "archive/support/source_extract_fixture.h"
 #include "dialogs/extract/ExtractDialog.h"
-#include "dialogs/listview/ListViewDialog.h"
 #include "dialogs/overwrite/OverwriteDialog.h"
+#include "dialogs/taskresult/qttaskresultdialog.h"
 #include "localization/qtlangcontrols.h"
 #include "operations/CompressCall.h"
 #include "platform/shell/qtshellarchiveservices.h"
 #include <QLabel>
 #include <QMessageBox>
+#include <QPlainTextEdit>
 #include <QPushButton>
 #include <QTemporaryDir>
 #include <QTimer>
@@ -24,7 +25,7 @@ class CDismissal {
     bool _waitForHashResult;
 
   public:
-    QStringList ResultValues;
+    QString ResultText;
     QStringList Errors;
     explicit CDismissal(bool waitForHashResult = false) : _waitForHashResult(waitForHashResult) {
         QObject::connect(&_timer, &QTimer::timeout, [this] {
@@ -40,10 +41,10 @@ class CDismissal {
                     message->accept();
                     return;
                 }
-                if (auto *results = qobject_cast<CListViewDialog *>(widget)) {
+                if (auto *results = qobject_cast<QtTaskResultDialog *>(widget)) {
                     _waitForHashResult = false;
-                    FOR_VECTOR(i, results->Values)
-                    ResultValues.append(QString::fromWCharArray(results->Values[i].Ptr()));
+                    ResultText =
+                        results->findChild<QPlainTextEdit *>("taskResultReport")->toPlainText();
                     results->accept();
                     return;
                 }
@@ -185,9 +186,9 @@ class ShellArchiveServicesTests final : public QObject {
         QCOMPARE(::CalcChecksum(paths, UString(L"SHA256"), service), S_OK);
         QCOMPARE(error, S_OK);
         QVERIFY(dismissal.Errors.isEmpty());
-        QVERIFY2(dismissal.ResultValues.contains(QStringLiteral(
+        QVERIFY2(dismissal.ResultText.contains(QStringLiteral(
                      "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")),
-                 qPrintable(dismissal.ResultValues.join(" | ")));
+                 qPrintable(dismissal.ResultText));
         QCOMPARE(readFile(path), QByteArray("abc"));
     }
     void archiveTestRejectsChecksumManifest() {

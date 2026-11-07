@@ -6,4 +6,6 @@ class QtTaskResultDialog final : public QDialog {
     Q_OBJECT
   public:
     explicit QtTaskResultDialog(const QtOperationReview &review);
+    QtTaskResultDialog(const char *summaryText, const QString &reportText,
+                       QWidget *parent = nullptr);
 };

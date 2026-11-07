@@ -7355,6 +7355,9 @@ Check that your distribution's CIFS support and cifs-utils are installed.</sourc
 </context>
 <context>
     <name>QtTaskResultDialog</name>
+    <message><source>Checksum calculation completed.</source><translation>Расчёт контрольных сумм завершён.</translation></message>
+    <message><source>Checksum calculation was cancelled.</source><translation>Расчёт контрольных сумм отменён.</translation></message>
+    <message><source>Some checksums could not be calculated.</source><translation>Не удалось рассчитать все контрольные суммы.</translation></message>
     <message><source>Reported output folders</source><translation>Указанные операцией папки вывода</translation></message>
     <message><source>Reported output archives</source><translation>Указанные операцией выходные архивы</translation></message>
     <message><source>The operation was cancelled.</source><translation>Операция отменена.</translation></message>

@@ -1,10 +1,10 @@
-#include "dialogs/listview/ListViewDialog.h"
+#include "dialogs/taskresult/qttaskresultdialog.h"
 #include "filemanager/support/window_state_support.h"
 #include "localization/LangUtils.h"
 #include "ui/progress/ProgressDialog2.h"
 #include "ui/support/layout_inspection.h"
 #include <QCryptographicHash>
-#include <QTreeWidget>
+#include <QPlainTextEdit>
 #include <utility>
 #ifdef Q_OS_WIN
 #include "support/read_only_virtual_disk.h"
@@ -20,7 +20,8 @@ class HashModalResponse final : public QObject {
     bool cancellationRequested = false;
     bool resultSeen = false;
     bool geometry = true;
-    QStringList values, errors;
+    QString values;
+    QStringList errors;
     explicit HashModalResponse(QString report) : report_(std::move(report)) {
         connect(&timer_, &QTimer::timeout, this, [&] {
             if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
@@ -28,15 +29,15 @@ class HashModalResponse final : public QObject {
                 box->accept();
                 return;
             }
-            if (auto *dialog = qobject_cast<CListViewDialog *>(QApplication::activeModalWidget())) {
+            if (auto *dialog =
+                    qobject_cast<QtTaskResultDialog *>(QApplication::activeModalWidget())) {
                 resultSeen = true;
-                auto *rows = dialog->findChild<QTreeWidget *>("propertiesList");
-                for (int row = 0; row < rows->topLevelItemCount(); ++row)
-                    values << rows->topLevelItem(row)->text(1);
+                auto *rows = dialog->findChild<QPlainTextEdit *>("taskResultReport");
+                values = rows->toPlainText();
                 for (int width : {540, 420}) {
                     dialog->resize(width, 360);
                     QApplication::processEvents();
-                    auto *buttons = dialog->findChild<QDialogButtonBox *>("listViewButtons");
+                    auto *buttons = dialog->findChild<QDialogButtonBox *>("taskResultActions");
                     geometry &= UiInspection::fullyVisible(*rows, *dialog) &&
                                 UiInspection::fullyVisible(*buttons, *dialog) &&
                                 UiInspection::separate(*rows, *buttons, *dialog);

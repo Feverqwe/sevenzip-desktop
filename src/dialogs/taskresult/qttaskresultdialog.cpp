@@ -11,7 +11,55 @@
 #include <QPushButton>
 #include <QVBoxLayout>
 
-QtTaskResultDialog::QtTaskResultDialog(const QtOperationReview &review) {
+namespace {
+QString ReviewReportText(const QtOperationReview &review) {
+    using Dialog = QtTaskResultDialog;
+    const bool cancelled = review.Result.Status == QtOperationResult::Outcome::Cancelled;
+    QStringList lines;
+    if (cancelled)
+        lines.append(Dialog::tr("The operation was cancelled."));
+    if (!review.Result.Error.isEmpty())
+        lines.append(review.Result.Error);
+    if (!review.Job.Paths.isEmpty()) {
+        lines.append(QString());
+        lines.append(Dialog::tr("Selected items"));
+        lines.append(review.Job.Paths);
+    }
+    if (!review.Job.ArchivePath.isEmpty()) {
+        lines.append(QString());
+        lines.append(Dialog::tr("Requested archive"));
+        lines.append(review.Job.ArchivePath);
+    }
+    if (!review.Job.Destination.isEmpty()) {
+        lines.append(QString());
+        lines.append(Dialog::tr("Requested destination"));
+        lines.append(review.Job.Destination);
+    }
+    if (!review.Result.ChangedDirectories.isEmpty()) {
+        lines.append(QString());
+        lines.append(Dialog::tr("Reported output folders"));
+        lines.append(review.Result.ChangedDirectories);
+    }
+    if (!review.Result.ChangedArchives.isEmpty()) {
+        lines.append(QString());
+        lines.append(Dialog::tr("Reported output archives"));
+        lines.append(review.Result.ChangedArchives);
+    }
+    return lines.join('\n');
+}
+} // namespace
+
+QtTaskResultDialog::QtTaskResultDialog(const QtOperationReview &review)
+    : QtTaskResultDialog(
+          review.Result.Status == QtOperationResult::Outcome::Cancelled
+              ? QT_TRANSLATE_NOOP("QtTaskResultDialog", "The operation was cancelled.")
+              : QT_TRANSLATE_NOOP("QtTaskResultDialog",
+                                  "The operation result could not be verified."),
+          ReviewReportText(review)) {}
+
+QtTaskResultDialog::QtTaskResultDialog(const char *summaryText, const QString &reportText,
+                                       QWidget *parent)
+    : QDialog(parent) {
     setObjectName("independentTaskResultDialog");
     setAttribute(Qt::WA_DeleteOnClose);
     setAttribute(Qt::WA_ShowWithoutActivating);
@@ -29,12 +77,7 @@ QtTaskResultDialog::QtTaskResultDialog(const QtOperationReview &review) {
     summary->setObjectName("taskResultSummary");
     summary->setTextFormat(Qt::PlainText);
     summary->setWordWrap(true);
-    const bool cancelled = review.Result.Status == QtOperationResult::Outcome::Cancelled;
-    QtBindLocalText(summary, "QtTaskResultDialog",
-                    cancelled
-                        ? QT_TRANSLATE_NOOP("QtTaskResultDialog", "The operation was cancelled.")
-                        : QT_TRANSLATE_NOOP("QtTaskResultDialog",
-                                            "The operation result could not be verified."));
+    QtBindLocalText(summary, "QtTaskResultDialog", summaryText);
     body->addWidget(summary);
     auto *report = new QPlainTextEdit(this);
     report->setObjectName("taskResultReport");
@@ -42,37 +85,7 @@ QtTaskResultDialog::QtTaskResultDialog(const QtOperationReview &review) {
     report->setMinimumSize(160, 100);
     // Keep native diagnostic text intact; no parsing of localized messages or
     // untrusted paths. The selected inputs are values, never provider handles.
-    QStringList lines;
-    if (cancelled)
-        lines.append(tr("The operation was cancelled."));
-    if (!review.Result.Error.isEmpty())
-        lines.append(review.Result.Error);
-    if (!review.Job.Paths.isEmpty()) {
-        lines.append(QString());
-        lines.append(tr("Selected items"));
-        lines.append(review.Job.Paths);
-    }
-    if (!review.Job.ArchivePath.isEmpty()) {
-        lines.append(QString());
-        lines.append(tr("Requested archive"));
-        lines.append(review.Job.ArchivePath);
-    }
-    if (!review.Job.Destination.isEmpty()) {
-        lines.append(QString());
-        lines.append(tr("Requested destination"));
-        lines.append(review.Job.Destination);
-    }
-    if (!review.Result.ChangedDirectories.isEmpty()) {
-        lines.append(QString());
-        lines.append(tr("Reported output folders"));
-        lines.append(review.Result.ChangedDirectories);
-    }
-    if (!review.Result.ChangedArchives.isEmpty()) {
-        lines.append(QString());
-        lines.append(tr("Reported output archives"));
-        lines.append(review.Result.ChangedArchives);
-    }
-    report->setPlainText(lines.join('\n'));
+    report->setPlainText(reportText);
     body->addWidget(report, 1);
     copy->setEnabled(!report->toPlainText().isEmpty());
     connect(copy, &QPushButton::clicked, this, [report] {

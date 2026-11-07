@@ -12,11 +12,11 @@
 #include "7zip/UI/FileManager/ProgressDialog2Res.h"
 #include "7zip/UI/FileManager/PropertyNameRes.h"
 #include "7zip/UI/FileManager/resourceGui.h"
-#include "dialogs/listview/ListViewDialog.h"
+#include "dialogs/taskresult/qttaskresultdialog.h"
 #include "filemanager/FormatUtils.h"
 #include "localization/LangUtils.h"
-#include "ui/lifecycle/qttaskpresentation.h"
 #include "ui/progress/ProgressDialog2.h"
+#include <QStringList>
 
 #include "gui/HashGUI.h"
 
@@ -26,9 +26,11 @@ class CHashCallbackGUI Z7_final : public CProgressThreadVirt, public IHashCallba
     UInt64 NumFiles;
     bool _curIsFolder;
     UString FirstFileName;
+    UString CurrentFileName;
     // UString MainPath;
 
     CPropNameValPairs PropNameValPairs;
+    CPropNameValPairs CompletedFiles;
 
     HRESULT ProcessVirt() Z7_override;
     virtual void ProcessWasFinished_GuiVirt() Z7_override;
@@ -111,6 +113,7 @@ HRESULT CHashCallbackGUI::GetStream(const wchar_t *name, bool isFolder) {
     if (NumFiles == 0)
         FirstFileName = name;
     _curIsFolder = isFolder;
+    CurrentFileName = name;
     CProgressSync &sync = Sync;
     sync.Set_FilePath(name, isFolder);
     return CheckBreak();
@@ -125,11 +128,14 @@ HRESULT CHashCallbackGUI::OpenFileError(const FString &path, DWORD systemError) 
     // return systemError;
 }
 
-HRESULT CHashCallbackGUI::SetOperationResult(UInt64 /* fileSize */, const CHashBundle & /* hb */,
-                                             bool /* showHash */) {
+HRESULT CHashCallbackGUI::SetOperationResult(UInt64 /* fileSize */, const CHashBundle &hb,
+                                             bool showHash) {
     CProgressSync &sync = Sync;
-    if (!_curIsFolder)
+    if (!_curIsFolder) {
         NumFiles++;
+        if (showHash)
+            AddCompletedFileHashes(CompletedFiles, CurrentFileName, hb);
+    }
     sync.Set_NumFilesCur(NumFiles);
     return CheckBreak();
 }
@@ -141,6 +147,17 @@ static void AddHashString(CProperty &s, const CHasherState &h, unsigned digestIn
     char temp[k_DigestStringSize];
     h.WriteToString(digestIndex, temp);
     s.Value = temp;
+}
+
+void AddCompletedFileHashes(CPropNameValPairs &rows, const UString &path, const CHashBundle &hash) {
+    FOR_VECTOR(i, hash.Hashers) {
+        const auto &hasher = hash.Hashers[i];
+        auto &row = rows.AddNew();
+        row.Name = path;
+        row.Name += L" · ";
+        row.Name += hasher.Name;
+        AddHashString(row, hasher, k_HashCalc_Index_Current);
+    }
 }
 
 static void AddHashResString(CPropNameValPairs &s, const CHasherState &h, unsigned digestIndex,
@@ -220,6 +237,8 @@ HRESULT CHashCallbackGUI::AfterLastFile(CHashBundle &hb) {
     hb.FirstFileName = FirstFileName;
     // MainPath
     AddHashBundleRes(PropNameValPairs, hb);
+    if (hb.NumFiles > 1 || hb.NumDirs != 0 || HasErrors)
+        PropNameValPairs += CompletedFiles;
 
     CProgressSync &sync = Sync;
     sync.Set_NumFilesCur(hb.NumFiles);
@@ -260,32 +279,36 @@ HRESULT HashCalcGUI(DECL_EXTERNAL_CODECS_LOC_VARS const NWildcard::CCensor &cens
     return t.Result == S_OK && t.HasErrors ? S_FALSE : t.Result;
 }
 
-void ShowHashResults(const CPropNameValPairs &propPairs, QWidget *hwnd) {
-    CListViewDialog lv(hwnd);
-    QtTaskPresentation::Watch(lv, QtOperationPhase::Reviewing);
-
+void ShowHashResults(const CPropNameValPairs &propPairs, QWidget *hwnd, HRESULT status,
+                     const UStringVector *messages) {
+    QStringList lines;
     FOR_VECTOR(i, propPairs) {
         const CProperty &pair = propPairs[i];
-        lv.Strings.Add(pair.Name);
-        lv.Values.Add(pair.Value);
+        lines.append(QString::fromWCharArray(pair.Name) + QStringLiteral(": ") +
+                     QString::fromWCharArray(pair.Value));
     }
-
-    lv.Title = LangString(IDS_CHECKSUM_INFORMATION);
-    lv.DeleteIsAllowed = true;
-    lv.SelectFirst = false;
-    lv.NumColumns = 2;
-
-    lv.OnInit();
-    lv.exec();
-}
-
-void ShowHashResults(const CHashBundle &hb, QWidget *hwnd) {
-    CPropNameValPairs propPairs;
-    AddHashBundleRes(propPairs, hb);
-    ShowHashResults(propPairs, hwnd);
+    if (messages && !messages->IsEmpty()) {
+        lines.append(QString());
+        FOR_VECTOR(i, *messages)
+        lines.append(QString::fromWCharArray((*messages)[i]));
+    }
+    const char *summary;
+    if (status == S_OK)
+        summary = QT_TRANSLATE_NOOP("QtTaskResultDialog", "Checksum calculation completed.");
+    else if (status == E_ABORT)
+        summary = QT_TRANSLATE_NOOP("QtTaskResultDialog", "Checksum calculation was cancelled.");
+    else
+        summary =
+            QT_TRANSLATE_NOOP("QtTaskResultDialog", "Some checksums could not be calculated.");
+    QtTaskResultDialog dialog(summary, lines.join('\n'), hwnd);
+    dialog.setObjectName("checksumOperationResult");
+    dialog.setAttribute(Qt::WA_DeleteOnClose, false);
+    dialog.exec();
 }
 
 void CHashCallbackGUI::ProcessWasFinished_GuiVirt() {
-    if (Result != E_ABORT)
-        ShowHashResults(PropNameValPairs, this);
+    if (Result == S_OK && !PropNameValPairs.IsEmpty())
+        ShowHashResults(PropNameValPairs, this, HasErrors ? S_FALSE : S_OK, &Sync.Messages);
+    else if (!CompletedFiles.IsEmpty())
+        ShowHashResults(CompletedFiles, this, Result, &Sync.Messages);
 }

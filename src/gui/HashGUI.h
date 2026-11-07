@@ -11,5 +11,6 @@ void AddValuePair(CPropNameValPairs &pairs, UINT resourceID, UInt64 value);
 void AddSizeValuePair(CPropNameValPairs &pairs, UINT resourceID, UInt64 value);
 void AddHashBundleRes(CPropNameValPairs &s, const CHashBundle &hb);
 void AddHashBundleRes(UString &s, const CHashBundle &hb);
-void ShowHashResults(const CPropNameValPairs &propPairs, QWidget *hwnd);
-void ShowHashResults(const CHashBundle &hb, QWidget *hwnd);
+void AddCompletedFileHashes(CPropNameValPairs &rows, const UString &path, const CHashBundle &hash);
+void ShowHashResults(const CPropNameValPairs &propPairs, QWidget *hwnd, HRESULT status = S_OK,
+                     const UStringVector *messages = nullptr);

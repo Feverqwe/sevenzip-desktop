@@ -2,7 +2,6 @@
 #include "7zip/UI/FileManager/ProgressDialog2Res.h"
 #include "dialogs/compress/createarchivedialog.h"
 #include "dialogs/extract/ExtractDialog.h"
-#include "dialogs/listview/ListViewDialog.h"
 #include "ui/lifecycle/qttaskpresentation.h"
 #include "ui/support/layout_inspection.h"
 #include <QApplication>
@@ -13,10 +12,10 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QMessageBox>
+#include <QPlainTextEdit>
 #include <QPushButton>
 #include <QSaveFile>
 #include <QTimer>
-#include <QTreeWidget>
 
 // Public widget interactions in the fixture process only. Production 7zG owns
 // these same source dialogs; no automation flags are added to its entrypoint.
@@ -57,8 +56,7 @@ void DriveOperationDialogs() {
         const QString windowReport = qEnvironmentVariable("SEVENZIP_OPERATION_WINDOW_REPORT");
         const bool draft =
             qobject_cast<CExtractDialog *>(widget) || qobject_cast<CreateArchiveDialog *>(widget);
-        const bool hashResult = qobject_cast<CListViewDialog *>(widget) &&
-                                widget->findChild<QTreeWidget *>("propertiesList");
+        const bool hashResult = widget->objectName() == "checksumOperationResult";
         if (!windowReport.isEmpty() && (draft || hashResult)) {
             if (draft && !picker.isEmpty() && QFileInfo::exists(picker + ".start") &&
                 !widget->property("fixtureBrowseStarted").toBool()) {
@@ -173,21 +171,16 @@ void DriveOperationDialogs() {
                 auto *ok = create->findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok);
                 QTimer::singleShot(0, ok, &QPushButton::click);
             }
-        } else if (auto *hash = qobject_cast<CListViewDialog *>(widget);
-                   hash && hash->findChild<QTreeWidget *>("propertiesList")) {
+        } else if (hashResult) {
+            auto *hash = qobject_cast<QDialog *>(widget);
             const QString report = qEnvironmentVariable("SEVENZIP_OPERATION_HASH_REPORT");
             if (!report.isEmpty()) {
-                const auto *list = hash->findChild<QTreeWidget *>("propertiesList");
-                QJsonArray rows;
-                for (int i = 0; i < list->topLevelItemCount(); ++i) {
-                    const auto *item = list->topLevelItem(i);
-                    rows.append(QJsonArray{item->text(0), item->text(1)});
-                }
-                QJsonDocument document(rows);
+                const auto *list = hash->findChild<QPlainTextEdit *>("taskResultReport");
+                QJsonObject result{{"text", list->toPlainText()}};
                 const QString tag = qEnvironmentVariable("SEVENZIP_OPERATION_HASH_UI_TAG");
                 if (!tag.isEmpty()) {
                     bool geometry = true;
-                    const auto *buttons = hash->findChild<QDialogButtonBox *>("listViewButtons");
+                    const auto *buttons = hash->findChild<QDialogButtonBox *>("taskResultActions");
                     for (int width : {540, 420}) {
                         hash->resize(width, 360);
                         QApplication::processEvents();
@@ -197,11 +190,11 @@ void DriveOperationDialogs() {
                             UiInspection::separate(*list, *buttons, *hash) &&
                             UiInspection::writeReport(*hash, tag + '-' + QString::number(width));
                     }
-                    document = QJsonDocument(QJsonObject{{"rows", rows}, {"geometry", geometry}});
+                    result.insert("geometry", geometry);
                 }
                 QSaveFile file(report);
                 if (file.open(QIODevice::WriteOnly)) {
-                    file.write(document.toJson());
+                    file.write(QJsonDocument(result).toJson());
                     file.commit();
                 }
             }

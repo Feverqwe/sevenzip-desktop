@@ -4,17 +4,17 @@
 #include "archive/hashing/HashCalc.h"
 #include "archive/hashing/qtfilecrc.h"
 #include "archive/resources/qtarchivehashoperation.h"
-#include "dialogs/listview/ListViewDialog.h"
+#include "dialogs/taskresult/qttaskresultdialog.h"
 #include "filemanager/ExtractCallback.h"
 #include "filemanager/panels/qtpanelfolder.h"
 #include "gui/HashGUI.h"
 #include <QCryptographicHash>
 #include <QDir>
 #include <QFile>
+#include <QPlainTextEdit>
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QTimer>
-#include <QTreeWidget>
 #include <QtTest>
 
 namespace {
@@ -92,13 +92,12 @@ class NativeHashWorkflowTests final : public QObject {
         QString resultText;
         QTimer responder;
         connect(&responder, &QTimer::timeout, this, [&] {
-            auto *dialog = qobject_cast<CListViewDialog *>(QApplication::activeModalWidget());
+            auto *dialog = qobject_cast<QtTaskResultDialog *>(QApplication::activeModalWidget());
             if (!dialog)
                 return;
             ++resultWindows;
-            auto *rows = dialog->findChild<QTreeWidget *>("propertiesList");
-            for (int row = 0; row < rows->topLevelItemCount(); ++row)
-                resultText += rows->topLevelItem(row)->text(1) + '\n';
+            auto *rows = dialog->findChild<QPlainTextEdit *>("taskResultReport");
+            resultText = rows->toPlainText();
             dialog->accept();
         });
         responder.start(5);
@@ -295,12 +294,11 @@ class NativeHashWorkflowTests final : public QObject {
         bool shown = false;
         QTimer closeResults;
         connect(&closeResults, &QTimer::timeout, this, [&] {
-            auto *dialog = qobject_cast<CListViewDialog *>(QApplication::activeModalWidget());
+            auto *dialog = qobject_cast<QtTaskResultDialog *>(QApplication::activeModalWidget());
             if (!dialog)
                 return;
-            auto *rows = dialog->findChild<QTreeWidget *>("propertiesList");
-            for (int row = 0; row < rows->topLevelItemCount(); ++row)
-                shown |= rows->topLevelItem(row)->text(1) == "CBF43926";
+            auto *rows = dialog->findChild<QPlainTextEdit *>("taskResultReport");
+            shown = rows->toPlainText().contains("CBF43926");
             dialog->accept();
         });
         closeResults.start(1);

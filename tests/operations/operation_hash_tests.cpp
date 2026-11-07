@@ -79,6 +79,10 @@ class OperationHashTests final : public QObject {
 #endif
         const QByteArray bytes = "native checksum payload";
         QVERIFY(writeFile(directory.filePath(name), bytes));
+        const QString secondName = "tree/sub/second.txt";
+        const QByteArray secondBytes = "second checksum payload";
+        if (!single)
+            QVERIFY(writeFile(directory.filePath(secondName), secondBytes));
         if (single) {
 #ifdef Q_OS_WIN
             QVERIFY(
@@ -103,7 +107,7 @@ class OperationHashTests final : public QObject {
         ScopedTestEnvironment console("SEVENZIP_CODEC_MODULE_PATH", FindArchiveModule(deployment));
         auto job = Hash(directory.path(),
                         single ? QStringList{name}
-                        : flat ? QStringList{"tree", "tree/sub", name}
+                        : flat ? QStringList{"tree", "tree/sub", name, secondName}
                                : QStringList{"tree"},
                         panel);
         job.HashEnterToDirs = !flat;
@@ -112,7 +116,13 @@ class OperationHashTests final : public QObject {
         QVERIFY(result.ChangedDirectories.isEmpty());
         QVERIFY(result.ChangedArchives.isEmpty());
         const auto digest = QCryptographicHash::hash(bytes, QCryptographicHash::Sha256).toHex();
-        QVERIFY2(readFile(report).contains(digest), readFile(report).constData());
+        const auto results = readFile(report);
+        QVERIFY2(results.contains(digest), results.constData());
+        if (!single) {
+            QVERIFY(results.contains("second.txt"));
+            QVERIFY(results.contains(
+                QCryptographicHash::hash(secondBytes, QCryptographicHash::Sha256).toHex()));
+        }
         QCOMPARE(readFile(directory.filePath(name)), bytes);
     }
     void partialInputIsWarningAndInvalidMethodIsFailure_data() {

@@ -26,6 +26,7 @@
 
 #include "ui/progress/ProgressDialog2.h"
 #include <QString>
+#include <functional>
 
 #ifndef Z7_SFX
 class CVirtFileSystem;
@@ -161,6 +162,7 @@ class CExtractCallbackImp Z7_final
 
 #ifndef Z7_SFX
     void SetHashCalc(IHashCalc *hashCalc) { _hashCalc = hashCalc; }
+    std::function<void(const UString &)> OnCompletedFileHash;
 
     void SetHashMethods(IHashCalc *hash) {
         if (!hash)

@@ -330,6 +330,9 @@ Z7_COM7F_IMF(CExtractCallbackImp::SetOperationResult8(Int32 opRes, Int32 encrypt
     }
     if (_hashStream && _hashStream_WasUsed) {
         _hashStream->_hash->Final(_isFolder, _isAltStream, _filePath);
+        if (OnCompletedFileHash && opRes == NArchive::NExtract::NOperationResult::kOK &&
+            !_isFolder && !_isAltStream)
+            OnCompletedFileHash(_filePath);
         _curSize = _hashStream->GetSize();
         _curSize_Defined = true;
         _hashStream->ReleaseStream();

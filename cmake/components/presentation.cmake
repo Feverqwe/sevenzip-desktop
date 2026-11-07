@@ -102,6 +102,8 @@ add_library(sevenzip_panel
     src/filemanager/panels/PanelDrag.cpp
     src/filemanager/panels/PanelDragSource.cpp
     src/gui/HashGUI.cpp
+    src/dialogs/taskresult/qttaskresultdialog.cpp
+    src/dialogs/taskresult/qttaskresultdialog.h
     src/gui/HashGUI.h
     src/operations/CompressCall.cpp
     src/operations/CompressCall2.cpp
