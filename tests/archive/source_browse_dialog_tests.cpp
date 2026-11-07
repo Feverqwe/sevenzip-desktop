@@ -419,6 +419,87 @@ class SourceBrowseDialogTests final : public QObject {
         QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(ToQString(selected))), target);
     }
 
+    void failedRefreshKeepsFilterSortAndDraftUntilRetry() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString directory = LongDirectory(fixture);
+        const QString parked = directory + "-parked";
+        QVERIFY(QDir().mkpath(directory));
+        for (const QString &name : {"archive.7z", "note.txt"}) {
+            QFile file(directory + '/' + name);
+            QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::NewOnly));
+        }
+        CBrowseInfo browse;
+        browse.FilePath = ToUString(directory + "/archive.7z");
+        browse.FilterIndex = 0;
+        QTimer::singleShot(0, [&] {
+            auto *dialog = Dialog();
+            QVERIFY(dialog);
+            const auto close = qScopeGuard([&] {
+                if (dialog->isVisible())
+                    dialog->reject();
+            });
+            auto *list = dialog->findChild<QTreeWidget *>("browseList");
+            auto *filter = dialog->findChild<QComboBox *>("browseFilter");
+            auto *path = dialog->findChild<QLineEdit *>("browsePath");
+            QVERIFY(list && filter && path);
+            const auto originalRows = Names(*list);
+            const QString draft = QStringLiteral("  введённое имя 空.7z  ");
+            path->setText(draft);
+            const auto reverseOrder = [&] {
+                QMetaObject::invokeMethod(list->header(), "sectionClicked", Qt::DirectConnection,
+                                          Q_ARG(int, 0));
+            };
+            const auto refresh = [&] {
+                list->setFocus();
+                QTest::keyClick(list, Qt::Key_R, Qt::ControlModifier);
+            };
+            QVERIFY(QDir().rename(directory, parked));
+            const auto restore = qScopeGuard([&] {
+                if (QDir(parked).exists())
+                    QDir().rename(parked, directory);
+            });
+            int errors = 0;
+            QTimer responder;
+            connect(&responder, &QTimer::timeout, dialog, [&] {
+                if (auto *message =
+                        qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                    ++errors;
+                    message->accept();
+                }
+            });
+            responder.start(1);
+            filter->setCurrentIndex(1);
+            QCOMPARE(errors, 1);
+            QCOMPARE(filter->currentIndex(), 0);
+            reverseOrder();
+            QCOMPARE(errors, 2);
+            QCOMPARE(list->header()->sortIndicatorOrder(), Qt::AscendingOrder);
+            refresh();
+            QCOMPARE(errors, 3);
+            QCOMPARE(Names(*list), originalRows);
+            QCOMPARE(path->text(), draft);
+
+            QVERIFY(QDir().rename(parked, directory));
+            filter->setCurrentIndex(1);
+            QCOMPARE(Names(*list), (QStringList{"..", "archive.7z", "note.txt"}));
+            reverseOrder();
+            QCOMPARE(Names(*list), (QStringList{"..", "note.txt", "archive.7z"}));
+            QCOMPARE(list->header()->sortIndicatorOrder(), Qt::DescendingOrder);
+            QFile newFile(directory + "/new.txt");
+            QVERIFY(newFile.open(QIODevice::WriteOnly | QIODevice::NewOnly));
+            newFile.close();
+            refresh();
+            QVERIFY(Names(*list).contains("new.txt"));
+            QCOMPARE(path->text(), draft);
+            path->setText("archive.7z");
+            dialog->accept();
+        });
+        QVERIFY(browse.BrowseForFile(Filters()));
+        QCOMPARE(browse.FilterIndex, 1);
+        QCOMPARE(QDir::fromNativeSeparators(ToQString(browse.FilePath)), directory + "/archive.7z");
+    }
+
     void cancelPreservesRawFileStateAndClearsFolderOutput() {
         QTemporaryDir fixture;
         const QString directory = LongDirectory(fixture);

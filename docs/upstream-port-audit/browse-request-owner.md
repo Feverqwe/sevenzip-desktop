@@ -181,3 +181,12 @@ enumeration and selection rules are unchanged.
 Linux `source_browse_dialog` and `shell_menu_window` passed. The source-browser
 test removes and restores the target while the dialog is open, then retries
 with the same button or key.
+
+## Failed list refresh — 2026-11-07
+
+The original filter, column and Ctrl+R handlers reread the current directory.
+The Qt adapter retains that enumeration, but reports a failed reread and
+restores the controls to match the retained listing. The path draft remains
+available and a retry can apply the filter, order or refresh. Linux
+`source_browse_dialog`, `source_archive_browse` and `shell_menu_window` passed
+69 checks with no skips.

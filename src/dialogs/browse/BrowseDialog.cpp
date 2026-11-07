@@ -152,7 +152,9 @@ bool CBrowseDialog::OnKeyDown(QKeyEvent *keyDownInfo) {
         return true;
     case Qt::Key_R:
         if (ctrl) {
-            Reload();
+            const HRESULT result = Reload();
+            if (result != S_OK)
+                ShowReloadError(result);
             return true;
         }
         return false;
@@ -305,6 +307,10 @@ HRESULT CBrowseDialog::Reload() {
             selected = fs2us(_files[fileIndex].Name);
     }
     return Reload(DirPrefix, selected);
+}
+
+void CBrowseDialog::ShowReloadError(HRESULT result) {
+    MessageBox_HResError(this, result, DirPrefix);
 }
 
 void CBrowseDialog::NavigateFolder(const UString &path, const UString &selectedName) {
