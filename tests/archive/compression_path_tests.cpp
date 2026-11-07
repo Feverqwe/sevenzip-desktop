@@ -332,6 +332,49 @@ class CompressionPathTests final : public QObject {
                  QDir(folder).filePath(QStringLiteral("данные.7z")));
         QVERIFY(!QFileInfo::exists(folder));
     }
+    void occupiedDestinationCanBeCorrectedWithoutLosingTheArchiveName() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        QFile occupied(fixture.filePath("occupied"));
+        QVERIFY(occupied.open(QIODevice::WriteOnly));
+        QCOMPARE(occupied.write("keep"), qint64(4));
+        occupied.close();
+        const QString name = QStringLiteral("архив с пробелом.7z");
+        const QString output = fixture.filePath("new/output");
+        CreateArchiveDialog dialog(fixture.path(), {source_});
+        auto *folder = dialog.findChild<QLineEdit *>("archiveFolder");
+        auto *archiveName = dialog.findChild<QLineEdit *>("archiveName");
+        archiveName->setText(name);
+        folder->setText(QDir::toNativeSeparators(occupied.fileName() + "/child"));
+        dialog.show();
+        QString diagnostic;
+        QTimer::singleShot(0, &dialog, [&] {
+            if (auto *message = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                diagnostic = message->text();
+                message->accept();
+            }
+        });
+        submit(dialog);
+        QVERIFY(dialog.isVisible());
+        QVERIFY(!diagnostic.isEmpty());
+        QCOMPARE(archiveName->text(), name);
+        folder->setText(QDir::toNativeSeparators(output));
+        submit(dialog);
+        QCOMPARE(dialog.result(), int(QDialog::Accepted));
+        QCOMPARE(QDir::fromNativeSeparators(dialog.target()), QDir(output).filePath(name));
+        ArchiveBackend backend;
+        QCOMPARE(SourceCreationFixture::Create(backend, dialog.target(), dialog.sources(), {},
+                                               false, dialog.compressionOptions()),
+                 S_OK);
+        QVERIFY(QFileInfo(dialog.target()).isFile());
+        CreateArchiveDialog update(output, {source_});
+        update.findChild<QLineEdit *>("archiveName")->setText(name);
+        submit(update);
+        QCOMPARE(update.result(), int(QDialog::Accepted));
+        QCOMPARE(update.target(), dialog.target());
+        QVERIFY(occupied.open(QIODevice::ReadOnly));
+        QCOMPARE(occupied.readAll(), QByteArray("keep"));
+    }
     void destinationPickerRetainsNameAndCancelDraft() {
         QTemporaryDir destination;
         QVERIFY(destination.isValid());

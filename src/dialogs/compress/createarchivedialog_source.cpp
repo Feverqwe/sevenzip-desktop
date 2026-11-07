@@ -8,6 +8,22 @@
 #include "ui/lifecycle/qttaskpresentation.h"
 #include <QCoreApplication>
 #include <QEvent>
+#include <QFileInfo>
+
+namespace {
+bool ArchiveParentCanBeDirectory(const QFileInfo &target) {
+    QString path = target.absolutePath();
+    for (;;) {
+        const QFileInfo entry(path);
+        if (entry.exists())
+            return entry.isDir();
+        const QString parent = entry.absolutePath();
+        if (parent == path)
+            return true;
+        path = parent;
+    }
+}
+} // namespace
 
 // Qt controls for the source CCompressDialog::OnInit/OnOK DTO. The source
 // ShowDialog remains responsible for all update options and properties.
@@ -68,9 +84,9 @@ void CreateArchiveDialog::validateAndAccept() {
     }
     SaveOptionsInMem();
     const QString resolved = archivePath();
-    if (resolved.isEmpty()) {
-        // Original OnOK validates GetFinalPath_Smart only. Source scanning and
-        // UpdateArchive own input errors and CreateComplexDir for new parents.
+    const QFileInfo target(resolved);
+    if (resolved.isEmpty() || target.isDir() || !ArchiveParentCanBeDirectory(target)) {
+        // Keep the draft available for correction before handing it to UpdateArchive.
         const std::wstring message =
             QCoreApplication::translate("CreateArchiveDialog", "Incorrect archive path")
                 .toStdWString();
