@@ -116,6 +116,8 @@ HRESULT QtFileManagerShellMenu::InvokeCommand(unsigned offset, bool system, cons
 #endif
     if (system || !_context)
         return E_INVALIDARG;
+    if (offset >= _context->Commands().Size() || !Exposed(_context->Commands()[offset]))
+        return E_INVALIDARG;
     const HRESULT result = _context->InvokeCommand(offset);
     return result == S_OK ? _services.Result() : result;
 }

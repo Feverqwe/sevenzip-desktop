@@ -26,6 +26,7 @@ class QtFileManagerShellMenu final : public IQtPanelPluginServices,
     std::function<void(unsigned)> _dispatch;
     void Render(QMenu &menu, const NQtShellMenu::CMenuHandle &tree);
     void RenderItems(QMenu &menu, const NQtShellMenu::CMenuHandle &tree, const QIcon &icon);
+    static bool Exposed(const CZipContextMenu::CCommandMapItem &command);
     bool Available(const CZipContextMenu::CCommandMapItem &command) const;
     HRESULT Open(const UString &path, const UString &type);
     void Dispatch(unsigned id, quint64 generation);

@@ -2,7 +2,6 @@
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/window/qtfavoritestore.h"
 #include "filemanager/window/qtnativeplaces.h"
-#include "filemanager/window/qtplaceprojection.h"
 #include "filemanager/window/qtwindowworkspace.h"
 #include "filemanager/window/qtworkspaceapplication.h"
 #include "localization/LangUtils.h"
@@ -340,11 +339,6 @@ class WorkspaceSessionTests final : public QObject {
         QApplication::processEvents();
         const auto resized = splitter->sizes();
         QVERIFY(qAbs(resized.value(0) - original.value(0)) <= 1);
-        auto *places = restored.findChild<QAction *>("sidebarAction");
-        places->setChecked(false);
-        places->setChecked(true);
-        QApplication::processEvents();
-        QVERIFY(qAbs(splitter->sizes().value(0) - original.value(0)) <= 1);
     }
 
     void missingSavedLocationDoesNotExposeFallbackFolderCommands_data() {
@@ -379,10 +373,6 @@ class WorkspaceSessionTests final : public QObject {
             window.show();
             window.openPath(gone);
             QTRY_VERIFY(active(window)->isEnabled());
-            QMimeData bookmark;
-            bookmark.setUrls({QUrl::fromLocalFile(gone)});
-            auto *favorites = window.findChild<QListView *>("favoritePlaces0");
-            QVERIFY(favorites->model()->dropMimeData(&bookmark, Qt::CopyAction, -1, 0, {}));
             saved = workspace(window)->Save();
         }
         QVERIFY(QDir().rmdir(gone));
@@ -411,21 +401,6 @@ class WorkspaceSessionTests final : public QObject {
             QVERIFY(UiInspection::writeReport(
                 restored, QString("workspace-unavailable-%1-%2").arg(language).arg(size.width())));
         }
-        restored.openPath(usable);
-        QTRY_VERIFY(active(restored)->isEnabled());
-        QCOMPARE(location(restored), usable);
-        QVERIFY(restored.findChild<QAction *>("createFolderAction")->isEnabled());
-        QVERIFY(!restored.findChild<QLabel *>("selectedItemsStatus")->text().isEmpty());
-        auto *favorites = restored.findChild<QListView *>("favoritePlaces0");
-        const auto matching = favorites->model()->match(
-            favorites->model()->index(0, 0), Qt::UserRole + 1, gone, 1, Qt::MatchExactly);
-        QCOMPARE(matching.size(), 1);
-        const QModelIndex favorite = matching.first();
-        favorites->scrollTo(favorite);
-        QTest::mouseClick(favorites->viewport(), Qt::LeftButton, Qt::NoModifier,
-                          favorites->visualRect(favorite).center());
-        QTRY_VERIFY(!active(restored)->isEnabled());
-        QCOMPARE(QDir::cleanPath(restored.findChild<QLineEdit *>("archivePath")->text()), gone);
         restored.findChild<QAction *>("newWindowAction")->trigger();
         QPointer<MainWindow> copy;
         const auto closeCopy = qScopeGuard([&] {
@@ -439,6 +414,11 @@ class WorkspaceSessionTests final : public QObject {
         QVERIFY(copy);
         QTRY_COMPARE(QDir::cleanPath(copy->findChild<QLineEdit *>("archivePath")->text()), gone);
         QTRY_VERIFY(active(*copy) && !active(*copy)->isEnabled());
+        restored.openPath(usable);
+        QTRY_VERIFY(active(restored)->isEnabled());
+        QCOMPARE(location(restored), usable);
+        QVERIFY(restored.findChild<QAction *>("createFolderAction")->isEnabled());
+        QVERIFY(!restored.findChild<QLabel *>("selectedItemsStatus")->text().isEmpty());
     }
 };
 

@@ -28,8 +28,6 @@ QList<QAction *> QtGroupFileCommands(QMenu &menu, bool contextMenu) {
                 open.append(action);
                 break;
             case IDM_OPEN_INSIDE:
-            case IDM_OPEN_INSIDE_ONE:
-            case IDM_OPEN_INSIDE_PARSER:
             case IDM_OPEN_OUTSIDE:
                 modes.append(action);
                 break;
@@ -147,14 +145,6 @@ void QtClarifyOpenCommands(QMenu &menu) {
         case IDM_OPEN_OUTSIDE:
             QtBindLocalText(action, "qtprogramfilemenu",
                             QT_TRANSLATE_NOOP("qtprogramfilemenu", "Open in external application"));
-            break;
-        case IDM_OPEN_INSIDE_ONE:
-        case IDM_OPEN_INSIDE_PARSER:
-            QtBindLocalText(
-                action, "qtprogramfilemenu",
-                id == IDM_OPEN_INSIDE_ONE
-                    ? QT_TRANSLATE_NOOP("qtprogramfilemenu", "Single archive layer (*)")
-                    : QT_TRANSLATE_NOOP("qtprogramfilemenu", "Parse file as archive (#)"));
             break;
         }
     }

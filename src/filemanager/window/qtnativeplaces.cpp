@@ -5,7 +5,6 @@
 #include "filemanager/providers/FSDrives.h"
 #include "filemanager/providers/NetFolder.h"
 #include "filemanager/providers/RootFolder.h"
-#include "filemanager/window/qtplaceprojection.h"
 #include "localization/LangUtils.h"
 #include <QApplication>
 #include <algorithm>

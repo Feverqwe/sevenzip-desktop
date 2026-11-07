@@ -293,22 +293,14 @@ does not mutate the source directory.
 Shared UI theme owns the color tokens used by workspace and dialog surfaces.
 Dialog surfaces retain native application brushes for selection and controls;
 theme changes update existing widgets without replacing active drafts.
-Main-window presentation shares workspace metrics, navigation-row
-and path components, and a places component with one row delegate for favorites
-and native locations. These components project navigation requests; they do not
-own file or archive operations. Native locations share an application model of
-value snapshots from the native root provider. Each sidebar projects its own
-current location independently of keyboard selection. Native root identity
-survives a language change without rebinding the open source. On POSIX, Computer
-projects the native drives namespace used by the menu command; the physical
-filesystem root remains accessible through its volume or explicit `/` path.
-The POSIX native root retains Volumes as a logical-namespace alias; Places
-projects that identity once. Favorite menu
-actions resolve the stable bookmark identity when invoked; renaming starts after
-the menu closes. The splitter applies the original ratio policy
-to file areas, excluding the shared places width. Status belongs below each file
-area. Restoring geometry precedes restoring its split so resizing retains the
-user's file-area proportions.
+Main-window presentation shares workspace metrics, navigation rows and path
+components. Native root identities are resolved through snapshots from the
+native root provider. They survive a language change without rebinding the open
+source. On POSIX, Computer opens the native drives namespace. The physical
+filesystem root remains accessible through its volume or an explicit `/` path.
+The saved places menu resolves bookmark identities when invoked. The splitter
+applies the original ratio policy to the two file areas. Restoring geometry
+precedes restoring the split.
 The tab bar owns compact rendering and tab input. Workspace activation retains
 strip focus through asynchronous publication only while the same request and
 tab remain current; subsequent input takes priority. Shared chrome is shown
@@ -378,7 +370,7 @@ refresh are presentation updates; source CPanel still owns name validation,
 rename operations, errors and restored selection.
 
 Main-window chrome presents tabs, breadcrumb navigation and a per-pane file action
-bar above the list/sidebar. Its proxies query the existing command projection for
+bar above the file list. Its proxies query the existing command projection for
 the owning pane. The editable address retains the original panel navigation owner.
 Breadcrumbs consume typed ancestors from that same owner; editor drafts do not
 define the bound location or navigation targets.

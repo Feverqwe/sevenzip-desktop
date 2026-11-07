@@ -16,6 +16,7 @@
 #include <QLabel>
 #include <QListWidget>
 #include <QRegularExpression>
+#include <QScopeGuard>
 #include <QScrollArea>
 #include <QScrollBar>
 #include <QStyleOptionButton>
@@ -441,51 +442,35 @@ class LanguageUiTests : public QObject, protected MainWindowTestSupport {
                           {{QFileInfo(file.fileName()).fileName(), 7, 7}});
 #endif
         table->selectRow(0);
-        bool inspected = false;
-        QTimer::singleShot(0, &window, [&] {
-            auto *dialog = window.findChild<QDialog *>("selectedPropertiesDialog");
-            QVERIFY(dialog);
-            auto *list = dialog->findChild<QTreeWidget *>("propertiesList");
-            QVERIFY(list && list->topLevelItemCount() > 0);
-            const int rows = list->topLevelItemCount();
-            QStringList english, values;
-            for (int i = 0; i < rows; ++i) {
-                english << list->topLevelItem(i)->text(0);
-                values << list->topLevelItem(i)->text(1);
-            }
-            list->setCurrentItem(list->topLevelItem(0));
-            list->topLevelItem(0)->setSelected(true);
-            auto *selected = list->currentItem();
-            for (const char *lang : {"ru", "-"}) {
-                SaveRegLang(UString(lang), settingsPath());
-                ReloadLang(settingsPath());
-                QtNotifyLanguageChanged();
-                QCOMPARE(list->topLevelItemCount(), rows);
-                QCOMPARE(list->currentItem(), selected);
-                QVERIFY(selected->isSelected());
-                for (int i = 0; i < rows; ++i)
-                    QCOMPARE(list->topLevelItem(i)->text(1), values[i]);
-                if (QString(lang) == "ru") {
-                    QCOMPARE(dialog->windowTitle(), QStringLiteral("Свойства"));
-                    QCOMPARE(list->topLevelItem(0)->text(0), QStringLiteral("Имя"));
-                } else {
-                    QCOMPARE(dialog->windowTitle(), QString("Properties"));
-                    for (int i = 0; i < rows; ++i)
-                        QCOMPARE(list->topLevelItem(i)->text(0), english[i]);
-                }
-                for (QSize size : {QSize(540, 360), QSize(360, 240)}) {
-                    dialog->resize(size);
-                    QApplication::processEvents();
-                    QVERIFY(UiInspection::fullyVisible(*list, *dialog));
-                    QVERIFY(UiInspection::writeReport(
-                        *dialog, QString("language-properties-%1-%2").arg(lang).arg(size.width())));
-                }
-            }
-            inspected = true;
-            dialog->reject();
-        });
         window.findChild<QAction *>("selectedPropertiesAction")->trigger();
-        QVERIFY(inspected);
+        auto *dialog = window.findChild<QDialog *>("selectedPropertiesDialog");
+        QVERIFY(dialog);
+        QTRY_VERIFY(dialog->isVisible());
+        const auto close = qScopeGuard([dialog] { dialog->close(); });
+        auto *location = dialog->findChild<QLabel *>("propertiesLocation");
+        auto *sizeValue = dialog->findChild<QLabel *>("propertiesSize");
+        QVERIFY(location && sizeValue);
+        const QString originalLocation = location->text();
+        const QString originalSize = sizeValue->text();
+        QVERIFY(!originalLocation.isEmpty());
+        QVERIFY(!originalSize.isEmpty());
+        for (const char *lang : {"ru", "-"}) {
+            SaveRegLang(UString(lang), settingsPath());
+            ReloadLang(settingsPath());
+            QtNotifyLanguageChanged();
+            QCOMPARE(dialog->windowTitle(),
+                     QString(lang) == "ru" ? QStringLiteral("Свойства") : QString("Properties"));
+            QCOMPARE(location->text(), originalLocation);
+            QCOMPARE(sizeValue->text(), originalSize);
+            QVERIFY(table->selectionModel()->isRowSelected(0, {}));
+            for (const QSize size : {QSize(540, 360), QSize(360, 240)}) {
+                dialog->resize(size);
+                QApplication::processEvents();
+                QVERIFY(UiInspection::fullyVisible(*location, *dialog));
+                QVERIFY(UiInspection::writeReport(
+                    *dialog, QString("language-properties-%1-%2").arg(lang).arg(size.width())));
+            }
+        }
     }
     void applyCancelRestartAndMainWindowState() {
         QTemporaryDir directory;
@@ -698,9 +683,6 @@ class LanguageUiTests : public QObject, protected MainWindowTestSupport {
         ReloadLang(settingsPath(), directory.path());
         QtNotifyLanguageChanged();
         QCOMPARE(openInside->text(), QString("&Inside"));
-        QCOMPARE(window.findChild<QAction *>("openInsideOneAction")->text(), QString("Inside *"));
-        QCOMPARE(window.findChild<QAction *>("openInsideParserAction")->text(),
-                 QString("Inside #"));
         QCOMPARE(window.findChild<QAction *>("renameAction")->text(), originalRename);
         QCOMPARE(timestamp->title(), timestampTitle);
         QCOMPARE(hash->title(), hashTitle);

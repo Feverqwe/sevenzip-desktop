@@ -37,7 +37,6 @@ QJsonObject QtWindowWorkspace::Save() {
     return {{"panels", panels},
             {"count", int(window_.app_.NumPanels)},
             {"focused", int(window_.app_.GetFocusedPanelIndex())},
-            {"sidebar", sidebarVisible_},
             {"split", split},
             {"activeWindow", window_.isActiveWindow()},
             {"geometry", QString::fromLatin1(window_.saveGeometry().toBase64())}};
@@ -130,9 +129,6 @@ void QtWindowWorkspace::Restore(const QJsonObject &value, std::function<void()> 
                     window_.activatePanelUi(focus);
                 if (value.value("count").toInt(1) == 1 && window_.app_.NumPanels == 2)
                     window_.togglePanels();
-                sidebarVisible_ = value.value("sidebar").toBool(true);
-                if (auto *action = window_.findChild<QAction *>("sidebarAction"))
-                    action->setChecked(sidebarVisible_);
                 const QByteArray geometry =
                     QByteArray::fromBase64(value.value("geometry").toString().toLatin1());
                 if (!geometry.isEmpty())

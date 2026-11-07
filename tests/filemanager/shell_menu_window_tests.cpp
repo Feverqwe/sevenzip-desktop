@@ -188,6 +188,11 @@ class ShellMenuWindowTests final : public QObject, protected MainWindowTestSuppo
             action(window, "twoPanelsAction")->trigger();
         auto *source = window.findChild<QWidget *>(QString("filePanel%1").arg(qMax(0, owner)));
         auto *sourceAddress = source->findChild<QLineEdit *>("archivePath");
+        const auto editLocation = [](QWidget &pane) {
+            auto *edit = pane.findChild<QToolButton *>("editLocationButton");
+            QVERIFY(edit);
+            edit->click();
+        };
         FileTable *peer = nullptr;
         QLineEdit *peerAddress = nullptr;
         QString peerPrefix;
@@ -199,7 +204,7 @@ class ShellMenuWindowTests final : public QObject, protected MainWindowTestSuppo
             auto *pane = window.findChild<QWidget *>(QString("filePanel%1").arg(1 - owner));
             peerAddress = pane->findChild<QLineEdit *>("archivePath");
             peer = pane->findChild<FileTable *>("archiveTable");
-            peerAddress->setFocus();
+            editLocation(*pane);
             QTRY_VERIFY(peerAddress->hasFocus());
             window.openPath(directory);
             QTRY_COMPARE(peer->rowCount(), 1);
@@ -207,7 +212,7 @@ class ShellMenuWindowTests final : public QObject, protected MainWindowTestSuppo
             peerPrefix = ToQString(peer->sourcePanel->GetCurrentFolderPrefix());
             peerAddress->setText(peerDraft);
         }
-        sourceAddress->setFocus();
+        editLocation(*source);
         QTRY_VERIFY(sourceAddress->hasFocus());
         window.openPath(fixture.path());
         QTRY_VERIFY(rowNamed(*source, name) >= 0);
@@ -361,7 +366,7 @@ class ShellMenuWindowTests final : public QObject, protected MainWindowTestSuppo
         ci.Load(settings);
         ci.Flags = NContextMenuFlags::kOpen | NContextMenuFlags::kOpenAs |
                    NContextMenuFlags::kExtract | NContextMenuFlags::kTest |
-                   NContextMenuFlags::kCompress;
+                   NContextMenuFlags::kCompress | NContextMenuFlags::kCRC_Cascaded;
         ci.Flags_Def = true;
         ci.Cascaded.SetTrueTrue();
         ci.MenuIcons.SetTrueTrue();
@@ -377,6 +382,7 @@ class ShellMenuWindowTests final : public QObject, protected MainWindowTestSuppo
         bool inspected = false;
         const auto inspect = [&](QMenu *menu) {
             QVERIFY(menu);
+            const auto closeMenu = qScopeGuard([menu] { menu->close(); });
             const auto command = [menu](const char *name) { return findCommand(*menu, name); };
             auto *root = menu->findChild<QAction *>("sevenZipContextGroup");
             QVERIFY(root && root->menu() && root->isEnabled());
@@ -384,6 +390,13 @@ class ShellMenuWindowTests final : public QObject, protected MainWindowTestSuppo
             auto *open = findVerb(*menu, "SevenZip.Open.7z");
             auto *test = findVerb(*menu, "SevenZipTest");
             auto *compress = findVerb(*menu, "SevenZipCompress");
+            QVERIFY(findVerb(*menu, "SevenZip.Checksum.Calc.SHA256"));
+            for (const QString &removed :
+                 {QString("SevenZip.Open.*"), QString("SevenZip.Open.#"),
+                  QString("SevenZip.Open.#:e"), QString("SevenZip.Checksum.Calc.*"),
+                  QString("SevenZip.Checksum.Generate.SHA256"),
+                  QString("SevenZip.Checksum.Test.Hash")})
+                QVERIFY(!findVerb(*menu, removed));
             QVERIFY(open && test && compress);
             QVERIFY(open->isEnabled() && test->isEnabled());
             QVERIFY(compress->isEnabled());
@@ -400,15 +413,11 @@ class ShellMenuWindowTests final : public QObject, protected MainWindowTestSuppo
                                              : QStringLiteral("Open as archive"));
             QCOMPARE(outside->text(), russian ? QStringLiteral("Открыть во внешнем приложении")
                                               : QStringLiteral("Open in external application"));
-            int previous = opening->actions().indexOf(inside);
-            for (const char *name : {"openInsideOneAction", "openInsideParserAction"}) {
-                auto *mode = command(name);
-                QVERIFY(mode);
-                const int index = opening->actions().indexOf(mode);
-                QVERIFY(index > previous);
-                previous = index;
-            }
-            QVERIFY(opening->actions().indexOf(outside) > previous);
+            const QList<QAction *> expectedOpening =
+                program ? QList<QAction *>{inside, outside}
+                        : QList<QAction *>{command("openArchiveAction"),
+                                           command("openDeviceAction"), inside, outside};
+            QCOMPARE(opening->actions(), expectedOpening);
             QVERIFY(command("openArchiveAction"));
             auto *newWindow = findVerb(*menu, "SevenZipOpen");
             auto *openAs = findVerb(*menu, "SevenZip.OpenWithType.");
@@ -418,8 +427,7 @@ class ShellMenuWindowTests final : public QObject, protected MainWindowTestSuppo
             QVERIFY(openAs->text() != newWindow->text());
             opening->popup(menu->mapToGlobal(QPoint(menu->width(), 0)));
             QApplication::processEvents();
-            for (auto *mode : {inside, outside, command("openInsideOneAction"),
-                               command("openInsideParserAction")}) {
+            for (auto *mode : {inside, outside}) {
                 const QRect rect = opening->actionGeometry(mode);
                 QVERIFY(opening->rect().contains(rect));
                 QVERIFY(opening->fontMetrics().horizontalAdvance(mode->text()) < rect.width());

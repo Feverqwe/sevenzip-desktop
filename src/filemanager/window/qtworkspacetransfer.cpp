@@ -80,7 +80,6 @@ bool QtWindowWorkspace::TransferTab(const QString &id, QtWindowWorkspace &target
         from.bar->parentWidget()->hide();
         from.actionRow->setParent(&window_);
         from.actionRow->hide();
-        from.sidebar = nullptr;
     }
     target.Capture(destination);
     target.window_.activatePanelUi(destination);

@@ -50,10 +50,6 @@ void MainWindow::createFileActions(QMenu *menu, QToolBar *toolbar) {
     openItem_->setObjectName("openItemAction");
     openInside_ = new QAction("Open &Inside", menu);
     openInside_->setObjectName("openInsideAction");
-    openInsideOne_ = new QAction("Open Inside *", this);
-    openInsideOne_->setObjectName("openInsideOneAction");
-    openInsideParser_ = new QAction("Open Inside #", this);
-    openInsideParser_->setObjectName("openInsideParserAction");
     openOutside_ = new QAction("Open O&utside", menu);
     openOutside_->setObjectName("openOutsideAction");
     toolbarAdd_ = toolbar->addAction("Add");
@@ -94,10 +90,10 @@ void MainWindow::createFileExtras(QMenu *menu, QToolBar *toolbar) {
     const struct {
         unsigned ID;
         const char *Label;
-    } hashes[] = {{IDM_CRC32, "CRC-32"},      {IDM_CRC64, "CRC-64"},   {IDM_XXH64, "XXH64"},
-                  {IDM_MD5, "MD5"},           {IDM_SHA1, "SHA-1"},     {IDM_SHA256, "SHA-256"},
-                  {IDM_SHA384, "SHA-384"},    {IDM_SHA512, "SHA-512"}, {IDM_SHA3_256, "SHA3-256"},
-                  {IDM_BLAKE2SP, "BLAKE2sp"}, {IDM_HASH_ALL, "*"}};
+    } hashes[] = {{IDM_CRC32, "CRC-32"},     {IDM_CRC64, "CRC-64"},   {IDM_XXH64, "XXH64"},
+                  {IDM_MD5, "MD5"},          {IDM_SHA1, "SHA-1"},     {IDM_SHA256, "SHA-256"},
+                  {IDM_SHA384, "SHA-384"},   {IDM_SHA512, "SHA-512"}, {IDM_SHA3_256, "SHA3-256"},
+                  {IDM_BLAKE2SP, "BLAKE2sp"}};
     for (const auto &hash : hashes) {
         auto *action = hashMenu->addAction(QString::fromLatin1(hash.Label));
         action->setObjectName(QStringLiteral("hash%1Action")
@@ -272,8 +268,7 @@ void MainWindow::populateSourceMenus() {
     QtBindLocalText(openDevice, "mainwindow_menus",
                     QT_TRANSLATE_NOOP("mainwindow_menus", "Open device…"));
     file->addSeparator();
-    for (QAction *action : {openItem_, openInside_, openInsideOne_, openInsideParser_, openOutside_,
-                            viewFile_, editFile_})
+    for (QAction *action : {openItem_, openInside_, openOutside_, viewFile_, editFile_})
         file->addAction(action);
     file->addSeparator();
     for (QAction *action : {rename_, copy_, move_, remove_})

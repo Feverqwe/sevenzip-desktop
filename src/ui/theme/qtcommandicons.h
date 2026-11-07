@@ -15,7 +15,6 @@ enum class QtCommandIcon {
     Cut,
     Paste,
     Rename,
-    Sidebar,
     Back,
     Forward,
     EditLocation,

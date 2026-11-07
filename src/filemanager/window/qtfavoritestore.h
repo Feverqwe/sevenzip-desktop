@@ -1,18 +1,5 @@
 #pragma once
 #include <QAbstractListModel>
-#include <QListView>
-
-class QtFavoriteList final : public QListView {
-  public:
-    using QListView::QListView;
-
-  protected:
-    void startDrag(Qt::DropActions actions) override;
-    void dragEnterEvent(QDragEnterEvent *event) override;
-    void dragMoveEvent(QDragMoveEvent *event) override;
-    void dropEvent(QDropEvent *event) override;
-};
-
 struct QtFavorite {
     QString id;
     QString label;

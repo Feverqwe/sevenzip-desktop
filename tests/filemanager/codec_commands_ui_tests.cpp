@@ -244,11 +244,6 @@ class CodecCommandsUiTests final : public QObject, protected MainWindowTestSuppo
         QVERIFY(
             QDir(fixture.path()).entryList({".sevenzip-*"}, QDir::Files | QDir::Hidden).isEmpty());
     }
-    void actualInsideActionsReachNativeParser_data() {
-        QTest::addColumn<QByteArray>("command");
-        QTest::newRow("one-handler") << QByteArray("openInsideOneAction");
-        QTest::newRow("parser") << QByteArray("openInsideParserAction");
-    }
     void singleStreamDeleteUsesOriginalHandlerContract_data() {
         QTest::addColumn<QString>("format");
         QTest::addColumn<bool>("cancel");
@@ -333,19 +328,14 @@ class CodecCommandsUiTests final : public QObject, protected MainWindowTestSuppo
         QVERIFY(table(window)->isEnabled());
         QVERIFY(action(window, "refreshAction")->isEnabled());
     }
-    void actualInsideActionsReachNativeParser() {
-        QFETCH(QByteArray, command);
+    void openAsArchiveDetectsZipWithoutKnownExtension() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString source = fixture.filePath("payload.bin");
         const QString archive = fixture.filePath(QStringLiteral("архив 空.unknown"));
         QVERIFY(writeFile(source, "inside fixture"));
         QVERIFY(run(fixture.path(), {"a", "-tzip", "--", archive, "payload.bin"}));
-        QByteArray bytes = readFile(archive);
-        if (command == "openInsideParserAction") {
-            bytes += bytes;
-            QVERIFY(writeFile(archive, bytes));
-        }
+        const QByteArray bytes = readFile(archive);
         ArchiveBackend backend(nullptr, engine_);
         QCOMPARE(backend.loadCodecCatalog(module_, version_), S_OK);
         CMessageAnswers messages(dialogs_);
@@ -358,18 +348,12 @@ class CodecCommandsUiTests final : public QObject, protected MainWindowTestSuppo
         QTest::keyClick(address, Qt::Key_Return);
         QTRY_VERIFY(filesystemRow(window, QFileInfo(archive).fileName()) >= 0);
         table(window)->selectRow(filesystemRow(window, QFileInfo(archive).fileName()));
-        QTRY_VERIFY(action(window, command.constData())->isEnabled());
-        action(window, command.constData())->trigger();
+        QTRY_VERIFY(action(window, "openInsideAction")->isEnabled());
+        action(window, "openInsideAction")->trigger();
         QTRY_VERIFY(action(window, "testArchiveAction")->isEnabled());
-        if (command == "openInsideParserAction") {
-            QVERIFY(table(window)->rowCount() >= 2);
-            QVERIFY(!action(window, "deleteAction")->isEnabled());
-            QVERIFY(!action(window, "toolbarAddAction")->isEnabled());
-        } else {
-            QCOMPARE(table(window)->rowCount(), 1);
-            QCOMPARE(table(window)->model()->index(0, 0).data().toString(), QString("payload.bin"));
-            QVERIFY(action(window, "toolbarAddAction")->isEnabled());
-        }
+        QCOMPARE(table(window)->rowCount(), 1);
+        QCOMPARE(table(window)->model()->index(0, 0).data().toString(), QString("payload.bin"));
+        QVERIFY(action(window, "toolbarAddAction")->isEnabled());
         QVERIFY2(messages.Errors.isEmpty(), qPrintable(messages.Errors.join('\n')));
         QCOMPARE(readFile(archive), bytes);
     }

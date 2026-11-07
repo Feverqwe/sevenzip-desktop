@@ -27,21 +27,6 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
     auto *navigation = new QHBoxLayout(navigationRow);
     navigation->setContentsMargins(8, 8, 8, 8);
     navigation->setSpacing(4);
-    auto *sidebar = new QToolButton(central);
-    sidebar->setObjectName(QStringLiteral("panelSidebarButton%1").arg(index));
-    sidebar->setIcon(QtCommandSymbol(QtCommandIcon::Sidebar));
-    sidebar->setCheckable(true);
-    sidebar->setAutoRaise(true);
-    QtConfigureChromeToolButton(*sidebar);
-    QtBindLocalText(sidebar, "QtWindowWorkspace",
-                    QT_TRANSLATE_NOOP("QtWindowWorkspace", "Places sidebar"), true);
-    QtBindLocalToolTip(sidebar, "QtWindowWorkspace",
-                       QT_TRANSLATE_NOOP("QtWindowWorkspace", "Places sidebar"));
-    connect(sidebar, &QToolButton::clicked, this, [this] {
-        if (auto *action = findChild<QAction *>("sidebarAction"))
-            action->trigger();
-    });
-    navigation->addWidget(sidebar);
     auto *back = new QToolButton(central);
     back->setObjectName(QStringLiteral("panelBackButton%1").arg(index));
     back->setAutoRaise(true);

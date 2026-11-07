@@ -130,7 +130,7 @@ bool QtFileManagerSplitter::eventFilter(QObject *object, QEvent *event) {
         }
         if (reset || delta) {
             splitter_.SetPos(ContentWidth(), reset ? (ContentWidth() - kSplitterWidth) / 2
-                                                   : sizes().value(0) - leadingInset_ + delta);
+                                                   : sizes().value(0) + delta);
             UpdateSourceLayout();
             event->accept();
             return true;
@@ -144,7 +144,7 @@ QtFileManagerSplitter::QtFileManagerSplitter(QWidget *parent) : QSplitter(Qt::Ho
     setChildrenCollapsible(false);
     connect(this, &QSplitter::splitterMoved, this, [this](int position, int) {
         if (initialized_ && HasTwoPanels()) {
-            splitter_.SetPos(ContentWidth(), position - leadingInset_);
+            splitter_.SetPos(ContentWidth(), position);
             UpdateSourceLayout();
         }
     });
@@ -156,7 +156,7 @@ bool QtFileManagerSplitter::HasTwoPanels() const {
 
 void QtFileManagerSplitter::Initialize(bool panelsDefined, unsigned splitterPos) {
     if (panelsDefined)
-        splitter_.SetPos(ContentWidth(), static_cast<int>(splitterPos) - leadingInset_);
+        splitter_.SetPos(ContentWidth(), static_cast<int>(splitterPos));
     else
         splitter_.SetRatio(ContentWidth(), kSplitterRateMax / 2);
     initialized_ = true;
@@ -167,7 +167,7 @@ void QtFileManagerSplitter::UpdateSourceLayout() {
     if (!initialized_)
         return;
     splitter_.SetPosFromRatio(ContentWidth());
-    const int position = splitter_.GetPos() + leadingInset_;
+    const int position = splitter_.GetPos();
     const bool twoPanels = HasTwoPanels();
     const bool changed =
         appliedWidth_ != width() || appliedPosition_ != position || appliedTwoPanels_ != twoPanels;
@@ -184,25 +184,16 @@ void QtFileManagerSplitter::RememberPosition() {
     // A content minimum can temporarily clamp the requested split. Only an
     // explicit external size change replaces the preferred source ratio.
     if (initialized_ && HasTwoPanels() && sizes().value(0) != appliedLeftSize_)
-        splitter_.SetPos(ContentWidth(), sizes().value(0) - leadingInset_);
+        splitter_.SetPos(ContentWidth(), sizes().value(0));
 }
 
 int QtFileManagerSplitter::ContentWidth() const {
-    // Keep FM.cpp's coordinate/ratio policy on the file areas. The shared
-    // places sidebar and the Qt grip are presentation outside that space.
-    return qMax(0, width() - leadingInset_ - handleWidth() + kSplitterWidth);
-}
-
-void QtFileManagerSplitter::SetLeadingInset(int width) {
-    if (leadingInset_ == width)
-        return;
-    leadingInset_ = width;
-    appliedWidth_ = -1;
-    UpdateSourceLayout();
+    // Keep the native splitter coordinates independent of the Qt grip width.
+    return qMax(0, width() - handleWidth() + kSplitterWidth);
 }
 
 int QtFileManagerSplitter::SourcePosition() const {
-    return HasTwoPanels() ? sizes().value(0) : splitter_.GetPos() + leadingInset_;
+    return HasTwoPanels() ? sizes().value(0) : splitter_.GetPos();
 }
 
 void QtFileManagerSplitter::resizeEvent(QResizeEvent *event) {

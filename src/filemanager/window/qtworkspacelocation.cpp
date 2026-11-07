@@ -1,7 +1,6 @@
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtnativeplaces.h"
 #include "filemanager/window/qtnavigationbar.h"
-#include "filemanager/window/qtplaceprojection.h"
 #include "filemanager/window/qtwindowworkspace.h"
 #include <QScopedValueRollback>
 #include <QScrollBar>

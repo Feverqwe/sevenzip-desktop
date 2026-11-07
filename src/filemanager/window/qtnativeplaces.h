@@ -3,7 +3,11 @@
 #include <QAbstractListModel>
 class CPanel;
 
-// Value snapshot of the native root namespaces, shared by all sidebar views.
+namespace QtPlaceRoles {
+enum { Identity = Qt::UserRole, Path };
+}
+
+// Value snapshot of the native root namespaces, used for stable navigation.
 // Folder interfaces and libraries never escape the enumeration call.
 class QtNativePlaces final : public QAbstractListModel {
   public:

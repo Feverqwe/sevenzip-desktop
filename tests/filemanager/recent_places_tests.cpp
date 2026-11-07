@@ -83,7 +83,6 @@ class RecentPlacesTests final : public QObject, protected MainWindowTestSupport 
         UStringVector destinations;
         destinations.Add(ToUString(a));
         SaveCopyHistory(destinations, qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
-        const int favorites = first.findChild<QListView *>("favoritePlaces0")->model()->rowCount();
         action(first, "foldersHistoryAction")->trigger();
         auto *form = dialog(first);
         QVERIFY(form);
@@ -110,7 +109,6 @@ class RecentPlacesTests final : public QObject, protected MainWindowTestSupport 
         ReadCopyHistory(retained, qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         QCOMPARE(retained.Size(), 1u);
         QCOMPARE(ToQString(retained[0]), a);
-        QCOMPARE(first.findChild<QListView *>("favoritePlaces0")->model()->rowCount(), favorites);
         action(first, "forwardAction")->trigger();
         QTRY_COMPARE(location(first), b);
         QVERIFY(QFileInfo::exists(b + "/item-0.txt"));

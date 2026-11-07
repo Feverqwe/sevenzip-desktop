@@ -158,10 +158,6 @@ QPainterPath geometry(QtCommandIcon command) {
         p.lineTo(12, 4);
         line(9, 6, 9, 18);
         break;
-    case QtCommandIcon::Sidebar:
-        p.addRoundedRect(QRectF(3, 3, 18, 18), 2, 2);
-        line(9, 3, 9, 21);
-        break;
     case QtCommandIcon::Back:
         p.moveTo(12, 19);
         p.lineTo(5, 12);

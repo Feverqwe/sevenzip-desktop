@@ -331,8 +331,6 @@ void QtWindowWorkspace::Activate(unsigned panel, int index) {
             tab.runtime->ui = {};
             window_.panelSplitter_->insertWidget(int(panel), ui.container);
             ui.container->show();
-            state.sidebar =
-                ui.container->findChild<QWidget *>(QStringLiteral("placesSidebar%1").arg(panel));
             auto *layout = qobject_cast<QVBoxLayout *>(ui.container->layout());
             layout->insertWidget(0, state.bar->parentWidget());
             layout->insertWidget(layout->indexOf(ui.navigation->parentWidget()) + 1,
@@ -397,7 +395,6 @@ void QtWindowWorkspace::CloseTab(unsigned panel, int index) {
         state.bar->parentWidget()->hide();
         state.actionRow->setParent(&window_);
         state.actionRow->hide();
-        state.sidebar = nullptr;
         state.bound.reset();
         state.tabs.front() = Tab{};
         state.tabs.front().id = QUuid::createUuid().toString(QUuid::WithoutBraces);

@@ -128,7 +128,6 @@ class QtWindowWorkspace final : public QObject {
         int current = 0;
         QToolBar *actions = nullptr;
         QWidget *actionRow = nullptr;
-        QWidget *sidebar = nullptr;
         std::shared_ptr<QtTabRuntime> bound;
     };
     bool Ready() const;
@@ -162,10 +161,8 @@ class QtWindowWorkspace final : public QObject {
     void CreateActions(unsigned panel, QVBoxLayout &layout);
     void RefreshChrome();
     void ShowArchiveChangeNotice(unsigned panel);
-    QWidget *CreateSidebar(unsigned panel);
-    void RefreshSidebar(unsigned panel);
     void AddFavorite();
-    void OpenFavorite(const QString &path, int target);
+    void OpenFavorite(const QString &path);
     void OpenRecentPlace(const QString &id, const QtRecentPlace &place,
                          QPointer<QtRecentPlacesDialog> target);
     void WhenReady(std::function<void()> body, std::function<void()> canceled = {});
@@ -184,7 +181,6 @@ class QtWindowWorkspace final : public QObject {
     QtNativePlaces *nativePlaces_ = nullptr;
     QtRecentPlacesStore *recentPlaces_ = nullptr;
     QPointer<QtRecentPlacesDialog> recentDialog_;
-    bool sidebarVisible_ = true;
     quint64 focusRequest_ = 0;
     std::array<std::unique_ptr<Navigation>, 2> navigation_;
     bool restoringNavigation_ = false;

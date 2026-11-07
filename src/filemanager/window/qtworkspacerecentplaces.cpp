@@ -2,7 +2,6 @@
 #include "dialogs/recentplaces/qtrecentplacesdialog.h"
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtnativeplaces.h"
-#include "filemanager/window/qtplaceprojection.h"
 #include "filemanager/window/qtrecentplacesstore.h"
 #include "filemanager/window/qtwindowworkspace.h"
 #include "ui/progress/ProgressDialog2.h"

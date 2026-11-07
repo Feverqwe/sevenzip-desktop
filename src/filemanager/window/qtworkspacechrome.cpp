@@ -7,7 +7,6 @@
 #include "filemanager/window/qtoperationsbutton.h"
 #include "filemanager/window/qtwindowworkspace.h"
 #include "filemanager/window/qtworkspaceapplication.h"
-#include "filemanager/window/qtworkspacesidebar.h"
 #include "filemanager/window/qtworkspacetheme.h"
 #include "localization/qtlangcontrols.h"
 #include "ui/theme/qtcommandicons.h"
@@ -113,33 +112,8 @@ void QtWindowWorkspace::AttachContent(unsigned panel, QVBoxLayout &layout) {
     connect(parent, &QPushButton::clicked, this, [this, panel] { RetryLocation(panel, true); });
     layout.addWidget(ui.navigationNotice);
     ui.navigationNotice->hide();
-    auto *body = new QWidget;
-    auto *row = new QHBoxLayout(body);
-    row->setContentsMargins(0, 0, 0, 0);
-    row->setSpacing(0);
-    auto *sidebar = CreateSidebar(panel);
-    panels_[panel].sidebar = sidebar;
-    row->addWidget(sidebar);
-    auto *files = new QWidget(body);
-    auto *fileLayout = new QVBoxLayout(files);
-    fileLayout->setContentsMargins(0, 0, 0, 0);
-    fileLayout->setSpacing(0);
-    fileLayout->addWidget(window_.panelUi_[panel].viewStack, 1);
-    row->addWidget(files, 1);
-    layout.addWidget(body, 1);
-    if (!window_.findChild<QAction *>("sidebarAction")) {
-        auto *view = window_.findChild<QMenu *>("viewMenu");
-        auto *toggle = new QAction(tr("Places sidebar"), view);
-        view->insertAction(window_.twoPanelsAction_, toggle);
-        toggle->setObjectName("sidebarAction");
-        QtBindLocalText(toggle, "QtWindowWorkspace",
-                        QT_TRANSLATE_NOOP("QtWindowWorkspace", "Places sidebar"));
-        toggle->setCheckable(true);
-        toggle->setChecked(sidebarVisible_);
-        connect(toggle, &QAction::toggled, this, [this](bool shown) {
-            sidebarVisible_ = shown;
-            RefreshChrome();
-        });
+    layout.addWidget(window_.panelUi_[panel].viewStack, 1);
+    if (!window_.findChild<QMenu *>("savedPlacesMenu")) {
         auto *favorites = window_.findChild<QMenu *>("favoritesMenu");
         auto *add = new QAction(tr("Add current location"), favorites);
         QtBindLocalText(add, "QtWindowWorkspace",
@@ -160,33 +134,11 @@ void QtWindowWorkspace::AttachContent(unsigned panel, QVBoxLayout &layout) {
                 connect(action, &QAction::triggered, this, [this, id = entry.id] {
                     const auto index = favorites_->IndexForId(id);
                     if (index.isValid())
-                        OpenFavorite(favorites_->Favorite(index.row()).path, 0);
+                        OpenFavorite(favorites_->Favorite(index.row()).path);
                 });
             }
         });
     }
-}
-
-QWidget *QtWindowWorkspace::CreateSidebar(unsigned panel) {
-    return new QtPlacesSidebar(*favorites_, *nativePlaces_,
-                               {[this] { AddFavorite(); },
-                                [this](const QString &path, QtPlaceTarget target) {
-                                    OpenFavorite(path, static_cast<int>(target));
-                                }},
-                               panel);
-}
-
-void QtWindowWorkspace::RefreshSidebar(unsigned panel) {
-    auto *sidebar = dynamic_cast<QtPlacesSidebar *>(panels_[panel].sidebar);
-    if (!sidebar)
-        return;
-    sidebar->SetCompact(window_.width() <= 700);
-    sidebar->setVisible(sidebarVisible_ && (window_.app_.NumPanels == 1 || panel == 0));
-    const auto &active = panels_[window_.app_.GetFocusedPanelIndex()];
-    const bool available = !active.tabs.empty() && !active.tabs[active.current].unavailable;
-    sidebar->SetCurrentLocation(available ? active.tabs[active.current].path : QString(),
-                                available ? active.tabs[active.current].nativePlaceIdentity
-                                          : QString());
 }
 
 void QtWindowWorkspace::RefreshChrome() {
@@ -202,7 +154,6 @@ void QtWindowWorkspace::RefreshChrome() {
                 window_.panelUi_[panel].locationUnavailable ||
                 (!state.tabs.empty() && state.tabs[state.current].archiveRevision !=
                                             state.tabs[state.current].archiveApplied));
-        RefreshSidebar(panel);
         if (auto *row =
                 dynamic_cast<QtNavigationRow *>(window_.panelUi_[panel].navigation->parentWidget()))
             row->SetActivePane(window_.app_.NumPanels == 2 && window_.projectedPanel_ == panel);
@@ -225,9 +176,6 @@ void QtWindowWorkspace::RefreshChrome() {
                 QStringLiteral("panelForwardButton%1").arg(panel)))
             button->setEnabled(
                 native.value(window_.forward_->property("nativeCommandID").toUInt()));
-        if (auto *button = container->findChild<QToolButton *>(
-                QStringLiteral("panelSidebarButton%1").arg(panel)))
-            button->setChecked(sidebarVisible_);
         for (auto *action : state.actions->actions()) {
             auto *source = action->property("sourceAction").value<QAction *>();
             if (!source)
@@ -260,12 +208,6 @@ void QtWindowWorkspace::RefreshChrome() {
             RefreshCommandCaption(*state.actions, *action, *source);
         }
     }
-    int placesWidth = 0;
-    for (const auto &state : panels_)
-        if (state.sidebar && !state.sidebar->isHidden())
-            placesWidth = state.sidebar->width();
-    if (window_.panelSplitter_)
-        window_.panelSplitter_->SetLeadingInset(placesWidth);
 }
 
 void QtWindowWorkspace::AddFavorite() {
@@ -280,28 +222,21 @@ void QtWindowWorkspace::AddFavorite() {
         favorites_->Add(path, label.trimmed());
 }
 
-void QtWindowWorkspace::OpenFavorite(const QString &path, int target) {
+void QtWindowWorkspace::OpenFavorite(const QString &path) {
     if (!Ready())
         return;
-    if (target == 1)
-        NewTab(window_.projectedPanel_, path);
-    else if (target == 2) {
-        if (auto *application = QtWorkspaceApplication::Find())
-            application->NewWindow(path);
-    } else {
-        const unsigned panel = window_.projectedPanel_;
-        window_.withPanelProjection(panel, [this, panel, &path] {
-            const HRESULT result = Navigate([&]() -> HRESULT {
-                const HRESULT opened = window_.navigateTo(path, true);
-                return opened == S_OK && !LocationMatches(panel, path) ? S_FALSE : opened;
-            });
-            CompleteLocationOpen(panel, path, result);
-            if (panels_[panel].tabs[panels_[panel].current].unavailable) {
-                auto &tab = panels_[panel].tabs[panels_[panel].current];
-                tab.nativePlaceIdentity.clear();
-                tab.archiveLocation = {};
-            }
+    const unsigned panel = window_.projectedPanel_;
+    window_.withPanelProjection(panel, [this, panel, &path] {
+        const HRESULT result = Navigate([&]() -> HRESULT {
+            const HRESULT opened = window_.navigateTo(path, true);
+            return opened == S_OK && !LocationMatches(panel, path) ? S_FALSE : opened;
         });
-        window_.refreshActions();
-    }
+        CompleteLocationOpen(panel, path, result);
+        if (panels_[panel].tabs[panels_[panel].current].unavailable) {
+            auto &tab = panels_[panel].tabs[panels_[panel].current];
+            tab.nativePlaceIdentity.clear();
+            tab.archiveLocation = {};
+        }
+    });
+    window_.refreshActions();
 }

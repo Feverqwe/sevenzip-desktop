@@ -7,7 +7,23 @@
 #include <QBitmap>
 #include <QMenu>
 
+bool QtFileManagerShellMenu::Exposed(const CZipContextMenu::CCommandMapItem &command) {
+    using C = CZipContextMenu;
+    switch (command.CommandInternalID) {
+    case C::kOpen:
+        return command.ArcType != UString(L"*") && !command.ArcType.IsPrefixedBy(L"#");
+    case C::kHash_All:
+    case C::kHash_Generate_SHA256:
+    case C::kHash_TestArc:
+        return false;
+    default:
+        return true;
+    }
+}
+
 bool QtFileManagerShellMenu::Available(const CZipContextMenu::CCommandMapItem &command) const {
+    if (!Exposed(command))
+        return false;
     const auto catalog = _window.backend_->codecCatalog();
     if (!catalog || catalog->result() != S_OK)
         return false;
@@ -33,14 +49,11 @@ bool QtFileManagerShellMenu::Available(const CZipContextMenu::CCommandMapItem &c
 #endif
     case C::kCompressToZip:
         return catalog->canUpdate("zip");
-    case C::kHash_Generate_SHA256:
-        return catalog->canUpdate("hash");
     case C::kOpen:
     case C::kExtract:
     case C::kExtractHere:
     case C::kExtractTo:
     case C::kTest:
-    case C::kHash_TestArc:
         return true;
     case C::kHash_CRC32:
     case C::kHash_CRC64:
@@ -52,7 +65,6 @@ bool QtFileManagerShellMenu::Available(const CZipContextMenu::CCommandMapItem &c
     case C::kHash_SHA512:
     case C::kHash_SHA3_256:
     case C::kHash_BLAKE2SP:
-    case C::kHash_All:
         return true;
     default:
         return false; // Commands without an applicable transport stay unavailable.
@@ -69,15 +81,22 @@ void QtFileManagerShellMenu::Render(QMenu &menu, const NQtShellMenu::CMenuHandle
 
 void QtFileManagerShellMenu::RenderItems(QMenu &menu, const NQtShellMenu::CMenuHandle &tree,
                                          const QIcon &icon) {
+    bool pendingSeparator = false;
     for (const auto &entry : tree.Items) {
         if (entry.Type == NQtShellMenu::kSeparator) {
-            menu.addSeparator();
+            pendingSeparator = !menu.actions().isEmpty();
             continue;
         }
         const unsigned offset = entry.ID - kMenuCmdID_Plugin_Start;
         if (offset >= _context->Commands().Size())
             continue;
         const auto &command = _context->Commands()[offset];
+        if (!Exposed(command))
+            continue;
+        if (pendingSeparator) {
+            menu.addSeparator();
+            pendingSeparator = false;
+        }
         QAction *action;
         if (entry.SubMenu) {
             auto *child = menu.addMenu(ToQString(entry.Text));
@@ -101,15 +120,6 @@ void QtFileManagerShellMenu::RenderItems(QMenu &menu, const NQtShellMenu::CMenuH
             if (command.ArcType.IsEmpty())
                 action->setText(QCoreApplication::translate("qtfilemanagershellmenu",
                                                             "Open archive in new window"));
-            else if (command.ArcType == UString(L"*"))
-                action->setText(QCoreApplication::translate("qtfilemanagershellmenu",
-                                                            "Single archive layer (*)"));
-            else if (command.ArcType == UString(L"#"))
-                action->setText(QCoreApplication::translate("qtfilemanagershellmenu",
-                                                            "Parse file as archive (#)"));
-            else if (command.ArcType == UString(L"#:e"))
-                action->setText(
-                    QCoreApplication::translate("qtfilemanagershellmenu", "Scan every byte (#:e)"));
         } else if (command.Verb == UString(L"SevenZip.OpenWithType."))
             action->setText(
                 QCoreApplication::translate("qtfilemanagershellmenu", "Open in new window as"));

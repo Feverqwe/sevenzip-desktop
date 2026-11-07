@@ -181,6 +181,8 @@ class MainWindowLayoutTests : public QObject {
         const QRect tableInContent(table->mapTo(window.centralWidget(), QPoint(0, 0)),
                                    table->size());
         QVERIFY2(content.contains(tableInContent), "File table escaped the content area");
+        QCOMPARE(tableInContent.left(), content.left());
+        QCOMPARE(tableInContent.right(), content.right());
         QVERIFY2(UiInspection::bounds(*pathCombo, *window.centralWidget()).bottom() <
                      tableInContent.top(),
                  "Archive path overlaps the file table");
@@ -191,24 +193,6 @@ class MainWindowLayoutTests : public QObject {
 
         const QString tag = QString::fromLatin1(QTest::currentDataTag());
         QVERIFY(UiInspection::writeReport(window, QSysInfo::productType() + "-" + tag));
-    }
-
-    void sidebarToggleKeepsLocationAndExpandsFileList() {
-        MainWindow window;
-        window.show();
-        QApplication::processEvents();
-        auto *table = window.findChild<FileTable *>("archiveTable");
-        auto *toggle = window.findChild<QAction *>("sidebarAction");
-        QVERIFY(table && toggle);
-        const QString path = window.findChild<QLineEdit *>("archivePath")->text();
-        const int original = table->width();
-        toggle->trigger();
-        QTRY_VERIFY(table->width() > original);
-        QCOMPARE(window.findChild<QLineEdit *>("archivePath")->text(), path);
-        const int expanded = table->width();
-        toggle->trigger();
-        QTRY_VERIFY(table->width() < expanded);
-        QCOMPARE(window.findChild<QLineEdit *>("archivePath")->text(), path);
     }
 
     void columnCustomizationPersists() {

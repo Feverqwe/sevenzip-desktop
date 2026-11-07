@@ -1,18 +1,16 @@
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/window/qtfavoritestore.h"
 #include "filemanager/window/qtnavigationbar.h"
-#include "filemanager/window/qtplaceprojection.h"
 #include "filemanager/window/qtwindowworkspace.h"
 #include "filemanager/window/qtworkspaceapplication.h"
 #include "mount/qtarchivemountmanager.h"
 #include "support/panel_keys.h"
+#include "support/progress_dialog.h"
 #include "support/widget_dialogs.h"
 #include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
 #include <QClipboard>
 #include <QCloseEvent>
-#include <QDragEnterEvent>
-#include <QDropEvent>
 #include <QListWidget>
 #include <QTabBar>
 #include <QToolButton>
@@ -159,7 +157,7 @@ class WorkspaceNavigationTests final : public QObject {
         QCOMPARE(QDir::cleanPath(ToQString(view->sourcePanel->GetCurrentFolderPrefix())), right);
     }
 
-    void sharedNativePlaceOpensInFocusedPanelAndKeepsPeerLocation() {
+    void computerOpensInFocusedPanelAndKeepsPeerLocation() {
         QTemporaryDir fixture;
         const QString left = fixture.filePath("Kept left folder");
         QVERIFY(QDir().mkpath(left));
@@ -174,23 +172,16 @@ class WorkspaceNavigationTests final : public QObject {
         auto *splitter = window.findChild<QSplitter *>("filePanelSplitter");
         auto *leftTable = splitter->widget(0)->findChild<FileTable *>("archiveTable");
         auto *rightTable = splitter->widget(1)->findChild<FileTable *>("archiveTable");
-        auto *places = splitter->widget(0)->findChild<QListView *>("nativePlaces");
-        QTRY_VERIFY(places && places->model()->rowCount() > 0 && places->isVisible());
         window.activateWindow();
         QVERIFY(QTest::qWaitForWindowActive(&window));
         rightTable->setFocus();
         QTRY_VERIFY(rightTable->hasFocus());
-        const auto index = places->model()->index(0, 0);
-        const QString target = index.data(Qt::UserRole + 1).toString();
-        QVERIFY(!target.isEmpty());
-        QTest::mouseClick(places->viewport(), Qt::LeftButton, Qt::NoModifier,
-                          places->visualRect(index).center());
         const auto path = [](const FileTable &table) {
             return QDir::cleanPath(
                 QDir::fromNativeSeparators(ToQString(table.sourcePanel->GetCurrentFolderPrefix())));
         };
-        QTRY_COMPARE(path(*rightTable), QDir::cleanPath(QDir::fromNativeSeparators(target)));
-        QTRY_VERIFY(index.data(QtPlaceRoles::CurrentLocation).toBool());
+        window.findChild<QAction *>("openRootAction")->trigger();
+        QTRY_VERIFY(rightTable->sourcePanel->IsFSDrivesFolder());
         QCOMPARE(path(*leftTable), left);
     }
 
@@ -338,6 +329,10 @@ class WorkspaceNavigationTests final : public QObject {
         bool canceled = false;
         QTimer responder;
         dialogs_.connectResponder(responder, &window, [&] {
+            if (auto *result = TestProgressDialog::ResultWindow(dialogs_.activeDialog())) {
+                TestProgressDialog::CloseResult(*result);
+                return;
+            }
             if (auto *box = qobject_cast<QMessageBox *>(dialogs_.activeDialog()))
                 box->accept();
             if (auto *dialog = dialogs_.activeDialog())
@@ -400,47 +395,6 @@ class WorkspaceNavigationTests final : public QObject {
         }
         QtFavoriteStore empty(settings);
         QCOMPARE(empty.rowCount(), 0);
-    }
-
-    void droppingFolderCreatesBookmarkWithoutMovingSource() {
-        QTemporaryDir fixture;
-        const QString folder = fixture.filePath("Folder to bookmark");
-        QVERIFY(QDir().mkpath(folder));
-        writeFile(folder + "/keep.txt", "keep original");
-        const QString settingsPath = fixture.filePath("drop.ini");
-        QSettings(settingsPath, QSettings::IniFormat).setValue("workspace/favorites", "[]");
-        QtFavoriteStore store(settingsPath);
-        QtFavoriteList view;
-        view.setModel(&store);
-        view.setDragDropMode(QAbstractItemView::DragDrop);
-        view.show();
-        QMimeData mime;
-        mime.setUrls({QUrl::fromLocalFile(folder)});
-        QDragEnterEvent enter(QPoint(10, 10), Qt::MoveAction | Qt::CopyAction, &mime,
-                              Qt::LeftButton, Qt::NoModifier);
-        QApplication::sendEvent(view.viewport(), &enter);
-        QVERIFY(enter.isAccepted());
-        QDropEvent drop(QPointF(10, 10), Qt::MoveAction | Qt::CopyAction, &mime, Qt::LeftButton,
-                        Qt::NoModifier);
-        QApplication::sendEvent(view.viewport(), &drop);
-        QVERIFY(drop.isAccepted());
-        QCOMPARE(drop.dropAction(), Qt::CopyAction);
-        QCOMPARE(store.rowCount(), 1);
-        QCOMPARE(store.Favorite(0).path, folder);
-        QVERIFY(QFileInfo(folder + "/keep.txt").isFile());
-        QMimeData moveOnly;
-        moveOnly.setUrls({QUrl::fromLocalFile(fixture.path())});
-        QDragEnterEvent rejected(QPoint(10, 10), Qt::MoveAction, &moveOnly, Qt::LeftButton,
-                                 Qt::NoModifier);
-        QApplication::sendEvent(view.viewport(), &rejected);
-        QVERIFY(!rejected.isAccepted());
-        QCOMPARE(store.rowCount(), 1);
-        store.Add(fixture.path(), "Parent");
-        std::unique_ptr<QMimeData> internal(store.mimeData({store.index(0)}));
-        QVERIFY(store.dropMimeData(internal.get(), Qt::MoveAction, 2, 0, {}));
-        QCOMPARE(store.rowCount(), 2);
-        QCOMPARE(store.Favorite(1).path, folder);
-        QVERIFY(!internal->hasUrls());
     }
 
     void mountManagersFollowTabsAcrossWindows() {

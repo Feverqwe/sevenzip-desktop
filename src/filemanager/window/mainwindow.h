@@ -420,8 +420,6 @@ class MainWindow : public QMainWindow {
     QAction *root_ = nullptr;
     QAction *openItem_ = nullptr;
     QAction *openInside_ = nullptr;
-    QAction *openInsideOne_ = nullptr;
-    QAction *openInsideParser_ = nullptr;
     QAction *openOutside_ = nullptr;
     QAction *exitAction_ = nullptr;
     QAction *parent_ = nullptr;

@@ -28,7 +28,6 @@ class QtFileManagerSplitter final : public QSplitter {
     void Initialize(bool panelsDefined, unsigned splitterPos);
     void UpdateSourceLayout();
     void RememberPosition();
-    void SetLeadingInset(int width);
     int SourcePosition() const;
 
   protected:
@@ -45,5 +44,4 @@ class QtFileManagerSplitter final : public QSplitter {
     int appliedPosition_ = 0;
     int appliedLeftSize_ = 0;
     bool appliedTwoPanels_ = false;
-    int leadingInset_ = 0;
 };

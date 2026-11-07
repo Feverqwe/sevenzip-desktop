@@ -3,9 +3,8 @@
 #include "filemanager/panels/qtpaneldragnative.h"
 #include "filemanager/panels/qtpaneldragtransport.h"
 #include "filemanager/window/qtsavedlocation.h"
+#include <QCoreApplication>
 #include <QDir>
-#include <QDrag>
-#include <QDragEnterEvent>
 #include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -207,54 +206,6 @@ bool QtFavoriteStore::dropMimeData(const QMimeData *mime, Qt::DropAction action,
         }
     }
     return added;
-}
-
-void QtFavoriteList::startDrag(Qt::DropActions) {
-    // The model owns reordering. QAbstractItemView's post-Move row removal
-    // would remove the favorite a second time after moveRows().
-    auto *drag = new QDrag(this);
-    drag->setMimeData(model()->mimeData(selectedIndexes()));
-    drag->exec(Qt::MoveAction, Qt::MoveAction);
-    drag->deleteLater();
-}
-
-void QtFavoriteList::dragEnterEvent(QDragEnterEvent *event) {
-    QListView::dragEnterEvent(event);
-    if (event->isAccepted() && !event->mimeData()->hasFormat("application/x-sevenzip-favorite")) {
-        if (event->possibleActions() & Qt::CopyAction)
-            event->setDropAction(Qt::CopyAction);
-        else
-            event->ignore();
-    }
-}
-
-void QtFavoriteList::dragMoveEvent(QDragMoveEvent *event) {
-    QListView::dragMoveEvent(event);
-    if (event->isAccepted() && !event->mimeData()->hasFormat("application/x-sevenzip-favorite")) {
-        if (event->possibleActions() & Qt::CopyAction)
-            event->setDropAction(Qt::CopyAction);
-        else
-            event->ignore();
-    }
-}
-
-void QtFavoriteList::dropEvent(QDropEvent *event) {
-    if (!event->mimeData()->hasFormat("application/x-sevenzip-favorite")) {
-        if (!(event->possibleActions() & Qt::CopyAction)) {
-            event->ignore();
-            return;
-        }
-        // A folder drop creates a bookmark, even when the source proposes Move.
-        const QModelIndex at = indexAt(event->position().toPoint());
-        if (model()->dropMimeData(event->mimeData(), Qt::CopyAction, at.isValid() ? at.row() : -1,
-                                  0, {})) {
-            event->setDropAction(Qt::CopyAction);
-            event->accept();
-        } else
-            event->ignore();
-        return;
-    }
-    QListView::dropEvent(event);
 }
 
 void QtFavoriteStore::Save() {

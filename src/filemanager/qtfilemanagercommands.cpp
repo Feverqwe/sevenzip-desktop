@@ -84,8 +84,6 @@ void QtFileManagerCommands::AttachFileActions() {
     Bind(w.findChild<QAction *>("openArchiveAction"), OpenArchivePicker);
     Bind(w.findChild<QAction *>("openDeviceAction"), OpenDevicePicker);
     Bind(w.openInside_, IDM_OPEN_INSIDE);
-    Bind(w.openInsideOne_, IDM_OPEN_INSIDE_ONE);
-    Bind(w.openInsideParser_, IDM_OPEN_INSIDE_PARSER);
     Bind(w.openOutside_, IDM_OPEN_OUTSIDE);
     Bind(w.viewFile_, IDM_FILE_VIEW);
     Bind(w.editFile_, IDM_FILE_EDIT);
