@@ -10,6 +10,7 @@
 #include "localization/LangUtils.h"
 #include "platform/support/native_property_failure_runtime.h"
 #include "support/delete_reply.h"
+#include "support/panel_keys.h"
 #include "support/progress_dialog.h"
 #include "support/signal_wait_support.h"
 #include "ui/progress/ProgressDialog2.h"
@@ -68,7 +69,6 @@ class InterarchiveRecoveryTests final : public QObject, protected MainWindowTest
         QTest::addColumn<unsigned>("pane");
         QTest::addColumn<bool>("russian");
         QTest::addColumn<bool>("icons");
-        QTest::addColumn<bool>("alternative");
         QTest::addColumn<QString>("route");
         QStringList routes{"restore", "restore-large", "reopen-failure", "reopen-cancel"};
 #ifdef SEVENZIP_CODEC_MODULE
@@ -77,29 +77,23 @@ class InterarchiveRecoveryTests final : public QObject, protected MainWindowTest
         for (unsigned pane : {0u, 1u})
             for (bool russian : {false, true})
                 for (bool icons : {false, true})
-                    for (bool alternative : {false, true})
-                        for (const QString &route : routes)
-                            QTest::newRow(qPrintable(QString("%1-%2-%3-%4-%5")
-                                                         .arg(pane)
-                                                         .arg(russian)
-                                                         .arg(icons)
-                                                         .arg(alternative)
-                                                         .arg(route)))
-                                << pane << russian << icons << alternative << route;
+                    for (const QString &route : routes)
+                        QTest::newRow(qPrintable(
+                            QString("%1-%2-%3-%4").arg(pane).arg(russian).arg(icons).arg(route)))
+                            << pane << russian << icons << route;
 #ifdef SEVENZIP_CODEC_MODULE
         QTest::newRow("native-reopen-failure")
-            << 0u << false << false << false << QString("native-reopen-failure");
+            << 0u << false << false << QString("native-reopen-failure");
         QTest::newRow("native-reopen-cancel")
-            << 1u << true << true << true << QString("native-reopen-cancel");
+            << 1u << true << true << QString("native-reopen-cancel");
         QTest::newRow("native-restore-large")
-            << 1u << false << false << false << QString("native-restore-large");
+            << 1u << false << false << QString("native-restore-large");
 #endif
     }
     void rollbackFailureAndRetry() {
         QFETCH(unsigned, pane);
         QFETCH(bool, russian);
         QFETCH(bool, icons);
-        QFETCH(bool, alternative);
         QFETCH(QString, route);
         const bool restoreFailure = route.contains("restore");
         const int fallbackCount = route.endsWith("restore-large") ? 301 : 1;
@@ -108,7 +102,6 @@ class InterarchiveRecoveryTests final : public QObject, protected MainWindowTest
         SaveRegLang(UString(russian ? L"ru" : L"-"), settingsPath);
         ReloadLang(settingsPath);
         QSettings settings(settingsPath, QSettings::IniFormat);
-        settings.setValue("FM/AlternativeSelection", alternative);
         settings.setValue("FM/ShowDots", false);
         settings.sync();
         QTemporaryDir fixture;
@@ -172,7 +165,7 @@ class InterarchiveRecoveryTests final : public QObject, protected MainWindowTest
             QVERIFY(action(window, "refreshAction")->isEnabled());
             window.activateWindow();
             QVERIFY(QTest::qWaitForWindowActive(&window));
-            address->setFocus();
+            PanelKeys::focusAddress(address);
             QVERIFY(ui->isAncestorOf(window.focusWidget()));
             auto *table = ui->findChild<FileTable *>("archiveTable");
             window.openArchive(targetArchive);
@@ -206,7 +199,7 @@ class InterarchiveRecoveryTests final : public QObject, protected MainWindowTest
         };
         window.activateWindow();
         QVERIFY(QTest::qWaitForWindowActive(&window));
-        sourceUi->findChild<QLineEdit *>("archivePath")->setFocus();
+        PanelKeys::focusAddress(sourceUi->findChild<QLineEdit *>("archivePath"));
         if (icons)
             action(window, "viewMode0Action")->trigger();
         sourcePanel.SelectAll(false);
@@ -292,7 +285,7 @@ class InterarchiveRecoveryTests final : public QObject, protected MainWindowTest
                 }
                 window.activateWindow();
                 QVERIFY(QTest::qWaitForWindowActive(&window));
-                targetUi->findChild<QLineEdit *>("archivePath")->setFocus();
+                PanelKeys::focusAddress(targetUi->findChild<QLineEdit *>("archivePath"));
                 QVERIFY(targetUi->isAncestorOf(window.focusWidget()));
                 window.openArchive(targetArchive);
                 QVERIFY(SignalWaitSupport::waitForCount(*target->model(), 2));

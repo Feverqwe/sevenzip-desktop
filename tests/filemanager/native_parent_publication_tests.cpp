@@ -142,7 +142,6 @@ class NativeParentPublicationTests final : public QObject, protected MainWindowT
         const int count = variant % 2 ? 301 : 2;
         const unsigned pane = variant % 2;
         const bool icons = variant >= 2;
-        const bool alternative = scenario % 2 == 0;
         const bool russian = variant % 2;
         const HRESULT written = scenario == 3 ? E_FAIL : scenario == 4 ? E_ABORT : S_OK;
         const auto answer = scenario == 0   ? QMessageBox::No
@@ -155,7 +154,6 @@ class NativeParentPublicationTests final : public QObject, protected MainWindowT
         ReloadLang(settings);
         QSettings values(settings, QSettings::IniFormat);
         values.setValue("FM/ShowDots", false);
-        values.setValue("FM/AlternativeSelection", alternative);
         values.sync();
         CWindowInfo info{};
         info.rect.right = 980;
@@ -341,7 +339,7 @@ class NativeParentPublicationTests final : public QObject, protected MainWindowT
                 if (ToQString(panel.GetItemName(i)) == "inner archive 空.7z")
                     innerIndex = i;
             QVERIFY(innerIndex != UInt32(-1));
-            owner->findChild<QLineEdit *>("archivePath")->setFocus();
+            PanelKeys::focusAddress(owner->findChild<QLineEdit *>("archivePath"));
             QVERIFY(runtime_.forceDisk(true));
             panel.OpenItem(innerIndex, true, false, L"SevenzipFixture7z");
             QTRY_COMPARE(list->rowCount(), 2);
@@ -381,7 +379,7 @@ class NativeParentPublicationTests final : public QObject, protected MainWindowT
         QCOMPARE(SourceExtractFixture::readFile(sentinel), QByteArray("peer bytes"));
         responder.stop();
         driver.stop();
-        owner->findChild<QLineEdit *>("archivePath")->setFocus();
+        PanelKeys::focusAddress(owner->findChild<QLineEdit *>("archivePath"));
         window.openPath(peerPath);
         QTRY_COMPARE(list->rowCount(), 1);
         QVERIFY(SourceExtractFixture::writeFile(QDir(peerPath).filePath("timer.txt"), "timer"));

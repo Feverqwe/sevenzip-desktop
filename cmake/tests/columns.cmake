@@ -139,10 +139,10 @@
     add_test(NAME archive_reload_command COMMAND archive_reload_command_tests -silent)
     set_tests_properties(archive_reload_command PROPERTIES TIMEOUT 120 ENVIRONMENT "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/archive-reload-command.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
     add_test(NAME archive_reload_command_quick COMMAND archive_reload_command_tests -silent
-        refreshLoadsBoundProvider:zip-0-0-0-0-0
-        refreshLoadsBoundProvider:zip-1-1-1-1-1
-        refreshLoadsBoundProvider:7z-0-1-1-0-1
-        refreshLoadsBoundProvider:7z-1-0-0-1-0)
+        refreshLoadsBoundProvider:zip-0-0-0-0
+        refreshLoadsBoundProvider:zip-1-1-1-1
+        refreshLoadsBoundProvider:7z-0-1-1-1
+        refreshLoadsBoundProvider:7z-1-0-0-0)
     set_tests_properties(archive_reload_command_quick PROPERTIES TIMEOUT 30 ENVIRONMENT
         "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/archive-reload-command-quick.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
     qt_add_executable(native_renderer_failure_tests
@@ -213,11 +213,11 @@
         set_tests_properties(native_external_${external_rows} PROPERTIES TIMEOUT 240 ENVIRONMENT "QT_QPA_PLATFORM=offscreen;SEVENZIP_EXTERNAL_ROWS=${external_rows};SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/native-external-${external_rows}.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
     endforeach()
     add_test(NAME native_external_update COMMAND native_external_publication_tests -silent
-        externalUpdatePublishesAfterNativeWriter:2-0-0-0-0-0-0
-        externalUpdatePublishesAfterNativeWriter:2-80004005-0-1-1-1-1
-        externalUpdatePublishesAfterNativeWriter:2-80004004-0-0-0-0-0
-        externalUpdatePublishesAfterNativeWriter:2-0-80004005-1-0-0-0
-        externalUpdatePublishesAfterNativeWriter:301-0-0-0-1-0-1)
+        externalUpdatePublishesAfterNativeWriter:2-0-0-0-0-0
+        externalUpdatePublishesAfterNativeWriter:2-80004005-0-1-1-1
+        externalUpdatePublishesAfterNativeWriter:2-80004004-0-0-0-0
+        externalUpdatePublishesAfterNativeWriter:2-0-80004005-1-0-0
+        externalUpdatePublishesAfterNativeWriter:301-0-0-0-1-0)
     set_tests_properties(native_external_update PROPERTIES TIMEOUT 90 ENVIRONMENT
         "QT_QPA_PLATFORM=offscreen;SEVENZIP_EXTERNAL_ROWS=0;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/native-external-update.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
     qt_add_executable(native_nested_publication_tests
@@ -238,10 +238,10 @@
         add_test(NAME native_nested_${nested_route}_quick COMMAND native_nested_publication_tests -silent
             nativeStreamMapsFolderIndicesAndRetainsItsOwner
             nativeOpeningHonorsConfirmedCancel
-            nestedPublicationRestoresSourceGuards:${nested_route}-2-0-0-0-0-0
-            nestedPublicationRestoresSourceGuards:${nested_route}-301-1-1-1-1-1
-            nestedPublicationRestoresSourceGuards:${nested_route}-2-80004005-1-0-1-0
-            nestedPublicationRestoresSourceGuards:${nested_route}-301-80004004-0-1-0-1)
+            nestedPublicationRestoresSourceGuards:${nested_route}-2-0-0-0-0
+            nestedPublicationRestoresSourceGuards:${nested_route}-301-1-1-1-1
+            nestedPublicationRestoresSourceGuards:${nested_route}-2-80004005-1-0-1
+            nestedPublicationRestoresSourceGuards:${nested_route}-301-80004004-0-1-0)
         set_tests_properties(native_nested_${nested_route}_quick PROPERTIES TIMEOUT 45 ENVIRONMENT
             "QT_QPA_PLATFORM=offscreen;SEVENZIP_NESTED_ROUTE=${nested_route};SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/native-nested-${nested_route}-quick.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
     endforeach()

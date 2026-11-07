@@ -190,9 +190,7 @@ void CApp::SetListSettings() {
     st.Load(_settingsPath);
     for (unsigned i = 0; i < kNumPanelsMax; i++) {
         CPanel &panel = Panels[i];
-        panel.SetAlternativeSelection(st.AlternativeSelection);
         panel._showDots = st.ShowDots;
-        // Qt view styles replace LVS_EX/LVS_SINGLESEL bit fields.
         if (_presentation)
             _presentation->SetListSettings(i, st);
     }

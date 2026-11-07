@@ -10,6 +10,7 @@
 #include "localization/LangUtils.h"
 #include "platform/support/native_property_failure_runtime.h"
 #include "platform/temp/qtownedtempregistry.h"
+#include "support/panel_keys.h"
 #include "support/widget_dialogs.h"
 #include "ui/progress/ProgressDialog2.h"
 #include "ui/support/layout_inspection.h"
@@ -34,7 +35,7 @@ class NativeNestedPublicationTests final : public QObject, protected MainWindowT
                 auto *address = owner->findChild<QLineEdit *>("archivePath");
                 QVERIFY(view->isEnabled() && address->isEnabled());
                 QVERIFY(UiInspection::fullyVisible(*view, window));
-                QVERIFY(UiInspection::fullyVisible(*address, window));
+                QVERIFY(UiInspection::fullyVisible(*PanelKeys::navigationFor(address), window));
                 QVERIFY(UiInspection::bounds(*address, window).bottom() <
                         UiInspection::bounds(*view, window).top());
             }
@@ -311,7 +312,6 @@ class NativeNestedPublicationTests final : public QObject, protected MainWindowT
         QTest::addColumn<unsigned>("pane");
         QTest::addColumn<bool>("russian");
         QTest::addColumn<bool>("icons");
-        QTest::addColumn<bool>("alternative");
         const QString requested = qEnvironmentVariable("SEVENZIP_NESTED_ROUTE");
         for (const QString &route : {QString("stream"), QString("memory"), QString("disk")}) {
             if (!requested.isEmpty() && requested != route)
@@ -321,17 +321,14 @@ class NativeNestedPublicationTests final : public QObject, protected MainWindowT
                     for (unsigned pane : {0u, 1u})
                         for (bool russian : {false, true})
                             for (bool icons : {false, true})
-                                for (bool alternative : {false, true})
-                                    QTest::newRow(qPrintable(QString("%1-%2-%3-%4-%5-%6-%7")
-                                                                 .arg(route)
-                                                                 .arg(count)
-                                                                 .arg(quint32(result), 0, 16)
-                                                                 .arg(pane)
-                                                                 .arg(russian)
-                                                                 .arg(icons)
-                                                                 .arg(alternative)))
-                                        << route << count << int(result) << pane << russian << icons
-                                        << alternative;
+                                QTest::newRow(qPrintable(QString("%1-%2-%3-%4-%5-%6")
+                                                             .arg(route)
+                                                             .arg(count)
+                                                             .arg(quint32(result), 0, 16)
+                                                             .arg(pane)
+                                                             .arg(russian)
+                                                             .arg(icons)))
+                                    << route << count << int(result) << pane << russian << icons;
         }
     }
     void nestedPublicationRestoresSourceGuards() {
@@ -341,7 +338,6 @@ class NativeNestedPublicationTests final : public QObject, protected MainWindowT
         QFETCH(unsigned, pane);
         QFETCH(bool, russian);
         QFETCH(bool, icons);
-        QFETCH(bool, alternative);
         QVERIFY(runtime_.clear());
         const QString settingsPath = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         QFile::remove(settingsPath);
@@ -349,7 +345,6 @@ class NativeNestedPublicationTests final : public QObject, protected MainWindowT
         ReloadLang(settingsPath);
         QSettings settings(settingsPath, QSettings::IniFormat);
         settings.setValue("FM/ShowDots", false);
-        settings.setValue("FM/AlternativeSelection", alternative);
         settings.sync();
         CWindowInfo info{};
         info.rect.right = 980;
@@ -432,7 +427,7 @@ class NativeNestedPublicationTests final : public QObject, protected MainWindowT
                 }
         });
         dismiss.start(1);
-        owner->findChild<QLineEdit *>("archivePath")->setFocus();
+        PanelKeys::focusAddress(owner->findChild<QLineEdit *>("archivePath"));
         QVERIFY(runtime_.forceDisk(route == "disk"));
         QVERIFY(runtime_.arm(count == 301 ? 257 : 0, HRESULT(result), count));
         panel.OpenItem(0, true, false, L"SevenzipFixture7z");

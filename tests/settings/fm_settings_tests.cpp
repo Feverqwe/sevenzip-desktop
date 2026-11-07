@@ -20,12 +20,11 @@ class FmSettingsTests : public QObject {
         CFmSettings st;
         st.Load(path);
         QVERIFY(!st.ShowDots);
-        QVERIFY(!st.AlternativeSelection);
-        st.ShowDots = st.AlternativeSelection = true;
+        st.ShowDots = true;
         st.Save(path);
         CFmSettings loaded;
         loaded.Load(path);
-        QVERIFY(loaded.ShowDots && loaded.AlternativeSelection);
+        QVERIFY(loaded.ShowDots);
     }
     void confirmCancelAndPersistListFlags() {
         QTemporaryDir dir;
@@ -35,16 +34,13 @@ class FmSettingsTests : public QObject {
         st.Save(path);
         for (bool confirm : {false, true}) {
             CSettingsPage page(path);
-            for (const char *name : {"showDotsOption", "alternativeSelectionOption"})
-                page.findChild<QCheckBox *>(name)->click();
-            QVERIFY(page.findChild<QCheckBox *>("alternativeSelectionOption")->isEnabled());
+            page.findChild<QCheckBox *>("showDotsOption")->click();
             if (confirm)
                 page.accept();
             else
                 page.reject();
             st.Load(path);
             QCOMPARE(st.ShowDots, confirm);
-            QCOMPARE(st.AlternativeSelection, confirm);
         }
     }
     void geometry() {
@@ -56,8 +52,7 @@ class FmSettingsTests : public QObject {
             QApplication::processEvents();
             auto *buttons = page.findChild<QDialogButtonBox *>("settingsButtons");
             QWidget *previous = nullptr;
-            for (const char *name : {"showDotsOption", "alternativeSelectionOption",
-                                     "extractMemoryLabel", "extractMemorySpin"}) {
+            for (const char *name : {"showDotsOption", "extractMemoryLabel", "extractMemorySpin"}) {
                 auto *control = page.findChild<QWidget *>(name);
                 QVERIFY(control);
                 QVERIFY(UiInspection::fullyVisible(*control, page));

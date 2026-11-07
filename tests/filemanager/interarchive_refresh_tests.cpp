@@ -50,7 +50,6 @@ class InterarchiveRefreshTests final : public QObject, protected MainWindowTestS
         QTest::addColumn<unsigned>("pane");
         QTest::addColumn<bool>("russian");
         QTest::addColumn<bool>("icons");
-        QTest::addColumn<bool>("alternative");
         QTest::addColumn<bool>("move");
         QTest::addColumn<QString>("route");
         QStringList routes{"delete-no", "delete-refuse"};
@@ -60,26 +59,23 @@ class InterarchiveRefreshTests final : public QObject, protected MainWindowTestS
         for (unsigned pane : {0u, 1u})
             for (bool russian : {false, true})
                 for (bool icons : {false, true})
-                    for (bool alternative : {false, true})
-                        for (bool move : {false, true})
-                            for (const QString &route : routes) {
-                                if (!move && route.startsWith("delete-"))
-                                    continue;
-                                QTest::newRow(qPrintable(QString("%1-%2-%3-%4-%5-%6")
-                                                             .arg(pane)
-                                                             .arg(russian)
-                                                             .arg(icons)
-                                                             .arg(alternative)
-                                                             .arg(move)
-                                                             .arg(route)))
-                                    << pane << russian << icons << alternative << move << route;
-                            }
+                    for (bool move : {false, true})
+                        for (const QString &route : routes) {
+                            if (!move && route.startsWith("delete-"))
+                                continue;
+                            QTest::newRow(qPrintable(QString("%1-%2-%3-%4-%5")
+                                                         .arg(pane)
+                                                         .arg(russian)
+                                                         .arg(icons)
+                                                         .arg(move)
+                                                         .arg(route)))
+                                << pane << russian << icons << move << route;
+                        }
     }
     void transferPublishesDestination() {
         QFETCH(unsigned, pane);
         QFETCH(bool, russian);
         QFETCH(bool, icons);
-        QFETCH(bool, alternative);
         QFETCH(bool, move);
         QFETCH(QString, route);
         const bool rollback = route.startsWith("delete-");
@@ -90,7 +86,6 @@ class InterarchiveRefreshTests final : public QObject, protected MainWindowTestS
         SaveRegLang(UString(russian ? L"ru" : L"-"), settingsPath);
         ReloadLang(settingsPath);
         QSettings settings(settingsPath, QSettings::IniFormat);
-        settings.setValue("FM/AlternativeSelection", alternative);
         settings.setValue("FM/ShowDots", false);
         settings.sync();
         QTemporaryDir fixture;

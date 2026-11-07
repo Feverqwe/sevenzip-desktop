@@ -60,17 +60,15 @@ reload publishes the new parent row. ZIP/7z file and implicit-folder scenarios
 inspect the table at980×620/640×400 in eight `archive-rename-relative-*` reports.
 Their geometry checks do not establish rendered Windows pixel parity.
 
-### Refresh focus and alternative marks (P3-05)
+<a id="refresh-focus-and-alternative-marks-p3-05"></a>
 
-Named focus restoration uses saved SelectFocused in both modes. A focused
-unselected row remains unselected; source marks restore independently. With no
-selected row, source focused-size/date fields stay empty even when alternative
-marks exist. Inspect both panes/EN-RU/active and inactive ownership at980×620
-and640×400 through `source-refresh-status` widget reports. Providerless attached
-rows do not create source marks; rebind must retain the live notification route.
-These are selection/status states of the existing controls, with no geometry or
-text changes. Native ListView state probing does not establish rendered Windows
-or physical input parity.
+### Refresh focus and selection
+
+Refresh restores focus and selection independently. A focused, unselected row
+stays unselected, and the focused-size/date fields stay empty when the pane
+has no selection. Check both panes, EN/RU and active/inactive ownership at
+980×620 and 640×400 through the `source-refresh-status` widget reports.
+Rebinding the view preserves selection notifications for the current provider.
 
 ### Archive directory CRC projection (P3-05)
 

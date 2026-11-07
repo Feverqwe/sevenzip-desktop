@@ -23,7 +23,6 @@ class CSettingsPage : public QDialog {
     void BuildControls(bool embedded);
     void reloadAppearanceText();
     void changeEvent(QEvent *event) override;
-    QCheckBox *_alternativeSelection;
     QCheckBox *_memSet;
     QtMemoryLimitSpin *_memSpin;
     void EnableSpin(bool enable);

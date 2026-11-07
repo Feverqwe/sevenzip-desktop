@@ -110,26 +110,6 @@ class PanelShellTests final : public QObject, protected MainWindowTestSupport {
         QVERIFY(!size->isVisible());
     }
 
-    void alternativeCurrentItemIsNotAnExplicitSelection() {
-        QTemporaryDir fixture;
-        ControlledBackend backend;
-        MainWindow window(&backend);
-        window.show();
-        openListedArchive(window, backend, fixture.filePath("current.zip"), {{"file.bin", 7, 7}});
-        auto *files = window.findChild<FileTable *>("archiveTable");
-        files->sourcePanel->SetAlternativeSelection(true);
-        files->selectRow(0);
-        files->setCurrentCell(0, 0);
-        const auto summary = files->sourcePanel->Refresh_StatusBar();
-        QCOMPARE(summary.selectedCount, 0);
-        QVERIFY(!summary.selectedSize);
-        QVERIFY(window.findChild<QLabel *>("selectedSizeStatus")->text().isEmpty());
-        // The ordinary command contract still operates on current when needed.
-        CRecordVector<UInt32> operated;
-        files->sourcePanel->Get_ItemIndices_Operated(operated);
-        QCOMPARE(operated.Size(), 1u);
-    }
-
     void perPanelStatusAndSourceContextFollowFocus() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());

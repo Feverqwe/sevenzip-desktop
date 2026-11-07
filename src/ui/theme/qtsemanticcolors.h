@@ -9,7 +9,6 @@ QColor surface(const QPalette &palette, QPalette::ColorRole background = QPalett
 QColor border(const QPalette &palette, QPalette::ColorRole background = QPalette::Base);
 QColor error(const QColor &background);
 QColor success(const QColor &background);
-QColor marked(const QPalette &palette);
 void styleSurface(QWidget &widget, int radius);
 void styleLink(QWidget &widget);
 } // namespace QtSemanticColors

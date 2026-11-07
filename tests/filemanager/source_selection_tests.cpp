@@ -2,6 +2,7 @@
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
 #include "settings/RegistryUtils.h"
+#include "support/panel_keys.h"
 #include <QScopeGuard>
 
 class SourceSelectionTests final : public QObject, protected MainWindowTestSupport {
@@ -9,7 +10,7 @@ class SourceSelectionTests final : public QObject, protected MainWindowTestSuppo
     static FileTable *openPanel(MainWindow &window, unsigned pane, const QString &path) {
         auto *ui = window.findChild<QWidget *>(QString("filePanel%1").arg(pane));
         auto *address = ui->findChild<QLineEdit *>("archivePath");
-        address->setFocus();
+        PanelKeys::focusAddress(address);
         address->setText(path);
         QTest::keyClick(address, Qt::Key_Return);
         return static_cast<FileTable *>(ui->findChild<FileTable *>("archiveTable"));
@@ -31,20 +32,13 @@ class SourceSelectionTests final : public QObject, protected MainWindowTestSuppo
     }
 
   private slots:
-    void refreshKeepsEachPanelsSelection_data() {
-        QTest::addColumn<bool>("alternative");
-        QTest::newRow("standard") << false;
-        QTest::newRow("alternative") << true;
-    }
 
     void refreshKeepsEachPanelsSelection() {
-        QFETCH(bool, alternative);
         const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         QFile::remove(settings);
         CFmSettings preferences;
         preferences.Load(settings);
         preferences.ShowDots = false;
-        preferences.AlternativeSelection = alternative;
         preferences.Save(settings);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
@@ -69,7 +63,10 @@ class SourceSelectionTests final : public QObject, protected MainWindowTestSuppo
         for (unsigned pane = 0; pane < 2; ++pane) {
             views[pane] = openPanel(window, pane, folders[int(pane)]);
             QTRY_VERIFY(views[pane]->isEnabled() && views[pane]->rowCount() == 270);
+            PanelKeys::focusAddress(window.findChild<QWidget *>(QString("filePanel%1").arg(pane))
+                                        ->findChild<QLineEdit *>("archivePath"));
             action(window, "viewMode3Action")->trigger();
+            QTRY_VERIFY(views[pane]->isVisible());
             auto &panel = *views[pane]->sourcePanel;
             panel.Set_AutoRefresh_Mode(false);
             const int cursor = row(*views[pane], cursors[int(pane)]);

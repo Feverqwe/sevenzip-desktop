@@ -61,7 +61,6 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
          event->type() == QEvent::MouseButtonDblClick)) {
         const auto *mouse = static_cast<QMouseEvent *>(event);
         selectionClickModifiers_ = mouse->modifiers();
-        selectionClickLeft_ = mouse->button() == Qt::LeftButton;
     }
     if (target == PanelInputTarget::Address && event->type() == QEvent::ShortcutOverride) {
         const auto *key = static_cast<QKeyEvent *>(event);
@@ -90,9 +89,6 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
     if (event->type() == QEvent::KeyPress &&
         handlePanelKey(target, static_cast<QKeyEvent *>(event)))
         return true;
-    if (event->type() == QEvent::KeyRelease &&
-        static_cast<QKeyEvent *>(event)->key() == Qt::Key_Shift)
-        selectionShiftSequence_ = false;
     return QMainWindow::eventFilter(watched, event);
 }
 
@@ -204,15 +200,6 @@ bool MainWindow::handlePanelListKey(QKeyEvent *key) {
                                  mods.testFlag(Qt::ShiftModifier)},
                                 app_))
         return true;
-    const bool arrow = key->key() == Qt::Key_Up || key->key() == Qt::Key_Down ||
-                       key->key() == Qt::Key_Left || key->key() == Qt::Key_Right;
-    if (panel._mySelectMode && mods.testFlag(Qt::ShiftModifier) && arrow &&
-        !selectionShiftSequence_)
-        panel.BeginShiftSelection();
-    if (key->key() == Qt::Key_Shift || (mods.testFlag(Qt::ShiftModifier) && arrow))
-        selectionShiftSequence_ = true;
-    else if (!mods.testFlag(Qt::ShiftModifier))
-        selectionShiftSequence_ = false;
     // WM_CHAR slash routes belong to CMyListView, outside OnKeyDown.
     if ((key->key() == Qt::Key_Backslash || key->key() == Qt::Key_Slash) &&
         !(mods & (Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier))) {
@@ -238,22 +225,6 @@ bool MainWindow::handlePanelListKey(QKeyEvent *key) {
                                           mods.testFlag(Qt::ControlModifier), rightCtrl,
                                           mods.testFlag(Qt::ShiftModifier)},
                                          app_);
-    if (panel._mySelectMode && mods.testFlag(Qt::ShiftModifier) && arrow &&
-        (key->key() == Qt::Key_Down || !mods.testFlag(Qt::AltModifier))) {
-        // Complete this key's Qt focus movement before applying the source
-        // range. A queued timer can otherwise observe a later key's focus.
-        const QPointer<MainWindow> window(this);
-        const QPointer<CPanel> owner(&panel);
-        if (projectedUi().viewStack->currentWidget() == projectedUi().table)
-            static_cast<FileTable *>(projectedUi().table)->handleDefaultKeyPress(key);
-        else
-            static_cast<FileIconList *>(projectedUi().iconList)->handleDefaultKeyPress(key);
-        if (window && owner && !app_.QtOperations().closed()) {
-            owner->OnShiftSelectMessage();
-            refreshActions();
-        }
-        return true;
-    }
     if (key->key() != Qt::Key_Control && key->key() != Qt::Key_Shift && key->key() != Qt::Key_Alt)
         refreshActions();
     // Qt otherwise moves focus again after the source OnTab callback.

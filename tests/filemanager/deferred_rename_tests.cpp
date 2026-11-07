@@ -2,6 +2,7 @@
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
 #include "platform/support/external_editor_fixture.h"
+#include "support/panel_keys.h"
 #include <QAbstractItemDelegate>
 #include <array>
 
@@ -18,7 +19,6 @@ class DeferredRenameTests final : public QObject, protected MainWindowTestSuppor
         CFmSettings settings;
         settings.Load(settingsPath);
         settings.ShowDots = false;
-        settings.AlternativeSelection = false;
         settings.Save(settingsPath);
         QTemporaryDir source, peer;
         QVERIFY(source.isValid() && peer.isValid());
@@ -46,7 +46,7 @@ class DeferredRenameTests final : public QObject, protected MainWindowTestSuppor
             auto *ui = window.findChild<QWidget *>(QString("filePanel%1").arg(index));
             views[index] = static_cast<FileTable *>(ui->findChild<FileTable *>("archiveTable"));
             auto *address = ui->findChild<QLineEdit *>("archivePath");
-            address->setFocus();
+            PanelKeys::focusAddress(address);
             address->setText(archives[index]);
             QTest::keyClick(address, Qt::Key_Return);
             QTRY_COMPARE(views[index]->rowCount(), 1);
@@ -79,7 +79,6 @@ class DeferredRenameTests final : public QObject, protected MainWindowTestSuppor
         for (unsigned pane : {0u, 1u}) {
             QTest::newRow(qPrintable(QString("focus-%1").arg(pane))) << pane << 0;
             QTest::newRow(qPrintable(QString("reload-%1").arg(pane))) << pane << 2;
-            QTest::newRow(qPrintable(QString("mark-focus-%1").arg(pane))) << pane << 3;
         }
     }
     void deferredRenameKeepsItsOwner() {
@@ -89,7 +88,6 @@ class DeferredRenameTests final : public QObject, protected MainWindowTestSuppor
         CFmSettings settings;
         settings.Load(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         settings.ShowDots = false;
-        settings.AlternativeSelection = false;
         settings.Save(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         QTemporaryDir source, peer;
         QVERIFY(source.isValid() && peer.isValid());
@@ -108,7 +106,7 @@ class DeferredRenameTests final : public QObject, protected MainWindowTestSuppor
             auto *ui = window.findChild<QWidget *>(QString("filePanel%1").arg(index));
             views[index] = static_cast<FileTable *>(ui->findChild<FileTable *>("archiveTable"));
             auto *address = ui->findChild<QLineEdit *>("archivePath");
-            address->setFocus();
+            PanelKeys::focusAddress(address);
             address->setText(index == pane ? source.path() : peer.path());
             QTest::keyClick(address, Qt::Key_Return);
             QTRY_COMPARE(views[index]->rowCount(), 1);
@@ -118,16 +116,10 @@ class DeferredRenameTests final : public QObject, protected MainWindowTestSuppor
         view->setFocus();
         view->selectRow(0);
         view->setCurrentCell(0, 0);
-        if (transition == 3) {
-            view->sourcePanel->SetAlternativeSelection(true);
-            view->sourcePanel->SelectAll(false);
-        }
         QVERIFY(action(window, "renameAction")->isEnabled());
         action(window, "renameAction")->trigger();
         auto *editor = view->findChild<QLineEdit *>();
         QVERIFY(editor);
-        if (transition == 3)
-            view->sourcePanel->SelectAll(true);
         editor->setText(renamed);
         // Deliver the editor's public commit, then change focus/location before
         // the deferred filesystem operation gets its next event-loop turn.
@@ -143,7 +135,7 @@ class DeferredRenameTests final : public QObject, protected MainWindowTestSuppor
         bool delivered = false;
         QTimer::singleShot(0, &window, [&] { delivered = true; });
         QTRY_VERIFY(delivered);
-        const bool applied = transition == 0 || transition == 3;
+        const bool applied = transition == 0;
         QCOMPARE(QFileInfo::exists(source.filePath(renamed)), applied);
         QCOMPARE(QFileInfo::exists(source.filePath(name)), transition == 1);
         QVERIFY(QFileInfo::exists(peer.filePath(name)));

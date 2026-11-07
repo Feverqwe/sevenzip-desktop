@@ -338,11 +338,6 @@ class CPanel : public QObject {
     void SetSortRawStatus();
     void SortItemsWithPropID(PROPID propID);
     void OnColumnClick(PROPID propID);
-    bool _mySelectMode = false;
-    bool _selectionIsDefined = false;
-    bool _selectMark = false;
-    int _startGroupSelect = 0;
-    int _prevFocusedItem = -1;
     bool _showDots = false;
     UInt32 GetListViewMode() const { return _listViewMode; }
     void SetListViewMode(UInt32 index);
@@ -566,12 +561,6 @@ class CPanel : public QObject {
     void UpdateSelection();
     void SelectAll(bool selectMode);
     void KillSelection();
-    void OnShiftSelectMessage();
-    void OnArrowWithShift();
-    void OnInsert();
-    void OnLeftClick(int indexInList, Qt::KeyboardModifiers modifiers);
-    void BeginShiftSelection();
-    void SetAlternativeSelection(bool enabled);
     bool IsItemMarked(UInt32 index) const;
     struct FocusState {
         bool Present = false;

@@ -60,7 +60,6 @@ class NativeRenamePublicationTests final : public QObject, protected MainWindowT
         QTest::addColumn<unsigned>("pane");
         QTest::addColumn<bool>("russian");
         QTest::addColumn<bool>("icons");
-        QTest::addColumn<bool>("alternative");
         const int requested = qEnvironmentVariableIntValue("SEVENZIP_RENAME_ROWS");
         for (int count : {2, 301}) {
             if (requested && requested != count)
@@ -70,17 +69,15 @@ class NativeRenamePublicationTests final : public QObject, protected MainWindowT
                     for (unsigned pane : {0u, 1u})
                         for (bool russian : {false, true})
                             for (bool icons : {false, true})
-                                for (bool alternative : {false, true})
-                                    QTest::newRow(qPrintable(QString("%1-%2-%3-%4-%5-%6-%7")
-                                                                 .arg(count)
-                                                                 .arg(UInt32(written), 0, 16)
-                                                                 .arg(UInt32(rendered), 0, 16)
-                                                                 .arg(pane)
-                                                                 .arg(russian)
-                                                                 .arg(icons)
-                                                                 .arg(alternative)))
-                                        << count << int(written) << int(rendered) << pane << russian
-                                        << icons << alternative;
+                                QTest::newRow(qPrintable(QString("%1-%2-%3-%4-%5-%6")
+                                                             .arg(count)
+                                                             .arg(UInt32(written), 0, 16)
+                                                             .arg(UInt32(rendered), 0, 16)
+                                                             .arg(pane)
+                                                             .arg(russian)
+                                                             .arg(icons)))
+                                    << count << int(written) << int(rendered) << pane << russian
+                                    << icons;
         }
     }
     void autoRefreshHonorsSourceNotificationGuard() {
@@ -146,7 +143,6 @@ class NativeRenamePublicationTests final : public QObject, protected MainWindowT
         QFETCH(unsigned, pane);
         QFETCH(bool, russian);
         QFETCH(bool, icons);
-        QFETCH(bool, alternative);
         QVERIFY(runtime_.clear());
         const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         QFile::remove(settings);
@@ -154,7 +150,6 @@ class NativeRenamePublicationTests final : public QObject, protected MainWindowT
         ReloadLang(settings);
         QSettings values(settings, QSettings::IniFormat);
         values.setValue("FM/ShowDots", false);
-        values.setValue("FM/AlternativeSelection", alternative);
         values.sync();
         CWindowInfo info{};
         info.rect.right = 980;
@@ -208,7 +203,6 @@ class NativeRenamePublicationTests final : public QObject, protected MainWindowT
         view->setFocus();
         QTRY_COMPARE(window.focusWidget(), view);
         QTest::keyClick(view, Qt::Key_Home);
-        panel.SetAlternativeSelection(alternative);
         view->setCurrentIndex(view->model()->index(0, 0));
         panel.SelectAll(false);
         MarkSelectionForTest(panel, L"item 000 空.bin");
@@ -307,7 +301,7 @@ class NativeRenamePublicationTests final : public QObject, protected MainWindowT
                      wanted);
             CRecordVector<UInt32> marks;
             panel.Get_ItemIndices_Selected(marks);
-            QCOMPARE(marks.Size(), alternative && HRESULT(written) == S_OK ? 0u : 1u);
+            QCOMPARE(marks.Size(), 1u);
         }
         inspect(window, "published");
         QVERIFY(runtime_.clear());

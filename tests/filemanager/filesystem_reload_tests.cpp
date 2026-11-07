@@ -3,6 +3,7 @@
 #include "filemanager/views/filetable.h"
 #include "fileops/scanner/filesystemscanner.h"
 #include "localization/LangUtils.h"
+#include "support/panel_keys.h"
 #include "support/widget_dialogs.h"
 #include "ui/progress/ProgressDialog2.h"
 #include <QScrollBar>
@@ -59,29 +60,20 @@ class FilesystemReloadTests final : public QObject, protected MainWindowTestSupp
     void missingFolderClearsNativeItems_data() {
         QTest::addColumn<unsigned>("sourceIndex");
         QTest::addColumn<QString>("language");
-        QTest::addColumn<bool>("alternative");
         QTest::addColumn<bool>("timer");
         for (unsigned index : {0u, 1u})
             for (const QString language : {"-", "ru"})
-                for (bool alternative : {false, true})
-                    for (bool timer : {false, true})
-                        QTest::newRow(qPrintable(QString("%1-%2-%3-%4")
-                                                     .arg(index)
-                                                     .arg(language)
-                                                     .arg(alternative)
-                                                     .arg(timer)))
-                            << index << language << alternative << timer;
+                for (bool timer : {false, true})
+                    QTest::newRow(
+                        qPrintable(QString("%1-%2-%3").arg(index).arg(language).arg(timer)))
+                        << index << language << timer;
     }
     void missingFolderClearsNativeItems() {
         QFETCH(unsigned, sourceIndex);
         QFETCH(QString, language);
-        QFETCH(bool, alternative);
         QFETCH(bool, timer);
         SaveRegLang(ToUString(language), qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         ReloadLang(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
-        QSettings settings(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"), QSettings::IniFormat);
-        settings.setValue("FM/AlternativeSelection", alternative);
-        settings.sync();
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString path = fixture.filePath(QStringLiteral("missing 文件"));
@@ -95,7 +87,7 @@ class FilesystemReloadTests final : public QObject, protected MainWindowTestSupp
         action(window, "twoPanelsAction")->trigger();
         auto *ui = window.findChild<QWidget *>(QString("filePanel%1").arg(sourceIndex));
         auto *address = ui->findChild<QLineEdit *>("archivePath");
-        address->setFocus();
+        PanelKeys::focusAddress(address);
         address->setText(path);
         QTest::keyClick(address, Qt::Key_Return);
         auto *view = static_cast<FileTable *>(ui->findChild<FileTable *>("archiveTable"));
@@ -169,7 +161,7 @@ class FilesystemReloadTests final : public QObject, protected MainWindowTestSupp
         auto *ui = window.findChild<QWidget *>(QString("filePanel%1").arg(sourceIndex));
         auto *address = ui->findChild<QLineEdit *>("archivePath");
         auto *view = static_cast<FileTable *>(ui->findChild<FileTable *>("archiveTable"));
-        address->setFocus();
+        PanelKeys::focusAddress(address);
         address->setText(smallPath);
         QTest::keyClick(address, Qt::Key_Return);
         QTRY_COMPARE(view->rowCount(), 1);
@@ -185,12 +177,10 @@ class FilesystemReloadTests final : public QObject, protected MainWindowTestSupp
         QSignalSpy failed(scanner, &FilesystemScanner::failed);
         QSignalSpy completed(scanner, &FilesystemScanner::completed);
         auto &panel = *view->sourcePanel;
-        CMyComPtr<IFolderFolder> retained;
         bool restarted = false;
         const auto restart = connect(scanner, &FilesystemScanner::advanced, &window, [&](quint64) {
             if (!restarted) {
                 restarted = true;
-                retained = panel.GetFolder();
                 scanner->start(fixture.filePath(QStringLiteral("missing 文件")), flat);
             }
         });
@@ -217,16 +207,23 @@ class FilesystemReloadTests final : public QObject, protected MainWindowTestSupp
         QVERIFY(result != S_OK);
         QCOMPARE(shown, ToQString(HResultToMessage(result)));
         QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
-        QCOMPARE(panel.GetFolder(), (IFolderFolder *)retained);
+        QCOMPARE(QFileInfo(ToQString(GetFolderPath(panel.GetFolder()))).canonicalFilePath(),
+                 QFileInfo(reload ? large : smallPath).canonicalFilePath());
         QVERIFY(panel.IsFSFolder());
-        QCOMPARE(view->rowCount(), 0);
+        QCOMPARE(view->rowCount(), reload ? 0 : 1);
         CSelectedState selection;
-        QCOMPARE(panel.RestoreLoadedSelection(selection), result);
+        QCOMPARE(panel.RestoreLoadedSelection(selection), reload ? result : S_OK);
         QVERIFY(panel.ShouldProcessNotifications());
         QVERIFY(completed.isEmpty());
         QVERIFY(!scanner->isRunning());
         disconnect(restart);
-        panel.OnReload();
+        if (reload)
+            panel.OnReload();
+        else {
+            PanelKeys::focusAddress(address);
+            address->setText(large);
+            QTest::keyClick(address, Qt::Key_Return);
+        }
         QTRY_COMPARE(view->rowCount(), 301);
         QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
         QCOMPARE(completed.size(), 1);

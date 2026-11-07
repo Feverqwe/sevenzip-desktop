@@ -28,8 +28,6 @@ HRESULT CPanel::LoadListItemsImpl(bool itemsLoaded, HRESULT loadedResult) {
     CDisableNotify disableNotify(*this);
     DeleteListItems();
     _selectedStatusVector.Clear();
-    _startGroupSelect = 0;
-    _selectionIsDefined = false;
     if (!itemsLoaded) {
         CMyComPtr<IFolderSetFlatMode> folderSetFlatMode;
         _folder.QueryInterface(IID_IFolderSetFlatMode, &folderSetFlatMode);

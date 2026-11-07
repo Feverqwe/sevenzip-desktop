@@ -204,12 +204,8 @@ class PanelKeySourceTests final : public QObject, protected MainWindowTestSuppor
         QFETCH(int, pane);
         QFETCH(int, variant);
         const bool archive = variant < 4;
-        const bool alternative = variant % 2;
         const int mode = variant % 2 ? 3 : 0;
         const QString settingsPath = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
-        QSettings settings(settingsPath, QSettings::IniFormat);
-        settings.setValue("FM/AlternativeSelection", alternative);
-        settings.sync();
         SaveRegLang(UString(variant % 3 ? "-" : "ru"), settingsPath);
         ReloadLang(settingsPath);
         QtNotifyLanguageChanged();
@@ -302,12 +298,8 @@ class PanelKeySourceTests final : public QObject, protected MainWindowTestSuppor
             QCOMPARE(QApplication::clipboard()->text(), QString("clipboard sentinel"));
         else {
             const auto actual = QApplication::clipboard()->mimeData()->urls();
-            if (alternative) {
-                const QString focused = list->currentIndex().data(Qt::UserRole).toString();
-                QCOMPARE(actual, QList<QUrl>{QUrl::fromLocalFile(focused)});
-            } else
-                QCOMPARE(QSet<QUrl>(actual.begin(), actual.end()),
-                         QSet<QUrl>(copied.begin(), copied.end()));
+            QCOMPARE(QSet<QUrl>(actual.begin(), actual.end()),
+                     QSet<QUrl>(copied.begin(), copied.end()));
         }
         PanelKeys::focusAddress(address);
         address->selectAll();
@@ -534,11 +526,7 @@ class PanelKeySourceTests final : public QObject, protected MainWindowTestSuppor
             timer.start(1);
             QTest::keyClick(list, Qt::Key_Delete, modifiers);
             timer.stop();
-#ifdef Q_OS_MACOS
             QCOMPARE(confirmations, 0);
-#else
-            QCOMPARE(confirmations, 1);
-#endif
             QVERIFY(file.open(QIODevice::ReadOnly));
             QCOMPARE(file.readAll(), QByteArray("unchanged"));
             file.close();

@@ -248,9 +248,7 @@ void MainWindow::createIconList(QWidget *central) {
     projectedUi().iconList->setItemDelegate(CreateFileRowDelegate(projectedUi().iconList, true));
     projectedUi().iconList->setModelColumn(0);
     projectedUi().iconList->setSelectionModel(projectedUi().table->selectionModel());
-    projectedUi().iconList->setSelectionMode(fileListSettings_.AlternativeSelection
-                                                 ? QAbstractItemView::SingleSelection
-                                                 : QAbstractItemView::ExtendedSelection);
+    projectedUi().iconList->setSelectionMode(QAbstractItemView::ExtendedSelection);
     projectedUi().iconList->setSelectionBehavior(QAbstractItemView::SelectRows);
     projectedUi().iconList->setEditTriggers(QAbstractItemView::NoEditTriggers);
     renameController_->Attach(*projectedUi().iconList, projectedPanel_);
@@ -270,8 +268,6 @@ void MainWindow::connectFileView(QAbstractItemView &view) {
     view.setContextMenuPolicy(Qt::CustomContextMenu);
     view.installEventFilter(this);
     view.viewport()->installEventFilter(this);
-    connect(&view, &QAbstractItemView::clicked, this,
-            [this](const QModelIndex &index) { handleSelectionClick(index.row()); });
     connect(&view, &QAbstractItemView::doubleClicked, this, [this](const QModelIndex &index) {
         activateRow(index.row(), selectionClickModifiers_);
     });

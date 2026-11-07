@@ -56,7 +56,6 @@ class CopyArchiveRefreshTests final : public QObject, protected MainWindowTestSu
         QTest::addColumn<unsigned>("pane");
         QTest::addColumn<bool>("russian");
         QTest::addColumn<bool>("icons");
-        QTest::addColumn<bool>("alternative");
         QTest::addColumn<bool>("move");
         QTest::addColumn<QString>("route");
         QStringList routes;
@@ -66,23 +65,20 @@ class CopyArchiveRefreshTests final : public QObject, protected MainWindowTestSu
         for (unsigned pane : {0u, 1u})
             for (bool russian : {false, true})
                 for (bool icons : {false, true})
-                    for (bool alternative : {false, true})
-                        for (bool move : {false, true})
-                            for (const QString &route : routes)
-                                QTest::newRow(qPrintable(QString("%1-%2-%3-%4-%5-%6")
-                                                             .arg(pane)
-                                                             .arg(russian)
-                                                             .arg(icons)
-                                                             .arg(alternative)
-                                                             .arg(move)
-                                                             .arg(route)))
-                                    << pane << russian << icons << alternative << move << route;
+                    for (bool move : {false, true})
+                        for (const QString &route : routes)
+                            QTest::newRow(qPrintable(QString("%1-%2-%3-%4-%5")
+                                                         .arg(pane)
+                                                         .arg(russian)
+                                                         .arg(icons)
+                                                         .arg(move)
+                                                         .arg(route)))
+                                << pane << russian << icons << move << route;
     }
     void filesystemCopyPreservesDestination() {
         QFETCH(unsigned, pane);
         QFETCH(bool, russian);
         QFETCH(bool, icons);
-        QFETCH(bool, alternative);
         QFETCH(bool, move);
         QFETCH(QString, route);
         const bool success = route != "failure" && route != "cancel";
@@ -92,7 +88,6 @@ class CopyArchiveRefreshTests final : public QObject, protected MainWindowTestSu
         SaveRegLang(UString(russian ? L"ru" : L"-"), settingsPath);
         ReloadLang(settingsPath);
         QSettings settings(settingsPath, QSettings::IniFormat);
-        settings.setValue("FM/AlternativeSelection", alternative);
         settings.setValue("FM/ShowDots", false);
         settings.sync();
         CWindowInfo windowInfo{};

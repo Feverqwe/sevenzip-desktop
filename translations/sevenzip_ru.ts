@@ -2701,12 +2701,6 @@ Are you sure you want to split archive into such volumes?</source>
         </message>
         <message>
             <location line="+1" />
-            <source>&amp;Alternative selection mode</source>
-            <comment>2507</comment>
-            <translation>Альтернативный режим пометки</translation>
-        </message>
-        <message>
-            <location line="+1" />
             <source>About 7-Zip</source>
             <comment>2900</comment>
             <translation>О программе 7-Zip</translation>

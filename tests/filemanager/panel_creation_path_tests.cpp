@@ -3,6 +3,7 @@
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
 #include "localization/LangUtils.h"
+#include "support/panel_keys.h"
 #include "support/signal_wait_support.h"
 #include "ui/support/layout_inspection.h"
 
@@ -34,31 +35,26 @@ class PanelCreationPathTests final : public QObject, protected MainWindowTestSup
         QTest::addColumn<bool>("large");
         QTest::addColumn<bool>("russian");
         QTest::addColumn<bool>("icons");
-        QTest::addColumn<bool>("alternative");
         QTest::addColumn<QString>("focusRoute");
         for (unsigned pane : {0u, 1u})
             for (bool large : {false, true})
                 for (bool russian : {false, true})
                     for (bool icons : {false, true})
-                        for (bool alternative : {false, true})
-                            for (const QString &focusRoute : {QString("none"), QString("input"),
-                                                              QString("api"), QString("late")})
-                                QTest::newRow(qPrintable(QString("%1-%2-%3-%4-%5-%6")
-                                                             .arg(pane)
-                                                             .arg(large)
-                                                             .arg(russian)
-                                                             .arg(icons)
-                                                             .arg(alternative)
-                                                             .arg(focusRoute)))
-                                    << pane << large << russian << icons << alternative
-                                    << focusRoute;
+                        for (const QString &focusRoute :
+                             {QString("none"), QString("input"), QString("api"), QString("late")})
+                            QTest::newRow(qPrintable(QString("%1-%2-%3-%4-%5")
+                                                         .arg(pane)
+                                                         .arg(large)
+                                                         .arg(russian)
+                                                         .arg(icons)
+                                                         .arg(focusRoute)))
+                                << pane << large << russian << icons << focusRoute;
     }
     void ordinaryStartupKeepsRequestedMainPath() {
         QFETCH(unsigned, pane);
         QFETCH(bool, large);
         QFETCH(bool, russian);
         QFETCH(bool, icons);
-        QFETCH(bool, alternative);
         QFETCH(QString, focusRoute);
         const bool overrideFocus = focusRoute == "input" || focusRoute == "api";
         const bool archiveRequest = focusRoute == "api";
@@ -70,7 +66,6 @@ class PanelCreationPathTests final : public QObject, protected MainWindowTestSup
         ReloadLang(settingsPath);
         QSettings settings(settingsPath, QSettings::IniFormat);
         settings.setValue("FM/ShowDots", false);
-        settings.setValue("FM/AlternativeSelection", alternative);
         settings.sync();
         CWindowInfo info{};
         info.rect.right = 980;
@@ -119,7 +114,7 @@ class PanelCreationPathTests final : public QObject, protected MainWindowTestSup
         }
         if (overrideFocus) {
             auto *address = peerUi->findChild<QLineEdit *>("archivePath");
-            address->setFocus();
+            PanelKeys::focusAddress(address);
             if (archiveRequest) {
                 QTest::mouseClick(address, Qt::LeftButton);
                 QVERIFY2(window.windowTitle().contains(QStringLiteral("peer directory δ")),

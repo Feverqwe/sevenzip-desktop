@@ -53,8 +53,7 @@ class OptionsDialogTests : public QObject {
             // Native resize constraints and height-for-width layouts can
             // change the requested size. Check the actual content below.
             QWidget *previous = nullptr;
-            for (const char *name : {"showDotsOption", "alternativeSelectionOption",
-                                     "extractMemoryLabel", "extractMemorySpin"}) {
+            for (const char *name : {"showDotsOption", "extractMemoryLabel", "extractMemorySpin"}) {
                 auto *control = dialog.findChild<QWidget *>(name);
                 QVERIFY(control);
                 OptionsPresentation::show(dialog, control);

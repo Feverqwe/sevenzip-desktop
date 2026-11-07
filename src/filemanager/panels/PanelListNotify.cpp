@@ -46,22 +46,21 @@ void CPanel::AttachSelectionView(QAbstractItemView *view,
                                  std::function<void(int)> editLabel) {
     disconnect(_itemChangedConnection);
     _selectionList.Attach(view, std::move(sortColumn), std::move(editLabel));
-    _selectionList.SetSingleSelection(_mySelectMode);
+    if (view)
+        view->setSelectionMode(QAbstractItemView::ExtendedSelection);
     if (!_selectionList.IsBound())
         return;
     // A pre-populated Qt model is an integration input, unlike native Create.
     EnsureSelectionVectorSize();
-    if (!_mySelectMode)
-        for (int row = 0; row < _selectionList.GetItemCount(); ++row) {
-            const unsigned index = GetRealItemIndex(row);
-            if (index < _selectedStatusVector.Size())
-                OnItemChanged(index, _selectedStatusVector[index],
-                              _selectionList.IsItemSelected(row));
-        }
+    for (int row = 0; row < _selectionList.GetItemCount(); ++row) {
+        const unsigned index = GetRealItemIndex(row);
+        if (index < _selectedStatusVector.Size())
+            OnItemChanged(index, _selectedStatusVector[index], _selectionList.IsItemSelected(row));
+    }
     _itemChangedConnection =
         connect(view->selectionModel(), &QItemSelectionModel::selectionChanged, this,
                 [this](const QItemSelection &selected, const QItemSelection &deselected) {
-                    if (!_processNotify || !_enableItemChangeNotify || _mySelectMode)
+                    if (!_processNotify || !_enableItemChangeNotify)
                         return;
                     const auto notify = [this](const QItemSelection &changes, bool newSelected) {
                         for (const auto &range : changes) {

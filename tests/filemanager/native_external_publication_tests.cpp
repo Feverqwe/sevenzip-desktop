@@ -9,6 +9,7 @@
 #include "localization/LangUtils.h"
 #include "platform/support/external_editor_fixture.h"
 #include "platform/support/native_property_failure_runtime.h"
+#include "support/panel_keys.h"
 #include "ui/progress/ProgressDialog2.h"
 #include "ui/support/layout_inspection.h"
 #include <QScopeGuard>
@@ -29,7 +30,7 @@ class NativeExternalPublicationTests final : public QObject, protected MainWindo
                 QWidget *view = table->isVisible() ? static_cast<QWidget *>(table)
                                                    : owner->findChild<QListView *>("iconList");
                 QVERIFY(address->isEnabled() && view->isEnabled());
-                QVERIFY(UiInspection::fullyVisible(*address, window));
+                QVERIFY(UiInspection::fullyVisible(*PanelKeys::navigationFor(address), window));
                 QVERIFY(UiInspection::fullyVisible(*view, window));
             }
             QVERIFY(UiInspection::writeReport(window, QString("native-external-%1-%2-%3")
@@ -60,7 +61,6 @@ class NativeExternalPublicationTests final : public QObject, protected MainWindo
         QTest::addColumn<unsigned>("pane");
         QTest::addColumn<bool>("russian");
         QTest::addColumn<bool>("icons");
-        QTest::addColumn<bool>("alternative");
         const int requested = qEnvironmentVariableIntValue("SEVENZIP_EXTERNAL_ROWS");
         for (int count : {2, 301}) {
             if (requested && requested != count)
@@ -70,17 +70,15 @@ class NativeExternalPublicationTests final : public QObject, protected MainWindo
                     for (unsigned pane : {0u, 1u})
                         for (bool russian : {false, true})
                             for (bool icons : {false, true})
-                                for (bool alternative : {false, true})
-                                    QTest::newRow(qPrintable(QString("%1-%2-%3-%4-%5-%6-%7")
-                                                                 .arg(count)
-                                                                 .arg(UInt32(written), 0, 16)
-                                                                 .arg(UInt32(rendered), 0, 16)
-                                                                 .arg(pane)
-                                                                 .arg(russian)
-                                                                 .arg(icons)
-                                                                 .arg(alternative)))
-                                        << count << int(written) << int(rendered) << pane << russian
-                                        << icons << alternative;
+                                QTest::newRow(qPrintable(QString("%1-%2-%3-%4-%5-%6")
+                                                             .arg(count)
+                                                             .arg(UInt32(written), 0, 16)
+                                                             .arg(UInt32(rendered), 0, 16)
+                                                             .arg(pane)
+                                                             .arg(russian)
+                                                             .arg(icons)))
+                                    << count << int(written) << int(rendered) << pane << russian
+                                    << icons;
         }
     }
     void externalUpdatePublishesAfterNativeWriter() {
@@ -90,7 +88,6 @@ class NativeExternalPublicationTests final : public QObject, protected MainWindo
         QFETCH(unsigned, pane);
         QFETCH(bool, russian);
         QFETCH(bool, icons);
-        QFETCH(bool, alternative);
         QVERIFY(runtime_.clear());
         const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         QFile::remove(settings);
@@ -98,7 +95,6 @@ class NativeExternalPublicationTests final : public QObject, protected MainWindo
         ReloadLang(settings);
         QSettings values(settings, QSettings::IniFormat);
         values.setValue("FM/ShowDots", false);
-        values.setValue("FM/AlternativeSelection", alternative);
         values.sync();
         CWindowInfo info{};
         info.rect.right = 980;
@@ -156,7 +152,6 @@ class NativeExternalPublicationTests final : public QObject, protected MainWindo
         view->setFocus();
         QTRY_COMPARE(window.focusWidget(), view);
         QTest::keyClick(view, Qt::Key_Home);
-        panel.SetAlternativeSelection(alternative);
         view->setCurrentIndex(view->model()->index(0, 0));
         panel.SelectAll(false);
         MarkSelectionForTest(panel, L"item 000 空.bin");
@@ -225,7 +220,7 @@ class NativeExternalPublicationTests final : public QObject, protected MainWindo
         const QString temporary =
             QString::fromUtf8(ExternalEditorFixture::read(control + ".ready"));
         auto *peerAddress = peer->findChild<QLineEdit *>("archivePath");
-        peerAddress->setFocus();
+        PanelKeys::focusAddress(peerAddress);
         QWidget *const focused = window.focusWidget();
         QVERIFY(focused && peer->isAncestorOf(focused));
         QVERIFY(runtime_.armWriter(HRESULT(written)));
@@ -299,7 +294,7 @@ class NativeExternalPublicationTests final : public QObject, protected MainWindo
             QTRY_VERIFY(QFileInfo(retryControl + ".ready").size() > 0);
             const QString retried =
                 QString::fromUtf8(ExternalEditorFixture::read(retryControl + ".ready"));
-            peerAddress->setFocus();
+            PanelKeys::focusAddress(peerAddress);
             QVERIFY(ExternalEditorFixture::write(retryControl, "change"));
             QVERIFY(ExternalEditorFixture::write(retryControl + ".exit", "exit"));
             QTRY_VERIFY_WITH_TIMEOUT(injected, 10000);
@@ -324,7 +319,7 @@ class NativeExternalPublicationTests final : public QObject, protected MainWindo
         QVERIFY(runtime_.clear());
         window.activateWindow();
         QVERIFY(QTest::qWaitForWindowActive(&window));
-        owner->findChild<QLineEdit *>("archivePath")->setFocus();
+        PanelKeys::focusAddress(owner->findChild<QLineEdit *>("archivePath"));
         window.openPath(peerPath);
         QTRY_COMPARE(list->rowCount(), 1);
         QVERIFY(SourceExtractFixture::writeFile(QDir(peerPath).filePath("timer.txt"), "timer"));

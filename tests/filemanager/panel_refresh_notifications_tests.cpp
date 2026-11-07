@@ -10,18 +10,14 @@ class PanelRefreshNotificationsTests final : public QObject {
     void focusRequestsSourceName_data() {
         QTest::addColumn<bool>("fast");
         QTest::addColumn<bool>("fallback");
-        QTest::addColumn<bool>("alternative");
         for (bool fast : {false, true})
             for (bool fallback : {false, true})
-                for (bool alternative : {false, true})
-                    QTest::newRow(
-                        qPrintable(QString("%1-%2-%3").arg(fast).arg(fallback).arg(alternative)))
-                        << fast << fallback << alternative;
+                QTest::newRow(qPrintable(QString("%1-%2").arg(fast).arg(fallback)))
+                    << fast << fallback;
     }
     void focusRequestsSourceName() {
         QFETCH(bool, fast);
         QFETCH(bool, fallback);
-        QFETCH(bool, alternative);
         auto *spec = new LoadFolder;
         CMyComPtr<IFolderFolder> folder = spec;
         spec->fastNames = fast;
@@ -40,7 +36,6 @@ class PanelRefreshNotificationsTests final : public QObject {
             view.panelModel()->append(std::move(item));
         }
         panel.AttachSelectionView(&view);
-        panel.SetAlternativeSelection(alternative);
         const int target = fallback ? 1 : 0;
         view.setCurrentCell(1 - target, 0, QItemSelectionModel::NoUpdate);
         // Leave the target uncached, as on the first callback after publication.

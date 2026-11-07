@@ -121,16 +121,6 @@ QColor border(const QPalette &palette, QPalette::ColorRole background) {
 }
 QColor error(const QColor &background) { return readable(QColor(192, 0, 0), background); }
 QColor success(const QColor &background) { return readable(QColor(34, 139, 34), background); }
-QColor marked(const QPalette &palette) {
-    const QColor base = palette.color(QPalette::Base), text = palette.color(QPalette::Text);
-    double amount = 0.18;
-    QColor result = mix(base, palette.color(QPalette::Highlight), amount);
-    while (contrast(text, result) < 4.5 && amount > 0.001) {
-        amount /= 2;
-        result = mix(base, palette.color(QPalette::Highlight), amount);
-    }
-    return result;
-}
 void styleSurface(QWidget &widget, int radius) { new PaletteStyle(widget, Style::Surface, radius); }
 void styleLink(QWidget &widget) { new PaletteStyle(widget, Style::Link); }
 } // namespace QtSemanticColors

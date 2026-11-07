@@ -15,13 +15,6 @@ void MainWindow::restoreListSelection(const CSelectedState &selection) {
         app_.Panels[projectedPanel_].RestoreLoadedSelection(selection);
 }
 
-void MainWindow::handleSelectionClick(int row) {
-    if (!selectionClickLeft_ || row < 0 || !app_.GetFocusedPanel()._mySelectMode)
-        return;
-    app_.GetFocusedPanel().OnLeftClick(row, selectionClickModifiers_);
-    refreshActions();
-}
-
 void MainWindow::SelectAll(bool selectMode) {
     if (projectedUi().state != State::Filesystem && projectedUi().state != State::Viewing &&
         projectedUi().state != State::Namespace)

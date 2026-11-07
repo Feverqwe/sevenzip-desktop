@@ -68,7 +68,6 @@ QString FmSettingsPath() {
 }
 
 static const char *const kShowDots = "ShowDots";
-static const char *const kAlternativeSelection = "AlternativeSelection";
 
 static void SaveOption(QSettings &key, const char *name, bool enabled) {
     key.setValue(QString::fromLatin1(name), enabled);
@@ -107,18 +106,15 @@ void CFmSettings::Save(const QString &settingsPath) const {
     QSettings key(settingsPath, QSettings::IniFormat);
     key.beginGroup("FM");
     SaveOption(key, kShowDots, ShowDots);
-    SaveOption(key, kAlternativeSelection, AlternativeSelection);
     key.setValue("ColorScheme", int(ColorScheme));
 }
 
 void CFmSettings::Load(const QString &settingsPath) {
     ShowDots = false;
-    AlternativeSelection = false;
 
     QSettings key(settingsPath, QSettings::IniFormat);
     key.beginGroup("FM");
     ReadOption(key, kShowDots, ShowDots);
-    ReadOption(key, kAlternativeSelection, AlternativeSelection);
     bool valid = false;
     const int scheme = key.value("ColorScheme").toInt(&valid);
     ColorScheme =

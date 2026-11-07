@@ -63,11 +63,6 @@ bool CPanel::OnKeyDown(const QtPanelKeyDown &keyDownInfo, CApp &g_App) {
     }
 
     switch (keyDownInfo.VKey) {
-    case Qt::Key_Shift: {
-        _selectionIsDefined = false;
-        _prevFocusedItem = _selectionList.GetFocusedItem();
-        break;
-    }
     case Qt::Key_F2: {
         if (!alt && !ctrl && !shift) {
             g_App.ExecuteCommand(IDM_RENAME);
@@ -127,37 +122,22 @@ bool CPanel::OnKeyDown(const QtPanelKeyDown &keyDownInfo, CApp &g_App) {
                 EditPaste();
                 return true;
             }
-            if (!shift && !ctrl && _mySelectMode) {
-                OnInsert();
-                return true;
-            }
         }
-        return false;
-    }
-    case Qt::Key_Down: {
-        if (shift)
-            OnArrowWithShift();
         return false;
     }
     case Qt::Key_Up: {
         if (alt)
             _panelCallback->OnSetSameFolder();
-        else if (shift)
-            OnArrowWithShift();
         return false;
     }
     case Qt::Key_Right: {
         if (alt)
             _panelCallback->OnSetSubFolder();
-        else if (shift)
-            OnArrowWithShift();
         return false;
     }
     case Qt::Key_Left: {
         if (alt)
             _panelCallback->OnSetSubFolder();
-        else if (shift)
-            OnArrowWithShift();
         return false;
     }
     case Qt::Key_PageDown: {

@@ -32,14 +32,14 @@
     add_test(NAME panel_creation_publication COMMAND panel_creation_publication_tests -silent)
     set(panel_creation_quick_cases
         creationRetainsOriginalLoadResultPolicy
-        initialPanelsPublishInSourceCreationOrder:0-0-transport-0-0-0-0-0
-        initialPanelsPublishInSourceCreationOrder:0-0-filesystem-1-1-1-1-1
-        initialPanelsPublishInSourceCreationOrder:1-1-filesystem-0-0-0-0-0)
+        initialPanelsPublishInSourceCreationOrder:0-0-transport-0-0-0-0
+        initialPanelsPublishInSourceCreationOrder:0-0-filesystem-1-1-1-1
+        initialPanelsPublishInSourceCreationOrder:1-1-filesystem-0-0-0-0)
     if(SEVENZIP_CODEC_MODULE)
         list(APPEND panel_creation_quick_cases
-            initialPanelsPublishInSourceCreationOrder:0-1-zip-0-1-1-0-0
-            initialPanelsPublishInSourceCreationOrder:1-0-7z-1-0-0-1-0
-            initialPanelsPublishInSourceCreationOrder:0-0-7z-0-0-1-1-0)
+            initialPanelsPublishInSourceCreationOrder:0-1-zip-0-1-1-0
+            initialPanelsPublishInSourceCreationOrder:1-0-7z-1-0-0-0
+            initialPanelsPublishInSourceCreationOrder:0-0-7z-0-0-1-0)
     endif()
     add_test(NAME panel_creation_publication_quick COMMAND panel_creation_publication_tests -silent
         ${panel_creation_quick_cases})
@@ -98,7 +98,7 @@
         rollbackFailureAndRetry:native-reopen-failure
         rollbackFailureAndRetry:native-reopen-cancel
         rollbackFailureAndRetry:native-restore-large
-        rollbackFailureAndRetry:0-0-0-0-native-restore)
+        rollbackFailureAndRetry:0-0-0-native-restore)
     set_tests_properties(interarchive_recovery_native PROPERTIES TIMEOUT 45 ENVIRONMENT "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/interarchive-recovery-native.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
     set_tests_properties(interarchive_recovery PROPERTIES TIMEOUT 120 ENVIRONMENT "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/interarchive-recovery.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
     qt_add_executable(interarchive_refresh_tests tests/filemanager/interarchive_refresh_tests.cpp)
@@ -133,12 +133,12 @@
     set_tests_properties(drag_reload_completion PROPERTIES TIMEOUT 120 ENVIRONMENT "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/drag-reload-completion.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
     # Success, failure and cancellation in both panes.
     add_test(NAME drag_reload_completion_quick COMMAND drag_reload_completion_tests -silent
-        archiveDropUsesSourceRefresh:0-0-0-0-0
-        archiveDropUsesSourceRefresh:0-1-1-1-1
-        archiveDropUsesSourceRefresh:0-0-1-0-2
-        archiveDropUsesSourceRefresh:1-1-1-1-0
-        archiveDropUsesSourceRefresh:1-0-0-0-1
-        archiveDropUsesSourceRefresh:1-1-0-1-2)
+        archiveDropUsesSourceRefresh:0-0-0-0
+        archiveDropUsesSourceRefresh:0-1-1-1
+        archiveDropUsesSourceRefresh:0-0-1-2
+        archiveDropUsesSourceRefresh:1-1-1-0
+        archiveDropUsesSourceRefresh:1-0-0-1
+        archiveDropUsesSourceRefresh:1-1-0-2)
     set_tests_properties(drag_reload_completion_quick PROPERTIES TIMEOUT 30 ENVIRONMENT
         "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/drag-reload-completion-quick.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
     qt_add_executable(panel_load_count_tests tests/filemanager/panel_load_count_tests.cpp)
@@ -413,13 +413,7 @@
         hiddenLeftPanelPathSurvivesRestart
         parentKey:archive-0 parentKey:disk-3
         addressKeys:archive-3 addressKeys:disk-0
-        keypadSelection:archive-0 keypadSelection:disk-3
-        alternativeSelection:archive-mode3
-        alternativeSelection:archive-mode0
-        alternativeSelection:disk-mode0
-        alternativeSelection:disk-mode3
-        alternativeRootUsesSourceMarks
-        alternativeMarksSurviveRemovalAndScroll)
+        keypadSelection:archive-0 keypadSelection:disk-3)
     set_tests_properties(panel_key_quick PROPERTIES TIMEOUT 60 ENVIRONMENT
         "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/panel-key-quick.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
     qt_add_executable(main_shell_tests tests/filemanager/main_shell_tests.cpp)

@@ -54,8 +54,6 @@ QVariant FilePanelModel::data(const QModelIndex &index, int role) const {
         return row.sourceIndex;
     case QtPanelList::DropHighlightedRole:
         return row.dropHighlighted;
-    case QtPanelList::MarkedRole:
-        return row.marked;
     case QtPanelList::CutRole:
         // Match the concrete filesystem entry, including a symlink itself.
         // Container entry paths and the synthetic parent have different identities.
@@ -93,17 +91,13 @@ QVariant FilePanelModel::data(const QModelIndex &index, int role) const {
         if (const auto *prop = view_.sourceColumn(column))
             return int(GetColumnAlign(prop->ID, prop->Type));
         return int(Qt::AlignLeft | Qt::AlignVCenter);
-    case Qt::BackgroundRole:
-        return row.marked ? QVariant(QBrush(QtSemanticColors::marked(view_.palette())))
-                          : QVariant();
     case Qt::ForegroundRole:
         if (readable && !parent) {
             try {
                 const QColor color = panel->OnCustomDraw(row.sourceIndex);
                 if (color.isValid())
-                    return QBrush(QtSemanticColors::readable(
-                        color, row.marked ? QtSemanticColors::marked(view_.palette())
-                                          : view_.palette().color(QPalette::Base)));
+                    return QBrush(
+                        QtSemanticColors::readable(color, view_.palette().color(QPalette::Base)));
             } catch (...) {
             }
         }
@@ -185,13 +179,6 @@ bool FilePanelModel::setData(const QModelIndex &index, const QVariant &value, in
         row.name = value.toString();
         row.text.clear();
         break;
-    case QtPanelList::MarkedRole:
-        if (row.marked == value.toBool())
-            return true;
-        row.marked = value.toBool();
-        firstColumn = 0;
-        lastColumn = columnCount() - 1;
-        break;
     case QtPanelList::DropHighlightedRole:
         if (row.dropHighlighted == value.toBool())
             return true;
@@ -203,9 +190,7 @@ bool FilePanelModel::setData(const QModelIndex &index, const QVariant &value, in
         return false;
     }
     emit dataChanged(this->index(index.row(), firstColumn), this->index(index.row(), lastColumn),
-                     role == QtPanelList::MarkedRole
-                         ? QList<int>{role, Qt::BackgroundRole, Qt::ForegroundRole}
-                         : QList<int>{role});
+                     {role});
     return true;
 }
 

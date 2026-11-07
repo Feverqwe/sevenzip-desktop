@@ -56,22 +56,18 @@ class NativeRendererCopyTests final : public QObject, protected MainWindowTestSu
         QTest::addColumn<int>("result");
         QTest::addColumn<bool>("russian");
         QTest::addColumn<bool>("icons");
-        QTest::addColumn<bool>("alternative");
         for (unsigned pane : {0u, 1u})
             for (bool move : {false, true})
                 for (HRESULT result : {S_FALSE, E_FAIL, E_ABORT})
                     for (bool russian : {false, true})
                         for (bool icons : {false, true})
-                            for (bool alternative : {false, true})
-                                QTest::newRow(qPrintable(QString("%1-%2-%3-%4-%5-%6")
-                                                             .arg(pane)
-                                                             .arg(move)
-                                                             .arg(quint32(result), 0, 16)
-                                                             .arg(russian)
-                                                             .arg(icons)
-                                                             .arg(alternative)))
-                                    << pane << move << int(result) << russian << icons
-                                    << alternative;
+                            QTest::newRow(qPrintable(QString("%1-%2-%3-%4-%5")
+                                                         .arg(pane)
+                                                         .arg(move)
+                                                         .arg(quint32(result), 0, 16)
+                                                         .arg(russian)
+                                                         .arg(icons)))
+                                << pane << move << int(result) << russian << icons;
     }
     void copyCompletionWaitsForNativeReload() {
         QFETCH(unsigned, pane);
@@ -79,7 +75,6 @@ class NativeRendererCopyTests final : public QObject, protected MainWindowTestSu
         QFETCH(int, result);
         QFETCH(bool, russian);
         QFETCH(bool, icons);
-        QFETCH(bool, alternative);
         QVERIFY(runtime_.clear());
         const QString settingsPath = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         QFile::remove(settingsPath);
@@ -87,7 +82,6 @@ class NativeRendererCopyTests final : public QObject, protected MainWindowTestSu
         ReloadLang(settingsPath);
         QSettings settings(settingsPath, QSettings::IniFormat);
         settings.setValue("FM/ShowDots", false);
-        settings.setValue("FM/AlternativeSelection", alternative);
         settings.sync();
         CWindowInfo info{};
         info.rect.right = 980;

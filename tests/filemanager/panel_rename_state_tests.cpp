@@ -5,6 +5,7 @@
 #include "filemanager/views/filetable.h"
 #include "localization/LangUtils.h"
 #include "platform/support/native_link_fixture.h"
+#include "support/panel_keys.h"
 #include "ui/progress/ProgressDialog2.h"
 #include "ui/support/layout_inspection.h"
 #include <QEventLoop>
@@ -27,21 +28,17 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
   private slots:
     void activationUsesFocusedRow_data() {
         QTest::addColumn<unsigned>("pane");
-        QTest::addColumn<bool>("alternative");
         QTest::addColumn<bool>("icons");
         QTest::addColumn<bool>("link");
         for (unsigned pane : {0u, 1u})
-            for (bool alternative : {false, true})
-                for (bool icons : {false, true})
-                    QTest::newRow(
-                        qPrintable(QString("%1-%2-%3").arg(pane).arg(alternative).arg(icons)))
-                        << pane << alternative << icons << false;
-        QTest::newRow("link-table") << 0u << false << false << true;
-        QTest::newRow("link-icons-alternative") << 1u << true << true << true;
+            for (bool icons : {false, true})
+                QTest::newRow(qPrintable(QString("%1-%2").arg(pane).arg(icons)))
+                    << pane << icons << false;
+        QTest::newRow("link-table") << 0u << false << true;
+        QTest::newRow("link-icons") << 1u << true << true;
     }
     void activationUsesFocusedRow() {
         QFETCH(unsigned, pane);
-        QFETCH(bool, alternative);
         QFETCH(bool, icons);
         QFETCH(bool, link);
         const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
@@ -49,7 +46,6 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
         CFmSettings preferences;
         preferences.Load(settings);
         preferences.ShowDots = false;
-        preferences.AlternativeSelection = alternative;
         preferences.Save(settings);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
@@ -73,7 +69,7 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
         auto *ui = window.findChild<QWidget *>(QString("filePanel%1").arg(pane));
         auto *view = static_cast<FileTable *>(ui->findChild<FileTable *>("archiveTable"));
         auto *address = ui->findChild<QLineEdit *>("archivePath");
-        address->setFocus();
+        PanelKeys::focusAddress(address);
         address->setText(fixture.path());
         QTest::keyClick(address, Qt::Key_Return);
         QTRY_COMPARE(view->rowCount(), 2);
@@ -83,10 +79,7 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
             if (view->model()->index(row, 0).data(Qt::UserRole + 3).toString() == original)
                 focusedRow = row;
         QVERIFY(focusedRow >= 0);
-        if (alternative)
-            MarkSelectionForTest(*view->sourcePanel, ToUString(peer));
-        else
-            view->sourcePanel->SelectAll(true);
+        view->sourcePanel->SelectAll(true);
         view->selectionModel()->setCurrentIndex(view->model()->index(focusedRow, 0),
                                                 QItemSelectionModel::NoUpdate);
         action(window, icons ? "viewMode0Action" : "viewMode3Action")->trigger();
@@ -187,7 +180,6 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
         CFmSettings preferences;
         preferences.Load(settings);
         preferences.ShowDots = false;
-        preferences.AlternativeSelection = false;
         preferences.Save(settings);
         const auto reset = qScopeGuard([&] {
             SaveRegLang(L"-", settings);
@@ -210,7 +202,7 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
         auto *ui = window.findChild<QWidget *>(QString("filePanel%1").arg(sourceIndex));
         auto *view = static_cast<FileTable *>(ui->findChild<FileTable *>("archiveTable"));
         auto *address = ui->findChild<QLineEdit *>("archivePath");
-        address->setFocus();
+        PanelKeys::focusAddress(address);
         address->setText(fixture.path());
         QTest::keyClick(address, Qt::Key_Return);
         QTRY_COMPARE(view->rowCount(), 2);
@@ -346,18 +338,14 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
         }
     }
     void sourceStateAndDeferredText_data() {
-        QTest::addColumn<bool>("alternative");
         QTest::addColumn<bool>("collision");
         QTest::addColumn<bool>("cancelLoad");
-        for (bool alternative : {false, true})
-            for (bool collision : {false, true})
-                for (bool cancelLoad : {false, true})
-                    QTest::newRow(qPrintable(
-                        QString("%1-%2-%3").arg(alternative).arg(collision).arg(cancelLoad)))
-                        << alternative << collision << cancelLoad;
+        for (bool collision : {false, true})
+            for (bool cancelLoad : {false, true})
+                QTest::newRow(qPrintable(QString("%1-%2").arg(collision).arg(cancelLoad)))
+                    << collision << cancelLoad;
     }
     void sourceStateAndDeferredText() {
-        QFETCH(bool, alternative);
         QFETCH(bool, collision);
         QFETCH(bool, cancelLoad);
         QTemporaryDir fixture;
@@ -376,7 +364,6 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
         view.setColumnProperties({kpidName, kpidSize});
         view.setSelectionBehavior(QAbstractItemView::SelectRows);
         panel.AttachSelectionView(&view);
-        panel.SetAlternativeSelection(alternative);
         QCOMPARE(panel.LoadListItems(), S_OK);
         const auto publish = [&] {
             UInt32 count = 0;
@@ -435,10 +422,10 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
         QCOMPARE(panel.RefreshListCtrl(*state), S_OK);
         const QString focused = collision ? original : renamed;
         QCOMPARE(view.model()->index(view.currentRow(), 0).data().toString(), focused);
-        QCOMPARE(view.selectionModel()->selectedRows().size(), alternative ? 1 : 2);
+        QCOMPARE(view.selectionModel()->selectedRows().size(), 2);
         CRecordVector<UInt32> selected;
         panel.Get_ItemIndices_Selected(selected);
-        QCOMPARE(selected.Size(), alternative && !collision ? 1u : 2u);
+        QCOMPARE(selected.Size(), 2u);
         QVERIFY(panel.ShouldProcessNotifications());
         QCOMPARE(QFileInfo::exists(fixture.filePath(original)), collision);
         for (const auto &entry : {qMakePair(focused, QByteArray("original bytes")),

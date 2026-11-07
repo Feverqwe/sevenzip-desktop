@@ -70,24 +70,20 @@ class NativeRendererFailureTests final : public QObject, protected MainWindowTes
         QTest::addColumn<unsigned>("pane");
         QTest::addColumn<bool>("russian");
         QTest::addColumn<bool>("icons");
-        QTest::addColumn<bool>("alternative");
         for (const QString &route : {QString("create"), QString("reload"), QString("open")})
             for (HRESULT result : {S_FALSE, E_FAIL, E_ABORT})
                 for (bool large : {false, true})
                     for (unsigned pane : {0u, 1u})
                         for (bool russian : {false, true})
                             for (bool icons : {false, true})
-                                for (bool alternative : {false, true})
-                                    QTest::newRow(qPrintable(QString("%1-%2-%3-%4-%5-%6-%7")
-                                                                 .arg(route)
-                                                                 .arg(quint32(result), 0, 16)
-                                                                 .arg(large)
-                                                                 .arg(pane)
-                                                                 .arg(russian)
-                                                                 .arg(icons)
-                                                                 .arg(alternative)))
-                                        << route << int(result) << large << pane << russian << icons
-                                        << alternative;
+                                QTest::newRow(qPrintable(QString("%1-%2-%3-%4-%5-%6")
+                                                             .arg(route)
+                                                             .arg(quint32(result), 0, 16)
+                                                             .arg(large)
+                                                             .arg(pane)
+                                                             .arg(russian)
+                                                             .arg(icons)))
+                                    << route << int(result) << large << pane << russian << icons;
     }
     void stoppedNativePublicationDropsItsResult_data() {
         QTest::addColumn<bool>("close");
@@ -176,7 +172,6 @@ class NativeRendererFailureTests final : public QObject, protected MainWindowTes
         QFETCH(unsigned, pane);
         QFETCH(bool, russian);
         QFETCH(bool, icons);
-        QFETCH(bool, alternative);
         QVERIFY(runtime_.clear());
         const int count = large ? 301 : 2;
         const UInt32 failedIndex = large ? 257 : 0;
@@ -186,7 +181,6 @@ class NativeRendererFailureTests final : public QObject, protected MainWindowTes
         ReloadLang(settingsPath);
         QSettings settings(settingsPath, QSettings::IniFormat);
         settings.setValue("FM/ShowDots", false);
-        settings.setValue("FM/AlternativeSelection", alternative);
         settings.sync();
         CWindowInfo info{};
         info.rect.right = 980;

@@ -13,7 +13,7 @@
 | <a id="rendered-addextract-reference-p3-06-2026-10-15"></a>Rendered Add/Extract reference (P3-06, 2026-10-15) | [Открыть](extraction.md#rendered-addextract-reference-p3-06-2026-10-15) |
 | <a id="rename-validation-error-p3-05-2026-10-15"></a>Rename validation error (P3-05, 2026-10-15) | [Открыть](file-list.md#rename-validation-error-p3-05-2026-10-15) |
 | <a id="parent-keyboard-focus-p3-05-2026-10-15"></a>Parent keyboard focus (P3-05, 2026-10-15) | [Открыть](navigation.md#parent-keyboard-focus-p3-05-2026-10-15) |
-| <a id="refresh-focus-and-alternative-marks-p3-05"></a>Refresh focus and alternative marks (P3-05) | [Открыть](file-list.md#refresh-focus-and-alternative-marks-p3-05) |
+| <a id="refresh-focus-and-alternative-marks-p3-05"></a>Refresh focus and selection | [Открыть](file-list.md#refresh-focus-and-alternative-marks-p3-05) |
 | <a id="panel-address-keys-p3-05"></a>Panel address keys (P3-05) | [Открыть](navigation.md#panel-address-keys-p3-05) |
 | <a id="archive-directory-crc-projection-p3-05"></a>Archive directory CRC projection (P3-05) | [Открыть](file-list.md#archive-directory-crc-projection-p3-05) |
 | <a id="changed-nested-archive-parent-p3-0515"></a>Changed nested archive Parent (P3-05.15) | [Открыть](extraction.md#changed-nested-archive-parent-p3-0515) |

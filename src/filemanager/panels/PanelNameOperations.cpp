@@ -18,13 +18,11 @@ static bool IsCorrectFsName(const UString &name) {
     return !lastPart.IsEqualTo(".") && !lastPart.IsEqualTo("..");
 }
 
-static void PrepareCreatedSelection(UString &newName, bool preserveSelection,
-                                    CSelectedState &state) {
+static void PrepareCreatedSelection(UString &newName, CSelectedState &state) {
     const int pos = newName.Find(WCHAR_PATH_SEPARATOR);
     if (pos >= 0)
         newName.DeleteFrom((unsigned)pos);
-    if (!preserveSelection)
-        state.SelectedNames.Clear();
+    state.SelectedNames.Clear();
     state.FocusedName = newName;
     state.FocusedName_Defined = true;
     state.SelectFocused = true;
@@ -74,7 +72,7 @@ void CPanel::CreateFolder() {
         // fixed for 9.26: we must refresh always
     }
     if (res == S_OK)
-        PrepareCreatedSelection(newName, _mySelectMode, state);
+        PrepareCreatedSelection(newName, state);
     RefreshTitleAlways();
     RefreshListCtrl(state);
 }

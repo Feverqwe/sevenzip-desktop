@@ -160,8 +160,6 @@ class PanelColumnsTests final : public QObject, protected MainWindowTestSupport 
         model->setColumns({"Name", "Extra"});
         QCOMPARE(selected.row(), 1);
         QVERIFY(view.selectionModel()->isSelected(selected));
-        QVERIFY(model->setData(model->index(selected.row(), 1), true, QtPanelList::MarkedRole));
-        QVERIFY(selected.data(Qt::BackgroundRole).isValid());
         model->removeRow(0);
         QCOMPARE(selected.row(), 0);
         QCOMPARE(selected.data(Qt::UserRole + 6).toUInt(), 0u);

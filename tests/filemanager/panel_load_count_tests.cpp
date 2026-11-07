@@ -2,6 +2,7 @@
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
 #include "localization/LangUtils.h"
+#include "support/panel_keys.h"
 #include "ui/support/layout_inspection.h"
 #include <QTableWidget>
 
@@ -26,7 +27,8 @@ class PanelLoadCountTests final : public QObject, protected MainWindowTestSuppor
                                   ->findChild<QListView *>("iconList");
                 QVERIFY(control);
                 QVERIFY(UiInspection::fullyVisible(*control, window));
-                QVERIFY(UiInspection::fullyVisible(address(window, pane), window));
+                QVERIFY(UiInspection::fullyVisible(
+                    *PanelKeys::navigationFor(&address(window, pane)), window));
             }
             QVERIFY(UiInspection::writeReport(window, QString("load-count-%1-%2-%3")
                                                           .arg(QTest::currentDataTag(), phase)
@@ -66,8 +68,6 @@ class PanelLoadCountTests final : public QObject, protected MainWindowTestSuppor
                 panel.SaveSelectedState(selection);
                 spec->itemCount.reset();
                 QCOMPARE(panel.RefreshListCtrl(selection), S_OK);
-                panel.SetAlternativeSelection(true);
-                panel.SetAlternativeSelection(false);
                 QCOMPARE(spec->countCalls, calls + 1);
                 QCOMPARE(table.rowCount(), int(expected));
                 panel.ReleaseFolder();
@@ -111,10 +111,9 @@ class PanelLoadCountTests final : public QObject, protected MainWindowTestSuppor
         QCOMPARE(table.rowCount(), 0);
         QCOMPARE(panel.GetLoadedItemCount(), 0u);
         try {
-            panel.SetAlternativeSelection(true);
-            panel.SetAlternativeSelection(false);
+            panel.SelectAll(true);
         } catch (...) {
-            QFAIL("Empty mark projection queried metadata after the source load early return");
+            QFAIL("Selecting an empty list queried metadata after the source load early return");
         }
         QCOMPARE(spec->countCalls, calls);
         CRecordVector<UInt32> marks;
@@ -169,7 +168,7 @@ class PanelLoadCountTests final : public QObject, protected MainWindowTestSuppor
         window.activateWindow();
         QVERIFY(QTest::qWaitForWindowActive(&window));
         action(window, "twoPanelsAction")->trigger();
-        address(window, 1 - pane).setFocus();
+        PanelKeys::focusAddress(&address(window, 1 - pane));
         address(window, 1 - pane).setText(fixture.path());
         QTest::keyClick(&address(window, 1 - pane), Qt::Key_Return);
         QTRY_COMPARE(view(window, 1 - pane).rowCount(), 1);
@@ -178,7 +177,7 @@ class PanelLoadCountTests final : public QObject, protected MainWindowTestSuppor
         CMyComPtr<IFolderFolder> peerProvider = peer.GetFolder();
         view(window, 1 - pane).selectRow(0);
         const auto peerSelection = view(window, 1 - pane).selectionModel()->selection();
-        address(window, pane).setFocus();
+        PanelKeys::focusAddress(&address(window, pane));
         action(window, "openRootAction")->trigger();
         auto *spec = new LoadFolder;
         CMyComPtr<IFolderFolder> provider = spec;
@@ -234,8 +233,6 @@ class PanelLoadCountTests final : public QObject, protected MainWindowTestSuppor
         HRESULT restored = E_FAIL;
         try {
             restored = panel.RestoreLoadedSelection(after);
-            panel.SetAlternativeSelection(true);
-            panel.SetAlternativeSelection(false);
         } catch (...) {
             QFAIL("Restoration/selection queried a later count instead of the loaded count");
         }

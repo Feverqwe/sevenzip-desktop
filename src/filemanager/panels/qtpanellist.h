@@ -15,7 +15,6 @@ class QtPanelList {
         NameRole = Qt::UserRole + 3,
         SourceIndexRole = Qt::UserRole + 6,
         DropHighlightedRole = Qt::UserRole + 19,
-        MarkedRole = Qt::UserRole + 20,
         CutRole = Qt::UserRole + 21
     };
     using SortColumnResolver = std::function<int(PROPID, Int32)>;
@@ -45,13 +44,10 @@ class QtPanelList {
     void DeleteListItems();
     void SelectItem(int row);
     void SetItemState_Selected(int row, bool selected);
-    void SelectOnly(int row);
-    void SetItemMarked(int row, bool marked);
     static void SetItemState_DropHighlighted(QAbstractItemView *view, int row, bool highlighted);
     void SetItemState_DropHighlighted(int row, bool highlighted) {
         SetItemState_DropHighlighted(view_.data(), row, highlighted);
     }
-    void SetSingleSelection(bool enabled);
     void SetFocusedItem(int row);
     void EnsureVisible(int row);
     void SortItems(PROPID property, bool ascending, Int32 raw);

@@ -73,7 +73,6 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
         CFmSettings preferences;
         preferences.Load(settings);
         preferences.ShowDots = false;
-        preferences.AlternativeSelection = icons;
         preferences.Save(settings);
         QTemporaryDir fixture, peerDirectory;
         QVERIFY(fixture.isValid() && peerDirectory.isValid());

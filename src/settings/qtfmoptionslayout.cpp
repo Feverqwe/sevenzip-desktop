@@ -66,23 +66,7 @@ QWidget *listPage(CSettingsPage *owner) {
     auto *body = owner->listControls();
     delete body->layout();
     auto *layout = fields(body);
-    for (int group = 0; group < 2; ++group) {
-        auto *part = new QWidget(body);
-        auto *rows = fields(part);
-        rows->setSpacing(8);
-        auto *heading = new QLabel(part);
-        auto font = heading->font();
-        font.setBold(true);
-        heading->setFont(font);
-        QtBindLocalText(heading, "SettingsRedesign",
-                        group == 0 ? QT_TRANSLATE_NOOP("SettingsRedesign", "Display")
-                                   : QT_TRANSLATE_NOOP("SettingsRedesign", "Controls"));
-        rows->addWidget(heading);
-        for (const QString &name :
-             group == 0 ? QStringList{"showDotsOption"} : QStringList{"alternativeSelectionOption"})
-            rows->addWidget(body->findChild<QCheckBox *>(name));
-        layout->addWidget(part);
-    }
+    layout->addWidget(body->findChild<QCheckBox *>("showDotsOption"));
     return body;
 }
 void section(QTabWidget *pages, const char *name, const char *title, QWidget *body,

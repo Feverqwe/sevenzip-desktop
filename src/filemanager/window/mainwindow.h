@@ -218,7 +218,6 @@ class MainWindow : public QMainWindow {
     bool isPanelEditorFocused() const;
     QList<QAction *> panelShortcutActions_;
     void updatePanelModifier(const QKeyEvent &key);
-    void handleSelectionClick(int row);
     HRESULT showDirectory(const QString &path, bool remember, bool sourceAlreadyBound = false,
                           bool updateAddress = true);
     HRESULT renderRootFolder(bool updateAddress = true);
@@ -380,8 +379,6 @@ class MainWindow : public QMainWindow {
     };
     std::unique_ptr<PendingArchiveMove> archiveMove_;
     Qt::KeyboardModifiers selectionClickModifiers_ = Qt::NoModifier;
-    bool selectionClickLeft_ = false;
-    bool selectionShiftSequence_ = false;
     bool rightControlPressed_ = false;
     std::unique_ptr<WindowProgress> progress_;
     bool sourceArchiveProgress_ = false;

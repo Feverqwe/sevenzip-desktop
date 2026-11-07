@@ -20,7 +20,7 @@ class PanelParentReloadTests final : public QObject, protected MainWindowTestSup
             ->findChild<QLineEdit *>("archivePath");
     }
     static void navigate(QLineEdit &address, const QString &path) {
-        address.setFocus();
+        PanelKeys::focusAddress(&address);
         address.setText(path);
         QTest::keyClick(&address, Qt::Key_Return);
     }
@@ -29,33 +29,25 @@ class PanelParentReloadTests final : public QObject, protected MainWindowTestSup
     void reloadUsesSourceParentSelection_data() {
         QTest::addColumn<unsigned>("sourceIndex");
         QTest::addColumn<QString>("language");
-        QTest::addColumn<bool>("alternative");
         QTest::addColumn<bool>("dots");
         QTest::addColumn<int>("mode");
         for (unsigned index : {0u, 1u})
             for (const QString language : {"-", "ru"})
-                for (bool alternative : {false, true})
-                    for (bool dots : {false, true})
-                        for (int mode : {0, 1})
-                            QTest::newRow(qPrintable(QString("%1-%2-%3-%4-%5")
-                                                         .arg(index)
-                                                         .arg(language)
-                                                         .arg(alternative)
-                                                         .arg(dots)
-                                                         .arg(mode)))
-                                << index << language << alternative << dots << mode;
+                for (bool dots : {false, true})
+                    for (int mode : {0, 1})
+                        QTest::newRow(qPrintable(
+                            QString("%1-%2-%3-%4").arg(index).arg(language).arg(dots).arg(mode)))
+                            << index << language << dots << mode;
     }
     void reloadUsesSourceParentSelection() {
         QFETCH(unsigned, sourceIndex);
         QFETCH(QString, language);
-        QFETCH(bool, alternative);
         QFETCH(bool, dots);
         QFETCH(int, mode);
         SaveRegLang(ToUString(language), qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         ReloadLang(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         QSettings settings(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"), QSettings::IniFormat);
         settings.setValue("FM/ShowDots", dots);
-        settings.setValue("FM/AlternativeSelection", alternative);
         settings.sync();
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());

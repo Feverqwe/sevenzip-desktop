@@ -142,12 +142,6 @@ void QtAppPresentation::SetListSettings(unsigned index, const CFmSettings &setti
     if (index >= kNumPanelsMax)
         return;
     window_.fileListSettings_ = settings;
-    window_.app_.Panels[index].SetAlternativeSelection(settings.AlternativeSelection);
-    const auto &ui = window_.panelUi_[index];
-    if (ui.iconList)
-        ui.iconList->setSelectionMode(settings.AlternativeSelection
-                                          ? QAbstractItemView::SingleSelection
-                                          : QAbstractItemView::ExtendedSelection);
 }
 
 void QtAppPresentation::ShowPanel(unsigned index, bool visible) {

@@ -4,6 +4,7 @@
 #include "filemanager/views/filetable.h"
 #include "localization/LangUtils.h"
 #include "localization/qtlangcontrols.h"
+#include "support/panel_keys.h"
 #include "ui/support/layout_inspection.h"
 #include <QPersistentModelIndex>
 
@@ -30,23 +31,16 @@ class PanelCellTextTests final : public QObject, protected MainWindowTestSupport
         QTest::addColumn<unsigned>("pane");
         QTest::addColumn<bool>("russian");
         QTest::addColumn<bool>("icons");
-        QTest::addColumn<bool>("alternative");
         for (unsigned pane : {0u, 1u})
             for (bool russian : {false, true})
                 for (bool icons : {false, true})
-                    for (bool alternative : {false, true})
-                        QTest::newRow(qPrintable(QString("%1-%2-%3-%4")
-                                                     .arg(pane)
-                                                     .arg(russian)
-                                                     .arg(icons)
-                                                     .arg(alternative)))
-                            << pane << russian << icons << alternative;
+                    QTest::newRow(qPrintable(QString("%1-%2-%3").arg(pane).arg(russian).arg(icons)))
+                        << pane << russian << icons;
     }
     void selectionProjectionKeepsTextCallbacks() {
         QFETCH(unsigned, pane);
         QFETCH(bool, russian);
         QFETCH(bool, icons);
-        QFETCH(bool, alternative);
         const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         QFile::remove(settings);
         SaveRegLang(UString(russian ? L"ru" : L"-"), settings);
@@ -58,7 +52,7 @@ class PanelCellTextTests final : public QObject, protected MainWindowTestSupport
         action(window, "twoPanelsAction")->trigger();
         auto *ui = window.findChild<QWidget *>(QString("filePanel%1").arg(pane));
         auto *view = static_cast<FileTable *>(ui->findChild<FileTable *>("archiveTable"));
-        ui->findChild<QLineEdit *>("archivePath")->setFocus();
+        PanelKeys::focusAddress(ui->findChild<QLineEdit *>("archivePath"));
         action(window, "openRootAction")->trigger();
         if (icons)
             action(window, "viewMode0Action")->trigger();
@@ -72,13 +66,12 @@ class PanelCellTextTests final : public QObject, protected MainWindowTestSupport
         QCOMPARE(view->rowCount(), 2);
         panel.SelectAll(false);
         view->setCurrentCell(0, 0, QItemSelectionModel::NoUpdate);
-        panel.SetAlternativeSelection(alternative);
         auto *peerUi = window.findChild<QWidget *>(QString("filePanel%1").arg(1 - pane));
         auto *peer = static_cast<FileTable *>(peerUi->findChild<FileTable *>("archiveTable"));
         peer->sourcePanel->Set_AutoRefresh_Mode(false);
         CMyComPtr<IFolderFolder> peerProvider = peer->sourcePanel->GetFolder();
         const int peerRows = peer->rowCount();
-        peerUi->findChild<QLineEdit *>("archivePath")->setFocus();
+        PanelKeys::focusAddress(peerUi->findChild<QLineEdit *>("archivePath"));
         QWidget *const focused = window.focusWidget();
         bool reading = false, outer = false, selected = false;
         unsigned callbacks = 0;
@@ -122,8 +115,7 @@ class PanelCellTextTests final : public QObject, protected MainWindowTestSupport
                 QVERIFY2(valid,
                          "Selection projection suppressed text callbacks or changed source marks");
                 QCOMPARE(panel.ShouldProcessNotifications(), !outer);
-                QCOMPARE(view->selectionModel()->selectedRows().size(),
-                         alternative ? 1 : (state ? 2 : 0));
+                QCOMPARE(view->selectionModel()->selectedRows().size(), state ? 2 : 0);
             }
         }
         disconnect(selectionConnection);
@@ -176,7 +168,7 @@ class PanelCellTextTests final : public QObject, protected MainWindowTestSupport
         action(window, "twoPanelsAction")->trigger();
         auto *ui = window.findChild<QWidget *>(QString("filePanel%1").arg(pane));
         auto *view = static_cast<FileTable *>(ui->findChild<FileTable *>("archiveTable"));
-        ui->findChild<QLineEdit *>("archivePath")->setFocus();
+        PanelKeys::focusAddress(ui->findChild<QLineEdit *>("archivePath"));
         action(window, "openRootAction")->trigger();
         if (icons)
             action(window, "viewMode0Action")->trigger();
@@ -198,7 +190,7 @@ class PanelCellTextTests final : public QObject, protected MainWindowTestSupport
         peer->sourcePanel->Set_AutoRefresh_Mode(false);
         CMyComPtr<IFolderFolder> peerProvider = peer->sourcePanel->GetFolder();
         const int peerRows = peer->rowCount();
-        peerUi->findChild<QLineEdit *>("archivePath")->setFocus();
+        PanelKeys::focusAddress(peerUi->findChild<QLineEdit *>("archivePath"));
         QWidget *const focused = window.focusWidget();
         const UInt32 sourceIndex = view->model()->index(0, 0).data(Qt::UserRole + 6).toUInt();
         const QString sourceName =

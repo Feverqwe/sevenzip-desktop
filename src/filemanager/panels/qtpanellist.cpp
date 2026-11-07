@@ -58,27 +58,6 @@ void QtPanelList::SetItemState_Selected(int row, bool selected) {
         (selected ? QItemSelectionModel::Select : QItemSelectionModel::Deselect) |
             QItemSelectionModel::Rows);
 }
-void QtPanelList::SelectOnly(int row) {
-    if (!IsBound())
-        return;
-    view_->selectionModel()->select(view_->model()->index(row, 0),
-                                    QItemSelectionModel::ClearAndSelect |
-                                        QItemSelectionModel::Rows);
-}
-void QtPanelList::SetItemMarked(int row, bool marked) {
-    if (!IsBound() || row < 0 || row >= GetItemCount())
-        return;
-    for (int column = 0; column < view_->model()->columnCount(); ++column) {
-        const QModelIndex index = view_->model()->index(row, column);
-        if (index.data(MarkedRole).toBool() != marked)
-            view_->model()->setData(index, marked, MarkedRole);
-    }
-}
-void QtPanelList::SetSingleSelection(bool enabled) {
-    if (view_)
-        view_->setSelectionMode(enabled ? QAbstractItemView::SingleSelection
-                                        : QAbstractItemView::ExtendedSelection);
-}
 void QtPanelList::SetItemState_DropHighlighted(QAbstractItemView *view, int row, bool highlighted) {
     if (!view || !view->model() || row < 0 || row >= view->model()->rowCount())
         return;

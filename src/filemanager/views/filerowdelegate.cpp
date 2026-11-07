@@ -74,15 +74,10 @@ void PaintWorkspaceIcon(QPainter &painter, QStyleOptionViewItem option, const QM
     const bool current = view.hasFocus() && view.currentIndex().model() == index.model() &&
                          view.currentIndex().row() == index.row();
     const bool hovered = option.state.testFlag(QStyle::State_MouseOver);
-    const QBrush marked = option.backgroundBrush;
     const QRectF tile = QRectF(option.rect).adjusted(1, 1, -1, -1);
     QRectF focus = tile;
     painter.save();
     painter.setPen(Qt::NoPen);
-    if (marked.style() != Qt::NoBrush) {
-        painter.setBrush(marked);
-        painter.drawRoundedRect(tile, 4, 4);
-    }
 #ifdef Q_OS_MACOS
     if (view.viewMode() == QListView::IconMode)
         focus = PaintMacIconSelection(painter, option, view, index, selected, hovered);
@@ -97,11 +92,6 @@ void PaintWorkspaceIcon(QPainter &painter, QStyleOptionViewItem option, const QM
         if (selected)
             UseSelectedText(option);
     }
-    if (selected && marked.style() != Qt::NoBrush)
-        painter.fillRect(
-            QRect(option.rect.left() + 2, option.rect.top() + 4, 3,
-                  qMax(0, option.rect.height() - 8)),
-            QtSemanticColors::readable(marked.color(), option.palette.highlight().color()));
     option.backgroundBrush = QBrush();
     option.state &= ~(QStyle::State_Selected | QStyle::State_HasFocus | QStyle::State_MouseOver);
     DrawItemContent(painter, option, cut);
@@ -229,15 +219,8 @@ class FileRowDelegate final : public QStyledItemDelegate {
         if (workspace_ && table) {
             initStyleOption(&option, index);
             const bool selected = option.state.testFlag(QStyle::State_Selected);
-            const QBrush marked = option.backgroundBrush;
-            if (selected || marked.style() != Qt::NoBrush) {
-                const QBrush fill = selected ? option.palette.highlight() : marked;
-                painter->fillRect(option.rect, fill);
-                option.backgroundBrush = QBrush();
-                if (selected && marked.style() != Qt::NoBrush && index.column() == qMax(0, primary))
-                    painter->fillRect(
-                        QRect(option.rect.left(), option.rect.top(), 3, option.rect.height()),
-                        QtSemanticColors::readable(marked.color(), fill.color()));
+            if (selected) {
+                painter->fillRect(option.rect, option.palette.highlight());
                 option.state &= ~QStyle::State_MouseOver;
                 if (foreground.isValid())
                     for (const auto group :
@@ -246,8 +229,7 @@ class FileRowDelegate final : public QStyledItemDelegate {
                             group, QPalette::Text,
                             QtSemanticColors::readable(
                                 qvariant_cast<QBrush>(foreground).color(),
-                                selected ? option.palette.color(group, QPalette::Highlight)
-                                         : marked.color()));
+                                option.palette.color(group, QPalette::Highlight)));
             }
             option.state &= ~(QStyle::State_Selected | QStyle::State_HasFocus);
             if (selected && !foreground.isValid())

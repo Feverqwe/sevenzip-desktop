@@ -22,7 +22,6 @@ class FileTable : public QTableView {
     Q_OBJECT
   public:
     explicit FileTable(int columns, QWidget *parent = nullptr);
-    void handleDefaultKeyPress(QKeyEvent *event);
     void refreshLanguageText();
     void InstallSelectionGesture(std::function<bool()> activate);
     virtual void invalidateLanguageText();
@@ -83,7 +82,6 @@ class FileIconList final : public QListView {
     using QListView::QListView;
     void ConfigureLargeIcons();
     void InstallSelectionGesture(std::function<bool()> activate);
-    void handleDefaultKeyPress(QKeyEvent *event);
     std::function<void()> dragStarter;
 
   protected:

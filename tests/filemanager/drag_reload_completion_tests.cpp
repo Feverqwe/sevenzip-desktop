@@ -5,6 +5,7 @@
 #include "filemanager/views/filetable.h"
 #include "localization/LangUtils.h"
 #include "support/drag_event_position.h"
+#include "support/panel_keys.h"
 #include "ui/progress/ProgressDialog2.h"
 #include "ui/support/layout_inspection.h"
 #include <QDragEnterEvent>
@@ -23,33 +24,25 @@ class DragReloadCompletionTests final : public QObject, protected MainWindowTest
         QTest::addColumn<unsigned>("pane");
         QTest::addColumn<bool>("russian");
         QTest::addColumn<bool>("icons");
-        QTest::addColumn<bool>("alternative");
         QTest::addColumn<int>("outcome");
         for (unsigned pane : {0u, 1u})
             for (bool russian : {false, true})
                 for (bool icons : {false, true})
-                    for (bool alternative : {false, true})
-                        for (int outcome : {0, 1, 2})
-                            QTest::newRow(qPrintable(QString("%1-%2-%3-%4-%5")
-                                                         .arg(pane)
-                                                         .arg(russian)
-                                                         .arg(icons)
-                                                         .arg(alternative)
-                                                         .arg(outcome)))
-                                << pane << russian << icons << alternative << outcome;
+                    for (int outcome : {0, 1, 2})
+                        QTest::newRow(qPrintable(
+                            QString("%1-%2-%3-%4").arg(pane).arg(russian).arg(icons).arg(outcome)))
+                            << pane << russian << icons << outcome;
     }
     void archiveDropUsesSourceRefresh() {
         QFETCH(unsigned, pane);
         QFETCH(bool, russian);
         QFETCH(bool, icons);
-        QFETCH(bool, alternative);
         QFETCH(int, outcome);
         const QString settingsPath = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         QFile::remove(settingsPath);
         SaveRegLang(UString(russian ? L"ru" : L"-"), settingsPath);
         ReloadLang(settingsPath);
         QSettings settings(settingsPath, QSettings::IniFormat);
-        settings.setValue("FM/AlternativeSelection", alternative);
         settings.setValue("FM/ShowDots", false);
         settings.sync();
         QTemporaryDir fixture;
@@ -80,7 +73,7 @@ class DragReloadCompletionTests final : public QObject, protected MainWindowTest
         for (QWidget *widget : {peer, owner}) {
             window.activateWindow();
             QVERIFY(QTest::qWaitForWindowActive(&window));
-            widget->findChild<QLineEdit *>("archivePath")->setFocus();
+            PanelKeys::focusAddress(widget->findChild<QLineEdit *>("archivePath"));
             window.openArchive(widget == owner ? archive : peerArchive);
         }
         window.activateWindow();

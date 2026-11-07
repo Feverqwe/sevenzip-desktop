@@ -90,7 +90,6 @@ void FileTable::startDrag(Qt::DropActions actions) {
     else
         QTableView::startDrag(actions);
 }
-void FileTable::handleDefaultKeyPress(QKeyEvent *event) { QTableView::keyPressEvent(event); }
 
 void FileTable::InstallSelectionGesture(std::function<bool()> activate) {
     QtInstallFileSelectionGesture(
@@ -140,7 +139,6 @@ void FileIconList::InstallSelectionGesture(std::function<bool()> activate) {
          [this] { return QPoint(horizontalOffset(), verticalOffset()); }},
         std::move(activate));
 }
-void FileIconList::handleDefaultKeyPress(QKeyEvent *event) { QListView::keyPressEvent(event); }
 void FileIconList::startDrag(Qt::DropActions actions) {
     if (dragStarter)
         dragStarter();

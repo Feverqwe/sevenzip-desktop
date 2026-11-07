@@ -2,6 +2,7 @@
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
 #include "localization/LangUtils.h"
+#include "support/panel_keys.h"
 #include "ui/support/layout_inspection.h"
 #include <QTableWidget>
 
@@ -101,7 +102,7 @@ class PanelItemChangedTests final : public QObject, protected MainWindowTestSupp
         QVERIFY(QTest::qWaitForWindowActive(&window));
         action(window, "twoPanelsAction")->trigger();
         for (unsigned owner : {0u, 1u}) {
-            path(window, owner)->setFocus();
+            PanelKeys::focusAddress(path(window, owner));
             path(window, owner)->setText(fixture.path());
             QTest::keyClick(path(window, owner), Qt::Key_Return);
             QTRY_COMPARE(view(window, owner)->rowCount(), 2);
@@ -110,7 +111,7 @@ class PanelItemChangedTests final : public QObject, protected MainWindowTestSupp
         auto *list = view(window, pane);
         auto &panel = *static_cast<FileTable *>(list)->sourcePanel;
         auto *peer = view(window, 1 - pane);
-        path(window, 1 - pane)->setFocus();
+        PanelKeys::focusAddress(path(window, 1 - pane));
         QWidget *const focused = window.focusWidget();
         const auto peerSelection = peer->selectionModel()->selection();
         list->clearSelection();
@@ -130,14 +131,6 @@ class PanelItemChangedTests final : public QObject, protected MainWindowTestSupp
         marks(panel, 0);
         list->selectRow(1);
         marks(panel, 1);
-        panel.SetAlternativeSelection(true);
-        panel.SelectAll(true);
-        list->clearSelection();
-        list->selectRow(0);
-        marks(panel, 2);
-        panel.SaveSelectedState(saved);
-        QCOMPARE(saved.SelectedNames.Size(), 2u);
-        panel.SetAlternativeSelection(false);
         list->clearSelection();
         marks(panel, 0);
         list->selectAll();
@@ -146,14 +139,15 @@ class PanelItemChangedTests final : public QObject, protected MainWindowTestSupp
         marks(panel, 2);
         QCOMPARE(window.focusWidget(), focused);
         QCOMPARE(peer->selectionModel()->selection(), peerSelection);
-        path(window, pane)->setFocus();
+        PanelKeys::focusAddress(path(window, pane));
         list->clearSelection();
+        list->setCurrentCell(0, 0);
         list->selectRow(0);
-        QVERIFY(action(window, "renameAction")->isEnabled());
+        QTRY_VERIFY(action(window, "renameAction")->isEnabled());
         list->selectAll();
         QVERIFY(action(window, "renameAction")->isEnabled());
         marks(panel, 2);
-        path(window, 1 - pane)->setFocus();
+        PanelKeys::focusAddress(path(window, 1 - pane));
         for (const QSize size : {QSize(980, 620), QSize(640, 400)}) {
             window.resize(size);
             QApplication::processEvents();

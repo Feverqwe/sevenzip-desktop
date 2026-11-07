@@ -81,7 +81,6 @@ class PanelCreationPublicationTests final : public QObject, protected MainWindow
         QTest::addColumn<bool>("large");
         QTest::addColumn<bool>("russian");
         QTest::addColumn<bool>("icons");
-        QTest::addColumn<bool>("alternative");
         QStringList kinds{"transport", "filesystem"};
 #ifdef SEVENZIP_CODEC_MODULE
         kinds << "zip" << "7z";
@@ -99,18 +98,16 @@ class PanelCreationPublicationTests final : public QObject, protected MainWindow
                         for (bool large : {false, true})
                             for (bool russian : {false, true})
                                 for (bool icons : {false, true})
-                                    for (bool alternative : {false, true})
-                                        QTest::newRow(qPrintable(QString("%1-%2-%3-%4-%5-%6-%7-%8")
-                                                                     .arg(late)
-                                                                     .arg(pane)
-                                                                     .arg(kind)
-                                                                     .arg(large)
-                                                                     .arg(russian)
-                                                                     .arg(icons)
-                                                                     .arg(alternative)
-                                                                     .arg(secondMain)))
-                                            << pane << late << secondMain << kind << large
-                                            << russian << icons << alternative;
+                                    QTest::newRow(qPrintable(QString("%1-%2-%3-%4-%5-%6-%7")
+                                                                 .arg(late)
+                                                                 .arg(pane)
+                                                                 .arg(kind)
+                                                                 .arg(large)
+                                                                 .arg(russian)
+                                                                 .arg(icons)
+                                                                 .arg(secondMain)))
+                                        << pane << late << secondMain << kind << large << russian
+                                        << icons;
                 }
     }
     void initialPanelsPublishInSourceCreationOrder() {
@@ -121,7 +118,6 @@ class PanelCreationPublicationTests final : public QObject, protected MainWindow
         QFETCH(bool, large);
         QFETCH(bool, russian);
         QFETCH(bool, icons);
-        QFETCH(bool, alternative);
         const bool controlledOpening = kind == "filesystem" || kind == "transport";
         const int count = large ? 301 : 2;
         const QString settingsPath = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
@@ -130,7 +126,6 @@ class PanelCreationPublicationTests final : public QObject, protected MainWindow
         ReloadLang(settingsPath);
         QSettings settings(settingsPath, QSettings::IniFormat);
         settings.setValue("FM/ShowDots", false);
-        settings.setValue("FM/AlternativeSelection", alternative);
         settings.sync();
         CWindowInfo info{};
         info.rect.right = 980;

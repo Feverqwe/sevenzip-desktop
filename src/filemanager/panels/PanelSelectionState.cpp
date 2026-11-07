@@ -83,7 +83,7 @@ void CPanel::SetFocusedSelectedItem(int index, bool select) {
     if (select) {
         _selectionList.SelectItem(index);
         const unsigned realIndex = GetRealItemIndex(index);
-        if (!_mySelectMode && realIndex != kParentIndex)
+        if (realIndex != kParentIndex)
             _selectedStatusVector[realIndex] = true;
     }
 }
@@ -104,8 +104,6 @@ HRESULT CPanel::RestoreLoadedSelection(const CSelectedState &state) {
     if (focusedPos < 0)
         focusedPos = 0;
     _selectionList.ClearSelection();
-    _startGroupSelect = 0;
-    _selectionIsDefined = false;
     const UInt32 numItems = (UInt32)_selectionList.GetItemCount();
     const UInt32 numFolderItems = GetFolderItemCount();
     const bool showDots = _showDots && !IsRootFolder();
@@ -178,7 +176,7 @@ HRESULT CPanel::RestoreLoadedSelection(const CSelectedState &state) {
                 selected = true;
         }
         _selectedStatusVector[realIndex] = selected;
-        if (selected && !_mySelectMode)
+        if (selected)
             _selectionList.SelectItem((int)i);
     }
     disableNotify.SetMemMode_Enable();

@@ -5,6 +5,7 @@
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
 #include "localization/LangUtils.h"
+#include "support/panel_keys.h"
 #include "ui/support/layout_inspection.h"
 
 class ArchiveReloadCommandTests final : public QObject, protected MainWindowTestSupport {
@@ -29,37 +30,31 @@ class ArchiveReloadCommandTests final : public QObject, protected MainWindowTest
         QTest::addColumn<unsigned>("pane");
         QTest::addColumn<bool>("russian");
         QTest::addColumn<bool>("icons");
-        QTest::addColumn<bool>("alternative");
         QTest::addColumn<bool>("keyboard");
         for (const QString &format : {QString("zip"), QString("7z")})
             for (unsigned pane : {0u, 1u})
                 for (bool russian : {false, true})
                     for (bool icons : {false, true})
-                        for (bool alternative : {false, true})
-                            for (bool keyboard : {false, true})
-                                QTest::newRow(qPrintable(QString("%1-%2-%3-%4-%5-%6")
-                                                             .arg(format)
-                                                             .arg(pane)
-                                                             .arg(russian)
-                                                             .arg(icons)
-                                                             .arg(alternative)
-                                                             .arg(keyboard)))
-                                    << format << pane << russian << icons << alternative
-                                    << keyboard;
+                        for (bool keyboard : {false, true})
+                            QTest::newRow(qPrintable(QString("%1-%2-%3-%4-%5")
+                                                         .arg(format)
+                                                         .arg(pane)
+                                                         .arg(russian)
+                                                         .arg(icons)
+                                                         .arg(keyboard)))
+                                << format << pane << russian << icons << keyboard;
     }
     void refreshLoadsBoundProvider() {
         QFETCH(QString, format);
         QFETCH(unsigned, pane);
         QFETCH(bool, russian);
         QFETCH(bool, icons);
-        QFETCH(bool, alternative);
         QFETCH(bool, keyboard);
         const QString settingsPath = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         QFile::remove(settingsPath);
         SaveRegLang(UString(russian ? L"ru" : L"-"), settingsPath);
         ReloadLang(settingsPath);
         QSettings settings(settingsPath, QSettings::IniFormat);
-        settings.setValue("FM/AlternativeSelection", alternative);
         settings.setValue("FM/ShowDots", false);
         settings.sync();
         QTemporaryDir fixture;
@@ -86,7 +81,7 @@ class ArchiveReloadCommandTests final : public QObject, protected MainWindowTest
         QVERIFY(QTest::qWaitForWindowActive(&window));
         action(window, "twoPanelsAction")->trigger();
         auto *owner = window.findChild<QWidget *>(QString("filePanel%1").arg(pane));
-        owner->findChild<QLineEdit *>("archivePath")->setFocus();
+        PanelKeys::focusAddress(owner->findChild<QLineEdit *>("archivePath"));
         window.openArchive(archive);
         auto *list = static_cast<FileTable *>(owner->findChild<FileTable *>("archiveTable"));
         QTRY_COMPARE(list->rowCount(), 2);
@@ -95,16 +90,11 @@ class ArchiveReloadCommandTests final : public QObject, protected MainWindowTest
         action(window, icons ? "viewMode0Action" : "viewMode3Action")->trigger();
         auto &panel = *list->sourcePanel;
         panel.Set_AutoRefresh_Mode(false);
-        QCOMPARE(panel._mySelectMode, alternative);
         CMyComPtr<IFolderFolder> provider = panel.GetFolder();
         QVERIFY(dynamic_cast<CAgentFolder *>((IFolderFolder *)provider));
         panel.SelectAll(false);
         MarkSelectionForTest(panel, ToUString(marked));
         list->setCurrentCell(1, 0, QItemSelectionModel::NoUpdate);
-        if (alternative)
-            list->selectionModel()->select(list->model()->index(1, 0),
-                                           QItemSelectionModel::ClearAndSelect |
-                                               QItemSelectionModel::Rows);
         CSelectedState selection;
         panel.SaveSelectedState(selection);
         QCOMPARE(selection.SelectedNames.Size(), 1u);

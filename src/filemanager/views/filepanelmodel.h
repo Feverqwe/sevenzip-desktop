@@ -27,7 +27,6 @@ class FilePanelModel final : public QAbstractTableModel {
         QIcon icon;
         bool directory = false;
         bool filesystem = false;
-        bool marked = false;
         bool dropHighlighted = false;
         std::optional<QString> editName;
         mutable QHash<int, Text> text;

@@ -46,14 +46,8 @@ void CSettingsPage::BuildControls(bool embedded) {
     _showDots = new QCheckBox(this);
     QtBindResourceText(_showDots, IDX_SETTINGS_SHOW_DOTS, "Show \"..\" item");
     _showDots->setObjectName(QStringLiteral("showDotsOption"));
-    _alternativeSelection = new QCheckBox(this);
-    QtBindResourceText(_alternativeSelection, IDX_SETTINGS_ALTERNATIVE_SELECTION,
-                       "&Alternative selection mode");
-    _alternativeSelection->setObjectName(QStringLiteral("alternativeSelectionOption"));
-    for (auto *control : {_showDots, _alternativeSelection}) {
-        listLayout->addWidget(control);
-        connect(control, &QCheckBox::toggled, this, &CSettingsPage::OnButtonClicked);
-    }
+    listLayout->addWidget(_showDots);
+    connect(_showDots, &QCheckBox::toggled, this, &CSettingsPage::OnButtonClicked);
     auto *memoryLayout = group(_memoryControls);
     auto *memoryLabel = new QLabel(this);
     QtBindResourceText(memoryLabel, IDT_MEM_USAGE_EXTRACT,

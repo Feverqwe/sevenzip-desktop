@@ -19,17 +19,13 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
     void shiftSelectionDoesNotIncludeFollowingUnmodifiedMove_data() {
         QTest::addColumn<int>("mode");
-        QTest::addColumn<bool>("alternative");
         for (int mode : {0, 3})
-            for (bool alternative : {false, true})
-                QTest::newRow(qPrintable(QString("%1-%2").arg(mode).arg(alternative)))
-                    << mode << alternative;
+            QTest::newRow(qPrintable(QString("%1").arg(mode))) << mode;
     }
     void shiftSelectionDoesNotIncludeFollowingUnmodifiedMove() {
         QFETCH(int, mode);
-        QFETCH(bool, alternative);
         QSettings settings(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"), QSettings::IniFormat);
-        settings.setValue("FM/AlternativeSelection", alternative);
+        settings.setValue("FM/AlternativeSelection", true);
         settings.sync();
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
@@ -56,8 +52,7 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
         QKeyEvent down(QEvent::KeyPress, arrow, Qt::NoModifier);
         QApplication::sendEvent(target, &shiftDown);
         QCOMPARE(view->currentRow(), 1);
-        if (!alternative)
-            QCOMPARE(view->selectionModel()->selectedRows().size(), 2);
+        QCOMPARE(view->selectionModel()->selectedRows().size(), 2);
         QApplication::sendEvent(target, &down);
         QCOMPARE(view->currentRow(), 2);
         QApplication::processEvents();
@@ -65,7 +60,7 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
         for (int row = 0; row < 3; ++row)
             QCOMPARE(
                 panel->IsItemMarked(view->model()->index(row, 0).data(Qt::UserRole + 6).toUInt()),
-                alternative ? row < 2 : row == 2);
+                row == 2);
     }
     void archiveOpenDisablesBothPanelAddresses() {
         QTemporaryDir fixture;
@@ -756,263 +751,6 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
             QCOMPARE(table->selectionModel()->selectedRows().size(), 0);
         });
         window.openArchive(temp.filePath("busy.zip"));
-    }
-
-    void alternativeSelection_data() {
-        QTest::addColumn<int>("mode");
-        QTest::addColumn<bool>("archive");
-        for (int mode : {0, 3})
-            for (bool archive : {false, true})
-                QTest::newRow(qPrintable(
-                    QStringLiteral("%1-mode%2").arg(archive ? "archive" : "disk").arg(mode)))
-                    << mode << archive;
-    }
-    void alternativeSelection() {
-        QFETCH(int, mode);
-        QFETCH(bool, archive);
-        QSettings settings(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"), QSettings::IniFormat);
-        settings.setValue("FM/AlternativeSelection", true);
-        settings.sync();
-        const auto restore = qScopeGuard([&] {
-            settings.remove("FM/AlternativeSelection");
-            settings.sync();
-        });
-        QTemporaryDir temp;
-        QVERIFY(temp.isValid());
-        ControlledBackend backend;
-        MainWindow window(&backend);
-        const QStringList names = {QStringLiteral("Альфа файл.txt"), "beta.TXT", "other.bin"};
-        if (archive) {
-            openListedArchive(window, backend, temp.filePath("marks.zip"),
-                              {ArchiveEntry{names[0], 1, 1}, ArchiveEntry{names[1], 2, 2},
-                               ArchiveEntry{names[2], 3, 3}});
-        } else {
-            for (const auto &name : names) {
-                QFile file(temp.filePath(name));
-                QVERIFY(file.open(QIODevice::WriteOnly));
-            }
-            auto *address = window.findChild<QLineEdit *>("archivePath");
-            address->setText(temp.path());
-            QTest::keyClick(address, Qt::Key_Return);
-        }
-        window.show();
-        auto *table = window.findChild<FileTable *>("archiveTable");
-        auto *icons = window.findChild<QListView *>("iconList");
-        QTRY_COMPARE(table->rowCount(), 3);
-        QAction *viewMode =
-            action(window, qPrintable(QStringLiteral("viewMode%1Action").arg(mode)));
-        QTRY_VERIFY(viewMode->isEnabled());
-        viewMode->trigger();
-        QAbstractItemView *view = mode == 3 ? static_cast<QAbstractItemView *>(table)
-                                            : static_cast<QAbstractItemView *>(icons);
-        QCOMPARE(table->selectionMode(), QAbstractItemView::SingleSelection);
-        QCOMPARE(icons->selectionMode(), QAbstractItemView::SingleSelection);
-        auto click = [&](int row, Qt::KeyboardModifiers modifiers) {
-            const QModelIndex index = table->model()->index(row, 0);
-            view->scrollTo(index);
-            QTest::mouseClick(view->viewport(), Qt::LeftButton, modifiers,
-                              view->visualRect(index).center());
-        };
-        auto marked = [&](int row) {
-            return table->model()->index(row, 0).data(Qt::BackgroundRole).isValid();
-        };
-        QSignalSpy tableClicks(table, &QTableView::clicked);
-        QSignalSpy iconClicks(icons, &QListView::clicked);
-        click(0, Qt::ControlModifier);
-        QCOMPARE(mode == 3 ? tableClicks.count() : iconClicks.count(), 1);
-        QVERIFY2(marked(0),
-                 qPrintable(
-                     QStringLiteral("focus=%1 selected=%2 source=%3 background=%4 name=%5 index=%6")
-                         .arg(table->currentRow())
-                         .arg(table->selectionModel()->selectedRows().size())
-                         .arg(static_cast<FileTable *>(table)->sourcePanel->IsItemMarked(
-                             table->model()->index(0, 0).data(Qt::UserRole + 6).toUInt()))
-                         .arg(table->model()->index(0, 0).data(Qt::BackgroundRole).toString())
-                         .arg(table->model()->index(0, 0).data().toString())
-                         .arg(table->model()->index(0, 0).data(Qt::UserRole + 6).toUInt())));
-        click(2, Qt::ControlModifier);
-        QVERIFY(marked(0) && marked(2));
-        QCOMPARE(table->selectionModel()->selectedRows().size(), 1);
-        click(1, Qt::ShiftModifier);
-        QVERIFY(!marked(0));
-        QVERIFY(marked(1) && marked(2));
-        CRecordVector<UInt32> markedIndices;
-        static_cast<FileTable *>(table)->sourcePanel->Get_ItemIndices_Selected(markedIndices);
-        QCOMPARE(markedIndices.Size(), unsigned(2));
-        if (mode == 3 && !archive) {
-            QVERIFY(action(window, "renameAction")->isEnabled());
-            QTimer::singleShot(0, &window, [&] {
-                auto *dialog = window.findChild<QDialog *>("copyDialog");
-                QVERIFY(dialog);
-                const auto close = qScopeGuard([dialog] { dialog->reject(); });
-                const QString summary = ToQString(static_cast<CopyDialog *>(dialog)->Info)
-                                            .normalized(QString::NormalizationForm_C);
-                for (int row : {1, 2})
-                    QVERIFY2(
-                        summary.contains(table->model()->index(row, 0).data().toString().normalized(
-                            QString::NormalizationForm_C)),
-                        qPrintable(summary));
-                QVERIFY2(!summary.contains(table->model()->index(0, 0).data().toString().normalized(
-                             QString::NormalizationForm_C)),
-                         qPrintable(summary));
-            });
-            action(window, "copyAction")->trigger();
-        }
-        view->setFocus();
-        QTest::keyClick(view, Qt::Key_Insert);
-        QVERIFY(!marked(1));
-        QCOMPARE(table->currentRow(), 2);
-        action(window, "selectAllAction")->trigger();
-        for (int row = 0; row < 3; ++row)
-            QVERIFY(marked(row));
-        QCOMPARE(table->selectionModel()->selectedRows().size(), 1);
-        if (((mode == 3 && !archive) || (mode == 0 && archive)) &&
-            qEnvironmentVariableIntValue("SEVENZIP_CAPTURE_SCREENSHOTS") == 1) {
-            const QString folder =
-                QDir(qEnvironmentVariable("SEVENZIP_UI_REPORT_DIR")).filePath("../ui-screenshots");
-            QVERIFY(QDir().mkpath(folder));
-            QVERIFY(view->viewport()->grab().save(QDir(folder).filePath(
-                archive ? "alternative-mark-icons.png" : "alternative-mark-table.png")));
-        }
-        for (int width : {980, 640}) {
-            window.resize(width, width == 980 ? 620 : 400);
-            QApplication::processEvents();
-            QVERIFY2(UiInspection::fullyVisible(*view, window),
-                     qPrintable(QStringLiteral("view=%1,%2 %3x%4 root=%5x%6 visible=%7 mode=%8")
-                                    .arg(UiInspection::bounds(*view, window).x())
-                                    .arg(UiInspection::bounds(*view, window).y())
-                                    .arg(view->width())
-                                    .arg(view->height())
-                                    .arg(window.width())
-                                    .arg(window.height())
-                                    .arg(view->isVisible())
-                                    .arg(mode)));
-            QVERIFY(UiInspection::writeReport(window,
-                                              QStringLiteral("alternative-selection-%1-mode%2-%3")
-                                                  .arg(archive ? "archive" : "disk")
-                                                  .arg(mode)
-                                                  .arg(width)));
-        }
-        action(window, mode == 3 ? "viewMode0Action" : "viewMode3Action")->trigger();
-        for (int row = 0; row < 3; ++row)
-            QVERIFY(marked(row));
-        action(window, qPrintable(QStringLiteral("viewMode%1Action").arg(mode)))->trigger();
-        if (archive)
-            backend.queueList({{names[0], 1, 1}, {names[1], 2, 2}, {names[2], 3, 3}});
-        action(window, "refreshAction")->trigger();
-        QTRY_COMPARE(table->rowCount(), 3);
-        QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
-        for (int row = 0; row < 3; ++row)
-            QVERIFY(marked(row));
-        if (mode == 3 && !archive) {
-            const auto toggleMode = [&](bool enabled) {
-                QTimer::singleShot(0, &window, [&] {
-                    auto *dialog = window.findChild<QDialog *>("settingsDialog");
-                    QVERIFY(dialog);
-                    dialog->findChild<QCheckBox *>("alternativeSelectionOption")
-                        ->setChecked(enabled);
-                    dialog->accept();
-                });
-                action(window, "settingsAction")->trigger();
-            };
-            toggleMode(false);
-            QCOMPARE(table->selectionMode(), QAbstractItemView::ExtendedSelection);
-            QCOMPARE(table->selectionModel()->selectedRows().size(), 3);
-            for (int row = 0; row < 3; ++row)
-                QVERIFY(!marked(row));
-            toggleMode(true);
-            QCOMPARE(table->selectionMode(), QAbstractItemView::SingleSelection);
-            QCOMPARE(table->selectionModel()->selectedRows().size(), 1);
-            for (int row = 0; row < 3; ++row)
-                QVERIFY(marked(row));
-        }
-        action(window, "deselectAllAction")->trigger();
-        for (int row = 0; row < 3; ++row)
-            QVERIFY(!marked(row));
-        click(0, Qt::NoModifier);
-        view->setFocus();
-        QTest::keyClick(view, mode <= 1 ? Qt::Key_Right : Qt::Key_Down, Qt::ShiftModifier);
-        QApplication::processEvents();
-        QVERIFY(marked(0));
-        QVERIFY(marked(1));
-    }
-
-    void alternativeRootUsesSourceMarks() {
-        QSettings settings(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"), QSettings::IniFormat);
-        settings.setValue("FM/AlternativeSelection", true);
-        settings.sync();
-        const auto restore = qScopeGuard([&] {
-            settings.remove("FM/AlternativeSelection");
-            settings.sync();
-        });
-        ControlledBackend backend;
-        MainWindow window(&backend);
-        window.show();
-        QTemporaryDir temp;
-        QVERIFY(temp.isValid());
-        auto *address = window.findChild<QLineEdit *>("archivePath");
-        address->setText(temp.path());
-        QTest::keyClick(address, Qt::Key_Return);
-        QTRY_VERIFY(action(window, "openRootAction")->isEnabled());
-        action(window, "openRootAction")->trigger();
-        auto *view = table(window);
-        QVERIFY(view->rowCount() > 0);
-        QCOMPARE(view->selectionMode(), QAbstractItemView::SingleSelection);
-        action(window, "selectAllAction")->trigger();
-        for (int row = 0; row < view->rowCount(); ++row)
-            QVERIFY(view->model()->index(row, 0).data(Qt::BackgroundRole).isValid());
-        action(window, "deselectAllAction")->trigger();
-        for (int row = 0; row < view->rowCount(); ++row)
-            QVERIFY(!view->model()->index(row, 0).data(Qt::BackgroundRole).isValid());
-    }
-
-    void alternativeMarksSurviveRemovalAndScroll() {
-        QSettings settings(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"), QSettings::IniFormat);
-        settings.setValue("FM/AlternativeSelection", true);
-        settings.setValue("FM/ShowDots", true);
-        settings.sync();
-        const auto restore = qScopeGuard([&] {
-            settings.remove("FM/AlternativeSelection");
-            settings.remove("FM/ShowDots");
-            settings.sync();
-        });
-        QTemporaryDir temp;
-        QVERIFY(temp.isValid());
-        for (int i = 0; i < 50; ++i) {
-            QFile file(temp.filePath(QStringLiteral("файл %1.txt").arg(i, 2, 10, QChar('0'))));
-            QVERIFY(file.open(QIODevice::WriteOnly));
-        }
-        ControlledBackend backend;
-        MainWindow window(&backend);
-        auto *address = window.findChild<QLineEdit *>("archivePath");
-        address->setText(temp.path());
-        QTest::keyClick(address, Qt::Key_Return);
-        window.resize(640, 400);
-        window.show();
-        QVERIFY(QTest::qWaitForWindowActive(&window));
-        auto *files = table(window);
-        QTRY_COMPARE(files->rowCount(), 51);
-        action(window, "selectAllAction")->trigger();
-        QCOMPARE(files->model()->index(0, 0).data(Qt::UserRole + 6).toUInt(), UInt32(-1));
-        QVERIFY(!files->model()->index(0, 0).data(Qt::BackgroundRole).isValid());
-        QVERIFY(files->model()->index(50, 0).data(Qt::BackgroundRole).isValid());
-        QVERIFY(QFile::remove(temp.filePath(QStringLiteral("файл 25.txt"))));
-        action(window, "refreshAction")->trigger();
-        QTRY_COMPARE(files->rowCount(), 50);
-        QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
-        CRecordVector<UInt32> marks;
-        static_cast<FileTable *>(files)->sourcePanel->Get_ItemIndices_Selected(marks);
-        QCOMPARE(marks.Size(), unsigned(49));
-        QVERIFY(!files->model()->index(0, 0).data(Qt::BackgroundRole).isValid());
-        action(window, "viewMode0Action")->trigger();
-        auto *icons = window.findChild<QListView *>("iconList");
-        icons->scrollTo(icons->model()->index(49, 0));
-        QApplication::processEvents();
-        QVERIFY(files->model()->index(49, 0).data(Qt::BackgroundRole).isValid());
-        static_cast<FileTable *>(files)->sourcePanel->Get_ItemIndices_Selected(marks);
-        QCOMPARE(marks.Size(), unsigned(49));
-        QVERIFY(UiInspection::fullyVisible(*icons, window));
-        QVERIFY(UiInspection::writeReport(window, QStringLiteral("alternative-removal-640")));
     }
 };
 

@@ -168,7 +168,6 @@ void MainWindowOperationsTests::twoPanelArchiveCopyRefreshesFilesystemDestinatio
     const int moveRow = leftRow(QFileInfo(movedSource).fileName());
     QVERIFY(moveRow >= 0);
     leftTable->selectRow(moveRow);
-    rightTable->sourcePanel->SetAlternativeSelection(true);
     QTimer::singleShot(0, &window, [&] {
         auto *dialog = window.findChild<CopyDialog *>("copyDialog");
         QVERIFY(dialog);

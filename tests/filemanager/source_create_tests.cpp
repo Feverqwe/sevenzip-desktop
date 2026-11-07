@@ -74,18 +74,14 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
     void create_data() {
         QTest::addColumn<unsigned>("pane");
         QTest::addColumn<QString>("language");
-        QTest::addColumn<bool>("alternative");
         for (unsigned pane : {0u, 1u})
             for (const QString language : {"-", "ru"})
-                for (bool alternative : {false, true})
-                    QTest::newRow(
-                        qPrintable(QString("%1-%2-%3").arg(pane).arg(language).arg(alternative)))
-                        << pane << language << alternative;
+                QTest::newRow(qPrintable(QString("%1-%2").arg(pane).arg(language)))
+                    << pane << language;
     }
     void create() {
         QFETCH(unsigned, pane);
         QFETCH(QString, language);
-        QFETCH(bool, alternative);
         const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         QFile::remove(settings);
         SaveRegLang(ToUString(language), settings);
@@ -97,7 +93,6 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         CFmSettings preferences;
         preferences.Load(settings);
         preferences.ShowDots = false;
-        preferences.AlternativeSelection = alternative;
         preferences.Save(settings);
         QTemporaryDir fixture;
         QTemporaryDir peerDirectory;
@@ -120,8 +115,6 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         view->sourcePanel->Set_AutoRefresh_Mode(false);
         view->selectRow(row(view, "keep.bin"));
         view->setCurrentCell(row(view, "keep.bin"), 0);
-        if (alternative)
-            MarkSelectionForTest(*view->sourcePanel, L"keep.bin");
         view->setFocus();
         const auto initial = view->selectionModel()->selection();
         const QString entered = QStringLiteral("new folder 空/child");
@@ -173,7 +166,7 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         UStringVector selectedNames;
         view->sourcePanel->GetSelectedNames(selectedNames);
         QCOMPARE(selectedNames.Size(), 1u);
-        QCOMPARE(ToQString(selectedNames[0]), alternative ? QStringLiteral("keep.bin") : focused);
+        QCOMPARE(ToQString(selectedNames[0]), focused);
         QCOMPARE(peer->sourcePanel->GetFolder(), (IFolderFolder *)peerFolder);
         QCOMPARE(peer->rowCount(), 0);
         QVERIFY(keep.open(QIODevice::ReadOnly));

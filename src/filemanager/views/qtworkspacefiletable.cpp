@@ -1,7 +1,6 @@
 #include "filemanager/views/qtworkspacefiletable.h"
 #include "filemanager/panels/Panel.h"
 #include "filemanager/window/qtworkspacetheme.h"
-#include "ui/theme/qtsemanticcolors.h"
 #include <QEvent>
 #include <QFileInfo>
 #include <QHeaderView>
@@ -206,13 +205,10 @@ void QtWorkspaceFileTable::paintEvent(QPaintEvent *event) {
             const int top = rowViewportPosition(row);
             if (top >= viewport()->height())
                 break;
-            const bool marked = model()->index(row, 0).data(QtPanelList::MarkedRole).toBool();
-            const bool selected = selectionModel()->isRowSelected(row, {});
-            if (selected || marked)
+            if (selectionModel()->isRowSelected(row, {}))
                 painter.fillRect(QRect(qMax(0, slack), top, viewport()->width() - qMax(0, slack),
                                        rowHeight(row)),
-                                 selected ? palette().color(QPalette::Highlight)
-                                          : QtSemanticColors::marked(palette()));
+                                 palette().color(QPalette::Highlight));
         }
     if (!hasFocus() || !currentIndex().isValid())
         return;

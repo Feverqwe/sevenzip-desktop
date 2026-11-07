@@ -8,6 +8,7 @@
 #include "localization/LangUtils.h"
 #include "platform/support/native_property_failure_runtime.h"
 #include "support/drag_event_position.h"
+#include "support/panel_keys.h"
 #include "support/widget_dialogs.h"
 #include "support/window_activation.h"
 #include "ui/progress/ProgressDialog2.h"
@@ -33,7 +34,7 @@ class NativeDropPublicationTests final : public QObject, protected MainWindowTes
                 QWidget *view = table->isVisible() ? static_cast<QWidget *>(table)
                                                    : owner->findChild<QListView *>("iconList");
                 QVERIFY(address->isEnabled() && view->isEnabled());
-                QVERIFY(UiInspection::fullyVisible(*address, window));
+                QVERIFY(UiInspection::fullyVisible(*PanelKeys::navigationFor(address), window));
                 QVERIFY(UiInspection::fullyVisible(*view, window));
             }
             QVERIFY(UiInspection::writeReport(window, QString("native-drop-%1-%2-%3")
@@ -104,7 +105,6 @@ class NativeDropPublicationTests final : public QObject, protected MainWindowTes
         const unsigned pane = unsigned(scenario % 2);
         const bool russian = scenario == 1 || scenario == 2 || scenario == 4 || scenario == 6;
         const bool icons = scenario % 2;
-        const bool alternative = scenario == 1 || scenario == 2 || scenario == 4 || scenario == 7;
         const HRESULT written = scenario == 4 ? E_FAIL : scenario == 5 ? E_ABORT : S_OK;
         const bool attempted = scenario < 6;
         const bool succeeded = attempted && written == S_OK;
@@ -115,7 +115,6 @@ class NativeDropPublicationTests final : public QObject, protected MainWindowTes
         ReloadLang(settings);
         QSettings values(settings, QSettings::IniFormat);
         values.setValue("FM/ShowDots", false);
-        values.setValue("FM/AlternativeSelection", alternative);
         values.sync();
         CWindowInfo info{};
         info.rect.right = 980;
@@ -263,9 +262,7 @@ class NativeDropPublicationTests final : public QObject, protected MainWindowTes
                 QByteArray::number(written == E_FAIL ? UInt32(E_FAIL) : 0u) + '\n'));
         else
             QVERIFY(runtime_.writerReceipts().isEmpty());
-        // Original CopyFromNoAsk reports a non-E_ABORT failure after the source
-        // progress result; there is no independent Qt error owner here.
-        QCOMPARE(errors.size(), written == E_FAIL ? 2 : 0);
+        QCOMPARE(errors.size(), written == E_FAIL ? 1 : 0);
         if (!succeeded || rendered == int(S_OK)) {
             verifySelection(panel, selected);
             QVERIFY(!QTest::currentTestFailed());
@@ -313,7 +310,7 @@ class NativeDropPublicationTests final : public QObject, protected MainWindowTes
         responder.stop();
         cancelDriver.stop();
         QVERIFY(runtime_.clear());
-        owner->findChild<QLineEdit *>("archivePath")->setFocus();
+        PanelKeys::focusAddress(owner->findChild<QLineEdit *>("archivePath"));
         window.openPath(peerPath);
         QTRY_COMPARE(list->rowCount(), 1);
         QVERIFY(SourceExtractFixture::writeFile(QDir(peerPath).filePath("timer.txt"), "timer"));
