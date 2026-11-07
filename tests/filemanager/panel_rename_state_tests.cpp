@@ -26,6 +26,49 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
         return file.open(QIODevice::WriteOnly) && file.write(bytes) == bytes.size();
     }
   private slots:
+    void relativeDestinationSelectsVisibleItem_data() {
+        QTest::addColumn<QString>("destination");
+        QTest::addColumn<QString>("visible");
+        QTest::newRow("same-folder") << QString("./renamed δ.txt") << QString("renamed δ.txt");
+        QTest::newRow("subfolder")
+            << QString("target folder/renamed δ.txt") << QString("target folder");
+    }
+    void relativeDestinationSelectsVisibleItem() {
+        QFETCH(QString, destination);
+        QFETCH(QString, visible);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString source = fixture.filePath("original.txt");
+        QVERIFY(write(source, "original bytes"));
+        QVERIFY(write(fixture.filePath("keep.txt"), "keep bytes"));
+        QVERIFY(QDir().mkdir(fixture.filePath("target folder")));
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        window.openPath(fixture.path());
+        auto *view = table(window);
+        QTRY_COMPARE(view->rowCount(), 3);
+        const int row = filesystemRow(window, "original.txt");
+        QVERIFY(row >= 0);
+        view->setCurrentCell(row, 0);
+        view->selectRow(row);
+        view->setFocus();
+        action(window, "renameAction")->trigger();
+        auto *editor = view->findChild<QLineEdit *>();
+        QVERIFY(editor && editor->isVisible());
+        editor->setText(destination);
+        QTest::keyClick(editor, Qt::Key_Return);
+        const QString output = fixture.filePath(destination);
+        QTRY_VERIFY(QFileInfo::exists(output));
+        QVERIFY(!QFileInfo::exists(source));
+        QTRY_COMPARE(view->currentIndex().data().toString(), visible);
+        QVERIFY(view->selectionModel()->isRowSelected(view->currentRow(), {}));
+        QFile payload(output);
+        QVERIFY(payload.open(QIODevice::ReadOnly));
+        QCOMPARE(payload.readAll(), QByteArray("original bytes"));
+    }
+
     void activationUsesFocusedRow_data() {
         QTest::addColumn<unsigned>("pane");
         QTest::addColumn<bool>("icons");

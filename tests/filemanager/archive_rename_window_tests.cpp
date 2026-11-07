@@ -158,6 +158,8 @@ class ArchiveRenameWindowTests final : public QObject, protected MainWindowTestS
         QVERIFY2(message.isEmpty(), qPrintable(message));
         QCOMPARE(view->rowCount(), 1);
         QCOMPARE(view->model()->index(0, 0).data(Qt::UserRole + 3).toString(), directory);
+        QCOMPARE(view->currentRow(), 0);
+        QVERIFY(view->selectionModel()->isRowSelected(0, {}));
         QCOMPARE(view->sourcePanel->GetFolder(), provider.Interface());
         QCOMPARE(view->sourcePanel->GetCurrentFolderPrefix(), prefix);
         QCOMPARE(ExternalEditorFixture::contents(archive, renamed + (folder ? "/item.txt" : "")),

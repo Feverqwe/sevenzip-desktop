@@ -60,8 +60,9 @@ state without loading rows. `panel_rename_state` covers both panes and EN/RU;
 checks do not use its hidden backing-widget geometry as rendered native proof.
 
 Archive Rename accepts safe relative paths and rejects absolute paths and parent
-traversal before writing. A relative Rename retains the current provider and
-prefix while the source reload publishes the new parent row. ZIP/7z file and implicit-folder scenarios
+traversal before writing. When a relative Rename leaves the result under the
+current folder, the panel selects the renamed item or its first visible parent.
+ZIP/7z file and implicit-folder scenarios
 inspect the table at980×620/640×400 in eight `archive-rename-relative-*` reports.
 Their geometry checks do not establish rendered Windows pixel parity.
 

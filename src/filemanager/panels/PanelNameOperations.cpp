@@ -3,6 +3,7 @@
 // Igor Pavlov, LGPL-2.1-or-later; see third_party/7zip/License.txt.
 #include "7zip/UI/Common/StdAfx.h"
 #include "7zip/UI/FileManager/resource.h"
+#include "Windows/FileName.h"
 #include "filemanager/FormatUtils.h"
 #include "filemanager/panels/Panel.h"
 #include "filemanager/panels/PanelFolderOperations.h"
@@ -19,26 +20,57 @@ static bool IsCorrectFsName(const UString &name) {
     return !lastPart.IsEqualTo(".") && !lastPart.IsEqualTo("..");
 }
 
+static UString FirstPathPart(UString name) {
+    const int pos = NWindows::NFile::NName::FindSepar(name);
+    if (pos >= 0)
+        name.DeleteFrom((unsigned)pos);
+    return name;
+}
+
+static UString VisibleFilesystemItem(const QString &base, const QString &destination) {
+    if (base.isEmpty() || destination.isEmpty())
+        return {};
+    const QString relative = QDir(base).relativeFilePath(destination);
+    if (relative == "." || relative == ".." || relative.startsWith("../") ||
+        QDir::isAbsolutePath(relative))
+        return {};
+    return FirstPathPart(ToUString(relative));
+}
+
 static void PrepareCreatedSelection(const CPanel &panel, UString newName, CSelectedState &state) {
     if (panel.IsFSFolder()) {
         const QDir folder(ToQString(panel.GetFsPath()));
-        const QString base = folder.canonicalPath();
-        const QString created = QFileInfo(folder, ToQString(newName)).canonicalFilePath();
-        if (base.isEmpty() || created.isEmpty())
+        newName = VisibleFilesystemItem(folder.canonicalPath(),
+                                        QFileInfo(folder, ToQString(newName)).canonicalFilePath());
+        if (newName.IsEmpty())
             return;
-        const QString relative = QDir(base).relativeFilePath(created);
-        if (relative == "." || relative == ".." || relative.startsWith("../") ||
-            QDir::isAbsolutePath(relative))
-            return;
-        newName = ToUString(QDir::toNativeSeparators(relative));
+    } else {
+        const int pos = newName.Find(WCHAR_PATH_SEPARATOR);
+        if (pos >= 0)
+            newName.DeleteFrom((unsigned)pos);
     }
-    const int pos = newName.Find(WCHAR_PATH_SEPARATOR);
-    if (pos >= 0)
-        newName.DeleteFrom((unsigned)pos);
     state.SelectedNames.Clear();
     state.FocusedName = newName;
     state.FocusedName_Defined = true;
     state.SelectFocused = true;
+}
+
+static UString RenamedItemInView(const CPanel &panel, const UString &relative) {
+    if (NWindows::NFile::NName::FindSepar(relative) < 0 || panel.GetFlatMode())
+        return relative;
+    if (panel.IsArcFolder())
+        return FirstPathPart(relative);
+    if (panel.IsFSFolder()) {
+        const UString base = panel.GetFsPath();
+        const QFileInfo target(ToQString(base + relative));
+        // Resolve the containing directory while keeping the renamed leaf,
+        // which can be a symbolic link.
+        const QString parent = QDir(target.path()).canonicalPath();
+        if (!parent.isEmpty())
+            return VisibleFilesystemItem(QDir(ToQString(base)).canonicalPath(),
+                                         QDir(parent).filePath(target.fileName()));
+    }
+    return relative;
 }
 
 bool CPanel::CorrectFsPath(const UString &path2, UString &result) {
@@ -128,7 +160,7 @@ HRESULT CPanel::OnEndLabelEdit(UInt32 realIndex, const UString &enteredName) {
     const HRESULT result =
         op.DoOperation(*this, LangString(IDS_RENAMING), LangString(IDS_ERROR_RENAMING));
     if (result == S_OK)
-        state.FocusedName = prefix + newName;
+        state.FocusedName = RenamedItemInView(*this, prefix + newName);
     else
         state.FocusedName = prefix + oldName;
     state.FocusedName_Defined = true;

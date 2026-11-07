@@ -6,6 +6,7 @@
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
 #include "platform/support/external_editor_fixture.h"
+#include "support/progress_dialog.h"
 #include "ui/support/layout_inspection.h"
 
 namespace {
@@ -121,9 +122,12 @@ class PanelNameTextTests final : public QObject, protected MainWindowTestSupport
         };
         QTimer closeError;
         connect(&closeError, &QTimer::timeout, &panel, [] {
-            for (QWidget *widget : QApplication::topLevelWidgets())
+            for (QWidget *widget : QApplication::topLevelWidgets()) {
+                if (TestProgressDialog::DismissVisibleResult(widget))
+                    continue;
                 if (auto *box = qobject_cast<QMessageBox *>(widget); box && box->isVisible())
                     box->accept();
+            }
         });
         closeError.start(2);
         std::unique_ptr<CPanel::CDisableNotify> notify;
