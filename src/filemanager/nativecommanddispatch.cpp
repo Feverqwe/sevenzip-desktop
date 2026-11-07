@@ -105,11 +105,6 @@ bool ExecuteFileCommand(unsigned id, IQtFileManagerCommandServices &g_App) {
     case IDM_CREATE_FOLDER:
         g_App.CreateFolder();
         break;
-#ifndef UNDER_CE
-    case IDM_LINK:
-        g_App.Link();
-        break;
-#endif
     default:
         return false;
     }

@@ -114,10 +114,7 @@ void CPanel::CreateFileMenu(IQtFileMenuServices &menu, bool programMenu,
     CFileMenu fm;
     fm.readOnly = IsThereReadOnlyFolder();
     fm.isHashFolder = IsHashFolder();
-    fm.isFsFolder = Is_IO_FS_Folder();
     fm.programMenu = programMenu;
-    fm.allAreFiles = (firstDirIndex == -1);
-    fm.numItems = operatedIndices.Size();
     // Qt stores/renders plugin rows separately from CFileMenu's projection;
     // its zero position is the original menu.GetItemCount() insertion point.
     fm.Load(menu, 0);

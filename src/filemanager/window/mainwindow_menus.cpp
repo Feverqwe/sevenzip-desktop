@@ -194,7 +194,6 @@ void MainWindow::populateSourceMenus() {
     file->addSeparator();
     file->addAction(createFolder_);
     file->addSeparator();
-    unavailable(file, QStringLiteral("Link"), "linkAction", IDM_LINK);
     file->addSeparator();
     file->addAction(exitAction_);
     auto *archives = file->addMenu(tr("Archive"));

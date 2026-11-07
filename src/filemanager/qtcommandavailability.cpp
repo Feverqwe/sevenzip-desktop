@@ -198,8 +198,6 @@ bool QtFileManagerCommands::TransportAllows(unsigned id, const TransportCapabili
         return c.focusedNonParent && (c.filesystem || c.filesystemStreams || c.mutationWritable);
     case IDM_CREATE_FOLDER:
         return c.filesystem || c.mutationWritable;
-    case IDM_LINK:
-        return c.filesystem && c.one;
     case IDM_CRC32:
     case IDM_CRC64:
     case IDM_XXH64:

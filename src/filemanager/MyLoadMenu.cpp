@@ -217,7 +217,7 @@ void CFileMenu::Load(IQtFileMenuServices &destMenu, unsigned startPos) {
             if (item.wID == IDM_DIFF || (item.wID >= IDM_VER_EDIT && item.wID <= IDM_VER_DIFF) ||
                 item.wID == IDM_BENCHMARK || item.wID == IDM_BENCHMARK2 || item.wID == IDM_SPLIT ||
                 item.wID == IDM_COMBINE || item.wID == IDM_CREATE_FILE ||
-                item.wID == IDM_ALT_STREAMS || item.wID == IDM_COMMENT)
+                item.wID == IDM_ALT_STREAMS || item.wID == IDM_COMMENT || item.wID == IDM_LINK)
                 continue;
             bool disable = false;
             if (readOnly) {
@@ -243,12 +243,9 @@ void CFileMenu::Load(IQtFileMenuServices &destMenu, unsigned startPos) {
                 case IDM_MOVE_TO:
                 // case IDM_DELETE:
                 case IDM_CREATE_FOLDER:
-                case IDM_LINK:
                     disable = true;
                 }
             }
-            if (item.wID == IDM_LINK && numItems != 1)
-                disable = true;
             if (!isBigScreen && (disable || item.IsSeparator()))
                 continue;
             destMenu.CopyPopMenu_IfRequired(item);

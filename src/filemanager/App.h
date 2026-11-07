@@ -120,7 +120,6 @@ class CApp {
         _qtCommandServices = services;
     }
     bool ExecuteCommand(unsigned id);
-    void Link();
     void RefreshTitleAlways() { RefreshTitle(true); }
     HRESULT CalculateCrc2(const UString &methodName,
                           const CExternalCodecs *externalCodecs = nullptr);

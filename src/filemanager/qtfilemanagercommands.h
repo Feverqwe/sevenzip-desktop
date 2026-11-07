@@ -52,7 +52,6 @@ class QtFileManagerCommands final : public IQtFileManagerMenuCommandServices {
     void CalculateCrc(const char *methodName) override;
     void Properties() override;
     void CreateFolder() override;
-    void Link() override;
     void AddToArchive() override;
     void ExtractArchives() override;
     void TestArchives() override;

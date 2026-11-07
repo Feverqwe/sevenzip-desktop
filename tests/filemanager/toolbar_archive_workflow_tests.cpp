@@ -483,7 +483,7 @@ class ToolbarArchiveWorkflowTests final : public QObject, protected MainWindowTe
             QTimer driver;
             dialogs_.connectResponder(driver, &window, [&] {
                 auto *dialog = dialogs_.activeDialog();
-                if (!dialog || dialog->objectName() != "IDD_LINK")
+                if (!dialog || dialog->objectName() != "copyDialog")
                     return;
                 if (!released) {
                     released = writeFile(backend.OutputBarrier, "continue");
@@ -495,11 +495,11 @@ class ToolbarArchiveWorkflowTests final : public QObject, protected MainWindowTe
             driver.start(5);
             QTimer::singleShot(25000, &window, [&window] {
                 if (auto *dialog = qobject_cast<QDialog *>(QApplication::activeModalWidget()))
-                    if (dialog->objectName() == "IDD_LINK")
+                    if (dialog->objectName() == "copyDialog")
                         dialog->reject();
             });
-            QVERIFY(action(window, "linkAction")->isEnabled());
-            action(window, "linkAction")->trigger();
+            QVERIFY(action(window, "copyAction")->isEnabled());
+            action(window, "copyAction")->trigger();
             driver.stop();
             QVERIFY(released);
             QVERIFY(deferred);

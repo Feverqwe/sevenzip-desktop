@@ -1287,8 +1287,6 @@
     "src/dialogs/edit/EditDialog.h",
     "src/dialogs/extract/ExtractDialog.cpp",
     "src/dialogs/extract/ExtractDialog.h",
-    "src/dialogs/link/LinkDialog.cpp",
-    "src/dialogs/link/LinkDialog.h",
     "src/dialogs/listview/ListViewDialog.cpp",
     "src/dialogs/listview/ListViewDialog.h",
     "src/dialogs/mem/MemDialog.cpp",
@@ -1716,9 +1714,6 @@
     "src/dialogs/delete/qtdeleteconfirmation.h",
     "src/dialogs/extract/alias.h",
     "src/dialogs/extract/qtextractpresentation.cpp",
-    "src/dialogs/link/qtlinkcontrols.cpp",
-    "src/dialogs/link/qtlinkcontrols.h",
-    "src/dialogs/link/qtlinkpresentation.cpp",
     "src/dialogs/listview/qtlistviewdialogpresentation.cpp",
     "src/dialogs/listview/qtreportdata.cpp",
     "src/dialogs/listview/qtreportdata.h",
@@ -1729,7 +1724,6 @@
     "src/dialogs/taskresult/qttaskresultdialog.cpp",
     "src/dialogs/taskresult/qttaskresultdialog.h",
     "src/filemanager/AppCopy.cpp",
-    "src/filemanager/AppLink.cpp",
     "src/filemanager/ExtractCallbackOutput.cpp",
     "src/filemanager/external/qtexternalapplications.cpp",
     "src/filemanager/external/qtexternalapplications.h",
@@ -2870,8 +2864,6 @@
     "src/settings/LangPage.h": "289be22842c647ec7e6809d4ee1c238591f3ebb378d3f957769c55123ca63a11",
     "src/localization/LangUtils.cpp": "1817b5dfc7b0a9343dc9b5ed1caaac10e577439c38f8e2896c4b254d23f34f6b",
     "src/localization/LangUtils.h": "e0af42e936a158a2e56af848b7bfa76ebead5878774a710bc8ce122882cfc615",
-    "src/dialogs/link/LinkDialog.cpp": "2c7c7f99323ed58094633b708cbf6c030db8c7141643fd6d3032a8fb763cb25b",
-    "src/dialogs/link/LinkDialog.h": "61ae1f35b27f3bd9da4ee3d4ad48cf388d328768936b974e6513f9a836f895dc",
     "src/dialogs/listview/ListViewDialog.cpp": "fc3dabdbb278aae7790b7dfdd617e1827fc53b731651d4cc0cf2e4fa66d950df",
     "src/dialogs/listview/ListViewDialog.h": "ce463374762ea774e0d8dabbd4a0f7e5f423ee015ad38f3a9926366ae2084da0",
     "src/dialogs/mem/MemDialog.cpp": "62740983f93a104e7299483f83020e158bb7bdf775d2fb6aaed2a1e57e809c5d",
@@ -3613,14 +3605,6 @@
       "local": ["src/filemanager/properties/qtpropertyformat.cpp"],
       "symbols": ["ConvertPropertyToShortString2 (FILETIME precision decoding)"]
     },
-    "src/dialogs/link/LinkDialog.cpp": {
-      "local": [
-        "src/filemanager/AppLink.cpp"
-      ],
-      "symbols": [
-        "CApp::Link"
-      ]
-    },
     "src/archive/callbacks/ArchiveExtractCallback.cpp": {
       "local": [
         "src/archive/resources/qtarchivereadcallback.cpp"
@@ -4341,8 +4325,6 @@
     "src/settings/LangPage.h": "CPP/7zip/UI/FileManager/LangPage.h",
     "src/localization/LangUtils.cpp": "CPP/7zip/UI/FileManager/LangUtils.cpp",
     "src/localization/LangUtils.h": "CPP/7zip/UI/FileManager/LangUtils.h",
-    "src/dialogs/link/LinkDialog.cpp": "CPP/7zip/UI/FileManager/LinkDialog.cpp",
-    "src/dialogs/link/LinkDialog.h": "CPP/7zip/UI/FileManager/LinkDialog.h",
     "src/dialogs/listview/ListViewDialog.cpp": "CPP/7zip/UI/FileManager/ListViewDialog.cpp",
     "src/dialogs/listview/ListViewDialog.h": "CPP/7zip/UI/FileManager/ListViewDialog.h",
     "src/dialogs/mem/MemDialog.cpp": "CPP/7zip/UI/FileManager/MemDialog.cpp",

@@ -21,12 +21,7 @@ struct CFileMenu {
     bool programMenu;
     bool readOnly;
     bool isHashFolder;
-    bool isFsFolder;
-    bool allAreFiles;
-    unsigned numItems;
 
-    CFileMenu()
-        : programMenu(false), readOnly(false), isHashFolder(false), isFsFolder(false),
-          allAreFiles(false), numItems(0) {}
+    CFileMenu() : programMenu(false), readOnly(false), isHashFolder(false) {}
     void Load(IQtFileMenuServices &menu, unsigned startPos);
 };

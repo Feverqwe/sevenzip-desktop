@@ -41,7 +41,6 @@ QList<QAction *> QtGroupFileCommands(QMenu &menu, bool contextMenu) {
                 frequent.append(action);
                 break;
             case IDM_CREATE_FOLDER:
-            case IDM_LINK:
                 create.append(action);
                 break;
             case IDM_PROPERTIES:

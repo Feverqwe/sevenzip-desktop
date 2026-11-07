@@ -174,12 +174,6 @@ void QtFileManagerCommands::InvokePluginCommand(unsigned id) {
     window_.programFileMenu_->InvokePluginCommand(id);
 }
 void QtFileManagerCommands::ReleasePluginMenus() { window_.programFileMenu_->ReleasePluginMenus(); }
-void QtFileManagerCommands::Link() {
-    auto &w = window_;
-    QtAppOperationState::CallScope call(w.app_.QtOperations());
-    w.app_.Link();
-    w.refreshActions();
-}
 void QtFileManagerCommands::SwitchOnOffOnePanel() { window_.togglePanels(); }
 void QtFileManagerCommands::AboutDialog() {
     CAboutDialog dialog(&window_);

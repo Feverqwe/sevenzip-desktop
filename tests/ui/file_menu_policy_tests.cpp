@@ -100,10 +100,8 @@ class FileMenuPolicyTests : public QObject {
     void removedCommandsStayOutOfFileMenu() {
         auto menu = commands({IDM_DIFF, IDM_VER_EDIT, IDM_VER_COMMIT, IDM_VER_REVERT, IDM_VER_DIFF,
                               IDM_BENCHMARK2, IDM_SPLIT, IDM_COMBINE, IDM_CREATE_FILE,
-                              IDM_ALT_STREAMS, IDM_COMMENT, IDM_PROPERTIES});
+                              IDM_ALT_STREAMS, IDM_COMMENT, IDM_LINK, IDM_PROPERTIES});
         CFileMenu policy;
-        policy.isFsFolder = policy.allAreFiles = true;
-        policy.numItems = 1;
         policy.Load(menu, 0);
         QCOMPARE(menu.ids(), QList<unsigned>{IDM_PROPERTIES});
     }

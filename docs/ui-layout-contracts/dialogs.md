@@ -41,7 +41,7 @@ accepted values and cancellation remain with the dialog and operation owner.
 
 ### Contextual modality on macOS (redesign, 2026-10-18)
 
-Contextual name/mask/comment, Copy/Move/Combine, Split, Link, password, memory,
+Contextual name/mask/comment, Copy/Move, password, memory,
 overwrite, Add/Extract, format-options and file/folder pickers use window modality
 when they have a parent on macOS. Native Qt sheets block that owner while an
 independent window remains interactive. Parentless entry points retain their
@@ -82,36 +82,6 @@ an empty report cannot overwrite the clipboard. Native button ordering is retain
 `list_view_dialog` writes EN/RU
 source-initial and540×360/360×240 reports, checking exposed list/footer without
 changing stored full values, clipboard/detail or acceptance behavior.
-
-### Link (P2-05)
-
-Reference: pinned FileManager/LinkDialog.rc and source OnInit/OnButton_Link.
-Initial size follows visible controls and native minima. Root/footer use the
-shared redesigned dialog layout;
-Browse is20DLU wide. Empty Current target text reserves no row, and native
-spacing separates paths and Link Type. The footer uses a native QDialogButtonBox
-with content-sized Create link/Cancel actions.
-The source resizable/minimize/maximize capabilities are requested through Qt
-window flags; native window managers may suppress modal title-bar controls.
-The resource has no context-help title-bar button.
-Link from combo/browse precedes Link to combo/browse and current target text.
-Link Type contains Hard→File Symbolic→Directory Symbolic→Junction→WSL in source
-order. Create link is the default footer button; button ordering follows the
-platform. Qt scrolls the
-content when necessary; requested compact sizes expand to show the path inputs
-and all link choices. Desktop-only Junction/WSL remain visibly disabled on
-POSIX with a platform reason. Source radio/type choices and errors remain owned
-by CLinkDialog; Qt controls bind original captions and LangSetDlgItems maps
-IDCANCEL to its source language entry.
-Radio captions use the existing220-pixel language wrapping binding so native
-Windows EN/RU font metrics do not force horizontal clipping at360 pixels.
-`link_dialog` writes EN/RU520×500/360×300 JSON and checks named controls after
-scrolling and footer exposure, plus native-font initial frames. Review captures
-return to the top after reachability probes. Historical native EN/RU reports and
-rendered original initial states are recorded in the
-[secondary-dialog receipt](../archive/qt-port/upstream-port-audit/p3-06-secondary-dialogs-2026-10-16.md).
-Native font metrics, compact scrolling and modal chrome prevent a claim of
-complete rendered Windows pixel equality.
 
 ## Commands and reports
 

@@ -61,7 +61,6 @@ add_library(sevenzip_panel
     src/filemanager/SplitUtils.cpp
     src/filemanager/App.cpp
     src/filemanager/AppCopy.cpp
-    src/filemanager/AppLink.cpp
     src/ui/theme/qtsemanticcolors.cpp
     src/ui/theme/qtsemanticcolors.h
     src/platform/memory/qtmemorylockservices.cpp
@@ -119,11 +118,6 @@ add_library(sevenzip_panel
     src/operations/CompressCall.h
     src/dialogs/compress/qtcompresscallservices.h
     src/gui/qtupdateguiservices.h
-    src/dialogs/link/LinkDialog.cpp
-    src/dialogs/link/LinkDialog.h
-    src/dialogs/link/qtlinkcontrols.cpp
-    src/dialogs/link/qtlinkpresentation.cpp
-    src/dialogs/link/qtlinkcontrols.h
     src/filemanager/ExtractCallback.cpp
     src/filemanager/ExtractCallbackOutput.cpp
     src/archive/resources/virtualextractfilesystem.cpp

@@ -1,12 +1,10 @@
 #include "fileops/links/qtlinkservices.h"
 #include "Common/StringConvert.h"
-#include "Common/UTFConvert.h"
 #include "Windows/FileFind.h"
 #include "Windows/FileIO.h"
 #include "fileops/native/FileDir.h"
 #include <QDir>
 #include <QFileInfo>
-#include <QTemporaryDir>
 #ifndef _WIN32
 #include <cstdio>
 #ifdef __APPLE__
@@ -115,48 +113,3 @@ bool QtCopyFileSystemLink(const QString &source, const QString &destination) {
     SetLastError(error);
     return false;
 }
-
-#ifndef _WIN32
-bool QtGetPosixLinkTarget(CFSTR path, UString &target) {
-    CByteBuffer raw;
-    if (!NWindows::NFile::NIO::GetReparseData(path, raw))
-        return false;
-    AString text;
-    text.SetFrom_CalcLen(reinterpret_cast<const char *>(static_cast<const Byte *>(raw)),
-                         raw.Size());
-    if (ConvertUTF8ToUnicode(text, target))
-        return true;
-    SetLastError(EINVAL);
-    return false;
-}
-bool QtSetPosixLink(const UString &from, const UString &to) {
-    using namespace NWindows::NFile;
-    const FString path = us2fs(from);
-    NFind::CFileInfo info;
-    if (!info.Find(path))
-        return NIO::SetSymLink_UString(path, to);
-    if (!info.IsOsSymLink()) {
-        SetLastError(EEXIST); // POSIX has no reparse attribute on an empty plain inode.
-        return false;
-    }
-    if (to.IsEmpty())
-        return NDir::DeleteFileAlways(path);
-    // POSIX replaces the link inode rather than a Windows reparse attribute.
-    // Build a new link privately in the same parent, then use the source rename
-    // adapter atomically. Failure preserves the old link and its target bytes.
-    const QString parent = QFileInfo(QString::fromWCharArray(from.Ptr())).absolutePath();
-    bool result = false;
-    DWORD error = EACCES;
-    {
-        QTemporaryDir stage(QDir(parent).filePath(".sevenzip-link-XXXXXX"));
-        if (stage.isValid()) {
-            const FString staged = us2fs(UString(stage.filePath("link").toStdWString().c_str()));
-            if (NIO::SetSymLink_UString(staged, to))
-                result = NDir::MyMoveFile(staged, path);
-            error = GetLastError();
-        }
-    }
-    SetLastError(error); // Private stage cleanup must not replace the native error.
-    return result;
-}
-#endif

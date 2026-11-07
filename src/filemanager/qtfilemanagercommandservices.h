@@ -20,7 +20,6 @@ class IQtFileManagerCommandServices {
     virtual void CalculateCrc(const char *methodName) = 0;
     virtual void Properties() = 0;
     virtual void CreateFolder() = 0;
-    virtual void Link() = 0;
 };
 
 class IQtFileManagerMenuCommandServices : public IQtFileManagerCommandServices {

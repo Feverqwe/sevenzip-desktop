@@ -306,8 +306,6 @@ class MainShellTests final : public QObject {
     void sourceCommandsKeepAvailabilityAndShortcuts() {
         ControlledBackend backend;
         MainWindow window(&backend);
-        auto *link = window.findChild<QAction *>("linkAction");
-        QVERIFY(link && !link->isEnabled());
         QVERIFY(window.findChild<QAction *>("aboutAction")->isEnabled());
         QVERIFY(window.findChild<QAction *>("tempDirAction")->isEnabled());
         QCOMPARE(window.findChild<QAction *>("openInsideAction")->shortcut(),

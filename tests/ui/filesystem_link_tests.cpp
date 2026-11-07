@@ -287,7 +287,9 @@ class FileSystemLinkTests : public QObject {
             ~Restore() { QFile::setPermissions(path, permissions); }
         } restore{temp.path(), permissions};
         QVERIFY(QFile::setPermissions(temp.path(), QFileDevice::ReadOwner | QFileDevice::ExeOwner));
-        QVERIFY(!QtSetPosixLink(UString(source.toStdWString().c_str()), UString("new missing")));
+        const QString denied = temp.filePath("denied");
+        QVERIFY(!QtCopyFileSystemLink(source, denied));
+        QVERIFY(!QFileInfo(denied).isSymLink());
 #endif
         QCOMPARE(raw(source), original);
     }
