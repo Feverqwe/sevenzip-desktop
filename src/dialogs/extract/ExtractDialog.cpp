@@ -196,28 +196,30 @@ void CExtractDialog::OnOK() {
     UString s = DraftDestination();
     const QString base = _path->currentText().trimmed();
     const QString requested = ToQString(s);
-    bool valid = !base.isEmpty() && !requested.contains(QChar::Null);
-    if (valid) {
-        QString path = QDir::cleanPath(QFileInfo(requested).absoluteFilePath());
+    const auto canUseDirectory = [](const QString &candidate) {
+        if (candidate.isEmpty() || candidate.contains(QChar::Null))
+            return false;
+        QString path = QDir::cleanPath(QFileInfo(candidate).absoluteFilePath());
         for (;;) {
             const QFileInfo entry(path);
-            if (entry.exists()) {
-                valid = entry.isDir();
-                break;
-            }
+            if (entry.exists())
+                return entry.isDir();
             const QString parent = entry.absolutePath();
             if (parent == path)
-                break;
+                return true;
             path = parent;
         }
-    }
-    if (!valid) {
+    };
+    if (base.isEmpty() || !canUseDirectory(requested)) {
         _destinationError->setText(
             base.isEmpty() ? QCoreApplication::translate("CopyRedesign", "Choose a destination.")
                            : QCoreApplication::translate("SevenZipDiagnostics",
                                                          "Incorrect output directory path"));
         _destinationError->show();
-        _path->setFocus();
+        if (_nameEnable->isChecked() && canUseDirectory(base))
+            _pathName->setFocus();
+        else
+            _path->setFocus();
         return;
     }
     const int pathMode2 = _pathMode->currentData().toInt();

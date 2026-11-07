@@ -56,6 +56,8 @@ remain effective when Advanced settings is collapsed. A short Modified indicator
 identifies nondefault hidden options; expanded fields have no value summary.
 Windows security is shown only on Windows.
 The form body scrolls at compact heights while Extract/Cancel remain visible.
+An invalid destination keeps the form open and focuses the destination or
+subfolder field that needs correction.
 The caller supplies the actual source archive names. One archive shows its name;
 multiple archives show a translated count and an optional read-only list. Full
 paths remain available in the source tooltip and accessibility description.

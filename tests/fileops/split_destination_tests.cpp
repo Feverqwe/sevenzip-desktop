@@ -165,9 +165,12 @@ class SplitDestinationTests final : public QObject {
                 path(dialog)->setEditText("  ");
                 dialog.accept();
                 QVERIFY(dialog.isVisible() && error->isVisible());
+                QTRY_VERIFY(dialog.focusWidget() == path(dialog) ||
+                            dialog.focusWidget() == path(dialog)->lineEdit());
                 path(dialog)->setEditText(base);
                 dialog.accept();
                 QVERIFY(dialog.isVisible() && error->isVisible());
+                QTRY_COMPARE(dialog.focusWidget(), name(dialog));
                 QCOMPARE(overwrite->currentData().toInt(), int(selectedMode));
                 QCOMPARE(name(dialog)->text(), QString("occupied/child"));
                 name(dialog)->setText("corrected");
