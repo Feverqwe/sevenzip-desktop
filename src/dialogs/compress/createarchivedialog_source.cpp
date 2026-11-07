@@ -17,7 +17,10 @@ void CreateArchiveDialog::initializeSourceControls(const NCompressDialog::CInfo 
     archiveNameState_.SetArchiveName(name);
     name_->setText(archiveNameState_.m_ArchivePath);
     archiveFolder_->setText(QDir::toNativeSeparators(archiveNameState_.DirPrefix));
-    updateMode_->setCurrentIndex(updateMode_->findData(int(info.UpdateMode)));
+    const int updateIndex = updateMode_->findData(int(info.UpdateMode));
+    updateMode_->setCurrentIndex(
+        updateIndex >= 0 ? updateIndex
+                         : updateMode_->findData(int(NCompressDialog::NUpdateMode::kAdd)));
     pathMode_->setCurrentIndex(pathMode_->findData(int(info.PathMode)));
     sharedFiles_->setChecked(info.OpenShareForWrite);
     if (password_) {

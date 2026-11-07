@@ -169,6 +169,7 @@ class CompressionTests : public QObject {
         auto *scroll = dialog.findChild<QScrollArea *>();
         auto *buttons = dialog.findChild<QDialogButtonBox *>();
         QVERIFY(mode && pathMode && level && scroll && buttons);
+        QCOMPARE(mode->findData(int(NCompressDialog::NUpdateMode::kSync)), -1);
         ExpandArchiveSections(dialog);
         QCOMPARE(pathMode->currentData().toInt(), int(NWildcard::k_RelatPath));
         QCOMPARE(dialog.compressionOptions().UpdateMode, NCompressDialog::NUpdateMode::kAdd);

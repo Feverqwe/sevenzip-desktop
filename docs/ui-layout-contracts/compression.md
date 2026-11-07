@@ -255,6 +255,8 @@ Reference: the same upstream commit, `CPP/7zip/UI/GUI/CompressDialog.rc`,
   right column; Path mode offers Relative, Full and Absolute. Source
   CompressDialog.cpp::OnInit attaches/populates both combos without testing
   target existence, matching CompressDialog.rc and the current Qt constructor.
+  The Qt form offers Add and replace, Update and add, and Freshen existing.
+  Synchronization remains available to native archive operations.
   The new-target native Linux state is recorded in the
   [native receipt](../archive/qt-port/upstream-port-audit.md#p3-03p3-04--native-linux-package-workflow-and-desktop-recovery-2026-10-14).
 - Compression controls retain level, method, dictionary, word size, solid block,

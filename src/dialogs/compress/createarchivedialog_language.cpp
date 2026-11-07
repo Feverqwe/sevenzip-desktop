@@ -108,7 +108,7 @@ void CreateArchiveDialog::ReloadLanguageItems() {
     if (updateMode_) {
         const QSignalBlocker updateBlock(updateMode_);
         const UInt32 ids[] = {IDS_COMPRESS_UPDATE_MODE_ADD, IDS_COMPRESS_UPDATE_MODE_UPDATE,
-                              IDS_COMPRESS_UPDATE_MODE_FRESH, IDS_COMPRESS_UPDATE_MODE_SYNC};
+                              IDS_COMPRESS_UPDATE_MODE_FRESH};
         for (int i = 0; i < updateMode_->count(); ++i)
             updateMode_->setItemText(i, QtLangText(ids[i]).remove('&'));
     }

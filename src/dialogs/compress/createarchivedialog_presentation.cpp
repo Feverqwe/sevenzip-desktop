@@ -176,7 +176,6 @@ void CreateArchiveDialog::createArchiveForm(QVBoxLayout *layout, QVBoxLayout *wi
         updateMode_->addItem("Add and replace files", int(NCompressDialog::NUpdateMode::kAdd));
         updateMode_->addItem("Update and add files", int(NCompressDialog::NUpdateMode::kUpdate));
         updateMode_->addItem("Freshen existing files", int(NCompressDialog::NUpdateMode::kFresh));
-        updateMode_->addItem("Synchronize files", int(NCompressDialog::NUpdateMode::kSync));
     }
     pathMode_ = new QComboBox(this);
     pathMode_->setObjectName("archivePathMode");
