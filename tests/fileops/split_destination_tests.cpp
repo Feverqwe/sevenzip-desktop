@@ -219,6 +219,11 @@ class SplitDestinationTests final : public QObject {
                 QVERIFY(dialog.isVisible() && error->isVisible());
                 QTRY_VERIFY(dialog.focusWidget() == path(dialog) ||
                             dialog.focusWidget() == path(dialog)->lineEdit());
+                const QString aboveRoot =
+                    QString("../").repeated(QDir::currentPath().count('/') + 2) + "output";
+                path(dialog)->setEditText(aboveRoot);
+                dialog.accept();
+                QVERIFY(dialog.isVisible() && error->isVisible());
                 path(dialog)->setEditText(base);
                 dialog.accept();
                 QVERIFY(dialog.isVisible() && error->isVisible());

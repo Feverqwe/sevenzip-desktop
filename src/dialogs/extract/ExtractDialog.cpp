@@ -3,6 +3,7 @@
 #include "dialogs/extract/ExtractDialog.h"
 #include "7zip/UI/GUI/ExtractDialogRes.h"
 #include "7zip/UI/GUI/ExtractRes.h"
+#include "Windows/FileDir.h"
 #include "Windows/FileName.h"
 #include "dialogs/browse/BrowseDialog.h"
 #include "fileops/patterns/Wildcard.h"
@@ -199,7 +200,11 @@ void CExtractDialog::OnOK() {
     const auto canUseDirectory = [](const QString &candidate) {
         if (candidate.isEmpty() || candidate.contains(QChar::Null))
             return false;
-        QString path = QDir::cleanPath(QFileInfo(candidate).absoluteFilePath());
+        FString resolved;
+        if (!NWindows::NFile::NDir::MyGetFullPathName(
+                us2fs(ToUString(QDir::toNativeSeparators(candidate))), resolved))
+            return false;
+        QString path = QDir::cleanPath(ToQString(fs2us(resolved)));
         for (;;) {
             const QFileInfo entry(path);
             if (entry.exists())
