@@ -13,7 +13,6 @@ import subprocess
 import tarfile
 import tempfile
 from lib.build_paths import build_directory, checked_output, directory, environment
-from lib.package_notices import notice_directory, write_notice_index
 
 ROOT = Path(__file__).resolve().parents[1]
 DEVELOPMENT_SUFFIXES = {".c", ".cpp", ".cc", ".h", ".hpp", ".mm", ".m",
@@ -176,7 +175,6 @@ def finalize_runtime(install, system):
             path.unlink(missing_ok=True)
             path.symlink_to(executable)
     prune_development(install)
-    write_notice_index(notice_directory(install, system))
     validate_payload(install)
     if system == "Darwin":
         compact_and_sign(bundle)
@@ -237,7 +235,9 @@ def main():
         subprocess.run(["cmake", "--install", str(args.build_dir), "--prefix", str(install)], check=True)
         if system == "Darwin":
             bundle = install / "Sevenzip.app"
-        notices = notice_directory(install, system)
+            notices = bundle / "Contents/Resources/Notices"
+        else:
+            notices = install / "share/licenses/sevenzip-desktop"
         qt_notices(args.qt_source, args.qt_sha256, info["qt_version"], notices / "Qt")
         if system == "Windows":
             deploy_crt(install, args.vc_runtime)

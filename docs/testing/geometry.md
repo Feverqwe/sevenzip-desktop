@@ -52,7 +52,9 @@ workflow. При необходимости проверки fonts/icons/colors/
 UI-producers с нативным QPA и process-only light/dark схемами. Нужен доступ
 к desktop-сессии. `--list` показывает сценарии, `--only <id> ...` ограничивает
 повторный сбор затронутыми окнами. Существующие build trees и compiler cache
-сохраняются. Результат по умолчанию — `dev/ui-theme-review/index.html` внутри
+сохраняются. Если ни один выбранный сценарий не поддерживает текущую платформу,
+команда завершится до подготовки runtime и сборки.
+Результат по умолчанию — `dev/ui-theme-review/index.html` внутри
 artifact-каталога, который возвращает
 `python3 scripts/lib/build_paths.py path --root "$PWD" --category artifacts`;
 галерея открывает снимки с листанием стрелками, масштабом 100% и копированием

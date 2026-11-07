@@ -24,11 +24,5 @@ and dependencies.
   behavioral coverage and [UI contracts](../../../docs/ui-layout-contracts.md)
   for affected visible controls/states.
 
-Locate the active build root:
-
-```sh
-python3 scripts/lib/build_paths.py path --root "$PWD" --category work --preset dev
-```
-
-Use its `dev/compile_commands.json` with clangd so diagnostics match the selected
-branch, platform and workspace.
+Use the [clangd workflow](../sz-navigation/SKILL.md) to select compiler commands
+for the task checkout.

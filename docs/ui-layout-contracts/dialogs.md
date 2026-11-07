@@ -56,33 +56,6 @@ no new modality from shared layout styling. `context_dialog` checks actual nativ
 AppKit sheet attachment, owner/peer input, nested Cancel and draft/focus retention;
 the worker password consumers separately check success, empty input and Cancel.
 
-### Help and About: shared frame (redesign, 2026-10-18)
-
-Help retains the original bundled HTML, links, fragment navigation, history,
-text and horizontal/vertical scrolling. Only its Qt window uses the shared
-content/footer spacing; Back follows actual browser history and Close keeps
-its native role. Initial focus enters the reading area. Language changes keep
-the current topic, and missing topics retain the existing warning.
-
-About retains Sevenzip identity/version/project link and complete 7-Zip
-attribution, release, copyright, license and homepage. Its content and footer
-use the shared frame, with Close as the visible confirmation caption. Return
-still accepts the dialog; Escape and window close preserve their existing result.
-Native palette changes must restyle links in the existing window. Internal
-attribution padding remains independent of the outer dialog frame.
-
-### Shared ListView: Properties and Folder History (P3-06)
-
-Reference: pinned FileManager/ListViewDialog.rc and OnInit/OnEnter/OnOK callers.
-The approved redesign uses the shared dialog layout and native content-sized
-buttons. Reports have Copy/Close; Folder History has Open/Cancel. Preserve
-one-column hidden History header and the blank, resizable two-column Properties
-header. Copy uses the full selected values, or all rows when nothing is selected;
-an empty report cannot overwrite the clipboard. Native button ordering is retained.
-`list_view_dialog` writes EN/RU
-source-initial and540×360/360×240 reports, checking exposed list/footer without
-changing stored full values, clipboard/detail or acceptance behavior.
-
 ## Commands and reports
 
 <a id="folder-history-list"></a>

@@ -205,15 +205,11 @@ runtime outputs and test artifacts local to the worktree; never symlink a shared
 uses the worktree's recorded source archive and local adaptations. Helpers may
 use an already prepared runtime via their documented skip-preparation option.
 
-Remote runner commands automatically read the main checkout's private runner
-configuration and use its shared logs and compiler/tool caches.
-They synchronize the invoking script's worktree and select its Git branch;
-the local worktree directory does not affect remote workspace identity.
-Explicit runner configuration overrides remain supported. Do not run two
-different tasks under the same branch name expecting isolated guest builds.
-Guests execute synchronized source copies: do not create/update a project Git
-repository there or add a separate source-hashing pass. Keep the existing local
-Git whitespace checks before synchronization and the branch-scoped runner locks.
+For remote worktree selection, see [runner workflows](docs/hyperv-runners.md#persistent-worktree).
+Do not run independent guest jobs under the same branch name expecting isolation.
+Guests use synchronized source copies. Preserve the local Git whitespace checks
+and branch-scoped runner locks, and do not add a guest Git repository or a
+separate source-hashing pass.
 
 ## Context and memory
 
@@ -438,15 +434,9 @@ regression. Follow the source-comparison and focused-validation rules above.
 
 For Linux/Windows checks read [runner configuration](docs/runner-configuration.md)
 and [runner workflows](docs/hyperv-runners.md). Read the global `runners` skill
-when using its Hyper-V discovery command. Use
-`python3 scripts/hyperv-runner.py run <linux|windows|all> -- <project-script> [args]`
-or `check all` with configured guests. Prefer `python3 scripts/verify.py <profile>
---platform <linux|windows|all>` for focused checks. Each guest uses a locked
-persistent worktree per Git branch, independent of the local source directory;
-source synchronization includes current
-tracked and nonignored new source files and deletes removed source files.
-Build selected targets after synchronization before running CTest; do not create
-per-run build directories. Runner docs own transport/readiness/storage details.
+when using its Hyper-V discovery command. Prefer `scripts/verify.py` for focused
+checks. Build selected targets after synchronization in the persistent branch
+workspace before running CTest.
 Do not create or attach new virtual disks to the runners. When space is low,
 clean obsolete project runs, build outputs and temporary data under the retention
 and active-run safeguards in [Hyper-V runners](docs/hyperv-runners.md).

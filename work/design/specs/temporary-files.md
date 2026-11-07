@@ -50,8 +50,8 @@ application-owned продолжения внешнего сеанса.
 не являются доказательством владения. Смена объекта, symlink или повторное
 занятие пути не должны направить удаление на чужие данные.
 
-Текущие [правила доступности](../../../src/dialogs/browse/qttempbrowsepresentation.cpp)
-и [удаление](../../../src/dialogs/browse/BrowseDialog2.cpp) прочитаны: активные и
+Текущие [правила доступности](https://github.com/Feverqwe/7zip-qt-port/blob/ed197ad23afd33abf073e9fae1bb6fa113640e43/src/dialogs/browse/qttempbrowsepresentation.cpp)
+и [удаление](https://github.com/Feverqwe/7zip-qt-port/blob/ed197ad23afd33abf073e9fae1bb6fa113640e43/src/dialogs/browse/BrowseDialog2.cpp) прочитаны: активные и
 externallyProtected записи недоступны для удаления, ClaimForDeletion перепроверяет
 право. Сохраняем эти границы; состояние изменённой копии и её связь с внешним
 сеансом добавляются существующему владельцу, а не выводятся из имени каталога.

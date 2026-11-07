@@ -88,7 +88,7 @@ owner. HTML хранит только демонстрационное свой�
 CanComment/ChangeComment в [PanelOperations](../../../src/filemanager/panels/PanelOperations.cpp),
 SelectSpec в [PanelSelect](../../../src/filemanager/panels/PanelSelect.cpp),
 matcher в [Wildcard](../../../src/fileops/patterns/Wildcard.cpp) и полный контракт
-ввода/BindLanguage в [ComboDialog](../../../src/dialogs/combo/ComboDialog.cpp).
+ввода/BindLanguage в [ComboDialog](https://github.com/Feverqwe/7zip-qt-port/blob/ed197ad23afd33abf073e9fae1bb6fa113640e43/src/dialogs/combo/ComboDialog.cpp).
 Native сборщики, команды и алгоритмы не менялись.
 
 В браузере проверены создание с Unicode и пробелами, фокус/выделение результата,

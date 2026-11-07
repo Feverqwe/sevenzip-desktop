@@ -24,7 +24,7 @@
 | UX-сверка и итоговая приёмка | [UX audit](qt-port/ux-port-audit.md) |
 | Подробные архитектурные исследования | [Компоненты](qt-port/architecture/component-notes.md), [прежний обзор](qt-port/architecture.md) |
 | Накопленные описания проверок | [Coverage](qt-port/testing/coverage.md), [geometry](qt-port/testing/geometry.md), [матрица](qt-port/regression-matrix.md) |
-| Прежний индекс UI-спецификаций | [UI index](qt-port/ui-layout-contracts.md) |
+| Прежние UI-спецификации | [UI index](qt-port/ui-layout-contracts.md), [снятые контракты](qt-port/retired-ui-contracts.md) |
 | Ранние пробы runtime builders и tooling | [Workflow evidence](qt-port/workflow-evidence.md) |
 | Ранние инвентаризации и checkpoints | [Исходный реестр](qt-port/history/p0-01-source-inventory.md), [первый перенос](qt-port/history/p0-02-source-port.md), [checkpoints](qt-port/history/checklist-checkpoints.md), [runners](qt-port/history/hyperv-runner-evidence.md), [baseline плана](qt-port/history/porting-plan-baseline.md) |
 
@@ -38,6 +38,8 @@
 
 - [Agent documentation and tooling audit, 2026-10-25](agent-maintenance-2026-10-25.md).
 - [Agent documentation and tooling audit, 2026-11-01](agent-maintenance-2026-11-01.md).
+- [Аудит документации и агентского окружения, 2026-11-08](agent-maintenance-2026-11-08.md).
+- [Замеры длительности тестов, 2026-11-04](test-duration-audit-2026-11-04.md).
 - Implemented plans: [direct device access](plans/direct-device-reading-plan.md),
   [interface redesign](plans/ui-redesign-plan.md), [ZIP refresh](plans/zip-refresh-plan.md),
   [C++23 migration and acceptance](plans/cpp23-project-migration.md).

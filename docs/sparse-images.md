@@ -14,9 +14,8 @@ APFS browsing loads the top level first and reads each folder when you open it.
 Previously visited folders remain available without listing them again. Folder
 totals can remain unknown until their contents have been read. Select a folder
 and use **Calculate folder size** to read its subtree and display its size.
-The calculation can be cancelled. Copying a folder
-reads its descendants; Flat View and explicit full-tree export enumerate the
-requested tree. These operations can take longer on large network backups.
+The calculation can be cancelled. Copying a folder reads its descendants.
+These operations can take longer on large network backups.
 Damage in an unopened folder may therefore be reported only when it is accessed.
 
 APFS read-only mounts load directory contents on demand, including the mount

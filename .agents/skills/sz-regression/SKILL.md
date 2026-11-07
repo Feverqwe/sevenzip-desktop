@@ -12,11 +12,8 @@ and inspect its current code/callers. Historical coverage is under
 Use `python3 scripts/verify.py --list`, then `<profile> --plan` or
 `--tests '<regex>' --plan` to inspect the registered suites, targets and fixtures
 before building. Check platform conditions in `CMakeLists.txt` and `cmake/`.
-Local focused checks may run during editing. Batch remote checks for related
-minor edits with known follow-ups, and validate their combined result when ready.
-Use intermediate remote diagnostics only for a concrete platform blocker.
-Follow `AGENTS.md` for coverage, focused build/CTest
-wrappers, the full gate and reporting platform limits.
+Follow [the validation rules](../../../AGENTS.md#validation-and-ui-reference)
+for coverage, batching remote checks, and reporting platform limits.
 
 Prefer small public-behavior tests and disposable archives made by official
 `7z` sidecar or the affected native provider. Select relevant failure cases rather

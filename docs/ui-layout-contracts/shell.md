@@ -118,7 +118,7 @@ platform resize surface. These checks establish Qt structure, not rendered parit
 Set the Unicode message before each panel toggle: creating the second panel
 must preserve it. Panel construction does not publish a new operation result.
 
-Главная строка действий содержит «Создать» (папка/файл), Cut, Copy, Paste,
+Строка действий панели содержит создание папки, Cut, Copy, Paste,
 Rename и Delete. Она действует на свою панель и использует существующую
 проекцию доступности. Архивные Add/Extract/Test находятся в меню и контексте.
 Подписи, accessible names и подсказки следуют текущему языку и сочетанию;
@@ -153,8 +153,7 @@ Reference: `CPP/7zip/UI/FileManager/resource.rc::IDM_MENU`,
 Кнопки поддерживают клавиатурный фокус, нативную индикацию и обычный системный
 шрифт. В широкой однопанельной компоновке действия показывают подписи;
 в компактной и двухпанельной остаются значки с локализованным accessible name
-и tooltip. «Создать» сохраняет подпись в компактном однопанельном режиме;
-в двухпанельном все действия показываются значками. Normal/compact проверки охватывают EN/RU,
+и tooltip. Normal/compact проверки охватывают EN/RU,
 одну→две→одну панели, видимые действия, навигацию и список. Это контракт Qt
 и согласованного редизайна; совпадение пикселей с оригинальным Windows не заявлено.
 

@@ -2,7 +2,6 @@
 import hashlib
 import importlib.util
 import io
-import json
 import os
 from pathlib import Path
 import shutil
@@ -29,7 +28,7 @@ release = load_script("release")
 
 
 class PackageTests(unittest.TestCase):
-    def test_notice_index_follows_deployed_documents_without_changing_text(self):
+    def test_finalizing_runtime_preserves_deployed_notice_text(self):
         with tempfile.TemporaryDirectory(prefix="notices 空 ") as temporary:
             runtime = Path(temporary)
             root = runtime / "share/licenses/sevenzip-desktop"
@@ -46,34 +45,14 @@ class PackageTests(unittest.TestCase):
             obsolete = root / "Qt/include/stale.txt"
             obsolete.parent.mkdir(parents=True)
             obsolete.write_bytes(b"development-only payload")
-            package.write_notice_index(root)
-            # Qt and other deployment owners add their documents later.
             extra = root / "Qt/LGPL.txt"
             extra.parent.mkdir(exist_ok=True)
             extra.write_text("Qt original text\n", encoding="utf-8")
             payload["Qt/LGPL.txt"] = "Qt original text\n"
             package.finalize_runtime(runtime, "Windows" if os.name == "nt" else "Linux")
-            index = json.loads((root / "index.json").read_text(encoding="utf-8"))
-            actual = {row["path"]: (root / row["path"]).read_text(encoding="utf-8")
-                      for row in index["documents"]}
+            actual = {path.relative_to(root).as_posix(): path.read_text(encoding="utf-8")
+                      for path in root.rglob("*") if path.is_file()}
             self.assertEqual(actual, payload)
-            self.assertEqual(len(index["documents"]), len(payload))
-            self.assertEqual(index["documents"][0]["path"], "THIRD_PARTY_NOTICES.md")
-
-    def test_notice_index_rejects_empty_or_escaping_payload(self):
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary) / "Notices"
-            root.mkdir()
-            with self.assertRaises(ValueError):
-                package.write_notice_index(root)
-            outside = Path(temporary) / "outside.txt"
-            outside.write_text("not a deployed license")
-            try:
-                (root / "external.txt").symlink_to(outside)
-            except OSError:
-                self.skipTest("Symbolic links unavailable on this host")
-            with self.assertRaises(ValueError):
-                package.write_notice_index(root)
 
     def test_local_install_replaces_old_dependencies_only_after_success(self):
         with tempfile.TemporaryDirectory(prefix="install 空 ") as temporary:

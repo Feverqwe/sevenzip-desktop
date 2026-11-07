@@ -52,8 +52,6 @@ observable requirements change; keep implementation history in the
 | Shell Menu page | [Спецификация](ui-layout-contracts/options.md#shell-menu-page-p2-09-accepted) |
 | System associations | [Спецификация](ui-layout-contracts/options.md#system-associations-p2-08-accepted) |
 | Add metadata Options | [Спецификация](ui-layout-contracts/compression.md#add-metadata-options-p2-07-in-progress) |
-| Link | [Спецификация](ui-layout-contracts/dialogs.md#link-p2-05) |
-| Benchmark | [Спецификация](ui-layout-contracts/dialogs.md#benchmark-p2-04) |
 | File-list drag target | [Спецификация](ui-layout-contracts/file-list.md#file-list-drag-target-p1-16-wip) |
 | Commands and reports | [Спецификация](ui-layout-contracts/dialogs.md#commands-and-reports) |
 | Alternate streams namespace | [Спецификация](ui-layout-contracts/file-list.md#alternate-streams-namespace-p2-06-active) |
@@ -81,8 +79,6 @@ observable requirements change; keep implementation history in the
 | Source property columns | [Спецификация](ui-layout-contracts/file-list.md#source-property-columns-p0-062) |
 | Time precision and UTC | [Спецификация](ui-layout-contracts/file-list.md#time-precision-and-utc-p0-063) |
 | File list settings | [Спецификация](ui-layout-contracts/options.md#file-list-settings) |
-| External editor settings | [Спецификация](ui-layout-contracts/external-tools.md#external-editor-settings) |
-| VerCtrl commands and Revert | [Спецификация](ui-layout-contracts/external-tools.md#verctrl-commands-and-revert) |
 | Recent places | [Спецификация](ui-layout-contracts/dialogs.md#folder-history-list) |
 | Hash results | [Спецификация](ui-layout-contracts/dialogs.md#hash-results) |
 | Full text detail | [Спецификация](ui-layout-contracts/dialogs.md#full-text-detail) |

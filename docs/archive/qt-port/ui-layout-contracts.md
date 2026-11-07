@@ -23,7 +23,7 @@
 
 ### Panel address keys and flat view (P3-05)
 
-[Открыть раздел](../../ui-layout-contracts/shared.md#panel-address-keys-and-flat-view-p3-05).
+[Открыть раздел](retired-ui-contracts.md#panel-address-keys-and-flat-view-p3-05).
 
 ### Archive directory CRC projection (P3-05)
 
@@ -95,15 +95,15 @@
 
 ### Link (P2-05)
 
-[Открыть раздел](../../ui-layout-contracts/shared.md#link-p2-05).
+[Открыть раздел](retired-ui-contracts.md#link-p2-05).
 
 ### Benchmark (P2-04)
 
-[Открыть раздел](../../ui-layout-contracts/shared.md#benchmark-p2-04).
+[Открыть раздел](retired-ui-contracts.md#benchmark-p2-04).
 
 ### SFX Options group (P2-02)
 
-[Открыть раздел](../../ui-layout-contracts/shared.md#sfx-options-group-p2-02).
+[Открыть раздел](retired-ui-contracts.md#sfx-options-group-p2-02).
 
 ### File-list drag target (P1-16 WIP)
 
@@ -215,11 +215,11 @@
 
 ## External editor settings
 
-[Открыть раздел](../../ui-layout-contracts/shared.md#external-editor-settings).
+[Открыть раздел](retired-ui-contracts.md#external-editor-settings).
 
 ## VerCtrl commands and Revert
 
-[Открыть раздел](../../ui-layout-contracts/shared.md#verctrl-commands-and-revert).
+[Открыть раздел](retired-ui-contracts.md#verctrl-commands-and-revert).
 
 ## Folder history list
 
@@ -243,11 +243,11 @@
 
 ## Shared name/mask dialog
 
-[Открыть раздел](../../ui-layout-contracts/shared.md#shared-namemask-dialog).
+[Открыть раздел](retired-ui-contracts.md#shared-namemask-dialog).
 
 ## Split and Combine dialogs
 
-[Открыть раздел](../../ui-layout-contracts/shared.md#split-and-combine-dialogs).
+[Открыть раздел](retired-ui-contracts.md#split-and-combine-dialogs).
 
 ## Copy/Move dialog
 

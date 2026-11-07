@@ -136,7 +136,7 @@ endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND TEST native_rename_2)
     # Reserve twice the complete matrix measurements, rounded up to a minute.
-    # Per-state waits are unchanged; evidence: docs/testing/duration-audit-2026-11-04.md.
+    # Per-state waits are unchanged; evidence: docs/archive/test-duration-audit-2026-11-04.md.
     set_tests_properties(native_rename_2 PROPERTIES TIMEOUT 660)
     set_tests_properties(native_rename_301 PROPERTIES TIMEOUT 720)
     set_tests_properties(native_external_2 PROPERTIES TIMEOUT 420)

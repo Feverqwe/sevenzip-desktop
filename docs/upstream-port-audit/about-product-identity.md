@@ -117,3 +117,4 @@ upstream version and date, attribution, build information and the project websit
 The separate license viewer, upstream homepage action, copy-information action
 and the link and module failure surfaces were removed. Packaging remains the
 owner of license documents and notices. The original source baseline is unchanged.
+The install and packaging steps also dropped the former viewer's document index.

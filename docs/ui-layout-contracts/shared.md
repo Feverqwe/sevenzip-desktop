@@ -32,9 +32,9 @@
 | <a id="shell-menu-page-p2-09-accepted"></a>Shell Menu page (P2-09, accepted) | [Открыть](options.md#shell-menu-page-p2-09-accepted) |
 | <a id="system-associations-p2-08-accepted"></a>System associations (P2-08, accepted) | [Открыть](options.md#system-associations-p2-08-accepted) |
 | <a id="add-metadata-options-p2-07"></a><a id="add-metadata-options-p2-07-in-progress"></a>Add metadata Options (P2-07) | [Открыть](compression.md#add-metadata-options-p2-07) |
-| <a id="shared-listview-properties-and-folder-history-p3-06"></a>Shared ListView: Properties and Folder History (P3-06) | [Открыть](dialogs.md#shared-listview-properties-and-folder-history-p3-06) |
-| <a id="link-p2-05"></a>Link (P2-05) | [Открыть](dialogs.md#link-p2-05) |
-| <a id="benchmark-p2-04"></a>Benchmark (P2-04) | [Открыть](dialogs.md#benchmark-p2-04) |
+| <a id="shared-listview-properties-and-folder-history-p3-06"></a>Shared ListView: Properties and Folder History (P3-06) | [Архив](../archive/qt-port/retired-ui-contracts.md#shared-listview-properties-and-folder-history-p3-06) |
+| <a id="link-p2-05"></a>Link (P2-05) | [Архив](../archive/qt-port/retired-ui-contracts.md#link-p2-05) |
+| <a id="benchmark-p2-04"></a>Benchmark (P2-04) | [Архив](../archive/qt-port/retired-ui-contracts.md#benchmark-p2-04) |
 | <a id="file-list-drag-target-p1-16"></a><a id="file-list-drag-target-p1-16-wip"></a>File-list drag target (P1-16) | [Открыть](file-list.md#file-list-drag-target-p1-16) |
 | <a id="commands-and-reports"></a>Commands and reports | [Открыть](dialogs.md#commands-and-reports) |
 | <a id="alternate-streams-namespace-p2-06"></a><a id="alternate-streams-namespace-p2-06-active"></a>Alternate streams namespace (P2-06) | [Открыть](file-list.md#alternate-streams-namespace-p2-06) |
@@ -62,7 +62,7 @@
 | <a id="source-property-columns-p0-062"></a>Source property columns (P0-06.2) | [Открыть](file-list.md#source-property-columns-p0-062) |
 | <a id="time-precision-and-utc-p0-063"></a>Time precision and UTC (P0-06.3) | [Открыть](file-list.md#time-precision-and-utc-p0-063) |
 | <a id="file-list-settings"></a>File list settings | [Открыть](options.md#file-list-settings) |
-| <a id="external-editor-settings"></a>External editor settings | [Открыть](external-tools.md#external-editor-settings) |
+| <a id="external-editor-settings"></a>External editor settings | [Архив](../archive/qt-port/retired-ui-contracts.md#external-editor-settings) |
 | <a id="folder-history-list"></a>Recent places | [Открыть](dialogs.md#folder-history-list) |
 | <a id="hash-results"></a>Hash results | [Открыть](dialogs.md#hash-results) |
 | <a id="full-text-detail"></a>Full text detail | [Открыть](dialogs.md#full-text-detail) |
@@ -74,3 +74,8 @@
 | <a id="source-long-path-browser"></a>Source long-path browser | [Открыть](navigation.md#source-long-path-browser) |
 | <a id="archive-password-prompt"></a>Archive password prompt | [Открыть](extraction.md#archive-password-prompt) |
 | <a id="progress-dialog-and-modal-lifecycle"></a>Progress dialog and modal lifecycle | [Открыть](dialogs.md#progress-dialog-and-modal-lifecycle) |
+| <a id="shared-namemask-dialog"></a>Shared name/mask dialog | [Архив](../archive/qt-port/retired-ui-contracts.md#shared-namemask-dialog) |
+| <a id="split-and-combine-dialogs"></a>Split and Combine dialogs | [Архив](../archive/qt-port/retired-ui-contracts.md#split-and-combine-dialogs) |
+| <a id="verctrl-commands-and-revert"></a>VerCtrl commands and Revert | [Архив](../archive/qt-port/retired-ui-contracts.md#verctrl-commands-and-revert) |
+| <a id="panel-address-keys-and-flat-view-p3-05"></a>Panel address keys and flat view (P3-05) | [Архив](../archive/qt-port/retired-ui-contracts.md#panel-address-keys-and-flat-view-p3-05) |
+| <a id="sfx-options-group-p2-02"></a>SFX Options group (P2-02) | [Архив](../archive/qt-port/retired-ui-contracts.md#sfx-options-group-p2-02) |

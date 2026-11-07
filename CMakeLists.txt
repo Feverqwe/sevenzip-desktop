@@ -242,7 +242,8 @@ else()
     include(cmake/UnixInstall.cmake)
 endif()
 include(cmake/VcpkgNotices.cmake)
-include(cmake/NoticeIndex.cmake)
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/THIRD_PARTY_NOTICES.md"
+    DESTINATION "${notices_destination}")
 file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/PackageInfo.json"
     CONTENT "{\"version\":\"${PROJECT_VERSION}\",\"display_version\":\"${SEVENZIP_DESKTOP_DISPLAY_VERSION}\",\"upstream_version\":\"${SEVENZIP_UPSTREAM_VERSION}\",\"qt_version\":\"${Qt6_VERSION}\"}\n")
 

@@ -61,7 +61,7 @@ The following source callback contract applies to standalone panel services.
 The redesigned File Manager uses the application-owned session described in
 [the workspace audit](../upstream-port-audit/main-window-workspace.md): one explicit
 decision covers the captured nested chain, and published outputs invalidate the
-physical root in every affected tab. A failed fresh opening retains the previous
+physical root in every affected pane. A failed fresh opening retains the previous
 readable view and offers Retry; it does not publish a stale nested copy on close.
 
 After the original modified-file Yes prompt, native CopyFromFile retains the

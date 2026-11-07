@@ -115,13 +115,13 @@ OutputPath, но нынешний CApp создаёт его из фиксиро
 ## Владельцы и проверка реализации
 
 Прочитаны полные текущие
-[команды CApp](../../../src/filemanager/panels/PanelSplitFile.cpp),
-[форма Split](../../../src/dialogs/split/SplitDialog.cpp),
+[команды CApp](https://github.com/Feverqwe/7zip-qt-port/blob/ed197ad23afd33abf073e9fae1bb6fa113640e43/src/filemanager/panels/PanelSplitFile.cpp),
+[форма Split](https://github.com/Feverqwe/7zip-qt-port/blob/ed197ad23afd33abf073e9fae1bb6fa113640e43/src/dialogs/split/SplitDialog.cpp),
 [парсер и количество](../../../src/filemanager/SplitUtils.cpp),
-[последовательность, планы и workers](../../../src/fileops/volumes/nativevolumeworker.cpp),
-[Qt-операция/preflight](../../../src/fileops/volumes/volumeoperations.cpp),
-[транзакция](../../../src/fileops/volumes/qtvolumetransaction.cpp),
-[прогресс](../../../src/fileops/volumes/qtvolumeprogress.h).
+[последовательность, планы и workers](https://github.com/Feverqwe/7zip-qt-port/blob/ed197ad23afd33abf073e9fae1bb6fa113640e43/src/fileops/volumes/nativevolumeworker.cpp),
+[Qt-операция/preflight](https://github.com/Feverqwe/7zip-qt-port/blob/ed197ad23afd33abf073e9fae1bb6fa113640e43/src/fileops/volumes/volumeoperations.cpp),
+[транзакция](https://github.com/Feverqwe/7zip-qt-port/blob/ed197ad23afd33abf073e9fae1bb6fa113640e43/src/fileops/volumes/qtvolumetransaction.cpp),
+[прогресс](https://github.com/Feverqwe/7zip-qt-port/blob/ed197ad23afd33abf073e9fae1bb6fa113640e43/src/fileops/volumes/qtvolumeprogress.h).
 Оригинальные SplitDialog.rc, SplitUtils.cpp и определения CVolSeqName/GetNextName
 прочитаны из локального исходного архива. Нового импорта или C++ изменений нет.
 

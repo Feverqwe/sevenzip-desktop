@@ -138,10 +138,10 @@ native границе записи; frontend snapshot не устраняет TO
 ## Владельцы и доработки для Qt
 
 После rebase проверены актуальные
-[вызов CApp::Link](../../../src/filemanager/AppLink.cpp),
-[LinkDialog и native функциональные ветви](../../../src/dialogs/link/LinkDialog.cpp),
-[обёртка ввода](../../../src/dialogs/link/qtlinkcontrols.h),
-[состав платформенных типов](../../../src/dialogs/link/qtlinkpresentation.cpp),
+[вызов CApp::Link](https://github.com/Feverqwe/7zip-qt-port/blob/ed197ad23afd33abf073e9fae1bb6fa113640e43/src/filemanager/AppLink.cpp),
+[LinkDialog и native функциональные ветви](https://github.com/Feverqwe/7zip-qt-port/blob/ed197ad23afd33abf073e9fae1bb6fa113640e43/src/dialogs/link/LinkDialog.cpp),
+[обёртка ввода](https://github.com/Feverqwe/7zip-qt-port/blob/ed197ad23afd33abf073e9fae1bb6fa113640e43/src/dialogs/link/qtlinkcontrols.h),
+[состав платформенных типов](https://github.com/Feverqwe/7zip-qt-port/blob/ed197ad23afd33abf073e9fae1bb6fa113640e43/src/dialogs/link/qtlinkpresentation.cpp),
 [POSIX создание/изменение и copy/rename](../../../src/fileops/links/qtlinkservices.cpp),
 [native hard link](../../../src/fileops/native/FileDir.cpp),
 [Windows/WSL link data](../../../src/fileops/native/FileLink.cpp).

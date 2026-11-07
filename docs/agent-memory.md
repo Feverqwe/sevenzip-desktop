@@ -13,7 +13,8 @@ Markdown-файлы. Linked worktree использует ту же память
 
 1. Прочитать `.codex/memory/README.md` и выбрать записи по теме запроса.
    Если индекса нет, работать по коду и `docs/`; при необходимости запустить
-   `sh .agents/skills/sz-setup/scripts/setup.sh`.
+   `sh "$harness_root/.agents/skills/sz-setup/scripts/setup.sh"` с определённым
+   по AGENTS.md `harness_root`.
 2. Прочитать только относящиеся к задаче записи. Сопоставить их дату, статус,
    checkout, ветку и commit с текущим состоянием Git; проверить значимые выводы
    в текущем коде. Не читать весь архив заметок по умолчанию.

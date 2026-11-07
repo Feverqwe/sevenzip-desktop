@@ -1,8 +1,0 @@
-set(notices_root "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/@notices_destination@")
-execute_process(
-    COMMAND "@Python3_EXECUTABLE@" -B "@CMAKE_CURRENT_SOURCE_DIR@/scripts/index-notices.py"
-        "${notices_root}"
-    RESULT_VARIABLE index_result)
-if(NOT index_result EQUAL 0)
-    message(FATAL_ERROR "Could not index the installed license documents")
-endif()

@@ -471,8 +471,9 @@ Windows additionally requires `--vc-runtime <Microsoft.VC143.CRT-directory>`
 and `--vc-notices <Visual-Studio-Redist.txt>`; only imported CRT DLLs are copied.
 See [CI and release helper](ci.md) for exact artifact scope and release commands.
 
+For local agent memory, follow the [setup instructions](agent-memory.md#начало-задачи).
+
 ```sh
-sh .agents/skills/sz-setup/scripts/setup.sh
 ./scripts/doctor.sh
 ./scripts/build.sh dev <targets>
 ./scripts/ctest.sh --preset dev -R '<test-name-regex>' --output-on-failure

@@ -238,7 +238,7 @@ it does not run CTest against Release, where test targets are disabled.
 
 The source transport is cp2 over the verified SSH connection, with
 deletion/protection and locking as described [above](#persistent-worktree).
-Scp retrieves logs.
+The runner retrieves logs through the [same SSH connection configuration](#runner-configuration-and-evidence).
 
 cp2 is installed on demand as described in
 [local configuration](runner-configuration.md#source-synchronization).

@@ -5,11 +5,13 @@ Qt/ICU source inputs supply the corresponding runtime license notices.
 """
 import sys
 sys.dont_write_bytecode = True
-import os
+import argparse
 import hashlib
+import os
 from lib.build_paths import directory, environment
 from pathlib import Path
 import subprocess
+import tempfile
 
 VERSION = "6.12.0"
 SHA256 = "a951bd163c7b80fc6b8c88d7668fb56abf91c152373e13c10666763238131307"
@@ -17,18 +19,21 @@ ICU_SHA256 = "f3005e195ff74d8812cc1f182a1c446fab678d70a10e3dada497585befee5416"
 
 
 def fetch(url, path, expected):
-    subprocess.run(["curl", "--fail", "--location", "--retry", "3",
-                    "--output", str(path), url], check=True)
-    digest = hashlib.sha256()
-    with path.open("rb") as stream:
-        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
-            digest.update(chunk)
-    if digest.hexdigest() != expected:
-        path.unlink()
-        raise ValueError(f"Official input checksum mismatch: {path.name}")
+    with tempfile.TemporaryDirectory(prefix=".license-download-", dir=path.parent) as temporary:
+        candidate = Path(temporary) / path.name
+        subprocess.run(["curl", "--fail", "--location", "--retry", "3",
+                        "--output", str(candidate), url], check=True)
+        digest = hashlib.sha256()
+        with candidate.open("rb") as stream:
+            for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                digest.update(chunk)
+        if digest.hexdigest() != expected:
+            raise ValueError(f"Official input checksum mismatch: {path.name}")
+        candidate.replace(path)
 
 
 def main():
+    argparse.ArgumentParser(description=__doc__).parse_args()
     root = Path(__file__).resolve().parents[1]
     os.environ.update(environment(root))
     destination = directory(root, "cache") / "qt-source"

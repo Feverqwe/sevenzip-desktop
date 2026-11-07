@@ -101,7 +101,7 @@ resident memory, поскольку ASan резервирует большой �
 проверку malformed inode через тот же console/format runtime.
 
 Основания пересмотра длительных suites и границы быстрых выборок:
-[аудит длительности 2026-11-04](testing/duration-audit-2026-11-04.md).
+[аудит длительности 2026-11-04](archive/test-duration-audit-2026-11-04.md).
 
 ## Test artifact retention
 

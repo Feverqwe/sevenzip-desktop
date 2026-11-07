@@ -211,9 +211,11 @@ def main():
         return 0
     system = platform.system()
     qpa = {"Darwin": "cocoa", "Windows": "windows", "Linux": "xcb"}[system]
+    selected = [row for row in selected if system in row.get("platforms", [system])]
+    if not selected:
+        parser.error(f"No selected capture scenarios support {system}")
     output = checked_output(ROOT, args.output or workspace_directory(ROOT, "artifacts") / "dev/ui-theme-review")
     output.mkdir(parents=True, exist_ok=True)
-    selected = [row for row in selected if system in row.get("platforms", [system])]
     targets = list(dict.fromkeys(row["target"] for row in selected))
     subprocess.run([sys.executable, "scripts/prepare-runtime.py"], cwd=ROOT, check=True)
     subprocess.run(["bash", "scripts/build.sh", "dev", *targets], cwd=ROOT, check=True)

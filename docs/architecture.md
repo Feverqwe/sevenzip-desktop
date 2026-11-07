@@ -50,7 +50,7 @@ subtree before collecting native extraction indexes. Explicit size calculation
 uses the same selected-subtree worker and the existing proxy size aggregation.
 Ordinary Copy projects literal selections, without implicitly exporting hidden
 streams as ordinary files; Move and archive staging retain their metadata scope.
-Flat View and the explicit complete read-only view request recursive enumeration;
+The explicit complete read-only view requests recursive enumeration;
 SMB mounting requests directory access instead. For APFS, the retained view
 opens an isolated filesystem handler over the retained, already decoded input,
 using a cursor that serializes individual transport reads through the source
@@ -169,15 +169,11 @@ pane. Parent is a new visit. Only completed navigation advances the cursor
 and publishes a recent place through `CFolderHistory`. A different successful
 visit replaces the forward branch. Sessions retain the current directory.
 
-Recent Places has a shared settings-scoped adapter around `CFolderHistory`.
-The native history still owns comparison, order and limits; immediate removal
-and clearing update every window's state before notifying views. Recent links
-retain value-only native root/archive descriptors for reopening, with no handles,
-passwords or consent. Other favorites and destination histories have separate
-owners. The dialog uses the shared dialog layout and source identity with path tooltips;
-its search and selection remain visible when opening fails. A request captures
-the originating panel, waits for its retained publication if needed, and checks
-the exact target before accepting it. Closing the form retires only that request.
+Recent Places uses a shared settings-scoped adapter around `CFolderHistory`.
+Recent links retain value-only native root/archive descriptors for reopening.
+The address-bar menu reads the shared history and binds each choice to its
+originating pane. The native navigation owner verifies the requested location
+and reports a refusal in the status bar. Favorites have separate storage.
 
 Numeric bookmarks have their own settings-scoped publication adapter around
 `CFastFolders`. Saving merges the selected slot into the current native persisted
@@ -284,8 +280,8 @@ applies the original ratio policy to the two file areas. Restoring geometry
 precedes restoring the split.
 List publication restores focus within the same pane while the input request
 is current. View menus capture their source pane when opened and resolve it at
-dispatch. Checked state and command availability follow that pane. Automatic
-refresh is an application preference shared by open windows.
+dispatch. Checked state and command availability follow that pane. File Manager
+keeps automatic refresh enabled.
 
 The workspace table owns adaptive presentation, descriptive file types and the
 current-row outline through the existing model and row delegate. Native column
@@ -297,7 +293,7 @@ metadata; they do not probe file contents or implement format recognition.
 Qt MIME descriptions follow the system's available language metadata; application
 translations own the column heading and fallback descriptions.
 
-List mode, Flat View and sort preferences stay with the source panel. Qt reads
+List mode and sort preferences stay with the source panel. Qt reads
 them when presenting controls, changing columns or returning from another panel's
 callback; it does not retain a second mutable copy of those preferences. Archive
 command consumers read the bound resource's metadata rather than a window copy.
@@ -499,7 +495,7 @@ The observer retains that metadata through partial results or a crash. Native
 process observation
 distinguishes a source result from a crash or missing result. An accepted job
 continues after the manager closes or the channel disconnects. Shell arguments
-still enter the original parser. Toolbar and context-menu consumers share this
+still enter the original parser. Menu and context-menu consumers share this
 boundary. Completion refreshes currently affected filesystem panels after their
 source guards release, preserving navigation made while the child was running.
 The window owns one pending output-refresh queue for both panels. Overlapping

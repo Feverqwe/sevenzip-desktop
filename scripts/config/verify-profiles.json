@@ -130,12 +130,12 @@
     "interactive": true
   },
   "file-transfer": {
-    "description": "File transfer progress, copy/move and split/combine workflows",
+    "description": "Copy/move workflows, file transfer progress and window lifecycle",
     "tests": "^(worker_window_progress|ui_copy_same|ui_operations|language_file_transfer|file_transfer|app_lifecycle_window)$",
     "interactive": true
   },
   "interaction": {
-    "description": "Pointer activation, list settings, folder history and progress dialogs",
+    "description": "File activation, recent places, properties, checksums and operation feedback",
     "tests": "^(list_activation|list_view_dialog|folder_history|list_settings_runtime|panel_key(_quick)?|properties_runtime|owned_temp|hash_results|progress_dialog)$",
     "interactive": true
   },
