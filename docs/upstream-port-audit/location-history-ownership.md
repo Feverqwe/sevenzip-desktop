@@ -1,5 +1,16 @@
 # Location history and address presentation — 2026-10-31
 
+## Canceling password entry for an archive favorite — 2026-11-07
+
+The Qt favorite action uses the native archive binding and password result.
+Canceling leaves the current folder, selection and history available. A
+subsequent attempt can open the same favorite. A failed open still presents
+the unavailable-location notice.
+
+Linux workspace archive, places and history checks passed. A real encrypted
+fixture verified cancel, retry with the password and extraction of the
+original payload.
+
 ## Back from an unavailable favorite — 2026-11-07
 
 Reviewed the original folder-history selection and binding flow. Back and

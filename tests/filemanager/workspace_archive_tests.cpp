@@ -1,5 +1,6 @@
 #include "dialogs/password/PasswordDialog.h"
 #include "filemanager/support/window_state_support.h"
+#include "filemanager/window/qtfavoritestore.h"
 #include "filemanager/window/qtwindowworkspace.h"
 #include "filemanager/window/qtworkspaceapplication.h"
 #include "platform/support/external_editor_fixture.h"
@@ -9,6 +10,7 @@
 #include "ui/support/layout_inspection.h"
 #include <QClipboard>
 #include <QEventLoop>
+#include <QMenu>
 #include <QScopeGuard>
 #include <QToolButton>
 
@@ -39,6 +41,82 @@ class WorkspaceArchiveTests final : public QObject, protected MainWindowTestSupp
     }
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
+    void canceledFavoriteKeepsCurrentFolderAndSelection() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString name = QStringLiteral("payload 空.txt");
+        const QString password = QStringLiteral("local 密碼");
+        const QString archive = fixture.filePath("encrypted favorite.7z");
+        const QByteArray bytes("favorite payload");
+        QVERIFY(write(fixture.filePath(name), bytes));
+        QVERIFY(createArchive(fixture.path(), archive, name, "7z", password));
+        ArchiveBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(fixture.path());
+        auto *view = active(window);
+        QVERIFY(view);
+        QTRY_VERIFY(view->isEnabled() && filesystemRow(window, name) >= 0);
+        const auto origin = view->sourcePanel->GetCurrentFolderPrefix();
+        view->setCurrentCell(filesystemRow(window, name), 0);
+        view->selectRow(view->currentRow());
+        QtFavoriteStore *favorites = nullptr;
+        for (auto *object : qApp->children())
+            if (auto *store = dynamic_cast<QtFavoriteStore *>(object);
+                store && store->property("settingsPath").toString() ==
+                             qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"))
+                favorites = store;
+        QVERIFY(favorites);
+        QtArchiveLocation location;
+        location.physicalPath = QDir::toNativeSeparators(archive);
+        favorites->Add(archive, "Encrypted favorite", {}, location);
+
+        auto *menu = window.findChild<QMenu *>("savedPlacesMenu");
+        QVERIFY(menu);
+        const auto open = [&] {
+            menu->popup(window.mapToGlobal(QPoint(20, 20)));
+            QTRY_VERIFY(menu->isVisible());
+            for (auto *entry : menu->actions())
+                if (entry->toolTip() == archive) {
+                    menu->setActiveAction(entry);
+                    QTest::keyClick(menu, Qt::Key_Return);
+                    return;
+                }
+            menu->hide();
+            QFAIL("Encrypted favorite is absent from the menu");
+        };
+        bool cancel = true;
+        int prompts = 0;
+        QTimer answer;
+        widgetDialogs_.connectResponder(answer, &window, [&] {
+            if (auto *dialog = dynamic_cast<CPasswordDialog *>(widgetDialogs_.activeDialog())) {
+                ++prompts;
+                if (cancel)
+                    dialog->reject();
+                else {
+                    dialog->findChild<QLineEdit *>("passwordEdit")->setText(password);
+                    dialog->accept();
+                }
+            }
+        });
+        answer.start(1);
+        open();
+        QTRY_COMPARE(prompts, 1);
+        QVERIFY(view->isEnabled());
+        QCOMPARE(view->sourcePanel->GetCurrentFolderPrefix(), origin);
+        QCOMPARE(view->currentRow(), filesystemRow(window, name));
+        QVERIFY(view->selectionModel()->isRowSelected(view->currentRow(), {}));
+        QVERIFY(!action(window, "forwardAction")->isEnabled());
+        cancel = false;
+        open();
+        QTRY_VERIFY(view->isEnabled() && rowWithPath(window, name) >= 0 &&
+                    view->sourcePanel->IsArcFolder());
+        QCOMPARE(prompts, 2);
+        const QString output = fixture.filePath("export");
+        view->selectRow(rowWithPath(window, name));
+        window.extractTo(output, true);
+        QCOMPARE(read(QDir(output).filePath(name)), bytes);
+    }
     void newWindowOpensCurrentNestedArchiveIndependently_data() {
         QTest::addColumn<bool>("encrypted");
         QTest::newRow("plain") << false;

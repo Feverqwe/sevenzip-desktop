@@ -197,7 +197,7 @@ void QtWindowWorkspace::OpenFavorite(const QtFavorite &favorite) {
                                         favorite.archive);
         },
         [this, panel, favorite, previous](HRESULT result) {
-            if (result == S_OK || window_.app_.QtOperations().closed())
+            if (result == S_OK || result == E_ABORT || window_.app_.QtOperations().closed())
                 return;
             auto &location = panels_[panel].location;
             if (previous) {
