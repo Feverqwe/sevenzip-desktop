@@ -3,12 +3,8 @@
 #include "filemanager/panels/qtpanelcontextmenu.h"
 #include "filemanager/providers/qtlocationfolder.h"
 #include "filemanager/window/mainwindow.h"
-#include "filemanager/window/qtmainwindowchrome.h"
 #include "localization/qtlanguageservices.h"
-#include "ui/theme/qtcommandicons.h"
-#include <QLayout>
 #include <QSignalBlocker>
-#include <QToolButton>
 
 void MainWindow::showItemContextMenu(unsigned owner, QAbstractItemView *view, const QPoint &pos) {
     withPanelProjection(owner, [this, view, pos] {
@@ -29,57 +25,7 @@ void MainWindow::showItemContextMenu(unsigned owner, QAbstractItemView *view, co
     });
 }
 
-QIcon MainWindow::toolbarIcon(int kind) {
-    static const QtCommandIcon symbols[] = {
-        QtCommandIcon::Add,  QtCommandIcon::Extract, QtCommandIcon::Test, QtCommandIcon::Copy,
-        QtCommandIcon::Move, QtCommandIcon::Delete,  QtCommandIcon::Info};
-    if (kind < 0 || kind >= int(std::size(symbols)))
-        return {};
-    return QtCommandSymbol(symbols[kind]);
-}
-
 QString MainWindow::toolbarSettingsPath() { return FmSettingsPath(); }
-
-void MainWindow::updateToolbar() {
-    auto *toolbar = findChild<QToolBar *>("archiveToolbar");
-    const bool archive = app_.ShowArchiveToolbar;
-    const bool standard = app_.ShowStandardToolbar;
-    const QSignalBlocker archiveSignals(archiveToolbarOption_);
-    const QSignalBlocker standardSignals(standardToolbarOption_);
-    const QSignalBlocker largeSignals(largeButtonsOption_);
-    const QSignalBlocker textSignals(buttonTextOption_);
-    archiveToolbarOption_->setChecked(archive);
-    standardToolbarOption_->setChecked(standard);
-    largeButtonsOption_->setChecked(app_.LargeButtons);
-    buttonTextOption_->setChecked(app_.ShowButtonsLables);
-    // Source ReloadToolbars constructs only the enabled groups. Keep QAction
-    // visibility for the shared menus; the toolbar projects group membership.
-    toolbar->clear();
-    if (archive)
-        toolbar->addActions(archiveToolbarActions_);
-    if (archive && standard) {
-        toolbar->addAction(toolbarGroupSeparator_);
-        toolbar->widgetForAction(toolbarGroupSeparator_)->setStyle(toolbar->style());
-    }
-    if (standard)
-        toolbar->addActions(standardToolbarActions_);
-    toolbar->hide();
-    toolbar->setIconSize(largeButtonsOption_->isChecked() ? QSize(24, 24) : QSize(16, 16));
-    toolbar->setToolButtonStyle(Qt::ToolButtonIconOnly);
-    for (QAction *action : toolbar->actions()) {
-        if (auto *button = qobject_cast<QToolButton *>(toolbar->widgetForAction(action))) {
-            QtConfigureMainToolbarButton(*button);
-            const bool primary = action == toolbarAdd_ || action == extract_;
-            button->setToolButtonStyle(primary && app_.ShowButtonsLables
-                                           ? Qt::ToolButtonTextBesideIcon
-                                           : Qt::ToolButtonIconOnly);
-            button->setAutoRaise(true);
-            button->setFocusPolicy(Qt::StrongFocus);
-        }
-    }
-    refreshToolbarTexts();
-    toolbar->layout()->activate();
-}
 
 void MainWindow::showSettings() {
     SettingsDialog dialog(toolbarSettingsPath(), this, folderManager_);

@@ -11,7 +11,6 @@ class QtAppPresentation final : public IQtAppPresentation {
   public:
     explicit QtAppPresentation(MainWindow &window) : window_(window) {}
     void Initialize(CApp &app) override;
-    bool IsSmallScreen() const override;
     bool CreatePanel(CPanel &panel, unsigned index) override;
     CPanelCallback *PanelCallback(unsigned index) override;
     void PrepareFolderChange(unsigned index) override;
@@ -19,7 +18,6 @@ class QtAppPresentation final : public IQtAppPresentation {
                      const CRecordVector<UInt32> &indices, QtCopyRoute route) override;
     void SetListSettings(unsigned index, const CFmSettings &settings) override;
     void ShowPanel(unsigned index, bool visible) override;
-    void ReloadToolbars(CApp &app) override;
     void MoveSubWindows() override;
     void CopyFinished();
     void CompleteCopyIfReady();

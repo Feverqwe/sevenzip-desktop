@@ -49,10 +49,6 @@ class IQtFileManagerMenuCommandServices : public IQtFileManagerCommandServices {
     virtual void RefreshView() = 0;
     virtual void Change_AutoRefresh_Mode() = 0;
     virtual void SwitchOnOffOnePanel() = 0;
-    virtual void SwitchStandardToolbar() = 0;
-    virtual void SwitchArchiveToolbar() = 0;
-    virtual void SwitchButtonsLables() = 0;
-    virtual void SwitchLargeButtons() = 0;
     virtual bool &TimestampShowUTC() = 0;
     virtual void RedrawListItems_InPanels() = 0;
     virtual unsigned TimestampLevelCount() const = 0;

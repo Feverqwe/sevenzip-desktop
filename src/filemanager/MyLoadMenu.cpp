@@ -87,10 +87,6 @@ void OnMenuActivating(QMenuBar &mainMenu, QMenu &hMenu, int position, CApp &g_Ap
                        GetSortControlID(g_App.GetSortID()));
         CheckItemByID(hMenu, IDM_VIEW_TWO_PANELS, g_App.NumPanels == 2);
         CheckItemByID(hMenu, IDM_VIEW_FLAT_VIEW, g_App.GetFlatMode());
-        CheckItemByID(hMenu, IDM_VIEW_ARCHIVE_TOOLBAR, g_App.ShowArchiveToolbar);
-        CheckItemByID(hMenu, IDM_VIEW_STANDARD_TOOLBAR, g_App.ShowStandardToolbar);
-        CheckItemByID(hMenu, IDM_VIEW_TOOLBARS_LARGE_BUTTONS, g_App.LargeButtons);
-        CheckItemByID(hMenu, IDM_VIEW_TOOLBARS_SHOW_BUTTONS_TEXT, g_App.ShowButtonsLables);
         CheckItemByID(hMenu, IDM_VIEW_AUTO_REFRESH, g_App.Get_AutoRefresh_Mode());
         for (QAction *item : hMenu.actions()) {
             if (item->menu() && Is_MenuItem_TimePopup(*item)) {
@@ -178,12 +174,9 @@ static void MyChangeMenu(const QList<QAction *> &menu, unsigned menuID, unsigned
                 } else if (level == 1) {
                     if (menuID == IDM_FAVORITES || (menuID == 0 && menuIndex == 3))
                         langID = IDM_ADD_TO_FAVORITES;
-                    else if (menuID == IDM_VIEW || (menuID == 0 && menuIndex == 2)) {
-                        if (subMenu->objectName() == "timestampMenu")
-                            langID = IDM_VIEW_TIME_POPUP;
-                        else
-                            langID = IDM_VIEW_TOOLBARS;
-                    }
+                    else if ((menuID == IDM_VIEW || (menuID == 0 && menuIndex == 2)) &&
+                             subMenu->objectName() == "timestampMenu")
+                        langID = IDM_VIEW_TIME_POPUP;
                 }
             }
             if (langID == IDM_VIEW_TIME_POPUP)

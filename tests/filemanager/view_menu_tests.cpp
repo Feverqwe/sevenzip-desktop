@@ -2,7 +2,6 @@
 #include "Windows/TimeUtils.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
-#include "filemanager/window/qtwindowworkspace.h"
 #include "localization/LangUtils.h"
 #include "support/panel_keys.h"
 #include "ui/support/layout_inspection.h"
@@ -56,28 +55,17 @@ class ViewMenuTests final : public QObject, protected MainWindowTestSupport {
         action(window, "sort2Action")->trigger();
         openView(window);
         auto *view = window.findChild<QMenu *>("viewMenu");
-        QtWindowWorkspace *owner = nullptr;
-        for (auto *object : window.children())
-            if (auto *workspace = dynamic_cast<QtWindowWorkspace *>(object))
-                owner = workspace;
-        QVERIFY(owner);
-        bool statePreserved = false;
-        QVERIFY(owner->WithSource(*peer->sourcePanel, [&] {
-            peer->selectRow(0);
-            statePreserved = view->isVisible() && action(window, "sort2Action")->isChecked() &&
-                             !action(window, "sort0Action")->isChecked();
-            auto *sort = window.findChild<QMenu *>("sortMenu");
-            view->setActiveAction(sort->menuAction());
-            QTest::keyClick(view, Qt::Key_Right);
-            QApplication::processEvents();
-            if (!sort->isVisible())
-                return false;
-            auto *size = action(window, "sort3Action");
-            QTest::mouseClick(sort, Qt::LeftButton, Qt::NoModifier,
-                              sort->actionGeometry(size).center());
-            return true;
-        }));
-        QVERIFY(statePreserved);
+        peer->selectRow(0);
+        QVERIFY(view->isVisible());
+        QVERIFY(action(window, "sort2Action")->isChecked());
+        QVERIFY(!action(window, "sort0Action")->isChecked());
+        auto *sort = window.findChild<QMenu *>("sortMenu");
+        view->setActiveAction(sort->menuAction());
+        QTest::keyClick(view, Qt::Key_Right);
+        QTRY_VERIFY(sort->isVisible());
+        auto *size = action(window, "sort3Action");
+        QTest::mouseClick(sort, Qt::LeftButton, Qt::NoModifier,
+                          sort->actionGeometry(size).center());
         QTRY_VERIFY(!view->isVisible());
         QCOMPARE(source->model()->index(0, 0).data().toString(), QString("z-large.txt"));
         QCOMPARE(peer->model()->index(0, 0).data().toString(), QString("a-small.txt"));

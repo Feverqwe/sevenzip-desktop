@@ -135,18 +135,16 @@ class MainWindow : public QMainWindow {
     void closeEvent(QCloseEvent *event) override;
     void changeEvent(QEvent *event) override;
     void reloadLangItems();
-    void refreshToolbarTexts();
     void quiesceOperations();
     QWidget *applicationQuitBlocker() const;
     bool canHandleExternalUpdate() const;
     bool runExternalArchiveUpdate(CPanel &panel, const QtArchiveUpdateBody &body);
-    QMenu *createMenusAndToolbar();
-    void createFileActions(QMenu *menu, QToolBar *toolbar);
-    void createFileExtras(QMenu *menu, QToolBar *toolbar);
+    QMenu *createMenus();
+    void createFileActions(QMenu *menu);
+    void createFileExtras(QMenu *menu);
     void createViewModes(QMenu *viewMenu);
     void createFavoritesMenu(QMenu *favoritesMenu);
     void createViewOptions(QMenu *viewMenu);
-    void createToolbarOptions(QMenu *viewMenu);
     void populateSourceMenus();
     void activateSingleClickedRow(int row);
     void createFilePanel(QMenu *editMenu, unsigned index);
@@ -208,7 +206,6 @@ class MainWindow : public QMainWindow {
     void applySortMode(bool enableSorting = false);
     void sortIndicatorChanged(unsigned panel, int column, Qt::SortOrder order,
                               bool headerClick = false);
-    static QIcon toolbarIcon(int kind);
     static QString toolbarSettingsPath();
     QString sourcePathFromDisplayPath(QString path) const;
     void recordVisitedPath(const QString &path);
@@ -216,7 +213,6 @@ class MainWindow : public QMainWindow {
     void refreshBookmarks();
     void saveBookmark(int index);
     void openBookmark(int index);
-    void updateToolbar();
     void applyFlatView(bool enabled);
     void showSettings();
     void applyFileListSettings();
@@ -447,11 +443,4 @@ class MainWindow : public QMainWindow {
     QAction *deselectMask_ = nullptr;
     QAction *selectType_ = nullptr;
     QAction *deselectType_ = nullptr;
-    QAction *archiveToolbarOption_ = nullptr;
-    QAction *standardToolbarOption_ = nullptr;
-    QAction *largeButtonsOption_ = nullptr;
-    QAction *buttonTextOption_ = nullptr;
-    QAction *toolbarGroupSeparator_ = nullptr;
-    QList<QAction *> archiveToolbarActions_;
-    QList<QAction *> standardToolbarActions_;
 };

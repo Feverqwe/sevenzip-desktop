@@ -7,33 +7,13 @@
 #include "filemanager/window/qtnavigationbar.h"
 #include "filemanager/window/qtwindowworkspace.h"
 #include "fileops/native/Dialog.h"
-#include "ui/dialogs/qtdialogscreenservices.h"
 #include <QApplication>
 #include <QPointer>
-
-bool QtAppPresentation::IsSmallScreen() const {
-    const QtDialogScreenServices screen(&window_);
-    return !NWindows::NControl::IsDialogSizeOK(200, 200, screen);
-}
 
 void QtAppPresentation::Initialize(CApp &app) {
     // Preserve the existing single-panel preferences when introducing the
     // original per-panel keys. Explicit source keys always take precedence.
     QSettings key(window_.toolbarSettingsPath(), QSettings::IniFormat);
-    if (!key.contains("Toolbars") &&
-        (key.contains("toolbar/text") || key.contains("toolbar/large") ||
-         key.contains("toolbar/standard") || key.contains("toolbar/archive"))) {
-        UInt32 mask = 0;
-        if (key.value("toolbar/text", true).toBool())
-            mask |= 1;
-        if (key.value("toolbar/large", false).toBool())
-            mask |= 2;
-        if (key.value("toolbar/standard", true).toBool())
-            mask |= 4;
-        if (key.value("toolbar/archive", true).toBool())
-            mask |= 8;
-        SaveToolbarsMask(mask, window_.toolbarSettingsPath());
-    }
     if (!key.contains("ListMode")) {
         CListMode modes;
         bool ok = false;
@@ -49,7 +29,7 @@ void QtAppPresentation::Initialize(CApp &app) {
         key.setValue(flatKey, key.value("view/flatArchive", false));
         key.sync();
     }
-    editMenu_ = window_.createMenusAndToolbar();
+    editMenu_ = window_.createMenus();
 }
 
 bool QtAppPresentation::CreatePanel(CPanel &panel, unsigned index) {
@@ -194,7 +174,6 @@ void QtAppPresentation::SetListSettings(unsigned index, const CFmSettings &setti
                                           : QAbstractItemView::ExtendedSelection);
 }
 
-void QtAppPresentation::ReloadToolbars(CApp &) { window_.updateToolbar(); }
 void QtAppPresentation::ShowPanel(unsigned index, bool visible) {
     if (index < kNumPanelsMax && window_.panelUi_[index].container)
         window_.panelUi_[index].container->setVisible(visible);

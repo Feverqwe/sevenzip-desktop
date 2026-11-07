@@ -114,7 +114,6 @@ void MainWindow::configureShortcuts() {
         if (ui.iconList)
             ui.iconList->addActions(panelShortcutActions_);
     }
-    refreshToolbarTexts();
 }
 
 QAction *MainWindow::panelShortcut(const QKeyEvent &key) const {

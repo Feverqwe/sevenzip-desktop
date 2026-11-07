@@ -67,9 +67,6 @@ void QtFileManagerCommands::AttachActions() {
     AttachMountActions();
     AttachDirectoryActions();
     window_.app_.AttachQtCommandServices(this);
-    for (QAction *action : {window_.toolbarAdd_, window_.extract_, window_.test_, window_.copy_,
-                            window_.move_, window_.remove_, window_.infoAction_})
-        QObject::connect(action, &QAction::changed, &window_, &MainWindow::refreshToolbarTexts);
 }
 
 void QtFileManagerCommands::AttachFileActions() {
@@ -145,14 +142,6 @@ void QtFileManagerCommands::AttachViewActions() {
     Bind(w.findChild<QAction *>("aboutAction"), IDM_ABOUT);
     Bind(w.findChild<QAction *>("tempDirAction"), IDM_TEMP_DIR);
     BindToggle(w.flatView_, IDM_VIEW_FLAT_VIEW, [](CApp &app) { return app.GetFlatMode(); });
-    BindToggle(w.standardToolbarOption_, IDM_VIEW_STANDARD_TOOLBAR,
-               [](CApp &app) { return app.ShowStandardToolbar; });
-    BindToggle(w.archiveToolbarOption_, IDM_VIEW_ARCHIVE_TOOLBAR,
-               [](CApp &app) { return app.ShowArchiveToolbar; });
-    BindToggle(w.buttonTextOption_, IDM_VIEW_TOOLBARS_SHOW_BUTTONS_TEXT,
-               [](CApp &app) { return app.ShowButtonsLables; });
-    BindToggle(w.largeButtonsOption_, IDM_VIEW_TOOLBARS_LARGE_BUTTONS,
-               [](CApp &app) { return app.LargeButtons; });
     for (unsigned i = 0; i < 4; ++i)
         Bind(w.viewActions_[i], IDM_VIEW_LARGE_ICONS + i, true);
     const unsigned sortIDs[] = {IDM_VIEW_ARANGE_BY_NAME, IDM_VIEW_ARANGE_BY_TYPE,

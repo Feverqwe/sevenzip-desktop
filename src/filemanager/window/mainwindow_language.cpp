@@ -10,7 +10,6 @@
 #include "filemanager/window/qtwindowworkspace.h"
 #include "localization/qtlangcontrols.h"
 #include <QEvent>
-#include <QToolButton>
 
 void MainWindow::reloadLangItems() {
     if (app_.QtOperations().closed())
@@ -29,7 +28,6 @@ void MainWindow::reloadLangItems() {
     }
     refreshBookmarks();
     QtReloadLangTexts(*this);
-    refreshToolbarTexts();
     for (FileTable *files : findChildren<FileTable *>())
         files->refreshLanguageText();
     for (unsigned i = 0; i < kNumPanelsMax; i++) {
@@ -63,31 +61,6 @@ void MainWindow::reloadLangItems() {
     }
     if (workspace_)
         workspace_->Refresh();
-}
-
-void MainWindow::refreshToolbarTexts() {
-    auto *toolbar = findChild<QToolBar *>("archiveToolbar");
-    if (!toolbar)
-        return;
-    // Original AddButton and WM_NOTIFY/TTN_GETDISPINFO share SetButtonText.
-    // QAction keeps its File menu caption; Qt supplies button/tooltip lifetime.
-    for (QAction *action : {toolbarAdd_, extract_, test_, copy_, move_, remove_, infoAction_})
-        if (auto *button = qobject_cast<QToolButton *>(toolbar->widgetForAction(action))) {
-            UString text;
-            SetButtonText(action->property("nativeCommandID").toInt(), text);
-            if (text.IsEmpty())
-                continue;
-            const QString caption = action == extract_
-                                        ? QCoreApplication::translate("ArchiveRedesign", "Extract")
-                                        : QString::fromWCharArray(text);
-            button->setText(caption);
-            button->setAccessibleName(caption);
-            const QString shortcut =
-                (action == infoAction_ ? properties_->shortcut() : action->shortcut())
-                    .toString(QKeySequence::NativeText);
-            button->setToolTip(
-                shortcut.isEmpty() ? caption : QStringLiteral("%1 (%2)").arg(caption, shortcut));
-        }
 }
 
 void MainWindow::changeEvent(QEvent *event) {

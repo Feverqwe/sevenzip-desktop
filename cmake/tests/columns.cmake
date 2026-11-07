@@ -1,7 +1,3 @@
-    qt_add_executable(native_toolbar_state_tests tests/platform/native_toolbar_state_tests.cpp)
-    target_link_libraries(native_toolbar_state_tests PRIVATE sevenzip_panel Qt6::Test)
-    add_test(NAME native_toolbar_state COMMAND native_toolbar_state_tests -silent)
-    set_tests_properties(native_toolbar_state PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
     qt_add_executable(window_info_tests tests/ui/window_info_tests.cpp)
     qt_add_executable(file_menu_policy_tests tests/ui/file_menu_policy_tests.cpp)
     target_include_directories(file_menu_policy_tests PRIVATE src)

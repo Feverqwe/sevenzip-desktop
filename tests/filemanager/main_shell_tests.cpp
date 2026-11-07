@@ -11,6 +11,7 @@
 #include <QMenuBar>
 #include <QScopeGuard>
 #include <QScreen>
+#include <QSettings>
 #include <QSizeGrip>
 #include <QSplitterHandle>
 #include <QTimer>
@@ -341,6 +342,17 @@ class MainShellTests final : public QObject {
         });
         SaveRegLang(ToUString(language), settings);
         ReloadLang(settings);
+        QSettings profile(settings, QSettings::IniFormat);
+        const auto previousMask = profile.value("Toolbars");
+        profile.setValue("Toolbars", 2u);
+        profile.sync();
+        const auto restoreMask = qScopeGuard([&] {
+            if (previousMask.isValid())
+                profile.setValue("Toolbars", previousMask);
+            else
+                profile.remove("Toolbars");
+            profile.sync();
+        });
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString folder =
@@ -370,9 +382,10 @@ class MainShellTests final : public QObject {
                 QTRY_VERIFY(toggle->isEnabled());
                 QTRY_VERIFY(window.findChild<FileTable *>("archiveTable")->isEnabled());
                 QApplication::processEvents();
-                for (auto *toolbar : window.findChildren<QToolBar *>()) {
-                    if (!toolbar->isVisible())
-                        continue;
+                for (unsigned panel = 0; panel < (two ? 2u : 1u); ++panel) {
+                    auto *toolbar =
+                        window.findChild<QToolBar *>(QString("panelFileActions%1").arg(panel));
+                    QVERIFY(toolbar && toolbar->isVisible());
                     QVERIFY(UiInspection::fullyVisible(*toolbar, window));
                     for (auto *action : toolbar->actions()) {
                         if (action->isSeparator() || !action->isVisible())
@@ -380,7 +393,7 @@ class MainShellTests final : public QObject {
                         auto *button =
                             qobject_cast<QToolButton *>(toolbar->widgetForAction(action));
                         if (!button)
-                            continue; // Layout spacers are not interactive commands.
+                            continue;
                         QVERIFY(!button->accessibleName().isEmpty());
                         QVERIFY(UiInspection::fullyVisible(*button, window));
                     }

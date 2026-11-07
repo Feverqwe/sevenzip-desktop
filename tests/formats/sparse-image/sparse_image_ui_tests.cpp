@@ -20,12 +20,13 @@
 #include <QLabel>
 #include <QLayout>
 #include <QLineEdit>
+#include <QMenu>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QScopeGuard>
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QTimer>
-#include <QToolBar>
 #include <QtTest>
 #ifndef Q_OS_WIN
 #include <sys/stat.h>
@@ -279,14 +280,23 @@ class SparseImageUiTests final : public QObject {
         QVERIFY(calculate);
         QTRY_VERIFY(calculate->isEnabled());
         if (directory == "directory-00") {
-            auto *toolbar = window.findChild<QToolBar *>("archiveToolbar");
-            auto *button = toolbar->widgetForAction(calculate);
-            QVERIFY(button);
+            auto *fileMenu = window.findChild<QMenu *>("fileMenu");
+            QVERIFY(fileMenu);
             for (const QSize size : {QSize(980, 620), QSize(640, 400)}) {
                 window.resize(size);
-                QTest::qWait(10);
-                QVERIFY(button->isVisible());
-                QVERIFY(UiInspection::fullyVisible(*button, window));
+                fileMenu->popup(window.mapToGlobal(QPoint(20, 40)));
+                const auto close = qScopeGuard([fileMenu] { fileMenu->hide(); });
+                QMenu *advanced = nullptr;
+                for (auto *item : fileMenu->actions())
+                    if (item->menu() && item->menu()->objectName() == "advancedCommandsMenu")
+                        advanced = item->menu();
+                QVERIFY(advanced);
+                QVERIFY(advanced->actions().contains(calculate) && calculate->isVisible());
+                advanced->popup(window.mapToGlobal(QPoint(40, 60)));
+                QTRY_VERIFY(advanced->isVisible());
+                QVERIFY(advanced->rect().contains(advanced->actionGeometry(calculate)));
+                advanced->hide();
+                fileMenu->hide();
                 QVERIFY(UiInspection::writeReport(
                     window, QStringLiteral("apfs-size-%1-%2").arg(language).arg(size.width())));
             }

@@ -178,10 +178,6 @@ void QtFileManagerCommands::RefreshView() {
     else
         window_.app_.RefreshView();
 }
-void QtFileManagerCommands::SwitchStandardToolbar() { window_.app_.SwitchStandardToolbar(); }
-void QtFileManagerCommands::SwitchArchiveToolbar() { window_.app_.SwitchArchiveToolbar(); }
-void QtFileManagerCommands::SwitchButtonsLables() { window_.app_.SwitchButtonsLables(); }
-void QtFileManagerCommands::SwitchLargeButtons() { window_.app_.SwitchLargeButtons(); }
 bool &QtFileManagerCommands::TimestampShowUTC() { return g_Timestamp_Show_UTC; }
 void QtFileManagerCommands::OptionsDialog() { window_.showSettings(); }
 void QtFileManagerCommands::OpenBookmark(unsigned index) { window_.openBookmark(index); }

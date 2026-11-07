@@ -203,61 +203,10 @@ void CApp::SetListSettings() {
     }
 }
 
-void CApp::ReadToolbar(bool smallScreen) {
-    const UInt32 mask = ReadToolbarsMask(_settingsPath);
-    if (mask & ((UInt32)1 << 31)) {
-        ShowButtonsLables = !smallScreen;
-        LargeButtons = false;
-        ShowStandardToolbar = ShowArchiveToolbar = true;
-    } else {
-        ShowButtonsLables = ((mask & 1) != 0);
-        LargeButtons = ((mask & 2) != 0);
-        ShowStandardToolbar = ((mask & 4) != 0);
-        ShowArchiveToolbar = ((mask & 8) != 0);
-    }
-}
-void CApp::SaveToolbar() {
-    UInt32 mask = 0;
-    if (ShowButtonsLables)
-        mask |= 1;
-    if (LargeButtons)
-        mask |= 2;
-    if (ShowStandardToolbar)
-        mask |= 4;
-    if (ShowArchiveToolbar)
-        mask |= 8;
-    SaveToolbarsMask(mask, _settingsPath);
-}
-void CApp::ReloadToolbars() {
-    if (_presentation)
-        _presentation->ReloadToolbars(*this);
-}
 void CApp::MoveSubWindows() {
     if (_presentation)
         _presentation->MoveSubWindows();
 }
-void CApp::SaveToolbarChanges() {
-    SaveToolbar();
-    ReloadToolbars();
-    MoveSubWindows();
-}
-void CApp::SwitchStandardToolbar() {
-    ShowStandardToolbar = !ShowStandardToolbar;
-    SaveToolbarChanges();
-}
-void CApp::SwitchArchiveToolbar() {
-    ShowArchiveToolbar = !ShowArchiveToolbar;
-    SaveToolbarChanges();
-}
-void CApp::SwitchButtonsLables() {
-    ShowButtonsLables = !ShowButtonsLables;
-    SaveToolbarChanges();
-}
-void CApp::SwitchLargeButtons() {
-    LargeButtons = !LargeButtons;
-    SaveToolbarChanges();
-}
-
 HRESULT CApp::Create(QWidget *window, const UString &mainPath, const UString &arcFormat,
                      int xSizes[2], bool needOpenArc, COpenResult &openRes,
                      IQtAppPresentation &presentation, const QString &settingsPath) {
@@ -267,10 +216,7 @@ HRESULT CApp::Create(QWidget *window, const UString &mainPath, const UString &ar
     _window = window;
     _presentation = &presentation;
     _settingsPath = settingsPath;
-    // Qt child/menu construction replaces Win32 handles, not toolbar state.
     _presentation->Initialize(*this);
-    ReadToolbar(_presentation->IsSmallScreen());
-    ReloadToolbars();
     unsigned i;
     for (i = 0; i < kNumPanelsMax; i++)
         Panels[i].PanelCreated = false;

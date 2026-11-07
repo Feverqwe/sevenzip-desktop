@@ -59,7 +59,6 @@ class IQtAppPresentation {
   public:
     virtual ~IQtAppPresentation() = default;
     virtual void Initialize(CApp &app) = 0;
-    virtual bool IsSmallScreen() const { return false; }
     virtual bool CreatePanel(CPanel &panel, unsigned index) = 0;
     virtual CPanelCallback *PanelCallback(unsigned index) = 0;
     virtual void PrepareFolderChange(unsigned) {}
@@ -67,7 +66,6 @@ class IQtAppPresentation {
                              QtCopyRoute) {}
     virtual void SetListSettings(unsigned index, const CFmSettings &settings) = 0;
     virtual void ShowPanel(unsigned index, bool visible) = 0;
-    virtual void ReloadToolbars(CApp &) {}
     virtual void MoveSubWindows() {}
 };
 
@@ -79,10 +77,6 @@ class CApp {
     unsigned LastFocusedPanel = 0;
     bool ShowSystemMenu = false;
     bool AutoRefresh_Mode = true;
-    bool ShowStandardToolbar = true;
-    bool ShowArchiveToolbar = true;
-    bool ShowButtonsLables = true;
-    bool LargeButtons = false;
     CAppState AppState;
     CPanelCallbackImp m_PanelCallbackImp[kNumPanelsMax];
     QtPanelSlots Panels;
@@ -103,16 +97,8 @@ class CApp {
             Panels[index].OnReload();
         }
     }
-    void ReadToolbar(bool smallScreen = false);
-    void SaveToolbar();
-    void ReloadToolbars();
     void MoveSubWindows();
     HRESULT SwitchOnOffOnePanel();
-    void SaveToolbarChanges();
-    void SwitchStandardToolbar();
-    void SwitchArchiveToolbar();
-    void SwitchButtonsLables();
-    void SwitchLargeButtons();
     void SetFocusedPanel(unsigned index);
     UString PrevTitle;
     void RefreshTitle(bool always = false);

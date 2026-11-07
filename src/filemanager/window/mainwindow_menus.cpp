@@ -5,21 +5,14 @@
 #include "filemanager/MyLoadMenu.h"
 #include "filemanager/qtfilemanagercommandservices.h"
 #include "filemanager/window/mainwindow.h"
-#include "filemanager/window/qtmainwindowchrome.h"
 #include "localization/qtlangcontrols.h"
+#include "ui/theme/qtcommandicons.h"
 
-QMenu *MainWindow::createMenusAndToolbar() {
+QMenu *MainWindow::createMenus() {
     auto *menu = menuBar()->addMenu("&File");
     menu->setObjectName("fileMenu");
-    auto *toolbar = addToolBar("Archive");
-    toolbar->setObjectName("archiveToolbar");
-    QtConfigureMainToolbar(*toolbar);
-    QtBindLocalText(toolbar, "mainwindow_menus", QT_TRANSLATE_NOOP("mainwindow_menus", "Archive"));
-    toolbar->setMovable(false);
-    toolbar->setToolButtonStyle(Qt::ToolButtonIconOnly);
-    toolbar->setIconSize(QSize(16, 16));
-    createFileActions(menu, toolbar);
-    createFileExtras(menu, toolbar);
+    createFileActions(menu);
+    createFileExtras(menu);
     auto *editMenu = menuBar()->addMenu("&Edit");
     editMenu->setObjectName("editMenu");
     auto *viewMenu = menuBar()->addMenu("&View");
@@ -36,7 +29,7 @@ QMenu *MainWindow::createMenusAndToolbar() {
     return editMenu;
 }
 
-void MainWindow::createFileActions(QMenu *menu, QToolBar *toolbar) {
+void MainWindow::createFileActions(QMenu *menu) {
     back_ = new QAction("Back", this);
     back_->setObjectName("backAction");
     QtBindLocalText(back_, "mainwindow_menus", QT_TRANSLATE_NOOP("mainwindow_menus", "Back"));
@@ -52,17 +45,17 @@ void MainWindow::createFileActions(QMenu *menu, QToolBar *toolbar) {
     openInside_->setObjectName("openInsideAction");
     openOutside_ = new QAction("Open O&utside", menu);
     openOutside_->setObjectName("openOutsideAction");
-    toolbarAdd_ = toolbar->addAction("Add");
+    toolbarAdd_ = new QAction("Add", menu);
     toolbarAdd_->setObjectName("toolbarAddAction");
-    extract_ = toolbar->addAction("Extract");
+    extract_ = new QAction("Extract", menu);
     extract_->setObjectName("extractArchiveAction");
-    test_ = toolbar->addAction("Test");
+    test_ = new QAction("Test", menu);
     test_->setObjectName("testArchiveAction");
-    copy_ = toolbar->addAction("Copy");
+    copy_ = new QAction("Copy", menu);
     copy_->setObjectName("copyAction");
-    move_ = toolbar->addAction("Move");
+    move_ = new QAction("Move", menu);
     move_->setObjectName("moveAction");
-    remove_ = toolbar->addAction("&Delete");
+    remove_ = new QAction("&Delete", menu);
     remove_->setObjectName("deleteAction");
     split_ = new QAction("&Split file...", menu);
     split_->setObjectName("splitFileAction");
@@ -81,7 +74,7 @@ void MainWindow::createFileActions(QMenu *menu, QToolBar *toolbar) {
     exitAction_->setMenuRole(QAction::QuitRole);
 }
 
-void MainWindow::createFileExtras(QMenu *menu, QToolBar *toolbar) {
+void MainWindow::createFileExtras(QMenu *menu) {
     auto *hashMenu = new QMenu("CRC", menu);
     hashMenu->setObjectName("hashMenu");
     hashMenu->menuAction()->setObjectName("hashMenu");
@@ -104,19 +97,15 @@ void MainWindow::createFileExtras(QMenu *menu, QToolBar *toolbar) {
     createFolder_->setObjectName("createFolderAction");
     createFile_ = new QAction("Create File", menu);
     createFile_->setObjectName("createFileAction");
-    infoAction_ = toolbar->addAction("Info");
+    infoAction_ = new QAction("Info", menu);
     infoAction_->setObjectName("archiveInfoAction");
-    toolbarAdd_->setIcon(toolbarIcon(0));
-    extract_->setIcon(toolbarIcon(1));
-    test_->setIcon(toolbarIcon(2));
-    copy_->setIcon(toolbarIcon(3));
-    move_->setIcon(toolbarIcon(4));
-    remove_->setIcon(toolbarIcon(5));
-    infoAction_->setIcon(toolbarIcon(6));
-    toolbarGroupSeparator_ = toolbar->insertSeparator(copy_);
-    toolbarGroupSeparator_->setObjectName("toolbarGroupSeparator");
-    archiveToolbarActions_ = {toolbarAdd_, extract_, test_};
-    standardToolbarActions_ = {copy_, move_, remove_, infoAction_};
+    toolbarAdd_->setIcon(QtCommandSymbol(QtCommandIcon::Add));
+    extract_->setIcon(QtCommandSymbol(QtCommandIcon::Extract));
+    test_->setIcon(QtCommandSymbol(QtCommandIcon::Test));
+    copy_->setIcon(QtCommandSymbol(QtCommandIcon::Copy));
+    move_->setIcon(QtCommandSymbol(QtCommandIcon::Move));
+    remove_->setIcon(QtCommandSymbol(QtCommandIcon::Delete));
+    infoAction_->setIcon(QtCommandSymbol(QtCommandIcon::Info));
 }
 
 void MainWindow::createViewModes(QMenu *viewMenu) {
@@ -188,7 +177,6 @@ void MainWindow::createViewOptions(QMenu *viewMenu) {
                     QT_TRANSLATE_NOOP("CommandMenus", "Two panels"));
     twoPanelsAction_->setCheckable(true);
     twoPanelsAction_->setChecked(app_.NumPanels == 2);
-    createToolbarOptions(viewMenu);
     root_ = new QAction("Open Root Folder", viewMenu);
     root_->setObjectName("openRootAction");
     QtBindLocalText(root_, "CommandMenus", QT_TRANSLATE_NOOP("CommandMenus", "Computer"));
@@ -223,31 +211,9 @@ void MainWindow::applyFlatView(bool enabled) {
     }
 }
 
-void MainWindow::createToolbarOptions(QMenu *viewMenu) {
-    auto *toolbarsMenu = new QMenu("&Toolbars", viewMenu);
-    toolbarsMenu->setObjectName("toolbarsMenu");
-    toolbarsMenu->menuAction()->setObjectName("toolbarsMenu");
-    auto addToolbarOption = [this, toolbarsMenu](const QString &title, const char *name,
-                                                 bool checked) {
-        auto *option = toolbarsMenu->addAction(title);
-        option->setObjectName(name);
-        option->setCheckable(true);
-        option->setChecked(checked);
-        return option;
-    };
-    archiveToolbarOption_ =
-        addToolbarOption("Archive Toolbar", "archiveToolbarOption", app_.ShowArchiveToolbar);
-    standardToolbarOption_ =
-        addToolbarOption("Standard Toolbar", "standardToolbarOption", app_.ShowStandardToolbar);
-    largeButtonsOption_ = addToolbarOption("Lar&ge Icons", "largeButtonsOption", app_.LargeButtons);
-    buttonTextOption_ =
-        addToolbarOption("Show Buttons Text", "buttonTextOption", app_.ShowButtonsLables);
-    updateToolbar();
-}
-
 void MainWindow::populateSourceMenus() {
     // resource.rc IDM_MENU is the order/grouping contract. Keep existing Qt
-    // actions so the source command dispatcher and toolbar share one action.
+    // actions so the source command dispatcher can reuse the menu actions.
     // Populate once after the first panel has created the selection actions.
     auto unavailable = [this](QMenu *menu, const QString &label, const char *name, unsigned id) {
         auto *action = new QAction(label, this);
@@ -303,7 +269,6 @@ void MainWindow::populateSourceMenus() {
 
     auto *view = findChild<QMenu *>("viewMenu");
     auto *time = findChild<QMenu *>("timestampMenu");
-    auto *toolbars = findChild<QMenu *>("toolbarsMenu");
     auto *appearance = view->addMenu(QString());
     appearance->setObjectName("appearanceMenu");
     QtBindLocalText(appearance->menuAction(), "CommandMenus",
@@ -337,7 +302,6 @@ void MainWindow::populateSourceMenus() {
     view->addSeparator();
     view->addMenu(time);
     time->menuAction()->setVisible(false);
-    toolbars->menuAction()->setVisible(false);
     view->addSeparator();
     for (QAction *action : {back_, forward_, up_, root_, foldersHistory_})
         view->addAction(action);

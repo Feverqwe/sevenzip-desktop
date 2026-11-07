@@ -21,8 +21,6 @@ static const UInt32 kPanelsInfoHeaderSize = 3 * 4;
 static const UInt32 kListViewHeaderSize = 3 * 4;
 static const UInt32 kColumnInfoSize = 3 * 4;
 static const UInt32 kListViewVersion = 1;
-static const char *const kToolbars = "Toolbars";
-static const UInt32 kDefaultToolbarMask = ((UInt32)1 << 31) | 8 | 4 | 1;
 
 static QString ColumnSettingsKey(const UString &id) {
     return QStringLiteral("Columns/@") + QString::fromLatin1(ToQString(id).toUtf8().toHex());
@@ -79,20 +77,6 @@ void CListViewInfo::Read(const UString &id, const QString &settingsPath) {
         Get32(p + 8, column.Width);
         Columns.AddInReserved(column);
     }
-}
-
-void SaveToolbarsMask(UInt32 toolbarMask, const QString &settingsPath) {
-    QSettings key(settingsPath, QSettings::IniFormat);
-    key.setValue(kToolbars, toolbarMask);
-}
-
-UInt32 ReadToolbarsMask(const QString &settingsPath) {
-    QSettings key(settingsPath, QSettings::IniFormat);
-    bool ok = false;
-    const qulonglong value = key.value(kToolbars).toULongLong(&ok);
-    if (!ok || value > 0xFFFFFFFFu)
-        return kDefaultToolbarMask;
-    return static_cast<UInt32>(value);
 }
 
 void CWindowInfo::Save(const QString &settingsPath) const {

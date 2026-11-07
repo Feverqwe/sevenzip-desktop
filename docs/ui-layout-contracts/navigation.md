@@ -334,7 +334,7 @@ discovery is indeterminate until its work is known; entry projection and direct
 read checks show completed/total counts. A long current filename is elided with
 the full path in its tooltip. Explain the preparation beside the disabled action.
 Keep EN/RU text and controls visible at normal and compact dialog widths.
-For APFS folders with an unknown size, the File menu and toolbar offer
+For APFS folders with an unknown size, File → Advanced offers
 Calculate folder size for the selected folders. The command reads those
 subtrees with cancellation and updates the size column; siblings remain unknown.
 

@@ -77,10 +77,6 @@ class QtFileManagerCommands final : public IQtFileManagerMenuCommandServices {
     void RefreshView() override;
     void Change_AutoRefresh_Mode() override;
     void SwitchOnOffOnePanel() override;
-    void SwitchStandardToolbar() override;
-    void SwitchArchiveToolbar() override;
-    void SwitchButtonsLables() override;
-    void SwitchLargeButtons() override;
     bool &TimestampShowUTC() override;
     void RedrawListItems_InPanels() override;
     unsigned TimestampLevelCount() const override;
