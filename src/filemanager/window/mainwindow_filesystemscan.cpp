@@ -78,7 +78,6 @@ void MainWindow::filesystemScanCompleted(unsigned index) {
         restoreAutoRefreshViewport();
         setState(State::Filesystem);
         workspace_->NavigationFinished(S_OK);
-        clearStatusMessage();
     });
 }
 

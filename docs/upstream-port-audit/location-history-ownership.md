@@ -1,5 +1,19 @@
 # Location history and address presentation — 2026-10-31
 
+## Back and Forward to an unavailable location — 2026-11-07
+
+Reviewed the recorded PanelFolderChange.cpp binding, refresh and folder-history
+callers. The native binder can fall back to an existing parent. The Qt
+Back/Forward workspace already requires the recorded destination to match.
+It now reports the unavailable destination after rolling back to the current
+folder. Completing a background list rebuild preserves newer status feedback.
+The native binder and original folder-history dialog retain their behavior.
+
+Linux history checks covered Back and Forward to a deleted directory, including
+background restoration of the current list, retained selection and successful
+retry. Existing archive cancellation, workspace navigation, root commands,
+filesystem and archive reload, and recent-place checks passed.
+
 ## Address editing while applying a language change — 2026-11-07
 
 Compared the recorded OptionsDialog.cpp and App.cpp language-apply and

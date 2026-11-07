@@ -49,6 +49,7 @@ HRESULT MainWindow::renderArchiveFolder(bool updateAddress) {
         disableNotify.reset();
         projectedUi().scanningArchive = true;
         setState(State::Viewing);
+        clearStatusMessage();
         projectedUi().listProjection->start(
             folderOwner, archiveFolder->GetNumberOfItems(),
             [this, owner = projectedPanel_, archiveFolder](quint32 index) {
@@ -75,10 +76,6 @@ HRESULT MainWindow::renderArchiveFolder(bool updateAddress) {
                     workspace_->NavigationFinished(result);
                     if (completed)
                         completed(result);
-                    if (app_.QtOperations().closed())
-                        return;
-                    if (result == S_OK)
-                        clearStatusMessage();
                 });
                 if (!app_.QtOperations().closed())
                     refreshActions();

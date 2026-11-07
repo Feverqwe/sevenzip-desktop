@@ -7,6 +7,7 @@
 #include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
 #include <QScrollBar>
+#include <QStatusBar>
 #include <QToolButton>
 
 class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupport {
@@ -166,29 +167,67 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         QTRY_COMPARE(view->verticalScrollBar()->value(), scroll);
     }
 
-    void unavailableBackPreservesCursorAndCanRetry() {
+    void historyRetriesUnavailableDirectory_data() {
+        QTest::addColumn<bool>("forward");
+        QTest::addColumn<bool>("background");
+        QTest::newRow("back") << false << false;
+        QTest::newRow("forward") << true << false;
+        QTest::newRow("back-background") << false << true;
+        QTest::newRow("forward-background") << true << true;
+    }
+    void historyRetriesUnavailableDirectory() {
+        QFETCH(bool, forward);
+        QFETCH(bool, background);
         QTemporaryDir fixture;
-        const QString a = fixture.filePath("A");
-        const QString b = fixture.filePath("B");
-        createDirectory(a);
-        createDirectory(b);
+        QVERIFY(fixture.isValid());
+        const QString first = fixture.filePath(QStringLiteral("first 空"));
+        const QString second = fixture.filePath(QStringLiteral("second папка"));
+        const QString target = forward ? second : first;
+        const QString origin = forward ? first : second;
+        createDirectory(origin, background ? 257 : 1);
+        createDirectory(target);
+
         ControlledBackend backend;
         MainWindow window(&backend);
         window.show();
-        window.openPath(a);
-        window.openPath(b);
-        window.openPath(b); // Reopening the current location is not another visit.
-        QVERIFY(QDir(a).removeRecursively());
-        action(window, "backAction")->trigger();
-        QTRY_VERIFY(table(window)->isEnabled());
-        QCOMPARE(location(window), b);
-        QVERIFY(action(window, "backAction")->isEnabled());
-        QVERIFY(!action(window, "forwardAction")->isEnabled());
-        createDirectory(a);
-        action(window, "backAction")->trigger();
-        QTRY_COMPARE(location(window), a);
-        action(window, "forwardAction")->trigger();
-        QTRY_COMPARE(location(window), b);
+        auto *address = window.findChild<QLineEdit *>("archivePath");
+        auto *view = table(window);
+        auto *back = window.findChild<QAction *>("backAction");
+        auto *travel = forward ? window.findChild<QAction *>("forwardAction") : back;
+        QVERIFY(address && view && back && travel);
+        window.openPath(first);
+        QTRY_COMPARE(address->text(), QFileInfo(first).canonicalFilePath());
+        QTRY_VERIFY(view->isEnabled());
+        window.openPath(second);
+        QTRY_COMPARE(address->text(), QFileInfo(second).canonicalFilePath());
+        QTRY_VERIFY(view->isEnabled());
+        if (forward)
+            back->trigger();
+        else
+            window.openPath(origin); // Reopening the current location is not another visit.
+        const QString displayedOrigin = QFileInfo(origin).canonicalFilePath();
+        QTRY_COMPARE(address->text(), displayedOrigin);
+        QTRY_VERIFY(travel->isEnabled());
+        const int row = filesystemRow(window, "item-0000.txt");
+        QVERIFY(row >= 0);
+        view->setCurrentCell(row, 0);
+        view->selectRow(row);
+
+        QVERIFY(QDir(target).removeRecursively());
+        travel->trigger();
+        QTRY_VERIFY_WITH_TIMEOUT(travel->isEnabled(), 3000);
+        QVERIFY(window.statusBar()->currentMessage().contains(QFileInfo(target).fileName()));
+        QCOMPARE(address->text(), displayedOrigin);
+        QVERIFY(view->selectionModel()->isRowSelected(view->currentRow(), {}));
+        QCOMPARE(view->currentRow(), filesystemRow(window, "item-0000.txt"));
+        if (!forward)
+            QVERIFY(!action(window, "forwardAction")->isEnabled());
+
+        createDirectory(target);
+        travel->trigger();
+        QTRY_COMPARE(address->text(), QFileInfo(target).canonicalFilePath());
+        QVERIFY(window.statusBar()->currentMessage().isEmpty());
+        QVERIFY(filesystemRow(window, "item-0000.txt") >= 0);
     }
 
     void supersededLargeDirectoryDoesNotBecomeAVisit() {

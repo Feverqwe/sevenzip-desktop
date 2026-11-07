@@ -193,6 +193,9 @@ void QtWindowWorkspace::FinishNavigation(unsigned panel, HRESULT result) {
             location.nativePlaceIdentity = origin->nativePlaceIdentity;
             location.archiveLocation = origin->archiveLocation;
             CompleteLocationOpen(panel, origin->path, result);
+        } else if (request->destination >= 0 && result != E_ABORT) {
+            const auto &target = panels_[panel].location.visits[request->destination];
+            window_.showStatusMessage(tr("Location unavailable: %1").arg(target.path));
         }
         window_.refreshActions();
         return;
