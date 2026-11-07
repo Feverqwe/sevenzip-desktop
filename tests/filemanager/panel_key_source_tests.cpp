@@ -5,6 +5,7 @@
 #include "settings/RegistryUtils.h"
 #include "support/delete_reply.h"
 #include "support/panel_keys.h"
+#include "support/progress_dialog.h"
 #include "support/widget_dialogs.h"
 #include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
@@ -220,7 +221,13 @@ class PanelKeySourceTests final : public QObject, protected MainWindowTestSuppor
             QVERIFY(file.open(QIODevice::WriteOnly));
             QCOMPARE(file.write("protected source bytes"), qint64(22));
         }
-        SavePanelPath(1, ToUString(fixture.path()), settingsPath);
+        QTemporaryDir peerFixture;
+        QVERIFY(peerFixture.isValid());
+        QFile peerFile(peerFixture.filePath("peer.txt"));
+        QVERIFY(peerFile.open(QIODevice::WriteOnly));
+        peerFile.close();
+        SavePanelPath(pane, ToUString(fixture.path()), settingsPath);
+        SavePanelPath(1 - pane, ToUString(peerFixture.path()), settingsPath);
         ControlledBackend backend;
         MainWindow window(&backend);
         window.show();
@@ -232,6 +239,14 @@ class PanelKeySourceTests final : public QObject, protected MainWindowTestSuppor
         auto *peer = window.findChild<QWidget *>(pane ? "filePanel0" : "filePanel1");
         QVERIFY(owner);
         QVERIFY(peer);
+        auto *peerAddress = peer->findChild<QLineEdit *>("archivePath");
+        PanelKeys::focusAddress(peerAddress);
+        QTRY_VERIFY(peerAddress->hasFocus());
+        peerAddress->setText(peerFixture.path());
+        QTest::keyClick(peerAddress, Qt::Key_Return);
+        auto *peerList = peer->findChild<FileTable *>("archiveTable");
+        QTRY_COMPARE(peerList->rowCount(), 1);
+        QCOMPARE(peerList->model()->index(0, 0).data().toString(), QString("peer.txt"));
         auto *list = owner->findChild<FileTable *>("archiveTable");
         auto *address = owner->findChild<QLineEdit *>("archivePath");
         PanelKeys::focusAddress(address);
@@ -241,8 +256,7 @@ class PanelKeySourceTests final : public QObject, protected MainWindowTestSuppor
             openListedArchive(window, backend, fixture.filePath("выбор 空.zip"),
                               {{names[0], 1, 1}, {names[1], 1, 1}});
         QTRY_COMPARE(list->rowCount(), 2);
-        const QString peerPath = peer->findChild<QLineEdit *>("archivePath")->text();
-        const int peerRows = peer->findChild<FileTable *>("archiveTable")->rowCount();
+        const QString peerPath = peerAddress->text();
         action(window, qPrintable(QStringLiteral("viewMode%1Action").arg(mode)))->trigger();
         auto *view = mode == 3 ? static_cast<QWidget *>(list)
                                : static_cast<QWidget *>(owner->findChild<QListView *>("iconList"));
@@ -256,6 +270,15 @@ class PanelKeySourceTests final : public QObject, protected MainWindowTestSuppor
         source->Get_ItemIndices_Selected(selected);
         QCOMPARE(selected.Size(), unsigned(2));
         QApplication::clipboard()->setText("clipboard sentinel");
+        QTimer cancelExport;
+        if (archive) {
+            connect(&cancelExport, &QTimer::timeout, &backend, [&backend] {
+                if (backend.busy())
+                    backend.cancel();
+                TestProgressDialog::DismissVisibleResult(QApplication::activeModalWidget());
+            });
+            cancelExport.start(5);
+        }
         QTest::keyClick(view, Qt::Key_C, Qt::ControlModifier);
         QTRY_VERIFY(!backend.busy() && action(window, "refreshAction")->isEnabled());
         QList<QUrl> copied;
@@ -291,7 +314,8 @@ class PanelKeySourceTests final : public QObject, protected MainWindowTestSuppor
         QTest::keyClick(address, Qt::Key_C, Qt::ControlModifier);
         QCOMPARE(QApplication::clipboard()->text(), address->text());
         QCOMPARE(peer->findChild<QLineEdit *>("archivePath")->text(), peerPath);
-        QCOMPARE(peer->findChild<FileTable *>("archiveTable")->rowCount(), peerRows);
+        QCOMPARE(peerList->rowCount(), 1);
+        QCOMPARE(peerList->model()->index(0, 0).data().toString(), QString("peer.txt"));
         for (const auto &name : names) {
             QFile file(fixture.filePath(name));
             QVERIFY(file.open(QIODevice::ReadOnly));
