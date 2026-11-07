@@ -186,23 +186,18 @@ void QtWindowWorkspace::OpenFavorite(const QtFavorite &favorite) {
     if (!Ready())
         return;
     const unsigned panel = window_.projectedPanel_;
-    window_.withPanelProjection(panel, [this, panel, &favorite] {
-        const HRESULT result = Navigate([&] {
+    Navigate(
+        [&] {
             return OpenRecordedLocation(panel, favorite.path, favorite.nativeIdentity,
                                         favorite.archive);
-        });
-        auto &location = panels_[panel].location;
-        if (result == S_OK && !favorite.nativeIdentity.isEmpty()) {
-            auto &source = window_.app_.Panels[panel];
-            source.LoadFullPath();
-            CompleteLocationOpen(panel, ToQString(source.GetCurrentFolderPrefix()), result);
-        } else {
-            CompleteLocationOpen(panel, favorite.path, result);
-        }
-        if (location.unavailable) {
+        },
+        [this, panel, favorite](HRESULT result) {
+            if (result == S_OK || window_.app_.QtOperations().closed())
+                return;
+            auto &location = panels_[panel].location;
             location.nativePlaceIdentity = favorite.nativeIdentity;
             location.archiveLocation = favorite.archive;
-        }
-    });
-    window_.refreshActions();
+            CompleteLocationOpen(panel, favorite.path, result);
+            window_.refreshActions();
+        });
 }

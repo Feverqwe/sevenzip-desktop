@@ -123,8 +123,11 @@ std::optional<HRESULT> QtWindowWorkspace::NavigationPublication() const {
 
 void QtWindowWorkspace::NavigationCanceled() {
     const unsigned panel = window_.projectedPanel_;
-    if (navigation_[panel] && navigation_[panel]->depth == 0)
+    if (navigation_[panel] && navigation_[panel]->depth == 0) {
+        // An abandoned publication must not present its result over a newer request.
+        navigation_[panel]->finished = {};
         FinishNavigation(panel, E_ABORT);
+    }
 }
 
 void QtWindowWorkspace::FinishNavigation(unsigned panel, HRESULT result) {
@@ -136,7 +139,7 @@ void QtWindowWorkspace::FinishNavigation(unsigned panel, HRESULT result) {
             request->finished(result);
     });
     if (window_.app_.Panels.Share(panel) != request->source) {
-        result = E_ABORT;
+        request->finished = {};
         request->transaction.reset();
         return;
     }

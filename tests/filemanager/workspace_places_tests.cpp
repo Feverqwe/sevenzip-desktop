@@ -4,6 +4,7 @@
 #include "filemanager/window/qtfavoritestore.h"
 #include "filemanager/window/qtnativeplaces.h"
 #include "filemanager/window/qtwindowworkspace.h"
+#include "fileops/scanner/filesystemscanner.h"
 #include "localization/LangUtils.h"
 #include "settings/RegistryUtils.h"
 #include "settings/ViewSettings.h"
@@ -11,6 +12,7 @@
 #include "ui/support/layout_inspection.h"
 #include <QListView>
 #include <QMenu>
+#include <QMessageBox>
 #include <QPointer>
 #include <QScopeGuard>
 #include <QScrollBar>
@@ -87,6 +89,71 @@ class WorkspacePlacesTests final : public QObject {
         window.findChild<QAction *>("forwardAction")->trigger();
         QTRY_COMPARE(QDir::cleanPath(ToQString(files->sourcePanel->GetCurrentFolderPrefix())),
                      missing);
+    }
+    void favoriteKeepsRetryTargetAfterBackgroundReadFailure() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString origin = fixture.filePath("Original");
+        const QString target = fixture.filePath("Large папка");
+        QVERIFY(QDir().mkpath(origin));
+        QVERIFY(QDir().mkpath(target));
+        for (int i = 0; i < 301; ++i) {
+            QFile file(QDir(target).filePath(QString::number(i) + ".txt"));
+            QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::NewOnly));
+        }
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(origin);
+        auto *files = window.findChild<FileTable *>("archiveTable");
+        auto *scanner = window.findChild<FilesystemScanner *>();
+        auto *retry = window.findChild<QPushButton *>("navigationRetry0");
+        auto *address = window.findChild<QLineEdit *>("archivePath");
+        QVERIFY(files && scanner && retry && address);
+        QTRY_VERIFY(files->isEnabled());
+        QtFavoriteStore *store = nullptr;
+        for (auto *object : qApp->children())
+            if (auto *favorites = dynamic_cast<QtFavoriteStore *>(object))
+                store = favorites;
+        QVERIFY(store);
+        store->Add(target, QStringLiteral("Large favorite"));
+
+        // Replace the pending scan at its public progress boundary with a
+        // real read failure. This avoids timing and filesystem permissions.
+        const auto restart = connect(
+            scanner, &FilesystemScanner::advanced, &window,
+            [&] { scanner->start(fixture.filePath("Missing"), false); }, Qt::SingleShotConnection);
+        QSignalSpy failed(scanner, &FilesystemScanner::failed);
+        QTimer dismiss;
+        connect(&dismiss, &QTimer::timeout, &window, [] {
+            if (auto *message = qobject_cast<QMessageBox *>(QApplication::activeModalWidget()))
+                message->accept();
+        });
+        dismiss.start(1);
+        auto *menu = window.findChild<QMenu *>("savedPlacesMenu");
+        QVERIFY(menu);
+        menu->popup(window.mapToGlobal(QPoint(20, 20)));
+        QTRY_VERIFY(menu->isVisible());
+        QAction *entry = nullptr;
+        for (auto *item : menu->actions())
+            if (item->toolTip() == target)
+                entry = item;
+        QVERIFY(entry);
+        menu->setActiveAction(entry);
+        QTest::keyClick(menu, Qt::Key_Return);
+        QTRY_COMPARE(failed.size(), 1);
+        QTRY_VERIFY(retry->isVisible());
+        QVERIFY(!files->isEnabled());
+        QCOMPARE(files->rowCount(), 0);
+        QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(address->text())), target);
+        disconnect(restart);
+        retry->click();
+        QTRY_VERIFY(files->isEnabled() && !retry->isVisible());
+        QCOMPARE(QDir::cleanPath(ToQString(files->sourcePanel->GetCurrentFolderPrefix())), target);
+        QVERIFY(files->rowCount() >= 301);
+        window.findChild<QAction *>("backAction")->trigger();
+        QTRY_COMPARE(QDir::cleanPath(ToQString(files->sourcePanel->GetCurrentFolderPrefix())),
+                     origin);
     }
     void computerMenuAndRootRowUseSameNamespace_data() {
         QTest::addColumn<QString>("language");
