@@ -5,6 +5,7 @@
 #include <QComboBox>
 #include <QDialogButtonBox>
 #include <QDir>
+#include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QLineEdit>
@@ -167,6 +168,45 @@ class CopyDestinationTests final : public QObject {
         dialog.accept();
         QCOMPARE(dialog.result(), int(QDialog::Rejected));
         QCOMPARE(ToQString(dialog.Value), QString("/destination/"));
+    }
+
+    void destinationBelowAFileCanBeCorrected() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString blocker = fixture.filePath("existing file");
+        QFile file(blocker);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.close();
+        const QString source = fixture.filePath("source.txt");
+        const QString blocked = blocker + "/nested/target.txt";
+        const QString corrected = fixture.filePath("new folder/target.txt");
+        CCopyDialog dialog(false, blocked, {source});
+        configure(dialog, source);
+        dialog.show();
+        auto *path = dialog.findChild<QLineEdit *>("copyDestination");
+        auto *ok =
+            dialog.findChild<QDialogButtonBox *>("copyButtons")->button(QDialogButtonBox::Ok);
+        QVERIFY(!ok->isEnabled());
+        dialog.accept();
+        QVERIFY(dialog.isVisible());
+        QCOMPARE(path->text(), blocked);
+
+        path->setText(blocker);
+        QVERIFY(ok->isEnabled()); // An existing leaf file may be overwritten.
+        path->setText(corrected);
+        QVERIFY(ok->isEnabled());
+        dialog.accept();
+        QCOMPARE(dialog.result(), int(QDialog::Accepted));
+        QCOMPARE(ToQString(dialog.Value), corrected);
+
+        CCopyDialog multiple(true, blocker, {source, fixture.filePath("second.txt")});
+        configure(multiple, source);
+        multiple.show();
+        auto *move =
+            multiple.findChild<QDialogButtonBox *>("copyButtons")->button(QDialogButtonBox::Ok);
+        QVERIFY(!move->isEnabled());
+        multiple.findChild<QLineEdit *>("copyDestination")->setText(fixture.filePath("new folder"));
+        QVERIFY(move->isEnabled());
     }
 
     void browseCancelKeepsNameDraft() {

@@ -40,6 +40,19 @@ bool IsName(const QString &name) {
 #endif
     return true;
 }
+
+bool HasBlockedDestinationDirectory(const QFileInfo &destination, bool needsDirectory) {
+    QString path = needsDirectory ? destination.absoluteFilePath() : destination.absolutePath();
+    for (;;) {
+        const QFileInfo directory(path);
+        if (directory.exists() || directory.isSymLink())
+            return !directory.isDir();
+        const QString parent = directory.absolutePath();
+        if (parent == path)
+            return false;
+        path = parent;
+    }
+}
 } // namespace
 
 void CCopyDialog::BuildDestinationOptions(QVBoxLayout &layout) {
@@ -131,6 +144,8 @@ void CCopyDialog::UpdateDestination() {
     const bool directory =
         !path.isEmpty() &&
         (path.endsWith('/') || path.endsWith(QDir::separator()) || destination.isDir());
+    const bool peerDestination =
+        _destinationContext && SameDirectory(preview, _destinationContext->PeerDestination);
     const bool nameAvailable = _destinationContext && _name && directory &&
                                _destinationContext->CanRename &&
                                _destinationContext->CanRename(path);
@@ -150,10 +165,11 @@ void CCopyDialog::UpdateDestination() {
         error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "Enter a file or folder name."));
     else if (destination.isDir() && !destination.isWritable())
         error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "The destination is read-only."));
-    else if (_destinationContext && !_destinationContext->PeerWritable &&
-             !_destinationContext->PeerDestination.isEmpty() &&
-             SameDirectory(preview, _destinationContext->PeerDestination))
+    else if (peerDestination && !_destinationContext->PeerWritable)
         error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "The destination is read-only."));
+    else if (!peerDestination &&
+             HasBlockedDestinationDirectory(destination, directory || _sources.size() > 1))
+        error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "The destination is invalid."));
     else if (_destinationContext && !_useName &&
              SameDirectory(preview, _destinationContext->SourceDirectory))
         error = Text(
