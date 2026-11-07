@@ -157,6 +157,9 @@ class PasswordWindowTests final : public QObject, protected MainWindowTestSuppor
         QVERIFY(row >= 0);
         auto *address = window.findChild<QLineEdit *>("archivePath");
         QVERIFY(address);
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        if (!typedFolder)
+            view->setFocus();
         const auto open = [&] {
             if (!typedFolder) {
                 openRow(window, row);
@@ -176,7 +179,7 @@ class PasswordWindowTests final : public QObject, protected MainWindowTestSuppor
             if (auto *dialog = dynamic_cast<CPasswordDialog *>(dialogs.activeDialog())) {
                 ++prompts;
                 if (answer == Answer::Cancel)
-                    dialog->reject();
+                    QTest::keyClick(dialog->findChild<QLineEdit *>("passwordEdit"), Qt::Key_Escape);
                 else {
                     dialog->findChild<QLineEdit *>("passwordEdit")
                         ->setText(answer == Answer::Correct ? password : QString("incorrect"));
@@ -193,6 +196,11 @@ class PasswordWindowTests final : public QObject, protected MainWindowTestSuppor
         QCOMPARE(prompts, 1);
         QCOMPARE(errors, 0);
         QCOMPARE(externalCalls, 0);
+        if (!typedFolder) {
+            QTRY_COMPARE(window.focusWidget(), view);
+            if (window.isActiveWindow())
+                QVERIFY(view->hasFocus());
+        }
         answer = Answer::Incorrect;
         open();
         QTRY_VERIFY(view->isEnabled() && view->sourcePanel->IsFSFolder());
