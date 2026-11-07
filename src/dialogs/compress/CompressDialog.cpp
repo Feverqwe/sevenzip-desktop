@@ -396,9 +396,10 @@ void CCompressDialog::SetArchiveName(const QString &name) {
     Info.FormatIndex = (int)GetFormatIndex();
     const CArcInfoEx &ai = Get_ArcInfoEx();
     m_PrevFormat = Info.FormatIndex;
-    if (ai.Flags_KeepName())
-        fileName = OriginalFileName;
-    else if (!Info.KeepName) {
+    if (ai.Flags_KeepName()) {
+        fileName.DeleteFrom(unsigned(fileName.ReverseFind_PathSepar() + 1));
+        fileName += OriginalFileName;
+    } else if (!Info.KeepName) {
         const int dotPos = GetExtDotPos(fileName);
         if (dotPos >= 0)
             fileName.DeleteFrom(unsigned(dotPos));

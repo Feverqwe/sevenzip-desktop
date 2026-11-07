@@ -155,6 +155,14 @@ class CompressionPathTests final : public QObject {
         single.findChild<QComboBox *>("archiveFormat")->setCurrentText("zip");
         QCOMPARE(single.findChild<QLineEdit *>("archiveName")->text(),
                  QStringLiteral("report.with.zip"));
+        const QString destination = dir_.filePath(QStringLiteral("другая папка"));
+        single.findChild<QLineEdit *>("archiveName")
+            ->setText(QDir::toNativeSeparators(QDir(destination).filePath("custom.zip")));
+        single.findChild<QComboBox *>("archiveFormat")->setCurrentText("gzip");
+        const QString output = QDir(destination).filePath(QFileInfo(source_).fileName() + ".gz");
+        submit(single);
+        QCOMPARE(single.result(), int(QDialog::Accepted));
+        QCOMPARE(QDir::fromNativeSeparators(single.target()), output);
         dialog.reject();
         QVERIFY(dialog.target().isEmpty());
 #endif
