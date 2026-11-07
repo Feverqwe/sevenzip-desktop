@@ -4,6 +4,7 @@
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
 #include "localization/LangUtils.h"
+#include "support/progress_dialog.h"
 #include "support/widget_dialogs.h"
 #include "support/window_activation.h"
 #include "ui/progress/ProgressDialog2.h"
@@ -157,6 +158,16 @@ class CopyPublicationOrderTests final : public QObject, protected MainWindowTest
                 submitted = true;
                 dialog->findChild<QLineEdit *>("copyDestination")->setText(output + '/');
                 dialog->accept();
+            }
+            if (auto *report = TestProgressDialog::ResultWindow(dialogs_.activeDialog())) {
+                const QString diagnostic = TestProgressDialog::ReportText(*report);
+                if (!diagnostic.isEmpty()) {
+                    errors << diagnostic;
+                    peerRowsAtError << peer->rowCount();
+                    sourceRowsAtError << source->rowCount();
+                }
+                TestProgressDialog::CloseResult(*report);
+                return;
             }
             for (auto *widget : QApplication::topLevelWidgets())
                 if (auto *box = qobject_cast<QMessageBox *>(widget); box && dialogs_.ready(*box)) {
