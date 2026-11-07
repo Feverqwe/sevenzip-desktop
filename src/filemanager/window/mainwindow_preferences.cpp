@@ -59,9 +59,20 @@ void MainWindow::setViewMode(int mode) {
     // visible view, which can synchronously focus another panel while hiding
     // the old widget. Bind the captured source owner and retain its list focus.
     stack->setCurrentIndex(mode == 3 ? 0 : 1);
-    panel.AttachPresentation(stack->currentWidget(), address);
+    auto *view = static_cast<QAbstractItemView *>(stack->currentWidget());
+    panel.AttachPresentation(view, address);
+    if (view != previousView) {
+        const QModelIndex current = view->currentIndex();
+        if (current.isValid()) {
+            // The icon view can only navigate to indexes in its displayed column.
+            const QModelIndex visible = mode == 3 ? current : current.siblingAtColumn(0);
+            if (visible != current)
+                view->selectionModel()->setCurrentIndex(visible, QItemSelectionModel::NoUpdate);
+            view->scrollTo(visible);
+        }
+    }
     if (restoreFocus)
-        stack->currentWidget()->setFocus();
+        view->setFocus();
     CListMode modes;
     for (unsigned i = 0; i < kNumPanelsMax; ++i)
         modes.Panels[i] = app_.Panels[i].GetListViewMode();
