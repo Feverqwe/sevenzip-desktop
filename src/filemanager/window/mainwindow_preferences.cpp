@@ -48,13 +48,14 @@ void MainWindow::setViewMode(int mode) {
     auto &panel = app_.GetFocusedPanel();
     auto *stack = projectedUi().viewStack;
     auto *address = projectedUi().pathCombo;
+    auto *icons = static_cast<FileIconList *>(projectedUi().iconList);
     const QWidget *focused = QApplication::focusWidget();
     const QWidget *previousView = stack->currentWidget();
     const bool restoreFocus =
         previousView && focused && (focused == previousView || previousView->isAncestorOf(focused));
     viewActions_[mode]->setChecked(true);
     if (mode != 3)
-        static_cast<FileIconList *>(projectedUi().iconList)->ConfigureLargeIcons();
+        icons->ConfigureLargeIcons();
     // Upstream changes the style of the same list control. Qt replaces the
     // visible view, which can synchronously focus another panel while hiding
     // the old widget. Bind the captured source owner and retain its list focus.
@@ -65,7 +66,8 @@ void MainWindow::setViewMode(int mode) {
         const QModelIndex current = view->currentIndex();
         if (current.isValid()) {
             // The icon view can only navigate to indexes in its displayed column.
-            const QModelIndex visible = mode == 3 ? current : current.siblingAtColumn(0);
+            const QModelIndex visible =
+                view == icons ? current.siblingAtColumn(icons->modelColumn()) : current;
             if (visible != current)
                 view->selectionModel()->setCurrentIndex(visible, QItemSelectionModel::NoUpdate);
             view->scrollTo(visible);
