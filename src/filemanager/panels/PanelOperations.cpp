@@ -20,6 +20,7 @@
 
 #include <QFileIconProvider>
 #include <QFileInfo>
+#include <QSet>
 #include <utility>
 
 static bool ConfirmDeleteItems(const CPanel &panel, const CRecordVector<UInt32> &indices,
@@ -65,7 +66,17 @@ HRESULT CPanel::MoveItemsToTrash(IQtTrashService &trash, CSelectedState &state,
         return E_ABORT;
 
     CDisableNotify disableNotify(*this);
-    const HRESULT result = QtMoveItemsToTrash(paths, trash, GetParent());
+    unsigned movedCount = 0;
+    const HRESULT result =
+        QtMoveItemsToTrash(paths, trash, GetParent(), false, nullptr, &movedCount);
+    if (movedCount && state.FocusedItem > 0) {
+        // When the focused name disappears, keep its position among surviving rows.
+        const auto *first = indices.ConstData();
+        const QSet<UInt32> moved(first, first + movedCount);
+        for (int row = state.FocusedItem - 1; row >= 0; --row)
+            if (moved.contains(GetRealItemIndex(row)))
+                --state.FocusedItem;
+    }
     RefreshListCtrl(state);
     return result;
 }

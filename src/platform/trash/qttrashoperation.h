@@ -8,4 +8,5 @@ class QWidget;
 
 // Joined native-trash batch. An individual platform call is not interruptible.
 HRESULT QtMoveItemsToTrash(const UStringVector &paths, IQtTrashService &trash, QWidget *parent,
-                           bool deferResultReview = false, QStringList *diagnostics = nullptr);
+                           bool deferResultReview = false, QStringList *diagnostics = nullptr,
+                           unsigned *movedCount = nullptr);

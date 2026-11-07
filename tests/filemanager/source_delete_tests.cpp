@@ -480,6 +480,8 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         QCOMPARE(trash.calls, 2);
         QVERIFY(!QFileInfo::exists(fixture.filePath(firstDeleted)));
         QCOMPARE(QFileInfo::exists(fixture.filePath(secondDeleted)), partial);
+        QCOMPARE(view->currentIndex().data(QtPanelList::NameRole).toString(),
+                 partial ? secondDeleted : QString("keep.bin"));
         if (partial) {
             QFile remaining(fixture.filePath(secondDeleted));
             QVERIFY(remaining.open(QIODevice::ReadOnly));
@@ -493,7 +495,13 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         QCOMPARE(peer->sourcePanel->GetFolder(), (IFolderFolder *)peerFolder);
         QCOMPARE(peer->rowCount(), 0);
     }
+    void deferredRefresh_data() {
+        QTest::addColumn<bool>("icons");
+        QTest::newRow("table") << false;
+        QTest::newRow("icons") << true;
+    }
     void deferredRefresh() {
+        QFETCH(bool, icons);
         const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         QFile::remove(settings);
         CFmSettings preferences;
@@ -516,10 +524,20 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         QTRY_VERIFY(view->isEnabled() && view->rowCount() == 258);
         auto &panel = *view->sourcePanel;
         panel.Set_AutoRefresh_Mode(false);
-        view->selectRow(0);
-        view->setCurrentCell(0, 0);
-        view->setFocus();
-        const QString removed = view->model()->index(0, 0).data(Qt::UserRole + 3).toString();
+        const auto nameAt = [view](int row) {
+            return view->model()->index(row, 0).data(QtPanelList::NameRole).toString();
+        };
+        const QString earlier = nameAt(120);
+        const QString removed = nameAt(130);
+        const QString next = nameAt(131);
+        view->setCurrentCell(130, 0);
+        view->selectRow(130);
+        view->selectionModel()->select(view->model()->index(120, 0),
+                                       QItemSelectionModel::Select | QItemSelectionModel::Rows);
+        action(window, icons ? "viewMode0Action" : "viewMode3Action")->trigger();
+        auto *active = icons ? window.findChild<QAbstractItemView *>("iconList") : view;
+        QVERIFY(active && active->isVisible());
+        active->setFocus();
         QTimer answer;
         dialogs_.connectResponder(answer, &window, [&] {
             if (auto *box = dynamic_cast<QtDeleteConfirmation *>(dialogs_.activeDialog())) {
@@ -532,13 +550,13 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         answer.start(5);
         action(window, "deleteAction")->trigger();
         answer.stop();
-        QVERIFY(!panel.ShouldProcessNotifications());
-        QTRY_VERIFY(view->isEnabled() && view->rowCount() == 257);
+        QTRY_VERIFY(view->isEnabled() && view->rowCount() == 256);
         QVERIFY(panel.ShouldProcessNotifications());
         QVERIFY(!QFileInfo::exists(fixture.filePath(removed)));
-        QCOMPARE(view->model()->index(view->currentRow(), 0).data().toString(),
-                 view->model()->index(view->currentRow(), 0).data(Qt::UserRole + 3).toString());
-        QVERIFY(!view->model()->index(view->currentRow(), 0).data().toString().isEmpty());
+        QVERIFY(!QFileInfo::exists(fixture.filePath(earlier)));
+        QCOMPARE(nameAt(view->currentRow()), next);
+        QTRY_VERIFY(
+            active->visualRect(active->currentIndex()).intersects(active->viewport()->rect()));
         QFile keep(fixture.filePath("entry-257.bin"));
         QVERIFY(keep.open(QIODevice::ReadOnly));
         QCOMPARE(keep.readAll(), QByteArray("protected bytes"));

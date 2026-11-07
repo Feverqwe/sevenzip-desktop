@@ -32,12 +32,13 @@ class TrashOperation final : public CProgressThreadVirt {
                 AddErrorPath(us2fs(paths_[i]));
                 return E_FAIL;
             }
-            Sync.Set_NumFilesCur(i + 1);
+            Sync.Set_NumFilesCur(++MovedCount);
         }
         return Sync.CheckStop();
     }
 
   public:
+    unsigned MovedCount = 0;
     TrashOperation(const UStringVector &paths, IQtTrashService &trash)
         : paths_(paths), trash_(trash) {
         ShowCompressionInfo = false;
@@ -46,7 +47,7 @@ class TrashOperation final : public CProgressThreadVirt {
 } // namespace
 
 HRESULT QtMoveItemsToTrash(const UStringVector &paths, IQtTrashService &trash, QWidget *parent,
-                           bool deferResultReview, QStringList *diagnostics) {
+                           bool deferResultReview, QStringList *diagnostics, unsigned *movedCount) {
     TrashOperation operation(paths, trash);
     operation.DeferResultReview = deferResultReview;
     operation.WaitMode = true;
@@ -58,7 +59,10 @@ HRESULT QtMoveItemsToTrash(const UStringVector &paths, IQtTrashService &trash, Q
     sources.append(QString::fromWCharArray(paths[i]));
     operation.SetLocations(sources.join('\n'));
     operation.Sync.FinalMessage.ErrorMessage.Title = LangString(IDS_ERROR_DELETING);
-    RINOK(operation.Create(LangString(IDS_DELETING), parent))
+    const HRESULT started = operation.Create(LangString(IDS_DELETING), parent);
+    if (movedCount)
+        *movedCount = operation.MovedCount;
+    RINOK(started)
     if (diagnostics) {
         FOR_VECTOR(i, operation.Sync.Messages)
         diagnostics->append(QString::fromWCharArray(operation.Sync.Messages[i]));
