@@ -262,6 +262,8 @@ If a required destination directory is occupied by a file, the dialog keeps
 the entered destination available for correction.
 If the local transfer rejects a link as its destination directory, the
 dialog flags that path before starting the transfer.
+Copying or moving onto the same local item through a different path also
+keeps the dialog open for correction.
 Copy and Move also keep the dialog open for a destination inside a selected
 source folder, without creating the requested destination there.
 Accepted archive Move keeps its checked source Copy/Delete/rollback extension.

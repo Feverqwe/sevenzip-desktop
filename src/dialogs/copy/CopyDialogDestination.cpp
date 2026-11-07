@@ -1,5 +1,6 @@
 #include "Windows/FileName.h"
 #include "dialogs/copy/CopyDialog.h"
+#include "fileops/links/qtlinkservices.h"
 #include "fileops/patterns/Wildcard.h"
 #include "localization/qtlangcontrols.h"
 #include "settings/ViewSettings.h"
@@ -28,6 +29,11 @@ bool SameDirectory(const QString &first, const QString &second) {
     return !first.isEmpty() && !second.isEmpty() &&
            CompareFileNames(DirectoryPrefix(QDir::cleanPath(first)),
                             DirectoryPrefix(QDir::cleanPath(second))) == 0;
+}
+
+bool SameExistingPath(const QFileInfo &first, const QFileInfo &second) {
+    const QString canonical = first.canonicalFilePath();
+    return !canonical.isEmpty() && canonical == second.canonicalFilePath();
 }
 
 bool IsName(const QString &name) {
@@ -177,18 +183,18 @@ void CCopyDialog::UpdateDestination() {
     _useName = nameAvailable && _name->text() != _destinationContext->SourceName;
     const bool needsDirectory = directory || _sources.size() > 1;
     const bool filesystemDestination = !peerDestination || _destinationContext->PeerIsFilesystem;
+    const bool localTransfer =
+        _destinationContext && _destinationContext->LocalFileTransfer && filesystemDestination;
+    const QString draft = PreviewDestination(DraftDestination());
     const auto directoryStatus =
         path.isEmpty() || path.contains(QChar::Null) || !filesystemDestination
             ? DirectoryStatus::Writable
             : DestinationDirectoryStatus(destination, needsDirectory);
     bool linkedTransferDirectory = false;
-    if (_destinationContext && _destinationContext->LocalFileTransfer && filesystemDestination &&
-        directoryStatus == DirectoryStatus::Writable && !path.isEmpty() &&
+    if (localTransfer && directoryStatus == DirectoryStatus::Writable && !path.isEmpty() &&
         !path.contains(QChar::Null)) {
         const QFileInfo transferDirectory(
-            needsDirectory && !_useName
-                ? preview
-                : QFileInfo(PreviewDestination(DraftDestination())).absolutePath());
+            needsDirectory && !_useName ? preview : QFileInfo(draft).absolutePath());
         linkedTransferDirectory = transferDirectory.isSymLink() || transferDirectory.isJunction();
     }
     QString error;
@@ -207,17 +213,21 @@ void CCopyDialog::UpdateDestination() {
     else if (directoryStatus == DirectoryStatus::Blocked || linkedTransferDirectory)
         error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "The destination is invalid."));
     else if (_destinationContext && !_useName &&
-             SameDirectory(preview, _destinationContext->SourceDirectory))
+             (SameDirectory(preview, _destinationContext->SourceDirectory) ||
+              (localTransfer && needsDirectory &&
+               SameExistingPath(destination, QFileInfo(_destinationContext->SourceDirectory)))))
         error = Text(
             QT_TRANSLATE_NOOP("CopyRedesign", "Choose another destination or change the name."));
     else if (_sources.size() == 1 &&
-             CompareFileNames(ToUString(PreviewDestination(DraftDestination())),
-                              ToUString(_sources.first())) == 0)
+             (CompareFileNames(ToUString(draft), ToUString(_sources.first())) == 0 ||
+              (localTransfer && (!needsDirectory || _useName) &&
+               !QtIsFileSystemLink(_sources.first()) &&
+               SameExistingPath(QFileInfo(_sources.first()), QFileInfo(draft)))))
         error = Text(
             QT_TRANSLATE_NOOP("CopyRedesign", "Choose another destination or change the name."));
     else if (_destinationContext && _destinationContext->IsInsideSourceDirectory &&
              (!peerDestination || _destinationContext->PeerIsFilesystem) &&
-             _destinationContext->IsInsideSourceDirectory(PreviewDestination(DraftDestination())))
+             _destinationContext->IsInsideSourceDirectory(draft))
         error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "The destination is invalid."));
     _canAccept = error.isEmpty();
     _destinationMessage->setText(error);

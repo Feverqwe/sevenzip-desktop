@@ -168,11 +168,13 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         for (const QString &path : {input, peer, output})
             QVERIFY(QDir().mkpath(path));
         const QString link = fixture.filePath("linked destination");
+        const QString alias = fixture.filePath("linked parent");
         if (linked) {
 #ifdef Q_OS_WIN
             QSKIP("The directory symlink fixture requires POSIX");
 #else
             QVERIFY(QFile::link(output, link));
+            QVERIFY(QFile::link(fixture.path(), alias));
 #endif
         }
         const QString name = QStringLiteral("payload δ.txt");
@@ -201,7 +203,7 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         sourceView->setFocus();
         QTRY_VERIFY(sourceView->hasFocus());
         bool seen = false;
-        bool linkRefused = false;
+        int refusedDestinations = 0;
         QTimer driver;
         connect(&driver, &QTimer::timeout, &window, [&] {
             auto *dialog = window.findChild<CopyDialog *>("copyDialog");
@@ -210,9 +212,14 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
                 write(QDir(peer).filePath("new while guarded.txt"), "new control");
                 auto *path = dialog->findChild<QLineEdit *>("copyDestination");
                 if (linked) {
-                    path->setText(link);
                     const auto *buttons = dialog->findChild<QDialogButtonBox *>("copyButtons");
-                    linkRefused = !buttons->button(QDialogButtonBox::Ok)->isEnabled();
+                    auto *ok = buttons->button(QDialogButtonBox::Ok);
+                    for (const QString &blocked :
+                         {link, alias + "/input/", alias + "/input/" + name}) {
+                        path->setText(blocked);
+                        if (!ok->isEnabled())
+                            ++refusedDestinations;
+                    }
                 }
                 path->setText(relative ? "../unneeded/../output/" : output + '/');
                 if (cancel)
@@ -238,7 +245,7 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         QTest::keyClick(sourceView, move ? Qt::Key_F6 : Qt::Key_F5);
         QVERIFY(seen);
         if (linked)
-            QVERIFY(linkRefused);
+            QCOMPARE(refusedDestinations, 3);
         QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
         if (cancel) {
             QTRY_COMPARE(window.focusWidget(), sourceView);
