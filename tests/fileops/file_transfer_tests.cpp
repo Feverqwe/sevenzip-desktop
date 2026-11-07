@@ -704,6 +704,62 @@ class FileTransferTests : public QObject {
 #endif
     }
 
+    void changedSourceAfterCopyIsKept_data() {
+        QTest::addColumn<bool>("merge");
+        QTest::newRow("file") << false;
+        QTest::newRow("merged-child") << true;
+    }
+    void changedSourceAfterCopyIsKept() {
+        QFETCH(bool, merge);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString output = fixture.filePath("output");
+        const QString source = fixture.filePath(merge ? "folder" : "first.txt");
+        const QString target = QDir(output).filePath(QFileInfo(source).fileName());
+        const QString firstFile = merge ? source + "/nested/first.txt" : source;
+        const QString published = merge ? target + "/nested/first.txt" : target;
+        const QString second = fixture.filePath("second.txt");
+        const QString conflict = QDir(output).filePath("second.txt");
+        const QString parked = fixture.filePath("old source.txt");
+        QVERIFY(QDir().mkpath(QFileInfo(firstFile).absolutePath()));
+        QVERIFY(QDir().mkpath(QFileInfo(published).absolutePath()));
+        const auto write = [](const QString &path, const QByteArray &bytes) {
+            QFile file(path);
+            return file.open(QIODevice::WriteOnly) && file.write(bytes) == bytes.size();
+        };
+        const auto read = [](const QString &path) {
+            QFile file(path);
+            return file.open(QIODevice::ReadOnly) ? file.readAll() : QByteArray();
+        };
+        QVERIFY(write(firstFile, "first original"));
+        QVERIFY(write(second, "second original"));
+        QVERIFY(write(conflict, "second target"));
+        FileTransferOperation::FileSystemAdapter adapter;
+        adapter.trySourceRename = [](const QString &, const QString &) { return false; };
+        FileTransferOperation move({source, second}, output, true, nullptr, adapter);
+        QSignalSpy result(&move, &FileTransferOperation::result);
+        bool changed = false;
+        connect(
+            &move, &FileTransferOperation::overwriteRequested, &move,
+            [&](const OverwriteQuestion &) {
+                changed = QFile::rename(firstFile, parked) && write(firstFile, "new source");
+                move.submitOverwriteAnswer(NOverwriteAnswer::kYes);
+            },
+            Qt::DirectConnection);
+        move.start();
+        QVERIFY(move.wait(30000));
+        QTRY_COMPARE(result.size(), 1);
+        QVERIFY(changed);
+        QCOMPARE(move.resultKind(), FileTransferOperation::ResultKind::Failure);
+        QVERIFY(result.first().at(1).toString().contains(source));
+        QVERIFY(result.first().at(2).toStringList().isEmpty());
+        QCOMPARE(read(firstFile), QByteArray("new source"));
+        QCOMPARE(read(parked), QByteArray("first original"));
+        QCOMPARE(read(published), QByteArray("first original"));
+        QCOMPARE(read(second), QByteArray("second original"));
+        QCOMPARE(read(conflict), QByteArray("second target"));
+    }
+
     void blockedMoveRollbackReportsRetainedFiles() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());

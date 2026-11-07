@@ -40,6 +40,19 @@ struct MergeMember {
 
 using MergeSnapshot = QMap<QString, MergeMember>;
 
+std::optional<MergeMember> captureMember(const QString &path) {
+    const auto native = QDir::toNativeSeparators(path).toStdWString();
+    MergeMember member;
+    if (!member.metadata.Find(us2fs(native.c_str())))
+        return std::nullopt;
+    if (!member.metadata.IsOsSymLink()) {
+        member.identity = QtOwnedTempIdentity(path);
+        if (member.identity.isEmpty())
+            return std::nullopt;
+    }
+    return member;
+}
+
 std::optional<MergeSnapshot> captureMergeTree(const QString &root,
                                               const std::atomic_bool &canceled) {
     MergeSnapshot snapshot;
@@ -53,19 +66,15 @@ std::optional<MergeSnapshot> captureMergeTree(const QString &root,
                                                  QDir::Hidden | QDir::System);
         for (const auto &name : entries) {
             const QString absolute = directory.filePath(name);
-            const auto native = QDir::toNativeSeparators(absolute).toStdWString();
-            MergeMember member;
-            if (canceled || !member.metadata.Find(us2fs(native.c_str())))
+            if (canceled)
+                return std::nullopt;
+            auto member = captureMember(absolute);
+            if (!member)
                 return std::nullopt;
             const QString key = relative.isEmpty() ? name : relative + '/' + name;
-            if (!member.metadata.IsOsSymLink()) {
-                member.identity = QtOwnedTempIdentity(absolute);
-                if (member.identity.isEmpty())
-                    return std::nullopt;
-                if (member.metadata.IsDir())
-                    directories.append(key);
-            }
-            snapshot.insert(key, std::move(member));
+            if (member->metadata.IsDir() && !member->metadata.IsOsSymLink())
+                directories.append(key);
+            snapshot.insert(key, std::move(*member));
         }
     }
     return snapshot;
@@ -214,6 +223,13 @@ void QtFileTransferTransaction::removeSources(QList<TransferEntry> &completed, Q
             continue;
         if (worker_.canceled_) {
             error = QCoreApplication::translate("qtfiletransfertransaction", "Operation canceled.");
+            return;
+        }
+        if (!entry.sourceMatches()) {
+            entry.sourceState = SourceState::Changed;
+            error = QCoreApplication::translate("qtfiletransfertransaction",
+                                                "Source changed after copying and was kept: %1")
+                        .arg(entry.source);
             return;
         }
         // An attempted recursive removal can already have consumed bytes.
@@ -386,6 +402,22 @@ bool QtFileTransferTransaction::transferEntry(const TransferPath &path,
     entry.ownedPath = stage;
     if (worker_.move_ && !merge && worker_.adapter_.trySourceRename(source, stage))
         entry.sourceState = SourceState::Renamed;
+    if (worker_.move_ && entry.sourceState == SourceState::Intact) {
+        const auto member = captureMember(source);
+        const bool directory =
+            member && member->metadata.IsDir() && !member->metadata.IsOsSymLink();
+        const auto tree = directory ? captureMergeTree(source, worker_.canceled_) : std::nullopt;
+        if (!member || (directory && !tree)) {
+            error =
+                QCoreApplication::translate("qtfiletransfertransaction", "Source unavailable: %1")
+                    .arg(source);
+            return false;
+        }
+        entry.sourceMatches = [this, source, member, tree] {
+            return captureMember(source) == member &&
+                   (!tree || captureMergeTree(source, worker_.canceled_) == tree);
+        };
+    }
     const bool staged =
         merge ? (copyEntry(target, stage, &error, false) &&
                  mergeEntry(source, stage, target, &entry.writtenSources, &error))

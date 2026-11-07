@@ -22,7 +22,7 @@ class QtFileTransferTransaction final {
     QStringList rollbackErrors_;
     bool skipped_ = false;
     OverwriteDecision decideOverwrite(const OverwriteSource &source);
-    enum class SourceState { Intact, Renamed, RemovalStarted, Removed };
+    enum class SourceState { Intact, Renamed, Changed, RemovalStarted, Removed };
     enum class RollbackMode { RestoreSources, KeepMovedSources };
     struct TransferPath {
         QString source;
@@ -37,6 +37,7 @@ class QtFileTransferTransaction final {
         QStringList writtenSources;
         QString ownedPath{};
         std::function<bool(const QString &, const std::atomic_bool &)> backupMatches{};
+        std::function<bool()> sourceMatches{};
     };
     FileTransferOperation &worker_;
     QList<TransferPath> prepareTargets(QString &error) const;
