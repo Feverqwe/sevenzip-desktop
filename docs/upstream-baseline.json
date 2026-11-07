@@ -1325,7 +1325,6 @@
     "src/filemanager/SysIconUtils.h",
     "src/filemanager/UpdateCallback100.cpp",
     "src/filemanager/UpdateCallback100.h",
-    "src/filemanager/VerCtrl.cpp",
     "src/filemanager/panels/Panel.cpp",
     "src/filemanager/panels/Panel.h",
     "src/filemanager/panels/PanelCopy.cpp",
@@ -1733,7 +1732,6 @@
     "src/dialogs/taskresult/qttaskresultdialog.cpp",
     "src/dialogs/taskresult/qttaskresultdialog.h",
     "src/filemanager/AppCopy.cpp",
-    "src/filemanager/AppDiff.cpp",
     "src/filemanager/AppLink.cpp",
     "src/filemanager/ExtractCallbackOutput.cpp",
     "src/filemanager/external/qtexternalapplications.cpp",
@@ -1929,8 +1927,6 @@
     "src/filemanager/window/qtworkspacetheme.h",
     "src/fileops/links/qtlinkservices.cpp",
     "src/fileops/links/qtlinkservices.h",
-    "src/fileops/links/qtverctrlfileservices.cpp",
-    "src/fileops/links/qtverctrlfileservices.h",
     "src/fileops/native/FilePublish.cpp",
     "src/fileops/native/correctfspath.h",
     "src/fileops/native/qtnativefilestamp.cpp",
@@ -2950,7 +2946,6 @@
     "src/localization/TextPairs.h": "563ed342cd61306edce5654b9a113009792014bdf02640032d682b96be8f1649",
     "src/filemanager/UpdateCallback100.cpp": "2f9b6972dd5b72e82fb2afc0754f8a1f5c18b1d6bbb934aa3dc27644022574a4",
     "src/filemanager/UpdateCallback100.h": "dbe080c82f2fa0cfea3936cd6aa2c7ade203e9c6a936ce63c4915c372e1052ca",
-    "src/filemanager/VerCtrl.cpp": "ea8c263f336c94b322d51b4b0defd7497d3536d97d6296c7243a2b1af00e1b41",
     "src/settings/ViewSettings.cpp": "426f6f6f2688f6c4febd09b17fb687450f76240b7fe81c34382c94c3aa424c7f",
     "src/settings/ViewSettings.h": "203420130e27441318bda601a918517c352cacc2d1783d770c94500b6df16dbf",
     "src/dialogs/compress/CompressDialog.cpp": "09e4ea3b2197ca7ead6d2bd4d25c517aa13163c55b23232d26e1de646ea86ecf",
@@ -3824,7 +3819,6 @@
     },
     "src/filemanager/panels/PanelItemOpen.cpp": {
       "local": [
-        "src/filemanager/AppDiff.cpp",
         "src/filemanager/external/qtexternalapplications.cpp",
         "src/filemanager/external/qtexternalapplications.h",
         "src/filemanager/external/qtexternalfilesession.cpp",
@@ -3833,7 +3827,6 @@
         "src/filemanager/panels/PanelArchiveOpen.cpp"
       ],
       "symbols": [
-        "CApp::DiffFiles (both overloads)",
         "SplitCmdLineSmart",
         "StartAppWithParams",
         "StartEditApplication",
@@ -4445,7 +4438,6 @@
     "src/localization/TextPairs.h": "CPP/7zip/UI/FileManager/TextPairs.h",
     "src/filemanager/UpdateCallback100.cpp": "CPP/7zip/UI/FileManager/UpdateCallback100.cpp",
     "src/filemanager/UpdateCallback100.h": "CPP/7zip/UI/FileManager/UpdateCallback100.h",
-    "src/filemanager/VerCtrl.cpp": "CPP/7zip/UI/FileManager/VerCtrl.cpp",
     "src/settings/ViewSettings.cpp": "CPP/7zip/UI/FileManager/ViewSettings.cpp",
     "src/settings/ViewSettings.h": "CPP/7zip/UI/FileManager/ViewSettings.h",
     "src/dialogs/compress/CompressDialog.cpp": "CPP/7zip/UI/GUI/CompressDialog.cpp",

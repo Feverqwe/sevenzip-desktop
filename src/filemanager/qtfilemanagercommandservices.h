@@ -18,8 +18,6 @@ class IQtFileManagerCommandServices {
     virtual void MoveTo() = 0;
     virtual void Delete(bool toRecycleBin) = 0;
     virtual void CalculateCrc(const char *methodName) = 0;
-    virtual void DiffFiles() = 0;
-    virtual void VerCtrl(unsigned id) = 0;
     virtual void Split() = 0;
     virtual void Combine() = 0;
     virtual void Properties() = 0;

@@ -77,7 +77,6 @@ void QtFileManagerCommands::EditItem(bool editor) {
     auto &panel = window_.app_.GetFocusedPanel();
     panel.EditItem(editor);
 }
-void QtFileManagerCommands::DiffFiles() { window_.app_.DiffFiles(); }
 void QtFileManagerCommands::Rename() { window_.app_.GetFocusedPanel().RenameFile(); }
 void QtFileManagerCommands::CopyTo() {
     window_.app_.OnCopy(false, false, window_.app_.GetFocusedPanelIndex());
@@ -194,15 +193,6 @@ void QtFileManagerCommands::InvokePluginCommand(unsigned id) {
     window_.programFileMenu_->InvokePluginCommand(id);
 }
 void QtFileManagerCommands::ReleasePluginMenus() { window_.programFileMenu_->ReleasePluginMenus(); }
-void QtFileManagerCommands::VerCtrl(unsigned id) {
-    auto &w = window_;
-    auto &panel = w.app_.GetFocusedPanel();
-    CSelectedState selection;
-    panel.SaveSelectedState(selection);
-    w.app_.VerCtrl(id);
-    panel.RefreshListCtrl(selection);
-    w.refreshActions();
-}
 void QtFileManagerCommands::Comment() {
     auto &w = window_;
     const unsigned index = w.app_.GetFocusedPanelIndex();

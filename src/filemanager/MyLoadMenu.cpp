@@ -13,7 +13,6 @@
 #include "filemanager/qtfilemenuservices.h"
 #include "localization/LangUtils.h"
 #include <QAction>
-#include <QCoreApplication>
 #include <QMenu>
 #include <QMenuBar>
 #include <QSignalBlocker>
@@ -37,12 +36,6 @@ void OnMenuActivating(QMenuBar &mainMenu, QMenu &hMenu, int position, CApp &g_Ap
 static const unsigned IDCLOSE = 8;
 #endif
 static const unsigned k_MenuID_Time = IDM_VIEW_TIME;
-static const unsigned g_Zvc_IDs[] = {IDM_VER_EDIT, IDM_VER_COMMIT, IDM_VER_REVERT, IDM_VER_DIFF};
-static const char *const g_Zvc_Strings[] = {QT_TRANSLATE_NOOP("VersionControl", "Ver Edit (&1)"),
-                                            QT_TRANSLATE_NOOP("VersionControl", "Ver Commit"),
-                                            QT_TRANSLATE_NOOP("VersionControl", "Ver Revert"),
-                                            QT_TRANSLATE_NOOP("VersionControl", "Ver Diff (&0)")};
-
 unsigned GetSortControlID(PROPID propID) {
     switch (propID) {
     case kpidName:
@@ -277,8 +270,6 @@ void MyLoadBookmarks(QAction *const *openActions, QAction *const *setActions, CA
 }
 
 void CFileMenu::Load(IQtFileMenuServices &destMenu, unsigned startPos) {
-    UString diffPath;
-    destMenu.ReadRegDiff(diffPath);
     unsigned numRealItems = startPos;
     const bool isBigScreen = destMenu.IsDialogSizeOK(40, 200);
     for (unsigned i = 0;; i++) {
@@ -288,13 +279,8 @@ void CFileMenu::Load(IQtFileMenuServices &destMenu, unsigned startPos) {
         {
             if (!programMenu && item.wID == IDCLOSE)
                 continue;
-            if (item.wID == IDM_DIFF && diffPath.IsEmpty())
-                continue;
-            if (item.wID == IDM_OPEN_INSIDE_ONE || item.wID == IDM_OPEN_INSIDE_PARSER) {
-                // We use diff as "super mode" marker for additional commands.
-                /* if (diffPath.IsEmpty()) continue; */
-            }
-            if (item.wID == IDM_BENCHMARK || item.wID == IDM_BENCHMARK2)
+            if (item.wID == IDM_DIFF || (item.wID >= IDM_VER_EDIT && item.wID <= IDM_VER_DIFF) ||
+                item.wID == IDM_BENCHMARK || item.wID == IDM_BENCHMARK2)
                 continue;
             bool isOneFsFile = (isFsFolder && numItems == 1 && allAreFiles);
             bool disable = (!isOneFsFile && (item.wID == IDM_SPLIT || item.wID == IDM_COMBINE));
@@ -326,7 +312,6 @@ void CFileMenu::Load(IQtFileMenuServices &destMenu, unsigned startPos) {
                 case IDM_CREATE_FOLDER:
                 case IDM_CREATE_FILE:
                 case IDM_LINK:
-                case IDM_DIFF:
                     disable = true;
                 }
             }
@@ -344,31 +329,6 @@ void CFileMenu::Load(IQtFileMenuServices &destMenu, unsigned startPos) {
             }
             if (!item.IsSeparator())
                 numRealItems = startPos;
-        }
-    }
-    UString vercPath;
-    if (!diffPath.IsEmpty() && isFsFolder && allAreFiles && numItems == 1)
-        destMenu.ReadReg_VerCtrlPath(vercPath);
-    if (!vercPath.IsEmpty()) {
-        NWindows::NFile::NFind::CFileInfo fi;
-        if (fi.Find(FilePath) && fi.Size < ((UInt32)1 << 31) && !fi.IsDir()) {
-            for (unsigned k = 0; k < Z7_ARRAY_SIZE(g_Zvc_IDs); k++) {
-                const unsigned id = g_Zvc_IDs[k];
-                if (fi.IsReadOnly()) {
-                    if (id == IDM_VER_COMMIT || id == IDM_VER_REVERT || id == IDM_VER_DIFF)
-                        continue;
-                } else {
-                    if (id == IDM_VER_EDIT)
-                        continue;
-                }
-                UString s(QCoreApplication::translate("VersionControl", g_Zvc_Strings[k])
-                              .toStdWString()
-                              .c_str());
-                if (destMenu.AppendItem(id, s)) {
-                    startPos++;
-                    numRealItems = startPos;
-                }
-            }
         }
     }
     destMenu.RemoveAllItemsFrom(numRealItems);

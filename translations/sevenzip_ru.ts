@@ -1396,8 +1396,8 @@ Are you sure you want to split archive into such volumes?</source>
         </message>
         <message>
             <location line="+4" />
-            <source>Applications for viewing, editing and comparing archived files.</source>
-            <translation>Программы для просмотра, редактирования и сравнения файлов из архива.</translation>
+            <source>Applications for viewing and editing archived files.</source>
+            <translation>Программы для просмотра и редактирования файлов из архива.</translation>
         </message>
         <message>
             <location line="+2" />
@@ -5634,29 +5634,6 @@ Use `Revert` to recover timestamp.</source>
             <location filename="../src/settings/SystemPagePresentation.cpp" line="-109" />
             <source>%1 Archive</source>
             <translation>Архив %1</translation>
-        </message>
-    </context>
-    <context>
-        <name>VersionControl</name>
-        <message>
-            <location filename="../src/filemanager/MyLoadMenu.cpp" line="+46" />
-            <source>Ver Edit (&amp;1)</source>
-            <translation>Редактировать (&amp;1)</translation>
-        </message>
-        <message>
-            <location line="+1" />
-            <source>Ver Commit</source>
-            <translation>Зафиксировать изменения</translation>
-        </message>
-        <message>
-            <location line="+1" />
-            <source>Ver Revert</source>
-            <translation>Отменить изменения</translation>
-        </message>
-        <message>
-            <location line="+1" />
-            <source>Ver Diff (&amp;0)</source>
-            <translation>Сравнить (&amp;0)</translation>
         </message>
     </context>
     <context>

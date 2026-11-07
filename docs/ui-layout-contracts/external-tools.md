@@ -126,7 +126,7 @@ for source comparison and validation.
 ## External editor settings
 
 Reference: the same pinned revision, `EditPage2.rc`, `EditPage.cpp` and
-`OptionsDialog.cpp`. Editor presents Viewer, Editor, Diff in source order, each
+`OptionsDialog.cpp`. Editor presents Viewer and Editor in source order, each
 label above a command field and Browse button. The property-sheet footer is
 OK/Cancel/Apply; Apply is initially disabled, tracks source modified flags and
 resets after applying. Cancel after Apply retains committed values. Browse Cancel
@@ -149,14 +149,3 @@ update retains it. `archive_external_edit` checks fully visible labels/buttons,
 text fit and actual Yes/No/Escape at normal/compact owner sizes 980×620/640×400,
 writing `external-update-prompt-*` JSON. Qt chooses message-box sizing; these
 reports establish usable geometry, not rendered Windows pixel parity.
-
-## VerCtrl commands and Revert
-
-VerCtrl reference: pinned `VerCtrl.cpp`, `MyLoadMenu.cpp` dynamic Zvc IDs and
-`OverwriteDialog.rc/.cpp`. Commands append after the File menu's resource items
-and use original names/mnemonics; Diff and `FM/7vc` must be configured. Readonly
-files show Ver Edit; writable files show Commit/Revert/Diff. Revert changes
-OverwriteDialog's default to No and hides Yes All/No All/Auto Rename. `verctrl`
-checks actual Yes/No/Escape, default/visibility and unclipped geometry at
-700×440/560×440 and writes current-build dialog and owner-window JSON.
-Rendered Windows parity remains unverified.

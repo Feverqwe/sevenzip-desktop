@@ -19,6 +19,7 @@
 #include <QScopeGuard>
 #include <QScrollArea>
 #include <QScrollBar>
+#include <QSettings>
 #include <QStyleOptionButton>
 #include <QTabWidget>
 #include <QToolButton>
@@ -42,58 +43,33 @@ class LanguageUiTests : public QObject, protected MainWindowTestSupport {
     }
 
   private slots:
-    void hiddenFileCommandUsesNewLanguageWhenItReturns() {
+    void legacyExternalToolsStayOutOfTranslatedFileMenu() {
+        QSettings settings(settingsPath(), QSettings::IniFormat);
+        settings.setValue("FM/Diff", "fixture-diff-tool");
+        settings.setValue("FM/7vc", "fixture-version-tool");
+        settings.sync();
+        const auto restore = qScopeGuard([&] {
+            settings.remove("FM/Diff");
+            settings.remove("FM/7vc");
+            SaveRegLang(UString("-"), settingsPath());
+            ReloadLang(settingsPath());
+        });
         ControlledBackend backend;
         MainWindow window(&backend);
         window.show();
         auto *file = window.findChild<QMenu *>("fileMenu");
-        auto *diff = window.findChild<QAction *>("diffAction");
-        const auto configureDiff = [&](const QString &command) {
-            bool configured = false;
-            QTimer::singleShot(0, &window, [&] {
-                auto *dialog = window.findChild<QDialog *>("settingsDialog");
-                QVERIFY(dialog);
-                const auto close = qScopeGuard([&] { dialog->reject(); });
-                QVERIFY(OptionsPresentation::show(*dialog, "diffCommand"));
-                dialog->findChild<QLineEdit *>("diffCommand")->setText(command);
-                auto *applyButton = dialog->findChild<QDialogButtonBox *>("settingsButtons")
-                                        ->button(QDialogButtonBox::Apply);
-                if (applyButton->isEnabled())
-                    apply(*dialog);
-                configured = true;
-            });
-            window.findChild<QAction *>("settingsAction")->trigger();
-            return configured;
-        };
-        const auto contains = [](QMenu &root, QAction *target) {
-            const std::function<bool(QMenu &)> visit = [&](QMenu &menu) {
-                for (auto *action : menu.actions()) {
-                    if (action == target)
-                        return true;
-                    if (action->menu() && visit(*action->menu()))
-                        return true;
-                }
-                return false;
-            };
-            return visit(root);
-        };
-        for (const char *language : {"ru", "-", "ru"}) {
-            QVERIFY(configureDiff({}));
-            file->popup(window.mapToGlobal(QPoint(20, 40)));
-            QApplication::processEvents();
-            QVERIFY(!contains(*file, diff));
-            file->hide();
+        QVERIFY(file);
+        for (const char *language : {"-", "ru"}) {
             SaveRegLang(UString(language), settingsPath());
             ReloadLang(settingsPath());
             QtNotifyLanguageChanged();
-            QVERIFY(configureDiff(QStringLiteral("fixture-diff-tool")));
             file->popup(window.mapToGlobal(QPoint(20, 40)));
             QApplication::processEvents();
-            QVERIFY(contains(*file, diff));
-            QVERIFY(diff->isVisible());
-            QCOMPARE(diff->text(),
-                     language == QString("ru") ? QStringLiteral("Сравнить") : QString("Diff"));
-            file->hide();
+            const auto close = qScopeGuard([file] { file->hide(); });
+            for (const auto *action : file->actions()) {
+                const unsigned command = action->property("nativeCommandID").toUInt();
+                QVERIFY(command != IDM_DIFF && (command < IDM_VER_EDIT || command > IDM_VER_DIFF));
+            }
         }
     }
     void mainMenusFollowLanguageAtStartupAndAfterReload() {
@@ -606,10 +582,9 @@ class LanguageUiTests : public QObject, protected MainWindowTestSupport {
                         ->isEnabled());
             for (QSize size : {QSize(640, 390), QSize(520, 380), QSize(640, 720)}) {
                 dialog.resize(size);
-                for (const char *name :
-                     {"appearanceChoice", "languageChoice", "languageInfo", "workPathBrowse",
-                      "viewerCommand", "editorCommand", "diffCommand", "extractMemoryLabel",
-                      "extractMemorySpin", "gridOption"}) {
+                for (const char *name : {"appearanceChoice", "languageChoice", "languageInfo",
+                                         "workPathBrowse", "viewerCommand", "editorCommand",
+                                         "extractMemoryLabel", "extractMemorySpin", "gridOption"}) {
                     auto *control = dialog.findChild<QWidget *>(name);
                     QVERIFY(OptionsPresentation::show(dialog, control));
                     QVERIFY2(UiInspection::fullyVisible(*control, dialog), name);

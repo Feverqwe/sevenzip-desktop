@@ -12,7 +12,6 @@
 #include "ui/dialogs/qtdialogscreenservices.h"
 
 #include "filemanager/MyLoadMenu.h"
-#include "settings/RegistryUtils.h"
 #include <QApplication>
 #include <QFileInfo>
 #include <QScopedValueRollback>
@@ -160,15 +159,12 @@ QHash<unsigned, bool> QtFileManagerCommands::Availability() {
         return availability;
     const TransportCapabilities capabilities = ReadTransportCapabilities();
     QtFileMenuProjection menu;
-    ReadRegDiff(menu.diffPath, MainWindow::toolbarSettingsPath());
-    ReadReg_VerCtrlPath(menu.versionControlPath, MainWindow::toolbarSettingsPath());
     QtDialogScreenServices screen(&w);
     menu.screenServices = &screen;
     // Only command IDs are needed for capability projection; rendered strings
     // and HMENU ownership remain Qt presentation, not a second functional menu.
     for (auto it = actions_.cbegin(); it != actions_.cend(); ++it)
-        if (it.key() < IDM_VER_EDIT || it.key() > IDM_VER_DIFF)
-            menu.sourceItems.append({it.key(), UString(), false});
+        menu.sourceItems.append({it.key(), UString(), false});
     w.app_.GetFocusedPanel().CreateFileMenu(menu, true);
     for (auto it = actions_.cbegin(); it != actions_.cend(); ++it) {
         if (!availability.contains(it.key()))
@@ -200,13 +196,6 @@ bool QtFileManagerCommands::TransportAllows(unsigned id, const TransportCapabili
         return c.folderSize || (c.focusedFile && (c.filesystem || c.archive));
     case IDM_FILE_EDIT:
         return c.focusedFile && (c.filesystem || c.archive);
-    case IDM_DIFF:
-        return c.filesystem;
-    case IDM_VER_EDIT:
-    case IDM_VER_COMMIT:
-    case IDM_VER_REVERT:
-    case IDM_VER_DIFF:
-        return c.filesystem && c.oneFile;
     case IDM_COPY_TO:
         return !c.root && c.copy;
     case IDM_PROPERTIES:

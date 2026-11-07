@@ -14,13 +14,10 @@ struct QtFileMenuItem {
 class IQtFileMenuServices {
   public:
     virtual ~IQtFileMenuServices() = default;
-    virtual void ReadRegDiff(UString &path) const = 0;
-    virtual void ReadReg_VerCtrlPath(UString &path) const = 0;
     virtual bool IsDialogSizeOK(unsigned width, unsigned height) const = 0;
     virtual bool GetItem(unsigned index, QtFileMenuItem &item) const = 0;
     virtual void CopyPopMenu_IfRequired(QtFileMenuItem &item) = 0;
     virtual bool InsertItem(unsigned position, const QtFileMenuItem &item) = 0;
     virtual void EnableItem(unsigned position, bool enabled) = 0;
-    virtual bool AppendItem(unsigned id, const UString &text) = 0;
     virtual void RemoveAllItemsFrom(unsigned position) = 0;
 };

@@ -64,7 +64,6 @@
 | <a id="time-precision-and-utc-p0-063"></a>Time precision and UTC (P0-06.3) | [Открыть](file-list.md#time-precision-and-utc-p0-063) |
 | <a id="file-list-settings"></a>File list settings | [Открыть](options.md#file-list-settings) |
 | <a id="external-editor-settings"></a>External editor settings | [Открыть](external-tools.md#external-editor-settings) |
-| <a id="verctrl-commands-and-revert"></a>VerCtrl commands and Revert | [Открыть](external-tools.md#verctrl-commands-and-revert) |
 | <a id="folder-history-list"></a>Folder history list | [Открыть](dialogs.md#folder-history-list) |
 | <a id="hash-results"></a>Hash results | [Открыть](dialogs.md#hash-results) |
 | <a id="full-text-detail"></a>Full text detail | [Открыть](dialogs.md#full-text-detail) |

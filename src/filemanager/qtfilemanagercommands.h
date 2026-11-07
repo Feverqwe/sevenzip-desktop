@@ -50,8 +50,6 @@ class QtFileManagerCommands final : public IQtFileManagerMenuCommandServices {
     void MoveTo() override;
     void Delete(bool toRecycleBin) override;
     void CalculateCrc(const char *methodName) override;
-    void DiffFiles() override;
-    void VerCtrl(unsigned id) override;
     void Split() override;
     void Combine() override;
     void Properties() override;

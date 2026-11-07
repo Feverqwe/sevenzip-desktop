@@ -15,11 +15,8 @@ void SaveFlatView(UInt32 panelIndex, bool enable, const QString &settingsPath);
 bool ReadFlatView(UInt32 panelIndex, const QString &settingsPath);
 void SaveRegEditor(bool useEditor, const UString &path, const QString &settingsPath);
 void ReadRegEditor(bool useEditor, UString &path, const QString &settingsPath);
-void SaveRegDiff(const UString &path, const QString &settingsPath);
-void ReadRegDiff(UString &path, const QString &settingsPath);
 bool ReadConfirmUnknownFileOpen(const QString &settingsPath);
 void SaveConfirmUnknownFileOpen(bool enabled, const QString &settingsPath);
-void ReadReg_VerCtrlPath(UString &path, const QString &settingsPath);
 
 struct CFmSettings {
     bool ShowDots;

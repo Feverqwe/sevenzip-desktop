@@ -16,6 +16,7 @@
 #include <QLineEdit>
 #include <QMessageBox>
 #include <QPushButton>
+#include <iterator>
 
 static void Edit_BrowseForFile(QLineEdit &edit, QWidget *hwnd);
 
@@ -35,10 +36,10 @@ CEditPage::CEditPage(const QString &settingsPath, QWidget *parent)
     : QWidget(parent), _settingsPath(settingsPath) {
     setObjectName("editorPage");
     auto *layout = new QGridLayout(this);
-    const QString labels[] = {"&View:", "&Editor:", "&Diff:"};
-    const unsigned labelIDs[] = {IDT_EDIT_VIEWER, IDT_EDIT_EDITOR, IDT_EDIT_DIFF};
-    const char *names[] = {"viewerCommand", "editorCommand", "diffCommand"};
-    for (unsigned i = 0; i < 3; ++i) {
+    const QString labels[] = {"&View:", "&Editor:"};
+    const unsigned labelIDs[] = {IDT_EDIT_VIEWER, IDT_EDIT_EDITOR};
+    const char *names[] = {"viewerCommand", "editorCommand"};
+    for (unsigned i = 0; i < std::size(_ctrls); ++i) {
         auto *label = new QLabel(labels[i], this);
         label->setProperty("languageColon", i == 0);
         QtBindResourceText(label, labelIDs[i], labels[i]);
@@ -67,14 +68,14 @@ CEditPage::CEditPage(const QString &settingsPath, QWidget *parent)
     _confirmUnknownFileOpen->setObjectName("confirmUnknownFileOpenOption");
     QtBindLocalText(_confirmUnknownFileOpen, "ExternalFileOpen",
                     QT_TRANSLATE_NOOP("ExternalFileOpen", "Ask before opening unknown file types"));
-    layout->addWidget(_confirmUnknownFileOpen, 6, 0, 1, 2);
+    layout->addWidget(_confirmUnknownFileOpen, 4, 0, 1, 2);
     connect(_confirmUnknownFileOpen, &QCheckBox::toggled, this, [this] {
         if (!_initMode) {
             _confirmChanged = true;
             Changed();
         }
     });
-    layout->setRowStretch(7, 1);
+    layout->setRowStretch(5, 1);
     layout->setColumnStretch(0, 1);
     OnInit();
 }
@@ -83,14 +84,11 @@ bool CEditPage::OnInit() {
     _initMode = true;
     _confirmUnknownFileOpen->setChecked(ReadConfirmUnknownFileOpen(_settingsPath));
     _confirmChanged = false;
-    for (unsigned i = 0; i < 3; i++) {
+    for (unsigned i = 0; i < std::size(_ctrls); i++) {
         CEditPageCtrl &c = _ctrls[i];
         c.WasChanged = false;
         UString path;
-        if (i < 2)
-            ReadRegEditor(i > 0, path, _settingsPath);
-        else
-            ReadRegDiff(path, _settingsPath);
+        ReadRegEditor(i > 0, path, _settingsPath);
         c.Edit->setText(ToQString(path));
     }
     _initMode = false;
@@ -104,7 +102,7 @@ long CEditPage::OnApply(QWidget **invalidControl) {
         SaveConfirmUnknownFileOpen(_confirmUnknownFileOpen->isChecked(), _settingsPath);
         _confirmChanged = false;
     }
-    for (unsigned i = 0; i < 3; i++) {
+    for (unsigned i = 0; i < std::size(_ctrls); i++) {
         CEditPageCtrl &c = _ctrls[i];
         if (c.WasChanged) {
             UString path;
@@ -113,10 +111,7 @@ long CEditPage::OnApply(QWidget **invalidControl) {
                     *invalidControl = c.Edit;
                 return 1;
             }
-            if (i < 2)
-                SaveRegEditor(i > 0, path, _settingsPath);
-            else
-                SaveRegDiff(path, _settingsPath);
+            SaveRegEditor(i > 0, path, _settingsPath);
             c.WasChanged = false;
         }
     }

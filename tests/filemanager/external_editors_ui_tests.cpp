@@ -71,14 +71,13 @@ class ExternalEditorsUiTests final : public QObject, protected MainWindowTestSup
             confirm->setChecked(false);
             dialog.findChild<QLineEdit *>("viewerCommand")->setText("new viewer");
             dialog.findChild<QLineEdit *>("editorCommand")->setText("editor --edit");
-            dialog.findChild<QLineEdit *>("diffCommand")->setText("diff --compare");
             QVERIFY(applyButton->isEnabled());
             dialog.show();
             QVERIFY(QTest::qWaitForWindowActive(&dialog));
             for (QSize size : {QSize(640, 390), QSize(520, 380)}) {
                 dialog.resize(size);
                 QApplication::processEvents();
-                for (const char *name : {"viewerCommand", "editorCommand", "diffCommand"}) {
+                for (const char *name : {"viewerCommand", "editorCommand"}) {
                     auto *edit = dialog.findChild<QLineEdit *>(name);
                     OptionsPresentation::show(dialog, edit);
                     auto *browse = dialog.findChild<QPushButton *>(QString(name) + "Browse");
@@ -109,8 +108,6 @@ class ExternalEditorsUiTests final : public QObject, protected MainWindowTestSup
             UString value;
             ReadRegEditor(false, value, settings);
             QCOMPARE(ToQString(value), apply ? QString("new viewer") : QString("viewer --old"));
-            ReadRegDiff(value, settings);
-            QCOMPARE(ToQString(value), apply ? QString("diff --compare") : QString());
         }
     }
 
@@ -119,7 +116,6 @@ class ExternalEditorsUiTests final : public QObject, protected MainWindowTestSup
         QTest::addColumn<int>("program");
         QTest::newRow("viewer") << QString("viewerCommand") << 0;
         QTest::newRow("editor") << QString("editorCommand") << 1;
-        QTest::newRow("diff") << QString("diffCommand") << 2;
     }
     void editorBrowsePreservesCancelAndReplacesParameters() {
         QFETCH(QString, control);
@@ -152,17 +148,14 @@ class ExternalEditorsUiTests final : public QObject, protected MainWindowTestSup
         QCOMPARE(edit->text(), selected);
         page.OnApply();
         UString saved;
-        if (program < 2)
-            ReadRegEditor(program > 0, saved, qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
-        else
-            ReadRegDiff(saved, qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
+        ReadRegEditor(program > 0, saved, qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         QCOMPARE(ToQString(saved), selected);
     }
 
     void malformedCommandCanBeCorrectedOrCancelledBeforeLaunch_data() {
         QTest::addColumn<int>("program");
         QTest::addColumn<bool>("cancel");
-        for (int program = 0; program < 3; ++program)
+        for (int program = 0; program < 2; ++program)
             for (bool cancel : {false, true})
                 QTest::newRow(qPrintable(QString("%1-%2").arg(program).arg(cancel)))
                     << program << cancel;
@@ -181,20 +174,14 @@ class ExternalEditorsUiTests final : public QObject, protected MainWindowTestSup
         const QString oldCommand = command(oldOutput);
         const auto readCommand = [&] {
             UString value;
-            if (program < 2)
-                ReadRegEditor(program > 0, value, settings);
-            else
-                ReadRegDiff(value, settings);
+            ReadRegEditor(program > 0, value, settings);
             return ToQString(value);
         };
-        if (program < 2)
-            SaveRegEditor(program > 0, ToUString(oldCommand), settings);
-        else
-            SaveRegDiff(ToUString(oldCommand), settings);
+        SaveRegEditor(program > 0, ToUString(oldCommand), settings);
         WidgetDialogFixture dialogs;
         QtFmOptionsDialog options(settings);
         options.resize(520, 380);
-        const char *controls[] = {"viewerCommand", "editorCommand", "diffCommand"};
+        const char *controls[] = {"viewerCommand", "editorCommand"};
         OptionsPresentation::show(options, controls[program]);
         options.show();
         QVERIFY(QTest::qWaitForWindowActive(&options));
@@ -249,18 +236,11 @@ class ExternalEditorsUiTests final : public QObject, protected MainWindowTestSup
         view->selectAll();
         view->setCurrentCell(filesystemRow(window, QFileInfo(second).fileName()), 0,
                              QItemSelectionModel::NoUpdate);
-        const char *actions[] = {"viewFileAction", "editFileAction", "diffAction"};
+        const char *actions[] = {"viewFileAction", "editFileAction"};
         QTRY_VERIFY(action(window, actions[program])->isEnabled());
         action(window, actions[program])->trigger();
-        QStringList expected = program == 2 ? QStringList{first, second} : QStringList{second};
-        expected.sort();
         const QString output = cancel ? oldOutput : newOutput;
-        QTRY_COMPARE(([&] {
-                         auto values = readArguments(output);
-                         values.sort();
-                         return values;
-                     })(),
-                     expected);
+        QTRY_COMPARE(readArguments(output), QStringList{second});
         QVERIFY(!QFileInfo::exists(cancel ? newOutput : oldOutput));
     }
 
@@ -292,119 +272,6 @@ class ExternalEditorsUiTests final : public QObject, protected MainWindowTestSup
         QTRY_COMPARE(readArguments(viewerOutput), QStringList({second}));
         QTest::keyClick(view, Qt::Key_F4);
         QTRY_COMPARE(readArguments(editorOutput), QStringList({second}));
-    }
-
-    void diffUsesSelectedPairAndReportsLaunchFailure() {
-        QTemporaryDir fixture;
-        const QString first = fixture.filePath("a.txt");
-        const QString second = fixture.filePath(QStringLiteral("б с пробелом.txt"));
-        QVERIFY(writeFile(first) && writeFile(second));
-        const QString output = fixture.filePath("diff.json");
-        const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
-        SaveRegDiff(ToUString(command(output)), settings);
-        ControlledBackend backend;
-        MainWindow window(&backend);
-        navigate(window, fixture.path());
-        window.show();
-        QTRY_VERIFY(filesystemRow(window, "a.txt") >= 0);
-        auto *view = table(window);
-        view->selectAll();
-        QTRY_VERIFY(action(window, "diffAction")->isEnabled());
-        const int firstRow = filesystemRow(window, "a.txt");
-        const int secondRow = filesystemRow(window, QStringLiteral("б с пробелом.txt"));
-        const bool firstInSourceOrder =
-            view->model()->index(firstRow, 0).data(Qt::UserRole + 6).toUInt() <
-            view->model()->index(secondRow, 0).data(Qt::UserRole + 6).toUInt();
-        const QStringList expected =
-            firstInSourceOrder ? QStringList({first, second}) : QStringList({second, first});
-        action(window, "diffAction")->trigger();
-        QTRY_COMPARE(readArguments(output), expected);
-        SaveRegDiff(ToUString(fixture.filePath("missing executable")), settings);
-        bool errorShown = false;
-        QTimer::singleShot(0, [&] {
-            if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
-                errorShown = box->textFormat() == Qt::PlainText;
-                box->accept();
-            }
-        });
-        action(window, "diffAction")->trigger();
-        QVERIFY(errorShown);
-        QVERIFY(QFileInfo(first).isFile() && QFileInfo(second).isFile());
-    }
-
-    void diffUsesOppositeSelectionOrRelativeFallback_data() {
-        QTest::addColumn<bool>("selected");
-        QTest::addColumn<bool>("flat");
-        QTest::newRow("opposite-selection") << true << false;
-        QTest::newRow("relative-fallback") << false << false;
-        QTest::newRow("flat-selection") << true << true;
-        QTest::newRow("flat-basename-fallback") << false << true;
-    }
-    void diffUsesOppositeSelectionOrRelativeFallback() {
-        QFETCH(bool, selected);
-        QFETCH(bool, flat);
-        QTemporaryDir fixture;
-        const QString left = fixture.filePath("left");
-        const QString nested = QDir(left).filePath("nested");
-        const QString right = fixture.filePath("right");
-        QVERIFY(QDir().mkpath(nested) && QDir().mkpath(right));
-        const QString source = QDir(nested).filePath(QStringLiteral("файл с пробелом.txt"));
-        const QString expected =
-            QDir(right).filePath(selected ? QString("other.txt") : QFileInfo(source).fileName());
-        QVERIFY(writeFile(source) && writeFile(expected));
-        const QString output = fixture.filePath("diff.json");
-        SaveRegDiff(ToUString(command(output)), qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
-        ControlledBackend backend;
-        MainWindow window(&backend);
-        navigate(window, flat ? left : nested);
-        window.show();
-        window.activateWindow();
-        auto *leftPanel = window.findChild<QWidget *>("filePanel0");
-        auto *leftTable = leftPanel->findChild<FileTable *>("archiveTable");
-        QTRY_VERIFY(leftTable->rowCount() > 0);
-        leftTable->setFocus();
-        if (flat)
-            action(window, "flatViewAction")->trigger();
-        const QString displayed =
-            (flat ? QString("nested/") : QString()) + QFileInfo(source).fileName();
-        QTRY_VERIFY(filesystemRow(window, displayed) >= 0);
-        QTRY_VERIFY(leftTable->isEnabled());
-        leftTable->selectRow(filesystemRow(window, displayed));
-        action(window, "twoPanelsAction")->trigger();
-        QVERIFY(action(window, "twoPanelsAction")->isChecked());
-        auto *rightPanel = window.findChild<QWidget *>("filePanel1");
-        auto *rightTable = rightPanel->findChild<FileTable *>("archiveTable");
-        auto *address = rightPanel->findChild<QLineEdit *>("archivePath");
-        address->setFocus();
-        address->setText(right);
-        QTest::keyClick(address, Qt::Key_Return);
-        QTRY_COMPARE(rightTable->rowCount(), 1);
-        if (action(window, "flatViewAction")->isChecked())
-            action(window, "flatViewAction")->trigger();
-        if (selected)
-            rightTable->selectRow(0);
-        else
-            rightTable->clearSelection();
-        window.activateWindow();
-        QApplication::processEvents();
-        QTRY_VERIFY(leftTable->isEnabled());
-        leftTable->setFocus();
-        // Activating a retained flat panel can start its deferred rescan.
-        // The source scan guard temporarily disables the list and drops focus.
-        QTRY_VERIFY(leftTable->isEnabled());
-        leftTable->setFocus();
-        QTRY_VERIFY(leftTable->hasFocus());
-        const auto sourceRow = [&] {
-            for (int row = 0; row < leftTable->rowCount(); ++row)
-                if (leftTable->model()->index(row, 0).data().toString() == displayed)
-                    return row;
-            return -1;
-        };
-        QTRY_VERIFY(sourceRow() >= 0);
-        leftTable->selectRow(sourceRow());
-        QTRY_VERIFY(action(window, "diffAction")->isEnabled());
-        action(window, "diffAction")->trigger();
-        QTRY_COMPARE(readArguments(output), QStringList({source, expected}));
     }
 };
 

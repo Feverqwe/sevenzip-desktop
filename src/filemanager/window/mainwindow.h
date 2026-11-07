@@ -433,7 +433,6 @@ class MainWindow : public QMainWindow {
     QPointer<QDialog> overwriteDialog_;
     QAction *viewFile_ = nullptr;
     QAction *editFile_ = nullptr;
-    QAction *diffFiles_ = nullptr;
     QAction *properties_ = nullptr;
     QHash<unsigned, QAction *> hashActions_;
     QAction *createFolder_ = nullptr;

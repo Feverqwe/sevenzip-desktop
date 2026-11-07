@@ -29,10 +29,6 @@ class Commands final : public IQtFileManagerCommandServices {
         calls << "hash";
         parameter = QString::fromLatin1(method);
     }
-    void VerCtrl(unsigned id) override {
-        calls << "version";
-        parameter = QString::number(id);
-    }
 #define RECORD_COMMAND(name)                                                                       \
     void name() override { calls << #name; }
     RECORD_COMMAND(OpenItem)
@@ -40,7 +36,6 @@ class Commands final : public IQtFileManagerCommandServices {
     RECORD_COMMAND(Rename)
     RECORD_COMMAND(CopyTo)
     RECORD_COMMAND(MoveTo)
-    RECORD_COMMAND(DiffFiles)
     RECORD_COMMAND(Split)
     RECORD_COMMAND(Combine)
     RECORD_COMMAND(Properties)
@@ -103,7 +98,10 @@ class NativeCommandDispatchTests : public QObject {
         QCOMPARE(commands.calls, QStringList({"plugin", "release-menus"}));
         QCOMPARE(commands.parameter, QString::number(kMenuCmdID_Plugin_Start + 7));
         commands.calls.clear();
-        QVERIFY(!ExecuteFileCommand(999, commands));
+        for (unsigned id :
+             {999u, unsigned(IDM_DIFF), unsigned(IDM_VER_EDIT), unsigned(IDM_VER_COMMIT),
+              unsigned(IDM_VER_REVERT), unsigned(IDM_VER_DIFF)})
+            QVERIFY(!ExecuteFileCommand(id, commands));
         QVERIFY(commands.calls.isEmpty());
     }
 };

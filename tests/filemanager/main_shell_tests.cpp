@@ -305,11 +305,8 @@ class MainShellTests final : public QObject {
     void sourceCommandsKeepAvailabilityAndShortcuts() {
         ControlledBackend backend;
         MainWindow window(&backend);
-        for (const char *name : {"diffAction", "linkAction"}) {
-            auto *action = window.findChild<QAction *>(name);
-            QVERIFY(action);
-            QVERIFY(!action->isEnabled());
-        }
+        auto *link = window.findChild<QAction *>("linkAction");
+        QVERIFY(link && !link->isEnabled());
         auto *streams = window.findChild<QAction *>("altStreamsAction");
         QVERIFY(streams);
 #ifdef Q_OS_WIN

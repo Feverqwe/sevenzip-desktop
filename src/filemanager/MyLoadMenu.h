@@ -25,7 +25,6 @@ struct CFileMenu {
     bool allAreFiles;
     bool isAltStreamsSupported;
     unsigned numItems;
-    FString FilePath;
 
     CFileMenu()
         : programMenu(false), readOnly(false), isHashFolder(false), isFsFolder(false),

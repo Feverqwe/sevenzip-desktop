@@ -12,7 +12,7 @@ struct CEditPageCtrl {
 
 class CEditPage : public QWidget {
     Q_OBJECT
-    CEditPageCtrl _ctrls[3];
+    CEditPageCtrl _ctrls[2];
     bool _initMode = true;
     QString _settingsPath;
     QCheckBox *_confirmUnknownFileOpen;

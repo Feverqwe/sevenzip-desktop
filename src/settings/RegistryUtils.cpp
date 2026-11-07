@@ -32,14 +32,6 @@ void ReadRegEditor(bool useEditor, UString &path, const QString &settingsPath) {
     ReadCuString(settingsPath, useEditor ? "Editor" : "Viewer", path);
 }
 
-void SaveRegDiff(const UString &path, const QString &settingsPath) {
-    SaveCuString(settingsPath, "Diff", path);
-}
-
-void ReadRegDiff(UString &path, const QString &settingsPath) {
-    ReadCuString(settingsPath, "Diff", path);
-}
-
 bool ReadConfirmUnknownFileOpen(const QString &settingsPath) {
     QSettings key(settingsPath, QSettings::IniFormat);
     return key.value("FM/ConfirmUnknownFileOpen", true).toBool();
@@ -48,10 +40,6 @@ bool ReadConfirmUnknownFileOpen(const QString &settingsPath) {
 void SaveConfirmUnknownFileOpen(bool enabled, const QString &settingsPath) {
     QSettings key(settingsPath, QSettings::IniFormat);
     key.setValue("FM/ConfirmUnknownFileOpen", enabled);
-}
-
-void ReadReg_VerCtrlPath(UString &path, const QString &settingsPath) {
-    ReadCuString(settingsPath, "7vc", path);
 }
 
 void SaveRegLang(const UString &path, const QString &settingsPath) {

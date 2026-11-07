@@ -289,10 +289,6 @@ class ExternalLaunchTests final : public QObject {
         QVERIFY(command == editor);
         ReadRegEditor(false, command, path);
         QVERIFY(command == viewer);
-        const UString diff(L"\"/папка diff/tool\" --compare");
-        SaveRegDiff(diff, path);
-        ReadRegDiff(command, path);
-        QVERIFY(command == diff);
         ReadRegEditor(false, command, path);
         QVERIFY(command == viewer);
         SaveRegEditor(true, UString(), path);

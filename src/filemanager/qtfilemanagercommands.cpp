@@ -87,11 +87,6 @@ void QtFileManagerCommands::AttachFileActions() {
     Bind(w.openOutside_, IDM_OPEN_OUTSIDE);
     Bind(w.viewFile_, IDM_FILE_VIEW);
     Bind(w.editFile_, IDM_FILE_EDIT);
-    Bind(w.diffFiles_, IDM_DIFF);
-    const char *verCtrlNames[] = {"verEditAction", "verCommitAction", "verRevertAction",
-                                  "verDiffAction"};
-    for (unsigned i = 0; i < 4; ++i)
-        Bind(w.findChild<QAction *>(QString::fromLatin1(verCtrlNames[i])), IDM_VER_EDIT + i);
     Bind(w.rename_, IDM_RENAME);
     Bind(w.copy_, IDM_COPY_TO);
     Bind(w.move_, IDM_MOVE_TO);

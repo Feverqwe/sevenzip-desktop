@@ -3,11 +3,6 @@
 #include "filemanager/MyLoadMenu.h"
 #include "filemanager/qtfilemenuservices.h"
 #include "fileops/native/Dialog.h"
-#include "localization/LangUtils.h"
-#include "settings/RegistryUtils.h"
-#include <QFile>
-#include <QScopeGuard>
-#include <QTemporaryDir>
 #include <QtTest>
 
 namespace {
@@ -16,10 +11,7 @@ class Menu final : public IQtFileMenuServices {
     QList<QtFileMenuItem> source;
     QList<QtFileMenuItem> items;
     QList<bool> enabled;
-    UString diff, versionControl;
     bool large = true;
-    void ReadRegDiff(UString &path) const override { path = diff; }
-    void ReadReg_VerCtrlPath(UString &path) const override { path = versionControl; }
     bool IsDialogSizeOK(unsigned, unsigned) const override { return large; }
     bool GetItem(unsigned index, QtFileMenuItem &item) const override {
         if (index >= unsigned(source.size()))
@@ -34,11 +26,6 @@ class Menu final : public IQtFileMenuServices {
         return true;
     }
     void EnableItem(unsigned position, bool value) override { enabled[position] = value; }
-    bool AppendItem(unsigned id, const UString &text) override {
-        items.append({id, text, false});
-        enabled.append(true);
-        return true;
-    }
     void RemoveAllItemsFrom(unsigned position) override {
         items.resize(position);
         enabled.resize(position);
@@ -135,52 +122,14 @@ class FileMenuPolicyTests : public QObject {
         QCOMPARE(menu.disabled(),
                  QList<unsigned>({IDM_OPEN, IDM_COPY_TO, IDM_FILE_EDIT, IDM_CREATE_FOLDER}));
     }
-    void configuredDiffAndVersionControlUseOriginalFileAttributes_data() {
-        QTest::addColumn<QString>("language");
-        QTest::addColumn<QString>("commit");
-        QTest::newRow("en") << QString("-") << QString("Ver Commit");
-        QTest::newRow("ru") << QString("ru") << QString::fromUtf8("Зафиксировать изменения");
-    }
-    void configuredDiffAndVersionControlUseOriginalFileAttributes() {
-        QFETCH(QString, language);
-        QFETCH(QString, commit);
-        QTemporaryDir fixture;
-        QVERIFY(fixture.isValid());
-        const QString settings = fixture.filePath("language.ini");
-        const auto restore = qScopeGuard([&] {
-            SaveRegLang(UString("-"), settings);
-            ReloadLang(settings);
-        });
-        LoadLangOneTime();
-        SaveRegLang(UString(language.toStdWString().c_str()), settings);
-        ReloadLang(settings);
-        const QString path = fixture.filePath(QStringLiteral("имя с пробелом.txt"));
-        QFile file(path);
-        QVERIFY(file.open(QIODevice::WriteOnly));
-        QCOMPARE(file.write("fixture"), qint64(7));
-        file.close();
-        auto menu = commands({IDM_DIFF, IDM_BENCHMARK2, IDM_PROPERTIES});
-        menu.diff = L"diff service";
-        menu.versionControl = L"version service";
+    void legacyExternalCommandsStayOutOfFileMenu() {
+        auto menu = commands({IDM_DIFF, IDM_VER_EDIT, IDM_VER_COMMIT, IDM_VER_REVERT, IDM_VER_DIFF,
+                              IDM_BENCHMARK2, IDM_PROPERTIES});
         CFileMenu policy;
         policy.isFsFolder = policy.allAreFiles = true;
         policy.numItems = 1;
-        policy.FilePath = us2fs(UString(path.toStdWString().c_str()));
         policy.Load(menu, 0);
-        QVERIFY(menu.ids().contains(IDM_DIFF));
-        QVERIFY(!menu.ids().contains(IDM_BENCHMARK2));
-        QVERIFY(menu.ids().contains(IDM_VER_COMMIT));
-        QCOMPARE(
-            QString::fromWCharArray(menu.items[menu.ids().indexOf(IDM_VER_COMMIT)].StringValue),
-            commit);
-        QVERIFY(!menu.ids().contains(IDM_VER_EDIT));
-        QVERIFY(file.setPermissions(QFileDevice::ReadOwner));
-        menu.items.clear();
-        menu.enabled.clear();
-        policy.Load(menu, 0);
-        QVERIFY(menu.ids().contains(IDM_VER_EDIT));
-        QVERIFY(!menu.ids().contains(IDM_VER_COMMIT));
-        QVERIFY(file.setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner));
+        QCOMPARE(menu.ids(), QList<unsigned>{IDM_PROPERTIES});
     }
 };
 

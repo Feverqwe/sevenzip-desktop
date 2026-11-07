@@ -119,8 +119,6 @@ void CPanel::CreateFileMenu(IQtFileMenuServices &menu, bool programMenu,
     fm.allAreFiles = (firstDirIndex == -1);
     fm.numItems = operatedIndices.Size();
     fm.isAltStreamsSupported = false;
-    if (fm.numItems == 1)
-        fm.FilePath = us2fs(GetItemFullPath(operatedIndices[0]));
     if (_folderAltStreams) {
         if (operatedIndices.Size() <= 1) {
             UInt32 realIndex = (UInt32)(Int32)-1;

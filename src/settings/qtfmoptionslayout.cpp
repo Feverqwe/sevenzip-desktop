@@ -192,7 +192,7 @@ void QtFmOptionsDialog::buildSections() {
     section(_sections, "applicationsSection", QT_TRANSLATE_NOOP("SettingsRedesign", "Applications"),
             _editPage,
             QT_TRANSLATE_NOOP("SettingsRedesign",
-                              "Applications for viewing, editing and comparing archived files."),
+                              "Applications for viewing and editing archived files."),
             QT_TRANSLATE_NOOP("SettingsRedesign",
                               "You can specify an application and command-line arguments."));
     section(_sections, "fileListSection", QT_TRANSLATE_NOOP("SettingsRedesign", "File list"),

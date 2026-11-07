@@ -104,16 +104,13 @@ void QtPanelContextMenu::ClientToScreen(int &x, int &y) const {
 }
 void QtPanelContextMenu::CreatePopup() {
     auto &state = *impl_;
-    ReadRegDiff(state.projection.diffPath, MainWindow::toolbarSettingsPath());
-    ReadReg_VerCtrlPath(state.projection.versionControlPath, MainWindow::toolbarSettingsPath());
     state.projection.screenServices = &state.screen;
     for (QAction *action : state.window.programFileMenu_->SourceActions()) {
         if (action->property("workspaceCommand").toBool())
             continue;
         const bool separator = action->isSeparator();
         const unsigned id = action->menu() ? 0u : action->property("nativeCommandID").toUInt();
-        if (id < IDM_VER_EDIT || id > IDM_VER_DIFF)
-            state.projection.sourceItems.append({id, ToUString(action->text()), separator});
+        state.projection.sourceItems.append({id, ToUString(action->text()), separator});
         if (!separator && !action->menu())
             state.actions.insert(id, action);
     }

@@ -61,7 +61,6 @@ add_library(sevenzip_panel
     src/filemanager/SplitUtils.cpp
     src/filemanager/App.cpp
     src/filemanager/AppCopy.cpp
-    src/filemanager/AppDiff.cpp
     src/filemanager/AppLink.cpp
     src/ui/theme/qtsemanticcolors.cpp
     src/ui/theme/qtsemanticcolors.h
@@ -163,9 +162,6 @@ add_library(sevenzip_panel
     src/filemanager/external/qtexternalsessionowner.h
     src/archive/resources/qtarchiveitemopen.cpp
     src/archive/resources/qtarchiveitemopen.h
-    src/filemanager/VerCtrl.cpp
-    src/fileops/links/qtverctrlfileservices.cpp
-    src/fileops/links/qtverctrlfileservices.h
     src/platform/associations/qtassociatedfileservices.cpp
     src/platform/associations/qtassociatedfileservices.h
     ${sevenzip_external_process_source}

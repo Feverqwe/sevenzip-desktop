@@ -34,12 +34,6 @@
     target_include_directories(external_editors_ui_tests PRIVATE src tests)
     target_link_libraries(external_editors_ui_tests PRIVATE Qt6::Widgets Qt6::Test)
     add_test(NAME external_editors_ui COMMAND external_editors_ui_tests -silent)
-    qt_add_executable(verctrl_tests tests/filemanager/verctrl_tests.cpp)
-    target_link_libraries(verctrl_tests PRIVATE sevenzip_layout_inspection)
-    target_link_libraries(verctrl_tests PRIVATE sevenzip_window)
-    target_include_directories(verctrl_tests PRIVATE src tests)
-    target_link_libraries(verctrl_tests PRIVATE Qt6::Widgets Qt6::Test)
-    add_test(NAME verctrl COMMAND verctrl_tests -silent)
     qt_add_executable(nested_edit_chain_tests
         tests/filemanager/nested_edit_chain_tests.cpp
         tests/platform/support/external_editor_fixture.cpp)
@@ -55,8 +49,6 @@
     add_test(NAME nested_edit_chain COMMAND nested_edit_chain_tests -v1)
     set_tests_properties(nested_edit_chain PROPERTIES TIMEOUT 120 ENVIRONMENT
         "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/nested_edit_chain.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
-    set_tests_properties(verctrl PROPERTIES TIMEOUT 90 ENVIRONMENT
-        "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/verctrl.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
     qt_add_executable(archive_external_edit_tests
         tests/filemanager/archive_external_edit_tests.cpp
         tests/platform/support/external_editor_fixture.cpp)

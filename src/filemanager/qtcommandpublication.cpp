@@ -1,9 +1,7 @@
 #include "7zip/UI/FileManager/resource.h"
 #include "filemanager/MyLoadMenu.h"
 #include "filemanager/qtfilemanagercommands.h"
-#include "filemanager/qtfilemenuprojection.h"
 #include "filemanager/window/mainwindow.h"
-#include "settings/RegistryUtils.h"
 #include <QAction>
 #include <QScopeGuard>
 #include <QSignalBlocker>
@@ -45,33 +43,6 @@ void QtFileManagerCommands::PublishActions() {
             action->setEnabled(commands.value(it.key(), false));
             if (interrupted())
                 return;
-        }
-    }
-    UString diffCommand;
-    ReadRegDiff(diffCommand, MainWindow::toolbarSettingsPath());
-    window_.diffFiles_->setVisible(!diffCommand.IsEmpty());
-    if (interrupted())
-        return;
-    QtFileMenuProjection versionMenu;
-    versionMenu.diffPath = diffCommand;
-    ReadReg_VerCtrlPath(versionMenu.versionControlPath, MainWindow::toolbarSettingsPath());
-    if (!window_.app_.QtOperations().closed() && !window_.sourceArchiveProgress_ &&
-        window_.app_.GetFocusedPanel().ShouldProcessNotifications() &&
-        window_.app_.GetFocusedPanel().GetFolder())
-        window_.app_.GetFocusedPanel().CreateFileMenu(versionMenu, true);
-    if (interrupted())
-        return;
-    for (unsigned id = IDM_VER_EDIT; id <= IDM_VER_DIFF; ++id) {
-        for (QAction *action : actions_.value(id)) {
-            action->setVisible(versionMenu.IsEnabled(id));
-            if (interrupted())
-                return;
-            for (const auto &item : versionMenu.items)
-                if (item.source.wID == id) {
-                    action->setText(ToQString(item.source.StringValue));
-                    if (interrupted())
-                        return;
-                }
         }
     }
     RefreshViewActions();

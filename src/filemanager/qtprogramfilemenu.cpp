@@ -50,11 +50,6 @@ QList<QAction *> QtGroupFileCommands(QMenu &menu, bool contextMenu) {
             case IDM_COMBINE:
             case IDM_COMMENT:
             case IDM_ALT_STREAMS:
-            case IDM_DIFF:
-            case IDM_VER_EDIT:
-            case IDM_VER_COMMIT:
-            case IDM_VER_REVERT:
-            case IDM_VER_DIFF:
                 rare.append(action);
                 break;
             case IDM_PROPERTIES:
@@ -187,8 +182,6 @@ void QtProgramFileMenu::Activate() {
     ClearDynamicRows();
     _window.sourceOperatedIndices();
     QtFileMenuProjection projection;
-    ReadRegDiff(projection.diffPath, MainWindow::toolbarSettingsPath());
-    ReadReg_VerCtrlPath(projection.versionControlPath, MainWindow::toolbarSettingsPath());
     QtDialogScreenServices screen(&_window);
     projection.screenServices = &screen;
     QHash<unsigned, QAction *> actions;
@@ -199,8 +192,7 @@ void QtProgramFileMenu::Activate() {
             continue;
         }
         const unsigned id = action->menu() ? 0 : action->property("nativeCommandID").toUInt();
-        if (id < IDM_VER_EDIT || id > IDM_VER_DIFF)
-            projection.sourceItems.append({id, ToUString(action->text()), action->isSeparator()});
+        projection.sourceItems.append({id, ToUString(action->text()), action->isSeparator()});
         if (!action->isSeparator())
             actions.insert(id, action);
     }

@@ -7,8 +7,6 @@ bool QtFileMenuProjection::IsEnabled(unsigned id) const {
             return item.enabled;
     return false;
 }
-void QtFileMenuProjection::ReadRegDiff(UString &path) const { path = diffPath; }
-void QtFileMenuProjection::ReadReg_VerCtrlPath(UString &path) const { path = versionControlPath; }
 bool QtFileMenuProjection::IsDialogSizeOK(unsigned width, unsigned height) const {
     return screenServices ? NWindows::NControl::IsDialogSizeOK(width, height, *screenServices)
                           : normalScreen;
@@ -31,10 +29,6 @@ bool QtFileMenuProjection::InsertItem(unsigned position, const QtFileMenuItem &i
 void QtFileMenuProjection::EnableItem(unsigned position, bool enabled) {
     if (position < static_cast<unsigned>(items.size()))
         items[position].enabled = enabled;
-}
-bool QtFileMenuProjection::AppendItem(unsigned id, const UString &text) {
-    items.append({{id, text, false}, true});
-    return true;
 }
 void QtFileMenuProjection::RemoveAllItemsFrom(unsigned position) {
     if (position < static_cast<unsigned>(items.size()))

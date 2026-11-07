@@ -280,8 +280,6 @@ void MainWindow::populateSourceMenus() {
     file->addAction(properties_);
     unavailable(file, QStringLiteral("Comme&nt..."), "commentAction", IDM_COMMENT);
     file->addMenu(hash);
-    diffFiles_ = file->addAction(QStringLiteral("&Diff"));
-    diffFiles_->setObjectName("diffAction");
     file->addSeparator();
     file->addAction(createFolder_);
     file->addAction(createFile_);
@@ -296,15 +294,6 @@ void MainWindow::populateSourceMenus() {
     archives->menuAction()->setProperty("workspaceCommand", true);
     for (auto *action : {toolbarAdd_, extract_, test_, infoAction_})
         archives->addAction(action);
-    const char *verCtrlNames[] = {"verEditAction", "verCommitAction", "verRevertAction",
-                                  "verDiffAction"};
-    for (unsigned i = 0; i < 4; ++i) {
-        auto *action = file->addAction(QString());
-        action->setObjectName(QString::fromLatin1(verCtrlNames[i]));
-        action->setProperty("nativeCommandID", IDM_VER_EDIT + i);
-        action->setVisible(false);
-    }
-
     auto *edit = findChild<QMenu *>("editMenu");
     for (QAction *action : {selectAll_, deselectAll_, invertSelection_, selectMask_, deselectMask_})
         edit->addAction(action);
