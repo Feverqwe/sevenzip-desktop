@@ -255,6 +255,7 @@ unsupported root/ADS refusals before publication. Original copy options, naming,
 selection/row refresh, title and source focus must survive the async continuation.
 The folder picker resolves a relative destination from the same base as Copy
 or Move. Cancelling the picker preserves the entered path and name.
+Relative path components are resolved before creating destination folders.
 A relative directory path resolving to the other panel's archive folder
 uses that panel as the destination.
 If a required destination directory is occupied by a file, the dialog keeps

@@ -147,6 +147,8 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
                     QTest::newRow(
                         qPrintable(QString("%1-%2-%3").arg(sourceIndex).arg(large).arg(outcome)))
                         << sourceIndex << large << QString::fromLatin1(outcome);
+        QTest::newRow("relative-copy") << 0u << false << QString("relative-copy");
+        QTest::newRow("relative-move") << 1u << false << QString("relative-move");
     }
     void outsidePeerStillRefreshesDestination() {
         QFETCH(unsigned, sourceIndex);
@@ -154,7 +156,8 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         QFETCH(QString, outcome);
         const bool cancel = outcome == "dialog-cancel";
         const bool overwrite = outcome == "overwrite-cancel";
-        const bool move = outcome == "move";
+        const bool move = outcome.endsWith("move");
+        const bool relative = outcome.startsWith("relative-");
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString input = fixture.filePath("input");
@@ -194,8 +197,11 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
             if (dialog && dialog->isVisible() && !seen) {
                 seen = true;
                 write(QDir(peer).filePath("new while guarded.txt"), "new control");
-                dialog->findChild<QLineEdit *>("copyDestination")->setText(output + '/');
+                dialog->findChild<QLineEdit *>("copyDestination")
+                    ->setText(relative ? "../unneeded/../output/" : output + '/');
                 cancel ? dialog->reject() : dialog->accept();
+                if (dialog->isVisible())
+                    dialog->reject();
             }
             for (QWidget *widget : QApplication::topLevelWidgets()) {
                 if (!widget->isVisible())
@@ -214,6 +220,7 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
         QTRY_COMPARE_WITH_TIMEOUT(peerView->rowCount(), originalRows + (cancel ? 0 : 1), 1000);
         QCOMPARE(QFileInfo::exists(QDir(output).filePath(name)), !cancel);
+        QVERIFY(!QFileInfo::exists(fixture.filePath("unneeded")));
         QCOMPARE(read(QDir(output).filePath(name)), cancel      ? QByteArray()
                                                     : overwrite ? QByteArray("existing control")
                                                                 : QByteArray("control bytes"));

@@ -237,6 +237,8 @@ void CApp::OnCopy(bool move, bool copyToSame, unsigned srcPanelIndex) {
         } else
 #endif
         {
+            destPath =
+                ToUString(QDir::toNativeSeparators(NormalizeCopyDestination(ToQString(destPath))));
             if (indices.Size() == 1 && !destPath.IsEmpty() && !IsPathSepar(destPath.Back())) {
                 const int pos = destPath.ReverseFind_PathSepar();
                 if (pos < 0) {
@@ -269,9 +271,7 @@ void CApp::OnCopy(bool move, bool copyToSame, unsigned srcPanelIndex) {
 
     // Qt filesystem execution consumes portable slashes; classification above
     // retains the source path and provider rules before this string boundary.
-    QString output = QDir::cleanPath(ToQString(destPath));
-    if (!destPath.IsEmpty() && IsPathSepar(destPath.Back()) && !output.endsWith('/'))
-        output += '/';
+    const QString output = NormalizeCopyDestination(ToQString(destPath));
 
     const bool useSrcPanel = !useDestPanel || !srcPanel.Is_IO_FS_Folder();
     const bool useTemp = useSrcPanel && useDestPanel;

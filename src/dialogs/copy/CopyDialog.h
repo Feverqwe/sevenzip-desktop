@@ -29,6 +29,7 @@ struct QtCopyDestinationContext {
 };
 
 bool CopyPathMatchesArchivePanel(const QString &path, const QString &panelPath);
+QString NormalizeCopyDestination(const QString &path);
 
 const int kCopyDialog_NumInfoLines = 11;
 

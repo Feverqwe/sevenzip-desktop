@@ -60,6 +60,13 @@ bool CopyPathMatchesArchivePanel(const QString &path, const QString &panelPath) 
            SameDirectory(path, panelPath);
 }
 
+QString NormalizeCopyDestination(const QString &path) {
+    QString normalized = QDir::cleanPath(path);
+    if ((path.endsWith('/') || path.endsWith(QDir::separator())) && !normalized.endsWith('/'))
+        normalized += '/';
+    return normalized;
+}
+
 void CCopyDialog::BuildDestinationOptions(QVBoxLayout &layout) {
     _peer = new QPushButton(this);
     _peer->setObjectName("copyPeerDestination");
@@ -134,10 +141,10 @@ QString CCopyDialog::DraftDestination() const {
 QString CCopyDialog::PreviewDestination(const QString &value) const {
     if (!_destinationContext || _destinationContext->RelativeBase.isNull() ||
         NWindows::NFile::NName::IsAbsolutePath(ToUString(value)))
-        return value;
+        return NormalizeCopyDestination(value);
     // CApp adds its native panel prefix to a relative Value. This preview
     // never replaces that raw Value or the native normalization step.
-    return _destinationContext->RelativeBase + value;
+    return NormalizeCopyDestination(_destinationContext->RelativeBase + value);
 }
 
 void CCopyDialog::UpdateDestination() {

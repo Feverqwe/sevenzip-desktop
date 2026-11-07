@@ -14,6 +14,8 @@
         outsidePeerStillRefreshesDestination:1-1-move
         outsidePeerStillRefreshesDestination:0-1-dialog-cancel
         outsidePeerStillRefreshesDestination:1-0-overwrite-cancel
+        outsidePeerStillRefreshesDestination:relative-copy
+        outsidePeerStillRefreshesDestination:relative-move
         unselectedItemsReachSourceSmartCopy:0-0-0---440
         unselectedItemsReachSourceSmartCopy:1-1-1-ru-360
         rejectsDestinationInsideSourceFolder
