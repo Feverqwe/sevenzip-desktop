@@ -75,9 +75,9 @@ HRESULT MainWindow::navigateToImpl(const QString &path, bool sourceAddress) {
         auto &panel = app_.GetFocusedPanel();
         workspace_->ProtectNavigation(nativePath);
         HRESULT result;
+        COpenResult opened;
         {
             QScopedValueRollback<bool> source(sourceArchiveProgress_, true);
-            COpenResult opened;
             result = panel.BindToPath(ToUString(nativePath), UString(), opened);
         }
         const HRESULT rendered = renderBoundFolder();
@@ -85,7 +85,9 @@ HRESULT MainWindow::navigateToImpl(const QString &path, bool sourceAddress) {
             result = rendered;
         if (result != S_OK && result != E_ABORT)
             workspace_->ReportNavigationFailure(
-                QCoreApplication::translate("mainwindow_filelist", "Path not found: ") + path);
+                opened.ErrorMessage.IsEmpty()
+                    ? QCoreApplication::translate("mainwindow_filelist", "Path not found: ") + path
+                    : ToQString(opened.ErrorMessage));
         return result;
     }
 }

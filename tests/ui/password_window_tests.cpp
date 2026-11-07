@@ -128,15 +128,21 @@ class PasswordWindowTests final : public QObject, protected MainWindowTestSuppor
         QCOMPARE(testResults, 2);
         QVERIFY2(errors.isEmpty(), qPrintable(errors.join('\n')));
     }
-    void encryptedArchiveOpenCanBeRetriedFromTheFileList() {
+    void encryptedArchiveOpenCanBeRetried_data() {
+        QTest::addColumn<bool>("typedFolder");
+        QTest::newRow("file-list") << false;
+        QTest::newRow("address-to-inner-folder") << true;
+    }
+    void encryptedArchiveOpenCanBeRetried() {
+        QFETCH(bool, typedFolder);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString name = QStringLiteral("payload 空.txt");
         const QString archive = fixture.filePath("protected archive.7z");
         const QString password = QStringLiteral("пароль 密碼");
-        QVERIFY(SourceExtractFixture::writeFile(fixture.filePath(name), "original payload"));
-        QVERIFY(NativeArchiveFixture::WriteFiles(archive, {fixture.filePath(name)}, "7z", password,
-                                                 true));
+        const QString innerPath = QStringLiteral("inner folder/") + name;
+        QVERIFY(NativeArchiveFixture::Write(
+            archive, {{name, "root payload"}, {innerPath, "nested payload"}}, "7z", password));
         ArchiveBackend backend;
         int externalCalls = 0;
         MainWindow window(&backend, [&](const QUrl &) {
@@ -149,6 +155,17 @@ class PasswordWindowTests final : public QObject, protected MainWindowTestSuppor
         QTRY_VERIFY(view->isEnabled());
         const int row = filesystemRow(window, QFileInfo(archive).fileName());
         QVERIFY(row >= 0);
+        auto *address = window.findChild<QLineEdit *>("archivePath");
+        QVERIFY(address);
+        const auto open = [&] {
+            if (!typedFolder) {
+                openRow(window, row);
+                return;
+            }
+            address->setFocus();
+            address->setText(archive + "/inner folder");
+            QTest::keyClick(address, Qt::Key_Return);
+        };
         WidgetDialogFixture dialogs;
         enum class Answer { Cancel, Incorrect, Correct };
         Answer answer = Answer::Cancel;
@@ -171,23 +188,25 @@ class PasswordWindowTests final : public QObject, protected MainWindowTestSuppor
             }
         });
         drive.start(5);
-        openRow(window, row);
+        open();
         QTRY_VERIFY(view->isEnabled() && view->sourcePanel->IsFSFolder());
         QCOMPARE(prompts, 1);
         QCOMPARE(errors, 0);
         QCOMPARE(externalCalls, 0);
         answer = Answer::Incorrect;
-        openRow(window, row);
+        open();
         QTRY_VERIFY(view->isEnabled() && view->sourcePanel->IsFSFolder());
         QCOMPARE(prompts, 2);
-        QCOMPARE(errors, 1);
+        QCOMPARE(errors, typedFolder ? 0 : 1);
+        if (typedFolder)
+            QVERIFY(window.statusBar()->currentMessage().contains(QFileInfo(archive).fileName()));
         QCOMPARE(externalCalls, 0);
         answer = Answer::Correct;
-        openRow(window, row);
+        open();
         QTRY_VERIFY(view->isEnabled() && view->sourcePanel->IsArcFolder());
         QCOMPARE(prompts, 3);
         QCOMPARE(externalCalls, 0);
-        QVERIFY(rowWithPath(window, name) >= 0);
+        QVERIFY(rowWithPath(window, typedFolder ? innerPath : name) >= 0);
     }
 
     void passwordPromptCancellationAndReopen() {

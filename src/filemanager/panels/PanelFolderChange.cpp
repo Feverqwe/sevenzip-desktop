@@ -4,11 +4,13 @@
 // service; the remaining list-load/presentation stage is recorded in the audit.
 #include "7zip/PropID.h"
 #include "7zip/UI/FileManager/resource.h"
+#include "7zip/UI/GUI/ExtractRes.h"
 #include "Common/StringConvert.h"
 #include "Windows/FileName.h"
 #include "Windows/PropVariant.h"
 #include "archive/opening/archivecontainerpath.h"
 #include "filemanager/AppState.h"
+#include "filemanager/FormatUtils.h"
 #include "filemanager/panels/Panel.h"
 #include "filemanager/providers/FSDrives.h"
 #include "filemanager/providers/FSFolder.h"
@@ -364,6 +366,11 @@ HRESULT CPanel::BindToPath(const UString &fullPath, const UString &arcFormat,
                 tfi.FolderPath = dirPrefix;
                 tfi.FilePath = us2fs(sysPath);
                 res = OpenAsArc(NULL, tfi, sysPath, arcFormat, openRes);
+            }
+            if (res == S_FALSE && openRes.Encrypted) {
+                if (openRes.ErrorMessage.IsEmpty())
+                    openRes.ErrorMessage = MyFormatNew(IDS_CANT_OPEN_ENCRYPTED_ARCHIVE, sysPath);
+                return E_FAIL;
             }
             if (res == S_FALSE)
                 _folder->BindToFolder(fs2us(dirPrefix), &newFolder);
