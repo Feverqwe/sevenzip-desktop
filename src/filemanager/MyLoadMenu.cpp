@@ -7,7 +7,6 @@
 #include "7zip/UI/FileManager/PropertyNameRes.h"
 #include "7zip/UI/FileManager/resource.h"
 #include "Windows/FileFind.h"
-#include "Windows/TimeUtils.h"
 #include "filemanager/App.h"
 #include "filemanager/panels/qtpanelpluginservices.h"
 #include "filemanager/qtfilemenuservices.h"
@@ -35,7 +34,6 @@ void OnMenuActivating(QMenuBar &mainMenu, QMenu &hMenu, int position, CApp &g_Ap
 #ifndef IDCLOSE
 static const unsigned IDCLOSE = 8;
 #endif
-static const unsigned k_MenuID_Time = IDM_VIEW_TIME;
 unsigned GetSortControlID(PROPID propID) {
     switch (propID) {
     case kpidName:
@@ -70,9 +68,6 @@ static void CheckRadioItem(QMenu &menu, unsigned first, unsigned last, unsigned 
     for (unsigned id = first; id <= last; ++id)
         CheckItemByID(menu, id, id == selected);
 }
-static bool Is_MenuItem_TimePopup(const QAction &item) {
-    return item.property("nativeCommandID").toUInt() == IDM_VIEW_TIME_POPUP;
-}
 
 void OnMenuActivating(QMenuBar &mainMenu, QMenu &hMenu, int position, CApp &g_App) {
     if (position < 0 || position >= mainMenu.actions().size() ||
@@ -84,50 +79,6 @@ void OnMenuActivating(QMenuBar &mainMenu, QMenu &hMenu, int position, CApp &g_Ap
         CheckRadioItem(hMenu, IDM_VIEW_ARANGE_BY_NAME, IDM_VIEW_ARANGE_BY_SIZE,
                        GetSortControlID(g_App.GetSortID()));
         CheckItemByID(hMenu, IDM_VIEW_TWO_PANELS, g_App.NumPanels == 2);
-        for (QAction *item : hMenu.actions()) {
-            if (item->menu() && Is_MenuItem_TimePopup(*item)) {
-                FILETIME ft;
-                NWindows::NTime::GetCurUtcFileTime(ft);
-                wchar_t s[64];
-                s[0] = 0;
-                if (ConvertUtcFileTimeToString(ft, s, kTimestampPrintLevel_DAY))
-                    item->setText(QString::fromWCharArray(s));
-                item->setProperty("nativeCommandID", IDM_VIEW_TIME_POPUP);
-                QMenu &subMenu = *item->menu();
-                // Preserve Qt action identity and command bindings instead of
-                // removing/recreating native menu items on each activation.
-                for (QAction *entry : subMenu.actions()) {
-                    const unsigned id = entry->property("nativeCommandID").toUInt();
-                    if (id >= k_MenuID_Time && id < k_MenuID_Time + 5)
-                        entry->setVisible(false);
-                }
-                const int k_TimeLevels[] = {kTimestampPrintLevel_DAY, kTimestampPrintLevel_MIN,
-                                            kTimestampPrintLevel_SEC, kTimestampPrintLevel_NTFS,
-                                            kTimestampPrintLevel_NS};
-                unsigned last = k_MenuID_Time;
-                unsigned selectedCommand = 0;
-                g_App._timestampLevels.Clear();
-                unsigned id = k_MenuID_Time;
-                for (unsigned k = 0; k < Z7_ARRAY_SIZE(k_TimeLevels); k++) {
-                    s[0] = 0;
-                    const int timestampLevel = k_TimeLevels[k];
-                    if (ConvertUtcFileTimeToString(ft, s, timestampLevel)) {
-                        if (QAction *entry = MenuItemByID(subMenu, id)) {
-                            entry->setText(QString::fromWCharArray(s));
-                            entry->setVisible(true);
-                            last = id;
-                            g_App._timestampLevels.Add(timestampLevel);
-                            if (g_App.GetTimestampLevel() == timestampLevel)
-                                selectedCommand = id;
-                            id++;
-                        }
-                    }
-                }
-                if (selectedCommand != 0)
-                    CheckRadioItem(subMenu, k_MenuID_Time, last, selectedCommand);
-                CheckItemByID(subMenu, IDM_VIEW_TIME_UTC, g_Timestamp_Show_UTC);
-            }
-        }
     }
 }
 
@@ -170,13 +121,8 @@ static void MyChangeMenu(const QList<QAction *> &menu, unsigned menuID, unsigned
                 } else if (level == 1) {
                     if (menuID == IDM_FAVORITES || (menuID == 0 && menuIndex == 3))
                         langID = IDM_ADD_TO_FAVORITES;
-                    else if ((menuID == IDM_VIEW || (menuID == 0 && menuIndex == 2)) &&
-                             subMenu->objectName() == "timestampMenu")
-                        langID = IDM_VIEW_TIME_POPUP;
                 }
             }
-            if (langID == IDM_VIEW_TIME_POPUP)
-                continue;
             if (langID != IDM_ADD_TO_FAVORITES)
                 MyChangeMenu(subMenu->actions(), langID, level + 1, i);
             if (langID == 0)

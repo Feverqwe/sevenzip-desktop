@@ -257,6 +257,6 @@ QString CPanel::GetItemText(UInt32 itemIndex, const CPropColumn &property) const
         return value;
     }
     char text[64];
-    ConvertPropertyToShortString2(text, prop, propID, _timestampLevel);
+    ConvertPropertyToShortString2(text, prop, propID, kTimestampPrintLevel_MIN);
     return QString::fromLatin1(text);
 }

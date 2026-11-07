@@ -168,7 +168,6 @@ class MainWindow : public QMainWindow {
     void configureColumns();
     void updateIconColumn();
     void saveColumns();
-    void redrawTimestampColumns();
     void redrawSourceProperties();
     void createPanelActions(QMenu *editMenu);
     void createIconList(QWidget *central);
@@ -328,8 +327,6 @@ class MainWindow : public QMainWindow {
     QAction *openBookmarks_[10]{};
     bool configuringColumns_ = false;
     QAction *sortActions_[4]{};
-    QAction *timeActions_[5]{};
-    QAction *utcTimeAction_ = nullptr;
     QAction *viewActions_[4]{};
     QAction *twoPanelsAction_ = nullptr;
     struct FilesystemSignature {

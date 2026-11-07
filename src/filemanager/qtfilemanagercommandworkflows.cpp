@@ -1,7 +1,5 @@
 #include "7zip/PropID.h"
 #include "7zip/UI/FileManager/resource.h"
-#include "Windows/PropVariant.h"
-#include "Windows/PropVariantConv.h"
 #include "dialogs/about/AboutDialog.h"
 #include "dialogs/browse/BrowseDialog2.h"
 #include "filemanager/qtfilemanagercommands.h"
@@ -176,7 +174,6 @@ void QtFileManagerCommands::RefreshView() {
     else
         window_.app_.RefreshView();
 }
-bool &QtFileManagerCommands::TimestampShowUTC() { return g_Timestamp_Show_UTC; }
 void QtFileManagerCommands::OptionsDialog() { window_.showSettings(); }
 void QtFileManagerCommands::OpenBookmark(unsigned index) { window_.openBookmark(index); }
 void QtFileManagerCommands::SetBookmark(unsigned index) { window_.saveBookmark(index); }
@@ -212,23 +209,6 @@ void QtFileManagerCommands::OpenAltStreams() {
     w.refreshActions();
 }
 void QtFileManagerCommands::SwitchOnOffOnePanel() { window_.togglePanels(); }
-void QtFileManagerCommands::RedrawListItems_InPanels() {
-    QSettings settings(MainWindow::toolbarSettingsPath(), QSettings::IniFormat);
-    settings.setValue(QStringLiteral("view/timestampUTC"), g_Timestamp_Show_UTC);
-    window_.redrawTimestampColumns();
-}
-unsigned QtFileManagerCommands::TimestampLevelCount() const {
-    return window_.app_._timestampLevels.Size();
-}
-int QtFileManagerCommands::TimestampLevel(unsigned index) const {
-    return window_.app_._timestampLevels[index];
-}
-void QtFileManagerCommands::SetTimestampLevel(int level) {
-    window_.app_.SetTimestampLevel(level);
-    QSettings settings(MainWindow::toolbarSettingsPath(), QSettings::IniFormat);
-    settings.setValue(QStringLiteral("view/timestampLevel"), level);
-    window_.redrawTimestampColumns();
-}
 void QtFileManagerCommands::AboutDialog() {
     CAboutDialog dialog(&window_);
     dialog.Create();

@@ -79,7 +79,6 @@ class CApp {
     CAppState AppState;
     CPanelCallbackImp m_PanelCallbackImp[kNumPanelsMax];
     QtPanelSlots Panels;
-    CIntVector _timestampLevels;
 
     HRESULT Create(QWidget *window, const UString &mainPath, const UString &arcFormat,
                    int xSizes[2], bool needOpenArc, COpenResult &openRes,
@@ -146,11 +145,6 @@ class CApp {
     }
     void OpenRootFolder() { GetFocusedPanel().OpenDrivesFolder(); }
     void SetFocusToLastItem() { Panels[LastFocusedPanel].SetFocusToLastRememberedItem(); }
-    int GetTimestampLevel() const { return Panels[LastFocusedPanel]._timestampLevel; }
-    void SetTimestampLevel(int level) {
-        for (unsigned i = 0; i < kNumPanelsMax; i++)
-            Panels[i]._timestampLevel = level;
-    }
 
   private:
     std::unique_ptr<CDropTarget> _dropTargetSpec;

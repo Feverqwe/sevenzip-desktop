@@ -12,7 +12,6 @@ static const unsigned IDCLOSE = 8;
 #endif
 static const unsigned k_MenuID_OpenBookmark = 830;
 static const unsigned k_MenuID_SetBookmark = 810;
-static const unsigned k_MenuID_Time = IDM_VIEW_TIME;
 
 const char *GetHashMethodForCommand(unsigned id) {
     switch (id) {
@@ -200,10 +199,6 @@ bool OnMenuCommand(unsigned id, IQtFileManagerMenuCommandServices &g_App) {
     case IDM_VIEW_TWO_PANELS:
         g_App.SwitchOnOffOnePanel();
         break;
-    case IDM_VIEW_TIME_UTC:
-        g_App.TimestampShowUTC() = !g_App.TimestampShowUTC();
-        g_App.RedrawListItems_InPanels();
-        break;
     case IDM_OPTIONS:
         g_App.OptionsDialog();
         break;
@@ -219,10 +214,6 @@ bool OnMenuCommand(unsigned id, IQtFileManagerMenuCommandServices &g_App) {
             return true;
         } else if (id >= k_MenuID_SetBookmark && id <= k_MenuID_SetBookmark + 9) {
             g_App.SetBookmark(id - k_MenuID_SetBookmark);
-            return true;
-        } else if (id >= k_MenuID_Time &&
-                   (unsigned)id < k_MenuID_Time + g_App.TimestampLevelCount()) {
-            g_App.SetTimestampLevel(g_App.TimestampLevel(id - k_MenuID_Time));
             return true;
         }
         return false;

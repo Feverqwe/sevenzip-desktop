@@ -645,8 +645,6 @@ class LanguageUiTests : public QObject, protected MainWindowTestSupport {
         MainWindow window(&backend);
         auto *openInside = window.findChild<QAction *>("openInsideAction");
         openInside->setText(openInside->text() + "\tCtrl+PgDown");
-        auto *timestamp = window.findChild<QMenu *>("timestampMenu");
-        const QString timestampTitle = timestamp->title();
         auto *hash = window.findChild<QMenu *>("hashMenu");
         const QString hashTitle = hash->title();
         auto *favorite = window.findChild<QMenu *>("addFavoriteMenu");
@@ -659,7 +657,6 @@ class LanguageUiTests : public QObject, protected MainWindowTestSupport {
         QtNotifyLanguageChanged();
         QCOMPARE(openInside->text(), QString("&Inside"));
         QCOMPARE(window.findChild<QAction *>("renameAction")->text(), originalRename);
-        QCOMPARE(timestamp->title(), timestampTitle);
         QCOMPARE(hash->title(), hashTitle);
         QCOMPARE(favorite->actions().first()->text(), favoriteSlot);
         SaveRegLang(UString("ru"), settingsPath());

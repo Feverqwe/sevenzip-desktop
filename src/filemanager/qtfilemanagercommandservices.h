@@ -47,11 +47,6 @@ class IQtFileManagerMenuCommandServices : public IQtFileManagerCommandServices {
     virtual void FoldersHistory() = 0;
     virtual void RefreshView() = 0;
     virtual void SwitchOnOffOnePanel() = 0;
-    virtual bool &TimestampShowUTC() = 0;
-    virtual void RedrawListItems_InPanels() = 0;
-    virtual unsigned TimestampLevelCount() const = 0;
-    virtual int TimestampLevel(unsigned index) const = 0;
-    virtual void SetTimestampLevel(int level) = 0;
     virtual void OptionsDialog() = 0;
     virtual void AboutDialog() = 0;
     virtual void MyBrowseForTempFolder() = 0;

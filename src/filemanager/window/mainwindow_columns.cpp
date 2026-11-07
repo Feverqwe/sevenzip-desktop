@@ -93,16 +93,3 @@ void MainWindow::saveColumns() {
     const auto *fileTable = static_cast<FileTable *>(projectedUi().table);
     panel.SaveListViewInfo(fileTable->sourceColumnLayout());
 }
-
-void MainWindow::redrawTimestampColumns() {
-    if (!projectedUi().table || !app_.GetFocusedPanel().GetFolder())
-        return;
-    const auto *fileTable = static_cast<const FileTable *>(projectedUi().table);
-    for (int column = 0; column < projectedUi().table->columnCount(); ++column) {
-        const CPropColumn *prop = fileTable->sourceColumn(column);
-        if (!prop || prop->Type != VT_FILETIME)
-            continue;
-        projectedUi().table->panelModel()->invalidateText(column);
-    }
-    projectedUi().table->viewport()->update();
-}

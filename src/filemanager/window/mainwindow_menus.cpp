@@ -145,27 +145,8 @@ void MainWindow::createViewOptions(QMenu *viewMenu) {
         sortActions_[index] = action;
     }
     sortActions_[0]->setChecked(true);
-    auto *timeMenu = new QMenu(QStringLiteral("Time"), viewMenu);
-    timeMenu->setObjectName(QStringLiteral("timestampMenu"));
-    timeMenu->menuAction()->setObjectName("timestampMenu");
-    timeMenu->menuAction()->setProperty("nativeCommandID", IDM_VIEW_TIME_POPUP);
-    QtBindLocalText(timeMenu->menuAction(), "CommandMenus",
-                    QT_TRANSLATE_NOOP("CommandMenus", "Time format"));
-    auto *timeGroup = new QActionGroup(timeMenu);
-    for (unsigned i = 0; i < 5; ++i) {
-        QAction *action = timeMenu->addAction(QString());
-        action->setObjectName(QStringLiteral("timestampLevel%1Action").arg(i));
-        action->setCheckable(true);
-        action->setActionGroup(timeGroup);
-        timeActions_[i] = action;
-    }
-    utcTimeAction_ = timeMenu->addAction(QStringLiteral("UTC"));
-    utcTimeAction_->setObjectName(QStringLiteral("timestampUtcAction"));
-    utcTimeAction_->setCheckable(true);
-    connect(viewMenu, &QMenu::aboutToShow, this, [this, viewMenu, timeMenu] {
-        OnMenuActivating(*menuBar(), *viewMenu, 2, app_);
-        timeMenu->setTitle(QCoreApplication::translate("CommandMenus", "Time format"));
-    });
+    connect(viewMenu, &QMenu::aboutToShow, this,
+            [this, viewMenu] { OnMenuActivating(*menuBar(), *viewMenu, 2, app_); });
     fileListSettings_.Load(toolbarSettingsPath());
     twoPanelsAction_ = new QAction(QStringLiteral("Two Panels"), viewMenu);
     twoPanelsAction_->setObjectName("twoPanelsAction");
@@ -241,7 +222,6 @@ void MainWindow::populateSourceMenus() {
     edit->addAction(deselectType_);
 
     auto *view = findChild<QMenu *>("viewMenu");
-    auto *time = findChild<QMenu *>("timestampMenu");
     auto *appearance = view->addMenu(QString());
     appearance->setObjectName("appearanceMenu");
     QtBindLocalText(appearance->menuAction(), "CommandMenus",
@@ -267,9 +247,6 @@ void MainWindow::populateSourceMenus() {
     }
     view->addSeparator();
     view->addAction(twoPanelsAction_);
-    view->addSeparator();
-    view->addMenu(time);
-    time->menuAction()->setVisible(false);
     view->addSeparator();
     for (QAction *action : {back_, forward_, up_, root_, foldersHistory_})
         view->addAction(action);

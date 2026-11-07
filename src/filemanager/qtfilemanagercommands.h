@@ -75,11 +75,6 @@ class QtFileManagerCommands final : public IQtFileManagerMenuCommandServices {
     void FoldersHistory() override;
     void RefreshView() override;
     void SwitchOnOffOnePanel() override;
-    bool &TimestampShowUTC() override;
-    void RedrawListItems_InPanels() override;
-    unsigned TimestampLevelCount() const override;
-    int TimestampLevel(unsigned index) const override;
-    void SetTimestampLevel(int level) override;
     void OptionsDialog() override;
     void AboutDialog() override;
     void MyBrowseForTempFolder() override;

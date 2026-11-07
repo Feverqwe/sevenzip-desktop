@@ -1,6 +1,5 @@
 #include "filemanager/window/mainwindow.h"
 #include "7zip/UI/FileManager/resourceGui.h"
-#include "Windows/PropVariantConv.h"
 #include "archive/resources/qtarchivefoldermanager.h"
 #include "filemanager/qtfilemanagercommands.h"
 #include "filemanager/qtfilemanagerdrag.h"
@@ -55,16 +54,6 @@ MainWindow::MainWindow(ArchiveBackend *backend, std::function<bool(const QUrl &)
         panel.AttachFolderManager(folderManager_, toolbarSettingsPath());
         panel.AttachExternalFileServices(associatedFileServices_.get());
     }
-    QSettings viewSettings(toolbarSettingsPath(), QSettings::IniFormat);
-    const int timestampLevel =
-        viewSettings.value(QStringLiteral("view/timestampLevel"), kTimestampPrintLevel_MIN).toInt();
-    for (const int valid :
-         {kTimestampPrintLevel_DAY, kTimestampPrintLevel_MIN, kTimestampPrintLevel_SEC,
-          kTimestampPrintLevel_NTFS, kTimestampPrintLevel_NS}) {
-        if (timestampLevel == valid)
-            app_.SetTimestampLevel(timestampLevel);
-    }
-    g_Timestamp_Show_UTC = viewSettings.value(QStringLiteral("view/timestampUTC"), false).toBool();
     workspace_ = std::make_unique<QtWindowWorkspace>(*this);
     clipboard_ = std::make_unique<QtFileClipboard>(*this);
     initializeFileManagerWindow(startup);

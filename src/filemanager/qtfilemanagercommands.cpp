@@ -126,9 +126,6 @@ void QtFileManagerCommands::AttachViewActions() {
                                 IDM_VIEW_ARANGE_BY_DATE, IDM_VIEW_ARANGE_BY_SIZE};
     for (unsigned i = 0; i < 4; ++i)
         Bind(w.sortActions_[i], sortIDs[i], true);
-    for (unsigned i = 0; i < 5; ++i)
-        Bind(w.timeActions_[i], IDM_VIEW_TIME + i);
-    Bind(w.utcTimeAction_, IDM_VIEW_TIME_UTC);
     for (unsigned i = 0; i < 10; ++i) {
         Bind(w.openBookmarks_[i], 830 + i);
         Bind(w.saveBookmarks_[i], 810 + i);

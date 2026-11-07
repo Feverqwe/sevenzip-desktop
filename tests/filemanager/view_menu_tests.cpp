@@ -1,11 +1,9 @@
 #include "7zip/PropID.h"
-#include "Windows/TimeUtils.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
 #include "localization/LangUtils.h"
 #include "support/panel_keys.h"
 #include "ui/support/layout_inspection.h"
-#include <QScopeGuard>
 
 class ViewMenuTests final : public QObject, protected MainWindowTestSupport {
     Q_OBJECT
@@ -135,8 +133,6 @@ class ViewMenuTests final : public QObject, protected MainWindowTestSupport {
         QFETCH(QString, language);
         QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         SaveRegLang(ToUString(language), qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
-        const bool originalUTC = g_Timestamp_Show_UTC;
-        const auto restore = qScopeGuard([&] { g_Timestamp_Show_UTC = originalUTC; });
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString name = QStringLiteral("файл δ with space.txt");
@@ -158,33 +154,6 @@ class ViewMenuTests final : public QObject, protected MainWindowTestSupport {
         auto *provider = source->sourcePanel->GetFolder();
         auto *peerProvider = peer->sourcePanel->GetFolder();
         auto *view = window.findChild<QMenu *>("viewMenu");
-        auto *time = window.findChild<QMenu *>("timestampMenu");
-        auto *utc = action(window, "timestampUtcAction");
-        openView(window);
-        QVERIFY(!time->menuAction()->isVisible());
-        FILETIME now;
-        NWindows::NTime::GetCurUtcFileTime(now);
-        char expected[64];
-        QVERIFY(ConvertUtcFileTimeToString(now, expected, kTimestampPrintLevel_DAY));
-        QCOMPARE(time->title(), QCoreApplication::translate("CommandMenus", "Time format"));
-        QVERIFY(action(window, "timestampLevel0Action")
-                    ->text()
-                    .startsWith(QString::fromLatin1(expected)));
-        const int levels[] = {kTimestampPrintLevel_DAY, kTimestampPrintLevel_MIN,
-                              kTimestampPrintLevel_SEC, kTimestampPrintLevel_NTFS,
-                              kTimestampPrintLevel_NS};
-        for (unsigned i = 0; i < 5; ++i) {
-            auto *item = action(window, qPrintable(QString("timestampLevel%1Action").arg(i)));
-            QVERIFY(!item->text().isEmpty());
-            QVERIFY(item->isVisible() && item->isEnabled());
-            QCOMPARE(item->isChecked(), source->sourcePanel->_timestampLevel == levels[i]);
-        }
-        view->hide();
-        action(window, "timestampLevel4Action")->trigger();
-        QCOMPARE(source->sourcePanel->_timestampLevel, kTimestampPrintLevel_NS);
-        QCOMPARE(peer->sourcePanel->_timestampLevel, kTimestampPrintLevel_NS);
-        utc->trigger();
-        const bool utcValue = g_Timestamp_Show_UTC;
         const auto peerMode = peer->sourcePanel->GetListViewMode();
         openView(window);
         auto *appearance = view->findChild<QMenu *>("appearanceMenu");
@@ -206,10 +175,8 @@ class ViewMenuTests final : public QObject, protected MainWindowTestSupport {
         QCOMPARE(source->sourcePanel->GetSortID(), PROPID(kpidCTime));
         QVERIFY(!action(window, "sort0Action")->isChecked());
         QVERIFY(!action(window, "sort3Action")->isChecked());
-        QVERIFY(action(window, "timestampLevel4Action")->isChecked());
         QVERIFY(action(window, "viewMode0Action")->isChecked());
         QVERIFY(action(window, "twoPanelsAction")->isChecked());
-        QCOMPARE(utc->isChecked(), utcValue);
         for (const QSize size : {QSize(980, 620), QSize(640, 400)}) {
             view->hide();
             window.resize(size);
@@ -248,11 +215,6 @@ class ViewMenuTests final : public QObject, protected MainWindowTestSupport {
         QVERIFY(peer->sourcePanel->ShouldProcessNotifications());
         QVERIFY(file.open(QIODevice::ReadOnly));
         QCOMPARE(file.readAll(), QByteArray("protected menu fixture"));
-        MainWindow reopened(&backend);
-        QVERIFY(QMetaObject::invokeMethod(reopened.findChild<QMenu *>("viewMenu"), "aboutToShow",
-                                          Qt::DirectConnection));
-        QVERIFY(action(reopened, "timestampLevel4Action")->isChecked());
-        QCOMPARE(action(reopened, "timestampUtcAction")->isChecked(), utcValue);
     }
 };
 

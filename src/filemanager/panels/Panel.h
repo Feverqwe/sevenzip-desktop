@@ -330,7 +330,6 @@ class CPanel : public QObject {
     std::function<void(HRESULT)> GetReloadCompletion() const { return _reloadCompletion; }
     HRESULT RefreshListCtrl_SaveFocused(bool onTimer = false);
     UInt32 _listViewMode = 3;
-    int _timestampLevel = kTimestampPrintLevel_MIN;
     int _xSize = 0;
     PROPID _sortID = 0;
     bool _ascending = true;
