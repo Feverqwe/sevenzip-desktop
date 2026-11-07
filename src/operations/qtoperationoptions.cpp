@@ -1,8 +1,8 @@
 #include "operations/qtoperationoptions.h"
 #include "7zip/UI/Common/ArchiveCommandLine.h"
 #include "Windows/FileName.h"
-#include "operations/CompressCall.h"
 #include "operations/qtoperationprotocol.h"
+#include "platform/memory/qtmemorylockservices.h"
 #include "settings/RegistryUtils.h"
 
 void ConfigureOperationOptions(const QtOperationJob &job, CArcCmdLineOptions &options) {

@@ -4,16 +4,13 @@
 #include "Common/MyString.h"
 #include <QWidget>
 class QComboBox;
-class QPlainTextEdit;
 
 class CLangPage : public QWidget {
     Q_OBJECT
     QComboBox *_langCombo;
-    QPlainTextEdit *_info;
     bool _needSave = false;
     QString _settingsPath;
     QString _directory;
-    void ShowLangInfo();
 
   public:
     bool LangWasChanged = false;
@@ -26,7 +23,4 @@ class CLangPage : public QWidget {
 
   signals:
     void Changed();
-
-  protected:
-    void changeEvent(QEvent *event) override;
 };

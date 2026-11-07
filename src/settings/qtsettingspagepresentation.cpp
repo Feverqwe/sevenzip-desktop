@@ -63,25 +63,12 @@ void CSettingsPage::BuildControls(bool embedded) {
     QtBindResourceText(_alternativeSelection, IDX_SETTINGS_ALTERNATIVE_SELECTION,
                        "&Alternative selection mode");
     _alternativeSelection->setObjectName(QStringLiteral("alternativeSelectionOption"));
-    _showSystemMenu = new QCheckBox(this);
-    QtBindResourceText(_showSystemMenu, IDX_SETTINGS_SHOW_SYSTEM_MENU, "Show system &menu");
-    _showSystemMenu->setObjectName(QStringLiteral("showSystemMenuOption"));
     for (auto *control : {_showDots, _showRealFileIcons, _fullRow, _showGrid, _singleClick,
-                          _alternativeSelection, _showSystemMenu}) {
+                          _alternativeSelection}) {
         listLayout->addWidget(control);
         connect(control, &QCheckBox::toggled, this, &CSettingsPage::OnButtonClicked);
     }
     auto *memoryLayout = group(_memoryControls);
-    _largePages = new QCheckBox(this);
-    QtBindResourceText(_largePages, IDX_SETTINGS_LARGE_PAGES, "Use &large memory pages");
-    _largePages->setObjectName("largePagesOption");
-    memoryLayout->addWidget(_largePages);
-    connect(_largePages, &QCheckBox::toggled, this, [this] {
-        if (!_initMode) {
-            _largePages_wasChanged = true;
-            Changed();
-        }
-    });
     auto *memoryLabel = new QLabel(this);
     QtBindResourceText(memoryLabel, IDT_MEM_USAGE_EXTRACT,
                        "Maximum amount of RAM memory usage allowed to unpack archives:");

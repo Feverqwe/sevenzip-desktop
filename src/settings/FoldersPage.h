@@ -5,7 +5,6 @@
 
 class UString;
 class QButtonGroup;
-class QCheckBox;
 class QLineEdit;
 class QPushButton;
 
@@ -14,7 +13,6 @@ class CFoldersPage : public QWidget {
     QLineEdit *m_WorkPath;
     QButtonGroup *_workModes;
     QPushButton *_workBrowse;
-    QCheckBox *_forRemovable;
     QString _settingsPath;
     bool _needSave = false;
     bool _initMode = true;
@@ -22,7 +20,7 @@ class CFoldersPage : public QWidget {
     void ModifiedEvent();
     void OnFoldersWorkButtonPath();
     bool ReadPath(UString &path);
-    int GetWorkMode() const;
+    bool UsesSpecifiedPath() const;
     bool OnInit();
     bool OnButtonClicked(unsigned buttonID);
 

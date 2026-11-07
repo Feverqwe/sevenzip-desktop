@@ -9,7 +9,6 @@ class IQtPanelPluginMenuServices {
     virtual ~IQtPanelPluginMenuServices() = default;
     virtual void ReleasePluginMenus() = 0;
     virtual bool IsShiftDown() const = 0;
-    virtual bool ShowSystemMenu() const = 0;
     virtual void CreateSevenZipMenu(CPanel &panel, bool extended,
                                     const CRecordVector<UInt32> &indices, int firstDirIndex) = 0;
     virtual void CreateSystemMenu(CPanel &panel, bool extended,

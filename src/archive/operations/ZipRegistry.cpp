@@ -133,7 +133,6 @@ void CInfo::Save(const QString &path) const {
     key.beginGroup(QStringLiteral("Options"));
     key.setValue(QStringLiteral("WorkDirType"), (UInt32)Mode);
     key.setValue(QStringLiteral("WorkDirPath"), QString::fromWCharArray(fs2us(Path).Ptr()));
-    key.setValue(QStringLiteral("TempRemovableOnly"), ForRemovableOnly);
 }
 void CInfo::Load(const QString &path) {
     QMutexLocker lock(&g_CS);
@@ -145,21 +144,10 @@ void CInfo::Load(const QString &path) {
     UInt32 dirType;
     if (!Key_Get_UInt32_IfOk(key, QStringLiteral("WorkDirType"), dirType))
         return;
-    switch (dirType) {
-    case NMode::kSystem:
-    case NMode::kCurrent:
-    case NMode::kSpecified:
-        Mode = (NMode::EEnum)dirType;
-    }
-    if (key.contains(QStringLiteral("WorkDirPath"))) {
-        const auto value = key.value(QStringLiteral("WorkDirPath")).toString().toStdWString();
-        Path = us2fs(value.c_str());
-    } else {
-        Path.Empty();
-        if (Mode == NMode::kSpecified)
-            Mode = NMode::kSystem;
-    }
-    Key_Get_bool_IfOk(key, QStringLiteral("TempRemovableOnly"), ForRemovableOnly);
+    const auto value = key.value(QStringLiteral("WorkDirPath")).toString().toStdWString();
+    Path = us2fs(value.c_str());
+    if (dirType == NMode::kSpecified && !Path.IsEmpty())
+        Mode = NMode::kSpecified;
 }
 } // namespace NWorkDir
 

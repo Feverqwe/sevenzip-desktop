@@ -87,6 +87,7 @@ add_library(sevenzip_common STATIC ${SEVENZIP_7ZIP_SOURCE_DIR}/C/Sort.c ${SEVENZ
     ${SEVENZIP_7ZIP_SOURCE_DIR}/CPP/7zip/Common/PropId.cpp
     src/settings/ViewSettings.cpp src/settings/ViewSettings.h
     src/settings/RegistryUtils.cpp src/settings/RegistryUtils.h
+    src/platform/memory/qtmemorylockservices.cpp src/platform/memory/qtmemorylockservices.h
     ${SEVENZIP_7ZIP_SOURCE_DIR}/CPP/7zip/UI/FileManager/StringUtils.cpp)
 set_target_properties(sevenzip_common PROPERTIES AUTOMOC OFF AUTOUIC OFF)
 target_include_directories(sevenzip_common PRIVATE src)

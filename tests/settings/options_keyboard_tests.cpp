@@ -61,8 +61,8 @@ class OptionsKeyboardTests final : public QObject {
         OptionsPresentation::show(dialog, "editorCommand");
         auto *editor = dialog.findChild<QLineEdit *>("editorCommand");
         editor->setText("pending editor --wait");
-        OptionsPresentation::show(dialog, "workCurrent");
-        auto *current = dialog.findChild<QRadioButton *>("workCurrent");
+        OptionsPresentation::show(dialog, "workSpecified");
+        auto *current = dialog.findChild<QRadioButton *>("workSpecified");
         current->click();
         OptionsPresentation::show(dialog, "appearanceChoice");
         dialog.findChild<QComboBox *>("appearanceChoice")->setFocus();

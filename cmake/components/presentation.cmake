@@ -63,8 +63,6 @@ add_library(sevenzip_panel
     src/filemanager/AppCopy.cpp
     src/ui/theme/qtsemanticcolors.cpp
     src/ui/theme/qtsemanticcolors.h
-    src/platform/memory/qtmemorylockservices.cpp
-    src/platform/memory/qtmemorylockservices.h
     src/platform/memory/qtmemorylimitinfo.cpp
     src/platform/memory/qtmemorylimitinfo.h
     src/filemanager/panels/PanelCrc.cpp

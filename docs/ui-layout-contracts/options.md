@@ -272,8 +272,7 @@ a shown `..` remains excluded from operated indices. Ctrl-click starts a new
 anchor. Selection colours, single focused row, totals and peer state stay in
 sync after direct restoration, menu Refresh and timer reload.
 The page has no heading absent from the resource.
-Large pages are hidden when unsupported; source extraction-memory
-edit validation preserves raw input until Apply. The six-page property sheet
+Extraction-memory edit validation preserves raw input until Apply. The six-page property sheet
 keeps System/Menu/Folders/Edit/Settings/Language order. Original OptionsDialog
 and Windows/Control/PropertyPage.cpp set the initial page to System (nStartPage0);
 the Qt container now follows that state. Ctrl+Tab/Shift+Ctrl+Tab move between
@@ -281,10 +280,9 @@ pages using Qt's tab-bar focus; the Tab cycle reaches the visible page and may
 visit the footer first on Windows. Pending input
 survives switching; unsupported platform actions are hidden within pages.
 This establishes structure and interaction, not pixel correspondence.
-Folders follows pinned FoldersPage2.rc: working-folder label, system/current/
-specified radios, path/Browse row, removable-only checkbox. Path and Browse are
-enabled only for specified mode. POSIX removable-only is hidden until the
-platform owner supplies drive-type support. `options_dialog` requests640×390 and
+Folders offers the system temporary directory and a user-specified directory.
+Path and Browse are enabled for the specified directory. A legacy current-folder
+setting uses the system temporary directory. `options_dialog` requests640×390 and
 520×380 and checks actual JSON/geometry, native mode order and separated footer.
 Qt height-for-width and native window constraints can change the actual client
 size; checks use the exposed controls rather than a fixed height calculation.

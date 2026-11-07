@@ -7,17 +7,14 @@
 class QCheckBox;
 class QComboBox;
 class QtMemoryLimitSpin;
-class IQtMemoryLockServices;
 class CSettingsPage : public QDialog {
     Q_OBJECT
     bool _wasChanged = false;
     bool _initMode = true;
-    bool _largePages_wasChanged = false;
     bool _memx_wasChanged = false;
     bool _appearanceChanged = false;
     CFmSettings _settings;
     QString _settingsPath;
-    const IQtMemoryLockServices *_memoryLockServices;
     QCheckBox *_showDots;
     QComboBox *_appearance;
     QWidget *_appearanceControls;
@@ -31,8 +28,6 @@ class CSettingsPage : public QDialog {
     QCheckBox *_showGrid;
     QCheckBox *_singleClick;
     QCheckBox *_alternativeSelection;
-    QCheckBox *_showSystemMenu;
-    QCheckBox *_largePages;
     QCheckBox *_memSet;
     QtMemoryLimitSpin *_memSpin;
     void EnableSpin(bool enable);
@@ -41,19 +36,16 @@ class CSettingsPage : public QDialog {
 
   public:
     explicit CSettingsPage(const QString &settingsPath, QWidget *parent = nullptr,
-                           bool embedded = false,
-                           const IQtMemoryLockServices *memoryLockServices = nullptr);
+                           bool embedded = false);
     long OnApply();
     void accept() override;
     CFmSettings settings() const { return _settings; }
     QWidget *appearanceControls() const { return _appearanceControls; }
     QWidget *memoryControls() const { return _memoryControls; }
     QWidget *listControls() const { return _listControls; }
-    bool IsMemoryModified() const { return _memx_wasChanged || _largePages_wasChanged; }
+    bool IsMemoryModified() const { return _memx_wasChanged; }
     bool IsListModified() const { return _wasChanged; }
-    bool IsModified() const {
-        return _wasChanged || _largePages_wasChanged || _memx_wasChanged || _appearanceChanged;
-    }
+    bool IsModified() const { return _wasChanged || _memx_wasChanged || _appearanceChanged; }
 
   signals:
     void Changed();

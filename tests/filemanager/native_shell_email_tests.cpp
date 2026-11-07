@@ -67,10 +67,6 @@ void settings(const QString &language) {
     info.Flags_Def = true;
     info.Cascaded.SetTrueTrue();
     info.Save(path);
-    CFmSettings fm;
-    fm.Load(path);
-    fm.ShowSystemMenu = false;
-    fm.Save(path);
 }
 } // namespace
 

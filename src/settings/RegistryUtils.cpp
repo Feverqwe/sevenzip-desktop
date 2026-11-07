@@ -73,7 +73,6 @@ static const char *const kFullRow = "FullRow";
 static const char *const kShowGrid = "ShowGrid";
 static const char *const kSingleClick = "SingleClick";
 static const char *const kAlternativeSelection = "AlternativeSelection";
-static const char *const kShowSystemMenu = "ShowSystemMenu";
 
 static void SaveOption(QSettings &key, const char *name, bool enabled) {
     key.setValue(QString::fromLatin1(name), enabled);
@@ -117,7 +116,6 @@ void CFmSettings::Save(const QString &settingsPath) const {
     SaveOption(key, kShowGrid, ShowGrid);
     SaveOption(key, kSingleClick, SingleClick);
     SaveOption(key, kAlternativeSelection, AlternativeSelection);
-    SaveOption(key, kShowSystemMenu, ShowSystemMenu);
     key.setValue("ColorScheme", int(ColorScheme));
 }
 
@@ -128,7 +126,6 @@ void CFmSettings::Load(const QString &settingsPath) {
     ShowGrid = false;
     SingleClick = false;
     AlternativeSelection = false;
-    ShowSystemMenu = false;
 
     QSettings key(settingsPath, QSettings::IniFormat);
     key.beginGroup("FM");
@@ -138,7 +135,6 @@ void CFmSettings::Load(const QString &settingsPath) {
     ReadOption(key, kShowGrid, ShowGrid);
     ReadOption(key, kSingleClick, SingleClick);
     ReadOption(key, kAlternativeSelection, AlternativeSelection);
-    ReadOption(key, kShowSystemMenu, ShowSystemMenu);
     bool valid = false;
     const int scheme = key.value("ColorScheme").toInt(&valid);
     ColorScheme =

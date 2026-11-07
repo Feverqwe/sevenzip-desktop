@@ -1,9 +1,11 @@
+#include "archive/operations/ZipRegistry.h"
 #include "benchmark/Bench.h"
 #include "operations/CompressCall.h"
 #include "platform/memory/qtmemorylockservices.h"
 #include "settings/RegistryUtils.h"
 #include "settings/SettingsPage.h"
 #include <QCheckBox>
+#include <QLineEdit>
 #include <QScopeGuard>
 #include <QTemporaryDir>
 #include <QtTest>
@@ -85,52 +87,18 @@ class MemoryLockTests : public QObject {
             }
         }
     }
-    void settingsApplyUpdatesCurrentProcessAndPersists() {
-        QTemporaryDir fixture;
-        const QString path = fixture.filePath(QStringLiteral("настройки 空 memory.ini"));
-        MemoryLockRecorder services;
-        CSettingsPage page(path, nullptr, false, &services);
-        page.show();
-        auto *option = page.findChild<QCheckBox *>("largePagesOption");
-        QVERIFY(option);
-        QVERIFY(option->isEnabled());
-        QVERIFY(option->isVisible());
-        QCOMPARE(page.OnApply(), 0L);
-        QVERIFY(services.calls.isEmpty());
-        for (bool enable : {true, false, true}) {
-            // Source saves the requested setting even if token adjustment fails.
-            services.enabledResult = !enable;
-            option->setChecked(enable);
-            QVERIFY(page.IsModified());
-            QCOMPARE(page.OnApply(), 0L);
-            QCOMPARE(services.calls, QStringList{enable ? QString("enable") : QString("disable")});
-            services.calls.clear();
-            QCOMPARE(ReadLockMemoryEnable(path), enable);
-            QVERIFY(!page.IsModified());
-            QCOMPARE(page.OnApply(), 0L);
-            QVERIFY(services.calls.isEmpty());
-        }
-        CSettingsPage cancelled(path, nullptr, false, &services);
-        cancelled.findChild<QCheckBox *>("largePagesOption")->setChecked(false);
-        cancelled.reject();
-        QVERIFY(services.calls.isEmpty());
-        QVERIFY(ReadLockMemoryEnable(path));
-    }
-    void unsupportedSettingsStayHiddenAndPreserved() {
+    void changingExtractionLimitPreservesEnginePolicy() {
         QTemporaryDir fixture;
         const QString path = fixture.filePath("memory.ini");
-        MemoryLockRecorder services;
-        services.supported = false;
-        SaveLockMemoryEnable(true, path);
-        CSettingsPage page(path, nullptr, false, &services);
-        page.show();
-        auto *option = page.findChild<QCheckBox *>("largePagesOption");
-        QVERIFY(option->isHidden());
-        QVERIFY(!option->isEnabled());
-        option->setChecked(true);
-        QCOMPARE(page.OnApply(), 0L);
-        QVERIFY(services.calls.isEmpty());
-        QVERIFY(ReadLockMemoryEnable(path));
+        for (bool enabled : {false, true}) {
+            SaveLockMemoryEnable(enabled, path);
+            CSettingsPage page(path);
+            page.findChild<QCheckBox *>("extractMemorySet")->setChecked(true);
+            page.findChild<QLineEdit *>("extractMemoryEdit")->setText("7");
+            QCOMPARE(page.OnApply(), 0L);
+            QCOMPARE(NExtract::Read_LimitGB(path), UInt32(7));
+            QCOMPARE(ReadLockMemoryEnable(path), enabled);
+        }
     }
 };
 QTEST_MAIN(MemoryLockTests)

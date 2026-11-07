@@ -78,10 +78,6 @@ class ShellMenuWindowTests final : public QObject, protected MainWindowTestSuppo
         const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         QFile::remove(settings);
         SaveRegLang(ToUString(language), settings);
-        CFmSettings fm;
-        fm.Load(settings);
-        fm.ShowSystemMenu = true;
-        fm.Save(settings);
         ArchiveBackend backend;
         MainWindow window(&backend);
         window.resize(size);
@@ -93,6 +89,8 @@ class ShellMenuWindowTests final : public QObject, protected MainWindowTestSuppo
         QApplication::processEvents();
         auto *systemRow = findCommand(*menu, "systemContextGroup");
         QVERIFY(systemRow);
+        QCOMPARE(systemRow->text(),
+                 QCoreApplication::translate("qtfilemanagershellmenu", "System actions"));
         auto *system = systemRow->menu();
         QVERIFY(system);
         auto *advanced = menu->findChild<QMenu *>("advancedCommandsMenu");

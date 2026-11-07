@@ -37,7 +37,7 @@ bool setListOptions(MainWindow &window, QAction *settingsAction, bool enabled) {
             if (dialog->isVisible())
                 dialog->reject();
         });
-        for (const char *name : {"showDotsOption", "fullRowOption", "showSystemMenuOption"}) {
+        for (const char *name : {"showDotsOption", "fullRowOption"}) {
             auto *option = dialog->findChild<QCheckBox *>(name);
             if (!option)
                 return;
@@ -139,20 +139,19 @@ class ListSettingsRuntimeTests final : public QObject, protected MainWindowTestS
             bool found = false;
             const auto inspect = [&](auto &&self, QMenu &current) -> void {
                 for (QAction *item : current.actions()) {
-#ifdef Q_OS_WIN
                     found |= item->objectName() == QStringLiteral("systemContextGroup") &&
                              item->isEnabled() && item->menu() &&
                              !item->menu()->actions().isEmpty();
-#else
-                found |= item->objectName() == QStringLiteral("systemContextGroup") &&
-                         !item->isEnabled();
-#endif
                     if (item->menu())
                         self(self, *item->menu());
                 }
             };
             inspect(inspect, *menu);
+#ifdef Q_OS_WIN
             QVERIFY(found);
+#else
+            QVERIFY(!found);
+#endif
             menu->close();
         });
         inspectMenu.start(5);

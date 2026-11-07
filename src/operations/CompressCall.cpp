@@ -3,17 +3,6 @@
 // Original shared quoting and Windows process/map/event launch bodies.
 // In-process consumers retain their typed GUI/backend service overloads.
 #include "operations/CompressCall.h"
-#include "platform/memory/qtmemorylockservices.h"
-#include "settings/RegistryUtils.h"
-
-void AddLagePagesSwitch(UString &params, const QString &settingsPath,
-                        const IQtMemoryLockServices *services) {
-    const QtMemoryLockServices nativeMemoryLock;
-    const auto &memoryLock = services ? *services : nativeMemoryLock;
-    if (ReadLockMemoryEnable(settingsPath))
-        if (memoryLock.Get_LargePages_RiskLevel() == 0)
-            params += " -slp";
-}
 
 UString GetQuotedString(const UString &s) {
     UString s2('"');
@@ -28,6 +17,8 @@ UString GetQuotedString(const UString &s) {
 #include "Windows/StdAfx.h"
 
 #include <wchar.h>
+
+#include "platform/memory/qtmemorylockservices.h"
 
 #include "Common/IntToString.h"
 #include "Common/MyCom.h"

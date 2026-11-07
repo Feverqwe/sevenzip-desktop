@@ -164,9 +164,7 @@ class LanguageUiTests : public QObject, protected MainWindowTestSupport {
                     QVERIFY(proxy);
                     auto *button = qobject_cast<QToolButton *>(toolbar->widgetForAction(proxy));
                     QVERIFY(button);
-                    const QString expected =
-                        i == 0 ? QCoreApplication::translate("QtWindowWorkspace", "Create")
-                               : QString(source->text()).remove('&');
+                    const QString expected = QString(source->text()).remove('&');
                     QCOMPARE(button->text(), expected);
                     if (i != 0) {
                         QCOMPARE(button->accessibleName(), expected);
@@ -574,17 +572,14 @@ class LanguageUiTests : public QObject, protected MainWindowTestSupport {
             QCOMPARE(items->item(0)->checkState(), itemState);
             QVERIFY(items->isEnabled());
             QVERIFY(items->toolTip().isEmpty());
-#ifndef _WIN32
-            QVERIFY(dialog.findChild<QCheckBox *>("workRemovableOnly")->isHidden());
-#endif
             QVERIFY(dialog.findChild<QDialogButtonBox *>("settingsButtons")
                         ->button(QDialogButtonBox::Apply)
                         ->isEnabled());
             for (QSize size : {QSize(640, 390), QSize(520, 380), QSize(640, 720)}) {
                 dialog.resize(size);
-                for (const char *name : {"appearanceChoice", "languageChoice", "languageInfo",
-                                         "workPathBrowse", "viewerCommand", "editorCommand",
-                                         "extractMemoryLabel", "extractMemorySpin", "gridOption"}) {
+                for (const char *name :
+                     {"appearanceChoice", "languageChoice", "workPathBrowse", "viewerCommand",
+                      "editorCommand", "extractMemoryLabel", "extractMemorySpin", "gridOption"}) {
                     auto *control = dialog.findChild<QWidget *>(name);
                     QVERIFY(OptionsPresentation::show(dialog, control));
                     QVERIFY2(UiInspection::fullyVisible(*control, dialog), name);

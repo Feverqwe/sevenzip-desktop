@@ -1718,8 +1718,6 @@
     "src/dialogs/listview/qtreportdata.h",
     "src/dialogs/mem/qtmemoryrequestpresentation.cpp",
     "src/dialogs/overwrite/qtoverwritepresentation.cpp",
-    "src/dialogs/recentplaces/qtrecentplacesdialog.cpp",
-    "src/dialogs/recentplaces/qtrecentplacesdialog.h",
     "src/dialogs/taskresult/qttaskresultdialog.cpp",
     "src/dialogs/taskresult/qttaskresultdialog.h",
     "src/filemanager/AppCopy.cpp",
@@ -2247,8 +2245,6 @@
     "src/ui/controls/qtmemorylimitspin.h",
     "src/ui/controls/qtmetadatarows.cpp",
     "src/ui/controls/qtmetadatarows.h",
-    "src/ui/controls/qtrecentpathbutton.cpp",
-    "src/ui/controls/qtrecentpathbutton.h",
     "src/ui/controls/qtresponsiverow.cpp",
     "src/ui/controls/qtresponsiverow.h",
     "src/ui/controls/qtsecretedit.cpp",
@@ -3733,13 +3729,24 @@
     "src/filemanager/FM.cpp": {
       "local": [
         "src/filemanager/qtfilemanagersplitter.cpp",
-        "src/filemanager/qtfilemanagersplitter.h"
+        "src/filemanager/qtfilemanagersplitter.h",
+        "src/platform/memory/qtmemorylockservices.cpp"
       ],
       "symbols": [
         "CSplitterPos",
         "kSplitterWidth",
         "kSplitterRateMax",
-        "kPanelSizeMin"
+        "kPanelSizeMin",
+        "IsLargePageSupported"
+      ]
+    },
+    "src/operations/CompressCall.cpp": {
+      "local": [
+        "src/platform/memory/qtmemorylockservices.cpp",
+        "src/platform/memory/qtmemorylockservices.h"
+      ],
+      "symbols": [
+        "AddLagePagesSwitch"
       ]
     },
     "src/filemanager/panels/Panel.h": {

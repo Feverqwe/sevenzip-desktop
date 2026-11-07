@@ -1018,14 +1018,6 @@
         </message>
     </context>
     <context>
-        <name>FoldersPage</name>
-        <message>
-            <location filename="../src/settings/FoldersPage.cpp" line="+69" />
-            <source>Removable-drive detection is available on Windows.</source>
-            <translation>Определение сменных носителей доступно в Windows.</translation>
-        </message>
-    </context>
-    <context>
         <name>FscryptKeyDialog</name>
         <message>
             <location filename="../src/crypto/fscrypt/fscryptkeydialog.cpp" line="+41" />
@@ -1106,16 +1098,6 @@
             <location line="+14" />
             <source>Key %1</source>
             <translation>Ключ %1</translation>
-        </message>
-    </context>
-    <context>
-        <name>LangPage</name>
-        <message>
-            <location filename="../src/settings/LangPage.cpp" line="+78" />
-            <source>Language: %1
-Locale: %2</source>
-            <translation>Язык: %1
-Локаль: %2</translation>
         </message>
     </context>
     <context>
@@ -1457,11 +1439,6 @@ Are you sure you want to split archive into such volumes?</source>
             <translation>Лимит, ГБ</translation>
         </message>
         <message>
-            <location line="+122" />
-            <source>Information about the installed translation</source>
-            <translation>Сведения об установленном переводе</translation>
-        </message>
-        <message>
             <location filename="../src/settings/SystemPagePresentation.cpp" line="+119" />
             <source>Choose file types to open with Sevenzip.</source>
             <translation>Выберите типы файлов, которые нужно открывать в Sevenzip.</translation>
@@ -1521,11 +1498,6 @@ Are you sure you want to split archive into such volumes?</source>
             <location filename="../src/settings/SystemPagePresentation.cpp" line="-79" />
             <source>Changed</source>
             <translation>Изменено</translation>
-        </message>
-        <message>
-            <location line="-105" />
-            <source>About translation</source>
-            <translation>О переводе</translation>
         </message>
         <message>
             <location line="+3" />
@@ -2710,12 +2682,6 @@ Are you sure you want to split archive into such volumes?</source>
             <translation>&amp;Задать:</translation>
         </message>
         <message>
-            <location line="+1" />
-            <source>Use for removable drives only</source>
-            <comment>2405</comment>
-            <translation>Использовать только для сменных носителей</translation>
-        </message>
-        <message>
             <location line="+2" />
             <source>Specify a location for temporary archive files.</source>
             <comment>2406</comment>
@@ -2741,12 +2707,6 @@ Are you sure you want to split archive into such volumes?</source>
         </message>
         <message>
             <location line="+1" />
-            <source>Show system menu</source>
-            <comment>2503</comment>
-            <translation>Показывать системное меню</translation>
-        </message>
-        <message>
-            <location line="+1" />
             <source>&amp;Full row select</source>
             <comment>2504</comment>
             <translation>Курсор на всю строку</translation>
@@ -2768,12 +2728,6 @@ Are you sure you want to split archive into such volumes?</source>
             <source>&amp;Alternative selection mode</source>
             <comment>2507</comment>
             <translation>Альтернативный режим пометки</translation>
-        </message>
-        <message>
-            <location line="+1" />
-            <source>Use &amp;large memory pages</source>
-            <comment>2508</comment>
-            <translation>Использовать большие страницы памяти</translation>
         </message>
         <message>
             <location line="+1" />
@@ -6500,8 +6454,8 @@ Use `Revert` to recover timestamp.</source>
         </message>
         <message>
             <location line="+118" />
-            <source>System</source>
-            <translation>Система</translation>
+            <source>System actions</source>
+            <translation>Системные действия</translation>
         </message>
     </context>
     <context>

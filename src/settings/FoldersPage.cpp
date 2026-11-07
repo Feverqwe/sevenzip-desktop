@@ -12,7 +12,6 @@
 #include "localization/qtlangcontrols.h"
 #include "ui/dialogs/qtdialogunits.h"
 #include <QButtonGroup>
-#include <QCheckBox>
 #include <QGridLayout>
 #include <QLabel>
 #include <QLineEdit>
@@ -20,8 +19,7 @@
 #include <QPushButton>
 #include <QRadioButton>
 
-static const unsigned kWorkModeButtons[] = {IDR_FOLDERS_WORK_SYSTEM, IDR_FOLDERS_WORK_CURRENT,
-                                            IDR_FOLDERS_WORK_SPECIFIED};
+static const unsigned kWorkModeButtons[] = {IDR_FOLDERS_WORK_SYSTEM, IDR_FOLDERS_WORK_SPECIFIED};
 static const unsigned kNumWorkModeButtons = Z7_ARRAY_SIZE(kWorkModeButtons);
 
 CFoldersPage::CFoldersPage(const QString &settingsPath, QWidget *parent)
@@ -34,8 +32,8 @@ CFoldersPage::CFoldersPage(const QString &settingsPath, QWidget *parent)
     QtBindResourceText(workingLabel, IDT_FOLDERS_WORKING_FOLDER, "&Working folder");
     layout->addWidget(workingLabel, 0, 0, 1, 2);
     _workModes = new QButtonGroup(this);
-    const QString labels[] = {"&System temp folder", "&Current", "Specified:"};
-    const char *names[] = {"workSystem", "workCurrent", "workSpecified"};
+    const QString labels[] = {"&System temp folder", "Specified:"};
+    const char *names[] = {"workSystem", "workSpecified"};
     for (unsigned i = 0; i < kNumWorkModeButtons; ++i) {
         auto *button = new QRadioButton(labels[i], this);
         button->setObjectName(names[i]);
@@ -52,30 +50,14 @@ CFoldersPage::CFoldersPage(const QString &settingsPath, QWidget *parent)
     _workBrowse->setObjectName("workPathBrowse");
     QtBindLangText(_workBrowse, IDT_FOLDERS_WORKING_FOLDER, "Working folder", true);
     _workBrowse->setFixedWidth(_workBrowse->sizeHint().height() * 2);
-    layout->addWidget(m_WorkPath, 4, 0);
-    layout->addWidget(_workBrowse, 4, 1);
-    _forRemovable = new QCheckBox(this);
-    _forRemovable->setProperty("languageWrapWidth", 380);
-    QtBindResourceText(_forRemovable, IDX_FOLDERS_WORK_FOR_REMOVABLE,
-                       "Use for removable drives only");
-    _forRemovable->setObjectName("workRemovableOnly");
-#ifndef _WIN32
-    // The source WorkDir drive-type branch is Windows-only. Retain its value.
-    _forRemovable->setEnabled(false);
-    _forRemovable->hide();
-    QtBindLocalToolTip(
-        _forRemovable, "FoldersPage",
-        QT_TRANSLATE_NOOP("FoldersPage", "Removable-drive detection is available on Windows."));
-#endif
-    layout->addWidget(_forRemovable, 5, 0, 1, 2);
+    layout->addWidget(m_WorkPath, 3, 0);
+    layout->addWidget(_workBrowse, 3, 1);
     layout->setColumnStretch(0, 1);
-    layout->setRowStretch(6, 1);
+    layout->setRowStretch(4, 1);
     connect(_workModes, &QButtonGroup::idClicked, this,
             [this](int id) { OnButtonClicked(unsigned(id)); });
     connect(_workBrowse, &QPushButton::clicked, this,
             [this] { OnButtonClicked(IDB_FOLDERS_WORK_PATH); });
-    connect(_forRemovable, &QCheckBox::toggled, this,
-            [this] { OnButtonClicked(IDX_FOLDERS_WORK_FOR_REMOVABLE); });
     connect(m_WorkPath, &QLineEdit::textChanged, this, &CFoldersPage::ModifiedEvent);
     OnInit();
 }
@@ -85,23 +67,22 @@ bool CFoldersPage::OnInit() {
     _needSave = false;
     NWorkDir::CInfo workDirInfo;
     workDirInfo.Load(_settingsPath);
-    _forRemovable->setChecked(workDirInfo.ForRemovableOnly);
-    _workModes->button(int(kWorkModeButtons[workDirInfo.Mode]))->setChecked(true);
+    _workModes
+        ->button(workDirInfo.Mode == NWorkDir::NMode::kSpecified ? IDR_FOLDERS_WORK_SPECIFIED
+                                                                 : IDR_FOLDERS_WORK_SYSTEM)
+        ->setChecked(true);
     m_WorkPath->setText(ToQString(fs2us(workDirInfo.Path)));
     MyEnableControls();
     _initMode = false;
     return true;
 }
 
-int CFoldersPage::GetWorkMode() const {
-    for (unsigned i = 0; i < kNumWorkModeButtons; i++)
-        if (_workModes->button(int(kWorkModeButtons[i]))->isChecked())
-            return (int)i;
-    throw 0;
+bool CFoldersPage::UsesSpecifiedPath() const {
+    return _workModes->checkedId() == IDR_FOLDERS_WORK_SPECIFIED;
 }
 
 void CFoldersPage::MyEnableControls() {
-    bool enablePath = (GetWorkMode() == NWorkDir::NMode::kSpecified);
+    const bool enablePath = UsesSpecifiedPath();
     m_WorkPath->setEnabled(enablePath);
     _workBrowse->setEnabled(enablePath);
 }
@@ -124,13 +105,9 @@ bool CFoldersPage::OnButtonClicked(unsigned buttonID) {
     case IDB_FOLDERS_WORK_PATH:
         OnFoldersWorkButtonPath();
         return true;
-    case IDX_FOLDERS_WORK_FOR_REMOVABLE:
-        break;
     default:
         return false;
     }
-    ModifiedEvent();
-    return true;
 }
 
 void CFoldersPage::OnFoldersWorkButtonPath() {
@@ -162,8 +139,8 @@ long CFoldersPage::OnApply() {
         if (!ReadPath(s))
             return 1;
         workDirInfo.Path = us2fs(s);
-        workDirInfo.ForRemovableOnly = _forRemovable->isChecked();
-        workDirInfo.Mode = NWorkDir::NMode::EEnum(GetWorkMode());
+        workDirInfo.Mode =
+            UsesSpecifiedPath() ? NWorkDir::NMode::kSpecified : NWorkDir::NMode::kSystem;
         workDirInfo.Save(_settingsPath);
         _needSave = false;
     }

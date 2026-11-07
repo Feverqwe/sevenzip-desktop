@@ -226,7 +226,6 @@ class OperationCreationTests final : public QObject {
         NWorkDir::CInfo working;
         working.SetDefault();
         working.Mode = NWorkDir::NMode::kSpecified;
-        working.ForRemovableOnly = false;
         working.Path = us2fs(work.toStdWString().c_str());
         working.Save(settings_.filePath("settings.ini"));
         QCOMPARE(Run(QStringLiteral(SEVENZIP_OPERATION_HOST), job).Status, Outcome::Success);

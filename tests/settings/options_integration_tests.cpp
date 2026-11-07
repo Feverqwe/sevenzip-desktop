@@ -191,21 +191,7 @@ class OptionsIntegrationTests final : public QObject {
         QVERIFY(OptionsPresentation::show(dialog, "languageChoice"));
         dialog.resize(780, 560);
         QApplication::processEvents();
-        auto *description = dialog.findChild<QLabel *>("translationDescription");
-        QVERIFY(description);
-        const auto descriptionStart =
-            description->mapTo(&dialog, description->contentsRect().topLeft());
         QVERIFY(UiInspection::writeReport(dialog, "settings-general"));
-        QVERIFY(OptionsPresentation::show(dialog, "languageInfo"));
-        QCOMPARE(dialog.findChild<QWidget *>("languageInfo")->mapTo(&dialog, QPoint()),
-                 descriptionStart);
-        QVERIFY(!description->isVisible());
-        QVERIFY(UiInspection::writeReport(dialog, "settings-translation-expanded"));
-        dialog.findChild<QtDisclosure *>("translationDetails")->setExpanded(false);
-        QApplication::processEvents();
-        QVERIFY(description->isVisible());
-        QCOMPARE(description->mapTo(&dialog, description->contentsRect().topLeft()),
-                 descriptionStart);
         QVERIFY(OptionsPresentation::show(dialog, editor));
         QCOMPARE(editor->text(), QString("custom editor --wait"));
         dialog.apply();

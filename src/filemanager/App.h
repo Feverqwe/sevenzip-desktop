@@ -74,7 +74,6 @@ class CApp {
     ~CApp();
     unsigned NumPanels = 2;
     unsigned LastFocusedPanel = 0;
-    bool ShowSystemMenu = false;
     CAppState AppState;
     CPanelCallbackImp m_PanelCallbackImp[kNumPanelsMax];
     QtPanelSlots Panels;

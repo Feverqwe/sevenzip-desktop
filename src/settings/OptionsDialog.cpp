@@ -147,7 +147,6 @@ bool QtFmOptionsDialog::hasPendingChanges() const {
 }
 void QtFmOptionsDialog::updateApplyButton() {
     _buttons->button(QDialogButtonBox::Apply)->setEnabled(hasPendingChanges());
-    refreshSectionSummaries();
 }
 void QtFmOptionsDialog::changeEvent(QEvent *event) {
     if (event->type() == QEvent::LanguageChange && _langPage)

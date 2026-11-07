@@ -100,7 +100,6 @@ void QtFmOptionsDialog::reloadLangItems() {
         _navigation->item(i)->setText(pages->tabText(i));
         _compactNavigation->item(i)->setText(pages->tabText(i));
     }
-    refreshSectionSummaries();
 }
 void QtFmOptionsDialog::resizeEvent(QResizeEvent *event) {
     QDialog::resizeEvent(event);

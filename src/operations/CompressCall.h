@@ -6,9 +6,6 @@
 #include "Common/MyString.h"
 UString GetQuotedString(const UString &s);
 class QString;
-class IQtMemoryLockServices;
-void AddLagePagesSwitch(UString &params, const QString &settingsPath,
-                        const IQtMemoryLockServices *services = nullptr);
 #ifdef _WIN32
 HRESULT CompressFiles(const UString &arcPathPrefix, const UString &arcName, const UString &arcType,
                       bool addExtension, const UStringVector &names, bool email, bool showDialog,

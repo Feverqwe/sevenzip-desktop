@@ -150,7 +150,6 @@ class PanelShellTests final : public QObject, protected MainWindowTestSupport {
         const QString settingsPath = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         SavePanelPath(1, ToUString(right), settingsPath);
         QSettings settings(settingsPath, QSettings::IniFormat);
-        settings.setValue("FM/ShowSystemMenu", true);
         settings.setValue("FM/ShowRealFileIcons", true);
         settings.sync();
         g_Ext_to_Icon_Map.Clear();
@@ -206,13 +205,13 @@ class PanelShellTests final : public QObject, protected MainWindowTestSupport {
             leftTable, leftTable->visualRect(leftTable->model()->index(0, 0)).center(),
             [&](QMenu *menu) {
                 auto *system = menuAction(*menu, "systemContextGroup");
-                QVERIFY(system);
 #ifdef Q_OS_WIN
+                QVERIFY(system);
                 QVERIFY(system->isEnabled());
                 QVERIFY(system->menu());
                 QVERIFY(!system->menu()->actions().isEmpty());
 #else
-                QVERIFY(!system->isEnabled());
+                QVERIFY(!system);
 #endif
                 auto *sevenZip = menuAction(*menu, "sevenZipContextGroup");
                 QVERIFY(sevenZip && !sevenZip->isEnabled());

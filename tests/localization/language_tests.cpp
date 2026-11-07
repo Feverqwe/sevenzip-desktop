@@ -347,9 +347,6 @@ class LanguageTests : public QObject {
             QVERIFY(russian >= 0);
             choice->setCurrentIndex(russian);
             QVERIFY(cancelled.IsModified());
-            QVERIFY(cancelled.findChild<QPlainTextEdit *>("languageInfo")
-                        ->toPlainText()
-                        .contains(choice->currentText()));
         }
         UString saved;
         ReadRegLang(saved, settings);
@@ -374,10 +371,7 @@ class LanguageTests : public QObject {
             page.resize(size);
             QApplication::processEvents();
             auto *choice = page.findChild<QWidget *>("languageChoice");
-            auto *info = page.findChild<QWidget *>("languageInfo");
             QVERIFY(UiInspection::fullyVisible(*choice, page));
-            QVERIFY(UiInspection::fullyVisible(*info, page));
-            QVERIFY(UiInspection::separate(*choice, *info, page));
             QVERIFY(UiInspection::writeReport(page, QString("language-page-%1").arg(size.width())));
         }
         SaveRegLang(UString("-"), settings);

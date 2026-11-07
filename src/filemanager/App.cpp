@@ -188,7 +188,6 @@ HRESULT CApp::CreateOnePanel(unsigned panelIndex, const UString &mainPath, const
 void CApp::SetListSettings() {
     CFmSettings st;
     st.Load(_settingsPath);
-    ShowSystemMenu = st.ShowSystemMenu;
     for (unsigned i = 0; i < kNumPanelsMax; i++) {
         CPanel &panel = Panels[i];
         panel.SetAlternativeSelection(st.AlternativeSelection);

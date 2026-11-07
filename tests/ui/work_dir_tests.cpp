@@ -32,16 +32,13 @@ class WorkDirTests final : public QObject {
         NWorkDir::CInfo info;
         info.Load(settings);
         QCOMPARE(info.Mode, NWorkDir::NMode::kSystem);
-        QVERIFY(info.ForRemovableOnly);
         info.Mode = NWorkDir::NMode::kSpecified;
-        info.ForRemovableOnly = false;
         info.Path = nativePath(fixture.filePath("рабочая папка"));
         info.Save(settings);
         NWorkDir::CInfo loaded;
         loaded.Load(settings);
         QCOMPARE(loaded.Mode, info.Mode);
         QCOMPARE(qtPath(loaded.Path), qtPath(info.Path));
-        QVERIFY(!loaded.ForRemovableOnly);
         FString name;
         QCOMPARE(qtPath(GetWorkDir(loaded, nativePath(fixture.filePath("архив.zip")), name)),
                  qtPath(info.Path) + '/');
@@ -52,9 +49,23 @@ class WorkDirTests final : public QObject {
         }
         loaded.Load(settings);
         QCOMPARE(loaded.Mode, NWorkDir::NMode::kSystem);
-        info.Mode = NWorkDir::NMode::kCurrent;
-        QCOMPARE(qtPath(GetWorkDir(info, nativePath(fixture.filePath("архив.zip")), name)),
-                 fixture.path() + '/');
+        const auto archive = nativePath(fixture.filePath("архив.zip"));
+        const auto system = GetWorkDir(loaded, archive, name);
+        QVERIFY(!system.IsEmpty());
+        {
+            QSettings key(settings, QSettings::IniFormat);
+            key.setValue("Options/WorkDirType", 1u); // Former current-folder mode.
+            key.setValue("Options/WorkDirPath", qtPath(info.Path));
+            key.setValue("Options/TempRemovableOnly", true);
+        }
+        loaded.Load(settings);
+        QCOMPARE(qtPath(GetWorkDir(loaded, archive, name)), qtPath(system));
+        {
+            QSettings key(settings, QSettings::IniFormat);
+            key.setValue("Options/WorkDirType", UInt32(NWorkDir::NMode::kSpecified));
+        }
+        loaded.Load(settings);
+        QCOMPARE(qtPath(GetWorkDir(loaded, archive, name)), qtPath(info.Path) + '/');
     }
 
     void publishAndAbandonedTemporaryFile() {
@@ -69,7 +80,6 @@ class WorkDirTests final : public QObject {
         NWorkDir::CInfo info;
         info.SetDefault();
         info.Mode = NWorkDir::NMode::kSpecified;
-        info.ForRemovableOnly = false;
         info.Path = nativePath(fixture.filePath("work/новая папка"));
         info.Save(settings);
         QString abandoned;
@@ -110,7 +120,6 @@ class WorkDirTests final : public QObject {
         NWorkDir::CInfo info;
         info.SetDefault();
         info.Mode = NWorkDir::NMode::kSpecified;
-        info.ForRemovableOnly = false;
         info.Path = nativePath(original + "/blocked");
         const QString settings = fixture.filePath("settings.ini");
         info.Save(settings);
@@ -135,7 +144,6 @@ class WorkDirTests final : public QObject {
         NWorkDir::CInfo info;
         info.SetDefault();
         info.Mode = NWorkDir::NMode::kSpecified;
-        info.ForRemovableOnly = false;
         info.Path = nativePath(work.path());
         const QString settings = fixture.filePath("settings.ini");
         info.Save(settings);

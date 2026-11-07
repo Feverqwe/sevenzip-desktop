@@ -137,14 +137,11 @@ FString NCompressDialog::GetCompressionWorkingDir(const UString &arcPath,
                                                   const QString &settingsPath) {
     NWorkDir::CInfo workDirInfo;
     workDirInfo.Load(settingsPath);
-    FString workingDir;
-    if (workDirInfo.Mode != NWorkDir::NMode::kCurrent) {
-        FString fullPath;
-        NWindows::NFile::NDir::MyGetFullPathName(us2fs(arcPath), fullPath);
-        FString namePart;
-        workingDir = GetWorkDir(workDirInfo, fullPath, namePart);
-        NWindows::NFile::NDir::CreateComplexDir(workingDir);
-    }
+    FString fullPath;
+    NWindows::NFile::NDir::MyGetFullPathName(us2fs(arcPath), fullPath);
+    FString namePart;
+    FString workingDir = GetWorkDir(workDirInfo, fullPath, namePart);
+    NWindows::NFile::NDir::CreateComplexDir(workingDir);
     return workingDir;
 }
 

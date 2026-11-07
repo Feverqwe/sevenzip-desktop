@@ -55,13 +55,9 @@ class OptionsDialogTests : public QObject {
             QWidget *previous = nullptr;
             for (const char *name :
                  {"showDotsOption", "realFileIconsOption", "fullRowOption", "gridOption",
-                  "singleClickOption", "alternativeSelectionOption", "showSystemMenuOption",
-                  "largePagesOption", "extractMemoryLabel", "extractMemorySpin"}) {
+                  "singleClickOption", "alternativeSelectionOption", "extractMemoryLabel",
+                  "extractMemorySpin"}) {
                 auto *control = dialog.findChild<QWidget *>(name);
-                if (QString(name) == "largePagesOption" && !IsLargePageSupported()) {
-                    QVERIFY(control->isHidden());
-                    continue;
-                }
                 QVERIFY(control);
                 OptionsPresentation::show(dialog, control);
                 QVERIFY(UiInspection::fullyVisible(*control, dialog));
@@ -299,8 +295,6 @@ class OptionsDialogTests : public QObject {
         QtFmOptionsDialog reloaded(settings);
         QVERIFY(!reloaded.findChild<QCheckBox *>("extractMemorySet")->isChecked());
         QCOMPARE(reloaded.findChild<QLineEdit *>("extractMemoryEdit")->text(), QString("4"));
-        auto *largePages = reloaded.findChild<QCheckBox *>("largePagesOption");
-        QCOMPARE(largePages->isEnabled(), IsLargePageSupported());
     }
     void foldersApplyCancelAndRealWorkDirectory_data() {
         QTest::addColumn<bool>("apply");
@@ -314,7 +308,6 @@ class OptionsDialogTests : public QObject {
         const QString settings = fixture.filePath("options.ini");
         NWorkDir::CInfo old;
         old.SetDefault();
-        old.ForRemovableOnly = false;
         old.Save(settings);
         QtFmOptionsDialog dialog(settings);
         auto *pages = dialog.findChild<QTabWidget *>("optionsPages");
@@ -371,7 +364,7 @@ class OptionsDialogTests : public QObject {
         QTest::addColumn<int>("mode");
         QTest::addColumn<bool>("cancel");
         for (const QSize size : {QSize(640, 390), QSize(520, 380)})
-            for (int mode = 0; mode < 3; ++mode)
+            for (int mode = 0; mode < 2; ++mode)
                 for (bool cancel : {false, true})
                     QTest::newRow(
                         qPrintable(QString("%1-%2-%3").arg(size.width()).arg(mode).arg(cancel)))
@@ -386,7 +379,6 @@ class OptionsDialogTests : public QObject {
         const QString settings = fixture.filePath("options.ini");
         NWorkDir::CInfo old;
         old.SetDefault();
-        old.ForRemovableOnly = false;
         old.Save(settings);
         QtFmOptionsDialog dialog(settings);
         dialog.resize(size);
@@ -412,7 +404,7 @@ class OptionsDialogTests : public QObject {
         answerError();
         dialog.findChild<QPushButton *>("workPathBrowse")->click();
         QCOMPARE(errors, 1);
-        const char *modes[] = {"workSystem", "workCurrent", "workSpecified"};
+        const char *modes[] = {"workSystem", "workSpecified"};
         dialog.findChild<QRadioButton *>(modes[mode])->click();
         OptionsPresentation::show(dialog, "gridOption");
         auto *apply = dialog.findChild<QDialogButtonBox *>("settingsButtons")
@@ -429,7 +421,7 @@ class OptionsDialogTests : public QObject {
         auto *modeControl = dialog.findChild<QRadioButton *>(modes[mode]);
         QVERIFY(modeControl->isChecked());
         auto *correction =
-            mode == 2 ? static_cast<QWidget *>(path) : dialog.findChild<QWidget *>("workSpecified");
+            mode == 1 ? static_cast<QWidget *>(path) : dialog.findChild<QWidget *>("workSpecified");
         QVERIFY(correction->isEnabled() && correction->isVisible());
         QCOMPARE(dialog.focusWidget(), correction);
         NWorkDir::CInfo loaded;
@@ -477,15 +469,8 @@ class OptionsDialogTests : public QObject {
             QApplication::processEvents();
             OptionsPresentation::show(dialog, "workPathBrowse");
             QWidget *previous = nullptr;
-            for (const char *name :
-                 {"workSystem", "workCurrent", "workSpecified", "workPath", "workRemovableOnly"}) {
+            for (const char *name : {"workSystem", "workSpecified", "workPath"}) {
                 auto *control = dialog.findChild<QWidget *>(name);
-#ifndef _WIN32
-                if (QString(name) == "workRemovableOnly") {
-                    QVERIFY(control->isHidden());
-                    continue;
-                }
-#endif
                 OptionsPresentation::show(dialog, control);
                 QVERIFY(control && UiInspection::fullyVisible(*control, dialog));
                 if (previous)

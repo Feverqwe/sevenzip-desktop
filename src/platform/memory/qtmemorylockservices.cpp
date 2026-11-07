@@ -5,7 +5,22 @@
 #include "Windows/SecurityUtils.h"
 #endif
 
-bool QtMemoryLockServices::IsSupported() const { return IsLargePageSupported(); }
+bool QtMemoryLockServices::IsSupported() const {
+#ifdef _WIN32
+#ifdef _WIN64
+    return true;
+#else
+    DWORD v = GetVersion();
+    // low byte is major version:
+    // next byte is minor version:
+    v = ((v & 0xff) << 8) | ((v >> 8) & 0xFF);
+    return (v > 0x501);
+#endif
+#else
+    // The source FM privilege/large-page command is Windows-only.
+    return false;
+#endif
+}
 
 bool QtMemoryLockServices::AddLockMemoryPrivilege() const {
 #ifdef _WIN32
@@ -30,4 +45,13 @@ bool QtMemoryLockServices::EnablePrivilege_LockMemory(bool enable) const {
     Q_UNUSED(enable)
     return false;
 #endif
+}
+
+void AddLagePagesSwitch(UString &params, const QString &settingsPath,
+                        const IQtMemoryLockServices *services) {
+    const QtMemoryLockServices nativeMemoryLock;
+    const auto &memoryLock = services ? *services : nativeMemoryLock;
+    if (ReadLockMemoryEnable(settingsPath))
+        if (memoryLock.Get_LargePages_RiskLevel() == 0)
+            params += " -slp";
 }

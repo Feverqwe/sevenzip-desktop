@@ -110,17 +110,14 @@ struct CInfo {
 
 namespace NWorkDir {
 namespace NMode {
-enum EEnum { kSystem, kCurrent, kSpecified };
+enum EEnum { kSystem = 0, kSpecified = 2 };
 }
 struct CInfo {
     NMode::EEnum Mode;
-    bool ForRemovableOnly;
     FString Path;
-    void SetForRemovableOnlyDefault() { ForRemovableOnly = true; }
     void SetDefault() {
         Mode = NMode::kSystem;
         Path.Empty();
-        SetForRemovableOnlyDefault();
     }
     void Save(const QString &path) const;
     void Load(const QString &path);

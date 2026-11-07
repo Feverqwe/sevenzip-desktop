@@ -6,14 +6,12 @@
 #include "settings/SettingsPage.h"
 #include "settings/SystemPage.h"
 #include "settings/qtfmoptionsdialog.h"
-#include "ui/controls/qtdisclosure.h"
 #include <QAbstractSpinBox>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QFrame>
 #include <QLabel>
 #include <QLineEdit>
-#include <QPlainTextEdit>
 #include <QPushButton>
 #include <QScrollArea>
 #include <QTabWidget>
@@ -62,7 +60,6 @@ QWidget *memoryPage(CSettingsPage *owner) {
     ram->setForegroundRole(QPalette::PlaceholderText);
     values->addWidget(ram);
     layout->addWidget(dependent);
-    layout->addWidget(body->findChild<QCheckBox *>("largePagesOption"));
     return body;
 }
 QWidget *listPage(CSettingsPage *owner) {
@@ -84,8 +81,7 @@ QWidget *listPage(CSettingsPage *owner) {
         for (const QString &name :
              group == 0 ? QStringList{"showDotsOption", "realFileIconsOption", "fullRowOption",
                                       "gridOption"}
-                        : QStringList{"singleClickOption", "alternativeSelectionOption",
-                                      "showSystemMenuOption"})
+                        : QStringList{"singleClickOption", "alternativeSelectionOption"})
             rows->addWidget(body->findChild<QCheckBox *>(name));
         layout->addWidget(part);
     }
@@ -148,33 +144,10 @@ void QtFmOptionsDialog::buildSections() {
     _settingsPage->setFocusProxy(nullptr);
     _settingsPage->hide();
     _langPage->layout()->setContentsMargins(0, 0, 0, 0);
-    auto *info = _langPage->findChild<QPlainTextEdit *>("languageInfo");
-    _langPage->layout()->removeWidget(info);
-    auto *metadata = new QWidget;
-    auto *metadataLayout = fields(metadata);
-    metadataLayout->setContentsMargins(24, 0, 0, 0);
-    metadataLayout->addWidget(info);
-    info->setMinimumHeight(info->fontMetrics().lineSpacing() * 4);
     _langPage->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
     basic->addWidget(_langPage);
     QtBindLocalText(_langPage->findChild<QLabel *>("languageLabel"), "SettingsRedesign",
                     QT_TRANSLATE_NOOP("SettingsRedesign", "Interface language"));
-    auto *translation = new QWidget(general);
-    auto *translationLayout = fields(translation);
-    auto *description = new QLabel(translation);
-    description->setObjectName("translationDescription");
-    description->setWordWrap(true);
-    description->setContentsMargins(24, 0, 0, 0);
-    description->setForegroundRole(QPalette::PlaceholderText);
-    QtBindLocalText(
-        description, "SettingsRedesign",
-        QT_TRANSLATE_NOOP("SettingsRedesign", "Information about the installed translation"));
-    _translationGroup = new QtDisclosure(metadata, translation, description);
-    _translationGroup->setObjectName("translationDetails");
-    QtBindLocalText(_translationGroup->button(), "SettingsRedesign",
-                    QT_TRANSLATE_NOOP("SettingsRedesign", "About translation"));
-    translationLayout->addWidget(_translationGroup);
-    basic->addWidget(translation);
     section(_sections, "generalSection", QT_TRANSLATE_NOOP("SettingsRedesign", "General"), general);
 
     _systemPage->SimplifyPresentation();
@@ -203,11 +176,4 @@ void QtFmOptionsDialog::buildSections() {
     else
         _menuPage->hide();
     buildNavigation();
-    refreshSectionSummaries();
-}
-
-void QtFmOptionsDialog::refreshSectionSummaries() {
-    _translationGroup->setSummary(_langPage->IsModified()
-                                      ? QCoreApplication::translate("SettingsRedesign", "Changed")
-                                      : QString());
 }

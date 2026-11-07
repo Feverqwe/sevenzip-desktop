@@ -24,13 +24,13 @@ class FmSettingsTests : public QObject {
         QVERIFY(!st.ShowDots && !st.ShowRealFileIcons && !st.ShowGrid);
         QVERIFY(st.FullRow);
         QVERIFY(st.SingleClick);
-        QVERIFY(!st.AlternativeSelection && !st.ShowSystemMenu);
-        st.ShowDots = st.FullRow = st.AlternativeSelection = st.ShowSystemMenu = true;
+        QVERIFY(!st.AlternativeSelection);
+        st.ShowDots = st.FullRow = st.AlternativeSelection = true;
         st.Save(path);
         CFmSettings loaded;
         loaded.Load(path);
         QVERIFY(loaded.ShowDots && loaded.FullRow && loaded.AlternativeSelection &&
-                loaded.ShowSystemMenu && loaded.SingleClick);
+                loaded.SingleClick);
         QVERIFY(!loaded.ShowGrid);
     }
     void confirmCancelAndPersistListFlags() {
@@ -43,8 +43,8 @@ class FmSettingsTests : public QObject {
             CSettingsPage page(path);
             for (const char *name :
                  {"showDotsOption", "realFileIconsOption", "fullRowOption", "gridOption",
-                  "singleClickOption", "alternativeSelectionOption", "showSystemMenuOption"})
-                page.findChild<QCheckBox *>(name)->setChecked(true);
+                  "singleClickOption", "alternativeSelectionOption"})
+                page.findChild<QCheckBox *>(name)->click();
             QVERIFY(page.findChild<QCheckBox *>("alternativeSelectionOption")->isEnabled());
             if (confirm)
                 page.accept();
@@ -53,11 +53,10 @@ class FmSettingsTests : public QObject {
             st.Load(path);
             QCOMPARE(st.ShowDots, confirm);
             QCOMPARE(st.ShowRealFileIcons, confirm);
-            QCOMPARE(st.FullRow, confirm);
+            QCOMPARE(st.FullRow, !confirm);
             QCOMPARE(st.ShowGrid, confirm);
             QCOMPARE(st.SingleClick, confirm);
             QCOMPARE(st.AlternativeSelection, confirm);
-            QCOMPARE(st.ShowSystemMenu, confirm);
         }
     }
     void geometry() {
@@ -71,14 +70,10 @@ class FmSettingsTests : public QObject {
             QWidget *previous = nullptr;
             for (const char *name :
                  {"showDotsOption", "realFileIconsOption", "fullRowOption", "gridOption",
-                  "singleClickOption", "alternativeSelectionOption", "showSystemMenuOption",
-                  "largePagesOption", "extractMemoryLabel", "extractMemorySpin"}) {
+                  "singleClickOption", "alternativeSelectionOption", "extractMemoryLabel",
+                  "extractMemorySpin"}) {
                 auto *control = page.findChild<QWidget *>(name);
                 QVERIFY(control);
-                if (QString(name) == "largePagesOption" && !IsLargePageSupported()) {
-                    QVERIFY(control->isHidden());
-                    continue;
-                }
                 QVERIFY(UiInspection::fullyVisible(*control, page));
                 if (qobject_cast<QCheckBox *>(control))
                     QVERIFY(control->width() >= control->sizeHint().width());

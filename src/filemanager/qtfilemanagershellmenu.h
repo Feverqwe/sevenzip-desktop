@@ -38,7 +38,6 @@ class QtFileManagerShellMenu final : public IQtPanelPluginServices,
     void InvokePluginCommand(unsigned id);
     void ReleasePluginMenus() override;
     bool IsShiftDown() const override;
-    bool ShowSystemMenu() const override;
     void CreateSevenZipMenu(CPanel &panel, bool extended, const CRecordVector<UInt32> &indices,
                             int firstDirIndex) override;
     void CreateSystemMenu(CPanel &panel, bool extended,

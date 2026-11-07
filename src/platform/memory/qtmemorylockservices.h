@@ -1,5 +1,6 @@
 // Native services for the original File Manager large-page policy.
 #pragma once
+#include "Common/MyString.h"
 #include <QString>
 
 class IQtMemoryLockServices {
@@ -18,6 +19,9 @@ class QtMemoryLockServices final : public IQtMemoryLockServices {
     unsigned Get_LargePages_RiskLevel() const override;
     bool EnablePrivilege_LockMemory(bool enable = true) const override;
 };
+
+void AddLagePagesSwitch(UString &params, const QString &settingsPath,
+                        const IQtMemoryLockServices *services = nullptr);
 
 namespace NQtFileManager {
 void SetMemoryLock(const QString &settingsPath, const IQtMemoryLockServices &services);

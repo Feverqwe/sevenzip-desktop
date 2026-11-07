@@ -8,7 +8,6 @@
 QString FmSettingsPath();
 void SaveRegLang(const UString &path, const QString &settingsPath);
 void ReadRegLang(UString &path, const QString &settingsPath);
-bool IsLargePageSupported();
 bool ReadLockMemoryEnable(const QString &settingsPath);
 void SaveLockMemoryEnable(bool enable, const QString &settingsPath);
 void SaveRegEditor(bool useEditor, const UString &path, const QString &settingsPath);
@@ -23,7 +22,6 @@ struct CFmSettings {
     bool ShowGrid;
     bool SingleClick;
     bool AlternativeSelection;
-    bool ShowSystemMenu;
     // Qt presentation preference; Unknown follows the native system theme.
     Qt::ColorScheme ColorScheme = Qt::ColorScheme::Unknown;
 

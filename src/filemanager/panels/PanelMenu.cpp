@@ -108,8 +108,7 @@ void CPanel::CreateFileMenu(IQtFileMenuServices &menu, bool programMenu,
     const int firstDirIndex = FindDir_InOperatedList(operatedIndices);
     if (!IsArcFolder() && plugins) {
         plugins->CreateSevenZipMenu(*this, showExtendedVerbs, operatedIndices, firstDirIndex);
-        if (plugins->ShowSystemMenu())
-            plugins->CreateSystemMenu(*this, showExtendedVerbs, operatedIndices);
+        plugins->CreateSystemMenu(*this, showExtendedVerbs, operatedIndices);
     }
     CFileMenu fm;
     fm.readOnly = IsThereReadOnlyFolder();

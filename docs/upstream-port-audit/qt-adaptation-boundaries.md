@@ -837,3 +837,13 @@ suites exercise these observable contracts and their native consumers. No
 structural test is added for this ownership change.
 All four focused suites passed on Linux; other platforms and new visual
 acceptance were outside this nonvisual change.
+
+### Large-page policy shared by GUI entry points
+
+The recorded 7-Zip `FM.cpp::IsLargePageSupported` and
+`CompressCall.cpp::AddLagePagesSwitch` adaptations now live in the platform
+memory service. The file manager, typed operation options and Windows shell
+launcher share the existing setting and risk policy. Moving the implementation
+to the common library allows an operation process to link the policy without
+pulling in the file manager. The settings UI no longer changes large-page
+privileges. The original inventory hashes and licenses are retained.

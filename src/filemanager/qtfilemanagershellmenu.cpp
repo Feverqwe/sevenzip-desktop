@@ -140,7 +140,6 @@ void QtFileManagerShellMenu::ReleasePluginMenus() {
 bool QtFileManagerShellMenu::IsShiftDown() const {
     return QApplication::keyboardModifiers().testFlag(Qt::ShiftModifier);
 }
-bool QtFileManagerShellMenu::ShowSystemMenu() const { return _window.app_.ShowSystemMenu; }
 
 void QtFileManagerShellMenu::CreateSevenZipMenu(CPanel &panel, bool extended,
                                                 const CRecordVector<UInt32> &indices,
@@ -157,9 +156,9 @@ void QtFileManagerShellMenu::CreateSevenZipMenu(CPanel &panel, bool extended,
 
 void QtFileManagerShellMenu::CreateSystemMenu(CPanel &panel, bool extended,
                                               const CRecordVector<UInt32> &indices) {
+#ifdef _WIN32
     if (indices.IsEmpty() || _window.projectedUi().state != MainWindow::State::Filesystem)
         return;
-#ifdef _WIN32
     auto system = std::make_unique<QtNativeShellMenu>();
     QMenu rendered;
     const quint64 generation = _generation;
@@ -171,6 +170,8 @@ void QtFileManagerShellMenu::CreateSystemMenu(CPanel &panel, bool extended,
     for (auto *action : rendered.actions()) {
         if (action->menu()) {
             action->menu()->setParent(&_menu);
+            action->menu()->setTitle(
+                QCoreApplication::translate("qtfilemanagershellmenu", "System actions"));
             action->setObjectName("systemContextGroup");
         } else
             action->setParent(&_menu);
@@ -180,10 +181,6 @@ void QtFileManagerShellMenu::CreateSystemMenu(CPanel &panel, bool extended,
 #else
     (void)panel;
     (void)extended;
-    auto *action =
-        new QAction(QCoreApplication::translate("qtfilemanagershellmenu", "System"), &_menu);
-    action->setObjectName("systemContextGroup");
-    action->setEnabled(false);
-    _menu.insertAction(_menu.actions().isEmpty() ? nullptr : _menu.actions().first(), action);
+    (void)indices;
 #endif
 }

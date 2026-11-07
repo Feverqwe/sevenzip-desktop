@@ -5,7 +5,6 @@
 #include "Windows/StdAfx.h"
 
 #include "Windows/FileName.h"
-#include "Windows/FileSystem.h"
 
 #include "platform/temp/WorkDir.h"
 #include "settings/RegistryUtils.h"
@@ -15,44 +14,14 @@ using namespace NFile;
 using namespace NDir;
 
 FString GetWorkDir(const NWorkDir::CInfo &workDirInfo, const FString &path, FString &fileName) {
-    NWorkDir::NMode::EEnum mode = workDirInfo.Mode;
-
-#if defined(_WIN32) && !defined(UNDER_CE)
-    if (workDirInfo.ForRemovableOnly) {
-        mode = NWorkDir::NMode::kCurrent;
-        const FString prefix = path.Left(3);
-        if (NName::IsDrivePath(prefix)) {
-            const UINT driveType = NSystem::MyGetDriveType(prefix);
-            if (driveType == DRIVE_CDROM || driveType == DRIVE_REMOVABLE)
-                mode = workDirInfo.Mode;
-        }
-        /*
-        CParsedPath parsedPath;
-        parsedPath.ParsePath(archiveName);
-        UINT driveType = GetDriveType(parsedPath.Prefix);
-        if ((driveType != DRIVE_CDROM) && (driveType != DRIVE_REMOVABLE))
-          mode = NZipSettings::NWorkDir::NMode::kCurrent;
-        */
-    }
-#endif
-
     const int pos = path.ReverseFind_PathSepar() + 1;
     fileName = path.Ptr((unsigned)pos);
 
     FString tempDir;
-    switch ((int)mode) {
-    case NWorkDir::NMode::kCurrent:
-        tempDir = path.Left((unsigned)pos);
-        break;
-    case NWorkDir::NMode::kSpecified:
+    if (workDirInfo.Mode == NWorkDir::NMode::kSpecified)
         tempDir = workDirInfo.Path;
-        break;
-    // case NWorkDir::NMode::kSystem:
-    default:
-        if (!MyGetTempPath(tempDir))
-            throw 141717;
-        break;
-    }
+    else if (!MyGetTempPath(tempDir))
+        throw 141717;
     NName::NormalizeDirPathPrefix(tempDir);
     return tempDir;
 }

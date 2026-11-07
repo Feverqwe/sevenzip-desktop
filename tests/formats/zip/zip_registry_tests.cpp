@@ -59,12 +59,11 @@ class ZipRegistryTests final : public QObject {
         const QString path = dir.filePath("settings.ini");
         {
             QSettings key(path, QSettings::IniFormat);
-            for (const QString &name : {"Extraction/SplitDest", "Extraction/ElimDup",
-                                        "Extraction/Security", "Extraction/ShowPassword",
-                                        "Compression/ShowPassword", "Compression/EncryptHeaders",
-                                        "Compression/Security", "Options/TempRemovableOnly"})
+            for (const QString &name :
+                 {"Extraction/SplitDest", "Extraction/ElimDup", "Extraction/Security",
+                  "Extraction/ShowPassword", "Compression/ShowPassword",
+                  "Compression/EncryptHeaders", "Compression/Security"})
                 key.setValue(name, stored);
-            key.setValue("Options/WorkDirType", UInt32(NWorkDir::NMode::kSystem));
         }
         NExtract::CInfo extract;
         extract.Load(path);
@@ -82,9 +81,6 @@ class ZipRegistryTests final : public QObject {
         QCOMPARE(compress.EncryptHeaders, defined && value);
         QCOMPARE(compress.NtSecurity.Def, defined);
         QCOMPARE(compress.NtSecurity.Val, defined && value);
-        NWorkDir::CInfo work;
-        work.Load(path);
-        QCOMPARE(work.ForRemovableOnly, defined ? value : true);
     }
     void outOfRangeDwordsKeepSourceDefaults() {
         QTemporaryDir dir;
@@ -117,7 +113,6 @@ class ZipRegistryTests final : public QObject {
         NWorkDir::CInfo work;
         work.Load(path);
         QCOMPARE(work.Mode, NWorkDir::NMode::kSystem);
-        QVERIFY(work.ForRemovableOnly);
     }
     void extractionLimitDeletesSentinel() {
         QTemporaryDir dir;
