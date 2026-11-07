@@ -1,3 +1,4 @@
+#include "7zip/PropID.h"
 #include "7zip/UI/FileManager/ProgressDialog2Res.h"
 #include "Common/StringConvert.h"
 #include "filemanager/support/panel_load_folder.h"
@@ -24,6 +25,16 @@ using namespace ExternalEditorFixture;
 class ArchiveExternalEditTests final : public QObject, protected MainWindowTestSupport {
     Q_OBJECT
     WidgetDialogFixture widgetDialogs_;
+
+    QDialog *updateDialog() const {
+#ifdef Q_OS_WIN
+        // A modal widget can be shown without desktop activation on the runner.
+        return qobject_cast<QDialog *>(QApplication::activeModalWidget());
+#else
+        return widgetDialogs_.activeDialog();
+#endif
+    }
+
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
     void associationWithoutProcessShowsActionsOnlyAfterSave() {
@@ -192,9 +203,18 @@ class ArchiveExternalEditTests final : public QObject, protected MainWindowTestS
         QEventLoop promptDelivery;
         QTimer responder;
         widgetDialogs_.connectResponder(responder, &window, [&] {
-            auto *box = widgetDialogs_.activeDialog();
-            if (box && box->objectName() == "externalUpdatePrompt") {
-                responder.stop();
+            auto *box = updateDialog();
+            if (auto *progress = dynamic_cast<CProgressDialog *>(box);
+                progress &&
+                QtTaskPresentation::Application().snapshot().phase == QtOperationPhase::Reviewing) {
+                progress->reject();
+                return;
+            }
+            if (box && box->objectName() == "progressFinalMessage") {
+                box->accept();
+                return;
+            }
+            if (!asked && box && box->objectName() == "externalUpdatePrompt") {
                 connect(box, &QObject::destroyed, &promptDelivery, &QEventLoop::quit);
                 asked = true;
                 geometry = true;
@@ -317,6 +337,11 @@ class ArchiveExternalEditTests final : public QObject, protected MainWindowTestS
     }
     void deferredUpdateAndOwnerChanges() {
         QFETCH(int, outcome);
+        const auto closeDetails = qScopeGuard([] {
+            for (auto *widget : QApplication::topLevelWidgets())
+                if (widget->objectName() == "externalFileDetails")
+                    widget->close();
+        });
         QTemporaryDir fixture;
         const QString name = QStringLiteral("отложенная правка.txt");
         const QString archive = fixture.filePath("original.zip");
@@ -324,28 +349,54 @@ class ArchiveExternalEditTests final : public QObject, protected MainWindowTestS
         QVERIFY(createArchive(fixture.path(), archive, name));
         const QByteArray originalArchive = read(archive);
         const QString control = fixture.filePath("control");
+        const QString peerPath = fixture.filePath("peer");
         const auto stopEditor = qScopeGuard([&] { write(control + ".exit", "exit"); });
+        if (outcome == 3) {
+            QVERIFY(QDir().mkdir(peerPath));
+            QVERIFY(write(QDir(peerPath).filePath("sentinel.txt"), "peer"));
+            const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
+            CWindowInfo info{};
+            info.rect.right = 980;
+            info.rect.bottom = 620;
+            info.numPanels = 2;
+            info.splitterPos = 490;
+            info.Save(settings);
+            SavePanelPath(1, ToUString(peerPath), settings);
+        }
         ArchiveBackend backend;
         auto window = std::make_unique<MainWindow>(
             &backend, std::function<bool(const QUrl &)>(), nullptr, nullptr,
             DeviceSelectionServices::system(), opener(control));
         window->show();
-        window->openArchive(archive);
-        QTRY_COMPARE(table(*window)->rowCount(), 1);
         auto *leftPanel = window->findChild<QWidget *>("filePanel0");
-        table(*window)->selectRow(0);
+        auto *leftTable = leftPanel->findChild<FileTable *>("archiveTable");
+        window->activateWindow();
+        leftTable->setFocus();
+        QTRY_COMPARE(window->focusWidget(), leftTable);
+        window->openArchive(archive);
+        QTRY_COMPARE(leftTable->rowCount(), 1);
+        leftTable->selectRow(0);
         action(*window, "editFileAction")->trigger();
         QTRY_VERIFY(QFileInfo(control + ".ready").size() > 0);
         const QString temporary = QString::fromUtf8(read(control + ".ready"));
         QLineEdit *rightAddress = nullptr;
+        const auto displayedSize = [leftTable, &name] {
+            const int sizeColumn = leftTable->columnForProperty(kpidSize);
+            const auto *model = leftTable->model();
+            for (int row = 0; row < model->rowCount(); ++row)
+                if (model->index(row, 0)
+                        .data(QtPanelList::NameRole)
+                        .toString()
+                        .normalized(QString::NormalizationForm_C) == name)
+                    return model->index(row, sizeColumn).data(QtPanelList::SortValueRole);
+            return QVariant();
+        };
         if (outcome == 3) {
-            action(*window, "twoPanelsAction")->trigger();
             QVERIFY(action(*window, "twoPanelsAction")->isChecked());
             rightAddress =
                 window->findChild<QWidget *>("filePanel1")->findChild<QLineEdit *>("archivePath");
-            rightAddress->setFocus();
-            rightAddress->setText(fixture.path());
-            QTest::keyClick(rightAddress, Qt::Key_Return);
+            QTRY_COMPARE(QFileInfo(rightAddress->text()).canonicalFilePath(),
+                         QFileInfo(peerPath).canonicalFilePath());
         }
         if (outcome == 2) {
             window->openPath(fixture.path());
@@ -360,20 +411,23 @@ class ArchiveExternalEditTests final : public QObject, protected MainWindowTestS
         QEventLoop completion;
         QTimer responder;
         widgetDialogs_.connectResponder(responder, this, [&] {
-            if (auto *progress = dynamic_cast<CProgressDialog *>(widgetDialogs_.activeDialog());
+            auto *box = updateDialog();
+            if (auto *progress = dynamic_cast<CProgressDialog *>(box);
                 progress &&
                 QtTaskPresentation::Application().snapshot().phase == QtOperationPhase::Reviewing) {
                 progress->reject();
                 return;
             }
-            if (auto *box = widgetDialogs_.activeDialog()) {
+            if (box) {
                 if (box->objectName() == "externalUpdatePrompt") {
                     asked = true;
                     box->findChild<QPushButton *>("externalUpdateCommit")->click();
                 } else if (box->objectName() == "progressFinalMessage")
                     box->accept();
             }
-            if (asked && QtExternalFileTask::Active().isEmpty())
+            if (asked && QtExternalFileTask::Active().isEmpty() &&
+                ((outcome != 0 && outcome != 3) ||
+                 displayedSize().toULongLong() == quint64(modified.size())))
                 completion.quit();
         });
         responder.start(1);
@@ -388,6 +442,13 @@ class ArchiveExternalEditTests final : public QObject, protected MainWindowTestS
             window.reset();
         }
         blocker.close();
+        if (window && (outcome == 0 || outcome == 3)) {
+            auto *panel = outcome == 3 ? window->findChild<QWidget *>("filePanel1") : leftPanel;
+            auto *table = panel->findChild<FileTable *>("archiveTable");
+            window->activateWindow();
+            table->setFocus();
+            QTRY_COMPARE(window->focusWidget(), table);
+        }
         if (outcome == 1) {
             QTRY_VERIFY(QtExternalFileTask::Active().isEmpty());
             QVERIFY(!asked);
@@ -404,19 +465,19 @@ class ArchiveExternalEditTests final : public QObject, protected MainWindowTestS
             QVERIFY(!QFileInfo(temporary).exists());
             QCOMPARE(contents(archive, name), modified);
             if (outcome == 3)
-                QCOMPARE(QDir::cleanPath(rightAddress->text()), fixture.path());
+                QCOMPARE(QFileInfo(rightAddress->text()).canonicalFilePath(),
+                         QFileInfo(peerPath).canonicalFilePath());
+            if ((outcome == 0 || outcome == 3) && !displayedSize().isValid()) {
+                const auto *source = leftTable->sourcePanel;
+                qWarning("Archive table: %d rows, size column %d, archive %d, bound %d, ready %d",
+                         leftTable->rowCount(), leftTable->columnForProperty(kpidSize),
+                         source->IsArcFolder(), source->GetFolder() == leftTable->textFolder,
+                         source->ShouldProcessNotifications());
+            }
             if (outcome == 0 || outcome == 3)
-                QTRY_COMPARE(leftPanel->findChild<FileTable *>("archiveTable")
-                                 ->model()
-                                 ->index(0, 2)
-                                 .data(QtPanelList::SortValueRole)
-                                 .toULongLong(),
-                             quint64(modified.size()));
+                QCOMPARE(displayedSize(), QVariant::fromValue(quint64(modified.size())));
         }
         responder.stop();
-        for (auto *widget : QApplication::topLevelWidgets())
-            if (widget->objectName() == "externalFileDetails")
-                widget->close();
     }
 };
 

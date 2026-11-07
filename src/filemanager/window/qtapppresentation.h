@@ -13,6 +13,7 @@ class QtAppPresentation final : public IQtAppPresentation {
     void Initialize(CApp &app) override;
     bool CreatePanel(CPanel &panel, unsigned index) override;
     CPanelCallback *PanelCallback(unsigned index) override;
+    bool AllowPanelFocusChange(unsigned index) const override;
     void PrepareFolderChange(unsigned index) override;
     void ExecuteCopy(bool move, bool copyToSame, unsigned sourceIndex, const QString &destination,
                      const CRecordVector<UInt32> &indices, QtCopyRoute route) override;

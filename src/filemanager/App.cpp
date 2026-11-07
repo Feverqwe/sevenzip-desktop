@@ -81,13 +81,17 @@ void CPanelCallbackImp::OnCopy(bool move, bool copyToSame) {
 }
 void CPanelCallbackImp::OnSetSameFolder() { _app->OnSetSameFolder(_index); }
 void CPanelCallbackImp::OnSetSubFolder() { _app->OnSetSubFolder(_index); }
-void CPanelCallbackImp::PanelWasFocused() {
-    _app->SetFocusedPanel(_index);
-    _app->RefreshTitlePanel(_index);
-}
+void CPanelCallbackImp::PanelWasFocused() { _app->NotifyPanelFocus(_index); }
 void CPanelCallbackImp::DragBegin() { _app->DragBegin(_index); }
 void CPanelCallbackImp::DragEnd() { _app->DragEnd(); }
 void CPanelCallbackImp::RefreshTitle(bool always) { _app->RefreshTitlePanel(_index, always); }
+
+void CApp::NotifyPanelFocus(unsigned index) {
+    if (_presentation && !_presentation->AllowPanelFocusChange(index))
+        return;
+    SetFocusedPanel(index);
+    RefreshTitlePanel(index);
+}
 
 void CApp::RefreshTitle(bool always) {
     if (_qtOperations.closed())

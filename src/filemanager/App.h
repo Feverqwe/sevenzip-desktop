@@ -60,6 +60,7 @@ class IQtAppPresentation {
     virtual void Initialize(CApp &app) = 0;
     virtual bool CreatePanel(CPanel &panel, unsigned index) = 0;
     virtual CPanelCallback *PanelCallback(unsigned index) = 0;
+    virtual bool AllowPanelFocusChange(unsigned) const { return true; }
     virtual void PrepareFolderChange(unsigned) {}
     virtual void ExecuteCopy(bool, bool, unsigned, const QString &, const CRecordVector<UInt32> &,
                              QtCopyRoute) {}
@@ -96,6 +97,7 @@ class CApp {
     void MoveSubWindows();
     HRESULT SwitchOnOffOnePanel();
     void SetFocusedPanel(unsigned index);
+    void NotifyPanelFocus(unsigned index);
     UString PrevTitle;
     void RefreshTitle(bool always = false);
     void RefreshTitlePanel(unsigned index, bool always = false);

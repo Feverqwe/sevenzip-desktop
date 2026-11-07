@@ -131,6 +131,11 @@ CPanelCallback *QtAppPresentation::PanelCallback(unsigned) {
     return nullptr;
 }
 
+bool QtAppPresentation::AllowPanelFocusChange(unsigned index) const {
+    // Native focus can return to the visible pane during a modal source call.
+    return !window_.panelProjectionDepth_ || window_.projectedPanel_ == index;
+}
+
 void QtAppPresentation::PrepareFolderChange(unsigned index) {
     window_.withPanelProjection(index, [this] {
         window_.cancelListPublication();
