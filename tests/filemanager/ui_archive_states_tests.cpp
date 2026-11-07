@@ -2,6 +2,7 @@
 #include "7zip/UI/GUI/ExtractRes.h"
 #include "archive/support/native_archive_fixture.h"
 #include "dialogs/copy/alias.h"
+#include "filemanager/properties/qtpropertieswindow.h"
 #include "filemanager/support/window_state_support.h"
 #include "localization/LangUtils.h"
 #include "localization/qtlangcontrols.h"
@@ -13,10 +14,12 @@
 #include "ui/progress/qtprogresscontrols.h"
 #include "ui/support/address_popup_support.h"
 #include "ui/support/layout_inspection.h"
+#include <QClipboard>
 #include <QLineEdit>
 #include <QProgressBar>
 #include <QScopeGuard>
 #include <QTreeWidget>
+#include <algorithm>
 #ifdef Q_OS_WIN
 #include "platform/support/native_properties_fixture.h"
 #endif
@@ -430,20 +433,44 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
         QVERIFY2(sheet.window && sheet.tabs && sheet.visible, qPrintable(sheet.diagnostic));
         QTRY_VERIFY(!IsWindow(sheet.window));
 #else
-        QStringList properties;
-        QTimer::singleShot(0, &window, [&] {
-            auto *dialog = window.findChild<QDialog *>("selectedPropertiesDialog");
-            QVERIFY(dialog);
-            auto *list = dialog->findChild<QTreeWidget *>("propertiesList");
-            QVERIFY(list);
-            for (int row = 0; row < list->topLevelItemCount(); ++row)
-                properties << list->topLevelItem(row)->text(1);
-            dialog->reject();
-        });
         action(window, "selectedPropertiesAction")->trigger();
-        QVERIFY(properties.contains(name));
-        QVERIFY(properties.contains(
-            QDir::fromNativeSeparators(QFileInfo(temp.path()).canonicalFilePath() + '/')));
+        const auto checkProperties = [&] {
+            auto *dialog = window.findChild<QtPropertiesWindow *>();
+            QVERIFY(dialog && dialog->isVisible());
+            auto *copy = dialog->findChild<QPushButton *>("propertiesCopyInformation");
+            QVERIFY(copy);
+            auto *clipboard = QApplication::clipboard();
+            clipboard->clear();
+            copy->click();
+            const QStringList properties = clipboard->text().split('\n');
+            QVERIFY(properties.contains(name));
+            QVERIFY(properties.contains("Location: " + QFileInfo(temp.path()).canonicalFilePath() +
+                                        '/'));
+            dialog->close();
+            QTRY_VERIFY(!window.findChild<QtPropertiesWindow *>());
+        };
+        checkProperties();
+        QTimer::singleShot(0, &window, [&] {
+            auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
+            QVERIFY(menu);
+            const auto items = menu->actions();
+            const auto properties = std::find_if(items.begin(), items.end(), [&](QAction *item) {
+                return item->property("nativeCommandID") ==
+                       action(window, "selectedPropertiesAction")->property("nativeCommandID");
+            });
+            if (properties == items.end()) {
+                menu->close();
+                QFAIL("The context menu has no Properties command");
+            }
+            QTest::mouseClick(menu, Qt::LeftButton, Qt::NoModifier,
+                              menu->actionGeometry(*properties).center());
+        });
+        QVERIFY(QMetaObject::invokeMethod(
+            view, "customContextMenuRequested", Qt::DirectConnection,
+            Q_ARG(
+                QPoint,
+                view->visualRect(view->model()->index(filesystemRow(window, name), 0)).center())));
+        checkProperties();
 #endif
         commands.clear();
         view->clearSelection();
