@@ -6,7 +6,6 @@
 #include "archive/password/archivepassword.h"
 #include "archive/resources/archiveinputpath.h"
 #include "archive/resources/qtarchivefileresource.h"
-#include "dialogs/messages/MessagesDialog.h"
 #include "filemanager/FormatUtils.h"
 #include "filemanager/panels/qtpanellocationtransaction.h"
 #include "filemanager/window/mainwindow.h"

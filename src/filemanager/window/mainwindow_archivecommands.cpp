@@ -7,7 +7,6 @@
 #include "archive/hashing/HashCalc.h"
 #include "archive/resources/qtarchivefileresource.h"
 #include "archive/resources/qtarchiveproperties.h"
-#include "dialogs/messages/MessagesDialog.h"
 #include "filemanager/window/mainwindow.h"
 #include "gui/UpdateGUI.h"
 #include "gui/resource2.h"

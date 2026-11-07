@@ -3,11 +3,12 @@
 #include "Common/StringConvert.h"
 #include "Windows/FileName.h"
 #include "archive/operations/ExtractingFilePath.h"
-#include "dialogs/messages/MessagesDialog.h"
+#include "dialogs/taskresult/qttaskresultdialog.h"
 #include "filemanager/App.h"
 #include "filemanager/panels/qtpaneldragmodel.h"
 #include "platform/temp/qtownedtempregistry.h"
 #include "ui/diagnostics/qtdiagnostictext.h"
+#include "ui/progress/ProgressDialog2.h"
 
 void CDataObject::SetTransfer(const CTargetTransferInfo &target) {
     m_Transfer_WasSet = false;
@@ -268,11 +269,22 @@ void CPanel::OnDrag(bool isRightButton) {
         res = dataObjectSpec->Copy_HRESULT;
     }
     if (!dataObjectSpec->Messages.IsEmpty()) {
-        CMessagesDialog messagesDialog;
-        messagesDialog.Messages = &dataObjectSpec->Messages;
-        messagesDialog.Create(GetParent());
-    }
-    if (res != S_OK && res != E_ABORT) {
+        QStringList lines;
+        FOR_VECTOR(i, dataObjectSpec->Messages)
+        lines.append(ToQString(dataObjectSpec->Messages[i]));
+        const char *summary =
+            QT_TRANSLATE_NOOP("QtTaskResultDialog", "The operation completed with messages.");
+        if (res == E_ABORT)
+            summary = QT_TRANSLATE_NOOP("QtTaskResultDialog", "The operation was cancelled.");
+        else if (res != S_OK) {
+            summary = QT_TRANSLATE_NOOP("QtTaskResultDialog", "The operation failed.");
+            lines.append(ToQString(HResultToMessage(res)));
+        }
+        disableNotify.Restore();
+        QtTaskResultDialog result(summary, lines.join('\n'), GetParent());
+        result.setAttribute(Qt::WA_DeleteOnClose, false);
+        result.exec();
+    } else if (res != S_OK && res != E_ABORT) {
         disableNotify.Restore();
         MessageBox_Error_HRESULT(res);
     }

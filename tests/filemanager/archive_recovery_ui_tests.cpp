@@ -202,9 +202,6 @@ class ArchiveRecoveryUiTests final : public QObject {
                     if (!TestProgressDialog::IsCloseButton(close))
                         continue;
                     messages = widget->findChild<QTreeWidget *>("IDL_PROGRESS_MESSAGES");
-                } else if (widget->objectName() == "operationMessagesDialog") {
-                    close = widget->findChild<QPushButton *>("IDOK");
-                    messages = widget->findChild<QTreeWidget *>("IDL_MESSAGE");
                 }
                 if (close) {
                     auto *status = widget->findChild<QLabel *>("IDT_PROGRESS_STATUS");

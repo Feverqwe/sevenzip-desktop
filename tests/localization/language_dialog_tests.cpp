@@ -3,7 +3,6 @@
 #include "dialogs/copy/CopyDialog.h"
 #include "dialogs/extract/ExtractDialog.h"
 #include "dialogs/listview/ListViewDialog.h"
-#include "dialogs/messages/MessagesDialog.h"
 #include "dialogs/overwrite/OverwriteDialog.h"
 #include "dialogs/password/PasswordDialog.h"
 #include "filemanager/ExtractCallback.h"
@@ -291,32 +290,6 @@ class LanguageDialogTests final : public QObject {
         for (int width : {700, 560}) {
             inspect(overwrite, "language-overwrite-en", width, 440);
         }
-    }
-    void modalMessagesPreserveRowsAcrossLanguageChanges() {
-        UStringVector values;
-        values.Add(L"message 密碼\nnext row");
-        CMessagesDialog messages;
-        messages.Messages = &values;
-        bool visited = false;
-        QTimer::singleShot(0, &messages, [&] {
-            const auto close = qScopeGuard([&] { messages.accept(); });
-            visited = true;
-            auto *list = messages.findChild<QTreeWidget *>("IDL_MESSAGE");
-            const int rows = list->topLevelItemCount();
-            QCOMPARE(rows, 2);
-            for (const char *name : {"ru", "-"}) {
-                language(name);
-                QCOMPARE(list->topLevelItemCount(), rows);
-                QCOMPARE(list->topLevelItem(0)->text(1), QString("message 密碼"));
-                QCOMPARE(list->headerItem()->text(1),
-                         QString(name) == "ru" ? QStringLiteral("Сообщение") : QString("Message"));
-                for (int width : {700, 560})
-                    inspect(messages, "language-messages-" + QString(name), width, 400);
-            }
-        });
-        QCOMPARE(messages.Create(), INT_PTR(IDOK));
-        QVERIFY(visited);
-        QVERIFY(!messages.isVisible());
     }
     void extractPreservesModesHistoryAndSecret() {
         CExtractDialog dialog("/initial path", {"/history"});

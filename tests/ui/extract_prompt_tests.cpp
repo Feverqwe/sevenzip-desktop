@@ -1,6 +1,5 @@
 #include "archive/operations/ZipRegistry.h"
 #include "archive/resources/virtualextractfilesystem.h"
-#include "dialogs/messages/MessagesDialog.h"
 #include "dialogs/overwrite/OverwriteDialog.h"
 #include "filemanager/ExtractCallback.h"
 #include "support/overwrite_reply.h"
@@ -205,82 +204,6 @@ class ExtractPromptTests final : public QObject {
             QFile file(fixture.filePath(name));
             QVERIFY(file.open(QIODevice::ReadOnly));
             QCOMPARE(file.readAll(), QByteArray("existing"));
-        }
-    }
-    void sourceMessagesModalLifetime_data() {
-        QTest::addColumn<int>("decision");
-        QTest::newRow("close") << 0;
-        QTest::newRow("enter") << 1;
-        QTest::newRow("escape") << 2;
-    }
-    void sourceMessagesModalLifetime() {
-        QFETCH(int, decision);
-        UStringVector lines;
-        lines.Add(L"diagnostic 密碼\nnext row\n");
-        QWidget owner;
-        owner.show();
-        CMessagesDialog dialog;
-        dialog.Messages = &lines;
-        bool visited = false;
-        QTimer::singleShot(0, &dialog, [&] {
-            const auto close = qScopeGuard([&] {
-                if (dialog.isVisible())
-                    dialog.reject();
-            });
-            visited = true;
-            QCOMPARE(QApplication::activeModalWidget(), &dialog);
-            QCOMPARE(dialog.parentWidget(), &owner);
-            QVERIFY(dialog.isVisible());
-            auto *list = dialog.findChild<QTreeWidget *>("IDL_MESSAGE");
-            QCOMPARE(list->topLevelItemCount(), 3);
-            const QStringList expected{QStringLiteral("diagnostic 密碼"), "next row", ""};
-            for (int i = 0; i < expected.size(); ++i) {
-                QCOMPARE(list->topLevelItem(i)->text(0), QString::number(i));
-                QCOMPARE(list->topLevelItem(i)->text(1), expected[i]);
-            }
-            dialog.resize(decision == 0 ? QSize(760, 450) : QSize(640, 380));
-            QApplication::processEvents();
-            auto *button = dialog.findChild<QPushButton *>("IDOK");
-            QVERIFY(UiInspection::fullyVisible(*list, dialog));
-            QVERIFY(UiInspection::fullyVisible(*button, dialog));
-            QVERIFY(UiInspection::separate(*list, *button, dialog));
-            QVERIFY(UiInspection::writeReport(
-                dialog, QString("messages-modal-%1").arg(QTest::currentDataTag())));
-            if (decision == 0)
-                button->click();
-            else
-                QTest::keyClick(list, decision == 1 ? Qt::Key_Return : Qt::Key_Escape);
-            QVERIFY(!dialog.isVisible());
-        });
-        const INT_PTR result = dialog.Create(&owner);
-        QVERIFY2(visited, "Source Create must retain the stack-owned diagnostic until dismissal");
-        QVERIFY(!dialog.isVisible());
-        QCOMPARE(result, INT_PTR(decision == 2 ? IDCANCEL : IDOK));
-        QCOMPARE(lines.Size(), unsigned(1));
-        QCOMPARE(QString::fromWCharArray(lines[0]), QStringLiteral("diagnostic 密碼\nnext row\n"));
-    }
-    void sourceMessagesRefreshOnEachOpening() {
-        UStringVector first, next;
-        first.Add(L"old diagnostic");
-        next.Add(L"new diagnostic 文件\ncontinued\n");
-        const UStringVector *inputs[]{&first, &next, nullptr};
-        const QList<QStringList> expected{
-            {"old diagnostic"}, {QStringLiteral("new diagnostic 文件"), "continued", ""}, {}};
-        CMessagesDialog dialog;
-        for (int opening = 0; opening < expected.size(); ++opening) {
-            dialog.Messages = inputs[opening];
-            bool visited = false;
-            QTimer::singleShot(0, &dialog, [&] {
-                const auto close = qScopeGuard([&] { dialog.accept(); });
-                visited = true;
-                auto *list = dialog.findChild<QTreeWidget *>("IDL_MESSAGE");
-                QCOMPARE(list->columnCount(), 2);
-                QCOMPARE(list->topLevelItemCount(), expected[opening].size());
-                for (int row = 0; row < expected[opening].size(); ++row)
-                    QCOMPARE(list->topLevelItem(row)->text(1), expected[opening][row]);
-            });
-            QCOMPARE(dialog.Create(), INT_PTR(IDOK));
-            QVERIFY(visited);
         }
     }
     void geometry() {

@@ -1,7 +1,6 @@
 #include "7zip/PropID.h"
 #include "archive/backend/archivebackend.h"
 #include "dialogs/copy/CopyDialog.h"
-#include "dialogs/messages/MessagesDialog.h"
 #include "dialogs/password/PasswordDialog.h"
 #include "filemanager/views/filetable.h"
 #include "filemanager/window/mainwindow.h"
@@ -206,11 +205,6 @@ class SparseImageUiTests final : public QObject {
             } else if (auto *copy = dynamic_cast<CopyDialog *>(dialogs.activeDialog())) {
                 copy->findChild<QLineEdit *>("copyDestination")->setText(output.path() + '/');
                 copy->accept();
-            } else if (auto *messages = dynamic_cast<CMessagesDialog *>(dialogs.activeDialog())) {
-                if (messages->Messages)
-                    FOR_VECTOR(i, *messages->Messages)
-                errors += QString::fromWCharArray((*messages->Messages)[i]);
-                messages->accept();
             } else if (auto *message = qobject_cast<QMessageBox *>(dialogs.activeDialog())) {
                 errors += message->text() + message->informativeText();
                 message->accept();

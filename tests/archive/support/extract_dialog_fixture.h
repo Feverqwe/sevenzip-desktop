@@ -4,7 +4,6 @@
 #include "Common/StringConvert.h"
 #include "archive/resources/qtarchivebatchextract.h"
 #include "dialogs/extract/ExtractDialog.h"
-#include "dialogs/messages/MessagesDialog.h"
 #include "gui/ExtractGUI.h"
 #include "platform/shell/qtshellarchiveservices.h"
 #include <QApplication>
@@ -35,8 +34,6 @@ Run(ArchiveBackend &backend, const QStringList &archives, const QString &destina
         // completion resumes. Preserve the native Result/CallbackOK below.
         else if (auto *box = qobject_cast<QMessageBox *>(widget))
             box->accept();
-        else if (auto *messages = dynamic_cast<CMessagesDialog *>(widget))
-            messages->accept();
         else if (widget->objectName() == "progressDialog") {
             auto *close = widget->findChild<QPushButton *>("IDCANCEL");
             if (close && close->property("languageID").toUInt() == IDS_CLOSE)

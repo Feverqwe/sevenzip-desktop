@@ -2,14 +2,17 @@
 #include "archive/backend/archivebackend.h"
 #include "archive/resources/qtarchivefileresource.h"
 #include "archive/support/native_archive_fixture.h"
+#include "dialogs/taskresult/qttaskresultdialog.h"
 #include "filemanager/App.h"
 #include "filemanager/panels/qtpaneldragtransport.h"
 #include "filemanager/panels/qtpanelfolder.h"
 #include "filemanager/providers/FSFolder.h"
 #include "platform/temp/qtownedtempregistry.h"
+#include "support/progress_dialog.h"
 #include <QDrag>
 #include <QFile>
 #include <QMessageBox>
+#include <QPlainTextEdit>
 #include <QProcess>
 #include <QStandardPaths>
 #include <QTableWidget>
@@ -158,6 +161,17 @@ class DragArchiveTests : public QObject {
             if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
                 errors.append(box->text());
                 box->accept();
+            } else if (auto *result =
+                           qobject_cast<QtTaskResultDialog *>(QApplication::activeModalWidget())) {
+                errors.append(
+                    result->findChild<QPlainTextEdit *>("taskResultReport")->toPlainText());
+                result->reject();
+            } else if (auto *progress =
+                           TestProgressDialog::ResultWindow(QApplication::activeModalWidget())) {
+                const QString report = TestProgressDialog::ReportText(*progress);
+                if (!report.isEmpty())
+                    errors.append(report);
+                TestProgressDialog::CloseResult(*progress);
             }
         });
         responder.start(1);
@@ -300,6 +314,17 @@ class DragArchiveTests : public QObject {
             if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
                 errors.append(box->text());
                 box->accept();
+            } else if (auto *result =
+                           qobject_cast<QtTaskResultDialog *>(QApplication::activeModalWidget())) {
+                errors.append(
+                    result->findChild<QPlainTextEdit *>("taskResultReport")->toPlainText());
+                result->reject();
+            } else if (auto *progress =
+                           TestProgressDialog::ResultWindow(QApplication::activeModalWidget())) {
+                const QString report = TestProgressDialog::ReportText(*progress);
+                if (!report.isEmpty())
+                    errors.append(report);
+                TestProgressDialog::CloseResult(*progress);
             }
         });
         responder.start(1);

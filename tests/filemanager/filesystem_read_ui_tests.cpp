@@ -669,16 +669,6 @@ class FilesystemReadUiTests final : public QObject, protected NtfsTestSupport::F
                         return;
                     }
                 }
-                if (widget->isVisible() && widget->objectName() == "operationMessagesDialog") {
-                    const auto *messages = widget->findChild<QTreeWidget *>("IDL_MESSAGE");
-                    if (copyingIncomplete && messages && messages->topLevelItemCount() > 0)
-                        ++incompleteCopyErrors;
-                    else
-                        unexpectedErrors.append("Unexpected extraction diagnostics");
-                    if (auto *close = widget->findChild<QPushButton *>("IDOK"))
-                        close->click();
-                    return;
-                }
             }
             QMessageBox *message = nullptr;
             for (QWidget *widget : QApplication::topLevelWidgets())

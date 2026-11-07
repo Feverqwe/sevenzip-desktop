@@ -212,9 +212,6 @@ void DriveOperationDialogs() {
             const auto button = qEnvironmentVariable("SEVENZIP_OPERATION_OVERWRITE");
             if (auto *choice = widget->findChild<QPushButton *>(button))
                 QTimer::singleShot(0, choice, &QPushButton::click);
-        } else if (widget->objectName() == "operationMessagesDialog") {
-            auto *close = widget->findChild<QPushButton *>("IDOK");
-            QTimer::singleShot(0, close, &QPushButton::click);
         } else if (auto *message = qobject_cast<QMessageBox *>(widget)) {
             QTimer::singleShot(0, message, [message] {
                 if (auto *ok = message->button(QMessageBox::Ok))
