@@ -1,3 +1,5 @@
+#include "7zip/UI/GUI/ExtractRes.h"
+
 #include "archive/agent/Agent.h"
 #include "archive/codecs/archivecodeccatalog.h"
 #include "archive/support/source_extract_fixture.h"
@@ -7,6 +9,7 @@
 #include "filemanager/views/filetable.h"
 #include "localization/LangUtils.h"
 #include "support/panel_keys.h"
+#include "support/progress_dialog.h"
 #include "ui/support/layout_inspection.h"
 #include <QScopeGuard>
 #include <QScrollArea>
@@ -57,6 +60,7 @@ class NativeArchiveAdsCopyTests final : public QObject, protected MainWindowTest
         source.setFocus();
         bool seen = false, overwrite = false, deleteQuestion = false;
         QStringList errors;
+        QStringList reports;
         QTimer driver;
         connect(&driver, &QTimer::timeout, &window, [&] {
             if (auto *dialog = window.findChild<CopyDialog *>("copyDialog");
@@ -97,6 +101,15 @@ class NativeArchiveAdsCopyTests final : public QObject, protected MainWindowTest
                 outcome == DialogCancel ? dialog->reject() : dialog->accept();
             }
             for (auto *widget : QApplication::topLevelWidgets()) {
+                if (!widget->isVisible())
+                    continue;
+                if (auto *result = TestProgressDialog::ResultWindow(widget)) {
+                    const QString report = TestProgressDialog::ReportText(*result);
+                    if (!report.isEmpty())
+                        reports << report;
+                    TestProgressDialog::CloseResult(*result);
+                    continue;
+                }
                 if (auto *confirmation = dynamic_cast<QtDeleteConfirmation *>(widget);
                     confirmation && confirmation->isVisible()) {
                     deleteQuestion = true;
@@ -123,10 +136,18 @@ class NativeArchiveAdsCopyTests final : public QObject, protected MainWindowTest
         QVERIFY(seen);
         QCOMPARE(overwrite, outcome == Skip || outcome == OverwriteCancel);
         QVERIFY(!deleteQuestion);
-        if (outcome == UnsupportedMove)
-            QVERIFY(!errors.isEmpty());
-        else
+        if (outcome == UnsupportedMove) {
+            QVERIFY(!errors.isEmpty() || !reports.isEmpty());
+        } else {
             QVERIFY2(errors.isEmpty(), qPrintable(errors.join('\n')));
+            const QString report = reports.join('\n');
+            if (outcome == Skip) {
+                QVERIFY(report.normalized(QString::NormalizationForm_C).contains(name));
+                QVERIFY(report.contains(ToQString(LangString(IDS_PROGRESS_SKIPPING))));
+            } else {
+                QVERIFY2(report.isEmpty(), qPrintable(report));
+            }
+        }
     }
 
   private slots:
