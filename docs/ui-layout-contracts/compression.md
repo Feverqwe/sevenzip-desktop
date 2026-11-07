@@ -12,7 +12,8 @@ visible above the scrolling form as separate editable rows with leading labels.
 Destination edits use the existing source path resolver. Browse selects a folder
 through the existing folder picker, retaining the name and format; history can
 still restore the source folder/name/format split.
-Browse opens in the resolved parent folder of the archive. When the name field
+Browse opens in the resolved parent folder of the archive, or its nearest
+existing ancestor. When the name field
 contains a relative or absolute path, choosing a folder moves the archive name
 to that folder. Cancelling preserves the path as entered.
 Switching formats keeps the destination folder, including a folder typed

@@ -465,6 +465,7 @@ class CompressionPathTests final : public QObject {
         QTest::newRow("filename") << QString("filename");
         QTest::newRow("absolute-path") << QString("absolute");
         QTest::newRow("relative-path") << QString("relative");
+        QTest::newRow("missing-folder") << QString("missing");
     }
     void destinationPickerRetainsNameAndCancelDraft() {
         QFETCH(QString, form);
@@ -482,7 +483,8 @@ class CompressionPathTests final : public QObject {
         auto *format = dialog.findChild<QComboBox *>("archiveFormat");
         const QString draft = QStringLiteral("имя with spaces 空.7z");
         QVERIFY(QDir(original.path()).mkdir("nested"));
-        folder->setText(original.path());
+        folder->setText(form == "missing" ? original.filePath("nested/not created/deeper")
+                                          : original.path());
         const QString entered = form == "absolute"
                                     ? QDir::toNativeSeparators(original.filePath(draft))
                                 : form == "relative" ? "nested/" + draft
@@ -505,8 +507,9 @@ class CompressionPathTests final : public QObject {
                             picker->reject();
                     });
                     QCOMPARE(picker->fileMode(), QFileDialog::Directory);
-                    const QString initial =
-                        form == "relative" ? original.filePath("nested") : original.path();
+                    const QString initial = form == "relative" || form == "missing"
+                                                ? original.filePath("nested")
+                                                : original.path();
                     QCOMPARE(picker->directory().canonicalPath(),
                              QFileInfo(initial).canonicalFilePath());
                     if (accept) {

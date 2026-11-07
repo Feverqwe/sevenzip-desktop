@@ -28,6 +28,7 @@
 #include <QComboBox>
 #include <QDir>
 #include <QFileDialog>
+#include <QFileInfo>
 #include <QKeyEvent>
 #include <QLabel>
 #include <QLineEdit>
@@ -61,6 +62,21 @@ bool NeedsSourceBrowser(const UString &path) {
         return true;
 #endif
     return path.Len() >= 260;
+}
+
+QString ExistingPickerDirectory(const QString &requested) {
+    if (requested.isEmpty())
+        return {};
+    QString path = QDir::cleanPath(QFileInfo(requested).absoluteFilePath());
+    for (;;) {
+        const QFileInfo entry(path);
+        if (entry.isDir())
+            return path;
+        const QString parent = entry.absolutePath();
+        if (parent == path)
+            return {};
+        path = parent;
+    }
 }
 
 void MessageBox_HResError(QWidget *wnd, HRESULT errorCode, const UString &name) {
@@ -460,7 +476,8 @@ bool MyBrowseForFolder(QWidget *owner, const UString &title, const UString &path
         resultPath = dialog.FilePath;
         return true;
     }
-    QFileDialog dialog(owner, ToQString(title), ToQString(path));
+    QFileDialog dialog(owner, ToQString(title),
+                       NSourceBrowse::ExistingPickerDirectory(ToQString(path)));
     dialog.setFileMode(QFileDialog::Directory);
     dialog.setOption(QFileDialog::ShowDirsOnly);
     QtUseContextDialogModality(dialog);
