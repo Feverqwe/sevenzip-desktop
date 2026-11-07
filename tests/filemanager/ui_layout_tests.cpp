@@ -66,44 +66,6 @@ class MainWindowLayoutTests : public QObject {
         ReloadLang(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
     }
 
-    void splitAndCombineCommandsFollowSelection() {
-        QTemporaryDir temp;
-        QVERIFY(temp.isValid());
-        for (const QString &name : {"file.bin", "file.bin.001", "file.bin.002"}) {
-            QFile file(temp.filePath(name));
-            QVERIFY(file.open(QIODevice::WriteOnly));
-            file.write("part");
-        }
-        const QString previous = QDir::currentPath();
-        QVERIFY(QDir::setCurrent(temp.path()));
-        MainWindow window;
-        auto *table = window.findChild<FileTable *>("archiveTable");
-        auto *split = window.findChild<QAction *>("splitFileAction");
-        auto *combine = window.findChild<QAction *>("combineFilesAction");
-        QVERIFY(table && split && combine);
-        QVERIFY(!split->isEnabled());
-        QVERIFY(!combine->isEnabled());
-        for (int row = 0; row < table->rowCount(); ++row) {
-            if (table->model()->index(row, 0).data().toString() == "file.bin.001") {
-                table->selectRow(row);
-                break;
-            }
-        }
-        QVERIFY(split->isEnabled());
-        QVERIFY(combine->isEnabled());
-        table->clearSelection();
-        for (int row = 0; row < table->rowCount(); ++row) {
-            if (table->model()->index(row, 0).data().toString() == "file.bin") {
-                table->selectRow(row);
-                break;
-            }
-        }
-        QVERIFY(split->isEnabled());
-        QVERIFY(!combine->isEnabled());
-        QVERIFY(QDir::setCurrent(previous));
-        QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
-    }
-
     void extractDialogMatches7zfmControls() {
         ExtractDialog dialog("/initial", {"/previous", "/older"});
         QCOMPARE(dialog.windowTitle(), QString("Extract"));

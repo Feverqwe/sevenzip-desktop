@@ -18,7 +18,6 @@ class QtWindowStatusBar;
 #include "filemanager/window/qtguioutputrefresh.h"
 #include "fileops/scanner/filesystemscanner.h"
 #include "fileops/transfer/filetransferoperation.h"
-#include "fileops/volumes/volumeoperations.h"
 #include "settings/dialog_alias.h"
 #include "ui/progress/qtprogresstransport.h"
 
@@ -115,7 +114,6 @@ class MainWindow : public QMainWindow {
     DeviceSelectionServices deviceServices_;
     QtWindowStatusBar *statusStrip_ = nullptr;
     friend class QtAppPresentation;
-    friend class QtVolumeWindowServices;
     friend class QtFileManagerWindowServices;
     friend class QtFileManagerCommands;
     friend class QtFileManagerDrag;
@@ -197,10 +195,6 @@ class MainWindow : public QMainWindow {
     ~MainWindow() override;
 
   private:
-    void startVolume(VolumeOperation::Mode mode);
-    void launchVolume(unsigned index, VolumeOperation *operation, const UString &title,
-                      const QString &source, const QString &destination, UInt64 totalSize,
-                      std::function<void()> completion);
     void showItemContextMenu(unsigned owner, QAbstractItemView *view, const QPoint &pos);
     void applySortMode(bool enableSorting = false);
     void sortIndicatorChanged(unsigned panel, int column, Qt::SortOrder order,
@@ -416,8 +410,6 @@ class MainWindow : public QMainWindow {
     QAction *move_ = nullptr;
     QAction *remove_ = nullptr;
     QAction *rename_ = nullptr;
-    QAction *split_ = nullptr;
-    QAction *combine_ = nullptr;
     QPointer<QtLocalFileTask> fileTask_;
     QPointer<QDialog> overwriteDialog_;
     QAction *viewFile_ = nullptr;

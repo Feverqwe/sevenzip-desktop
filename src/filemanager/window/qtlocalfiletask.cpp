@@ -5,7 +5,6 @@
 #include "dialogs/overwrite/OverwriteDialog.h"
 #include "filemanager/panels/Panel.h"
 #include "fileops/transfer/filetransferoperation.h"
-#include "fileops/volumes/volumeoperations.h"
 #include "localization/qtlangcontrols.h"
 #include "settings/ViewSettings.h"
 #include "ui/lifecycle/qttaskpresentation.h"
@@ -107,22 +106,6 @@ QtLocalFileTask::QtLocalFileTask(FileTransferOperation &worker, const QString &t
                 Finish(success, worker.resultKind() == FileTransferOperation::ResultKind::Canceled,
                        message,
                        worker.resultKind() == FileTransferOperation::ResultKind::PartialSuccess);
-            });
-}
-
-QtLocalFileTask::QtLocalFileTask(VolumeOperation &worker, const QString &title,
-                                 const QString &detail, quint64 total)
-    : QtLocalFileTask(worker, title, detail, [&worker] { worker.cancel(); }) {
-    progress_->MainAddTitle = ToUString(title);
-    progress_->MainAddTitle.Add_Space();
-    progress_->Sync.Set_TitleFileName(ToUString(QFileInfo(detail).fileName()));
-    progress_->Sync.Set_FilePath(ToUString(detail));
-    progress_->Sync.Set_NumBytesTotal(total);
-    worker.attachProgress(progress_->Sync);
-    connect(&worker, &VolumeOperation::result, this,
-            [this, &worker](bool success, const QString &message) {
-                Finish(success, worker.resultKind() == VolumeOperation::ResultKind::Canceled,
-                       message);
             });
 }
 

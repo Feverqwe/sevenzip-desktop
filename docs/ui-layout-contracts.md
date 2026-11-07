@@ -90,7 +90,6 @@ observable requirements change; keep implementation history in the
 | Selected properties | [Спецификация](ui-layout-contracts/dialogs.md#selected-properties) |
 | GUI early error messages | [Спецификация](ui-layout-contracts/dialogs.md#gui-early-error-messages) |
 | Shared name/mask dialog | [Спецификация](ui-layout-contracts/dialogs.md#shared-namemask-dialog) |
-| Split and Combine dialogs | [Спецификация](ui-layout-contracts/dialogs.md#split-and-combine-dialogs) |
 | Copy/Move dialog | [Спецификация](ui-layout-contracts/copy-move.md#copymove-dialog) |
 | Extract dialog | [Спецификация](ui-layout-contracts/extraction.md#extract-dialog) |
 | Create archive dialog | [Спецификация](ui-layout-contracts/compression.md#create-archive-dialog) |

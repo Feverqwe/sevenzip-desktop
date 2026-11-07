@@ -19,7 +19,6 @@ enum {
     kMenuCmdID_Toolbar_End
 };
 class IQtFileManagerMenuCommandServices;
-class IQtVolumeServices;
 
 struct QtArchiveTransferResult {
     HRESULT Result;
@@ -106,8 +105,6 @@ class CApp {
     void OnCopy(bool move, bool copyToSame, unsigned index);
     void CompleteCopy();
     bool RefreshCopyPanel(unsigned index);
-    void Split(IQtVolumeServices &services);
-    void Combine(IQtVolumeServices &services);
     QtArchiveTransferResult CopyArchiveToArchive(unsigned srcPanelIndex,
                                                  const CRecordVector<UInt32> &indices,
                                                  UStringVector *messages);

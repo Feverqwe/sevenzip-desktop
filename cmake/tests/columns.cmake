@@ -79,14 +79,6 @@
     add_test(NAME resource_strings_generator COMMAND "${CMAKE_COMMAND}"
         "-DPROJECT_ROOT=${CMAKE_CURRENT_SOURCE_DIR}" "-DTEST_ROOT=${CMAKE_CURRENT_BINARY_DIR}/resource-strings-tests"
         -P "${CMAKE_CURRENT_SOURCE_DIR}/tests/tooling/rc_strings_tests.cmake")
-    qt_add_executable(volume_workflow_tests tests/fileops/volume_workflow_tests.cpp)
-    target_link_libraries(volume_workflow_tests PRIVATE sevenzip_layout_inspection)
-    target_link_libraries(volume_workflow_tests PRIVATE sevenzip_window)
-    target_include_directories(volume_workflow_tests PRIVATE src tests)
-    target_link_libraries(volume_workflow_tests PRIVATE sevenzip_panel Qt6::Test)
-    add_test(NAME volume_workflow COMMAND volume_workflow_tests -silent)
-    set_tests_properties(volume_workflow PROPERTIES ENVIRONMENT
-        "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/volume-workflow-settings.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
     qt_add_executable(panel_sort_tests tests/filemanager/panel_sort_tests.cpp)
     target_link_libraries(panel_sort_tests PRIVATE sevenzip_layout_inspection)
     target_link_libraries(panel_sort_tests PRIVATE sevenzip_window)

@@ -68,8 +68,6 @@ void QtFileManagerCommands::AttachFileActions() {
     Bind(w.copy_, IDM_COPY_TO);
     Bind(w.move_, IDM_MOVE_TO);
     Bind(w.remove_, IDM_DELETE);
-    Bind(w.split_, IDM_SPLIT);
-    Bind(w.combine_, IDM_COMBINE);
     Bind(w.properties_, IDM_PROPERTIES);
     Bind(w.findChild<QAction *>("commentAction"), IDM_COMMENT);
     Bind(w.findChild<QAction *>("linkAction"), IDM_LINK);

@@ -9,8 +9,7 @@ target_link_libraries(sevenzip_window
     PRIVATE
         sevenzip_main_window sevenzip_native_menu_presentation sevenzip_panel_context_menu
         sevenzip_compression_ui
-        sevenzip_panel_selection sevenzip_file_transfer sevenzip_filesystem_scan
-        sevenzip_panel_split sevenzip_split_dialog sevenzip_volume_operations)
+        sevenzip_panel_selection sevenzip_file_transfer sevenzip_filesystem_scan)
 
 # Register the build-only group after all test consumers have been declared.
 function(sevenzip_add_window_test_target)

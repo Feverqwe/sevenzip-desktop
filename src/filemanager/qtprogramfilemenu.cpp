@@ -46,8 +46,6 @@ QList<QAction *> QtGroupFileCommands(QMenu &menu, bool contextMenu) {
             case IDM_LINK:
                 create.append(action);
                 break;
-            case IDM_SPLIT:
-            case IDM_COMBINE:
             case IDM_COMMENT:
             case IDM_ALT_STREAMS:
                 rare.append(action);

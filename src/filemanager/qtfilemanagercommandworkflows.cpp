@@ -90,8 +90,6 @@ void QtFileManagerCommands::Delete(bool toRecycleBin) {
 void QtFileManagerCommands::CalculateCrc(const char *method) {
     window_.calculateHash(QString::fromLatin1(method));
 }
-void QtFileManagerCommands::Split() { window_.startVolume(VolumeOperation::Mode::Split); }
-void QtFileManagerCommands::Combine() { window_.startVolume(VolumeOperation::Mode::Combine); }
 void QtFileManagerCommands::Properties() { window_.showSelectedProperties(); }
 void QtFileManagerCommands::CreateFolder() {
     const unsigned index = window_.app_.GetFocusedPanelIndex();

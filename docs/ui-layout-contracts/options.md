@@ -190,13 +190,6 @@ the original Error Type row presents the rejected native handler while the
 archive's Type remains the accepted handler. The same properties list remains
 fully visible at540×360 and360×240. This checks values/grouping/geometry, not
 rendered Windows pixel parity.
-Split confirmation reference: pinned PanelSplitFile.cpp's IDs7304/7305 and
-MB_YESNOCANCEL. `volume_workflow` checks original EN/RU100-part text and decisions
-with normal1100×640/compact640×380 main windows. Twelve
-`language-split-confirm-{en|ru}-{1100|640}-{1|2|3}.json` reports show the Qt managed
-400×116 popup with full message and Yes/No/Cancel exposed on macOS. QMessageBox
-ignores its title on macOS; Windows/Linux retain the title check but their
-runtime and rendered parity remain unverified.
 Archive preview-limit is a local bounded-viewer integration message, with no
 equivalent native bounded-editor resource. `language_archive_command` checks
 EN→RU→EN text/buttons at main-window1100×640/640×380; four

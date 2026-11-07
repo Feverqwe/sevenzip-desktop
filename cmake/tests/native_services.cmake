@@ -49,7 +49,7 @@
     set_tests_properties(disclosure_accessibility PROPERTIES TIMEOUT 15
         ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
     qt_add_executable(context_dialog_tests tests/ui/context_dialog_tests.cpp)
-    target_link_libraries(context_dialog_tests PRIVATE sevenzip_layout_inspection sevenzip_split_dialog)
+    target_link_libraries(context_dialog_tests PRIVATE sevenzip_layout_inspection)
     target_include_directories(context_dialog_tests PRIVATE tests)
     target_link_libraries(context_dialog_tests PRIVATE sevenzip_panel Qt6::Test)
     if(APPLE)
@@ -74,15 +74,6 @@
     set_tests_properties(source_browse_dialog PROPERTIES TIMEOUT 30 ENVIRONMENT
         "QT_QPA_PLATFORM=offscreen;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
     set_tests_properties(combo_dialog PROPERTIES TIMEOUT 30 ENVIRONMENT
-        "QT_QPA_PLATFORM=offscreen;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
-    qt_add_executable(volume_dialog_tests
-        tests/fileops/volume_dialog_tests.cpp
-        tests/support/split_dialog_prompt.cpp)
-    target_link_libraries(volume_dialog_tests PRIVATE sevenzip_layout_inspection sevenzip_panel sevenzip_panel_split sevenzip_split_dialog)
-    target_include_directories(volume_dialog_tests PRIVATE src tests)
-    target_link_libraries(volume_dialog_tests PRIVATE Qt6::Test)
-    add_test(NAME volume_dialog COMMAND volume_dialog_tests -silent)
-    set_tests_properties(volume_dialog PROPERTIES ENVIRONMENT
         "QT_QPA_PLATFORM=offscreen;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
     qt_add_executable(filesystem_operations_tests tests/ui/filesystem_operations_tests.cpp
         tests/fileops/support/filedeleteoperation.cpp tests/fileops/support/filedeleteoperation.h)

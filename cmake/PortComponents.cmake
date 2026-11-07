@@ -106,7 +106,6 @@ sevenzip_add_port_component(sevenzip_main_window src/filemanager/window/mainwind
     src/filemanager/window/mainwindow_selection.cpp
     src/filemanager/window/mainwindow_selectionpaths.cpp
     src/filemanager/window/mainwindow_twopanel.cpp
-    src/filemanager/window/mainwindow_volumes.cpp
     src/filemanager/panels/PanelKey.cpp
     src/filemanager/views/filepanelmodel.cpp src/filemanager/views/filepanelmodel.h
     src/filemanager/views/filerowdelegate.cpp
@@ -155,21 +154,12 @@ sevenzip_add_port_component(sevenzip_agent src/archive/agent/Agent.h
     src/archive/agent/Agent.cpp src/archive/agent/AgentProxy.cpp src/archive/agent/AgentDirectory.cpp)
 sevenzip_add_port_component(sevenzip_panel_selection src/filemanager/panels/PanelSelect.h
     src/filemanager/panels/PanelSelect.cpp)
-sevenzip_add_port_component(sevenzip_split_dialog src/dialogs/split/SplitDialog.h
-    src/dialogs/split/SplitDialog.cpp)
-sevenzip_add_port_component(sevenzip_panel_split src/fileops/volumes/nativevolumeworker.h
-    src/fileops/volumes/nativevolumeworker.cpp
-    src/filemanager/panels/PanelSplitFile.cpp src/fileops/volumes/qtvolumeprogress.h src/fileops/volumes/qtvolumeprogress.cpp
-    src/fileops/volumes/qtvolumeio.h src/fileops/volumes/qtvolumeio.cpp src/fileops/volumes/qtvolumeservices.h)
 sevenzip_add_port_component(sevenzip_file_transfer src/fileops/transfer/filetransferoperation.h
     src/fileops/transfer/filetransferoperation.cpp src/fileops/transfer/qtfiletransfertransaction.cpp
     src/fileops/transfer/qtfiletransfertransaction.h src/fileops/transfer/qtfiletransfercopy.cpp)
 target_link_libraries(sevenzip_file_transfer PRIVATE sevenzip_overwrite_question)
 sevenzip_add_port_component(sevenzip_filesystem_scan src/fileops/scanner/filesystemscanner.h
     src/fileops/scanner/filesystemscanner.cpp)
-sevenzip_add_port_component(sevenzip_volume_operations src/fileops/volumes/qtvolumetransaction.h
-    src/fileops/volumes/qtvolumetransaction.cpp src/fileops/volumes/volumeoperations.h
-    src/fileops/volumes/volumeoperations.cpp)
 
 # Archive resources in this library call the typed backend even when a consumer
 # only opens an options page. Carry that implementation in the resource target

@@ -215,10 +215,10 @@ void CFileMenu::Load(IQtFileMenuServices &destMenu, unsigned startPos) {
             if (!programMenu && item.wID == IDCLOSE)
                 continue;
             if (item.wID == IDM_DIFF || (item.wID >= IDM_VER_EDIT && item.wID <= IDM_VER_DIFF) ||
-                item.wID == IDM_BENCHMARK || item.wID == IDM_BENCHMARK2)
+                item.wID == IDM_BENCHMARK || item.wID == IDM_BENCHMARK2 || item.wID == IDM_SPLIT ||
+                item.wID == IDM_COMBINE)
                 continue;
-            bool isOneFsFile = (isFsFolder && numItems == 1 && allAreFiles);
-            bool disable = (!isOneFsFile && (item.wID == IDM_SPLIT || item.wID == IDM_COMBINE));
+            bool disable = false;
             if (readOnly) {
                 switch (item.wID) {
                 case IDM_RENAME:

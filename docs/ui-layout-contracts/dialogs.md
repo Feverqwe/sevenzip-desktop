@@ -288,45 +288,6 @@ the native AddString behavior is adapted by restoring initial edit text after
 Qt populates the combo. Windows rendering was unavailable; geometry establishes
 structure/usability on the tested macOS Qt platform.
 
-## Split and Combine dialogs
-
-Reference: upstream `0766b733fe3e06dd2a7f9a3cfbf2108ac73abd17`,
-`CPP/7zip/UI/FileManager/SplitDialog.rc`, `SplitDialog.cpp::{OnInit, OnOK,
-OnButtonSetPath}`, and `PanelSplitFile.cpp::CApp::Combine` with `CopyDialog.rc`.
-Implemented views: `SplitDialog.cpp` and the existing `CopyDialog.cpp`.
-
-- Split puts the destination label above its editable combo, with Browse on
-  the right. The volume-size label and editable preset combo follow below.
-  The source filename is appended to the window title, as in OnInit.
-- The source initial client template is304×112DLU. The volume combo remains
-  left-aligned at96DLU, including after resize; Browse uses20DLU width with a
-  native minimum hit target and the source `...` caption. Only the destination
-  combo expands horizontally.
-  Font mapping and Qt minimum sizes protect labels/footer on each platform.
-- OK/Cancel remain at the bottom. Invalid volume input opens the source
-  Critical/7-Zip/OK modal message and keeps Split open, including accept().
-  OK or Escape dismisses only the message; raw input remains available for retry.
-- At constrained height the Split form scrolls independently of its completion
-  buttons. Keyboard traversal reveals focused fields without moving the footer.
-- Combine uses the original shared Copy dialog: destination, Browse,
-  read-only scrolling summary and footer. The summary lists the count and
-  size, source prefix, first two names, ellipsis when needed and final name.
-- `volume_dialog` checks normal/compact Split at 480×240 and 340×240 in
-  normal/error states, and Combine at 480×250 and 340×250 with 2/3/5 parts.
-  It writes JSON and verifies order, reachable controls, fitted labels,
-  separated path/Browse and separate OK/Cancel.
-
-Qt layouts replace OnSize arithmetic; Qt native folder browsing replaces
-MyBrowseForFolder. The earlier inline-error adaptation is removed2026-10-10;
-no extra error control exists in the source resource. Separate current-build
-message JSON checks Critical/plain text/OK and native auto-fit; macOS ignores
-its caption. `language_dialog` also checks English/Russian prompts and raw input
-across language changes. Windows volume/language consumers use native QPA/fonts
-and the existing UI resource lock. The original parser and partial-failure
-vector remain authoritative; invalid submission starts no operation or directory.
-Reports establish structure/usability on macOS; a rendered Windows reference
-was unavailable and pixel-level parity remains unverified.
-
 ## Progress dialog and modal lifecycle
 
 Reference: upstream `0766b733fe3e06dd2a7f9a3cfbf2108ac73abd17`,

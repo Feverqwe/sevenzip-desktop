@@ -18,7 +18,7 @@
 #include <thread>
 
 namespace {
-class CompletingVolume final : public VolumeOperation {
+class CompletingTransfer final : public FileTransferOperation {
     QSemaphore &started_;
     QSemaphore &finish_;
     void run() override {
@@ -28,9 +28,8 @@ class CompletingVolume final : public VolumeOperation {
     }
 
   public:
-    CompletingVolume(QSemaphore &started, QSemaphore &finish)
-        : VolumeOperation(Mode::Split, QString(), QString(), 1), started_(started),
-          finish_(finish) {}
+    CompletingTransfer(QSemaphore &started, QSemaphore &finish)
+        : FileTransferOperation({}, {}, false), started_(started), finish_(finish) {}
 };
 } // namespace
 
@@ -64,10 +63,6 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
                 copy->cancel();
                 copy->wait();
             }
-            if (auto *volume = task->findChild<VolumeOperation *>()) {
-                volume->cancel();
-                volume->wait();
-            }
         }
         QTRY_VERIFY(QtLocalFileTask::Active().isEmpty());
         QApplication::clipboard()->clear();
@@ -80,8 +75,8 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         window.show();
         QVERIFY(WindowActivation::waitForActive(window));
         QSemaphore started, finish;
-        QPointer<CompletingVolume> worker = new CompletingVolume(started, finish);
-        QPointer<QtLocalFileTask> task = new QtLocalFileTask(*worker, "Split", "source 空", 1);
+        QPointer<CompletingTransfer> worker = new CompletingTransfer(started, finish);
+        QPointer<QtLocalFileTask> task = new QtLocalFileTask(*worker, "Copy", "source 空");
         task->BindOwner(*table(window)->sourcePanel, window);
         const auto settle = qScopeGuard([&] {
             finish.release();
@@ -347,19 +342,19 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         QVERIFY(!QFileInfo::exists(QDir(destination).filePath("source.txt")));
         QVERIFY(peer.isVisible());
     }
-    void lateStopDoesNotHideVolumeFailure_data() {
+    void lateStopDoesNotHideTransferFailure_data() {
         QTest::addColumn<bool>("nativeQuestion");
         QTest::newRow("ready") << false;
         QTest::newRow("native-question-without-widget-modal") << true;
     }
-    void lateStopDoesNotHideVolumeFailure() {
+    void lateStopDoesNotHideTransferFailure() {
         QFETCH(bool, nativeQuestion);
         QTemporaryDir fixture;
-        auto *worker = new VolumeOperation(VolumeOperation::Mode::Split,
-                                           fixture.filePath("missing input"), fixture.path(), 4);
-        auto *task = new QtLocalFileTask(*worker, "Split", fixture.filePath("missing input"), 8);
+        auto *worker =
+            new FileTransferOperation({fixture.filePath("missing input")}, fixture.path(), false);
+        auto *task = new QtLocalFileTask(*worker, "Copy", fixture.filePath("missing input"));
         connect(
-            worker, &VolumeOperation::result, worker, [worker] { worker->cancel(); },
+            worker, &FileTransferOperation::result, worker, [worker] { worker->cancel(); },
             Qt::DirectConnection);
         QSignalSpy finished(task, &QtLocalFileTask::finished);
         bool shown = false;

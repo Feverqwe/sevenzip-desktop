@@ -131,7 +131,7 @@
   },
   "file-transfer": {
     "description": "File transfer progress, copy/move and split/combine workflows",
-    "tests": "^(worker_window_progress|ui_copy_same|ui_operations|language_file_transfer|file_transfer|volume_operations|volume_workflow|app_lifecycle_window)$",
+    "tests": "^(worker_window_progress|ui_copy_same|ui_operations|language_file_transfer|file_transfer|app_lifecycle_window)$",
     "interactive": true
   },
   "interaction": {
@@ -141,7 +141,7 @@
   },
   "responsiveness": {
     "description": "Integrated archive workers, panel publication, volumes and file transfer",
-    "tests": "^(worker_progress|archive_creation_lifecycle|archive_volume_creation|source_update_backend|archive_backend|filesystem_scanner|archive_proxy|language_source_update|large_list_window|panel_selected_state|panel_key(_quick)?|panel_auto_refresh|nested_archive|nested_edit_chain|app_lifecycle_window|binding_lifecycle|ui_navigation|bookmarks|sfx_creation|sfx_lifecycle|ui_archive_volumes|worker_window_progress|ui_copy_same|ui_operations|language_file_transfer|file_transfer|volume_operations|volume_workflow)$",
+    "tests": "^(worker_progress|archive_creation_lifecycle|archive_volume_creation|source_update_backend|archive_backend|filesystem_scanner|archive_proxy|language_source_update|large_list_window|panel_selected_state|panel_key(_quick)?|panel_auto_refresh|nested_archive|nested_edit_chain|app_lifecycle_window|binding_lifecycle|ui_navigation|bookmarks|sfx_creation|sfx_lifecycle|ui_archive_volumes|worker_window_progress|ui_copy_same|ui_operations|language_file_transfer|file_transfer)$",
     "interactive": true
   }
 }

@@ -397,12 +397,6 @@
     add_test(NAME list_settings_runtime COMMAND list_settings_runtime_tests -silent)
     set_tests_properties(list_settings_runtime PROPERTIES ENVIRONMENT
         "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/list-settings-runtime.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
-    qt_add_executable(combine_name_tests tests/filemanager/combine_name_tests.cpp)
-    target_link_libraries(combine_name_tests PRIVATE sevenzip_window)
-    target_include_directories(combine_name_tests PRIVATE src)
-    target_link_libraries(combine_name_tests PRIVATE Qt6::Widgets Qt6::Test sevenzip_common)
-    add_test(NAME combine_names COMMAND combine_name_tests -silent)
-    set_tests_properties(combine_names PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/combine-name-settings.ini")
     qt_add_executable(panel_key_tests tests/filemanager/panel_key_tests.cpp)
     target_link_libraries(panel_key_tests PRIVATE sevenzip_window)
     target_link_libraries(panel_key_tests PRIVATE sevenzip_layout_inspection)
@@ -474,14 +468,6 @@
     qt_add_executable(panel_path_tests tests/filemanager/panel_path_tests.cpp)
     target_link_libraries(panel_path_tests PRIVATE sevenzip_location Qt6::Test)
     add_test(NAME panel_path COMMAND panel_path_tests -silent)
-    qt_add_executable(volume_operations_tests
-        tests/fileops/volume_operations_tests.cpp
-        src/filemanager/SplitUtils.h)
-    target_link_libraries(volume_operations_tests PRIVATE sevenzip_panel sevenzip_panel_split sevenzip_split_dialog sevenzip_volume_operations)
-    target_include_directories(volume_operations_tests PRIVATE src)
-    target_link_libraries(volume_operations_tests PRIVATE Qt6::Test)
-    add_test(NAME volume_operations COMMAND volume_operations_tests -silent)
-    set_tests_properties(volume_operations PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
     qt_add_executable(ui_geometry_tests tests/ui/ui_geometry_tests.cpp)
     target_link_libraries(ui_geometry_tests PRIVATE sevenzip_compression_ui sevenzip_layout_inspection sevenzip_location)
     target_include_directories(ui_geometry_tests PRIVATE src tests)

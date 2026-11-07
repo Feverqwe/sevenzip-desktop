@@ -10,7 +10,6 @@ class QWidget;
 class CProgressDialog;
 class COverwriteDialog;
 class FileTransferOperation;
-class VolumeOperation;
 class QtCallbackProgressTransport;
 class CPanel;
 struct OverwriteQuestion;
@@ -20,8 +19,6 @@ class QtLocalFileTask final : public QObject {
     Q_OBJECT
   public:
     QtLocalFileTask(FileTransferOperation &worker, const QString &title, const QString &detail);
-    QtLocalFileTask(VolumeOperation &worker, const QString &title, const QString &detail,
-                    quint64 total);
     ~QtLocalFileTask() override;
     void BindOwner(CPanel &source, QWidget &window);
     void SetLocations(const QString &source, const QString &destination);

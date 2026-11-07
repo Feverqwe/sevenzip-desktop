@@ -7,13 +7,11 @@
 #include "dialogs/messages/MessagesDialog.h"
 #include "dialogs/overwrite/OverwriteDialog.h"
 #include "dialogs/password/PasswordDialog.h"
-#include "dialogs/split/SplitDialog.h"
 #include "filemanager/ExtractCallback.h"
 #include "localization/LangUtils.h"
 #include "localization/qtlangcontrols.h"
 #include "settings/RegistryUtils.h"
 #include "settings/ViewSettings.h"
-#include "support/split_dialog_prompt.h"
 #include "ui/diagnostics/qtdiagnostictext.h"
 #include "ui/progress/ProgressDialog2.h"
 #include "ui/support/layout_inspection.h"
@@ -205,62 +203,29 @@ class LanguageDialogTests final : public QObject {
         for (int width : {360, 260})
             inspect(dialog, "language-password-en", width, 170);
     }
-    void copySplitAndComboPreserveRawValues() {
+    void copyAndComboPreserveRawValues() {
         CCopyDialog copy(false, "/initial", {"Unicode file 密碼"}, {"/history"});
-        CSplitDialog split("file 密碼.bin", "/initial");
         CComboDialog folder(QtLangText(IDS_CREATE_FOLDER), QtLangText(IDS_CREATE_FOLDER_NAME),
                             QtLangText(IDS_CREATE_FOLDER_DEFAULT_NAME));
         folder.BindLanguage(IDS_CREATE_FOLDER, IDS_CREATE_FOLDER_NAME);
         auto *destination = copy.findChild<QLineEdit *>("copyDestination");
-        auto *volume = split.findChild<QComboBox *>("volumeSize");
         auto *name = folder.findChild<QComboBox *>("comboValue");
         destination->setText(QStringLiteral(" /pending path 密碼 "));
-        volume->setEditText("bad-volume");
         name->setEditText(QStringLiteral(" pending folder 密碼 "));
-        split.show();
-        QVERIFY(QTest::qWaitForWindowActive(&split));
-        const auto englishPrompt = SubmitInvalidSplit(split, "language-split-error-en");
-        QVERIFY(englishPrompt.shown);
-        QVERIFY(englishPrompt.sourcePolicy);
-        QVERIFY(englishPrompt.geometry);
-        QCOMPARE(split.result(), int(QDialog::Rejected));
-        const QString englishError = englishPrompt.text;
         language("ru");
         QCOMPARE(copy.windowTitle(), QStringLiteral("Копировать"));
         QCOMPARE(destination->text(), QStringLiteral(" /pending path 密碼 "));
-        QCOMPARE(volume->currentText(), QString("bad-volume"));
         QCOMPARE(name->currentText(), QStringLiteral(" pending folder 密碼 "));
-        QVERIFY(split.windowTitle().endsWith(" file 密碼.bin"));
-        const auto russianPrompt = SubmitInvalidSplit(split, "language-split-error-ru");
-        QVERIFY(russianPrompt.shown);
-        QVERIFY(russianPrompt.sourcePolicy);
-        QVERIFY(russianPrompt.geometry);
-        QVERIFY(russianPrompt.text != englishError);
-        // The source opens these as separate modal forms. Keep the geometry
-        // probe's inspected view exposed instead of stacking three dialogs.
-        split.hide();
         for (int width : {480, 300}) {
             inspect(copy, "language-copy-ru", width, 280);
             copy.hide();
-            inspect(split, "language-split-ru", width, 280);
-            split.hide();
             inspect(folder, "language-folder-ru", width, 170);
             folder.hide();
         }
         language("-");
-        split.show();
-        split.raise();
-        split.activateWindow();
-        QVERIFY(QTest::qWaitForWindowActive(&split));
-        const auto restoredPrompt = SubmitInvalidSplit(split);
-        QVERIFY(restoredPrompt.shown);
-        QCOMPARE(restoredPrompt.text, englishError);
-        split.hide();
         for (int width : {480, 300}) {
             inspect(copy, "language-copy-en", width, 280);
             copy.hide();
-            inspect(split, "language-split-en", width, 280);
-            split.hide();
             inspect(folder, "language-folder-en", width, 170);
             folder.hide();
         }

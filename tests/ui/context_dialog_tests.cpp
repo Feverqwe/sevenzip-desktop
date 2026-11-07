@@ -4,7 +4,6 @@
 #include "dialogs/mem/MemDialog.h"
 #include "dialogs/overwrite/OverwriteDialog.h"
 #include "dialogs/password/PasswordDialog.h"
-#include "dialogs/split/SplitDialog.h"
 #include "settings/RegistryUtils.h"
 #include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
@@ -52,8 +51,7 @@ class ContextDialogTests final : public QObject {
     }
     void contextualTaskBlocksItsOwner_data() {
         QTest::addColumn<QString>("kind");
-        for (const char *kind :
-             {"name", "copy", "split", "password", "memory", "overwrite", "extract"})
+        for (const char *kind : {"name", "copy", "password", "memory", "overwrite", "extract"})
             QTest::newRow(kind) << QString(kind);
     }
     void contextualTaskBlocksItsOwner() {
@@ -81,8 +79,6 @@ class ContextDialogTests final : public QObject {
         else if (kind == "copy")
             dialog = std::make_unique<CCopyDialog>(false, settings_.path(), QStringList{"fixture"},
                                                    QStringList{}, &owner);
-        else if (kind == "split")
-            dialog = std::make_unique<CSplitDialog>("fixture", settings_.path(), &owner);
         else if (kind == "password") {
             auto prompt = std::make_unique<CPasswordDialog>(&owner);
             prompt->OnInit();

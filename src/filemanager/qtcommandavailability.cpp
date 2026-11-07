@@ -8,7 +8,6 @@
 #include "filemanager/qtprogramfilemenu.h"
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtwindowworkspace.h"
-#include "fileops/volumes/nativevolumeworker.h"
 #include "ui/dialogs/qtdialogscreenservices.h"
 
 #include "filemanager/MyLoadMenu.h"
@@ -101,12 +100,6 @@ QtFileManagerCommands::TransportCapabilities QtFileManagerCommands::ReadTranspor
     UStringVector history;
     w.app_.AppState.FolderHistory.GetList(history);
     c.foldersHistory = !history.IsEmpty();
-    if (c.oneFile && c.filesystem) {
-        const QFileInfo file(ToQString(panel.GetItemFullPath(operated[0])));
-        c.split = !file.isSymLink();
-        CVolSeqName sequence;
-        c.combine = c.split && sequence.ParseName(ToUString(file.fileName()));
-    }
     return c;
 }
 
@@ -214,10 +207,6 @@ bool QtFileManagerCommands::TransportAllows(unsigned id, const TransportCapabili
         return c.filesystem && c.one;
     case IDM_ALT_STREAMS:
         return !c.operated || c.one; // Source OpenAltStreams accepts zero or one item.
-    case IDM_SPLIT:
-        return c.split;
-    case IDM_COMBINE:
-        return c.combine;
     case IDM_CRC32:
     case IDM_CRC64:
     case IDM_XXH64:

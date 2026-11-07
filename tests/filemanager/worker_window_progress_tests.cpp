@@ -1,5 +1,4 @@
 #include "dialogs/copy/alias.h"
-#include "dialogs/split/SplitDialog.h"
 #include "filemanager/support/task_quit_support.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/window/qtlocalfiletask.h"
@@ -39,97 +38,19 @@ class WorkerWindowProgressTests final : public QObject, protected MainWindowTest
     }
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
-    void nextVolumeCommandRunsWhenReady() {
-        QTemporaryDir fixture;
-        QVERIFY(fixture.isValid());
-        const QString source = fixture.filePath("source");
-        const QString first = fixture.filePath("first output");
-        const QString second = fixture.filePath("second output");
-        QVERIFY(QDir().mkpath(source) && QDir().mkpath(first) && QDir().mkpath(second));
-        const QString name = QStringLiteral("данные.bin");
-        QFile input(QDir(source).filePath(name));
-        QVERIFY(input.open(QIODevice::WriteOnly));
-        QCOMPARE(input.write("0123456789abcdef"), qint64(16));
-        input.close();
-        ControlledBackend backend;
-        MainWindow window(&backend);
-        window.show();
-        window.openPath(source);
-        auto *view = table(window);
-        auto *split = action(window, "splitFileAction");
-        auto *ready = action(window, "createFolderAction");
-        const auto selectSource = [&] {
-            const int row = filesystemRow(window, name);
-            if (row < 0)
-                return false;
-            view->setCurrentCell(row, 0);
-            view->selectRow(row);
-            return true;
-        };
-        QVERIFY(selectSource());
-        int dialogs = 0;
-        const auto launch = [&](const QString &destination) {
-            QTimer::singleShot(0, &window, [&, destination] {
-                auto *dialog = window.findChild<QDialog *>("splitDialog");
-                if (!dialog)
-                    return;
-                ++dialogs;
-                dialog->findChild<QComboBox *>("volumeDestination")->setCurrentText(destination);
-                dialog->findChild<QComboBox *>("volumeSize")->setCurrentText("4B");
-                dialog->accept();
-            });
-            split->trigger();
-        };
-        bool armed = false, selected = false, requested = false;
-        const auto requestNext = [&] {
-            if (armed && selected && !requested && split->isEnabled()) {
-                requested = true;
-                launch(second);
-            }
-        };
-        QObject observer;
-        connect(split, &QAction::changed, &observer, requestNext);
-        connect(ready, &QAction::changed, &observer, [&] {
-            if (!armed || selected || !ready->isEnabled())
-                return;
-            selected = selectSource();
-            requestNext();
-        });
-        launch(first);
-        QCOMPARE(dialogs, 1);
-        armed = true;
-        QTRY_VERIFY(requested);
-        QTRY_COMPARE(dialogs, 2);
-        QTRY_VERIFY(QFileInfo::exists(QDir(second).filePath(name + ".004")));
-        QTRY_VERIFY(ready->isEnabled());
-        QTRY_VERIFY(QtLocalFileTask::Active().isEmpty());
-        for (const QString &destination : {first, second}) {
-            QFile part(QDir(destination).filePath(name + ".001"));
-            QVERIFY(part.open(QIODevice::ReadOnly));
-            QCOMPARE(part.readAll(), QByteArray("0123"));
-        }
-    }
     void nativeWorkerUpdatesVisibleProgressWithoutGuiQueue_data() {
-        QTest::addColumn<int>("mode");
         QTest::addColumn<bool>("destroyDuringCallback");
-        QTest::newRow("copy") << 0 << false;
-        QTest::newRow("split") << 1 << false;
-        QTest::newRow("combine") << 2 << false;
-        QTest::newRow("copy-close") << 0 << true;
-        QTest::newRow("split-close") << 1 << true;
-        QTest::newRow("combine-close") << 2 << true;
+        QTest::newRow("copy") << false;
+        QTest::newRow("copy-close") << true;
     }
     void nativeWorkerUpdatesVisibleProgressWithoutGuiQueue() {
-        QFETCH(int, mode);
         QFETCH(bool, destroyDuringCallback);
         QtWorkspaceApplication application(*qApp);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString name = QStringLiteral("источник с пробелом.bin");
-        const QString selected = name + (mode == 2 ? ".001" : "");
-        QVERIFY(writeBlocks(fixture.filePath(selected), mode == 2 ? 32 : 64));
-        if (mode == 2)
-            QVERIFY(writeBlocks(fixture.filePath(name + ".002"), 32));
+        const QString selected = name;
+        QVERIFY(writeBlocks(fixture.filePath(selected), 64));
         const QString destination = fixture.filePath(QStringLiteral("папка назначения"));
         QVERIFY(QDir().mkpath(destination));
         ControlledBackend backend;
@@ -145,29 +66,16 @@ class WorkerWindowProgressTests final : public QObject, protected MainWindowTest
         table(window)->setCurrentCell(row, 0);
         bool accepted = false;
         QTimer::singleShot(0, &window, [&] {
-            auto *dialog = window.findChild<QDialog *>(mode == 1   ? "splitDialog"
-                                                       : mode == 2 ? "combineDialog"
-                                                                   : "copyDialog");
+            auto *dialog = window.findChild<QDialog *>("copyDialog");
             if (!dialog)
                 return;
-            if (mode == 0)
-                dialog->findChild<QLineEdit *>("copyDestination")->setText(destination);
-            else
-                dialog->findChild<QComboBox *>(mode == 1 ? "volumeDestination" : "copyDestination")
-                    ->setCurrentText(destination);
-            if (mode == 1)
-                dialog->findChild<QComboBox *>("volumeSize")->setCurrentText("32M");
+            dialog->findChild<QLineEdit *>("copyDestination")->setText(destination);
             accepted = true;
             dialog->accept();
         });
-        action(window, mode == 1   ? "splitFileAction"
-                       : mode == 2 ? "combineFilesAction"
-                                   : "copyAction")
-            ->trigger();
+        action(window, "copyAction")->trigger();
         QVERIFY(accepted);
-        auto *worker = mode == 0
-                           ? static_cast<QThread *>(qApp->findChild<FileTransferOperation *>())
-                           : static_cast<QThread *>(qApp->findChild<VolumeOperation *>());
+        auto *worker = qApp->findChild<FileTransferOperation *>();
         QVERIFY(worker);
         CProgressDialog *progress = nullptr;
         for (auto *widget : QApplication::topLevelWidgets())
@@ -185,26 +93,14 @@ class WorkerWindowProgressTests final : public QObject, protected MainWindowTest
                 if (retainedWorker)
                     retainedWorker->wait();
             });
-            if (auto *copy = qobject_cast<FileTransferOperation *>(worker))
-                connect(
-                    copy, &FileTransferOperation::advanced, copy,
-                    [hold, &entered](qint64) {
-                        entered.release();
-                        while (*hold)
-                            QThread::msleep(1);
-                    },
-                    Qt::DirectConnection);
-            else {
-                auto *volume = qobject_cast<VolumeOperation *>(worker);
-                connect(
-                    volume, &VolumeOperation::advanced, volume,
-                    [hold, &entered](qint64) {
-                        entered.release();
-                        while (*hold)
-                            QThread::msleep(1);
-                    },
-                    Qt::DirectConnection);
-            }
+            connect(
+                worker, &FileTransferOperation::advanced, worker,
+                [hold, &entered](qint64) {
+                    entered.release();
+                    while (*hold)
+                        QThread::msleep(1);
+                },
+                Qt::DirectConnection);
             QVERIFY(entered.tryAcquire(1, 2000));
             const QPointer<QDialog> retainedProgress(progress);
             progress->showMinimized();
@@ -252,12 +148,7 @@ class WorkerWindowProgressTests final : public QObject, protected MainWindowTest
         if (owner)
             QTRY_VERIFY(action(window, "createFolderAction")->isEnabled());
         QTRY_VERIFY(QtLocalFileTask::Active().isEmpty());
-        QStringList outputs;
-        if (mode == 1)
-            outputs = {QDir(destination).filePath(name + ".001"),
-                       QDir(destination).filePath(name + ".002")};
-        else
-            outputs = {QDir(destination).filePath(name)};
+        const QStringList outputs = {QDir(destination).filePath(name)};
         QCryptographicHash actual(QCryptographicHash::Sha256), expected(QCryptographicHash::Sha256);
         const QByteArray block(1 << 20, 'p');
         for (int i = 0; i < 64; ++i)

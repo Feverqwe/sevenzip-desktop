@@ -198,7 +198,7 @@ keeps its temporary copy.
 Their codec factory captures immutable metadata,
 without retaining the original backend or a hidden file window. Standalone
 source-panel services can still use the joined panel-scoped transport.
-Filesystem Copy/Move and Split/Combine tasks keep their value plans, workers,
+Filesystem Copy/Move tasks keep their value plans, workers,
 progress, overwrite questions and results with the originating source context.
 Closing that context cancels and joins the worker before releasing its folders.
 Completion continuations stop with the owner; complete success clears the

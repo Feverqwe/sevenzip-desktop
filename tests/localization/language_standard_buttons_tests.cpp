@@ -9,7 +9,6 @@
 #include "dialogs/listview/ListViewDialog.h"
 #include "dialogs/mem/MemDialog.h"
 #include "dialogs/password/PasswordDialog.h"
-#include "dialogs/split/SplitDialog.h"
 #include "localization/LangUtils.h"
 #include "localization/qtlangbuttonbox.h"
 #include "localization/qtlangcontrols.h"
@@ -45,8 +44,6 @@ class LanguageStandardButtonsTests final : public QObject {
         if (name == "copy")
             return std::make_unique<CCopyDialog>(false, "/pending 空 path", QStringList{"file"},
                                                  QStringList{});
-        if (name == "split")
-            return std::make_unique<CSplitDialog>("file 空.bin", "/pending path");
         if (name == "combo")
             return std::make_unique<CComboDialog>("Title", "Name", "pending 空 value");
         if (name == "password")
@@ -104,9 +101,6 @@ class LanguageStandardButtonsTests final : public QObject {
                 else if (button == QDialogButtonBox::Ok && name == "copy")
                     QCOMPARE(control->text(),
                              russian ? QStringLiteral("Копировать") : QString("Copy"));
-                else if (button == QDialogButtonBox::Ok && name == "split")
-                    QCOMPARE(control->text(),
-                             russian ? QStringLiteral("Разделить") : QString("Split"));
                 else if (button == QDialogButtonBox::Ok && name == "password")
                     QCOMPARE(control->text(),
                              russian ? QStringLiteral("Продолжить") : QString("Continue"));
@@ -122,9 +116,6 @@ class LanguageStandardButtonsTests final : public QObject {
         if (name == "copy") {
             normal = QSize(440, 250);
             compact = QSize(340, 220);
-        } else if (name == "split") {
-            normal = QSize(480, 240);
-            compact = QSize(340, 240);
         } else if (name == "password" || name == "combo") {
             normal = QSize(360, 170);
             compact = QSize(260, 170);
@@ -221,8 +212,8 @@ class LanguageStandardButtonsTests final : public QObject {
     void sourceDialogsTranslateTheirStandardControls_data() {
         QTest::addColumn<QString>("name");
         QTest::addColumn<bool>("russian");
-        for (const char *name : {"copy", "split", "combo", "password", "memory", "edit", "list",
-                                 "about", "extract", "browse", "compress-options", "compress"})
+        for (const char *name : {"copy", "combo", "password", "memory", "edit", "list", "about",
+                                 "extract", "browse", "compress-options", "compress"})
             for (bool russian : {false, true})
                 QTest::newRow(qPrintable(QString("%1-%2").arg(name).arg(russian)))
                     << QString::fromLatin1(name) << russian;

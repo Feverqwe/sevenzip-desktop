@@ -24,10 +24,9 @@ class CommandPublicationTests final : public QObject, protected MainWindowTestSu
         QVERIFY(row >= 0);
         view->clearSelection();
         view->selectionModel()->setCurrentIndex({}, QItemSelectionModel::NoUpdate);
-        const QList<QAction *> commands = {
-            action(window, "renameAction"), action(window, "deleteAction"),
-            action(window, "archiveInfoAction"), action(window, "splitFileAction"),
-            action(window, "combineFilesAction")};
+        const QList<QAction *> commands = {action(window, "renameAction"),
+                                           action(window, "deleteAction"),
+                                           action(window, "archiveInfoAction")};
         for (const auto *command : commands)
             QVERIFY(!command->isEnabled());
         bool redirecting = false, redirected = false;

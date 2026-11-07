@@ -1300,8 +1300,6 @@
     "src/dialogs/overwrite/OverwriteDialog.h",
     "src/dialogs/password/PasswordDialog.cpp",
     "src/dialogs/password/PasswordDialog.h",
-    "src/dialogs/split/SplitDialog.cpp",
-    "src/dialogs/split/SplitDialog.h",
     "src/engine/build/Arc.mak",
     "src/engine/build/Arc_gcc.mak",
     "src/filemanager/App.cpp",
@@ -1339,7 +1337,6 @@
     "src/filemanager/panels/PanelOperations.cpp",
     "src/filemanager/panels/PanelSelect.cpp",
     "src/filemanager/panels/PanelSort.cpp",
-    "src/filemanager/panels/PanelSplitFile.cpp",
     "src/filemanager/providers/AltStreamsFolder.cpp",
     "src/filemanager/providers/AltStreamsFolder.h",
     "src/filemanager/providers/FSDrives.cpp",
@@ -1877,7 +1874,6 @@
     "src/filemanager/window/mainwindow_startup.cpp",
     "src/filemanager/window/mainwindow_state.cpp",
     "src/filemanager/window/mainwindow_twopanel.cpp",
-    "src/filemanager/window/mainwindow_volumes.cpp",
     "src/filemanager/window/qtappcopypresentation.cpp",
     "src/filemanager/window/qtapppresentation.cpp",
     "src/filemanager/window/qtapppresentation.h",
@@ -1943,19 +1939,8 @@
     "src/fileops/transfer/qtfiletransfercopycallback.h",
     "src/fileops/transfer/qtfiletransfertransaction.cpp",
     "src/fileops/transfer/qtfiletransfertransaction.h",
-    "src/fileops/volumes/nativevolumeworker.cpp",
-    "src/fileops/volumes/nativevolumeworker.h",
-    "src/fileops/volumes/qtvolumeio.cpp",
-    "src/fileops/volumes/qtvolumeio.h",
     "src/fileops/volumes/qtvolumemounts.cpp",
     "src/fileops/volumes/qtvolumemounts.h",
-    "src/fileops/volumes/qtvolumeprogress.cpp",
-    "src/fileops/volumes/qtvolumeprogress.h",
-    "src/fileops/volumes/qtvolumeservices.h",
-    "src/fileops/volumes/qtvolumetransaction.cpp",
-    "src/fileops/volumes/qtvolumetransaction.h",
-    "src/fileops/volumes/volumeoperations.cpp",
-    "src/fileops/volumes/volumeoperations.h",
     "src/formats/apfs/apfsdirectory.inl",
     "src/formats/brotli/BrotliHandler.cpp",
     "src/formats/brotli/module.cmake",
@@ -2920,7 +2905,6 @@
     "src/filemanager/panels/PanelOperations.cpp": "f7c1f2d7d080878af0de2a784229a34083539a7bebeba390046793095be432e8",
     "src/filemanager/panels/PanelSelect.cpp": "4e14b1f840909d5388893bbe2e25e31e18e8d466e114683c47ed37e2369f77c1",
     "src/filemanager/panels/PanelSort.cpp": "75e88f3bd7bf520667bee025094e119c34fa5dd153b4d45308566775dc6b202f",
-    "src/filemanager/panels/PanelSplitFile.cpp": "10d60b7081dbcef2da034ee732d2d4e3ad9b42589ae9b264d2fb3b89bef84bf8",
     "src/dialogs/password/PasswordDialog.cpp": "c6a5b94b2ad3353f45ec12a95375e39e647ae6b93bfae00647ab2116f6ea613d",
     "src/dialogs/password/PasswordDialog.h": "2c9e4311db594fed77628463ac21d038745d80378ff990fb0b7fe9d02593592d",
     "src/ui/progress/ProgressDialog2.h": "48ff2b4526261d7438fb82ab451e665cfdb3aee8eb989dffb8a628cc408d2b49",
@@ -2934,8 +2918,6 @@
     "src/filemanager/providers/RootFolder.h": "7869159255362d59784ed02377bed447e4f9b7ca80b2a105fb2ce1ba6eaaca89",
     "src/settings/SettingsPage.cpp": "261dc95f409b6618bab2d429ccfa551a2eb26f2bf6086e50897aa996194358ae",
     "src/settings/SettingsPage.h": "1978a7e9072b6838e52c3d1802188b30659ff598e06bf61bbf825cf62e3f2722",
-    "src/dialogs/split/SplitDialog.cpp": "e1c08c9f407566264db28245fe0b75ef2398e9dfe7c02f04ba600d2f03453a2e",
-    "src/dialogs/split/SplitDialog.h": "afb01088e6ffb75dbc9ec7fa48c7d6a21bec4938d0bbcd0d14696beab4853b4e",
     "src/filemanager/SplitUtils.cpp": "cb71ec23c923d4c0c1cc2375d07a30bd0b8e76ada3952a0908edf0bdca2c5e7c",
     "src/filemanager/SplitUtils.h": "39c2275f3084417a7293dc2bd5f35d3e80d79a7592d253cc8caf6e37f0ef9313",
     "src/filemanager/SysIconUtils.cpp": "87a1e4d3b16bf2e2c17a5ab3ddddd56cf3bc7da3cda69a1dfb27ffe21d85af75",
@@ -4016,20 +3998,6 @@
         "CrcUpdateT1_vhdx"
       ]
     },
-    "src/filemanager/panels/PanelSplitFile.cpp": {
-      "local": [
-        "src/fileops/volumes/nativevolumeworker.cpp",
-        "src/fileops/volumes/nativevolumeworker.h"
-      ],
-      "symbols": [
-        "CVolSeqName",
-        "CPreAllocOutFile",
-        "CThreadSplit",
-        "CThreadCombine",
-        "AddInfoFileName",
-        "CApp::Combine (part discovery, summary and combined-name fragments)"
-      ]
-    },
     "src/filemanager/panels/PanelItems.cpp": {
       "local": [
         "src/filemanager/panels/PanelColumns.cpp",
@@ -4411,7 +4379,6 @@
     "src/filemanager/panels/PanelOperations.cpp": "CPP/7zip/UI/FileManager/PanelOperations.cpp",
     "src/filemanager/panels/PanelSelect.cpp": "CPP/7zip/UI/FileManager/PanelSelect.cpp",
     "src/filemanager/panels/PanelSort.cpp": "CPP/7zip/UI/FileManager/PanelSort.cpp",
-    "src/filemanager/panels/PanelSplitFile.cpp": "CPP/7zip/UI/FileManager/PanelSplitFile.cpp",
     "src/dialogs/password/PasswordDialog.cpp": "CPP/7zip/UI/FileManager/PasswordDialog.cpp",
     "src/dialogs/password/PasswordDialog.h": "CPP/7zip/UI/FileManager/PasswordDialog.h",
     "src/ui/progress/ProgressDialog2.cpp": "CPP/7zip/UI/FileManager/ProgressDialog2.cpp",
@@ -4426,8 +4393,6 @@
     "src/filemanager/providers/RootFolder.h": "CPP/7zip/UI/FileManager/RootFolder.h",
     "src/settings/SettingsPage.cpp": "CPP/7zip/UI/FileManager/SettingsPage.cpp",
     "src/settings/SettingsPage.h": "CPP/7zip/UI/FileManager/SettingsPage.h",
-    "src/dialogs/split/SplitDialog.cpp": "CPP/7zip/UI/FileManager/SplitDialog.cpp",
-    "src/dialogs/split/SplitDialog.h": "CPP/7zip/UI/FileManager/SplitDialog.h",
     "src/filemanager/SplitUtils.cpp": "CPP/7zip/UI/FileManager/SplitUtils.cpp",
     "src/filemanager/SplitUtils.h": "CPP/7zip/UI/FileManager/SplitUtils.h",
     "src/filemanager/SysIconUtils.cpp": "CPP/7zip/UI/FileManager/SysIconUtils.cpp",
@@ -9570,7 +9535,6 @@
     "CPP/7zip/Compress/ZstdEncoder.h": "src/codecs/zstd/ZstdEncoder.h",
     "CPP/7zip/UI/FileManager/PanelSelect.h": "src/filemanager/panels/PanelSelect.h",
     "CPP/7zip/UI/FileManager/PanelSort.h": "src/filemanager/sorting/filenamesort.h",
-    "CPP/7zip/UI/FileManager/PanelSplitFile.h": "src/fileops/volumes/nativevolumeworker.h",
     "CPP/7zip/Archive/Iso/IsoZisofs.h": "src/formats/iso/IsoZisofs.h"
   },
   "related_manifests": [

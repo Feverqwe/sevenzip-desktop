@@ -177,14 +177,13 @@
     qt_add_executable(extract_prompt_tests tests/ui/extract_prompt_tests.cpp)
     target_link_libraries(extract_prompt_tests PRIVATE sevenzip_layout_inspection)
     qt_add_executable(language_dialog_tests
-        tests/localization/language_dialog_tests.cpp
-        tests/support/split_dialog_prompt.cpp)
-    target_link_libraries(language_dialog_tests PRIVATE sevenzip_layout_inspection sevenzip_split_dialog)
+        tests/localization/language_dialog_tests.cpp)
+    target_link_libraries(language_dialog_tests PRIVATE sevenzip_layout_inspection)
     target_include_directories(language_dialog_tests PRIVATE src tests)
     target_link_libraries(language_dialog_tests PRIVATE sevenzip_panel Qt6::Test)
     add_test(NAME language_dialog COMMAND language_dialog_tests -silent)
     qt_add_executable(language_standard_buttons_tests tests/localization/language_standard_buttons_tests.cpp)
-    target_link_libraries(language_standard_buttons_tests PRIVATE sevenzip_compression_ui sevenzip_layout_inspection sevenzip_split_dialog)
+    target_link_libraries(language_standard_buttons_tests PRIVATE sevenzip_compression_ui sevenzip_layout_inspection)
     target_include_directories(language_standard_buttons_tests PRIVATE src tests)
     target_link_libraries(language_standard_buttons_tests PRIVATE sevenzip_panel Qt6::Test)
     add_test(NAME language_standard_buttons COMMAND language_standard_buttons_tests -silent)

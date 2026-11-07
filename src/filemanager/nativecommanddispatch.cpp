@@ -99,12 +99,6 @@ bool ExecuteFileCommand(unsigned id, IQtFileManagerCommandServices &g_App) {
     case IDM_BLAKE2SP:
         g_App.CalculateCrc(GetHashMethodForCommand(id));
         break;
-    case IDM_SPLIT:
-        g_App.Split();
-        break;
-    case IDM_COMBINE:
-        g_App.Combine();
-        break;
     case IDM_PROPERTIES:
         g_App.Properties();
         break;

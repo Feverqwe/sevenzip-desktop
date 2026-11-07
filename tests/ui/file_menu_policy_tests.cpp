@@ -79,31 +79,6 @@ class FileMenuPolicyTests : public QObject {
         QCOMPARE(menu.disabled(), QList<unsigned>({IDM_RENAME, IDM_MOVE_TO, IDM_DELETE, IDM_COMMENT,
                                                    IDM_CREATE_FOLDER, IDM_CREATE_FILE}));
     }
-    void oneFilesystemFileRequiredForSplitCombine_data() {
-        QTest::addColumn<bool>("filesystem");
-        QTest::addColumn<bool>("files");
-        QTest::addColumn<unsigned>("count");
-        QTest::addColumn<bool>("allowed");
-        QTest::newRow("one-file") << true << true << 1u << true;
-        QTest::newRow("folder") << true << false << 1u << false;
-        QTest::newRow("two-files") << true << true << 2u << false;
-        QTest::newRow("empty") << true << true << 0u << false;
-        QTest::newRow("archive-file") << false << true << 1u << false;
-    }
-    void oneFilesystemFileRequiredForSplitCombine() {
-        QFETCH(bool, filesystem);
-        QFETCH(bool, files);
-        QFETCH(unsigned, count);
-        QFETCH(bool, allowed);
-        auto menu = commands({IDM_SPLIT, IDM_COMBINE, IDM_PROPERTIES});
-        CFileMenu policy;
-        policy.isFsFolder = filesystem;
-        policy.allAreFiles = files;
-        policy.numItems = count;
-        policy.Load(menu, 0);
-        QCOMPARE(menu.disabled(),
-                 allowed ? QList<unsigned>() : QList<unsigned>({IDM_SPLIT, IDM_COMBINE}));
-    }
     void compactContextOmitsUnavailableAndTrailingSeparators() {
         auto menu = commands({8, IDM_RENAME, 0, IDM_PROPERTIES, 0});
         menu.large = false;
@@ -122,9 +97,9 @@ class FileMenuPolicyTests : public QObject {
         QCOMPARE(menu.disabled(),
                  QList<unsigned>({IDM_OPEN, IDM_COPY_TO, IDM_FILE_EDIT, IDM_CREATE_FOLDER}));
     }
-    void legacyExternalCommandsStayOutOfFileMenu() {
+    void removedCommandsStayOutOfFileMenu() {
         auto menu = commands({IDM_DIFF, IDM_VER_EDIT, IDM_VER_COMMIT, IDM_VER_REVERT, IDM_VER_DIFF,
-                              IDM_BENCHMARK2, IDM_PROPERTIES});
+                              IDM_BENCHMARK2, IDM_SPLIT, IDM_COMBINE, IDM_PROPERTIES});
         CFileMenu policy;
         policy.isFsFolder = policy.allAreFiles = true;
         policy.numItems = 1;

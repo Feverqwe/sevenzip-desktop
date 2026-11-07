@@ -57,10 +57,6 @@ void MainWindow::createFileActions(QMenu *menu) {
     move_->setObjectName("moveAction");
     remove_ = new QAction("&Delete", menu);
     remove_->setObjectName("deleteAction");
-    split_ = new QAction("&Split file...", menu);
-    split_->setObjectName("splitFileAction");
-    combine_ = new QAction("Com&bine files...", menu);
-    combine_->setObjectName("combineFilesAction");
     rename_ = new QAction("Rena&me", menu);
     rename_->setObjectName("renameAction");
     viewFile_ = new QAction("View", menu);
@@ -194,8 +190,6 @@ void MainWindow::populateSourceMenus() {
     for (QAction *action : {rename_, copy_, move_, remove_})
         file->addAction(action);
     file->addSeparator();
-    file->addAction(split_);
-    file->addAction(combine_);
     file->addSeparator();
     file->addAction(properties_);
     unavailable(file, QStringLiteral("Comme&nt..."), "commentAction", IDM_COMMENT);
