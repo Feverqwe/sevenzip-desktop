@@ -147,6 +147,7 @@ class PropertiesWindowTests final : public QObject, protected MainWindowTestSupp
         QtPropertiesWindow contents(collect(folder, {*directory}));
         QtPropertiesWindow multiple(collect(folder, {*unknown, *zero, *directory}));
         QCOMPARE(shownSize(missing), QString::fromUtf8("—"));
+        QVERIFY(missing.findChild<QWidget *>("propertiesIdentity")->toolTip().isEmpty());
         QCOMPARE(shownSize(empty), QtRegionalFormat::bytes(0));
         QCOMPARE(shownSize(contents), QString("Not calculated"));
         QCOMPARE(shownSize(multiple), QString("Not calculated"));

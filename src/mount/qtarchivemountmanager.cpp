@@ -3,13 +3,16 @@
 #include "mount/qtarchivemountsession.h"
 #include "mount/qtmountsettings.h"
 #include "mount/qtsmbmountplatform.h"
+#include "ui/theme/qtcommandicons.h"
 #include <QDir>
 #include <QFileInfo>
+#include <QLabel>
 #include <QMessageBox>
 #include <QPointer>
 #include <QPushButton>
+#include <QScrollArea>
 #include <QTimer>
-#include <QTreeWidget>
+#include <QVBoxLayout>
 #include <algorithm>
 #include <utility>
 
@@ -34,48 +37,44 @@ void QtArchiveMountManager::mount(IUnknown *resource, const QString &label,
         return;
     }
     auto *session = new QtArchiveMountSession(label, this);
-    sessions_.append(Session{session, {}});
+    sessions_.append(Session{session, {}, nullptr, !folder.isEmpty()});
     bindSession(*session);
     refresh();
-    list_->setCurrentItem(list_->topLevelItem(sessions_.size() - 1));
+    pendingFocus_ = sessions_.last().row;
     showManager();
+    QTimer::singleShot(0, this, &QtArchiveMountManager::focusPendingEntry);
     session->start(retained, options.Quota, options.Password, helper, folder, options.View);
+}
+
+void QtArchiveMountManager::focusPendingEntry() {
+    if (!isActiveWindow() || !pendingFocus_)
+        return;
+    auto *row = pendingFocus_.data();
+    pendingFocus_.clear();
+    if (auto *scroll = findChild<QScrollArea *>("dialogContentScroll"))
+        scroll->ensureWidgetVisible(row);
+    row->FocusPrimaryAction();
 }
 
 void QtArchiveMountManager::refresh() {
     using Status = QtArchiveMountSession::Status;
-    const auto text = [](Status status) {
-        switch (status) {
-        case Status::Preparing:
-            return tr("Preparing");
-        case Status::Mounting:
-            return tr("Mounting");
-        case Status::Mounted:
-            return tr("Mounted read-only");
-        case Status::Unmounting:
-            return tr("Unmounting");
-        case Status::Stopping:
-            return tr("Stopping");
-        case Status::Stopped:
-            return tr("Disconnected");
+    empty_->setVisible(sessions_.isEmpty());
+    for (auto &entry : sessions_) {
+        if (!entry.row) {
+            entry.row = new QtMountRow(
+                QtCommandSymbol(entry.folder ? QtCommandIcon::Folder : QtCommandIcon::Archive),
+                this);
+            entries_->addWidget(entry.row);
+            connect(entry.row, &QtMountRow::Requested, this,
+                    [this, guard = QPointer<QtArchiveMountSession>(entry.instance)](
+                        QtMountRow::Action action) {
+                        if (guard)
+                            requestAction(*guard.data(), action);
+                    });
         }
-        return QString();
-    };
-    for (int row = 0; row < sessions_.size(); ++row) {
-        auto *session = sessions_[row].instance;
-        auto *item = list_->topLevelItem(row);
-        if (!item)
-            item = new QTreeWidgetItem(list_);
-        item->setText(0, session->label());
-        item->setToolTip(0, session->label());
-        item->setText(1, session->path());
-        const auto status = session->status() == Status::Mounted && session->path().isEmpty()
-                                ? tr("Connection needs recovery")
-                                : text(session->status());
-        item->setText(2, session->error().isEmpty() ? status
-                                                    : tr("%1 — attention required").arg(status));
+        entry.row->SetData(rowData(entry));
+        entry.row->show();
     }
-    updateDetails();
     if (!closingOwner_)
         return;
     if (std::any_of(sessions_.cbegin(), sessions_.cend(), [](const Session &entry) {

@@ -210,6 +210,16 @@ Geometry: 480×320 and 320×240,
 visible, separate text area and footer. Coverage is described in
 [testing](../testing.md). Rendered Windows parity remains unverified.
 
+## Shared source identity
+
+Shared source identity follows the current design catalog: show the source name
+and icon, with the supplied full path in the hover tooltip and accessible context.
+An optional second line conveys semantic information such as a file type,
+application version or extraction scope. It does not repeat the parent path.
+Long paths must not enlarge the identity's visible layout. Owners retain the
+original path values for navigation and operations. Explicit location/destination
+fields and diagnostic reports keep their own roles.
+
 ## Selected properties
 
 The approved v34 design replaces the selected-properties list with a nonmodal

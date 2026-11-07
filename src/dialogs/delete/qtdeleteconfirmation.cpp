@@ -6,7 +6,9 @@
 #include "ui/theme/qtcommandicons.h"
 #include <QCoreApplication>
 #include <QDialogButtonBox>
+#include <QDir>
 #include <QEvent>
+#include <QFileInfo>
 #include <QLabel>
 #include <QPlainTextEdit>
 #include <QPushButton>
@@ -121,11 +123,16 @@ void QtDeleteConfirmation::refreshText() {
         QT_TRANSLATE_NOOP("DeleteRedesign", "The contents of selected folders are included.")));
     restriction_->setText(text(
         QT_TRANSLATE_NOOP("DeleteRedesign", "This source is read-only. Deletion is unavailable.")));
+    const QString first = request_.names.value(0);
+    const QString baseName = QFileInfo(first).fileName();
     const QString name = request_.names.size() == 1
-                             ? request_.names.first()
+                             ? (baseName.isEmpty() ? first : baseName)
                              : text(QT_TRANSLATE_NOOP("DeleteRedesign", "Selected items: %1"))
                                    .arg(request_.names.size());
-    source_->SetSource(name, request_.location);
+    const QString path = request_.names.size() == 1
+                             ? QDir(request_.location).filePath(request_.names.first())
+                             : request_.location;
+    source_->SetSource(name, path);
 }
 
 void QtDeleteConfirmation::accept() {

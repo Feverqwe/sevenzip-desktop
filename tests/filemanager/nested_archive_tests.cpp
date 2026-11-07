@@ -5,6 +5,7 @@
 #include "filemanager/window/mainwindow.h"
 #include "formats/cpio/support/dot_path_cpio_fixture.h"
 #include "mount/qtarchivemountsession.h"
+#include "mount/qtmountrow.h"
 #include "mount/qtsmbmountplatform.h"
 #include "support/progress_dialog.h"
 #include "ui/progress/ProgressDialog2.h"
@@ -20,7 +21,6 @@
 #include <QTableWidget>
 #include <QTemporaryDir>
 #include <QTimer>
-#include <QTreeWidget>
 #include <QtTest>
 
 class NestedBackend : public ArchiveBackend {
@@ -150,11 +150,15 @@ class NestedArchiveTests : public QObject {
                 session->unmount();
         });
         QTRY_COMPARE(session->status(), QtArchiveMountSession::Status::Stopped);
-        const auto *mountList = window.findChild<QTreeWidget *>("mountList");
-        QVERIFY(mountList);
-        QString sourcePath = mountList->topLevelItem(0)->text(0);
+        const auto *mountRow = window.findChild<QtMountRow *>();
+        QVERIFY(mountRow);
+        const auto *source = mountRow->findChild<QWidget *>("mountSourceSummary");
+        QVERIFY(source);
+        QCOMPARE(source->accessibleName(), QStringLiteral("chosen"));
+        QString sourcePath = source->toolTip();
         sourcePath.replace(u'\\', u'/');
-        QCOMPARE(sourcePath, QStringLiteral("chosen/"));
+        QVERIFY(sourcePath.contains(QFileInfo(path).absoluteFilePath()));
+        QVERIFY(sourcePath.endsWith(QStringLiteral("chosen/")));
         QCOMPARE(session->skippedEntries().size(), 1);
         QVERIFY(session->skippedEntries().first().contains("chosen/unsupported:entry"));
     }
@@ -269,7 +273,6 @@ class NestedArchiveTests : public QObject {
 
         MainWindow window(&backend);
         window.show();
-        const QString initialDirectory = window.findChild<QLineEdit *>("archivePath")->text();
         auto *table = window.findChild<FileTable *>("archiveTable");
         auto *inside = window.findChild<QAction *>("openInsideAction");
         auto *back = window.findChild<QAction *>("backAction");
@@ -295,6 +298,7 @@ class NestedArchiveTests : public QObject {
         QTRY_VERIFY(table->rowCount() == 1 && table->model()->index(0, 0).isValid() &&
                     table->model()->index(0, 0).data().toString() == QStringLiteral("inner.bin"));
 
+        const QString beforeFailedOpen = address->text();
         QFile plain(dir.filePath("plain.bin"));
         QVERIFY(plain.open(QIODevice::WriteOnly));
         plain.write("ordinary data");
@@ -310,7 +314,7 @@ class NestedArchiveTests : public QObject {
         dismissWarning.start(1);
         window.openArchive(plain.fileName());
         dismissWarning.stop();
-        QCOMPARE(window.findChild<QLineEdit *>("archivePath")->text(), initialDirectory);
+        QCOMPARE(window.findChild<QLineEdit *>("archivePath")->text(), beforeFailedOpen);
     }
 
     void opensAndExtractsWritableTarArchive() {
@@ -500,7 +504,8 @@ class NestedArchiveTests : public QObject {
         QCOMPARE(backend.extracted.size(), 1);
         QCOMPARE(QDir::fromNativeSeparators(backend.extracted.first()),
                  QStringLiteral("folder/вложенный архив.zip"));
-        QVERIFY(QFileInfo::exists(backend.listed.last()));
+        const QString nestedFile = backend.listed.last();
+        QVERIFY(QFileInfo::exists(nestedFile));
         QVERIFY(address->text().endsWith("outer.7z/folder/вложенный архив.zip"));
         table->selectRow(0);
         QVERIFY(add->isEnabled());
@@ -508,7 +513,7 @@ class NestedArchiveTests : public QObject {
         back->trigger();
         QCOMPARE(table->model()->index(0, 0).data().toString(),
                  QStringLiteral("вложенный архив.zip"));
-        QVERIFY(!QFileInfo::exists(backend.listed.last()));
+        QTRY_VERIFY(!QFileInfo::exists(nestedFile));
         table->selectRow(0);
         QVERIFY(outside->isEnabled());
         outside->trigger();
@@ -533,7 +538,19 @@ class NestedArchiveTests : public QObject {
         QTRY_COMPARE(table->model()->index(0, 0).data().toString(),
                      QStringLiteral("вложенный архив.zip"));
         table->selectRow(0);
+        int reviewed = 0;
+        QTimer review;
+        connect(&review, &QTimer::timeout, &window, [&] {
+            for (auto *widget : QApplication::topLevelWidgets())
+                if (TestProgressDialog::DismissVisibleResult(widget)) {
+                    ++reviewed;
+                    return;
+                }
+        });
+        review.start(5);
         inside->trigger();
+        review.stop();
+        QCOMPARE(reviewed, 1);
         QTRY_VERIFY(!backend.temporary.isEmpty());
         QTRY_VERIFY(!QFileInfo::exists(backend.temporary));
         QCOMPARE(backend.listed.size(), 1);

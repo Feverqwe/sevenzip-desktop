@@ -7,6 +7,7 @@
 #include "ui/controls/qtdisclosure.h"
 #include "ui/controls/qtsourcesummary.h"
 #include "ui/dialogs/qtdialogunits.h"
+#include "ui/formatting/qtregionalformat.h"
 #include "ui/support/layout_inspection.h"
 
 #include <QComboBox>
@@ -15,6 +16,7 @@
 #include <QFileDialog>
 #include <QLabel>
 #include <QLineEdit>
+#include <QListWidget>
 #include <QMenu>
 #include <QPlainTextEdit>
 #include <QPushButton>
@@ -345,7 +347,7 @@ class CopyDialogTests : public QObject {
         auto *browse = dialog.findChild<QPushButton *>("copyBrowseButton");
         auto *source = dialog.findChild<QWidget *>("copySourceSummary");
         auto *selection = dialog.findChild<QtDisclosure *>("copySelectionDisclosure");
-        auto *names = dialog.findChild<QPlainTextEdit *>("copySelectedNames");
+        auto *names = dialog.findChild<QListWidget *>("copySelectedNames");
         auto *buttons = dialog.findChild<QDialogButtonBox *>("copyButtons");
         QVERIFY(label && path && browse && source && selection && names && buttons);
         QVERIFY(!selection->isExpanded());
@@ -368,19 +370,32 @@ class CopyDialogTests : public QObject {
                 UiInspection::bounds(*path, dialog).top());
         QVERIFY(UiInspection::separate(*buttons->button(QDialogButtonBox::Ok),
                                        *buttons->button(QDialogButtonBox::Cancel), dialog));
-        QVERIFY(source->accessibleDescription().contains('\n'));
+        const QString knownSize = QtRegionalFormat::bytes(40000);
+        bool sizeVisible = false;
+        for (auto *label : source->findChildren<QLabel *>())
+            sizeVisible |= label->isVisible() && label->text() == knownSize &&
+                           label->toolTip() == QtRegionalFormat::exactBytes(40000);
+        QVERIFY(sizeVisible);
         selection->button()->click();
         QCoreApplication::processEvents();
         QVERIFY(names->isVisible());
         QCOMPARE(names->focusPolicy(), Qt::NoFocus);
-        QVERIFY(names->toPlainText().contains(sources.last()));
-        names->moveCursor(QTextCursor::End);
-        QCOMPARE(names->textCursor().blockNumber(), sources.size() - 1);
+        QCOMPARE(names->count(), sources.size());
+        auto *last = names->item(names->count() - 1);
+        QCOMPARE(last->text(), QFileInfo(sources.last()).fileName());
+        QCOMPARE(last->toolTip(), sources.last());
+        names->scrollToItem(last, QAbstractItemView::PositionAtBottom);
+        QTRY_VERIFY(names->viewport()->rect().contains(names->visualItemRect(last)));
         QVERIFY(UiInspection::fullyVisible(*buttons, dialog));
         selection->button()->click();
         dialog.SetSourceDetails("/tmp/", std::nullopt);
         QVERIFY(source->accessibleDescription().contains("/tmp/"));
-        QVERIFY(!source->accessibleDescription().contains('\n'));
+        QVERIFY(source->toolTip().contains(sources.last()));
+        for (auto *label : source->findChildren<QLabel *>())
+            QVERIFY(!label->isVisible() || label->text() != knownSize);
+        QTRY_VERIFY(UiInspection::bounds(*label, dialog).top() -
+                        UiInspection::bounds(*selection->button(), dialog).bottom() <=
+                    dialog.fontMetrics().lineSpacing() * 2);
         QVERIFY(UiInspection::writeReport(
             dialog, QString("copy-dialog-%1-%2").arg(move).arg(size.width())));
     }

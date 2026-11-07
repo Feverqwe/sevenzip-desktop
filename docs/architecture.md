@@ -181,7 +181,7 @@ The native history still owns comparison, order and limits; immediate removal
 and clearing update every window's state before notifying views. Recent links
 retain value-only native root/archive descriptors for reopening, with no handles,
 passwords or consent. Other favorites and destination histories have separate
-owners. The dialog uses the shared dialog layout and two-line `QtSourceSummary`;
+owners. The dialog uses the shared dialog layout and source identity with path tooltips;
 its search and selection remain visible when opening fails. A request captures
 the originating tab, waits for its retained publication if needed, and checks
 the exact target before accepting it. Closing the form retires only that request.

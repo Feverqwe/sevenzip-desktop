@@ -11,12 +11,14 @@
 #include "dialogs/browse/BrowseDialog.h"
 #include "filemanager/FormatUtils.h"
 #include "localization/qtlangcontrols.h"
+#include "platform/locale/qtregionalsettings.h"
 #include "settings/ViewSettings.h"
 #include "ui/controls/qtdisclosure.h"
 #include "ui/controls/qtsourcesummary.h"
 #include "ui/dialogs/qtdialoglayout.h"
 #include "ui/dialogs/qtdialogscreenservices.h"
 #include "ui/dialogs/qtdialogunits.h"
+#include "ui/formatting/qtregionalformat.h"
 #include "ui/theme/qtcommandicons.h"
 
 #include "localization/qtlangbuttonbox.h"
@@ -26,6 +28,7 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
+#include <QListWidget>
 #include <QMessageBox>
 #include <QPlainTextEdit>
 #include <QPushButton>
@@ -97,13 +100,23 @@ bool CCopyDialog::OnInit() {
             new QtSourceSummary(QtCommandSymbol(QtCommandIcon::Copy), name, _sourceLocation, this);
         _sourceSummary->setObjectName("copySourceSummary");
         RefreshSourceSummary();
+        QtRegionalSettings::Observe(*this, [this] { RefreshSourceSummary(); });
         layout->addWidget(_sourceSummary);
         if (_sources.size() > 1) {
-            auto *names = new QPlainTextEdit(_sources.join('\n'), this);
+            auto *names = new QListWidget(this);
             names->setObjectName("copySelectedNames");
-            names->setReadOnly(true);
+            names->setSelectionMode(QAbstractItemView::NoSelection);
+            names->setEditTriggers(QAbstractItemView::NoEditTriggers);
             names->setFocusPolicy(Qt::NoFocus);
-            names->setLineWrapMode(QPlainTextEdit::NoWrap);
+            names->setTextElideMode(Qt::ElideMiddle);
+            for (const auto &path : _sources) {
+                auto name = QFileInfo(path).fileName();
+                if (name.isEmpty())
+                    name = path;
+                auto *item = new QListWidgetItem(name, names);
+                item->setToolTip(path);
+                item->setData(Qt::AccessibleTextRole, name + '\n' + path);
+            }
             names->setMinimumHeight(fontMetrics().lineSpacing() * 3);
             names->setMaximumHeight(fontMetrics().lineSpacing() * 6);
             auto *selection = new QtDisclosure(names, this);
@@ -193,10 +206,12 @@ void CCopyDialog::RefreshSourceSummary() {
         _sources.size() == 1
             ? QFileInfo(_sources.first()).fileName()
             : QCoreApplication::translate("CopyRedesign", "Selected: %1").arg(_sources.size());
-    _sourceSummary->SetSource(
-        name, QCoreApplication::translate("CopyRedesign", "From: %1").arg(_sourceLocation));
-    _sourceSummary->SetDetail(_knownSize ? ToQString(MyFormatNew(IDS_FILE_SIZE, *_knownSize))
-                                         : QString());
+    QStringList paths = _sources;
+    if (!_sourceLocation.isEmpty() && !paths.contains(_sourceLocation))
+        paths.prepend(_sourceLocation);
+    _sourceSummary->SetSource(name, paths.join('\n'));
+    _sourceSummary->SetDetail(_knownSize ? QtRegionalFormat::bytes(*_knownSize) : QString(),
+                              _knownSize ? QtRegionalFormat::exactBytes(*_knownSize) : QString());
 }
 
 void CCopyDialog::changeEvent(QEvent *event) {

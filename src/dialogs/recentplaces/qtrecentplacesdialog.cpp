@@ -136,6 +136,7 @@ void QtRecentPlacesDialog::Rebuild() {
             continue;
         auto *item = new QListWidgetItem(list_);
         item->setData(Qt::UserRole, place.path);
+        item->setToolTip(place.path);
         item->setData(Qt::AccessibleTextRole, name + '\n' + place.path);
         const auto icon = place.nativeIdentity == "computer"     ? QtCommandIcon::Computer
                           : place.nativeIdentity == "network"    ? QtCommandIcon::Network

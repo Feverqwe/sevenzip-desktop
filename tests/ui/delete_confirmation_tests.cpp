@@ -5,6 +5,7 @@
 #include "ui/controls/qtdisclosure.h"
 #include "ui/support/layout_inspection.h"
 #include <QDialogButtonBox>
+#include <QHelpEvent>
 #include <QLabel>
 #include <QPlainTextEdit>
 #include <QPushButton>
@@ -14,6 +15,7 @@
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QToolButton>
+#include <QToolTip>
 #include <QtTest>
 
 class DeleteConfirmationTests final : public QObject {
@@ -63,12 +65,14 @@ class DeleteConfirmationTests final : public QObject {
         QVERIFY(confirm->isEnabled());
         QVERIFY(source->accessibleDescription().contains(request.location));
         QVERIFY(source->accessibleName().contains("3"));
-        QLabel *path = nullptr;
+        QHelpEvent hover(QEvent::ToolTip, source->rect().center(),
+                         source->mapToGlobal(source->rect().center()));
+        QCoreApplication::sendEvent(source, &hover);
+        QCOMPARE(QToolTip::text(), request.location);
+        QToolTip::hideText();
         for (auto *label : source->findChildren<QLabel *>())
-            if (label->text() == request.location)
-                path = label;
-        QVERIFY(path);
-        QVERIFY(path->heightForWidth(220) > path->heightForWidth(440));
+            if (label->window() == dialog.window())
+                QVERIFY(!label->isVisible() || label->text() != request.location);
         QCOMPARE(names->toPlainText(), request.names.join('\n'));
         const char *actions[] = {"Move to Trash", "Delete permanently", "Delete from archive"};
         QCOMPARE(confirm->text(), QCoreApplication::translate("DeleteRedesign", actions[mode]));

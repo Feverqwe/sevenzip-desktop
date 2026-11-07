@@ -269,7 +269,11 @@ QString QtPropertiesWindow::PropertyValue(const QtPropertyReport::Group &group, 
 void QtPropertiesWindow::Refresh() {
     for (unsigned i = 0; i < report_.Strings.Size(); ++i)
         report_.RefreshRow(i);
-    summary_->SetSource(SummaryName(), SummaryType());
+    QString path = report_.location;
+    if (!path.isEmpty() && report_.items.size() == 1)
+        path = QDir(path).filePath(report_.items.first().prefix + report_.items.first().name);
+    summary_->SetSource(SummaryName(), path);
+    summary_->SetDescription(SummaryType());
     location_->setText(SummaryLocation());
     size_->setText(SummarySize());
     modified_->setText(SummaryModified());

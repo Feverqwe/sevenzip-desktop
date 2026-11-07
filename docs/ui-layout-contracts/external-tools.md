@@ -10,25 +10,28 @@ only when files need materialization. Help opens a separate explanation of direc
 access, extraction consent, eviction and files exceeding the limit; keep this text
 out of the setup form. Reuse the prepared reader for the connection.
 Cancel starts no mount. Mount management
-is modeless: source/path/status rows, read-only details and errors, Open Folder,
-Copy Path and Unmount. Closing this manager hides it without disconnecting mounts.
-Remove from List is a context-menu action enabled only for a stopped session,
-including a failed mount; it is absent from the dialog button rows.
-It removes the selected record and its details without touching source files.
+is modeless: each connection has a shared source identity, status, read-only
+details and its own actions. Closing this manager hides it without disconnecting
+mounts. Open Folder and Copy Path remain visible but require an available mount
+path; the disconnect action remains visible and reflects current availability.
+Remove from List is available inline and through the record's context menu only after the
+session stops, including a failed mount. It removes that record and its details
+without touching source files.
 Details include a per-entry log of unsupported names, metadata and conflicts
 skipped while preparing this folder; supported entries remain mounted.
-Show the source path relative to the current container. Bound the initial source
-column width, elide long text and retain the full path in its tooltip. Allow manual
-column resizing and preserve the chosen width when rows/statuses refresh.
+Show the source name/icon and retain the supplied path in its tooltip. Keep full
+paths available in copyable diagnostic reports. Updates preserve each record's
+identity and expanded details.
 Closing the owner window offers Unmount and Close or Cancel. A busy unmount keeps
 the reader/server alive, leaves the owner open and offers an explicit force option.
-Keep file-access and disconnect actions in one row above the standard Close footer.
-Compact resize requests respect native control minima so every action remains
-visible in EN/RU without wrapping the row.
+Connection actions wrap when needed at compact widths. The body scrolls while
+the standard Close footer remains visible. Native control minima keep every
+action reachable in EN/RU.
 These new commands have no original Windows7zFM resource counterpart.
 
-Before the first extraction for a read-only mount, show its source, first requested
-path and decoded size. Explain that consent covers temporary extraction for this
+Before the first extraction for a read-only mount, show the first requested
+file's shared source identity and decoded size, with full source/path context in
+its tooltip. Explain that consent covers temporary extraction for this
 mount, including reads after cache eviction, and that the source remains read-only.
 Treat names as plain text. Cancel, Escape, Return on the initial default, closing
 the prompt and destroying it decline extraction until remount. Existing cache
@@ -40,7 +43,7 @@ unverified data. Keep the warning visible in mount details when such data is use
 
 On macOS the confirmation is contextual to the owning window and uses standard
 dialog controls. Keep actions visible and separate at normal and compact widths;
-long Unicode paths must wrap without concealing the decision. The caller must
+long Unicode names must wrap without concealing the decision. The caller must
 close pending prompts when their mount session stops. Backend cancellation must
 release a reader waiting for consent.
 

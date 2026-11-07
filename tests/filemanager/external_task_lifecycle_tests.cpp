@@ -251,10 +251,12 @@ class ExternalTaskLifecycleTests final : public QObject, protected MainWindowTes
                 QVERIFY(check->isEnabled());
                 auto *path = details->findChild<QLabel *>("externalFilePath");
                 QVERIFY(path);
-                QCOMPARE(path->text(), copy);
-                QCOMPARE(details->findChild<QLabel *>("externalFileEntry")->text(), name);
-                QVERIFY(
-                    details->findChild<QLabel *>("externalFileArchive")->text().contains(archive));
+                QCOMPARE(path->text(), QFileInfo(copy).fileName());
+                QCOMPARE(path->toolTip(), copy);
+                auto *identity = details->findChild<QWidget *>("externalFileIdentity");
+                QVERIFY(identity);
+                QCOMPARE(identity->accessibleName(), QFileInfo(name).fileName());
+                QVERIFY(identity->toolTip().contains(archive));
                 for (const auto &locale : {QString("-"), QString("ru")}) {
                     SaveRegLang(ToUString(locale), qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
                     ReloadLang(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
@@ -277,7 +279,7 @@ class ExternalTaskLifecycleTests final : public QObject, protected MainWindowTes
                             if (button->isVisible())
                                 QVERIFY(UiInspection::fullyVisible(*button, *details));
                         QVERIFY(confirmed->isChecked() && check->isEnabled());
-                        QCOMPARE(path->text(), copy);
+                        QCOMPARE(path->toolTip(), copy);
                         QVERIFY(UiInspection::writeReport(*details, "external-details-" + locale +
                                                                         '-' + frame));
                     }

@@ -384,7 +384,7 @@ Reference: upstream `0766b733fe3e06dd2a7f9a3cfbf2108ac73abd17`,
 Implemented view: `src/dialogs/copy/CopyDialog.cpp`.
 
 - Copy/Move begins with the shared source summary: one name or selection count,
-  source location and the total size only when all selected sizes are known.
+  source paths in its tooltip and the total size only when all selected sizes are known.
   It reads provider metadata without walking the selected directories.
 - Multiple selected paths are available in a collapsed disclosure with a bounded,
   independently scrollable list. The last selected path remains reachable.
@@ -396,7 +396,7 @@ Implemented view: `src/dialogs/copy/CopyDialog.cpp`.
   the peer shortcut. Selecting history changes only the draft and returns focus
   to the path; closing the menu with Escape leaves the form open. Historical
   full-file entries, significant spaces, Unicode and ampersands remain unchanged.
-  Empty history disables its shortcut. Source location has a localized From label.
+  Empty history disables its shortcut. Source location does not add a separate From row.
 - A writable peer panel supplies the initial destination; Other panel restores
   that proposal after editing. An unavailable peer leaves the current source
   filesystem location as the proposal and disables the peer shortcut.

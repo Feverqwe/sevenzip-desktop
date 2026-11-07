@@ -1,16 +1,16 @@
 #pragma once
+#include "mount/qtmountrow.h"
 #include <QCoreApplication>
 #include <QDialog>
 #include <QList>
+#include <QPointer>
 #include <QStringList>
 #include <functional>
 
 class QtArchiveMountSession;
 struct IUnknown;
-class QTreeWidget;
-class QPlainTextEdit;
-class QPushButton;
-class QAction;
+class QLabel;
+class QVBoxLayout;
 
 // Modeless mount management, independent of either file-manager panel.
 class QtArchiveMountManager final : public QDialog {
@@ -19,21 +19,23 @@ class QtArchiveMountManager final : public QDialog {
     struct Session {
         QtArchiveMountSession *instance;
         QStringList issues;
+        QtMountRow *row = nullptr;
+        bool folder = false;
     };
     QList<Session> sessions_;
-    QTreeWidget *list_;
-    QPlainTextEdit *details_;
-    QPushButton *open_, *copy_, *unmount_, *force_;
-    QAction *remove_;
+    QVBoxLayout *entries_;
+    QLabel *empty_;
+    QPointer<QtMountRow> pendingFocus_;
     bool closingOwner_ = false;
     std::function<void()> closeOwner_;
-    const Session *selected() const;
     void bindSession(QtArchiveMountSession &session);
     void refresh();
-    void updateDetails();
-    void unmountSelected(bool force);
-    void removeSelected();
+    QtMountRowData rowData(const Session &entry) const;
+    void requestAction(QtArchiveMountSession &session, QtMountRow::Action action);
+    void unmountSession(QtArchiveMountSession &session, bool force);
+    void removeSession(QtArchiveMountSession &session);
     void showManager();
+    void focusPendingEntry();
     void retranslate();
 
   protected:

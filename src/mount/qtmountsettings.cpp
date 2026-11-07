@@ -2,11 +2,15 @@
 #include "archive/backend/archivebackend.h"
 #include "archive/resources/archivereadonlyview.h"
 #include "help/qthelpservices.h"
+#include "ui/controls/qtsourcesummary.h"
 #include "ui/dialogs/qtdialoglayout.h"
+#include "ui/theme/qtcommandicons.h"
 #include <QCoreApplication>
 #include <QDialog>
 #include <QDialogButtonBox>
+#include <QDir>
 #include <QElapsedTimer>
+#include <QFileInfo>
 #include <QFormLayout>
 #include <QLabel>
 #include <QLineEdit>
@@ -93,18 +97,6 @@ void ShowCacheHelp(QWidget *parent) {
         parent);
 }
 
-class MountLabel final : public QLabel {
-  public:
-    using QLabel::QLabel;
-
-  protected:
-    void resizeEvent(QResizeEvent *event) override {
-        QLabel::resizeEvent(event);
-        // As in the benchmark's wrapped-caption boundary, native layouts can
-        // otherwise use the wider layout hint when calculating this height.
-        setMinimumHeight(heightForWidth(event->size().width()));
-    }
-};
 void MountSettingsDialog::BuildControls(const QString &label, const QString &archivePassword,
                                         bool checkReader) {
     phase_ = checkReader ? Phase::Preparing : Phase::Ready;
@@ -115,9 +107,10 @@ void MountSettingsDialog::BuildControls(const QString &label, const QString &arc
     help_ = buttons_->button(QDialogButtonBox::Help);
     help_->setObjectName("mountCacheHelpButton");
     auto *layout = QtCreateDialogLayout(*this, *buttons_);
-    auto *source = new MountLabel(label, this);
-    source->setTextFormat(Qt::PlainText);
-    source->setWordWrap(true);
+    const QString name = QFileInfo(QDir::cleanPath(label)).fileName();
+    auto *source = new QtSourceSummary(QtCommandSymbol(QtCommandIcon::Folder),
+                                       name.isEmpty() ? label : name, label, this);
+    source->setObjectName("mountSourceSummary");
     layout->addWidget(source);
     checking_ = new QLabel(
         QCoreApplication::translate("QtArchiveMountManager", "Reading folder tree…"), this);

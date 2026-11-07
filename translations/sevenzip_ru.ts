@@ -6847,6 +6847,14 @@ Use `Revert` to recover timestamp.</source>
     <context>
         <name>QtArchiveMountManager</name>
         <message>
+            <source>No mounts yet.</source>
+            <translation>Нет подключений.</translation>
+        </message>
+        <message>
+            <source>Cancel</source>
+            <translation>Отмена</translation>
+        </message>
+        <message>
             <source>Temporary cache</source>
             <translation>Временный кеш</translation>
         </message>
@@ -7122,6 +7130,22 @@ The limit is the total size of these extracted files. Older cached files are rem
     </context>
     <context>
         <name>QtMountExtractionPrompt</name>
+        <message>
+            <source>Size</source>
+            <translation>Размер</translation>
+        </message>
+        <message>
+            <source>Available data</source>
+            <translation>Доступно данных</translation>
+        </message>
+        <message>
+            <source>Data may be incomplete or have checksum errors. This choice does not repair or verify it. The source remains read-only.</source>
+            <translation>Данные могут быть неполными или содержать ошибки контрольной суммы. Этот выбор не исправляет и не проверяет их. Источник остаётся доступным только для чтения.</translation>
+        </message>
+        <message>
+            <source>This choice applies to all files in this mount, including files extracted again after cache eviction. Cancel disables extraction until the folder is mounted again. The source remains read-only.</source>
+            <translation>Выбор действует для всех файлов этого подключения, в том числе при повторном извлечении после очистки кеша. Отмена запрещает извлечение до следующего подключения папки. Источник останется доступным только для чтения.</translation>
+        </message>
         <message>
             <location filename="../src/mount/qtmountextractionprompt.cpp" line="+11" />
             <source>Extract files for this mount</source>

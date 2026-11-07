@@ -229,6 +229,7 @@ target_link_libraries(sevenzip_location PUBLIC sevenzip_filesystem sevenzip_pane
 target_link_libraries(sevenzip_location PUBLIC sevenzip_mount_protocol)
 add_library(sevenzip_mount_ui STATIC src/mount/qtmountextractionprompt.cpp src/mount/qtmountextractionprompt.h)
 target_sources(sevenzip_mount_ui PRIVATE src/mount/qtmountsettings.cpp src/mount/qtmountsettings.h)
+target_sources(sevenzip_mount_ui PRIVATE src/mount/qtmountrow.cpp src/mount/qtmountrow.h)
 set_target_properties(sevenzip_mount_ui PROPERTIES AUTOMOC ON AUTOUIC OFF)
 target_link_libraries(sevenzip_mount_ui PUBLIC sevenzip_mount_protocol Qt6::Widgets)
 target_link_libraries(sevenzip_mount_ui PRIVATE sevenzip_panel)

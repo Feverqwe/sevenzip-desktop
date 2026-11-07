@@ -1,8 +1,15 @@
 #include "mount/qtmountextractionprompt.h"
+#include "localization/qtlangbuttonbox.h"
+#include "localization/qtlangcontrols.h"
+#include "platform/locale/qtregionalsettings.h"
+#include "ui/controls/qtmetadatarows.h"
+#include "ui/controls/qtsourcesummary.h"
 #include "ui/dialogs/qtdialoglayout.h"
+#include "ui/formatting/qtregionalformat.h"
 #include <QDialogButtonBox>
-#include <QLocale>
+#include <QFileInfo>
 #include <QPushButton>
+#include <QStyle>
 #include <QVBoxLayout>
 
 QtMountExtractionPrompt::QtMountExtractionPrompt(const QString &source, const QString &path,
@@ -10,32 +17,48 @@ QtMountExtractionPrompt::QtMountExtractionPrompt(const QString &source, const QS
                                                  QWidget *parent, bool unverified)
     : QDialog(parent), decision_(std::move(decision)) {
     setObjectName("mountExtractionPrompt");
-    setWindowTitle(unverified ? tr("Use unverified extracted data")
-                              : tr("Extract files for this mount"));
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Cancel, this);
-    auto *layout = QtCreateDialogLayout(*this, *buttons);
-    const auto addText = [this, layout](const QString &text) {
-        auto *label = new QtWrappingLabel(text, this);
+    QtBindLocalText(this, "QtMountExtractionPrompt",
+                    unverified ? QT_TR_NOOP("Use unverified extracted data")
+                               : QT_TR_NOOP("Extract files for this mount"));
+    auto *buttons = new QtLangButtonBox(QDialogButtonBox::Cancel, this);
+    auto *layout = QtCreateDialogLayout(*this, *buttons, QtDialogContent::Scrollable);
+    const auto addText = [this, layout](const char *text) {
+        auto *label = new QtWrappingLabel(this);
         label->setTextFormat(Qt::PlainText);
         label->setWordWrap(true);
+        QtBindLocalText(label, "QtMountExtractionPrompt", text);
         layout->addWidget(label);
     };
-    addText(unverified ? tr("The reader reported damaged or incomplete data. Use the readable "
-                            "output for this mount?")
-                       : tr("Allow files from this mount to be extracted into the temporary cache "
-                            "when they are read?"));
-    addText(
-        (unverified
-             ? tr("%1\n%2\nAvailable data: %3\n\nData may be incomplete or have checksum errors. "
-                  "This choice does not repair or verify it. The source remains read-only.")
-             : tr("%1\nFirst requested file: %2\nSize: %3\n\nThis choice applies to all files in "
-                  "this mount, including files extracted again after cache eviction. Cancel "
-                  "disables extraction until the folder is mounted again. The source remains "
-                  "read-only."))
-            .arg(source, path, QLocale().formattedDataSize(qint64(size))));
-    auto *extract =
-        buttons->addButton(unverified ? tr("Use Unverified Data") : tr("Allow Extraction"),
-                           QDialogButtonBox::AcceptRole);
+    addText(unverified
+                ? QT_TR_NOOP("The reader reported damaged or incomplete data. Use the "
+                             "readable output for this mount?")
+                : QT_TR_NOOP("Allow files from this mount to be extracted into the temporary "
+                             "cache when they are read?"));
+    auto *summary = new QtSourceSummary(style()->standardIcon(QStyle::SP_FileIcon),
+                                        QFileInfo(path).fileName(), source + '\n' + path, this);
+    summary->setObjectName("mountExtractionSource");
+    layout->addWidget(summary);
+    auto *metadata = new QtMetadataRows(this);
+    auto *amount = metadata->AddRow("QtMountExtractionPrompt",
+                                    unverified ? QT_TR_NOOP("Available data") : QT_TR_NOOP("Size"),
+                                    {}, "mountExtractionSize");
+    const auto refreshSize = [amount, size] {
+        amount->setText(QtRegionalFormat::bytes(size));
+        amount->setToolTip(QtRegionalFormat::exactBytes(size));
+    };
+    refreshSize();
+    QtRegionalSettings::Observe(*this, refreshSize);
+    layout->addWidget(metadata);
+    addText(unverified
+                ? QT_TR_NOOP("Data may be incomplete or have checksum errors. This choice does "
+                             "not repair or verify it. The source remains read-only.")
+                : QT_TR_NOOP("This choice applies to all files in this mount, including files "
+                             "extracted again after cache eviction. Cancel disables extraction "
+                             "until the folder is mounted again. The source remains read-only."));
+    auto *extract = buttons->addButton(QString(), QDialogButtonBox::AcceptRole);
+    QtBindLocalText(extract, "QtMountExtractionPrompt",
+                    unverified ? QT_TR_NOOP("Use Unverified Data")
+                               : QT_TR_NOOP("Allow Extraction"));
     extract->setObjectName("extractForMountButton");
     extract->setAutoDefault(false);
     buttons->button(QDialogButtonBox::Cancel)->setDefault(true);
@@ -46,6 +69,7 @@ QtMountExtractionPrompt::QtMountExtractionPrompt(const QString &source, const QS
     });
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     connect(this, &QDialog::finished, this, [this] { decision_->answer(false); });
-    resize(520, sizeHint().height());
+    resize(520, 400);
+    QtFitScrollableDialog(*this);
 }
 QtMountExtractionPrompt::~QtMountExtractionPrompt() { decision_->answer(false); }

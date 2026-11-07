@@ -3,12 +3,13 @@
 #include <QEvent>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QStringList>
 #include <QVBoxLayout>
 
 QtSourceSummary::QtSourceSummary(const QIcon &icon, const QString &name, const QString &path,
                                  QWidget *parent)
     : QWidget(parent), icon_(icon), symbol_(new QLabel(this)),
-      name_(new QtWrappingLabel(name, this)), path_(new QtWrappingLabel(path, this)),
+      name_(new QtWrappingLabel(name, this)), description_(new QtWrappingLabel(this)),
       detail_(new QtWrappingLabel(this)) {
     auto *row = new QHBoxLayout(this);
     row->setContentsMargins(12, 10, 12, 10);
@@ -19,7 +20,7 @@ QtSourceSummary::QtSourceSummary(const QIcon &icon, const QString &name, const Q
     auto *text = new QVBoxLayout;
     text->setContentsMargins(0, 0, 0, 0);
     text->setSpacing(4);
-    for (auto *label : {name_, path_, detail_}) {
+    for (auto *label : {name_, description_, detail_}) {
         label->setTextFormat(Qt::PlainText);
         label->setWordWrap(true);
         label->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
@@ -29,41 +30,57 @@ QtSourceSummary::QtSourceSummary(const QIcon &icon, const QString &name, const Q
     heading->addWidget(name_, 1);
     heading->addWidget(detail_);
     text->addLayout(heading);
-    text->addWidget(path_);
+    text->addWidget(description_);
+    description_->hide();
     detail_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
     detail_->hide();
     QFont title = name_->font();
     title.setWeight(QFont::DemiBold);
     name_->setFont(title);
     row->addLayout(text, 1);
-    setToolTip(path);
-    setAccessibleName(name);
-    setAccessibleDescription(path);
+    SetSource(name, path);
     SetSelected(false);
 }
 
 void QtSourceSummary::SetSelected(bool selected) {
+    setBackgroundRole(selected ? QPalette::Highlight : QPalette::Base);
     name_->setForegroundRole(selected ? QPalette::HighlightedText : QPalette::Text);
-    path_->setForegroundRole(selected ? QPalette::HighlightedText : QPalette::PlaceholderText);
+    description_->setForegroundRole(selected ? QPalette::HighlightedText
+                                             : QPalette::PlaceholderText);
     detail_->setForegroundRole(selected ? QPalette::HighlightedText : QPalette::PlaceholderText);
 }
 
 void QtSourceSummary::SetSource(const QString &name, const QString &path) {
     name_->setText(name);
-    path_->setText(path);
+    sourcePath_ = path;
     setToolTip(path);
     setAccessibleName(name);
-    setAccessibleDescription(detail_->text().isEmpty() ? path : path + '\n' + detail_->text());
+    RefreshAccessibleDescription();
 }
 
-void QtSourceSummary::SetDetail(const QString &detail) {
+void QtSourceSummary::SetDescription(const QString &description) {
+    description_->setText(description);
+    description_->setVisible(!description.isEmpty());
+    RefreshAccessibleDescription();
+}
+
+void QtSourceSummary::SetDetail(const QString &detail, const QString &toolTip) {
     detail_->setText(detail);
     detail_->setVisible(!detail.isEmpty());
-    setAccessibleDescription(detail.isEmpty() ? path_->text() : path_->text() + '\n' + detail);
+    detail_->setToolTip(toolTip);
+    RefreshAccessibleDescription();
+}
+
+void QtSourceSummary::RefreshAccessibleDescription() {
+    QStringList parts;
+    for (const auto &text : {description_->text(), sourcePath_, detail_->text()})
+        if (!text.isEmpty())
+            parts.append(text);
+    setAccessibleDescription(parts.join('\n'));
 }
 
 void QtSourceSummary::SetSelectable(bool selectable) {
-    for (auto *label : {name_, path_, detail_})
+    for (auto *label : {name_, description_, detail_})
         label->setTextInteractionFlags(selectable ? Qt::TextSelectableByMouse |
                                                         Qt::TextSelectableByKeyboard
                                                   : Qt::NoTextInteraction);

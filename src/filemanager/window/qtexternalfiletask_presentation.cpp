@@ -47,7 +47,11 @@ void QtExternalFileTask::Refresh() {
                                    (state_->confirmed && state_->confirmed->isChecked())));
     }
     if (state_->retainedText) {
-        state_->retainedText->setText(state_->retained.join('\n'));
+        QStringList names;
+        for (const auto &path : state_->retained)
+            names.append(QFileInfo(path).fileName());
+        state_->retainedText->setText(names.join('\n'));
+        state_->retainedText->setToolTip(state_->retained.join('\n'));
         state_->retainedRows->setVisible(!state_->retained.isEmpty());
     }
     if (state_->save)
@@ -77,17 +81,18 @@ void QtExternalFileTask::Show() {
         QtBindLocalText(check, "QtExternalFileTask",
                         QT_TRANSLATE_NOOP("QtExternalFileTask", "Check changes"));
         auto *body = QtCreateDialogLayout(*dialog, *actions, QtDialogContent::Scrollable);
-        body->addWidget(new QtSourceSummary(qApp->style()->standardIcon(QStyle::SP_FileIcon),
-                                            ToQString(state_->file.RelPath), state_->prefix,
-                                            dialog));
+        auto *source =
+            new QtSourceSummary(qApp->style()->standardIcon(QStyle::SP_FileIcon),
+                                QFileInfo(ToQString(state_->file.RelPath)).fileName(),
+                                state_->prefix + '\n' + ToQString(state_->file.RelPath), dialog);
+        source->setObjectName("externalFileIdentity");
+        body->addWidget(source);
         auto *metadata = new QtMetadataRows(dialog);
-        metadata->AddRow("QtExternalFileTask", QT_TRANSLATE_NOOP("QtExternalFileTask", "Archive"),
-                         state_->prefix, "externalFileArchive");
-        metadata->AddRow("QtExternalFileTask", QT_TRANSLATE_NOOP("QtExternalFileTask", "Entry"),
-                         ToQString(state_->file.RelPath), "externalFileEntry");
-        metadata->AddRow("QtExternalFileTask",
-                         QT_TRANSLATE_NOOP("QtExternalFileTask", "Temporary copy"),
-                         ToQString(fs2us(state_->file.FilePath)), "externalFilePath");
+        const auto path = ToQString(fs2us(state_->file.FilePath));
+        auto *copy = metadata->AddRow("QtExternalFileTask",
+                                      QT_TRANSLATE_NOOP("QtExternalFileTask", "Temporary copy"),
+                                      QFileInfo(path).fileName(), "externalFilePath");
+        copy->setToolTip(path);
         body->addWidget(metadata);
         auto *retained = new QtMetadataRows(dialog);
         state_->retainedRows = retained;
@@ -213,7 +218,8 @@ int QtExternalFileTask::AskForUpdate() {
     later->setFocus();
     auto *body = QtCreateDialogLayout(question, *actions);
     body->addWidget(new QtSourceSummary(qApp->style()->standardIcon(QStyle::SP_FileIcon),
-                                        ToQString(state_->file.RelPath), state_->prefix,
+                                        QFileInfo(ToQString(state_->file.RelPath)).fileName(),
+                                        state_->prefix + '\n' + ToQString(state_->file.RelPath),
                                         &question));
     connect(update, &QPushButton::clicked, &question, &QDialog::accept);
     connect(save, &QPushButton::clicked, &question, [&question] { question.done(2); });

@@ -2182,6 +2182,8 @@
     "src/mount/qtarchivemountsource.h",
     "src/mount/qtmountextractionprompt.cpp",
     "src/mount/qtmountextractionprompt.h",
+    "src/mount/qtmountrow.cpp",
+    "src/mount/qtmountrow.h",
     "src/mount/qtmountsettings.cpp",
     "src/mount/qtmountsettings.h",
     "src/mount/qtnativeclientcontrol.cpp",

@@ -190,10 +190,9 @@ void CExtractDialog::RefreshSourceSummary() {
                              ? QFileInfo(_archiveSources.first()).fileName()
                              : QCoreApplication::translate("ArchiveRedesign", "%n archives",
                                                            nullptr, int(_archiveSources.size()));
-    _sourceSummary->SetSource(name, scope);
     const QString paths = _archiveSources.join('\n');
-    _sourceSummary->setToolTip(paths);
-    _sourceSummary->setAccessibleDescription(scope + '\n' + paths);
+    _sourceSummary->SetSource(name, paths);
+    _sourceSummary->SetDescription(scope);
 }
 
 void CExtractDialog::UpdateAdvancedSummary() {

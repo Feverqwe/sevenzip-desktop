@@ -49,8 +49,8 @@ QString CAboutDialog::ValueOrUnknown(const QString &value) const {
 }
 
 bool CAboutDialog::OnInit() {
-    identity_->SetSource(
-        "Sevenzip",
+    identity_->SetSource("Sevenzip", {});
+    identity_->SetDescription(
         QCoreApplication::translate("AboutDialog", "Version %1").arg(SEVENZIP_DESKTOP_VERSION));
     QtBindLocalText(this, "AboutDialog", QT_TRANSLATE_NOOP("AboutDialog", "About Sevenzip"));
     QtBindLocalText(findChild<QLabel *>(QString("aboutText%1").arg(IDT_ABOUT_VERSION)),
@@ -72,8 +72,7 @@ bool CAboutDialog::OnInit() {
 void CAboutDialog::changeEvent(QEvent *event) {
     QDialog::changeEvent(event);
     if (event->type() == QEvent::LanguageChange && codecNotice_) {
-        identity_->SetSource(
-            "Sevenzip",
+        identity_->SetDescription(
             QCoreApplication::translate("AboutDialog", "Version %1").arg(SEVENZIP_DESKTOP_VERSION));
         for (const auto &detail : buildDetails_)
             detail.label->setText(ValueOrUnknown(detail.value));

@@ -258,7 +258,7 @@ class NestedEditChainTests final : public QObject, protected MainWindowTestSuppo
             for (auto *widget : QApplication::topLevelWidgets())
                 if (auto *path = widget->findChild<QLabel *>("externalFilePath");
                     widget->objectName() == "externalFileDetails" && path &&
-                    path->text() == temporary)
+                    path->toolTip() == temporary)
                     details = qobject_cast<QDialog *>(widget);
             QVERIFY(details);
             auto *retainedPaths = details->findChild<QLabel *>("externalFileRetained");
@@ -269,8 +269,8 @@ class NestedEditChainTests final : public QObject, protected MainWindowTestSuppo
                     record->prefix.contains(QFileInfo(outer).fileName())) {
                     const auto path = QDir(entry.path).filePath(record->fileName);
                     QCOMPARE(contents(path, name, innerPassword), modified);
-                    QVERIFY2(retainedPaths->text().contains(path),
-                             qPrintable(retainedPaths->text()));
+                    QVERIFY2(retainedPaths->toolTip().contains(path),
+                             qPrintable(retainedPaths->toolTip()));
                     retained.append(path);
                 }
             }

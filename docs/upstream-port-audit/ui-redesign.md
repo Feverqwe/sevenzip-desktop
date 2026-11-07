@@ -44,6 +44,44 @@ whole row. The test requires visible return controls in shown panel contexts.
 Menu status uses an ordinary text separator rather than a shortcut column.
 No Windows or original Windows pixel acceptance is claimed for this iteration.
 
+## Shared source identity and path presentation — 2026-11-07
+
+The current master design at `c20608b9` (source-v59/paths-v61) separates source
+identity from its path. The shared local component now retains paths for hover
+and accessibility, while semantic descriptions remain visible. About, Properties
+and Extract supply version/type/scope explicitly; Copy/Move, Delete and Recent
+Places keep their original source values and command routes. Mount setup,
+extraction consent and connection cards reuse the same identity. Each card emits
+typed actions; the manager resolves them against that connection's live native
+session and current availability. Status updates retain the card and its expanded
+diagnostics. The scrolling body keeps the Close footer visible. Mount consent also
+uses the shared numeric size formatter and scrolling-body/fixed-footer layout.
+External-copy details expose source and temporary paths through tooltips instead
+of repeated visible path rows. Existing session/update/lease decisions remain
+with their original owners.
+
+This change adapts local Qt presentation, not native filesystem/archive behavior.
+The existing Copy/About/Extract/Delete provenance remains authoritative; no
+external source or new baseline is imported. Mount commands are local integration
+without original Windows resources. Apple Layout's Markdown endpoint was
+unavailable; the local HIG digest informed the layout, without an HIG-compliance
+claim.
+
+Focused Linux checks passed for the shared identity, dialog surface and all changed
+consumers: Copy/Move, Delete, Properties, Extract, About, Recent Places, external
+tasks, nested editing/navigation and mount forms. Cocoa passed the eleven changed
+consumer suites, including actual record context-menu removal. Mount checks cover
+record-specific diagnostics, stopped-only removal, source preservation, compact
+EN/RU actions and focus during connection transitions. New-entry focus is applied
+after window activation; a neutral card focus retains context while no action is
+available. Keyboard navigation continues to follow native platform policy.
+
+The new cards preserve native session/transport behavior. The nested navigation
+fixture now retains the actual inner temporary filename before returning to its
+parent, so reopening the parent cannot change the cleanup assertion's target.
+Light/dark review captures cover the affected forms; rendered Windows comparison
+and the remaining source/path/layout catalog work are separate acceptance scopes.
+
 ## Extract: source summary — 2026-11-06
 
 The form now reuses QtSourceSummary for the supplied archive name/count and
