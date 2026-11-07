@@ -84,7 +84,7 @@ class LanguageFileTransferTests final : public QObject {
         FileTransferOperation::FileSystemAdapter adapter;
         adapter.trySourceRename = [](const QString &, const QString &) { return false; };
         adapter.removeSource = [&worker, &first](const QString &path) {
-            if (path == first)
+            if (QFileInfo(path).fileName() == QFileInfo(first).fileName())
                 return QFile::remove(path);
             worker->cancel();
             return false;

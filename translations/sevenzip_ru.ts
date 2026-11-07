@@ -6446,6 +6446,10 @@ Use `Revert` to recover timestamp.</source>
     <context>
         <name>qtfiletransfertransaction</name>
         <message>
+            <source>Source changed during transfer: %1</source>
+            <translation>Источник изменился во время переноса: %1</translation>
+        </message>
+        <message>
             <source>Source changed after copying and was kept: %1</source>
             <translation>Источник изменился после копирования и сохранён: %1</translation>
         </message>

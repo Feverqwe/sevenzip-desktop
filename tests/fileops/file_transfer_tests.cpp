@@ -526,20 +526,27 @@ class FileTransferTests : public QObject {
         QCOMPARE(originalSource.readAll(), QByteArray("again"));
     }
 
-    void changedDestinationInvalidatesReplace_data() {
+    void changedFileInvalidatesReplace_data() {
         QTest::addColumn<bool>("duringStaging");
-        QTest::newRow("replaced-while-asking") << false;
-        QTest::newRow("edited-while-staging") << true;
+        QTest::addColumn<bool>("incoming");
+        QTest::addColumn<bool>("move");
+        QTest::newRow("destination-replaced-while-asking") << false << false << true;
+        QTest::newRow("destination-edited-while-staging") << true << false << true;
+        QTest::newRow("incoming-replaced-before-move") << false << true << true;
+        QTest::newRow("incoming-replaced-before-copy") << false << true << false;
     }
-    void changedDestinationInvalidatesReplace() {
+    void changedFileInvalidatesReplace() {
         QFETCH(bool, duringStaging);
+        QFETCH(bool, incoming);
+        QFETCH(bool, move);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString name = QStringLiteral("конфликт 空.txt");
         const QString source = fixture.filePath(name);
         const QString output = fixture.filePath("output");
         const QString target = QDir(output).filePath(name);
-        const QString previous = fixture.filePath("previous destination.txt");
+        const QString changedPath = incoming ? source : target;
+        const QString previous = fixture.filePath("previous file.txt");
         QVERIFY(QDir().mkdir(output));
         const auto write = [](const QString &path, const QByteArray &bytes) {
             QFile file(path);
@@ -552,34 +559,38 @@ class FileTransferTests : public QObject {
         QVERIFY(write(source, "incoming bytes"));
         QVERIFY(write(target, "old bytes"));
         bool changed = false;
-        FileTransferOperation move({source}, output, true);
-        QSignalSpy result(&move, &FileTransferOperation::result);
+        FileTransferOperation operation({source}, output, move);
+        QSignalSpy result(&operation, &FileTransferOperation::result);
         connect(
-            &move, &FileTransferOperation::overwriteRequested, &move,
+            &operation, &FileTransferOperation::overwriteRequested, &operation,
             [&](const OverwriteQuestion &) {
                 if (!duringStaging)
-                    changed = QFile::rename(target, previous) && write(target, "new bytes");
-                move.submitOverwriteAnswer(NOverwriteAnswer::kYes);
+                    changed =
+                        QFile::rename(changedPath, previous) && write(changedPath, "new bytes");
+                operation.submitOverwriteAnswer(NOverwriteAnswer::kYes);
             },
             Qt::DirectConnection);
         connect(
-            &move, &FileTransferOperation::currentFile, &move,
+            &operation, &FileTransferOperation::currentFile, &operation,
             [&](const QString &) {
                 if (duringStaging)
                     changed = write(target, "edited bytes");
             },
             Qt::DirectConnection);
-        move.start();
-        QVERIFY(move.wait(30000));
+        operation.start();
+        QVERIFY(operation.wait(30000));
         QTRY_COMPARE(result.size(), 1);
         QVERIFY(changed);
-        QCOMPARE(move.resultKind(), FileTransferOperation::ResultKind::Failure);
-        QVERIFY(result.first().at(1).toString().contains(target));
-        QCOMPARE(read(source), QByteArray("incoming bytes"));
-        QCOMPARE(read(target),
-                 duringStaging ? QByteArray("edited bytes") : QByteArray("new bytes"));
+        QCOMPARE(operation.resultKind(), FileTransferOperation::ResultKind::Failure);
+        QVERIFY(result.first().at(1).toString().contains(changedPath));
+        QCOMPARE(read(source), incoming ? QByteArray("new bytes") : QByteArray("incoming bytes"));
+        const QByteArray destinationBytes = incoming        ? QByteArray("old bytes")
+                                            : duringStaging ? QByteArray("edited bytes")
+                                                            : QByteArray("new bytes");
+        QCOMPARE(read(target), destinationBytes);
         if (!duringStaging)
-            QCOMPARE(read(previous), QByteArray("old bytes"));
+            QCOMPARE(read(previous),
+                     incoming ? QByteArray("incoming bytes") : QByteArray("old bytes"));
         QCOMPARE(QDir(output).entryList(QDir::Files), QStringList{name});
     }
 
