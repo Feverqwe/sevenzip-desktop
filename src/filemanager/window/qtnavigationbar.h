@@ -7,8 +7,10 @@
 #include <vector>
 
 class QComboBox;
+class QAction;
 class QHBoxLayout;
 class QStackedWidget;
+class QToolButton;
 
 class QtNavigationRow final : public QWidget {
   public:
@@ -41,6 +43,13 @@ class QtNavigationBar final : public QWidget {
 
   private:
     void Rebuild();
+    void FitCrumbs();
+    class CrumbButton;
+    struct Crumb {
+        CrumbButton *button;
+        QWidget *separator;
+        QAction *ancestor;
+    };
     QComboBox &address_;
     QStackedWidget *stack_;
     QWidget *crumbs_;
@@ -48,7 +57,9 @@ class QtNavigationBar final : public QWidget {
     QString path_;
     std::vector<QtAddressSegment> segments_;
     QString rootLabel_;
-    int visibleCrumbs_ = 3;
+    std::vector<Crumb> crumbButtons_;
+    QToolButton *ancestors_ = nullptr;
+    QToolButton *edit_ = nullptr;
     std::function<void(const QString &)> navigate_;
     std::function<void()> beginEdit_;
 };

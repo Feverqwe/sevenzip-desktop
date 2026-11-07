@@ -66,6 +66,38 @@ class WorkspaceNavigationTests final : public QObject {
         QTRY_VERIFY(table->isEnabled());
         QTRY_COMPARE(QDir::cleanPath(bar->toolTip()), archive);
     }
+    void locationBarShowsFullPathWhenItFits() {
+        QWidget host;
+        auto *address = new QComboBox(&host);
+        address->setEditable(true);
+        QtNavigationBar bar(*address, [](const QString &) {}, &host);
+        const QString longName = QStringLiteral("long folder name ").repeated(4).trimmed();
+        const std::vector<QtAddressSegment> segments = {
+            {L"/", L"/", 0, QtAddressSegmentKind::Root},
+            {L"Users", L"/Users", 0, QtAddressSegmentKind::Folder},
+            {L"projects", L"/Users/projects", 0, QtAddressSegmentKind::Folder},
+            {ToUString(longName), ToUString("/Users/projects/" + longName), 0,
+             QtAddressSegmentKind::Folder},
+            {L"newsBot", ToUString("/Users/projects/" + longName + "/newsBot"), 0,
+             QtAddressSegmentKind::Folder}};
+        bar.resize(1400, 36);
+        host.resize(1400, 36);
+        bar.SetLocation(ToQString(segments.back().target), segments);
+        host.show();
+        const auto visibleLabels = [&] {
+            QStringList labels;
+            for (auto *button : bar.findChildren<QToolButton *>())
+                if (button->isVisible() && button->objectName() != "editLocationButton")
+                    labels.append(button->text());
+            return labels;
+        };
+        const QStringList fullPath{"/", "Users", "projects", longName, "newsBot"};
+        QTRY_COMPARE(visibleLabels(), fullPath);
+        bar.resize(260, 36);
+        QTRY_COMPARE(visibleLabels(), (QStringList{QStringLiteral("…"), "newsBot"}));
+        bar.resize(1400, 36);
+        QTRY_COMPARE(visibleLabels(), fullPath);
+    }
     void locationBarUsesNativeParentTargets() {
         QTemporaryDir fixture;
         const QString parent = fixture.filePath(QStringLiteral("folder with archive.zip"));

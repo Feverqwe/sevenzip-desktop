@@ -16,34 +16,28 @@
 #include <QTimer>
 #include <QToolButton>
 
-namespace {
-class CrumbButton final : public QToolButton {
+class QtNavigationBar::CrumbButton final : public QToolButton {
     QString label_;
+
+    int Padding() const { return 12 + (icon().isNull() ? 0 : 20); }
 
   public:
     CrumbButton(const QString &label, QWidget *parent) : QToolButton(parent), label_(label) {
         setText(label);
         QtConfigureChromeToolButton(*this);
-        setMinimumWidth(20);
-        setMaximumWidth(160);
-        setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
     }
-    QSize minimumSizeHint() const override { return {20, QToolButton::minimumSizeHint().height()}; }
-    QSize sizeHint() const override {
-        return {qBound(20,
-                       fontMetrics().horizontalAdvance(label_) + 12 + (icon().isNull() ? 0 : 20),
-                       160),
-                QToolButton::sizeHint().height()};
-    }
-
-  protected:
-    void resizeEvent(QResizeEvent *event) override {
-        QToolButton::resizeEvent(event);
-        setText(fontMetrics().elidedText(label_, Qt::ElideMiddle,
-                                         qMax(0, width() - 12 - (icon().isNull() ? 0 : 20))));
+    int FullWidth() const { return qMax(20, fontMetrics().horizontalAdvance(label_) + Padding()); }
+    void FitWidth(int available) {
+        const int width = qBound(20, available, FullWidth());
+        setFixedWidth(width);
+        const QString text =
+            width == FullWidth()
+                ? label_
+                : fontMetrics().elidedText(label_, Qt::ElideMiddle, qMax(0, width - Padding()));
+        if (this->text() != text)
+            setText(text);
     }
 };
-} // namespace
 
 QtNavigationRow::QtNavigationRow(QWidget *parent) : QWidget(parent) {
     QtWorkspaceTheme::pane(*this);
@@ -112,62 +106,43 @@ void QtNavigationBar::Rebuild() {
         }
         delete item;
     }
-    const auto add = [this](const QString &label, const QString &target) {
-        if (layout_->count()) {
-            auto *separator = new QLabel(QStringLiteral("›"), crumbs_);
-            separator->setAlignment(Qt::AlignCenter);
-            separator->setFixedWidth(10);
-            layout_->addWidget(separator);
-        }
+    crumbButtons_.clear();
+    ancestors_ = new QToolButton(crumbs_);
+    ancestors_->setText(QStringLiteral("…"));
+    ancestors_->setAutoRaise(true);
+    QtConfigureChromeToolButton(*ancestors_);
+    ancestors_->setPopupMode(QToolButton::InstantPopup);
+    auto *menu = new QMenu(ancestors_);
+    ancestors_->setMenu(menu);
+    layout_->addWidget(ancestors_);
+    const auto add = [this, menu](const QString &label, const QString &target, bool archive) {
+        auto *separator = new QLabel(QStringLiteral("›"), crumbs_);
+        separator->setAlignment(Qt::AlignCenter);
+        separator->setFixedWidth(10);
+        layout_->addWidget(separator);
         auto *button = new CrumbButton(label, crumbs_);
         button->setAutoRaise(true);
-        button->setText(label);
         button->setToolTip(target);
         button->setAccessibleName(target);
         connect(button, &QToolButton::clicked, this, [this, target] { navigate_(target); });
         layout_->addWidget(button);
+        auto *ancestor = menu->addAction(label);
+        ancestor->setToolTip(target);
+        connect(ancestor, &QAction::triggered, this, [this, target] { navigate_(target); });
+        if (archive) {
+            ancestor->setIcon(QtCommandSymbol(QtCommandIcon::Archive));
+            button->setIcon(ancestor->icon());
+            button->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+        }
+        crumbButtons_.push_back({button, separator, ancestor});
     };
     if (segments_.empty())
-        add(path_.isEmpty() ? rootLabel_ : path_, path_);
-    // Earlier ancestors remain available in a menu at compact widths.
-    auto *ancestors = new QToolButton(crumbs_);
-    ancestors->setText(QStringLiteral("…"));
-    ancestors->setAutoRaise(true);
-    QtConfigureChromeToolButton(*ancestors);
-    ancestors->setPopupMode(QToolButton::InstantPopup);
-    auto *menu = new QMenu(ancestors);
-    ancestors->setMenu(menu);
-    const int visibleFrom = qMax(0, int(segments_.size()) - visibleCrumbs_);
-    if (visibleFrom)
-        layout_->addWidget(ancestors);
-    else {
-        ancestors->hide();
-        ancestors->deleteLater();
-    }
-    for (int i = 0; i < int(segments_.size()); ++i) {
-        const auto &segment = segments_[i];
+        add(path_.isEmpty() ? rootLabel_ : path_, path_, false);
+    for (const auto &segment : segments_) {
         const QString target = QString::fromWCharArray(segment.target);
         const QString label =
             segment.label.IsEmpty() ? QStringLiteral("/") : QString::fromWCharArray(segment.label);
-        const bool boundary = segment.kind == QtAddressSegmentKind::Archive;
-        if (i < visibleFrom) {
-            auto *ancestor = menu->addAction(label);
-            ancestor->setToolTip(target);
-            if (boundary) {
-                ancestor->setIcon(QtCommandSymbol(QtCommandIcon::Archive));
-                ancestors->setIcon(ancestor->icon());
-                ancestors->setToolTip(path_);
-            }
-            connect(ancestor, &QAction::triggered, this, [this, target] { navigate_(target); });
-        } else {
-            add(label, target);
-            if (boundary) {
-                auto *button =
-                    qobject_cast<QToolButton *>(layout_->itemAt(layout_->count() - 1)->widget());
-                button->setIcon(QtCommandSymbol(QtCommandIcon::Archive));
-                button->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
-            }
-        }
+        add(label, target, segment.kind == QtAddressSegmentKind::Archive);
     }
     auto *edit = new QToolButton(crumbs_);
     edit->setObjectName("editLocationButton");
@@ -183,21 +158,61 @@ void QtNavigationBar::Rebuild() {
     connect(edit, &QToolButton::clicked, this, &QtNavigationBar::Edit);
     layout_->addStretch();
     layout_->addWidget(edit);
-    // Rebuild can run inside resizeEvent on an already visible path field.
-    // Make the replacement crumbs visible in that same layout pass.
-    for (int i = 0; i < layout_->count(); ++i)
-        if (auto *widget = layout_->itemAt(i)->widget())
-            widget->show();
+    edit_ = edit;
+    edit_->show();
+    FitCrumbs();
+}
+
+void QtNavigationBar::FitCrumbs() {
+    if (crumbButtons_.empty())
+        return;
+    const int spacing = layout_->spacing();
+    const int separator = crumbButtons_.front().separator->width() + 2 * spacing;
+    const auto outerMargins = layout()->contentsMargins();
+    const auto innerMargins = layout_->contentsMargins();
+    const int available = width() - outerMargins.left() - outerMargins.right() -
+                          innerMargins.left() - innerMargins.right() - edit_->sizeHint().width() -
+                          spacing;
+    int used = -separator;
+    for (const auto &crumb : crumbButtons_)
+        used += separator + crumb.button->FullWidth();
+
+    size_t first = 0;
+    QIcon hiddenArchive;
+    if (used > available && crumbButtons_.size() > 1) {
+        // Reserve the menu and its separator before fitting the visible suffix.
+        ancestors_->setIcon({});
+        used += ancestors_->sizeHint().width() + separator;
+        while (used > available && first + 1 < crumbButtons_.size()) {
+            const auto &crumb = crumbButtons_[first++];
+            used -= separator + crumb.button->FullWidth();
+            if (hiddenArchive.isNull() && !crumb.ancestor->icon().isNull()) {
+                used -= ancestors_->sizeHint().width();
+                hiddenArchive = crumb.ancestor->icon();
+                ancestors_->setIcon(hiddenArchive);
+                used += ancestors_->sizeHint().width();
+            }
+        }
+    }
+    ancestors_->setIcon(hiddenArchive);
+    ancestors_->setToolTip(hiddenArchive.isNull() ? QString() : path_);
+    ancestors_->setVisible(first != 0);
+    for (size_t i = 0; i < crumbButtons_.size(); ++i) {
+        const auto &crumb = crumbButtons_[i];
+        if (i >= first) {
+            const int excess = i + 1 == crumbButtons_.size() ? qMax(0, used - available) : 0;
+            crumb.button->FitWidth(crumb.button->FullWidth() - excess);
+        }
+        crumb.button->setVisible(i >= first);
+        crumb.separator->setVisible(i >= first && i != 0);
+        crumb.ancestor->setVisible(i < first);
+    }
     layout_->activate();
 }
 
 void QtNavigationBar::resizeEvent(QResizeEvent *event) {
     QWidget::resizeEvent(event);
-    const int visible = width() < 300 ? 1 : width() < 500 ? 2 : 3;
-    if (visible != visibleCrumbs_) {
-        visibleCrumbs_ = visible;
-        Rebuild();
-    }
+    FitCrumbs();
 }
 
 void QtNavigationBar::Edit() {
