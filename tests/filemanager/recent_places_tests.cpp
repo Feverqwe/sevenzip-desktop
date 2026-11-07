@@ -229,19 +229,25 @@ class RecentPlacesTests final : public QObject, protected MainWindowTestSupport 
     void closedNestedArchiveReopensThroughRecordedNativeTarget_data() {
         QTest::addColumn<bool>("favorite");
         QTest::addColumn<bool>("fromUnavailable");
-        QTest::newRow("recent") << false << false;
-        QTest::newRow("favorite") << true << false;
-        QTest::newRow("recent-from-unavailable") << false << true;
-        QTest::newRow("favorite-from-unavailable") << true << true;
+        QTest::addColumn<QString>("parentCase");
+        QTest::newRow("recent") << false << false << QString();
+        QTest::newRow("favorite") << true << false << QString();
+        QTest::newRow("recent-from-unavailable") << false << true << QString();
+        QTest::newRow("favorite-from-unavailable") << true << true << QString();
+        QTest::newRow("parent-missing-outer") << true << false << QString("outer");
+        QTest::newRow("parent-missing-inner-archive") << true << false << QString("inner");
+        QTest::newRow("parent-missing-inner-folder") << true << false << QString("folder");
     }
     void closedNestedArchiveReopensThroughRecordedNativeTarget() {
         QFETCH(bool, favorite);
         QFETCH(bool, fromUnavailable);
+        QFETCH(QString, parentCase);
         QTemporaryDir fixture;
         const QString folder = QStringLiteral("dir 空/sub папка");
         const QString entry = folder + "/payload.txt";
         QVERIFY(QDir().mkpath(fixture.filePath(folder)));
         QVERIFY(ExternalEditorFixture::write(fixture.filePath(entry), "nested recent bytes"));
+        QVERIFY(ExternalEditorFixture::write(fixture.filePath("dir 空/kept.txt"), "parent bytes"));
         const QString inner = fixture.filePath("inner δ.zip"),
                       outer = fixture.filePath("outer.zip");
         QVERIFY(ExternalEditorFixture::createArchive(fixture.path(), inner, "dir 空"));
@@ -263,17 +269,54 @@ class RecentPlacesTests final : public QObject, protected MainWindowTestSupport 
         }
         window.openArchive(outer);
         QTRY_VERIFY(rowWithPath(window, QFileInfo(inner).fileName()) >= 0);
+        const auto outerRoot = active(window)->sourcePanel->GetCurrentFolderPrefix();
         openRow(window, rowWithPath(window, QFileInfo(inner).fileName()));
         QTRY_VERIFY(rowWithPath(window, "dir 空") >= 0);
-        openRow(window, rowWithPath(window, "dir 空"));
-        QTRY_VERIFY(rowWithPath(window, folder) >= 0);
-        openRow(window, rowWithPath(window, folder));
-        QTRY_VERIFY(rowWithPath(window, entry) >= 0);
+        UString archivedParent;
+        if (parentCase != "inner") {
+            openRow(window, rowWithPath(window, "dir 空"));
+            QTRY_VERIFY(rowWithPath(window, folder) >= 0);
+            archivedParent = active(window)->sourcePanel->GetCurrentFolderPrefix();
+            openRow(window, rowWithPath(window, folder));
+            QTRY_VERIFY(rowWithPath(window, entry) >= 0);
+        }
         const QString requested = ToQString(active(window)->sourcePanel->GetCurrentFolderPrefix());
         const QString savedName = QStringLiteral("Nested archive ") + fixtureName;
         if (favorite)
             addFavorite(window, savedName);
         window.openPath(plain);
+        if (!parentCase.isEmpty()) {
+            QVERIFY(QFile::remove(outer));
+            if (parentCase == "folder") {
+                QVERIFY(QFile::remove(inner));
+                QVERIFY(QDir(fixture.filePath(folder)).removeRecursively());
+                QVERIFY(ExternalEditorFixture::createArchive(fixture.path(), inner, "dir 空"));
+                QVERIFY(ExternalEditorFixture::createArchive(fixture.path(), outer,
+                                                             QFileInfo(inner).fileName()));
+            } else if (parentCase == "inner") {
+                QVERIFY(ExternalEditorFixture::createArchive(fixture.path(), outer, "Plain"));
+            }
+            openFavorite(window, savedName);
+            auto *parent = window.findChild<QPushButton *>("navigationParent0");
+            QVERIFY(parent);
+            QTRY_VERIFY(parent->isVisible());
+            QVERIFY(!active(window)->isEnabled());
+            parent->click();
+            QTRY_VERIFY(active(window)->isEnabled() && !parent->isVisible());
+            if (parentCase == "outer") {
+                QCOMPARE(location(window), fixture.path());
+                QVERIFY(active(window)->sourcePanel->IsFSFolder());
+            } else if (parentCase == "inner") {
+                QCOMPARE(active(window)->sourcePanel->GetCurrentFolderPrefix(), outerRoot);
+                QCOMPARE(active(window)->sourcePanel->GetParentFolders().Size(), 1u);
+                QVERIFY(rowWithPath(window, "Plain") >= 0);
+            } else {
+                QCOMPARE(active(window)->sourcePanel->GetCurrentFolderPrefix(), archivedParent);
+                QCOMPARE(active(window)->sourcePanel->GetParentFolders().Size(), 2u);
+                QVERIFY(rowWithPath(window, "dir 空/kept.txt") >= 0);
+            }
+            return;
+        }
         const auto openRecent = [&](const QString &path) {
             action(window, "foldersHistoryAction")->trigger();
             QTRY_VERIFY(RecentPlacesMenu::Visible(window));

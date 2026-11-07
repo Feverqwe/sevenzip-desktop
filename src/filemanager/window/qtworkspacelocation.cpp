@@ -115,9 +115,10 @@ void QtWindowWorkspace::RetryLocation(unsigned panel, bool parent) {
         return;
     }
     if (parent) {
-        locationState.path = QFileInfo(QDir::cleanPath(locationState.path)).absolutePath();
+        locationState.path = locationState.archiveLocation.physicalPath.isEmpty()
+                                 ? QFileInfo(QDir::cleanPath(locationState.path)).absolutePath()
+                                 : locationState.archiveLocation.MoveToParent();
         locationState.nativePlaceIdentity.clear();
-        locationState.archiveLocation = {};
         locationState.archiveApplied = locationState.archiveRevision;
     }
     const QString requested = locationState.path;

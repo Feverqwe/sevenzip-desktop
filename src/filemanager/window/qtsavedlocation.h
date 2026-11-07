@@ -25,6 +25,7 @@ struct QtArchiveLocation {
     static QtArchiveLocation Capture(const CPanel &panel,
                                      const std::vector<QtAddressSegment> &ancestors);
     QJsonObject Save() const;
+    QString MoveToParent();
     static QtArchiveLocation Restore(const QJsonObject &value);
 };
 
