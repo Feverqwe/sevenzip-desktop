@@ -1,9 +1,7 @@
-#include "dialogs/combo/ComboDialog.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
 #include "localization/LangUtils.h"
 #include "settings/RegistryUtils.h"
-#include "support/widget_dialogs.h"
 #include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
 #include <QScopeGuard>
@@ -11,7 +9,6 @@
 
 class SourceContextMenuTests final : public QObject, protected MainWindowTestSupport {
     Q_OBJECT
-    WidgetDialogFixture dialogs_;
     static QAction *menuAction(QMenu &menu, const char *name) {
         for (QAction *action : menu.actions())
             if (action->objectName() == QLatin1String(name))
@@ -221,16 +218,7 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
                 QVERIFY(!QFileInfo::exists(peerDirectory.filePath(created)));
             }
         }
-        bool menuObserved = false, dialogObserved = false;
-        QTimer answer;
-        dialogs_.connectResponder(answer, &window, [&] {
-            if (auto *dialog = qobject_cast<CComboDialog *>(dialogs_.activeDialog())) {
-                dialogObserved = true;
-                dialog->findChild<QComboBox *>("comboValue")->setEditText(created);
-                dialog->accept();
-            }
-        });
-        answer.start(5);
+        bool menuObserved = false;
         QTimer::singleShot(0, &window, [&] {
             auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
             if (!menu)
@@ -256,8 +244,11 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
         const QPoint point = view->visualRect(index).center();
         QVERIFY(QMetaObject::invokeMethod(view, "customContextMenuRequested", Qt::DirectConnection,
                                           Q_ARG(QPoint, point)));
-        answer.stop();
-        QVERIFY(menuObserved && dialogObserved);
+        QVERIFY(menuObserved);
+        auto *name = ownerUi->findChild<QLineEdit *>("inlineFolderName");
+        QVERIFY(name && name->isVisible());
+        name->setText(created);
+        QTest::keyClick(name, Qt::Key_Return);
         QVERIFY2(
             QFileInfo::exists(fixture.filePath(created)),
             qPrintable(

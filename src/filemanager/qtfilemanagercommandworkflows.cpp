@@ -136,8 +136,7 @@ void QtFileManagerCommands::CreateFolder() {
         name, &QLineEdit::returnPressed, editor,
         [this, index, source, prefix, name, error, editor, finish] {
             auto &panel = window_.app_.Panels[index];
-            if (window_.app_.GetFocusedPanelIndex() != index ||
-                panel.GetFolder() != source.Interface() ||
+            if (!window_.app_.IsPanelVisible(index) || panel.GetFolder() != source.Interface() ||
                 panel.GetCurrentFolderPrefix() != prefix) {
                 finish();
                 return;
@@ -145,6 +144,9 @@ void QtFileManagerCommands::CreateFolder() {
             auto &operations = window_.app_.QtOperations();
             if (operations.closed() || operations.blocking() || operations.callActive())
                 return;
+            // The context menu may have temporarily projected this pane while
+            // creating the inline editor. Submit against the editor's owner.
+            window_.activatePanelUi(index);
             QString detail;
             HRESULT result = E_INVALIDARG;
             const QString value = name->text();
