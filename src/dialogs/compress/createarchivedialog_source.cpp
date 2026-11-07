@@ -83,14 +83,19 @@ void CreateArchiveDialog::validateAndAccept() {
         return;
     }
     SaveOptionsInMem();
+    UString draftName(name_->text().toStdWString().c_str());
+    draftName.Trim();
     const QString resolved = archivePath();
     const QFileInfo target(resolved);
-    if (resolved.isEmpty() || target.isDir() || !ArchiveParentCanBeDirectory(target)) {
+    if (draftName.IsEmpty() || resolved.isEmpty() || target.isDir() ||
+        !ArchiveParentCanBeDirectory(target)) {
         // Keep the draft available for correction before handing it to UpdateArchive.
         const std::wstring message =
             QCoreApplication::translate("CreateArchiveDialog", "Incorrect archive path")
                 .toStdWString();
         ShowErrorMessageQt(this, message.c_str());
+        if (draftName.IsEmpty())
+            name_->setFocus();
         return;
     }
     if (!checkVolumeSizes())

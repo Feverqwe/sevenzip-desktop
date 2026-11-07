@@ -359,6 +359,23 @@ class CompressionPathTests final : public QObject {
         QVERIFY(!diagnostic.isEmpty());
         QCOMPARE(archiveName->text(), name);
         folder->setText(QDir::toNativeSeparators(output));
+        archiveName->setText("  ");
+        diagnostic.clear();
+        QTimer::singleShot(0, &dialog, [&] {
+            if (auto *message = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                diagnostic = message->text();
+                message->accept();
+            }
+        });
+        submit(dialog);
+        QVERIFY(dialog.isVisible());
+        QVERIFY(!diagnostic.isEmpty());
+        QWidget *editor = dialog.focusWidget();
+        QVERIFY(editor);
+        QTest::keyClicks(editor, "retry.7z");
+        QCOMPARE(archiveName->text().trimmed(), QString("retry.7z"));
+        QVERIFY(!QFileInfo::exists(output));
+        archiveName->setText(name);
         submit(dialog);
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
         QCOMPARE(QDir::fromNativeSeparators(dialog.target()), QDir(output).filePath(name));
