@@ -379,7 +379,7 @@ class WorkspaceSessionTests final : public QObject {
         QCOMPARE(QDir::cleanPath(restored.findChild<QLineEdit *>("archivePath")->text()), gone);
         QLabel *message = nullptr;
         for (auto *label : restored.findChildren<QLabel *>())
-            if (label->text().contains(gone))
+            if (QDir::fromNativeSeparators(label->text()).contains(gone))
                 message = label;
         QVERIFY(message);
         for (const QSize size : {QSize(980, 620), QSize(640, 400)}) {
