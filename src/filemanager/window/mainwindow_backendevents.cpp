@@ -156,6 +156,8 @@ void MainWindow::closeProgressDialog(bool finished) {
     // longer overwrite the application owner's restored title on destruction.
     completed->MainWindow = nullptr;
     progress->transport.reset();
+    // The active path may be unchanged even though progress replaced its title.
+    app_.RefreshTitle(true);
     if (!progress->dialog)
         return;
     if (finished) {

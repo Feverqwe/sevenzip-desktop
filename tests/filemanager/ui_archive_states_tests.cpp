@@ -1,7 +1,10 @@
+#include "7zip/UI/FileManager/resourceGui.h"
+#include "7zip/UI/GUI/ExtractRes.h"
 #include "archive/support/native_archive_fixture.h"
 #include "dialogs/copy/alias.h"
 #include "filemanager/support/window_state_support.h"
 #include "localization/LangUtils.h"
+#include "localization/qtlangcontrols.h"
 #include "settings/RegistryUtils.h"
 #include "settings/ViewSettings.h"
 #include "support/panel_keys.h"
@@ -242,6 +245,7 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
         openListedArchive(window, backend, "opened.7z",
                           {ArchiveEntry{QStringLiteral("файл.txt"), 4, 4}});
         QCoreApplication::processEvents();
+        const QString archiveTitle = window.windowTitle();
         window.extractTo("/temporary/destination");
         QCOMPARE(backend.extractCalls, 1);
         QVERIFY(!action(window, "toolbarAddAction")->isEnabled());
@@ -256,14 +260,13 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
             dynamic_cast<CProgressDialog *>(window.findChild<QDialog *>("progressDialog"));
         QVERIFY(progress);
         auto *percent = progress->findChild<QProgressBar *>("IDC_PROGRESS1");
-        auto *label = progress->findChild<QLabel *>("IDT_PROGRESS_STATUS");
         auto *path = progress->findChild<QLabel *>("IDT_PROGRESS_FILE_NAME");
-        QVERIFY(percent && label && path);
+        QVERIFY(percent && path);
         const QString detail = QStringLiteral("folder with spaces/файл 空.txt");
         backend.report(37, detail, {});
         QTRY_COMPARE(percent->value(), 37);
-        const QString extractionLabel = label->text();
-        QVERIFY(!extractionLabel.isEmpty());
+        const QString extractionLabel = QtLangText(IDS_PROGRESS_EXTRACTING);
+        QTRY_VERIFY(window.windowTitle().startsWith("37%"));
         QCOMPARE(window.statusBar()->currentMessage(), extractionLabel + ": " + detail);
         QVERIFY(path->text().contains(QStringLiteral("файл 空.txt")));
         backend.report(38, {}, {});
@@ -280,6 +283,7 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
         });
         button->click();
         QCOMPARE(backend.cancelCalls, 1);
+        QCOMPARE(window.windowTitle(), archiveTitle);
         QCOMPARE(table(window)->rowCount(), 1);
         QVERIFY(action(window, "extractArchiveAction")->isEnabled());
         QVERIFY(action(window, "parentFolderAction")->isEnabled());
@@ -287,16 +291,19 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
         QCOMPARE(window.statusBar()->currentMessage(), QStringLiteral("Операция отменена."));
         backend.report(99, QStringLiteral("retired path"), {});
         QCOMPARE(window.statusBar()->currentMessage(), QStringLiteral("Операция отменена."));
+        QVERIFY(TestProgressDialog::DismissVisibleResult(QApplication::activeModalWidget()));
+        QCOMPARE(window.windowTitle(), archiveTitle);
         window.testArchive();
         QCOMPARE(backend.testCalls, 1);
         auto *next = dynamic_cast<CProgressDialog *>(window.findChild<QDialog *>("progressDialog"));
         QVERIFY(next);
         backend.report(64, detail, {});
         QTRY_COMPARE(next->findChild<QProgressBar *>("IDC_PROGRESS1")->value(), 64);
-        const QString testLabel = next->findChild<QLabel *>("IDT_PROGRESS_STATUS")->text();
-        QVERIFY(testLabel != extractionLabel);
-        QCOMPARE(window.statusBar()->currentMessage(), testLabel + ": " + detail);
-        backend.cancel();
+        QTRY_VERIFY(window.windowTitle().startsWith("64%"));
+        QCOMPARE(window.statusBar()->currentMessage(),
+                 QtLangText(IDS_PROGRESS_TESTING) + ": " + detail);
+        backend.completeExtraction();
+        QCOMPARE(window.windowTitle(), archiveTitle);
     }
 
     void createDialogEncryptionChoices() {
