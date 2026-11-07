@@ -7,7 +7,9 @@
 #include "fileops/links/qtlinkservices.h"
 #include "fileops/transfer/filetransferoperation.h"
 #include "localization/qtlanguageservices.h"
+#include "platform/temp/qtownedtempidentity.h"
 
+#include <QDateTime>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -241,6 +243,21 @@ bool QtFileTransferTransaction::transferEntry(const TransferPath &path,
     bool mayReplace = false;
     const QFileInfo sourceInfo(source);
     const QFileInfo existingInfo(target);
+    const QString existingIdentity =
+        existingInfo.exists() ? QtOwnedTempIdentity(target) : QString();
+    const auto existingModified = existingInfo.lastModified();
+    const qint64 existingSize = existingInfo.size();
+    const auto matchesExisting = [&](const QString &candidate) {
+        const QFileInfo info(candidate);
+        return !existingIdentity.isEmpty() && QtOwnedTempIdentity(candidate) == existingIdentity &&
+               info.lastModified() == existingModified && info.size() == existingSize;
+    };
+    const auto destinationChanged = [&] {
+        error = QCoreApplication::translate("qtfiletransfertransaction",
+                                            "Destination changed during transfer: %1")
+                    .arg(target);
+        return false;
+    };
     const bool merge = existingInfo.isDir() && sourceInfo.isDir() && !QtIsFileSystemLink(source);
     if (existingInfo.exists()) {
         if (existingInfo.isDir() != sourceInfo.isDir()) {
@@ -279,6 +296,8 @@ bool QtFileTransferTransaction::transferEntry(const TransferPath &path,
         if (!error.isEmpty())
             return false;
     }
+    if (mayReplace && !matchesExisting(target))
+        return destinationChanged();
     const QString suffix =
         QStringLiteral(".sevenzip-%1").arg(QUuid::createUuid().toString(QUuid::Id128));
     const QString stage = target + suffix;
@@ -308,24 +327,24 @@ bool QtFileTransferTransaction::transferEntry(const TransferPath &path,
         error = QCoreApplication::translate("qtfiletransfertransaction", "Operation canceled.");
         return false;
     }
-    if (QFileInfo(target).isSymLink() || (QFileInfo::exists(target) && !mayReplace)) {
-        error = QCoreApplication::translate("qtfiletransfertransaction",
-                                            "Destination changed during transfer: %1")
-                    .arg(target);
-        return false;
-    }
-    if (QFileInfo::exists(target)) {
+    if (mayReplace) {
+        if (!matchesExisting(target))
+            return destinationChanged();
         // Keep the old entry until every source has published successfully.
         const QString backupPath = target + suffix + QStringLiteral("-backup");
-        if (!QDir().rename(target, backupPath)) {
+        if (!QtRenameFileSystemEntryWithoutReplacing(target, backupPath)) {
             error = QCoreApplication::translate("qtfiletransfertransaction",
                                                 "Could not preserve the previous item: %1")
                         .arg(target);
             return false;
         }
         entry.backup = backupPath;
+        if (!matchesExisting(backupPath))
+            return destinationChanged();
+    } else if (QFileInfo::exists(target) || QtIsFileSystemLink(target)) {
+        return destinationChanged();
     }
-    if (!QDir().rename(stage, target)) {
+    if (!QtRenameFileSystemEntryWithoutReplacing(stage, target)) {
         error = QCoreApplication::translate("qtfiletransfertransaction",
                                             "Could not finish transfer: %1")
                     .arg(target);
