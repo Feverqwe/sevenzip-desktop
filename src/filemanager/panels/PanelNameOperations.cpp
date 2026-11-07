@@ -35,7 +35,7 @@ static bool PrepareFilesystemName(CPanel &panel, UString &name) {
     if (!panel.IsFSFolder())
         return true;
     UString correctName;
-    if (!panel.CorrectFsPath(name, correctName)) {
+    if (!panel.CorrectFsPath(name, correctName) || correctName.IsEmpty()) {
         panel.MessageBox_Error_HRESULT(E_INVALIDARG);
         return false;
     }
@@ -93,7 +93,7 @@ HRESULT CPanel::OnEndLabelEdit(UInt32 realIndex, const UString &enteredName) {
     CDisableTimerProcessing disableTimerProcessing2(*this);
     if (!CheckBeforeUpdate(IDS_ERROR_RENAMING))
         return E_ABORT;
-    if (!IsCorrectFsName(enteredName)) {
+    if (enteredName.IsEmpty() || !IsCorrectFsName(enteredName)) {
         MessageBox_Error_HRESULT(E_INVALIDARG);
         return E_INVALIDARG;
     }

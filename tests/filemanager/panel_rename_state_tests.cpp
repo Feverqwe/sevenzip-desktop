@@ -159,12 +159,13 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
         QTest::addColumn<QString>("invalidName");
         for (unsigned index : {0u, 1u})
             for (const QString language : {"-", "ru"})
-                for (int outcome : {0, 1, 2, 3})
+                for (int outcome : {0, 1, 2, 3, 4})
                     QTest::newRow(
                         qPrintable(QString("%1-%2-%3").arg(index).arg(language).arg(outcome)))
                         << index << language << (outcome == 1)
                         << (outcome == 2   ? QString("..")
                             : outcome == 3 ? QStringLiteral("renamed 空.txt") + QChar::Null + "tail"
+                            : outcome == 4 ? QStringLiteral("")
                                            : QString());
     }
     void editorPreservesSavedSelection() {
@@ -172,7 +173,7 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
         QFETCH(QString, language);
         QFETCH(bool, collision);
         QFETCH(QString, invalidName);
-        const bool invalid = !invalidName.isEmpty();
+        const bool invalid = !invalidName.isNull();
         const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         QFile::remove(settings);
         SaveRegLang(ToUString(language), settings);
@@ -324,7 +325,7 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
             QVERIFY(payload.open(QIODevice::ReadOnly));
             QCOMPARE(payload.readAll(), entry.second);
         }
-        if (invalidName.contains(QChar::Null)) {
+        if (collision || (invalid && invalidName.isEmpty()) || invalidName.contains(QChar::Null)) {
             QVERIFY(!QFileInfo::exists(fixture.filePath(QStringLiteral("renamed 空.txt"))));
             view->setFocus();
             action(window, "renameAction")->trigger();

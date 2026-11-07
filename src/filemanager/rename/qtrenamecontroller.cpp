@@ -1,4 +1,5 @@
 #include "filemanager/rename/qtrenamecontroller.h"
+#include "archive/backend/archivebackend.h"
 #include "filemanager/panels/Panel.h"
 #include "filemanager/window/mainwindow.h"
 #include <QAbstractItemDelegate>
@@ -177,7 +178,8 @@ void QtRenameController::Apply(const Request &request) {
 void QtRenameController::Finish(const Request &request, CPanel &panel) {
     {
         QScopedValueRollback<bool> source(window_.sourceArchiveProgress_, true);
-        if (request.name.contains(QChar::Null)) {
+        if (request.name.contains(QChar::Null) ||
+            (panel.IsArcFolder() && !ArchiveBackend::safePath(request.name))) {
             CPanel::CDisableTimerProcessing disableTimer(panel);
             panel.MessageBox_Error_HRESULT(E_INVALIDARG);
         } else

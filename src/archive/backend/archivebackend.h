@@ -230,6 +230,7 @@ class ArchiveBackend : public QObject {
                                  const ExtractionOptions &options, bool nativeSource = false,
                                  const QString &sourceFolder = {},
                                  const CArc *nativeMetadata = nullptr) const;
+    static bool safePath(const QString &path);
     // sourceFolder is the exact bound Agent prefix removed by the source callback.
     bool validateExtraction(const QString &destination, const QStringList &selected,
                             const ExtractionOptions &options, QString *error,
@@ -276,7 +277,6 @@ class ArchiveBackend : public QObject {
     const ListedSourceSnapshot *findListedSourceArchive(const QFileInfo &file) const;
     enum class Job { None, List, Extract, Test, Hash, SourceExtract };
     HRESULT finishSourceExtractOperation(const QtArchiveReadOperation &operation, HRESULT result);
-    static bool safePath(const QString &path);
     bool restoreListedArchive(const QString &archive);
     void startListing(const QString &archive, const QString &password, const QString &format);
 
