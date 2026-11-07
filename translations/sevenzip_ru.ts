@@ -2,6 +2,10 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="ru_RU" sourcelanguage="en">
     <context>
+        <name>InlineCreateFolder</name>
+        <message><source>Folder name</source><translation>Имя папки</translation></message>
+    </context>
+    <context>
         <name>ProgressRedesign</name>
         <message><source>Stop</source><translation>Остановить</translation></message>
         <message><source>Preparing…</source><translation>Подготовка…</translation></message>

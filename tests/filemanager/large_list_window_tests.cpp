@@ -214,13 +214,11 @@ class LargeListWindowTests final : public QObject, protected MainWindowTestSuppo
         auto *list = table(window);
         QTRY_VERIFY(list->isEnabled() && list->rowCount() >= 512);
         const QString name = QStringLiteral("новая папка с пробелом");
-        QTimer::singleShot(0, &window, [&] {
-            auto *dialog = window.findChild<QDialog *>("comboDialog");
-            QVERIFY(dialog);
-            dialog->findChild<QComboBox *>("comboValue")->setEditText(name);
-            dialog->accept();
-        });
         action(window, "createFolderAction")->trigger();
+        auto *folderName = window.findChild<QLineEdit *>("inlineFolderName");
+        QVERIFY(folderName && folderName->isVisible());
+        folderName->setText(name);
+        QTest::keyClick(folderName, Qt::Key_Return);
         QVERIFY(QFileInfo::exists(fixture.filePath(name)));
         QTRY_VERIFY(list->isEnabled() && list->rowCount() >= 513);
         QCOMPARE(list->selectionModel()->selectedRows().size(), 1);

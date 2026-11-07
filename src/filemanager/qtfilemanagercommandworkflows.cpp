@@ -8,7 +8,13 @@
 #include "filemanager/window/qtwindowworkspace.h"
 #include "localization/qtlangcontrols.h"
 #include "operations/CompressCall.h"
+#include "ui/dialogs/qtdialoglayout.h"
+#include "ui/progress/ProgressDialog2.h"
+#include <QLineEdit>
 #include <QScopedValueRollback>
+#include <QShortcut>
+#include <QStackedWidget>
+#include <QVBoxLayout>
 
 void QtFileManagerCommands::OpenNative(bool internal, bool external, const wchar_t *type) {
     RunNativeOpen([=](CPanel &panel) {
@@ -88,8 +94,86 @@ void QtFileManagerCommands::CalculateCrc(const char *method) {
 void QtFileManagerCommands::Properties() { window_.showSelectedProperties(); }
 void QtFileManagerCommands::CreateFolder() {
     const unsigned index = window_.app_.GetFocusedPanelIndex();
-    window_.app_.Panels[index].CreateFolder();
-    window_.app_.QtOperations().ContinueScanAfterSourceCall(index);
+    auto &panel = window_.app_.Panels[index];
+    auto *view = window_.panelUi_[index].viewStack;
+    auto *parent = view->parentWidget();
+    if (auto *name = parent->findChild<QLineEdit *>("inlineFolderName");
+        name && name->isVisible()) {
+        name->setFocus();
+        return;
+    }
+
+    auto *editor = new QWidget(parent);
+    editor->setObjectName("inlineCreateFolder");
+    auto *row = new QVBoxLayout(editor);
+    row->setContentsMargins(12, 6, 12, 6);
+    auto *name = new QLineEdit(editor);
+    name->setObjectName("inlineFolderName");
+    const auto hint = QCoreApplication::translate("InlineCreateFolder", "Folder name");
+    name->setPlaceholderText(hint);
+    name->setAccessibleName(hint);
+    row->addWidget(name);
+    auto *error = new QtWrappingLabel(editor);
+    error->setObjectName("inlineFolderError");
+    error->setTextFormat(Qt::PlainText);
+    error->hide();
+    row->addWidget(error);
+    auto *layout = static_cast<QVBoxLayout *>(parent->layout());
+    layout->insertWidget(layout->indexOf(view), editor);
+    const auto finish = [view, editor] {
+        editor->hide();
+        editor->deleteLater();
+        view->currentWidget()->setFocus();
+    };
+    auto *escape = new QShortcut(QKeySequence(Qt::Key_Escape), editor);
+    escape->setContext(Qt::WidgetWithChildrenShortcut);
+    QObject::connect(escape, &QShortcut::activated, editor, finish);
+    QObject::connect(name, &QLineEdit::textEdited, error, &QWidget::hide);
+
+    const CMyComPtr<IFolderFolder> source = panel.GetFolder();
+    const UString prefix = panel.GetCurrentFolderPrefix();
+    QObject::connect(
+        name, &QLineEdit::returnPressed, editor,
+        [this, index, source, prefix, name, error, editor, finish] {
+            auto &panel = window_.app_.Panels[index];
+            if (window_.app_.GetFocusedPanelIndex() != index ||
+                panel.GetFolder() != source.Interface() ||
+                panel.GetCurrentFolderPrefix() != prefix) {
+                finish();
+                return;
+            }
+            auto &operations = window_.app_.QtOperations();
+            if (operations.closed() || operations.blocking() || operations.callActive())
+                return;
+            QString detail;
+            HRESULT result = E_INVALIDARG;
+            const QString value = name->text();
+            if (!value.isEmpty() && !value.contains(QChar::Null)) {
+                const QPointer<QWidget> alive(editor);
+                editor->setEnabled(false);
+                {
+                    QtAppOperationState::CallScope call(operations);
+                    {
+                        QScopedValueRollback<bool> progress(window_.sourceArchiveProgress_, true);
+                        result = panel.CreateFolder(ToUString(value), detail);
+                    }
+                    operations.ContinueScanAfterSourceCall(index);
+                }
+                if (!alive || operations.closed())
+                    return;
+                editor->setEnabled(true);
+            }
+            if (result == S_OK) {
+                finish();
+                return;
+            }
+            error->setText(detail.isEmpty() ? ToQString(HResultToMessage(result)) : detail);
+            error->show();
+            name->setFocus();
+        });
+    editor->setToolTip(ToQString(prefix));
+    editor->show();
+    name->setFocus();
 }
 void QtFileManagerCommands::AddToArchive() { window_.createDialog(); }
 void QtFileManagerCommands::ExtractArchives() { window_.extractArchives(); }

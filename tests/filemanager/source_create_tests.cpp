@@ -1,11 +1,9 @@
 #include "7zip/UI/FileManager/resource.h"
-#include "dialogs/combo/ComboDialog.h"
 #include "filemanager/support/selection_fixture.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
 #include "localization/LangUtils.h"
 #include "settings/RegistryUtils.h"
-#include "support/progress_dialog.h"
 #include "ui/support/layout_inspection.h"
 #include <QScopeGuard>
 
@@ -36,34 +34,17 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         QTRY_COMPARE(view->rowCount(), 0);
         view->setFocus();
         const QString finalName = QStringLiteral("corrected 空");
-        bool rejected = false;
-        QTimer::singleShot(0, &window, [&] {
-            auto *dialog = window.findChild<CComboDialog *>("comboDialog");
-            QVERIFY(dialog);
-            const auto close = qScopeGuard([&] {
-                if (dialog->isVisible())
-                    dialog->reject();
-            });
-            auto *combo = dialog->findChild<QComboBox *>("comboValue");
-            combo->setCurrentText(QStringLiteral("truncated") + QChar::Null + "suffix");
-            bool error = false;
-            QTimer::singleShot(0, dialog, [&] {
-                if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
-                    error = !box->text().isEmpty();
-                    box->accept();
-                }
-            });
-            dialog->accept();
-            QVERIFY(error);
-            QVERIFY(dialog->isVisible());
-            QVERIFY(!QFileInfo::exists(fixture.filePath("truncated")));
-            QCOMPARE(view->rowCount(), 0);
-            rejected = true;
-            combo->setCurrentText(finalName);
-            dialog->accept();
-        });
         action(window, "createFolderAction")->trigger();
-        QVERIFY(rejected);
+        auto *name = window.findChild<QLineEdit *>("inlineFolderName");
+        QVERIFY(name && name->isVisible());
+        name->setText(QStringLiteral("truncated") + QChar::Null + "suffix");
+        QTest::keyClick(name, Qt::Key_Return);
+        auto *error = window.findChild<QLabel *>("inlineFolderError");
+        QVERIFY(error && error->isVisible() && !error->text().isEmpty());
+        QVERIFY(!QFileInfo::exists(fixture.filePath("truncated")));
+        QCOMPARE(view->rowCount(), 0);
+        name->setText(finalName);
+        QTest::keyClick(name, Qt::Key_Return);
         const QFileInfo created(fixture.filePath(finalName));
         QVERIFY(created.isDir());
         QVERIFY(!QFileInfo::exists(fixture.filePath("truncated")));
@@ -118,46 +99,25 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         view->setFocus();
         const auto initial = view->selectionModel()->selection();
         const QString entered = QStringLiteral("new folder 空/child");
-        QString title, prompt, defaultName;
-        bool observed = false;
-        bool reports = true;
-        const auto invoke = [&](bool accept) {
-            observed = false;
-            QTimer::singleShot(0, &window, [&] {
-                auto *dialog = window.findChild<CComboDialog *>("comboDialog");
-                if (!dialog)
-                    return;
-                observed = true;
-                title = dialog->windowTitle();
-                prompt = dialog->findChild<QLabel *>("comboPrompt")->text();
-                defaultName = dialog->findChild<QComboBox *>("comboValue")->currentText();
-                for (int width : {360, 260}) {
-                    dialog->resize(width, 150);
-                    QApplication::processEvents();
-                    reports &= UiInspection::writeReport(
-                        *dialog,
-                        QString("source-create-%1-%2").arg(QTest::currentDataTag()).arg(width));
-                    reports &= UiInspection::fullyVisible(
-                        *dialog->findChild<QComboBox *>("comboValue"), *dialog);
-                }
-                dialog->findChild<QComboBox *>("comboValue")->setEditText(entered);
-                if (accept)
-                    dialog->accept();
-                else
-                    dialog->reject();
-            });
-            action(window, "createFolderAction")->trigger();
-        };
-        invoke(false);
-        QVERIFY(observed);
+        action(window, "createFolderAction")->trigger();
+        QPointer<QLineEdit> name = window.findChild<QLineEdit *>("inlineFolderName");
+        QVERIFY(name && name->isVisible());
+        name->setText(entered);
+        for (const int width : {980, 640}) {
+            window.resize(width, 560);
+            QTRY_VERIFY(UiInspection::fullyVisible(*name, window));
+            QVERIFY(UiInspection::writeReport(
+                window, QString("source-create-%1-%2").arg(QTest::currentDataTag()).arg(width)));
+        }
+        QTest::keyClick(name, Qt::Key_Escape);
+        QTRY_VERIFY(!name);
         QCOMPARE(view->selectionModel()->selection(), initial);
         QVERIFY(!QFileInfo::exists(fixture.filePath(entered)));
-        QCOMPARE(title, ToQString(LangString(IDS_CREATE_FOLDER)));
-        QCOMPARE(prompt, ToQString(LangString(IDS_CREATE_FOLDER_NAME)));
-        QCOMPARE(defaultName, ToQString(LangString(IDS_CREATE_FOLDER_DEFAULT_NAME)));
-        QVERIFY(reports);
-        invoke(true);
-        QVERIFY(observed);
+        action(window, "createFolderAction")->trigger();
+        name = window.findChild<QLineEdit *>("inlineFolderName");
+        QVERIFY(name && name->isVisible());
+        name->setText(entered);
+        QTest::keyClick(name, Qt::Key_Return);
         QTRY_VERIFY(QFileInfo::exists(fixture.filePath(entered)));
         QTRY_COMPARE(view->rowCount(), 2);
         const QString focused = QStringLiteral("new folder 空");
@@ -194,13 +154,11 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         auto &panel = *view->sourcePanel;
         panel.Set_AutoRefresh_Mode(false);
         const QString name = QStringLiteral("new 文件 with spaces");
-        QTimer::singleShot(0, &window, [&] {
-            if (auto *dialog = window.findChild<CComboDialog *>("comboDialog")) {
-                dialog->findChild<QComboBox *>("comboValue")->setEditText(name);
-                dialog->accept();
-            }
-        });
         action(window, "createFolderAction")->trigger();
+        auto *input = window.findChild<QLineEdit *>("inlineFolderName");
+        QVERIFY(input && input->isVisible());
+        input->setText(name);
+        QTest::keyClick(input, Qt::Key_Return);
         QVERIFY(!panel.ShouldProcessNotifications());
         QTRY_VERIFY(view->isEnabled() && view->rowCount() == 258);
         QVERIFY(panel.ShouldProcessNotifications());
@@ -210,6 +168,27 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         QFile keep(fixture.filePath("old-0.bin"));
         QVERIFY(keep.open(QIODevice::ReadOnly));
         QCOMPARE(keep.readAll(), QByteArray("keep bytes"));
+    }
+    void navigationDoesNotRetargetDraft() {
+        QTemporaryDir source;
+        QTemporaryDir destination;
+        QVERIFY(source.isValid() && destination.isValid());
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        auto *view = openPanel(window, 0, source.path());
+        QTRY_VERIFY(action(window, "createFolderAction")->isEnabled());
+        action(window, "createFolderAction")->trigger();
+        QPointer<QLineEdit> name = window.findChild<QLineEdit *>("inlineFolderName");
+        QVERIFY(name && name->isVisible());
+        name->setText("retained draft");
+        openPanel(window, 0, destination.path());
+        QTRY_VERIFY(view->isEnabled());
+        if (name && name->isVisible())
+            QTest::keyClick(name, Qt::Key_Return);
+        QTRY_VERIFY(!name || !name->isVisible());
+        QVERIFY(!QFileInfo::exists(source.filePath("retained draft")));
+        QVERIFY(!QFileInfo::exists(destination.filePath("retained draft")));
     }
     void failure_data() {
         QTest::addColumn<QString>("language");
@@ -245,32 +224,18 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         view->selectRow(0);
         view->setCurrentCell(0, 0);
         view->setFocus();
-        QString reportedError;
-        int dialogs = 0;
-        QTimer responder;
-        connect(&responder, &QTimer::timeout, &window, [&] {
-            if (auto *dialog = dynamic_cast<CComboDialog *>(QApplication::activeModalWidget())) {
-                const auto close = qScopeGuard([&] {
-                    if (dialog->isVisible())
-                        dialog->reject();
-                });
-                ++dialogs;
-                QFile external(fixture.filePath("external.bin"));
-                QVERIFY(external.open(QIODevice::WriteOnly));
-                QCOMPARE(external.write("external bytes"), qint64(14));
-                dialog->findChild<QComboBox *>("comboValue")->setEditText("keep.bin");
-                dialog->accept();
-            } else if (auto *result =
-                           TestProgressDialog::ResultWindow(QApplication::activeModalWidget())) {
-                reportedError = TestProgressDialog::ReportText(*result);
-                TestProgressDialog::CloseResult(*result);
-            }
-        });
-        responder.start(1);
         action(window, "createFolderAction")->trigger();
-        responder.stop();
-        QCOMPARE(dialogs, 1);
-        QVERIFY(!reportedError.isEmpty());
+        auto *name = window.findChild<QLineEdit *>("inlineFolderName");
+        QVERIFY(name && name->isVisible());
+        QFile external(fixture.filePath("external.bin"));
+        QVERIFY(external.open(QIODevice::WriteOnly));
+        QCOMPARE(external.write("external bytes"), qint64(14));
+        external.close();
+        name->setText("keep.bin");
+        QTest::keyClick(name, Qt::Key_Return);
+        auto *error = window.findChild<QLabel *>("inlineFolderError");
+        QVERIFY(error && error->isVisible() && !error->text().isEmpty());
+        QCOMPARE(name->text(), QString("keep.bin"));
         // Create Folder refreshes after failure and preserves selection.
         QTRY_COMPARE(view->rowCount(), 2);
         QCOMPARE(view->selectionModel()->selectedRows().size(), 1);

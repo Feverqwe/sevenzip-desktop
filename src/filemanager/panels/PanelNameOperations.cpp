@@ -3,7 +3,6 @@
 // Igor Pavlov, LGPL-2.1-or-later; see third_party/7zip/License.txt.
 #include "7zip/UI/Common/StdAfx.h"
 #include "7zip/UI/FileManager/resource.h"
-#include "dialogs/browse/BrowseDialog.h"
 #include "filemanager/FormatUtils.h"
 #include "filemanager/panels/Panel.h"
 #include "filemanager/panels/PanelFolderOperations.h"
@@ -44,37 +43,33 @@ static bool PrepareFilesystemName(CPanel &panel, UString &name) {
     return true;
 }
 
-void CPanel::CreateFolder() {
-    if (IsHashFolder())
-        return;
-    if (!CheckBeforeUpdate(IDS_CREATE_FOLDER_ERROR))
-        return;
+HRESULT CPanel::CreateFolder(UString name, QString &error) {
+    if (IsHashFolder() || !_folderOperations || IsThereReadOnlyFolder())
+        return E_NOTIMPL;
+    if (name.IsEmpty() || !IsCorrectFsName(name))
+        return E_INVALIDARG;
+    if (IsFSFolder()) {
+        UString corrected;
+        if (!CorrectFsPath(name, corrected))
+            return E_INVALIDARG;
+        name = corrected;
+    }
     CDisableTimerProcessing disableTimerProcessing2(*this);
     CSelectedState state;
     SaveSelectedState(state);
-    UString newName;
-    if (!Dlg_CreateFolder(GetParent(), newName))
-        return;
-    if (!IsCorrectFsName(newName)) {
-        MessageBox_Error_HRESULT(E_INVALIDARG);
-        return;
-    }
-    if (!PrepareFilesystemName(*this, newName))
-        return;
-    HRESULT res;
     CDisableNotify disableNotify(*this);
-    {
-        CThreadFolderOperations op(FOLDER_TYPE_CREATE_FOLDER);
-        op.FolderOperations = _folderOperations;
-        op.Name = newName;
-        res = op.DoOperation(*this, LangString(IDS_CREATE_FOLDER),
-                             LangString(IDS_CREATE_FOLDER_ERROR));
-        // fixed for 9.26: we must refresh always
-    }
+    CThreadFolderOperations op(FOLDER_TYPE_CREATE_FOLDER);
+    op.FolderOperations = _folderOperations;
+    op.Name = name;
+    op.DeferResultReview = true;
+    const HRESULT res =
+        op.DoOperation(*this, LangString(IDS_CREATE_FOLDER), LangString(IDS_CREATE_FOLDER_ERROR));
+    error = ToQString(op.Sync.FinalMessage.ErrorMessage.Message);
     if (res == S_OK)
-        PrepareCreatedSelection(newName, state);
+        PrepareCreatedSelection(name, state);
     RefreshTitleAlways();
     RefreshListCtrl(state);
+    return res;
 }
 
 bool CPanel::OnBeginLabelEdit(int row) {

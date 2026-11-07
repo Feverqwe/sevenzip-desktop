@@ -617,7 +617,7 @@ class CPanel : public QObject {
     bool DoesItSupportOperations() const { return _folderOperations != NULL; }
     bool CheckBeforeUpdate(UINT resourceID);
     bool CorrectFsPath(const UString &path, UString &result);
-    void CreateFolder();
+    HRESULT CreateFolder(UString name, QString &error);
     void RenameFile();
     bool OnBeginLabelEdit(int row);
     HRESULT OnEndLabelEdit(UInt32 realIndex, const UString &enteredName);

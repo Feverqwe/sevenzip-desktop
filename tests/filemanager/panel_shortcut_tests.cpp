@@ -1,4 +1,3 @@
-#include "dialogs/combo/ComboDialog.h"
 #include "dialogs/copy/CopyDialog.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
@@ -116,23 +115,21 @@ class PanelShortcutTests final : public QObject, protected MainWindowTestSupport
         QTRY_VERIFY(table->hasFocus());
         const QString created = QStringLiteral("новая папка 空");
         QSignalSpy invoked(action(window, "createFolderAction"), &QAction::triggered);
-        QTimer answer;
-        dialogs_.connectResponder(answer, &window, [&] {
-            if (auto *dialog = qobject_cast<CComboDialog *>(dialogs_.activeDialog())) {
-                dialog->findChild<QComboBox *>("comboValue")->setEditText(created);
-                dialog->accept();
-            }
-        });
-        answer.start(5);
         PanelKeys::command(table, Qt::Key_N, Qt::ControlModifier | Qt::ShiftModifier);
-        answer.stop();
+        auto *folderName = window.findChild<QLineEdit *>("inlineFolderName");
+        QVERIFY(folderName && folderName->isVisible());
+        folderName->setText(created);
+        QTest::keyClick(folderName, Qt::Key_Return);
         QCOMPARE(invoked.size(), 1);
         QVERIFY(QFileInfo(fixture.filePath(created)).isDir());
         QVERIFY(WindowActivation::waitForActive(window));
+        QTRY_VERIFY(table->isEnabled() && table->sourcePanel->ShouldProcessNotifications());
         QTRY_VERIFY(row(*table, created) >= 0);
         table->setCurrentCell(row(*table, created), 0);
         table->selectRow(row(*table, created));
         table->setFocus();
+        QTRY_VERIFY(table->hasFocus());
+        QTRY_COMPARE(table->selectionModel()->selectedRows().size(), 1);
 #ifdef Q_OS_MACOS
         PanelKeys::command(table, Qt::Key_Down, Qt::ControlModifier);
 #else

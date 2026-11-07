@@ -174,21 +174,17 @@ void MainWindowOperationsTests::sourceFilesystemCreateAndInlineRename() {
     window.show();
     QVERIFY(WindowActivation::waitForActive(window));
 
-    const auto answer = [&window](const char *actionName, const QString &name, bool accept) {
-        QTimer::singleShot(0, &window, [&window, name, accept] {
-            auto *dialog = window.findChild<CComboDialog *>("comboDialog");
-            QVERIFY(dialog);
-            if (accept) {
-                dialog->findChild<QComboBox *>("comboValue")->setCurrentText(name);
-                dialog->accept();
-            } else
-                dialog->reject();
-        });
-        action(window, actionName)->trigger();
+    const auto answer = [&window](const QString &name, Qt::Key key) {
+        action(window, "createFolderAction")->trigger();
+        auto *editor = window.findChild<QLineEdit *>("inlineFolderName");
+        QVERIFY(editor && editor->isVisible());
+        editor->setText(name);
+        QTest::keyClick(editor, key);
+        QTRY_VERIFY(!window.findChild<QLineEdit *>("inlineFolderName"));
     };
-    answer("createFolderAction", QStringLiteral("папка с пробелом/child"), true);
+    answer(QStringLiteral("папка с пробелом/child"), Qt::Key_Return);
     QVERIFY(QDir(temp.filePath(QStringLiteral("папка с пробелом/child"))).exists());
-    answer("createFolderAction", QStringLiteral("отмена"), false);
+    answer(QStringLiteral("отмена"), Qt::Key_Escape);
     QVERIFY(!QFileInfo::exists(temp.filePath(QStringLiteral("отмена"))));
 }
 

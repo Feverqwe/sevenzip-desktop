@@ -60,13 +60,11 @@ void MainWindowOperationsTests::stage7ArchiveMutations() {
     window.show();
     QVERIFY(WindowActivation::waitForActive(window));
     QTRY_VERIFY(action(window, "createFolderAction")->isEnabled());
-    QTimer::singleShot(0, &window, [&window] {
-        auto *dialog = window.findChild<CComboDialog *>("comboDialog");
-        QVERIFY(dialog);
-        dialog->findChild<QComboBox *>("comboValue")->setCurrentText(QStringLiteral("новая папка"));
-        dialog->accept();
-    });
     action(window, "createFolderAction")->trigger();
+    auto *folderName = window.findChild<QLineEdit *>("inlineFolderName");
+    QVERIFY(folderName && folderName->isVisible());
+    folderName->setText(QStringLiteral("новая папка"));
+    QTest::keyClick(folderName, Qt::Key_Return);
     const auto archiveRow = [&window](const QString &name) {
         for (int row = 0; row < table(window)->rowCount(); ++row)
             if (table(window)->model()->index(row, 0).data().toString().normalized(
@@ -118,14 +116,11 @@ void MainWindowOperationsTests::encryptedArchiveMutationReusesSourcePassword() {
     window.show();
     QVERIFY(WindowActivation::waitForActive(window));
     QTRY_VERIFY(action(window, "createFolderAction")->isEnabled());
-    QTimer::singleShot(0, &window, [&window] {
-        auto *dialog = window.findChild<CComboDialog *>("comboDialog");
-        QVERIFY(dialog);
-        dialog->findChild<QComboBox *>("comboValue")
-            ->setCurrentText(QStringLiteral("закрытая папка"));
-        dialog->accept();
-    });
     action(window, "createFolderAction")->trigger();
+    auto *folderName = window.findChild<QLineEdit *>("inlineFolderName");
+    QVERIFY(folderName && folderName->isVisible());
+    folderName->setText(QStringLiteral("закрытая папка"));
+    QTest::keyClick(folderName, Qt::Key_Return);
     const auto archiveRow = [&window](const QString &name) {
         for (int row = 0; row < table(window)->rowCount(); ++row)
             if (table(window)->model()->index(row, 0).data().toString().normalized(

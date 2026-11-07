@@ -472,13 +472,11 @@ class NestedEditChainTests final : public QObject, protected MainWindowTestSuppo
         QTRY_VERIFY(filesystemRow(window, QStringLiteral("renamed файл.txt")) >= 0);
         table(window)->selectRow(filesystemRow(window, "delete.txt"));
         QVERIFY(!action(window, "deleteAction")->isEnabled());
-        QTimer::singleShot(0, &window, [&] {
-            auto *dialog = window.findChild<QDialog *>("comboDialog");
-            QVERIFY(dialog);
-            dialog->findChild<QComboBox *>("comboValue")->setCurrentText("new folder");
-            dialog->accept();
-        });
         action(window, "createFolderAction")->trigger();
+        auto *folderName = window.findChild<QLineEdit *>("inlineFolderName");
+        QVERIFY(folderName && folderName->isVisible());
+        folderName->setText("new folder");
+        QTest::keyClick(folderName, Qt::Key_Return);
         QTRY_COMPARE(table(window)->rowCount(), 3);
         QCOMPARE(read(outer), original);
         action(window, "upAction")->trigger();
