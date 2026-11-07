@@ -8,8 +8,10 @@
 #include "localization/LangUtils.h"
 #include "settings/RegistryUtils.h"
 #include "settings/ViewSettings.h"
+#include "settings/qtfmoptionsdialog.h"
 #include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
+#include <QDialogButtonBox>
 #include <QListView>
 #include <QMenu>
 #include <QMessageBox>
@@ -39,7 +41,15 @@ class WorkspacePlacesTests final : public QObject {
         ControlledBackend backend;
         MainWindow window(&backend);
         window.show();
-        window.findChild<QAction *>("openRootAction")->trigger();
+        auto *root = window.findChild<QAction *>("openRootAction");
+        auto *save = window.findChild<QAction *>("saveBookmark3Action");
+        auto *bookmark = window.findChild<QAction *>("openBookmark3Action");
+        auto *settings = window.findChild<QAction *>("settingsAction");
+        auto *files = window.findChild<FileTable *>("archiveTable");
+        QVERIFY(root && save && bookmark && settings && files);
+        window.openPath(fixture.path());
+        save->trigger();
+        root->trigger();
         QtFavoriteStore *store = nullptr;
         for (auto *object : qApp->children())
             if (auto *favorites = dynamic_cast<QtFavoriteStore *>(object))
@@ -48,23 +58,60 @@ class WorkspacePlacesTests final : public QObject {
         store->Add(missing, "Unavailable target");
         auto *menu = window.findChild<QMenu *>("savedPlacesMenu");
         QVERIFY(menu);
-        menu->popup(window.mapToGlobal(QPoint(20, 20)));
-        QTRY_VERIFY(menu->isVisible());
-        auto *target = [&]() -> QAction * {
+        const auto openUnavailable = [&] {
+            menu->popup(window.mapToGlobal(QPoint(20, 20)));
+            QTRY_VERIFY(menu->isVisible());
             for (auto *action : menu->actions())
-                if (action->toolTip() == missing)
-                    return action;
-            return nullptr;
-        }();
-        QVERIFY(target);
-        QTest::mouseClick(menu, Qt::LeftButton, Qt::NoModifier,
-                          menu->actionGeometry(target).center());
+                if (action->toolTip() == missing) {
+                    QTest::mouseClick(menu, Qt::LeftButton, Qt::NoModifier,
+                                      menu->actionGeometry(action).center());
+                    return;
+                }
+            menu->hide();
+            QFAIL("Saved place is absent from the menu");
+        };
         const auto errorVisible = [&] {
             for (auto *label : window.findChildren<QLabel *>())
                 if (label->isVisible() && label->text().contains(missing))
                     return true;
             return false;
         };
+        openUnavailable();
+        QTRY_VERIFY(errorVisible());
+        QVERIFY(root->isEnabled() && bookmark->isEnabled() && settings->isEnabled());
+        QVERIFY(!save->isEnabled());
+        bool applied = false;
+        QTimer applySettings;
+        connect(&applySettings, &QTimer::timeout, &window, [&] {
+            auto *dialog = window.findChild<QtFmOptionsDialog *>("settingsDialog");
+            if (!dialog || !dialog->isVisible())
+                return;
+            auto *buttons = dialog->findChild<QDialogButtonBox *>("settingsButtons");
+            applySettings.stop();
+            if (buttons) {
+                QSignalSpy appliedSignal(dialog, &QtFmOptionsDialog::Applied);
+                buttons->button(QDialogButtonBox::Ok)->click();
+                applied = appliedSignal.size() == 1;
+            }
+            if (dialog->isVisible())
+                dialog->reject();
+        });
+        applySettings.start(5);
+        settings->trigger();
+        QVERIFY(applied);
+        QVERIFY(errorVisible());
+        QCOMPARE(files->rowCount(), 0);
+        QVERIFY(bookmark->isEnabled());
+        bookmark->trigger();
+        QTRY_VERIFY(!errorVisible() && files->isEnabled());
+        QCOMPARE(QDir::cleanPath(ToQString(files->sourcePanel->GetCurrentFolderPrefix())),
+                 QFileInfo(fixture.path()).canonicalFilePath());
+        openUnavailable();
+        QTRY_VERIFY(errorVisible());
+        root->trigger();
+        QTRY_VERIFY(!errorVisible() && files->isEnabled() &&
+                    files->sourcePanel->IsFSDrivesFolder());
+        openUnavailable();
         QTRY_VERIFY(errorVisible());
         QPushButton *retry = nullptr;
         for (auto *button : window.findChildren<QPushButton *>())
@@ -82,7 +129,6 @@ class WorkspacePlacesTests final : public QObject {
         QVERIFY(QDir().mkpath(missing));
         QTest::mouseClick(retry, Qt::LeftButton);
         QTRY_VERIFY(window.findChild<QAction *>("createFolderAction")->isEnabled());
-        auto *files = window.findChild<FileTable *>("archiveTable");
         QCOMPARE(QDir::cleanPath(ToQString(files->sourcePanel->GetCurrentFolderPrefix())), missing);
         window.findChild<QAction *>("backAction")->trigger();
         QTRY_VERIFY(files->sourcePanel->IsFSDrivesFolder());

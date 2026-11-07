@@ -10,7 +10,7 @@
 #include <utility>
 
 HRESULT MainWindow::reloadPanelPresentation(unsigned index, const CSelectedState &selection) {
-    if (!panelUi_[index].container ||
+    if (!panelUi_[index].container || panelUi_[index].locationUnavailable ||
         (app_.QtOperations().active() &&
          (app_.QtOperations().blocking() ||
           (app_.Panels[index].PanelCreated && (scanningPanelMask() & (1u << index))))))

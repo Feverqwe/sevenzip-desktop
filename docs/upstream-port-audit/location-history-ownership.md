@@ -1,5 +1,18 @@
 # Location history and address presentation — 2026-10-31
 
+## Window commands when a location cannot be opened — 2026-11-07
+
+Reviewed the original main-window command dispatch and root, bookmark and
+settings handlers. The Qt unavailable-location notice permits opening the
+drive list, opening a numbered bookmark and changing settings. List reloads
+do not publish the retained folder behind the notice. A successful root or
+bookmark transition restores the normal file view and command availability.
+
+Linux workspace-place and settings checks passed, including applying settings
+in an unavailable pane, opening a bookmark immediately afterward, leaving via
+the drive list and retrying the original location. Workspace session, root
+commands and shared numbered bookmarks also passed in the preceding batch.
+
 ## Numeric bookmarks for system places across languages — 2026-11-07
 
 Reviewed the original PanelFolderChange.cpp bookmark save/open bodies,

@@ -145,6 +145,13 @@ QHash<unsigned, bool> QtFileManagerCommands::Availability() {
                                            (w.projectedUi().state == MainWindow::State::Viewing ||
                                             panel.IsFSFolder() || namespaceChild);
     availability[8] = CanExit();
+    if (w.projectedUi().locationUnavailable) {
+        availability[IDM_OPTIONS] = windowCommands;
+        availability[IDM_OPEN_ROOT_FOLDER] = windowCommands;
+        for (const auto *bookmark : w.openBookmarks_)
+            if (bookmark)
+                availability[bookmark->property("nativeCommandID").toUInt()] = windowCommands;
+    }
     if (!safeFolderQueries || w.projectedUi().scanningDisk || !hasFolder)
         return availability;
     const TransportCapabilities capabilities = ReadTransportCapabilities();

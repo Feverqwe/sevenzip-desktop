@@ -97,5 +97,8 @@ HRESULT MainWindow::goRootImpl(RootLocation location) {
         app_.OpenRootFolder();
     else
         app_.GetFocusedPanel().OpenRootFolder();
-    return renderBoundFolder();
+    const HRESULT result = renderBoundFolder();
+    if (result == S_OK)
+        projectedUi().locationUnavailable = false;
+    return result;
 }

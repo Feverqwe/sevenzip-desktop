@@ -32,6 +32,7 @@ void MainWindow::showSettings() {
     SettingsDialog dialog(toolbarSettingsPath(), this, folderManager_);
     connect(&dialog, &SettingsDialog::Applied, this, &MainWindow::applyFileListSettings);
     dialog.exec();
+    refreshActions();
 }
 
 void MainWindow::applyFileListSettings() {
