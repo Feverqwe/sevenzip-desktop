@@ -128,6 +128,10 @@ void QtRenameController::Cancel(unsigned panel) {
     completion_.start();
 }
 
+bool QtRenameController::PendingFor(unsigned panel) const {
+    return request_ && request_->panel == panel;
+}
+
 void QtRenameController::Stop() {
     completion_.stop();
     request_.reset();

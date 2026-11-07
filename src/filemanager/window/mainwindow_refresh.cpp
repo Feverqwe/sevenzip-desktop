@@ -1,6 +1,7 @@
 #include "archive/password/archivepassword.h"
 #include "archive/resources/qtarchivereopen.h"
 #include "filemanager/providers/qtlocationfolder.h"
+#include "filemanager/rename/qtrenamecontroller.h"
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtwindowworkspace.h"
 #include "localization/qtlanguageservices.h"
@@ -174,7 +175,8 @@ void MainWindow::pollAutoRefresh() {
             return;
     for (unsigned index = 0; index < kNumPanelsMax; ++index) {
         if (!app_.IsPanelVisible(index) || !panelUi_[index].container ||
-            panelUi_[index].state != State::Filesystem || panelUi_[index].locationUnavailable)
+            panelUi_[index].state != State::Filesystem || panelUi_[index].locationUnavailable ||
+            renameController_->PendingFor(index))
             continue;
         withPanelProjection(index, [&] {
             CPanel &panel = app_.GetFocusedPanel();

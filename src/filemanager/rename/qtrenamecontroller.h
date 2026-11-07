@@ -16,6 +16,7 @@ class QtRenameController final : public QObject {
     void Cancel(unsigned panel);
     void Stop();
     bool Pending() const { return bool(request_); }
+    bool PendingFor(unsigned panel) const;
 
   private:
     struct Request;

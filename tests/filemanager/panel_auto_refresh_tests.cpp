@@ -161,6 +161,59 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         QTRY_COMPARE_WITH_TIMEOUT(files->rowCount(), 80, 3500);
     }
 
+    void renameDraftSurvivesAutoRefresh_data() {
+        QTest::addColumn<bool>("commit");
+        QTest::newRow("enter") << true;
+        QTest::newRow("escape") << false;
+    }
+
+    void renameDraftSurvivesAutoRefresh() {
+        QFETCH(bool, commit);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString original = fixture.filePath("original.txt");
+        const QString renamed = fixture.filePath(QStringLiteral("renamed δ.txt"));
+        QVERIFY(writeFile(original, "original bytes"));
+        MainWindow window;
+        window.show();
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        action(window, "twoPanelsAction")->trigger();
+        FileTable *views[2];
+        for (unsigned pane = 0; pane < 2; ++pane) {
+            auto *panel = window.findChild<QWidget *>(QString("filePanel%1").arg(pane));
+            auto *address = panel->findChild<QLineEdit *>("archivePath");
+            views[pane] = panel->findChild<FileTable *>("archiveTable");
+            PanelKeys::focusAddress(address);
+            address->setText(fixture.path());
+            QTest::keyClick(address, Qt::Key_Return);
+            QTRY_COMPARE(views[pane]->rowCount(), 1);
+        }
+        auto *view = views[0];
+        view->setFocus();
+        view->setCurrentCell(0, 0);
+        view->selectRow(0);
+        action(window, "renameAction")->trigger();
+        QPointer<QLineEdit> editor;
+        for (auto *candidate : view->findChildren<QLineEdit *>())
+            if (candidate->isVisible())
+                editor = candidate;
+        QVERIFY(editor);
+        const QString draft = QFileInfo(renamed).fileName();
+        editor->setText(draft);
+        QVERIFY(writeFile(fixture.filePath("new file.txt")));
+        QTRY_COMPARE_WITH_TIMEOUT(views[1]->rowCount(), 2, 5000);
+        QVERIFY(editor && editor->isVisible());
+        QVERIFY(editor->hasFocus());
+        QCOMPARE(editor->text(), draft);
+        QTest::keyClick(editor, commit ? Qt::Key_Return : Qt::Key_Escape);
+        QTRY_COMPARE_WITH_TIMEOUT(view->rowCount(), 2, 5000);
+        QCOMPARE(QFileInfo::exists(renamed), commit);
+        QCOMPARE(QFileInfo::exists(original), !commit);
+        QFile payload(commit ? renamed : original);
+        QVERIFY(payload.open(QIODevice::ReadOnly));
+        QCOMPARE(payload.readAll(), QByteArray("original bytes"));
+    }
+
     void bothPanelsKeepTheirViewportAcrossChanges() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
