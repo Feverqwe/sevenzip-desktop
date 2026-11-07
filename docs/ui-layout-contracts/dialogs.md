@@ -177,7 +177,8 @@ accepted operation plan, not from the changing current-file string.
 
 Stop and closing a running window ask Continue working / Stop. Continue is the
 default and Escape answer. Refusal restores the former pause state. Confirmed
-Stop disables repeated requests and shows Stopping until the owner finishes;
+Stop cancels the worker directly from pause, disables repeated requests and
+shows Stopping until the owner finishes;
 completion retires an obsolete question without waiting for user input. Neither
 an empty message list nor a full bar proves success. The operation supplies its
 result and completeness after required publication/source removal. Full success

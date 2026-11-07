@@ -178,7 +178,7 @@ class ProgressCancelTests : public QObject {
                 clicked = true;
                 parentActive = QTest::qWaitForWindowActive(&worker);
                 Button(worker, "IDCANCEL")->click();
-                restored = worker.Sync.Get_Paused() == paused;
+                restored = worker.Sync.Get_Paused() == (paused && answer != int(QMessageBox::Yes));
                 if (answer == int(QMessageBox::Yes)) {
                     const auto finish = qScopeGuard([&] { worker.Finish = true; });
                     stoppingShown = !Button(worker, "IDCANCEL")->isEnabled() &&

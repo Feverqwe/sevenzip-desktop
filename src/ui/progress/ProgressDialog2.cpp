@@ -271,6 +271,12 @@ bool CProgressDialog::OnNotify(QKeyEvent *key) {
 void CProgressDialog::OnOK() {}
 void CProgressDialog::OnCancel() {
     Sync.Set_Stopped(true);
+    // A stopped checkpoint can wake safely. Clear the dialog's paused state
+    // without asking the transport to resume.
+    if (Sync.Get_Paused()) {
+        Sync.Set_Paused(false);
+        SetTitleText();
+    }
     if (_transport)
         _transport->Cancel();
 }
@@ -411,16 +417,16 @@ bool CProgressDialog::OnButtonClicked(unsigned buttonID) {
             _inCancelMessageBox = true;
             const int res = AskCancel(this, _title);
             _inCancelMessageBox = false;
-            if (res == IDYES)
-                _cancelWasPressed = true;
-            if (canPause && Sync.Get_Paused() != paused)
+            if ((res != IDYES || _externalCloseMessageWasReceived) && canPause &&
+                Sync.Get_Paused() != paused)
                 OnPauseButton();
             if (_externalCloseMessageWasReceived) {
                 OnExternalCloseMessage();
                 return true;
             }
-            if (!_cancelWasPressed)
+            if (res != IDYES)
                 return true;
+            _cancelWasPressed = true;
             MessagesDisplayed = true;
         }
         break;
