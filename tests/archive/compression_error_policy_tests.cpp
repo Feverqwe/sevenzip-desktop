@@ -202,7 +202,22 @@ class CompressionErrorPolicyTests final : public QObject {
         const QByteArray before = SourceExtractFixture::readFile(_settings);
         CreateArchiveDialog dialog(_fixture.path());
         CMessages messages(QString("compress-error-memory-%1-%2").arg(suppressed).arg(language));
+        bool memoryEditorOpened = false;
+        QTimer responder;
+        connect(&responder, &QTimer::timeout, &dialog, [&] {
+            auto *editor = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!editor || editor->objectName() != "archiveExpertDialog")
+                return;
+            responder.stop();
+            const auto close = qScopeGuard([&] { editor->reject(); });
+            auto *limit = editor->findChild<QComboBox *>("compressionMemoryLimit");
+            QVERIFY(limit && limit->isVisible());
+            QCOMPARE(limit->currentData().toString(), QString("1M"));
+            memoryEditorOpened = true;
+        });
+        responder.start(1);
         submit(dialog);
+        QVERIFY(memoryEditorOpened);
         QCOMPARE(messages.Texts.size(), 1);
         QVERIFY(messages.Texts[0].contains(
             QString::fromWCharArray(LangString(IDS_MEM_OPERATION_BLOCKED))));
