@@ -1847,7 +1847,7 @@ html&gt;body{padding:0}&lt;/style&gt;
  #sevenzip-design .is-loading .file-table-scroll {opacity:.5;pointer-events:none}
  #sevenzip-design .panes.two .main-navigation-notice {flex-direction:column}
  #sevenzip-design .filespace:not(:empty) {display:grid;place-items:center;color:var(--sz-subtle)}
- #sevenzip-design .manager-body {--sidebar-width:168px;--pane-chrome-height:0px;display:grid;grid-template-columns:var(--sidebar-width) minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto;min-height:360px}
+ #sevenzip-design .manager-body {display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto;min-height:0}
  #sevenzip-design .manager-body {height:clamp(360px,65vh,580px)}
  #sevenzip-design .manager-body .panes,#sevenzip-design .manager-body .pane,#sevenzip-design .manager-body .peer {min-height:0;min-width:0}
  #sevenzip-design .manager-body .file-table-scroll {position:relative;flex:1;min-height:0;overflow:auto;user-select:none}
@@ -1867,53 +1867,16 @@ html&gt;body{padding:0}&lt;/style&gt;
  #sevenzip-design .panes.two .file-commands .product-button {padding:5px;flex-shrink:0}
  #sevenzip-design .manager-body .address {flex-shrink:0;padding:8px;gap:4px}
  #sevenzip-design .manager-body .status {flex-shrink:0}
- #sevenzip-design .manager-tabs {flex-shrink:0}
- #sevenzip-design .manager-tabs.tab-drop-target {box-shadow:inset 0 -2px var(--sz-accent)}
- #sevenzip-design .manager-body.no-sidebar {--sidebar-width:0px;grid-template-columns:minmax(0,1fr)}
- #sevenzip-design .manager-sidebar {margin-top:var(--pane-chrome-height);height:calc(100% - var(--pane-chrome-height));min-height:0;overflow:auto;box-sizing:border-box;padding:16px 8px;background:var(--sz-secondary);border-right:1px solid var(--sz-stroke)}
- #sevenzip-design .manager-body .panes&gt;.pane&gt;.manager-tabs,#sevenzip-design .manager-body .panes&gt;.pane&gt;.address,#sevenzip-design .manager-body .panes&gt;.pane&gt;.tools,#sevenzip-design .manager-body .panes&gt;.pane&gt;.main-readonly,#sevenzip-design .manager-body .panes&gt;.pane&gt;.main-navigation-notice {position:relative;z-index:2;box-sizing:border-box;margin-left:calc(-1 * var(--sidebar-width));width:calc(100% + var(--sidebar-width));max-width:none;background:var(--sz-secondary)}
- #sevenzip-design .manager-sidebar h3 {font-size:11px;color:var(--sz-subtle);font-weight:600;margin:4px 10px 8px}
- #sevenzip-design .manager-sidebar h3:not(:first-child) {margin-top:24px}
- #sevenzip-design .place-button {display:flex;align-items:center;gap:8px;width:100%;min-height:30px;padding:5px 10px;border:0;border-radius:5px;background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer}
- #sevenzip-design .place-button[aria-current=true] {background:color-mix(in srgb,var(--sz-accent) 14%,var(--sz-secondary))}
- #sevenzip-design .manager-tabs {display:flex;align-items:flex-end;gap:0;border-bottom:0;padding:6px 8px 0;overflow-x:auto;scrollbar-width:none}
- #sevenzip-design .manager-body .panes&gt;.pane&gt;.manager-tabs,#sevenzip-design .manager-body .peer&gt;.pane&gt;.manager-tabs {background:var(--sz-window)}
- #sevenzip-design .manager-tabs::-webkit-scrollbar {display:none}
- #sevenzip-design .manager-tab-item {position:relative;display:flex;align-items:center;flex:0 1 220px;min-width:44px;max-width:220px;height:34px;border-radius:10px 10px 0 0;color:var(--sz-subtle);box-sizing:border-box}
- #sevenzip-design .manager-tab-item:not(.is-active):hover {background:color-mix(in srgb,var(--sz-text) 7%,var(--sz-window))}
- #sevenzip-design .manager-tab-item.is-active {background:var(--sz-secondary);color:var(--sz-text)}
- #sevenzip-design .manager-tab-item:not(.is-active):not(:hover)::after {content:&#x27;&#x27;;position:absolute;right:0;top:9px;height:16px;width:1px;background:var(--sz-stroke)}
- #sevenzip-design .manager-tab-item.is-active::before,#sevenzip-design .manager-tab-item.is-active::after {content:&#x27;&#x27;;position:absolute;bottom:0;width:8px;height:8px;pointer-events:none}
- #sevenzip-design .manager-tab-item.is-active::before {left:-8px;background:radial-gradient(circle at 0 0,transparent 8px,var(--sz-secondary) 8px)}
- #sevenzip-design .manager-tab-item.is-active::after {right:-8px;background:radial-gradient(circle at 100% 0,transparent 8px,var(--sz-secondary) 8px)}
- #sevenzip-design .manager-tab {display:flex;align-items:center;gap:7px;flex:1;min-width:0;height:100%;padding:0 8px;border:0;border-radius:10px 10px 0 0;background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer}
+ #sevenzip-design .manager-body .panes&gt;.pane&gt;.address,#sevenzip-design .manager-body .panes&gt;.pane&gt;.tools,#sevenzip-design .manager-body .panes&gt;.pane&gt;.main-readonly,#sevenzip-design .manager-body .panes&gt;.pane&gt;.main-navigation-notice {position:relative;z-index:2;box-sizing:border-box;background:var(--sz-secondary)}
  #sevenzip-design .main-tab-title {overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
  #sevenzip-design .main-tab-symbol {display:flex;flex-shrink:0}
- #sevenzip-design .manager-tabs .new-tab {position:sticky;right:0;flex:0 0 30px;width:30px;min-width:30px;height:30px;margin:0 0 2px 8px;padding:0;border:0;border-radius:50%;background:var(--sz-window);color:inherit;font:inherit;font-size:19px;cursor:pointer}
- #sevenzip-design .manager-tabs .new-tab:hover {background:var(--sz-secondary)}
  #sevenzip-design .close-main-tab {display:flex;align-items:center;justify-content:center;flex:0 0 20px;width:20px;height:20px;margin-right:4px;border:0;border-radius:50%;background:transparent;color:inherit;font:inherit;cursor:pointer}
  #sevenzip-design .close-main-tab:hover {background:color-mix(in srgb,var(--sz-text) 12%,transparent)}
  #sevenzip-design .tab-compact:not(.is-active):not(:hover):not(:focus-within) .close-main-tab {display:none}
  #sevenzip-design .tab-tiny .main-tab-title {display:none}
- #sevenzip-design .tab-tiny .manager-tab {padding-inline:4px;gap:0}
- #sevenzip-design .manager-tab-item.drag-over {box-shadow:inset 2px 0 var(--sz-accent)}
  #sevenzip-design .manager-body .peer&gt;.pane&gt;.address {background:var(--sz-secondary)}
  #sevenzip-design .close-main-tab:disabled {opacity:.25;cursor:default}
- #sevenzip-design .favorites-heading,#sevenzip-design .favorite-place {display:flex;align-items:center;gap:2px}
- #sevenzip-design .favorites-heading h3 {flex:1}
- #sevenzip-design .add-favorite,#sevenzip-design .remove-favorite {border:0;background:transparent;color:var(--sz-subtle);font:inherit;padding:4px;cursor:pointer}
- #sevenzip-design .remove-favorite {opacity:0}
- #sevenzip-design .favorite-place:hover .remove-favorite,#sevenzip-design .favorite-place:focus-within .remove-favorite {opacity:1}
- #sevenzip-design .favorite-place .place-button {min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;scroll-margin-block:4px}
  #sevenzip-design .place-label {min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
- #sevenzip-design .favorite-place {position:relative}
- #sevenzip-design .favorite-drop-before::before,#sevenzip-design .favorite-drop-after::after {content:&#x27;&#x27;;position:absolute;left:5px;right:5px;height:2px;background:var(--sz-accent);z-index:2}
- #sevenzip-design .favorite-drop-before::before {top:-2px}#sevenzip-design .favorite-drop-after::after {bottom:-2px}
- #sevenzip-design .favorite-places {min-height:28px;border-radius:5px}
- #sevenzip-design .favorite-places.favorites-drop-target {box-shadow:inset 0 0 0 2px var(--sz-accent);background:color-mix(in srgb,var(--sz-accent) 10%,transparent)}
- #sevenzip-design .favorite-empty {padding:8px;font-size:12px;line-height:1.4;color:var(--sz-subtle)}
- #sevenzip-design .favorite-name-editor {min-width:0;width:100%;box-sizing:border-box;font:inherit;color:inherit;background:var(--sz-surface);border:1px solid var(--sz-accent);border-radius:4px;padding:5px 8px;outline:0}
- #sevenzip-design .favorite-context {position:fixed;z-index:35;max-height:calc(100vh - 16px);overflow:auto}
  #sevenzip-design .modern-path {gap:2px;min-width:0;padding:0 4px;overflow:hidden}
  #sevenzip-design .breadcrumbs {display:flex;align-items:center;gap:2px;min-width:0;flex:1;overflow:hidden}
  #sevenzip-design .crumb {font:inherit;color:inherit;background:transparent;border:0;border-radius:4px;padding:5px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:20px;cursor:pointer}
@@ -1935,7 +1898,6 @@ html&gt;body{padding:0}&lt;/style&gt;
  #sevenzip-design .macos .file-context&gt;.native-menu,#sevenzip-design .macos .file-context&gt;.submenu-holder {width:260px;max-width:calc(100vw - 16px);max-height:calc(100vh - 16px);overflow:auto;pointer-events:auto}
  #sevenzip-design .macos .file-context&gt;.submenu-holder {position:fixed;margin:0}
  @media(max-width:800px){#sevenzip-design .file-command:not([data-main-command=create]) .file-command-label {display:none}}
- @media(max-width:700px){#sevenzip-design .manager-body:not(.no-sidebar) {--sidebar-width:140px}#sevenzip-design .manager-sidebar {padding-inline:4px}#sevenzip-design .place-button {padding-inline:8px}}
  #sevenzip-design .closed-window-state {display:grid;place-content:center;gap:12px;min-height:320px;text-align:center;color:var(--sz-subtle)}
  #sevenzip-design .filetable {width:100%;border-collapse:collapse;text-align:left}
  #sevenzip-design .filetable th {font-weight:400;color:var(--sz-subtle);background:var(--sz-secondary);border-block:1px solid var(--sz-stroke)}
@@ -2509,8 +2471,6 @@ html&gt;body{padding:0}&lt;/style&gt;
  #sevenzip-design .component-usage {font-size:12px;color:var(--sz-subtle);margin-top:16px!important}
  #sevenzip-design .component-links {display:flex;gap:8px;flex-wrap:wrap}
  #sevenzip-design .workspace-component-sample {min-width:0;overflow:auto;border:1px solid var(--sz-stroke);border-radius:6px;background:var(--sz-surface)}
- #sevenzip-design .workspace-component-sample .manager-sidebar {margin:0;height:auto;border:0;padding:8px}
- #sevenzip-design .workspace-component-sample .manager-tabs {background:var(--sz-window)}
  #sevenzip-design .workspace-component-sample .address {margin:0}
  #sevenzip-design .workspace-component-sample .tools {margin:0;flex-wrap:wrap}
  #sevenzip-design .workspace-component-sample .filetable {min-width:600px}
@@ -2577,8 +2537,6 @@ html&gt;body{padding:0}&lt;/style&gt;
 
  function iconCard(name,size,kind,selected=false,modified=&#x27;&#x27;,{focused=false,cut=false,bytes,modifiedEpoch}={}){return `&lt;div class=&quot;icon-item ${selected?&#x27;selected&#x27;:&#x27;&#x27;} ${focused?&#x27;file-item current-file&#x27;:&#x27;&#x27;} ${cut?&#x27;pending-cut&#x27;:&#x27;&#x27;}&quot; data-file=&quot;${htmlText(name)}&quot; data-size-label=&quot;${htmlText(size)}&quot; data-kind=&quot;${htmlText(kind)}&quot; data-modified=&quot;${htmlText(modified)}&quot;${fileMetadata(bytes??fixtureSizeBytes(size),modifiedEpoch??fixtureModifiedEpoch(modified))}&gt;&lt;span class=&quot;file-art&quot; aria-hidden=&quot;true&quot;&gt;${fileArtwork(name,kind)}&lt;/span&gt;&lt;span class=&quot;file-caption&quot; title=&quot;${htmlText(name)}&quot;&gt;${htmlText(name)}&lt;/span&gt;&lt;/div&gt;`}
  function fileRow({name,size=&#x27;&#x27;,kind=&#x27;&#x27;,modified=&#x27;&#x27;,symbol=&#x27;file&#x27;,selected=false,focused=false,cut=false}){const bytes=fixtureSizeBytes(size),epoch=fixtureModifiedEpoch(modified),displaySize=bytes===&#x27;&#x27;&amp;&amp;[&#x27;Папка&#x27;,&#x27;Том&#x27;].includes(kind)?&#x27;&#x27;:readableFileSize(bytes);return `&lt;tr class=&quot;cursor-interaction ${selected?&#x27;selected&#x27;:&#x27;&#x27;} ${focused?&#x27;file-item current-file&#x27;:&#x27;&#x27;} ${cut?&#x27;pending-cut&#x27;:&#x27;&#x27;}&quot; data-file=&quot;${htmlText(name)}&quot; data-kind=&quot;${htmlText(kind)}&quot;${fileMetadata(bytes,epoch)}&gt;&lt;td&gt;&lt;span class=&quot;filename&quot;&gt;${icon(symbol)}${htmlText(name)}&lt;/span&gt;&lt;/td&gt;&lt;td title=&quot;${htmlText(readableFileSize(bytes,{exact:true}))}&quot;&gt;${htmlText(displaySize)}&lt;/td&gt;&lt;td class=&quot;typecol&quot;&gt;${htmlText(kind)}&lt;/td&gt;&lt;td class=&quot;datecol&quot; title=&quot;${htmlText(readableFileDate(epoch,{full:true}))}&quot;&gt;${htmlText(readableFileDate(epoch))}&lt;/td&gt;&lt;/tr&gt;`}
- function workspaceTab({id,title,active=false,mode=&#x27;Таблица&#x27;}){return `&lt;div class=&quot;manager-tab-item ${active?&#x27;is-active&#x27;:&#x27;&#x27;}&quot; draggable=&quot;true&quot; data-drag-main-tab=&quot;${id}&quot;&gt;&lt;button type=&quot;button&quot; class=&quot;manager-tab&quot; role=&quot;tab&quot; aria-selected=&quot;${active}&quot; tabindex=&quot;${active?0:-1}&quot; data-main-tab=&quot;${id}&quot; title=&quot;${htmlText(title)}&quot; aria-label=&quot;${htmlText(title)}&quot;&gt;&lt;span class=&quot;main-tab-symbol&quot; aria-hidden=&quot;true&quot;&gt;${icon(mode===&#x27;Загрузка папки&#x27;?&#x27;loader-circle&#x27;:[&#x27;Открытый архив&#x27;,&#x27;Только для чтения&#x27;].includes(mode)?&#x27;archive&#x27;:&#x27;folder&#x27;)}&lt;/span&gt;&lt;span class=&quot;main-tab-title&quot;&gt;${htmlText(title)}&lt;/span&gt;&lt;/button&gt;&lt;button type=&quot;button&quot; class=&quot;close-main-tab&quot; data-close-main-tab=&quot;${id}&quot; aria-label=&quot;Закрыть вкладку «${htmlText(title)}»&quot;&gt;×&lt;/button&gt;&lt;/div&gt;`}
- function sidebarPlace({path,name,symbol=&#x27;folder&#x27;,id=null,current=false}){const button=`&lt;button type=&quot;button&quot; class=&quot;place-button&quot; data-main-place=&quot;${htmlText(path)}&quot; ${id!==null?`data-favorite-place=&quot;${id}&quot;`:&#x27;&#x27;} aria-current=&quot;${current}&quot; title=&quot;${htmlText(name+&#x27; · &#x27;+path)}&quot;&gt;${icon(symbol)}&lt;span class=&quot;place-label&quot;&gt;${htmlText(name)}&lt;/span&gt;&lt;/button&gt;`;return id===null?button:`&lt;div class=&quot;favorite-place&quot; data-favorite-id=&quot;${id}&quot; draggable=&quot;true&quot;&gt;${button}&lt;button type=&quot;button&quot; class=&quot;remove-favorite&quot; data-remove-favorite=&quot;${id}&quot; aria-label=&quot;Убрать «${htmlText(name)}» из избранного&quot;&gt;×&lt;/button&gt;&lt;/div&gt;`}
  function addressContent(value,{editing=false}={}){const parts=value.split(&#x27; / &#x27;).filter(Boolean);return `&lt;span class=&quot;breadcrumbs&quot; ${editing?&#x27;hidden&#x27;:&#x27;&#x27;}&gt;${parts.map((part,i)=&gt;`${i?&#x27;&lt;span class=&quot;crumb-separator&quot;&gt;›&lt;/span&gt;&#x27;:&#x27;&#x27;}&lt;button type=&quot;button&quot; class=&quot;crumb ${/\.(7z|zip)$/i.test(part)?&#x27;is-archive&#x27;:&#x27;&#x27;}&quot; data-main-crumb=&quot;${htmlText(parts.slice(0,i+1).join(&#x27; / &#x27;))}&quot; ${/\.(7z|zip)$/i.test(part)?`aria-label=&quot;Архив «${htmlText(part)}»&quot;`:&#x27;&#x27;}&gt;${/\.(7z|zip)$/i.test(part)?icon(&#x27;archive&#x27;)+`&lt;span&gt;${htmlText(part)}&lt;/span&gt;`:htmlText(part)}&lt;/button&gt;`).join(&#x27;&#x27;)}&lt;/span&gt;&lt;input class=&quot;path-editor&quot; value=&quot;${htmlText(value)}&quot; ${editing?&#x27;&#x27;:&#x27;hidden&#x27;} aria-label=&quot;Полный путь&quot;&gt;&lt;button type=&quot;button&quot; class=&quot;edit-main-path&quot; aria-label=&quot;Редактировать путь&quot;&gt;${icon(&#x27;pencil&#x27;)}&lt;/button&gt;`}
  function managerStatus({summary=&#x27;&#x27;,size=&#x27;&#x27;}={}){return `&lt;div class=&quot;status manager-status&quot; role=&quot;status&quot; aria-label=&quot;Состояние активной панели&quot; aria-atomic=&quot;true&quot;&gt;&lt;span data-selection&gt;${htmlText(summary)}&lt;/span&gt;&lt;span data-selection-size&gt;${htmlText(size)}&lt;/span&gt;&lt;/div&gt;`}
  function pane(second=false){return `&lt;div class=&quot;pane&quot;&gt;&lt;div class=&quot;address&quot;&gt;${btn(&#x27;&#x27;,&#x27;arrow-up&#x27;) }&lt;div class=&quot;path&quot;&gt;${icon(second?&#x27;archive&#x27;:&#x27;folder&#x27;)}&lt;span&gt;${second?&#x27;Проект.7z /&#x27;:&#x27;Домашняя / Документы / Проект&#x27;}&lt;/span&gt;${icon(&#x27;chevron-down&#x27;)}&lt;/div&gt;&lt;/div&gt;&lt;table class=&quot;filetable&quot;&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;Имя ↑&lt;/th&gt;&lt;th&gt;Размер&lt;/th&gt;&lt;th class=&quot;typecol&quot;&gt;Тип&lt;/th&gt;&lt;th class=&quot;datecol&quot;&gt;Изменён&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;&lt;tbody&gt;${files.map((r,i)=&gt;fileRow({name:r[0],size:r[1],kind:r[2],symbol:r[3],modified:i?&#x27;18.10.2026 12:40&#x27;:&#x27;&#x27;,selected:i===4})).join(&#x27;&#x27;)}&lt;/tbody&gt;&lt;/table&gt;&lt;div class=&quot;filespace&quot;&gt;&lt;/div&gt;&lt;/div&gt;`}
@@ -2787,11 +2745,11 @@ html&gt;body{padding:0}&lt;/style&gt;
   return dialog(limited?&#x27;Открыть с ограничениями?&#x27;:&#x27;Не удалось открыть архив&#x27;,`&lt;div class=&quot;archive-opening-form&quot;&gt;${sourceSummary({name,path:parts.join(&#x27; / &#x27;),fullPath:[...parts,name].join(&#x27; / &#x27;),iconName:&#x27;archive&#x27;,className:&#x27;archive-opening-source&#x27;})}&lt;p&gt;${htmlText(f.reason)}&lt;/p&gt;${limited?&#x27;&lt;p class=&quot;hint&quot;&gt;Можно скопировать доступные файлы. Часть файлов может отсутствовать или не читаться, а извлечённые данные — быть неполными или не пройти проверку. Исходный архив не изменится.&lt;/p&gt;&#x27;:&#x27;&#x27;}&lt;details class=&quot;mac-disclosure&quot;&gt;&lt;summary&gt;${icon(&#x27;chevron-right&#x27;)}Подробности&lt;/summary&gt;&lt;pre class=&quot;archive-opening-detail&quot; tabindex=&quot;0&quot;&gt;${htmlText(f.detail)}&lt;/pre&gt;&lt;/details&gt;&lt;/div&gt;`,true).replace(&#x27;class=&quot;dialog narrow&quot;&#x27;,&#x27;class=&quot;dialog narrow archive-opening-dialog&quot;&#x27;).replace(footer(),`&lt;div class=&quot;report-actions&quot;&gt;${btn(limited?&#x27;Отмена&#x27;:&#x27;Закрыть&#x27;,&#x27;&#x27;,&#x27;dismiss-report&#x27;)}${limited?btn(&#x27;Открыть только для чтения&#x27;,&#x27;&#x27;,&#x27;accept-limited-read&#x27;):&#x27;&#x27;}&lt;/div&gt;`);
  }
  const macError=mode=&gt;macArchiveOpening(mode);
- const reviewWindows=new Map(),reviewSettings=new Map();let activeReviewWindow=null,nextReviewWindow=0,reviewDraggedTab=null,reviewClipboard=null;
+ const reviewWindows=new Map(),reviewSettings=new Map();let activeReviewWindow=null,nextReviewWindow=0,reviewClipboard=null;
  const reviewOperations=new Map();let activeReviewOperation=null,nextReviewOperation=0;
  const reviewExternalCopies=new Map(),reviewRemovedTempExamples=new Set();let nextExternalCopy=0;
- function stopExternalObservation(windowId,tabId=null){
-  for(const copy of reviewExternalCopies.values())if(copy.ownerWindow===windowId&amp;&amp;(tabId===null||copy.ownerTab===tabId)&amp;&amp;!copy.safe){
+ function stopExternalObservation(windowId,panelId=null){
+  for(const copy of reviewExternalCopies.values())if(copy.ownerWindow===windowId&amp;&amp;(panelId===null||copy.ownerPanel===panelId)&amp;&amp;!copy.safe){
    copy.observationStopped=true;copy.finishedConfirmed=false;if(copy.mode!==&#x27;Обновляется архив&#x27;)copy.mode=&#x27;Наблюдение прекращено&#x27;;
   }
  }
@@ -2799,12 +2757,10 @@ html&gt;body{padding:0}&lt;/style&gt;
  const reviewLinkEntries=new Map(),reviewPickerFolders=new Map();
  function syncExternalCopyResult(op){const copy=reviewExternalCopies.get(op.model.externalCopyId);if(!copy)return;if(op.mode===&#x27;Завершено&#x27;){copy.mode=&#x27;Изменения сохранены&#x27;;copy.safe=!!copy.finishedConfirmed}else if([&#x27;Завершено с ошибками&#x27;,&#x27;Есть ошибки&#x27;,&#x27;Отменено&#x27;].includes(op.mode)){copy.mode=&#x27;Не удалось обновить&#x27;;copy.safe=false}}
  let reviewWindowOrder=[];
- const reviewFavorites=[{name:&#x27;Домашняя&#x27;,path:&#x27;Домашняя&#x27;,symbol:&#x27;house&#x27;},{name:&#x27;Документы&#x27;,path:&#x27;Домашняя / Документы&#x27;,symbol:&#x27;folder&#x27;},{name:&#x27;Загрузки&#x27;,path:&#x27;Домашняя / Загрузки&#x27;,symbol:&#x27;download&#x27;}].map((place,index)=&gt;({...place,id:index+1}));
  const reviewRecentPlaces=[&#x27;Домашняя / Документы / Проект&#x27;,&#x27;Домашняя / Загрузки&#x27;,&#x27;Документы / Архивы / Проект.7z / Исходники&#x27;,&#x27;Общий диск / Рабочие материалы&#x27;];
  function publishRecentPlaces(){for(const entry of reviewWindows.values())entry.api?.recent?.()}
  function recordRecentPlace(path){const at=reviewRecentPlaces.indexOf(path);if(at&gt;=0)reviewRecentPlaces.splice(at,1);reviewRecentPlaces.unshift(path);publishRecentPlaces()}
  const reviewCopyHistory=[&#x27;Домашняя / Документы / Копии&#x27;,&#x27;Домашняя / Загрузки&#x27;,&#x27;Общий диск / Проекты&#x27;];
- let nextFavoriteId=4,draggedFavoriteId=null;
  const windowReview=document.createElement(&#x27;div&#x27;);windowReview.className=&#x27;window-review&#x27;;windowReview.innerHTML=&#x27;&lt;span&gt;Окна макета:&lt;/span&gt;&lt;div class=&quot;review-window-list&quot;&gt;&lt;/div&gt;&lt;button type=&quot;button&quot; class=&quot;review-new-window&quot;&gt;Новое окно&lt;/button&gt;&lt;button type=&quot;button&quot; class=&quot;review-restart&quot;&gt;Перезапустить макет&lt;/button&gt;&lt;span class=&quot;session-review-status&quot; role=&quot;status&quot;&gt;&lt;/span&gt;&#x27;;root.prepend(windowReview);
  const operationDock=document.createElement(&#x27;div&#x27;);operationDock.className=&#x27;window-review&#x27;;operationDock.hidden=true;windowReview.after(operationDock);
  operationDock.addEventListener(&#x27;click&#x27;,e=&gt;{const button=e.target.closest(&#x27;[data-review-operation]&#x27;);if(button)showReviewOperation(Number(button.dataset.reviewOperation))});
@@ -2845,7 +2801,7 @@ html&gt;body{padding:0}&lt;/style&gt;
   if(!open.some(entry=&gt;entry.id===activeReviewWindow)&amp;&amp;open.length)activeReviewWindow=[...reviewWindowOrder].reverse().find(id=&gt;open.some(entry=&gt;entry.id===id))||open.at(-1).id;
   reviewWindowOrder=reviewWindowOrder.filter(id=&gt;id!==activeReviewWindow&amp;&amp;open.some(entry=&gt;entry.id===id));if(open.some(entry=&gt;entry.id===activeReviewWindow))reviewWindowOrder.push(activeReviewWindow);
   const list=windowReview.querySelector(&#x27;.review-window-list&#x27;);for(const button of list.querySelectorAll(&#x27;[data-review-window]&#x27;))if(!open.some(entry=&gt;String(entry.id)===button.dataset.reviewWindow))button.remove();
-  for(const entry of open){let button=list.querySelector(`[data-review-window=&quot;${entry.id}&quot;]`);if(!button){button=document.createElement(&#x27;button&#x27;);button.type=&#x27;button&#x27;;button.dataset.reviewWindow=String(entry.id);list.append(button)}button.setAttribute(&#x27;aria-current&#x27;,String(entry.id===activeReviewWindow));button.textContent=&#x27;Окно &#x27;+entry.id+&#x27; · &#x27;+entry.api.title();button.title=&#x27;Перетащите сюда вкладку для переноса в это окно&#x27;}
+  for(const entry of open){let button=list.querySelector(`[data-review-window=&quot;${entry.id}&quot;]`);if(!button){button=document.createElement(&#x27;button&#x27;);button.type=&#x27;button&#x27;;button.dataset.reviewWindow=String(entry.id);list.append(button)}button.setAttribute(&#x27;aria-current&#x27;,String(entry.id===activeReviewWindow));button.textContent=&#x27;Окно &#x27;+entry.id+&#x27; · &#x27;+entry.api.title();button.title=&#x27;Переключиться на это окно&#x27;}
   for(const entry of reviewWindows.values())entry.variant.hidden=!!activeReviewOperation||entry.id!==activeReviewWindow;
   windowReview.querySelector(&#x27;.review-new-window&#x27;).disabled=false;
   if(previous!==activeReviewWindow)reviewWindows.get(activeReviewWindow)?.api.activate();
@@ -2853,20 +2809,16 @@ html&gt;body{padding:0}&lt;/style&gt;
  function showReviewWindow(id){const entry=reviewWindows.get(id);if(!entry||entry.api.closed())return;hideReviewOperation();for(const other of reviewWindows.values())if(other.id!==id)other.api?.deactivate();activeReviewWindow=id;refreshReviewWindows();entry.api.activate()}
  function createReviewWindow(seed){reviewExitPending=false;reviewExited=false;const variant=document.createElement(&#x27;section&#x27;);variant.dataset.variant=&#x27;macOS&#x27;;variant.setAttribute(&#x27;aria-label&#x27;,&#x27;Дополнительное окно концепта&#x27;);root.append(variant);mountVariant(variant,reviewWindows.size,seed);showReviewWindow(Number(variant.dataset.reviewWindowId))}
  function publishReviewClipboard(value){reviewClipboard=value;for(const entry of reviewWindows.values())entry.api?.clipboard(value)}
- function publishReviewFavorites(){for(const entry of reviewWindows.values())entry.api?.favorites()}
  function restartReviewSession(){closeReviewQuit();
   if([...reviewOperations.values()].some(op=&gt;!operationTerminal(op.mode)))return;
   for(const op of reviewOperations.values())op.variant.remove();reviewOperations.clear();activeReviewOperation=null;refreshOperations();
   const session=reviewExited&amp;&amp;reviewExitSession?reviewExitSession:captureReviewExitSession();reviewExitPending=false;reviewExited=false;
-  for(const entry of reviewWindows.values())entry.api.dispose();reviewWindows.clear();reviewClipboard=null;reviewDraggedTab=null;draggedFavoriteId=null;activeReviewWindow=null;reviewWindowOrder=[];
+  for(const entry of reviewWindows.values())entry.api.dispose();reviewWindows.clear();reviewClipboard=null;activeReviewWindow=null;reviewWindowOrder=[];
   for(const snapshot of session.windows)createReviewWindow({session:snapshot});
   if(!session.windows.length)createReviewWindow({home:true});else{reviewWindowOrder=session.order.filter(id=&gt;reviewWindows.has(id));showReviewWindow(reviewWindows.has(session.active)?session.active:session.windows[0].windowId)}
   windowReview.querySelector(&#x27;.session-review-status&#x27;).textContent=session.windows.length?&#x27;Восстановлено окон: &#x27;+session.windows.length:&#x27;Нет открытых окон — открыта Домашняя&#x27;;
  }
  windowReview.addEventListener(&#x27;click&#x27;,e=&gt;{const button=e.target.closest(&#x27;button&#x27;);if(button?.dataset.reviewWindow)showReviewWindow(Number(button.dataset.reviewWindow));else if(button?.classList.contains(&#x27;review-new-window&#x27;)){const current=reviewWindows.get(activeReviewWindow);if(current&amp;&amp;!current.api.closed())current.api.newWindow();else createReviewWindow({home:true})}else if(button?.classList.contains(&#x27;review-restart&#x27;))restartReviewSession()});
- windowReview.addEventListener(&#x27;dragover&#x27;,e=&gt;{const button=e.target.closest(&#x27;[data-review-window]&#x27;);if(!button||!reviewDraggedTab||Number(button.dataset.reviewWindow)===reviewDraggedTab.owner.id)return;e.preventDefault();e.dataTransfer.dropEffect=&#x27;move&#x27;;button.classList.add(&#x27;window-drop-target&#x27;)});
- windowReview.addEventListener(&#x27;dragleave&#x27;,e=&gt;e.target.closest(&#x27;button&#x27;)?.classList.remove(&#x27;window-drop-target&#x27;));
- windowReview.addEventListener(&#x27;drop&#x27;,e=&gt;{const button=e.target.closest(&#x27;[data-review-window]&#x27;),moving=reviewDraggedTab;if(!button||!moving)return;const target=reviewWindows.get(Number(button.dataset.reviewWindow));if(!target||target.id===moving.owner.id)return;e.preventDefault();reviewDraggedTab=null;target.api.receiveTab(moving.owner.releaseTab(moving.id));showReviewWindow(target.id)});
  const settingsDisclosure=(key,title,description,body)=&gt;`&lt;details class=&quot;mac-disclosure settings-detail&quot; data-settings-detail=&quot;${key}&quot;&gt;&lt;summary class=&quot;cursor-interaction&quot;&gt;${icon(&#x27;chevron-right&#x27;)}&lt;span class=&quot;settings-detail-title&quot;&gt;${title}&lt;span class=&quot;hint settings-description&quot;&gt;${description}&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;hint settings-change&quot; aria-live=&quot;polite&quot;&gt;&lt;/span&gt;&lt;/summary&gt;&lt;div class=&quot;form&quot;&gt;${body}&lt;/div&gt;&lt;/details&gt;`;
  const settingsPages={
   &#x27;Основные&#x27;:()=&gt;`${field(&#x27;Оформление&#x27;,&#x27;Как в системе&#x27;,[&#x27;Как в системе&#x27;,&#x27;Светлое&#x27;,&#x27;Тёмное&#x27;])}${field(&#x27;Язык интерфейса&#x27;,&#x27;Как в системе&#x27;,[&#x27;Как в системе&#x27;,&#x27;Русский&#x27;,&#x27;English&#x27;,&#x27;Deutsch&#x27;,&#x27;Français&#x27;,&#x27;日本語&#x27;])}${settingsDisclosure(&#x27;translation&#x27;,&#x27;О переводе&#x27;,&#x27;Сведения об установленном переводе&#x27;,&#x27;&lt;span class=&quot;hint&quot;&gt;Русский · Russian&lt;br&gt;Перевод интерфейса Sevenzip и 7-Zip&lt;/span&gt;&#x27;)}`,
@@ -3056,7 +3008,7 @@ html&gt;body{padding:0}&lt;/style&gt;
   if(context?.observationStopped)mode=&#x27;Наблюдение прекращено&#x27;;
   if(context?.readOnly&amp;&amp;[&#x27;Файл изменён&#x27;,&#x27;Не удалось обновить&#x27;].includes(mode))mode=&#x27;Только для чтения&#x27;;
   const f=externalFileFixture(mode,context),unavailable=[&#x27;Копия не найдена&#x27;,&#x27;Не удалось открыть&#x27;].includes(mode),canUpdate=[&#x27;Файл изменён&#x27;,&#x27;Не удалось обновить&#x27;].includes(mode)&amp;&amp;!f.readOnly;
-  const message={&#x27;Файл изменён&#x27;:&#x27;Сохранить изменения этого файла в архиве?&#x27;,&#x27;Обновляется архив&#x27;:&#x27;Изменения записываются в архив. Дождитесь результата операции.&#x27;,&#x27;Открыт во внешней программе&#x27;:&#x27;Открыта временная копия. Сохраните файл и закройте его во внешней программе.&#x27;,&#x27;Завершение неизвестно&#x27;:&#x27;Программа открыла файл без отслеживаемого процесса. Завершение работы с копией пока не подтверждено.&#x27;,&#x27;Наблюдение прекращено&#x27;:&#x27;Вкладка закрыта, наблюдение за редактором прекращено. Редактор продолжает работать; временная копия сохранена.&#x27;,&#x27;Только для чтения&#x27;:&#x27;Источник доступен только для чтения. Изменённый файл можно сохранить отдельно.&#x27;,&#x27;Не удалось обновить&#x27;:&#x27;Не удалось записать изменения в архив. Временная копия сохранена.&#x27;,&#x27;Изменения сохранены&#x27;:&#x27;Изменения записаны в архив.&#x27;,&#x27;Копия не найдена&#x27;:&#x27;Временная копия больше недоступна. Архив этой операцией не изменён.&#x27;,&#x27;Не удалось открыть&#x27;:&#x27;Не удалось открыть файл во внешней программе. Архив не изменён.&#x27;}[mode];
+  const message={&#x27;Файл изменён&#x27;:&#x27;Сохранить изменения этого файла в архиве?&#x27;,&#x27;Обновляется архив&#x27;:&#x27;Изменения записываются в архив. Дождитесь результата операции.&#x27;,&#x27;Открыт во внешней программе&#x27;:&#x27;Открыта временная копия. Сохраните файл и закройте его во внешней программе.&#x27;,&#x27;Завершение неизвестно&#x27;:&#x27;Программа открыла файл без отслеживаемого процесса. Завершение работы с копией пока не подтверждено.&#x27;,&#x27;Наблюдение прекращено&#x27;:&#x27;Окно закрыто, наблюдение за редактором прекращено. Редактор продолжает работать; временная копия сохранена.&#x27;,&#x27;Только для чтения&#x27;:&#x27;Источник доступен только для чтения. Изменённый файл можно сохранить отдельно.&#x27;,&#x27;Не удалось обновить&#x27;:&#x27;Не удалось записать изменения в архив. Временная копия сохранена.&#x27;,&#x27;Изменения сохранены&#x27;:&#x27;Изменения записаны в архив.&#x27;,&#x27;Копия не найдена&#x27;:&#x27;Временная копия больше недоступна. Архив этой операцией не изменён.&#x27;,&#x27;Не удалось открыть&#x27;:&#x27;Не удалось открыть файл во внешней программе. Архив не изменён.&#x27;}[mode];
   const actions=[{label:canUpdate?&#x27;Отмена&#x27;:&#x27;Закрыть&#x27;,className:&#x27;dismiss-report&#x27;},...(!unavailable&amp;&amp;mode!==&#x27;Обновляется архив&#x27;?[{label:&#x27;Сохранить копию…&#x27;,className:&#x27;external-save-copy&#x27;}]:[]),...([&#x27;Открыт во внешней программе&#x27;,&#x27;Завершение неизвестно&#x27;].includes(mode)?[{label:&#x27;Проверить изменения&#x27;,className:&#x27;external-check&#x27;}]:[]),...(canUpdate?[{label:mode===&#x27;Не удалось обновить&#x27;?&#x27;Повторить&#x27;:&#x27;Обновить архив&#x27;,className:&#x27;primary external-update&#x27;}]:[])];
   return reportDialog(&#x27;Файл во внешней программе&#x27;,`&lt;div class=&quot;external-file-form form&quot;&gt;${sourceSummary({name:f.name,fullPath:f.archive+&#x27; / &#x27;+f.entry,iconName:&#x27;file-text&#x27;})}${f.launchIntent?inlineMessage(&#x27;Действие: &#x27;+(f.launchIntent===&#x27;view&#x27;?&#x27;Просмотр&#x27;:f.launchIntent===&#x27;edit&#x27;?&#x27;Редактирование&#x27;:&#x27;Открыть&#x27;)):&#x27;&#x27;}${inlineMessage(message,[&#x27;Не удалось обновить&#x27;,&#x27;Копия не найдена&#x27;,&#x27;Не удалось открыть&#x27;].includes(mode)?&#x27;error&#x27;:&#x27;info&#x27;)}${!unavailable?sourceSummary({name:&#x27;Временная копия&#x27;,fullPath:f.temp,iconName:&#x27;file-text&#x27;}):&#x27;&#x27;}${mode===&#x27;Завершение неизвестно&#x27;?&#x27;&lt;label class=&quot;check&quot;&gt;&lt;input class=&quot;external-finished&quot; type=&quot;checkbox&quot;&gt;&lt;span&gt;Я сохранил и закрыл файл во внешней программе&lt;/span&gt;&lt;/label&gt;&#x27;:&#x27;&#x27;}${mode===&#x27;Открыт во внешней программе&#x27;?&#x27;&lt;p class=&quot;hint&quot;&gt;Проверка не завершает редактор. Если он ещё работает, обновление архива недоступно.&lt;/p&gt;&#x27;:&#x27;&#x27;}${canUpdate?&#x27;&lt;p class=&quot;hint&quot;&gt;Решение об обновлении использует существующий сценарий приложения.&lt;/p&gt;&#x27;:&#x27;&#x27;}&lt;p class=&quot;external-check-result hint&quot; role=&quot;status&quot;&gt;&lt;/p&gt;&lt;/div&gt;`,true,{actions:actionBar({actions})});
  }
@@ -3116,7 +3068,7 @@ html&gt;body{padding:0}&lt;/style&gt;
  function macLicenses(){return reportDialog(&#x27;Лицензии и уведомления&#x27;,`&lt;div class=&quot;license-form&quot;&gt;&lt;label class=&quot;field&quot;&gt;&lt;span&gt;Найти компонент или лицензию&lt;/span&gt;&lt;input class=&quot;product-input license-search&quot; type=&quot;search&quot; autocomplete=&quot;off&quot; placeholder=&quot;Например, 7-Zip или LGPL&quot;&gt;&lt;/label&gt;&lt;div class=&quot;license-layout&quot;&gt;&lt;label class=&quot;field license-document-field&quot;&gt;&lt;span&gt;Документ&lt;/span&gt;&lt;select class=&quot;product-select license-select&quot; size=&quot;5&quot; aria-label=&quot;Документ лицензии&quot;&gt;&lt;/select&gt;&lt;/label&gt;&lt;div class=&quot;license-body&quot;&gt;&lt;p class=&quot;hint license-empty&quot; role=&quot;status&quot; hidden&gt;&lt;/p&gt;&lt;p class=&quot;inline-error license-error&quot; role=&quot;alert&quot; hidden&gt;&lt;/p&gt;&lt;textarea class=&quot;report-console license-text&quot; readonly spellcheck=&quot;false&quot; aria-label=&quot;Полный текст лицензии&quot;&gt;&lt;/textarea&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;`,true,{actions:actionBar({actions:[{label:&#x27;Копировать текст&#x27;,className:&#x27;leading license-copy&#x27;},{label:&#x27;Закрыть&#x27;,className:&#x27;license-close&#x27;}]})});}
 
  const fileMenuRows=[[&#x27;Открыть архив…&#x27;,&#x27;browse&#x27;,&#x27;⌘O&#x27;],[&#x27;Открыть&#x27;,&#x27;main&#x27;,&#x27;⌘↓&#x27;,{openMode:&#x27;normal&#x27;}],[&#x27;Открыть как&#x27;,&#x27;submenu:open&#x27;],null,[&#x27;Просмотр&#x27;,&#x27;main&#x27;,&#x27;&#x27;,{openMode:&#x27;view&#x27;}],[&#x27;Редактировать&#x27;,&#x27;main&#x27;,&#x27;&#x27;,{openMode:&#x27;edit&#x27;}],null,[&#x27;Переименовать&#x27;,&#x27;rename&#x27;,&#x27;↩&#x27;],[&#x27;Копировать в…&#x27;,&#x27;copy&#x27;,&#x27;⇧⌘C&#x27;],[&#x27;Переместить в…&#x27;,&#x27;copy&#x27;,&#x27;⇧⌘M&#x27;,{transferMode:&#x27;move&#x27;}],[&#x27;Удалить&#x27;,&#x27;delete&#x27;,&#x27;⌘⌫&#x27;],null,[&#x27;Создать&#x27;,&#x27;submenu:create&#x27;],[&#x27;Контрольные суммы&#x27;,&#x27;submenu:hash&#x27;],[&#x27;Дополнительно&#x27;,&#x27;submenu:tools&#x27;],null,[&#x27;Свойства&#x27;,&#x27;properties&#x27;,&#x27;⌘I&#x27;]];
- const viewMenuRows=[[&#x27;Представление&#x27;,&#x27;submenu:appearance&#x27;],[&#x27;Сортировка&#x27;,&#x27;submenu:sort&#x27;],null,[&#x27;Боковая панель мест&#x27;,&#x27;main&#x27;,&#x27;&#x27;,{viewAction:&#x27;sidebar&#x27;}],[&#x27;Две панели&#x27;,&#x27;main&#x27;,&#x27;⇧⌘2&#x27;,{viewAction:&#x27;panels&#x27;}],null,[&#x27;Назад&#x27;,&#x27;main&#x27;,&#x27;⌘[&#x27;,{viewAction:&#x27;back&#x27;}],[&#x27;Вперёд&#x27;,&#x27;main&#x27;,&#x27;⌘]&#x27;,{viewAction:&#x27;forward&#x27;}],[&#x27;На уровень вверх&#x27;,&#x27;main&#x27;,&#x27;⌘↑&#x27;,{viewAction:&#x27;up&#x27;}],[&#x27;Компьютер&#x27;,&#x27;main&#x27;,&#x27;&#x27;,{viewAction:&#x27;root&#x27;}],[&#x27;Недавние места…&#x27;,&#x27;history&#x27;],null,[&#x27;Обновить&#x27;,&#x27;main&#x27;,&#x27;⌘R&#x27;,{viewAction:&#x27;refresh&#x27;}],[&#x27;Обновлять автоматически&#x27;,&#x27;main&#x27;,&#x27;&#x27;,{viewAction:&#x27;auto-refresh&#x27;}]];
+ const viewMenuRows=[[&#x27;Представление&#x27;,&#x27;submenu:appearance&#x27;],[&#x27;Сортировка&#x27;,&#x27;submenu:sort&#x27;],null,[&#x27;Две панели&#x27;,&#x27;main&#x27;,&#x27;⇧⌘2&#x27;,{viewAction:&#x27;panels&#x27;}],null,[&#x27;Назад&#x27;,&#x27;main&#x27;,&#x27;⌘[&#x27;,{viewAction:&#x27;back&#x27;}],[&#x27;Вперёд&#x27;,&#x27;main&#x27;,&#x27;⌘]&#x27;,{viewAction:&#x27;forward&#x27;}],[&#x27;На уровень вверх&#x27;,&#x27;main&#x27;,&#x27;⌘↑&#x27;,{viewAction:&#x27;up&#x27;}],[&#x27;Компьютер&#x27;,&#x27;main&#x27;,&#x27;&#x27;,{viewAction:&#x27;root&#x27;}],[&#x27;Недавние места…&#x27;,&#x27;history&#x27;],null,[&#x27;Обновить&#x27;,&#x27;main&#x27;,&#x27;⌘R&#x27;,{viewAction:&#x27;refresh&#x27;}],[&#x27;Обновлять автоматически&#x27;,&#x27;main&#x27;,&#x27;&#x27;,{viewAction:&#x27;auto-refresh&#x27;}]];
  const contextRows=[[&#x27;Открыть&#x27;,&#x27;main&#x27;,&#x27;⌘↓&#x27;,{openMode:&#x27;normal&#x27;}],[&#x27;Открыть как&#x27;,&#x27;submenu:contextOpen&#x27;],null,[&#x27;Копировать в…&#x27;,&#x27;copy&#x27;,&#x27;⇧⌘C&#x27;],[&#x27;Переместить в…&#x27;,&#x27;copy&#x27;,&#x27;⇧⌘M&#x27;,{transferMode:&#x27;move&#x27;}],[&#x27;Переименовать&#x27;,&#x27;rename&#x27;,&#x27;↩&#x27;],[&#x27;Удалить&#x27;,&#x27;delete&#x27;,&#x27;⌘⌫&#x27;],null,[&#x27;Контрольные суммы&#x27;,&#x27;submenu:hash&#x27;],[&#x27;Ещё&#x27;,&#x27;submenu:contextMore&#x27;],null,[&#x27;Свойства&#x27;,&#x27;properties&#x27;,&#x27;⌘I&#x27;]];
  const openRows=[[&#x27;Открыть как архив&#x27;,&#x27;main&#x27;,&#x27;&#x27;,{openMode:&#x27;archive&#x27;}],[&#x27;Один уровень архива (*)&#x27;,&#x27;main&#x27;,&#x27;&#x27;,{openMode:&#x27;single&#x27;}],[&#x27;Разобрать файл как архив (#)&#x27;,&#x27;main&#x27;,&#x27;&#x27;,{openMode:&#x27;parser&#x27;}],null,[&#x27;Открыть во внешнем приложении&#x27;,&#x27;main&#x27;,&#x27;&#x27;,{openMode:&#x27;outside&#x27;}]];
  const createRows=[[&#x27;Создать папку&#x27;,&#x27;rename&#x27;,&#x27;⇧⌘N&#x27;,{nameMode:&#x27;folder&#x27;}],[&#x27;Создать файл&#x27;,&#x27;rename&#x27;,&#x27;&#x27;,{nameMode:&#x27;file&#x27;}],[&#x27;Ссылка…&#x27;,&#x27;link&#x27;]];
@@ -3126,8 +3078,8 @@ html&gt;body{padding:0}&lt;/style&gt;
  fileMenuRows.splice(2,0,[&#x27;Архив&#x27;,&#x27;submenu:archiveActions&#x27;]);
  contextRows.splice(3,0,[&#x27;Архив&#x27;,&#x27;submenu:archiveActions&#x27;]);
  submenuRows.archiveActions=[[&#x27;Создать архив…&#x27;,&#x27;add&#x27;,&#x27;⇧⌘A&#x27;],[&#x27;Распаковать…&#x27;,&#x27;extract&#x27;,&#x27;⇧⌘E&#x27;],[&#x27;Проверить архив&#x27;,&#x27;archive-test&#x27;,&#x27;⇧⌘T&#x27;]];
- fileMenuRows.unshift([&#x27;Новое окно&#x27;,&#x27;new-window&#x27;,&#x27;⌘N&#x27;],[&#x27;Новая вкладка&#x27;,&#x27;new-tab&#x27;,&#x27;⌘T&#x27;],null);
- fileMenuRows.push(null,[&#x27;Закрыть окно&#x27;,&#x27;close-window&#x27;,&#x27;⇧⌘W&#x27;]);
+ fileMenuRows.unshift([&#x27;Новое окно&#x27;,&#x27;new-window&#x27;,&#x27;⌘N&#x27;],null);
+ fileMenuRows.push(null,[&#x27;Закрыть окно&#x27;,&#x27;close-window&#x27;,&#x27;⌘W&#x27;]);
  function menuItems(rows){return rows.map(r=&gt;r?`&lt;button type=&quot;button&quot; class=&quot;menu-action cursor-interaction&quot; ${r[1]===&#x27;disabled&#x27;||r[3]?.disabled?&#x27;disabled&#x27;:r[1]?.startsWith(&#x27;submenu:&#x27;)?`data-submenu=&quot;${r[1].slice(8)}&quot; aria-expanded=&quot;false&quot; aria-haspopup=&quot;true&quot;`:`data-go=&quot;${r[1]||&#x27;main&#x27;}&quot;`} ${r[3]?.transferMode?`data-transfer-mode=&quot;${r[3].transferMode}&quot;`:&#x27;&#x27;} ${r[3]?.viewAction?`data-view-action=&quot;${r[3].viewAction}&quot;`:&#x27;&#x27;} ${r[3]?.openMode?`data-open-mode=&quot;${r[3].openMode}&quot;`:&#x27;&#x27;} ${r[3]?.nameMode?`data-name-mode=&quot;${r[3].nameMode}&quot;`:&#x27;&#x27;} ${r[3]?.selection?`data-selection-action=&quot;${r[3].selection}&quot;`:&#x27;&#x27;} ${r[3]?.mainCommand?`data-menu-main-command=&quot;${r[3].mainCommand}&quot;`:&#x27;&#x27;}&gt;&lt;span&gt;${r[0]}&lt;/span&gt;&lt;span class=&quot;hint&quot;&gt;${r[1]?.startsWith(&#x27;submenu:&#x27;)?(r[2]?r[2]+&#x27; &#x27;: &#x27;&#x27;)+&#x27;›&#x27;:r[2]||&#x27;&#x27;}&lt;/span&gt;&lt;/button&gt;`:&#x27;&lt;hr&gt;&#x27;).join(&#x27;&#x27;)}
  function macMenu(kind,background=&#x27;&#x27;){const rows=kind===&#x27;file-menu&#x27;?fileMenuRows:kind===&#x27;view-menu&#x27;?viewMenuRows:contextRows;return `&lt;div class=&quot;menu-scene&quot;&gt;&lt;div class=&quot;menu-underlay&quot; inert&gt;${background||main()}&lt;/div&gt;&lt;div class=&quot;menu-stack&quot;&gt;&lt;div class=&quot;native-menu&quot; aria-label=&quot;${kind===&#x27;file-menu&#x27;?&#x27;Файл&#x27;:kind===&#x27;view-menu&#x27;?&#x27;Вид&#x27;:&#x27;Контекстное меню&#x27;}&quot;&gt;${menuItems(rows)}&lt;/div&gt;&lt;div class=&quot;submenu-holder&quot; hidden&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;`}
  function macComponents(){
@@ -3138,8 +3090,6 @@ html&gt;body{padding:0}&lt;/style&gt;
   ${card(&#x27;Строка состояния&#x27;,`${specimen(managerStatus({summary:&#x27;Объектов: 21&#x27;}))}${specimen(managerStatus({summary:&#x27;Слева · Выделено 3 из 21&#x27;,size:readableFileSize(134637158)}))}${specimen(managerStatus({summary:&#x27;Чтение папки…&#x27;}))}`,&#x27;Одна компактная полоса на всё окно. Сводка активной панели и размер выбора; сообщение использует тот же слот. Постоянной надписи «Архив открыт» и второй нижней полосы нет.&#x27;,true)}
   ${card(&#x27;Строка файла в таблице&#x27;,specimen(`&lt;table class=&quot;filetable&quot;&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;Имя ↑&lt;/th&gt;&lt;th&gt;Размер&lt;/th&gt;&lt;th class=&quot;typecol&quot;&gt;Тип&lt;/th&gt;&lt;th class=&quot;datecol&quot;&gt;Изменён&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;&lt;tbody&gt;${fileRow({name:&#x27;Документы&#x27;,kind:&#x27;Папка&#x27;,symbol:&#x27;folder&#x27;})}${fileRow({name:&#x27;Проект.7z&#x27;,kind:&#x27;Архив 7z&#x27;,symbol:&#x27;archive&#x27;,size:&#x27;128,4 МБ&#x27;,selected:true,focused:true})}${fileRow({name:&#x27;Описание.txt&#x27;,kind:&#x27;Текст&#x27;,symbol:&#x27;file-text&#x27;,size:&#x27;2,4 КБ&#x27;,selected:true})}${fileRow({name:&#x27;Read me — 日本語.txt&#x27;,kind:&#x27;Текст&#x27;,size:&#x27;2 КБ&#x27;,cut:true})}&lt;/tbody&gt;&lt;/table&gt;`),&#x27;Обычная, выделенная, текущая и вырезанная строка. Размер, тип и дата — данные модели, а не догадки строки. Выделение и текущий элемент различаются; открытие и drag передаются общему контроллеру FileView.&#x27;,true)}
   ${card(&#x27;Крупный элемент файла&#x27;,specimen(`&lt;div class=&quot;icon-grid&quot;&gt;${iconCard(&#x27;Документы&#x27;,&#x27;&#x27;,&#x27;Папка&#x27;)}${iconCard(&#x27;Макет.png&#x27;,&#x27;2,1 МБ&#x27;,&#x27;Изображение&#x27;,true)}${iconCard(&#x27;Проект.7z&#x27;,&#x27;128,4 МБ&#x27;,&#x27;Архив 7z&#x27;,true,&#x27;&#x27;,{focused:true})}${iconCard(&#x27;Read me — 日本語.txt&#x27;,&#x27;2 КБ&#x27;,&#x27;Текст&#x27;,false,&#x27;&#x27;,{cut:true})}${iconCard(&#x27;Ссылка на проект&#x27;,&#x27;&#x27;,&#x27;Символьная ссылка&#x27;)}&lt;/div&gt;`),&#x27;Та же запись и модель выбора, другое представление: изображение/значок, подпись, выделение, текущий элемент и состояние Cut. Превью не меняет действие открытия. Полное имя доступно даже при сокращении подписи.&#x27;,true)}
-  ${card(&#x27;Элемент боковой панели&#x27;,specimen(`&lt;nav class=&quot;manager-sidebar&quot; aria-label=&quot;Пример мест&quot;&gt;&lt;h3&gt;Избранное&lt;/h3&gt;${sidebarPlace({id:101,name:&#x27;Проект&#x27;,path:&#x27;Домашняя / Документы / Проект&#x27;,current:true})}${sidebarPlace({id:102,name:&#x27;Очень длинное имя рабочего расположения&#x27;,path:&#x27;Домашняя / Документы / Очень длинное имя рабочего расположения&#x27;})}&lt;h3&gt;Расположения&lt;/h3&gt;${sidebarPlace({name:&#x27;Компьютер&#x27;,path:&#x27;Компьютер&#x27;,symbol:&#x27;monitor&#x27;})}${sidebarPlace({name:&#x27;Сеть&#x27;,path:&#x27;Сеть&#x27;,symbol:&#x27;network&#x27;})}&lt;/nav&gt;`),&#x27;Общий PlaceItem: значок, имя, текущий путь, полное название. Избранное добавляет перестановку, локальное переименование и удаление ссылки. Удаление из избранного не удаляет папку.&#x27;)}
-  ${card(&#x27;Вкладка и полоса вкладок&#x27;,specimen(`&lt;div class=&quot;manager-tabs&quot; role=&quot;tablist&quot; aria-label=&quot;Пример вкладок&quot;&gt;${workspaceTab({id:101,title:&#x27;Проект&#x27;,active:true})}${workspaceTab({id:102,title:&#x27;Проект.7z&#x27;,mode:&#x27;Открытый архив&#x27;})}${workspaceTab({id:103,title:&#x27;Загрузка…&#x27;,mode:&#x27;Загрузка папки&#x27;})}&lt;button type=&quot;button&quot; class=&quot;new-tab&quot; aria-label=&quot;Новая вкладка&quot;&gt;+&lt;/button&gt;&lt;/div&gt;`),&#x27;TabItem и TabStrip. Активность, заголовок, значок, закрытие и перенос — общий компонент; места, сессия и закрытие последней панели — состояние Workspace. Кнопка закрытия не вложена в кнопку вкладки.&#x27;)}
   ${card(&#x27;Панель действий и кнопка команды&#x27;,`${specimen(`&lt;div class=&quot;tools file-commands&quot;&gt;${fileCommands()}&lt;/div&gt;`)}${specimen(`&lt;div class=&quot;tools file-commands&quot;&gt;${fileCommands({cut:false,copy:false,paste:false,rename:false,delete:false})}&lt;/div&gt;`)}&lt;p class=&quot;hint&quot;&gt;Доступные команды и пример без выбора с пустым буфером.&lt;/p&gt;`,&#x27;CommandButton показывает текст/значок, подсказку, состояние и команду. CommandBar задаёт порядок и компактность. Доступность вычисляет единый владелец из места, выбора и буфера; кнопки и меню получают одно решение.&#x27;,true)}
   &lt;/div&gt;&lt;h2 class=&quot;component-section-title&quot;&gt;Базовые элементы и диалоги&lt;/h2&gt;&lt;div class=&quot;component-grid&quot;&gt;
   ${card(&#x27;Кнопки и действия&#x27;,`&lt;div class=&quot;sampleline&quot;&gt;${btn(&#x27;Основное действие&#x27;,&#x27;&#x27;,&#x27;primary&#x27;)}${btn(&#x27;Обычное действие&#x27;)}${btn(&#x27;Недоступно&#x27;,&#x27;&#x27;,&#x27;&#x27;,{disabled:true})}${btn(&#x27;Удалить&#x27;,&#x27;&#x27;,&#x27;destructive-action&#x27;)}${btn(&#x27;&#x27;,&#x27;copy&#x27;,&#x27;&#x27;,{label:&#x27;Копировать&#x27;})}&lt;/div&gt;${actionBar({className:&#x27;report-actions&#x27;,leading:btn(&#x27;Копировать&#x27;,&#x27;&#x27;,&#x27;leading&#x27;),actions:[{label:&#x27;Отмена&#x27;},{label:&#x27;Сохранить&#x27;,className:&#x27;primary&#x27;}]})}`,&#x27;Кнопка не знает, как выполняется операция. Роли, доступность, сочетания клавиш и обработчики задаёт владелец действия.&#x27;)}
@@ -3167,23 +3117,19 @@ html&gt;body{padding:0}&lt;/style&gt;
    &lt;div class=&quot;stage&quot;&gt;&lt;div class=&quot;app&quot;&gt;&lt;div class=&quot;titlebar&quot;&gt;&lt;/div&gt;&lt;div class=&quot;screen&quot;&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;`;
   const product=variant.querySelector(&#x27;.prototype&#x27;), screen=variant.querySelector(&#x27;.screen&#x27;);
   product.classList.toggle(&#x27;macos&#x27;,macos);
-  const state={screen:&#x27;main&#x27;,two:false,split:.5,margin:16,row:28,radius:5,sidebar:true,samples:{}};
-  const mainTabs=[{id:1,side:0,title:&#x27;Проект&#x27;,mode:&#x27;Таблица&#x27;,panes:[]},{id:2,side:0,title:&#x27;Проект.7z&#x27;,mode:&#x27;Открытый архив&#x27;,panes:[]},{id:3,side:1,title:&#x27;Результат&#x27;,mode:&#x27;Таблица&#x27;,panes:[]}];
-  const mainTabSelection=[1,3];
-  let activeMainSide=0,activeMainTab=1,nextMainTab=4;
+  const state={screen:&#x27;main&#x27;,two:false,split:.5,margin:16,row:28,radius:5,samples:{}};
+  const mainPanels=[{id:1,side:0,title:&#x27;Проект&#x27;,mode:&#x27;Таблица&#x27;,panes:[]},{id:3,side:1,title:&#x27;Результат&#x27;,mode:&#x27;Таблица&#x27;,panes:[]}];
+  const panelSelection=[1,3];
+  let activeMainSide=0,activePanelId=1,nextPanelId=4;
   let mainClipboard=reviewClipboard;
   let copyContext=null,copyOperation=null,conflictDecision=null,archiveContext=null,archiveUpdateIntent=null,extractContext=null,propertiesContext=null,hashContext=null,checksumVerifyContext=null,volumeContext=null,deleteContext=null,nameContext=null,linkContext=null,externalContext=null,passwordContext=null,passwordPending=false,deviceSelection=null;
   const demoComments=new Map();
   const passwordReview=document.createElement(&#x27;span&#x27;);passwordReview.hidden=true;passwordReview.innerHTML=&#x27;&lt;button type=&quot;button&quot; class=&quot;btn&quot; data-password-result=&quot;ok&quot;&gt;Пароль подошёл (пример)&lt;/button&gt; &lt;button type=&quot;button&quot; class=&quot;btn&quot; data-password-result=&quot;wrong&quot;&gt;Неверный пароль (пример)&lt;/button&gt;&#x27;;variant.querySelector(&#x27;.review&#x27;).append(passwordReview);
   passwordReview.addEventListener(&#x27;click&#x27;,e=&gt;{const button=e.target.closest(&#x27;[data-password-result]&#x27;);if(!button||!passwordPending)return;const request=passwordContext;screen.querySelector(&#x27;.prompt-password-input&#x27;).value=&#x27;&#x27;;passwordPending=false;if(button.dataset.passwordResult===&#x27;wrong&#x27;){request.wrong=true;render();screen.querySelector(&#x27;.prompt-password-input&#x27;)?.focus()}else{const path=request.path;passwordContext=null;navigateTo(&#x27;main&#x27;);navigateMainFolder(screen.querySelector(&#x27;.active-pane&#x27;),path)}});
   let mainWindowClosed=false,mountContext=null;
-  let draggedMainTab=null;
   let fileSelectionDrag=null,suppressFileClick=false,cancelledFilePointer=null;
   let fileContextPane=null;
-  let tabContextId=null;
-  let favoriteContextId=null;
   let draggedFiles=null;
-  const favoritePlaces=reviewFavorites;
   function geometry(){product.style.setProperty(&#x27;--pad&#x27;,state.margin+&#x27;px&#x27;);product.style.setProperty(&#x27;--row&#x27;,state.row+&#x27;px&#x27;);product.style.setProperty(&#x27;--round&#x27;,state.radius+&#x27;px&#x27;);const app=product.querySelector(&#x27;.app&#x27;);if(app&amp;&amp;!app.hidden)product.style.setProperty(&#x27;--review-window-height&#x27;,Math.max(0,innerHeight-app.getBoundingClientRect().top-12)+&#x27;px&#x27;);const settings=screen.querySelector(&#x27;.settings-layout&#x27;);if(settings)settings.style.height=Math.max(200,innerHeight-settings.getBoundingClientRect().top-16)+&#x27;px&#x27;}
   const settingsCache=new Map(),backStack=[],drafts=new Map();let settingsPage=&#x27;Основные&#x27;,pendingBrowse=null,nextPickerBinding=0,recentSelection=null,recentOwner=null,recentMode=null;
   const recentFixtureRemoved=new Set();
@@ -3216,13 +3162,13 @@ html&gt;body{padding:0}&lt;/style&gt;
   const pickerReview=document.createElement(&#x27;span&#x27;);pickerReview.hidden=true;pickerReview.className=&#x27;picker-review&#x27;;variant.querySelector(&#x27;.review&#x27;).append(pickerReview);
   function demoParentPlace(path){if([&#x27;/&#x27;, &#x27;\u041e\u0431\u0449\u0438\u0439 \u0434\u0438\u0441\u043a&#x27;,&#x27;\u0412\u043d\u0435\u0448\u043d\u0438\u0439 \u0434\u0438\u0441\u043a&#x27;].includes(path))return &#x27;\u041a\u043e\u043c\u043f\u044c\u044e\u0442\u0435\u0440&#x27;;const parts=path.split(&#x27; / &#x27;).filter(Boolean);parts.pop();return parts.length?parts.join(&#x27; / &#x27;):null;}
   let mainMenuBackdrop=&#x27;&#x27;;
-  function captureMenuBackdrop(){if(!screen.querySelector(&#x27;.manager-body&#x27;)||screen.querySelector(&#x27;.menu-scene&#x27;))return;const copy=screen.cloneNode(true),selector=&#x27;.file-table-scroll,.manager-sidebar,.manager-tabs&#x27;,original=[...screen.querySelectorAll(selector)];copy.querySelectorAll(selector).forEach((node,index)=&gt;{node.dataset.menuScrollTop=original[index].scrollTop;node.dataset.menuScrollLeft=original[index].scrollLeft});copy.querySelectorAll(&#x27;.file-context,.tab-context,.favorite-context,.create-actions&#x27;).forEach(node=&gt;node.remove());mainMenuBackdrop=copy.innerHTML;}
+  function captureMenuBackdrop(){if(!screen.querySelector(&#x27;.manager-body&#x27;)||screen.querySelector(&#x27;.menu-scene&#x27;))return;const copy=screen.cloneNode(true),selector=&#x27;.file-table-scroll&#x27;,original=[...screen.querySelectorAll(selector)];copy.querySelectorAll(selector).forEach((node,index)=&gt;{node.dataset.menuScrollTop=original[index].scrollTop;node.dataset.menuScrollLeft=original[index].scrollLeft});copy.querySelectorAll(&#x27;.file-context,.tab-context,.favorite-context,.create-actions&#x27;).forEach(node=&gt;node.remove());mainMenuBackdrop=copy.innerHTML;}
   function focusMainFile(pane=screen.querySelector(&#x27;.active-pane&#x27;)){if(!pane)return;const target=pane.querySelector(&#x27;.current-file&#x27;)||pane.querySelector(&#x27;.file-table-scroll&#x27;);if(target){if(!target.hasAttribute(&#x27;tabindex&#x27;))target.tabIndex=0;target.focus({preventScroll:true})}}
-  function activeViewSnapshot(){const pane=state.screen===&#x27;main&#x27;?screen.querySelector(&#x27;.active-pane&#x27;):null,tab=mainTabs.find(tab=&gt;tab.id===activeMainTab),saved=tab?.panes[activeMainSide];return {pane,tab,saved,path:pane?.dataset.path||saved?.path||&#x27;&#x27;,sort:pane?.viewSort||saved?.sort||{column:0,direction:&#x27;ascending&#x27;},history:pane?.mainHistory||saved?.history||[],historyAt:pane?.mainHistoryAt??saved?.historyAt??0,mode:pane?.dataset.mainMode||tab?.mode};}
-  function viewActionAllowed(action,view=activeViewSnapshot()){return !mainWindowClosed&amp;&amp;!!view.tab&amp;&amp;!(view.mode===&#x27;Загрузка папки&#x27;&amp;&amp;![&#x27;sidebar&#x27;,&#x27;panels&#x27;,&#x27;auto-refresh&#x27;].includes(action))&amp;&amp;!(action===&#x27;back&#x27;&amp;&amp;view.historyAt&lt;=0)&amp;&amp;!(action===&#x27;forward&#x27;&amp;&amp;view.historyAt&gt;=view.history.length-1)&amp;&amp;!(action===&#x27;up&#x27;&amp;&amp;!demoParentPlace(view.path))}
+  function activeViewSnapshot(){const pane=state.screen===&#x27;main&#x27;?screen.querySelector(&#x27;.active-pane&#x27;):null,tab=mainPanels.find(tab=&gt;tab.id===activePanelId),saved=tab?.panes[activeMainSide];return {pane,tab,saved,path:pane?.dataset.path||saved?.path||&#x27;&#x27;,sort:pane?.viewSort||saved?.sort||{column:0,direction:&#x27;ascending&#x27;},history:pane?.mainHistory||saved?.history||[],historyAt:pane?.mainHistoryAt??saved?.historyAt??0,mode:pane?.dataset.mainMode||tab?.mode};}
+  function viewActionAllowed(action,view=activeViewSnapshot()){return !mainWindowClosed&amp;&amp;!!view.tab&amp;&amp;!(view.mode===&#x27;Загрузка папки&#x27;&amp;&amp;![&#x27;panels&#x27;,&#x27;auto-refresh&#x27;].includes(action))&amp;&amp;!(action===&#x27;back&#x27;&amp;&amp;view.historyAt&lt;=0)&amp;&amp;!(action===&#x27;forward&#x27;&amp;&amp;view.historyAt&gt;=view.history.length-1)&amp;&amp;!(action===&#x27;up&#x27;&amp;&amp;!demoParentPlace(view.path))}
   function refreshViewMenuMarks(){
-   const view=activeViewSnapshot(),checks={sidebar:state.sidebar!==false,panels:state.two,&#x27;auto-refresh&#x27;:reviewAutoRefresh,table:view.mode!==&#x27;Крупные значки&#x27;,icons:view.mode===&#x27;Крупные значки&#x27;,ascending:view.sort.direction===&#x27;ascending&#x27;,descending:view.sort.direction===&#x27;descending&#x27;,[&#x27;sort-&#x27;+view.sort.column]:true};
-   screen.querySelectorAll(&#x27;[data-view-action]&#x27;).forEach(button=&gt;{const action=button.dataset.viewAction,mark=button.querySelector(&#x27;.hint&#x27;);if(action.startsWith(&#x27;sort-&#x27;))checks[action]=Number(action.slice(5))===Number(view.sort.column);if(Object.hasOwn(checks,action)){button.setAttribute(&#x27;role&#x27;,[&#x27;sidebar&#x27;,&#x27;panels&#x27;,&#x27;auto-refresh&#x27;].includes(action)?&#x27;menuitemcheckbox&#x27;:&#x27;menuitemradio&#x27;);button.setAttribute(&#x27;aria-checked&#x27;,String(!!checks[action]));if(mark)mark.textContent=(checks[action]?&#x27;✓&#x27;:&#x27;&#x27;)+(action===&#x27;panels&#x27;?&#x27; ⇧⌘2&#x27;:&#x27;&#x27;)}button.disabled=!viewActionAllowed(action,view);});
+   const view=activeViewSnapshot(),checks={panels:state.two,&#x27;auto-refresh&#x27;:reviewAutoRefresh,table:view.mode!==&#x27;Крупные значки&#x27;,icons:view.mode===&#x27;Крупные значки&#x27;,ascending:view.sort.direction===&#x27;ascending&#x27;,descending:view.sort.direction===&#x27;descending&#x27;,[&#x27;sort-&#x27;+view.sort.column]:true};
+   screen.querySelectorAll(&#x27;[data-view-action]&#x27;).forEach(button=&gt;{const action=button.dataset.viewAction,mark=button.querySelector(&#x27;.hint&#x27;);if(action.startsWith(&#x27;sort-&#x27;))checks[action]=Number(action.slice(5))===Number(view.sort.column);if(Object.hasOwn(checks,action)){button.setAttribute(&#x27;role&#x27;,[&#x27;panels&#x27;,&#x27;auto-refresh&#x27;].includes(action)?&#x27;menuitemcheckbox&#x27;:&#x27;menuitemradio&#x27;);button.setAttribute(&#x27;aria-checked&#x27;,String(!!checks[action]));if(mark)mark.textContent=(checks[action]?&#x27;✓&#x27;:&#x27;&#x27;)+(action===&#x27;panels&#x27;?&#x27; ⇧⌘2&#x27;:&#x27;&#x27;)}button.disabled=!viewActionAllowed(action,view);});
   }
   function sortMainFiles(pane,column,direction,remember=true){
    if(!pane||pane.classList.contains(&#x27;is-loading&#x27;))return;const body=pane.querySelector(&#x27;tbody,.icon-grid&#x27;),rows=[...body.querySelectorAll(&#x27;.file-item&#x27;)],descending=direction===&#x27;descending&#x27;;
@@ -3231,11 +3177,11 @@ html&gt;body{padding:0}&lt;/style&gt;
   }
   function performViewAction(action){
    const view=activeViewSnapshot();if(!viewActionAllowed(action,view))return;
-   if(action===&#x27;sidebar&#x27;)state.sidebar=state.sidebar===false;else if(action===&#x27;panels&#x27;){state.two=!state.two;variant.querySelector(&#x27;.two-toggle&#x27;).checked=state.two;if(!state.two){activeMainSide=0;activeMainTab=mainTabSelection[0];state.samples.main=mainTabs.find(tab=&gt;tab.id===activeMainTab).mode}}else if(action===&#x27;table&#x27;||action===&#x27;icons&#x27;){state.samples.main=action===&#x27;icons&#x27;?&#x27;Крупные значки&#x27;:&#x27;Таблица&#x27;;view.tab.mode=state.samples.main;}else if(action===&#x27;auto-refresh&#x27;){reviewAutoRefresh=!reviewAutoRefresh;for(const entry of reviewWindows.values())entry.api?.viewMenus?.()}
+   if(action===&#x27;panels&#x27;){state.two=!state.two;variant.querySelector(&#x27;.two-toggle&#x27;).checked=state.two;if(!state.two){activeMainSide=0;activePanelId=panelSelection[0];state.samples.main=mainPanels.find(tab=&gt;tab.id===activePanelId).mode}}else if(action===&#x27;table&#x27;||action===&#x27;icons&#x27;){state.samples.main=action===&#x27;icons&#x27;?&#x27;Крупные значки&#x27;:&#x27;Таблица&#x27;;view.tab.mode=state.samples.main;}else if(action===&#x27;auto-refresh&#x27;){reviewAutoRefresh=!reviewAutoRefresh;for(const entry of reviewWindows.values())entry.api?.viewMenus?.()}
    backStack.length=0;navigateTo(&#x27;main&#x27;,false);const pane=screen.querySelector(&#x27;.active-pane&#x27;);
    if(action.startsWith(&#x27;sort-&#x27;)||[&#x27;ascending&#x27;,&#x27;descending&#x27;].includes(action)){const sort=view.sort;sortMainFiles(pane,action.startsWith(&#x27;sort-&#x27;)?Number(action.slice(5)):Number(sort.column),[&#x27;ascending&#x27;,&#x27;descending&#x27;].includes(action)?action:sort.direction);}
    else if(action===&#x27;back&#x27;)pane.querySelector(&#x27;.main-back&#x27;).click();else if(action===&#x27;forward&#x27;)pane.querySelector(&#x27;.main-forward&#x27;).click();else if(action===&#x27;up&#x27;)parentMainFolder(pane);else if(action===&#x27;root&#x27;)navigateMainFolder(pane,&#x27;Компьютер&#x27;);
-   else if(action===&#x27;refresh&#x27;){root.dispatchEvent(new CustomEvent(&#x27;sevenzip-review-refresh&#x27;,{detail:{windowId,tabId:activeMainTab,path:pane.dataset.path}}));windowReview.querySelector(&#x27;.session-review-status&#x27;).textContent=&#x27;Обновление списка · &#x27;+pane.dataset.path+&#x27; (пример)&#x27;}
+   else if(action===&#x27;refresh&#x27;){root.dispatchEvent(new CustomEvent(&#x27;sevenzip-review-refresh&#x27;,{detail:{windowId,panelId:activePanelId,path:pane.dataset.path}}));windowReview.querySelector(&#x27;.session-review-status&#x27;).textContent=&#x27;Обновление списка · &#x27;+pane.dataset.path+&#x27; (пример)&#x27;}
    focusMainFile(pane);captureMainWorkspace();save();
   }
   function fileCommandState(pane=fileContextPane||screen.querySelector(&#x27;.active-pane&#x27;)){
@@ -3278,13 +3224,13 @@ html&gt;body{padding:0}&lt;/style&gt;
 
   function dispatchExternalIntent(pane,item,intent=&#x27;open&#x27;){
    if(demoArchiveRoot(pane.dataset.path)||pane.dataset.location===&#x27;recovery&#x27;){openExternalCopy(item,intent);return}
-   root.dispatchEvent(new CustomEvent(&#x27;sevenzip-review-open-outside&#x27;,{detail:{windowId,tabId:Number(pane.dataset.tabId),path:pane.dataset.path,name:item.dataset.file,intent}}));windowReview.querySelector(&#x27;.session-review-status&#x27;).textContent=(intent===&#x27;view&#x27;?&#x27;Просмотр&#x27;:intent===&#x27;edit&#x27;?&#x27;Редактирование&#x27;:&#x27;Внешний запуск&#x27;)+&#x27; · &#x27;+item.dataset.file+&#x27; (пример)&#x27;;
+   root.dispatchEvent(new CustomEvent(&#x27;sevenzip-review-open-outside&#x27;,{detail:{windowId,panelId:Number(pane.dataset.panelId),path:pane.dataset.path,name:item.dataset.file,intent}}));windowReview.querySelector(&#x27;.session-review-status&#x27;).textContent=(intent===&#x27;view&#x27;?&#x27;Просмотр&#x27;:intent===&#x27;edit&#x27;?&#x27;Редактирование&#x27;:&#x27;Внешний запуск&#x27;)+&#x27; · &#x27;+item.dataset.file+&#x27; (пример)&#x27;;
   }
   function openSelectedFromMenu(mode){
    captureMainWorkspace();
-   const oldPane=fileContextPane||screen.querySelector(&#x27;.active-pane&#x27;),side=oldPane?Number(oldPane.dataset.side):activeMainSide,tabId=oldPane?Number(oldPane.dataset.tabId):activeMainTab,tab=mainTabs.find(tab=&gt;tab.id===tabId),saved=tab?.panes[side];
+   const oldPane=fileContextPane||screen.querySelector(&#x27;.active-pane&#x27;),side=oldPane?Number(oldPane.dataset.side):activeMainSide,panelId=oldPane?Number(oldPane.dataset.panelId):activePanelId,tab=mainPanels.find(tab=&gt;tab.id===panelId),saved=tab?.panes[side];
    const name=oldPane?.querySelector(&#x27;.current-file&#x27;)?.dataset.file||saved?.current||saved?.selection?.[0];if(!name)return;
-   activeMainSide=side;activeMainTab=tabId;mainTabSelection[side]=tabId;backStack.length=0;navigateTo(&#x27;main&#x27;,false);
+   activeMainSide=side;activePanelId=panelId;panelSelection[side]=panelId;backStack.length=0;navigateTo(&#x27;main&#x27;,false);
    const pane=screen.querySelector(`.pane[data-side=&quot;${side}&quot;]`),item=[...pane.querySelectorAll(&#x27;.file-item&#x27;)].find(row=&gt;row.dataset.file===name);if(!item)return;
    if(mode===&#x27;normal&#x27;&amp;&amp;([&#x27;Папка&#x27;,&#x27;Том&#x27;].includes(item.dataset.kind)||item.dataset.kind.startsWith(&#x27;Архив&#x27;)||item.dataset.kind===&#x27;Контрольные суммы&#x27;||demoArchiveRoot(pane.dataset.path))){openMainFile(item);return}
    if([&#x27;outside&#x27;,&#x27;normal&#x27;,&#x27;view&#x27;,&#x27;edit&#x27;].includes(mode)){dispatchExternalIntent(pane,item,mode===&#x27;normal&#x27;||mode===&#x27;outside&#x27;?&#x27;open&#x27;:mode);return}
@@ -3295,7 +3241,7 @@ html&gt;body{padding:0}&lt;/style&gt;
   function beginPicker(input=null,{kind=&#x27;folder&#x27;,purpose=&#x27;field&#x27;}={}){
    pickerView.directory=null;
    const binding=input?&#x27;picker-&#x27;+(++nextPickerBinding):null;if(input)input.dataset.pickerBinding=binding;
-   pendingBrowse={kind,purpose,key:state.screen+&#x27;|&#x27;+sample(),binding,node:input,current:input?.value||screen.querySelector(&#x27;.active-pane&#x27;)?.dataset.path||mainTabs.find(tab=&gt;tab.id===activeMainTab)?.panes[activeMainSide]?.path||&#x27;Домашняя&#x27;,ownerTab:activeMainTab,ownerSide:activeMainSide,returnScreen:state.screen.endsWith(&#x27;-menu&#x27;)?&#x27;main&#x27;:state.screen};
+   pendingBrowse={kind,purpose,key:state.screen+&#x27;|&#x27;+sample(),binding,node:input,current:input?.value||screen.querySelector(&#x27;.active-pane&#x27;)?.dataset.path||mainPanels.find(tab=&gt;tab.id===activePanelId)?.panes[activeMainSide]?.path||&#x27;Домашняя&#x27;,ownerPanel:activePanelId,ownerSide:activeMainSide,returnScreen:state.screen.endsWith(&#x27;-menu&#x27;)?&#x27;main&#x27;:state.screen};
    if(purpose===&#x27;archive-open&#x27;){const archive=demoArchiveRoot(pendingBrowse.current);if(archive)pendingBrowse.current=archive.split(&#x27; / &#x27;).slice(0,-1).join(&#x27; / &#x27;);pendingBrowse.current+=&#x27; / Проект.7z&#x27;}
    state.samples.browse=kind===&#x27;folder&#x27;?&#x27;Выбор папки&#x27;:purpose===&#x27;archive-open&#x27;?&#x27;Выбор архива&#x27;:kind===&#x27;save-file&#x27;?&#x27;Сохранение файла&#x27;:&#x27;Выбор файла&#x27;;
    for(const key of drafts.keys())if(key.startsWith(&#x27;browse|&#x27;))drafts.delete(key);
@@ -3308,7 +3254,7 @@ html&gt;body{padding:0}&lt;/style&gt;
   }
   function acceptPicker(){
    const input=screen.querySelector(&#x27;.picker-path&#x27;),value=input?.value;if(!value?.length||value.includes(&#x27;\0&#x27;))return;
-   const f=pickerFixture(sample(),pendingBrowse),request=pendingBrowse||{purpose:f.purpose,ownerTab:activeMainTab,ownerSide:activeMainSide},fail=message=&gt;{const error=screen.querySelector(&#x27;.picker-error&#x27;);error.hidden=false;error.textContent=message;input.setAttribute(&#x27;aria-invalid&#x27;,&#x27;true&#x27;);input.focus();layoutDialogSurfaces()};
+   const f=pickerFixture(sample(),pendingBrowse),request=pendingBrowse||{purpose:f.purpose,ownerPanel:activePanelId,ownerSide:activeMainSide},fail=message=&gt;{const error=screen.querySelector(&#x27;.picker-error&#x27;);error.hidden=false;error.textContent=message;input.setAttribute(&#x27;aria-invalid&#x27;,&#x27;true&#x27;);input.focus();layoutDialogSurfaces()};
    if(sample()===&#x27;Нет доступа&#x27;&amp;&amp;value===f.current){fail(&#x27;Не удалось открыть это место. Проверьте доступ или выберите другое.&#x27;);return}
    if(request.purpose===&#x27;field&#x27;){
     const draft=drafts.get(request.key),field=draft?.fields.find(field=&gt;field.binding===request.binding);
@@ -3318,8 +3264,8 @@ html&gt;body{padding:0}&lt;/style&gt;
     closeView();return;
    }
    if(request.purpose===&#x27;archive-open&#x27;){
-    const owner=mainTabs.find(tab=&gt;tab.id===request.ownerTab);if(!owner){fail(&#x27;Исходная вкладка уже закрыта. Откройте выбор архива заново.&#x27;);return}
-    activeMainSide=request.ownerSide;mainTabSelection[activeMainSide]=owner.id;activeMainTab=owner.id;pendingBrowse=null;backStack.length=0;drafts.delete(&#x27;browse|&#x27;+sample());navigateTo(&#x27;main&#x27;,false);navigateMainFolder(screen.querySelector(`.pane[data-side=&quot;${activeMainSide}&quot;]`),value);return;
+    const owner=mainPanels.find(tab=&gt;tab.id===request.ownerPanel);if(!owner){fail(&#x27;Исходная панель уже закрыта. Откройте выбор архива заново.&#x27;);return}
+    activeMainSide=request.ownerSide;panelSelection[activeMainSide]=owner.id;activePanelId=owner.id;pendingBrowse=null;backStack.length=0;drafts.delete(&#x27;browse|&#x27;+sample());navigateTo(&#x27;main&#x27;,false);navigateMainFolder(screen.querySelector(`.pane[data-side=&quot;${activeMainSide}&quot;]`),value);return;
    }
    closeView();
   }
@@ -3331,7 +3277,7 @@ html&gt;body{padding:0}&lt;/style&gt;
   }
   function refreshRecentPlaces(){
    if(state.screen!==&#x27;history&#x27;)return;
-   if(!recentOwner)recentOwner={tabId:activeMainTab,side:activeMainSide};
+   if(!recentOwner)recentOwner={panelId:activePanelId,side:activeMainSide};
    const search=screen.querySelector(&#x27;.recent-search&#x27;);if(!search)return;
    if(recentMode!==sample()){recentMode=sample();recentSelection=null;recentFixtureRemoved.clear();search.value=sample()===&#x27;Нет совпадений&#x27;?&#x27;Несуществующее место&#x27;:&#x27;&#x27;}
    const all=recentPlaces(),query=search.value.toLocaleLowerCase(),matches=all.filter(path=&gt;path.toLocaleLowerCase().includes(query));
@@ -3344,9 +3290,9 @@ html&gt;body{padding:0}&lt;/style&gt;
   }
   function openRecentPlace(){
    const path=recentSelection;if(!path)return;
-   const owner=mainTabs.find(tab=&gt;tab.id===recentOwner?.tabId);
+   const owner=mainPanels.find(tab=&gt;tab.id===recentOwner?.panelId);
    if(sample()===&#x27;Место недоступно&#x27;||!owner){const error=screen.querySelector(&#x27;.recent-error&#x27;);error.hidden=false;error.textContent=owner?&#x27;Не удалось открыть место. Проверьте подключение и доступ или выберите другое.&#x27;:&#x27;Вкладка, из которой открыта история, уже закрыта.&#x27;;return}
-   activeMainSide=recentOwner.side;activeMainTab=owner.id;mainTabSelection[activeMainSide]=owner.id;backStack.length=0;drafts.delete(&#x27;history|&#x27;+sample());navigateTo(&#x27;main&#x27;,false);
+   activeMainSide=recentOwner.side;activePanelId=owner.id;panelSelection[activeMainSide]=owner.id;backStack.length=0;drafts.delete(&#x27;history|&#x27;+sample());navigateTo(&#x27;main&#x27;,false);
    navigateMainFolder(screen.querySelector(`.pane[data-side=&quot;${activeMainSide}&quot;]`),path);
   }
   function settingsControls(page=settingsPage){const body=screen.querySelector(&#x27;.settings-body&#x27;);return page===settingsPage&amp;&amp;body?[...body.querySelectorAll(&#x27;input,select,textarea&#x27;)].filter(c=&gt;!c.classList.contains(&#x27;format-search&#x27;)):(settingsCache.get(page)||[]).flatMap(node=&gt;node.nodeType===1?[...(node.matches(&#x27;input,select,textarea&#x27;)?[node]:[]),...node.querySelectorAll(&#x27;input,select,textarea&#x27;)]:[]).filter(c=&gt;!c.classList.contains(&#x27;format-search&#x27;))}
@@ -3362,27 +3308,11 @@ html&gt;body{padding:0}&lt;/style&gt;
   const sample=()=&gt;state.samples[state.screen]||stateOptions[state.screen]?.[0]||&#x27;&#x27;;
   function splitBounds(panes){const available=Math.max(1,panes.getBoundingClientRect().width-8),minimum=Math.min(180,available/2);return {available,min:minimum/available,max:1-minimum/available}}
   function layoutPanels(){
-   layoutMainTabs();
-   layoutMainSidebar();
    const panes=screen.querySelector(&#x27;.panes.two&#x27;);if(!panes)return;
    const bounds=splitBounds(panes),value=Math.max(bounds.min,Math.min(bounds.max,state.split));
    panes.style.setProperty(&#x27;--split-left&#x27;,value+&#x27;fr&#x27;);panes.style.setProperty(&#x27;--split-right&#x27;,(1-value)+&#x27;fr&#x27;);
    const handle=panes.querySelector(&#x27;.panel-splitter&#x27;);
    handle.setAttribute(&#x27;aria-valuemin&#x27;,String(Math.round(bounds.min*100)));handle.setAttribute(&#x27;aria-valuemax&#x27;,String(Math.round(bounds.max*100)));handle.setAttribute(&#x27;aria-valuenow&#x27;,String(Math.round(value*100)));handle.setAttribute(&#x27;aria-valuetext&#x27;,`Левая панель ${Math.round(value*100)}%, правая ${Math.round((1-value)*100)}%`);handle.setAttribute(&#x27;aria-disabled&#x27;,String(bounds.max-bounds.min&lt;.01));
-   layoutMainTabs();
-   layoutMainSidebar();
-  }
-  function layoutMainTabs(){
-   for(const strip of screen.querySelectorAll(&#x27;.manager-tabs&#x27;)){
-    const width=strip.getBoundingClientRect().width;if(!width)continue;
-    const items=[...strip.querySelectorAll(&#x27;.manager-tab-item&#x27;)],size=Math.max(44,Math.min(220,(width-54)/Math.max(1,items.length)));
-    for(const item of items){item.style.flexBasis=size+&#x27;px&#x27;;item.style.maxWidth=size+&#x27;px&#x27;;item.classList.toggle(&#x27;tab-compact&#x27;,size&lt;100);item.classList.toggle(&#x27;tab-tiny&#x27;,size&lt;64)}
-    const active=strip.querySelector(&#x27;.is-active&#x27;);if(active){const tab=active.getBoundingClientRect(),bounds=strip.getBoundingClientRect();if(tab.left&lt;bounds.left)strip.scrollLeft-=bounds.left-tab.left;if(tab.right&gt;bounds.right-38)strip.scrollLeft+=tab.right-bounds.right+38}
-   }
-  }
-  function layoutMainSidebar(){
-   const body=screen.querySelector(&#x27;.manager-body&#x27;),view=body?.querySelector(&#x27;.panes&gt;.pane&gt;.file-table-scroll&#x27;);
-   if(body&amp;&amp;view)body.style.setProperty(&#x27;--pane-chrome-height&#x27;,Math.round(view.getBoundingClientRect().top-body.getBoundingClientRect().top)+&#x27;px&#x27;);
   }
   function changeSplit(value){const panes=screen.querySelector(&#x27;.panes.two&#x27;);if(!panes)return;const bounds=splitBounds(panes);state.split=Math.max(bounds.min,Math.min(bounds.max,value));layoutPanels()}
   screen.addEventListener(&#x27;pointerdown&#x27;,e=&gt;{const handle=e.target.closest(&#x27;.panel-splitter&#x27;);if(!handle||e.button!==0||handle.getAttribute(&#x27;aria-disabled&#x27;)===&#x27;true&#x27;)return;e.preventDefault();panelDrag={id:e.pointerId,handle};handle.setPointerCapture(e.pointerId);product.classList.add(&#x27;resizing-panels&#x27;)});
@@ -3417,8 +3347,8 @@ html&gt;body{padding:0}&lt;/style&gt;
    if(fileSelectionDrag)finishFileSelection(null,true);
    clearFileDrag();
    closeFileContext(false);
-   closeTabContext(false);
-   closeFavoriteContext(false);
+
+
    if(state.screen.endsWith(&#x27;-menu&#x27;))captureMenuBackdrop();
    if(capture)captureMainWorkspace();
    const app=product.querySelector(&#x27;.app&#x27;);
@@ -3455,7 +3385,7 @@ html&gt;body{padding:0}&lt;/style&gt;
     product.querySelector(&#x27;.system-menu&#x27;)?.remove();
     product.querySelector(&#x27;.stage&#x27;).insertAdjacentHTML(&#x27;afterbegin&#x27;,`&lt;nav class=&quot;system-menu&quot; aria-label=&quot;Строка меню macOS&quot;&gt;&lt;details class=&quot;app-menu&quot;&gt;&lt;summary class=&quot;cursor-interaction&quot;&gt;Sevenzip&lt;/summary&gt;&lt;div&gt;&lt;button type=&quot;button&quot; class=&quot;open-settings cursor-interaction&quot;&gt;&lt;span&gt;Настройки…&lt;/span&gt;&lt;span&gt;⌘,&lt;/span&gt;&lt;/button&gt;&lt;button type=&quot;button&quot; data-go=&quot;about&quot;&gt;О Sevenzip&lt;/button&gt;&lt;button type=&quot;button&quot; class=&quot;quit-application&quot;&gt;&lt;span&gt;Завершить Sevenzip&lt;/span&gt;&lt;span&gt;⌘Q&lt;/span&gt;&lt;/button&gt;&lt;/div&gt;&lt;/details&gt;&lt;button type=&quot;button&quot; data-go=&quot;file-menu&quot;&gt;Файл&lt;/button&gt;&lt;button type=&quot;button&quot; class=&quot;open-edit-menu&quot; aria-haspopup=&quot;menu&quot; aria-expanded=&quot;false&quot;&gt;Правка&lt;/button&gt;&lt;button type=&quot;button&quot; data-go=&quot;view-menu&quot;&gt;Вид&lt;/button&gt;&lt;span&gt;Избранное&lt;/span&gt;&lt;button type=&quot;button&quot; class=&quot;open-service-menu&quot; aria-haspopup=&quot;menu&quot; aria-expanded=&quot;false&quot;&gt;Сервис&lt;/button&gt;&lt;/nav&gt;`);
     const standalone=isSettings(state.screen)||[&#x27;messages&#x27;,&#x27;properties&#x27;,&#x27;hash&#x27;,&#x27;hash-verification&#x27;,&#x27;benchmark&#x27;,&#x27;benchmark-total&#x27;,&#x27;text&#x27;,&#x27;licenses&#x27;,&#x27;temporary&#x27;,&#x27;external-edit&#x27;,&#x27;about&#x27;,&#x27;mount-manager&#x27;].includes(state.screen);
-    product.querySelector(&#x27;.titlebar&#x27;).innerHTML=`&lt;span class=&quot;window-lights&quot; aria-hidden=&quot;true&quot;&gt;&lt;b&gt;&lt;/b&gt;&lt;b&gt;&lt;/b&gt;&lt;b&gt;&lt;/b&gt;&lt;/span&gt;&lt;span&gt;${isSettings(state.screen)?&#x27;Настройки&#x27;:standalone?screenNames.find(r=&gt;r[0]===state.screen)[1]:state.screen===&#x27;tokens&#x27;?&#x27;Компоненты&#x27;:(mainTabs.find(tab=&gt;tab.id===activeMainTab)?.title||&#x27;Sevenzip&#x27;)+&#x27; — Sevenzip&#x27;}&lt;/span&gt;`;
+    product.querySelector(&#x27;.titlebar&#x27;).innerHTML=`&lt;span class=&quot;window-lights&quot; aria-hidden=&quot;true&quot;&gt;&lt;b&gt;&lt;/b&gt;&lt;b&gt;&lt;/b&gt;&lt;b&gt;&lt;/b&gt;&lt;/span&gt;&lt;span&gt;${isSettings(state.screen)?&#x27;Настройки&#x27;:standalone?screenNames.find(r=&gt;r[0]===state.screen)[1]:state.screen===&#x27;tokens&#x27;?&#x27;Компоненты&#x27;:(mainPanels.find(tab=&gt;tab.id===activePanelId)?.title||&#x27;Sevenzip&#x27;)+&#x27; — Sevenzip&#x27;}&lt;/span&gt;`;
     const stage=screen.querySelector(&#x27;.dialog-stage&#x27;);
     if(stage&amp;&amp;![&#x27;components&#x27;,&#x27;tokens&#x27;].includes(state.screen)){
      if(standalone){stage.classList.add(&#x27;settings-stage&#x27;);if(isSettings(state.screen)){settingsPage=settingsRoutes[state.screen].page;const body=screen.querySelector(&#x27;.settings-body&#x27;);if(settingsCache.has(settingsPage))body.replaceChildren(...settingsCache.get(settingsPage));const detail=body.querySelector(`[data-settings-detail=&quot;${settingsRoutes[state.screen].detail}&quot;]`);if(detail)detail.open=true}}
@@ -3495,7 +3425,7 @@ html&gt;body{padding:0}&lt;/style&gt;
     const model=copyOperation||{title:title||&#x27;Копирование&#x27;,source:&#x27;Домашняя / Документы / Проект&#x27;,destination:&#x27;Домашняя / Документы / Результат&#x27;,items:[{name:&#x27;Описание проекта.txt&#x27;,kind:&#x27;Файл&#x27;}],size:&#x27;1,87 ГБ&#x27;,totalFiles:400,compression:state.screen===&#x27;add&#x27;,canPause:[&#x27;add&#x27;,&#x27;extract&#x27;].includes(state.screen),demo:!title};
     const decision=conflictDecision,mode=state.samples.progress===&#x27;Отменено&#x27;?&#x27;Остановка&#x27;:&#x27;Выполняется&#x27;;copyOperation=null;conflictDecision=null;backStack.length=0;state.screen=&#x27;main&#x27;;variant.querySelector(&#x27;.screen-picker&#x27;).value=&#x27;main&#x27;;render();startReviewOperation(model,windowId,mode,decision);return;
    }
-   if(name===&#x27;history&#x27;&amp;&amp;state.screen!==&#x27;history&#x27;){recentOwner={tabId:activeMainTab,side:activeMainSide};recentMode=null}
+   if(name===&#x27;history&#x27;&amp;&amp;state.screen!==&#x27;history&#x27;){recentOwner={panelId:activePanelId,side:activeMainSide};recentMode=null}
    if(remember)captureDraft();state.screen=name;variant.querySelector(&#x27;.screen-picker&#x27;).value=name;render();save();
   }
   function openView(name){if(name===&#x27;settings&#x27;)name=&#x27;settings-view&#x27;;if(name===&#x27;rename&#x27;&amp;&amp;state.screen===&#x27;main&#x27;)captureNameContext();if(name===&#x27;delete&#x27;&amp;&amp;state.screen===&#x27;main&#x27;){captureDeleteContext();if(!deleteContext?.items.length)return}if(name===&#x27;properties&#x27;&amp;&amp;state.screen===&#x27;main&#x27;)capturePropertiesContext();if(name===&#x27;overwrite&#x27;)drafts.delete(&#x27;overwrite|&#x27;+(state.samples.overwrite||stateOptions.overwrite[0]));backStack.push(state.screen.endsWith(&#x27;-menu&#x27;)?&#x27;main&#x27;:state.screen);navigateTo(name);if([&#x27;copy&#x27;,&#x27;add&#x27;,&#x27;extract&#x27;].includes(name)){const input=screen.querySelector(name===&#x27;copy&#x27;?&#x27;.copy-destination-input&#x27;:name===&#x27;add&#x27;?&#x27;.archive-name&#x27;:&#x27;.extract-folder&#x27;);input?.focus();input?.select()}if(name===&#x27;overwrite&#x27;)screen.querySelector(&#x27;[data-conflict-action=skip]&#x27;)?.focus()}
@@ -3519,8 +3449,8 @@ html&gt;body{padding:0}&lt;/style&gt;
    if([&#x27;copy&#x27;,&#x27;add&#x27;,&#x27;extract&#x27;,&#x27;properties&#x27;,&#x27;delete&#x27;,&#x27;rename&#x27;,&#x27;split&#x27;,&#x27;combine&#x27;,&#x27;split-error&#x27;,&#x27;link&#x27;,&#x27;history&#x27;].includes(from)&amp;&amp;state.screen===&#x27;main&#x27;)focusMainFile();
   }
   function applyMainLocation(mode){
-   if(!state.two){activeMainSide=0;activeMainTab=mainTabSelection[0]}
-   const active=mainTabs.find(tab=&gt;tab.id===activeMainTab);
+   if(!state.two){activeMainSide=0;activePanelId=panelSelection[0]}
+   const active=mainPanels.find(tab=&gt;tab.id===activePanelId);
    const transient=value=&gt;[&#x27;Загрузка папки&#x27;,&#x27;Ошибка доступа&#x27;].includes(value);
    if(active.mode!==mode){
     if(transient(mode)&amp;&amp;!transient(active.mode))active.resumeMode=active.mode;
@@ -3530,8 +3460,8 @@ html&gt;body{padding:0}&lt;/style&gt;
    }
    active.mode=mode;
    screen.querySelectorAll(&#x27;.pane&#x27;).forEach((pane,i)=&gt;{
-    const tab=mainTabs.find(tab=&gt;tab.id===mainTabSelection[i]);
-    pane.dataset.side=String(i);pane.dataset.tabId=String(tab.id);
+    const tab=mainPanels.find(tab=&gt;tab.id===panelSelection[i]);
+    pane.dataset.side=String(i);pane.dataset.panelId=String(tab.id);
     applyMainPaneLocation(pane,tab.mode);
     pane.tabIndex=-1;pane.setAttribute(&#x27;aria-label&#x27;,i?&#x27;Правая файловая панель&#x27;:&#x27;Левая файловая панель&#x27;);
     pane.classList.toggle(&#x27;active-pane&#x27;,i===activeMainSide);
@@ -3539,7 +3469,7 @@ html&gt;body{padding:0}&lt;/style&gt;
    decorateMain();
   }
   function applyMainPaneLocation(first,mode){
-   const presentation=mode,tab=mainTabs.find(tab=&gt;String(tab.id)===first.dataset.tabId);
+   const presentation=mode,tab=mainPanels.find(tab=&gt;String(tab.id)===first.dataset.panelId);
    mode=tab.resumeMode||mode;
    const saved=tab.panes[Number(first.dataset.side)],archive=mode===&#x27;Открытый архив&#x27;||mode===&#x27;Только для чтения&#x27;||!!demoArchiveRoot(saved?.path||&#x27;&#x27;);
    first.dataset.readonlyRoot=mode===&#x27;Только для чтения&#x27;?demoArchiveRoot(saved?.path||&#x27;Документы / Проект.7z&#x27;):saved?.readonlyRoot||&#x27;&#x27;;
@@ -3564,16 +3494,9 @@ html&gt;body{padding:0}&lt;/style&gt;
    const panes=screen.querySelector(&#x27;.panes&#x27;);
    const tools=screen.querySelector(&#x27;.tools&#x27;);tools.remove();
    const body=document.createElement(&#x27;div&#x27;);body.className=&#x27;manager-body&#x27;;
-   body.classList.toggle(&#x27;no-sidebar&#x27;,state.sidebar===false);
-   body.innerHTML=`&lt;nav class=&quot;manager-sidebar&quot; aria-label=&quot;Места&quot; ${state.sidebar===false?&#x27;hidden&#x27;:&#x27;&#x27;}&gt;&lt;div class=&quot;favorites-heading&quot;&gt;&lt;h3&gt;Избранное&lt;/h3&gt;&lt;button type=&quot;button&quot; class=&quot;add-favorite&quot; aria-label=&quot;Добавить текущее место в избранное&quot; title=&quot;Добавить текущее место&quot;&gt;+&lt;/button&gt;&lt;/div&gt;&lt;div class=&quot;favorite-places&quot;&gt;&lt;/div&gt;&lt;h3&gt;Расположения&lt;/h3&gt;${[{path:&#x27;Компьютер&#x27;,name:&#x27;Компьютер&#x27;,symbol:&#x27;monitor&#x27;},{path:&#x27;Тома&#x27;,name:&#x27;Тома&#x27;,symbol:&#x27;hard-drive&#x27;},{path:&#x27;Сеть&#x27;,name:&#x27;Сеть&#x27;,symbol:&#x27;network&#x27;}].map(sidebarPlace).join(&#x27;&#x27;)}&lt;/nav&gt;`;
    panes.before(body);body.append(panes,screen.querySelector(&#x27;.manager-status&#x27;));
    screen.querySelectorAll(&#x27;.pane&#x27;).forEach((pane,i)=&gt;{
-    const tab=mainTabs.find(tab=&gt;tab.id===mainTabSelection[i]);
-    const tabs=document.createElement(&#x27;div&#x27;);tabs.className=&#x27;manager-tabs&#x27;;tabs.setAttribute(&#x27;role&#x27;,&#x27;tablist&#x27;);tabs.setAttribute(&#x27;aria-label&#x27;,i?&#x27;Вкладки правой панели&#x27;:&#x27;Вкладки левой панели&#x27;);
-    const group=mainTabs.filter(entry=&gt;entry.side===i);
-    tabs.innerHTML=group.map(entry=&gt;workspaceTab({...entry,active:entry.id===tab.id})).join(&#x27;&#x27;);
-   const add=document.createElement(&#x27;button&#x27;);add.type=&#x27;button&#x27;;add.className=&#x27;new-tab&#x27;;add.setAttribute(&#x27;aria-label&#x27;,&#x27;Новая вкладка&#x27;);add.dataset.mainSide=String(i);add.textContent=&#x27;+&#x27;;tabs.append(add);
-   pane.prepend(tabs);
+    const tab=mainPanels.find(tab=&gt;tab.id===panelSelection[i]);
    pane.querySelector(&#x27;.address&#x27;).after(tools.cloneNode(true));
    updateReadonlyNotice(pane);
     const saved=tab.panes[i];
@@ -3592,14 +3515,13 @@ html&gt;body{padding:0}&lt;/style&gt;
      pane.querySelector(&#x27;.tools&#x27;).insertAdjacentHTML(&#x27;afterend&#x27;,`&lt;div class=&quot;main-navigation-notice&quot; role=&quot;${failed?&#x27;alert&#x27;:&#x27;status&#x27;}&quot;&gt;&lt;div&gt;&lt;strong&gt;${loading?&#x27;Чтение папки…&#x27;:&#x27;Не удалось открыть папку&#x27;}&lt;/strong&gt;&lt;span&gt;Сетевой диск / Проекты${failed?&#x27; · Нет доступа&#x27;:&#x27;&#x27;}&lt;/span&gt;&lt;span class=&quot;hint&quot;&gt;${loading?&#x27;Показано прежнее содержимое.&#x27;:&#x27;Прежняя папка остаётся открытой.&#x27;}&lt;/span&gt;&lt;/div&gt;&lt;div&gt;${loading?&#x27;&lt;button type=&quot;button&quot; class=&quot;product-button&quot; data-main-navigation=&quot;cancel&quot;&gt;Отменить&lt;/button&gt;&#x27;:&#x27;&lt;button type=&quot;button&quot; class=&quot;product-button&quot; data-main-navigation=&quot;retry&quot;&gt;Повторить&lt;/button&gt;&lt;button type=&quot;button&quot; class=&quot;product-button&quot; data-main-navigation=&quot;dismiss&quot;&gt;Закрыть&lt;/button&gt;&#x27;}&lt;/div&gt;&lt;/div&gt;`);
     }
    });
-   const firstAddress=screen.querySelector(&#x27;.pane .address&#x27;);firstAddress.insertAdjacentHTML(&#x27;afterbegin&#x27;,`&lt;button type=&quot;button&quot; class=&quot;product-button toggle-places&quot; aria-label=&quot;Показать или скрыть места&quot; aria-expanded=&quot;${state.sidebar!==false}&quot; data-tooltip=&quot;Боковая панель мест&quot;&gt;${icon(&#x27;panel-left&#x27;)}&lt;/button&gt;`);
-   refreshWindowStatus(screen.querySelector(&#x27;.active-pane&#x27;));renderFavorites();
+   refreshWindowStatus(screen.querySelector(&#x27;.active-pane&#x27;));
    product.querySelectorAll(&#x27;.system-menu&gt;span&#x27;).forEach(item=&gt;{if(item.textContent===&#x27;Избранное&#x27;)item.remove()});
   }
   function captureMainWorkspace(){
    const body=screen.querySelector(&#x27;.manager-body&#x27;);if(!body||body.closest(&#x27;.menu-underlay&#x27;))return;
    for(const pane of body.querySelectorAll(&#x27;.pane&#x27;)){
-    const tab=mainTabs.find(tab=&gt;String(tab.id)===pane.dataset.tabId);if(!tab)continue;
+    const tab=mainPanels.find(tab=&gt;String(tab.id)===pane.dataset.panelId);if(!tab)continue;
     tab.mode=pane.dataset.mainMode;
     const sort=pane.querySelector(&#x27;th[aria-sort]&#x27;);
     const side=Number(pane.dataset.side),previous=tab.panes[side],tableRows=pane.querySelector(&#x27;tbody&#x27;)?.innerHTML??[...pane.querySelectorAll(&#x27;.icon-item&#x27;)].map(item=&gt;fileItemAsRow(item).outerHTML).join(&#x27;&#x27;);
@@ -3607,86 +3529,10 @@ html&gt;body{padding:0}&lt;/style&gt;
     if(!tab.locations)tab.locations=new Map();tab.locations.set(pane.dataset.path,tab.panes[side]);
    }
   }
-  function makeHomeTab(side){
-   const tab={id:nextMainTab++,side,title:&#x27;Домашняя&#x27;,mode:&#x27;Таблица&#x27;,panes:[]};
+  function makeHomePanel(side){
+   const tab={id:nextPanelId++,side,title:&#x27;Домашняя&#x27;,mode:&#x27;Таблица&#x27;,panes:[]};
    tab.panes[side]={path:&#x27;Домашняя&#x27;,history:[&#x27;Домашняя&#x27;],historyAt:0,tableRows:demoFolderRows(&#x27;Домашняя&#x27;),selection:[]};return tab;
   }
-  function createMainTab(side=activeMainSide,destination=null){
-   captureMainWorkspace();const tab=makeHomeTab(side);if(destination){tab.mode=destination.mode;tab.panes[side]=destination.pane}mainTabs.push(tab);activeMainSide=side;activeMainTab=mainTabSelection[side]=tab.id;state.screen=&#x27;main&#x27;;state.samples.main=tab.mode;variant.querySelector(&#x27;.screen-picker&#x27;).value=&#x27;main&#x27;;render({capture:false});screen.querySelector(&#x27;.active-pane .current-file&#x27;)?.focus({preventScroll:true});
-  }
-  function closeMainTab(id,transferring=false){
-   if(!transferring)stopExternalObservation(windowId,id);
-   captureMainWorkspace();const tab=mainTabs.find(tab=&gt;tab.id===id),group=mainTabs.filter(item=&gt;item.side===tab.side);
-   if(group.length===1&amp;&amp;!state.two){mainWindowClosed=true;state.screen=&#x27;main&#x27;;variant.querySelector(&#x27;.screen-picker&#x27;).value=&#x27;main&#x27;;render({capture:false});return}
-   mainTabs.splice(mainTabs.indexOf(tab),1);
-   if(group.length&gt;1){if(mainTabSelection[tab.side]===id){const at=group.indexOf(tab);group.splice(at,1);mainTabSelection[tab.side]=group[Math.min(at,group.length-1)].id}activeMainSide=tab.side}
-   else {
-    if(tab.side===0){for(const item of mainTabs.filter(item=&gt;item.side===1)){item.side=0;item.panes[0]=item.panes[1];delete item.panes[1]}mainTabSelection[0]=mainTabSelection[1]}
-    const hidden=makeHomeTab(1);mainTabs.push(hidden);mainTabSelection[1]=hidden.id;
-    state.two=false;variant.querySelector(&#x27;.two-toggle&#x27;).checked=false;activeMainSide=0;
-   }
-   activeMainTab=mainTabSelection[activeMainSide];state.samples.main=mainTabs.find(item=&gt;item.id===activeMainTab).mode;render({capture:false});
-  }
-  function renderFavorites(){
-   const container=screen.querySelector(&#x27;.favorite-places&#x27;);if(!container)return;container.replaceChildren();
-   container.innerHTML=favoritePlaces.map(place=&gt;sidebarPlace(place)).join(&#x27;&#x27;);
-   if(!favoritePlaces.length)container.innerHTML=&#x27;&lt;div class=&quot;favorite-empty&quot;&gt;Перетащите сюда папку или добавьте текущее место кнопкой «+».&lt;/div&gt;&#x27;;
-   updateFavoriteCurrent();
-   if(globalThis.lucide)lucide.createIcons({attrs:{width:16,height:16}});
-  }
-  function updateFavoriteCurrent(){const path=screen.querySelector(&#x27;.active-pane&#x27;)?.dataset.path;screen.querySelectorAll(&#x27;[data-main-place]&#x27;).forEach(button=&gt;button.setAttribute(&#x27;aria-current&#x27;,String(button.dataset.mainPlace===path)))}
-  function focusFavoritePlace(id){const button=screen.querySelector(id?`[data-favorite-place=&quot;${id}&quot;]`:&#x27;.add-favorite&#x27;);button?.focus({preventScroll:true});button?.scrollIntoView({block:&#x27;nearest&#x27;,inline:&#x27;nearest&#x27;})}
-  function addFavoritePlace(path,name,symbol=&#x27;folder&#x27;,demoReadonlyRoot=&#x27;&#x27;){
-   const existing=favoritePlaces.find(place=&gt;place.path===path);if(existing)return existing.id;
-   const place={id:nextFavoriteId++,path,name,symbol,demoReadonlyRoot};favoritePlaces.push(place);publishReviewFavorites();return place.id;
-  }
-  function addCurrentFavorite(){const pane=screen.querySelector(&#x27;.active-pane&#x27;)||screen.querySelector(&#x27;.pane&#x27;);captureMainWorkspace();const id=addFavoritePlace(pane.dataset.path,pane.dataset.path.split(&#x27; / &#x27;).filter(Boolean).at(-1),demoArchiveRoot(pane.dataset.path)?&#x27;archive&#x27;:&#x27;folder&#x27;,pane.dataset.readonlyRoot);focusFavoritePlace(id)}
-  function removeFavoritePlace(id){const at=favoritePlaces.findIndex(place=&gt;place.id===id);if(at&lt;0)return;favoritePlaces.splice(at,1);publishReviewFavorites();focusFavoritePlace(favoritePlaces[Math.min(at,favoritePlaces.length-1)]?.id)}
-  function moveFavoritePlace(id,targetId,after=false){const place=favoritePlaces.find(item=&gt;item.id===id);if(!place||id===targetId)return;favoritePlaces.splice(favoritePlaces.indexOf(place),1);const at=favoritePlaces.findIndex(item=&gt;item.id===targetId);favoritePlaces.splice(at&lt;0?favoritePlaces.length:at+(after?1:0),0,place);publishReviewFavorites();focusFavoritePlace(id)}
-  function renameFavoritePlace(id){
-   const place=favoritePlaces.find(item=&gt;item.id===id),button=screen.querySelector(`[data-favorite-place=&quot;${id}&quot;]`);if(!place||!button)return;
-   const input=document.createElement(&#x27;input&#x27;);input.className=&#x27;favorite-name-editor&#x27;;input.value=place.name;input.setAttribute(&#x27;aria-label&#x27;,&#x27;Название в избранном&#x27;);button.replaceWith(input);input.focus();input.select();
-   input.addEventListener(&#x27;keydown&#x27;,e=&gt;{if(![&#x27;Enter&#x27;,&#x27;Escape&#x27;].includes(e.key))return;e.preventDefault();e.stopPropagation();const value=input.value.trim();if(e.key===&#x27;Enter&#x27;&amp;&amp;!value){input.setCustomValidity(&#x27;Введите название.&#x27;);input.reportValidity();return}input.dataset.finished=&#x27;true&#x27;;if(e.key===&#x27;Enter&#x27;){place.name=value;publishReviewFavorites();screen.querySelector(`[data-favorite-place=&quot;${id}&quot;]`)?.focus({preventScroll:true})}else{input.replaceWith(button);button.focus({preventScroll:true})}});
-   input.addEventListener(&#x27;input&#x27;,()=&gt;input.setCustomValidity(&#x27;&#x27;));input.addEventListener(&#x27;blur&#x27;,()=&gt;{if(!input.dataset.finished){input.replaceWith(button);updateFavoriteCurrent()}},{once:true});
-  }
-  function favoriteDestination(place){
-   let saved;for(const owner of reviewWindows.values()){saved=owner.api?.location(place.path);if(saved)break}
-   const pane={...saved,path:place.path,readonlyRoot:place.demoReadonlyRoot||saved?.readonlyRoot||&#x27;&#x27;,history:[place.path],historyAt:0,selection:[],current:null,anchor:null,scroll:0,iconRows:undefined,tableRows:saved?.tableRows??demoFolderRows(place.path)},holder=document.createElement(&#x27;tbody&#x27;);holder.innerHTML=pane.tableRows;
-   holder.querySelectorAll(&#x27;.selected,.current-file&#x27;).forEach(row=&gt;row.classList.remove(&#x27;selected&#x27;,&#x27;current-file&#x27;));holder.querySelectorAll(&#x27;.inline-rename&#x27;).forEach(input=&gt;input.replaceWith(document.createTextNode(input.closest(&#x27;[data-file]&#x27;).dataset.file)));pane.tableRows=holder.innerHTML;
-   return {mode:screen.querySelector(&#x27;.active-pane .icon-grid&#x27;)?&#x27;Крупные значки&#x27;:&#x27;Таблица&#x27;,pane};
-  }
-  function openFavoritePlace(id,where=&#x27;current&#x27;){
-   const place=favoritePlaces.find(item=&gt;item.id===id);if(!place)return;
-   if(state.screen!==&#x27;main&#x27;)navigateTo(&#x27;main&#x27;);
-   const destination=favoriteDestination(place);
-   if(where===&#x27;window&#x27;){createReviewWindow({tab:{id:1,side:0,title:place.name,mode:destination.mode,panes:[destination.pane]},sourceSide:0,sidebar:state.sidebar});return}
-   if(where===&#x27;tab&#x27;){createMainTab(activeMainSide,destination);return}
-   let pane=screen.querySelector(&#x27;.active-pane&#x27;)||screen.querySelector(&#x27;.pane&#x27;),tab=mainTabs.find(item=&gt;String(item.id)===pane.dataset.tabId);
-   if(tab.resumeMode){state.samples.main=tab.resumeMode;render();pane=screen.querySelector(&#x27;.active-pane&#x27;);tab=mainTabs.find(item=&gt;String(item.id)===pane.dataset.tabId)}
-   if(!tab.locations)tab.locations=new Map();tab.locations.set(place.path,destination.pane);navigateMainFolder(pane,place.path);updateFavoriteCurrent();
-  }
-  function closeFavoriteContext(focus=true){const popup=screen.querySelector(&#x27;.favorite-context&#x27;);if(!popup)return;popup.remove();if(focus)screen.querySelector(favoriteContextId?`[data-favorite-place=&quot;${favoriteContextId}&quot;]`:&#x27;.add-favorite&#x27;)?.focus({preventScroll:true});favoriteContextId=null}
-  function showFavoriteContext(id,x,y){
-   closeFavoriteContext(false);closeFileContext(false);closeTabContext(false);favoriteContextId=id;const place=favoritePlaces.find(item=&gt;item.id===id),at=favoritePlaces.indexOf(place),action=(key,label,disabled=false)=&gt;`&lt;button type=&quot;button&quot; class=&quot;menu-action&quot; role=&quot;menuitem&quot; data-favorite-command=&quot;${key}&quot; ${disabled?&#x27;disabled&#x27;:&#x27;&#x27;}&gt;&lt;span&gt;${label}&lt;/span&gt;&lt;/button&gt;`;
-   const popup=document.createElement(&#x27;div&#x27;);popup.className=&#x27;native-menu favorite-context&#x27;;popup.setAttribute(&#x27;role&#x27;,&#x27;menu&#x27;);popup.setAttribute(&#x27;aria-label&#x27;,place?&#x27;Действия с местом «&#x27;+place.name+&#x27;»&#x27;:&#x27;Избранное&#x27;);popup.innerHTML=place?action(&#x27;open&#x27;,&#x27;Открыть&#x27;)+action(&#x27;tab&#x27;,&#x27;Открыть в новой вкладке&#x27;)+action(&#x27;window&#x27;,&#x27;Открыть в новом окне&#x27;)+&#x27;&lt;hr&gt;&#x27;+action(&#x27;rename&#x27;,&#x27;Переименовать подпись&#x27;)+action(&#x27;up&#x27;,&#x27;Переместить выше&#x27;,at===0)+action(&#x27;down&#x27;,&#x27;Переместить ниже&#x27;,at===favoritePlaces.length-1)+&#x27;&lt;hr&gt;&#x27;+action(&#x27;remove&#x27;,&#x27;Убрать из избранного&#x27;):action(&#x27;add&#x27;,&#x27;Добавить текущее место&#x27;);screen.append(popup);popup.style.left=Math.max(8,Math.min(x,innerWidth-popup.offsetWidth-8))+&#x27;px&#x27;;popup.style.top=Math.max(8,Math.min(y,innerHeight-popup.offsetHeight-8))+&#x27;px&#x27;;popup.querySelector(&#x27;button:not(:disabled)&#x27;)?.focus({preventScroll:true});
-  }
-  screen.addEventListener(&#x27;contextmenu&#x27;,e=&gt;{if(state.screen!==&#x27;main&#x27;||e.target.closest(&#x27;input&#x27;))return;const row=e.target.closest(&#x27;.favorite-place&#x27;),area=e.target.closest(&#x27;.favorite-places,.favorites-heading&#x27;);if(!row&amp;&amp;!area)return;e.preventDefault();showFavoriteContext(row?Number(row.dataset.favoriteId):null,e.clientX,e.clientY)});
-  observeGlobal(document,&#x27;pointerdown&#x27;,e=&gt;{if(screen.querySelector(&#x27;.favorite-context&#x27;)&amp;&amp;!e.target.closest(&#x27;.favorite-context&#x27;))closeFavoriteContext(false)},{capture:true});
-  function clearFavoriteDrop(){screen.querySelectorAll(&#x27;.favorite-drop-before,.favorite-drop-after,.favorites-drop-target&#x27;).forEach(item=&gt;item.classList.remove(&#x27;favorite-drop-before&#x27;,&#x27;favorite-drop-after&#x27;,&#x27;favorites-drop-target&#x27;))}
-  screen.addEventListener(&#x27;dragstart&#x27;,e=&gt;{if(e.target.closest(&#x27;.file-item&#x27;)?.dataset.kind===&#x27;Том&#x27;){e.preventDefault();e.stopImmediatePropagation()}});
-  screen.addEventListener(&#x27;dragstart&#x27;,e=&gt;{const row=e.target.closest(&#x27;.favorite-place&#x27;);if(!row||e.target.closest(&#x27;input&#x27;))return;closeFavoriteContext(false);draggedFavoriteId=Number(row.dataset.favoriteId);e.dataTransfer.effectAllowed=&#x27;move&#x27;;e.dataTransfer.setData(&#x27;application/x-sevenzip-favorite&#x27;,String(draggedFavoriteId))});
-  screen.addEventListener(&#x27;dragover&#x27;,e=&gt;{
-   const area=e.target.closest(&#x27;.favorite-places,.favorites-heading&#x27;);if(!area)return;const row=e.target.closest(&#x27;.favorite-place&#x27;);
-   if(draggedFavoriteId!==null){e.preventDefault();e.stopImmediatePropagation();e.dataTransfer.dropEffect=&#x27;move&#x27;;clearFavoriteDrop();if(row&amp;&amp;Number(row.dataset.favoriteId)!==draggedFavoriteId)row.classList.add(e.clientY&gt;row.getBoundingClientRect().top+row.offsetHeight/2?&#x27;favorite-drop-after&#x27;:&#x27;favorite-drop-before&#x27;);else if(!row)screen.querySelector(&#x27;.favorite-places&#x27;).classList.add(&#x27;favorites-drop-target&#x27;);return}
-   if(draggedFiles&amp;&amp;draggedFiles.rows.every(item=&gt;item.dataset.kind===&#x27;Папка&#x27;)){e.preventDefault();e.stopImmediatePropagation();e.dataTransfer.dropEffect=&#x27;copy&#x27;;clearFavoriteDrop();clearFileDropTarget();screen.querySelector(&#x27;.favorite-places&#x27;).classList.add(&#x27;favorites-drop-target&#x27;);area.title=&#x27;Закрепить в избранном&#x27;;cancelAnimationFrame(draggedFiles.frame);draggedFiles.frame=null}
-  });
-  screen.addEventListener(&#x27;drop&#x27;,e=&gt;{
-   if(!e.target.closest(&#x27;.favorite-places,.favorites-heading&#x27;))return;
-   if(draggedFavoriteId!==null){e.preventDefault();e.stopImmediatePropagation();const id=draggedFavoriteId,row=e.target.closest(&#x27;.favorite-place&#x27;),targetId=row?Number(row.dataset.favoriteId):null,after=row?e.clientY&gt;row.getBoundingClientRect().top+row.offsetHeight/2:false;draggedFavoriteId=null;clearFavoriteDrop();moveFavoritePlace(id,targetId,after);return}
-   if(draggedFiles&amp;&amp;draggedFiles.rows.every(item=&gt;item.dataset.kind===&#x27;Папка&#x27;)){e.preventDefault();e.stopImmediatePropagation();const drag=draggedFiles;for(const row of drag.rows)addFavoritePlace(drag.path+&#x27; / &#x27;+row.dataset.file,row.dataset.file,&#x27;folder&#x27;,drag.pane.dataset.readonlyRoot);clearFavoriteDrop();clearFileDrag();suppressSelectionClick()}
-  });
-  screen.addEventListener(&#x27;dragleave&#x27;,e=&gt;{if(e.target.closest(&#x27;.favorite-places,.favorites-heading&#x27;)&amp;&amp;!e.relatedTarget?.closest?.(&#x27;.favorite-places,.favorites-heading&#x27;))clearFavoriteDrop()});
-  screen.addEventListener(&#x27;dragend&#x27;,()=&gt;{draggedFavoriteId=null;clearFavoriteDrop()});
   function updateMainHistory(pane){
    const back=pane.querySelector(&#x27;.main-back&#x27;);if(back)back.disabled=!(pane.mainHistoryAt&gt;0);
    const forward=pane.querySelector(&#x27;.main-forward&#x27;);if(forward)forward.disabled=!(pane.mainHistoryAt&lt;pane.mainHistory.length-1);
@@ -3710,7 +3556,7 @@ html&gt;body{padding:0}&lt;/style&gt;
    if(!path||pane.classList.contains(&#x27;is-loading&#x27;))return;
    if(path===pane.dataset.path){if(historyAt!==null)pane.mainHistoryAt=historyAt;setMainPath(pane,path,false);updateMainHistory(pane);captureMainWorkspace();recordRecentPlace(path);pane.querySelector(&#x27;.current-file&#x27;)?.focus({preventScroll:true});return}
    captureMainWorkspace();
-   const tab=mainTabs.find(tab=&gt;String(tab.id)===pane.dataset.tabId),saved=tab.locations?.get(path),view=pane.querySelector(&#x27;.file-table-scroll&#x27;);
+   const tab=mainPanels.find(tab=&gt;String(tab.id)===pane.dataset.panelId),saved=tab.locations?.get(path),view=pane.querySelector(&#x27;.file-table-scroll&#x27;);
    const previousReadonly=pane.dataset.readonlyRoot,previousLocation=pane.dataset.location;
    pane.dataset.readonlyRoot=[&#x27;Компьютер&#x27;,&#x27;Тома&#x27;,&#x27;Сеть&#x27;].includes(path)?path:saved?.readonlyRoot||(previousReadonly&amp;&amp;(path===previousReadonly||path.startsWith(previousReadonly+&#x27; / &#x27;))?previousReadonly:&#x27;&#x27;);
    pane.dataset.readLimitations=saved?saved.readLimitations||&#x27;&#x27;:pane.dataset.readonlyRoot===previousReadonly?pane.dataset.readLimitations||&#x27;&#x27;:&#x27;&#x27;;
@@ -3733,13 +3579,13 @@ html&gt;body{padding:0}&lt;/style&gt;
    tab.panes[Number(pane.dataset.side)]={...saved,path,history:pane.mainHistory.slice(),historyAt:pane.mainHistoryAt};
    if(globalThis.lucide)lucide.createIcons({attrs:{width:16,height:16}});
    const current=pane.querySelector(&#x27;.current-file&#x27;);if(current)current.focus({preventScroll:true});else{view.tabIndex=0;view.focus({preventScroll:true})}
-   captureMainWorkspace();layoutMainSidebar();recordRecentPlace(path);
+   captureMainWorkspace();recordRecentPlace(path);
   }
   function demoArchiveRoot(path){const parts=path.split(&#x27; / &#x27;).filter(Boolean),at=parts.findIndex(part=&gt;/\.(7z|zip)$/i.test(part));return at&lt;0?&#x27;&#x27;:parts.slice(0,at+1).join(&#x27; / &#x27;)}
   function openMainFile(item){if(!item)return;const pane=item.closest(&#x27;.pane&#x27;);if(item.dataset.kind===&#x27;Том&#x27;){navigateMainFolder(pane,item.dataset.file===&#x27;Системный диск&#x27;?&#x27;/&#x27;:item.dataset.file);return}if(item.dataset.kind===&#x27;Папка&#x27;||item.dataset.kind.startsWith(&#x27;Архив&#x27;))navigateMainFolder(pane,pane.dataset.path+&#x27; / &#x27;+item.dataset.file);else if(item.dataset.kind===&#x27;Контрольные суммы&#x27;){captureChecksumVerifyContext(item);openView(&#x27;hash-verify&#x27;)}else dispatchExternalIntent(pane,item)}
   function openExternalCopy(item,intent=&#x27;open&#x27;){
    const pane=item.closest(&#x27;.pane&#x27;),archive=demoArchiveRoot(pane.dataset.path)||pane.dataset.readonlyRoot||pane.dataset.path,id=++nextExternalCopy;
-   externalContext={id,ownerWindow:windowId,ownerTab:activeMainTab,provider:pane.dataset.location,launchIntent:intent,name:item.dataset.file,archive,entry:pane.dataset.path.slice(archive.length).replace(/^ \/ /,&#x27;&#x27;)+(pane.dataset.path===archive?&#x27;&#x27;:&#x27; / &#x27;)+item.dataset.file,temp:&#x27;Временные файлы Sevenzip / Сеанс &#x27;+id+&#x27; / &#x27;+item.dataset.file,destination:pane.dataset.location===&#x27;recovery&#x27;?&#x27;Домашняя / Документы&#x27;:archive.split(&#x27; / &#x27;).slice(0,-1).join(&#x27; / &#x27;),readOnly:!!pane.dataset.readonlyRoot,mode:&#x27;Открыт во внешней программе&#x27;,safe:false};
+   externalContext={id,ownerWindow:windowId,ownerPanel:activePanelId,provider:pane.dataset.location,launchIntent:intent,name:item.dataset.file,archive,entry:pane.dataset.path.slice(archive.length).replace(/^ \/ /,&#x27;&#x27;)+(pane.dataset.path===archive?&#x27;&#x27;:&#x27; / &#x27;)+item.dataset.file,temp:&#x27;Временные файлы Sevenzip / Сеанс &#x27;+id+&#x27; / &#x27;+item.dataset.file,destination:pane.dataset.location===&#x27;recovery&#x27;?&#x27;Домашняя / Документы&#x27;:archive.split(&#x27; / &#x27;).slice(0,-1).join(&#x27; / &#x27;),readOnly:!!pane.dataset.readonlyRoot,mode:&#x27;Открыт во внешней программе&#x27;,safe:false};
    reviewExternalCopies.set(id,externalContext);state.samples[&#x27;external-edit&#x27;]=externalContext.mode;openView(&#x27;external-edit&#x27;);
   }
   function removeTemporaryCopy(button){
@@ -3748,7 +3594,7 @@ html&gt;body{padding:0}&lt;/style&gt;
    const key=row.dataset.tempKey;if(key.startsWith(&#x27;session-&#x27;)){const id=Number(key.slice(8)),copy=reviewExternalCopies.get(id);if(!copy)return;if(!copy.safe){if(!copy.finishedConfirmed||![&#x27;Файл изменён&#x27;,&#x27;Не удалось обновить&#x27;,&#x27;Только для чтения&#x27;].includes(copy.mode))return;showReviewModal({title:&#x27;Удалить изменённую копию?&#x27;,body:sourceSummary({name:copy.name,path:copy.temp,iconName:&#x27;file-text&#x27;})+&#x27;&lt;p&gt;Эти изменения не записаны в архив. Удаление копии отменить не получится.&lt;/p&gt;&#x27;,actions:[{label:&#x27;Отмена&#x27;},{label:&#x27;Удалить изменения&#x27;,value:&#x27;discard&#x27;,className:&#x27;destructive-action&#x27;}],initialFocus:&#x27;button&#x27;,returnFocus:button,onAction:action=&gt;{if(action===&#x27;discard&#x27;&amp;&amp;copy.finishedConfirmed&amp;&amp;copy.mode!==&#x27;Обновляется архив&#x27;){reviewExternalCopies.delete(id);row.remove();screen.querySelector(&#x27;.temp-status&#x27;).textContent=&#x27;Изменённая копия удалена.&#x27;}}});return}reviewExternalCopies.delete(id)}else reviewRemovedTempExamples.add(key);
    row.remove();screen.querySelector(&#x27;.temp-status&#x27;).textContent=&#x27;Копия удалена.&#x27;;
   }
-  function ensureExternalContext(){if(!externalContext){externalContext={...externalFileFixture(sample()),ownerWindow:windowId,ownerTab:activeMainTab,id:++nextExternalCopy,safe:false,finishedConfirmed:[&#x27;Файл изменён&#x27;,&#x27;Не удалось обновить&#x27;,&#x27;Только для чтения&#x27;,&#x27;Изменения сохранены&#x27;].includes(sample())};reviewExternalCopies.set(externalContext.id,externalContext)}return externalContext}
+  function ensureExternalContext(){if(!externalContext){externalContext={...externalFileFixture(sample()),ownerWindow:windowId,ownerPanel:activePanelId,id:++nextExternalCopy,safe:false,finishedConfirmed:[&#x27;Файл изменён&#x27;,&#x27;Не удалось обновить&#x27;,&#x27;Только для чтения&#x27;,&#x27;Изменения сохранены&#x27;].includes(sample())};reviewExternalCopies.set(externalContext.id,externalContext)}return externalContext}
   function updateExternalFile(){if(state.screen!==&#x27;external-edit&#x27;)return;const check=screen.querySelector(&#x27;.external-check&#x27;);if(check)check.disabled=sample()===&#x27;Завершение неизвестно&#x27;&amp;&amp;!screen.querySelector(&#x27;.external-finished&#x27;)?.checked;layoutDialogSurfaces()}
   function updateChecksumForm(){
    if(![&#x27;hash-file&#x27;,&#x27;hash-verify&#x27;].includes(state.screen))return;
@@ -3797,7 +3643,7 @@ html&gt;body{padding:0}&lt;/style&gt;
   }
   screen.addEventListener(&#x27;contextmenu&#x27;,e=&gt;{const view=e.target.closest(&#x27;.file-table-scroll&#x27;);if(state.screen!==&#x27;main&#x27;||!view||e.target.closest(&#x27;input,th&#x27;))return;e.preventDefault();showFileContext(view.closest(&#x27;.pane&#x27;),e.target.closest(&#x27;.file-item&#x27;),e.clientX,e.clientY)});
   observeGlobal(document,&#x27;pointerdown&#x27;,e=&gt;{if(screen.querySelector(&#x27;.file-context&#x27;)&amp;&amp;!e.target.closest(&#x27;.file-context,.open-edit-menu,.open-service-menu&#x27;))closeFileContext(false)},{capture:true});
-  observeGlobal(window,&#x27;resize&#x27;,()=&gt;{closeFileContext(false);closeTabContext(false);closeFavoriteContext(false)});
+  observeGlobal(window,&#x27;resize&#x27;,()=&gt;{closeFileContext(false);});
   screen.addEventListener(&#x27;scroll&#x27;,e=&gt;{if(e.target.matches(&#x27;.file-table-scroll&#x27;))closeFileContext(false)},true);
   function setMainPath(pane,value,remember=true){
    if(remember){const history=pane.mainHistory||[pane.dataset.path];if(history[pane.mainHistoryAt??0]!==value){pane.mainHistory=history.slice(0,(pane.mainHistoryAt??0)+1);pane.mainHistory.push(value);pane.mainHistoryAt=pane.mainHistory.length-1}}
@@ -3805,12 +3651,12 @@ html&gt;body{padding:0}&lt;/style&gt;
    const parts=value.split(&#x27; / &#x27;).filter(Boolean);
    path.innerHTML=addressContent(value);
    path.title=value;
-   const tab=mainTabs.find(tab=&gt;String(tab.id)===pane.dataset.tabId);tab.title=parts.at(-1)||&#x27;Домашняя&#x27;;
+   const tab=mainPanels.find(tab=&gt;String(tab.id)===pane.dataset.panelId);tab.title=parts.at(-1)||&#x27;Домашняя&#x27;;
    const button=pane.querySelector(`[data-main-tab=&quot;${tab.id}&quot;]`);if(button){button.querySelector(&#x27;.main-tab-title&#x27;).textContent=tab.title;button.querySelector(&#x27;.main-tab-symbol&#x27;).innerHTML=icon(demoArchiveRoot(value)?&#x27;archive&#x27;:&#x27;folder&#x27;);button.title=value;button.setAttribute(&#x27;aria-label&#x27;,tab.title)}
    const close=pane.querySelector(`[data-close-main-tab=&quot;${tab.id}&quot;]`);if(close)close.setAttribute(&#x27;aria-label&#x27;,&#x27;Закрыть вкладку «&#x27;+tab.title+&#x27;»&#x27;);
-   updateFavoriteCurrent();
+
    refreshReviewWindows();
-   if(state.screen===&#x27;main&#x27;&amp;&amp;tab.id===activeMainTab){const title=product.querySelector(&#x27;.titlebar&gt;span:last-child&#x27;);if(title)title.textContent=tab.title+&#x27; — Sevenzip&#x27;}
+   if(state.screen===&#x27;main&#x27;&amp;&amp;tab.id===activePanelId){const title=product.querySelector(&#x27;.titlebar&gt;span:last-child&#x27;);if(title)title.textContent=tab.title+&#x27; — Sevenzip&#x27;}
    updateMainHistory(pane);
    if(globalThis.lucide)lucide.createIcons({attrs:{width:16,height:16}});
   }
@@ -3828,56 +3674,16 @@ html&gt;body{padding:0}&lt;/style&gt;
   function activateMainPane(e){
    if(disposed||state.screen!==&#x27;main&#x27;)return;
    const pane=e.target.closest(&#x27;.pane&#x27;);if(!pane)return;
-   activeMainSide=Number(pane.dataset.side);activeMainTab=Number(pane.dataset.tabId);state.samples.main=pane.dataset.mainMode;
-   const tab=mainTabs.find(tab=&gt;tab.id===activeMainTab),title=product.querySelector(&#x27;.titlebar&gt;span:last-child&#x27;);if(title)title.textContent=tab.title+&#x27; — Sevenzip&#x27;;
+   activeMainSide=Number(pane.dataset.side);activePanelId=Number(pane.dataset.panelId);state.samples.main=pane.dataset.mainMode;
+   const tab=mainPanels.find(tab=&gt;tab.id===activePanelId),title=product.querySelector(&#x27;.titlebar&gt;span:last-child&#x27;);if(title)title.textContent=tab.title+&#x27; — Sevenzip&#x27;;
    variant.querySelector(&#x27;.state-picker&#x27;).value=state.samples.main;
-   updateFavoriteCurrent();
+
    refreshReviewWindows();
    screen.querySelectorAll(&#x27;.pane&#x27;).forEach(p=&gt;p.classList.toggle(&#x27;active-pane&#x27;,p===pane));
    updateMainCommands(pane);
   }
   screen.addEventListener(&#x27;pointerdown&#x27;,activateMainPane);
   screen.addEventListener(&#x27;focusin&#x27;,activateMainPane);
-  screen.addEventListener(&#x27;auxclick&#x27;,e=&gt;{const tab=e.target.closest(&#x27;[data-drag-main-tab]&#x27;);if(e.button===1&amp;&amp;tab){e.preventDefault();closeMainTab(Number(tab.dataset.dragMainTab))}});
-  screen.addEventListener(&#x27;dragstart&#x27;,e=&gt;{
-   const item=e.target.closest(&#x27;[data-drag-main-tab]&#x27;);if(!item)return;
-   reviewDraggedTab={owner:entry.api,id:Number(item.dataset.dragMainTab)};
-   draggedMainTab=Number(item.dataset.dragMainTab);e.dataTransfer.effectAllowed=&#x27;move&#x27;;e.dataTransfer.setData(&#x27;text/plain&#x27;,String(draggedMainTab));
-  });
-  screen.addEventListener(&#x27;dragover&#x27;,e=&gt;{
-   if(!reviewDraggedTab)return;const strip=e.target.closest(&#x27;.manager-tabs&#x27;);if(!strip)return;
-   screen.querySelectorAll(&#x27;.tab-drop-target&#x27;).forEach(item=&gt;item.classList.remove(&#x27;tab-drop-target&#x27;));strip.classList.add(&#x27;tab-drop-target&#x27;);
-   e.preventDefault();e.dataTransfer.dropEffect=&#x27;move&#x27;;screen.querySelectorAll(&#x27;.drag-over&#x27;).forEach(item=&gt;item.classList.remove(&#x27;drag-over&#x27;));e.target.closest(&#x27;.manager-tab-item&#x27;)?.classList.add(&#x27;drag-over&#x27;);
-  });
-  function moveMainTab(id,side,targetId=null,after=false){
-   captureMainWorkspace();const tab=mainTabs.find(item=&gt;item.id===id),previousSide=tab.side,group=mainTabs.filter(item=&gt;item.side===previousSide),crossing=previousSide!==side;
-   mainTabs.splice(mainTabs.indexOf(tab),1);
-   if(crossing){tab.panes[side]=tab.panes[previousSide];delete tab.panes[previousSide];tab.side=side;if(mainTabSelection[previousSide]===id){const neighbors=group.filter(item=&gt;item!==tab);mainTabSelection[previousSide]=neighbors[Math.min(group.indexOf(tab),neighbors.length-1)]?.id}}
-   const target=mainTabs.findIndex(item=&gt;item.id===targetId);mainTabs.splice(target&lt;0?mainTabs.length:target+(after?1:0),0,tab);
-   mainTabSelection[side]=id;
-   if(crossing&amp;&amp;group.length===1){
-    if(side===1)for(const item of mainTabs.filter(item=&gt;item.side===1)){item.side=0;item.panes[0]=item.panes[1];delete item.panes[1]}
-    mainTabSelection[0]=id;const hidden=makeHomeTab(1);mainTabs.push(hidden);mainTabSelection[1]=hidden.id;state.two=false;variant.querySelector(&#x27;.two-toggle&#x27;).checked=false;
-   }
-   activeMainSide=tab.side;activeMainTab=id;state.samples.main=tab.mode;draggedMainTab=null;render({capture:false});
-  }
-  function closeTabContext(focus=true){const popup=screen.querySelector(&#x27;.tab-context&#x27;);if(!popup)return;popup.remove();if(focus)screen.querySelector(`[data-main-tab=&quot;${tabContextId}&quot;]`)?.focus({preventScroll:true});tabContextId=null}
-  function showTabContext(id,x,y){
-   closeTabContext(false);closeFileContext(false);tabContextId=id;
-   const popup=document.createElement(&#x27;div&#x27;);popup.className=&#x27;native-menu tab-context&#x27;;popup.setAttribute(&#x27;role&#x27;,&#x27;menu&#x27;);popup.setAttribute(&#x27;aria-label&#x27;,&#x27;Действия с вкладкой&#x27;);popup.innerHTML=`&lt;button type=&quot;button&quot; class=&quot;menu-action&quot; role=&quot;menuitem&quot; data-tab-context=&quot;panel&quot; ${state.two?&#x27;&#x27;:&#x27;disabled&#x27;}&gt;&lt;span&gt;Переместить в другую панель&lt;/span&gt;&lt;/button&gt;&lt;button type=&quot;button&quot; class=&quot;menu-action&quot; role=&quot;menuitem&quot; data-tab-context=&quot;window&quot;&gt;&lt;span&gt;Переместить в новое окно&lt;/span&gt;&lt;/button&gt;&lt;hr&gt;&lt;button type=&quot;button&quot; class=&quot;menu-action&quot; role=&quot;menuitem&quot; data-tab-context=&quot;close&quot;&gt;&lt;span&gt;Закрыть вкладку&lt;/span&gt;&lt;span class=&quot;hint&quot;&gt;⌘W&lt;/span&gt;&lt;/button&gt;`;
-   screen.append(popup);popup.style.left=Math.max(8,Math.min(x,innerWidth-popup.offsetWidth-8))+&#x27;px&#x27;;popup.style.top=Math.max(8,Math.min(y,innerHeight-popup.offsetHeight-8))+&#x27;px&#x27;;popup.querySelector(&#x27;button:not(:disabled)&#x27;)?.focus({preventScroll:true});
-  }
-  screen.addEventListener(&#x27;contextmenu&#x27;,e=&gt;{const item=e.target.closest(&#x27;[data-drag-main-tab]&#x27;);if(!item)return;e.preventDefault();showTabContext(Number(item.dataset.dragMainTab),e.clientX,e.clientY)});
-  observeGlobal(document,&#x27;pointerdown&#x27;,e=&gt;{if(screen.querySelector(&#x27;.tab-context&#x27;)&amp;&amp;!e.target.closest(&#x27;.tab-context&#x27;))closeTabContext(false)},{capture:true});
-  screen.addEventListener(&#x27;drop&#x27;,e=&gt;{
-   const moving=reviewDraggedTab;if(!moving)return;const strip=e.target.closest(&#x27;.manager-tabs&#x27;);if(!strip)return;
-   e.preventDefault();const target=e.target.closest(&#x27;[data-drag-main-tab]&#x27;),id=Number(target?.dataset.dragMainTab),side=Number(strip.closest(&#x27;.pane&#x27;).dataset.side);
-   if(moving.owner!==entry.api){reviewDraggedTab=null;entry.api.receiveTab(moving.owner.releaseTab(moving.id),side,target?id:null,target?e.clientX&gt;target.getBoundingClientRect().left+target.getBoundingClientRect().width/2:false);showReviewWindow(windowId);return}
-   if(id===draggedMainTab){draggedMainTab=null;reviewDraggedTab=null;screen.querySelectorAll(&#x27;.drag-over,.tab-drop-target&#x27;).forEach(item=&gt;item.classList.remove(&#x27;drag-over&#x27;,&#x27;tab-drop-target&#x27;));return}
-   reviewDraggedTab=null;moveMainTab(draggedMainTab,side,target?id:null,target?e.clientX&gt;target.getBoundingClientRect().left+target.getBoundingClientRect().width/2:false);
-  });
-  screen.addEventListener(&#x27;dragend&#x27;,()=&gt;{draggedMainTab=null;reviewDraggedTab=null;screen.querySelectorAll(&#x27;.drag-over,.tab-drop-target&#x27;).forEach(item=&gt;item.classList.remove(&#x27;drag-over&#x27;,&#x27;tab-drop-target&#x27;));windowReview.querySelectorAll(&#x27;.window-drop-target&#x27;).forEach(item=&gt;item.classList.remove(&#x27;window-drop-target&#x27;))});
-  screen.addEventListener(&#x27;dragleave&#x27;,e=&gt;{const strip=e.target.closest(&#x27;.manager-tabs&#x27;);if(strip&amp;&amp;!strip.contains(e.relatedTarget))strip.classList.remove(&#x27;tab-drop-target&#x27;)});
   function clearFileDropTarget(){screen.querySelectorAll(&#x27;.file-drop-target,.file-drop-pane&#x27;).forEach(item=&gt;item.classList.remove(&#x27;file-drop-target&#x27;,&#x27;file-drop-pane&#x27;));screen.querySelector(&#x27;.file-drop-hint&#x27;)?.remove()}
   function clearFileDrag(){if(draggedFiles)cancelAnimationFrame(draggedFiles.frame);draggedFiles=null;clearFileDropTarget();screen.querySelector(&#x27;.file-drag-image&#x27;)?.remove()}
   function fileDropTarget(event){
@@ -3898,14 +3704,14 @@ html&gt;body{padding:0}&lt;/style&gt;
    drag.frame=requestAnimationFrame(scrollFileDrag);
   }
   function transferDraggedFiles(target){
-   const drag=draggedFiles,tab=mainTabs.find(tab=&gt;String(tab.id)===target.pane.dataset.tabId),sameFolder=target.path===drag.path;
+   const drag=draggedFiles,tab=mainPanels.find(tab=&gt;String(tab.id)===target.pane.dataset.panelId),sameFolder=target.path===drag.path;
    captureMainWorkspace();
-   const sourceTab=mainTabs.find(tab=&gt;String(tab.id)===drag.tabId);
+   const sourceTab=mainPanels.find(tab=&gt;String(tab.id)===drag.panelId);
    for(const row of drag.rows)if(row.dataset.kind===&#x27;Папка&#x27;){const path=drag.path+&#x27; / &#x27;+row.dataset.file;if(!sourceTab.locations.has(path))sourceTab.locations.set(path,{path,tableRows:demoFolderRows(path),selection:[]})}
    const existing=document.createElement(&#x27;tbody&#x27;);existing.innerHTML=tab.locations?.get(target.path)?.tableRows??demoFolderRows(target.path);
    if(!(sameFolder&amp;&amp;target.copy)&amp;&amp;drag.rows.some(row=&gt;[...existing.children].some(item=&gt;item.dataset.file===row.dataset.file))){showWindowStatus(target.pane,&#x27;Есть совпадающие имена — требуется разрешение конфликта&#x27;);return}
    const originalPath=target.pane.dataset.path,history=target.pane.mainHistory.slice(),historyAt=target.pane.mainHistoryAt,clipboard=mainClipboard;
-   mainClipboard={cut:!target.copy,rows:drag.rows,source:drag.source,path:drag.path,tabId:drag.tabId,side:drag.side,demoDrag:true};
+   mainClipboard={cut:!target.copy,rows:drag.rows,source:drag.source,path:drag.path,panelId:drag.panelId,side:drag.side,demoDrag:true};
    if(target.path!==originalPath)navigateMainFolder(target.pane,target.path);
    const before=new Set([...target.pane.querySelectorAll(&#x27;.file-item&#x27;)].map(item=&gt;item.dataset.file));
    updateMainCommands(target.pane);target.pane.querySelector(&#x27;[data-main-command=paste]&#x27;).click();
@@ -3921,7 +3727,7 @@ html&gt;body{padding:0}&lt;/style&gt;
    const pane=item.closest(&#x27;.pane&#x27;);if(pane.classList.contains(&#x27;is-loading&#x27;)){e.preventDefault();return}
    closeFileContext(false);if(!item.classList.contains(&#x27;selected&#x27;))selectFileItem(item,{});
    const source=[...pane.querySelectorAll(&#x27;.file-item.selected&#x27;)],readonly=pane.querySelector(&#x27;[data-main-command=cut]&#x27;).disabled;
-   draggedFiles={source,pane,path:pane.dataset.path,tabId:pane.dataset.tabId,side:Number(pane.dataset.side),rows:source.map(fileItemAsRow),readonly};
+   draggedFiles={source,pane,path:pane.dataset.path,panelId:pane.dataset.panelId,side:Number(pane.dataset.side),rows:source.map(fileItemAsRow),readonly};
    e.dataTransfer.effectAllowed=readonly?&#x27;copy&#x27;:&#x27;copyMove&#x27;;e.dataTransfer.setData(&#x27;application/x-sevenzip-demo-files&#x27;,String(source.length));
    const ghost=document.createElement(&#x27;div&#x27;);ghost.className=&#x27;file-drag-image&#x27;;ghost.textContent=source.length===1?source[0].dataset.file:`${source[0].dataset.file} и ещё ${source.length-1}`;screen.append(ghost);e.dataTransfer.setDragImage(ghost,12,12);
   });
@@ -4038,11 +3844,11 @@ html&gt;body{padding:0}&lt;/style&gt;
   }
   function applySample(){
    const selected=sample();
-   if([&#x27;file-menu&#x27;,&#x27;view-menu&#x27;,&#x27;context-menu&#x27;].includes(state.screen)&amp;&amp;!screen.querySelector(&#x27;.menu-underlay .manager-body&#x27;))applyMainLocation(mainTabs.find(tab=&gt;tab.id===activeMainTab).mode);
+   if([&#x27;file-menu&#x27;,&#x27;view-menu&#x27;,&#x27;context-menu&#x27;].includes(state.screen)&amp;&amp;!screen.querySelector(&#x27;.menu-underlay .manager-body&#x27;))applyMainLocation(mainPanels.find(tab=&gt;tab.id===activePanelId).mode);
    if(state.screen===&#x27;main&#x27;){
     applyMainLocation(selected);
     screen.querySelectorAll(&#x27;.pane&#x27;).forEach(p=&gt;{
-     const tab=mainTabs.find(tab=&gt;String(tab.id)===p.dataset.tabId),mode=tab.resumeMode||p.dataset.mainMode,saved=tab.panes[Number(p.dataset.side)];
+     const tab=mainPanels.find(tab=&gt;String(tab.id)===p.dataset.panelId),mode=tab.resumeMode||p.dataset.mainMode,saved=tab.panes[Number(p.dataset.side)];
      if(mode===&#x27;Крупные значки&#x27;){const cards=[...p.querySelectorAll(&#x27;tbody tr[data-file]&#x27;)].map(row=&gt;{const holder=document.createElement(&#x27;div&#x27;);holder.innerHTML=iconCard(row.dataset.file,row.children[1].textContent,row.dataset.kind,row.classList.contains(&#x27;selected&#x27;),row.children[3].textContent,{bytes:row.dataset.bytes,modifiedEpoch:row.dataset.modifiedEpoch});holder.firstElementChild.classList.toggle(&#x27;pending-cut&#x27;,row.classList.contains(&#x27;pending-cut&#x27;));return holder.innerHTML}).join(&#x27;&#x27;);p.querySelector(&#x27;.filetable&#x27;).outerHTML=`&lt;div class=&quot;icon-grid&quot; role=&quot;listbox&quot; aria-multiselectable=&quot;true&quot; aria-label=&quot;Файлы&quot;&gt;${cards}&lt;/div&gt;`;p.querySelector(&#x27;.filespace&#x27;).remove()}
      if(mode===&#x27;Крупные значки&#x27;&amp;&amp;saved?.iconRows)p.querySelector(&#x27;.icon-grid&#x27;).innerHTML=saved.iconRows;
      if(mode===&#x27;Отмеченные и удалённые&#x27;){p.querySelector(&#x27;[data-file=&quot;Материалы.zip&quot;]&#x27;)?.classList.add(&#x27;deleted-file&#x27;);for(const name of [&#x27;Описание.txt&#x27;,&#x27;Список.csv&#x27;])p.querySelector(`[data-file=&quot;${name}&quot;]`)?.classList.add(&#x27;marked-file&#x27;)}
@@ -4275,16 +4081,16 @@ html&gt;body{padding:0}&lt;/style&gt;
    updateAdd();updateExtract();updateDependencies();updateFormats();markSettingsChange(e)
   });
   screen.addEventListener(&#x27;input&#x27;,e=&gt;{if(e.target.matches(&#x27;.license-search&#x27;)){licenseQuery=e.target.value;refreshLicenses();return}if(e.target.matches(&#x27;.memory-limit&#x27;)){screen.querySelector(&#x27;.memory-error&#x27;).hidden=true;e.target.removeAttribute(&#x27;aria-invalid&#x27;)}if(e.target.matches(&#x27;.picker-path&#x27;)){screen.querySelector(&#x27;.picker-error&#x27;).hidden=true;e.target.removeAttribute(&#x27;aria-invalid&#x27;)}updatePicker();updateLinkForm();updateVolumeForm();updateChecksumForm();if(e.target.matches(&#x27;.checksum-name,.checksum-folder,.checksum-manifest,.checksum-base&#x27;)){const error=screen.querySelector(&#x27;.checksum-form-error&#x27;);if(error)error.hidden=true}if(e.target.matches(&#x27;.component-required&#x27;)){const error=screen.querySelector(&#x27;#component-field-error&#x27;);const invalid=!e.target.value.length;error.hidden=!invalid;e.target.setAttribute(&#x27;aria-invalid&#x27;,String(invalid))}if(e.target.matches(&#x27;.prompt-password-input&#x27;)){screen.querySelector(&#x27;.password-prompt-error&#x27;).hidden=true;e.target.removeAttribute(&#x27;aria-invalid&#x27;);if(passwordContext)passwordContext.wrong=false}if(e.target.matches(&#x27;.archive-volume&#x27;)){screen.querySelector(&#x27;.archive-volume-error&#x27;)?.remove();e.target.classList.remove(&#x27;field-error&#x27;);e.target.removeAttribute(&#x27;aria-invalid&#x27;)}updateAdd();updateCopy();updateExtract();updateDependencies();updateFormats();screen.querySelectorAll(&#x27;input&#x27;).forEach(i=&gt;i.setCustomValidity(&#x27;&#x27;));markSettingsChange(e);updateFscrypt();updateMountSettings();updateNameForm(e.target.matches(&#x27;.name-value&#x27;))});
-  variant.querySelector(&#x27;.screen-picker&#x27;).addEventListener(&#x27;change&#x27;,e=&gt;{backStack.length=0;pendingBrowse=null;pickerView.directory=null;if(e.target.value===&#x27;history&#x27;){recentOwner={tabId:activeMainTab,side:activeMainSide};recentMode=null}if(e.target.value===&#x27;link&#x27;)linkContext=null;if([&#x27;split&#x27;,&#x27;combine&#x27;,&#x27;split-error&#x27;].includes(e.target.value))volumeContext=null;if(e.target.value===&#x27;external-edit&#x27;)externalContext=null;if(e.target.value===&#x27;hash-file&#x27;)hashContext=null;if(e.target.value===&#x27;hash-verify&#x27;)checksumVerifyContext=null;if(e.target.value===&#x27;delete&#x27;)deleteContext=null;if(e.target.value===&#x27;rename&#x27;)nameContext=null;if(e.target.value===&#x27;progress&#x27;){navigateTo(&#x27;progress&#x27;);return}if(e.target.value===&#x27;extract&#x27;){extractContext=null;for(const key of drafts.keys())if(key.startsWith(&#x27;extract|&#x27;))drafts.delete(key)}if(e.target.value===&#x27;add&#x27;){archiveContext=null;archiveUpdateIntent=null;for(const key of drafts.keys())if(key.startsWith(&#x27;add|&#x27;))drafts.delete(key)}if(e.target.value===&#x27;copy&#x27;){copyContext=null;drafts.delete(&#x27;copy|Копирование&#x27;);drafts.delete(&#x27;copy|Перемещение&#x27;)}state.screen=e.target.value;render();save()});
+  variant.querySelector(&#x27;.screen-picker&#x27;).addEventListener(&#x27;change&#x27;,e=&gt;{backStack.length=0;pendingBrowse=null;pickerView.directory=null;if(e.target.value===&#x27;history&#x27;){recentOwner={panelId:activePanelId,side:activeMainSide};recentMode=null}if(e.target.value===&#x27;link&#x27;)linkContext=null;if([&#x27;split&#x27;,&#x27;combine&#x27;,&#x27;split-error&#x27;].includes(e.target.value))volumeContext=null;if(e.target.value===&#x27;external-edit&#x27;)externalContext=null;if(e.target.value===&#x27;hash-file&#x27;)hashContext=null;if(e.target.value===&#x27;hash-verify&#x27;)checksumVerifyContext=null;if(e.target.value===&#x27;delete&#x27;)deleteContext=null;if(e.target.value===&#x27;rename&#x27;)nameContext=null;if(e.target.value===&#x27;progress&#x27;){navigateTo(&#x27;progress&#x27;);return}if(e.target.value===&#x27;extract&#x27;){extractContext=null;for(const key of drafts.keys())if(key.startsWith(&#x27;extract|&#x27;))drafts.delete(key)}if(e.target.value===&#x27;add&#x27;){archiveContext=null;archiveUpdateIntent=null;for(const key of drafts.keys())if(key.startsWith(&#x27;add|&#x27;))drafts.delete(key)}if(e.target.value===&#x27;copy&#x27;){copyContext=null;drafts.delete(&#x27;copy|Копирование&#x27;);drafts.delete(&#x27;copy|Перемещение&#x27;)}state.screen=e.target.value;render();save()});
   variant.querySelector(&#x27;.state-picker&#x27;).addEventListener(&#x27;change&#x27;,e=&gt;{
    if(state.screen===&#x27;main&#x27;&amp;&amp;[&#x27;Открытый архив&#x27;,&#x27;Только для чтения&#x27;,&#x27;Пустая папка&#x27;].includes(e.target.value)){
-    captureMainWorkspace();const tab=mainTabs.find(tab=&gt;tab.id===activeMainTab),empty=e.target.value===&#x27;Пустая папка&#x27;,path=empty?&#x27;Документы / Новая папка&#x27;:&#x27;Документы / Проект.7z&#x27;;
+    captureMainWorkspace();const tab=mainPanels.find(tab=&gt;tab.id===activePanelId),empty=e.target.value===&#x27;Пустая папка&#x27;,path=empty?&#x27;Документы / Новая папка&#x27;:&#x27;Документы / Проект.7z&#x27;;
     tab.resumeMode=null;tab.mode=e.target.value;tab.panes[activeMainSide]={path,location:empty?&#x27;folder&#x27;:&#x27;archive&#x27;,readonlyRoot:e.target.value===&#x27;Только для чтения&#x27;?path:&#x27;&#x27;,history:[path],historyAt:0,tableRows:demoFolderRows(path),selection:empty?[]:[&#x27;Описание.txt&#x27;],current:empty?null:&#x27;Описание.txt&#x27;,scroll:0};tab.locations??=new Map();tab.locations.set(path,tab.panes[activeMainSide]);state.samples.main=e.target.value;render({capture:false});save();return;
    }
 if(isBenchmark()){const config=benchmarkConfig();config.closeAfterStop=false;config.hasMeasurements=null;if(e.target.value===&#x27;Готов к запуску&#x27;)config.run=null}if(state.screen===&#x27;browse&#x27;)pickerView.directory=null;if(state.screen===&#x27;link&#x27;){linkContext=null;for(const key of drafts.keys())if(key.startsWith(&#x27;link|&#x27;))drafts.delete(key)}if([&#x27;split&#x27;,&#x27;combine&#x27;,&#x27;split-error&#x27;].includes(state.screen))volumeContext=null;if(state.screen===&#x27;add&#x27;){archiveUpdateIntent=null;for(const key of drafts.keys())if(key.startsWith(&#x27;add|&#x27;))drafts.delete(key)}if(state.screen===&#x27;properties&#x27;)propertiesContext=null;if(state.screen===&#x27;delete&#x27;)deleteContext=null;if(state.screen===&#x27;rename&#x27;)nameContext=null;if(state.screen===&#x27;devices&#x27;)deviceSelection=null;if(state.screen===&#x27;extract&#x27;){extractContext=null;for(const key of drafts.keys())if(key.startsWith(&#x27;extract|&#x27;))drafts.delete(key)}if(state.screen===&#x27;password&#x27;)passwordContext=null;state.samples[state.screen]=e.target.value;if(state.screen===&#x27;external-edit&#x27;&amp;&amp;externalContext){externalContext.mode=e.target.value;externalContext.finishedConfirmed=[&#x27;Файл изменён&#x27;,&#x27;Не удалось обновить&#x27;,&#x27;Только для чтения&#x27;,&#x27;Изменения сохранены&#x27;].includes(e.target.value);externalContext.safe=e.target.value===&#x27;Изменения сохранены&#x27;&amp;&amp;externalContext.finishedConfirmed}render();save()});
   variant.querySelector(&#x27;.previous-screen&#x27;).addEventListener(&#x27;click&#x27;,()=&gt;{const at=catalog.findIndex(r=&gt;r[0]===state.screen);if(at&gt;0)navigateTo(catalog[at-1][0])});
   variant.querySelector(&#x27;.next-screen&#x27;).addEventListener(&#x27;click&#x27;,()=&gt;{const at=catalog.findIndex(r=&gt;r[0]===state.screen);if(at&lt;catalog.length-1)navigateTo(catalog[at+1][0])});
-  variant.querySelector(&#x27;.two-toggle&#x27;).addEventListener(&#x27;change&#x27;,e=&gt;{if(!e.target.checked){activeMainSide=0;activeMainTab=mainTabSelection[0];state.samples.main=mainTabs.find(tab=&gt;tab.id===activeMainTab).mode}state.two=e.target.checked;render();save()});
+  variant.querySelector(&#x27;.two-toggle&#x27;).addEventListener(&#x27;change&#x27;,e=&gt;{if(!e.target.checked){activeMainSide=0;activePanelId=panelSelection[0];state.samples.main=mainPanels.find(tab=&gt;tab.id===activePanelId).mode}state.two=e.target.checked;render();save()});
   function resolveConflict(action){
    const fixture=overwriteFixture(sample(),copyOperation);
    copyOperation||={source:fixture.source,destination:fixture.destination,items:[{name:fixture.name,kind:&#x27;Файл&#x27;}],size:fixture.incomingSize,moving:false};
@@ -4350,7 +4156,7 @@ if(isBenchmark()){const config=benchmarkConfig();config.closeAfterStop=false;con
    if(isBenchmark()&amp;&amp;e.target.closest(&#x27;.benchmark-start,.benchmark-stop,.benchmark-copy,.benchmark-close&#x27;)){const button=e.target.closest(&#x27;button&#x27;);if(button.disabled)return;const config=benchmarkConfig();if(button.classList.contains(&#x27;benchmark-close&#x27;)){closeBenchmark();return}if(button.classList.contains(&#x27;benchmark-copy&#x27;)){copyReportText(screen,button,benchmarkReport(sample(),config,state.screen===&#x27;benchmark-total&#x27;));return}if(button.classList.contains(&#x27;benchmark-start&#x27;)){if(benchmarkBusy(sample()))return;config.run={dictionary:config.dictionary,threads:config.threads,passes:config.passes};config.closeAfterStop=false;config.hasMeasurements=false;state.samples[state.screen]=&#x27;Подготовка&#x27;;render();return}if(button.classList.contains(&#x27;benchmark-stop&#x27;)){state.samples[state.screen]=&#x27;Остановка&#x27;;render();return}}
    if(state.screen===&#x27;memory&#x27;&amp;&amp;e.target.closest(&#x27;.memory-allow,.memory-skip,.memory-cancel,.memory-close&#x27;)){const button=e.target.closest(&#x27;button&#x27;);if(button.classList.contains(&#x27;memory-close&#x27;)||button.classList.contains(&#x27;memory-cancel&#x27;)){closeView();return}const action=button.classList.contains(&#x27;memory-skip&#x27;)?&#x27;skip&#x27;:&#x27;allow&#x27;,decision=readMemoryDecision(screen,action);if(!decision)return;publishMemoryLimit(decision);const request=memoryFixture(sample());backStack.length=0;navigateTo(&#x27;main&#x27;,false);const op=startReviewOperation({title:request.test?&#x27;Проверка архива&#x27;:&#x27;Распаковка&#x27;,source:request.archive,destination:&#x27;Домашняя / Документы / Проект&#x27;,items:[{name:request.file,kind:&#x27;Файл&#x27;}],memoryDemo:true,memoryTest:request.test,memoryMulti:request.multi,memorySkipped:action===&#x27;skip&#x27;,memorySkippedArchives:action===&#x27;skip&#x27;?[request.archive]:[],canPause:true},windowId,action===&#x27;skip&#x27;&amp;&amp;!request.multi?&#x27;Завершено с пропусками&#x27;:&#x27;Выполняется&#x27;);op.memoryDecision=decision.remember?decision:null;op.model.memoryLastDecision=decision;return}
    if([&#x27;components&#x27;,&#x27;tokens&#x27;].includes(state.screen)&amp;&amp;!e.target.closest(&#x27;[data-go]&#x27;)){const button=e.target.closest(&#x27;button&#x27;);if(button?.classList.contains(&#x27;component-progress-known&#x27;))screen.querySelector(&#x27;.component-progress&#x27;).innerHTML=progressIndicator({value:62,label:&#x27;Пример определённого прогресса&#x27;});if(button?.classList.contains(&#x27;component-progress-unknown&#x27;))screen.querySelector(&#x27;.component-progress&#x27;).innerHTML=progressIndicator({label:&#x27;Пример неизвестного объёма&#x27;});return}
-   if(e.target.closest(&#x27;.reopen-main-window&#x27;)){const left=makeHomeTab(0),right=makeHomeTab(1);mainTabs.splice(0,mainTabs.length,left,right);mainTabSelection[0]=left.id;mainTabSelection[1]=right.id;activeMainSide=0;activeMainTab=left.id;state.samples.main=&#x27;Таблица&#x27;;state.two=false;variant.querySelector(&#x27;.two-toggle&#x27;).checked=false;mainClipboard=reviewClipboard;mainWindowClosed=false;render();return}
+   if(e.target.closest(&#x27;.reopen-main-window&#x27;)){const left=makeHomePanel(0),right=makeHomePanel(1);mainPanels.splice(0,mainPanels.length,left,right);panelSelection[0]=left.id;panelSelection[1]=right.id;activeMainSide=0;activePanelId=left.id;state.samples.main=&#x27;Таблица&#x27;;state.two=false;variant.querySelector(&#x27;.two-toggle&#x27;).checked=false;mainClipboard=reviewClipboard;mainWindowClosed=false;render();return}
    if(e.target.closest(&#x27;.quit-application&#x27;)){requestReviewQuit(e.target.closest(&#x27;button&#x27;));return}
    if(e.target.closest(&#x27;.open-service-menu&#x27;)){showServiceMenu(e.target.closest(&#x27;.open-service-menu&#x27;));return}
    if(e.target.closest(&#x27;.open-edit-menu&#x27;)){if(state.screen===&#x27;main&#x27;)showEditMenu(e.target.closest(&#x27;.open-edit-menu&#x27;));return}
@@ -4358,7 +4164,7 @@ if(isBenchmark()){const config=benchmarkConfig();config.closeAfterStop=false;con
    const trigger=e.target.closest(&#x27;[data-go]&#x27;);if(trigger&amp;&amp;!trigger.disabled){
     if([&#x27;copy&#x27;,&#x27;delete&#x27;,&#x27;rename&#x27;,&#x27;add&#x27;,&#x27;extract&#x27;,&#x27;archive-test&#x27;,&#x27;split&#x27;,&#x27;combine&#x27;,&#x27;link&#x27;,&#x27;hash&#x27;,&#x27;hash-file&#x27;,&#x27;hash-verify&#x27;,&#x27;properties&#x27;].includes(trigger.dataset.go)&amp;&amp;trigger.classList.contains(&#x27;menu-action&#x27;)&amp;&amp;!fileCommandAllowed(trigger.dataset.go,trigger))return;
     if(trigger.dataset.go===&#x27;archive-test&#x27;){startArchiveTest();return}
-    if(trigger.dataset.go===&#x27;mount-settings&#x27;&amp;&amp;trigger.closest(&#x27;.service-context&#x27;)){const c=fileCommandState();if(!c.ready||!c.archive)return;mountContext={source:c.pane.dataset.path,windowId,tabId:activeMainTab};closeFileContext(false);openView(&#x27;mount-settings&#x27;);return}
+    if(trigger.dataset.go===&#x27;mount-settings&#x27;&amp;&amp;trigger.closest(&#x27;.service-context&#x27;)){const c=fileCommandState();if(!c.ready||!c.archive)return;mountContext={source:c.pane.dataset.path,windowId,panelId:activePanelId};closeFileContext(false);openView(&#x27;mount-settings&#x27;);return}
     if(trigger.dataset.viewAction){performViewAction(trigger.dataset.viewAction);return}
     if(trigger.dataset.openMode){openSelectedFromMenu(trigger.dataset.openMode);return}
     if(trigger.dataset.menuMainCommand){const pane=fileContextPane||screen.querySelector(&#x27;.active-pane&#x27;),command=trigger.dataset.menuMainCommand;closeFileContext(false);pane.querySelector(`[data-main-command=&quot;${command}&quot;]`)?.click();return}
@@ -4372,7 +4178,6 @@ if(isBenchmark()){const config=benchmarkConfig();config.closeAfterStop=false;con
     if(trigger.dataset.go===&#x27;copy&#x27;)captureCopyContext();
     if(trigger.dataset.go===&#x27;progress&#x27;)copyOperation=null;
     if(trigger.dataset.go===&#x27;new-window&#x27;){newMainWindow();return}
-    if(trigger.dataset.go===&#x27;new-tab&#x27;){createMainTab();return}
     if(trigger.dataset.go===&#x27;close-window&#x27;){closeMainWindow();return}
     if(trigger.dataset.go===&#x27;browse&#x27;){beginPicker(trigger.parentElement.querySelector(&#x27;input&#x27;),{kind:trigger.parentElement.querySelector(&#x27;input&#x27;)?&#x27;folder&#x27;:&#x27;file&#x27;,purpose:trigger.parentElement.querySelector(&#x27;input&#x27;)?&#x27;field&#x27;:&#x27;archive-open&#x27;});return}
     if(trigger.dataset.go===&#x27;copy&#x27;)state.samples.copy=trigger.dataset.transferMode===&#x27;move&#x27;||trigger.textContent.includes(&#x27;Переместить&#x27;)?&#x27;Перемещение&#x27;:&#x27;Копирование&#x27;;
@@ -4381,21 +4186,15 @@ if(isBenchmark()){const config=benchmarkConfig();config.closeAfterStop=false;con
     if(trigger.textContent.includes(&#x27;Комментарий&#x27;))state.samples.rename=&#x27;Комментарий&#x27;;
     if(trigger.textContent.includes(&#x27;Крупные значки&#x27;))state.samples.main=&#x27;Крупные значки&#x27;;
     if(trigger.textContent.includes(&#x27;Таблица&#x27;)||trigger.textContent===&#x27;Список&#x27;)state.samples.main=&#x27;Таблица&#x27;;
-    if(trigger.textContent.includes(&#x27;Две панели&#x27;)){state.two=!state.two;if(!state.two){activeMainSide=0;activeMainTab=mainTabSelection[0];state.samples.main=mainTabs.find(tab=&gt;tab.id===activeMainTab).mode}}
+    if(trigger.textContent.includes(&#x27;Две панели&#x27;)){state.two=!state.two;if(!state.two){activeMainSide=0;activePanelId=panelSelection[0];state.samples.main=mainPanels.find(tab=&gt;tab.id===activePanelId).mode}}
     if(trigger.textContent.includes(&#x27;Переименовать&#x27;)){state.samples.main=&#x27;Переименование&#x27;;openView(&#x27;main&#x27;);return}
     openView(trigger.dataset.go)
    }
   });
   screen.addEventListener(&#x27;keydown&#x27;,e=&gt;{
    if(e.target.matches(&#x27;.device-choice&#x27;)&amp;&amp;[&#x27;ArrowDown&#x27;,&#x27;ArrowUp&#x27;,&#x27;Home&#x27;,&#x27;End&#x27;,&#x27;Enter&#x27;].includes(e.key)){e.preventDefault();e.stopPropagation();if(e.key===&#x27;Enter&#x27;){e.target.click();screen.querySelector(&#x27;.open-device-choice&#x27;)?.click();return}const rows=[...screen.querySelectorAll(&#x27;.device-choice:not(:disabled)&#x27;)],at=rows.indexOf(e.target),next=e.key===&#x27;Home&#x27;?0:e.key===&#x27;End&#x27;?rows.length-1:(at+(e.key===&#x27;ArrowDown&#x27;?1:-1)+rows.length)%rows.length;rows[next]?.click();rows[next]?.focus();return}
-   if(e.target.matches(&#x27;[data-favorite-place]&#x27;)&amp;&amp;(e.key===&#x27;ContextMenu&#x27;||(e.shiftKey&amp;&amp;e.key===&#x27;F10&#x27;))){e.preventDefault();const rect=e.target.getBoundingClientRect();showFavoriteContext(Number(e.target.dataset.favoritePlace),rect.left,rect.bottom);return}
-   if(e.target.matches(&#x27;.manager-tab&#x27;)&amp;&amp;(e.key===&#x27;ContextMenu&#x27;||(e.shiftKey&amp;&amp;e.key===&#x27;F10&#x27;))){e.preventDefault();const rect=e.target.getBoundingClientRect();showTabContext(Number(e.target.dataset.mainTab),rect.left,rect.bottom);return}
    if(state.screen===&#x27;main&#x27;&amp;&amp;(e.key===&#x27;ContextMenu&#x27;||(e.shiftKey&amp;&amp;e.key===&#x27;F10&#x27;))&amp;&amp;e.target.closest(&#x27;.file-table-scroll&#x27;)&amp;&amp;!e.target.closest(&#x27;input&#x27;)){e.preventDefault();const pane=e.target.closest(&#x27;.pane&#x27;),item=e.target.closest(&#x27;.file-item&#x27;),rect=(item||e.target).getBoundingClientRect();showFileContext(pane,item,rect.left+16,rect.bottom);return}
    if(e.key===&#x27;Escape&#x27;&amp;&amp;fileSelectionDrag?.active){e.preventDefault();e.stopPropagation();finishFileSelection(null,true);return}
-   if(e.target.matches(&#x27;.manager-tab&#x27;)&amp;&amp;[&#x27;ArrowLeft&#x27;,&#x27;ArrowRight&#x27;,&#x27;Home&#x27;,&#x27;End&#x27;].includes(e.key)){
-    e.preventDefault();const pane=e.target.closest(&#x27;.pane&#x27;),side=pane.dataset.side,tabs=[...pane.querySelectorAll(&#x27;.manager-tab&#x27;)],at=tabs.indexOf(e.target),next=e.key===&#x27;Home&#x27;?0:e.key===&#x27;End&#x27;?tabs.length-1:(at+(e.key===&#x27;ArrowRight&#x27;?1:-1)+tabs.length)%tabs.length;
-    tabs[next].click();screen.querySelector(`.pane[data-side=&quot;${side}&quot;] .manager-tab[aria-selected=true]`)?.focus();return;
-   }
    if(e.target.matches(&#x27;th[data-main-sort]&#x27;)&amp;&amp;[&#x27;Enter&#x27;,&#x27; &#x27;].includes(e.key)){e.preventDefault();e.target.click();return}
    if(e.target.matches(&#x27;.file-item&#x27;)&amp;&amp;state.screen===&#x27;main&#x27;){
     const pane=e.target.closest(&#x27;.pane&#x27;),items=[...pane.querySelectorAll(&#x27;.file-item&#x27;)],at=items.indexOf(e.target);
@@ -4461,17 +4260,14 @@ if(isBenchmark()){const config=benchmarkConfig();config.closeAfterStop=false;con
 
    if(!e.target.closest(&#x27;.create-actions,[data-main-command=create]&#x27;)){screen.querySelector(&#x27;.create-actions&#x27;)?.remove();screen.querySelector(&#x27;[data-main-command=create]&#x27;)?.setAttribute(&#x27;aria-expanded&#x27;,&#x27;false&#x27;)}
    const row=e.target.closest(&#x27;.file-item&#x27;);if(row&amp;&amp;state.screen===&#x27;main&#x27;&amp;&amp;!e.target.closest(&#x27;input&#x27;))selectFileItem(row,e);
-   if(state.screen===&#x27;main&#x27;&amp;&amp;!row&amp;&amp;!e.target.closest(&#x27;button,input,th,.manager-sidebar,.manager-tabs&#x27;)&amp;&amp;e.target.closest(&#x27;.file-table-scroll,.filespace&#x27;)){const pane=e.target.closest(&#x27;.pane&#x27;);pane.querySelectorAll(&#x27;.file-item&#x27;).forEach(item=&gt;item.classList.remove(&#x27;selected&#x27;));updateFileSelection(pane)}
+   if(state.screen===&#x27;main&#x27;&amp;&amp;!row&amp;&amp;!e.target.closest(&#x27;button,input,th&#x27;)&amp;&amp;e.target.closest(&#x27;.file-table-scroll,.filespace&#x27;)){const pane=e.target.closest(&#x27;.pane&#x27;);pane.querySelectorAll(&#x27;.file-item&#x27;).forEach(item=&gt;item.classList.remove(&#x27;selected&#x27;));updateFileSelection(pane)}
    const button=e.target.closest(&#x27;button&#x27;);if(!button)return;
    if(button.dataset.copyDestination){screen.querySelector(&#x27;.copy-destination-input&#x27;).value=button.dataset.copyDestination;screen.querySelector(&#x27;.copy-recents&#x27;).open=false;updateCopy();screen.querySelector(&#x27;.copy-destination-input&#x27;).focus();return}
-   if(button.dataset.favoriteCommand){const id=favoriteContextId,command=button.dataset.favoriteCommand;closeFavoriteContext(false);if(command===&#x27;add&#x27;)addCurrentFavorite();else if([&#x27;open&#x27;,&#x27;tab&#x27;,&#x27;window&#x27;].includes(command))openFavoritePlace(id,command===&#x27;open&#x27;?&#x27;current&#x27;:command);else if(command===&#x27;rename&#x27;)renameFavoritePlace(id);else if(command===&#x27;remove&#x27;)removeFavoritePlace(id);else{const at=favoritePlaces.findIndex(place=&gt;place.id===id),target=favoritePlaces[at+(command===&#x27;up&#x27;?-1:1)];if(target)moveFavoritePlace(id,target.id,command===&#x27;down&#x27;)}return}
-   if(button.dataset.favoritePlace){openFavoritePlace(Number(button.dataset.favoritePlace));return}
-   if(button.dataset.tabContext){const id=tabContextId,command=button.dataset.tabContext;closeTabContext(false);if(command===&#x27;window&#x27;)newMainWindow(id,true);else if(command===&#x27;panel&#x27;)moveMainTab(id,1-mainTabs.find(tab=&gt;tab.id===id).side);else closeMainTab(id);return}
    if(button.dataset.fileContextCommand){const pane=fileContextPane,command=button.dataset.fileContextCommand;closeFileContext();pane?.querySelector(`[data-main-command=&quot;${command}&quot;]`)?.click();return}
    if(button.hasAttribute(&#x27;data-file-context-open&#x27;)){const item=fileContextPane?.querySelector(&#x27;.current-file&#x27;);closeFileContext();openMainFile(item);return}
    if(button.dataset.mainNavigation){
-    const pane=button.closest(&#x27;.pane&#x27;),tab=mainTabs.find(tab=&gt;String(tab.id)===pane.dataset.tabId);
-    activeMainSide=Number(pane.dataset.side);activeMainTab=tab.id;
+    const pane=button.closest(&#x27;.pane&#x27;),tab=mainPanels.find(tab=&gt;String(tab.id)===pane.dataset.panelId);
+    activeMainSide=Number(pane.dataset.side);activePanelId=tab.id;
     state.samples.main=button.dataset.mainNavigation===&#x27;retry&#x27;?&#x27;Загрузка папки&#x27;:tab.resumeMode||&#x27;Таблица&#x27;;render();return;
    }
    if(button.dataset.mainCommand){
@@ -4482,7 +4278,7 @@ if(isBenchmark()){const config=benchmarkConfig();config.closeAfterStop=false;con
     }
     if(command===&#x27;copy&#x27;||command===&#x27;cut&#x27;){
      root.querySelectorAll(&#x27;.pending-cut&#x27;).forEach(row=&gt;row.classList.remove(&#x27;pending-cut&#x27;));
-     mainClipboard={cut:command===&#x27;cut&#x27;,rows:rows.map(fileItemAsRow),source:rows,path:pane.dataset.path,tabId:pane.dataset.tabId,side:Number(pane.dataset.side),owner:entry.api};
+     mainClipboard={cut:command===&#x27;cut&#x27;,rows:rows.map(fileItemAsRow),source:rows,path:pane.dataset.path,panelId:pane.dataset.panelId,side:Number(pane.dataset.side),owner:entry.api};
      if(mainClipboard.cut)rows.forEach(row=&gt;row.classList.add(&#x27;pending-cut&#x27;));
      publishReviewClipboard(mainClipboard);showWindowStatus(pane,(command===&#x27;cut&#x27;?&#x27;Готово к перемещению: &#x27;:&#x27;Объектов в буфере: &#x27;)+rows.length);return;
     }
@@ -4499,7 +4295,7 @@ if(isBenchmark()){const config=benchmarkConfig();config.closeAfterStop=false;con
        body.append(row);
       }
       if(mainClipboard.cut){
-       const source=mainClipboard.owner?.findTab(mainClipboard.tabId)||mainTabs.find(tab=&gt;String(tab.id)===mainClipboard.tabId),saved=source?.locations?.get(mainClipboard.path)||source?.panes[mainClipboard.side],names=new Set(mainClipboard.rows.map(row=&gt;row.dataset.file));
+       const source=mainClipboard.owner?.findPanel(mainClipboard.panelId)||mainPanels.find(tab=&gt;String(tab.id)===mainClipboard.panelId),saved=source?.locations?.get(mainClipboard.path)||source?.panes[mainClipboard.side],names=new Set(mainClipboard.rows.map(row=&gt;row.dataset.file));
        if(saved?.path===mainClipboard.path)for(const key of [&#x27;tableRows&#x27;,&#x27;iconRows&#x27;])if(saved[key]){const holder=document.createElement(key===&#x27;tableRows&#x27;?&#x27;tbody&#x27;:&#x27;div&#x27;);holder.innerHTML=saved[key];for(const item of holder.querySelectorAll(&#x27;[data-file]&#x27;))if(names.has(item.dataset.file))item.remove();saved[key]=holder.innerHTML;saved.selection=[]}
        for(const sourcePane of screen.querySelectorAll(&#x27;.pane&#x27;))if(sourcePane!==pane&amp;&amp;sourcePane.dataset.path===mainClipboard.path){for(const item of sourcePane.querySelectorAll(&#x27;.file-item&#x27;))if(names.has(item.dataset.file))item.remove();configureFileList(sourcePane)}
        if(mainClipboard.owner&amp;&amp;mainClipboard.owner!==entry.api)mainClipboard.owner.removeFiles(mainClipboard.path,names);
@@ -4513,15 +4309,8 @@ if(isBenchmark()){const config=benchmarkConfig();config.closeAfterStop=false;con
     }
     if(command===&#x27;delete&#x27;){state.samples.delete=&#x27;В Корзину&#x27;;openView(&#x27;delete&#x27;);return}
    }
-   if(button.classList.contains(&#x27;toggle-places&#x27;)){state.sidebar=state.sidebar===false;const body=screen.querySelector(&#x27;.manager-body&#x27;);body.classList.toggle(&#x27;no-sidebar&#x27;,!state.sidebar);body.querySelector(&#x27;.manager-sidebar&#x27;).hidden=!state.sidebar;button.setAttribute(&#x27;aria-expanded&#x27;,String(state.sidebar));layoutPanels();return}
-   if(button.dataset.mainTab){captureMainWorkspace();activeMainTab=Number(button.dataset.mainTab);const tab=mainTabs.find(tab=&gt;tab.id===activeMainTab);activeMainSide=tab.side;mainTabSelection[tab.side]=tab.id;state.samples.main=tab.mode;render();return}
-   if(button.classList.contains(&#x27;new-tab&#x27;)){createMainTab(Number(button.dataset.mainSide));return}
-   if(button.dataset.closeMainTab){closeMainTab(Number(button.dataset.closeMainTab));return}
-   if(button.classList.contains(&#x27;add-favorite&#x27;)){addCurrentFavorite();return}
-   if(button.dataset.removeFavorite!==undefined){removeFavoritePlace(Number(button.dataset.removeFavorite));return}
    if(button.classList.contains(&#x27;main-back&#x27;)){const pane=button.closest(&#x27;.pane&#x27;);if(pane.mainHistoryAt&gt;0)navigateMainFolder(pane,pane.mainHistory[pane.mainHistoryAt-1],pane.mainHistoryAt-1);return}
    if(button.classList.contains(&#x27;main-forward&#x27;)){const pane=button.closest(&#x27;.pane&#x27;);if(pane.mainHistoryAt&lt;pane.mainHistory.length-1)navigateMainFolder(pane,pane.mainHistory[pane.mainHistoryAt+1],pane.mainHistoryAt+1);return}
-   if(button.dataset.mainPlace){const pane=screen.querySelector(&#x27;.active-pane&#x27;)||screen.querySelector(&#x27;.pane&#x27;),tab=mainTabs.find(tab=&gt;String(tab.id)===pane.dataset.tabId);if(tab.resumeMode){state.samples.main=tab.resumeMode;render()}navigateMainFolder(screen.querySelector(&#x27;.active-pane&#x27;)||pane,button.dataset.mainPlace);screen.querySelectorAll(&#x27;[data-main-place]&#x27;).forEach(b=&gt;b.setAttribute(&#x27;aria-current&#x27;,String(b.dataset.mainPlace===button.dataset.mainPlace)));return}
    if(button.dataset.mainCrumb){navigateMainFolder(button.closest(&#x27;.pane&#x27;),button.dataset.mainCrumb);return}
    if(state.screen===&#x27;main&#x27;&amp;&amp;button.classList.contains(&#x27;main-up&#x27;)){parentMainFolder(button.closest(&#x27;.pane&#x27;));return}
    if(button.classList.contains(&#x27;edit-main-path&#x27;)){const path=button.closest(&#x27;.path&#x27;);path.querySelector(&#x27;.breadcrumbs&#x27;).hidden=true;const input=path.querySelector(&#x27;input&#x27;);input.hidden=false;input.focus();input.select();return}
@@ -4586,8 +4375,6 @@ if(isBenchmark()){const config=benchmarkConfig();config.closeAfterStop=false;con
    if(e.key===&#x27;Escape&#x27;&amp;&amp;screen.querySelector(&#x27;.create-actions&#x27;)){e.preventDefault();screen.querySelector(&#x27;.create-actions&#x27;).remove();const trigger=screen.querySelector(&#x27;.active-pane [data-main-command=create]&#x27;);trigger?.setAttribute(&#x27;aria-expanded&#x27;,&#x27;false&#x27;);trigger?.focus();return}
    if(state.screen===&#x27;main&#x27;&amp;&amp;e.metaKey&amp;&amp;e.shiftKey&amp;&amp;!e.altKey&amp;&amp;!e.ctrlKey&amp;&amp;e.key.toLowerCase()===&#x27;n&#x27;&amp;&amp;!e.target.closest(&#x27;input,textarea&#x27;)){e.preventDefault();if(!screen.querySelector(&#x27;.active-pane [data-main-command=create]&#x27;).disabled){state.samples.rename=&#x27;Создать папку&#x27;;openView(&#x27;rename&#x27;)}return}
    if(e.key===&#x27;Escape&#x27;&amp;&amp;screen.querySelector(&#x27;.force-confirm&#x27;)){e.preventDefault();screen.querySelector(&#x27;.cancel-force-unmount&#x27;).click();return}
-   if(e.key===&#x27;Escape&#x27;&amp;&amp;screen.querySelector(&#x27;.favorite-context&#x27;)){e.preventDefault();closeFavoriteContext();return}
-   if(e.key===&#x27;Escape&#x27;&amp;&amp;screen.querySelector(&#x27;.tab-context&#x27;)){e.preventDefault();closeTabContext();return}
    if(state.screen===&#x27;main&#x27;&amp;&amp;e.metaKey&amp;&amp;e.shiftKey&amp;&amp;!e.altKey&amp;&amp;!e.ctrlKey&amp;&amp;!e.target.closest(&#x27;input,textarea&#x27;)&amp;&amp;e.key.toLowerCase()===&#x27;a&#x27;){e.preventDefault();if(fileCommandAllowed(&#x27;add&#x27;)){captureArchiveContext();openView(&#x27;add&#x27;)}return}
    if(state.screen===&#x27;main&#x27;&amp;&amp;e.metaKey&amp;&amp;e.shiftKey&amp;&amp;!e.altKey&amp;&amp;!e.ctrlKey&amp;&amp;!e.target.closest(&#x27;input,textarea&#x27;)&amp;&amp;e.key.toLowerCase()===&#x27;e&#x27;){e.preventDefault();const pane=screen.querySelector(&#x27;.active-pane&#x27;),selected=[...pane.querySelectorAll(&#x27;.selected&#x27;)];if(fileCommandAllowed(&#x27;extract&#x27;)){captureExtractContext();openView(&#x27;extract&#x27;)}return}
    if(state.screen===&#x27;main&#x27;&amp;&amp;e.metaKey&amp;&amp;e.shiftKey&amp;&amp;!e.altKey&amp;&amp;!e.ctrlKey&amp;&amp;!e.target.closest(&#x27;input,textarea&#x27;)&amp;&amp;[&#x27;c&#x27;,&#x27;m&#x27;].includes(e.key.toLowerCase())){
@@ -4600,7 +4387,7 @@ if(isBenchmark()){const config=benchmarkConfig();config.closeAfterStop=false;con
    if(state.screen===&#x27;main&#x27;&amp;&amp;e.metaKey&amp;&amp;!e.shiftKey&amp;&amp;!e.altKey&amp;&amp;!e.ctrlKey&amp;&amp;e.key.toLowerCase()===&#x27;r&#x27;){e.preventDefault();performViewAction(&#x27;refresh&#x27;);return}
    if(state.screen===&#x27;main&#x27;&amp;&amp;e.metaKey&amp;&amp;!e.shiftKey&amp;&amp;!e.altKey&amp;&amp;!e.ctrlKey&amp;&amp;e.key.toLowerCase()===&#x27;l&#x27;){e.preventDefault();if(fileCommandState().ready)screen.querySelector(&#x27;.active-pane .edit-main-path&#x27;)?.click();return}
    if(state.screen===&#x27;main&#x27;&amp;&amp;e.metaKey&amp;&amp;!e.shiftKey&amp;&amp;!e.altKey&amp;&amp;!e.ctrlKey&amp;&amp;e.key.toLowerCase()===&#x27;o&#x27;){e.preventDefault();if(!fileCommandState().ready)return;beginPicker(null,{kind:&#x27;file&#x27;,purpose:&#x27;archive-open&#x27;});return}
-   if(state.screen===&#x27;main&#x27;&amp;&amp;!mainWindowClosed&amp;&amp;e.metaKey&amp;&amp;!e.altKey&amp;&amp;!e.ctrlKey){if(e.key.toLowerCase()===&#x27;n&#x27;&amp;&amp;!e.shiftKey){e.preventDefault();newMainWindow();return}if(e.key.toLowerCase()===&#x27;t&#x27;&amp;&amp;!e.shiftKey){e.preventDefault();createMainTab();return}if(e.key.toLowerCase()===&#x27;w&#x27;){e.preventDefault();if(e.shiftKey)closeMainWindow();else closeMainTab(activeMainTab);return}}
+   if(state.screen===&#x27;main&#x27;&amp;&amp;!mainWindowClosed&amp;&amp;e.metaKey&amp;&amp;!e.altKey&amp;&amp;!e.ctrlKey){if(e.key.toLowerCase()===&#x27;n&#x27;&amp;&amp;!e.shiftKey){e.preventDefault();newMainWindow();return}if(e.key.toLowerCase()===&#x27;w&#x27;){e.preventDefault();closeMainWindow();return}}
    if(e.key===&#x27;Escape&#x27;&amp;&amp;screen.querySelector(&#x27;.file-context:not(.has-submenu)&#x27;)){e.preventDefault();closeFileContext();return}
    if(state.screen===&#x27;main&#x27;&amp;&amp;e.target.closest(&#x27;.file-table-scroll&#x27;)&amp;&amp;!e.target.closest(&#x27;input,textarea&#x27;)&amp;&amp;e.metaKey){const pane=e.target.closest(&#x27;.pane&#x27;);if(e.key===&#x27;ArrowUp&#x27;){e.preventDefault();parentMainFolder(pane);return}if(e.key===&#x27;[&#x27;){e.preventDefault();pane.querySelector(&#x27;.main-back&#x27;).click();return}if(e.key===&#x27;]&#x27;){e.preventDefault();pane.querySelector(&#x27;.main-forward&#x27;).click();return}if(e.key.toLowerCase()===&#x27;l&#x27;){e.preventDefault();pane.querySelector(&#x27;.edit-main-path&#x27;).click();return}const clipboard={c:&#x27;copy&#x27;,x:&#x27;cut&#x27;,v:&#x27;paste&#x27;}[e.key.toLowerCase()];if(clipboard){e.preventDefault();pane.querySelector(`[data-main-command=&quot;${clipboard}&quot;]`).click();return}}
    if(e.key===&#x27;Escape&#x27;&amp;&amp;state.screen===&#x27;main&#x27;&amp;&amp;e.target.closest(&#x27;.is-loading&#x27;)){e.preventDefault();e.target.closest(&#x27;.pane&#x27;).querySelector(&#x27;[data-main-navigation=cancel]&#x27;)?.click();return}
@@ -4613,52 +4400,46 @@ if(isBenchmark()){const config=benchmarkConfig();config.closeAfterStop=false;con
    if([&#x27;ArrowDown&#x27;,&#x27;ArrowUp&#x27;].includes(e.key)&amp;&amp;e.target.closest(&#x27;.native-menu,.submenu-holder&#x27;)){const parent=e.target.closest(&#x27;.native-menu,.submenu-holder&#x27;),choices=[...parent.querySelectorAll(&#x27;button:not(:disabled)&#x27;)].filter(b=&gt;b.offsetParent!==null);const at=choices.indexOf(e.target.closest(&#x27;button&#x27;));const next=choices[(at+(e.key===&#x27;ArrowDown&#x27;?1:-1)+choices.length)%choices.length];if(next){e.preventDefault();next.focus()}return}
    if(e.key===&#x27;Enter&#x27;&amp;&amp;(isSettings(state.screen)||[&#x27;add&#x27;,&#x27;extract&#x27;,&#x27;rename&#x27;,&#x27;copy&#x27;,&#x27;split&#x27;,&#x27;combine&#x27;,&#x27;link&#x27;,&#x27;browse&#x27;,&#x27;history&#x27;,&#x27;memory&#x27;,&#x27;password&#x27;,&#x27;format-options&#x27;].includes(state.screen))&amp;&amp;!e.target.closest(&#x27;button,select,summary,textarea&#x27;)){e.preventDefault();confirm()}
   });
-  function exportMainTab(id=activeMainTab,fresh=false){
-   captureMainWorkspace();const tab=structuredClone(mainTabs.find(tab=&gt;tab.id===id));
+  function exportPanel(id=activePanelId,fresh=false){
+   captureMainWorkspace();const tab=structuredClone(mainPanels.find(tab=&gt;tab.id===id));
    if(!tab.panes[tab.side]){const path=[&#x27;Открытый архив&#x27;,&#x27;Только для чтения&#x27;].includes(tab.mode)?&#x27;Документы / Проект.7z&#x27;:&#x27;Домашняя&#x27;;tab.panes[tab.side]={path,readonlyRoot:tab.mode===&#x27;Только для чтения&#x27;?path:&#x27;&#x27;,tableRows:demoFolderRows(path),selection:[],history:[path],historyAt:0}}
    if(fresh){
     const reset=snapshot=&gt;{const result={...snapshot,selection:[],current:null,anchor:null,scroll:0,history:[snapshot.path],historyAt:0};for(const key of [&#x27;tableRows&#x27;,&#x27;iconRows&#x27;])if(result[key]){const holder=document.createElement(key===&#x27;tableRows&#x27;?&#x27;tbody&#x27;:&#x27;div&#x27;);holder.innerHTML=result[key];holder.querySelectorAll(&#x27;.selected,.current-file&#x27;).forEach(item=&gt;item.classList.remove(&#x27;selected&#x27;,&#x27;current-file&#x27;));holder.querySelectorAll(&#x27;.inline-rename&#x27;).forEach(input=&gt;input.replaceWith(document.createTextNode(input.closest(&#x27;[data-file]&#x27;).dataset.file)));result[key]=holder.innerHTML}return result};
     tab.panes[tab.side]=reset(tab.panes[tab.side]);if(tab.locations)for(const [path,snapshot] of tab.locations)tab.locations.set(path,reset(snapshot));
     tab.mode=tab.resumeMode||tab.mode;tab.resumeMode=null;
    }
-   return {tab,sourceSide:tab.side,sidebar:state.sidebar,externalCopies:!fresh?[...reviewExternalCopies.values()].filter(copy=&gt;copy.ownerWindow===windowId&amp;&amp;copy.ownerTab===id&amp;&amp;!copy.observationStopped).map(copy=&gt;copy.id):[]};
+   return {panel:tab,sourceSide:tab.side,externalCopies:!fresh?[...reviewExternalCopies.values()].filter(copy=&gt;copy.ownerWindow===windowId&amp;&amp;copy.ownerPanel===id&amp;&amp;!copy.observationStopped).map(copy=&gt;copy.id):[]};
   }
-  function newMainWindow(id=activeMainTab,transfer=false){const snapshot=exportMainTab(id,!transfer);if(state.screen===&#x27;file-menu&#x27;)navigateTo(&#x27;main&#x27;);createReviewWindow(snapshot);if(transfer)closeMainTab(id,true);refreshReviewWindows()}
+  function newMainWindow(){const snapshot=exportPanel(activePanelId,true);if(state.screen===&#x27;file-menu&#x27;)navigateTo(&#x27;main&#x27;);createReviewWindow(snapshot);refreshReviewWindows()}
   function closeMainWindow(){stopExternalObservation(windowId);captureMainWorkspace();discardPasswordRequest();screen.querySelectorAll(&#x27;.fscrypt-key input&#x27;).forEach(input=&gt;input.value=&#x27;&#x27;);mainWindowClosed=true;state.screen=&#x27;main&#x27;;variant.querySelector(&#x27;.screen-picker&#x27;).value=&#x27;main&#x27;;render({capture:false})}
-  function receiveMainTab(snapshot,side=activeMainSide,targetId=null,after=false){
-   captureMainWorkspace();const tab=structuredClone(snapshot.tab),pane=tab.panes[snapshot.sourceSide];tab.id=nextMainTab++;tab.side=side;tab.panes=[];tab.panes[side]=pane;
-   for(const id of snapshot.externalCopies||[]){const copy=reviewExternalCopies.get(id);if(copy){copy.ownerWindow=windowId;copy.ownerTab=tab.id}}
-   const target=mainTabs.findIndex(item=&gt;item.id===targetId);mainTabs.splice(target&lt;0?mainTabs.length:target+(after?1:0),0,tab);mainTabSelection[side]=tab.id;activeMainSide=side;activeMainTab=tab.id;state.screen=&#x27;main&#x27;;state.samples.main=tab.mode;variant.querySelector(&#x27;.screen-picker&#x27;).value=&#x27;main&#x27;;mainWindowClosed=false;render({capture:false});
-  }
   function updateWindowClipboard(value){
    mainClipboard=value;const names=new Set(value?.rows.map(row=&gt;row.dataset.file)||[]),mark=(container,path)=&gt;{for(const row of container.querySelectorAll(&#x27;[data-file]&#x27;))row.classList.toggle(&#x27;pending-cut&#x27;,!!value?.cut&amp;&amp;path===value.path&amp;&amp;names.has(row.dataset.file))};
    for(const pane of screen.querySelectorAll(&#x27;.pane&#x27;)){mark(pane,pane.dataset.path);updateMainCommands(pane)}
-   for(const tab of mainTabs){const snapshots=new Set([...tab.panes,...(tab.locations?.values()||[])]);for(const snapshot of snapshots)if(snapshot)for(const key of [&#x27;tableRows&#x27;,&#x27;iconRows&#x27;])if(snapshot[key]){const holder=document.createElement(key===&#x27;tableRows&#x27;?&#x27;tbody&#x27;:&#x27;div&#x27;);holder.innerHTML=snapshot[key];mark(holder,snapshot.path);snapshot[key]=holder.innerHTML}}
+   for(const tab of mainPanels){const snapshots=new Set([...tab.panes,...(tab.locations?.values()||[])]);for(const snapshot of snapshots)if(snapshot)for(const key of [&#x27;tableRows&#x27;,&#x27;iconRows&#x27;])if(snapshot[key]){const holder=document.createElement(key===&#x27;tableRows&#x27;?&#x27;tbody&#x27;:&#x27;div&#x27;);holder.innerHTML=snapshot[key];mark(holder,snapshot.path);snapshot[key]=holder.innerHTML}}
   }
   function exportWindowSession(){
-   const tabs=mainTabs.map(tab=&gt;{const snapshot=exportMainTab(tab.id,true).tab;
+   const panels=mainPanels.map(tab=&gt;{const snapshot=exportPanel(tab.id,true).panel;
     for(const [side,pane] of snapshot.panes.entries())if(pane){
      const archive=demoArchiveRoot(pane.path),path=archive?archive.split(&#x27; / &#x27;).slice(0,-1).join(&#x27; / &#x27;)||&#x27;Домашняя&#x27;:pane.path;
      snapshot.panes[side]={path,location:&#x27;folder&#x27;,readonlyRoot:&#x27;&#x27;,readLimitations:&#x27;&#x27;,tableRows:demoFolderRows(path),selection:[],history:[path],historyAt:0,sort:pane.sort,scroll:0};
     }
     snapshot.locations=new Map();snapshot.title=snapshot.panes[snapshot.side]?.path.split(&#x27; / &#x27;).at(-1)||&#x27;Домашняя&#x27;;snapshot.mode=snapshot.mode===&#x27;Крупные значки&#x27;?&#x27;Крупные значки&#x27;:&#x27;Таблица&#x27;;snapshot.resumeMode=null;return snapshot}),ui=structuredClone(state);
-   ui.screen=&#x27;main&#x27;;ui.samples={main:tabs.find(tab=&gt;tab.id===mainTabSelection[activeMainSide])?.mode||&#x27;Таблица&#x27;};
-   return {windowId,tabs,ui,selectedTabs:mainTabSelection.slice(),activeSide:activeMainSide,nextTab:nextMainTab};
+   ui.screen=&#x27;main&#x27;;ui.samples={main:panels.find(tab=&gt;tab.id===panelSelection[activeMainSide])?.mode||&#x27;Таблица&#x27;};
+   return {windowId,panels,ui,selectedPanels:panelSelection.slice(),activeSide:activeMainSide,nextPanel:nextPanelId};
   }
   entry.api={
-   id:windowId,closed:()=&gt;mainWindowClosed,close:closeMainWindow,quitInfo:()=&gt;({form:![&#x27;main&#x27;,&#x27;file-menu&#x27;,&#x27;view-menu&#x27;,&#x27;context-menu&#x27;,&#x27;about&#x27;,&#x27;licenses&#x27;,&#x27;properties&#x27;,&#x27;text&#x27;,&#x27;messages&#x27;,&#x27;history&#x27;,&#x27;hash&#x27;,&#x27;hash-verification&#x27;,&#x27;temporary&#x27;,&#x27;mount-manager&#x27;,&#x27;benchmark&#x27;,&#x27;benchmark-total&#x27;,&#x27;tokens&#x27;,&#x27;components&#x27;].includes(state.screen),benchmark:isBenchmark()&amp;&amp;benchmarkBusy(sample())}),title:()=&gt;mainTabs.find(tab=&gt;tab.id===activeMainTab)?.title||&#x27;Домашняя&#x27;,newWindow:()=&gt;newMainWindow(),receiveTab:receiveMainTab,
-   releaseTab:id=&gt;{const snapshot=exportMainTab(id);draggedMainTab=null;closeMainTab(id,true);return snapshot},
-   activate:()=&gt;{renderFavorites();layoutPanels();if(state.screen===&#x27;main&#x27;)screen.querySelector(&#x27;.active-pane .current-file&#x27;)?.focus({preventScroll:true});window.top.postMessage({type:&#x27;sevenzip-design-selection&#x27;,screen:state.screen},&#x27;*&#x27;)},
-   deactivate:()=&gt;{closeTabContext(false);closeFileContext(false);closeFavoriteContext(false);clearFavoriteDrop();draggedFavoriteId=null;clearFileDrag()},
-   viewMenus:refreshViewMenuMarks,recent:refreshRecentPlaces,favorites:renderFavorites,location:path=&gt;{captureMainWorkspace();for(const tab of mainTabs){const saved=tab.locations?.get(path)||tab.panes[tab.side];if(saved?.path===path)return structuredClone(saved)}return null},
-   clipboard:updateWindowClipboard,findTab:id=&gt;mainTabs.find(tab=&gt;String(tab.id)===String(id)),
+   id:windowId,closed:()=&gt;mainWindowClosed,close:closeMainWindow,quitInfo:()=&gt;({form:![&#x27;main&#x27;,&#x27;file-menu&#x27;,&#x27;view-menu&#x27;,&#x27;context-menu&#x27;,&#x27;about&#x27;,&#x27;licenses&#x27;,&#x27;properties&#x27;,&#x27;text&#x27;,&#x27;messages&#x27;,&#x27;history&#x27;,&#x27;hash&#x27;,&#x27;hash-verification&#x27;,&#x27;temporary&#x27;,&#x27;mount-manager&#x27;,&#x27;benchmark&#x27;,&#x27;benchmark-total&#x27;,&#x27;tokens&#x27;,&#x27;components&#x27;].includes(state.screen),benchmark:isBenchmark()&amp;&amp;benchmarkBusy(sample())}),title:()=&gt;mainPanels.find(tab=&gt;tab.id===activePanelId)?.title||&#x27;Домашняя&#x27;,newWindow:()=&gt;newMainWindow(),
+   activate:()=&gt;{layoutPanels();if(state.screen===&#x27;main&#x27;)screen.querySelector(&#x27;.active-pane .current-file&#x27;)?.focus({preventScroll:true});window.top.postMessage({type:&#x27;sevenzip-design-selection&#x27;,screen:state.screen},&#x27;*&#x27;)},
+   deactivate:()=&gt;{closeFileContext(false);clearFileDrag()},
+   viewMenus:refreshViewMenuMarks,recent:refreshRecentPlaces,location:path=&gt;{captureMainWorkspace();for(const tab of mainPanels){const saved=tab.locations?.get(path)||tab.panes[tab.side];if(saved?.path===path)return structuredClone(saved)}return null},
+   clipboard:updateWindowClipboard,findPanel:id=&gt;mainPanels.find(tab=&gt;String(tab.id)===String(id)),
    removeFiles:(path,names)=&gt;{for(const pane of screen.querySelectorAll(&#x27;.pane&#x27;))if(pane.dataset.path===path){for(const item of pane.querySelectorAll(&#x27;.file-item&#x27;))if(names.has(item.dataset.file))item.remove();configureFileList(pane)}captureMainWorkspace()},
    session:exportWindowSession,
    dispose:()=&gt;{stopExternalObservation(windowId);disposed=true;globalEvents.abort();clearFileDrag();if(fileSelectionDrag){cancelAnimationFrame(fileSelectionDrag.frame);fileSelectionDrag=null}variant.remove()}
   };
-  if(seed?.session){const session=structuredClone(seed.session);Object.assign(state,session.ui);mainTabs.splice(0,mainTabs.length,...session.tabs);mainTabSelection.splice(0,mainTabSelection.length,...session.selectedTabs);activeMainSide=session.activeSide;activeMainTab=mainTabSelection[activeMainSide];nextMainTab=session.nextTab;variant.querySelector(&#x27;.two-toggle&#x27;).checked=state.two}
-  else if(seed?.home){const tab=makeHomeTab(0),peer=makeHomeTab(1);mainTabs.splice(0,mainTabs.length,tab,peer);mainTabSelection[0]=tab.id;mainTabSelection[1]=peer.id;activeMainSide=0;activeMainTab=tab.id;state.samples.main=tab.mode}
-  else if(seed){const tab=structuredClone(seed.tab),pane=tab.panes[seed.sourceSide];tab.id=1;for(const id of seed.externalCopies||[]){const copy=reviewExternalCopies.get(id);if(copy){copy.ownerWindow=windowId;copy.ownerTab=tab.id}}tab.side=0;tab.panes=[];tab.panes[0]=pane;const peer=makeHomeTab(1);mainTabs.splice(0,mainTabs.length,tab,peer);mainTabSelection[0]=tab.id;mainTabSelection[1]=peer.id;activeMainSide=0;activeMainTab=tab.id;state.samples.main=tab.mode;state.sidebar=seed.sidebar!==false}
+  if(seed?.session){const session=structuredClone(seed.session);Object.assign(state,session.ui);mainPanels.splice(0,mainPanels.length,...session.panels);panelSelection.splice(0,panelSelection.length,...session.selectedPanels);activeMainSide=session.activeSide;activePanelId=panelSelection[activeMainSide];nextPanelId=session.nextPanel;variant.querySelector(&#x27;.two-toggle&#x27;).checked=state.two}
+  else if(seed?.home){const tab=makeHomePanel(0),peer=makeHomePanel(1);mainPanels.splice(0,mainPanels.length,tab,peer);panelSelection[0]=tab.id;panelSelection[1]=peer.id;activeMainSide=0;activePanelId=tab.id;state.samples.main=tab.mode}
+  else if(seed){const tab=structuredClone(seed.panel),pane=tab.panes[seed.sourceSide];tab.id=1;for(const id of seed.externalCopies||[]){const copy=reviewExternalCopies.get(id);if(copy){copy.ownerWindow=windowId;copy.ownerPanel=tab.id}}tab.side=0;tab.panes=[];tab.panes[0]=pane;const peer=makeHomePanel(1);mainPanels.splice(0,mainPanels.length,tab,peer);panelSelection[0]=tab.id;panelSelection[1]=peer.id;activeMainSide=0;activePanelId=tab.id;state.samples.main=tab.mode}
   const saved=window.openai?.widgetState?.modelContent;if(!seed&amp;&amp;screenNames.some(x=&gt;x[0]===saved?.screen)){state.screen=saved.screen;state.two=!!saved.two;state.split=typeof saved.split===&#x27;number&#x27;&amp;&amp;Number.isFinite(saved.split)?Math.max(.05,Math.min(.95,saved.split)):.5;state.samples=saved.samples&amp;&amp;typeof saved.samples===&#x27;object&#x27;?saved.samples:{};variant.querySelector(&#x27;.screen-picker&#x27;).value=state.screen;variant.querySelector(&#x27;.two-toggle&#x27;).checked=state.two}
   render();
   updateWindowClipboard(reviewClipboard);

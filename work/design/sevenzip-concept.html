@@ -59,7 +59,7 @@
  #sevenzip-design .is-loading .file-table-scroll {opacity:.5;pointer-events:none}
  #sevenzip-design .panes.two .main-navigation-notice {flex-direction:column}
  #sevenzip-design .filespace:not(:empty) {display:grid;place-items:center;color:var(--sz-subtle)}
- #sevenzip-design .manager-body {--sidebar-width:168px;--pane-chrome-height:0px;display:grid;grid-template-columns:var(--sidebar-width) minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto;min-height:360px}
+ #sevenzip-design .manager-body {display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto;min-height:0}
  #sevenzip-design .manager-body {height:clamp(360px,65vh,580px)}
  #sevenzip-design .manager-body .panes,#sevenzip-design .manager-body .pane,#sevenzip-design .manager-body .peer {min-height:0;min-width:0}
  #sevenzip-design .manager-body .file-table-scroll {position:relative;flex:1;min-height:0;overflow:auto;user-select:none}
@@ -79,53 +79,16 @@
  #sevenzip-design .panes.two .file-commands .product-button {padding:5px;flex-shrink:0}
  #sevenzip-design .manager-body .address {flex-shrink:0;padding:8px;gap:4px}
  #sevenzip-design .manager-body .status {flex-shrink:0}
- #sevenzip-design .manager-tabs {flex-shrink:0}
- #sevenzip-design .manager-tabs.tab-drop-target {box-shadow:inset 0 -2px var(--sz-accent)}
- #sevenzip-design .manager-body.no-sidebar {--sidebar-width:0px;grid-template-columns:minmax(0,1fr)}
- #sevenzip-design .manager-sidebar {margin-top:var(--pane-chrome-height);height:calc(100% - var(--pane-chrome-height));min-height:0;overflow:auto;box-sizing:border-box;padding:16px 8px;background:var(--sz-secondary);border-right:1px solid var(--sz-stroke)}
- #sevenzip-design .manager-body .panes>.pane>.manager-tabs,#sevenzip-design .manager-body .panes>.pane>.address,#sevenzip-design .manager-body .panes>.pane>.tools,#sevenzip-design .manager-body .panes>.pane>.main-readonly,#sevenzip-design .manager-body .panes>.pane>.main-navigation-notice {position:relative;z-index:2;box-sizing:border-box;margin-left:calc(-1 * var(--sidebar-width));width:calc(100% + var(--sidebar-width));max-width:none;background:var(--sz-secondary)}
- #sevenzip-design .manager-sidebar h3 {font-size:11px;color:var(--sz-subtle);font-weight:600;margin:4px 10px 8px}
- #sevenzip-design .manager-sidebar h3:not(:first-child) {margin-top:24px}
- #sevenzip-design .place-button {display:flex;align-items:center;gap:8px;width:100%;min-height:30px;padding:5px 10px;border:0;border-radius:5px;background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer}
- #sevenzip-design .place-button[aria-current=true] {background:color-mix(in srgb,var(--sz-accent) 14%,var(--sz-secondary))}
- #sevenzip-design .manager-tabs {display:flex;align-items:flex-end;gap:0;border-bottom:0;padding:6px 8px 0;overflow-x:auto;scrollbar-width:none}
- #sevenzip-design .manager-body .panes>.pane>.manager-tabs,#sevenzip-design .manager-body .peer>.pane>.manager-tabs {background:var(--sz-window)}
- #sevenzip-design .manager-tabs::-webkit-scrollbar {display:none}
- #sevenzip-design .manager-tab-item {position:relative;display:flex;align-items:center;flex:0 1 220px;min-width:44px;max-width:220px;height:34px;border-radius:10px 10px 0 0;color:var(--sz-subtle);box-sizing:border-box}
- #sevenzip-design .manager-tab-item:not(.is-active):hover {background:color-mix(in srgb,var(--sz-text) 7%,var(--sz-window))}
- #sevenzip-design .manager-tab-item.is-active {background:var(--sz-secondary);color:var(--sz-text)}
- #sevenzip-design .manager-tab-item:not(.is-active):not(:hover)::after {content:'';position:absolute;right:0;top:9px;height:16px;width:1px;background:var(--sz-stroke)}
- #sevenzip-design .manager-tab-item.is-active::before,#sevenzip-design .manager-tab-item.is-active::after {content:'';position:absolute;bottom:0;width:8px;height:8px;pointer-events:none}
- #sevenzip-design .manager-tab-item.is-active::before {left:-8px;background:radial-gradient(circle at 0 0,transparent 8px,var(--sz-secondary) 8px)}
- #sevenzip-design .manager-tab-item.is-active::after {right:-8px;background:radial-gradient(circle at 100% 0,transparent 8px,var(--sz-secondary) 8px)}
- #sevenzip-design .manager-tab {display:flex;align-items:center;gap:7px;flex:1;min-width:0;height:100%;padding:0 8px;border:0;border-radius:10px 10px 0 0;background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer}
+ #sevenzip-design .manager-body .panes>.pane>.address,#sevenzip-design .manager-body .panes>.pane>.tools,#sevenzip-design .manager-body .panes>.pane>.main-readonly,#sevenzip-design .manager-body .panes>.pane>.main-navigation-notice {position:relative;z-index:2;box-sizing:border-box;background:var(--sz-secondary)}
  #sevenzip-design .main-tab-title {overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
  #sevenzip-design .main-tab-symbol {display:flex;flex-shrink:0}
- #sevenzip-design .manager-tabs .new-tab {position:sticky;right:0;flex:0 0 30px;width:30px;min-width:30px;height:30px;margin:0 0 2px 8px;padding:0;border:0;border-radius:50%;background:var(--sz-window);color:inherit;font:inherit;font-size:19px;cursor:pointer}
- #sevenzip-design .manager-tabs .new-tab:hover {background:var(--sz-secondary)}
  #sevenzip-design .close-main-tab {display:flex;align-items:center;justify-content:center;flex:0 0 20px;width:20px;height:20px;margin-right:4px;border:0;border-radius:50%;background:transparent;color:inherit;font:inherit;cursor:pointer}
  #sevenzip-design .close-main-tab:hover {background:color-mix(in srgb,var(--sz-text) 12%,transparent)}
  #sevenzip-design .tab-compact:not(.is-active):not(:hover):not(:focus-within) .close-main-tab {display:none}
  #sevenzip-design .tab-tiny .main-tab-title {display:none}
- #sevenzip-design .tab-tiny .manager-tab {padding-inline:4px;gap:0}
- #sevenzip-design .manager-tab-item.drag-over {box-shadow:inset 2px 0 var(--sz-accent)}
  #sevenzip-design .manager-body .peer>.pane>.address {background:var(--sz-secondary)}
  #sevenzip-design .close-main-tab:disabled {opacity:.25;cursor:default}
- #sevenzip-design .favorites-heading,#sevenzip-design .favorite-place {display:flex;align-items:center;gap:2px}
- #sevenzip-design .favorites-heading h3 {flex:1}
- #sevenzip-design .add-favorite,#sevenzip-design .remove-favorite {border:0;background:transparent;color:var(--sz-subtle);font:inherit;padding:4px;cursor:pointer}
- #sevenzip-design .remove-favorite {opacity:0}
- #sevenzip-design .favorite-place:hover .remove-favorite,#sevenzip-design .favorite-place:focus-within .remove-favorite {opacity:1}
- #sevenzip-design .favorite-place .place-button {min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;scroll-margin-block:4px}
  #sevenzip-design .place-label {min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
- #sevenzip-design .favorite-place {position:relative}
- #sevenzip-design .favorite-drop-before::before,#sevenzip-design .favorite-drop-after::after {content:'';position:absolute;left:5px;right:5px;height:2px;background:var(--sz-accent);z-index:2}
- #sevenzip-design .favorite-drop-before::before {top:-2px}#sevenzip-design .favorite-drop-after::after {bottom:-2px}
- #sevenzip-design .favorite-places {min-height:28px;border-radius:5px}
- #sevenzip-design .favorite-places.favorites-drop-target {box-shadow:inset 0 0 0 2px var(--sz-accent);background:color-mix(in srgb,var(--sz-accent) 10%,transparent)}
- #sevenzip-design .favorite-empty {padding:8px;font-size:12px;line-height:1.4;color:var(--sz-subtle)}
- #sevenzip-design .favorite-name-editor {min-width:0;width:100%;box-sizing:border-box;font:inherit;color:inherit;background:var(--sz-surface);border:1px solid var(--sz-accent);border-radius:4px;padding:5px 8px;outline:0}
- #sevenzip-design .favorite-context {position:fixed;z-index:35;max-height:calc(100vh - 16px);overflow:auto}
  #sevenzip-design .modern-path {gap:2px;min-width:0;padding:0 4px;overflow:hidden}
  #sevenzip-design .breadcrumbs {display:flex;align-items:center;gap:2px;min-width:0;flex:1;overflow:hidden}
  #sevenzip-design .crumb {font:inherit;color:inherit;background:transparent;border:0;border-radius:4px;padding:5px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:20px;cursor:pointer}
@@ -147,7 +110,6 @@
  #sevenzip-design .macos .file-context>.native-menu,#sevenzip-design .macos .file-context>.submenu-holder {width:260px;max-width:calc(100vw - 16px);max-height:calc(100vh - 16px);overflow:auto;pointer-events:auto}
  #sevenzip-design .macos .file-context>.submenu-holder {position:fixed;margin:0}
  @media(max-width:800px){#sevenzip-design .file-command:not([data-main-command=create]) .file-command-label {display:none}}
- @media(max-width:700px){#sevenzip-design .manager-body:not(.no-sidebar) {--sidebar-width:140px}#sevenzip-design .manager-sidebar {padding-inline:4px}#sevenzip-design .place-button {padding-inline:8px}}
  #sevenzip-design .closed-window-state {display:grid;place-content:center;gap:12px;min-height:320px;text-align:center;color:var(--sz-subtle)}
  #sevenzip-design .filetable {width:100%;border-collapse:collapse;text-align:left}
  #sevenzip-design .filetable th {font-weight:400;color:var(--sz-subtle);background:var(--sz-secondary);border-block:1px solid var(--sz-stroke)}
@@ -721,8 +683,6 @@
  #sevenzip-design .component-usage {font-size:12px;color:var(--sz-subtle);margin-top:16px!important}
  #sevenzip-design .component-links {display:flex;gap:8px;flex-wrap:wrap}
  #sevenzip-design .workspace-component-sample {min-width:0;overflow:auto;border:1px solid var(--sz-stroke);border-radius:6px;background:var(--sz-surface)}
- #sevenzip-design .workspace-component-sample .manager-sidebar {margin:0;height:auto;border:0;padding:8px}
- #sevenzip-design .workspace-component-sample .manager-tabs {background:var(--sz-window)}
  #sevenzip-design .workspace-component-sample .address {margin:0}
  #sevenzip-design .workspace-component-sample .tools {margin:0;flex-wrap:wrap}
  #sevenzip-design .workspace-component-sample .filetable {min-width:600px}
@@ -789,8 +749,6 @@
 
  function iconCard(name,size,kind,selected=false,modified='',{focused=false,cut=false,bytes,modifiedEpoch}={}){return `<div class="icon-item ${selected?'selected':''} ${focused?'file-item current-file':''} ${cut?'pending-cut':''}" data-file="${htmlText(name)}" data-size-label="${htmlText(size)}" data-kind="${htmlText(kind)}" data-modified="${htmlText(modified)}"${fileMetadata(bytes??fixtureSizeBytes(size),modifiedEpoch??fixtureModifiedEpoch(modified))}><span class="file-art" aria-hidden="true">${fileArtwork(name,kind)}</span><span class="file-caption" title="${htmlText(name)}">${htmlText(name)}</span></div>`}
  function fileRow({name,size='',kind='',modified='',symbol='file',selected=false,focused=false,cut=false}){const bytes=fixtureSizeBytes(size),epoch=fixtureModifiedEpoch(modified),displaySize=bytes===''&&['Папка','Том'].includes(kind)?'':readableFileSize(bytes);return `<tr class="cursor-interaction ${selected?'selected':''} ${focused?'file-item current-file':''} ${cut?'pending-cut':''}" data-file="${htmlText(name)}" data-kind="${htmlText(kind)}"${fileMetadata(bytes,epoch)}><td><span class="filename">${icon(symbol)}${htmlText(name)}</span></td><td title="${htmlText(readableFileSize(bytes,{exact:true}))}">${htmlText(displaySize)}</td><td class="typecol">${htmlText(kind)}</td><td class="datecol" title="${htmlText(readableFileDate(epoch,{full:true}))}">${htmlText(readableFileDate(epoch))}</td></tr>`}
- function workspaceTab({id,title,active=false,mode='Таблица'}){return `<div class="manager-tab-item ${active?'is-active':''}" draggable="true" data-drag-main-tab="${id}"><button type="button" class="manager-tab" role="tab" aria-selected="${active}" tabindex="${active?0:-1}" data-main-tab="${id}" title="${htmlText(title)}" aria-label="${htmlText(title)}"><span class="main-tab-symbol" aria-hidden="true">${icon(mode==='Загрузка папки'?'loader-circle':['Открытый архив','Только для чтения'].includes(mode)?'archive':'folder')}</span><span class="main-tab-title">${htmlText(title)}</span></button><button type="button" class="close-main-tab" data-close-main-tab="${id}" aria-label="Закрыть вкладку «${htmlText(title)}»">×</button></div>`}
- function sidebarPlace({path,name,symbol='folder',id=null,current=false}){const button=`<button type="button" class="place-button" data-main-place="${htmlText(path)}" ${id!==null?`data-favorite-place="${id}"`:''} aria-current="${current}" title="${htmlText(name+' · '+path)}">${icon(symbol)}<span class="place-label">${htmlText(name)}</span></button>`;return id===null?button:`<div class="favorite-place" data-favorite-id="${id}" draggable="true">${button}<button type="button" class="remove-favorite" data-remove-favorite="${id}" aria-label="Убрать «${htmlText(name)}» из избранного">×</button></div>`}
  function addressContent(value,{editing=false}={}){const parts=value.split(' / ').filter(Boolean);return `<span class="breadcrumbs" ${editing?'hidden':''}>${parts.map((part,i)=>`${i?'<span class="crumb-separator">›</span>':''}<button type="button" class="crumb ${/\.(7z|zip)$/i.test(part)?'is-archive':''}" data-main-crumb="${htmlText(parts.slice(0,i+1).join(' / '))}" ${/\.(7z|zip)$/i.test(part)?`aria-label="Архив «${htmlText(part)}»"`:''}>${/\.(7z|zip)$/i.test(part)?icon('archive')+`<span>${htmlText(part)}</span>`:htmlText(part)}</button>`).join('')}</span><input class="path-editor" value="${htmlText(value)}" ${editing?'':'hidden'} aria-label="Полный путь"><button type="button" class="edit-main-path" aria-label="Редактировать путь">${icon('pencil')}</button>`}
  function managerStatus({summary='',size=''}={}){return `<div class="status manager-status" role="status" aria-label="Состояние активной панели" aria-atomic="true"><span data-selection>${htmlText(summary)}</span><span data-selection-size>${htmlText(size)}</span></div>`}
  function pane(second=false){return `<div class="pane"><div class="address">${btn('','arrow-up') }<div class="path">${icon(second?'archive':'folder')}<span>${second?'Проект.7z /':'Домашняя / Документы / Проект'}</span>${icon('chevron-down')}</div></div><table class="filetable"><thead><tr><th>Имя ↑</th><th>Размер</th><th class="typecol">Тип</th><th class="datecol">Изменён</th></tr></thead><tbody>${files.map((r,i)=>fileRow({name:r[0],size:r[1],kind:r[2],symbol:r[3],modified:i?'18.10.2026 12:40':'',selected:i===4})).join('')}</tbody></table><div class="filespace"></div></div>`}
@@ -999,11 +957,11 @@
   return dialog(limited?'Открыть с ограничениями?':'Не удалось открыть архив',`<div class="archive-opening-form">${sourceSummary({name,path:parts.join(' / '),fullPath:[...parts,name].join(' / '),iconName:'archive',className:'archive-opening-source'})}<p>${htmlText(f.reason)}</p>${limited?'<p class="hint">Можно скопировать доступные файлы. Часть файлов может отсутствовать или не читаться, а извлечённые данные — быть неполными или не пройти проверку. Исходный архив не изменится.</p>':''}<details class="mac-disclosure"><summary>${icon('chevron-right')}Подробности</summary><pre class="archive-opening-detail" tabindex="0">${htmlText(f.detail)}</pre></details></div>`,true).replace('class="dialog narrow"','class="dialog narrow archive-opening-dialog"').replace(footer(),`<div class="report-actions">${btn(limited?'Отмена':'Закрыть','','dismiss-report')}${limited?btn('Открыть только для чтения','','accept-limited-read'):''}</div>`);
  }
  const macError=mode=>macArchiveOpening(mode);
- const reviewWindows=new Map(),reviewSettings=new Map();let activeReviewWindow=null,nextReviewWindow=0,reviewDraggedTab=null,reviewClipboard=null;
+ const reviewWindows=new Map(),reviewSettings=new Map();let activeReviewWindow=null,nextReviewWindow=0,reviewClipboard=null;
  const reviewOperations=new Map();let activeReviewOperation=null,nextReviewOperation=0;
  const reviewExternalCopies=new Map(),reviewRemovedTempExamples=new Set();let nextExternalCopy=0;
- function stopExternalObservation(windowId,tabId=null){
-  for(const copy of reviewExternalCopies.values())if(copy.ownerWindow===windowId&&(tabId===null||copy.ownerTab===tabId)&&!copy.safe){
+ function stopExternalObservation(windowId,panelId=null){
+  for(const copy of reviewExternalCopies.values())if(copy.ownerWindow===windowId&&(panelId===null||copy.ownerPanel===panelId)&&!copy.safe){
    copy.observationStopped=true;copy.finishedConfirmed=false;if(copy.mode!=='Обновляется архив')copy.mode='Наблюдение прекращено';
   }
  }
@@ -1011,12 +969,10 @@
  const reviewLinkEntries=new Map(),reviewPickerFolders=new Map();
  function syncExternalCopyResult(op){const copy=reviewExternalCopies.get(op.model.externalCopyId);if(!copy)return;if(op.mode==='Завершено'){copy.mode='Изменения сохранены';copy.safe=!!copy.finishedConfirmed}else if(['Завершено с ошибками','Есть ошибки','Отменено'].includes(op.mode)){copy.mode='Не удалось обновить';copy.safe=false}}
  let reviewWindowOrder=[];
- const reviewFavorites=[{name:'Домашняя',path:'Домашняя',symbol:'house'},{name:'Документы',path:'Домашняя / Документы',symbol:'folder'},{name:'Загрузки',path:'Домашняя / Загрузки',symbol:'download'}].map((place,index)=>({...place,id:index+1}));
  const reviewRecentPlaces=['Домашняя / Документы / Проект','Домашняя / Загрузки','Документы / Архивы / Проект.7z / Исходники','Общий диск / Рабочие материалы'];
  function publishRecentPlaces(){for(const entry of reviewWindows.values())entry.api?.recent?.()}
  function recordRecentPlace(path){const at=reviewRecentPlaces.indexOf(path);if(at>=0)reviewRecentPlaces.splice(at,1);reviewRecentPlaces.unshift(path);publishRecentPlaces()}
  const reviewCopyHistory=['Домашняя / Документы / Копии','Домашняя / Загрузки','Общий диск / Проекты'];
- let nextFavoriteId=4,draggedFavoriteId=null;
  const windowReview=document.createElement('div');windowReview.className='window-review';windowReview.innerHTML='<span>Окна макета:</span><div class="review-window-list"></div><button type="button" class="review-new-window">Новое окно</button><button type="button" class="review-restart">Перезапустить макет</button><span class="session-review-status" role="status"></span>';root.prepend(windowReview);
  const operationDock=document.createElement('div');operationDock.className='window-review';operationDock.hidden=true;windowReview.after(operationDock);
  operationDock.addEventListener('click',e=>{const button=e.target.closest('[data-review-operation]');if(button)showReviewOperation(Number(button.dataset.reviewOperation))});
@@ -1057,7 +1013,7 @@
   if(!open.some(entry=>entry.id===activeReviewWindow)&&open.length)activeReviewWindow=[...reviewWindowOrder].reverse().find(id=>open.some(entry=>entry.id===id))||open.at(-1).id;
   reviewWindowOrder=reviewWindowOrder.filter(id=>id!==activeReviewWindow&&open.some(entry=>entry.id===id));if(open.some(entry=>entry.id===activeReviewWindow))reviewWindowOrder.push(activeReviewWindow);
   const list=windowReview.querySelector('.review-window-list');for(const button of list.querySelectorAll('[data-review-window]'))if(!open.some(entry=>String(entry.id)===button.dataset.reviewWindow))button.remove();
-  for(const entry of open){let button=list.querySelector(`[data-review-window="${entry.id}"]`);if(!button){button=document.createElement('button');button.type='button';button.dataset.reviewWindow=String(entry.id);list.append(button)}button.setAttribute('aria-current',String(entry.id===activeReviewWindow));button.textContent='Окно '+entry.id+' · '+entry.api.title();button.title='Перетащите сюда вкладку для переноса в это окно'}
+  for(const entry of open){let button=list.querySelector(`[data-review-window="${entry.id}"]`);if(!button){button=document.createElement('button');button.type='button';button.dataset.reviewWindow=String(entry.id);list.append(button)}button.setAttribute('aria-current',String(entry.id===activeReviewWindow));button.textContent='Окно '+entry.id+' · '+entry.api.title();button.title='Переключиться на это окно'}
   for(const entry of reviewWindows.values())entry.variant.hidden=!!activeReviewOperation||entry.id!==activeReviewWindow;
   windowReview.querySelector('.review-new-window').disabled=false;
   if(previous!==activeReviewWindow)reviewWindows.get(activeReviewWindow)?.api.activate();
@@ -1065,20 +1021,16 @@
  function showReviewWindow(id){const entry=reviewWindows.get(id);if(!entry||entry.api.closed())return;hideReviewOperation();for(const other of reviewWindows.values())if(other.id!==id)other.api?.deactivate();activeReviewWindow=id;refreshReviewWindows();entry.api.activate()}
  function createReviewWindow(seed){reviewExitPending=false;reviewExited=false;const variant=document.createElement('section');variant.dataset.variant='macOS';variant.setAttribute('aria-label','Дополнительное окно концепта');root.append(variant);mountVariant(variant,reviewWindows.size,seed);showReviewWindow(Number(variant.dataset.reviewWindowId))}
  function publishReviewClipboard(value){reviewClipboard=value;for(const entry of reviewWindows.values())entry.api?.clipboard(value)}
- function publishReviewFavorites(){for(const entry of reviewWindows.values())entry.api?.favorites()}
  function restartReviewSession(){closeReviewQuit();
   if([...reviewOperations.values()].some(op=>!operationTerminal(op.mode)))return;
   for(const op of reviewOperations.values())op.variant.remove();reviewOperations.clear();activeReviewOperation=null;refreshOperations();
   const session=reviewExited&&reviewExitSession?reviewExitSession:captureReviewExitSession();reviewExitPending=false;reviewExited=false;
-  for(const entry of reviewWindows.values())entry.api.dispose();reviewWindows.clear();reviewClipboard=null;reviewDraggedTab=null;draggedFavoriteId=null;activeReviewWindow=null;reviewWindowOrder=[];
+  for(const entry of reviewWindows.values())entry.api.dispose();reviewWindows.clear();reviewClipboard=null;activeReviewWindow=null;reviewWindowOrder=[];
   for(const snapshot of session.windows)createReviewWindow({session:snapshot});
   if(!session.windows.length)createReviewWindow({home:true});else{reviewWindowOrder=session.order.filter(id=>reviewWindows.has(id));showReviewWindow(reviewWindows.has(session.active)?session.active:session.windows[0].windowId)}
   windowReview.querySelector('.session-review-status').textContent=session.windows.length?'Восстановлено окон: '+session.windows.length:'Нет открытых окон — открыта Домашняя';
  }
  windowReview.addEventListener('click',e=>{const button=e.target.closest('button');if(button?.dataset.reviewWindow)showReviewWindow(Number(button.dataset.reviewWindow));else if(button?.classList.contains('review-new-window')){const current=reviewWindows.get(activeReviewWindow);if(current&&!current.api.closed())current.api.newWindow();else createReviewWindow({home:true})}else if(button?.classList.contains('review-restart'))restartReviewSession()});
- windowReview.addEventListener('dragover',e=>{const button=e.target.closest('[data-review-window]');if(!button||!reviewDraggedTab||Number(button.dataset.reviewWindow)===reviewDraggedTab.owner.id)return;e.preventDefault();e.dataTransfer.dropEffect='move';button.classList.add('window-drop-target')});
- windowReview.addEventListener('dragleave',e=>e.target.closest('button')?.classList.remove('window-drop-target'));
- windowReview.addEventListener('drop',e=>{const button=e.target.closest('[data-review-window]'),moving=reviewDraggedTab;if(!button||!moving)return;const target=reviewWindows.get(Number(button.dataset.reviewWindow));if(!target||target.id===moving.owner.id)return;e.preventDefault();reviewDraggedTab=null;target.api.receiveTab(moving.owner.releaseTab(moving.id));showReviewWindow(target.id)});
  const settingsDisclosure=(key,title,description,body)=>`<details class="mac-disclosure settings-detail" data-settings-detail="${key}"><summary class="cursor-interaction">${icon('chevron-right')}<span class="settings-detail-title">${title}<span class="hint settings-description">${description}</span></span><span class="hint settings-change" aria-live="polite"></span></summary><div class="form">${body}</div></details>`;
  const settingsPages={
   'Основные':()=>`${field('Оформление','Как в системе',['Как в системе','Светлое','Тёмное'])}${field('Язык интерфейса','Как в системе',['Как в системе','Русский','English','Deutsch','Français','日本語'])}${settingsDisclosure('translation','О переводе','Сведения об установленном переводе','<span class="hint">Русский · Russian<br>Перевод интерфейса Sevenzip и 7-Zip</span>')}`,
@@ -1268,7 +1220,7 @@
   if(context?.observationStopped)mode='Наблюдение прекращено';
   if(context?.readOnly&&['Файл изменён','Не удалось обновить'].includes(mode))mode='Только для чтения';
   const f=externalFileFixture(mode,context),unavailable=['Копия не найдена','Не удалось открыть'].includes(mode),canUpdate=['Файл изменён','Не удалось обновить'].includes(mode)&&!f.readOnly;
-  const message={'Файл изменён':'Сохранить изменения этого файла в архиве?','Обновляется архив':'Изменения записываются в архив. Дождитесь результата операции.','Открыт во внешней программе':'Открыта временная копия. Сохраните файл и закройте его во внешней программе.','Завершение неизвестно':'Программа открыла файл без отслеживаемого процесса. Завершение работы с копией пока не подтверждено.','Наблюдение прекращено':'Вкладка закрыта, наблюдение за редактором прекращено. Редактор продолжает работать; временная копия сохранена.','Только для чтения':'Источник доступен только для чтения. Изменённый файл можно сохранить отдельно.','Не удалось обновить':'Не удалось записать изменения в архив. Временная копия сохранена.','Изменения сохранены':'Изменения записаны в архив.','Копия не найдена':'Временная копия больше недоступна. Архив этой операцией не изменён.','Не удалось открыть':'Не удалось открыть файл во внешней программе. Архив не изменён.'}[mode];
+  const message={'Файл изменён':'Сохранить изменения этого файла в архиве?','Обновляется архив':'Изменения записываются в архив. Дождитесь результата операции.','Открыт во внешней программе':'Открыта временная копия. Сохраните файл и закройте его во внешней программе.','Завершение неизвестно':'Программа открыла файл без отслеживаемого процесса. Завершение работы с копией пока не подтверждено.','Наблюдение прекращено':'Окно закрыто, наблюдение за редактором прекращено. Редактор продолжает работать; временная копия сохранена.','Только для чтения':'Источник доступен только для чтения. Изменённый файл можно сохранить отдельно.','Не удалось обновить':'Не удалось записать изменения в архив. Временная копия сохранена.','Изменения сохранены':'Изменения записаны в архив.','Копия не найдена':'Временная копия больше недоступна. Архив этой операцией не изменён.','Не удалось открыть':'Не удалось открыть файл во внешней программе. Архив не изменён.'}[mode];
   const actions=[{label:canUpdate?'Отмена':'Закрыть',className:'dismiss-report'},...(!unavailable&&mode!=='Обновляется архив'?[{label:'Сохранить копию…',className:'external-save-copy'}]:[]),...(['Открыт во внешней программе','Завершение неизвестно'].includes(mode)?[{label:'Проверить изменения',className:'external-check'}]:[]),...(canUpdate?[{label:mode==='Не удалось обновить'?'Повторить':'Обновить архив',className:'primary external-update'}]:[])];
   return reportDialog('Файл во внешней программе',`<div class="external-file-form form">${sourceSummary({name:f.name,fullPath:f.archive+' / '+f.entry,iconName:'file-text'})}${f.launchIntent?inlineMessage('Действие: '+(f.launchIntent==='view'?'Просмотр':f.launchIntent==='edit'?'Редактирование':'Открыть')):''}${inlineMessage(message,['Не удалось обновить','Копия не найдена','Не удалось открыть'].includes(mode)?'error':'info')}${!unavailable?sourceSummary({name:'Временная копия',fullPath:f.temp,iconName:'file-text'}):''}${mode==='Завершение неизвестно'?'<label class="check"><input class="external-finished" type="checkbox"><span>Я сохранил и закрыл файл во внешней программе</span></label>':''}${mode==='Открыт во внешней программе'?'<p class="hint">Проверка не завершает редактор. Если он ещё работает, обновление архива недоступно.</p>':''}${canUpdate?'<p class="hint">Решение об обновлении использует существующий сценарий приложения.</p>':''}<p class="external-check-result hint" role="status"></p></div>`,true,{actions:actionBar({actions})});
  }
@@ -1328,7 +1280,7 @@
  function macLicenses(){return reportDialog('Лицензии и уведомления',`<div class="license-form"><label class="field"><span>Найти компонент или лицензию</span><input class="product-input license-search" type="search" autocomplete="off" placeholder="Например, 7-Zip или LGPL"></label><div class="license-layout"><label class="field license-document-field"><span>Документ</span><select class="product-select license-select" size="5" aria-label="Документ лицензии"></select></label><div class="license-body"><p class="hint license-empty" role="status" hidden></p><p class="inline-error license-error" role="alert" hidden></p><textarea class="report-console license-text" readonly spellcheck="false" aria-label="Полный текст лицензии"></textarea></div></div></div>`,true,{actions:actionBar({actions:[{label:'Копировать текст',className:'leading license-copy'},{label:'Закрыть',className:'license-close'}]})});}
 
  const fileMenuRows=[['Открыть архив…','browse','⌘O'],['Открыть','main','⌘↓',{openMode:'normal'}],['Открыть как','submenu:open'],null,['Просмотр','main','',{openMode:'view'}],['Редактировать','main','',{openMode:'edit'}],null,['Переименовать','rename','↩'],['Копировать в…','copy','⇧⌘C'],['Переместить в…','copy','⇧⌘M',{transferMode:'move'}],['Удалить','delete','⌘⌫'],null,['Создать','submenu:create'],['Контрольные суммы','submenu:hash'],['Дополнительно','submenu:tools'],null,['Свойства','properties','⌘I']];
- const viewMenuRows=[['Представление','submenu:appearance'],['Сортировка','submenu:sort'],null,['Боковая панель мест','main','',{viewAction:'sidebar'}],['Две панели','main','⇧⌘2',{viewAction:'panels'}],null,['Назад','main','⌘[',{viewAction:'back'}],['Вперёд','main','⌘]',{viewAction:'forward'}],['На уровень вверх','main','⌘↑',{viewAction:'up'}],['Компьютер','main','',{viewAction:'root'}],['Недавние места…','history'],null,['Обновить','main','⌘R',{viewAction:'refresh'}],['Обновлять автоматически','main','',{viewAction:'auto-refresh'}]];
+ const viewMenuRows=[['Представление','submenu:appearance'],['Сортировка','submenu:sort'],null,['Две панели','main','⇧⌘2',{viewAction:'panels'}],null,['Назад','main','⌘[',{viewAction:'back'}],['Вперёд','main','⌘]',{viewAction:'forward'}],['На уровень вверх','main','⌘↑',{viewAction:'up'}],['Компьютер','main','',{viewAction:'root'}],['Недавние места…','history'],null,['Обновить','main','⌘R',{viewAction:'refresh'}],['Обновлять автоматически','main','',{viewAction:'auto-refresh'}]];
  const contextRows=[['Открыть','main','⌘↓',{openMode:'normal'}],['Открыть как','submenu:contextOpen'],null,['Копировать в…','copy','⇧⌘C'],['Переместить в…','copy','⇧⌘M',{transferMode:'move'}],['Переименовать','rename','↩'],['Удалить','delete','⌘⌫'],null,['Контрольные суммы','submenu:hash'],['Ещё','submenu:contextMore'],null,['Свойства','properties','⌘I']];
  const openRows=[['Открыть как архив','main','',{openMode:'archive'}],['Один уровень архива (*)','main','',{openMode:'single'}],['Разобрать файл как архив (#)','main','',{openMode:'parser'}],null,['Открыть во внешнем приложении','main','',{openMode:'outside'}]];
  const createRows=[['Создать папку','rename','⇧⌘N',{nameMode:'folder'}],['Создать файл','rename','',{nameMode:'file'}],['Ссылка…','link']];
@@ -1338,8 +1290,8 @@
  fileMenuRows.splice(2,0,['Архив','submenu:archiveActions']);
  contextRows.splice(3,0,['Архив','submenu:archiveActions']);
  submenuRows.archiveActions=[['Создать архив…','add','⇧⌘A'],['Распаковать…','extract','⇧⌘E'],['Проверить архив','archive-test','⇧⌘T']];
- fileMenuRows.unshift(['Новое окно','new-window','⌘N'],['Новая вкладка','new-tab','⌘T'],null);
- fileMenuRows.push(null,['Закрыть окно','close-window','⇧⌘W']);
+ fileMenuRows.unshift(['Новое окно','new-window','⌘N'],null);
+ fileMenuRows.push(null,['Закрыть окно','close-window','⌘W']);
  function menuItems(rows){return rows.map(r=>r?`<button type="button" class="menu-action cursor-interaction" ${r[1]==='disabled'||r[3]?.disabled?'disabled':r[1]?.startsWith('submenu:')?`data-submenu="${r[1].slice(8)}" aria-expanded="false" aria-haspopup="true"`:`data-go="${r[1]||'main'}"`} ${r[3]?.transferMode?`data-transfer-mode="${r[3].transferMode}"`:''} ${r[3]?.viewAction?`data-view-action="${r[3].viewAction}"`:''} ${r[3]?.openMode?`data-open-mode="${r[3].openMode}"`:''} ${r[3]?.nameMode?`data-name-mode="${r[3].nameMode}"`:''} ${r[3]?.selection?`data-selection-action="${r[3].selection}"`:''} ${r[3]?.mainCommand?`data-menu-main-command="${r[3].mainCommand}"`:''}><span>${r[0]}</span><span class="hint">${r[1]?.startsWith('submenu:')?(r[2]?r[2]+' ': '')+'›':r[2]||''}</span></button>`:'<hr>').join('')}
  function macMenu(kind,background=''){const rows=kind==='file-menu'?fileMenuRows:kind==='view-menu'?viewMenuRows:contextRows;return `<div class="menu-scene"><div class="menu-underlay" inert>${background||main()}</div><div class="menu-stack"><div class="native-menu" aria-label="${kind==='file-menu'?'Файл':kind==='view-menu'?'Вид':'Контекстное меню'}">${menuItems(rows)}</div><div class="submenu-holder" hidden></div></div></div>`}
  function macComponents(){
@@ -1350,8 +1302,6 @@
   ${card('Строка состояния',`${specimen(managerStatus({summary:'Объектов: 21'}))}${specimen(managerStatus({summary:'Слева · Выделено 3 из 21',size:readableFileSize(134637158)}))}${specimen(managerStatus({summary:'Чтение папки…'}))}`,'Одна компактная полоса на всё окно. Сводка активной панели и размер выбора; сообщение использует тот же слот. Постоянной надписи «Архив открыт» и второй нижней полосы нет.',true)}
   ${card('Строка файла в таблице',specimen(`<table class="filetable"><thead><tr><th>Имя ↑</th><th>Размер</th><th class="typecol">Тип</th><th class="datecol">Изменён</th></tr></thead><tbody>${fileRow({name:'Документы',kind:'Папка',symbol:'folder'})}${fileRow({name:'Проект.7z',kind:'Архив 7z',symbol:'archive',size:'128,4 МБ',selected:true,focused:true})}${fileRow({name:'Описание.txt',kind:'Текст',symbol:'file-text',size:'2,4 КБ',selected:true})}${fileRow({name:'Read me — 日本語.txt',kind:'Текст',size:'2 КБ',cut:true})}</tbody></table>`),'Обычная, выделенная, текущая и вырезанная строка. Размер, тип и дата — данные модели, а не догадки строки. Выделение и текущий элемент различаются; открытие и drag передаются общему контроллеру FileView.',true)}
   ${card('Крупный элемент файла',specimen(`<div class="icon-grid">${iconCard('Документы','','Папка')}${iconCard('Макет.png','2,1 МБ','Изображение',true)}${iconCard('Проект.7z','128,4 МБ','Архив 7z',true,'',{focused:true})}${iconCard('Read me — 日本語.txt','2 КБ','Текст',false,'',{cut:true})}${iconCard('Ссылка на проект','','Символьная ссылка')}</div>`),'Та же запись и модель выбора, другое представление: изображение/значок, подпись, выделение, текущий элемент и состояние Cut. Превью не меняет действие открытия. Полное имя доступно даже при сокращении подписи.',true)}
-  ${card('Элемент боковой панели',specimen(`<nav class="manager-sidebar" aria-label="Пример мест"><h3>Избранное</h3>${sidebarPlace({id:101,name:'Проект',path:'Домашняя / Документы / Проект',current:true})}${sidebarPlace({id:102,name:'Очень длинное имя рабочего расположения',path:'Домашняя / Документы / Очень длинное имя рабочего расположения'})}<h3>Расположения</h3>${sidebarPlace({name:'Компьютер',path:'Компьютер',symbol:'monitor'})}${sidebarPlace({name:'Сеть',path:'Сеть',symbol:'network'})}</nav>`),'Общий PlaceItem: значок, имя, текущий путь, полное название. Избранное добавляет перестановку, локальное переименование и удаление ссылки. Удаление из избранного не удаляет папку.')}
-  ${card('Вкладка и полоса вкладок',specimen(`<div class="manager-tabs" role="tablist" aria-label="Пример вкладок">${workspaceTab({id:101,title:'Проект',active:true})}${workspaceTab({id:102,title:'Проект.7z',mode:'Открытый архив'})}${workspaceTab({id:103,title:'Загрузка…',mode:'Загрузка папки'})}<button type="button" class="new-tab" aria-label="Новая вкладка">+</button></div>`),'TabItem и TabStrip. Активность, заголовок, значок, закрытие и перенос — общий компонент; места, сессия и закрытие последней панели — состояние Workspace. Кнопка закрытия не вложена в кнопку вкладки.')}
   ${card('Панель действий и кнопка команды',`${specimen(`<div class="tools file-commands">${fileCommands()}</div>`)}${specimen(`<div class="tools file-commands">${fileCommands({cut:false,copy:false,paste:false,rename:false,delete:false})}</div>`)}<p class="hint">Доступные команды и пример без выбора с пустым буфером.</p>`,'CommandButton показывает текст/значок, подсказку, состояние и команду. CommandBar задаёт порядок и компактность. Доступность вычисляет единый владелец из места, выбора и буфера; кнопки и меню получают одно решение.',true)}
   </div><h2 class="component-section-title">Базовые элементы и диалоги</h2><div class="component-grid">
   ${card('Кнопки и действия',`<div class="sampleline">${btn('Основное действие','','primary')}${btn('Обычное действие')}${btn('Недоступно','','',{disabled:true})}${btn('Удалить','','destructive-action')}${btn('','copy','',{label:'Копировать'})}</div>${actionBar({className:'report-actions',leading:btn('Копировать','','leading'),actions:[{label:'Отмена'},{label:'Сохранить',className:'primary'}]})}`,'Кнопка не знает, как выполняется операция. Роли, доступность, сочетания клавиш и обработчики задаёт владелец действия.')}
@@ -1379,23 +1329,19 @@
    <div class="stage"><div class="app"><div class="titlebar"></div><div class="screen"></div></div></div></div>`;
   const product=variant.querySelector('.prototype'), screen=variant.querySelector('.screen');
   product.classList.toggle('macos',macos);
-  const state={screen:'main',two:false,split:.5,margin:16,row:28,radius:5,sidebar:true,samples:{}};
-  const mainTabs=[{id:1,side:0,title:'Проект',mode:'Таблица',panes:[]},{id:2,side:0,title:'Проект.7z',mode:'Открытый архив',panes:[]},{id:3,side:1,title:'Результат',mode:'Таблица',panes:[]}];
-  const mainTabSelection=[1,3];
-  let activeMainSide=0,activeMainTab=1,nextMainTab=4;
+  const state={screen:'main',two:false,split:.5,margin:16,row:28,radius:5,samples:{}};
+  const mainPanels=[{id:1,side:0,title:'Проект',mode:'Таблица',panes:[]},{id:3,side:1,title:'Результат',mode:'Таблица',panes:[]}];
+  const panelSelection=[1,3];
+  let activeMainSide=0,activePanelId=1,nextPanelId=4;
   let mainClipboard=reviewClipboard;
   let copyContext=null,copyOperation=null,conflictDecision=null,archiveContext=null,archiveUpdateIntent=null,extractContext=null,propertiesContext=null,hashContext=null,checksumVerifyContext=null,volumeContext=null,deleteContext=null,nameContext=null,linkContext=null,externalContext=null,passwordContext=null,passwordPending=false,deviceSelection=null;
   const demoComments=new Map();
   const passwordReview=document.createElement('span');passwordReview.hidden=true;passwordReview.innerHTML='<button type="button" class="btn" data-password-result="ok">Пароль подошёл (пример)</button> <button type="button" class="btn" data-password-result="wrong">Неверный пароль (пример)</button>';variant.querySelector('.review').append(passwordReview);
   passwordReview.addEventListener('click',e=>{const button=e.target.closest('[data-password-result]');if(!button||!passwordPending)return;const request=passwordContext;screen.querySelector('.prompt-password-input').value='';passwordPending=false;if(button.dataset.passwordResult==='wrong'){request.wrong=true;render();screen.querySelector('.prompt-password-input')?.focus()}else{const path=request.path;passwordContext=null;navigateTo('main');navigateMainFolder(screen.querySelector('.active-pane'),path)}});
   let mainWindowClosed=false,mountContext=null;
-  let draggedMainTab=null;
   let fileSelectionDrag=null,suppressFileClick=false,cancelledFilePointer=null;
   let fileContextPane=null;
-  let tabContextId=null;
-  let favoriteContextId=null;
   let draggedFiles=null;
-  const favoritePlaces=reviewFavorites;
   function geometry(){product.style.setProperty('--pad',state.margin+'px');product.style.setProperty('--row',state.row+'px');product.style.setProperty('--round',state.radius+'px');const app=product.querySelector('.app');if(app&&!app.hidden)product.style.setProperty('--review-window-height',Math.max(0,innerHeight-app.getBoundingClientRect().top-12)+'px');const settings=screen.querySelector('.settings-layout');if(settings)settings.style.height=Math.max(200,innerHeight-settings.getBoundingClientRect().top-16)+'px'}
   const settingsCache=new Map(),backStack=[],drafts=new Map();let settingsPage='Основные',pendingBrowse=null,nextPickerBinding=0,recentSelection=null,recentOwner=null,recentMode=null;
   const recentFixtureRemoved=new Set();
@@ -1428,13 +1374,13 @@
   const pickerReview=document.createElement('span');pickerReview.hidden=true;pickerReview.className='picker-review';variant.querySelector('.review').append(pickerReview);
   function demoParentPlace(path){if(['/', '\u041e\u0431\u0449\u0438\u0439 \u0434\u0438\u0441\u043a','\u0412\u043d\u0435\u0448\u043d\u0438\u0439 \u0434\u0438\u0441\u043a'].includes(path))return '\u041a\u043e\u043c\u043f\u044c\u044e\u0442\u0435\u0440';const parts=path.split(' / ').filter(Boolean);parts.pop();return parts.length?parts.join(' / '):null;}
   let mainMenuBackdrop='';
-  function captureMenuBackdrop(){if(!screen.querySelector('.manager-body')||screen.querySelector('.menu-scene'))return;const copy=screen.cloneNode(true),selector='.file-table-scroll,.manager-sidebar,.manager-tabs',original=[...screen.querySelectorAll(selector)];copy.querySelectorAll(selector).forEach((node,index)=>{node.dataset.menuScrollTop=original[index].scrollTop;node.dataset.menuScrollLeft=original[index].scrollLeft});copy.querySelectorAll('.file-context,.tab-context,.favorite-context,.create-actions').forEach(node=>node.remove());mainMenuBackdrop=copy.innerHTML;}
+  function captureMenuBackdrop(){if(!screen.querySelector('.manager-body')||screen.querySelector('.menu-scene'))return;const copy=screen.cloneNode(true),selector='.file-table-scroll',original=[...screen.querySelectorAll(selector)];copy.querySelectorAll(selector).forEach((node,index)=>{node.dataset.menuScrollTop=original[index].scrollTop;node.dataset.menuScrollLeft=original[index].scrollLeft});copy.querySelectorAll('.file-context,.tab-context,.favorite-context,.create-actions').forEach(node=>node.remove());mainMenuBackdrop=copy.innerHTML;}
   function focusMainFile(pane=screen.querySelector('.active-pane')){if(!pane)return;const target=pane.querySelector('.current-file')||pane.querySelector('.file-table-scroll');if(target){if(!target.hasAttribute('tabindex'))target.tabIndex=0;target.focus({preventScroll:true})}}
-  function activeViewSnapshot(){const pane=state.screen==='main'?screen.querySelector('.active-pane'):null,tab=mainTabs.find(tab=>tab.id===activeMainTab),saved=tab?.panes[activeMainSide];return {pane,tab,saved,path:pane?.dataset.path||saved?.path||'',sort:pane?.viewSort||saved?.sort||{column:0,direction:'ascending'},history:pane?.mainHistory||saved?.history||[],historyAt:pane?.mainHistoryAt??saved?.historyAt??0,mode:pane?.dataset.mainMode||tab?.mode};}
-  function viewActionAllowed(action,view=activeViewSnapshot()){return !mainWindowClosed&&!!view.tab&&!(view.mode==='Загрузка папки'&&!['sidebar','panels','auto-refresh'].includes(action))&&!(action==='back'&&view.historyAt<=0)&&!(action==='forward'&&view.historyAt>=view.history.length-1)&&!(action==='up'&&!demoParentPlace(view.path))}
+  function activeViewSnapshot(){const pane=state.screen==='main'?screen.querySelector('.active-pane'):null,tab=mainPanels.find(tab=>tab.id===activePanelId),saved=tab?.panes[activeMainSide];return {pane,tab,saved,path:pane?.dataset.path||saved?.path||'',sort:pane?.viewSort||saved?.sort||{column:0,direction:'ascending'},history:pane?.mainHistory||saved?.history||[],historyAt:pane?.mainHistoryAt??saved?.historyAt??0,mode:pane?.dataset.mainMode||tab?.mode};}
+  function viewActionAllowed(action,view=activeViewSnapshot()){return !mainWindowClosed&&!!view.tab&&!(view.mode==='Загрузка папки'&&!['panels','auto-refresh'].includes(action))&&!(action==='back'&&view.historyAt<=0)&&!(action==='forward'&&view.historyAt>=view.history.length-1)&&!(action==='up'&&!demoParentPlace(view.path))}
   function refreshViewMenuMarks(){
-   const view=activeViewSnapshot(),checks={sidebar:state.sidebar!==false,panels:state.two,'auto-refresh':reviewAutoRefresh,table:view.mode!=='Крупные значки',icons:view.mode==='Крупные значки',ascending:view.sort.direction==='ascending',descending:view.sort.direction==='descending',['sort-'+view.sort.column]:true};
-   screen.querySelectorAll('[data-view-action]').forEach(button=>{const action=button.dataset.viewAction,mark=button.querySelector('.hint');if(action.startsWith('sort-'))checks[action]=Number(action.slice(5))===Number(view.sort.column);if(Object.hasOwn(checks,action)){button.setAttribute('role',['sidebar','panels','auto-refresh'].includes(action)?'menuitemcheckbox':'menuitemradio');button.setAttribute('aria-checked',String(!!checks[action]));if(mark)mark.textContent=(checks[action]?'✓':'')+(action==='panels'?' ⇧⌘2':'')}button.disabled=!viewActionAllowed(action,view);});
+   const view=activeViewSnapshot(),checks={panels:state.two,'auto-refresh':reviewAutoRefresh,table:view.mode!=='Крупные значки',icons:view.mode==='Крупные значки',ascending:view.sort.direction==='ascending',descending:view.sort.direction==='descending',['sort-'+view.sort.column]:true};
+   screen.querySelectorAll('[data-view-action]').forEach(button=>{const action=button.dataset.viewAction,mark=button.querySelector('.hint');if(action.startsWith('sort-'))checks[action]=Number(action.slice(5))===Number(view.sort.column);if(Object.hasOwn(checks,action)){button.setAttribute('role',['panels','auto-refresh'].includes(action)?'menuitemcheckbox':'menuitemradio');button.setAttribute('aria-checked',String(!!checks[action]));if(mark)mark.textContent=(checks[action]?'✓':'')+(action==='panels'?' ⇧⌘2':'')}button.disabled=!viewActionAllowed(action,view);});
   }
   function sortMainFiles(pane,column,direction,remember=true){
    if(!pane||pane.classList.contains('is-loading'))return;const body=pane.querySelector('tbody,.icon-grid'),rows=[...body.querySelectorAll('.file-item')],descending=direction==='descending';
@@ -1443,11 +1389,11 @@
   }
   function performViewAction(action){
    const view=activeViewSnapshot();if(!viewActionAllowed(action,view))return;
-   if(action==='sidebar')state.sidebar=state.sidebar===false;else if(action==='panels'){state.two=!state.two;variant.querySelector('.two-toggle').checked=state.two;if(!state.two){activeMainSide=0;activeMainTab=mainTabSelection[0];state.samples.main=mainTabs.find(tab=>tab.id===activeMainTab).mode}}else if(action==='table'||action==='icons'){state.samples.main=action==='icons'?'Крупные значки':'Таблица';view.tab.mode=state.samples.main;}else if(action==='auto-refresh'){reviewAutoRefresh=!reviewAutoRefresh;for(const entry of reviewWindows.values())entry.api?.viewMenus?.()}
+   if(action==='panels'){state.two=!state.two;variant.querySelector('.two-toggle').checked=state.two;if(!state.two){activeMainSide=0;activePanelId=panelSelection[0];state.samples.main=mainPanels.find(tab=>tab.id===activePanelId).mode}}else if(action==='table'||action==='icons'){state.samples.main=action==='icons'?'Крупные значки':'Таблица';view.tab.mode=state.samples.main;}else if(action==='auto-refresh'){reviewAutoRefresh=!reviewAutoRefresh;for(const entry of reviewWindows.values())entry.api?.viewMenus?.()}
    backStack.length=0;navigateTo('main',false);const pane=screen.querySelector('.active-pane');
    if(action.startsWith('sort-')||['ascending','descending'].includes(action)){const sort=view.sort;sortMainFiles(pane,action.startsWith('sort-')?Number(action.slice(5)):Number(sort.column),['ascending','descending'].includes(action)?action:sort.direction);}
    else if(action==='back')pane.querySelector('.main-back').click();else if(action==='forward')pane.querySelector('.main-forward').click();else if(action==='up')parentMainFolder(pane);else if(action==='root')navigateMainFolder(pane,'Компьютер');
-   else if(action==='refresh'){root.dispatchEvent(new CustomEvent('sevenzip-review-refresh',{detail:{windowId,tabId:activeMainTab,path:pane.dataset.path}}));windowReview.querySelector('.session-review-status').textContent='Обновление списка · '+pane.dataset.path+' (пример)'}
+   else if(action==='refresh'){root.dispatchEvent(new CustomEvent('sevenzip-review-refresh',{detail:{windowId,panelId:activePanelId,path:pane.dataset.path}}));windowReview.querySelector('.session-review-status').textContent='Обновление списка · '+pane.dataset.path+' (пример)'}
    focusMainFile(pane);captureMainWorkspace();save();
   }
   function fileCommandState(pane=fileContextPane||screen.querySelector('.active-pane')){
@@ -1490,13 +1436,13 @@
 
   function dispatchExternalIntent(pane,item,intent='open'){
    if(demoArchiveRoot(pane.dataset.path)||pane.dataset.location==='recovery'){openExternalCopy(item,intent);return}
-   root.dispatchEvent(new CustomEvent('sevenzip-review-open-outside',{detail:{windowId,tabId:Number(pane.dataset.tabId),path:pane.dataset.path,name:item.dataset.file,intent}}));windowReview.querySelector('.session-review-status').textContent=(intent==='view'?'Просмотр':intent==='edit'?'Редактирование':'Внешний запуск')+' · '+item.dataset.file+' (пример)';
+   root.dispatchEvent(new CustomEvent('sevenzip-review-open-outside',{detail:{windowId,panelId:Number(pane.dataset.panelId),path:pane.dataset.path,name:item.dataset.file,intent}}));windowReview.querySelector('.session-review-status').textContent=(intent==='view'?'Просмотр':intent==='edit'?'Редактирование':'Внешний запуск')+' · '+item.dataset.file+' (пример)';
   }
   function openSelectedFromMenu(mode){
    captureMainWorkspace();
-   const oldPane=fileContextPane||screen.querySelector('.active-pane'),side=oldPane?Number(oldPane.dataset.side):activeMainSide,tabId=oldPane?Number(oldPane.dataset.tabId):activeMainTab,tab=mainTabs.find(tab=>tab.id===tabId),saved=tab?.panes[side];
+   const oldPane=fileContextPane||screen.querySelector('.active-pane'),side=oldPane?Number(oldPane.dataset.side):activeMainSide,panelId=oldPane?Number(oldPane.dataset.panelId):activePanelId,tab=mainPanels.find(tab=>tab.id===panelId),saved=tab?.panes[side];
    const name=oldPane?.querySelector('.current-file')?.dataset.file||saved?.current||saved?.selection?.[0];if(!name)return;
-   activeMainSide=side;activeMainTab=tabId;mainTabSelection[side]=tabId;backStack.length=0;navigateTo('main',false);
+   activeMainSide=side;activePanelId=panelId;panelSelection[side]=panelId;backStack.length=0;navigateTo('main',false);
    const pane=screen.querySelector(`.pane[data-side="${side}"]`),item=[...pane.querySelectorAll('.file-item')].find(row=>row.dataset.file===name);if(!item)return;
    if(mode==='normal'&&(['Папка','Том'].includes(item.dataset.kind)||item.dataset.kind.startsWith('Архив')||item.dataset.kind==='Контрольные суммы'||demoArchiveRoot(pane.dataset.path))){openMainFile(item);return}
    if(['outside','normal','view','edit'].includes(mode)){dispatchExternalIntent(pane,item,mode==='normal'||mode==='outside'?'open':mode);return}
@@ -1507,7 +1453,7 @@
   function beginPicker(input=null,{kind='folder',purpose='field'}={}){
    pickerView.directory=null;
    const binding=input?'picker-'+(++nextPickerBinding):null;if(input)input.dataset.pickerBinding=binding;
-   pendingBrowse={kind,purpose,key:state.screen+'|'+sample(),binding,node:input,current:input?.value||screen.querySelector('.active-pane')?.dataset.path||mainTabs.find(tab=>tab.id===activeMainTab)?.panes[activeMainSide]?.path||'Домашняя',ownerTab:activeMainTab,ownerSide:activeMainSide,returnScreen:state.screen.endsWith('-menu')?'main':state.screen};
+   pendingBrowse={kind,purpose,key:state.screen+'|'+sample(),binding,node:input,current:input?.value||screen.querySelector('.active-pane')?.dataset.path||mainPanels.find(tab=>tab.id===activePanelId)?.panes[activeMainSide]?.path||'Домашняя',ownerPanel:activePanelId,ownerSide:activeMainSide,returnScreen:state.screen.endsWith('-menu')?'main':state.screen};
    if(purpose==='archive-open'){const archive=demoArchiveRoot(pendingBrowse.current);if(archive)pendingBrowse.current=archive.split(' / ').slice(0,-1).join(' / ');pendingBrowse.current+=' / Проект.7z'}
    state.samples.browse=kind==='folder'?'Выбор папки':purpose==='archive-open'?'Выбор архива':kind==='save-file'?'Сохранение файла':'Выбор файла';
    for(const key of drafts.keys())if(key.startsWith('browse|'))drafts.delete(key);
@@ -1520,7 +1466,7 @@
   }
   function acceptPicker(){
    const input=screen.querySelector('.picker-path'),value=input?.value;if(!value?.length||value.includes('\0'))return;
-   const f=pickerFixture(sample(),pendingBrowse),request=pendingBrowse||{purpose:f.purpose,ownerTab:activeMainTab,ownerSide:activeMainSide},fail=message=>{const error=screen.querySelector('.picker-error');error.hidden=false;error.textContent=message;input.setAttribute('aria-invalid','true');input.focus();layoutDialogSurfaces()};
+   const f=pickerFixture(sample(),pendingBrowse),request=pendingBrowse||{purpose:f.purpose,ownerPanel:activePanelId,ownerSide:activeMainSide},fail=message=>{const error=screen.querySelector('.picker-error');error.hidden=false;error.textContent=message;input.setAttribute('aria-invalid','true');input.focus();layoutDialogSurfaces()};
    if(sample()==='Нет доступа'&&value===f.current){fail('Не удалось открыть это место. Проверьте доступ или выберите другое.');return}
    if(request.purpose==='field'){
     const draft=drafts.get(request.key),field=draft?.fields.find(field=>field.binding===request.binding);
@@ -1530,8 +1476,8 @@
     closeView();return;
    }
    if(request.purpose==='archive-open'){
-    const owner=mainTabs.find(tab=>tab.id===request.ownerTab);if(!owner){fail('Исходная вкладка уже закрыта. Откройте выбор архива заново.');return}
-    activeMainSide=request.ownerSide;mainTabSelection[activeMainSide]=owner.id;activeMainTab=owner.id;pendingBrowse=null;backStack.length=0;drafts.delete('browse|'+sample());navigateTo('main',false);navigateMainFolder(screen.querySelector(`.pane[data-side="${activeMainSide}"]`),value);return;
+    const owner=mainPanels.find(tab=>tab.id===request.ownerPanel);if(!owner){fail('Исходная панель уже закрыта. Откройте выбор архива заново.');return}
+    activeMainSide=request.ownerSide;panelSelection[activeMainSide]=owner.id;activePanelId=owner.id;pendingBrowse=null;backStack.length=0;drafts.delete('browse|'+sample());navigateTo('main',false);navigateMainFolder(screen.querySelector(`.pane[data-side="${activeMainSide}"]`),value);return;
    }
    closeView();
   }
@@ -1543,7 +1489,7 @@
   }
   function refreshRecentPlaces(){
    if(state.screen!=='history')return;
-   if(!recentOwner)recentOwner={tabId:activeMainTab,side:activeMainSide};
+   if(!recentOwner)recentOwner={panelId:activePanelId,side:activeMainSide};
    const search=screen.querySelector('.recent-search');if(!search)return;
    if(recentMode!==sample()){recentMode=sample();recentSelection=null;recentFixtureRemoved.clear();search.value=sample()==='Нет совпадений'?'Несуществующее место':''}
    const all=recentPlaces(),query=search.value.toLocaleLowerCase(),matches=all.filter(path=>path.toLocaleLowerCase().includes(query));
@@ -1556,9 +1502,9 @@
   }
   function openRecentPlace(){
    const path=recentSelection;if(!path)return;
-   const owner=mainTabs.find(tab=>tab.id===recentOwner?.tabId);
+   const owner=mainPanels.find(tab=>tab.id===recentOwner?.panelId);
    if(sample()==='Место недоступно'||!owner){const error=screen.querySelector('.recent-error');error.hidden=false;error.textContent=owner?'Не удалось открыть место. Проверьте подключение и доступ или выберите другое.':'Вкладка, из которой открыта история, уже закрыта.';return}
-   activeMainSide=recentOwner.side;activeMainTab=owner.id;mainTabSelection[activeMainSide]=owner.id;backStack.length=0;drafts.delete('history|'+sample());navigateTo('main',false);
+   activeMainSide=recentOwner.side;activePanelId=owner.id;panelSelection[activeMainSide]=owner.id;backStack.length=0;drafts.delete('history|'+sample());navigateTo('main',false);
    navigateMainFolder(screen.querySelector(`.pane[data-side="${activeMainSide}"]`),path);
   }
   function settingsControls(page=settingsPage){const body=screen.querySelector('.settings-body');return page===settingsPage&&body?[...body.querySelectorAll('input,select,textarea')].filter(c=>!c.classList.contains('format-search')):(settingsCache.get(page)||[]).flatMap(node=>node.nodeType===1?[...(node.matches('input,select,textarea')?[node]:[]),...node.querySelectorAll('input,select,textarea')]:[]).filter(c=>!c.classList.contains('format-search'))}
@@ -1574,27 +1520,11 @@
   const sample=()=>state.samples[state.screen]||stateOptions[state.screen]?.[0]||'';
   function splitBounds(panes){const available=Math.max(1,panes.getBoundingClientRect().width-8),minimum=Math.min(180,available/2);return {available,min:minimum/available,max:1-minimum/available}}
   function layoutPanels(){
-   layoutMainTabs();
-   layoutMainSidebar();
    const panes=screen.querySelector('.panes.two');if(!panes)return;
    const bounds=splitBounds(panes),value=Math.max(bounds.min,Math.min(bounds.max,state.split));
    panes.style.setProperty('--split-left',value+'fr');panes.style.setProperty('--split-right',(1-value)+'fr');
    const handle=panes.querySelector('.panel-splitter');
    handle.setAttribute('aria-valuemin',String(Math.round(bounds.min*100)));handle.setAttribute('aria-valuemax',String(Math.round(bounds.max*100)));handle.setAttribute('aria-valuenow',String(Math.round(value*100)));handle.setAttribute('aria-valuetext',`Левая панель ${Math.round(value*100)}%, правая ${Math.round((1-value)*100)}%`);handle.setAttribute('aria-disabled',String(bounds.max-bounds.min<.01));
-   layoutMainTabs();
-   layoutMainSidebar();
-  }
-  function layoutMainTabs(){
-   for(const strip of screen.querySelectorAll('.manager-tabs')){
-    const width=strip.getBoundingClientRect().width;if(!width)continue;
-    const items=[...strip.querySelectorAll('.manager-tab-item')],size=Math.max(44,Math.min(220,(width-54)/Math.max(1,items.length)));
-    for(const item of items){item.style.flexBasis=size+'px';item.style.maxWidth=size+'px';item.classList.toggle('tab-compact',size<100);item.classList.toggle('tab-tiny',size<64)}
-    const active=strip.querySelector('.is-active');if(active){const tab=active.getBoundingClientRect(),bounds=strip.getBoundingClientRect();if(tab.left<bounds.left)strip.scrollLeft-=bounds.left-tab.left;if(tab.right>bounds.right-38)strip.scrollLeft+=tab.right-bounds.right+38}
-   }
-  }
-  function layoutMainSidebar(){
-   const body=screen.querySelector('.manager-body'),view=body?.querySelector('.panes>.pane>.file-table-scroll');
-   if(body&&view)body.style.setProperty('--pane-chrome-height',Math.round(view.getBoundingClientRect().top-body.getBoundingClientRect().top)+'px');
   }
   function changeSplit(value){const panes=screen.querySelector('.panes.two');if(!panes)return;const bounds=splitBounds(panes);state.split=Math.max(bounds.min,Math.min(bounds.max,value));layoutPanels()}
   screen.addEventListener('pointerdown',e=>{const handle=e.target.closest('.panel-splitter');if(!handle||e.button!==0||handle.getAttribute('aria-disabled')==='true')return;e.preventDefault();panelDrag={id:e.pointerId,handle};handle.setPointerCapture(e.pointerId);product.classList.add('resizing-panels')});
@@ -1629,8 +1559,8 @@
    if(fileSelectionDrag)finishFileSelection(null,true);
    clearFileDrag();
    closeFileContext(false);
-   closeTabContext(false);
-   closeFavoriteContext(false);
+
+
    if(state.screen.endsWith('-menu'))captureMenuBackdrop();
    if(capture)captureMainWorkspace();
    const app=product.querySelector('.app');
@@ -1667,7 +1597,7 @@
     product.querySelector('.system-menu')?.remove();
     product.querySelector('.stage').insertAdjacentHTML('afterbegin',`<nav class="system-menu" aria-label="Строка меню macOS"><details class="app-menu"><summary class="cursor-interaction">Sevenzip</summary><div><button type="button" class="open-settings cursor-interaction"><span>Настройки…</span><span>⌘,</span></button><button type="button" data-go="about">О Sevenzip</button><button type="button" class="quit-application"><span>Завершить Sevenzip</span><span>⌘Q</span></button></div></details><button type="button" data-go="file-menu">Файл</button><button type="button" class="open-edit-menu" aria-haspopup="menu" aria-expanded="false">Правка</button><button type="button" data-go="view-menu">Вид</button><span>Избранное</span><button type="button" class="open-service-menu" aria-haspopup="menu" aria-expanded="false">Сервис</button></nav>`);
     const standalone=isSettings(state.screen)||['messages','properties','hash','hash-verification','benchmark','benchmark-total','text','licenses','temporary','external-edit','about','mount-manager'].includes(state.screen);
-    product.querySelector('.titlebar').innerHTML=`<span class="window-lights" aria-hidden="true"><b></b><b></b><b></b></span><span>${isSettings(state.screen)?'Настройки':standalone?screenNames.find(r=>r[0]===state.screen)[1]:state.screen==='tokens'?'Компоненты':(mainTabs.find(tab=>tab.id===activeMainTab)?.title||'Sevenzip')+' — Sevenzip'}</span>`;
+    product.querySelector('.titlebar').innerHTML=`<span class="window-lights" aria-hidden="true"><b></b><b></b><b></b></span><span>${isSettings(state.screen)?'Настройки':standalone?screenNames.find(r=>r[0]===state.screen)[1]:state.screen==='tokens'?'Компоненты':(mainPanels.find(tab=>tab.id===activePanelId)?.title||'Sevenzip')+' — Sevenzip'}</span>`;
     const stage=screen.querySelector('.dialog-stage');
     if(stage&&!['components','tokens'].includes(state.screen)){
      if(standalone){stage.classList.add('settings-stage');if(isSettings(state.screen)){settingsPage=settingsRoutes[state.screen].page;const body=screen.querySelector('.settings-body');if(settingsCache.has(settingsPage))body.replaceChildren(...settingsCache.get(settingsPage));const detail=body.querySelector(`[data-settings-detail="${settingsRoutes[state.screen].detail}"]`);if(detail)detail.open=true}}
@@ -1707,7 +1637,7 @@
     const model=copyOperation||{title:title||'Копирование',source:'Домашняя / Документы / Проект',destination:'Домашняя / Документы / Результат',items:[{name:'Описание проекта.txt',kind:'Файл'}],size:'1,87 ГБ',totalFiles:400,compression:state.screen==='add',canPause:['add','extract'].includes(state.screen),demo:!title};
     const decision=conflictDecision,mode=state.samples.progress==='Отменено'?'Остановка':'Выполняется';copyOperation=null;conflictDecision=null;backStack.length=0;state.screen='main';variant.querySelector('.screen-picker').value='main';render();startReviewOperation(model,windowId,mode,decision);return;
    }
-   if(name==='history'&&state.screen!=='history'){recentOwner={tabId:activeMainTab,side:activeMainSide};recentMode=null}
+   if(name==='history'&&state.screen!=='history'){recentOwner={panelId:activePanelId,side:activeMainSide};recentMode=null}
    if(remember)captureDraft();state.screen=name;variant.querySelector('.screen-picker').value=name;render();save();
   }
   function openView(name){if(name==='settings')name='settings-view';if(name==='rename'&&state.screen==='main')captureNameContext();if(name==='delete'&&state.screen==='main'){captureDeleteContext();if(!deleteContext?.items.length)return}if(name==='properties'&&state.screen==='main')capturePropertiesContext();if(name==='overwrite')drafts.delete('overwrite|'+(state.samples.overwrite||stateOptions.overwrite[0]));backStack.push(state.screen.endsWith('-menu')?'main':state.screen);navigateTo(name);if(['copy','add','extract'].includes(name)){const input=screen.querySelector(name==='copy'?'.copy-destination-input':name==='add'?'.archive-name':'.extract-folder');input?.focus();input?.select()}if(name==='overwrite')screen.querySelector('[data-conflict-action=skip]')?.focus()}
@@ -1731,8 +1661,8 @@
    if(['copy','add','extract','properties','delete','rename','split','combine','split-error','link','history'].includes(from)&&state.screen==='main')focusMainFile();
   }
   function applyMainLocation(mode){
-   if(!state.two){activeMainSide=0;activeMainTab=mainTabSelection[0]}
-   const active=mainTabs.find(tab=>tab.id===activeMainTab);
+   if(!state.two){activeMainSide=0;activePanelId=panelSelection[0]}
+   const active=mainPanels.find(tab=>tab.id===activePanelId);
    const transient=value=>['Загрузка папки','Ошибка доступа'].includes(value);
    if(active.mode!==mode){
     if(transient(mode)&&!transient(active.mode))active.resumeMode=active.mode;
@@ -1742,8 +1672,8 @@
    }
    active.mode=mode;
    screen.querySelectorAll('.pane').forEach((pane,i)=>{
-    const tab=mainTabs.find(tab=>tab.id===mainTabSelection[i]);
-    pane.dataset.side=String(i);pane.dataset.tabId=String(tab.id);
+    const tab=mainPanels.find(tab=>tab.id===panelSelection[i]);
+    pane.dataset.side=String(i);pane.dataset.panelId=String(tab.id);
     applyMainPaneLocation(pane,tab.mode);
     pane.tabIndex=-1;pane.setAttribute('aria-label',i?'Правая файловая панель':'Левая файловая панель');
     pane.classList.toggle('active-pane',i===activeMainSide);
@@ -1751,7 +1681,7 @@
    decorateMain();
   }
   function applyMainPaneLocation(first,mode){
-   const presentation=mode,tab=mainTabs.find(tab=>String(tab.id)===first.dataset.tabId);
+   const presentation=mode,tab=mainPanels.find(tab=>String(tab.id)===first.dataset.panelId);
    mode=tab.resumeMode||mode;
    const saved=tab.panes[Number(first.dataset.side)],archive=mode==='Открытый архив'||mode==='Только для чтения'||!!demoArchiveRoot(saved?.path||'');
    first.dataset.readonlyRoot=mode==='Только для чтения'?demoArchiveRoot(saved?.path||'Документы / Проект.7z'):saved?.readonlyRoot||'';
@@ -1776,16 +1706,9 @@
    const panes=screen.querySelector('.panes');
    const tools=screen.querySelector('.tools');tools.remove();
    const body=document.createElement('div');body.className='manager-body';
-   body.classList.toggle('no-sidebar',state.sidebar===false);
-   body.innerHTML=`<nav class="manager-sidebar" aria-label="Места" ${state.sidebar===false?'hidden':''}><div class="favorites-heading"><h3>Избранное</h3><button type="button" class="add-favorite" aria-label="Добавить текущее место в избранное" title="Добавить текущее место">+</button></div><div class="favorite-places"></div><h3>Расположения</h3>${[{path:'Компьютер',name:'Компьютер',symbol:'monitor'},{path:'Тома',name:'Тома',symbol:'hard-drive'},{path:'Сеть',name:'Сеть',symbol:'network'}].map(sidebarPlace).join('')}</nav>`;
    panes.before(body);body.append(panes,screen.querySelector('.manager-status'));
    screen.querySelectorAll('.pane').forEach((pane,i)=>{
-    const tab=mainTabs.find(tab=>tab.id===mainTabSelection[i]);
-    const tabs=document.createElement('div');tabs.className='manager-tabs';tabs.setAttribute('role','tablist');tabs.setAttribute('aria-label',i?'Вкладки правой панели':'Вкладки левой панели');
-    const group=mainTabs.filter(entry=>entry.side===i);
-    tabs.innerHTML=group.map(entry=>workspaceTab({...entry,active:entry.id===tab.id})).join('');
-   const add=document.createElement('button');add.type='button';add.className='new-tab';add.setAttribute('aria-label','Новая вкладка');add.dataset.mainSide=String(i);add.textContent='+';tabs.append(add);
-   pane.prepend(tabs);
+    const tab=mainPanels.find(tab=>tab.id===panelSelection[i]);
    pane.querySelector('.address').after(tools.cloneNode(true));
    updateReadonlyNotice(pane);
     const saved=tab.panes[i];
@@ -1804,14 +1727,13 @@
      pane.querySelector('.tools').insertAdjacentHTML('afterend',`<div class="main-navigation-notice" role="${failed?'alert':'status'}"><div><strong>${loading?'Чтение папки…':'Не удалось открыть папку'}</strong><span>Сетевой диск / Проекты${failed?' · Нет доступа':''}</span><span class="hint">${loading?'Показано прежнее содержимое.':'Прежняя папка остаётся открытой.'}</span></div><div>${loading?'<button type="button" class="product-button" data-main-navigation="cancel">Отменить</button>':'<button type="button" class="product-button" data-main-navigation="retry">Повторить</button><button type="button" class="product-button" data-main-navigation="dismiss">Закрыть</button>'}</div></div>`);
     }
    });
-   const firstAddress=screen.querySelector('.pane .address');firstAddress.insertAdjacentHTML('afterbegin',`<button type="button" class="product-button toggle-places" aria-label="Показать или скрыть места" aria-expanded="${state.sidebar!==false}" data-tooltip="Боковая панель мест">${icon('panel-left')}</button>`);
-   refreshWindowStatus(screen.querySelector('.active-pane'));renderFavorites();
+   refreshWindowStatus(screen.querySelector('.active-pane'));
    product.querySelectorAll('.system-menu>span').forEach(item=>{if(item.textContent==='Избранное')item.remove()});
   }
   function captureMainWorkspace(){
    const body=screen.querySelector('.manager-body');if(!body||body.closest('.menu-underlay'))return;
    for(const pane of body.querySelectorAll('.pane')){
-    const tab=mainTabs.find(tab=>String(tab.id)===pane.dataset.tabId);if(!tab)continue;
+    const tab=mainPanels.find(tab=>String(tab.id)===pane.dataset.panelId);if(!tab)continue;
     tab.mode=pane.dataset.mainMode;
     const sort=pane.querySelector('th[aria-sort]');
     const side=Number(pane.dataset.side),previous=tab.panes[side],tableRows=pane.querySelector('tbody')?.innerHTML??[...pane.querySelectorAll('.icon-item')].map(item=>fileItemAsRow(item).outerHTML).join('');
@@ -1819,86 +1741,10 @@
     if(!tab.locations)tab.locations=new Map();tab.locations.set(pane.dataset.path,tab.panes[side]);
    }
   }
-  function makeHomeTab(side){
-   const tab={id:nextMainTab++,side,title:'Домашняя',mode:'Таблица',panes:[]};
+  function makeHomePanel(side){
+   const tab={id:nextPanelId++,side,title:'Домашняя',mode:'Таблица',panes:[]};
    tab.panes[side]={path:'Домашняя',history:['Домашняя'],historyAt:0,tableRows:demoFolderRows('Домашняя'),selection:[]};return tab;
   }
-  function createMainTab(side=activeMainSide,destination=null){
-   captureMainWorkspace();const tab=makeHomeTab(side);if(destination){tab.mode=destination.mode;tab.panes[side]=destination.pane}mainTabs.push(tab);activeMainSide=side;activeMainTab=mainTabSelection[side]=tab.id;state.screen='main';state.samples.main=tab.mode;variant.querySelector('.screen-picker').value='main';render({capture:false});screen.querySelector('.active-pane .current-file')?.focus({preventScroll:true});
-  }
-  function closeMainTab(id,transferring=false){
-   if(!transferring)stopExternalObservation(windowId,id);
-   captureMainWorkspace();const tab=mainTabs.find(tab=>tab.id===id),group=mainTabs.filter(item=>item.side===tab.side);
-   if(group.length===1&&!state.two){mainWindowClosed=true;state.screen='main';variant.querySelector('.screen-picker').value='main';render({capture:false});return}
-   mainTabs.splice(mainTabs.indexOf(tab),1);
-   if(group.length>1){if(mainTabSelection[tab.side]===id){const at=group.indexOf(tab);group.splice(at,1);mainTabSelection[tab.side]=group[Math.min(at,group.length-1)].id}activeMainSide=tab.side}
-   else {
-    if(tab.side===0){for(const item of mainTabs.filter(item=>item.side===1)){item.side=0;item.panes[0]=item.panes[1];delete item.panes[1]}mainTabSelection[0]=mainTabSelection[1]}
-    const hidden=makeHomeTab(1);mainTabs.push(hidden);mainTabSelection[1]=hidden.id;
-    state.two=false;variant.querySelector('.two-toggle').checked=false;activeMainSide=0;
-   }
-   activeMainTab=mainTabSelection[activeMainSide];state.samples.main=mainTabs.find(item=>item.id===activeMainTab).mode;render({capture:false});
-  }
-  function renderFavorites(){
-   const container=screen.querySelector('.favorite-places');if(!container)return;container.replaceChildren();
-   container.innerHTML=favoritePlaces.map(place=>sidebarPlace(place)).join('');
-   if(!favoritePlaces.length)container.innerHTML='<div class="favorite-empty">Перетащите сюда папку или добавьте текущее место кнопкой «+».</div>';
-   updateFavoriteCurrent();
-   if(globalThis.lucide)lucide.createIcons({attrs:{width:16,height:16}});
-  }
-  function updateFavoriteCurrent(){const path=screen.querySelector('.active-pane')?.dataset.path;screen.querySelectorAll('[data-main-place]').forEach(button=>button.setAttribute('aria-current',String(button.dataset.mainPlace===path)))}
-  function focusFavoritePlace(id){const button=screen.querySelector(id?`[data-favorite-place="${id}"]`:'.add-favorite');button?.focus({preventScroll:true});button?.scrollIntoView({block:'nearest',inline:'nearest'})}
-  function addFavoritePlace(path,name,symbol='folder',demoReadonlyRoot=''){
-   const existing=favoritePlaces.find(place=>place.path===path);if(existing)return existing.id;
-   const place={id:nextFavoriteId++,path,name,symbol,demoReadonlyRoot};favoritePlaces.push(place);publishReviewFavorites();return place.id;
-  }
-  function addCurrentFavorite(){const pane=screen.querySelector('.active-pane')||screen.querySelector('.pane');captureMainWorkspace();const id=addFavoritePlace(pane.dataset.path,pane.dataset.path.split(' / ').filter(Boolean).at(-1),demoArchiveRoot(pane.dataset.path)?'archive':'folder',pane.dataset.readonlyRoot);focusFavoritePlace(id)}
-  function removeFavoritePlace(id){const at=favoritePlaces.findIndex(place=>place.id===id);if(at<0)return;favoritePlaces.splice(at,1);publishReviewFavorites();focusFavoritePlace(favoritePlaces[Math.min(at,favoritePlaces.length-1)]?.id)}
-  function moveFavoritePlace(id,targetId,after=false){const place=favoritePlaces.find(item=>item.id===id);if(!place||id===targetId)return;favoritePlaces.splice(favoritePlaces.indexOf(place),1);const at=favoritePlaces.findIndex(item=>item.id===targetId);favoritePlaces.splice(at<0?favoritePlaces.length:at+(after?1:0),0,place);publishReviewFavorites();focusFavoritePlace(id)}
-  function renameFavoritePlace(id){
-   const place=favoritePlaces.find(item=>item.id===id),button=screen.querySelector(`[data-favorite-place="${id}"]`);if(!place||!button)return;
-   const input=document.createElement('input');input.className='favorite-name-editor';input.value=place.name;input.setAttribute('aria-label','Название в избранном');button.replaceWith(input);input.focus();input.select();
-   input.addEventListener('keydown',e=>{if(!['Enter','Escape'].includes(e.key))return;e.preventDefault();e.stopPropagation();const value=input.value.trim();if(e.key==='Enter'&&!value){input.setCustomValidity('Введите название.');input.reportValidity();return}input.dataset.finished='true';if(e.key==='Enter'){place.name=value;publishReviewFavorites();screen.querySelector(`[data-favorite-place="${id}"]`)?.focus({preventScroll:true})}else{input.replaceWith(button);button.focus({preventScroll:true})}});
-   input.addEventListener('input',()=>input.setCustomValidity(''));input.addEventListener('blur',()=>{if(!input.dataset.finished){input.replaceWith(button);updateFavoriteCurrent()}},{once:true});
-  }
-  function favoriteDestination(place){
-   let saved;for(const owner of reviewWindows.values()){saved=owner.api?.location(place.path);if(saved)break}
-   const pane={...saved,path:place.path,readonlyRoot:place.demoReadonlyRoot||saved?.readonlyRoot||'',history:[place.path],historyAt:0,selection:[],current:null,anchor:null,scroll:0,iconRows:undefined,tableRows:saved?.tableRows??demoFolderRows(place.path)},holder=document.createElement('tbody');holder.innerHTML=pane.tableRows;
-   holder.querySelectorAll('.selected,.current-file').forEach(row=>row.classList.remove('selected','current-file'));holder.querySelectorAll('.inline-rename').forEach(input=>input.replaceWith(document.createTextNode(input.closest('[data-file]').dataset.file)));pane.tableRows=holder.innerHTML;
-   return {mode:screen.querySelector('.active-pane .icon-grid')?'Крупные значки':'Таблица',pane};
-  }
-  function openFavoritePlace(id,where='current'){
-   const place=favoritePlaces.find(item=>item.id===id);if(!place)return;
-   if(state.screen!=='main')navigateTo('main');
-   const destination=favoriteDestination(place);
-   if(where==='window'){createReviewWindow({tab:{id:1,side:0,title:place.name,mode:destination.mode,panes:[destination.pane]},sourceSide:0,sidebar:state.sidebar});return}
-   if(where==='tab'){createMainTab(activeMainSide,destination);return}
-   let pane=screen.querySelector('.active-pane')||screen.querySelector('.pane'),tab=mainTabs.find(item=>String(item.id)===pane.dataset.tabId);
-   if(tab.resumeMode){state.samples.main=tab.resumeMode;render();pane=screen.querySelector('.active-pane');tab=mainTabs.find(item=>String(item.id)===pane.dataset.tabId)}
-   if(!tab.locations)tab.locations=new Map();tab.locations.set(place.path,destination.pane);navigateMainFolder(pane,place.path);updateFavoriteCurrent();
-  }
-  function closeFavoriteContext(focus=true){const popup=screen.querySelector('.favorite-context');if(!popup)return;popup.remove();if(focus)screen.querySelector(favoriteContextId?`[data-favorite-place="${favoriteContextId}"]`:'.add-favorite')?.focus({preventScroll:true});favoriteContextId=null}
-  function showFavoriteContext(id,x,y){
-   closeFavoriteContext(false);closeFileContext(false);closeTabContext(false);favoriteContextId=id;const place=favoritePlaces.find(item=>item.id===id),at=favoritePlaces.indexOf(place),action=(key,label,disabled=false)=>`<button type="button" class="menu-action" role="menuitem" data-favorite-command="${key}" ${disabled?'disabled':''}><span>${label}</span></button>`;
-   const popup=document.createElement('div');popup.className='native-menu favorite-context';popup.setAttribute('role','menu');popup.setAttribute('aria-label',place?'Действия с местом «'+place.name+'»':'Избранное');popup.innerHTML=place?action('open','Открыть')+action('tab','Открыть в новой вкладке')+action('window','Открыть в новом окне')+'<hr>'+action('rename','Переименовать подпись')+action('up','Переместить выше',at===0)+action('down','Переместить ниже',at===favoritePlaces.length-1)+'<hr>'+action('remove','Убрать из избранного'):action('add','Добавить текущее место');screen.append(popup);popup.style.left=Math.max(8,Math.min(x,innerWidth-popup.offsetWidth-8))+'px';popup.style.top=Math.max(8,Math.min(y,innerHeight-popup.offsetHeight-8))+'px';popup.querySelector('button:not(:disabled)')?.focus({preventScroll:true});
-  }
-  screen.addEventListener('contextmenu',e=>{if(state.screen!=='main'||e.target.closest('input'))return;const row=e.target.closest('.favorite-place'),area=e.target.closest('.favorite-places,.favorites-heading');if(!row&&!area)return;e.preventDefault();showFavoriteContext(row?Number(row.dataset.favoriteId):null,e.clientX,e.clientY)});
-  observeGlobal(document,'pointerdown',e=>{if(screen.querySelector('.favorite-context')&&!e.target.closest('.favorite-context'))closeFavoriteContext(false)},{capture:true});
-  function clearFavoriteDrop(){screen.querySelectorAll('.favorite-drop-before,.favorite-drop-after,.favorites-drop-target').forEach(item=>item.classList.remove('favorite-drop-before','favorite-drop-after','favorites-drop-target'))}
-  screen.addEventListener('dragstart',e=>{if(e.target.closest('.file-item')?.dataset.kind==='Том'){e.preventDefault();e.stopImmediatePropagation()}});
-  screen.addEventListener('dragstart',e=>{const row=e.target.closest('.favorite-place');if(!row||e.target.closest('input'))return;closeFavoriteContext(false);draggedFavoriteId=Number(row.dataset.favoriteId);e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('application/x-sevenzip-favorite',String(draggedFavoriteId))});
-  screen.addEventListener('dragover',e=>{
-   const area=e.target.closest('.favorite-places,.favorites-heading');if(!area)return;const row=e.target.closest('.favorite-place');
-   if(draggedFavoriteId!==null){e.preventDefault();e.stopImmediatePropagation();e.dataTransfer.dropEffect='move';clearFavoriteDrop();if(row&&Number(row.dataset.favoriteId)!==draggedFavoriteId)row.classList.add(e.clientY>row.getBoundingClientRect().top+row.offsetHeight/2?'favorite-drop-after':'favorite-drop-before');else if(!row)screen.querySelector('.favorite-places').classList.add('favorites-drop-target');return}
-   if(draggedFiles&&draggedFiles.rows.every(item=>item.dataset.kind==='Папка')){e.preventDefault();e.stopImmediatePropagation();e.dataTransfer.dropEffect='copy';clearFavoriteDrop();clearFileDropTarget();screen.querySelector('.favorite-places').classList.add('favorites-drop-target');area.title='Закрепить в избранном';cancelAnimationFrame(draggedFiles.frame);draggedFiles.frame=null}
-  });
-  screen.addEventListener('drop',e=>{
-   if(!e.target.closest('.favorite-places,.favorites-heading'))return;
-   if(draggedFavoriteId!==null){e.preventDefault();e.stopImmediatePropagation();const id=draggedFavoriteId,row=e.target.closest('.favorite-place'),targetId=row?Number(row.dataset.favoriteId):null,after=row?e.clientY>row.getBoundingClientRect().top+row.offsetHeight/2:false;draggedFavoriteId=null;clearFavoriteDrop();moveFavoritePlace(id,targetId,after);return}
-   if(draggedFiles&&draggedFiles.rows.every(item=>item.dataset.kind==='Папка')){e.preventDefault();e.stopImmediatePropagation();const drag=draggedFiles;for(const row of drag.rows)addFavoritePlace(drag.path+' / '+row.dataset.file,row.dataset.file,'folder',drag.pane.dataset.readonlyRoot);clearFavoriteDrop();clearFileDrag();suppressSelectionClick()}
-  });
-  screen.addEventListener('dragleave',e=>{if(e.target.closest('.favorite-places,.favorites-heading')&&!e.relatedTarget?.closest?.('.favorite-places,.favorites-heading'))clearFavoriteDrop()});
-  screen.addEventListener('dragend',()=>{draggedFavoriteId=null;clearFavoriteDrop()});
   function updateMainHistory(pane){
    const back=pane.querySelector('.main-back');if(back)back.disabled=!(pane.mainHistoryAt>0);
    const forward=pane.querySelector('.main-forward');if(forward)forward.disabled=!(pane.mainHistoryAt<pane.mainHistory.length-1);
@@ -1922,7 +1768,7 @@
    if(!path||pane.classList.contains('is-loading'))return;
    if(path===pane.dataset.path){if(historyAt!==null)pane.mainHistoryAt=historyAt;setMainPath(pane,path,false);updateMainHistory(pane);captureMainWorkspace();recordRecentPlace(path);pane.querySelector('.current-file')?.focus({preventScroll:true});return}
    captureMainWorkspace();
-   const tab=mainTabs.find(tab=>String(tab.id)===pane.dataset.tabId),saved=tab.locations?.get(path),view=pane.querySelector('.file-table-scroll');
+   const tab=mainPanels.find(tab=>String(tab.id)===pane.dataset.panelId),saved=tab.locations?.get(path),view=pane.querySelector('.file-table-scroll');
    const previousReadonly=pane.dataset.readonlyRoot,previousLocation=pane.dataset.location;
    pane.dataset.readonlyRoot=['Компьютер','Тома','Сеть'].includes(path)?path:saved?.readonlyRoot||(previousReadonly&&(path===previousReadonly||path.startsWith(previousReadonly+' / '))?previousReadonly:'');
    pane.dataset.readLimitations=saved?saved.readLimitations||'':pane.dataset.readonlyRoot===previousReadonly?pane.dataset.readLimitations||'':'';
@@ -1945,13 +1791,13 @@
    tab.panes[Number(pane.dataset.side)]={...saved,path,history:pane.mainHistory.slice(),historyAt:pane.mainHistoryAt};
    if(globalThis.lucide)lucide.createIcons({attrs:{width:16,height:16}});
    const current=pane.querySelector('.current-file');if(current)current.focus({preventScroll:true});else{view.tabIndex=0;view.focus({preventScroll:true})}
-   captureMainWorkspace();layoutMainSidebar();recordRecentPlace(path);
+   captureMainWorkspace();recordRecentPlace(path);
   }
   function demoArchiveRoot(path){const parts=path.split(' / ').filter(Boolean),at=parts.findIndex(part=>/\.(7z|zip)$/i.test(part));return at<0?'':parts.slice(0,at+1).join(' / ')}
   function openMainFile(item){if(!item)return;const pane=item.closest('.pane');if(item.dataset.kind==='Том'){navigateMainFolder(pane,item.dataset.file==='Системный диск'?'/':item.dataset.file);return}if(item.dataset.kind==='Папка'||item.dataset.kind.startsWith('Архив'))navigateMainFolder(pane,pane.dataset.path+' / '+item.dataset.file);else if(item.dataset.kind==='Контрольные суммы'){captureChecksumVerifyContext(item);openView('hash-verify')}else dispatchExternalIntent(pane,item)}
   function openExternalCopy(item,intent='open'){
    const pane=item.closest('.pane'),archive=demoArchiveRoot(pane.dataset.path)||pane.dataset.readonlyRoot||pane.dataset.path,id=++nextExternalCopy;
-   externalContext={id,ownerWindow:windowId,ownerTab:activeMainTab,provider:pane.dataset.location,launchIntent:intent,name:item.dataset.file,archive,entry:pane.dataset.path.slice(archive.length).replace(/^ \/ /,'')+(pane.dataset.path===archive?'':' / ')+item.dataset.file,temp:'Временные файлы Sevenzip / Сеанс '+id+' / '+item.dataset.file,destination:pane.dataset.location==='recovery'?'Домашняя / Документы':archive.split(' / ').slice(0,-1).join(' / '),readOnly:!!pane.dataset.readonlyRoot,mode:'Открыт во внешней программе',safe:false};
+   externalContext={id,ownerWindow:windowId,ownerPanel:activePanelId,provider:pane.dataset.location,launchIntent:intent,name:item.dataset.file,archive,entry:pane.dataset.path.slice(archive.length).replace(/^ \/ /,'')+(pane.dataset.path===archive?'':' / ')+item.dataset.file,temp:'Временные файлы Sevenzip / Сеанс '+id+' / '+item.dataset.file,destination:pane.dataset.location==='recovery'?'Домашняя / Документы':archive.split(' / ').slice(0,-1).join(' / '),readOnly:!!pane.dataset.readonlyRoot,mode:'Открыт во внешней программе',safe:false};
    reviewExternalCopies.set(id,externalContext);state.samples['external-edit']=externalContext.mode;openView('external-edit');
   }
   function removeTemporaryCopy(button){
@@ -1960,7 +1806,7 @@
    const key=row.dataset.tempKey;if(key.startsWith('session-')){const id=Number(key.slice(8)),copy=reviewExternalCopies.get(id);if(!copy)return;if(!copy.safe){if(!copy.finishedConfirmed||!['Файл изменён','Не удалось обновить','Только для чтения'].includes(copy.mode))return;showReviewModal({title:'Удалить изменённую копию?',body:sourceSummary({name:copy.name,path:copy.temp,iconName:'file-text'})+'<p>Эти изменения не записаны в архив. Удаление копии отменить не получится.</p>',actions:[{label:'Отмена'},{label:'Удалить изменения',value:'discard',className:'destructive-action'}],initialFocus:'button',returnFocus:button,onAction:action=>{if(action==='discard'&&copy.finishedConfirmed&&copy.mode!=='Обновляется архив'){reviewExternalCopies.delete(id);row.remove();screen.querySelector('.temp-status').textContent='Изменённая копия удалена.'}}});return}reviewExternalCopies.delete(id)}else reviewRemovedTempExamples.add(key);
    row.remove();screen.querySelector('.temp-status').textContent='Копия удалена.';
   }
-  function ensureExternalContext(){if(!externalContext){externalContext={...externalFileFixture(sample()),ownerWindow:windowId,ownerTab:activeMainTab,id:++nextExternalCopy,safe:false,finishedConfirmed:['Файл изменён','Не удалось обновить','Только для чтения','Изменения сохранены'].includes(sample())};reviewExternalCopies.set(externalContext.id,externalContext)}return externalContext}
+  function ensureExternalContext(){if(!externalContext){externalContext={...externalFileFixture(sample()),ownerWindow:windowId,ownerPanel:activePanelId,id:++nextExternalCopy,safe:false,finishedConfirmed:['Файл изменён','Не удалось обновить','Только для чтения','Изменения сохранены'].includes(sample())};reviewExternalCopies.set(externalContext.id,externalContext)}return externalContext}
   function updateExternalFile(){if(state.screen!=='external-edit')return;const check=screen.querySelector('.external-check');if(check)check.disabled=sample()==='Завершение неизвестно'&&!screen.querySelector('.external-finished')?.checked;layoutDialogSurfaces()}
   function updateChecksumForm(){
    if(!['hash-file','hash-verify'].includes(state.screen))return;
@@ -2009,7 +1855,7 @@
   }
   screen.addEventListener('contextmenu',e=>{const view=e.target.closest('.file-table-scroll');if(state.screen!=='main'||!view||e.target.closest('input,th'))return;e.preventDefault();showFileContext(view.closest('.pane'),e.target.closest('.file-item'),e.clientX,e.clientY)});
   observeGlobal(document,'pointerdown',e=>{if(screen.querySelector('.file-context')&&!e.target.closest('.file-context,.open-edit-menu,.open-service-menu'))closeFileContext(false)},{capture:true});
-  observeGlobal(window,'resize',()=>{closeFileContext(false);closeTabContext(false);closeFavoriteContext(false)});
+  observeGlobal(window,'resize',()=>{closeFileContext(false);});
   screen.addEventListener('scroll',e=>{if(e.target.matches('.file-table-scroll'))closeFileContext(false)},true);
   function setMainPath(pane,value,remember=true){
    if(remember){const history=pane.mainHistory||[pane.dataset.path];if(history[pane.mainHistoryAt??0]!==value){pane.mainHistory=history.slice(0,(pane.mainHistoryAt??0)+1);pane.mainHistory.push(value);pane.mainHistoryAt=pane.mainHistory.length-1}}
@@ -2017,12 +1863,12 @@
    const parts=value.split(' / ').filter(Boolean);
    path.innerHTML=addressContent(value);
    path.title=value;
-   const tab=mainTabs.find(tab=>String(tab.id)===pane.dataset.tabId);tab.title=parts.at(-1)||'Домашняя';
+   const tab=mainPanels.find(tab=>String(tab.id)===pane.dataset.panelId);tab.title=parts.at(-1)||'Домашняя';
    const button=pane.querySelector(`[data-main-tab="${tab.id}"]`);if(button){button.querySelector('.main-tab-title').textContent=tab.title;button.querySelector('.main-tab-symbol').innerHTML=icon(demoArchiveRoot(value)?'archive':'folder');button.title=value;button.setAttribute('aria-label',tab.title)}
    const close=pane.querySelector(`[data-close-main-tab="${tab.id}"]`);if(close)close.setAttribute('aria-label','Закрыть вкладку «'+tab.title+'»');
-   updateFavoriteCurrent();
+
    refreshReviewWindows();
-   if(state.screen==='main'&&tab.id===activeMainTab){const title=product.querySelector('.titlebar>span:last-child');if(title)title.textContent=tab.title+' — Sevenzip'}
+   if(state.screen==='main'&&tab.id===activePanelId){const title=product.querySelector('.titlebar>span:last-child');if(title)title.textContent=tab.title+' — Sevenzip'}
    updateMainHistory(pane);
    if(globalThis.lucide)lucide.createIcons({attrs:{width:16,height:16}});
   }
@@ -2040,56 +1886,16 @@
   function activateMainPane(e){
    if(disposed||state.screen!=='main')return;
    const pane=e.target.closest('.pane');if(!pane)return;
-   activeMainSide=Number(pane.dataset.side);activeMainTab=Number(pane.dataset.tabId);state.samples.main=pane.dataset.mainMode;
-   const tab=mainTabs.find(tab=>tab.id===activeMainTab),title=product.querySelector('.titlebar>span:last-child');if(title)title.textContent=tab.title+' — Sevenzip';
+   activeMainSide=Number(pane.dataset.side);activePanelId=Number(pane.dataset.panelId);state.samples.main=pane.dataset.mainMode;
+   const tab=mainPanels.find(tab=>tab.id===activePanelId),title=product.querySelector('.titlebar>span:last-child');if(title)title.textContent=tab.title+' — Sevenzip';
    variant.querySelector('.state-picker').value=state.samples.main;
-   updateFavoriteCurrent();
+
    refreshReviewWindows();
    screen.querySelectorAll('.pane').forEach(p=>p.classList.toggle('active-pane',p===pane));
    updateMainCommands(pane);
   }
   screen.addEventListener('pointerdown',activateMainPane);
   screen.addEventListener('focusin',activateMainPane);
-  screen.addEventListener('auxclick',e=>{const tab=e.target.closest('[data-drag-main-tab]');if(e.button===1&&tab){e.preventDefault();closeMainTab(Number(tab.dataset.dragMainTab))}});
-  screen.addEventListener('dragstart',e=>{
-   const item=e.target.closest('[data-drag-main-tab]');if(!item)return;
-   reviewDraggedTab={owner:entry.api,id:Number(item.dataset.dragMainTab)};
-   draggedMainTab=Number(item.dataset.dragMainTab);e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',String(draggedMainTab));
-  });
-  screen.addEventListener('dragover',e=>{
-   if(!reviewDraggedTab)return;const strip=e.target.closest('.manager-tabs');if(!strip)return;
-   screen.querySelectorAll('.tab-drop-target').forEach(item=>item.classList.remove('tab-drop-target'));strip.classList.add('tab-drop-target');
-   e.preventDefault();e.dataTransfer.dropEffect='move';screen.querySelectorAll('.drag-over').forEach(item=>item.classList.remove('drag-over'));e.target.closest('.manager-tab-item')?.classList.add('drag-over');
-  });
-  function moveMainTab(id,side,targetId=null,after=false){
-   captureMainWorkspace();const tab=mainTabs.find(item=>item.id===id),previousSide=tab.side,group=mainTabs.filter(item=>item.side===previousSide),crossing=previousSide!==side;
-   mainTabs.splice(mainTabs.indexOf(tab),1);
-   if(crossing){tab.panes[side]=tab.panes[previousSide];delete tab.panes[previousSide];tab.side=side;if(mainTabSelection[previousSide]===id){const neighbors=group.filter(item=>item!==tab);mainTabSelection[previousSide]=neighbors[Math.min(group.indexOf(tab),neighbors.length-1)]?.id}}
-   const target=mainTabs.findIndex(item=>item.id===targetId);mainTabs.splice(target<0?mainTabs.length:target+(after?1:0),0,tab);
-   mainTabSelection[side]=id;
-   if(crossing&&group.length===1){
-    if(side===1)for(const item of mainTabs.filter(item=>item.side===1)){item.side=0;item.panes[0]=item.panes[1];delete item.panes[1]}
-    mainTabSelection[0]=id;const hidden=makeHomeTab(1);mainTabs.push(hidden);mainTabSelection[1]=hidden.id;state.two=false;variant.querySelector('.two-toggle').checked=false;
-   }
-   activeMainSide=tab.side;activeMainTab=id;state.samples.main=tab.mode;draggedMainTab=null;render({capture:false});
-  }
-  function closeTabContext(focus=true){const popup=screen.querySelector('.tab-context');if(!popup)return;popup.remove();if(focus)screen.querySelector(`[data-main-tab="${tabContextId}"]`)?.focus({preventScroll:true});tabContextId=null}
-  function showTabContext(id,x,y){
-   closeTabContext(false);closeFileContext(false);tabContextId=id;
-   const popup=document.createElement('div');popup.className='native-menu tab-context';popup.setAttribute('role','menu');popup.setAttribute('aria-label','Действия с вкладкой');popup.innerHTML=`<button type="button" class="menu-action" role="menuitem" data-tab-context="panel" ${state.two?'':'disabled'}><span>Переместить в другую панель</span></button><button type="button" class="menu-action" role="menuitem" data-tab-context="window"><span>Переместить в новое окно</span></button><hr><button type="button" class="menu-action" role="menuitem" data-tab-context="close"><span>Закрыть вкладку</span><span class="hint">⌘W</span></button>`;
-   screen.append(popup);popup.style.left=Math.max(8,Math.min(x,innerWidth-popup.offsetWidth-8))+'px';popup.style.top=Math.max(8,Math.min(y,innerHeight-popup.offsetHeight-8))+'px';popup.querySelector('button:not(:disabled)')?.focus({preventScroll:true});
-  }
-  screen.addEventListener('contextmenu',e=>{const item=e.target.closest('[data-drag-main-tab]');if(!item)return;e.preventDefault();showTabContext(Number(item.dataset.dragMainTab),e.clientX,e.clientY)});
-  observeGlobal(document,'pointerdown',e=>{if(screen.querySelector('.tab-context')&&!e.target.closest('.tab-context'))closeTabContext(false)},{capture:true});
-  screen.addEventListener('drop',e=>{
-   const moving=reviewDraggedTab;if(!moving)return;const strip=e.target.closest('.manager-tabs');if(!strip)return;
-   e.preventDefault();const target=e.target.closest('[data-drag-main-tab]'),id=Number(target?.dataset.dragMainTab),side=Number(strip.closest('.pane').dataset.side);
-   if(moving.owner!==entry.api){reviewDraggedTab=null;entry.api.receiveTab(moving.owner.releaseTab(moving.id),side,target?id:null,target?e.clientX>target.getBoundingClientRect().left+target.getBoundingClientRect().width/2:false);showReviewWindow(windowId);return}
-   if(id===draggedMainTab){draggedMainTab=null;reviewDraggedTab=null;screen.querySelectorAll('.drag-over,.tab-drop-target').forEach(item=>item.classList.remove('drag-over','tab-drop-target'));return}
-   reviewDraggedTab=null;moveMainTab(draggedMainTab,side,target?id:null,target?e.clientX>target.getBoundingClientRect().left+target.getBoundingClientRect().width/2:false);
-  });
-  screen.addEventListener('dragend',()=>{draggedMainTab=null;reviewDraggedTab=null;screen.querySelectorAll('.drag-over,.tab-drop-target').forEach(item=>item.classList.remove('drag-over','tab-drop-target'));windowReview.querySelectorAll('.window-drop-target').forEach(item=>item.classList.remove('window-drop-target'))});
-  screen.addEventListener('dragleave',e=>{const strip=e.target.closest('.manager-tabs');if(strip&&!strip.contains(e.relatedTarget))strip.classList.remove('tab-drop-target')});
   function clearFileDropTarget(){screen.querySelectorAll('.file-drop-target,.file-drop-pane').forEach(item=>item.classList.remove('file-drop-target','file-drop-pane'));screen.querySelector('.file-drop-hint')?.remove()}
   function clearFileDrag(){if(draggedFiles)cancelAnimationFrame(draggedFiles.frame);draggedFiles=null;clearFileDropTarget();screen.querySelector('.file-drag-image')?.remove()}
   function fileDropTarget(event){
@@ -2110,14 +1916,14 @@
    drag.frame=requestAnimationFrame(scrollFileDrag);
   }
   function transferDraggedFiles(target){
-   const drag=draggedFiles,tab=mainTabs.find(tab=>String(tab.id)===target.pane.dataset.tabId),sameFolder=target.path===drag.path;
+   const drag=draggedFiles,tab=mainPanels.find(tab=>String(tab.id)===target.pane.dataset.panelId),sameFolder=target.path===drag.path;
    captureMainWorkspace();
-   const sourceTab=mainTabs.find(tab=>String(tab.id)===drag.tabId);
+   const sourceTab=mainPanels.find(tab=>String(tab.id)===drag.panelId);
    for(const row of drag.rows)if(row.dataset.kind==='Папка'){const path=drag.path+' / '+row.dataset.file;if(!sourceTab.locations.has(path))sourceTab.locations.set(path,{path,tableRows:demoFolderRows(path),selection:[]})}
    const existing=document.createElement('tbody');existing.innerHTML=tab.locations?.get(target.path)?.tableRows??demoFolderRows(target.path);
    if(!(sameFolder&&target.copy)&&drag.rows.some(row=>[...existing.children].some(item=>item.dataset.file===row.dataset.file))){showWindowStatus(target.pane,'Есть совпадающие имена — требуется разрешение конфликта');return}
    const originalPath=target.pane.dataset.path,history=target.pane.mainHistory.slice(),historyAt=target.pane.mainHistoryAt,clipboard=mainClipboard;
-   mainClipboard={cut:!target.copy,rows:drag.rows,source:drag.source,path:drag.path,tabId:drag.tabId,side:drag.side,demoDrag:true};
+   mainClipboard={cut:!target.copy,rows:drag.rows,source:drag.source,path:drag.path,panelId:drag.panelId,side:drag.side,demoDrag:true};
    if(target.path!==originalPath)navigateMainFolder(target.pane,target.path);
    const before=new Set([...target.pane.querySelectorAll('.file-item')].map(item=>item.dataset.file));
    updateMainCommands(target.pane);target.pane.querySelector('[data-main-command=paste]').click();
@@ -2133,7 +1939,7 @@
    const pane=item.closest('.pane');if(pane.classList.contains('is-loading')){e.preventDefault();return}
    closeFileContext(false);if(!item.classList.contains('selected'))selectFileItem(item,{});
    const source=[...pane.querySelectorAll('.file-item.selected')],readonly=pane.querySelector('[data-main-command=cut]').disabled;
-   draggedFiles={source,pane,path:pane.dataset.path,tabId:pane.dataset.tabId,side:Number(pane.dataset.side),rows:source.map(fileItemAsRow),readonly};
+   draggedFiles={source,pane,path:pane.dataset.path,panelId:pane.dataset.panelId,side:Number(pane.dataset.side),rows:source.map(fileItemAsRow),readonly};
    e.dataTransfer.effectAllowed=readonly?'copy':'copyMove';e.dataTransfer.setData('application/x-sevenzip-demo-files',String(source.length));
    const ghost=document.createElement('div');ghost.className='file-drag-image';ghost.textContent=source.length===1?source[0].dataset.file:`${source[0].dataset.file} и ещё ${source.length-1}`;screen.append(ghost);e.dataTransfer.setDragImage(ghost,12,12);
   });
@@ -2250,11 +2056,11 @@
   }
   function applySample(){
    const selected=sample();
-   if(['file-menu','view-menu','context-menu'].includes(state.screen)&&!screen.querySelector('.menu-underlay .manager-body'))applyMainLocation(mainTabs.find(tab=>tab.id===activeMainTab).mode);
+   if(['file-menu','view-menu','context-menu'].includes(state.screen)&&!screen.querySelector('.menu-underlay .manager-body'))applyMainLocation(mainPanels.find(tab=>tab.id===activePanelId).mode);
    if(state.screen==='main'){
     applyMainLocation(selected);
     screen.querySelectorAll('.pane').forEach(p=>{
-     const tab=mainTabs.find(tab=>String(tab.id)===p.dataset.tabId),mode=tab.resumeMode||p.dataset.mainMode,saved=tab.panes[Number(p.dataset.side)];
+     const tab=mainPanels.find(tab=>String(tab.id)===p.dataset.panelId),mode=tab.resumeMode||p.dataset.mainMode,saved=tab.panes[Number(p.dataset.side)];
      if(mode==='Крупные значки'){const cards=[...p.querySelectorAll('tbody tr[data-file]')].map(row=>{const holder=document.createElement('div');holder.innerHTML=iconCard(row.dataset.file,row.children[1].textContent,row.dataset.kind,row.classList.contains('selected'),row.children[3].textContent,{bytes:row.dataset.bytes,modifiedEpoch:row.dataset.modifiedEpoch});holder.firstElementChild.classList.toggle('pending-cut',row.classList.contains('pending-cut'));return holder.innerHTML}).join('');p.querySelector('.filetable').outerHTML=`<div class="icon-grid" role="listbox" aria-multiselectable="true" aria-label="Файлы">${cards}</div>`;p.querySelector('.filespace').remove()}
      if(mode==='Крупные значки'&&saved?.iconRows)p.querySelector('.icon-grid').innerHTML=saved.iconRows;
      if(mode==='Отмеченные и удалённые'){p.querySelector('[data-file="Материалы.zip"]')?.classList.add('deleted-file');for(const name of ['Описание.txt','Список.csv'])p.querySelector(`[data-file="${name}"]`)?.classList.add('marked-file')}
@@ -2487,16 +2293,16 @@
    updateAdd();updateExtract();updateDependencies();updateFormats();markSettingsChange(e)
   });
   screen.addEventListener('input',e=>{if(e.target.matches('.license-search')){licenseQuery=e.target.value;refreshLicenses();return}if(e.target.matches('.memory-limit')){screen.querySelector('.memory-error').hidden=true;e.target.removeAttribute('aria-invalid')}if(e.target.matches('.picker-path')){screen.querySelector('.picker-error').hidden=true;e.target.removeAttribute('aria-invalid')}updatePicker();updateLinkForm();updateVolumeForm();updateChecksumForm();if(e.target.matches('.checksum-name,.checksum-folder,.checksum-manifest,.checksum-base')){const error=screen.querySelector('.checksum-form-error');if(error)error.hidden=true}if(e.target.matches('.component-required')){const error=screen.querySelector('#component-field-error');const invalid=!e.target.value.length;error.hidden=!invalid;e.target.setAttribute('aria-invalid',String(invalid))}if(e.target.matches('.prompt-password-input')){screen.querySelector('.password-prompt-error').hidden=true;e.target.removeAttribute('aria-invalid');if(passwordContext)passwordContext.wrong=false}if(e.target.matches('.archive-volume')){screen.querySelector('.archive-volume-error')?.remove();e.target.classList.remove('field-error');e.target.removeAttribute('aria-invalid')}updateAdd();updateCopy();updateExtract();updateDependencies();updateFormats();screen.querySelectorAll('input').forEach(i=>i.setCustomValidity(''));markSettingsChange(e);updateFscrypt();updateMountSettings();updateNameForm(e.target.matches('.name-value'))});
-  variant.querySelector('.screen-picker').addEventListener('change',e=>{backStack.length=0;pendingBrowse=null;pickerView.directory=null;if(e.target.value==='history'){recentOwner={tabId:activeMainTab,side:activeMainSide};recentMode=null}if(e.target.value==='link')linkContext=null;if(['split','combine','split-error'].includes(e.target.value))volumeContext=null;if(e.target.value==='external-edit')externalContext=null;if(e.target.value==='hash-file')hashContext=null;if(e.target.value==='hash-verify')checksumVerifyContext=null;if(e.target.value==='delete')deleteContext=null;if(e.target.value==='rename')nameContext=null;if(e.target.value==='progress'){navigateTo('progress');return}if(e.target.value==='extract'){extractContext=null;for(const key of drafts.keys())if(key.startsWith('extract|'))drafts.delete(key)}if(e.target.value==='add'){archiveContext=null;archiveUpdateIntent=null;for(const key of drafts.keys())if(key.startsWith('add|'))drafts.delete(key)}if(e.target.value==='copy'){copyContext=null;drafts.delete('copy|Копирование');drafts.delete('copy|Перемещение')}state.screen=e.target.value;render();save()});
+  variant.querySelector('.screen-picker').addEventListener('change',e=>{backStack.length=0;pendingBrowse=null;pickerView.directory=null;if(e.target.value==='history'){recentOwner={panelId:activePanelId,side:activeMainSide};recentMode=null}if(e.target.value==='link')linkContext=null;if(['split','combine','split-error'].includes(e.target.value))volumeContext=null;if(e.target.value==='external-edit')externalContext=null;if(e.target.value==='hash-file')hashContext=null;if(e.target.value==='hash-verify')checksumVerifyContext=null;if(e.target.value==='delete')deleteContext=null;if(e.target.value==='rename')nameContext=null;if(e.target.value==='progress'){navigateTo('progress');return}if(e.target.value==='extract'){extractContext=null;for(const key of drafts.keys())if(key.startsWith('extract|'))drafts.delete(key)}if(e.target.value==='add'){archiveContext=null;archiveUpdateIntent=null;for(const key of drafts.keys())if(key.startsWith('add|'))drafts.delete(key)}if(e.target.value==='copy'){copyContext=null;drafts.delete('copy|Копирование');drafts.delete('copy|Перемещение')}state.screen=e.target.value;render();save()});
   variant.querySelector('.state-picker').addEventListener('change',e=>{
    if(state.screen==='main'&&['Открытый архив','Только для чтения','Пустая папка'].includes(e.target.value)){
-    captureMainWorkspace();const tab=mainTabs.find(tab=>tab.id===activeMainTab),empty=e.target.value==='Пустая папка',path=empty?'Документы / Новая папка':'Документы / Проект.7z';
+    captureMainWorkspace();const tab=mainPanels.find(tab=>tab.id===activePanelId),empty=e.target.value==='Пустая папка',path=empty?'Документы / Новая папка':'Документы / Проект.7z';
     tab.resumeMode=null;tab.mode=e.target.value;tab.panes[activeMainSide]={path,location:empty?'folder':'archive',readonlyRoot:e.target.value==='Только для чтения'?path:'',history:[path],historyAt:0,tableRows:demoFolderRows(path),selection:empty?[]:['Описание.txt'],current:empty?null:'Описание.txt',scroll:0};tab.locations??=new Map();tab.locations.set(path,tab.panes[activeMainSide]);state.samples.main=e.target.value;render({capture:false});save();return;
    }
 if(isBenchmark()){const config=benchmarkConfig();config.closeAfterStop=false;config.hasMeasurements=null;if(e.target.value==='Готов к запуску')config.run=null}if(state.screen==='browse')pickerView.directory=null;if(state.screen==='link'){linkContext=null;for(const key of drafts.keys())if(key.startsWith('link|'))drafts.delete(key)}if(['split','combine','split-error'].includes(state.screen))volumeContext=null;if(state.screen==='add'){archiveUpdateIntent=null;for(const key of drafts.keys())if(key.startsWith('add|'))drafts.delete(key)}if(state.screen==='properties')propertiesContext=null;if(state.screen==='delete')deleteContext=null;if(state.screen==='rename')nameContext=null;if(state.screen==='devices')deviceSelection=null;if(state.screen==='extract'){extractContext=null;for(const key of drafts.keys())if(key.startsWith('extract|'))drafts.delete(key)}if(state.screen==='password')passwordContext=null;state.samples[state.screen]=e.target.value;if(state.screen==='external-edit'&&externalContext){externalContext.mode=e.target.value;externalContext.finishedConfirmed=['Файл изменён','Не удалось обновить','Только для чтения','Изменения сохранены'].includes(e.target.value);externalContext.safe=e.target.value==='Изменения сохранены'&&externalContext.finishedConfirmed}render();save()});
   variant.querySelector('.previous-screen').addEventListener('click',()=>{const at=catalog.findIndex(r=>r[0]===state.screen);if(at>0)navigateTo(catalog[at-1][0])});
   variant.querySelector('.next-screen').addEventListener('click',()=>{const at=catalog.findIndex(r=>r[0]===state.screen);if(at<catalog.length-1)navigateTo(catalog[at+1][0])});
-  variant.querySelector('.two-toggle').addEventListener('change',e=>{if(!e.target.checked){activeMainSide=0;activeMainTab=mainTabSelection[0];state.samples.main=mainTabs.find(tab=>tab.id===activeMainTab).mode}state.two=e.target.checked;render();save()});
+  variant.querySelector('.two-toggle').addEventListener('change',e=>{if(!e.target.checked){activeMainSide=0;activePanelId=panelSelection[0];state.samples.main=mainPanels.find(tab=>tab.id===activePanelId).mode}state.two=e.target.checked;render();save()});
   function resolveConflict(action){
    const fixture=overwriteFixture(sample(),copyOperation);
    copyOperation||={source:fixture.source,destination:fixture.destination,items:[{name:fixture.name,kind:'Файл'}],size:fixture.incomingSize,moving:false};
@@ -2562,7 +2368,7 @@ if(isBenchmark()){const config=benchmarkConfig();config.closeAfterStop=false;con
    if(isBenchmark()&&e.target.closest('.benchmark-start,.benchmark-stop,.benchmark-copy,.benchmark-close')){const button=e.target.closest('button');if(button.disabled)return;const config=benchmarkConfig();if(button.classList.contains('benchmark-close')){closeBenchmark();return}if(button.classList.contains('benchmark-copy')){copyReportText(screen,button,benchmarkReport(sample(),config,state.screen==='benchmark-total'));return}if(button.classList.contains('benchmark-start')){if(benchmarkBusy(sample()))return;config.run={dictionary:config.dictionary,threads:config.threads,passes:config.passes};config.closeAfterStop=false;config.hasMeasurements=false;state.samples[state.screen]='Подготовка';render();return}if(button.classList.contains('benchmark-stop')){state.samples[state.screen]='Остановка';render();return}}
    if(state.screen==='memory'&&e.target.closest('.memory-allow,.memory-skip,.memory-cancel,.memory-close')){const button=e.target.closest('button');if(button.classList.contains('memory-close')||button.classList.contains('memory-cancel')){closeView();return}const action=button.classList.contains('memory-skip')?'skip':'allow',decision=readMemoryDecision(screen,action);if(!decision)return;publishMemoryLimit(decision);const request=memoryFixture(sample());backStack.length=0;navigateTo('main',false);const op=startReviewOperation({title:request.test?'Проверка архива':'Распаковка',source:request.archive,destination:'Домашняя / Документы / Проект',items:[{name:request.file,kind:'Файл'}],memoryDemo:true,memoryTest:request.test,memoryMulti:request.multi,memorySkipped:action==='skip',memorySkippedArchives:action==='skip'?[request.archive]:[],canPause:true},windowId,action==='skip'&&!request.multi?'Завершено с пропусками':'Выполняется');op.memoryDecision=decision.remember?decision:null;op.model.memoryLastDecision=decision;return}
    if(['components','tokens'].includes(state.screen)&&!e.target.closest('[data-go]')){const button=e.target.closest('button');if(button?.classList.contains('component-progress-known'))screen.querySelector('.component-progress').innerHTML=progressIndicator({value:62,label:'Пример определённого прогресса'});if(button?.classList.contains('component-progress-unknown'))screen.querySelector('.component-progress').innerHTML=progressIndicator({label:'Пример неизвестного объёма'});return}
-   if(e.target.closest('.reopen-main-window')){const left=makeHomeTab(0),right=makeHomeTab(1);mainTabs.splice(0,mainTabs.length,left,right);mainTabSelection[0]=left.id;mainTabSelection[1]=right.id;activeMainSide=0;activeMainTab=left.id;state.samples.main='Таблица';state.two=false;variant.querySelector('.two-toggle').checked=false;mainClipboard=reviewClipboard;mainWindowClosed=false;render();return}
+   if(e.target.closest('.reopen-main-window')){const left=makeHomePanel(0),right=makeHomePanel(1);mainPanels.splice(0,mainPanels.length,left,right);panelSelection[0]=left.id;panelSelection[1]=right.id;activeMainSide=0;activePanelId=left.id;state.samples.main='Таблица';state.two=false;variant.querySelector('.two-toggle').checked=false;mainClipboard=reviewClipboard;mainWindowClosed=false;render();return}
    if(e.target.closest('.quit-application')){requestReviewQuit(e.target.closest('button'));return}
    if(e.target.closest('.open-service-menu')){showServiceMenu(e.target.closest('.open-service-menu'));return}
    if(e.target.closest('.open-edit-menu')){if(state.screen==='main')showEditMenu(e.target.closest('.open-edit-menu'));return}
@@ -2570,7 +2376,7 @@ if(isBenchmark()){const config=benchmarkConfig();config.closeAfterStop=false;con
    const trigger=e.target.closest('[data-go]');if(trigger&&!trigger.disabled){
     if(['copy','delete','rename','add','extract','archive-test','split','combine','link','hash','hash-file','hash-verify','properties'].includes(trigger.dataset.go)&&trigger.classList.contains('menu-action')&&!fileCommandAllowed(trigger.dataset.go,trigger))return;
     if(trigger.dataset.go==='archive-test'){startArchiveTest();return}
-    if(trigger.dataset.go==='mount-settings'&&trigger.closest('.service-context')){const c=fileCommandState();if(!c.ready||!c.archive)return;mountContext={source:c.pane.dataset.path,windowId,tabId:activeMainTab};closeFileContext(false);openView('mount-settings');return}
+    if(trigger.dataset.go==='mount-settings'&&trigger.closest('.service-context')){const c=fileCommandState();if(!c.ready||!c.archive)return;mountContext={source:c.pane.dataset.path,windowId,panelId:activePanelId};closeFileContext(false);openView('mount-settings');return}
     if(trigger.dataset.viewAction){performViewAction(trigger.dataset.viewAction);return}
     if(trigger.dataset.openMode){openSelectedFromMenu(trigger.dataset.openMode);return}
     if(trigger.dataset.menuMainCommand){const pane=fileContextPane||screen.querySelector('.active-pane'),command=trigger.dataset.menuMainCommand;closeFileContext(false);pane.querySelector(`[data-main-command="${command}"]`)?.click();return}
@@ -2584,7 +2390,6 @@ if(isBenchmark()){const config=benchmarkConfig();config.closeAfterStop=false;con
     if(trigger.dataset.go==='copy')captureCopyContext();
     if(trigger.dataset.go==='progress')copyOperation=null;
     if(trigger.dataset.go==='new-window'){newMainWindow();return}
-    if(trigger.dataset.go==='new-tab'){createMainTab();return}
     if(trigger.dataset.go==='close-window'){closeMainWindow();return}
     if(trigger.dataset.go==='browse'){beginPicker(trigger.parentElement.querySelector('input'),{kind:trigger.parentElement.querySelector('input')?'folder':'file',purpose:trigger.parentElement.querySelector('input')?'field':'archive-open'});return}
     if(trigger.dataset.go==='copy')state.samples.copy=trigger.dataset.transferMode==='move'||trigger.textContent.includes('Переместить')?'Перемещение':'Копирование';
@@ -2593,21 +2398,15 @@ if(isBenchmark()){const config=benchmarkConfig();config.closeAfterStop=false;con
     if(trigger.textContent.includes('Комментарий'))state.samples.rename='Комментарий';
     if(trigger.textContent.includes('Крупные значки'))state.samples.main='Крупные значки';
     if(trigger.textContent.includes('Таблица')||trigger.textContent==='Список')state.samples.main='Таблица';
-    if(trigger.textContent.includes('Две панели')){state.two=!state.two;if(!state.two){activeMainSide=0;activeMainTab=mainTabSelection[0];state.samples.main=mainTabs.find(tab=>tab.id===activeMainTab).mode}}
+    if(trigger.textContent.includes('Две панели')){state.two=!state.two;if(!state.two){activeMainSide=0;activePanelId=panelSelection[0];state.samples.main=mainPanels.find(tab=>tab.id===activePanelId).mode}}
     if(trigger.textContent.includes('Переименовать')){state.samples.main='Переименование';openView('main');return}
     openView(trigger.dataset.go)
    }
   });
   screen.addEventListener('keydown',e=>{
    if(e.target.matches('.device-choice')&&['ArrowDown','ArrowUp','Home','End','Enter'].includes(e.key)){e.preventDefault();e.stopPropagation();if(e.key==='Enter'){e.target.click();screen.querySelector('.open-device-choice')?.click();return}const rows=[...screen.querySelectorAll('.device-choice:not(:disabled)')],at=rows.indexOf(e.target),next=e.key==='Home'?0:e.key==='End'?rows.length-1:(at+(e.key==='ArrowDown'?1:-1)+rows.length)%rows.length;rows[next]?.click();rows[next]?.focus();return}
-   if(e.target.matches('[data-favorite-place]')&&(e.key==='ContextMenu'||(e.shiftKey&&e.key==='F10'))){e.preventDefault();const rect=e.target.getBoundingClientRect();showFavoriteContext(Number(e.target.dataset.favoritePlace),rect.left,rect.bottom);return}
-   if(e.target.matches('.manager-tab')&&(e.key==='ContextMenu'||(e.shiftKey&&e.key==='F10'))){e.preventDefault();const rect=e.target.getBoundingClientRect();showTabContext(Number(e.target.dataset.mainTab),rect.left,rect.bottom);return}
    if(state.screen==='main'&&(e.key==='ContextMenu'||(e.shiftKey&&e.key==='F10'))&&e.target.closest('.file-table-scroll')&&!e.target.closest('input')){e.preventDefault();const pane=e.target.closest('.pane'),item=e.target.closest('.file-item'),rect=(item||e.target).getBoundingClientRect();showFileContext(pane,item,rect.left+16,rect.bottom);return}
    if(e.key==='Escape'&&fileSelectionDrag?.active){e.preventDefault();e.stopPropagation();finishFileSelection(null,true);return}
-   if(e.target.matches('.manager-tab')&&['ArrowLeft','ArrowRight','Home','End'].includes(e.key)){
-    e.preventDefault();const pane=e.target.closest('.pane'),side=pane.dataset.side,tabs=[...pane.querySelectorAll('.manager-tab')],at=tabs.indexOf(e.target),next=e.key==='Home'?0:e.key==='End'?tabs.length-1:(at+(e.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length;
-    tabs[next].click();screen.querySelector(`.pane[data-side="${side}"] .manager-tab[aria-selected=true]`)?.focus();return;
-   }
    if(e.target.matches('th[data-main-sort]')&&['Enter',' '].includes(e.key)){e.preventDefault();e.target.click();return}
    if(e.target.matches('.file-item')&&state.screen==='main'){
     const pane=e.target.closest('.pane'),items=[...pane.querySelectorAll('.file-item')],at=items.indexOf(e.target);
@@ -2673,17 +2472,14 @@ if(isBenchmark()){const config=benchmarkConfig();config.closeAfterStop=false;con
 
    if(!e.target.closest('.create-actions,[data-main-command=create]')){screen.querySelector('.create-actions')?.remove();screen.querySelector('[data-main-command=create]')?.setAttribute('aria-expanded','false')}
    const row=e.target.closest('.file-item');if(row&&state.screen==='main'&&!e.target.closest('input'))selectFileItem(row,e);
-   if(state.screen==='main'&&!row&&!e.target.closest('button,input,th,.manager-sidebar,.manager-tabs')&&e.target.closest('.file-table-scroll,.filespace')){const pane=e.target.closest('.pane');pane.querySelectorAll('.file-item').forEach(item=>item.classList.remove('selected'));updateFileSelection(pane)}
+   if(state.screen==='main'&&!row&&!e.target.closest('button,input,th')&&e.target.closest('.file-table-scroll,.filespace')){const pane=e.target.closest('.pane');pane.querySelectorAll('.file-item').forEach(item=>item.classList.remove('selected'));updateFileSelection(pane)}
    const button=e.target.closest('button');if(!button)return;
    if(button.dataset.copyDestination){screen.querySelector('.copy-destination-input').value=button.dataset.copyDestination;screen.querySelector('.copy-recents').open=false;updateCopy();screen.querySelector('.copy-destination-input').focus();return}
-   if(button.dataset.favoriteCommand){const id=favoriteContextId,command=button.dataset.favoriteCommand;closeFavoriteContext(false);if(command==='add')addCurrentFavorite();else if(['open','tab','window'].includes(command))openFavoritePlace(id,command==='open'?'current':command);else if(command==='rename')renameFavoritePlace(id);else if(command==='remove')removeFavoritePlace(id);else{const at=favoritePlaces.findIndex(place=>place.id===id),target=favoritePlaces[at+(command==='up'?-1:1)];if(target)moveFavoritePlace(id,target.id,command==='down')}return}
-   if(button.dataset.favoritePlace){openFavoritePlace(Number(button.dataset.favoritePlace));return}
-   if(button.dataset.tabContext){const id=tabContextId,command=button.dataset.tabContext;closeTabContext(false);if(command==='window')newMainWindow(id,true);else if(command==='panel')moveMainTab(id,1-mainTabs.find(tab=>tab.id===id).side);else closeMainTab(id);return}
    if(button.dataset.fileContextCommand){const pane=fileContextPane,command=button.dataset.fileContextCommand;closeFileContext();pane?.querySelector(`[data-main-command="${command}"]`)?.click();return}
    if(button.hasAttribute('data-file-context-open')){const item=fileContextPane?.querySelector('.current-file');closeFileContext();openMainFile(item);return}
    if(button.dataset.mainNavigation){
-    const pane=button.closest('.pane'),tab=mainTabs.find(tab=>String(tab.id)===pane.dataset.tabId);
-    activeMainSide=Number(pane.dataset.side);activeMainTab=tab.id;
+    const pane=button.closest('.pane'),tab=mainPanels.find(tab=>String(tab.id)===pane.dataset.panelId);
+    activeMainSide=Number(pane.dataset.side);activePanelId=tab.id;
     state.samples.main=button.dataset.mainNavigation==='retry'?'Загрузка папки':tab.resumeMode||'Таблица';render();return;
    }
    if(button.dataset.mainCommand){
@@ -2694,7 +2490,7 @@ if(isBenchmark()){const config=benchmarkConfig();config.closeAfterStop=false;con
     }
     if(command==='copy'||command==='cut'){
      root.querySelectorAll('.pending-cut').forEach(row=>row.classList.remove('pending-cut'));
-     mainClipboard={cut:command==='cut',rows:rows.map(fileItemAsRow),source:rows,path:pane.dataset.path,tabId:pane.dataset.tabId,side:Number(pane.dataset.side),owner:entry.api};
+     mainClipboard={cut:command==='cut',rows:rows.map(fileItemAsRow),source:rows,path:pane.dataset.path,panelId:pane.dataset.panelId,side:Number(pane.dataset.side),owner:entry.api};
      if(mainClipboard.cut)rows.forEach(row=>row.classList.add('pending-cut'));
      publishReviewClipboard(mainClipboard);showWindowStatus(pane,(command==='cut'?'Готово к перемещению: ':'Объектов в буфере: ')+rows.length);return;
     }
@@ -2711,7 +2507,7 @@ if(isBenchmark()){const config=benchmarkConfig();config.closeAfterStop=false;con
        body.append(row);
       }
       if(mainClipboard.cut){
-       const source=mainClipboard.owner?.findTab(mainClipboard.tabId)||mainTabs.find(tab=>String(tab.id)===mainClipboard.tabId),saved=source?.locations?.get(mainClipboard.path)||source?.panes[mainClipboard.side],names=new Set(mainClipboard.rows.map(row=>row.dataset.file));
+       const source=mainClipboard.owner?.findPanel(mainClipboard.panelId)||mainPanels.find(tab=>String(tab.id)===mainClipboard.panelId),saved=source?.locations?.get(mainClipboard.path)||source?.panes[mainClipboard.side],names=new Set(mainClipboard.rows.map(row=>row.dataset.file));
        if(saved?.path===mainClipboard.path)for(const key of ['tableRows','iconRows'])if(saved[key]){const holder=document.createElement(key==='tableRows'?'tbody':'div');holder.innerHTML=saved[key];for(const item of holder.querySelectorAll('[data-file]'))if(names.has(item.dataset.file))item.remove();saved[key]=holder.innerHTML;saved.selection=[]}
        for(const sourcePane of screen.querySelectorAll('.pane'))if(sourcePane!==pane&&sourcePane.dataset.path===mainClipboard.path){for(const item of sourcePane.querySelectorAll('.file-item'))if(names.has(item.dataset.file))item.remove();configureFileList(sourcePane)}
        if(mainClipboard.owner&&mainClipboard.owner!==entry.api)mainClipboard.owner.removeFiles(mainClipboard.path,names);
@@ -2725,15 +2521,8 @@ if(isBenchmark()){const config=benchmarkConfig();config.closeAfterStop=false;con
     }
     if(command==='delete'){state.samples.delete='В Корзину';openView('delete');return}
    }
-   if(button.classList.contains('toggle-places')){state.sidebar=state.sidebar===false;const body=screen.querySelector('.manager-body');body.classList.toggle('no-sidebar',!state.sidebar);body.querySelector('.manager-sidebar').hidden=!state.sidebar;button.setAttribute('aria-expanded',String(state.sidebar));layoutPanels();return}
-   if(button.dataset.mainTab){captureMainWorkspace();activeMainTab=Number(button.dataset.mainTab);const tab=mainTabs.find(tab=>tab.id===activeMainTab);activeMainSide=tab.side;mainTabSelection[tab.side]=tab.id;state.samples.main=tab.mode;render();return}
-   if(button.classList.contains('new-tab')){createMainTab(Number(button.dataset.mainSide));return}
-   if(button.dataset.closeMainTab){closeMainTab(Number(button.dataset.closeMainTab));return}
-   if(button.classList.contains('add-favorite')){addCurrentFavorite();return}
-   if(button.dataset.removeFavorite!==undefined){removeFavoritePlace(Number(button.dataset.removeFavorite));return}
    if(button.classList.contains('main-back')){const pane=button.closest('.pane');if(pane.mainHistoryAt>0)navigateMainFolder(pane,pane.mainHistory[pane.mainHistoryAt-1],pane.mainHistoryAt-1);return}
    if(button.classList.contains('main-forward')){const pane=button.closest('.pane');if(pane.mainHistoryAt<pane.mainHistory.length-1)navigateMainFolder(pane,pane.mainHistory[pane.mainHistoryAt+1],pane.mainHistoryAt+1);return}
-   if(button.dataset.mainPlace){const pane=screen.querySelector('.active-pane')||screen.querySelector('.pane'),tab=mainTabs.find(tab=>String(tab.id)===pane.dataset.tabId);if(tab.resumeMode){state.samples.main=tab.resumeMode;render()}navigateMainFolder(screen.querySelector('.active-pane')||pane,button.dataset.mainPlace);screen.querySelectorAll('[data-main-place]').forEach(b=>b.setAttribute('aria-current',String(b.dataset.mainPlace===button.dataset.mainPlace)));return}
    if(button.dataset.mainCrumb){navigateMainFolder(button.closest('.pane'),button.dataset.mainCrumb);return}
    if(state.screen==='main'&&button.classList.contains('main-up')){parentMainFolder(button.closest('.pane'));return}
    if(button.classList.contains('edit-main-path')){const path=button.closest('.path');path.querySelector('.breadcrumbs').hidden=true;const input=path.querySelector('input');input.hidden=false;input.focus();input.select();return}
@@ -2798,8 +2587,6 @@ if(isBenchmark()){const config=benchmarkConfig();config.closeAfterStop=false;con
    if(e.key==='Escape'&&screen.querySelector('.create-actions')){e.preventDefault();screen.querySelector('.create-actions').remove();const trigger=screen.querySelector('.active-pane [data-main-command=create]');trigger?.setAttribute('aria-expanded','false');trigger?.focus();return}
    if(state.screen==='main'&&e.metaKey&&e.shiftKey&&!e.altKey&&!e.ctrlKey&&e.key.toLowerCase()==='n'&&!e.target.closest('input,textarea')){e.preventDefault();if(!screen.querySelector('.active-pane [data-main-command=create]').disabled){state.samples.rename='Создать папку';openView('rename')}return}
    if(e.key==='Escape'&&screen.querySelector('.force-confirm')){e.preventDefault();screen.querySelector('.cancel-force-unmount').click();return}
-   if(e.key==='Escape'&&screen.querySelector('.favorite-context')){e.preventDefault();closeFavoriteContext();return}
-   if(e.key==='Escape'&&screen.querySelector('.tab-context')){e.preventDefault();closeTabContext();return}
    if(state.screen==='main'&&e.metaKey&&e.shiftKey&&!e.altKey&&!e.ctrlKey&&!e.target.closest('input,textarea')&&e.key.toLowerCase()==='a'){e.preventDefault();if(fileCommandAllowed('add')){captureArchiveContext();openView('add')}return}
    if(state.screen==='main'&&e.metaKey&&e.shiftKey&&!e.altKey&&!e.ctrlKey&&!e.target.closest('input,textarea')&&e.key.toLowerCase()==='e'){e.preventDefault();const pane=screen.querySelector('.active-pane'),selected=[...pane.querySelectorAll('.selected')];if(fileCommandAllowed('extract')){captureExtractContext();openView('extract')}return}
    if(state.screen==='main'&&e.metaKey&&e.shiftKey&&!e.altKey&&!e.ctrlKey&&!e.target.closest('input,textarea')&&['c','m'].includes(e.key.toLowerCase())){
@@ -2812,7 +2599,7 @@ if(isBenchmark()){const config=benchmarkConfig();config.closeAfterStop=false;con
    if(state.screen==='main'&&e.metaKey&&!e.shiftKey&&!e.altKey&&!e.ctrlKey&&e.key.toLowerCase()==='r'){e.preventDefault();performViewAction('refresh');return}
    if(state.screen==='main'&&e.metaKey&&!e.shiftKey&&!e.altKey&&!e.ctrlKey&&e.key.toLowerCase()==='l'){e.preventDefault();if(fileCommandState().ready)screen.querySelector('.active-pane .edit-main-path')?.click();return}
    if(state.screen==='main'&&e.metaKey&&!e.shiftKey&&!e.altKey&&!e.ctrlKey&&e.key.toLowerCase()==='o'){e.preventDefault();if(!fileCommandState().ready)return;beginPicker(null,{kind:'file',purpose:'archive-open'});return}
-   if(state.screen==='main'&&!mainWindowClosed&&e.metaKey&&!e.altKey&&!e.ctrlKey){if(e.key.toLowerCase()==='n'&&!e.shiftKey){e.preventDefault();newMainWindow();return}if(e.key.toLowerCase()==='t'&&!e.shiftKey){e.preventDefault();createMainTab();return}if(e.key.toLowerCase()==='w'){e.preventDefault();if(e.shiftKey)closeMainWindow();else closeMainTab(activeMainTab);return}}
+   if(state.screen==='main'&&!mainWindowClosed&&e.metaKey&&!e.altKey&&!e.ctrlKey){if(e.key.toLowerCase()==='n'&&!e.shiftKey){e.preventDefault();newMainWindow();return}if(e.key.toLowerCase()==='w'){e.preventDefault();closeMainWindow();return}}
    if(e.key==='Escape'&&screen.querySelector('.file-context:not(.has-submenu)')){e.preventDefault();closeFileContext();return}
    if(state.screen==='main'&&e.target.closest('.file-table-scroll')&&!e.target.closest('input,textarea')&&e.metaKey){const pane=e.target.closest('.pane');if(e.key==='ArrowUp'){e.preventDefault();parentMainFolder(pane);return}if(e.key==='['){e.preventDefault();pane.querySelector('.main-back').click();return}if(e.key===']'){e.preventDefault();pane.querySelector('.main-forward').click();return}if(e.key.toLowerCase()==='l'){e.preventDefault();pane.querySelector('.edit-main-path').click();return}const clipboard={c:'copy',x:'cut',v:'paste'}[e.key.toLowerCase()];if(clipboard){e.preventDefault();pane.querySelector(`[data-main-command="${clipboard}"]`).click();return}}
    if(e.key==='Escape'&&state.screen==='main'&&e.target.closest('.is-loading')){e.preventDefault();e.target.closest('.pane').querySelector('[data-main-navigation=cancel]')?.click();return}
@@ -2825,52 +2612,46 @@ if(isBenchmark()){const config=benchmarkConfig();config.closeAfterStop=false;con
    if(['ArrowDown','ArrowUp'].includes(e.key)&&e.target.closest('.native-menu,.submenu-holder')){const parent=e.target.closest('.native-menu,.submenu-holder'),choices=[...parent.querySelectorAll('button:not(:disabled)')].filter(b=>b.offsetParent!==null);const at=choices.indexOf(e.target.closest('button'));const next=choices[(at+(e.key==='ArrowDown'?1:-1)+choices.length)%choices.length];if(next){e.preventDefault();next.focus()}return}
    if(e.key==='Enter'&&(isSettings(state.screen)||['add','extract','rename','copy','split','combine','link','browse','history','memory','password','format-options'].includes(state.screen))&&!e.target.closest('button,select,summary,textarea')){e.preventDefault();confirm()}
   });
-  function exportMainTab(id=activeMainTab,fresh=false){
-   captureMainWorkspace();const tab=structuredClone(mainTabs.find(tab=>tab.id===id));
+  function exportPanel(id=activePanelId,fresh=false){
+   captureMainWorkspace();const tab=structuredClone(mainPanels.find(tab=>tab.id===id));
    if(!tab.panes[tab.side]){const path=['Открытый архив','Только для чтения'].includes(tab.mode)?'Документы / Проект.7z':'Домашняя';tab.panes[tab.side]={path,readonlyRoot:tab.mode==='Только для чтения'?path:'',tableRows:demoFolderRows(path),selection:[],history:[path],historyAt:0}}
    if(fresh){
     const reset=snapshot=>{const result={...snapshot,selection:[],current:null,anchor:null,scroll:0,history:[snapshot.path],historyAt:0};for(const key of ['tableRows','iconRows'])if(result[key]){const holder=document.createElement(key==='tableRows'?'tbody':'div');holder.innerHTML=result[key];holder.querySelectorAll('.selected,.current-file').forEach(item=>item.classList.remove('selected','current-file'));holder.querySelectorAll('.inline-rename').forEach(input=>input.replaceWith(document.createTextNode(input.closest('[data-file]').dataset.file)));result[key]=holder.innerHTML}return result};
     tab.panes[tab.side]=reset(tab.panes[tab.side]);if(tab.locations)for(const [path,snapshot] of tab.locations)tab.locations.set(path,reset(snapshot));
     tab.mode=tab.resumeMode||tab.mode;tab.resumeMode=null;
    }
-   return {tab,sourceSide:tab.side,sidebar:state.sidebar,externalCopies:!fresh?[...reviewExternalCopies.values()].filter(copy=>copy.ownerWindow===windowId&&copy.ownerTab===id&&!copy.observationStopped).map(copy=>copy.id):[]};
+   return {panel:tab,sourceSide:tab.side,externalCopies:!fresh?[...reviewExternalCopies.values()].filter(copy=>copy.ownerWindow===windowId&&copy.ownerPanel===id&&!copy.observationStopped).map(copy=>copy.id):[]};
   }
-  function newMainWindow(id=activeMainTab,transfer=false){const snapshot=exportMainTab(id,!transfer);if(state.screen==='file-menu')navigateTo('main');createReviewWindow(snapshot);if(transfer)closeMainTab(id,true);refreshReviewWindows()}
+  function newMainWindow(){const snapshot=exportPanel(activePanelId,true);if(state.screen==='file-menu')navigateTo('main');createReviewWindow(snapshot);refreshReviewWindows()}
   function closeMainWindow(){stopExternalObservation(windowId);captureMainWorkspace();discardPasswordRequest();screen.querySelectorAll('.fscrypt-key input').forEach(input=>input.value='');mainWindowClosed=true;state.screen='main';variant.querySelector('.screen-picker').value='main';render({capture:false})}
-  function receiveMainTab(snapshot,side=activeMainSide,targetId=null,after=false){
-   captureMainWorkspace();const tab=structuredClone(snapshot.tab),pane=tab.panes[snapshot.sourceSide];tab.id=nextMainTab++;tab.side=side;tab.panes=[];tab.panes[side]=pane;
-   for(const id of snapshot.externalCopies||[]){const copy=reviewExternalCopies.get(id);if(copy){copy.ownerWindow=windowId;copy.ownerTab=tab.id}}
-   const target=mainTabs.findIndex(item=>item.id===targetId);mainTabs.splice(target<0?mainTabs.length:target+(after?1:0),0,tab);mainTabSelection[side]=tab.id;activeMainSide=side;activeMainTab=tab.id;state.screen='main';state.samples.main=tab.mode;variant.querySelector('.screen-picker').value='main';mainWindowClosed=false;render({capture:false});
-  }
   function updateWindowClipboard(value){
    mainClipboard=value;const names=new Set(value?.rows.map(row=>row.dataset.file)||[]),mark=(container,path)=>{for(const row of container.querySelectorAll('[data-file]'))row.classList.toggle('pending-cut',!!value?.cut&&path===value.path&&names.has(row.dataset.file))};
    for(const pane of screen.querySelectorAll('.pane')){mark(pane,pane.dataset.path);updateMainCommands(pane)}
-   for(const tab of mainTabs){const snapshots=new Set([...tab.panes,...(tab.locations?.values()||[])]);for(const snapshot of snapshots)if(snapshot)for(const key of ['tableRows','iconRows'])if(snapshot[key]){const holder=document.createElement(key==='tableRows'?'tbody':'div');holder.innerHTML=snapshot[key];mark(holder,snapshot.path);snapshot[key]=holder.innerHTML}}
+   for(const tab of mainPanels){const snapshots=new Set([...tab.panes,...(tab.locations?.values()||[])]);for(const snapshot of snapshots)if(snapshot)for(const key of ['tableRows','iconRows'])if(snapshot[key]){const holder=document.createElement(key==='tableRows'?'tbody':'div');holder.innerHTML=snapshot[key];mark(holder,snapshot.path);snapshot[key]=holder.innerHTML}}
   }
   function exportWindowSession(){
-   const tabs=mainTabs.map(tab=>{const snapshot=exportMainTab(tab.id,true).tab;
+   const panels=mainPanels.map(tab=>{const snapshot=exportPanel(tab.id,true).panel;
     for(const [side,pane] of snapshot.panes.entries())if(pane){
      const archive=demoArchiveRoot(pane.path),path=archive?archive.split(' / ').slice(0,-1).join(' / ')||'Домашняя':pane.path;
      snapshot.panes[side]={path,location:'folder',readonlyRoot:'',readLimitations:'',tableRows:demoFolderRows(path),selection:[],history:[path],historyAt:0,sort:pane.sort,scroll:0};
     }
     snapshot.locations=new Map();snapshot.title=snapshot.panes[snapshot.side]?.path.split(' / ').at(-1)||'Домашняя';snapshot.mode=snapshot.mode==='Крупные значки'?'Крупные значки':'Таблица';snapshot.resumeMode=null;return snapshot}),ui=structuredClone(state);
-   ui.screen='main';ui.samples={main:tabs.find(tab=>tab.id===mainTabSelection[activeMainSide])?.mode||'Таблица'};
-   return {windowId,tabs,ui,selectedTabs:mainTabSelection.slice(),activeSide:activeMainSide,nextTab:nextMainTab};
+   ui.screen='main';ui.samples={main:panels.find(tab=>tab.id===panelSelection[activeMainSide])?.mode||'Таблица'};
+   return {windowId,panels,ui,selectedPanels:panelSelection.slice(),activeSide:activeMainSide,nextPanel:nextPanelId};
   }
   entry.api={
-   id:windowId,closed:()=>mainWindowClosed,close:closeMainWindow,quitInfo:()=>({form:!['main','file-menu','view-menu','context-menu','about','licenses','properties','text','messages','history','hash','hash-verification','temporary','mount-manager','benchmark','benchmark-total','tokens','components'].includes(state.screen),benchmark:isBenchmark()&&benchmarkBusy(sample())}),title:()=>mainTabs.find(tab=>tab.id===activeMainTab)?.title||'Домашняя',newWindow:()=>newMainWindow(),receiveTab:receiveMainTab,
-   releaseTab:id=>{const snapshot=exportMainTab(id);draggedMainTab=null;closeMainTab(id,true);return snapshot},
-   activate:()=>{renderFavorites();layoutPanels();if(state.screen==='main')screen.querySelector('.active-pane .current-file')?.focus({preventScroll:true});window.top.postMessage({type:'sevenzip-design-selection',screen:state.screen},'*')},
-   deactivate:()=>{closeTabContext(false);closeFileContext(false);closeFavoriteContext(false);clearFavoriteDrop();draggedFavoriteId=null;clearFileDrag()},
-   viewMenus:refreshViewMenuMarks,recent:refreshRecentPlaces,favorites:renderFavorites,location:path=>{captureMainWorkspace();for(const tab of mainTabs){const saved=tab.locations?.get(path)||tab.panes[tab.side];if(saved?.path===path)return structuredClone(saved)}return null},
-   clipboard:updateWindowClipboard,findTab:id=>mainTabs.find(tab=>String(tab.id)===String(id)),
+   id:windowId,closed:()=>mainWindowClosed,close:closeMainWindow,quitInfo:()=>({form:!['main','file-menu','view-menu','context-menu','about','licenses','properties','text','messages','history','hash','hash-verification','temporary','mount-manager','benchmark','benchmark-total','tokens','components'].includes(state.screen),benchmark:isBenchmark()&&benchmarkBusy(sample())}),title:()=>mainPanels.find(tab=>tab.id===activePanelId)?.title||'Домашняя',newWindow:()=>newMainWindow(),
+   activate:()=>{layoutPanels();if(state.screen==='main')screen.querySelector('.active-pane .current-file')?.focus({preventScroll:true});window.top.postMessage({type:'sevenzip-design-selection',screen:state.screen},'*')},
+   deactivate:()=>{closeFileContext(false);clearFileDrag()},
+   viewMenus:refreshViewMenuMarks,recent:refreshRecentPlaces,location:path=>{captureMainWorkspace();for(const tab of mainPanels){const saved=tab.locations?.get(path)||tab.panes[tab.side];if(saved?.path===path)return structuredClone(saved)}return null},
+   clipboard:updateWindowClipboard,findPanel:id=>mainPanels.find(tab=>String(tab.id)===String(id)),
    removeFiles:(path,names)=>{for(const pane of screen.querySelectorAll('.pane'))if(pane.dataset.path===path){for(const item of pane.querySelectorAll('.file-item'))if(names.has(item.dataset.file))item.remove();configureFileList(pane)}captureMainWorkspace()},
    session:exportWindowSession,
    dispose:()=>{stopExternalObservation(windowId);disposed=true;globalEvents.abort();clearFileDrag();if(fileSelectionDrag){cancelAnimationFrame(fileSelectionDrag.frame);fileSelectionDrag=null}variant.remove()}
   };
-  if(seed?.session){const session=structuredClone(seed.session);Object.assign(state,session.ui);mainTabs.splice(0,mainTabs.length,...session.tabs);mainTabSelection.splice(0,mainTabSelection.length,...session.selectedTabs);activeMainSide=session.activeSide;activeMainTab=mainTabSelection[activeMainSide];nextMainTab=session.nextTab;variant.querySelector('.two-toggle').checked=state.two}
-  else if(seed?.home){const tab=makeHomeTab(0),peer=makeHomeTab(1);mainTabs.splice(0,mainTabs.length,tab,peer);mainTabSelection[0]=tab.id;mainTabSelection[1]=peer.id;activeMainSide=0;activeMainTab=tab.id;state.samples.main=tab.mode}
-  else if(seed){const tab=structuredClone(seed.tab),pane=tab.panes[seed.sourceSide];tab.id=1;for(const id of seed.externalCopies||[]){const copy=reviewExternalCopies.get(id);if(copy){copy.ownerWindow=windowId;copy.ownerTab=tab.id}}tab.side=0;tab.panes=[];tab.panes[0]=pane;const peer=makeHomeTab(1);mainTabs.splice(0,mainTabs.length,tab,peer);mainTabSelection[0]=tab.id;mainTabSelection[1]=peer.id;activeMainSide=0;activeMainTab=tab.id;state.samples.main=tab.mode;state.sidebar=seed.sidebar!==false}
+  if(seed?.session){const session=structuredClone(seed.session);Object.assign(state,session.ui);mainPanels.splice(0,mainPanels.length,...session.panels);panelSelection.splice(0,panelSelection.length,...session.selectedPanels);activeMainSide=session.activeSide;activePanelId=panelSelection[activeMainSide];nextPanelId=session.nextPanel;variant.querySelector('.two-toggle').checked=state.two}
+  else if(seed?.home){const tab=makeHomePanel(0),peer=makeHomePanel(1);mainPanels.splice(0,mainPanels.length,tab,peer);panelSelection[0]=tab.id;panelSelection[1]=peer.id;activeMainSide=0;activePanelId=tab.id;state.samples.main=tab.mode}
+  else if(seed){const tab=structuredClone(seed.panel),pane=tab.panes[seed.sourceSide];tab.id=1;for(const id of seed.externalCopies||[]){const copy=reviewExternalCopies.get(id);if(copy){copy.ownerWindow=windowId;copy.ownerPanel=tab.id}}tab.side=0;tab.panes=[];tab.panes[0]=pane;const peer=makeHomePanel(1);mainPanels.splice(0,mainPanels.length,tab,peer);panelSelection[0]=tab.id;panelSelection[1]=peer.id;activeMainSide=0;activePanelId=tab.id;state.samples.main=tab.mode}
   const saved=window.openai?.widgetState?.modelContent;if(!seed&&screenNames.some(x=>x[0]===saved?.screen)){state.screen=saved.screen;state.two=!!saved.two;state.split=typeof saved.split==='number'&&Number.isFinite(saved.split)?Math.max(.05,Math.min(.95,saved.split)):.5;state.samples=saved.samples&&typeof saved.samples==='object'?saved.samples:{};variant.querySelector('.screen-picker').value=state.screen;variant.querySelector('.two-toggle').checked=state.two}
   render();
   updateWindowClipboard(reviewClipboard);
