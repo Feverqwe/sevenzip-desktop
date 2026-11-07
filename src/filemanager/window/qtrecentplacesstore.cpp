@@ -1,5 +1,6 @@
 #include "filemanager/window/qtrecentplacesstore.h"
 #include "Common/StringConvert.h"
+#include "fileops/patterns/Wildcard.h"
 #include <QApplication>
 #include <QJsonDocument>
 #include <QSettings>
@@ -31,14 +32,14 @@ QtRecentPlace QtRecentPlacesStore::Place(int row) const {
 int QtRecentPlacesStore::IndexOf(const QString &path) const {
     const UString native = ToUString(path);
     FOR_VECTOR(index, paths_)
-    if (paths_[index].IsEqualTo_NoCase(native))
+    if (CompareFileNames(paths_[index], native) == 0)
         return int(index);
     return -1;
 }
 
 QtRecentPlace QtRecentPlacesStore::Target(const UString &path) const {
     for (auto it = targets_.cbegin(); it != targets_.cend(); ++it)
-        if (path.IsEqualTo_NoCase(ToUString(it.key())))
+        if (CompareFileNames(path, ToUString(it.key())) == 0)
             return it.value();
     return {};
 }
@@ -71,9 +72,10 @@ void QtRecentPlacesStore::Reload() {
 
 void QtRecentPlacesStore::Visit(const QtRecentPlace &place) {
     Reload();
-    history_.AddString(ToUString(place.path));
+    const UString path = ToUString(place.path);
+    history_.AddString(path);
     for (auto it = targets_.begin(); it != targets_.end();) {
-        if (ToUString(it.key()).IsEqualTo_NoCase(ToUString(place.path)))
+        if (CompareFileNames(ToUString(it.key()), path) == 0)
             it = targets_.erase(it);
         else
             ++it;

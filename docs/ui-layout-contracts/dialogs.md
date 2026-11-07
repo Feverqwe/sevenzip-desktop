@@ -65,6 +65,7 @@ the worker password consumers separately check success, empty input and Cancel.
 The address bar opens a short list of recently visited places. Choosing an item
 opens it in the pane that owns the address bar. Escape closes the menu without
 navigating. Back and Forward keep their own history in each pane.
+On Linux, paths that differ only by letter case have separate history entries.
 
 ## Archive picker
 

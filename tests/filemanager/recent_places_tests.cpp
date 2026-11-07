@@ -126,6 +126,40 @@ class RecentPlacesTests final : public QObject, protected MainWindowTestSupport 
         QTRY_COMPARE(location(window), a);
     }
 
+    void recentPlacesReopenFoldersThatDifferOnlyByCase() {
+#ifndef Q_OS_LINUX
+        QSKIP("The native Linux path comparison is case-sensitive");
+#else
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString upper = fixture.filePath("Reports");
+        const QString lower = fixture.filePath("reports");
+        directory(upper);
+        if (QFileInfo::exists(lower))
+            QSKIP("The fixture requires a case-sensitive filesystem");
+        directory(lower);
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(upper);
+        QTRY_COMPARE(location(window), upper);
+        QTRY_VERIFY(active(window)->isEnabled());
+        window.openPath(lower);
+        QTRY_COMPARE(location(window), lower);
+        QTRY_VERIFY(active(window)->isEnabled());
+        for (const auto &path : {upper, lower}) {
+            action(window, "foldersHistoryAction")->trigger();
+            QTRY_VERIFY(RecentPlacesMenu::Visible(window));
+            auto *popup = RecentPlacesMenu::Visible(window);
+            auto *entry = RecentPlacesMenu::Find(*popup, path);
+            QVERIFY(entry);
+            RecentPlacesMenu::Choose(*popup, *entry);
+            QTRY_COMPARE(location(window), path);
+            QTRY_VERIFY(active(window)->isEnabled());
+        }
+#endif
+    }
+
     void openingReturnsToCapturedPanel() {
         QTemporaryDir fixture;
         const QString a = fixture.filePath("A"), b = fixture.filePath("B"),
