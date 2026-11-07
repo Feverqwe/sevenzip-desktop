@@ -85,27 +85,20 @@ changing stored full values, clipboard/detail or acceptance behavior.
 
 ## Commands and reports
 
-## Folder history list
+<a id="folder-history-list"></a>
 
-Reference: `0766b733fe3e06dd2a7f9a3cfbf2108ac73abd17`,
-`CPP/7zip/UI/FileManager/ListViewDialog.rc/.cpp` and
-`PanelFolderChange.cpp::CPanel::FoldersHistory`.
-The single-column list fills the resizable body; Open/Cancel sit below it.
-It uses the shared dialog layout and native content-sized buttons. Native button
-ordering is retained. Source minimize/maximize/resizable capabilities are
-requested with Qt flags; no context-help title-bar button is added.
-There is no separate Delete button in the reference. Delete affects all
-selected rows, Ctrl+A/C copy/select, Enter confirms the focused path.
-Long paths remain reachable through scrolling, without eliding stored text.
-SingleClick changes activation to one click and enables hover selection without
-confirmation. Modified selection clicks do not activate. Interaction coverage
-is in `list_activation`. Cancel leaves stored history unchanged; Open retains
-the source history update and focused-path navigation.
-`folder_history` verifies list/footer visibility and separation at 540×360
-and 360×240 and writes JSON reports. Qt geometry establishes structure and
-usability. The original rendered EN/RU history states are recorded in the
-[secondary-dialog receipt](../archive/qt-port/upstream-port-audit/p3-06-secondary-dialogs-2026-10-16.md);
-widget geometry does not establish pixel equivalence or physical input.
+## Recent places
+
+The address bar opens a short list of recently visited places. Choosing an item
+opens it in the pane that owns the address bar. Escape closes the menu without
+navigating. Back and Forward keep their own history in each pane.
+
+## Archive picker
+
+Open Archive uses the system file picker. An initial path that needs the
+source browser opens it with the same archive filters. Cancel leaves the pane
+at its current location. The source browser keeps its path field and actions
+visible while its file list scrolls.
 
 ## Hash results
 
