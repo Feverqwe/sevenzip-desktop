@@ -246,10 +246,12 @@ bool QtWindowWorkspace::CanTravel(unsigned panel, int direction) const {
         return false;
     const auto &locationState = state.location;
     const auto &ui = window_.panelUi_[panel];
-    const int destination = locationState.cursor + direction;
+    if (ui.locationUnavailable && direction != -1)
+        return false;
+    const int destination = locationState.cursor + (ui.locationUnavailable ? 0 : direction);
     return locationState.cursor >= 0 && destination >= 0 &&
            destination < int(locationState.visits.size()) && !ui.scanningDisk &&
-           !ui.scanningArchive && !ui.locationUnavailable;
+           !ui.scanningArchive;
 }
 
 void QtWindowWorkspace::Travel(int direction) {
@@ -260,7 +262,8 @@ void QtWindowWorkspace::Travel(int direction) {
         QApplication::activeModalWidget() || !CanTravel(panel, direction))
         return;
     const auto &locationState = panels_[panel].location;
-    const int destination = locationState.cursor + direction;
+    const int destination =
+        locationState.cursor + (window_.projectedUi().locationUnavailable ? 0 : direction);
     const Visit target = locationState.visits[destination];
     Navigate([&] {
         auto &request = *navigation_[panel];
@@ -281,10 +284,15 @@ void QtWindowWorkspace::Travel(int direction) {
             request.previousDepth = source.GetParentFolders().Size();
         } else
             request.transaction = std::make_unique<QtPanelLocationTransaction>(source);
-        if (sameChain)
-            return OpenArchiveDirectory(panel, target.archiveLocation);
-        if (!target.archiveLocation.physicalPath.isEmpty() && !sameChain)
-            return OpenArchiveLocation(panel, target.archiveLocation);
+        if (sameChain) {
+            const HRESULT result = OpenArchiveDirectory(panel, target.archiveLocation);
+            if (result == S_OK)
+                window_.projectedUi().locationUnavailable = false;
+            return result;
+        }
+        if (!target.archiveLocation.physicalPath.isEmpty())
+            return OpenRecordedLocation(panel, target.path, target.nativePlaceIdentity,
+                                        target.archiveLocation);
         QString path = target.path;
         if (!target.nativePlaceIdentity.isEmpty()) {
             nativePlaces_->Refresh();

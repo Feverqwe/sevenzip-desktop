@@ -138,7 +138,9 @@ QHash<unsigned, bool> QtFileManagerCommands::Availability() {
     const bool namespaceChild = safeFolderQueries &&
                                 w.projectedUi().state == MainWindow::State::Namespace &&
                                 hasFolder && !panel.IsRootFolder();
-    availability[Back] = safeFolderQueries && w.workspace_->CanTravel(w.projectedPanel_, -1);
+    availability[Back] =
+        (safeFolderQueries || (windowCommands && w.projectedUi().locationUnavailable)) &&
+        w.workspace_->CanTravel(w.projectedPanel_, -1);
     availability[Forward] = safeFolderQueries && w.workspace_->CanTravel(w.projectedPanel_, 1);
     availability[IDM_OPEN_PARENT_FOLDER] = safeFolderQueries && hasFolder &&
                                            !panel.IsRootFolder() &&

@@ -47,9 +47,6 @@ class WorkspacePlacesTests final : public QObject {
         auto *settings = window.findChild<QAction *>("settingsAction");
         auto *files = window.findChild<FileTable *>("archiveTable");
         QVERIFY(root && save && bookmark && settings && files);
-        window.openPath(fixture.path());
-        save->trigger();
-        root->trigger();
         QtFavoriteStore *store = nullptr;
         for (auto *object : qApp->children())
             if (auto *favorites = dynamic_cast<QtFavoriteStore *>(object))
@@ -76,6 +73,22 @@ class WorkspacePlacesTests final : public QObject {
                     return true;
             return false;
         };
+        auto *back = window.findChild<QAction *>("backAction");
+        auto *forward = window.findChild<QAction *>("forwardAction");
+        QVERIFY(back && forward);
+        QTRY_VERIFY(files->isEnabled());
+        QVERIFY(!back->isEnabled());
+        const UString startup = files->sourcePanel->GetCurrentFolderPrefix();
+        openUnavailable();
+        QTRY_VERIFY(errorVisible() && back->isEnabled());
+        back->trigger();
+        QTRY_VERIFY(!errorVisible() && files->isEnabled());
+        QCOMPARE(files->sourcePanel->GetCurrentFolderPrefix(), startup);
+        QVERIFY(!back->isEnabled() && !forward->isEnabled());
+
+        window.openPath(fixture.path());
+        save->trigger();
+        root->trigger();
         openUnavailable();
         QTRY_VERIFY(errorVisible());
         QVERIFY(root->isEnabled() && bookmark->isEnabled() && settings->isEnabled());
@@ -111,6 +124,24 @@ class WorkspacePlacesTests final : public QObject {
         root->trigger();
         QTRY_VERIFY(!errorVisible() && files->isEnabled() &&
                     files->sourcePanel->IsFSDrivesFolder());
+        openUnavailable();
+        QTRY_VERIFY(errorVisible());
+        QVERIFY(back->isEnabled() && !forward->isEnabled());
+        back->trigger();
+        QTRY_VERIFY(!errorVisible() && files->isEnabled() &&
+                    files->sourcePanel->IsFSDrivesFolder());
+        QVERIFY(back->isEnabled() && !forward->isEnabled());
+        back->trigger();
+        QTRY_COMPARE(QDir::cleanPath(ToQString(files->sourcePanel->GetCurrentFolderPrefix())),
+                     QFileInfo(fixture.path()).canonicalFilePath());
+        openUnavailable();
+        QTRY_VERIFY(errorVisible() && back->isEnabled() && !forward->isEnabled());
+        back->trigger();
+        QTRY_VERIFY(!errorVisible() && forward->isEnabled());
+        QCOMPARE(QDir::cleanPath(ToQString(files->sourcePanel->GetCurrentFolderPrefix())),
+                 QFileInfo(fixture.path()).canonicalFilePath());
+        forward->trigger();
+        QTRY_VERIFY(files->sourcePanel->IsFSDrivesFolder());
         openUnavailable();
         QTRY_VERIFY(errorVisible());
         QPushButton *retry = nullptr;

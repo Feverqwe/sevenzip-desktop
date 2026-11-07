@@ -1,11 +1,13 @@
 #include "dialogs/password/PasswordDialog.h"
 #include "filemanager/support/window_state_support.h"
+#include "filemanager/window/qtfavoritestore.h"
 #include "localization/LangUtils.h"
 #include "localization/qtlangcontrols.h"
 #include "platform/support/external_editor_fixture.h"
 #include "support/widget_dialogs.h"
 #include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
+#include <QMenu>
 #include <QScrollBar>
 #include <QStatusBar>
 #include <QToolButton>
@@ -340,6 +342,32 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         openRow(window, rowWithPath(window, "folders/first"));
         QTRY_VERIFY(rowWithPath(window, "folders/first/item-0000.txt") >= 0);
         const QString first = location(window);
+        const QString missing = fixture.filePath("missing folder");
+        QtFavoriteStore *favorites = nullptr;
+        for (auto *object : qApp->children())
+            if (auto *store = dynamic_cast<QtFavoriteStore *>(object);
+                store && store->property("settingsPath").toString() ==
+                             qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"))
+                favorites = store;
+        QVERIFY(favorites);
+        favorites->Add(missing, "Unavailable place");
+        auto *menu = window.findChild<QMenu *>("savedPlacesMenu");
+        QVERIFY(menu);
+        menu->popup(window.mapToGlobal(QPoint(20, 20)));
+        QTRY_VERIFY(menu->isVisible());
+        QAction *target = nullptr;
+        for (auto *entry : menu->actions())
+            if (entry->toolTip() == missing)
+                target = entry;
+        QVERIFY(target);
+        menu->setActiveAction(target);
+        QTest::keyClick(menu, Qt::Key_Return);
+        QTRY_VERIFY(!table(window)->isEnabled());
+        QVERIFY(action(window, "backAction")->isEnabled());
+        action(window, "backAction")->trigger();
+        QTRY_VERIFY(table(window)->isEnabled());
+        QCOMPARE(location(window), first);
+        QVERIFY(rowWithPath(window, "folders/first/item-0000.txt") >= 0);
         action(window, "parentFolderAction")->trigger();
         QTRY_VERIFY(rowWithPath(window, "folders/second") >= 0);
         openRow(window, rowWithPath(window, "folders/second"));

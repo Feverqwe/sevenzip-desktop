@@ -1,5 +1,17 @@
 # Location history and address presentation — 2026-10-31
 
+## Back from an unavailable favorite — 2026-11-07
+
+Reviewed the original folder-history selection and binding flow. Back and
+Forward are Qt workspace commands. The unavailable-favorite notice now lets
+Back return to the last open location, including a directory in the retained
+archive reader. The failed destination does not become a history entry, and
+ordinary Back and Forward are available after returning.
+
+Linux workspace places, history, session and recent places passed. The cases
+cover returning before the first explicit visit, preserving an existing
+Forward branch and restoring a previously open archive subfolder.
+
 ## Window commands when a location cannot be opened — 2026-11-07
 
 Reviewed the original main-window command dispatch and root, bookmark and
