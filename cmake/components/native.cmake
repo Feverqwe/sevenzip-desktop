@@ -120,8 +120,6 @@ if(WIN32)
     target_sources(sevenzip_common PRIVATE src/platform/shell/Shell.cpp
         ${SEVENZIP_7ZIP_SOURCE_DIR}/CPP/Windows/MemoryGlobal.cpp)
     set_source_files_properties(src/platform/shell/Shell.cpp
-        src/dialogs/browse/BrowseDialog2.cpp
-        src/dialogs/browse/browseiteminspection.cpp
         ${SEVENZIP_7ZIP_SOURCE_DIR}/CPP/Windows/MemoryGlobal.cpp PROPERTIES
         COMPILE_DEFINITIONS "_UNICODE;UNICODE")
     target_link_libraries(sevenzip_common PUBLIC shell32)

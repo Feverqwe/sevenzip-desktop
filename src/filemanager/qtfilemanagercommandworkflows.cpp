@@ -1,7 +1,6 @@
 #include "7zip/PropID.h"
 #include "7zip/UI/FileManager/resource.h"
 #include "dialogs/about/AboutDialog.h"
-#include "dialogs/browse/BrowseDialog2.h"
 #include "filemanager/qtfilemanagercommands.h"
 #include "filemanager/qtprogramfilemenu.h"
 #include "filemanager/window/mainwindow.h"
@@ -174,12 +173,4 @@ void QtFileManagerCommands::SwitchOnOffOnePanel() { window_.togglePanels(); }
 void QtFileManagerCommands::AboutDialog() {
     CAboutDialog dialog(&window_);
     dialog.Create();
-}
-void QtFileManagerCommands::MyBrowseForTempFolder() {
-    ::MyBrowseForTempFolder(&window_, window_.fileOpener_,
-                            [this](const QtOwnedTempEntry &entry, const QString &path, bool show) {
-                                return QtExternalFileTask::Details(entry, path, *window_.backend_,
-                                                                   window_.toolbarSettingsPath(),
-                                                                   show);
-                            });
 }

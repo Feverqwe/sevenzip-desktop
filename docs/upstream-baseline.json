@@ -1275,8 +1275,6 @@
     "src/dialogs/about/AboutDialog.h",
     "src/dialogs/browse/BrowseDialog.cpp",
     "src/dialogs/browse/BrowseDialog.h",
-    "src/dialogs/browse/BrowseDialog2.cpp",
-    "src/dialogs/browse/BrowseDialog2.h",
     "src/dialogs/combo/ComboDialog.cpp",
     "src/dialogs/combo/ComboDialog.h",
     "src/dialogs/compress/CompressDialog.cpp",
@@ -1422,6 +1420,7 @@
     "src/operations/CompressCall.cpp",
     "src/operations/CompressCall.h",
     "src/operations/CompressCall2.cpp",
+    "src/platform/associations/qtassociatedfilelaunch_win.cpp",
     "src/platform/cpu/CpuArch.h",
     "src/platform/errors/ErrorMsg.cpp",
     "src/platform/filepicker/CommonDialog.cpp",
@@ -1676,12 +1675,8 @@
     "src/devices/module.cmake",
     "src/devices/qtdevicecommands.cpp",
     "src/dialogs/about/qtaboutpresentation.cpp",
-    "src/dialogs/browse/browseiteminspection.cpp",
-    "src/dialogs/browse/browseiteminspection.h",
     "src/dialogs/browse/qtsourcebrowsedialog_p.h",
     "src/dialogs/browse/qtsourcebrowsepresentation.cpp",
-    "src/dialogs/browse/qttempbrowseinput.cpp",
-    "src/dialogs/browse/qttempbrowsepresentation.cpp",
     "src/dialogs/combo/alias.h",
     "src/dialogs/compress/CompressInfo.h",
     "src/dialogs/compress/CompressMethods.cpp",
@@ -2159,7 +2154,6 @@
     "src/operations/qtoperationprotocol.h",
     "src/operations/qtoperationregistry.cpp",
     "src/operations/qtoperationregistry.h",
-    "src/platform/associations/qtassociatedfilelaunch_win.cpp",
     "src/platform/associations/qtassociatedfilelaunch_win.h",
     "src/platform/associations/qtassociatedfileservices.cpp",
     "src/platform/associations/qtassociatedfileservices.h",
@@ -2823,8 +2817,7 @@
     "src/filemanager/AppState.h": "f8b0ebffadf50ded3f587124a9adedaa46d57a80dc7691dc939e6bb40d48b59b",
     "src/dialogs/browse/BrowseDialog.cpp": "6a2867730f9c30bcacf4b1a23a0428591cb977a9c18cc814384baf1920485fea",
     "src/dialogs/browse/BrowseDialog.h": "e2f5b2cbcc22d499985e62ed156c8a613d61b1fceaada40cdbe862c13b922082",
-    "src/dialogs/browse/BrowseDialog2.cpp": "a542b39efb8e1c511c9ad82c677c060c302f0ce6b0a04143390ae8a8621f5e50",
-    "src/dialogs/browse/BrowseDialog2.h": "838626634476621283f2a6b1522b1ec63ed2cfcef0c498a99be0f40b39590d2e",
+    "src/platform/associations/qtassociatedfilelaunch_win.cpp": "a542b39efb8e1c511c9ad82c677c060c302f0ce6b0a04143390ae8a8621f5e50",
     "src/filemanager/ClassDefs.cpp": "6dcb7e49d26b0d2d1060d00857ae5a4afce569c2a2d20c62938482de4382069a",
     "src/dialogs/combo/ComboDialog.cpp": "dd975bd2dd75bd8056c393def85c904ae7d1668f252bddaad9d8467bdfa4be99",
     "src/dialogs/combo/ComboDialog.h": "1e1c0349de63f8601b0e20c1e63f096258219ebbb48bfe2295c30c402f1c4b9b",
@@ -3633,19 +3626,12 @@
         "CBrowseDialog (private Qt presentation boundary)"
       ]
     },
-    "src/dialogs/browse/BrowseDialog2.cpp": {
+    "src/platform/associations/qtassociatedfilelaunch_win.cpp": {
       "local": [
-        "src/platform/associations/qtassociatedfilelaunch_win.cpp",
-        "src/platform/associations/qtassociatedfilelaunch_win.h",
-        "src/dialogs/browse/browseiteminspection.cpp",
-        "src/dialogs/browse/browseiteminspection.h"
+        "src/platform/associations/qtassociatedfilelaunch_win.h"
       ],
       "symbols": [
-        "StartApplication",
-        "StartApplicationDontWait",
-        "CBrowseItem",
-        "CBrowseEnumerator",
-        "PrintProps and property formatting helpers"
+        "StartApplication"
       ]
     },
     "src/dialogs/compress/CompressDialog.h": {
@@ -4297,8 +4283,7 @@
     "src/filemanager/AppState.h": "CPP/7zip/UI/FileManager/AppState.h",
     "src/dialogs/browse/BrowseDialog.cpp": "CPP/7zip/UI/FileManager/BrowseDialog.cpp",
     "src/dialogs/browse/BrowseDialog.h": "CPP/7zip/UI/FileManager/BrowseDialog.h",
-    "src/dialogs/browse/BrowseDialog2.cpp": "CPP/7zip/UI/FileManager/BrowseDialog2.cpp",
-    "src/dialogs/browse/BrowseDialog2.h": "CPP/7zip/UI/FileManager/BrowseDialog2.h",
+    "src/platform/associations/qtassociatedfilelaunch_win.cpp": "CPP/7zip/UI/FileManager/BrowseDialog2.cpp",
     "src/filemanager/ClassDefs.cpp": "CPP/7zip/UI/FileManager/ClassDefs.cpp",
     "src/dialogs/combo/ComboDialog.cpp": "CPP/7zip/UI/FileManager/ComboDialog.cpp",
     "src/dialogs/combo/ComboDialog.h": "CPP/7zip/UI/FileManager/ComboDialog.h",

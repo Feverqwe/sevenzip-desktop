@@ -35,13 +35,6 @@
 #include <algorithm>
 
 namespace {
-bool SameCopy(const QString &selected, const QString &stored) {
-    if (selected == stored)
-        return true;
-    const QString identity = QtOwnedTempIdentity(selected);
-    return !identity.isEmpty() && identity == QtOwnedTempIdentity(stored);
-}
-
 class Sessions final : public QObject {
   public:
     std::vector<std::shared_ptr<QtExternalFileTask>> records;
@@ -105,7 +98,6 @@ QtExternalFileTask::QtExternalFileTask(CPanel &source, const CTempFileInfo &file
     state_->record = QtExternalFileRecord{QFileInfo(ToQString(fs2us(file.FilePath))).fileName(),
                                           ToQString(file.RelPath),
                                           prefix,
-                                          state_->target ? state_->target->Save() : QJsonObject{},
                                           {file.FileInfo.Size, file.FileInfo.MTime},
                                           {},
                                           false};
@@ -141,6 +133,7 @@ QtExternalFileTask::~QtExternalFileTask() {
 }
 
 void QtExternalFileTask::Stop() {
+    state_->stopped = true;
     state_->launcher.RequestExit();
     if (state_->question) {
         state_->question->reject();
@@ -158,63 +151,16 @@ void QtExternalFileTask::Stop() {
         return;
     }
     state_->launcher.Exit(true);
+    state_->target.reset();
+    state_->known = false;
+    state_->observation = QtExternalObservation::Stopped;
+    Refresh();
     if (state_->dialog)
         state_->dialog->close();
 }
 CExitEventLauncher &QtExternalFileTask::Launcher() { return state_->launcher; }
 IQtProcessServices &QtExternalFileTask::ProcessServices() { return state_->processes; }
 bool QtExternalFileTask::ReadyToLaunch() const { return state_->persisted; }
-
-bool QtExternalFileTask::Details(const QtOwnedTempEntry &requested, const QString &path,
-                                 const ArchiveBackend &backend, const QString &settings,
-                                 bool show) {
-    QtOwnedTempRegistry registry;
-    const auto entries = registry.Entries();
-    const auto found = std::find_if(entries.begin(), entries.end(), [&](const auto &entry) {
-        return entry.key == requested.key && entry.path == requested.path &&
-               entry.identity == requested.identity;
-    });
-    if (found == entries.end())
-        return false;
-    const bool directory = QtOwnedTempMatchesIdentity(path, found->identity);
-    const bool child = QtOwnedTempMatchesIdentity(QFileInfo(path).absolutePath(), found->identity);
-    if (!directory && !child)
-        return false;
-    auto saved = QtExternalFileRecord::Restore(found->context);
-    if (directory && !saved)
-        return false;
-    const QString selected = directory ? QDir(found->path).filePath(saved->fileName) : path;
-    auto &sessions = Sessions::Application();
-    for (const auto &record : sessions.records) {
-        if (record->state_->directoryIdentity != found->identity ||
-            !SameCopy(selected, ToQString(fs2us(record->state_->file.FilePath))))
-            continue;
-        if (show)
-            QTimer::singleShot(0, record.get(), [task = record.get()] { task->Show(); });
-        return true;
-    }
-    if (!saved || (!directory && !SameCopy(path, QDir(found->path).filePath(saved->fileName)))) {
-        if (!child || !QFileInfo(path).isFile() || QtOwnedTempIdentity(path).isEmpty())
-            return false;
-        NWindows::NFile::NFind::CFileInfo info;
-        if (!info.Find(us2fs(ToUString(path))))
-            return false;
-        saved = QtExternalFileRecord{QFileInfo(path).fileName(),
-                                     QFileInfo(path).fileName(),
-                                     found->path,
-                                     {},
-                                     {info.Size, info.MTime},
-                                     {},
-                                     false};
-    }
-    if (show) {
-        auto task = std::shared_ptr<QtExternalFileTask>(
-            new QtExternalFileTask(*found, *saved, backend, settings));
-        sessions.records.push_back(task);
-        QTimer::singleShot(0, task.get(), [task] { task->Show(); });
-    }
-    return true;
-}
 
 QList<QtExternalFileTask *> QtExternalFileTask::Active() {
     QList<QtExternalFileTask *> result;
@@ -234,6 +180,8 @@ bool QtExternalFileTask::CanPresent() const {
 }
 
 void QtExternalFileTask::Launched(bool knownProcess) {
+    if (state_->stopped)
+        return;
     state_->launched = true;
     state_->known = knownProcess;
     state_->observation = QtExternalObservation::Unknown;
@@ -243,6 +191,8 @@ void QtExternalFileTask::Launched(bool knownProcess) {
 }
 
 void QtExternalFileTask::PresentObservation(QtExternalObservation outcome) {
+    if (state_->stopped)
+        return;
     state_->known = false;
     state_->observation = outcome;
     Show();
@@ -255,7 +205,7 @@ void QtExternalFileTask::Finished(QtExternalObservation outcome) {
             // The worker has left its GUI callback; join before retiring captures.
             state_->launcher.Join();
             state_->known = false;
-            state_->observation = outcome;
+            state_->observation = state_->stopped ? QtExternalObservation::Stopped : outcome;
             state_->keepAlive.reset();
             state_->file.OwnedTempLease.reset();
             Refresh();
@@ -284,13 +234,15 @@ std::shared_ptr<const QtOwnedTempLease> QtExternalFileTask::InputLease() const {
 }
 
 bool QtExternalFileTask::Update() {
+    if (state_->stopped)
+        return false;
     state_->known = false;
     state_->observation = QtExternalObservation::Completed;
     return CheckChanges();
 }
 
 bool QtExternalFileTask::CheckChanges() {
-    if (state_->updating || state_->published || !CanPresent())
+    if (state_->stopped || state_->updating || state_->published || !CanPresent())
         return false;
     QEventLoopLocker keepAlive;
     state_->updating = true;

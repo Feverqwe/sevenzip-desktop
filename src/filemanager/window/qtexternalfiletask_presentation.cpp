@@ -21,6 +21,8 @@ void QtExternalFileTask::Refresh() {
             state_->publishing
                 ? QT_TR_NOOP("The archive is being updated. The temporary copy is in use.")
             : state_->message ? state_->message
+            : state_->stopped ? QT_TR_NOOP("Observation stopped. The external program may still be "
+                                           "running. The temporary copy was kept.")
             : state_->known   ? QT_TR_NOOP("The external program is still running.")
             : state_->observation == QtExternalObservation::Completed
                 ? QT_TR_NOOP("The external program finished. The temporary copy was kept.")
@@ -29,9 +31,6 @@ void QtExternalFileTask::Refresh() {
             : !state_->target && !state_->known && !state_->published
                 ? QT_TR_NOOP(
                       "This retained copy can be saved separately. Its source cannot be updated.")
-            : state_->recovered
-                ? QT_TR_NOOP("Retained temporary copy. Confirm the external file is closed before "
-                             "checking changes.")
                 : QT_TR_NOOP("The external program's completion is unknown. The temporary copy is "
                              "protected.");
         QtBindLocalText(state_->status, "QtExternalFileTask", text);
@@ -41,7 +40,8 @@ void QtExternalFileTask::Refresh() {
                                       state_->observation != QtExternalObservation::Completed);
     if (state_->check) {
         state_->check->setVisible(state_->target.has_value());
-        state_->check->setEnabled(!state_->launcher.Exiting() && !state_->known &&
+        state_->check->setEnabled(state_->target && !state_->stopped &&
+                                  !state_->launcher.Exiting() && !state_->known &&
                                   !state_->updating && !state_->exports && !state_->published &&
                                   (state_->observation == QtExternalObservation::Completed ||
                                    (state_->confirmed && state_->confirmed->isChecked())));
@@ -66,7 +66,7 @@ void QtExternalFileTask::Show() {
         dialog->setObjectName("externalFileDetails");
         QtBindLocalText(
             dialog, "QtExternalFileTask",
-            state_->recovered && !state_->target
+            state_->stopped && !state_->target
                 ? QT_TRANSLATE_NOOP("QtExternalFileTask", "Retained file copy")
                 : QT_TRANSLATE_NOOP("QtExternalFileTask", "File in external application"));
         auto *actions = new QtLangButtonBox(QDialogButtonBox::Close, dialog);

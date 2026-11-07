@@ -34,7 +34,7 @@ struct QtExternalFileTask::State {
     QStringList retained;
     std::optional<QtExternalFileRecord> record;
     bool persisted = false;
-    bool recovered = false;
+    bool stopped = false;
     bool launched = false;
     bool known = false;
     bool updating = false;

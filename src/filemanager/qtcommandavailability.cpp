@@ -118,7 +118,6 @@ QHash<unsigned, bool> QtFileManagerCommands::Availability() {
         navigating && !w.projectedUi().locationUnavailable && panel.ShouldProcessNotifications();
     const bool windowCommands = navigating && !QApplication::activeModalWidget();
     availability[IDM_ABOUT] = windowCommands;
-    availability[IDM_TEMP_DIR] = windowCommands;
     availability[OpenArchivePicker] = windowCommands && !w.backend_->busy();
     availability[ManageMounts] = windowCommands;
     availability[IDM_FOLDERS_HISTORY] = navigating && !w.projectedUi().scanningDisk &&

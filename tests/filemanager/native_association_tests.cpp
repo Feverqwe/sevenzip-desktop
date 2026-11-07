@@ -1,7 +1,6 @@
 #include "archive/codecs/archivecodeccatalog.h"
 #include "archive/resources/qtarchivefoldermanager.h"
 #include "archive/support/source_extract_fixture.h"
-#include "dialogs/browse/BrowseDialog2.h"
 #include "filemanager/views/filetable.h"
 #include "filemanager/window/mainwindow.h"
 #include "localization/LangUtils.h"
@@ -126,54 +125,6 @@ class NativeAssociationTests final : public QObject {
         QCOMPARE(QFileInfo(control.Opened()).canonicalFilePath(),
                  QFileInfo(program).canonicalFilePath());
         QVERIFY(!QFileInfo::exists(control.Path + ".finished"));
-        control.Release();
-        QTRY_VERIFY(QFileInfo::exists(control.Path + ".finished"));
-        QCOMPARE(SourceExtractFixture::readFile(program), original);
-    }
-
-    void temporaryBrowserClosesHandleAndRetainsProtection() {
-        QTemporaryDir fixture;
-        QVERIFY(fixture.isValid());
-        const QString program = fixture.filePath(QStringLiteral("процесс 空 with spaces.exe"));
-        QVERIFY(QFile::copy(QString::fromUtf8(SEVENZIP_ASSOC_HELPER), program));
-        const QByteArray original = SourceExtractFixture::readFile(program);
-        {
-            auto lease = QtOwnedTempRegistry().RegisterCreated(fixture.path());
-            QVERIFY(lease);
-        }
-        ProcessControl control(fixture.filePath("browser shell control"));
-        bool navigated = false, launched = false;
-        QTimer::singleShot(0, qApp, [&] {
-            auto *dialog = dynamic_cast<CBrowseDialog2 *>(QApplication::activeModalWidget());
-            if (!dialog)
-                return;
-            auto *list = dialog->findChild<QTreeWidget *>("tempList");
-            const auto enter = [&](const QString &name) {
-                const auto rows = list->findItems(name, Qt::MatchExactly);
-                if (rows.size() != 1)
-                    return false;
-                list->setCurrentItem(rows.front());
-                rows.front()->setSelected(true);
-                QTest::keyClick(list, Qt::Key_Return);
-                return true;
-            };
-            navigated = enter(QFileInfo(fixture.path()).fileName());
-            if (navigated)
-                launched = enter(QFileInfo(program).fileName());
-            dialog->reject();
-        });
-        MyBrowseForTempFolder(nullptr);
-        QVERIFY(navigated && launched);
-        QTRY_VERIFY(QFileInfo::exists(control.Path + ".ready"));
-        QCOMPARE(QFileInfo(control.Opened()).canonicalFilePath(),
-                 QFileInfo(program).canonicalFilePath());
-        bool protectedCopy = false;
-        for (const auto &entry : QtOwnedTempRegistry().Entries())
-            if (entry.path == fixture.path()) {
-                protectedCopy = !entry.active && entry.externallyProtected;
-                QVERIFY(!QtOwnedTempRegistry().ClaimForDeletion(entry));
-            }
-        QVERIFY(protectedCopy);
         control.Release();
         QTRY_VERIFY(QFileInfo::exists(control.Path + ".finished"));
         QCOMPARE(SourceExtractFixture::readFile(program), original);

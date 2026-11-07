@@ -64,6 +64,32 @@ class OwnedTempTests : public QObject {
         qputenv("SEVENZIP_OWNED_TEMP_REGISTRY", registryPath.toUtf8());
     }
     void cleanup() { qputenv("SEVENZIP_OWNED_TEMP_REGISTRY", previousRoot); }
+    void automaticCleanupOnlyRemovesUnusedUnprotectedObjects() {
+        const QString prefix = QDir::tempPath() + "/sevenzip-cleanup-test-XXXXXX";
+        QTemporaryDir orphan(prefix), active(prefix), external(prefix), edited(prefix),
+            foreign(prefix);
+        QtOwnedTempRegistry registry;
+        for (auto *directory : {&orphan, &active, &external, &edited, &foreign}) {
+            QVERIFY(directory->isValid());
+            QVERIFY(write(directory->filePath("payload.txt")));
+        }
+        auto unused = registry.RegisterCreated(orphan.path());
+        auto held = registry.RegisterCreated(active.path());
+        auto protectedCopy = registry.RegisterCreated(external.path());
+        auto retained = registry.RegisterCreated(edited.path());
+        QVERIFY(unused && held && protectedCopy && retained);
+        QVERIFY(protectedCopy->ProtectExternal());
+        QVERIFY(retained->SetContext({{"description", "edited copy"}}));
+        unused.reset();
+        protectedCopy.reset();
+        retained.reset();
+
+        registry.CleanUnusedSystemTemporaryObjects();
+
+        QVERIFY(!QFileInfo::exists(orphan.path()));
+        for (auto *directory : {&active, &external, &edited, &foreign})
+            QVERIFY(QFileInfo::exists(directory->filePath("payload.txt")));
+    }
     void retainedContextSurvivesRestartWithoutWeakeningProtection() {
         QtOwnedTempRegistry registry;
         QTemporaryDir directory(fixture.filePath("session-XXXXXX"));

@@ -1,4 +1,6 @@
 #include "platform/temp/qtownedtempregistry.h"
+#include "Common/StringConvert.h"
+#include "fileops/native/FileDir.h"
 #include "platform/temp/qtownedtempidentity.h"
 #include <QDir>
 #include <QFile>
@@ -198,6 +200,28 @@ QVector<QtOwnedTempEntry> QtOwnedTempRegistry::Entries() const {
         entries.append(std::move(*entry));
     }
     return entries;
+}
+
+void QtOwnedTempRegistry::CleanUnusedSystemTemporaryObjects() const {
+    const QString temporaryRoot = QDir(QDir::tempPath()).canonicalPath();
+    if (temporaryRoot.isEmpty())
+        return;
+    for (const auto &entry : Entries()) {
+        if (entry.active || entry.externallyProtected || !entry.context.isEmpty() ||
+            QFileInfo(entry.path).dir().canonicalPath() != temporaryRoot)
+            continue;
+        const auto lease = ClaimForDeletion(entry);
+        if (!lease || !lease->entry_.context.isEmpty())
+            continue;
+        lease->RemoveIfUnused(entry.path, [&] {
+            if (QFileInfo(entry.path).isDir()) {
+                NWindows::NFile::NDir::RemoveDirWithSubItems(entry.path, {});
+            } else {
+                const auto path = QDir::toNativeSeparators(entry.path).toStdWString();
+                NWindows::NFile::NDir::DeleteFileAlways(us2fs(path.c_str()));
+            }
+        });
+    }
 }
 
 std::shared_ptr<QtOwnedTempLease>

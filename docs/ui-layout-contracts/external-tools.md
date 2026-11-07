@@ -76,40 +76,14 @@ bytes change only on success; retry and filesystem OnTimer remain usable.
 Inspect both panes, EN/RU, table/icon and both selection modes at980×620/640×400,
 with2/301 rows. Rendered Windows and current native3OS acceptance remain separate.
 
-### Delete Temporary Files (P1-15.2)
+<a id="delete-temporary-files-p1-152"></a>
 
-Reference: pinned BrowseDialog2.cpp/rc (dialog93), six Name/MTime/Size/Files/
-Folders/Name-2 columns. Controls retain Delete/Refresh, Parent/read-only path,
-list, scope information and the Close action. Owned membership replaces upstream's
-7z[E/O/S]+eight-hex naming convention; active or unconfirmed external entries remain visible with an
-explanatory tooltip and disabled Delete. The agreed redesign also shows the
-selected/total count and the selected protected item's explanation below the
-list. This replaces the single disabled filter, which had no selectable
-alternative or active filtering handler. Live language changes preserve
-selection and update the explanation. Enter navigates, Backspace returns,
-Delete confirms eligible deletion, Ctrl+R refreshes, Ctrl+F3/F5/F6 sort by
-name/time/size and toggle direction while retaining selection. Plain F5 remains
-the Qt Refresh convenience. F1 opens fm/temp.htm, Escape
-and Close exit without deletion. Close has initial focus. Focused buttons
-activate on Return; no permanent Enter default remains on non-button focus.
-Source OnOK only navigates with actual list focus; readonly-path Enter/public
-accept is a no-op. Tab order follows the resource, with disabled controls skipped.
+### Automatic temporary-file cleanup
 
-The frame uses the shared dialog margins and a separate native footer;
-the initial size scales with the font. Buttons and the read-only path respect
-native content minima. The scope/count/protection explanation wraps at compact
-width; the six-column list scrolls horizontally. Source sample strings still
-initialize column widths through native content autosizing.
-Source minimize/maximize/resize capabilities are requested without context-help;
-native window managers may suppress modal chrome. Initial EN/RU reports and
-focus-sensitive Enter policy are checked in `temp_cleanup`.
-
-temp_cleanup writes EN/RU900×580/500×320 temp-cleanup-* and temp-protected-*.json;
-footer/path/status remain exposed, including the long protected-item explanation.
-Geometry/source structure and a bounded original EN/RU comparison are checked
-in the [current browser receipt](../archive/qt-port/upstream-port-audit/p3-06-source-browsers-2026-10-16.md).
-Named controls remain exposed at normal/compact sizes; full workflow/pixel parity
-is not inferred from those reports.
+Sevenzip cleans up inactive application-owned objects in the system temporary
+folder when the File Manager starts. Active, externally protected and retained
+edit copies remain on disk. While an external editing session is open, it can
+offer to save a separate copy of the edited file.
 
 ### About
 

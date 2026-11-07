@@ -61,7 +61,6 @@
     target_link_libraries(external_archive_context_tests PRIVATE sevenzip_location sevenzip_widget_dialog_fixtures Qt6::Test)
     target_include_directories(external_archive_context_tests PRIVATE src tests)
     add_test(NAME external_archive_context COMMAND external_archive_context_tests updateSurvivesSourceDestruction -silent)
-    add_test(NAME external_archive_restore COMMAND external_archive_context_tests restoredTarget -silent)
     qt_add_executable(external_task_lifecycle_tests
         tests/filemanager/external_task_lifecycle_tests.cpp
         tests/platform/support/external_editor_fixture.cpp)
@@ -88,8 +87,6 @@
         "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/external-task-lifecycle.ini")
     set_tests_properties(external_archive_context PROPERTIES TIMEOUT 45 ENVIRONMENT
         "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/external-archive-context.ini")
-    set_tests_properties(external_archive_restore PROPERTIES TIMEOUT 45 ENVIRONMENT
-        "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/external-archive-restore.ini")
     qt_add_executable(archive_external_security_tests
         tests/filemanager/archive_external_security_tests.cpp
         tests/platform/support/external_editor_fixture.cpp)

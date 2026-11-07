@@ -119,8 +119,3 @@ HRESULT StartApplication(const UString &dir, const UString &path, QWidget *windo
     }
     return S_OK;
 }
-
-void StartApplicationDontWait(const UString &dir, const UString &path, QWidget *window) {
-    CProcess process;
-    StartApplication(dir, path, window, process);
-}

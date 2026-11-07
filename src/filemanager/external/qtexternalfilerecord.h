@@ -8,7 +8,6 @@ struct QtExternalFileRecord {
     QString fileName;
     QString entry;
     QString prefix;
-    QJsonObject target;
     QtNativeFileStamp initial;
     std::optional<QtNativeFileStamp> published;
     bool publicationError = false;

@@ -16,8 +16,7 @@ struct QtOwnedTempEntry {
     QJsonObject context;
 };
 
-// Creation/active-session ownership only. Native BrowseDialog2 owns deletion.
-// There is no source registry: Win32 BrowseDialog2 enumerates arbitrary OS temp.
+// Records ownership of application-created temporary objects and read leases.
 class QtOwnedTempLease final : public std::enable_shared_from_this<QtOwnedTempLease> {
     friend class QtOwnedTempRegistry;
     QString root_;
@@ -54,6 +53,7 @@ class QtOwnedTempRegistry final {
     // to discover ownership from a name prefix or archive-provided marker.
     std::shared_ptr<QtOwnedTempLease> RegisterCreated(const QString &path) const;
     QVector<QtOwnedTempEntry> Entries() const;
+    void CleanUnusedSystemTemporaryObjects() const;
     // Claims one inactive object and revalidates its persisted OS identity.
     std::shared_ptr<QtOwnedTempLease> ClaimForDeletion(const QtOwnedTempEntry &entry) const;
     // Pins a retained copy for reading without granting permission to clear it.

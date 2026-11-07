@@ -10,9 +10,7 @@
 #include "filemanager/external/qtexternalfilerecord.h"
 #include "filemanager/panels/Panel.h"
 #include <QFileInfo>
-#include <QJsonArray>
 #include <QScopeGuard>
-#include <limits>
 
 namespace {
 QtArchiveFileResource *Resource(IFolderFolder *folder) {
@@ -89,51 +87,11 @@ QtExternalArchiveTarget::Capture(CPanel &source, const CTempFileInfo &file,
     return target;
 }
 
-QJsonObject QtExternalArchiveTarget::Save() const {
-    QJsonArray layers;
-    for (const auto &layer : layers_)
-        layers.append(QJsonObject{{"index", qint64(layer.entry.index)},
-                                  {"path", ToQString(layer.entry.path)},
-                                  {"format", layer.format}});
-    return {{"version", 1}, {"codecs", int(version_)}, {"physical", physical_}, {"layers", layers}};
-}
-
 QString QtExternalArchiveTarget::description() const {
     QStringList path{physical_};
     for (const auto &layer : layers_)
         path.append(ToQString(layer.entry.path));
     return path.join(QStringLiteral(" / "));
-}
-
-std::optional<QtExternalArchiveTarget>
-QtExternalArchiveTarget::Restore(const QJsonObject &value, const ArchiveBackend &backend,
-                                 const QString &settingsPath) {
-    QtExternalArchiveTarget target;
-    target.physical_ = value.value("physical").toString();
-    const auto codecs = value.value("codecs");
-    const qint64 version = codecs.toInteger(-1);
-    const auto layers = value.value("layers").toArray();
-    if (value.value("version").toInt() != 1 || !codecs.isDouble() || version <= 0 ||
-        version > std::numeric_limits<UInt32>::max() || codecs.toDouble() != double(version) ||
-        !QFileInfo(target.physical_).isAbsolute() || target.physical_.contains(QChar::Null) ||
-        layers.isEmpty() || layers.size() > 64)
-        return {};
-    target.version_ = UInt32(version);
-    for (const auto &element : layers) {
-        const auto layer = element.toObject();
-        const auto index = layer.value("index");
-        const qint64 raw = index.toInteger(-1);
-        const QString path = layer.value("path").toString();
-        const QString format = layer.value("format").toString();
-        if (!index.isDouble() || raw < 0 || raw > std::numeric_limits<UInt32>::max() ||
-            index.toDouble() != double(raw) || path.isEmpty() || path.contains(QChar::Null) ||
-            format.isEmpty() || format.contains(QChar::Null))
-            return {};
-        target.layers_.push_back({{UInt32(raw), ToUString(path)}, format, false, {}});
-    }
-    target.settings_ = settingsPath;
-    target.backendFactory_ = backend.independentBackendFactory();
-    return target;
 }
 
 QtExternalArchiveTarget::UpdateResult QtExternalArchiveTarget::Update(const QString &file,
@@ -166,7 +124,6 @@ QtExternalArchiveTarget::UpdateResult QtExternalArchiveTarget::Update(const QStr
                     const QtExternalFileRecord record{QFileInfo(path).fileName(),
                                                       ToQString(link.RelPath),
                                                       prefix,
-                                                      {},
                                                       {info.Size, info.MTime},
                                                       {},
                                                       false};

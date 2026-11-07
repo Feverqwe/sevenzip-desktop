@@ -2,7 +2,6 @@
 #include "Windows/PropVariant.h"
 #include "archive/backend/archivebackend.h"
 #include "archive/resources/qtarchivefoldermanager.h"
-#include "dialogs/browse/BrowseDialog2.h"
 #include "filemanager/panels/Panel.h"
 #include "platform/associations/qtassociatedfileservices.h"
 #include "platform/support/external_editor_fixture.h"
@@ -264,35 +263,16 @@ class ArchiveExternalLifetimeTests final : public QObject {
         QVERIFY(!owned.key.isEmpty());
         QVERIFY(owned.active && owned.externallyProtected);
         QVERIFY(!QtOwnedTempRegistry().ClaimForDeletion(owned));
-        bool cleanupProtected = false;
-        QTimer browseResponder;
-        connect(&browseResponder, &QTimer::timeout, this, [&] {
-            auto *dialog = dynamic_cast<CBrowseDialog2 *>(widgetDialogs_.activeDialog());
-            if (!dialog)
-                return;
-            auto *list = dialog->findChild<QTreeWidget *>("tempList");
-            const auto rows = list->findItems(QFileInfo(owned.path).fileName(), Qt::MatchExactly);
-            if (!rows.isEmpty()) {
-                list->clearSelection();
-                list->setCurrentItem(rows.first());
-                rows.first()->setSelected(true);
-                cleanupProtected = !dialog->findChild<QPushButton *>("tempDelete")->isEnabled() &&
-                                   !rows.first()->toolTip(0).isEmpty();
-            }
-            dialog->reject();
-            browseResponder.stop();
-        });
-        browseResponder.start(1);
-        MyBrowseForTempFolder(nullptr);
-        browseResponder.stop();
-        QVERIFY(cleanupProtected);
+        QtOwnedTempRegistry().CleanUnusedSystemTemporaryObjects();
         QVERIFY(QFileInfo(temporary).isFile());
         bool prompt = false;
+        QEventLoop delivery;
         QTimer responder;
         widgetDialogs_.connectResponder(responder, this, [&] {
             if (auto *box = qobject_cast<QMessageBox *>(widgetDialogs_.activeDialog())) {
                 if (box->objectName() == "externalUpdatePrompt") {
                     prompt = true;
+                    connect(box, &QObject::destroyed, &delivery, &QEventLoop::quit);
                     box->done(QMessageBox::No);
                 }
             }
@@ -304,6 +284,10 @@ class ArchiveExternalLifetimeTests final : public QObject {
         QVERIFY(QFileInfo(temporary).isFile());
         QVERIFY(write(control, "change"));
         QVERIFY(write(control + ".exit", "exit"));
+        // Deliver the native modal callback from a running event loop, as in
+        // changedFilePublishesWithoutWindowUpdateRunner, rather than QTRY polling.
+        QTimer::singleShot(5000, &delivery, &QEventLoop::quit);
+        delivery.exec();
         QTRY_VERIFY(QFileInfo(control + ".finished").exists());
         QTRY_VERIFY(prompt);
         QTRY_VERIFY(!panel.HasExternalWorkers());

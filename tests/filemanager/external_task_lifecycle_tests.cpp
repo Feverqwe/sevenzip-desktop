@@ -149,7 +149,7 @@ class ExternalTaskLifecycleTests final : public QObject, protected MainWindowTes
         QCOMPARE(read(copy), QByteArray("original"));
         const QByteArray accepted = read(archive);
         bool asked = false;
-        bool copyDialogSeen = false;
+        bool copyDialogSeen = false, manuallyPublish = false;
         const QString exported = fixture.filePath("exported edit.txt");
         QEventLoop delivered;
         QTimer responder;
@@ -162,7 +162,7 @@ class ExternalTaskLifecycleTests final : public QObject, protected MainWindowTes
                         task->Stop();
                 } else if (exportChoice)
                     dialog->findChild<QPushButton *>("externalUpdateSaveCopy")->click();
-                else if (update)
+                else if (update || manuallyPublish)
                     dialog->findChild<QPushButton *>("externalUpdateCommit")->click();
                 else
                     QTest::keyClick(dialog, Qt::Key_Escape);
@@ -264,6 +264,11 @@ class ExternalTaskLifecycleTests final : public QObject, protected MainWindowTes
                 QVERIFY(!entry->active);
                 QVERIFY(entry->externallyProtected);
                 QVERIFY(!registry.ClaimForDeletion(*entry));
+                manuallyPublish = true;
+                check->click();
+                QCOMPARE(contents(archive, name), modified);
+                QVERIFY(!registry.ClaimForDeletion(*entry));
+                QVERIFY(write(copy, modified + "more changes"));
                 auto pin = registry.PinForRead(*entry);
                 QVERIFY(pin);
                 // This fixture launched our already-finished helper, so its own

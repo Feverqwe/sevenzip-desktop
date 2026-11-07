@@ -1,5 +1,4 @@
 #include "7zip/UI/FileManager/resource.h"
-#include "dialogs/browse/BrowseDialog2.h"
 #include "dialogs/copy/CopyDialog.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
@@ -281,33 +280,10 @@ class MainShellTests final : public QObject {
         }
     }
 
-    void nativeTemporaryFilesCommandUsesActualModalConsumer() {
-        ControlledBackend backend;
-        MainWindow window(&backend);
-        auto *action = window.findChild<QAction *>("tempDirAction");
-        QVERIFY(action && action->isEnabled());
-        bool observed = false;
-        QTimer close;
-        connect(&close, &QTimer::timeout, &window, [&] {
-            auto *dialog = dynamic_cast<CBrowseDialog2 *>(QApplication::activeModalWidget());
-            if (dialog && dialog->parentWidget() == &window) {
-                observed = dialog->findChild<QTreeWidget *>("tempList") != nullptr;
-                close.stop();
-                QTest::keyClick(dialog, Qt::Key_Escape);
-            }
-        });
-        close.start(5);
-        action->trigger();
-        QVERIFY(observed);
-        QVERIFY(!window.findChild<QDialog *>("tempBrowseDialog"));
-        QVERIFY(!backend.busy());
-    }
-
     void sourceCommandsKeepAvailabilityAndShortcuts() {
         ControlledBackend backend;
         MainWindow window(&backend);
         QVERIFY(window.findChild<QAction *>("aboutAction")->isEnabled());
-        QVERIFY(window.findChild<QAction *>("tempDirAction")->isEnabled());
         QCOMPARE(window.findChild<QAction *>("openInsideAction")->shortcut(),
                  QKeySequence(Qt::CTRL | Qt::Key_PageDown));
         QCOMPARE(window.findChild<QAction *>("viewFileAction")->shortcut(),

@@ -249,8 +249,5 @@ void MainWindow::populateSourceMenus() {
     auto *tools = findChild<QMenu *>("toolsMenu");
     tools->addAction(settingsAction_);
     tools->addSeparator();
-    unavailable(tools, QStringLiteral("Delete Temporary Files..."), "tempDirAction", IDM_TEMP_DIR);
-
-    tools->addSeparator();
     unavailable(tools, QStringLiteral("About 7-Zip..."), "aboutAction", IDM_ABOUT);
 }

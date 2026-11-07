@@ -7,6 +7,7 @@
 #include "localization/LangUtils.h"
 #include "platform/associations/qtassociationfileopen.h"
 #include "platform/memory/qtmemorylockservices.h"
+#include "platform/temp/qtownedtempregistry.h"
 #ifdef Q_OS_MACOS
 #include "app/qtapplicationstartup.h"
 #endif
@@ -17,6 +18,7 @@
 #include <QFileInfo>
 #include <QPointer>
 #include <QScopeGuard>
+#include <QThreadPool>
 #include <memory>
 
 namespace {
@@ -70,6 +72,8 @@ MainWindow *OpenSevenzipAssociatedFile(const QString &path) {
 }
 
 int RunSevenzipDesktop(QApplication &application) {
+    QThreadPool::globalInstance()->start(
+        [] { QtOwnedTempRegistry().CleanUnusedSystemTemporaryObjects(); });
     QtWorkspaceApplication workspace(application);
     QtAssociationFileOpen associatedFiles(application);
     QObject::connect(&associatedFiles, &QtAssociationFileOpen::OpenRequested, &application,

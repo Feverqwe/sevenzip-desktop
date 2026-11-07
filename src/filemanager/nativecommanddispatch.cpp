@@ -162,9 +162,6 @@ bool OnMenuCommand(unsigned id, IQtFileManagerMenuCommandServices &g_App) {
     case IDM_ABOUT:
         g_App.AboutDialog();
         break;
-    case IDM_TEMP_DIR:
-        g_App.MyBrowseForTempFolder();
-        break;
     default: {
         if (id >= k_MenuID_OpenBookmark && id <= k_MenuID_OpenBookmark + 9) {
             g_App.OpenBookmark(id - k_MenuID_OpenBookmark);

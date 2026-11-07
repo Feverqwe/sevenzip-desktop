@@ -67,7 +67,6 @@ class QtFileManagerCommands final : public IQtFileManagerMenuCommandServices {
     void SwitchOnOffOnePanel() override;
     void OptionsDialog() override;
     void AboutDialog() override;
-    void MyBrowseForTempFolder() override;
     void OpenBookmark(unsigned index) override;
     void SetBookmark(unsigned index) override;
 

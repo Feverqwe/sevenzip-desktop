@@ -2,14 +2,13 @@
 #include "filemanager/external/qtexternalsessionowner.h"
 #include <QObject>
 #include <memory>
+#include <optional>
 
 class CPanel;
 class ArchiveBackend;
 struct CTempFileInfo;
 class QWidget;
 class QtOwnedTempLease;
-struct QtOwnedTempEntry;
-struct QtExternalFileRecord;
 
 // Application lifetime and presentation around the retained native observer.
 class QtExternalFileTask final : public QObject,
@@ -21,8 +20,6 @@ class QtExternalFileTask final : public QObject,
     Create(CPanel &source, const CTempFileInfo &file, const ArchiveBackend &backend,
            const QString &settings, const QString &prefix);
     static QList<QtExternalFileTask *> Active();
-    static bool Details(const QtOwnedTempEntry &entry, const QString &path,
-                        const ArchiveBackend &backend, const QString &settings, bool show);
     ~QtExternalFileTask() override;
     CExitEventLauncher &Launcher() override;
     IQtProcessServices &ProcessServices() override;
@@ -40,8 +37,6 @@ class QtExternalFileTask final : public QObject,
   private:
     QtExternalFileTask(CPanel &source, const CTempFileInfo &file, const ArchiveBackend &backend,
                        const QString &settings, const QString &prefix);
-    QtExternalFileTask(const QtOwnedTempEntry &owner, const QtExternalFileRecord &record,
-                       const ArchiveBackend &backend, const QString &settings);
     bool Persist();
     void Initialize();
     void SaveCopy(QWidget *parent, bool fromUpdate = false);

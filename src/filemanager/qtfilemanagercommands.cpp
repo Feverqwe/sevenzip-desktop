@@ -108,7 +108,6 @@ void QtFileManagerCommands::AttachViewActions() {
     Bind(w.findChild<QAction *>("sortDescendingAction"), SortDescending, true);
     Bind(w.settingsAction_, IDM_OPTIONS);
     Bind(w.findChild<QAction *>("aboutAction"), IDM_ABOUT);
-    Bind(w.findChild<QAction *>("tempDirAction"), IDM_TEMP_DIR);
     for (unsigned i : {0u, 3u})
         Bind(w.viewActions_[i], IDM_VIEW_LARGE_ICONS + i, true);
     const unsigned sortIDs[] = {IDM_VIEW_ARANGE_BY_NAME, IDM_VIEW_ARANGE_BY_TYPE,

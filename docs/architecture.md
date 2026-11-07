@@ -229,14 +229,11 @@ inner-to-outer update. Partial results retain recoverable inputs. Exports pin
 their source for reading without weakening deletion eligibility. GUI delivery
 finishes before the observer is joined and its captures are retired.
 
-The existing owned-temp registry retains nonsecret external-session context:
-the archive path, native entry chain and initial temporary-file stamp.
-Explicitly opening a retained copy's details creates a fresh context and requests passwords again;
-it never launches an editor or publishes automatically. Published-copy metadata
-prevents a later restart from offering the same publication again. The temporary
-files dialog hands off to session details after closing its own modal surface.
-File identities distinguish selected copies, including canonically equivalent
-names on filesystems that treat them as separate files.
+The owned-temp registry records copy identity and file stamps. Startup cleanup
+removes inactive, unprotected application-owned objects in the system temporary
+folder. It skips copies retained for editing. Closing the source window stops its
+observer and drops its archive-update route, leaving the external editor and
+temporary copy alone. A live external-file session can export a separate copy.
 
 Workspace archive invalidation follows the physical root across file panes. Reopening uses the existing native archive chain with its accepted
 formats and in-memory passwords, preserving selection, scroll and navigation

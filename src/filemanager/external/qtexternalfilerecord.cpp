@@ -3,9 +3,8 @@
 #include <QJsonArray>
 
 QJsonObject QtExternalFileRecord::Save() const {
-    QJsonObject value{{"type", "external-edit"},  {"version", 1},     {"file", fileName},
-                      {"entry", entry},           {"prefix", prefix}, {"target", target},
-                      {"initial", initial.Save()}};
+    QJsonObject value{{"type", "external-edit"}, {"version", 1},     {"file", fileName},
+                      {"entry", entry},          {"prefix", prefix}, {"initial", initial.Save()}};
     if (published) {
         value.insert("published", published->Save());
         value.insert("publicationError", publicationError);
@@ -23,13 +22,9 @@ std::optional<QtExternalFileRecord> QtExternalFileRecord::Restore(const QJsonObj
         file.contains('\\') || file.contains(QChar::Null) || QFileInfo(file).isAbsolute() ||
         !value.value("entry").isString() || !value.value("prefix").isString())
         return {};
-    QtExternalFileRecord record{file,
-                                value.value("entry").toString(),
-                                value.value("prefix").toString(),
-                                value.value("target").toObject(),
-                                *initial,
-                                {},
-                                false};
+    QtExternalFileRecord record{
+        file, value.value("entry").toString(), value.value("prefix").toString(), *initial, {},
+        false};
     if (value.contains("published")) {
         record.published = QtNativeFileStamp::Restore(value.value("published").toObject());
         if (!record.published)

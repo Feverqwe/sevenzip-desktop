@@ -2,7 +2,6 @@
 #include "Common/MyWindows.h"
 #include "archive/password/archivepassword.h"
 #include "archive/resources/qtarchiveupdatepublication.h"
-#include <QJsonObject>
 #include <QString>
 #include <QStringList>
 #include <functional>
@@ -29,9 +28,6 @@ class QtExternalArchiveTarget final {
     UpdateResult Update(const QString &file, QWidget *parent) const;
     const QString &physicalPath() const { return physical_; }
     QString description() const;
-    QJsonObject Save() const;
-    static std::optional<QtExternalArchiveTarget>
-    Restore(const QJsonObject &value, const ArchiveBackend &backend, const QString &settingsPath);
 
   private:
     struct Entry {

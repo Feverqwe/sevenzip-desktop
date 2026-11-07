@@ -795,6 +795,10 @@ dialog; the browser consumes that same launcher. The baseline's existing
 extraction mapping records both transferred symbols and their new owner against
 the complete original inventory unit. Original hashes remain unchanged.
 
+The redesigned File Manager removed the temporary-file browser and its
+detached launch wrapper. The association module retains `StartApplication`
+with the same original inventory hash, PIDL handling and process ownership.
+
 PIDL handling, extensionless-path correction, Unicode/legacy branches, DDE flags,
 working directory, result mapping and process-handle attachment retain their
 source bodies. The empty-name error presentation is local to the launcher with

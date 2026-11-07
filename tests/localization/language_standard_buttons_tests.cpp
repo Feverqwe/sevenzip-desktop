@@ -1,5 +1,4 @@
 #include "dialogs/about/AboutDialog.h"
-#include "dialogs/browse/BrowseDialog2.h"
 #include "dialogs/combo/ComboDialog.h"
 #include "dialogs/compress/createarchivedialog.h"
 #include "dialogs/compress/qtcompressoptionsdialog.h"
@@ -52,8 +51,6 @@ class LanguageStandardButtonsTests final : public QObject {
             return initialize<CListViewDialog>();
         if (name == "about")
             return initialize<CAboutDialog>();
-        if (name == "browse")
-            return std::make_unique<CBrowseDialog2>();
         if (name == "compress-options") {
             compression_.FormatOptions = &profile_;
             compression_.ArcInfo.Name = "7z";
@@ -126,9 +123,6 @@ class LanguageStandardButtonsTests final : public QObject {
         } else if (name == "extract") {
             normal = QSize(640, 360);
             compact = QSize(470, 330);
-        } else if (name == "browse") {
-            normal = QSize(900, 580);
-            compact = QSize(500, 320);
         } else if (name == "compress-options") {
             normal = QSize(520, 400);
             compact = QSize(440, 340);
@@ -205,7 +199,7 @@ class LanguageStandardButtonsTests final : public QObject {
         QTest::addColumn<QString>("name");
         QTest::addColumn<bool>("russian");
         for (const char *name : {"copy", "combo", "password", "edit", "list", "about", "extract",
-                                 "browse", "compress-options", "compress"})
+                                 "compress-options", "compress"})
             for (bool russian : {false, true})
                 QTest::newRow(qPrintable(QString("%1-%2").arg(name).arg(russian)))
                     << QString::fromLatin1(name) << russian;

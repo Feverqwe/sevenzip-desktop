@@ -76,12 +76,6 @@ add_library(sevenzip_panel
     src/dialogs/about/AboutDialog.cpp
     src/dialogs/about/AboutDialog.h
     src/dialogs/about/qtaboutpresentation.cpp
-    src/dialogs/browse/BrowseDialog2.cpp
-    src/dialogs/browse/BrowseDialog2.h
-    src/dialogs/browse/browseiteminspection.cpp
-    src/dialogs/browse/browseiteminspection.h
-    src/dialogs/browse/qttempbrowseinput.cpp
-    src/dialogs/browse/qttempbrowsepresentation.cpp
     src/dialogs/compress/qtcompressoptionscontrols.cpp
     src/dialogs/compress/qtcompressoptionsdialog.cpp
     src/dialogs/compress/qtcompressoptionscontrols.h

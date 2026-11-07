@@ -136,7 +136,7 @@
   },
   "interaction": {
     "description": "Pointer activation, list settings, folder history and progress dialogs",
-    "tests": "^(list_activation|list_view_dialog|folder_history|list_settings_runtime|panel_key(_quick)?|properties_runtime|temp_cleanup|hash_results|progress_dialog)$",
+    "tests": "^(list_activation|list_view_dialog|folder_history|list_settings_runtime|panel_key(_quick)?|properties_runtime|owned_temp|hash_results|progress_dialog)$",
     "interactive": true
   },
   "responsiveness": {

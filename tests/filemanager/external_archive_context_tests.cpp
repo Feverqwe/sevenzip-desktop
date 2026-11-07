@@ -14,7 +14,6 @@
 #include "platform/temp/qtownedtempregistry.h"
 #include "support/widget_dialogs.h"
 #include "ui/progress/ProgressDialog2.h"
-#include <QJsonDocument>
 #include <QLineEdit>
 #include <QMessageBox>
 #include <QProcess>
@@ -61,38 +60,28 @@ class ExternalArchiveContextTests final : public QObject {
         QTest::addColumn<bool>("changedSource");
         QTest::addColumn<int>("location");
         QTest::addColumn<bool>("blocked");
-        QTest::addColumn<bool>("serialized");
     }
 
   private slots:
     void updateSurvivesSourceDestruction_data() {
         columns();
-        QTest::newRow("physical") << 0 << QString() << false << 0 << false << false;
-        QTest::newRow("nested-file") << 1 << QString() << false << 0 << false << false;
-        QTest::newRow("two-nested-files") << 2 << QString() << false << 0 << false << false;
+        QTest::newRow("physical") << 0 << QString() << false << 0 << false;
+        QTest::newRow("nested-file") << 1 << QString() << false << 0 << false;
+        QTest::newRow("two-nested-files") << 2 << QString() << false << 0 << false;
         QTest::newRow("encrypted-nested")
-            << 2 << QStringLiteral("fixture-password") << false << 0 << false << false;
-        QTest::newRow("changed-physical") << 0 << QString() << true << 0 << false << false;
-        QTest::newRow("changed-nested") << 2 << QString() << true << 0 << false << false;
-        QTest::newRow("flat-subfolder") << 2 << QString() << false << 1 << false << false;
-        QTest::newRow("inside-subfolder") << 2 << QString() << false << 2 << false << false;
-        QTest::newRow("outer-write-busy") << 2 << QString() << false << 0 << true << false;
+            << 2 << QStringLiteral("fixture-password") << false << 0 << false;
+        QTest::newRow("changed-physical") << 0 << QString() << true << 0 << false;
+        QTest::newRow("changed-nested") << 2 << QString() << true << 0 << false;
+        QTest::newRow("flat-subfolder") << 2 << QString() << false << 1 << false;
+        QTest::newRow("inside-subfolder") << 2 << QString() << false << 2 << false;
+        QTest::newRow("outer-write-busy") << 2 << QString() << false << 0 << true;
     }
-    void restoredTarget_data() {
-        columns();
-        QTest::newRow("restored-nested") << 2 << QString() << false << 0 << false << true;
-        QTest::newRow("restored-encrypted")
-            << 2 << QStringLiteral("fixture-password") << false << 0 << false << true;
-        QTest::newRow("restored-changed-source") << 2 << QString() << true << 0 << false << true;
-    }
-    void restoredTarget() { updateSurvivesSourceDestruction(); }
     void updateSurvivesSourceDestruction() {
         QFETCH(int, depth);
         QFETCH(QString, password);
         QFETCH(bool, changedSource);
         QFETCH(int, location);
         QFETCH(bool, blocked);
-        QFETCH(bool, serialized);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString name =
@@ -142,11 +131,6 @@ class ExternalArchiveContextTests final : public QObject {
         temp.RelPath = ToUString(selectedName);
         auto target = QtExternalArchiveTarget::Capture(*source, temp, *backend, {});
         QVERIFY(target);
-        const QByteArray saved = QJsonDocument(target->Save()).toJson();
-        if (!password.isEmpty()) {
-            QVERIFY(!saved.contains(password.toUtf8()));
-            QVERIFY(!saved.contains(password.toUtf8().toBase64()));
-        }
         QPointer<CPanel> oldSource(source.get());
         QPointer<ArchiveBackend> oldBackend(backend.get());
         QPointer<QWidget> oldHost(host.get());
@@ -155,13 +139,6 @@ class ExternalArchiveContextTests final : public QObject {
         backend.reset();
         host.reset();
         QVERIFY(!oldSource && !oldBackend && !oldHost);
-        if (serialized) {
-            target.reset();
-            ArchiveBackend fresh;
-            target = QtExternalArchiveTarget::Restore(QJsonDocument::fromJson(saved).object(),
-                                                      fresh, {});
-            QVERIFY(target);
-        }
         const QString replacement = fixture.filePath("replacement bytes.txt");
         const QByteArray bytes("updated without the source window");
         QVERIFY(writeFile(replacement, bytes));
@@ -178,11 +155,9 @@ class ExternalArchiveContextTests final : public QObject {
             busy.emplace(std::move(*lease));
         }
         QTimer responder;
-        int passwordRequests = 0;
         dialogs_.connectResponder(responder, this, [&] {
             auto *modal = dialogs_.activeDialog();
             if (auto *question = dynamic_cast<CPasswordDialog *>(modal)) {
-                ++passwordRequests;
                 question->findChild<QLineEdit *>("passwordEdit")->setText(password);
                 question->accept();
             } else if (auto *box = qobject_cast<QMessageBox *>(modal))
@@ -195,8 +170,6 @@ class ExternalArchiveContextTests final : public QObject {
         });
         responder.start(1);
         const auto result = target->Update(replacement, nullptr);
-        if (serialized && !password.isEmpty())
-            QVERIFY(passwordRequests > 0);
         if (changedSource) {
             QVERIFY(result.Result != S_OK);
             QCOMPARE(result.Published, std::optional<bool>(false));

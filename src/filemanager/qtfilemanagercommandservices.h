@@ -39,7 +39,6 @@ class IQtFileManagerMenuCommandServices : public IQtFileManagerCommandServices {
     virtual void SwitchOnOffOnePanel() = 0;
     virtual void OptionsDialog() = 0;
     virtual void AboutDialog() = 0;
-    virtual void MyBrowseForTempFolder() = 0;
     virtual void OpenBookmark(unsigned index) = 0;
     virtual void SetBookmark(unsigned index) = 0;
 };

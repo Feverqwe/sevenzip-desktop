@@ -263,7 +263,6 @@ bool CPanel::PreserveOutdatedArchiveCopies() {
         const QtExternalFileRecord record{QFileInfo(ToQString(fs2us(link.FilePath))).fileName(),
                                           ToQString(link.RelPath),
                                           ToQString(link.VirtualPath),
-                                          {},
                                           QtNativeFileStamp{current.Size, current.MTime},
                                           {},
                                           false};
