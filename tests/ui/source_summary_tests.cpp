@@ -8,6 +8,39 @@
 class SourceSummaryTests final : public QObject {
     Q_OBJECT
   private slots:
+    void wideningReflowsTextWithoutKeepingTheNarrowHeight() {
+        QWidget window;
+        auto *layout = new QVBoxLayout(&window);
+        auto *source = new QtSourceSummary({}, QStringLiteral("Рабочие материалы проекта 空.txt"),
+                                           "/source/materials.txt", &window);
+        source->SetDescription(QStringLiteral("Could not delete this copy. The original data "
+                                              "remains available for another attempt."));
+        source->SetDetail("42");
+        layout->addWidget(source);
+        layout->addStretch();
+        window.resize(180, 500);
+        window.show();
+        const auto fits = [&] {
+            for (auto *label : source->findChildren<QLabel *>()) {
+                if (!label->isVisible())
+                    continue;
+                const QRect bounds(label->mapTo(source, QPoint()), label->size());
+                if (!source->rect().contains(bounds) ||
+                    label->height() < label->heightForWidth(label->width()))
+                    return false;
+            }
+            return true;
+        };
+        QTRY_VERIFY(fits());
+        const int narrowHeight = source->height();
+        window.resize(700, 200);
+        QTRY_VERIFY(source->height() < narrowHeight);
+        QTRY_VERIFY(fits());
+        window.resize(180, 500);
+        QTRY_VERIFY(source->height() >= narrowHeight);
+        QTRY_VERIFY(fits());
+    }
+
     void longPathsStayInHoverWithoutDisplacingTheIdentity() {
         QWidget window;
         auto *layout = new QVBoxLayout(&window);

@@ -65,9 +65,10 @@ class ResponsiveLayout final : public QLayout {
         QSize result(0, 0);
         for (auto *item : items) {
             const QSize hint = item->sizeHint().expandedTo(item->minimumSize());
-            result.rwidth() += hint.width();
+            result.setWidth(qMax(result.width(), hint.width()));
             result.setHeight(qMax(result.height(), hint.height()));
         }
+        result.rwidth() *= int(items.size());
         result.rwidth() += qMax(0, int(items.size()) - 1) * spacing();
         return result;
     }

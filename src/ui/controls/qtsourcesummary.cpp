@@ -23,7 +23,13 @@ QtSourceSummary::QtSourceSummary(const QIcon &icon, const QString &name, const Q
     for (auto *label : {name_, description_, detail_}) {
         label->setTextFormat(Qt::PlainText);
         label->setWordWrap(true);
-        label->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+        // The composite's height-for-width owns text height. A child's minimum
+        // at its previous width must not pin a newly measured row to that height.
+        auto policy = label->sizePolicy();
+        policy.setHorizontalPolicy(QSizePolicy::Ignored);
+        policy.setVerticalPolicy(QSizePolicy::Ignored);
+        policy.setHeightForWidth(true);
+        label->setSizePolicy(policy);
         label->setMinimumWidth(0);
     }
     auto *heading = new QHBoxLayout;
@@ -32,7 +38,9 @@ QtSourceSummary::QtSourceSummary(const QIcon &icon, const QString &name, const Q
     text->addLayout(heading);
     text->addWidget(description_);
     description_->hide();
-    detail_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
+    auto detailPolicy = detail_->sizePolicy();
+    detailPolicy.setHorizontalPolicy(QSizePolicy::Preferred);
+    detail_->setSizePolicy(detailPolicy);
     detail_->hide();
     QFont title = name_->font();
     title.setWeight(QFont::DemiBold);
