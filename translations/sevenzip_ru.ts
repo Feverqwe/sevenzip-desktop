@@ -6445,6 +6445,22 @@ Use `Revert` to recover timestamp.</source>
     </context>
     <context>
         <name>qtfiletransfertransaction</name>
+        <message>
+            <source>Could not remove backup: %1</source>
+            <translation>Не удалось удалить резервную копию: %1</translation>
+        </message>
+        <message>
+            <source>Could not restore %1 from %2.</source>
+            <translation>Не удалось вернуть «%2» по пути «%1».</translation>
+        </message>
+        <message>
+            <source>Could not remove transfer output: %1</source>
+            <translation>Не удалось удалить результат переноса: %1</translation>
+        </message>
+        <message>
+            <source>Could not restore %1 from backup %2.</source>
+            <translation>Не удалось восстановить «%1» из резервной копии «%2».</translation>
+        </message>
         <message><source>Some items were skipped.</source><translation>Некоторые объекты пропущены.</translation></message>
         <message>
             <location filename="../src/fileops/transfer/qtfiletransfertransaction.cpp" line="+261" />

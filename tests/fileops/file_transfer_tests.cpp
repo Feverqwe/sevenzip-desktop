@@ -525,6 +525,62 @@ class FileTransferTests : public QObject {
         QCOMPARE(originalSource.readAll(), QByteArray("again"));
     }
 
+    void blockedMoveRollbackReportsRetainedFiles() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString destination = fixture.filePath("destination");
+        QVERIFY(QDir().mkdir(destination));
+        const QString first = fixture.filePath(QStringLiteral("01 перенос 空.txt"));
+        const QString second = fixture.filePath("02 conflict.txt");
+        const QString target = QDir(destination).filePath(QFileInfo(first).fileName());
+        const QString secondTarget = QDir(destination).filePath(QFileInfo(second).fileName());
+        const auto write = [](const QString &path, const QByteArray &data) {
+            QFile file(path);
+            return file.open(QIODevice::WriteOnly | QIODevice::NewOnly) &&
+                   file.write(data) == data.size();
+        };
+        const auto read = [](const QString &path) {
+            QFile file(path);
+            return file.open(QIODevice::ReadOnly) ? file.readAll() : QByteArray();
+        };
+        QVERIFY(write(first, "incoming first"));
+        QVERIFY(write(second, "incoming second"));
+        QVERIFY(write(target, "old first"));
+        QVERIFY(write(secondTarget, "old second"));
+        bool recreated = false;
+        FileTransferOperation move({first, second}, destination, true);
+        QSignalSpy result(&move, &FileTransferOperation::result);
+        connect(
+            &move, &FileTransferOperation::overwriteRequested, &move,
+            [&](const OverwriteQuestion &question) {
+                if (question.Existing.Path == target)
+                    move.submitOverwriteAnswer(NOverwriteAnswer::kYes);
+                else {
+                    recreated = write(first, "other application's file");
+                    move.cancel();
+                }
+            },
+            Qt::DirectConnection);
+        move.start();
+        QVERIFY(move.wait(30000));
+        QTRY_COMPARE(result.size(), 1);
+        QVERIFY(recreated);
+        QVERIFY(!result.first().first().toBool());
+        QCOMPARE(move.resultKind(), FileTransferOperation::ResultKind::Failure);
+        QCOMPARE(read(first), QByteArray("other application's file"));
+        QCOMPARE(read(target), QByteArray("incoming first"));
+        QCOMPARE(read(second), QByteArray("incoming second"));
+        QCOMPARE(read(secondTarget), QByteArray("old second"));
+        const auto backups =
+            QDir(destination).entryList({QStringLiteral("*.sevenzip-*-backup")}, QDir::Files);
+        QCOMPARE(backups.size(), 1);
+        const auto backup = QDir(destination).filePath(backups.first());
+        QCOMPARE(read(backup), QByteArray("old first"));
+        const auto diagnostic = result.first().at(1).toString();
+        QVERIFY(diagnostic.contains(first) && diagnostic.contains(target) &&
+                diagnostic.contains(backup));
+    }
+
     void overwriteDecisionAcrossFolderBoundary_data() {
         QTest::addColumn<int>("answer");
         QTest::addColumn<bool>("nestedFirst");

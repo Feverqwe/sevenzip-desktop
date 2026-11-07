@@ -19,6 +19,7 @@ class QtFileTransferTransaction final {
     enum class OverwriteDecision { Skip, Replace, Rename, Cancel };
     std::optional<OverwriteDecision> rememberedOverwrite_;
     std::optional<FileTransferOperation::ResultKind> failureKind_;
+    QStringList rollbackErrors_;
     bool skipped_ = false;
     OverwriteDecision decideOverwrite(const OverwriteSource &source);
     enum class SourceState { Intact, Renamed, RemovalStarted, Removed };
