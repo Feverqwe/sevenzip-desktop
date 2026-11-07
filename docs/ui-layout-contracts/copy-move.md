@@ -406,7 +406,8 @@ Implemented view: `src/dialogs/copy/CopyDialog.cpp`.
   existing directory occupies that name; it must not silently become a container.
   Typed file paths and unsupported providers retain their existing path
   interpretation without an added name.
-- Empty or invalid input, a known unwritable destination and an unchanged source
+- Empty or invalid input, a known unwritable destination or parent folder,
+  and an unchanged source
   location disable acceptance with an inline explanation. Native operation checks
   remain authoritative. Cancel preserves the original value; accepted
   input preserves significant spaces and Unicode. Relative paths keep the caller's

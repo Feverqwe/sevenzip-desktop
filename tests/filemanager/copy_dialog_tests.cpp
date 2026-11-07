@@ -102,7 +102,7 @@ class CopyDialogTests : public QObject {
         const QString settings = fixture.filePath("language.ini");
         SaveRegLang(UString(russian ? L"ru" : L"-"), settings);
         ReloadLang(settings);
-        const QString initial = QStringLiteral("/destination space 空/");
+        const QString initial = fixture.filePath(QStringLiteral("destination space 空/"));
         const QString sourceName = QStringLiteral("имя с пробелом 空.txt");
         CCopyDialog dialog(move, initial, {"/source/" + sourceName});
         dialog.ConfigureDestination(
@@ -170,10 +170,13 @@ class CopyDialogTests : public QObject {
         QCOMPARE(ToQString(dialog.Value), QStringLiteral("/начальная папка/"));
         dialog.accept();
         QCOMPARE(ToQString(dialog.Value), QStringLiteral("  /новая папка/  "));
-        CCopyDialog move(true, "/initial", {"/source/file"});
-        move.findChild<QLineEdit *>("copyDestination")->setText("/by-button");
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString byButton = fixture.filePath("by-button");
+        CCopyDialog move(true, fixture.filePath("initial"), {"/source/file"});
+        move.findChild<QLineEdit *>("copyDestination")->setText(byButton);
         move.findChild<QDialogButtonBox *>("copyButtons")->button(QDialogButtonBox::Ok)->click();
-        QCOMPARE(ToQString(move.Value), QString("/by-button"));
+        QCOMPARE(ToQString(move.Value), byButton);
         QCOMPARE(move.result(), int(QDialog::Accepted));
     }
 
@@ -266,7 +269,9 @@ class CopyDialogTests : public QObject {
             indices.Add(items.Add({QFileInfo(sources.last()).fileName(), i == 0, true, 1000}));
         }
         const QString summary = CPanel("/initial/", items).GetItemsInfoString(indices);
-        CCopyDialog dialog(move, "/initial", sources, nullptr, summary);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        CCopyDialog dialog(move, fixture.filePath("initial"), sources, nullptr, summary);
         dialog.SetSourceDetails("/tmp/", 40000);
         dialog.resize(size);
         dialog.show();

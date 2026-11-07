@@ -41,15 +41,20 @@ bool IsName(const QString &name) {
     return true;
 }
 
-bool HasBlockedDestinationDirectory(const QFileInfo &destination, bool needsDirectory) {
+enum class DirectoryStatus { Writable, Blocked, ReadOnly };
+
+DirectoryStatus DestinationDirectoryStatus(const QFileInfo &destination, bool needsDirectory) {
     QString path = needsDirectory ? destination.absoluteFilePath() : destination.absolutePath();
     for (;;) {
         const QFileInfo directory(path);
-        if (directory.exists() || directory.isSymLink())
-            return !directory.isDir();
+        if (directory.exists() || directory.isSymLink()) {
+            if (!directory.isDir())
+                return DirectoryStatus::Blocked;
+            return directory.isWritable() ? DirectoryStatus::Writable : DirectoryStatus::ReadOnly;
+        }
         const QString parent = directory.absolutePath();
         if (parent == path)
-            return false;
+            return DirectoryStatus::Writable;
         path = parent;
     }
 }
@@ -170,6 +175,11 @@ void CCopyDialog::UpdateDestination() {
         _nameLabel->setVisible(nameAvailable);
     }
     _useName = nameAvailable && _name->text() != _destinationContext->SourceName;
+    const auto directoryStatus =
+        path.isEmpty() || path.contains(QChar::Null) ||
+                (peerDestination && !_destinationContext->PeerIsFilesystem)
+            ? DirectoryStatus::Writable
+            : DestinationDirectoryStatus(destination, directory || _sources.size() > 1);
     QString error;
     if (_sources.isEmpty())
         error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "Select one or more items."));
@@ -179,12 +189,11 @@ void CCopyDialog::UpdateDestination() {
         error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "The destination is invalid."));
     else if (nameAvailable && !IsName(_name->text()))
         error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "Enter a file or folder name."));
-    else if (destination.isDir() && !destination.isWritable())
+    else if (directoryStatus == DirectoryStatus::ReadOnly)
         error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "The destination is read-only."));
     else if (peerDestination && !_destinationContext->PeerWritable)
         error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "The destination is read-only."));
-    else if (!peerDestination &&
-             HasBlockedDestinationDirectory(destination, directory || _sources.size() > 1))
+    else if (directoryStatus == DirectoryStatus::Blocked)
         error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "The destination is invalid."));
     else if (_destinationContext && !_useName &&
              SameDirectory(preview, _destinationContext->SourceDirectory))

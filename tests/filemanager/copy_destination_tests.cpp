@@ -220,6 +220,40 @@ class CopyDestinationTests final : public QObject {
         QVERIFY(move->isEnabled());
     }
 
+    void destinationBelowReadOnlyFolderCanBeCorrected() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString blocked = fixture.filePath("read only");
+        QVERIFY(QDir().mkdir(blocked));
+        const auto permissions = QFile::permissions(blocked);
+        const auto restore = qScopeGuard([&] { QFile::setPermissions(blocked, permissions); });
+        if (!QFile::setPermissions(blocked, QFile::ReadOwner | QFile::ExeOwner) ||
+            QFileInfo(blocked).isWritable())
+            QSKIP("The test filesystem does not enforce this directory permission");
+
+        const QString source = fixture.filePath("source.txt");
+        const QString target = fixture.filePath("writable target.txt");
+        CCopyDialog dialog(false, blocked + "/new folder/target.txt", {source});
+        configure(dialog, source);
+        dialog.show();
+        auto *path = dialog.findChild<QLineEdit *>("copyDestination");
+        auto *ok =
+            dialog.findChild<QDialogButtonBox *>("copyButtons")->button(QDialogButtonBox::Ok);
+        for (const QString &unwritable :
+             {blocked + "/new folder/target.txt", blocked + "/new folder/deeper/"}) {
+            path->setText(unwritable);
+            QVERIFY(!ok->isEnabled());
+            dialog.accept();
+            QVERIFY(dialog.isVisible());
+            QCOMPARE(path->text(), unwritable);
+        }
+        path->setText(target);
+        QVERIFY(ok->isEnabled());
+        dialog.accept();
+        QCOMPARE(dialog.result(), int(QDialog::Accepted));
+        QCOMPARE(ToQString(dialog.Value), target);
+    }
+
     void browseCancelKeepsNameDraft() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
