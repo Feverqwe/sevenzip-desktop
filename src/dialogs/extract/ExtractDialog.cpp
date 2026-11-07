@@ -37,6 +37,10 @@ static constexpr CExtractModeItem kOverwriteModes[] = {
 static constexpr int kModeCaptionRole = Qt::UserRole + 1;
 static const unsigned kHistorySize = 16;
 
+QString InvalidOutputDirectory() {
+    return QCoreApplication::translate("SevenZipDiagnostics", "Incorrect output directory path");
+}
+
 static void AddComboItems(QComboBox &combo, std::span<const CExtractModeItem> modes, int curVal) {
     for (const auto &mode : modes) {
         QString s = QtLangText(mode.LangID);
@@ -201,9 +205,16 @@ void CExtractDialog::changeEvent(QEvent *event) {
 }
 
 void CExtractDialog::OnButtonSetPath() {
+    const QString draft = _path->currentText().trimmed();
+    if (draft.contains(QChar::Null)) {
+        _destinationError->setText(InvalidOutputDirectory());
+        _destinationError->show();
+        _path->setFocus();
+        return;
+    }
     UString path;
-    if (MyBrowseForFolder(this, ToUString(QtLangText(IDS_EXTRACT_SET_FOLDER)),
-                          ToUString(_path->currentText().trimmed()), path))
+    if (MyBrowseForFolder(this, ToUString(QtLangText(IDS_EXTRACT_SET_FOLDER)), ToUString(draft),
+                          path))
         _path->setEditText(ToQString(path));
 }
 
@@ -212,23 +223,19 @@ void CExtractDialog::OnOK() {
     const QString base = _path->currentText().trimmed();
     const QString requested = ToQString(s);
     const auto directoryError = [this](const QString &candidate) -> QString {
-        const auto invalid = [] {
-            return QCoreApplication::translate("SevenZipDiagnostics",
-                                               "Incorrect output directory path");
-        };
         if (candidate.isEmpty() || candidate.contains(QChar::Null))
-            return invalid();
+            return InvalidOutputDirectory();
         FString resolved;
         if (!NWindows::NFile::NDir::MyGetFullPathName(
                 us2fs(ToUString(QDir::toNativeSeparators(candidate))), resolved))
-            return invalid();
+            return InvalidOutputDirectory();
         QString path = QDir::cleanPath(ToQString(fs2us(resolved)));
         if (_destinationErrorForPath)
             return _destinationErrorForPath(path);
         for (;;) {
             const QFileInfo entry(path);
             if (entry.exists() || entry.isSymLink())
-                return entry.isDir() ? QString() : invalid();
+                return entry.isDir() ? QString() : InvalidOutputDirectory();
             const QString parent = entry.absolutePath();
             if (parent == path)
                 return {};
@@ -292,11 +299,15 @@ QString CExtractDialog::destination() const {
 }
 
 UString CExtractDialog::DraftDestination() const {
-    UString s(_path->currentText().toStdWString().c_str());
+    const QString base = _path->currentText();
+    const QString name = _nameEnable->isChecked() ? _pathName->text() : QString();
+    if (base.contains(QChar::Null) || name.contains(QChar::Null))
+        return {};
+    UString s = ToUString(base);
     s.Trim();
     if (_nameEnable->isChecked()) {
         NWindows::NFile::NName::NormalizeDirPathPrefix(s);
-        UString pathName(_pathName->text().toStdWString().c_str());
+        UString pathName = ToUString(name);
         pathName.Trim();
         s += pathName;
     }

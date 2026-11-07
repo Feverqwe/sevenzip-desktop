@@ -272,12 +272,30 @@ class SplitDestinationTests final : public QObject {
                 QTRY_COMPARE(dialog.focusWidget(), name(dialog));
                 QCOMPARE(overwrite->currentData().toInt(), int(selectedMode));
                 QCOMPARE(name(dialog)->text(), QString("occupied/child"));
+                const QString invalidBase = base + "/truncated base" + QChar::Null + "suffix";
+                path(dialog)->setEditText(invalidBase);
+                name(dialog)->clear();
+                dialog.accept();
+                QVERIFY(dialog.isVisible() && error->isVisible());
+                QTRY_VERIFY(dialog.focusWidget() == path(dialog) ||
+                            dialog.focusWidget() == path(dialog)->lineEdit());
+                QCOMPARE(path(dialog)->currentText(), invalidBase);
+
+                path(dialog)->setEditText(base);
+                const QString invalidName = QString("truncated subfolder") + QChar::Null + "suffix";
+                name(dialog)->setText(invalidName);
+                dialog.accept();
+                QVERIFY(dialog.isVisible() && error->isVisible());
+                QTRY_COMPARE(dialog.focusWidget(), name(dialog));
+                QCOMPARE(name(dialog)->text(), invalidName);
                 name(dialog)->setText("corrected");
                 QVERIFY(!error->isVisible());
                 dialog.accept();
             });
         QCOMPARE(recovered.Result, S_OK);
         QVERIFY(recovered.CallbackOK);
+        QVERIFY(!QFileInfo::exists(base + "/truncated base"));
+        QVERIFY(!QFileInfo::exists(base + "/truncated subfolder"));
         QFile retried(QDir(corrected).filePath(QFileInfo(source).fileName()));
         QVERIFY(retried.open(QIODevice::ReadOnly));
         QCOMPARE(retried.readAll(), QByteArray("source bytes"));
