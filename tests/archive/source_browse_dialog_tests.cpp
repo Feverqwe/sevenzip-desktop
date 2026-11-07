@@ -1,5 +1,4 @@
 #include "dialogs/browse/BrowseDialog.h"
-#include "dialogs/combo/ComboDialog.h"
 #include "localization/LangUtils.h"
 #include "settings/RegistryUtils.h"
 #include "settings/ViewSettings.h"
@@ -158,19 +157,11 @@ class SourceBrowseDialogTests final : public QObject {
             auto *button =
                 dialog->findChild<QPushButton *>(create ? "browseCreateFolder" : "browseParent");
             button->setFocus();
-            bool prompted = false;
-            if (create)
-                QTimer::singleShot(0, dialog, [&] {
-                    auto *child = qobject_cast<QDialog *>(QApplication::activeModalWidget());
-                    if (child && child != dialog) {
-                        prompted = child->objectName() == "comboDialog";
-                        child->reject();
-                    }
-                });
             QTest::keyClick(button, Qt::Key(key));
             QVERIFY(dialog->isVisible());
             if (create) {
-                QVERIFY(prompted);
+                auto *name = dialog->findChild<QLineEdit *>("inlineFolderName");
+                QVERIFY(name && name->isVisible());
                 QCOMPARE(folder->toolTip(), before);
             } else
                 QVERIFY(folder->toolTip() != before);
@@ -327,14 +318,13 @@ class SourceBrowseDialogTests final : public QObject {
                      directory + "/Z folder");
             QTest::keyClick(list, Qt::Key_Backspace);
             QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(folder->toolTip())), directory);
-            QTimer::singleShot(0, [&] {
-                auto *create = qobject_cast<CComboDialog *>(QApplication::activeModalWidget());
-                if (!create)
-                    return;
-                create->findChild<QComboBox *>("comboValue")->setCurrentText("created 密碼");
-                create->accept();
-            });
             QTest::keyClick(list, Qt::Key_F7);
+            auto *name = dialog->findChild<QLineEdit *>("inlineFolderName");
+            QVERIFY(name && name->isVisible());
+            name->setText("created 密碼");
+            QTest::keyClick(name, Qt::Key_Return);
+            QVERIFY(dialog->isVisible());
+            QVERIFY(!name->isVisible());
             QVERIFY(QDir(directory + "/created 密碼").exists());
             QVERIFY(Names(*list).contains("created 密碼"));
             // A refresh retains the current name through enumeration and sort.
@@ -500,36 +490,36 @@ class SourceBrowseDialogTests final : public QObject {
             });
             auto *list = dialog->findChild<QTreeWidget *>("browseList");
             const QStringList before = Names(*list);
-            QTimer::singleShot(0, [] {
-                if (auto *create = qobject_cast<CComboDialog *>(QApplication::activeModalWidget()))
-                    create->reject();
-            });
             auto *createButton = dialog->findChild<QPushButton *>("browseCreateFolder");
             QVERIFY(createButton);
-            createButton->setFocus();
             createButton->click();
-            QCOMPARE(dialog->focusWidget(), static_cast<QWidget *>(list));
+            auto *name = dialog->findChild<QLineEdit *>("inlineFolderName");
+            QVERIFY(name && name->isVisible());
+            QTest::keyClick(name, Qt::Key_Escape);
+            QVERIFY(!name->isVisible());
+            QCOMPARE(dialog->focusWidget(), static_cast<QWidget *>(createButton));
             QCOMPARE(Names(*list), before);
-            bool errorShown = false;
-            QTimer::singleShot(0, [&] {
-                auto *create = qobject_cast<CComboDialog *>(QApplication::activeModalWidget());
-                if (!create)
-                    return;
-                create->findChild<QComboBox *>("comboValue")->setCurrentText("occupied");
-                QTimer::singleShot(0, [&] {
-                    if (auto *error =
-                            qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
-                        errorShown =
-                            error->icon() == QMessageBox::Critical && !error->text().isEmpty();
-                        error->accept();
-                    }
-                });
-                create->accept();
-            });
+            list->setFocus();
             QTest::keyClick(list, Qt::Key_F7);
-            QVERIFY(errorShown);
+            name->setText("occupied");
+            QTest::keyClick(name, Qt::Key_Return);
+            auto *error = dialog->findChild<QLabel *>("inlineFolderError");
+            QVERIFY(error && error->isVisible() && !error->text().isEmpty());
+            QCOMPARE(name->text(), QString("occupied"));
             QVERIFY(dialog->isVisible());
             QCOMPARE(Names(*list), before);
+            auto *path = dialog->findChild<QLineEdit *>("browsePath");
+            auto *actions = dialog->findChild<QDialogButtonBox *>("browseButtons");
+            for (const QSize size : {QSize(560, 480), QSize(420, 350)}) {
+                dialog->resize(size);
+                QCoreApplication::processEvents();
+                QVERIFY(UiInspection::fullyVisible(*name, *dialog));
+                QVERIFY(UiInspection::fullyVisible(*error, *dialog));
+                QVERIFY(UiInspection::fullyVisible(*path, *dialog));
+                QVERIFY(UiInspection::fullyVisible(*actions, *dialog));
+                QVERIFY(UiInspection::writeReport(
+                    *dialog, QString("source-browser-folder-error-%1").arg(size.width())));
+            }
             observed = true;
         });
         QVERIFY(!browse.BrowseForFile(Filters()));

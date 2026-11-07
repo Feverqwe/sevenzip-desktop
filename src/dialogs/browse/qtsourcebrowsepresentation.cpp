@@ -13,6 +13,7 @@
 #include "localization/qtlangbuttonbox.h"
 #include "localization/qtlangcontrols.h"
 #include "settings/ViewSettings.h"
+#include "ui/controls/qtinlinefoldername.h"
 #include "ui/dialogs/qtdialoglayout.h"
 #include "ui/dialogs/qtdialogscreenservices.h"
 #include "ui/theme/qtcommandicons.h"
@@ -148,6 +149,15 @@ CBrowseDialog::Controls CBrowseDialog::CreateControls() {
     top->addWidget(create);
     top->addWidget(_folder, 1);
     layout->addLayout(top);
+    _folderDraft = new QtInlineFolderName(this);
+    _folderDraft->OnCancel([this, create] {
+        _folderDraft->hide();
+        create->setFocus();
+    });
+    connect(_folderDraft->NameField(), &QLineEdit::returnPressed, this,
+            &CBrowseDialog::CreateDirFromDraft);
+    layout->addWidget(_folderDraft);
+    _folderDraft->hide();
     _list = new QTreeWidget(this);
     _list->setObjectName("browseList");
     _list->setRootIsDecorated(false);

@@ -7,7 +7,6 @@ class QtWindowStatusBar;
 #include "archive/agent/Agent.h"
 #include "archive/backend/archivebackend.h"
 #include "devices/deviceselectiondialog.h"
-#include "dialogs/combo/alias.h"
 #include "dialogs/compress/createarchivedialog.h"
 #include "dialogs/copy/alias.h"
 #include "dialogs/extract/alias.h"

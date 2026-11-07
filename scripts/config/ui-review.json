@@ -37,7 +37,7 @@
   {"id":"progress-results","title":"Результат операции: ошибка, отмена и пропуски","target":"progress_worker_tests","functions":["finalOutcomeRemainsVisibleOnlyWhenNeeded"]},
   {"id":"progress-stop","title":"Подтверждение и ожидание остановки операции","target":"progress_cancel_tests","functions":["sourcePromptRestoresPauseAndStopsOnlyOnYes"]},
   {"id":"progress-language","title":"Операция и запрос остановки: смена EN/RU","target":"language_dialog_tests","functions":["progressStopQuestionPreservesItsRequestAcrossLanguages","progressPreservesPausedOperationAndFinishedClose"]},
-  {"id":"browse","title":"Встроенный выбор файла или каталога","target":"source_browse_dialog_tests","functions":["sourceInitialFrame","geometry"]},
+  {"id":"browse","title":"Встроенный выбор файла или каталога","target":"source_browse_dialog_tests","functions":["sourceInitialFrame","geometry","createFolderCancelAndFailureKeepBrowserOpen"]},
   {"id":"properties-history","title":"Свойства и история папок","target":"list_view_dialog_tests","functions":["sourceFrame"]},
   {"id":"selected-properties","title":"Свойства выбранных объектов","target":"properties_window_tests","functions":["geometry","unknownZeroFoldersAndPartialSelectionStayDistinct","fullCopyKeepsOwnedArchiveLevelsAndUnopenedDiagnostics","withoutSelectionUsesCurrentFolder","filesystemCommentUsesItsOwnDisclosure"]},
   {"id":"hash-results","title":"Результаты вычисления контрольных сумм","target":"hash_results_tests","functions":["nativeBundleResultsAndModalLayout"]},

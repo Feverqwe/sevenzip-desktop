@@ -38,11 +38,6 @@
         set_tests_properties(ui_parity_${prompt} PROPERTIES
             FIXTURES_REQUIRED ui_reference_extract_prompts)
     endforeach()
-    qt_add_executable(combo_dialog_tests tests/ui/combo_dialog_tests.cpp)
-    target_link_libraries(combo_dialog_tests PRIVATE sevenzip_layout_inspection)
-    target_include_directories(combo_dialog_tests PRIVATE tests)
-    target_link_libraries(combo_dialog_tests PRIVATE sevenzip_panel Qt6::Test)
-    add_test(NAME combo_dialog COMMAND combo_dialog_tests -silent)
     qt_add_executable(disclosure_accessibility_tests tests/ui/disclosure_accessibility_tests.cpp)
     target_link_libraries(disclosure_accessibility_tests PRIVATE sevenzip_panel Qt6::Test)
     add_test(NAME disclosure_accessibility COMMAND disclosure_accessibility_tests -silent)
@@ -72,8 +67,6 @@
     target_link_libraries(source_browse_dialog_tests PRIVATE sevenzip_panel Qt6::Test)
     add_test(NAME source_browse_dialog COMMAND source_browse_dialog_tests -silent)
     set_tests_properties(source_browse_dialog PROPERTIES TIMEOUT 30 ENVIRONMENT
-        "QT_QPA_PLATFORM=offscreen;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
-    set_tests_properties(combo_dialog PROPERTIES TIMEOUT 30 ENVIRONMENT
         "QT_QPA_PLATFORM=offscreen;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
     qt_add_executable(filesystem_operations_tests tests/ui/filesystem_operations_tests.cpp
         tests/fileops/support/filedeleteoperation.cpp tests/fileops/support/filedeleteoperation.h)

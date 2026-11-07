@@ -1,7 +1,10 @@
 #include "filemanager/support/recent_places_menu.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
+#include "support/panel_keys.h"
+#include "support/window_activation.h"
 #include <QScopeGuard>
+#include <algorithm>
 
 extern bool g_CaseSensitive;
 
@@ -104,33 +107,30 @@ class MainWindowStateTests : public QObject, protected MainWindowTestSupport {
         file.close();
         ControlledBackend backend;
         MainWindow window(&backend);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
         auto *address = window.findChild<QLineEdit *>("archivePath");
+        PanelKeys::focusAddress(address);
         address->setText(temp.path());
         QTest::keyClick(address, Qt::Key_Return);
-        QCOMPARE(table(window)->rowCount(), 1);
+        QTRY_COMPARE(table(window)->rowCount(), 1);
         auto *createFolder = action(window, "createFolderAction");
         auto *refresh = action(window, "refreshAction");
         QVERIFY(createFolder->isEnabled());
         QVERIFY(refresh->isEnabled());
 
-        QTimer::singleShot(0, &window, [] {
-            for (QWidget *widget : QApplication::topLevelWidgets()) {
-                if (auto *dialog = qobject_cast<CComboDialog *>(widget))
-                    dialog->reject();
-            }
-        });
         createFolder->trigger();
+        auto *name = window.findChild<QLineEdit *>("inlineFolderName");
+        QVERIFY(name && name->isVisible());
+        QTest::keyClick(name, Qt::Key_Escape);
         QCOMPARE(table(window)->rowCount(), 1);
-        QTimer::singleShot(0, &window, [] {
-            for (QWidget *widget : QApplication::topLevelWidgets()) {
-                if (auto *dialog = qobject_cast<CComboDialog *>(widget)) {
-                    dialog->findChild<QComboBox *>("comboValue")
-                        ->setCurrentText(QStringLiteral("папка с пробелом"));
-                    dialog->accept();
-                }
-            }
-        });
         createFolder->trigger();
+        const auto drafts = window.findChildren<QLineEdit *>("inlineFolderName");
+        const auto visible =
+            std::ranges::find_if(drafts, [](auto *field) { return field->isVisible(); });
+        QVERIFY(visible != drafts.end());
+        (*visible)->setText(QStringLiteral("папка с пробелом"));
+        QTest::keyClick(*visible, Qt::Key_Return);
         const QString folder = temp.filePath(QStringLiteral("папка с пробелом"));
         QVERIFY(QFileInfo(folder).isDir());
         QCOMPARE(table(window)->selectionModel()->selectedRows().size(), 1);
@@ -141,15 +141,17 @@ class MainWindowStateTests : public QObject, protected MainWindowTestSupport {
                      .toString(),
                  QStringLiteral("папка с пробелом"));
 
-        action(window, "deselectAllAction")->trigger();
-        QVERIFY(table(window)->selectionModel()->selectedRows().isEmpty());
+        auto *deselect = action(window, "deselectAllAction");
+        QTRY_VERIFY(deselect->isEnabled());
+        deselect->trigger();
+        QTRY_VERIFY(table(window)->selectionModel()->selectedRows().isEmpty());
         table(window)->selectRow(filesystemRow(window, QStringLiteral("файл с пробелом.txt")));
         const QString later = temp.filePath("later.txt");
         QFile newFile(later);
         QVERIFY(newFile.open(QIODevice::WriteOnly));
         newFile.close();
         refresh->trigger();
-        QCOMPARE(table(window)->rowCount(), 3);
+        QTRY_COMPARE(table(window)->rowCount(), 3);
         QCOMPARE(table(window)->selectionModel()->selectedRows().size(), 1);
         QCOMPARE(table(window)
                      ->model()

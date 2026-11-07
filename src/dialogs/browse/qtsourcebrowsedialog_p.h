@@ -15,11 +15,13 @@ class QLabel;
 class QDialogButtonBox;
 class QPushButton;
 class QKeyEvent;
+class QtInlineFolderName;
 
 namespace NSourceBrowse {
 class CBrowseDialog : public QDialog {
     static constexpr int kParentIndex = -1;
     QTreeWidget *_list = nullptr;
+    QtInlineFolderName *_folderDraft = nullptr;
     QLineEdit *_pathEdit = nullptr;
     QComboBox *_filterCombo = nullptr;
     QLabel *_folder = nullptr;
@@ -37,6 +39,7 @@ class CBrowseDialog : public QDialog {
     void OpenParentFolder();
     void SetPathEditText();
     void OnCreateDir();
+    void CreateDirFromDraft();
     void OnItemEnter();
     void FinishOnOK();
     void OnOK();

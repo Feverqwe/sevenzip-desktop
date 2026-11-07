@@ -202,6 +202,8 @@ add_library(sevenzip_panel
     src/ui/dialogs/qtdialogsurface.cpp src/ui/dialogs/qtdialogsurface.h
     src/ui/controls/qtdisclosure.cpp
     src/ui/controls/qtdisclosure.h
+    src/ui/controls/qtinlinefoldername.cpp
+    src/ui/controls/qtinlinefoldername.h
     src/ui/controls/qtresponsiverow.cpp
     src/ui/controls/qtresponsiverow.h
     src/ui/controls/qtwrappingcheckbox.cpp
@@ -276,8 +278,6 @@ add_library(sevenzip_panel
     src/dialogs/listview/qtreportdata.h
     src/dialogs/edit/EditDialog.cpp
     src/dialogs/edit/EditDialog.h
-    src/dialogs/combo/ComboDialog.cpp
-    src/dialogs/combo/ComboDialog.h
     src/dialogs/password/PasswordDialog.cpp
     src/dialogs/password/PasswordDialog.h
     src/dialogs/browse/BrowseDialog.cpp

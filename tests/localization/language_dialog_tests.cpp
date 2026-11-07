@@ -1,5 +1,4 @@
 #include "7zip/UI/FileManager/resource.h"
-#include "dialogs/combo/ComboDialog.h"
 #include "dialogs/copy/CopyDialog.h"
 #include "dialogs/extract/ExtractDialog.h"
 #include "dialogs/listview/ListViewDialog.h"
@@ -10,6 +9,7 @@
 #include "localization/qtlangcontrols.h"
 #include "settings/RegistryUtils.h"
 #include "settings/ViewSettings.h"
+#include "ui/controls/qtinlinefoldername.h"
 #include "ui/diagnostics/qtdiagnostictext.h"
 #include "ui/progress/ProgressDialog2.h"
 #include "ui/support/layout_inspection.h"
@@ -200,74 +200,30 @@ class LanguageDialogTests final : public QObject {
         for (int width : {360, 260})
             inspect(dialog, "language-password-en", width, 170);
     }
-    void copyAndComboPreserveRawValues() {
+    void copyAndFolderDraftPreserveRawValues() {
         CCopyDialog copy(false, "/initial", {"Unicode file 密碼"});
-        CComboDialog folder(QtLangText(IDS_CREATE_FOLDER), QtLangText(IDS_CREATE_FOLDER_NAME),
-                            QtLangText(IDS_CREATE_FOLDER_DEFAULT_NAME));
-        folder.BindLanguage(IDS_CREATE_FOLDER, IDS_CREATE_FOLDER_NAME);
+        QtInlineFolderName folder(nullptr);
         auto *destination = copy.findChild<QLineEdit *>("copyDestination");
-        auto *name = folder.findChild<QComboBox *>("comboValue");
+        auto *name = folder.NameField();
         destination->setText(QStringLiteral(" /pending path 密碼 "));
-        name->setEditText(QStringLiteral(" pending folder 密碼 "));
+        name->setText(QStringLiteral(" pending folder 密碼 "));
+        folder.show();
         language("ru");
         QCOMPARE(copy.windowTitle(), QStringLiteral("Копировать"));
         QCOMPARE(destination->text(), QStringLiteral(" /pending path 密碼 "));
-        QCOMPARE(name->currentText(), QStringLiteral(" pending folder 密碼 "));
+        QCOMPARE(name->text(), QStringLiteral(" pending folder 密碼 "));
+        QCOMPARE(name->placeholderText(), QStringLiteral("Имя папки"));
         for (int width : {480, 300}) {
             inspect(copy, "language-copy-ru", width, 280);
             copy.hide();
-            inspect(folder, "language-folder-ru", width, 170);
-            folder.hide();
         }
         language("-");
         for (int width : {480, 300}) {
             inspect(copy, "language-copy-en", width, 280);
             copy.hide();
-            inspect(folder, "language-folder-en", width, 170);
-            folder.hide();
         }
         copy.accept();
         QCOMPARE(ToQString(copy.Value), QStringLiteral(" /pending path 密碼 "));
-    }
-    void comboActionLanguageAndConfirmation_data() {
-        QTest::addColumn<quint32>("titleID");
-        QTest::addColumn<quint32>("promptID");
-        QTest::addColumn<QString>("english");
-        QTest::addColumn<QString>("russian");
-        QTest::newRow("folder") << quint32(IDS_CREATE_FOLDER) << quint32(IDS_CREATE_FOLDER_NAME)
-                                << QString("Create") << QStringLiteral("Создать");
-    }
-    void comboActionLanguageAndConfirmation() {
-        QFETCH(quint32, titleID);
-        QFETCH(quint32, promptID);
-        QFETCH(QString, english);
-        QFETCH(QString, russian);
-        language("-");
-        const QString itemTitle = QStringLiteral("файл 空.txt : Comment");
-        CComboDialog dialog(titleID ? QtLangText(titleID) : itemTitle, QtLangText(promptID),
-                            "initial");
-        dialog.BindLanguage(titleID, promptID);
-        auto *combo = dialog.findChild<QComboBox *>("comboValue");
-        const QString draft = QStringLiteral("  pending 空 value  ");
-        combo->setEditText(draft);
-        auto *buttons = dialog.findChild<QDialogButtonBox *>("comboButtons");
-        auto *accept = buttons->button(QDialogButtonBox::Ok);
-        QCOMPARE(accept->text(), english);
-        language("ru");
-        QCOMPARE(accept->text(), russian);
-        QCOMPARE(combo->currentText(), draft);
-        if (!titleID)
-            QCOMPARE(dialog.windowTitle(), itemTitle);
-        for (int width : {360, 260})
-            inspect(dialog, QString("combo-action-%1-ru").arg(QTest::currentDataTag()), width, 150);
-        language("-");
-        QCOMPARE(accept->text(), english);
-        QCOMPARE(combo->currentText(), draft);
-        for (int width : {360, 260})
-            inspect(dialog, QString("combo-action-%1-en").arg(QTest::currentDataTag()), width, 150);
-        accept->click();
-        QCOMPARE(dialog.result(), int(QDialog::Accepted));
-        QCOMPARE(ToQString(dialog.Value), draft);
     }
     void overwritePreservesDecisions() {
         COverwriteDialog overwrite;

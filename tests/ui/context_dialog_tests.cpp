@@ -1,4 +1,3 @@
-#include "dialogs/combo/ComboDialog.h"
 #include "dialogs/copy/CopyDialog.h"
 #include "dialogs/extract/alias.h"
 #include "dialogs/overwrite/OverwriteDialog.h"
@@ -6,7 +5,7 @@
 #include "settings/RegistryUtils.h"
 #include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
-#include <QComboBox>
+#include <QDialogButtonBox>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QScopeGuard>
@@ -50,7 +49,7 @@ class ContextDialogTests final : public QObject {
     }
     void contextualTaskBlocksItsOwner_data() {
         QTest::addColumn<QString>("kind");
-        for (const char *kind : {"name", "copy", "password", "overwrite", "extract"})
+        for (const char *kind : {"copy", "password", "overwrite", "extract"})
             QTest::newRow(kind) << QString(kind);
     }
     void contextualTaskBlocksItsOwner() {
@@ -73,9 +72,7 @@ class ContextDialogTests final : public QObject {
         QVERIFY(WindowActivation::waitForActive(owner));
         origin->setFocus();
         std::unique_ptr<QDialog> dialog;
-        if (kind == "name")
-            dialog = std::make_unique<CComboDialog>("Create", "Name", "initial", &owner);
-        else if (kind == "copy")
+        if (kind == "copy")
             dialog = std::make_unique<CCopyDialog>(false, settings_.path(), QStringList{"fixture"},
                                                    &owner);
         else if (kind == "password") {
@@ -122,8 +119,8 @@ class ContextDialogTests final : public QObject {
         owner.resize(800, 500);
         owner.show();
         QVERIFY(WindowActivation::waitForActive(owner));
-        CComboDialog outer("Create", "Name", "initial", &owner);
-        auto *value = outer.findChild<QComboBox *>("comboValue");
+        CCopyDialog outer(false, settings_.path(), {"fixture"}, &owner);
+        auto *value = outer.findChild<QLineEdit *>("copyDestination");
         bool observed = false;
         QTimer::singleShot(0, &outer, [&] {
             const auto close = qScopeGuard([&] {
@@ -133,7 +130,7 @@ class ContextDialogTests final : public QObject {
             QVERIFY(QTest::qWaitForWindowExposed(&outer));
             QTRY_VERIFY(nativeSheet(outer, owner));
             const QString raw = QStringLiteral("  черновик 密碼  ");
-            value->setEditText(raw);
+            value->setText(raw);
             CPasswordDialog inner(&outer);
             inner.Password = L"original";
             inner.OnInit();
@@ -150,8 +147,8 @@ class ContextDialogTests final : public QObject {
             QVERIFY(innerObserved);
             QCOMPARE(QString::fromWCharArray(inner.Password), QString("original"));
             QVERIFY(outer.isVisible());
-            QCOMPARE(value->currentText(), raw);
-            QTest::keyClick(value, Qt::Key_Return);
+            QCOMPARE(value->text(), raw);
+            outer.findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok)->click();
             QCOMPARE(QString::fromWCharArray(outer.Value), raw);
             observed = true;
         });

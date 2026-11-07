@@ -68,7 +68,6 @@
 | <a id="full-text-detail"></a>Full text detail | [Открыть](dialogs.md#full-text-detail) |
 | <a id="selected-properties"></a>Selected properties | [Открыть](dialogs.md#selected-properties) |
 | <a id="gui-early-error-messages"></a>GUI early error messages | [Открыть](dialogs.md#gui-early-error-messages) |
-| <a id="shared-namemask-dialog"></a>Shared name/mask dialog | [Открыть](dialogs.md#shared-namemask-dialog) |
 | <a id="copymove-dialog"></a>Copy/Move dialog | [Открыть](copy-move.md#copymove-dialog) |
 | <a id="extract-dialog"></a>Extract dialog | [Открыть](extraction.md#extract-dialog) |
 | <a id="create-archive-dialog"></a>Create archive dialog | [Открыть](compression.md#create-archive-dialog) |

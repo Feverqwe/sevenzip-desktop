@@ -13,7 +13,6 @@
 #include "Windows/PropVariantConv.h"
 #include "Windows/TimeUtils.h"
 #include "dialogs/browse/qtsourcebrowsedialog_p.h"
-#include "dialogs/combo/ComboDialog.h"
 #include "filemanager/FormatUtils.h"
 #include "fileops/native/FileDir.h"
 #include "fileops/native/correctfspath.h"
@@ -21,6 +20,7 @@
 #include "localization/qtlangcontrols.h"
 #include "settings/RegistryUtils.h"
 #include "settings/ViewSettings.h"
+#include "ui/controls/qtinlinefoldername.h"
 #include "ui/dialogs/qtdialoglayout.h"
 #include "ui/dialogs/qtdialogscreenservices.h"
 #include "ui/lifecycle/qttaskpresentation.h"
@@ -33,6 +33,7 @@
 #include <QMessageBox>
 #include <QPushButton>
 #include <QTreeWidget>
+#include <cerrno>
 
 using namespace NWindows;
 using namespace NFile;
@@ -45,8 +46,10 @@ namespace NSourceBrowse {
 namespace {
 #ifdef _WIN32
 const HRESULT kInvalidNameError = ERROR_INVALID_NAME;
+const HRESULT kExistingNameError = HRESULT_FROM_WIN32(ERROR_ALREADY_EXISTS);
 #else
 const HRESULT kInvalidNameError = E_INVALIDARG;
+const HRESULT kExistingNameError = HRESULT_FROM_WIN32(EEXIST);
 #endif
 // The reference native picker uses Win32 MAX_PATH, independently of the host
 // filesystem limit. Qt exposes no CommDlgExtendedError for its native picker;
@@ -166,7 +169,7 @@ bool CBrowseDialog::OnButtonClicked(unsigned buttonID) {
         break;
     case IDB_BROWSE_CREATE_DIR:
         OnCreateDir();
-        break;
+        return true;
     default:
         return false;
     }
@@ -285,6 +288,8 @@ HRESULT CBrowseDialog::Reload(UString pathPrefix, const UString &selectedName) {
             files.Add(fi);
         }
     }
+    if (DirPrefix != pathPrefix)
+        _folderDraft->hide();
     DirPrefix = pathPrefix;
     _files.Swap(files);
     PopulateRows(selectedName);
@@ -332,29 +337,40 @@ void CBrowseDialog::SetPathEditText() {
 }
 
 void CBrowseDialog::OnCreateDir() {
+    auto *field = _folderDraft->NameField();
+    if (!_folderDraft->isVisible()) {
+        field->clear();
+        _folderDraft->ClearError();
+        _folderDraft->show();
+    }
+    field->setFocus();
+}
+
+void CBrowseDialog::CreateDirFromDraft() {
+    const QString value = _folderDraft->NameField()->text();
     UString name;
-    {
-        UString enteredName;
-        Dlg_CreateFolder(this, enteredName);
-        if (enteredName.IsEmpty())
-            return;
-        if (!CorrectFsPath(DirPrefix, enteredName, name)) {
-            MessageBox_HResError(this, kInvalidNameError, name);
-            return;
-        }
-    }
-    if (name.IsEmpty())
-        return;
     FString destPath;
-    if (GetFullPath(us2fs(DirPrefix), us2fs(name), destPath)) {
-        if (!NDir::CreateComplexDir(destPath))
-            MessageBox_HResError(this, GetLastError_noZero_HRESULT(), fs2us(destPath));
-        else {
-            Reload(DirPrefix, name);
-            SetPathEditText();
-        }
-        _list->setFocus();
+    if (value.isEmpty() || value.contains(QChar::Null) ||
+        !CorrectFsPath(DirPrefix, ToUString(value), name) || name.IsEmpty() ||
+        !GetFullPath(us2fs(DirPrefix), us2fs(name), destPath)) {
+        _folderDraft->ShowError(ToQString(HResultToMessage(kInvalidNameError)));
+        return;
     }
+    CFileInfo existing;
+    if (existing.Find(destPath)) {
+        _folderDraft->ShowError(ToQString(HResultToMessage(kExistingNameError)));
+        return;
+    }
+    if (!NDir::CreateComplexDir(destPath)) {
+        _folderDraft->ShowError(ToQString(HResultToMessage(GetLastError_noZero_HRESULT())));
+        return;
+    }
+    _folderDraft->hide();
+    Reload(DirPrefix, name);
+    SetPathEditText();
+    if (FolderMode)
+        _pathEdit->setText(ToQString(fs2us(destPath)));
+    _list->setFocus();
 }
 
 void CBrowseDialog::OnItemEnter() {
@@ -404,17 +420,6 @@ void CBrowseDialog::FinishOnOK() {
 
 using NSourceBrowse::CBrowseDialog;
 using NSourceBrowse::NeedsSourceBrowser;
-
-bool Dlg_CreateFolder(QWidget *wnd, UString &destName) {
-    destName.Empty();
-    CComboDialog dlg(QtLangText(IDS_CREATE_FOLDER), QtLangText(IDS_CREATE_FOLDER_NAME),
-                     QtLangText(IDS_CREATE_FOLDER_DEFAULT_NAME), wnd);
-    dlg.BindLanguage(IDS_CREATE_FOLDER, IDS_CREATE_FOLDER_NAME);
-    if (dlg.exec() != QDialog::Accepted)
-        return false;
-    destName = dlg.Value;
-    return true;
-}
 
 bool MyBrowseForFolder(QWidget *owner, const UString &title, const UString &path,
                        UString &resultPath) {

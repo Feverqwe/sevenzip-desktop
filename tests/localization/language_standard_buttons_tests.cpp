@@ -1,4 +1,3 @@
-#include "dialogs/combo/ComboDialog.h"
 #include "dialogs/compress/createarchivedialog.h"
 #include "dialogs/compress/qtcompressoptionsdialog.h"
 #include "dialogs/copy/CopyDialog.h"
@@ -40,8 +39,6 @@ class LanguageStandardButtonsTests final : public QObject {
     std::unique_ptr<QDialog> create(const QString &name) {
         if (name == "copy")
             return std::make_unique<CCopyDialog>(false, "/pending 空 path", QStringList{"file"});
-        if (name == "combo")
-            return std::make_unique<CComboDialog>("Title", "Name", "pending 空 value");
         if (name == "password")
             return initialize<CPasswordDialog>();
         if (name == "edit")
@@ -102,7 +99,7 @@ class LanguageStandardButtonsTests final : public QObject {
         if (name == "copy") {
             normal = QSize(440, 250);
             compact = QSize(340, 220);
-        } else if (name == "password" || name == "combo") {
+        } else if (name == "password") {
             normal = QSize(360, 170);
             compact = QSize(260, 170);
         } else if (name == "edit") {
@@ -189,8 +186,8 @@ class LanguageStandardButtonsTests final : public QObject {
     void sourceDialogsTranslateTheirStandardControls_data() {
         QTest::addColumn<QString>("name");
         QTest::addColumn<bool>("russian");
-        for (const char *name : {"copy", "combo", "password", "edit", "list", "extract",
-                                 "compress-options", "compress"})
+        for (const char *name :
+             {"copy", "password", "edit", "list", "extract", "compress-options", "compress"})
             for (bool russian : {false, true})
                 QTest::newRow(qPrintable(QString("%1-%2").arg(name).arg(russian)))
                     << QString::fromLatin1(name) << russian;

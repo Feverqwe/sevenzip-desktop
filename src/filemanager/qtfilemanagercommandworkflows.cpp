@@ -9,11 +9,10 @@
 #include "filemanager/window/qtwindowworkspace.h"
 #include "localization/qtlangcontrols.h"
 #include "operations/CompressCall.h"
-#include "ui/dialogs/qtdialoglayout.h"
+#include "ui/controls/qtinlinefoldername.h"
 #include "ui/progress/ProgressDialog2.h"
 #include <QLineEdit>
 #include <QScopedValueRollback>
-#include <QShortcut>
 #include <QStackedWidget>
 #include <QVBoxLayout>
 
@@ -104,21 +103,8 @@ void QtFileManagerCommands::CreateFolder() {
         return;
     }
 
-    auto *editor = new QWidget(parent);
-    editor->setObjectName("inlineCreateFolder");
-    auto *row = new QVBoxLayout(editor);
-    row->setContentsMargins(12, 6, 12, 6);
-    auto *name = new QLineEdit(editor);
-    name->setObjectName("inlineFolderName");
-    const auto hint = QCoreApplication::translate("InlineCreateFolder", "Folder name");
-    name->setPlaceholderText(hint);
-    name->setAccessibleName(hint);
-    row->addWidget(name);
-    auto *error = new QtWrappingLabel(editor);
-    error->setObjectName("inlineFolderError");
-    error->setTextFormat(Qt::PlainText);
-    error->hide();
-    row->addWidget(error);
+    auto *editor = new QtInlineFolderName(parent);
+    auto *name = editor->NameField();
     auto *layout = static_cast<QVBoxLayout *>(parent->layout());
     layout->insertWidget(layout->indexOf(view), editor);
     const auto finish = [view, editor] {
@@ -126,16 +112,13 @@ void QtFileManagerCommands::CreateFolder() {
         editor->deleteLater();
         view->currentWidget()->setFocus();
     };
-    auto *escape = new QShortcut(QKeySequence(Qt::Key_Escape), editor);
-    escape->setContext(Qt::WidgetWithChildrenShortcut);
-    QObject::connect(escape, &QShortcut::activated, editor, finish);
-    QObject::connect(name, &QLineEdit::textEdited, error, &QWidget::hide);
 
+    editor->OnCancel(finish);
     const CMyComPtr<IFolderFolder> source = panel.GetFolder();
     const UString prefix = panel.GetCurrentFolderPrefix();
     QObject::connect(
         name, &QLineEdit::returnPressed, editor,
-        [this, index, source, prefix, name, error, editor, finish] {
+        [this, index, source, prefix, name, editor, finish] {
             auto &panel = window_.app_.Panels[index];
             if (!window_.app_.IsPanelVisible(index) || panel.GetFolder() != source.Interface() ||
                 panel.GetCurrentFolderPrefix() != prefix) {
@@ -170,9 +153,7 @@ void QtFileManagerCommands::CreateFolder() {
                 finish();
                 return;
             }
-            error->setText(detail.isEmpty() ? ToQString(HResultToMessage(result)) : detail);
-            error->show();
-            name->setFocus();
+            editor->ShowError(detail.isEmpty() ? ToQString(HResultToMessage(result)) : detail);
         });
     editor->setToolTip(ToQString(prefix));
     editor->show();

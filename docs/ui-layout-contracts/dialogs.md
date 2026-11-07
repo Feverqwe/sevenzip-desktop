@@ -98,7 +98,8 @@ navigating. Back and Forward keep their own history in each pane.
 Open Archive uses the system file picker. An initial path that needs the
 source browser opens it with the same archive filters. Cancel leaves the pane
 at its current location. The source browser keeps its path field and actions
-visible while its file list scrolls.
+visible while its file list scrolls. New Folder opens an inline field. An error
+keeps the name available for correction, and Escape returns focus to New Folder.
 
 ## Hash results
 
@@ -180,32 +181,6 @@ Current macOS boxes auto-fit to 228/304×116, Linux to 204/274×98 and Windows t
 293/400×96 for writer/output errors respectively. Both requested sizes resolve
 to these platform sizes, with fitted labels and visible/enabled OK; the requested
 compact width does not override QMessageBox's standard fit policy.
-
-## Shared name/mask dialog
-
-Reference: upstream `0766b733fe3e06dd2a7f9a3cfbf2108ac73abd17`,
-`CPP/7zip/UI/FileManager/ComboDialog.cpp/.rc` and
-`BrowseDialog.cpp::Dlg_CreateFolder`. Implemented view: `ComboDialog.cpp`.
-
-- The prompt precedes one editable combo, with OK/Cancel at the bottom.
-  Initial Value remains visible after populating ordered Strings.
-- The redesigned initial frame retains a font-scaled preferred width, while
-  height follows the prompt, editable field and native actions. Long prompts
-  can wrap and enlarge the minimum height. Explicit normal/compact resizing
-  below remains a separate adaptation.
-- Folder creation uses source title, prompt and default-name language IDs.
-- OnOK preserves raw text, including spaces and an empty value. Validation
-  belongs to the calling operation. Cancel leaves the public Value unchanged.
-- `combo_dialog` checks the folder creation view at 360×150 and 260×150:
-  fitted prompt, reachable combo/footer, control order and separate buttons.
-  JSON reports accompany the checks; screenshots remain optional.
-- `source_create` exercises folder creation in both panes, including the focus
-  on the created object and preservation of selection on cancel. See the
-  [receipt](../archive/qt-port/upstream-port-audit.md#p3-05--source-create-filefolder-scenario-2026-10-10).
-Qt layouts replace OnSize. Plain-text wrapping handles Qt label rendering;
-the native AddString behavior is adapted by restoring initial edit text after
-Qt populates the combo. Windows rendering was unavailable; geometry establishes
-structure/usability on the tested macOS Qt platform.
 
 ## Progress dialog and modal lifecycle
 

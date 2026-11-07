@@ -2,7 +2,6 @@
 
 #include "archive/codecs/archivecodeccatalog.h"
 #include "archive/support/native_archive_fixture.h"
-#include "dialogs/combo/ComboDialog.h"
 #include "dialogs/overwrite/OverwriteDialog.h"
 #include "filemanager/support/panel_model_support.h"
 #include "filemanager/support/window_state_support.h"
