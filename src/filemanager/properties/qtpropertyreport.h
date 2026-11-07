@@ -9,7 +9,7 @@
 // never inferred from translated names or the legacy report separators.
 class QtPropertyReport final : public QtReportData {
   public:
-    enum class Scope { Selection, Folder, Archive, ArchiveLink, UnopenedArchive };
+    enum class Scope { Selection, Folder, Archive, ArchiveLink, UnopenedArchive, Checksums };
     enum class Availability { Known, Partial, Unknown };
     struct NativeValue {
         UInt32 id;

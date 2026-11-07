@@ -117,8 +117,12 @@ void CPanel::Properties() {
     Get_ItemIndices_Operated(operatedIndices);
     QtPropertyReport message;
     Properties(operatedIndices, message);
+    ShowProperties(std::move(message));
+}
+
+void CPanel::ShowProperties(QtPropertyReport report) {
     auto *window =
-        new QtPropertiesWindow(std::move(message), GetParent(), _selectionList.FocusTarget());
+        new QtPropertiesWindow(std::move(report), GetParent(), _selectionList.FocusTarget());
     window->setAttribute(Qt::WA_DeleteOnClose);
     window->show();
 }

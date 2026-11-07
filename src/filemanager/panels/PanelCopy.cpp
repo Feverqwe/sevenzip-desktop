@@ -52,7 +52,8 @@ void CPanelCopyThread::ShowFinalResults(QWidget *hwnd) {
     if (!ResultsPending)
         return;
     ResultsPending = false;
-    ShowHashResults(Hash, hwnd);
+    if (!options->PresentHashResult || !options->PresentHashResult(Hash))
+        ShowHashResults(Hash, hwnd);
 }
 
 void CPanelCopyThread::ProcessWasFinished_GuiVirt() { ShowFinalResults(this); }

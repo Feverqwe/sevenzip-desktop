@@ -23,12 +23,14 @@ void MainWindow::calculateHash(const QString &method) {
     const CPanel &panel = app_.GetFocusedPanel();
     const bool filesystemNamespace = projectedUi().state == State::Namespace &&
                                      panel.Is_IO_FS_Folder() && panel.DoesItSupportOperations();
+    const auto indices = sourceOperatedIndices();
     if ((projectedUi().state != State::Filesystem && projectedUi().state != State::Viewing &&
          !filesystemNamespace) ||
-        sourceOperatedIndices().IsEmpty())
+        indices.IsEmpty())
         return;
-    if (canLaunchGuiFilesystemOperation() && !panel.GetFsPath().IsEmpty()) {
-        const auto indices = sourceOperatedIndices();
+    const bool singleFile =
+        panel.IsFSFolder() && indices.Size() == 1 && !panel.IsItem_Folder(indices[0]);
+    if (!singleFile && canLaunchGuiFilesystemOperation() && !panel.GetFsPath().IsEmpty()) {
         UStringVector paths;
         FOR_VECTOR(i, indices)
         paths.Add(panel.GetItemRelPath(indices[i]));

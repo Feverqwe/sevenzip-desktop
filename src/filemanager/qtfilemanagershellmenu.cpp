@@ -49,6 +49,14 @@ QtFileManagerShellMenu::QtFileManagerShellMenu(MainWindow &window, QMenu &menu,
                },
            .Hash =
                [this](const UStringVector &paths, const UString &method) {
+                   const auto indices = _window.sourceOperatedIndices();
+                   const auto &panel = _window.app_.GetFocusedPanel();
+                   if (paths.Size() == 1 && indices.Size() == 1 && panel.IsFSFolder() &&
+                       !panel.IsItem_Folder(indices[0]) &&
+                       panel.GetItemFullPath(indices[0]) == paths[0]) {
+                       _window.calculateHash(ToQString(method));
+                       return S_OK;
+                   }
                    if (_window.canLaunchGuiFilesystemOperation())
                        return _window.launchGuiHash(paths, method);
                    return ::CalcChecksum(paths, method, _services);

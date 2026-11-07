@@ -5,6 +5,7 @@
 #include "archive/codecs/archivecodeccatalog.h"
 #include "archive/operations/ZipRegistry.h"
 #include "archive/support/source_extract_fixture.h"
+#include "filemanager/properties/qtpropertieswindow.h"
 #include "filemanager/support/window_state_support.h"
 #include "localization/LangUtils.h"
 #include "operations/qtoperationlauncher.h"
@@ -121,7 +122,8 @@ class ManagerHashWorkflowTests final : public QObject, protected MainWindowTestS
         QFETCH(unsigned, pane);
         QTemporaryDir input, output;
         QVERIFY(input.isValid() && output.isValid());
-        const QString source = input.filePath("selected [literal] 空.txt");
+        QVERIFY(QDir(input.path()).mkdir("batch"));
+        const QString source = input.filePath("batch/selected [literal] 空.txt");
         QVERIFY(SourceExtractFixture::writeFile(source, "selected manager bytes"));
         HashBackend backend;
         backend.Report = output.filePath("hashes.json");
@@ -160,7 +162,9 @@ class ManagerHashWorkflowTests final : public QObject, protected MainWindowTestS
     void managerCloseLeavesAcceptedHashRunning() {
         QTemporaryDir input, output;
         QVERIFY(input.isValid() && output.isValid());
-        QVERIFY(SourceExtractFixture::writeFile(input.filePath("selected.txt"), "after close"));
+        QVERIFY(QDir(input.path()).mkdir("batch"));
+        QVERIFY(
+            SourceExtractFixture::writeFile(input.filePath("batch/selected.txt"), "after close"));
         HashBackend backend;
         backend.Report = output.filePath("hashes.json");
         backend.Barrier = output.filePath("continue");
@@ -186,8 +190,8 @@ class ManagerHashWorkflowTests final : public QObject, protected MainWindowTestS
 #ifndef SEVENZIP_CODEC_MODULE
         QSKIP("Native codec module unavailable");
 #else
-        QTemporaryDir input, output;
-        QVERIFY(input.isValid() && output.isValid());
+        QTemporaryDir input;
+        QVERIFY(input.isValid());
         const QString source = input.filePath("selected 空.txt");
         const QByteArray payload = "shell checksum bytes";
         QVERIFY(SourceExtractFixture::writeFile(source, payload));
@@ -201,7 +205,6 @@ class ManagerHashWorkflowTests final : public QObject, protected MainWindowTestS
         const QString module = QStringLiteral(SEVENZIP_CODEC_MODULE);
         ArchiveCodecCatalog catalog(module, 0);
         QCOMPARE(backend.loadCodecCatalog(module, catalog.version()), S_OK);
-        backend.Report = output.filePath("hashes.json");
         MainWindow window(&backend);
         window.show();
         auto *table = openPanel(window, 0, input.path());
@@ -214,16 +217,21 @@ class ManagerHashWorkflowTests final : public QObject, protected MainWindowTestS
         auto *calculate = FindShellVerb(*menu, "SevenZip.Checksum.Calc.SHA256");
         QVERIFY(calculate && calculate->isEnabled());
         calculate->trigger();
-        QTRY_COMPARE_WITH_TIMEOUT(backend.Results.size(), 1, 20000);
-        QCOMPARE(backend.Results.last().Status, QtOperationResult::Outcome::Success);
-        QVERIFY(containsDigest(backend.Report, payload));
+        auto *properties = window.findChild<QtPropertiesWindow *>();
+        QVERIFY(properties && properties->isVisible());
+        const QString digest = QString::fromLatin1(
+            QCryptographicHash::hash(payload, QCryptographicHash::Sha256).toHex());
+        QVERIFY(properties->Information().contains(digest, Qt::CaseInsensitive));
+        properties->close();
         QCOMPARE(SourceExtractFixture::readFile(source), payload);
 #endif
     }
     void crashedHashDoesNotDisableNextCommand() {
         QTemporaryDir input, output;
         QVERIFY(input.isValid() && output.isValid());
-        QVERIFY(SourceExtractFixture::writeFile(input.filePath("selected.txt"), "retry bytes"));
+        QVERIFY(QDir(input.path()).mkdir("batch"));
+        QVERIFY(
+            SourceExtractFixture::writeFile(input.filePath("batch/selected.txt"), "retry bytes"));
         HashBackend backend;
         backend.Report = output.filePath("hashes.json");
         backend.CrashNext = true;

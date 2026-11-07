@@ -123,6 +123,7 @@
     </context>
     <context>
         <name>PropertiesWindow</name>
+        <message><source>Checksums</source><translation>Контрольные суммы</translation></message>
         <message><source>Not available</source><translation>Недоступно</translation></message>
         <message><source>Location</source><translation>Расположение</translation></message>
         <message><source>Size</source><translation>Размер</translation></message>

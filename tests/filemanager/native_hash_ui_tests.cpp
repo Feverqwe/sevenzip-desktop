@@ -1,6 +1,9 @@
 #include "archive/codecs/archivecodeccatalog.h"
+#include "filemanager/properties/qtpropertieswindow.h"
 #include "filemanager/support/window_state_support.h"
 #include "support/widget_dialogs.h"
+#include "ui/support/layout_inspection.h"
+#include <QScrollArea>
 
 class NativeHashUiTests final : public QObject, protected MainWindowTestSupport {
     Q_OBJECT
@@ -22,6 +25,48 @@ class NativeHashUiTests final : public QObject, protected MainWindowTestSupport 
         QVERIFY(ready[0][0].toBool());
         version_ = backend.codecCatalog()->version();
 #endif
+    }
+    void singleFileChecksumAppearsInProperties() {
+        QTemporaryDir temporary;
+        QVERIFY(temporary.isValid());
+        const QString name = QStringLiteral("данные 空.txt");
+        QFile file(temporary.filePath(name));
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        QCOMPARE(file.write("abc"), qint64(3));
+        file.close();
+        ArchiveBackend backend(nullptr, engine_);
+        QCOMPARE(backend.loadCodecCatalog(module_, version_), S_OK);
+        MainWindow window(&backend);
+        window.show();
+        auto *address = window.findChild<QLineEdit *>("archivePath");
+        QVERIFY(address);
+        address->setText(temporary.path());
+        emit address->returnPressed();
+        QTRY_VERIFY(filesystemRow(window, name) >= 0);
+        table(window)->selectRow(filesystemRow(window, name));
+        auto *hash = action(window, "hashSHA256Action");
+        QTRY_VERIFY(hash->isEnabled());
+        hash->trigger();
+        auto *properties = window.findChild<QtPropertiesWindow *>();
+        QVERIFY(properties && properties->isVisible());
+        QVERIFY(properties->Information().contains(name));
+        QVERIFY(properties->Information().contains(
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+            Qt::CaseInsensitive));
+        auto *section = properties->findChild<QWidget *>("propertiesChecksums");
+        auto *scroll = properties->findChild<QScrollArea *>();
+        auto *buttons = properties->findChild<QDialogButtonBox *>();
+        QVERIFY(section && scroll && buttons);
+        for (const QSize size : {QSize(600, 480), QSize(420, 340)}) {
+            properties->resize(size);
+            scroll->ensureWidgetVisible(section);
+            QTRY_VERIFY(UiInspection::fullyVisible(*section, *properties));
+            QVERIFY(UiInspection::fullyVisible(*buttons, *properties));
+            QVERIFY(UiInspection::separate(*section, *buttons, *properties));
+            QVERIFY(UiInspection::writeReport(*properties,
+                                              QString("properties-checksum-%1").arg(size.width())));
+        }
+        properties->close();
     }
     void manifestOpensAsAnOrdinaryFile() {
         QTemporaryDir temporary;

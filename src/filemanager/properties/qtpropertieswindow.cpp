@@ -43,6 +43,8 @@ QString scopeName(const QtPropertyReport::Group &group) {
         return QString("propertiesArchiveEntry%1").arg(group.level);
     case Scope::UnopenedArchive:
         return "propertiesUnopenedArchive";
+    case Scope::Checksums:
+        return "propertiesChecksums";
     }
     return {};
 }
@@ -134,6 +136,8 @@ void QtPropertiesWindow::BuildGroup(qsizetype index, bool comments, QVBoxLayout 
     }
     auto *section = new QtDisclosure(values, this);
     section->setObjectName(values->objectName() + "Disclosure");
+    if (group.scope == Scope::Checksums)
+        section->setExpanded(true);
     sections_.append({index, comments, section});
     layout.addWidget(section);
 }
@@ -217,6 +221,9 @@ QString QtPropertiesWindow::GroupTitle(const QtPropertyReport::Group &group, boo
         break;
     case Scope::UnopenedArchive:
         title = text(QT_TRANSLATE_NOOP("PropertiesWindow", "Unopened archive"));
+        break;
+    case Scope::Checksums:
+        title = text(QT_TRANSLATE_NOOP("PropertiesWindow", "Checksums"));
         break;
     }
     return comments ? title + " · " + text(QT_TRANSLATE_NOOP("PropertiesWindow", "Comment"))

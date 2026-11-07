@@ -1,6 +1,6 @@
 #include "archive/support/native_archive_fixture.h"
-#include "dialogs/listview/ListViewDialog.h"
 #include "dialogs/password/PasswordDialog.h"
+#include "filemanager/properties/qtpropertieswindow.h"
 #include "filemanager/views/filetable.h"
 #include "filemanager/window/mainwindow.h"
 #include "support/widget_dialogs.h"
@@ -14,19 +14,11 @@
 #include <QTemporaryDir>
 #include <QThread>
 #include <QTimer>
-#include <QTreeWidget>
 #include <QtTest>
 
 class ChecksumTests : public QObject {
     Q_OBJECT
     WidgetDialogFixture widgetDialogs_;
-
-    static QString messageText(const QTreeWidget *list) {
-        QString text;
-        for (int i = 0; i < list->topLevelItemCount(); ++i)
-            text += list->topLevelItem(i)->text(1) + '\n';
-        return text;
-    }
 
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
@@ -101,27 +93,15 @@ class ChecksumTests : public QObject {
         QVERIFY(table && action);
         const QString digest = QString::fromLatin1(
             QCryptographicHash::hash("content", QCryptographicHash::Sha256).toHex());
-        QString results;
-        int resultWindows = 0;
-        QTimer closeResults;
-        connect(&closeResults, &QTimer::timeout, this, [&] {
-            auto *dialog = qobject_cast<CListViewDialog *>(widgetDialogs_.activeDialog());
-            if (!dialog)
-                return;
-            ++resultWindows;
-            results = messageText(dialog->findChild<QTreeWidget *>("propertiesList"));
-            dialog->accept();
-        });
-        closeResults.start(10);
         window.openArchive(archive);
         QTRY_COMPARE(table->rowCount(), 1);
         table->selectRow(0);
         QVERIFY(action->isEnabled());
-        results.clear();
         action->trigger();
-        QVERIFY(results.contains(digest));
-        QCOMPARE(resultWindows, 1);
-        closeResults.stop();
+        auto *properties = window.findChild<QtPropertiesWindow *>();
+        QVERIFY(properties && properties->isVisible());
+        QVERIFY(properties->Information().contains(digest, Qt::CaseInsensitive));
+        properties->close();
         QVERIFY(QDir::setCurrent(original));
     }
 
@@ -166,7 +146,6 @@ class ChecksumTests : public QObject {
         auto *table = window.findChild<FileTable *>("archiveTable");
         QTRY_COMPARE(table->rowCount(), 1);
         table->selectRow(0);
-        QString results;
         QStringList errors;
         bool passwordAsked = false;
         QTimer responder;
@@ -181,9 +160,6 @@ class ChecksumTests : public QObject {
                         ->setText(outcome == "password" ? "wrong" : password);
                     dialog->accept();
                 }
-            } else if (auto *dialog = qobject_cast<CListViewDialog *>(modal)) {
-                results = messageText(dialog->findChild<QTreeWidget *>("propertiesList"));
-                dialog->accept();
             } else if (auto *box = qobject_cast<QMessageBox *>(modal)) {
                 errors.append(box->text());
                 box->accept();
@@ -202,13 +178,18 @@ class ChecksumTests : public QObject {
         responder.start(1);
         window.findChild<QAction *>("hashSHA256Action")->trigger();
         responder.stop();
+        auto *properties = window.findChild<QtPropertiesWindow *>();
         QCOMPARE(passwordAsked, outcome != "crc");
         if (outcome == "encrypted") {
             QVERIFY(errors.isEmpty());
-            QVERIFY(results.contains(QString::fromLatin1(
-                QCryptographicHash::hash(input, QCryptographicHash::Sha256).toHex())));
+            QVERIFY(properties && properties->isVisible());
+            QVERIFY(properties->Information().contains(
+                QString::fromLatin1(
+                    QCryptographicHash::hash(input, QCryptographicHash::Sha256).toHex()),
+                Qt::CaseInsensitive));
+            properties->close();
         } else {
-            QVERIFY(results.isEmpty());
+            QVERIFY(!properties);
             QCOMPARE(errors.isEmpty(), outcome == "cancel");
         }
         QVERIFY(!backend.busy());

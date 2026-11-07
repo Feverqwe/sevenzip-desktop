@@ -54,6 +54,7 @@ struct CAppState;
 class CFastFolders;
 class CListViewDialog;
 class QtPropertyReport;
+struct CHashBundle;
 class CPanel;
 class CApp;
 struct QtPanelKeyDown;
@@ -112,6 +113,7 @@ struct CCopyToOptions {
     UStringVector hashMethods;
     // Borrowed only while source CopyTo joins its worker; the caller retains the catalog.
     const CExternalCodecs *ExternalCodecs = nullptr;
+    std::function<bool(const CHashBundle &)> PresentHashResult;
     CVirtFileSystem *VirtFileSystemSpec;
     CCopyToOptions()
         : streamMode(false), moveMode(false), testMode(false), extractMode(false),
@@ -679,6 +681,7 @@ class CPanel : public QObject {
     QString GetItemsInfoString(const CRecordVector<UInt32> &indices,
                                const CPanelItemTotals *totals = nullptr) const;
     void Properties(const CRecordVector<UInt32> &operatedIndices, QtPropertyReport &message) const;
+    void ShowProperties(QtPropertyReport report);
     void Properties();
     static void SetBookmark(CFastFolders &fastFolders, unsigned index,
                             const UString &currentFolderPrefix);

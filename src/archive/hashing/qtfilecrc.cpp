@@ -164,6 +164,7 @@ class CThreadCrc : public CProgressThreadVirt {
   public:
     CDirEnumerator Enumerator;
     CHashBundle Hash;
+    std::function<bool(const CHashBundle &)> PresentResult;
     // FString FirstFilePath;
 
     void SetStatus(const UString &s);
@@ -177,7 +178,8 @@ void CThreadCrc::ShowFinalResults(QWidget *hwnd) {
     if (!ResultsPending)
         return;
     ResultsPending = false;
-    ShowHashResults(Hash, hwnd);
+    if (!PresentResult || !PresentResult(Hash))
+        ShowHashResults(Hash, hwnd);
 }
 
 void CThreadCrc::ProcessWasFinished_GuiVirt() { ShowFinalResults(this); }
@@ -327,11 +329,13 @@ HRESULT CThreadCrc::ProcessVirt() {
 
 HRESULT CalculateFileCrc(const UString &methodName, const CExternalCodecs *externalCodecs,
                          const UString &basePrefix, const UStringVector &paths, bool enterToDirs,
-                         QWidget *parent, bool *messageWasDisplayed) {
+                         QWidget *parent, bool *messageWasDisplayed,
+                         const std::function<bool(const CHashBundle &)> &presentResult) {
     if (messageWasDisplayed)
         *messageWasDisplayed = false;
     {
         CThreadCrc t;
+        t.PresentResult = presentResult;
 
         {
             UStringVector methods;
