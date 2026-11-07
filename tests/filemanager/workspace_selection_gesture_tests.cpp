@@ -103,17 +103,22 @@ class WorkspaceSelectionGestureTests final : public QObject, protected MainWindo
         QVERIFY(target.isValid());
         const auto alpha = item("Alpha.txt");
         const auto echo = item("Echo.txt");
+        const QRect cell = view.visualRect(icons ? alpha : echo);
+        const QPoint start =
+            padding ? cell.topRight() + QPoint(-2, 2)
+                    : QPoint(view.viewport()->width() - 5, view.viewport()->height() - 5);
+        QCOMPARE(view.indexAt(start).isValid(), padding);
+        if (padding && !icons) {
+            QTest::mouseClick(view.viewport(), Qt::LeftButton, Qt::NoModifier, start);
+            QCOMPARE(selected(view), QSet<QString>{"Echo.txt"});
+            QCOMPARE(view.currentIndex(), echo);
+        }
         view.selectionModel()->setCurrentIndex(alpha, QItemSelectionModel::NoUpdate);
         view.selectionModel()->select(alpha, QItemSelectionModel::ClearAndSelect |
                                                  QItemSelectionModel::Rows);
         view.selectionModel()->select(target,
                                       QItemSelectionModel::Select | QItemSelectionModel::Rows);
         const auto baseline = selected(view);
-        const QRect cell = view.visualRect(icons ? alpha : echo);
-        const QPoint start =
-            padding ? cell.topRight() + QPoint(-2, 2)
-                    : QPoint(view.viewport()->width() - 5, view.viewport()->height() - 5);
-        QCOMPARE(view.indexAt(start).isValid(), padding);
         const QPoint end = view.visualRect(target).center();
         const QRect area = QRect(start, end).normalized();
         QSet<QString> expected;

@@ -10,6 +10,7 @@
 #include <QPointer>
 #include <QScrollBar>
 #include <QTimer>
+#include <memory>
 
 namespace {
 class SelectionFrame final : public QWidget {
@@ -51,6 +52,7 @@ class FileSelectionGesture final : public QObject {
     QTimer scroll_;
     QItemSelection baseline_;
     QPersistentModelIndex current_;
+    std::unique_ptr<QMouseEvent> cellPress_;
     QPoint origin_, pointer_;
     QItemSelectionModel::SelectionFlags command_;
     bool pressed_ = false, dragging_ = false, cancelled_ = false;
@@ -92,6 +94,7 @@ class FileSelectionGesture final : public QObject {
         pressed_ = dragging_ = cancelled_ = false;
         baseline_ = {};
         current_ = QPersistentModelIndex();
+        cellPress_.reset();
     }
     void WatchModel(QAbstractItemModel &model) {
         if (model_ == &model)
@@ -192,12 +195,12 @@ class FileSelectionGesture final : public QObject {
             origin_ = mouse.position().toPoint() + geometry_.offset();
             pointer_ = mouse.position().toPoint();
             const auto modifiers = mouse.modifiers();
+            if (geometry_.click && view->indexAt(pointer_).isValid())
+                cellPress_.reset(mouse.clone());
             command_ = modifiers.testFlag(Qt::ShiftModifier) ? QItemSelectionModel::SelectCurrent
                        : modifiers.testFlag(Qt::ControlModifier)
                            ? QItemSelectionModel::ToggleCurrent
-                           : QItemSelectionModel::SelectCurrent;
-            if (!(modifiers & (Qt::ShiftModifier | Qt::ControlModifier)))
-                view->selectionModel()->clearSelection();
+                           : QItemSelectionModel::ClearAndSelect;
             // Commit any previous current-selection segment before Qt starts
             // replacing this gesture's SelectCurrent/ToggleCurrent segment.
             view->selectionModel()->select(QItemSelection(), QItemSelectionModel::Select);
@@ -224,13 +227,21 @@ class FileSelectionGesture final : public QObject {
         }
         if (event->type() == QEvent::MouseButtonRelease &&
             static_cast<QMouseEvent *>(event)->button() == Qt::LeftButton) {
-            pointer_ = static_cast<QMouseEvent *>(event)->position().toPoint();
+            auto *release = static_cast<QMouseEvent *>(event);
+            pointer_ = release->position().toPoint();
             if (!cancelled_) {
                 if ((pointer_ + geometry_.offset() - origin_).manhattanLength() >=
                     QApplication::startDragDistance())
                     dragging_ = true;
                 if (dragging_)
                     Update();
+                else if (cellPress_) {
+                    auto press = std::move(cellPress_);
+                    Finish(false);
+                    geometry_.click(press.get(), release);
+                    return true;
+                } else if (command_ == QItemSelectionModel::ClearAndSelect)
+                    view->selectionModel()->clearSelection();
                 view->selectionModel()->select(QItemSelection(), QItemSelectionModel::Select);
             }
             Finish(false);

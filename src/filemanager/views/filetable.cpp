@@ -114,7 +114,11 @@ void FileTable::InstallSelectionGesture(std::function<bool()> activate) {
              option.rect = visualRect(index);
              return FileRowContainsPoint(*itemDelegateForIndex(index), option, index, point);
          },
-         [this] { return QPoint(horizontalOffset(), verticalOffset()); }},
+         [this] { return QPoint(horizontalOffset(), verticalOffset()); },
+         [this](QMouseEvent *press, QMouseEvent *release) {
+             QTableView::mousePressEvent(press);
+             QTableView::mouseReleaseEvent(release);
+         }},
         std::move(activate));
 }
 
@@ -136,7 +140,8 @@ void FileIconList::InstallSelectionGesture(std::function<bool()> activate) {
              option.rect = visualRect(index);
              return FileRowContainsPoint(*itemDelegateForIndex(index), option, index, point);
          },
-         [this] { return QPoint(horizontalOffset(), verticalOffset()); }},
+         [this] { return QPoint(horizontalOffset(), verticalOffset()); },
+         {}},
         std::move(activate));
 }
 void FileIconList::startDrag(Qt::DropActions actions) {
