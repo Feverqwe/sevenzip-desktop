@@ -4,7 +4,9 @@
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
 #include "localization/LangUtils.h"
+#include "support/delete_reply.h"
 #include "support/panel_keys.h"
+#include "support/progress_dialog.h"
 #include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
 #include <QLineEdit>
@@ -78,8 +80,15 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
                 sourceView.setCurrentCell(secondRow, 0);
                 dialog->accept();
             }
-            for (QWidget *widget : QApplication::topLevelWidgets())
-                if (auto *box = qobject_cast<QMessageBox *>(widget); box && box->isVisible()) {
+            for (QWidget *widget : QApplication::topLevelWidgets()) {
+                if (!widget->isVisible())
+                    continue;
+                if (auto *confirmation = dynamic_cast<QtDeleteConfirmation *>(widget))
+                    ReplyDelete(*confirmation);
+                else if (auto *result = TestProgressDialog::ResultWindow(widget)) {
+                    errors += TestProgressDialog::ReportText(*result);
+                    TestProgressDialog::CloseResult(*result);
+                } else if (auto *box = qobject_cast<QMessageBox *>(widget)) {
                     if (box->icon() == QMessageBox::Question)
                         box->button(QMessageBox::Yes)->click();
                     else {
@@ -87,6 +96,7 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
                         box->accept();
                     }
                 }
+            }
         });
         driver.start(1);
         QTest::keyClick(&sourceView, move ? Qt::Key_F6 : Qt::Key_F5);
@@ -110,14 +120,17 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         action(window, "openRootAction")->trigger();
         auto *view = static_cast<FileTable *>(table(window));
         QVERIFY(view->sourcePanel->IsFSDrivesFolder());
-        const int count = view->rowCount();
-        QVERIFY(count > 0);
+        const auto names = [view] {
+            QStringList result;
+            for (int i = 0; i < view->rowCount(); ++i)
+                result.append(view->model()->index(i, 0).data().toString());
+            return result;
+        };
+        const auto before = names();
+        QVERIFY(!before.isEmpty());
         view->clearRows();
         view->sourcePanel->OnReload();
-        QCOMPARE(view->rowCount(), count);
-        QCOMPARE(
-            view->model()->index(0, 0).data().toString().normalized(QString::NormalizationForm_C),
-            ToQString(view->sourcePanel->GetItemName(0)).normalized(QString::NormalizationForm_C));
+        QCOMPARE(names(), before);
     }
     void outsidePeerStillRefreshesDestination_data() {
         QTest::addColumn<unsigned>("sourceIndex");
@@ -179,12 +192,16 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
                 dialog->findChild<QLineEdit *>("copyDestination")->setText(output + '/');
                 cancel ? dialog->reject() : dialog->accept();
             }
-            for (QWidget *widget : QApplication::topLevelWidgets())
-                if (auto *box = qobject_cast<QMessageBox *>(widget); box && box->isVisible())
-                    box->accept();
-            for (QWidget *widget : QApplication::topLevelWidgets())
-                if (auto *box = dynamic_cast<COverwriteDialog *>(widget); box && box->isVisible())
+            for (QWidget *widget : QApplication::topLevelWidgets()) {
+                if (!widget->isVisible())
+                    continue;
+                if (auto *box = dynamic_cast<COverwriteDialog *>(widget))
                     box->findChild<QPushButton *>("overwriteCancel")->click();
+                else if (auto *box = qobject_cast<QMessageBox *>(widget))
+                    box->accept();
+                else
+                    TestProgressDialog::DismissVisibleResult(widget);
+            }
         });
         driver.start(1);
         QTest::keyClick(sourceView, move ? Qt::Key_F6 : Qt::Key_F5);
