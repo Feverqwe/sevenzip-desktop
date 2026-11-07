@@ -51,14 +51,14 @@ void QtArchiveMountManager::focusPendingEntry() {
         return;
     auto *row = pendingFocus_.data();
     pendingFocus_.clear();
-    if (auto *scroll = findChild<QScrollArea *>("dialogContentScroll"))
-        scroll->ensureWidgetVisible(row);
+    scroll_->ensureWidgetVisible(row);
     row->FocusPrimaryAction();
 }
 
 void QtArchiveMountManager::refresh() {
     using Status = QtArchiveMountSession::Status;
     empty_->setVisible(sessions_.isEmpty());
+    scroll_->setVisible(!sessions_.isEmpty());
     for (auto &entry : sessions_) {
         if (!entry.row) {
             entry.row = new QtMountRow(

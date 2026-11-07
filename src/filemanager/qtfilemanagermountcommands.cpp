@@ -15,9 +15,9 @@ void QtFileManagerCommands::AttachMountActions() {
     mount->setObjectName("mountReadOnlyAction");
     QtBindLocalText(mount, "QtArchiveMountManager", "Mount read-only…");
     Bind(mount, MountReadOnly);
-    auto *manage = menu->addAction(QtArchiveMountManager::tr("Read-only mounts…"));
+    auto *manage = menu->addAction(QtArchiveMountManager::tr("Connected folders…"));
     manage->setObjectName("manageMountsAction");
-    QtBindLocalText(manage, "QtArchiveMountManager", "Read-only mounts…");
+    QtBindLocalText(manage, "QtArchiveMountManager", "Connected folders…");
     Bind(manage, ManageMounts);
 }
 void QtFileManagerCommands::MountReadOnlyContainer() {

@@ -10,6 +10,7 @@ class QtArchiveMountSession;
 struct IUnknown;
 class QLabel;
 class QVBoxLayout;
+class QScrollArea;
 
 // Modeless mount management for a file pane.
 class QtArchiveMountManager final : public QDialog {
@@ -23,9 +24,11 @@ class QtArchiveMountManager final : public QDialog {
     };
     QList<Session> sessions_;
     QVBoxLayout *entries_;
+    QScrollArea *scroll_;
     QLabel *empty_;
     QPointer<QtMountRow> pendingFocus_;
     bool closingOwner_ = false;
+    bool firstShow_ = true;
     void bindSession(QtArchiveMountSession &session);
     void refresh();
     QtMountRowData rowData(const Session &entry) const;
@@ -38,6 +41,7 @@ class QtArchiveMountManager final : public QDialog {
 
   protected:
     void changeEvent(QEvent *event) override;
+    void showEvent(QShowEvent *event) override;
 
   public:
     explicit QtArchiveMountManager(QWidget *owner);

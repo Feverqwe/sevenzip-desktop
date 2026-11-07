@@ -56,6 +56,6 @@
   {"id":"password-states","title":"Пароль: скрытый и показанный ввод","target":"password_dialog_tests","functions":["geometry"]},
   {"id":"devices","title":"Открытие устройства и выбор раздела","target":"device_ui_tests","functions":["geometryAndPartitionSelection"]},
   {"id":"fscrypt-keys","title":"Ключи зашифрованной файловой системы","target":"fscrypt_key_ui_tests","functions":["geometry"]},
-  {"id":"mount-dialogs","title":"Подключения архивов: параметры, список и извлечение","target":"mount_extraction_prompt_tests","functions":["setupGeometry","cacheControlsFollowReader","managerActionsGeometry","geometry"]},
+  {"id":"mount-dialogs","title":"Подключения архивов: параметры, список и извлечение","target":"mount_extraction_prompt_tests","functions":["setupGeometry","cacheControlsFollowReader","managerActionsGeometry","managerEmptyStateFollowsContentAndCentersOnResize","geometry"]},
   {"id":"archive-recovery","title":"Открытие повреждённого архива","target":"archive_recovery_ui_tests","functions":["opensReadablePart"]}
 ]

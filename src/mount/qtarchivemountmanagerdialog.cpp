@@ -5,6 +5,7 @@
 #include "mount/qtarchivemountsession.h"
 #include "mount/qtmountextractionprompt.h"
 #include "ui/dialogs/qtdialoglayout.h"
+#include "ui/dialogs/qtdialogscreenservices.h"
 #include <QApplication>
 #include <QClipboard>
 #include <QDesktopServices>
@@ -14,9 +15,11 @@
 #include <QFileInfo>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QScrollArea>
 #include <QTimer>
 #include <QVBoxLayout>
 #include <algorithm>
+#include <utility>
 
 namespace {
 void ShowMountPrompt(QtArchiveMountSession &session, const QString &path, quint64 size,
@@ -57,21 +60,37 @@ void QtArchiveMountManager::bindSession(QtArchiveMountSession &session) {
 
 QtArchiveMountManager::QtArchiveMountManager(QWidget *owner) : QDialog(owner), owner_(owner) {
     setObjectName("archiveMountManager");
-    setWindowTitle(tr("Read-only mounts"));
+    setWindowTitle(tr("Connected folders"));
     setModal(false);
     auto *footer = new QtLangButtonBox(QDialogButtonBox::Close, this);
     entries_ = QtCreateDialogLayout(*this, *footer, QtDialogContent::Scrollable);
+    scroll_ = findChild<QScrollArea *>("dialogContentScroll");
+    scroll_->hide();
     empty_ = new QtWrappingLabel(this);
     empty_->setObjectName("mountEmpty");
     empty_->setWordWrap(true);
+    empty_->setAlignment(Qt::AlignCenter);
+    empty_->setContentsMargins(0, 24, 0, 24);
     QtBindLocalText(empty_, "QtArchiveMountManager", QT_TR_NOOP("No mounts yet."));
-    entries_->addWidget(empty_);
+    auto *frame = static_cast<QVBoxLayout *>(layout());
+    frame->insertWidget(frame->indexOf(scroll_), empty_, 1);
     connect(footer, &QDialogButtonBox::rejected, this, &QDialog::reject);
-    resize(780, 420);
+}
+
+void QtArchiveMountManager::showEvent(QShowEvent *event) {
+    const bool fit = std::exchange(firstShow_, false) && !testAttribute(Qt::WA_Resized);
+    QDialog::showEvent(event);
+    if (!fit)
+        return;
+    resize(780, minimumSizeHint().height());
+    if (sessions_.isEmpty())
+        QtNormalizeDialogSize(*this, true);
+    else
+        QtFitScrollableDialog(*this);
 }
 
 void QtArchiveMountManager::retranslate() {
-    setWindowTitle(tr("Read-only mounts"));
+    setWindowTitle(tr("Connected folders"));
     refresh();
 }
 

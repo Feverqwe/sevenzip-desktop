@@ -356,6 +356,36 @@ class MountExtractionPromptTests final : public QObject {
             QCOMPARE(source.readAll(), QByteArray("source bytes"));
         }
     }
+    void managerEmptyStateFollowsContentAndCentersOnResize() {
+        QWidget owner;
+        QtArchiveMountManager manager(&owner);
+        manager.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&manager));
+        auto *empty = manager.findChild<QLabel *>("mountEmpty");
+        auto *footer = manager.findChild<QDialogButtonBox *>();
+        QVERIFY(empty && footer);
+        QVERIFY(empty->isVisible());
+        QVERIFY(!manager.findChild<QScrollArea *>("dialogContentScroll")->isVisible());
+        QVERIFY(empty->alignment().testFlag(Qt::AlignHCenter));
+        QVERIFY(empty->alignment().testFlag(Qt::AlignVCenter));
+        QVERIFY(manager.height() <=
+                manager.minimumSizeHint().height() + manager.fontMetrics().height());
+        QVERIFY(UiInspection::writeReport(manager, "mount-manager-empty-initial"));
+
+        for (const QSize size : {QSize(780, 420), QSize(420, 280)}) {
+            manager.resize(size);
+            QApplication::processEvents();
+            const QRect area = UiInspection::bounds(*empty, manager);
+            const QRect actions = UiInspection::bounds(*footer, manager);
+            QVERIFY(UiInspection::fullyVisible(*empty, manager));
+            QVERIFY(UiInspection::fullyVisible(*footer, manager));
+            QVERIFY(qAbs(area.center().x() - manager.rect().center().x()) <= 1);
+            QVERIFY(area.bottom() < actions.top());
+            QVERIFY(area.height() > empty->minimumSizeHint().height());
+            QVERIFY(UiInspection::writeReport(manager,
+                                              QString("mount-manager-empty-%1").arg(size.width())));
+        }
+    }
     void managerActionsGeometry_data() {
         QTest::addColumn<int>("width");
         QTest::addColumn<QString>("language");

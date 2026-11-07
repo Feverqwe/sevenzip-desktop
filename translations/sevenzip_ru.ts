@@ -6734,14 +6734,14 @@ Use `Revert` to recover timestamp.</source>
         </message>
         <message>
             <location line="+4" />
-            <source>Read-only mounts…</source>
-            <translation>Подключения только для чтения…</translation>
+            <source>Connected folders…</source>
+            <translation>Подключённые папки…</translation>
         </message>
         <message>
             <location filename="../src/mount/qtarchivemountmanagerdialog.cpp" line="+17" />
             <location line="+44" />
-            <source>Read-only mounts</source>
-            <translation>Подключения только для чтения</translation>
+            <source>Connected folders</source>
+            <translation>Подключённые папки</translation>
         </message>
         <message>
             <location line="-39" />
