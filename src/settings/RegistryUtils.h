@@ -11,8 +11,6 @@ void ReadRegLang(UString &path, const QString &settingsPath);
 bool IsLargePageSupported();
 bool ReadLockMemoryEnable(const QString &settingsPath);
 void SaveLockMemoryEnable(bool enable, const QString &settingsPath);
-void SaveFlatView(UInt32 panelIndex, bool enable, const QString &settingsPath);
-bool ReadFlatView(UInt32 panelIndex, const QString &settingsPath);
 void SaveRegEditor(bool useEditor, const UString &path, const QString &settingsPath);
 void ReadRegEditor(bool useEditor, UString &path, const QString &settingsPath);
 bool ReadConfirmUnknownFileOpen(const QString &settingsPath);

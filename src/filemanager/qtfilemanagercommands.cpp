@@ -2,7 +2,6 @@
 #include "7zip/UI/FileManager/resource.h"
 #include "filemanager/MyLoadMenu.h"
 #include "filemanager/window/mainwindow.h"
-#include <QSignalBlocker>
 #include <QTimer>
 
 QtFileManagerCommands::QtFileManagerCommands(MainWindow &window) : window_(window) {}
@@ -39,25 +38,6 @@ void QtFileManagerCommands::InvokeViewCommand(unsigned id) {
             if (!window_.app_.ExecuteCommand(id))
                 window_.refreshActions();
         });
-}
-
-void QtFileManagerCommands::BindToggle(QAction *action, unsigned id, bool (*readState)(CApp &)) {
-    actions_[id].append(action);
-    QObject::disconnect(action, &QAction::toggled, &window_, nullptr);
-    QObject::connect(action, &QAction::toggled, &window_,
-                     [this, action, id, readState](bool checked) {
-                         const bool previous = readState(window_.app_);
-                         if (checked == previous)
-                             return;
-                         // QAction toggles before dispatch; native CApp owns the actual flag.
-                         // Roll presentation back before the command and mirror it on reload.
-                         {
-                             QSignalBlocker block(action);
-                             action->setChecked(previous);
-                         }
-                         window_.app_.ExecuteCommand(id);
-                     });
-    action->setProperty("nativeCommandID", id);
 }
 
 void QtFileManagerCommands::AttachActions() {
@@ -141,7 +121,6 @@ void QtFileManagerCommands::AttachViewActions() {
     Bind(w.settingsAction_, IDM_OPTIONS);
     Bind(w.findChild<QAction *>("aboutAction"), IDM_ABOUT);
     Bind(w.findChild<QAction *>("tempDirAction"), IDM_TEMP_DIR);
-    BindToggle(w.flatView_, IDM_VIEW_FLAT_VIEW, [](CApp &app) { return app.GetFlatMode(); });
     for (unsigned i : {0u, 3u})
         Bind(w.viewActions_[i], IDM_VIEW_LARGE_ICONS + i, true);
     const unsigned sortIDs[] = {IDM_VIEW_ARANGE_BY_NAME, IDM_VIEW_ARANGE_BY_TYPE,

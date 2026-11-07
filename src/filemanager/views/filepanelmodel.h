@@ -21,7 +21,6 @@ class FilePanelModel final : public QAbstractTableModel {
         };
         quint32 sourceIndex = quint32(-1);
         QString name;
-        QString prefix;
         QString path;
         QString operationPath;
         QString toolTip;

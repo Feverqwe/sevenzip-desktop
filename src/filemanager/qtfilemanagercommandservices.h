@@ -45,7 +45,6 @@ class IQtFileManagerMenuCommandServices : public IQtFileManagerCommandServices {
     virtual void OpenRootFolder() = 0;
     virtual void OpenParentFolder() = 0;
     virtual void FoldersHistory() = 0;
-    virtual void ChangeFlatMode() = 0;
     virtual void RefreshView() = 0;
     virtual void Change_AutoRefresh_Mode() = 0;
     virtual void SwitchOnOffOnePanel() = 0;

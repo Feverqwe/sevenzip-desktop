@@ -47,23 +47,20 @@ class VolumeWorkflowTests : public QObject, protected MainWindowTestSupport {
         QTest::addColumn<unsigned>("pane");
         QTest::addColumn<bool>("combine");
         QTest::addColumn<bool>("russian");
-        QTest::addColumn<bool>("flat");
         for (unsigned pane : {0u, 1u})
             for (bool combine : {false, true})
-                for (bool flat : {false, true})
-                    QTest::newRow(qPrintable(QString("%1-%2-%3").arg(pane).arg(combine).arg(flat)))
-                        << pane << combine << (pane == 1) << flat;
+                QTest::newRow(qPrintable(QString("%1-%2").arg(pane).arg(combine)))
+                    << pane << combine << (pane == 1);
     }
     void sourceDestinationUsesOtherFilesystemPanel() {
         QFETCH(unsigned, pane);
         QFETCH(bool, combine);
         QFETCH(bool, russian);
-        QFETCH(bool, flat);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString input = fixture.filePath(QStringLiteral("исходная папка"));
         const QString output = fixture.filePath(QStringLiteral("другая папка"));
-        const QString sourcePath = flat ? QDir(input).filePath("nested") : input;
+        const QString sourcePath = input;
         QVERIFY(QDir().mkpath(sourcePath));
         QVERIFY(QDir().mkpath(output));
         const QString name = combine ? "source.bin.001" : "source.bin";
@@ -83,9 +80,7 @@ class VolumeWorkflowTests : public QObject, protected MainWindowTestSupport {
         CMyComPtr<IFolderFolder> peerProvider = peer->sourcePanel->GetFolder();
         const auto peerSelection = peer->selectionModel()->selection();
         auto *source = openPanel(window, pane, input);
-        if (flat)
-            action(window, "flatViewAction")->trigger();
-        QTRY_COMPARE(source->rowCount(), (combine ? 2 : 1) + (flat ? 1 : 0));
+        QTRY_COMPARE(source->rowCount(), combine ? 2 : 1);
         for (int row = 0; row < source->rowCount(); ++row)
             if (source->model()->index(row, 0).data(Qt::UserRole + 3).toString() == name)
                 source->selectRow(row);

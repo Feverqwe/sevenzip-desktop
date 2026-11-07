@@ -233,7 +233,6 @@ HRESULT CApp::Create(QWidget *window, const UString &mainPath, const UString &ar
         CPanel &panel = Panels[i];
         panel._listViewMode = listMode.Panels[i];
         panel._xSize = xSizes[i];
-        panel._flatModeForArc = ReadFlatView(i, _settingsPath);
     }
     for (i = 0; i < kNumPanelsMax; i++) {
         unsigned panelIndex = i;
@@ -291,7 +290,6 @@ void CApp::Save() {
             continue;
         SavePanelPath(i, panel.GetResumeFolderPath(), _settingsPath);
         listMode.Panels[i] = panel.GetListViewMode();
-        SaveFlatView(i, panel._flatModeForArc, _settingsPath);
     }
     listMode.Save(_settingsPath);
 }

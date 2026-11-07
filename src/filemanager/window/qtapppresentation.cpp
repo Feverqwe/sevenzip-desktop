@@ -22,13 +22,6 @@ void QtAppPresentation::Initialize(CApp &app) {
             modes.Panels[app.LastFocusedPanel < kNumPanelsMax ? app.LastFocusedPanel : 0] = 0;
         modes.Save(window_.toolbarSettingsPath());
     }
-    const QString flatKey =
-        QStringLiteral("FM/FlatViewArc%1")
-            .arg(app.LastFocusedPanel < kNumPanelsMax ? app.LastFocusedPanel : 0);
-    if (!key.contains(flatKey)) {
-        key.setValue(flatKey, key.value("view/flatArchive", false));
-        key.sync();
-    }
     editMenu_ = window_.createMenus();
 }
 
@@ -43,16 +36,9 @@ bool QtAppPresentation::CreatePanel(CPanel &panel, unsigned index) {
     if (!window_.panelUi_[index].filesystemScanner)
         window_.connectFilesystemScanner(index);
     panel.LoadFullPath();
-    const QSettings settings(window_.toolbarSettingsPath(), QSettings::IniFormat);
-    if (!panel.PanelCreated)
-        panel.SetFlatModeForDisk(settings.value("view/flatDisk", false).toBool());
     panel.AttachViewModePresentation([window = QPointer<MainWindow>(&window_), index](UInt32 mode) {
         if (window)
             window->withPanelProjection(index, [window, mode] { window->setViewMode(int(mode)); });
-    });
-    panel.AttachFlatModePresentation([window = QPointer<MainWindow>(&window_), index](bool flat) {
-        if (window)
-            window->withPanelProjection(index, [window, flat] { window->applyFlatView(flat); });
     });
     window_.createFilePanel(editMenu_, index);
     if (!panel.PanelCreated) {

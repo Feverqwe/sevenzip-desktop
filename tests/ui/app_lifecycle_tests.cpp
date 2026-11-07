@@ -429,8 +429,6 @@ class AppLifecycleTests : public QObject {
         mode.Save(settings);
         SavePanelPath(0, UString(L"/папка с пробелом/"), settings);
         SavePanelPath(1, UString(L"/other/"), settings);
-        SaveFlatView(0, true, settings);
-        SaveFlatView(1, false, settings);
         CListMode read;
         read.Read(settings);
         QCOMPARE(read.Panels[0], 0u);
@@ -440,17 +438,13 @@ class AppLifecycleTests : public QObject {
         QCOMPARE(ToQString(path), QStringLiteral("/папка с пробелом/"));
         QVERIFY(ReadPanelPath(1, path, settings));
         QCOMPARE(ToQString(path), QStringLiteral("/other/"));
-        QVERIFY(ReadFlatView(0, settings));
-        QVERIFY(!ReadFlatView(1, settings));
         QSettings key(settings, QSettings::IniFormat);
         QCOMPARE(key.value("ListMode").toUInt(), 0x200u);
         key.setValue("ListMode", QStringLiteral("invalid"));
-        key.setValue("FM/FlatViewArc0", QStringLiteral("invalid"));
         key.sync();
         read.Read(settings);
         QCOMPARE(read.Panels[0], kListMode_Report);
         QCOMPARE(read.Panels[1], kListMode_Report);
-        QVERIFY(!ReadFlatView(0, settings));
     }
 };
 

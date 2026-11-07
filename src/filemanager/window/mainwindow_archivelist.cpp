@@ -21,9 +21,8 @@ HRESULT MainWindow::renderArchiveFolder(bool updateAddress) {
     if (!folderOwner)
         return S_OK;
     auto *archiveFolder = static_cast<CAgentFolder *>((IFolderFolder *)folderOwner);
-    const bool flat = panel.GetFlatMode();
     const HRESULT directoryResult =
-        ReadArchiveDirectory(*archiveFolder, flat, this, toolbarSettingsPath());
+        ReadArchiveDirectory(*archiveFolder, false, this, toolbarSettingsPath());
     if (directoryResult != S_OK) {
         projectedUi().table->clearRows();
         panel.LoadListItems(true, directoryResult);
@@ -37,8 +36,6 @@ HRESULT MainWindow::renderArchiveFolder(bool updateAddress) {
     static_cast<FileTable *>(projectedUi().table)->filesystem = false;
     panelUi_[projectedPanel_].autoRefreshSnapshot.clear();
     panel.LoadFullPath();
-    const QString prefix =
-        projectedUi().archiveFolder.isEmpty() ? QString() : projectedUi().archiveFolder + '/';
     projectedUi().table->setSortingEnabled(false);
     if (updateAddress)
         static_cast<QtPanelAddressCombo *>(projectedUi().pathCombo)
@@ -47,18 +44,17 @@ HRESULT MainWindow::renderArchiveFolder(bool updateAddress) {
     appendParentEntry();
     if (archiveFolder->GetNumberOfItems() > 256) {
         // Finish the synchronous notification guard before retaining operation
-        // guards. Otherwise an idle flat-view change saves disabled flags
+        // guards. Otherwise an idle list reload saves disabled flags
         // and leaves notifications disabled when asynchronous loading ends.
         disableNotify.reset();
         projectedUi().scanningArchive = true;
         setState(State::Viewing);
         projectedUi().listProjection->start(
             folderOwner, archiveFolder->GetNumberOfItems(),
-            [this, owner = projectedPanel_, archiveFolder, prefix, flat](quint32 index) {
+            [this, owner = projectedPanel_, archiveFolder](quint32 index) {
                 HRESULT result = S_OK;
-                withPanelProjection(owner, [&] {
-                    result = appendArchiveEntry(*archiveFolder, index, prefix, flat);
-                });
+                withPanelProjection(owner,
+                                    [&] { result = appendArchiveEntry(*archiveFolder, index); });
                 return result;
             },
             [this, owner = projectedPanel_,
@@ -90,7 +86,7 @@ HRESULT MainWindow::renderArchiveFolder(bool updateAddress) {
         return S_OK;
     }
     for (unsigned index = 0; index < archiveFolder->GetNumberOfItems(); ++index) {
-        const HRESULT result = appendArchiveEntry(*archiveFolder, index, prefix, flat);
+        const HRESULT result = appendArchiveEntry(*archiveFolder, index);
         if (result != S_OK) {
             projectedUi().table->clearRows();
             return result;
@@ -102,8 +98,7 @@ HRESULT MainWindow::renderArchiveFolder(bool updateAddress) {
     return S_OK;
 }
 
-HRESULT MainWindow::appendArchiveEntry(CAgentFolder &folder, unsigned index, const QString &prefix,
-                                       bool flat) {
+HRESULT MainWindow::appendArchiveEntry(CAgentFolder &folder, unsigned index) {
     QIcon icon;
     RINOK(app_.GetFocusedPanel().GetItemIcon(index, icon))
     FilePanelModel::Row row;
@@ -113,7 +108,6 @@ HRESULT MainWindow::appendArchiveEntry(CAgentFolder &folder, unsigned index, con
     const QString panelPrefix = QDir::fromNativeSeparators(ToQString(folder.GetFullPrefix(index)));
     row.path = panelPrefix + row.name;
     row.operationPath = row.path;
-    row.prefix = flat ? panelPrefix.mid(prefix.size()) : QString();
     row.toolTip = row.path;
     row.icon = icon;
     projectedUi().table->panelModel()->append(std::move(row));

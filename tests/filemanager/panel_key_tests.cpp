@@ -297,52 +297,6 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
         QVERIFY(window.close());
     }
 
-    void switchingDuringFlatScanRestartsOnlyThatPanel() {
-        QTemporaryDir fixture;
-        QVERIFY(fixture.isValid());
-        const QString left = fixture.filePath("left");
-        const QString right = fixture.filePath("right");
-        QVERIFY(QDir().mkpath(left));
-        QVERIFY(QDir().mkpath(QDir(right).filePath("nested")));
-        QFile nested(QDir(right).filePath("nested/вложенный файл.txt"));
-        QVERIFY(nested.open(QIODevice::WriteOnly));
-        nested.close();
-        SavePanelPath(1, ToUString(right), qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
-        ControlledBackend backend;
-        MainWindow window(&backend);
-        window.show();
-        auto *leftPanel = window.findChild<QWidget *>("filePanel0");
-        auto *leftAddress = leftPanel->findChild<QLineEdit *>("archivePath");
-        leftAddress->setText(left);
-        QTest::keyClick(leftAddress, Qt::Key_Return);
-        action(window, "twoPanelsAction")->trigger();
-        auto *rightPanel = window.findChild<QWidget *>("filePanel1");
-        QVERIFY(rightPanel);
-        auto *rightTable = rightPanel->findChild<FileTable *>("archiveTable");
-        auto *rightAddress = rightPanel->findChild<QLineEdit *>("archivePath");
-        PanelKeys::focusAddress(rightAddress);
-        QTRY_VERIFY(rightAddress->hasFocus());
-        QCOMPARE(QFileInfo(window.windowTitle()).canonicalFilePath(),
-                 QFileInfo(right).canonicalFilePath());
-        QVERIFY(action(window, "viewMode3Action")->isEnabled());
-        action(window, "viewMode3Action")->trigger();
-        QCOMPARE(rightPanel->findChild<QStackedWidget *>("fileViewStack")->currentIndex(), 0);
-        QVERIFY(rightTable->isEnabled());
-        rightTable->setFocus();
-        QTRY_VERIFY(rightTable->hasFocus());
-        QVERIFY(static_cast<FileTable *>(rightTable)->sourcePanel->ShouldProcessNotifications());
-        action(window, "flatViewAction")->setChecked(true);
-        QVERIFY(action(window, "flatViewAction")->isChecked());
-        PanelKeys::focusAddress(leftAddress);
-        QTRY_VERIFY(leftAddress->hasFocus());
-        PanelKeys::focusAddress(rightAddress);
-        QTRY_VERIFY(rightAddress->hasFocus());
-        QTRY_VERIFY_WITH_TIMEOUT(
-            !PanelMatches(*rightTable, QStringLiteral("nested/вложенный файл.txt")).isEmpty(),
-            4000);
-        QCOMPARE(QFileInfo(leftAddress->text()).canonicalFilePath(),
-                 QFileInfo(left).canonicalFilePath());
-    }
     void mixedArchivePanelsRouteFocusAndDestination() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
@@ -812,8 +766,6 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
         QFETCH(int, mode);
         QFETCH(bool, archive);
         QSettings settings(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"), QSettings::IniFormat);
-        settings.remove("view/flatDisk");
-        settings.remove("view/flatArchive");
         QTemporaryDir temp;
         QVERIFY(temp.isValid());
         ControlledBackend backend;
@@ -901,20 +853,15 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
     void alternativeSelection_data() {
         QTest::addColumn<int>("mode");
         QTest::addColumn<bool>("archive");
-        QTest::addColumn<bool>("flat");
         for (int mode : {0, 3})
             for (bool archive : {false, true})
-                for (bool flat : {false, true})
-                    QTest::newRow(qPrintable(QStringLiteral("%1-flat%2-mode%3")
-                                                 .arg(archive ? "archive" : "disk")
-                                                 .arg(flat)
-                                                 .arg(mode)))
-                        << mode << archive << flat;
+                QTest::newRow(qPrintable(
+                    QStringLiteral("%1-mode%2").arg(archive ? "archive" : "disk").arg(mode)))
+                    << mode << archive;
     }
     void alternativeSelection() {
         QFETCH(int, mode);
         QFETCH(bool, archive);
-        QFETCH(bool, flat);
         QSettings settings(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"), QSettings::IniFormat);
         settings.setValue("FM/AlternativeSelection", true);
         settings.sync();
@@ -940,7 +887,6 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
             address->setText(temp.path());
             QTest::keyClick(address, Qt::Key_Return);
         }
-        action(window, "flatViewAction")->setChecked(flat);
         window.show();
         auto *table = window.findChild<FileTable *>("archiveTable");
         auto *icons = window.findChild<QListView *>("iconList");
@@ -985,7 +931,7 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
         CRecordVector<UInt32> markedIndices;
         static_cast<FileTable *>(table)->sourcePanel->Get_ItemIndices_Selected(markedIndices);
         QCOMPARE(markedIndices.Size(), unsigned(2));
-        if (mode == 3 && !archive && !flat) {
+        if (mode == 3 && !archive) {
             QVERIFY(action(window, "renameAction")->isEnabled());
             QTimer::singleShot(0, &window, [&] {
                 auto *dialog = window.findChild<QDialog *>("copyDialog");
@@ -1012,7 +958,7 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
         for (int row = 0; row < 3; ++row)
             QVERIFY(marked(row));
         QCOMPARE(table->selectionModel()->selectedRows().size(), 1);
-        if (!flat && ((mode == 3 && !archive) || (mode == 0 && archive)) &&
+        if (((mode == 3 && !archive) || (mode == 0 && archive)) &&
             qEnvironmentVariableIntValue("SEVENZIP_CAPTURE_SCREENSHOTS") == 1) {
             const QString folder =
                 QDir(qEnvironmentVariable("SEVENZIP_UI_REPORT_DIR")).filePath("../ui-screenshots");
@@ -1023,40 +969,34 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
         for (int width : {980, 640}) {
             window.resize(width, width == 980 ? 620 : 400);
             QApplication::processEvents();
-            QVERIFY2(
-                UiInspection::fullyVisible(*view, window),
-                qPrintable(QStringLiteral("view=%1,%2 %3x%4 root=%5x%6 visible=%7 mode=%8 flat=%9")
-                               .arg(UiInspection::bounds(*view, window).x())
-                               .arg(UiInspection::bounds(*view, window).y())
-                               .arg(view->width())
-                               .arg(view->height())
-                               .arg(window.width())
-                               .arg(window.height())
-                               .arg(view->isVisible())
-                               .arg(mode)
-                               .arg(flat)));
-            QVERIFY(UiInspection::writeReport(
-                window, QStringLiteral("alternative-selection-%1-flat%2-mode%3-%4")
-                            .arg(archive ? "archive" : "disk")
-                            .arg(flat)
-                            .arg(mode)
-                            .arg(width)));
+            QVERIFY2(UiInspection::fullyVisible(*view, window),
+                     qPrintable(QStringLiteral("view=%1,%2 %3x%4 root=%5x%6 visible=%7 mode=%8")
+                                    .arg(UiInspection::bounds(*view, window).x())
+                                    .arg(UiInspection::bounds(*view, window).y())
+                                    .arg(view->width())
+                                    .arg(view->height())
+                                    .arg(window.width())
+                                    .arg(window.height())
+                                    .arg(view->isVisible())
+                                    .arg(mode)));
+            QVERIFY(UiInspection::writeReport(window,
+                                              QStringLiteral("alternative-selection-%1-mode%2-%3")
+                                                  .arg(archive ? "archive" : "disk")
+                                                  .arg(mode)
+                                                  .arg(width)));
         }
         action(window, mode == 3 ? "viewMode0Action" : "viewMode3Action")->trigger();
         for (int row = 0; row < 3; ++row)
             QVERIFY(marked(row));
         action(window, qPrintable(QStringLiteral("viewMode%1Action").arg(mode)))->trigger();
-        if (archive) {
-            action(window, "flatViewAction")->setChecked(!flat);
-            QTRY_COMPARE(table->rowCount(), 3);
-            action(window, "flatViewAction")->setChecked(flat);
-        } else
-            action(window, "refreshAction")->trigger();
+        if (archive)
+            backend.queueList({{names[0], 1, 1}, {names[1], 2, 2}, {names[2], 3, 3}});
+        action(window, "refreshAction")->trigger();
         QTRY_COMPARE(table->rowCount(), 3);
         QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
         for (int row = 0; row < 3; ++row)
             QVERIFY(marked(row));
-        if (mode == 3 && !archive && !flat) {
+        if (mode == 3 && !archive) {
             const auto toggleMode = [&](bool enabled) {
                 QTimer::singleShot(0, &window, [&] {
                     auto *dialog = window.findChild<QDialog *>("settingsDialog");

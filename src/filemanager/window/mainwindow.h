@@ -213,7 +213,6 @@ class MainWindow : public QMainWindow {
     void refreshBookmarks();
     void saveBookmark(int index);
     void openBookmark(int index);
-    void applyFlatView(bool enabled);
     void showSettings();
     void applyFileListSettings();
     enum class PanelInputTarget { Other, Address, List, ListViewport };
@@ -240,7 +239,7 @@ class MainWindow : public QMainWindow {
     HRESULT reloadProjectedPanel(const CSelectedState &selection);
     HRESULT startFilesystemListing(bool sourceAlreadyBound, bool updateAddress);
     HRESULT finishSynchronousFilesystemListing(HRESULT result);
-    HRESULT startFilesystemScan(IFolderFolder *folder, bool flat);
+    HRESULT startFilesystemScan(IFolderFolder *folder);
     struct FilesystemViewport {
         FilesystemViewport(QAbstractItemView *source, const QString &folder, const QString &top,
                            const QPoint &position)
@@ -275,8 +274,7 @@ class MainWindow : public QMainWindow {
     HRESULT renderBoundFolder(bool updateAddress = true);
     HRESULT tryOpenPhysicalArchive(const QFileInfo &file, const QString &type, QString &message);
     HRESULT renderArchiveFolder(bool updateAddress = true);
-    HRESULT appendArchiveEntry(CAgentFolder &folder, unsigned index, const QString &prefix,
-                               bool flat);
+    HRESULT appendArchiveEntry(CAgentFolder &folder, unsigned index);
     void setState(State state);
     void refreshActions();
     void refreshPanelStatus();
@@ -334,7 +332,6 @@ class MainWindow : public QMainWindow {
     QAction *utcTimeAction_ = nullptr;
     QAction *autoRefreshAction_ = nullptr;
     QAction *viewActions_[4]{};
-    QAction *flatView_ = nullptr;
     QAction *twoPanelsAction_ = nullptr;
     struct FilesystemSignature {
         QDateTime modified;

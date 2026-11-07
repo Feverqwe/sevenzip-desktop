@@ -209,7 +209,6 @@ class ViewMenuTests final : public QObject, protected MainWindowTestSupport {
         QVERIFY(action(window, "timestampLevel4Action")->isChecked());
         QVERIFY(action(window, "viewMode0Action")->isChecked());
         QVERIFY(action(window, "twoPanelsAction")->isChecked());
-        QCOMPARE(action(window, "flatViewAction")->isChecked(), source->sourcePanel->GetFlatMode());
         QCOMPARE(utc->isChecked(), utcValue);
         for (const QSize size : {QSize(980, 620), QSize(640, 400)}) {
             view->hide();

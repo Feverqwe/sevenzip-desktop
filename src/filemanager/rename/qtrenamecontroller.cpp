@@ -165,19 +165,10 @@ void QtRenameController::Apply(const Request &request) {
         QScopedValueRollback<unsigned> projection(window_.panelProjectionDepth_,
                                                   window_.panelProjectionDepth_ + 1);
         CPanel::CDisableNotify peer(window_.app_.Panels[1 - request.panel]);
-        if (request.name == ToQString(panel.GetItemName(request.sourceIndex))) {
-            if (archive && window_.flatView_->isChecked()) {
-                CSelectedState selection;
-                panel.SaveSelectedState(selection);
-                selection.SelectFocused = true;
-                if (window_.renderBoundFolder() == S_OK)
-                    window_.restoreListSelection(selection);
-            }
+        if (request.name == ToQString(panel.GetItemName(request.sourceIndex)))
             return;
-        }
         if (!archive && !streams &&
-            QFileInfo(path).absolutePath() != window_.projectedUi().directory &&
-            !panel.GetFlatMode())
+            QFileInfo(path).absolutePath() != window_.projectedUi().directory)
             return;
         Finish(request, panel);
     });

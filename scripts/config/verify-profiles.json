@@ -95,7 +95,7 @@
   },
   "compression": {
     "description": "Add dialog, compression settings and File Manager archive creation workflows",
-    "tests": "^(source_compress_dialog|shell_menu_window|shell_update_window|shell_update_gui|sfx_creation|sfx_lifecycle|compression|compression_advanced|compression_path|compression_preferences|compression_resources|compression_dictionary|compression_order|compression_solid|compression_memory|compression_limit|language_ui|codec_commands_ui|codec_creation_ui|ui_geometry|filesystem_selection_runtime|ui_operations|ui_update_modes|archive_metadata_ui|source_drop_add|drag_drop_add_ui|source_archive_browse|modal_refresh_window|flat_view|main_shell|panel_shell|panel_key(_quick)?|ui_navigation|ui_archive_states|ui_archive_volumes|language_main_dialog|language_focus|properties_runtime|file_menu_policy|source_properties|archive_error_properties|command_policy_runtime|native_command_dispatch|nested_archive|nested_edit_chain|archive_item_open|archive_external_edit|external_editors_ui|language_archive_command)$",
+    "tests": "^(source_compress_dialog|shell_menu_window|shell_update_window|shell_update_gui|sfx_creation|sfx_lifecycle|compression|compression_advanced|compression_path|compression_preferences|compression_resources|compression_dictionary|compression_order|compression_solid|compression_memory|compression_limit|language_ui|codec_commands_ui|codec_creation_ui|ui_geometry|filesystem_selection_runtime|ui_operations|ui_update_modes|archive_metadata_ui|source_drop_add|drag_drop_add_ui|source_archive_browse|modal_refresh_window|main_shell|panel_shell|panel_key(_quick)?|ui_navigation|ui_archive_states|ui_archive_volumes|language_main_dialog|language_focus|properties_runtime|file_menu_policy|source_properties|archive_error_properties|command_policy_runtime|native_command_dispatch|nested_archive|nested_edit_chain|archive_item_open|archive_external_edit|external_editors_ui|language_archive_command)$",
     "interactive": true
   },
   "archive-create": {
@@ -121,7 +121,7 @@
   },
   "lists": {
     "description": "Large panel publication, selection, refresh and nested navigation",
-    "tests": "^(large_list_window|flat_view|panel_selected_state|panel_key(_quick)?|panel_auto_refresh|nested_archive|nested_edit_chain|app_lifecycle_window|binding_lifecycle|ui_navigation|bookmarks)$",
+    "tests": "^(large_list_window|panel_selected_state|panel_key(_quick)?|panel_auto_refresh|nested_archive|nested_edit_chain|app_lifecycle_window|binding_lifecycle|ui_navigation|bookmarks)$",
     "interactive": true
   },
   "archive-volumes": {
@@ -141,7 +141,7 @@
   },
   "responsiveness": {
     "description": "Integrated archive workers, panel publication, volumes and file transfer",
-    "tests": "^(worker_progress|archive_creation_lifecycle|archive_volume_creation|source_update_backend|archive_backend|filesystem_scanner|archive_proxy|language_source_update|large_list_window|flat_view|panel_selected_state|panel_key(_quick)?|panel_auto_refresh|nested_archive|nested_edit_chain|app_lifecycle_window|binding_lifecycle|ui_navigation|bookmarks|sfx_creation|sfx_lifecycle|ui_archive_volumes|worker_window_progress|ui_copy_same|ui_operations|language_file_transfer|file_transfer|volume_operations|volume_workflow)$",
+    "tests": "^(worker_progress|archive_creation_lifecycle|archive_volume_creation|source_update_backend|archive_backend|filesystem_scanner|archive_proxy|language_source_update|large_list_window|panel_selected_state|panel_key(_quick)?|panel_auto_refresh|nested_archive|nested_edit_chain|app_lifecycle_window|binding_lifecycle|ui_navigation|bookmarks|sfx_creation|sfx_lifecycle|ui_archive_volumes|worker_window_progress|ui_copy_same|ui_operations|language_file_transfer|file_transfer|volume_operations|volume_workflow)$",
     "interactive": true
   }
 }

@@ -15,19 +15,15 @@ class NativePropertiesWindowTests final : public QObject, protected MainWindowTe
     }
   private slots:
     void fileAndFolderUseNativeSheet_data() {
-        QTest::addColumn<bool>("flat");
         QTest::addColumn<int>("mode");
         QTest::addColumn<bool>("directory");
-        for (bool flat : {false, true})
-            for (int mode : {0, 3})
-                for (bool directory : {false, true})
-                    QTest::newRow(qPrintable(
-                        QString("flat%1-mode%2-dir%3").arg(flat).arg(mode).arg(directory)))
-                        << flat << mode << directory;
+        for (int mode : {0, 3})
+            for (bool directory : {false, true})
+                QTest::newRow(qPrintable(QString("mode%1-dir%2").arg(mode).arg(directory)))
+                    << mode << directory;
     }
 
     void fileAndFolderUseNativeSheet() {
-        QFETCH(bool, flat);
         QFETCH(int, mode);
         QFETCH(bool, directory);
         QTemporaryDir fixture;
@@ -49,7 +45,6 @@ class NativePropertiesWindowTests final : public QObject, protected MainWindowTe
         auto *address = window.findChild<QLineEdit *>("archivePath");
         address->setText(fixture.path());
         QTest::keyClick(address, Qt::Key_Return);
-        action(window, "flatViewAction")->setChecked(flat);
         action(window, qPrintable(QString("viewMode%1Action").arg(mode)))->trigger();
         auto *view = table(window);
         QTRY_VERIFY_WITH_TIMEOUT(filesystemRow(window, path) >= 0, 5000);

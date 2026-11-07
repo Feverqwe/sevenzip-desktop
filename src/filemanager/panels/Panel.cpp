@@ -249,9 +249,6 @@ void CPanel::ChangeFlatMode() {
         _flatModeForArc = _flatMode;
     else
         _flatModeForDisk = _flatMode;
-    // Publish source flags to Qt's asynchronous renderer/settings before load.
-    if (_flatModePresentation)
-        _flatModePresentation(_flatMode);
     RefreshListCtrl_SaveFocused();
 }
 

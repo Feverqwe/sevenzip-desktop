@@ -173,10 +173,6 @@ class FilesystemReloadTests final : public QObject, protected MainWindowTestSupp
         address->setText(smallPath);
         QTest::keyClick(address, Qt::Key_Return);
         QTRY_COMPARE(view->rowCount(), 1);
-        if (flat) {
-            action(window, "flatViewAction")->trigger();
-            QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
-        }
         if (reload) {
             address->setText(large);
             QTest::keyClick(address, Qt::Key_Return);

@@ -285,7 +285,7 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
         QTest::addColumn<bool>("timer");
         for (unsigned index : {0u, 1u})
             for (const QString language : {"-", "ru"})
-                for (int mode : {0, 1, 2})
+                for (int mode : {0, 1})
                     for (bool timer : {false, true})
                         QTest::newRow(qPrintable(
                             QString("%1-%2-%3-%4").arg(index).arg(language).arg(mode).arg(timer)))
@@ -330,11 +330,6 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
         QTest::keyClick(address, Qt::Key_Return);
         QTRY_COMPARE(view->rowCount(), count);
         QTRY_VERIFY(view->sourcePanel->ShouldProcessNotifications());
-        if (mode == 2) {
-            action(window, "flatViewAction")->trigger();
-            QTRY_VERIFY(view->sourcePanel->ShouldProcessNotifications());
-            QTRY_COMPARE(view->rowCount(), count);
-        }
         auto &panel = *view->sourcePanel;
         panel.Set_AutoRefresh_Mode(false);
         CMyComPtr<IFolderFolder> sourceFolder = panel.GetFolder();

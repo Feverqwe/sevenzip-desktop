@@ -13,7 +13,6 @@ class QtPanelList {
         DirectoryRole = Qt::UserRole + 1,
         SortValueRole = Qt::UserRole + 2,
         NameRole = Qt::UserRole + 3,
-        PrefixRole = Qt::UserRole + 5,
         SourceIndexRole = Qt::UserRole + 6,
         DropHighlightedRole = Qt::UserRole + 19,
         MarkedRole = Qt::UserRole + 20,

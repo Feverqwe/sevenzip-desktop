@@ -139,8 +139,6 @@ class CApp {
     UInt32 GetListViewMode() { return GetFocusedPanel().GetListViewMode(); }
     void SetListViewMode(UInt32 index) { GetFocusedPanel().SetListViewMode(index); }
     PROPID GetSortID() { return GetFocusedPanel().GetSortID(); }
-    bool GetFlatMode() { return Panels[LastFocusedPanel].GetFlatMode(); }
-    void ChangeFlatMode() { Panels[LastFocusedPanel].ChangeFlatMode(); }
     void ExtractArchives(IQtCompressCallServices &services) {
         GetFocusedPanel().ExtractArchives(services);
     }

@@ -78,7 +78,6 @@ class DeferredRenameTests final : public QObject, protected MainWindowTestSuppor
         QTest::addColumn<int>("transition");
         for (unsigned pane : {0u, 1u}) {
             QTest::newRow(qPrintable(QString("focus-%1").arg(pane))) << pane << 0;
-            QTest::newRow(qPrintable(QString("navigate-flat-%1").arg(pane))) << pane << 1;
             QTest::newRow(qPrintable(QString("reload-%1").arg(pane))) << pane << 2;
             QTest::newRow(qPrintable(QString("mark-focus-%1").arg(pane))) << pane << 3;
         }
@@ -117,11 +116,6 @@ class DeferredRenameTests final : public QObject, protected MainWindowTestSuppor
         }
         auto *view = views[pane];
         view->setFocus();
-        if (transition == 1) {
-            action(window, "flatViewAction")->setChecked(true);
-            QTRY_VERIFY(view->isEnabled());
-            QTRY_COMPARE(view->rowCount(), 1);
-        }
         view->selectRow(0);
         view->setCurrentCell(0, 0);
         if (transition == 3) {

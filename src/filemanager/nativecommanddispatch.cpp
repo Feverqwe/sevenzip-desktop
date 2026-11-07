@@ -194,9 +194,6 @@ bool OnMenuCommand(unsigned id, IQtFileManagerMenuCommandServices &g_App) {
     case IDM_FOLDERS_HISTORY:
         g_App.FoldersHistory();
         break;
-    case IDM_VIEW_FLAT_VIEW:
-        g_App.ChangeFlatMode();
-        break;
     case IDM_VIEW_REFRESH:
         g_App.RefreshView();
         break;

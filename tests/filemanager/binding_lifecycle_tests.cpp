@@ -103,7 +103,7 @@ class BindingLifecycleTests : public QObject, protected MainWindowTestSupport {
     void destroyingWindowAfterSourceHashJoinsReleasesItsSpool() {
         LifecycleBackend backend;
         auto window = std::make_unique<MainWindow>(&backend);
-        action(*window, "flatViewAction")->setChecked(false);
+
         openListedArchive(*window, backend, "owned-lifetime.zip",
                           {{QStringLiteral("имя й с пробелом.txt"), 6, 3}});
         table(*window)->selectRow(0);
@@ -127,20 +127,15 @@ class BindingLifecycleTests : public QObject, protected MainWindowTestSupport {
     }
 
     void consumersRebindAfterReplacementAndFailedListing_data() {
-        QTest::addColumn<bool>("flat");
         QTest::addColumn<int>("mode");
         QTest::addColumn<bool>("cancel");
-        for (bool flat : {false, true})
-            for (int mode : {0, 3})
-                for (bool cancel : {false, true})
-                    QTest::newRow(qPrintable(QString("%1-%2-%3")
-                                                 .arg(flat ? "flat" : "normal")
-                                                 .arg(mode)
-                                                 .arg(cancel ? "cancel" : "failure")))
-                        << flat << mode << cancel;
+        for (int mode : {0, 3})
+            for (bool cancel : {false, true})
+                QTest::newRow(
+                    qPrintable(QString("%1-%2").arg(mode).arg(cancel ? "cancel" : "failure")))
+                    << mode << cancel;
     }
     void consumersRebindAfterReplacementAndFailedListing() {
-        QFETCH(bool, flat);
         QFETCH(int, mode);
         QFETCH(bool, cancel);
         QTemporaryDir disk;
@@ -154,7 +149,7 @@ class BindingLifecycleTests : public QObject, protected MainWindowTestSupport {
         file.close();
         LifecycleBackend backend;
         MainWindow window(&backend);
-        action(window, "flatViewAction")->setChecked(false);
+
         navigate(window, root.path());
         action(window, qPrintable(QString("viewMode%1Action").arg(mode)))->trigger();
         const QString oldPath = QStringLiteral("old й с пробелом.txt");
@@ -164,7 +159,6 @@ class BindingLifecycleTests : public QObject, protected MainWindowTestSupport {
             verifyLoadingCommands(window);
         });
         window.openArchive("first-owner.zip");
-        action(window, "flatViewAction")->setChecked(flat);
         selectAndForge(window);
         calculateHash(window);
         QCOMPARE(backend.lastSelected, QStringList{oldPath});
@@ -212,7 +206,6 @@ class BindingLifecycleTests : public QObject, protected MainWindowTestSupport {
         QCOMPARE(rowWithPath(window, newPath), 0);
         navigate(window, root.path());
         QTRY_COMPARE(window.findChild<QLineEdit *>("archivePath")->text(), root.path());
-        action(window, "flatViewAction")->setChecked(flat);
         QTRY_COMPARE(table(window)->rowCount(), 1);
         QTRY_VERIFY(table(window)->isEnabled());
         selectAndForge(window);
@@ -232,7 +225,6 @@ class BindingLifecycleTests : public QObject, protected MainWindowTestSupport {
         QCOMPARE(backend.hashCalls, 0); // The filesystem request uses the rebound source path.
         QCOMPARE(backend.extractCalls, requests);
         backend.cancel();
-        action(window, "flatViewAction")->setChecked(false);
     }
 };
 

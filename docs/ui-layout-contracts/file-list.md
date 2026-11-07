@@ -237,27 +237,18 @@ Directory size cells retain the current empty presentation. The hidden transport
 columns, view modes and navigation grouping are unchanged. P0-06.2 adds the
 source property catalog to the visible table columns.
 
-`panel_selected_state` checks normal/flat archive cells in all four views at
+`panel_selected_state` checks archive cells in the table and large icons at
 980×620 and 640×480, verifies central/active view visibility, and writes
-`archive-runtime-mode*-flat*-*.json` under `ui-reports/` in the selected CMake
+`archive-runtime-mode*-*.json` under `ui-reports/` in the selected CMake
 build directory. Review geometry,
 control order and clipping in those current-build reports. These establish Qt
 usability/typed value behavior, not rendered Windows pixel parity. The later
 `panel_columns` reports cover source property columns and their header controls.
 
-For recursive filesystem loading, `flat_view` also writes normal/compact
-`filesystem-native-scan-*` and `filesystem-presentation-*` reports. Navigation
-remains above the disabled list while loading/presenting, and both stay visible
-without clipping. Status distinguishes scan progress from shown row count; list
-commands return after completion or failure. This Qt responsiveness adaptation
-keeps source enumeration in CFSFolder, not a presentation-layer walker.
-P0-05.1 reads displayed normal/flat names and prefixes from bound CFSFolder
-properties, with NFC only for Qt text. The same 980×620 and 640×480 current-build
-`filesystem-native-scan-*` / `filesystem-presentation-*` reports check visible
-toolbar, address, list and status during scan/presentation; they do not prove
-rendered Windows parity or final large-scan responsiveness (P0-05.2).
+Large directories load in the background. Navigation and the list stay
+visible during loading, and list commands return on completion or failure.
 
-`panel_selected_state` writes normal/flat `filesystem-runtime-*` reports at
+`panel_selected_state` writes `filesystem-runtime-*` reports at
 980×620 and 640×480. Filesystem size cells use native typed metadata: uncalculated
 directory size is absent, file zero is defined, and POSIX links display their own
 length. Source item indices are independent of sorted rows. Path controls, shared

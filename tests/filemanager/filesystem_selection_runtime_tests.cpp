@@ -38,7 +38,6 @@ class FilesystemSelectionRuntimeTests : public QObject, protected MainWindowTest
         sourcePathsAcrossViewsAndConsumers_data();
     }
     void createUnselectedFocusDoesNotBecomeSource() {
-        QFETCH(bool, flat);
         QFETCH(int, mode);
         QTemporaryDir temporary;
         QVERIFY(temporary.isValid());
@@ -53,11 +52,10 @@ class FilesystemSelectionRuntimeTests : public QObject, protected MainWindowTest
                  S_OK);
 #endif
         MainWindow window(&backend);
-        action(window, "flatViewAction")->setChecked(false);
+
         auto *address = window.findChild<QLineEdit *>("archivePath");
         address->setText(root.path());
         emit address->returnPressed();
-        action(window, "flatViewAction")->setChecked(flat);
         action(window, qPrintable(QString("viewMode%1Action").arg(mode)))->trigger();
         QTRY_COMPARE(table(window)->rowCount(), 1);
         QTRY_VERIFY(table(window)->isEnabled());
@@ -108,20 +106,14 @@ class FilesystemSelectionRuntimeTests : public QObject, protected MainWindowTest
         cancelCreate();
         QVERIFY(sources.isEmpty());
         QCOMPARE(errors, 2);
-
-        action(window, "flatViewAction")->setChecked(false);
     }
 
     void sourcePathsAcrossViewsAndConsumers_data() {
-        QTest::addColumn<bool>("flat");
         QTest::addColumn<int>("mode");
-        for (bool flat : {false, true})
-            for (int mode : {0, 3})
-                QTest::newRow(qPrintable(QString("%1-%2").arg(flat ? "flat" : "normal").arg(mode)))
-                    << flat << mode;
+        for (int mode : {0, 3})
+            QTest::newRow(qPrintable(QString("mode-%1").arg(mode))) << mode;
     }
     void sourcePathsAcrossViewsAndConsumers() {
-        QFETCH(bool, flat);
         QFETCH(int, mode);
         QTemporaryDir temporary;
         QVERIFY(temporary.isValid());
@@ -140,16 +132,15 @@ class FilesystemSelectionRuntimeTests : public QObject, protected MainWindowTest
 #endif
         MainWindow window(&backend);
         window.show();
-        action(window, "flatViewAction")->setChecked(false);
+
         auto *address = window.findChild<QLineEdit *>("archivePath");
         address->setText(root.path());
         emit address->returnPressed();
-        action(window, "flatViewAction")->setChecked(flat);
         action(window, qPrintable(QString("viewMode%1Action").arg(mode)))->trigger();
-        QTRY_COMPARE(table(window)->rowCount(), flat ? 3 : 2);
+        QTRY_COMPARE(table(window)->rowCount(), 2);
         QTRY_VERIFY(table(window)->isEnabled());
         table(window)->sortItems(0, Qt::DescendingOrder);
-        const QString second = root.filePath(flat ? directory + '/' + name : directory);
+        const QString second = root.filePath(directory);
         const int firstRow = diskRow(window, root.filePath(name));
         const int secondRow = diskRow(window, second);
         QVERIFY(firstRow >= 0 && secondRow >= 0);
@@ -200,7 +191,7 @@ class FilesystemSelectionRuntimeTests : public QObject, protected MainWindowTest
         const auto hash = backend.GuiRequests.takeFirst();
         QCOMPARE(hash.Operation, QtOperationJob::Command::Hash);
         QCOMPARE(hash.HashMethod, QString("SHA256"));
-        QCOMPARE(hash.HashEnterToDirs, !flat);
+        QVERIFY(hash.HashEnterToDirs);
         QStringList hashSources;
         for (const QString &path : hash.Paths) {
             const QString resolved =
@@ -222,7 +213,6 @@ class FilesystemSelectionRuntimeTests : public QObject, protected MainWindowTest
                        .normalized(QString::NormalizationForm_C);
         sources.sort();
         QCOMPARE(sources, expected);
-        action(window, "flatViewAction")->setChecked(false);
     }
 };
 

@@ -414,7 +414,6 @@
         archiveOpenDisablesBothPanelAddresses
         viewSwitchRetainsPanelBindingAcrossFocusChange
         twoPanelDiskSwitchKeepsIndependentViews
-        switchingDuringFlatScanRestartsOnlyThatPanel
         mixedArchivePanelsRouteFocusAndDestination
         restoresPanelCountFocusPathsAndSplitter
         hiddenLeftPanelPathSurvivesRestart
@@ -422,10 +421,10 @@
         addressKeys:archive-3 addressKeys:disk-0
         createFileKey:0 createFileKey:3
         keypadSelection:archive-0 keypadSelection:disk-3
-        alternativeSelection:archive-flat0-mode3
-        alternativeSelection:archive-flat1-mode0
-        alternativeSelection:disk-flat0-mode0
-        alternativeSelection:disk-flat1-mode3
+        alternativeSelection:archive-mode3
+        alternativeSelection:archive-mode0
+        alternativeSelection:disk-mode0
+        alternativeSelection:disk-mode3
         alternativeRootUsesSourceMarks
         alternativeMarksSurviveRemovalAndScroll)
     set_tests_properties(panel_key_quick PROPERTIES TIMEOUT 60 ENVIRONMENT

@@ -94,19 +94,14 @@ class ArchiveDirectoryCommandTests final : public QObject {
         window.show();
         window.openPath(path);
         auto *view = window.findChild<FileTable *>("archiveTable");
-        auto *flat = window.findChild<QAction *>("flatViewAction");
         auto *calculate = window.findChild<QAction *>("calculateDirectorySizeAction");
         bool reading = false;
         OnProgressShow observer([&](CProgressDialog &) { reading = true; });
-        for (bool enabled : {false, true, false}) {
-            QTRY_VERIFY(flat->isEnabled());
-            flat->setChecked(enabled);
-            QTRY_VERIFY(view->isEnabled() && Row(*view, directory) >= 0);
-            view->selectRow(Row(*view, directory));
-            QVERIFY(!calculate->isEnabled());
-            calculate->trigger();
-            QVERIFY(!reading);
-        }
+        QTRY_VERIFY(view->isEnabled() && Row(*view, directory) >= 0);
+        view->selectRow(Row(*view, directory));
+        QVERIFY(!calculate->isEnabled());
+        calculate->trigger();
+        QVERIFY(!reading);
         QVERIFY(archive.open(QIODevice::ReadOnly));
         QCOMPARE(archive.readAll(), before);
         QVERIFY(input.open(QIODevice::ReadOnly));
@@ -210,8 +205,6 @@ class ArchiveDirectoryCommandTests final : public QObject {
                      ->index(Row(*view, "directory-11"), column)
                      .data(Qt::UserRole + 2)
                      .isValid());
-        auto *flat = window.findChild<QAction *>("flatViewAction");
-        flat->setChecked(true);
         QTRY_VERIFY(view->isEnabled() && Row(*view, directory) >= 0);
         view->selectRow(Row(*view, directory));
         QVERIFY(!calculate->isEnabled());

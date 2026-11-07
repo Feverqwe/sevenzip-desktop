@@ -171,7 +171,6 @@ void QtFileManagerCommands::OpenRootFolder() {
 }
 void QtFileManagerCommands::OpenParentFolder() { window_.goParent(); }
 void QtFileManagerCommands::FoldersHistory() { window_.showFoldersHistory(); }
-void QtFileManagerCommands::ChangeFlatMode() { window_.app_.ChangeFlatMode(); }
 void QtFileManagerCommands::RefreshView() {
     if (window_.app_.GetFocusedPanel().ArchiveContextOutdated())
         window_.workspace_->RefreshPublishedArchive(window_.projectedPanel_, true);

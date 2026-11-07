@@ -315,9 +315,6 @@ class CPanel : public QObject {
     void AttachViewModePresentation(std::function<void(UInt32)> view) {
         _viewModePresentation = std::move(view);
     }
-    void AttachFlatModePresentation(std::function<void(bool)> flat) {
-        _flatModePresentation = std::move(flat);
-    }
     void InvalidateList() {
         if (_invalidatePresentation)
             _invalidatePresentation();
@@ -356,11 +353,6 @@ class CPanel : public QObject {
     void ChangeFlatMode();
     PROPID GetSortID() const { return _sortID; }
     bool GetFlatMode() const { return _flatMode; }
-    void SetFlatModeForDisk(bool enabled) {
-        _flatModeForDisk = enabled;
-        if (_parentFolders.IsEmpty())
-            _flatMode = enabled;
-    }
     // Qt notification adapters replace the Win32 OnNotify entry point.
     bool ShouldProcessNotifications() const { return _processNotify; }
     bool ShouldDisplayItemText() const { return !_dontShowMode; }
@@ -733,7 +725,6 @@ class CPanel : public QObject {
     std::function<void()> _invalidatePresentation;
     std::function<void(const CPanelStatus &)> _statusPresentation;
     std::function<void(UInt32)> _viewModePresentation;
-    std::function<void(bool)> _flatModePresentation;
     std::function<void()> _addressFocusPresentation;
     std::function<void(unsigned)> _fileClipboardPresentation;
     bool _portableFolderChanged = false;

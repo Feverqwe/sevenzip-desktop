@@ -25,9 +25,6 @@ HRESULT MainWindow::startFilesystemListing(bool sourceAlreadyBound, bool updateA
     if (updateAddress)
         static_cast<QtPanelAddressCombo *>(projectedUi().pathCombo)
             ->ShowCurrentPath(projectedUi().directory);
-    if (panel.GetFlatMode())
-        return startFilesystemScan(folder, true);
-
     auto *spec = static_cast<NFsFolder::CFSFolder *>((IFolderFolder *)folder);
     bool defer = false;
     {
@@ -43,7 +40,7 @@ HRESULT MainWindow::startFilesystemListing(bool sourceAlreadyBound, bool updateA
         result = panel.LoadListItems();
     }
     if (result == E_ABORT && defer)
-        return startFilesystemScan(folder, false);
+        return startFilesystemScan(folder);
     if (result == S_OK) {
         configureColumns();
         appendParentEntry();
@@ -69,11 +66,11 @@ HRESULT MainWindow::finishSynchronousFilesystemListing(HRESULT result) {
     return result;
 }
 
-HRESULT MainWindow::startFilesystemScan(IFolderFolder *folder, bool flat) {
+HRESULT MainWindow::startFilesystemScan(IFolderFolder *folder) {
     projectedUi().scanningDisk = true;
     setState(State::Filesystem);
     clearStatusMessage();
-    if (projectedUi().filesystemScanner->start(projectedUi().directory, flat, folder))
+    if (projectedUi().filesystemScanner->start(projectedUi().directory, false, folder))
         return S_OK;
     failFilesystemListing(E_ABORT);
     return E_ABORT;
@@ -86,26 +83,18 @@ HRESULT MainWindow::appendFilesystemEntry(const QString &baseDirectory, quint32 
     const QFileInfo file(
         QDir(baseDirectory)
             .filePath(QtFilesystemPath(folder->GetRelPath(folder->Files[sourceIndex]))));
-#ifdef Q_OS_WIN
-    // Normal Windows folders already use source FindChangeNotification. Keep
-    // the portable fallback for flat descendants, outside its nonrecursive watch.
-    if (app_.GetFocusedPanel().GetFlatMode())
+#ifndef Q_OS_WIN
+    panelUi_[projectedPanel_].autoRefreshSnapshot.insert(
+        file.absoluteFilePath(), filesystemSignature(file.absoluteFilePath()));
 #endif
-        panelUi_[projectedPanel_].autoRefreshSnapshot.insert(
-            file.absoluteFilePath(), filesystemSignature(file.absoluteFilePath()));
-    NWindows::NCOM::CPropVariant name, prefix;
+    NWindows::NCOM::CPropVariant name;
     folder->GetProperty(sourceIndex, kpidName, &name);
-    folder->GetProperty(sourceIndex, kpidPrefix, &prefix);
     const bool directory = app_.GetFocusedPanel().IsItem_Folder(sourceIndex);
     const QString nativeName =
         name.vt == VT_BSTR ? QString::fromWCharArray(name.bstrVal) : file.fileName();
-    const QString nativePrefix =
-        prefix.vt == VT_BSTR ? QDir::fromNativeSeparators(QString::fromWCharArray(prefix.bstrVal))
-                             : QString();
     FilePanelModel::Row row;
     row.sourceIndex = sourceIndex;
     row.name = nativeName;
-    row.prefix = app_.GetFocusedPanel().GetFlatMode() ? nativePrefix : QString();
     row.path = file.absoluteFilePath();
     CRecordVector<UInt32> indices;
     indices.Add(sourceIndex);

@@ -16,15 +16,11 @@ class NativeNetworkNavigationTests final : public QObject, protected MainWindowT
   private slots:
     void serverAddressShareParentAndRefusal_data() {
         QTest::addColumn<QString>("language");
-        QTest::addColumn<bool>("flat");
         for (const char *language : {"-", "ru"})
-            for (bool flat : {false, true})
-                QTest::newRow(qPrintable(QString("%1-%2").arg(language).arg(flat)))
-                    << QString::fromLatin1(language) << flat;
+            QTest::newRow(language) << QString::fromLatin1(language);
     }
     void serverAddressShareParentAndRefusal() {
         QFETCH(QString, language);
-        QFETCH(bool, flat);
         SaveRegLang(UString(language.toStdWString().c_str()),
                     qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         ReloadLang(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
@@ -50,7 +46,6 @@ class NativeNetworkNavigationTests final : public QObject, protected MainWindowT
         });
         responder.start(1);
         window.show();
-        action(window, "flatViewAction")->setChecked(flat);
         QTRY_VERIFY_WITH_TIMEOUT(action(window, "refreshAction")->isEnabled(), 5000);
         auto *address = window.findChild<QLineEdit *>("archivePath");
         QVERIFY(address);
@@ -72,8 +67,7 @@ class NativeNetworkNavigationTests final : public QObject, protected MainWindowT
             QVERIFY(UiInspection::fullyVisible(*table(window), window));
             QVERIFY(UiInspection::separate(*address, *table(window), window));
             QVERIFY(UiInspection::writeReport(
-                window,
-                QString("network-server-%1-%2-%3").arg(language).arg(flat).arg(size.width())));
+                window, QString("network-server-%1-%2").arg(language).arg(size.width())));
         }
         openRow(window, filesystemRow(window, fixture.name()));
         QTRY_VERIFY_WITH_TIMEOUT(filesystemRow(window, NativeNetworkShare::fileName()) >= 0, 5000);

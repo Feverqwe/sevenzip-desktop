@@ -36,7 +36,7 @@ class PanelParentReloadTests final : public QObject, protected MainWindowTestSup
             for (const QString language : {"-", "ru"})
                 for (bool alternative : {false, true})
                     for (bool dots : {false, true})
-                        for (int mode : {0, 1, 2})
+                        for (int mode : {0, 1})
                             QTest::newRow(qPrintable(QString("%1-%2-%3-%4-%5")
                                                          .arg(index)
                                                          .arg(language)
@@ -86,11 +86,6 @@ class PanelParentReloadTests final : public QObject, protected MainWindowTestSup
         navigate(*address, folder);
         QTRY_COMPARE(view->rowCount(), count + int(dots));
         QTRY_VERIFY(view->sourcePanel->ShouldProcessNotifications());
-        if (mode == 2) {
-            action(window, "flatViewAction")->trigger();
-            QTRY_COMPARE(view->rowCount(), count + int(dots));
-            QTRY_VERIFY(view->sourcePanel->ShouldProcessNotifications());
-        }
         auto &panel = *view->sourcePanel;
         panel.Set_AutoRefresh_Mode(false);
         for (bool timer : {false, true}) {

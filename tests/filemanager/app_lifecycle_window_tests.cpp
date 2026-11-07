@@ -192,18 +192,18 @@ class AppLifecycleWindowTests : public QObject, protected MainWindowTestSupport 
             QVERIFY(action(window, "viewMode3Action")->isChecked());
             openListedArchive(window, backend, fixture.filePath("архив с пробелом.zip"),
                               {ArchiveEntry{"folder/item.txt", 1, 1}});
-            QVERIFY(action(window, "flatViewAction")->isChecked());
-            QCOMPARE(table(window)->rowCount(), 2);
+            QCOMPARE(table(window)->rowCount(), 1);
             bool childVisible = false;
             for (int row = 0; row < table(window)->rowCount(); ++row)
                 childVisible |=
                     table(window)->model()->index(row, 0).data(Qt::UserRole).toString() ==
                     QStringLiteral("folder/item.txt");
-            QVERIFY(childVisible);
+            QVERIFY(!childVisible);
+            QCOMPARE(table(window)->model()->index(0, 0).data().toString(), QString("folder"));
         }
         QSettings key(settings, QSettings::IniFormat);
         QCOMPARE(key.value("ListMode").toUInt() & 0xFF, 3u);
-        QVERIFY(key.value("FM/FlatViewArc0").toBool());
+        QVERIFY(!key.contains("FM/FlatViewArc0"));
         QCOMPARE(QDir::cleanPath(key.value("PanelPath0").toString()), fixture.path());
     }
 
@@ -218,7 +218,7 @@ class AppLifecycleWindowTests : public QObject, protected MainWindowTestSupport 
         modes.Panels[0] = 1;
         modes.Panels[1] = 0;
         modes.Save(settings);
-        SaveFlatView(0, false, settings);
+        QSettings(settings, QSettings::IniFormat).setValue("FM/FlatViewArc0", true);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         ControlledBackend backend;
@@ -227,14 +227,12 @@ class AppLifecycleWindowTests : public QObject, protected MainWindowTestSupport 
             QVERIFY(action(window, "viewMode3Action")->isChecked());
             openListedArchive(window, backend, fixture.filePath("archive.zip"),
                               {ArchiveEntry{"folder/item.txt", 1, 1}});
-            QVERIFY(!action(window, "flatViewAction")->isChecked());
             QCOMPARE(table(window)->rowCount(), 1);
             action(window, "viewMode0Action")->trigger();
         }
         modes.Read(settings);
         QCOMPARE(modes.Panels[0], 0u);
         QCOMPARE(modes.Panels[1], 0u);
-        QVERIFY(!ReadFlatView(0, settings));
     }
 
     void copyModalRetainsApplicationLifetime() {

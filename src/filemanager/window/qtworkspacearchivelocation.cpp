@@ -10,8 +10,8 @@ HRESULT ReadDirectory(CPanel &source, QWidget *parent, const QString &settings,
     // The joined worker owns provider reads only within this scope. Release
     // the guard before render can replace retained scan-operation guards.
     const CPanel::CDisableNotify notifications(source);
-    return ReadArchiveDirectory(*static_cast<CAgentFolder *>(source.GetFolder()),
-                                source.GetFlatMode(), parent, settings, !interactive);
+    return ReadArchiveDirectory(*static_cast<CAgentFolder *>(source.GetFolder()), false, parent,
+                                settings, !interactive);
 }
 
 HRESULT FollowDirectories(CPanel &source, const QList<QtArchiveLocation::Directory> &directories,

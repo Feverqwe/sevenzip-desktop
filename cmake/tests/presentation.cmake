@@ -1,4 +1,4 @@
-foreach(target IN ITEMS archive_proxy_tests archive_backend_tests ui_layout_tests ui_state_tests ui_operations_tests ui_copy_same_tests ui_copy_routing_tests ui_update_modes_tests ui_archive_volumes_tests external_editors_ui_tests nested_edit_chain_tests archive_external_edit_tests archive_external_security_tests ui_navigation_tests ui_archive_states_tests flat_view_tests settings_tests properties_tests checksum_tests extraction_options_tests compression_tests archive_item_open_tests nested_archive_tests volume_operations_tests)
+foreach(target IN ITEMS archive_proxy_tests archive_backend_tests ui_layout_tests ui_state_tests ui_operations_tests ui_copy_same_tests ui_copy_routing_tests ui_update_modes_tests ui_archive_volumes_tests external_editors_ui_tests nested_edit_chain_tests archive_external_edit_tests archive_external_security_tests ui_navigation_tests ui_archive_states_tests settings_tests properties_tests checksum_tests extraction_options_tests compression_tests archive_item_open_tests nested_archive_tests volume_operations_tests)
     if(TARGET ${target})
         target_link_libraries(${target} PRIVATE sevenzip_common)
     endif()
@@ -53,10 +53,6 @@ if(BUILD_TESTING)
 endif()
 
 # Window runtime uses the authoritative source-owned archive location factory.
-if(TARGET flat_view_tests)
-    set_property(TEST flat_view APPEND PROPERTY ENVIRONMENT
-        "SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
-endif()
 if(TARGET ui_navigation_tests)
     target_link_libraries(ui_navigation_tests PRIVATE sevenzip_layout_inspection)
     set_property(TEST ui_navigation APPEND PROPERTY ENVIRONMENT

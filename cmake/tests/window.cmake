@@ -128,8 +128,6 @@
         "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/ui-update-modes-settings.ini")
     target_link_libraries(ui_navigation_tests PRIVATE Qt6::Widgets Qt6::Test)
     target_link_libraries(ui_archive_states_tests PRIVATE Qt6::Widgets Qt6::Test)
-    qt_add_executable(flat_view_tests tests/filemanager/flat_view_tests.cpp)
-    target_link_libraries(flat_view_tests PRIVATE sevenzip_window)
     qt_add_executable(settings_tests tests/settings/settings_tests.cpp)
     target_link_libraries(settings_tests PRIVATE sevenzip_window)
     target_include_directories(settings_tests PRIVATE src)
@@ -154,13 +152,6 @@
     add_test(NAME checksum COMMAND checksum_tests -silent)
     set_tests_properties(checksum PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/checksum-tests.ini")
     set_tests_properties(properties PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/properties-tests.ini")
-    target_include_directories(flat_view_tests PRIVATE src)
-    target_link_libraries(flat_view_tests PRIVATE sevenzip_layout_inspection)
-    target_link_libraries(flat_view_tests PRIVATE Qt6::Widgets Qt6::Test)
-    add_test(NAME flat_view COMMAND flat_view_tests -silent)
-    set_tests_properties(flat_view PROPERTIES
-        ENVIRONMENT "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/flat-view-settings.ini"
-    )
     add_test(NAME ui_state COMMAND ui_state_tests -silent)
     add_test(NAME ui_operations COMMAND ui_operations_tests -silent)
     set_tests_properties(ui_operations PROPERTIES TIMEOUT 120)

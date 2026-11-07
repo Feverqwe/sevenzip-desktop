@@ -34,7 +34,7 @@ observable requirements change; keep implementation history in the
 | Native Copy terminal errors | [Спецификация](ui-layout-contracts/copy-move.md#native-copy-terminal-errors-p3-05) |
 | Native System handler images | [Спецификация](ui-layout-contracts/options.md#native-system-handler-images-p3-06-2026-10-17) |
 | Refresh focus and alternative marks | [Спецификация](ui-layout-contracts/file-list.md#refresh-focus-and-alternative-marks-p3-05) |
-| Panel address keys and flat view | [Спецификация](ui-layout-contracts/navigation.md#panel-address-keys-and-flat-view-p3-05) |
+| Panel address keys | [Спецификация](ui-layout-contracts/navigation.md#panel-address-keys-p3-05) |
 | Archive directory CRC projection | [Спецификация](ui-layout-contracts/file-list.md#archive-directory-crc-projection-p3-05) |
 | Changed nested archive Parent | [Спецификация](ui-layout-contracts/extraction.md#changed-nested-archive-parent-p3-0515) |
 | Native external update publication | [Спецификация](ui-layout-contracts/external-tools.md#native-external-update-publication-p3-0515) |

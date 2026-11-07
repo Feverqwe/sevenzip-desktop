@@ -73,15 +73,13 @@ class ArchiveSelectionRuntimeTests : public QObject, protected MainWindowTestSup
         sourcePathsAcrossViewsAndConsumers_data();
     }
     void successfulHashUsesSourceLogicalSelection() {
-        QFETCH(bool, flat);
         QFETCH(int, mode);
         PathHashBackend backend;
         MainWindow window(&backend);
-        action(window, "flatViewAction")->setChecked(false);
+
         const QString directory = QStringLiteral("папка й с пробелом");
         openListedArchive(window, backend, "source-hash.zip",
                           {{"root.bin", 3, 1}, {directory + "/inside.txt", 7, 3}});
-        action(window, "flatViewAction")->setChecked(flat);
         action(window, qPrintable(QString("viewMode%1Action").arg(mode)))->trigger();
         const int directoryRow = rowWithPath(window, directory);
         const int rootRow = rowWithPath(window, "root.bin");
@@ -106,10 +104,6 @@ class ArchiveSelectionRuntimeTests : public QObject, protected MainWindowTestSup
         closeResults.stop();
         QVERIFY(resultRows > 0);
         QStringList expected = {directory + "/inside.txt", "root.bin"};
-        // Original Agent::Extract does not recurse selected folders in flat
-        // mode. Descendant files must be selected as their own flat items.
-        if (flat)
-            expected = {"root.bin"};
         QStringList actual = portablePaths(backend.streamEntries);
         expected.sort();
         actual.sort();
@@ -117,7 +111,6 @@ class ArchiveSelectionRuntimeTests : public QObject, protected MainWindowTestSup
         for (const QString &path : backend.streamPaths)
             QVERIFY(!QFileInfo::exists(QFileInfo(path).absolutePath()));
         QVERIFY(action(window, "hashSHA256Action")->isEnabled());
-        action(window, "flatViewAction")->setChecked(false);
     }
 
     void renameUsesSourceNameHintAndIgnoresForgedPath() {
@@ -125,10 +118,10 @@ class ArchiveSelectionRuntimeTests : public QObject, protected MainWindowTestSup
         MainWindow window(&backend);
         window.show();
         QCoreApplication::processEvents();
-        action(window, "flatViewAction")->setChecked(false);
+
         openListedArchive(window, backend, "source-rename.zip",
                           {{"a/same.txt", 3, 1}, {"b/same.txt", 7, 3}});
-        action(window, "flatViewAction")->setChecked(true);
+        openRow(window, rowWithPath(window, "b"));
         const int row = rowWithPath(window, "b/same.txt");
         QVERIFY(row >= 0);
         selectOnly(window, row);
@@ -139,27 +132,21 @@ class ArchiveSelectionRuntimeTests : public QObject, protected MainWindowTestSup
         editor->setFocus();
         QCOMPARE(editor->text(), QString("same.txt"));
         QTest::keyClick(editor, Qt::Key_Escape);
-
-        action(window, "flatViewAction")->setChecked(false);
     }
 
     void sourcePathsAcrossViewsAndConsumers_data() {
-        QTest::addColumn<bool>("flat");
         QTest::addColumn<int>("mode");
-        for (bool flat : {false, true})
-            for (int mode : {0, 3})
-                QTest::newRow(qPrintable(QString("flat%1-mode%2").arg(flat).arg(mode)))
-                    << flat << mode;
+        for (int mode : {0, 3})
+            QTest::newRow(qPrintable(QString("mode%1").arg(mode))) << mode;
     }
     void sourcePathsAcrossViewsAndConsumers() {
-        QFETCH(bool, flat);
         QFETCH(int, mode);
         QTemporaryDir destination;
         QVERIFY(destination.isValid());
         ControlledBackend backend;
         MainWindow window(&backend);
         window.show();
-        action(window, "flatViewAction")->setChecked(false);
+
         const QString directory = QStringLiteral("папка й с пробелом");
         const QString first = directory + "/same.txt";
         const QString nested = directory + "/deep/same.txt";
@@ -167,25 +154,17 @@ class ArchiveSelectionRuntimeTests : public QObject, protected MainWindowTestSup
         openListedArchive(
             window, backend, "owned-selection.zip",
             {{"root.bin", 11, 5}, {first, 13, 6}, {nested, 17, 8}, {"other/same.txt", 19, 9}});
-        action(window, "flatViewAction")->setChecked(flat);
         action(window, qPrintable(QString("viewMode%1Action").arg(mode)))->trigger();
         const int directoryRow = rowWithPath(window, directory);
         const int rootRow = rowWithPath(window, "root.bin");
         QVERIFY(directoryRow >= 0 && rootRow >= 0);
-        const int childRow = flat ? rowWithPath(window, nested) : -1;
         const auto selectRequest = [&] {
             selectOnly(window, directoryRow);
-            for (const int row : {rootRow, childRow})
-                if (row >= 0)
-                    table(window)->selectionModel()->select(table(window)->model()->index(row, 0),
-                                                            QItemSelectionModel::Select |
-                                                                QItemSelectionModel::Rows);
+            table(window)->selectionModel()->select(table(window)->model()->index(rootRow, 0),
+                                                    QItemSelectionModel::Select |
+                                                        QItemSelectionModel::Rows);
         };
         selectRequest();
-        if (flat) {
-            QVERIFY(childRow >= 0);
-            corruptPresentationPath(window, childRow);
-        }
         corruptPresentationPath(window, directoryRow);
         corruptPresentationPath(window, rootRow);
         window.extractTo(destination.path(), true);
@@ -227,24 +206,6 @@ class ArchiveSelectionRuntimeTests : public QObject, protected MainWindowTestSup
         QCOMPARE(backend.extractCalls, 4);
         QCOMPARE(backend.lastSelected, QStringList{"root.bin"}); // First source stream cancels.
         QVERIFY(action(window, "hashSHA256Action")->isEnabled());
-        action(window, "flatViewAction")->setChecked(false);
-    }
-
-    void flatDuplicateBasenamesUseTheSelectedSourceIndex() {
-        ControlledBackend backend;
-        MainWindow window(&backend);
-        action(window, "flatViewAction")->setChecked(false);
-        openListedArchive(window, backend, "duplicate-paths.zip",
-                          {{"a/same.txt", 1, 1}, {"b/same.txt", 2, 2}});
-        action(window, "flatViewAction")->setChecked(true);
-        const int row = rowWithPath(window, "b/same.txt");
-        QVERIFY(row >= 0);
-        selectOnly(window, row);
-        corruptPresentationPath(window, row);
-        window.extractTo("/temporary/fixture destination", true);
-        QCOMPARE(portablePaths(backend.lastSelected), QStringList{"b/same.txt"});
-        backend.cancel();
-        action(window, "flatViewAction")->setChecked(false);
     }
 };
 

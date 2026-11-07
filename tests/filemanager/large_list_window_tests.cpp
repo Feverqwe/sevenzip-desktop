@@ -40,7 +40,7 @@ class LargeListWindowTests final : public QObject, protected MainWindowTestSuppo
         window.resize(size);
         window.show();
         action(window, "viewMode3Action")->trigger();
-        action(window, "flatViewAction")->setChecked(false);
+
         auto *list = table(window);
         bool scheduled = false;
         int heartbeatRows = -1;
@@ -176,7 +176,7 @@ class LargeListWindowTests final : public QObject, protected MainWindowTestSuppo
         MainWindow window(&backend);
         window.show();
         action(window, "viewMode3Action")->trigger();
-        action(window, "flatViewAction")->setChecked(false);
+
         openListedArchive(window, backend, fixture.filePath("fixture.zip"), entries);
         auto *list = table(window);
         int folderRow = -1;
@@ -197,30 +197,6 @@ class LargeListWindowTests final : public QObject, protected MainWindowTestSuppo
         QTRY_VERIFY(!publication.isEmpty());
         QTRY_VERIFY(list->isEnabled() && list->rowCount() >= 512);
     }
-    void largeArchiveFlatToggleRestoresCommands() {
-        QTemporaryDir fixture;
-        QVERIFY(fixture.isValid());
-        QList<ArchiveEntry> entries;
-        for (int i = 0; i < 512; ++i)
-            entries.append(ArchiveEntry{QString("folder/item-%1.txt").arg(i), 9, 5});
-        ControlledBackend backend;
-        MainWindow window(&backend);
-        window.show();
-        action(window, "viewMode3Action")->trigger();
-        action(window, "flatViewAction")->setChecked(false);
-        openListedArchive(window, backend, fixture.filePath("fixture.zip"), entries);
-        QTRY_VERIFY(action(window, "flatViewAction")->isEnabled());
-        action(window, "flatViewAction")->trigger();
-        auto *list = table(window);
-        QTRY_VERIFY(list->isEnabled() && list->rowCount() >= 512);
-        QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
-        const int calls = backend.listCalls;
-        QSignalSpy publication(list->model(), &QAbstractItemModel::rowsRemoved);
-        action(window, "refreshAction")->trigger();
-        QCOMPARE(backend.listCalls, calls);
-        QTRY_VERIFY(!publication.isEmpty());
-        QTRY_VERIFY(list->isEnabled() && list->rowCount() >= 512);
-    }
     void createFileSelectionWaitsForCompleteNativeFolder() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
@@ -231,7 +207,7 @@ class LargeListWindowTests final : public QObject, protected MainWindowTestSuppo
         ControlledBackend backend;
         MainWindow window(&backend);
         window.show();
-        action(window, "flatViewAction")->setChecked(false);
+
         auto *address = window.findChild<QLineEdit *>("archivePath");
         address->setText(fixture.path());
         QTest::keyClick(address, Qt::Key_Return);
@@ -267,7 +243,7 @@ class LargeListWindowTests final : public QObject, protected MainWindowTestSuppo
         MainWindow window(&backend);
         window.show();
         action(window, "viewMode3Action")->trigger();
-        action(window, "flatViewAction")->setChecked(false);
+
         action(window, "twoPanelsAction")->trigger();
         auto *left = window.findChild<QWidget *>("filePanel0");
         auto *right = window.findChild<QWidget *>("filePanel1");
@@ -342,7 +318,7 @@ class LargeListWindowTests final : public QObject, protected MainWindowTestSuppo
         MainWindow window(&backend);
         window.show();
         action(window, "viewMode3Action")->trigger();
-        action(window, "flatViewAction")->setChecked(false);
+
         auto *list = table(window);
         bool handled = false;
         QTimer timer;

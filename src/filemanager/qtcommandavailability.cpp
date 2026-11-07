@@ -152,8 +152,6 @@ QHash<unsigned, bool> QtFileManagerCommands::Availability() {
                                            !panel.IsRootFolder() &&
                                            (w.projectedUi().state == MainWindow::State::Viewing ||
                                             panel.IsFSFolder() || namespaceChild);
-    availability[IDM_VIEW_FLAT_VIEW] = navigating && (w.projectedUi().scanningDisk || !hasFolder ||
-                                                      (safeFolderQueries && !panel.IsRootFolder()));
     availability[8] = CanExit();
     if (!safeFolderQueries || w.projectedUi().scanningDisk || !hasFolder)
         return availability;

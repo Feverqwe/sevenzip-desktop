@@ -167,9 +167,6 @@ void MainWindow::createViewOptions(QMenu *viewMenu) {
         timeMenu->setTitle(QCoreApplication::translate("CommandMenus", "Time format"));
     });
     fileListSettings_.Load(toolbarSettingsPath());
-    flatView_ = new QAction("Flat View", viewMenu);
-    flatView_->setObjectName("flatViewAction");
-    flatView_->setCheckable(true);
     twoPanelsAction_ = new QAction(QStringLiteral("Two Panels"), viewMenu);
     twoPanelsAction_->setObjectName("twoPanelsAction");
     QtBindLocalText(twoPanelsAction_, "CommandMenus",
@@ -191,23 +188,6 @@ void MainWindow::createViewOptions(QMenu *viewMenu) {
     foldersHistory_->setObjectName("foldersHistoryAction");
     QtBindLocalText(foldersHistory_, "CommandMenus",
                     QT_TRANSLATE_NOOP("CommandMenus", "Recent places…"));
-}
-
-void MainWindow::applyFlatView(bool enabled) {
-    // A user mode change supersedes the current scan. Join its folder loader
-    // before source RefreshListCtrl reuses that same IFolderFolder instance.
-    projectedUi().filesystemScanner->cancelAndWait();
-    cancelListPublication();
-    QSettings settings(toolbarSettingsPath(), QSettings::IniFormat);
-    {
-        const QSignalBlocker block(flatView_);
-        flatView_->setChecked(enabled);
-    }
-    if (!app_.GetFocusedPanel().GetParentFolders().IsEmpty()) {
-        SaveFlatView(app_.GetFocusedPanelIndex(), enabled, toolbarSettingsPath());
-    } else {
-        settings.setValue("view/flatDisk", enabled);
-    }
 }
 
 void MainWindow::populateSourceMenus() {
@@ -292,8 +272,6 @@ void MainWindow::populateSourceMenus() {
         direction->addAction(action);
     }
     view->addSeparator();
-    view->addAction(flatView_);
-    flatView_->setVisible(false);
     view->addAction(twoPanelsAction_);
     view->addSeparator();
     view->addMenu(time);

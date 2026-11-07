@@ -82,7 +82,6 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         QTest::addColumn<unsigned>("pane");
         QTest::addColumn<QString>("language");
         QTest::addColumn<bool>("alternative");
-        QTest::addColumn<bool>("flat");
         for (bool file : {false, true})
             for (unsigned pane : {0u, 1u})
                 for (const QString language : {"-", "ru"})
@@ -92,20 +91,13 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
                                                      .arg(pane)
                                                      .arg(language)
                                                      .arg(alternative)))
-                            << file << pane << language << alternative << false;
-        for (bool file : {false, true})
-            for (unsigned pane : {0u, 1u})
-                for (const QString language : {"-", "ru"})
-                    QTest::newRow(
-                        qPrintable(QString("flat-%1-%2-%3").arg(file).arg(pane).arg(language)))
-                        << file << pane << language << false << true;
+                            << file << pane << language << alternative;
     }
     void create() {
         QFETCH(bool, file);
         QFETCH(unsigned, pane);
         QFETCH(QString, language);
         QFETCH(bool, alternative);
-        QFETCH(bool, flat);
         const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         QFile::remove(settings);
         SaveRegLang(ToUString(language), settings);
@@ -139,7 +131,6 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         CMyComPtr<IFolderFolder> peerFolder = peer->sourcePanel->GetFolder();
         auto *view = openPanel(window, pane, fixture.path());
         QTRY_COMPARE(view->rowCount(), file ? 2 : 1);
-        action(window, "flatViewAction")->setChecked(flat);
         QTRY_COMPARE(view->rowCount(), file ? 2 : 1);
         view->sourcePanel->Set_AutoRefresh_Mode(false);
         view->selectRow(row(view, "keep.bin"));
@@ -193,7 +184,7 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         invoke(true);
         QVERIFY(observed);
         QTRY_VERIFY(QFileInfo::exists(fixture.filePath(entered)));
-        QTRY_COMPARE(view->rowCount(), flat ? 3 : 2);
+        QTRY_COMPARE(view->rowCount(), 2);
         const QString focused =
             file ? QStringLiteral("nested 空") : QStringLiteral("new folder 空");
         QTRY_COMPARE(view->currentRow(), row(view, focused));

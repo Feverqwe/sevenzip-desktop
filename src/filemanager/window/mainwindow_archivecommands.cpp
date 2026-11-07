@@ -32,7 +32,7 @@ void MainWindow::calculateHash(const QString &method) {
         UStringVector paths;
         FOR_VECTOR(i, indices)
         paths.Add(panel.GetItemRelPath(indices[i]));
-        launchGuiHash(paths, ToUString(method), panel.GetFsPath(), !panel.GetFlatMode());
+        launchGuiHash(paths, ToUString(method), panel.GetFsPath(), true);
         return;
     }
     const auto previousState = projectedUi().state;

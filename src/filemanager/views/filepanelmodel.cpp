@@ -50,8 +50,6 @@ QVariant FilePanelModel::data(const QModelIndex &index, int role) const {
         return row.directory;
     case QtPanelList::NameRole:
         return row.name;
-    case QtPanelList::PrefixRole:
-        return row.prefix;
     case QtPanelList::SourceIndexRole:
         return row.sourceIndex;
     case QtPanelList::DropHighlightedRole:
@@ -148,7 +146,7 @@ QVariant FilePanelModel::data(const QModelIndex &index, int role) const {
                 try {
                     QString text = panel->GetItemText(row.sourceIndex, *prop);
                     if (column == 0)
-                        text = (row.prefix + text).normalized(QString::NormalizationForm_C);
+                        text = text.normalized(QString::NormalizationForm_C);
                     row.text.insert(column, {text, languageGeneration_, regionalGeneration_});
                     return text;
                 } catch (...) {
@@ -156,8 +154,7 @@ QVariant FilePanelModel::data(const QModelIndex &index, int role) const {
                 }
             }
         }
-        return column == 0 ? (row.prefix + row.name).normalized(QString::NormalizationForm_C)
-                           : QString();
+        return column == 0 ? row.name.normalized(QString::NormalizationForm_C) : QString();
     default:
         return {};
     }

@@ -217,31 +217,6 @@ class PropertiesWindowTests final : public QObject, protected MainWindowTestSupp
         QVERIFY(window.Information().contains("Reported size (may be partial): Not available"));
         QVERIFY(window.Information().contains("Files: 2"));
     }
-    void flatSelectionKeepsDistinctRelativePaths() {
-        ControlledBackend backend;
-        MainWindow window(&backend);
-        window.show();
-        openListedArchive(window, backend, "flat.zip",
-                          {{"a/same.txt", 7, 3}, {"b/same.txt", 11, 5}});
-        action(window, "flatViewAction")->setChecked(true);
-        auto *view = table(window);
-        view->clearSelection();
-        for (const auto &path : {QString("a/same.txt"), QString("b/same.txt")}) {
-            const int row = rowWithPath(window, path);
-            QVERIFY(row >= 0);
-            view->selectionModel()->select(view->model()->index(row, 0),
-                                           QItemSelectionModel::Select | QItemSelectionModel::Rows);
-        }
-        action(window, "selectedPropertiesAction")->trigger();
-        auto *properties = window.findChild<QtPropertiesWindow *>();
-        QVERIFY(properties);
-        const QString information = QDir::fromNativeSeparators(properties->Information());
-        QVERIFY(information.contains("a/same.txt"));
-        QVERIFY(information.contains("b/same.txt"));
-        QVERIFY(information.contains("Source totals (may be partial)"));
-        QCOMPARE(backend.extractCalls, 0);
-        properties->close();
-    }
     void withoutSelectionUsesCurrentFolder() {
         ControlledBackend backend;
         MainWindow window(&backend);

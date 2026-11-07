@@ -60,10 +60,6 @@ void QtFileManagerCommands::RefreshViewActions() {
         const QSignalBlocker block(window_.twoPanelsAction_);
         window_.twoPanelsAction_->setChecked(window_.app_.NumPanels == 2);
     }
-    {
-        const QSignalBlocker block(window_.flatView_);
-        window_.flatView_->setChecked(panel && panel->GetFlatMode());
-    }
     for (unsigned i : {0u, 3u}) {
         const QSignalBlocker block(window_.viewActions_[i]);
         window_.viewActions_[i]->setChecked(panel && i == panel->GetListViewMode());

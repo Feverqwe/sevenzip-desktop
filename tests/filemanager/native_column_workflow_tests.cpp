@@ -336,11 +336,9 @@ class NativeColumnWorkflowTests final : public QObject, protected MainWindowTest
         CMyComPtr<IFolderFolder> provider = panel.GetFolder();
         CMyComPtr<IFolderFolder> peerProvider = peer.sourcePanel->GetFolder();
         const int peerRows = peer.rowCount();
-        for (bool flat : {false, true}) {
+        {
             focusPath(window, pane);
-            if (action(window, "flatViewAction")->isChecked() != flat)
-                action(window, "flatViewAction")->trigger();
-            QTRY_COMPARE(list.rowCount(), flat ? 5 : 2);
+            QTRY_COMPARE(list.rowCount(), 2);
             const int crcIndex = panel.GetColumns().FindItem_for_PropID(kpidCRC);
             QVERIFY(crcIndex >= 0);
             const int column = list.columnForCatalogProperty(crcIndex);
@@ -362,15 +360,14 @@ class NativeColumnWorkflowTests final : public QObject, protected MainWindowTest
                 const UInt32 index = list.model()->index(row, 0).data(Qt::UserRole + 6).toUInt();
                 QCOMPARE(list.model()->index(row, column).data().toString(), expected.second);
                 QCOMPARE(panel.GetItemText(index, panel.GetColumns()[crcIndex]), expected.second);
-                checkCrcProperties(panel, index, expected.second,
-                                   QString("%1-%2").arg(flat).arg(expected.first));
+                checkCrcProperties(panel, index, expected.second, expected.first);
                 QVERIFY(!QTest::currentTestFailed());
             }
             panel.SortItemsWithPropID(kpidCRC);
             if (!panel._ascending)
                 panel.SortItemsWithPropID(kpidCRC);
             panel.OnReload();
-            QTRY_COMPARE(list.rowCount(), flat ? 5 : 2);
+            QTRY_COMPARE(list.rowCount(), 2);
             QCOMPARE(list.model()
                          ->index(0, 0)
                          .data(Qt::UserRole)
@@ -378,7 +375,7 @@ class NativeColumnWorkflowTests final : public QObject, protected MainWindowTest
                          .normalized(QString::NormalizationForm_C),
                      low);
             QCOMPARE(list.selectionModel()->selectedRows().size(), selected);
-            inspect(window, list, peer, flat ? "crc-flat" : "crc-normal");
+            inspect(window, list, peer, "crc-normal");
             QCOMPARE(panel.GetFolder(), (IFolderFolder *)provider);
             QCOMPARE(peer.sourcePanel->GetFolder(), (IFolderFolder *)peerProvider);
             QCOMPARE(peer.rowCount(), peerRows);

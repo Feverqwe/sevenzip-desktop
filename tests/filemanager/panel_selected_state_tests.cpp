@@ -25,13 +25,7 @@ class PanelSelectedStateTests : public QObject, protected MainWindowTestSupport 
 
   private slots:
 #ifndef Q_OS_WIN
-    void filesystemRuntimeUsesNativeLinkMetadata_data() {
-        QTest::addColumn<bool>("flat");
-        QTest::newRow("normal") << false;
-        QTest::newRow("flat") << true;
-    }
     void filesystemRuntimeUsesNativeLinkMetadata() {
-        QFETCH(bool, flat);
         QTemporaryDir temp;
         QVERIFY(temp.isValid());
         const QDir root(QFileInfo(temp.path()).canonicalFilePath());
@@ -45,14 +39,13 @@ class PanelSelectedStateTests : public QObject, protected MainWindowTestSupport 
         ControlledBackend backend;
         MainWindow window(&backend);
         window.show();
-        action(window, "flatViewAction")->setChecked(false);
+
         auto *address = window.findChild<QLineEdit *>("archivePath");
         address->setText(root.path());
         QTest::keyClick(address, Qt::Key_Return);
-        action(window, "flatViewAction")->setChecked(flat);
         auto *view = table(window);
         QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
-        QTRY_COMPARE(view->rowCount(), flat ? 4 : 3);
+        QTRY_COMPARE(view->rowCount(), 3);
         for (const QString &path : {link, cycle}) {
             const int row = fileRow(view, path);
             QVERIFY(row >= 0);
@@ -69,10 +62,10 @@ class PanelSelectedStateTests : public QObject, protected MainWindowTestSupport 
             window.resize(size);
             QCoreApplication::processEvents();
             QVERIFY(UiInspection::fullyVisible(*window.centralWidget(), window));
-            QVERIFY(UiInspection::writeReport(
-                window, QString("filesystem-runtime-flat%1-%2").arg(flat).arg(size.width())));
+            QVERIFY(UiInspection::writeReport(window,
+                                              QString("filesystem-runtime-%1").arg(size.width())));
         }
-        action(window, "flatViewAction")->setChecked(false);
+
         address->setText(cycle);
         QTest::keyClick(address, Qt::Key_Return);
         QCOMPARE(address->text(), root.path());
@@ -81,21 +74,18 @@ class PanelSelectedStateTests : public QObject, protected MainWindowTestSupport 
 #endif
     void archiveRuntimeTypedSizes_data() { filesystemRefreshRetainsCurrentAndSelectedItems_data(); }
     void archiveRuntimeTypedSizes() {
-        QFETCH(bool, flat);
         QFETCH(int, mode);
         ControlledBackend backend;
         MainWindow window(&backend);
         window.show();
-        action(window, "flatViewAction")->setChecked(false);
+
         const QString folder = QStringLiteral("папка с пробелом");
         const QString unknown = folder + QStringLiteral("/неизвестный.txt");
         const QString zero = folder + QStringLiteral("/нулевой.txt");
         QList<ArchiveEntry> entries = {{unknown, -1, -1}, {zero, 0, 0}};
         openListedArchive(window, backend, "typed-sizes.zip", entries);
         entries.clear(); // The runtime retains its own immutable metadata owner.
-        if (!flat)
-            openRow(window, rowWithPath(window, folder));
-        action(window, "flatViewAction")->setChecked(flat);
+        openRow(window, rowWithPath(window, folder));
         action(window, qPrintable(QString("viewMode%1Action").arg(mode)))->trigger();
         auto *view = table(window);
         const int unknownRow = rowWithPath(window, unknown);
@@ -116,31 +106,26 @@ class PanelSelectedStateTests : public QObject, protected MainWindowTestSupport 
             QVERIFY(activeView && activeView->isVisible());
             QVERIFY(UiInspection::fullyVisible(*activeView, window));
             QVERIFY(UiInspection::writeReport(
-                window,
-                QString("archive-runtime-mode%1-flat%2-%3").arg(mode).arg(flat).arg(size.width())));
+                window, QString("archive-runtime-mode%1-%2").arg(mode).arg(size.width())));
         }
-        action(window, "flatViewAction")->setChecked(false);
     }
     void archiveRefreshRetainsCurrentAndSelectedItems_data() {
         filesystemRefreshRetainsCurrentAndSelectedItems_data();
     }
 
     void archiveRefreshRetainsCurrentAndSelectedItems() {
-        QFETCH(bool, flat);
         QFETCH(int, mode);
         ControlledBackend backend;
         MainWindow window(&backend);
         window.show();
-        action(window, "flatViewAction")->setChecked(false);
+
         const QString folder = QStringLiteral("папка с пробелом");
         const QString selected = folder + QStringLiteral("/имя.txt");
         const QString focused = folder + QStringLiteral("/текущий.txt");
         QList<ArchiveEntry> entries = {
             {selected, 1, 1}, {focused, 2, 2}, {QStringLiteral("другая/имя.txt"), 3, 3}};
         openListedArchive(window, backend, "selection-refresh.zip", entries);
-        if (!flat)
-            openRow(window, rowWithPath(window, folder));
-        action(window, "flatViewAction")->setChecked(flat);
+        openRow(window, rowWithPath(window, folder));
         action(window, qPrintable(QString("viewMode%1Action").arg(mode)))->trigger();
         auto *view = table(window);
         view->clearSelection();
@@ -154,23 +139,6 @@ class PanelSelectedStateTests : public QObject, protected MainWindowTestSupport 
         QCOMPARE(view->selectionModel()->selectedRows().size(), 1);
         QVERIFY(view->selectionModel()->isRowSelected(rowWithPath(window, selected), {}));
         QVERIFY(!view->selectionModel()->isRowSelected(rowWithPath(window, focused), {}));
-        if (!flat) {
-            // Changing flat mode must preserve current separately from selection.
-            action(window, "flatViewAction")->setChecked(true);
-            QCOMPARE(view->currentRow(), rowWithPath(window, focused));
-            action(window, "flatViewAction")->setChecked(false);
-            QCOMPARE(view->currentRow(), rowWithPath(window, focused));
-            QCOMPARE(view->selectionModel()->selectedRows().size(), 1);
-            QVERIFY(action(window, "copyAction")->isEnabled());
-            QVERIFY(action(window, "selectedPropertiesAction")->isEnabled());
-            publication.clear();
-            action(window, "refreshAction")->trigger();
-            QCOMPARE(backend.listCalls, 1);
-            QVERIFY(!publication.isEmpty());
-            QCOMPARE(view->currentRow(), rowWithPath(window, focused));
-            QVERIFY(view->selectionModel()->isRowSelected(rowWithPath(window, selected), {}));
-        }
-        action(window, "flatViewAction")->setChecked(false);
     }
 
     void failedArchiveOpenDiscardsPendingSnapshot_data() {
@@ -252,22 +220,18 @@ class PanelSelectedStateTests : public QObject, protected MainWindowTestSupport 
     }
 
     void filesystemRefreshRetainsCurrentAndSelectedItems_data() {
-        QTest::addColumn<bool>("flat");
         QTest::addColumn<int>("mode");
-        for (bool flat : {false, true})
-            for (int mode : {0, 3})
-                QTest::newRow(qPrintable(QString("flat%1-mode%2").arg(flat).arg(mode)))
-                    << flat << mode;
+        for (int mode : {0, 3})
+            QTest::newRow(qPrintable(QString("mode%1").arg(mode))) << mode;
     }
 
     void filesystemRefreshRetainsCurrentAndSelectedItems() {
-        QFETCH(bool, flat);
         QFETCH(int, mode);
         QTemporaryDir temp;
         QVERIFY(temp.isValid());
         const QDir root(QFileInfo(temp.path()).canonicalFilePath());
         QVERIFY(root.mkdir(QStringLiteral("вложенная")));
-        const QString prefix = flat ? QStringLiteral("вложенная/") : QString();
+        const QString prefix = QString();
         const QString selected = root.filePath(prefix + QStringLiteral("a пробел й.txt"));
         const QString focused = root.filePath(prefix + QStringLiteral("z текущий.txt"));
         createFile(selected);
@@ -281,7 +245,6 @@ class PanelSelectedStateTests : public QObject, protected MainWindowTestSupport 
         QTest::keyClick(address, Qt::Key_Return);
         action(window, "viewMode0Action")->trigger();
         action(window, qPrintable(QString("viewMode%1Action").arg(mode)))->trigger();
-        action(window, "flatViewAction")->setChecked(flat);
         auto *view = table(window);
         QTRY_VERIFY(fileRow(view, selected) >= 0);
         QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
@@ -303,17 +266,6 @@ class PanelSelectedStateTests : public QObject, protected MainWindowTestSupport 
         QVERIFY(action(window, "copyAction")->isEnabled());
         QVERIFY(action(window, "selectedPropertiesAction")->isEnabled());
 
-        if (!flat) {
-            action(window, "flatViewAction")->setChecked(true);
-            QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
-            QCOMPARE(view->model()->index(view->currentRow(), 1).data().toString(), focused);
-            action(window, "flatViewAction")->setChecked(false);
-            QCOMPARE(view->model()->index(view->currentRow(), 1).data().toString(), focused);
-            QCOMPARE(view->selectionModel()->selectedRows().size(), 1);
-            QVERIFY(action(window, "copyAction")->isEnabled());
-            QVERIFY(action(window, "selectedPropertiesAction")->isEnabled());
-        }
-
         const int oldFocusedRow = view->currentRow();
         QVERIFY(QFile::remove(focused));
         action(window, "refreshAction")->trigger();
@@ -326,7 +278,6 @@ class PanelSelectedStateTests : public QObject, protected MainWindowTestSupport 
                      .data()
                      .toString(),
                  selected);
-        action(window, "flatViewAction")->setChecked(false);
     }
 };
 

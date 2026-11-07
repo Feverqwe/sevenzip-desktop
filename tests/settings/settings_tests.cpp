@@ -39,8 +39,6 @@ class SettingsTests : public QObject, protected MainWindowTestSupport {
         QFETCH(bool, singleClick);
         QSettings settings(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"), QSettings::IniFormat);
         settings.setValue("FM/SingleClick", singleClick);
-        settings.setValue("view/flatDisk", false);
-        settings.setValue("view/flatArchive", false);
         settings.sync();
         QTemporaryDir dir;
         QVERIFY(dir.isValid());

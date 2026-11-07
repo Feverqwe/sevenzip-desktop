@@ -77,7 +77,7 @@ class MainWindowNavigationTests : public QObject, protected MainWindowTestSuppor
         ControlledBackend backend;
         MainWindow window(&backend);
         window.show();
-        action(window, "flatViewAction")->setChecked(false);
+
         auto *view = table(window);
         auto *address = window.findChild<QLineEdit *>("archivePath");
         int published = 0;

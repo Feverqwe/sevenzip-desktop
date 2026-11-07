@@ -73,7 +73,6 @@ class QtFileManagerCommands final : public IQtFileManagerMenuCommandServices {
     void OpenRootFolder() override;
     void OpenParentFolder() override;
     void FoldersHistory() override;
-    void ChangeFlatMode() override;
     void RefreshView() override;
     void Change_AutoRefresh_Mode() override;
     void SwitchOnOffOnePanel() override;
@@ -122,7 +121,6 @@ class QtFileManagerCommands final : public IQtFileManagerMenuCommandServices {
     void Bind(QAction *action, unsigned id, bool viewContext = false);
     void InvokeViewCommand(unsigned id);
     std::optional<unsigned> CapturedViewPanel() const;
-    void BindToggle(QAction *action, unsigned id, bool (*readState)(CApp &));
     void OpenNative(bool internal, bool external, const wchar_t *type);
     void RunNativeOpen(const std::function<void(CPanel &)> &open);
     MainWindow &window_;
