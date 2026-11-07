@@ -153,7 +153,8 @@ void MainWindow::createViewOptions(QMenu *viewMenu) {
     QtBindLocalText(root_, "CommandMenus", QT_TRANSLATE_NOOP("CommandMenus", "Computer"));
     refresh_ = new QAction("&Refresh", viewMenu);
     refresh_->setObjectName("refreshAction");
-    foldersHistory_ = new QAction("Folders History...", viewMenu);
+    foldersHistory_ = new QAction("Folders History...", this);
+    addAction(foldersHistory_);
     foldersHistory_->setObjectName("foldersHistoryAction");
     QtBindLocalText(foldersHistory_, "CommandMenus",
                     QT_TRANSLATE_NOOP("CommandMenus", "Recent places…"));
@@ -233,7 +234,7 @@ void MainWindow::populateSourceMenus() {
     view->addSeparator();
     view->addAction(twoPanelsAction_);
     view->addSeparator();
-    for (QAction *action : {back_, forward_, up_, root_, foldersHistory_})
+    for (QAction *action : {back_, forward_, up_, root_})
         view->addAction(action);
     view->addSeparator();
     view->addAction(refresh_);

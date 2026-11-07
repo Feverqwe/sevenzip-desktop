@@ -44,7 +44,6 @@ struct CPanelItemTotals;
 #define ROOT_FS_FOLDER L"/"
 #endif
 
-class CFolderHistory;
 struct CSelectedState;
 struct CExitEventLauncher;
 class QColor;
@@ -694,8 +693,6 @@ class CPanel : public QObject {
                                const CPanelItemTotals *totals = nullptr) const;
     void Properties(const CRecordVector<UInt32> &operatedIndices, QtPropertyReport &message) const;
     void Properties();
-    static QString FoldersHistory(CFolderHistory &history, const QString &settingsPath,
-                                  QWidget *parent);
     static void SetBookmark(CFastFolders &fastFolders, unsigned index,
                             const UString &currentFolderPrefix);
     static UString OpenBookmark(CFastFolders &fastFolders, unsigned index);

@@ -8,7 +8,6 @@
 #include "Windows/FileName.h"
 #include "Windows/PropVariant.h"
 #include "archive/opening/archivecontainerpath.h"
-#include "dialogs/listview/ListViewDialog.h"
 #include "filemanager/AppState.h"
 #include "filemanager/panels/Panel.h"
 #include "filemanager/providers/FSDrives.h"
@@ -16,7 +15,6 @@
 #include "filemanager/providers/RootFolder.h"
 #include "fileops/patterns/Wildcard.h"
 #include "localization/LangUtils.h"
-#include "localization/qtlangcontrols.h"
 
 static const UInt32 kParentIndex = (UInt32)-1;
 
@@ -431,27 +429,4 @@ void CPanel::SetBookmark(CFastFolders &fastFolders, unsigned index,
 
 UString CPanel::OpenBookmark(CFastFolders &fastFolders, unsigned index) {
     return fastFolders.GetString(index);
-}
-
-QString CPanel::FoldersHistory(CFolderHistory &history, const QString &settingsPath,
-                               QWidget *parent) {
-    CListViewDialog listViewDialog(parent);
-    listViewDialog.SettingsPath = settingsPath;
-    listViewDialog.DeleteIsAllowed = true;
-    listViewDialog.SelectFirst = true;
-    listViewDialog.Title = LangString(IDS_FOLDERS_HISTORY);
-    history.GetList(listViewDialog.Strings);
-    listViewDialog.OnInit();
-    QtBindLangText(&listViewDialog, IDS_FOLDERS_HISTORY);
-    if (listViewDialog.exec() != QDialog::Accepted)
-        return QString();
-    if (listViewDialog.StringsWereChanged) {
-        history.RemoveAll();
-        for (int i = (int)listViewDialog.Strings.Size() - 1; i >= 0; i--)
-            history.AddString(listViewDialog.Strings[(unsigned)i]);
-        history.Save(settingsPath);
-    }
-    return listViewDialog.FocusedItemIndex >= 0
-               ? ToQString(listViewDialog.Strings[(unsigned)listViewDialog.FocusedItemIndex])
-               : QString();
 }

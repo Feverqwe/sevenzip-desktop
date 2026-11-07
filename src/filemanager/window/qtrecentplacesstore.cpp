@@ -13,24 +13,14 @@ QtRecentPlacesStore *QtRecentPlacesStore::ForSettings(const QString &settings) {
 }
 
 QtRecentPlacesStore::QtRecentPlacesStore(const QString &settings, QObject *parent)
-    : QAbstractListModel(parent), settings_(settings) {
+    : QObject(parent), settings_(settings) {
     Reload();
 }
 
-int QtRecentPlacesStore::rowCount(const QModelIndex &parent) const {
-    return parent.isValid() ? 0 : int(paths_.Size());
-}
-
-QVariant QtRecentPlacesStore::data(const QModelIndex &index, int role) const {
-    if (!index.isValid() || index.row() < 0 || index.row() >= rowCount())
-        return {};
-    if (role == Qt::DisplayRole || role == Qt::UserRole)
-        return ToQString(paths_[unsigned(index.row())]);
-    return {};
-}
+int QtRecentPlacesStore::Count() const { return int(paths_.Size()); }
 
 QtRecentPlace QtRecentPlacesStore::Place(int row) const {
-    if (row < 0 || row >= rowCount())
+    if (row < 0 || row >= Count())
         return {};
     const QString path = ToQString(paths_[unsigned(row)]);
     auto place = Target(paths_[unsigned(row)]);
@@ -54,7 +44,6 @@ QtRecentPlace QtRecentPlacesStore::Target(const UString &path) const {
 }
 
 void QtRecentPlacesStore::Reload() {
-    beginResetModel();
     history_.Read(settings_);
     history_.GetList(paths_);
     targets_.clear();
@@ -78,7 +67,6 @@ void QtRecentPlacesStore::Reload() {
             .setValue("workspace/recentTargets",
                       QJsonDocument(retained).toJson(QJsonDocument::Compact));
     emit historyChanged();
-    endResetModel();
 }
 
 void QtRecentPlacesStore::Visit(const QtRecentPlace &place) {
@@ -94,22 +82,7 @@ void QtRecentPlacesStore::Visit(const QtRecentPlace &place) {
     Publish();
 }
 
-void QtRecentPlacesStore::Remove(const QString &path) {
-    Reload();
-    history_.RemoveAll();
-    for (unsigned index = paths_.Size(); index > 0; --index)
-        if (!paths_[index - 1].IsEqualTo_NoCase(ToUString(path)))
-            history_.AddString(paths_[index - 1]);
-    Publish();
-}
-
-void QtRecentPlacesStore::Clear() {
-    history_.RemoveAll();
-    Publish();
-}
-
 void QtRecentPlacesStore::Publish() {
-    beginResetModel();
     history_.GetList(paths_);
     QJsonObject saved;
     QHash<QString, QtRecentPlace> retained;
@@ -127,5 +100,4 @@ void QtRecentPlacesStore::Publish() {
         .setValue("workspace/recentTargets", QJsonDocument(saved).toJson(QJsonDocument::Compact));
     targets_ = std::move(retained);
     emit historyChanged();
-    endResetModel();
 }

@@ -1,4 +1,4 @@
-#include "dialogs/recentplaces/qtrecentplacesdialog.h"
+#include "filemanager/support/recent_places_menu.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/window/qtrecentplacesstore.h"
 #include "localization/LangUtils.h"
@@ -6,9 +6,8 @@
 #include "platform/support/external_editor_fixture.h"
 #include "support/panel_keys.h"
 #include "support/window_activation.h"
-#include "ui/controls/qtsourcesummary.h"
 #include "ui/support/layout_inspection.h"
-#include <QListWidget>
+#include <QMenu>
 #include <QToolButton>
 
 class RecentPlacesTests final : public QObject, protected MainWindowTestSupport {
@@ -25,24 +24,6 @@ class RecentPlacesTests final : public QObject, protected MainWindowTestSupport 
     static QString location(MainWindow &window) {
         return QDir::cleanPath(ToQString(active(window)->sourcePanel->GetCurrentFolderPrefix()));
     }
-    static QtRecentPlacesDialog *dialog(MainWindow &window) {
-        for (auto *item : window.findChildren<QDialog *>("foldersHistoryDialog"))
-            if (item->isVisible())
-                return dynamic_cast<QtRecentPlacesDialog *>(item);
-        return nullptr;
-    }
-    static QListWidget *list(QtRecentPlacesDialog &dialog) {
-        return dialog.findChild<QListWidget *>("foldersHistoryList");
-    }
-    static void choose(QtRecentPlacesDialog &dialog, const QString &path) {
-        auto *items = list(dialog);
-        for (int row = 0; row < items->count(); ++row)
-            if (items->item(row)->data(Qt::UserRole).toString() == path) {
-                items->setCurrentRow(row);
-                return;
-            }
-        QFAIL("Requested recent place is absent");
-    }
     static void directory(const QString &path, int count = 1) {
         QVERIFY(QDir().mkpath(path));
         for (int index = 0; index < count; ++index)
@@ -58,123 +39,62 @@ class RecentPlacesTests final : public QObject, protected MainWindowTestSupport 
         ReloadLang(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
     }
 
-    void clearWithFilterIsImmediateAndPreservesOtherOwners() {
-        QTemporaryDir fixture;
-        const QString a = fixture.filePath("Previous 空"), b = fixture.filePath("Current папка");
-        directory(a);
-        directory(b);
-        ControlledBackend firstBackend, secondBackend;
-        MainWindow first(&firstBackend), second(&secondBackend);
-        first.show();
-        second.show();
-        first.openPath(a);
-        action(first, "saveBookmark4Action")->trigger();
-        first.openPath(b);
-        action(first, "backAction")->trigger();
-        QTRY_COMPARE(location(first), a);
-        second.openPath(b);
-        action(first, "foldersHistoryAction")->trigger();
-        auto *form = dialog(first);
-        QVERIFY(form);
-        form->findChild<QLineEdit *>("recentPlacesSearch")->setText("Previous");
-        QCOMPARE(list(*form)->count(), 1);
-        form->findChild<QPushButton *>("recentPlacesRemove")->click();
-        QCOMPARE(store().IndexOf(a + '/'), -1);
-        QVERIFY(QFileInfo::exists(a + "/item-0.txt"));
-        form->findChild<QPushButton *>("recentPlacesClear")->click();
-        QCOMPARE(store().rowCount(), 0);
-        QCOMPARE(form->findChild<QLineEdit *>("recentPlacesSearch")->text(), "Previous");
-        QVERIFY(!form->findChild<QPushButton *>("recentPlacesOpen")->isEnabled());
-        form->reject();
-        second.close(); // Its native AppState must not resurrect old history.
-        CFastFolders bookmarks;
-        bookmarks.Read(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
-        QCOMPARE(QDir::cleanPath(ToQString(bookmarks.GetString(4))), a);
-        CFolderHistory saved;
-        saved.Read(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
-        UStringVector paths;
-        saved.GetList(paths);
-        QVERIFY(paths.IsEmpty());
-        action(first, "forwardAction")->trigger();
-        QTRY_COMPARE(location(first), b);
-        QVERIFY(QFileInfo::exists(b + "/item-0.txt"));
-    }
-
-    void searchKeyboardEmptyStatesAndWrappedRows_data() {
+    void addressMenuLimitsHistoryAndEscapePreservesLocation_data() {
         QTest::addColumn<QString>("language");
-        QTest::newRow("en") << QString("-");
-        QTest::newRow("ru") << QString("ru");
+        QTest::addColumn<QSize>("size");
+        for (const QString &language : {QString("-"), QString("ru")})
+            for (const QSize &size : {QSize(980, 620), QSize(640, 400)})
+                QTest::newRow(qPrintable(language + QString::number(size.width())))
+                    << language << size;
     }
-    void searchKeyboardEmptyStatesAndWrappedRows() {
+    void addressMenuLimitsHistoryAndEscapePreservesLocation() {
         QFETCH(QString, language);
+        QFETCH(QSize, size);
         SaveRegLang(ToUString(language), qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         ReloadLang(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
-        const QString longPath =
-            "/" + QString("длинный path 空/").repeated(18) + "source.7z/folder";
-        store().Visit({"/Other place", {}, {}});
-        store().Visit({longPath, {}, {}});
-        QtRecentPlacesDialog form(store());
-        QString requested;
-        form.SetOpenHandler([&](const QtRecentPlace &place) {
-            requested = place.path;
-            form.Complete(
-                false, QCoreApplication::translate("QtWindowWorkspace",
-                                                   "The location is unavailable or disconnected."));
-        });
-        form.show();
-        QVERIFY(WindowActivation::waitForActive(form));
-        QApplication::processEvents();
-        QVERIFY(
-            UiInspection::writeReport(form, QString("recent-places-%1-populated").arg(language)));
-        auto *search = form.findChild<QLineEdit *>("recentPlacesSearch");
-        auto *items = list(form);
-        QCOMPARE(items->currentRow(), 0);
-        search->setFocus();
-        QTest::keyClick(search, Qt::Key_Down);
-        QTRY_VERIFY(items->hasFocus());
-        QTest::keyClick(items, Qt::Key_End);
-        QCOMPARE(items->currentRow(), items->count() - 1);
-        QTest::keyClick(items, Qt::Key_Home);
-        QCOMPARE(items->currentRow(), 0);
-        search->setText("SOURCE.7Z");
-        QCOMPARE(items->count(), 1);
-        search->setFocus();
-        QTest::keyClick(search, Qt::Key_Return);
-        QCOMPARE(requested, longPath);
-        QVERIFY(form.isVisible());
-        QCOMPARE(search->text(), "SOURCE.7Z");
-        QVERIFY(form.findChild<QLabel *>("recentPlacesError")->isVisible());
-        for (const QSize size : {QSize(600, 480), QSize(480, 640)}) {
-            form.resize(size);
-            QApplication::processEvents();
-            QVERIFY(UiInspection::fullyVisible(*items, form));
-            for (auto *button : form.findChildren<QPushButton *>())
-                if (button->isVisible())
-                    QVERIFY(UiInspection::fullyVisible(*button, form));
-            auto *summary = static_cast<QtSourceSummary *>(items->itemWidget(items->item(0)));
-            for (auto *label : summary->findChildren<QLabel *>())
-                QVERIFY(label->geometry().right() <= summary->width());
-            QVERIFY(UiInspection::writeReport(
-                form, QString("recent-places-%1-%2").arg(language).arg(size.width())));
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString initial = fixture.filePath("Source");
+        directory(initial);
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.resize(size);
+        window.show();
+        window.openPath(initial);
+        QTRY_COMPARE(location(window), initial);
+        QStringList paths;
+        for (int i = 0; i < 7; ++i) {
+            const QString path = fixture.filePath(QString("Папка & 空 %1").arg(i));
+            directory(path);
+            store().Visit({path, {}, {}});
+            paths.prepend(path);
         }
-        search->setText("no such result");
-        QApplication::processEvents();
-        auto *empty = form.findChild<QLabel *>("recentPlacesEmpty");
-        const QString noMatch = empty->text();
-        QVERIFY(!form.findChild<QPushButton *>("recentPlacesOpen")->isEnabled());
-        QVERIFY(
-            UiInspection::writeReport(form, QString("recent-places-%1-no-results").arg(language)));
-        form.findChild<QPushButton *>("recentPlacesClear")->click();
-        QApplication::processEvents();
-        QVERIFY(empty->text() != noMatch);
-        QVERIFY(search->isEnabled());
-        QVERIFY(UiInspection::writeReport(form, QString("recent-places-%1-empty").arg(language)));
-        search->setFocus();
-        QTest::keyClick(search, Qt::Key_Escape);
-        QTRY_VERIFY(!form.isVisible());
+        auto *button = window.findChild<QToolButton *>("panelRecentPlacesButton0");
+        QVERIFY(button && button->isVisible());
+        QTest::mouseClick(button, Qt::LeftButton);
+        QTRY_VERIFY(RecentPlacesMenu::Visible(window));
+        auto *popup = RecentPlacesMenu::Visible(window);
+        QCOMPARE(popup->actions().size(), 5);
+        for (qsizetype i = 0; i < popup->actions().size(); ++i)
+            QCOMPARE(QDir::cleanPath(popup->actions()[i]->data().toString()), paths[i]);
+        QVERIFY(UiInspection::fullyVisible(*button, window));
+        QVERIFY(UiInspection::writeReport(*popup, "recent-places-" + language +
+                                                      QString::number(size.width())));
+        QTest::keyClick(popup, Qt::Key_Escape);
+        QTRY_VERIFY(!RecentPlacesMenu::Visible(window));
+        QCOMPARE(location(window), initial);
+        button->click();
+        QTRY_VERIFY(RecentPlacesMenu::Visible(window));
+        popup = RecentPlacesMenu::Visible(window);
+        auto *entry = RecentPlacesMenu::Find(*popup, paths.first());
+        QVERIFY(entry);
+        RecentPlacesMenu::Choose(*popup, *entry);
+        QTRY_COMPARE(location(window), paths.first());
+        action(window, "backAction")->trigger();
+        QTRY_COMPARE(location(window), initial);
     }
 
-    void missingPlaceKeepsFormSourceAndHistoryCursor() {
+    void missingPlaceKeepsLocationAndHistoryCursor() {
         QTemporaryDir fixture;
         const QString a = fixture.filePath("Available"), missing = fixture.filePath("Missing");
         directory(a);
@@ -184,24 +104,25 @@ class RecentPlacesTests final : public QObject, protected MainWindowTestSupport 
         window.openPath(a);
         store().Visit({missing, {}, {}});
         action(window, "foldersHistoryAction")->trigger();
-        auto *form = dialog(window);
-        QVERIFY(form);
-        form->findChild<QLineEdit *>("recentPlacesSearch")->setText("Missing");
-        choose(*form, missing);
+        QTRY_VERIFY(RecentPlacesMenu::Visible(window));
+        auto *popup = RecentPlacesMenu::Visible(window);
+        auto *entry = RecentPlacesMenu::Find(*popup, missing);
+        QVERIFY(entry);
         const auto *provider = active(window)->sourcePanel->GetFolder();
-        form->accept();
-        QTRY_VERIFY(form->findChild<QLabel *>("recentPlacesError")->isVisible());
-        QVERIFY(UiInspection::writeReport(*form, "recent-places-unavailable"));
+        RecentPlacesMenu::Choose(*popup, *entry);
+        QTRY_VERIFY(!window.statusBar()->currentMessage().isEmpty());
         QCOMPARE(location(window), a);
         QCOMPARE(active(window)->sourcePanel->GetFolder(), provider);
-        QCOMPARE(form->findChild<QLineEdit *>("recentPlacesSearch")->text(), "Missing");
-        QCOMPARE(list(*form)->currentItem()->data(Qt::UserRole).toString(), missing);
         QVERIFY(store().IndexOf(missing) >= 0);
         QVERIFY(!action(window, "forwardAction")->isEnabled());
         directory(missing);
-        form->accept();
-        QTRY_VERIFY(!dialog(window));
-        QCOMPARE(location(window), missing);
+        action(window, "foldersHistoryAction")->trigger();
+        QTRY_VERIFY(RecentPlacesMenu::Visible(window));
+        popup = RecentPlacesMenu::Visible(window);
+        entry = RecentPlacesMenu::Find(*popup, missing);
+        QVERIFY(entry);
+        RecentPlacesMenu::Choose(*popup, *entry);
+        QTRY_COMPARE(location(window), missing);
         action(window, "backAction")->trigger();
         QTRY_COMPARE(location(window), a);
     }
@@ -232,40 +153,14 @@ class RecentPlacesTests final : public QObject, protected MainWindowTestSupport 
         QTRY_VERIFY(active(window)->hasFocus());
         store().Visit({b, {}, {}});
         action(window, "foldersHistoryAction")->trigger();
-        auto *form = dialog(window);
-        QVERIFY(form);
+        QTRY_VERIFY(RecentPlacesMenu::Visible(window));
+        auto *popup = RecentPlacesMenu::Visible(window);
         other->setFocus();
-        choose(*form, b);
-        form->accept();
-        QTRY_VERIFY(!dialog(window));
+        auto *entry = RecentPlacesMenu::Find(*popup, b);
+        QVERIFY(entry);
+        RecentPlacesMenu::Choose(*popup, *entry);
         QTRY_COMPARE(location(window), b);
         QCOMPARE(QDir::cleanPath(ToQString(other->sourcePanel->GetCurrentFolderPrefix())), c);
-    }
-
-    void closingPendingFormCancelsItsPublication() {
-        QTemporaryDir fixture;
-        const QString a = fixture.filePath("A"), b = fixture.filePath("B"),
-                      c = fixture.filePath("C");
-        directory(a);
-        directory(b, 301);
-        directory(c);
-        ControlledBackend backend;
-        MainWindow window(&backend);
-        window.show();
-        window.openPath(a);
-        store().Visit({b, {}, {}});
-        store().Visit({c, {}, {}});
-        action(window, "foldersHistoryAction")->trigger();
-        auto *form = dialog(window);
-        QVERIFY(form);
-        choose(*form, b);
-        form->accept();
-        form->reject();
-        QTRY_COMPARE(location(window), a);
-        QTRY_VERIFY(active(window)->sourcePanel->ShouldProcessNotifications());
-        QCOMPARE(QDir::cleanPath(store().Place(0).path), c);
-        QCOMPARE(active(window)->rowCount(), 1);
-        QVERIFY(!action(window, "forwardAction")->isEnabled());
     }
 
     void closedNestedArchiveReopensThroughRecordedNativeTarget() {
@@ -295,11 +190,12 @@ class RecentPlacesTests final : public QObject, protected MainWindowTestSupport 
         const QString requested = ToQString(active(window)->sourcePanel->GetCurrentFolderPrefix());
         window.openPath(plain);
         action(window, "foldersHistoryAction")->trigger();
-        auto *form = dialog(window);
-        QVERIFY(form);
-        choose(*form, requested);
-        form->accept();
-        QTRY_VERIFY(!dialog(window));
+        QTRY_VERIFY(RecentPlacesMenu::Visible(window));
+        auto *popup = RecentPlacesMenu::Visible(window);
+        auto *recent = RecentPlacesMenu::Find(*popup, requested);
+        QVERIFY(recent);
+        RecentPlacesMenu::Choose(*popup, *recent);
+        QTRY_COMPARE(ToQString(active(window)->sourcePanel->GetCurrentFolderPrefix()), requested);
         QCOMPARE(active(window)->sourcePanel->GetParentFolders().Size(), 2u);
         QCOMPARE(ToQString(active(window)->sourcePanel->GetCurrentFolderPrefix()), requested);
         const int row = rowWithPath(window, entry);
@@ -325,16 +221,13 @@ class RecentPlacesTests final : public QObject, protected MainWindowTestSupport 
         ReloadLang(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         QtNotifyLanguageChanged();
         action(window, "foldersHistoryAction")->trigger();
-        auto *form = dialog(window);
-        QVERIFY(form);
-        choose(*form, previous);
-        auto *summary =
-            static_cast<QtSourceSummary *>(list(*form)->itemWidget(list(*form)->currentItem()));
-        QCOMPARE(summary->accessibleName(),
-                 QString(action(window, "openRootAction")->text()).remove('&'));
-        form->accept();
-        QTRY_VERIFY(!dialog(window));
-        QVERIFY(active(window)->sourcePanel->IsFSDrivesFolder());
+        QTRY_VERIFY(RecentPlacesMenu::Visible(window));
+        auto *popup = RecentPlacesMenu::Visible(window);
+        auto *recent = RecentPlacesMenu::Find(*popup, previous);
+        QVERIFY(recent);
+        QCOMPARE(recent->text(), QString(action(window, "openRootAction")->text()).remove('&'));
+        RecentPlacesMenu::Choose(*popup, *recent);
+        QTRY_VERIFY(active(window)->sourcePanel->IsFSDrivesFolder());
         QVERIFY(!active(window)->sourcePanel->IsFSFolder());
         QVERIFY(!action(window, "createFolderAction")->isEnabled());
     }

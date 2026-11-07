@@ -6265,15 +6265,6 @@ Use `Revert` to recover timestamp.</source>
         </message>
     </context>
     <context>
-        <name>QtRecentPlacesDialog</name>
-        <message><source>Recent places</source><translation>Недавние места</translation></message>
-        <message><source>Search by name or path</source><translation>Поиск по имени или пути</translation></message>
-        <message><source>Remove from list</source><translation>Убрать из списка</translation></message>
-        <message><source>Clear list</source><translation>Очистить список</translation></message>
-        <message><source>No recent places yet.</source><translation>Недавних мест пока нет.</translation></message>
-        <message><source>No matching places.</source><translation>Подходящих мест нет.</translation></message>
-    </context>
-    <context>
         <name>mainwindow_menus</name>
         <message>
             <source>Forward</source>
@@ -7344,6 +7335,7 @@ Check that your distribution's CIFS support and cifs-utils are installed.</sourc
 </context>
 <context>
     <name>QtWindowWorkspace</name>
+    <message><source>No recent places yet.</source><translation>Недавних мест пока нет.</translation></message>
     <message><source>The archive changed. Reopen it to see the saved changes. The previous view is available for copying.</source><translation>Архив изменился. Откройте его заново, чтобы увидеть сохранённые изменения. Из прежнего представления можно копировать файлы.</translation></message>
     <message><source>The original panel is closed.</source><translation>Исходная панель закрыта.</translation></message>
     <message><source>The original panel is busy.</source><translation>Исходная панель занята.</translation></message>

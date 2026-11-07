@@ -112,6 +112,18 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
         });
     projectedUi().navigation->setObjectName(QStringLiteral("panelNavigation%1").arg(index));
     navigation->addWidget(projectedUi().navigation);
+    auto *recent = new QToolButton(navigationRow);
+    projectedUi().recentPlaces = recent;
+    recent->setObjectName(QStringLiteral("panelRecentPlacesButton%1").arg(index));
+    recent->setAutoRaise(true);
+    QtConfigureChromeToolButton(*recent);
+    recent->setIcon(QtCommandSymbol(QtCommandIcon::History));
+    QtBindLocalText(recent, "CommandMenus", QT_TRANSLATE_NOOP("CommandMenus", "Recent places…"),
+                    true);
+    QtBindLocalToolTip(recent, "CommandMenus", QT_TRANSLATE_NOOP("CommandMenus", "Recent places…"));
+    connect(recent, &QToolButton::clicked, this,
+            [this, index, recent] { workspace_->ShowRecentPlaces(index, *recent); });
+    navigation->addWidget(recent);
     projectedUi().readOnlyIndicator = new QLabel(navigationRow);
     projectedUi().readOnlyIndicator->setObjectName("deviceReadOnlyLabel");
     projectedUi().readOnlyIndicator->hide();

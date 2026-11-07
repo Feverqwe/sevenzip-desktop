@@ -1,3 +1,4 @@
+#include "filemanager/support/recent_places_menu.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
 #include "localization/LangUtils.h"
@@ -6,7 +7,6 @@
 #include "support/widget_dialogs.h"
 #include "ui/support/layout_inspection.h"
 #include <QScopeGuard>
-#include <QTreeWidget>
 
 class NativePersistedLocationsTests final : public QObject, protected MainWindowTestSupport {
     Q_OBJECT
@@ -52,35 +52,13 @@ class NativePersistedLocationsTests final : public QObject, protected MainWindow
         timer.start(5);
     }
     void openHistory(MainWindow &window, const QString &source) {
-        bool selected = false;
-        QTimer responder;
-        QTimer deadline;
-        deadline.setSingleShot(true);
-        connect(&deadline, &QTimer::timeout, &window, [&] {
-            if (auto *dialog = window.findChild<QDialog *>("foldersHistoryDialog"))
-                dialog->reject();
-        });
-        dialogs_.connectResponder(responder, &window, [&] {
-            auto *dialog = dialogs_.activeDialog();
-            if (!dialog || dialog->objectName() != "foldersHistoryDialog")
-                return;
-            responder.stop();
-            const auto close = qScopeGuard([&] {
-                if (dialog->isVisible())
-                    dialog->reject();
-            });
-            auto *tree = dialog->findChild<QTreeWidget *>("foldersHistoryList");
-            QVERIFY(tree);
-            const auto matches = tree->findItems(source, Qt::MatchExactly);
-            QCOMPARE(matches.size(), 1);
-            tree->setCurrentItem(matches.first());
-            selected = true;
-            dialog->accept();
-        });
-        responder.start(5);
-        deadline.start(5000);
         action(window, "foldersHistoryAction")->trigger();
-        QVERIFY(selected);
+        QTRY_VERIFY(RecentPlacesMenu::Visible(window));
+        auto *popup = RecentPlacesMenu::Visible(window);
+        auto *entry = RecentPlacesMenu::Find(*popup, source);
+        QVERIFY(entry);
+        RecentPlacesMenu::Choose(*popup, *entry);
+        QTRY_VERIFY(!RecentPlacesMenu::Visible(window));
     }
 
   private slots:

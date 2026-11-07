@@ -21,7 +21,6 @@ class QtFavoriteStore;
 class QtFastFoldersStore;
 class QtNativePlaces;
 class QtRecentPlacesStore;
-class QtRecentPlacesDialog;
 struct QtRecentPlace;
 class QtArchiveMountManager;
 
@@ -52,7 +51,7 @@ class QtWindowWorkspace final : public QObject {
     bool PreparePanelForShow(unsigned panel);
     HRESULT Navigate(const std::function<HRESULT()> &body,
                      std::function<void(HRESULT)> finished = {});
-    void ShowRecentPlaces();
+    void ShowRecentPlaces(unsigned panel, QWidget &anchor);
     void RecordVisit(const QString &path);
     void SetBookmark(unsigned index, const UString &path);
     void ProtectNavigation(const QString &path = {});
@@ -86,8 +85,6 @@ class QtWindowWorkspace final : public QObject {
         unsigned depth = 0;
         std::optional<HRESULT> completed;
         std::function<void(HRESULT)> finished;
-        QPointer<QObject> requester;
-        bool canceled = false;
     };
     struct Location {
         QString path;
@@ -130,8 +127,7 @@ class QtWindowWorkspace final : public QObject {
     void ShowArchiveChangeNotice(unsigned panel);
     void AddFavorite();
     void OpenFavorite(const QString &path);
-    void OpenRecentPlace(unsigned panel, const QtRecentPlace &place,
-                         QPointer<QtRecentPlacesDialog> target);
+    void OpenRecentPlace(unsigned panel, const QtRecentPlace &place);
     void WhenReady(std::function<void()> body, std::function<void()> canceled = {});
     void RestoreListFocus(unsigned panel, quint64 request, QPointer<QWidget> widget);
     void RestorePanel(unsigned panel, const QJsonObject &saved, std::function<void()> finished,
@@ -145,7 +141,6 @@ class QtWindowWorkspace final : public QObject {
     QtFastFoldersStore *fastFolders_ = nullptr;
     QtNativePlaces *nativePlaces_ = nullptr;
     QtRecentPlacesStore *recentPlaces_ = nullptr;
-    QPointer<QtRecentPlacesDialog> recentDialog_;
     quint64 focusRequest_ = 0;
     std::array<std::unique_ptr<Navigation>, 2> navigation_;
     bool restoringNavigation_ = false;

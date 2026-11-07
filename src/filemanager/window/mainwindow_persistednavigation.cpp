@@ -5,6 +5,7 @@
 #include "filemanager/window/qtwindowworkspace.h"
 #include <QDir>
 #include <QFileInfo>
+#include <QTimer>
 
 QString MainWindow::sourcePathFromDisplayPath(QString path) const {
     // A display separator follows the archive, including a nested archive
@@ -26,7 +27,11 @@ void MainWindow::recordVisitedPath(const QString &path) { workspace_->RecordVisi
 void MainWindow::showFoldersHistory() {
     if (projectedUi().state == State::Loading || projectedUi().state == State::Operating)
         return;
-    workspace_->ShowRecentPlaces();
+    if (auto *anchor = projectedUi().recentPlaces) {
+        const unsigned panel = projectedPanel_;
+        QTimer::singleShot(0, anchor,
+                           [this, panel, anchor] { workspace_->ShowRecentPlaces(panel, *anchor); });
+    }
 }
 void MainWindow::refreshBookmarks() { MyLoadBookmarks(openBookmarks_, saveBookmarks_, app_); }
 

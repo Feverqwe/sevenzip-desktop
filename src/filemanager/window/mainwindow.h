@@ -336,6 +336,7 @@ class MainWindow : public QMainWindow {
         QLineEdit *path = nullptr;
         QComboBox *pathCombo = nullptr;
         QtNavigationBar *navigation = nullptr;
+        QToolButton *recentPlaces = nullptr;
         QWidget *navigationNotice = nullptr;
         QLabel *navigationError = nullptr;
         FileTable *table = nullptr;

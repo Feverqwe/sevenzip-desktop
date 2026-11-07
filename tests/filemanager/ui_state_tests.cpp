@@ -1,7 +1,7 @@
+#include "filemanager/support/recent_places_menu.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
 #include <QScopeGuard>
-#include <QTreeWidget>
 
 extern bool g_CaseSensitive;
 
@@ -14,7 +14,7 @@ class MainWindowStateTests : public QObject, protected MainWindowTestSupport {
         settings.clear();
     }
 
-    void foldersHistoryDialogPersistsAndDeletesEntries() {
+    void recentPlacesPersistAcrossWindows() {
         QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         QTemporaryDir temp;
         QVERIFY(temp.isValid());
@@ -24,38 +24,23 @@ class MainWindowStateTests : public QObject, protected MainWindowTestSupport {
         QVERIFY(QDir().mkpath(second));
         ControlledBackend backend;
         MainWindow window(&backend);
-        auto *address = window.findChild<QLineEdit *>("archivePath");
-        address->setText(first);
-        QTest::keyClick(address, Qt::Key_Return);
-        address->setText(second);
-        QTest::keyClick(address, Qt::Key_Return);
+        window.show();
+        window.openPath(first);
+        window.openPath(second);
         const QString canonicalFirst = QFileInfo(first).canonicalFilePath();
         const QString canonicalSecond = QFileInfo(second).canonicalFilePath();
-        QTimer::singleShot(0, [&] {
-            auto *dialog = window.findChild<QDialog *>("foldersHistoryDialog");
-            QVERIFY(dialog);
-            auto *list = dialog->findChild<QTreeWidget *>("foldersHistoryList");
-            QCOMPARE(list->topLevelItem(0)->text(0), canonicalSecond);
-            QCOMPARE(list->topLevelItem(1)->text(0), canonicalFirst);
-            list->setCurrentItem(list->topLevelItem(0));
-            QTest::keyClick(list, Qt::Key_Delete);
-            list->setCurrentItem(list->topLevelItem(0));
-            dialog->accept();
-        });
-        action(window, "foldersHistoryAction")->trigger();
-        QCOMPARE(address->text(), canonicalFirst);
         MainWindow reopened(&backend);
-        QTimer::singleShot(0, &reopened, [&] {
-            auto *dialog = reopened.findChild<QDialog *>("foldersHistoryDialog");
-            QVERIFY(dialog);
-            const auto close = qScopeGuard([&] { dialog->reject(); });
-            auto *list = dialog->findChild<QTreeWidget *>("foldersHistoryList");
-            QVERIFY(list);
-            QCOMPARE(list->findItems(canonicalFirst, Qt::MatchExactly).size(), 1);
-            QCOMPARE(list->findItems(canonicalSecond, Qt::MatchExactly).size(), 0);
-        });
-        QVERIFY(action(reopened, "foldersHistoryAction")->isEnabled());
+        reopened.show();
         action(reopened, "foldersHistoryAction")->trigger();
+        QTRY_VERIFY(RecentPlacesMenu::Visible(reopened));
+        auto *popup = RecentPlacesMenu::Visible(reopened);
+        auto *firstItem = RecentPlacesMenu::Find(*popup, canonicalFirst);
+        auto *secondItem = RecentPlacesMenu::Find(*popup, canonicalSecond);
+        QVERIFY(firstItem && secondItem);
+        QVERIFY(popup->actions().indexOf(secondItem) < popup->actions().indexOf(firstItem));
+        RecentPlacesMenu::Choose(*popup, *firstItem);
+        QTRY_COMPARE(QDir::cleanPath(reopened.findChild<QLineEdit *>("archivePath")->text()),
+                     canonicalFirst);
     }
 
     void favoritesFollowFoldersAndArchivePaths() {

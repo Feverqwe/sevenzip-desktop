@@ -23,7 +23,8 @@ enum class QtCommandIcon {
     Computer,
     Network,
     Volumes,
-    Operations
+    Operations,
+    History
 };
 
 // Vector chrome graphics; file-list and application icons stay native.

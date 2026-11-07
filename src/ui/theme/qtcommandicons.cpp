@@ -206,6 +206,12 @@ QPainterPath geometry(QtCommandIcon command) {
         line(12, 16, 12, 12);
         line(12, 8, 12.01, 8);
         break;
+    case QtCommandIcon::History:
+        p.addEllipse(QPointF(12, 12), 9, 9);
+        p.moveTo(12, 6);
+        p.lineTo(12, 12);
+        p.lineTo(16, 14);
+        break;
     case QtCommandIcon::Parent:
         p.moveTo(5, 12);
         p.lineTo(12, 5);

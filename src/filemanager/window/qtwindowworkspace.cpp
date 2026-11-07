@@ -1,5 +1,4 @@
 #include "filemanager/window/qtwindowworkspace.h"
-#include "dialogs/recentplaces/qtrecentplacesdialog.h"
 #include "filemanager/panels/qtpaneladdresscombo.h"
 #include "filemanager/qtfilemanagerdrag.h"
 #include "filemanager/window/mainwindow.h"
@@ -21,9 +20,8 @@ QtWindowWorkspace::QtWindowWorkspace(MainWindow &window) : QObject(&window), win
             window_.refreshBookmarks();
     });
     recentPlaces_ = QtRecentPlacesStore::ForSettings(window.toolbarSettingsPath());
-    connect(recentPlaces_, &QtRecentPlacesStore::historyChanged, this,
-            [this] { window_.app_.AppState.FolderHistory.Read(window_.toolbarSettingsPath()); });
-    connect(recentPlaces_, &QAbstractItemModel::modelReset, this, [this] {
+    connect(recentPlaces_, &QtRecentPlacesStore::historyChanged, this, [this] {
+        window_.app_.AppState.FolderHistory.Read(window_.toolbarSettingsPath());
         if (window_.commands_ && window_.panelUi_[0].table &&
             !window_.app_.QtOperations().closed() && !window_.app_.QtOperations().active() &&
             !window_.app_.QtOperations().callActive() && !window_.sourceArchiveProgress_)
@@ -52,9 +50,7 @@ void QtWindowWorkspace::SetBookmark(unsigned index, const UString &path) {
 bool QtWindowWorkspace::Ready() const {
     return !changing_ && !window_.app_.QtOperations().closed() &&
            !window_.app_.QtOperations().active() && !window_.app_.QtOperations().callActive() &&
-           !window_.sourceArchiveProgress_ &&
-           (!QApplication::activeModalWidget() ||
-            QApplication::activeModalWidget() == recentDialog_) &&
+           !window_.sourceArchiveProgress_ && !QApplication::activeModalWidget() &&
            !window_.backend_->busy() && (!window_.drag_ || !window_.drag_->Active()) &&
            (!window_.appPresentation_ || !window_.appPresentation_->IsCopyPending());
 }

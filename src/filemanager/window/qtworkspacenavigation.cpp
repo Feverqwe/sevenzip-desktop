@@ -50,8 +50,6 @@ HRESULT QtWindowWorkspace::Navigate(const std::function<HRESULT()> &body,
     }
     auto &request = navigation_[panel];
     if (request && request->depth == 0) {
-        if (request->canceled)
-            result = E_ABORT;
         const auto &ui = window_.panelUi_[panel];
         if (result != S_OK || (!ui.scanningDisk && !ui.scanningArchive))
             FinishNavigation(panel, result == S_OK ? request->completed.value_or(S_OK) : result);
@@ -128,8 +126,6 @@ void QtWindowWorkspace::FinishNavigation(unsigned panel, HRESULT result) {
     auto request = std::move(navigation_[panel]);
     if (!request)
         return;
-    if (request->canceled)
-        result = E_ABORT;
     const auto complete = qScopeGuard([&] {
         if (request->finished)
             request->finished(result);

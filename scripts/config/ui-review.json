@@ -6,7 +6,7 @@
   {"id":"selection-gesture","title":"Рамочное выделение в таблице и значках","target":"workspace_selection_gesture_tests","functions":["blankAreaSelectsIntersectedEntries:table-0-0","blankAreaSelectsIntersectedEntries:icons-0-0"]},
   {"id":"file-states","title":"Общие состояния: Cut, выделение и текущий элемент","target":"workspace_file_states_tests","functions":["fileStateGeometry"]},
   {"id":"workspace-history","title":"Назад и вперёд: история панели, EN/RU","target":"workspace_history_tests","functions":["keyboardAndNavigationGeometry"]},
-  {"id":"recent-places","title":"Недавние места: поиск, пустой список и отказ открытия, EN/RU","target":"recent_places_tests","functions":["searchKeyboardEmptyStatesAndWrappedRows","missingPlaceKeepsFormSourceAndHistoryCursor"]},
+  {"id":"recent-places","title":"Недавние места у адресной строки, EN/RU","target":"recent_places_tests","functions":["addressMenuLimitsHistoryAndEscapePreservesLocation"]},
   {"id":"task-result","title":"Результаты независимых задач: сбой и отмена, EN/RU","target":"task_result_window_tests","functions":["compactReportKeepsFullDiagnostic"]},
   {"id":"operations-menu","title":"Операции: возврат к живому окну и результату, EN/RU","target":"operations_menu_tests","functions":["returnsToSelectedLiveWindowAndRetainsSuccess","reopensSamePendingResultAfterLanguageSwitch"]},
   {"id":"local-tasks","title":"Локальная операция: защита владельца, конфликт, пропуск и отмена, EN/RU","target":"local_task_lifecycle_tests","functions":["overwriteKeepsOwnerUntilAnswered"]},

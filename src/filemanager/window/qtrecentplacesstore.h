@@ -1,8 +1,8 @@
 #pragma once
 #include "filemanager/AppState.h"
 #include "filemanager/window/qtsavedlocation.h"
-#include <QAbstractListModel>
 #include <QHash>
+#include <QObject>
 
 struct QtRecentPlace {
     QString path;
@@ -10,21 +10,17 @@ struct QtRecentPlace {
     QtArchiveLocation archive;
 };
 
-// CFolderHistory retains ordering, comparison and bounds; this adapter publishes
-// immediate changes to every window using the same settings store.
-class QtRecentPlacesStore final : public QAbstractListModel {
+// CFolderHistory owns visit ordering and comparison. Windows share this store.
+class QtRecentPlacesStore final : public QObject {
     Q_OBJECT
   public:
     static QtRecentPlacesStore *ForSettings(const QString &settings);
     explicit QtRecentPlacesStore(const QString &settings, QObject *parent = nullptr);
-    int rowCount(const QModelIndex &parent = {}) const override;
-    QVariant data(const QModelIndex &index, int role) const override;
+    int Count() const;
     QtRecentPlace Place(int row) const;
     int IndexOf(const QString &path) const;
     void Reload();
     void Visit(const QtRecentPlace &place);
-    void Remove(const QString &path);
-    void Clear();
 
   signals:
     void historyChanged();
