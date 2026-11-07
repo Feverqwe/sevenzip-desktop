@@ -50,14 +50,19 @@ class CopyDialogTests : public QObject {
             const QRect visible(widget->mapTo(scroll->viewport(), QPoint()), widget->size());
             QVERIFY(visible.bottom() < scroll->viewport()->height());
             QVERIFY2(visible.left() >= 0 && visible.right() < scroll->viewport()->width(),
-                     qPrintable(widget->objectName()));
+                     qPrintable(QString("%1 x=%2 width=%3 viewport=%4 body=%5 dialog=%6")
+                                    .arg(widget->objectName())
+                                    .arg(visible.x())
+                                    .arg(visible.width())
+                                    .arg(scroll->viewport()->width())
+                                    .arg(scroll->widget()->width())
+                                    .arg(dialog.width())));
             if (widget->height() <= scroll->viewport()->height())
                 QVERIFY(UiInspection::fullyVisible(*widget, dialog));
             QVERIFY(UiInspection::fullyVisible(*buttons, dialog));
         }
         QVERIFY(UiInspection::separate(*path, *browse, dialog));
-        QVERIFY(UiInspection::bounds(*label, dialog).bottom() <
-                UiInspection::bounds(*path, dialog).top());
+        QVERIFY(UiInspection::separate(*label, *path, dialog));
         QVERIFY(UiInspection::bounds(*source, dialog).bottom() <
                 UiInspection::bounds(*path, dialog).top());
     }
@@ -288,8 +293,10 @@ class CopyDialogTests : public QObject {
         }
         QVERIFY(UiInspection::labelFits(*label));
         QVERIFY(UiInspection::separate(*path, *browse, dialog));
-        QVERIFY(UiInspection::bounds(*label, dialog).bottom() <
-                UiInspection::bounds(*path, dialog).top());
+        QVERIFY(UiInspection::separate(*label, *path, dialog));
+        if (size.width() > 400)
+            QVERIFY(UiInspection::bounds(*label, dialog).right() <
+                    UiInspection::bounds(*path, dialog).left());
         QVERIFY(UiInspection::bounds(*source, dialog).bottom() <
                 UiInspection::bounds(*path, dialog).top());
         QVERIFY(UiInspection::separate(*buttons->button(QDialogButtonBox::Ok),

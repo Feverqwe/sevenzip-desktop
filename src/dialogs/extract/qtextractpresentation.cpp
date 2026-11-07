@@ -10,6 +10,7 @@
 #include "ui/dialogs/qtdialoglayout.h"
 #include "ui/theme/qtcommandicons.h"
 #include <QFileInfo>
+#include <QFormLayout>
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -43,8 +44,8 @@ void CExtractDialog::BuildPresentation() {
     _sourcesSection->hide();
     auto *destinationLabel = new QLabel(this);
     destinationLabel->setObjectName("extractDestinationLabel");
+    destinationLabel->setWordWrap(true);
     QtBindResourceText(destinationLabel, IDT_EXTRACT_EXTRACT_TO, "E&xtract to:");
-    layout->addWidget(destinationLabel);
     auto *pathRow = new QHBoxLayout;
     _path = new QComboBox(this);
     _path->setObjectName("extractDestination");
@@ -52,13 +53,17 @@ void CExtractDialog::BuildPresentation() {
     destinationLabel->setBuddy(_path);
     _path->setEditable(true);
     _path->setInsertPolicy(QComboBox::NoInsert);
+    _path->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+    _path->setMinimumContentsLength(12);
 
     pathRow->addWidget(_path, 1);
     auto *browse = new QPushButton(this);
     browse->setObjectName("extractBrowseButton");
     QtBindLocalText(browse, "ArchiveRedesign", QT_TRANSLATE_NOOP("ArchiveRedesign", "Browse…"));
     pathRow->addWidget(browse);
-    layout->addLayout(pathRow);
+    auto *destination = QtCreateDialogForm();
+    destination->addRow(destinationLabel, pathRow);
+    layout->addLayout(destination);
 
     auto *modeColumn = new QVBoxLayout;
     auto *advancedBody = new QWidget(this);
@@ -82,27 +87,29 @@ void CExtractDialog::BuildPresentation() {
     layout->addLayout(nameRow);
     auto *pathLabel = new QLabel(this);
     pathLabel->setObjectName("extractPathModeLabel");
+    pathLabel->setWordWrap(true);
     QtBindResourceText(pathLabel, IDT_EXTRACT_PATH_MODE, "Path mode:");
-    modeColumn->addWidget(pathLabel);
     _pathMode = new QComboBox(this);
     _pathMode->setObjectName("extractPathMode");
     QtBindLangText(_pathMode, IDT_EXTRACT_PATH_MODE, "Path mode", true);
     pathLabel->setBuddy(_pathMode);
 
-    modeColumn->addWidget(_pathMode);
     _elimDup = new QCheckBox(this);
     _elimDup->setObjectName("extractElimDup");
     QtBindResourceText(_elimDup, IDX_EXTRACT_ELIM_DUP, "Eliminate duplication of root folder");
-    modeColumn->addWidget(_elimDup);
     auto *overwriteLabel = new QLabel(this);
     overwriteLabel->setObjectName("extractOverwriteModeLabel");
+    overwriteLabel->setWordWrap(true);
     QtBindResourceText(overwriteLabel, IDT_EXTRACT_OVERWRITE_MODE, "Overwrite mode:");
-    modeColumn->insertWidget(0, overwriteLabel);
     _overwriteMode = new QComboBox(this);
     _overwriteMode->setObjectName("extractOverwriteMode");
     QtBindLangText(_overwriteMode, IDT_EXTRACT_OVERWRITE_MODE, "Overwrite mode", true);
     overwriteLabel->setBuddy(_overwriteMode);
-    modeColumn->insertWidget(1, _overwriteMode);
+    auto *modes = QtCreateDialogForm();
+    modes->addRow(overwriteLabel, _overwriteMode);
+    modes->addRow(pathLabel, _pathMode);
+    modeColumn->addLayout(modes);
+    modeColumn->addWidget(_elimDup);
 
     auto *passwordGroup = new QGroupBox(this);
     passwordGroup->setFlat(true);

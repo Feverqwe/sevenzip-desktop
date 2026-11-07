@@ -4,6 +4,7 @@
 #include <QAbstractTextDocumentLayout>
 #include <QDialog>
 #include <QEvent>
+#include <QFormLayout>
 #include <QPainter>
 #include <QPushButton>
 #include <QResizeEvent>
@@ -51,6 +52,39 @@ class DialogBody final : public QWidget {
     int heightForWidth(int width) const override {
         const int minimum = layout() ? layout()->minimumHeightForWidth(width) : -1;
         return minimum >= 0 ? minimum : QWidget::heightForWidth(width);
+    }
+};
+
+class DialogForm final : public QFormLayout {
+  public:
+    void setGeometry(const QRect &rect) override {
+        int labelWidth = 0;
+        int fieldWidth = 0;
+        for (int row = 0; row < rowCount(); ++row) {
+            const auto *label = itemAt(row, LabelRole);
+            const auto *field = itemAt(row, FieldRole);
+            if (label && field && !label->isEmpty() && !field->isEmpty()) {
+                const auto *caption = label->widget();
+                labelWidth = qMax(labelWidth, caption ? caption->sizeHint().width()
+                                                      : label->sizeHint().width());
+                fieldWidth = qMax(fieldWidth, field->minimumSize().width());
+            }
+        }
+        const int availableWidth = rect.marginsRemoved(contentsMargins()).width();
+        const int spacing = qMax(0, horizontalSpacing());
+        const auto policy =
+            availableWidth < labelWidth + spacing + fieldWidth ? WrapAllRows : WrapLongRows;
+        if (rowWrapPolicy() != policy)
+            setRowWrapPolicy(policy);
+        // A wrapped label can still be assigned its natural width by the form.
+        const int captionMaximum =
+            policy == WrapAllRows ? qMax(0, availableWidth) : QWIDGETSIZE_MAX;
+        for (int row = 0; row < rowCount(); ++row)
+            if (auto *label = itemAt(row, LabelRole))
+                if (auto *caption = label->widget();
+                    caption && caption->maximumWidth() != captionMaximum)
+                    caption->setMaximumWidth(captionMaximum);
+        QFormLayout::setGeometry(rect);
     }
 };
 
@@ -144,6 +178,15 @@ QVBoxLayout *QtCreateDialogLayout(QWidget &window, QWidget &footer, QtDialogCont
 
 QVBoxLayout *QtCreateDialogLayout(QWidget &window, QtDialogContent mode) {
     return CreateDialogLayout(window, nullptr, mode);
+}
+
+QFormLayout *QtCreateDialogForm() {
+    auto *form = new DialogForm;
+    form->setContentsMargins(0, 0, 0, 0);
+    form->setLabelAlignment(Qt::AlignLeading | Qt::AlignVCenter);
+    form->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
+    form->setRowWrapPolicy(QFormLayout::WrapLongRows);
+    return form;
 }
 
 void QtFitScrollableDialog(QWidget &window) {

@@ -25,6 +25,7 @@
 #include <QComboBox>
 #include <QEvent>
 #include <QFileInfo>
+#include <QFormLayout>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
@@ -127,7 +128,6 @@ bool CCopyDialog::OnInit() {
     auto *label = new QtWrappingLabel(ToQString(Static), this);
     label->setWordWrap(true);
     label->setObjectName("copyDestinationLabel");
-    layout->addWidget(label);
     auto *pathRow = new QHBoxLayout;
     if (_copyMove) {
         _pathEdit = new QLineEdit(ToQString(Value), this);
@@ -160,7 +160,14 @@ bool CCopyDialog::OnInit() {
         QtBindLocalText(browse, "CopyRedesign", QT_TRANSLATE_NOOP("CopyRedesign", "Choose…"));
     }
     pathRow->addWidget(browse);
-    layout->addLayout(pathRow);
+    if (_copyMove) {
+        auto *form = QtCreateDialogForm();
+        form->addRow(label, pathRow);
+        layout->addLayout(form);
+    } else {
+        layout->addWidget(label);
+        layout->addLayout(pathRow);
+    }
     // Native SS_LEFTNOWORDWRAP shows a bounded summary. Qt scrolling keeps long
     // Unicode filenames and large selections reachable at compact sizes.
     if (!_copyMove) {
