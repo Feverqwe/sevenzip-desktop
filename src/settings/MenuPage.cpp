@@ -3,7 +3,6 @@
 // Source menu state/list/apply bodies; Qt replaces property-page services.
 // Shell discovery and registration use IQtMenuPageServices.
 #include "settings/MenuPage.h"
-#include "filemanager/HelpUtils.h"
 
 #include "7zip/UI/Explorer/ContextMenuFlags.h"
 #include "7zip/UI/Explorer/resource.h"
@@ -21,9 +20,6 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QListWidget>
-
-#define kMenuTopic "fm/options.htm#sevenZip"
-void CMenuPage::OnNotifyHelp() { ShowHelpWindow(kMenuTopic, this); }
 
 using namespace NContextMenuFlags;
 

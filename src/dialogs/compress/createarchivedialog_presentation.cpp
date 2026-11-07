@@ -11,7 +11,6 @@
 #include <QProxyStyle>
 #include <QScrollArea>
 #include <QScrollBar>
-#include <QShortcut>
 #include <QStyle>
 
 namespace {
@@ -221,18 +220,10 @@ void CreateArchiveDialog::createArchiveForm(QVBoxLayout *layout, QVBoxLayout *wi
 }
 
 void CreateArchiveDialog::createFooter(QVBoxLayout *layout) {
-    auto *buttons = new QtLangButtonBox(
-        QDialogButtonBox::Ok | QDialogButtonBox::Cancel | QDialogButtonBox::Help, this);
+    auto *buttons = new QtLangButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     buttons_ = buttons;
     buttons->SetAcceptText("ArchiveRedesign",
                            QT_TRANSLATE_NOOP("ArchiveRedesign", "Create archive"));
-    const auto showHelp = [this] {
-        CCompressDialog dialog;
-        dialog.OnHelp(this);
-    };
-    connect(buttons_, &QDialogButtonBox::helpRequested, this, showHelp);
-    auto *help = new QShortcut(QKeySequence(Qt::Key_F1), this);
-    connect(help, &QShortcut::activated, this, showHelp);
     layout->addWidget(buttons_);
     updateProtectionControls();
 

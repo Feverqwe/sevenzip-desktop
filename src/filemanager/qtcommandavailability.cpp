@@ -125,11 +125,11 @@ QHash<unsigned, bool> QtFileManagerCommands::Availability() {
     // the notification guard; native update can replace the folder proxy.
     const bool safeFolderQueries =
         navigating && !w.projectedUi().locationUnavailable && panel.ShouldProcessNotifications();
-    availability[IDM_HELP_CONTENTS] = navigating && !QApplication::activeModalWidget();
-    availability[IDM_ABOUT] = availability[IDM_HELP_CONTENTS];
-    availability[IDM_TEMP_DIR] = availability[IDM_HELP_CONTENTS];
-    availability[OpenArchivePicker] = availability[IDM_HELP_CONTENTS] && !w.backend_->busy();
-    availability[ManageMounts] = availability[IDM_HELP_CONTENTS];
+    const bool windowCommands = navigating && !QApplication::activeModalWidget();
+    availability[IDM_ABOUT] = windowCommands;
+    availability[IDM_TEMP_DIR] = windowCommands;
+    availability[OpenArchivePicker] = windowCommands && !w.backend_->busy();
+    availability[ManageMounts] = windowCommands;
     availability[IDM_FOLDERS_HISTORY] = navigating && !w.projectedUi().scanningDisk &&
                                         !w.projectedUi().scanningArchive &&
                                         !QApplication::activeModalWidget();

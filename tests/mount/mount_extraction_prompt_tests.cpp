@@ -29,7 +29,6 @@
 #include <QScrollBar>
 #include <QSpinBox>
 #include <QTemporaryDir>
-#include <QTextBrowser>
 #include <QToolButton>
 #include <QVBoxLayout>
 #include <QtTest>
@@ -102,18 +101,14 @@ class MountExtractionPromptTests final : public QObject {
     void cacheControlsFollowReader_data() {
         QTest::addColumn<QString>("format");
         QTest::addColumn<QString>("language");
-        QTest::addColumn<bool>("keyboard");
         for (const QString &language : {QString("en"), QString("ru")}) {
-            QTest::newRow(qPrintable(language + " direct")) << QString("tar") << language << false;
-            QTest::newRow(qPrintable(language + " cache help"))
-                << QString("zip") << language << false;
-            QTest::newRow(qPrintable(language + " cache F1")) << QString("zip") << language << true;
+            QTest::newRow(qPrintable(language + " direct")) << QString("tar") << language;
+            QTest::newRow(qPrintable(language + " cache")) << QString("zip") << language;
         }
     }
     void cacheControlsFollowReader() {
         QFETCH(QString, format);
         QFETCH(QString, language);
-        QFETCH(bool, keyboard);
         MountTestLanguage catalog(language);
         QTemporaryDir fixture;
         const QString path = fixture.filePath("source." + format);
@@ -121,7 +116,7 @@ class MountExtractionPromptTests final : public QObject {
         CMyComPtr<IUnknown> resource;
         std::shared_ptr<ArchiveNativeOpen> reader;
         QCOMPARE(OpenMountResource(path, format, resource, reader), S_OK);
-        bool inspected = false, correct = false, helpShown = false, helpKeptDialog = false;
+        bool inspected = false, correct = false;
         QTimer inspect;
         connect(&inspect, &QTimer::timeout, this, [&] {
             auto *dialog = qobject_cast<QDialog *>(QApplication::activeModalWidget());
@@ -139,32 +134,14 @@ class MountExtractionPromptTests final : public QObject {
             if (!start || !start->isEnabled())
                 return;
             inspect.stop();
-            auto *help = box->button(QDialogButtonBox::Help);
-            correct =
-                quota->isVisible() == (format == "zip") && help->isVisible() == (format == "zip");
+            auto *hint = dialog->findChild<QLabel *>("mountCacheHint");
+            correct = hint && quota->isVisible() == (format == "zip") &&
+                      hint->isVisible() == quota->isVisible() && !hint->text().isEmpty();
             dialog->resize(420, dialog->sizeHint().height());
             inspected = UiInspection::writeReport(
                 *dialog, QStringLiteral("mount-reader-%1-%2").arg(format, language));
-            if (format == "zip") {
+            if (format == "zip")
                 quota->setValue(64);
-                if (keyboard) {
-                    dialog->activateWindow();
-                    if (QTest::qWaitForWindowActive(dialog, 1000))
-                        QTest::keySequence(dialog, QKeySequence(QKeySequence::HelpContents));
-                } else
-                    help->click();
-                auto *window = dialog->findChild<QDialog *>("helpWindow");
-                auto *browser = window ? window->findChild<QTextBrowser *>("helpBrowser") : nullptr;
-                helpShown =
-                    window && window->isVisible() && browser && !browser->toPlainText().isEmpty();
-                helpKeptDialog = dialog->isVisible() && dialog->result() != QDialog::Accepted;
-                if (window) {
-                    inspected = inspected &&
-                                UiInspection::writeReport(
-                                    *window, QStringLiteral("mount-cache-help-%1").arg(language));
-                    window->close();
-                }
-            }
             dialog->accept();
         });
         inspect.start(5);
@@ -173,8 +150,6 @@ class MountExtractionPromptTests final : public QObject {
         QVERIFY(options.View);
         QVERIFY(inspected && correct);
         QCOMPARE(options.Quota, format == "zip" ? quint64(64) * 1024 * 1024 : quint64(0));
-        if (format == "zip")
-            QVERIFY(helpShown && helpKeptDialog);
     }
     void cancellingReaderCheckKeepsEventLoopResponsive_data() { setupGeometry_data(); }
     void cancellingReaderCheckKeepsEventLoopResponsive() {
@@ -194,14 +169,23 @@ class MountExtractionPromptTests final : public QObject {
             auto *dialog = qobject_cast<QDialog *>(QApplication::activeModalWidget());
             if (dialog) {
                 dialog->resize(width, dialog->sizeHint().height());
+                QTest::qWait(10);
                 auto *progress = dialog->findChild<QProgressBar *>("mountPreparationProgress");
                 auto *elapsed = dialog->findChild<QLabel *>("mountPreparationElapsed");
                 progressVisible = progress && progress->isVisible() && progress->maximum() == 0;
                 initialElapsed = elapsed ? elapsed->text() : QString();
-                for (const auto *label : dialog->findChildren<QLabel *>())
-                    if (label->isVisible())
-                        fits &= UiInspection::fullyVisible(*label, *dialog) &&
-                                UiInspection::labelFits(*label);
+                for (const auto *label : dialog->findChildren<QLabel *>()) {
+                    if (!label->isVisible())
+                        continue;
+                    const bool visible = UiInspection::fullyVisible(*label, *dialog);
+                    const bool textFits = UiInspection::labelFits(*label);
+                    if (!visible || !textFits)
+                        qWarning() << label->text() << label->geometry() << label->sizeHint();
+                    fits &= visible && textFits;
+                }
+                if (dialog->width() > width)
+                    qWarning() << "Mount preparation width" << dialog->width() << "expected"
+                               << width;
                 fits &= dialog->width() <= width;
                 fits &= UiInspection::writeReport(
                     *dialog, QStringLiteral("mount-preparing-%1-%2").arg(language).arg(width));

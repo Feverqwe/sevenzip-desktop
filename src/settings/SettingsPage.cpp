@@ -2,7 +2,6 @@
 // Igor Pavlov, LGPL-2.1-or-later; see third_party/7zip/License.txt.
 // Qt replaces property-page controls; source state/apply/RAM calculation retained.
 #include "settings/SettingsPage.h"
-#include "filemanager/HelpUtils.h"
 
 #include "Common/IntToString.h"
 #include "Common/StringToInt.h"
@@ -17,9 +16,6 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QLabel>
-
-#define kSettingsTopic "FM/options.htm#settings"
-void CSettingsPage::OnNotifyHelp() { ShowHelpWindow(kSettingsTopic, this); }
 
 CSettingsPage::CSettingsPage(const QString &settingsPath, QWidget *parent, bool embedded,
                              const IQtMemoryLockServices *memoryLockServices)

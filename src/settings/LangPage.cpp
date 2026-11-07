@@ -2,7 +2,6 @@
 // Igor Pavlov, LGPL-2.1-or-later; see third_party/7zip/License.txt.
 // Source apply/change/help behavior; Qt catalog metadata replaces native file enumeration.
 #include "settings/LangPage.h"
-#include "filemanager/HelpUtils.h"
 
 #include "7zip/UI/FileManager/LangPageRes.h"
 #include "localization/LangUtils.h"
@@ -14,9 +13,6 @@
 #include <QLabel>
 #include <QPlainTextEdit>
 #include <QVBoxLayout>
-
-#define kLangTopic "fm/options.htm#language"
-void CLangPage::OnNotifyHelp() { ShowHelpWindow(kLangTopic, this); }
 
 CLangPage::CLangPage(const QString &settingsPath, QWidget *parent, const QString &directory)
     : QWidget(parent), _settingsPath(settingsPath), _directory(directory) {

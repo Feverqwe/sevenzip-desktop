@@ -16,7 +16,7 @@
   },
   "options": {
     "description": "Options pages, keyboard, settings and window consumers",
-    "tests": "^(options_integration|options_keyboard|options_dialog|options_window|system_page|mac_system_page|menu_page|language_ui|external_editors_ui|help_ui|association_services|linux_association_clear_[01]|linux_system_page_.*)$",
+    "tests": "^(options_integration|options_keyboard|options_dialog|options_window|system_page|mac_system_page|menu_page|language_ui|external_editors_ui|association_services|linux_association_clear_[01]|linux_system_page_.*)$",
     "interactive": true
   },
   "archive-open": {

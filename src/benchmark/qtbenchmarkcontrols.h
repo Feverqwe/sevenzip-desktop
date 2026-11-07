@@ -80,7 +80,6 @@ class CQtBenchmarkWindow : public QDialog {
     virtual void OnCommand(unsigned, unsigned) {}
     virtual void OnButtonClicked(unsigned) {}
     virtual void OnTimer(quintptr) {}
-    virtual void OnHelp() {}
     virtual void OnCancel();
     QWidget *GetItem(unsigned id) const { return controls_.value(id); }
     void SetItemText(unsigned id, const UString &text);

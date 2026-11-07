@@ -91,7 +91,7 @@ QWidget *listPage(CSettingsPage *owner) {
     }
     return body;
 }
-void section(QTabWidget *pages, const char *name, const char *title, unsigned owner, QWidget *body,
+void section(QTabWidget *pages, const char *name, const char *title, QWidget *body,
              const char *intro = nullptr, const char *hint = nullptr) {
     auto *page = new QWidget;
     auto *layout = new QVBoxLayout(page);
@@ -136,7 +136,6 @@ void section(QTabWidget *pages, const char *name, const char *title, unsigned ow
     scroll->setWidget(page);
     page->setAutoFillBackground(false);
     scroll->viewport()->setAutoFillBackground(false);
-    scroll->setProperty("sourcePageID", owner);
     scroll->setProperty("sectionTitle", title);
     pages->addTab(scroll, QCoreApplication::translate("SettingsRedesign", title));
 }
@@ -176,32 +175,31 @@ void QtFmOptionsDialog::buildSections() {
                     QT_TRANSLATE_NOOP("SettingsRedesign", "About translation"));
     translationLayout->addWidget(_translationGroup);
     basic->addWidget(translation);
-    section(_sections, "generalSection", QT_TRANSLATE_NOOP("SettingsRedesign", "General"), 2101,
-            general);
+    section(_sections, "generalSection", QT_TRANSLATE_NOOP("SettingsRedesign", "General"), general);
 
     _systemPage->SimplifyPresentation();
     if (_systemPage->IntegrationAvailable())
         section(_sections, "fileOpeningSection",
-                QT_TRANSLATE_NOOP("SettingsRedesign", "Opening files"), 2200, _systemPage);
+                QT_TRANSLATE_NOOP("SettingsRedesign", "Opening files"), _systemPage);
     else
         _systemPage->hide();
-    section(_sections, "memorySection", QT_TRANSLATE_NOOP("SettingsRedesign", "Memory"), 2500,
+    section(_sections, "memorySection", QT_TRANSLATE_NOOP("SettingsRedesign", "Memory"),
             memoryPage(_settingsPage));
     section(_sections, "temporarySection", QT_TRANSLATE_NOOP("SettingsRedesign", "Temporary files"),
-            2400, _foldersPage,
+            _foldersPage,
             QT_TRANSLATE_NOOP("SettingsRedesign",
                               "Choose where to keep temporary files when working with archives."));
     section(_sections, "applicationsSection", QT_TRANSLATE_NOOP("SettingsRedesign", "Applications"),
-            2103, _editPage,
+            _editPage,
             QT_TRANSLATE_NOOP("SettingsRedesign",
                               "Applications for viewing, editing and comparing archived files."),
             QT_TRANSLATE_NOOP("SettingsRedesign",
                               "You can specify an application and command-line arguments."));
-    section(_sections, "fileListSection", QT_TRANSLATE_NOOP("SettingsRedesign", "File list"), 2500,
+    section(_sections, "fileListSection", QT_TRANSLATE_NOOP("SettingsRedesign", "File list"),
             listPage(_settingsPage));
     if (_menuPage->IntegrationSupported())
         section(_sections, "shellMenuSection",
-                QT_TRANSLATE_NOOP("SettingsRedesign", "File Explorer commands"), 2300, _menuPage);
+                QT_TRANSLATE_NOOP("SettingsRedesign", "File Explorer commands"), _menuPage);
     else
         _menuPage->hide();
     buildNavigation();

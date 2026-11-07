@@ -69,13 +69,6 @@ bool CPanel::OnKeyDown(const QtPanelKeyDown &keyDownInfo, CApp &g_App) {
         _prevFocusedItem = _selectionList.GetFocusedItem();
         break;
     }
-    /*
-    case Qt::Key_F1:
-    {
-      // ShowHelpWindow(NULL, kHelpTopic);
-      break;
-    }
-    */
     case Qt::Key_F2: {
         if (!alt && !ctrl && !shift) {
             g_App.ExecuteCommand(IDM_RENAME);
@@ -200,9 +193,6 @@ bool CPanel::OnKeyDown(const QtPanelKeyDown &keyDownInfo, CApp &g_App) {
     /*
     case Qt::Key_Delete:
       CommandDelete();
-      return 0;
-    case Qt::Key_F1:
-      CommandHelp();
       return 0;
     */
     case Qt::Key_Backspace:

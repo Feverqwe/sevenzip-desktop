@@ -40,11 +40,9 @@ class CQtCompressOptionsPanel : public QWidget {
     virtual bool OnCommand(unsigned, unsigned, qintptr) { return false; }
     virtual bool OnButtonClicked(unsigned id, QWidget *);
     virtual void OnOK() {}
-    virtual void OnHelp() {}
 
   public:
     explicit CQtCompressOptionsPanel(QWidget *parent = nullptr);
     void initialize();
     void apply() { OnOK(); }
-    void showHelp() { OnHelp(); }
 };

@@ -9,7 +9,6 @@
 #include "Windows/PropVariantConv.h"
 #include "dialogs/browse/browseiteminspection.h"
 #include "filemanager/FormatUtils.h"
-#include "filemanager/HelpUtils.h"
 #include "fileops/native/FileDir.h"
 #include "fileops/patterns/Wildcard.h"
 #include "localization/LangUtils.h"
@@ -554,7 +553,6 @@ void CBrowseDialog2::OnContextMenu(const QPoint &position) {
             Show_FileProps_Window(_snapshot->Files[_snapshot->Items[indices[0]].MainFileIndex]);
     }
 }
-void CBrowseDialog2::OnHelp() { ShowHelpWindow("fm/temp.htm", this); }
 bool CBrowseDialog2::OnKeyDown(QKeyEvent *keyDownInfo) {
     const bool ctrl = keyDownInfo->modifiers().testFlag(Qt::ControlModifier);
     switch (keyDownInfo->key()) {

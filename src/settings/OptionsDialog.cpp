@@ -27,7 +27,6 @@
 #include <QPushButton>
 #include <QScopeGuard>
 #include <QScrollArea>
-#include <QShortcut>
 #include <QStyleHints>
 #include <QTabBar>
 #include <QTabWidget>
@@ -53,20 +52,6 @@ QtFmOptionsDialog::QtFmOptionsDialog(const QString &settingsPath, QWidget *paren
     if (!associations)
         associations = CreateQtAssociationServices(CreateNativeAssociationPlatform());
     _systemPage = new CSystemPage(manager, std::move(associations), this);
-    // Retain source owner IDs for help/resource provenance, not navigation.
-    struct PageOwner {
-        unsigned Id;
-        QWidget *Page;
-    };
-    const PageOwner pageOwners[] = {{2200, _systemPage},   {2300, _menuPage},
-                                    {2400, _foldersPage},  {2103, _editPage},
-                                    {2500, _settingsPage}, {2101, _langPage}};
-    for (const auto &owner : pageOwners)
-        owner.Page->setProperty("sourcePageID", owner.Id);
-    auto *helpButtons = new QtLangButtonBox(QDialogButtonBox::Help, this);
-    helpButtons->UseCompactHelp();
-    helpButtons->button(QDialogButtonBox::Help)->setObjectName("settingsHelp");
-    _helpButtons = helpButtons;
     auto *buttons = new QtLangButtonBox(
         QDialogButtonBox::Ok | QDialogButtonBox::Cancel | QDialogButtonBox::Apply, this);
     buttons->SetAcceptText("SettingsRedesign", QT_TRANSLATE_NOOP("SettingsRedesign", "Save"));
@@ -74,19 +59,12 @@ QtFmOptionsDialog::QtFmOptionsDialog(const QString &settingsPath, QWidget *paren
     _buttons->setObjectName("settingsButtons");
     buildSections();
     reloadLangItems();
-    connect(qApp, &QApplication::focusChanged, this, [this](QWidget *, QWidget *now) {
-        if (now && _sections->isAncestorOf(now))
-            _helpContext = now;
-    });
     // Keep existing source tab stops under QMacStyle's restricted button policy.
     for (auto *button : findChildren<QAbstractButton *>())
         if (button->focusPolicy() & Qt::TabFocus)
             button->setFocusPolicy(Qt::StrongFocus);
     connect(_buttons, &QDialogButtonBox::accepted, this, &QtFmOptionsDialog::accept);
     connect(_buttons, &QDialogButtonBox::rejected, this, &QtFmOptionsDialog::reject);
-    connect(_helpButtons, &QDialogButtonBox::helpRequested, this, &QtFmOptionsDialog::showPageHelp);
-    auto *help = new QShortcut(QKeySequence(Qt::Key_F1), this);
-    connect(help, &QShortcut::activated, this, &QtFmOptionsDialog::showPageHelp);
     connect(_buttons->button(QDialogButtonBox::Apply), &QPushButton::clicked, this,
             &QtFmOptionsDialog::apply);
     connect(_editPage, &CEditPage::Changed, this, &QtFmOptionsDialog::updateApplyButton);
@@ -101,27 +79,6 @@ QtFmOptionsDialog::QtFmOptionsDialog(const QString &settingsPath, QWidget *paren
     pages->focusInitialControl();
 }
 
-void QtFmOptionsDialog::showPageHelp() {
-    QWidget *context = focusWidget();
-    if (!context || !_sections->isAncestorOf(context))
-        context = _helpContext;
-    const auto inside = [context](QWidget *owner) { return owner && owner->isAncestorOf(context); };
-    const auto page = _sections->currentWidget()->property("sourcePageID").toUInt();
-    if (page == 2103)
-        _editPage->OnNotifyHelp();
-    else if (page == 2400)
-        _foldersPage->OnNotifyHelp();
-    else if (page == 2500 || (page == 2101 && inside(_settingsPage->appearanceControls())))
-        _settingsPage->OnNotifyHelp();
-    else if (page == 2300)
-        _menuPage->OnNotifyHelp();
-    else if (page == 2101)
-        _langPage->OnNotifyHelp();
-    else if (page == 2200)
-        _systemPage->OnNotifyHelp();
-    else
-        _settingsPage->OnNotifyHelp();
-}
 bool QtFmOptionsDialog::apply() {
     if (_applying)
         return false;

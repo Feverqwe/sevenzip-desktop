@@ -6672,25 +6672,6 @@ Use `Revert` to recover timestamp.</source>
         </message>
     </context>
     <context>
-        <name>qthelpservices</name>
-        <message>
-            <location filename="../src/help/qthelpservices.cpp" line="+254" />
-            <location line="+8" />
-            <source>7-Zip Help</source>
-            <translation>Справка 7-Zip</translation>
-        </message>
-        <message>
-            <location line="+24" />
-            <source>Back</source>
-            <translation>Назад</translation>
-        </message>
-        <message>
-            <location line="-31" />
-            <source>Help topic is unavailable: %1</source>
-            <translation>Раздел справки недоступен: %1</translation>
-        </message>
-    </context>
-    <context>
         <name>qtlinkcontrols</name>
         <message>
             <location filename="../src/fileops/links/qtlinkcontrols.cpp" line="-74" />
@@ -6838,6 +6819,7 @@ Use `Revert` to recover timestamp.</source>
     </context>
     <context>
         <name>QtArchiveMountManager</name>
+        <message><source>The cache stores extracted files. Files larger than this limit cannot be read through the connection.</source><translation>В кэше хранятся распакованные файлы. Файлы больше указанного лимита нельзя прочитать через это подключение.</translation></message>
         <message>
             <source>No mounts yet.</source>
             <translation>Нет подключений.</translation>
@@ -6881,22 +6863,6 @@ Use `Revert` to recover timestamp.</source>
         <message>
             <source>Cancelling…</source>
             <translation>Отмена…</translation>
-        </message>
-        <message>
-            <source>Sevenzip connects the folder currently open in the file manager. It reuses the open reader and any temporary container files already created.
-
-Files that support direct reading are passed to other applications without extraction. For example, a ZIP inside a filesystem in a QCOW image is read as an ordinary ZIP file.
-
-When connecting a folder inside a compressed archive, files may need decoding. You approve extraction once for this mount. Files are then decoded when another application reads them, and kept in a temporary disk cache. The source remains read-only.
-
-The limit is the total size of these extracted files. Older cached files are removed to make room and may need to be extracted again. If one file exceeds the limit, that file cannot be read through this connection; other files and the connection remain available. Directly read files are not subject to this limit.</source>
-            <translation>Sevenzip подключает папку, открытую в файловом менеджере. При этом используются уже открытый читатель и временные файлы контейнеров, созданные ранее.
-
-Файлы с прямым доступом передаются другим приложениям без извлечения. Например, ZIP внутри файловой системы образа QCOW читается как обычный ZIP-файл.
-
-Если подключена папка внутри сжатого архива, для чтения её файлов может понадобиться распаковка. Вы разрешаете извлечение один раз для этого подключения. Затем файлы извлекаются при обращении к ним и сохраняются во временном кеше на диске. Источник остаётся доступен только для чтения.
-
-Лимит ограничивает суммарный размер извлечённых файлов в этом кеше. Старые файлы удаляются из кеша, чтобы освободить место; при повторном обращении их может потребоваться извлечь заново. Если один файл больше всего лимита, прочитать его через это подключение не получится. Остальные файлы и само подключение продолжат работать. На файлы с прямым чтением этот лимит не распространяется.</translation>
         </message>
         <message>
             <source>Remove from List</source>

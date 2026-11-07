@@ -134,14 +134,6 @@
         "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/temp-detached-settings.ini"
         TIMEOUT 30)
     set_tests_properties(owned_temp PROPERTIES TIMEOUT 30)
-    qt_add_executable(help_source_tests tests/platform/help_source_tests.cpp)
-    target_link_libraries(help_source_tests PRIVATE sevenzip_layout_inspection)
-    target_compile_definitions(help_source_tests PRIVATE SEVENZIP_DESKTOP_VERSION="${PROJECT_VERSION}")
-    target_include_directories(help_source_tests PRIVATE src tests)
-    target_link_libraries(help_source_tests PRIVATE sevenzip_panel Qt6::Test)
-    add_test(NAME help_source COMMAND help_source_tests -silent)
-    set_tests_properties(help_source PROPERTIES TIMEOUT 60 ENVIRONMENT
-        "QT_QPA_PLATFORM=offscreen;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
     if(TARGET sevenzip_launcher)
         find_program(DBUS_DAEMON_EXECUTABLE dbus-daemon REQUIRED)
         add_library(private_bus_fixture STATIC tests/support/private_bus.cpp tests/support/private_bus.h)

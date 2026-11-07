@@ -14,7 +14,6 @@
 #include "Windows/SystemInfo.h"
 #include "Windows/Thread.h"
 #include "archive/compression/MethodProps.h"
-#include "filemanager/HelpUtils.h"
 #include "localization/LangUtils.h"
 #include "platform/cpu/CpuArch.h"
 
@@ -32,8 +31,6 @@
 #include <cwchar>
 
 using namespace NWindows;
-
-#define kHelpTopic "fm/benchmark.htm"
 
 static const quintptr kTimerID = 4;
 static const UINT kTimerElapse = 1000; // 1000
@@ -242,7 +239,6 @@ class CBenchmarkDialog : public CQtBenchmarkWindow {
     virtual void OnDestroy() Z7_override;
     virtual void OnMessage(UINT message, quintptr wParam) Z7_override;
     virtual void OnCommand(unsigned code, unsigned itemID) Z7_override;
-    virtual void OnHelp() Z7_override;
     virtual void OnCancel() Z7_override;
     virtual void OnTimer(quintptr timerID) Z7_override;
     virtual void OnButtonClicked(unsigned buttonID) Z7_override;
@@ -793,8 +789,6 @@ void CBenchmarkDialog::OnCancel() {
         CQtBenchmarkWindow::OnCancel();
     }
 }
-
-void CBenchmarkDialog::OnHelp() { ShowHelpWindow(kHelpTopic); }
 
 // void GetTimeString(UInt64 timeValue, wchar_t *s);
 

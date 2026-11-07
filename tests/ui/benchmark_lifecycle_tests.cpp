@@ -18,7 +18,6 @@
 #include <QScopeGuard>
 #include <QScrollArea>
 #include <QScrollBar>
-#include <QTextBrowser>
 #include <QTimer>
 #include <QtTest>
 #include <memory>
@@ -81,7 +80,7 @@ class BenchmarkLifecycleTests final : public QObject {
             auto *scroll = view->findChild<QScrollArea *>("benchmarkControlsScroll");
             QVERIFY(scroll);
             QVERIFY(log->isReadOnly());
-            for (const char *name : {"IDB_RESTART", "IDB_STOP", "IDHELP", "IDCANCEL"}) {
+            for (const char *name : {"IDB_RESTART", "IDB_STOP", "IDCANCEL"}) {
                 auto *button = view->findChild<QPushButton *>(name);
                 QVERIFY(button);
                 QVERIFY2(UiInspection::fullyVisible(*button, *view), name);
@@ -97,7 +96,7 @@ class BenchmarkLifecycleTests final : public QObject {
             QCOMPARE(view->focusWidget(), view->findChild<QPushButton *>("IDB_RESTART"));
             QWidget *focused = view->focusWidget();
             for (const char *name :
-                 {"IDB_STOP", "IDHELP", "IDCANCEL", "IDC_BENCH_DICTIONARY", "IDC_BENCH_NUM_THREADS",
+                 {"IDB_STOP", "IDCANCEL", "IDC_BENCH_DICTIONARY", "IDC_BENCH_NUM_THREADS",
                   "IDC_BENCH_NUM_PASSES", "benchmarkControlsScroll", "IDT_BENCH_LOG",
                   "copyReportButton", "IDB_RESTART"}) {
                 if (!view->findChild<QWidget *>(name)->isVisible())
@@ -216,15 +215,11 @@ class BenchmarkLifecycleTests final : public QObject {
                 for (const QSize size : {QSize(960, 650), QSize(640, 400)}) {
                     view->resize(size);
                     QApplication::processEvents();
-                    for (const char *name : {"IDHELP", "IDCANCEL"}) {
-                        auto *button = view->findChild<QPushButton *>(name);
-                        QVERIFY(UiInspection::fullyVisible(*button, *view));
-                        QVERIFY(button->width() >= button->sizeHint().width());
-                        if (QString(name) == "IDCANCEL")
-                            QCOMPARE(button->text(), QString(language) == "ru"
-                                                         ? QStringLiteral("&Закрыть")
-                                                         : QString("&Close"));
-                    }
+                    auto *close = view->findChild<QPushButton *>("IDCANCEL");
+                    QVERIFY(close && UiInspection::fullyVisible(*close, *view));
+                    QVERIFY(close->width() >= close->sizeHint().width());
+                    QCOMPARE(close->text(), QString(language) == "ru" ? QStringLiteral("&Закрыть")
+                                                                      : QString("&Close"));
                     if (total) {
                         QVERIFY(UiInspection::fullyVisible(
                             *view->findChild<QPlainTextEdit *>("IDE_BENCH2_EDIT"), *view));
@@ -263,17 +258,6 @@ class BenchmarkLifecycleTests final : public QObject {
                                                                  .arg(size.width())));
                 }
             }
-            view->findChild<QPushButton *>("IDHELP")->click();
-            QApplication::processEvents();
-            QTextBrowser *help = nullptr;
-            for (auto *window : QApplication::topLevelWidgets())
-                if (auto *browser = window->findChild<QTextBrowser *>("helpBrowser")) {
-                    help = browser;
-                    break;
-                }
-            QVERIFY(help);
-            QCOMPARE(help->source().path(), QString("/upstream/7zip/Help/fm/benchmark.htm"));
-            help->window()->close();
             view->reject();
         });
         responder.start(1);

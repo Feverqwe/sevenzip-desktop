@@ -22,7 +22,6 @@
 #include <QStyleOptionButton>
 #include <QTemporaryDir>
 #include <QTemporaryFile>
-#include <QTextBrowser>
 #include <QTimer>
 #include <QTreeWidget>
 #include <QtTest>
@@ -887,7 +886,7 @@ class TempCleanupTests : public QObject {
         QVERIFY(QDir().mkpath(owned.filePath(QStringLiteral("подпапка с пробелом"))));
         QVERIFY(file(owned.filePath(QStringLiteral("подпапка с пробелом/данные.txt"))));
         QVERIFY(inactive(owned.path()));
-        bool navigated = true, geometry = true, reports = true, help = true;
+        bool navigated = true, geometry = true, reports = true;
         for (const char *language : {"-", "ru"}) {
             SaveRegLang(UString(language), settings.filePath("language.ini"));
             ReloadLang(settings.filePath("language.ini"));
@@ -922,31 +921,12 @@ class TempCleanupTests : public QObject {
                 QTest::keyClick(list, Qt::Key_Backspace);
                 navigated = navigated && row(*dialog, owned.path()) &&
                             row(*dialog, owned.path())->isSelected();
-                dialog->findChild<QPushButton *>("tempHelp")->click();
-                auto *helpWindow = dialog->findChild<QDialog *>("helpWindow");
-                help = help && helpWindow && helpWindow->isVisible();
-                if (helpWindow) {
-                    help = help &&
-                           helpWindow->findChild<QTextBrowser *>("helpBrowser")->source().path() ==
-                               "/upstream/7zip/Help/fm/temp.htm";
-                    helpWindow->close();
-                    QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
-                    dialog->activateWindow();
-                    list->setFocus();
-                    QTest::qWait(10);
-                    QTest::keyClick(list, Qt::Key_F1);
-                    if (auto *again = dialog->findChild<QDialog *>("helpWindow")) {
-                        help = help && again->isVisible();
-                        again->close();
-                    } else
-                        help = false;
-                }
                 dialog->findChild<QPushButton *>("tempClose")->click();
             });
             MyBrowseForTempFolder(nullptr);
         }
         ReloadLang(settings.filePath("reset.ini"));
-        QVERIFY(navigated && geometry && reports && help);
+        QVERIFY(navigated && geometry && reports);
         QVERIFY(
             QFileInfo::exists(owned.filePath(QStringLiteral("подпапка с пробелом/данные.txt"))));
     }

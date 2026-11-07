@@ -4,7 +4,6 @@
 #include "7zip/UI/GUI/CompressDialogRes.h"
 #include "Common/Defs.h"
 #include "dialogs/compress/qtcompressoptionsdialog.h"
-#include "filemanager/HelpUtils.h"
 #include "filemanager/PropertyName.h"
 #include "localization/LangUtils.h"
 #include <QLabel>
@@ -414,9 +413,6 @@ void COptionsPanel::OnOK() {
 
     CQtCompressOptionsPanel::OnOK();
 }
-
-#define kHelpTopic_Options "fm/plugins/7-zip/add.htm#options"
-void COptionsPanel::OnHelp() { ShowHelpWindow(kHelpTopic_Options, this); }
 
 void COptionsPanel::refreshContext() {
     // Publish current controls into the local profile before source capability

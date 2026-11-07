@@ -11,7 +11,6 @@
 #include "archive/callbacks/qtguimessages.h"
 #include "archive/compression/MethodProps.h"
 #include "archive/password/archivepassword.h"
-#include "filemanager/HelpUtils.h"
 #include "filemanager/SplitUtils.h"
 #include "fileops/native/FileDir.h"
 #include "localization/LangUtils.h"
@@ -647,6 +646,3 @@ void CCompressDialog::ShowOptionsString() {
 
     OptionsString = GetUnicodeString(s);
 }
-
-#define kHelpTopic "fm/plugins/7-zip/add.htm"
-void CCompressDialog::OnHelp(QWidget *parent) { ShowHelpWindow(kHelpTopic, parent); }

@@ -56,7 +56,6 @@ remain effective when Advanced settings is collapsed. A short Modified indicator
 identifies nondefault hidden options; expanded fields have no value summary.
 Windows security is shown only on Windows.
 The form body scrolls at compact heights while Extract/Cancel remain visible.
-The footer omits Help; the existing F1 help action remains available.
 The caller supplies the actual source archive names. One archive shows its name;
 multiple archives show a translated count and an optional read-only list. Full
 paths remain available in the source tooltip and accessibility description.

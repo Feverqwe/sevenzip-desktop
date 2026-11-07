@@ -93,7 +93,6 @@ class CSystemPage : public QWidget {
                          QWidget *parent = nullptr);
     bool OnInit(IFolderManager *manager);
     LONG OnApply();
-    void OnNotifyHelp();
     void ReloadLangItems();
     bool IsModified() const { return _needSave; }
     bool IntegrationAvailable() const;

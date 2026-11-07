@@ -4,7 +4,6 @@
 #include "Windows/PropVariantConv.h"
 #include "dialogs/about/AboutDialog.h"
 #include "dialogs/browse/BrowseDialog2.h"
-#include "filemanager/HelpUtils.h"
 #include "filemanager/qtfilemanagercommands.h"
 #include "filemanager/qtprogramfilemenu.h"
 #include "filemanager/window/mainwindow.h"
@@ -263,7 +262,6 @@ void QtFileManagerCommands::MyBenchmark(bool totalMode) {
     auto *operation = w.backend_->startGuiBenchmark(totalMode, error);
     w.observeGuiArchiveOperation(operation, error);
 }
-void QtFileManagerCommands::ShowHelpWindow(const char *topic) { ::ShowHelpWindow(topic, &window_); }
 void QtFileManagerCommands::AboutDialog() {
     CAboutDialog dialog(&window_);
     dialog.Create();

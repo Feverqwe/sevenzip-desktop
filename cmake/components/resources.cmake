@@ -109,11 +109,6 @@ add_library(sevenzip_filesystem STATIC
     src/filemanager/providers/FSDrives.cpp src/filemanager/providers/FSDrives.h
     src/fileops/volumes/qtvolumemounts.cpp src/fileops/volumes/qtvolumemounts.h
     ${SEVENZIP_7ZIP_SOURCE_DIR}/CPP/7zip/UI/Common/PropIDUtils.cpp)
-file(GLOB_RECURSE sevenzip_help_assets CONFIGURE_DEPENDS
-    "${SEVENZIP_DEPENDENCY_DIR}/7zip-help/*.htm"
-    "${SEVENZIP_DEPENDENCY_DIR}/7zip-help/*.css")
-qt_add_resources(sevenzip_panel upstream_help PREFIX "/upstream/7zip/Help"
-    BASE "${SEVENZIP_DEPENDENCY_DIR}/7zip-help" FILES ${sevenzip_help_assets})
 target_compile_definitions(sevenzip_panel PRIVATE SEVENZIP_DESKTOP_VERSION="${PROJECT_VERSION}")
 if(WIN32)
     target_sources(sevenzip_filesystem PRIVATE

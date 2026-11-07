@@ -5,7 +5,6 @@
 #include "7zip/UI/FileManager/PropertyNameRes.h"
 #include "7zip/UI/FileManager/SystemPageRes.h"
 #include "Common/StringConvert.h"
-#include "filemanager/HelpUtils.h"
 #include "localization/LangUtils.h"
 #include "localization/qtlangcontrols.h"
 #include <QApplication>
@@ -389,5 +388,3 @@ bool CSystemPage::eventFilter(QObject *object, QEvent *event) {
     }
     return QWidget::eventFilter(object, event);
 }
-
-void CSystemPage::OnNotifyHelp() { ShowHelpWindow("FM/options.htm#system", this); }

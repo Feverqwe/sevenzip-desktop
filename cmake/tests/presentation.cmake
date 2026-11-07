@@ -472,13 +472,6 @@ if(BUILD_TESTING)
         set_tests_properties(fs_drives_device_ui PROPERTIES TIMEOUT 90 RUN_SERIAL TRUE ENVIRONMENT
             "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/fs-drives-device-ui.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
     endif()
-    qt_add_executable(help_ui_tests tests/filemanager/help_ui_tests.cpp)
-    target_link_libraries(help_ui_tests PRIVATE sevenzip_window)
-    target_include_directories(help_ui_tests PRIVATE src tests)
-    target_link_libraries(help_ui_tests PRIVATE Qt6::Test)
-    add_test(NAME help_ui COMMAND help_ui_tests -silent)
-    set_tests_properties(help_ui PROPERTIES TIMEOUT 30 ENVIRONMENT
-        "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/help_ui.ini")
     qt_add_executable(options_window_tests tests/settings/options_window_tests.cpp)
     target_link_libraries(options_window_tests PRIVATE sevenzip_window sevenzip_layout_inspection)
     target_include_directories(options_window_tests PRIVATE src tests)

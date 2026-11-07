@@ -11,7 +11,6 @@
 #include <QScrollBar>
 #include <QSignalSpy>
 #include <QTemporaryDir>
-#include <QTextBrowser>
 #include <QTimeZone>
 #include <QTimer>
 #include <QToolButton>
@@ -48,27 +47,6 @@ class CompressionAdvancedTests final : public QObject {
     QString settings_;
 
   private slots:
-    void helpUsesSourceOptionsTopicWithoutApplyingPendingState() {
-        NCompression::CFormatOptions profile;
-        auto compression = owner(profile, "zip");
-        COptionsDialog dialog(&compression);
-        dialog.show();
-        QApplication::processEvents();
-        const bool defined = profile.MTime.Def;
-        const bool value = profile.MTime.Val;
-        auto *buttons = dialog.findChild<QDialogButtonBox *>();
-        QVERIFY(buttons && buttons->button(QDialogButtonBox::Help)->isEnabled());
-        buttons->button(QDialogButtonBox::Help)->click();
-        auto *help = dialog.findChild<QDialog *>("helpWindow");
-        QVERIFY(help && help->isVisible());
-        auto *browser = help->findChild<QTextBrowser *>("helpBrowser");
-        QCOMPARE(browser->source().path(), QString("/upstream/7zip/Help/fm/plugins/7-zip/add.htm"));
-        QCOMPARE(browser->source().fragment(), QString("options"));
-        QCOMPARE(profile.MTime.Def, defined);
-        QCOMPARE(profile.MTime.Val, value);
-        help->close();
-        dialog.reject();
-    }
     void initTestCase() {
         QVERIFY(settingsDirectory_.isValid());
         oldSettings_ = qgetenv("SEVENZIP_SETTINGS_PATH");

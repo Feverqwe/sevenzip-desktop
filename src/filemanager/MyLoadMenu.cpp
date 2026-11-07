@@ -149,8 +149,8 @@ void OnMenuActivating(QMenuBar &mainMenu, QMenu &hMenu, int position, CApp &g_Ap
 // MyChangeMenu retains the upstream popup/ID/special-caption/shortcut flow.
 // Qt preserves QAction identity; English resource lookup replaces LoadMenu's
 // reset to the original English resource before applying a partial language.
-static const UInt32 k_LangID_TopMenuItems[] = {IDM_FILE,      IDM_EDIT,  IDM_VIEW,
-                                               IDM_FAVORITES, IDM_TOOLS, IDM_HELP};
+static const UInt32 k_LangID_TopMenuItems[] = {IDM_FILE, IDM_EDIT, IDM_VIEW, IDM_FAVORITES,
+                                               IDM_TOOLS};
 static const CIDLangPair kIDLangPairs[] = {{IDCLOSE, 557},
                                            {IDM_VIEW_ARANGE_BY_NAME, IDS_PROP_NAME},
                                            {IDM_VIEW_ARANGE_BY_TYPE, IDS_PROP_FILE_TYPE},

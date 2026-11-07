@@ -52,7 +52,6 @@
   {"id":"system-page","title":"Настройки ассоциаций файлов","target":"system_page_tests","functions":["sourcePageNormalCompactGeometryAndLanguage"]},
   {"id":"menu-page","title":"Настройки меню и интеграции Windows","platforms":["Windows"],"target":"menu_page_tests","functions":["capabilitiesAndGeometry"]},
   {"id":"editors","title":"Настройки внешних редакторов","target":"external_editors_ui_tests","functions":["editorPageApplyCancelAndGeometry"]},
-  {"id":"help","title":"Справка и About, EN/RU","target":"help_source_tests","functions":["sourceContextAndLanguageGeometry","sourceTopicAndOfflineNavigation"]},
   {"id":"errors","title":"Сообщения об ошибках GUI","target":"gui_error_policy_tests","functions":["missingWriter","invalidOutput"]},
   {"id":"sfx","title":"Параметры самораспаковывающегося архива","target":"sfx_creation_tests","functions":["formTransitionsAndGeometry"]},
   {"id":"format-options","title":"Дополнительные параметры форматов","target":"compress_options_presentation_tests","functions":["contentSizedInitialFrame","explicitValueKeyboardAndCompactFit"]},

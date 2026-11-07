@@ -13,7 +13,6 @@ static const unsigned IDCLOSE = 8;
 static const unsigned k_MenuID_OpenBookmark = 830;
 static const unsigned k_MenuID_SetBookmark = 810;
 static const unsigned k_MenuID_Time = IDM_VIEW_TIME;
-#define kFMHelpTopic "FM/index.htm"
 
 const char *GetHashMethodForCommand(unsigned id) {
     switch (id) {
@@ -248,9 +247,6 @@ bool OnMenuCommand(unsigned id, IQtFileManagerMenuCommandServices &g_App) {
         break;
     case IDM_BENCHMARK2:
         g_App.MyBenchmark(true);
-        break;
-    case IDM_HELP_CONTENTS:
-        g_App.ShowHelpWindow(kFMHelpTopic);
         break;
     case IDM_ABOUT:
         g_App.AboutDialog();

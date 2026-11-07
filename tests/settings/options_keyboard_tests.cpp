@@ -161,7 +161,6 @@ class OptionsKeyboardTests final : public QObject {
         }
         QVERIFY(visited.contains(dialog.findChild<QComboBox *>("languageChoice")));
         auto *footer = dialog.findChild<QDialogButtonBox *>("settingsButtons");
-        QVERIFY(visited.contains(dialog.findChild<QPushButton *>("settingsHelp")));
         QStringList focusTrace;
         for (auto *widget : visited)
             focusTrace.append(QString::fromLatin1(widget->metaObject()->className()) + ':' +

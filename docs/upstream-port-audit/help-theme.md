@@ -117,3 +117,11 @@ macOS arm64 / Qt 6.12: сборка приложения и двух Help-target
 focused `help_source|help_ui` — PASS (2/2); нативные Cocoa-сценарии таблицы,
 блоков кода и палитры — PASS. Текущие снимки и widget JSON:
 `build/dev/help-table-review/`. Windows/Linux не проверены.
+
+## Removal from the application
+
+The 2026-11-07 implementation scope removed the embedded browser, its HTML
+resources and the menu, button and keyboard routes that opened them. The SMB
+setup presents its cache-limit explanation beside the setting. The archived
+7-Zip source baseline and the independently used translation provenance remain
+recorded.

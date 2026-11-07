@@ -127,8 +127,8 @@ Size→Speed→CPU Usage→Rating / Usage→Rating columns. Compressing/Decompre
 Current/Resulting rows; Total Rating shares the numeric columns. Values and
 numeric headers are right-aligned. Elapsed/Passes and the source pass limit
 precede the log and CPU/version/system information.
-The common footer holds Copy/Restart/Stop/Help/Close in normal mode and
-Copy/Help/Close in total mode, using native button roles and content sizes.
+The common footer holds Copy, Restart, Stop and Close in normal mode and
+Copy and Close in total mode, using native button roles and content sizes.
 Close calls the existing source cancellation/join workflow. Restart remains
 initially focused in normal mode; total mode initially focuses its console.
 Tab includes parameters, scroll viewport, nonempty log and footer actions.

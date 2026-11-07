@@ -31,14 +31,10 @@ commands do not require this fallback confirmation.
 
 Navigation occupies a sidebar through the footer height. In a narrow window it
 wraps above the content with complete section names in the same order. Each page
-has a heading and can scroll while the native Apply/Cancel/Save/? footer stays
-accessible. The compact Help control stays at the leading edge of the footer;
-the other actions keep their platform button order in a separate group.
-Initial focus is Appearance. Ctrl+Tab/Control+Tab on Cocoa and the reverse route
-work from fields and footer, activate the next visible section
-and focus an enabled control there. Help/F1 routes to the focused source group;
-using the footer retains that context. The help button retains its accessible
-name and tooltip. Source algorithms and original defaults
+has a heading and can scroll while the native Apply, Cancel and Save actions
+stay accessible in platform order. Initial focus is Appearance. Ctrl+Tab or
+Control+Tab on Cocoa activates the next visible section and focuses an enabled
+control. The reverse shortcut moves to the previous section. Source algorithms and original defaults
 are unchanged. This surface supersedes the old six-page container geometry.
 
 <a id="options-initial-frame-p3-06-2026-10-16"></a>

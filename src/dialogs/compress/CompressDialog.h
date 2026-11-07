@@ -117,7 +117,6 @@ class CCompressDialog {
     bool IsMethodEqualTo(const UString &s) const;
     void SetMethod2(QComboBox &control, UInt32 level, const NCompression::CInfo &registry,
                     const std::function<void()> &methodChanged, int keepMethodId = -1);
-    void OnHelp(QWidget *parent = nullptr);
     CBool1 SymLinks;
     CBool1 HardLinks;
     CBool1 AltStreams;

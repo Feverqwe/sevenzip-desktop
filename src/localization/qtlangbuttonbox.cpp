@@ -17,11 +17,6 @@ void QtLangButtonBox::SetAcceptText(const char *context, const char *source) {
     ReloadText();
 }
 
-void QtLangButtonBox::UseCompactHelp() {
-    compactHelp_ = true;
-    ReloadText();
-}
-
 QPushButton *QtLangButtonBox::Control(UInt32 controlID) const {
     if (controlID == acceptID_)
         return button(Ok);
@@ -62,25 +57,11 @@ void QtLangButtonBox::ReloadText() {
     if (auto *control = button(Ok); control && !acceptSource_.isEmpty())
         control->setText(
             QCoreApplication::translate(acceptContext_.constData(), acceptSource_.constData()));
-    if (auto *help = button(Help); help && compactHelp_) {
-        const QString caption = help->text().remove('&');
-        help->setAccessibleName(caption);
-        help->setToolTip(caption);
-        help->setText(QStringLiteral("?"));
-        help->setIcon({});
-        help->setAutoDefault(false);
-#ifdef Q_OS_MACOS
-        help->setAttribute(Qt::WA_LayoutUsesWidgetRect);
-#endif
-        help->setFixedWidth(help->sizeHint().height());
-    }
     UpdateButtonWidths();
 }
 
 void QtLangButtonBox::UpdateButtonWidths() {
     for (auto *control : buttons()) {
-        if (control == button(Help) && compactHelp_)
-            continue;
         const int margin = control->style()->pixelMetric(QStyle::PM_ButtonMargin, nullptr, control);
         const int textWidth =
             control->fontMetrics().size(Qt::TextShowMnemonic, control->text()).width();
@@ -93,9 +74,7 @@ void QtLangButtonBox::UpdateButtonWidths() {
 void QtLangButtonBox::changeEvent(QEvent *event) {
     QDialogButtonBox::changeEvent(event);
     // Qt resets standard captions in its base handler, after the window filter.
-    if (event->type() == QEvent::LanguageChange ||
-        ((event->type() == QEvent::FontChange || event->type() == QEvent::StyleChange) &&
-         compactHelp_))
+    if (event->type() == QEvent::LanguageChange)
         ReloadText();
     else if (event->type() == QEvent::FontChange || event->type() == QEvent::StyleChange)
         UpdateButtonWidths();

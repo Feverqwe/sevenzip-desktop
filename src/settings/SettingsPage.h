@@ -44,7 +44,6 @@ class CSettingsPage : public QDialog {
                            bool embedded = false,
                            const IQtMemoryLockServices *memoryLockServices = nullptr);
     long OnApply();
-    void OnNotifyHelp();
     void accept() override;
     CFmSettings settings() const { return _settings; }
     QWidget *appearanceControls() const { return _appearanceControls; }

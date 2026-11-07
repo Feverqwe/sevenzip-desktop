@@ -50,7 +50,6 @@ class CMenuPage : public QWidget {
                        bool zoneSupported = IsZonePropagationSupported(),
                        std::shared_ptr<IQtMenuPageServices> services = {});
     bool OnInit();
-    void OnNotifyHelp();
     long OnApply();
     bool IsModified() const;
     bool IntegrationSupported() const;

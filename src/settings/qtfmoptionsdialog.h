@@ -30,10 +30,8 @@ class QtFmOptionsDialog final : public QDialog {
     bool _applying = false;
     Qt::ColorScheme _appliedColorScheme = Qt::ColorScheme::Unknown;
     QDialogButtonBox *_buttons;
-    QDialogButtonBox *_helpButtons;
     QWidget *_footer;
     QTabWidget *_sections;
-    QPointer<QWidget> _helpContext;
     QListWidget *_navigation;
     QListWidget *_compactNavigation;
     QWidget *_compactNavigationPanel;
@@ -51,7 +49,6 @@ class QtFmOptionsDialog final : public QDialog {
     void updateApplyButton();
     void changeEvent(QEvent *event) override;
     void reloadLangItems();
-    void showPageHelp();
     void closeEvent(QCloseEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
 

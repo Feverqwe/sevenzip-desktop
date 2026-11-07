@@ -102,8 +102,7 @@ qintptr CQtBenchmarkWindow::Create(unsigned resource, QWidget *parent) {
     auto *copy = findChild<QPushButton *>("copyReportButton");
     if (resource == IDD_BENCH_TOTAL) {
         QWidget::setTabOrder(GetItem(IDE_BENCH2_EDIT), copy);
-        QWidget::setTabOrder(copy, GetItem(IDHELP));
-        QWidget::setTabOrder(GetItem(IDHELP), GetItem(IDCANCEL));
+        QWidget::setTabOrder(copy, GetItem(IDCANCEL));
         GetItem(IDE_BENCH2_EDIT)->setFocus();
     } else {
         const unsigned order[] = {IDC_BENCH_DICTIONARY,
@@ -112,7 +111,6 @@ qintptr CQtBenchmarkWindow::Create(unsigned resource, QWidget *parent) {
                                   IDT_BENCH_LOG,
                                   IDB_RESTART,
                                   IDB_STOP,
-                                  IDHELP,
                                   IDCANCEL};
         for (unsigned i = 1; i < sizeof(order) / sizeof(order[0]); ++i)
             QWidget::setTabOrder(GetItem(order[i - 1]), GetItem(order[i]));

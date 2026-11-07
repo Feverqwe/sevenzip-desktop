@@ -7,7 +7,6 @@
 #include <QKeyEvent>
 #include <QLineEdit>
 #include <QPushButton>
-#include <QShortcut>
 #include <QTreeWidget>
 
 void CBrowseDialog2::ConnectControls(QDialogButtonBox *buttons, QPushButton *refresh) {
@@ -28,7 +27,6 @@ void CBrowseDialog2::ConnectControls(QDialogButtonBox *buttons, QPushButton *ref
         _list->setFocus();
     });
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
-    connect(buttons, &QDialogButtonBox::helpRequested, this, &CBrowseDialog2::OnHelp);
     connect(qApp, &QApplication::focusChanged, this, &CBrowseDialog2::OnFocusChanged);
     connect(_list, &QTreeWidget::itemActivated, this, [this] {
         if (!_singleClick)
@@ -43,12 +41,7 @@ void CBrowseDialog2::ConnectControls(QDialogButtonBox *buttons, QPushButton *ref
             &CBrowseDialog2::UpdateDeleteAvailability);
     connect(_list->header(), &QHeaderView::sectionClicked, this,
             &CBrowseDialog2::ChangeSorting_and_Reload);
-    auto *help = new QShortcut(QKeySequence(Qt::Key_F1), this);
-    connect(help, &QShortcut::activated, this, &CBrowseDialog2::OnHelp);
     auto *close = buttons->button(QDialogButtonBox::Close);
-    auto *helpButton = buttons->button(QDialogButtonBox::Help);
-    setTabOrder(close, helpButton);
-    setTabOrder(helpButton, _delete);
     setTabOrder(_delete, refresh);
     setTabOrder(refresh, _parent);
     setTabOrder(_parent, _pathEdit);

@@ -63,7 +63,6 @@ class CExtractDialog : public QDialog {
     QString password() const {
         return _passwordEnable->isChecked() ? _passwordControl->text() : QString();
     }
-    void OnHelp();
     void SetInitialOptions(NExtract::NPathMode::EEnum pathMode,
                            NExtract::NOverwriteMode::EEnum overwriteMode, const QString &password);
     void SetMetadataOptions(const CBoolPair &elimDup, const CBoolPair &ntSecurity);

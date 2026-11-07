@@ -15,7 +15,6 @@
 #include <QLabel>
 #include <QPlainTextEdit>
 #include <QPushButton>
-#include <QShortcut>
 #include <QToolButton>
 #include <QVBoxLayout>
 
@@ -150,9 +149,6 @@ void CExtractDialog::BuildPresentation() {
                     QT_TRANSLATE_NOOP("ArchiveRedesign", "Advanced settings"));
     layout->addWidget(_advancedSection);
     layout->addStretch();
-    connect(buttons, &QDialogButtonBox::helpRequested, this, &CExtractDialog::OnHelp);
-    auto *help = new QShortcut(QKeySequence(Qt::Key_F1), this);
-    connect(help, &QShortcut::activated, this, &CExtractDialog::OnHelp);
     connect(buttons, &QDialogButtonBox::accepted, this, &CExtractDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     connect(browse, &QPushButton::clicked, this, &CExtractDialog::OnButtonSetPath);

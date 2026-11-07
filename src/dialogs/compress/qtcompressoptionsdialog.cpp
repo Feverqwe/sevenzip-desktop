@@ -3,20 +3,15 @@
 #include "localization/qtlangcontrols.h"
 #include "ui/dialogs/qtdialogscreenservices.h"
 #include <QDialogButtonBox>
-#include <QShortcut>
 #include <QVBoxLayout>
 
 COptionsDialog::COptionsDialog(CCompressDialog *source) : panel_(new COptionsPanel(source, this)) {
     setObjectName("compressOptionsDialog");
     QtBindLocalText(this, "ArchiveRedesign",
                     QT_TRANSLATE_NOOP("ArchiveRedesign", "Format options"));
-    auto *buttons = new QtLangButtonBox(
-        QDialogButtonBox::Ok | QDialogButtonBox::Cancel | QDialogButtonBox::Help, this);
+    auto *buttons = new QtLangButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     buttons->setObjectName("compressOptionsButtons");
     buttons->SetAcceptText("DialogRedesign", QT_TRANSLATE_NOOP("DialogRedesign", "Save"));
-    connect(buttons, &QDialogButtonBox::helpRequested, panel_, &COptionsPanel::showHelp);
-    auto *help = new QShortcut(QKeySequence(Qt::Key_F1), this);
-    connect(help, &QShortcut::activated, panel_, &COptionsPanel::showHelp);
     connect(buttons, &QDialogButtonBox::accepted, this, &COptionsDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     QtCreateDialogLayout(*this, *buttons)->addWidget(panel_);

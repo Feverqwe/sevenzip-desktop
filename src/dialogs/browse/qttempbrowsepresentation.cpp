@@ -87,9 +87,8 @@ void CBrowseDialog2::BuildControls() {
     setObjectName("tempBrowseDialog");
     setWindowFlag(Qt::WindowMinMaxButtonsHint);
     setWindowFlag(Qt::WindowContextHelpButtonHint, false);
-    auto *buttons = new QtLangButtonBox(QDialogButtonBox::Help | QDialogButtonBox::Close, this);
+    auto *buttons = new QtLangButtonBox(QDialogButtonBox::Close, this);
     buttons->setObjectName("tempFooter");
-    buttons->button(QDialogButtonBox::Help)->setObjectName("tempHelp");
     buttons->button(QDialogButtonBox::Close)->setObjectName("tempClose");
     auto *layout = QtCreateDialogLayout(*this, *buttons);
     auto *commands = new QHBoxLayout;

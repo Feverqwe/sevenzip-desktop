@@ -9,11 +9,8 @@ set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/scripts/upstream_baseline.py")
 file(GLOB dependency_archives CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/third_party/*/source.tar.xz")
-file(GLOB dependency_asset_overlays CONFIGURE_DEPENDS
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/help/content/*.htm")
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
     ${dependency_archives}
-    ${dependency_asset_overlays}
     "${CMAKE_CURRENT_SOURCE_DIR}/scripts/dependency-sources.py"
     "${CMAKE_CURRENT_SOURCE_DIR}/tools/dependencies/source_archives.py")
 execute_process(

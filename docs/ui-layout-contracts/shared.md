@@ -42,7 +42,7 @@
 | <a id="add-archive-naming-metadata-p2-01"></a>Add archive naming metadata (P2-01) | [Открыть](compression.md#add-archive-naming-metadata-p2-01) |
 | <a id="open-archive-picker-p2-01"></a>Open archive picker (P2-01) | [Открыть](extraction.md#open-archive-picker-p2-01) |
 | <a id="delete-temporary-files-p1-152"></a>Delete Temporary Files (P1-15.2) | [Открыть](external-tools.md#delete-temporary-files-p1-152) |
-| <a id="offline-help-and-about-p1-151"></a>Offline Help and About (P1-15.1) | [Открыть](external-tools.md#offline-help-and-about-p1-151) |
+| <a id="offline-help-and-about-p1-151"></a>About | [Открыть](external-tools.md#about) |
 | <a id="live-dialog-language-consumers-p1-142"></a>Live dialog language consumers (P1-14.2) | [Открыть](options.md#live-dialog-language-consumers-p1-142) |
 | <a id="menu-page-p1-131"></a>Menu page (P1-13.1) | [Открыть](options.md#menu-page-p1-131) |
 | <a id="advanced-compression-options-p1-071"></a>Advanced compression options (P1-07.1) | [Открыть](compression.md#advanced-compression-options-p1-071) |

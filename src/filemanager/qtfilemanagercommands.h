@@ -90,7 +90,6 @@ class QtFileManagerCommands final : public IQtFileManagerMenuCommandServices {
     void SetTimestampLevel(int level) override;
     void OptionsDialog() override;
     void MyBenchmark(bool totalMode) override;
-    void ShowHelpWindow(const char *topic) override;
     void AboutDialog() override;
     void MyBrowseForTempFolder() override;
     void OpenBookmark(unsigned index) override;

@@ -97,16 +97,12 @@ void CQtBenchmarkWindow::BuildControls(bool totalMode) {
     resize(QSize(totalMode ? 760 : 960, 560).expandedTo(minimumSizeHint()));
 }
 QDialogButtonBox *CQtBenchmarkWindow::BuildFooter(bool totalMode) {
-    auto *footer = new QtLangButtonBox(QDialogButtonBox::Close | QDialogButtonBox::Help, this);
+    auto *footer = new QtLangButtonBox(QDialogButtonBox::Close, this);
     footer->setObjectName("benchmarkButtons");
-    for (const auto &entry :
-         {qMakePair(2u, QDialogButtonBox::Close), qMakePair(9u, QDialogButtonBox::Help)}) {
-        auto *view = footer->button(entry.second);
-        controls_.insert(entry.first, view);
-        view->setObjectName(entry.first == 2 ? "IDCANCEL" : "IDHELP");
-    }
+    auto *close = footer->button(QDialogButtonBox::Close);
+    controls_.insert(2u, close);
+    close->setObjectName("IDCANCEL");
     connect(footer, &QDialogButtonBox::rejected, this, [this] { OnCancel(); });
-    connect(footer, &QDialogButtonBox::helpRequested, this, [this] { OnHelp(); });
     auto *copy = footer->addButton(QString(), QDialogButtonBox::ActionRole);
     copy->setObjectName("copyReportButton");
     QtBindLocalText(copy, "DialogRedesign", QT_TRANSLATE_NOOP("DialogRedesign", "Copy"));

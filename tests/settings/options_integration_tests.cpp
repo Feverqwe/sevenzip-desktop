@@ -280,11 +280,8 @@ class OptionsIntegrationTests final : public QObject {
                 dialog.resize(size);
                 QApplication::processEvents();
                 auto *navigation = dialog.findChild<QListWidget *>("settingsNavigation");
-                auto *help = dialog.findChild<QPushButton *>("settingsHelp");
                 auto *buttons = dialog.findChild<QDialogButtonBox *>("settingsButtons");
-                QVERIFY(UiInspection::fullyVisible(*help, dialog));
-                QVERIFY(UiInspection::bounds(*help, dialog).right() <
-                        UiInspection::bounds(*buttons, dialog).left());
+                QVERIFY(UiInspection::fullyVisible(*buttons, dialog));
                 if (!navigation->isVisible())
                     navigation = dialog.findChild<QListWidget *>("settingsSectionChoice");
                 QVERIFY(navigation->isVisible());

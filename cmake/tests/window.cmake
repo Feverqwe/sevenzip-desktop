@@ -278,6 +278,7 @@
     set_tests_properties(compression_advanced PROPERTIES TIMEOUT 60 ENVIRONMENT
         "QT_QPA_PLATFORM=offscreen;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
 qt_add_executable(about_dialog_tests tests/ui/about_dialog_tests.cpp)
+target_compile_definitions(about_dialog_tests PRIVATE SEVENZIP_DESKTOP_VERSION="${PROJECT_VERSION}")
 target_link_libraries(about_dialog_tests PRIVATE sevenzip_panel sevenzip_layout_inspection Qt6::Test)
 target_include_directories(about_dialog_tests PRIVATE tests)
 add_test(NAME about_dialog COMMAND about_dialog_tests -silent)

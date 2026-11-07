@@ -5,7 +5,6 @@
 #include "7zip/UI/GUI/ExtractRes.h"
 #include "Windows/FileName.h"
 #include "dialogs/browse/BrowseDialog.h"
-#include "filemanager/HelpUtils.h"
 #include "fileops/patterns/Wildcard.h"
 #include "localization/qtlangcontrols.h"
 #include "settings/ViewSettings.h"
@@ -18,8 +17,6 @@
 #include <QTimer>
 #include <span>
 
-#define kHelpTopic "fm/plugins/7-zip/extract.htm"
-void CExtractDialog::OnHelp() { ShowHelpWindow(kHelpTopic, this); }
 namespace {
 struct CExtractModeItem {
     int Value;

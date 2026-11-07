@@ -63,7 +63,7 @@ Reference: pinned CompressOptionsDialog.rc NTFS group and COptionsDialog
 OnInit/OnOK. Symbolic links precede hard links, alternate streams and security;
 original handler flags control visibility. The redesign places real format/method
 information first, then lightweight links/metadata and time groups, with the shared
-dialog margins and Save/Cancel/Help footer. Unix hides NTFS streams/security and
+dialog margins and Save/Cancel footer. Unix hides NTFS streams/security and
 the metadata group disappears when unsupported. Initial size follows visible
 content; resizing keeps the header and fields at the top.
 source_link_storage requests EN/RU540×480/480×430 reports for actual TAR options;
@@ -105,15 +105,8 @@ checkbox widths385 and RU421 meet all size hints; exposedBounds equal bounds
 at normal/compact sizes. This is resource structure/usability evidence;
 rendered 7zFM pixel parity remains unverified. P2-02 acceptance is in the audit.
 
-P2-02 About integration restores original codec-error message initialization.
-The retained catalog supplies source GetCodecsErrorMessage; a Qt critical message
-substitutes the original MessageBoxW/MB_ICONERROR. `help_source` checks exact source
-text and exposed/wrapped label with600×300/400×250 resize requests and writes
-`about-codec-error-600/400` JSON. About's product identity follows the
-[current About contract](external-tools.md#offline-help-and-about-p1-151).
-No rendered Windows reference is claimed for the standard Qt error message.
-The standard QMessageBox auto-fit resolves both requests to400×121 on this host;
-these reports prove fitting source text, not two distinct error-window sizes.
+The [current About contract](external-tools.md#about) covers the product identity
+and build information.
 
 For resource-derived comparison and reviewed C++ states, see
 [upstream UI references](../ui-reference.md) and `$sz-ui-parity`.
@@ -134,7 +127,7 @@ Format, compression, memory, volumes, parameters and the Options summary occupy
 the left column; Update mode, Path mode, Options and Encryption occupy the right.
 There is no Compression group box or embedded source picker. The panel selection
 supplies sources through the original Add workflow; archive updates use the
-original two-panel Copy workflow. The footer uses OK/Cancel/Help.
+original two-panel Copy workflow. The footer uses OK/Cancel.
 
 At a fixed window size, changing compression settings preserves both column
 boundaries and the positions of other controls. Unsupported memory/header
@@ -169,13 +162,13 @@ visible. `compression_advanced` writes `archive-advanced-760/640.json`.
 Options sizes its initial client to visible content, protected by native control
 minimums. It keeps resource grouping/order: optional NTFS controls, format time info,
 Time group with explicit/default precision and modification/creation/access/time
-of archive rows, preserve-access checkbox, then OK/Cancel/Help. Explicit/default
+of archive rows, preserve-access checkbox, then OK/Cancel. Explicit/default
 checkboxes use the local Set/Задать caption and descriptive accessible names;
 their tooltip explains the override of the format default.
 Native capability policy hides unsupported NTFS
 controls; ZIP UNIX/DOS precision hides creation/access rows. Archive mtime is
 enabled. Preserve access is enabled on Windows and hidden on
-POSIX; Help and F1 open the source Options topic through the application service.
+POSIX.
 
 The NTFS group fits its visible rows with native control protection.
 Hidden NTFS groups and unsupported time rows leave no reserved space.
@@ -194,9 +187,8 @@ initial/compact, plus ZIP Unix precision. Initial focus and first Tab match the
 actual original runtime:CTime→ATime explicit, Precision→CTime explicit, and
 symbolic→hard links respectively. Backtab reverses that transition. Space/Down,
 Cancel/reopen and Return→OK retain the source default/explicit and commit rules.
-The existing advanced/timestamp/language suites retain persistence, Help and
-live-language coverage. Source visibility is applied before Qt computes its
-minimum; unsupported hidden NTFS controls do not force a compact minimum.
+The existing advanced, timestamp and language suites cover persistence and live
+language changes. Hidden NTFS controls do not force a compact minimum.
 
 [The current receipt](../archive/qt-port/upstream-port-audit/p3-06-compression-options-2026-10-17.md)
 maps all22 controls against eight actual original states and native reports on
@@ -303,7 +295,7 @@ Reference: the same upstream commit, `CPP/7zip/UI/GUI/CompressDialog.rc`,
   history does not widen the form.
 - Options are scrollable. At 760×720 and 640×480, format, compression controls,
   password fields must each be fully reachable by scrolling.
-- The OK/Cancel/Help footer remains outside the scrolling
+- The OK/Cancel footer remains outside the scrolling
   area. Footer buttons remain visible and do not overlap in both 7z and ZIP.
 
 Adaptations: the two columns remain in a scroll area; compression

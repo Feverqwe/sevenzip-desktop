@@ -29,7 +29,6 @@ class CFoldersPage : public QWidget {
   public:
     explicit CFoldersPage(const QString &settingsPath, QWidget *parent = nullptr);
     long OnApply();
-    void OnNotifyHelp();
     bool IsModified() const { return _needSave; }
 
   signals:

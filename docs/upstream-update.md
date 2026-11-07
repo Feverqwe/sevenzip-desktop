@@ -99,11 +99,11 @@ checks. Use `./scripts/check.sh` only for the broader integration risks defined
 in [AGENTS.md](../AGENTS.md#validation-scope). A failed check leaves provenance at the
 last validated revision.
 
-Release resources have separate provenance in `third_party/7zip-help/provenance.json`
-and `help-provenance.json`. Compare the recorded members with the matching
-official release installer as well: translations and CHM help are not covered
-by the source manifest. Preserve exact member bytes and update their provenance
-after review, including when a member is unchanged in the new release.
+Upstream translations have separate provenance in
+`third_party/7zip-help/provenance.json`. Compare the recorded language files
+with the matching official release installer. Preserve exact member bytes and
+update their provenance after review, including when a member is unchanged in
+the new release.
 
 Early verification and synthetic-review evidence is preserved in
 [the tooling archive](archive/qt-port/workflow-evidence.md).

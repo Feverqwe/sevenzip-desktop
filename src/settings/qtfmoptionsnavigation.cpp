@@ -80,7 +80,6 @@ void QtFmOptionsDialog::buildNavigation() {
     auto *footer = new QHBoxLayout(_footer);
     footer->setContentsMargins(24, 12, 24, 20);
     footer->setSpacing(16);
-    footer->addWidget(_helpButtons);
     footer->addStretch();
     footer->addWidget(_buttons);
     _frame->addWidget(_footer, 1, 2);

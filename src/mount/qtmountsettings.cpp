@@ -1,7 +1,6 @@
 #include "mount/qtmountsettings.h"
 #include "archive/backend/archivebackend.h"
 #include "archive/resources/archivereadonlyview.h"
-#include "help/qthelpservices.h"
 #include "ui/controls/qtsourcesummary.h"
 #include "ui/dialogs/qtdialoglayout.h"
 #include "ui/theme/qtcommandicons.h"
@@ -17,7 +16,6 @@
 #include <QProgressBar>
 #include <QPushButton>
 #include <QResizeEvent>
-#include <QShortcut>
 #include <QSpinBox>
 #include <QThread>
 #include <QTimer>
@@ -39,8 +37,8 @@ class MountSettingsDialog final : public QDialog {
     QFormLayout *form_ = nullptr;
     QSpinBox *quota_ = nullptr;
     QLineEdit *password_ = nullptr;
-    QPushButton *help_ = nullptr, *start_ = nullptr;
-    QShortcut *shortcut_ = nullptr;
+    QPushButton *start_ = nullptr;
+    QLabel *cacheHint_ = nullptr;
     void BuildControls(const QString &label, const QString &password, bool checkReader);
     void Prepare(IUnknown *resource, const QString &password, const QString &folder);
     void PreparationFinished();
@@ -76,36 +74,13 @@ class MountPreparation final : public QThread {
     }
 };
 
-void ShowCacheHelp(QWidget *parent) {
-    QtOpenHelpText(
-        QCoreApplication::translate("QtArchiveMountManager", "Temporary cache"),
-        QCoreApplication::translate(
-            "QtArchiveMountManager",
-            "Sevenzip connects the folder currently open in the file manager. It reuses the open "
-            "reader and any temporary container files already created.\n\n"
-            "Files that support direct reading are passed to other applications without "
-            "extraction. For example, a ZIP inside a filesystem in a QCOW image is read as an "
-            "ordinary ZIP file.\n\n"
-            "When connecting a folder inside a compressed archive, files may need decoding. "
-            "You approve extraction once for this mount. Files are then decoded when another "
-            "application reads them, "
-            "and kept in a temporary disk cache. The source remains read-only.\n\n"
-            "The limit is the total size of these extracted files. Older cached files are "
-            "removed to make room and may need to be extracted again. If one file exceeds "
-            "the limit, that file cannot be read through this connection; other files and "
-            "the connection remain available. Directly read files are not subject to this limit."),
-        parent);
-}
-
 void MountSettingsDialog::BuildControls(const QString &label, const QString &archivePassword,
                                         bool checkReader) {
     phase_ = checkReader ? Phase::Preparing : Phase::Ready;
     setObjectName("archiveMountSettings");
     setWindowTitle(QCoreApplication::translate("QtArchiveMountManager", "Mount read-only"));
     QtUseContextDialogModality(*this);
-    buttons_ = new QDialogButtonBox(QDialogButtonBox::Cancel | QDialogButtonBox::Help, this);
-    help_ = buttons_->button(QDialogButtonBox::Help);
-    help_->setObjectName("mountCacheHelpButton");
+    buttons_ = new QDialogButtonBox(QDialogButtonBox::Cancel, this);
     auto *layout = QtCreateDialogLayout(*this, *buttons_);
     const QString name = QFileInfo(QDir::cleanPath(label)).fileName();
     auto *source = new QtSourceSummary(QtCommandSymbol(QtCommandIcon::Folder),
@@ -131,13 +106,14 @@ void MountSettingsDialog::BuildControls(const QString &label, const QString &arc
     elapsed_->setObjectName("mountPreparationElapsed");
     elapsed_->setVisible(checkReader);
     layout->addWidget(elapsed_);
-    preparationHint_ = new QLabel(
+    preparationHint_ = new QtWrappingLabel(
         QCoreApplication::translate(
             "QtArchiveMountManager",
             "Mount will be available when preparation finishes. Large folders on a network "
             "drive can take longer. File contents are not extracted during this check."),
         this);
     preparationHint_->setWordWrap(true);
+    preparationHint_->setTextFormat(Qt::PlainText);
     preparationHint_->setVisible(checkReader);
     layout->addWidget(preparationHint_);
     form_ = new QFormLayout;
@@ -159,17 +135,20 @@ void MountSettingsDialog::BuildControls(const QString &label, const QString &arc
         QCoreApplication::translate("QtArchiveMountManager", "Archive password (if needed):"),
         password_);
     layout->addLayout(form_);
+    cacheHint_ =
+        new QtWrappingLabel(QCoreApplication::translate(
+                                "QtArchiveMountManager",
+                                "The cache stores extracted files. Files larger than this limit "
+                                "cannot be read through the connection."),
+                            this);
+    cacheHint_->setObjectName("mountCacheHint");
+    cacheHint_->setWordWrap(true);
+    cacheHint_->setTextFormat(Qt::PlainText);
+    layout->addWidget(cacheHint_);
     start_ = buttons_->addButton(QCoreApplication::translate("QtArchiveMountManager", "Mount"),
                                  QDialogButtonBox::AcceptRole);
     start_->setDefault(true);
     start_->setEnabled(phase_ == Phase::Ready);
-    shortcut_ = new QShortcut(QKeySequence::HelpContents, this);
-    const auto showHelp = [this] {
-        if (quota_->isVisible())
-            ShowCacheHelp(this);
-    };
-    connect(buttons_, &QDialogButtonBox::helpRequested, this, showHelp);
-    connect(shortcut_, &QShortcut::activated, this, showHelp);
     ShowCache(!checkReader);
     connect(buttons_, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(buttons_, &QDialogButtonBox::rejected, this, &QDialog::reject);
@@ -178,8 +157,7 @@ void MountSettingsDialog::BuildControls(const QString &label, const QString &arc
 
 void MountSettingsDialog::ShowCache(bool required) {
     form_->setRowVisible(quota_, required);
-    help_->setVisible(required);
-    shortcut_->setEnabled(required);
+    cacheHint_->setVisible(required);
 }
 
 void MountSettingsDialog::Prepare(IUnknown *resource, const QString &password,

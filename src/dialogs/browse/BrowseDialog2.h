@@ -68,7 +68,6 @@ class CBrowseDialog2 : public QDialog {
     void OpenOutside(const UString &path, const QtOwnedTempEntry &owner, bool sevenzip);
     void OnDelete();
     void OnDetails();
-    void OnHelp();
     bool eventFilter(QObject *object, QEvent *event) override;
     void keyPressEvent(QKeyEvent *event) override;
 

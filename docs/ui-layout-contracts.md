@@ -61,7 +61,7 @@ observable requirements change; keep implementation history in the
 | Add archive naming metadata | [Спецификация](ui-layout-contracts/compression.md#add-archive-naming-metadata-p2-01) |
 | Open archive picker | [Спецификация](ui-layout-contracts/extraction.md#open-archive-picker-p2-01) |
 | Delete Temporary Files | [Спецификация](ui-layout-contracts/external-tools.md#delete-temporary-files-p1-152) |
-| Offline Help and About | [Спецификация](ui-layout-contracts/external-tools.md#offline-help-and-about-p1-151) |
+| About | [Спецификация](ui-layout-contracts/external-tools.md#about) |
 | Live dialog language consumers | [Спецификация](ui-layout-contracts/options.md#live-dialog-language-consumers-p1-142) |
 | Menu page | [Спецификация](ui-layout-contracts/options.md#menu-page-p1-131) |
 | Advanced compression options | [Спецификация](ui-layout-contracts/compression.md#advanced-compression-options-p1-071) |

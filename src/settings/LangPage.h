@@ -20,7 +20,6 @@ class CLangPage : public QWidget {
     explicit CLangPage(const QString &settingsPath, QWidget *parent = nullptr,
                        const QString &directory = {});
     bool OnInit();
-    void OnNotifyHelp();
     bool OnCommand(unsigned itemID);
     long OnApply();
     bool IsModified() const { return _needSave; }

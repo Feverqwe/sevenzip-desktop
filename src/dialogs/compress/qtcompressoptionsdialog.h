@@ -73,7 +73,6 @@ class COptionsPanel : public CQtCompressOptionsPanel {
     virtual bool OnCommand(unsigned code, unsigned itemID, qintptr lParam) override;
     virtual bool OnButtonClicked(unsigned buttonID, QWidget *buttonHWND) override;
     virtual void OnOK() override;
-    virtual void OnHelp() override;
 
   public:
     COptionsPanel(CCompressDialog *cdLoc Z7_lifetimebound, QWidget *parent = nullptr)
