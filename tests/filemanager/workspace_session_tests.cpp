@@ -193,6 +193,40 @@ class WorkspaceSessionTests final : public QObject {
         QTRY_COMPARE(QtNativePlaces::RootIdentity(*active(window)->sourcePanel), identity);
         QVERIFY(!window.findChild<QAction *>("createFolderAction")->isEnabled());
     }
+    void newWindowKeepsNativeRootAcrossDeferredLanguageChange() {
+        const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
+        SaveRegLang(L"-", settings);
+        ReloadLang(settings);
+        const auto resetLanguage = qScopeGuard([&] {
+            SaveRegLang(L"-", settings);
+            ReloadLang(settings);
+        });
+        QtWorkspaceApplication application(*qApp);
+        ControlledBackend backend;
+        MainWindow source(&backend);
+        source.show();
+        source.findChild<QAction *>("openRootAction")->trigger();
+        QTRY_VERIFY(active(source));
+        QCOMPARE(QtNativePlaces::RootIdentity(*active(source)->sourcePanel), QString("computer"));
+        source.findChild<QAction *>("newWindowAction")->trigger();
+        SaveRegLang(L"ru", settings);
+        ReloadLang(settings);
+        QPointer<MainWindow> copy;
+        const auto close = qScopeGuard([&] {
+            if (copy)
+                copy->close();
+        });
+        QTRY_COMPARE(windows().size(), 2);
+        for (auto *window : windows())
+            if (window != &source)
+                copy = window;
+        QVERIFY(copy);
+        QTRY_VERIFY(active(*copy) && active(*copy)->isEnabled());
+        QTRY_COMPARE(QtNativePlaces::RootIdentity(*active(*copy)->sourcePanel),
+                     QString("computer"));
+        QVERIFY(!copy->findChild<QAction *>("createFolderAction")->isEnabled());
+    }
+
     void closingDuringRestoreDoesNotBlockPeerPersistence() {
         const bool quit = qApp->quitOnLastWindowClosed();
         qApp->setQuitOnLastWindowClosed(false);

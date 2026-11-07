@@ -35,7 +35,7 @@ class QtWindowWorkspace final : public QObject {
     void Refresh();
     QJsonObject Save();
     void Restore(const QJsonObject &state, std::function<void()> finished = {},
-                 std::function<void()> canceled = {});
+                 std::function<void()> canceled = {}, const QtArchiveLocation &firstArchive = {});
     void EditLocation();
     QString CurrentLocation();
     void AttachContent(unsigned panel, QVBoxLayout &layout);
@@ -68,6 +68,7 @@ class QtWindowWorkspace final : public QObject {
     bool eventFilter(QObject *object, QEvent *event) override;
 
   private:
+    friend class QtWorkspaceApplication;
     struct Visit {
         QString path;
         QString nativePlaceIdentity;
@@ -134,7 +135,7 @@ class QtWindowWorkspace final : public QObject {
     void WhenReady(std::function<void()> body, std::function<void()> canceled = {});
     void RestoreListFocus(unsigned panel, quint64 request, QPointer<QWidget> widget);
     void RestorePanel(unsigned panel, const QJsonObject &saved, std::function<void()> finished,
-                      std::function<void()> canceled);
+                      std::function<void()> canceled, const QtArchiveLocation &archive = {});
     void CompleteLocationOpen(unsigned panel, const QString &path, HRESULT result);
     void RetryLocation(unsigned panel, bool parent);
     MainWindow &window_;

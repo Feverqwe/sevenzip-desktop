@@ -77,8 +77,8 @@ void QtWindowWorkspace::WhenReady(std::function<void()> body, std::function<void
 }
 
 void QtWindowWorkspace::RestorePanel(unsigned panel, const QJsonObject &saved,
-                                     std::function<void()> finished,
-                                     std::function<void()> canceled) {
+                                     std::function<void()> finished, std::function<void()> canceled,
+                                     const QtArchiveLocation &liveArchive) {
     const auto object = SavedLocation(saved);
     if (!window_.panelUi_[panel].table || object.isEmpty()) {
         finished();
@@ -92,7 +92,9 @@ void QtWindowWorkspace::RestorePanel(unsigned panel, const QJsonObject &saved,
     // the containing directory, just like CApp's single-window Save.
     const auto archive = object.value("archiveLocation").toObject();
     const QString physical = archive.value("physical").toString();
-    if (!physical.isEmpty()) {
+    if (!liveArchive.physicalPath.isEmpty()) {
+        locationState.archiveLocation = liveArchive;
+    } else if (!physical.isEmpty()) {
         locationState.path = QFileInfo(physical).absolutePath();
         locationState.nativePlaceIdentity.clear();
     } else if (QFileInfo(locationState.path).isFile()) {
@@ -117,7 +119,8 @@ void QtWindowWorkspace::RestorePanel(unsigned panel, const QJsonObject &saved,
 }
 
 void QtWindowWorkspace::Restore(const QJsonObject &value, std::function<void()> finished,
-                                std::function<void()> canceled) {
+                                std::function<void()> canceled,
+                                const QtArchiveLocation &firstArchive) {
     const auto panels = value.value("panels").toArray();
     const bool savedTwo = value.value("count").toInt(1) == 2;
     bool needsOtherPane = false;
@@ -127,7 +130,7 @@ void QtWindowWorkspace::Restore(const QJsonObject &value, std::function<void()> 
     if ((needsOtherPane || savedTwo) && window_.app_.NumPanels == 1)
         window_.togglePanels();
     WhenReady(
-        [this, value, panels, finished = std::move(finished), canceled] {
+        [this, value, panels, finished = std::move(finished), canceled, firstArchive] {
             const auto complete = [this, value, finished] {
                 const unsigned focus = qBound(0, value.value("focused").toInt(), 1);
                 if (window_.panelUi_[focus].container)
@@ -159,7 +162,7 @@ void QtWindowWorkspace::Restore(const QJsonObject &value, std::function<void()> 
                     RestorePanel(1, panels.size() > 1 ? panels.at(1).toObject() : QJsonObject{},
                                  complete, canceled);
                 },
-                canceled);
+                canceled, firstArchive);
         },
         canceled);
 }
