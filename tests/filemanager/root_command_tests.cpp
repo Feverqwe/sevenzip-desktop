@@ -108,7 +108,17 @@ class RootCommandTests final : public QObject, protected MainWindowTestSupport {
         QTRY_VERIFY(rightAddress->text().isEmpty());
         QVERIFY(static_cast<FileTable *>(rightTable)->sourcePanel->IsRootFolder());
         action(window, "backAction")->trigger();
+        QTRY_COMPARE(rightAddress->text(), drivePrefix(language));
+        QVERIFY(rightTable->sourcePanel->IsFSDrivesFolder());
+        action(window, "backAction")->trigger();
         QTRY_COMPARE(rightAddress->text(), QFileInfo(rightPath).canonicalFilePath());
+        QVERIFY(rightTable->sourcePanel->IsFSFolder());
+        action(window, "forwardAction")->trigger();
+        QTRY_COMPARE(rightAddress->text(), drivePrefix(language));
+        QVERIFY(rightTable->sourcePanel->IsFSDrivesFolder());
+        action(window, "forwardAction")->trigger();
+        QTRY_VERIFY(rightAddress->text().isEmpty());
+        QVERIFY(rightTable->sourcePanel->IsRootFolder());
         QCOMPARE(leftAddress->text(), QFileInfo(leftPath).canonicalFilePath());
     }
     void driveViewIsRestoredFromFilesystemHistory_data() {
