@@ -30,8 +30,6 @@ bool CSettingsPage::OnInit() {
     _settings.Load(_settingsPath);
     _appearance->setCurrentIndex(_appearance->findData(int(_settings.ColorScheme)));
     _showDots->setChecked(_settings.ShowDots);
-    _fullRow->setChecked(_settings.FullRow);
-    _showGrid->setChecked(_settings.ShowGrid);
     _alternativeSelection->setChecked(_settings.AlternativeSelection);
     {
         const auto memory = QtQueryMemoryLimitInfo();
@@ -66,8 +64,6 @@ long CSettingsPage::OnApply() {
     if (_wasChanged) {
         CFmSettings st = _settings;
         st.ShowDots = _showDots->isChecked();
-        st.FullRow = _fullRow->isChecked();
-        st.ShowGrid = _showGrid->isChecked();
         st.AlternativeSelection = _alternativeSelection->isChecked();
         st.Save(_settingsPath);
         _settings = st;

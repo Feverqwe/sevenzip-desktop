@@ -138,11 +138,11 @@ class AppearanceSettingsTests final : public QObject {
             QGuiApplication::platformName() == "windows")
             QTRY_VERIFY(QApplication::palette().color(QPalette::Window).lightness() <
                         light.lightness());
-        dialog.findChild<QCheckBox *>("gridOption")->setChecked(true);
+        dialog.findChild<QCheckBox *>("showDotsOption")->setChecked(true);
         dialog.apply();
         QtFmOptionsDialog reopened(path(), nullptr, manager, services);
         QCOMPARE(choice(reopened)->currentData().toInt(), int(Qt::ColorScheme::Dark));
-        QVERIFY(reopened.findChild<QCheckBox *>("gridOption")->isChecked());
+        QVERIFY(reopened.findChild<QCheckBox *>("showDotsOption")->isChecked());
         QVERIFY(UiInspection::fullyVisible(*choice(dialog), dialog));
         QVERIFY(UiInspection::writeReport(dialog, "appearance-settings-applied-dark"));
     }

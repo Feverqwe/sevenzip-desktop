@@ -24,11 +24,8 @@
 #include <QHeaderView>
 #include <QLabel>
 #include <QLineEdit>
-#include <QPainter>
 #include <QPushButton>
 #include <QSignalBlocker>
-#include <QStyle>
-#include <QStyledItemDelegate>
 #include <QTreeWidget>
 #include <QVBoxLayout>
 
@@ -48,27 +45,6 @@ class BrowseRow final : public QTreeWidgetItem {
             !QTreeWidgetItem::data(0, Qt::UserRole + 1).toString().isEmpty() && treeWidget())
             return treeWidget()->palette().brush(QPalette::Disabled, QPalette::Text);
         return QTreeWidgetItem::data(column, role);
-    }
-};
-class BrowseAppearance final : public QStyledItemDelegate {
-    bool _fullRow, _grid;
-
-  public:
-    BrowseAppearance(bool fullRow, bool grid, QObject *parent)
-        : QStyledItemDelegate(parent), _fullRow(fullRow), _grid(grid) {}
-    void paint(QPainter *painter, const QStyleOptionViewItem &option,
-               const QModelIndex &index) const override {
-        auto display = option;
-        if (!_fullRow && index.column() != 0)
-            display.state &= ~(QStyle::State_Selected | QStyle::State_HasFocus);
-        QStyledItemDelegate::paint(painter, display, index);
-        if (_grid) {
-            painter->save();
-            painter->setPen(option.palette.color(QPalette::Mid));
-            painter->drawLine(option.rect.bottomLeft(), option.rect.bottomRight());
-            painter->drawLine(option.rect.topRight(), option.rect.bottomRight());
-            painter->restore();
-        }
     }
 };
 } // namespace
@@ -142,7 +118,7 @@ void CBrowseDialog2::BuildControls() {
     CFmSettings st;
     st.Load(FmSettingsPath());
     _showDots = st.ShowDots;
-    _list->setItemDelegate(new BrowseAppearance(st.FullRow, st.ShowGrid, _list));
+    _list->setSelectionBehavior(QAbstractItemView::SelectRows);
     ReloadLanguagePresentation();
     InitializeColumns();
     _list->installEventFilter(this);

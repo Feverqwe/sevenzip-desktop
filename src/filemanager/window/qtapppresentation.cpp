@@ -144,10 +144,6 @@ void QtAppPresentation::SetListSettings(unsigned index, const CFmSettings &setti
     window_.fileListSettings_ = settings;
     window_.app_.Panels[index].SetAlternativeSelection(settings.AlternativeSelection);
     const auto &ui = window_.panelUi_[index];
-    if (ui.table) {
-        ui.table->setShowGrid(settings.ShowGrid);
-        static_cast<FileTable *>(ui.table)->setFullRowHighlight(settings.FullRow);
-    }
     if (ui.iconList)
         ui.iconList->setSelectionMode(settings.AlternativeSelection
                                           ? QAbstractItemView::SingleSelection

@@ -210,8 +210,6 @@ static const QtUpstreamTranslation kQtUpstreamTranslations[] = {
     {2501, QT_TRANSLATE_NOOP3("SevenZip", "Show \"..\" item", "2501")},
     {2502, QT_TRANSLATE_NOOP3("SevenZip", "Show real file icons", "2502")},
     {2503, QT_TRANSLATE_NOOP3("SevenZip", "Show system menu", "2503")},
-    {2504, QT_TRANSLATE_NOOP3("SevenZip", "&Full row select", "2504")},
-    {2505, QT_TRANSLATE_NOOP3("SevenZip", "Show &grid lines", "2505")},
     {2506, QT_TRANSLATE_NOOP3("SevenZip", "Single-click to open an item", "2506")},
     {2507, QT_TRANSLATE_NOOP3("SevenZip", "&Alternative selection mode", "2507")},
     {2508, QT_TRANSLATE_NOOP3("SevenZip", "Use &large memory pages", "2508")},

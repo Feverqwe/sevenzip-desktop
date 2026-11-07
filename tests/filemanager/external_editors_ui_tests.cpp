@@ -203,7 +203,7 @@ class ExternalEditorsUiTests final : public QObject, protected MainWindowTestSup
         answerError();
         options.findChild<QPushButton *>(QString(controls[program]) + "Browse")->click();
         QCOMPARE(errors, 1);
-        OptionsPresentation::show(options, "gridOption");
+        OptionsPresentation::show(options, "showDotsOption");
         QSignalSpy applied(&options, &QtFmOptionsDialog::Applied);
         answerError();
         options.accept();

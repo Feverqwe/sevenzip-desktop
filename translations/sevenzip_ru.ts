@@ -2701,18 +2701,6 @@ Are you sure you want to split archive into such volumes?</source>
         </message>
         <message>
             <location line="+1" />
-            <source>&amp;Full row select</source>
-            <comment>2504</comment>
-            <translation>Курсор на всю строку</translation>
-        </message>
-        <message>
-            <location line="+1" />
-            <source>Show &amp;grid lines</source>
-            <comment>2505</comment>
-            <translation>Показывать разделители</translation>
-        </message>
-        <message>
-            <location line="+1" />
             <source>&amp;Alternative selection mode</source>
             <comment>2507</comment>
             <translation>Альтернативный режим пометки</translation>

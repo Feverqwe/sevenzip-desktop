@@ -9,7 +9,7 @@
 
 class PanelColumnChangesTests final : public QObject, protected MainWindowTestSupport {
     Q_OBJECT
-    static void checkPrimarySelection(FileTable &view) {
+    static void checkRowSelection(FileTable &view) {
         const unsigned count = view.sourcePanel->GetVisibleColumns().Size();
         if (!count)
             return;
@@ -36,7 +36,7 @@ class PanelColumnChangesTests final : public QObject, protected MainWindowTestSu
                  "The source main subitem must visibly retain selection");
         if (count > 1) {
             const int secondary = view.columnForVisibleProperty(1);
-            QCOMPARE(paint(secondary, true) != paint(secondary, false), view.fullRowHighlight());
+            QVERIFY(paint(secondary, true) != paint(secondary, false));
         }
     }
     static void inspectSchema(MainWindow &window, FileTable &view, FileTable &peer,
@@ -63,7 +63,7 @@ class PanelColumnChangesTests final : public QObject, protected MainWindowTestSu
                 }
             }
         QCOMPARE(visibleCount, view.sourcePanel->GetVisibleColumns().Size());
-        checkPrimarySelection(view);
+        checkRowSelection(view);
         auto *icons = view.parentWidget()->findChild<QListView *>("iconList");
         QVERIFY(icons);
         if (visibleCount) {

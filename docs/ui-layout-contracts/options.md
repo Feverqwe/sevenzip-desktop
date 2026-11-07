@@ -262,8 +262,8 @@ error reports; inspect every visible message label/button for fit and clipping.
 
 Reference: `0766b733fe3e06dd2a7f9a3cfbf2108ac73abd17`,
 `CPP/7zip/UI/FileManager/SettingsPage2.rc` and `SettingsPage.cpp`.
-The Qt page includes the parent-row, full-row, grid and alternative selection
-preferences and the extraction memory limit.
+The Qt page includes the parent-row and alternative selection preferences and
+the extraction memory limit. The file table uses full-row highlighting.
 Alternative selection is enabled and persists the source mark mode.
 Refresh resets the source group anchor to the first list row, independently of
 restored focus. The next Shift-click marks that original inclusive row range;

@@ -46,17 +46,11 @@ void CSettingsPage::BuildControls(bool embedded) {
     _showDots = new QCheckBox(this);
     QtBindResourceText(_showDots, IDX_SETTINGS_SHOW_DOTS, "Show \"..\" item");
     _showDots->setObjectName(QStringLiteral("showDotsOption"));
-    _fullRow = new QCheckBox(this);
-    QtBindResourceText(_fullRow, IDX_SETTINGS_FULL_ROW, "&Full row select");
-    _fullRow->setObjectName(QStringLiteral("fullRowOption"));
-    _showGrid = new QCheckBox(this);
-    QtBindResourceText(_showGrid, IDX_SETTINGS_SHOW_GRID, "Show &grid lines");
-    _showGrid->setObjectName("gridOption");
     _alternativeSelection = new QCheckBox(this);
     QtBindResourceText(_alternativeSelection, IDX_SETTINGS_ALTERNATIVE_SELECTION,
                        "&Alternative selection mode");
     _alternativeSelection->setObjectName(QStringLiteral("alternativeSelectionOption"));
-    for (auto *control : {_showDots, _fullRow, _showGrid, _alternativeSelection}) {
+    for (auto *control : {_showDots, _alternativeSelection}) {
         listLayout->addWidget(control);
         connect(control, &QCheckBox::toggled, this, &CSettingsPage::OnButtonClicked);
     }

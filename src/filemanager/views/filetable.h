@@ -22,12 +22,10 @@ class FileTable : public QTableView {
     Q_OBJECT
   public:
     explicit FileTable(int columns, QWidget *parent = nullptr);
-    void setFullRowHighlight(bool enabled);
     void handleDefaultKeyPress(QKeyEvent *event);
     void refreshLanguageText();
     void InstallSelectionGesture(std::function<bool()> activate);
     virtual void invalidateLanguageText();
-    bool fullRowHighlight() const { return fullRowHighlight_; }
     FilePanelModel *panelModel() const { return model_; }
     int rowCount() const { return model_->rowCount(); }
     int columnCount() const { return model_->columnCount(); }
@@ -77,7 +75,6 @@ class FileTable : public QTableView {
     QVector<ColumnBinding> columns_;
     bool sourceColumnsBound_ = false;
     int findVisibleColumn(unsigned index) const;
-    bool fullRowHighlight_ = false;
     FilePanelModel *model_;
 };
 

@@ -56,12 +56,11 @@ class OptionsWindowTests : public QObject, protected MainWindowTestSupport {
             QVERIFY(dialog);
             QVERIFY(write(left + "/new-left.txt") && write(right + "/new-right.txt"));
             dialog->findChild<QCheckBox *>("showDotsOption")->setChecked(true);
-            dialog->findChild<QCheckBox *>("gridOption")->setChecked(true);
             dialog->findChild<QDialogButtonBox *>("settingsButtons")
                 ->button(QDialogButtonBox::Apply)
                 ->click();
             applied = true;
-            dialog->findChild<QCheckBox *>("gridOption")->setChecked(false);
+            dialog->findChild<QCheckBox *>("showDotsOption")->setChecked(false);
             dialog->reject();
         });
         window.findChild<QAction *>("settingsAction")->trigger();
@@ -69,7 +68,6 @@ class OptionsWindowTests : public QObject, protected MainWindowTestSupport {
         for (auto *table : {leftTable, rightTable}) {
             QTRY_COMPARE(table->rowCount(), 3);
             QCOMPARE(table->model()->index(0, 0).data().toString(), QString(".."));
-            QVERIFY(table->showGrid());
             QCOMPARE(table->selectionModel()->selectedRows().size(), 1);
             for (int row = 1; row < table->rowCount(); ++row) {
                 const auto index = table->model()->index(row, 0);

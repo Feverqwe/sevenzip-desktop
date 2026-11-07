@@ -8,6 +8,7 @@
 #include <QMenu>
 #include <QScopeGuard>
 #include <QScrollBar>
+#include <QSettings>
 #include <QTimer>
 #include <QToolBar>
 #include <QWindow>
@@ -134,18 +135,11 @@ class WorkspaceTableTests final : public QObject {
                  table->columnForProperty(kpidExtension));
     }
 
-    void explicitFullRowChoiceChangesPaintWithoutChangingSelection_data() {
-        QTest::addColumn<bool>("fullRow");
-        QTest::newRow("full-row") << true;
-        QTest::newRow("name-only") << false;
-    }
-    void explicitFullRowChoiceChangesPaintWithoutChangingSelection() {
-        QFETCH(bool, fullRow);
-        CFmSettings preferences;
-        const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
-        preferences.Load(settings);
-        preferences.FullRow = fullRow;
-        preferences.Save(settings);
+    void legacyAppearanceSettingsDoNotChangeTable() {
+        QSettings legacy(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"), QSettings::IniFormat);
+        legacy.setValue("FM/FullRow", false);
+        legacy.setValue("FM/ShowGrid", true);
+        legacy.sync();
         QTemporaryDir data;
         fixture(data.path());
         ControlledBackend backend;
@@ -162,8 +156,9 @@ class WorkspaceTableTests final : public QObject {
         QTRY_VERIFY(table->hasFocus());
         QTest::mouseMove(table->viewport(), QPoint(1, table->viewport()->height() - 1));
         QCOMPARE(table->selectionModel()->selectedRows().size(), 1);
+        QVERIFY(!table->showGrid());
         QCOMPARE(rowBackground(*table, row).rgba(),
-                 table->palette().color(fullRow ? QPalette::Highlight : QPalette::Base).rgba());
+                 table->palette().color(QPalette::Highlight).rgba());
     }
 
     void selectionGeometry_data() {

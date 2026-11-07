@@ -186,7 +186,7 @@ class OptionsIntegrationTests final : public QObject {
         auto *editor = dialog.findChild<QLineEdit *>("editorCommand");
         editor->setText("custom editor --wait");
         QVERIFY(UiInspection::writeReport(dialog, "settings-external-apps-expanded"));
-        QVERIFY(OptionsPresentation::show(dialog, "fullRowOption"));
+        QVERIFY(OptionsPresentation::show(dialog, "showDotsOption"));
         QVERIFY(UiInspection::writeReport(dialog, "settings-advanced-collapsed"));
         QVERIFY(OptionsPresentation::show(dialog, "languageChoice"));
         dialog.resize(780, 560);
@@ -339,8 +339,8 @@ class OptionsIntegrationTests final : public QObject {
         command->setText(editor);
         command->setFocus();
         QCOMPARE(dialog.focusWidget(), command);
-        OptionsPresentation::show(dialog, "gridOption");
-        dialog.findChild<QCheckBox *>("gridOption")->setChecked(true);
+        OptionsPresentation::show(dialog, "showDotsOption");
+        dialog.findChild<QCheckBox *>("showDotsOption")->setChecked(true);
         OptionsPresentation::show(dialog, "languageChoice");
         auto *language = dialog.findChild<QComboBox *>("languageChoice");
         QVERIFY(language->count() > 1);
@@ -393,7 +393,7 @@ class OptionsIntegrationTests final : public QObject {
                 QVERIFY(!apply->isEnabled());
                 command->setText("discarded editor");
                 dialog.findChild<QLineEdit *>("workPath")->setText("discarded folder");
-                dialog.findChild<QCheckBox *>("gridOption")->setChecked(false);
+                dialog.findChild<QCheckBox *>("showDotsOption")->setChecked(false);
                 language->setCurrentIndex(0);
                 dialog.findChild<QCheckBox *>("cascadedMenu")->setChecked(true);
                 QVERIFY(apply->isEnabled());
@@ -424,7 +424,7 @@ class OptionsIntegrationTests final : public QObject {
                  finish == 0 ? QString() : work);
         CFmSettings settings;
         settings.Load(path);
-        QCOMPARE(settings.ShowGrid, finish != 0);
+        QCOMPARE(settings.ShowDots, finish != 0);
         CContextMenuInfo menu;
         menu.Load(path);
         QCOMPARE(menu.Cascaded.Val, finish == 0);

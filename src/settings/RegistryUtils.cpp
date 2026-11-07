@@ -68,8 +68,6 @@ QString FmSettingsPath() {
 }
 
 static const char *const kShowDots = "ShowDots";
-static const char *const kFullRow = "FullRow";
-static const char *const kShowGrid = "ShowGrid";
 static const char *const kAlternativeSelection = "AlternativeSelection";
 
 static void SaveOption(QSettings &key, const char *name, bool enabled) {
@@ -109,23 +107,17 @@ void CFmSettings::Save(const QString &settingsPath) const {
     QSettings key(settingsPath, QSettings::IniFormat);
     key.beginGroup("FM");
     SaveOption(key, kShowDots, ShowDots);
-    SaveOption(key, kFullRow, FullRow);
-    SaveOption(key, kShowGrid, ShowGrid);
     SaveOption(key, kAlternativeSelection, AlternativeSelection);
     key.setValue("ColorScheme", int(ColorScheme));
 }
 
 void CFmSettings::Load(const QString &settingsPath) {
     ShowDots = false;
-    FullRow = true;
-    ShowGrid = false;
     AlternativeSelection = false;
 
     QSettings key(settingsPath, QSettings::IniFormat);
     key.beginGroup("FM");
     ReadOption(key, kShowDots, ShowDots);
-    ReadOption(key, kFullRow, FullRow);
-    ReadOption(key, kShowGrid, ShowGrid);
     ReadOption(key, kAlternativeSelection, AlternativeSelection);
     bool valid = false;
     const int scheme = key.value("ColorScheme").toInt(&valid);

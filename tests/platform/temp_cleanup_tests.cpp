@@ -393,7 +393,7 @@ class TempCleanupTests : public QObject {
         QVERIFY(inactive(root.path()));
         CFmSettings prefs;
         prefs.Load(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
-        prefs.ShowDots = prefs.FullRow = prefs.ShowGrid = true;
+        prefs.ShowDots = true;
         prefs.Save(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         opened = QUrl();
         QDesktopServices::setUrlHandler("file", this, "captureFile");

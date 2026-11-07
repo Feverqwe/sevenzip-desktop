@@ -84,13 +84,6 @@ bool FileTable::deferSourceColumnClick(std::function<void()> action) {
     return true;
 }
 
-void FileTable::setFullRowHighlight(bool enabled) {
-    if (fullRowHighlight_ == enabled)
-        return;
-    fullRowHighlight_ = enabled;
-    viewport()->update();
-}
-
 void FileTable::startDrag(Qt::DropActions actions) {
     if (dragStarter)
         dragStarter();

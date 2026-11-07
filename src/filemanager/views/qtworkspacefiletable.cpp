@@ -25,6 +25,7 @@ QtWorkspaceFileTable::QtWorkspaceFileTable(const QString &settingsPath, QWidget 
     verticalHeader()->setDefaultSectionSize(QtWorkspaceTheme::metric(*this, 28));
     setItemDelegate(CreateFileRowDelegate(this, true));
     setTextElideMode(Qt::ElideRight);
+    setShowGrid(false);
     connect(horizontalHeader(), &QHeaderView::sectionResized, this, [this](int column) {
         if (configuring_ || group_.isEmpty())
             return;
@@ -206,13 +207,12 @@ void QtWorkspaceFileTable::paintEvent(QPaintEvent *event) {
             if (top >= viewport()->height())
                 break;
             const bool marked = model()->index(row, 0).data(QtPanelList::MarkedRole).toBool();
-            const bool selected = selectionModel()->isRowSelected(row, {}) && fullRowHighlight();
-            if (selectionModel()->isRowSelected(row, {}) || marked)
+            const bool selected = selectionModel()->isRowSelected(row, {});
+            if (selected || marked)
                 painter.fillRect(QRect(qMax(0, slack), top, viewport()->width() - qMax(0, slack),
                                        rowHeight(row)),
                                  selected ? palette().color(QPalette::Highlight)
-                                 : marked ? QtSemanticColors::marked(palette())
-                                          : palette().color(QPalette::Base));
+                                          : QtSemanticColors::marked(palette()));
         }
     if (!hasFocus() || !currentIndex().isValid())
         return;
@@ -221,9 +221,7 @@ void QtWorkspaceFileTable::paintEvent(QPaintEvent *event) {
     if (!item.isValid() || item.bottom() < 0 || item.top() >= viewport()->height())
         return;
     painter.setPen(QtWorkspaceTheme::colors().accent);
-    const QRect row = fullRowHighlight()
-                          ? QRect(1, item.top() + 1, viewport()->width() - 3, item.height() - 3)
-                          : item.adjusted(1, 1, -2, -2);
+    const QRect row(1, item.top() + 1, viewport()->width() - 3, item.height() - 3);
     painter.drawRect(row);
 }
 

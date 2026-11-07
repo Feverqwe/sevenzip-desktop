@@ -17,8 +17,6 @@ void SaveConfirmUnknownFileOpen(bool enabled, const QString &settingsPath);
 
 struct CFmSettings {
     bool ShowDots;
-    bool FullRow;
-    bool ShowGrid;
     bool AlternativeSelection;
     // Qt presentation preference; Unknown follows the native system theme.
     Qt::ColorScheme ColorScheme = Qt::ColorScheme::Unknown;

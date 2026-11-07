@@ -555,11 +555,11 @@ class LanguageUiTests : public QObject, protected MainWindowTestSupport {
         auto *pages = dialog.findChild<QTabWidget *>("optionsPages");
         auto *editor = dialog.findChild<QLineEdit *>("editorCommand");
         auto *items = dialog.findChild<QListWidget *>("menuItems");
-        auto *grid = dialog.findChild<QCheckBox *>("gridOption");
+        auto *parentRow = dialog.findChild<QCheckBox *>("showDotsOption");
         const QString command = QStringLiteral("\"/tmp/редактор с пробелом\" --wait");
         editor->setText(command);
-        grid->setChecked(!grid->isChecked());
-        const bool checked = grid->isChecked();
+        parentRow->setChecked(!parentRow->isChecked());
+        const bool checked = parentRow->isChecked();
         const Qt::CheckState itemState = items->item(0)->checkState();
         for (const char *language : {"ru", "-"}) {
             SaveRegLang(UString(language), settingsPath());
@@ -568,7 +568,7 @@ class LanguageUiTests : public QObject, protected MainWindowTestSupport {
             QCOMPARE(dialog.windowTitle(),
                      QString(language) == "ru" ? QStringLiteral("Настройки") : QString("Options"));
             QCOMPARE(editor->text(), command);
-            QCOMPARE(grid->isChecked(), checked);
+            QCOMPARE(parentRow->isChecked(), checked);
             QCOMPARE(items->item(0)->checkState(), itemState);
             QVERIFY(items->isEnabled());
             QVERIFY(items->toolTip().isEmpty());
@@ -577,9 +577,9 @@ class LanguageUiTests : public QObject, protected MainWindowTestSupport {
                         ->isEnabled());
             for (QSize size : {QSize(640, 390), QSize(520, 380), QSize(640, 720)}) {
                 dialog.resize(size);
-                for (const char *name :
-                     {"appearanceChoice", "languageChoice", "workPathBrowse", "viewerCommand",
-                      "editorCommand", "extractMemoryLabel", "extractMemorySpin", "gridOption"}) {
+                for (const char *name : {"appearanceChoice", "languageChoice", "workPathBrowse",
+                                         "viewerCommand", "editorCommand", "extractMemoryLabel",
+                                         "extractMemorySpin", "showDotsOption"}) {
                     auto *control = dialog.findChild<QWidget *>(name);
                     QVERIFY(OptionsPresentation::show(dialog, control));
                     QVERIFY2(UiInspection::fullyVisible(*control, dialog), name);

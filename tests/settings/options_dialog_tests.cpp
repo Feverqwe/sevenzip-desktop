@@ -53,9 +53,8 @@ class OptionsDialogTests : public QObject {
             // Native resize constraints and height-for-width layouts can
             // change the requested size. Check the actual content below.
             QWidget *previous = nullptr;
-            for (const char *name :
-                 {"showDotsOption", "fullRowOption", "gridOption", "alternativeSelectionOption",
-                  "extractMemoryLabel", "extractMemorySpin"}) {
+            for (const char *name : {"showDotsOption", "alternativeSelectionOption",
+                                     "extractMemoryLabel", "extractMemorySpin"}) {
                 auto *control = dialog.findChild<QWidget *>(name);
                 QVERIFY(control);
                 OptionsPresentation::show(dialog, control);
@@ -404,7 +403,7 @@ class OptionsDialogTests : public QObject {
         QCOMPARE(errors, 1);
         const char *modes[] = {"workSystem", "workSpecified"};
         dialog.findChild<QRadioButton *>(modes[mode])->click();
-        OptionsPresentation::show(dialog, "gridOption");
+        OptionsPresentation::show(dialog, "showDotsOption");
         auto *apply = dialog.findChild<QDialogButtonBox *>("settingsButtons")
                           ->button(QDialogButtonBox::Apply);
         QSignalSpy applied(&dialog, &QtFmOptionsDialog::Applied);

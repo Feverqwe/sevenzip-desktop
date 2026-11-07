@@ -228,11 +228,8 @@ class FileRowDelegate final : public QStyledItemDelegate {
         }
         if (workspace_ && table) {
             initStyleOption(&option, index);
-            const bool selected = option.state.testFlag(QStyle::State_Selected) &&
-                                  (table->fullRowHighlight() || index.column() == qMax(0, primary));
+            const bool selected = option.state.testFlag(QStyle::State_Selected);
             const QBrush marked = option.backgroundBrush;
-            if (!selected && option.state.testFlag(QStyle::State_Selected))
-                painter->fillRect(option.rect, option.palette.base());
             if (selected || marked.style() != Qt::NoBrush) {
                 const QBrush fill = selected ? option.palette.highlight() : marked;
                 painter->fillRect(option.rect, fill);
@@ -259,21 +256,13 @@ class FileRowDelegate final : public QStyledItemDelegate {
             DrawItemContent(*painter, option, cut);
             return;
         }
-        if (!table || table->fullRowHighlight() || index.column() == (primary < 0 ? 0 : primary)) {
-            // Preserve the same native icon margin as the workspace delegate.
-            if (list && list->viewMode() == QListView::IconMode) {
-                const int margin =
-                    list->style()->pixelMetric(QStyle::PM_FocusFrameHMargin, &option, list);
-                option.rect.adjust(margin, 0, -margin, 0);
-            }
-            QStyledItemDelegate::paint(painter, option, index);
-            return;
+        // Preserve the same native icon margin as the workspace delegate.
+        if (list && list->viewMode() == QListView::IconMode) {
+            const int margin =
+                list->style()->pixelMetric(QStyle::PM_FocusFrameHMargin, &option, list);
+            option.rect.adjust(margin, 0, -margin, 0);
         }
-        if (option.state.testFlag(QStyle::State_Selected))
-            painter->fillRect(option.rect, option.palette.base());
-        QStyleOptionViewItem narrowed(option);
-        narrowed.state &= ~QStyle::State_Selected;
-        QStyledItemDelegate::paint(painter, narrowed, index);
+        QStyledItemDelegate::paint(painter, option, index);
     }
 };
 } // namespace

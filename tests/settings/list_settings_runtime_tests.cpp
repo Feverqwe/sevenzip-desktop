@@ -37,12 +37,10 @@ bool setListOptions(MainWindow &window, QAction *settingsAction, bool enabled) {
             if (dialog->isVisible())
                 dialog->reject();
         });
-        for (const char *name : {"showDotsOption", "fullRowOption"}) {
-            auto *option = dialog->findChild<QCheckBox *>(name);
-            if (!option)
-                return;
-            option->setChecked(enabled);
-        }
+        auto *option = dialog->findChild<QCheckBox *>("showDotsOption");
+        if (!option)
+            return;
+        option->setChecked(enabled);
         dialog->accept();
         applied = dialog->result() == QDialog::Accepted;
     });
@@ -109,9 +107,6 @@ class ListSettingsRuntimeTests final : public QObject, protected MainWindowTestS
         files->sortItems(0, Qt::AscendingOrder);
 
         files->selectRow(1);
-        const QRect selectedSizeCell = files->visualRect(files->model()->index(1, 2));
-        const QPoint selectedPixel(selectedSizeCell.left() + 5, selectedSizeCell.center().y());
-        const QColor fullRowColor = files->viewport()->grab().toImage().pixelColor(selectedPixel);
         if (qEnvironmentVariableIntValue("SEVENZIP_CAPTURE_SCREENSHOTS") == 1)
             QVERIFY(files->viewport()->grab().save(
                 screenshotPath(QStringLiteral("list-settings-full-row.png"))));
@@ -170,14 +165,6 @@ class ListSettingsRuntimeTests final : public QObject, protected MainWindowTestS
 
         QVERIFY(setListOptions(window, action(window, "settingsAction"), false));
         QCOMPARE(files->rowCount(), 1);
-        files->selectRow(0);
-        const QRect nameOnlySizeCell = files->visualRect(files->model()->index(0, 2));
-        const QPoint nameOnlyPixel(nameOnlySizeCell.left() + 5, nameOnlySizeCell.center().y());
-        const QColor nameOnlyColor = files->viewport()->grab().toImage().pixelColor(nameOnlyPixel);
-        QVERIFY(fullRowColor != nameOnlyColor);
-        if (qEnvironmentVariableIntValue("SEVENZIP_CAPTURE_SCREENSHOTS") == 1)
-            QVERIFY(files->viewport()->grab().save(
-                screenshotPath(QStringLiteral("list-settings-name-only.png"))));
     }
 
     void parentItemInArchiveAndVirtualRoot() {

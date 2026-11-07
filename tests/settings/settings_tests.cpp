@@ -90,42 +90,6 @@ class SettingsTests : public QObject, protected MainWindowTestSupport {
         QCOMPARE(backend.extractCalls, 0);
         settings.sync();
     }
-
-    void optionsApplyCancelAndPersist() {
-        QTemporaryDir temporary;
-        QVERIFY(temporary.isValid());
-        const QString original = QDir::currentPath();
-        QVERIFY(QDir::setCurrent(temporary.path()));
-        QVERIFY(QDir().mkdir(QStringLiteral("папка с пробелом")));
-        MainWindow window;
-        window.show();
-        auto *table = window.findChild<FileTable *>("archiveTable");
-        auto *action = window.findChild<QAction *>("settingsAction");
-        QVERIFY(table && action);
-        QVERIFY(!table->showGrid());
-
-        QTimer::singleShot(0, [&] {
-            auto *dialog = window.findChild<QDialog *>("settingsDialog");
-            QVERIFY(dialog);
-            dialog->findChild<QCheckBox *>("gridOption")->setChecked(true);
-            dialog->reject();
-        });
-        action->trigger();
-        QVERIFY(!table->showGrid());
-
-        QTimer::singleShot(0, [&] {
-            auto *dialog = window.findChild<QDialog *>("settingsDialog");
-            QVERIFY(dialog);
-            dialog->findChild<QCheckBox *>("gridOption")->setChecked(true);
-            dialog->accept();
-        });
-        action->trigger();
-        QVERIFY(table->showGrid());
-
-        MainWindow reopened;
-        QVERIFY(reopened.findChild<FileTable *>("archiveTable")->showGrid());
-        QVERIFY(QDir::setCurrent(original));
-    }
 };
 
 QTEST_MAIN(SettingsTests)

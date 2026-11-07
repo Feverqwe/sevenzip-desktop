@@ -37,11 +37,9 @@ the table sharing its model is hidden.
 Check normal/compact windows and an enlarged list font through `ui_layout`;
 `icon-layout-*` reports describe the surrounding widgets. Item paint geometry
 is checked separately by the suite. `panel_selection` checks explicit scrolling
-after Insert; list activation/settings suites cover hover cancellation and
-selection without opening. Windows uses the system hover timeout; other
-platforms use the Qt style's tooltip wake-up delay. FullRow remains a
-name-only/full-row highlight policy. This does not establish rendered Windows
-pixel parity.
+after Insert. The list activation and settings suites cover selection by single
+click and opening by double click. The table highlights the full selected row
+and displays its columns without a grid.
 
 ### Rename validation error (P3-05, 2026-10-15)
 

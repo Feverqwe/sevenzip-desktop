@@ -165,7 +165,6 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
 void MainWindow::createFileTable(QWidget *central) {
     projectedUi().table = new QtWorkspaceFileTable(toolbarSettingsPath(), central);
     auto *fileTable = static_cast<FileTable *>(projectedUi().table);
-    fileTable->setFullRowHighlight(fileListSettings_.FullRow);
     fileTable->sourcePanel = &app_.GetFocusedPanel();
     fileTable->setColumnProperties(
         {kpidName, kpidPath, kpidSize, kpidPackSize, kpidMTime, kpidExtension});
@@ -182,7 +181,6 @@ void MainWindow::createFileTable(QWidget *central) {
     projectedUi().table->setColumnWidth(2, 100);
     projectedUi().table->setColumnWidth(3, 100);
     projectedUi().table->setColumnWidth(4, 150);
-    projectedUi().table->setShowGrid(fileListSettings_.ShowGrid);
     projectedUi().table->setWordWrap(false);
     projectedUi().table->horizontalHeader()->setContextMenuPolicy(Qt::CustomContextMenu);
     const unsigned columnOwner = projectedPanel_;
