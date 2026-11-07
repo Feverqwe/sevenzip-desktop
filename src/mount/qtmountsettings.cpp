@@ -116,9 +116,7 @@ void MountSettingsDialog::BuildControls(const QString &label, const QString &arc
     preparationHint_->setTextFormat(Qt::PlainText);
     preparationHint_->setVisible(checkReader);
     layout->addWidget(preparationHint_);
-    form_ = new QFormLayout;
-    form_->setRowWrapPolicy(QFormLayout::WrapAllRows);
-    form_->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
+    form_ = QtCreateDialogForm();
     quota_ = new QSpinBox(this);
     quota_->setObjectName("mountCacheLimit");
     quota_->setMinimumWidth(160);
@@ -134,6 +132,8 @@ void MountSettingsDialog::BuildControls(const QString &label, const QString &arc
     form_->addRow(
         QCoreApplication::translate("QtArchiveMountManager", "Archive password (if needed):"),
         password_);
+    for (auto *field : {static_cast<QWidget *>(quota_), static_cast<QWidget *>(password_)})
+        static_cast<QLabel *>(form_->labelForField(field))->setWordWrap(true);
     layout->addLayout(form_);
     cacheHint_ =
         new QtWrappingLabel(QCoreApplication::translate(
