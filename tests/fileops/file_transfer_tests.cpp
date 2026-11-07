@@ -288,7 +288,8 @@ class FileTransferTests : public QObject {
         FileTransferOperation::FileSystemAdapter adapter;
         adapter.trySourceRename = [](const QString &, const QString &) { return false; };
         adapter.removeSource = [first](const QString &path) {
-            return path == first ? QFile::remove(path) : false;
+            return QFileInfo(path).fileName() == QFileInfo(first).fileName() ? QFile::remove(path)
+                                                                             : false;
         };
         const QString destination = temp.filePath("destination");
         FileTransferOperation move({first, second}, destination, true, nullptr, adapter);
@@ -339,7 +340,7 @@ class FileTransferTests : public QObject {
         };
         QStringList removed;
         adapter.removeSource = [&](const QString &source) {
-            removed << source;
+            removed << QFileInfo(source).fileName();
             if (!QFile::remove(source))
                 return false;
             if (cancelAfterRemoval)
@@ -358,7 +359,7 @@ class FileTransferTests : public QObject {
         QTRY_COMPARE(result.size(), 1);
         QVERIFY(!result.first().first().toBool());
         QCOMPARE(move.resultKind(), FileTransferOperation::ResultKind::Failure);
-        QCOMPARE(removed, QStringList{sources[1]});
+        QCOMPARE(removed, QStringList{QFileInfo(sources[1]).fileName()});
         for (int i = 0; i < sources.size(); ++i) {
             const bool untouched = i == 2;
             QCOMPARE(QFileInfo::exists(sources[i]), untouched);
@@ -758,6 +759,60 @@ class FileTransferTests : public QObject {
         QCOMPARE(read(published), QByteArray("first original"));
         QCOMPARE(read(second), QByteArray("second original"));
         QCOMPARE(read(conflict), QByteArray("second target"));
+    }
+
+    void fileCreatedAtOriginalPathDuringRemovalIsKept_data() {
+        QTest::addColumn<bool>("removalFails");
+        QTest::newRow("delete-checked-object") << false;
+        QTest::newRow("retain-on-restore-conflict") << true;
+    }
+    void fileCreatedAtOriginalPathDuringRemovalIsKept() {
+        QFETCH(bool, removalFails);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString source = fixture.filePath("source.txt");
+        const QString destination = fixture.filePath("output");
+        QVERIFY(QDir().mkdir(destination));
+        QFile incoming(source);
+        QVERIFY(incoming.open(QIODevice::WriteOnly));
+        QCOMPARE(incoming.write("original"), 8);
+        incoming.close();
+        bool created = false;
+        QString checkedPath;
+        FileTransferOperation::FileSystemAdapter adapter;
+        adapter.trySourceRename = [](const QString &, const QString &) { return false; };
+        adapter.removeSource = [&](const QString &checked) {
+            checkedPath = checked;
+            QFile replacement(source);
+            created = replacement.open(QIODevice::WriteOnly | QIODevice::NewOnly) &&
+                      replacement.write("new file") == 8;
+            replacement.close();
+            return !removalFails && QFile::remove(checked);
+        };
+        FileTransferOperation move({source}, destination, true, nullptr, adapter);
+        QSignalSpy result(&move, &FileTransferOperation::result);
+        move.start();
+        QVERIFY(move.wait(30000));
+        QTRY_COMPARE(result.size(), 1);
+        QVERIFY(created);
+        QCOMPARE(move.resultKind(), removalFails ? FileTransferOperation::ResultKind::Failure
+                                                 : FileTransferOperation::ResultKind::Success);
+        QFile replacement(source);
+        QVERIFY(replacement.open(QIODevice::ReadOnly));
+        QCOMPARE(replacement.readAll(), QByteArray("new file"));
+        QFile published(QDir(destination).filePath("source.txt"));
+        QVERIFY(published.open(QIODevice::ReadOnly));
+        QCOMPARE(published.readAll(), QByteArray("original"));
+        if (removalFails) {
+            QFile retained(checkedPath);
+            QVERIFY(retained.open(QIODevice::ReadOnly));
+            QCOMPARE(retained.readAll(), QByteArray("original"));
+            QVERIFY(result.first().at(1).toString().contains(checkedPath));
+        } else {
+            QCOMPARE(
+                QDir(fixture.path()).entryList(QDir::Dirs | QDir::Hidden | QDir::NoDotAndDotDot),
+                QStringList{"output"});
+        }
     }
 
     void blockedMoveRollbackReportsRetainedFiles() {

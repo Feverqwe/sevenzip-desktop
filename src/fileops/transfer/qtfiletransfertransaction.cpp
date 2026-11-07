@@ -16,6 +16,7 @@
 #include <QFileInfo>
 #include <QMap>
 #include <QScopeGuard>
+#include <QTemporaryDir>
 #include <QUuid>
 #include <algorithm>
 
@@ -26,7 +27,7 @@ struct MergeMember {
     CFileInfo metadata;
     QString identity;
 
-    bool operator==(const MergeMember &other) const {
+    bool matches(const MergeMember &other, bool renamed) const {
 #ifndef _WIN32
         if (metadata.dev != other.metadata.dev || metadata.ino != other.metadata.ino)
             return false;
@@ -34,8 +35,9 @@ struct MergeMember {
         return identity == other.identity && metadata.Size == other.metadata.Size &&
                metadata.GetWinAttrib() == other.metadata.GetWinAttrib() &&
                Compare_FiTime(&metadata.MTime, &other.metadata.MTime) == 0 &&
-               Compare_FiTime(&metadata.CTime, &other.metadata.CTime) == 0;
+               (renamed || Compare_FiTime(&metadata.CTime, &other.metadata.CTime) == 0);
     }
+    bool operator==(const MergeMember &other) const { return matches(other, false); }
 };
 
 using MergeSnapshot = QMap<QString, MergeMember>;
@@ -225,37 +227,73 @@ void QtFileTransferTransaction::removeSources(QList<TransferEntry> &completed, Q
             error = QCoreApplication::translate("qtfiletransfertransaction", "Operation canceled.");
             return;
         }
-        if (!entry.sourceMatches()) {
+        if (!entry.sourceMatches(entry.source, false)) {
             entry.sourceState = SourceState::Changed;
             error = QCoreApplication::translate("qtfiletransfertransaction",
                                                 "Source changed after copying and was kept: %1")
                         .arg(entry.source);
             return;
         }
-        // An attempted recursive removal can already have consumed bytes.
-        // From here on rollback must retain the published copy.
-        entry.sourceState = SourceState::RemovalStarted;
-        bool removed = false;
-        bool rootRemoved = false;
-        try {
-            if (entry.merged)
-                removed =
-                    removeMergedSource(entry.source, entry.writtenSources, &error, rootRemoved);
-            else
-                rootRemoved = removed = worker_.adapter_.removeSource(entry.source);
-        } catch (...) {
-            error = QString::fromWCharArray(NWindows::NError::MyFormatMessage(E_FAIL));
-        }
-        if (rootRemoved)
-            entry.sourceState = SourceState::Removed;
-        if (!removed) {
-            if (error.isEmpty())
-                error = QCoreApplication::translate("qtfiletransfertransaction",
-                                                    "Could not delete source after copying: %1")
-                            .arg(entry.source);
+        if (!removeStagedSource(entry, error))
             return;
-        }
     }
+}
+
+bool QtFileTransferTransaction::removeStagedSource(TransferEntry &entry, QString &error) {
+    entry.sourceState = SourceState::Changed;
+    const QFileInfo source(entry.source);
+    QTemporaryDir holding(source.dir().filePath(".sevenzip-remove-XXXXXX"));
+    const QString staged = holding.filePath(source.fileName());
+    if (!holding.isValid() || !QtRenameFileSystemEntryWithoutReplacing(entry.source, staged)) {
+        error = QCoreApplication::translate("qtfiletransfertransaction",
+                                            "Could not delete source after copying: %1")
+                    .arg(entry.source);
+        return false;
+    }
+    holding.setAutoRemove(false);
+    const auto restore = qScopeGuard([&] {
+        if ((QFileInfo::exists(staged) || QtIsFileSystemLink(staged)) &&
+            !QtRenameFileSystemEntryWithoutReplacing(staged, entry.source))
+            rollbackErrors_.append(QCoreApplication::translate("qtfiletransfertransaction",
+                                                               "Could not restore %1 from %2.")
+                                       .arg(entry.source, staged));
+        QDir().rmdir(holding.path());
+    });
+    if (!entry.sourceMatches(staged, true)) {
+        error = QCoreApplication::translate("qtfiletransfertransaction",
+                                            "Source changed after copying and was kept: %1")
+                    .arg(entry.source);
+        return false;
+    }
+    if (worker_.canceled_) {
+        error = QCoreApplication::translate("qtfiletransfertransaction", "Operation canceled.");
+        return false;
+    }
+    // Recursive deletion can fail after consuming some entries. Keep the
+    // published copy and restore anything still in the holding directory.
+    entry.sourceState = SourceState::RemovalStarted;
+    bool removed = false;
+    bool rootRemoved = false;
+    try {
+        if (entry.merged) {
+            QStringList stagedFiles;
+            const QDir original(entry.source);
+            for (const auto &path : entry.writtenSources)
+                stagedFiles.append(QDir(staged).filePath(original.relativeFilePath(path)));
+            removed = removeMergedSource(staged, stagedFiles, &error, rootRemoved);
+        } else {
+            rootRemoved = removed = worker_.adapter_.removeSource(staged);
+        }
+    } catch (...) {
+        error = QString::fromWCharArray(NWindows::NError::MyFormatMessage(E_FAIL));
+    }
+    if (rootRemoved)
+        entry.sourceState = SourceState::Removed;
+    if (!removed && error.isEmpty())
+        error = QCoreApplication::translate("qtfiletransfertransaction",
+                                            "Could not delete source after copying: %1")
+                    .arg(entry.source);
+    return removed;
 }
 
 QStringList QtFileTransferTransaction::movedSources(const QList<TransferEntry> &completed) {
@@ -413,9 +451,10 @@ bool QtFileTransferTransaction::transferEntry(const TransferPath &path,
                     .arg(source);
             return false;
         }
-        entry.sourceMatches = [this, source, member, tree] {
-            return captureMember(source) == member &&
-                   (!tree || captureMergeTree(source, worker_.canceled_) == tree);
+        entry.sourceMatches = [this, member, tree](const QString &path, bool renamed) {
+            const auto current = captureMember(path);
+            return current && current->matches(*member, renamed) &&
+                   (!tree || captureMergeTree(path, worker_.canceled_) == tree);
         };
     }
     const bool staged =
