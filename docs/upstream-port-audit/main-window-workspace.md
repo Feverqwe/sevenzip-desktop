@@ -1400,3 +1400,11 @@ Linux `recent_places`, `workspace_places`, `workspace_history` и
 Linux `workspace_session`, `workspace_archive`, `workspace_places` и
 `workspace_history` прошли. Проверены ошибка worker, повтор и отсутствие
 лишнего шага «Назад».
+
+## Недоступное системное место при восстановлении — 2026-11-07
+
+Исходный `CRootFolder` связывает имена системных мест с нативными providers.
+При восстановлении и Retry Qt разрешает сохранённый идентификатор через тот
+же маршрут, что и «Избранное». Если такого места на платформе нет, панель
+показывает его как недоступное. Обычные сохранённые пути открываются по пути.
+Linux `workspace_session`, `workspace_archive` и `workspace_places` прошли.

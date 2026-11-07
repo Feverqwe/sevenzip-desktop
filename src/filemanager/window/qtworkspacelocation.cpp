@@ -38,23 +38,15 @@ HRESULT QtWindowWorkspace::OpenRecordedLocation(unsigned panel, const QString &p
 HRESULT QtWindowWorkspace::OpenPanelLocation(unsigned panel) {
     auto &locationState = panels_[panel].location;
     const QString identity = locationState.nativePlaceIdentity;
-    nativePlaces_->Refresh();
-    const auto place = nativePlaces_->FindIdentity(identity);
-    const bool nativeRoot = identity == QStringLiteral("locations") || place.isValid();
-    const QString path = place.isValid() ? place.data(QtPlaceRoles::Path).toString()
-                         : nativeRoot    ? QString()
-                                         : locationState.path;
-    HRESULT result = locationState.archiveLocation.physicalPath.isEmpty()
-                         ? window_.navigateTo(path, true)
-                         : OpenArchiveLocation(panel, locationState.archiveLocation);
-    if (nativeRoot && result == S_OK) {
+    const bool recorded =
+        !identity.isEmpty() || !locationState.archiveLocation.physicalPath.isEmpty();
+    const HRESULT result = recorded ? OpenRecordedLocation(panel, locationState.path, identity,
+                                                           locationState.archiveLocation)
+                                    : window_.navigateTo(locationState.path, true);
+    if (!identity.isEmpty() && result == S_OK) {
         auto &source = window_.app_.Panels[panel];
-        if (QtNativePlaces::RootIdentity(source) != identity)
-            result = E_FAIL;
-        else {
-            source.LoadFullPath();
-            locationState.path = ToQString(source.GetCurrentFolderPrefix());
-        }
+        source.LoadFullPath();
+        locationState.path = ToQString(source.GetCurrentFolderPrefix());
     }
     CompleteLocationOpen(panel, locationState.path, result);
     return locationState.unavailable && result == S_OK ? S_FALSE : result;

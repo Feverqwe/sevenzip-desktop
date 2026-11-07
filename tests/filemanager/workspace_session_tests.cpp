@@ -229,6 +229,39 @@ class WorkspaceSessionTests final : public QObject {
         QVERIFY(!copy->findChild<QAction *>("createFolderAction")->isEnabled());
     }
 
+    void unavailableNativePlaceDoesNotOpenItsOldPathAsAFolder() {
+        const QString identity = QStringLiteral("volumes");
+        QtNativePlaces nativePlaces;
+        if (nativePlaces.FindIdentity(identity).isValid())
+            QSKIP("This platform provides the saved device namespace");
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString stalePath = fixture.filePath("Stale system path");
+        QVERIFY(QDir().mkpath(stalePath));
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        const QJsonObject panel{{"path", stalePath}, {"nativePlace", identity}};
+        const QJsonObject saved{{"panels", QJsonArray{panel}}, {"count", 1}};
+        bool restored = false;
+        workspace(window)->Restore(saved, [&] { restored = true; });
+        QTRY_VERIFY(restored);
+        auto *retry = window.findChild<QPushButton *>("navigationRetry0");
+        auto *address = window.findChild<QLineEdit *>("archivePath");
+        QVERIFY(retry && address);
+        QVERIFY(retry->isVisible());
+        QVERIFY(!active(window)->isEnabled());
+        QCOMPARE(active(window)->rowCount(), 0);
+        QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(address->text())), stalePath);
+        retry->click();
+        QVERIFY(retry->isVisible());
+        QVERIFY(!active(window)->isEnabled());
+        QCOMPARE(active(window)->rowCount(), 0);
+        window.openPath(stalePath);
+        QTRY_VERIFY(active(window)->isEnabled());
+        QCOMPARE(location(window), stalePath);
+    }
+
     void closingDuringRestoreDoesNotBlockPeerPersistence() {
         const bool quit = qApp->quitOnLastWindowClosed();
         qApp->setQuitOnLastWindowClosed(false);
