@@ -2,6 +2,7 @@
 #include "archive/operations/ZipRegistry.h"
 #include "dialogs/password/PasswordDialog.h"
 #include "filemanager/OpenCallback.h"
+#include "support/progress_dialog.h"
 #include <QApplication>
 #include <QCheckBox>
 #include <QFile>
@@ -78,9 +79,15 @@ class OpenCallbackTests : public QObject {
         request.Callback.SettingsPath = settings.filePath("options.ini");
         CStopBeforeDispatch stop(request.Callback.ProgressDialog);
         bool prompted = false;
+        bool reviewedCancellation = false;
         QTimer responder;
         connect(&responder, &QTimer::timeout, this, [&] {
-            auto *dialog = dynamic_cast<CPasswordDialog *>(QApplication::activeModalWidget());
+            auto *modal = QApplication::activeModalWidget();
+            if (TestProgressDialog::DismissVisibleResult(modal)) {
+                reviewedCancellation = true;
+                return;
+            }
+            auto *dialog = dynamic_cast<CPasswordDialog *>(modal);
             if (!dialog)
                 return;
             prompted = true;
@@ -101,6 +108,7 @@ class OpenCallbackTests : public QObject {
         }
         responder.stop();
         QCOMPARE(request.Result, HRESULT(E_ABORT));
+        QCOMPARE(reviewedCancellation, queued);
         QVERIFY(!prompted);
         QVERIFY(!request.Password);
         QVERIFY(!request.Callback.PasswordIsDefined);

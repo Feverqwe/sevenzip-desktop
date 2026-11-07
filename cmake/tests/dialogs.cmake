@@ -17,6 +17,7 @@
     add_test(NAME panel_navigation COMMAND panel_navigation_tests -silent)
     set_tests_properties(panel_navigation PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 30)
     target_link_libraries(open_callback_tests PRIVATE sevenzip_panel Qt6::Test)
+    target_include_directories(open_callback_tests PRIVATE tests)
     add_test(NAME open_callback COMMAND open_callback_tests -silent)
     set_tests_properties(open_callback PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 30)
     qt_add_executable(archive_progress_tests tests/archive/archive_progress_tests.cpp)
