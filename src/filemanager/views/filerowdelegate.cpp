@@ -134,6 +134,15 @@ class FileRowDelegate final : public QStyledItemDelegate {
         return (!option.icon.isNull() && art.contains(point)) ||
                LabelBounds(option, *view).contains(point);
     }
+#ifdef Q_OS_MACOS
+    QWidget *createEditor(QWidget *parentWidget, const QStyleOptionViewItem &option,
+                          const QModelIndex &index) const override {
+        auto *editor = QStyledItemDelegate::createEditor(parentWidget, option, index);
+        if (editor && qobject_cast<QTableView *>(parent()))
+            editor->setAttribute(Qt::WA_MacSmallSize);
+        return editor;
+    }
+#endif
     void setEditorData(QWidget *editor, const QModelIndex &index) const override {
         if (const auto *line = qobject_cast<QLineEdit *>(editor); line && line->isModified())
             return;
