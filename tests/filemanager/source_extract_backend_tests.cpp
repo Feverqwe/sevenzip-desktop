@@ -309,6 +309,8 @@ class SourceExtractBackendTests final : public QObject {
         QTimer answer;
         connect(&answer, &QTimer::timeout, &backend, [&] {
             for (QWidget *widget : QApplication::topLevelWidgets()) {
+                if (TestProgressDialog::DismissVisibleResult(widget))
+                    continue;
                 if (auto *dialog = dynamic_cast<COverwriteDialog *>(widget);
                     dialog && dialog->isVisible()) {
                     answered = true;
