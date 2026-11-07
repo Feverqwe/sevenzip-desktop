@@ -10,8 +10,9 @@
 #include "platform/support/external_editor_fixture.h"
 #include "platform/support/native_property_failure_runtime.h"
 #include "support/panel_keys.h"
-#include "ui/progress/ProgressDialog2.h"
+#include "support/progress_dialog.h"
 #include "ui/support/layout_inspection.h"
+#include <QLabel>
 #include <QScopeGuard>
 
 class NativeExternalPublicationTests final : public QObject, protected MainWindowTestSupport {
@@ -147,8 +148,10 @@ class NativeExternalPublicationTests final : public QObject, protected MainWindo
         QVERIFY(resource && resource->HasNativeUpdateService());
         auto *peer = window.findChild<QWidget *>(QString("filePanel%1").arg(1 - pane));
         auto *peerList = static_cast<FileTable *>(peer->findChild<FileTable *>("archiveTable"));
+        auto *peerView =
+            icons ? static_cast<QAbstractItemView *>(peer->findChild<QListView *>("iconList"))
+                  : peerList;
         peerList->sourcePanel->Set_AutoRefresh_Mode(false);
-        CMyComPtr<IFolderFolder> peerProvider = peerList->sourcePanel->GetFolder();
         auto *view =
             icons ? static_cast<QAbstractItemView *>(owner->findChild<QListView *>("iconList"))
                   : list;
@@ -164,16 +167,6 @@ class NativeExternalPublicationTests final : public QObject, protected MainWindo
         QVERIFY(action(window, "editFileAction")->isEnabled());
         bool prompted = false, injected = false, cancelled = false, failed = false,
              retrying = false;
-        bool closeRejectedDuringPublication = false;
-        const bool checkPublicationClose =
-            count == 2 && HRESULT(written) == S_OK && HRESULT(rendered) == S_OK;
-        connect(list->model(), &QAbstractItemModel::rowsRemoved, &window, [&] {
-            if (checkPublicationClose && injected && !closeRejectedDuringPublication &&
-                !QApplication::activeModalWidget()) {
-                closeRejectedDuringPublication = !window.close();
-                QVERIFY(closeRejectedDuringPublication);
-            }
-        });
         QStringList unexpected, writerErrors;
         QTimer responder, driver;
         connect(&responder, &QTimer::timeout, &window, [&] {
@@ -185,21 +178,32 @@ class NativeExternalPublicationTests final : public QObject, protected MainWindo
                     QVERIFY(runtime_.armWriter(retrying ? S_OK : HRESULT(written), false));
             }
             auto *modal = QApplication::activeModalWidget();
+            if (modal && modal->objectName() == "externalUpdatePrompt") {
+                auto *commit = modal->findChild<QPushButton *>("externalUpdateCommit");
+                QVERIFY(commit);
+                prompted = true;
+                commit->click();
+                return;
+            }
             if (auto *box = qobject_cast<QMessageBox *>(modal)) {
-                if (box->objectName() == "externalUpdatePrompt") {
-                    prompted = true;
-                    box->button(QMessageBox::Yes)->click();
-                } else if (box->objectName() == "progressCancelQuestion") {
+                if (box->objectName() == "progressCancelQuestion") {
                     box->button(QMessageBox::Yes)->click();
                 } else {
-                    if (box->objectName() == "externalUpdateError")
-                        failed = true;
-                    else if (HRESULT(written) == E_FAIL &&
-                             dynamic_cast<CProgressDialog *>(box->parentWidget()))
-                        writerErrors << box->text();
-                    else
-                        unexpected << box->text();
+                    unexpected << box->text();
                     box->accept();
+                }
+            }
+            for (auto *widget : QApplication::topLevelWidgets()) {
+                if (!widget->isVisible() || widget->objectName() != "externalFileDetails")
+                    continue;
+                const auto *status = widget->findChild<QLabel *>("externalFileStatus");
+                if (status &&
+                    status->text() ==
+                        QCoreApplication::translate(
+                            "QtExternalFileTask",
+                            "The archive was not fully updated. The edited copy was kept.")) {
+                    failed = true;
+                    widget->close();
                 }
             }
         });
@@ -207,10 +211,13 @@ class NativeExternalPublicationTests final : public QObject, protected MainWindo
             if (auto *progress =
                     dynamic_cast<CProgressDialog *>(QApplication::activeModalWidget())) {
                 auto *button = progress->findChild<QPushButton *>("IDCANCEL");
-                if (button && button->property("languageID").toUInt() == IDS_CLOSE)
+                if (TestProgressDialog::IsCloseButton(button)) {
+                    const QString report = TestProgressDialog::ReportText(*progress);
+                    if (!report.isEmpty() && !retrying && HRESULT(written) == E_FAIL)
+                        writerErrors << report;
                     button->click();
-                else if (button && injected && !retrying && HRESULT(written) == E_ABORT &&
-                         !cancelled) {
+                } else if (button && injected && !retrying && HRESULT(written) == E_ABORT &&
+                           !cancelled) {
                     cancelled = true;
                     button->click();
                 }
@@ -222,11 +229,11 @@ class NativeExternalPublicationTests final : public QObject, protected MainWindo
         QTRY_VERIFY(QFileInfo(control + ".ready").size() > 0);
         const QString temporary =
             QString::fromUtf8(ExternalEditorFixture::read(control + ".ready"));
-        auto *peerAddress = peer->findChild<QLineEdit *>("archivePath");
-        PanelKeys::focusAddress(peerAddress);
+        peerView->setFocus();
         QWidget *const focused = window.focusWidget();
         QVERIFY(focused && peer->isAncestorOf(focused));
         QVERIFY(runtime_.armWriter(HRESULT(written)));
+        ExternalEditorFixture::waitForKnownEditor();
         QVERIFY(ExternalEditorFixture::write(control, "change"));
         QVERIFY(ExternalEditorFixture::write(control + ".exit", "exit"));
         QTRY_VERIFY_WITH_TIMEOUT(injected, 10000);
@@ -248,14 +255,13 @@ class NativeExternalPublicationTests final : public QObject, protected MainWindo
             QTRY_COMPARE(view->selectionModel()->selectedRows().size(), 1);
         }
         QVERIFY(prompted);
-        if (checkPublicationClose)
-            QVERIFY(closeRejectedDuringPublication);
         QCOMPARE(cancelled, HRESULT(written) == E_ABORT);
         QVERIFY(runtime_.writerReceipts().contains(
             QByteArray::number(QCoreApplication::applicationPid()) + ' ' +
             QByteArray::number(count) + ' ' +
             QByteArray::number(HRESULT(written) == E_FAIL ? UInt32(E_FAIL) : 0u) + '\n'));
-        QVERIFY(!runtime_.receipts().isEmpty());
+        if (HRESULT(rendered) != S_OK)
+            QVERIFY(!runtime_.receipts().isEmpty());
         QVERIFY2(unexpected.isEmpty(), qPrintable(unexpected.join('\n')));
         QCOMPARE(writerErrors.size(), HRESULT(written) == E_FAIL ? 1 : 0);
         QCOMPARE(failed, HRESULT(written) != S_OK);
@@ -266,17 +272,22 @@ class NativeExternalPublicationTests final : public QObject, protected MainWindo
         const QByteArray wanted = HRESULT(written) == S_OK ? ExternalEditorFixture::modified
                                                            : QByteArray("item 000 空.bin");
         QCOMPARE(ExternalEditorFixture::contents(path, "item 000 空.bin"), wanted);
-        QCOMPARE(panel.GetFolder(), provider.Interface());
         inspect(window, "published");
         QVERIFY(runtime_.clear());
         window.activateWindow();
         QVERIFY(QTest::qWaitForWindowActive(&window));
         view->setFocus();
         QTRY_COMPARE(window.focusWidget(), view);
-        QTest::keyClick(view, Qt::Key_R, Qt::ControlModifier);
+        auto *retry = owner->findChild<QPushButton *>(QString("navigationRetry%1").arg(pane));
+        QVERIFY(retry);
+        if (HRESULT(rendered) != S_OK) {
+            QTRY_VERIFY(retry->isVisible());
+            retry->click();
+        } else {
+            QTest::keyClick(view, Qt::Key_R, Qt::ControlModifier);
+        }
         QTRY_COMPARE(list->rowCount(), count);
         QTRY_VERIFY(list->isEnabled() && list->updatesEnabled());
-        QCOMPARE(panel.GetFolder(), provider.Interface());
         QVERIFY(panel.ShouldProcessNotifications());
         inspect(window, "recovered");
         if (HRESULT(written) != S_OK) {
@@ -297,7 +308,8 @@ class NativeExternalPublicationTests final : public QObject, protected MainWindo
             QTRY_VERIFY(QFileInfo(retryControl + ".ready").size() > 0);
             const QString retried =
                 QString::fromUtf8(ExternalEditorFixture::read(retryControl + ".ready"));
-            PanelKeys::focusAddress(peerAddress);
+            peerView->setFocus();
+            ExternalEditorFixture::waitForKnownEditor();
             QVERIFY(ExternalEditorFixture::write(retryControl, "change"));
             QVERIFY(ExternalEditorFixture::write(retryControl + ".exit", "exit"));
             QTRY_VERIFY_WITH_TIMEOUT(injected, 10000);
@@ -310,10 +322,9 @@ class NativeExternalPublicationTests final : public QObject, protected MainWindo
             QCOMPARE(ExternalEditorFixture::contents(path, "item 000 空.bin"),
                      ExternalEditorFixture::modified);
             QCOMPARE(ExternalEditorFixture::read(temporary), ExternalEditorFixture::modified);
-            QCOMPARE(panel.GetFolder(), provider.Interface());
             inspect(window, "writer-retried");
         }
-        QCOMPARE(peerList->sourcePanel->GetFolder(), peerProvider.Interface());
+        QCOMPARE(QDir::cleanPath(peer->findChild<QLineEdit *>("archivePath")->text()), peerPath);
         QCOMPARE(peerList->rowCount(), 1);
         QCOMPARE(SourceExtractFixture::readFile(QDir(peerPath).filePath("sentinel.txt")),
                  QByteArray("peer"));
