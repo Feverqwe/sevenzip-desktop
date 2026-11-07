@@ -8,7 +8,7 @@
 #include <QtTest>
 
 namespace {
-class CCommentProgress final : public IFolderArchiveUpdateCallback, public CMyUnknownImp {
+class CUpdateProgress final : public IFolderArchiveUpdateCallback, public CMyUnknownImp {
     Z7_COM_UNKNOWN_IMP_1(IFolderArchiveUpdateCallback)
 
   public:
@@ -47,7 +47,7 @@ class NativeZipWriterTests final : public QObject {
     }
 
   private slots:
-    void commentRoundTrip_data() {
+    void renamePreservesProperties_data() {
         QTest::addColumn<bool>("encrypted");
         QTest::addColumn<QString>("outcome");
         for (bool encrypted : {false, true})
@@ -56,7 +56,7 @@ class NativeZipWriterTests final : public QObject {
                 QTest::newRow(qPrintable(QString("%1-%2").arg(encrypted).arg(outcome)))
                     << encrypted << outcome;
     }
-    void commentRoundTrip() {
+    void renamePreservesProperties() {
         QFETCH(bool, encrypted);
         QFETCH(QString, outcome);
         QTemporaryDir fixture;
@@ -76,7 +76,21 @@ class NativeZipWriterTests final : public QObject {
         if (encrypted)
             create << "-plocal fixture password" << "-mem=AES256";
         create << "--" << path << name << "unchanged.txt";
-        QVERIFY(run(create, fixture.path()));
+        if (encrypted) {
+            QVERIFY(run(create, fixture.path()));
+        } else {
+            // ZIP with a pre-existing item comment, produced by Python zipfile.
+            const QByteArray fixtureBytes = QByteArray::fromBase64(
+                "UEsDBBQAAAgAAAAAIQD9I60DDwAAAA8AAAAaAAAA0LjQvNGPIOepuiB3aXRoIHNwYWNlcy5iaW5i"
+                "aW5hcnkAcGF5bG9hZP9QSwMEFAAAAAAAAAAhAK/SNb8KAAAACgAAAA0AAAB1bmNoYW5nZWQudHh0"
+                "b3RoZXIgZGF0YVBLAQIUAxQAAAgAAAAAIQD9I60DDwAAAA8AAAAaAAAAFQAAAAAAAACAAQAAAADQ"
+                "uNC80Y8g56m6IHdpdGggc3BhY2VzLmJpbmV4aXN0aW5nIGl0ZW0gY29tbWVudFBLAQIUAxQAAAAA"
+                "AAAAIQCv0jW/CgAAAAoAAAANAAAAAAAAAAAAAACAAUcAAAB1bmNoYW5nZWQudHh0UEsFBgAAAAAC"
+                "AAIAmAAAAHwAAAAAAA==");
+            QFile archive(path);
+            QVERIFY(archive.open(QIODevice::WriteOnly));
+            QCOMPARE(archive.write(fixtureBytes), qint64(fixtureBytes.size()));
+        }
         const QByteArray original = bytes(path);
         QVERIFY(!original.isEmpty());
 
@@ -98,14 +112,24 @@ class NativeZipWriterTests final : public QObject {
             if (QString::fromWCharArray(itemPath.bstrVal) == name) {
                 selected = i;
                 pair.NewProps = true;
+                pair.NewNameIndex = 0;
+                pair.IsMainRenameItem = true;
             }
             pairs.Add(pair);
         }
         QVERIFY(selected != UInt32(-1));
-        const UString comment(L"Комментарий 空 with spaces");
+        const QString renamed = QStringLiteral("новое имя 空.bin");
+        UStringVector names;
+        names.Add(UString(renamed.toStdWString().c_str()));
+        if (!encrypted) {
+            NWindows::NCOM::CPropVariant comment;
+            QCOMPARE(reader->GetProperty(selected, kpidComment, &comment), S_OK);
+            QCOMPARE(comment.vt, VARTYPE(VT_BSTR));
+            QCOMPARE(QString::fromWCharArray(comment.bstrVal), QString("existing item comment"));
+        }
         CArc arc;
         arc.Archive = reader;
-        auto *progress = new CCommentProgress;
+        auto *progress = new CUpdateProgress;
         CMyComPtr<IFolderArchiveUpdateCallback> progressOwner = progress;
         progress->Cancel = outcome == "cancel";
         CUpdateCallbackAgent ui;
@@ -114,8 +138,7 @@ class NativeZipWriterTests final : public QObject {
         callback->Arc = &arc;
         callback->Archive = reader;
         callback->UpdatePairs = &pairs;
-        callback->CommentIndex = int(selected);
-        callback->Comment = &comment;
+        callback->NewNames = &names;
         callback->Callback = &ui;
         CMyComPtr<IOutArchive> writer;
         QCOMPARE(reader.QueryInterface(IID_IOutArchive, &writer), S_OK);
@@ -146,15 +169,12 @@ class NativeZipWriterTests final : public QObject {
         QCOMPARE(updated->GetNumberOfItems(&updatedCount), S_OK);
         QCOMPARE(updatedCount, count);
         for (UInt32 i = 0; i < count; ++i) {
-            NWindows::NCOM::CPropVariant value;
-            QCOMPARE(updated->GetProperty(i, kpidComment, &value), S_OK);
-            if (i == selected) {
-                QCOMPARE(value.vt, VARTYPE(VT_BSTR));
-                QCOMPARE(QString::fromWCharArray(value.bstrVal), QString::fromWCharArray(comment));
-            } else
-                QVERIFY(value.vt == VT_EMPTY ||
-                        (value.vt == VT_BSTR && QString::fromWCharArray(value.bstrVal).isEmpty()));
-            for (PROPID id : {kpidPath, kpidSize, kpidCRC, kpidEncrypted}) {
+            NWindows::NCOM::CPropVariant pathValue;
+            QCOMPARE(updated->GetProperty(i, kpidPath, &pathValue), S_OK);
+            QCOMPARE(pathValue.vt, VARTYPE(VT_BSTR));
+            QCOMPARE(QString::fromWCharArray(pathValue.bstrVal),
+                     i == selected ? renamed : QString("unchanged.txt"));
+            for (PROPID id : {kpidComment, kpidSize, kpidCRC, kpidEncrypted}) {
                 NWindows::NCOM::CPropVariant before, after;
                 QCOMPARE(reader->GetProperty(i, id, &before), S_OK);
                 QCOMPARE(updated->GetProperty(i, id, &after), S_OK);
@@ -163,7 +183,7 @@ class NativeZipWriterTests final : public QObject {
         }
         const QString extracted = fixture.filePath("extracted");
         QVERIFY(run({"x", "-plocal fixture password", "-o" + extracted, "--", outputPath}));
-        QCOMPARE(bytes(extracted + "/" + name), payload);
+        QCOMPARE(bytes(extracted + "/" + renamed), payload);
         QCOMPARE(bytes(extracted + "/unchanged.txt"), QByteArray("other data"));
     }
 };

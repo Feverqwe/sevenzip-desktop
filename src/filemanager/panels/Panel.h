@@ -638,8 +638,6 @@ class CPanel : public QObject {
     DeleteItems(bool toRecycleBin, class IQtTrashService &trash, CSelectedState &selection,
                 const CRecordVector<UInt32> *explicitIndices = nullptr, bool confirm = true,
                 QtDeleteResultReview resultReview = QtDeleteResultReview::Operation);
-    bool CanComment() const;
-    void ChangeComment();
     bool IsDeviceDrivesPrefix() const { return _currentFolderPrefix.IsEqualTo("\\\\.\\"); }
     bool IsSuperDrivesPrefix() const { return _currentFolderPrefix.IsEqualTo("\\\\?\\"); }
     UString GetFsPath() const;

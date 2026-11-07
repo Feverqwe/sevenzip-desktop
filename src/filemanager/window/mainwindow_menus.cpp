@@ -190,7 +190,6 @@ void MainWindow::populateSourceMenus() {
     file->addSeparator();
     file->addSeparator();
     file->addAction(properties_);
-    unavailable(file, QStringLiteral("Comme&nt..."), "commentAction", IDM_COMMENT);
     file->addMenu(hash);
     file->addSeparator();
     file->addAction(createFolder_);

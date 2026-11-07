@@ -232,12 +232,6 @@ bool CPanel::OnKeyDown(const QtPanelKeyDown &keyDownInfo, CApp &g_App) {
             return true;
         }
         return false;
-    case 'Z':
-        if (ctrl) {
-            g_App.ExecuteCommand(IDM_COMMENT);
-            return true;
-        }
-        return false;
     case '1':
     case '4':
         if (ctrl) {

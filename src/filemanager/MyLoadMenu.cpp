@@ -217,7 +217,7 @@ void CFileMenu::Load(IQtFileMenuServices &destMenu, unsigned startPos) {
             if (item.wID == IDM_DIFF || (item.wID >= IDM_VER_EDIT && item.wID <= IDM_VER_DIFF) ||
                 item.wID == IDM_BENCHMARK || item.wID == IDM_BENCHMARK2 || item.wID == IDM_SPLIT ||
                 item.wID == IDM_COMBINE || item.wID == IDM_CREATE_FILE ||
-                item.wID == IDM_ALT_STREAMS)
+                item.wID == IDM_ALT_STREAMS || item.wID == IDM_COMMENT)
                 continue;
             bool disable = false;
             if (readOnly) {
@@ -225,7 +225,6 @@ void CFileMenu::Load(IQtFileMenuServices &destMenu, unsigned startPos) {
                 case IDM_RENAME:
                 case IDM_MOVE_TO:
                 case IDM_DELETE:
-                case IDM_COMMENT:
                 case IDM_CREATE_FOLDER:
                     disable = true;
                 }
@@ -243,7 +242,6 @@ void CFileMenu::Load(IQtFileMenuServices &destMenu, unsigned startPos) {
                 case IDM_COPY_TO:
                 case IDM_MOVE_TO:
                 // case IDM_DELETE:
-                case IDM_COMMENT:
                 case IDM_CREATE_FOLDER:
                 case IDM_LINK:
                     disable = true;

@@ -37,7 +37,6 @@ class Commands final : public IQtFileManagerCommandServices {
     RECORD_COMMAND(CopyTo)
     RECORD_COMMAND(MoveTo)
     RECORD_COMMAND(Properties)
-    RECORD_COMMAND(Comment)
     RECORD_COMMAND(CreateFolder)
     RECORD_COMMAND(Link)
 #undef RECORD_COMMAND

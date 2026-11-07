@@ -21,12 +21,9 @@ class CPairsStorage {
   public:
     void Clear() { Pairs.Clear(); }
     bool ReadFromString(const UString &text);
-    void SaveToString(UString &text) const;
 
     bool GetValue(const UString &id, UString &value) const;
     UString GetValue(const UString &id) const;
-    void AddPair(const CTextPair &pair);
-    void DeletePair(const UString &id);
 };
 
 #endif

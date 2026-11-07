@@ -62,7 +62,6 @@ QtFileManagerCommands::TransportCapabilities QtFileManagerCommands::ReadTranspor
     c.focusedNonParent = focus.Present && !focus.Parent;
     c.selectedParent = focus.Present && focus.Parent && focus.Selected;
     c.focusedFile = panel.IsFocusedFile();
-    c.comment = panel.CanComment();
     CMyComPtr<IFolderCalcItemFullSize> calcItemFullSize;
     if (panel.GetFolder())
         panel.GetFolder()->QueryInterface(IID_IFolderCalcItemFullSize,
@@ -199,8 +198,6 @@ bool QtFileManagerCommands::TransportAllows(unsigned id, const TransportCapabili
         return c.focusedNonParent && (c.filesystem || c.filesystemStreams || c.mutationWritable);
     case IDM_CREATE_FOLDER:
         return c.filesystem || c.mutationWritable;
-    case IDM_COMMENT:
-        return c.comment;
     case IDM_LINK:
         return c.filesystem && c.one;
     case IDM_CRC32:

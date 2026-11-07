@@ -217,8 +217,7 @@ add_library(sevenzip_location
     src/devices/qtdevicecommands.cpp
     src/archive/resources/qtfilesystemreadprompt.cpp
     src/archive/resources/qtfilesystemreadprompt.h
-    src/archive/resources/qtarchivenativeproperties.cpp
-    src/filemanager/providers/qtfolderpropertycapabilities.h)
+    src/archive/resources/qtarchivenativeproperties.cpp)
 target_include_directories(sevenzip_location PUBLIC src)
 target_link_libraries(sevenzip_location PUBLIC sevenzip_filesystem sevenzip_panel)
 target_link_libraries(sevenzip_location PUBLIC sevenzip_mount_protocol)

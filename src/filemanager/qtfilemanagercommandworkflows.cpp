@@ -174,16 +174,6 @@ void QtFileManagerCommands::InvokePluginCommand(unsigned id) {
     window_.programFileMenu_->InvokePluginCommand(id);
 }
 void QtFileManagerCommands::ReleasePluginMenus() { window_.programFileMenu_->ReleasePluginMenus(); }
-void QtFileManagerCommands::Comment() {
-    auto &w = window_;
-    const unsigned index = w.app_.GetFocusedPanelIndex();
-    {
-        QScopedValueRollback<bool> source(w.sourceArchiveProgress_, true);
-        w.app_.Panels[index].ChangeComment();
-    }
-    w.app_.QtOperations().ContinueScanAfterSourceCall(index);
-    w.refreshActions();
-}
 void QtFileManagerCommands::Link() {
     auto &w = window_;
     QtAppOperationState::CallScope call(w.app_.QtOperations());

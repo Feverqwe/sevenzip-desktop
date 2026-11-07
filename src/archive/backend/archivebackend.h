@@ -164,9 +164,6 @@ class ArchiveBackend : public QObject {
     static HRESULT inspectDevice(const std::shared_ptr<const ArchiveCodecCatalog> &catalog,
                                  IInStream *input, quint64 size, const QString &name,
                                  IOpenCallbackUI *callback, std::shared_ptr<ArchiveDevice> &source);
-    HRESULT updateNativeComment(const std::shared_ptr<ArchiveNativeOpen> &reader,
-                                ISequentialOutStream *output, UInt32 count,
-                                IArchiveUpdateCallback *callback) const;
     HRESULT updateSourceArchive(const QString &path, const QString &type,
                                 NWildcard::CCensor &censor, CUpdateOptions &options,
                                 CUpdateErrorInfo &errorInfo, IOpenCallbackUI *openCallback,

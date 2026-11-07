@@ -71,13 +71,13 @@ class FileMenuPolicyTests : public QObject {
     }
     void readOnlyKeepsReadCommandsAndDisablesMutation() {
         auto menu = commands({IDM_OPEN, IDM_RENAME, IDM_COPY_TO, IDM_MOVE_TO, IDM_DELETE,
-                              IDM_COMMENT, IDM_CREATE_FOLDER, IDM_PROPERTIES});
+                              IDM_CREATE_FOLDER, IDM_PROPERTIES});
         CFileMenu policy;
         policy.readOnly = true;
         policy.Load(menu, 0);
         QCOMPARE(menu.items.size(), menu.source.size());
-        QCOMPARE(menu.disabled(), QList<unsigned>({IDM_RENAME, IDM_MOVE_TO, IDM_DELETE, IDM_COMMENT,
-                                                   IDM_CREATE_FOLDER}));
+        QCOMPARE(menu.disabled(),
+                 QList<unsigned>({IDM_RENAME, IDM_MOVE_TO, IDM_DELETE, IDM_CREATE_FOLDER}));
     }
     void compactContextOmitsUnavailableAndTrailingSeparators() {
         auto menu = commands({8, IDM_RENAME, 0, IDM_PROPERTIES, 0});
@@ -100,7 +100,7 @@ class FileMenuPolicyTests : public QObject {
     void removedCommandsStayOutOfFileMenu() {
         auto menu = commands({IDM_DIFF, IDM_VER_EDIT, IDM_VER_COMMIT, IDM_VER_REVERT, IDM_VER_DIFF,
                               IDM_BENCHMARK2, IDM_SPLIT, IDM_COMBINE, IDM_CREATE_FILE,
-                              IDM_ALT_STREAMS, IDM_PROPERTIES});
+                              IDM_ALT_STREAMS, IDM_COMMENT, IDM_PROPERTIES});
         CFileMenu policy;
         policy.isFsFolder = policy.allAreFiles = true;
         policy.numItems = 1;

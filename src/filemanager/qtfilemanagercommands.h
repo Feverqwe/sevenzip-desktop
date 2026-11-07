@@ -51,7 +51,6 @@ class QtFileManagerCommands final : public IQtFileManagerMenuCommandServices {
     void Delete(bool toRecycleBin) override;
     void CalculateCrc(const char *methodName) override;
     void Properties() override;
-    void Comment() override;
     void CreateFolder() override;
     void Link() override;
     void AddToArchive() override;
@@ -90,7 +89,6 @@ class QtFileManagerCommands final : public IQtFileManagerMenuCommandServices {
         bool batchArchives = false;
         bool copy = false;
         bool root = false;
-        bool comment = false;
         bool focusedNonParent = false;
         QHash<unsigned, bool> hashMethods;
         bool one = false, oneFile = false, operated = false, focused = false;

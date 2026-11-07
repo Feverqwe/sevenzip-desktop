@@ -247,34 +247,6 @@ Reference: upstream `0766b733fe3e06dd2a7f9a3cfbf2108ac73abd17`,
 - `source_create` exercises folder creation in both panes, including the focus
   on the created object and preservation of selection on cancel. See the
   [receipt](../archive/qt-port/upstream-port-audit.md#p3-05--source-create-filefolder-scenario-2026-10-10).
-- ZIP comment uses source `PanelOperations.cpp::ChangeComment` with the focused
-  item name and localized Comment in its title, localized IDS_COMMENT2 prompt
-  and the existing raw property value. `native_comment_ui` checks EN/RU at the
-  same two sizes: current comment-en/ru-360/260 JSON reports preserve prompt,
-  editable combo and separately reachable OK/Cancel. titleID=0 preserves the
-  caller's dynamic title; source language ID0 is the application name.
-- Original Set Comment Error/HRESULT remains the error presentation. On macOS,
-  which omits QMessageBox window captions, the caption is the visible message
-  heading and HRESULT detail is informative text. Tests exercise real writer
-  refusal on both languages and ordinary/AES ZIP. Comment now uses the shared
-  source panel HRESULT/caption helper; its source-owned refresh follows the
-  error, while dialog Cancel returns before refresh. Existing Combo JSON and
-  normal/compact geometry consumers retain the same controls and text contract.
-- Filesystem comments use the same source dialog, focused name/title and
-  IDS_COMMENT2 prompt. `filesystem_comment` checks existing value, EN/RU,
-  normal360×150/compact260×150, File Comment and Ctrl+Z, OK and Escape, selected
-  rows and unchanged file bytes. Eight filesystem-comment-en/ru-0/1-360/260 JSON
-  show a fitted prompt, editable combo and separately visible/enabled OK/Cancel.
-  The source FSFolder writer trims the accepted comment; ZIP's raw whitespace
-  behavior remains separate. No new dialog or rendered Windows parity is claimed.
-  The source Escape/Cancel path does not reload the folder. An externally added
-  item while the dialog is open remains unpublished until explicit Refresh;
-  selection, focus, provider and peer rows stay intact. Accepted Comment reaches
-  the source reload phase even after operation failure. Load failure/cancellation
-  leaves no stale rows and releases guards; a later explicit Refresh recovers.
-  Preserve the original ignored reload-result policy in this operation caller.
-  Inspect both panes in EN/RU at 980×620/640×400 after Cancel and terminal load.
-
 Qt layouts replace OnSize. Plain-text wrapping handles Qt label rendering;
 the native AddString behavior is adapted by restoring initial edit text after
 Qt populates the combo. Windows rendering was unavailable; geometry establishes
@@ -363,7 +335,7 @@ remain unchanged. Evidence and checked platforms are in the
 No Windows rendered reference; geometry does not establish pixel parity.
 
 Combo's confirmation caption follows the source operation identity: Create for
-folder creation and Save for a comment.
+folder creation.
 Unknown generic uses retain OK. These captions update on language change without
 resetting the input or caller-built item title; the native OK role, Return,
 Cancel and raw-value acceptance remain unchanged. Rename stays inline in the

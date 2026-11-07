@@ -51,7 +51,6 @@ class ArchiveNativeOpen final : public IOpenCallbackUI, public IFscryptKeyUI {
     bool hasNestedStream() const { return link_.Arcs.Size() > 1; }
     bool directoryReadRequested() const { return directoryReadRequested_; }
     bool hasVolumes() const { return !link_.VolumePaths.IsEmpty(); }
-    bool hasCommentWriter() const;
     const CArcInfoEx *formatInfo() const;
     bool hasNativeRarExtractor() const;
     bool hasNativeHashExtractor() const;

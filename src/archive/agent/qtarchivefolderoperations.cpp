@@ -11,12 +11,6 @@ CAgentFolder::CreateProgressTransport(CProgressDialog &dialog) {
                     : nullptr;
 }
 
-std::unique_ptr<IQtProgressTransport>
-CAgentFolder::CreateNativeProgressTransport(CProgressDialog &dialog) {
-    auto *resource = dynamic_cast<QtArchiveFileResource *>(_agentSpec->GetEngineResource());
-    return resource ? resource->CreateProgressTransport(dialog, true) : nullptr;
-}
-
 bool CAgentFolder::CanCopyFromFile() const {
     if (!_agentSpec || !_agentSpec->CanUpdate())
         return false;
@@ -26,13 +20,6 @@ bool CAgentFolder::CanCopyFromFile() const {
 
 bool CAgentFolder::CanCopyTo() const {
     return _agentSpec && ArchiveHasExtractService(_agentSpec->GetArchive());
-}
-
-bool CAgentFolder::CanComment() const {
-    if (!_agentSpec || !_agentSpec->CanUpdate())
-        return false;
-    auto *resource = dynamic_cast<QtArchiveFileResource *>(_agentSpec->GetEngineResource());
-    return resource && resource->HasCommentService();
 }
 
 // Remaining unavailable operation bodies stay with their source owners.

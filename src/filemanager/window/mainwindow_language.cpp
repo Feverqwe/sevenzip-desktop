@@ -20,7 +20,7 @@ void MainWindow::reloadLangItems() {
     // Qt renders the active primary shortcut. Retain manually described
     // bookmark keys, but remove obsolete resource hints from rebound actions.
     for (QAction *action : findChildren<QAction *>()) {
-        if (action->shortcuts().isEmpty() && action->objectName() != "commentAction")
+        if (action->shortcuts().isEmpty())
             continue;
         const int tab = action->text().indexOf('\t');
         if (tab >= 0)

@@ -102,9 +102,6 @@ bool ExecuteFileCommand(unsigned id, IQtFileManagerCommandServices &g_App) {
     case IDM_PROPERTIES:
         g_App.Properties();
         break;
-    case IDM_COMMENT:
-        g_App.Comment();
-        break;
     case IDM_CREATE_FOLDER:
         g_App.CreateFolder();
         break;

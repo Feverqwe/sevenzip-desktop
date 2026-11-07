@@ -113,21 +113,6 @@ int CPairsStorage::FindID(const UString &id) const {
     return FindID(id, pos);
 }
 
-void CPairsStorage::AddPair(const CTextPair &pair) {
-    unsigned insertPos;
-    const int pos = FindID(pair.ID, insertPos);
-    if (pos >= 0)
-        Pairs[pos] = pair;
-    else
-        Pairs.Insert(insertPos, pair);
-}
-
-void CPairsStorage::DeletePair(const UString &id) {
-    const int pos = FindID(id);
-    if (pos >= 0)
-        Pairs.Delete((unsigned)pos);
-}
-
 bool CPairsStorage::GetValue(const UString &id, UString &value) const {
     value.Empty();
     const int pos = FindID(id);
@@ -151,20 +136,4 @@ bool CPairsStorage::ReadFromString(const UString &text) {
     else
         Pairs.Clear();
     return result;
-}
-
-void CPairsStorage::SaveToString(UString &text) const {
-    FOR_VECTOR(i, Pairs) {
-        const CTextPair &pair = Pairs[i];
-        bool multiWord = (pair.ID.Find(L' ') >= 0);
-        if (multiWord)
-            text.Add_Char('\"');
-        text += pair.ID;
-        if (multiWord)
-            text.Add_Char('\"');
-        text.Add_Space();
-        text += pair.Value;
-        text.Add_Char('\x0D');
-        text.Add_LF();
-    }
 }

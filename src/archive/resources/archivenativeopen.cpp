@@ -157,17 +157,6 @@ void ArchiveNativeOpen::CopyVolumeMetadata(CArchiveLink &link) const {
     link.VolumesSize = link_.VolumesSize;
 }
 
-bool ArchiveNativeOpen::hasCommentWriter() const {
-    if (!link_.IsOpen || link_.Arcs.Size() != 1 || arc().IsReadOnly || arc().ArcStreamOffset != 0)
-        return false;
-    const auto &formats = catalog_->nativeCodecs().Formats;
-    // The source parser owner uses FormatIndex=-1 rather than a codec slot.
-    if (arc().FormatIndex < 0 || unsigned(arc().FormatIndex) >= formats.Size())
-        return false;
-    const auto &format = formats[unsigned(arc().FormatIndex)];
-    return format.Is_Zip() && format.LibIndex < 0;
-}
-
 const CArcInfoEx *ArchiveNativeOpen::formatInfo() const {
     if (!link_.IsOpen)
         return nullptr;

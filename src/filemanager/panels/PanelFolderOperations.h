@@ -9,8 +9,7 @@ class CPanel;
 enum EFolderOpType {
     FOLDER_TYPE_CREATE_FOLDER = 0,
     FOLDER_TYPE_DELETE = 1,
-    FOLDER_TYPE_RENAME = 2,
-    FOLDER_TYPE_COMMENT = 4
+    FOLDER_TYPE_RENAME = 2
 };
 
 class CThreadFolderOperations : public CProgressThreadVirt {

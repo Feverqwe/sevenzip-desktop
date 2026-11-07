@@ -138,14 +138,6 @@ HRESULT ArchiveBackend::loadCodecCatalog(const QString &module, quint32 engineVe
     return result;
 }
 
-HRESULT ArchiveBackend::updateNativeComment(const std::shared_ptr<ArchiveNativeOpen> &reader,
-                                            ISequentialOutStream *output, UInt32 count,
-                                            IArchiveUpdateCallback *callback) const {
-    if (!reader || !reader->hasCommentWriter())
-        return E_NOTIMPL;
-    return updateNativeArchive(reader, output, count, callback);
-}
-
 HRESULT ArchiveBackend::updateSourceArchive(const QString &path, const QString &type,
                                             NWildcard::CCensor &censor, CUpdateOptions &options,
                                             CUpdateErrorInfo &errorInfo,

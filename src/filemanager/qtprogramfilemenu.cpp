@@ -9,8 +9,7 @@
 #include <algorithm>
 
 QList<QAction *> QtGroupFileCommands(QMenu &menu, bool contextMenu) {
-    QList<QAction *> prefix, picker, open, modes, editors, frequent, create, rare, hash, properties,
-        exit;
+    QList<QAction *> prefix, picker, open, modes, editors, frequent, create, hash, properties, exit;
     for (QAction *action : menu.actions()) {
         menu.removeAction(action);
         if (action->isSeparator())
@@ -44,9 +43,6 @@ QList<QAction *> QtGroupFileCommands(QMenu &menu, bool contextMenu) {
             case IDM_CREATE_FOLDER:
             case IDM_LINK:
                 create.append(action);
-                break;
-            case IDM_COMMENT:
-                rare.append(action);
                 break;
             case IDM_PROPERTIES:
                 properties.append(action);
@@ -107,14 +103,10 @@ QList<QAction *> QtGroupFileCommands(QMenu &menu, bool contextMenu) {
         more.append(nullptr);
         more.append(create);
         more.append(nullptr);
-        more.append(rare);
-        more.append(nullptr);
         more.append(prefix);
         group("moreCommandsMenu", QT_TRANSLATE_NOOP("CommandMenus", "More"), more);
     } else {
-        rare.append(nullptr);
-        rare.append(prefix);
-        group("advancedCommandsMenu", QT_TRANSLATE_NOOP("CommandMenus", "Advanced"), rare);
+        group("advancedCommandsMenu", QT_TRANSLATE_NOOP("CommandMenus", "Advanced"), prefix);
     }
     separator();
     append(menu, properties);

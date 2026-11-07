@@ -81,10 +81,6 @@ HRESULT QtArchiveFileResource::SetNativeProperties(const wchar_t *const *names,
     return S_OK;
 }
 
-bool QtArchiveFileResource::HasCommentService() const {
-    return NativeItemProperties() && _nativeOpen->hasCommentWriter() && HasUpdateService();
-}
-
 bool QtArchiveFileResource::HasNativeExtractService() const {
     return NativeItemProperties() != nullptr;
 }

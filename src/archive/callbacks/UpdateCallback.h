@@ -166,8 +166,6 @@ class CArchiveUpdateCallback Z7_final : public IArchiveUpdateCallback2,
     bool SourceRenamePathsDefined = false;
     UString SourceRenameOldPath;
     UString SourceRenameNewPath;
-    const UString *Comment;
-    int CommentIndex;
 
     /*
     CArcTime Reported_ArcMTime;

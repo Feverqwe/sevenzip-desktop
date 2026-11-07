@@ -10,7 +10,6 @@
 #include "archive/resources/archivelayercontext.h"
 #include "archive/resources/archivereadstream.h"
 #include "common/collections/MyVector.h"
-#include "filemanager/providers/qtfolderpropertycapabilities.h"
 #include "fileops/patterns/Wildcard.h"
 #include "platform/loader/DLL.h"
 #include "ui/progress/qtprogresstransport.h"
@@ -31,8 +30,7 @@ enum AGENT_OP {
     AGENT_OP_Delete,
     AGENT_OP_CreateFolder,
     AGENT_OP_Rename,
-    AGENT_OP_CopyFromFile,
-    AGENT_OP_Comment
+    AGENT_OP_CopyFromFile
 };
 Z7_PURE_INTERFACES_BEGIN
 #define Z7_IFACEM_IArchiveFolderInternal(x)                                                        \
@@ -63,7 +61,6 @@ class CAgentFolder final : public IFolderFolder,
                            public IFolderSetZoneIdMode,
                            public IFolderSetZoneIdFile,
                            public IQtProgressServices,
-                           public IQtFolderPropertyCapabilities,
                            public CMyUnknownImp {
     Z7_COM_QI_BEGIN2(IFolderFolder)
     Z7_COM_QI_ENTRY(IFolderProperties)
@@ -134,10 +131,7 @@ class CAgentFolder final : public IFolderFolder,
     // File-only refresh bridge; native ReOpen and folder binding retain ownership.
     HRESULT ReOpen(IArchiveOpenCallback *callback, IFolderFolder **folder);
     HRESULT CloseArchive();
-    bool CanComment() const override;
     std::unique_ptr<IQtProgressTransport> CreateProgressTransport(CProgressDialog &dialog) override;
-    std::unique_ptr<IQtProgressTransport>
-    CreateNativeProgressTransport(CProgressDialog &dialog) override;
     void GetPathParts(UStringVector &pathParts, bool &isAltStreamFolder);
     HRESULT CommonUpdateOperation(AGENT_OP operation, bool moveMode, const wchar_t *newItemName,
                                   const NUpdateArchive::CActionSet *actionSet,
@@ -241,9 +235,6 @@ class CAgent final : public IInFolderArchive,
     HRESULT UpdateOneFile(ISequentialOutStream *outArchiveStream, const UInt32 *indices,
                           UInt32 numItems, const wchar_t *diskFilePath,
                           IFolderArchiveUpdateCallback *updateCallback100);
-    HRESULT CommentItem(ISequentialOutStream *outArchiveStream, const UInt32 *indices,
-                        UInt32 numItems, const wchar_t *newItemName,
-                        IFolderArchiveUpdateCallback *updateCallback100);
     // External engine stream/file lifetime replaces the in-process archive's
     // stream ownership. All folders retain this source CAgent owner.
     void AttachEngineResource(IUnknown *resource) { _engineResource = resource; }

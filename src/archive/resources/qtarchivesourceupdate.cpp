@@ -1,5 +1,4 @@
 #include "archive/backend/archivebackend.h"
-#include "archive/callbacks/UpdateCallback.h"
 #include "archive/resources/archivenativeopen.h"
 #include "archive/resources/qtarchivefileresource.h"
 #include "ui/progress/ProgressDialog2.h"
@@ -66,12 +65,6 @@ HRESULT QtArchiveFileResource::UpdateNative(ISequentialOutStream *output, UInt32
     // AgentOut uses the bound archive's original IOutArchive interface.
     // A missing writer cannot be replaced by a console reconstruction.
     RINOK(native->QueryInterface(IID_IOutArchive, (void **)&writer))
-    if (const auto *source = dynamic_cast<CArchiveUpdateCallback *>(callback);
-        source && source->CommentIndex >= 0 && source->Comment) {
-        if (!HasCommentService())
-            return E_NOTIMPL;
-        return backend->updateNativeComment(_nativeOpen, output, count, callback);
-    }
     if (_compressionOptions && !_nativePropertiesExplicit)
         return backend->updateNativeArchive(_nativeOpen, output, count, callback,
                                             *_compressionOptions);

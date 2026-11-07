@@ -34,10 +34,6 @@ HRESULT CThreadFolderOperations::ProcessVirt() {
     }
     case FOLDER_TYPE_RENAME:
         return FolderOperations->Rename(Index, Name, UpdateCallback);
-    case FOLDER_TYPE_COMMENT: {
-        NWindows::NCOM::CPropVariant value(Name);
-        return FolderOperations->SetProperty(Index, kpidComment, &value, UpdateCallback);
-    }
     default:
         return E_FAIL;
     }
@@ -65,8 +61,7 @@ HRESULT CThreadFolderOperations::DoOperation(CPanel &panel, const UString &progr
 
     std::unique_ptr<IQtProgressTransport> transport;
     if (auto *services = dynamic_cast<IQtProgressServices *>(FolderOperations.Interface()))
-        transport = OpType == FOLDER_TYPE_COMMENT ? services->CreateNativeProgressTransport(*this)
-                                                  : services->CreateProgressTransport(*this);
+        transport = services->CreateProgressTransport(*this);
     RINOK(Create(progressTitle, MainWindow))
     return Result;
 }

@@ -50,7 +50,6 @@ void MainWindow::configureShortcuts() {
     bindPanel(back_, {QKeySequence(Qt::ALT | Qt::Key_Left)});
     bindPanel(forward_, {QKeySequence(Qt::ALT | Qt::Key_Right)});
 #endif
-    findChild<QAction *>("commentAction")->setShortcuts({});
     twoPanelsAction_->setShortcuts({modern(Qt::Key_2), QKeySequence(Qt::Key_F9)});
     panelShortcutActions_.append(twoPanelsAction_);
     refresh_->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_R));

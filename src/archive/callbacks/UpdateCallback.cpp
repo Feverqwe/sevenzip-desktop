@@ -77,7 +77,7 @@ CArchiveUpdateCallback::CArchiveUpdateCallback()
 
       DirItems(NULL), ParentDirItem(NULL),
 
-      Arc(NULL), ArcItems(NULL), UpdatePairs(NULL), NewNames(NULL), Comment(NULL), CommentIndex(-1),
+      Arc(NULL), ArcItems(NULL), UpdatePairs(NULL), NewNames(NULL),
 
       ProcessedItemsStatuses(NULL), _hardIndex_From((UInt32)(Int32)-1) {
 #ifdef Z7_USE_SECURITY_CODE
@@ -457,9 +457,6 @@ Z7_COM7F_IMF(CArchiveUpdateCallback::GetProperty(UInt32 index, PROPID propID, PR
         }
     } else if (propID == kpidPath && up.NewNameIndex >= 0)
         prop = (*NewNames)[(unsigned)up.NewNameIndex];
-    else if (propID == kpidComment && CommentIndex >= 0 && (unsigned)CommentIndex == index &&
-             Comment)
-        prop = *Comment;
     else if (propID == kpidShortName && up.NewNameIndex >= 0 && up.IsMainRenameItem) {
         // we can generate new ShortName here;
     } else if ((up.UseArcProps ||

@@ -134,7 +134,7 @@ bool MainWindow::overridePanelKey(const QKeyEvent &key) const {
         k == Qt::Key_Delete || k == Qt::Key_Tab)
         return true;
     if (ctrl &&
-        ((k >= Qt::Key_A && k <= Qt::Key_Z && QStringLiteral("ACNVWXRZ").contains(QChar(k))) ||
+        ((k >= Qt::Key_A && k <= Qt::Key_Z && QStringLiteral("ACNVWXR").contains(QChar(k))) ||
          (k >= Qt::Key_0 && k <= Qt::Key_9) || k == Qt::Key_PageDown || k == Qt::Key_PageUp))
         return true;
     if (k >= Qt::Key_0 && k <= Qt::Key_9 && alt)

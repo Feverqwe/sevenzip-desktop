@@ -239,8 +239,6 @@ class LanguageDialogTests final : public QObject {
         QTest::addColumn<QString>("russian");
         QTest::newRow("folder") << quint32(IDS_CREATE_FOLDER) << quint32(IDS_CREATE_FOLDER_NAME)
                                 << QString("Create") << QStringLiteral("Создать");
-        QTest::newRow("comment") << quint32(0) << quint32(IDS_COMMENT2) << QString("Save")
-                                 << QStringLiteral("Сохранить");
     }
     void comboActionLanguageAndConfirmation() {
         QFETCH(quint32, titleID);

@@ -91,7 +91,6 @@ class QtArchiveFileResource final : public IUnknown, public CMyUnknownImp {
     std::shared_ptr<ArchiveNativeOpen> MatchNativeItemOrder(IFolderFolder *metadata) const;
     void UseNativeMetadata();
     bool UsesNativeMetadata() const { return _nativeMetadata; }
-    bool HasCommentService() const;
     bool HasNativeExtractService() const;
     bool HasNativeRarReader() const;
     bool HasNativeHashReader() const;

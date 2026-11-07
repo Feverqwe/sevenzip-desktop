@@ -20,8 +20,4 @@ class IQtProgressServices {
     virtual ~IQtProgressServices() = default;
     virtual std::unique_ptr<IQtProgressTransport>
     CreateProgressTransport(CProgressDialog &dialog) = 0;
-    virtual std::unique_ptr<IQtProgressTransport>
-    CreateNativeProgressTransport(CProgressDialog &dialog) {
-        return CreateProgressTransport(dialog);
-    }
 };

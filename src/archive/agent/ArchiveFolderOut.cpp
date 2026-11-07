@@ -210,10 +210,6 @@ HRESULT CAgentFolder::CommonUpdateOperation(AGENT_OP operation, bool moveMode,
                 result = _agentSpec->RenameItem(tailStream, indices, numItems, newItemName,
                                                 updateCallback100);
                 break;
-            case AGENT_OP_Comment:
-                result = _agentSpec->CommentItem(tailStream, indices, numItems, newItemName,
-                                                 updateCallback100);
-                break;
             case AGENT_OP_CopyFromFile:
                 result = _agentSpec->UpdateOneFile(tailStream, indices, numItems, newItemName,
                                                    updateCallback100);
@@ -440,18 +436,6 @@ Z7_COM7F_IMF(CAgentFolder::Rename(UInt32 index, const wchar_t *newName, IProgres
     COM_TRY_END
 }
 
-Z7_COM7F_IMF(CAgentFolder::SetProperty(UInt32 index, PROPID propID, const PROPVARIANT *value,
-                                       IProgress *progress)) {
-    COM_TRY_BEGIN
-    if (!IsBound())
-        return E_FAIL;
-    if (propID != kpidComment || value->vt != VT_BSTR)
-        return E_NOTIMPL;
-    if (!_agentSpec ||
-        !_agentSpec->GetTypeOfArc(_agentSpec->GetArc()).IsEqualTo_Ascii_NoCase("zip"))
-        return E_NOTIMPL;
-
-    return CommonUpdateOperation(AGENT_OP_Comment, false, value->bstrVal, NULL, &index, 1,
-                                 progress);
-    COM_TRY_END
+Z7_COM7F_IMF(CAgentFolder::SetProperty(UInt32, PROPID, const PROPVARIANT *, IProgress *)) {
+    return E_NOTIMPL;
 }

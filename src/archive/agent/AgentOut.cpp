@@ -635,49 +635,6 @@ HRESULT CAgent::RenameItem(ISequentialOutStream *outArchiveStream, const UInt32 
     return CommonUpdate(outArchiveStream, updatePairs.Size(), updateCallback);
 }
 
-HRESULT CAgent::CommentItem(ISequentialOutStream *outArchiveStream, const UInt32 *indices,
-                            UInt32 numItems, const wchar_t *newItemName,
-                            IFolderArchiveUpdateCallback *updateCallback100) {
-    if (!CanUpdate())
-        return E_NOTIMPL;
-    if (numItems != 1)
-        return E_INVALIDARG;
-    if (!_archiveLink.IsOpen)
-        return E_FAIL;
-
-    CRecordVector<CUpdatePair2> updatePairs;
-    CUpdateCallbackAgent updateCallbackAgent;
-    updateCallbackAgent.SetCallback(updateCallback100);
-    CMyComPtr2_Create<IArchiveUpdateCallback, CArchiveUpdateCallback> updateCallback;
-
-    const int mainRealIndex = _agentFolder->GetRealIndex(indices[0]);
-
-    if (mainRealIndex < 0)
-        return E_NOTIMPL;
-
-    UInt32 numItemsInArchive;
-    RINOK(GetArchive()->GetNumberOfItems(&numItemsInArchive))
-
-    UString newName = newItemName;
-
-    for (UInt32 i = 0; i < numItemsInArchive; i++) {
-        CUpdatePair2 up2;
-        up2.SetAs_NoChangeArcItem(i);
-        if ((int)i == mainRealIndex)
-            up2.NewProps = true;
-        updatePairs.Add(up2);
-    }
-
-    updateCallback->Callback = &updateCallbackAgent;
-    updateCallback->UpdatePairs = &updatePairs;
-    updateCallback->CommentIndex = mainRealIndex;
-    updateCallback->Comment = &newName;
-
-    SetInArchiveInterfaces(this, updateCallback.ClsPtr());
-
-    return CommonUpdate(outArchiveStream, updatePairs.Size(), updateCallback);
-}
-
 HRESULT CAgent::UpdateOneFile(ISequentialOutStream *outArchiveStream, const UInt32 *indices,
                               UInt32 numItems, const wchar_t *diskFilePath,
                               IFolderArchiveUpdateCallback *updateCallback100) {
