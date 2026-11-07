@@ -10,12 +10,15 @@
 #include "dialogs/copy/CopyDialog.h"
 #include "filemanager/App.h"
 #include "filemanager/panels/PanelInfo.h"
+#include "filemanager/providers/FSFolder.h"
+#include "fileops/links/qtlinkservices.h"
 #include "fileops/native/FileDir.h"
 #include "fileops/patterns/Wildcard.h"
 #include "settings/ViewSettings.h"
 #include "ui/diagnostics/qtdiagnostictext.h"
 #include <QCoreApplication>
 #include <QDir>
+#include <QFileInfo>
 #include <QScopedValueRollback>
 
 struct CApp::CopyRequest {
@@ -28,6 +31,30 @@ struct CApp::CopyRequest {
     CSelectedState SourceSelection;
     CSelectedState DestinationSelection;
 };
+
+static bool IsInsideCopySource(const QStringList &directories, const QString &destination) {
+    QString path = QDir::cleanPath(QDir::fromNativeSeparators(destination));
+    for (const QString &directory : directories)
+        if (NFsFolder::IsDestChild(directory, path))
+            return true;
+
+    // An existing ancestor can lead into a source through a directory alias
+    // even when the destination itself does not exist yet.
+    for (;;) {
+        const QFileInfo info(path);
+        const QString canonical = info.canonicalFilePath();
+        if (!canonical.isEmpty()) {
+            for (const QString &directory : directories)
+                if (NFsFolder::IsDestChild(directory, canonical))
+                    return true;
+            return false;
+        }
+        const QString parent = info.absolutePath();
+        if (parent == path)
+            return false;
+        path = parent;
+    }
+}
 
 // Reduces path to the part that exists on disk (or the root prefix).
 // The source helper normalizes the result with WCHAR_PATH_SEPARATOR.
@@ -122,6 +149,24 @@ void CApp::OnCopy(bool move, bool copyToSame, unsigned srcPanelIndex) {
     }
     const UString peerPath = NumPanels == 2 ? destPanel.GetFsPath() : UString();
     const bool peerIsFilesystem = NumPanels == 2 && destPanel.IsFSFolder();
+    destinationContext.PeerIsFilesystem = peerIsFilesystem;
+    if (srcPanel.IsFSFolder()) {
+        QStringList directories;
+        for (const QString &path : sourcePaths) {
+            const QFileInfo source(path);
+            if (!source.isDir() || QtIsFileSystemLink(path))
+                continue;
+            const QString absolute = QDir::cleanPath(source.absoluteFilePath());
+            directories.append(absolute);
+            const QString canonical = source.canonicalFilePath();
+            if (!canonical.isEmpty() && canonical != absolute)
+                directories.append(canonical);
+        }
+        if (!directories.isEmpty())
+            destinationContext.IsInsideSourceDirectory = [directories](const QString &path) {
+                return IsInsideCopySource(directories, path);
+            };
+    }
     destinationContext.CanRename = [renameSource, peerPath, peerIsFilesystem](const QString &path) {
         const UString native = ToUString(path);
         bool alternate = false;

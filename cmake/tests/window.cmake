@@ -16,6 +16,7 @@
         outsidePeerStillRefreshesDestination:1-0-overwrite-cancel
         unselectedItemsReachSourceSmartCopy:0-0-0---440
         unselectedItemsReachSourceSmartCopy:1-1-1-ru-360
+        rejectsDestinationInsideSourceFolder
         capturedItemsSurviveModalSelectionChange:fs-to-fs-copy---0
         capturedItemsSurviveModalSelectionChange:archive-to-fs-move-ru-1
         capturedItemsSurviveModalSelectionChange:fs-to-archive-copy-ru-0

@@ -179,6 +179,10 @@ void CCopyDialog::UpdateDestination() {
                               ToUString(_sources.first())) == 0)
         error = Text(
             QT_TRANSLATE_NOOP("CopyRedesign", "Choose another destination or change the name."));
+    else if (_destinationContext && _destinationContext->IsInsideSourceDirectory &&
+             (!peerDestination || _destinationContext->PeerIsFilesystem) &&
+             _destinationContext->IsInsideSourceDirectory(PreviewDestination(DraftDestination())))
+        error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "The destination is invalid."));
     _canAccept = error.isEmpty();
     _destinationMessage->setText(error);
     _destinationMessage->setVisible(!error.isEmpty());

@@ -23,6 +23,8 @@ struct QtCopyDestinationContext {
     std::function<bool(const QString &)> CanRename;
     // Null uses the caller's ordinary process-relative filesystem contract.
     QString RelativeBase = {};
+    std::function<bool(const QString &)> IsInsideSourceDirectory = {};
+    bool PeerIsFilesystem = false;
 };
 
 const int kCopyDialog_NumInfoLines = 11;

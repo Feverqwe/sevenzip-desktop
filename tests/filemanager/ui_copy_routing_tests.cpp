@@ -9,6 +9,7 @@
 #include "support/progress_dialog.h"
 #include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
+#include <QDialogButtonBox>
 #include <QLineEdit>
 #include <QProcess>
 #include <QStandardPaths>
@@ -299,6 +300,61 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         QCOMPARE(QDir(fixture.path()).entryList(QDir::Dirs | QDir::NoDotAndDotDot),
                  QStringList{"input"});
     }
+    void rejectsDestinationInsideSourceFolder_data() {
+        QTest::addColumn<bool>("move");
+        QTest::newRow("copy") << false;
+        QTest::newRow("move") << true;
+    }
+
+    void rejectsDestinationInsideSourceFolder() {
+        QFETCH(bool, move);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString name = QStringLiteral("source folder δ");
+        const QString source = fixture.filePath(name);
+        const QString blocked = source + "/new folder/";
+        const QString output = fixture.filePath("source folder δ copy");
+        QVERIFY(QDir().mkpath(source));
+        write(source + "/file.txt", "control bytes");
+
+        ArchiveBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        auto *view = openPanel(window, 0, fixture.path());
+        QTRY_COMPARE(row(*view, name), 0);
+        QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
+        view->selectRow(0);
+        view->setFocus();
+        QTRY_VERIFY(view->hasFocus());
+
+        bool stayedOpen = false;
+        bool corrected = false;
+        QTimer::singleShot(0, &window, [&] {
+            auto *dialog = window.findChild<CopyDialog *>("copyDialog");
+            if (!dialog)
+                return;
+            auto *path = dialog->findChild<QLineEdit *>("copyDestination");
+            auto *buttons = dialog->findChild<QDialogButtonBox *>("copyButtons");
+            auto *ok = buttons->button(QDialogButtonBox::Ok);
+            path->setText(blocked);
+            if (!ok->isEnabled()) {
+                dialog->accept();
+                stayedOpen = dialog->isVisible() && path->text() == blocked;
+            }
+            path->setText(output);
+            corrected = ok->isEnabled();
+            corrected ? dialog->accept() : dialog->reject();
+        });
+        QTest::keyClick(view, move ? Qt::Key_F6 : Qt::Key_F5);
+        QVERIFY(stayedOpen);
+        QVERIFY(corrected);
+        QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
+        QVERIFY(!QFileInfo::exists(blocked));
+        QCOMPARE(read(output + "/file.txt"), QByteArray("control bytes"));
+        QCOMPARE(QFileInfo::exists(source), !move);
+    }
+
     void capturedItemsSurviveModalSelectionChange_data() {
         QTest::addColumn<bool>("sourceArchive");
         QTest::addColumn<bool>("targetArchive");
