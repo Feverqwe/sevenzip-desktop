@@ -344,18 +344,21 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
             auto *progress = dynamic_cast<CQtProgressDialog *>(QApplication::activeModalWidget());
             QVERIFY(progress);
             QCOMPARE(progress->windowModality(), Qt::ApplicationModal);
-            backend.report(42, QStringLiteral("папка/имя с пробелом.txt"),
-                           QStringLiteral("42% + папка/имя с пробелом.txt"));
+            const QString path = QStringLiteral("папка/имя с пробелом.txt");
+            backend.report(42, path, QStringLiteral("42% + папка/имя с пробелом.txt"));
             auto *bar = progress->findChild<QProgressBar *>("IDC_PROGRESS1");
             auto *name = progress->findChild<QLabel *>("IDT_PROGRESS_FILE_NAME");
             QVERIFY(bar && name);
             QTRY_COMPARE(bar->value(), 42);
-            QTRY_VERIFY(name->text().contains(QStringLiteral("имя с пробелом.txt")));
-            QVERIFY(name->text().contains(QStringLiteral("папка")));
+            QTRY_COMPARE(name->text(), QStringLiteral("имя с пробелом.txt"));
+            QCOMPARE(name->toolTip(), path);
+            QCOMPARE(name->accessibleDescription(), path);
         });
         window.openArchive("first.7z");
+        const QString openedArchive = window.findChild<QLineEdit *>("archivePath")->text();
 
         QVERIFY(backend.prepareArchiveFixture("second.zip"));
+        const QString diagnostic = QStringLiteral("Повреждены данные архива.");
         QStringList errors;
         QTimer warningResponder;
         connect(&warningResponder, &QTimer::timeout, &window, [&] {
@@ -365,15 +368,13 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
             }
         });
         warningResponder.start(1);
-        backend.queueListAction([&] {
-            backend.report(-1, {}, QStringLiteral("ERROR: повреждённый архив"));
-            backend.fail(QStringLiteral("7z завершился с кодом 2."));
-        });
+        backend.queueListAction([&] { backend.fail(diagnostic); });
         window.openArchive("second.zip");
         warningResponder.stop();
-        QCOMPARE(errors, QStringList({QStringLiteral("7z завершился с кодом 2.")}));
+        QCOMPARE(errors, QStringList({diagnostic}));
         QCOMPARE(backend.lastResult(), E_FAIL);
-        QCOMPARE(window.statusBar()->currentMessage(), QStringLiteral("7z завершился с кодом 2."));
+        QCOMPARE(window.statusBar()->currentMessage(), diagnostic);
+        QCOMPARE(window.findChild<QLineEdit *>("archivePath")->text(), openedArchive);
     }
 
     void contextMenuFollowsSelectionAndLocation() {
