@@ -2,6 +2,7 @@
 #include "archive/support/native_archive_fixture.h"
 #include "dialogs/extract/alias.h"
 #include "fileops/patterns/Wildcard.h"
+#include <QAbstractItemView>
 #include <QDir>
 #include <QFile>
 #include <QFileDialog>
@@ -27,6 +28,47 @@ class SplitDestinationTests final : public QObject {
         qputenv("SEVENZIP_SETTINGS_PATH", settings_.toUtf8());
     }
     void init() { QFile::remove(settings_); }
+    void historyRestoresTheCompleteExtractionDestination() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString source = fixture.filePath("payload.txt");
+        QFile file(source);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        QCOMPARE(file.write("payload"), qint64(7));
+        file.close();
+        const QString archive = fixture.filePath("current.zip");
+        QVERIFY(NativeArchiveFixture::WriteFiles(archive, {source}));
+        const QString previous = fixture.filePath(QStringLiteral("вывод/прошлый результат"));
+        NExtract::CInfo settings;
+        settings.Load(settings_);
+        settings.Paths.Add(previous + '/');
+        settings.Save(settings_);
+        ArchiveBackend backend;
+        QCOMPARE(NativeArchiveFixture::Attach(backend), S_OK);
+        const auto result = ExtractDialogFixture::Run(
+            backend, archive, fixture.filePath("current"), [&](CExtractDialog &dialog) {
+                const auto close = qScopeGuard([&] {
+                    if (dialog.isVisible())
+                        dialog.reject();
+                });
+                QVERIFY(enabled(dialog)->isChecked());
+                auto *history = path(dialog);
+                history->showPopup();
+                auto *items = history->view();
+                const QModelIndex first = history->model()->index(0, 0);
+                QVERIFY(first.isValid());
+                QTRY_VERIFY(items->isVisible());
+                items->setCurrentIndex(first);
+                QTest::keyClick(items, Qt::Key_Return);
+                QCOMPARE(QDir::cleanPath(dialog.destination()), previous);
+                dialog.accept();
+            });
+        QCOMPARE(result.Result, S_OK);
+        QVERIFY(result.CallbackOK);
+        QFile extracted(QDir(previous).filePath("payload.txt"));
+        QVERIFY(extracted.open(QIODevice::ReadOnly));
+        QCOMPARE(extracted.readAll(), QByteArray("payload"));
+    }
     void browsingUsesTheSameDestinationAsExtraction() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());

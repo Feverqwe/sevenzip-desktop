@@ -151,6 +151,17 @@ void CExtractDialog::OnInit(const QStringList &history) {
     // Qt addItem selects the first item in an editable empty combo. Restore typed text.
     _path->setCurrentIndex(-1);
     _path->setEditText(pathPrefix);
+    connect(_path, &QComboBox::activated, this, [this](int index) {
+        if (!_nameEnable->isChecked())
+            return;
+        UString saved = ToUString(_path->itemText(index));
+        saved.Trim();
+        QString parent, name;
+        const QString destination = ToQString(saved);
+        SplitPathToParts_Smart(destination, parent, name);
+        _path->setEditText(parent.isEmpty() ? destination : parent);
+        _pathName->setText(parent.isEmpty() ? QString() : name);
+    });
     AddComboItems(*_pathMode, kPathModes, PathMode);
     AddComboItems(*_overwriteMode, kOverwriteModes, OverwriteMode);
 }
@@ -246,12 +257,6 @@ void CExtractDialog::OnOK() {
     if (!OverwriteMode_Force && _info.OverwriteMode != OverwriteMode)
         _info.OverwriteMode_Force = true;
     _info.OverwriteMode = OverwriteMode;
-    int currentItem = _path->currentIndex();
-    // A Qt editable combo may retain its index after setEditText: Win32 GetCurSel is CB_ERR.
-    if (currentItem >= 0 && _path->currentText() != _path->itemText(currentItem))
-        currentItem = -1;
-    if (currentItem == -1 && _path->count() >= int(kHistorySize))
-        currentItem = _path->count() - 1;
     NWindows::NFile::NName::NormalizeDirPathPrefix(s);
     const bool splitDest = _nameEnable->isChecked();
     if (splitDest != _info.SplitDest.Val) {
@@ -261,12 +266,11 @@ void CExtractDialog::OnOK() {
     DirPath = QString::fromWCharArray(s.Ptr());
     _info.Paths.Clear();
     AddUniqueString(_info.Paths, DirPath);
-    for (int i = 0; i < _path->count(); i++)
-        if (i != currentItem) {
-            UString sTemp(_path->itemText(i).toStdWString().c_str());
-            sTemp.Trim();
-            AddUniqueString(_info.Paths, QString::fromWCharArray(sTemp.Ptr()));
-        }
+    for (int i = 0; i < _path->count() && _info.Paths.Size() < kHistorySize; ++i) {
+        UString saved = ToUString(_path->itemText(i));
+        saved.Trim();
+        AddUniqueString(_info.Paths, ToQString(saved));
+    }
     _info.Save(settingsPath());
     QDialog::accept();
 }
