@@ -5,6 +5,33 @@
 #include <QScopedValueRollback>
 #include <QScrollBar>
 
+HRESULT QtWindowWorkspace::OpenRecordedLocation(unsigned panel, const QString &path,
+                                                const QString &nativeIdentity,
+                                                const QtArchiveLocation &archive) {
+    if (!archive.physicalPath.isEmpty()) {
+        ProtectNavigation();
+        return OpenArchiveLocation(panel, archive);
+    }
+    QString target = window_.sourcePathFromDisplayPath(path);
+    if (!nativeIdentity.isEmpty()) {
+        nativePlaces_->Refresh();
+        const auto place = nativePlaces_->FindIdentity(nativeIdentity);
+        if (nativeIdentity == "locations")
+            target.clear();
+        else if (place.isValid())
+            target = place.data(QtPlaceRoles::Path).toString();
+        else
+            return E_FAIL;
+    }
+    const HRESULT result = window_.navigateTo(target, true);
+    if (result != S_OK)
+        return result;
+    if (!nativeIdentity.isEmpty())
+        return QtNativePlaces::RootIdentity(window_.app_.Panels[panel]) == nativeIdentity ? S_OK
+                                                                                          : S_FALSE;
+    return LocationMatches(panel, target) ? S_OK : S_FALSE;
+}
+
 HRESULT QtWindowWorkspace::OpenPanelLocation(unsigned panel) {
     auto &locationState = panels_[panel].location;
     const QString identity = locationState.nativePlaceIdentity;

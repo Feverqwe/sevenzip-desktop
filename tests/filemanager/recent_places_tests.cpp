@@ -1,12 +1,15 @@
 #include "filemanager/support/recent_places_menu.h"
 #include "filemanager/support/window_state_support.h"
+#include "filemanager/window/qtfavoritestore.h"
 #include "filemanager/window/qtrecentplacesstore.h"
 #include "localization/LangUtils.h"
 #include "localization/qtlangcontrols.h"
 #include "platform/support/external_editor_fixture.h"
 #include "support/panel_keys.h"
 #include "ui/support/layout_inspection.h"
+#include <QInputDialog>
 #include <QMenu>
+#include <QTimer>
 #include <QToolButton>
 
 class RecentPlacesTests final : public QObject, protected MainWindowTestSupport {
@@ -28,6 +31,35 @@ class RecentPlacesTests final : public QObject, protected MainWindowTestSupport 
         for (int index = 0; index < count; ++index)
             QVERIFY(ExternalEditorFixture::write(
                 QDir(path).filePath(QString("item-%1.txt").arg(index)), "control payload"));
+    }
+    static void addFavorite(MainWindow &window, const QString &name) {
+        auto *add = window.findChild<QAction *>("addFavoriteAction");
+        QVERIFY(add);
+        bool entered = false;
+        QTimer responder;
+        connect(&responder, &QTimer::timeout, &window, [&] {
+            if (auto *dialog = qobject_cast<QInputDialog *>(QApplication::activeModalWidget())) {
+                dialog->setTextValue(name);
+                entered = true;
+                dialog->accept();
+            }
+        });
+        responder.start(1);
+        add->trigger();
+        QVERIFY(entered);
+    }
+    static void openFavorite(MainWindow &window, const QString &name) {
+        auto *menu = window.findChild<QMenu *>("savedPlacesMenu");
+        QVERIFY(menu);
+        menu->popup(window.mapToGlobal(QPoint(20, 20)));
+        QTRY_VERIFY(menu->isVisible());
+        for (auto *entry : menu->actions())
+            if (entry->text() == name) {
+                RecentPlacesMenu::Choose(*menu, *entry);
+                return;
+            }
+        menu->hide();
+        QFAIL("Saved place missing from menu");
     }
   private slots:
     void initTestCase() { UiInspection::configureReviewAppearance(); }
@@ -194,7 +226,13 @@ class RecentPlacesTests final : public QObject, protected MainWindowTestSupport 
         QCOMPARE(QDir::cleanPath(ToQString(other->sourcePanel->GetCurrentFolderPrefix())), c);
     }
 
+    void closedNestedArchiveReopensThroughRecordedNativeTarget_data() {
+        QTest::addColumn<bool>("favorite");
+        QTest::newRow("recent") << false;
+        QTest::newRow("favorite") << true;
+    }
     void closedNestedArchiveReopensThroughRecordedNativeTarget() {
+        QFETCH(bool, favorite);
         QTemporaryDir fixture;
         const QString folder = QStringLiteral("dir 空/sub папка");
         const QString entry = folder + "/payload.txt";
@@ -219,13 +257,28 @@ class RecentPlacesTests final : public QObject, protected MainWindowTestSupport 
         openRow(window, rowWithPath(window, folder));
         QTRY_VERIFY(rowWithPath(window, entry) >= 0);
         const QString requested = ToQString(active(window)->sourcePanel->GetCurrentFolderPrefix());
+        const QString savedName = QStringLiteral("Nested archive");
+        if (favorite)
+            addFavorite(window, savedName);
         window.openPath(plain);
-        action(window, "foldersHistoryAction")->trigger();
-        QTRY_VERIFY(RecentPlacesMenu::Visible(window));
-        auto *popup = RecentPlacesMenu::Visible(window);
-        auto *recent = RecentPlacesMenu::Find(*popup, requested);
-        QVERIFY(recent);
-        RecentPlacesMenu::Choose(*popup, *recent);
+        if (favorite) {
+            const QString parked = fixture.filePath("temporarily missing.zip");
+            QVERIFY(QFile::rename(outer, parked));
+            openFavorite(window, savedName);
+            auto *retry = window.findChild<QPushButton *>("navigationRetry0");
+            QVERIFY(retry);
+            QTRY_VERIFY(retry->isVisible());
+            QVERIFY(QFile::rename(parked, outer));
+            retry->click();
+            QTRY_VERIFY(!retry->isVisible());
+        } else {
+            action(window, "foldersHistoryAction")->trigger();
+            QTRY_VERIFY(RecentPlacesMenu::Visible(window));
+            auto *popup = RecentPlacesMenu::Visible(window);
+            auto *recent = RecentPlacesMenu::Find(*popup, requested);
+            QVERIFY(recent);
+            RecentPlacesMenu::Choose(*popup, *recent);
+        }
         QTRY_COMPARE(ToQString(active(window)->sourcePanel->GetCurrentFolderPrefix()), requested);
         QCOMPARE(active(window)->sourcePanel->GetParentFolders().Size(), 2u);
         QCOMPARE(ToQString(active(window)->sourcePanel->GetCurrentFolderPrefix()), requested);
@@ -261,6 +314,40 @@ class RecentPlacesTests final : public QObject, protected MainWindowTestSupport 
         QTRY_VERIFY(active(window)->sourcePanel->IsFSDrivesFolder());
         QVERIFY(!active(window)->sourcePanel->IsFSFolder());
         QVERIFY(!action(window, "createFolderAction")->isEnabled());
+    }
+
+    void computerFavoriteReopensAfterReloadAndLanguageChange() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString name = QStringLiteral("Saved computer");
+        const QString plain = fixture.filePath("Plain");
+        directory(plain);
+        ControlledBackend backend;
+        {
+            MainWindow window(&backend);
+            window.show();
+            action(window, "openRootAction")->trigger();
+            QVERIFY(active(window)->sourcePanel->IsFSDrivesFolder());
+            addFavorite(window, name);
+        }
+        // Reload the settings-scoped model as a new application would.
+        const auto settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
+        for (auto *object : qApp->children())
+            if (auto *favorites = dynamic_cast<QtFavoriteStore *>(object);
+                favorites && favorites->property("settingsPath").toString() == settings) {
+                delete favorites;
+                break;
+            }
+        SaveRegLang(UString("ru"), settings);
+        ReloadLang(settings);
+        QtNotifyLanguageChanged();
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(plain);
+        QTRY_COMPARE(location(window), plain);
+        openFavorite(window, name);
+        QTRY_VERIFY(active(window)->sourcePanel->IsFSDrivesFolder());
+        QVERIFY(!active(window)->sourcePanel->IsFSFolder());
     }
 };
 

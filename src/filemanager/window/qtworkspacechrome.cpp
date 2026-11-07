@@ -90,6 +90,7 @@ void QtWindowWorkspace::AttachContent(unsigned panel, QVBoxLayout &layout) {
     if (!window_.findChild<QMenu *>("savedPlacesMenu")) {
         auto *favorites = window_.findChild<QMenu *>("favoritesMenu");
         auto *add = new QAction(tr("Add current location"), favorites);
+        add->setObjectName("addFavoriteAction");
         QtBindLocalText(add, "QtWindowWorkspace",
                         QT_TRANSLATE_NOOP("QtWindowWorkspace", "Add current location"));
         favorites->insertAction(favorites->actions().first(), add);
@@ -108,7 +109,7 @@ void QtWindowWorkspace::AttachContent(unsigned panel, QVBoxLayout &layout) {
                 connect(action, &QAction::triggered, this, [this, id = entry.id] {
                     const auto index = favorites_->IndexForId(id);
                     if (index.isValid())
-                        OpenFavorite(favorites_->Favorite(index.row()).path);
+                        OpenFavorite(favorites_->Favorite(index.row()));
                 });
             }
         });
@@ -168,28 +169,39 @@ void QtWindowWorkspace::AddFavorite() {
     if (!Ready())
         return;
     const QString path = CurrentLocation();
+    const auto &location = panels_[window_.projectedPanel_].location;
+    const auto nativeIdentity = location.nativePlaceIdentity;
+    const auto archive = location.archiveLocation;
+    const QString defaultName = path.isEmpty() && nativeIdentity == "locations"
+                                    ? tr("Locations")
+                                    : QFileInfo(QDir::cleanPath(path)).fileName();
     bool accepted = false;
-    const QString label =
-        QInputDialog::getText(&window_, tr("Add favorite"), tr("Name"), QLineEdit::Normal,
-                              QFileInfo(QDir::cleanPath(path)).fileName(), &accepted);
+    const QString label = QInputDialog::getText(&window_, tr("Add favorite"), tr("Name"),
+                                                QLineEdit::Normal, defaultName, &accepted);
     if (accepted && !label.trimmed().isEmpty())
-        favorites_->Add(path, label.trimmed());
+        favorites_->Add(path, label.trimmed(), nativeIdentity, archive);
 }
 
-void QtWindowWorkspace::OpenFavorite(const QString &path) {
+void QtWindowWorkspace::OpenFavorite(const QtFavorite &favorite) {
     if (!Ready())
         return;
     const unsigned panel = window_.projectedPanel_;
-    window_.withPanelProjection(panel, [this, panel, &path] {
-        const HRESULT result = Navigate([&]() -> HRESULT {
-            const HRESULT opened = window_.navigateTo(path, true);
-            return opened == S_OK && !LocationMatches(panel, path) ? S_FALSE : opened;
+    window_.withPanelProjection(panel, [this, panel, &favorite] {
+        const HRESULT result = Navigate([&] {
+            return OpenRecordedLocation(panel, favorite.path, favorite.nativeIdentity,
+                                        favorite.archive);
         });
-        CompleteLocationOpen(panel, path, result);
-        if (panels_[panel].location.unavailable) {
-            auto &locationState = panels_[panel].location;
-            locationState.nativePlaceIdentity.clear();
-            locationState.archiveLocation = {};
+        auto &location = panels_[panel].location;
+        if (result == S_OK && !favorite.nativeIdentity.isEmpty()) {
+            auto &source = window_.app_.Panels[panel];
+            source.LoadFullPath();
+            CompleteLocationOpen(panel, ToQString(source.GetCurrentFolderPrefix()), result);
+        } else {
+            CompleteLocationOpen(panel, favorite.path, result);
+        }
+        if (location.unavailable) {
+            location.nativePlaceIdentity = favorite.nativeIdentity;
+            location.archiveLocation = favorite.archive;
         }
     });
     window_.refreshActions();

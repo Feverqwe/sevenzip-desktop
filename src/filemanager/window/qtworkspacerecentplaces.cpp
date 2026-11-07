@@ -1,6 +1,5 @@
 #include "filemanager/providers/RootFolder.h"
 #include "filemanager/window/mainwindow.h"
-#include "filemanager/window/qtnativeplaces.h"
 #include "filemanager/window/qtrecentplacesstore.h"
 #include "filemanager/window/qtwindowworkspace.h"
 #include "ui/progress/ProgressDialog2.h"
@@ -64,21 +63,7 @@ void QtWindowWorkspace::OpenRecentPlace(unsigned panel, const QtRecentPlace &pla
     Navigate(
         [&]() -> HRESULT {
             ProtectNavigation();
-            if (!place.archive.physicalPath.isEmpty())
-                return OpenArchiveLocation(panel, place.archive);
-            QString path = window_.sourcePathFromDisplayPath(place.path);
-            if (!place.nativeIdentity.isEmpty()) {
-                nativePlaces_->Refresh();
-                const auto native = nativePlaces_->FindIdentity(place.nativeIdentity);
-                if (place.nativeIdentity == "locations")
-                    path.clear();
-                else if (native.isValid())
-                    path = native.data(QtPlaceRoles::Path).toString();
-                else
-                    return E_FAIL;
-            }
-            const HRESULT opened = window_.navigateTo(path, true);
-            return opened == S_OK && !LocationMatches(panel, path) ? S_FALSE : opened;
+            return OpenRecordedLocation(panel, place.path, place.nativeIdentity, place.archive);
         },
         [this](HRESULT result) {
             if (result == S_OK || window_.app_.QtOperations().closed())

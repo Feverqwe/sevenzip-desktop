@@ -35,9 +35,11 @@ QtFavoriteStore::QtFavoriteStore(const QString &settingsPath, QObject *parent)
             const auto entry = value.toObject();
             const QString id = entry.value("id").toString();
             const QString path = entry.value("path").toString();
-            if (!id.isEmpty() && !path.isEmpty())
+            const QString nativeIdentity = entry.value("nativePlace").toString();
+            if (!id.isEmpty() && (!path.isEmpty() || nativeIdentity == "locations"))
                 favorites_.append({id, entry.value("label").toString(), path,
-                                   entry.value("defaultLabel").toString()});
+                                   entry.value("defaultLabel").toString(), nativeIdentity,
+                                   QtArchiveLocation::Restore(entry.value("archive").toObject())});
         }
     } else {
         CFastFolders legacy;
@@ -126,17 +128,24 @@ bool QtFavoriteStore::setData(const QModelIndex &index, const QVariant &value, i
     return true;
 }
 
-void QtFavoriteStore::Add(const QString &path, const QString &label) {
-    if (path.isEmpty())
+void QtFavoriteStore::Add(const QString &path, const QString &label, const QString &nativeIdentity,
+                          const QtArchiveLocation &archive) {
+    if (path.isEmpty() && nativeIdentity != "locations")
         return;
     for (const auto &entry : favorites_)
-        if (FavoriteKey(entry.path) == FavoriteKey(path))
+        if (nativeIdentity.isEmpty() ? FavoriteKey(entry.path) == FavoriteKey(path)
+                                     : entry.nativeIdentity == nativeIdentity)
             return;
     QString name = label.isEmpty() ? QFileInfo(path).fileName() : label;
     if (name.isEmpty())
         name = path;
     beginInsertRows({}, favorites_.size(), favorites_.size());
-    favorites_.append({QUuid::createUuid().toString(QUuid::WithoutBraces), name, path, {}});
+    favorites_.append({QUuid::createUuid().toString(QUuid::WithoutBraces),
+                       name,
+                       path,
+                       {},
+                       nativeIdentity,
+                       archive});
     endInsertRows();
     Save();
 }
@@ -214,7 +223,9 @@ void QtFavoriteStore::Save() {
         entries.append(QJsonObject{{"id", entry.id},
                                    {"label", entry.label},
                                    {"path", entry.path},
-                                   {"defaultLabel", entry.defaultLabel}});
+                                   {"defaultLabel", entry.defaultLabel},
+                                   {"nativePlace", entry.nativeIdentity},
+                                   {"archive", entry.archive.Save()}});
     QSettings settings(settingsPath_, QSettings::IniFormat);
     settings.setValue("workspace/favorites", QJsonDocument(entries).toJson(QJsonDocument::Compact));
 }

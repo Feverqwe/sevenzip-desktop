@@ -22,6 +22,7 @@ class QtFastFoldersStore;
 class QtNativePlaces;
 class QtRecentPlacesStore;
 struct QtRecentPlace;
+struct QtFavorite;
 class QtArchiveMountManager;
 
 // CApp owns the two panel bindings. The workspace keeps navigation state and
@@ -121,12 +122,14 @@ class QtWindowWorkspace final : public QObject {
                                 bool interactive = true);
     HRESULT OpenArchiveDirectory(unsigned panel, const QtArchiveLocation &location);
     HRESULT OpenPanelLocation(unsigned panel);
+    HRESULT OpenRecordedLocation(unsigned panel, const QString &path, const QString &nativeIdentity,
+                                 const QtArchiveLocation &archive);
     bool LocationMatches(unsigned panel, const QString &path);
     void CreateActions(unsigned panel, QVBoxLayout &layout);
     void RefreshChrome();
     void ShowArchiveChangeNotice(unsigned panel);
     void AddFavorite();
-    void OpenFavorite(const QString &path);
+    void OpenFavorite(const QtFavorite &favorite);
     void OpenRecentPlace(unsigned panel, const QtRecentPlace &place);
     void WhenReady(std::function<void()> body, std::function<void()> canceled = {});
     void RestoreListFocus(unsigned panel, quint64 request, QPointer<QWidget> widget);
