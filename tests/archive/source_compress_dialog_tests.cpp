@@ -146,13 +146,21 @@ class SourceCompressDialogTests final : public QObject {
     }
     void parameterDraftSurvivesProfilesAndRejectsNul_data() {
         QTest::addColumn<QSize>("size");
-        QTest::newRow("normal") << QSize(760, 720);
-        QTest::newRow("compact") << QSize(640, 480);
+        QTest::addColumn<QString>("language");
+        QTest::newRow("normal-ru") << QSize(760, 720) << QString("ru");
+        QTest::newRow("compact-en") << QSize(640, 480) << QString("-");
     }
     void parameterDraftSurvivesProfilesAndRejectsNul() {
         QFETCH(QSize, size);
+        QFETCH(QString, language);
         const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         QFile::remove(settings);
+        SaveRegLang(UString(language.toStdWString().c_str()), settings);
+        ReloadLang(settings);
+        const auto resetLanguage = qScopeGuard([&] {
+            SaveRegLang(L"-", settings);
+            ReloadLang(settings);
+        });
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString invalid = QString("tm=off") + QChar::Null + " mt=1";
@@ -193,7 +201,19 @@ class SourceCompressDialogTests final : public QObject {
                 responder.stop();
                 const auto dismiss = qScopeGuard([&] { editor->reject(); });
                 QCOMPARE(parameters->text(), invalid);
-                QTRY_VERIFY(UiInspection::fullyVisible(*parameters, *editor));
+                const auto *scroll = editor->findChild<QScrollArea *>("dialogContentScroll");
+                const auto geometry = [&] {
+                    QString result;
+                    QDebug(&result)
+                        << "field" << UiInspection::bounds(*parameters, *editor) << "viewport"
+                        << UiInspection::bounds(*scroll->viewport(), *editor) << "vertical"
+                        << scroll->verticalScrollBar()->value()
+                        << scroll->verticalScrollBar()->maximum() << "horizontal"
+                        << scroll->horizontalScrollBar()->maximum();
+                    return result;
+                };
+                QTRY_VERIFY2(UiInspection::fullyVisible(*parameters, *editor),
+                             qPrintable(geometry()));
                 QVERIFY(UiInspection::writeReport(
                     *editor, QString("source-add-invalid-parameters-%1").arg(size.width())));
             }

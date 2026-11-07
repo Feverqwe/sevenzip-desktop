@@ -188,12 +188,20 @@ void CreateArchiveDialog::showExpertOptions(QWidget *focus) {
         else
             compressionSection_->setExpanded(true);
         QtFitScrollableDialog(editor);
-        editor.findChild<QScrollArea *>("dialogContentScroll")->ensureWidgetVisible(target);
+        auto *scroll = editor.findChild<QScrollArea *>("dialogContentScroll");
+        scroll->ensureWidgetVisible(target);
         if (QApplication::activeModalWidget() != &editor)
             return;
-        target->setFocus();
         if (focus == parameters_ && parameters_->text().contains(QChar::Null))
             ShowErrorMessageQt(&editor, NWindows::NError::MyFormatMessage(E_INVALIDARG));
+        target->setFocus();
+        QMetaObject::invokeMethod(
+            &editor,
+            [scroll, target] {
+                const QPoint center = target->mapTo(scroll->widget(), target->rect().center());
+                scroll->ensureVisible(center.x(), center.y(), 0, target->height() / 2 + 1);
+            },
+            Qt::QueuedConnection);
     });
     applied = editor.exec() == QDialog::Accepted;
     if (applied) {
