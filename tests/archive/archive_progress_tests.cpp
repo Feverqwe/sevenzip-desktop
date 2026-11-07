@@ -46,17 +46,26 @@ class ArchiveProgressTests : public QObject {
         backend.Start();
         auto *bar = dialog.findChild<QProgressBar *>("IDC_PROGRESS1");
         auto *percent = dialog.findChild<QLabel *>("progressPercent");
+        auto *file = dialog.findChild<QLabel *>("IDT_PROGRESS_FILE_NAME");
         QTRY_COMPARE(percent->text(), QString("42%"));
         emit backend.progress(-1, QStringLiteral("чтение метаданных 空"));
         QTRY_COMPARE(bar->maximum(), 0);
         QTRY_VERIFY(percent->text().isEmpty());
         emit backend.progress(73, QStringLiteral("запись файла 空"));
         QTRY_COMPARE(percent->text(), QString("73%"));
+        QTRY_COMPARE(file->text(), QStringLiteral("запись файла 空"));
         dialog.Sync.Set_NumBytesTotal(100);
         dialog.Sync.Set_NumBytesCur(100);
         emit backend.phaseStarted();
         QTRY_COMPARE(bar->maximum(), 0);
         QTRY_VERIFY(percent->text().isEmpty());
+        QTRY_VERIFY(!file->isVisible());
+        QVERIFY(file->accessibleDescription().isEmpty());
+        auto *status = dialog.findChild<QLabel *>("IDT_PROGRESS_STATUS");
+        QCOMPARE(status->text(), QCoreApplication::translate("ProgressRedesign", "Preparing…"));
+        emit backend.progress(12, QStringLiteral("новая папка/новый файл 空"));
+        QTRY_COMPARE(percent->text(), QString("12%"));
+        QCOMPARE(file->text(), QStringLiteral("новый файл 空"));
     }
     void newEngineRetainsPauseOrReportsFailure_data() {
         QTest::addColumn<bool>("failure");

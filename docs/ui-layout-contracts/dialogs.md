@@ -168,10 +168,10 @@ The source counters and range conversion remain operation state.
 
 Unknown totals use an indeterminate indicator without a percentage. Known
 native byte/count totals and percent-only transports drive the same display;
-a new unknown phase clears the previous percentage. Preparation has a short
-state caption. Pause freezes rendering and preserves reached progress. It is
-available only when supported by that operation's transport; callback-only
-filesystem/volume operations hide it. Pause/Continue and Stop remain reachable
+a new unknown worker phase clears the previous percentage and filename.
+Preparation has a short state caption. Pause freezes rendering and preserves
+reached progress. It is available only when supported by that operation's
+transport. Callback-only filesystem/volume operations hide it. Pause/Continue and Stop remain reachable
 in the footer, and the title bar provides Minimize. Full locations come from the
 accepted operation plan, not from the changing current-file string.
 
