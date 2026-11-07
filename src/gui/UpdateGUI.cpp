@@ -51,6 +51,7 @@ HRESULT UpdateGUI(CCodecs *codecs, const CObjectVector<COpenType> &formatIndices
                   QWidget *hwndParent, IQtUpdateGUIServices &services,
                   const std::function<void()> &outputReady) {
     messageWasDisplayed = false;
+    options.DeleteAfterCompressing = false;
     bool needSetPath = true;
     if (showDialog) {
         RINOK(ShowDialog(codecs, censor.CensorPaths, options, callback, hwndParent, services))
@@ -401,7 +402,6 @@ HRESULT ShowDialog(CCodecs *codecs, const CObjectVector<NWildcard::CCensorPath> 
     di.PathMode = options.PathMode;
     di.SFXMode = options.SfxMode;
     di.OpenShareForWrite = options.OpenShareForWrite;
-    di.DeleteAfterCompressing = options.DeleteAfterCompressing;
     di.SymLinks = options.SymLinks;
     di.HardLinks = options.HardLinks;
     di.AltStreams = options.AltStreams;
@@ -421,7 +421,7 @@ HRESULT ShowDialog(CCodecs *codecs, const CObjectVector<NWildcard::CCensorPath> 
     }
     ParseProperties(options.MethodMode.Properties, di);
     RINOK(services.PresentCompressDialog(dialog, censor, hwndParent))
-    options.DeleteAfterCompressing = di.DeleteAfterCompressing;
+    options.DeleteAfterCompressing = false;
     options.SymLinks = di.SymLinks;
     options.HardLinks = di.HardLinks;
     options.AltStreams = di.AltStreams;

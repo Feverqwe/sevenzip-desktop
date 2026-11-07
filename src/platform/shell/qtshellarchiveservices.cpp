@@ -192,14 +192,6 @@ HRESULT QtShellArchiveServices::UpdateGUI(CCodecs &codecs, const CObjectVector<C
                 _routes.OutputReady(QFileInfo(QString::fromWCharArray(first)).absoluteFilePath(),
                                     QtGUIOutputKind::Archive);
             }
-            if (options.DeleteAfterCompressing)
-                FOR_VECTOR(i, censor.CensorPaths) {
-                    if (censor.CensorPaths[i].Include)
-                        _routes.OutputReady(
-                            QFileInfo(QString::fromWCharArray(censor.CensorPaths[i].Path))
-                                .absolutePath(),
-                            QtGUIOutputKind::Directory);
-                }
         });
     return _result;
 }

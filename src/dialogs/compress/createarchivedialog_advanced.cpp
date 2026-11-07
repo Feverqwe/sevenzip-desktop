@@ -117,9 +117,6 @@ void CreateArchiveDialog::createLifecycleOptions(QFormLayout *form) {
                                          "File sharing restrictions apply only on Windows."));
 #endif
     layout->addWidget(sharedFiles_);
-    deleteAfterCompressing_ = new QCheckBox("Delete files after compression", group);
-    deleteAfterCompressing_->setObjectName("archiveDeleteAfterCompression");
-    layout->addWidget(deleteAfterCompressing_);
     form->addRow(group);
     // OnInit leaves this checkbox available for all update modes. The original
     // UpdateArchive owner validates incompatible action sets after confirmation.
@@ -230,7 +227,7 @@ void CreateArchiveDialog::updateRedesignSummary() {
             compressionModified = true;
     bool filesModified = updateMode_->currentData().toInt() != NCompressDialog::NUpdateMode::kAdd ||
                          pathMode_->currentData().toInt() != NWildcard::k_RelatPath;
-    for (auto *check : {sfx_, sharedFiles_, deleteAfterCompressing_})
+    for (auto *check : {sfx_, sharedFiles_})
         if (check->isEnabled() && check->isChecked())
             filesModified = true;
     compressionSection_->setSummary(compressionModified ? modified : QString());

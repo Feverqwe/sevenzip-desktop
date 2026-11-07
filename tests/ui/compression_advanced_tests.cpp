@@ -224,19 +224,13 @@ class CompressionAdvancedTests final : public QObject {
             editor.resize(size);
             auto *group = dialog.findChild<QWidget *>("archiveLifecycleOptions");
             auto *shared = check(dialog, "archiveSharedFiles");
-            auto *remove = check(dialog, "archiveDeleteAfterCompression");
-            QVERIFY(group && shared && remove);
+            QVERIFY(group && shared);
             auto *scroll = editor.findChild<QScrollArea *>("dialogContentScroll");
             scroll->ensureWidgetVisible(group);
             QCoreApplication::processEvents();
-            for (QWidget *widget : {static_cast<QWidget *>(group), static_cast<QWidget *>(remove)})
-                QVERIFY(UiInspection::fullyVisible(*widget, editor));
-            QVERIFY(remove->width() >= remove->sizeHint().width());
 #ifdef Q_OS_WIN
             QVERIFY(UiInspection::fullyVisible(*shared, editor));
             QVERIFY(shared->width() >= shared->sizeHint().width());
-            QVERIFY(UiInspection::bounds(*shared, editor).bottom() <
-                    UiInspection::bounds(*remove, editor).top());
             QVERIFY(shared->isEnabled());
             shared->setChecked(true);
             QVERIFY(dialog.compressionOptions().OpenShareForWrite);
@@ -246,16 +240,6 @@ class CompressionAdvancedTests final : public QObject {
         QVERIFY(!shared->toolTip().isEmpty());
         QVERIFY(!dialog.compressionOptions().OpenShareForWrite);
 #endif
-            QVERIFY(remove->isEnabled());
-            remove->setChecked(true);
-            QVERIFY(dialog.compressionOptions().DeleteAfterCompressing);
-            auto *mode = dialog.findChild<QComboBox *>("archiveUpdateMode");
-            mode->setCurrentIndex(mode->findData(int(NCompressDialog::NUpdateMode::kFresh)));
-            QVERIFY(remove->isEnabled());
-            QVERIFY(dialog.compressionOptions().DeleteAfterCompressing);
-            mode->setCurrentIndex(mode->findData(int(NCompressDialog::NUpdateMode::kAdd)));
-            QVERIFY(remove->isEnabled());
-            QVERIFY(dialog.compressionOptions().DeleteAfterCompressing);
             QVERIFY(UiInspection::writeReport(editor,
                                               QString("archive-lifecycle-%1").arg(size.width())));
         });

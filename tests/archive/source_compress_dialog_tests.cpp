@@ -564,20 +564,13 @@ class SourceCompressDialogTests final : public QObject {
     void actualSourceModalOperation_data() {
         QTest::addColumn<bool>("cancel");
         QTest::addColumn<bool>("broken");
-        QTest::addColumn<bool>("deleteSources");
-        QTest::addColumn<bool>("unsupportedDelete");
-        QTest::newRow("success") << false << false << false << false;
-        QTest::newRow("broken-existing") << false << true << false << false;
-        QTest::newRow("modal-cancel") << true << false << false << false;
-        QTest::newRow("delete-success") << false << false << true << false;
-        QTest::newRow("delete-cancel") << true << false << true << false;
-        QTest::newRow("delete-incompatible-mode") << false << false << true << true;
+        QTest::newRow("success") << false << false;
+        QTest::newRow("broken-existing") << false << true;
+        QTest::newRow("modal-cancel") << true << false;
     }
     void actualSourceModalOperation() {
         QFETCH(bool, cancel);
         QFETCH(bool, broken);
-        QFETCH(bool, deleteSources);
-        QFETCH(bool, unsupportedDelete);
         QTemporaryDir fixture;
         const QString path = fixture.filePath(QStringLiteral("данные 空 with spaces.txt"));
         QFile source(path);
@@ -609,14 +602,6 @@ class SourceCompressDialogTests final : public QObject {
                     qobject_cast<CreateArchiveDialog *>(QApplication::activeModalWidget())) {
                 if (!shown) {
                     shown = true;
-                    if (unsupportedDelete) {
-                        auto *mode = dialog->findChild<QComboBox *>("archiveUpdateMode");
-                        mode->setCurrentIndex(
-                            mode->findData(int(NCompressDialog::NUpdateMode::kFresh)));
-                    }
-                    auto *remove = dialog->findChild<QCheckBox *>("archiveDeleteAfterCompression");
-                    QVERIFY(remove && remove->isEnabled());
-                    remove->setChecked(deleteSources);
                     if (cancel)
                         dialog->reject();
                     else
@@ -656,10 +641,6 @@ class SourceCompressDialogTests final : public QObject {
             QFile target(output);
             QVERIFY(target.open(QIODevice::ReadOnly));
             QCOMPARE(target.readAll(), QByteArray("sentinel"));
-        } else if (unsupportedDelete) {
-            QVERIFY(service.Result() != S_OK);
-            QCOMPARE(errors, 1u);
-            QVERIFY(!QFileInfo::exists(output));
         } else {
             QCOMPARE(service.Result(), S_OK);
             QCOMPARE(errors, 0u);
@@ -668,12 +649,8 @@ class SourceCompressDialogTests final : public QObject {
             QVERIFY(verify.waitForFinished(10000));
             QCOMPARE(verify.exitCode(), 0);
         }
-        if (deleteSources && !cancel && !broken && !unsupportedDelete)
-            QVERIFY(!QFileInfo::exists(path));
-        else {
-            QVERIFY(source.open(QIODevice::ReadOnly));
-            QCOMPARE(source.readAll(), QByteArray("abc"));
-        }
+        QVERIFY(source.open(QIODevice::ReadOnly));
+        QCOMPARE(source.readAll(), QByteArray("abc"));
         QVERIFY(!backend.busy());
     }
 };

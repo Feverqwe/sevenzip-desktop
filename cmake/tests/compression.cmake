@@ -108,7 +108,7 @@
         set(sevenzip_sfx_fixture_name "7z.sfx")
     endif()
     target_include_directories(sfx_creation_tests PRIVATE src tests)
-    target_link_libraries(sfx_creation_tests PRIVATE sevenzip_panel Qt6::Test)
+    target_link_libraries(sfx_creation_tests PRIVATE sevenzip_panel sevenzip_widget_dialog_fixtures Qt6::Test)
     target_compile_definitions(sfx_creation_tests PRIVATE
         "SEVENZIP_SFX_FIXTURE=\"${SEVENZIP_SFX_RUNTIME_DIR}/${sevenzip_sfx_fixture_name}\"")
     if(SEVENZIP_CODEC_MODULE)

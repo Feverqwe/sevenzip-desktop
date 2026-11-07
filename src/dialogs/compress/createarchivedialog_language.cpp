@@ -58,7 +58,6 @@ void CreateArchiveDialog::BindLanguage() {
         QtBindResourceText(label, IDT_COMPRESS_ENCRYPTION_METHOD, "&Encryption method:");
     QtBindResourceText(sharedFiles_, IDX_COMPRESS_SHARED, "Compress shared files");
     QtBindResourceText(sfx_, IDX_COMPRESS_SFX, "Create SFX archive");
-    QtBindResourceText(deleteAfterCompressing_, IDX_COMPRESS_DEL, "Delete files after compression");
     if (password_) {
         QtBindResourceText(showPassword_, IDX_PASSWORD_SHOW, "Show Password");
         QtBindResourceText(encryptHeaders_, IDX_COMPRESS_ENCRYPT_FILE_NAMES, "Encrypt file &names");

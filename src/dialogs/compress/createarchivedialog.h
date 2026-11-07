@@ -135,7 +135,6 @@ class CreateArchiveDialog : public QDialog {
     QCheckBox *sharedFiles_ = nullptr;
     QCheckBox *sfx_ = nullptr;
     ArchiveSfxModule sfxModule_;
-    QCheckBox *deleteAfterCompressing_ = nullptr;
     QComboBox *encryption_ = nullptr;
     QComboBox *level_ = nullptr;
     QComboBox *method_ = nullptr;

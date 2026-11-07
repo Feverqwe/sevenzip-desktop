@@ -50,7 +50,6 @@ class CreationBackend final : public ArchiveBackend {
                                        Cancel ? "cancel" : "accept");
         ScopedTestEnvironment target("SEVENZIP_OPERATION_CREATE_TARGET", Target);
         ScopedTestEnvironment format("SEVENZIP_OPERATION_CREATE_FORMAT", "zip");
-        ScopedTestEnvironment deletion("SEVENZIP_OPERATION_DELETE_INPUTS", "1");
         auto *operation =
             QtOperationLauncher::Launch(QStringLiteral(SEVENZIP_OPERATION_HOST), job, error);
         if (operation)
@@ -183,7 +182,7 @@ class ToolbarCreationWorkflowTests final : public QObject, protected MainWindowT
             QCOMPARE(selected->rowCount(), 1);
             QCOMPARE(peer->rowCount(), 0);
         } else {
-            QTRY_COMPARE(selected->rowCount(), 0);
+            QTRY_COMPARE(selected->rowCount(), 1);
             QTRY_COMPARE(peer->rowCount(), 1);
             QCOMPARE(peer->model()->index(0, 0).data().toString().normalized(
                          QString::NormalizationForm_C),
@@ -254,7 +253,7 @@ class ToolbarCreationWorkflowTests final : public QObject, protected MainWindowT
                                      ->text()),
                  QDir::cleanPath(input.path()));
     }
-    void deletedInputArchiveReturnsPeerToItsDirectory() {
+    void packedInputArchiveRemainsOpenInPeer() {
         QTemporaryDir input, output;
         QVERIFY(input.isValid() && output.isValid());
         const QString archive = SourceExtractFixture::makeArchive(input.path(), "old member");
@@ -285,12 +284,12 @@ class ToolbarCreationWorkflowTests final : public QObject, protected MainWindowT
         action(window, "toolbarAddAction")->trigger();
         QTRY_COMPARE_WITH_TIMEOUT(backend.Results.size(), 1, 30000);
         QCOMPARE(backend.Results.first().Status, QtOperationResult::Outcome::Success);
-        QVERIFY(!QFileInfo::exists(archive));
+        QVERIFY(QFileInfo::exists(archive));
         QVERIFY(QFileInfo::exists(backend.Target));
         auto *peerAddress =
             window.findChild<QWidget *>("filePanel1")->findChild<QLineEdit *>("archivePath");
-        QTRY_COMPARE(QDir::cleanPath(peerAddress->text()), QDir::cleanPath(input.path()));
-        QTRY_COMPARE(peer->rowCount(), 0);
+        QTRY_COMPARE(QDir::cleanPath(peerAddress->text()), QDir::cleanPath(archive));
+        QTRY_COMPARE(peer->rowCount(), 1);
     }
     void filesystemShellCompressionUsesChild() {
         QFETCH(QString, verb);
@@ -332,8 +331,8 @@ class ToolbarCreationWorkflowTests final : public QObject, protected MainWindowT
         const QString target = dialog ? backend.Target : backend.Requests.first().ArchivePath;
         QVERIFY(QFileInfo::exists(target));
         if (dialog) {
-            QVERIFY(!QFileInfo::exists(source));
-            QTRY_COMPARE(selected->rowCount(), 0);
+            QVERIFY(QFileInfo::exists(source));
+            QTRY_COMPARE(selected->rowCount(), 1);
         } else {
             QCOMPARE(SourceExtractFixture::readFile(source), QByteArray("context selected bytes"));
             QTRY_COMPARE(selected->rowCount(), 2);

@@ -116,12 +116,12 @@ class OperationCreationTests final : public QObject {
         QCOMPARE(readFile(QDir(output).filePath("keep.bin")), QByteArray("keep original bytes"));
         QCOMPARE(readFile(source), QByteArray("updated native bytes"));
     }
-    void dialogOwnsTargetPasswordAndInputDeletion_data() {
+    void dialogOwnsTargetAndPasswordAndRetainsInputs_data() {
         QTest::addColumn<bool>("cancel");
         QTest::newRow("accept edits") << false;
         QTest::newRow("cancel before writing") << true;
     }
-    void dialogOwnsTargetPasswordAndInputDeletion() {
+    void dialogOwnsTargetAndPasswordAndRetainsInputs() {
         QFETCH(bool, cancel);
         QTemporaryDir directory;
         QVERIFY(directory.isValid());
@@ -132,7 +132,6 @@ class OperationCreationTests final : public QObject {
         Environment decision("SEVENZIP_OPERATION_CREATE_DECISION", cancel ? "cancel" : "accept");
         Environment target("SEVENZIP_OPERATION_CREATE_TARGET", actual);
         Environment password("SEVENZIP_OPERATION_CREATE_PASSWORD", "fixture password");
-        Environment deletion("SEVENZIP_OPERATION_DELETE_INPUTS", "1");
         auto job = Compress(initial, {source}, "7z");
         job.ShowDialog = true;
         const auto result = Run(QStringLiteral(SEVENZIP_OPERATION_HOST), job);
@@ -143,7 +142,7 @@ class OperationCreationTests final : public QObject {
             QCOMPARE(readFile(source), QByteArray("protected native payload"));
             QVERIFY(result.ChangedDirectories.isEmpty());
         } else {
-            QVERIFY(!QFileInfo::exists(source));
+            QCOMPARE(readFile(source), QByteArray("protected native payload"));
             Environment suppliedPassword("SEVENZIP_OPERATION_PASSWORD", "fixture password");
             const QString output = directory.filePath("decrypted");
             auto extract = Extract(actual, output);
@@ -294,7 +293,6 @@ class OperationCreationTests final : public QObject {
         const QString target = directory.filePath(sfx ? "package" : "package.7z");
         Environment decision("SEVENZIP_OPERATION_CREATE_DECISION", "accept");
         Environment actual("SEVENZIP_OPERATION_CREATE_TARGET", target);
-        Environment deletion("SEVENZIP_OPERATION_DELETE_INPUTS", "1");
         std::unique_ptr<Environment> volumeOption, sfxOption;
         if (volumes)
             volumeOption = std::make_unique<Environment>("SEVENZIP_OPERATION_VOLUME", "128K");
@@ -304,7 +302,7 @@ class OperationCreationTests final : public QObject {
         job.ShowDialog = true;
         const auto result = Run(QStringLiteral(SEVENZIP_OPERATION_HOST), job);
         QVERIFY2(result.Status == Outcome::Success, qPrintable(result.Error));
-        QVERIFY(!QFileInfo::exists(source));
+        QCOMPARE(readFile(source), bytes);
         if (volumes)
             QVERIFY(QFileInfo::exists(directory.filePath("package.7z.002")));
         const QString output = directory.filePath("verified output");

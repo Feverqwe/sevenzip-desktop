@@ -177,7 +177,6 @@ class SfxLifecycleTests final : public QObject {
         auto *sfxControl = dialog.findChild<QCheckBox *>("archiveSfx");
         QVERIFY(sfxControl && sfxControl->isEnabled());
         sfxControl->setChecked(true);
-        dialog.findChild<QCheckBox *>("archiveDeleteAfterCompression")->setChecked(true);
 #ifdef Q_OS_WIN
         dialog.findChild<QLineEdit *>("archiveName")->setText("accepted self extractor.exe");
 #else
@@ -190,7 +189,6 @@ class SfxLifecycleTests final : public QObject {
         buttons->button(QDialogButtonBox::Ok)->click();
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
         QVERIFY(dialog.compressionOptions().SFXMode);
-        QVERIFY(dialog.compressionOptions().DeleteAfterCompressing);
         const QString target = dialog.target();
         const QByteArray originalModule = read(sfx);
         const HRESULT result = SourceCreationFixture::Create(
@@ -205,8 +203,8 @@ class SfxLifecycleTests final : public QObject {
             QVERIFY(QDir(fixture.path()).entryList({"*.7z.*"}, QDir::Files).isEmpty());
         } else {
             QCOMPARE(result, S_OK);
-            QVERIFY(!QFileInfo::exists(first));
-            QVERIFY(!QFileInfo::exists(second));
+            QCOMPARE(read(first), bytes);
+            QCOMPARE(read(second), QByteArray("second source"));
             QVERIFY(QFileInfo(target).isExecutable());
             QProcess extractor;
             const QString output = fixture.filePath("extracted");

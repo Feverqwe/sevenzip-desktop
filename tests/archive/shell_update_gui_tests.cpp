@@ -7,7 +7,7 @@
 #include "gui/UpdateGUI.h"
 #include "operations/CompressCall.h"
 #include "platform/shell/qtshellarchiveservices.h"
-#include "ui/progress/ProgressDialog2.h"
+#include "support/progress_dialog.h"
 #include <QMessageBox>
 #include <QPushButton>
 #include <QTimer>
@@ -58,9 +58,12 @@ class CDismissal {
             if (!progress)
                 return;
             auto *button = progress->findChild<QPushButton *>("IDCANCEL");
-            if (button && button->property("languageID").toUInt() == IDS_CLOSE)
-                button->click();
-            else if (Cancel && !Canceled && button) {
+            if (TestProgressDialog::ResultWindow(progress)) {
+                const QString detail = TestProgressDialog::ReportText(*progress);
+                if (!detail.isEmpty())
+                    Errors.append(detail);
+                TestProgressDialog::CloseResult(*progress);
+            } else if (Cancel && !Canceled && button) {
                 Canceled = true;
                 // The timer callback enters a nested modal loop. A separate
                 // queued callback answers it without reentering this timer.
@@ -151,7 +154,7 @@ class ShellUpdateGuiTests final : public QObject {
         QCOMPARE(options.PathMode, NWildcard::k_AbsPath);
         QCOMPARE(options.MethodMode.Type.FormatIndex, zip);
         QVERIFY(options.MethodMode.Type_Defined);
-        QVERIFY(options.OpenShareForWrite && options.DeleteAfterCompressing &&
+        QVERIFY(options.OpenShareForWrite && !options.DeleteAfterCompressing &&
                 options.SymLinks.Val);
         QVERIFY(!options.PreserveATime);
         QCOMPARE(options.VolumesSizes.Size(), 1u);

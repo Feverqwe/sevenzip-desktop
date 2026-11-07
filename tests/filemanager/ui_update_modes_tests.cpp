@@ -61,7 +61,7 @@ class UiUpdateModesTests final : public QObject, protected MainWindowTestSupport
     }
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
 
-    void addDeleteAfterPublication_data() {
+    void addRetainsInputs_data() {
         QTest::addColumn<QString>("format");
         QTest::addColumn<bool>("cancel");
         QTest::newRow("zip-success") << QString("zip") << false;
@@ -69,7 +69,7 @@ class UiUpdateModesTests final : public QObject, protected MainWindowTestSupport
         QTest::newRow("zip-cancel") << QString("zip") << true;
         QTest::newRow("7z-cancel") << QString("7z") << true;
     }
-    void addDeleteAfterPublication() {
+    void addRetainsInputs() {
         QFETCH(QString, format);
         QFETCH(bool, cancel);
         QTemporaryDir fixture;
@@ -100,9 +100,6 @@ class UiUpdateModesTests final : public QObject, protected MainWindowTestSupport
             auto *dialog = &create;
             QVERIFY(dialog);
             setOutput(*dialog, archive, format);
-            auto *remove = dialog->findChild<QCheckBox *>("archiveDeleteAfterCompression");
-            QVERIFY(remove && remove->isEnabled());
-            remove->setChecked(true);
             if (cancel)
                 dialog->reject();
             else
@@ -116,12 +113,12 @@ class UiUpdateModesTests final : public QObject, protected MainWindowTestSupport
                                                    create.compressionOptions()),
                      S_OK);
         QCOMPARE(accepted, !cancel);
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        QCOMPARE(file.readAll(), QByteArray("new bytes"));
         if (cancel) {
-            QVERIFY(QFileInfo::exists(source));
             QVERIFY(original.open(QIODevice::ReadOnly));
             QCOMPARE(original.readAll(), archiveBefore);
         } else {
-            QVERIFY(!QFileInfo::exists(source));
             QByteArray listing;
             QVERIFY(runEngine(fixture.path(), {"l", "-slt", "-sccUTF-8", "--", archive}, &listing));
             QVERIFY(QString::fromUtf8(listing)

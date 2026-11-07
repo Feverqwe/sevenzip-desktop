@@ -99,7 +99,6 @@ class ArchiveMetadataUiTests final : public QObject, protected MainWindowTestSup
                 optionsSeen = true;
             }));
             QVERIFY(optionsSeen && form->compressionOptions().SymLinks.Val);
-            form->findChild<QCheckBox *>("archiveDeleteAfterCompression")->setChecked(true);
             formAnswered = true;
             if (cancel)
                 form->reject();
@@ -118,7 +117,8 @@ class ArchiveMetadataUiTests final : public QObject, protected MainWindowTestSup
         QCOMPARE(SourceCreationFixture::Create(backend, archive, {root}, {}, false,
                                                create.compressionOptions()),
                  S_OK);
-        QVERIFY(!QFileInfo::exists(root));
+        QCOMPARE(read(root + "/payload.bin"), QByteArray("metadata bytes"));
+        QVERIFY(QFileInfo(root + "/dangling link").isSymLink());
         window.openArchive(archive);
         QTRY_VERIFY(rowForName(window, rootName) >= 0);
         table(window)->selectRow(rowForName(window, rootName));

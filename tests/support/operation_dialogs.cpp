@@ -167,9 +167,6 @@ void DriveOperationDialogs() {
                     create->findChild<QLineEdit *>("archivePasswordConfirmation")
                         ->setText(password);
                 }
-                if (qEnvironmentVariableIsSet("SEVENZIP_OPERATION_DELETE_INPUTS"))
-                    create->findChild<QCheckBox *>("archiveDeleteAfterCompression")
-                        ->setChecked(true);
                 if (qEnvironmentVariableIsSet("SEVENZIP_OPERATION_SFX"))
                     create->findChild<QCheckBox *>("archiveSfx")->setChecked(true);
                 const QString volume = qEnvironmentVariable("SEVENZIP_OPERATION_VOLUME");

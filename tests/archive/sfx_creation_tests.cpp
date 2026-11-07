@@ -6,6 +6,7 @@
 #include "localization/LangUtils.h"
 #include "localization/qtlangcontrols.h"
 #include "settings/RegistryUtils.h"
+#include "support/archive_expert.h"
 #include "support/archive_sections.h"
 #include "ui/support/layout_inspection.h"
 #include <QCryptographicHash>
@@ -243,8 +244,7 @@ class SfxCreationTests final : public QObject {
         auto *sfx = dialog.findChild<QCheckBox *>("archiveSfx");
         auto *name = dialog.findChild<QLineEdit *>("archiveName");
         auto *shared = dialog.findChild<QCheckBox *>("archiveSharedFiles");
-        auto *remove = dialog.findChild<QCheckBox *>("archiveDeleteAfterCompression");
-        QVERIFY(format && method && sfx && name && shared && remove);
+        QVERIFY(format && method && sfx && name && shared);
         ExpandArchiveSections(dialog);
         format->setCurrentText("7z");
         QVERIFY(sfx->isEnabled());
@@ -261,33 +261,33 @@ class SfxCreationTests final : public QObject {
         dialog.resize(size);
         dialog.show();
         QApplication::processEvents();
-        auto *scroll = dialog.findChild<QScrollArea *>();
-        QVERIFY(scroll);
-        scroll->ensureWidgetVisible(sfx->parentWidget());
-        QApplication::processEvents();
-        QVERIFY(UiInspection::writeReport(dialog, "sfx-options-" + language + "-" +
-                                                      QString::number(size.width())));
-        for (const auto *control : {sfx, shared, remove}) {
+        QVERIFY(EditArchiveExpert(dialog, false, [&](QDialog &editor) {
+            editor.resize(size);
+            auto *scroll = editor.findChild<QScrollArea *>();
+            QVERIFY(scroll);
+            scroll->ensureWidgetVisible(sfx->parentWidget());
+            QApplication::processEvents();
+            QVERIFY(UiInspection::writeReport(editor, "sfx-options-" + language + "-" +
+                                                          QString::number(size.width())));
+            for (const auto *control : {sfx, shared}) {
 #ifndef Q_OS_WIN
-            if (control == shared) {
-                QVERIFY(!control->isVisible());
-                continue;
-            }
+                if (control == shared) {
+                    QVERIFY(!control->isVisible());
+                    continue;
+                }
 #endif
-            QVERIFY2(UiInspection::fullyVisible(*control, dialog),
-                     qPrintable(control->objectName()));
-            QVERIFY2(control->width() >= control->sizeHint().width(),
-                     qPrintable(control->objectName()));
-            QVERIFY(control->height() >= control->sizeHint().height());
-        }
-        if (shared->isVisible()) {
-            QVERIFY(UiInspection::bounds(*sfx, dialog).bottom() <
-                    UiInspection::bounds(*shared, dialog).top());
-            QVERIFY(UiInspection::bounds(*shared, dialog).bottom() <
-                    UiInspection::bounds(*remove, dialog).top());
-        } else
-            QVERIFY(UiInspection::bounds(*sfx, dialog).bottom() <
-                    UiInspection::bounds(*remove, dialog).top());
+                QVERIFY2(UiInspection::fullyVisible(*control, editor),
+                         qPrintable(control->objectName()));
+                QVERIFY2(control->width() >= control->sizeHint().width(),
+                         qPrintable(control->objectName()));
+                QVERIFY(control->height() >= control->sizeHint().height());
+            }
+            if (shared->isVisible()) {
+                QVERIFY(UiInspection::bounds(*sfx, editor).bottom() <
+                        UiInspection::bounds(*shared, editor).top());
+            }
+        }));
+
         sfx->setChecked(false);
         QCOMPARE(name->text(), QStringLiteral("пакет 空.7z"));
         QVERIFY(method->findText("BZip2") >= 0);

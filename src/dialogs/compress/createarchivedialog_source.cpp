@@ -20,7 +20,6 @@ void CreateArchiveDialog::initializeSourceControls(const NCompressDialog::CInfo 
     updateMode_->setCurrentIndex(updateMode_->findData(int(info.UpdateMode)));
     pathMode_->setCurrentIndex(pathMode_->findData(int(info.PathMode)));
     sharedFiles_->setChecked(info.OpenShareForWrite);
-    deleteAfterCompressing_->setChecked(info.DeleteAfterCompressing);
     if (password_) {
         password_->setText(info.Password);
         passwordConfirmation_->setText(info.Password);
@@ -116,9 +115,6 @@ CompressionOptions CreateArchiveDialog::compressionOptions() const {
     options.NtSecurity = metadata.Info.NtSecurity;
     options.OpenShareForWrite =
         sharedFiles_ && sharedFiles_->isEnabled() && sharedFiles_->isChecked();
-    options.DeleteAfterCompressing = deleteAfterCompressing_ &&
-                                     deleteAfterCompressing_->isEnabled() &&
-                                     deleteAfterCompressing_->isChecked();
 #ifdef Q_OS_WIN
     options.PreserveATime = m_RegistryInfo.PreserveATime;
 #endif
