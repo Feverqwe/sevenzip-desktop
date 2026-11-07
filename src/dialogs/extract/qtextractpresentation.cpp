@@ -90,6 +90,7 @@ void CExtractDialog::BuildPresentation() {
     pathLabel->setWordWrap(true);
     QtBindResourceText(pathLabel, IDT_EXTRACT_PATH_MODE, "Path mode:");
     _pathMode = new QComboBox(this);
+    _pathMode->setAttribute(Qt::WA_LayoutUsesWidgetRect);
     _pathMode->setObjectName("extractPathMode");
     QtBindLangText(_pathMode, IDT_EXTRACT_PATH_MODE, "Path mode", true);
     pathLabel->setBuddy(_pathMode);
@@ -102,6 +103,7 @@ void CExtractDialog::BuildPresentation() {
     overwriteLabel->setWordWrap(true);
     QtBindResourceText(overwriteLabel, IDT_EXTRACT_OVERWRITE_MODE, "Overwrite mode:");
     _overwriteMode = new QComboBox(this);
+    _overwriteMode->setAttribute(Qt::WA_LayoutUsesWidgetRect);
     _overwriteMode->setObjectName("extractOverwriteMode");
     QtBindLangText(_overwriteMode, IDT_EXTRACT_OVERWRITE_MODE, "Overwrite mode", true);
     overwriteLabel->setBuddy(_overwriteMode);

@@ -297,7 +297,11 @@ class UiGeometryTests final : public QObject {
                     scroll->ensureWidgetVisible(control);
                     QTRY_VERIFY2(UiInspection::fullyVisible(*control, *dialog),
                                  qPrintable(UiInspection::dump(*dialog)));
-                    QVERIFY(control->height() >= control->minimumSizeHint().height());
+                    QVERIFY2(control->height() >= control->minimumSizeHint().height(),
+                             qPrintable(QString("%1 height=%2 minimum=%3")
+                                            .arg(control->objectName())
+                                            .arg(control->height())
+                                            .arg(control->minimumSizeHint().height())));
                 }
                 for (QLabel *label : dialog->findChildren<QLabel *>())
                     if (label->isVisible())
