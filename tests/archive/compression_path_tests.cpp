@@ -373,14 +373,17 @@ class CompressionPathTests final : public QObject {
         QVERIFY(!QFileInfo::exists(folder));
     }
     void occupiedDestinationCanBeCorrectedWithoutLosingTheArchiveName_data() {
-        QTest::addColumn<bool>("danglingLink");
-        QTest::newRow("file") << false;
+        QTest::addColumn<QString>("obstruction");
+        QTest::newRow("file") << QString("file");
 #ifndef Q_OS_WIN
-        QTest::newRow("dangling-link") << true;
+        QTest::newRow("dangling-link") << QString("link");
+        QTest::newRow("read-only") << QString("permissions");
 #endif
     }
     void occupiedDestinationCanBeCorrectedWithoutLosingTheArchiveName() {
-        QFETCH(bool, danglingLink);
+        QFETCH(QString, obstruction);
+        const bool danglingLink = obstruction == "link";
+        const bool readOnly = obstruction == "permissions";
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         QFile occupied(fixture.filePath("occupied"));
@@ -388,12 +391,26 @@ class CompressionPathTests final : public QObject {
         QCOMPARE(occupied.write("keep"), qint64(4));
         occupied.close();
         const QString missing = fixture.filePath("missing folder");
-        const QString blocker =
-            danglingLink ? fixture.filePath("old shortcut") : occupied.fileName();
+        const QString blocker = danglingLink ? fixture.filePath("old shortcut")
+                                : readOnly   ? fixture.filePath("read only")
+                                             : occupied.fileName();
         if (danglingLink)
             QVERIFY(QFile::link(missing, blocker));
         const QString name = QStringLiteral("архив с пробелом.7z");
-        const QString output = fixture.filePath("new/output");
+        const QString output =
+            readOnly ? blocker + "/writable/new output" : fixture.filePath("new/output");
+        QFileDevice::Permissions originalPermissions;
+        const auto restore = qScopeGuard([&] {
+            if (originalPermissions)
+                QFile::setPermissions(blocker, originalPermissions);
+        });
+        if (readOnly) {
+            QVERIFY(QDir().mkpath(blocker + "/writable"));
+            originalPermissions = QFile::permissions(blocker);
+            if (!QFile::setPermissions(blocker, QFile::ReadOwner | QFile::ExeOwner) ||
+                QFileInfo(blocker).isWritable())
+                QSKIP("The test filesystem does not enforce this directory permission");
+        }
         CreateArchiveDialog dialog(fixture.path(), {source_});
         auto *folder = dialog.findChild<QLineEdit *>("archiveFolder");
         auto *archiveName = dialog.findChild<QLineEdit *>("archiveName");
@@ -455,6 +472,8 @@ class CompressionPathTests final : public QObject {
         QCOMPARE(update.target(), dialog.target());
         QVERIFY(occupied.open(QIODevice::ReadOnly));
         QCOMPARE(occupied.readAll(), QByteArray("keep"));
+        if (readOnly)
+            QVERIFY(!QFileInfo::exists(blocker + "/child"));
         if (danglingLink) {
             QVERIFY(QFileInfo(blocker).isSymLink());
             QVERIFY(!QFileInfo::exists(missing));

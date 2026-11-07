@@ -18,8 +18,9 @@ contains a relative or absolute path, choosing a folder moves the archive name
 to that folder. Cancelling preserves the path as entered.
 Switching formats keeps the destination folder, including a folder typed
 in the name field, when the format derives the archive name from the source.
-If a file or dangling link blocks the destination folder, the form stays open
-and focuses the field that needs correction while retaining the archive options.
+If a file, dangling link or known lack of write access blocks the destination
+folder, the form stays open and focuses the field that needs correction while
+retaining the archive options.
 Format is immediately available. Password protection has
 an explicit enable control; its dependent fields appear together, without a
 large framed heading. A source-supplied password enables the section. Turning

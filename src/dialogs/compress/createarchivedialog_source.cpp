@@ -12,14 +12,23 @@
 #include <QFileInfo>
 
 namespace {
-bool ArchiveDirectoryCanExist(QString path) {
+QString InvalidArchivePath() {
+    return QCoreApplication::translate("CreateArchiveDialog", "Incorrect archive path");
+}
+
+QString ArchiveDirectoryError(QString path) {
     for (;;) {
         const QFileInfo entry(path);
-        if (entry.exists() || entry.isSymLink())
-            return entry.isDir();
+        if (entry.exists() || entry.isSymLink()) {
+            if (!entry.isDir())
+                return InvalidArchivePath();
+            if (!entry.isWritable())
+                return QCoreApplication::translate("CopyRedesign", "The destination is read-only.");
+            return {};
+        }
         const QString parent = entry.absolutePath();
         if (parent == path)
-            return true;
+            return {};
         path = parent;
     }
 }
@@ -87,12 +96,12 @@ void CreateArchiveDialog::validateAndAccept() {
     draftName.Trim();
     const QString resolved = archivePath();
     const QFileInfo target(resolved);
-    if (draftName.IsEmpty() || resolved.isEmpty() || target.isDir() ||
-        !ArchiveDirectoryCanExist(target.absolutePath())) {
+    const QString pathError = draftName.IsEmpty() || resolved.isEmpty() || target.isDir()
+                                  ? InvalidArchivePath()
+                                  : ArchiveDirectoryError(target.absolutePath());
+    if (!pathError.isEmpty()) {
         // Keep the draft available for correction before handing it to UpdateArchive.
-        const std::wstring message =
-            QCoreApplication::translate("CreateArchiveDialog", "Incorrect archive path")
-                .toStdWString();
+        const std::wstring message = pathError.toStdWString();
         ShowErrorMessageQt(this, message.c_str());
         auto *field = name_;
         if (archiveFolder_->text().contains(QChar::Null))
@@ -103,7 +112,7 @@ void CreateArchiveDialog::validateAndAccept() {
             base.m_ArchivePath.clear();
             QString directory;
             if (!base.GetFinalPath_Smart(directory) ||
-                !ArchiveDirectoryCanExist(QFileInfo(directory).absoluteFilePath()))
+                !ArchiveDirectoryError(QFileInfo(directory).absoluteFilePath()).isEmpty())
                 field = archiveFolder_;
         }
         field->setFocus();
