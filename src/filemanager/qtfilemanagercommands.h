@@ -53,7 +53,6 @@ class QtFileManagerCommands final : public IQtFileManagerMenuCommandServices {
     void Properties() override;
     void Comment() override;
     void CreateFolder() override;
-    void CreateFile() override;
     void Link() override;
     void OpenAltStreams() override;
     void AddToArchive() override;

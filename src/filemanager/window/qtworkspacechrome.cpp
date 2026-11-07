@@ -14,8 +14,6 @@
 
 namespace {
 void RefreshCommandCaption(QToolBar &toolbar, QAction &proxy, const QAction &source) {
-    if (proxy.property("createMenu").toBool())
-        return;
     proxy.setText(QString(source.text()).remove('&'));
     const QString shortcut = source.shortcut().toString(QKeySequence::NativeText);
     proxy.setToolTip(shortcut.isEmpty() ? proxy.text()
@@ -52,30 +50,6 @@ void QtWindowWorkspace::CreateActions(unsigned panel, QVBoxLayout &layout) {
         });
     };
     add(window_.createFolder_, QtCommandSymbol(QtCommandIcon::NewFolder));
-    auto *create = state.actions->actions().last();
-    QtBindLocalText(create, "QtWindowWorkspace", QT_TRANSLATE_NOOP("QtWindowWorkspace", "Create"));
-    create->setProperty("createMenu", true);
-    auto *menu = new QMenu(state.actions);
-    for (auto *source : {window_.createFolder_, window_.createFile_}) {
-        auto *choice = menu->addAction(source->text());
-        choice->setProperty("sourceAction", QVariant::fromValue(source));
-        connect(choice, &QAction::triggered, this, [this, panel, source] {
-            window_.activatePanelUi(panel);
-            if (window_.projectedPanel_ == panel)
-                source->trigger();
-        });
-    }
-    create->setMenu(menu);
-    if (auto *button = qobject_cast<QToolButton *>(state.actions->widgetForAction(create))) {
-        button->setPopupMode(QToolButton::InstantPopup);
-        button->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
-        button->setFocusPolicy(Qt::StrongFocus);
-        QtConfigureMainToolbarButton(*button);
-        QtBindLocalText(button, "QtWindowWorkspace",
-                        QT_TRANSLATE_NOOP("QtWindowWorkspace", "Create"), true);
-        QtBindLocalToolTip(button, "QtWindowWorkspace",
-                           QT_TRANSLATE_NOOP("QtWindowWorkspace", "Create"));
-    }
     add(window_.clipboard_->cut, QtCommandSymbol(QtCommandIcon::Cut));
     add(window_.clipboard_->copy, QtCommandSymbol(QtCommandIcon::Copy));
     add(window_.clipboard_->paste, QtCommandSymbol(QtCommandIcon::Paste));
@@ -179,24 +153,6 @@ void QtWindowWorkspace::RefreshChrome() {
             if (!source)
                 continue;
             const auto id = source->property("nativeCommandID");
-            if (action->property("createMenu").toBool()) {
-                if (auto *button =
-                        qobject_cast<QToolButton *>(state.actions->widgetForAction(action)))
-                    button->setToolButtonStyle(window_.app_.NumPanels == 2
-                                                   ? Qt::ToolButtonIconOnly
-                                                   : Qt::ToolButtonTextBesideIcon);
-                bool any = false;
-                for (auto *choice : action->menu()->actions()) {
-                    auto *command = choice->property("sourceAction").value<QAction *>();
-                    const bool available =
-                        native.value(command->property("nativeCommandID").toUInt());
-                    choice->setEnabled(available);
-                    choice->setText(command->text());
-                    any |= available;
-                }
-                action->setEnabled(any);
-                continue;
-            }
             const bool enabled = source == window_.clipboard_->cut    ? clipboard.cut
                                  : source == window_.clipboard_->copy ? clipboard.copy
                                  : source == window_.clipboard_->paste

@@ -239,8 +239,6 @@ class LanguageDialogTests final : public QObject {
         QTest::addColumn<QString>("russian");
         QTest::newRow("folder") << quint32(IDS_CREATE_FOLDER) << quint32(IDS_CREATE_FOLDER_NAME)
                                 << QString("Create") << QStringLiteral("Создать");
-        QTest::newRow("file") << quint32(IDS_CREATE_FILE) << quint32(IDS_CREATE_FILE_NAME)
-                              << QString("Create") << QStringLiteral("Создать");
         QTest::newRow("select") << quint32(IDS_SELECT) << quint32(IDS_SELECT_MASK)
                                 << QString("Select") << QStringLiteral("Выделить");
         QTest::newRow("deselect") << quint32(IDS_DESELECT) << quint32(IDS_SELECT_MASK)

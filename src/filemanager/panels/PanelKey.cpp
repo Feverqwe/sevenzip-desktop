@@ -87,10 +87,6 @@ bool CPanel::OnKeyDown(const QtPanelKeyDown &keyDownInfo, CApp &g_App) {
             g_App.ExecuteCommand(IDM_FILE_EDIT);
             return true;
         }
-        if (!alt && !ctrl && shift) {
-            g_App.ExecuteCommand(IDM_CREATE_FILE);
-            return true;
-        }
         break;
     }
     case Qt::Key_F5: {
@@ -230,12 +226,6 @@ bool CPanel::OnKeyDown(const QtPanelKeyDown &keyDownInfo, CApp &g_App) {
     case 'V':
         if (ctrl) {
             EditPaste();
-            return true;
-        }
-        return false;
-    case 'N':
-        if (ctrl) {
-            g_App.ExecuteCommand(IDM_CREATE_FILE);
             return true;
         }
         return false;

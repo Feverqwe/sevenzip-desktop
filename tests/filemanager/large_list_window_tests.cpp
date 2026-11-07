@@ -197,7 +197,7 @@ class LargeListWindowTests final : public QObject, protected MainWindowTestSuppo
         QTRY_VERIFY(!publication.isEmpty());
         QTRY_VERIFY(list->isEnabled() && list->rowCount() >= 512);
     }
-    void createFileSelectionWaitsForCompleteNativeFolder() {
+    void createFolderSelectionWaitsForCompleteNativeFolder() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         for (int i = 0; i < 512; ++i) {
@@ -213,14 +213,14 @@ class LargeListWindowTests final : public QObject, protected MainWindowTestSuppo
         QTest::keyClick(address, Qt::Key_Return);
         auto *list = table(window);
         QTRY_VERIFY(list->isEnabled() && list->rowCount() >= 512);
-        const QString name = QStringLiteral("новый файл с пробелом.txt");
+        const QString name = QStringLiteral("новая папка с пробелом");
         QTimer::singleShot(0, &window, [&] {
             auto *dialog = window.findChild<QDialog *>("comboDialog");
             QVERIFY(dialog);
             dialog->findChild<QComboBox *>("comboValue")->setEditText(name);
             dialog->accept();
         });
-        action(window, "createFileAction")->trigger();
+        action(window, "createFolderAction")->trigger();
         QVERIFY(QFileInfo::exists(fixture.filePath(name)));
         QTRY_VERIFY(list->isEnabled() && list->rowCount() >= 513);
         QCOMPARE(list->selectionModel()->selectedRows().size(), 1);

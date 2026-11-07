@@ -19,7 +19,6 @@ void MainWindow::configureShortcuts() {
     bindPanel(copy_, {modern(Qt::Key_C), QKeySequence(Qt::Key_F5)});
     bindPanel(move_, {modern(Qt::Key_M), QKeySequence(Qt::Key_F6)});
     bindPanel(createFolder_, {modern(Qt::Key_N), QKeySequence(Qt::Key_F7)});
-    bindPanel(createFile_, {QKeySequence(Qt::SHIFT | Qt::Key_F4)});
     bindPanel(selectAll_, QKeySequence::keyBindings(QKeySequence::SelectAll));
     // Shift+Delete remains the source's explicit permanent-delete command.
     bindPanel(clipboard_->cut, {QKeySequence(Qt::CTRL | Qt::Key_X)});

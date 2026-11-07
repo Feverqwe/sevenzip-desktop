@@ -190,7 +190,6 @@ class RootNavigationTests final : public QObject, protected MainWindowTestSuppor
         QVERIFY(address->text().isEmpty());
         QCOMPARE(window.windowTitle(), QStringLiteral("7-Zip"));
         QVERIFY(!action(window, "parentFolderAction")->isEnabled());
-        QVERIFY(!action(window, "createFileAction")->isEnabled());
         action(window, "refreshAction")->trigger();
 #ifdef Q_OS_WIN
         QCOMPARE(view->rowCount(), 4);

@@ -77,16 +77,19 @@ class FsDrivesDeviceUiTests final : public QObject, protected MainWindowTestSupp
         view->selectRow(row);
         QCOMPARE(view->model()->index(row, 0).data(Qt::UserRole + 1).toBool(), false);
         QTRY_VERIFY(action(window, "copyAction")->isEnabled());
-        for (const char *command : {"moveAction", "deleteAction", "renameAction",
-                                    "createFolderAction", "createFileAction"})
+        for (const char *command :
+             {"moveAction", "deleteAction", "renameAction", "createFolderAction"})
             QVERIFY(!action(window, command)->isEnabled());
         QVERIFY(action(window, "hashCRC32Action")->isEnabled());
         for (const QSize size : {QSize(980, 620), QSize(640, 400)}) {
             window.resize(size);
             QApplication::processEvents();
             QVERIFY(UiInspection::fullyVisible(*view, window));
-            QVERIFY(
-                UiInspection::fullyVisible(*window.findChild<QLineEdit *>("archivePath"), window));
+            const auto locationButtons = window.findChildren<QToolButton *>("editLocationButton");
+            QVERIFY(std::any_of(locationButtons.cbegin(), locationButtons.cend(),
+                                [&window](const QToolButton *button) {
+                                    return UiInspection::fullyVisible(*button, window);
+                                }));
             QVERIFY(UiInspection::writeReport(
                 window,
                 QString("device-namespace-%1-%2-%3").arg(language).arg(cancel).arg(size.width())));

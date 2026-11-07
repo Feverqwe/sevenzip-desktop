@@ -63,7 +63,6 @@ class MainWindowStateTests : public QObject, protected MainWindowTestSupport {
                            ArchiveEntry{"other.bin", 1, 1}});
         applyMask("selectMaskAction", "*.txt");
         QCOMPARE(table(window)->selectionModel()->selectedRows().size(), g_CaseSensitive ? 1 : 2);
-        QVERIFY(!action(window, "createFileAction")->isEnabled());
     }
 
     void foldersHistoryDialogPersistsAndDeletesEntries() {

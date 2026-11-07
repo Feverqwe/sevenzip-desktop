@@ -53,7 +53,7 @@
   {"id":"errors","title":"Сообщения об ошибках GUI","target":"gui_error_policy_tests","functions":["missingWriter","invalidOutput"]},
   {"id":"sfx","title":"Параметры самораспаковывающегося архива","target":"sfx_creation_tests","functions":["formTransitionsAndGeometry"]},
   {"id":"format-options","title":"Дополнительные параметры форматов","target":"compress_options_presentation_tests","functions":["contentSizedInitialFrame","explicitValueKeyboardAndCompactFit"]},
-  {"id":"create-name","title":"Создание файла и каталога","target":"source_create_tests","functions":["create"]},
+  {"id":"create-name","title":"Создание папки","target":"source_create_tests","functions":["create"]},
   {"id":"inline-rename","title":"Переименование в списке файлов","target":"panel_rename_state_tests","functions":["activationUsesFocusedRow"]},
   {"id":"delete-confirmation","title":"Удаление: Корзина, безвозвратно и из архива, EN/RU","target":"delete_confirmation_tests","functions":["selectionAndConsequences","defaultAndReadOnlyDoNotDelete"]},
   {"id":"trash-progress","title":"Корзина: ход операции и остановка между объектами","target":"source_delete_tests","functions":["cancelledTrashStopsBeforeTheNextItem"]},

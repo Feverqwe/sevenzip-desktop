@@ -4,7 +4,7 @@
 #include "filemanager/views/filetable.h"
 #include "localization/LangUtils.h"
 #include "settings/RegistryUtils.h"
-#include "ui/progress/ProgressDialog2.h"
+#include "support/progress_dialog.h"
 #include "ui/support/layout_inspection.h"
 #include <QScopeGuard>
 
@@ -25,13 +25,7 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         return -1;
     }
   private slots:
-    void invalidDraftCanBeCorrected_data() {
-        QTest::addColumn<bool>("file");
-        QTest::newRow("file") << true;
-        QTest::newRow("folder") << false;
-    }
     void invalidDraftCanBeCorrected() {
-        QFETCH(bool, file);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         ControlledBackend backend;
@@ -67,34 +61,27 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
             combo->setCurrentText(finalName);
             dialog->accept();
         });
-        action(window, file ? "createFileAction" : "createFolderAction")->trigger();
+        action(window, "createFolderAction")->trigger();
         QVERIFY(rejected);
         const QFileInfo created(fixture.filePath(finalName));
-        QVERIFY(created.exists());
-        QCOMPARE(created.isFile(), file);
+        QVERIFY(created.isDir());
         QVERIFY(!QFileInfo::exists(fixture.filePath("truncated")));
         QTRY_COMPARE(view->rowCount(), 1);
         QCOMPARE(view->currentRow(), row(view, finalName));
     }
 
     void create_data() {
-        QTest::addColumn<bool>("file");
         QTest::addColumn<unsigned>("pane");
         QTest::addColumn<QString>("language");
         QTest::addColumn<bool>("alternative");
-        for (bool file : {false, true})
-            for (unsigned pane : {0u, 1u})
-                for (const QString language : {"-", "ru"})
-                    for (bool alternative : {false, true})
-                        QTest::newRow(qPrintable(QString("%1-%2-%3-%4")
-                                                     .arg(file)
-                                                     .arg(pane)
-                                                     .arg(language)
-                                                     .arg(alternative)))
-                            << file << pane << language << alternative;
+        for (unsigned pane : {0u, 1u})
+            for (const QString language : {"-", "ru"})
+                for (bool alternative : {false, true})
+                    QTest::newRow(
+                        qPrintable(QString("%1-%2-%3").arg(pane).arg(language).arg(alternative)))
+                        << pane << language << alternative;
     }
     void create() {
-        QFETCH(bool, file);
         QFETCH(unsigned, pane);
         QFETCH(QString, language);
         QFETCH(bool, alternative);
@@ -119,8 +106,6 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         QVERIFY(keep.open(QIODevice::WriteOnly));
         QCOMPARE(keep.write("protected bytes"), qint64(15));
         keep.close();
-        if (file)
-            QVERIFY(QDir(fixture.path()).mkdir(QStringLiteral("nested 空")));
         ControlledBackend backend;
         MainWindow window(&backend);
         window.show();
@@ -130,8 +115,7 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         QTRY_COMPARE(peer->rowCount(), 0);
         CMyComPtr<IFolderFolder> peerFolder = peer->sourcePanel->GetFolder();
         auto *view = openPanel(window, pane, fixture.path());
-        QTRY_COMPARE(view->rowCount(), file ? 2 : 1);
-        QTRY_COMPARE(view->rowCount(), file ? 2 : 1);
+        QTRY_COMPARE(view->rowCount(), 1);
         view->sourcePanel->Set_AutoRefresh_Mode(false);
         view->selectRow(row(view, "keep.bin"));
         view->setCurrentCell(row(view, "keep.bin"), 0);
@@ -139,8 +123,7 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
             view->sourcePanel->SelectSpec(L"keep.bin", true);
         view->setFocus();
         const auto initial = view->selectionModel()->selection();
-        const QString entered =
-            file ? QStringLiteral("nested 空/new 文件.txt") : QStringLiteral("new folder 空/child");
+        const QString entered = QStringLiteral("new folder 空/child");
         QString title, prompt, defaultName;
         bool observed = false;
         bool reports = true;
@@ -169,24 +152,21 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
                 else
                     dialog->reject();
             });
-            action(window, file ? "createFileAction" : "createFolderAction")->trigger();
+            action(window, "createFolderAction")->trigger();
         };
         invoke(false);
         QVERIFY(observed);
         QCOMPARE(view->selectionModel()->selection(), initial);
         QVERIFY(!QFileInfo::exists(fixture.filePath(entered)));
-        QCOMPARE(title, ToQString(LangString(file ? IDS_CREATE_FILE : IDS_CREATE_FOLDER)));
-        QCOMPARE(prompt,
-                 ToQString(LangString(file ? IDS_CREATE_FILE_NAME : IDS_CREATE_FOLDER_NAME)));
-        QCOMPARE(defaultName, ToQString(LangString(file ? IDS_CREATE_FILE_DEFAULT_NAME
-                                                        : IDS_CREATE_FOLDER_DEFAULT_NAME)));
+        QCOMPARE(title, ToQString(LangString(IDS_CREATE_FOLDER)));
+        QCOMPARE(prompt, ToQString(LangString(IDS_CREATE_FOLDER_NAME)));
+        QCOMPARE(defaultName, ToQString(LangString(IDS_CREATE_FOLDER_DEFAULT_NAME)));
         QVERIFY(reports);
         invoke(true);
         QVERIFY(observed);
         QTRY_VERIFY(QFileInfo::exists(fixture.filePath(entered)));
         QTRY_COMPARE(view->rowCount(), 2);
-        const QString focused =
-            file ? QStringLiteral("nested 空") : QStringLiteral("new folder 空");
+        const QString focused = QStringLiteral("new folder 空");
         QTRY_COMPARE(view->currentRow(), row(view, focused));
         QTRY_COMPARE(view->selectionModel()->selectedRows().size(), 1);
         UStringVector selectedNames;
@@ -198,13 +178,7 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         QVERIFY(keep.open(QIODevice::ReadOnly));
         QCOMPARE(keep.readAll(), QByteArray("protected bytes"));
     }
-    void deferredRefresh_data() {
-        QTest::addColumn<bool>("file");
-        QTest::newRow("file") << true;
-        QTest::newRow("folder") << false;
-    }
     void deferredRefresh() {
-        QFETCH(bool, file);
         const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         QFile::remove(settings);
         CFmSettings preferences;
@@ -232,7 +206,7 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
                 dialog->accept();
             }
         });
-        action(window, file ? "createFileAction" : "createFolderAction")->trigger();
+        action(window, "createFolderAction")->trigger();
         QVERIFY(!panel.ShouldProcessNotifications());
         QTRY_VERIFY(view->isEnabled() && view->rowCount() == 258);
         QVERIFY(panel.ShouldProcessNotifications());
@@ -244,15 +218,11 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         QCOMPARE(keep.readAll(), QByteArray("keep bytes"));
     }
     void failure_data() {
-        QTest::addColumn<bool>("file");
         QTest::addColumn<QString>("language");
-        for (bool file : {false, true})
-            for (const QString language : {"-", "ru"})
-                QTest::newRow(qPrintable(QString("%1-%2").arg(file).arg(language)))
-                    << file << language;
+        for (const QString language : {"-", "ru"})
+            QTest::newRow(qPrintable(language)) << language;
     }
     void failure() {
-        QFETCH(bool, file);
         QFETCH(QString, language);
         const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         QFile::remove(settings);
@@ -281,7 +251,7 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         view->selectRow(0);
         view->setCurrentCell(0, 0);
         view->setFocus();
-        QString caption;
+        QString reportedError;
         int dialogs = 0;
         QTimer responder;
         connect(&responder, &QTimer::timeout, &window, [&] {
@@ -296,27 +266,19 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
                 QCOMPARE(external.write("external bytes"), qint64(14));
                 dialog->findChild<QComboBox *>("comboValue")->setEditText("keep.bin");
                 dialog->accept();
-            } else if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
-                caption = box->windowTitle();
-#ifdef Q_OS_MACOS
-                if (file)
-                    caption = box->text();
-                else if (auto *progress = dynamic_cast<CProgressDialog *>(box->parentWidget()))
-                    caption = ToQString(progress->Sync.FinalMessage.ErrorMessage.Title);
-#endif
-                QVERIFY(!box->text().isEmpty());
-                box->accept();
+            } else if (auto *result =
+                           TestProgressDialog::ResultWindow(QApplication::activeModalWidget())) {
+                reportedError = TestProgressDialog::ReportText(*result);
+                TestProgressDialog::CloseResult(*result);
             }
         });
         responder.start(1);
-        action(window, file ? "createFileAction" : "createFolderAction")->trigger();
+        action(window, "createFolderAction")->trigger();
         responder.stop();
         QCOMPARE(dialogs, 1);
-        QCOMPARE(caption,
-                 ToQString(LangString(file ? IDS_CREATE_FILE_ERROR : IDS_CREATE_FOLDER_ERROR)));
-        // Source CreateFolder refreshes even after failure; CreateFile returns
-        // before refresh. Both preserve the existing selected file and bytes.
-        QTRY_COMPARE(view->rowCount(), file ? 1 : 2);
+        QVERIFY(!reportedError.isEmpty());
+        // Create Folder refreshes after failure and preserves selection.
+        QTRY_COMPARE(view->rowCount(), 2);
         QCOMPARE(view->selectionModel()->selectedRows().size(), 1);
         QCOMPARE(view->currentRow(), row(view, "keep.bin"));
         QVERIFY(keep.open(QIODevice::ReadOnly));

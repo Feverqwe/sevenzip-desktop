@@ -96,11 +96,6 @@ void QtFileManagerCommands::CreateFolder() {
     window_.app_.Panels[index].CreateFolder();
     window_.app_.QtOperations().ContinueScanAfterSourceCall(index);
 }
-void QtFileManagerCommands::CreateFile() {
-    const unsigned index = window_.app_.GetFocusedPanelIndex();
-    window_.app_.Panels[index].CreateFile();
-    window_.app_.QtOperations().ContinueScanAfterSourceCall(index);
-}
 void QtFileManagerCommands::AddToArchive() { window_.createDialog(); }
 void QtFileManagerCommands::ExtractArchives() { window_.extractArchives(); }
 void QtFileManagerCommands::TestArchives() { window_.testArchive(); }

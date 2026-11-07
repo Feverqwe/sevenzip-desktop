@@ -36,12 +36,9 @@ class Commands final : public IQtFileManagerCommandServices {
     RECORD_COMMAND(Rename)
     RECORD_COMMAND(CopyTo)
     RECORD_COMMAND(MoveTo)
-    RECORD_COMMAND(Split)
-    RECORD_COMMAND(Combine)
     RECORD_COMMAND(Properties)
     RECORD_COMMAND(Comment)
     RECORD_COMMAND(CreateFolder)
-    RECORD_COMMAND(CreateFile)
     RECORD_COMMAND(Link)
     RECORD_COMMAND(OpenAltStreams)
 #undef RECORD_COMMAND

@@ -417,7 +417,6 @@ class MainWindow : public QMainWindow {
     QAction *properties_ = nullptr;
     QHash<unsigned, QAction *> hashActions_;
     QAction *createFolder_ = nullptr;
-    QAction *createFile_ = nullptr;
     QAction *refresh_ = nullptr;
     QAction *settingsAction_ = nullptr;
     CFmSettings fileListSettings_;

@@ -78,7 +78,7 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
         QTemporaryDir fixture, peerDirectory;
         QVERIFY(fixture.isValid() && peerDirectory.isValid());
         const QString original = QStringLiteral("original 空.txt");
-        const QString created = QStringLiteral("created 空.txt");
+        const QString created = QStringLiteral("created 空");
         for (const QString &path : {fixture.filePath(original), peerDirectory.filePath(original)}) {
             QFile file(path);
             QVERIFY(file.open(QIODevice::WriteOnly));
@@ -166,7 +166,7 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
                     QVERIFY(window.isVisible());
                     auto *open = menuAction(*menu, "openItemAction");
                     auto *rename = menuAction(*menu, "renameAction");
-                    auto *create = menuAction(*menu, "createFileAction");
+                    auto *create = menuAction(*menu, "createFolderAction");
                     QVERIFY(open && rename && create);
                     QVERIFY(menu->actions().indexOf(open) >= 0);
                     QVERIFY(menu->actions().indexOf(open) < menu->actions().indexOf(rename));
@@ -239,7 +239,7 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
             const auto close = qScopeGuard([&] { menu->close(); });
             menuObserved = true;
             QCOMPARE(menu->objectName(), QString("panelContextMenu"));
-            auto *create = menuAction(*menu, "createFileAction");
+            auto *create = menuAction(*menu, "createFolderAction");
             QVERIFY(create);
             auto *more = menu->findChild<QMenu *>("moreCommandsMenu");
             QVERIFY(more && more->actions().contains(create));
@@ -259,10 +259,15 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
                                           Q_ARG(QPoint, point)));
         answer.stop();
         QVERIFY(menuObserved && dialogObserved);
-        QVERIFY2(QFileInfo::exists(fixture.filePath(created)),
-                 qPrintable(QString("owner: %1; peer: %2")
-                                .arg(QDir(fixture.path()).entryList(QDir::Files).join('|'))
-                                .arg(QDir(peerDirectory.path()).entryList(QDir::Files).join('|'))));
+        QVERIFY2(
+            QFileInfo::exists(fixture.filePath(created)),
+            qPrintable(
+                QString("owner: %1; peer: %2")
+                    .arg(
+                        QDir(fixture.path()).entryList(QDir::Dirs | QDir::NoDotAndDotDot).join('|'))
+                    .arg(QDir(peerDirectory.path())
+                             .entryList(QDir::Dirs | QDir::NoDotAndDotDot)
+                             .join('|'))));
         QVERIFY(!QFileInfo::exists(peerDirectory.filePath(created)));
         QTRY_VERIFY(row(*owner, created) >= 0);
         QCOMPARE(row(*peer, created), -1);
@@ -333,7 +338,7 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
             const auto close = qScopeGuard([&] { menu->close(); });
             observed = true;
             auto *rename = menuAction(*menu, "renameAction");
-            auto *create = menuAction(*menu, "createFileAction");
+            auto *create = menuAction(*menu, "createFolderAction");
             QVERIFY(rename && create);
             QVERIFY(!rename->isEnabled());
             QVERIFY(create->isEnabled());

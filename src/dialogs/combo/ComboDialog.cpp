@@ -90,7 +90,7 @@ void CComboDialog::BindLanguage(UInt32 titleID, UInt32 promptID) {
     auto *buttons = static_cast<QtLangButtonBox *>(findChild<QDialogButtonBox *>("comboButtons"));
     // Callers identify the source operation with resource IDs; translated
     // window captions and caller-built comment titles are not command keys.
-    if (titleID == IDS_CREATE_FOLDER || titleID == IDS_CREATE_FILE)
+    if (titleID == IDS_CREATE_FOLDER)
         buttons->SetAcceptText("DialogRedesign", QT_TRANSLATE_NOOP("DialogRedesign", "Create"));
     else if (titleID == IDS_SELECT)
         buttons->SetAcceptText("DialogRedesign", QT_TRANSLATE_NOOP("DialogRedesign", "Select"));

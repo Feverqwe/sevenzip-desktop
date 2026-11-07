@@ -3885,7 +3885,6 @@
         "IsCorrectFsName",
         "CPanel::CorrectFsPath",
         "CPanel::CreateFolder",
-        "CPanel::CreateFile",
         "CPanel::OnBeginLabelEdit",
         "CPanel::RenameFile",
         "CPanel::OnEndLabelEdit"

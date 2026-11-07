@@ -21,7 +21,6 @@ class IQtFileManagerCommandServices {
     virtual void Properties() = 0;
     virtual void Comment() = 0;
     virtual void CreateFolder() = 0;
-    virtual void CreateFile() = 0;
     virtual void Link() = 0;
     virtual void OpenAltStreams() = 0;
 };

@@ -238,7 +238,7 @@ Reference: upstream `0766b733fe3e06dd2a7f9a3cfbf2108ac73abd17`,
   height follows the prompt, editable field and native actions. Long prompts
   can wrap and enlarge the minimum height. Explicit normal/compact resizing
   below remains a separate adaptation.
-- Folder/file creation uses source title, prompt and default-name language IDs;
+- Folder creation uses source title, prompt and default-name language IDs;
   selection masks use the same view with their own prompts.
 - CPanel::SelectSpec owns the Select/Deselect titles, mask prompt, initial `*`
   and Cancel return. `source_selection` checks both languages/panes and standard/
@@ -246,14 +246,11 @@ Reference: upstream `0766b733fe3e06dd2a7f9a3cfbf2108ac73abd17`,
   source owner handles an inactive-pane direct call without changing its peer.
 - OnOK preserves raw text, including spaces and an empty value. Validation
   belongs to the calling operation. Cancel leaves the public Value unchanged.
-- `combo_dialog` checks folder/file/mask views at 360×150 and 260×150:
+- `combo_dialog` checks folder and mask views at 360×150 and 260×150:
   fitted prompt, reachable combo/footer, control order and separate buttons.
   JSON reports accompany the checks; screenshots remain optional.
-- `source_create` exercises actual CreateFolder/CreateFile callers in both
-  panes/languages and normal/flat views. Forty-eight current 360×150/260×150
-  reports reuse this contract; creation keeps the source first-component focus,
-  alternative marks and distinct failure-refresh policy. Cancel preserves the
-  pre-dialog state. Source provenance and checks are in the
+- `source_create` exercises folder creation in both panes, including the focus
+  on the created object and preservation of selection on cancel. See the
   [receipt](../archive/qt-port/upstream-port-audit.md#p3-05--source-create-filefolder-scenario-2026-10-10).
 - ZIP comment uses source `PanelOperations.cpp::ChangeComment` with the focused
   item name and localized Comment in its title, localized IDS_COMMENT2 prompt

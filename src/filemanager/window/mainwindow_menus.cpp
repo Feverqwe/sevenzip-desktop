@@ -91,8 +91,6 @@ void MainWindow::createFileExtras(QMenu *menu) {
     }
     createFolder_ = new QAction("Create Folder", menu);
     createFolder_->setObjectName("createFolderAction");
-    createFile_ = new QAction("Create File", menu);
-    createFile_->setObjectName("createFileAction");
     infoAction_ = new QAction("Info", menu);
     infoAction_->setObjectName("archiveInfoAction");
     toolbarAdd_->setIcon(QtCommandSymbol(QtCommandIcon::Add));
@@ -196,7 +194,6 @@ void MainWindow::populateSourceMenus() {
     file->addMenu(hash);
     file->addSeparator();
     file->addAction(createFolder_);
-    file->addAction(createFile_);
     file->addSeparator();
     unavailable(file, QStringLiteral("Link"), "linkAction", IDM_LINK);
     unavailable(file, QStringLiteral("&Alternate Streams"), "altStreamsAction", IDM_ALT_STREAMS);

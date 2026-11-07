@@ -637,7 +637,6 @@ class CPanel : public QObject {
     bool CheckBeforeUpdate(UINT resourceID);
     bool CorrectFsPath(const UString &path, UString &result);
     void CreateFolder();
-    void CreateFile();
     void RenameFile();
     bool OnBeginLabelEdit(int row);
     HRESULT OnEndLabelEdit(UInt32 realIndex, const UString &enteredName);

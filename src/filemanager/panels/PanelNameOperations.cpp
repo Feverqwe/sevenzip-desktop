@@ -1,10 +1,9 @@
-// Native file/folder creation and inline rename, extracted from PanelOperations.cpp.
+// Native folder creation and inline rename, extracted from PanelOperations.cpp.
 // Adapted from 7-Zip 0766b733fe3e06dd2a7f9a3cfbf2108ac73abd17.
 // Igor Pavlov, LGPL-2.1-or-later; see third_party/7zip/License.txt.
 #include "7zip/UI/Common/StdAfx.h"
 #include "7zip/UI/FileManager/resource.h"
 #include "dialogs/browse/BrowseDialog.h"
-#include "dialogs/combo/ComboDialog.h"
 #include "filemanager/FormatUtils.h"
 #include "filemanager/panels/Panel.h"
 #include "filemanager/panels/PanelFolderOperations.h"
@@ -77,33 +76,6 @@ void CPanel::CreateFolder() {
     if (res == S_OK)
         PrepareCreatedSelection(newName, _mySelectMode, state);
     RefreshTitleAlways();
-    RefreshListCtrl(state);
-}
-
-void CPanel::CreateFile() {
-    if (IsHashFolder())
-        return;
-    if (!CheckBeforeUpdate(IDS_CREATE_FILE_ERROR))
-        return;
-    CDisableTimerProcessing disableTimerProcessing2(*this);
-    CSelectedState state;
-    SaveSelectedState(state);
-    CComboDialog dlg(ToQString(LangString(IDS_CREATE_FILE)),
-                     ToQString(LangString(IDS_CREATE_FILE_NAME)),
-                     ToQString(LangString(IDS_CREATE_FILE_DEFAULT_NAME)), GetParent());
-    dlg.BindLanguage(IDS_CREATE_FILE, IDS_CREATE_FILE_NAME);
-    if (dlg.exec() != QDialog::Accepted)
-        return;
-    CDisableNotify disableNotify(*this);
-    UString newName = dlg.Value;
-    if (!PrepareFilesystemName(*this, newName))
-        return;
-    const HRESULT result = _folderOperations->CreateFile(newName, NULL);
-    if (result != S_OK) {
-        MessageBox_Error_HRESULT_Caption(result, LangString(IDS_CREATE_FILE_ERROR));
-        return;
-    }
-    PrepareCreatedSelection(newName, _mySelectMode, state);
     RefreshListCtrl(state);
 }
 

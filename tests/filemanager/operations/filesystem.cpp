@@ -188,20 +188,6 @@ void MainWindowOperationsTests::sourceFilesystemCreateAndInlineRename() {
     };
     answer("createFolderAction", QStringLiteral("папка с пробелом/child"), true);
     QVERIFY(QDir(temp.filePath(QStringLiteral("папка с пробелом/child"))).exists());
-    answer("createFileAction", QStringLiteral("папка с пробелом/child/файл.txt"), true);
-    QVERIFY(QFileInfo::exists(temp.filePath(QStringLiteral("папка с пробелом/child/файл.txt"))));
-    QTimer warningTimer;
-    connect(&warningTimer, &QTimer::timeout, &window, [] {
-        for (QWidget *widget : QApplication::topLevelWidgets())
-            if (TestProgressDialog::DismissVisibleResult(widget))
-                continue;
-            else if (auto *box = qobject_cast<QMessageBox *>(widget); box && box->isVisible())
-                box->accept();
-    });
-    warningTimer.start(1);
-    answer("createFileAction", QStringLiteral("папка с пробелом/child/файл.txt"), true);
-    warningTimer.stop();
-    QVERIFY(QFileInfo::exists(temp.filePath(QStringLiteral("папка с пробелом/child/файл.txt"))));
     answer("createFolderAction", QStringLiteral("отмена"), false);
     QVERIFY(!QFileInfo::exists(temp.filePath(QStringLiteral("отмена"))));
 }

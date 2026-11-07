@@ -153,7 +153,7 @@ class CommandPolicyRuntimeTests : public QObject, protected MainWindowTestSuppor
         QCOMPARE(backend.testCalls, 1);
         const bool twoPanels = action(window, "twoPanelsAction")->isChecked();
         for (const char *name :
-             {"twoPanelsAction", "testArchiveAction", "openOutsideAction", "createFileAction",
+             {"twoPanelsAction", "testArchiveAction", "openOutsideAction", "createFolderAction",
               "refreshAction", "copyAction", "selectAllAction"}) {
             auto *command = action(window, name);
             QVERIFY(!command->isEnabled());

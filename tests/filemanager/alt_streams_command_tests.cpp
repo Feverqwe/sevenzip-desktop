@@ -95,13 +95,18 @@ class AltStreamsCommandTests final : public QObject, protected MainWindowTestSup
         }
         QVERIFY(!QFileInfo::exists(basePath + ':' + streamName));
     }
-    void sourceCreateAndRename() {
+    void sourceRename() {
         QTemporaryDir temp;
         const QString basePath = temp.filePath(QStringLiteral("файл δ.bin"));
         QFile base(basePath);
         QVERIFY(base.open(QIODevice::WriteOnly));
         QCOMPARE(base.write("base bytes"), qint64(10));
         base.close();
+        const QString name = QStringLiteral("новый поток δ");
+        QFile stream(basePath + ':' + name);
+        QVERIFY(stream.open(QIODevice::WriteOnly));
+        QCOMPARE(stream.write("stream bytes"), qint64(12));
+        stream.close();
         ControlledBackend backend;
         MainWindow window(&backend);
         window.show();
@@ -111,31 +116,8 @@ class AltStreamsCommandTests final : public QObject, protected MainWindowTestSup
         QTRY_VERIFY(filesystemRow(window, QFileInfo(basePath).fileName()) >= 0);
         table(window)->selectRow(filesystemRow(window, QFileInfo(basePath).fileName()));
         action(window, "altStreamsAction")->trigger();
-        QTRY_COMPARE(table(window)->rowCount(), 0);
+        QTRY_COMPARE(table(window)->rowCount(), 1);
         QVERIFY(!action(window, "createFolderAction")->isEnabled());
-        auto *create = action(window, "createFileAction");
-        QVERIFY(create->isEnabled());
-        const QString name = QStringLiteral("новый поток δ");
-        for (bool accepted : {false, true}) {
-            bool seen = false;
-            QTimer::singleShot(0, &window, [&] {
-                auto *dialog = window.findChild<QDialog *>("comboDialog");
-                QVERIFY(dialog);
-                seen = true;
-                dialog->findChild<QComboBox *>("comboValue")->setEditText(name);
-                if (accepted)
-                    dialog->accept();
-                else
-                    dialog->reject();
-            });
-            create->trigger();
-            QVERIFY(seen);
-            QCOMPARE(table(window)->rowCount(), accepted ? 1 : 0);
-        }
-        QFile stream(basePath + ':' + name);
-        QVERIFY(stream.open(QIODevice::WriteOnly));
-        QCOMPARE(stream.write("stream bytes"), qint64(12));
-        stream.close();
         table(window)->selectRow(0);
         table(window)->setCurrentCell(0, 0);
         auto *rename = action(window, "renameAction");
