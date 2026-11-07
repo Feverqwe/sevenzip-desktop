@@ -109,3 +109,11 @@ copied all 69 documents in the local installed review payload. These checks do n
 establish full release-package acceptance or original Windows pixel parity.
 Windows interactive checks also passed for both forms; document-path and packaging
 fixtures passed with the runner's elevated token for native symbolic links.
+
+## Current About scope
+
+The implementation scope dated 2026-11-07 retains the application release, the
+upstream version and date, attribution, build information and the project website.
+The separate license viewer, upstream homepage action, copy-information action
+and the link and module failure surfaces were removed. Packaging remains the
+owner of license documents and notices. The original source baseline is unchanged.

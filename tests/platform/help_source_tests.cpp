@@ -1,7 +1,5 @@
 #include "7zip/MyVersion.h"
-#include "archive/codecs/LoadCodecs.h"
 #include "dialogs/about/AboutDialog.h"
-#include "dialogs/edit/EditDialog.h"
 #include "filemanager/HelpUtils.h"
 #include "help/qthelpservices.h"
 #include "localization/LangUtils.h"
@@ -14,7 +12,6 @@
 #include <QDialogButtonBox>
 #include <QLabel>
 #include <QMessageBox>
-#include <QPlainTextEdit>
 #include <QPushButton>
 #include <QScopeGuard>
 #include <QScrollArea>
@@ -246,42 +243,6 @@ class HelpSourceTests : public QObject {
         QVERIFY(!dialog.findChild<QDialog *>("helpWindow"));
     }
 
-    void aboutReportsSourceCodecErrors() {
-        CCodecs codecs;
-        auto &error = codecs.Errors.AddNew();
-        error.Path = FTEXT("unusable plugin");
-        error.Message = "the module is not compatible with program";
-        UString expected;
-        codecs.GetCodecsErrorMessage(expected);
-        QVERIFY(!expected.IsEmpty());
-        for (const QSize size : {QSize(600, 300), QSize(400, 250)}) {
-            QString shown;
-            CAboutDialog dialog(nullptr, &codecs);
-            dialog.resize(size);
-            dialog.show();
-            QVERIFY(QTest::qWaitForWindowExposed(&dialog));
-            QVERIFY(!qobject_cast<QMessageBox *>(QApplication::activeModalWidget()));
-            auto *notice = dialog.findChild<QWidget *>("aboutCodecNotice");
-            QVERIFY(notice && notice->isVisible());
-            dialog.findChild<QScrollArea *>("dialogContentScroll")->ensureWidgetVisible(notice);
-            QTRY_VERIFY(UiInspection::fullyVisible(*notice, dialog));
-            QTimer answer;
-            connect(&answer, &QTimer::timeout, &dialog, [&] {
-                for (QWidget *widget : QApplication::topLevelWidgets())
-                    if (auto *report = dynamic_cast<CEditDialog *>(widget);
-                        report && report->isVisible() && report->isModal()) {
-                        answer.stop();
-                        shown = report->findChild<QPlainTextEdit *>("editText")->toPlainText();
-                        report->reject();
-                    }
-            });
-            answer.start(5);
-            dialog.findChild<QPushButton *>("aboutCodecDetails")->click();
-            QCOMPARE(shown, QString::fromWCharArray(expected.Ptr()));
-            QVERIFY(UiInspection::writeReport(dialog, "about-codec-error-" +
-                                                          QString::number(size.width())));
-        }
-    }
     void aboutIdentityAttributionLinksAndGeometry_data() {
         QTest::addColumn<bool>("dark");
         QTest::addColumn<bool>("systemPalette");
@@ -317,11 +278,8 @@ class HelpSourceTests : public QObject {
         QVERIFY(identity->accessibleDescription().contains(QString(SEVENZIP_DESKTOP_VERSION)));
         QDesktopServices::setUrlHandler("https", this, "openUrl");
         const auto resetHandler = qScopeGuard([] { QDesktopServices::unsetUrlHandler("https"); });
-        QVERIFY(!dialog.OnButtonClicked(999, nullptr));
         dialog.findChild<QPushButton *>("aboutProjectHomepage")->click();
         QCOMPARE(openedUrl, QUrl("https://github.com/Feverqwe/7zip-qt-port"));
-        dialog.findChild<QPushButton *>("aboutHomepage")->click();
-        QCOMPARE(openedUrl, QUrl("https://www.7-zip.org/"));
         for (const char *language : {"-", "ru", "-"}) {
             SaveRegLang(UString(language), settings);
             ReloadLang(settings);
@@ -392,19 +350,6 @@ class HelpSourceTests : public QObject {
                                                               .arg(QTest::currentDataTag())));
             }
         }
-        bool licenseShown = false;
-        QTimer answer;
-        connect(&answer, &QTimer::timeout, &dialog, [&] {
-            auto *licenses = dialog.findChild<QDialog *>("licensesDialog");
-            if (licenses && licenses->isVisible() && licenses->isModal()) {
-                answer.stop();
-                licenseShown = true;
-                licenses->reject();
-            }
-        });
-        answer.start(5);
-        dialog.findChild<QPushButton *>("aboutLicense")->click();
-        QVERIFY(licenseShown);
         QTest::keyClick(&dialog, Qt::Key_F1);
         QVERIFY(!dialog.findChild<QDialog *>("helpWindow"));
     }

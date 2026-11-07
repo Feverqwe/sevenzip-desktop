@@ -2,7 +2,6 @@
 #include "7zip/UI/FileManager/resource.h"
 #include "Windows/PropVariant.h"
 #include "Windows/PropVariantConv.h"
-#include "archive/codecs/archivecodeccatalog.h"
 #include "dialogs/about/AboutDialog.h"
 #include "dialogs/browse/BrowseDialog2.h"
 #include "filemanager/HelpUtils.h"
@@ -266,8 +265,7 @@ void QtFileManagerCommands::MyBenchmark(bool totalMode) {
 }
 void QtFileManagerCommands::ShowHelpWindow(const char *topic) { ::ShowHelpWindow(topic, &window_); }
 void QtFileManagerCommands::AboutDialog() {
-    const auto catalog = window_.backend_->codecCatalog();
-    CAboutDialog dialog(&window_, catalog ? &catalog->nativeCodecs() : nullptr);
+    CAboutDialog dialog(&window_);
     dialog.Create();
 }
 void QtFileManagerCommands::MyBrowseForTempFolder() {
