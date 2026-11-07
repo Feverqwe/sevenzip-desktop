@@ -90,6 +90,13 @@ void QtWindowWorkspace::NavigationFinished(HRESULT result) {
     }
 }
 
+void QtWindowWorkspace::ReportNavigationFailure(const QString &message) {
+    if (auto &request = navigation_[window_.projectedPanel_])
+        request->failureMessage = message;
+    else
+        window_.showStatusMessage(message);
+}
+
 void QtWindowWorkspace::ProtectNavigation(const QString &path) {
     auto &request = navigation_[window_.projectedPanel_];
     if (!request || request->transaction || request->previousFolder)
@@ -196,6 +203,8 @@ void QtWindowWorkspace::FinishNavigation(unsigned panel, HRESULT result) {
         } else if (request->destination >= 0 && result != E_ABORT) {
             const auto &target = panels_[panel].location.visits[request->destination];
             window_.showStatusMessage(tr("Location unavailable: %1").arg(target.path));
+        } else if (!request->failureMessage.isEmpty() && result != E_ABORT) {
+            window_.showStatusMessage(request->failureMessage);
         }
         window_.refreshActions();
         return;

@@ -97,15 +97,20 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
     }
     void rejectedArchiveAddressKeepsEditingFocus_data() {
         QTest::addColumn<qint32>("result");
-        QTest::newRow("refused") << qint32(S_FALSE);
-        QTest::newRow("failed") << qint32(E_FAIL);
-        QTest::newRow("cancelled") << qint32(E_ABORT);
+        QTest::addColumn<bool>("virtualPath");
+        QTest::newRow("refused") << qint32(S_FALSE) << false;
+        QTest::newRow("failed") << qint32(E_FAIL) << false;
+        QTest::newRow("cancelled") << qint32(E_ABORT) << false;
+        QTest::newRow("virtual-failed") << qint32(E_FAIL) << true;
+        QTest::newRow("virtual-cancelled") << qint32(E_ABORT) << true;
     }
     void rejectedArchiveAddressKeepsEditingFocus() {
         QFETCH(qint32, result);
+        QFETCH(bool, virtualPath);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString path = fixture.filePath(QStringLiteral("архив с ошибкой 空.zip"));
+        const QString draft = virtualPath ? path + QStringLiteral("/вложенная папка") : path;
         const QByteArray bytes("unchanged archive bytes");
         QVERIFY(writeFile(path, bytes));
         ControlledBackend backend;
@@ -125,7 +130,7 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
                 warning->accept();
         });
         dismiss.start(5);
-        address->setText(path);
+        address->setText(draft);
         QTest::keyClick(address, Qt::Key_Return);
         dismiss.stop();
         QApplication::processEvents();
@@ -135,10 +140,14 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
         QTRY_VERIFY(address->hasFocus());
         QVERIFY(view->isEnabled());
         QVERIFY(address->isVisible());
-        QCOMPARE(address->text(), path);
+        QCOMPARE(address->text(), draft);
+        if (virtualPath && result != E_ABORT)
+            QVERIFY(window.statusBar()->currentMessage().contains(draft));
+        if (virtualPath && result == E_ABORT)
+            QVERIFY(window.statusBar()->currentMessage().isEmpty());
         view->sourcePanel->OnReload(true);
         QTRY_VERIFY(view->isEnabled());
-        QCOMPARE(address->text(), path);
+        QCOMPARE(address->text(), draft);
         QVERIFY(action(window, "twoPanelsAction")->isEnabled());
         QFile source(path);
         QVERIFY(source.open(QIODevice::ReadOnly));

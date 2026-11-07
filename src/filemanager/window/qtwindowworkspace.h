@@ -62,6 +62,7 @@ class QtWindowWorkspace final : public QObject {
     void RetainNavigationFolder();
     std::optional<HRESULT> NavigationPublication() const;
     void NavigationFinished(HRESULT result);
+    void ReportNavigationFailure(const QString &message);
     void NavigationCanceled();
     void QuiesceNavigation();
     bool CanTravel(unsigned panel, int direction) const;
@@ -92,6 +93,7 @@ class QtWindowWorkspace final : public QObject {
         unsigned depth = 0;
         std::optional<HRESULT> completed;
         std::function<void(HRESULT)> finished;
+        QString failureMessage;
     };
     struct Location {
         QString path;

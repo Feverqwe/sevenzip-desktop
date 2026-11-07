@@ -1,5 +1,17 @@
 # Location history and address presentation — 2026-10-31
 
+## Diagnostics for a rejected address — 2026-11-07
+
+Reviewed the recorded address Enter, native BindToPath and RefreshListCtrl
+flow. The Qt navigation request publishes its path diagnostic after rollback
+and list restoration. Cancellation and the native fallback to an existing
+ancestor retain their results. The native binder and archive opening are
+unchanged.
+
+Linux address navigation, address lifetime, workspace history and filesystem
+reload checks passed. Address coverage includes a failed and canceled read
+of a typed archive subfolder, the editable draft and a subsequent transition.
+
 ## Recent-place failure after changing panels — 2026-11-07
 
 Reviewed the original PanelFolderChange.cpp history selection and bind flow.

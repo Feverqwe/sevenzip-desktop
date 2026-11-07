@@ -84,7 +84,7 @@ HRESULT MainWindow::navigateToImpl(const QString &path, bool sourceAddress) {
         if (result == S_OK)
             result = rendered;
         if (result != S_OK && result != E_ABORT)
-            showStatusMessage(
+            workspace_->ReportNavigationFailure(
                 QCoreApplication::translate("mainwindow_filelist", "Path not found: ") + path);
         return result;
     }
