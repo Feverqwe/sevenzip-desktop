@@ -49,7 +49,7 @@ HRESULT CPanel::OpenAsArc(IInStream *inStream, const CTempFileInfo &tempFileInfo
     ffp.MaterializeStreamFile = materializeStream;
     const HRESULT res = ffp.OpenFileFolderPlugin(
         inStream, folderLink.FilePath.IsEmpty() ? us2fs(virtualFilePath) : folderLink.FilePath,
-        arcFormat, GetParent());
+        arcFormat, virtualFilePath, GetParent());
     openRes.Encrypted = ffp.Encrypted;
     openRes.ErrorMessage = ffp.ErrorMessage;
     RINOK(res)

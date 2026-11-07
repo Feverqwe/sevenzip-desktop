@@ -13,7 +13,7 @@ class CPasswordDialog : public QDialog {
     explicit CPasswordDialog(QWidget *parent = nullptr);
     NativePassword Password;
     bool ShowPassword = false;
-    bool OnInit();
+    bool OnInit(const QString &archive = {}, bool opening = false);
     void accept() override;
 
   private:

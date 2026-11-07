@@ -6,9 +6,12 @@
 #include "localization/qtlangbuttonbox.h"
 #include "localization/qtlangcontrols.h"
 #include "ui/controls/qtsecretedit.h"
+#include "ui/controls/qtsourcesummary.h"
 #include "ui/dialogs/qtdialoglayout.h"
 #include "ui/lifecycle/qttaskpresentation.h"
+#include "ui/theme/qtcommandicons.h"
 #include <QCheckBox>
+#include <QFileInfo>
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
@@ -23,15 +26,26 @@ void CPasswordDialog::ReadControls() {
     ShowPassword = _showPassword->isChecked();
 }
 
-bool CPasswordDialog::OnInit() {
+bool CPasswordDialog::OnInit(const QString &archive, bool opening) {
     QtUseContextDialogModality(*this);
     setObjectName("passwordDialog");
     setWindowFlag(Qt::WindowContextHelpButtonHint, false);
     QtBindResourceText(this, IDD_PASSWORD, "Enter password");
     auto *buttons = new QtLangButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     buttons->setObjectName("passwordButtons");
-    buttons->SetAcceptText("DialogRedesign", QT_TRANSLATE_NOOP("DialogRedesign", "Continue"));
+    buttons->SetAcceptText("DialogRedesign", opening
+                                                 ? QT_TRANSLATE_NOOP("DialogRedesign", "Open")
+                                                 : QT_TRANSLATE_NOOP("DialogRedesign", "Continue"));
     auto *layout = QtCreateDialogLayout(*this, *buttons, QtDialogContent::Scrollable);
+    if (!archive.isEmpty()) {
+        const QFileInfo source(archive);
+        auto *summary = new QtSourceSummary(QtCommandSymbol(QtCommandIcon::Archive),
+                                            source.fileName(), archive, this);
+        summary->setObjectName("passwordArchiveSource");
+        if (source.path() != ".")
+            summary->SetDescription(source.path());
+        layout->addWidget(summary);
+    }
     auto *label = new QtWrappingLabel(this);
     label->setWordWrap(true);
     QtBindResourceText(label, IDT_PASSWORD_ENTER, "&Enter password:");
@@ -55,6 +69,8 @@ bool CPasswordDialog::OnInit() {
     connect(buttons, &QDialogButtonBox::accepted, this, &CPasswordDialog::OnOK);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     resize(QSize(360, sizeHint().height()).expandedTo(minimumSizeHint()));
+    if (!archive.isEmpty())
+        QtFitScrollableDialog(*this);
     _passwordEdit->setFocus();
     return true;
 }

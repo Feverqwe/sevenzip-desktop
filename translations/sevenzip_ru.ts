@@ -121,6 +121,7 @@
     </context>
     <context>
         <name>PropertiesWindow</name>
+        <message><source>Copy information</source><translation>Копировать сведения</translation></message>
         <message><source>Checksums</source><translation>Контрольные суммы</translation></message>
         <message><source>Not available</source><translation>Недоступно</translation></message>
         <message><source>Location</source><translation>Расположение</translation></message>
@@ -1363,8 +1364,8 @@ Are you sure you want to split archive into such volumes?</source>
         </message>
         <message>
             <location line="-103" />
-            <source>This computer: %1 GB</source>
-            <translation>На этом компьютере: %1 ГБ</translation>
+            <source>This computer: %1 GiB</source>
+            <translation>На этом компьютере: %1 ГиБ</translation>
         </message>
         <message>
             <location line="+133" />
@@ -1434,8 +1435,8 @@ Are you sure you want to split archive into such volumes?</source>
         </message>
         <message>
             <location line="+7" />
-            <source>Limit, GB</source>
-            <translation>Лимит, ГБ</translation>
+            <source>Limit, GiB</source>
+            <translation>Лимит, ГиБ</translation>
         </message>
         <message>
             <location filename="../src/settings/SystemPagePresentation.cpp" line="+119" />

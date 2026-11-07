@@ -226,7 +226,10 @@ HRESULT CUpdateCallbackGUI::MoveArc_Progress(UInt64 totalSize, UInt64 currentSiz
 }
 HRESULT CUpdateCallbackGUI::MoveArc_Finish() { return MoveArc_Finish_Base(); }
 
-HRESULT CUpdateCallbackGUI::StartOpenArchive(const wchar_t * /* name */) { return S_OK; }
+HRESULT CUpdateCallbackGUI::StartOpenArchive(const wchar_t *name) {
+    PasswordArchivePath = name;
+    return S_OK;
+}
 
 HRESULT CUpdateCallbackGUI::ReadingFileError(const FString &path, DWORD systemError) {
     FailedFiles.Add(path);

@@ -31,7 +31,7 @@ struct CFfpOpen {
     explicit CFfpOpen(IFolderManager *manager) : Encrypted(false), FolderManager(manager) {}
 
     HRESULT OpenFileFolderPlugin(IInStream *inStream, const FString &path, const UString &arcFormat,
-                                 QWidget *parentWindow);
+                                 const UString &displayPath, QWidget *parentWindow);
 };
 
 #endif

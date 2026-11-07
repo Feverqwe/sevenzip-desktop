@@ -87,6 +87,7 @@ void CExtractDialog::BuildPresentation() {
     layout->addLayout(nameRow);
     auto *pathLabel = new QLabel(this);
     pathLabel->setObjectName("extractPathModeLabel");
+    pathLabel->setAttribute(Qt::WA_LayoutUsesWidgetRect);
     pathLabel->setWordWrap(true);
     QtBindResourceText(pathLabel, IDT_EXTRACT_PATH_MODE, "Path mode:");
     _pathMode = new QComboBox(this);
@@ -100,6 +101,7 @@ void CExtractDialog::BuildPresentation() {
     QtBindResourceText(_elimDup, IDX_EXTRACT_ELIM_DUP, "Eliminate duplication of root folder");
     auto *overwriteLabel = new QLabel(this);
     overwriteLabel->setObjectName("extractOverwriteModeLabel");
+    overwriteLabel->setAttribute(Qt::WA_LayoutUsesWidgetRect);
     overwriteLabel->setWordWrap(true);
     QtBindResourceText(overwriteLabel, IDT_EXTRACT_OVERWRITE_MODE, "Overwrite mode:");
     _overwriteMode = new QComboBox(this);
@@ -108,8 +110,10 @@ void CExtractDialog::BuildPresentation() {
     QtBindLangText(_overwriteMode, IDT_EXTRACT_OVERWRITE_MODE, "Overwrite mode", true);
     overwriteLabel->setBuddy(_overwriteMode);
     auto *modes = QtCreateDialogForm();
-    modes->addRow(overwriteLabel, _overwriteMode);
-    modes->addRow(pathLabel, _pathMode);
+    modes->addRow(overwriteLabel);
+    modes->addRow(_overwriteMode);
+    modes->addRow(pathLabel);
+    modes->addRow(_pathMode);
     modeColumn->addLayout(modes);
     modeColumn->addWidget(_elimDup);
 

@@ -222,6 +222,8 @@ HRESULT CPanel::CopyTo(CCopyToOptions &options, const CRecordVector<UInt32> &ind
                                QString::fromWCharArray(options.folder));
         extracter.ExtractCallback->ProgressDialog = &extracter;
         extracter.ExtractCallback->SettingsPath = _settingsPath;
+        if (!_parentFolders.IsEmpty())
+            extracter.ExtractCallback->PasswordArchivePath = _parentFolders.Back().VirtualPath;
         std::unique_ptr<IQtProgressTransport> transport;
         if (auto *services =
                 dynamic_cast<IQtProgressServices *>((IFolderOperations *)_folderOperations))
@@ -413,6 +415,7 @@ HRESULT CPanel::CopyFrom(bool moveMode, const UString &folderPrefix, const UStri
         updater.MainAddTitle = title + L' ';
         if (!_parentFolders.IsEmpty()) {
             const CFolderLink &fl = _parentFolders.Back();
+            updater.UpdateCallback->PasswordArchivePath = fl.VirtualPath;
             updater.UpdateCallback->PasswordIsDefined = fl.UsePassword;
             updater.UpdateCallback->Password = fl.Password.native();
         }

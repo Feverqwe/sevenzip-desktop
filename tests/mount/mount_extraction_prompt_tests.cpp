@@ -420,6 +420,8 @@ class MountExtractionPromptTests final : public QObject {
         QVERIFY(QTest::qWaitForWindowExposed(&window));
         auto *scroll = window.findChild<QScrollArea *>("dialogContentScroll");
         QVERIFY(scroll);
+        auto *unmount = row->findChild<QPushButton *>("unmountButton");
+        QTRY_VERIFY(unmount && UiInspection::fullyVisible(*unmount, window));
         QSignalSpy requested(row, &QtMountRow::Requested);
         for (const char *name : {"openMountFolderButton", "copyMountPathButton", "unmountButton",
                                  "forceUnmountButton"}) {
@@ -444,12 +446,7 @@ class MountExtractionPromptTests final : public QObject {
         row->findChild<QtDisclosure *>()->setExpanded(false);
         scroll->verticalScrollBar()->setValue(0);
         QApplication::processEvents();
-        QTRY_VERIFY(
-            UiInspection::bounds(*row->findChild<QPushButton *>("openMountFolderButton"), window)
-                    .top() -
-                UiInspection::bounds(*row->findChild<QtDisclosure *>()->button(), window)
-                    .bottom() <=
-            window.fontMetrics().lineSpacing() * 2);
+        QTRY_VERIFY(UiInspection::fullyVisible(*unmount, window));
         QVERIFY(UiInspection::writeReport(
             window, QStringLiteral("mount-manager-actions-%1-%2").arg(language).arg(width)));
         auto *open = row->findChild<QPushButton *>("openMountFolderButton");

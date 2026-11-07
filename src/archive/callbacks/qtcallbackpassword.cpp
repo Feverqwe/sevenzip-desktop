@@ -15,16 +15,17 @@ bool AskCallbackFilesystemKeys(CProgressDialog &parent, UString &keys) {
            }) == S_OK;
 }
 
-bool AskCallbackPassword(CProgressDialog &parent, UString &password) {
+bool AskCallbackPassword(CProgressDialog &parent, UString &password, const UString &archive) {
     bool showPassword = false;
-    return AskCallbackPassword(parent, password, showPassword);
+    return AskCallbackPassword(parent, password, showPassword, archive);
 }
 
-bool AskCallbackPassword(CProgressDialog &parent, UString &password, bool &showPassword) {
+bool AskCallbackPassword(CProgressDialog &parent, UString &password, bool &showPassword,
+                         const UString &archive, bool opening) {
     return RunCallbackQuestion(parent, [&]() -> HRESULT {
                CPasswordDialog dialog(&parent);
                dialog.ShowPassword = showPassword;
-               dialog.OnInit();
+               dialog.OnInit(QString::fromWCharArray(archive.Ptr(), archive.Len()), opening);
                if (dialog.exec() != QDialog::Accepted)
                    return E_ABORT;
                WipeNativePassword(password);

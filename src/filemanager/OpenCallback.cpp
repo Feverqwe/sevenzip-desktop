@@ -80,7 +80,8 @@ HRESULT COpenArchiveCallback::Open_CryptoGetTextPassword(BSTR *password)
         bool showPassword = NExtract::Read_ShowPassword(SettingsPath);
         bool selectedShowPassword = showPassword;
 
-        if (!AskCallbackPassword(ProgressDialog, Password, selectedShowPassword))
+        if (!AskCallbackPassword(ProgressDialog, Password, selectedShowPassword,
+                                 PasswordArchivePath, true))
             return E_ABORT;
 
         PasswordIsDefined = true;

@@ -312,6 +312,8 @@ QtArchiveUpdateResult CPanel::UpdateExternalFile(UInt32 index, const wchar_t *fu
             dynamic_cast<IQtProgressServices *>((IFolderOperations *)_folderOperations))
         transport = services->CreateProgressTransport(t);
     t.UpdateCallback->Init();
+    if (!_parentFolders.IsEmpty())
+        t.UpdateCallback->PasswordArchivePath = _parentFolders.Back().VirtualPath;
     t.UpdateCallback->PasswordIsDefined = usePassword;
     t.UpdateCallback->Password = password;
     const HRESULT created = t.Create(GetItemName(index), GetParent());

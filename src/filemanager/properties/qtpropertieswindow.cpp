@@ -62,7 +62,8 @@ QtPropertiesWindow::QtPropertiesWindow(QtPropertyReport report, QWidget *parent,
     auto *copy = buttons->addButton(QString(), QDialogButtonBox::ActionRole);
     copy->setObjectName("propertiesCopyInformation");
     copy->setAutoDefault(false);
-    QtBindLocalText(copy, "AboutDialog", QT_TRANSLATE_NOOP("AboutDialog", "Copy information"));
+    QtBindLocalText(copy, "PropertiesWindow",
+                    QT_TRANSLATE_NOOP("PropertiesWindow", "Copy information"));
     connect(copy, &QPushButton::clicked, this,
             [this] { QApplication::clipboard()->setText(Information()); });
     auto *layout = QtCreateDialogLayout(*this, *buttons, QtDialogContent::Scrollable);

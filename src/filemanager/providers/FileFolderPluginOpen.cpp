@@ -205,7 +205,8 @@ static void GetFolderError(CMyComPtr<IFolderFolder> &folder, UString &open_Error
 #endif
 
 HRESULT CFfpOpen::OpenFileFolderPlugin(IInStream *inStream, const FString &path,
-                                       const UString &arcFormat, QWidget *parentWindow) {
+                                       const UString &arcFormat, const UString &displayPath,
+                                       QWidget *parentWindow) {
     if (!FolderManager)
         return E_INVALIDARG;
     const int slashPos = path.ReverseFind_PathSepar();
@@ -249,6 +250,7 @@ HRESULT CFfpOpen::OpenFileFolderPlugin(IInStream *inStream, const FString &path,
     t.OwnedStreamFile = OwnedStreamFile;
     t.MaterializeStreamFile = MaterializeStreamFile;
     t.Path = fs2us(path);
+    t.OpenCallback.PasswordArchivePath = displayPath.IsEmpty() ? t.Path : displayPath;
     t.ArcFormat = arcFormat;
 
     const UString progressTitle = LangString(IDS_OPENNING);

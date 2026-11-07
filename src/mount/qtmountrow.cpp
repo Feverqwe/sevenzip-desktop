@@ -38,7 +38,6 @@ QtMountRow::QtMountRow(const QIcon &icon, QWidget *parent) : QWidget(parent) {
     details_ = new QtDisclosure(report_, this);
     QtBindLocalText(details_->button(), "QtArchiveMountManager",
                     QT_TRANSLATE_NOOP("QtArchiveMountManager", "Mount details"));
-    body->addWidget(details_);
     const auto action = [this](Action id, const char *caption, const char *name) {
         auto *button = new QPushButton(this);
         button->setObjectName(name);
@@ -58,7 +57,8 @@ QtMountRow::QtMountRow(const QIcon &icon, QWidget *parent) : QWidget(parent) {
                "forceUnmountButton");
     remove_ = action(Action::Remove, QT_TRANSLATE_NOOP("QtArchiveMountManager", "Remove from List"),
                      "removeMountButton");
-    body->addWidget(new QtResponsiveRow({open_, copy_, unmount_, force_, remove_}, this));
+    body->addWidget(new QtResponsiveRow({unmount_, open_, copy_, force_, remove_}, this));
+    body->addWidget(details_);
     removeAction_ = new QAction(this);
     removeAction_->setObjectName("removeMountAction");
     QtBindLocalText(removeAction_, "QtArchiveMountManager",

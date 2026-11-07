@@ -37,13 +37,16 @@ class PasswordWindowTests final : public QObject, protected MainWindowTestSuppor
         WidgetDialogFixture dialogs;
         QString answer = leftPassword;
         int passwords = 0, overwrites = 0, testResults = 0;
-        QStringList errors;
+        QStringList errors, promptedArchives;
         QTimer responder;
         MainWindow window(&backend);
         dialogs.connectResponder(responder, &window, [&] {
             auto *modal = dialogs.activeDialog();
             if (auto *dialog = dynamic_cast<CPasswordDialog *>(modal)) {
                 ++passwords;
+                const auto *source = dialog->findChild<QWidget *>("passwordArchiveSource");
+                promptedArchives.append(source ? QFileInfo(source->toolTip()).fileName()
+                                               : QString());
                 dialog->findChild<QLineEdit *>("passwordEdit")->setText(answer);
                 dialog->accept();
             } else if (auto *dialog = dynamic_cast<COverwriteDialog *>(modal)) {
@@ -119,6 +122,7 @@ class PasswordWindowTests final : public QObject, protected MainWindowTestSuppor
         window.extractTo(extracted, true);
         QCOMPARE(SourceExtractFixture::readFile(QDir(extracted).filePath(name)), payload);
         QCOMPARE(passwords, 2);
+        QCOMPARE(promptedArchives, (QStringList{"left.7z", "right.7z"}));
         QCOMPARE(testResults, 2);
         QVERIFY2(errors.isEmpty(), qPrintable(errors.join('\n')));
     }
@@ -182,8 +186,10 @@ class PasswordWindowTests final : public QObject, protected MainWindowTestSuppor
                 show->click();
             QCOMPARE(edit->echoMode(), QLineEdit::Normal);
             for (int width : {360, 260}) {
-                dialog->resize(width, 170);
+                dialog->resize(width, 300);
                 QApplication::processEvents();
+                auto *source = dialog->findChild<QWidget *>("passwordArchiveSource");
+                QVERIFY(source && UiInspection::fullyVisible(*source, *dialog));
                 QVERIFY(UiInspection::fullyVisible(*edit, *dialog));
                 QVERIFY(UiInspection::fullyVisible(*show, *dialog));
                 const auto report = UiInspection::dump(*dialog);

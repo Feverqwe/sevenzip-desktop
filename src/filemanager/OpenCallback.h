@@ -60,6 +60,8 @@ class COpenArchiveCallback Z7_final :
 
     Z7_IFACE_IMP(IOpenCallbackUI)
 
+    UString PasswordArchivePath;
+
     COpenArchiveCallback() : ParentWindow(NULL) {
         // _subArchiveMode = false;
         PasswordIsDefined = false;

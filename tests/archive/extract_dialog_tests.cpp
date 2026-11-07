@@ -156,6 +156,10 @@ class ExtractDialogTests final : public QObject {
             QVERIFY(UiInspection::fullyVisible(*buttons, dialog));
         }
         QCOMPARE(scroll->horizontalScrollBar()->maximum(), 0);
+        const auto *pathCaption = dialog.findChild<QLabel *>("extractPathModeLabel");
+        QVERIFY(pathCaption && UiInspection::labelFits(*pathCaption));
+        QVERIFY(pathCaption->heightForWidth(pathCaption->width()) <
+                2 * pathCaption->fontMetrics().lineSpacing());
         QVERIFY(UiInspection::writeReport(dialog, "redesign-extract-compact-" + language));
         const QSize compactSize = dialog.size();
         dialog.hide();

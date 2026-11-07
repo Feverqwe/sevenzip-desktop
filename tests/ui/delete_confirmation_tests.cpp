@@ -6,7 +6,6 @@
 #include <QDialogButtonBox>
 #include <QHelpEvent>
 #include <QLabel>
-#include <QPlainTextEdit>
 #include <QPushButton>
 #include <QScopeGuard>
 #include <QScrollArea>
@@ -50,9 +49,10 @@ class DeleteConfirmationTests final : public QObject {
         auto *cancel = dialog.findChild<QPushButton *>("deleteCancel");
         auto *confirm = dialog.findChild<QPushButton *>("deleteConfirm");
         auto *source = dialog.findChild<QWidget *>("deleteSourceSummary");
-        auto *names = dialog.findChild<QPlainTextEdit *>("deleteSelectedNames");
+        auto *folders = dialog.findChild<QLabel *>("deleteFolders");
+        auto *names = dialog.findChild<QWidget *>("deleteSelectedNames");
         auto *scroll = dialog.findChild<QScrollArea *>("dialogContentScroll");
-        QVERIFY(cancel && confirm && source && names && scroll);
+        QVERIFY(cancel && confirm && source && folders && names && scroll);
         QVERIFY(cancel->hasFocus() && cancel->isDefault());
 #ifdef Q_OS_MACOS
         if (QGuiApplication::platformName() == QStringLiteral("cocoa"))
@@ -71,7 +71,13 @@ class DeleteConfirmationTests final : public QObject {
             if (label->window() == dialog.window())
                 QVERIFY(!label->isVisible() || label->text() != request.location);
         QVERIFY(names->isVisible());
-        QCOMPARE(names->toPlainText(), request.names.join('\n'));
+        QStringList listedNames;
+        for (auto *name : names->findChildren<QLabel *>()) {
+            listedNames.append(name->text());
+            QCOMPARE(name->toolTip(), name->text());
+            QVERIFY(name->height() < name->fontMetrics().lineSpacing() * 2);
+        }
+        QCOMPARE(listedNames, request.names);
         const char *actions[] = {"Move to Trash", "Delete from archive"};
         QCOMPARE(confirm->text(), QCoreApplication::translate("DeleteRedesign", actions[mode]));
         for (const QSize size : {QSize(560, 380), QSize(340, 240)}) {
@@ -88,7 +94,8 @@ class DeleteConfirmationTests final : public QObject {
                 };
                 if (widget->height() <= scroll->viewport()->height())
                     QTRY_VERIFY2(reveal(), qPrintable(widget->objectName()));
-                if (auto *label = qobject_cast<QLabel *>(widget))
+                if (auto *label = qobject_cast<QLabel *>(widget);
+                    label && !names->isAncestorOf(label))
                     QTRY_VERIFY2(UiInspection::labelFits(*label),
                                  qPrintable(QString("%1 %2 %3x%4 needs %5")
                                                 .arg(label->objectName(), label->text().left(40))
@@ -98,6 +105,11 @@ class DeleteConfirmationTests final : public QObject {
                 QVERIFY(UiInspection::fullyVisible(*cancel, dialog));
                 QVERIFY(UiInspection::fullyVisible(*confirm, dialog));
             }
+            scroll->verticalScrollBar()->setValue(0);
+            QTRY_VERIFY(UiInspection::fullyVisible(*folders, dialog));
+            QVERIFY(UiInspection::bounds(*folders, dialog).bottom() <
+                    UiInspection::bounds(*names, dialog).top());
+            QTRY_VERIFY(UiInspection::fullyVisible(*names, dialog));
             QVERIFY(UiInspection::writeReport(
                 dialog, QString("delete-%1-%2").arg(QTest::currentDataTag()).arg(size.width())));
         }
@@ -106,7 +118,6 @@ class DeleteConfirmationTests final : public QObject {
         ReloadLang(ini);
         QtNotifyLanguageChanged();
         QVERIFY(confirm->text() != before);
-        QCOMPARE(names->toPlainText(), request.names.join('\n'));
         confirm->setFocus();
         QTest::keyClick(confirm, Qt::Key_Return);
         QCOMPARE(dialog.result(), int(QDialog::Accepted));

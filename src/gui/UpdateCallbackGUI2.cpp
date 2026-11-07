@@ -22,6 +22,7 @@ static const UINT k_UpdNotifyLangs[] = {
 
 void CUpdateCallbackGUI2::Init() {
     NumFiles = 0;
+    PasswordArchivePath.Empty();
 
     LangString(IDS_PROGRESS_REMOVE, _lang_Removing);
     LangString(IDS_MOVING, _lang_Moving);
@@ -42,7 +43,7 @@ HRESULT CUpdateCallbackGUI2::SetOperation_Base(UInt32 notifyOp, const wchar_t *n
 
 HRESULT CUpdateCallbackGUI2::ShowAskPasswordDialog() {
     NativePassword password;
-    if (!AskCallbackPassword(*ProgressDialog, password))
+    if (!AskCallbackPassword(*ProgressDialog, password, PasswordArchivePath))
         return E_ABORT;
     Password = password;
     PasswordIsDefined = true;

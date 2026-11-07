@@ -88,6 +88,7 @@ class CExtractCallbackImp Z7_final
 
   public:
     QString SettingsPath;
+    UString PasswordArchivePath;
     bool MultiArcMode;
     bool ProcessAltStreams;
     bool StreamMode; // set to true, if you want the callee to call GetStream7()

@@ -25,6 +25,7 @@ class CUpdateCallbackGUI2 {
     bool PasswordWasAsked;
     UInt64 NumFiles;
     NativePassword Password;
+    UString PasswordArchivePath;
 
   protected:
     UStringVector _lang_Ops;

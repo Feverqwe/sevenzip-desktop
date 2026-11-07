@@ -70,10 +70,14 @@ class SourcePromptPresentationTests final : public QObject {
             QVERIFY(UiInspection::fullyVisible(*view.findChild<QPlainTextEdit *>(), view));
         } else if (kind == 1) {
             CPasswordDialog view;
-            view.OnInit();
+            const QString archive = QStringLiteral("/fixtures/закрытый 空.7z");
+            view.OnInit(archive, true);
             view.show();
             QVERIFY(QTest::qWaitForWindowExposed(&view));
             inspect(view, false, tag);
+            auto *source = view.findChild<QWidget *>("passwordArchiveSource");
+            QVERIFY(source && UiInspection::fullyVisible(*source, view));
+            QCOMPARE(source->toolTip(), archive);
             QCOMPARE(view.focusWidget(), view.findChild<QLineEdit *>("passwordEdit"));
             const QRect show =
                 UiInspection::bounds(*view.findChild<QCheckBox *>("passwordShow"), view);

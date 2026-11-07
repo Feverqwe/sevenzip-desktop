@@ -1,6 +1,7 @@
 #include "dialogs/delete/qtdeleteconfirmation.h"
 #include "localization/qtlangcontrols.h"
 #include "ui/controls/qtsourcesummary.h"
+#include "ui/controls/qtstatuslabel.h"
 #include "ui/dialogs/qtdialoglayout.h"
 #include "ui/theme/qtcommandicons.h"
 #include <QCoreApplication>
@@ -9,7 +10,6 @@
 #include <QEvent>
 #include <QFileInfo>
 #include <QLabel>
-#include <QPlainTextEdit>
 #include <QPushButton>
 #include <QShowEvent>
 #include <QStyle>
@@ -68,20 +68,27 @@ void QtDeleteConfirmation::buildPresentation() {
     source_ = new QtSourceSummary(icon, {}, request_.location, this);
     source_->setObjectName("deleteSourceSummary");
     body->addWidget(source_);
-    consequence_ = label("deleteConsequence");
     folders_ = label("deleteFolders");
-    restriction_ = label("deleteRestriction");
     folders_->setVisible(request_.includesFolders);
-    restriction_->setVisible(request_.readOnly);
     if (request_.names.size() > 1) {
-        auto *names = new QPlainTextEdit(request_.names.join('\n'), this);
+        auto *names = new QWidget(this);
         names->setObjectName("deleteSelectedNames");
-        names->setReadOnly(true);
-        names->setLineWrapMode(QPlainTextEdit::WidgetWidth);
-        names->setMinimumHeight(fontMetrics().lineSpacing() * 3);
-        names->setMaximumHeight(fontMetrics().lineSpacing() * 8);
+        auto *rows = new QVBoxLayout(names);
+        rows->setContentsMargins(0, 0, 0, 0);
+        rows->setSpacing(4);
+        for (const auto &name : request_.names) {
+            auto *row = new QtStatusLabel(names, Qt::ElideMiddle);
+            row->setTextFormat(Qt::PlainText);
+            row->setText(name);
+            row->setToolTip(name);
+            row->setAccessibleName(name);
+            rows->addWidget(row);
+        }
         body->addWidget(names);
     }
+    consequence_ = label("deleteConsequence");
+    restriction_ = label("deleteRestriction");
+    restriction_->setVisible(request_.readOnly);
 }
 
 void QtDeleteConfirmation::refreshText() {

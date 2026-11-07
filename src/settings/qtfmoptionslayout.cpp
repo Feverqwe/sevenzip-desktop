@@ -44,7 +44,7 @@ QWidget *memoryPage(CSettingsPage *owner) {
     values->setContentsMargins(24, 0, 0, 0);
     values->setSpacing(8);
     auto *label = new QLabel(dependent);
-    QtBindLocalText(label, "SettingsRedesign", QT_TRANSLATE_NOOP("SettingsRedesign", "Limit, GB"));
+    QtBindLocalText(label, "SettingsRedesign", QT_TRANSLATE_NOOP("SettingsRedesign", "Limit, GiB"));
     auto *spin = body->findChild<QAbstractSpinBox *>("extractMemorySpin");
     label->setBuddy(spin);
     values->addWidget(label);
@@ -53,7 +53,7 @@ QWidget *memoryPage(CSettingsPage *owner) {
     const auto ramValues = ram->property("languageArguments").toStringList();
     if (!ramValues.isEmpty())
         QtBindLocalText(ram, "SettingsRedesign",
-                        QT_TRANSLATE_NOOP("SettingsRedesign", "This computer: %1 GB"), false,
+                        QT_TRANSLATE_NOOP("SettingsRedesign", "This computer: %1 GiB"), false,
                         ramValues);
     ram->setVisible(!ramValues.isEmpty());
     ram->setForegroundRole(QPalette::PlaceholderText);
