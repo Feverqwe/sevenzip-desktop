@@ -188,7 +188,7 @@ void CExtractDialog::changeEvent(QEvent *event) {
 void CExtractDialog::OnButtonSetPath() {
     UString path;
     if (MyBrowseForFolder(this, ToUString(QtLangText(IDS_EXTRACT_SET_FOLDER)),
-                          ToUString(_path->currentText()), path))
+                          ToUString(_path->currentText().trimmed()), path))
         _path->setEditText(ToQString(path));
 }
 

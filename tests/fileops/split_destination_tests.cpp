@@ -4,6 +4,7 @@
 #include "fileops/patterns/Wildcard.h"
 #include <QDir>
 #include <QFile>
+#include <QFileDialog>
 #include <QLabel>
 #include <QScopeGuard>
 #include <QSettings>
@@ -26,6 +27,57 @@ class SplitDestinationTests final : public QObject {
         qputenv("SEVENZIP_SETTINGS_PATH", settings_.toUtf8());
     }
     void init() { QFile::remove(settings_); }
+    void browsingUsesTheSameDestinationAsExtraction() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString start = fixture.filePath(QStringLiteral("папка с пробелом"));
+        const QString selected = fixture.filePath(QStringLiteral("другая папка"));
+        QVERIFY(QDir().mkpath(start));
+        QVERIFY(QDir().mkpath(selected));
+        const bool nativeDisabled = QApplication::testAttribute(Qt::AA_DontUseNativeDialogs);
+        QApplication::setAttribute(Qt::AA_DontUseNativeDialogs);
+        const auto restore = qScopeGuard(
+            [&] { QApplication::setAttribute(Qt::AA_DontUseNativeDialogs, nativeDisabled); });
+        CExtractDialog dialog(start, {});
+        auto *browse = dialog.findChild<QPushButton *>("extractBrowseButton");
+        QVERIFY(browse);
+        const QString draft = "  " + start + "  ";
+        path(dialog)->setEditText(draft);
+        enabled(dialog)->setChecked(true);
+        name(dialog)->setText(QStringLiteral("подпапка"));
+        dialog.show();
+        for (const bool accept : {false, true}) {
+            QString openedDirectory;
+            QTimer answer;
+            connect(&answer, &QTimer::timeout, &dialog, [&] {
+                auto *picker = qobject_cast<QFileDialog *>(QApplication::activeModalWidget());
+                if (!picker)
+                    return;
+                answer.stop();
+                openedDirectory = picker->directory().canonicalPath();
+                const auto close = qScopeGuard([&] {
+                    if (picker->isVisible())
+                        picker->reject();
+                });
+                if (accept) {
+                    picker->setDirectory(selected);
+                    picker->selectFile(selected);
+                    QVERIFY(QMetaObject::invokeMethod(picker, "accept"));
+                }
+            });
+            answer.start(1);
+            browse->click();
+            QCOMPARE(openedDirectory, QFileInfo(start).canonicalFilePath());
+            QCOMPARE(name(dialog)->text(), QStringLiteral("подпапка"));
+            if (accept)
+                QCOMPARE(QFileInfo(path(dialog)->currentText()).canonicalFilePath(),
+                         QFileInfo(selected).canonicalFilePath());
+            else
+                QCOMPARE(path(dialog)->currentText(), draft);
+        }
+        QCOMPARE(QDir::fromNativeSeparators(dialog.destination()),
+                 QDir(selected).filePath(QStringLiteral("подпапка")));
+    }
     void cleanupTestCase() {
         if (oldSettings_.isNull())
             qunsetenv("SEVENZIP_SETTINGS_PATH");
