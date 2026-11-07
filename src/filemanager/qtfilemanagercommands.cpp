@@ -149,7 +149,6 @@ void QtFileManagerCommands::AttachViewActions() {
     Bind(w.settingsAction_, IDM_OPTIONS);
     Bind(w.findChild<QAction *>("aboutAction"), IDM_ABOUT);
     Bind(w.findChild<QAction *>("tempDirAction"), IDM_TEMP_DIR);
-    Bind(w.findChild<QAction *>("benchmarkAction"), IDM_BENCHMARK);
     BindToggle(w.flatView_, IDM_VIEW_FLAT_VIEW, [](CApp &app) { return app.GetFlatMode(); });
     BindToggle(w.standardToolbarOption_, IDM_VIEW_STANDARD_TOOLBAR,
                [](CApp &app) { return app.ShowStandardToolbar; });

@@ -2,7 +2,7 @@
 
 // One immutable request per independent GUI process. repc owns serialization
 // and the interface signature; application validation owns operation semantics.
-POD OperationRequest(int operation, QStringList paths, bool yesToAll, QString destination, bool showDialog, bool elimDup, quint32 writeZone, QString archivePath, QString archiveType, bool addExtension, bool email, bool hashMode, QString hashMethod, QString hashBasePrefix, bool hashEnterToDirs, bool totalMode)
+POD OperationRequest(int operation, QStringList paths, bool yesToAll, QString destination, bool showDialog, bool elimDup, quint32 writeZone, QString archivePath, QString archiveType, bool addExtension, bool email, bool hashMode, QString hashMethod, QString hashBasePrefix, bool hashEnterToDirs)
 POD OperationReport(int outcome, int exitCode, QStringList changedDirectories, QStringList changedArchives, bool cancellationNeedsReview)
 POD TaskPresentation(int phase, QString title, bool hasWindow)
 

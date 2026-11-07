@@ -35,7 +35,7 @@ struct QtOperationResult {
 Q_DECLARE_METATYPE(QtOperationResult)
 
 struct QtOperationJob {
-    enum class Command { Test, Extract, Compress, Hash, Benchmark };
+    enum class Command { Test, Extract, Compress, Hash };
     Command Operation = Command::Test;
     QStringList Paths;
     bool YesToAll = false;
@@ -51,7 +51,6 @@ struct QtOperationJob {
     QString HashMethod;
     QString HashBasePrefix;
     bool HashEnterToDirs = true;
-    bool TotalMode = false;
 };
 
 std::expected<void, QString> ValidateOperationJob(const QtOperationJob &job);

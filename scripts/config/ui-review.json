@@ -39,7 +39,6 @@
   {"id":"progress-results","title":"Результат операции: ошибка, отмена и пропуски","target":"progress_worker_tests","functions":["finalOutcomeRemainsVisibleOnlyWhenNeeded"]},
   {"id":"progress-stop","title":"Подтверждение и ожидание остановки операции","target":"progress_cancel_tests","functions":["sourcePromptRestoresPauseAndStopsOnlyOnYes"]},
   {"id":"progress-language","title":"Операция и запрос остановки: смена EN/RU","target":"language_dialog_tests","functions":["progressStopQuestionPreservesItsRequestAcrossLanguages","progressPreservesPausedOperationAndFinishedClose"]},
-  {"id":"benchmark","title":"Тест производительности: обычный и полный","target":"benchmark_lifecycle_tests","functions":["sourceInitialPresentation","layoutAndLiveLanguage"]},
   {"id":"link","title":"Создание ссылки","target":"link_dialog_tests","functions":["geometryAndLanguage"]},
   {"id":"browse","title":"Встроенный выбор файла или каталога","target":"source_browse_dialog_tests","functions":["sourceInitialFrame","geometry"]},
   {"id":"temporary-files","title":"Удаление временных файлов","target":"temp_cleanup_tests","functions":["sourceInitialFrame","sourceNavigationHelpAndNormalCompactGeometry","activeAndUnknownExternalSessionsSurviveActualDeleteAttempts"]},

@@ -1,19 +1,12 @@
 #include "archive/backend/archivebackend.h"
 #include "archive/codecs/archivecodeccatalog.h"
 #include "benchmark/Bench.h"
-#include "benchmark/BenchmarkDialog.h"
 #include "localization/LangUtils.h"
 #include "settings/RegistryUtils.h"
-#include <QApplication>
-#include <QDialog>
-#include <QLabel>
-#include <QMessageBox>
-#include <QPushButton>
 #include <QScopeGuard>
 #include <QSignalSpy>
 #include <QStandardPaths>
 #include <QTemporaryDir>
-#include <QTimer>
 #include <QtTest>
 
 class BenchResults final : public IBenchCallback {
@@ -137,48 +130,6 @@ class NativeBenchmarkTests final : public QObject {
         results.Cancel = true;
         QCOMPARE(Bench(&providers, nullptr, &results, boundedProperties(), 1, false), E_ABORT);
         QVERIFY(results.EncCalls > 0);
-    }
-    void originalDialogPresentsCompletedNativeResultsAndJoins() {
-        const auto catalog = backend_.codecCatalog();
-        CExternalCodecs providers;
-        providers.GetCodecs =
-            static_cast<ICompressCodecsInfo *>(&const_cast<CCodecs &>(catalog->nativeCodecs()));
-        QCOMPARE(providers.Load(), S_OK);
-        QString rating;
-        QStringList errors;
-        bool timedOut = false;
-        QTimer responder;
-        connect(&responder, &QTimer::timeout, this, [&] {
-            if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
-                errors.append(box->text());
-                box->accept();
-                return;
-            }
-            auto *dialog = qobject_cast<QDialog *>(QApplication::activeModalWidget());
-            if (!dialog || dialog->objectName() != "IDD_BENCH")
-                return;
-            auto *stop = dialog->findChild<QPushButton *>("IDB_STOP");
-            if (stop && !stop->isEnabled()) {
-                rating = dialog->findChild<QLabel *>("benchmarkValue113")->text();
-                dialog->reject();
-            }
-        });
-        QTimer watchdog;
-        watchdog.setSingleShot(true);
-        connect(&watchdog, &QTimer::timeout, this, [&] {
-            timedOut = true;
-            if (auto *dialog = qobject_cast<QDialog *>(QApplication::activeModalWidget()))
-                dialog->reject();
-        });
-        responder.start(1);
-        // The original GUI also runs CPU-frequency calibration. timems bounds
-        // codec work, not that loop (Bench grows it to 2048 million commands).
-        watchdog.start(20000);
-        QCOMPARE(Benchmark(&providers, boundedProperties(), 1), S_OK);
-        QVERIFY(!timedOut);
-        QVERIFY2(errors.isEmpty(), qPrintable(errors.join('\n')));
-        QVERIFY(rating.endsWith(" GIPS"));
-        QVERIFY(QApplication::activeModalWidget() == nullptr);
     }
 };
 QTEST_MAIN(NativeBenchmarkTests)

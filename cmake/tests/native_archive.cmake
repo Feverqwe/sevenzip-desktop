@@ -158,11 +158,6 @@
     target_link_libraries(hash_results_tests PRIVATE sevenzip_layout_inspection)
     target_link_libraries(hash_results_tests PRIVATE sevenzip_panel Qt6::Test)
     add_test(NAME hash_results COMMAND hash_results_tests -silent)
-    qt_add_executable(benchmark_lifecycle_tests tests/ui/benchmark_lifecycle_tests.cpp)
-    target_link_libraries(benchmark_lifecycle_tests PRIVATE sevenzip_layout_inspection)
-    target_include_directories(benchmark_lifecycle_tests PRIVATE src tests)
-    target_link_libraries(benchmark_lifecycle_tests PRIVATE sevenzip_panel Qt6::Test)
-    add_test(NAME benchmark_lifecycle COMMAND benchmark_lifecycle_tests -silent)
     qt_add_executable(link_dialog_tests tests/fileops/link_dialog_tests.cpp)
     target_link_libraries(link_dialog_tests PRIVATE sevenzip_layout_inspection)
     target_include_directories(link_dialog_tests PRIVATE src tests)
@@ -170,8 +165,6 @@
     add_test(NAME link_dialog COMMAND link_dialog_tests -silent)
     set_tests_properties(link_dialog PROPERTIES TIMEOUT 30 RESOURCE_LOCK sevenzip_ui_artifacts ENVIRONMENT
         "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/link_dialog.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
-    set_tests_properties(benchmark_lifecycle PROPERTIES TIMEOUT 30 RESOURCE_LOCK sevenzip_ui_artifacts ENVIRONMENT
-        "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/benchmark_lifecycle.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
     set_tests_properties(hash_results PROPERTIES ENVIRONMENT
         "QT_QPA_PLATFORM=offscreen;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports" TIMEOUT 30)
     qt_add_executable(overwrite_layout_tests tests/ui/overwrite_layout_tests.cpp)

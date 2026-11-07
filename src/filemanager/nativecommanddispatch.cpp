@@ -242,12 +242,6 @@ bool OnMenuCommand(unsigned id, IQtFileManagerMenuCommandServices &g_App) {
     case IDM_OPTIONS:
         g_App.OptionsDialog();
         break;
-    case IDM_BENCHMARK:
-        g_App.MyBenchmark(false);
-        break;
-    case IDM_BENCHMARK2:
-        g_App.MyBenchmark(true);
-        break;
     case IDM_ABOUT:
         g_App.AboutDialog();
         break;

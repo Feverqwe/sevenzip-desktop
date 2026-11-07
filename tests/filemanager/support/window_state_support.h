@@ -154,12 +154,6 @@ class ControlledBackend : public ArchiveBackend {
         job.WriteZone = writeZone;
         return captureGuiRequest(std::move(job), error);
     }
-    QtOperationLauncher *startGuiBenchmark(bool total, QString &error) override {
-        QtOperationJob job;
-        job.Operation = QtOperationJob::Command::Benchmark;
-        job.TotalMode = total;
-        return captureGuiRequest(std::move(job), error);
-    }
     QList<QtOperationJob> GuiRequests;
     void cancel() override {
         ++cancelCalls;

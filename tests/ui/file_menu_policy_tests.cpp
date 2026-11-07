@@ -168,6 +168,7 @@ class FileMenuPolicyTests : public QObject {
         policy.FilePath = us2fs(UString(path.toStdWString().c_str()));
         policy.Load(menu, 0);
         QVERIFY(menu.ids().contains(IDM_DIFF));
+        QVERIFY(!menu.ids().contains(IDM_BENCHMARK2));
         QVERIFY(menu.ids().contains(IDM_VER_COMMIT));
         QCOMPARE(
             QString::fromWCharArray(menu.items[menu.ids().indexOf(IDM_VER_COMMIT)].StringValue),

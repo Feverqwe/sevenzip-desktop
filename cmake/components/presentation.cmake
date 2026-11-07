@@ -115,17 +115,11 @@ add_library(sevenzip_panel
     src/filemanager/panels/PanelDragSource.cpp
     src/gui/HashGUI.cpp
     src/gui/HashGUI.h
-    src/benchmark/BenchmarkDialog.cpp
-    src/benchmark/BenchmarkDialog.h
     src/operations/CompressCall.cpp
     src/operations/CompressCall2.cpp
     src/operations/CompressCall.h
     src/dialogs/compress/qtcompresscallservices.h
     src/gui/qtupdateguiservices.h
-    src/benchmark/qtbenchmarkcontrols.cpp
-    src/benchmark/qtbenchmarkcontrols.h
-    src/benchmark/qtbenchmarkpresentation.cpp
-    src/benchmark/qtbenchmarkreport.cpp
     src/dialogs/link/LinkDialog.cpp
     src/dialogs/link/LinkDialog.h
     src/dialogs/link/qtlinkcontrols.cpp

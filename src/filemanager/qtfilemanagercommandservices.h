@@ -61,7 +61,6 @@ class IQtFileManagerMenuCommandServices : public IQtFileManagerCommandServices {
     virtual int TimestampLevel(unsigned index) const = 0;
     virtual void SetTimestampLevel(int level) = 0;
     virtual void OptionsDialog() = 0;
-    virtual void MyBenchmark(bool totalMode) = 0;
     virtual void AboutDialog() = 0;
     virtual void MyBrowseForTempFolder() = 0;
     virtual void OpenBookmark(unsigned index) = 0;

@@ -206,7 +206,6 @@ class ArchiveBackend : public QObject {
     virtual QtOperationLauncher *startGuiHash(const QStringList &paths, const QString &method,
                                               const QString &basePrefix, bool enterToDirs,
                                               QString &error);
-    virtual QtOperationLauncher *startGuiBenchmark(bool totalMode, QString &error);
     virtual QtOperationLauncher *startGuiCompress(const QString &archive, const QString &type,
                                                   bool addExtension, const QStringList &paths,
                                                   bool email, bool showDialog, QString &error);
@@ -219,8 +218,7 @@ class ArchiveBackend : public QObject {
     virtual void hash(const QStringList &paths, const QString &method);
     void hashMethods(const QStringList &paths, const QStringList &methods);
     HRESULT loadHashProviders(CExternalCodecs &providers) const;
-    HRESULT loadBenchmarkProviders(CExternalCodecs &providers) const;
-    bool supportsBenchmark() const;
+    HRESULT loadArchiveProviders(CExternalCodecs &providers) const;
     QStringList supportedHashMethods(const QStringList &methods) const;
     std::expected<std::unique_ptr<QtArchiveTransferBackup>, ArchiveTransferBackupError>
     saveArchiveTransferDestination(const QString &path) const;

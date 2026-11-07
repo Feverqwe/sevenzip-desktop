@@ -6,7 +6,7 @@
   },
   "localization": {
     "description": "Qt catalogs, live language changes, localized diagnostics and direct UI consumers",
-    "tests": "^(language|language_.*|native_language_host|native_shell_com|native_services|gui_error_policy|panel_cell_text|update_callback|compression_resources|benchmark_lifecycle|native_benchmark|source_properties|archive_error_properties|format_utils|native_extract_callback)$",
+    "tests": "^(language|language_.*|native_language_host|native_shell_com|native_services|gui_error_policy|panel_cell_text|update_callback|compression_resources|native_benchmark|source_properties|archive_error_properties|format_utils|native_extract_callback)$",
     "interactive": true
   },
   "navigation": {

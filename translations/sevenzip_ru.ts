@@ -513,31 +513,6 @@
             <source>Tot:</source>
             <translation>Итого:</translation>
         </message>
-        <message>
-            <location filename="../src/benchmark/BenchmarkDialog.cpp" line="+1094" />
-            <source>Compr Decompr Total   CPU</source>
-            <translation>Сжат. Распак. Всего  ЦП</translation>
-        </message>
-        <message>
-            <location line="+5" />
-            <source>   Time</source>
-            <translation>   Время</translation>
-        </message>
-        <message>
-            <location line="+187" />
-            <source>%1T Frequency (MHz):</source>
-            <translation>%1 пот.: частота (МГц):</translation>
-        </message>
-        <message>
-            <location filename="../src/benchmark/qtbenchmarkmetrics.cpp" line="+19" />
-            <source>Result</source>
-            <translation>Результат</translation>
-        </message>
-        <message>
-            <location line="+1" />
-            <source>Operation</source>
-            <translation>Операция</translation>
-        </message>
     </context>
     <context>
         <name>BrowseDialog2</name>
@@ -7661,7 +7636,6 @@ Check that your distribution's CIFS support and cifs-utils are installed.</sourc
         <message><source>Extract</source><translation>Распаковка</translation></message>
         <message><source>Create archive</source><translation>Создание архива</translation></message>
         <message><source>Checksums</source><translation>Контрольные суммы</translation></message>
-        <message><source>Benchmark</source><translation>Тест производительности</translation></message>
         <message><source>Done</source><translation>Готово</translation></message>
         <message><source>Review result</source><translation>Просмотр результата</translation></message>
         <message><source>Preparing</source><translation>Подготовка</translation></message>

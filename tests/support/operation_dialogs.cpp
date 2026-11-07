@@ -13,7 +13,6 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QMessageBox>
-#include <QPlainTextEdit>
 #include <QPushButton>
 #include <QSaveFile>
 #include <QTimer>
@@ -101,40 +100,7 @@ void DriveOperationDialogs() {
             }
             continue;
         }
-        if (widget->objectName() == "IDD_BENCH" || widget->objectName() == "IDD_BENCH_TOTAL") {
-            auto *dialog = qobject_cast<QDialog *>(widget);
-            auto *stop = widget->findChild<QPushButton *>("IDB_STOP");
-            auto *text = widget->findChild<QPlainTextEdit *>("IDE_BENCH2_EDIT");
-            const auto profile = qEnvironmentVariable("SEVENZIP_OPERATION_BENCHMARK_PROFILE");
-            const bool cancel = profile == "cancel" || profile == "normal-cancel";
-            if (profile == "normal-stop" && stop && stop->isEnabled()) {
-                stop->click();
-                continue;
-            }
-            const bool finished =
-                stop ? (profile == "normal-stop"
-                            ? QtTaskPresentation::Application().snapshot().phase ==
-                                  QtOperationPhase::Reviewing
-                            : !stop->isEnabled())
-                     : text && text->toPlainText().contains(
-                                   QCoreApplication::translate("BenchmarkReport", "Avg:"));
-            if ((cancel || finished) && !widget->property("fixtureClosing").toBool()) {
-                widget->setProperty("fixtureClosing", true);
-                QTimer::singleShot(cancel ? 0 : 200, dialog, [dialog, text] {
-                    const QString report =
-                        qEnvironmentVariable("SEVENZIP_OPERATION_BENCHMARK_REPORT");
-                    QSaveFile file(report);
-                    if (!report.isEmpty() && file.open(QIODevice::WriteOnly)) {
-                        file.write(QJsonDocument(QJsonObject{{"dialog", dialog->objectName()},
-                                                             {"text", text ? text->toPlainText()
-                                                                           : QString()}})
-                                       .toJson());
-                        file.commit();
-                    }
-                    dialog->close();
-                });
-            }
-        } else if (auto *extract = qobject_cast<CExtractDialog *>(widget)) {
+        if (auto *extract = qobject_cast<CExtractDialog *>(widget)) {
             const auto report = qEnvironmentVariable("SEVENZIP_OPERATION_DIALOG_REPORT");
             if (!report.isEmpty()) {
                 QSaveFile file(report);

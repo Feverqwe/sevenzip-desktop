@@ -255,13 +255,6 @@ void QtFileManagerCommands::SetTimestampLevel(int level) {
     settings.setValue(QStringLiteral("view/timestampLevel"), level);
     window_.redrawTimestampColumns();
 }
-void QtFileManagerCommands::MyBenchmark(bool totalMode) {
-    auto &w = window_;
-    QtAppOperationState::CallScope call(w.app_.QtOperations());
-    QString error;
-    auto *operation = w.backend_->startGuiBenchmark(totalMode, error);
-    w.observeGuiArchiveOperation(operation, error);
-}
 void QtFileManagerCommands::AboutDialog() {
     CAboutDialog dialog(&window_);
     dialog.Create();

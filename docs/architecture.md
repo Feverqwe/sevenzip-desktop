@@ -486,8 +486,7 @@ acceptance. Native process launch/observation, startup deadlines and independent
 child lifetime remain application responsibilities.
 The final typed result distinguishes cancellation of started work that still
 needs review from dismissal of an unstarted form. Explicitly closing a finished
-native result acknowledges it; requesting Stop or closing a running benchmark
-does not. The application retains unreviewed cancellation results independently
+native result acknowledges it. Requesting Stop leaves it pending. The application retains unreviewed cancellation results independently
 of file windows, as it does transport failures. Closing a finished report never
 sends another cancellation request to its worker.
 The process adapter and application observer have separate C++23 library targets;
@@ -528,10 +527,8 @@ prefixes and flat-mode recursion through the original PanelCrc worker; shell
 checksums use HashCalcGUI. File-backed Windows ADS retain their source prefix
 handling in the child. Registered native hashers remain usable without an archive
 DLL. Digest/results windows belong to the child, while typed completion preserves
-cancellation and partial-input warnings. Benchmark also runs in its own `7zG`,
-with the source normal/total modes and worker lifetime. Closing the manager leaves
-it running; typed completion distinguishes a finished benchmark, cancellation and
-engine/startup errors.
+cancellation and partial-input warnings. The console benchmark uses the shared native
+benchmark implementation.
 
 Seekable archive items can back nested readers directly. Each reader generation
 retains its codec image, input and parents; independent cursors serialize access

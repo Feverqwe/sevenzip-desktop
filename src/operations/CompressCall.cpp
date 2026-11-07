@@ -314,16 +314,4 @@ void CalcChecksum(const UStringVector &paths, const UString &methodName,
     MY_TRY_FINISH_VOID
 }
 
-void Benchmark(bool totalMode) {
-    MY_TRY_BEGIN
-    UString params('b');
-    if (totalMode)
-        params += " -mm=*";
-    AddLagePagesSwitch(params);
-    const HRESULT result = Call7zGui(params, false, NULL);
-    if (result != S_OK)
-        ErrorMessageHRESULT(result);
-    MY_TRY_FINISH_VOID
-}
-
 #endif

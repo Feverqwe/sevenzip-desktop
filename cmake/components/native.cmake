@@ -50,7 +50,6 @@ add_library(sevenzip_common STATIC ${SEVENZIP_7ZIP_SOURCE_DIR}/C/Sort.c ${SEVENZ
     ${SEVENZIP_7ZIP_SOURCE_DIR}/CPP/7zip/Common/FilterCoder.cpp
     src/archive/hashing/HashCalc.cpp
     src/benchmark/Bench.cpp src/benchmark/Bench.h
-    src/benchmark/qtbenchmarkservices.cpp src/benchmark/qtbenchmarkservices.h
     ${SEVENZIP_7ZIP_SOURCE_DIR}/CPP/Windows/SystemInfo.cpp
     ${SEVENZIP_7ZIP_SOURCE_DIR}/CPP/Common/DynLimBuf.cpp
     src/archive/operations/EnumDirItems.cpp src/archive/operations/EnumDirItems.h

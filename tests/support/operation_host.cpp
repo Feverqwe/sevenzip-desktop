@@ -88,37 +88,8 @@ int main(int argc, char **argv) {
                 KillOperationProbe(QCoreApplication::applicationPid());
             if (terminal == "missing-report")
                 std::_Exit(0);
-            auto source = command;
-            const auto profile = qEnvironmentVariable("SEVENZIP_OPERATION_BENCHMARK_PROFILE");
-            if (!profile.isEmpty()) {
-                source.Configure = [configure = command.Configure,
-                                    profile](CArcCmdLineOptions &options) {
-                    configure(options);
-                    if (options.Command.CommandType != NCommandType::kBenchmark)
-                        return;
-                    // Bound real native Bench work through its ordinary source properties.
-                    // Production defaults and the installed executable remain unchanged.
-                    for (const auto &pair : {qMakePair("mt", "1"), qMakePair("d18", ""),
-                                             qMakePair("timems", "50"), qMakePair("tic", "1")}) {
-                        auto &property = options.Properties.AddNew();
-                        property.Name = pair.first;
-                        property.Value = pair.second;
-                    }
-                    if (profile == "failure" || profile == "total") {
-                        auto &property = options.Properties.AddNew();
-                        property.Name = "m";
-                        property.Value =
-                            profile == "failure" ? "unavailable-benchmark-method" : "CRC32";
-                    }
-                    options.NumIterations_Defined = true;
-                    // Cancellation must interrupt unfinished work even when
-                    // the GUI thread is scheduled after a short native pass.
-                    options.NumIterations =
-                        profile == "normal-cancel" || profile == "normal-stop" ? 1000 : 1;
-                };
-            }
             return RunSevenzipGUICommand(
-                application, source, [&](const QString &path, QtGUIOutputKind kind) {
+                application, command, [&](const QString &path, QtGUIOutputKind kind) {
                     outputReady(path, kind);
                     const QString gate = qEnvironmentVariable("SEVENZIP_OPERATION_OUTPUT_BARRIER");
                     if (!gate.isEmpty()) {

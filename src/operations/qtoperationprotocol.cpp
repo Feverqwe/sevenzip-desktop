@@ -48,13 +48,10 @@ std::expected<void, QString> ValidateOperationJob(const QtOperationJob &job) {
 #endif
                     );
         break;
-    case Command::Benchmark:
-        break;
     default:
         valid = false;
     }
-    valid =
-        valid && (job.Operation == Command::Benchmark ? job.Paths.isEmpty() : !job.Paths.isEmpty());
+    valid = valid && !job.Paths.isEmpty();
     // Bound accepted application input independently of QtRO's wire framing.
     // Count UTF-16 data and per-path overhead before publishing the request.
     quint64 size =
@@ -78,7 +75,7 @@ OperationRequest OperationRequestFromJob(const QtOperationJob &job) {
     return OperationRequest(int(job.Operation), job.Paths, job.YesToAll, job.Destination,
                             job.ShowDialog, job.ElimDup, job.WriteZone, job.ArchivePath,
                             job.ArchiveType, job.AddExtension, job.EMail, job.HashMode,
-                            job.HashMethod, job.HashBasePrefix, job.HashEnterToDirs, job.TotalMode);
+                            job.HashMethod, job.HashBasePrefix, job.HashEnterToDirs);
 }
 
 QtOperationJob OperationJobFromRequest(const OperationRequest &request) {
@@ -98,7 +95,6 @@ QtOperationJob OperationJobFromRequest(const OperationRequest &request) {
     job.HashMethod = request.hashMethod();
     job.HashBasePrefix = request.hashBasePrefix();
     job.HashEnterToDirs = request.hashEnterToDirs();
-    job.TotalMode = request.totalMode();
     return job;
 }
 

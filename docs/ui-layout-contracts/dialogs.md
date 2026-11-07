@@ -113,46 +113,6 @@ rendered original initial states are recorded in the
 Native font metrics, compact scrolling and modal chrome prevent a claim of
 complete rendered Windows pixel equality.
 
-### Benchmark (P2-04)
-
-Reference: pinned `CPP/7zip/UI/GUI/BenchmarkDialog.rc` and its source state bodies.
-POSIX failed/empty affinity uses original System.h normalized processor fallback
-in the hardware-threads leading CPU count and choice limits; that count must not
-be zero or retain InitST's one when a larger processor count is available.
-Windows retains its native source helper. These system failures do not change
-grouping or controls.
-The approved redesign places Dictionary/CPU threads above their fields, with
-Memory alongside them. One table contains Operation/Result and the original
-Size→Speed→CPU Usage→Rating / Usage→Rating columns. Compressing/Decompressing keep
-Current/Resulting rows; Total Rating shares the numeric columns. Values and
-numeric headers are right-aligned. Elapsed/Passes and the source pass limit
-precede the log and CPU/version/system information.
-The common footer holds Copy, Restart, Stop and Close in normal mode and
-Copy and Close in total mode, using native button roles and content sizes.
-Close calls the existing source cancellation/join workflow. Restart remains
-initially focused in normal mode; total mode initially focuses its console.
-Tab includes parameters, scroll viewport, nonempty log and footer actions.
-Both source templates request minimize/maximize/resizable style and no
-context-help title-bar button; Qt retains native modal-chrome conventions.
-Both log and total console are read-only, use the system monospaced family at
-the dialog text size and preserve horizontal/vertical scrolling without wrapping.
-The normal log appears beneath the table when nonempty. Copy exports full
-formatted source metrics, parameters, metadata and log; table columns retain
-alignment when pasted as tab-separated text. Total Copy uses selected or full
-console text and is disabled while empty. Neither copy action closes the window.
-The normal report scrolls in both directions at compact sizes; keyboard arrows
-scroll its focused viewport. System information wraps; a gutter protects it
-from overlay scrollbars. The common footer remains exposed.
-
-`benchmark_lifecycle` writes source-initial and normal/total EN/RU JSON at960×650 and640×400,
-checks named labels/inputs after scrolling, footer exposure, keyboard traversal,
-live language changes, long Unicode copy and source worker lifecycle. Lower system
-rows may be below the compact viewport and remain reachable by scrolling.
-Historical original Windows comparisons are retained in the
-[secondary-dialog receipt](../archive/qt-port/upstream-port-audit/p3-06-secondary-dialogs-2026-10-16.md);
-they do not establish rendered parity for the approved redesign. Current scope
-and platform validation are recorded in the [redesign audit](../upstream-port-audit/ui-redesign.md).
-
 ## Commands and reports
 
 ## Folder history list

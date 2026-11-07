@@ -18,10 +18,8 @@ void ExtractArchives(const UStringVector &arcPaths, const UString &outFolder, bo
 void TestArchives(const UStringVector &arcPaths, bool hashMode = false);
 void CalcChecksum(const UStringVector &paths, const UString &methodName,
                   const UString &arcPathPrefix, const UString &arcFileName);
-void Benchmark(bool totalMode);
 #endif
 class QWidget;
-class IQtBenchmarkServices;
 class IQtCompressCallServices;
 HRESULT CompressFiles(const UString &arcPathPrefix, const UString &arcName, const UString &arcType,
                       bool addExtension, const UStringVector &names, bool email, bool showDialog,
@@ -32,5 +30,3 @@ HRESULT TestArchives(const UStringVector &paths, bool hashMode, IQtCompressCallS
 HRESULT CalcChecksum(const UStringVector &paths, const UString &methodName,
                      const UString &arcPathPrefix, const UString &arcFileName,
                      IQtCompressCallServices &services);
-HRESULT Benchmark(bool totalMode, const CExternalCodecs *externalCodecs, QWidget *parent,
-                  IQtBenchmarkServices *services = nullptr);

@@ -23,8 +23,6 @@ QString OperationName(QtOperationJob::Command command) {
         return Text(QT_TRANSLATE_NOOP("QtOperationsButton", "Create archive"));
     case Command::Hash:
         return Text(QT_TRANSLATE_NOOP("QtOperationsButton", "Checksums"));
-    case Command::Benchmark:
-        return Text(QT_TRANSLATE_NOOP("QtOperationsButton", "Benchmark"));
     }
     return {};
 }

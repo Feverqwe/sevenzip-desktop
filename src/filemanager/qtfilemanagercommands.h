@@ -89,7 +89,6 @@ class QtFileManagerCommands final : public IQtFileManagerMenuCommandServices {
     int TimestampLevel(unsigned index) const override;
     void SetTimestampLevel(int level) override;
     void OptionsDialog() override;
-    void MyBenchmark(bool totalMode) override;
     void AboutDialog() override;
     void MyBrowseForTempFolder() override;
     void OpenBookmark(unsigned index) override;
@@ -113,7 +112,6 @@ class QtFileManagerCommands final : public IQtFileManagerMenuCommandServices {
         bool root = false;
         bool comment = false;
         bool focusedNonParent = false;
-        bool benchmark = false;
         QHash<unsigned, bool> hashMethods;
         bool one = false, oneFile = false, operated = false, focused = false;
         bool focusedFile = false, folderSize = false, selectedParent = false;

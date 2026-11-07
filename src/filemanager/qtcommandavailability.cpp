@@ -83,7 +83,6 @@ QtFileManagerCommands::TransportCapabilities QtFileManagerCommands::ReadTranspor
         const auto catalog = w.backend_->codecCatalog();
         c.batchArchives = catalog && catalog->result() == S_OK;
     }
-    c.benchmark = w.backend_->supportsBenchmark();
     if (panel.DoesItSupportOperations()) {
         QHash<unsigned, QString> requested;
         for (auto it = w.hashActions_.cbegin(); it != w.hashActions_.cend(); ++it)
@@ -183,9 +182,6 @@ QHash<unsigned, bool> QtFileManagerCommands::Availability() {
 
 bool QtFileManagerCommands::TransportAllows(unsigned id, const TransportCapabilities &c) const {
     switch (id) {
-    case IDM_BENCHMARK:
-    case IDM_BENCHMARK2:
-        return c.benchmark;
     case kMenuCmdID_Toolbar_Add:
         return c.filesystem || c.mutationWritable;
     case kMenuCmdID_Toolbar_Extract:

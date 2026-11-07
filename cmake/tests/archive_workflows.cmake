@@ -263,8 +263,6 @@ if(BUILD_TESTING)
     add_test(NAME source_drop_add COMMAND source_drop_add_tests -silent)
     set_tests_properties(source_drop_add PROPERTIES TIMEOUT 60 RESOURCE_LOCK sevenzip_native_ui ENVIRONMENT
         "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/source_drop_add.ini")
-    qt_add_executable(benchmark_command_tests tests/ui/benchmark_command_tests.cpp)
-    target_link_libraries(benchmark_command_tests PRIVATE sevenzip_window)
     qt_add_executable(link_command_tests tests/fileops/link_command_tests.cpp)
     target_link_libraries(link_command_tests PRIVATE sevenzip_window)
     target_include_directories(link_command_tests PRIVATE src tests)
@@ -349,18 +347,6 @@ if(BUILD_TESTING)
     endif()
     set_tests_properties(link_command PROPERTIES TIMEOUT 30 ENVIRONMENT
         "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/link_command.ini")
-    target_include_directories(benchmark_command_tests PRIVATE src tests)
-    target_link_libraries(benchmark_command_tests PRIVATE Qt6::Test)
-    target_compile_definitions(benchmark_command_tests PRIVATE
-        "SEVENZIP_OPERATION_HOST=\"$<TARGET_FILE:operation_host>\"")
-    add_dependencies(benchmark_command_tests operation_host)
-    if(SEVENZIP_CODEC_MODULE)
-        target_compile_definitions(benchmark_command_tests PRIVATE
-            "SEVENZIP_CODEC_MODULE=\"${SEVENZIP_CODEC_MODULE}\"")
-    endif()
-    add_test(NAME benchmark_command COMMAND benchmark_command_tests -silent)
-    set_tests_properties(benchmark_command PROPERTIES TIMEOUT 90 ENVIRONMENT
-        "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/benchmark_command.ini")
     target_include_directories(native_hash_ui_tests PRIVATE src tests)
     target_link_libraries(native_hash_ui_tests PRIVATE Qt6::Test)
     if(SEVENZIP_CODEC_MODULE)

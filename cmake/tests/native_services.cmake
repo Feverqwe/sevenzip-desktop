@@ -212,18 +212,6 @@
     target_compile_definitions(operation_hash_tests PRIVATE
         "SEVENZIP_OPERATION_HOST=\"$<TARGET_FILE:operation_host>\"")
     add_dependencies(operation_hash_tests operation_host)
-    qt_add_executable(operation_benchmark_tests tests/operations/operation_benchmark_tests.cpp tests/support/operation_parent.cpp)
-    target_include_directories(operation_benchmark_tests PRIVATE src tests)
-    target_link_libraries(operation_benchmark_tests PRIVATE sevenzip_filesystem Qt6::Test)
-    if(SEVENZIP_CODEC_MODULE)
-        target_compile_definitions(operation_benchmark_tests PRIVATE
-            "SEVENZIP_CODEC_MODULE=\"${SEVENZIP_CODEC_MODULE}\"")
-    endif()
-    target_compile_definitions(operation_benchmark_tests PRIVATE
-        "SEVENZIP_OPERATION_HOST=\"$<TARGET_FILE:operation_host>\"")
-    add_dependencies(operation_benchmark_tests operation_host)
-    add_test(NAME operation_benchmark COMMAND operation_benchmark_tests -silent)
-    set_tests_properties(operation_benchmark PROPERTIES TIMEOUT 90 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
     if(WIN32)
         qt_add_executable(native_mapi_host
             tests/support/native_mapi_host.cpp

@@ -48,7 +48,7 @@ endif()
 if(BUILD_TESTING AND WIN32)
     foreach(sevenzip_toolbar_test IN ITEMS toolbar_archive_workflow toolbar_archive_batch
             toolbar_creation_workflow manager_hash_workflow operation_launcher operation_extraction
-            operation_creation operation_hash operation_benchmark)
+            operation_creation operation_hash)
       if(TEST ${sevenzip_toolbar_test})
         get_property(sevenzip_toolbar_environment TEST ${sevenzip_toolbar_test} PROPERTY ENVIRONMENT)
         list(FILTER sevenzip_toolbar_environment EXCLUDE REGEX "^QT_QPA_PLATFORM=")

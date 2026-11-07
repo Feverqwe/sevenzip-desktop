@@ -14,7 +14,6 @@
 #include "Common/MyException.h"
 #include "Common/StringConvert.h"
 #include "archive/hashing/qtfilecrc.h"
-#include "benchmark/BenchmarkDialog.h"
 #include "gui/ExtractGUI.h"
 #include "gui/HashGUI.h"
 #include "gui/UpdateCallbackGUI.h"
@@ -102,6 +101,9 @@ static int Main2(const QtGUIServiceFactory &factory, const QtGUICommandSource &c
         parser.Parse2(options);
     }
 
+    if (options.Command.CommandType == NCommandType::kBenchmark)
+        return NExitCode::kUserError;
+
     const bool hashOnly = options.Command.CommandType == NCommandType::kHash;
     QtShellArchiveServices &services = factory(hashOnly);
     CCodecs *codecs = &services.GUICodecs(hashOnly);
@@ -158,29 +160,12 @@ static int Main2(const QtGUIServiceFactory &factory, const QtGUICommandSource &c
 
 #ifdef Z7_EXTERNAL_CODECS
     if (isExtractGroupCommand || options.Command.IsFromUpdateGroup() ||
-        options.Command.CommandType == NCommandType::kHash ||
-        options.Command.CommandType == NCommandType::kBenchmark)
+        options.Command.CommandType == NCommandType::kHash)
         ThrowException_if_Error(hashOnly ? services.LoadHashProviders(_externalCodecs)
                                          : services.LoadExternalCodecs(_externalCodecs));
 #endif
 
-    if (options.Command.CommandType == NCommandType::kBenchmark) {
-        HRESULT operationResult = S_OK;
-        HRESULT res = Benchmark(EXTERNAL_CODECS_VARS_L options.Properties,
-                                options.NumIterations_Defined ? options.NumIterations
-                                                              : k_NumBenchIterations_Default,
-                                nullptr, nullptr, &operationResult);
-        /*
-        if (res == S_FALSE)
-        {
-          stdStream << "\nDecoding Error\n";
-          return NExitCode::kFatalError;
-        }
-        */
-        ThrowException_if_Error(res);
-        if (operationResult != S_OK)
-            return operationResult == E_ABORT ? NExitCode::kUserBreak : NExitCode::kFatalError;
-    } else if (isExtractGroupCommand) {
+    if (isExtractGroupCommand) {
         UStringVector ArchivePathsSorted;
         UStringVector ArchivePathsFullSorted;
 

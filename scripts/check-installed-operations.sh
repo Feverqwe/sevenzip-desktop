@@ -51,8 +51,8 @@ targets=("${entry_targets[@]}")
 tests="$entry_tests"
 if ! "$entry_only"; then
     targets+=(operation_launcher_tests operation_extraction_tests operation_creation_tests
-        operation_benchmark_tests benchmark_command_tests manager_hash_workflow_tests)
-    tests+='|operation_launcher|operation_extraction|operation_creation|operation_benchmark|benchmark_command|manager_hash_workflow'
+        manager_hash_workflow_tests)
+    tests+='|operation_launcher|operation_extraction|operation_creation|manager_hash_workflow'
 fi
 ./scripts/build.sh dev "${targets[@]}"
 "$interpreter" scripts/package.py --build-dir "$SEVENZIP_BUILD_ROOT/dev" --install-only "$install"

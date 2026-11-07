@@ -305,7 +305,7 @@ class MainShellTests final : public QObject {
     void sourceCommandsKeepAvailabilityAndShortcuts() {
         ControlledBackend backend;
         MainWindow window(&backend);
-        for (const char *name : {"diffAction", "linkAction", "benchmarkAction"}) {
+        for (const char *name : {"diffAction", "linkAction"}) {
             auto *action = window.findChild<QAction *>(name);
             QVERIFY(action);
             QVERIFY(!action->isEnabled());

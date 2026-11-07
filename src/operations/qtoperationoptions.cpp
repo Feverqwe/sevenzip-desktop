@@ -13,12 +13,8 @@ void ConfigureOperationOptions(const QtOperationJob &job, CArcCmdLineOptions &op
     const bool extract = job.Operation == QtOperationJob::Command::Extract;
     const bool compress = job.Operation == QtOperationJob::Command::Compress;
     const bool hash = job.Operation == QtOperationJob::Command::Hash;
-    const bool benchmark = job.Operation == QtOperationJob::Command::Benchmark;
-    defaults.Add(benchmark ? L"b" : hash ? L"h" : compress ? L"a" : extract ? L"x" : L"t");
-    if (!benchmark)
-        defaults.Add(L"-an");
-    else if (job.TotalMode)
-        defaults.Add(L"-mm=*");
+    defaults.Add(hash ? L"h" : compress ? L"a" : extract ? L"x" : L"t");
+    defaults.Add(L"-an");
     if (job.HashMode)
         defaults.Add(L"-thash");
     if (hash && !job.HashMethod.isEmpty())
@@ -39,8 +35,6 @@ void ConfigureOperationOptions(const QtOperationJob &job, CArcCmdLineOptions &op
         defaults.Add(L"-y");
     parser.Parse1(defaults, options);
     parser.Parse2(options);
-    if (benchmark)
-        return;
     if (hash) {
         options.Censor.CensorPaths.Clear();
         options.Censor.Pairs.Clear();

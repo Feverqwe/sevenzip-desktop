@@ -293,22 +293,9 @@ HRESULT ArchiveBackend::loadHashProviders(CExternalCodecs &providers) const {
     return LoadProviders(codecCatalog(), true, providers);
 }
 
-HRESULT ArchiveBackend::loadBenchmarkProviders(CExternalCodecs &providers) const {
+HRESULT ArchiveBackend::loadArchiveProviders(CExternalCodecs &providers) const {
     providers.ClearAndRelease();
     return LoadProviders(codecCatalog(), false, providers);
-}
-
-bool ArchiveBackend::supportsBenchmark() const {
-    const auto catalog = codecCatalog();
-    CExternalCodecs providers;
-    if (LoadProviders(catalog, false, providers) != S_OK)
-        return false;
-    CMethodId method;
-    UInt32 streams;
-    bool filter;
-    return FindMethod_Index(&providers, AString("LZMA"), true, method, streams, filter) >= 0 &&
-           streams == 1 && !filter &&
-           FindMethod_Index(&providers, AString("LZMA"), false, method, streams, filter) >= 0;
 }
 
 QStringList ArchiveBackend::supportedHashMethods(const QStringList &methods) const {

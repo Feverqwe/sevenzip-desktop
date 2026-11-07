@@ -222,15 +222,6 @@ static void MyChangeMenu(const QList<QAction *> &menu, unsigned menuID, unsigned
                 if (tabPos >= 0)
                     newString.DeleteFrom(tabPos);
                 newString += (langID == IDM_OPEN_INSIDE_ONE ? " *" : " #");
-            } else if (langID == IDM_BENCHMARK2) {
-                MenuLangString(IDM_BENCHMARK, newString);
-                if (newString.IsEmpty())
-                    continue;
-                newString.Replace(L"&", L"");
-                const int tabPos = newString.Find(L'\t');
-                if (tabPos >= 0)
-                    newString.DeleteFrom(tabPos);
-                newString += " 2";
             } else
                 MenuLangString(langID, newString);
             if (newString.IsEmpty())
@@ -303,11 +294,8 @@ void CFileMenu::Load(IQtFileMenuServices &destMenu, unsigned startPos) {
                 // We use diff as "super mode" marker for additional commands.
                 /* if (diffPath.IsEmpty()) continue; */
             }
-            if (item.wID == IDM_BENCHMARK2) {
-                // We use diff as "super mode" marker for additional commands.
-                if (diffPath.IsEmpty())
-                    continue;
-            }
+            if (item.wID == IDM_BENCHMARK || item.wID == IDM_BENCHMARK2)
+                continue;
             bool isOneFsFile = (isFsFolder && numItems == 1 && allAreFiles);
             bool disable = (!isOneFsFile && (item.wID == IDM_SPLIT || item.wID == IDM_COMBINE));
             if (readOnly) {

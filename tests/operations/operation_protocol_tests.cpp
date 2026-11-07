@@ -60,11 +60,9 @@ class OperationProtocolTests final : public QObject {
         QVERIFY(completion.waitForFinished(1000));
         QVERIFY(completion.returnValue());
     }
-    void benchmarkHasNoFileSelection() {
+    void removedBenchmarkOperationIsRejected() {
         QtOperationJob job;
-        job.Operation = QtOperationJob::Command::Benchmark;
-        job.TotalMode = true;
-        QVERIFY(ValidateOperationJob(job));
+        job.Operation = QtOperationJob::Command(4); // Former GUI Benchmark wire command.
         job.Paths = {"/unrelated-file"};
         QVERIFY(!ValidateOperationJob(job));
     }

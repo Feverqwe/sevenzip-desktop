@@ -80,7 +80,7 @@ HRESULT QtShellArchiveServices::LoadHashProviders(CExternalCodecs &providers) {
     return _backend.loadHashProviders(providers);
 }
 HRESULT QtShellArchiveServices::LoadExternalCodecs(CExternalCodecs &providers) {
-    return _backend.loadBenchmarkProviders(providers);
+    return _backend.loadArchiveProviders(providers);
 }
 HRESULT QtShellArchiveServices::ExtractGUI(CCodecs &codecs, const CObjectVector<COpenType> &types,
                                            UStringVector &paths, UStringVector &fullPaths,

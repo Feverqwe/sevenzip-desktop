@@ -146,8 +146,10 @@ class OperationCreationTests final : public QObject {
             QVERIFY(!QFileInfo::exists(source));
             Environment suppliedPassword("SEVENZIP_OPERATION_PASSWORD", "fixture password");
             const QString output = directory.filePath("decrypted");
-            QCOMPARE(Run(QStringLiteral(SEVENZIP_OPERATION_HOST), Extract(actual, output)).Status,
-                     Outcome::Success);
+            auto extract = Extract(actual, output);
+            extract.YesToAll = false;
+            const auto extracted = Run(QStringLiteral(SEVENZIP_OPERATION_HOST), extract);
+            QVERIFY2(extracted.Status == Outcome::Success, qPrintable(extracted.Error));
             QCOMPARE(readFile(QDir(output).filePath("secret 空.txt")),
                      QByteArray("protected native payload"));
         }
