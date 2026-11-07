@@ -126,6 +126,68 @@ class PasswordWindowTests final : public QObject, protected MainWindowTestSuppor
         QCOMPARE(testResults, 2);
         QVERIFY2(errors.isEmpty(), qPrintable(errors.join('\n')));
     }
+    void encryptedArchiveOpenCanBeRetriedFromTheFileList() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString name = QStringLiteral("payload 空.txt");
+        const QString archive = fixture.filePath("protected archive.7z");
+        const QString password = QStringLiteral("пароль 密碼");
+        QVERIFY(SourceExtractFixture::writeFile(fixture.filePath(name), "original payload"));
+        QVERIFY(NativeArchiveFixture::WriteFiles(archive, {fixture.filePath(name)}, "7z", password,
+                                                 true));
+        ArchiveBackend backend;
+        int externalCalls = 0;
+        MainWindow window(&backend, [&](const QUrl &) {
+            ++externalCalls;
+            return true;
+        });
+        window.show();
+        window.openPath(fixture.path());
+        auto *view = table(window);
+        QTRY_VERIFY(view->isEnabled());
+        const int row = filesystemRow(window, QFileInfo(archive).fileName());
+        QVERIFY(row >= 0);
+        WidgetDialogFixture dialogs;
+        enum class Answer { Cancel, Incorrect, Correct };
+        Answer answer = Answer::Cancel;
+        int prompts = 0;
+        int errors = 0;
+        QTimer drive;
+        dialogs.connectResponder(drive, &window, [&] {
+            if (auto *dialog = dynamic_cast<CPasswordDialog *>(dialogs.activeDialog())) {
+                ++prompts;
+                if (answer == Answer::Cancel)
+                    dialog->reject();
+                else {
+                    dialog->findChild<QLineEdit *>("passwordEdit")
+                        ->setText(answer == Answer::Correct ? password : QString("incorrect"));
+                    dialog->accept();
+                }
+            } else if (auto *warning = qobject_cast<QMessageBox *>(dialogs.activeDialog())) {
+                ++errors;
+                warning->accept();
+            }
+        });
+        drive.start(5);
+        openRow(window, row);
+        QTRY_VERIFY(view->isEnabled() && view->sourcePanel->IsFSFolder());
+        QCOMPARE(prompts, 1);
+        QCOMPARE(errors, 0);
+        QCOMPARE(externalCalls, 0);
+        answer = Answer::Incorrect;
+        openRow(window, row);
+        QTRY_VERIFY(view->isEnabled() && view->sourcePanel->IsFSFolder());
+        QCOMPARE(prompts, 2);
+        QCOMPARE(errors, 1);
+        QCOMPARE(externalCalls, 0);
+        answer = Answer::Correct;
+        openRow(window, row);
+        QTRY_VERIFY(view->isEnabled() && view->sourcePanel->IsArcFolder());
+        QCOMPARE(prompts, 3);
+        QCOMPARE(externalCalls, 0);
+        QVERIFY(rowWithPath(window, name) >= 0);
+    }
+
     void passwordPromptCancellationAndReopen() {
         ControlledBackend backend;
         MainWindow window(&backend);

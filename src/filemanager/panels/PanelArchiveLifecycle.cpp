@@ -111,6 +111,10 @@ HRESULT CPanel::OpenAsArc_Msg(IInStream *inStream, const CTempFileInfo &tempFile
         else
             message = HResultToMessage(res);
         MessageBox_Error(message);
+        // A recognized encrypted archive must not fall through to an external
+        // application when the supplied password did not open it.
+        if (res == S_FALSE)
+            return E_FAIL;
     }
     return res;
 }
