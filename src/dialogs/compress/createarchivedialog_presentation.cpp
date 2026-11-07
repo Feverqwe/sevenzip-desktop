@@ -182,16 +182,17 @@ void CreateArchiveDialog::createArchiveForm(QVBoxLayout *layout, QVBoxLayout *wi
         }
         UString draft = ToUString(QDir::toNativeSeparators(name_->text()));
         draft.Trim();
-        const bool hasRoot = NWindows::NFile::NName::GetRootPrefixSize(draft) != 0;
+        const bool nameIncludesPath = NWindows::NFile::NName::GetRootPrefixSize(draft) != 0 ||
+                                      NWindows::NFile::NName::FindSepar(draft) >= 0;
         const QFileInfo target(resolved);
-        const QString initial = hasRoot ? target.absolutePath() : archiveFolder_->text();
+        const QString initial = draft.IsEmpty() ? target.absoluteFilePath() : target.absolutePath();
         UString folder;
         if (MyBrowseForFolder(
                 this,
                 ToUString(QCoreApplication::translate("ArchiveRedesign", "Destination folder")),
                 ToUString(initial), folder)) {
             archiveFolder_->setText(QDir::toNativeSeparators(ToQString(folder)));
-            if (hasRoot)
+            if (nameIncludesPath)
                 name_->setText(target.fileName());
         }
     });

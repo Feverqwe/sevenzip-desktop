@@ -433,12 +433,13 @@ class CompressionPathTests final : public QObject {
         QCOMPARE(occupied.readAll(), QByteArray("keep"));
     }
     void destinationPickerRetainsNameAndCancelDraft_data() {
-        QTest::addColumn<bool>("fullPath");
-        QTest::newRow("filename") << false;
-        QTest::newRow("absolute-path") << true;
+        QTest::addColumn<QString>("form");
+        QTest::newRow("filename") << QString("filename");
+        QTest::newRow("absolute-path") << QString("absolute");
+        QTest::newRow("relative-path") << QString("relative");
     }
     void destinationPickerRetainsNameAndCancelDraft() {
-        QFETCH(bool, fullPath);
+        QFETCH(QString, form);
         QTemporaryDir destination;
         QTemporaryDir original;
         QVERIFY(destination.isValid());
@@ -452,8 +453,12 @@ class CompressionPathTests final : public QObject {
         auto *folder = dialog.findChild<QLineEdit *>("archiveFolder");
         auto *format = dialog.findChild<QComboBox *>("archiveFormat");
         const QString draft = QStringLiteral("имя with spaces 空.7z");
-        const QString entered =
-            fullPath ? QDir::toNativeSeparators(original.filePath(draft)) : draft;
+        QVERIFY(QDir(original.path()).mkdir("nested"));
+        folder->setText(original.path());
+        const QString entered = form == "absolute"
+                                    ? QDir::toNativeSeparators(original.filePath(draft))
+                                : form == "relative" ? "nested/" + draft
+                                                     : draft;
         name->setText(entered);
         dialog.show();
         for (bool accept : {false, true}) {
@@ -472,9 +477,10 @@ class CompressionPathTests final : public QObject {
                             picker->reject();
                     });
                     QCOMPARE(picker->fileMode(), QFileDialog::Directory);
-                    if (fullPath)
-                        QCOMPARE(picker->directory().canonicalPath(),
-                                 QFileInfo(original.path()).canonicalFilePath());
+                    const QString initial =
+                        form == "relative" ? original.filePath("nested") : original.path();
+                    QCOMPARE(picker->directory().canonicalPath(),
+                             QFileInfo(initial).canonicalFilePath());
                     if (accept) {
                         picker->setDirectory(destination.path());
                         picker->selectFile(destination.path());
@@ -526,6 +532,7 @@ class CompressionPathTests final : public QObject {
         dialog.findChild<QLineEdit *>("archiveFolder")->clear();
         dialog.findChild<QLineEdit *>("archiveName")->setText(draft);
         bool pickerOpened = false;
+        QString openedAt;
         QString error;
         QTimer answer;
         connect(&answer, &QTimer::timeout, &dialog, [&] {
@@ -535,6 +542,7 @@ class CompressionPathTests final : public QObject {
             } else if (auto *picker =
                            qobject_cast<QFileDialog *>(QApplication::activeModalWidget())) {
                 pickerOpened = true;
+                openedAt = picker->directory().canonicalPath();
                 picker->reject();
             }
         });
@@ -543,12 +551,13 @@ class CompressionPathTests final : public QObject {
         answer.stop();
         QVERIFY2(error.isEmpty(), qPrintable(error));
         QVERIFY(pickerOpened);
+        const QString resolved = QDir::cleanPath(initial + '/' + draft);
+        QCOMPARE(openedAt, QFileInfo(QFileInfo(resolved).absolutePath()).canonicalFilePath());
         QCOMPARE(dialog.findChild<QLineEdit *>("archiveName")->text(), draft);
         QVERIFY(dialog.findChild<QLineEdit *>("archiveFolder")->text().isEmpty());
         submit(dialog);
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
-        QCOMPARE(QDir::fromNativeSeparators(dialog.target()),
-                 QDir::cleanPath(initial + '/' + draft));
+        QCOMPARE(QDir::fromNativeSeparators(dialog.target()), resolved);
         QVERIFY(!QFileInfo::exists(dialog.target()));
     }
     void realArchiveAndValidation() {
