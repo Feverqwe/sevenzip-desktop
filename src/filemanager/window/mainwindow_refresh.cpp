@@ -52,9 +52,8 @@ HRESULT MainWindow::reloadProjectedPanel(const CSelectedState &selection) {
         snapshot.insert(projectedUi().directory, filesystemSignature(projectedUi().directory));
         projectedUi().table->clearSelection();
         projectedUi().table->clearRows();
-        statusBar()->showMessage(
-            QCoreApplication::translate("mainwindow_refresh", "Folder not found: ") +
-            projectedUi().directory);
+        showStatusMessage(QCoreApplication::translate("mainwindow_refresh", "Folder not found: ") +
+                          projectedUi().directory);
         refreshActions();
         return loaded;
     }

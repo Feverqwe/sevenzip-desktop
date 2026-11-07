@@ -93,8 +93,11 @@ class ArchivePropertyCatalogTests : public QObject {
         QFETCH(bool, crc);
         ArchiveEntry first{"first.txt", 1, 1};
         first.properties.insert("Note", QStringLiteral("первая запись"));
-        if (timestamp)
-            first.modified = "2026-09-28 12:34:56.1234567";
+        if (timestamp) {
+            first.modifiedTime.emplace();
+            first.modifiedTime->SetAsTimeFrom_Ft64_Prec(116444736001234567ULL,
+                                                        k_PropVar_TimePrec_100ns);
+        }
         if (crc)
             first.crc = 0x12345678;
         ArchiveEntry second{"second.txt", 2, 2};
@@ -124,25 +127,30 @@ class ArchivePropertyCatalogTests : public QObject {
         QVERIFY(foundNote);
     }
     void suppliedTimestampUsesNativeTimeAndMissingValuesRemainSparse() {
+        ArchiveEntry known{"known.txt", 1, 1, "deliberately unrelated presentation text"};
+        known.modifiedTime.emplace();
+        const FILETIME original{UInt32(116444736001234567ULL), UInt32(116444736001234567ULL >> 32)};
+        known.modifiedTime->SetAsTimeFrom_FT_Prec_Ns100(original, k_PropVar_TimePrec_1ns, 89);
         CMyComPtr<IFolderFolder> folder;
-        QCOMPARE(
-            CreateArchiveFolder({ArchiveEntry{"known.txt", 1, 1, "2026-09-28 12:34:56.1234567"},
-                                 ArchiveEntry{"unknown.txt", 2, 2},
-                                 ArchiveEntry{"invalid.txt", 3, 3, "invalid timestamp"}},
-                                UString(L"7z"), &folder),
-            S_OK);
+        QCOMPARE(CreateArchiveFolder(
+                     {known, ArchiveEntry{"unknown.txt", 2, 2},
+                      ArchiveEntry{"invalid.txt", 3, 3, "invalid timestamp"},
+                      ArchiveEntry{"display-only.txt", 4, 4, "2026-09-28 12:34:56.1234567"}},
+                     UString(L"7z"), &folder),
+                 S_OK);
         expectProperty(folder, kpidMTime, VT_FILETIME);
         CPropVariant prop;
         QCOMPARE(folder->GetProperty(0, kpidMTime, &prop), S_OK);
         QCOMPARE(prop.vt, VARTYPE(VT_FILETIME));
-        char text[64];
-        QVERIFY(ConvertUtcFileTimeToString2(prop.filetime, 0, text, kTimestampPrintLevel_NTFS,
-                                            kTimestampPrintFlags_Force_LOCAL |
-                                                kTimestampPrintFlags_DisableZ));
-        QCOMPARE(QString::fromLatin1(text), QString("2026-09-28 12:34:56.1234567"));
+        QCOMPARE(prop.filetime.dwLowDateTime, original.dwLowDateTime);
+        QCOMPARE(prop.filetime.dwHighDateTime, original.dwHighDateTime);
+        QCOMPARE(prop.wReserved1, WORD(k_PropVar_TimePrec_1ns));
+        QCOMPARE(prop.wReserved2, WORD(89));
         QCOMPARE(folder->GetProperty(1, kpidMTime, &prop), S_OK);
         QCOMPARE(prop.vt, VARTYPE(VT_EMPTY));
         QCOMPARE(folder->GetProperty(2, kpidMTime, &prop), S_OK);
+        QCOMPARE(prop.vt, VARTYPE(VT_EMPTY));
+        QCOMPARE(folder->GetProperty(3, kpidMTime, &prop), S_OK);
         QCOMPARE(prop.vt, VARTYPE(VT_EMPTY));
     }
 

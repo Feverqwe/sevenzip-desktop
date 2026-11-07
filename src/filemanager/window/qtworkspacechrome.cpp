@@ -91,7 +91,7 @@ void QtWindowWorkspace::CreateActions(unsigned panel, QVBoxLayout &layout) {
     layout.addWidget(state.actionRow);
 }
 
-void QtWindowWorkspace::AttachContent(unsigned panel, QVBoxLayout &layout, QWidget &status) {
+void QtWindowWorkspace::AttachContent(unsigned panel, QVBoxLayout &layout) {
     auto &ui = window_.panelUi_[panel];
     ui.navigationNotice = new QWidget;
     auto *notice = new QHBoxLayout(ui.navigationNotice);
@@ -125,7 +125,6 @@ void QtWindowWorkspace::AttachContent(unsigned panel, QVBoxLayout &layout, QWidg
     fileLayout->setContentsMargins(0, 0, 0, 0);
     fileLayout->setSpacing(0);
     fileLayout->addWidget(window_.panelUi_[panel].viewStack, 1);
-    fileLayout->addWidget(&status);
     row->addWidget(files, 1);
     layout.addWidget(body, 1);
     if (!window_.findChild<QAction *>("sidebarAction")) {

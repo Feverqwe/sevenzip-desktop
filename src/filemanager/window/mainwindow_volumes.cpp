@@ -74,7 +74,7 @@ void MainWindow::launchVolume(unsigned index, VolumeOperation *operation, const 
                 if (success) {
                     app_.Panels[index].RefreshListCtrl(selection);
                     if (guard && !app_.QtOperations().closed() && !app_.QtOperations().blocking())
-                        statusBar()->showMessage(message);
+                        showStatusMessage(message);
                 }
             });
     setState(State::Operating);

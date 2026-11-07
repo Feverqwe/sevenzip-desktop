@@ -68,7 +68,7 @@ bool QtWindowWorkspace::TransferTab(const QString &id, QtWindowWorkspace &target
     }
     auto runtime = from.tabs[index].runtime;
     if (this != &target && runtime->source->HasExternalWorkers()) {
-        window_.statusBar()->showMessage(
+        window_.showStatusMessage(
             tr("Finish external editing before moving this tab to another window."));
         return false;
     }

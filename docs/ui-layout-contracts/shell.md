@@ -166,13 +166,23 @@ focused item's rectangle. Qt substitutes visual-item centre/viewport coordinates
 and clamps its popup to the screen. Action order/state is asserted separately
 from widget geometry. Rendered Windows pixel acceptance remains unverified.
 
-Reference: `Panel.cpp::Create/OnSize` gives every panel a status strip below
+The current design uses one window-owned strip for the active pane, including
+two-pane mode. It shows explicit selection/counts and a known total size;
+current-item metadata remains in the file view and Properties. Loading and
+source-bound transient feedback share the left slot, hiding the selected size.
+Expiry restores the current summary. Read-only/limited-access state belongs to
+the source navigation context and remains visible independently of messages.
+The strip follows font metrics, elides long summaries with full tooltips, and
+retains space for known sizes at compact widths. Sizes and dates consume typed
+native values through shared regional presentation, independently of UI language.
+
+Historical reference: `Panel.cpp::Create/OnSize` gives every panel a status strip below
 its list with four parts (`{220, 320, 420, -1}` Win32 boundaries), while
 `PanelListNotify.cpp::Refresh_StatusBar` supplies selected/total, selected
 size, focused size and focused date. `PanelMenu.cpp::OnContextMenu` calls
 `CreateFileMenu(programMenu=false)` and anchors keyboard invocation to the
 focused item. Qt uses four labels below each panel's file area, with adaptive
-widths for compact two-panel layout; the main-window bar displays operation
+widths for compact two-panel layout in that earlier port; the main-window bar displayed operation
 messages. The selection part reserves room for both counts and elides its
 caption from the left; the complete text remains available in its tooltip.
 `panel_shell` checks all four labels visible and independent at

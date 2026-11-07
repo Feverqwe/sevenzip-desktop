@@ -11,8 +11,15 @@
 // selects those existing bindings for commands and temporary callbacks.
 
 void MainWindow::activatePanelUi(unsigned index) {
-    if (index == projectedPanel_ || index >= kNumPanelsMax || !panelUi_[index].container)
+    if (index >= kNumPanelsMax || !panelUi_[index].container)
         return;
+    if (index == projectedPanel_) {
+        if (statusPanel_ != index) {
+            statusPanel_ = index;
+            refreshActions();
+        }
+        return;
+    }
     if (app_.QtOperations().blocking()) {
         app_.SetFocusedPanel(projectedPanel_);
         return;
@@ -24,6 +31,7 @@ void MainWindow::activatePanelUi(unsigned index) {
         CPanel::CDisableNotify targetNotify(app_.Panels[index]);
         QScopedValueRollback<unsigned> projection(panelProjectionDepth_, panelProjectionDepth_ + 1);
         projectedPanel_ = index;
+        statusPanel_ = index;
         app_.SetFocusedPanel(index);
         setState(projectedUi().state);
     }
@@ -49,7 +57,6 @@ void MainWindow::withPanelProjection(unsigned index, const std::function<void()>
     }
     const unsigned original = projectedPanel_;
     const QPointer<MainWindow> guard(this);
-    const QString status = statusBar()->currentMessage();
     projectedPanel_ = index;
     app_.SetFocusedPanel(index);
     ++panelProjectionDepth_;
@@ -61,7 +68,6 @@ void MainWindow::withPanelProjection(unsigned index, const std::function<void()>
         --panelProjectionDepth_;
         if (!app_.QtOperations().closed()) {
             refreshActions();
-            statusBar()->showMessage(status);
         }
     });
     body();
@@ -84,6 +90,7 @@ void MainWindow::togglePanels() {
         return;
     }
     twoPanelsAction_->setChecked(app_.NumPanels == 2);
+    statusPanel_ = projectedPanel_;
     refreshActions();
     if (panelSplitter_ && app_.NumPanels == 2) {
         panelSplitter_->UpdateSourceLayout();

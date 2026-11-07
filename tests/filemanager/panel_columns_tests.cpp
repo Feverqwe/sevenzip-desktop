@@ -1,10 +1,14 @@
 #include "7zip/PropID.h"
 #include "Windows/PropVariant.h"
 #include "filemanager/panels/Panel.h"
+#include "filemanager/properties/qtpropertyformat.h"
 #include "filemanager/support/panel_model_support.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
+#include "localization/LangUtils.h"
+#include "localization/qtlangcontrols.h"
 #include "ui/support/layout_inspection.h"
+#include <QTimeZone>
 
 #include <QAbstractItemModelTester>
 #include <QHeaderView>
@@ -345,7 +349,7 @@ class PanelColumnsTests final : public QObject, protected MainWindowTestSupport 
         QVERIFY(files->isColumnHidden(diskSize));
     }
 
-    void sourceTimeLevelsUtcAndRawSortSurviveReopen() {
+    void systemDatesAndRawSortSurviveReopen() {
         QTemporaryDir temp;
         QVERIFY(temp.isValid());
         CurrentDirectoryGuard directoryGuard;
@@ -366,43 +370,33 @@ class PanelColumnsTests final : public QObject, protected MainWindowTestSupport 
             MainWindow window;
             window.show();
             auto *files = static_cast<FileTable *>(table(window));
-            auto *viewMenu = window.findChild<QMenu *>("viewMenu");
-            QVERIFY(viewMenu);
-            QVERIFY(QMetaObject::invokeMethod(viewMenu, "aboutToShow", Qt::DirectConnection));
-            for (int index = 0; index < 5; ++index) {
-                auto *action = window.findChild<QAction *>(
-                    QStringLiteral("timestampLevel%1Action").arg(index));
-                QVERIFY(action);
-                QVERIFY(!action->text().isEmpty());
-            }
             files->sortItems(4, Qt::AscendingOrder);
             QCOMPARE(files->model()->index(0, 0).data().toString(), QStringLiteral("earlier.txt"));
-            auto *day = window.findChild<QAction *>("timestampLevel0Action");
-            day->trigger();
-            QCOMPARE(files->model()->index(0, 4).data().toString().size(), 10);
-            QCOMPARE(files->model()->index(1, 4).data().toString(),
-                     files->model()->index(0, 4).data().toString());
-            QCOMPARE(files->model()->index(0, 0).data().toString(), QStringLiteral("earlier.txt"));
-            auto *utc = window.findChild<QAction *>("timestampUtcAction");
-            utc->trigger();
-            QVERIFY(files->model()->index(0, 4).data().toString().endsWith('Z'));
-            auto *seconds = window.findChild<QAction *>("timestampLevel2Action");
-            seconds->trigger();
-            QVERIFY(
-                files->model()->index(0, 4).data().toString().contains(QStringLiteral("04:05:06")));
+            const QString expected =
+                QLocale::system().toString(base.toLocalTime(), QLocale::ShortFormat);
+            QCOMPARE(files->model()->index(0, 4).data().toString(), expected);
+            QVERIFY(files->model()->index(0, 4).data(Qt::ToolTipRole).toString().contains(".100"));
+            QVERIFY(files->model()->index(1, 4).data(Qt::ToolTipRole).toString().contains(".900"));
+            SaveRegLang(UString("ru"), qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
+            ReloadLang(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
+            QtNotifyLanguageChanged();
+            QCOMPARE(files->model()->index(0, 4).data().toString(), expected);
+            QEvent region(QEvent::LocaleChange);
+            QCoreApplication::sendEvent(files, &region);
+            QCOMPARE(files->model()->index(0, 4).data().toString(), expected);
+            files->sortItems(4, Qt::DescendingOrder);
+            QCOMPARE(files->model()->index(0, 0).data().toString(), QStringLiteral("later.txt"));
+            files->sortItems(4, Qt::AscendingOrder);
             QCOMPARE(files->model()->index(0, 0).data().toString(), QStringLiteral("earlier.txt"));
         }
         {
             MainWindow reopened;
             reopened.show();
             auto *files = static_cast<FileTable *>(table(reopened));
-            QVERIFY(files->model()->index(0, 4).data().toString().endsWith('Z'));
-            QVERIFY(
-                files->model()->index(0, 4).data().toString().contains(QStringLiteral("04:05:06")));
-            auto *viewMenu = reopened.findChild<QMenu *>("viewMenu");
-            QVERIFY(QMetaObject::invokeMethod(viewMenu, "aboutToShow", Qt::DirectConnection));
-            QVERIFY(reopened.findChild<QAction *>("timestampLevel2Action")->isChecked());
-            QVERIFY(reopened.findChild<QAction *>("timestampUtcAction")->isChecked());
+            files->sortItems(4, Qt::AscendingOrder);
+            QCOMPARE(files->model()->index(0, 4).data().toString(),
+                     QLocale::system().toString(base.toLocalTime(), QLocale::ShortFormat));
+            QVERIFY(files->model()->index(0, 4).data(Qt::ToolTipRole).toString().contains(".100"));
             for (const QSize size : {QSize(980, 620), QSize(640, 400)}) {
                 reopened.resize(size);
                 QCoreApplication::processEvents();
@@ -417,18 +411,20 @@ class PanelColumnsTests final : public QObject, protected MainWindowTestSupport 
             archive.show();
             ArchiveEntry entry;
             entry.path = QStringLiteral("архив с пробелом.txt");
-            entry.modified = base.toLocalTime().toString(QStringLiteral("yyyy-MM-dd HH:mm:ss")) +
-                             QStringLiteral(".1234567");
+            entry.modifiedTime.emplace();
+            const UInt64 ticks =
+                UInt64(base.toSecsSinceEpoch() + 11644473600LL) * 10000000 + 1234567;
+            entry.modifiedTime->SetAsTimeFrom_Ft64_Prec(ticks, k_PropVar_TimePrec_100ns);
             openListedArchive(archive, backend, temp.filePath("time.7z"), {entry});
             QTRY_COMPARE(table(archive)->rowCount(), 1);
             auto *files = static_cast<FileTable *>(table(archive));
-            QVERIFY(
-                files->model()->index(0, 4).data().toString().contains(QStringLiteral("04:05:06")));
-            QVERIFY(files->model()->index(0, 4).data().toString().endsWith('Z'));
-            QVERIFY(QMetaObject::invokeMethod(archive.findChild<QMenu *>("viewMenu"), "aboutToShow",
-                                              Qt::DirectConnection));
-            archive.findChild<QAction *>("timestampLevel0Action")->trigger();
-            QCOMPARE(files->model()->index(0, 4).data().toString().size(), 11);
+            QCOMPARE(files->model()->index(0, 4).data().toString(),
+                     QLocale::system().toString(base.toLocalTime(), QLocale::ShortFormat));
+            QVERIFY(files->model()
+                        ->index(0, 4)
+                        .data(Qt::ToolTipRole)
+                        .toString()
+                        .contains(".1234567 UTC"));
         }
     }
 };

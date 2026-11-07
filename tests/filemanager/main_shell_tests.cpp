@@ -207,16 +207,15 @@ class MainShellTests final : public QObject {
                 twoPanels->trigger();
             QApplication::processEvents();
             QStringList differences;
-            if (window.statusBar()->isVisible())
-                differences << "shared idle status bar";
+            if (!window.statusBar()->isVisible() || window.findChildren<QStatusBar *>().size() != 1)
+                differences << "missing or duplicate shared status bar";
             for (unsigned index = 0; index < (phase == 1 ? 2u : 1u); ++index) {
                 auto *panel = window.findChild<QWidget *>(QString("filePanel%1").arg(index));
                 QVERIFY(panel);
                 auto *parent =
                     panel->findChild<QAbstractButton *>(QString("panelParentButton%1").arg(index));
                 QVERIFY(parent && UiInspection::fullyVisible(*parent, window));
-                auto *status = panel->findChild<QStatusBar *>("panelStatusBar");
-                QVERIFY(status && UiInspection::fullyVisible(*status, window));
+                QVERIFY(UiInspection::fullyVisible(*window.statusBar(), window));
                 auto *navigation =
                     panel->findChild<QWidget *>(QString("panelNavigation%1").arg(index));
                 QVERIFY(navigation && UiInspection::fullyVisible(*navigation, window));
@@ -232,7 +231,7 @@ class MainShellTests final : public QObject {
         QVERIFY(UiInspection::fullyVisible(*window.statusBar(), window));
         window.statusBar()->clearMessage();
         QApplication::processEvents();
-        QVERIFY(!window.statusBar()->isVisible());
+        QVERIFY(window.statusBar()->isVisible());
     }
 
     void statusBarsKeepNativeNoGripStyle_data() {
@@ -265,9 +264,9 @@ class MainShellTests final : public QObject {
         QVERIFY(twoPanels);
         const QString message = QStringLiteral("status проверка 空");
         for (int phase = 0; phase < 3; ++phase) {
-            window.statusBar()->showMessage(message);
             if (twoPanels->isChecked() != (phase == 1))
                 twoPanels->trigger();
+            window.statusBar()->showMessage(message);
             QApplication::processEvents();
             QCOMPARE(window.statusBar()->currentMessage(), message);
             QVERIFY(UiInspection::fullyVisible(*window.statusBar(), window));

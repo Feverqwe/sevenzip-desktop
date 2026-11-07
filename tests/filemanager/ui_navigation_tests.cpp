@@ -1,36 +1,64 @@
+#include "7zip/UI/FileManager/ProgressDialog2Res.h"
 #include "7zip/UI/FileManager/resource.h"
+#include "filemanager/properties/qtpropertieswindow.h"
 #include "filemanager/support/window_state_support.h"
+#include "localization/qtlangcontrols.h"
 #include "support/panel_keys.h"
 #include "ui/support/layout_inspection.h"
+#include <QListWidget>
 #include <QScopeGuard>
 #include <QTreeWidget>
 
 class MainWindowNavigationTests : public QObject, protected MainWindowTestSupport {
     Q_OBJECT
 
+    static void closeCompletedProgress(MainWindow &window) {
+        for (auto *dialog : window.findChildren<QDialog *>()) {
+            if (!dialog->isVisible() || (dialog->objectName() != "completedProgressDialog" &&
+                                         dialog->objectName() != "progressDialog"))
+                continue;
+            QPointer<QDialog> result(dialog);
+            auto *close = dialog->findChild<QPushButton *>("IDCANCEL");
+            QVERIFY(close);
+            // Completion is queued. Wait for the user-facing Close action;
+            // invoking Stop before then opens its nested confirmation.
+            QTRY_VERIFY(!result || close->text() == QtLangText(IDS_CLOSE));
+            if (result && result->isVisible())
+                QTest::mouseClick(close, Qt::LeftButton);
+        }
+        QTRY_VERIFY(!QApplication::activeModalWidget());
+    }
+
+    static void openRow(MainWindow &window, int row) {
+        QVERIFY(row >= 0);
+        table(window)->setCurrentCell(
+            row, 0, QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
+        MainWindowTestSupport::openRow(window, row);
+    }
+
     static void acceptHistoryLocation(MainWindow &window, const QString &location) {
-        QTimer::singleShot(0, &window, [&window, location] {
-            auto *dialog = window.findChild<QDialog *>("foldersHistoryDialog");
-            QVERIFY(dialog);
-            const auto close = qScopeGuard([&] {
-                if (dialog->isVisible())
-                    dialog->reject();
-            });
-            auto *list = dialog->findChild<QTreeWidget *>("foldersHistoryList");
-            QVERIFY(list);
-            const auto matches = list->findItems(location, Qt::MatchExactly);
-            QCOMPARE(matches.size(), 1);
-            list->setCurrentItem(matches.first());
-            for (const QSize &size : {QSize(540, 360), QSize(360, 240)}) {
-                dialog->resize(size);
-                QApplication::processEvents();
-                QVERIFY(UiInspection::fullyVisible(*list, *dialog));
-                QVERIFY(UiInspection::writeReport(
-                    *dialog, QStringLiteral("archive-history-%1").arg(size.width())));
-            }
-            dialog->accept();
-        });
         action(window, "foldersHistoryAction")->trigger();
+        QPointer<QDialog> dialog;
+        for (auto *candidate : window.findChildren<QDialog *>("foldersHistoryDialog"))
+            if (candidate->isVisible())
+                dialog = candidate;
+        QVERIFY(dialog);
+        const auto close = qScopeGuard([&] {
+            if (dialog && dialog->isVisible())
+                dialog->reject();
+        });
+        auto *list = dialog->findChild<QListWidget *>("foldersHistoryList");
+        QVERIFY(list);
+        QListWidgetItem *match = nullptr;
+        for (int row = 0; row < list->count(); ++row)
+            if (QDir::cleanPath(
+                    QDir::fromNativeSeparators(list->item(row)->data(Qt::UserRole).toString())) ==
+                QDir::cleanPath(QDir::fromNativeSeparators(location)))
+                match = list->item(row);
+        QVERIFY(match);
+        list->setCurrentItem(match);
+        dialog->findChild<QPushButton *>("recentPlacesOpen")->click();
+        QTRY_VERIFY(!dialog || !dialog->isVisible());
     }
 
   private slots:
@@ -91,11 +119,13 @@ class MainWindowNavigationTests : public QObject, protected MainWindowTestSuppor
         }
         ControlledBackend backend;
         MainWindow window(&backend);
+        window.show();
+        QVERIFY(QTest::qWaitForWindowActive(&window));
         auto *combo = window.findChild<QComboBox *>("pathCombo");
         auto *address = window.findChild<QLineEdit *>("archivePath");
         backend.queueList(entries);
         acceptHistoryLocation(window, sourceLocation);
-        QCOMPARE(QDir::fromNativeSeparators(backend.lastArchive), archivePath);
+        QTRY_COMPARE(QDir::fromNativeSeparators(backend.lastArchive), archivePath);
         QCOMPARE(address->text(), location);
         QCOMPARE(table(window)->rowCount(), 1);
         QCOMPARE(table(window)->model()->index(0, 0).data().toString(), QStringLiteral("file.txt"));
@@ -230,6 +260,8 @@ class MainWindowNavigationTests : public QObject, protected MainWindowTestSuppor
     void archiveTreeSortSelectionAndEmptyFolders() {
         ControlledBackend backend;
         MainWindow window(&backend);
+        window.show();
+        QVERIFY(QTest::qWaitForWindowActive(&window));
         const QString longName = QString(150, QLatin1Char('x')) + QStringLiteral(" δ.txt");
         openListedArchive(window, backend, "tree.7z",
                           {ArchiveEntry{QStringLiteral("пустая папка"), 0, 0, {}, true},
@@ -256,6 +288,8 @@ class MainWindowNavigationTests : public QObject, protected MainWindowTestSuppor
         QVERIFY(backend.lastSelected.contains(QStringLiteral("пустая папка")));
         QVERIFY(backend.lastSelected.contains(QStringLiteral("root.txt")));
         backend.cancel();
+        closeCompletedProgress(window);
+        QTRY_VERIFY(action(window, "openItemAction")->isEnabled());
         const int folder = rowWithPath(window, QStringLiteral("папка с пробелом"));
         QVERIFY(folder >= 0);
         QVERIFY(table(window)->model()->index(folder, 0).data(Qt::UserRole + 1).toBool());
@@ -281,7 +315,10 @@ class MainWindowNavigationTests : public QObject, protected MainWindowTestSuppor
         const int file = rowWithPath(window, QStringLiteral("папка с пробелом/") + longName);
         QVERIFY(file >= 0);
         const int extractionCalls = backend.extractCalls;
-        backend.queueSourceExtractAction([&] { backend.cancel(); });
+        backend.queueSourceExtractAction([&] {
+            backend.cancel();
+            QTimer::singleShot(0, &window, [&] { closeCompletedProgress(window); });
+        });
         openRow(window, file);
         QCOMPARE(backend.extractCalls, extractionCalls + 1);
         QCOMPARE(backend.lastSelected.size(), 1);
@@ -301,9 +338,10 @@ class MainWindowNavigationTests : public QObject, protected MainWindowTestSuppor
         QCOMPARE(QDir::fromNativeSeparators(backend.lastSelected.first()),
                  QStringLiteral("папка с пробелом/глубже/2.txt"));
         backend.cancel();
+        closeCompletedProgress(window);
         action(window, "upAction")->trigger();
         QCOMPARE(table(window)->rowCount(), 2);
-        action(window, "backAction")->trigger();
+        action(window, "upAction")->trigger();
         QCOMPARE(table(window)->rowCount(), 3);
         openRow(window, rowWithPath(window, QStringLiteral("пустая папка")));
         QCOMPARE(table(window)->rowCount(), 0);
@@ -322,6 +360,7 @@ class MainWindowNavigationTests : public QObject, protected MainWindowTestSuppor
         openListedArchive(window, backend, "one.zip",
                           {ArchiveEntry{QStringLiteral("nested/file.txt"), 1, 1}});
         openRow(window, rowWithPath(window, QStringLiteral("nested")));
+        const QString beforeCanceledOpen = window.findChild<QLineEdit *>("archivePath")->text();
         QVERIFY(backend.prepareArchiveFixture("two.7z"));
         backend.queueListAction([&] {
             const auto finish = qScopeGuard([&] { backend.cancel(); });
@@ -329,8 +368,7 @@ class MainWindowNavigationTests : public QObject, protected MainWindowTestSuppor
             QVERIFY(!action(window, "upAction")->isEnabled());
         });
         window.openArchive("two.7z");
-        QCOMPARE(window.findChild<QLineEdit *>("archivePath")->text(),
-                 QFileInfo(QDir::currentPath()).canonicalFilePath());
+        QCOMPARE(window.findChild<QLineEdit *>("archivePath")->text(), beforeCanceledOpen);
         openListedArchive(window, backend, "three.zip", {});
         QCOMPARE(table(window)->rowCount(), 0);
         QVERIFY(action(window, "upAction")->isEnabled());
@@ -342,11 +380,11 @@ class MainWindowNavigationTests : public QObject, protected MainWindowTestSuppor
         QTimer warningResponder;
         connect(&warningResponder, &QTimer::timeout, &window, [] { dismissWarnings(); });
         warningResponder.start(1);
+        const QString beforeFailedOpen = window.findChild<QLineEdit *>("archivePath")->text();
         backend.queueListAction([&] { backend.fail(QStringLiteral("7z не запустился.")); });
         window.openArchive("failed.7z");
         warningResponder.stop();
-        QCOMPARE(window.findChild<QLineEdit *>("archivePath")->text(),
-                 QFileInfo(QDir::currentPath()).canonicalFilePath());
+        QCOMPARE(window.findChild<QLineEdit *>("archivePath")->text(), beforeFailedOpen);
         QVERIFY(action(window, "upAction")->isEnabled());
     }
 
@@ -413,7 +451,7 @@ class MainWindowNavigationTests : public QObject, protected MainWindowTestSuppor
         QCOMPARE(backend.extractCalls, beforeEmptyArchiveCopy);
         QVERIFY(action(window, "testArchiveAction")->isEnabled());
         QVERIFY(action(window, "archiveInfoAction")->isEnabled());
-        QCOMPARE(window.statusBar()->currentMessage(), QStringLiteral("Архив открыт."));
+        QVERIFY(window.statusBar()->currentMessage().isEmpty());
     }
 
     void testAndPropertiesStates() {
@@ -428,20 +466,11 @@ class MainWindowNavigationTests : public QObject, protected MainWindowTestSuppor
         table(window)->selectRow(0);
         const auto inspect = [&] {
             QStringList values;
-            bool shown = false;
-            QTimer::singleShot(0, &window, [&] {
-                auto *dialog = window.findChild<QDialog *>("selectedPropertiesDialog");
-                QVERIFY(dialog);
-                const auto close = qScopeGuard([&] { dialog->reject(); });
-                auto *list = dialog->findChild<QTreeWidget *>("propertiesList");
-                QVERIFY(list);
-                for (int i = 0; i < list->topLevelItemCount(); ++i)
-                    values.append(list->topLevelItem(i)->text(1));
-                shown = true;
-            });
             action(window, "archiveInfoAction")->trigger();
-            if (!shown)
-                values.clear();
+            if (auto *dialog = window.findChild<QtPropertiesWindow *>()) {
+                values = dialog->Information().split('\n');
+                dialog->close();
+            }
             return values;
         };
         const QStringList itemProperties = inspect();

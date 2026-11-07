@@ -128,13 +128,11 @@ struct CPanelProperty {
     UString Value;
 };
 
-// Four source status-bar parts; Qt presents them below the owning panel.
+// Native selection summary; presentation retains unknown sizes as unknown.
 struct CPanelStatus {
     int selectedCount = 0;
     int totalCount = 0;
-    QString selectedSize;
-    QString focusedSize;
-    QString focusedDate;
+    std::optional<UInt64> selectedSize;
 };
 
 struct CPanelItem {
@@ -150,8 +148,7 @@ struct CPanelItem {
     CObjectVector<CPanelProperty> ArchiveProperties;
     std::optional<UInt32> Crc;
     QMap<PROPID, QByteArray> RawProperties;
-    // Timestamp compatibility text; native FILETIME properties take precedence.
-    QString MTimeText;
+    std::optional<NWindows::NCOM::CPropVariant> MTime;
 };
 
 struct CSelectedState {

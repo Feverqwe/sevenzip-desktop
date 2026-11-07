@@ -1692,6 +1692,7 @@
     "src/devices/deviceselectiondialog.h",
     "src/devices/module.cmake",
     "src/devices/qtdevicecommands.cpp",
+    "src/dialogs/about/qtaboutpresentation.cpp",
     "src/dialogs/browse/browseiteminspection.cpp",
     "src/dialogs/browse/browseiteminspection.h",
     "src/dialogs/browse/qtsourcebrowsedialog_p.h",
@@ -1729,6 +1730,10 @@
     "src/dialogs/delete/qtdeleteconfirmation.h",
     "src/dialogs/extract/alias.h",
     "src/dialogs/extract/qtextractpresentation.cpp",
+    "src/dialogs/licenses/qtlicensedocuments.cpp",
+    "src/dialogs/licenses/qtlicensedocuments.h",
+    "src/dialogs/licenses/qtlicensesdialog.cpp",
+    "src/dialogs/licenses/qtlicensesdialog.h",
     "src/dialogs/link/qtlinkcontrols.cpp",
     "src/dialogs/link/qtlinkcontrols.h",
     "src/dialogs/link/qtlinkpresentation.cpp",
@@ -1796,6 +1801,8 @@
     "src/filemanager/panels/qtpanelpluginservices.h",
     "src/filemanager/properties/qtpropertieswindow.cpp",
     "src/filemanager/properties/qtpropertieswindow.h",
+    "src/filemanager/properties/qtpropertyformat.cpp",
+    "src/filemanager/properties/qtpropertyformat.h",
     "src/filemanager/properties/qtpropertyreport.cpp",
     "src/filemanager/properties/qtpropertyreport.h",
     "src/filemanager/providers/FSDrivesCopy_win.cpp",
@@ -1911,6 +1918,8 @@
     "src/filemanager/window/qtnativeplaces.h",
     "src/filemanager/window/qtnavigationbar.cpp",
     "src/filemanager/window/qtnavigationbar.h",
+    "src/filemanager/window/qtoperationsbutton.cpp",
+    "src/filemanager/window/qtoperationsbutton.h",
     "src/filemanager/window/qtplaceprojection.cpp",
     "src/filemanager/window/qtplaceprojection.h",
     "src/filemanager/window/qtrecentplacesstore.cpp",
@@ -2225,6 +2234,11 @@
     "src/platform/associations/qtfileassociationprobe.h",
     "src/platform/associations/qtfileassociationprobe_mac.mm",
     "src/platform/associations/qtmacassociationnative.h",
+    "src/platform/locale/module.cmake",
+    "src/platform/locale/qtregionalsettings.cpp",
+    "src/platform/locale/qtregionalsettings.h",
+    "src/platform/locale/qtregionalsettings_mac.mm",
+    "src/platform/locale/qtregionalsettings_win.cpp",
     "src/platform/memory/qtmemorylimitinfo.cpp",
     "src/platform/memory/qtmemorylimitinfo.h",
     "src/platform/memory/qtmemorylockservices.cpp",
@@ -2295,6 +2309,8 @@
     "src/ui/controls/qtsourcesummary.h",
     "src/ui/controls/qtstatuslabel.cpp",
     "src/ui/controls/qtstatuslabel.h",
+    "src/ui/controls/qtwindowstatusbar.cpp",
+    "src/ui/controls/qtwindowstatusbar.h",
     "src/ui/controls/qtwrappingcheckbox.cpp",
     "src/ui/controls/qtwrappingcheckbox.h",
     "src/ui/diagnostics/qtdiagnostictext.cpp",
@@ -2308,6 +2324,8 @@
     "src/ui/dialogs/qtdialogunits.cpp",
     "src/ui/dialogs/qtdialogunits.h",
     "src/ui/dialogs/qtmodalresult.h",
+    "src/ui/formatting/qtregionalformat.cpp",
+    "src/ui/formatting/qtregionalformat.h",
     "src/ui/lifecycle/qttaskpresentation.cpp",
     "src/ui/lifecycle/qttaskpresentation.h",
     "src/ui/progress/ProgressDisplay.cpp",
@@ -3644,6 +3662,10 @@
     "src/formats/vhdx/VhdxCrc.cpp"
   ],
   "extracted": {
+    "third_party/7zip/CPP/7zip/UI/Common/PropIDUtils.cpp": {
+      "local": ["src/filemanager/properties/qtpropertyformat.cpp"],
+      "symbols": ["ConvertPropertyToShortString2 (FILETIME precision decoding)"]
+    },
     "src/dialogs/link/LinkDialog.cpp": {
       "local": [
         "src/filemanager/AppLink.cpp"

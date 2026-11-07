@@ -53,7 +53,7 @@ void MainWindow::transferFiles(const QStringList &sources, const QString &destin
                 if (fileTask_ == task)
                     fileTask_ = nullptr;
                 if (success)
-                    statusBar()->showMessage(message);
+                    showStatusMessage(message);
                 // OnCopy's continuation owns both reloads, saved selections
                 // and final focus after this worker releases its operation.
                 setState(State::Filesystem);
@@ -159,11 +159,10 @@ bool MainWindow::transferToArchivePanel(const QString &destination, bool move,
         refreshArchiveTransferDestination(destinationIndex, destinationSelection);
         if (move)
             appPresentation_->RefreshCopyPanel(sourceIndex);
-        statusBar()->showMessage(
-            move ? QCoreApplication::translate("mainwindow_fileoperations",
-                                               "Items moved into the archive.")
-                 : QCoreApplication::translate("mainwindow_fileoperations",
-                                               "Items copied into the archive."));
+        showStatusMessage(move ? QCoreApplication::translate("mainwindow_fileoperations",
+                                                             "Items moved into the archive.")
+                               : QCoreApplication::translate("mainwindow_fileoperations",
+                                                             "Items copied into the archive."));
     } else if (result != E_ABORT) {
         QMessageBox::warning(this, QtLangText(IDS_COPYING),
                              QString::fromWCharArray(HResultToMessage(result).Ptr()));

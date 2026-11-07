@@ -9,6 +9,7 @@
 #include "localization/LangUtils.h"
 #include "localization/qtlangcontrols.h"
 #include "settings/RegistryUtils.h"
+#include "ui/formatting/qtregionalformat.h"
 #include "ui/support/layout_inspection.h"
 
 #include <QAbstractButton>
@@ -155,7 +156,8 @@ class PanelPropertyTests : public QObject {
         QtPropertyReport report;
         panel.Properties(selected, report);
         QtPropertiesWindow window(std::move(report));
-        QCOMPARE(window.findChild<QLabel *>("propertiesSize")->text(), QString("128"));
+        QCOMPARE(window.findChild<QLabel *>("propertiesSize")->text(),
+                 QtRegionalFormat::bytes(128));
     }
 
     void rawCatalogKeepsAvailableProperties_data() {

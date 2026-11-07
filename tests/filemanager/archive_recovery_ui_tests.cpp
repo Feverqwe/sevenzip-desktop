@@ -157,7 +157,7 @@ class ArchiveRecoveryUiTests final : public QObject {
         MainWindow window(&backend);
         window.openPath(fixture.path());
         window.show();
-        int questions = 0, extractionErrors = 0;
+        int questions = 0, extractionErrors = 0, cancellationResults = 0;
         bool geometry = true, copyingBroken = false;
         QStringList unexpected;
         QPointer<QMessageBox> handled;
@@ -207,7 +207,16 @@ class ArchiveRecoveryUiTests final : public QObject {
                     messages = widget->findChild<QTreeWidget *>("IDL_MESSAGE");
                 }
                 if (close) {
-                    if (copyingBroken && messages && messages->topLevelItemCount())
+                    auto *status = widget->findChild<QLabel *>("IDT_PROGRESS_STATUS");
+                    const bool cancelled =
+                        batch && !accept && status &&
+                        status->text() ==
+                            QCoreApplication::translate(
+                                "ProgressRedesign",
+                                "Operation cancelled. Some changes may have completed.");
+                    if (cancelled)
+                        ++cancellationResults;
+                    else if (copyingBroken && messages && messages->topLevelItemCount())
                         ++extractionErrors;
                     else
                         unexpected.append(messages && messages->topLevelItemCount()
@@ -237,6 +246,8 @@ class ArchiveRecoveryUiTests final : public QObject {
                 QCOMPARE(copied.readAll(), healthy);
                 QVERIFY(extractionErrors > 0);
             } else {
+                QCOMPARE(result.Result, E_ABORT);
+                QCOMPARE(cancellationResults, 1);
                 QVERIFY(!copied.exists());
             }
         } else {

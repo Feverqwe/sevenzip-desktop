@@ -133,7 +133,7 @@ void MainWindow::backendFinished(bool ok, const QString &message, HRESULT result
     else if (projectedUi().state == State::Operating)
         setState(previousState_ == State::Viewing ? State::Viewing : State::Filesystem);
     appPresentation_->CopyFinished();
-    statusBar()->showMessage(resultMessage);
+    showStatusMessage(resultMessage);
     if (reviewAfterPublication) {
         terminalDiagnostics.prepend(resultMessage);
         CProgressDialog::PresentResult(this, {.title = QtLangText(IDS_MOVING),

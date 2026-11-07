@@ -77,7 +77,7 @@ void QtWindowWorkspace::CompleteLocationOpen(unsigned panel, const QString &path
                                               : tr("Location unavailable: %1").arg(path);
     ui.navigationError->setText(message);
     ui.navigationNotice->show();
-    window_.statusBar()->showMessage(message);
+    window_.showStatusMessage(message);
 }
 
 void QtWindowWorkspace::RetryLocation(unsigned panel, bool parent) {

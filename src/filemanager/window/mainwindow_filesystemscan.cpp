@@ -23,8 +23,6 @@ void MainWindow::connectFilesystemScanner(unsigned index) {
             [this, index](quint32 first, quint32 count) {
                 filesystemScanBatchReady(index, first, count);
             });
-    connect(scanner, &FilesystemScanner::advanced, this,
-            [this, index](quint64 count) { filesystemScanAdvanced(index, count); });
     connect(scanner, &FilesystemScanner::completed, this,
             [this, index] { filesystemScanCompleted(index); });
     connect(scanner, &FilesystemScanner::failed, this,
@@ -66,18 +64,7 @@ void MainWindow::filesystemScanBatchReady(unsigned index, quint32 firstSourceInd
                 return;
             }
         }
-        statusBar()->showMessage(QCoreApplication::translate("mainwindow", "Shown: %1 items…")
-                                     .arg(projectedUi().table->rowCount()));
     });
-}
-
-void MainWindow::filesystemScanAdvanced(unsigned index, quint64 count) {
-    if (index != projectedPanel_)
-        return;
-    if (app_.QtOperations().closed())
-        return;
-    statusBar()->showMessage(QtLangText(IDS_SCANNING) +
-                             QCoreApplication::translate("mainwindow", " %1 items").arg(count));
 }
 
 void MainWindow::filesystemScanCompleted(unsigned index) {
@@ -91,8 +78,7 @@ void MainWindow::filesystemScanCompleted(unsigned index) {
         restoreAutoRefreshViewport();
         setState(State::Filesystem);
         workspace_->NavigationFinished(S_OK);
-        statusBar()->showMessage(QCoreApplication::translate("mainwindow", "%1 items")
-                                     .arg(projectedUi().table->rowCount()));
+        clearStatusMessage();
     });
 }
 

@@ -2,7 +2,9 @@
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
 #include "localization/LangUtils.h"
+#include "ui/controls/qtstatuslabel.h"
 #include "ui/support/layout_inspection.h"
+#include <QToolButton>
 
 class NavigationReloadTests final : public QObject, protected MainWindowTestSupport {
     Q_OBJECT
@@ -41,7 +43,7 @@ class NavigationReloadTests final : public QObject, protected MainWindowTestSupp
         auto *peerUi = window.findChild<QWidget *>(QString("filePanel%1").arg(1 - sourceIndex));
         auto *peerView = static_cast<FileTable *>(peerUi->findChild<FileTable *>("archiveTable"));
         auto *peerAddress = peerUi->findChild<QLineEdit *>("archivePath");
-        peerAddress->setFocus();
+        QTest::mouseClick(peerUi->findChild<QToolButton *>("editLocationButton"), Qt::LeftButton);
         peerAddress->setText(fixture.path());
         QTest::keyClick(peerAddress, Qt::Key_Return);
         QTRY_COMPARE(peerView->rowCount(), 1);
@@ -50,7 +52,7 @@ class NavigationReloadTests final : public QObject, protected MainWindowTestSupp
         auto *ui = window.findChild<QWidget *>(QString("filePanel%1").arg(sourceIndex));
         auto *view = static_cast<FileTable *>(ui->findChild<FileTable *>("archiveTable"));
         auto *address = ui->findChild<QLineEdit *>("archivePath");
-        address->setFocus();
+        QTest::mouseClick(ui->findChild<QToolButton *>("editLocationButton"), Qt::LeftButton);
         action(window, "openRootAction")->trigger();
         auto *parentSpec = new LoadFolder;
         CMyComPtr<IFolderFolder> parent = parentSpec;
@@ -77,11 +79,14 @@ class NavigationReloadTests final : public QObject, protected MainWindowTestSupp
         parentSpec->directoryType = phase == "type" ? VT_UI4 : VT_BOOL;
         parentSpec->loadedCountResult = phase == "count" ? E_INVALIDARG : S_OK;
         parentSpec->attributeResult = phase == "icon" ? expected : S_OK;
+        const QString before = address->text();
         action(window, "parentFolderAction")->trigger();
-        QCOMPARE(panel.GetFolder(), (IFolderFolder *)parent);
-        QCOMPARE(view->rowCount(), phase == "count" ? 2 : 0);
+        QCOMPARE(panel.GetFolder(),
+                 phase == "count" ? (IFolderFolder *)parent : (IFolderFolder *)child);
+        QCOMPARE(view->rowCount(), 2);
         QVERIFY2(panel.ShouldProcessNotifications() && view->isEnabled() &&
-                     action(window, "refreshAction")->isEnabled() && address->text().isEmpty(),
+                     action(window, "refreshAction")->isEnabled() &&
+                     (phase == "count" ? address->text().isEmpty() : address->text() == before),
                  qPrintable(QString("notify=%1 view=%2 refresh=%3 address=%4")
                                 .arg(panel.ShouldProcessNotifications())
                                 .arg(view->isEnabled())
@@ -95,21 +100,27 @@ class NavigationReloadTests final : public QObject, protected MainWindowTestSupp
         QCOMPARE(peerView->sourcePanel->GetFolder(), (IFolderFolder *)peerFolder);
         QCOMPARE(peerAddress->text(), QFileInfo(fixture.path()).canonicalFilePath());
         QCOMPARE(peerView->rowCount(), 1);
-        QCOMPARE(panel.RefreshListCtrl_SaveFocused(), expected);
+        QCOMPARE(panel.RefreshListCtrl_SaveFocused(), S_OK);
         for (const QSize size : {QSize(980, 620), QSize(640, 400)}) {
             window.resize(size);
             QApplication::processEvents();
             QVERIFY(UiInspection::fullyVisible(*view, window));
             QVERIFY(UiInspection::fullyVisible(*peerView, window));
-            QVERIFY(UiInspection::fullyVisible(*address, window));
-            QVERIFY(UiInspection::fullyVisible(*peerAddress, window));
-            QVERIFY(UiInspection::fullyVisible(*window.findChild<QStatusBar *>("panelStatusBar"),
-                                               window));
-            QVERIFY(UiInspection::fullyVisible(*window.findChild<QToolBar *>(), window));
+            QVERIFY(UiInspection::fullyVisible(
+                *ui->findChild<QWidget *>(QString("panelNavigation%1").arg(sourceIndex)), window));
+            QVERIFY(UiInspection::fullyVisible(
+                *peerUi->findChild<QWidget *>(QString("panelNavigation%1").arg(1 - sourceIndex)),
+                window));
+            QVERIFY(UiInspection::fullyVisible(*window.statusBar(), window));
+            QVERIFY(UiInspection::fullyVisible(
+                *window.findChild<QToolBar *>(QString("panelFileActions%1").arg(sourceIndex)),
+                window));
             for (const auto *label : window.findChildren<QLabel *>())
                 if (label->isVisible() && !label->text().isEmpty()) {
                     QVERIFY(UiInspection::fullyVisible(*label, window));
-                    QVERIFY(UiInspection::labelFits(*label));
+                    if (!dynamic_cast<const QtStatusLabel *>(label))
+                        QVERIFY2(UiInspection::labelFits(*label),
+                                 qPrintable(label->objectName() + ": " + label->text()));
                 }
             QVERIFY(UiInspection::writeReport(window, QString("navigation-load-error-%1-%2")
                                                           .arg(QTest::currentDataTag())
@@ -121,7 +132,8 @@ class NavigationReloadTests final : public QObject, protected MainWindowTestSupp
         parentSpec->attributeResult = S_OK;
         action(window, "refreshAction")->trigger();
         QCOMPARE(view->rowCount(), 2);
-        QCOMPARE(panel.GetFolder(), (IFolderFolder *)parent);
+        QCOMPARE(panel.GetFolder(),
+                 phase == "count" ? (IFolderFolder *)parent : (IFolderFolder *)child);
         QVERIFY(panel.ShouldProcessNotifications());
         QVERIFY(view->isEnabled());
         QVERIFY(view->updatesEnabled());

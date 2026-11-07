@@ -118,7 +118,7 @@ void QtFileClipboard::Copy(bool move) {
         if (result != S_OK || !messages.IsEmpty())
             return;
         if (source.IsArcFolder() && (!report.Status || !report.Status->Complete)) {
-            window_.statusBar()->showMessage(tr(
+            window_.showStatusMessage(tr(
                 "Complete extraction could not be confirmed. The clipboard was kept unchanged."));
             return;
         }

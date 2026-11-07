@@ -49,5 +49,7 @@ class QtPropertiesWindow final : public QDialog {
     QString SummaryLocation() const;
     QString Caption(unsigned row, QtPropertyReport::Scope scope) const;
     QString Value(unsigned row) const;
+    QString PropertyValue(const QtPropertyReport::Group &group, UInt32 id,
+                          bool detail = false) const;
     QString GroupTitle(const QtPropertyReport::Group &group, bool comments) const;
 };

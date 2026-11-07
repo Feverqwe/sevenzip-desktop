@@ -42,7 +42,7 @@ class QtWindowWorkspace final : public QObject {
                  std::function<void()> canceled = {});
     void EditLocation();
     QString CurrentLocation();
-    void AttachContent(unsigned panel, QVBoxLayout &layout, QWidget &status);
+    void AttachContent(unsigned panel, QVBoxLayout &layout);
     bool WithSource(CPanel &source, const std::function<bool()> &body);
     bool SourceIsActive(const CPanel &source) const;
     void MarkDirty(CPanel &source);

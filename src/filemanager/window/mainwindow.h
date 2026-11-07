@@ -2,6 +2,7 @@
 #include "archive/password/archivepassword.h"
 #include <optional>
 struct QtOperationResult;
+class QtWindowStatusBar;
 
 #include "archive/agent/Agent.h"
 #include "archive/backend/archivebackend.h"
@@ -112,7 +113,7 @@ class MainWindow : public QMainWindow {
         std::unique_ptr<IQtProgressTransport> transport;
     };
     DeviceSelectionServices deviceServices_;
-    QLabel *deviceReadOnly_ = nullptr;
+    QtWindowStatusBar *statusStrip_ = nullptr;
     friend class QtAppPresentation;
     friend class QtVolumeWindowServices;
     friend class QtFileManagerWindowServices;
@@ -179,7 +180,6 @@ class MainWindow : public QMainWindow {
     void connectFilesystemScanner(unsigned index);
     void filesystemScanFolderReady(unsigned index, IFolderFolder *folder);
     void filesystemScanBatchReady(unsigned index, quint32 firstSourceIndex, quint32 count);
-    void filesystemScanAdvanced(unsigned index, quint64 count);
     void filesystemScanCompleted(unsigned index);
     void filesystemScanFailed(unsigned index, qint32 result);
     void cancelListPublication();
@@ -286,6 +286,8 @@ class MainWindow : public QMainWindow {
     void refreshActions();
     void refreshPanelStatus();
     void showPanelStatus(unsigned panel, const CPanelStatus &status);
+    void showStatusMessage(const QString &message, int timeout = 5000);
+    void clearStatusMessage();
     void showSelectedProperties();
     void calculateHash(const QString &method);
     void begin(const QString &label, const QString &source, const QString &destination = {});
@@ -360,7 +362,7 @@ class MainWindow : public QMainWindow {
         FileTable *table = nullptr;
         QListView *iconList = nullptr;
         QStackedWidget *viewStack = nullptr;
-        std::array<QLabel *, 4> statusLabels{};
+        QLabel *readOnlyIndicator = nullptr;
         QtFileListHover *tableHover = nullptr;
         QtFileListHover *iconHover = nullptr;
         QString directory;
@@ -382,6 +384,8 @@ class MainWindow : public QMainWindow {
     std::array<PanelUiState, 2> panelUi_;
     QtFileManagerSplitter *panelSplitter_ = nullptr;
     unsigned projectedPanel_ = 0;
+    // Temporary command projections do not change the visible status owner.
+    unsigned statusPanel_ = 0;
     unsigned panelProjectionDepth_ = 0;
     PanelUiState &projectedUi() { return panelUi_[projectedPanel_]; }
     const PanelUiState &projectedUi() const { return panelUi_[projectedPanel_]; }

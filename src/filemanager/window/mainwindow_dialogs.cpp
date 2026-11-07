@@ -20,7 +20,7 @@ void MainWindow::begin(const QString &label, const QString &source, const QStrin
     connect(backend_, &ArchiveBackend::progress, transport.get(),
             [this, label](int, const QString &path) {
                 if (!app_.QtOperations().closed() && !path.isEmpty())
-                    statusBar()->showMessage(label + ": " + path);
+                    showStatusMessage(label + ": " + path);
             });
     progress->transport = std::move(transport);
     progress_ = std::move(progress);

@@ -58,7 +58,7 @@ void MainWindow::reloadLangItems() {
             panel.ShouldProcessNotifications() && panel.GetFolder() && panel.IsFSDrivesFolder())
             if (auto *address = dynamic_cast<QtPanelAddressCombo *>(panelUi_[i].pathCombo))
                 address->ReloadCurrentPath();
-        if (panelUi_[i].statusLabels[0])
+        if (panelUi_[i].container)
             app_.Panels[i].Refresh_StatusBar();
     }
     if (workspace_)
@@ -93,5 +93,7 @@ void MainWindow::refreshToolbarTexts() {
 void MainWindow::changeEvent(QEvent *event) {
     if (event->type() == QEvent::LanguageChange && menuBar() && findChild<QMenu *>("fileMenu"))
         reloadLangItems();
+    if (event->type() == QEvent::LocaleChange && commands_)
+        refreshActions();
     QMainWindow::changeEvent(event);
 }

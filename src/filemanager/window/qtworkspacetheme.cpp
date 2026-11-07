@@ -38,9 +38,9 @@ void statusBar(QStatusBar &status) {
     auto p = status.palette();
     p.setColor(QPalette::WindowText, c.subtle);
     status.setPalette(p);
-    status.setMinimumHeight(metric(status, 32));
-    status.layout()->setContentsMargins(metric(status, 16), metric(status, 8), metric(status, 16),
-                                        metric(status, 8));
+    status.setMinimumHeight(QFontMetrics(status.font()).height() + metric(status, 6));
+    status.layout()->setContentsMargins(metric(status, 12), metric(status, 2), metric(status, 12),
+                                        metric(status, 2));
     status.setStyleSheet(
         QStringLiteral("QStatusBar { border-top:1px solid %1; color:%2; }"
                        "QStatusBar::item { border:0; } QStatusBar QLabel { color:%2; }")

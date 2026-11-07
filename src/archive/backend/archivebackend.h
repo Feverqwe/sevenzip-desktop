@@ -4,6 +4,7 @@ struct CProperty;
 class CArc;
 
 #include "7zip/Archive/IArchive.h"
+#include "Windows/PropVariant.h"
 #include "archive/codecs/archivecodecpublication.h"
 #include "archive/resources/qtarchiveextractstatus.h"
 #include "dialogs/compress/CompressInfo.h"
@@ -57,6 +58,7 @@ struct ArchiveEntry {
     std::optional<quint32> crc;
     QMap<quint32, QByteArray> rawProperties;
     std::optional<quint64> sizeValue, packedSizeValue;
+    std::optional<NWindows::NCOM::CPropVariant> modifiedTime;
 };
 
 struct ArchiveInfo {

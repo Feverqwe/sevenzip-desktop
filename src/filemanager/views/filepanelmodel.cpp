@@ -1,8 +1,12 @@
 #include "filemanager/views/filepanelmodel.h"
 #include "Windows/PropVariant.h"
+#include "Windows/PropVariantConv.h"
+#include "filemanager/FormatUtils.h"
 #include "filemanager/panels/Panel.h"
+#include "filemanager/properties/qtpropertyformat.h"
 #include "filemanager/sorting/filenamesort.h"
 #include "filemanager/views/filetable.h"
+#include "ui/formatting/qtregionalformat.h"
 #include "ui/theme/qtsemanticcolors.h"
 #include <QBrush>
 #include <QDir>
@@ -62,6 +66,27 @@ QVariant FilePanelModel::data(const QModelIndex &index, int role) const {
     case Qt::ToolTipRole:
         if (column == 5 && !parent)
             return view_.typeLabel(row.name, row.directory);
+        if (readable && !parent && !view_.isRawProperty(column)) {
+            const auto id = column == 0 ? kpidSize : view_.propertyId(column);
+            if (IsByteSizeProp(id)) {
+                NWindows::NCOM::CPropVariant value;
+                try {
+                    if (panel->GetFolder()->GetProperty(row.sourceIndex, id, &value) == S_OK)
+                        if (const auto bytes = QtUnsignedPropertyValue(value))
+                            return row.toolTip + '\n' + QtRegionalFormat::exactBytes(*bytes);
+                } catch (...) {
+                }
+            }
+            if (const auto *property = view_.sourceColumn(column);
+                (property && property->Type == VT_FILETIME) || IsTimestampProp(id)) {
+                NWindows::NCOM::CPropVariant value;
+                try {
+                    if (panel->GetFolder()->GetProperty(row.sourceIndex, id, &value) == S_OK)
+                        return row.toolTip + '\n' + QtFormatPropertyTime(value).detail;
+                } catch (...) {
+                }
+            }
+        }
         return row.toolTip;
     case Qt::DecorationRole:
         return column == 0 || column == view_.columnForVisibleProperty(0) ? QVariant(row.icon)
@@ -117,7 +142,8 @@ QVariant FilePanelModel::data(const QModelIndex &index, int role) const {
             return parent ? QString() : QString::number(row.sourceIndex);
         if (const auto found = row.text.constFind(column);
             found != row.text.cend() &&
-            (!readable || found->languageGeneration == languageGeneration_))
+            (!readable || (found->languageGeneration == languageGeneration_ &&
+                           found->regionalGeneration == regionalGeneration_)))
             return found->value;
         if (panel && !panel->ShouldProcessNotifications())
             return QString();
@@ -127,7 +153,7 @@ QVariant FilePanelModel::data(const QModelIndex &index, int role) const {
                     QString text = panel->GetItemText(row.sourceIndex, *prop);
                     if (column == 0)
                         text = (row.prefix + text).normalized(QString::NormalizationForm_C);
-                    row.text.insert(column, {text, languageGeneration_});
+                    row.text.insert(column, {text, languageGeneration_, regionalGeneration_});
                     return text;
                 } catch (...) {
                     return QString();
@@ -278,6 +304,13 @@ void FilePanelModel::invalidateLanguageText() {
     ++languageGeneration_;
     if (rowCount() && columnCount())
         emit dataChanged(index(0, 0), index(rowCount() - 1, columnCount() - 1), {Qt::DisplayRole});
+}
+
+void FilePanelModel::invalidateRegionalText() {
+    ++regionalGeneration_;
+    if (rowCount() && columnCount())
+        emit dataChanged(index(0, 0), index(rowCount() - 1, columnCount() - 1),
+                         {Qt::DisplayRole, Qt::ToolTipRole});
 }
 
 void FilePanelModel::sort(int column, Qt::SortOrder order) {

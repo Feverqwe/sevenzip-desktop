@@ -61,10 +61,60 @@ remain compact, scrolling content keeps the footer exposed, and full-copy and
 fragment-copy behavior are checked separately.
 No Windows runtime, original Windows pixel or VoiceOver acceptance is claimed.
 
-This iteration retains native property value formatting. The newer shared
-size/date and single-status contract in the designer's `status-v56` is separate
-presentation work; these checks do not establish that acceptance. Its formatter
-must consume the copied numeric/time values rather than parse property labels.
+The receipt above predates the shared regional presentation work below; its
+passing checks do not establish acceptance of that later change.
+
+## Shared regional property presentation — 2026-11-07
+
+Reference: current `master:work/design/specs/main-window-status-formatting.md`
+and menu contract at `c20608b9`. Compared the original PanelListNotify display
+and status bodies, FormatUtils size/count classification, native scalar converter,
+PropIDUtils FILETIME precision decoding, TimeUtils filesystem/DOS normalization,
+their panel/model callers, and the native listing snapshot consumer.
+The existing original inventory hashes/revision remain unchanged. The additional
+local precision-decoding owner is recorded under the complete PropIDUtils unit
+in the baseline, with LGPL notices; Qt formatting and status controls are local
+integration. The carrier suffix adapter uses Qt's public API, without copying
+Qt implementation or reading a displayed number back into the model.
+
+Native byte/count distinction and unsigned values remain authoritative. Unknown
+sizes and overflowing selection totals cannot become zero or wrapped totals;
+selection summaries exclude the command-only current-item fallback. No directory
+scan is introduced. Table/icon cells, exact tooltips and owned Properties values
+share presentation; commands and sorting retain original numeric data.
+
+The listing snapshot now owns native FILETIME variants, including precision and
+sub-100ns fields. The prior MTimeText reverse parser is removed. Existing listing
+text can remain diagnostic output but cannot become timestamp input. Native
+providers already normalize FILETIME; Qt converts that representation to the
+system local zone once. This does not claim an original offset for wall-clock
+archive formats such as DOS time. Short text uses system regional preferences;
+long tooltips retain native precision alongside localized full text. Unknown
+time remains unavailable. Hidden legacy timestamp menu algorithms remain native;
+they do not set the new view's system regional format.
+
+Regional cache invalidation is separate from UI translation. An application-owned
+notification bridge observes macOS locale/time-zone notifications and Windows
+international/time setting messages; it directly refreshes consumers because Qt
+does not reliably propagate those changes to widgets. Native number presentation
+and a fresh native locale identifier for unit names avoid Qt's stale identity,
+digit and grouping caches without mutating Qt's global QSystemLocale stack.
+Full unsigned values remain exact decimal input to the native formatter. Date
+formatting uses Qt's fresh Core Foundation queries on macOS and direct current-user
+NLS queries on Windows, whose Qt backend also retains an old locale identifier.
+The macOS bridge uses Objective-C++ to call Foundation formatters and notification
+APIs; the shared formatter and its consumers remain C++.
+Windows presentation also applies the explicit national-digit preference from
+[the NLS digit-substitution contract](https://learn.microsoft.com/en-us/windows/win32/intl/locale-idigitsubstitution).
+This adapter calls platform APIs; it does not import Qt's locale implementation.
+Focused Linux checks cover formatting, raw timestamp transport, selection totals,
+navigation, notification-driven cache refresh and the direct UI consumers.
+The macOS adapter and consumers also pass focused builds/tests, including Cocoa
+panel focus, refresh completion and Properties. Windows builds and focused checks
+also cover NLS formatting, native notifications, columns and these UI consumers.
+Fresh Cocoa captures cover the main window and Properties in both themes; selected
+compact views were inspected. Custom OS-format changes and acceptance of the
+complete updated design catalog remain pending.
 
 ## Filesystem comment persistence owner — 2026-11-04
 

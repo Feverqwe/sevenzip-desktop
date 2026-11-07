@@ -1,3 +1,11 @@
+include(${PROJECT_SOURCE_DIR}/src/platform/locale/module.cmake)
+
+add_library(sevenzip_regional_format STATIC
+    src/ui/formatting/qtregionalformat.cpp src/ui/formatting/qtregionalformat.h)
+target_include_directories(sevenzip_regional_format PUBLIC src)
+target_link_libraries(sevenzip_regional_format PUBLIC Qt6::Core sevenzip_regional_settings)
+set_target_properties(sevenzip_regional_format PROPERTIES AUTOMOC OFF AUTOUIC OFF)
+
 add_library(sevenzip_license_documents STATIC
     src/dialogs/licenses/qtlicensedocuments.cpp src/dialogs/licenses/qtlicensedocuments.h)
 target_include_directories(sevenzip_license_documents PUBLIC src)
@@ -270,6 +278,8 @@ add_library(sevenzip_panel
     src/filemanager/panels/PanelProperties.cpp
     src/filemanager/properties/qtpropertyreport.cpp
     src/filemanager/properties/qtpropertyreport.h
+    src/filemanager/properties/qtpropertyformat.cpp
+    src/filemanager/properties/qtpropertyformat.h
     src/filemanager/properties/qtpropertieswindow.cpp
     src/filemanager/properties/qtpropertieswindow.h
     src/filemanager/PropertyName.cpp
@@ -289,6 +299,8 @@ add_library(sevenzip_panel
     src/localization/qtlangbuttonbox.h
     src/ui/controls/qtstatuslabel.cpp
     src/ui/controls/qtstatuslabel.h
+    src/ui/controls/qtwindowstatusbar.cpp
+    src/ui/controls/qtwindowstatusbar.h
     src/filemanager/panels/PanelColumns.cpp
     src/filemanager/panels/PanelInfo.cpp
     src/filemanager/panels/PanelInfo.h
@@ -326,7 +338,7 @@ target_link_libraries(sevenzip_panel PRIVATE sevenzip_dialog_screen sevenzip_loc
 # Resource callbacks can pull the panel's archive progress transport in after
 # the first two scans of this existing static-library cycle.
 set_property(TARGET sevenzip_panel PROPERTY LINK_INTERFACE_MULTIPLICITY 3)
-target_link_libraries(sevenzip_panel PUBLIC sevenzip_overwrite_question)
+target_link_libraries(sevenzip_panel PUBLIC sevenzip_overwrite_question sevenzip_regional_format sevenzip_regional_settings)
 set_target_properties(sevenzip_panel PROPERTIES AUTOUIC OFF)
 target_link_libraries(sevenzip_panel PUBLIC sevenzip_progress_sync)
 qt_add_resources(sevenzip_panel upstream_progress_icons

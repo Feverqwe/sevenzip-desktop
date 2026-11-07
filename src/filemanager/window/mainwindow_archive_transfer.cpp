@@ -182,7 +182,7 @@ bool MainWindow::transferBetweenArchivePanels(const QString &destination, bool m
             "mainwindow_archive_transfer",
             "Source removal did not finish cleanly. The destination copy was retained; check "
             "both archives.");
-        statusBar()->showMessage(message);
+        showStatusMessage(message);
         terminalDiagnostics.prepend(message);
         CProgressDialog::PresentResult(this, {.title = QtLangText(IDS_MOVING),
                                               .result = result,
@@ -203,11 +203,10 @@ bool MainWindow::transferBetweenArchivePanels(const QString &destination, bool m
         return true;
     }
     if (outcome == Outcome::Updated) {
-        statusBar()->showMessage(
-            move ? QCoreApplication::translate("mainwindow_archive_transfer",
-                                               "Items moved between archives.")
-                 : QCoreApplication::translate("mainwindow_archive_transfer",
-                                               "Items copied into the archive."));
+        showStatusMessage(move ? QCoreApplication::translate("mainwindow_archive_transfer",
+                                                             "Items moved between archives.")
+                               : QCoreApplication::translate("mainwindow_archive_transfer",
+                                                             "Items copied into the archive."));
     } else if (result != S_OK || !messages.IsEmpty()) {
         FOR_VECTOR(i, messages)
         terminalDiagnostics.append(ToQString(messages[i]));

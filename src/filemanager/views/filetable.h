@@ -66,6 +66,7 @@ class FileTable : public QTableView {
 
   protected:
     void startDrag(Qt::DropActions actions) override;
+    void changeEvent(QEvent *event) override;
 
   private:
     struct ColumnBinding {

@@ -1,19 +1,40 @@
 #include "filemanager/providers/FSFolder.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
+#include "filemanager/window/qtnavigationbar.h"
 #include "localization/LangUtils.h"
+#include "ui/formatting/qtregionalformat.h"
 #include "ui/support/layout_inspection.h"
 #include <QBrush>
 #include <QHeaderView>
 #include <QLabel>
+#include <QToolButton>
 
 class PanelRefreshCompletionTests final : public QObject, protected MainWindowTestSupport {
     Q_OBJECT
+    static void focusPane(MainWindow &window, unsigned pane) {
+        window.activateWindow();
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        auto *widget = window.findChild<QWidget *>(QString("filePanel%1").arg(pane));
+        auto *navigation = static_cast<QtNavigationBar *>(
+            widget->findChild<QWidget *>(QString("panelNavigation%1").arg(pane)));
+        navigation->Edit();
+        QApplication::processEvents();
+        QTRY_VERIFY2(widget->isAncestorOf(QApplication::focusWidget()),
+                     qPrintable(QString("pane=%1 visible=%2 twoPanels=%3 focus=%4")
+                                    .arg(pane)
+                                    .arg(widget->isVisible())
+                                    .arg(action(window, "twoPanelsAction")->isChecked())
+                                    .arg(QApplication::focusWidget()
+                                             ? QApplication::focusWidget()->objectName()
+                                             : QStringLiteral("none"))));
+    }
     static FileTable *openPane(MainWindow &window, ControlledBackend &backend, unsigned pane,
                                const QString &path, const QList<ArchiveEntry> &entries) {
-        action(window, "twoPanelsAction")->trigger();
+        if (!action(window, "twoPanelsAction")->isChecked())
+            action(window, "twoPanelsAction")->trigger();
         auto *widget = window.findChild<QWidget *>(QString("filePanel%1").arg(pane));
-        widget->findChild<QLineEdit *>("archivePath")->setFocus();
+        focusPane(window, pane);
         openListedArchive(window, backend, path, entries);
         return static_cast<FileTable *>(widget->findChild<FileTable *>("archiveTable"));
     }
@@ -74,7 +95,8 @@ class PanelRefreshCompletionTests final : public QObject, protected MainWindowTe
         CMyComPtr<IFolderFolder> peerProvider = peerTable->sourcePanel->GetFolder();
         const UString peerPrefix = peerTable->sourcePanel->GetCurrentFolderPrefix();
         auto *address = widget->findChild<QLineEdit *>("archivePath");
-        address->setFocus();
+        focusPane(window, pane);
+        QVERIFY(widget->findChild<QComboBox *>("pathCombo")->hasFocus() || address->hasFocus());
         address->setText(root.path());
         QTest::keyClick(address, Qt::Key_Return);
         auto *table = static_cast<FileTable *>(widget->findChild<FileTable *>("archiveTable"));
@@ -118,8 +140,8 @@ class PanelRefreshCompletionTests final : public QObject, protected MainWindowTe
         }
         QCOMPARE(table->currentRow(), 4);
         QCOMPARE(table->selectionModel()->selectedRows().size(), 1);
-        QCOMPARE(widget->findChild<QLabel *>("selectedSizeStatus")->text(),
-                 showDots ? QStringLiteral("10") : QStringLiteral("15"));
+        QCOMPARE(window.findChild<QLabel *>("selectedSizeStatus")->text(),
+                 QtRegionalFormat::bytes(showDots ? 10 : 15));
         QCOMPARE(peerTable->sourcePanel->GetFolder(), peerProvider.Interface());
         QCOMPARE(peerTable->sourcePanel->GetCurrentFolderPrefix(), peerPrefix);
         for (int i = 0; i < 7; ++i) {
@@ -255,20 +277,17 @@ class PanelRefreshCompletionTests final : public QObject, protected MainWindowTe
         view->sourcePanel->SetAlternativeSelection(alternative);
         view->setCurrentCell(2, 0);
         action(window, "selectAllAction")->trigger();
-        auto *widget = window.findChild<QWidget *>(QString("filePanel%1").arg(pane));
-        auto *size = widget->findChild<QLabel *>("selectedSizeStatus");
-        QCOMPARE(size->text(), QStringLiteral("6"));
-        auto *peer = window.findChild<QWidget *>(QString("filePanel%1").arg(1 - pane));
+        auto *size = window.findChild<QLabel *>("selectedSizeStatus");
+        QCOMPARE(size->text(), QtRegionalFormat::bytes(6));
         if (inactive) {
-            peer->findChild<QLineEdit *>("archivePath")->setFocus();
+            focusPane(window, 1 - pane);
             QApplication::processEvents();
         }
         QWidget *focused = QApplication::focusWidget();
         QStringList peerStatus;
-        const char *labels[] = {"selectedItemsStatus", "selectedSizeStatus", "focusedSizeStatus",
-                                "focusedDateStatus"};
+        const char *labels[] = {"selectedItemsStatus", "selectedSizeStatus"};
         for (const char *label : labels)
-            peerStatus << peer->findChild<QLabel *>(label)->text();
+            peerStatus << window.findChild<QLabel *>(label)->text();
         CSelectedState state;
         state.FocusedName_Defined = true;
         state.FocusedName = ToUString(entries[2].path);
@@ -286,16 +305,14 @@ class PanelRefreshCompletionTests final : public QObject, protected MainWindowTe
         QVERIFY(!roundTrip.SelectFocused);
         QCOMPARE(roundTrip.SelectedNames.Size(), 1u);
         QCOMPARE(roundTrip.SelectedNames[0], state.SelectedNames[0]);
-        QCOMPARE(size->text(), QStringLiteral("2"));
-        // Source status shows focused metadata only while a row is selected;
-        // alternative marks are independent of the ListView selection.
-        QCOMPARE(widget->findChild<QLabel *>("focusedSizeStatus")->text(),
-                 alternative ? QString() : QStringLiteral("3"));
-        QVERIFY(widget->findChild<QLabel *>("selectedItemsStatus")->text().contains("1 / 3"));
-        QVERIFY(widget->findChild<QLabel *>("focusedDateStatus")->text().isEmpty());
         QCOMPARE(QApplication::focusWidget(), focused);
-        for (int part = 0; part < 4; ++part)
-            QCOMPARE(peer->findChild<QLabel *>(labels[part])->text(), peerStatus[part]);
+        if (inactive) {
+            for (int part = 0; part < 2; ++part)
+                QCOMPARE(window.findChild<QLabel *>(labels[part])->text(), peerStatus[part]);
+            focusPane(window, pane);
+        }
+        QTRY_COMPARE(size->text(), QtRegionalFormat::bytes(2));
+        QVERIFY(window.findChild<QLabel *>("selectedItemsStatus")->text().contains("1 / 3"));
         for (const QSize geometry : {QSize(980, 620), QSize(640, 400)}) {
             window.resize(geometry);
             QApplication::processEvents();

@@ -14,8 +14,8 @@ HRESULT MainWindow::showDirectory(const QString &path, bool remember, bool sourc
     QtAppOperationState::CallScope call(app_.QtOperations());
     const QFileInfo info(path);
     if (!info.isDir()) {
-        statusBar()->showMessage(
-            QCoreApplication::translate("mainwindow_filelist", "Folder not found: ") + path);
+        showStatusMessage(QCoreApplication::translate("mainwindow_filelist", "Folder not found: ") +
+                          path);
         projectedUi().path->setText(
             projectedUi().state == State::Viewing ? archiveDisplayPath() : projectedUi().directory);
         return E_FAIL;
@@ -84,7 +84,7 @@ HRESULT MainWindow::navigateToImpl(const QString &path, bool sourceAddress) {
         if (result == S_OK)
             result = rendered;
         if (result != S_OK && result != E_ABORT)
-            statusBar()->showMessage(
+            showStatusMessage(
                 QCoreApplication::translate("mainwindow_filelist", "Path not found: ") + path);
         return result;
     }

@@ -170,6 +170,7 @@ void QtNavigationBar::Rebuild() {
         }
     }
     auto *edit = new QToolButton(crumbs_);
+    edit->setObjectName("editLocationButton");
     edit->setIcon(QtCommandSymbol(QtCommandIcon::EditLocation));
     edit->setAutoRaise(true);
     QtConfigureChromeToolButton(*edit);

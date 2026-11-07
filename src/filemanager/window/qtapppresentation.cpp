@@ -101,11 +101,11 @@ bool QtAppPresentation::CreatePanel(CPanel &panel, unsigned index) {
             else
                 window->withPanelProjection(index, [window] { window->redrawSourceProperties(); });
         });
-    panel.AttachStatusPresentation(
-        [window = QPointer<MainWindow>(&window_), index](const CPanelStatus &status) {
-            if (window)
-                window->showPanelStatus(index, status);
-        });
+    panel.AttachStatusPresentation([window = QPointer<MainWindow>(&window_), source = &panel,
+                                    index](const CPanelStatus &status) {
+        if (window && &window->app_.Panels[index] == source)
+            window->showPanelStatus(index, status);
+    });
     // OnCreate refreshes immediately after this service returns, before the
     // next panel is bound. Install its load/publication owner with its controls.
     panel.AttachReloadPresentation([window = QPointer<MainWindow>(&window_), source = &panel,

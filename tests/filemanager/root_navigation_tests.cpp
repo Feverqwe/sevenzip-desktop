@@ -208,8 +208,7 @@ class RootNavigationTests final : public QObject, protected MainWindowTestSuppor
             QVERIFY(UiInspection::fullyVisible(*window.findChild<QWidget *>("panelNavigation0"),
                                                window));
             QVERIFY(UiInspection::fullyVisible(*view, window));
-            QVERIFY(UiInspection::fullyVisible(*window.findChild<QStatusBar *>("panelStatusBar"),
-                                               window));
+            QVERIFY(UiInspection::fullyVisible(*window.statusBar(), window));
             QVERIFY(UiInspection::writeReport(
                 window, QSysInfo::productType() +
                             QStringLiteral("-root-%1x%2").arg(size.width()).arg(size.height())));

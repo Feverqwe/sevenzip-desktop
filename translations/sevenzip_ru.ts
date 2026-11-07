@@ -7738,4 +7738,12 @@ Check that your distribution's CIFS support and cifs-utils are installed.</sourc
         <message><source>Waiting for input</source><translation>Ожидание ответа</translation></message>
         <message><source>Results</source><translation>Результаты</translation></message>
     </context>
+    <context>
+        <name>WindowStatus</name>
+        <message><source>Reading folder…</source><translation>Чтение папки…</translation></message>
+        <message><source>Selected: %1 / %2</source><translation>Выделено: %1 / %2</translation></message>
+        <message><source>Objects: %1</source><translation>Объектов: %1</translation></message>
+        <message><source>Left</source><translation>Слева</translation></message>
+        <message><source>Right</source><translation>Справа</translation></message>
+    </context>
 </TS>

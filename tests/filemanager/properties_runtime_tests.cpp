@@ -1,13 +1,16 @@
 #include "filemanager/properties/qtpropertieswindow.h"
+#include "filemanager/properties/qtpropertyformat.h"
 #include "filemanager/support/panel_model_support.h"
 #include "filemanager/support/window_state_support.h"
 #include "localization/LangUtils.h"
 #include "ui/controls/qtdisclosure.h"
+#include "ui/formatting/qtregionalformat.h"
 #include "ui/support/layout_inspection.h"
 #include <QHeaderView>
 #include <QLabel>
 #include <QMap>
 #include <QScrollArea>
+#include <QTimeZone>
 #include <QTreeWidget>
 
 class PropertiesRuntimeTests : public QObject, protected MainWindowTestSupport {
@@ -140,29 +143,29 @@ class PropertiesRuntimeTests : public QObject, protected MainWindowTestSupport {
         properties = inspect(window, {}, "archiveInfoAction");
         QVERIFY(properties.shown);
         QCOMPARE(properties.values.value("Имя").normalized(QString::NormalizationForm_C), name);
-        QCOMPARE(properties.values.value("Размер"), QString("7"));
-        QCOMPARE(properties.values.value("Сжатый"), QString("7"));
+        QCOMPARE(properties.values.value("Размер"), QtRegionalFormat::exactBytes(7));
+        QCOMPARE(properties.values.value("Сжатый"), QtRegionalFormat::exactBytes(7));
         QCOMPARE(QDir::fromNativeSeparators(properties.folderPath), root.path() + '/');
         QVERIFY(!properties.values.value("Изменен").isEmpty());
         // Prime the source's lazy Windows packed-size cache before changing the file.
         createFile(root.filePath(name), 31);
         properties = inspect(window);
         QVERIFY(properties.shown);
-        QCOMPARE(properties.values.value("Размер"), QString("7"));
-        QCOMPARE(properties.values.value("Сжатый"), QString("7"));
+        QCOMPARE(properties.values.value("Размер"), QtRegionalFormat::exactBytes(7));
+        QCOMPARE(properties.values.value("Сжатый"), QtRegionalFormat::exactBytes(7));
         action(window, "refreshAction")->trigger();
         QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
         selectOnly(window, diskRow(window, root.filePath(name)));
         properties = inspect(window);
         QVERIFY(properties.shown);
-        QCOMPARE(properties.values.value("Размер"), QString("31"));
-        QCOMPARE(properties.values.value("Сжатый"), QString("31"));
+        QCOMPARE(properties.values.value("Размер"), QtRegionalFormat::exactBytes(31));
+        QCOMPARE(properties.values.value("Сжатый"), QtRegionalFormat::exactBytes(31));
         if (flat) {
             selectOnly(window, diskRow(window, root.filePath(directory + '/' + name)));
             properties = inspect(window);
             QVERIFY(properties.shown);
             QCOMPARE(properties.values.value("Имя").normalized(QString::NormalizationForm_C), name);
-            QCOMPARE(properties.values.value("Размер"), QString("11"));
+            QCOMPARE(properties.values.value("Размер"), QtRegionalFormat::exactBytes(11));
             QCOMPARE(QDir::fromNativeSeparators(properties.values.value("Путь"))
                          .normalized(QString::NormalizationForm_C),
                      directory + '/');
@@ -174,11 +177,15 @@ class PropertiesRuntimeTests : public QObject, protected MainWindowTestSupport {
         QVERIFY(!properties.values.contains("Файлов"));
         QVERIFY(!properties.values.contains("Папок"));
 #endif
-        openListedArchive(window, backend, "properties-runtime.zip",
-                          {{name, 17, 5, "2026-09-29 12:34:56.1234567"},
-                           {directory + '/' + name, 23, 9},
-                           {"zero", 0, 0},
-                           {"unknown", -1, -1}});
+        ArchiveEntry dated{name, 17, 5};
+        dated.modifiedTime.emplace();
+        const QDateTime stamp(QDate(2026, 9, 29), QTime(12, 34, 56), QTimeZone::UTC);
+        dated.modifiedTime->SetAsTimeFrom_Ft64_Prec(
+            UInt64(stamp.toSecsSinceEpoch() + 11644473600LL) * 10000000 + 1234567,
+            k_PropVar_TimePrec_100ns);
+        openListedArchive(
+            window, backend, "properties-runtime.zip",
+            {dated, {directory + '/' + name, 23, 9}, {"zero", 0, 0}, {"unknown", -1, -1}});
         QVERIFY(table(window)->selectionModel()->selectedRows().isEmpty());
         action(window, "flatViewAction")->setChecked(flat);
         selectOnly(window, rowWithPath(window, name));
@@ -190,9 +197,10 @@ class PropertiesRuntimeTests : public QObject, protected MainWindowTestSupport {
             inspect(window, QString("properties-runtime-flat%1-mode%2").arg(flat).arg(mode));
         QVERIFY(properties.shown && properties.geometry);
         QCOMPARE(properties.values.value("Имя"), name);
-        QCOMPARE(properties.values.value("Размер"), QString("17"));
-        QCOMPARE(properties.values.value("Сжатый"), QString("5"));
-        QCOMPARE(properties.values.value("Изменен"), QString("2026-09-29 12:34:56.1234567"));
+        QCOMPARE(properties.values.value("Размер"), QtRegionalFormat::exactBytes(17));
+        QCOMPARE(properties.values.value("Сжатый"), QtRegionalFormat::exactBytes(5));
+        QCOMPARE(properties.values.value("Изменен"),
+                 QtFormatPropertyTime(*dated.modifiedTime).detail);
         QVERIFY(!properties.values.contains("Файлов"));
         QVERIFY(!properties.values.contains("Папок"));
         selectOnly(window, rowWithPath(window, "unknown"));
@@ -205,8 +213,8 @@ class PropertiesRuntimeTests : public QObject, protected MainWindowTestSupport {
         selectOnly(window, rowWithPath(window, "zero"));
         properties = inspect(window);
         QVERIFY(properties.shown);
-        QCOMPARE(properties.values.value("Размер"), QString("0"));
-        QCOMPARE(properties.values.value("Сжатый"), QString("0"));
+        QCOMPARE(properties.values.value("Размер"), QtRegionalFormat::exactBytes(0));
+        QCOMPARE(properties.values.value("Сжатый"), QtRegionalFormat::exactBytes(0));
         selectOnly(window, rowWithPath(window, directory));
         properties =
             inspect(window, QString("properties-directory-flat%1-mode%2").arg(flat).arg(mode));
@@ -217,15 +225,15 @@ class PropertiesRuntimeTests : public QObject, protected MainWindowTestSupport {
         QCOMPARE(properties.values.contains("Размер"), !flat);
         QCOMPARE(properties.values.contains("Сжатый"), !flat);
         if (!flat) {
-            QCOMPARE(properties.values.value("Размер"), QString("23"));
-            QCOMPARE(properties.values.value("Сжатый"), QString("9"));
+            QCOMPARE(properties.values.value("Размер"), QtRegionalFormat::exactBytes(23));
+            QCOMPARE(properties.values.value("Сжатый"), QtRegionalFormat::exactBytes(9));
         } else {
             selectOnly(window, rowWithPath(window, directory + '/' + name));
             properties = inspect(window);
             QVERIFY(properties.shown);
             QCOMPARE(properties.values.value("Имя"), name);
-            QCOMPARE(properties.values.value("Размер"), QString("23"));
-            QCOMPARE(properties.values.value("Сжатый"), QString("9"));
+            QCOMPARE(properties.values.value("Размер"), QtRegionalFormat::exactBytes(23));
+            QCOMPARE(properties.values.value("Сжатый"), QtRegionalFormat::exactBytes(9));
             QCOMPARE(QDir::fromNativeSeparators(properties.values.value("Путь")), directory + '/');
         }
         selectOnly(window, rowWithPath(window, directory));
@@ -235,8 +243,8 @@ class PropertiesRuntimeTests : public QObject, protected MainWindowTestSupport {
         properties =
             inspect(window, QString("properties-summary-flat%1-mode%2").arg(flat).arg(mode));
         QVERIFY(properties.shown && properties.geometry);
-        QCOMPARE(properties.values.value("Размер"), flat ? QString("17") : QString("40"));
-        QCOMPARE(properties.values.value("Сжатый"), flat ? QString("5") : QString("14"));
+        QCOMPARE(properties.values.value("Размер"), QtRegionalFormat::exactBytes(flat ? 17 : 40));
+        QCOMPARE(properties.values.value("Сжатый"), QtRegionalFormat::exactBytes(flat ? 5 : 14));
         QCOMPARE(properties.values.value("Папок"), QString("1"));
         QCOMPARE(properties.values.value("Файлов"), QString("2"));
         QCOMPARE(backend.extractCalls, 0);
@@ -247,14 +255,14 @@ class PropertiesRuntimeTests : public QObject, protected MainWindowTestSupport {
         selectOnly(window, diskRow(window, root.filePath(name)));
         properties = inspect(window);
         QVERIFY(properties.shown);
-        QCOMPARE(properties.values.value("Размер"), QString("31"));
-        QCOMPARE(properties.values.value("Сжатый"), QString("31"));
+        QCOMPARE(properties.values.value("Размер"), QtRegionalFormat::exactBytes(31));
+        QCOMPARE(properties.values.value("Сжатый"), QtRegionalFormat::exactBytes(31));
         QCOMPARE(QDir::fromNativeSeparators(properties.folderPath), root.path() + '/');
         selectOnly(window, diskRow(window, root.filePath("zero")));
         properties = inspect(window);
         QVERIFY(properties.shown);
-        QCOMPARE(properties.values.value("Размер"), QString("0"));
-        QCOMPARE(properties.values.value("Сжатый"), QString("0"));
+        QCOMPARE(properties.values.value("Размер"), QtRegionalFormat::exactBytes(0));
+        QCOMPARE(properties.values.value("Сжатый"), QtRegionalFormat::exactBytes(0));
         QCOMPARE(backend.extractCalls, 0);
 #endif
         action(window, "flatViewAction")->setChecked(false);

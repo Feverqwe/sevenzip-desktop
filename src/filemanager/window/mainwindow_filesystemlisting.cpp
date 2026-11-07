@@ -62,9 +62,9 @@ HRESULT MainWindow::finishSynchronousFilesystemListing(HRESULT result) {
     applySortMode(true);
     setState(State::Filesystem);
     if (result == S_OK)
-        statusBar()->clearMessage();
+        clearStatusMessage();
     else
-        statusBar()->showMessage(
+        showStatusMessage(
             QCoreApplication::translate("mainwindow_filelist", "Could not read folder."));
     return result;
 }
@@ -72,7 +72,7 @@ HRESULT MainWindow::finishSynchronousFilesystemListing(HRESULT result) {
 HRESULT MainWindow::startFilesystemScan(IFolderFolder *folder, bool flat) {
     projectedUi().scanningDisk = true;
     setState(State::Filesystem);
-    statusBar()->showMessage(QtLangText(IDS_SCANNING));
+    clearStatusMessage();
     if (projectedUi().filesystemScanner->start(projectedUi().directory, flat, folder))
         return S_OK;
     failFilesystemListing(E_ABORT);
@@ -135,6 +135,6 @@ void MainWindow::failFilesystemListing(HRESULT result) {
         return;
     projectedUi().scanningDisk = false;
     setState(State::Filesystem);
-    statusBar()->showMessage(QCoreApplication::translate("mainwindow", "Could not read folder."));
+    showStatusMessage(QCoreApplication::translate("mainwindow", "Could not read folder."));
     workspace_->NavigationFinished(result);
 }

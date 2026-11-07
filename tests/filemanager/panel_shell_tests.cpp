@@ -1,6 +1,7 @@
 #include "filemanager/SysIconUtils.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
+#include "ui/formatting/qtregionalformat.h"
 #include "ui/support/layout_inspection.h"
 
 #include <QMenuBar>
@@ -13,7 +14,9 @@ struct CurrentDirectoryGuard {
     ~CurrentDirectoryGuard() { QDir::setCurrent(path); }
 };
 
-QLabel *status(QWidget *panel, const char *name) { return panel->findChild<QLabel *>(name); }
+QLabel *status(QWidget *panel, const char *name) {
+    return panel->window()->findChild<QLabel *>(name);
+}
 QAction *menuAction(QMenu &menu, const char *name) {
     for (QAction *action : menu.actions())
         if (action->objectName() == QLatin1String(name))
@@ -33,6 +36,98 @@ class PanelShellTests final : public QObject, protected MainWindowTestSupport {
         const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         QFile::remove(settings);
         SaveRegLang(UString("-"), settings);
+    }
+
+    void selectionSizeKeepsZeroUnknownAndOverflowDistinct() {
+        QTemporaryDir fixture;
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        ArchiveEntry huge{"huge.bin", -1, -1};
+        huge.sizeValue = UInt64(-1);
+        openListedArchive(window, backend, fixture.filePath("sizes.zip"),
+                          {{"empty.bin", 0, 0}, {"one.bin", 1, 1}, {"unknown.bin", -1, -1}, huge});
+        auto *files = window.findChild<FileTable *>("archiveTable");
+        auto *size = window.findChild<QLabel *>("selectedSizeStatus");
+        const auto item = [&](const QString &name) {
+            for (int row = 0; row < files->rowCount(); ++row)
+                if (files->model()->index(row, 0).data().toString() == name)
+                    return files->model()->index(row, 0);
+            return QModelIndex();
+        };
+        const auto select = [&](const QString &name) {
+            const auto index = item(name);
+            QVERIFY(index.isValid());
+            files->selectionModel()->select(index, QItemSelectionModel::ClearAndSelect |
+                                                       QItemSelectionModel::Rows);
+            files->setCurrentIndex(index);
+        };
+        select("empty.bin");
+        QTRY_COMPARE(size->text(), QtRegionalFormat::bytes(0));
+        QVERIFY(size->isVisible());
+        select("unknown.bin");
+        QTRY_VERIFY(size->text().isEmpty());
+        QCOMPARE(item("unknown.bin").siblingAtColumn(2).data().toString(), QString::fromUtf8("—"));
+        select("huge.bin");
+        QTRY_COMPARE(size->text(), QtRegionalFormat::bytes(UInt64(-1)));
+        QVERIFY(size->toolTip().contains(QLocale::system().toString(qulonglong(-1))));
+        files->selectionModel()->select(item("one.bin"),
+                                        QItemSelectionModel::Select | QItemSelectionModel::Rows);
+        QTRY_VERIFY(size->text().isEmpty());
+        QVERIFY(!size->isVisible());
+    }
+
+    void uncalculatedFilesystemFolderDoesNotBecomeZero() {
+        QTemporaryDir fixture;
+        CurrentDirectoryGuard guard;
+        QVERIFY(QDir().mkpath(fixture.filePath("folder")));
+        QFile file(fixture.filePath("one.bin"));
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        QCOMPARE(file.write("x"), qint64(1));
+        file.close();
+        QVERIFY(QDir::setCurrent(fixture.path()));
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        auto *files = window.findChild<FileTable *>("archiveTable");
+        QModelIndex folder, regular;
+        for (int row = 0; row < files->rowCount(); ++row) {
+            const auto index = files->model()->index(row, 0);
+            if (index.data().toString() == "folder")
+                folder = index;
+            if (index.data().toString() == "one.bin")
+                regular = index;
+        }
+        QVERIFY(folder.isValid() && regular.isValid());
+        QVERIFY(folder.siblingAtColumn(2).data().toString().isEmpty());
+        files->selectionModel()->select(regular, QItemSelectionModel::ClearAndSelect |
+                                                     QItemSelectionModel::Rows);
+        auto *size = window.findChild<QLabel *>("selectedSizeStatus");
+        QTRY_COMPARE(size->text(), QtRegionalFormat::bytes(1));
+        files->selectionModel()->select(folder,
+                                        QItemSelectionModel::Select | QItemSelectionModel::Rows);
+        QTRY_VERIFY(size->text().isEmpty());
+        QVERIFY(!size->isVisible());
+    }
+
+    void alternativeCurrentItemIsNotAnExplicitSelection() {
+        QTemporaryDir fixture;
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        openListedArchive(window, backend, fixture.filePath("current.zip"), {{"file.bin", 7, 7}});
+        auto *files = window.findChild<FileTable *>("archiveTable");
+        files->sourcePanel->SetAlternativeSelection(true);
+        files->selectRow(0);
+        files->setCurrentCell(0, 0);
+        const auto summary = files->sourcePanel->Refresh_StatusBar();
+        QCOMPARE(summary.selectedCount, 0);
+        QVERIFY(!summary.selectedSize);
+        QVERIFY(window.findChild<QLabel *>("selectedSizeStatus")->text().isEmpty());
+        // The ordinary command contract still operates on current when needed.
+        CRecordVector<UInt32> operated;
+        files->sourcePanel->Get_ItemIndices_Operated(operated);
+        QCOMPARE(operated.Size(), 1u);
     }
 
     void perPanelStatusAndSourceContextFollowFocus() {
@@ -69,7 +164,7 @@ class PanelShellTests final : public QObject, protected MainWindowTestSupport {
         QVERIFY(leftPanel);
         auto *leftTable = leftPanel->findChild<FileTable *>("archiveTable");
         QTRY_COMPARE(status(leftPanel, "selectedItemsStatus")->text(),
-                     QStringLiteral("Selected: 0 / 1"));
+                     QStringLiteral("Objects: 1"));
         QCOMPARE(leftTable->rowCount(), 1);
         QVERIFY(!leftTable->model()->index(0, 0).data(Qt::DecorationRole).value<QIcon>().isNull());
         QIcon sourceIcon;
@@ -82,9 +177,7 @@ class PanelShellTests final : public QObject, protected MainWindowTestSupport {
         leftTable->setCurrentCell(0, 0);
         QTRY_COMPARE(status(leftPanel, "selectedItemsStatus")->text(),
                      QStringLiteral("Selected: 1 / 1"));
-        QCOMPARE(status(leftPanel, "selectedSizeStatus")->text(), QStringLiteral("7"));
-        QCOMPARE(status(leftPanel, "focusedSizeStatus")->text(), QStringLiteral("7"));
-        QVERIFY(!status(leftPanel, "focusedDateStatus")->text().isEmpty());
+        QCOMPARE(status(leftPanel, "selectedSizeStatus")->text(), QtRegionalFormat::bytes(7));
 
         auto inspectContextMenu = [&](FileTable *view, const QPoint &point, const auto &inspect) {
             window.activateWindow();
@@ -140,26 +233,25 @@ class PanelShellTests final : public QObject, protected MainWindowTestSupport {
         auto *rightPanel = window.findChild<QWidget *>("filePanel1");
         QVERIFY(rightPanel && rightPanel->isVisible());
         auto *rightTable = rightPanel->findChild<FileTable *>("archiveTable");
+        QTRY_VERIFY(rightTable->isEnabled());
+        window.activateWindow();
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        rightTable->setFocus();
+        QTRY_COMPARE(QApplication::focusWidget(), rightTable);
         QTRY_COMPARE(status(rightPanel, "selectedItemsStatus")->text(),
-                     QStringLiteral("Selected: 0 / 1"));
+                     QStringLiteral("Right · Objects: 1"));
         rightTable->selectRow(0);
         rightTable->setCurrentCell(0, 0);
         rightTable->setFocus();
         QTRY_COMPARE(status(rightPanel, "selectedItemsStatus")->text(),
-                     QStringLiteral("Selected: 1 / 1"));
-        QCOMPARE(status(rightPanel, "selectedSizeStatus")->text(), QStringLiteral("12"));
-        QCOMPARE(status(leftPanel, "selectedSizeStatus")->text(), QStringLiteral("7"));
+                     QStringLiteral("Right · Selected: 1 / 1"));
+        QCOMPARE(status(rightPanel, "selectedSizeStatus")->text(), QtRegionalFormat::bytes(12));
         for (const QSize size : {QSize(980, 620), QSize(640, 400)}) {
             window.resize(size);
             QApplication::processEvents();
-            for (QWidget *panel : {leftPanel, rightPanel}) {
-                auto *bar = panel->findChild<QStatusBar *>("panelStatusBar");
-                QVERIFY(bar);
-                QVERIFY(UiInspection::fullyVisible(*bar, window));
-                for (const char *name : {"selectedItemsStatus", "selectedSizeStatus",
-                                         "focusedSizeStatus", "focusedDateStatus"})
-                    QVERIFY(UiInspection::fullyVisible(*status(panel, name), window));
-            }
+            QCOMPARE(window.findChildren<QStatusBar *>().size(), 1);
+            QVERIFY(UiInspection::fullyVisible(*window.statusBar(), window));
+            QVERIFY(UiInspection::fullyVisible(*status(rightPanel, "selectedSizeStatus"), window));
             QVERIFY(UiInspection::writeReport(
                 window, QStringLiteral("panel-shell-%1x%2").arg(size.width()).arg(size.height())));
         }
@@ -168,7 +260,12 @@ class PanelShellTests final : public QObject, protected MainWindowTestSupport {
             [&](QMenu *menu) {
                 QVERIFY(UiInspection::writeReport(*menu, QStringLiteral("panel-context-disk-640")));
             });
-        QCOMPARE(status(leftPanel, "selectedSizeStatus")->text(), QStringLiteral("7"));
+        window.activateWindow();
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        leftTable->setFocus();
+        QTRY_COMPARE(QApplication::focusWidget(), leftTable);
+        QTRY_COMPARE(status(leftPanel, "selectedSizeStatus")->text(), QtRegionalFormat::bytes(7));
+        QVERIFY(status(leftPanel, "selectedItemsStatus")->text().startsWith("Left · "));
     }
 
     void sourceIconCacheUsesExtensionsAndSplitFamily() {
@@ -232,7 +329,7 @@ class PanelShellTests final : public QObject, protected MainWindowTestSupport {
             Q_ARG(QPoint, files->visualRect(files->model()->index(fileRow, 0)).center())));
         window.resize(640, 400);
         QApplication::processEvents();
-        auto *bar = window.findChild<QStatusBar *>("panelStatusBar");
+        auto *bar = window.statusBar();
         QVERIFY(bar);
         QVERIFY(UiInspection::fullyVisible(*bar, window));
         QVERIFY(UiInspection::writeReport(window, QStringLiteral("panel-shell-archive-640")));

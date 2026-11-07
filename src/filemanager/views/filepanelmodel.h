@@ -17,6 +17,7 @@ class FilePanelModel final : public QAbstractTableModel {
         struct Text {
             QString value;
             quint64 languageGeneration = 0;
+            quint64 regionalGeneration = 0;
         };
         quint32 sourceIndex = quint32(-1);
         QString name;
@@ -50,6 +51,7 @@ class FilePanelModel final : public QAbstractTableModel {
     void setColumns(const QStringList &labels);
     void invalidateText(int column = -1);
     void invalidateLanguageText();
+    void invalidateRegionalText();
     void setCutPaths(const QSet<QString> &paths);
 
   private:
@@ -58,4 +60,5 @@ class FilePanelModel final : public QAbstractTableModel {
     QStringList labels_;
     QSet<QString> cutPaths_;
     quint64 languageGeneration_ = 0;
+    quint64 regionalGeneration_ = 0;
 };

@@ -8,14 +8,15 @@
 #include "localization/LangUtils.h"
 #include "localization/qtlangcontrols.h"
 #include "ui/controls/qtdisclosure.h"
+#include "ui/formatting/qtregionalformat.h"
 #include "ui/support/layout_inspection.h"
 #include <QClipboard>
 #include <QLabel>
 #include <QPushButton>
 #include <QScopeGuard>
-#include <QToolButton>
 #include <QScrollArea>
 #include <QScrollBar>
+#include <QToolButton>
 
 class PropertiesWindowTests final : public QObject, protected MainWindowTestSupport {
     Q_OBJECT
@@ -95,7 +96,7 @@ class PropertiesWindowTests final : public QObject, protected MainWindowTestSupp
         QVERIFY(QTest::qWaitForWindowExposed(&window));
         QTRY_VERIFY(readableControls(window));
         QVERIFY(UiInspection::writeReport(window, "properties-info-nested-en"));
-        QCOMPARE(shownSize(window), QString("7"));
+        QCOMPARE(shownSize(window), QtRegionalFormat::bytes(7));
         for (auto *section : window.findChildren<QtDisclosure *>())
             QVERIFY(!section->isExpanded());
         copy(window);
@@ -119,7 +120,7 @@ class PropertiesWindowTests final : public QObject, protected MainWindowTestSupp
         QVERIFY(UiInspection::writeReport(window, "properties-info-nested-ru"));
         for (auto *section : window.findChildren<QtDisclosure *>())
             QVERIFY(!section->isExpanded());
-        QCOMPARE(shownSize(window), QString("7"));
+        QCOMPARE(shownSize(window), QtRegionalFormat::bytes(7));
     }
     void unknownZeroFoldersAndPartialSelectionStayDistinct() {
         CMyComPtr<IFolderFolder> folder;
@@ -145,8 +146,8 @@ class PropertiesWindowTests final : public QObject, protected MainWindowTestSupp
         QtPropertiesWindow empty(collect(folder, {*zero}));
         QtPropertiesWindow contents(collect(folder, {*directory}));
         QtPropertiesWindow multiple(collect(folder, {*unknown, *zero, *directory}));
-        QCOMPARE(shownSize(missing), QString("Not available"));
-        QCOMPARE(shownSize(empty), QString("0"));
+        QCOMPARE(shownSize(missing), QString::fromUtf8("—"));
+        QCOMPARE(shownSize(empty), QtRegionalFormat::bytes(0));
         QCOMPARE(shownSize(contents), QString("Not calculated"));
         QCOMPARE(shownSize(multiple), QString("Not calculated"));
         QVERIFY(multiple.Information().contains("Files: 2 · Folders: 1"));
@@ -326,7 +327,8 @@ class PropertiesWindowTests final : public QObject, protected MainWindowTestSupp
         window.show();
         QVERIFY(QTest::qWaitForWindowExposed(&window));
         QCoreApplication::processEvents();
-        QCOMPARE(window.size(), frame);
+        // Native button metrics can impose a wider minimum for translated text.
+        QCOMPARE(window.size(), frame.expandedTo(window.minimumSize()));
         auto *body = window.findChild<QScrollArea *>();
         auto *actions = window.findChild<QDialogButtonBox *>("propertiesActions");
         QVERIFY(body && actions);

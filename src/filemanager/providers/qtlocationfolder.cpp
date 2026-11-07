@@ -63,7 +63,7 @@ HRESULT CreateArchiveMetadata(const QList<ArchiveEntry> &entries, IFolderFolder 
     for (const ArchiveEntry &entry : entries) {
         CPanelItem item;
         item.RelPath = entry.path;
-        item.MTimeText = entry.modified;
+        item.MTime = entry.modifiedTime;
         item.IsFolder = entry.directory;
         item.Crc = entry.crc;
         for (auto i = entry.rawProperties.cbegin(); i != entry.rawProperties.cend(); ++i)

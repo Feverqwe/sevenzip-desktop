@@ -57,30 +57,44 @@ QString ConvertSizeToString(UInt64 value) {
     return QString::fromWCharArray(s);
 }
 
-bool IsSizeProp(UINT propID) noexcept {
+bool IsTimestampProp(UINT propID) noexcept {
+    return propID == kpidMTime || propID == kpidCTime || propID == kpidATime ||
+           propID == kpidChangeTime;
+}
+
+bool IsByteSizeProp(UINT propID) noexcept {
     switch (propID) {
     case kpidSize:
     case kpidPackSize:
-    case kpidNumSubDirs:
-    case kpidNumSubFiles:
-    case kpidOffset:
-    case kpidLinks:
-    case kpidNumBlocks:
-    case kpidNumVolumes:
     case kpidPhySize:
     case kpidHeadersSize:
     case kpidTotalSize:
     case kpidFreeSpace:
     case kpidClusterSize:
-    case kpidNumErrors:
-    case kpidNumStreams:
-    case kpidNumAltStreams:
     case kpidAltStreamsSize:
     case kpidVirtualSize:
     case kpidUnpackSize:
     case kpidTotalPhySize:
     case kpidTailSize:
     case kpidEmbeddedStubSize:
+        return true;
+    }
+    return false;
+}
+
+bool IsSizeProp(UINT propID) noexcept {
+    if (IsByteSizeProp(propID))
+        return true;
+    switch (propID) {
+    case kpidNumSubDirs:
+    case kpidNumSubFiles:
+    case kpidOffset:
+    case kpidLinks:
+    case kpidNumBlocks:
+    case kpidNumVolumes:
+    case kpidNumErrors:
+    case kpidNumStreams:
+    case kpidNumAltStreams:
         return true;
     }
     return false;

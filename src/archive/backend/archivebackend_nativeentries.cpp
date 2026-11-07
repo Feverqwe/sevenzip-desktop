@@ -102,6 +102,7 @@ HRESULT Item(const CArc &arc, UInt32 index, const QList<CField> &fields, Archive
             if (prop.vt != VT_FILETIME)
                 return E_FAIL;
             entry.modified = value;
+            entry.modifiedTime = prop;
             break;
         default:
             entry.properties.insert(Text(field.Name), value);

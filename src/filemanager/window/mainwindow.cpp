@@ -12,11 +12,14 @@
 #include "filemanager/window/qtfileclipboard.h"
 #include "filemanager/window/qtwindowworkspace.h"
 #include "filemanager/window/qtworkspaceapplication.h"
+#include "filemanager/window/qtworkspacetheme.h"
 #include "localization/LangUtils.h"
 #include "localization/qtlangcontrols.h"
 #include "localization/qtlanguageservices.h"
 #include "platform/associations/qtassociatedfileservices.h"
+#include "platform/locale/qtregionalsettings.h"
 #include "platform/trash/qttrashservice.h"
+#include "ui/controls/qtwindowstatusbar.h"
 
 MainWindow::MainWindow(ArchiveBackend *backend, std::function<bool(const QUrl &)> fileOpener,
                        IQtTrashService *trashService, const QtFileManagerStartup *startup,
@@ -32,6 +35,9 @@ MainWindow::MainWindow(ArchiveBackend *backend, std::function<bool(const QUrl &)
     ReloadLang(toolbarSettingsPath());
     setWindowTitle("Sevenzip");
     resize(980, 620);
+    statusStrip_ = new QtWindowStatusBar(this);
+    setStatusBar(statusStrip_);
+    QtWorkspaceTheme::statusBar(*statusStrip_);
     folderManager_ = new QtArchiveFolderManager(*backend_);
     associatedFileServices_ = std::make_unique<QtAssociatedFileServices>(
         fileOpener_,
@@ -64,11 +70,12 @@ MainWindow::MainWindow(ArchiveBackend *backend, std::function<bool(const QUrl &)
     workspace_ = std::make_unique<QtWindowWorkspace>(*this);
     clipboard_ = std::make_unique<QtFileClipboard>(*this);
     initializeFileManagerWindow(startup);
+    QtRegionalSettings::Observe(*this, [this] { refreshActions(); });
     connect(backend_, &ArchiveBackend::codecCatalogReady, this,
             [this](bool, const QString &message) {
                 refreshActions();
                 if (!message.isEmpty())
-                    statusBar()->showMessage(message);
+                    showStatusMessage(message);
             });
     if (!backend) {
         backend_->discoverCodecCatalog();
@@ -80,6 +87,7 @@ MainWindow::MainWindow(ArchiveBackend *backend, std::function<bool(const QUrl &)
 void MainWindow::createFileManagerWindow(const QtFileManagerStartup *startup, bool panelsDefined,
                                          UInt32 splitterPos) {
     const unsigned focusedPanel = app_.LastFocusedPanel;
+    statusPanel_ = focusedPanel;
     renameController_ = std::make_unique<QtRenameController>(*this);
     guiOutputRefresh_ = std::make_unique<QtGuiOutputRefresh>(
         [this] {
@@ -126,6 +134,7 @@ void MainWindow::createFileManagerWindow(const QtFileManagerStartup *startup, bo
     if (focusedPanel != projectedPanel_)
         activatePanelUi(focusedPanel);
     app_.SetFocusedPanel(focusedPanel);
+    statusPanel_ = focusedPanel;
     appPresentation_->RequestInitialFocus(focusedPanel);
     if (layout())
         layout()->activate();

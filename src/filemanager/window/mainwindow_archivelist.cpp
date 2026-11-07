@@ -82,7 +82,7 @@ HRESULT MainWindow::renderArchiveFolder(bool updateAddress) {
                     if (app_.QtOperations().closed())
                         return;
                     if (result == S_OK)
-                        statusBar()->clearMessage();
+                        clearStatusMessage();
                 });
                 if (!app_.QtOperations().closed())
                     refreshActions();
@@ -97,7 +97,7 @@ HRESULT MainWindow::renderArchiveFolder(bool updateAddress) {
         }
     }
     applySortMode(true);
-    statusBar()->clearMessage();
+    clearStatusMessage();
     refreshActions();
     return S_OK;
 }

@@ -41,9 +41,9 @@ HRESULT MainWindow::renderRootFolder(bool updateAddress) {
         disableNotify.reset();
         setState(State::Namespace);
         if (result == S_OK)
-            statusBar()->clearMessage();
+            clearStatusMessage();
         else
-            statusBar()->showMessage(
+            showStatusMessage(
                 QCoreApplication::translate("mainwindow_root", "Could not read root folder."));
         return result;
     };

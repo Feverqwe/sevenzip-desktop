@@ -2,12 +2,17 @@
 #include "7zip/PropID.h"
 #include "7zip/UI/FileManager/resource.h"
 #include "Common/StringConvert.h"
+#include "Windows/PropVariantConv.h"
+#include "filemanager/FormatUtils.h"
+#include "filemanager/properties/qtpropertyformat.h"
 #include "localization/qtlangbuttonbox.h"
 #include "localization/qtlangcontrols.h"
+#include "platform/locale/qtregionalsettings.h"
 #include "settings/ViewSettings.h"
 #include "ui/controls/qtdisclosure.h"
 #include "ui/controls/qtsourcesummary.h"
 #include "ui/dialogs/qtdialoglayout.h"
+#include "ui/formatting/qtregionalformat.h"
 #include <QApplication>
 #include <QClipboard>
 #include <QDir>
@@ -105,6 +110,7 @@ QtPropertiesWindow::QtPropertiesWindow(QtPropertyReport report, QWidget *parent,
     resize(520, 440);
     QtFitScrollableDialog(*this);
     initialFrame_ = size();
+    QtRegionalSettings::Observe(*this, [this] { Refresh(); });
 }
 
 void QtPropertiesWindow::BuildGroup(qsizetype index, bool comments, QVBoxLayout &layout) {
@@ -172,8 +178,8 @@ QString QtPropertiesWindow::SummarySize() const {
         return text(QT_TRANSLATE_NOOP("PropertiesWindow", "Not calculated"));
     for (const auto &group : report_.groups)
         if (group.scope == Scope::Selection)
-            return available(report_.Property(group, kpidSize));
-    return available({});
+            return PropertyValue(group, kpidSize);
+    return QtRegionalFormat::bytes(std::nullopt);
 }
 QString QtPropertiesWindow::SummaryModified() const {
     if (report_.items.size() > 1)
@@ -181,8 +187,8 @@ QString QtPropertiesWindow::SummaryModified() const {
     const auto scope = report_.items.isEmpty() ? Scope::Folder : Scope::Selection;
     for (const auto &group : report_.groups)
         if (group.scope == scope)
-            return available(report_.Property(group, kpidMTime));
-    return available({});
+            return PropertyValue(group, kpidMTime);
+    return QString::fromUtf8("—");
 }
 QString QtPropertiesWindow::SummaryLocation() const {
     if (report_.items.size() == 1 && !report_.items.first().prefix.isEmpty())
@@ -235,7 +241,30 @@ QString QtPropertiesWindow::Value(unsigned row) const {
     if (source != report_.nativeValues.cend() &&
         source->availability == QtPropertyReport::Availability::Unknown)
         return available({});
+    if (source != report_.nativeValues.cend() && IsByteSizeProp(source->id)) {
+        if (const auto value = QtUnsignedPropertyValue(source->value))
+            return QtRegionalFormat::exactBytes(*value);
+    }
+    if (source != report_.nativeValues.cend() && source->value.vt == VT_FILETIME)
+        return QtFormatPropertyTime(source->value).detail;
     return ToQString(report_.Values[row]);
+}
+QString QtPropertiesWindow::PropertyValue(const QtPropertyReport::Group &group, UInt32 id,
+                                          bool detail) const {
+    for (const auto row : group.rows) {
+        const auto source = report_.nativeValues.constFind(row);
+        if (source == report_.nativeValues.cend() || source->id != id)
+            continue;
+        if (source->availability != QtPropertyReport::Availability::Known)
+            break;
+        if (detail)
+            return Value(row);
+        if (id == kpidMTime)
+            return QtFormatPropertyTime(source->value).display;
+        if (const auto value = QtUnsignedPropertyValue(source->value))
+            return QtRegionalFormat::bytes(*value);
+    }
+    return QString::fromUtf8("—");
 }
 void QtPropertiesWindow::Refresh() {
     for (unsigned i = 0; i < report_.Strings.Size(); ++i)
@@ -244,6 +273,14 @@ void QtPropertiesWindow::Refresh() {
     location_->setText(SummaryLocation());
     size_->setText(SummarySize());
     modified_->setText(SummaryModified());
+    size_->setToolTip({});
+    modified_->setToolTip({});
+    const auto primaryScope = report_.items.isEmpty() ? Scope::Folder : Scope::Selection;
+    for (const auto &group : report_.groups)
+        if (group.scope == primaryScope && report_.items.size() <= 1) {
+            size_->setToolTip(PropertyValue(group, kpidSize, true));
+            modified_->setToolTip(PropertyValue(group, kpidMTime, true));
+        }
     if (selectedNames_) {
         QStringList names;
         for (const auto &item : report_.items)
@@ -280,7 +317,8 @@ QString QtPropertiesWindow::Information() const {
     return result.join('\n') + '\n';
 }
 void QtPropertiesWindow::changeEvent(QEvent *event) {
-    if (event->type() == QEvent::LanguageChange && summary_)
+    if ((event->type() == QEvent::LanguageChange || event->type() == QEvent::LocaleChange) &&
+        summary_)
         Refresh();
     QDialog::changeEvent(event);
 }

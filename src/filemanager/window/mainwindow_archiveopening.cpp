@@ -69,7 +69,7 @@ HRESULT MainWindow::openArchiveAsImpl(const QString &path, const QString &type) 
         return E_ABORT;
     const QFileInfo file(path);
     if (!IsArchiveFileOrPackage(file)) {
-        statusBar()->showMessage(
+        showStatusMessage(
             QCoreApplication::translate("mainwindow_archiveopening", "File not found: ") + path);
         return E_INVALIDARG;
     }
@@ -104,11 +104,9 @@ HRESULT MainWindow::openArchiveAsImpl(const QString &path, const QString &type) 
     }
     if (result == E_ABORT)
         message = QCoreApplication::translate("mainwindow_archiveopening", "Operation canceled.");
-    else if (message.isEmpty())
-        message = result == S_OK
-                      ? QCoreApplication::translate("mainwindow_archiveopening", "Archive opened.")
-                      : ToQString(HResultToMessage(result));
-    statusBar()->showMessage(message);
+    else if (message.isEmpty() && result != S_OK)
+        message = ToQString(HResultToMessage(result));
+    showStatusMessage(message);
     if (result != S_OK && result != E_ABORT)
         QMessageBox::warning(this, QStringLiteral("Sevenzip"), message);
     // Acknowledging the error is part of this transition. Only later input
@@ -122,7 +120,10 @@ HRESULT MainWindow::tryOpenPhysicalArchive(const QFileInfo &file, const QString 
                                            QString &message) {
     const QScopedValueRollback<bool> pending(archiveLocationPending_, true);
     const auto completion = connect(backend_, &ArchiveBackend::finished, this,
-                                    [&message](bool, const QString &text) { message = text; });
+                                    [&message](bool ok, const QString &text) {
+                                        if (!ok)
+                                            message = text;
+                                    });
     const auto disconnectCompletion = qScopeGuard([&] { disconnect(completion); });
     setState(State::Loading);
     QScopedValueRollback<bool> source(sourceArchiveProgress_, true);

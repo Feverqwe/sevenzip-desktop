@@ -8,9 +8,12 @@
 #include "Windows/PropVariantConv.h"
 #include "filemanager/FormatUtils.h"
 #include "filemanager/panels/Panel.h"
+#include "filemanager/properties/qtpropertyformat.h"
 #include "ui/diagnostics/qtdiagnostictext.h"
+#include "ui/formatting/qtregionalformat.h"
 #include <QColor>
 #include <QItemSelectionModel>
+#include <limits>
 #include <vector>
 
 void CPanel::OnNotifyActivateItems(Qt::KeyboardModifiers modifiers) {
@@ -89,34 +92,32 @@ QColor CPanel::OnCustomDraw(unsigned realIndex) const {
 #define SPACE_TERMINATOR_CHAR (wchar_t)(0x9C)
 
 CPanelStatus CPanel::Refresh_StatusBar() const {
-    // Preserve PanelListNotify.cpp's four-part calculation. Qt owns the
-    // controls, so return the parts instead of calling Win32 SetText.
+    // Commands retain their current-item fallback. A selection summary uses
+    // only explicit selection/marks, and typed sizes distinguish unknown from zero.
     CPanelStatus status;
     CRecordVector<UInt32> indices;
-    Get_ItemIndices_Operated(indices);
+    Get_ItemIndices_Selected(indices);
 
     status.selectedCount = int(indices.Size());
     status.totalCount = int(_selectedStatusVector.Size());
     if (!indices.IsEmpty()) {
         UInt64 totalSize = 0;
-        FOR_VECTOR(i, indices)
-        totalSize += GetItemSize(indices[i]);
-        status.selectedSize = ConvertSizeToString(totalSize);
-    }
-
-    const int focusedItem = _selectionList.GetFocusedItem();
-    if (focusedItem >= 0 && _selectionList.GetSelectedCount() > 0) {
-        const unsigned realIndex = GetRealItemIndex(focusedItem);
-        if (realIndex != UInt32(-1) && _folder) {
-            status.focusedSize = ConvertSizeToString(GetItemSize(realIndex));
+        bool known = bool(_folder);
+        FOR_VECTOR(i, indices) {
             NWindows::NCOM::CPropVariant prop;
-            if (_folder->GetProperty(realIndex, kpidMTime, &prop) == S_OK) {
-                char dateString[64];
-                dateString[0] = 0;
-                ConvertPropertyToShortString2(dateString, prop, kpidMTime);
-                status.focusedDate = QString::fromLatin1(dateString);
+            if (!known || _folder->GetProperty(indices[i], kpidSize, &prop) != S_OK) {
+                known = false;
+                break;
             }
+            const auto size = QtUnsignedPropertyValue(prop);
+            if (!size || *size > std::numeric_limits<UInt64>::max() - totalSize) {
+                known = false;
+                break;
+            }
+            totalSize += *size;
         }
+        if (known)
+            status.selectedSize = totalSize;
     }
     if (_statusPresentation)
         _statusPresentation(status);
@@ -230,11 +231,25 @@ QString CPanel::GetItemText(UInt32 itemIndex, const CPropColumn &property) const
     if (result != S_OK)
         return QString::fromWCharArray(
             QtDiagnosticText(QT_TRANSLATE_NOOP("SevenZipDiagnostics", "Error: ")));
+    if (IsByteSizeProp(propID)) {
+        if (const auto value = QtUnsignedPropertyValue(prop))
+            return QtRegionalFormat::bytes(*value);
+        if (prop.vt == VT_EMPTY) {
+            NWindows::NCOM::CPropVariant directory;
+            if (_folder->GetProperty(itemIndex, kpidIsDir, &directory) == S_OK &&
+                directory.vt == VT_BOOL && directory.boolVal != VARIANT_FALSE)
+                return {};
+        }
+        return QtRegionalFormat::bytes(std::nullopt);
+    }
     if ((prop.vt == VT_UI8 || prop.vt == VT_UI4 || prop.vt == VT_UI2) && IsSizeProp(propID)) {
         UInt64 value = 0;
         ConvertPropVariantToUInt64(prop, value);
         return ConvertSizeToString(value);
     }
+    if (prop.vt == VT_FILETIME ||
+        (prop.vt == VT_EMPTY && (property.Type == VT_FILETIME || IsTimestampProp(propID))))
+        return QtFormatPropertyTime(prop).display;
     if (prop.vt == VT_BSTR) {
         QString value = QString::fromWCharArray(prop.bstrVal);
         value.replace(QLatin1Char('\n'), QLatin1Char(' '));

@@ -2,50 +2,21 @@
 #include "7zip/Archive/Common/ItemNameUtils.h"
 #include "7zip/PropID.h"
 #include "Windows/PropVariant.h"
-#include <QDateTime>
 
 namespace {
 constexpr PROPID kSnapshotProperty = 0x10000;
 const PROPID kArchiveProperties[] = {kpidPath, kpidSize, kpidPackSize};
 
-void SetArchiveTime(const QString &text, NWindows::NCOM::CPropVariant &prop) {
-    // List.cpp prints local time. This file-only engine transport has to reverse
-    // that presentation; source codecs normally return FILETIME directly.
-    if (text.size() < 19)
-        return;
-    const QDateTime time = QDateTime::fromString(text.left(19), "yyyy-MM-dd HH:mm:ss");
-    if (!time.isValid())
-        return;
-    const qint64 seconds = time.toSecsSinceEpoch();
-    constexpr qint64 epochOffset = 11644473600LL;
-    if (seconds < -epochOffset)
-        return;
-    QString fraction;
-    if (text.size() > 19) {
-        if (text[19] != '.' || text.size() > 27 || text.size() == 20)
-            return;
-        fraction = text.mid(20);
-        for (const QChar c : fraction)
-            if (c < '0' || c > '9')
-                return;
-    }
-    const unsigned digits = unsigned(fraction.size());
-    if (digits > 7)
-        return;
-    const UInt64 ticks =
-        UInt64(seconds + epochOffset) * 10000000 + fraction.leftJustified(7, '0').toUInt();
-    prop.SetAsTimeFrom_Ft64_Prec(ticks, k_PropVar_TimePrec_Base + digits);
-}
 } // namespace
 
 QtPanelFolder::QtPanelFolder(const QString &prefix, const CObjectVector<CPanelItem> &items,
                              PropertyCatalog catalog)
     : prefix_(prefix), items_(items), catalog_(catalog) {
     if (catalog_ == PropertyCatalog::ArchiveTransport) {
-        bool hasMTimeText = false, hasCrc = false;
+        bool hasMTime = false, hasCrc = false;
         FOR_VECTOR(i, items_) {
-            if (!items_[i].MTimeText.isEmpty())
-                hasMTimeText = true;
+            if (items_[i].MTime && items_[i].MTime->vt == VT_FILETIME)
+                hasMTime = true;
             hasCrc |= items_[i].Crc.has_value();
             for (auto p = items_[i].RawProperties.cbegin(); p != items_[i].RawProperties.cend();
                  ++p)
@@ -54,7 +25,7 @@ QtPanelFolder::QtPanelFolder(const QString &prefix, const CObjectVector<CPanelIt
         }
         for (const PROPID id : kArchiveProperties)
             archivePropertyIds_.Add(id);
-        if (hasMTimeText)
+        if (hasMTime)
             archivePropertyIds_.Add(kpidMTime);
         if (hasCrc)
             archivePropertyIds_.Add(kpidCRC);
@@ -124,7 +95,8 @@ Z7_COM7F_IMF(QtPanelFolder::GetProperty(UInt32 index, PROPID id, PROPVARIANT *va
         break;
     case kpidMTime:
         if (catalog_ == PropertyCatalog::ArchiveTransport) {
-            SetArchiveTime(item.MTimeText, prop);
+            if (item.MTime && item.MTime->vt == VT_FILETIME)
+                prop = *item.MTime;
             break;
         }
         return E_NOTIMPL;

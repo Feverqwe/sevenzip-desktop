@@ -5,7 +5,9 @@
 #include "filemanager/window/qtfileclipboard.h"
 #include "filemanager/window/qtwindowworkspace.h"
 #include "localization/qtlangcontrols.h"
-#include <QLocale>
+#include "platform/locale/qtregionalsettings.h"
+#include "ui/controls/qtwindowstatusbar.h"
+#include "ui/formatting/qtregionalformat.h"
 #include <QScopedValueRollback>
 
 void MainWindow::setState(State state) {
@@ -37,6 +39,9 @@ void MainWindow::refreshActions() {
         if (commands_ && !projectedUi().scanningDisk && !projectedUi().scanningArchive &&
             app_.GetFocusedPanel().ShouldProcessNotifications())
             refreshPanelStatus();
+        else if (projectedUi().scanningDisk || projectedUi().scanningArchive ||
+                 projectedUi().state == State::Loading)
+            showPanelStatus(projectedPanel_, {});
         for (unsigned index = 0; index < kNumPanelsMax; ++index) {
             const auto &ui = panelUi_[index];
             if (!ui.container || !ui.table || !ui.iconList || !ui.path)
@@ -97,30 +102,45 @@ void MainWindow::refreshPanelStatus() {
     inspect(panel.GetFolder());
     const auto &parents = panel.GetParentFolders();
     FOR_VECTOR(i, parents) { inspect(parents[i].ParentFolder); }
-    QtBindLocalText(deviceReadOnly_, "mainwindow_panel",
+    auto *indicator = projectedUi().readOnlyIndicator;
+    QtBindLocalText(indicator, "mainwindow_panel",
                     limitedRead
                         ? QT_TRANSLATE_NOOP("mainwindow_panel", "Read only · limited access")
                         : QT_TRANSLATE_NOOP("mainwindow_panel", "Read only"));
-    deviceReadOnly_->setVisible(device);
-    statusBar()->setVisible(device || !statusBar()->currentMessage().isEmpty());
+    indicator->setVisible(device);
 }
 
 void MainWindow::showPanelStatus(unsigned index, const CPanelStatus &status) {
-    if (index >= kNumPanelsMax || app_.QtOperations().closed())
+    if (index != statusPanel_ || index >= kNumPanelsMax || app_.QtOperations().closed() ||
+        !statusStrip_)
         return;
-    const auto &labels = panelUi_[index].statusLabels;
-    if (!labels[0])
-        return;
-    if (panelUi_[index].locationUnavailable) {
-        for (auto *label : labels)
-            label->clear();
-        return;
+    const auto &ui = panelUi_[index];
+    const bool loading = ui.scanningDisk || ui.scanningArchive || ui.state == State::Loading;
+    QString summary;
+    if (loading)
+        summary = QCoreApplication::translate("WindowStatus", "Reading folder…");
+    else if (!ui.locationUnavailable) {
+        summary = status.selectedCount
+                      ? QCoreApplication::translate("WindowStatus", "Selected: %1 / %2")
+                            .arg(QtSystemRegionalNumber(quint64(status.selectedCount)),
+                                 QtSystemRegionalNumber(quint64(status.totalCount)))
+                      : QCoreApplication::translate("WindowStatus", "Objects: %1")
+                            .arg(QtSystemRegionalNumber(quint64(status.totalCount)));
     }
-    labels[0]->setText(QtSelectionStatusText(status.selectedCount, status.totalCount));
-    labels[0]->setMinimumWidth(labels[0]->fontMetrics().horizontalAdvance(
-        QStringLiteral("… %1 / %2")
-            .arg(QLocale().toString(status.selectedCount), QLocale().toString(status.totalCount))));
-    labels[1]->setText(status.selectedSize);
-    labels[2]->setText(status.focusedSize);
-    labels[3]->setText(status.focusedDate);
+    if (app_.NumPanels == 2 && !summary.isEmpty())
+        summary = (index == 0 ? QCoreApplication::translate("WindowStatus", "Left")
+                              : QCoreApplication::translate("WindowStatus", "Right")) +
+                  " · " + summary;
+    const bool hasSize = !loading && !ui.locationUnavailable && status.selectedSize.has_value();
+    statusStrip_->SetSummary(
+        &app_.Panels[index], summary,
+        hasSize ? QtRegionalFormat::bytes(*status.selectedSize) : QString(),
+        hasSize ? QtRegionalFormat::exactBytes(*status.selectedSize) : QString(), loading);
 }
+
+void MainWindow::showStatusMessage(const QString &message, int timeout) {
+    if (statusStrip_)
+        statusStrip_->SetMessage(&app_.GetFocusedPanel(), message, timeout);
+}
+
+void MainWindow::clearStatusMessage() { showStatusMessage({}); }

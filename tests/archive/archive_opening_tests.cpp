@@ -135,12 +135,14 @@ class ArchiveOpeningTests : public QObject, protected ArchiveBackendTestSupport 
     }
     void nativeMetadataUsesFileTimeAndEmptyUnsupportedProperties() {
         CObjectVector<CPanelItem> items;
-        for (const QString &time :
-             {QStringLiteral("2026-09-29 12:34:56.1234567"),
-              QStringLiteral("2026-09-29 12:34:56.1234598"), QStringLiteral("invalid timestamp")}) {
+        for (unsigned index = 0; index < 3; ++index) {
             CPanelItem item;
             item.RelPath = "input.bin";
-            item.MTimeText = time;
+            if (index < 2) {
+                item.MTime.emplace();
+                item.MTime->SetAsTimeFrom_Ft64_Prec(
+                    UInt64(116444736000000000ULL) + 1234567 + index * 31, k_PropVar_TimePrec_100ns);
+            }
             items.Add(item);
         }
         CMyComPtr<IFolderFolder> metadata =

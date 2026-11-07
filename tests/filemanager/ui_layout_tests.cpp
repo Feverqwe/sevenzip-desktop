@@ -172,9 +172,8 @@ class MainWindowLayoutTests : public QObject {
         QVERIFY(table->isVisible());
         QVERIFY(toolbar->isVisible());
         QVERIFY(UiInspection::fullyVisible(*parent, window));
-        QCOMPARE(window.statusBar()->isVisible(), !window.statusBar()->currentMessage().isEmpty());
-        QVERIFY(
-            UiInspection::fullyVisible(*window.findChild<QStatusBar *>("panelStatusBar"), window));
+        QVERIFY(window.statusBar()->isVisible());
+        QVERIFY(UiInspection::fullyVisible(*window.statusBar(), window));
 
         const QRect content = window.centralWidget()->contentsRect();
         QVERIFY2(content.contains(UiInspection::bounds(*pathCombo, *window.centralWidget())),

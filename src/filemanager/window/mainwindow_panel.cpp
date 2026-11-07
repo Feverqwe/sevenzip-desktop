@@ -123,9 +123,14 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
         [this, index] {
             static_cast<QtPanelAddressCombo *>(panelUi_[index].pathCombo)->CancelPendingListFocus();
             appPresentation_->CancelInitialFocus();
+            activatePanelUi(index);
         });
     projectedUi().navigation->setObjectName(QStringLiteral("panelNavigation%1").arg(index));
     navigation->addWidget(projectedUi().navigation);
+    projectedUi().readOnlyIndicator = new QLabel(navigationRow);
+    projectedUi().readOnlyIndicator->setObjectName("deviceReadOnlyLabel");
+    projectedUi().readOnlyIndicator->hide();
+    navigation->addWidget(projectedUi().readOnlyIndicator);
     layout->addWidget(navigationRow);
     workspace_->AttachPanel(index, *layout);
     createFileTable(central);
@@ -136,20 +141,7 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
     projectedUi().viewStack->setObjectName("fileViewStack");
     projectedUi().viewStack->addWidget(projectedUi().table);
     projectedUi().viewStack->addWidget(projectedUi().iconList);
-    auto *panelStatus = new QStatusBar(central);
-    panelStatus->setObjectName("panelStatusBar");
-    panelStatus->setSizeGripEnabled(false);
-    const char *statusNames[] = {"selectedItemsStatus", "selectedSizeStatus", "focusedSizeStatus",
-                                 "focusedDateStatus"};
-    for (unsigned part = 0; part < 4; ++part) {
-        auto *label = new QtStatusLabel(panelStatus, part == 0 ? Qt::ElideLeft : Qt::ElideRight);
-        label->setObjectName(statusNames[part]);
-        label->setTextInteractionFlags(Qt::TextSelectableByMouse);
-        panelStatus->addPermanentWidget(label, part == 0 ? 1 : 0);
-        panelUi_[index].statusLabels[part] = label;
-    }
-    QtWorkspaceTheme::statusBar(*panelStatus);
-    workspace_->AttachContent(index, *layout, *panelStatus);
+    workspace_->AttachContent(index, *layout);
     connect(projectedUi().table->selectionModel(), &QItemSelectionModel::selectionChanged, this,
             [this, index] {
                 if (projectedPanel_ == index && app_.Panels[index].ShouldProcessNotifications())
@@ -172,22 +164,6 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
     projectedUi().table->addActions(panelShortcutActions_);
     projectedUi().iconList->addActions(panelShortcutActions_);
     app_.GetFocusedPanel().SetListViewMode(app_.GetFocusedPanel().GetListViewMode());
-    statusBar()->setSizeGripEnabled(false);
-    if (!deviceReadOnly_) {
-        auto *feedback = statusBar();
-        feedback->setObjectName("operationStatusBar");
-        deviceReadOnly_ = new QLabel(feedback);
-        deviceReadOnly_->setObjectName("deviceReadOnlyLabel");
-        QtBindLocalText(deviceReadOnly_, "mainwindow_panel",
-                        QT_TRANSLATE_NOOP("mainwindow_panel", "Read only"));
-        feedback->addPermanentWidget(deviceReadOnly_);
-        deviceReadOnly_->hide();
-        feedback->setVisible(!feedback->currentMessage().isEmpty());
-        connect(feedback, &QStatusBar::messageChanged, feedback,
-                [this, feedback](const QString &message) {
-                    feedback->setVisible(!message.isEmpty() || !deviceReadOnly_->isHidden());
-                });
-    }
 }
 
 void MainWindow::createFileTable(QWidget *central) {

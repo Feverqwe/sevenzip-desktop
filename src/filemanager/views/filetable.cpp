@@ -2,6 +2,7 @@
 #include "filemanager/sorting/filenamesort.h"
 #include "filemanager/views/qtfileselectiongesture.h"
 #include "filemanager/window/qtworkspacetheme.h"
+#include "platform/locale/qtregionalsettings.h"
 
 #include <QEvent>
 #include <QHeaderView>
@@ -59,9 +60,16 @@ FileTable::FileTable(int columns, QWidget *parent)
     setItemDelegate(CreateFileRowDelegate(this));
     setHorizontalHeader(new FileColumnHeader(Qt::Horizontal, this));
     horizontalHeader()->setSectionsClickable(true);
+    QtRegionalSettings::Observe(*this, [this] { model_->invalidateRegionalText(); });
 }
 
 void FileTable::invalidateLanguageText() { model_->invalidateLanguageText(); }
+
+void FileTable::changeEvent(QEvent *event) {
+    QTableView::changeEvent(event);
+    if (event->type() == QEvent::LocaleChange)
+        model_->invalidateRegionalText();
+}
 
 QString FileTable::typeLabel(const QString &name, bool) const {
     return GetExtensionPtr(QStringView(name)).toString();
