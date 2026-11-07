@@ -15,8 +15,7 @@ struct CVKeyPropIDPair {
 static const CVKeyPropIDPair g_VKeyPropIDPairs[] = {{Qt::Key_F3, kpidName},
                                                     {Qt::Key_F4, kpidExtension},
                                                     {Qt::Key_F5, kpidMTime},
-                                                    {Qt::Key_F6, kpidSize},
-                                                    {Qt::Key_F7, kpidNoProperty}};
+                                                    {Qt::Key_F6, kpidSize}};
 
 static int FindVKeyPropIDPair(int vKey) {
     for (unsigned i = 0; i < Z7_ARRAY_SIZE(g_VKeyPropIDPairs); i++)

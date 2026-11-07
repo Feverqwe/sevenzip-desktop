@@ -185,9 +185,6 @@ bool OnMenuCommand(unsigned id, IQtFileManagerMenuCommandServices &g_App) {
     case IDM_VIEW_ARANGE_BY_SIZE:
         g_App.SortItemsWithPropID(kpidSize);
         break;
-    case IDM_VIEW_ARANGE_NO_SORT:
-        g_App.SortItemsWithPropID(kpidNoProperty);
-        break;
     case IDM_OPEN_ROOT_FOLDER:
         g_App.OpenRootFolder();
         break;

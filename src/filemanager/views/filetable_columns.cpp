@@ -17,10 +17,8 @@ void FileTable::refreshLanguageText() {
         if (isRawProperty(column))
             continue;
         const CPropColumn *prop = sourceColumn(column);
-        const QString label = propertyId(column) == kpidNoProperty
-                                  ? QCoreApplication::translate("mainwindow_language", "Order")
-                                  : QString::fromWCharArray(GetNameOfProperty(
-                                        propertyId(column), prop ? prop->Name.Ptr() : nullptr));
+        const QString label = QString::fromWCharArray(
+            GetNameOfProperty(propertyId(column), prop ? prop->Name.Ptr() : nullptr));
         model_->setHeaderData(column, Qt::Horizontal, label);
     }
     for (int row = 0; row < rowCount(); ++row) {
@@ -41,14 +39,11 @@ void FileTable::setColumnProperties(const QVector<PROPID> &properties, bool raw)
 }
 
 void FileTable::configureSourceColumns() {
-    setColumnProperties(
-        {kpidName, kpidPath, kpidSize, kpidPackSize, kpidMTime, kpidExtension, kpidNoProperty});
+    setColumnProperties({kpidName, kpidPath, kpidSize, kpidPackSize, kpidMTime, kpidExtension});
     sourceColumnsBound_ = true;
     QStringList labels;
     for (const auto &binding : columns_)
-        labels << (binding.property == kpidNoProperty
-                       ? QCoreApplication::translate("mainwindow_columns", "Order")
-                       : QString::fromWCharArray(GetNameOfProperty(binding.property, nullptr)));
+        labels << QString::fromWCharArray(GetNameOfProperty(binding.property, nullptr));
     const CPropColumns &catalog = sourcePanel->GetColumns();
     FOR_VECTOR(i, catalog) {
         const CPropColumn &prop = catalog[i];
@@ -85,7 +80,7 @@ void FileTable::configureSourceColumns() {
         setColumnWidth(column, qMax(32, int(prop.Width)));
         setColumnHidden(column, !prop.IsVisible);
     }
-    for (int column : {1, 5, 6})
+    for (int column : {1, 5})
         setColumnHidden(column, true);
     for (int column : {0, 2, 3, 4}) {
         if (!sourceColumn(column))
@@ -135,10 +130,10 @@ bool FileTable::isRawProperty(int column) const {
 
 int FileTable::columnForProperty(PROPID id) const {
     for (int column = 0; column < columns_.size(); ++column) {
-        if (column != 1 && column != 5 && column != 6 && columns_[column].property == id)
+        if (column != 1 && column != 5 && columns_[column].property == id)
             return column;
     }
-    return id == kpidExtension ? 5 : id == kpidNoProperty ? 6 : -1;
+    return id == kpidExtension ? 5 : -1;
 }
 
 const CPropColumn *FileTable::sourceColumn(int column) const {

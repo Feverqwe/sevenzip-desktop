@@ -113,8 +113,6 @@ QVariant FilePanelModel::data(const QModelIndex &index, int role) const {
     case QtPanelList::SortValueRole:
         if (parent)
             return {};
-        if (column == 6)
-            return row.sourceIndex;
         if (readable &&
             (view_.propertyId(column) == kpidSize || view_.propertyId(column) == kpidPackSize)) {
             NWindows::NCOM::CPropVariant value;
@@ -138,8 +136,6 @@ QVariant FilePanelModel::data(const QModelIndex &index, int role) const {
             return row.path;
         if (column == 5)
             return parent ? QString() : view_.typeLabel(row.name, row.directory);
-        if (column == 6)
-            return parent ? QString() : QString::number(row.sourceIndex);
         if (const auto found = row.text.constFind(column);
             found != row.text.cend() &&
             (!readable || (found->languageGeneration == languageGeneration_ &&

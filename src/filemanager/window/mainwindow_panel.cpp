@@ -157,16 +157,15 @@ void MainWindow::createFileTable(QWidget *central) {
     fileTable->setFullRowHighlight(fileListSettings_.FullRow);
     fileTable->sourcePanel = &app_.GetFocusedPanel();
     fileTable->setColumnProperties(
-        {kpidName, kpidPath, kpidSize, kpidPackSize, kpidMTime, kpidExtension, kpidNoProperty});
+        {kpidName, kpidPath, kpidSize, kpidPackSize, kpidMTime, kpidExtension});
     projectedUi().table->setObjectName("archiveTable");
     QtBindLocalText(projectedUi().table, "mainwindow_panel",
                     QT_TRANSLATE_NOOP("mainwindow_panel", "File list"), true);
     projectedUi().table->verticalHeader()->hide();
     projectedUi().table->panelModel()->setColumns(
-        {"Name", "Path", "Size", "Packed Size", "Modified", "Type", "Order"});
+        {"Name", "Path", "Size", "Packed Size", "Modified", "Type"});
     projectedUi().table->setColumnHidden(1, true);
     projectedUi().table->setColumnHidden(5, true);
-    projectedUi().table->setColumnHidden(6, true);
     projectedUi().table->horizontalHeader()->setSectionsMovable(true);
     projectedUi().table->setColumnWidth(0, 160);
     projectedUi().table->setColumnWidth(2, 100);

@@ -68,7 +68,7 @@ void QtFileManagerCommands::RefreshViewActions() {
         const QSignalBlocker block(window_.viewActions_[i]);
         window_.viewActions_[i]->setChecked(panel && i == panel->GetListViewMode());
     }
-    for (unsigned i = 0; i < 5; ++i) {
+    for (unsigned i = 0; i < 4; ++i) {
         const QSignalBlocker block(window_.sortActions_[i]);
         window_.sortActions_[i]->setChecked(
             panel && window_.sortActions_[i]->property("nativeCommandID").toUInt() ==

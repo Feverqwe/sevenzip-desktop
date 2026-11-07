@@ -76,9 +76,7 @@ int CPanel::CompareItemIndices(UInt32 first, UInt32 second, PROPID sortID, bool 
             iter == 0 && isRawProp && _folderRawProps
                 ? CompareRawItems(_folderRawProps, first, second, propID)
                 : std::nullopt;
-        if (propID == kpidNoProperty)
-            res = first < second ? -1 : first > second ? 1 : 0;
-        else if (rawResult)
+        if (rawResult)
             res = *rawResult;
         else if (_folderCompare)
             res = _folderCompare->CompareItems(first, second, propID, iter ? 0 : Int32(isRawProp));

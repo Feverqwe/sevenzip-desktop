@@ -145,9 +145,8 @@ void QtFileManagerCommands::AttachViewActions() {
     for (unsigned i : {0u, 3u})
         Bind(w.viewActions_[i], IDM_VIEW_LARGE_ICONS + i, true);
     const unsigned sortIDs[] = {IDM_VIEW_ARANGE_BY_NAME, IDM_VIEW_ARANGE_BY_TYPE,
-                                IDM_VIEW_ARANGE_BY_DATE, IDM_VIEW_ARANGE_BY_SIZE,
-                                IDM_VIEW_ARANGE_NO_SORT};
-    for (unsigned i = 0; i < 5; ++i)
+                                IDM_VIEW_ARANGE_BY_DATE, IDM_VIEW_ARANGE_BY_SIZE};
+    for (unsigned i = 0; i < 4; ++i)
         Bind(w.sortActions_[i], sortIDs[i], true);
     for (unsigned i = 0; i < 5; ++i)
         Bind(w.timeActions_[i], IDM_VIEW_TIME + i);

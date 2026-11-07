@@ -14,10 +14,10 @@ void MainWindow::configureColumns() {
     updateIconColumn();
     const int sortColumn = fileTable->columnForProperty(panel.GetSortID());
     if (sortColumn < 0 ||
-        (!fileTable->sourceColumn(sortColumn) && panel.GetSortID() != kpidExtension &&
-         panel.GetSortID() != kpidNoProperty)) {
-        const int fallback = panel.GetSortID() == kpidNoProperty ? 6 : 0;
-        panel._sortID = fileTable->propertyId(fallback);
+        (!fileTable->sourceColumn(sortColumn) && panel.GetSortID() != kpidExtension)) {
+        if (panel.GetSortID() == kpidNoProperty)
+            panel._ascending = true;
+        panel._sortID = fileTable->propertyId(0);
         panel.SetSortRawStatus();
     }
 }
@@ -29,7 +29,7 @@ void MainWindow::applySortMode(bool enableSorting) {
     auto *view = static_cast<FileTable *>(projectedUi().table);
     int column = view->columnForProperty(panel.GetSortID());
     if (column < 0)
-        column = panel.GetSortID() == kpidNoProperty ? 6 : 0;
+        column = 0;
     const Qt::SortOrder order = panel._ascending ? Qt::AscendingOrder : Qt::DescendingOrder;
     panel._sortID = view->propertyId(column);
     panel.SetSortRawStatus();

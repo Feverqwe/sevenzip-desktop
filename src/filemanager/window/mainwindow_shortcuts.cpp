@@ -63,7 +63,7 @@ void MainWindow::configureShortcuts() {
     foldersHistory_->setShortcut(QKeySequence(Qt::ALT | Qt::Key_F12));
     for (int i : {0, 3})
         viewActions_[i]->setShortcut(QKeySequence(Qt::CTRL | (Qt::Key_1 + i)));
-    for (int i = 0; i < 5; ++i)
+    for (int i = 0; i < 4; ++i)
         sortActions_[i]->setShortcut(QKeySequence(Qt::CTRL | (Qt::Key_F3 + i)));
     auto *focusPath = new QAction(this);
     focusPath->setObjectName("focusPathAction");

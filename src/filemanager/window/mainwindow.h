@@ -329,7 +329,7 @@ class MainWindow : public QMainWindow {
     QAction *saveBookmarks_[10]{};
     QAction *openBookmarks_[10]{};
     bool configuringColumns_ = false;
-    QAction *sortActions_[5]{};
+    QAction *sortActions_[4]{};
     QAction *timeActions_[5]{};
     QAction *utcTimeAction_ = nullptr;
     QAction *autoRefreshAction_ = nullptr;

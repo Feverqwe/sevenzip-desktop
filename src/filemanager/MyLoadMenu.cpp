@@ -46,8 +46,6 @@ unsigned GetSortControlID(PROPID propID) {
         return IDM_VIEW_ARANGE_BY_DATE;
     case kpidSize:
         return IDM_VIEW_ARANGE_BY_SIZE;
-    case kpidNoProperty:
-        return IDM_VIEW_ARANGE_NO_SORT;
     }
     return 0; // A native metadata column need not have a matching workspace menu item.
 }
@@ -83,7 +81,7 @@ void OnMenuActivating(QMenuBar &mainMenu, QMenu &hMenu, int position, CApp &g_Ap
     if (position == 2) { // k_MenuIndex_View in the source resource.
         CheckRadioItem(hMenu, IDM_VIEW_LARGE_ICONS, IDM_VIEW_DETAILS,
                        IDM_VIEW_LARGE_ICONS + g_App.GetListViewMode());
-        CheckRadioItem(hMenu, IDM_VIEW_ARANGE_BY_NAME, IDM_VIEW_ARANGE_NO_SORT,
+        CheckRadioItem(hMenu, IDM_VIEW_ARANGE_BY_NAME, IDM_VIEW_ARANGE_BY_SIZE,
                        GetSortControlID(g_App.GetSortID()));
         CheckItemByID(hMenu, IDM_VIEW_TWO_PANELS, g_App.NumPanels == 2);
         CheckItemByID(hMenu, IDM_VIEW_FLAT_VIEW, g_App.GetFlatMode());

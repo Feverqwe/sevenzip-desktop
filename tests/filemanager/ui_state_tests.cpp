@@ -14,36 +14,6 @@ class MainWindowStateTests : public QObject, protected MainWindowTestSupport {
         settings.clear();
     }
 
-    void viewSortCommandsReorderArchiveAndSurviveRefresh() {
-        QTemporaryDir temp;
-        QVERIFY(temp.isValid());
-        ControlledBackend backend;
-        MainWindow window(&backend);
-        const QList<ArchiveEntry> entries = {ArchiveEntry{"z.bin", 30, 1, "2024-01-01 00:00:00"},
-                                             ArchiveEntry{"a.txt", 10, 1, "2023-01-01 00:00:00"},
-                                             ArchiveEntry{"c.bin", 20, 1, "2022-01-01 00:00:00"}};
-        openListedArchive(window, backend, temp.filePath("sort.7z"), entries);
-        auto names = [&] {
-            QStringList result;
-            for (int row = 0; row < table(window)->rowCount(); ++row)
-                result << table(window)->model()->index(row, 0).data().toString();
-            return result;
-        };
-        QCOMPARE(names(), (QStringList{"a.txt", "c.bin", "z.bin"}));
-        action(window, "sort1Action")->trigger();
-        QCOMPARE(names(), (QStringList{"c.bin", "z.bin", "a.txt"}));
-        action(window, "sort2Action")->trigger();
-        QCOMPARE(names(), (QStringList{"z.bin", "a.txt", "c.bin"}));
-        action(window, "sort3Action")->trigger();
-        QCOMPARE(names(), (QStringList{"z.bin", "c.bin", "a.txt"}));
-        action(window, "sort4Action")->trigger();
-        QCOMPARE(names(), (QStringList{"z.bin", "a.txt", "c.bin"}));
-        backend.queueList(entries);
-        action(window, "refreshAction")->trigger();
-        QCOMPARE(names(), (QStringList{"z.bin", "a.txt", "c.bin"}));
-        QVERIFY(action(window, "sort4Action")->isChecked());
-    }
-
     void maskAndTypeSelectionFollowFileManager() {
         QTemporaryDir temp;
         QVERIFY(temp.isValid());

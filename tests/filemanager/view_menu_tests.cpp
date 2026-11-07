@@ -32,6 +32,56 @@ class ViewMenuTests final : public QObject, protected MainWindowTestSupport {
     }
 
   private slots:
+    void viewSortCommandsReorderArchiveAndSurviveRefresh() {
+        QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
+        QTemporaryDir temp;
+        QVERIFY(temp.isValid());
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        QList<ArchiveEntry> entries = {{"z.bin", 30, 1}, {"a.txt", 10, 1}, {"c.bin", 20, 1}};
+        for (qsizetype index = 0; index < entries.size(); ++index) {
+            NWindows::NCOM::CPropVariant time;
+            time.vt = VT_FILETIME;
+            time.filetime = FILETIME{0, UInt32(0x01D90003 - index)};
+            entries[index].modifiedTime = time;
+        }
+        openListedArchive(window, backend, temp.filePath("sort.7z"), entries);
+        auto names = [&] {
+            QStringList result;
+            for (int row = 0; row < table(window)->rowCount(); ++row)
+                result << table(window)->model()->index(row, 0).data().toString();
+            return result;
+        };
+        QCOMPARE(names(), (QStringList{"a.txt", "c.bin", "z.bin"}));
+        action(window, "sort1Action")->trigger();
+        QCOMPARE(names(), (QStringList{"c.bin", "z.bin", "a.txt"}));
+        action(window, "sort2Action")->trigger();
+        QCOMPARE(names(), (QStringList{"z.bin", "a.txt", "c.bin"}));
+        action(window, "sort3Action")->trigger();
+        QCOMPARE(names(), (QStringList{"z.bin", "c.bin", "a.txt"}));
+        QTest::keyClick(table(window), Qt::Key_F7, Qt::ControlModifier);
+        QCOMPARE(names(), (QStringList{"z.bin", "c.bin", "a.txt"}));
+        action(window, "sort0Action")->trigger();
+        QCOMPARE(names(), (QStringList{"a.txt", "c.bin", "z.bin"}));
+        backend.queueList(entries);
+        action(window, "refreshAction")->trigger();
+        QCOMPARE(names(), (QStringList{"a.txt", "c.bin", "z.bin"}));
+        QVERIFY(action(window, "sort0Action")->isChecked());
+
+        CListViewInfo oldSort;
+        oldSort.SortID = kpidNoProperty;
+        oldSort.Ascending = false;
+        oldSort.Save(table(window)->sourcePanel->GetFolderTypeID(),
+                     qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
+        ControlledBackend reopenedBackend;
+        MainWindow reopened(&reopenedBackend);
+        openListedArchive(reopened, reopenedBackend, temp.filePath("sort.7z"), entries);
+        const auto *model = table(reopened)->model();
+        QCOMPARE(model->index(0, 0).data().toString(), QString("a.txt"));
+        QCOMPARE(model->index(2, 0).data().toString(), QString("z.bin"));
+        QVERIFY(action(reopened, "sort0Action")->isChecked());
+    }
+
     void openMenuKeepsItsSourcePanel() {
         QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         QTemporaryDir fixture;

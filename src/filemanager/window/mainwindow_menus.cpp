@@ -136,7 +136,7 @@ void MainWindow::createFavoritesMenu(QMenu *favoritesMenu) {
 
 void MainWindow::createViewOptions(QMenu *viewMenu) {
     auto *sortGroup = new QActionGroup(this);
-    const QStringList sortLabels = {"By Name", "By Type", "By Date", "By Size", "Unsorted"};
+    const QStringList sortLabels = {"By Name", "By Type", "By Date", "By Size"};
     for (int index = 0; index < sortLabels.size(); ++index) {
         QAction *action = new QAction(sortLabels[index], viewMenu);
         action->setObjectName(QStringLiteral("sort%1Action").arg(index));
@@ -280,7 +280,6 @@ void MainWindow::populateSourceMenus() {
                     QT_TRANSLATE_NOOP("CommandMenus", "Sort by"));
     for (QAction *action : sortActions_)
         sort->addAction(action);
-    sortActions_[4]->setVisible(false);
     sort->addSeparator();
     auto *direction = new QActionGroup(sort);
     for (const auto &[name, text] :
