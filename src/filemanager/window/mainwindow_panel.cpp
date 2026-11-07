@@ -237,7 +237,13 @@ void MainWindow::createFileTable(QWidget *central) {
     connectFileView(*projectedUi().table);
     app_.GetFocusedPanel().AttachSelectionView(
         fileTable,
-        [fileTable](PROPID property, Int32) { return fileTable->columnForProperty(property); },
+        [fileTable](PROPID property, Int32) {
+            const int current = fileTable->horizontalHeader()->sortIndicatorSection();
+            if (current >= 0 && !fileTable->isColumnHidden(current) &&
+                fileTable->propertyId(current) == property)
+                return current;
+            return fileTable->columnForProperty(property);
+        },
         [this, owner = projectedPanel_](int row) {
             withPanelProjection(owner, [this, row] { renameController_->Begin(row); });
         });

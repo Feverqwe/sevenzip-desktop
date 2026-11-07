@@ -45,6 +45,8 @@ void MainWindow::applySortMode(bool enableSorting) {
 
 void MainWindow::sortIndicatorChanged(unsigned index, int column, Qt::SortOrder order,
                                       bool headerClick) {
+    if (headerClick && app_.NumPanels == 2)
+        activatePanelUi(index);
     const bool active = index == projectedPanel_;
     withPanelProjection(index, [this, index, column, order, active, headerClick] {
         auto *view = static_cast<FileTable *>(projectedUi().table);

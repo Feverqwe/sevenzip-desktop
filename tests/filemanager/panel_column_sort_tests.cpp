@@ -107,7 +107,8 @@ class PanelColumnSortTests final : public QObject, protected MainWindowTestSuppo
         action(window, "twoPanelsAction")->trigger();
         auto *ui = window.findChild<QWidget *>(QString("filePanel%1").arg(pane));
         auto *view = static_cast<FileTable *>(ui->findChild<FileTable *>("archiveTable"));
-        ui->findChild<QLineEdit *>("archivePath")->setFocus();
+        view->setFocus();
+        QTRY_VERIFY(view->hasFocus());
         openListedArchive(window, backend, fixture.filePath(QStringLiteral("sort 文件.zip")),
                           entries);
         QCOMPARE(view->rowCount(), 2);
@@ -123,13 +124,25 @@ class PanelColumnSortTests final : public QObject, protected MainWindowTestSuppo
         const int peerRows = peer->rowCount();
         const PROPID peerSort = peer->sourcePanel->_sortID;
         const bool peerAscending = peer->sourcePanel->_ascending;
-        peerUi->findChild<QLineEdit *>("archivePath")->setFocus();
+        peer->setFocus();
+        QTRY_VERIFY(peer->hasFocus());
         QWidget *const focused = QApplication::focusWidget();
         QVERIFY(focused);
         const int generic = propertyColumn(*view, property, false);
         const int raw = propertyColumn(*view, property, true);
         QVERIFY(generic >= 0);
         QVERIFY(raw >= 0);
+        for (const int column : {generic, raw}) {
+            if (view->isColumnHidden(column)) {
+                const auto &columns = panel.GetColumns();
+                unsigned index = 0;
+                while (index < columns.Size() && view->columnForCatalogProperty(index) != column)
+                    ++index;
+                QVERIFY(index > 0 && index < columns.Size());
+                toggleCatalog(*view, index);
+                QVERIFY(!view->isColumnHidden(column));
+            }
+        }
         panel.SelectAll(true);
         const int first = genericFirst ? generic : raw;
         const int second = genericFirst ? raw : generic;
@@ -164,10 +177,13 @@ class PanelColumnSortTests final : public QObject, protected MainWindowTestSuppo
         checkSort(*view, property, !sizeProperty);
         clickColumn(*view, raw);
         checkSort(*view, property, sizeProperty);
+        action(window, sizeProperty ? "sortDescendingAction" : "sortAscendingAction")->trigger();
+        checkSort(*view, property, !sizeProperty);
+        QCOMPARE(view->horizontalHeader()->sortIndicatorSection(), raw);
         inspectViews(window, *view, *peer, "copies");
         panel.OnReload();
         QCOMPARE(view->rowCount(), 2);
-        checkSort(*view, property, sizeProperty);
+        checkSort(*view, property, !sizeProperty);
         inspectViews(window, *view, *peer, "refresh");
         QCOMPARE(panel.GetFolder(), (IFolderFolder *)provider);
         QCOMPARE(peer->sourcePanel->GetFolder(), (IFolderFolder *)peerProvider);

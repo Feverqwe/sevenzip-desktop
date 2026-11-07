@@ -112,10 +112,10 @@ geometry before Refresh as well as after it, with selected rows and peer focus.
 Sorting those sections uses the first catalog PropID's raw flag. Clicking any
 section of the currently sorted PropID toggles the source direction, including
 switching between generic/raw sections or appended copies. Keep the indicator
-on the clicked section and map sort actions by PropID. Physical clicks focus the
-owning list; explicit programmatic sorts retain their requested direction and
-existing inactive-owner focus behavior. Inspect both panes EN/RU, empty raw data,
-selection/peer state and copies/Refresh at980×620/640×400.
+on the clicked section when changing direction and map sort actions by PropID.
+Physical clicks activate the owning pane and focus its list. Programmatic sorts
+retain their requested direction and existing focus. Inspect both panes EN/RU,
+empty raw data, selection/peer state and copies/Refresh at980×620/640×400.
 Re-enumerate a schema even for the same provider/type. Consume written generic/raw
 counts as upstream does, skip individual info errors and generic IsDir, and hide
 the reserved Qt Name section when no generic Name descriptor exists. A raw Name
