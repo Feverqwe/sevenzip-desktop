@@ -11,10 +11,12 @@
 class QtDisclosure;
 class QtSourceSummary;
 class QPlainTextEdit;
+class QLabel;
 
 class CExtractDialog : public QDialog {
     Q_OBJECT
     QComboBox *_path = nullptr;
+    QLabel *_destinationError = nullptr;
     QLineEdit *_pathName = nullptr;
     QCheckBox *_nameEnable = nullptr;
     QLineEdit *_passwordControl = nullptr;

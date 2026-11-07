@@ -4,6 +4,8 @@
 #include "fileops/patterns/Wildcard.h"
 #include <QDir>
 #include <QFile>
+#include <QLabel>
+#include <QScopeGuard>
 #include <QSettings>
 #include <QTemporaryDir>
 #include <QtTest>
@@ -146,8 +148,37 @@ class SplitDestinationTests final : public QObject {
         QVERIFY(occupied.open(QIODevice::WriteOnly));
         QCOMPARE(occupied.write("preserve"), qint64(8));
         occupied.close();
-        const auto failure = extract("occupied", true);
-        QVERIFY(failure.Result != S_OK || !failure.CallbackOK);
+        const QString corrected = base + "/corrected";
+        const auto recovered = ExtractDialogFixture::Run(
+            backend, archive, base + "/initial", [&](CExtractDialog &dialog) {
+                const auto close = qScopeGuard([&] {
+                    if (dialog.isVisible())
+                        dialog.reject();
+                });
+                auto *error = dialog.findChild<QLabel *>("extractDestinationError");
+                QVERIFY(error);
+                enabled(dialog)->setChecked(true);
+                name(dialog)->setText("occupied/child");
+                const auto selectedMode = NExtract::NOverwriteMode::kSkip;
+                auto *overwrite = dialog.findChild<QComboBox *>("extractOverwriteMode");
+                overwrite->setCurrentIndex(overwrite->findData(selectedMode));
+                path(dialog)->setEditText("  ");
+                dialog.accept();
+                QVERIFY(dialog.isVisible() && error->isVisible());
+                path(dialog)->setEditText(base);
+                dialog.accept();
+                QVERIFY(dialog.isVisible() && error->isVisible());
+                QCOMPARE(overwrite->currentData().toInt(), int(selectedMode));
+                QCOMPARE(name(dialog)->text(), QString("occupied/child"));
+                name(dialog)->setText("corrected");
+                QVERIFY(!error->isVisible());
+                dialog.accept();
+            });
+        QCOMPARE(recovered.Result, S_OK);
+        QVERIFY(recovered.CallbackOK);
+        QFile retried(QDir(corrected).filePath(QFileInfo(source).fileName()));
+        QVERIFY(retried.open(QIODevice::ReadOnly));
+        QCOMPARE(retried.readAll(), QByteArray("source bytes"));
         QVERIFY(occupied.open(QIODevice::ReadOnly));
         QCOMPARE(occupied.readAll(), QByteArray("preserve"));
         const QString cancelledPath = base + "/cancelled";

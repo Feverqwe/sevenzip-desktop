@@ -12,6 +12,8 @@
 #include "ui/lifecycle/qttaskpresentation.h"
 #include <QDir>
 #include <QEvent>
+#include <QFileInfo>
+#include <QLabel>
 #include <QShowEvent>
 #include <QStandardPaths>
 #include <QTimer>
@@ -191,6 +193,33 @@ void CExtractDialog::OnButtonSetPath() {
 }
 
 void CExtractDialog::OnOK() {
+    UString s = DraftDestination();
+    const QString base = _path->currentText().trimmed();
+    const QString requested = ToQString(s);
+    bool valid = !base.isEmpty() && !requested.contains(QChar::Null);
+    if (valid) {
+        QString path = QDir::cleanPath(QFileInfo(requested).absoluteFilePath());
+        for (;;) {
+            const QFileInfo entry(path);
+            if (entry.exists()) {
+                valid = entry.isDir();
+                break;
+            }
+            const QString parent = entry.absolutePath();
+            if (parent == path)
+                break;
+            path = parent;
+        }
+    }
+    if (!valid) {
+        _destinationError->setText(
+            base.isEmpty() ? QCoreApplication::translate("CopyRedesign", "Choose a destination.")
+                           : QCoreApplication::translate("SevenZipDiagnostics",
+                                                         "Incorrect output directory path"));
+        _destinationError->show();
+        _path->setFocus();
+        return;
+    }
     const int pathMode2 = _pathMode->currentData().toInt();
     if (PathMode != NExtract::NPathMode::kCurPaths || pathMode2 != NExtract::NPathMode::kFullPaths)
         PathMode = (NExtract::NPathMode::EEnum)pathMode2;
@@ -216,7 +245,6 @@ void CExtractDialog::OnOK() {
         currentItem = -1;
     if (currentItem == -1 && _path->count() >= int(kHistorySize))
         currentItem = _path->count() - 1;
-    UString s = DraftDestination();
     NWindows::NFile::NName::NormalizeDirPathPrefix(s);
     const bool splitDest = _nameEnable->isChecked();
     if (splitDest != _info.SplitDest.Val) {

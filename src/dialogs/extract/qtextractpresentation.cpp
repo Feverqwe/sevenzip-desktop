@@ -64,6 +64,12 @@ void CExtractDialog::BuildPresentation() {
     auto *destination = QtCreateDialogForm();
     destination->addRow(destinationLabel, pathRow);
     layout->addLayout(destination);
+    _destinationError = new QLabel(this);
+    _destinationError->setObjectName("extractDestinationError");
+    _destinationError->setWordWrap(true);
+    _destinationError->hide();
+    layout->addWidget(_destinationError);
+    connect(_path, &QComboBox::editTextChanged, _destinationError, &QWidget::hide);
 
     auto *modeColumn = new QVBoxLayout;
     auto *advancedBody = new QWidget(this);
@@ -76,6 +82,8 @@ void CExtractDialog::BuildPresentation() {
                     QT_TRANSLATE_NOOP("ArchiveRedesign", "Create subfolder"));
     _pathName = new QLineEdit(this);
     _pathName->setObjectName("extractPathName");
+    connect(_pathName, &QLineEdit::textChanged, _destinationError, &QWidget::hide);
+    connect(_nameEnable, &QCheckBox::toggled, _destinationError, &QWidget::hide);
     _pathName->setProperty("languagePlaceholder", true);
     QtBindLocalText(_pathName, "ExtractDialog",
                     QT_TRANSLATE_NOOP("ExtractDialog", "Destination folder name"), true);
