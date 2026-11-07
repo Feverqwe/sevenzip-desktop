@@ -192,7 +192,6 @@ void CApp::SetListSettings() {
         CPanel &panel = Panels[i];
         panel.SetAlternativeSelection(st.AlternativeSelection);
         panel._showDots = st.ShowDots;
-        panel._showRealFileIcons = st.ShowRealFileIcons;
         // Qt view styles replace LVS_EX/LVS_SINGLESEL bit fields.
         if (_presentation)
             _presentation->SetListSettings(i, st);

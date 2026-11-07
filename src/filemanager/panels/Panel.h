@@ -344,7 +344,6 @@ class CPanel : public QObject {
     int _startGroupSelect = 0;
     int _prevFocusedItem = -1;
     bool _showDots = false;
-    bool _showRealFileIcons = false;
     UInt32 GetListViewMode() const { return _listViewMode; }
     void SetListViewMode(UInt32 index);
     void ChangeFlatMode();
@@ -595,7 +594,6 @@ class CPanel : public QObject {
     bool IsFSDrivesFolder() const;
     bool IsNetFolder() const;
     bool IsAltStreamsFolder() const;
-    bool Is_Slow_Icon_Folder() const { return IsFSFolder() || IsAltStreamsFolder(); }
     bool IsArcFolder() const;
     bool IsHashFolder() const;
     bool Is_IO_FS_Folder() const {

@@ -17,7 +17,6 @@ void SaveConfirmUnknownFileOpen(bool enabled, const QString &settingsPath);
 
 struct CFmSettings {
     bool ShowDots;
-    bool ShowRealFileIcons;
     bool FullRow;
     bool ShowGrid;
     bool SingleClick;

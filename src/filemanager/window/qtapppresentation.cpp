@@ -43,7 +43,6 @@ bool QtAppPresentation::CreatePanel(CPanel &panel, unsigned index) {
     window_.createFilePanel(editMenu_, index);
     if (!panel.PanelCreated) {
         panel._showDots = window_.fileListSettings_.ShowDots;
-        panel._showRealFileIcons = window_.fileListSettings_.ShowRealFileIcons;
         SetListSettings(index, window_.fileListSettings_);
     }
     panel.AttachAddressFocus(

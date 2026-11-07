@@ -13,6 +13,7 @@
 #include <QAction>
 #include <QApplication>
 #include <QPointer>
+#include <QSettings>
 #include <QStyle>
 #include <QtTest>
 #ifdef _WIN32
@@ -107,31 +108,24 @@ class PanelItemIconsTests final : public QObject, protected MainWindowTestSuppor
     }
     void sourcePolicy_data() {
         QTest::addColumn<QString>("type");
-        QTest::addColumn<bool>("real");
-        QTest::addColumn<bool>("query");
         for (const QString &type : {QString("FSFolder"), QString("AltStreamsFolder"),
                                     QString("RootFolder"), QString("7-Zip.zip")})
-            for (bool real : {false, true})
-                QTest::newRow(qPrintable(type + QString::number(real)))
-                    << type << real << (real || (type != "FSFolder" && type != "AltStreamsFolder"));
+            QTest::newRow(qPrintable(type)) << type;
     }
     void sourcePolicy() {
         QFETCH(QString, type);
-        QFETCH(bool, real);
-        QFETCH(bool, query);
         auto *spec = new LoadFolder;
         CMyComPtr<IFolderFolder> folder = spec;
         spec->folderType = type.toStdWString().c_str();
         spec->directory = false;
         spec->attributes = FILE_ATTRIBUTE_DIRECTORY;
         CPanel panel(folder);
-        panel._showRealFileIcons = real;
         QCOMPARE(panel.LoadListItems(), S_OK);
         QCOMPARE(spec->iconCalls, 0u);
         QCOMPARE(spec->attributeCalls, 0u);
         QIcon icon;
         QCOMPARE(panel.GetItemIcon(0, icon), S_OK);
-        QCOMPARE(spec->iconCalls, query ? 1u : 0u);
+        QCOMPARE(spec->iconCalls, 1u);
         QCOMPARE(spec->attributeCalls, 1u);
         QCOMPARE(icon.cacheKey(),
                  g_Ext_to_Icon_Map.GetIcon(0, QString::fromUtf8("first δ")).cacheKey());
@@ -233,6 +227,11 @@ class PanelItemIconsTests final : public QObject, protected MainWindowTestSuppor
         QFETCH(int, count);
         QFETCH(bool, archive);
         QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
+        {
+            QSettings settings(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"),
+                               QSettings::IniFormat);
+            settings.setValue("FM/ShowRealFileIcons", real);
+        }
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         for (int i = 0; i < count; ++i) {
@@ -256,7 +255,6 @@ class PanelItemIconsTests final : public QObject, protected MainWindowTestSuppor
         window.show();
         QVERIFY(QTest::qWaitForWindowActive(&window));
         auto *view = static_cast<FileTable *>(table(window));
-        view->sourcePanel->_showRealFileIcons = real;
         auto *address = window.findChild<QLineEdit *>("archivePath");
         address->setText(destination);
         QTest::keyClick(address, Qt::Key_Return);

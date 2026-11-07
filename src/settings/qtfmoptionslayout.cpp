@@ -79,8 +79,7 @@ QWidget *listPage(CSettingsPage *owner) {
                                    : QT_TRANSLATE_NOOP("SettingsRedesign", "Controls"));
         rows->addWidget(heading);
         for (const QString &name :
-             group == 0 ? QStringList{"showDotsOption", "realFileIconsOption", "fullRowOption",
-                                      "gridOption"}
+             group == 0 ? QStringList{"showDotsOption", "fullRowOption", "gridOption"}
                         : QStringList{"singleClickOption", "alternativeSelectionOption"})
             rows->addWidget(body->findChild<QCheckBox *>(name));
         layout->addWidget(part);

@@ -2701,12 +2701,6 @@ Are you sure you want to split archive into such volumes?</source>
         </message>
         <message>
             <location line="+1" />
-            <source>Show real file icons</source>
-            <comment>2502</comment>
-            <translation>Показывать реальные иконки файлов</translation>
-        </message>
-        <message>
-            <location line="+1" />
             <source>&amp;Full row select</source>
             <comment>2504</comment>
             <translation>Курсор на всю строку</translation>

@@ -150,7 +150,6 @@ class PanelShellTests final : public QObject, protected MainWindowTestSupport {
         const QString settingsPath = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         SavePanelPath(1, ToUString(right), settingsPath);
         QSettings settings(settingsPath, QSettings::IniFormat);
-        settings.setValue("FM/ShowRealFileIcons", true);
         settings.sync();
         g_Ext_to_Icon_Map.Clear();
         ControlledBackend backend;
@@ -287,7 +286,6 @@ class PanelShellTests final : public QObject, protected MainWindowTestSupport {
         QVERIFY(fixture.isValid());
         ControlledBackend backend;
         QSettings settings(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"), QSettings::IniFormat);
-        settings.setValue("FM/ShowRealFileIcons", true);
         settings.sync();
         g_Ext_to_Icon_Map.Clear();
         MainWindow window(&backend);

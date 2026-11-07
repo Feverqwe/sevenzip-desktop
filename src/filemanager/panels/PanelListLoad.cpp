@@ -96,8 +96,7 @@ HRESULT CPanel::LoadListItemsImpl(bool itemsLoaded, HRESULT loadedResult) {
         }
     }
     _folderGetSystemIconIndex.Release();
-    if (!Is_Slow_Icon_Folder() || _showRealFileIcons)
-        _folder.QueryInterface(IID_IFolderGetSystemIconIndex, &_folderGetSystemIconIndex);
+    _folder.QueryInterface(IID_IFolderGetSystemIconIndex, &_folderGetSystemIconIndex);
     _iconIsFSDrivesFolder = IsFSDrivesFolder();
     _iconIsArcFolder = IsArcFolder();
     _itemIconIndices.ClearAndSetSize(numItems);

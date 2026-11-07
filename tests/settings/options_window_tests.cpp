@@ -11,13 +11,11 @@ class OptionsWindowTests : public QObject, protected MainWindowTestSupport {
   private slots:
     void applyRefreshesBothPanelsAndRetainsSelection_data() {
         QTest::addColumn<unsigned>("focused");
-        QTest::addColumn<bool>("realIcons");
-        QTest::newRow("left-generic-icons") << 0u << false;
-        QTest::newRow("right-real-icons") << 1u << true;
+        QTest::newRow("left") << 0u;
+        QTest::newRow("right") << 1u;
     }
     void applyRefreshesBothPanelsAndRetainsSelection() {
         QFETCH(unsigned, focused);
-        QFETCH(bool, realIcons);
         QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         QTemporaryDir fixture;
         const QString left = fixture.filePath("левая папка");
@@ -59,7 +57,6 @@ class OptionsWindowTests : public QObject, protected MainWindowTestSupport {
             QVERIFY(write(left + "/new-left.txt") && write(right + "/new-right.txt"));
             dialog->findChild<QCheckBox *>("showDotsOption")->setChecked(true);
             dialog->findChild<QCheckBox *>("gridOption")->setChecked(true);
-            dialog->findChild<QCheckBox *>("realFileIconsOption")->setChecked(realIcons);
             dialog->findChild<QDialogButtonBox *>("settingsButtons")
                 ->button(QDialogButtonBox::Apply)
                 ->click();

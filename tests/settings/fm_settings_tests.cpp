@@ -21,7 +21,7 @@ class FmSettingsTests : public QObject {
         ini.sync();
         CFmSettings st;
         st.Load(path);
-        QVERIFY(!st.ShowDots && !st.ShowRealFileIcons && !st.ShowGrid);
+        QVERIFY(!st.ShowDots && !st.ShowGrid);
         QVERIFY(st.FullRow);
         QVERIFY(st.SingleClick);
         QVERIFY(!st.AlternativeSelection);
@@ -41,9 +41,8 @@ class FmSettingsTests : public QObject {
         st.Save(path);
         for (bool confirm : {false, true}) {
             CSettingsPage page(path);
-            for (const char *name :
-                 {"showDotsOption", "realFileIconsOption", "fullRowOption", "gridOption",
-                  "singleClickOption", "alternativeSelectionOption"})
+            for (const char *name : {"showDotsOption", "fullRowOption", "gridOption",
+                                     "singleClickOption", "alternativeSelectionOption"})
                 page.findChild<QCheckBox *>(name)->click();
             QVERIFY(page.findChild<QCheckBox *>("alternativeSelectionOption")->isEnabled());
             if (confirm)
@@ -52,7 +51,6 @@ class FmSettingsTests : public QObject {
                 page.reject();
             st.Load(path);
             QCOMPARE(st.ShowDots, confirm);
-            QCOMPARE(st.ShowRealFileIcons, confirm);
             QCOMPARE(st.FullRow, !confirm);
             QCOMPARE(st.ShowGrid, confirm);
             QCOMPARE(st.SingleClick, confirm);
@@ -69,9 +67,8 @@ class FmSettingsTests : public QObject {
             auto *buttons = page.findChild<QDialogButtonBox *>("settingsButtons");
             QWidget *previous = nullptr;
             for (const char *name :
-                 {"showDotsOption", "realFileIconsOption", "fullRowOption", "gridOption",
-                  "singleClickOption", "alternativeSelectionOption", "extractMemoryLabel",
-                  "extractMemorySpin"}) {
+                 {"showDotsOption", "fullRowOption", "gridOption", "singleClickOption",
+                  "alternativeSelectionOption", "extractMemoryLabel", "extractMemorySpin"}) {
                 auto *control = page.findChild<QWidget *>(name);
                 QVERIFY(control);
                 QVERIFY(UiInspection::fullyVisible(*control, page));

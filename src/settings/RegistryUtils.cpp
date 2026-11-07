@@ -68,7 +68,6 @@ QString FmSettingsPath() {
 }
 
 static const char *const kShowDots = "ShowDots";
-static const char *const kShowRealFileIcons = "ShowRealFileIcons";
 static const char *const kFullRow = "FullRow";
 static const char *const kShowGrid = "ShowGrid";
 static const char *const kSingleClick = "SingleClick";
@@ -111,7 +110,6 @@ void CFmSettings::Save(const QString &settingsPath) const {
     QSettings key(settingsPath, QSettings::IniFormat);
     key.beginGroup("FM");
     SaveOption(key, kShowDots, ShowDots);
-    SaveOption(key, kShowRealFileIcons, ShowRealFileIcons);
     SaveOption(key, kFullRow, FullRow);
     SaveOption(key, kShowGrid, ShowGrid);
     SaveOption(key, kSingleClick, SingleClick);
@@ -121,7 +119,6 @@ void CFmSettings::Save(const QString &settingsPath) const {
 
 void CFmSettings::Load(const QString &settingsPath) {
     ShowDots = false;
-    ShowRealFileIcons = false;
     FullRow = true;
     ShowGrid = false;
     SingleClick = false;
@@ -130,7 +127,6 @@ void CFmSettings::Load(const QString &settingsPath) {
     QSettings key(settingsPath, QSettings::IniFormat);
     key.beginGroup("FM");
     ReadOption(key, kShowDots, ShowDots);
-    ReadOption(key, kShowRealFileIcons, ShowRealFileIcons);
     ReadOption(key, kFullRow, FullRow);
     ReadOption(key, kShowGrid, ShowGrid);
     ReadOption(key, kSingleClick, SingleClick);

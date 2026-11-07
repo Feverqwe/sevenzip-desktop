@@ -46,10 +46,6 @@ void CSettingsPage::BuildControls(bool embedded) {
     _showDots = new QCheckBox(this);
     QtBindResourceText(_showDots, IDX_SETTINGS_SHOW_DOTS, "Show \"..\" item");
     _showDots->setObjectName(QStringLiteral("showDotsOption"));
-    _showRealFileIcons = new QCheckBox(this);
-    QtBindResourceText(_showRealFileIcons, IDX_SETTINGS_SHOW_REAL_FILE_ICONS,
-                       "Show real file &icons");
-    _showRealFileIcons->setObjectName("realFileIconsOption");
     _fullRow = new QCheckBox(this);
     QtBindResourceText(_fullRow, IDX_SETTINGS_FULL_ROW, "&Full row select");
     _fullRow->setObjectName(QStringLiteral("fullRowOption"));
@@ -63,8 +59,7 @@ void CSettingsPage::BuildControls(bool embedded) {
     QtBindResourceText(_alternativeSelection, IDX_SETTINGS_ALTERNATIVE_SELECTION,
                        "&Alternative selection mode");
     _alternativeSelection->setObjectName(QStringLiteral("alternativeSelectionOption"));
-    for (auto *control : {_showDots, _showRealFileIcons, _fullRow, _showGrid, _singleClick,
-                          _alternativeSelection}) {
+    for (auto *control : {_showDots, _fullRow, _showGrid, _singleClick, _alternativeSelection}) {
         listLayout->addWidget(control);
         connect(control, &QCheckBox::toggled, this, &CSettingsPage::OnButtonClicked);
     }
