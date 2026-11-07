@@ -10,9 +10,9 @@ class QtSourceSummary;
 // Presentation of a captured selection. The caller owns validation and deletion.
 class QtDeleteConfirmation final : public QDialog {
   public:
-    enum class Mode { Trash, Permanent, Archive };
+    enum class Mode { Trash, Archive };
     struct Request {
-        Mode mode = Mode::Permanent;
+        Mode mode = Mode::Trash;
         QString location;
         QStringList names;
         QIcon icon;

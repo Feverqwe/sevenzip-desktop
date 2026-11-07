@@ -322,14 +322,24 @@ struct QtNativeShellMenuPresentation::State : std::enable_shared_from_this<State
                 if (enabled)
                     commands.unite(childCommands);
             } else {
-                if (!action)
-                    action = target.addAction(ToQString(item.StringValue));
-                if (item.wID >= commandStart && item.wID <= 0x7fff) {
+                const bool nativeCommand = item.wID >= commandStart && item.wID <= 0x7fff;
+                QString shellVerb;
+                if (nativeCommand) {
                     wchar_t verb[256] = {};
                     if (SUCCEEDED(context->GetCommandString(item.wID - commandStart, GCS_VERBW,
                                                             nullptr, reinterpret_cast<LPSTR>(verb),
                                                             256)))
-                        action->setProperty("shellVerb", QString::fromWCharArray(verb));
+                        shellVerb = QString::fromWCharArray(verb);
+                    if (shellVerb.compare(QStringLiteral("delete"), Qt::CaseInsensitive) == 0) {
+                        delete action;
+                        continue;
+                    }
+                }
+                if (!action)
+                    action = target.addAction(ToQString(item.StringValue));
+                if (nativeCommand) {
+                    if (!shellVerb.isEmpty())
+                        action->setProperty("shellVerb", shellVerb);
                     if (enabled) {
                         commands.insert(item.wID);
                         QObject::connect(action, &QAction::triggered, &target,

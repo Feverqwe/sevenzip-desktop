@@ -8,7 +8,6 @@
 #include "platform/support/external_editor_fixture.h"
 #include "platform/support/native_property_failure_runtime.h"
 #include "platform/temp/qtownedtempregistry.h"
-#include "support/delete_reply.h"
 #include "support/widget_dialogs.h"
 #include "ui/progress/ProgressDialog2.h"
 #include "ui/support/layout_inspection.h"
@@ -439,11 +438,6 @@ class NestedEditChainTests final : public QObject, protected MainWindowTestSuppo
         bool unexpectedError = false, parentPrompt = false;
         QTimer responder;
         widgetDialogs_.connectResponder(responder, this, [&] {
-            if (auto *confirmation =
-                    dynamic_cast<QtDeleteConfirmation *>(widgetDialogs_.activeDialog())) {
-                ReplyDelete(*confirmation);
-                return;
-            }
             if (auto *box = qobject_cast<QMessageBox *>(widgetDialogs_.activeDialog())) {
                 unexpectedError |=
                     box->icon() == QMessageBox::Critical || box->icon() == QMessageBox::Warning;
@@ -477,8 +471,7 @@ class NestedEditChainTests final : public QObject, protected MainWindowTestSuppo
         QTest::keyClick(editor, Qt::Key_Return);
         QTRY_VERIFY(filesystemRow(window, QStringLiteral("renamed файл.txt")) >= 0);
         table(window)->selectRow(filesystemRow(window, "delete.txt"));
-        action(window, "deleteAction")->trigger();
-        QTRY_COMPARE(table(window)->rowCount(), 1);
+        QVERIFY(!action(window, "deleteAction")->isEnabled());
         QTimer::singleShot(0, &window, [&] {
             auto *dialog = window.findChild<QDialog *>("comboDialog");
             QVERIFY(dialog);
@@ -486,7 +479,7 @@ class NestedEditChainTests final : public QObject, protected MainWindowTestSuppo
             dialog->accept();
         });
         action(window, "createFolderAction")->trigger();
-        QTRY_COMPARE(table(window)->rowCount(), 2);
+        QTRY_COMPARE(table(window)->rowCount(), 3);
         QCOMPARE(read(outer), original);
         action(window, "upAction")->trigger();
         QVERIFY(parentPrompt);
@@ -501,7 +494,7 @@ class NestedEditChainTests final : public QObject, protected MainWindowTestSuppo
         QCOMPARE(listing.exitCode(), 0);
         const QByteArray metadata = listing.readAllStandardOutput();
         QVERIFY(metadata.contains("Path = new folder"));
-        QVERIFY(!metadata.contains("Path = delete.txt"));
+        QCOMPARE(contents(updated, QStringLiteral("delete.txt")), QByteArray("remove bytes"));
         responder.stop();
     }
 };

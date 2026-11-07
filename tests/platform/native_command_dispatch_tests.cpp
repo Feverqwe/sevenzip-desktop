@@ -6,11 +6,10 @@
 namespace {
 class Commands final : public IQtFileManagerCommandServices {
   public:
-    bool allowed = true, shift = false, recycle = false;
+    bool allowed = true;
     QStringList calls;
     QString parameter;
     bool CanExecuteCommand(unsigned) override { return allowed; }
-    bool IsShiftDown() const override { return shift; }
     void InvokePluginCommand(unsigned id) override {
         calls << "plugin";
         parameter = QString::number(id);
@@ -21,10 +20,7 @@ class Commands final : public IQtFileManagerCommandServices {
         parameter = type ? QString::fromWCharArray(type) : QStringLiteral("default");
     }
     void EditItem(bool editor) override { calls << (editor ? "edit" : "view"); }
-    void Delete(bool toRecycleBin) override {
-        calls << "delete";
-        recycle = toRecycleBin;
-    }
+    void MoveToTrash() override { calls << "trash"; }
     void CalculateCrc(const char *method) override {
         calls << "hash";
         parameter = QString::fromLatin1(method);
@@ -80,13 +76,10 @@ class NativeCommandDispatchTests : public QObject {
             QCOMPARE(commands.parameter, command.second);
         }
     }
-    void sourceDeleteShiftFlagAndPluginReleaseOrder() {
+    void trashDispatchAndPluginReleaseOrder() {
         Commands commands;
         QVERIFY(ExecuteFileCommand(IDM_DELETE, commands));
-        QVERIFY(commands.recycle);
-        commands.shift = true;
-        QVERIFY(ExecuteFileCommand(IDM_DELETE, commands));
-        QVERIFY(!commands.recycle);
+        QCOMPARE(commands.calls, QStringList({"trash"}));
         commands.calls.clear();
         QVERIFY(ExecuteFileCommand(kMenuCmdID_Plugin_Start + 7, commands));
         QCOMPARE(commands.calls, QStringList({"plugin", "release-menus"}));

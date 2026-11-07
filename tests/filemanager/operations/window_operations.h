@@ -25,7 +25,7 @@ class MainWindowOperationsTests : public QObject, protected MainWindowTestSuppor
   private slots:
     void init();
     void inlineRenameCollisionRestoresSelection();
-    void deleteRoutesTrashAndShiftPermanent();
+    void deleteRoutesOnlyToTrash();
     void sourceFilesystemCreateAndInlineRename();
     void inlineRenameCancel_data();
     void inlineRenameCancel();

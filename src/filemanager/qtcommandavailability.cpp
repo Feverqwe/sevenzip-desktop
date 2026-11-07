@@ -72,6 +72,7 @@ QtFileManagerCommands::TransportCapabilities QtFileManagerCommands::ReadTranspor
         c.folderSize = true;
     c.oneFile = c.one && !panel.IsItem_Folder(operated[0]);
     c.filesystem = panel.GetFolder() && panel.IsFSFolder();
+    c.trash = c.filesystem && !panel.IsThereReadOnlyFolder();
     c.filesystemStreams = panel.GetFolder() && panel.IsAltStreamsFolder();
     c.copy = panel.DoesItSupportOperations() &&
              (!panel.IsFSDrivesFolder() || panel.IsDeviceDrivesPrefix());
@@ -193,7 +194,7 @@ bool QtFileManagerCommands::TransportAllows(unsigned id, const TransportCapabili
     case IDM_MOVE_TO:
         return c.filesystem || c.filesystemStreams || c.writable;
     case IDM_DELETE:
-        return c.operated && (c.filesystem || c.filesystemStreams || c.mutationWritable);
+        return c.operated && c.trash;
     case IDM_RENAME:
         return c.focusedNonParent && (c.filesystem || c.filesystemStreams || c.mutationWritable);
     case IDM_CREATE_FOLDER:

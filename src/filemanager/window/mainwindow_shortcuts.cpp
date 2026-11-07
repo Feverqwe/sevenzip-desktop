@@ -20,7 +20,6 @@ void MainWindow::configureShortcuts() {
     bindPanel(move_, {modern(Qt::Key_M), QKeySequence(Qt::Key_F6)});
     bindPanel(createFolder_, {modern(Qt::Key_N), QKeySequence(Qt::Key_F7)});
     bindPanel(selectAll_, QKeySequence::keyBindings(QKeySequence::SelectAll));
-    // Shift+Delete remains the source's explicit permanent-delete command.
     bindPanel(clipboard_->cut, {QKeySequence(Qt::CTRL | Qt::Key_X)});
     bindPanel(clipboard_->copy, QKeySequence::keyBindings(QKeySequence::Copy));
     bindPanel(clipboard_->paste, QKeySequence::keyBindings(QKeySequence::Paste));
@@ -35,8 +34,7 @@ void MainWindow::configureShortcuts() {
     bindPanel(openItem_, {QKeySequence(Qt::CTRL | Qt::Key_Down)});
     bindPanel(rename_, {QKeySequence(Qt::Key_Return), QKeySequence(Qt::Key_Enter),
                         QKeySequence(Qt::Key_F2)});
-    bindPanel(remove_, {QKeySequence(Qt::CTRL | Qt::Key_Backspace),
-                        QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_Backspace)});
+    bindPanel(remove_, {QKeySequence(Qt::CTRL | Qt::Key_Backspace)});
     bindPanel(properties_, {QKeySequence(Qt::CTRL | Qt::Key_I)});
     bindPanel(up_, {QKeySequence(Qt::CTRL | Qt::Key_Up)});
     bindPanel(back_, {QKeySequence(Qt::CTRL | Qt::Key_BracketLeft)});
@@ -127,7 +125,8 @@ bool MainWindow::reservedPanelKey(const QKeyEvent &key) const {
                                      QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_Z)}))
         return true;
 #ifdef Q_OS_MACOS
-    if (key.key() == Qt::Key_Delete)
+    if (key.key() == Qt::Key_Delete ||
+        QtPanelShortcutMatches(key, {QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_Backspace)}))
         return true;
 #endif
     return false;

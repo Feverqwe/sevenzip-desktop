@@ -1,7 +1,6 @@
 #include "archive/codecs/archivecodeccatalog.h"
 #include "dialogs/copy/alias.h"
 #include "filemanager/support/window_state_support.h"
-#include "support/delete_reply.h"
 #include "support/panel_keys.h"
 #include "ui/support/layout_inspection.h"
 #include <QLineEdit>
@@ -208,44 +207,9 @@ class AltStreamsArchiveUiTests final : public QObject, protected MainWindowTestS
         QVERIFY(nativeRow(window, streamName) < 0);
         table(window)->selectRow(nativeRow(window, renamed));
         table(window)->setCurrentCell(nativeRow(window, renamed), 0);
-        auto *remove = action(window, "deleteAction");
-        QVERIFY(remove->isEnabled());
-        for (QMessageBox::StandardButton answer : {QMessageBox::Cancel, QMessageBox::Yes}) {
-            bool asked = false;
-            QStringList mutationErrors;
-            QTimer confirmation;
-            connect(&confirmation, &QTimer::timeout, &window, [&] {
-                if (auto *box =
-                        dynamic_cast<QtDeleteConfirmation *>(QApplication::activeModalWidget())) {
-                    asked = true;
-                    QCOMPARE(box->windowTitle(),
-                             QCoreApplication::translate("DeleteRedesign", "Delete from archive?"));
-                    ReplyDelete(*box, answer == QMessageBox::Yes);
-                } else if (auto *box =
-                               qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
-                    mutationErrors << box->text();
-                    box->accept();
-                }
-            });
-            confirmation.start(1);
-            remove->trigger();
-            confirmation.stop();
-            QVERIFY(asked);
-            QVERIFY2(mutationErrors.isEmpty(), qPrintable(mutationErrors.join('\n')));
-            if (answer == QMessageBox::Cancel)
-                QVERIFY(nativeRow(window, renamed) >= 0);
-            else {
-                QVERIFY(nativeRow(window, renamed) < 0);
-                // Original Restore FolderItem falls back to the ordinary file
-                // owner when its final ADS directory disappears.
-                if (streamCount > 1) {
-                    QTRY_VERIFY(table(window)->isEnabled());
-                    QTRY_VERIFY(nativeRow(window, QStringLiteral("extra-1")) >= 0);
-                    action(window, "parentFolderAction")->trigger();
-                }
-                QTRY_VERIFY(nativeRow(window, name) >= 0);
-            }
-        }
+        QVERIFY(!action(window, "deleteAction")->isEnabled());
+        QVERIFY(nativeRow(window, renamed) >= 0);
+        action(window, "parentFolderAction")->trigger();
         creator.start(engine_, {"t", "--", archive});
         QVERIFY(creator.waitForFinished(10000));
         QCOMPARE(creator.exitCode(), 0);

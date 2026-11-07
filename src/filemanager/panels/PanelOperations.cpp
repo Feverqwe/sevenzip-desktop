@@ -23,11 +23,9 @@
 #include <utility>
 
 static bool ConfirmDeleteItems(const CPanel &panel, const CRecordVector<UInt32> &indices,
-                               bool recycle) {
+                               QtDeleteConfirmation::Mode mode) {
     QtDeleteConfirmation::Request request;
-    request.mode = recycle               ? QtDeleteConfirmation::Mode::Trash
-                   : panel.IsArcFolder() ? QtDeleteConfirmation::Mode::Archive
-                                         : QtDeleteConfirmation::Mode::Permanent;
+    request.mode = mode;
     request.location = ToQString(panel.GetCurrentFolderPrefix());
     if (indices.Size() == 1) {
         QFileIconProvider icons;
@@ -46,10 +44,10 @@ static bool ConfirmDeleteItems(const CPanel &panel, const CRecordVector<UInt32> 
     return dialog.exec() == QDialog::Accepted;
 }
 
-QtArchiveUpdateResult CPanel::DeleteItems(bool toRecycleBin, IQtTrashService &trash,
-                                          CSelectedState &state,
-                                          const CRecordVector<UInt32> *explicitIndices,
-                                          bool confirm, QtDeleteResultReview resultReview) {
+HRESULT CPanel::MoveItemsToTrash(IQtTrashService &trash, CSelectedState &state,
+                                 const CRecordVector<UInt32> *explicitIndices, bool confirm) {
+    if (!IsFSFolder())
+        return E_NOTIMPL;
     CDisableTimerProcessing disableTimerProcessing(*this);
     CRecordVector<UInt32> indices;
     if (explicitIndices)
@@ -57,43 +55,45 @@ QtArchiveUpdateResult CPanel::DeleteItems(bool toRecycleBin, IQtTrashService &tr
     else
         Get_ItemIndices_Operated(indices);
     if (indices.IsEmpty())
+        return S_FALSE;
+    SaveSelectedState(state);
+    if (!CheckBeforeUpdate(IDS_ERROR_DELETING))
+        return E_ABORT;
+    UStringVector paths;
+    GetFilePaths(indices, paths);
+    if (confirm && !ConfirmDeleteItems(*this, indices, QtDeleteConfirmation::Mode::Trash))
+        return E_ABORT;
+
+    CDisableNotify disableNotify(*this);
+    const HRESULT result = QtMoveItemsToTrash(paths, trash, GetParent());
+    RefreshListCtrl(state);
+    return result;
+}
+
+QtArchiveUpdateResult CPanel::RemoveItemsAfterMove(const CRecordVector<UInt32> &indices,
+                                                   CSelectedState &state, bool confirm) {
+    CDisableTimerProcessing disableTimerProcessing(*this);
+    if (indices.IsEmpty())
         return {S_FALSE, false};
     SaveSelectedState(state);
     if (!CheckBeforeUpdate(IDS_ERROR_DELETING))
         return {E_ABORT, false};
-    const bool recycle = toRecycleBin && IsFSFolder();
-    UStringVector recyclePaths;
-    if (recycle)
-        GetFilePaths(indices, recyclePaths);
-    if (confirm && !ConfirmDeleteItems(*this, indices, recycle))
+    if (confirm && !ConfirmDeleteItems(*this, indices, QtDeleteConfirmation::Mode::Archive))
         return {E_ABORT, false};
 
     CDisableNotify disableNotify(*this);
+    CThreadFolderOperations op(FOLDER_TYPE_DELETE);
+    op.DeferResultReview = true;
+    op.FolderOperations = _folderOperations;
+    op.Indices = indices;
     QtArchiveUpdateResult result{E_FAIL, std::nullopt};
-    if (recycle) {
-        result.Result =
-            QtMoveItemsToTrash(recyclePaths, trash, GetParent(),
-                               resultReview == QtDeleteResultReview::Caller, &result.Diagnostics);
-        // The joined Trash operation owns progress/errors. Preserve the source
-        // shell branch's refresh after a partial result or cancellation.
-    } else {
-        CThreadFolderOperations op(FOLDER_TYPE_DELETE);
-        op.DeferResultReview = resultReview == QtDeleteResultReview::Caller;
-        op.FolderOperations = _folderOperations;
-        op.Indices = indices;
-        result.Result =
-            op.DoOperation(*this, LangString(IDS_DELETING), LangString(IDS_ERROR_DELETING));
-        result.Published = op.UpdateCallback->Published;
-        FOR_VECTOR(i, op.Sync.Messages)
-        result.Diagnostics.append(ToQString(op.Sync.Messages[i]));
-        if (!op.Sync.FinalMessage.ErrorMessage.Message.IsEmpty())
-            result.Diagnostics.append(ToQString(op.Sync.FinalMessage.ErrorMessage.Message));
-    }
-    if (!recycle)
-        RefreshTitleAlways();
-    // Interarchive Move retains its transaction guards until rollback settles;
-    // that caller publishes the captured selection after releasing them.
-    if (recycle || !explicitIndices)
-        RefreshListCtrl(state);
+    result.Result = op.DoOperation(*this, LangString(IDS_DELETING), LangString(IDS_ERROR_DELETING));
+    result.Published = op.UpdateCallback->Published;
+    FOR_VECTOR(i, op.Sync.Messages)
+    result.Diagnostics.append(ToQString(op.Sync.Messages[i]));
+    if (!op.Sync.FinalMessage.ErrorMessage.Message.IsEmpty())
+        result.Diagnostics.append(ToQString(op.Sync.FinalMessage.ErrorMessage.Message));
+    RefreshTitleAlways();
+    // The Move caller publishes the captured selection after its transaction settles.
     return result;
 }

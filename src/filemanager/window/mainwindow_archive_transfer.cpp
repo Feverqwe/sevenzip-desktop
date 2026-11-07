@@ -135,8 +135,7 @@ bool MainWindow::transferBetweenArchivePanels(const QString &destination, bool m
         if (result == S_OK && messages.IsEmpty()) {
             outcome = Outcome::Updated;
             if (move) {
-                const auto removed = source.DeleteItems(false, *trashService_, selected, &indices,
-                                                        true, QtDeleteResultReview::Caller);
+                const auto removed = source.RemoveItemsAfterMove(indices, selected, true);
                 terminalDiagnostics = removed.Diagnostics;
                 result = removed.Result;
                 if (result != S_OK) {

@@ -7586,13 +7586,10 @@ Check that your distribution's CIFS support and cifs-utils are installed.</sourc
     <message><source>Move to Trash?</source><translation>Переместить в Корзину?</translation></message>
     <message><source>Move to Trash</source><translation>В Корзину</translation></message>
     <message><source>You can restore the items from Trash after they have been moved successfully.</source><translation>После успешного перемещения объекты можно восстановить из Корзины.</translation></message>
-    <message><source>Delete permanently?</source><translation>Удалить безвозвратно?</translation></message>
-    <message><source>Delete permanently</source><translation>Удалить безвозвратно</translation></message>
-    <message><source>These items cannot be restored from Trash.</source><translation>Эти объекты нельзя будет восстановить из Корзины.</translation></message>
     <message><source>Delete from archive?</source><translation>Удалить из архива?</translation></message>
     <message><source>Delete from archive</source><translation>Удалить из архива</translation></message>
     <message><source>This changes the archive. Deleted entries do not go to Trash.</source><translation>Архив будет изменён. Удалённые записи не попадают в Корзину.</translation></message>
-    <message><source>The contents of selected folders are included.</source><translation>Содержимое выбранных папок тоже будет удалено.</translation></message>
+    <message><source>The contents of selected folders are included.</source><translation>Операция затронет и содержимое выбранных папок.</translation></message>
     <message><source>This source is read-only. Deletion is unavailable.</source><translation>Источник доступен только для чтения. Удаление недоступно.</translation></message>
     <message><source>Selected items: %1</source><translation>Выбрано объектов: %1</translation></message>
 </context>

@@ -11,10 +11,6 @@
 #include "operations/CompressCall.h"
 #include <QScopedValueRollback>
 
-bool QtFileManagerCommands::IsShiftDown() const {
-    return QApplication::keyboardModifiers().testFlag(Qt::ShiftModifier);
-}
-
 void QtFileManagerCommands::OpenNative(bool internal, bool external, const wchar_t *type) {
     RunNativeOpen([=](CPanel &panel) {
         if (internal && !external)
@@ -81,10 +77,10 @@ void QtFileManagerCommands::CopyTo() {
 void QtFileManagerCommands::MoveTo() {
     window_.app_.OnCopy(true, false, window_.app_.GetFocusedPanelIndex());
 }
-void QtFileManagerCommands::Delete(bool toRecycleBin) {
+void QtFileManagerCommands::MoveToTrash() {
     const unsigned index = window_.app_.GetFocusedPanelIndex();
     CSelectedState selection;
-    window_.app_.Panels[index].DeleteItems(toRecycleBin, *window_.trashService_, selection);
+    window_.app_.Panels[index].MoveItemsToTrash(*window_.trashService_, selection);
     window_.app_.QtOperations().ContinueScanAfterSourceCall(index);
 }
 void QtFileManagerCommands::CalculateCrc(const char *method) {

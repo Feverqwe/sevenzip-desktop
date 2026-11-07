@@ -82,8 +82,7 @@ void MainWindow::backendFinished(bool ok, const QString &message, HRESULT result
                 withPanelProjection(move->source, [&] {
                     auto &panel = app_.Panels[move->source];
                     CSelectedState selection;
-                    removed = panel.DeleteItems(false, *trashService_, selection, &move->indices,
-                                                false, QtDeleteResultReview::Caller);
+                    removed = panel.RemoveItemsAfterMove(move->indices, selection, false);
                     app_.QtOperations().End();
                     renderBoundFolder();
                     panel.RestoreLoadedSelection(selection);

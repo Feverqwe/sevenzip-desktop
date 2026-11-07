@@ -1,7 +1,6 @@
 #include "dialogs/copy/alias.h"
 #include "filemanager/support/window_state_support.h"
 #include "localization/LangUtils.h"
-#include "support/delete_reply.h"
 #include "support/panel_keys.h"
 #include "ui/support/layout_inspection.h"
 #include <QLineEdit>
@@ -68,30 +67,10 @@ class AltStreamsCommandTests final : public QObject, protected MainWindowTestSup
         // portable property dialog for that original no-op branch.
         QVERIFY(!propertiesSeen);
         QCOMPARE(table(window)->rowCount(), 1);
-        auto *remove = action(window, "deleteAction");
-        QVERIFY(remove->isEnabled());
-        for (QMessageBox::StandardButton answer : {QMessageBox::Cancel, QMessageBox::Yes}) {
-            bool asked = false;
-            QTimer confirmation;
-            connect(&confirmation, &QTimer::timeout, &window, [&] {
-                auto *box = dynamic_cast<QtDeleteConfirmation *>(QApplication::activeModalWidget());
-                if (!box)
-                    return;
-                asked = true;
-                QCOMPARE(box->windowTitle(),
-                         QCoreApplication::translate("DeleteRedesign", "Delete permanently?"));
-                ReplyDelete(*box, answer == QMessageBox::Yes);
-            });
-            confirmation.start(1);
-            remove->trigger();
-            confirmation.stop();
-            QVERIFY(asked);
-            QCOMPARE(table(window)->rowCount(), answer == QMessageBox::Cancel ? 1 : 0);
-            QFile base(basePath);
-            QVERIFY(base.open(QIODevice::ReadOnly));
-            QCOMPARE(base.readAll(), QByteArray("fixture bytes"));
-        }
-        QVERIFY(!QFileInfo::exists(basePath + ':' + streamName));
+        QVERIFY(!action(window, "deleteAction")->isEnabled());
+        QFile remainingStream(basePath + ':' + streamName);
+        QVERIFY(remainingStream.open(QIODevice::ReadOnly));
+        QCOMPARE(remainingStream.readAll(), QByteArray("fixture bytes"));
     }
     void sourceRename() {
         QTemporaryDir temp;

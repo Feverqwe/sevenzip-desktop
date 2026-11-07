@@ -116,32 +116,19 @@ QtStatusLabel may elide selectedItemsStatus, with full source text in its toolti
 this is separate from clipping address/list controls. These are Qt geometry/key delivery
 checks, not a rendered original Windows or physical-input claim.
 
-Delete distinguishes moving filesystem items to Trash, explicit permanent
-deletion and removal of archive entries. The shared form shows the captured
-selection and source, consequences, and an optional disclosure of multiple names.
-No size is invented. The folder consequence excludes filesystem links according
-to the native classification. Cancel initially has focus/default; Return on it,
-Escape and close leave the source selection/list unchanged. Confirmation requires
-the explicit destructive action. Read-only sources cannot start deletion.
+Delete moves selected filesystem files and folders to Trash. The command is
+unavailable for archive entries and read-only sources. The confirmation shows the
+source, consequences, and an optional disclosure with all selected names. Cancel
+initially has focus and is the default. Return on Cancel, Escape and closing the
+dialog preserve the selection. On macOS, Command–Backspace opens the confirmation
+from the file list.
 
-The body wraps/scrolls while both footer actions remain reachable. EN/RU,
-normal/compact widths, disclosure, language switching, long Unicode names and a
-read-only presentation are covered by delete_confirmation; source_delete and
-archive/ADS consumers verify the actual mode and operation result. On macOS,
-Command–Backspace uses Trash and Command–Shift–Backspace explicitly deletes
-permanently; text editors retain their own key handling. One permanent command
-does not change the next ordinary command.
-
-Trash uses the common joined progress with current path and selected-object
-counts, without byte/compression details. Stop is observed between native calls;
-an individual call cannot be interrupted through the platform service. Partial
-failure/Cancel refreshes the source without undoing completed moves or falling
-back to permanent deletion. Archive/permanent deletion retains the existing
-worker, password and publication boundaries. Temporary-file Browse has its own
-lease/protection confirmation and is a separate scenario. Historical source
-evidence remains in the [receipt](../archive/qt-port/upstream-port-audit.md#p3-05--source-delete-lifecycle-2026-10-10);
-new presentation differences are recorded in the current redesign audit. These
-checks do not establish rendered Windows pixel parity.
+The body scrolls while both footer actions remain reachable at normal and compact
+sizes in English and Russian, including with long Unicode names. Trash uses the
+common progress view with the current path and item counts. Stop is observed
+between native calls. On refusal, the failed item stays in place and the source
+is refreshed to reflect any completed moves. Archive Move owns its separate
+confirmation and source cleanup. Temporary-file Browse has its own confirmation.
 
 Find the affected dialog, command or plan ID with `rg -n` and read its contract
 before changing layout/text/visibility. [Commands and reports](dialogs.md#commands-and-reports)

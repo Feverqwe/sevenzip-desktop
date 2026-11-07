@@ -98,6 +98,7 @@ class ShellMenuWindowTests final : public QObject, protected MainWindowTestSuppo
         auto *advanced = menu->findChild<QMenu *>("advancedCommandsMenu");
         QVERIFY(advanced && advanced->actions().contains(systemRow));
         QVERIFY(!system->actions().isEmpty());
+        QVERIFY(!findVerb(*system, QStringLiteral("delete")));
         system->popup(menu->mapToGlobal(QPoint(menu->width(), 0)));
         QApplication::processEvents();
         QVERIFY(UiInspection::writeReport(

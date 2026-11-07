@@ -1,4 +1,3 @@
-#include "support/delete_reply.h"
 #include "window_operations.h"
 
 void MainWindowOperationsTests::stage7ArchiveCommandStates() {
@@ -15,7 +14,7 @@ void MainWindowOperationsTests::stage7ArchiveCommandStates() {
     table(window)->selectRow(0);
     QVERIFY(action(window, "copyAction")->isEnabled());
     QVERIFY(action(window, "moveAction")->isEnabled());
-    QVERIFY(action(window, "deleteAction")->isEnabled());
+    QVERIFY(!action(window, "deleteAction")->isEnabled());
     QVERIFY(action(window, "renameAction")->isEnabled());
     QVERIFY(backend.prepareArchiveFixture("second.zip"));
     backend.queueListAction([&] {
@@ -86,20 +85,7 @@ void MainWindowOperationsTests::stage7ArchiveMutations() {
     QTest::keyClick(editor, Qt::Key_Return);
     QTRY_VERIFY(archiveRow(QStringLiteral("новое имя.txt")) >= 0);
     table(window)->selectRow(archiveRow(QStringLiteral("новое имя.txt")));
-    QTimer::singleShot(0, &window, [] {
-        for (QWidget *widget : QApplication::topLevelWidgets())
-            if (auto *box = dynamic_cast<QtDeleteConfirmation *>(widget); box && box->isVisible())
-                ReplyDelete(*box, false);
-    });
-    action(window, "deleteAction")->trigger();
-    QVERIFY(archiveRow(QStringLiteral("новое имя.txt")) >= 0);
-    QTimer::singleShot(0, &window, [] {
-        for (QWidget *widget : QApplication::topLevelWidgets())
-            if (auto *box = dynamic_cast<QtDeleteConfirmation *>(widget); box && box->isVisible())
-                ReplyDelete(*box);
-    });
-    action(window, "deleteAction")->trigger();
-    QTRY_VERIFY(archiveRow(QStringLiteral("новое имя.txt")) < 0);
+    QVERIFY(!action(window, "deleteAction")->isEnabled());
     QVERIFY(archiveRow(QStringLiteral("новая папка")) >= 0);
 }
 
@@ -158,13 +144,7 @@ void MainWindowOperationsTests::encryptedArchiveMutationReusesSourcePassword() {
     QTest::keyClick(editor, Qt::Key_Return);
     QTRY_VERIFY(archiveRow(QStringLiteral("новый секрет.txt")) >= 0);
     table(window)->selectRow(archiveRow(QStringLiteral("новый секрет.txt")));
-    QTimer::singleShot(0, &window, [] {
-        for (QWidget *widget : QApplication::topLevelWidgets())
-            if (auto *box = dynamic_cast<QtDeleteConfirmation *>(widget); box && box->isVisible())
-                ReplyDelete(*box);
-    });
-    action(window, "deleteAction")->trigger();
-    QTRY_VERIFY(archiveRow(QStringLiteral("новый секрет.txt")) < 0);
+    QVERIFY(!action(window, "deleteAction")->isEnabled());
     QCOMPARE(passwordPrompts, 1);
     passwordAnswer.stop();
 }

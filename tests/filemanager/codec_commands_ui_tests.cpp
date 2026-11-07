@@ -159,7 +159,7 @@ class CodecCommandsUiTests final : public QObject, protected MainWindowTestSuppo
         window.openArchive(archive);
         QTRY_COMPARE(table(window)->rowCount(), 1);
         table(window)->selectRow(0);
-        QVERIFY(action(window, "deleteAction")->isEnabled());
+        QVERIFY(!action(window, "deleteAction")->isEnabled());
         QVERIFY(action(window, "renameAction")->isEnabled());
         QVERIFY(action(window, "testArchiveAction")->isEnabled());
         const QByteArray replacement = format == "wim" && cancel
@@ -244,17 +244,13 @@ class CodecCommandsUiTests final : public QObject, protected MainWindowTestSuppo
         QVERIFY(
             QDir(fixture.path()).entryList({".sevenzip-*"}, QDir::Files | QDir::Hidden).isEmpty());
     }
-    void singleStreamDeleteUsesOriginalHandlerContract_data() {
+    void singleStreamArchiveHasNoTrashCommand_data() {
         QTest::addColumn<QString>("format");
-        QTest::addColumn<bool>("cancel");
         for (const QString &format : {"bzip2", "xz"})
-            for (bool cancel : {false, true})
-                QTest::newRow(qPrintable(format + (cancel ? " cancel" : " handler result")))
-                    << format << cancel;
+            QTest::newRow(qPrintable(format)) << format;
     }
-    void singleStreamDeleteUsesOriginalHandlerContract() {
+    void singleStreamArchiveHasNoTrashCommand() {
         QFETCH(QString, format);
-        QFETCH(bool, cancel);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString name = QStringLiteral("stream 空 with spaces.bin");
@@ -265,30 +261,14 @@ class CodecCommandsUiTests final : public QObject, protected MainWindowTestSuppo
         const QByteArray before = readFile(archive);
         ArchiveBackend backend(nullptr, engine_);
         QCOMPARE(backend.loadCodecCatalog(module_, version_), S_OK);
-        CMessageAnswers messages(dialogs_, cancel);
         MainWindow window(&backend);
         window.show();
         QVERIFY(QTest::qWaitForWindowActive(&window));
         window.openArchive(archive);
         QTRY_COMPARE(table(window)->rowCount(), 1);
         table(window)->selectRow(0);
-        QTRY_VERIFY(action(window, "deleteAction")->isEnabled());
-        action(window, "deleteAction")->trigger();
-        QCOMPARE(messages.CancelledQuestion, cancel);
-        if (cancel)
-            QCOMPARE(messages.Errors.isEmpty(), cancel || format == "xz");
-        if (cancel || format == "bzip2")
-            QCOMPARE(readFile(archive), before);
-        else {
-            // Original XzHandler::UpdateItems encodes an empty XZ stream for
-            // zero requested items; GetNumberOfItems still returns one.
-            QVERIFY(readFile(archive) != before);
-            QTemporaryDir output;
-            QVERIFY(output.isValid());
-            QVERIFY(run(fixture.path(), {"x", "-y", "-o" + output.path(), "--", archive}));
-            QVERIFY(QFileInfo::exists(output.filePath(name)));
-            QCOMPARE(QFileInfo(output.filePath(name)).size(), qint64(0));
-        }
+        QVERIFY(!action(window, "deleteAction")->isEnabled());
+        QCOMPARE(readFile(archive), before);
         QCOMPARE(table(window)->rowCount(), 1);
         QVERIFY(action(window, "testArchiveAction")->isEnabled());
         QVERIFY(!backend.busy());

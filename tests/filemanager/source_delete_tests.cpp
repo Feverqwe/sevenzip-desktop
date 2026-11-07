@@ -32,69 +32,6 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
             return removed;
         }
     };
-    // Delegate actual bytes to the original provider; inject only the terminal
-    // result after one entry to make partial failure/Cancel deterministic.
-    class DeleteFolder final : public IFolderFolder,
-                               public IFolderOperations,
-                               public CMyUnknownImp {
-        CMyComPtr<IFolderFolder> folder_;
-        CMyComPtr<IFolderOperations> operations_;
-        Z7_COM_UNKNOWN_IMP_2(IFolderFolder, IFolderOperations)
-      public:
-        HRESULT terminal = S_OK;
-        std::function<void()> during;
-        explicit DeleteFolder(const QString &path) : folder_(new NFsFolder::CFSFolder(path)) {
-            folder_.QueryInterface(IID_IFolderOperations, &operations_);
-        }
-        Z7_COM7F_IMF(LoadItems()) override { return folder_->LoadItems(); }
-        Z7_COM7F_IMF(GetNumberOfItems(UInt32 *count)) override {
-            return folder_->GetNumberOfItems(count);
-        }
-        Z7_COM7F_IMF(GetProperty(UInt32 index, PROPID id, PROPVARIANT *value)) override {
-            return folder_->GetProperty(index, id, value);
-        }
-        Z7_COM7F_IMF(BindToFolder(UInt32 index, IFolderFolder **folder)) override {
-            return folder_->BindToFolder(index, folder);
-        }
-        Z7_COM7F_IMF(BindToFolder(const wchar_t *name, IFolderFolder **folder)) override {
-            return folder_->BindToFolder(name, folder);
-        }
-        Z7_COM7F_IMF(BindToParentFolder(IFolderFolder **folder)) override {
-            return folder_->BindToParentFolder(folder);
-        }
-        Z7_COM7F_IMF(GetNumberOfProperties(UInt32 *count)) override {
-            return folder_->GetNumberOfProperties(count);
-        }
-        Z7_COM7F_IMF(GetPropertyInfo(UInt32 index, BSTR *name, PROPID *id, VARTYPE *type))
-        override { return folder_->GetPropertyInfo(index, name, id, type); }
-        Z7_COM7F_IMF(GetFolderProperty(PROPID id, PROPVARIANT *value)) override {
-            if (id == kpidType) {
-                NWindows::NCOM::CPropVariant type(L"RootFolder");
-                return type.Detach(value);
-            }
-            return folder_->GetFolderProperty(id, value);
-        }
-        Z7_COM7F_IMF(CreateFolder(const wchar_t *, IProgress *)) override { return E_NOTIMPL; }
-        Z7_COM7F_IMF(CreateFile(const wchar_t *, IProgress *)) override { return E_NOTIMPL; }
-        Z7_COM7F_IMF(Rename(UInt32, const wchar_t *, IProgress *)) override { return E_NOTIMPL; }
-        Z7_COM7F_IMF(CopyTo(Int32, const UInt32 *, UInt32, Int32, Int32, const wchar_t *,
-                            IFolderOperationsExtractCallback *))
-        override { return E_NOTIMPL; }
-        Z7_COM7F_IMF(CopyFrom(Int32, const wchar_t *, const wchar_t *const *, UInt32, IProgress *))
-        override { return E_NOTIMPL; }
-        Z7_COM7F_IMF(SetProperty(UInt32, PROPID, const PROPVARIANT *, IProgress *)) override {
-            return E_NOTIMPL;
-        }
-        Z7_COM7F_IMF(CopyFromFile(UInt32, const wchar_t *, IProgress *)) override {
-            return E_NOTIMPL;
-        }
-        Z7_COM7F_IMF(Delete(const UInt32 *indices, UInt32 count, IProgress *progress)) override {
-            during();
-            const HRESULT result =
-                operations_->Delete(indices, terminal == S_OK ? count : 1, progress);
-            return result == S_OK ? terminal : result;
-        }
-    };
     static FileTable *openPanel(MainWindow &window, unsigned index, const QString &path) {
         auto *ui = window.findChild<QWidget *>(QString("filePanel%1").arg(index));
         auto *address = ui->findChild<QLineEdit *>("archivePath");
@@ -197,7 +134,7 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         });
         responder.start(1);
         CSelectedState selected;
-        QCOMPARE(panel.DeleteItems(true, trash, selected, &indices).Result, E_ABORT);
+        QCOMPARE(panel.MoveItemsToTrash(trash, selected, &indices), E_ABORT);
         responder.stop();
         QVERIFY(stopped);
         QCOMPARE(trash.calls, 1);
@@ -249,21 +186,18 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
                     dynamic_cast<QtDeleteConfirmation *>(dialogs_.activeDialog())) {
                 seen = true;
                 QCOMPARE(confirmation->findChild<QLabel *>("deleteFolders")->isVisible(), !link);
-                ReplyDelete(*confirmation);
+                ReplyDelete(*confirmation, false);
             }
         });
         responder.start(1);
-        PanelKeys::deletePermanently(view, action(window, "deleteAction"));
+        action(window, "deleteAction")->trigger();
         responder.stop();
         QVERIFY(seen);
-        QTRY_VERIFY(row() < 0);
         QCOMPARE(trash.calls, 0);
-        if (link) {
-            QVERIFY(!QFileInfo(alias).isSymLink());
-            QVERIFY(payload.open(QIODevice::ReadOnly));
-            QCOMPARE(payload.readAll(), QByteArray("protected bytes"));
-        } else
-            QVERIFY(!QFileInfo::exists(directory));
+        QVERIFY(payload.open(QIODevice::ReadOnly));
+        QCOMPARE(payload.readAll(), QByteArray("protected bytes"));
+        if (link)
+            QVERIFY(QFileInfo(alias).isSymLink());
     }
     void trashKeepsPreparedPathsAcrossProviderReload() {
         QTemporaryDir fixture;
@@ -296,7 +230,7 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
                 reload = folder->LoadItems();
         };
         CSelectedState state;
-        QCOMPARE(panel.DeleteItems(true, trash, state, &indices, false).Result, S_OK);
+        QCOMPARE(panel.MoveItemsToTrash(trash, state, &indices, false), S_OK);
         QCOMPARE(reload, S_OK);
         QCOMPARE(trash.calls, 2);
         for (const QString &name : selected)
@@ -415,7 +349,7 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         QTest::addColumn<int>("mode");
         for (unsigned pane : {0u, 1u})
             for (const QString language : {"-", "ru"})
-                for (int mode : {0, 1, 2, 3, 4})
+                for (int mode : {3, 4})
                     QTest::newRow(qPrintable(QString("%1-%2-%3").arg(pane).arg(language).arg(mode)))
                         << pane << language << mode;
     }
@@ -423,8 +357,7 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         QFETCH(unsigned, pane);
         QFETCH(QString, language);
         QFETCH(int, mode);
-        const bool recycle = mode >= 3;
-        const bool partial = mode == 1 || mode == 2 || mode == 4;
+        const bool partial = mode == 4;
         const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         QFile::remove(settings);
         SaveRegLang(ToUString(language), settings);
@@ -459,27 +392,6 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         QTRY_COMPARE(view->rowCount(), 3);
         auto &panel = *view->sourcePanel;
         CMyComPtr<IFolderFolder> folder = panel.GetFolder();
-        bool workerSeen = false;
-        bool workerNotifications = true;
-        if (mode == 1 || mode == 2) {
-            auto *spec = new DeleteFolder(fixture.path());
-            folder = spec;
-            spec->terminal = mode == 1 ? E_FAIL : E_ABORT;
-            spec->during = [&] {
-                QMetaObject::invokeMethod(
-                    &window,
-                    [&] {
-                        workerSeen = true;
-                        workerNotifications = panel.ShouldProcessNotifications();
-                    },
-                    Qt::BlockingQueuedConnection);
-            };
-            // Generic source projection avoids pretending a forwarding
-            // fixture is the concrete filesystem provider used by the UI.
-            panel.SetNewFolder(folder);
-            panel.OnReload();
-            QTRY_COMPARE(view->rowCount(), 3);
-        }
         panel.Set_AutoRefresh_Mode(false);
         const auto itemNamed = [view](const QString &name) {
             const auto matches = view->model()->match(view->model()->index(0, 0), Qt::DisplayRole,
@@ -511,8 +423,7 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
                     dynamic_cast<QtDeleteConfirmation *>(dialogs_.activeDialog())) {
                 ++confirmations;
                 QCOMPARE(confirmation->windowTitle(),
-                         QCoreApplication::translate(
-                             "DeleteRedesign", recycle ? "Move to Trash?" : "Delete permanently?"));
+                         QCoreApplication::translate("DeleteRedesign", "Move to Trash?"));
                 ReplyDelete(*confirmation);
                 return;
             }
@@ -555,19 +466,10 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
             box->accept();
         });
         responder.start(1);
-        if (mode == 1 || mode == 2) {
-            CSelectedState selection;
-            QCOMPARE(panel.DeleteItems(false, trash, selection).Result,
-                     mode == 1 ? E_FAIL : E_ABORT);
-        } else if (recycle)
-            action(window, "deleteAction")->trigger();
-        else {
-            PanelKeys::deletePermanently(view, action(window, "deleteAction"));
-            QTest::keyRelease(view, Qt::Key_Shift);
-        }
+        action(window, "deleteAction")->trigger();
         responder.stop();
         QCOMPARE(confirmations, 1);
-        QCOMPARE(errors, mode == 1 || mode == 4 ? 1 : 0);
+        QCOMPARE(errors, partial ? 1 : 0);
         QVERIFY(reports);
         if (errors)
             QCOMPARE(errorTitle,
@@ -575,10 +477,7 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         QTRY_COMPARE(view->rowCount(), partial ? 2 : 1);
         QCOMPARE(panel.GetFolder(), (IFolderFolder *)folder);
         QVERIFY(panel.ShouldProcessNotifications());
-        QCOMPARE(workerSeen, mode == 1 || mode == 2);
-        if (workerSeen)
-            QVERIFY(!workerNotifications);
-        QCOMPARE(trash.calls, recycle ? 2 : 0);
+        QCOMPARE(trash.calls, 2);
         QVERIFY(!QFileInfo::exists(fixture.filePath(firstDeleted)));
         QCOMPARE(QFileInfo::exists(fixture.filePath(secondDeleted)), partial);
         if (partial) {
@@ -594,13 +493,7 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         QCOMPARE(peer->sourcePanel->GetFolder(), (IFolderFolder *)peerFolder);
         QCOMPARE(peer->rowCount(), 0);
     }
-    void deferredRefresh_data() {
-        QTest::addColumn<bool>("recycle");
-        QTest::newRow("permanent") << false;
-        QTest::newRow("trash") << true;
-    }
     void deferredRefresh() {
-        QFETCH(bool, recycle);
         const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         QFile::remove(settings);
         CFmSettings preferences;
@@ -637,12 +530,7 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
             }
         });
         answer.start(5);
-        if (recycle)
-            action(window, "deleteAction")->trigger();
-        else {
-            PanelKeys::deletePermanently(view, action(window, "deleteAction"));
-            QTest::keyRelease(view, Qt::Key_Shift);
-        }
+        action(window, "deleteAction")->trigger();
         answer.stop();
         QVERIFY(!panel.ShouldProcessNotifications());
         QTRY_VERIFY(view->isEnabled() && view->rowCount() == 257);

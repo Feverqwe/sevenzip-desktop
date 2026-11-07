@@ -38,7 +38,6 @@ class QtFileManagerCommands final : public IQtFileManagerMenuCommandServices {
     bool CanCloseMounts();
     QWidget *MountCloseBlocker() const;
     bool CanExecuteCommand(unsigned id) override;
-    bool IsShiftDown() const override;
     void InvokePluginCommand(unsigned id) override;
     void ReleasePluginMenus() override;
     void OpenItem() override;
@@ -48,7 +47,7 @@ class QtFileManagerCommands final : public IQtFileManagerMenuCommandServices {
     void Rename() override;
     void CopyTo() override;
     void MoveTo() override;
-    void Delete(bool toRecycleBin) override;
+    void MoveToTrash() override;
     void CalculateCrc(const char *methodName) override;
     void Properties() override;
     void CreateFolder() override;
@@ -84,6 +83,7 @@ class QtFileManagerCommands final : public IQtFileManagerMenuCommandServices {
     void OpenDevice();
     struct TransportCapabilities {
         bool filesystem = false, archive = false, writable = false, mutationWritable = false;
+        bool trash = false;
         bool filesystemStreams = false;
         bool batchArchives = false;
         bool copy = false;

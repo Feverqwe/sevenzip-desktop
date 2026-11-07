@@ -352,7 +352,7 @@ class NestedArchiveTests : public QObject {
             sourceName);
         table->selectRow(0);
         QVERIFY(add->isEnabled());
-        QVERIFY(remove->isEnabled());
+        QVERIFY(!remove->isEnabled());
         QVERIFY(rename->isEnabled());
         QVERIFY(move->isEnabled());
         QVERIFY(edit->isEnabled());
@@ -509,7 +509,7 @@ class NestedArchiveTests : public QObject {
         QVERIFY(address->text().endsWith("outer.7z/folder/вложенный архив.zip"));
         table->selectRow(0);
         QVERIFY(add->isEnabled());
-        QVERIFY(remove->isEnabled());
+        QVERIFY(!remove->isEnabled());
         back->trigger();
         QCOMPARE(table->model()->index(0, 0).data().toString(),
                  QStringLiteral("вложенный архив.zip"));

@@ -36,8 +36,7 @@ inline void openSelection(QWidget *view) {
 #endif
 }
 
-inline void deletePermanently(QWidget *view, QAction *command) {
-    Q_UNUSED(command);
+inline void formerPermanentDeleteShortcut(QWidget *view) {
 #ifdef Q_OS_MACOS
     PanelKeys::command(view, Qt::Key_Backspace, Qt::ControlModifier | Qt::ShiftModifier);
 #else

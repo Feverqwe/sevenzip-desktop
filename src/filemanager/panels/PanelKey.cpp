@@ -113,10 +113,10 @@ bool CPanel::OnKeyDown(const QtPanelKeyDown &keyDownInfo, CApp &g_App) {
         }
         break;
     }
-    case Qt::Key_Delete: {
-        g_App.ExecuteCommand(IDM_DELETE);
+    case Qt::Key_Delete:
+        if (!alt && !ctrl && !shift)
+            g_App.ExecuteCommand(IDM_DELETE);
         return true;
-    }
     case Qt::Key_Insert: {
         if (!alt) {
             if (ctrl && !shift) {

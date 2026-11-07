@@ -6,7 +6,6 @@ class IQtFileManagerCommandServices {
   public:
     virtual ~IQtFileManagerCommandServices() = default;
     virtual bool CanExecuteCommand(unsigned id) = 0;
-    virtual bool IsShiftDown() const = 0;
     virtual void InvokePluginCommand(unsigned id) = 0;
     virtual void ReleasePluginMenus() = 0;
     virtual void OpenItem() = 0;
@@ -16,7 +15,7 @@ class IQtFileManagerCommandServices {
     virtual void Rename() = 0;
     virtual void CopyTo() = 0;
     virtual void MoveTo() = 0;
-    virtual void Delete(bool toRecycleBin) = 0;
+    virtual void MoveToTrash() = 0;
     virtual void CalculateCrc(const char *methodName) = 0;
     virtual void Properties() = 0;
     virtual void CreateFolder() = 0;

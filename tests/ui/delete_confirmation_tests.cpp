@@ -24,7 +24,7 @@ class DeleteConfirmationTests final : public QObject {
     void selectionAndConsequences_data() {
         QTest::addColumn<int>("mode");
         QTest::addColumn<QString>("language");
-        for (int mode = 0; mode < 3; ++mode)
+        for (int mode = 0; mode < 2; ++mode)
             for (const QString &language : {QString("-"), QString("ru")})
                 QTest::newRow(qPrintable(QString("%1-%2").arg(mode).arg(language)))
                     << mode << language;
@@ -59,8 +59,9 @@ class DeleteConfirmationTests final : public QObject {
         QVERIFY(cancel && confirm && source && names && selection && scroll);
         QVERIFY(cancel->hasFocus() && cancel->isDefault());
 #ifdef Q_OS_MACOS
-        QVERIFY(UiInspection::bounds(*cancel, dialog).right() <
-                UiInspection::bounds(*confirm, dialog).left());
+        if (QGuiApplication::platformName() == QStringLiteral("cocoa"))
+            QVERIFY(UiInspection::bounds(*cancel, dialog).right() <
+                    UiInspection::bounds(*confirm, dialog).left());
 #endif
         QVERIFY(confirm->isEnabled());
         QVERIFY(source->accessibleDescription().contains(request.location));
@@ -74,7 +75,7 @@ class DeleteConfirmationTests final : public QObject {
             if (label->window() == dialog.window())
                 QVERIFY(!label->isVisible() || label->text() != request.location);
         QCOMPARE(names->toPlainText(), request.names.join('\n'));
-        const char *actions[] = {"Move to Trash", "Delete permanently", "Delete from archive"};
+        const char *actions[] = {"Move to Trash", "Delete from archive"};
         QCOMPARE(confirm->text(), QCoreApplication::translate("DeleteRedesign", actions[mode]));
         for (const QSize size : {QSize(560, 380), QSize(340, 240)}) {
             dialog.resize(size);

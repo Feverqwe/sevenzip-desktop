@@ -93,27 +93,16 @@ void QtDeleteConfirmation::refreshText() {
     const auto text = [](const char *value) {
         return QCoreApplication::translate("DeleteRedesign", value);
     };
-    const char *title, *action, *consequence;
-    switch (request_.mode) {
-    case Mode::Trash:
-        title = QT_TRANSLATE_NOOP("DeleteRedesign", "Move to Trash?");
-        action = QT_TRANSLATE_NOOP("DeleteRedesign", "Move to Trash");
-        consequence = QT_TRANSLATE_NOOP(
-            "DeleteRedesign",
-            "You can restore the items from Trash after they have been moved successfully.");
-        break;
-    case Mode::Archive:
+    const char *title = QT_TRANSLATE_NOOP("DeleteRedesign", "Move to Trash?");
+    const char *action = QT_TRANSLATE_NOOP("DeleteRedesign", "Move to Trash");
+    const char *consequence = QT_TRANSLATE_NOOP(
+        "DeleteRedesign",
+        "You can restore the items from Trash after they have been moved successfully.");
+    if (request_.mode == Mode::Archive) {
         title = QT_TRANSLATE_NOOP("DeleteRedesign", "Delete from archive?");
         action = QT_TRANSLATE_NOOP("DeleteRedesign", "Delete from archive");
         consequence = QT_TRANSLATE_NOOP(
             "DeleteRedesign", "This changes the archive. Deleted entries do not go to Trash.");
-        break;
-    default:
-        title = QT_TRANSLATE_NOOP("DeleteRedesign", "Delete permanently?");
-        action = QT_TRANSLATE_NOOP("DeleteRedesign", "Delete permanently");
-        consequence =
-            QT_TRANSLATE_NOOP("DeleteRedesign", "These items cannot be restored from Trash.");
-        break;
     }
     setWindowTitle(text(title));
     heading_->setText(text(title));

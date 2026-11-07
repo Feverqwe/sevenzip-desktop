@@ -64,7 +64,7 @@ void MainWindowOperationsTests::inlineRenameCollisionRestoresSelection() {
              QStringLiteral("исходный.txt"));
 }
 
-void MainWindowOperationsTests::deleteRoutesTrashAndShiftPermanent() {
+void MainWindowOperationsTests::deleteRoutesOnlyToTrash() {
     QTemporaryDir temp;
     QVERIFY(temp.isValid());
     for (const QString &name : {QStringLiteral("в корзину.txt"), QStringLiteral("навсегда.txt"),
@@ -128,10 +128,10 @@ void MainWindowOperationsTests::deleteRoutesTrashAndShiftPermanent() {
     table(window)->setFocus();
     confirmation.clear();
     dialogTimer.start(1);
-    PanelKeys::deletePermanently(table(window), action(window, "deleteAction"));
+    PanelKeys::formerPermanentDeleteShortcut(table(window));
     dialogTimer.stop();
-    QVERIFY(confirmation.contains(QStringLiteral("навсегда.txt")));
-    QVERIFY(!QFileInfo::exists(temp.filePath(QStringLiteral("навсегда.txt"))));
+    QVERIFY(confirmation.isEmpty());
+    QVERIFY(QFileInfo::exists(temp.filePath(QStringLiteral("навсегда.txt"))));
     QCOMPARE(trash.moved.size(), 1);
     QTest::keyRelease(table(window), Qt::Key_Shift);
 

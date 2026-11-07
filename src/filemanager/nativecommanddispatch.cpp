@@ -84,7 +84,7 @@ bool ExecuteFileCommand(unsigned id, IQtFileManagerCommandServices &g_App) {
         g_App.MoveTo();
         break;
     case IDM_DELETE:
-        g_App.Delete(!g_App.IsShiftDown());
+        g_App.MoveToTrash();
         break;
     case IDM_HASH_ALL:
     case IDM_CRC32:
