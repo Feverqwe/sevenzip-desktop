@@ -13,11 +13,9 @@
         <message><source>Stop this operation?</source><translation>Остановить операцию?</translation></message>
         <message><source>Stopping…</source><translation>Останавливаем…</translation></message>
         <message><source>Stop…</source><translation>Остановить…</translation></message>
-        <message><source>Minimize</source><translation>Свернуть</translation></message>
         <message><source>Locations</source><translation>Расположения</translation></message>
         <message><source>Source locations</source><translation>Источники</translation></message>
         <message><source>Destination</source><translation>Назначение</translation></message>
-        <message><source>What happened</source><translation>Что произошло</translation></message>
         <message><source>Source: %1</source><translation>Источник: %1</translation></message>
         <message><source>Destination: %1</source><translation>Назначение: %1</translation></message>
         <message><source>Operation failed</source><translation>Операция завершилась с ошибкой</translation></message>
@@ -41,10 +39,6 @@
         <message>
             <source>Keep both</source>
             <translation>Сохранить оба</translation>
-        </message>
-        <message>
-            <source>Cancel operation</source>
-            <translation>Отменить операцию</translation>
         </message>
         <message>
             <source>Apply to remaining conflicts in this operation</source>

@@ -197,8 +197,8 @@ native byte/count totals and percent-only transports drive the same display;
 a new unknown phase clears the previous percentage. Preparation has a short
 state caption. Pause freezes rendering and preserves reached progress. It is
 available only when supported by that operation's transport; callback-only
-filesystem/volume operations hide it. Minimize, Pause/Continue and Stop remain
-in the footer, reachable when the body scrolls. Full locations come from the
+filesystem/volume operations hide it. Pause/Continue and Stop remain reachable
+in the footer, and the title bar provides Minimize. Full locations come from the
 accepted operation plan, not from the changing current-file string.
 
 Stop and closing a running window ask Continue working / Stop. Continue is the
@@ -208,7 +208,8 @@ completion retires an obsolete question without waiting for user input. Neither
 an empty message list nor a full bar proves success. The operation supplies its
 result and completeness after required publication/source removal. Full success
 closes automatically. Failure, cancellation, skipped items or messages keep a
-short result and optional diagnostics until Close, with the running bar hidden.
+short result and any diagnostics until Close, with the running bar hidden.
+Diagnostics appear directly in a scrollable list when messages are available.
 Cancellation warns that changes may already have completed.
 
 Diagnostics preserve source strings, line splitting and order. The ordinal

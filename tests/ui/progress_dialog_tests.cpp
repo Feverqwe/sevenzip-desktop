@@ -204,11 +204,7 @@ class ProgressDialogTests : public QObject {
         dialog.show();
         auto *list = messages(dialog);
         QTRY_COMPARE(list->topLevelItemCount(), 4);
-        auto *disclosure =
-            dynamic_cast<QtDisclosure *>(dialog.findChild<QWidget *>("progressDiagnostics"));
-        QVERIFY(disclosure);
-        disclosure->setExpanded(true);
-        QVERIFY(list->isVisible());
+        QTRY_VERIFY(list->isVisible());
         QVERIFY(list->isColumnHidden(0));
         QCOMPARE(list->topLevelItem(0)->text(1), QStringLiteral("файл с пробелом.txt"));
         QCOMPARE(list->topLevelItem(2)->text(1), QStringLiteral("Подробность"));
@@ -300,8 +296,7 @@ class ProgressDialogTests : public QObject {
         dialog.resize(size);
         dialog.show();
         QCOMPARE(text(dialog, "IDT_PROGRESS_FILE_NAME"), QStringLiteral("файл.txt"));
-        if (errors)
-            QTRY_VERIFY(dialog.findChild<QWidget *>("progressDiagnostics")->isVisible());
+        QTRY_COMPARE(messages(dialog)->isVisible(), errors);
         QApplication::processEvents();
         QCOMPARE(dialog.size(), size.expandedTo(dialog.minimumSizeHint()));
         const QString tag = QString("progress-dialog-%1-%2%3")
@@ -311,11 +306,7 @@ class ProgressDialogTests : public QObject {
         QVERIFY(UiInspection::writeReport(dialog, tag + "-collapsed"));
         auto *locations =
             dynamic_cast<QtDisclosure *>(dialog.findChild<QWidget *>("progressLocations"));
-        auto *diagnostics =
-            dynamic_cast<QtDisclosure *>(dialog.findChild<QWidget *>("progressDiagnostics"));
         locations->setExpanded(true);
-        if (errors)
-            diagnostics->setExpanded(true);
         QApplication::processEvents();
         QVERIFY(UiInspection::writeReport(dialog, tag));
         auto *scroll = dialog.findChild<QScrollArea *>("dialogContentScroll");

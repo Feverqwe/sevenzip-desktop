@@ -18,14 +18,8 @@ void CQtProgressDialog::BuildPresentation() {
     auto *stop = new QPushButton(this);
     QtBindLocalText(stop, "ProgressRedesign", QT_TRANSLATE_NOOP("ProgressRedesign", "Stop…"));
     AddControl(2, "IDCANCEL", stop);
-    auto *minimize = new QPushButton(this);
-    minimize->setObjectName("progressMinimize");
-    QtBindLocalText(minimize, "ProgressRedesign",
-                    QT_TRANSLATE_NOOP("ProgressRedesign", "Minimize"));
-    connect(minimize, &QPushButton::clicked, this, &QWidget::showMinimized);
     auto *buttons = new QDialogButtonBox(this);
     buttons->setObjectName("progressButtons");
-    buttons->addButton(minimize, QDialogButtonBox::ActionRole);
     buttons->addButton(pause, QDialogButtonBox::ActionRole);
     buttons->addButton(stop, QDialogButtonBox::RejectRole);
     auto *outer = QtCreateDialogLayout(*this, *buttons, QtDialogContent::Scrollable);
@@ -81,14 +75,8 @@ void CQtProgressDialog::BuildPresentation() {
     messages->setMinimumHeight(fontMetrics().height() * 4);
     messages->setMaximumHeight(fontMetrics().height() * 12);
     AddControl(IDL_PROGRESS_MESSAGES, "IDL_PROGRESS_MESSAGES", messages);
-    auto *diagnostics = new QtDisclosure(messages, this);
-    diagnostics->setObjectName("progressDiagnostics");
-    QtBindLocalText(diagnostics->button(), "ProgressRedesign",
-                    QT_TRANSLATE_NOOP("ProgressRedesign", "What happened"));
-    _diagnostics = diagnostics;
-    outer->addWidget(diagnostics);
-    diagnostics->hide();
-    setTabOrder(minimize, pause);
+    outer->addWidget(messages);
+    messages->hide();
     setTabOrder(pause, stop);
     resize(560, minimumSizeHint().height());
 }
@@ -98,7 +86,9 @@ void CQtProgressDialog::ShowProgressPercent(const QString &percent) {
     _percent->setVisible(!percent.isEmpty());
 }
 
-void CQtProgressDialog::ShowMessages(bool visible) { _diagnostics->setVisible(visible); }
+void CQtProgressDialog::ShowMessages(bool visible) {
+    ShowItem_Bool(IDL_PROGRESS_MESSAGES, visible);
+}
 
 void CQtProgressDialog::SetLocations(const QString &source, const QString &destination) {
     auto *locations = static_cast<QtDisclosure *>(_locations);

@@ -1,6 +1,5 @@
 #include "Common/StringConvert.h"
 #include "support/progress_dialog.h"
-#include "ui/controls/qtdisclosure.h"
 #include "ui/progress/ProgressDialog2.h"
 #include "ui/support/layout_inspection.h"
 #include <QLabel>
@@ -222,7 +221,7 @@ class ProgressWorkerTests : public QObject {
                        UiInspection::fullyVisible(*close, worker) &&
                        close->sizeHint().width() <= close->width() &&
                        !worker.findChild<QPushButton *>("IDB_PAUSE")->isVisible() &&
-                       worker.findChild<QWidget *>("progressDiagnostics")->isVisible() && report;
+                       worker.findChild<QWidget *>("IDL_PROGRESS_MESSAGES")->isVisible() && report;
             QTest::keyClick(close, Qt::Key_Return);
         });
         timer.start(10);
@@ -270,9 +269,8 @@ class ProgressWorkerTests : public QObject {
                 QCOMPARE(worker.findChild<QLabel *>("IDT_PROGRESS_STATUS")->text(),
                          QCoreApplication::translate("ProgressRedesign", summary));
                 QVERIFY(!worker.findChild<QWidget *>("IDC_PROGRESS1")->isVisible());
-                auto *diagnostics = dynamic_cast<QtDisclosure *>(
-                    worker.findChild<QWidget *>("progressDiagnostics"));
-                diagnostics->setExpanded(true);
+                QCOMPARE(worker.findChild<QWidget *>("IDL_PROGRESS_MESSAGES")->isVisible(),
+                         !message.isEmpty());
                 actualMessage = TestProgressDialog::ReportText(worker);
                 for (const QSize size : {QSize(560, 260), QSize(360, 240)}) {
                     worker.resize(size);

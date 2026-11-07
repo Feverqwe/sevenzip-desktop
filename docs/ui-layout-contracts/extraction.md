@@ -161,16 +161,16 @@ allowed memory. The user can change the limit in Settings and retry.
 The agreed conflict form offers Replace, Skip and Keep both, with one unchecked
 Apply to remaining conflicts in this operation checkbox. A known single-file
 transfer hides that checkbox; one selected root directory does not establish a
-single conflict. Cancel operation is separate and always cancels, including when
-the checkbox is checked. Initial focus/default is Skip. Keep both without the
+single conflict. Cancel remains on the left of the footer and always cancels,
+including when the checkbox is checked. Initial focus/default is Skip. Keep both without the
 checkbox changes only the current conflict; the existing native auto-name algorithm
 chooses an available name. Operation policy must not leak into another operation.
 
 Existing/incoming metadata stays in separate areas, side by side when readable
 and stacked at narrower widths. Full filenames/locations wrap in the modern form;
 unknown size/time is explicit. Known byte sizes and timestamps retain source
-formatting. Three equal decisions also stack when necessary. The body scrolls
-independently of the cancellation footer. Native minimum button sizes remain fitted.
+formatting. The three decisions sit on the right of the same footer. The body
+scrolls independently of the footer. Native minimum button sizes remain fitted.
 The restricted Revert caller retains its original Yes/No/Cancel result contract,
 source default preference and bounded name formatting; Keep both and the scope
 checkbox are unavailable there. Existing native result values are preserved;

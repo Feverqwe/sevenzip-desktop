@@ -140,6 +140,19 @@ class OverwriteLayoutTests final : public QObject {
         QCOMPARE(rename->isVisible(), extra);
         QCOMPARE(apply->isVisible(), extra);
         QVERIFY(!apply->isChecked());
+        const auto cancelCenter = cancel->mapTo(&dialog, cancel->rect().center());
+        int previousRight = cancel->mapTo(&dialog, cancel->rect().topRight()).x();
+        for (auto *button : {yes, no, rename}) {
+            if (!button->isVisible())
+                continue;
+            QVERIFY(UiInspection::fullyVisible(*button, dialog));
+            QVERIFY(button->width() >= button->sizeHint().width());
+            QVERIFY(qAbs(button->mapTo(&dialog, button->rect().center()).y() - cancelCenter.y()) <=
+                    1);
+            QVERIFY(button->mapTo(&dialog, QPoint()).x() > previousRight);
+            previousRight = button->mapTo(&dialog, button->rect().topRight()).x();
+        }
+
         if (width < 500) {
             scroll->verticalScrollBar()->setValue(0);
             auto *header = dialog.findChild<QLabel *>("overwriteHeader");

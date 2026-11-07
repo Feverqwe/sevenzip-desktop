@@ -35,7 +35,6 @@ class CQtProgressDialog : public QDialog {
     QLabel *_source = nullptr;
     QLabel *_destination = nullptr;
     QWidget *_locations = nullptr;
-    QWidget *_diagnostics = nullptr;
     QPointer<QDialog> _stopQuestion;
     QSize _initialSize;
     bool _firstShow = true;

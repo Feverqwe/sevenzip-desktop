@@ -4,8 +4,8 @@
 #include "ui/controls/qtwrappingcheckbox.h"
 #include "ui/dialogs/qtdialoglayout.h"
 #include <QCheckBox>
-#include <QDialogButtonBox>
 #include <QFrame>
+#include <QHBoxLayout>
 #include <QPushButton>
 #include <QVBoxLayout>
 
@@ -23,11 +23,16 @@ constexpr Choice kChoices[] = {
 
 void COverwriteDialog::BuildPresentation() {
     setObjectName("overwriteDialog");
-    auto *footer = new QDialogButtonBox(QDialogButtonBox::Cancel, this);
-    auto *cancel = footer->button(QDialogButtonBox::Cancel);
+    auto *footer = new QWidget(this);
+    auto *actions = new QHBoxLayout(footer);
+    actions->setContentsMargins(0, 0, 0, 0);
+    auto *cancel = new QPushButton(footer);
     cancel->setObjectName("overwriteCancel");
     _controls.insert(IDCANCEL, cancel);
-    connect(footer, &QDialogButtonBox::rejected, this, &COverwriteDialog::reject);
+    QtBindResourceText(cancel, 402, "Cancel");
+    connect(cancel, &QPushButton::clicked, this, &COverwriteDialog::reject);
+    actions->addWidget(cancel);
+    actions->addStretch();
     auto *layout = QtCreateDialogLayout(*this, *footer, QtDialogContent::Scrollable);
     const auto label = [&](unsigned id, const char *name) {
         auto *control = new QtWrappingLabel(this);
@@ -99,20 +104,16 @@ void COverwriteDialog::BuildPresentation() {
         apply->label(), "ConflictRedesign",
         QT_TRANSLATE_NOOP("ConflictRedesign", "Apply to remaining conflicts in this operation"));
     layout->addWidget(apply);
-    QList<QWidget *> choices;
     for (const auto &spec : kChoices) {
-        auto *button = new QPushButton(this);
+        auto *button = new QPushButton(footer);
         button->setObjectName(spec.Name);
         QtBindLocalText(button, spec.Id == IDB_AUTO_RENAME ? "ConflictRedesign" : "DialogRedesign",
                         spec.Text);
         _controls.insert(spec.Id, button);
-        choices.append(button);
+        actions->addWidget(button);
         connect(button, &QPushButton::clicked, this,
                 [this, id = spec.Id, button] { OnButtonClicked(id, button); });
     }
-    auto *actions = new QtResponsiveRow(choices, this);
-    actions->setObjectName("overwriteChoices");
-    layout->addWidget(actions);
     resize(620, minimumSizeHint().height());
 }
 
@@ -128,10 +129,7 @@ void COverwriteDialog::UpdateButtonSizes() {
     if (ShowExtraButtons) {
         QtBindLocalText(this, "ConflictRedesign",
                         QT_TRANSLATE_NOOP("ConflictRedesign", "File already exists"));
-        QtBindLocalText(_controls.value(IDCANCEL), "ConflictRedesign",
-                        QT_TRANSLATE_NOOP("ConflictRedesign", "Cancel operation"));
     } else {
         QtBindResourceText(this, IDD_OVERWRITE, "Confirm File Replace");
-        QtBindResourceText(_controls.value(IDCANCEL), 402, "Cancel");
     }
 }
