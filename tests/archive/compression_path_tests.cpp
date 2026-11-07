@@ -372,42 +372,66 @@ class CompressionPathTests final : public QObject {
                  QDir(folder).filePath(QStringLiteral("данные.7z")));
         QVERIFY(!QFileInfo::exists(folder));
     }
+    void occupiedDestinationCanBeCorrectedWithoutLosingTheArchiveName_data() {
+        QTest::addColumn<bool>("danglingLink");
+        QTest::newRow("file") << false;
+#ifndef Q_OS_WIN
+        QTest::newRow("dangling-link") << true;
+#endif
+    }
     void occupiedDestinationCanBeCorrectedWithoutLosingTheArchiveName() {
+        QFETCH(bool, danglingLink);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         QFile occupied(fixture.filePath("occupied"));
         QVERIFY(occupied.open(QIODevice::WriteOnly));
         QCOMPARE(occupied.write("keep"), qint64(4));
         occupied.close();
+        const QString missing = fixture.filePath("missing folder");
+        const QString blocker =
+            danglingLink ? fixture.filePath("old shortcut") : occupied.fileName();
+        if (danglingLink)
+            QVERIFY(QFile::link(missing, blocker));
         const QString name = QStringLiteral("архив с пробелом.7z");
         const QString output = fixture.filePath("new/output");
         CreateArchiveDialog dialog(fixture.path(), {source_});
         auto *folder = dialog.findChild<QLineEdit *>("archiveFolder");
         auto *archiveName = dialog.findChild<QLineEdit *>("archiveName");
         archiveName->setText(name);
-        folder->setText(QDir::toNativeSeparators(occupied.fileName() + "/child"));
+        const QString blocked = QDir::toNativeSeparators(blocker + "/child");
+        folder->setText(blocked);
         dialog.show();
         QString diagnostic;
-        QTimer::singleShot(0, &dialog, [&] {
-            if (auto *message = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
-                diagnostic = message->text();
-                message->accept();
-            }
-        });
-        submit(dialog);
+        const auto submitAndDismissError = [&] {
+            diagnostic.clear();
+            QTimer::singleShot(0, &dialog, [&] {
+                if (auto *message =
+                        qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                    diagnostic = message->text();
+                    message->accept();
+                }
+            });
+            submit(dialog);
+        };
+        submitAndDismissError();
         QVERIFY(dialog.isVisible());
         QVERIFY(!diagnostic.isEmpty());
+        QCOMPARE(dialog.focusWidget(), folder);
+        QCOMPARE(folder->text(), blocked);
         QCOMPARE(archiveName->text(), name);
         folder->setText(QDir::toNativeSeparators(output));
+        const QString blockedName = blocked + QDir::separator() + name;
+        archiveName->setText(blockedName);
+        submitAndDismissError();
+        QVERIFY(dialog.isVisible());
+        QVERIFY(!diagnostic.isEmpty());
+        QWidget *nameEditor = dialog.focusWidget();
+        QVERIFY(nameEditor);
+        QTest::keyClick(nameEditor, Qt::Key_End);
+        QTest::keyClicks(nameEditor, "x");
+        QCOMPARE(archiveName->text(), blockedName + 'x');
         archiveName->setText("  ");
-        diagnostic.clear();
-        QTimer::singleShot(0, &dialog, [&] {
-            if (auto *message = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
-                diagnostic = message->text();
-                message->accept();
-            }
-        });
-        submit(dialog);
+        submitAndDismissError();
         QVERIFY(dialog.isVisible());
         QVERIFY(!diagnostic.isEmpty());
         QWidget *editor = dialog.focusWidget();
@@ -431,6 +455,10 @@ class CompressionPathTests final : public QObject {
         QCOMPARE(update.target(), dialog.target());
         QVERIFY(occupied.open(QIODevice::ReadOnly));
         QCOMPARE(occupied.readAll(), QByteArray("keep"));
+        if (danglingLink) {
+            QVERIFY(QFileInfo(blocker).isSymLink());
+            QVERIFY(!QFileInfo::exists(missing));
+        }
     }
     void destinationPickerRetainsNameAndCancelDraft_data() {
         QTest::addColumn<QString>("form");

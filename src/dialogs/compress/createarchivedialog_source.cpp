@@ -1,6 +1,7 @@
 #include "7zip/UI/FileManager/resource.h"
 #include "7zip/UI/GUI/CompressDialogRes.h"
 #include "Windows/ErrorMsg.h"
+#include "Windows/FileName.h"
 #include "archive/callbacks/qtguimessages.h"
 #include "archive/codecs/archivecodeccatalog.h"
 #include "dialogs/compress/createarchivedialog.h"
@@ -11,11 +12,10 @@
 #include <QFileInfo>
 
 namespace {
-bool ArchiveParentCanBeDirectory(const QFileInfo &target) {
-    QString path = target.absolutePath();
+bool ArchiveDirectoryCanExist(QString path) {
     for (;;) {
         const QFileInfo entry(path);
-        if (entry.exists())
+        if (entry.exists() || entry.isSymLink())
             return entry.isDir();
         const QString parent = entry.absolutePath();
         if (parent == path)
@@ -88,14 +88,25 @@ void CreateArchiveDialog::validateAndAccept() {
     const QString resolved = archivePath();
     const QFileInfo target(resolved);
     if (draftName.IsEmpty() || resolved.isEmpty() || target.isDir() ||
-        !ArchiveParentCanBeDirectory(target)) {
+        !ArchiveDirectoryCanExist(target.absolutePath())) {
         // Keep the draft available for correction before handing it to UpdateArchive.
         const std::wstring message =
             QCoreApplication::translate("CreateArchiveDialog", "Incorrect archive path")
                 .toStdWString();
         ShowErrorMessageQt(this, message.c_str());
-        if (draftName.IsEmpty())
-            name_->setFocus();
+        auto *field = name_;
+        if (archiveFolder_->text().contains(QChar::Null))
+            field = archiveFolder_;
+        else if (!draftName.IsEmpty() && !name_->text().contains(QChar::Null) &&
+                 NWindows::NFile::NName::GetRootPrefixSize(draftName) == 0) {
+            CCompressDialog base = archiveNameState_;
+            base.m_ArchivePath.clear();
+            QString directory;
+            if (!base.GetFinalPath_Smart(directory) ||
+                !ArchiveDirectoryCanExist(QFileInfo(directory).absoluteFilePath()))
+                field = archiveFolder_;
+        }
+        field->setFocus();
         return;
     }
     if (!checkVolumeSizes())
