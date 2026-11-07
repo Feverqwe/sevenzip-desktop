@@ -36,6 +36,7 @@ class QtFileTransferTransaction final {
         bool merged = false;
         QStringList writtenSources;
         QString ownedPath{};
+        std::function<bool(const QString &, const std::atomic_bool &)> backupMatches{};
     };
     FileTransferOperation &worker_;
     QList<TransferPath> prepareTargets(QString &error) const;
@@ -43,6 +44,7 @@ class QtFileTransferTransaction final {
     FileTransferOperation::Completion finish(QList<TransferEntry> &completed, QString &error);
     void rememberFailure(const QString &error) noexcept;
     void rollbackEntry(const TransferEntry &entry, RollbackMode mode);
+    void discardBackup(const TransferEntry &entry);
     void rollback(const QList<TransferEntry> &completed,
                   RollbackMode mode = RollbackMode::RestoreSources);
     void removeSources(QList<TransferEntry> &completed, QString &error);

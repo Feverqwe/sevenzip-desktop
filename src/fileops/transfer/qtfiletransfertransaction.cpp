@@ -162,14 +162,27 @@ QtFileTransferTransaction::prepareTargets(QString &error) const {
     return targets;
 }
 
+void QtFileTransferTransaction::discardBackup(const TransferEntry &entry) {
+    if (entry.backup.isEmpty())
+        return;
+    const std::atomic_bool keepChecking{false};
+    if (!entry.backupMatches(entry.backup, keepChecking)) {
+        rollbackErrors_.append(
+            QCoreApplication::translate("qtfiletransfertransaction",
+                                        "Backup changed during transfer and was kept: %1")
+                .arg(entry.backup));
+    } else if (!removeEntry(entry.backup)) {
+        rollbackErrors_.append(
+            QCoreApplication::translate("qtfiletransfertransaction", "Could not remove backup: %1")
+                .arg(entry.backup));
+    }
+}
+
 void QtFileTransferTransaction::rollbackEntry(const TransferEntry &entry, RollbackMode mode) {
     if (entry.ownedPath.isEmpty())
         return;
     if (mode == RollbackMode::KeepMovedSources && entry.sourceState != SourceState::Intact) {
-        if (!entry.backup.isEmpty() && !removeEntry(entry.backup))
-            rollbackErrors_.append(QCoreApplication::translate("qtfiletransfertransaction",
-                                                               "Could not remove backup: %1")
-                                       .arg(entry.backup));
+        discardBackup(entry);
         return;
     }
     if (entry.sourceState == SourceState::Renamed) {
@@ -267,8 +280,7 @@ FileTransferOperation::Completion QtFileTransferTransaction::finish(QList<Transf
         }
     }
     for (const TransferEntry &entry : completed)
-        if (!entry.backup.isEmpty())
-            removeEntry(entry.backup);
+        discardBackup(entry);
     QString message;
     const bool partial =
         skipped_ ||
@@ -286,8 +298,11 @@ FileTransferOperation::Completion QtFileTransferTransaction::finish(QList<Transf
                                               "Some files skipped; sources retained.");
     else
         message = QCoreApplication::translate("qtfiletransfertransaction", "Items moved.");
-    return {partial ? FileTransferOperation::ResultKind::PartialSuccess
-                    : FileTransferOperation::ResultKind::Success,
+    if (!rollbackErrors_.isEmpty())
+        message += '\n' + rollbackErrors_.join('\n');
+    return {partial || !rollbackErrors_.isEmpty()
+                ? FileTransferOperation::ResultKind::PartialSuccess
+                : FileTransferOperation::ResultKind::Success,
             message, movedSources(completed)};
 }
 
@@ -302,7 +317,8 @@ bool QtFileTransferTransaction::transferEntry(const TransferPath &path,
         existingInfo.exists() ? QtOwnedTempIdentity(target) : QString();
     const auto existingModified = existingInfo.lastModified();
     const qint64 existingSize = existingInfo.size();
-    const auto matchesExisting = [&](const QString &candidate) {
+    const auto matchesExisting = [existingIdentity, existingModified,
+                                  existingSize](const QString &candidate) {
         const QFileInfo info(candidate);
         return !existingIdentity.isEmpty() && QtOwnedTempIdentity(candidate) == existingIdentity &&
                info.lastModified() == existingModified && info.size() == existingSize;
@@ -397,9 +413,12 @@ bool QtFileTransferTransaction::transferEntry(const TransferPath &path,
             return false;
         }
         entry.backup = backupPath;
-        if (!matchesExisting(backupPath))
-            return destinationChanged();
-        if (merge && captureMergeTree(backupPath, worker_.canceled_) != mergeSnapshot)
+        entry.backupMatches = [matchesExisting, mergeSnapshot](const QString &candidate,
+                                                               const std::atomic_bool &canceled) {
+            return matchesExisting(candidate) &&
+                   (!mergeSnapshot || captureMergeTree(candidate, canceled) == mergeSnapshot);
+        };
+        if (!entry.backupMatches(backupPath, worker_.canceled_))
             return destinationChanged();
     } else if (QFileInfo::exists(target) || QtIsFileSystemLink(target)) {
         return destinationChanged();

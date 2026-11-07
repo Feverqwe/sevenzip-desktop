@@ -6446,6 +6446,10 @@ Use `Revert` to recover timestamp.</source>
     <context>
         <name>qtfiletransfertransaction</name>
         <message>
+            <source>Backup changed during transfer and was kept: %1</source>
+            <translation>Резервная копия изменилась во время переноса и сохранена: %1</translation>
+        </message>
+        <message>
             <source>Could not remove backup: %1</source>
             <translation>Не удалось удалить резервную копию: %1</translation>
         </message>

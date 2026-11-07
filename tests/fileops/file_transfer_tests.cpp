@@ -633,6 +633,77 @@ class FileTransferTests : public QObject {
         QCOMPARE(QDir(output).entryList(QDir::Dirs | QDir::NoDotAndDotDot), QStringList{"folder"});
     }
 
+    void backupEditedWhileMovingOtherItemsIsKept_data() {
+        QTest::addColumn<bool>("sourceRemovalFails");
+        QTest::newRow("completed-batch") << false;
+        QTest::newRow("failed-source-removal") << true;
+    }
+    void backupEditedWhileMovingOtherItemsIsKept() {
+#ifdef Q_OS_WIN
+        QSKIP("This fixture keeps a Qt file handle open across POSIX rename");
+#else
+        QFETCH(bool, sourceRemovalFails);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString destination = fixture.filePath("output");
+        QVERIFY(QDir().mkdir(destination));
+        const QString first = fixture.filePath("first.txt");
+        const QString second = fixture.filePath("second.txt");
+        const QString target = QDir(destination).filePath("first.txt");
+        const QString secondTarget = QDir(destination).filePath("second.txt");
+        const auto write = [](const QString &path, const QByteArray &bytes) {
+            QFile file(path);
+            return file.open(QIODevice::WriteOnly) && file.write(bytes) == bytes.size();
+        };
+        const auto read = [](const QString &path) {
+            QFile file(path);
+            return file.open(QIODevice::ReadOnly) ? file.readAll() : QByteArray();
+        };
+        QVERIFY(write(first, "incoming first"));
+        QVERIFY(write(second, "incoming second"));
+        QVERIFY(write(target, "old first"));
+        QVERIFY(write(secondTarget, "old second"));
+        QFile editor(target);
+        QVERIFY(editor.open(QIODevice::ReadWrite | QIODevice::Append));
+        FileTransferOperation::FileSystemAdapter adapter;
+        adapter.trySourceRename = [&](const QString &source, const QString &stage) {
+            return source == first && QFile::rename(source, stage);
+        };
+        adapter.removeSource = [&](const QString &source) {
+            return !sourceRemovalFails && QFile::remove(source);
+        };
+        FileTransferOperation move({first, second}, destination, true, nullptr, adapter);
+        QSignalSpy result(&move, &FileTransferOperation::result);
+        bool edited = false;
+        connect(
+            &move, &FileTransferOperation::overwriteRequested, &move,
+            [&](const OverwriteQuestion &question) {
+                if (question.Existing.Path == secondTarget)
+                    edited = editor.write(" external edit") == 14 && editor.flush();
+                move.submitOverwriteAnswer(NOverwriteAnswer::kYes);
+            },
+            Qt::DirectConnection);
+        move.start();
+        QVERIFY(move.wait(30000));
+        editor.close();
+        QTRY_COMPARE(result.size(), 1);
+        QVERIFY(edited);
+        QCOMPARE(move.resultKind(), sourceRemovalFails
+                                        ? FileTransferOperation::ResultKind::Failure
+                                        : FileTransferOperation::ResultKind::PartialSuccess);
+        QCOMPARE(read(target), QByteArray("incoming first"));
+        QCOMPARE(read(secondTarget), QByteArray("incoming second"));
+        QVERIFY(!QFileInfo::exists(first));
+        QCOMPARE(QFileInfo::exists(second), sourceRemovalFails);
+        const auto backups =
+            QDir(destination).entryList({QStringLiteral("*.sevenzip-*-backup")}, QDir::Files);
+        QCOMPARE(backups.size(), 1);
+        const QString backup = QDir(destination).filePath(backups.first());
+        QCOMPARE(read(backup), QByteArray("old first external edit"));
+        QVERIFY(result.first().at(1).toString().contains(backup));
+#endif
+    }
+
     void blockedMoveRollbackReportsRetainedFiles() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
