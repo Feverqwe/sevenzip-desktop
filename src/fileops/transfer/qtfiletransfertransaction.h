@@ -21,7 +21,7 @@ class QtFileTransferTransaction final {
     std::optional<FileTransferOperation::ResultKind> failureKind_;
     bool skipped_ = false;
     OverwriteDecision decideOverwrite(const OverwriteSource &source);
-    enum class SourceState { Intact, Renamed, RemovalStarted };
+    enum class SourceState { Intact, Renamed, RemovalStarted, Removed };
     enum class RollbackMode { RestoreSources, KeepMovedSources };
     struct TransferPath {
         QString source;
@@ -50,7 +50,8 @@ class QtFileTransferTransaction final {
     bool mergeEntry(const QString &source, const QString &stage, const QString &target,
                     QStringList *writtenSources, QString *error);
     bool removeMergedSource(const QString &source, const QStringList &writtenSources,
-                            QString *error);
+                            QString *error, bool &rootRemoved);
+    static QStringList movedSources(const QList<TransferEntry> &completed);
     bool validateEntry(const QString &source, QString *error);
     static bool removeEntry(const QString &path);
 

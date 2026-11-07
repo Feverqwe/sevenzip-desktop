@@ -102,10 +102,11 @@ QtLocalFileTask::QtLocalFileTask(FileTransferOperation &worker, const QString &t
         },
         Qt::DirectConnection);
     connect(&worker, &FileTransferOperation::result, this,
-            [this, &worker](bool success, const QString &message) {
+            [this, &worker](bool success, const QString &message, const QStringList &movedSources) {
                 Finish(success, worker.resultKind() == FileTransferOperation::ResultKind::Canceled,
                        message,
-                       worker.resultKind() == FileTransferOperation::ResultKind::PartialSuccess);
+                       worker.resultKind() == FileTransferOperation::ResultKind::PartialSuccess,
+                       movedSources);
             });
 }
 
@@ -210,11 +211,16 @@ void QtLocalFileTask::AskOverwrite(FileTransferOperation &worker,
         operation->submitOverwriteAnswer(answer);
 }
 
-void QtLocalFileTask::Finish(bool success, bool cancelled, const QString &message, bool partial) {
+void QtLocalFileTask::Finish(bool success, bool cancelled, const QString &message, bool partial,
+                             const QStringList &movedSources) {
     if (stopped_)
         return;
     worker_.wait();
     const QPointer<QtLocalFileTask> self(this);
+    if (!movedSources.isEmpty())
+        emit sourcesMoved(movedSources);
+    if (!self || stopped_)
+        return;
     emit transferCompleted(success && !partial);
     if (!self || stopped_)
         return;

@@ -5,6 +5,7 @@
 #include "platform/temp/qtownedtempregistry.h"
 #include <QClipboard>
 #include <QScopedValueRollback>
+#include <QSet>
 #include <QtEndian>
 
 namespace {
@@ -34,6 +35,21 @@ bool ClipboardMovesFiles(const QMimeData &mime) {
 #endif
     return move;
 }
+
+void PublishFileClipboard(const QList<QUrl> &urls, bool move) {
+    auto *mime = new QMimeData;
+    mime->setUrls(urls);
+    QByteArray gnome = move ? QByteArray("cut") : QByteArray("copy");
+    for (const auto &url : urls)
+        gnome += '\n' + url.toEncoded();
+    mime->setData("x-special/gnome-copied-files", gnome);
+    mime->setData("application/x-kde-cutselection", move ? "1" : "0");
+#ifdef Q_OS_WIN
+    mime->setData("application/x-qt-windows-mime;value=\"Preferred DropEffect\"",
+                  QByteArray(move ? "\x02\x00\x00\x00" : "\x01\x00\x00\x00", 4));
+#endif
+    QApplication::clipboard()->setMimeData(mime);
+}
 } // namespace
 
 QtFileClipboard::QtFileClipboard(MainWindow &window) : QObject(&window), window_(window) {
@@ -50,6 +66,7 @@ QtFileClipboard::QtFileClipboard(MainWindow &window) : QObject(&window), window_
     connect(copy, &QAction::triggered, this, [this] { Copy(false); });
     connect(paste, &QAction::triggered, this, &QtFileClipboard::Paste);
     connect(QApplication::clipboard(), &QClipboard::dataChanged, this, [this] {
+        ++revision_;
         cutDirty_ = true;
         window_.refreshActions();
     });
@@ -143,18 +160,7 @@ void QtFileClipboard::Copy(bool move) {
     }
     if (urls.isEmpty())
         return;
-    auto *mime = new QMimeData;
-    mime->setUrls(urls);
-    QByteArray gnome = move ? QByteArray("cut") : QByteArray("copy");
-    for (const auto &url : urls)
-        gnome += '\n' + url.toEncoded();
-    mime->setData("x-special/gnome-copied-files", gnome);
-    mime->setData("application/x-kde-cutselection", move ? "1" : "0");
-#ifdef Q_OS_WIN
-    mime->setData("application/x-qt-windows-mime;value=\"Preferred DropEffect\"",
-                  QByteArray(move ? "\x02\x00\x00\x00" : "\x01\x00\x00\x00", 4));
-#endif
-    QApplication::clipboard()->setMimeData(mime);
+    PublishFileClipboard(urls, move);
 }
 
 void QtFileClipboard::Paste() {
@@ -169,10 +175,24 @@ void QtFileClipboard::Paste() {
     // Existing transfer owns collisions, path validation, cancellation,
     // metadata and progress; clipboard only supplies source URLs/destination.
     const QPointer<const QMimeData> original(mime);
-    window_.transferFiles(
-        paths, window_.projectedUi().directory, move, false, [original, move](bool success) {
-            if (move && success && original && QApplication::clipboard()->mimeData() == original)
-                QApplication::clipboard()->clear();
-        });
+    const QPointer<QtFileClipboard> owner(this);
+    const auto revision = revision_;
+    window_.transferFiles(paths, window_.projectedUi().directory, move, false,
+                          [owner, original, paths, revision](const QStringList &movedSources) {
+                              if (!owner || owner->revision_ != revision || !original ||
+                                  QApplication::clipboard()->mimeData() != original ||
+                                  ClipboardFilePaths(original) != paths ||
+                                  !ClipboardMovesFiles(*original))
+                                  return;
+                              const QSet<QString> moved(movedSources.cbegin(), movedSources.cend());
+                              QList<QUrl> remaining;
+                              for (const auto &path : paths)
+                                  if (!moved.contains(path))
+                                      remaining.append(QUrl::fromLocalFile(path));
+                              if (remaining.isEmpty())
+                                  QApplication::clipboard()->clear();
+                              else
+                                  PublishFileClipboard(remaining, true);
+                          });
     window_.app_.Panels[window_.projectedPanel_].MarkPortableFolderChanged();
 }

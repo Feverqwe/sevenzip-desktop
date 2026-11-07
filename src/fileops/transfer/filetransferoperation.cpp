@@ -71,5 +71,5 @@ void FileTransferOperation::run() {
     resultKind_ = completion.kind;
     emit result(completion.kind == ResultKind::Success ||
                     completion.kind == ResultKind::PartialSuccess,
-                completion.message);
+                completion.message, completion.movedSources);
 }

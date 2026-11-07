@@ -30,7 +30,7 @@ class FileTransferOperation : public QThread {
   signals:
     void currentFile(const QString &path);
     void advanced(qint64 bytes);
-    void result(bool success, const QString &message);
+    void result(bool success, const QString &message, const QStringList &movedSources);
     void overwriteRequested(const OverwriteQuestion &question);
     void dismissOverwriteRequested();
 
@@ -42,6 +42,7 @@ class FileTransferOperation : public QThread {
     struct Completion {
         ResultKind kind;
         QString message;
+        QStringList movedSources{};
     };
     int askOverwrite(const OverwriteQuestion &question);
 

@@ -138,12 +138,18 @@ void QtFileTransferTransaction::removeSources(QList<TransferEntry> &completed, Q
         // From here on rollback must retain the published copy.
         entry.sourceState = SourceState::RemovalStarted;
         bool removed = false;
+        bool rootRemoved = false;
         try {
-            removed = entry.merged ? removeMergedSource(entry.source, entry.writtenSources, &error)
-                                   : worker_.adapter_.removeSource(entry.source);
+            if (entry.merged)
+                removed =
+                    removeMergedSource(entry.source, entry.writtenSources, &error, rootRemoved);
+            else
+                rootRemoved = removed = worker_.adapter_.removeSource(entry.source);
         } catch (...) {
             error = QString::fromWCharArray(NWindows::NError::MyFormatMessage(E_FAIL));
         }
+        if (rootRemoved)
+            entry.sourceState = SourceState::Removed;
         if (!removed) {
             if (error.isEmpty())
                 error = QCoreApplication::translate("qtfiletransfertransaction",
@@ -152,6 +158,14 @@ void QtFileTransferTransaction::removeSources(QList<TransferEntry> &completed, Q
             return;
         }
     }
+}
+
+QStringList QtFileTransferTransaction::movedSources(const QList<TransferEntry> &completed) {
+    QStringList moved;
+    for (const auto &entry : completed)
+        if (entry.sourceState == SourceState::Renamed || entry.sourceState == SourceState::Removed)
+            moved.append(entry.source);
+    return moved;
 }
 
 void QtFileTransferTransaction::rememberFailure(const QString &error) noexcept {
@@ -174,7 +188,8 @@ FileTransferOperation::Completion QtFileTransferTransaction::finish(QList<Transf
             rollback(completed, RollbackMode::KeepMovedSources);
             return {FileTransferOperation::ResultKind::Failure,
                     error + QCoreApplication::translate("qtfiletransfertransaction",
-                                                        " Some items may have been moved.")};
+                                                        " Some items may have been moved."),
+                    movedSources(completed)};
         }
     }
     for (const TransferEntry &entry : completed)
@@ -185,7 +200,7 @@ FileTransferOperation::Completion QtFileTransferTransaction::finish(QList<Transf
         skipped_ ||
         (worker_.move_ &&
          std::any_of(completed.cbegin(), completed.cend(), [](const TransferEntry &entry) {
-             return entry.merged && QFileInfo::exists(entry.source);
+             return entry.merged && entry.sourceState != SourceState::Removed;
          }));
     if (!worker_.move_ && partial)
         message =
@@ -199,7 +214,7 @@ FileTransferOperation::Completion QtFileTransferTransaction::finish(QList<Transf
         message = QCoreApplication::translate("qtfiletransfertransaction", "Items moved.");
     return {partial ? FileTransferOperation::ResultKind::PartialSuccess
                     : FileTransferOperation::ResultKind::Success,
-            message};
+            message, movedSources(completed)};
 }
 
 bool QtFileTransferTransaction::transferEntry(const TransferPath &path,

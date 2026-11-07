@@ -290,7 +290,8 @@ class MainWindow : public QMainWindow {
     void refreshGuiOutputPanel(unsigned index, const QtGuiOutputRefresh::Outputs &output);
     void createDialog();
     void transferFiles(const QStringList &sources, const QString &destination, bool move,
-                       bool directPath = false, std::function<void(bool)> completed = {});
+                       bool directPath = false,
+                       std::function<void(const QStringList &)> sourcesMoved = {});
     void executeCopyDestination(bool move, bool copyToSame, unsigned sourceIndex,
                                 const QString &destination, const CRecordVector<UInt32> &indices,
                                 QtCopyRoute route);

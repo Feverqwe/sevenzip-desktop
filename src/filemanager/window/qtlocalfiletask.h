@@ -31,12 +31,14 @@ class QtLocalFileTask final : public QObject {
   signals:
     void finished(bool success, bool cancelled, const QString &message);
     void transferCompleted(bool complete);
+    void sourcesMoved(const QStringList &paths);
 
   private:
     QtLocalFileTask(QThread &worker, const QString &title, const QString &detail,
                     std::function<void()> cancel);
     void AskOverwrite(FileTransferOperation &worker, const OverwriteQuestion &question);
-    void Finish(bool success, bool cancelled, const QString &message, bool partial = false);
+    void Finish(bool success, bool cancelled, const QString &message, bool partial,
+                const QStringList &movedSources);
     void PresentFinish(bool success, bool cancelled, const QString &message, bool partial);
     void RequestPresentation(std::function<void()> action);
     void TryPresent();

@@ -24,7 +24,7 @@ class CompletingTransfer final : public FileTransferOperation {
     void run() override {
         started_.release();
         finish_.acquire();
-        emit result(false, QStringLiteral("fixture failure"));
+        emit result(false, QStringLiteral("fixture failure"), {});
     }
 
   public:
@@ -46,6 +46,78 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
     }
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
+    void partialCutCanBeRetried_data() {
+        QTest::addColumn<bool>("replaceClipboard");
+        QTest::newRow("retry-skipped-file") << false;
+        QTest::newRow("keep-new-clipboard") << true;
+    }
+    void partialCutCanBeRetried() {
+        QFETCH(bool, replaceClipboard);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const auto cleanup = qScopeGuard([] { QApplication::clipboard()->clear(); });
+        const QString source = fixture.filePath("source");
+        const QString destination = fixture.filePath("destination");
+        QVERIFY(QDir().mkpath(source) && QDir().mkpath(destination));
+        const QString moved = QStringLiteral("01 перенести 空.txt");
+        const QString skipped = QStringLiteral("02 пропустить δ.txt");
+        QVERIFY(write(source + '/' + moved, "moved bytes"));
+        QVERIFY(write(source + '/' + skipped, "skipped bytes"));
+        QVERIFY(write(destination + '/' + skipped, "existing bytes"));
+
+        ControlledBackend sourceBackend, destinationBackend;
+        MainWindow sourceWindow(&sourceBackend), destinationWindow(&destinationBackend);
+        sourceWindow.show();
+        destinationWindow.show();
+        sourceWindow.openPath(source);
+        destinationWindow.openPath(destination);
+        QTRY_VERIFY(filesystemRow(sourceWindow, moved) >= 0 &&
+                    filesystemRow(sourceWindow, skipped) >= 0);
+        auto *view = table(sourceWindow);
+        for (const auto &name : {moved, skipped})
+            view->selectionModel()->select(
+                view->model()->index(filesystemRow(sourceWindow, name), 0),
+                QItemSelectionModel::Select | QItemSelectionModel::Rows);
+        action(sourceWindow, "cutFilesAction")->trigger();
+        QTRY_COMPARE(QApplication::clipboard()->mimeData()->urls().size(), 2);
+
+        bool answered = false;
+        QTimer drive;
+        dialogs_.connectResponder(drive, &destinationWindow, [&] {
+            auto *dialog = dialogs_.activeDialog();
+            if (auto *question = dynamic_cast<COverwriteDialog *>(dialog)) {
+                if (answered)
+                    return;
+                answered = true;
+                if (replaceClipboard)
+                    QApplication::clipboard()->setText("new clipboard data");
+                question->findChild<QPushButton *>("overwriteNo")->click();
+            } else if (auto *report = TestProgressDialog::ResultWindow(dialog))
+                TestProgressDialog::CloseResult(*report);
+        });
+        drive.start(5);
+        auto *paste = action(destinationWindow, "pasteFilesAction");
+        QVERIFY(paste->isEnabled());
+        paste->trigger();
+        QTRY_VERIFY(answered && QtLocalFileTask::Active().isEmpty());
+        QCOMPARE(read(destination + '/' + moved), QByteArray("moved bytes"));
+        QVERIFY(!QFileInfo::exists(source + '/' + moved));
+        QCOMPARE(read(destination + '/' + skipped), QByteArray("existing bytes"));
+        QCOMPARE(read(source + '/' + skipped), QByteArray("skipped bytes"));
+        if (replaceClipboard) {
+            QCOMPARE(QApplication::clipboard()->text(), QString("new clipboard data"));
+            return;
+        }
+        QCOMPARE(QApplication::clipboard()->mimeData()->urls(),
+                 QList{QUrl::fromLocalFile(source + '/' + skipped)});
+        QVERIFY(QFile::remove(destination + '/' + skipped));
+        QVERIFY(paste->isEnabled());
+        paste->trigger();
+        QTRY_VERIFY(QtLocalFileTask::Active().isEmpty());
+        QCOMPARE(read(destination + '/' + skipped), QByteArray("skipped bytes"));
+        QVERIFY(!QFileInfo::exists(source + '/' + skipped));
+        QVERIFY(!paste->isEnabled());
+    }
     void cleanup() {
         QTimer answer;
         connect(&answer, &QTimer::timeout, this, [] {

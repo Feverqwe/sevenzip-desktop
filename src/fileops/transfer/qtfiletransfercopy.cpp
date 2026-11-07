@@ -113,7 +113,7 @@ bool QtFileTransferTransaction::mergeEntry(const QString &source, const QString 
 
 bool QtFileTransferTransaction::removeMergedSource(const QString &source,
                                                    const QStringList &writtenSources,
-                                                   QString *error) {
+                                                   QString *error, bool &rootRemoved) {
     for (const QString &path : writtenSources) {
         if (worker_.canceled_) {
             *error =
@@ -142,7 +142,7 @@ bool QtFileTransferTransaction::removeMergedSource(const QString &source,
               [](const QString &a, const QString &b) { return a.size() > b.size(); });
     for (const QString &directory : directories)
         QDir().rmdir(directory);
-    QDir().rmdir(source); // Skipped files intentionally keep the source folder.
+    rootRemoved = QDir().rmdir(source); // Skipped files keep the source folder.
     if (worker_.canceled_) {
         *error = QCoreApplication::translate("qtfiletransfertransaction", "Operation canceled.");
         return false;

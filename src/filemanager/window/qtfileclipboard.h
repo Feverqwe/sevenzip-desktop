@@ -24,5 +24,6 @@ class QtFileClipboard final : public QObject {
   private:
     MainWindow &window_;
     QSet<QString> cutPaths_;
+    quint64 revision_ = 0;
     bool cutDirty_ = true;
 };
