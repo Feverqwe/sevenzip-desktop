@@ -110,6 +110,7 @@ class MainWindow : public QMainWindow {
     struct WindowProgress {
         QPointer<CProgressDialog> dialog;
         std::unique_ptr<IQtProgressTransport> transport;
+        ArchivePassword passwordBeforeOperation;
     };
     DeviceSelectionServices deviceServices_;
     QtWindowStatusBar *statusStrip_ = nullptr;

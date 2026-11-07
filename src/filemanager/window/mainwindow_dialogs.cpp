@@ -16,6 +16,7 @@ void MainWindow::showSelectedProperties() {
 
 void MainWindow::begin(const QString &label, const QString &source, const QString &destination) {
     auto progress = createProgressDialog(label, source, destination);
+    progress->passwordBeforeOperation = projectedUi().archivePassword;
     auto transport = std::make_unique<ArchiveProgressTransport>(*progress->dialog, *backend_);
     connect(backend_, &ArchiveBackend::progress, transport.get(),
             [this, label](int, const QString &path) {

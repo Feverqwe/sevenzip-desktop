@@ -297,7 +297,7 @@ class PasswordWindowTests final : public QObject, protected MainWindowTestSuppor
             auto *dialog = dynamic_cast<CPasswordDialog *>(QApplication::activeModalWidget());
             QVERIFY(dialog);
             transportPrompt = true;
-            dialog->findChild<QLineEdit *>("passwordEdit")->setText(password);
+            dialog->findChild<QLineEdit *>("passwordEdit")->setText(password + "-retry");
             dialog->accept();
         });
         // This asynchronous process prompt has no source modal owner. Opening
@@ -312,12 +312,17 @@ class PasswordWindowTests final : public QObject, protected MainWindowTestSuppor
         TestProgressDialog::CloseResult(*result);
         QVERIFY(!QApplication::activeModalWidget());
         QVERIFY(action(window, "testArchiveAction")->isEnabled());
+        window.extractTo("/temporary/destination");
+        QCOMPARE(backend.extractCalls, 1);
+        QCOMPARE(backend.lastExtractPassword, password);
+        backend.cancel();
+        QVERIFY(TestProgressDialog::DismissVisibleResult(QApplication::activeModalWidget()));
         openListedArchive(window, backend, "empty.zip", {});
         QVERIFY(action(window, "testArchiveAction")->isEnabled());
         QVERIFY(action(window, "extractArchiveAction")->isEnabled());
         action(window, "extractArchiveAction")->trigger();
         QVERIFY(!QApplication::activeModalWidget());
-        QCOMPARE(backend.extractCalls, 0);
+        QCOMPARE(backend.extractCalls, 1);
         window.testArchive();
         QVERIFY(backend.lastTestPassword.isEmpty());
     }

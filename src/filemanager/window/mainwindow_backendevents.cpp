@@ -110,11 +110,13 @@ void MainWindow::backendFinished(bool ok, const QString &message, HRESULT result
             }
         }
     }
-    if (!ok)
+    const bool canceled = result == E_ABORT;
+    if (canceled && progress_)
+        projectedUi().archivePassword = progress_->passwordBeforeOperation;
+    else if (!ok && !canceled)
         projectedUi().archivePassword.clear();
     auto *progress = progressDialog();
     const bool hadProgress = progress != nullptr;
-    const bool canceled = result == E_ABORT;
     if (progress) {
         progress->DeferResultReview = reviewAfterPublication;
         if (reviewAfterPublication) {
