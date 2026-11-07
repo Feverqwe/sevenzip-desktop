@@ -150,6 +150,8 @@ void CApp::OnCopy(bool move, bool copyToSame, unsigned srcPanelIndex) {
     const UString peerPath = NumPanels == 2 ? destPanel.GetFsPath() : UString();
     const bool peerIsFilesystem = NumPanels == 2 && destPanel.IsFSFolder();
     destinationContext.PeerIsFilesystem = peerIsFilesystem;
+    const bool peerIsArchive = NumPanels == 2 && destPanel.IsArcFolder();
+    destinationContext.PeerIsArchive = peerIsArchive;
     if (srcPanel.IsFSFolder()) {
         QStringList directories;
         for (const QString &path : sourcePaths) {
@@ -205,6 +207,8 @@ void CApp::OnCopy(bool move, bool copyToSame, unsigned srcPanelIndex) {
         }
 #endif
 
+    if (peerIsArchive && CopyPathMatchesArchivePanel(ToQString(destPath), ToQString(peerPath)))
+        destPath = peerPath;
     bool possibleToUseDestPanel = false;
     if (CompareFileNames(destPath, destPanel.GetFsPath()) == 0) {
         if (NumPanels == 1 || CompareFileNames(destPath, srcPanel.GetFsPath()) == 0) {

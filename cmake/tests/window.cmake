@@ -21,6 +21,8 @@
         capturedItemsSurviveModalSelectionChange:archive-to-fs-move-ru-1
         capturedItemsSurviveModalSelectionChange:fs-to-archive-copy-ru-0
         capturedItemsSurviveModalSelectionChange:archive-to-archive-move---1
+        capturedItemsSurviveModalSelectionChange:typed-archive-copy
+        capturedItemsSurviveModalSelectionChange:typed-archive-move
         capturedItemsSurviveModalSelectionChange:large-fs-to-archive-move-1)
     set_tests_properties(ui_copy_routing_quick PROPERTIES TIMEOUT 45 ENVIRONMENT
         "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/ui-copy-routing-quick.ini")

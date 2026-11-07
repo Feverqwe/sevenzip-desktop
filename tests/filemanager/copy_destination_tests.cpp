@@ -105,14 +105,25 @@ class CopyDestinationTests final : public QObject {
     void unavailablePeerCannotStart() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
-        const QString peer = fixture.filePath("readonly.zip/");
+        const QString archive = fixture.filePath("readonly.zip");
+        QFile file(archive);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.close();
+        const QString peer = archive + '/';
         CCopyDialog dialog(false, peer, {fixture.filePath("source")});
-        dialog.ConfigureDestination({fixture.path(), "source", peer, false, {}});
+        QtCopyDestinationContext context{fixture.path(), "source", peer, false, {}};
+        context.PeerIsArchive = true;
+        dialog.ConfigureDestination(context);
         auto *ok =
             dialog.findChild<QDialogButtonBox *>("copyButtons")->button(QDialogButtonBox::Ok);
         QVERIFY(!ok->isEnabled());
         dialog.accept();
         QCOMPARE(dialog.result(), int(QDialog::Rejected));
+        dialog.findChild<QLineEdit *>("copyDestination")->setText(archive);
+        QVERIFY(ok->isEnabled());
+        dialog.accept();
+        QCOMPARE(dialog.result(), int(QDialog::Accepted));
+        QCOMPARE(ToQString(dialog.Value), archive);
     }
 
     void relativeDestinationUsesItsCallerBase() {

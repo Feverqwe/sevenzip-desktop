@@ -25,7 +25,10 @@ struct QtCopyDestinationContext {
     QString RelativeBase = {};
     std::function<bool(const QString &)> IsInsideSourceDirectory = {};
     bool PeerIsFilesystem = false;
+    bool PeerIsArchive = false;
 };
+
+bool CopyPathMatchesArchivePanel(const QString &path, const QString &panelPath);
 
 const int kCopyDialog_NumInfoLines = 11;
 

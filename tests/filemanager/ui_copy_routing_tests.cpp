@@ -71,7 +71,7 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         return summary;
     }
     static void submit(MainWindow &window, FileTable &sourceView, int secondRow, bool move,
-                       bool &dialogSeen, QString &errors) {
+                       bool &dialogSeen, QString &errors, const QString &destination) {
         QTimer driver;
         connect(&driver, &QTimer::timeout, &window, [&] {
             auto *dialog = window.findChild<CopyDialog *>("copyDialog");
@@ -79,7 +79,11 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
                 dialogSeen = true;
                 sourceView.selectRow(secondRow);
                 sourceView.setCurrentCell(secondRow, 0);
+                if (!destination.isEmpty())
+                    dialog->findChild<QLineEdit *>("copyDestination")->setText(destination);
                 dialog->accept();
+                if (dialog->isVisible())
+                    dialog->reject();
             }
             for (QWidget *widget : QApplication::topLevelWidgets()) {
                 if (!widget->isVisible())
@@ -362,6 +366,7 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         QTest::addColumn<QString>("language");
         QTest::addColumn<unsigned>("sourceIndex");
         QTest::addColumn<bool>("largeLists");
+        QTest::addColumn<bool>("typedArchivePath");
         for (bool sourceArchive : {false, true})
             for (bool targetArchive : {false, true})
                 for (bool move : {false, true})
@@ -374,13 +379,17 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
                                                          .arg(language)
                                                          .arg(sourceIndex)))
                                 << sourceArchive << targetArchive << move
-                                << QString::fromLatin1(language) << sourceIndex << false;
+                                << QString::fromLatin1(language) << sourceIndex << false << false;
         for (unsigned sourceIndex : {0u, 1u}) {
             QTest::newRow(qPrintable(QString("large-fs-to-fs-move-%1").arg(sourceIndex)))
-                << false << false << true << QString("ru") << sourceIndex << true;
+                << false << false << true << QString("ru") << sourceIndex << true << false;
             QTest::newRow(qPrintable(QString("large-fs-to-archive-move-%1").arg(sourceIndex)))
-                << false << true << true << QString("ru") << sourceIndex << true;
+                << false << true << true << QString("ru") << sourceIndex << true << false;
         }
+        QTest::newRow("typed-archive-copy")
+            << false << true << false << QString("-") << 0u << false << true;
+        QTest::newRow("typed-archive-move")
+            << false << true << true << QString("-") << 1u << false << true;
     }
     void capturedItemsSurviveModalSelectionChange() {
         QFETCH(bool, sourceArchive);
@@ -389,6 +398,7 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         QFETCH(QString, language);
         QFETCH(unsigned, sourceIndex);
         QFETCH(bool, largeLists);
+        QFETCH(bool, typedArchivePath);
         SaveRegLang(ToUString(language), qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         ReloadLang(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         QTemporaryDir fixture;
@@ -455,7 +465,8 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         QTRY_VERIFY(sourceView->hasFocus());
         bool dialogSeen = false;
         QString errors;
-        submit(window, *sourceView, secondRow, move, dialogSeen, errors);
+        const QString destination = typedArchivePath ? ".././target archive.zip/" : QString();
+        submit(window, *sourceView, secondRow, move, dialogSeen, errors, destination);
         QVERIFY(dialogSeen);
         QVERIFY2(errors.isEmpty(), qPrintable(errors));
         if (!sourceArchive)

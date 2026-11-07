@@ -55,6 +55,11 @@ bool HasBlockedDestinationDirectory(const QFileInfo &destination, bool needsDire
 }
 } // namespace
 
+bool CopyPathMatchesArchivePanel(const QString &path, const QString &panelPath) {
+    return (path.endsWith('/') || path.endsWith(QDir::separator())) &&
+           SameDirectory(path, panelPath);
+}
+
 void CCopyDialog::BuildDestinationOptions(QVBoxLayout &layout) {
     _peer = new QPushButton(this);
     _peer->setObjectName("copyPeerDestination");
@@ -145,8 +150,12 @@ void CCopyDialog::UpdateDestination() {
         !path.isEmpty() &&
         (path.endsWith('/') || path.endsWith(QDir::separator()) || destination.isDir());
     const bool peerDestination =
-        _destinationContext && SameDirectory(preview, _destinationContext->PeerDestination);
+        _destinationContext &&
+        (_destinationContext->PeerIsArchive
+             ? CopyPathMatchesArchivePanel(preview, _destinationContext->PeerDestination)
+             : SameDirectory(preview, _destinationContext->PeerDestination));
     const bool nameAvailable = _destinationContext && _name && directory &&
+                               !(peerDestination && _destinationContext->PeerIsArchive) &&
                                _destinationContext->CanRename &&
                                _destinationContext->CanRename(path);
     if (_name) {
