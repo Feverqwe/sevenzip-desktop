@@ -8,6 +8,8 @@
 #include "filemanager/panels/PanelFolderOperations.h"
 #include "fileops/native/correctfspath.h"
 #include "localization/LangUtils.h"
+#include <QDir>
+#include <QFileInfo>
 #include <utility>
 
 static const UInt32 kParentIndex = (UInt32)-1;
@@ -17,7 +19,19 @@ static bool IsCorrectFsName(const UString &name) {
     return !lastPart.IsEqualTo(".") && !lastPart.IsEqualTo("..");
 }
 
-static void PrepareCreatedSelection(UString &newName, CSelectedState &state) {
+static void PrepareCreatedSelection(const CPanel &panel, UString newName, CSelectedState &state) {
+    if (panel.IsFSFolder()) {
+        const QDir folder(ToQString(panel.GetFsPath()));
+        const QString base = folder.canonicalPath();
+        const QString created = QFileInfo(folder, ToQString(newName)).canonicalFilePath();
+        if (base.isEmpty() || created.isEmpty())
+            return;
+        const QString relative = QDir(base).relativeFilePath(created);
+        if (relative == "." || relative == ".." || relative.startsWith("../") ||
+            QDir::isAbsolutePath(relative))
+            return;
+        newName = ToUString(QDir::toNativeSeparators(relative));
+    }
     const int pos = newName.Find(WCHAR_PATH_SEPARATOR);
     if (pos >= 0)
         newName.DeleteFrom((unsigned)pos);
@@ -66,7 +80,7 @@ HRESULT CPanel::CreateFolder(UString name, QString &error) {
         op.DoOperation(*this, LangString(IDS_CREATE_FOLDER), LangString(IDS_CREATE_FOLDER_ERROR));
     error = ToQString(op.Sync.FinalMessage.ErrorMessage.Message);
     if (res == S_OK)
-        PrepareCreatedSelection(name, state);
+        PrepareCreatedSelection(*this, name, state);
     RefreshTitleAlways();
     RefreshListCtrl(state);
     return res;

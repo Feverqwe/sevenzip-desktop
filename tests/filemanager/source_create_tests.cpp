@@ -134,6 +134,46 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         QVERIFY(keep.open(QIODevice::ReadOnly));
         QCOMPARE(keep.readAll(), QByteArray("protected bytes"));
     }
+    void createdPathSelectsVisibleFolder_data() {
+        QTest::addColumn<QString>("pathForm");
+        QTest::newRow("relative") << QString("relative");
+        QTest::newRow("absolute") << QString("absolute");
+        QTest::newRow("outside") << QString("outside");
+    }
+    void createdPathSelectsVisibleFolder() {
+        QFETCH(QString, pathForm);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString source = fixture.filePath("current");
+        QVERIFY(QDir().mkdir(source));
+        QFile keep(QDir(source).filePath("keep.txt"));
+        QVERIFY(keep.open(QIODevice::WriteOnly));
+        keep.close();
+        const QString folder = QStringLiteral("created δ");
+        const bool outside = pathForm == "outside";
+        const QString destination = QDir(outside ? fixture.path() : source).filePath(folder);
+        const QString entered = pathForm == "relative" ? "./" + folder : destination;
+
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        auto *view = openPanel(window, 0, source);
+        QTRY_COMPARE(view->rowCount(), 1);
+        view->setFocus();
+        view->setCurrentCell(0, 0);
+        view->selectRow(0);
+        action(window, "createFolderAction")->trigger();
+        auto *input = window.findChild<QLineEdit *>("inlineFolderName");
+        QVERIFY(input && input->isVisible());
+        input->setText(entered);
+        QTest::keyClick(input, Qt::Key_Return);
+        QTRY_VERIFY(QFileInfo(destination).isDir());
+        QTRY_COMPARE(view->rowCount(), outside ? 1 : 2);
+        const int selected = row(view, outside ? "keep.txt" : folder);
+        QVERIFY(selected >= 0);
+        QCOMPARE(view->currentRow(), selected);
+        QVERIFY(view->selectionModel()->isRowSelected(selected, {}));
+    }
     void deferredRefresh() {
         const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         QFile::remove(settings);
