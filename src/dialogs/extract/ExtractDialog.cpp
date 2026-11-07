@@ -8,6 +8,7 @@
 #include "dialogs/browse/BrowseDialog.h"
 #include "fileops/patterns/Wildcard.h"
 #include "localization/qtlangcontrols.h"
+#include "platform/temp/qtownedtempidentity.h"
 #include "settings/ViewSettings.h"
 #include "ui/dialogs/qtdialoglayout.h"
 #include "ui/lifecycle/qttaskpresentation.h"
@@ -39,6 +40,28 @@ static const unsigned kHistorySize = 16;
 
 QString InvalidOutputDirectory() {
     return QCoreApplication::translate("SevenZipDiagnostics", "Incorrect output directory path");
+}
+
+void AddDestinationToHistory(CObjectVector<QString> &history, const QString &path) {
+    const UString name = ToUString(path);
+    for (unsigned i = 0; i < history.Size(); ++i) {
+        const QString &saved = history[i];
+        if (path == saved)
+            return;
+        if (!name.IsEqualTo_NoCase(ToUString(saved)))
+            continue;
+        const QFileInfo current(path), previous(saved);
+        if ((current.isDir() && !previous.exists()) || (previous.isDir() && !current.exists()))
+            continue;
+        if (!current.isDir() || !previous.isDir())
+            return;
+        const QString currentIdentity = QtOwnedTempLegacyIdentity(current.canonicalFilePath());
+        const QString previousIdentity = QtOwnedTempLegacyIdentity(previous.canonicalFilePath());
+        if (currentIdentity.isEmpty() || previousIdentity.isEmpty() ||
+            currentIdentity == previousIdentity)
+            return;
+    }
+    history.Add(path);
 }
 
 static void AddComboItems(QComboBox &combo, std::span<const CExtractModeItem> modes, int curVal) {
@@ -288,11 +311,11 @@ void CExtractDialog::OnOK() {
     UString historyPath =
         NWindows::NFile::NName::IsAbsolutePath(s) ? s : fs2us(resolvedDestination);
     NWindows::NFile::NName::NormalizeDirPathPrefix(historyPath);
-    AddUniqueString(_info.Paths, ToQString(historyPath));
+    AddDestinationToHistory(_info.Paths, ToQString(historyPath));
     for (int i = 0; i < _path->count() && _info.Paths.Size() < kHistorySize; ++i) {
         UString saved = ToUString(_path->itemText(i));
         saved.Trim();
-        AddUniqueString(_info.Paths, ToQString(saved));
+        AddDestinationToHistory(_info.Paths, ToQString(saved));
     }
     _info.Save(settingsPath());
     QDialog::accept();

@@ -96,6 +96,48 @@ class SplitDestinationTests final : public QObject {
         QVERIFY(extracted.open(QIODevice::ReadOnly));
         QCOMPARE(extracted.readAll(), QByteArray("payload"));
     }
+    void historyKeepsCaseDistinctDestinations() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString upper = fixture.filePath("Output");
+        const QString lower = fixture.filePath("output");
+        QVERIFY(QDir().mkdir(upper));
+        if (QFileInfo::exists(lower))
+            QSKIP("The test filesystem folds these directory names");
+        const QString source = fixture.filePath("payload.txt");
+        QFile file(source);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        QCOMPARE(file.write("payload"), qint64(7));
+        file.close();
+        const QString archive = fixture.filePath("source.zip");
+        QVERIFY(NativeArchiveFixture::WriteFiles(archive, {source}));
+        ArchiveBackend backend;
+        for (const QString &destination : {upper, lower}) {
+            const auto result = ExtractDialogFixture::Run(
+                backend, archive, destination, [&](CExtractDialog &dialog) {
+                    enabled(dialog)->setChecked(false);
+                    path(dialog)->setEditText(destination);
+                    dialog.accept();
+                    if (dialog.isVisible())
+                        dialog.reject();
+                });
+            QCOMPARE(result.Result, S_OK);
+            QVERIFY(result.CallbackOK);
+        }
+        CExtractDialog reopened(fixture.path(), {});
+        auto *history = path(reopened);
+        QCOMPARE(history->count(), 2);
+        QCOMPARE(QDir::cleanPath(history->itemText(0)), lower);
+        QCOMPARE(QDir::cleanPath(history->itemText(1)), upper);
+        history->setCurrentIndex(1);
+        reopened.accept();
+        QCOMPARE(reopened.result(), int(QDialog::Accepted));
+        CExtractDialog latest(fixture.path(), {});
+        QCOMPARE(path(latest)->count(), 2);
+        QCOMPARE(QDir::cleanPath(path(latest)->itemText(0)), upper);
+        QCOMPARE(QDir::cleanPath(path(latest)->itemText(1)), lower);
+    }
+
     void browsingUsesTheSameDestinationAsExtraction() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());

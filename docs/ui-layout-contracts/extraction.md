@@ -65,6 +65,8 @@ Choosing a history entry restores the saved destination, including its own
 subfolder when the split fields are enabled.
 New relative destinations are saved as resolved paths so they can be reused
 from a different working directory.
+The history can retain separately addressable folders whose names differ only
+in case.
 The caller supplies the actual source archive names. One archive shows its name;
 multiple archives show a translated count and an optional read-only list. Full
 paths remain available in the source tooltip and accessibility description.
