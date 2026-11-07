@@ -11,6 +11,8 @@
 #include "ui/support/layout_inspection.h"
 #include <QClipboard>
 #include <QListWidget>
+#include <QMenu>
+#include <QScopeGuard>
 #include <QToolButton>
 
 class WorkspaceNavigationTests final : public QObject {
@@ -70,15 +72,17 @@ class WorkspaceNavigationTests final : public QObject {
         QWidget host;
         auto *address = new QComboBox(&host);
         address->setEditable(true);
-        QtNavigationBar bar(*address, [](const QString &) {}, &host);
+        QString opened;
+        QtNavigationBar bar(*address, [&](const QString &target) { opened = target; }, &host);
         const QString longName = QStringLiteral("long folder name ").repeated(4).trimmed();
+        const QString parent = QStringLiteral("/Users/Projects & Docs");
         const std::vector<QtAddressSegment> segments = {
             {L"/", L"/", 0, QtAddressSegmentKind::Root},
             {L"Users", L"/Users", 0, QtAddressSegmentKind::Folder},
-            {L"projects", L"/Users/projects", 0, QtAddressSegmentKind::Folder},
-            {ToUString(longName), ToUString("/Users/projects/" + longName), 0,
+            {L"Projects & Docs", ToUString(parent), 0, QtAddressSegmentKind::Folder},
+            {ToUString(longName), ToUString(parent + '/' + longName), 0,
              QtAddressSegmentKind::Folder},
-            {L"newsBot", ToUString("/Users/projects/" + longName + "/newsBot"), 0,
+            {L"newsBot", ToUString(parent + '/' + longName + "/newsBot"), 0,
              QtAddressSegmentKind::Folder}};
         bar.resize(1400, 36);
         host.resize(1400, 36);
@@ -91,10 +95,30 @@ class WorkspaceNavigationTests final : public QObject {
                     labels.append(button->text());
             return labels;
         };
-        const QStringList fullPath{"/", "Users", "projects", longName, "newsBot"};
+        const QStringList fullPath{"/", "Users", "Projects && Docs", longName, "newsBot"};
         QTRY_COMPARE(visibleLabels(), fullPath);
+        QVERIFY(UiInspection::writeReport(bar, "literal-breadcrumb-wide"));
         bar.resize(260, 36);
         QTRY_COMPARE(visibleLabels(), (QStringList{QStringLiteral("…"), "newsBot"}));
+        QMenu *overflow = nullptr;
+        for (auto *button : bar.findChildren<QToolButton *>())
+            if (button->isVisible() && button->menu())
+                overflow = button->menu();
+        QVERIFY(overflow);
+        overflow->popup(bar.mapToGlobal(QPoint(0, bar.height())));
+        QTRY_VERIFY(overflow->isVisible());
+        const auto close = qScopeGuard([&] { overflow->hide(); });
+        QAction *entry = nullptr;
+        for (auto *action : overflow->actions())
+            if (action->toolTip() == parent)
+                entry = action;
+        QVERIFY(entry && entry->isVisible());
+        QCOMPARE(entry->text(), QStringLiteral("Projects && Docs"));
+        QVERIFY(QKeySequence::mnemonic(entry->text()).isEmpty());
+        QVERIFY(UiInspection::writeReport(*overflow, "literal-breadcrumb-overflow"));
+        overflow->setActiveAction(entry);
+        QTest::keyClick(overflow, Qt::Key_Return);
+        QCOMPARE(opened, parent);
         bar.resize(1400, 36);
         QTRY_COMPARE(visibleLabels(), fullPath);
     }

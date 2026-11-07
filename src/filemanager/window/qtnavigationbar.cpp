@@ -2,6 +2,7 @@
 #include "filemanager/window/qtmainwindowchrome.h"
 #include "filemanager/window/qtworkspacetheme.h"
 #include "localization/qtlangcontrols.h"
+#include "ui/controls/qtmenutext.h"
 #include "ui/theme/qtcommandicons.h"
 #include <QAbstractItemView>
 #include <QApplication>
@@ -22,18 +23,20 @@ class QtNavigationBar::CrumbButton final : public QToolButton {
     int Padding() const { return 12 + (icon().isNull() ? 0 : 20); }
 
   public:
-    CrumbButton(const QString &label, QWidget *parent) : QToolButton(parent), label_(label) {
-        setText(label);
+    CrumbButton(const QString &label, QWidget *parent)
+        : QToolButton(parent), label_(QtSingleLineCaption(label)) {
+        setText(QtLiteralMenuText(label_));
         QtConfigureChromeToolButton(*this);
     }
     int FullWidth() const { return qMax(20, fontMetrics().horizontalAdvance(label_) + Padding()); }
     void FitWidth(int available) {
         const int width = qBound(20, available, FullWidth());
         setFixedWidth(width);
-        const QString text =
+        const QString caption =
             width == FullWidth()
                 ? label_
                 : fontMetrics().elidedText(label_, Qt::ElideMiddle, qMax(0, width - Padding()));
+        const QString text = QtLiteralMenuText(caption);
         if (this->text() != text)
             setText(text);
     }
@@ -126,7 +129,7 @@ void QtNavigationBar::Rebuild() {
         button->setAccessibleName(target);
         connect(button, &QToolButton::clicked, this, [this, target] { navigate_(target); });
         layout_->addWidget(button);
-        auto *ancestor = menu->addAction(label);
+        auto *ancestor = menu->addAction(QtLiteralMenuText(label));
         ancestor->setToolTip(target);
         connect(ancestor, &QAction::triggered, this, [this, target] { navigate_(target); });
         if (archive) {
