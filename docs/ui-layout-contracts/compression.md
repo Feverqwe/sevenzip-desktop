@@ -298,7 +298,8 @@ below the minimum, large dictionary threshold/clamp and source BZip2 decimal
 comparison. Solid below the first numeric entry stays Auto for 7z; full/non-solid
 remain explicit. An unavailable explicit thread count leaves no selected entry,
 as source SetNumThreads2 does. `compression_profile_selection` checks EN/RU
-760×720/640×480 reachability and writes `profile-selection-*.json`; values and
+760×720/640×480 reachability in the expert editor and writes
+`profile-selection-*.json`; values and
 Cancel/restart are asserted through public controls/options, outside JSON.
 Changing the XZ block size refreshes the automatic thread count and memory
 estimate together. It preserves the current thread selection, including an

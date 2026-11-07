@@ -147,7 +147,7 @@
     qt_add_executable(compression_profile_selection_tests tests/ui/compression_profile_selection_tests.cpp)
     target_link_libraries(compression_profile_selection_tests PRIVATE sevenzip_compression_ui sevenzip_layout_inspection sevenzip_location)
     target_include_directories(compression_profile_selection_tests PRIVATE src tests)
-    target_link_libraries(compression_profile_selection_tests PRIVATE sevenzip_panel Qt6::Test)
+    target_link_libraries(compression_profile_selection_tests PRIVATE sevenzip_panel Qt6::Test sevenzip_widget_dialog_fixtures)
     add_test(NAME compression_profile_selection COMMAND compression_profile_selection_tests -silent)
     set_tests_properties(compression_profile_selection PROPERTIES TIMEOUT 60 ENVIRONMENT
         "QT_QPA_PLATFORM=offscreen;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
