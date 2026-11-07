@@ -110,7 +110,11 @@ bool makeArchive(const QString &directory, const QString &path, const QString &t
 void dismissResults(WidgetDialogFixture &dialogs, QStringList &errors, QStringList &successes) {
     if (auto *widget = dialogs.activeDialog()) {
         if (auto *result = TestProgressDialog::ResultWindow(widget)) {
-            errors << TestProgressDialog::ReportText(*result);
+            const QString report = TestProgressDialog::ReportText(*result);
+            if (report.contains(ToQString(LangString(IDS_MESSAGE_NO_ERRORS))))
+                successes << report;
+            else
+                errors << report;
             TestProgressDialog::CloseResult(*result);
         } else if (auto *box = qobject_cast<QMessageBox *>(widget)) {
             // Source ProgressDialog2 success MB_OK carries no icon flags.
@@ -212,12 +216,13 @@ class ToolbarArchiveWorkflowTests final : public QObject, protected MainWindowTe
             const bool crash = !opened && attempt == 0;
             backend.CrashNext = crash;
             errors.clear();
+            successes.clear();
             QVERIFY(action(window, "testArchiveAction")->isEnabled());
             source->setFocus();
             PanelKeys::command(source, Qt::Key_T, Qt::ControlModifier | Qt::ShiftModifier);
             QVERIFY2(errors.isEmpty(), qPrintable(errors.join('\n')));
             if (opened)
-                QVERIFY(successes.isEmpty());
+                QCOMPARE(successes.size(), 1);
             else {
                 QVERIFY(action(window, "refreshAction")->isEnabled());
                 QTRY_COMPARE_WITH_TIMEOUT(backend.Results.size(), attempt + 1, 30000);

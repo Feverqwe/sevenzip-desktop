@@ -19,6 +19,7 @@
 #include <QStandardPaths>
 #include <QTimer>
 #include <span>
+#include <utility>
 
 namespace {
 struct CExtractModeItem {
@@ -49,8 +50,10 @@ static void AddComboItems(QComboBox &combo, std::span<const CExtractModeItem> mo
 } // namespace
 
 CExtractDialog::CExtractDialog(const QString &initialPath, const QStringList &history,
-                               QWidget *parent)
-    : QDialog(parent), DirPath(initialPath) {
+                               QWidget *parent,
+                               std::function<QString(const QString &)> destinationErrorForPath)
+    : QDialog(parent), _destinationErrorForPath(std::move(destinationErrorForPath)),
+      DirPath(initialPath) {
     QtUseContextDialogModality(*this);
     QtTaskPresentation::Watch(*this, QtOperationPhase::Draft);
     ElimDup.Val = true;
@@ -208,31 +211,37 @@ void CExtractDialog::OnOK() {
     UString s = DraftDestination();
     const QString base = _path->currentText().trimmed();
     const QString requested = ToQString(s);
-    const auto canUseDirectory = [](const QString &candidate) {
+    const auto directoryError = [this](const QString &candidate) -> QString {
+        const auto invalid = [] {
+            return QCoreApplication::translate("SevenZipDiagnostics",
+                                               "Incorrect output directory path");
+        };
         if (candidate.isEmpty() || candidate.contains(QChar::Null))
-            return false;
+            return invalid();
         FString resolved;
         if (!NWindows::NFile::NDir::MyGetFullPathName(
                 us2fs(ToUString(QDir::toNativeSeparators(candidate))), resolved))
-            return false;
+            return invalid();
         QString path = QDir::cleanPath(ToQString(fs2us(resolved)));
+        if (_destinationErrorForPath)
+            return _destinationErrorForPath(path);
         for (;;) {
             const QFileInfo entry(path);
-            if (entry.exists())
-                return entry.isDir();
+            if (entry.exists() || entry.isSymLink())
+                return entry.isDir() ? QString() : invalid();
             const QString parent = entry.absolutePath();
             if (parent == path)
-                return true;
+                return {};
             path = parent;
         }
     };
-    if (base.isEmpty() || !canUseDirectory(requested)) {
-        _destinationError->setText(
-            base.isEmpty() ? QCoreApplication::translate("CopyRedesign", "Choose a destination.")
-                           : QCoreApplication::translate("SevenZipDiagnostics",
-                                                         "Incorrect output directory path"));
+    const QString error = base.isEmpty()
+                              ? QCoreApplication::translate("CopyRedesign", "Choose a destination.")
+                              : directoryError(requested);
+    if (!error.isEmpty()) {
+        _destinationError->setText(error);
         _destinationError->show();
-        if (_nameEnable->isChecked() && canUseDirectory(base))
+        if (_nameEnable->isChecked() && directoryError(base).isEmpty())
             _pathName->setFocus();
         else
             _path->setFocus();

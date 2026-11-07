@@ -109,12 +109,18 @@ HRESULT QtShellArchiveServices::ExtractGUI(CCodecs &codecs, const CObjectVector<
     auto *previous = options.NtOptions.QtPathPolicy;
     const auto restore = qScopeGuard([&] { options.NtOptions.QtPathPolicy = previous; });
     options.NtOptions.QtPathPolicy = &policy;
-    const HRESULT result =
-        ::ExtractGUI(&codecs, types, excludedFormats, paths, fullPaths, censor, options, hashBundle,
-                     showDialog, messageWasDisplayed, &callback, &open, &open, _parent, [&] {
-                         if (_routes.OutputReady)
-                             _routes.OutputReady(policy.Root(), QtGUIOutputKind::Directory);
-                     });
+    const HRESULT result = ::ExtractGUI(
+        &codecs, types, excludedFormats, paths, fullPaths, censor, options, hashBundle, showDialog,
+        messageWasDisplayed, &callback, &open, &open, _parent,
+        [&] {
+            if (_routes.OutputReady)
+                _routes.OutputReady(policy.Root(), QtGUIOutputKind::Directory);
+        },
+        [](const QString &destination) {
+            QString error;
+            ArchiveBackend::validateExtractionOutput(destination, destination, true, &error);
+            return error;
+        });
     return result;
 }
 HRESULT QtShellArchiveServices::HashCalcGUI(const CExternalCodecs *providers,

@@ -288,6 +288,55 @@ class SplitDestinationTests final : public QObject {
         QCOMPARE(cancelled.Result, E_ABORT);
         QVERIFY(!QFileInfo::exists(cancelledPath));
     }
+#ifndef Q_OS_WIN
+    void destinationLinkCanBeCorrected() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString source = fixture.filePath("payload.txt");
+        QFile file(source);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        QCOMPARE(file.write("source bytes"), qint64(12));
+        file.close();
+        const QString archive = fixture.filePath("source.zip");
+        QVERIFY(NativeArchiveFixture::WriteFiles(archive, {source}));
+        const QString missing = fixture.filePath("deleted folder");
+        const QString dangling = fixture.filePath("old shortcut");
+        const QString output = fixture.filePath("output folder");
+        const QString linked = fixture.filePath("current shortcut");
+        QVERIFY(QDir().mkpath(output + "/nested"));
+        QVERIFY(QFile::link(missing, dangling));
+        QVERIFY(QFile::link(output, linked));
+
+        ArchiveBackend backend;
+        const auto result =
+            ExtractDialogFixture::Run(backend, archive, dangling, [&](CExtractDialog &dialog) {
+                const auto close = qScopeGuard([&] {
+                    if (dialog.isVisible())
+                        dialog.reject();
+                });
+                auto *error = dialog.findChild<QLabel *>("extractDestinationError");
+                QVERIFY(error);
+                enabled(dialog)->setChecked(false);
+                for (const QString &blocked :
+                     {dangling, dangling + "/nested/output", linked, linked + "/nested"}) {
+                    path(dialog)->setEditText(blocked);
+                    dialog.accept();
+                    QVERIFY(dialog.isVisible() && error->isVisible());
+                    QCOMPARE(path(dialog)->currentText(), blocked);
+                }
+                QVERIFY(!QFileInfo::exists(output + "/nested/payload.txt"));
+                path(dialog)->setEditText(output + "/nested");
+                dialog.accept();
+            });
+        QCOMPARE(result.Result, S_OK);
+        QVERIFY(result.CallbackOK);
+        QVERIFY(QFileInfo(dangling).isSymLink());
+        QVERIFY(!QFileInfo::exists(missing));
+        QFile extracted(output + "/nested/payload.txt");
+        QVERIFY(extracted.open(QIODevice::ReadOnly));
+        QCOMPARE(extracted.readAll(), QByteArray("source bytes"));
+    }
+#endif
 };
 QTEST_MAIN(SplitDestinationTests)
 #include "split_destination_tests.moc"
