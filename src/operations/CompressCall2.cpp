@@ -173,20 +173,8 @@ HRESULT TestArchives(const UStringVector &arcPaths, bool hashMode,
 }
 
 HRESULT CalcChecksum(const UStringVector &paths, const UString &methodName,
-                     const UString &arcPathPrefix, const UString &arcFileName,
                      IQtCompressCallServices &services) {
     MY_TRY_BEGIN
-
-    if (!arcFileName.IsEmpty()) {
-        services.CompressFiles(arcPathPrefix, arcFileName, UString("hash"),
-                               false, // addExtension,
-                               paths,
-                               false, // email,
-                               false, // showDialog,
-                               false  // waitFinish
-        );
-        return S_OK;
-    }
 
     CCodecs *codecs = &services.Codecs();
     CExternalCodecs _externalCodecs;
@@ -200,11 +188,6 @@ HRESULT CalcChecksum(const UStringVector &paths, const UString &methodName,
 
     CHashOptions options;
     options.Methods.Add(methodName);
-
-    /*
-    if (!arcFileName.IsEmpty())
-      options.HashFilePath = arcPathPrefix + arcFileName;
-    */
 
     result = services.HashCalcGUI(&_externalCodecs, censor, options, messageWasDisplayed);
     if (result != S_OK) {

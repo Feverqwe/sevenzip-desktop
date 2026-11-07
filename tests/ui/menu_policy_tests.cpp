@@ -28,8 +28,7 @@ class ExtractionReceiver final : public IQtContextMenuServices {
     void TestArchives(const UStringVector &, bool) override {}
     void CompressFiles(const UString &, const UString &, const UString &, bool,
                        const UStringVector &, bool, bool, bool) override {}
-    void CalcChecksum(const UStringVector &, const UString &, const UString &,
-                      const UString &) override {}
+    void CalcChecksum(const UStringVector &, const UString &) override {}
     void ShowErrorMessage(const UString &) override {}
     void ShowErrorMessageRes(UInt32) override {}
 };

@@ -15,8 +15,7 @@ class IQtContextMenuServices {
     virtual void CompressFiles(const UString &folder, const UString &name, const UString &type,
                                bool addExtension, const UStringVector &paths, bool email,
                                bool showDialog, bool waitFinish) = 0;
-    virtual void CalcChecksum(const UStringVector &paths, const UString &method,
-                              const UString &folder, const UString &generateName) = 0;
+    virtual void CalcChecksum(const UStringVector &paths, const UString &method) = 0;
     virtual void ShowErrorMessage(const UString &message) = 0;
     virtual void ShowErrorMessageRes(UInt32 resourceID) = 0;
 };

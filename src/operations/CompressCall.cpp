@@ -273,33 +273,12 @@ void TestArchives(const UStringVector &arcPaths, bool hashMode) {
     MY_TRY_FINISH_VOID
 }
 
-void CalcChecksum(const UStringVector &paths, const UString &methodName,
-                  const UString &arcPathPrefix, const UString &arcFileName) {
+void CalcChecksum(const UStringVector &paths, const UString &methodName) {
     MY_TRY_BEGIN
-
-    if (!arcFileName.IsEmpty()) {
-        CompressFiles(arcPathPrefix, arcFileName, UString("hash"),
-                      false, // addExtension,
-                      paths,
-                      false, // email,
-                      false, // showDialog,
-                      false  // waitFinish
-        );
-        return;
-    }
-
     UString params('h');
     if (!methodName.IsEmpty()) {
         params += " -scrc";
         params += methodName;
-        /*
-        if (!arcFileName.IsEmpty())
-        {
-          // not used alternate method of generating file
-          params += " -scrf=";
-          params += GetQuotedString(arcPathPrefix + arcFileName);
-        }
-        */
     }
     ExtractGroupCommand(paths, params, true);
     MY_TRY_FINISH_VOID

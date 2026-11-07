@@ -51,7 +51,7 @@ QtFileManagerShellMenu::QtFileManagerShellMenu(MainWindow &window, QMenu &menu,
                [this](const UStringVector &paths, const UString &method) {
                    if (_window.canLaunchGuiFilesystemOperation())
                        return _window.launchGuiHash(paths, method);
-                   return ::CalcChecksum(paths, method, UString(), UString(), _services);
+                   return ::CalcChecksum(paths, method, _services);
                }},
           MainWindow::toolbarSettingsPath()),
       _dispatch(std::move(dispatch)) {

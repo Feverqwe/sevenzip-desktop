@@ -79,8 +79,7 @@ class QtShellArchiveServices final : public IQtCompressCallServices, public IQtU
     HRESULT CompressSelection(const UString &folder, const UString &name, const UString &type,
                               bool addExtension, const UStringVector &paths, bool email,
                               bool showDialog, bool waitFinish) override;
-    void CalcChecksum(const UStringVector &paths, const UString &method, const UString &folder,
-                      const UString &generateName) override;
+    void CalcChecksum(const UStringVector &paths, const UString &method) override;
     void ShowErrorMessage(const UString &message) override;
     void ShowErrorMessageRes(UInt32 resourceID) override;
     void ErrorMessageHRESULT(HRESULT result) override;

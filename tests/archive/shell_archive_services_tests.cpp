@@ -182,7 +182,7 @@ class ShellArchiveServicesTests final : public QObject {
         // Progress exposes Close before its native callback opens the nested
         // hash report. A programmatic click must not retire that parent first.
         CDismissal dismissal(true);
-        QCOMPARE(::CalcChecksum(paths, UString(L"SHA256"), UString(), UString(), service), S_OK);
+        QCOMPARE(::CalcChecksum(paths, UString(L"SHA256"), service), S_OK);
         QCOMPARE(error, S_OK);
         QVERIFY(dismissal.Errors.isEmpty());
         QVERIFY2(dismissal.ResultValues.contains(QStringLiteral(

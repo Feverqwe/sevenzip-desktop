@@ -208,11 +208,9 @@ HRESULT QtShellArchiveServices::UpdateArchive(CCodecs *codecs,
     return _backend.updateSourceArchive(path, types, censor, options, error, openCallback, callback,
                                         needSetPath, _catalog);
 }
-void QtShellArchiveServices::CalcChecksum(const UStringVector &paths, const UString &method,
-                                          const UString &folder, const UString &generateName) {
-    const HRESULT result = _routes.Hash && generateName.IsEmpty()
-                               ? _routes.Hash(paths, method)
-                               : ::CalcChecksum(paths, method, folder, generateName, *this);
+void QtShellArchiveServices::CalcChecksum(const UStringVector &paths, const UString &method) {
+    const HRESULT result =
+        _routes.Hash ? _routes.Hash(paths, method) : ::CalcChecksum(paths, method, *this);
     if (result != S_OK)
         _result = result;
 }

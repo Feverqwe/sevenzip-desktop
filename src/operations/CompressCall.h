@@ -13,8 +13,7 @@ HRESULT CompressFiles(const UString &arcPathPrefix, const UString &arcName, cons
 void ExtractArchives(const UStringVector &arcPaths, const UString &outFolder, bool showDialog,
                      bool elimDup, UInt32 writeZone);
 void TestArchives(const UStringVector &arcPaths, bool hashMode = false);
-void CalcChecksum(const UStringVector &paths, const UString &methodName,
-                  const UString &arcPathPrefix, const UString &arcFileName);
+void CalcChecksum(const UStringVector &paths, const UString &methodName);
 #endif
 class QWidget;
 class IQtCompressCallServices;
@@ -25,5 +24,4 @@ HRESULT ExtractArchives(const UStringVector &paths, const UString &outFolder, bo
                         bool elimDup, UInt32 writeZone, IQtCompressCallServices &services);
 HRESULT TestArchives(const UStringVector &paths, bool hashMode, IQtCompressCallServices &services);
 HRESULT CalcChecksum(const UStringVector &paths, const UString &methodName,
-                     const UString &arcPathPrefix, const UString &arcFileName,
                      IQtCompressCallServices &services);

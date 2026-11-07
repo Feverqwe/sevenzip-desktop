@@ -51,12 +51,9 @@ class CLaunch : public virtual IQtContextMenuServices {
         type = QString::fromWCharArray(arcType);
         dialog = show;
     }
-    void CalcChecksum(const UStringVector &items, const UString &hash, const UString &out,
-                      const UString &generateName) override {
+    void CalcChecksum(const UStringVector &items, const UString &hash) override {
         operation = "hash";
         paths = items;
-        folder = QString::fromWCharArray(out);
-        name = QString::fromWCharArray(generateName);
         method = QString::fromWCharArray(hash);
     }
     void ShowErrorMessage(const UString &) override { operation = "error"; }
@@ -300,24 +297,16 @@ class ShellContextTests final : public QObject {
         QCOMPARE(::TestArchives(missing, false, service), E_FAIL);
         QCOMPARE(service.guiCalls, 0);
     }
-    void sourceInProcessHashProvidersAndGenerationDispatch() {
+    void sourceInProcessHashProviders() {
         CWorkflow service;
         UStringVector paths;
         paths.Add(UString(L"/fixture/данные 空"));
-        QCOMPARE(::CalcChecksum(paths, UString(L"SHA256"), UString(), UString(), service), S_OK);
+        QCOMPARE(::CalcChecksum(paths, UString(L"SHA256"), service), S_OK);
         QCOMPARE(service.method, QString("SHA256"));
         service.providerResult = kAccessDenied;
-        QCOMPARE(::CalcChecksum(paths, UString(L"CRC32"), UString(), UString(), service),
-                 kAccessDenied);
+        QCOMPARE(::CalcChecksum(paths, UString(L"CRC32"), service), kAccessDenied);
         QCOMPARE(service.guiCalls, 1);
         QCOMPARE(service.reported, kAccessDenied);
-        QCOMPARE(::CalcChecksum(paths, UString(L"SHA256"), UString(L"/output/"),
-                                UString(L"данные.sha256"), service),
-                 S_OK);
-        QCOMPARE(service.operation, QString("compress"));
-        QCOMPARE(service.type, QString("hash"));
-        QCOMPARE(service.name, QString("данные.sha256"));
-        QCOMPARE(service.paths[0], paths[0]);
     }
     void flagsDirectoryGuardsAndExtendedVerbs() {
         QTemporaryDir fixture;

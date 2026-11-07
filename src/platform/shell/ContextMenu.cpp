@@ -123,13 +123,6 @@ void CZipContextMenu::FillCommand(enum_CommandInternalID id, UString &mainString
     cmi.UserString = mainString;
 }
 
-static UString LangStringAlt(UInt32 id, const char *altString) {
-    UString s = LangString(id);
-    if (s.IsEmpty())
-        s = altString;
-    return s;
-}
-
 void CZipContextMenu::AddCommand(enum_CommandInternalID id, UString &mainString,
                                  CCommandMapItem &cmi) {
     FillCommand(id, mainString, cmi);
@@ -959,8 +952,7 @@ HRESULT CZipContextMenu::InvokeCommandCommon(const CCommandMapItem &cmi) {
             for (unsigned i = 0; i < Z7_ARRAY_SIZE(g_HashCommands); i++) {
                 const CHashCommand &hc = g_HashCommands[i];
                 if (hc.CommandInternalID == cmdID) {
-                    _services->CalcChecksum(_fileNames, UString(hc.MethodName), UString(),
-                                            UString());
+                    _services->CalcChecksum(_fileNames, UString(hc.MethodName));
                     break;
                 }
             }

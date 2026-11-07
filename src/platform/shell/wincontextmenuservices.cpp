@@ -29,9 +29,8 @@ class NativeContextMenuServices final : public IQtContextMenuServices {
                        bool waitFinish) override {
         ::CompressFiles(folder, name, type, addExtension, paths, email, showDialog, waitFinish);
     }
-    void CalcChecksum(const UStringVector &paths, const UString &method, const UString &folder,
-                      const UString &generateName) override {
-        ::CalcChecksum(paths, method, folder, generateName);
+    void CalcChecksum(const UStringVector &paths, const UString &method) override {
+        ::CalcChecksum(paths, method);
     }
     void ShowErrorMessage(const UString &message) override { ::ShowErrorMessage(nullptr, message); }
     void ShowErrorMessageRes(UInt32 resourceID) override { ::ShowErrorMessageRes(resourceID); }
