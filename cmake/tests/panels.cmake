@@ -413,7 +413,6 @@
         hiddenLeftPanelPathSurvivesRestart
         parentKey:archive-0 parentKey:disk-3
         addressKeys:archive-3 addressKeys:disk-0
-        createFileKey:0 createFileKey:3
         keypadSelection:archive-0 keypadSelection:disk-3
         alternativeSelection:archive-mode3
         alternativeSelection:archive-mode0

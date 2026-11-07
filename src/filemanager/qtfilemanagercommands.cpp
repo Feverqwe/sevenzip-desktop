@@ -84,11 +84,6 @@ void QtFileManagerCommands::AttachPanelActions() {
     Bind(w.parent_, IDM_OPEN_PARENT_FOLDER);
     Bind(w.selectAll_, IDM_SELECT_ALL);
     Bind(w.deselectAll_, IDM_DESELECT_ALL);
-    Bind(w.invertSelection_, IDM_INVERT_SELECTION);
-    Bind(w.selectMask_, IDM_SELECT);
-    Bind(w.deselectMask_, IDM_DESELECT);
-    Bind(w.selectType_, IDM_SELECT_BY_TYPE);
-    Bind(w.deselectType_, IDM_DESELECT_BY_TYPE);
 }
 
 void QtFileManagerCommands::AttachViewActions() {

@@ -96,30 +96,10 @@ class PanelSelectionTests final : public QObject {
         panel.AttachSelectionView(&view);
         view.selectionModel()->setCurrentIndex(view.model()->index(1, 0),
                                                QItemSelectionModel::NoUpdate);
-        panel.SelectByType(true);
-        QVERIFY(selected(view, 1));
-        QCOMPARE(selected(view, 2), !g_CaseSensitive);
-        QVERIFY(!selected(view, 3));
-        QVERIFY(!selected(view, 4));
-        QVERIFY(!selected(view, 0));
-        QCOMPARE(view.currentRow(), 1);
-
-        panel.SelectSpec(UString(L"README"), true);
-        QVERIFY(selected(view, 3));
-        panel.SelectAll(false);
-        QCOMPARE(view.selectionModel()->selectedRows().size(), 0);
-        panel.InvertSelection();
+        panel.SelectAll(true);
         QCOMPARE(view.selectionModel()->selectedRows().size(), 4);
         QVERIFY(!selected(view, 0));
-        panel.SelectByType(false);
-        QVERIFY(!selected(view, 1));
-        QCOMPARE(selected(view, 2), g_CaseSensitive);
-        QVERIFY(selected(view, 3));
-        QVERIFY(selected(view, 4));
-        view.selectionModel()->setCurrentIndex(view.model()->index(0, 0),
-                                               QItemSelectionModel::NoUpdate);
-        panel.SelectByType(false);
-        QVERIFY(selected(view, 4));
+        QCOMPARE(view.currentRow(), 1);
         panel.KillSelection();
         QCOMPARE(view.selectionModel()->selectedRows().size(), 0);
     }

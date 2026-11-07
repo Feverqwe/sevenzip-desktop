@@ -3,6 +3,7 @@
 #include "archive/resources/qtarchivefileresource.h"
 #include "archive/support/source_extract_fixture.h"
 #include "filemanager/qtfilemanagerstartup.h"
+#include "filemanager/support/selection_fixture.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
 #include "localization/LangUtils.h"
@@ -210,7 +211,7 @@ class NativeRenamePublicationTests final : public QObject, protected MainWindowT
         panel.SetAlternativeSelection(alternative);
         view->setCurrentIndex(view->model()->index(0, 0));
         panel.SelectAll(false);
-        panel.SelectSpec(L"item 000 空.bin", true);
+        MarkSelectionForTest(panel, L"item 000 空.bin");
         bool injected = false, cancelled = false, retrying = false;
         QStringList unexpected, writerErrors;
         QTimer responder, driver;
@@ -330,7 +331,7 @@ class NativeRenamePublicationTests final : public QObject, protected MainWindowT
                                       view->visualRect(view->model()->index(row, 0)).center());
                 }
             panel.SelectAll(false);
-            panel.SelectSpec(L"item 000 空.bin", true);
+            MarkSelectionForTest(panel, L"item 000 空.bin");
             CRecordVector<UInt32> retryMarks;
             panel.Get_ItemIndices_Selected(retryMarks);
             QCOMPARE(retryMarks.Size(), 1u);

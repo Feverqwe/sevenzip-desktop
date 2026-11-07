@@ -1,5 +1,6 @@
 #include "filemanager/panels/Panel.h"
 #include "filemanager/providers/FSFolder.h"
+#include "filemanager/support/selection_fixture.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
 #include "localization/LangUtils.h"
@@ -82,7 +83,10 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
             if (view->model()->index(row, 0).data(Qt::UserRole + 3).toString() == original)
                 focusedRow = row;
         QVERIFY(focusedRow >= 0);
-        view->sourcePanel->SelectSpec(alternative ? ToUString(peer) : UString(L"*"), true);
+        if (alternative)
+            MarkSelectionForTest(*view->sourcePanel, ToUString(peer));
+        else
+            view->sourcePanel->SelectAll(true);
         view->selectionModel()->setCurrentIndex(view->model()->index(focusedRow, 0),
                                                 QItemSelectionModel::NoUpdate);
         action(window, icons ? "viewMode0Action" : "viewMode3Action")->trigger();

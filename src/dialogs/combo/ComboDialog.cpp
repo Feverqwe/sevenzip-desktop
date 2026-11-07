@@ -92,10 +92,6 @@ void CComboDialog::BindLanguage(UInt32 titleID, UInt32 promptID) {
     // window captions and caller-built comment titles are not command keys.
     if (titleID == IDS_CREATE_FOLDER)
         buttons->SetAcceptText("DialogRedesign", QT_TRANSLATE_NOOP("DialogRedesign", "Create"));
-    else if (titleID == IDS_SELECT)
-        buttons->SetAcceptText("DialogRedesign", QT_TRANSLATE_NOOP("DialogRedesign", "Select"));
-    else if (titleID == IDS_DESELECT)
-        buttons->SetAcceptText("DialogRedesign", QT_TRANSLATE_NOOP("DialogRedesign", "Deselect"));
     else if (promptID == IDS_COMMENT2)
         buttons->SetAcceptText("DialogRedesign", QT_TRANSLATE_NOOP("DialogRedesign", "Save"));
 }

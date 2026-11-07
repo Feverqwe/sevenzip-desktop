@@ -445,7 +445,7 @@ class MainShellTests final : public QObject {
                                                               .arg(size.width())
                                                               .arg(two ? "two" : "one")));
             }
-            for (const char *name : {"fileMenu", "viewMenu"}) {
+            for (const char *name : {"fileMenu", "editMenu", "viewMenu"}) {
                 auto *menu = window.findChild<QMenu *>(name);
                 menu->popup(window.menuBar()->mapToGlobal(QPoint(0, window.menuBar()->height())));
                 QApplication::processEvents();

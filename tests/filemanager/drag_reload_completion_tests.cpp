@@ -1,5 +1,6 @@
 #include "7zip/UI/FileManager/ProgressDialog2Res.h"
 #include "archive/support/source_extract_fixture.h"
+#include "filemanager/support/selection_fixture.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
 #include "localization/LangUtils.h"
@@ -93,7 +94,7 @@ class DragReloadCompletionTests final : public QObject, protected MainWindowTest
         CMyComPtr<IFolderFolder> provider = panel.GetFolder();
         CMyComPtr<IFolderFolder> peerProvider = peerList->sourcePanel->GetFolder();
         panel.SelectAll(false);
-        panel.SelectSpec(ToUString(marked), true);
+        MarkSelectionForTest(panel, ToUString(marked));
         list->setCurrentCell(1, 0, QItemSelectionModel::NoUpdate);
         if (icons)
             action(window, "viewMode0Action")->trigger();

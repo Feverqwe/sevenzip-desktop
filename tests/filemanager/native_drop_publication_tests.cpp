@@ -2,6 +2,7 @@
 #include "archive/agent/Agent.h"
 #include "archive/support/source_extract_fixture.h"
 #include "filemanager/qtfilemanagerstartup.h"
+#include "filemanager/support/selection_fixture.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
 #include "localization/LangUtils.h"
@@ -168,7 +169,7 @@ class NativeDropPublicationTests final : public QObject, protected MainWindowTes
         view->setFocus();
         QTRY_COMPARE(window.focusWidget(), view);
         panel.SelectAll(false);
-        panel.SelectSpec(L"item 000 空.bin", true);
+        MarkSelectionForTest(panel, L"item 000 空.bin");
         view->selectionModel()->setCurrentIndex(view->model()->index(1, 0),
                                                 QItemSelectionModel::NoUpdate);
         CSelectedState selected;

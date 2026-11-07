@@ -690,69 +690,6 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
         }
     }
 
-    void createFileKey_data() {
-        QTest::addColumn<int>("mode");
-        for (int mode : {0, 3})
-            QTest::newRow(qPrintable(QString::number(mode))) << mode;
-    }
-    void createFileKey() {
-        QFETCH(int, mode);
-        QTemporaryDir dir;
-        QVERIFY(dir.isValid());
-        ControlledBackend backend;
-        MainWindow window(&backend);
-        auto *address = window.findChild<QLineEdit *>("archivePath");
-        address->setText(dir.path());
-        QTest::keyClick(address, Qt::Key_Return);
-        action(window, qPrintable(QStringLiteral("viewMode%1Action").arg(mode)))->trigger();
-        window.show();
-        QWidget *view = mode == 3
-                            ? static_cast<QWidget *>(window.findChild<FileTable *>("archiveTable"))
-                            : static_cast<QWidget *>(window.findChild<QListView *>("iconList"));
-        int dialogs = 0;
-        const QString name = QStringLiteral("новый файл.txt");
-        const auto pressCreate = [&](QWidget *target, bool accept) {
-            QTimer responder;
-            connect(&responder, &QTimer::timeout, &window, [&] {
-                if (auto *dialog = qobject_cast<QDialog *>(QApplication::activeModalWidget());
-                    dialog && dialog->objectName() == "comboDialog" && dialog->isVisible()) {
-                    responder.stop();
-                    ++dialogs;
-                    dialog->findChild<QComboBox *>("comboValue")->setEditText(name);
-                    if (accept)
-                        dialog->accept();
-                    else
-                        dialog->reject();
-                }
-            });
-            responder.start(5);
-            target->setFocus();
-            QTest::keyClick(target, Qt::Key_F4, Qt::ShiftModifier);
-            responder.stop();
-            QApplication::processEvents();
-        };
-        pressCreate(view, false);
-        QCOMPARE(dialogs, 1);
-        QVERIFY(!QFileInfo::exists(dir.filePath(name)));
-        pressCreate(address, true);
-        QCOMPARE(dialogs, 1);
-        pressCreate(view, true);
-        QCOMPARE(dialogs, 2);
-        QVERIFY(QFileInfo::exists(dir.filePath(name)));
-        QCOMPARE(QFileInfo(dir.filePath(name)).size(), qint64(0));
-        QVERIFY(backend.prepareArchiveFixture(dir.filePath("busy.zip")));
-        backend.queueListAction([&] {
-            const auto finish =
-                qScopeGuard([&] { backend.completeList({ArchiveEntry{"file.txt", 1, 1}}); });
-            pressCreate(view, true);
-            QCOMPARE(dialogs, 2);
-        });
-        window.openArchive(dir.filePath("busy.zip"));
-        pressCreate(view, true);
-        QCOMPARE(dialogs, 2);
-        QCOMPARE(backend.extractCalls, 0);
-    }
-
     void keypadSelection_data() {
         QTest::addColumn<int>("mode");
         QTest::addColumn<bool>("archive");
@@ -796,45 +733,16 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
             if (table->model()->index(row, 0).data().toString() == names[0])
                 table->setCurrentCell(row, 0);
         table->clearSelection();
-        const auto keypad = Qt::KeypadModifier;
+        const Qt::KeyboardModifiers keypad = Qt::KeypadModifier;
         QTest::keyClick(view, Qt::Key_Plus, keypad | Qt::ShiftModifier);
         QCOMPARE(table->selectionModel()->selectedRows().size(), 3);
         QTest::keyClick(view, Qt::Key_Minus, keypad | Qt::ShiftModifier);
         QCOMPARE(table->selectionModel()->selectedRows().size(), 0);
-        QTest::keyClick(view, Qt::Key_Plus, keypad | Qt::AltModifier);
-        QCOMPARE(table->selectionModel()->selectedRows().size(), g_CaseSensitive ? 1 : 2);
-        QTest::keyClick(view, Qt::Key_Minus, keypad | Qt::AltModifier);
-        QCOMPARE(table->selectionModel()->selectedRows().size(), 0);
-        QTest::keyClick(view, Qt::Key_Asterisk, keypad);
-        QCOMPARE(table->selectionModel()->selectedRows().size(), 3);
-        QTest::keyClick(view, Qt::Key_Asterisk, keypad);
-        QCOMPARE(table->selectionModel()->selectedRows().size(), 0);
-
-        int dialogs = 0;
-        const auto maskKey = [&](int key) {
-            QTimer::singleShot(0, &window, [&] {
-                for (QWidget *widget : QApplication::topLevelWidgets())
-                    if (auto *dialog = dynamic_cast<ComboDialog *>(widget);
-                        dialog && dialog->isVisible()) {
-                        ++dialogs;
-                        dialog->findChild<QLineEdit *>()->setText("*.txt");
-                        dialog->accept();
-                    }
-            });
-            QTest::keyClick(view, static_cast<Qt::Key>(key), keypad);
-        };
-        maskKey(Qt::Key_Plus);
-        QCOMPARE(dialogs, 1);
-        QCOMPARE(table->selectionModel()->selectedRows().size(), g_CaseSensitive ? 1 : 2);
-        maskKey(Qt::Key_Minus);
-        QCOMPARE(dialogs, 2);
-        QCOMPARE(table->selectionModel()->selectedRows().size(), 0);
-
-        QTest::keyClick(view, Qt::Key_Asterisk);
-        QCOMPARE(table->selectionModel()->selectedRows().size(), 0);
-        QTest::keyClick(view, Qt::Key_Plus, keypad | Qt::ControlModifier);
-        QCOMPARE(dialogs, 2);
-        QCOMPARE(table->selectionModel()->selectedRows().size(), 0);
+        for (const auto modifier : {keypad, keypad | Qt::AltModifier})
+            for (const auto key : {Qt::Key_Plus, Qt::Key_Minus, Qt::Key_Asterisk}) {
+                QTest::keyClick(view, key, modifier);
+                QCOMPARE(table->selectionModel()->selectedRows().size(), 0);
+            }
 
         auto *address = window.findChild<QLineEdit *>("archivePath");
         PanelKeys::focusAddress(address);
@@ -1018,7 +926,7 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
             for (int row = 0; row < 3; ++row)
                 QVERIFY(marked(row));
         }
-        action(window, "invertSelectionAction")->trigger();
+        action(window, "deselectAllAction")->trigger();
         for (int row = 0; row < 3; ++row)
             QVERIFY(!marked(row));
         click(0, Qt::NoModifier);
@@ -1053,7 +961,7 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
         action(window, "selectAllAction")->trigger();
         for (int row = 0; row < view->rowCount(); ++row)
             QVERIFY(view->model()->index(row, 0).data(Qt::BackgroundRole).isValid());
-        action(window, "invertSelectionAction")->trigger();
+        action(window, "deselectAllAction")->trigger();
         for (int row = 0; row < view->rowCount(); ++row)
             QVERIFY(!view->model()->index(row, 0).data(Qt::BackgroundRole).isValid());
     }

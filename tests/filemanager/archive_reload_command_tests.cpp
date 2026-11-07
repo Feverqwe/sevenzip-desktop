@@ -1,6 +1,7 @@
 #include "archive/agent/Agent.h"
 #include "archive/codecs/archivecodeccatalog.h"
 #include "archive/support/source_extract_fixture.h"
+#include "filemanager/support/selection_fixture.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
 #include "localization/LangUtils.h"
@@ -98,7 +99,7 @@ class ArchiveReloadCommandTests final : public QObject, protected MainWindowTest
         CMyComPtr<IFolderFolder> provider = panel.GetFolder();
         QVERIFY(dynamic_cast<CAgentFolder *>((IFolderFolder *)provider));
         panel.SelectAll(false);
-        panel.SelectSpec(ToUString(marked), true);
+        MarkSelectionForTest(panel, ToUString(marked));
         list->setCurrentCell(1, 0, QItemSelectionModel::NoUpdate);
         if (alternative)
             list->selectionModel()->select(list->model()->index(1, 0),

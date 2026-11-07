@@ -1,6 +1,7 @@
 #include "archive/agent/Agent.h"
 #include "archive/support/source_extract_fixture.h"
 #include "dialogs/copy/alias.h"
+#include "filemanager/support/selection_fixture.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
 #include "filemanager/window/qtnavigationbar.h"
@@ -215,7 +216,7 @@ class AgentStreamCopyUiTests final : public QObject, protected MainWindowTestSup
         CMyComPtr<IFolderFolder> provider = target->sourcePanel->GetFolder();
         QVERIFY(dynamic_cast<CAgentFolder *>(provider.Interface()));
         target->sourcePanel->SelectAll(false);
-        target->sourcePanel->SelectSpec(ToUString(oldStream), true);
+        MarkSelectionForTest(*target->sourcePanel, ToUString(oldStream));
         target->setCurrentCell(row(*target, oldStream), 0, QItemSelectionModel::NoUpdate);
         CSelectedState targetSelection;
         target->sourcePanel->SaveSelectedState(targetSelection);

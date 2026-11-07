@@ -2,6 +2,7 @@
 #include "archive/agent/Agent.h"
 #include "archive/support/source_extract_fixture.h"
 #include "filemanager/qtfilemanagerstartup.h"
+#include "filemanager/support/selection_fixture.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
 #include "localization/LangUtils.h"
@@ -38,7 +39,7 @@ class NativeParentPublicationTests final : public QObject, protected MainWindowT
         QTest::mouseClick(view->viewport(), Qt::LeftButton, Qt::NoModifier,
                           view->visualRect(index).center());
         panel.SelectAll(false);
-        panel.SelectSpec(L"item 000 空.bin", true);
+        MarkSelectionForTest(panel, L"item 000 空.bin");
         QTRY_VERIFY(action(window, "renameAction")->isEnabled());
         QVERIFY(runtime_.armWriter(S_OK, false));
         QStringList errors;

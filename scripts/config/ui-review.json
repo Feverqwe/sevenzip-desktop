@@ -57,7 +57,6 @@
   {"id":"inline-rename","title":"Переименование в списке файлов","target":"panel_rename_state_tests","functions":["activationUsesFocusedRow"]},
   {"id":"delete-confirmation","title":"Удаление: Корзина, безвозвратно и из архива, EN/RU","target":"delete_confirmation_tests","functions":["selectionAndConsequences","defaultAndReadOnlyDoNotDelete"]},
   {"id":"trash-progress","title":"Корзина: ход операции и остановка между объектами","target":"source_delete_tests","functions":["cancelledTrashStopsBeforeTheNextItem"]},
-  {"id":"selection-mask","title":"Выделение файлов по маске","target":"source_selection_tests","functions":["selection"]},
   {"id":"extraction-prompts","title":"Распаковка: память, перезапись каталогов и отчёт","target":"extract_prompt_tests","functions":["geometry","sourceMessagesModalLifetime"]},
   {"id":"password-states","title":"Пароль: скрытый и показанный ввод","target":"password_dialog_tests","functions":["geometry"]},
   {"id":"devices","title":"Открытие устройства и выбор раздела","target":"device_ui_tests","functions":["geometryAndPartitionSelection"]},

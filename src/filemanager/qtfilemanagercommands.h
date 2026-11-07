@@ -61,9 +61,6 @@ class QtFileManagerCommands final : public IQtFileManagerMenuCommandServices {
     bool ExecuteExtensionCommand(unsigned id) override;
     void CloseWindow() override;
     void SelectAll(bool select) override;
-    void InvertSelection() override;
-    void SelectSpec(bool select) override;
-    void SelectByType(bool select) override;
     void Refresh_StatusBar() override;
     void SetListViewMode(unsigned index) override;
     void SortItemsWithPropID(unsigned propID) override;

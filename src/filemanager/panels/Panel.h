@@ -568,11 +568,7 @@ class CPanel : public QObject {
         }
     }
     void UpdateSelection();
-    void SelectSpec(bool selectMode);
-    void SelectSpec(const UString &mask, bool selectMode);
-    void SelectByType(bool selectMode);
     void SelectAll(bool selectMode);
-    void InvertSelection();
     void KillSelection();
     void OnShiftSelectMessage();
     void OnArrowWithShift();

@@ -238,15 +238,10 @@ Reference: upstream `0766b733fe3e06dd2a7f9a3cfbf2108ac73abd17`,
   height follows the prompt, editable field and native actions. Long prompts
   can wrap and enlarge the minimum height. Explicit normal/compact resizing
   below remains a separate adaptation.
-- Folder creation uses source title, prompt and default-name language IDs;
-  selection masks use the same view with their own prompts.
-- CPanel::SelectSpec owns the Select/Deselect titles, mask prompt, initial `*`
-  and Cancel return. `source_selection` checks both languages/panes and standard/
-  alternative marks, with32 current360×150/260×150 Combo reports. The same
-  source owner handles an inactive-pane direct call without changing its peer.
+- Folder creation uses source title, prompt and default-name language IDs.
 - OnOK preserves raw text, including spaces and an empty value. Validation
   belongs to the calling operation. Cancel leaves the public Value unchanged.
-- `combo_dialog` checks folder and mask views at 360×150 and 260×150:
+- `combo_dialog` checks the folder creation view at 360×150 and 260×150:
   fitted prompt, reachable combo/footer, control order and separate buttons.
   JSON reports accompany the checks; screenshots remain optional.
 - `source_create` exercises folder creation in both panes, including the focus
@@ -368,7 +363,7 @@ remain unchanged. Evidence and checked platforms are in the
 No Windows rendered reference; geometry does not establish pixel parity.
 
 Combo's confirmation caption follows the source operation identity: Create for
-folder/file creation, Select/Deselect for mask selection and Save for a comment.
+folder creation and Save for a comment.
 Unknown generic uses retain OK. These captions update on language change without
 resetting the input or caller-built item title; the native OK role, Return,
 Cancel and raw-value acceptance remain unchanged. Rename stays inline in the

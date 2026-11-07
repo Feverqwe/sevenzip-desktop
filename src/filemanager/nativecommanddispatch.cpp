@@ -139,26 +139,6 @@ bool OnMenuCommand(unsigned id, IQtFileManagerMenuCommandServices &g_App) {
         g_App.SelectAll(false);
         g_App.Refresh_StatusBar();
         break;
-    case IDM_INVERT_SELECTION:
-        g_App.InvertSelection();
-        g_App.Refresh_StatusBar();
-        break;
-    case IDM_SELECT:
-        g_App.SelectSpec(true);
-        g_App.Refresh_StatusBar();
-        break;
-    case IDM_DESELECT:
-        g_App.SelectSpec(false);
-        g_App.Refresh_StatusBar();
-        break;
-    case IDM_SELECT_BY_TYPE:
-        g_App.SelectByType(true);
-        g_App.Refresh_StatusBar();
-        break;
-    case IDM_DESELECT_BY_TYPE:
-        g_App.SelectByType(false);
-        g_App.Refresh_StatusBar();
-        break;
     case IDM_VIEW_LARGE_ICONS:
     case IDM_VIEW_DETAILS:
         g_App.SetListViewMode(id - IDM_VIEW_LARGE_ICONS);

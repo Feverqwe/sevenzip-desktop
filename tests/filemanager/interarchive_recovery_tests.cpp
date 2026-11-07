@@ -4,6 +4,7 @@
 #include "archive/support/source_extract_fixture.h"
 #include "dialogs/copy/alias.h"
 #include "filemanager/qtfilemanagerstartup.h"
+#include "filemanager/support/selection_fixture.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
 #include "localization/LangUtils.h"
@@ -209,7 +210,7 @@ class InterarchiveRecoveryTests final : public QObject, protected MainWindowTest
         if (icons)
             action(window, "viewMode0Action")->trigger();
         sourcePanel.SelectAll(false);
-        sourcePanel.SelectSpec(ToUString(added), true);
+        MarkSelectionForTest(sourcePanel, ToUString(added));
         view(sourceUi)->setFocus();
         QVERIFY(sourceUi->isAncestorOf(window.focusWidget()));
         QStringList errors;
@@ -302,9 +303,9 @@ class InterarchiveRecoveryTests final : public QObject, protected MainWindowTest
                 QVERIFY(QTest::qWaitForWindowActive(&window));
                 targetProvider = destination.GetFolder();
                 destination.SelectAll(false);
-                destination.SelectSpec(ToUString(marked), true);
+                MarkSelectionForTest(destination, ToUString(marked));
                 target->setCurrentCell(1, 0, QItemSelectionModel::NoUpdate);
-                sourcePanel.SelectSpec(ToUString(added), true);
+                MarkSelectionForTest(sourcePanel, ToUString(added));
                 view(sourceUi)->setFocus();
                 submitted = false;
                 errors.clear();

@@ -167,24 +167,14 @@ bool CPanel::OnKeyDown(const QtPanelKeyDown &keyDownInfo, CApp &g_App) {
         }
         break;
     }
-    case Qt::Key_Plus: {
-        if (alt)
-            g_App.ExecuteCommand(IDM_SELECT_BY_TYPE);
-        else if (shift)
-            g_App.ExecuteCommand(IDM_SELECT_ALL);
-        else if (!ctrl)
-            g_App.ExecuteCommand(IDM_SELECT);
-        return true;
-    }
-    case Qt::Key_Minus: {
-        if (alt)
-            g_App.ExecuteCommand(IDM_DESELECT_BY_TYPE);
-        else if (shift)
-            g_App.ExecuteCommand(IDM_DESELECT_ALL);
-        else
-            g_App.ExecuteCommand(IDM_DESELECT);
-        return true;
-    }
+    case Qt::Key_Plus:
+    case Qt::Key_Minus:
+        if (shift && !alt && !ctrl) {
+            g_App.ExecuteCommand(keyDownInfo.VKey == Qt::Key_Plus ? IDM_SELECT_ALL
+                                                                  : IDM_DESELECT_ALL);
+            return true;
+        }
+        return false;
     /*
     case Qt::Key_Delete:
       CommandDelete();
@@ -256,10 +246,6 @@ bool CPanel::OnKeyDown(const QtPanelKeyDown &keyDownInfo, CApp &g_App) {
             return true;
         }
         return false;
-    case Qt::Key_Asterisk: {
-        g_App.ExecuteCommand(IDM_INVERT_SELECTION);
-        return true;
-    }
     case Qt::Key_F12:
         if (alt && !ctrl && !shift) {
             g_App.ExecuteCommand(IDM_FOLDERS_HISTORY);

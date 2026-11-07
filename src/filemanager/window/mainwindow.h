@@ -250,9 +250,6 @@ class MainWindow : public QMainWindow {
     void restoreAutoRefreshViewport();
     FilesystemSignature filesystemSignature(const QString &path) const;
     void SelectAll(bool select);
-    void InvertSelection();
-    void SelectSpec(bool select);
-    void SelectByType(bool select);
     HRESULT navigateTo(const QString &path, bool sourceAddress = false);
     HRESULT navigateToImpl(const QString &path, bool sourceAddress);
     void activateRow(int row, Qt::KeyboardModifiers modifiers);
@@ -422,9 +419,4 @@ class MainWindow : public QMainWindow {
     CFmSettings fileListSettings_;
     QAction *foldersHistory_ = nullptr;
     QAction *deselectAll_ = nullptr;
-    QAction *invertSelection_ = nullptr;
-    QAction *selectMask_ = nullptr;
-    QAction *deselectMask_ = nullptr;
-    QAction *selectType_ = nullptr;
-    QAction *deselectType_ = nullptr;
 };

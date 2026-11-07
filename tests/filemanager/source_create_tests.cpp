@@ -1,5 +1,6 @@
 #include "7zip/UI/FileManager/resource.h"
 #include "dialogs/combo/ComboDialog.h"
+#include "filemanager/support/selection_fixture.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
 #include "localization/LangUtils.h"
@@ -120,7 +121,7 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         view->selectRow(row(view, "keep.bin"));
         view->setCurrentCell(row(view, "keep.bin"), 0);
         if (alternative)
-            view->sourcePanel->SelectSpec(L"keep.bin", true);
+            MarkSelectionForTest(*view->sourcePanel, L"keep.bin");
         view->setFocus();
         const auto initial = view->selectionModel()->selection();
         const QString entered = QStringLiteral("new folder 空/child");

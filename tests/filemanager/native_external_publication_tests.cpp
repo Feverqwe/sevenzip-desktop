@@ -3,6 +3,7 @@
 #include "archive/resources/qtarchivefileresource.h"
 #include "archive/support/source_extract_fixture.h"
 #include "filemanager/qtfilemanagerstartup.h"
+#include "filemanager/support/selection_fixture.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
 #include "localization/LangUtils.h"
@@ -158,7 +159,7 @@ class NativeExternalPublicationTests final : public QObject, protected MainWindo
         panel.SetAlternativeSelection(alternative);
         view->setCurrentIndex(view->model()->index(0, 0));
         panel.SelectAll(false);
-        panel.SelectSpec(L"item 000 空.bin", true);
+        MarkSelectionForTest(panel, L"item 000 空.bin");
         CRecordVector<UInt32> initialMarks;
         panel.Get_ItemIndices_Selected(initialMarks);
         QCOMPARE(initialMarks.Size(), 1u);
@@ -292,7 +293,7 @@ class NativeExternalPublicationTests final : public QObject, protected MainWindo
             ExternalEditorFixture::configure(retryControl);
             view->setCurrentIndex(view->model()->index(0, 0));
             panel.SelectAll(false);
-            panel.SelectSpec(L"item 000 空.bin", true);
+            MarkSelectionForTest(panel, L"item 000 空.bin");
             QVERIFY(action(window, "editFileAction")->isEnabled());
             action(window, "editFileAction")->trigger();
             QTRY_VERIFY(QFileInfo(retryControl + ".ready").size() > 0);

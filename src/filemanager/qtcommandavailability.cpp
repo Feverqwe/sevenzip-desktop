@@ -218,15 +218,9 @@ bool QtFileManagerCommands::TransportAllows(unsigned id, const TransportCapabili
     case IDM_HASH_ALL:
         return c.operated && !c.root && c.hashMethods.value(id);
     case IDM_SELECT_ALL:
-    case IDM_INVERT_SELECTION:
-    case IDM_SELECT:
-    case IDM_DESELECT:
         return c.rows;
     case IDM_DESELECT_ALL:
         return c.operated;
-    case IDM_SELECT_BY_TYPE:
-    case IDM_DESELECT_BY_TYPE:
-        return c.focused;
     case IDM_FOLDERS_HISTORY:
         return c.foldersHistory;
     }

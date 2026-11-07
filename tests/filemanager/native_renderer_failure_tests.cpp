@@ -3,6 +3,7 @@
 #include "archive/resources/qtarchivefileresource.h"
 #include "archive/support/source_extract_fixture.h"
 #include "filemanager/qtfilemanagerstartup.h"
+#include "filemanager/support/selection_fixture.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
 #include "localization/LangUtils.h"
@@ -279,7 +280,7 @@ class NativeRendererFailureTests final : public QObject, protected MainWindowTes
                 QTRY_VERIFY(list->isEnabled() && list->updatesEnabled());
                 provider = panel.GetFolder();
                 panel.SelectAll(false);
-                panel.SelectSpec(ToUString(names_[0]), true);
+                MarkSelectionForTest(panel, ToUString(names_[0]));
                 list->setCurrentCell(count - 1, 0, QItemSelectionModel::NoUpdate);
                 QVERIFY(runtime_.arm(failedIndex, HRESULT(result)));
                 window.activateWindow();

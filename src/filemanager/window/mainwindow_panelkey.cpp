@@ -147,8 +147,8 @@ bool MainWindow::overridePanelKey(const QKeyEvent &key) const {
         return true;
     if (alt && !ctrl && !shift && (k == Qt::Key_F1 || k == Qt::Key_F2 || k == Qt::Key_F12))
         return true;
-    return mods.testFlag(Qt::KeypadModifier) &&
-           (k == Qt::Key_Plus || k == Qt::Key_Minus || k == Qt::Key_Asterisk);
+    return mods.testFlag(Qt::KeypadModifier) && shift && !alt && !ctrl &&
+           (k == Qt::Key_Plus || k == Qt::Key_Minus);
 }
 
 bool MainWindow::handlePanelKey(PanelInputTarget target, QKeyEvent *key) {
@@ -225,9 +225,8 @@ bool MainWindow::handlePanelListKey(QKeyEvent *key) {
         activateItems(mods);
         return true;
     }
-    if ((!mods.testFlag(Qt::KeypadModifier) || mods.testFlag(Qt::MetaModifier)) &&
-        (virtualKey == Qt::Key_Plus || virtualKey == Qt::Key_Minus ||
-         virtualKey == Qt::Key_Asterisk))
+    if ((virtualKey == Qt::Key_Plus || virtualKey == Qt::Key_Minus) &&
+        (!mods.testFlag(Qt::KeypadModifier) || mods.testFlag(Qt::MetaModifier)))
         return false;
     bool rightCtrl = rightControlPressed_ && mods.testFlag(Qt::ControlModifier);
 #ifdef Q_OS_WIN

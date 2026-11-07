@@ -33,9 +33,6 @@ class IQtFileManagerMenuCommandServices : public IQtFileManagerCommandServices {
     virtual bool ExecuteExtensionCommand(unsigned id) = 0;
     virtual void CloseWindow() = 0;
     virtual void SelectAll(bool select) = 0;
-    virtual void InvertSelection() = 0;
-    virtual void SelectSpec(bool select) = 0;
-    virtual void SelectByType(bool select) = 0;
     virtual void Refresh_StatusBar() = 0;
     virtual void SetListViewMode(unsigned index) = 0;
     virtual void SortItemsWithPropID(unsigned propID) = 0;

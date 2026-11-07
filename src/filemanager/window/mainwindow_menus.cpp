@@ -206,11 +206,8 @@ void MainWindow::populateSourceMenus() {
     for (auto *action : {toolbarAdd_, extract_, test_, infoAction_})
         archives->addAction(action);
     auto *edit = findChild<QMenu *>("editMenu");
-    for (QAction *action : {selectAll_, deselectAll_, invertSelection_, selectMask_, deselectMask_})
-        edit->addAction(action);
-    edit->addSeparator();
-    edit->addAction(selectType_);
-    edit->addAction(deselectType_);
+    edit->addAction(selectAll_);
+    edit->addAction(deselectAll_);
 
     auto *view = findChild<QMenu *>("viewMenu");
     auto *appearance = view->addMenu(QString());

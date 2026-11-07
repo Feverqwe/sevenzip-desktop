@@ -2,6 +2,7 @@
 #include "archive/codecs/archivecodeccatalog.h"
 #include "archive/support/source_extract_fixture.h"
 #include "filemanager/qtfilemanagerstartup.h"
+#include "filemanager/support/selection_fixture.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
 #include "localization/LangUtils.h"
@@ -277,7 +278,7 @@ class PanelCreationPublicationTests final : public QObject, protected MainWindow
         view->setFocus();
         QVERIFY(firstUi->isAncestorOf(window.focusWidget()));
         first->sourcePanel->SelectAll(false);
-        first->sourcePanel->SelectSpec(ToUString(names[0]), true);
+        MarkSelectionForTest(*first->sourcePanel, ToUString(names[0]));
         first->setCurrentCell(count - 1, 0, QItemSelectionModel::NoUpdate);
         QSignalSpy refreshPublication(first->model(), &QAbstractItemModel::rowsRemoved);
         QTest::keyClick(view, Qt::Key_R, Qt::ControlModifier);

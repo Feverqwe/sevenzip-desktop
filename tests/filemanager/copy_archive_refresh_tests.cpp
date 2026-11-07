@@ -4,6 +4,7 @@
 #include "archive/support/source_extract_fixture.h"
 #include "dialogs/copy/alias.h"
 #include "filemanager/qtfilemanagerstartup.h"
+#include "filemanager/support/selection_fixture.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
 #include "localization/LangUtils.h"
@@ -136,7 +137,7 @@ class CopyArchiveRefreshTests final : public QObject, protected MainWindowTestSu
         CMyComPtr<IFolderFolder> provider = destination.GetFolder();
         QVERIFY(dynamic_cast<CAgentFolder *>(provider.Interface()));
         destination.SelectAll(false);
-        destination.SelectSpec(ToUString(marked), true);
+        MarkSelectionForTest(destination, ToUString(marked));
         target->setCurrentCell(originalCount - 1, 0, QItemSelectionModel::NoUpdate);
         CSelectedState selection;
         destination.SaveSelectedState(selection);

@@ -3,6 +3,7 @@
 #include "archive/codecs/archivecodeccatalog.h"
 #include "archive/support/source_extract_fixture.h"
 #include "dialogs/copy/alias.h"
+#include "filemanager/support/selection_fixture.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
 #include "localization/LangUtils.h"
@@ -145,13 +146,13 @@ class InterarchiveRefreshTests final : public QObject, protected MainWindowTestS
         QVERIFY(dynamic_cast<CAgentFolder *>(sourceProvider.Interface()));
         QVERIFY(dynamic_cast<CAgentFolder *>(targetProvider.Interface()));
         destination.SelectAll(false);
-        destination.SelectSpec(ToUString(marked), true);
+        MarkSelectionForTest(destination, ToUString(marked));
         target->setCurrentCell(originalCount - 1, 0, QItemSelectionModel::NoUpdate);
         CSelectedState selection;
         destination.SaveSelectedState(selection);
         QCOMPARE(selection.SelectedNames.Size(), 1u);
         sourcePanel.SelectAll(false);
-        sourcePanel.SelectSpec(ToUString(added), true);
+        MarkSelectionForTest(sourcePanel, ToUString(added));
         QAbstractItemView *view =
             icons ? static_cast<QAbstractItemView *>(sourceUi->findChild<QListView *>("iconList"))
                   : source;

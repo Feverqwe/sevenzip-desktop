@@ -2,11 +2,7 @@
 // at 0766b733fe3e06dd2a7f9a3cfbf2108ac73abd17.
 // Copyright (C) 1999-2026 Igor Pavlov. GNU LGPL 2.1 or later.
 
-#include "7zip/UI/FileManager/resource.h"
-#include "dialogs/combo/ComboDialog.h"
 #include "filemanager/panels/Panel.h"
-#include "fileops/patterns/Wildcard.h"
-#include "localization/LangUtils.h"
 
 static const UInt32 kParentIndex = (UInt32)-1;
 
@@ -182,65 +178,9 @@ void CPanel::OnLeftClick(int indexInList, Qt::KeyboardModifiers modifiers) {
     UpdateSelection();
 }
 
-void CPanel::SelectSpec(bool selectMode) {
-    const UInt32 titleID = selectMode ? IDS_SELECT : IDS_DESELECT;
-    CComboDialog dlg(ToQString(LangString(titleID)), ToQString(LangString(IDS_SELECT_MASK)),
-                     QStringLiteral("*"), GetParent());
-    dlg.BindLanguage(titleID, IDS_SELECT_MASK);
-    if (dlg.exec() != QDialog::Accepted)
-        return;
-    SelectSpec(dlg.Value, selectMode);
-}
-
-// The explicit-mask integration entry shares the original source loop.
-void CPanel::SelectSpec(const UString &mask, bool selectMode) {
-    FOR_VECTOR(i, _selectedStatusVector)
-    if (DoesWildcardMatchName(mask, GetItemName(i)))
-        _selectedStatusVector[i] = selectMode;
-    UpdateSelection();
-}
-
-void CPanel::SelectByType(bool selectMode) {
-    const int focusedItem = _selectionList.GetFocusedItem();
-    if (focusedItem < 0)
-        return;
-    const unsigned realIndex = GetRealItemIndex(focusedItem);
-    if (realIndex == kParentIndex)
-        return;
-    UString name = GetItemName(realIndex);
-    bool isItemFolder = IsItem_Folder(realIndex);
-
-    if (isItemFolder) {
-        FOR_VECTOR(i, _selectedStatusVector)
-        if (IsItem_Folder(i) == isItemFolder)
-            _selectedStatusVector[i] = selectMode;
-    } else {
-        int pos = name.ReverseFind_Dot();
-        if (pos < 0) {
-            FOR_VECTOR(i, _selectedStatusVector)
-            if (IsItem_Folder(i) == isItemFolder && GetItemName(i).ReverseFind_Dot() < 0)
-                _selectedStatusVector[i] = selectMode;
-        } else {
-            UString mask('*');
-            mask += name.Ptr((unsigned)pos);
-            FOR_VECTOR(i, _selectedStatusVector)
-            if (IsItem_Folder(i) == isItemFolder && DoesWildcardMatchName(mask, GetItemName(i)))
-                _selectedStatusVector[i] = selectMode;
-        }
-    }
-
-    UpdateSelection();
-}
-
 void CPanel::SelectAll(bool selectMode) {
     FOR_VECTOR(i, _selectedStatusVector)
     _selectedStatusVector[i] = selectMode;
-    UpdateSelection();
-}
-
-void CPanel::InvertSelection() {
-    FOR_VECTOR(i, _selectedStatusVector)
-    _selectedStatusVector[i] = !_selectedStatusVector[i];
     UpdateSelection();
 }
 

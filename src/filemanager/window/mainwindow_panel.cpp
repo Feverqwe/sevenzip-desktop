@@ -228,16 +228,6 @@ void MainWindow::createPanelActions(QMenu *editMenu) {
     selectAll_->setText("Select All");
     deselectAll_ = new QAction("Deselect All", editMenu);
     deselectAll_->setObjectName("deselectAllAction");
-    invertSelection_ = new QAction("Invert Selection", editMenu);
-    invertSelection_->setObjectName("invertSelectionAction");
-    selectMask_ = new QAction("Select...", editMenu);
-    selectMask_->setObjectName("selectMaskAction");
-    deselectMask_ = new QAction("Deselect...", editMenu);
-    deselectMask_->setObjectName("deselectMaskAction");
-    selectType_ = new QAction("Select by Type", editMenu);
-    selectType_->setObjectName("selectTypeAction");
-    deselectType_ = new QAction("Deselect by Type", editMenu);
-    deselectType_->setObjectName("deselectTypeAction");
     populateSourceMenus();
 }
 

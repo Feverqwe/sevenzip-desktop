@@ -14,57 +14,6 @@ class MainWindowStateTests : public QObject, protected MainWindowTestSupport {
         settings.clear();
     }
 
-    void maskAndTypeSelectionFollowFileManager() {
-        QTemporaryDir temp;
-        QVERIFY(temp.isValid());
-        for (const QString &name : {QStringLiteral("Alpha.txt"), QStringLiteral("beta.TXT"),
-                                    QStringLiteral("image.png")}) {
-            QFile file(temp.filePath(name));
-            QVERIFY(file.open(QIODevice::WriteOnly));
-        }
-        ControlledBackend backend;
-        MainWindow window(&backend);
-        auto *address = window.findChild<QLineEdit *>("archivePath");
-        address->setText(temp.path());
-        QTest::keyClick(address, Qt::Key_Return);
-        auto applyMask = [&](const char *actionName, const QString &mask) {
-            QTimer::singleShot(0, [&] {
-                auto *dialog = window.findChild<QDialog *>("comboDialog");
-                QVERIFY(dialog);
-                dialog->findChild<QComboBox *>("comboValue")->setEditText(mask);
-                dialog->accept();
-            });
-            action(window, actionName)->trigger();
-        };
-        applyMask("selectMaskAction", "*.txt");
-        QCOMPARE(table(window)->selectionModel()->selectedRows().size(), g_CaseSensitive ? 1 : 2);
-        applyMask("deselectMaskAction", "alpha.*");
-        QCOMPARE(table(window)->selectionModel()->selectedRows().size(), 1);
-        const int focusedBeforeCancel = table(window)->currentRow();
-        QTimer::singleShot(0, [&] {
-            auto *dialog = window.findChild<QDialog *>("comboDialog");
-            QVERIFY(dialog);
-            dialog->findChild<QComboBox *>("comboValue")->setEditText("*");
-            dialog->reject();
-        });
-        action(window, "selectMaskAction")->trigger();
-        QCOMPARE(table(window)->selectionModel()->selectedRows().size(), 1);
-        QCOMPARE(table(window)->currentRow(), focusedBeforeCancel);
-        table(window)->selectionModel()->setCurrentIndex(
-            table(window)->model()->index(filesystemRow(window, "image.png"), 0),
-            QItemSelectionModel::NoUpdate);
-        action(window, "selectTypeAction")->trigger();
-        QCOMPARE(table(window)->selectionModel()->selectedRows().size(), 2);
-        action(window, "deselectTypeAction")->trigger();
-        QCOMPARE(table(window)->selectionModel()->selectedRows().size(), 1);
-
-        openListedArchive(window, backend, temp.filePath("test.7z"),
-                          {ArchiveEntry{"first.txt", 1, 1}, ArchiveEntry{"second.TXT", 1, 1},
-                           ArchiveEntry{"other.bin", 1, 1}});
-        applyMask("selectMaskAction", "*.txt");
-        QCOMPARE(table(window)->selectionModel()->selectedRows().size(), g_CaseSensitive ? 1 : 2);
-    }
-
     void foldersHistoryDialogPersistsAndDeletesEntries() {
         QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         QTemporaryDir temp;
@@ -207,14 +156,6 @@ class MainWindowStateTests : public QObject, protected MainWindowTestSupport {
                      .toString(),
                  QStringLiteral("папка с пробелом"));
 
-        action(window, "invertSelectionAction")->trigger();
-        QCOMPARE(table(window)->selectionModel()->selectedRows().size(), 1);
-        QCOMPARE(table(window)
-                     ->model()
-                     ->index(table(window)->selectionModel()->selectedRows().first().row(), 0)
-                     .data()
-                     .toString(),
-                 QStringLiteral("файл с пробелом.txt"));
         action(window, "deselectAllAction")->trigger();
         QVERIFY(table(window)->selectionModel()->selectedRows().isEmpty());
         table(window)->selectRow(filesystemRow(window, QStringLiteral("файл с пробелом.txt")));

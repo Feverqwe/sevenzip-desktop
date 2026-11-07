@@ -22,38 +22,11 @@ void MainWindow::handleSelectionClick(int row) {
     refreshActions();
 }
 
-void MainWindow::SelectSpec(bool selectMode) {
-    if (projectedUi().state != State::Filesystem && projectedUi().state != State::Viewing &&
-        projectedUi().state != State::Namespace)
-        return;
-    CPanel &panel = app_.GetFocusedPanel();
-    panel.SelectSpec(selectMode);
-    refreshActions();
-}
-
-void MainWindow::SelectByType(bool selectMode) {
-    if (projectedUi().state != State::Filesystem && projectedUi().state != State::Viewing &&
-        projectedUi().state != State::Namespace)
-        return;
-    CPanel &panel = app_.GetFocusedPanel();
-    panel.SelectByType(selectMode);
-    refreshActions();
-}
-
 void MainWindow::SelectAll(bool selectMode) {
     if (projectedUi().state != State::Filesystem && projectedUi().state != State::Viewing &&
         projectedUi().state != State::Namespace)
         return;
     CPanel &panel = app_.GetFocusedPanel();
     panel.SelectAll(selectMode);
-    refreshActions();
-}
-
-void MainWindow::InvertSelection() {
-    if (projectedUi().state != State::Filesystem && projectedUi().state != State::Viewing &&
-        projectedUi().state != State::Namespace)
-        return;
-    CPanel &panel = app_.GetFocusedPanel();
-    panel.InvertSelection();
     refreshActions();
 }

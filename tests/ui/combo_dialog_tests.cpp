@@ -154,10 +154,6 @@ class ComboDialogTests : public QObject {
         for (int width : {360, 260}) {
             QTest::newRow(qPrintable(QStringLiteral("folder-%1").arg(width)))
                 << QString("Создать папку") << QString("Имя папки:") << width;
-            QTest::newRow(qPrintable(QStringLiteral("file-%1").arg(width)))
-                << QString("Создать файл") << QString("Имя файла:") << width;
-            QTest::newRow(qPrintable(QStringLiteral("mask-%1").arg(width)))
-                << QString("Выделить") << QString("Маска:") << width;
             QTest::newRow(qPrintable(QStringLiteral("long-prompt-%1").arg(width)))
                 << QString("Создать папку")
                 << QString("Введите имя новой папки для выбранного расположения:") << width;

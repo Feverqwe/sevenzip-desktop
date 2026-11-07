@@ -148,9 +148,6 @@ bool QtFileManagerCommands::ExecuteExtensionCommand(unsigned id) {
 }
 void QtFileManagerCommands::CloseWindow() { window_.close(); }
 void QtFileManagerCommands::SelectAll(bool select) { window_.SelectAll(select); }
-void QtFileManagerCommands::InvertSelection() { window_.InvertSelection(); }
-void QtFileManagerCommands::SelectSpec(bool select) { window_.SelectSpec(select); }
-void QtFileManagerCommands::SelectByType(bool select) { window_.SelectByType(select); }
 void QtFileManagerCommands::Refresh_StatusBar() { window_.refreshActions(); }
 void QtFileManagerCommands::SetListViewMode(unsigned index) { window_.app_.SetListViewMode(index); }
 void QtFileManagerCommands::SortItemsWithPropID(unsigned propID) {
