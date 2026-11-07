@@ -54,7 +54,6 @@ observable requirements change; keep implementation history in the
 | Add metadata Options | [Спецификация](ui-layout-contracts/compression.md#add-metadata-options-p2-07-in-progress) |
 | Link | [Спецификация](ui-layout-contracts/dialogs.md#link-p2-05) |
 | Benchmark | [Спецификация](ui-layout-contracts/dialogs.md#benchmark-p2-04) |
-| SFX Options group | [Спецификация](ui-layout-contracts/compression.md#sfx-options-group-p2-02) |
 | File-list drag target | [Спецификация](ui-layout-contracts/file-list.md#file-list-drag-target-p1-16-wip) |
 | Commands and reports | [Спецификация](ui-layout-contracts/dialogs.md#commands-and-reports) |
 | Alternate streams namespace | [Спецификация](ui-layout-contracts/file-list.md#alternate-streams-namespace-p2-06-active) |

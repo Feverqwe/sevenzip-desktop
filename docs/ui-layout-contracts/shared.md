@@ -35,7 +35,6 @@
 | <a id="shared-listview-properties-and-folder-history-p3-06"></a>Shared ListView: Properties and Folder History (P3-06) | [Открыть](dialogs.md#shared-listview-properties-and-folder-history-p3-06) |
 | <a id="link-p2-05"></a>Link (P2-05) | [Открыть](dialogs.md#link-p2-05) |
 | <a id="benchmark-p2-04"></a>Benchmark (P2-04) | [Открыть](dialogs.md#benchmark-p2-04) |
-| <a id="sfx-options-group-p2-02"></a>SFX Options group (P2-02) | [Открыть](compression.md#sfx-options-group-p2-02) |
 | <a id="file-list-drag-target-p1-16"></a><a id="file-list-drag-target-p1-16-wip"></a>File-list drag target (P1-16) | [Открыть](file-list.md#file-list-drag-target-p1-16) |
 | <a id="commands-and-reports"></a>Commands and reports | [Открыть](dialogs.md#commands-and-reports) |
 | <a id="alternate-streams-namespace-p2-06"></a><a id="alternate-streams-namespace-p2-06-active"></a>Alternate streams namespace (P2-06) | [Открыть](file-list.md#alternate-streams-namespace-p2-06) |

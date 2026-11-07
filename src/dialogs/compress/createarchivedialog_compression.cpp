@@ -105,9 +105,9 @@ void CreateArchiveDialog::createCompressionOptions(QFormLayout *form) {
     connect(method_, &QComboBox::currentTextChanged, this, [this] {
         MethodChanged();
         // Original OnCommand(IDC_COMPRESS_METHOD) refreshes the Hash filename
-        // after method/SFX/memory controls; source SetArchiveName2 owns naming.
+        // after method/memory controls; source SetArchiveName2 owns naming.
         if (archiveNameState_.Get_ArcInfoEx().Flags_HashHandler()) {
-            archiveNameState_.SetArchiveName2(false);
+            archiveNameState_.SetArchiveName2();
             name_->setText(archiveNameState_.m_ArchivePath);
         }
     });

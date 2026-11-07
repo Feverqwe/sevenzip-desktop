@@ -94,19 +94,10 @@ QtDisclosure *CreateArchiveDialog::createSourcesSection(QWidget *parent) {
 }
 
 void CreateArchiveDialog::createLifecycleOptions(QFormLayout *form) {
-    // CompressDialog.rc: right-hand Options group, SFX, Shared, Delete,
-    // preceding Encryption.
     auto *group = new QWidget(this);
     group->setObjectName("archiveLifecycleOptions");
     auto *layout = new QVBoxLayout(group);
     layout->setContentsMargins(0, 0, 0, 0);
-    sfx_ = new QCheckBox(group);
-    sfx_->setObjectName("archiveSfx");
-    if (codecs_)
-        sfxModule_ = codecs_->sfxModule();
-    layout->addWidget(sfx_);
-    connect(sfx_, &QCheckBox::toggled, this, &CreateArchiveDialog::toggleSfx);
-    updateSfxControls();
     sharedFiles_ = new QCheckBox("Compress shared files", group);
     sharedFiles_->setObjectName("archiveSharedFiles");
 #ifndef Q_OS_WIN
@@ -118,8 +109,9 @@ void CreateArchiveDialog::createLifecycleOptions(QFormLayout *form) {
 #endif
     layout->addWidget(sharedFiles_);
     form->addRow(group);
-    // OnInit leaves this checkbox available for all update modes. The original
-    // UpdateArchive owner validates incompatible action sets after confirmation.
+#ifndef Q_OS_WIN
+    form->setRowVisible(group, false);
+#endif
 }
 
 void CreateArchiveDialog::createCommandLineOptions(QFormLayout *form) {
@@ -227,9 +219,7 @@ void CreateArchiveDialog::updateRedesignSummary() {
             compressionModified = true;
     bool filesModified = updateMode_->currentData().toInt() != NCompressDialog::NUpdateMode::kAdd ||
                          pathMode_->currentData().toInt() != NWildcard::k_RelatPath;
-    for (auto *check : {sfx_, sharedFiles_})
-        if (check->isEnabled() && check->isChecked())
-            filesModified = true;
+    filesModified |= sharedFiles_->isEnabled() && sharedFiles_->isChecked();
     compressionSection_->setSummary(compressionModified ? modified : QString());
     filesSection_->setSummary(filesModified ? modified : QString());
     parametersSection_->setSummary(parameters_->text().isEmpty() ? QString() : modified);

@@ -272,16 +272,7 @@ class OperationCreationTests final : public QObject {
         QCOMPARE(readFile(QDir(output).filePath("source.bin")),
                  QByteArray("retry after native writer crash"));
     }
-    void volumesAndSelfExtractorsOwnCompletedOutputs_data() {
-        QTest::addColumn<bool>("volumes");
-        QTest::addColumn<bool>("sfx");
-        QTest::newRow("volumes") << true << false;
-        QTest::newRow("self extractor") << false << true;
-        QTest::newRow("self extractor with volumes") << true << true;
-    }
-    void volumesAndSelfExtractorsOwnCompletedOutputs() {
-        QFETCH(bool, volumes);
-        QFETCH(bool, sfx);
+    void volumeCreationPublishesReadableArchive() {
         QTemporaryDir directory;
         QVERIFY(directory.isValid());
         QByteArray bytes(512 * 1024, Qt::Uninitialized);
@@ -290,41 +281,21 @@ class OperationCreationTests final : public QObject {
             byte = char(random.generate());
         const QString source = directory.filePath("payload 空.bin");
         QVERIFY(writeFile(source, bytes));
-        const QString target = directory.filePath(sfx ? "package" : "package.7z");
+        const QString target = directory.filePath("package.7z");
         Environment decision("SEVENZIP_OPERATION_CREATE_DECISION", "accept");
         Environment actual("SEVENZIP_OPERATION_CREATE_TARGET", target);
-        std::unique_ptr<Environment> volumeOption, sfxOption;
-        if (volumes)
-            volumeOption = std::make_unique<Environment>("SEVENZIP_OPERATION_VOLUME", "128K");
-        if (sfx)
-            sfxOption = std::make_unique<Environment>("SEVENZIP_OPERATION_SFX", "1");
+        Environment volume("SEVENZIP_OPERATION_VOLUME", "128K");
         auto job = Compress(target, {source}, "7z");
         job.ShowDialog = true;
         const auto result = Run(QStringLiteral(SEVENZIP_OPERATION_HOST), job);
         QVERIFY2(result.Status == Outcome::Success, qPrintable(result.Error));
         QCOMPARE(readFile(source), bytes);
-        if (volumes)
-            QVERIFY(QFileInfo::exists(directory.filePath("package.7z.002")));
+        QVERIFY(QFileInfo::exists(directory.filePath("package.7z.002")));
         const QString output = directory.filePath("verified output");
-        if (sfx) {
-#ifdef Q_OS_WIN
-            const QString executable = directory.filePath("package.exe");
-            const QStringList arguments{"-y", "-o" + output};
-#else
-            const QString executable = directory.filePath("package");
-            const QStringList arguments{"x", "-y", "-o" + output};
-#endif
-            QVERIFY(QFileInfo(executable).isExecutable());
-            QProcess extractor;
-            extractor.start(executable, arguments);
-            QVERIFY(extractor.waitForFinished(10000));
-            QCOMPARE(extractor.exitStatus(), QProcess::NormalExit);
-            QCOMPARE(extractor.exitCode(), 0);
-        } else
-            QCOMPARE(Run(QStringLiteral(SEVENZIP_OPERATION_HOST),
-                         Extract(directory.filePath("package.7z.001"), output))
-                         .Status,
-                     Outcome::Success);
+        QCOMPARE(Run(QStringLiteral(SEVENZIP_OPERATION_HOST),
+                     Extract(directory.filePath("package.7z.001"), output))
+                     .Status,
+                 Outcome::Success);
         QCOMPARE(readFile(QDir(output).filePath("payload 空.bin")), bytes);
     }
 };

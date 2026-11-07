@@ -24,8 +24,6 @@ void CreateArchiveDialog::initializeSourceControls(const NCompressDialog::CInfo 
         password_->setText(info.Password);
         passwordConfirmation_->setText(info.Password);
     }
-    if (info.SFXMode && sfx_->isEnabled())
-        sfx_->setChecked(true);
 }
 
 QString CreateArchiveDialog::archivePath() const {
@@ -101,9 +99,6 @@ CompressionOptions CreateArchiveDialog::compressionOptions() const {
     if (accepted_)
         return accepted_->Options;
     CompressionOptions options;
-    options.SFXMode = sfx_ && sfx_->isEnabled() && sfx_->isChecked();
-    if (options.SFXMode)
-        options.SfxModule = sfxModule_.path();
     options.format = format_->currentText();
     CCompressDialog metadata;
     prepareMetadataSource(metadata);

@@ -45,7 +45,6 @@ inline constexpr UInt32 kFF_MultiThread = 1 << 2;
 inline constexpr UInt32 kFF_Encrypt = 1 << 3;
 inline constexpr UInt32 kFF_EncryptFileNames = 1 << 4;
 inline constexpr UInt32 kFF_MemUse = 1 << 5;
-inline constexpr UInt32 kFF_SFX = 1 << 6;
 
 /*
 inline constexpr UInt32 kFF_Time_Win  = 1 << 10;
@@ -68,14 +67,12 @@ struct CFormatInfo {
     bool Encrypt_() const { return (Flags & kFF_Encrypt) != 0; }
     bool EncryptFileNames_() const { return (Flags & kFF_EncryptFileNames) != 0; }
     bool MemUse_() const { return (Flags & kFF_MemUse) != 0; }
-    bool SFX_() const { return (Flags & kFF_SFX) != 0; }
 };
 
 int GetMethodID(QStringView name, QStringView format);
 
 const CFormatInfo &GetFormatInfo(QStringView name);
-QStringList GetMethodNames(QStringView name, bool isSFX = false);
-bool IsMethodSupportedBySfx(int methodID);
+QStringList GetMethodNames(QStringView name);
 } // namespace NCompressDialog
 
 // Source-ported archive-path and encryption portions of CCompressDialog. Qt presentation
@@ -111,7 +108,6 @@ class CCompressDialog {
     UString OriginalFileName;
     int m_PrevFormat = -1;
     UString HashMethodSpec;
-    bool IsSFX() const { return Info.SFXMode; }
     UString GetMethodSpec(UString &estimatedName) const;
     UString GetMethodSpec() const;
     bool IsMethodEqualTo(const UString &s) const;
@@ -175,9 +171,7 @@ class CCompressDialog {
                                         bool showPassword, QStringView format,
                                         const QString &encryptionMethod);
     void SetArchiveName(const QString &name);
-    void SetArchiveName2(bool prevWasSFX = false);
-    bool CheckSFXControlsEnable();
-    void OnButtonSFX();
+    void SetArchiveName2();
     void ArcPath_WasChanged(const QString &path);
     bool SetArcPathFields(const QString &path);
     bool SetArcPathFields(const QString &path, QString &name, bool always);

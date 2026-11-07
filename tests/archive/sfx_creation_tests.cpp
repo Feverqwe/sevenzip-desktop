@@ -1,24 +1,16 @@
 #include "archive/backend/archivebackend.h"
 #include "archive/codecs/archivecodeccatalog.h"
+#include "archive/resources/archivenativeopen.h"
 #include "archive/sfx/archivesfxmodule.h"
 #include "archive/support/source_creation_fixture.h"
-#include "dialogs/compress/createarchivedialog.h"
-#include "localization/LangUtils.h"
-#include "localization/qtlangcontrols.h"
-#include "settings/RegistryUtils.h"
-#include "support/archive_expert.h"
-#include "support/archive_sections.h"
-#include "ui/support/layout_inspection.h"
 #include <QCryptographicHash>
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QScopeGuard>
-#include <QScrollArea>
 #include <QSignalSpy>
 #include <QStandardPaths>
 #include <QTemporaryDir>
-#include <QToolButton>
 #include <QtTest>
 
 namespace {
@@ -98,8 +90,8 @@ class SfxCreationTests final : public QObject {
         options.format = "7z";
         options.SFXMode = true;
         options.SfxModule = path;
-        QVERIFY(SourceCreationFixture::Create(backend, target, {source}, {}, false, options) !=
-                S_OK);
+        QVERIFY(SourceCreationFixture::Create(backend, target, {source}, {}, false, options, false,
+                                              SourceCreationFixture::OptionsOwner::Native) != S_OK);
         QVERIFY(!QFileInfo::exists(target));
         QCOMPARE(read(source), QByteArray("source bytes"));
         QCOMPARE(read(path), bytes);
@@ -149,7 +141,8 @@ class SfxCreationTests final : public QObject {
         const QByteArray originalModule = read(sfx_);
         const QString password = multiRoot ? QStringLiteral("local fixture password") : QString();
         const HRESULT result = SourceCreationFixture::Create(
-            backend, target, sources, password, multiRoot, options, outcome == "cancel");
+            backend, target, sources, password, multiRoot, options, outcome == "cancel",
+            SourceCreationFixture::OptionsOwner::Native);
         QCOMPARE(result == S_OK, outcome == "success");
         QCOMPARE(read(fixture.filePath(name)), bytes);
         QCOMPARE(read(sfx_), originalModule);
@@ -166,6 +159,14 @@ class SfxCreationTests final : public QObject {
             return;
         }
         QVERIFY(QFileInfo(target).isExecutable());
+        if (!multiRoot && !volumes) {
+            std::shared_ptr<ArchiveNativeOpen> reader;
+            QCOMPARE(backend.openNativeArchive(target, "7z", nullptr, reader), S_OK);
+            QVERIFY(reader);
+            UInt32 count = 0;
+            QCOMPARE(reader->arc().Archive->GetNumberOfItems(&count), S_OK);
+            QCOMPARE(count, UInt32(1));
+        }
         if (volumes) {
             QCOMPARE(read(target), originalModule);
             QVERIFY(QFileInfo::exists(base + ".7z.002"));
@@ -199,120 +200,6 @@ class SfxCreationTests final : public QObject {
         QCOMPARE(process.exitCode(), 0);
         QCOMPARE(read(output + "/" + name), bytes);
         QCOMPARE(QFileInfo::exists(output + "/other.txt"), multiRoot);
-    }
-    void formTransitionsAndGeometry_data() {
-        QTest::addColumn<QSize>("size");
-        QTest::addColumn<QString>("language");
-        for (const QString &language : {"-", "ru"})
-            for (const QSize size : {QSize(760, 720), QSize(640, 480)})
-                QTest::newRow(qPrintable(language + QString::number(size.width())))
-                    << size << language;
-    }
-    void formTransitionsAndGeometry() {
-        QFETCH(QSize, size);
-        QFETCH(QString, language);
-        QTemporaryDir fixture;
-        const UString previousLanguage = g_LangID;
-        const QString languagePath = fixture.filePath("language.ini");
-        const QByteArray previousSettings = qgetenv("SEVENZIP_SETTINGS_PATH");
-        const QByteArray previousSfx = qgetenv("SEVENZIP_SFX_MODULE");
-        const auto restore = qScopeGuard([&] {
-            if (previousSettings.isNull())
-                qunsetenv("SEVENZIP_SETTINGS_PATH");
-            else
-                qputenv("SEVENZIP_SETTINGS_PATH", previousSettings);
-            if (previousSfx.isNull())
-                qunsetenv("SEVENZIP_SFX_MODULE");
-            else
-                qputenv("SEVENZIP_SFX_MODULE", previousSfx);
-            SaveRegLang(previousLanguage, languagePath);
-            ReloadLang(languagePath);
-            QtNotifyLanguageChanged();
-        });
-        SaveRegLang(UString(language.toStdWString().c_str()), languagePath);
-        ReloadLang(languagePath);
-        QtNotifyLanguageChanged();
-        qputenv("SEVENZIP_SETTINGS_PATH", fixture.filePath("settings.ini").toUtf8());
-        qputenv("SEVENZIP_SFX_MODULE", sfx_.toUtf8());
-        const QString source = fixture.filePath(QStringLiteral("имя 空.txt"));
-        QVERIFY(write(source, "form fixture"));
-        ArchiveBackend backend(nullptr, engine_);
-        QCOMPARE(backend.loadCodecCatalog(module_, version_), S_OK);
-        CreateArchiveDialog dialog(fixture.path(), {source}, nullptr, backend.codecCatalog());
-        auto *format = dialog.findChild<QComboBox *>("archiveFormat");
-        auto *method = dialog.findChild<QComboBox *>("compressionMethod");
-        auto *sfx = dialog.findChild<QCheckBox *>("archiveSfx");
-        auto *name = dialog.findChild<QLineEdit *>("archiveName");
-        auto *shared = dialog.findChild<QCheckBox *>("archiveSharedFiles");
-        QVERIFY(format && method && sfx && name && shared);
-        ExpandArchiveSections(dialog);
-        format->setCurrentText("7z");
-        QVERIFY(sfx->isEnabled());
-        name->setText(QStringLiteral("пакет 空.7z"));
-        sfx->setChecked(true);
-        QVERIFY(dialog.compressionOptions().SFXMode);
-        QCOMPARE(dialog.compressionOptions().SfxModule, sfx_);
-#ifdef Q_OS_WIN
-        QCOMPARE(name->text(), QStringLiteral("пакет 空.exe"));
-#else
-        QCOMPARE(name->text(), QStringLiteral("пакет 空"));
-#endif
-        QCOMPARE(method->findText("BZip2"), -1);
-        dialog.resize(size);
-        dialog.show();
-        QApplication::processEvents();
-        QVERIFY(EditArchiveExpert(dialog, false, [&](QDialog &editor) {
-            editor.resize(size);
-            auto *scroll = editor.findChild<QScrollArea *>();
-            QVERIFY(scroll);
-            scroll->ensureWidgetVisible(sfx->parentWidget());
-            QApplication::processEvents();
-            QVERIFY(UiInspection::writeReport(editor, "sfx-options-" + language + "-" +
-                                                          QString::number(size.width())));
-            for (const auto *control : {sfx, shared}) {
-#ifndef Q_OS_WIN
-                if (control == shared) {
-                    QVERIFY(!control->isVisible());
-                    continue;
-                }
-#endif
-                QVERIFY2(UiInspection::fullyVisible(*control, editor),
-                         qPrintable(control->objectName()));
-                QVERIFY2(control->width() >= control->sizeHint().width(),
-                         qPrintable(control->objectName()));
-                QVERIFY(control->height() >= control->sizeHint().height());
-            }
-            if (shared->isVisible()) {
-                QVERIFY(UiInspection::bounds(*sfx, editor).bottom() <
-                        UiInspection::bounds(*shared, editor).top());
-            }
-        }));
-
-        sfx->setChecked(false);
-        QCOMPARE(name->text(), QStringLiteral("пакет 空.7z"));
-        QVERIFY(method->findText("BZip2") >= 0);
-        method->setCurrentText("BZip2");
-        QVERIFY(!sfx->isEnabled());
-        method->setCurrentIndex(method->findData(-1));
-        QVERIFY(sfx->isEnabled());
-        sfx->setChecked(true);
-        format->setCurrentText("zip");
-        QVERIFY(!sfx->isEnabled());
-        QVERIFY(!sfx->isChecked());
-        QVERIFY(!dialog.compressionOptions().SFXMode);
-        QVERIFY(name->text().endsWith(".zip"));
-        // Pinned native 7zFM preserves SetMethod2's SFX filter for this
-        // transition, then unchecks SFX: ZIP's supported LZMA remains alone
-        // but unselected (CB_GETCURSEL=-1 in the actual Windows reference).
-        QCOMPARE(method->count(), 1);
-        QCOMPARE(method->itemText(0), QString("LZMA"));
-        QCOMPARE(method->currentIndex(), -1);
-        QVERIFY(method->currentText().isEmpty());
-        QVERIFY(!method->isEnabled());
-        QVERIFY(dialog.sourceInfo().Method.IsEmpty());
-        qputenv("SEVENZIP_SFX_MODULE", fixture.filePath("missing.sfx").toUtf8());
-        CreateArchiveDialog missing(fixture.path(), {source}, nullptr, backend.codecCatalog());
-        QVERIFY(!missing.findChild<QCheckBox *>("archiveSfx")->isEnabled());
     }
 };
 #include "ui/support/review_test_main.h"

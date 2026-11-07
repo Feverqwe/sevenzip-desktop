@@ -80,20 +80,6 @@ class SourceArchiveBrowseTests final : public QObject {
         QCOMPARE(dialog.m_ArchivePath, QStringLiteral("данные 空.7z"));
         QCOMPARE(dialog.Info.FormatIndex, catalog_->formatIndex("7z"));
     }
-    void sfxReplacesFinalExtension() {
-        auto dialog = model();
-        dialog.Info.SFXMode = true;
-        QVERIFY(dialog.OnButtonSetArchive(nullptr, [&](CBrowseInfo &info, const auto &) {
-            info.FilePath = ToUString(directory_.filePath("name.tar.zip"));
-            return true;
-        }));
-#ifdef _WIN32
-        QCOMPARE(dialog.m_ArchivePath, QString("name.tar.exe"));
-#else
-        QCOMPARE(dialog.m_ArchivePath, QString("name.tar"));
-#endif
-        QCOMPARE(dialog.Format, QString("7z"));
-    }
 };
 QTEST_MAIN(SourceArchiveBrowseTests)
 #include "source_archive_browse_tests.moc"

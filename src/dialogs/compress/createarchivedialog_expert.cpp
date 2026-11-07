@@ -62,7 +62,7 @@ struct CreateArchiveDialog::ExpertDraft {
     CCompressDialog naming;
     Choice level, method, dictionary, order, solid, threads, memory, update, paths;
     QString name, folder, parameters;
-    bool sfx, shared;
+    bool shared;
 
     explicit ExpertDraft(const CreateArchiveDialog &owner)
         : registry(owner.m_RegistryInfo), naming(owner.archiveNameState_), level(*owner.level_),
@@ -70,7 +70,7 @@ struct CreateArchiveDialog::ExpertDraft {
           solid(*owner.solidBlock_), threads(*owner.threads_), memory(*owner.memUse_),
           update(*owner.updateMode_), paths(*owner.pathMode_), name(owner.name_->text()),
           folder(owner.archiveFolder_->text()), parameters(owner.parameters_->text()),
-          sfx(owner.sfx_->isChecked()), shared(owner.sharedFiles_->isChecked()) {}
+          shared(owner.sharedFiles_->isChecked()) {}
 };
 
 std::unique_ptr<CreateArchiveDialog::ExpertDraft> CreateArchiveDialog::captureExpertDraft() {
@@ -83,12 +83,11 @@ std::unique_ptr<CreateArchiveDialog::ExpertDraft> CreateArchiveDialog::captureEx
 void CreateArchiveDialog::restoreExpertDraft(const ExpertDraft &draft) {
     const QSignalBlocker level(level_), method(method_), dictionary(dictionary_), order(wordSize_),
         solid(solidBlock_), threads(threads_), memory(memUse_), update(updateMode_),
-        paths(pathMode_), sfx(sfx_), shared(sharedFiles_), name(name_), folder(archiveFolder_),
+        paths(pathMode_), shared(sharedFiles_), name(name_), folder(archiveFolder_),
         parameters(parameters_);
     m_RegistryInfo = draft.renderingRegistry;
     archiveNameState_ = draft.naming;
     archiveNameState_.m_Method = method_;
-    sfx_->setChecked(draft.sfx);
     sharedFiles_->setChecked(draft.shared);
     FormatChanged();
     draft.level.restore(*level_);
@@ -104,8 +103,7 @@ void CreateArchiveDialog::restoreExpertDraft(const ExpertDraft &draft) {
     draft.update.restore(*updateMode_);
     draft.paths.restore(*pathMode_);
     SetMemoryUsage();
-    updateSfxControls();
-    // Intermediate source recalculation may change SFX naming. Restore the
+    // Intermediate source recalculation may change archive naming. Restore the
     // original naming state and raw text after all dependent controls settle.
     archiveNameState_ = draft.naming;
     archiveNameState_.m_Method = method_;

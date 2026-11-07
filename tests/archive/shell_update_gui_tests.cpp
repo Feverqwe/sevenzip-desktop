@@ -137,6 +137,7 @@ class ShellUpdateGuiTests final : public QObject {
             di.UpdateMode = NCompressDialog::NUpdateMode::kSync;
             di.PathMode = NWildcard::k_AbsPath;
             di.OpenShareForWrite = di.DeleteAfterCompressing = true;
+            di.SFXMode = true;
             di.SymLinks.SetTrueTrue();
             di.PreserveATime.Def = true;
             di.PreserveATime.Val = false;
@@ -156,6 +157,7 @@ class ShellUpdateGuiTests final : public QObject {
         QVERIFY(options.MethodMode.Type_Defined);
         QVERIFY(options.OpenShareForWrite && !options.DeleteAfterCompressing &&
                 options.SymLinks.Val);
+        QVERIFY(!options.SfxMode && options.SfxModule.IsEmpty());
         QVERIFY(!options.PreserveATime);
         QCOMPARE(options.VolumesSizes.Size(), 1u);
         QCOMPARE(options.VolumesSizes[0], UInt64(2 << 20));

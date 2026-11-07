@@ -269,30 +269,6 @@ class CompressionExpertTests final : public QObject {
         }));
         QCOMPARE(QString::fromWCharArray(form.sourceInfo().Method.Ptr()), QString("ZSTD"));
     }
-    void cancellingSfxChangeRestoresEditedArchiveName() {
-        const auto catalog = NativeArchiveFixture::Catalog();
-        const auto module = catalog->sfxModule();
-        if (!module.available())
-            QSKIP(qPrintable(module.error()));
-        CreateArchiveDialog form(fixture_.path(), {}, nullptr, catalog);
-        form.show();
-        QVERIFY(EditArchiveExpert(form, true, [&](QDialog &editor) {
-            auto *sfx = editor.findChild<QCheckBox *>("archiveSfx");
-            QVERIFY(sfx->isEnabled());
-            sfx->setChecked(true);
-        }));
-        QVERIFY(form.sourceInfo().SFXMode);
-        const QString custom = QStringLiteral("своё имя 空.exe");
-        text(form, "archiveName")->setText(custom);
-        QVERIFY(EditArchiveExpert(form, false, [&](QDialog &editor) {
-            editor.findChild<QCheckBox *>("archiveSfx")->setChecked(false);
-            QVERIFY(!form.sourceInfo().SFXMode);
-            QVERIFY(text(form, "archiveName")->text() != custom);
-        }));
-        QVERIFY(form.sourceInfo().SFXMode);
-        QCOMPARE(text(form, "archiveName")->text(), custom);
-        QVERIFY(!QFile::exists(settings_));
-    }
     void inputsGrowWithTheirForms() {
         CreateArchiveDialog form(fixture_.path(), {}, nullptr, NativeArchiveFixture::Catalog());
         form.show();

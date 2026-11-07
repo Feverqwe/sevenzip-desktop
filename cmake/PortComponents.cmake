@@ -30,7 +30,6 @@ sevenzip_add_port_component(sevenzip_compress_presentation src/dialogs/compress/
     src/dialogs/compress/createarchivedialog_language.cpp
     src/dialogs/compress/createarchivedialog_preferences.cpp
     src/dialogs/compress/createarchivedialog_resources.cpp
-    src/dialogs/compress/createarchivedialog_sfx.cpp
     src/dialogs/compress/createarchivedialog_source.cpp
     src/dialogs/compress/createarchivedialog_volumes.cpp)
 

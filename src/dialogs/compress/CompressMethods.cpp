@@ -25,15 +25,6 @@ static const EMethodID g_7zMethods[] = {kLZMA2,
                                         ,
                                         kCopy};
 
-static const EMethodID g_7zSfxMethods[] = {kCopy, kLZMA, kLZMA2, kPPMd};
-
-bool IsMethodSupportedBySfx(int methodID) {
-    for (unsigned i = 0; i < Z7_ARRAY_SIZE(g_7zSfxMethods); i++)
-        if (methodID == g_7zSfxMethods[i])
-            return true;
-    return false;
-}
-
 static const EMethodID g_ZipMethods[] = {kDeflate, kDeflate64, kBZip2, kLZMA, kZSTD};
 
 static const EMethodID g_GZipMethods[] = {kDeflate};
@@ -77,8 +68,7 @@ static const CFormatInfo g_Formats[] = {
         "7z",
         // (1 << 0) | (1 << 1) | (1 << 3) | (1 << 5) | (1 << 7) | (1 << 9),
         (1 << 10) - 1, METHODS_PAIR(g_7zMethods),
-        kFF_Filter | kFF_Solid | kFF_MultiThread | kFF_Encrypt | kFF_EncryptFileNames | kFF_MemUse |
-            kFF_SFX
+        kFF_Filter | kFF_Solid | kFF_MultiThread | kFF_Encrypt | kFF_EncryptFileNames | kFF_MemUse
         // | kFF_Time_Win
     },
     {
@@ -134,14 +124,12 @@ static unsigned GetStaticFormatIndex(QStringView name) {
 
 const CFormatInfo &GetFormatInfo(QStringView name) { return g_Formats[GetStaticFormatIndex(name)]; }
 
-QStringList GetMethodNames(QStringView name, bool isSFX) {
+QStringList GetMethodNames(QStringView name) {
     const CFormatInfo &fi = GetFormatInfo(name);
     const bool is7z = name.compare(QLatin1StringView("7z"), Qt::CaseInsensitive) == 0;
     QStringList methods;
     for (unsigned m = 0; m < fi.NumMethods; m++) {
         const int methodID = fi.MethodIDs[m];
-        if (isSFX && !IsMethodSupportedBySfx(methodID))
-            continue;
         const char *method = kMethodsNames[methodID];
         if (is7z)
             if (methodID == kCopy || methodID == kDeflate || methodID == kDeflate64)
@@ -260,7 +248,6 @@ void CCompressDialog::SetMethod2(QComboBox &control, UInt32 level,
             defaultMethod = fo.Method.toStdWString().c_str();
         }
     }
-    const bool isSfx = IsSFX();
     bool weUseSameMethod = false;
     const bool is7z = ai.Is_7z();
     for (unsigned m = 0;; m++) {
@@ -281,9 +268,6 @@ void CCompressDialog::SetMethod2(QComboBox &control, UInt32 level,
             methodID = (int)(Z7_ARRAY_SIZE(kMethodsNames) + extIndex);
             method = ExternalMethods[extIndex].Ptr();
         }
-        if (isSfx)
-            if (!IsMethodSupportedBySfx(methodID))
-                continue;
         AString s(method);
         int writtenMethodId = methodID;
         if (m == 0) {

@@ -167,8 +167,6 @@ void DriveOperationDialogs() {
                     create->findChild<QLineEdit *>("archivePasswordConfirmation")
                         ->setText(password);
                 }
-                if (qEnvironmentVariableIsSet("SEVENZIP_OPERATION_SFX"))
-                    create->findChild<QCheckBox *>("archiveSfx")->setChecked(true);
                 const QString volume = qEnvironmentVariable("SEVENZIP_OPERATION_VOLUME");
                 if (!volume.isEmpty())
                     create->findChild<QComboBox *>("archiveVolumeSize")->setEditText(volume);

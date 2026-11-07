@@ -52,11 +52,6 @@ QtShellArchiveServices::QtShellArchiveServices(ArchiveBackend &backend, QWidget 
         _metadata.Formats = _catalog->nativeCodecs().Formats;
 }
 QtShellArchiveServices::~QtShellArchiveServices() = default;
-FString QtShellArchiveServices::GetSfxModulePath() const {
-    if (!_catalog || _catalog != _backend.codecCatalog())
-        return FString();
-    return us2fs(_catalog->sfxModule().path().toStdWString().c_str());
-}
 HRESULT QtShellArchiveServices::PresentCompressDialog(
     CCompressDialog &source, const CObjectVector<NWildcard::CCensorPath> &paths, QWidget *parent) {
     return _routes.Modal ? _routes.Modal(source, paths, parent) : E_NOTIMPL;
@@ -181,13 +176,13 @@ HRESULT QtShellArchiveServices::UpdateGUI(CCodecs &codecs, const CObjectVector<C
         *this, [&] {
             if (!_routes.OutputReady)
                 return;
-            if (options.VolumesSizes.IsEmpty() || options.SfxMode)
+            if (options.VolumesSizes.IsEmpty())
                 _routes.OutputReady(
                     QFileInfo(QString::fromWCharArray(options.ArchivePath.GetFinalPath()))
                         .absoluteFilePath(),
                     QtGUIOutputKind::Archive);
             if (!options.VolumesSizes.IsEmpty()) {
-                UString first = options.ArchivePath.GetFinalVolPath(options.SfxMode);
+                UString first = options.ArchivePath.GetFinalVolPath(false);
                 first += ".001";
                 _routes.OutputReady(QFileInfo(QString::fromWCharArray(first)).absoluteFilePath(),
                                     QtGUIOutputKind::Archive);

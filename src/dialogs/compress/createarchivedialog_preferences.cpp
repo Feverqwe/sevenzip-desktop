@@ -119,5 +119,4 @@ void CreateArchiveDialog::MethodChanged() {
             qobject_cast<QFormLayout *>(threads_->parentWidget()->parentWidget()->layout()))
         form->setRowVisible(threads_->parentWidget(), threads_->count() > 0);
     SetMemoryUsage();
-    updateSfxControls();
 }

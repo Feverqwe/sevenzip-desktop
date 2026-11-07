@@ -17,7 +17,6 @@ class IQtUpdateGUIServices {
         codecs.Get_CodecsInfoUser_Vector(userCodecs);
     }
     virtual QString CompressionSettingsPath() const { return {}; }
-    virtual FString GetSfxModulePath() const { return FString(); }
     virtual HRESULT UpdateArchive(CCodecs *codecs, const CObjectVector<COpenType> &types,
                                   const UString &path, NWildcard::CCensor &censor,
                                   CUpdateOptions &options, CUpdateErrorInfo &error,

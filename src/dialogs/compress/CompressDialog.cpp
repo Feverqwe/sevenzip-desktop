@@ -82,14 +82,6 @@ void CCompressDialog::SaveMetadataOptions(NCompression::CInfo &registry) {
     Set_Final_BoolPairs(AltStreams, Info.AltStreams, registry.AltStreams);
     Set_Final_BoolPairs(NtSecurity, Info.NtSecurity, registry.NtSecurity);
 }
-// Common/Update.cpp uses an empty SFX extension on Unix. The native console
-// module is an executable for that host; Windows retains GUI .exe naming.
-static const wchar_t *const kExeExt =
-#ifdef _WIN32
-    L".exe";
-#else
-    L"";
-#endif
 static const char *const k_Auto_Prefix = "*  ";
 
 static void Modify_Auto(AString &s) { s.Insert(0, k_Auto_Prefix); }
@@ -306,53 +298,45 @@ bool CCompressDialog::OnButtonSetArchive(QWidget *parent, const BrowseFileHandle
     UString path(qtPath.toStdWString().c_str());
     int filterIndex = -1;
     CObjectVector<CBrowseFilterInfo> filters;
-    unsigned numFormats = 0;
-    const bool isSFX = IsSFX();
-    if (isSFX) {
-        filterIndex = 0;
-        const UString ext("exe");
-        AddFilter(filters, ext, ext);
-    } else {
-        numFormats = ArcFormats ? ArcIndices.Size() : 0;
-        UString desc;
-        UStringVector masks;
-        CStringFinder finder;
-        for (unsigned i = 0; i < numFormats; i++) {
-            if (ArcIndices[i] == unsigned(Info.FormatIndex))
-                filterIndex = int(i);
-            const CArcInfoEx &ai = (*ArcFormats)[ArcIndices[i]];
-            CBrowseFilterInfo &f = filters.AddNew();
-            f.Description = ai.Name;
-            f.Description += " (";
-            bool needSpace_desc = false;
-            FOR_VECTOR(k, ai.Exts) {
-                const UString &ext = ai.Exts[k].Ext;
-                UString mask("*.");
-                mask += ext;
-                if (finder.FindWord_In_LowCaseAsciiList_NoCase(k_DontSave_Exts, ext))
-                    continue;
-                f.Masks.Add(mask);
-                masks.Add(mask);
-                if (needSpace_desc)
-                    f.Description.Add_Space();
-                needSpace_desc = true;
-                f.Description += ext;
-            }
-            f.Description += ")";
-            if (i != 0)
-                desc.Add_Space();
-            desc += ai.GetMainExt();
-        }
+    const unsigned numFormats = ArcFormats ? ArcIndices.Size() : 0;
+    UString desc;
+    UStringVector masks;
+    CStringFinder finder;
+    for (unsigned i = 0; i < numFormats; i++) {
+        if (ArcIndices[i] == unsigned(Info.FormatIndex))
+            filterIndex = int(i);
+        const CArcInfoEx &ai = (*ArcFormats)[ArcIndices[i]];
         CBrowseFilterInfo &f = filters.AddNew();
-        f.Description = LangString(IDT_COMPRESS_ARCHIVE);
-        if (f.Description.IsEmpty())
-            f.Description = "Archive:";
-        f.Description.RemoveChar(L'&');
+        f.Description = ai.Name;
         f.Description += " (";
-        f.Description += desc;
+        bool needSpace_desc = false;
+        FOR_VECTOR(k, ai.Exts) {
+            const UString &ext = ai.Exts[k].Ext;
+            UString mask("*.");
+            mask += ext;
+            if (finder.FindWord_In_LowCaseAsciiList_NoCase(k_DontSave_Exts, ext))
+                continue;
+            f.Masks.Add(mask);
+            masks.Add(mask);
+            if (needSpace_desc)
+                f.Description.Add_Space();
+            needSpace_desc = true;
+            f.Description += ext;
+        }
         f.Description += ")";
-        f.Masks = masks;
+        if (i != 0)
+            desc.Add_Space();
+        desc += ai.GetMainExt();
     }
+    CBrowseFilterInfo &f = filters.AddNew();
+    f.Description = LangString(IDT_COMPRESS_ARCHIVE);
+    if (f.Description.IsEmpty())
+        f.Description = "Archive:";
+    f.Description.RemoveChar(L'&');
+    f.Description += " (";
+    f.Description += desc;
+    f.Description += ")";
+    f.Masks = masks;
     AddFilter(filters, LangString(IDS_OPEN_TYPE_ALL_FILES), UString("*"));
     if (filterIndex < 0)
         filterIndex = int(filters.Size()) - 1;
@@ -366,12 +350,7 @@ bool CCompressDialog::OnButtonSetArchive(QWidget *parent, const BrowseFileHandle
     if (!(browse ? browse(bi, filters) : bi.BrowseForFile(filters)))
         return false;
     path = bi.FilePath;
-    if (isSFX) {
-        const int dotPos = GetExtDotPos(path);
-        if (dotPos >= 0)
-            path.DeleteFrom(unsigned(dotPos));
-        path += kExeExt;
-    } else if (unsigned(bi.FilterIndex) < numFormats) {
+    if (unsigned(bi.FilterIndex) < numFormats) {
         bool needAddExt = true;
         const CArcInfoEx &ai = (*ArcFormats)[ArcIndices[unsigned(bi.FilterIndex)]];
         const int dotPos = GetExtDotPos(path);
@@ -387,7 +366,7 @@ bool CCompressDialog::OnButtonSetArchive(QWidget *parent, const BrowseFileHandle
         }
     }
     SetArcPathFields(QString::fromWCharArray(path.Ptr()));
-    if (!isSFX && unsigned(bi.FilterIndex) < numFormats && bi.FilterIndex != filterIndex) {
+    if (unsigned(bi.FilterIndex) < numFormats && bi.FilterIndex != filterIndex) {
         Info.FormatIndex = int(ArcIndices[unsigned(bi.FilterIndex)]);
         Format = QString::fromWCharArray(Get_ArcInfoEx().Name.Ptr()).toLower();
         return true;
@@ -396,18 +375,13 @@ bool CCompressDialog::OnButtonSetArchive(QWidget *parent, const BrowseFileHandle
     return true;
 }
 
-void CCompressDialog::SetArchiveName2(bool prevWasSFX) {
+void CCompressDialog::SetArchiveName2() {
     UString fileName(m_ArchivePath.toStdWString().c_str());
     if (ArcFormats && m_PrevFormat >= 0) {
         const CArcInfoEx &prevArchiverInfo = (*ArcFormats)[unsigned(m_PrevFormat)];
         if (prevArchiverInfo.Flags_KeepName() || Info.KeepName) {
-            UString prevExtension;
-            if (prevWasSFX)
-                prevExtension = kExeExt;
-            else {
-                prevExtension.Add_Dot();
-                prevExtension += prevArchiverInfo.GetMainExt();
-            }
+            UString prevExtension(".");
+            prevExtension += prevArchiverInfo.GetMainExt();
             const unsigned prevExtensionLen = prevExtension.Len();
             if (fileName.Len() >= prevExtensionLen)
                 if (StringsAreEqualNoCase(fileName.RightPtr(prevExtensionLen), prevExtension))
@@ -429,25 +403,21 @@ void CCompressDialog::SetArchiveName(const QString &name) {
         if (dotPos >= 0)
             fileName.DeleteFrom(unsigned(dotPos));
     }
-    if (IsSFX())
-        fileName += kExeExt;
-    else {
-        fileName.Add_Dot();
-        UString ext = ai.GetMainExt();
-        // Legacy standalone callers have no catalog. The application supplies
-        // ArcFormats; this compatibility path is not native codec discovery.
-        if (!ArcFormats && ext.IsEmpty())
-            ext = Format.toStdWString().c_str();
-        if (ai.Flags_HashHandler()) {
-            UString estimatedName;
-            GetMethodSpec(estimatedName);
-            if (!estimatedName.IsEmpty()) {
-                ext = estimatedName;
-                ext.MakeLower_Ascii();
-            }
+    fileName.Add_Dot();
+    UString ext = ai.GetMainExt();
+    // Legacy standalone callers have no catalog. The application supplies
+    // ArcFormats; this compatibility path is not native codec discovery.
+    if (!ArcFormats && ext.IsEmpty())
+        ext = Format.toStdWString().c_str();
+    if (ai.Flags_HashHandler()) {
+        UString estimatedName;
+        GetMethodSpec(estimatedName);
+        if (!estimatedName.IsEmpty()) {
+            ext = estimatedName;
+            ext.MakeLower_Ascii();
         }
-        fileName += ext;
     }
+    fileName += ext;
     m_ArchivePath = QString::fromWCharArray(fileName.Ptr());
 }
 
@@ -557,38 +527,6 @@ void CCompressDialog::OnOK(NCompression::CInfo &registry) const {
         AddUniqueString(arcPaths, registry.ArcPaths[i]);
     }
     registry.ArcPaths = arcPaths;
-}
-
-bool CCompressDialog::CheckSFXControlsEnable() {
-    const NCompressDialog::CFormatInfo &fi = NCompressDialog::GetFormatInfo(Format);
-    bool enable = fi.SFX_();
-    if (enable) {
-        const int methodID = MethodID;
-        enable = (methodID == -1 || NCompressDialog::IsMethodSupportedBySfx(methodID));
-    }
-    if (!enable)
-        Info.SFXMode = false;
-    return enable;
-}
-
-void CCompressDialog::OnButtonSFX() {
-    UString fileName(m_ArchivePath.toStdWString().c_str());
-    const int dotPos = GetExtDotPos(fileName);
-    if (IsSFX()) {
-        if (dotPos >= 0)
-            fileName.DeleteFrom(unsigned(dotPos));
-        fileName += kExeExt;
-        m_ArchivePath = QString::fromWCharArray(fileName.Ptr());
-    } else {
-        if (dotPos >= 0) {
-            const UString ext = fileName.Ptr(unsigned(dotPos));
-            if (ext.IsEqualTo_NoCase(kExeExt)) {
-                fileName.DeleteFrom(unsigned(dotPos));
-                m_ArchivePath = QString::fromWCharArray(fileName.Ptr());
-            }
-        }
-        SetArchiveName2(false);
-    }
 }
 
 namespace NCompressDialog {

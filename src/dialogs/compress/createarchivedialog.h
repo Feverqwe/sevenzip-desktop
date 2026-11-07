@@ -1,7 +1,6 @@
 #pragma once
 
 #include "archive/backend/archivebackend.h"
-#include "archive/sfx/archivesfxmodule.h"
 #include "dialogs/compress/CompressDialog.h"
 
 #include <QCheckBox>
@@ -67,8 +66,6 @@ class CreateArchiveDialog : public QDialog {
     void createVolumeOptions(QFormLayout *form);
     void createCommandLineOptions(QFormLayout *form);
     void createLifecycleOptions(QFormLayout *form);
-    void updateSfxControls();
-    void toggleSfx(bool enabled);
     void configureMetadataSource(CCompressDialog &source) const;
     void applyMetadataSource(CCompressDialog &source, const CCompressDialog &initial,
                              const NCompression::CFormatOptions &profile);
@@ -133,8 +130,6 @@ class CreateArchiveDialog : public QDialog {
     QtDisclosure *filesSection_ = nullptr;
     QtDisclosure *parametersSection_ = nullptr;
     QCheckBox *sharedFiles_ = nullptr;
-    QCheckBox *sfx_ = nullptr;
-    ArchiveSfxModule sfxModule_;
     QComboBox *encryption_ = nullptr;
     QComboBox *level_ = nullptr;
     QComboBox *method_ = nullptr;

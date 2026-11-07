@@ -45,8 +45,6 @@
     endif()
     add_test(NAME source_archive_browse COMMAND source_archive_browse_tests -silent)
     set_tests_properties(source_archive_browse PROPERTIES TIMEOUT 30 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
-    qt_add_executable(sfx_options_tests tests/ui/sfx_options_tests.cpp)
-    target_link_libraries(sfx_options_tests PRIVATE sevenzip_compression_ui sevenzip_location)
     add_library(external_codec_fixture MODULE tests/archive/support/external_codec_fixture.cpp
         ${SEVENZIP_7ZIP_SOURCE_DIR}/CPP/7zip/Compress/CodecExports.cpp
         ${SEVENZIP_7ZIP_SOURCE_DIR}/CPP/7zip/Compress/DllExportsCompress.cpp
@@ -98,9 +96,6 @@
     add_dependencies(external_codec_tests external_codec_fixture incompatible_codec_fixture external_format_fixture)
     add_test(NAME external_codecs COMMAND external_codec_tests -silent)
     set_tests_properties(external_codecs PROPERTIES TIMEOUT 60 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
-    target_include_directories(sfx_options_tests PRIVATE src)
-    target_link_libraries(sfx_options_tests PRIVATE sevenzip_panel Qt6::Test)
-    add_test(NAME sfx_options COMMAND sfx_options_tests -silent)
     qt_add_executable(sfx_creation_tests tests/archive/sfx_creation_tests.cpp)
     target_link_libraries(sfx_creation_tests PRIVATE sevenzip_compression_ui sevenzip_layout_inspection sevenzip_location)
     set(sevenzip_sfx_fixture_name "7zCon.sfx")
@@ -108,7 +103,7 @@
         set(sevenzip_sfx_fixture_name "7z.sfx")
     endif()
     target_include_directories(sfx_creation_tests PRIVATE src tests)
-    target_link_libraries(sfx_creation_tests PRIVATE sevenzip_panel sevenzip_widget_dialog_fixtures Qt6::Test)
+    target_link_libraries(sfx_creation_tests PRIVATE sevenzip_panel Qt6::Test)
     target_compile_definitions(sfx_creation_tests PRIVATE
         "SEVENZIP_SFX_FIXTURE=\"${SEVENZIP_SFX_RUNTIME_DIR}/${sevenzip_sfx_fixture_name}\"")
     if(SEVENZIP_CODEC_MODULE)
@@ -116,18 +111,6 @@
             "SEVENZIP_CODEC_MODULE=\"${SEVENZIP_CODEC_MODULE}\"")
     endif()
     add_test(NAME sfx_creation COMMAND sfx_creation_tests -silent)
-    qt_add_executable(sfx_lifecycle_tests tests/archive/sfx_lifecycle_tests.cpp)
-    target_link_libraries(sfx_lifecycle_tests PRIVATE sevenzip_compression_ui sevenzip_location)
-    target_include_directories(sfx_lifecycle_tests PRIVATE src)
-    target_link_libraries(sfx_lifecycle_tests PRIVATE sevenzip_panel Qt6::Test)
-    target_compile_definitions(sfx_lifecycle_tests PRIVATE
-        "SEVENZIP_SFX_FIXTURE=\"${SEVENZIP_SFX_RUNTIME_DIR}/${sevenzip_sfx_fixture_name}\"")
-    if(SEVENZIP_CODEC_MODULE)
-        target_compile_definitions(sfx_lifecycle_tests PRIVATE
-            "SEVENZIP_CODEC_MODULE=\"${SEVENZIP_CODEC_MODULE}\"")
-    endif()
-    add_test(NAME sfx_lifecycle COMMAND sfx_lifecycle_tests -silent)
-    set_tests_properties(sfx_lifecycle PROPERTIES TIMEOUT 60 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
     set_tests_properties(sfx_creation PROPERTIES TIMEOUT 60 ENVIRONMENT
         "QT_QPA_PLATFORM=offscreen;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
     target_include_directories(compression_path_tests PRIVATE src tests)

@@ -37,7 +37,7 @@ while retaining pending overrides. Fields with no applicable source
 choices are hidden. Apply changes only the parent draft: it neither creates an
 archive nor writes settings. Cancel, Escape and closing the editor restore the
 prior choices, including Auto versus explicit values, raw parameter text and any
-name affected by SFX changes and pending inline metadata. Only confirmation of
+archive name and pending inline metadata. Only confirmation of
 the main form publishes its request and settings. Invalid properties or memory limits lead to
 their actual editor fields instead of leaving an error behind hidden controls.
 
@@ -45,7 +45,7 @@ The compact form keeps a separate scrollbar gutter and a visible native footer.
 Short settings use aligned label/field rows and wrap when needed; long parameter
 input keeps its label above it. Fields may reflow after a language/value change;
 fixed column rectangles are no longer a contract. Unsupported Windows shared-file
-controls are hidden on POSIX. Validation, saved format profiles, SFX transitions
+controls are hidden on POSIX. Validation, saved format profiles
 and official-engine operations retain their source owners.
 The primary action is named Create archive, with live localization. Evidence:
 [redesign audit](../upstream-port-audit/ui-redesign.md).
@@ -85,25 +85,6 @@ enlarge the requested normal or compact size for WIM as well as TAR. Supported
 metadata controls, translated time captions and the footer must remain fully
 exposed without clipping. Format support, precision choices and timestamp
 transitions remain owned by the source rather than a second UI capability table.
-
-### SFX Options group (P2-02)
-
-Reference: pinned `GUI/CompressDialog.rc` Options control order SFX→Shared→Delete,
-followed by Encryption, and original CompressDialog naming/method decisions.
-The Add form retains its two columns and common scrolling content. New archive
-SFX is enabled only with a compatible native module, 7z format and source-supported
-method. Changing to ZIP clears SFX; toggling restores the source archive extension.
-Module absence and existing-target update disable SFX with a reason.
-
-`sfx_creation` writes `sfx-options---760/640` and `sfx-options-ru-760/640` JSON,
-checks exposed controls/order and checkbox size hints at760×720/640×480, and
-checks source name/format/method transitions. Reports reviewed2026-10-03 on
-macOS, Linux and Windows:
-all Options captions fit; Encryption below it uses the existing compact scroll.
-Windows show/layout events settle before ensuring scroll visibility. Its EN
-checkbox widths385 and RU421 meet all size hints; exposedBounds equal bounds
-at normal/compact sizes. This is resource structure/usability evidence;
-rendered 7zFM pixel parity remains unverified. P2-02 acceptance is in the audit.
 
 The [current About contract](external-tools.md#about) covers the product identity
 and build information.
@@ -206,18 +187,12 @@ existing advanced-option probes cover the complete group order and footer.
 
 ### Compression lifecycle and memory rejection (P1-07.2)
 
-Reference: pinned CompressDialog.rc right Options group (Shared then Delete,
-before Encryption), CompressDialog.cpp OnOK action/memory checks and
-CompressOptionsDialog.rc archive-time/preserve controls. Qt keeps the right group
-for existing Add even when encryption fields are omitted. Shared writing is
-disabled with a Windows-only reason on POSIX. Delete starts unchecked, is enabled
-in Add, and disabled with a reason in Update/Freshen/Synchronize. A checked value
-survives switching modes in the open form but is excluded from disabled effective
-requests and never persisted. SFX remains owned by P2-02.
+Graphical compression leaves source files in place. Supported self-extracting
+archives can still be opened and extracted. The expert editor offers shared
+writing on Windows.
 
-`compression_advanced` writes archive-lifecycle-760/640.json at 760×720/640×480:
-group and both checkbox texts fully fit, Shared precedes Delete, footer remains
-exposed. Compact form uses scrolling; controls outside the viewport are reachable.
+`compression_advanced` checks the expert form at 760×720 and 640×480.
+The compact form scrolls while keeping its footer reachable.
 `compression_limit` writes memory-limit-760/640.json after exposing the native
 memory combo. Both sizes fully expose it. A memory rejection leaves Add open for
 retry, while Cancel leaves INI unchanged. Reports verify macOS Qt usability and

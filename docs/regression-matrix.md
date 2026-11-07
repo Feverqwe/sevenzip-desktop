@@ -75,7 +75,7 @@ belong in [the audit](upstream-port-audit.md).
 | ZIP item comment | ArchiveFolder/Zip writer; retained native writer callback | `native_comment`, `native_comment_ui`, `native_zip_writer` |
 | real decoder RAM request | RAR handler/OpenCallback/ExtractCallback; backend callback bridge | `native_rar_memory`, `native_rar_ui`, `open_callback` |
 | formats/capabilities/KeepName | LoadCodecs/OpenArchive/Agent; immutable provider leases | `codec_catalog`, `codec_capabilities`, `codec_commands_ui`, `native_open_commands` |
-| SFX/external modules | WriteSfxModule/LoadCodecs; official module identity/publication | `sfx_creation`, `sfx_lifecycle`, `external_codecs`, `codec_probe` |
+| SFX/external modules | WriteSfxModule/LoadCodecs; official module identity/publication | `sfx_creation`, `external_codecs`, `codec_probe` |
 | CRC/Hash/Test | HashCalc/HashGUI/ExtractGUI; native providers and results view | `native_hash_workflow`, `native_hash_ui`, `hash_results`, `shell_archive_services` |
 | Benchmark | Bench/BenchmarkDialog; Qt controls and worker lifetime | `native_benchmark`, `benchmark_command`, `benchmark_lifecycle` |
 | links/junctions/metadata | FileIO/FileDir/Reparse/LinkDialog; native platform bridge | `filesystem_link`, `link_command`, `source_link_storage`, `source_metadata_storage` |

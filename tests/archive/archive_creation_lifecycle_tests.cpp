@@ -187,7 +187,9 @@ class ArchiveCreationLifecycleTests final : public QObject {
         if (volumes)
             options.VolumeSizes.Add(2048);
         ArchiveBackend backend;
-        QCOMPARE(SourceCreationFixture::Create(backend, archive, {root}, {}, false, options), S_OK);
+        QCOMPARE(SourceCreationFixture::Create(backend, archive, {root}, {}, false, options, false,
+                                               SourceCreationFixture::OptionsOwner::Native),
+                 S_OK);
         QVERIFY(!QFileInfo::exists(root));
         const QString result = volumes ? archive + ".001" : archive;
         QVERIFY(QFileInfo::exists(result));
@@ -208,7 +210,8 @@ class ArchiveCreationLifecycleTests final : public QObject {
         CompressionOptions options;
         options.DeleteAfterCompressing = true;
         const QString archive = fixture.filePath("result.7z");
-        QCOMPARE(SourceCreationFixture::Create(backend, archive, {a, b}, {}, false, options, true),
+        QCOMPARE(SourceCreationFixture::Create(backend, archive, {a, b}, {}, false, options, true,
+                                               SourceCreationFixture::OptionsOwner::Native),
                  E_ABORT);
         QCOMPARE(readFile(a), QByteArray("a"));
         QCOMPARE(readFile(b), QByteArray("b"));

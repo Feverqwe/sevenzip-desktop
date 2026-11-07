@@ -26,9 +26,12 @@ class Input final : public IQtUpdateGUIServices {
         return E_NOTIMPL;
     }
 };
+enum class OptionsOwner { Graphical, Native };
+
 inline HRESULT Create(ArchiveBackend &backend, const QString &target, const QStringList &sources,
                       const QString &password = {}, bool encryptHeaders = false,
-                      const CompressionOptions &info = {}, bool cancelled = false) {
+                      const CompressionOptions &info = {}, bool cancelled = false,
+                      OptionsOwner owner = OptionsOwner::Graphical) {
     if (!backend.codecCatalog()) {
         const HRESULT attached = NativeArchiveFixture::Attach(backend);
         if (attached != S_OK)
@@ -65,6 +68,18 @@ inline HRESULT Create(ArchiveBackend &backend, const QString &target, const QStr
     RINOK(ShowDialog(const_cast<CCodecs *>(&catalog->nativeCodecs()), censor.CensorPaths, options,
                      &callback, nullptr, input))
     options.MethodMode.Properties = properties;
+    if (owner == OptionsOwner::Native) {
+        options.DeleteAfterCompressing = info.DeleteAfterCompressing;
+        options.SfxMode = info.SFXMode;
+        if (options.SfxMode) {
+#ifdef _WIN32
+            options.ArchivePath.BaseExtension = "exe";
+#else
+            options.ArchivePath.BaseExtension.Empty();
+#endif
+            options.ArchivePath.ParseFromPath(input.Info.ArcPath, k_ArcNameMode_Smart);
+        }
+    }
     options.ArcNameMode = options.SfxMode ? k_ArcNameMode_Smart : k_ArcNameMode_Exact;
     if (options.SfxMode) {
         const auto module = backend.sfxModule(info.SfxModule);

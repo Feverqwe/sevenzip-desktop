@@ -14,10 +14,7 @@
 #include "gui/qtupdateguiservices.h"
 #include "gui/resource2.h"
 #include "localization/LangUtils.h"
-#include "platform/loader/DLL.h"
 #include "ui/diagnostics/qtdiagnostictext.h"
-
-static const char *const kDefaultSfxModule = "7z.sfx";
 
 class CThreadUpdating : public CProgressThreadVirt {
     HRESULT ProcessVirt() Z7_override;
@@ -52,19 +49,12 @@ HRESULT UpdateGUI(CCodecs *codecs, const CObjectVector<COpenType> &formatIndices
                   const std::function<void()> &outputReady) {
     messageWasDisplayed = false;
     options.DeleteAfterCompressing = false;
+    options.SfxMode = false;
+    options.SfxModule.Empty();
     bool needSetPath = true;
     if (showDialog) {
         RINOK(ShowDialog(codecs, censor.CensorPaths, options, callback, hwndParent, services))
         needSetPath = false;
-    }
-    if (options.SfxMode && options.SfxModule.IsEmpty()) {
-        // The retained runtime supplies its validated platform-specific asset.
-        // Keep the source adjacent-module fallback for other service callers.
-        options.SfxModule = services.GetSfxModulePath();
-        if (options.SfxModule.IsEmpty()) {
-            options.SfxModule = NWindows::NDLL::GetModuleDirPrefix();
-            options.SfxModule += kDefaultSfxModule;
-        }
     }
     CThreadUpdating tu;
     tu.needSetPath = needSetPath;
@@ -400,7 +390,6 @@ HRESULT ShowDialog(CCodecs *codecs, const CObjectVector<NWildcard::CCensorPath> 
     }
     di.ArcPath = options.ArchivePath.GetPathWithoutExt();
     di.PathMode = options.PathMode;
-    di.SFXMode = options.SfxMode;
     di.OpenShareForWrite = options.OpenShareForWrite;
     di.SymLinks = options.SymLinks;
     di.HardLinks = options.HardLinks;
@@ -422,6 +411,8 @@ HRESULT ShowDialog(CCodecs *codecs, const CObjectVector<NWildcard::CCensorPath> 
     ParseProperties(options.MethodMode.Properties, di);
     RINOK(services.PresentCompressDialog(dialog, censor, hwndParent))
     options.DeleteAfterCompressing = false;
+    options.SfxMode = false;
+    options.SfxModule.Empty();
     options.SymLinks = di.SymLinks;
     options.HardLinks = di.HardLinks;
     options.AltStreams = di.AltStreams;
@@ -444,20 +435,11 @@ HRESULT ShowDialog(CCodecs *codecs, const CObjectVector<NWildcard::CCensorPath> 
     options.MethodMode.Properties =
         NCompressDialog::GetCompressionProperties(di, archiverInfo.Is_7z());
     options.OpenShareForWrite = di.OpenShareForWrite;
-    if (di.SFXMode)
-        options.SfxMode = true;
     options.MethodMode.Type = COpenType();
     options.MethodMode.Type_Defined = true;
     options.MethodMode.Type.FormatIndex = di.FormatIndex;
     options.ArchivePath.VolExtension = archiverInfo.GetMainExt();
-    if (di.SFXMode)
-#ifdef _WIN32
-        options.ArchivePath.BaseExtension = "exe";
-#else
-        options.ArchivePath.BaseExtension.Empty();
-#endif
-    else
-        options.ArchivePath.BaseExtension = options.ArchivePath.VolExtension;
+    options.ArchivePath.BaseExtension = options.ArchivePath.VolExtension;
     options.ArchivePath.ParseFromPath(di.ArcPath, k_ArcNameMode_Smart);
     options.WorkingDir =
         NCompressDialog::GetCompressionWorkingDir(di.ArcPath, services.CompressionSettingsPath());

@@ -38,7 +38,6 @@ class QtShellArchiveServices final : public IQtCompressCallServices, public IQtU
     QtShellArchiveServices(ArchiveBackend &backend, QWidget *parent, Routes routes,
                            QString settingsPath = {});
     QString CompressionSettingsPath() const override { return _settingsPath; }
-    FString GetSfxModulePath() const override;
     HRESULT PresentCompressDialog(CCompressDialog &source,
                                   const CObjectVector<NWildcard::CCensorPath> &paths,
                                   QWidget *parent) override;
