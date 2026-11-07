@@ -279,9 +279,10 @@ close requests out of an active question. Read-only mount managers belong to
 the same tab runtime and move with it; disconnect-before-close resumes the
 requested tab rather than closing its neighbouring contexts.
 
-Sessions retain directory locations, tab order, view preferences and window
-placement according to the native saved-location rule above. A failed directory
-reopen keeps the requested location visibly failed. Live history, duplication
+Sessions retain one directory location per panel, view preferences and window
+placement. Importing an earlier session uses the active saved location for each
+panel. A failed directory reopen keeps the requested location visibly failed.
+Live history, duplication
 and transfer retain typed archive descriptors for the physical archive, native
 nested links and final folder. Their navigation uses the native internal opener;
 workspace persistence excludes those archive chains, temporary materialization

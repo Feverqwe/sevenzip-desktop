@@ -5,31 +5,44 @@
 #include <QJsonArray>
 #include <QScopedValueRollback>
 
+namespace {
+QJsonObject SavedLocation(const QJsonObject &panel) {
+    if (!panel.contains("tabs"))
+        return panel;
+    const auto tabs = panel.value("tabs").toArray();
+    if (tabs.isEmpty())
+        return {};
+    const int active = qBound(0, panel.value("active").toInt(), int(tabs.size()) - 1);
+    return tabs.at(active).toObject();
+}
+} // namespace
+
 QJsonObject QtWindowWorkspace::Save() {
     QJsonArray panels;
     for (unsigned index = 0; index < 2; ++index) {
         Capture(index, false);
-        QJsonArray tabs;
-        for (const auto &tab : panels_[index].tabs) {
-            const QString path =
-                tab.unavailable ? (tab.archiveLocation.physicalPath.isEmpty()
-                                       ? tab.path
-                                       : QFileInfo(tab.archiveLocation.physicalPath).absolutePath())
-                : tab.runtime   ? ToQString(tab.runtime->source->GetResumeFolderPath())
-                : tab.resumePath ? *tab.resumePath
-                : !tab.archiveLocation.physicalPath.isEmpty()
-                    ? QFileInfo(tab.archiveLocation.physicalPath).absolutePath()
-                    : tab.path;
-            tabs.append(QJsonObject{{"id", tab.id},
-                                    {"path", path},
-                                    {"nativePlace", tab.archiveLocation.physicalPath.isEmpty()
-                                                        ? tab.nativePlaceIdentity
-                                                        : QString()},
-                                    {"view", tab.viewMode},
-                                    {"sort", int(tab.sort)},
-                                    {"ascending", tab.ascending}});
+        const auto &panel = panels_[index];
+        if (panel.tabs.empty()) {
+            panels.append(QJsonObject{});
+            continue;
         }
-        panels.append(QJsonObject{{"tabs", tabs}, {"active", panels_[index].current}});
+        const auto &tab = panel.tabs[panel.current];
+        const QString path =
+            tab.unavailable  ? (tab.archiveLocation.physicalPath.isEmpty()
+                                    ? tab.path
+                                    : QFileInfo(tab.archiveLocation.physicalPath).absolutePath())
+            : tab.runtime    ? ToQString(tab.runtime->source->GetResumeFolderPath())
+            : tab.resumePath ? *tab.resumePath
+            : !tab.archiveLocation.physicalPath.isEmpty()
+                ? QFileInfo(tab.archiveLocation.physicalPath).absolutePath()
+                : tab.path;
+        panels.append(QJsonObject{{"path", path},
+                                  {"nativePlace", tab.archiveLocation.physicalPath.isEmpty()
+                                                      ? tab.nativePlaceIdentity
+                                                      : QString()},
+                                  {"view", tab.viewMode},
+                                  {"sort", int(tab.sort)},
+                                  {"ascending", tab.ascending}});
     }
     QJsonArray split;
     for (const int size : window_.panelSplitter_->sizes())
@@ -71,8 +84,8 @@ void QtWindowWorkspace::WhenReady(std::function<void()> body, std::function<void
 void QtWindowWorkspace::RestorePanel(unsigned panel, const QJsonObject &saved,
                                      std::function<void()> finished,
                                      std::function<void()> canceled) {
-    const auto tabs = saved.value("tabs").toArray();
-    if (!panels_[panel].bar || tabs.isEmpty()) {
+    const auto object = SavedLocation(saved);
+    if (!panels_[panel].bar || object.isEmpty()) {
         finished();
         return;
     }
@@ -84,30 +97,27 @@ void QtWindowWorkspace::RestorePanel(unsigned panel, const QJsonObject &saved,
         // Releasing retained lists emits selection signals. Do not publish
         // workspace state while its previous tabs are being replaced.
         state.tabs.clear();
-        for (const auto &value : tabs) {
-            const auto object = value.toObject();
-            Tab tab;
-            tab.id = object.value("id").toString(QUuid::createUuid().toString());
-            tab.path = object.value("path").toString();
-            tab.nativePlaceIdentity = object.value("nativePlace").toString();
-            // Earlier workspace settings persisted open archive chains. Resume
-            // the containing directory, just like CApp's single-window Save.
-            const auto archive = object.value("archiveLocation").toObject();
-            const QString physical = archive.value("physical").toString();
-            if (!physical.isEmpty()) {
-                tab.path = QFileInfo(physical).absolutePath();
-                tab.nativePlaceIdentity.clear();
-            } else if (QFileInfo(tab.path).isFile()) {
-                tab.path = QFileInfo(tab.path).absolutePath();
-                tab.nativePlaceIdentity.clear();
-            }
-            tab.resumePath = tab.path;
-            tab.viewMode = qBound(0, object.value("view").toInt(3), 3);
-            tab.sort = object.value("sort").toInt();
-            tab.ascending = object.value("ascending").toBool(true);
-            state.tabs.push_back(std::move(tab));
+        Tab tab;
+        tab.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+        tab.path = object.value("path").toString();
+        tab.nativePlaceIdentity = object.value("nativePlace").toString();
+        // Earlier workspace settings persisted open archive chains. Resume
+        // the containing directory, just like CApp's single-window Save.
+        const auto archive = object.value("archiveLocation").toObject();
+        const QString physical = archive.value("physical").toString();
+        if (!physical.isEmpty()) {
+            tab.path = QFileInfo(physical).absolutePath();
+            tab.nativePlaceIdentity.clear();
+        } else if (QFileInfo(tab.path).isFile()) {
+            tab.path = QFileInfo(tab.path).absolutePath();
+            tab.nativePlaceIdentity.clear();
         }
-        state.current = qBound(0, saved.value("active").toInt(), int(state.tabs.size()) - 1);
+        tab.resumePath = tab.path;
+        tab.viewMode = qBound(0, object.value("view").toInt(3), 3);
+        tab.sort = object.value("sort").toInt();
+        tab.ascending = object.value("ascending").toBool(true);
+        state.tabs.push_back(std::move(tab));
+        state.current = 0;
         Rebuild(panel);
     }
     Activate(panel, state.current);
@@ -117,8 +127,7 @@ void QtWindowWorkspace::RestorePanel(unsigned panel, const QJsonObject &saved,
 void QtWindowWorkspace::Restore(const QJsonObject &value, std::function<void()> finished,
                                 std::function<void()> canceled) {
     const auto panels = value.value("panels").toArray();
-    const bool hasSecond =
-        panels.size() > 1 && !panels[1].toObject().value("tabs").toArray().isEmpty();
+    const bool hasSecond = panels.size() > 1 && !SavedLocation(panels[1].toObject()).isEmpty();
     if ((hasSecond || value.value("count").toInt(1) == 2) && window_.app_.NumPanels == 1)
         window_.togglePanels();
     WhenReady(

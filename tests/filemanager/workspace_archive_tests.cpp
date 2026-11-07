@@ -4,6 +4,7 @@
 #include "platform/support/external_editor_fixture.h"
 #include "support/widget_dialogs.h"
 #include "support/window_activation.h"
+#include "ui/formatting/qtregionalformat.h"
 #include "ui/support/layout_inspection.h"
 #include <QClipboard>
 #include <QEventLoop>
@@ -90,14 +91,11 @@ class WorkspaceArchiveTests final : public QObject, protected MainWindowTestSupp
         auto saved = workspace(window)->Save();
         if (legacy) {
             auto panels = saved.value("panels").toArray();
-            auto panel = panels[0].toObject();
-            auto tabs = panel.value("tabs").toArray();
-            auto tab = tabs[0].toObject();
+            auto tab = panels[0].toObject();
             tab.insert("path", ToQString(active(window)->sourcePanel->GetCurrentFolderPrefix()));
             tab.insert("archiveLocation", QJsonObject{{"physical", outer}});
-            tabs[0] = tab;
-            panel.insert("tabs", tabs);
-            panels[0] = panel;
+            panels[0] = QJsonObject{
+                {"tabs", QJsonArray{QJsonObject{{"path", QDir::homePath()}}, tab}}, {"active", 1}};
             saved.insert("panels", panels);
         }
         workspace(window)->NewTab(0, fixture.path());
@@ -399,7 +397,7 @@ class WorkspaceArchiveTests final : public QObject, protected MainWindowTestSupp
         QCOMPARE(contents(archive, name), modified);
         tabs->setCurrentIndex(0);
         QTRY_COMPARE(active()->model()->index(0, 2).data().toString(),
-                     QString::number(modified.size()));
+                     QtRegionalFormat::bytes(quint64(modified.size())));
     }
 };
 

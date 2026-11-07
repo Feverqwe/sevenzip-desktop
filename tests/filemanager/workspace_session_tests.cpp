@@ -139,19 +139,19 @@ class WorkspaceSessionTests final : public QObject {
     }
     void nativeRootSessionSurvivesLanguageChange_data() {
         QTest::addColumn<QString>("identity");
-        QTest::addColumn<bool>("cold");
+        QTest::addColumn<bool>("legacy");
         QStringList roots{QString("computer"), QString("locations")};
 #ifndef Q_OS_WIN
         roots.append(QStringLiteral("network"));
 #endif
         for (const auto &identity : roots) {
-            QTest::newRow(qPrintable(identity + "-active")) << identity << false;
-            QTest::newRow(qPrintable(identity + "-cold")) << identity << true;
+            QTest::newRow(qPrintable(identity + "-current")) << identity << false;
+            QTest::newRow(qPrintable(identity + "-legacy")) << identity << true;
         }
     }
     void nativeRootSessionSurvivesLanguageChange() {
         QFETCH(QString, identity);
-        QFETCH(bool, cold);
+        QFETCH(bool, legacy);
         const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         SaveRegLang(L"-", settings);
         ReloadLang(settings);
@@ -176,11 +176,14 @@ class WorkspaceSessionTests final : public QObject {
         }
         QTRY_VERIFY(active(window));
         QCOMPARE(QtNativePlaces::RootIdentity(*active(window)->sourcePanel), identity);
-        if (cold) {
-            workspace(window)->NewTab(0, fixture.path());
-            QTRY_COMPARE(location(window), fixture.path());
+        auto saved = workspace(window)->Save();
+        if (legacy) {
+            auto panels = saved.value("panels").toArray();
+            panels[0] = QJsonObject{
+                {"tabs", QJsonArray{QJsonObject{{"path", fixture.path()}}, panels.at(0)}},
+                {"active", 1}};
+            saved.insert("panels", panels);
         }
-        const auto saved = workspace(window)->Save();
         window.openPath(fixture.path());
         QTRY_COMPARE(location(window), fixture.path());
         SaveRegLang(L"ru", settings);
@@ -188,10 +191,6 @@ class WorkspaceSessionTests final : public QObject {
         bool restored = false;
         workspace(window)->Restore(saved, [&] { restored = true; });
         QTRY_VERIFY(restored);
-        if (cold) {
-            auto *tabs = window.findChild<QTabBar *>("panelTabs0");
-            tabs->setCurrentIndex(0);
-        }
         QTRY_COMPARE(QtNativePlaces::RootIdentity(*active(window)->sourcePanel), identity);
         QVERIFY(!window.findChild<QAction *>("createFolderAction")->isEnabled());
     }
@@ -249,15 +248,12 @@ class WorkspaceSessionTests final : public QObject {
                 .value("panels")
                 .toArray()[0]
                 .toObject()
-                .value("tabs")
-                .toArray()[0]
-                .toObject()
                 .value("path")
                 .toString();
         };
         QTRY_COMPARE(QDir::cleanPath(persistedPath()), peerPath);
     }
-    void sessionRestoresWindowOrderAndIndependentTabs() {
+    void sessionRestoresCurrentLocationOfEachWindow() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString a = fixture.filePath("A folder");
@@ -292,15 +288,14 @@ class WorkspaceSessionTests final : public QObject {
             QTRY_COMPARE_WITH_TIMEOUT(windows().size(), 2, 10000);
             QTRY_COMPARE_WITH_TIMEOUT(location(first), b, 10000);
             auto *tabs = first.findChild<QTabBar *>("panelTabs0");
-            QTRY_COMPARE(tabs->count(), 2);
-            QCOMPARE(tabs->currentIndex(), 1);
+            QTRY_COMPARE(tabs->count(), 1);
             MainWindow *second = nullptr;
             for (auto *window : windows())
                 if (window != &first)
                     second = window;
             QVERIFY(second);
             QTRY_COMPARE_WITH_TIMEOUT(location(*second), c, 10000);
-            tabs->setCurrentIndex(0);
+            first.openPath(a);
             QTRY_COMPARE(location(first), a);
             QCOMPARE(location(*second), c);
             application.Quit();

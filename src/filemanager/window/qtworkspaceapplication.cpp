@@ -128,10 +128,7 @@ MainWindow *QtWorkspaceApplication::NewWindow(const QString &path, const QJsonOb
     window->setAttribute(Qt::WA_DeleteOnClose);
     const QJsonObject state =
         session.isEmpty()
-            ? QJsonObject{{"panels",
-                           QJsonArray{QJsonObject{
-                               {"tabs", QJsonArray{QJsonObject{{"path", path}, {"view", 3}}}},
-                               {"active", 0}}}},
+            ? QJsonObject{{"panels", QJsonArray{QJsonObject{{"path", path}, {"view", 3}}}},
                           {"count", 1}}
             : session;
     if (window->backend_->codecCatalog())
