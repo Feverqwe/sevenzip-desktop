@@ -95,69 +95,86 @@ void QtFileManagerCommands::CalculateCrc(const char *method) {
     window_.calculateHash(QString::fromLatin1(method));
 }
 void QtFileManagerCommands::Properties() { window_.showSelectedProperties(); }
+void QtFileManagerCommands::DiscardStaleFolderDraft(unsigned index) {
+    const auto draft = folderDrafts_.find(index);
+    if (draft == folderDrafts_.end())
+        return;
+    const auto &panel = window_.app_.Panels[index];
+    const auto editor = draft->editor;
+    if (editor && panel.GetFolder() == draft->folder.Interface() &&
+        panel.GetCurrentFolderPrefix() == draft->prefix)
+        return;
+    folderDrafts_.erase(draft);
+    if (editor) {
+        editor->hide();
+        editor->deleteLater();
+    }
+}
+
 void QtFileManagerCommands::CreateFolder() {
     const unsigned index = window_.app_.GetFocusedPanelIndex();
+    DiscardStaleFolderDraft(index);
+    if (auto *editor = folderDrafts_.value(index).editor.data()) {
+        editor->NameField()->setFocus();
+        return;
+    }
     auto &panel = window_.app_.Panels[index];
     auto *view = window_.panelUi_[index].viewStack;
     auto *parent = view->parentWidget();
-    if (auto *name = parent->findChild<QLineEdit *>("inlineFolderName");
-        name && name->isVisible()) {
-        name->setFocus();
-        return;
-    }
 
     auto *editor = new QtInlineFolderName(parent);
     auto *name = editor->NameField();
     auto *layout = static_cast<QVBoxLayout *>(parent->layout());
     layout->insertWidget(layout->indexOf(view), editor);
-    const auto finish = [view, editor] {
+    const UString prefix = panel.GetCurrentFolderPrefix();
+    folderDrafts_.insert(index, FolderDraft{editor, panel.GetFolder(), prefix});
+    const auto finish = [this, index, view, editor] {
+        folderDrafts_.remove(index);
         editor->hide();
         editor->deleteLater();
         view->currentWidget()->setFocus();
     };
 
     editor->OnCancel(finish);
-    const CMyComPtr<IFolderFolder> source = panel.GetFolder();
-    const UString prefix = panel.GetCurrentFolderPrefix();
-    QObject::connect(
-        name, &QLineEdit::returnPressed, editor,
-        [this, index, source, prefix, name, editor, finish] {
-            auto &panel = window_.app_.Panels[index];
-            if (!window_.app_.IsPanelVisible(index) || panel.GetFolder() != source.Interface() ||
-                panel.GetCurrentFolderPrefix() != prefix) {
-                finish();
-                return;
-            }
-            auto &operations = window_.app_.QtOperations();
-            if (operations.closed() || operations.blocking() || operations.callActive())
-                return;
-            // The context menu may have temporarily projected this pane while
-            // creating the inline editor. Submit against the editor's owner.
-            window_.activatePanelUi(index);
-            QString detail;
-            HRESULT result = E_INVALIDARG;
-            const QString value = name->text();
-            if (!value.isEmpty() && !value.contains(QChar::Null)) {
-                const QPointer<QWidget> alive(editor);
-                editor->setEnabled(false);
+    QObject::connect(name, &QLineEdit::returnPressed, editor, [this, index, name, editor, finish] {
+        auto &panel = window_.app_.Panels[index];
+        DiscardStaleFolderDraft(index);
+        if (editor->isHidden())
+            return;
+        if (!window_.app_.IsPanelVisible(index)) {
+            finish();
+            return;
+        }
+        auto &operations = window_.app_.QtOperations();
+        if (operations.closed() || operations.blocking() || operations.callActive())
+            return;
+        // The context menu may have temporarily projected this pane while
+        // creating the inline editor. Submit against the editor's owner.
+        window_.activatePanelUi(index);
+        QString detail;
+        HRESULT result = E_INVALIDARG;
+        const QString value = name->text();
+        if (!value.isEmpty() && !value.contains(QChar::Null)) {
+            const QPointer<QWidget> alive(editor);
+            editor->setEnabled(false);
+            {
+                QtAppOperationState::CallScope call(operations);
                 {
-                    QtAppOperationState::CallScope call(operations);
-                    {
-                        QScopedValueRollback<bool> progress(window_.sourceArchiveProgress_, true);
-                        result = panel.CreateFolder(ToUString(value), detail);
-                    }
-                    operations.ContinueScanAfterSourceCall(index);
+                    QScopedValueRollback<bool> progress(window_.sourceArchiveProgress_, true);
+                    result = panel.CreateFolder(ToUString(value), detail);
                 }
-                if (!alive || operations.closed())
-                    return;
-                editor->setEnabled(true);
+                operations.ContinueScanAfterSourceCall(index);
             }
-            if (result == S_OK) {
-                finish();
+            if (!alive || operations.closed())
                 return;
-            }
-            editor->ShowError(detail.isEmpty() ? ToQString(HResultToMessage(result)) : detail);
-        });
+            editor->setEnabled(true);
+        }
+        if (result == S_OK) {
+            finish();
+            return;
+        }
+        editor->ShowError(detail.isEmpty() ? ToQString(HResultToMessage(result)) : detail);
+    });
     editor->setToolTip(ToQString(prefix));
     editor->show();
     name->setFocus();

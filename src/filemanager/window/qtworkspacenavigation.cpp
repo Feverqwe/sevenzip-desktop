@@ -1,3 +1,4 @@
+#include "filemanager/qtfilemanagercommands.h"
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtnativeplaces.h"
 #include "filemanager/window/qtwindowworkspace.h"
@@ -209,6 +210,8 @@ void QtWindowWorkspace::FinishNavigation(unsigned panel, HRESULT result) {
         window_.refreshActions();
         return;
     }
+    if (window_.commands_)
+        window_.commands_->DiscardStaleFolderDraft(panel);
     if (request->history == NavigationHistory::Skip) {
         window_.refreshActions();
         return;

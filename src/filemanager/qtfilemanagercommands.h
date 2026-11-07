@@ -1,4 +1,7 @@
 #pragma once
+#include "7zip/UI/FileManager/IFolder.h"
+#include "Common/MyCom.h"
+#include "Common/MyString.h"
 #include "Common/MyWindows.h"
 #include "filemanager/qtfilemanagercommandservices.h"
 #include <QHash>
@@ -13,6 +16,7 @@ class CApp;
 class MainWindow;
 class CPanel;
 class QtArchiveMountManager;
+class QtInlineFolderName;
 
 // Qt presentation and existing transport consumers for CApp's native entry.
 // Native menu policy is recomputed for execution, never read from QAction state.
@@ -51,6 +55,7 @@ class QtFileManagerCommands final : public IQtFileManagerMenuCommandServices {
     void CalculateCrc(const char *methodName) override;
     void Properties() override;
     void CreateFolder() override;
+    void DiscardStaleFolderDraft(unsigned panel);
     void AddToArchive() override;
     void ExtractArchives() override;
     void TestArchives() override;
@@ -107,6 +112,12 @@ class QtFileManagerCommands final : public IQtFileManagerMenuCommandServices {
     void OpenNative(bool internal, bool external, const wchar_t *type);
     void RunNativeOpen(const std::function<void(CPanel &)> &open);
     MainWindow &window_;
+    struct FolderDraft {
+        QPointer<QtInlineFolderName> editor;
+        CMyComPtr<IFolderFolder> folder;
+        UString prefix;
+    };
+    QHash<unsigned, FolderDraft> folderDrafts_;
     QHash<unsigned, QList<QAction *>> actions_;
     std::optional<QPointer<CPanel>> viewMenuSource_;
     quint64 viewMenuRequest_ = 0;

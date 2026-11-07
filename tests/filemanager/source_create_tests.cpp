@@ -184,13 +184,23 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         QPointer<QLineEdit> name = window.findChild<QLineEdit *>("inlineFolderName");
         QVERIFY(name && name->isVisible());
         name->setText("retained draft");
+        action(window, "refreshAction")->trigger();
+        QTRY_VERIFY(view->isEnabled());
+        QVERIFY(name && name->isVisible());
+        QCOMPARE(name->text(), QString("retained draft"));
         openPanel(window, 0, destination.path());
         QTRY_VERIFY(view->isEnabled());
-        if (name && name->isVisible())
-            QTest::keyClick(name, Qt::Key_Return);
-        QTRY_VERIFY(!name || !name->isVisible());
+        QTRY_VERIFY(!name);
         QVERIFY(!QFileInfo::exists(source.filePath("retained draft")));
         QVERIFY(!QFileInfo::exists(destination.filePath("retained draft")));
+        action(window, "createFolderAction")->trigger();
+        auto *fresh = window.findChild<QLineEdit *>("inlineFolderName");
+        QVERIFY(fresh && fresh->isVisible());
+        QVERIFY(fresh->text().isEmpty());
+        fresh->setText("new destination folder");
+        QTest::keyClick(fresh, Qt::Key_Return);
+        QTRY_VERIFY(QFileInfo(destination.filePath("new destination folder")).isDir());
+        QVERIFY(!QFileInfo::exists(source.filePath("new destination folder")));
     }
     void failure_data() {
         QTest::addColumn<QString>("language");
