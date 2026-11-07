@@ -44,6 +44,7 @@ class QtWindowWorkspace final : public QObject {
     bool CanRefreshPublishedArchives() const;
     void RestoreViewPosition(CPanel &source, QAbstractItemView &view, const QPoint &position);
     void RetainListFocus(unsigned panel);
+    void RestoreAddressFocus(unsigned panel, const QString &draft, int cursor);
     void ExitExternalWorkers(bool hardExit);
     void Dispose();
     QtArchiveMountManager *CurrentMountManager(bool create);

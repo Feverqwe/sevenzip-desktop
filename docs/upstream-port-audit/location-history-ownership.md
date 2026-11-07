@@ -1,5 +1,20 @@
 # Location history and address presentation — 2026-10-31
 
+## Address retry after a deferred read failure — 2026-11-07
+
+Reviewed original Panel.cpp address Enter and PanelFolderChange.cpp binding
+against the existing 7-Zip baseline and the Qt address, filesystem publication
+and workspace rollback owners. The original requests list focus after a
+successful synchronous bind. Qt restores the submitted address and caret
+after a deferred failure rolls back the source location, then returns editing
+focus to the initiating pane if it is still current. The native binding and
+error result are unchanged. No source import or baseline revision changes.
+
+Focused Linux checks passed for filesystem reload, address navigation,
+address lifetime and workspace navigation. The filesystem worker failure
+cases check the diagnostic, restored location, address and caret, and a retry
+using keyboard focus in either pane.
+
 ## Display-address return to directory archive packages — 2026-11-05
 
 Reviewed native address Enter/BindToPath, the current source/display conversion,

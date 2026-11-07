@@ -194,10 +194,14 @@ class FilesystemReloadTests final : public QObject, protected MainWindowTestSupp
                 }
         });
         driver.start(0);
+        const int draftCursor = large.size() - 2;
         if (reload)
             action(window, "refreshAction")->trigger();
         else {
+            PanelKeys::focusAddress(address);
+            QVERIFY(address->hasFocus());
             address->setText(large);
+            address->setCursorPosition(draftCursor);
             QTest::keyClick(address, Qt::Key_Return);
         }
         QTRY_COMPARE(failed.size(), 1);
@@ -207,6 +211,15 @@ class FilesystemReloadTests final : public QObject, protected MainWindowTestSupp
         QVERIFY(result != S_OK);
         QCOMPARE(shown, ToQString(HResultToMessage(result)));
         QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
+        if (!reload) {
+            QCOMPARE(address->text(), large);
+            QCOMPARE(address->cursorPosition(), draftCursor);
+            // The headless window system may leave the owner inactive after
+            // closing the modal error. Return to it before sending another key.
+            window.activateWindow();
+            QVERIFY(QTest::qWaitForWindowActive(&window));
+            QTRY_VERIFY_WITH_TIMEOUT(address->hasFocus(), 2000);
+        }
         QCOMPARE(QFileInfo(ToQString(GetFolderPath(panel.GetFolder()))).canonicalFilePath(),
                  QFileInfo(reload ? large : smallPath).canonicalFilePath());
         QVERIFY(panel.IsFSFolder());
@@ -219,11 +232,8 @@ class FilesystemReloadTests final : public QObject, protected MainWindowTestSupp
         disconnect(restart);
         if (reload)
             panel.OnReload();
-        else {
-            PanelKeys::focusAddress(address);
-            address->setText(large);
-            QTest::keyClick(address, Qt::Key_Return);
-        }
+        else
+            QTest::keyClick(QApplication::focusWidget(), Qt::Key_Return);
         QTRY_COMPARE(view->rowCount(), 301);
         QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
         QCOMPARE(completed.size(), 1);
