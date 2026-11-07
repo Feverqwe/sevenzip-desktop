@@ -2,6 +2,7 @@
 #include "7zip/Common/FilePathAutoRename.h"
 #include "Common/StringConvert.h"
 #include "Windows/ErrorMsg.h"
+#include "Windows/FileFind.h"
 #include "archive/callbacks/IFileExtractCallback.h"
 #include "filemanager/providers/FSFolder.h"
 #include "fileops/links/qtlinkservices.h"
@@ -13,9 +14,63 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QMap>
 #include <QScopeGuard>
 #include <QUuid>
 #include <algorithm>
+
+namespace {
+using NWindows::NFile::NFind::CFileInfo;
+
+struct MergeMember {
+    CFileInfo metadata;
+    QString identity;
+
+    bool operator==(const MergeMember &other) const {
+#ifndef _WIN32
+        if (metadata.dev != other.metadata.dev || metadata.ino != other.metadata.ino)
+            return false;
+#endif
+        return identity == other.identity && metadata.Size == other.metadata.Size &&
+               metadata.GetWinAttrib() == other.metadata.GetWinAttrib() &&
+               Compare_FiTime(&metadata.MTime, &other.metadata.MTime) == 0 &&
+               Compare_FiTime(&metadata.CTime, &other.metadata.CTime) == 0;
+    }
+};
+
+using MergeSnapshot = QMap<QString, MergeMember>;
+
+std::optional<MergeSnapshot> captureMergeTree(const QString &root,
+                                              const std::atomic_bool &canceled) {
+    MergeSnapshot snapshot;
+    QStringList directories{QString()};
+    while (!directories.isEmpty()) {
+        const QString relative = directories.takeLast();
+        const QDir directory(QDir(root).filePath(relative));
+        if (canceled || !directory.isReadable() || QtIsFileSystemLink(directory.path()))
+            return std::nullopt;
+        const auto entries = directory.entryList(QDir::AllEntries | QDir::NoDotAndDotDot |
+                                                 QDir::Hidden | QDir::System);
+        for (const auto &name : entries) {
+            const QString absolute = directory.filePath(name);
+            const auto native = QDir::toNativeSeparators(absolute).toStdWString();
+            MergeMember member;
+            if (canceled || !member.metadata.Find(us2fs(native.c_str())))
+                return std::nullopt;
+            const QString key = relative.isEmpty() ? name : relative + '/' + name;
+            if (!member.metadata.IsOsSymLink()) {
+                member.identity = QtOwnedTempIdentity(absolute);
+                if (member.identity.isEmpty())
+                    return std::nullopt;
+                if (member.metadata.IsDir())
+                    directories.append(key);
+            }
+            snapshot.insert(key, std::move(member));
+        }
+    }
+    return snapshot;
+}
+} // namespace
 
 OverwriteQuestion QtFileTransferTransaction::snapshot(const OverwriteSource &source) {
     OverwriteQuestion question;
@@ -298,6 +353,9 @@ bool QtFileTransferTransaction::transferEntry(const TransferPath &path,
     }
     if (mayReplace && !matchesExisting(target))
         return destinationChanged();
+    const auto mergeSnapshot = merge ? captureMergeTree(target, worker_.canceled_) : std::nullopt;
+    if (merge && !mergeSnapshot)
+        return destinationChanged();
     const QString suffix =
         QStringLiteral(".sevenzip-%1").arg(QUuid::createUuid().toString(QUuid::Id128));
     const QString stage = target + suffix;
@@ -340,6 +398,8 @@ bool QtFileTransferTransaction::transferEntry(const TransferPath &path,
         }
         entry.backup = backupPath;
         if (!matchesExisting(backupPath))
+            return destinationChanged();
+        if (merge && captureMergeTree(backupPath, worker_.canceled_) != mergeSnapshot)
             return destinationChanged();
     } else if (QFileInfo::exists(target) || QtIsFileSystemLink(target)) {
         return destinationChanged();

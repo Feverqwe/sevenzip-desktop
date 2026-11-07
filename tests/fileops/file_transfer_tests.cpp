@@ -582,6 +582,57 @@ class FileTransferTests : public QObject {
         QCOMPARE(QDir(output).entryList(QDir::Files), QStringList{name});
     }
 
+    void changedMergeDestinationKeepsBothTrees_data() {
+        QTest::addColumn<bool>("editConflict");
+        QTest::newRow("conflicting-file") << true;
+        QTest::newRow("unrelated-file") << false;
+    }
+    void changedMergeDestinationKeepsBothTrees() {
+        QFETCH(bool, editConflict);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString source = fixture.filePath("folder");
+        const QString output = fixture.filePath("output");
+        const QString destination = QDir(output).filePath("folder");
+        const QString child = QStringLiteral("/nested 空/конфликт.txt");
+        const QString sibling = QStringLiteral("/nested 空/сосед.txt");
+        QVERIFY(QDir().mkpath(QFileInfo(source + child).absolutePath()));
+        QVERIFY(QDir().mkpath(QFileInfo(destination + child).absolutePath()));
+        const auto write = [](const QString &path, const QByteArray &bytes) {
+            QFile file(path);
+            return file.open(QIODevice::WriteOnly) && file.write(bytes) == bytes.size();
+        };
+        const auto read = [](const QString &path) {
+            QFile file(path);
+            return file.open(QIODevice::ReadOnly) ? file.readAll() : QByteArray();
+        };
+        QVERIFY(write(source + child, "incoming bytes"));
+        QVERIFY(write(destination + child, "existing bytes"));
+        QVERIFY(write(destination + sibling, "unrelated bytes"));
+        bool edited = false;
+        FileTransferOperation move({source}, output, true);
+        QSignalSpy result(&move, &FileTransferOperation::result);
+        connect(
+            &move, &FileTransferOperation::overwriteRequested, &move,
+            [&](const OverwriteQuestion &) {
+                edited = write(destination + (editConflict ? child : sibling), "external edit");
+                move.submitOverwriteAnswer(NOverwriteAnswer::kYes);
+            },
+            Qt::DirectConnection);
+        move.start();
+        QVERIFY(move.wait(30000));
+        QTRY_COMPARE(result.size(), 1);
+        QVERIFY(edited);
+        QCOMPARE(move.resultKind(), FileTransferOperation::ResultKind::Failure);
+        QVERIFY(result.first().at(1).toString().contains(destination));
+        QCOMPARE(read(source + child), QByteArray("incoming bytes"));
+        QCOMPARE(read(destination + child),
+                 editConflict ? QByteArray("external edit") : QByteArray("existing bytes"));
+        QCOMPARE(read(destination + sibling),
+                 editConflict ? QByteArray("unrelated bytes") : QByteArray("external edit"));
+        QCOMPARE(QDir(output).entryList(QDir::Dirs | QDir::NoDotAndDotDot), QStringList{"folder"});
+    }
+
     void blockedMoveRollbackReportsRetainedFiles() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
