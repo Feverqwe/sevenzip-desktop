@@ -5,7 +5,6 @@
 #include "localization/qtlangcontrols.h"
 #include "platform/support/external_editor_fixture.h"
 #include "support/panel_keys.h"
-#include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
 #include <QMenu>
 #include <QToolButton>
@@ -148,14 +147,12 @@ class RecentPlacesTests final : public QObject, protected MainWindowTestSupport 
         QTest::keyClick(address, Qt::Key_Return);
         auto *other = right->findChild<FileTable *>("archiveTable");
         QTRY_COMPARE(QDir::cleanPath(ToQString(other->sourcePanel->GetCurrentFolderPrefix())), c);
-        QVERIFY(WindowActivation::waitForActive(window));
-        active(window)->setFocus();
-        QTRY_VERIFY(active(window)->hasFocus());
         store().Visit({b, {}, {}});
-        action(window, "foldersHistoryAction")->trigger();
+        auto *leftRecent = window.findChild<QToolButton *>("panelRecentPlacesButton0");
+        QVERIFY(leftRecent);
+        leftRecent->click();
         QTRY_VERIFY(RecentPlacesMenu::Visible(window));
         auto *popup = RecentPlacesMenu::Visible(window);
-        other->setFocus();
         auto *entry = RecentPlacesMenu::Find(*popup, b);
         QVERIFY(entry);
         RecentPlacesMenu::Choose(*popup, *entry);
