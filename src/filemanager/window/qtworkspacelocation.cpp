@@ -10,7 +10,10 @@ HRESULT QtWindowWorkspace::OpenRecordedLocation(unsigned panel, const QString &p
                                                 const QtArchiveLocation &archive) {
     if (!archive.physicalPath.isEmpty()) {
         ProtectNavigation();
-        return OpenArchiveLocation(panel, archive);
+        const HRESULT result = OpenArchiveLocation(panel, archive);
+        if (result == S_OK)
+            window_.panelUi_[panel].locationUnavailable = false;
+        return result;
     }
     QString target = window_.sourcePathFromDisplayPath(path);
     if (!nativeIdentity.isEmpty()) {

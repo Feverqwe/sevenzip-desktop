@@ -228,11 +228,15 @@ class RecentPlacesTests final : public QObject, protected MainWindowTestSupport 
 
     void closedNestedArchiveReopensThroughRecordedNativeTarget_data() {
         QTest::addColumn<bool>("favorite");
-        QTest::newRow("recent") << false;
-        QTest::newRow("favorite") << true;
+        QTest::addColumn<bool>("fromUnavailable");
+        QTest::newRow("recent") << false << false;
+        QTest::newRow("favorite") << true << false;
+        QTest::newRow("recent-from-unavailable") << false << true;
+        QTest::newRow("favorite-from-unavailable") << true << true;
     }
     void closedNestedArchiveReopensThroughRecordedNativeTarget() {
         QFETCH(bool, favorite);
+        QFETCH(bool, fromUnavailable);
         QTemporaryDir fixture;
         const QString folder = QStringLiteral("dir 空/sub папка");
         const QString entry = folder + "/payload.txt";
@@ -245,9 +249,18 @@ class RecentPlacesTests final : public QObject, protected MainWindowTestSupport 
                                                      QFileInfo(inner).fileName()));
         const QString plain = fixture.filePath("Plain");
         directory(plain);
+        const QString missing = fixture.filePath("Moved folder");
+        const QString fixtureName = QFileInfo(fixture.path()).fileName();
+        const QString missingLabel = QStringLiteral("Moved folder ") + fixtureName;
         ArchiveBackend backend;
         MainWindow window(&backend);
         window.show();
+        if (fromUnavailable) {
+            QVERIFY(QDir().mkpath(missing));
+            window.openPath(missing);
+            QTRY_COMPARE(location(window), missing);
+            addFavorite(window, missingLabel);
+        }
         window.openArchive(outer);
         QTRY_VERIFY(rowWithPath(window, QFileInfo(inner).fileName()) >= 0);
         openRow(window, rowWithPath(window, QFileInfo(inner).fileName()));
@@ -257,11 +270,17 @@ class RecentPlacesTests final : public QObject, protected MainWindowTestSupport 
         openRow(window, rowWithPath(window, folder));
         QTRY_VERIFY(rowWithPath(window, entry) >= 0);
         const QString requested = ToQString(active(window)->sourcePanel->GetCurrentFolderPrefix());
-        const QString savedName = QStringLiteral("Nested archive");
+        const QString savedName = QStringLiteral("Nested archive ") + fixtureName;
         if (favorite)
             addFavorite(window, savedName);
         window.openPath(plain);
-        if (favorite) {
+        if (fromUnavailable) {
+            QVERIFY(QDir().rmdir(missing));
+            openFavorite(window, missingLabel);
+            QTRY_VERIFY(!active(window)->isEnabled());
+            QVERIFY(window.findChild<QPushButton *>("navigationRetry0")->isVisible());
+        }
+        if (favorite && !fromUnavailable) {
             const QString parked = fixture.filePath("temporarily missing.zip");
             QVERIFY(QFile::rename(outer, parked));
             openFavorite(window, savedName);
@@ -271,6 +290,8 @@ class RecentPlacesTests final : public QObject, protected MainWindowTestSupport 
             QVERIFY(QFile::rename(parked, outer));
             retry->click();
             QTRY_VERIFY(!retry->isVisible());
+        } else if (favorite) {
+            openFavorite(window, savedName);
         } else {
             action(window, "foldersHistoryAction")->trigger();
             QTRY_VERIFY(RecentPlacesMenu::Visible(window));
@@ -280,6 +301,8 @@ class RecentPlacesTests final : public QObject, protected MainWindowTestSupport 
             RecentPlacesMenu::Choose(*popup, *recent);
         }
         QTRY_COMPARE(ToQString(active(window)->sourcePanel->GetCurrentFolderPrefix()), requested);
+        QTRY_VERIFY(active(window)->isEnabled());
+        QVERIFY(!window.findChild<QPushButton *>("navigationRetry0")->isVisible());
         QCOMPARE(active(window)->sourcePanel->GetParentFolders().Size(), 2u);
         QCOMPARE(ToQString(active(window)->sourcePanel->GetCurrentFolderPrefix()), requested);
         const int row = rowWithPath(window, entry);
@@ -289,6 +312,11 @@ class RecentPlacesTests final : public QObject, protected MainWindowTestSupport 
         const QString output = fixture.filePath("exported");
         window.extractTo(output, true);
         QCOMPARE(ExternalEditorFixture::read(output + "/payload.txt"), "nested recent bytes");
+        if (fromUnavailable) {
+            action(window, "backAction")->trigger();
+            QTRY_COMPARE(location(window), plain);
+            QTRY_VERIFY(active(window)->isEnabled());
+        }
     }
 
     void computerRecentKeepsItsTypeAcrossLanguageChange() {
