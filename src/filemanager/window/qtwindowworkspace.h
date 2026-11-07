@@ -155,6 +155,7 @@ class QtWindowWorkspace final : public QObject {
     QtNativePlaces *nativePlaces_ = nullptr;
     QtRecentPlacesStore *recentPlaces_ = nullptr;
     quint64 focusRequest_ = 0;
+    quint64 interactionRevision_ = 0;
     std::array<std::unique_ptr<Navigation>, 2> navigation_;
     bool restoringNavigation_ = false;
 };

@@ -55,11 +55,11 @@ HRESULT QtWindowWorkspace::OpenPanelLocation(unsigned panel) {
 void QtWindowWorkspace::RestoreViewPosition(CPanel &source, QAbstractItemView &view,
                                             const QPoint &position) {
     const UInt64 revision = source.FolderBindingRevision();
-    const auto request = focusRequest_;
+    const auto interaction = interactionRevision_;
     WhenReady([this, owner = QPointer<CPanel>(&source), target = QPointer<QAbstractItemView>(&view),
-               position, revision, request] {
-        if (focusRequest_ != request || !owner || owner->FolderBindingRevision() != revision ||
-            !target || !target->isVisible())
+               position, revision, interaction] {
+        if (interactionRevision_ != interaction || !owner ||
+            owner->FolderBindingRevision() != revision || !target || !target->isVisible())
             return;
         target->horizontalScrollBar()->setValue(position.x());
         target->verticalScrollBar()->setValue(position.y());

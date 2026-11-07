@@ -9,8 +9,10 @@ bool QtWindowWorkspace::eventFilter(QObject *object, QEvent *event) {
         const auto *modal = QApplication::activeModalWidget();
         // Answering a modal prompt continues the pending panel action.
         if (widget && (widget->window() == &window_ || window_.isAncestorOf(widget)) &&
-            (!modal || (widget != modal && !modal->isAncestorOf(widget))))
+            (!modal || (widget != modal && !modal->isAncestorOf(widget)))) {
             ++focusRequest_;
+            ++interactionRevision_;
+        }
     }
     return QObject::eventFilter(object, event);
 }
