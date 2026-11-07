@@ -2,10 +2,12 @@
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/window/qtfavoritestore.h"
 #include "filemanager/window/qtrecentplacesstore.h"
+#include "fileops/scanner/filesystemscanner.h"
 #include "localization/LangUtils.h"
 #include "localization/qtlangcontrols.h"
 #include "platform/support/external_editor_fixture.h"
 #include "support/panel_keys.h"
+#include "support/widget_dialogs.h"
 #include "ui/support/layout_inspection.h"
 #include <QInputDialog>
 #include <QMenu>
@@ -14,6 +16,7 @@
 
 class RecentPlacesTests final : public QObject, protected MainWindowTestSupport {
     Q_OBJECT
+    WidgetDialogFixture dialogs_;
     static QtRecentPlacesStore &store() {
         return *QtRecentPlacesStore::ForSettings(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
     }
@@ -156,6 +159,88 @@ class RecentPlacesTests final : public QObject, protected MainWindowTestSupport 
         QTRY_COMPARE(location(window), missing);
         action(window, "backAction")->trigger();
         QTRY_COMPARE(location(window), a);
+    }
+
+    void backgroundFailureReportsToTheInitiatingPane() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString origin = fixture.filePath("Origin");
+        const QString peer = fixture.filePath("Peer");
+        const QString target = fixture.filePath(QStringLiteral("Large 空"));
+        directory(origin);
+        directory(peer);
+        directory(target, 301);
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        action(window, "twoPanelsAction")->trigger();
+        auto *left = window.findChild<QWidget *>("filePanel0");
+        auto *right = window.findChild<QWidget *>("filePanel1");
+        QVERIFY(left && right);
+        auto *source = left->findChild<FileTable *>("archiveTable");
+        auto *other = right->findChild<FileTable *>("archiveTable");
+        QVERIFY(source && other);
+        const auto bind = [&](QWidget &pane, const QString &path) {
+            auto *address = pane.findChild<QLineEdit *>("archivePath");
+            QVERIFY(address);
+            PanelKeys::focusAddress(address);
+            address->setText(path);
+            QTest::keyClick(address, Qt::Key_Return);
+            QTRY_COMPARE(address->text(), QFileInfo(path).canonicalFilePath());
+        };
+        bind(*right, peer);
+        bind(*left, origin);
+        store().Visit({target, {}, {}});
+
+        const auto scanners = window.findChildren<FilesystemScanner *>();
+        QCOMPARE(scanners.size(), 2);
+        auto *scanner = scanners[0];
+        QSignalSpy failure(scanner, &FilesystemScanner::failed);
+        bool switched = false;
+        const QString peerStatus = QStringLiteral("Feedback for the other pane");
+        const auto interrupt = connect(scanner, &FilesystemScanner::advanced, &window, [&] {
+            if (switched)
+                return;
+            switched = true;
+            QTest::mouseClick(other->viewport(), Qt::LeftButton);
+            window.statusBar()->showMessage(peerStatus);
+            scanner->start(fixture.filePath("missing"), false);
+        });
+        QTimer responder;
+        dialogs_.connectResponder(responder, &window, [&] {
+            if (auto *message = qobject_cast<QMessageBox *>(dialogs_.activeDialog()))
+                message->accept();
+        });
+        responder.start(1);
+        auto *button = left->findChild<QToolButton *>("panelRecentPlacesButton0");
+        QVERIFY(button);
+        button->click();
+        QTRY_VERIFY(RecentPlacesMenu::Visible(window));
+        auto *popup = RecentPlacesMenu::Visible(window);
+        auto *entry = RecentPlacesMenu::Find(*popup, target);
+        QVERIFY(entry);
+        RecentPlacesMenu::Choose(*popup, *entry);
+        QTRY_COMPARE(failure.size(), 1);
+        responder.stop();
+        disconnect(interrupt);
+        QVERIFY(switched);
+        QTRY_VERIFY(source->isEnabled());
+        QCOMPARE(window.statusBar()->currentMessage(), peerStatus);
+        QCOMPARE(location(window), origin);
+        QCOMPARE(QDir::cleanPath(ToQString(other->sourcePanel->GetCurrentFolderPrefix())), peer);
+
+        QTest::mouseClick(source->viewport(), Qt::LeftButton);
+        QVERIFY(!window.statusBar()->currentMessage().isEmpty());
+        QVERIFY(window.statusBar()->currentMessage() != peerStatus);
+        button->click();
+        QTRY_VERIFY(RecentPlacesMenu::Visible(window));
+        popup = RecentPlacesMenu::Visible(window);
+        entry = RecentPlacesMenu::Find(*popup, target);
+        QVERIFY(entry);
+        RecentPlacesMenu::Choose(*popup, *entry);
+        QTRY_VERIFY(source->isEnabled() && location(window) == target);
+        QVERIFY(window.statusBar()->currentMessage().isEmpty());
     }
 
     void recentPlacesReopenFoldersThatDifferOnlyByCase() {

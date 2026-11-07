@@ -3,6 +3,7 @@
 #include "filemanager/window/qtrecentplacesstore.h"
 #include "filemanager/window/qtwindowworkspace.h"
 #include "ui/controls/qtmenutext.h"
+#include "ui/controls/qtwindowstatusbar.h"
 #include "ui/progress/ProgressDialog2.h"
 #include <QDir>
 #include <QFontMetrics>
@@ -65,7 +66,7 @@ void QtWindowWorkspace::OpenRecentPlace(unsigned panel, const QtRecentPlace &pla
             ProtectNavigation();
             return OpenRecordedLocation(panel, place.path, place.nativeIdentity, place.archive);
         },
-        [this](HRESULT result) {
+        [this, panel](HRESULT result) {
             if (result == S_OK || window_.app_.QtOperations().closed())
                 return;
             const QString error = result == E_ABORT ? tr("Opening canceled.")
@@ -73,6 +74,6 @@ void QtWindowWorkspace::OpenRecentPlace(unsigned panel, const QtRecentPlace &pla
                                       ? tr("The location is unavailable or disconnected.")
                                       : tr("Could not open this location. %1")
                                             .arg(ToQString(HResultToMessage(result)));
-            window_.statusBar()->showMessage(error, 6000);
+            window_.statusStrip_->SetMessage(&window_.app_.Panels[panel], error, 6000);
         });
 }

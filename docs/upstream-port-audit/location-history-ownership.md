@@ -1,5 +1,17 @@
 # Location history and address presentation — 2026-10-31
 
+## Recent-place failure after changing panels — 2026-11-07
+
+Reviewed the original PanelFolderChange.cpp history selection and bind flow.
+The Qt recent-place menu uses that binding boundary and can complete a folder
+read in the background. Failure feedback now belongs to the initiating pane
+and appears when that pane is active. The other pane keeps its own feedback.
+There is no change to the native binding or saved history.
+
+Linux recent-place and main-shell checks passed. The recent-place regression
+switches panels during the background scan, forces a read failure, verifies
+both status contexts and retries the same entry successfully.
+
 ## Back and Forward to an unavailable location — 2026-11-07
 
 Reviewed the recorded PanelFolderChange.cpp binding, refresh and folder-history
