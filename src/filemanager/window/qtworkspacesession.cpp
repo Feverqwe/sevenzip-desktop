@@ -105,14 +105,32 @@ void QtWindowWorkspace::RestorePanel(unsigned panel, const QJsonObject &saved,
     locationState.sort = object.value("sort").toInt();
     locationState.ascending = object.value("ascending").toBool(true);
     window_.withPanelProjection(panel, [this, panel, &locationState] {
-        const QScopedValueRollback<bool> changing(changing_, true);
-        auto &source = window_.app_.Panels[panel];
-        source.SetListViewMode(locationState.viewMode);
-        if (locationState.sort) {
-            source._sortID = locationState.sort;
-            source._ascending = locationState.ascending;
-        }
-        OpenPanelLocation(panel);
+        const Visit target{locationState.path,
+                           locationState.nativePlaceIdentity,
+                           locationState.archiveLocation,
+                           {},
+                           {}};
+        Navigate(
+            [&] {
+                const QScopedValueRollback<bool> changing(changing_, true);
+                auto &source = window_.app_.Panels[panel];
+                source.SetListViewMode(locationState.viewMode);
+                if (locationState.sort) {
+                    source._sortID = locationState.sort;
+                    source._ascending = locationState.ascending;
+                }
+                return OpenPanelLocation(panel);
+            },
+            [this, panel, target](HRESULT result) {
+                if (result == S_OK || window_.app_.QtOperations().closed())
+                    return;
+                auto &location = panels_[panel].location;
+                location.nativePlaceIdentity = target.nativePlaceIdentity;
+                location.archiveLocation = target.archiveLocation;
+                CompleteLocationOpen(panel, target.path, result);
+                window_.refreshActions();
+            },
+            NavigationHistory::Skip);
     });
     window_.refreshActions();
     WhenReady(std::move(finished), std::move(canceled));

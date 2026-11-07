@@ -1388,3 +1388,15 @@ Linux `recent_places`, `workspace_places`, `workspace_history` и
 
 На Linux прошли `workspace_places`, `recent_places`, `workspace_history`
 и `filesystem_reload`. Проверка включает фоновый отказ, Retry и «Назад».
+
+## Фоновое чтение при восстановлении окна — 2026-11-07
+
+В исходном `CApp::Create` создание панели получает результат открытия.
+Восстановление окна Qt учитывает также результат фонового чтения. При отказе
+сохраняется исходный путь Retry, а при успехе восстановление не добавляет
+переход в историю. Первый успешный Retry становится началом истории, если
+до него не было доступного места.
+
+Linux `workspace_session`, `workspace_archive`, `workspace_places` и
+`workspace_history` прошли. Проверены ошибка worker, повтор и отсутствие
+лишнего шага «Назад».

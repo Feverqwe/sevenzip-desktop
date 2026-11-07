@@ -50,8 +50,10 @@ class QtWindowWorkspace final : public QObject {
     bool CanCloseMounts();
     QWidget *MountCloseBlocker() const;
     bool PreparePanelForShow(unsigned panel);
+    enum class NavigationHistory { Record, Skip };
     HRESULT Navigate(const std::function<HRESULT()> &body,
-                     std::function<void(HRESULT)> finished = {});
+                     std::function<void(HRESULT)> finished = {},
+                     NavigationHistory history = NavigationHistory::Record);
     void ShowRecentPlaces(unsigned panel, QWidget &anchor);
     void RecordVisit(const QString &path);
     void SetBookmark(unsigned index, const UString &path);
@@ -83,6 +85,7 @@ class QtWindowWorkspace final : public QObject {
         CMyComPtr<IFolderFolder> previousFolder;
         unsigned previousDepth = 0;
         Visit origin;
+        NavigationHistory history = NavigationHistory::Record;
         std::optional<Visit> unavailableOrigin;
         int destination = -1;
         unsigned depth = 0;

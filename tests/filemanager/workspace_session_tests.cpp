@@ -4,10 +4,12 @@
 #include "filemanager/window/qtnativeplaces.h"
 #include "filemanager/window/qtwindowworkspace.h"
 #include "filemanager/window/qtworkspaceapplication.h"
+#include "fileops/scanner/filesystemscanner.h"
 #include "localization/LangUtils.h"
 #include "settings/RegistryUtils.h"
 #include "ui/support/layout_inspection.h"
 #include <QJsonDocument>
+#include <QMessageBox>
 #include <QScopeGuard>
 #include <QSplitterHandle>
 
@@ -286,6 +288,53 @@ class WorkspaceSessionTests final : public QObject {
         };
         QTRY_COMPARE(QDir::cleanPath(persistedPath()), peerPath);
     }
+    void restoredFolderKeepsRetryTargetAfterBackgroundReadFailure() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString origin = fixture.filePath("Original");
+        const QString target = fixture.filePath("Saved папка");
+        QVERIFY(QDir().mkpath(origin) && QDir().mkpath(target));
+        for (int i = 0; i < 301; ++i) {
+            QFile file(QDir(target).filePath(QString::number(i) + ".txt"));
+            QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::NewOnly));
+        }
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(origin);
+        QTRY_COMPARE(location(window), origin);
+        QTRY_VERIFY(active(window)->isEnabled());
+        auto *scanner = window.findChild<FilesystemScanner *>();
+        auto *retry = window.findChild<QPushButton *>("navigationRetry0");
+        auto *address = window.findChild<QLineEdit *>("archivePath");
+        QVERIFY(scanner && retry && address);
+        connect(
+            scanner, &FilesystemScanner::advanced, &window,
+            [&] { scanner->start(fixture.filePath("Missing"), false); }, Qt::SingleShotConnection);
+        QSignalSpy failed(scanner, &FilesystemScanner::failed);
+        QTimer dismiss;
+        connect(&dismiss, &QTimer::timeout, &window, [] {
+            if (auto *message = qobject_cast<QMessageBox *>(QApplication::activeModalWidget()))
+                message->accept();
+        });
+        dismiss.start(1);
+        const QJsonObject saved{{"panels", QJsonArray{QJsonObject{{"path", target}}}},
+                                {"count", 1}};
+        bool restored = false;
+        workspace(window)->Restore(saved, [&] { restored = true; });
+        QTRY_VERIFY(restored);
+        QCOMPARE(failed.size(), 1);
+        QVERIFY(retry->isVisible());
+        QVERIFY(!active(window)->isEnabled());
+        QCOMPARE(active(window)->rowCount(), 0);
+        QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(address->text())), target);
+        retry->click();
+        QTRY_VERIFY(active(window)->isEnabled() && !retry->isVisible());
+        QCOMPARE(location(window), target);
+        QVERIFY(active(window)->rowCount() >= 301);
+        QVERIFY(!window.findChild<QAction *>("backAction")->isEnabled());
+    }
+
     void sessionRestoresCurrentLocationOfEachWindow() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());

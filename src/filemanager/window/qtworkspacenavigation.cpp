@@ -23,7 +23,8 @@ QtWindowWorkspace::Visit QtWindowWorkspace::CaptureVisit(unsigned panel) {
 }
 
 HRESULT QtWindowWorkspace::Navigate(const std::function<HRESULT()> &body,
-                                    std::function<void(HRESULT)> finished) {
+                                    std::function<void(HRESULT)> finished,
+                                    NavigationHistory history) {
     if (window_.app_.QtOperations().closed())
         return E_ABORT;
     const unsigned panel = window_.projectedPanel_;
@@ -34,8 +35,10 @@ HRESULT QtWindowWorkspace::Navigate(const std::function<HRESULT()> &body,
     if (!navigation_[panel]) {
         auto request = std::make_unique<Navigation>();
         request->source = window_.app_.Panels.Share(panel);
-        request->origin = CaptureVisit(panel);
-        if (window_.panelUi_[panel].locationUnavailable) {
+        request->history = history;
+        if (history == NavigationHistory::Record)
+            request->origin = CaptureVisit(panel);
+        if (history == NavigationHistory::Record && window_.panelUi_[panel].locationUnavailable) {
             const auto &location = panels_[panel].location;
             request->unavailableOrigin = Visit{
                 location.path, location.nativePlaceIdentity, location.archiveLocation, {}, {}};
@@ -175,7 +178,8 @@ void QtWindowWorkspace::FinishNavigation(unsigned panel, HRESULT result) {
             }
         }
         request->transaction.reset();
-        if (result != S_OK && !request->unavailableOrigin) {
+        if (result != S_OK && !request->unavailableOrigin &&
+            request->history == NavigationHistory::Record) {
             window_.renderBoundFolder();
             window_.restoreListSelection(request->origin.selection);
             if (auto *view = qobject_cast<QAbstractItemView *>(
@@ -193,10 +197,14 @@ void QtWindowWorkspace::FinishNavigation(unsigned panel, HRESULT result) {
         window_.refreshActions();
         return;
     }
+    if (request->history == NavigationHistory::Skip) {
+        window_.refreshActions();
+        return;
+    }
     const Visit accepted = CaptureVisit(panel);
     auto &locationState = panels_[panel].location;
     if (locationState.cursor < 0) {
-        locationState.visits.push_back(request->origin);
+        locationState.visits.push_back(request->unavailableOrigin ? accepted : request->origin);
         locationState.cursor = 0;
     } else if (locationState.visits[locationState.cursor].SameLocation(request->origin))
         locationState.visits[locationState.cursor] = request->origin;
