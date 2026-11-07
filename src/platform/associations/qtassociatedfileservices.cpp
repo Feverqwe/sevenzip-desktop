@@ -1,7 +1,6 @@
 #include "platform/associations/qtassociatedfileservices.h"
 #include "localization/qtlanguageservices.h"
 #include "platform/associations/qtfileassociationprobe.h"
-#include "settings/RegistryUtils.h"
 #include "settings/ViewSettings.h"
 #include <QDesktopServices>
 #include <QFileInfo>
@@ -22,10 +21,7 @@ QtAssociatedFileServices::QtAssociatedFileServices(
     : _opener(std::move(opener)), _updateRunner(std::move(updateRunner)),
       _updateReady(std::move(updateReady)), _hasAssociation(std::move(hasAssociation)) {}
 
-bool QtAssociatedFileServices::ConfirmArchiveFallback(const UString &path, QWidget *window,
-                                                      const QString &settingsPath) {
-    if (!ReadConfirmUnknownFileOpen(settingsPath))
-        return true;
+bool QtAssociatedFileServices::ConfirmArchiveFallback(const UString &path, QWidget *window) {
     const QString file = ToQString(path);
     if ((_hasAssociation ? _hasAssociation : QtFileHasOpenAssociation)(file))
         return true;

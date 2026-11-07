@@ -267,7 +267,7 @@
         set_property(TEST ${suite} APPEND PROPERTY ENVIRONMENT "SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/${suite}-settings.ini")
     endforeach()
     qt_add_executable(archive_item_open_tests tests/filemanager/archive_item_open_tests.cpp)
-    target_link_libraries(archive_item_open_tests PRIVATE sevenzip_window)
+    target_link_libraries(archive_item_open_tests PRIVATE sevenzip_window sevenzip_widget_dialog_fixtures)
     target_include_directories(archive_item_open_tests PRIVATE src)
     target_link_libraries(archive_item_open_tests PRIVATE Qt6::Widgets Qt6::Test)
     add_test(NAME archive_item_open COMMAND archive_item_open_tests -silent)

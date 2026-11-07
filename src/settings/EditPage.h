@@ -3,7 +3,6 @@
 #pragma once
 #include <QWidget>
 class QLineEdit;
-class QCheckBox;
 
 struct CEditPageCtrl {
     QLineEdit *Edit = nullptr;
@@ -15,8 +14,6 @@ class CEditPage : public QWidget {
     CEditPageCtrl _ctrls[2];
     bool _initMode = true;
     QString _settingsPath;
-    QCheckBox *_confirmUnknownFileOpen;
-    bool _confirmChanged = false;
 
   public:
     explicit CEditPage(const QString &settingsPath, QWidget *parent = nullptr);

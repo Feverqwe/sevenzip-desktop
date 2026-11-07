@@ -66,9 +66,6 @@ class ExternalEditorsUiTests final : public QObject, protected MainWindowTestSup
             QVERIFY(!applyButton->isEnabled());
             auto *pages = dialog.findChild<QTabWidget *>("optionsPages");
             OptionsPresentation::show(dialog, "viewerCommand");
-            auto *confirm = dialog.findChild<QCheckBox *>("confirmUnknownFileOpenOption");
-            QVERIFY(confirm->isChecked());
-            confirm->setChecked(false);
             dialog.findChild<QLineEdit *>("viewerCommand")->setText("new viewer");
             dialog.findChild<QLineEdit *>("editorCommand")->setText("editor --edit");
             QVERIFY(applyButton->isEnabled());
@@ -88,9 +85,6 @@ class ExternalEditorsUiTests final : public QObject, protected MainWindowTestSup
                 }
                 QVERIFY(UiInspection::fullyVisible(
                     *dialog.findChild<QDialogButtonBox *>("settingsButtons"), dialog));
-                OptionsPresentation::show(dialog, confirm);
-                QVERIFY(UiInspection::fullyVisible(*confirm, dialog));
-                QVERIFY(confirm->width() >= confirm->sizeHint().width());
                 QVERIFY(UiInspection::writeReport(
                     dialog,
                     QString("external-editor-options-%1-%2").arg(language).arg(size.width())));
@@ -104,7 +98,6 @@ class ExternalEditorsUiTests final : public QObject, protected MainWindowTestSup
                 dialog.findChild<QLineEdit *>("viewerCommand")->setText("discarded after Apply");
             }
             dialog.reject();
-            QCOMPARE(ReadConfirmUnknownFileOpen(settings), !apply);
             UString value;
             ReadRegEditor(false, value, settings);
             QCOMPARE(ToQString(value), apply ? QString("new viewer") : QString("viewer --old"));

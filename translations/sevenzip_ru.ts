@@ -6674,13 +6674,6 @@ Use `Revert` to recover timestamp.</source>
         </message>
     </context>
     <context>
-        <name>ExternalFileOpen</name>
-        <message>
-            <source>Ask before opening unknown file types</source>
-            <translation>Спрашивать перед открытием неизвестных типов файлов</translation>
-        </message>
-    </context>
-    <context>
         <name>QtArchiveMountManager</name>
         <message><source>The cache stores extracted files. Files larger than this limit cannot be read through the connection.</source><translation>В кэше хранятся распакованные файлы. Файлы больше указанного лимита нельзя прочитать через это подключение.</translation></message>
         <message>

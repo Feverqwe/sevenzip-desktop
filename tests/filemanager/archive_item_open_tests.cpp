@@ -1,14 +1,13 @@
-#include "7zip/UI/FileManager/ProgressDialog2Res.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
 #include "filemanager/window/mainwindow.h"
-#include "localization/LangUtils.h"
-#include "settings/RegistryUtils.h"
-#include "ui/progress/ProgressDialog2.h"
+#include "support/progress_dialog.h"
+#include "support/widget_dialogs.h"
 
 #include <QAction>
 #include <QFile>
 #include <QLineEdit>
+#include <QScopeGuard>
 #include <QTableWidget>
 #include <QTemporaryDir>
 #include <QTimer>
@@ -55,11 +54,20 @@ class ItemOpenBackend final : public ControlledBackend {
 
 class ArchiveItemOpenTests final : public QObject {
     Q_OBJECT
-  private slots:
-    void init() {
-        // These transport/error checks do not depend on installed desktop handlers.
-        SaveConfirmUnknownFileOpen(false, qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
+    WidgetDialogFixture dialogs_;
+
+    void dismissOperationResult(QTimer &timer) {
+        dialogs_.connectResponder(timer, this, [&] {
+            auto *dialog = dialogs_.activeDialog();
+            if (auto *box = qobject_cast<QMessageBox *>(dialog))
+                box->accept();
+            else
+                TestProgressDialog::DismissVisibleResult(dialog);
+        });
+        timer.start(1);
     }
+
+  private slots:
     void openFileFromFilesystemAndArchive() {
         QTemporaryDir dir;
         QVERIFY(dir.isValid());
@@ -70,6 +78,10 @@ class ArchiveItemOpenTests final : public QObject {
         disk.close();
         QUrl opened;
         QString extractedDirectory;
+        const auto cleanup = qScopeGuard([&] {
+            if (!extractedDirectory.isEmpty())
+                QDir(extractedDirectory).removeRecursively();
+        });
         {
             ItemOpenBackend backend;
             MainWindow window(&backend, [&](const QUrl &url) {
@@ -80,7 +92,8 @@ class ArchiveItemOpenTests final : public QObject {
             auto *address = window.findChild<QLineEdit *>("archivePath");
             auto *table = window.findChild<FileTable *>("archiveTable");
             auto *open = window.findChild<QAction *>("openItemAction");
-            QVERIFY(address && table && open);
+            auto *openOutside = window.findChild<QAction *>("openOutsideAction");
+            QVERIFY(address && table && open && openOutside);
             address->setText(dir.path());
             emit address->returnPressed();
             QTRY_COMPARE(table->rowCount(), 1);
@@ -97,8 +110,8 @@ class ArchiveItemOpenTests final : public QObject {
             QTRY_COMPARE(table->model()->index(0, 0).data().toString(),
                          QStringLiteral("имя с пробелом.txt"));
             table->selectRow(0);
-            QTRY_VERIFY(open->isEnabled());
-            open->trigger();
+            QTRY_VERIFY(openOutside->isEnabled());
+            openOutside->trigger();
             QTRY_VERIFY(!opened.isEmpty());
             QCOMPARE(backend.extracted.size(), 1);
             QCOMPARE(QDir::fromNativeSeparators(backend.extracted.front()),
@@ -108,7 +121,9 @@ class ArchiveItemOpenTests final : public QObject {
             QVERIFY(QFileInfo::exists(opened.toLocalFile()));
             QVERIFY(QFileInfo::exists(extractedDirectory));
         }
-        QVERIFY(!QFileInfo::exists(extractedDirectory));
+        // The injected association returns no process handle. Closing the
+        // window leaves the copy available to the external application.
+        QVERIFY(QFileInfo::exists(opened.toLocalFile()));
     }
     void cancelledArchiveOpenDoesNotLaunchFile() {
         QTemporaryDir dir;
@@ -120,10 +135,12 @@ class ArchiveItemOpenTests final : public QObject {
             ++launches;
             return true;
         });
+        QTimer responder;
+        dismissOperationResult(responder);
         QVERIFY(backend.prepareArchiveFixture(dir.filePath("test.7z")));
         window.openArchive(dir.filePath("test.7z"));
         auto *table = window.findChild<FileTable *>("archiveTable");
-        auto *open = window.findChild<QAction *>("openItemAction");
+        auto *open = window.findChild<QAction *>("openOutsideAction");
         QVERIFY(table && open);
         QTRY_COMPARE(table->rowCount(), 1);
         emit table->doubleClicked(table->model()->index(0, 0));
@@ -147,25 +164,12 @@ class ArchiveItemOpenTests final : public QObject {
             return true;
         });
         QTimer responder;
-        connect(&responder, &QTimer::timeout, &window, [] {
-            auto *modal = QApplication::activeModalWidget();
-            if (auto *box = qobject_cast<QMessageBox *>(modal))
-                box->accept();
-            else if (auto *progress = dynamic_cast<CProgressDialog *>(modal)) {
-                auto *close = progress->findChild<QPushButton *>("IDCANCEL");
-                if (close && close->text() == ToQString(LangString(IDS_CLOSE)))
-                    QTimer::singleShot(0, progress, [progress, close] {
-                        if (QApplication::activeModalWidget() == progress)
-                            close->click();
-                    });
-            }
-        });
-        responder.start(1);
+        dismissOperationResult(responder);
         const QString archive = dir.filePath("failure.7z");
         QVERIFY(backend.prepareArchiveFixture(archive));
         window.openArchive(archive);
         auto *table = window.findChild<FileTable *>("archiveTable");
-        auto *open = window.findChild<QAction *>("openItemAction");
+        auto *open = window.findChild<QAction *>("openOutsideAction");
         QVERIFY(table && open);
         QTRY_COMPARE(table->rowCount(), 1);
         emit table->doubleClicked(table->model()->index(0, 0));

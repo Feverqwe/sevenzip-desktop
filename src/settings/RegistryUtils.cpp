@@ -32,16 +32,6 @@ void ReadRegEditor(bool useEditor, UString &path, const QString &settingsPath) {
     ReadCuString(settingsPath, useEditor ? "Editor" : "Viewer", path);
 }
 
-bool ReadConfirmUnknownFileOpen(const QString &settingsPath) {
-    QSettings key(settingsPath, QSettings::IniFormat);
-    return key.value("FM/ConfirmUnknownFileOpen", true).toBool();
-}
-
-void SaveConfirmUnknownFileOpen(bool enabled, const QString &settingsPath) {
-    QSettings key(settingsPath, QSettings::IniFormat);
-    key.setValue("FM/ConfirmUnknownFileOpen", enabled);
-}
-
 void SaveRegLang(const UString &path, const QString &settingsPath) {
     SaveCuString(settingsPath, "Lang", path);
 }

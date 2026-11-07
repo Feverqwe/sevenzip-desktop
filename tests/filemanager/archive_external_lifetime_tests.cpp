@@ -16,6 +16,7 @@
 #include <QMessageBox>
 #include <QPushButton>
 #include <QScopeGuard>
+#include <QSettings>
 #include <QTemporaryDir>
 #include <QTimer>
 #include <QTreeWidget>
@@ -167,19 +168,19 @@ class ArchiveExternalLifetimeTests final : public QObject {
     }
     void unknownFileFallback_data() {
         QTest::addColumn<bool>("known");
-        QTest::addColumn<bool>("ask");
+        QTest::addColumn<bool>("legacyAsk");
         QTest::addColumn<bool>("internal");
         QTest::addColumn<bool>("accept");
         QTest::newRow("unknown-cancel-default") << false << true << true << false;
         QTest::newRow("native-unknown-cancel") << false << true << true << false;
         QTest::newRow("unknown-open") << false << true << true << true;
         QTest::newRow("known-opens-directly") << true << true << true << false;
-        QTest::newRow("question-disabled") << false << false << true << false;
+        QTest::newRow("legacy-preference-ignored") << false << false << true << false;
         QTest::newRow("explicit-open-outside") << false << true << false << false;
     }
     void unknownFileFallback() {
         QFETCH(bool, known);
-        QFETCH(bool, ask);
+        QFETCH(bool, legacyAsk);
         QFETCH(bool, internal);
         QFETCH(bool, accept);
         QTemporaryDir fixture;
@@ -188,8 +189,9 @@ class ArchiveExternalLifetimeTests final : public QObject {
         const QByteArray contents("\0\xff\0\x81\0", 5);
         QVERIFY(write(fixture.filePath(name), contents));
         QVERIFY(createArchive(fixture.path(), archive, name));
-        if (!ask)
-            SaveConfirmUnknownFileOpen(false, settings());
+        QSettings legacy(settings(), QSettings::IniFormat);
+        legacy.setValue("FM/ConfirmUnknownFileOpen", legacyAsk);
+        legacy.sync();
         QString opened;
         QString probed;
         const auto cleanup = qScopeGuard([&] {
@@ -227,7 +229,7 @@ class ArchiveExternalLifetimeTests final : public QObject {
         responder.start(1);
         panel.OpenItem(0, internal, true);
         responder.stop();
-        const bool expectedPrompt = ask && internal && !known;
+        const bool expectedPrompt = internal && !known;
         QCOMPARE(prompted, expectedPrompt);
         if (prompted)
             QVERIFY(cancelDefault);

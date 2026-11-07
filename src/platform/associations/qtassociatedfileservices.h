@@ -28,8 +28,7 @@ class QtAssociatedFileServices final : public IQtExternalFileServices {
         std::function<bool(CPanel &, const QtArchiveUpdateBody &)> updateRunner = {},
         std::function<bool()> updateReady = {},
         std::function<bool(const QString &)> hasAssociation = {});
-    bool ConfirmArchiveFallback(const UString &path, QWidget *window,
-                                const QString &settingsPath) override;
+    bool ConfirmArchiveFallback(const UString &path, QWidget *window) override;
     bool CanHandleExternalUpdate() const override;
     bool RunArchiveUpdate(CPanel &panel, const QtArchiveUpdateBody &body) override;
     HRESULT StartApplication(const UString &dir, const UString &path, QWidget *window) override;

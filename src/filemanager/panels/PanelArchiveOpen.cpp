@@ -320,8 +320,7 @@ HRESULT CPanel::OpenItemInArchiveImpl(unsigned index, bool tryInternal, bool try
         return E_NOTIMPL;
     }
     if (tryInternal && !editMode &&
-        !_externalFileServices->ConfirmArchiveFallback(fs2us(tempFilePath), GetParent(),
-                                                       _settingsPath))
+        !_externalFileServices->ConfirmArchiveFallback(fs2us(tempFilePath), GetParent()))
         return E_ABORT;
     StartExternalFileSession(tempDirectory, tempFileInfo, tempDirNorm, usePassword, password,
                              editMode, useEditor);

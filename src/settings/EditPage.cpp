@@ -10,7 +10,6 @@
 #include "localization/qtlangcontrols.h"
 #include "settings/RegistryUtils.h"
 #include "settings/ViewSettings.h"
-#include <QCheckBox>
 #include <QGridLayout>
 #include <QLabel>
 #include <QLineEdit>
@@ -64,26 +63,13 @@ CEditPage::CEditPage(const QString &settingsPath, QWidget *parent)
         connect(browse, &QPushButton::clicked, this,
                 [this, edit = c.Edit] { Edit_BrowseForFile(*edit, this); });
     }
-    _confirmUnknownFileOpen = new QCheckBox(this);
-    _confirmUnknownFileOpen->setObjectName("confirmUnknownFileOpenOption");
-    QtBindLocalText(_confirmUnknownFileOpen, "ExternalFileOpen",
-                    QT_TRANSLATE_NOOP("ExternalFileOpen", "Ask before opening unknown file types"));
-    layout->addWidget(_confirmUnknownFileOpen, 4, 0, 1, 2);
-    connect(_confirmUnknownFileOpen, &QCheckBox::toggled, this, [this] {
-        if (!_initMode) {
-            _confirmChanged = true;
-            Changed();
-        }
-    });
-    layout->setRowStretch(5, 1);
+    layout->setRowStretch(4, 1);
     layout->setColumnStretch(0, 1);
     OnInit();
 }
 
 bool CEditPage::OnInit() {
     _initMode = true;
-    _confirmUnknownFileOpen->setChecked(ReadConfirmUnknownFileOpen(_settingsPath));
-    _confirmChanged = false;
     for (unsigned i = 0; i < std::size(_ctrls); i++) {
         CEditPageCtrl &c = _ctrls[i];
         c.WasChanged = false;
@@ -98,10 +84,6 @@ bool CEditPage::OnInit() {
 long CEditPage::OnApply(QWidget **invalidControl) {
     if (invalidControl)
         *invalidControl = nullptr;
-    if (_confirmChanged) {
-        SaveConfirmUnknownFileOpen(_confirmUnknownFileOpen->isChecked(), _settingsPath);
-        _confirmChanged = false;
-    }
     for (unsigned i = 0; i < std::size(_ctrls); i++) {
         CEditPageCtrl &c = _ctrls[i];
         if (c.WasChanged) {
@@ -146,8 +128,6 @@ static void Edit_BrowseForFile(QLineEdit &edit, QWidget *hwnd) {
 }
 
 bool CEditPage::IsModified() const {
-    if (_confirmChanged)
-        return true;
     for (const auto &c : _ctrls)
         if (c.WasChanged)
             return true;
