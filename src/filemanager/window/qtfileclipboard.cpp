@@ -8,6 +8,21 @@
 #include <QtEndian>
 
 namespace {
+QStringList ClipboardFilePaths(const QMimeData *mime) {
+    if (!mime)
+        return {};
+    QStringList paths;
+    for (const auto &url : mime->urls()) {
+        if (!url.isLocalFile())
+            return {};
+        const QString path = url.toLocalFile();
+        if (!QDir::isAbsolutePath(path) || path.contains(QChar::Null))
+            return {};
+        paths.append(path);
+    }
+    return paths;
+}
+
 bool ClipboardMovesFiles(const QMimeData &mime) {
     bool move = mime.data("application/x-kde-cutselection") == "1" ||
                 mime.data("x-special/gnome-copied-files").startsWith("cut\n");
@@ -54,9 +69,9 @@ QtFileClipboard::Availability QtFileClipboard::AvailabilityForPanel(unsigned pan
     Availability available;
     available.copy = ready && !indices.IsEmpty() && source.DoesItSupportOperations();
     available.cut = available.copy && source.IsFSFolder() && !source.IsThereReadOnlyFolder();
-    const QMimeData *mime = QApplication::clipboard()->mimeData();
     available.paste = ready && source.GetFolder() && source.IsFSFolder() &&
-                      !source.IsThereReadOnlyFolder() && mime && mime->hasUrls();
+                      !source.IsThereReadOnlyFolder() &&
+                      !ClipboardFilePaths(QApplication::clipboard()->mimeData()).isEmpty();
     return available;
 }
 
@@ -66,13 +81,8 @@ void QtFileClipboard::Refresh() {
         cutPaths_.clear();
         const auto *mime = QApplication::clipboard()->mimeData();
         if (mime && ClipboardMovesFiles(*mime))
-            for (const auto &url : mime->urls()) {
-                if (!url.isLocalFile()) {
-                    cutPaths_.clear();
-                    break;
-                }
-                cutPaths_.insert(QDir::cleanPath(QDir::fromNativeSeparators(url.toLocalFile())));
-            }
+            for (const auto &path : ClipboardFilePaths(mime))
+                cutPaths_.insert(QDir::cleanPath(QDir::fromNativeSeparators(path)));
     }
     // Hidden tabs retain their model; every window observes clipboard changes.
     // New/restored models receive the same snapshot at their next publication.
@@ -152,15 +162,10 @@ void QtFileClipboard::Paste() {
     if (!paste->isEnabled())
         return;
     const QMimeData *mime = QApplication::clipboard()->mimeData();
-    QStringList paths;
-    for (const auto &url : mime->urls()) {
-        if (!url.isLocalFile())
-            return;
-        paths.append(url.toLocalFile());
-    }
-    const bool move = ClipboardMovesFiles(*mime);
+    const QStringList paths = ClipboardFilePaths(mime);
     if (paths.isEmpty())
         return;
+    const bool move = ClipboardMovesFiles(*mime);
     // Existing transfer owns collisions, path validation, cancellation,
     // metadata and progress; clipboard only supplies source URLs/destination.
     const QPointer<const QMimeData> original(mime);

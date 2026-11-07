@@ -110,18 +110,29 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
         window.openPath(fixture.path());
         auto *files = table(window);
         QTRY_VERIFY(files->isEnabled() && rowFor(*files, "External cut.txt") >= 0);
-        auto *mime = new QMimeData;
-        mime->setUrls({QUrl::fromLocalFile(path)});
-        mime->setData(format, hint);
-        QApplication::clipboard()->setMimeData(mime);
+        const auto putFilesOnClipboard = [&](const QList<QUrl> &urls) {
+            auto *mime = new QMimeData;
+            mime->setUrls(urls);
+            mime->setData(format, hint);
+            QApplication::clipboard()->setMimeData(mime);
+        };
+        auto *paste = action(window, "pasteFilesAction");
+        const QUrl local = QUrl::fromLocalFile(path);
+        putFilesOnClipboard({local});
         QTRY_VERIFY(cut(*files, "External cut.txt"));
-        auto *mixed = new QMimeData;
-        mixed->setUrls({QUrl::fromLocalFile(path), QUrl("https://example.invalid/file")});
-        mixed->setData(format, hint);
-        QApplication::clipboard()->setMimeData(mixed);
-        QTRY_VERIFY(!cut(*files, "External cut.txt"));
+        QTRY_VERIFY(paste->isEnabled());
+        for (const QUrl &invalid :
+             {QUrl("https://example.invalid/file"), QUrl::fromLocalFile("relative.txt")}) {
+            putFilesOnClipboard({local, invalid});
+            QTRY_VERIFY(!cut(*files, "External cut.txt"));
+            QTRY_VERIFY(!paste->isEnabled());
+            putFilesOnClipboard({local});
+            QTRY_VERIFY(cut(*files, "External cut.txt"));
+            QTRY_VERIFY(paste->isEnabled());
+        }
         QApplication::clipboard()->clear();
         QTRY_VERIFY(!cut(*files, "External cut.txt"));
+        QTRY_VERIFY(!paste->isEnabled());
     }
 
     void cutLinkKeepsTargetAndOtherNamesUnmarked() {
