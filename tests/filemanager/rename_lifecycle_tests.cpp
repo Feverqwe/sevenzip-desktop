@@ -119,6 +119,57 @@ class RenameLifecycleTests final : public QObject, protected MainWindowTestSuppo
                      QFileInfo(child).canonicalFilePath());
         QVERIFY(QFileInfo(child).isDir());
     }
+    void renameRevealsFileAtItsNewSortedPosition_data() {
+        QTest::addColumn<bool>("icons");
+        QTest::newRow("table") << false;
+        QTest::newRow("icons") << true;
+    }
+    void renameRevealsFileAtItsNewSortedPosition() {
+        QFETCH(bool, icons);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString original = fixture.filePath("a.txt");
+        const QString renamed = fixture.filePath("z.txt");
+        QFile input(original);
+        QVERIFY(input.open(QIODevice::WriteOnly));
+        QCOMPARE(input.write("payload"), qint64(7));
+        input.close();
+        for (int i = 0; i < 120; ++i) {
+            QFile peer(fixture.filePath(QString("m%1.txt").arg(i)));
+            QVERIFY(peer.open(QIODevice::WriteOnly));
+        }
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.resize(640, 400);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openPath(fixture.path());
+        auto *view = table(window);
+        QTRY_COMPARE(view->rowCount(), 121);
+        action(window, icons ? "viewMode0Action" : "viewMode3Action")->trigger();
+        auto *active = icons ? window.findChild<QAbstractItemView *>("iconList") : view;
+        QVERIFY(active);
+        active->setFocus();
+        const auto first = active->model()->index(0, 0);
+        active->setCurrentIndex(first);
+        action(window, "renameAction")->trigger();
+        auto *editor = active->findChild<QLineEdit *>();
+        QVERIFY(editor);
+        QCOMPARE(editor->text(), QString("a.txt"));
+        editor->setText("z.txt");
+        QTest::keyClick(editor, Qt::Key_Return);
+        QTRY_COMPARE(active->currentIndex().data(QtPanelList::NameRole).toString(),
+                     QString("z.txt"));
+        QVERIFY(active->selectionModel()->isRowSelected(active->currentIndex().row(), {}));
+        QTRY_VERIFY(
+            active->visualRect(active->currentIndex()).intersects(active->viewport()->rect()));
+        QTRY_VERIFY(active->hasFocus());
+        QVERIFY(!QFileInfo::exists(original));
+        QFile output(renamed);
+        QVERIFY(output.open(QIODevice::ReadOnly));
+        QCOMPARE(output.readAll(), QByteArray("payload"));
+    }
+
     void destroyingWindowCancelsQueuedRename() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
