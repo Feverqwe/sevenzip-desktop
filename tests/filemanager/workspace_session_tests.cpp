@@ -257,6 +257,13 @@ class WorkspaceSessionTests final : public QObject {
         QVERIFY(retry->isVisible());
         QVERIFY(!active(window)->isEnabled());
         QCOMPARE(active(window)->rowCount(), 0);
+        auto *parent = window.findChild<QPushButton *>("navigationParent0");
+        QVERIFY(parent);
+        parent->click();
+        QTRY_VERIFY(active(window)->isEnabled() && !retry->isVisible());
+        QCOMPARE(QtNativePlaces::RootIdentity(*active(window)->sourcePanel),
+                 QStringLiteral("locations"));
+        QVERIFY(!window.findChild<QAction *>("createFolderAction")->isEnabled());
         window.openPath(stalePath);
         QTRY_VERIFY(active(window)->isEnabled());
         QCOMPARE(location(window), stalePath);

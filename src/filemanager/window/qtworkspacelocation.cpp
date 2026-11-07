@@ -115,10 +115,14 @@ void QtWindowWorkspace::RetryLocation(unsigned panel, bool parent) {
         return;
     }
     if (parent) {
-        locationState.path = locationState.archiveLocation.physicalPath.isEmpty()
-                                 ? QFileInfo(QDir::cleanPath(locationState.path)).absolutePath()
-                                 : locationState.archiveLocation.MoveToParent();
-        locationState.nativePlaceIdentity.clear();
+        if (!locationState.nativePlaceIdentity.isEmpty()) {
+            locationState.path.clear();
+            locationState.nativePlaceIdentity = QStringLiteral("locations");
+        } else {
+            locationState.path = locationState.archiveLocation.physicalPath.isEmpty()
+                                     ? QFileInfo(QDir::cleanPath(locationState.path)).absolutePath()
+                                     : locationState.archiveLocation.MoveToParent();
+        }
         locationState.archiveApplied = locationState.archiveRevision;
     }
     const QString requested = locationState.path;
