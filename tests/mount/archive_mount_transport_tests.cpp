@@ -23,7 +23,6 @@
 #include <QTemporaryDir>
 #include <QThread>
 #include <QTranslator>
-#include <QTreeWidget>
 #include <QtTest>
 #include <fcntl.h>
 #include <future>
@@ -363,7 +362,8 @@ class ArchiveMountTransportTests final : public QObject {
         answer.start(5);
         manager.mount(nullptr, "Synthetic cancelled mount", {});
         answer.stop();
-        QCOMPARE(manager.findChild<QTreeWidget *>("mountList")->topLevelItemCount(), 0);
+        QVERIFY(manager.findChildren<QtArchiveMountSession *>().isEmpty());
+        QVERIFY(manager.findChildren<QtMountRow *>().isEmpty());
         QVERIFY(manager.canCloseOwner());
     }
     void nativeMountThroughManager_data() {
@@ -436,13 +436,17 @@ class ArchiveMountTransportTests final : public QObject {
         manager.mount(resource, "Synthetic managed ZIP", {}, "chosen/");
         retained.Release();
         reader.reset();
-        auto *copy = manager.findChild<QPushButton *>("copyMountPathButton");
+        auto *row = manager.findChild<QtMountRow *>();
+        QVERIFY(row);
+        auto *copy = row->findChild<QPushButton *>("copyMountPathButton");
+        QVERIFY(copy);
         QTRY_VERIFY_WITH_TIMEOUT(copy->isEnabled(), 15000);
         copy->click();
-        auto *remove = manager.findChild<QAction *>("removeMountAction");
+        auto *remove = row->findChild<QAction *>("removeMountAction");
+        QVERIFY(remove);
         QVERIFY(!remove->isEnabled());
         remove->trigger();
-        QCOMPARE(manager.findChild<QTreeWidget *>("mountList")->topLevelItemCount(), 1);
+        QCOMPARE(manager.findChildren<QtMountRow *>().size(), 1);
         const QString mounted = QApplication::clipboard()->text();
         QCOMPARE(QDir(mounted).entryList(QDir::Files), QStringList{name});
         QVERIFY(manager.findChild<QPlainTextEdit *>("mountDetails")
@@ -479,14 +483,12 @@ class ArchiveMountTransportTests final : public QObject {
         ::close(held);
         held = -1;
         manager.findChild<QPushButton *>("unmountButton")->click();
-        auto *list = manager.findChild<QTreeWidget *>("mountList");
-        QTRY_VERIFY_WITH_TIMEOUT(list->topLevelItem(0)->text(1).isEmpty(), 15000);
         auto *session = manager.findChild<QtArchiveMountSession *>();
         QVERIFY(session);
         QTRY_COMPARE_WITH_TIMEOUT(session->status(), QtArchiveMountSession::Status::Stopped, 15000);
         QVERIFY(remove->isEnabled());
         remove->trigger();
-        QCOMPARE(list->topLevelItemCount(), 0);
+        QTRY_VERIFY(manager.findChildren<QtMountRow *>().isEmpty());
         QVERIFY(manager.canCloseOwner());
         QCOMPARE(confirmations, 1);
         QVERIFY(geometryFits);
