@@ -165,7 +165,7 @@
     qt_add_executable(compression_event_tests tests/archive/compression_event_tests.cpp)
     target_link_libraries(compression_event_tests PRIVATE sevenzip_compression_ui sevenzip_layout_inspection sevenzip_location)
     target_include_directories(compression_event_tests PRIVATE src tests)
-    target_link_libraries(compression_event_tests PRIVATE sevenzip_panel Qt6::Test)
+    target_link_libraries(compression_event_tests PRIVATE sevenzip_panel Qt6::Test sevenzip_widget_dialog_fixtures)
     if(SEVENZIP_CODEC_MODULE)
         target_compile_definitions(compression_event_tests PRIVATE
             "SEVENZIP_CODEC_MODULE=\"${SEVENZIP_CODEC_MODULE}\"")

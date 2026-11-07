@@ -4,7 +4,7 @@
 #include "dialogs/compress/createarchivedialog.h"
 #include "localization/LangUtils.h"
 #include "settings/RegistryUtils.h"
-#include "support/archive_sections.h"
+#include "support/archive_expert.h"
 #include "ui/support/layout_inspection.h"
 #include <QScrollArea>
 #include <QSignalSpy>
@@ -49,6 +49,23 @@ class CompressionEventTests final : public QObject {
         QTest::addColumn<QString>("language");
         QTest::newRow("en") << QString("-");
         QTest::newRow("ru") << QString("ru");
+    }
+
+    static QString submitAndDismissRefusal(CreateArchiveDialog &dialog) {
+        QString messageText;
+        QTimer responder;
+        connect(&responder, &QTimer::timeout, &dialog, [&] {
+            if (auto *message = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                messageText = message->text();
+                message->accept();
+            } else if (auto *editor = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+                       editor && editor->objectName() == "archiveExpertDialog") {
+                editor->reject();
+            }
+        });
+        responder.start(1);
+        dialog.findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok)->click();
+        return messageText;
     }
 
   private slots:
@@ -125,13 +142,11 @@ class CompressionEventTests final : public QObject {
         auto *solid = combo(dialog, "compressionSolidBlock");
         const int selection = thread->currentIndex();
         QCOMPARE(selection < 0, threads == 999999);
-        const QString autoText = thread->itemText(0);
         for (UInt32 block : {20u, 64u, UInt32(-1)}) {
             const int index = solid->findData(block);
             QVERIFY(index >= 0);
             solid->setCurrentIndex(index);
             QCOMPARE(thread->currentIndex(), selection);
-            QCOMPARE(thread->itemText(0), autoText);
             QCOMPARE(dialog.compressionOptions().NumThreads,
                      threads == 999999 ? UInt32(-1) : threads);
         }
@@ -139,12 +154,12 @@ class CompressionEventTests final : public QObject {
         QCOMPARE(contents(settings_), before);
         QCOMPARE(contents(input_), bytes_);
     }
-    void solidMemoryUsesCachedAuto_data() { languageData(); }
-    void solidMemoryUsesCachedAuto() {
+    void solidMemoryRecalculatesAuto_data() { languageData(); }
+    void solidMemoryRecalculatesAuto() {
         QFETCH(QString, language);
         const auto system = NCompressDialog::GetSystemInfo();
         if (system.NumCPUs < 4 || !system.RamSizeDefined)
-            QSKIP("Cached-auto difference requires four available CPUs and known RAM");
+            QSKIP("Automatic thread adjustment requires four available CPUs and known RAM");
         profile(UInt32(-1));
         this->language(language);
         CreateArchiveDialog dialog(fixture_.path(), {input_}, nullptr, catalog_);
@@ -153,38 +168,37 @@ class CompressionEventTests final : public QObject {
         QCOMPARE(thread->itemText(0), NCompressDialog::Modify_Auto(QString("2")));
         auto *solid = combo(dialog, "compressionSolidBlock");
         solid->setCurrentIndex(solid->findData(20u));
+        const auto options = dialog.compressionOptions();
+        const auto adjusted =
+            NCompressDialog::SetNumThreads2(QStringLiteral("xz"), NCompressDialog::kLZMA2, 5,
+                                            1 << 20, 20, system, options.MemUsage);
+        QVERIFY(adjusted.AutoNumThreads > 2);
         UInt64 decompress;
         const UInt64 usage = NCompressDialog::GetMemoryUsage_Threads_Dict_DecompMem(
-            QStringLiteral("xz"), NCompressDialog::kLZMA2, 5, 2, 1 << 20, 20, decompress);
-        const auto options = dialog.compressionOptions();
+            QStringLiteral("xz"), NCompressDialog::kLZMA2, 5, adjusted.AutoNumThreads, 1 << 20, 20,
+            decompress);
         QCOMPARE(dialog.findChild<QLabel *>("compressionMemoryUsage")->text(),
                  CCompressDialog::PrintMemUsage(IDT_COMPRESS_MEMORY_VALUE, usage, options.MemUsage,
                                                 system));
-        QCOMPARE(thread->itemText(0), NCompressDialog::Modify_Auto(QString("2")));
+        QCOMPARE(thread->itemText(0),
+                 NCompressDialog::Modify_Auto(QString::number(adjusted.AutoNumThreads)));
         dialog.show();
-        ExpandArchiveSections(dialog);
-        for (const QSize size : {QSize(760, 720), QSize(640, 480)}) {
-            dialog.resize(size);
-            QApplication::processEvents();
-            // Native fonts can put the usage/limit row more than 80 pixels
-            // below Threads. Expose the actual source group, retaining both
-            // controls' original visibility assertions.
-            auto *memoryGroup = dialog.findChild<QWidget *>("compressionMemoryGroup");
-            QVERIFY(memoryGroup);
-            dialog.findChild<QScrollArea *>()->ensureWidgetVisible(memoryGroup, 0, 0);
-            QApplication::processEvents();
-            QVERIFY(UiInspection::fullyVisible(*thread, dialog));
-            auto *memory = dialog.findChild<QLabel *>("compressionMemoryUsage");
-            QVERIFY(UiInspection::labelFits(*memory));
-            if (!UiInspection::fullyVisible(*memory, dialog))
+        QVERIFY(EditArchiveExpert(dialog, false, [&](QDialog &editor) {
+            auto *scroll = editor.findChild<QScrollArea *>("dialogContentScroll");
+            auto *memory = editor.findChild<QLabel *>("compressionMemoryUsage");
+            QVERIFY(scroll && memory);
+            for (const QSize size : {QSize(760, 720), QSize(640, 480)}) {
+                editor.resize(size);
+                QApplication::processEvents();
+                scroll->ensureWidgetVisible(thread);
+                QTRY_VERIFY(UiInspection::fullyVisible(*thread, editor));
+                scroll->ensureWidgetVisible(memory);
+                QTRY_VERIFY(UiInspection::fullyVisible(*memory, editor));
+                QVERIFY(UiInspection::labelFits(*memory));
                 QVERIFY(UiInspection::writeReport(
-                    dialog,
-                    QString("compression-event-%1-%2-clipped").arg(language).arg(size.width())));
-            QVERIFY(UiInspection::fullyVisible(*memory, dialog));
-            QVERIFY(UiInspection::writeReport(
-                dialog, QString("compression-event-%1-%2").arg(language).arg(size.width())));
-        }
-        // The memory-limit event, unlike Solid, deliberately regenerates Auto.
+                    editor, QString("compression-event-%1-%2").arg(language).arg(size.width())));
+            }
+        }));
         auto *limit = combo(dialog, "compressionMemoryLimit");
         limit->setCurrentIndex(limit->findData("256M"));
         const auto recalculated = NCompressDialog::SetNumThreads2(
@@ -208,26 +222,22 @@ class CompressionEventTests final : public QObject {
         QFETCH(QString, language);
         const auto system = NCompressDialog::GetSystemInfo();
         if (system.NumCPUs < 4 || !system.RamSizeDefined)
-            QSKIP("Cached-auto refusal requires four available CPUs and known RAM");
+            QSKIP("Automatic thread adjustment requires four available CPUs and known RAM");
         profile(UInt32(-1), 64);
         this->language(language);
         const auto before = contents(settings_);
         CreateArchiveDialog dialog(fixture_.path(), {input_}, nullptr, catalog_);
         QCOMPARE(combo(dialog, "archiveFormat")->currentText(), QString("xz"));
+        auto *threads = combo(dialog, "compressionThreads");
+        const int fourThreads = threads->findData(4u);
+        QVERIFY(fourThreads >= 0);
+        threads->setCurrentIndex(fourThreads);
         auto *solid = combo(dialog, "compressionSolidBlock");
         solid->setCurrentIndex(solid->findData(UInt32(-1)));
+        QCOMPARE(dialog.compressionOptions().NumThreads, 4u);
         QSignalSpy accepted(&dialog, &QDialog::accepted);
-        bool refused = false;
-        QTimer::singleShot(0, &dialog, [&] {
-            if (auto *message = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
-                refused = message->icon() == QMessageBox::Critical &&
-                          message->text().contains(
-                              QString::fromUtf8(language == "ru" ? "50 МБ" : "50 MB"));
-                message->accept();
-            }
-        });
-        dialog.findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok)->click();
-        QVERIFY(refused);
+        QVERIFY(submitAndDismissRefusal(dialog).contains(
+            QString::fromUtf8(language == "ru" ? "50 МБ" : "50 MB")));
         QCOMPARE(accepted.size(), 0);
         QCOMPARE(dialog.result(), 0);
         QCOMPARE(contents(settings_), before);
@@ -237,21 +247,22 @@ class CompressionEventTests final : public QObject {
     void savedEventProfileRunsOfficialEngine_data() { languageData(); }
     void savedEventProfileRunsOfficialEngine() {
         QFETCH(QString, language);
-        profile(UInt32(-1));
+        profile(UInt32(-1), 64);
         this->language(language);
         {
             CreateArchiveDialog dialog(fixture_.path(), {input_}, nullptr, catalog_);
             QCOMPARE(combo(dialog, "archiveFormat")->currentText(), QString("xz"));
             auto *solid = combo(dialog, "compressionSolidBlock");
-            solid->setCurrentIndex(solid->findData(20u));
-            dialog.findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok)->click();
+            solid->setCurrentIndex(solid->findData(UInt32(-1)));
+            const QString refusal = submitAndDismissRefusal(dialog);
+            QVERIFY2(refusal.isEmpty(), qPrintable(refusal));
             QCOMPARE(dialog.result(), int(QDialog::Accepted));
         }
         CreateArchiveDialog restarted(fixture_.path(), {input_}, nullptr, catalog_);
         const auto options = restarted.compressionOptions();
         QCOMPARE(options.format, QString("xz"));
         QCOMPARE(options.NumThreads, UInt32(-1));
-        QCOMPARE(options.SolidBlockSize, UInt64(1 << 20));
+        QVERIFY(!options.SolidIsSpecified);
         QCOMPARE(options.Dict64, UInt64(1 << 20));
         QCOMPARE(options.MemUsage.GetBytes(0), UInt64(50 << 20));
         restarted.reject();
