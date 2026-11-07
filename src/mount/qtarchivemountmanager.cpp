@@ -82,13 +82,13 @@ void QtArchiveMountManager::refresh() {
                    !entry.instance->error().isEmpty();
         })) {
         closingOwner_ = false;
-        closeOwner_ = {};
         showManager();
     } else if (std::all_of(sessions_.cbegin(), sessions_.cend(), [](const Session &entry) {
                    return entry.instance->status() == Status::Stopped;
                })) {
         closingOwner_ = false;
-        QTimer::singleShot(0, this, std::exchange(closeOwner_, {}));
+        if (owner_)
+            QTimer::singleShot(0, this, [this] { owner_->close(); });
     }
 }
 bool QtArchiveMountManager::hasActiveSessions() const {
@@ -97,23 +97,13 @@ bool QtArchiveMountManager::hasActiveSessions() const {
     });
 }
 
-void QtArchiveMountManager::rebindOwner(QWidget &owner) {
-    const bool visible = isVisible();
-    owner_ = &owner;
-    setParent(&owner, windowFlags());
-    if (visible)
-        show();
-}
-
-bool QtArchiveMountManager::canCloseOwner(std::function<void()> closeOwner) {
+bool QtArchiveMountManager::canCloseOwner() {
     if (!hasActiveSessions())
         return true;
     if (closingOwner_)
         return false;
-    const QPointer<QWidget> requestedWindow(owner_);
     QMessageBox prompt(QMessageBox::Question, tr("Disconnect mounts before closing"),
-                       closeOwner ? tr("Unmount the active connections and close this tab?")
-                                  : tr("Unmount the active connections and close this window?"),
+                       tr("Unmount the active connections and close this window?"),
                        QMessageBox::Cancel, owner_);
     auto *close = prompt.addButton(tr("Unmount and Close"), QMessageBox::AcceptRole);
     prompt.setDefaultButton(QMessageBox::Cancel);
@@ -121,13 +111,6 @@ bool QtArchiveMountManager::canCloseOwner(std::function<void()> closeOwner) {
     if (prompt.clickedButton() != close)
         return false;
     closingOwner_ = true;
-    if (!closeOwner) {
-        closeOwner = [requestedWindow] {
-            if (requestedWindow)
-                requestedWindow->close();
-        };
-    }
-    closeOwner_ = std::move(closeOwner);
     for (const auto &entry : sessions_)
         entry.instance->unmount();
     refresh();

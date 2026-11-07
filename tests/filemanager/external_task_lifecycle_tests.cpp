@@ -2,7 +2,6 @@
 #include "filemanager/views/filetable.h"
 #include "filemanager/window/qtexternalfiletask.h"
 #include "filemanager/window/qtlocalfiletask.h"
-#include "filemanager/window/qtwindowworkspace.h"
 #include "localization/LangUtils.h"
 #include "platform/support/external_editor_fixture.h"
 #include "platform/temp/qtownedtempregistry.h"
@@ -17,7 +16,6 @@
 #include <QPushButton>
 #include <QScopeGuard>
 #include <QScrollArea>
-#include <QTabBar>
 #include <algorithm>
 
 using namespace ExternalEditorFixture;
@@ -28,19 +26,16 @@ class ExternalTaskLifecycleTests final : public QObject, protected MainWindowTes
   private slots:
     void initTestCase() { UiInspection::configureReviewAppearance(); }
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
-    void closingTabUsesTheExistingWorkerShutdown_data() {
-        QTest::addColumn<int>("closing");
-        QTest::newRow("active-tab") << 0;
-        QTest::newRow("inactive-tab") << 1;
-        QTest::newRow("last-file-window") << 2;
-        QTest::newRow("close-during-copy-choice") << 3;
+    void closingWindowUsesTheExistingWorkerShutdown_data() {
+        QTest::addColumn<bool>("duringCopyChoice");
+        QTest::newRow("last-file-window") << false;
+        QTest::newRow("close-during-copy-choice") << true;
     }
-    void closingTabUsesTheExistingWorkerShutdown() {
-        QFETCH(int, closing);
+    void closingWindowUsesTheExistingWorkerShutdown() {
+        QFETCH(bool, duringCopyChoice);
         QTemporaryDir fixture;
         const QString name = QStringLiteral("edit 空.txt");
         QVERIFY(write(fixture.filePath(name), "original"));
-        QVERIFY(write(fixture.filePath("peer.txt"), "peer stays open"));
         const auto archive = fixture.filePath("source.zip");
         QVERIFY(createArchive(fixture.path(), archive, name));
         const auto original = read(archive);
@@ -56,12 +51,7 @@ class ExternalTaskLifecycleTests final : public QObject, protected MainWindowTes
         action(window, "editFileAction")->trigger();
         QTRY_VERIFY(QFileInfo(control + ".ready").size() > 0);
         const auto copy = QString::fromUtf8(read(control + ".ready"));
-        QtWindowWorkspace *workspace = nullptr;
-        for (auto *object : window.children())
-            if (auto *owner = dynamic_cast<QtWindowWorkspace *>(object))
-                workspace = owner;
-        QVERIFY(workspace);
-        if (closing == 3) {
+        if (duringCopyChoice) {
             auto *task = QtExternalFileTask::Active().front();
             task->Show();
             QDialog *details = nullptr;
@@ -79,24 +69,6 @@ class ExternalTaskLifecycleTests final : public QObject, protected MainWindowTes
             });
             details->findChild<QPushButton *>("externalFileSaveCopy")->click();
             QVERIFY(copySeen && closed && !window.isVisible());
-        } else if (closing != 2) {
-            workspace->NewTab(0, fixture.path());
-            QTRY_VERIFY(table(window)->isEnabled() && table(window)->sourcePanel->IsFSFolder());
-            const int peer = filesystemRow(window, "peer.txt");
-            QVERIFY(peer >= 0);
-            table(window)->selectRow(peer);
-            table(window)->setCurrentCell(peer, 0);
-            if (closing == 0) {
-                window.findChild<QTabBar *>("panelTabs0")->setCurrentIndex(0);
-                QTRY_VERIFY(table(window)->isEnabled() &&
-                            table(window)->sourcePanel->IsArcFolder());
-            }
-            workspace->CloseTab(0, 0);
-            QTRY_VERIFY(table(window)->isEnabled() && table(window)->sourcePanel->IsFSFolder());
-            QCOMPARE(
-                table(window)->model()->index(table(window)->currentRow(), 0).data().toString(),
-                QString("peer.txt"));
-            QVERIFY(window.isVisible());
         } else {
             const bool previous = qApp->quitOnLastWindowClosed();
             const auto restore = qScopeGuard([&] { qApp->setQuitOnLastWindowClosed(previous); });
@@ -132,19 +104,19 @@ class ExternalTaskLifecycleTests final : public QObject, protected MainWindowTes
             }
         QVERIFY(protectedCopy);
     }
-    void editedFileWhileTabIsOpen_data() {
+    void editedFileWhileWindowIsOpen_data() {
         QTest::addColumn<bool>("update");
         QTest::addColumn<bool>("stopDuringPrompt");
         QTest::addColumn<bool>("fast");
         QTest::addColumn<int>("exportChoice");
-        QTest::newRow("update-while-tab-open") << true << false << false << 0;
-        QTest::newRow("later-while-tab-open") << false << false << false << 0;
+        QTest::newRow("update-while-window-open") << true << false << false << 0;
+        QTest::newRow("later-while-window-open") << false << false << false << 0;
         QTest::newRow("stop-during-delivered-callback") << false << true << false << 0;
         QTest::newRow("fast-editor-keeps-protected-copy") << false << false << true << 0;
         QTest::newRow("stop-during-export-choice") << false << false << false << 1;
         QTest::newRow("export-keeps-source-copy") << false << false << false << 2;
     }
-    void editedFileWhileTabIsOpen() {
+    void editedFileWhileWindowIsOpen() {
         QFETCH(bool, update);
         QFETCH(bool, stopDuringPrompt);
         QFETCH(bool, fast);

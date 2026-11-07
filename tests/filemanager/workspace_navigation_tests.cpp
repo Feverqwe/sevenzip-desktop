@@ -10,18 +10,8 @@
 #include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
 #include <QClipboard>
-#include <QCloseEvent>
 #include <QListWidget>
-#include <QTabBar>
 #include <QToolButton>
-
-class CloseProtectedWindow final : public MainWindow {
-  public:
-    using MainWindow::MainWindow;
-
-  protected:
-    void closeEvent(QCloseEvent *event) override { event->ignore(); }
-};
 
 class WorkspaceNavigationTests final : public QObject {
     Q_OBJECT
@@ -110,7 +100,7 @@ class WorkspaceNavigationTests final : public QObject {
             QVERIFY(UiInspection::writeReport(window, QString("native-location-%1").arg(width)));
         }
     }
-    void closingLeftPanelKeepsRightContextAndReopensHome() {
+    void hidingLeftPanelKeepsBothLocationsAndRightSelection() {
         QTemporaryDir fixture;
         const QString left = fixture.filePath("Left folder");
         const QString right = fixture.filePath("Right folder");
@@ -140,7 +130,8 @@ class WorkspaceNavigationTests final : public QObject {
         view->selectRow(selected);
         view->setCurrentCell(selected, 0, QItemSelectionModel::NoUpdate);
         QTRY_VERIFY(toggle->isEnabled());
-        workspace(window)->CloseTab(0, 0);
+        view->setFocus();
+        toggle->trigger();
         QTRY_VERIFY(!toggle->isChecked());
         QVERIFY(view->isVisible());
         QCOMPARE(QDir::cleanPath(ToQString(view->sourcePanel->GetCurrentFolderPrefix())), right);
@@ -152,8 +143,7 @@ class WorkspaceNavigationTests final : public QObject {
         auto *reopened =
             window.findChild<QWidget *>("filePanel0")->findChild<FileTable *>("archiveTable");
         QTRY_VERIFY(reopened->isEnabled());
-        QCOMPARE(QDir::cleanPath(ToQString(reopened->sourcePanel->GetCurrentFolderPrefix())),
-                 QDir::homePath());
+        QCOMPARE(QDir::cleanPath(ToQString(reopened->sourcePanel->GetCurrentFolderPrefix())), left);
         QCOMPARE(QDir::cleanPath(ToQString(view->sourcePanel->GetCurrentFolderPrefix())), right);
     }
 
@@ -185,54 +175,7 @@ class WorkspaceNavigationTests final : public QObject {
         QCOMPARE(path(*leftTable), left);
     }
 
-    void tabsRetainSourceSelectionAndRemainUsableAfterClose() {
-        QTemporaryDir fixture;
-        QVERIFY(fixture.isValid());
-        const QString first = fixture.filePath("First папка");
-        const QString second = fixture.filePath("Second folder");
-        QVERIFY(QDir().mkpath(first));
-        QVERIFY(QDir().mkpath(second));
-        writeFile(first + "/selected.txt", "first");
-        writeFile(second + "/other.txt", "second");
-        ControlledBackend backend;
-        MainWindow window(&backend);
-        window.show();
-        window.openPath(first);
-        auto *original = visibleTable(window);
-        QVERIFY(original);
-        QTRY_VERIFY(original->isEnabled());
-        int selected = -1;
-        for (int row = 0; row < original->rowCount(); ++row)
-            if (original->model()->index(row, 0).data().toString() == "selected.txt")
-                selected = row;
-        QVERIFY(selected >= 0);
-        original->selectRow(selected);
-        original->setCurrentCell(selected, 0, QItemSelectionModel::NoUpdate);
-        auto *tabs = window.findChild<QTabBar *>("panelTabs0");
-        QVERIFY(tabs);
-        window.findChild<QAction *>("newTabAction")->trigger();
-        QTRY_COMPARE(tabs->count(), 2);
-        QTRY_VERIFY(visibleTable(window) && visibleTable(window)->isEnabled());
-        window.openPath(second);
-        tabs->setCurrentIndex(0);
-        QTRY_COMPARE(
-            QDir::cleanPath(ToQString(visibleTable(window)->sourcePanel->GetCurrentFolderPrefix())),
-            first);
-        auto *returned = visibleTable(window);
-        QCOMPARE(QDir::cleanPath(ToQString(returned->sourcePanel->GetCurrentFolderPrefix())),
-                 first);
-        QCOMPARE(returned->model()->index(returned->currentRow(), 0).data().toString(),
-                 "selected.txt");
-        QVERIFY(returned->selectionModel()->isRowSelected(returned->currentRow(), {}));
-        window.findChild<QAction *>("closeWindowAction")->trigger();
-        QTRY_COMPARE(tabs->count(), 1);
-        QVERIFY(visibleTable(window));
-        QCOMPARE(
-            QDir::cleanPath(ToQString(visibleTable(window)->sourcePanel->GetCurrentFolderPrefix())),
-            second);
-    }
-
-    void fileClipboardCopiesRealBytesAcrossTabs() {
+    void fileClipboardCopiesRealBytesAcrossLocations() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString source = fixture.filePath("Source");
@@ -397,105 +340,22 @@ class WorkspaceNavigationTests final : public QObject {
         QCOMPARE(empty.rowCount(), 0);
     }
 
-    void mountManagersFollowTabsAcrossWindows() {
+    void mountManagersRemainIndependentAcrossWindows() {
         ControlledBackend firstBackend, secondBackend;
         auto first = std::make_unique<MainWindow>(&firstBackend);
         MainWindow second(&secondBackend);
         first->show();
         second.show();
         first->findChild<QAction *>("manageMountsAction")->trigger();
-        const QPointer<QtArchiveMountManager> firstMounts = dynamic_cast<QtArchiveMountManager *>(
-            first->findChild<QDialog *>("archiveMountManager"));
+        const QPointer<QDialog> firstMounts = first->findChild<QDialog *>("archiveMountManager");
         QVERIFY(firstMounts && firstMounts->isVisible());
-        workspace(*first)->NewTab(0);
-        auto *tabs = first->findChild<QTabBar *>("panelTabs0");
-        QTRY_COMPARE(tabs->count(), 2);
-        first->findChild<QAction *>("manageMountsAction")->trigger();
-        QPointer<QtArchiveMountManager> secondMounts;
-        for (auto *dialog : first->findChildren<QDialog *>())
-            if (auto *manager = dynamic_cast<QtArchiveMountManager *>(dialog);
-                manager && manager != firstMounts)
-                secondMounts = manager;
+        second.findChild<QAction *>("manageMountsAction")->trigger();
+        const QPointer<QDialog> secondMounts = second.findChild<QDialog *>("archiveMountManager");
         QVERIFY(secondMounts && secondMounts->isVisible());
-        const auto moving = tabs->tabData(tabs->currentIndex()).toString();
-        workspace(*first)->CloseTab(0, 0);
-        QTRY_COMPARE(tabs->count(), 1);
+        first.reset();
         QVERIFY(!firstMounts);
         QVERIFY(secondMounts && secondMounts->isVisible());
-        QVERIFY(workspace(*first)->TransferTab(moving, *workspace(second), 0));
-        first.reset();
-        QVERIFY(secondMounts && secondMounts->isVisible());
         QCOMPARE(secondMounts->parentWidget(), &second);
-        auto *receiverTabs = second.findChild<QTabBar *>("panelTabs0");
-        QTRY_COMPARE(receiverTabs->count(), 2);
-        workspace(second)->CloseTab(0, receiverTabs->currentIndex());
-        QTRY_COMPARE(receiverTabs->count(), 1);
-        QVERIFY(!secondMounts);
-        QVERIFY(second.isVisible());
-    }
-    void movingTabToAnotherWindowPreservesSelectionAndSurvivesSourceClose_data() {
-        QTest::addColumn<bool>("refuseClose");
-        QTest::newRow("ordinary-close") << false;
-        QTest::newRow("protected-origin") << true;
-    }
-    void movingTabToAnotherWindowPreservesSelectionAndSurvivesSourceClose() {
-        QFETCH(bool, refuseClose);
-        QTemporaryDir fixture;
-        QVERIFY(fixture.isValid());
-        const QString source = fixture.filePath("Moving source");
-        const QString destination = fixture.filePath("Paste target");
-        QVERIFY(QDir().mkpath(source));
-        QVERIFY(QDir().mkpath(destination));
-        writeFile(source + "/moved context.txt", "move context");
-        auto sourceBackend = std::make_unique<ControlledBackend>();
-        std::unique_ptr<MainWindow> first;
-        if (refuseClose)
-            first = std::make_unique<CloseProtectedWindow>(sourceBackend.get());
-        else
-            first = std::make_unique<MainWindow>(sourceBackend.get());
-        ControlledBackend receiverBackend;
-        MainWindow second(&receiverBackend);
-        first->show();
-        second.show();
-        first->openPath(source);
-        second.openPath(destination);
-        auto *table = visibleTable(*first);
-        QTRY_VERIFY(table && table->isEnabled());
-        int selected = -1;
-        for (int row = 0; row < table->rowCount(); ++row)
-            if (table->model()->index(row, 0).data().toString() == "moved context.txt")
-                selected = row;
-        QVERIFY(selected >= 0);
-        table->selectRow(selected);
-        table->setCurrentCell(selected, 0, QItemSelectionModel::NoUpdate);
-        auto *tabs = first->findChild<QTabBar *>("panelTabs0");
-        QVERIFY(workspace(*first)->TransferTab(tabs->tabData(tabs->currentIndex()).toString(),
-                                               *workspace(second), 0));
-        if (refuseClose) {
-            QVERIFY(first->isVisible());
-            QTRY_VERIFY(visibleTable(*first));
-            QTRY_COMPARE(QDir::cleanPath(ToQString(
-                             visibleTable(*first)->sourcePanel->GetCurrentFolderPrefix())),
-                         QDir::homePath());
-        }
-        first.reset();
-        sourceBackend.reset();
-        auto *received = visibleTable(second);
-        QVERIFY(received);
-        QCOMPARE(QDir::cleanPath(ToQString(received->sourcePanel->GetCurrentFolderPrefix())),
-                 source);
-        QCOMPARE(received->model()->index(received->currentRow(), 0).data().toString(),
-                 "moved context.txt");
-        QVERIFY(received->selectionModel()->isRowSelected(received->currentRow(), {}));
-        second.findChild<QAction *>("copyFilesAction")->trigger();
-        second.openPath(destination);
-        second.findChild<QAction *>("pasteFilesAction")->trigger();
-        QTRY_VERIFY_WITH_TIMEOUT(QFileInfo::exists(destination + "/moved context.txt"), 10000);
-        QTRY_VERIFY_WITH_TIMEOUT(received->isEnabled(), 10000);
-        QFile result(destination + "/moved context.txt");
-        QVERIFY(result.open(QIODevice::ReadOnly));
-        QCOMPARE(result.readAll(), "move context");
-        QApplication::clipboard()->clear();
     }
 };
 

@@ -146,14 +146,12 @@ void QtWindowWorkspace::RefreshChrome() {
         const auto &state = panels_[panel];
         if (!state.actions || !window_.commands_ || !window_.panelUi_[panel].table)
             continue;
-        if (!state.tabs.empty() &&
-            state.tabs[state.current].archiveRevision != state.tabs[state.current].archiveApplied)
+        if (state.location.archiveRevision != state.location.archiveApplied)
             ShowArchiveChangeNotice(panel);
         if (window_.panelUi_[panel].navigationNotice)
             window_.panelUi_[panel].navigationNotice->setVisible(
                 window_.panelUi_[panel].locationUnavailable ||
-                (!state.tabs.empty() && state.tabs[state.current].archiveRevision !=
-                                            state.tabs[state.current].archiveApplied));
+                state.location.archiveRevision != state.location.archiveApplied);
         if (auto *row =
                 dynamic_cast<QtNavigationRow *>(window_.panelUi_[panel].navigation->parentWidget()))
             row->SetActivePane(window_.app_.NumPanels == 2 && window_.projectedPanel_ == panel);
@@ -232,10 +230,10 @@ void QtWindowWorkspace::OpenFavorite(const QString &path) {
             return opened == S_OK && !LocationMatches(panel, path) ? S_FALSE : opened;
         });
         CompleteLocationOpen(panel, path, result);
-        if (panels_[panel].tabs[panels_[panel].current].unavailable) {
-            auto &tab = panels_[panel].tabs[panels_[panel].current];
-            tab.nativePlaceIdentity.clear();
-            tab.archiveLocation = {};
+        if (panels_[panel].location.unavailable) {
+            auto &locationState = panels_[panel].location;
+            locationState.nativePlaceIdentity.clear();
+            locationState.archiveLocation = {};
         }
     });
     window_.refreshActions();

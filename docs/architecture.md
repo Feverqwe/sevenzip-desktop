@@ -158,23 +158,16 @@ operation semantics. `MainWindow` projects that state into widgets and connects
 the platform services. It must not become a second owner of archive algorithms
 or command-availability decisions.
 
-Each live tab owns a stable source panel and its Qt list, selection and navigation
-state. `QtWindowWorkspace` projects the active tabs into CApp's two panel slots;
-switching tabs keeps the inactive source and its archive-parent chain alive.
-Operation guards capture the actual source before work starts. Switching or
-moving tabs is unavailable during protected calls, publication and native drag.
-External edits capture an immutable native target rather than depending on the
-current tab. Publication notifies file windows by affected archive path; a source
-view does not own the editor session or authorize writing a different archive.
+Each file pane owns a source panel, selection and navigation history. The
+workspace binds the panes to CApp's two panel slots. Operation guards capture
+the source before work starts. External edits capture the native update target
+when the editor is launched. Publication notifies file windows by affected
+archive path.
 
-Back and Forward belong to the live tab, including its selected/current item and
-viewport. Parent is a new navigation visit. Only completed successful navigation
-advances the cursor or publishes a recent place through the existing
-`CFolderHistory`; refresh, tab activation and rejected/canceled requests do not.
-Changing direction retains the forward branch until a different visit succeeds.
-These live stacks follow tab transfers; they are not persisted in sessions or
-copied into a newly duplicated tab. Native address fallback to an existing
-ancestor retains its established success semantics.
+Back and Forward restore the visited location, selection and viewport for their
+pane. Parent is a new visit. Only completed navigation advances the cursor
+and publishes a recent place through `CFolderHistory`. A different successful
+visit replaces the forward branch. Sessions retain the current directory.
 
 Recent Places has a shared settings-scoped adapter around `CFolderHistory`.
 The native history still owns comparison, order and limits; immediate removal
@@ -183,7 +176,7 @@ retain value-only native root/archive descriptors for reopening, with no handles
 passwords or consent. Other favorites and destination histories have separate
 owners. The dialog uses the shared dialog layout and source identity with path tooltips;
 its search and selection remain visible when opening fails. A request captures
-the originating tab, waits for its retained publication if needed, and checks
+the originating panel, waits for its retained publication if needed, and checks
 the exact target before accepting it. Closing the form retires only that request.
 
 Numeric bookmarks have their own settings-scoped publication adapter around
@@ -192,22 +185,16 @@ state, updates every window snapshot, and then refreshes bookmark menus. Closing
 another window therefore preserves the latest slots. Named favorites and recent
 places remain separate owners.
 
-Each tab is an independent application context: closing it applies the existing
-source shutdown to that tab before releasing its UI or activating a neighbour.
-The native saved-location rule is shared with the original single-window app:
-an open archive resumes at its containing directory. Persistent workspace state
-does not reopen archive chains; older saved archive locations migrate to the
-containing directory without reading the archive or requesting its password.
-Live navigation history and explicit duplication retain their own archive values.
+Closing a file window shuts down its source contexts. The native saved-location
+rule resumes an open archive at its containing directory. Earlier sessions
+that saved archive locations migrate to the containing directory.
 
 `QtWorkspaceApplication` owns window discovery and session writes. Each window
-has independent mutable backend/operation state while reusing the immutable codec
-catalog. Moving a quiescent tab between windows rebinds host callbacks and archive
-services before the original window can disappear. File Manager external-editor
-sessions own their native process services, launcher, retained copy and update
-context without retaining a file window. The originating tab tracks those owners
-weakly and stops its observers through the existing shutdown boundary; closing
-the tab does not terminate the external editor or later publish its edits.
+has independent mutable backend and operation state and shares the immutable codec
+catalog. File Manager external-editor sessions own their native process services,
+launcher, retained copy and update context. The originating panel tracks those
+owners weakly and stops its observers on close. The editor continues to run and
+keeps its temporary copy.
 Their codec factory captures immutable metadata,
 without retaining the original backend or a hidden file window. Standalone
 source-panel services can still use the joined panel-scoped transport.
@@ -251,8 +238,7 @@ files dialog hands off to session details after closing its own modal surface.
 File identities distinguish selected copies, including canonically equivalent
 names on filesystems that treat them as separate files.
 
-Workspace archive invalidation follows the physical root across active and
-suspended tabs. Reopening uses the existing native archive chain with its accepted
+Workspace archive invalidation follows the physical root across file panes. Reopening uses the existing native archive chain with its accepted
 formats and in-memory passwords, preserving selection, scroll and navigation
 history. Automatic attempts defer to editing, questions and unstarted forms;
 new consent or an unavailable chain leaves the previous readable view with Retry
@@ -275,15 +261,12 @@ keep the event loop alive through completion and required review.
 Local filesystem and volume workers belong to their source context. Closing
 that context cancels and joins its workers before releasing folders; callbacks
 cannot publish after that teardown. Their window-modal progress keeps ordinary
-close requests out of an active question. Read-only mount managers belong to
-the same tab runtime and move with it; disconnect-before-close resumes the
-requested tab rather than closing its neighbouring contexts.
+close requests out of an active question. Read-only mount managers belong to their source pane.
 
 Sessions retain one directory location per panel, view preferences and window
 placement. Importing an earlier session uses the active saved location for each
 panel. A failed directory reopen keeps the requested location visibly failed.
-Live history, duplication
-and transfer retain typed archive descriptors for the physical archive, native
+Live history retains typed archive descriptors for the physical archive, native
 nested links and final folder. Their navigation uses the native internal opener;
 workspace persistence excludes those archive chains, temporary materialization
 paths, handles, passwords, running operations and consent.
@@ -302,22 +285,10 @@ filesystem root remains accessible through its volume or an explicit `/` path.
 The saved places menu resolves bookmark identities when invoked. The splitter
 applies the original ratio policy to the two file areas. Restoring geometry
 precedes restoring the split.
-The tab bar owns compact rendering and tab input. Workspace activation retains
-strip focus through asynchronous publication only while the same request and
-tab remain current; subsequent input takes priority. Shared chrome is shown
-after moving it between retained views, rather than inheriting hidden state.
-Tab menu commands retain the selected tab identity across reordering and moves.
-Transfers of restored tabs report completion after their native context is ready;
-opening that context does not replace a newer source-tab choice. A detached window
-retires its untouched startup tab only after a successful transfer. Cancellation
-and window destruction settle pending restoration so surviving windows can save
-their sessions.
-View menus retain their source context through popup delivery and resolve it
-before dispatch. A removed or no longer bound source cannot redirect a pending
-choice to another tab. Checked state and availability use that same context.
-Automatic refresh is an application preference shared by open windows and
-applied when a tab is bound. List publication retains focus within its pane
-and restores the original view only while the tab and input request still match.
+List publication restores focus within the same pane while the input request
+is current. View menus capture their source pane when opened and resolve it at
+dispatch. Checked state and command availability follow that pane. Automatic
+refresh is an application preference shared by open windows.
 
 The workspace table owns adaptive presentation, descriptive file types and the
 current-row outline through the existing model and row delegate. Native column
@@ -370,7 +341,7 @@ cancel and stops pending work before window shutdown. Model repaint and language
 refresh are presentation updates; source CPanel still owns name validation,
 rename operations, errors and restored selection.
 
-Main-window chrome presents tabs, breadcrumb navigation and a per-pane file action
+Main-window chrome presents breadcrumb navigation and a per-pane file action
 bar above the file list. Its proxies query the existing command projection for
 the owning pane. The editable address retains the original panel navigation owner.
 Breadcrumbs consume typed ancestors from that same owner; editor drafts do not
@@ -383,8 +354,7 @@ native binding route.
 `QtFileClipboard` supplies native file URL formats to the existing file-transfer
 operation; exporting a container selection uses CPanel's native CopyTo and checks
 its extraction result before publishing URLs. It does not implement archive I/O.
-Its Cut snapshot is published into the shared file model, including inactive tab
-models. Rows retain the native operation path separately from the display path;
+Its Cut snapshot is published to the file models across windows. Rows retain the native operation path separately from the display path;
 Cut rendering consumes that presentation state without querying providers or
 resolving symlinks during painting. Table and icon views retain the same selection/current
 owner and render Cut independently from selection, marks and the current outline.

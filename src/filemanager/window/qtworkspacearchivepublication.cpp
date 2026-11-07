@@ -1,8 +1,8 @@
 #include "archive/resources/archivenativeopen.h"
 #include "archive/resources/qtarchivefileresource.h"
 #include "filemanager/panels/qtpaneladdresscombo.h"
+#include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtwindowworkspace.h"
-#include "filemanager/window/qtworkspaceruntime.h"
 #include "localization/qtlangcontrols.h"
 #include "operations/qtoperationlauncher.h"
 #include "platform/temp/qtownedtempidentity.h"
@@ -46,17 +46,17 @@ bool QtWindowWorkspace::CanRefreshPublishedArchives() const {
 }
 
 void QtWindowWorkspace::InvalidateArchive(const QString &path) {
-    for (unsigned slot = 0; slot < panels_.size(); ++slot)
-        for (auto &tab : panels_[slot].tabs) {
-            CPanel *source = tab.runtime ? tab.runtime->source.get() : nullptr;
-            const auto *parents = source ? &source->GetParentFolders() : nullptr;
-            const bool live = source && source->MarkArchiveOutdated(path);
-            const bool saved = (!parents || parents->IsEmpty()) &&
-                               SameArchive(path, tab.archiveLocation.physicalPath);
-            if (!live && !saved)
-                continue;
-            ++tab.archiveRevision;
-        }
+    for (unsigned slot = 0; slot < panels_.size(); ++slot) {
+        if (!window_.panelUi_[slot].table)
+            continue;
+        auto &location = panels_[slot].location;
+        auto &source = window_.app_.Panels[slot];
+        const bool live = source.MarkArchiveOutdated(path);
+        const bool saved = source.GetParentFolders().IsEmpty() &&
+                           SameArchive(path, location.archiveLocation.physicalPath);
+        if (live || saved)
+            ++location.archiveRevision;
+    }
 }
 
 void QtWindowWorkspace::ShowArchiveChangeNotice(unsigned panel) {
@@ -69,26 +69,25 @@ void QtWindowWorkspace::ShowArchiveChangeNotice(unsigned panel) {
 }
 
 bool QtWindowWorkspace::RefreshPublishedArchive(unsigned panel, bool interactive) {
-    auto &state = panels_[panel];
-    if (state.tabs.empty() || !window_.panelUi_[panel].container)
+    if (!window_.panelUi_[panel].container)
         return false;
-    auto &tab = state.tabs[state.current];
-    if (tab.archiveRevision == tab.archiveApplied)
+    auto &locationState = panels_[panel].location;
+    if (locationState.archiveRevision == locationState.archiveApplied)
         return false;
     if (!Ready() || (!interactive && !CanRefreshPublishedArchives())) {
-        window_.guiOutputRefresh_->Enqueue({}, {tab.archiveLocation.physicalPath});
+        window_.guiOutputRefresh_->Enqueue({}, {locationState.archiveLocation.physicalPath});
         return true;
     }
     auto &source = window_.app_.Panels[panel];
     if (!source.IsArcFolder() || source.GetParentFolders().IsEmpty()) {
-        tab.archiveApplied = tab.archiveRevision;
+        locationState.archiveApplied = locationState.archiveRevision;
         return false;
     }
     if (!source.ArchiveContextOutdated()) {
         auto *resource = LayerResource(source, 0);
         const auto reader = resource ? resource->NativeReaderLease() : nullptr;
         if (reader && reader->sourceIsCurrent()) {
-            tab.archiveApplied = tab.archiveRevision;
+            locationState.archiveApplied = locationState.archiveRevision;
             return false;
         }
         source.MarkArchiveOutdated();
@@ -97,12 +96,12 @@ bool QtWindowWorkspace::RefreshPublishedArchive(unsigned panel, bool interactive
         ShowArchiveChangeNotice(panel);
         window_.refreshActions();
     };
-    if (!interactive && tab.archiveAttempted == tab.archiveRevision) {
+    if (!interactive && locationState.archiveAttempted == locationState.archiveRevision) {
         pending();
         return true;
     }
-    const quint64 revision = tab.archiveRevision;
-    tab.archiveAttempted = revision;
+    const quint64 revision = locationState.archiveRevision;
+    locationState.archiveAttempted = revision;
     const QtArchiveLocation location = QtArchiveLocation::Capture(
         source,
         static_cast<QtPanelAddressCombo *>(window_.panelUi_[panel].pathCombo)->LocationSegments());
@@ -122,7 +121,7 @@ bool QtWindowWorkspace::RefreshPublishedArchive(unsigned panel, bool interactive
         pending();
         return true;
     }
-    tab.archiveLocation = location;
+    locationState.archiveLocation = location;
     CSelectedState selection;
     source.SaveSelectedState(selection);
     const auto previousState = window_.panelUi_[panel].state;
@@ -145,12 +144,11 @@ bool QtWindowWorkspace::RefreshPublishedArchive(unsigned panel, bool interactive
         auto *root = source.GetParentFolders().IsEmpty() ? nullptr : LayerResource(source, 0);
         const auto reader = root ? root->NativeReaderLease() : nullptr;
         if (result == S_OK &&
-            (!reader || !reader->sourceIsCurrent() || tab.archiveRevision != revision))
+            (!reader || !reader->sourceIsCurrent() || locationState.archiveRevision != revision))
             result = E_ABORT;
         if (result == S_OK) {
             transaction.Commit();
-            tab.archiveApplied = revision;
-            tab.runtime->dirty = false;
+            locationState.archiveApplied = revision;
             window_.panelUi_[panel].navigationNotice->hide();
         } else {
             window_.cancelListPublication();
@@ -166,7 +164,7 @@ bool QtWindowWorkspace::RefreshPublishedArchive(unsigned panel, bool interactive
             view->verticalScrollBar()->setValue(scroll.y());
         }
     });
-    if (tab.archiveRevision != tab.archiveApplied)
+    if (locationState.archiveRevision != locationState.archiveApplied)
         pending();
     auto *currentWindow = QApplication::activeWindow();
     if (focusRequest_ == focusGeneration && !QApplication::activeModalWidget() &&

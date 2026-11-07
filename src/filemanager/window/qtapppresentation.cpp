@@ -96,9 +96,7 @@ bool QtAppPresentation::CreatePanel(CPanel &panel, unsigned index) {
         [window = QPointer<MainWindow>(&window_), source = &panel, index] {
             if (!window)
                 return;
-            if (!window->workspace_->SourceIsActive(*source))
-                window->workspace_->MarkDirty(*source);
-            else
+            if (&window->app_.Panels[index] == source)
                 window->withPanelProjection(index, [window] { window->redrawSourceProperties(); });
         });
     panel.AttachStatusPresentation([window = QPointer<MainWindow>(&window_), source = &panel,
@@ -112,10 +110,8 @@ bool QtAppPresentation::CreatePanel(CPanel &panel, unsigned index) {
                                     index](const CSelectedState &selection) {
         if (!window)
             return E_ABORT;
-        if (!window->workspace_->SourceIsActive(*source)) {
-            window->workspace_->MarkDirty(*source);
-            return S_OK;
-        }
+        if (&window->app_.Panels[index] != source)
+            return E_ABORT;
         return window->reloadPanelPresentation(index, selection);
     });
     if (window_.drag_)

@@ -19,16 +19,16 @@ void QtWindowWorkspace::ShowRecentPlaces() {
         return;
     }
     const unsigned panel = window_.projectedPanel_;
-    if (panels_[panel].tabs.empty())
+    if (!window_.panelUi_[panel].table)
         return;
-    const QString id = panels_[panel].tabs[panels_[panel].current].id;
     recentPlaces_->Reload();
     auto *dialog = new QtRecentPlacesDialog(*recentPlaces_, &window_);
     dialog->setAttribute(Qt::WA_DeleteOnClose);
     recentDialog_ = dialog;
     const QPointer<QtRecentPlacesDialog> target(dialog);
-    dialog->SetOpenHandler(
-        [this, id, target](const QtRecentPlace &place) { OpenRecentPlace(id, place, target); });
+    dialog->SetOpenHandler([this, panel, target](const QtRecentPlace &place) {
+        OpenRecentPlace(panel, place, target);
+    });
     connect(dialog, &QDialog::finished, this, [this, target](int) {
         for (unsigned panel = 0; panel < navigation_.size(); ++panel) {
             auto &request = navigation_[panel];
@@ -43,23 +43,16 @@ void QtWindowWorkspace::ShowRecentPlaces() {
     dialog->show();
 }
 
-void QtWindowWorkspace::OpenRecentPlace(const QString &id, const QtRecentPlace &place,
+void QtWindowWorkspace::OpenRecentPlace(unsigned panel, const QtRecentPlace &place,
                                         QPointer<QtRecentPlacesDialog> target) {
-    const auto position = FindTab(id);
     if (!target || !target->isVisible())
         return;
-    if (!position || window_.app_.QtOperations().closed()) {
-        target->Complete(false, tr("The original tab is closed."));
+    if (!window_.panelUi_[panel].table || window_.app_.QtOperations().closed()) {
+        target->Complete(false, tr("The original panel is closed."));
         return;
     }
     if (!Ready()) {
-        target->Complete(false, tr("The original tab is busy."));
-        return;
-    }
-    const unsigned panel = position->panel;
-    Activate(panel, position->index);
-    if (!Ready()) {
-        WhenReady([this, id, place, target] { OpenRecentPlace(id, place, target); });
+        target->Complete(false, tr("The original panel is busy."));
         return;
     }
     window_.withPanelProjection(panel, [&] {

@@ -123,7 +123,6 @@ void MainWindow::quiesceOperations() {
         fileTask_->StopAndWait();
         fileTask_ = nullptr;
     }
-    workspace_->QuiesceInactive();
     if (guiOutputRefresh_)
         guiOutputRefresh_->Stop();
     if (renameController_)

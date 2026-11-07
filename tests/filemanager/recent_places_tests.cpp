@@ -1,27 +1,20 @@
 #include "dialogs/recentplaces/qtrecentplacesdialog.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/window/qtrecentplacesstore.h"
-#include "filemanager/window/qtwindowworkspace.h"
 #include "localization/LangUtils.h"
 #include "localization/qtlangcontrols.h"
 #include "platform/support/external_editor_fixture.h"
+#include "support/panel_keys.h"
 #include "support/window_activation.h"
 #include "ui/controls/qtsourcesummary.h"
 #include "ui/support/layout_inspection.h"
 #include <QListWidget>
-#include <QTabBar>
 #include <QToolButton>
 
 class RecentPlacesTests final : public QObject, protected MainWindowTestSupport {
     Q_OBJECT
     static QtRecentPlacesStore &store() {
         return *QtRecentPlacesStore::ForSettings(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
-    }
-    static QtWindowWorkspace &workspace(MainWindow &window) {
-        for (auto *object : window.children())
-            if (auto *owner = dynamic_cast<QtWindowWorkspace *>(object))
-                return *owner;
-        qFatal("Missing workspace");
     }
     static FileTable *active(MainWindow &window) {
         for (auto *pane : window.findChildren<QWidget *>("filePanel0"))
@@ -220,7 +213,7 @@ class RecentPlacesTests final : public QObject, protected MainWindowTestSupport 
         QTRY_COMPARE(location(window), a);
     }
 
-    void openingReturnsToCapturedTabAndClosedOwnerReportsError() {
+    void openingReturnsToCapturedPanel() {
         QTemporaryDir fixture;
         const QString a = fixture.filePath("A"), b = fixture.filePath("B"),
                       c = fixture.filePath("C");
@@ -232,30 +225,28 @@ class RecentPlacesTests final : public QObject, protected MainWindowTestSupport 
         window.show();
         window.openPath(a);
         QTRY_VERIFY(active(window)->isEnabled() && active(window)->rowCount() >= 301);
-        auto *original = active(window)->sourcePanel;
+        action(window, "twoPanelsAction")->trigger();
+        auto *right = window.findChild<QWidget *>("filePanel1");
+        QVERIFY(right);
+        auto *address = right->findChild<QLineEdit *>("archivePath");
+        PanelKeys::focusAddress(address);
+        address->setText(c);
+        QTest::keyClick(address, Qt::Key_Return);
+        auto *other = right->findChild<FileTable *>("archiveTable");
+        QTRY_COMPARE(QDir::cleanPath(ToQString(other->sourcePanel->GetCurrentFolderPrefix())), c);
+        QVERIFY(WindowActivation::waitForActive(window));
+        active(window)->setFocus();
+        QTRY_VERIFY(active(window)->hasFocus());
         store().Visit({b, {}, {}});
         action(window, "foldersHistoryAction")->trigger();
         auto *form = dialog(window);
         QVERIFY(form);
-        workspace(window).NewTab(0, c);
-        QTRY_COMPARE(location(window), c);
-        workspace(window).MarkDirty(*original);
+        other->setFocus();
         choose(*form, b);
         form->accept();
         QTRY_VERIFY(!dialog(window));
-        QCOMPARE(location(window), b);
-        auto *tabs = window.findChild<QTabBar *>("panelTabs0");
-        QCOMPARE(tabs->currentIndex(), 0);
-        action(window, "foldersHistoryAction")->trigger();
-        form = dialog(window);
-        QVERIFY(form);
-        workspace(window).CloseTab(0, 0);
-        QTRY_COMPARE(location(window), c);
-        choose(*form, b);
-        form->accept();
-        QTRY_VERIFY(form->findChild<QLabel *>("recentPlacesError")->isVisible());
-        QCOMPARE(tabs->count(), 1);
-        QCOMPARE(location(window), c);
+        QTRY_COMPARE(location(window), b);
+        QCOMPARE(QDir::cleanPath(ToQString(other->sourcePanel->GetCurrentFolderPrefix())), c);
     }
 
     void closingPendingFormCancelsItsPublication() {

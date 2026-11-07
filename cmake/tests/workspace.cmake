@@ -42,12 +42,6 @@ if(BUILD_TESTING)
     add_test(NAME workspace_places COMMAND workspace_places_tests -silent)
     set_tests_properties(workspace_places PROPERTIES TIMEOUT 30 ENVIRONMENT
         "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/workspace-places.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
-    qt_add_executable(workspace_tabs_tests tests/filemanager/workspace_tabs_tests.cpp)
-    target_link_libraries(workspace_tabs_tests PRIVATE sevenzip_window sevenzip_layout_inspection Qt6::Test)
-    target_include_directories(workspace_tabs_tests PRIVATE src tests)
-    add_test(NAME workspace_tabs COMMAND workspace_tabs_tests -silent)
-    set_tests_properties(workspace_tabs PROPERTIES TIMEOUT 30 ENVIRONMENT
-        "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/workspace-tabs.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
     qt_add_executable(workspace_archive_tests tests/filemanager/workspace_archive_tests.cpp
         tests/platform/support/external_editor_fixture.cpp)
     target_link_libraries(workspace_archive_tests PRIVATE sevenzip_window sevenzip_layout_inspection
@@ -82,12 +76,6 @@ if(BUILD_TESTING)
     add_test(NAME workspace_navigation COMMAND workspace_navigation_tests -silent)
     set_tests_properties(workspace_navigation PROPERTIES TIMEOUT 90 ENVIRONMENT
         "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/workspace-navigation-settings.ini")
-    qt_add_executable(workspace_tab_menu_tests tests/filemanager/workspace_tab_menu_tests.cpp)
-    target_link_libraries(workspace_tab_menu_tests PRIVATE sevenzip_window Qt6::Test)
-    target_include_directories(workspace_tab_menu_tests PRIVATE src tests)
-    add_test(NAME workspace_tab_menu COMMAND workspace_tab_menu_tests -silent)
-    set_tests_properties(workspace_tab_menu PROPERTIES TIMEOUT 30 ENVIRONMENT
-        "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/workspace-tab-menu.ini")
     qt_add_executable(workspace_session_tests tests/filemanager/workspace_session_tests.cpp)
     target_link_libraries(workspace_session_tests PRIVATE sevenzip_window sevenzip_layout_inspection Qt6::Test)
     target_include_directories(workspace_session_tests PRIVATE src tests)

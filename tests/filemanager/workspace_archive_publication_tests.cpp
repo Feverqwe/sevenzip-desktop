@@ -9,7 +9,6 @@
 #include "ui/lifecycle/qttaskpresentation.h"
 #include "ui/support/layout_inspection.h"
 #include <QScopeGuard>
-#include <QTabBar>
 
 using namespace SourceExtractFixture;
 
@@ -42,21 +41,18 @@ class WorkspaceArchivePublicationTests final : public QObject, protected MainWin
         QTest::newRow("new-password-waits-for-retry") << 2;
         QTest::newRow("dirty-spool-retained") << 3;
         QTest::newRow("dirty-spool-survives-failed-reopen-and-close") << 4;
-        QTest::newRow("inactive-nested") << 5;
         QTest::newRow("changed-child-format-refused") << 6;
         QTest::newRow("duplicate-child-refused") << 7;
         QTest::newRow("publication-during-reopen") << 8;
         QTest::newRow("unstarted-draft-defers-reopen") << 9;
         QTest::newRow("publication-while-navigation-parked") << 10;
-        QTest::newRow("dirty-inactive-refresh-prioritizes-publication") << 11;
-        QTest::newRow("pending-transfer-schedules-receiver") << 12;
         QTest::newRow("parent-opens-current-outer-after-missing-child") << 14;
         QTest::newRow("unchanged-direct-stream-releases-empty-copy-directory") << 15;
         QTest::newRow("publication-during-modified-child-question") << 16;
     }
     void reopenPublishedChain() {
         QFETCH(int, scenario);
-        const bool dirty = scenario == 3 || scenario == 4 || scenario == 11 || scenario == 16;
+        const bool dirty = scenario == 3 || scenario == 4 || scenario == 16;
         const bool missing = scenario == 1 || scenario == 4 || scenario == 14;
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
@@ -74,13 +70,9 @@ class WorkspaceArchivePublicationTests final : public QObject, protected MainWin
         auto backend = std::make_unique<ArchiveBackend>();
         auto window = std::make_unique<MainWindow>(backend.get());
         window->resize(scenario == 4 ? QSize(640, 400) : QSize(980, 620));
-        std::unique_ptr<ArchiveBackend> receiverBackend;
-        std::unique_ptr<MainWindow> receiver;
         const auto cleanup = qScopeGuard([&] {
             window.reset();
-            receiver.reset();
             backend.reset();
-            receiverBackend.reset();
             QtOwnedTempRegistry registry;
             for (const auto &entry : registry.Entries())
                 if (auto pin = registry.PinForRead(entry)) {
@@ -155,7 +147,7 @@ class WorkspaceArchivePublicationTests final : public QObject, protected MainWin
         const QString address = window->findChild<QLineEdit *>("archivePath")->text();
         QDialog draft;
         QLineEdit input(&draft);
-        if (scenario == 9 || scenario == 12) {
+        if (scenario == 9) {
             input.setText(QStringLiteral("неприменённый ввод"));
             input.setSelection(2, 5);
             QtTaskPresentation::Watch(draft, QtOperationPhase::Draft);
@@ -163,16 +155,6 @@ class WorkspaceArchivePublicationTests final : public QObject, protected MainWin
             input.setFocus();
             QTRY_VERIFY(input.hasFocus());
             input.setSelection(2, 5);
-        }
-        auto *tabs = window->findChild<QTabBar *>("panelTabs0");
-        QVERIFY(tabs);
-        if (scenario == 5 || scenario == 11 || scenario == 12) {
-            workspace(*window)->NewTab(0, fixture.path());
-            QTRY_COMPARE(tabs->count(), 2);
-            QTRY_COMPARE(tabs->currentIndex(), 1);
-            QTRY_VERIFY(!table(*window)->sourcePanel->IsArcFolder());
-            if (scenario == 11)
-                workspace(*window)->MarkDirty(*source);
         }
         const QString replacement = fixture.filePath("replacement.zip");
         const QString child = fixture.filePath("new-child.zip");
@@ -254,23 +236,6 @@ class WorkspaceArchivePublicationTests final : public QObject, protected MainWin
             QTest::qWait(120);
             QVERIFY(names(*window).contains("before.txt"));
             draft.reject();
-        }
-        if (scenario == 12) {
-            receiverBackend = std::make_unique<ArchiveBackend>();
-            receiver = std::make_unique<MainWindow>(receiverBackend.get());
-            receiver->show();
-            receiver->openPath(fixture.path());
-            const QString id = tabs->tabData(0).toString();
-            QVERIFY(workspace(*window)->TransferTab(id, *workspace(*receiver), 0));
-            window.swap(receiver);
-            draft.reject();
-            table(*window)->setFocus();
-        }
-        if (scenario == 5 || scenario == 11) {
-            QTest::qWait(120);
-            QCOMPARE(tabs->currentIndex(), 1);
-            QVERIFY(!table(*window)->sourcePanel->IsArcFolder());
-            tabs->setCurrentIndex(0);
         }
         const bool pending = missing || scenario == 2 || scenario == 6 || scenario == 7;
         if (pending) {

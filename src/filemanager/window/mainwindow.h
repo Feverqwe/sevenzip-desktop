@@ -127,7 +127,6 @@ class MainWindow : public QMainWindow {
     friend class QtWindowWorkspace;
     friend class QtWorkspaceApplication;
     friend class QtFileClipboard;
-    friend struct QtTabRuntime;
     void initializeFileManagerWindow(const QtFileManagerStartup *startup);
     void createFileManagerWindow(const QtFileManagerStartup *startup, bool panelsDefined,
                                  UInt32 splitterPos);

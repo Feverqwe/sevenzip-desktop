@@ -10,7 +10,6 @@
 #include <QJsonDocument>
 #include <QScopeGuard>
 #include <QSplitterHandle>
-#include <QTabBar>
 
 class WorkspaceSessionTests final : public QObject {
     Q_OBJECT
@@ -271,8 +270,6 @@ class WorkspaceSessionTests final : public QObject {
             first.show();
             second.show();
             first.openPath(a);
-            first.findChild<QAction *>("newTabAction")->trigger();
-            QTRY_COMPARE(first.findChild<QTabBar *>("panelTabs0")->count(), 2);
             QTRY_VERIFY(active(first) && active(first)->isEnabled());
             first.openPath(b);
             second.openPath(c);
@@ -287,8 +284,6 @@ class WorkspaceSessionTests final : public QObject {
             application.Restore(first);
             QTRY_COMPARE_WITH_TIMEOUT(windows().size(), 2, 10000);
             QTRY_COMPARE_WITH_TIMEOUT(location(first), b, 10000);
-            auto *tabs = first.findChild<QTabBar *>("panelTabs0");
-            QTRY_COMPARE(tabs->count(), 1);
             MainWindow *second = nullptr;
             for (auto *window : windows())
                 if (window != &first)

@@ -27,8 +27,7 @@ bool MainWindow::runExternalArchiveUpdate(CPanel &panel, const QtArchiveUpdateBo
     if (!canHandleExternalUpdate())
         return false;
     if (&app_.Panels[0] != &panel && &app_.Panels[1] != &panel)
-        return workspace_->WithSource(
-            panel, [this, &panel, &body] { return runExternalArchiveUpdate(panel, body); });
+        return false;
     QtAppOperationState::CallScope call(app_.QtOperations());
     const QPointer<QWidget> focused = focusWidget();
     std::optional<CSelectedState> selection;

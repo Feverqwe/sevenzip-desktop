@@ -13,12 +13,13 @@ bool QtWindowWorkspace::Visit::SameLocation(const Visit &other) const {
 
 QtWindowWorkspace::Visit QtWindowWorkspace::CaptureVisit(unsigned panel) {
     const auto &state = panels_[panel];
-    const auto &current = state.tabs[state.current];
+    const auto &current = state.location;
     if (window_.panelUi_[panel].locationUnavailable && current.cursor >= 0)
         return current.visits[current.cursor];
     Capture(panel);
-    const auto &tab = panels_[panel].tabs[panels_[panel].current];
-    return {tab.path, tab.nativePlaceIdentity, tab.archiveLocation, tab.selection, tab.scroll};
+    const auto &locationState = panels_[panel].location;
+    return {locationState.path, locationState.nativePlaceIdentity, locationState.archiveLocation,
+            locationState.selection, locationState.scroll};
 }
 
 HRESULT QtWindowWorkspace::Navigate(const std::function<HRESULT()> &body,
@@ -26,14 +27,12 @@ HRESULT QtWindowWorkspace::Navigate(const std::function<HRESULT()> &body,
     if (window_.app_.QtOperations().closed())
         return E_ABORT;
     const unsigned panel = window_.projectedPanel_;
-    auto &state = panels_[panel];
-    if (changing_ || restoringNavigation_ || state.tabs.empty())
+    if (changing_ || restoringNavigation_ || !window_.panelUi_[panel].table)
         return body();
     if (navigation_[panel] && navigation_[panel]->depth == 0)
         window_.cancelListPublication();
     if (!navigation_[panel]) {
         auto request = std::make_unique<Navigation>();
-        request->tab = state.tabs[state.current].id;
         request->source = window_.app_.Panels.Share(panel);
         request->origin = CaptureVisit(panel);
         request->finished = std::move(finished);
@@ -135,9 +134,7 @@ void QtWindowWorkspace::FinishNavigation(unsigned panel, HRESULT result) {
         if (request->finished)
             request->finished(result);
     });
-    const auto position = FindTab(request->tab);
-    if (!position || position->panel != panel ||
-        window_.app_.Panels.Share(panel) != request->source) {
+    if (window_.app_.Panels.Share(panel) != request->source) {
         result = E_ABORT;
         request->transaction.reset();
         return;
@@ -146,7 +143,7 @@ void QtWindowWorkspace::FinishNavigation(unsigned panel, HRESULT result) {
         request->previousFolder == request->source->GetFolder())
         request->previousFolder.Release();
     if (request->destination >= 0) {
-        const auto &target = panels_[panel].tabs[position->index].visits[request->destination];
+        const auto &target = panels_[panel].location.visits[request->destination];
         request->source->LoadFullPath();
         if (result == S_OK &&
             (target.nativePlaceIdentity.isEmpty()
@@ -187,54 +184,54 @@ void QtWindowWorkspace::FinishNavigation(unsigned panel, HRESULT result) {
         return;
     }
     const Visit accepted = CaptureVisit(panel);
-    auto &tab = panels_[panel].tabs[position->index];
-    if (tab.cursor < 0) {
-        tab.visits.push_back(request->origin);
-        tab.cursor = 0;
-    } else if (tab.visits[tab.cursor].SameLocation(request->origin))
-        tab.visits[tab.cursor] = request->origin;
+    auto &locationState = panels_[panel].location;
+    if (locationState.cursor < 0) {
+        locationState.visits.push_back(request->origin);
+        locationState.cursor = 0;
+    } else if (locationState.visits[locationState.cursor].SameLocation(request->origin))
+        locationState.visits[locationState.cursor] = request->origin;
     if (request->destination >= 0) {
-        tab.cursor = request->destination;
-        const auto target = tab.visits[tab.cursor];
+        locationState.cursor = request->destination;
+        const auto target = locationState.visits[locationState.cursor];
         window_.restoreListSelection(target.selection);
         if (auto *view = qobject_cast<QAbstractItemView *>(
                 window_.panelUi_[panel].viewStack->currentWidget()))
             RestoreViewPosition(*request->source, *view, target.scroll);
-    } else if (!tab.visits[tab.cursor].SameLocation(accepted)) {
-        tab.visits.resize(tab.cursor + 1);
-        tab.visits.push_back(accepted);
-        ++tab.cursor;
+    } else if (!locationState.visits[locationState.cursor].SameLocation(accepted)) {
+        locationState.visits.resize(locationState.cursor + 1);
+        locationState.visits.push_back(accepted);
+        ++locationState.cursor;
     }
     window_.recordVisitedPath(accepted.path);
     window_.refreshActions();
-    if (tab.archiveRevision != tab.archiveApplied) {
-        tab.archiveAttempted = 0;
+    if (locationState.archiveRevision != locationState.archiveApplied) {
+        locationState.archiveAttempted = 0;
         RefreshPublishedArchive(panel);
     }
 }
 
 bool QtWindowWorkspace::CanTravel(unsigned panel, int direction) const {
     const auto &state = panels_[panel];
-    if (state.tabs.empty() || navigation_[panel])
+    if (!window_.panelUi_[panel].table || navigation_[panel])
         return false;
-    const auto &tab = state.tabs[state.current];
+    const auto &locationState = state.location;
     const auto &ui = window_.panelUi_[panel];
-    const int destination = tab.cursor + direction;
-    return tab.cursor >= 0 && destination >= 0 && destination < int(tab.visits.size()) &&
-           !ui.scanningDisk && !ui.scanningArchive && !ui.locationUnavailable;
+    const int destination = locationState.cursor + direction;
+    return locationState.cursor >= 0 && destination >= 0 &&
+           destination < int(locationState.visits.size()) && !ui.scanningDisk &&
+           !ui.scanningArchive && !ui.locationUnavailable;
 }
 
 void QtWindowWorkspace::Travel(int direction) {
     const unsigned panel = window_.projectedPanel_;
     // The native command dispatcher owns a CallScope while invoking Back/Forward.
-    // That scope is safe here; the idle predicate for tab transfer excludes it.
     if (changing_ || window_.app_.QtOperations().closed() ||
         window_.app_.QtOperations().blocking() || window_.sourceArchiveProgress_ ||
         QApplication::activeModalWidget() || !CanTravel(panel, direction))
         return;
-    const auto &tab = panels_[panel].tabs[panels_[panel].current];
-    const int destination = tab.cursor + direction;
-    const Visit target = tab.visits[destination];
+    const auto &locationState = panels_[panel].location;
+    const int destination = locationState.cursor + direction;
+    const Visit target = locationState.visits[destination];
     Navigate([&] {
         auto &request = *navigation_[panel];
         request.destination = destination;

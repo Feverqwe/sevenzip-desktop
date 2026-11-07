@@ -1,6 +1,5 @@
 #include "dialogs/password/PasswordDialog.h"
 #include "filemanager/support/window_state_support.h"
-#include "filemanager/window/qtwindowworkspace.h"
 #include "localization/LangUtils.h"
 #include "localization/qtlangcontrols.h"
 #include "platform/support/external_editor_fixture.h"
@@ -8,18 +7,11 @@
 #include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
 #include <QScrollBar>
-#include <QTabBar>
 #include <QToolButton>
 
 class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupport {
     Q_OBJECT
     WidgetDialogFixture dialogs_;
-    static QtWindowWorkspace *workspace(MainWindow &window) {
-        for (auto *object : window.children())
-            if (auto *service = dynamic_cast<QtWindowWorkspace *>(object))
-                return service;
-        return nullptr;
-    }
     static QString location(MainWindow &window) {
         return QDir::cleanPath(ToQString(table(window)->sourcePanel->GetCurrentFolderPrefix()));
     }
@@ -221,7 +213,7 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         QTRY_COMPARE(location(window), folder);
     }
 
-    void historyFollowsTransferredTabAndNewTabHasItsOwnCursor() {
+    void historyRemainsIndependentAcrossWindows() {
         QTemporaryDir fixture;
         const QString a = fixture.filePath("A");
         const QString b = fixture.filePath("B");
@@ -236,21 +228,14 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         first.openPath(a);
         first.openPath(b);
         second.openPath(c);
-        auto *tabs = first.findChild<QTabBar *>("panelTabs0");
-        QVERIFY(workspace(first)->TransferTab(tabs->tabData(tabs->currentIndex()).toString(),
-                                              *workspace(second), 0));
-        QTRY_COMPARE(location(second), b);
-        action(second, "backAction")->trigger();
-        QTRY_COMPARE(location(second), a);
-        workspace(second)->NewTab(0, c);
+        QTRY_COMPARE(location(first), b);
         QTRY_COMPARE(location(second), c);
-        QVERIFY(!action(second, "backAction")->isEnabled());
-        QVERIFY(!action(second, "forwardAction")->isEnabled());
-        auto *receivedTabs = second.findChild<QTabBar *>("panelTabs0");
-        receivedTabs->setCurrentIndex(receivedTabs->count() - 2);
-        QTRY_COMPARE(location(second), a);
-        action(second, "forwardAction")->trigger();
-        QTRY_COMPARE(location(second), b);
+        action(first, "backAction")->trigger();
+        QTRY_COMPARE(location(first), a);
+        QCOMPARE(location(second), c);
+        action(first, "forwardAction")->trigger();
+        QTRY_COMPARE(location(first), b);
+        QCOMPARE(location(second), c);
     }
 
     void archiveBackIsAVisitAndParentIsANewTransition() {

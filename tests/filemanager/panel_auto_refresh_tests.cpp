@@ -8,7 +8,6 @@
 
 #include <QScrollBar>
 #include <QStackedWidget>
-#include <QTabBar>
 
 namespace {
 struct CurrentDirectoryGuard {
@@ -255,7 +254,7 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         }
     }
 
-    void toggleUpdatesPeerWindowsAndNewTabs() {
+    void toggleUpdatesPeerWindowsAndNavigatedLocations() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString a = fixture.filePath("A folder");
@@ -285,7 +284,7 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
             if (auto *workspace = dynamic_cast<QtWindowWorkspace *>(object))
                 owner = workspace;
         QVERIFY(owner);
-        owner->NewTab(0, b);
+        first.openPath(b);
         QTRY_COMPARE(QDir::cleanPath(owner->CurrentLocation()), b);
         QTRY_VERIFY(files(first)->isEnabled());
         QVERIFY(writeFile(QDir(b).filePath("new.txt")));
@@ -297,7 +296,7 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         QVERIFY(action(first, "autoRefreshAction")->isChecked());
         QTRY_COMPARE_WITH_TIMEOUT(files(first)->rowCount(), 1, 5000);
         QTRY_COMPARE_WITH_TIMEOUT(files(second)->rowCount(), 1, 5000);
-        first.findChild<QTabBar *>("panelTabs0")->setCurrentIndex(0);
+        first.openPath(a);
         QTRY_COMPARE(QDir::cleanPath(owner->CurrentLocation()), a);
         QVERIFY(writeFile(QDir(a).filePath("new.txt")));
         QTRY_COMPARE_WITH_TIMEOUT(files(first)->rowCount(), 1, 5000);

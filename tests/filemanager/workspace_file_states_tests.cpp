@@ -1,10 +1,8 @@
 #include "filemanager/support/window_state_support.h"
-#include "filemanager/window/qtwindowworkspace.h"
 #include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
 #include <QClipboard>
 #include <QImage>
-#include <QTabBar>
 
 class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestSupport {
     Q_OBJECT
@@ -22,12 +20,6 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
         QVERIFY(file.open(QIODevice::WriteOnly));
         QCOMPARE(file.write("file state fixture"), 18);
     }
-    static QtWindowWorkspace *workspace(MainWindow &window) {
-        for (auto *child : window.children())
-            if (auto *result = dynamic_cast<QtWindowWorkspace *>(child))
-                return result;
-        return nullptr;
-    }
 
   private slots:
     void initTestCase() { UiInspection::configureReviewAppearance(); }
@@ -37,7 +29,7 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
     }
     void cleanup() { QApplication::clipboard()->clear(); }
 
-    void cutFollowsFilesystemEntryAcrossViewsTabsAndWindows() {
+    void cutFollowsFilesystemEntryAcrossViewsLocationsAndWindows() {
         QTemporaryDir fixture;
         const QString source = fixture.filePath("Source");
         const QString peer = fixture.filePath("Other folder");
@@ -79,16 +71,13 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
                     .data(QtPanelList::CutRole)
                     .toBool());
         QCOMPARE(icons->selectionModel()->selectedRows(), files->selectionModel()->selectedRows());
-        auto *owner = workspace(window);
-        QVERIFY(owner);
-        owner->NewTab(0, peer);
-        auto *peerFiles = window.findChild<QSplitter *>("filePanelSplitter")
-                              ->widget(0)
-                              ->findChild<FileTable *>("archiveTable");
-        QTRY_VERIFY(peerFiles->isEnabled() && rowFor(*peerFiles, "Alpha.txt") >= 0);
-        QVERIFY(!cut(*peerFiles, "Alpha.txt"));
-        QVERIFY(cut(*files, "Alpha.txt"));
-        // Replacing Cut with Copy updates hidden tab models and other windows.
+        window.openPath(peer);
+        QTRY_COMPARE(QDir::cleanPath(ToQString(files->sourcePanel->GetCurrentFolderPrefix())),
+                     peer);
+        QTRY_VERIFY(files->isEnabled() && rowFor(*files, "Alpha.txt") >= 0);
+        QVERIFY(!cut(*files, "Alpha.txt"));
+        window.openPath(source);
+        QTRY_VERIFY(files->isEnabled() && cut(*files, "Alpha.txt"));
         auto *mime = new QMimeData;
         mime->setUrls({QUrl::fromLocalFile(source + "/Alpha.txt")});
         mime->setData("x-special/gnome-copied-files", "copy\n");

@@ -13,7 +13,6 @@
 #include <QScreen>
 #include <QSizeGrip>
 #include <QSplitterHandle>
-#include <QTabBar>
 #include <QTimer>
 #include <QToolBar>
 #include <QToolButton>
@@ -363,15 +362,6 @@ class MainShellTests final : public QObject {
         MainWindow window(&backend);
         window.show();
         window.openPath(folder);
-        auto *tabs = window.findChild<QTabBar *>("panelTabs0");
-        auto *newTab = window.findChild<QAction *>("newTabAction");
-        newTab->trigger();
-        QTRY_COMPARE(tabs->count(), 2);
-        QTRY_VERIFY(window.findChild<QAction *>("twoPanelsAction")->isEnabled());
-        newTab->trigger();
-        QTRY_COMPARE(tabs->count(), 3);
-        QTRY_VERIFY(window.findChild<QAction *>("twoPanelsAction")->isEnabled());
-        tabs->setCurrentIndex(0);
         QTRY_VERIFY(window.findChild<FileTable *>("archiveTable")->isVisible());
         QTRY_COMPARE(QDir::cleanPath(window.findChild<QLineEdit *>("archivePath")->text()), folder);
         for (const QSize size : {QSize(980, 620), QSize(640, 400)}) {
@@ -404,18 +394,15 @@ class MainShellTests final : public QObject {
                 for (unsigned panel = 0; panel < (two ? 2u : 1u); ++panel) {
                     auto *navigation =
                         window.findChild<QWidget *>(QString("panelNavigation%1").arg(panel));
-                    auto *tabs = window.findChild<QTabBar *>(QString("panelTabs%1").arg(panel));
-                    QVERIFY(navigation && tabs);
+                    QVERIFY(navigation);
                     QVERIFY(UiInspection::fullyVisible(*navigation, window));
-                    QVERIFY(UiInspection::fullyVisible(*tabs, window));
                     if (panel == 0) {
                         bool currentCrumbVisible = false;
                         for (auto *button : navigation->findChildren<QToolButton *>())
                             if (QDir::cleanPath(button->toolTip()) == folder)
                                 currentCrumbVisible |= UiInspection::fullyVisible(*button, window);
-                        QVERIFY2(
-                            currentCrumbVisible,
-                            "The current folder must remain visible after tab and pane resize");
+                        QVERIFY2(currentCrumbVisible,
+                                 "The current folder must remain visible after pane resize");
                     }
                 }
                 if (two) {

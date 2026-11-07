@@ -7081,10 +7081,6 @@ The limit is the total size of these extracted files. Older cached files are rem
             <translation>Отключить активные подключения и закрыть окно?</translation>
         </message>
         <message>
-            <source>Unmount the active connections and close this tab?</source>
-            <translation>Отключить активные подключения и закрыть вкладку?</translation>
-        </message>
-        <message>
             <location line="+2" />
             <source>Unmount and Close</source>
             <translation>Отключить и закрыть</translation>
@@ -7406,10 +7402,6 @@ Check that your distribution's CIFS support and cifs-utils are installed.</sourc
         <translation>Архив</translation>
     </message>
     <message>
-        <source>New tab</source>
-        <translation>Новая вкладка</translation>
-    </message>
-    <message>
         <source>New window</source>
         <translation>Новое окно</translation>
     </message>
@@ -7447,22 +7439,14 @@ Check that your distribution's CIFS support and cifs-utils are installed.</sourc
 <context>
     <name>QtWindowWorkspace</name>
     <message><source>The archive changed. Reopen it to see the saved changes. The previous view is available for copying.</source><translation>Архив изменился. Откройте его заново, чтобы увидеть сохранённые изменения. Из прежнего представления можно копировать файлы.</translation></message>
-    <message><source>The original tab is closed.</source><translation>Исходная вкладка закрыта.</translation></message>
-    <message><source>The original tab is busy.</source><translation>Исходная вкладка занята.</translation></message>
+    <message><source>The original panel is closed.</source><translation>Исходная панель закрыта.</translation></message>
+    <message><source>The original panel is busy.</source><translation>Исходная панель занята.</translation></message>
     <message><source>Opening canceled.</source><translation>Открытие отменено.</translation></message>
     <message><source>The location is unavailable or disconnected.</source><translation>Место недоступно или отключено.</translation></message>
     <message><source>Could not open this location. %1</source><translation>Не удалось открыть это место. %1</translation></message>
     <message>
         <source>Archive</source>
         <translation>Архив</translation>
-    </message>
-    <message>
-        <source>Close tab</source>
-        <translation>Закрыть вкладку</translation>
-    </message>
-    <message>
-        <source>New tab</source>
-        <translation>Новая вкладка</translation>
     </message>
     <message>
         <source>New window</source>
@@ -7479,22 +7463,6 @@ Check that your distribution's CIFS support and cifs-utils are installed.</sourc
     <message>
         <source>Locations</source>
         <translation>Расположения</translation>
-    </message>
-    <message>
-        <source>Duplicate location</source>
-        <translation>Дублировать расположение</translation>
-    </message>
-    <message>
-        <source>Move to other panel</source>
-        <translation>Переместить в другую панель</translation>
-    </message>
-    <message>
-        <source>Move to new window</source>
-        <translation>Переместить в новое окно</translation>
-    </message>
-    <message>
-        <source>Move to window</source>
-        <translation>Переместить в окно</translation>
     </message>
     <message>
         <source>Retry</source>
@@ -7515,10 +7483,6 @@ Check that your distribution's CIFS support and cifs-utils are installed.</sourc
     <message>
         <source>Favorites</source>
         <translation>Избранное</translation>
-    </message>
-    <message>
-        <source>Open in new tab</source>
-        <translation>Открыть в новой вкладке</translation>
     </message>
     <message>
         <source>Open in new window</source>
@@ -7559,10 +7523,6 @@ Check that your distribution's CIFS support and cifs-utils are installed.</sourc
     <message>
         <source>Location unavailable: %1</source>
         <translation>Расположение недоступно: %1</translation>
-    </message>
-    <message>
-        <source>Finish external editing before moving this tab to another window.</source>
-        <translation>Завершите внешнее редактирование, чтобы переместить эту вкладку в другое окно.</translation>
     </message>
     <message>
         <source>Create</source>

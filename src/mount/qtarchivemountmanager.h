@@ -5,14 +5,13 @@
 #include <QList>
 #include <QPointer>
 #include <QStringList>
-#include <functional>
 
 class QtArchiveMountSession;
 struct IUnknown;
 class QLabel;
 class QVBoxLayout;
 
-// Modeless mount management, independent of either file-manager panel.
+// Modeless mount management for a file pane.
 class QtArchiveMountManager final : public QDialog {
     Q_DECLARE_TR_FUNCTIONS(QtArchiveMountManager)
     QWidget *owner_;
@@ -27,7 +26,6 @@ class QtArchiveMountManager final : public QDialog {
     QLabel *empty_;
     QPointer<QtMountRow> pendingFocus_;
     bool closingOwner_ = false;
-    std::function<void()> closeOwner_;
     void bindSession(QtArchiveMountSession &session);
     void refresh();
     QtMountRowData rowData(const Session &entry) const;
@@ -45,7 +43,6 @@ class QtArchiveMountManager final : public QDialog {
     explicit QtArchiveMountManager(QWidget *owner);
     void mount(IUnknown *resource, const QString &label, const QString &archivePassword,
                const QString &folder = {});
-    bool canCloseOwner(std::function<void()> close = {});
-    void rebindOwner(QWidget &owner);
+    bool canCloseOwner();
     bool hasActiveSessions() const;
 };

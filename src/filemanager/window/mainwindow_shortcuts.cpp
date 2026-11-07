@@ -5,7 +5,6 @@
 #include "filemanager/window/qtwindowworkspace.h"
 #include "filemanager/window/qtworkspaceapplication.h"
 #include "localization/qtlangcontrols.h"
-#include <QTabBar>
 
 void MainWindow::configureShortcuts() {
     const auto bindPanel = [this](QAction *action, const QList<QKeySequence> &keys) {
@@ -77,26 +76,6 @@ void MainWindow::configureShortcuts() {
             projectedUi().navigation->Edit();
         }
     });
-    auto *close = new QAction(this);
-    QtBindLocalText(close, "QtWindowWorkspace",
-                    QT_TRANSLATE_NOOP("QtWindowWorkspace", "Close tab"));
-    close->setProperty("workspaceCommand", true);
-    close->setObjectName("closeWindowAction");
-    close->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_W));
-    panelShortcutActions_.append(close);
-    addAction(close);
-    connect(close, &QAction::triggered, this, [this] {
-        if (auto *bar = findChild<QTabBar *>(QStringLiteral("panelTabs%1").arg(projectedPanel_)))
-            workspace_->CloseTab(projectedPanel_, bar->currentIndex());
-    });
-    auto *newTab = new QAction(tr("New tab"), this);
-    newTab->setObjectName("newTabAction");
-    QtBindLocalText(newTab, "QtWindowWorkspace", QT_TRANSLATE_NOOP("QtWindowWorkspace", "New tab"));
-    newTab->setProperty("workspaceCommand", true);
-    newTab->setShortcut(QKeySequence::AddTab);
-    panelShortcutActions_.append(newTab);
-    addAction(newTab);
-    connect(newTab, &QAction::triggered, this, [this] { workspace_->NewTab(projectedPanel_); });
     auto *newWindow = new QAction(tr("New window"), this);
     newWindow->setObjectName("newWindowAction");
     QtBindLocalText(newWindow, "QtWindowWorkspace",
@@ -114,15 +93,14 @@ void MainWindow::configureShortcuts() {
     QtBindLocalText(closeWindow, "QtWindowWorkspace",
                     QT_TRANSLATE_NOOP("QtWindowWorkspace", "Close window"));
     closeWindow->setProperty("workspaceCommand", true);
-    closeWindow->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_W));
+    closeWindow->setObjectName("closeWindowAction");
+    closeWindow->setShortcut(QKeySequence::Close);
     panelShortcutActions_.append(closeWindow);
     addAction(closeWindow);
     connect(closeWindow, &QAction::triggered, this, &QWidget::close);
     auto *file = findChild<QMenu *>("fileMenu");
     file->insertAction(file->actions().first(), newWindow);
-    file->insertAction(file->actions().first(), newTab);
     file->addAction(closeWindow);
-    file->addAction(close);
     if (auto *application = QtWorkspaceApplication::Find()) {
         disconnect(exitAction_, &QAction::triggered, this, nullptr);
         connect(exitAction_, &QAction::triggered, application, &QtWorkspaceApplication::Quit);

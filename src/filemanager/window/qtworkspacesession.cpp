@@ -1,6 +1,5 @@
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtwindowworkspace.h"
-#include "filemanager/window/qtworkspaceruntime.h"
 #include <QFileInfo>
 #include <QJsonArray>
 #include <QScopedValueRollback>
@@ -21,28 +20,24 @@ QJsonObject QtWindowWorkspace::Save() {
     QJsonArray panels;
     for (unsigned index = 0; index < 2; ++index) {
         Capture(index, false);
-        const auto &panel = panels_[index];
-        if (panel.tabs.empty()) {
+        if (!window_.panelUi_[index].table) {
             panels.append(QJsonObject{});
             continue;
         }
-        const auto &tab = panel.tabs[panel.current];
-        const QString path =
-            tab.unavailable  ? (tab.archiveLocation.physicalPath.isEmpty()
-                                    ? tab.path
-                                    : QFileInfo(tab.archiveLocation.physicalPath).absolutePath())
-            : tab.runtime    ? ToQString(tab.runtime->source->GetResumeFolderPath())
-            : tab.resumePath ? *tab.resumePath
-            : !tab.archiveLocation.physicalPath.isEmpty()
-                ? QFileInfo(tab.archiveLocation.physicalPath).absolutePath()
-                : tab.path;
-        panels.append(QJsonObject{{"path", path},
-                                  {"nativePlace", tab.archiveLocation.physicalPath.isEmpty()
-                                                      ? tab.nativePlaceIdentity
-                                                      : QString()},
-                                  {"view", tab.viewMode},
-                                  {"sort", int(tab.sort)},
-                                  {"ascending", tab.ascending}});
+        const auto &locationState = panels_[index].location;
+        QString path = ToQString(window_.app_.Panels[index].GetResumeFolderPath());
+        if (locationState.unavailable)
+            path = locationState.archiveLocation.physicalPath.isEmpty()
+                       ? locationState.path
+                       : QFileInfo(locationState.archiveLocation.physicalPath).absolutePath();
+        panels.append(
+            QJsonObject{{"path", path},
+                        {"nativePlace", locationState.archiveLocation.physicalPath.isEmpty()
+                                            ? locationState.nativePlaceIdentity
+                                            : QString()},
+                        {"view", locationState.viewMode},
+                        {"sort", int(locationState.sort)},
+                        {"ascending", locationState.ascending}});
     }
     QJsonArray split;
     for (const int size : window_.panelSplitter_->sizes())
@@ -85,50 +80,51 @@ void QtWindowWorkspace::RestorePanel(unsigned panel, const QJsonObject &saved,
                                      std::function<void()> finished,
                                      std::function<void()> canceled) {
     const auto object = SavedLocation(saved);
-    if (!panels_[panel].bar || object.isEmpty()) {
+    if (!window_.panelUi_[panel].table || object.isEmpty()) {
         finished();
         return;
     }
-    auto &state = panels_[panel];
-    {
-        const auto source = window_.app_.Panels.Share(panel);
-        const CPanel::CDisableNotify notifications(*source);
-        const QScopedValueRollback<bool> changing(changing_, true);
-        // Releasing retained lists emits selection signals. Do not publish
-        // workspace state while its previous tabs are being replaced.
-        state.tabs.clear();
-        Tab tab;
-        tab.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
-        tab.path = object.value("path").toString();
-        tab.nativePlaceIdentity = object.value("nativePlace").toString();
-        // Earlier workspace settings persisted open archive chains. Resume
-        // the containing directory, just like CApp's single-window Save.
-        const auto archive = object.value("archiveLocation").toObject();
-        const QString physical = archive.value("physical").toString();
-        if (!physical.isEmpty()) {
-            tab.path = QFileInfo(physical).absolutePath();
-            tab.nativePlaceIdentity.clear();
-        } else if (QFileInfo(tab.path).isFile()) {
-            tab.path = QFileInfo(tab.path).absolutePath();
-            tab.nativePlaceIdentity.clear();
-        }
-        tab.resumePath = tab.path;
-        tab.viewMode = qBound(0, object.value("view").toInt(3), 3);
-        tab.sort = object.value("sort").toInt();
-        tab.ascending = object.value("ascending").toBool(true);
-        state.tabs.push_back(std::move(tab));
-        state.current = 0;
-        Rebuild(panel);
+    auto &locationState = panels_[panel].location;
+    locationState = {};
+    locationState.path = object.value("path").toString();
+    locationState.nativePlaceIdentity = object.value("nativePlace").toString();
+    // Earlier workspace settings persisted open archive chains. Resume
+    // the containing directory, just like CApp's single-window Save.
+    const auto archive = object.value("archiveLocation").toObject();
+    const QString physical = archive.value("physical").toString();
+    if (!physical.isEmpty()) {
+        locationState.path = QFileInfo(physical).absolutePath();
+        locationState.nativePlaceIdentity.clear();
+    } else if (QFileInfo(locationState.path).isFile()) {
+        locationState.path = QFileInfo(locationState.path).absolutePath();
+        locationState.nativePlaceIdentity.clear();
     }
-    Activate(panel, state.current);
+    locationState.viewMode = qBound(0, object.value("view").toInt(3), 3);
+    locationState.sort = object.value("sort").toInt();
+    locationState.ascending = object.value("ascending").toBool(true);
+    window_.withPanelProjection(panel, [this, panel, &locationState] {
+        const QScopedValueRollback<bool> changing(changing_, true);
+        auto &source = window_.app_.Panels[panel];
+        source.SetListViewMode(locationState.viewMode);
+        if (locationState.sort) {
+            source._sortID = locationState.sort;
+            source._ascending = locationState.ascending;
+        }
+        OpenPanelLocation(panel);
+    });
+    window_.refreshActions();
     WhenReady(std::move(finished), std::move(canceled));
 }
 
 void QtWindowWorkspace::Restore(const QJsonObject &value, std::function<void()> finished,
                                 std::function<void()> canceled) {
     const auto panels = value.value("panels").toArray();
-    const bool hasSecond = panels.size() > 1 && !SavedLocation(panels[1].toObject()).isEmpty();
-    if ((hasSecond || value.value("count").toInt(1) == 2) && window_.app_.NumPanels == 1)
+    const bool savedTwo = value.value("count").toInt(1) == 2;
+    bool needsOtherPane = false;
+    for (unsigned panel = 0; panel < 2 && panel < panels.size(); ++panel)
+        needsOtherPane |=
+            !window_.panelUi_[panel].table && !SavedLocation(panels.at(panel).toObject()).isEmpty();
+    if ((needsOtherPane || savedTwo) && window_.app_.NumPanels == 1)
         window_.togglePanels();
     WhenReady(
         [this, value, panels, finished = std::move(finished), canceled] {

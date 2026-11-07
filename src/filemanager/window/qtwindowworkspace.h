@@ -14,7 +14,6 @@
 
 class MainWindow;
 class QAbstractItemView;
-class QTabBar;
 class QVBoxLayout;
 class QToolBar;
 class QListView;
@@ -24,43 +23,32 @@ class QtNativePlaces;
 class QtRecentPlacesStore;
 class QtRecentPlacesDialog;
 struct QtRecentPlace;
-struct QtTabRuntime;
 class QtArchiveMountManager;
 
-// Tab runtimes own stable sources; CApp projects two active slots. Persistent
-// sessions contain navigation values and never live handles or passwords.
+// CApp owns the two panel bindings. The workspace keeps navigation state and
+// each panel’s mount manager.
 class QtWindowWorkspace final : public QObject {
     Q_DECLARE_TR_FUNCTIONS(QtWindowWorkspace)
   public:
     explicit QtWindowWorkspace(MainWindow &window);
     void AttachPanel(unsigned panel, QVBoxLayout &layout);
     void Refresh();
-    void NewTab(unsigned panel, const QString &path = {});
-    void CloseTab(unsigned panel, int tab);
     QJsonObject Save();
     void Restore(const QJsonObject &state, std::function<void()> finished = {},
                  std::function<void()> canceled = {});
     void EditLocation();
     QString CurrentLocation();
     void AttachContent(unsigned panel, QVBoxLayout &layout);
-    bool WithSource(CPanel &source, const std::function<bool()> &body);
-    bool SourceIsActive(const CPanel &source) const;
-    void MarkDirty(CPanel &source);
     void InvalidateArchive(const QString &path);
     bool RefreshPublishedArchive(unsigned panel, bool interactive = false);
     bool CanRefreshPublishedArchives() const;
     void RestoreViewPosition(CPanel &source, QAbstractItemView &view, const QPoint &position);
     void RetainListFocus(unsigned panel);
     void ExitExternalWorkers(bool hardExit);
-    bool HasExternalWorkers() const;
-    void QuiesceInactive();
     void Dispose();
     QtArchiveMountManager *CurrentMountManager(bool create);
     bool CanCloseMounts();
     QWidget *MountCloseBlocker() const;
-    // Acceptance may precede opening a restored tab; finished reports the actual result.
-    bool TransferTab(const QString &id, QtWindowWorkspace &target, unsigned targetPanel,
-                     std::function<void(bool)> finished = {});
     bool PreparePanelForShow(unsigned panel);
     HRESULT Navigate(const std::function<HRESULT()> &body,
                      std::function<void(HRESULT)> finished = {});
@@ -89,7 +77,6 @@ class QtWindowWorkspace final : public QObject {
         bool SameLocation(const Visit &other) const;
     };
     struct Navigation {
-        QString tab;
         std::shared_ptr<CPanel> source;
         std::unique_ptr<QtPanelLocationTransaction> transaction;
         CMyComPtr<IFolderFolder> previousFolder;
@@ -102,13 +89,10 @@ class QtWindowWorkspace final : public QObject {
         QPointer<QObject> requester;
         bool canceled = false;
     };
-    struct Tab {
-        QString id;
+    struct Location {
         QString path;
-        std::optional<QString> resumePath;
         QString nativePlaceIdentity;
         QtArchiveLocation archiveLocation;
-        QtCommandIcon symbol = QtCommandIcon::Folder;
         std::vector<Visit> visits;
         int cursor = -1;
         CSelectedState selection;
@@ -120,27 +104,17 @@ class QtWindowWorkspace final : public QObject {
         quint64 archiveRevision = 0;
         quint64 archiveApplied = 0;
         quint64 archiveAttempted = 0;
-        std::shared_ptr<QtTabRuntime> runtime;
     };
     struct Panel {
-        QTabBar *bar = nullptr;
-        std::vector<Tab> tabs;
-        int current = 0;
+        Location location;
+        QPointer<QtArchiveMountManager> mounts;
         QToolBar *actions = nullptr;
         QWidget *actionRow = nullptr;
-        std::shared_ptr<QtTabRuntime> bound;
     };
     bool Ready() const;
-    struct TabPosition {
-        unsigned panel;
-        int index;
-    };
-    std::optional<TabPosition> FindTab(const QString &id) const;
     void Capture(unsigned panel, bool retainView = true);
     Visit CaptureVisit(unsigned panel);
     void FinishNavigation(unsigned panel, HRESULT result);
-    void CreateTab(unsigned panel, const QString &path, const QString &nativeIdentity,
-                   const QtArchiveLocation &archive = {});
     struct ReopenLayer {
         QString format;
         std::optional<ArchivePassword> password;
@@ -149,26 +123,17 @@ class QtWindowWorkspace final : public QObject {
                                 const std::vector<ReopenLayer> *layers = nullptr,
                                 bool interactive = true);
     HRESULT OpenArchiveDirectory(unsigned panel, const QtArchiveLocation &location);
-    HRESULT OpenTabLocation(unsigned panel);
+    HRESULT OpenPanelLocation(unsigned panel);
     bool LocationMatches(unsigned panel, const QString &path);
-    QString TabTitle(const Tab &tab) const;
-    void Activate(unsigned panel, int tab);
-    void Suspend(unsigned panel);
-    bool CloseRuntime(unsigned panel, int index);
-    void Rebuild(unsigned panel);
-    void TabMenu(unsigned panel, const QPoint &point);
-    void DetachTab(const QString &id);
     void CreateActions(unsigned panel, QVBoxLayout &layout);
     void RefreshChrome();
     void ShowArchiveChangeNotice(unsigned panel);
     void AddFavorite();
     void OpenFavorite(const QString &path);
-    void OpenRecentPlace(const QString &id, const QtRecentPlace &place,
+    void OpenRecentPlace(unsigned panel, const QtRecentPlace &place,
                          QPointer<QtRecentPlacesDialog> target);
     void WhenReady(std::function<void()> body, std::function<void()> canceled = {});
-    void RestoreTabFocus(unsigned panel, const QString &id, quint64 request);
-    void RestoreListFocus(unsigned panel, const QString &id, quint64 request,
-                          QPointer<QWidget> widget);
+    void RestoreListFocus(unsigned panel, quint64 request, QPointer<QWidget> widget);
     void RestorePanel(unsigned panel, const QJsonObject &saved, std::function<void()> finished,
                       std::function<void()> canceled);
     void CompleteLocationOpen(unsigned panel, const QString &path, HRESULT result);

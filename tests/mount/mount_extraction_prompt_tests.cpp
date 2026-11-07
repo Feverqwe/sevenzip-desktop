@@ -259,13 +259,7 @@ class MountExtractionPromptTests final : public QObject {
         QVERIFY(!options.Accepted);
         QVERIFY(reported && blocked);
     }
-    void unmountContinuationKeepsItsRequestedOwner_data() {
-        QTest::addColumn<bool>("tab");
-        QTest::newRow("tab-close-follows-its-continuation") << true;
-        QTest::newRow("window-close-stays-with-original-window") << false;
-    }
-    void unmountContinuationKeepsItsRequestedOwner() {
-        QFETCH(bool, tab);
+    void unmountContinuationClosesItsWindow() {
         const auto unavailable = QtSmbMountPlatform::unavailableReason();
         if (!unavailable.isEmpty())
             QSKIP(qPrintable(unavailable));
@@ -291,21 +285,10 @@ class MountExtractionPromptTests final : public QObject {
         // Preparing -> Stopped lifecycle without starting an OS mount.
         manager.mount(nullptr, "Synthetic preparing source", {});
         QVERIFY(manager.hasActiveSessions());
-        int continued = 0;
-        std::function<void()> close;
-        if (tab)
-            close = [&] { ++continued; };
-        QVERIFY(!manager.canCloseOwner(close));
-        manager.rebindOwner(receiver);
+        QVERIFY(!manager.canCloseOwner());
         QTRY_VERIFY(!manager.hasActiveSessions());
-        if (tab) {
-            QTRY_COMPARE(continued, 1);
-            QVERIFY(owner.isVisible());
-        } else
-            QTRY_VERIFY(!owner.isVisible());
+        QTRY_VERIFY(!owner.isVisible());
         QVERIFY(receiver.isVisible());
-        QTest::qWait(20);
-        QCOMPARE(continued, tab ? 1 : 0);
     }
     void removesOnlySelectedStoppedRecord() {
         const auto unavailable = QtSmbMountPlatform::unavailableReason();
