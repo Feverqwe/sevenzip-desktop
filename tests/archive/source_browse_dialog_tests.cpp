@@ -341,6 +341,84 @@ class SourceBrowseDialogTests final : public QObject {
         QCOMPARE(browse.FilterIndex, 0);
     }
 
+    void failedFolderNavigationKeepsDraftUntilRetry_data() {
+        QTest::addColumn<QString>("command");
+        QTest::newRow("child-enter") << QString("child");
+        QTest::newRow("parent-button") << QString("button");
+        QTest::newRow("parent-backspace") << QString("backspace");
+    }
+
+    void failedFolderNavigationKeepsDraftUntilRetry() {
+        QFETCH(QString, command);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString parent = LongDirectory(fixture);
+        const QString current = parent + "/Current";
+        const QString child = current + "/Child";
+        const QString target = command == "child" ? child : parent;
+        const QString parked = target + "-parked";
+        QVERIFY(QDir().mkpath(child));
+        bool retried = false;
+        QTimer::singleShot(0, [&] {
+            auto *dialog = Dialog();
+            QVERIFY(dialog);
+            const auto close = qScopeGuard([&] {
+                if (dialog->isVisible())
+                    dialog->reject();
+            });
+            auto *list = dialog->findChild<QTreeWidget *>("browseList");
+            auto *path = dialog->findChild<QLineEdit *>("browsePath");
+            auto *folder = dialog->findChild<QLabel *>("browseFolder");
+            auto *parentButton = dialog->findChild<QPushButton *>("browseParent");
+            auto *buttons = dialog->findChild<QDialogButtonBox *>("browseButtons");
+            QVERIFY(list && path && folder && parentButton && buttons);
+            const auto matches = list->findItems("Child", Qt::MatchExactly);
+            QCOMPARE(matches.size(), 1);
+            list->setCurrentItem(matches.front());
+            const QString draft = QStringLiteral("  введённый путь 空  ");
+            path->setText(draft);
+            const auto navigate = [&] {
+                if (command == "button")
+                    parentButton->click();
+                else {
+                    list->setFocus();
+                    QTest::keyClick(list, command == "child" ? Qt::Key_Return : Qt::Key_Backspace);
+                }
+            };
+            QVERIFY(QDir().rename(target, parked));
+            QString error;
+            QTimer responder;
+            connect(&responder, &QTimer::timeout, dialog, [&] {
+                if (auto *message =
+                        qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                    error = message->text();
+                    message->accept();
+                }
+            });
+            responder.start(1);
+            navigate();
+            responder.stop();
+            QVERIFY(QDir().rename(parked, target));
+            QVERIFY(error.contains(QDir::toNativeSeparators(target)));
+            QCOMPARE(path->text(), draft);
+            QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(folder->toolTip())), current);
+            QCOMPARE(list->currentItem()->text(0), QString("Child"));
+
+            navigate();
+            QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(folder->toolTip())), target);
+            QVERIFY(path->text() != draft);
+            path->setText(target);
+            path->setFocus();
+            buttons->button(QDialogButtonBox::Ok)->click();
+            retried = true;
+        });
+        UString selected;
+        QVERIFY(MyBrowseForFolder(nullptr, UString("Browse"), ToUString(child + QDir::separator()),
+                                  selected));
+        QVERIFY(retried);
+        QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(ToQString(selected))), target);
+    }
+
     void cancelPreservesRawFileStateAndClearsFolderOutput() {
         QTemporaryDir fixture;
         const QString directory = LongDirectory(fixture);

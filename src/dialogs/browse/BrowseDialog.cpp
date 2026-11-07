@@ -307,12 +307,19 @@ HRESULT CBrowseDialog::Reload() {
     return Reload(DirPrefix, selected);
 }
 
+void CBrowseDialog::NavigateFolder(const UString &path, const UString &selectedName) {
+    const HRESULT result = Reload(path, selectedName);
+    if (result != S_OK) {
+        MessageBox_HResError(this, result, path);
+        return;
+    }
+    SetPathEditText();
+}
+
 void CBrowseDialog::OpenParentFolder() {
     UString parent, selected;
-    if (GetParentPath(DirPrefix, parent, selected)) {
-        Reload(parent, selected);
-        SetPathEditText();
-    }
+    if (GetParentPath(DirPrefix, parent, selected))
+        NavigateFolder(parent, selected);
 }
 
 void CBrowseDialog::SetPathEditText() {
@@ -391,10 +398,7 @@ void CBrowseDialog::OnItemEnter() {
         UString s = DirPrefix;
         s += fs2us(file.Name);
         s.Add_PathSepar();
-        const HRESULT res = Reload(s, UString());
-        if (res != S_OK)
-            MessageBox_HResError(this, res, s);
-        SetPathEditText();
+        NavigateFolder(s, UString());
     }
 }
 
