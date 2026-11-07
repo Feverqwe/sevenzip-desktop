@@ -31,6 +31,8 @@ void QtExternalFileTask::Refresh() {
             : !state_->target && !state_->known && !state_->published
                 ? QT_TR_NOOP(
                       "This retained copy can be saved separately. Its source cannot be updated.")
+            : state_->changeReported
+                ? QT_TR_NOOP("Saved changes detected in the temporary copy.")
                 : QT_TR_NOOP("The external program's completion is unknown. The temporary copy is "
                              "protected.");
         QtBindLocalText(state_->status, "QtExternalFileTask", text);
@@ -39,6 +41,10 @@ void QtExternalFileTask::Refresh() {
         state_->confirmed->setVisible(state_->target && !state_->known && !state_->published &&
                                       state_->observation != QtExternalObservation::Completed);
     if (state_->check) {
+        QtBindLocalText(state_->check, "QtExternalFileTask",
+                        state_->changeReported
+                            ? QT_TRANSLATE_NOOP("QtExternalFileTask", "Update archive…")
+                            : QT_TRANSLATE_NOOP("QtExternalFileTask", "Check changes"));
         state_->check->setVisible(state_->target.has_value());
         state_->check->setEnabled(state_->target && !state_->stopped &&
                                   !state_->launcher.Exiting() && !state_->known &&
@@ -78,8 +84,6 @@ void QtExternalFileTask::Show() {
         auto *check = actions->addButton(QString(), QDialogButtonBox::ActionRole);
         check->setObjectName("externalFileCheck");
         state_->check = check;
-        QtBindLocalText(check, "QtExternalFileTask",
-                        QT_TRANSLATE_NOOP("QtExternalFileTask", "Check changes"));
         auto *body = QtCreateDialogLayout(*dialog, *actions, QtDialogContent::Scrollable);
         auto *source =
             new QtSourceSummary(qApp->style()->standardIcon(QStyle::SP_FileIcon),

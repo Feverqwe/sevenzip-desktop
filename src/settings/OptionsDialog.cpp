@@ -1,12 +1,11 @@
 // Adapted from 7-Zip OptionsDialog.cpp (0766b733fe3e06dd2a7f9a3cfbf2108ac73abd17).
 // Igor Pavlov, LGPL-2.1-or-later; see third_party/7zip/License.txt.
-// Qt task pages retain the original six state/apply owners.
+// Qt task pages retain the source state/apply owners.
 #include "7zip/UI/FileManager/resource.h"
 #include "localization/LangUtils.h"
 #include "localization/qtlangbuttonbox.h"
 #include "localization/qtlangcontrols.h"
 #include "platform/associations/qtassociationplatform.h"
-#include "settings/EditPage.h"
 #include "settings/FoldersPage.h"
 #include "settings/LangPage.h"
 #include "settings/MenuPage.h"
@@ -43,7 +42,6 @@ QtFmOptionsDialog::QtFmOptionsDialog(const QString &settingsPath, QWidget *paren
     _sections = pages;
     pages->setObjectName("optionsPages");
     pages->tabBar()->setFocusPolicy(Qt::StrongFocus); // Native property-sheet WS_TABSTOP.
-    _editPage = new CEditPage(settingsPath, this);
     _foldersPage = new CFoldersPage(settingsPath, this);
     _settingsPage = new CSettingsPage(settingsPath, this, true);
     _appliedColorScheme = _settingsPage->settings().ColorScheme;
@@ -67,7 +65,6 @@ QtFmOptionsDialog::QtFmOptionsDialog(const QString &settingsPath, QWidget *paren
     connect(_buttons, &QDialogButtonBox::rejected, this, &QtFmOptionsDialog::reject);
     connect(_buttons->button(QDialogButtonBox::Apply), &QPushButton::clicked, this,
             &QtFmOptionsDialog::apply);
-    connect(_editPage, &CEditPage::Changed, this, &QtFmOptionsDialog::updateApplyButton);
     connect(_settingsPage, &CSettingsPage::Changed, this, &QtFmOptionsDialog::updateApplyButton);
     connect(_foldersPage, &CFoldersPage::Changed, this, &QtFmOptionsDialog::updateApplyButton);
     connect(_menuPage, &CMenuPage::Changed, this, &QtFmOptionsDialog::updateApplyButton);
@@ -114,12 +111,6 @@ bool QtFmOptionsDialog::apply() {
         updateApplyButton();
         return false;
     }
-    QWidget *invalidCommand = nullptr;
-    if (_editPage->OnApply(&invalidCommand) != 0) {
-        revealControl(invalidCommand);
-        updateApplyButton();
-        return false;
-    }
     if (_settingsPage->OnApply() != 0) {
         revealControl(findChild<QWidget *>("extractMemorySpin"));
         updateApplyButton();
@@ -142,8 +133,8 @@ bool QtFmOptionsDialog::apply() {
     return !hasPendingChanges();
 }
 bool QtFmOptionsDialog::hasPendingChanges() const {
-    return _editPage->IsModified() || _foldersPage->IsModified() || _settingsPage->IsModified() ||
-           _menuPage->IsModified() || _langPage->IsModified() || _systemPage->IsModified();
+    return _foldersPage->IsModified() || _settingsPage->IsModified() || _menuPage->IsModified() ||
+           _langPage->IsModified() || _systemPage->IsModified();
 }
 void QtFmOptionsDialog::updateApplyButton() {
     _buttons->button(QDialogButtonBox::Apply)->setEnabled(hasPendingChanges());

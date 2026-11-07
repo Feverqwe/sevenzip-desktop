@@ -46,7 +46,6 @@
   {"id":"settings-folders","title":"Настройки памяти и рабочих каталогов","target":"options_dialog_tests","functions":["settingsGeometryAndKeyboardSpin","foldersGeometryAndInvalidConfiguration"]},
   {"id":"system-page","title":"Настройки ассоциаций файлов","target":"system_page_tests","functions":["sourcePageNormalCompactGeometryAndLanguage"]},
   {"id":"menu-page","title":"Настройки меню и интеграции Windows","platforms":["Windows"],"target":"menu_page_tests","functions":["capabilitiesAndGeometry"]},
-  {"id":"editors","title":"Настройки внешних редакторов","target":"external_editors_ui_tests","functions":["editorPageApplyCancelAndGeometry"]},
   {"id":"errors","title":"Сообщения об ошибках GUI","target":"gui_error_policy_tests","functions":["missingWriter","invalidOutput"]},
   {"id":"format-options","title":"Дополнительные параметры форматов","target":"compress_options_presentation_tests","functions":["contentSizedInitialFrame","explicitValueKeyboardAndCompactFit"]},
   {"id":"create-name","title":"Создание папки","target":"source_create_tests","functions":["create"]},

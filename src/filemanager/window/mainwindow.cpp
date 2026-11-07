@@ -22,8 +22,9 @@
 
 MainWindow::MainWindow(ArchiveBackend *backend, std::function<bool(const QUrl &)> fileOpener,
                        IQtTrashService *trashService, const QtFileManagerStartup *startup,
-                       DeviceSelectionServices deviceServices)
-    : deviceServices_(std::move(deviceServices)), fileOpener_(std::move(fileOpener)) {
+                       DeviceSelectionServices deviceServices,
+                       QtKnownAssociationOpener knownFileOpener)
+    : deviceServices_(std::move(deviceServices)) {
     if (trashService)
         trashService_ = trashService;
     else {
@@ -39,11 +40,12 @@ MainWindow::MainWindow(ArchiveBackend *backend, std::function<bool(const QUrl &)
     QtWorkspaceTheme::statusBar(*statusStrip_);
     folderManager_ = new QtArchiveFolderManager(*backend_);
     associatedFileServices_ = std::make_unique<QtAssociatedFileServices>(
-        fileOpener_,
+        std::move(fileOpener),
         [this](CPanel &panel, const QtArchiveUpdateBody &body) {
             return runExternalArchiveUpdate(panel, body);
         },
-        [this] { return canHandleExternalUpdate(); });
+        [this] { return canHandleExternalUpdate(); }, std::function<bool(const QString &)>(),
+        std::move(knownFileOpener));
     associatedFileServices_->SetExternalSessionFactory(
         [this](CPanel &source, const CTempFileInfo &file, const QString &settings,
                const QString &prefix) {

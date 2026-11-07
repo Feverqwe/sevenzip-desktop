@@ -72,7 +72,7 @@ if(BUILD_TESTING AND WIN32)
             native_navigation_window archive_reload_command archive_reload_command_quick drag_reload_completion drag_reload_completion_quick panel_creation_path copy_archive_refresh interarchive_recovery panel_load_count panel_activation panel_activation_quick progress_dialog progress_worker progress_cancel archive_progress language_dialog language_standard_buttons fm_settings list_settings_runtime
             language_main_dialog language_focus properties_runtime
             archive_layer_chain archive_layer_lifetime
-            archive_item_open archive_external_edit external_editors_ui language_archive_command overwrite_layout
+            archive_item_open archive_external_edit language_archive_command overwrite_layout
             alt_streams_command alt_streams_archive_ui fs_provider_command native_archive_ads_copy view_menu)
         get_property(sevenzip_native_ui_environment TEST ${sevenzip_native_ui_test}
             PROPERTY ENVIRONMENT)

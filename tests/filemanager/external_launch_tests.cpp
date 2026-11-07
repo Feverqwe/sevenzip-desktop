@@ -25,19 +25,10 @@ namespace {
 class CAssociationService final : public IQtExternalFileServices {
   public:
     QString Opened;
-    UString Program, Parameters;
-    UStringVector Paths;
     HRESULT Result = S_OK;
     HRESULT StartApplication(const UString &, const UString &path, QWidget *) override {
         Opened = ToQString(path);
         return Result; // Fake association with no handle; never starts a user application.
-    }
-    HRESULT CreateProcess(const UString &program, const UString &parameters,
-                          const UStringVector &paths, QWidget *) override {
-        Program = program;
-        Parameters = parameters;
-        Paths = paths;
-        return Result;
     }
 };
 bool write(const QString &path, const QByteArray &bytes) {
@@ -49,13 +40,15 @@ bool write(const QString &path, const QByteArray &bytes) {
 class ExternalLaunchTests final : public QObject {
     Q_OBJECT
   private slots:
-    void nativeDiskEditUsesIndependentProgramsAndOriginalPath() {
+    void nativeDiskViewAndEditUseSystemAssociation() {
         QTemporaryDir fixture;
         const QString name = QStringLiteral("текст с пробелом.txt");
         QVERIFY(write(fixture.filePath(name), "contents"));
         const QString settings = fixture.filePath("settings.ini");
-        SaveRegEditor(true, UString(L"\"/editor path/editor\" --edit"), settings);
-        SaveRegEditor(false, UString(L"\"/viewer path/viewer\" --readonly"), settings);
+        QSettings legacy(settings, QSettings::IniFormat);
+        legacy.setValue("FM/Viewer", "missing-viewer --legacy-argument");
+        legacy.setValue("FM/Editor", "missing-editor --legacy-argument");
+        legacy.sync();
         ArchiveBackend backend;
         CMyComPtr<IFolderManager> manager = new QtArchiveFolderManager(backend);
         CAssociationService service;
@@ -75,24 +68,13 @@ class ExternalLaunchTests final : public QObject {
                 index = i;
         QVERIFY(index < count);
         const UString fullPath = panel.GetItemFullPath(index);
-        panel.EditItem(index, true);
-        QCOMPARE(ToQString(service.Program), QString("/editor path/editor"));
-        QCOMPARE(ToQString(service.Parameters), QString("--edit"));
-        QCOMPARE(service.Paths.Size(), 1u);
-        QVERIFY(service.Paths[0] == fullPath);
-        panel.EditItem(index, false);
-        QCOMPARE(ToQString(service.Program), QString("/viewer path/viewer"));
-        QCOMPARE(ToQString(service.Parameters), QString("--readonly"));
-        QCOMPARE(service.Paths.Size(), 1u);
-        QVERIFY(service.Paths[0] == fullPath);
-    }
-    void processPreservesArgumentsAndFailsWithoutExecutable_data() {
-        QTest::addColumn<bool>("knownProcess");
-        QTest::newRow("detached") << false;
-        QTest::newRow("waitable") << true;
+        for (bool editor : {false, true}) {
+            service.Opened.clear();
+            panel.EditItem(index, editor);
+            QCOMPARE(service.Opened, ToQString(fullPath));
+        }
     }
     void processPreservesArgumentsAndFailsWithoutExecutable() {
-        QFETCH(bool, knownProcess);
         QTemporaryDir fixture;
         const QString program = fixture.filePath(QStringLiteral("приложение с пробелом"))
 #ifdef Q_OS_WIN
@@ -106,18 +88,14 @@ class ExternalLaunchTests final : public QObject {
         UStringVector paths;
         paths.Add(ToUString(first));
         paths.Add(ToUString(second));
-        QtAssociatedFileServices service({});
+        QtNativeProcessServices service;
         const UString parameters = ToUString(
             QString("--external-fixture \"%1\" --readonly \"parameter space\"").arg(output));
         IQtProcessHandle *process = nullptr;
-        const HRESULT launched =
-            knownProcess ? service.CreateKnownProcess(ToUString(program), parameters, paths,
-                                                      nullptr, process)
-                         : service.CreateProcess(ToUString(program), parameters, paths, nullptr);
+        const HRESULT launched = service.Create(ToUString(program), parameters, paths, process);
         std::unique_ptr<IQtProcessHandle> owner(process);
         QCOMPARE(launched, S_OK);
-        if (knownProcess)
-            QVERIFY(owner);
+        QVERIFY(owner);
         QTRY_VERIFY(QFileInfo(output).size() > 0);
         QFile result(output);
         QVERIFY(result.open(QIODevice::ReadOnly));
@@ -127,18 +105,13 @@ class ExternalLaunchTests final : public QObject {
         for (qsizetype i = 0; i < expected.size(); ++i)
             QCOMPARE(arguments[i].toString().normalized(QString::NormalizationForm_C),
                      expected[i].normalized(QString::NormalizationForm_C));
-        if (owner)
-            QTRY_COMPARE(owner->Status(), QtProcessStatus::Exited);
+        QTRY_COMPARE(owner->Status(), QtProcessStatus::Exited);
         const UString missing = ToUString(fixture.filePath("missing"));
-        if (knownProcess) {
-            process = nullptr;
-            const HRESULT failed =
-                service.CreateKnownProcess(missing, parameters, paths, nullptr, process);
-            std::unique_ptr<IQtProcessHandle> failedOwner(process);
-            QVERIFY(failed != S_OK);
-            QVERIFY(!failedOwner);
-        } else
-            QCOMPARE(service.CreateProcess(missing, parameters, paths, nullptr), E_FAIL);
+        process = nullptr;
+        const HRESULT failed = service.Create(missing, parameters, paths, process);
+        std::unique_ptr<IQtProcessHandle> failedOwner(process);
+        QVERIFY(failed != S_OK);
+        QVERIFY(!failedOwner);
     }
     void associationAdapterPreservesPathAndReportsFailure_data() {
         QTest::addColumn<bool>("russian");
@@ -223,7 +196,7 @@ class ExternalLaunchTests final : public QObject {
             COpenResult result;
             QCOMPARE(panel.BindToPath(ToUString(archive), UString(), result), S_OK);
             QCOMPARE(panel.GetFolder()->LoadItems(), S_OK);
-            panel.OpenItemInArchive(0, tryInternal, true, false, false);
+            panel.OpenItemInArchive(0, tryInternal, true);
             QVERIFY(!service.Opened.isEmpty());
             QCOMPARE(QFile::exists(service.Opened), !launchFailed);
             QVERIFY(!backend.busy());
@@ -251,51 +224,6 @@ class ExternalLaunchTests final : public QObject {
         } else {
             QVERIFY(!QDir(parent).exists());
         }
-    }
-    void sourceCommandSplit_data() {
-        QTest::addColumn<QString>("command");
-        QTest::addColumn<QString>("program");
-        QTest::addColumn<QString>("params");
-        QTest::newRow("quoted-path")
-            << QStringLiteral("  \"/папка space/editor\" --readonly  ")
-            << QStringLiteral("/папка space/editor") << QString("--readonly");
-        QTest::newRow("unquoted-path") << QString("  /path with spaces/editor  ")
-                                       << QString("/path with spaces/editor") << QString();
-        QTest::newRow("quoted-only") << QString("\"editor\"") << QString("editor") << QString();
-        QTest::newRow("unclosed") << QString("\"editor") << QString("\"editor") << QString();
-        QTest::newRow("no-delimiter")
-            << QString("\"editor\"--flag") << QString("\"editor\"--flag") << QString();
-    }
-    void sourceCommandSplit() {
-        QFETCH(QString, command);
-        QFETCH(QString, program);
-        QFETCH(QString, params);
-        UString nativeProgram, nativeParams;
-        SplitCmdLineSmart(ToUString(command), nativeProgram, nativeParams);
-        QCOMPARE(ToQString(nativeProgram), program);
-        QCOMPARE(ToQString(nativeParams), params);
-    }
-    void editorViewerSettingsAreIndependent() {
-        QTemporaryDir directory;
-        const QString path = directory.filePath("settings.ini");
-        UString command = L"stale";
-        ReadRegEditor(true, command, path);
-        QVERIFY(command.IsEmpty());
-        const UString editor(L"\"/папка с пробелом/editor\" --edit");
-        const UString viewer(L"viewer");
-        SaveRegEditor(true, editor, path);
-        SaveRegEditor(false, viewer, path);
-        ReadRegEditor(true, command, path);
-        QVERIFY(command == editor);
-        ReadRegEditor(false, command, path);
-        QVERIFY(command == viewer);
-        ReadRegEditor(false, command, path);
-        QVERIFY(command == viewer);
-        SaveRegEditor(true, UString(), path);
-        ReadRegEditor(true, command, path);
-        QVERIFY(command.IsEmpty());
-        ReadRegEditor(false, command, path);
-        QVERIFY(command == viewer);
     }
 };
 int main(int argc, char **argv) {

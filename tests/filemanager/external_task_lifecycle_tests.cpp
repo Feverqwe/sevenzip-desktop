@@ -40,15 +40,15 @@ class ExternalTaskLifecycleTests final : public QObject, protected MainWindowTes
         QVERIFY(createArchive(fixture.path(), archive, name));
         const auto original = read(archive);
         const auto control = fixture.filePath("editor");
-        configure(control);
         const auto cleanup = qScopeGuard([&] { write(control + ".exit", "exit"); });
         ArchiveBackend backend;
-        MainWindow window(&backend);
+        MainWindow window(&backend, {}, nullptr, nullptr, DeviceSelectionServices::system(),
+                          opener(control));
         window.show();
         window.openArchive(archive);
         QTRY_COMPARE(table(window)->rowCount(), 1);
         table(window)->selectRow(0);
-        action(window, "editFileAction")->trigger();
+        action(window, "openOutsideAction")->trigger();
         QTRY_VERIFY(QFileInfo(control + ".ready").size() > 0);
         const auto copy = QString::fromUtf8(read(control + ".ready"));
         if (duringCopyChoice) {
@@ -133,15 +133,16 @@ class ExternalTaskLifecycleTests final : public QObject, protected MainWindowTes
             for (auto *task : QtExternalFileTask::Active())
                 task->Stop();
         });
-        configure(control);
         auto backend = std::make_unique<ArchiveBackend>();
-        auto window = std::make_unique<MainWindow>(backend.get());
+        auto window = std::make_unique<MainWindow>(
+            backend.get(), std::function<bool(const QUrl &)>(), nullptr, nullptr,
+            DeviceSelectionServices::system(), opener(control));
         window->show();
         window->openArchive(archive);
         QTRY_COMPARE(table(*window)->rowCount(), 1);
         table(*window)->selectRow(0);
         table(*window)->setCurrentCell(0, 0);
-        action(*window, "editFileAction")->trigger();
+        action(*window, "openOutsideAction")->trigger();
         QTRY_VERIFY(QFileInfo(control + ".ready").size() > 0);
         const QString copy = QString::fromUtf8(read(control + ".ready"));
         QCOMPARE(read(copy), QByteArray("original"));

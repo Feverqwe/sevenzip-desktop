@@ -17,9 +17,11 @@ bool OpenAssociation(const QUrl &url) { return QDesktopServices::openUrl(url); }
 QtAssociatedFileServices::QtAssociatedFileServices(
     std::function<bool(const QUrl &)> opener,
     std::function<bool(CPanel &, const QtArchiveUpdateBody &)> updateRunner,
-    std::function<bool()> updateReady, std::function<bool(const QString &)> hasAssociation)
-    : _opener(std::move(opener)), _updateRunner(std::move(updateRunner)),
-      _updateReady(std::move(updateReady)), _hasAssociation(std::move(hasAssociation)) {}
+    std::function<bool()> updateReady, std::function<bool(const QString &)> hasAssociation,
+    QtKnownAssociationOpener knownOpener)
+    : _opener(std::move(opener)), _knownOpener(std::move(knownOpener)),
+      _updateRunner(std::move(updateRunner)), _updateReady(std::move(updateReady)),
+      _hasAssociation(std::move(hasAssociation)) {}
 
 bool QtAssociatedFileServices::ConfirmArchiveFallback(const UString &path, QWidget *window) {
     const QString file = ToQString(path);
@@ -49,24 +51,12 @@ bool QtAssociatedFileServices::RunArchiveUpdate(CPanel &panel, const QtArchiveUp
                          : IQtExternalFileServices::RunArchiveUpdate(panel, body);
 }
 
-HRESULT QtAssociatedFileServices::CreateKnownProcess(const UString &program,
-                                                     const UString &parameters,
-                                                     const UStringVector &paths, QWidget *,
-                                                     IQtProcessHandle *&process) {
-    return _processServices.Create(program, parameters, paths, process);
-}
-
-HRESULT QtAssociatedFileServices::CreateProcess(const UString &program, const UString &parameters,
-                                                const UStringVector &paths, QWidget *) {
-    // Disk View/Edit/Diff do not wait in the source implementation. Archive
-    // editing requires the separate known-process owner before it can use this.
-    return _processServices.CreateDetached(program, parameters, paths);
-}
-
 HRESULT QtAssociatedFileServices::StartApplicationKnown(const UString &dir, const UString &path,
                                                         QWidget *window,
                                                         IQtProcessHandle *&process) {
     process = nullptr;
+    if (_knownOpener)
+        return _knownOpener(path, process);
 #ifdef Q_OS_WIN
     if (!_opener) {
         return _processServices.StartNative(

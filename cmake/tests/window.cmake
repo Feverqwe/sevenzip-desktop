@@ -28,12 +28,6 @@
     target_include_directories(ui_update_modes_tests PRIVATE src tests)
     target_link_libraries(ui_update_modes_tests PRIVATE Qt6::Widgets Qt6::Test)
     add_test(NAME ui_update_modes COMMAND ui_update_modes_tests -silent)
-    qt_add_executable(external_editors_ui_tests tests/filemanager/external_editors_ui_tests.cpp)
-    target_link_libraries(external_editors_ui_tests PRIVATE sevenzip_layout_inspection sevenzip_widget_dialog_fixtures)
-    target_link_libraries(external_editors_ui_tests PRIVATE sevenzip_window)
-    target_include_directories(external_editors_ui_tests PRIVATE src tests)
-    target_link_libraries(external_editors_ui_tests PRIVATE Qt6::Widgets Qt6::Test)
-    add_test(NAME external_editors_ui COMMAND external_editors_ui_tests -silent)
     qt_add_executable(nested_edit_chain_tests
         tests/filemanager/nested_edit_chain_tests.cpp
         tests/platform/support/external_editor_fixture.cpp)
@@ -112,8 +106,6 @@
     set_tests_properties(external_gui_call PROPERTIES TIMEOUT 15 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
     set_tests_properties(archive_external_edit PROPERTIES TIMEOUT 90 ENVIRONMENT
         "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/archive-external-edit-settings.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
-    set_tests_properties(external_editors_ui PROPERTIES TIMEOUT 60 ENVIRONMENT
-        "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/external-editors-ui-settings.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
     qt_add_executable(ui_archive_volumes_tests tests/filemanager/ui_archive_volumes_tests.cpp)
     target_link_libraries(ui_archive_volumes_tests PRIVATE sevenzip_window)
     target_include_directories(ui_archive_volumes_tests PRIVATE src tests)

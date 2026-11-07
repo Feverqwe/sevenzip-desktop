@@ -62,13 +62,13 @@ belong in [the audit](upstream-port-audit.md).
 | Add/update/path modes | CompressDialog/UpdateGUI/UpdatePair; Qt controls/backend | `source_compress_dialog`, `shell_update_window`, `ui_update_modes`, `source_update_backend` |
 | archive volumes | CArchiveLink/CMultiOutStream; leased volume publication | `archive_volume_creation`, `volume_workflow`, `ui_archive_volumes` |
 | options/memory/deletion lifecycle | COptionsDialog/CompressDialog/Update; Qt control/worker bridge | `compression_advanced`, `compression_memory`, `compression_limit`, `archive_creation_lifecycle` |
-| external View/Edit/Diff/VerCtrl | PanelItemOpen/EditItem/VerCtrl; OS process and GUI delivery | `archive_external_edit`, `archive_external_lifetime`, `archive_external_security`, `external_editors_ui`, `verctrl` |
+| external View/Edit and archive copy updates | System association, process observation and GUI delivery | `external_launch`, `archive_external_edit`, `archive_external_lifetime`, `archive_external_security` |
 | nested parent write chain | PanelItemOpen/AgentOut; retained resource/parent publication | `nested_edit_chain`, `nested_update`, `owned_temp_publication` |
 | changed native Parent: Yes/No/Cancel, actual writer failure/Cancel, ignored publication error, retry and spool cleanup | OpenParentArchiveFolder/CloseOneLevel/OpenParentFolder; original CopyFromFile and non-owning Qt callback publication | `native_parent_publication`, `panel_navigation`, `nested_edit_chain` |
 | properties/raw/folder size | PropertyName/PropIDUtils/Agent/Panel; typed native property projection, retained native levels/catalog diagnostics | `source_properties`, `native_archive_properties`, `properties_runtime`, `property_formatting`, `folder_size_view` |
 | root/mount/network/Browse/device image | RootFolder/FSDrives/NetFolder; platform mount service and original device CopyTo | `root_navigation`, `volume_mount`, `network_folder`, `browse_dialog`, `fs_drives_device`, `fs_drives_device_ui`, `native_network_navigation` (Windows) |
 | Options Apply/Cancel | OptionsDialog/*Page; Qt page container | `options_dialog`, `options_integration`, `options_window`, `fm_settings` |
-| Edit/Menu policies | EditPage/MenuPage/RegistryContextMenu; OS registration service | `external_editors_ui`, `menu_page`, `context_menu_settings`, `shell_registry` |
+| Explorer menu policy | OS registration service | `menu_page`, `context_menu_settings`, `shell_registry` |
 | language/fallback/focus | CLang/LangUtils/*Dialog; Qt LanguageChange/bindings | `language`, `language_ui`, `language_dialog`, `language_standard_buttons`, `language_focus`, `language_source_update` |
 | Help/About/temp cleanup | HelpUtils/AboutDialog/TempFiles; CHM viewer and owned leases | `help_source`, `help_ui`, `temp_cleanup`, `owned_temp`, `temp_detached_launch` |
 | panel/archive drag | PanelDrag/CompressCall2; QDrag/MIME/leased materialization; native bound writer/publication/refusal/retry | `drag_drop`, `drag_archive`, `drag_drop_ui`, `drag_drop_add_ui`, `drag_drop_add_independent`, `drag_drop_add_temporary`, `source_drop_add`, `native_drop_publication` |

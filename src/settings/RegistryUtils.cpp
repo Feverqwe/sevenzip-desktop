@@ -24,14 +24,6 @@ static void ReadCuString(const QString &settingsPath, const char *valuePath, USt
     res = value.c_str();
 }
 
-void SaveRegEditor(bool useEditor, const UString &path, const QString &settingsPath) {
-    SaveCuString(settingsPath, useEditor ? "Editor" : "Viewer", path);
-}
-
-void ReadRegEditor(bool useEditor, UString &path, const QString &settingsPath) {
-    ReadCuString(settingsPath, useEditor ? "Editor" : "Viewer", path);
-}
-
 void SaveRegLang(const UString &path, const QString &settingsPath) {
     SaveCuString(settingsPath, "Lang", path);
 }

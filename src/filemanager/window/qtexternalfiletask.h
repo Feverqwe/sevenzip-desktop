@@ -41,6 +41,7 @@ class QtExternalFileTask final : public QObject,
     void Initialize();
     void SaveCopy(QWidget *parent, bool fromUpdate = false);
     void Refresh();
+    void WatchAssociationCopy();
     std::shared_ptr<const QtOwnedTempLease> InputLease() const;
     bool CheckChanges();
     int AskForUpdate();

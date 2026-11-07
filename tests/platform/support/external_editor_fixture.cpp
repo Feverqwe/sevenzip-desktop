@@ -1,5 +1,5 @@
 #include "platform/support/external_editor_fixture.h"
-#include "settings/RegistryUtils.h"
+#include "platform/process/qtexternalprocess.h"
 #include "settings/ViewSettings.h"
 #include <QCoreApplication>
 #include <QEventLoop>
@@ -67,11 +67,15 @@ QByteArray contents(const QString &archive, const QString &name, const QString &
                ? process.readAllStandardOutput()
                : QByteArray();
 }
-void configure(const QString &control, const QString &mode) {
-    const UString command = ToUString(
-        QString("\"%1\" %2 \"%3\"").arg(QCoreApplication::applicationFilePath(), mode, control));
-    for (bool editor : {false, true})
-        SaveRegEditor(editor, command, qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
+QtKnownAssociationOpener opener(QString control, QString mode) {
+    return [control = std::move(control), mode = std::move(mode)](const UString &path,
+                                                                  IQtProcessHandle *&handle) {
+        UStringVector paths;
+        paths.Add(path);
+        QtNativeProcessServices process;
+        return process.Create(ToUString(QCoreApplication::applicationFilePath()),
+                              ToUString(QString("%1 \"%2\"").arg(mode, control)), paths, handle);
+    };
 }
 int run(int argc, char **argv) {
     if (argc != 4 || !QByteArray(argv[1]).startsWith("--archive-editor"))

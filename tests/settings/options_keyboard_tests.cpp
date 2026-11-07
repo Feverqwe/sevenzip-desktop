@@ -58,12 +58,12 @@ class OptionsKeyboardTests final : public QObject {
         QVERIFY(QTest::qWaitForWindowActive(&dialog));
         auto *pages = dialog.findChild<QTabWidget *>("optionsPages");
         QCOMPARE(dialog.focusWidget(), dialog.findChild<QComboBox *>("appearanceChoice"));
-        OptionsPresentation::show(dialog, "editorCommand");
-        auto *editor = dialog.findChild<QLineEdit *>("editorCommand");
-        editor->setText("pending editor --wait");
         OptionsPresentation::show(dialog, "workSpecified");
         auto *current = dialog.findChild<QRadioButton *>("workSpecified");
         current->click();
+        auto *workPath = dialog.findChild<QLineEdit *>("workPath");
+        workPath->setText(fixture.path());
+
         OptionsPresentation::show(dialog, "appearanceChoice");
         dialog.findChild<QComboBox *>("appearanceChoice")->setFocus();
         for (int direction : {1, -1})
@@ -78,7 +78,7 @@ class OptionsKeyboardTests final : public QObject {
                 QVERIFY(focus && focus->isVisible() && focus->isEnabled());
                 QVERIFY(pages->currentWidget()->isAncestorOf(focus));
                 QVERIFY(current->isChecked());
-                QCOMPARE(editor->text(), QString("pending editor --wait"));
+                QCOMPARE(workPath->text(), fixture.path());
                 QVERIFY(UiInspection::writeReport(dialog,
                                                   QString("options-section-activation-%1-%2-%3-%4")
                                                       .arg(language)
@@ -93,13 +93,13 @@ class OptionsKeyboardTests final : public QObject {
         QTest::keyClick(footer, Qt::Key_Tab, control);
         QCOMPARE(pages->currentIndex(), target);
         QVERIFY(pages->currentWidget()->isAncestorOf(dialog.focusWidget()));
-        OptionsPresentation::show(dialog, editor);
-        editor->setFocus();
+        OptionsPresentation::show(dialog, workPath);
+        workPath->setFocus();
         dialog.hide();
         dialog.show();
         QVERIFY(QTest::qWaitForWindowActive(&dialog));
-        QCOMPARE(dialog.focusWidget(), editor);
-        QCOMPARE(editor->text(), QString("pending editor --wait"));
+        QCOMPARE(dialog.focusWidget(), workPath);
+        QCOMPARE(workPath->text(), fixture.path());
         dialog.reject();
         QCOMPARE(associations->writes, 0);
         QCOMPARE(associations->notifications, 0);

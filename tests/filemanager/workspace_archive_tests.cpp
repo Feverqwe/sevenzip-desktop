@@ -229,14 +229,14 @@ class WorkspaceArchiveTests final : public QObject, protected MainWindowTestSupp
         QVERIFY(write(other + "/keep selected.txt", "peer"));
         const QString control = fixture.filePath("editor control");
         const auto stopEditor = qScopeGuard([&] { write(control + ".exit", "exit"); });
-        configure(control);
         ArchiveBackend backend;
-        MainWindow window(&backend);
+        MainWindow window(&backend, {}, nullptr, nullptr, DeviceSelectionServices::system(),
+                          opener(control));
         window.show();
         window.openArchive(archive);
         QTRY_COMPARE(table(window)->rowCount(), 1);
         table(window)->selectRow(0);
-        action(window, "editFileAction")->trigger();
+        action(window, "openOutsideAction")->trigger();
         QTRY_VERIFY(QFileInfo(control + ".ready").size() > 0);
         const QString temporary = QString::fromUtf8(read(control + ".ready"));
         ControlledBackend peerBackend;

@@ -12,6 +12,7 @@ class QtWindowStatusBar;
 #include "dialogs/copy/alias.h"
 #include "dialogs/extract/alias.h"
 #include "filemanager/App.h"
+#include "filemanager/external/qtexternalapplications.h"
 #include "filemanager/providers/qtfolderprojection.h"
 #include "filemanager/qtfilemanagersplitter.h"
 #include "filemanager/views/filetable.h"
@@ -95,7 +96,8 @@ class MainWindow : public QMainWindow {
                         std::function<bool(const QUrl &)> fileOpener = {},
                         IQtTrashService *trashService = nullptr,
                         const QtFileManagerStartup *startup = nullptr,
-                        DeviceSelectionServices deviceServices = DeviceSelectionServices::system());
+                        DeviceSelectionServices deviceServices = DeviceSelectionServices::system(),
+                        QtKnownAssociationOpener knownFileOpener = {});
 
     void openArchive(const QString &path);
     void openPath(const QString &path);
@@ -309,7 +311,6 @@ class MainWindow : public QMainWindow {
     std::unique_ptr<QtWindowWorkspace> workspace_;
     std::unique_ptr<QtFileClipboard> clipboard_;
     std::unique_ptr<class QtProgramFileMenu> programFileMenu_;
-    std::function<bool(const QUrl &)> fileOpener_;
     CApp app_;
     QAction *saveBookmarks_[10]{};
     QAction *openBookmarks_[10]{};

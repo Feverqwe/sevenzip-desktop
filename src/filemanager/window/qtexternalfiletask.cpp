@@ -134,6 +134,7 @@ QtExternalFileTask::~QtExternalFileTask() {
 
 void QtExternalFileTask::Stop() {
     state_->stopped = true;
+    state_->watcher.reset();
     state_->launcher.RequestExit();
     if (state_->question) {
         state_->question->reject();
@@ -195,7 +196,39 @@ void QtExternalFileTask::PresentObservation(QtExternalObservation outcome) {
         return;
     state_->known = false;
     state_->observation = outcome;
+    if (outcome == QtExternalObservation::Unknown)
+        state_->changeReported = true;
     Show();
+}
+
+void QtExternalFileTask::WatchAssociationCopy() {
+    if (state_->stopped || state_->changeReported || state_->watcher)
+        return;
+    const QString path = ToQString(fs2us(state_->file.FilePath));
+    const QString directory = QFileInfo(path).absolutePath();
+    if (!QtOwnedTempMatchesIdentity(directory, state_->directoryIdentity))
+        return;
+    auto watcher = std::make_unique<QFileSystemWatcher>();
+    auto *watch = watcher.get();
+    const auto inspect = [this, path, directory, watch] {
+        if (state_->stopped || state_->changeReported ||
+            !QtOwnedTempMatchesIdentity(directory, state_->directoryIdentity))
+            return;
+        NWindows::NFile::NFind::CFileInfo current;
+        if (!current.Find(state_->file.FilePath) || current.IsDir())
+            return;
+        // An editor can replace a file by rename. Restore its watch when the
+        // directory notification makes the replacement visible.
+        if (!watch->files().contains(path))
+            watch->addPath(path);
+        if (state_->file.WasChanged_from_TempFileInfo(current))
+            PresentObservation(QtExternalObservation::Unknown);
+    };
+    connect(watch, &QFileSystemWatcher::fileChanged, this, inspect);
+    connect(watch, &QFileSystemWatcher::directoryChanged, this, inspect);
+    watch->addPath(directory);
+    state_->watcher = std::move(watcher);
+    inspect();
 }
 
 void QtExternalFileTask::Finished(QtExternalObservation outcome) {
@@ -209,6 +242,8 @@ void QtExternalFileTask::Finished(QtExternalObservation outcome) {
             state_->keepAlive.reset();
             state_->file.OwnedTempLease.reset();
             Refresh();
+            if (state_->launched && outcome == QtExternalObservation::Unknown)
+                WatchAssociationCopy();
             if (!state_->launched ||
                 (outcome == QtExternalObservation::Completed &&
                  !QFileInfo::exists(ToQString(fs2us(state_->file.FilePath)))) ||

@@ -7376,6 +7376,8 @@ Check that your distribution's CIFS support and cifs-utils are installed.</sourc
     <name>QtExternalFileTask</name>
     <message><source>Observation stopped. The external program may still be running. The temporary copy was kept.</source><translation>Наблюдение прекращено. Внешняя программа может ещё работать. Временная копия сохранена.</translation></message>
     <message><source>The archive was not fully updated. The copies were kept, but their session details could not be saved.</source><translation>Не удалось полностью обновить архив. Копии сохранены, но сведения о них записать не удалось.</translation></message>
+    <message><source>Saved changes detected in the temporary copy.</source><translation>Обнаружены сохранённые изменения во временной копии.</translation></message>
+    <message><source>Update archive…</source><translation>Обновить архив…</translation></message>
     <message><source>Archive</source><translation>Архив</translation></message>
     <message><source>Entry</source><translation>Запись</translation></message>
     <message><source>Temporary copy</source><translation>Временная копия</translation></message>

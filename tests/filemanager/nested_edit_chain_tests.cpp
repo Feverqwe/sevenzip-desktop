@@ -64,12 +64,12 @@ class NestedEditChainTests final : public QObject, protected MainWindowTestSuppo
         const QByteArray originalOuter = read(outer);
         const QString control = fixture.filePath("editor control");
         const auto stop = qScopeGuard([&] { write(control + ".exit", "exit"); });
-        configure(control);
         ArchiveBackend backend(nullptr, runtime_.engine());
         if (outcome >= 1 && outcome <= 4)
             QVERIFY(runtime_.armWriter(outcome <= 2 ? E_FAIL : E_ABORT, outcome >= 3));
         bool writerCancelled = false;
-        MainWindow window(&backend);
+        MainWindow window(&backend, {}, nullptr, nullptr, DeviceSelectionServices::system(),
+                          opener(control));
         window.resize(outcome == 6 ? QSize(640, 400) : QSize(980, 620));
         window.show();
         bool editPrompt = false, parentPrompt = false, error = false, promptGeometry = true;
@@ -299,9 +299,9 @@ class NestedEditChainTests final : public QObject, protected MainWindowTestSuppo
         const QByteArray originalOuter = read(outer);
         const QString control = fixture.filePath("editor");
         const auto stop = qScopeGuard([&] { write(control + ".exit", "exit"); });
-        configure(control);
         ArchiveBackend backend(nullptr, readOnlyRuntime_.engine());
-        MainWindow window(&backend);
+        MainWindow window(&backend, {}, nullptr, nullptr, DeviceSelectionServices::system(),
+                          opener(control));
         window.show();
         bool unexpectedError = false;
         QTimer responder;

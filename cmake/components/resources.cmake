@@ -158,8 +158,6 @@ add_library(sevenzip_location
     src/archive/agent/ArchiveFolderOpen.cpp
     src/settings/LangPage.cpp
     src/settings/LangPage.h
-    src/settings/EditPage.cpp
-    src/settings/EditPage.h
     src/settings/MenuPage.cpp
     src/settings/MenuPage.h
     src/settings/qtmenupagepresentation.cpp

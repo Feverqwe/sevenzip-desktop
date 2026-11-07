@@ -14,6 +14,7 @@
 #include "ui/support/layout_inspection.h"
 #include <QCoreApplication>
 #include <QEventLoop>
+#include <QSaveFile>
 #include <QScopeGuard>
 #include <QStandardPaths>
 #include <QTreeWidget>
@@ -25,6 +26,51 @@ class ArchiveExternalEditTests final : public QObject, protected MainWindowTestS
     WidgetDialogFixture widgetDialogs_;
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
+    void associationWithoutProcessShowsActionsOnlyAfterSave() {
+        QTemporaryDir fixture;
+        const QString name = QStringLiteral("изменяемый файл.txt");
+        const QString archive = fixture.filePath("original.zip");
+        QVERIFY(write(fixture.filePath(name), "original"));
+        QVERIFY(createArchive(fixture.path(), archive, name));
+        QString copy;
+        const auto cleanup = qScopeGuard([&] {
+            if (!copy.isEmpty())
+                QDir(QFileInfo(copy).absolutePath()).removeRecursively();
+        });
+        ArchiveBackend backend;
+        MainWindow window(&backend, [&](const QUrl &url) {
+            copy = url.toLocalFile();
+            return true;
+        });
+        window.show();
+        window.openArchive(archive);
+        QTRY_COMPARE(table(window)->rowCount(), 1);
+        table(window)->selectRow(0);
+        action(window, "openOutsideAction")->trigger();
+        QVERIFY(QFileInfo(copy).isFile());
+        QTRY_VERIFY(!table(window)->sourcePanel->HasExternalWorkers());
+        const auto details = []() -> QDialog * {
+            for (auto *widget : QApplication::topLevelWidgets())
+                if (widget->objectName() == "externalFileDetails" && widget->isVisible())
+                    return qobject_cast<QDialog *>(widget);
+            return nullptr;
+        };
+        QVERIFY(!details());
+        QSaveFile saved(copy);
+        QVERIFY(saved.open(QIODevice::WriteOnly));
+        QCOMPARE(saved.write(modified), qint64(modified.size()));
+        QVERIFY(saved.commit());
+        QTRY_VERIFY(details());
+        QVERIFY(details()->findChild<QPushButton *>("externalFileSaveCopy")->isEnabled());
+        const auto *update = details()->findChild<QPushButton *>("externalFileCheck");
+        QVERIFY(update && update->isVisible());
+        QCOMPARE(update->text(),
+                 QCoreApplication::translate("QtExternalFileTask", "Update archive…"));
+        QCOMPARE(contents(archive, name), QByteArray("original"));
+        details()->close();
+        QVERIFY(window.close());
+        QCOMPARE(read(copy), modified);
+    }
     void unavailableFolderKeepsChangedFileWithoutReload() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
@@ -68,9 +114,9 @@ class ArchiveExternalEditTests final : public QObject, protected MainWindowTestS
         const QByteArray originalArchive = read(archive);
         const QString control = fixture.filePath("viewer control");
         const auto stopViewer = qScopeGuard([&] { write(control + ".exit", "exit"); });
-        configure(control);
         ArchiveBackend backend;
-        MainWindow window(&backend);
+        MainWindow window(&backend, {}, nullptr, nullptr, DeviceSelectionServices::system(),
+                          opener(control));
         QString unexpectedMessage;
         QTimer responder;
         widgetDialogs_.connectResponder(responder, &window, [&] {
@@ -116,9 +162,9 @@ class ArchiveExternalEditTests final : public QObject, protected MainWindowTestS
         QVERIFY(createArchive(fixture.path(), archive, name));
         const QString control = fixture.filePath("editor control");
         const auto stopEditor = qScopeGuard([&] { write(control + ".exit", "exit"); });
-        configure(control);
         ArchiveBackend backend;
-        MainWindow window(&backend);
+        MainWindow window(&backend, {}, nullptr, nullptr, DeviceSelectionServices::system(),
+                          opener(control));
         window.resize(viewer ? QSize(640, 400) : QSize(980, 620));
         window.show();
         window.activateWindow();
@@ -211,8 +257,9 @@ class ArchiveExternalEditTests final : public QObject, protected MainWindowTestS
                  answer == QMessageBox::Yes ? modified : QByteArray("original"));
         QTRY_COMPARE(table(window)->rowCount(), 1);
         if (answer == QMessageBox::Yes) {
-            QTRY_COMPARE(table(window)->model()->index(0, 2).data().toString(),
-                         QString::number(modified.size()));
+            QTRY_COMPARE(
+                table(window)->model()->index(0, 2).data(QtPanelList::SortValueRole).toULongLong(),
+                quint64(modified.size()));
             QCOMPARE(table(window)->selectionModel()->selectedRows().size(), 1);
         }
     }
@@ -224,9 +271,10 @@ class ArchiveExternalEditTests final : public QObject, protected MainWindowTestS
         QVERIFY(createArchive(fixture.path(), archive, name));
         const QString control = fixture.filePath("control");
         const auto stopEditor = qScopeGuard([&] { write(control + ".exit", "exit"); });
-        configure(control);
         ArchiveBackend backend;
-        auto window = std::make_unique<MainWindow>(&backend);
+        auto window = std::make_unique<MainWindow>(
+            &backend, std::function<bool(const QUrl &)>(), nullptr, nullptr,
+            DeviceSelectionServices::system(), opener(control));
         window->show();
         window->openArchive(archive);
         QTRY_COMPARE(table(*window)->rowCount(), 1);
@@ -277,9 +325,10 @@ class ArchiveExternalEditTests final : public QObject, protected MainWindowTestS
         const QByteArray originalArchive = read(archive);
         const QString control = fixture.filePath("control");
         const auto stopEditor = qScopeGuard([&] { write(control + ".exit", "exit"); });
-        configure(control);
         ArchiveBackend backend;
-        auto window = std::make_unique<MainWindow>(&backend);
+        auto window = std::make_unique<MainWindow>(
+            &backend, std::function<bool(const QUrl &)>(), nullptr, nullptr,
+            DeviceSelectionServices::system(), opener(control));
         window->show();
         window->openArchive(archive);
         QTRY_COMPARE(table(*window)->rowCount(), 1);
@@ -360,9 +409,9 @@ class ArchiveExternalEditTests final : public QObject, protected MainWindowTestS
                 QTRY_COMPARE(leftPanel->findChild<FileTable *>("archiveTable")
                                  ->model()
                                  ->index(0, 2)
-                                 .data()
-                                 .toString(),
-                             QString::number(modified.size()));
+                                 .data(QtPanelList::SortValueRole)
+                                 .toULongLong(),
+                             quint64(modified.size()));
         }
         responder.stop();
         for (auto *widget : QApplication::topLevelWidgets())

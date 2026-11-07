@@ -1,4 +1,5 @@
 #include "7zip/UI/FileManager/resource.h"
+#include "archive/operations/ZipRegistry.h"
 #include "dialogs/compress/createarchivedialog.h"
 #include "dialogs/compress/qtcompressoptionsdialog.h"
 #include "filemanager/support/panel_model_support.h"
@@ -15,6 +16,7 @@
 #include <QDialogButtonBox>
 #include <QLabel>
 #include <QListWidget>
+#include <QRadioButton>
 #include <QRegularExpression>
 #include <QScopeGuard>
 #include <QScrollArea>
@@ -553,11 +555,12 @@ class LanguageUiTests : public QObject, protected MainWindowTestSupport {
         QtFmOptionsDialog dialog(settingsPath());
         dialog.show();
         auto *pages = dialog.findChild<QTabWidget *>("optionsPages");
-        auto *editor = dialog.findChild<QLineEdit *>("editorCommand");
+        auto *workPath = dialog.findChild<QLineEdit *>("workPath");
+        dialog.findChild<QRadioButton *>("workSpecified")->click();
         auto *items = dialog.findChild<QListWidget *>("menuItems");
         auto *parentRow = dialog.findChild<QCheckBox *>("showDotsOption");
-        const QString command = QStringLiteral("\"/tmp/редактор с пробелом\" --wait");
-        editor->setText(command);
+        const QString path = QStringLiteral("/tmp/папка с пробелом");
+        workPath->setText(path);
         parentRow->setChecked(!parentRow->isChecked());
         const bool checked = parentRow->isChecked();
         const Qt::CheckState itemState = items->item(0)->checkState();
@@ -567,7 +570,7 @@ class LanguageUiTests : public QObject, protected MainWindowTestSupport {
             QtNotifyLanguageChanged();
             QCOMPARE(dialog.windowTitle(),
                      QString(language) == "ru" ? QStringLiteral("Настройки") : QString("Options"));
-            QCOMPARE(editor->text(), command);
+            QCOMPARE(workPath->text(), path);
             QCOMPARE(parentRow->isChecked(), checked);
             QCOMPARE(items->item(0)->checkState(), itemState);
             QVERIFY(items->isEnabled());
@@ -577,9 +580,9 @@ class LanguageUiTests : public QObject, protected MainWindowTestSupport {
                         ->isEnabled());
             for (QSize size : {QSize(640, 390), QSize(520, 380), QSize(640, 720)}) {
                 dialog.resize(size);
-                for (const char *name : {"appearanceChoice", "languageChoice", "workPathBrowse",
-                                         "viewerCommand", "editorCommand", "extractMemoryLabel",
-                                         "extractMemorySpin", "showDotsOption"}) {
+                for (const char *name :
+                     {"appearanceChoice", "languageChoice", "workPathBrowse", "workPath",
+                      "extractMemoryLabel", "extractMemorySpin", "showDotsOption"}) {
                     auto *control = dialog.findChild<QWidget *>(name);
                     QVERIFY(OptionsPresentation::show(dialog, control));
                     QVERIFY2(UiInspection::fullyVisible(*control, dialog), name);
@@ -601,9 +604,9 @@ class LanguageUiTests : public QObject, protected MainWindowTestSupport {
             }
         }
         dialog.reject();
-        UString savedEditor;
-        ReadRegEditor(true, savedEditor, settingsPath());
-        QVERIFY(savedEditor.IsEmpty());
+        NWorkDir::CInfo saved;
+        saved.Load(settingsPath());
+        QCOMPARE(saved.Mode, NWorkDir::NMode::kSystem);
     }
     void invalidSettingsKeepLanguagePending() {
         QtFmOptionsDialog dialog(settingsPath());

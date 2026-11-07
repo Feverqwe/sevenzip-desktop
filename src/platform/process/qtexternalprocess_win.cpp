@@ -1,11 +1,9 @@
 #include "Windows/ProcessUtils.h"
 #include "platform/process/qtexternalprocess.h"
-#include "settings/ViewSettings.h"
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
 #include <QHash>
-#include <QProcess>
 #include <QVector>
 #include <TlHelp32.h>
 #include <memory>
@@ -153,13 +151,4 @@ HRESULT QtNativeProcessServices::Create(const UString &program, const UString &p
         },
         process);
     return S_OK;
-}
-
-HRESULT QtNativeProcessServices::CreateDetached(const UString &program, const UString &parameters,
-                                                const UStringVector &paths) {
-    QProcess process;
-    process.setProgram(ToQString(program));
-    // Preserve original CreateProcess parameter-string interpretation on Windows.
-    process.setNativeArguments(ToQString(NativeParameters(parameters, paths)));
-    return process.startDetached() ? S_OK : E_FAIL;
 }

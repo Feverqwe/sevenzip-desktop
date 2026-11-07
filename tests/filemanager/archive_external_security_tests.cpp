@@ -33,9 +33,9 @@ class ArchiveExternalSecurityTests final : public QObject, protected MainWindowT
         const QByteArray original = read(archive);
         const QString control = fixture.filePath("control");
         const auto stop = qScopeGuard([&] { write(control + ".exit", "exit"); });
-        configure(control);
         ArchiveBackend backend;
-        MainWindow window(&backend);
+        MainWindow window(&backend, {}, nullptr, nullptr, DeviceSelectionServices::system(),
+                          opener(control));
         bool extracting = false, asked = false;
         int passwordPrompts = 0;
         QTimer responder;
@@ -49,12 +49,11 @@ class ArchiveExternalSecurityTests final : public QObject, protected MainWindowT
                     dialog->findChild<QLineEdit *>("passwordEdit")->setText(password);
                     dialog->accept();
                 }
+            } else if (modal && modal->objectName() == "externalUpdatePrompt") {
+                asked = true;
+                modal->findChild<QPushButton *>("externalUpdateCommit")->click();
             } else if (auto *box = qobject_cast<QMessageBox *>(modal)) {
-                if (box->objectName() == "externalUpdatePrompt") {
-                    asked = true;
-                    box->button(QMessageBox::Yes)->click();
-                } else
-                    box->accept();
+                box->accept();
             } else if (auto *progress = dynamic_cast<CProgressDialog *>(modal)) {
                 auto *close = progress->findChild<QPushButton *>("IDCANCEL");
                 if (TestProgressDialog::IsCloseButton(close))
@@ -67,7 +66,7 @@ class ArchiveExternalSecurityTests final : public QObject, protected MainWindowT
         QTRY_COMPARE(table(window)->rowCount(), 1);
         table(window)->selectRow(0);
         extracting = true;
-        action(window, "editFileAction")->trigger();
+        action(window, "openOutsideAction")->trigger();
         if (cancelPassword) {
             QVERIFY(passwordPrompts > 0);
             QVERIFY(!QFileInfo(control + ".ready").exists());
@@ -82,6 +81,7 @@ class ArchiveExternalSecurityTests final : public QObject, protected MainWindowT
                     completion.quit();
             });
             completed.start(5);
+            waitForKnownEditor();
             QTimer::singleShot(5000, &completion, &QEventLoop::quit);
             QVERIFY(write(control, "change"));
             QVERIFY(write(control + ".exit", "exit"));

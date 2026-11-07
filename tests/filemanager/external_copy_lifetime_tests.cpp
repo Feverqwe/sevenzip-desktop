@@ -29,15 +29,15 @@ class ExternalCopyLifetimeTests final : public QObject, protected MainWindowTest
         QVERIFY(write(fixture.filePath("file.txt"), "original"));
         QVERIFY(createArchive(fixture.path(), archive, "file.txt"));
         const auto original = read(archive);
-        configure(control);
         const auto cleanup = qScopeGuard([&] { write(control + ".exit", "exit"); });
         ArchiveBackend backend;
-        MainWindow window(&backend);
+        MainWindow window(&backend, {}, nullptr, nullptr, DeviceSelectionServices::system(),
+                          opener(control));
         window.show();
         window.openArchive(archive);
         QTRY_COMPARE(table(window)->rowCount(), 1);
         table(window)->selectRow(0);
-        action(window, "editFileAction")->trigger();
+        action(window, "openOutsideAction")->trigger();
         QTRY_VERIFY(QFileInfo(control + ".ready").size() > 0);
         const auto copy = QString::fromUtf8(read(control + ".ready"));
         const auto directory = QFileInfo(copy).absolutePath();

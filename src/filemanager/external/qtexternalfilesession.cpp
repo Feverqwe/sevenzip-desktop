@@ -386,7 +386,7 @@ class CExternalFileLaunch MY_UNCOPYABLE {
 
 void CPanel::StartExternalFileSession(CTempDir &tempDirectory, const CTempFileInfo &tempFileInfo,
                                       const FString &tempDirNorm, bool usePassword,
-                                      const UString &password, bool editMode, bool useEditor) {
+                                      const UString &password) {
     const FString &tempFilePath = tempFileInfo.FilePath;
     CMyUniquePtr<CTmpProcessInfo> tpi(new CTmpProcessInfo());
     static_cast<CTempFileInfo &>(*tpi) = tempFileInfo;
@@ -426,9 +426,7 @@ void CPanel::StartExternalFileSession(CTempDir &tempDirectory, const CTempFileIn
     tpi->Parent = tpi->Session ? nullptr : GetParent();
     tpi->ExternalServices = tpi->Session ? nullptr : _externalFileServices;
     CExternalFileLaunch(tempDirectory, tpi).Start([&](IQtProcessHandle *&process) {
-        return editMode ? StartEditApplication(fs2us(tempFilePath), useEditor, GetParent(),
-                                               *_externalFileServices, _settingsPath, &process)
-                        : _externalFileServices->StartApplicationKnown(
-                              fs2us(tempDirNorm), fs2us(tempFilePath), GetParent(), process);
+        return _externalFileServices->StartApplicationKnown(fs2us(tempDirNorm), fs2us(tempFilePath),
+                                                            GetParent(), process);
     });
 }

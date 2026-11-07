@@ -70,17 +70,16 @@ class CProcessService final : public IQtExternalFileServices {
     IQtProcessServices *ProcessServices() override {
         return FailSnapshot ? &_snapshot : _native.ProcessServices();
     }
-    HRESULT CreateKnownProcess(const UString &program, const UString &parameters,
-                               const UStringVector &paths, QWidget *window,
-                               IQtProcessHandle *&process) override {
-        Opened = ToQString(paths[0]);
+    HRESULT StartApplicationKnown(const UString &, const UString &path, QWidget *,
+                                  IQtProcessHandle *&process) override {
+        Opened = ToQString(path);
         if (FailWait || FailName || FailSnapshot || FailAfterLaunch) {
             process = new CErrorHandle(Closed, FailName, FailSnapshot);
             if (FailAfterLaunch)
                 throw std::bad_alloc();
             return LaunchResult;
         }
-        return _native.CreateKnownProcess(program, parameters, paths, window, process);
+        return E_FAIL;
     }
 };
 QString settings() { return qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"); }
@@ -118,10 +117,9 @@ class ArchiveExternalLifetimeTests final : public QObject {
         QVERIFY(createArchive(fixture.path(), archive, name));
         const QString control = fixture.filePath("editor control");
         const auto stop = qScopeGuard([&] { write(control + ".exit", "exit"); });
-        configure(control);
         ArchiveBackend backend;
         CMyComPtr<IFolderManager> manager = new QtArchiveFolderManager(backend);
-        QtAssociatedFileServices service({});
+        QtAssociatedFileServices service({}, {}, {}, {}, opener(control));
         CPanel panel;
         QVERIFY(bind(panel, manager, service, archive));
         qint64 publishedSize = -1;
@@ -134,7 +132,7 @@ class ArchiveExternalLifetimeTests final : public QObject {
             publishedSize = qint64(size.uhVal.QuadPart);
             return S_OK;
         });
-        panel.EditItem(0, true);
+        panel.OpenItem(0, false, true);
         QTRY_VERIFY(QFileInfo(control + ".ready").size() > 0);
         const QString temporary = QString::fromUtf8(read(control + ".ready"));
         QStringList errors;
@@ -250,10 +248,10 @@ class ArchiveExternalLifetimeTests final : public QObject {
         QVERIFY(createArchive(fixture.path(), archive, name));
         const QString control = fixture.filePath("child control");
         const auto stop = qScopeGuard([&] { write(control + ".exit", "exit"); });
-        configure(control, "--archive-editor-parent");
         ArchiveBackend backend;
         CMyComPtr<IFolderManager> manager = new QtArchiveFolderManager(backend);
-        QtAssociatedFileServices service({});
+        QtAssociatedFileServices service({}, {}, {}, {},
+                                         opener(control, "--archive-editor-parent"));
         CPanel panel;
         QVERIFY(bind(panel, manager, service, archive));
         panel.EditItem(0, true);
@@ -316,10 +314,9 @@ class ArchiveExternalLifetimeTests final : public QObject {
         QVERIFY(createArchive(fixture.path(), archive, name));
         const QString control = fixture.filePath("control");
         const auto stop = qScopeGuard([&] { write(control + ".exit", "exit"); });
-        configure(control);
         ArchiveBackend backend;
         CMyComPtr<IFolderManager> manager = new QtArchiveFolderManager(backend);
-        QtAssociatedFileServices service({});
+        QtAssociatedFileServices service({}, {}, {}, {}, opener(control));
         CPanel panel;
         QVERIFY(bind(panel, manager, service, archive));
         panel.EditItem(0, false);
@@ -354,7 +351,6 @@ class ArchiveExternalLifetimeTests final : public QObject {
         const QString archive = fixture.filePath("original.zip");
         QVERIFY(write(fixture.filePath(name), "original"));
         QVERIFY(createArchive(fixture.path(), archive, name));
-        SaveRegEditor(true, ToUString(fixture.filePath("missing program")), settings());
         ArchiveBackend backend;
         CMyComPtr<IFolderManager> manager = new QtArchiveFolderManager(backend);
         CProcessService service;
@@ -362,23 +358,11 @@ class ArchiveExternalLifetimeTests final : public QObject {
         service.LaunchResult = launchResult;
         CPanel panel;
         QVERIFY(bind(panel, manager, service, archive));
-        bool error = false;
-        QTimer responder;
-        widgetDialogs_.connectResponder(responder, this, [&] {
-            if (auto *box = qobject_cast<QMessageBox *>(widgetDialogs_.activeDialog())) {
-                error = box->objectName() == "externalEditorError" &&
-                        box->textFormat() == Qt::PlainText;
-                box->accept();
-            }
-        });
-        responder.start(1);
-        panel.EditItem(0, true);
-        responder.stop();
+        panel.OpenItem(0, false, true);
         QVERIFY(!service.Opened.isEmpty());
         if (waitError)
             QTRY_VERIFY(service.Closed.load());
         panel.ExitExternalWorkers(false);
-        QCOMPARE(error, !waitError || launchResult != S_OK);
         QCOMPARE(QFileInfo(service.Opened).exists(), waitError);
         if (waitError) {
             const auto owned = ownedDirectory(service.Opened);
@@ -403,7 +387,6 @@ class ArchiveExternalLifetimeTests final : public QObject {
         const QString archive = fixture.filePath("original.zip");
         QVERIFY(write(fixture.filePath(name), "original"));
         QVERIFY(createArchive(fixture.path(), archive, name));
-        SaveRegEditor(true, L"fixture-editor", settings());
         ArchiveBackend backend;
         CMyComPtr<IFolderManager> manager = new QtArchiveFolderManager(backend);
         CProcessService service;

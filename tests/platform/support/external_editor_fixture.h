@@ -1,4 +1,5 @@
 #pragma once
+#include "filemanager/external/qtexternalapplications.h"
 #include <QByteArray>
 #include <QString>
 
@@ -10,7 +11,7 @@ QString executable();
 bool createArchive(const QString &directory, const QString &archive, const QString &name,
                    const QString &format = "zip", const QString &password = {});
 QByteArray contents(const QString &archive, const QString &name, const QString &password = {});
-void configure(const QString &control, const QString &mode = "--archive-editor");
+QtKnownAssociationOpener opener(QString control, QString mode = "--archive-editor");
 // Exercise the retained native long-process branch, separately from launchers.
 void waitForKnownEditor();
 // Returns -1 when argv is a test invocation rather than an owned process fixture.

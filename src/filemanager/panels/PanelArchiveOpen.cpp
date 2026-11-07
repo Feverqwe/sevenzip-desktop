@@ -42,19 +42,18 @@ HRESULT CPanel::OpenAsArc_Index(unsigned index, const wchar_t *type) {
     return S_OK;
 }
 
-void CPanel::OpenItemInArchive(unsigned index, bool tryInternal, bool tryExternal, bool editMode,
-                               bool useEditor, const wchar_t *type) {
-    (void)OpenItemInArchiveImpl(index, tryInternal, tryExternal, editMode, useEditor, type);
+void CPanel::OpenItemInArchive(unsigned index, bool tryInternal, bool tryExternal,
+                               const wchar_t *type) {
+    (void)OpenItemInArchiveImpl(index, tryInternal, tryExternal, type);
 }
 
 HRESULT CPanel::OpenItemInArchiveInternal(unsigned index, const wchar_t *type,
                                           bool materializeStream) {
-    return OpenItemInArchiveImpl(index, true, false, false, false, type, materializeStream);
+    return OpenItemInArchiveImpl(index, true, false, type, materializeStream);
 }
 
 HRESULT CPanel::OpenItemInArchiveImpl(unsigned index, bool tryInternal, bool tryExternal,
-                                      bool editMode, bool useEditor, const wchar_t *type,
-                                      bool materializeStream) {
+                                      const wchar_t *type, bool materializeStream) {
     std::optional<CDisableTimerProcessing> disableTimerProcessing(std::in_place, *this);
     // we don't want to change hash data here
     if (IsHashFolder())
@@ -319,10 +318,9 @@ HRESULT CPanel::OpenItemInArchiveImpl(unsigned index, bool tryInternal, bool try
         MessageBox_Error_UnsupportOperation();
         return E_NOTIMPL;
     }
-    if (tryInternal && !editMode &&
+    if (tryInternal &&
         !_externalFileServices->ConfirmArchiveFallback(fs2us(tempFilePath), GetParent()))
         return E_ABORT;
-    StartExternalFileSession(tempDirectory, tempFileInfo, tempDirNorm, usePassword, password,
-                             editMode, useEditor);
+    StartExternalFileSession(tempDirectory, tempFileInfo, tempDirNorm, usePassword, password);
     return S_OK;
 }

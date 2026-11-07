@@ -110,7 +110,7 @@ class OptionsIntegrationTests final : public QObject {
         QCOMPARE(
             dialog.findChild<QLabel *>("associationCount")->text(),
             QCoreApplication::translate("SettingsRedesign", "%n selected formats", nullptr, 3));
-        QVERIFY(OptionsPresentation::show(dialog, "editorCommand"));
+        QVERIFY(OptionsPresentation::show(dialog, "workSpecified"));
         QVERIFY(OptionsPresentation::show(dialog, search));
         QVERIFY(dialog.findChild<QCheckBox *>("association-tar")->isChecked());
         search->setText(".zip");
@@ -182,28 +182,26 @@ class OptionsIntegrationTests final : public QObject {
         const QString path = fixture.filePath("groups.ini");
         QtFmOptionsDialog dialog(path);
         dialog.show();
-        QVERIFY(OptionsPresentation::show(dialog, "editorCommand"));
-        auto *editor = dialog.findChild<QLineEdit *>("editorCommand");
-        editor->setText("custom editor --wait");
-        QVERIFY(UiInspection::writeReport(dialog, "settings-external-apps-expanded"));
+        QVERIFY(OptionsPresentation::show(dialog, "workSpecified"));
+        dialog.findChild<QRadioButton *>("workSpecified")->click();
+        auto *workPath = dialog.findChild<QLineEdit *>("workPath");
+        workPath->setText(fixture.path());
         QVERIFY(OptionsPresentation::show(dialog, "showDotsOption"));
         QVERIFY(UiInspection::writeReport(dialog, "settings-advanced-collapsed"));
         QVERIFY(OptionsPresentation::show(dialog, "languageChoice"));
         dialog.resize(780, 560);
         QApplication::processEvents();
         QVERIFY(UiInspection::writeReport(dialog, "settings-general"));
-        QVERIFY(OptionsPresentation::show(dialog, editor));
-        QCOMPARE(editor->text(), QString("custom editor --wait"));
+        QVERIFY(OptionsPresentation::show(dialog, workPath));
+        QCOMPARE(workPath->text(), fixture.path());
         dialog.apply();
         dialog.reject();
         QtFmOptionsDialog reopened(path);
-        QCOMPARE(reopened.findChild<QLineEdit *>("editorCommand")->text(),
-                 QString("custom editor --wait"));
-        reopened.findChild<QLineEdit *>("editorCommand")->setText("discarded");
+        QCOMPARE(reopened.findChild<QLineEdit *>("workPath")->text(), fixture.path());
+        reopened.findChild<QLineEdit *>("workPath")->setText("discarded");
         reopened.reject();
         QtFmOptionsDialog retained(path);
-        QCOMPARE(retained.findChild<QLineEdit *>("editorCommand")->text(),
-                 QString("custom editor --wait"));
+        QCOMPARE(retained.findChild<QLineEdit *>("workPath")->text(), fixture.path());
     }
     void sourceInitialFrame_data() {
         QTest::addColumn<QString>("language");
@@ -333,12 +331,6 @@ class OptionsIntegrationTests final : public QObject {
         dialog.findChild<QRadioButton *>("workSpecified")->click();
         const QString work = fixture.filePath("рабочая папка");
         dialog.findChild<QLineEdit *>("workPath")->setText(work);
-        OptionsPresentation::show(dialog, "editorCommand");
-        const QString editor = QStringLiteral("\"/fixture/editor 空\" --wait");
-        auto *command = dialog.findChild<QLineEdit *>("editorCommand");
-        command->setText(editor);
-        command->setFocus();
-        QCOMPARE(dialog.focusWidget(), command);
         OptionsPresentation::show(dialog, "showDotsOption");
         dialog.findChild<QCheckBox *>("showDotsOption")->setChecked(true);
         OptionsPresentation::show(dialog, "languageChoice");
@@ -379,9 +371,6 @@ class OptionsIntegrationTests final : public QObject {
                 QVERIFY(memory->isVisible());
                 QCOMPARE(memory->text(), QString("not-a-number"));
                 QCOMPARE(NExtract::Read_LimitGB(path), UInt32(-1));
-                UString committedEditor;
-                ReadRegEditor(true, committedEditor, path);
-                QCOMPARE(text(committedEditor), editor);
                 memory->setText("2");
                 dialog.accept();
                 QCOMPARE(NExtract::Read_LimitGB(path), UInt32(2));
@@ -391,7 +380,6 @@ class OptionsIntegrationTests final : public QObject {
             if (finish == 1) {
                 apply->click();
                 QVERIFY(!apply->isEnabled());
-                command->setText("discarded editor");
                 dialog.findChild<QLineEdit *>("workPath")->setText("discarded folder");
                 dialog.findChild<QCheckBox *>("showDotsOption")->setChecked(false);
                 language->setCurrentIndex(0);
@@ -413,9 +401,6 @@ class OptionsIntegrationTests final : public QObject {
         QVERIFY(pages->currentWidget()->isAncestorOf(
             finish == 3 ? static_cast<QWidget *>(memory)
                         : dialog.findChild<QWidget *>("appearanceChoice")));
-        UString savedEditor;
-        ReadRegEditor(true, savedEditor, path);
-        QCOMPARE(text(savedEditor), finish == 0 ? QString() : editor);
         NWorkDir::CInfo folders;
         folders.Load(path);
         QCOMPARE(folders.Mode,
@@ -433,8 +418,6 @@ class OptionsIntegrationTests final : public QObject {
         QCOMPARE(text(savedLanguage), finish == 0 ? QString("-") : QString("ru"));
         QtFmOptionsDialog restarted(path, nullptr, manager, associations);
         QCOMPARE(restarted.findChild<QTabWidget *>("optionsPages")->currentIndex(), 0);
-        QCOMPARE(restarted.findChild<QLineEdit *>("editorCommand")->text(),
-                 finish == 0 ? QString() : editor);
         QVERIFY(!restarted.findChild<QDialogButtonBox *>("settingsButtons")
                      ->button(QDialogButtonBox::Apply)
                      ->isEnabled());

@@ -90,36 +90,22 @@ offer to save a separate copy of the edited file.
 About shows the Sevenzip name, application release, project website and 7-Zip
 attribution. The 7-Zip panel shows the upstream version, release date and
 copyright. Build information expands in place and labels unavailable values
-as unknown. At compact sizes the body scrolls and Close remains reachable.
+as unknown. At compact sizes the body scrolls. The title-bar close control
+and Escape dismiss the window.
 Light and dark checks cover attribution contrast, layout and language changes.
 The package includes the license documents and notices.
 
 See the [identity adaptation](../upstream-port-audit/about-product-identity.md)
 for source comparison and validation.
 
-## External editor settings
+## Files in external applications
 
-Reference: the same pinned revision, `EditPage2.rc`, `EditPage.cpp` and
-`OptionsDialog.cpp`. Editor presents Viewer and Editor in source order, each
-label above a command field and Browse button. The property-sheet footer is
-OK/Cancel/Apply; Apply is initially disabled, tracks source modified flags and
-resets after applying. Cancel after Apply retains committed values. Browse Cancel
-preserves the command; selecting a program replaces it and drops old parameters.
-`external_editors_ui` checks unclipped fields/buttons, separated controls and
-footer at requested 640×390/520×380 and writes external-editor-options widget JSON.
-Width remains exact; height may expand to the six-page sheet's native minimum.
-On 2026-10-05 Qt6.12 Windows reports 640×390/520×390; macOS reports
-640×390/520×380. All command fields, Browse buttons and footer remain visible
-and separated in both states. The test compares the actual size to the requested
-size expanded by `minimumSize`, while retaining the clipping assertions.
-These reports validate Qt geometry and resource structure; rendered Windows
-parity remains unverified.
+View, Edit and Open Outside use the system file association. Archived files
+open from a temporary copy. The file window can offer to update the archive or
+save a separate copy after detecting saved changes. A read-only source offers
+the copy action. Closing the file window stops observation and retains an
+unconfirmed copy.
 
-Archive changed-file prompt reference: the pinned `PanelItemOpen.cpp`
-`MyThreadFunction`, `IDS_WANT_UPDATE_MODIFIED_FILE` and Yes/No/Cancel MessageBox.
-Qt uses plain text, the relative filename and three source answers. Source No
-and Cancel both discard the temporary copy without updating; read-only or failed
-update retains it. `archive_external_edit` checks fully visible labels/buttons,
-text fit and actual Yes/No/Escape at normal/compact owner sizes 980×620/640×400,
-writing `external-update-prompt-*` JSON. Qt chooses message-box sizing; these
-reports establish usable geometry, not rendered Windows pixel parity.
+`external_launch` checks that old editor preferences do not affect opening.
+`archive_external_edit` covers changed copies, including a save that replaces
+the file when the system cannot provide a process handle.

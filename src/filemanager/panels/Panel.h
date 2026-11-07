@@ -489,8 +489,8 @@ class CPanel : public QObject {
     void EditItem(unsigned index, bool useEditor);
     void EditItem(bool useEditor);
     bool IsFocusedFile() const { return GetFocusedFileIndex() != (UInt32)-1; }
-    void OpenItemInArchive(unsigned index, bool tryInternal, bool tryExternal, bool editMode,
-                           bool useEditor, const wchar_t *type = NULL);
+    void OpenItemInArchive(unsigned index, bool tryInternal, bool tryExternal,
+                           const wchar_t *type = nullptr);
     HRESULT OpenItemInArchiveInternal(unsigned index, const wchar_t *type = nullptr,
                                       bool materializeStream = false);
     bool IsVirus_Message(const UString &name);
@@ -719,13 +719,11 @@ class CPanel : public QObject {
     IQtExternalFileServices *_externalFileServices = nullptr;
     std::unique_ptr<CExitEventLauncher> _exitEventLauncher;
     std::vector<std::weak_ptr<IQtExternalSessionOwner>> _externalSessions;
-    HRESULT OpenItemInArchiveImpl(unsigned index, bool tryInternal, bool tryExternal, bool editMode,
-                                  bool useEditor, const wchar_t *type,
-                                  bool materializeStream = false);
+    HRESULT OpenItemInArchiveImpl(unsigned index, bool tryInternal, bool tryExternal,
+                                  const wchar_t *type, bool materializeStream = false);
     void StartExternalFileSession(NWindows::NFile::NDir::CTempDir &tempDirectory,
                                   const CTempFileInfo &tempFileInfo, const FString &tempDirNorm,
-                                  bool usePassword, const UString &password, bool editMode,
-                                  bool useEditor);
+                                  bool usePassword, const UString &password);
     // Original Create initializes these to true; Qt panels exist before Create is ported.
     bool _processTimer = true;
     bool _processNotify = true;

@@ -224,11 +224,3 @@ HRESULT QtNativeProcessServices::Create(const UString &program, const UString &p
     process = handle.release();
     return S_OK;
 }
-
-HRESULT QtNativeProcessServices::CreateDetached(const UString &program, const UString &parameters,
-                                                const UStringVector &paths) {
-    QProcess process;
-    process.setProgram(ToQString(program));
-    process.setArguments(ProcessArguments(parameters, paths));
-    return process.startDetached() ? S_OK : E_FAIL;
-}

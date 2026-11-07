@@ -109,7 +109,7 @@ void CPanel::OpenItem(unsigned index, bool tryInternal, bool tryExternal, const 
     if (!_parentFolders.IsEmpty()) {
         // The nested opener retains this guard until its own refresh handoff.
         disableTimerProcessing.reset();
-        OpenItemInArchive(index, tryInternal, tryExternal, false, false, type);
+        OpenItemInArchive(index, tryInternal, tryExternal, type);
         return;
     }
     std::optional<CDisableNotify> disableNotify(std::in_place, *this);
@@ -140,18 +140,7 @@ void CPanel::OpenItem(unsigned index, bool tryInternal, bool tryExternal, const 
     }
 }
 
-void CPanel::EditItem(unsigned index, bool useEditor) {
-    if (!_parentFolders.IsEmpty()) {
-        OpenItemInArchive(index, false, true, true, useEditor);
-        return;
-    }
-    if (!_externalFileServices) {
-        MessageBox_Error_UnsupportOperation();
-        return;
-    }
-    StartEditApplication(GetItemFullPath(index), useEditor, GetParent(), *_externalFileServices,
-                         _settingsPath);
-}
+void CPanel::EditItem(unsigned index, bool) { OpenItem(index, false, true); }
 
 bool CPanel::IsVirus_Message(const UString &name) {
     UString name2;

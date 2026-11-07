@@ -116,7 +116,7 @@ class NativeExternalPublicationTests final : public QObject, protected MainWindo
         const QString control = fixture.filePath("editor control");
         const auto finishEditor =
             qScopeGuard([&] { ExternalEditorFixture::write(control + ".exit", "exit"); });
-        ExternalEditorFixture::configure(control);
+        QString activeControl = control;
         ArchiveBackend backend(nullptr, runtime_.engine());
         QSignalSpy ready(&backend, &ArchiveBackend::codecCatalogReady);
         QVERIFY(backend.discoverCodecCatalog(runtime_.module()));
@@ -126,7 +126,10 @@ class NativeExternalPublicationTests final : public QObject, protected MainWindo
         startup.FullPath = ToUString(path);
         startup.ArcFormat = L"SevenzipFixture7z";
         startup.NeedOpenArc = true;
-        MainWindow window(&backend, {}, nullptr, &startup);
+        MainWindow window(&backend, {}, nullptr, &startup, DeviceSelectionServices::system(),
+                          [&](const UString &path, IQtProcessHandle *&handle) {
+                              return ExternalEditorFixture::opener(activeControl)(path, handle);
+                          });
         const auto resetControls = qScopeGuard([&] { runtime_.clear(); });
         window.show();
         window.activateWindow();
@@ -285,7 +288,7 @@ class NativeExternalPublicationTests final : public QObject, protected MainWindo
                 qScopeGuard([&] { ExternalEditorFixture::write(retryControl + ".exit", "exit"); });
             QVERIFY(runtime_.clear());
             QVERIFY(runtime_.armWriter(S_OK));
-            ExternalEditorFixture::configure(retryControl);
+            activeControl = retryControl;
             view->setCurrentIndex(view->model()->index(0, 0));
             panel.SelectAll(false);
             MarkSelectionForTest(panel, L"item 000 空.bin");

@@ -9,6 +9,7 @@
 #include <QCheckBox>
 #include <QDialog>
 #include <QEventLoopLocker>
+#include <QFileSystemWatcher>
 #include <QLabel>
 #include <QPointer>
 #include <QPushButton>
@@ -21,6 +22,7 @@ struct QtExternalFileTask::State {
     std::unique_ptr<QEventLoopLocker> keepAlive;
     QPointer<QDialog> dialog;
     QPointer<QDialog> question;
+    std::unique_ptr<QFileSystemWatcher> watcher;
     QPointer<FileTransferOperation> copy;
     QPointer<QLabel> status;
     QPointer<QLabel> retainedText;
@@ -40,6 +42,7 @@ struct QtExternalFileTask::State {
     bool updating = false;
     bool publishing = false;
     bool published = false;
+    bool changeReported = false;
     unsigned exports = 0;
     QtExternalObservation observation = QtExternalObservation::NotStarted;
 };

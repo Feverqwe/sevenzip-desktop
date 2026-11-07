@@ -6,7 +6,6 @@
 struct IFolderManager;
 class IQtAssociationServices;
 class CSystemPage;
-class CEditPage;
 class CFoldersPage;
 class CSettingsPage;
 class CMenuPage;
@@ -20,7 +19,6 @@ class QFrame;
 // Task pages retain the six source state/apply owners.
 class QtFmOptionsDialog final : public QDialog {
     Q_OBJECT
-    CEditPage *_editPage;
     CFoldersPage *_foldersPage;
     CSettingsPage *_settingsPage;
     CMenuPage *_menuPage;

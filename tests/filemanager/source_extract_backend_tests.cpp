@@ -114,7 +114,7 @@ class SourceExtractBackendTests final : public QObject {
         auto *parent = panel.GetFolder();
         CMyComPtr<IFolderFolder> retainParent = parent;
         QCOMPARE(parent->LoadItems(), S_OK);
-        panel.OpenItemInArchive(0, true, false, false, false, L"zip");
+        panel.OpenItemInArchive(0, true, false, L"zip");
         QCOMPARE(panel.GetParentFolders().Size(), 2u);
         const QString ownedPath = ToQString(fs2us(panel.GetParentFolders().Back().FilePath));
         QCOMPARE(readFile(ownedPath), readFile(innerArchive));

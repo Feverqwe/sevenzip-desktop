@@ -77,18 +77,14 @@ class LanguageArchiveCommandTests final : public QObject {
         QVERIFY(file.open(QIODevice::ReadOnly));
         QCOMPARE(file.readAll(), QByteArray("memory fixture"));
     }
-    void externalEditorFailureUsesSourceMessageAndGeometry() {
+    void externalAssociationFailureUsesLocalizedMessageAndGeometry() {
         const QString path = fixture.filePath(QStringLiteral("large file 密碼.txt"));
         QFile file(path);
         QVERIFY(file.open(QIODevice::WriteOnly));
         QCOMPARE(file.write("source editor fixture"), qint64(21));
         file.close();
-        const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
-        const UString missing = ToUString('"' + fixture.filePath("missing editor") + '"');
-        SaveRegEditor(false, missing, settings);
-        SaveRegEditor(true, missing, settings);
         ControlledBackend backend;
-        MainWindow window(&backend);
+        MainWindow window(&backend, [](const QUrl &) { return false; });
         auto *address = window.findChild<QLineEdit *>("archivePath");
         address->setText(fixture.path());
         QTest::keyClick(address, Qt::Key_Return);
@@ -108,9 +104,11 @@ class LanguageArchiveCommandTests final : public QObject {
                     window.show();
                     QString message;
                     bool geometry = false, reported = false;
-                    QTimer::singleShot(0, &window, [&] {
+                    QTimer responder;
+                    connect(&responder, &QTimer::timeout, &window, [&] {
                         auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
-                        QVERIFY(box);
+                        if (!box)
+                            return;
                         message = box->text();
                         auto *label = box->findChild<QLabel *>("qt_msgbox_label");
                         geometry = label && UiInspection::fullyVisible(*label, *box) &&
@@ -125,8 +123,11 @@ class LanguageArchiveCommandTests final : public QObject {
                         box->accept();
                     });
                     window.findChild<QAction *>(command)->trigger();
-                    QCOMPARE(message, ToQString(LangString(IDS_CANNOT_START_EDITOR)));
+                    QCOMPARE(message, QCoreApplication::translate("qtassociatedfileservices",
+                                                                  "Could not open file: %1")
+                                          .arg(path));
                     QVERIFY(geometry && reported);
+                    responder.start(5);
                     QCOMPARE(backend.extractCalls, 0);
                     QCOMPARE(backend.listCalls, 0);
                     QCOMPARE(table->model()->index(row, 0).data().toString(),

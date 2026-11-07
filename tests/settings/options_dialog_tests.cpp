@@ -205,8 +205,8 @@ class OptionsDialogTests : public QObject {
         const QString settings = fixture.filePath("deleted-dialog.ini");
         QPointer<QtFmOptionsDialog> dialog = new QtFmOptionsDialog(settings);
         const auto cleanup = qScopeGuard([&] { delete dialog.data(); });
-        const QString command = QStringLiteral("editor with spaces --open");
-        dialog->findChild<QLineEdit *>("editorCommand")->setText(command);
+        dialog->findChild<QCheckBox *>("extractMemorySet")->setChecked(true);
+        dialog->findChild<QLineEdit *>("extractMemoryEdit")->setText("2");
         DestroyOnEnable destroyOnEnable;
         connect(dialog, &QtFmOptionsDialog::Applied, this, [&] {
             if (finish == 2) {
@@ -220,37 +220,20 @@ class OptionsDialogTests : public QObject {
         else
             QVERIFY(!dialog->apply());
         QVERIFY(dialog.isNull());
-        UString saved;
-        ReadRegEditor(true, saved, settings);
-        QCOMPARE(QString::fromWCharArray(saved.Ptr()), command);
-    }
-    void appliedObserverDraftIsNotDiscardedByOk_data() {
-        QTest::addColumn<bool>("memory");
-        QTest::newRow("memory") << true;
-        QTest::newRow("editor") << false;
+        QCOMPARE(NExtract::Read_LimitGB(settings), UInt32(2));
     }
     void appliedObserverDraftIsNotDiscardedByOk() {
-        QFETCH(bool, memory);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString settings = fixture.filePath("pending.ini");
-        const QString initial = memory ? "3" : "original editor";
-        const QString draft = memory ? "7" : "new editor --open";
+        const QString initial = "3";
+        const QString draft = "7";
         NExtract::Save_LimitGB(settings, 3);
-        if (!memory)
-            SaveRegEditor(true, UString(initial.toStdWString().c_str()), settings);
-        const auto savedValue = [&] {
-            if (memory)
-                return QString::number(NExtract::Read_LimitGB(settings));
-            UString saved;
-            ReadRegEditor(true, saved, settings);
-            return QString::fromWCharArray(saved.Ptr());
-        };
+        const auto savedValue = [&] { return QString::number(NExtract::Read_LimitGB(settings)); };
         QtFmOptionsDialog dialog(settings);
         dialog.show();
-        const char *control = memory ? "extractMemoryEdit" : "editorCommand";
-        QVERIFY(OptionsPresentation::show(dialog, control));
-        auto *edit = dialog.findChild<QLineEdit *>(control);
+        QVERIFY(OptionsPresentation::show(dialog, "extractMemoryEdit"));
+        auto *edit = dialog.findChild<QLineEdit *>("extractMemoryEdit");
         auto *buttons = dialog.findChild<QDialogButtonBox *>("settingsButtons");
         bool changed = false;
         connect(&dialog, &QtFmOptionsDialog::Applied, &dialog, [&] {

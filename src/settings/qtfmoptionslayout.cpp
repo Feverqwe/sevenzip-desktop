@@ -1,5 +1,4 @@
 #include "localization/qtlangcontrols.h"
-#include "settings/EditPage.h"
 #include "settings/FoldersPage.h"
 #include "settings/LangPage.h"
 #include "settings/MenuPage.h"
@@ -144,12 +143,6 @@ void QtFmOptionsDialog::buildSections() {
             _foldersPage,
             QT_TRANSLATE_NOOP("SettingsRedesign",
                               "Choose where to keep temporary files when working with archives."));
-    section(_sections, "applicationsSection", QT_TRANSLATE_NOOP("SettingsRedesign", "Applications"),
-            _editPage,
-            QT_TRANSLATE_NOOP("SettingsRedesign",
-                              "Applications for viewing and editing archived files."),
-            QT_TRANSLATE_NOOP("SettingsRedesign",
-                              "You can specify an application and command-line arguments."));
     section(_sections, "fileListSection", QT_TRANSLATE_NOOP("SettingsRedesign", "File list"),
             listPage(_settingsPage));
     if (_menuPage->IntegrationSupported())

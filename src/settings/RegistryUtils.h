@@ -10,8 +10,6 @@ void SaveRegLang(const UString &path, const QString &settingsPath);
 void ReadRegLang(UString &path, const QString &settingsPath);
 bool ReadLockMemoryEnable(const QString &settingsPath);
 void SaveLockMemoryEnable(bool enable, const QString &settingsPath);
-void SaveRegEditor(bool useEditor, const UString &path, const QString &settingsPath);
-void ReadRegEditor(bool useEditor, UString &path, const QString &settingsPath);
 
 struct CFmSettings {
     bool ShowDots;
