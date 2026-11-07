@@ -6,8 +6,8 @@
 
 ## Источники и границы
 
-Рабочий макет этого изменения: `/Users/anton/.codex/worktrees/8d68/sevenzip-desktop/work/design`.
-Предпросмотр: `python3 scripts/serve-design.py --port 8769`, затем
+Рабочий макет находится в `work/design` в основном checkout ветки `master`.
+Запусти `python3 scripts/serve-design.py --port 8769` из корня этого checkout, затем открой
 `http://127.0.0.1:8769/work/design/index.html#main`.
 [Главное окно](specs/main-window.md), [компоненты](specs/main-window-components.md),
 [система дизайна](specs/design-system.md) и [границы реализации](specs/implementation-scope.md)
