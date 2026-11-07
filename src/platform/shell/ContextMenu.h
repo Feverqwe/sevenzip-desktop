@@ -54,7 +54,6 @@ class CZipContextMenu
         kHash_SHA512,
         kHash_SHA3_256,
         kHash_BLAKE2SP,
-        kHash_All,
         kHash_Generate_SHA256,
         kHash_TestArc
     };

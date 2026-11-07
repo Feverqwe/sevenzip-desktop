@@ -102,7 +102,6 @@ static const CHashCommand g_HashCommands[] = {
     {CZipContextMenu::kHash_SHA512, "SHA-512", "SHA512"},
     {CZipContextMenu::kHash_SHA3_256, "SHA3-256", "SHA3-256"},
     {CZipContextMenu::kHash_BLAKE2SP, "BLAKE2sp", "BLAKE2sp"},
-    {CZipContextMenu::kHash_All, "*", "*"},
     {CZipContextMenu::kHash_Generate_SHA256, "SHA-256 -> file.sha256", "SHA256"},
     {CZipContextMenu::kHash_TestArc, "Checksum : Test", "Hash"}};
 
@@ -998,7 +997,6 @@ HRESULT CZipContextMenu::InvokeCommandCommon(const CCommandMapItem &cmi) {
         case kHash_SHA512:
         case kHash_SHA3_256:
         case kHash_BLAKE2SP:
-        case kHash_All:
         case kHash_Generate_SHA256:
         case kHash_TestArc: {
             for (unsigned i = 0; i < Z7_ARRAY_SIZE(g_HashCommands); i++) {

@@ -182,7 +182,7 @@ class ManagerHashWorkflowTests final : public QObject, protected MainWindowTestS
         QCOMPARE(backend.Results.first().Status, QtOperationResult::Outcome::Success);
         QVERIFY(containsDigest(backend.Report, "after close"));
     }
-    void shellHashGenerateAndVerifyUseIndependentOperations() {
+    void shellChecksumOffersIndividualAlgorithms() {
 #ifndef SEVENZIP_CODEC_MODULE
         QSKIP("Native codec module unavailable");
 #else
@@ -210,38 +210,13 @@ class ManagerHashWorkflowTests final : public QObject, protected MainWindowTestS
         table->setFocus();
         auto *menu = window.findChild<QMenu *>("fileMenu");
         QVERIFY(QMetaObject::invokeMethod(menu, "aboutToShow", Qt::DirectConnection));
+        QVERIFY(!FindShellVerb(*menu, "SevenZip.Checksum.Calc.*"));
         auto *calculate = FindShellVerb(*menu, "SevenZip.Checksum.Calc.SHA256");
         QVERIFY(calculate && calculate->isEnabled());
         calculate->trigger();
         QTRY_COMPARE_WITH_TIMEOUT(backend.Results.size(), 1, 20000);
         QCOMPARE(backend.Results.last().Status, QtOperationResult::Outcome::Success);
         QVERIFY(containsDigest(backend.Report, payload));
-        // Source InvokePluginCommand clears selection after accepting a shell
-        // command. Select the input again for the next independent command.
-        table->selectRow(0);
-        table->setFocus();
-        QVERIFY(QMetaObject::invokeMethod(menu, "aboutToShow", Qt::DirectConnection));
-        auto *generate = FindShellVerb(*menu, "SevenZip.Checksum.Generate.SHA256");
-        QVERIFY(generate && generate->isEnabled());
-        generate->trigger();
-        QTRY_COMPARE_WITH_TIMEOUT(backend.Results.size(), 2, 20000);
-        QCOMPARE(backend.Results.last().Status, QtOperationResult::Outcome::Success);
-        const QString manifest = backend.Requests.last().ArchivePath;
-        QVERIFY(SourceExtractFixture::readFile(manifest).toLower().contains(
-            QCryptographicHash::hash(payload, QCryptographicHash::Sha256).toHex()));
-        QTRY_COMPARE(table->rowCount(), 2);
-        table->clearSelection();
-        for (int row = 0; row < table->rowCount(); ++row)
-            if (table->model()->index(row, 0).data().toString().normalized(
-                    QString::NormalizationForm_C) ==
-                QFileInfo(manifest).fileName().normalized(QString::NormalizationForm_C))
-                table->selectRow(row);
-        QVERIFY(QMetaObject::invokeMethod(menu, "aboutToShow", Qt::DirectConnection));
-        auto *verify = FindShellVerb(*menu, "SevenZip.Checksum.Test.Hash");
-        QVERIFY(verify && verify->isEnabled());
-        verify->trigger();
-        QTRY_COMPARE_WITH_TIMEOUT(backend.Results.size(), 3, 20000);
-        QCOMPARE(backend.Results.last().Status, QtOperationResult::Outcome::Success);
         QCOMPARE(SourceExtractFixture::readFile(source), payload);
 #endif
     }

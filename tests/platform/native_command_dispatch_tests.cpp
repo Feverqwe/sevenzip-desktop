@@ -59,8 +59,7 @@ class NativeCommandDispatchTests : public QObject {
             QCOMPARE(commands.calls, QStringList({"inside"}));
             QCOMPARE(commands.parameter, command.second);
         }
-        for (auto command : {std::pair<unsigned, QString>{IDM_HASH_ALL, "*"},
-                             {IDM_CRC32, "CRC32"},
+        for (auto command : {std::pair<unsigned, QString>{IDM_CRC32, "CRC32"},
                              {IDM_CRC64, "CRC64"},
                              {IDM_XXH64, "XXH64"},
                              {IDM_MD5, "MD5"},
@@ -86,8 +85,8 @@ class NativeCommandDispatchTests : public QObject {
         QCOMPARE(commands.parameter, QString::number(kMenuCmdID_Plugin_Start + 7));
         commands.calls.clear();
         for (unsigned id :
-             {999u, unsigned(IDM_DIFF), unsigned(IDM_VER_EDIT), unsigned(IDM_VER_COMMIT),
-              unsigned(IDM_VER_REVERT), unsigned(IDM_VER_DIFF)})
+             {999u, unsigned(IDM_HASH_ALL), unsigned(IDM_DIFF), unsigned(IDM_VER_EDIT),
+              unsigned(IDM_VER_COMMIT), unsigned(IDM_VER_REVERT), unsigned(IDM_VER_DIFF)})
             QVERIFY(!ExecuteFileCommand(id, commands));
         QVERIFY(commands.calls.isEmpty());
     }

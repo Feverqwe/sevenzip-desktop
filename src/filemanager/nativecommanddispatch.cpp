@@ -15,8 +15,6 @@ static const unsigned k_MenuID_SetBookmark = 810;
 
 const char *GetHashMethodForCommand(unsigned id) {
     switch (id) {
-    case IDM_HASH_ALL:
-        return "*";
     case IDM_CRC32:
         return "CRC32";
     case IDM_CRC64:
@@ -86,7 +84,6 @@ bool ExecuteFileCommand(unsigned id, IQtFileManagerCommandServices &g_App) {
     case IDM_DELETE:
         g_App.MoveToTrash();
         break;
-    case IDM_HASH_ALL:
     case IDM_CRC32:
     case IDM_CRC64:
     case IDM_XXH64:

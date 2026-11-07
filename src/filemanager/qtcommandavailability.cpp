@@ -209,7 +209,6 @@ bool QtFileManagerCommands::TransportAllows(unsigned id, const TransportCapabili
     case IDM_SHA512:
     case IDM_SHA3_256:
     case IDM_BLAKE2SP:
-    case IDM_HASH_ALL:
         return c.operated && !c.root && c.hashMethods.value(id);
     case IDM_SELECT_ALL:
         return c.rows;
