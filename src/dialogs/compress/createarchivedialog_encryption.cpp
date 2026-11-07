@@ -29,10 +29,8 @@ void CreateArchiveDialog::createEncryptionOptions(QVBoxLayout *form) {
     group->setFlat(true);
     QtBindLocalText(group, "ArchiveRedesign",
                     QT_TRANSLATE_NOOP("ArchiveRedesign", "Protect with a password"), true);
-    encryptionForm_ = new QFormLayout(group);
-    encryptionForm_->setContentsMargins(24, 0, 0, 4);
-    encryptionForm_->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
-    encryptionForm_->setRowWrapPolicy(QFormLayout::WrapLongRows);
+    encryptionForm_ = QtCreateDialogForm();
+    group->setLayout(encryptionForm_);
     auto *password = new QtSecretEdit(group);
     password_ = password;
     password_->setObjectName("archivePassword");

@@ -5,15 +5,14 @@
 #include "dialogs/compress/qtcompressoptionsdialog.h"
 #include "localization/qtlangcontrols.h"
 #include "ui/controls/qtdisclosure.h"
+#include "ui/dialogs/qtdialoglayout.h"
 #include <QPlainTextEdit>
 #include <QToolButton>
 
 void CreateArchiveDialog::createOptionSections(QVBoxLayout *layout, QFormLayout *basic) {
     const auto form = [this] {
-        auto *result = new QFormLayout(new QWidget(this));
-        result->setContentsMargins(24, 4, 0, 4);
-        result->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
-        result->setRowWrapPolicy(QFormLayout::WrapLongRows);
+        auto *result = QtCreateDialogForm();
+        (new QWidget(this))->setLayout(result);
         return result;
     };
     auto *additional = form();
@@ -142,11 +141,7 @@ void CreateArchiveDialog::createCommandLineOptions(QFormLayout *form) {
     QtBindLocalToolTip(parameters_, "createarchivedialog_advanced",
                        QT_TRANSLATE_NOOP("createarchivedialog_advanced",
                                          "Method parameters, for example: tm=off or mt=2."));
-    auto *parametersForm = new QFormLayout;
-    parametersForm->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
-    parametersForm->setRowWrapPolicy(QFormLayout::WrapAllRows);
-    parametersForm->addRow("&Parameters:", parameters_);
-    form->addRow(parametersForm);
+    form->addRow("&Parameters:", parameters_);
 }
 
 void CreateArchiveDialog::configureMetadataSource(CCompressDialog &source) const {

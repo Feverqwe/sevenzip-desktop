@@ -67,7 +67,7 @@ CreateArchiveDialog::CreateArchiveDialog(const QString &directory,
     if (fixedSources_)
         initializeSourceControls(sourceDialog->Info);
     updateRedesignSummary();
-    stabilizeColumnWidths();
+    configureFormMetrics();
     // Size the source form to its controls rather than reserving the height
     // of the former file picker. Leave room for the native window frame and
     // taskbar; the options can scroll on a smaller screen, the footer cannot.

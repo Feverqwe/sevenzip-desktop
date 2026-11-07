@@ -122,7 +122,7 @@ QPushButton *CreateArchiveDialog::createArchiveDestination(QVBoxLayout *windowLa
     return browse;
 }
 
-void CreateArchiveDialog::stabilizeColumnWidths() {
+void CreateArchiveDialog::configureFormMetrics() {
 #ifdef Q_OS_MACOS
     for (auto *check : findChildren<QCheckBox *>())
         check->setMinimumHeight(check->sizeHint().height());
@@ -131,28 +131,12 @@ void CreateArchiveDialog::stabilizeColumnWidths() {
     memoryUsage_->setMinimumHeight(2 * memoryUsage_->fontMetrics().lineSpacing());
     for (auto *label : findChildren<QLabel *>())
         label->setWordWrap(true);
-    const int labelWidth = fontMetrics().averageCharWidth() * 24;
-    for (auto *form : findChildren<QFormLayout *>()) {
-        if (form->parentWidget()->objectName() == "archiveNameField")
-            continue;
-        if (form->rowWrapPolicy() == QFormLayout::WrapAllRows)
-            continue;
-        form->setLabelAlignment(Qt::AlignLeading | Qt::AlignVCenter);
-        form->setHorizontalSpacing(12);
-        form->setVerticalSpacing(8);
-        for (int row = 0; row < form->rowCount(); ++row)
-            if (auto *item = form->itemAt(row, QFormLayout::LabelRole))
-                if (auto *label = qobject_cast<QLabel *>(item->widget()))
-                    label->setFixedWidth(labelWidth);
-    }
 }
 
 void CreateArchiveDialog::createArchiveForm(QVBoxLayout *layout, QVBoxLayout *windowLayout) {
     auto *basic = new QWidget(layout->parentWidget());
-    auto *form = new QFormLayout(basic);
-    form->setContentsMargins(0, 0, 0, 0);
-    form->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
-    form->setRowWrapPolicy(QFormLayout::WrapLongRows);
+    auto *form = QtCreateDialogForm();
+    basic->setLayout(form);
     auto *browse = createArchiveDestination(windowLayout);
     format_ = new QComboBox(basic);
     format_->setObjectName("archiveFormat");

@@ -122,7 +122,7 @@ void CreateArchiveDialog::changeEvent(QEvent *event) {
             SetMemoryUsage();
             updateRedesignSummary();
         }
-        stabilizeColumnWidths();
+        configureFormMetrics();
     }
     QDialog::changeEvent(event);
 }

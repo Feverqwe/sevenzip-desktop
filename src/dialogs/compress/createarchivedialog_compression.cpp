@@ -2,6 +2,7 @@
 #include "dialogs/compress/CompressDialog.h"
 #include "dialogs/compress/createarchivedialog.h"
 #include "localization/qtlangcontrols.h"
+#include "ui/dialogs/qtdialoglayout.h"
 
 void CreateArchiveDialog::createCompressionOptions(QFormLayout *form) {
     // The desktop CompressDialog.rc has plain controls in the left column.
@@ -41,10 +42,8 @@ void CreateArchiveDialog::createCompressionOptions(QFormLayout *form) {
     memoryUsage_->setWordWrap(true);
     auto *memoryGroup = new QWidget(compression);
     memoryGroup->setObjectName("compressionMemoryGroup");
-    auto *memoryForm = new QFormLayout(memoryGroup);
-    memoryForm->setContentsMargins(0, 0, 0, 0);
-    memoryForm->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
-    memoryForm->setRowWrapPolicy(QFormLayout::WrapLongRows);
+    auto *memoryForm = QtCreateDialogForm();
+    memoryGroup->setLayout(memoryForm);
     auto *memoryRow = new QWidget(memoryGroup);
     auto *memoryLayout = new QHBoxLayout(memoryRow);
     memoryLayout->setContentsMargins(0, 0, 0, 0);

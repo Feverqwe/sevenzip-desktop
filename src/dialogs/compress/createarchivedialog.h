@@ -59,7 +59,7 @@ class CreateArchiveDialog : public QDialog {
     void createArchiveForm(QVBoxLayout *layout, QVBoxLayout *windowLayout);
     void createOptionSections(QVBoxLayout *layout, QFormLayout *basic);
     QtDisclosure *createSourcesSection(QWidget *parent);
-    void stabilizeColumnWidths();
+    void configureFormMetrics();
     void createCompressionOptions(QFormLayout *form);
     void createEncryptionOptions(QVBoxLayout *form);
     void updateRedesignSummary();
