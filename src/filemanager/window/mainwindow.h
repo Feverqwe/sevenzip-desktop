@@ -234,12 +234,14 @@ class MainWindow : public QMainWindow {
     HRESULT startFilesystemScan(IFolderFolder *folder);
     struct FilesystemViewport {
         FilesystemViewport(QAbstractItemView *source, const QString &folder, const QString &top,
-                           const QPoint &position)
-            : view(source), directory(folder), topPath(top), scrollPosition(position) {}
+                           const QPoint &position, int iconOffset)
+            : view(source), directory(folder), topPath(top), scrollPosition(position),
+              iconTopOffset(iconOffset) {}
         QPointer<QAbstractItemView> view;
         QString directory;
         QString topPath;
         QPoint scrollPosition;
+        int iconTopOffset;
     };
     HRESULT refreshFilesystem(const CSelectedState &selection, bool sourceAlreadyBound,
                               std::optional<FilesystemViewport> viewport = std::nullopt);

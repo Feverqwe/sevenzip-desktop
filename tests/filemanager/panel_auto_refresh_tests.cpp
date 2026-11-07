@@ -78,6 +78,29 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         QVERIFY(view->selectionModel()->isRowSelected(files->currentRow(), {}));
         QCOMPARE(view->horizontalScrollBar()->value(), horizontal);
         QCOMPARE(view->verticalScrollBar()->value(), vertical);
+
+        int anchorRow = 0;
+        while (anchorRow < count && !view->viewport()->rect().intersects(
+                                        view->visualRect(view->model()->index(anchorRow, 0))))
+            ++anchorRow;
+        QVERIFY(anchorRow < count);
+        const QModelIndex anchor = view->model()->index(anchorRow, 0);
+        const QString anchorName = anchor.data().toString();
+        const int anchorTop = view->visualRect(anchor).top();
+        const int firstTop = view->visualRect(view->model()->index(0, 0)).top();
+        int columns = 1;
+        while (columns < count &&
+               view->visualRect(view->model()->index(columns, 0)).top() == firstTop)
+            ++columns;
+        QVERIFY(columns < count);
+        for (int column = 0; column < columns; ++column)
+            QVERIFY(writeFile(fixture.filePath(QString("000-new-%1.txt").arg(column))));
+        QTRY_VERIFY_WITH_TIMEOUT(view->isEnabled() && files->rowCount() == count + columns, 5000);
+        const QModelIndex restored = view->model()->index(filesystemRow(window, anchorName), 0);
+        QVERIFY(restored.isValid());
+        QCOMPARE(view->visualRect(restored).top(), anchorTop);
+        QCOMPARE(files->model()->index(files->currentRow(), 0).data().toString(), selected);
+        QVERIFY(view->selectionModel()->isRowSelected(files->currentRow(), {}));
     }
 
     void detectsChangesAndPreservesSelectionAndScroll() {

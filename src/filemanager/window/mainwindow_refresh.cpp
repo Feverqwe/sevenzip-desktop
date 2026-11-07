@@ -59,13 +59,26 @@ HRESULT MainWindow::reloadProjectedPanel(const CSelectedState &selection) {
         return loaded;
     }
     auto *view = qobject_cast<QAbstractItemView *>(projectedUi().viewStack->currentWidget());
-    const QString topPath =
-        view == projectedUi().table
-            ? view->model()->index(projectedUi().table->rowAt(0), 1).data().toString()
-            : QString();
+    int topRow = -1;
+    int iconOffset = 0;
+    if (view == projectedUi().table) {
+        topRow = projectedUi().table->rowAt(0);
+    } else {
+        const QRect visible = view->viewport()->rect();
+        for (int row = 0; row < view->model()->rowCount(); ++row) {
+            const QRect item = view->visualRect(view->model()->index(row, 0));
+            if (visible.intersects(item)) {
+                topRow = row;
+                iconOffset = item.top();
+                break;
+            }
+        }
+    }
+    const QString topPath = view->model()->index(topRow, 1).data().toString();
     const FilesystemViewport viewport(
         view, projectedUi().directory, topPath,
-        QPoint(view->horizontalScrollBar()->value(), view->verticalScrollBar()->value()));
+        QPoint(view->horizontalScrollBar()->value(), view->verticalScrollBar()->value()),
+        iconOffset);
     return refreshFilesystem(selection, true, viewport);
 }
 
@@ -190,7 +203,7 @@ void MainWindow::restoreAutoRefreshViewport() {
         return;
     view->doItemsLayout();
     int row = -1;
-    if (view == projectedUi().table) {
+    if (!viewport->topPath.isEmpty()) {
         for (int i = 0; i < projectedUi().table->rowCount(); ++i) {
             if (view->model()->index(i, 1).data().toString() == viewport->topPath) {
                 row = i;
@@ -198,9 +211,17 @@ void MainWindow::restoreAutoRefreshViewport() {
             }
         }
     }
-    if (row >= 0)
-        view->scrollTo(view->model()->index(row, 0), QAbstractItemView::PositionAtTop);
-    else
+    if (row < 0) {
         view->verticalScrollBar()->setValue(viewport->scrollPosition.y());
+    } else if (view == projectedUi().table) {
+        view->scrollTo(view->model()->index(row, 0), QAbstractItemView::PositionAtTop);
+    } else {
+        auto *scroll = view->verticalScrollBar();
+        scroll->setValue(viewport->scrollPosition.y());
+        const QModelIndex anchor = view->model()->index(row, 0);
+        // Keep the original offset even when the icon is partly scrolled out.
+        const int displacement = view->visualRect(anchor).top() - viewport->iconTopOffset;
+        scroll->setValue(scroll->value() + displacement);
+    }
     view->horizontalScrollBar()->setValue(viewport->scrollPosition.x());
 }
