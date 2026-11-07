@@ -43,3 +43,17 @@ Runtime validation: 2026-10-17, macOS arm64 / Qt 6.12.0, working tree based on
 Qt widget-dialog checks use offscreen QPA; native OS picker appearance and
 physical shortcuts, Windows and Linux runtime remain unverified. No full or
 slow suite is claimed.
+
+## Long-path acceptance — 2026-11-07
+
+The pinned source browser's `FinishOnOK` resolves a path for its general-purpose
+callers. The project-owned Open Archive command additionally requires an
+existing archive candidate in its long-path fallback, as its system file picker
+does for ordinary paths. Native file lookup follows links and retains support
+for long paths and sparse-bundle packages. Refusal keeps the typed path available
+for correction. Folder and save callers retain their source acceptance.
+
+On Linux, `shell_menu_window`, `source_browse_dialog` and
+`source_archive_browse` passed 65 checks with no skips. The picker rejected a
+missing file and an ordinary directory in the same dialog before opening a
+real ZIP with a Unicode name.

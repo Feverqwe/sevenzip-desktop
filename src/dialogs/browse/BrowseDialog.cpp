@@ -12,6 +12,7 @@
 #include "Windows/FileName.h"
 #include "Windows/PropVariantConv.h"
 #include "Windows/TimeUtils.h"
+#include "archive/opening/archivecontainerpath.h"
 #include "dialogs/browse/qtsourcebrowsedialog_p.h"
 #include "filemanager/FormatUtils.h"
 #include "fileops/native/FileDir.h"
@@ -410,6 +411,20 @@ void CBrowseDialog::FinishOnOK() {
         MessageBox_HResError(this, kInvalidNameError, s);
         return;
     }
+    if (ExistingArchiveOnly) {
+        CFileInfo file;
+        HRESULT error = S_OK;
+        if (!file.Find_FollowLink(destPath))
+            error = GetLastError_noZero_HRESULT();
+        else if (file.IsDir() ? !IsSparseBundleName(fs2us(file.Name))
+                              : !MY_LIN_S_ISREG(file.GetPosixAttrib()))
+            error = kInvalidNameError;
+        if (error != S_OK) {
+            MessageBox_HResError(this, error, s);
+            _pathEdit->setFocus();
+            return;
+        }
+    }
     FilePath = fs2us(destPath);
     if (FolderMode)
         NormalizeDirPathPrefix(FilePath);
@@ -456,6 +471,7 @@ QString BrowseForExistingFile(QWidget *owner, const QString &title, const QStrin
     CBrowseDialog dialog(owner);
     dialog.Title = ToUString(title);
     dialog.StartInDirectory = true;
+    dialog.ExistingArchiveOnly = true;
     NormalizeDirPathPrefix(path);
     dialog.FilePath = path;
     dialog.FilterIndex = 0;
