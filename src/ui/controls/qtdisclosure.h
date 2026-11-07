@@ -4,6 +4,9 @@
 
 class QLabel;
 class QToolButton;
+class QVBoxLayout;
+
+QVBoxLayout *QtCreateDisclosureLayout();
 
 // Presentation-only disclosure: hiding content never changes its values/enabled state.
 class QtDisclosure final : public QWidget {

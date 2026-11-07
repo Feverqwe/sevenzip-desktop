@@ -2,6 +2,7 @@
 // Igor Pavlov, LGPL-2.1-or-later; see third_party/7zip/License.txt.
 #include "dialogs/compress/createarchivedialog.h"
 #include "localization/qtlangcontrols.h"
+#include "ui/controls/qtdisclosure.h"
 #include "ui/controls/qtsecretedit.h"
 #include "ui/dialogs/qtdialoglayout.h"
 
@@ -10,7 +11,8 @@ void CreateArchiveDialog::createEncryptionOptions(QVBoxLayout *form) {
     passwordEnabled_->setObjectName("archivePasswordEnabled");
     QtBindLocalText(passwordEnabled_, "ArchiveRedesign",
                     QT_TRANSLATE_NOOP("ArchiveRedesign", "Protect with a password"));
-    form->addWidget(passwordEnabled_);
+    auto *section = QtCreateDisclosureLayout();
+    section->addWidget(passwordEnabled_);
     protectionWarning_ = new QtWrappingLabel(form->parentWidget());
     protectionWarning_->setObjectName("archiveProtectionWarning");
     protectionWarning_->setTextFormat(Qt::PlainText);
@@ -21,7 +23,7 @@ void CreateArchiveDialog::createEncryptionOptions(QVBoxLayout *form) {
         QT_TRANSLATE_NOOP("ArchiveRedesign",
                           "This format does not support password protection. Choose another "
                           "format or turn off password protection."));
-    form->addWidget(protectionWarning_);
+    section->addWidget(protectionWarning_);
     auto *group = new QGroupBox(this);
     group->setObjectName("archiveEncryptionGroup");
     group->setFlat(true);
@@ -54,7 +56,8 @@ void CreateArchiveDialog::createEncryptionOptions(QVBoxLayout *form) {
     encryptHeaders_->setObjectName("archiveEncryptHeaders");
     encryptHeaders_->setChecked(m_RegistryInfo.EncryptHeaders);
     encryptionForm_->addRow(encryptHeaders_);
-    form->addWidget(group);
+    section->addWidget(group);
+    form->addLayout(section);
     group->hide();
     connect(passwordEnabled_, &QCheckBox::toggled, this, [this] { updateProtectionControls(); });
     // A source-supplied password or programmatic restoration must never stay

@@ -120,7 +120,8 @@ void CExtractDialog::BuildPresentation() {
     _passwordEnable->setObjectName("extractPasswordEnabled");
     QtBindLocalText(_passwordEnable, "ArchiveRedesign",
                     QT_TRANSLATE_NOOP("ArchiveRedesign", "Use a password"));
-    layout->addWidget(_passwordEnable);
+    auto *passwordSection = QtCreateDisclosureLayout();
+    passwordSection->addWidget(_passwordEnable);
     auto *passwordLayout = new QVBoxLayout(passwordGroup);
     auto *password = new QtSecretEdit(passwordGroup);
     _passwordControl = password;
@@ -132,7 +133,8 @@ void CExtractDialog::BuildPresentation() {
     _showPassword->setObjectName("extractShowPassword");
     password->BindRevealControl(*_showPassword);
     passwordLayout->addWidget(_showPassword);
-    layout->addWidget(passwordGroup);
+    passwordSection->addWidget(passwordGroup);
+    layout->addLayout(passwordSection);
     passwordGroup->hide();
     passwordGroup->setEnabled(false);
     connect(_passwordEnable, &QCheckBox::toggled, this, [passwordGroup](bool enabled) {

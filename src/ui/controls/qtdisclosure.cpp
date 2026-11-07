@@ -107,14 +107,20 @@ class DisclosureButton final : public QToolButton {
 };
 } // namespace
 
+QVBoxLayout *QtCreateDisclosureLayout() {
+    auto *layout = new QVBoxLayout;
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(8);
+    return layout;
+}
+
 QtDisclosure::QtDisclosure(QWidget *content, QWidget *parent, QWidget *description)
     : QWidget(parent), content_(content), description_(description),
       button_(new DisclosureButton(this)), summary_(new QtWrappingLabel(this)) {
     // Qt owns the interface for the lifetime of this button.
     QAccessible::registerAccessibleInterface(new AccessibleDisclosure(button_));
-    auto *layout = new QVBoxLayout(this);
-    layout->setContentsMargins(0, 0, 0, 0);
-    layout->setSpacing(8);
+    auto *layout = QtCreateDisclosureLayout();
+    setLayout(layout);
     auto *separator = new QFrame(this);
     separator->setFrameShape(QFrame::HLine);
     separator->setFrameShadow(QFrame::Plain);
