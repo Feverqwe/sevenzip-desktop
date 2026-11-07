@@ -84,7 +84,6 @@ void OnMenuActivating(QMenuBar &mainMenu, QMenu &hMenu, int position, CApp &g_Ap
         CheckRadioItem(hMenu, IDM_VIEW_ARANGE_BY_NAME, IDM_VIEW_ARANGE_BY_SIZE,
                        GetSortControlID(g_App.GetSortID()));
         CheckItemByID(hMenu, IDM_VIEW_TWO_PANELS, g_App.NumPanels == 2);
-        CheckItemByID(hMenu, IDM_VIEW_AUTO_REFRESH, g_App.Get_AutoRefresh_Mode());
         for (QAction *item : hMenu.actions()) {
             if (item->menu() && Is_MenuItem_TimePopup(*item)) {
                 FILETIME ft;

@@ -102,8 +102,8 @@ class NativePropertiesWindowTests final : public QObject, protected MainWindowTe
         auto *address = window.findChild<QLineEdit *>("archivePath");
         address->setText(fixture.path());
         QTest::keyClick(address, Qt::Key_Return);
-        action(window, "autoRefreshAction")->setChecked(false);
         auto *view = table(window);
+        view->sourcePanel->Set_AutoRefresh_Mode(false);
         QTRY_VERIFY_WITH_TIMEOUT(view->isEnabled() && filesystemRow(window, path) >= 0, 5000);
         view->selectRow(filesystemRow(window, path));
         auto *properties = action(window, "selectedPropertiesAction");

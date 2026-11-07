@@ -330,7 +330,6 @@ class MainWindow : public QMainWindow {
     QAction *sortActions_[4]{};
     QAction *timeActions_[5]{};
     QAction *utcTimeAction_ = nullptr;
-    QAction *autoRefreshAction_ = nullptr;
     QAction *viewActions_[4]{};
     QAction *twoPanelsAction_ = nullptr;
     struct FilesystemSignature {

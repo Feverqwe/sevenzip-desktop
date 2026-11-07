@@ -26,7 +26,6 @@ class QtWorkspaceApplication final : public QObject {
     MainWindow *NewWindow(const QString &path, const QJsonObject &session = {},
                           std::function<void(MainWindow &)> ready = {});
     void Save();
-    void SetAutoRefresh(bool enabled);
     void ArchivePublished(const QString &archive);
     void Quit();
 

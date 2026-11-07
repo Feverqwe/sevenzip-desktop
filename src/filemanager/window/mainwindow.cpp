@@ -65,8 +65,6 @@ MainWindow::MainWindow(ArchiveBackend *backend, std::function<bool(const QUrl &)
             app_.SetTimestampLevel(timestampLevel);
     }
     g_Timestamp_Show_UTC = viewSettings.value(QStringLiteral("view/timestampUTC"), false).toBool();
-    app_.AutoRefresh_Mode = viewSettings.value(QStringLiteral("view/autoRefresh"), true).toBool();
-    app_.SetPanels_AutoRefresh_Mode();
     workspace_ = std::make_unique<QtWindowWorkspace>(*this);
     clipboard_ = std::make_unique<QtFileClipboard>(*this);
     initializeFileManagerWindow(startup);

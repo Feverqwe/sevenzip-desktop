@@ -197,9 +197,6 @@ bool OnMenuCommand(unsigned id, IQtFileManagerMenuCommandServices &g_App) {
     case IDM_VIEW_REFRESH:
         g_App.RefreshView();
         break;
-    case IDM_VIEW_AUTO_REFRESH:
-        g_App.Change_AutoRefresh_Mode();
-        break;
     case IDM_VIEW_TWO_PANELS:
         g_App.SwitchOnOffOnePanel();
         break;

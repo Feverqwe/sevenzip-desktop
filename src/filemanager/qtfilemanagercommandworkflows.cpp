@@ -9,7 +9,6 @@
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtexternalfiletask.h"
 #include "filemanager/window/qtwindowworkspace.h"
-#include "filemanager/window/qtworkspaceapplication.h"
 #include "localization/qtlangcontrols.h"
 #include "operations/CompressCall.h"
 #include <QScopedValueRollback>
@@ -211,16 +210,6 @@ void QtFileManagerCommands::OpenAltStreams() {
     w.app_.Panels[index].OpenAltStreams();
     w.app_.QtOperations().ContinueScanAfterSourceCall(index);
     w.refreshActions();
-}
-void QtFileManagerCommands::Change_AutoRefresh_Mode() {
-    if (auto *application = QtWorkspaceApplication::Find()) {
-        application->SetAutoRefresh(!window_.app_.Get_AutoRefresh_Mode());
-        return;
-    }
-    window_.app_.Change_AutoRefresh_Mode();
-    window_.autoRefreshAction_->setChecked(window_.app_.Get_AutoRefresh_Mode());
-    QSettings settings(MainWindow::toolbarSettingsPath(), QSettings::IniFormat);
-    settings.setValue(QStringLiteral("view/autoRefresh"), window_.app_.Get_AutoRefresh_Mode());
 }
 void QtFileManagerCommands::SwitchOnOffOnePanel() { window_.togglePanels(); }
 void QtFileManagerCommands::RedrawListItems_InPanels() {

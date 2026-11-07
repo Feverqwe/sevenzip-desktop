@@ -178,12 +178,6 @@ void MainWindow::createViewOptions(QMenu *viewMenu) {
     QtBindLocalText(root_, "CommandMenus", QT_TRANSLATE_NOOP("CommandMenus", "Computer"));
     refresh_ = new QAction("&Refresh", viewMenu);
     refresh_->setObjectName("refreshAction");
-    autoRefreshAction_ = new QAction(QStringLiteral("Auto Refresh"), viewMenu);
-    autoRefreshAction_->setObjectName(QStringLiteral("autoRefreshAction"));
-    QtBindLocalText(autoRefreshAction_, "CommandMenus",
-                    QT_TRANSLATE_NOOP("CommandMenus", "Refresh automatically"));
-    autoRefreshAction_->setCheckable(true);
-    autoRefreshAction_->setChecked(app_.Get_AutoRefresh_Mode());
     foldersHistory_ = new QAction("Folders History...", viewMenu);
     foldersHistory_->setObjectName("foldersHistoryAction");
     QtBindLocalText(foldersHistory_, "CommandMenus",
@@ -280,8 +274,7 @@ void MainWindow::populateSourceMenus() {
     for (QAction *action : {back_, forward_, up_, root_, foldersHistory_})
         view->addAction(action);
     view->addSeparator();
-    for (QAction *action : {refresh_, autoRefreshAction_})
-        view->addAction(action);
+    view->addAction(refresh_);
 
     auto *favorites = findChild<QMenu *>("favoritesMenu");
     auto *addFavorite = findChild<QMenu *>("addFavoriteMenu");

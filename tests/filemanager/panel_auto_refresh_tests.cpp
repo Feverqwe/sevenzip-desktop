@@ -250,7 +250,7 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         }
     }
 
-    void toggleUpdatesPeerWindowsAndNavigatedLocations() {
+    void refreshesIndependentWindowsAndNavigatedLocations() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString a = fixture.filePath("A folder");
@@ -273,8 +273,6 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         };
         QTRY_VERIFY(files(first) && files(first)->isEnabled());
         QTRY_VERIFY(files(second) && files(second)->isEnabled());
-        action(first, "autoRefreshAction")->trigger();
-        QVERIFY(!action(second, "autoRefreshAction")->isChecked());
         QtWindowWorkspace *owner = nullptr;
         for (auto *object : first.children())
             if (auto *workspace = dynamic_cast<QtWindowWorkspace *>(object))
@@ -285,11 +283,6 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         QTRY_VERIFY(files(first)->isEnabled());
         QVERIFY(writeFile(QDir(b).filePath("new.txt")));
         QVERIFY(writeFile(QDir(c).filePath("new.txt")));
-        QTest::qWait(1500);
-        QCOMPARE(files(first)->rowCount(), 0);
-        QCOMPARE(files(second)->rowCount(), 0);
-        action(second, "autoRefreshAction")->trigger();
-        QVERIFY(action(first, "autoRefreshAction")->isChecked());
         QTRY_COMPARE_WITH_TIMEOUT(files(first)->rowCount(), 1, 5000);
         QTRY_COMPARE_WITH_TIMEOUT(files(second)->rowCount(), 1, 5000);
         first.openPath(a);
@@ -298,29 +291,24 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         QTRY_COMPARE_WITH_TIMEOUT(files(first)->rowCount(), 1, 5000);
     }
 
-    void togglePersistsAndGatesTimer() {
+    void refreshIgnoresLegacyDisabledPreference() {
         QTemporaryDir temp;
         QVERIFY(temp.isValid());
         CurrentDirectoryGuard directoryGuard;
         QVERIFY(QDir::setCurrent(temp.path()));
         QVERIFY(writeFile(temp.filePath(QStringLiteral("start.txt"))));
-        {
-            MainWindow window;
-            window.show();
-            auto *toggle = action(window, "autoRefreshAction");
-            QVERIFY(toggle->isChecked());
-            toggle->trigger();
-            QVERIFY(!toggle->isChecked());
-            QVERIFY(writeFile(temp.filePath(QStringLiteral("later.txt"))));
-            QTest::qWait(1250);
-            QCOMPARE(table(window)->rowCount(), 1);
-            action(window, "refreshAction")->trigger();
-            QCOMPARE(table(window)->rowCount(), 2);
-        }
-        MainWindow reopened;
-        QVERIFY(!action(reopened, "autoRefreshAction")->isChecked());
-        action(reopened, "autoRefreshAction")->trigger();
-        QVERIFY(action(reopened, "autoRefreshAction")->isChecked());
+        QSettings settings(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"), QSettings::IniFormat);
+        settings.setValue("view/autoRefresh", false);
+        settings.sync();
+
+        MainWindow window;
+        window.show();
+        QTRY_COMPARE(table(window)->rowCount(), 1);
+        QVERIFY(writeFile(temp.filePath(QStringLiteral("later.txt"))));
+        QTRY_COMPARE_WITH_TIMEOUT(table(window)->rowCount(), 2, 5000);
+        QVERIFY(writeFile(temp.filePath(QStringLiteral("manual.txt"))));
+        action(window, "refreshAction")->trigger();
+        QTRY_COMPARE(table(window)->rowCount(), 3);
     }
 
     void missingFolderClearsStaleRowsAndRecovers() {

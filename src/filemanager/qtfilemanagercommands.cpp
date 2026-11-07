@@ -113,7 +113,6 @@ void QtFileManagerCommands::AttachViewActions() {
     });
     Bind(w.twoPanelsAction_, IDM_VIEW_TWO_PANELS);
     Bind(w.refresh_, IDM_VIEW_REFRESH, true);
-    Bind(w.autoRefreshAction_, IDM_VIEW_AUTO_REFRESH);
     Bind(w.foldersHistory_, IDM_FOLDERS_HISTORY, true);
     Bind(w.root_, IDM_OPEN_ROOT_FOLDER, true);
     Bind(w.findChild<QAction *>("sortAscendingAction"), SortAscending, true);

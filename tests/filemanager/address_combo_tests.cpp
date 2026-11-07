@@ -371,10 +371,7 @@ class AddressComboTests final : public QObject, protected MainWindowTestSupport 
         MainWindow window(&backend);
         window.show();
         QVERIFY(WindowActivation::waitForActive(window));
-        auto *refresh = action(window, "autoRefreshAction");
-        QVERIFY(refresh);
-        if (refresh->isChecked())
-            refresh->trigger();
+        table(window)->sourcePanel->Set_AutoRefresh_Mode(false);
         auto *address = window.findChild<QLineEdit *>("archivePath");
         auto *combo = window.findChild<QComboBox *>("pathCombo");
         QVERIFY(address && combo);

@@ -15,10 +15,7 @@
 
 static const unsigned kParentIndex = (unsigned)(int)-1;
 
-CApp::CApp() : _qtOperations(Panels) {
-    CreateDragTarget();
-    SetPanels_AutoRefresh_Mode();
-}
+CApp::CApp() : _qtOperations(Panels) { CreateDragTarget(); }
 
 CApp::~CApp() { ReleaseApp(); }
 

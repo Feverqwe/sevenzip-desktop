@@ -69,8 +69,6 @@ class LinkCommandTests final : public QObject, protected MainWindowTestSupport {
             showLinkColumn(*table(window));
             QVERIFY(!QTest::currentTestFailed());
         }
-        if (!action(window, "autoRefreshAction")->isChecked())
-            action(window, "autoRefreshAction")->trigger();
         table(window)->selectRow(filesystemRow(window, name));
         auto *link = action(window, "linkAction");
         QTRY_VERIFY(link->isEnabled());

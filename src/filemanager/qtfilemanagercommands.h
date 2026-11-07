@@ -74,7 +74,6 @@ class QtFileManagerCommands final : public IQtFileManagerMenuCommandServices {
     void OpenParentFolder() override;
     void FoldersHistory() override;
     void RefreshView() override;
-    void Change_AutoRefresh_Mode() override;
     void SwitchOnOffOnePanel() override;
     bool &TimestampShowUTC() override;
     void RedrawListItems_InPanels() override;

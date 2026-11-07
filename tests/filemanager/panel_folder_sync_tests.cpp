@@ -295,7 +295,7 @@ class PanelFolderSyncTests final : public QObject, protected MainWindowTestSuppo
         address->setText(fixture.path());
         QTest::keyClick(address, Qt::Key_Return);
         action(window, "twoPanelsAction")->trigger();
-        action(window, "autoRefreshAction")->setChecked(false);
+        table->sourcePanel->Set_AutoRefresh_Mode(false);
         const auto matches = PanelMatches(*table, QFileInfo(missing).fileName());
         QVERIFY(!matches.isEmpty());
         table->setCurrentCell(matches.first().row(), 0);
