@@ -172,7 +172,7 @@ bool QtFileManagerCommands::TransportAllows(unsigned id, const TransportCapabili
     case kMenuCmdID_Toolbar_Add:
         return c.filesystem || c.mutationWritable;
     case kMenuCmdID_Toolbar_Extract:
-        return c.archive || c.batchArchives;
+        return c.archive || (c.filesystem && c.oneFile && c.batchArchives);
     case kMenuCmdID_Toolbar_Test:
         return c.archive || c.batchArchives;
     case IDM_OPEN:

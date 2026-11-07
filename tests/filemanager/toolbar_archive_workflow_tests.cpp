@@ -509,7 +509,7 @@ class ToolbarArchiveWorkflowTests final : public QObject, protected MainWindowTe
         }
         QCOMPARE(readFile(QDir(output).filePath(kName)), QByteArray("refresh output"));
     }
-    void filesystemToolbarUsesSourceBatch_data() {
+    void filesystemExtractRequiresOneArchive_data() {
         QTest::addColumn<bool>("multiple");
         QTest::addColumn<unsigned>("pane");
         for (bool multiple : {false, true})
@@ -517,7 +517,7 @@ class ToolbarArchiveWorkflowTests final : public QObject, protected MainWindowTe
                 QTest::newRow(qPrintable(QString("%1-%2").arg(multiple).arg(pane)))
                     << multiple << pane;
     }
-    void filesystemToolbarUsesSourceBatch() {
+    void filesystemExtractRequiresOneArchive() {
         QFETCH(bool, multiple);
         QFETCH(unsigned, pane);
         QTemporaryDir fixture(FixtureTemplate());
@@ -555,7 +555,7 @@ class ToolbarArchiveWorkflowTests final : public QObject, protected MainWindowTe
         source->setFocus();
         if (multiple)
             source->sourcePanel->SelectAll(true);
-        QVERIFY(action(window, "extractArchiveAction")->isEnabled());
+        QCOMPARE(action(window, "extractArchiveAction")->isEnabled(), !multiple);
         QVERIFY(action(window, "testArchiveAction")->isEnabled());
         CMyComPtr<IFolderFolder> provider = source->sourcePanel->GetFolder();
         QStringList errors;
@@ -564,7 +564,20 @@ class ToolbarArchiveWorkflowTests final : public QObject, protected MainWindowTe
         dialogs_.connectResponder(driver, &window,
                                   [&] { dismissResults(dialogs_, errors, successes); });
         driver.start(1);
-        backend.ExtractDestination = multiple ? output + "/*/" : output;
+        if (multiple) {
+            PanelKeys::command(source, Qt::Key_E, Qt::ControlModifier | Qt::ShiftModifier);
+            action(window, "extractArchiveAction")->trigger();
+            QVERIFY(backend.ExtractJobs.isEmpty());
+            QVERIFY(!QFileInfo::exists(output));
+            PanelKeys::command(source, Qt::Key_T, Qt::ControlModifier | Qt::ShiftModifier);
+            QTRY_COMPARE_WITH_TIMEOUT(backend.Results.size(), 1, 30000);
+            QCOMPARE(backend.Results.last().Status, QtOperationResult::Outcome::Success);
+            QCOMPARE(backend.Selections.last().size(), 2);
+            QCOMPARE(readFile(first), firstBefore);
+            QCOMPARE(readFile(second), secondBefore);
+            return;
+        }
+        backend.ExtractDestination = output;
         backend.ExtractDialogReport = fixture.filePath("extract-dialog.json");
         backend.ExtractDialogTag = QString("toolbar-batch-%1-%2").arg(multiple).arg(pane);
         backend.CancelExtract = true;
@@ -586,24 +599,19 @@ class ToolbarArchiveWorkflowTests final : public QObject, protected MainWindowTe
         const auto dialogReport =
             QJsonDocument::fromJson(readFile(backend.ExtractDialogReport)).object();
         QCOMPARE(dialogReport.value("title").toString().normalized(QString::NormalizationForm_C),
-                 (QtLangText(IDD_EXTRACT, "Extract") +
-                  (multiple ? QString() : " : " + QDir::toNativeSeparators(first)))
+                 (QtLangText(IDD_EXTRACT, "Extract") + " : " + QDir::toNativeSeparators(first))
                      .normalized(QString::NormalizationForm_C));
-        QTRY_COMPARE(peer->rowCount(), multiple ? 2 : 1);
-        QCOMPARE(backend.ExtractJobs.last().Paths.size(), multiple ? 2 : 1);
+        QTRY_COMPARE(peer->rowCount(), 1);
+        QCOMPARE(backend.ExtractJobs.last().Paths.size(), 1);
         QVERIFY2(errors.isEmpty(), qPrintable(errors.join('\n')));
-        QCOMPARE(
-            readFile(QDir(output).filePath(multiple ? QStringLiteral("первый δ/") + name : name)),
-            payload);
-        if (multiple)
-            QCOMPARE(readFile(QDir(output).filePath("second/" + name)), payload);
+        QCOMPARE(readFile(QDir(output).filePath(name)), payload);
         successes.clear();
         source->setFocus();
         PanelKeys::command(source, Qt::Key_T, Qt::ControlModifier | Qt::ShiftModifier);
         QVERIFY2(errors.isEmpty(), qPrintable(errors.join('\n')));
         QTRY_COMPARE_WITH_TIMEOUT(backend.Results.size(), 3, 30000);
         QCOMPARE(backend.Results.last().Status, QtOperationResult::Outcome::Success);
-        QCOMPARE(backend.Selections.last().size(), multiple ? 2 : 1);
+        QCOMPARE(backend.Selections.last().size(), 1);
         driver.stop();
         QCOMPARE(source->sourcePanel->GetFolder(), provider.Interface());
         QCOMPARE(readFile(first), firstBefore);

@@ -563,14 +563,12 @@ HRESULT CZipContextMenu::QueryContextMenu(CMenuHandle *hMenu, UINT indexMenu, UI
             ODS("### needExtract list END")
 
             if (needExtract) {
-                {
+                if (_fileNames.Size() == 1) {
                     UString baseFolder = fs2us(folderPrefix);
                     if (_dropMode)
                         baseFolder = _dropPath;
 
-                    UString specFolder('*');
-                    if (_fileNames.Size() == 1)
-                        specFolder = GetSubFolderNameForExtract(fs2us(fi0.Name));
+                    UString specFolder = GetSubFolderNameForExtract(fs2us(fi0.Name));
                     specFolder.Add_PathSepar();
 
                     if ((contextMenuFlags & NContextMenuFlags::kExtract) != 0) {
@@ -940,6 +938,8 @@ HRESULT CZipContextMenu::InvokeCommandCommon(const CCommandMapItem &cmi) {
         case kExtract:
         case kExtractHere:
         case kExtractTo: {
+            if (_fileNames.Size() != 1)
+                return E_INVALIDARG;
             if (_attribs.FirstDirIndex != -1) {
                 _services->ShowErrorMessageRes(IDS_SELECT_FILES);
                 break;

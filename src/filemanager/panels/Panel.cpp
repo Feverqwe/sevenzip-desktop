@@ -356,17 +356,12 @@ void CPanel::ExtractArchives(IQtCompressCallServices &services) {
     }
     CRecordVector<UInt32> indices;
     Get_ItemIndices_Operated(indices);
-    if (indices.IsEmpty() || FindDir_InOperatedList(indices) != -1) {
-        MessageBox_Error_LangID(IDS_SELECT_FILES);
+    if (indices.Size() != 1 || IsItem_Folder(indices[0]))
         return;
-    }
     UStringVector paths;
     GetFilePaths(indices, paths);
     UString outFolder = GetFsPath();
-    if (indices.Size() == 1)
-        outFolder += GetSubFolderNameForExtract2(GetItemRelPath(indices[0]));
-    else
-        outFolder.Add_Char('*');
+    outFolder += GetSubFolderNameForExtract2(GetItemRelPath(indices[0]));
     outFolder.Add_PathSepar();
     CContextMenuInfo ci;
     ci.Load(_settingsPath);

@@ -328,7 +328,7 @@ if(BUILD_TESTING)
             repeatedArchiveTesting filesystemToolbarFailureRestoresSource archiveToolbarUsesSourceCopyTo
             filesystemShellCommandsUseIndependentOperations extractionRefreshUsesCurrentLocation -silent)
         add_test(NAME toolbar_archive_batch COMMAND toolbar_archive_workflow_tests
-            filesystemToolbarUsesSourceBatch -silent)
+            filesystemExtractRequiresOneArchive -silent)
         set_tests_properties(toolbar_archive_workflow toolbar_archive_batch PROPERTIES TIMEOUT 120
             RESOURCE_LOCK "sevenzip_native_ui;sevenzip_ui_artifacts" ENVIRONMENT
             "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/toolbar-archive-workflow.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
