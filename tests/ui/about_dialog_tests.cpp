@@ -46,8 +46,9 @@ class AboutDialogTests final : public QObject {
         QVERIFY(QTest::qWaitForWindowExposed(&dialog));
         auto *scroll = dialog.findChild<QScrollArea *>("dialogContentScroll");
         auto *section = dialog.findChild<QWidget *>("aboutBuildDetails");
-        auto *footer = dialog.findChild<QDialogButtonBox *>();
-        QTRY_VERIFY(UiInspection::bounds(*footer, dialog).top() -
+        QVERIFY(scroll && section);
+        QVERIFY(!dialog.findChild<QDialogButtonBox *>());
+        QTRY_VERIFY(UiInspection::bounds(*scroll, dialog).bottom() -
                         UiInspection::bounds(*section, dialog).bottom() <=
                     dialog.fontMetrics().height() * 3);
         const QSize initialSize = dialog.size();
@@ -77,8 +78,7 @@ class AboutDialogTests final : public QObject {
                     QTRY_VERIFY2(UiInspection::fullyVisible(*control, dialog), name);
                     if (auto *label = qobject_cast<QLabel *>(control))
                         QVERIFY(UiInspection::labelFits(*label));
-                    QVERIFY(UiInspection::fullyVisible(*dialog.findChild<QDialogButtonBox *>(),
-                                                       dialog));
+                    QVERIFY(UiInspection::fullyVisible(*scroll, dialog));
                 }
                 QVERIFY(UiInspection::writeReport(
                     dialog, QString("about-details-%1-%2").arg(language).arg(size.width())));
@@ -157,17 +157,17 @@ class AboutDialogTests final : public QObject {
             dialog.reject();
         }
     }
-    void aboutInitialReturnClosesSourceDialog() {
+    void aboutClosesWithEscapeAndWindowClose() {
         CAboutDialog dialog;
         dialog.show();
         QVERIFY(QTest::qWaitForWindowActive(&dialog));
-        auto *ok = dialog.findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok);
-        QVERIFY(ok->hasFocus());
-        QSignalSpy accepted(&dialog, &QDialog::accepted);
-        QTest::keyClick(&dialog, Qt::Key_Return);
-        QCOMPARE(accepted.count(), 1);
+        QSignalSpy rejected(&dialog, &QDialog::rejected);
+        QTest::keyClick(&dialog, Qt::Key_Escape);
+        QCOMPARE(rejected.count(), 1);
         QVERIFY(!dialog.isVisible());
-        QVERIFY(!dialog.findChild<QDialog *>("helpWindow"));
+        dialog.show();
+        QVERIFY(dialog.close());
+        QCOMPARE(rejected.count(), 2);
     }
 
     void aboutIdentityAttributionLinksAndGeometry_data() {

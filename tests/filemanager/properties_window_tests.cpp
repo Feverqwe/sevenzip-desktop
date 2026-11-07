@@ -98,7 +98,7 @@ class PropertiesWindowTests final : public QObject, protected MainWindowTestSupp
         QVERIFY(UiInspection::writeReport(window, "properties-info-nested-en"));
         QCOMPARE(shownSize(window), QtRegionalFormat::bytes(7));
         for (auto *section : window.findChildren<QtDisclosure *>())
-            QVERIFY(!section->isExpanded());
+            QVERIFY(section->isExpanded());
         copy(window);
         const QString original = QApplication::clipboard()->text();
         QVERIFY(original.contains(comment));
@@ -119,7 +119,7 @@ class PropertiesWindowTests final : public QObject, protected MainWindowTestSupp
         QTRY_VERIFY(readableControls(window));
         QVERIFY(UiInspection::writeReport(window, "properties-info-nested-ru"));
         for (auto *section : window.findChildren<QtDisclosure *>())
-            QVERIFY(!section->isExpanded());
+            QVERIFY(section->isExpanded());
         QCOMPARE(shownSize(window), QtRegionalFormat::bytes(7));
     }
     void unknownZeroFoldersAndPartialSelectionStayDistinct() {
@@ -271,10 +271,9 @@ class PropertiesWindowTests final : public QObject, protected MainWindowTestSupp
         for (auto *section : window.findChildren<QtDisclosure *>())
             if (section->button()->text() == "Comment")
                 comments = section;
-        QVERIFY(comments && !comments->isExpanded());
+        QVERIFY(comments && comments->isExpanded());
         copy(window);
         QVERIFY(QApplication::clipboard()->text().contains(comment));
-        comments->setExpanded(true);
         QTRY_VERIFY(readableControls(window));
         QVERIFY(UiInspection::writeReport(window, "properties-info-comment"));
     }
@@ -318,8 +317,6 @@ class PropertiesWindowTests final : public QObject, protected MainWindowTestSupp
             QVERIFY(UiInspection::fullyVisible(*button, window));
         const QString tag = QString("properties-info-%1-%2").arg(language).arg(frame.width());
         QVERIFY(UiInspection::writeReport(window, tag));
-        for (auto *section : window.findChildren<QtDisclosure *>())
-            section->setExpanded(true);
         QTRY_VERIFY(inspect());
         QTRY_COMPARE(body->horizontalScrollBar()->maximum(), 0);
         for (auto *label : window.findChildren<QLabel *>())

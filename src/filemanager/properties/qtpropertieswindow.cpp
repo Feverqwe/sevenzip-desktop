@@ -57,7 +57,7 @@ QtPropertiesWindow::QtPropertiesWindow(QtPropertyReport report, QWidget *parent,
     setWindowModality(Qt::NonModal);
     setWindowFlag(Qt::WindowContextHelpButtonHint, false);
     QtBindLangText(this, IDS_PROPERTIES);
-    auto *buttons = new QtLangButtonBox(QDialogButtonBox::Close, this);
+    auto *buttons = new QtLangButtonBox(QDialogButtonBox::NoButton, this);
     buttons->setObjectName("propertiesActions");
     auto *copy = buttons->addButton(QString(), QDialogButtonBox::ActionRole);
     copy->setObjectName("propertiesCopyInformation");
@@ -65,7 +65,6 @@ QtPropertiesWindow::QtPropertiesWindow(QtPropertyReport report, QWidget *parent,
     QtBindLocalText(copy, "AboutDialog", QT_TRANSLATE_NOOP("AboutDialog", "Copy information"));
     connect(copy, &QPushButton::clicked, this,
             [this] { QApplication::clipboard()->setText(Information()); });
-    connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     auto *layout = QtCreateDialogLayout(*this, *buttons, QtDialogContent::Scrollable);
     const bool directory =
         report_.items.isEmpty() ||
@@ -97,6 +96,7 @@ QtPropertiesWindow::QtPropertiesWindow(QtPropertyReport report, QWidget *parent,
         list->setWordWrap(true);
         list->setTextInteractionFlags(Qt::TextSelectableByMouse | Qt::TextSelectableByKeyboard);
         auto *section = new QtDisclosure(list, this);
+        section->setExpanded(true);
         section->setObjectName("propertiesSelectedObjects");
         QtBindLocalText(section->button(), "PropertiesWindow",
                         QT_TRANSLATE_NOOP("PropertiesWindow", "Selected objects"));
@@ -106,8 +106,6 @@ QtPropertiesWindow::QtPropertiesWindow(QtPropertyReport report, QWidget *parent,
         BuildGroup(i, false, *layout);
         BuildGroup(i, true, *layout);
     }
-    buttons->button(QDialogButtonBox::Close)->setDefault(true);
-    buttons->button(QDialogButtonBox::Close)->setFocus();
     Refresh();
     resize(520, 440);
     QtFitScrollableDialog(*this);
@@ -136,8 +134,7 @@ void QtPropertiesWindow::BuildGroup(qsizetype index, bool comments, QVBoxLayout 
     }
     auto *section = new QtDisclosure(values, this);
     section->setObjectName(values->objectName() + "Disclosure");
-    if (group.scope == Scope::Checksums)
-        section->setExpanded(true);
+    section->setExpanded(true);
     sections_.append({index, comments, section});
     layout.addWidget(section);
 }

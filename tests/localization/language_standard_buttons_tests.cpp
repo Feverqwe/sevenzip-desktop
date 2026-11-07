@@ -1,4 +1,3 @@
-#include "dialogs/about/AboutDialog.h"
 #include "dialogs/combo/ComboDialog.h"
 #include "dialogs/compress/createarchivedialog.h"
 #include "dialogs/compress/qtcompressoptionsdialog.h"
@@ -49,8 +48,6 @@ class LanguageStandardButtonsTests final : public QObject {
             return initialize<CEditDialog>();
         if (name == "list")
             return initialize<CListViewDialog>();
-        if (name == "about")
-            return initialize<CAboutDialog>();
         if (name == "compress-options") {
             compression_.FormatOptions = &profile_;
             compression_.ArcInfo.Name = "7z";
@@ -96,9 +93,6 @@ class LanguageStandardButtonsTests final : public QObject {
                 else if (button == QDialogButtonBox::Ok && name == "password")
                     QCOMPARE(control->text(),
                              russian ? QStringLiteral("Продолжить") : QString("Continue"));
-                else if (button == QDialogButtonBox::Ok && name == "about")
-                    QCOMPARE(control->text(),
-                             russian ? QStringLiteral("Закрыть") : QString("Close"));
                 else
                     QCOMPARE(control->text(), expected(button, russian));
             }
@@ -117,9 +111,6 @@ class LanguageStandardButtonsTests final : public QObject {
         } else if (name == "list") {
             normal = QSize(540, 360);
             compact = QSize(360, 240);
-        } else if (name == "about") {
-            normal = QSize(360, 330);
-            compact = QSize(300, 310);
         } else if (name == "extract") {
             normal = QSize(640, 360);
             compact = QSize(470, 330);
@@ -198,7 +189,7 @@ class LanguageStandardButtonsTests final : public QObject {
     void sourceDialogsTranslateTheirStandardControls_data() {
         QTest::addColumn<QString>("name");
         QTest::addColumn<bool>("russian");
-        for (const char *name : {"copy", "combo", "password", "edit", "list", "about", "extract",
+        for (const char *name : {"copy", "combo", "password", "edit", "list", "extract",
                                  "compress-options", "compress"})
             for (bool russian : {false, true})
                 QTest::newRow(qPrintable(QString("%1-%2").arg(name).arg(russian)))

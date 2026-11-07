@@ -106,7 +106,7 @@ class DialogContentScroll final : public QScrollArea {
 };
 } // namespace
 
-QVBoxLayout *QtCreateDialogLayout(QWidget &window, QWidget &footer, QtDialogContent mode) {
+static QVBoxLayout *CreateDialogLayout(QWidget &window, QWidget *footer, QtDialogContent mode) {
     QtApplyDialogSurface(window);
     auto *frame = new QVBoxLayout(&window);
     frame->setContentsMargins(16, 16, 16, 16);
@@ -133,8 +133,17 @@ QVBoxLayout *QtCreateDialogLayout(QWidget &window, QWidget &footer, QtDialogCont
     } else {
         frame->addLayout(content, 1);
     }
-    frame->addWidget(&footer);
+    if (footer)
+        frame->addWidget(footer);
     return content;
+}
+
+QVBoxLayout *QtCreateDialogLayout(QWidget &window, QWidget &footer, QtDialogContent mode) {
+    return CreateDialogLayout(window, &footer, mode);
+}
+
+QVBoxLayout *QtCreateDialogLayout(QWidget &window, QtDialogContent mode) {
+    return CreateDialogLayout(window, nullptr, mode);
 }
 
 void QtFitScrollableDialog(QWidget &window) {
