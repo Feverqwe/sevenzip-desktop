@@ -272,96 +272,27 @@ class CompressionFormatTests final : public QObject {
             E_ABORT);
         QVERIFY(!QFileInfo::exists(cancelled));
     }
-    void hashMethodUpdatesArchiveName_data() {
-        QTest::addColumn<QString>("language");
-        QTest::newRow("en") << QString("-");
-        QTest::newRow("ru") << QString("ru");
-    }
-    void hashMethodUpdatesArchiveName() {
-        QFETCH(QString, language);
-        QFile::remove(settings_);
-        SaveRegLang(UString(language.toStdWString().c_str()), settings_);
-        ReloadLang(settings_);
-        const int hash = catalog_->formatIndex("hash");
-        QVERIFY(hash >= 0);
-        CCompressDialog source;
-        source.Info.FormatIndex = hash;
-        source.Info.ArcPath = fixture_.filePath("hash output 空").toStdWString().c_str();
-        CObjectVector<NWildcard::CCensorPath> paths;
-        paths.AddNew().Path = input_.toStdWString().c_str();
-        QCOMPARE(NCompressDialog::PrepareFormatSelection(source, catalog_->nativeCodecs(), paths),
-                 S_OK);
-        CreateArchiveDialog dialog(fixture_.path(), {input_}, nullptr, catalog_, &source);
-        auto *method = dialog.findChild<QComboBox *>("compressionMethod");
-        auto *name = dialog.findChild<QLineEdit *>("archiveName");
-        QCOMPARE(method->currentText(), QString("*  SHA256"));
-        QCOMPARE(dialog.sourceInfo().Level, UInt32(-1));
-        QVERIFY(name->text().endsWith(".sha256"));
-        method->setCurrentText("SHA1");
-        QCOMPARE(QString::fromWCharArray(dialog.sourceInfo().Method.Ptr()), QString("SHA1"));
-        QVERIFY2(name->text().endsWith(".sha1"), qPrintable(name->text()));
-        method->setCurrentIndex(0);
-        QVERIFY(dialog.sourceInfo().Method.IsEmpty());
-        QVERIFY(name->text().endsWith(".sha256"));
-        dialog.reject();
-    }
-    void nativeHashModalWritesChosenMethod() {
-        QFile::remove(settings_);
-        QFile::remove(input_ + ".sha1");
+    void guiRejectsChecksumManifestCreation() {
         ArchiveBackend backend;
         QCOMPARE(backend.loadCodecCatalog(module_, catalog_->version()), S_OK);
-        QStringList errors;
+        bool shown = false;
         QtShellArchiveServices service(
             backend, nullptr,
-            {.Error =
-                 [&](HRESULT, const UString &message) {
-                     errors.append(QString::fromWCharArray(message.Ptr()));
-                 },
+            {.Error = [](HRESULT, const UString &) {},
              .Modal =
-                 [&](CCompressDialog &source, const CObjectVector<NWildcard::CCensorPath> &paths,
-                     QWidget *parent) {
-                     return CreateArchiveDialog::PresentSource(source, paths,
-                                                               backend.codecCatalog(), parent);
+                 [&](CCompressDialog &, const CObjectVector<NWildcard::CCensorPath> &, QWidget *) {
+                     shown = true;
+                     return E_ABORT;
                  }});
-        bool shown = false;
-        QTimer responder;
-        connect(&responder, &QTimer::timeout, this, [&] {
-            if (auto *dialog =
-                    qobject_cast<CreateArchiveDialog *>(QApplication::activeModalWidget())) {
-                if (!shown) {
-                    shown = true;
-                    dialog->findChild<QComboBox *>("compressionMethod")->setCurrentText("SHA1");
-                    dialog->findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok)->click();
-                }
-            } else if (auto *progress =
-                           dynamic_cast<CProgressDialog *>(QApplication::activeModalWidget())) {
-                auto *button = progress->findChild<QPushButton *>("IDCANCEL");
-                if (button && button->property("languageID").toUInt() == IDS_CLOSE)
-                    button->click();
-            } else if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
-                errors.append(box->text());
-                box->accept();
-            }
-        });
-        responder.start(5);
+        const QString output = fixture_.filePath("checksums.sha256");
         UStringVector paths;
         paths.Add(UString(input_.toStdWString().c_str()));
-        service.CompressFiles(UString((fixture_.path() + '/').toStdWString().c_str()),
-                              UString(L"checksums.sha256"), UString(L"hash"), false, paths, false,
-                              true, false);
-        responder.stop();
-        QVERIFY(shown);
-        QVERIFY2(errors.isEmpty(), qPrintable(errors.join(" | ")));
-        QCOMPARE(service.Result(), S_OK);
-        QFile manifest(input_ + ".sha1");
-        QVERIFY(manifest.open(QIODevice::ReadOnly));
-        const QByteArray bytes = manifest.readAll();
-        QVERIFY(bytes.toLower().contains(
-            QCryptographicHash::hash("format selection bytes", QCryptographicHash::Sha1).toHex()));
-        QVERIFY(
-            QString::fromUtf8(bytes)
-                .normalized(QString::NormalizationForm_C)
-                .contains(QFileInfo(input_).fileName().normalized(QString::NormalizationForm_C)));
+        QCOMPARE(service.CompressSelection(UString((fixture_.path() + '/').toStdWString().c_str()),
+                                           UString(L"checksums.sha256"), UString(L"hash"), false,
+                                           paths, false, true, false),
+                 E_NOTIMPL);
+        QVERIFY(!shown);
+        QVERIFY(!QFileInfo::exists(output));
     }
 };
 QTEST_MAIN(CompressionFormatTests)

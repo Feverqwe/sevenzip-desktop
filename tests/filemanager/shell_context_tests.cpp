@@ -414,7 +414,7 @@ class ShellContextTests final : public QObject {
         QCOMPARE(launch.type, QString("7z"));
         QVERIFY(!launch.dialog);
     }
-    void checksumSubmenuMapsAllSourceMethodsAndGeneration() {
+    void checksumSubmenuExposesCalculationOnly() {
         QTemporaryDir fixture;
         const QString settings = fixture.filePath("settings.ini");
         saveFlags(settings, NContextMenuFlags::kCRC_Cascaded);
@@ -435,13 +435,9 @@ class ShellContextTests final : public QObject {
         QCOMPARE(launch.method, QString("SHA256"));
         QVERIFY(launch.name.isEmpty());
         const int generate = menu.FindVerb(UString(L"SevenZip.Checksum.Generate.SHA256"));
-        QVERIFY(generate >= 0);
-        QCOMPARE(menu.InvokeCommandCommon(menu.Commands()[unsigned(generate)]), S_OK);
-        QCOMPARE(launch.name, QString("данные 空.txt.sha256"));
+        QCOMPARE(generate, -1);
         const int test = menu.FindVerb(UString(L"SevenZip.Checksum.Test.Hash"));
-        QVERIFY(test >= 0);
-        QCOMPARE(menu.InvokeCommandCommon(menu.Commands()[unsigned(test)]), S_OK);
-        QVERIFY(launch.hashMode);
+        QCOMPARE(test, -1);
     }
 };
 QTEST_MAIN(ShellContextTests)

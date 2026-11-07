@@ -215,6 +215,9 @@ HRESULT QtArchiveFolderManager::COpenServices::Open(CArchiveLink &link,
     const HRESULT nativeResult = Manager._backend.openNativeArchive(
         Catalog, path, format, &nativeProgress, nativeOpen, &nativeOptions);
     if (nativeOpen) {
+        const auto *handler = nativeOpen->formatInfo();
+        if (handler && handler->Flags_HashHandler())
+            return S_FALSE;
         link.NonOpen_ArcPath = nativeOpen->archiveLink().NonOpen_ArcPath;
         link.NonOpen_ErrorInfo = nativeOpen->archiveLink().NonOpen_ErrorInfo;
     }

@@ -339,7 +339,7 @@ if(BUILD_TESTING)
             "QT_QPA_PLATFORM=windows;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/native-zone-copy.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
     endif()
     target_include_directories(native_hash_ui_tests PRIVATE src tests)
-    target_link_libraries(native_hash_ui_tests PRIVATE Qt6::Test)
+    target_link_libraries(native_hash_ui_tests PRIVATE Qt6::Test sevenzip_widget_dialog_fixtures)
     if(SEVENZIP_CODEC_MODULE)
         target_compile_definitions(native_hash_ui_tests PRIVATE
             "SEVENZIP_CODEC_MODULE=\"${SEVENZIP_CODEC_MODULE}\"")

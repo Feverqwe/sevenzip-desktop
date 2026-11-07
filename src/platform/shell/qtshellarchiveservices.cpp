@@ -166,6 +166,12 @@ HRESULT QtShellArchiveServices::UpdateGUI(CCodecs &codecs, const CObjectVector<C
                                           bool &messageWasDisplayed, CUpdateCallbackGUI &callback) {
     if (&codecs != &_metadata || _backend.busy() || _catalog != _backend.codecCatalog())
         return _result = E_ABORT;
+    if (options.MethodMode.Type_Defined) {
+        const int index = options.MethodMode.Type.FormatIndex;
+        if (index >= 0 && unsigned(index) < codecs.Formats.Size() &&
+            codecs.Formats[unsigned(index)].Flags_HashHandler())
+            return _result = E_NOTIMPL;
+    }
     // Unix has no upstream MAPI consumer; do not silently report email success.
 #ifndef _WIN32
     if (options.EMailMode)

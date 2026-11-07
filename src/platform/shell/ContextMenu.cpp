@@ -3,7 +3,6 @@
 // Copied command tables, naming, query and invoke bodies. Win32 menu handles
 // and process calls are adapted through presentation/typed launch boundaries.
 #include "platform/shell/ContextMenu.h"
-#include "7zip/PropID.h"
 #include "7zip/UI/Common/ArchiveName.h"
 #include "7zip/UI/Explorer/ContextMenuFlags.h"
 #include "7zip/UI/Explorer/resource.h"
@@ -12,7 +11,6 @@
 #include "Windows/FileName.h"
 #include "archive/operations/ExtractingFilePath.h"
 #include "filemanager/FormatUtils.h"
-#include "filemanager/PropertyName.h"
 #include "fileops/native/FileDir.h"
 #include "localization/LangUtils.h"
 #include "operations/CompressCall.h"
@@ -101,9 +99,7 @@ static const CHashCommand g_HashCommands[] = {
     {CZipContextMenu::kHash_SHA384, "SHA-384", "SHA384"},
     {CZipContextMenu::kHash_SHA512, "SHA-512", "SHA512"},
     {CZipContextMenu::kHash_SHA3_256, "SHA3-256", "SHA3-256"},
-    {CZipContextMenu::kHash_BLAKE2SP, "BLAKE2sp", "BLAKE2sp"},
-    {CZipContextMenu::kHash_Generate_SHA256, "SHA-256 -> file.sha256", "SHA256"},
-    {CZipContextMenu::kHash_TestArc, "Checksum : Test", "Hash"}};
+    {CZipContextMenu::kHash_BLAKE2SP, "BLAKE2sp", "BLAKE2sp"}};
 
 static int FindCommand(CZipContextMenu::enum_CommandInternalID &id) {
     for (unsigned i = 0; i < Z7_ARRAY_SIZE(g_Commands); i++)
@@ -796,44 +792,7 @@ HRESULT CZipContextMenu::QueryContextMenu(CMenuHandle *hMenu, UINT indexMenu, UI
                     UString s;
                     s += hc.UserName;
 
-                    if (hc.CommandInternalID == kHash_Generate_SHA256) {
-                        cmi.Verb += "Generate";
-                        {
-                            popupMenu.Attach(hMenu);
-                            CMenuItem mi;
-                            mi.fType = kSeparator;
-                            mi.fMask = kType;
-                            subMenu.InsertItem(subIndex_CRC++, true, mi);
-                        }
-
-                        UString name;
-                        UString showName;
-                        ODS("### Hash CreateArchiveName Start")
-                        // for (int y = 0; y < 10000; y++) // for debug
-                        // if (fileNames->Size() == 1) name = fs2us(fi0.Name); else
-                        name = CreateArchiveName(*fileNames,
-                                                 true, // isHash
-                                                 fileNames->Size() == 1 ? &fi0 : NULL, showName);
-                        if (needReduce)
-                            showName += "_";
-                        else
-                            showName = name;
-
-                        ODS("### Hash CreateArchiveName END")
-                        name += ".sha256";
-                        showName += ".sha256";
-                        cmi.Folder = fs2us(folderPrefix);
-                        cmi.ArcName = name;
-                        s = "SHA-256 -> ";
-                        s += showName;
-                    } else if (hc.CommandInternalID == kHash_TestArc) {
-                        cmi.Verb += "Test";
-                        s = LangStringAlt(IDS_CONTEXT_TEST, "Test archive");
-                        s += " : ";
-                        s += GetNameOfProperty(kpidChecksum, UString("Checksum"));
-                    } else
-                        cmi.Verb += "Calc";
-
+                    cmi.Verb += "Calc";
                     cmi.Verb.Add_Dot();
                     cmi.Verb += hc.MethodName;
 
@@ -996,30 +955,12 @@ HRESULT CZipContextMenu::InvokeCommandCommon(const CCommandMapItem &cmi) {
         case kHash_SHA384:
         case kHash_SHA512:
         case kHash_SHA3_256:
-        case kHash_BLAKE2SP:
-        case kHash_Generate_SHA256:
-        case kHash_TestArc: {
+        case kHash_BLAKE2SP: {
             for (unsigned i = 0; i < Z7_ARRAY_SIZE(g_HashCommands); i++) {
                 const CHashCommand &hc = g_HashCommands[i];
                 if (hc.CommandInternalID == cmdID) {
-                    if (cmdID == kHash_TestArc) {
-                        _services->TestArchives(_fileNames, true); // hashMode
-                        break;
-                    }
-                    UString generateName;
-                    if (cmdID == kHash_Generate_SHA256) {
-                        generateName = cmi.ArcName;
-                        if (_fileNames_WereReduced) {
-                            UString arcName_base;
-                            generateName = CreateArchiveName(_fileNames,
-                                                             true, // isHash
-                                                             NULL, // fi0
-                                                             arcName_base);
-                            generateName += ".sha256";
-                        }
-                    }
-                    _services->CalcChecksum(_fileNames, (UString)hc.MethodName, cmi.Folder,
-                                            generateName);
+                    _services->CalcChecksum(_fileNames, UString(hc.MethodName), UString(),
+                                            UString());
                     break;
                 }
             }

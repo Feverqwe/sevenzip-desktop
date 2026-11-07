@@ -190,25 +190,16 @@ class ShellArchiveServicesTests final : public QObject {
                  qPrintable(dismissal.ResultValues.join(" | ")));
         QCOMPARE(readFile(path), QByteArray("abc"));
     }
-    void nativeHashFileTest_data() {
-        QTest::addColumn<bool>("valid");
-        QTest::addColumn<bool>("unsafe");
-        QTest::newRow("valid") << true << false;
-        QTest::newRow("crc-error") << false << false;
-        QTest::newRow("unsafe-parent-path") << false << true;
-    }
-    void nativeHashFileTest() {
-        QFETCH(bool, valid);
-        QFETCH(bool, unsafe);
+    void archiveTestRejectsChecksumManifest() {
         QTemporaryDir fixture;
         const QString name = QStringLiteral("checksum 空 file.bin");
-        QVERIFY(writeFile(fixture.filePath("inner/" + name), valid ? "abc" : "wrong"));
+        QVERIFY(writeFile(fixture.filePath("inner/" + name), "abc"));
         const QString sentinel = fixture.filePath("outside.bin");
         QVERIFY(writeFile(sentinel, "abc"));
         const QString manifest = fixture.filePath("inner/checksums.sha256");
         const QByteArray bytes =
-            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad  " +
-            (unsafe ? QByteArray("../outside.bin") : name.toUtf8()) + "\n";
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad  " + name.toUtf8() +
+            "\n";
         QVERIFY(writeFile(manifest, bytes));
         ArchiveBackend backend;
         ArchiveCodecCatalog probe(_module, 0);
@@ -219,7 +210,7 @@ class ShellArchiveServicesTests final : public QObject {
         UStringVector paths;
         paths.Add(us(manifest));
         CDismissal dismissal;
-        QCOMPARE(::TestArchives(paths, true, service), valid ? S_OK : E_FAIL);
+        QCOMPARE(::TestArchives(paths, false, service), E_FAIL);
         QCOMPARE(readFile(manifest), bytes);
         QCOMPARE(readFile(sentinel), QByteArray("abc"));
         QVERIFY(!backend.busy());

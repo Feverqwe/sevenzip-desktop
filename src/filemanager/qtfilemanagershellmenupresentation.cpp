@@ -12,9 +12,6 @@ bool QtFileManagerShellMenu::Exposed(const CZipContextMenu::CCommandMapItem &com
     switch (command.CommandInternalID) {
     case C::kOpen:
         return command.ArcType != UString(L"*") && !command.ArcType.IsPrefixedBy(L"#");
-    case C::kHash_Generate_SHA256:
-    case C::kHash_TestArc:
-        return false;
     default:
         return true;
     }

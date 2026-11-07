@@ -53,9 +53,7 @@ class CZipContextMenu
         kHash_SHA384,
         kHash_SHA512,
         kHash_SHA3_256,
-        kHash_BLAKE2SP,
-        kHash_Generate_SHA256,
-        kHash_TestArc
+        kHash_BLAKE2SP
     };
 
     struct CCommandMapItem {

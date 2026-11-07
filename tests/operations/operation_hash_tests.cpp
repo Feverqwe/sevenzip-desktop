@@ -146,17 +146,11 @@ class OperationHashTests final : public QObject {
         QTest::newRow("shell") << false;
         QTest::newRow("panel") << true;
     }
-    void checksumManifestUsesNativeVerification_data() {
-        QTest::addColumn<bool>("valid");
-        QTest::newRow("valid") << true;
-        QTest::newRow("mismatch") << false;
-    }
-    void checksumManifestUsesNativeVerification() {
-        QFETCH(bool, valid);
+    void guiTestRejectsChecksumManifest() {
         QTemporaryDir directory;
         QVERIFY(directory.isValid());
         const QString name = QStringLiteral("checked 空.txt");
-        QVERIFY(writeFile(directory.filePath(name), valid ? "abc" : "wrong"));
+        QVERIFY(writeFile(directory.filePath(name), "abc"));
         const QString manifest = directory.filePath("checksums.sha256");
         const QByteArray contents =
             QCryptographicHash::hash("abc", QCryptographicHash::Sha256).toHex() + "  " +
@@ -166,10 +160,9 @@ class OperationHashTests final : public QObject {
         job.Paths = {manifest};
         job.HashMode = true;
         job.YesToAll = true;
-        QCOMPARE(Run(job).Status, valid ? Outcome::Success : Outcome::Failure);
+        QCOMPARE(Run(job).Status, Outcome::Failure);
         QCOMPARE(readFile(manifest), contents);
-        QCOMPARE(readFile(directory.filePath(name)),
-                 valid ? QByteArray("abc") : QByteArray("wrong"));
+        QCOMPARE(readFile(directory.filePath(name)), QByteArray("abc"));
     }
     void cancellationIsDistinctFromSuccess() {
         QFETCH(bool, panel);

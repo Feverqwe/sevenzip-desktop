@@ -1,7 +1,6 @@
 #include "archive/codecs/archivecodeccatalog.h"
 #include "filemanager/support/window_state_support.h"
 #include "support/widget_dialogs.h"
-#include "ui/progress/ProgressDialog2.h"
 
 class NativeHashUiTests final : public QObject, protected MainWindowTestSupport {
     Q_OBJECT
@@ -24,66 +23,48 @@ class NativeHashUiTests final : public QObject, protected MainWindowTestSupport 
         version_ = backend.codecCatalog()->version();
 #endif
     }
-    void hashFileTestUsesSourceReader_data() {
-        QTest::addColumn<QString>("outcome");
-        for (const char *outcome : {"success", "crc", "missing", "unsafe"})
-            QTest::newRow(outcome) << QString::fromLatin1(outcome);
-    }
-    void hashFileTestUsesSourceReader() {
-        QFETCH(QString, outcome);
+    void manifestOpensAsAnOrdinaryFile() {
         QTemporaryDir temporary;
         QVERIFY(temporary.isValid());
         const QString name = QStringLiteral("имя с пробелом.txt");
-        QFile input(temporary.filePath(name));
-        QVERIFY(input.open(QIODevice::WriteOnly));
-        QCOMPARE(input.write("123456789"), qint64(9));
-        input.close();
         const QByteArray digest =
-            QCryptographicHash::hash(outcome == "crc" ? QByteArray("wrong")
-                                                      : QByteArray("123456789"),
-                                     QCryptographicHash::Sha256)
-                .toHex();
-        const QString entry = outcome == "unsafe"    ? "../outside.txt"
-                              : outcome == "missing" ? "missing.txt"
-                                                     : name;
+            QCryptographicHash::hash("123456789", QCryptographicHash::Sha256).toHex();
         const QString manifest = temporary.filePath("checksums.sha256");
         QFile hashes(manifest);
         QVERIFY(hashes.open(QIODevice::WriteOnly));
-        const QByteArray data = digest + "  " + entry.toUtf8() + "\n";
+        const QByteArray data = digest + "  " + name.toUtf8() + "\n";
         QCOMPARE(hashes.write(data), qint64(data.size()));
         hashes.close();
+
         ArchiveBackend backend(nullptr, engine_);
         QCOMPARE(backend.loadCodecCatalog(module_, version_), S_OK);
-        MainWindow window(&backend);
+        QUrl opened;
+        MainWindow window(&backend, [&](const QUrl &url) {
+            opened = url;
+            return true;
+        });
         window.show();
-        window.openArchive(manifest);
-        QTRY_COMPARE(table(window)->rowCount(), 1);
-        table(window)->selectAll();
-        QStringList errors;
+        auto *address = window.findChild<QLineEdit *>("archivePath");
+        QVERIFY(address);
+        address->setText(temporary.path());
+        emit address->returnPressed();
+        QTRY_VERIFY(filesystemRow(window, "checksums.sha256") >= 0);
+        table(window)->selectRow(filesystemRow(window, "checksums.sha256"));
+        auto *open = action(window, "openItemAction");
+        QTRY_VERIFY(open->isEnabled());
+        open->trigger();
+        QCOMPARE(QFileInfo(opened.toLocalFile()).canonicalFilePath(),
+                 QFileInfo(manifest).canonicalFilePath());
+
         QTimer responder;
         dialogs_.connectResponder(responder, this, [&] {
-            if (auto *box = qobject_cast<QMessageBox *>(dialogs_.activeDialog())) {
-                if (box->icon() == QMessageBox::Warning || box->icon() == QMessageBox::Critical)
-                    errors.append(box->text());
+            if (auto *box = qobject_cast<QMessageBox *>(dialogs_.activeDialog()))
                 box->accept();
-            } else if (auto *dialog = dynamic_cast<CProgressDialog *>(dialogs_.activeDialog())) {
-                auto *pause = dialog->findChild<QPushButton *>("IDB_PAUSE");
-                if (pause && !pause->isVisible()) {
-                    FOR_VECTOR(i, dialog->Sync.Messages)
-                    errors.append(ToQString(dialog->Sync.Messages[i]));
-                    const UString &final = dialog->Sync.FinalMessage.ErrorMessage.Message;
-                    if (!final.IsEmpty())
-                        errors.append(ToQString(final));
-                    dialog->findChild<QPushButton *>("IDCANCEL")->click();
-                }
-            }
         });
         responder.start(1);
-        window.testArchive();
+        window.openArchive(manifest);
         responder.stop();
-        QCOMPARE(errors.isEmpty(), outcome == "success");
-        QVERIFY(input.open(QIODevice::ReadOnly));
-        QCOMPARE(input.readAll(), QByteArray("123456789"));
+        QTRY_VERIFY(filesystemRow(window, "checksums.sha256") >= 0);
         QVERIFY(hashes.open(QIODevice::ReadOnly));
         QCOMPARE(hashes.readAll(), data);
     }

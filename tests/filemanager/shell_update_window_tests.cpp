@@ -72,8 +72,7 @@ class ShellUpdateWindowTests final : public QObject, protected MainWindowTestSup
     }
     void popupAndToolbarPassBoundSelectionToOperationGui_data() {
         QTest::addColumn<QString>("type");
-        for (const QString &type :
-             {"7z", "zip", "hash", "modal", "toolbar", "program-7z", "program-modal"})
+        for (const QString &type : {"7z", "zip", "modal", "toolbar", "program-7z", "program-modal"})
             QTest::newRow(qPrintable(type)) << type;
     }
     void popupAndToolbarPassBoundSelectionToOperationGui() {
@@ -97,10 +96,9 @@ class ShellUpdateWindowTests final : public QObject, protected MainWindowTestSup
         const bool toolbar = type == "toolbar";
         const bool modal = type.endsWith("modal") || toolbar;
         const bool program = type.startsWith("program-");
-        const QString verb = modal            ? "SevenZipCompress"
-                             : type == "hash" ? "SevenZip.Checksum.Generate.SHA256"
-                             : type == "zip"  ? "SevenZipCompressToZip"
-                                              : "SevenZipCompressTo7z";
+        const QString verb = modal           ? "SevenZipCompress"
+                             : type == "zip" ? "SevenZipCompressToZip"
+                                             : "SevenZipCompressTo7z";
         if (toolbar) {
             QVERIFY(action(window, "toolbarAddAction")->isEnabled());
             view->setFocus();
@@ -135,9 +133,7 @@ class ShellUpdateWindowTests final : public QObject, protected MainWindowTestSup
         QCOMPARE(job.Operation, QtOperationJob::Command::Compress);
         QCOMPARE(job.ShowDialog, modal);
         if (!modal)
-            QCOMPARE(job.ArchiveType, type == "hash"  ? QString("hash")
-                                      : type == "zip" ? QString("zip")
-                                                      : QString("7z"));
+            QCOMPARE(job.ArchiveType, type == "zip" ? QString("zip") : QString("7z"));
         QCOMPARE(job.Paths.size(), 1);
         const QDir base(fixture.path());
         QCOMPARE(QDir::cleanPath(base.absoluteFilePath(job.Paths.first()))
@@ -185,10 +181,10 @@ class ShellUpdateWindowTests final : public QObject, protected MainWindowTestSup
             auto *compress = findVerb(*menu, "SevenZipCompress");
             auto *sevenZip = findVerb(*menu, "SevenZipCompressTo7z");
             auto *zip = findVerb(*menu, "SevenZipCompressToZip");
-            auto *generate = findVerb(*menu, "SevenZip.Checksum.Generate.SHA256");
-            QVERIFY(compress && sevenZip && zip && generate);
+            auto *checksum = findVerb(*menu, "SevenZip.Checksum.Calc.SHA256");
+            QVERIFY(compress && sevenZip && zip && checksum);
             QVERIFY(compress->isEnabled());
-            QVERIFY(sevenZip->isEnabled() && zip->isEnabled() && generate->isEnabled());
+            QVERIFY(sevenZip->isEnabled() && zip->isEnabled() && checksum->isEnabled());
             QMenu *child = root->menu();
             child->popup(menu->mapToGlobal(menu->actionGeometry(root).topRight()));
             QCoreApplication::processEvents();
@@ -203,7 +199,7 @@ class ShellUpdateWindowTests final : public QObject, protected MainWindowTestSup
             QVERIFY(UiInspection::writeReport(*child, tag));
             QMenu *hashMenu = nullptr;
             for (auto *action : child->actions())
-                if (action->menu() && action->menu()->actions().contains(generate))
+                if (action->menu() && action->menu()->actions().contains(checksum))
                     hashMenu = action->menu();
             QVERIFY(hashMenu);
             hashMenu->popup(

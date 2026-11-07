@@ -13,7 +13,6 @@
 #include "ui/support/layout_inspection.h"
 #include <QApplication>
 #include <QClipboard>
-#include <QCryptographicHash>
 #include <QDialogButtonBox>
 #include <QPlainTextEdit>
 #include <QProcess>
@@ -101,28 +100,16 @@ class SourcePropertiesTests final : public QObject {
         QCOMPARE(count, UInt32(0));
         QVERIFY(!data);
     }
-    void realEngineCrcAndRawChecksum_data() {
-        QTest::addColumn<bool>("raw");
-        QTest::newRow("ZIP-CRC") << false;
-        QTest::newRow("Hash-raw-checksum") << true;
-    }
-    void realEngineCrcAndRawChecksum() {
-        QFETCH(bool, raw);
+    void realEngineZipCrc() {
         QTemporaryDir fixture;
-        const QByteArray bytes("hello");
         const QString file = QStringLiteral("файл с пробелом.txt");
-        QVERIFY(write(fixture.filePath(file), bytes));
-        const QString path = fixture.filePath(raw ? "fixture.sha256" : "fixture.zip");
-        const QByteArray digest = QCryptographicHash::hash(bytes, QCryptographicHash::Sha256);
-        if (raw)
-            QVERIFY(write(path, digest.toHex() + " *" + file.toUtf8() + '\n'));
-        else {
-            QProcess creator;
-            creator.setWorkingDirectory(fixture.path());
-            creator.start(QStandardPaths::findExecutable("7z"), {"a", "-tzip", "--", path, file});
-            QVERIFY(creator.waitForFinished(10000));
-            QCOMPARE(creator.exitCode(), 0);
-        }
+        QVERIFY(write(fixture.filePath(file), "hello"));
+        const QString path = fixture.filePath("fixture.zip");
+        QProcess creator;
+        creator.setWorkingDirectory(fixture.path());
+        creator.start(QStandardPaths::findExecutable("7z"), {"a", "-tzip", "--", path, file});
+        QVERIFY(creator.waitForFinished(10000));
+        QCOMPARE(creator.exitCode(), 0);
         ArchiveBackend backend;
         CMyComPtr<IFolderManager> manager = new QtArchiveFolderManager(backend);
         CFfpOpen opening(manager);
@@ -138,23 +125,10 @@ class SourcePropertiesTests final : public QObject {
         QVERIFY(!value(dialog, name(kpidType)).isEmpty());
         NWindows::NCOM::CPropVariant size;
         QCOMPARE(opening.Folder->GetProperty(0, kpidSize, &size), HRESULT(S_OK));
-        if (raw) {
-            QCOMPARE(size.vt, VARTYPE(VT_EMPTY));
-            CMyComPtr<IArchiveGetRawProps> props;
-            QCOMPARE(opening.Folder.QueryInterface(IID_IArchiveGetRawProps, &props), HRESULT(S_OK));
-            const void *data = nullptr;
-            UInt32 count = 0, type = 0;
-            QCOMPARE(props->GetRawProp(0, kpidChecksum, &data, &count, &type), HRESULT(S_OK));
-            QCOMPARE(type, UInt32(NPropDataType::kRaw));
-            QCOMPARE(QByteArray(static_cast<const char *>(data), int(count)), digest);
-            QCOMPARE(value(dialog, name(kpidChecksum)), QString::fromLatin1(digest.toHex()));
-            QVERIFY(value(dialog, "Characteristics").contains("256-bit"));
-        } else {
-            QCOMPARE(size.vt, VARTYPE(VT_UI8));
-            QCOMPARE(size.uhVal.QuadPart, UInt64(5));
-            QCOMPARE(value(dialog, name(kpidCRC)), QString("3610A686"));
-            QVERIFY(!value(dialog, "Method").isEmpty());
-        }
+        QCOMPARE(size.vt, VARTYPE(VT_UI8));
+        QCOMPARE(size.uhVal.QuadPart, UInt64(5));
+        QCOMPARE(value(dialog, name(kpidCRC)), QString("3610A686"));
+        QVERIFY(!value(dialog, "Method").isEmpty());
         QVERIFY(!backend.busy());
     }
     void fullArchiveValueAndLevels_data() {
