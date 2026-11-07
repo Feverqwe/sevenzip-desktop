@@ -6446,6 +6446,14 @@ Use `Revert` to recover timestamp.</source>
     <context>
         <name>qtfiletransfertransaction</name>
         <message>
+            <source>Destination folder changed during transfer: %1</source>
+            <translation>Папка назначения изменилась во время переноса: %1</translation>
+        </message>
+        <message>
+            <source>Could not roll back %1. Check the original destination folder.</source>
+            <translation>Не удалось откатить перенос «%1». Проверьте прежнюю папку назначения.</translation>
+        </message>
+        <message>
             <source>Source changed during transfer: %1</source>
             <translation>Источник изменился во время переноса: %1</translation>
         </message>

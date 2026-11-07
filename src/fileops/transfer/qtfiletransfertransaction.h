@@ -37,7 +37,11 @@ class QtFileTransferTransaction final {
         std::function<bool(const QString &, bool)> sourceMatches{};
     };
     FileTransferOperation &worker_;
-    QList<TransferPath> prepareTargets(QString &error) const;
+    QString destinationDirectory_;
+    QString destinationIdentity_;
+    QList<TransferPath> prepareTargets(QString &error);
+    bool destinationMatches() const;
+    QString destinationChangedMessage() const;
     bool transferEntry(const TransferPath &path, QList<TransferEntry> &completed, QString &error);
     FileTransferOperation::Completion finish(QList<TransferEntry> &completed, QString &error);
     void rememberFailure(const QString &error) noexcept;

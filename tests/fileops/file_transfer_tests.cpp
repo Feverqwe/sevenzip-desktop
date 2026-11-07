@@ -637,6 +637,52 @@ class FileTransferTests : public QObject {
         QCOMPARE(QDir(output).entryList(QDir::Files), QStringList{"first.txt"});
     }
 
+    void replacedDestinationDirectoryIsNotTouchedDuringRollback() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString output = fixture.filePath("output");
+        const QString original = fixture.filePath("renamed output");
+        QVERIFY(QDir().mkdir(output));
+        const QString first = fixture.filePath("first.txt");
+        const QString second = fixture.filePath("second.txt");
+        const QString target = QDir(output).filePath("first.txt");
+        const QString conflict = QDir(output).filePath("second.txt");
+        const auto write = [](const QString &path, const QByteArray &bytes) {
+            QFile file(path);
+            return file.open(QIODevice::WriteOnly) && file.write(bytes) == bytes.size();
+        };
+        const auto read = [](const QString &path) {
+            QFile file(path);
+            return file.open(QIODevice::ReadOnly) ? file.readAll() : QByteArray();
+        };
+        QVERIFY(write(first, "first source"));
+        QVERIFY(write(second, "second source"));
+        QVERIFY(write(conflict, "existing conflict"));
+        bool replaced = false;
+        FileTransferOperation move({first, second}, output, true);
+        QSignalSpy result(&move, &FileTransferOperation::result);
+        connect(
+            &move, &FileTransferOperation::overwriteRequested, &move,
+            [&](const OverwriteQuestion &) {
+                replaced = QDir().rename(output, original) && QDir().mkdir(output) &&
+                           write(target, "unrelated first") && write(conflict, "unrelated second");
+                move.submitOverwriteAnswer(NOverwriteAnswer::kYes);
+            },
+            Qt::DirectConnection);
+        move.start();
+        QVERIFY(move.wait(30000));
+        QTRY_COMPARE(result.size(), 1);
+        QVERIFY(replaced);
+        QCOMPARE(move.resultKind(), FileTransferOperation::ResultKind::Failure);
+        QVERIFY(result.first().at(1).toString().contains(output));
+        QVERIFY(!QFileInfo::exists(first));
+        QCOMPARE(read(second), QByteArray("second source"));
+        QCOMPARE(read(target), QByteArray("unrelated first"));
+        QCOMPARE(read(conflict), QByteArray("unrelated second"));
+        QCOMPARE(read(QDir(original).filePath("first.txt")), QByteArray("first source"));
+        QCOMPARE(read(QDir(original).filePath("second.txt")), QByteArray("existing conflict"));
+    }
+
     void changedMergeDestinationKeepsBothTrees_data() {
         QTest::addColumn<bool>("editConflict");
         QTest::newRow("conflicting-file") << true;
