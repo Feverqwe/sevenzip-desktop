@@ -7,6 +7,8 @@
 #include "localization/LangUtils.h"
 #include "localization/qtlangcontrols.h"
 #include "settings/RegistryUtils.h"
+#include "support/panel_keys.h"
+#include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
 
 class LanguageArchiveCommandTests final : public QObject {
@@ -43,9 +45,17 @@ class LanguageArchiveCommandTests final : public QObject {
                 dialog.show();
                 QString message;
                 bool geometry = false, reported = false;
-                QTimer::singleShot(0, &dialog, [&] {
-                    auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
-                    QVERIFY(box);
+                QTimer responder;
+                connect(&responder, &QTimer::timeout, &dialog, [&] {
+                    auto *modal = QApplication::activeModalWidget();
+                    if (auto *editor = qobject_cast<QDialog *>(modal);
+                        editor && editor->objectName() == "archiveExpertDialog") {
+                        editor->reject();
+                        return;
+                    }
+                    auto *box = qobject_cast<QMessageBox *>(modal);
+                    if (!box)
+                        return;
                     message = box->text();
                     auto *label = box->findChild<QLabel *>("qt_msgbox_label");
                     geometry = label && UiInspection::fullyVisible(*label, *box) &&
@@ -57,6 +67,7 @@ class LanguageArchiveCommandTests final : public QObject {
                         QString("language-compress-memory-%1-%2").arg(name).arg(size.width()));
                     box->accept();
                 });
+                responder.start(5);
                 dialog.findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok)->click();
                 QVERIFY(geometry && reported);
                 QVERIFY(message.startsWith(
@@ -85,17 +96,24 @@ class LanguageArchiveCommandTests final : public QObject {
         file.close();
         ControlledBackend backend;
         MainWindow window(&backend, [](const QUrl &) { return false; });
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
         auto *address = window.findChild<QLineEdit *>("archivePath");
+        PanelKeys::focusAddress(address);
         address->setText(fixture.path());
         QTest::keyClick(address, Qt::Key_Return);
         auto *table = window.findChild<FileTable *>("archiveTable");
-        int row = -1;
-        for (int i = 0; i < table->rowCount(); ++i)
-            if (table->model()->index(i, 0).data().toString() == QFileInfo(path).fileName())
-                row = i;
-        QVERIFY(row >= 0);
-        table->selectRow(row);
+        const auto findRow = [&] {
+            for (int row = 0; row < table->rowCount(); ++row)
+                if (table->model()->index(row, 0).data().toString() == QFileInfo(path).fileName())
+                    return row;
+            return -1;
+        };
+        QTRY_VERIFY(findRow() >= 0);
+        const int row = findRow();
         table->setCurrentCell(row, 0);
+        table->selectRow(row);
+        table->setFocus();
         for (const char *name : {"-", "ru", "-"}) {
             language(name);
             for (const char *command : {"viewFileAction", "editFileAction"}) {
@@ -122,12 +140,15 @@ class LanguageArchiveCommandTests final : public QObject {
                                       .arg(width));
                         box->accept();
                     });
-                    window.findChild<QAction *>(command)->trigger();
-                    QCOMPARE(message, QCoreApplication::translate("qtassociatedfileservices",
-                                                                  "Could not open file: %1")
-                                          .arg(path));
-                    QVERIFY(geometry && reported);
+                    auto *action = window.findChild<QAction *>(command);
+                    QTRY_VERIFY(action->isEnabled());
                     responder.start(5);
+                    action->trigger();
+                    const QString expected = name[0] == 'r'
+                                                 ? QStringLiteral("Не удалось открыть файл: %1")
+                                                 : QStringLiteral("Could not open file: %1");
+                    QCOMPARE(message, expected.arg(path));
+                    QVERIFY(geometry && reported);
                     QCOMPARE(backend.extractCalls, 0);
                     QCOMPARE(backend.listCalls, 0);
                     QCOMPARE(table->model()->index(row, 0).data().toString(),
