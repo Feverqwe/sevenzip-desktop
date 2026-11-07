@@ -77,6 +77,52 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         QTRY_COMPARE(location(window), b);
     }
 
+    void folderActivationRetainsListFocus() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString parent =
+            QDir(QFileInfo(fixture.path()).canonicalFilePath()).filePath("parent");
+        const QString child = QDir(parent).filePath("child");
+        const QString nested = QDir(child).filePath("nested");
+        createDirectory(child, 300);
+        createDirectory(nested);
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(parent);
+        QVERIFY(WindowActivation::waitForActive(window));
+        auto *view = table(window);
+        view->setFocus();
+        QTRY_VERIFY(view->hasFocus());
+        QTRY_VERIFY(filesystemRow(window, "child") >= 0);
+        view->setCurrentCell(filesystemRow(window, "child"), 0);
+#ifdef Q_OS_MACOS
+        QTest::keyClick(view, Qt::Key_Return, Qt::ControlModifier);
+        QTRY_VERIFY(view->findChild<QLineEdit *>());
+        QCOMPARE(location(window), parent);
+        QTest::keyClick(view->findChild<QLineEdit *>(), Qt::Key_Escape);
+        QTRY_VERIFY(!view->findChild<QLineEdit *>());
+#endif
+        QTest::keyClick(view, Qt::Key_Return);
+        QTRY_COMPARE(location(window), child);
+        QTRY_VERIFY(view->hasFocus());
+        QTRY_VERIFY(filesystemRow(window, "nested") >= 0);
+        QTest::keyClick(QApplication::focusWidget(), Qt::Key_Home);
+        const int firstRow = view->currentRow();
+        QTest::keyClick(QApplication::focusWidget(), Qt::Key_Down);
+        QVERIFY(view->currentRow() > firstRow);
+        view->setCurrentCell(filesystemRow(window, "nested"), 0);
+        const int sizeColumn = view->columnForProperty(kpidSize);
+        QVERIFY(sizeColumn >= 0);
+        const QPoint cell =
+            view->visualRect(view->model()->index(view->currentRow(), sizeColumn)).center();
+        QVERIFY(view->viewport()->rect().contains(cell));
+        QTest::mouseClick(view->viewport(), Qt::LeftButton, Qt::NoModifier, cell);
+        QTest::mouseDClick(view->viewport(), Qt::LeftButton, Qt::NoModifier, cell);
+        QTRY_COMPARE(location(window), nested);
+        QTRY_VERIFY(view->hasFocus());
+    }
+
     void forwardParentBranchAndLargeDirectoryViewport() {
         QTemporaryDir fixture;
         const QString a = fixture.filePath("A 空");

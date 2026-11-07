@@ -19,6 +19,9 @@ class QtWorkspaceFileTable final : public FileTable {
   protected:
     void resizeEvent(QResizeEvent *event) override;
     void paintEvent(QPaintEvent *event) override;
+    void scrollContentsBy(int dx, int dy) override;
+    void focusInEvent(QFocusEvent *event) override;
+    void focusOutEvent(QFocusEvent *event) override;
     void changeEvent(QEvent *event) override;
 
   private:

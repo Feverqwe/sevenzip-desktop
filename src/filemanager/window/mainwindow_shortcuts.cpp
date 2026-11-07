@@ -31,9 +31,10 @@ void MainWindow::configureShortcuts() {
     bindPanel(viewFile_, {QKeySequence(Qt::Key_F3)});
     bindPanel(editFile_, {QKeySequence(Qt::Key_F4)});
 #ifdef Q_OS_MACOS
-    bindPanel(openItem_, {QKeySequence(Qt::CTRL | Qt::Key_Down)});
-    bindPanel(rename_, {QKeySequence(Qt::Key_Return), QKeySequence(Qt::Key_Enter),
-                        QKeySequence(Qt::Key_F2)});
+    bindPanel(openItem_, {QKeySequence(Qt::Key_Return), QKeySequence(Qt::Key_Enter),
+                          QKeySequence(Qt::CTRL | Qt::Key_Down)});
+    bindPanel(rename_, {QKeySequence(Qt::CTRL | Qt::Key_Return),
+                        QKeySequence(Qt::CTRL | Qt::Key_Enter), QKeySequence(Qt::Key_F2)});
     bindPanel(remove_, {QKeySequence(Qt::CTRL | Qt::Key_Backspace)});
     bindPanel(properties_, {QKeySequence(Qt::CTRL | Qt::Key_I)});
     bindPanel(up_, {QKeySequence(Qt::CTRL | Qt::Key_Up)});

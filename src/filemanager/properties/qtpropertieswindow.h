@@ -40,6 +40,7 @@ class QtPropertiesWindow final : public QDialog {
     QList<Section> sections_;
     bool firstShow_ = true;
     QSize initialFrame_;
+    void FitInitialFrame();
     void BuildGroup(qsizetype index, bool comments, QVBoxLayout &layout);
     void Refresh();
     QString SummaryName() const;

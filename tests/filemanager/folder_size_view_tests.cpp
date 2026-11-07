@@ -1,6 +1,7 @@
 #include "Windows/PropVariant.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
+#include "ui/formatting/qtregionalformat.h"
 #include "ui/support/layout_inspection.h"
 
 namespace {
@@ -14,13 +15,16 @@ class FolderSizeViewTests final : public QObject, protected MainWindowTestSuppor
     Q_OBJECT
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
-    void f3CalculatesOperatedFoldersWithoutReloading_data() {
+    void calculatesOperatedFoldersWithoutReloading_data() {
         QTest::addColumn<bool>("compact");
-        QTest::newRow("normal") << false;
-        QTest::newRow("compact") << true;
+        QTest::addColumn<bool>("useMenu");
+        QTest::newRow("normal-f3") << false << false;
+        QTest::newRow("compact-f3") << true << false;
+        QTest::newRow("normal-menu") << false << true;
     }
-    void f3CalculatesOperatedFoldersWithoutReloading() {
+    void calculatesOperatedFoldersWithoutReloading() {
         QFETCH(bool, compact);
+        QFETCH(bool, useMenu);
         QTemporaryDir fixture;
         const QString folder = QStringLiteral("папка й space");
         QVERIFY(QDir().mkpath(fixture.filePath(folder + "/child")));
@@ -63,7 +67,13 @@ class FolderSizeViewTests final : public QObject, protected MainWindowTestSuppor
         window.activateWindow();
         view->setFocus();
         QTRY_VERIFY(view->hasFocus());
-        QTest::keyClick(view, Qt::Key_F3);
+        if (useMenu) {
+            auto *calculate = action(window, "calculateDirectorySizeAction");
+            QVERIFY(calculate->isEnabled());
+            calculate->trigger();
+        } else {
+            QTest::keyClick(view, Qt::Key_F3);
+        }
         QCOMPARE(view->sourcePanel->GetFolder(), provider);
         QCOMPARE(property(folder, kpidSize).vt, VARTYPE(VT_UI8));
         QCOMPARE(property(folder, kpidSize).uhVal.QuadPart, UInt64(8));
@@ -76,15 +86,15 @@ class FolderSizeViewTests final : public QObject, protected MainWindowTestSuppor
         const int sizeColumn = view->columnForProperty(kpidSize);
         QVERIFY(sizeColumn >= 0);
         QCOMPARE(view->model()->index(filesystemRow(window, folder), sizeColumn).data().toString(),
-                 QString("8"));
+                 QtRegionalFormat::bytes(8));
         QCOMPARE(view->model()->index(filesystemRow(window, "empty"), sizeColumn).data().toString(),
-                 QString("0"));
+                 QtRegionalFormat::bytes(0));
         QCOMPARE(view->model()->index(view->currentRow(), 0).data().toString(),
                  QString("focused.txt"));
         QCOMPARE(view->selectionModel()->selectedRows().size(), 2);
         QVERIFY(UiInspection::fullyVisible(*view, window));
-        QVERIFY(
-            UiInspection::writeReport(window, compact ? "folder-f3-compact" : "folder-f3-normal"));
+        QVERIFY(UiInspection::writeReport(window,
+                                          QString("folder-size-%1").arg(QTest::currentDataTag())));
         QCOMPARE(backend.extractCalls, 0);
     }
 };

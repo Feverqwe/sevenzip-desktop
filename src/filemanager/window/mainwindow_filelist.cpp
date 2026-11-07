@@ -100,7 +100,8 @@ void MainWindow::activateRow(int row, Qt::KeyboardModifiers modifiers) {
         return;
     if (row < 0 || row >= projectedUi().table->rowCount())
         return;
-    if (!projectedUi().table->selectionModel()->isRowSelected(row, QModelIndex()))
+    if (modifiers == Qt::NoModifier ||
+        !projectedUi().table->selectionModel()->isRowSelected(row, QModelIndex()))
         projectedUi().table->selectRow(row);
     projectedUi().table->setCurrentCell(row, 0, QItemSelectionModel::NoUpdate);
     activateItems(modifiers);

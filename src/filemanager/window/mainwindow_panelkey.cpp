@@ -61,6 +61,15 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
          event->type() == QEvent::MouseButtonDblClick)) {
         const auto *mouse = static_cast<QMouseEvent *>(event);
         selectionClickModifiers_ = mouse->modifiers();
+        auto *table = projectedUi().table;
+        if (event->type() == QEvent::MouseButtonDblClick && mouse->button() == Qt::LeftButton &&
+            watched == table->viewport() && table->isEnabled() && !isPanelEditorFocused()) {
+            const auto index = table->indexAt(mouse->position().toPoint());
+            if (index.isValid()) {
+                activateRow(index.row(), mouse->modifiers());
+                return true;
+            }
+        }
     }
     if (target == PanelInputTarget::Address && event->type() == QEvent::ShortcutOverride) {
         const auto *key = static_cast<QKeyEvent *>(event);

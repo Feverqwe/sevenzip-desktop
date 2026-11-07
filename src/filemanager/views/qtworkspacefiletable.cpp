@@ -25,6 +25,10 @@ QtWorkspaceFileTable::QtWorkspaceFileTable(const QString &settingsPath, QWidget 
     setItemDelegate(CreateFileRowDelegate(this, true));
     setTextElideMode(Qt::ElideRight);
     setShowGrid(false);
+    connect(selectionModel(), &QItemSelectionModel::currentRowChanged, viewport(),
+            [this] { viewport()->update(); });
+    connect(selectionModel(), &QItemSelectionModel::selectionChanged, viewport(),
+            [this] { viewport()->update(); });
     connect(horizontalHeader(), &QHeaderView::sectionResized, this, [this](int column) {
         if (configuring_ || group_.isEmpty())
             return;
@@ -219,6 +223,21 @@ void QtWorkspaceFileTable::paintEvent(QPaintEvent *event) {
     painter.setPen(QtWorkspaceTheme::colors().accent);
     const QRect row(1, item.top() + 1, viewport()->width() - 3, item.height() - 3);
     painter.drawRect(row);
+}
+
+void QtWorkspaceFileTable::scrollContentsBy(int dx, int dy) {
+    FileTable::scrollContentsBy(dx, dy);
+    viewport()->update();
+}
+
+void QtWorkspaceFileTable::focusInEvent(QFocusEvent *event) {
+    FileTable::focusInEvent(event);
+    viewport()->update();
+}
+
+void QtWorkspaceFileTable::focusOutEvent(QFocusEvent *event) {
+    FileTable::focusOutEvent(event);
+    viewport()->update();
 }
 
 void QtWorkspaceFileTable::changeEvent(QEvent *event) {

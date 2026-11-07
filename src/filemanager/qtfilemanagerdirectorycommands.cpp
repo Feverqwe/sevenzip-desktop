@@ -20,12 +20,18 @@ void QtFileManagerCommands::AttachDirectoryActions() {
 bool QtFileManagerCommands::CanCalculateDirectorySize() const {
     auto &panel = window_.app_.GetFocusedPanel();
     auto *folder = dynamic_cast<CAgentFolder *>(panel.GetFolder());
-    if (!folder)
+    CMyComPtr<IFolderCalcItemFullSize> filesystem;
+    if (panel.IsFSFolder() && panel.GetFolder())
+        panel.GetFolder()->QueryInterface(IID_IFolderCalcItemFullSize,
+                                          reinterpret_cast<void **>(&filesystem));
+    if (!folder && !filesystem)
         return false;
     CUIntVector indices;
     panel.Get_ItemIndices_Operated(indices);
     FOR_VECTOR(i, indices)
     if (panel.IsItem_Folder(indices[i])) {
+        if (filesystem)
+            return true;
         const int nativeIndex = folder->GetRealIndex(indices[i]);
         if (nativeIndex >= 0 && !folder->DirectoryItemSubtreeComplete(UInt32(nativeIndex)))
             return true;
@@ -36,6 +42,11 @@ bool QtFileManagerCommands::CanCalculateDirectorySize() const {
 void QtFileManagerCommands::CalculateDirectorySizes() {
     const unsigned source = window_.app_.GetFocusedPanelIndex();
     auto &panel = window_.app_.GetFocusedPanel();
+    if (panel.IsFSFolder()) {
+        if (CanCalculateDirectorySize())
+            panel.EditItem(false); // Native filesystem folder-size path also used by F3.
+        return;
+    }
     CMyComPtr<IFolderFolder> owner = panel.GetFolder();
     auto *folder = dynamic_cast<CAgentFolder *>(owner.Interface());
     if (!folder)

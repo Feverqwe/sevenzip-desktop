@@ -50,6 +50,9 @@ void QtFileManagerCommands::RunNativeOpen(const std::function<void(CPanel &)> &o
             w.workspace_->RetainNavigationFolder();
         if (wasFilesystem)
             w.projectedUi().returnDirectory = previousDirectory;
+        const auto *view = w.projectedUi().viewStack->currentWidget();
+        if (view && view->hasFocus())
+            w.workspace_->RetainListFocus(w.projectedPanel_);
         w.setState(MainWindow::State::Operating);
         {
             QScopedValueRollback<bool> source(w.sourceArchiveProgress_, true);

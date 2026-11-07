@@ -108,7 +108,7 @@ QtPropertiesWindow::QtPropertiesWindow(QtPropertyReport report, QWidget *parent,
     }
     Refresh();
     resize(520, 440);
-    QtFitScrollableDialog(*this);
+    FitInitialFrame();
     initialFrame_ = size();
     QtRegionalSettings::Observe(*this, [this] { Refresh(); });
 }
@@ -330,6 +330,12 @@ void QtPropertiesWindow::changeEvent(QEvent *event) {
         Refresh();
     QDialog::changeEvent(event);
 }
+void QtPropertiesWindow::FitInitialFrame() {
+    QtFitScrollableDialog(*this);
+    if (height() > 440)
+        resize(width(), 440);
+}
+
 void QtPropertiesWindow::showEvent(QShowEvent *event) {
     QDialog::showEvent(event);
     if (!firstShow_)
@@ -340,7 +346,7 @@ void QtPropertiesWindow::showEvent(QShowEvent *event) {
     const auto initial = size();
     QTimer::singleShot(0, this, [this, initial] {
         if (size() == initial)
-            QtFitScrollableDialog(*this);
+            FitInitialFrame();
     });
 }
 void QtPropertiesWindow::done(int result) {
