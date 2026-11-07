@@ -2,6 +2,7 @@
 #include "filemanager/window/qtmainwindowchrome.h"
 #include "filemanager/window/qtworkspacetheme.h"
 #include "operations/qtoperationregistry.h"
+#include "ui/controls/qtmenutext.h"
 #include "ui/theme/qtcommandicons.h"
 #include <QCoreApplication>
 #include <QEvent>
@@ -44,10 +45,6 @@ QString Status(const QtOperationListing &entry) {
         return Text(QT_TRANSLATE_NOOP("QtOperationsButton", "Review result"));
     }
     return {};
-}
-QString MenuText(QString text) {
-    // Source names are values, never mnemonics or QMenu's shortcut column.
-    return text.replace('&', "&&").replace('\t', ' ').replace('\n', ' ').replace('\r', ' ');
 }
 } // namespace
 
@@ -107,7 +104,8 @@ void QtOperationsButton::Populate() {
         if (!source.isEmpty())
             title += " — " +
                      fontMetrics().elidedText(QFileInfo(source).fileName(), Qt::ElideMiddle, 240);
-        auto *action = menu_->addAction(MenuText(title) + " · " + MenuText(Status(entry)));
+        auto *action =
+            menu_->addAction(QtLiteralMenuText(title) + " · " + QtLiteralMenuText(Status(entry)));
         action->setData(entry.Id);
         action->setToolTip("<qt>" + source.toHtmlEscaped().replace('\n', "<br>") + "</qt>");
         action->setEnabled(!entry.Result || *entry.Result != QtOperationResult::Outcome::Success);

@@ -2,6 +2,7 @@
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtrecentplacesstore.h"
 #include "filemanager/window/qtwindowworkspace.h"
+#include "ui/controls/qtmenutext.h"
 #include "ui/progress/ProgressDialog2.h"
 #include <QDir>
 #include <QFontMetrics>
@@ -39,9 +40,8 @@ void QtWindowWorkspace::ShowRecentPlaces(unsigned panel, QWidget &anchor) {
     for (int row = 0; row < qMin(maxPlaces, recentPlaces_->Count()); ++row) {
         const auto place = recentPlaces_->Place(row);
         const QString label = PlaceLabel(place);
-        auto *item = menu->addAction(menu->fontMetrics()
-                                         .elidedText(label, Qt::ElideMiddle, maxLabelWidth)
-                                         .replace('&', "&&"));
+        auto *item = menu->addAction(QtLiteralMenuText(
+            menu->fontMetrics().elidedText(label, Qt::ElideMiddle, maxLabelWidth)));
         item->setToolTip(label);
         item->setData(place.path);
         connect(item, &QAction::triggered, this, [this, panel, place] {

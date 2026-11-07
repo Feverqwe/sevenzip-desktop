@@ -230,7 +230,8 @@ class WorkspacePlacesTests final : public QObject {
                 favorites = store;
         QVERIFY(favorites);
         favorites->Add(a, "A");
-        favorites->Add(b, "B");
+        const QString label = QStringLiteral("B & C\tD");
+        favorites->Add(b, label);
         const QString id = favorites->Favorite(1).id;
         QtWindowWorkspace *owner = nullptr;
         for (auto *object : window.children())
@@ -245,9 +246,14 @@ class WorkspacePlacesTests final : public QObject {
         QTRY_VERIFY(menu->isVisible());
         QAction *selected = nullptr;
         for (auto *action : menu->actions())
-            if (action->text() == "B")
+            if (action->toolTip() == b)
                 selected = action;
         QVERIFY(selected);
+        QCOMPARE(selected->text(), QStringLiteral("B && C D"));
+        QVERIFY(QKeySequence::mnemonic(selected->text()).isEmpty());
+        QCOMPARE(favorites->Favorite(1).label, label);
+        if (!remove)
+            QVERIFY(UiInspection::writeReport(*menu, "saved-places-literal-label"));
         if (remove)
             QVERIFY(favorites->removeRow(favorites->IndexForId(id).row()));
         else

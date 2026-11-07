@@ -11,6 +11,7 @@
 #include "filemanager/panels/qtpanelpluginservices.h"
 #include "filemanager/qtfilemenuservices.h"
 #include "localization/LangUtils.h"
+#include "ui/controls/qtmenutext.h"
 #include <QAction>
 #include <QMenu>
 #include <QMenuBar>
@@ -195,9 +196,8 @@ void MyLoadBookmarks(QAction *const *openActions, QAction *const *setActions, CA
         }
         if (s.IsEmpty())
             s = '-';
-        s += "\tAlt+";
-        s.Add_Char((char)('0' + i));
-        openActions[i]->setText(QString::fromWCharArray(s));
+        openActions[i]->setText(QtLiteralMenuText(QString::fromWCharArray(s)) +
+                                QStringLiteral("\tAlt+") + QLatin1Char(char('0' + i)));
         const UString fullPath = app.AppState.FastFolders.GetString(i);
         openActions[i]->setToolTip(fullPath.IsEmpty() ? QString("-")
                                                       : QString::fromWCharArray(fullPath));
