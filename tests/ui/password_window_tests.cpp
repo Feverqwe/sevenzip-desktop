@@ -307,6 +307,10 @@ class PasswordWindowTests final : public QObject, protected MainWindowTestSuppor
         QCOMPARE(backend.cancelCalls, 0);
         QVERIFY(!action(window, "openInsideAction")->isEnabled());
         backend.fail(QStringLiteral("Операция отменена."), E_ABORT);
+        auto *result = TestProgressDialog::ResultWindow(QApplication::activeModalWidget());
+        QVERIFY(result);
+        TestProgressDialog::CloseResult(*result);
+        QVERIFY(!QApplication::activeModalWidget());
         QVERIFY(action(window, "testArchiveAction")->isEnabled());
         openListedArchive(window, backend, "empty.zip", {});
         QVERIFY(action(window, "testArchiveAction")->isEnabled());
