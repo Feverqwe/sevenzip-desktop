@@ -11,12 +11,17 @@ h1{font-size:14px;margin:0;font-weight:600;white-space:nowrap}p{margin:6px 0;col
 main{display:grid;grid-template-columns:minmax(0,1fr);flex:1;min-height:0}main.compare{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
 iframe{width:100%;height:100%;border:0}section{min-width:0;overflow:auto}#reference{padding:16px 20px;border-left:1px solid light-dark(#c9c9cf,#48484d)}#reference img{display:block;max-width:100%;height:auto;margin:20px auto;background:light-dark(#fff,#252527)}#reference h2{font-size:16px;margin:0 0 10px}#reference small{overflow-wrap:anywhere;color:light-dark(#626267,#b5b5bd)}[hidden]{display:none!important}#status{font-size:12px}
 @media(max-width:1000px){main.compare{grid-template-columns:1fr;overflow:auto;display:flex;flex-direction:column}main.compare>section:first-child{flex:none;height:100%}main.compare iframe{height:100%}#reference{flex:none;border-left:0;border-top:1px solid GrayText}}@media(max-width:600px){.tools{gap:8px}.tools h1{display:none}#window{max-width:calc(100vw - 24px)}}
+.window-nav{display:inline-flex;align-items:center;gap:4px;min-width:0;max-width:100%}.window-nav select{min-width:0}.window-nav button{flex:none}.window-nav button:disabled{opacity:.45;cursor:default}
 </style>
 <header>
 <div class="tools">
 <h1>Sevenzip · дизайн</h1>
 <a href="components.html" target="_blank">Компоненты ↗</a>
+<div class="window-nav">
+<button type="button" id="previous-window" aria-label="Предыдущее окно" title="Предыдущее окно" disabled>←</button>
 <select id="window" aria-label="Окно"></select>
+<button type="button" id="next-window" aria-label="Следующее окно" title="Следующее окно" disabled>→</button>
+</div>
 <label><input type="checkbox" id="compare" checked> Сравнить со снимком</label>
 <select id="scheme" aria-label="Тема макета и снимка"><option value="light">Светлая</option><option value="dark">Тёмная</option></select>
 <details class="review-info"><summary>О макете и ссылки</summary><div class="review-info-body">
@@ -40,8 +45,6 @@ iframe{width:100%;height:100%;border:0}section{min-width:0;overflow:auto}#refere
 <a href="specs/create-archive.md" target="_blank">Создание архива ↗</a>
 <a href="specs/extract-archive.md" target="_blank">Распаковка ↗</a>
 <a href="specs/archive-password.md" target="_blank">Пароль ↗</a>
-<a href="specs/memory-request.md" target="_blank">Запрос памяти ↗</a>
-<a href="specs/benchmark.md" target="_blank">Тест производительности ↗</a>
 <a href="specs/about-and-licenses.md" target="_blank">О программе и лицензии ↗</a>
 <a href="specs/archive-opening.md" target="_blank">Открытие архивов ↗</a>
 <a href="specs/devices.md" target="_blank">Устройства ↗</a>
@@ -58,19 +61,34 @@ iframe{width:100%;height:100%;border:0}section{min-width:0;overflow:auto}#refere
 </div></details></div>
 </header>
 <main class="compare">
-<section><iframe id="concept" src="sevenzip-preview.html?previewVersion=simple-main-v63" title="Интерактивный концепт Sevenzip"></iframe></section>
+<section><iframe id="concept" src="sevenzip-preview.html?previewVersion=mount-actions-v102" title="Интерактивный концепт Sevenzip"></iframe></section>
 <section id="reference"><h2>Снимок реализации</h2><select id="shot" aria-label="Состояние на снимке реализации"></select><p id="capture"></p><img id="image" alt=""><small id="filename"></small><p><a id="png" target="_blank">PNG</a> · <a id="json" target="_blank">Состав и размеры виджетов</a></p></section>
 </main>
 <script>
 let catalog,manifest,rows=[],selected=decodeURIComponent(location.hash.slice(1))||'main',conceptReady=false;
 const $=id=>document.getElementById(id),frame=$('concept');
-const previewUrl=new URL('sevenzip-preview.html',location.href);previewUrl.search=location.search;previewUrl.searchParams.set('previewVersion','simple-main-v63');frame.src=previewUrl.href;
-function navigate(id){selected=id;$('window').value=id;history.replaceState(null,'','#'+encodeURIComponent(id));frame.contentWindow.postMessage({type:'sevenzip-design-navigate',screen:id},location.origin);renderReference()}
+const previewUrl=new URL('sevenzip-preview.html',location.href);previewUrl.search=location.search;previewUrl.searchParams.set('previewVersion','mount-actions-v102');frame.src=previewUrl.href;
+function selectWindow(id){
+  selected=id;
+  const picker=$('window');
+  picker.value=id;
+  $('previous-window').disabled=picker.selectedIndex<=0;
+  $('next-window').disabled=picker.selectedIndex>=picker.options.length-1;
+  history.replaceState(null,'','#'+encodeURIComponent(id));
+  renderReference();
+}
+function stepWindow(offset){
+  const picker=$('window'),option=picker.options[picker.selectedIndex+offset];
+  if(option)navigate(option.value);
+}
+$('previous-window').onclick=()=>stepWindow(-1);
+$('next-window').onclick=()=>stepWindow(1);
+function navigate(id){selectWindow(id);frame.contentWindow.postMessage({type:'sevenzip-design-navigate',screen:id},location.origin)}
 function applyReviewTheme(){document.documentElement.style.colorScheme=$('scheme').value;frame.contentWindow.postMessage({type:'sevenzip-design-theme',scheme:$('scheme').value},location.origin);renderReference()}
 function showShot(){const s=rows[+$('shot').value];$('image').hidden=!s;$('png').hidden=$('json').hidden=!s;if(!s)return;const run=manifest.runs.find(r=>r.captures.includes(s));$('image').src=catalog.galleryBase+s.image;$('image').alt=`${$('window').selectedOptions[0].textContent} · ${s.tag}`;$('png').href=$('image').src;$('json').href=catalog.galleryBase+s.report;$('filename').textContent=s.image;$('capture').textContent=`macOS · ${s.qpa} · ${s.size.join(' × ')} · ${new Date(run.capturedAt).toLocaleString('ru-RU',{timeZone:'Europe/Moscow'})} МСК${run.error?' · Сценарий завершился с ошибкой; снимок доступен':''}`}
 function renderReference(){if(!catalog||!manifest)return;const row=catalog.windows.find(w=>w.id===selected);rows=[];const source=row?.sourceReport?.split('/')[2];for(const r of manifest.runs)if(r.host==='macos'&&r.scheme===$('scheme').value&&r.id===source)rows.push(...r.captures);$('shot').replaceChildren(...rows.map((s,i)=>new Option(s.tag,String(i))));const primary=row?.sourceReport?.replace('/light/','/'+$('scheme').value+'/');const index=rows.findIndex(s=>s.report===primary);$('shot').value=String(Math.max(0,index));$('capture').textContent=rows.length?'':'Нет снимка для этого представления. См. ограничения в каталоге.';$('filename').textContent='';showShot()}
 $('window').onchange=e=>navigate(e.target.value);$('scheme').onchange=applyReviewTheme;$('shot').onchange=showShot;$('compare').onchange=e=>{document.querySelector('main').classList.toggle('compare',e.target.checked);$('reference').hidden=!e.target.checked};
-window.addEventListener('message',e=>{if(e.origin!=='null')return;if(e.data?.type==='sevenzip-design-ready'){conceptReady=true;applyReviewTheme();if(catalog)navigate(selected);return}if(conceptReady&&e.data?.type==='sevenzip-design-selection'&&catalog?.windows.some(w=>w.id===e.data.screen)){selected=e.data.screen;$('window').value=selected;history.replaceState(null,'','#'+encodeURIComponent(selected));renderReference()}});
+window.addEventListener('message',e=>{if(e.origin!=='null')return;if(e.data?.type==='sevenzip-design-ready'){conceptReady=true;applyReviewTheme();if(catalog)navigate(selected);return}if(conceptReady&&e.data?.type==='sevenzip-design-selection'&&[...$('window').options].some(option=>option.value===e.data.screen))selectWindow(e.data.screen)});
 frame.onload=()=>{applyReviewTheme();if(catalog)navigate(selected)};
 (async()=>{catalog=await fetch('window-catalog.json').then(r=>r.json());manifest=await fetch(catalog.galleryBase+'manifest.json').then(r=>{if(!r.ok)throw new Error('Нет снимков');return r.json()}).catch(()=>({runs:[]}));if(!manifest.runs.length){$('compare').checked=false;document.querySelector('main').classList.remove('compare');$('reference').hidden=true}const groups=[...new Set(catalog.windows.filter(w=>w.conceptVisible!==false).map(w=>w.group))];for(const group of groups){const el=document.createElement('optgroup');el.label=group;for(const row of catalog.windows.filter(w=>w.group===group&&w.conceptVisible!==false))el.append(new Option(row.title,row.id));$('window').append(el)}$('gallery').href=catalog.galleryBase+'index.html';const failures=manifest.runs.filter(r=>r.error);$('status').textContent=manifest.runs.length?`Обновлено ${catalog.reviewDate} · ${manifest.runs.reduce((n,r)=>n+r.captures.length,0)} снимков · Cocoa, light/dark · ${failures.length?'Есть незавершённые сценарии — подробности в галерее.':'Выбранные сценарии сняты.'} Системные панели и оконные рамки не включены. Макет — предложение дизайна; пример данных в нём может отличаться от снимка.`:'Снимки реализации недоступны в этом checkout. Макет доступен без сравнения.';const hash=decodeURIComponent(location.hash.slice(1));if(catalog.windows.some(w=>w.id===hash&&w.conceptVisible!==false))selected=hash;else selected='main';navigate(selected)})().catch(e=>{$('status').textContent='Не удалось загрузить каталог. Откройте страницу через локальный HTTP-сервер. '+e.message});
 </script>

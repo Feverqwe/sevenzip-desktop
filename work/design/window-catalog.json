@@ -83,28 +83,6 @@
       "sourceReport": "macos/light/common-dialogs/standard-buttons-copy-ru-440.json"
     },
     {
-      "id": "split",
-      "title": "Разделение файла",
-      "group": "Файловые операции",
-      "sourceKey": "splitDialog",
-      "sourceReport": "macos/light/common-dialogs/standard-buttons-split-ru-480.json"
-    },
-    {
-      "id": "combine",
-      "title": "Объединение частей файла",
-      "group": "Файловые операции",
-      "sourceKey": "copyDialog / Combine",
-      "sourceReport": "macos/light/split-combine/combine-3-480.json"
-    },
-    {
-      "id": "rename",
-      "title": "Имя, создание и выделение",
-      "group": "Файловые операции",
-      "sourceKey": "comboDialog",
-      "sourceReport": "macos/light/create-name/source-create-0-0-ru-0-360.json",
-      "runtimeNote": "Creation, selection masks and comments use this form. Rename is an inline editor in the main file list, shown as a main-window state in the concept."
-    },
-    {
       "id": "delete",
       "title": "Подтверждение удаления",
       "group": "Файловые операции",
@@ -112,39 +90,11 @@
       "sourceReport": "macos/light/delete-confirmation/source-delete-refused-0---0-300.json"
     },
     {
-      "id": "link",
-      "title": "Создание и изменение ссылок",
-      "group": "Файловые операции",
-      "sourceKey": "IDD_LINK",
-      "sourceReport": "macos/light/link/link-initial-ru-520.json"
-    },
-    {
       "id": "browse",
       "title": "Выбор файла или папки",
       "group": "Файловые операции",
       "sourceKey": "browseDialog",
       "sourceReport": "macos/light/browse/source-browse-ru-560-0.json"
-    },
-    {
-      "id": "history",
-      "title": "Недавние места",
-      "group": "Файловые операции",
-      "sourceKey": "foldersHistoryDialog",
-      "sourceReport": "macos/light/properties-history/list-source-initial-ru-1.json"
-    },
-    {
-      "id": "temporary",
-      "title": "Временные файлы",
-      "group": "Файловые операции",
-      "sourceKey": "tempBrowseDialog",
-      "sourceReport": "macos/light/temporary-files/temp-cleanup-ru-900.json"
-    },
-    {
-      "id": "external-edit",
-      "title": "Файл во внешней программе",
-      "group": "Файловые операции",
-      "sourceKey": "externalUpdatePrompt",
-      "sourceReport": null
     },
     {
       "id": "add",
@@ -175,13 +125,6 @@
       "sourceReport": "macos/light/source-prompts/source-prompt-initial-ru-1.json"
     },
     {
-      "id": "memory",
-      "title": "Недостаточно памяти",
-      "group": "Архивы",
-      "sourceKey": "memDialog",
-      "sourceReport": "macos/light/common-dialogs/standard-buttons-memory-ru-700.json"
-    },
-    {
       "id": "overwrite",
       "title": "Конфликт файлов",
       "group": "Архивы",
@@ -196,75 +139,11 @@
       "sourceReport": "macos/light/progress/progress-dialog-760-0-0-collapsed.json"
     },
     {
-      "id": "messages",
-      "title": "Журнал сообщений",
-      "group": "Результаты и отчёты",
-      "sourceKey": "operationMessagesDialog",
-      "sourceReport": "macos/light/source-prompts/source-prompt-initial-ru-3.json"
-    },
-    {
       "id": "properties",
       "title": "Свойства объектов",
       "group": "Результаты и отчёты",
       "sourceKey": "selectedPropertiesDialog",
       "sourceReport": "macos/light/selected-properties/properties-540.json"
-    },
-    {
-      "id": "hash",
-      "title": "Контрольные суммы",
-      "group": "Результаты и отчёты",
-      "sourceKey": "ListViewDialog / Hash results",
-      "sourceReport": "macos/light/hash-results/hash-results-540.json"
-    },
-    {
-      "id": "hash-file",
-      "title": "Создать файл контрольных сумм",
-      "group": "Файловые операции",
-      "sourceKey": "Hash native writer",
-      "sourceReport": null
-    },
-    {
-      "id": "hash-verify",
-      "title": "Проверить файл контрольных сумм",
-      "group": "Файловые операции",
-      "sourceKey": "Hash native reader",
-      "sourceReport": null
-    },
-    {
-      "id": "hash-verification",
-      "title": "Результат проверки файлов",
-      "group": "Результаты и отчёты",
-      "sourceKey": "Hash native test callbacks",
-      "sourceReport": null
-    },
-    {
-      "id": "text",
-      "title": "Подробный текстовый отчёт",
-      "group": "Результаты и отчёты",
-      "sourceKey": "editDialog",
-      "sourceReport": "macos/light/source-prompts/source-prompt-initial-ru-0.json"
-    },
-    {
-      "id": "licenses",
-      "title": "Лицензии и уведомления",
-      "group": "Результаты и отчёты",
-      "sourceKey": "aboutDialog / editDialog",
-      "sourceReport": null,
-      "conceptSection": "Локальный просмотр лицензий вместо справки"
-    },
-    {
-      "id": "benchmark",
-      "title": "Таблица — тестирование",
-      "group": "Результаты и отчёты",
-      "sourceKey": "IDD_BENCH",
-      "sourceReport": "macos/light/benchmark/benchmark-normal-ru-960.json"
-    },
-    {
-      "id": "benchmark-total",
-      "title": "Полный тест — консоль",
-      "group": "Результаты и отчёты",
-      "sourceKey": "IDD_BENCH_TOTAL",
-      "sourceReport": "macos/light/benchmark/benchmark-total-ru-960.json"
     },
     {
       "id": "settings-system",
@@ -275,33 +154,12 @@
       "conceptSection": "Открытие файлов"
     },
     {
-      "id": "settings-menu",
-      "title": "Настройки · Системное меню",
-      "group": "Настройки",
-      "sourceKey": "settingsDialog/menuPage",
-      "sourceReport": null,
-      "runtimePlatforms": [
-        "windows"
-      ],
-      "conceptSection": "Команды Проводника",
-      "conceptVisible": false,
-      "omissionReason": "Explorer menu integration is unsupported on macOS; omit the section and its review navigation entry."
-    },
-    {
       "id": "settings-folders",
-      "title": "Настройки · Временные файлы",
+      "title": "Настройки · Рабочая папка",
       "group": "Настройки",
       "sourceKey": "settingsDialog/foldersPage",
       "sourceReport": "macos/light/settings-sections/settings-navigation-ru-780-3.json",
       "conceptSection": "Временные файлы"
-    },
-    {
-      "id": "settings-editor",
-      "title": "Настройки · Внешние приложения",
-      "group": "Настройки",
-      "sourceKey": "settingsDialog/editorPage",
-      "sourceReport": "macos/light/settings-sections/settings-external-apps-expanded.json",
-      "conceptSection": "Приложения"
     },
     {
       "id": "settings-view",
@@ -312,38 +170,12 @@
       "conceptSection": "Основные"
     },
     {
-      "id": "settings-language",
-      "title": "Настройки · Сведения о переводе",
-      "group": "Настройки",
-      "sourceKey": "settingsDialog/languagePage",
-      "sourceReport": "macos/light/settings-sections/settings-translation-expanded.json",
-      "conceptSection": "Основные",
-      "conceptDisclosure": "translation"
-    },
-    {
       "id": "settings-memory",
       "title": "Настройки · Память",
       "group": "Настройки",
       "sourceKey": "settingsDialog/settingsPage",
       "sourceReport": "macos/light/settings-sections/settings-navigation-ru-780-2.json",
       "conceptSection": "Память"
-    },
-    {
-      "id": "settings-list",
-      "title": "Настройки · Список файлов",
-      "group": "Настройки",
-      "sourceKey": "settingsDialog/settingsPage",
-      "sourceReport": "macos/light/settings-sections/settings-navigation-ru-780-5.json",
-      "conceptSection": "Список файлов"
-    },
-    {
-      "id": "help",
-      "title": "Справка",
-      "group": "Справка и сообщения",
-      "sourceKey": "helpWindow",
-      "sourceReport": "macos/light/help/help-ru-760.json",
-      "conceptVisible": false,
-      "conceptExclusion": "Встроенная справка исключена из продукта решением пользователя 5 ноября 2026; снимки текущей реализации сохранены."
     },
     {
       "id": "about",
@@ -358,13 +190,6 @@
       "group": "Приложение и сообщения",
       "sourceKey": "errors/QMessageBox",
       "sourceReport": "macos/light/errors/gui-error-output-0-0---320.json"
-    },
-    {
-      "id": "split-error",
-      "title": "Ошибка размера части",
-      "group": "Приложение и сообщения",
-      "sourceKey": "splitVolumeError",
-      "sourceReport": "macos/light/split-combine/split-invalid-volume-340.json"
     }
   ],
   "reviewRevision": "e16690f70176d26b00b2ffdad4823ced96e8b8cb",
