@@ -267,6 +267,9 @@ class PropertiesWindowTests final : public QObject, protected MainWindowTestSupp
         QtPropertiesWindow window(collect(folder, {*selected}));
         window.show();
         QVERIFY(QTest::qWaitForWindowExposed(&window));
+        QCoreApplication::processEvents();
+        QVERIFY(!window.isMaximized());
+        QVERIFY(window.height() <= 440);
         QtDisclosure *comments = nullptr;
         for (auto *section : window.findChildren<QtDisclosure *>())
             if (section->button()->text() == "Comment")

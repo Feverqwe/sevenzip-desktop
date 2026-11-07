@@ -121,6 +121,8 @@
     </context>
     <context>
         <name>PropertiesWindow</name>
+        <message><source>Packed size</source><translation>Сжато</translation></message>
+        <message><source>Metadata changed</source><translation>Метаданные</translation></message>
         <message><source>Copy information</source><translation>Копировать сведения</translation></message>
         <message><source>Checksums</source><translation>Контрольные суммы</translation></message>
         <message><source>Not available</source><translation>Недоступно</translation></message>

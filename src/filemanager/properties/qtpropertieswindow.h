@@ -40,7 +40,6 @@ class QtPropertiesWindow final : public QDialog {
     QList<Section> sections_;
     bool firstShow_ = true;
     QSize initialFrame_;
-    void FitInitialFrame();
     void BuildGroup(qsizetype index, bool comments, QVBoxLayout &layout);
     void Refresh();
     QString SummaryName() const;
@@ -48,7 +47,7 @@ class QtPropertiesWindow final : public QDialog {
     QString SummarySize() const;
     QString SummaryModified() const;
     QString SummaryLocation() const;
-    QString Caption(unsigned row, QtPropertyReport::Scope scope) const;
+    QString Caption(unsigned row, QtPropertyReport::Scope scope, bool compact = false) const;
     QString Value(unsigned row) const;
     QString PropertyValue(const QtPropertyReport::Group &group, UInt32 id,
                           bool detail = false) const;

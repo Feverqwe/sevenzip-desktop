@@ -15,7 +15,7 @@ QVBoxLayout *QtCreateDialogLayout(QWidget &window, QWidget &footer,
 QVBoxLayout *QtCreateDialogLayout(QWidget &window, QtDialogContent content);
 QFormLayout *QtCreateDialogForm();
 void QtSizeIconButton(QPushButton &button);
-void QtFitScrollableDialog(QWidget &window);
+void QtFitScrollableDialog(QWidget &window, int maximumHeight = QWIDGETSIZE_MAX);
 // Opt in only for contextual forms, never modeless reports or operation progress.
 void QtUseContextDialogModality(QDialog &dialog);
 

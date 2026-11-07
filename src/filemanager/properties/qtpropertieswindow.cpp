@@ -26,6 +26,8 @@
 #include <QVBoxLayout>
 
 namespace {
+constexpr int kInitialHeight = 440;
+constexpr int kCaptionWidth = 130;
 using Scope = QtPropertyReport::Scope;
 QString text(const char *source) { return QCoreApplication::translate("PropertiesWindow", source); }
 QString available(const QString &value) {
@@ -75,7 +77,7 @@ QtPropertiesWindow::QtPropertiesWindow(QtPropertyReport report, QWidget *parent,
     summary_->setObjectName("propertiesIdentity");
     summary_->SetSelectable(true);
     layout->addWidget(summary_);
-    auto *primary = new QtMetadataRows(this);
+    auto *primary = new QtMetadataRows(this, kCaptionWidth);
     primary->setObjectName("propertiesPrimary");
     location_ =
         primary->AddRow("PropertiesWindow", QT_TRANSLATE_NOOP("PropertiesWindow", "Location"), {},
@@ -108,15 +110,15 @@ QtPropertiesWindow::QtPropertiesWindow(QtPropertyReport report, QWidget *parent,
         BuildGroup(i, true, *layout);
     }
     Refresh();
-    resize(520, 440);
-    FitInitialFrame();
+    resize(520, kInitialHeight);
+    QtFitScrollableDialog(*this, kInitialHeight);
     initialFrame_ = size();
     QtRegionalSettings::Observe(*this, [this] { Refresh(); });
 }
 
 void QtPropertiesWindow::BuildGroup(qsizetype index, bool comments, QVBoxLayout &layout) {
     const auto &group = report_.groups[index];
-    auto *values = new QtMetadataRows(this);
+    auto *values = new QtMetadataRows(this, kCaptionWidth);
     values->setObjectName(scopeName(group) + (comments ? "Comments" : ""));
     int count = 0;
     for (const auto row : group.rows) {
@@ -124,7 +126,7 @@ void QtPropertiesWindow::BuildGroup(qsizetype index, bool comments, QVBoxLayout 
             continue; // SourceSummary already owns the selected-object count.
         if ((report_.PropertyID(row) == kpidComment) != comments)
             continue;
-        const auto controls = values->AddLiteralRow(Caption(row, group.scope), Value(row));
+        const auto controls = values->AddLiteralRow(Caption(row, group.scope, true), Value(row));
         controls.value->setObjectName(QString("propertyValue%1").arg(row));
         rows_.append({row, group.scope, controls});
         ++count;
@@ -227,11 +229,19 @@ QString QtPropertiesWindow::GroupTitle(const QtPropertyReport::Group &group, boo
     return comments ? title + " · " + text(QT_TRANSLATE_NOOP("PropertiesWindow", "Comment"))
                     : title;
 }
-QString QtPropertiesWindow::Caption(unsigned row, Scope scope) const {
+QString QtPropertiesWindow::Caption(unsigned row, Scope scope, bool compact) const {
     const auto native = report_.nativeValues.constFind(row);
     if (scope == Scope::Folder && native != report_.nativeValues.cend() && native->id == kpidPath)
         return text(QT_TRANSLATE_NOOP("PropertiesWindow", "Location"));
     const auto id = report_.PropertyID(row);
+    if (compact && id == kpidChangeTime)
+        return text(QT_TRANSLATE_NOOP("PropertiesWindow", "Metadata changed"));
+    if (compact && scope == Scope::Selection && id == kpidPackSize)
+        return text(QT_TRANSLATE_NOOP("PropertiesWindow", "Packed size"));
+    if (compact && scope == Scope::Selection && id == kpidSize)
+        return text(QT_TRANSLATE_NOOP("PropertiesWindow", "Size"));
+    if (compact)
+        return ToQString(report_.Strings[row]);
     if (id == kpidCRC || id == kpidChecksum)
         return ToQString(report_.Strings[row]) + " " +
                text(QT_TRANSLATE_NOOP("PropertiesWindow", "(stored metadata)"));
@@ -297,9 +307,11 @@ void QtPropertiesWindow::Refresh() {
         selectedNames_->setText(names.join('\n'));
     }
     for (const auto &row : rows_) {
-        const QString caption = Caption(row.source, row.scope);
+        const QString caption = Caption(row.source, row.scope, true);
+        const QString fullCaption = Caption(row.source, row.scope);
         row.controls.caption->setText(caption);
-        row.controls.value->setAccessibleName(caption);
+        row.controls.caption->setToolTip(caption == fullCaption ? QString() : fullCaption);
+        row.controls.value->setAccessibleName(fullCaption);
         row.controls.value->setText(Value(row.source));
     }
     for (const auto &section : sections_)
@@ -331,12 +343,6 @@ void QtPropertiesWindow::changeEvent(QEvent *event) {
         Refresh();
     QDialog::changeEvent(event);
 }
-void QtPropertiesWindow::FitInitialFrame() {
-    QtFitScrollableDialog(*this);
-    if (height() > 440)
-        resize(width(), 440);
-}
-
 void QtPropertiesWindow::showEvent(QShowEvent *event) {
     QDialog::showEvent(event);
     if (!firstShow_)
@@ -347,7 +353,7 @@ void QtPropertiesWindow::showEvent(QShowEvent *event) {
     const auto initial = size();
     QTimer::singleShot(0, this, [this, initial] {
         if (size() == initial)
-            FitInitialFrame();
+            QtFitScrollableDialog(*this, kInitialHeight);
     });
 }
 void QtPropertiesWindow::done(int result) {

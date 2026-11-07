@@ -189,7 +189,7 @@ QFormLayout *QtCreateDialogForm() {
     return form;
 }
 
-void QtFitScrollableDialog(QWidget &window) {
+void QtFitScrollableDialog(QWidget &window, int maximumHeight) {
     auto *scroll = window.findChild<QScrollArea *>("dialogContentScroll");
     if (!scroll || !scroll->widget())
         return;
@@ -198,9 +198,9 @@ void QtFitScrollableDialog(QWidget &window) {
     scroll->widget()->layout()->invalidate();
     scroll->widget()->layout()->activate();
     const int bodyHeight = scroll->widget()->heightForWidth(scroll->viewport()->width());
-    window.resize(window.width(), qMax(window.minimumSizeHint().height(),
-                                       bodyHeight + window.height() - scroll->height()));
-    QtNormalizeDialogSize(window, true);
+    const int height = qMin(maximumHeight, bodyHeight + window.height() - scroll->height());
+    window.resize(window.width(), qMax(window.minimumSizeHint().height(), height));
+    QtNormalizeDialogSize(window, maximumHeight == QWIDGETSIZE_MAX);
 }
 
 void QtSizeIconButton(QPushButton &button) {

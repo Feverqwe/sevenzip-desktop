@@ -5,7 +5,8 @@
 #include <QGridLayout>
 #include <QLabel>
 
-QtMetadataRows::QtMetadataRows(QWidget *parent) : QWidget(parent), rows_(new QGridLayout(this)) {
+QtMetadataRows::QtMetadataRows(QWidget *parent, int captionWidth)
+    : QWidget(parent), rows_(new QGridLayout(this)), captionWidth_(captionWidth) {
     rows_->setContentsMargins(0, 0, 0, 0);
     rows_->setHorizontalSpacing(12);
     rows_->setVerticalSpacing(8);
@@ -32,6 +33,10 @@ QtMetadataRows::Row QtMetadataRows::AddLiteralRow(const QString &caption, const 
     text->setTextFormat(Qt::PlainText);
     text->setTextInteractionFlags(Qt::TextSelectableByMouse | Qt::TextSelectableByKeyboard);
     text->setWordWrap(true);
+    if (captionWidth_ > 0) {
+        label->setFixedWidth(captionWidth_);
+        text->setAlignment(Qt::AlignLeading | Qt::AlignTop);
+    }
     text->setMinimumWidth(0);
     auto policy = text->sizePolicy();
     policy.setHorizontalPolicy(QSizePolicy::Ignored);
