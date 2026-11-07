@@ -152,6 +152,7 @@ void CApp::OnCopy(bool move, bool copyToSame, unsigned srcPanelIndex) {
     destinationContext.PeerIsFilesystem = peerIsFilesystem;
     const bool peerIsArchive = NumPanels == 2 && destPanel.IsArcFolder();
     destinationContext.PeerIsArchive = peerIsArchive;
+    destinationContext.LocalFileTransfer = srcPanel.IsFSFolder();
     if (srcPanel.IsFSFolder()) {
         QStringList directories;
         for (const QString &path : sourcePaths) {

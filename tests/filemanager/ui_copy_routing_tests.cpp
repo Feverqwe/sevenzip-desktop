@@ -149,6 +149,7 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
                         << sourceIndex << large << QString::fromLatin1(outcome);
         QTest::newRow("relative-copy") << 0u << false << QString("relative-copy");
         QTest::newRow("relative-move") << 1u << false << QString("relative-move");
+        QTest::newRow("link-copy") << 0u << false << QString("link-copy");
     }
     void outsidePeerStillRefreshesDestination() {
         QFETCH(unsigned, sourceIndex);
@@ -158,6 +159,7 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         const bool overwrite = outcome == "overwrite-cancel";
         const bool move = outcome.endsWith("move");
         const bool relative = outcome.startsWith("relative-");
+        const bool linked = outcome == "link-copy";
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString input = fixture.filePath("input");
@@ -165,6 +167,14 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         const QString output = fixture.filePath("output");
         for (const QString &path : {input, peer, output})
             QVERIFY(QDir().mkpath(path));
+        const QString link = fixture.filePath("linked destination");
+        if (linked) {
+#ifdef Q_OS_WIN
+            QSKIP("The directory symlink fixture requires POSIX");
+#else
+            QVERIFY(QFile::link(output, link));
+#endif
+        }
         const QString name = QStringLiteral("payload δ.txt");
         write(QDir(input).filePath(name), "control bytes");
         write(QDir(peer).filePath("seed.txt"), "seed control");
@@ -191,15 +201,25 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         sourceView->setFocus();
         QTRY_VERIFY(sourceView->hasFocus());
         bool seen = false;
+        bool linkRefused = false;
         QTimer driver;
         connect(&driver, &QTimer::timeout, &window, [&] {
             auto *dialog = window.findChild<CopyDialog *>("copyDialog");
             if (dialog && dialog->isVisible() && !seen) {
                 seen = true;
                 write(QDir(peer).filePath("new while guarded.txt"), "new control");
-                dialog->findChild<QLineEdit *>("copyDestination")
-                    ->setText(relative ? "../unneeded/../output/" : output + '/');
-                cancel ? dialog->reject() : dialog->accept();
+                auto *path = dialog->findChild<QLineEdit *>("copyDestination");
+                if (linked) {
+                    path->setText(link);
+                    const auto *buttons = dialog->findChild<QDialogButtonBox *>("copyButtons");
+                    linkRefused = !buttons->button(QDialogButtonBox::Ok)->isEnabled();
+                }
+                path->setText(relative ? "../unneeded/../output/" : output + '/');
+                if (cancel)
+                    QTest::keyClick(dialog->findChild<QLineEdit *>("copyDestination"),
+                                    Qt::Key_Escape);
+                else
+                    dialog->accept();
                 if (dialog->isVisible())
                     dialog->reject();
             }
@@ -217,7 +237,13 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         driver.start(1);
         QTest::keyClick(sourceView, move ? Qt::Key_F6 : Qt::Key_F5);
         QVERIFY(seen);
+        if (linked)
+            QVERIFY(linkRefused);
         QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
+        if (cancel) {
+            QTRY_COMPARE(window.focusWidget(), sourceView);
+            QCOMPARE(sourceView->selectionModel()->selectedRows().size(), 1);
+        }
         QTRY_COMPARE_WITH_TIMEOUT(peerView->rowCount(), originalRows + (cancel ? 0 : 1), 1000);
         QCOMPARE(QFileInfo::exists(QDir(output).filePath(name)), !cancel);
         QVERIFY(!QFileInfo::exists(fixture.filePath("unneeded")));

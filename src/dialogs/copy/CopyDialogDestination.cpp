@@ -175,11 +175,22 @@ void CCopyDialog::UpdateDestination() {
         _nameLabel->setVisible(nameAvailable);
     }
     _useName = nameAvailable && _name->text() != _destinationContext->SourceName;
+    const bool needsDirectory = directory || _sources.size() > 1;
+    const bool filesystemDestination = !peerDestination || _destinationContext->PeerIsFilesystem;
     const auto directoryStatus =
-        path.isEmpty() || path.contains(QChar::Null) ||
-                (peerDestination && !_destinationContext->PeerIsFilesystem)
+        path.isEmpty() || path.contains(QChar::Null) || !filesystemDestination
             ? DirectoryStatus::Writable
-            : DestinationDirectoryStatus(destination, directory || _sources.size() > 1);
+            : DestinationDirectoryStatus(destination, needsDirectory);
+    bool linkedTransferDirectory = false;
+    if (_destinationContext && _destinationContext->LocalFileTransfer && filesystemDestination &&
+        directoryStatus == DirectoryStatus::Writable && !path.isEmpty() &&
+        !path.contains(QChar::Null)) {
+        const QFileInfo transferDirectory(
+            needsDirectory && !_useName
+                ? preview
+                : QFileInfo(PreviewDestination(DraftDestination())).absolutePath());
+        linkedTransferDirectory = transferDirectory.isSymLink() || transferDirectory.isJunction();
+    }
     QString error;
     if (_sources.isEmpty())
         error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "Select one or more items."));
@@ -193,7 +204,7 @@ void CCopyDialog::UpdateDestination() {
         error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "The destination is read-only."));
     else if (peerDestination && !_destinationContext->PeerWritable)
         error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "The destination is read-only."));
-    else if (directoryStatus == DirectoryStatus::Blocked)
+    else if (directoryStatus == DirectoryStatus::Blocked || linkedTransferDirectory)
         error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "The destination is invalid."));
     else if (_destinationContext && !_useName &&
              SameDirectory(preview, _destinationContext->SourceDirectory))

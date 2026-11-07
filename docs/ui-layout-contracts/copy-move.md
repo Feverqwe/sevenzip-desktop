@@ -260,6 +260,8 @@ A relative directory path resolving to the other panel's archive folder
 uses that panel as the destination.
 If a required destination directory is occupied by a file, the dialog keeps
 the entered destination available for correction.
+If the local transfer rejects a link as its destination directory, the
+dialog flags that path before starting the transfer.
 Copy and Move also keep the dialog open for a destination inside a selected
 source folder, without creating the requested destination there.
 Accepted archive Move keeps its checked source Copy/Delete/rollback extension.

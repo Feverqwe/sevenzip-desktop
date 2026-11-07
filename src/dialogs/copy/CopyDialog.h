@@ -26,6 +26,7 @@ struct QtCopyDestinationContext {
     std::function<bool(const QString &)> IsInsideSourceDirectory = {};
     bool PeerIsFilesystem = false;
     bool PeerIsArchive = false;
+    bool LocalFileTransfer = false;
 };
 
 bool CopyPathMatchesArchivePanel(const QString &path, const QString &panelPath);
