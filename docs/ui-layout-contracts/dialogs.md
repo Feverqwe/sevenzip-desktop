@@ -109,19 +109,11 @@ widget geometry does not establish pixel equivalence or physical input.
 
 ## Hash results
 
-The native HashGUI result presenter uses the same ListViewDialog resource and
-two-column property/value body. Its title is «Контрольные суммы»; source bundle
-rows include the filename, byte size and requested digest. It starts without
-selected rows and retains the native DeleteIsAllowed flag. Copy/Close remain
-below the list, using the shared report layout and full-value copy behavior.
-`hash_results` checks exact source-generated rows against a
-CRC32 fixture, title/state and unclipped, separate list/footer/buttons at
-540×360 and 420×360; reports are `hash-results-540`/`hash-results-420`.
-Horizontal scrolling remains available for long Unicode names/values. This
-checks Qt structure/usability, not rendered Windows pixel parity. The complete
-hash command/file workflow is connected and accepted in P2-03. PanelCrc and
-HashCalcGUI invoke this same source presenter; current540/420 JSON reviewed
-2026-10-03, macOS full gate199/199 and Windows13/Linux focused consumers passed.
+A single file's checksum appears in its properties. Checksums for multiple
+files appear in the shared operation result, with one line for each file.
+Diagnostic and checksum text is selectable in the scrollable report. Results
+without details show only their summary and closing action.
+`hash_results` checks the values and report geometry with a CRC32 fixture.
 
 ## Full text detail
 

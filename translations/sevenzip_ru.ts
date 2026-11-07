@@ -7368,7 +7368,6 @@ Check that your distribution's CIFS support and cifs-utils are installed.</sourc
     <message><source>Reported output archives</source><translation>Указанные операцией выходные архивы</translation></message>
     <message><source>The operation was cancelled.</source><translation>Операция отменена.</translation></message>
     <message><source>Operation result</source><translation>Результат операции</translation></message>
-    <message><source>Copy</source><translation>Копировать</translation></message>
     <message><source>The operation result could not be verified.</source><translation>Не удалось подтвердить результат операции.</translation></message>
     <message><source>Selected items</source><translation>Выбранные объекты</translation></message>
     <message><source>Requested archive</source><translation>Указанный архив</translation></message>

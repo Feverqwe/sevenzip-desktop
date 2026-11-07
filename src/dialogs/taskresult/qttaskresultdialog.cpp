@@ -4,11 +4,8 @@
 #include "ui/dialogs/qtdialoglayout.h"
 #include "ui/lifecycle/qttaskpresentation.h"
 #include "ui/reports/qttextreport.h"
-#include <QApplication>
-#include <QClipboard>
 #include <QDialogButtonBox>
 #include <QPlainTextEdit>
-#include <QPushButton>
 #include <QVBoxLayout>
 
 namespace {
@@ -69,9 +66,6 @@ QtTaskResultDialog::QtTaskResultDialog(const char *summaryText, const QString &r
                     QT_TRANSLATE_NOOP("QtTaskResultDialog", "Operation result"));
     auto *actions = new QtLangButtonBox(QDialogButtonBox::Close, this);
     actions->setObjectName("taskResultActions");
-    auto *copy = actions->addButton(tr("Copy"), QDialogButtonBox::ActionRole);
-    copy->setObjectName("taskResultCopy");
-    QtBindLocalText(copy, "QtTaskResultDialog", QT_TRANSLATE_NOOP("QtTaskResultDialog", "Copy"));
     auto *body = QtCreateDialogLayout(*this, *actions);
     auto *summary = new QtWrappingLabel(this);
     summary->setObjectName("taskResultSummary");
@@ -79,20 +73,15 @@ QtTaskResultDialog::QtTaskResultDialog(const char *summaryText, const QString &r
     summary->setWordWrap(true);
     QtBindLocalText(summary, "QtTaskResultDialog", summaryText);
     body->addWidget(summary);
-    auto *report = new QPlainTextEdit(this);
-    report->setObjectName("taskResultReport");
-    QtConfigureTextReport(*report, font());
-    report->setMinimumSize(160, 100);
-    // Keep native diagnostic text intact; no parsing of localized messages or
-    // untrusted paths. The selected inputs are values, never provider handles.
-    report->setPlainText(reportText);
-    body->addWidget(report, 1);
-    copy->setEnabled(!report->toPlainText().isEmpty());
-    connect(copy, &QPushButton::clicked, this, [report] {
-        const auto text = report->toPlainText();
-        if (!text.isEmpty())
-            QApplication::clipboard()->setText(text);
-    });
+    if (!reportText.isEmpty()) {
+        auto *report = new QPlainTextEdit(this);
+        report->setObjectName("taskResultReport");
+        QtConfigureTextReport(*report, font());
+        report->setMinimumSize(160, 100);
+        // Keep native diagnostic text intact, including untrusted paths.
+        report->setPlainText(reportText);
+        body->addWidget(report, 1);
+        resize(600, 380);
+    }
     connect(actions, &QDialogButtonBox::rejected, this, &QDialog::reject);
-    resize(600, 380);
 }

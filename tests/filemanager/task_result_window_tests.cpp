@@ -38,6 +38,19 @@ class TaskResultWindowTests final : public QObject {
             QtOperationRegistry::Application().Acknowledge(review.Id);
         language("-");
     }
+    void resultWithoutDiagnosticsUsesOnlyItsSummary() {
+        QtTaskResultDialog dialog("The operation was cancelled.", {});
+        dialog.setAttribute(Qt::WA_DeleteOnClose, false);
+        dialog.show();
+        auto *summary = dialog.findChild<QLabel *>("taskResultSummary");
+        auto *actions = dialog.findChild<QDialogButtonBox *>("taskResultActions");
+        QTRY_VERIFY(UiInspection::fullyVisible(*summary, dialog));
+        QVERIFY(UiInspection::fullyVisible(*actions, dialog));
+        QVERIFY(UiInspection::separate(*summary, *actions, dialog));
+        QVERIFY(!dialog.findChild<QPlainTextEdit *>("taskResultReport"));
+        actions->button(QDialogButtonBox::Close)->click();
+        QVERIFY(!dialog.isVisible());
+    }
     void lastFileWindowKeepsCorrectResultOwner_data() {
         QTest::addColumn<QString>("terminal");
         QTest::addColumn<QString>("locale");
@@ -141,11 +154,9 @@ class TaskResultWindowTests final : public QObject {
                 quitRetained =
                     dialog->isVisible() && !QtOperationRegistry::Application().Reviews().isEmpty();
                 auto *text = dialog->findChild<QPlainTextEdit *>("taskResultReport");
-                QTextCursor cursor = text->textCursor();
-                cursor.movePosition(QTextCursor::Right, QTextCursor::KeepAnchor, 4);
-                text->setTextCursor(cursor);
+                text->selectAll();
                 QApplication::clipboard()->setText("old clipboard");
-                dialog->findChild<QPushButton *>("taskResultCopy")->click();
+                text->copy();
                 copied = QApplication::clipboard()->text() == text->toPlainText() &&
                          text->toPlainText().contains(observed.Error) &&
                          text->toPlainText().contains(archive);
@@ -313,7 +324,8 @@ class TaskResultWindowTests final : public QObject {
         text->selectAll();
         QTest::keyClicks(text, "replacement");
         QVERIFY(text->toPlainText().contains(review.Result.Error));
-        dialog->findChild<QPushButton *>("taskResultCopy")->click();
+        text->selectAll();
+        text->copy();
         QVERIFY(QApplication::clipboard()->text().contains(review.Result.Error));
         QVERIFY(QApplication::clipboard()->text().contains(review.Job.Paths.first()));
         QVERIFY(
@@ -323,14 +335,10 @@ class TaskResultWindowTests final : public QObject {
             QVERIFY(QApplication::clipboard()->text().contains(
                 QtTaskResultDialog::tr("The operation was cancelled.")));
         QCOMPARE(dialog->windowTitle(), QtTaskResultDialog::tr("Operation result"));
-        QCOMPARE(dialog->findChild<QPushButton *>("taskResultCopy")->text(),
-                 QtTaskResultDialog::tr("Copy"));
         const auto originalReport = text->toPlainText();
         language(locale == "ru" ? "-" : "ru");
         QCoreApplication::processEvents();
         QCOMPARE(dialog->windowTitle(), QtTaskResultDialog::tr("Operation result"));
-        QCOMPARE(dialog->findChild<QPushButton *>("taskResultCopy")->text(),
-                 QtTaskResultDialog::tr("Copy"));
         QCOMPARE(text->toPlainText(), originalReport);
     }
 };
