@@ -129,6 +129,10 @@ HRESULT CPanelCopyThread::ProcessVirt() {
         if (options->testMode) {
             CProgressMessageBoxPair &pair =
                 GetMessagePair(false); // GetMessagePair(ExtractCallback->Hash.NumErrors != 0);
+            if (!options->TestScope.IsEmpty()) {
+                pair.Message = options->TestScope;
+                pair.Message.Add_LF();
+            }
             AddHashBundleRes(pair.Message, Hash);
         }
     }

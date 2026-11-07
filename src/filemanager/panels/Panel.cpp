@@ -19,6 +19,7 @@
 #include "operations/CompressCall.h"
 #include "ui/progress/ProgressDialog2.h"
 #include <QComboBox>
+#include <QCoreApplication>
 #include <QEvent>
 #include <QMessageBox>
 #include <QTimer>
@@ -378,6 +379,14 @@ void CPanel::TestArchives(IQtCompressCallServices *services) {
         options.streamMode = true;
         options.showErrorMessages = true;
         options.testMode = true;
+        UInt32 folderItems = 0;
+        const char *scope = QT_TRANSLATE_NOOP("ArchiveTest", "Scope: selected items");
+        if (_folder->GetNumberOfItems(&folderItems) == S_OK && indices.Size() == folderItems) {
+            scope = GetFolderPath(_folder).IsEmpty()
+                        ? QT_TRANSLATE_NOOP("ArchiveTest", "Scope: entire archive")
+                        : QT_TRANSLATE_NOOP("ArchiveTest", "Scope: current folder");
+        }
+        options.TestScope = ToUString(QCoreApplication::translate("ArchiveTest", scope));
 
         UStringVector messages;
         HRESULT res = CopyTo(options, indices, &messages);

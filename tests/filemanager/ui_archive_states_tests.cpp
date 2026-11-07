@@ -1,9 +1,11 @@
+#include "archive/support/native_archive_fixture.h"
 #include "dialogs/copy/alias.h"
 #include "filemanager/support/window_state_support.h"
 #include "localization/LangUtils.h"
 #include "settings/RegistryUtils.h"
 #include "settings/ViewSettings.h"
 #include "support/panel_keys.h"
+#include "support/progress_dialog.h"
 #include "ui/progress/ProgressDialog2.h"
 #include "ui/progress/qtprogresscontrols.h"
 #include "ui/support/address_popup_support.h"
@@ -27,6 +29,51 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
     }
 
   private slots:
+    void testReportIdentifiesWhichItemsWereChecked() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString archive = fixture.filePath("test scope.zip");
+        QVERIFY(NativeArchiveFixture::Write(
+            archive, {{"outside.txt", "outside"}, {"folder/inside.txt", "inside"}}, "zip"));
+        ArchiveBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openArchive(archive);
+        QTRY_VERIFY(rowWithPath(window, "outside.txt") >= 0);
+        auto *view = table(window);
+        const auto *test = action(window, "testArchiveAction");
+        QVERIFY(test->isEnabled());
+
+        QStringList reports;
+        QTimer responder;
+        connect(&responder, &QTimer::timeout, &window, [&] {
+            if (auto *result =
+                    TestProgressDialog::ResultWindow(QApplication::activeModalWidget())) {
+                reports.append(TestProgressDialog::ReportText(*result));
+                TestProgressDialog::CloseResult(*result);
+            }
+        });
+        responder.start(5);
+        view->selectRow(rowWithPath(window, "outside.txt"));
+        window.testArchive();
+        QCOMPARE(reports.size(), 1);
+        QVERIFY(reports.last().contains("Scope: selected items"));
+        QVERIFY(reports.last().contains("outside.txt"));
+
+        view->clearSelection();
+        window.testArchive();
+        QCOMPARE(reports.size(), 2);
+        QVERIFY(reports.last().contains("Scope: entire archive"));
+
+        openRow(window, rowWithPath(window, "folder"));
+        QTRY_VERIFY(rowWithPath(window, "folder/inside.txt") >= 0);
+        view->clearSelection();
+        window.testArchive();
+        QCOMPARE(reports.size(), 3);
+        QVERIFY(reports.last().contains("Scope: current folder"));
+        QVERIFY(reports.last().contains("inside.txt"));
+    }
+
     void init() {
         QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         SaveRegLang(UString("-"), qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
@@ -157,6 +204,8 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
             if (auto *question = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
                 question && question->objectName() == "progressCancelQuestion")
                 question->button(QMessageBox::Yes)->click();
+            else
+                TestProgressDialog::DismissVisibleResult(QApplication::activeModalWidget());
         });
         responder.start(1);
         backend.queueListAction([&] {

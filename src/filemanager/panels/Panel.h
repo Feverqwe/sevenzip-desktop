@@ -108,6 +108,7 @@ struct CCopyToOptions {
     NExtract::NZoneIdMode::EEnum ZoneIdMode;
     CByteBuffer ZoneBuf;
     UString folder;
+    UString TestScope;
     NExtract::NPathMode::EEnum pathMode;
     NExtract::NOverwriteMode::EEnum overwriteMode;
     UStringVector hashMethods;

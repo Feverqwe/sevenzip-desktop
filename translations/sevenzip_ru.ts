@@ -24,6 +24,12 @@
         <message><source>Completed with skipped items or messages</source><translation>Завершено с пропусками или сообщениями</translation></message>
     </context>
     <context>
+        <name>ArchiveTest</name>
+        <message><source>Scope: selected items</source><translation>Проверено: выделенные элементы</translation></message>
+        <message><source>Scope: current folder</source><translation>Проверено: текущая папка</translation></message>
+        <message><source>Scope: entire archive</source><translation>Проверено: весь архив</translation></message>
+    </context>
+    <context>
         <name>ConflictRedesign</name>
         <message>
             <source>File already exists</source>
