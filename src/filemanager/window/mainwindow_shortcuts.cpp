@@ -94,7 +94,7 @@ void MainWindow::configureShortcuts() {
                     QT_TRANSLATE_NOOP("QtWindowWorkspace", "Close window"));
     closeWindow->setProperty("workspaceCommand", true);
     closeWindow->setObjectName("closeWindowAction");
-    closeWindow->setShortcut(QKeySequence::Close);
+    closeWindow->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_W));
     panelShortcutActions_.append(closeWindow);
     addAction(closeWindow);
     connect(closeWindow, &QAction::triggered, this, &QWidget::close);
