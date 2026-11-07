@@ -594,6 +594,49 @@ class FileTransferTests : public QObject {
         QCOMPARE(QDir(output).entryList(QDir::Files), QStringList{name});
     }
 
+    void laterBatchSourceChangedDuringFirstConflict() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString output = fixture.filePath("output");
+        QVERIFY(QDir().mkdir(output));
+        const QString first = fixture.filePath("first.txt");
+        const QString second = fixture.filePath(QStringLiteral("second 空.txt"));
+        const QString parked = fixture.filePath("parked.txt");
+        const QString target = QDir(output).filePath("first.txt");
+        const auto write = [](const QString &path, const QByteArray &bytes) {
+            QFile file(path);
+            return file.open(QIODevice::WriteOnly) && file.write(bytes) == bytes.size();
+        };
+        const auto read = [](const QString &path) {
+            QFile file(path);
+            return file.open(QIODevice::ReadOnly) ? file.readAll() : QByteArray();
+        };
+        QVERIFY(write(first, "first original"));
+        QVERIFY(write(second, "second original"));
+        QVERIFY(write(target, "previous destination"));
+        bool changed = false;
+        FileTransferOperation move({first, second}, output, true);
+        QSignalSpy result(&move, &FileTransferOperation::result);
+        connect(
+            &move, &FileTransferOperation::overwriteRequested, &move,
+            [&](const OverwriteQuestion &) {
+                changed = QFile::rename(second, parked) && write(second, "replacement");
+                move.submitOverwriteAnswer(NOverwriteAnswer::kYes);
+            },
+            Qt::DirectConnection);
+        move.start();
+        QVERIFY(move.wait(30000));
+        QTRY_COMPARE(result.size(), 1);
+        QVERIFY(changed);
+        QCOMPARE(move.resultKind(), FileTransferOperation::ResultKind::Failure);
+        QVERIFY(result.first().at(1).toString().contains(second));
+        QCOMPARE(read(first), QByteArray("first original"));
+        QCOMPARE(read(second), QByteArray("replacement"));
+        QCOMPARE(read(parked), QByteArray("second original"));
+        QCOMPARE(read(target), QByteArray("previous destination"));
+        QCOMPARE(QDir(output).entryList(QDir::Files), QStringList{"first.txt"});
+    }
+
     void changedMergeDestinationKeepsBothTrees_data() {
         QTest::addColumn<bool>("editConflict");
         QTest::newRow("conflicting-file") << true;

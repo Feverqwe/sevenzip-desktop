@@ -24,10 +24,7 @@ class QtFileTransferTransaction final {
     OverwriteDecision decideOverwrite(const OverwriteSource &source);
     enum class SourceState { Intact, Renamed, Changed, RemovalStarted, Removed };
     enum class RollbackMode { RestoreSources, KeepMovedSources };
-    struct TransferPath {
-        QString source;
-        QString target;
-    };
+    struct TransferPath;
     struct TransferEntry {
         QString source;
         QString target;

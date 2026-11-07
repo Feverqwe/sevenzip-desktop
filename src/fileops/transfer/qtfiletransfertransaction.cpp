@@ -83,6 +83,12 @@ std::optional<MergeSnapshot> captureMergeTree(const QString &root,
 }
 } // namespace
 
+struct QtFileTransferTransaction::TransferPath {
+    QString source;
+    QString target;
+    MergeMember sourceMember;
+};
+
 OverwriteQuestion QtFileTransferTransaction::snapshot(const OverwriteSource &source) {
     OverwriteQuestion question;
     question.Existing = FilesystemOverwriteFile(source.Existing);
@@ -168,7 +174,14 @@ QtFileTransferTransaction::prepareTargets(QString &error) const {
                 "Source or destination unavailable, or the name is already in use.");
             return {};
         }
-        targets.append({source, target});
+        auto member = captureMember(source);
+        if (!member) {
+            error =
+                QCoreApplication::translate("qtfiletransfertransaction", "Source unavailable: %1")
+                    .arg(source);
+            return {};
+        }
+        targets.append({source, target, std::move(*member)});
     }
     return targets;
 }
@@ -366,14 +379,14 @@ bool QtFileTransferTransaction::transferEntry(const TransferPath &path,
     QString target = path.target;
     bool mayReplace = false;
     const QFileInfo sourceInfo(source);
-    const auto sourceMember = captureMember(source);
+    const auto &sourceMember = path.sourceMember;
     const auto sourceChanged = [&] {
         error = QCoreApplication::translate("qtfiletransfertransaction",
                                             "Source changed during transfer: %1")
                     .arg(source);
         return false;
     };
-    if (!sourceMember)
+    if (captureMember(source) != sourceMember)
         return sourceChanged();
     const QFileInfo existingInfo(target);
     const QString existingIdentity =
@@ -453,7 +466,7 @@ bool QtFileTransferTransaction::transferEntry(const TransferPath &path,
         entry.sourceState = SourceState::Renamed;
     if (entry.sourceState == SourceState::Intact && (worker_.move_ || merge)) {
         const bool directory =
-            sourceMember->metadata.IsDir() && !sourceMember->metadata.IsOsSymLink();
+            sourceMember.metadata.IsDir() && !sourceMember.metadata.IsOsSymLink();
         const auto tree = directory ? captureMergeTree(source, worker_.canceled_) : std::nullopt;
         if (directory && !tree) {
             error =
@@ -463,7 +476,7 @@ bool QtFileTransferTransaction::transferEntry(const TransferPath &path,
         }
         entry.sourceMatches = [this, sourceMember, tree](const QString &path, bool renamed) {
             const auto current = captureMember(path);
-            return current && current->matches(*sourceMember, renamed) &&
+            return current && current->matches(sourceMember, renamed) &&
                    (!tree || captureMergeTree(path, worker_.canceled_) == tree);
         };
     }
@@ -484,7 +497,7 @@ bool QtFileTransferTransaction::transferEntry(const TransferPath &path,
     }
     if (entry.sourceState == SourceState::Renamed) {
         const auto moved = captureMember(stage);
-        if (!moved || !moved->matches(*sourceMember, true))
+        if (!moved || !moved->matches(sourceMember, true))
             return sourceChanged();
     } else if (entry.sourceMatches ? !entry.sourceMatches(source, false)
                                    : captureMember(source) != sourceMember) {
