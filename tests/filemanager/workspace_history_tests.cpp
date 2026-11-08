@@ -592,16 +592,28 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         QTRY_VERIFY(rowWithPath(window, "folders/second/item-0000.txt") >= 0);
         const QString second = location(window);
         window.openPath(fixture.path());
-        action(window, "backAction")->trigger();
+        QVERIFY(WindowActivation::waitForActive(window));
+        auto *view = table(window);
+        view->setFocus();
+        QTRY_VERIFY(view->hasFocus());
+        const auto back = action(window, "backAction")->shortcut();
+        const auto forward = action(window, "forwardAction")->shortcut();
+        QTest::keySequence(window.focusWidget(), back);
         QTRY_COMPARE(location(window), second); // Fresh reader before same-chain travel.
-        action(window, "backAction")->trigger();
+        QVERIFY(WindowActivation::waitForActive(window));
+        QTRY_VERIFY(view->hasFocus());
+        QTest::keySequence(window.focusWidget(), back);
         QTRY_VERIFY(rowWithPath(window, "folders/first") >= 0);
-        action(window, "backAction")->trigger();
+        QTRY_VERIFY(view->hasFocus());
+        QTest::keySequence(window.focusWidget(), back);
         QTRY_COMPARE(location(window), first);
-        action(window, "forwardAction")->trigger();
+        QTRY_VERIFY(view->hasFocus());
+        QTest::keySequence(window.focusWidget(), forward);
         QTRY_VERIFY(rowWithPath(window, "folders/second") >= 0);
-        action(window, "forwardAction")->trigger();
+        QTRY_VERIFY(view->hasFocus());
+        QTest::keySequence(window.focusWidget(), forward);
         QTRY_COMPARE(location(window), second);
+        QTRY_VERIFY(view->hasFocus());
     }
 };
 
