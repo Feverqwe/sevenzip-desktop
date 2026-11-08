@@ -210,6 +210,7 @@ void QtFileClipboard::Copy(bool move) {
     if (urls.isEmpty())
         return;
     PublishFileClipboard(urls, move);
+    window_.clearStatusMessage();
 }
 
 void QtFileClipboard::Paste() {

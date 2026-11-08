@@ -277,7 +277,9 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
         QVERIFY(fixture.isValid());
         const QString name = QStringLiteral("selected file.txt");
         const QString path = fixture.filePath(name);
+        const QString other = fixture.filePath("another file.txt");
         write(path);
+        write(other);
         ControlledBackend backend;
         MainWindow window(&backend);
         window.show();
@@ -285,7 +287,11 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
         auto *files = table(window);
         QTRY_VERIFY(files->isEnabled() && rowFor(*files, name) >= 0);
         files->sourcePanel->Set_AutoRefresh_Mode(false);
-        files->selectRow(rowFor(*files, name));
+        const int otherRow = rowFor(*files, "another file.txt");
+        QVERIFY(otherRow >= 0);
+        files->selectRow(otherRow);
+        files->selectionModel()->select(files->model()->index(rowFor(*files, name), 0),
+                                        QItemSelectionModel::Select | QItemSelectionModel::Rows);
         auto *clipboard = QApplication::clipboard();
         clipboard->setText("previous clipboard text");
         auto *copy = action(window, "copyFilesAction");
@@ -296,7 +302,11 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
         QVERIFY(window.statusBar()->currentMessage().contains(name));
         write(path);
         copy->trigger();
-        QTRY_COMPARE(clipboard->mimeData()->urls(), QList<QUrl>{QUrl::fromLocalFile(path)});
+        const auto urls = clipboard->mimeData()->urls();
+        QCOMPARE(urls.size(), 2);
+        QVERIFY(urls.contains(QUrl::fromLocalFile(path)));
+        QVERIFY(urls.contains(QUrl::fromLocalFile(other)));
+        QVERIFY(window.statusBar()->currentMessage().isEmpty());
     }
 
     void pasteRejectsAnOpenedFolderReplacedByALink() {
