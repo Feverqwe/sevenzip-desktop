@@ -547,6 +547,21 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
             QFile remaining(fixture.filePath(secondDeleted));
             QVERIFY(remaining.open(QIODevice::ReadOnly));
             QCOMPARE(remaining.readAll(), QByteArray("protected bytes"));
+            remaining.close();
+            QCOMPARE(view->selectionModel()->selectedRows().size(), 1);
+            QCOMPARE(view->selectionModel()->selectedRows().front().data(QtPanelList::NameRole),
+                     QVariant(secondDeleted));
+            trash.failAfter = -1;
+            responder.start(1);
+            action(window, "deleteAction")->trigger();
+            responder.stop();
+            QCOMPARE(confirmations, 2);
+            QCOMPARE(errors, 1);
+            QCOMPARE(trash.calls, 3);
+            QTRY_COMPARE(view->rowCount(), 1);
+            QVERIFY(!QFileInfo::exists(fixture.filePath(secondDeleted)));
+            QCOMPARE(view->currentIndex().data(QtPanelList::NameRole).toString(),
+                     QString("keep.bin"));
         }
         QFile keep(fixture.filePath("keep.bin"));
         QVERIFY2(keep.open(QIODevice::ReadOnly),
