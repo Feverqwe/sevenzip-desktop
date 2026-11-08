@@ -16,6 +16,7 @@
 #include "support/window_activation.h"
 #include "ui/progress/ProgressDialog2.h"
 #include "ui/support/layout_inspection.h"
+#include <QClipboard>
 #include <QScopeGuard>
 #include <QSemaphore>
 
@@ -436,6 +437,20 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         QVERIFY(keep.open(QIODevice::ReadOnly));
         QCOMPARE(keep.readAll(), QByteArray("protected bytes"));
         QVERIFY(QFileInfo::exists(fixture.filePath("external.bin")));
+        keep.close();
+        QVERIFY(WindowActivation::waitForActive(window));
+        QTRY_VERIFY(view->hasFocus());
+        const auto clearClipboard = qScopeGuard([] { QApplication::clipboard()->clear(); });
+        QTest::keySequence(view, QKeySequence::Copy);
+        QTest::keyClick(view, Qt::Key_Tab);
+        QTRY_VERIFY(peer->hasFocus());
+        QTest::keySequence(peer, QKeySequence::Paste);
+        QTRY_COMPARE(peer->rowCount(), 1);
+        QFile copied(peerDirectory.filePath(name));
+        QVERIFY(copied.open(QIODevice::ReadOnly));
+        QCOMPARE(copied.readAll(), QByteArray("protected bytes"));
+        QVERIFY(QFileInfo::exists(keep.fileName()));
+        QCOMPARE(trash.calls, 0);
     }
     void accepted_data() {
         QTest::addColumn<unsigned>("pane");
