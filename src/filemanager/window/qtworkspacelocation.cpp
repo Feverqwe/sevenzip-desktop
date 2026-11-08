@@ -14,7 +14,14 @@ HRESULT QtWindowWorkspace::OpenFolderInPeer(unsigned source, std::optional<UInt3
         ui.scanningArchive || ui.locationUnavailable)
         return E_ABORT;
     auto target = CaptureVisit(source);
-    if (item) {
+    const auto &panel = window_.app_.Panels[source];
+    if (item && panel.IsFSFolder()) {
+        target.path += ToQString(panel.GetItemRelPath(*item));
+        if (!QFileInfo(target.path).isDir()) {
+            window_.showStatusMessage(tr("Location unavailable: %1").arg(target.path));
+            return S_FALSE;
+        }
+    } else if (item) {
         auto &archive = target.archiveLocation;
         if (archive.physicalPath.isEmpty() || !QFileInfo::exists(archive.physicalPath)) {
             window_.showStatusMessage(tr("Location unavailable: %1").arg(target.path));
@@ -23,7 +30,6 @@ HRESULT QtWindowWorkspace::OpenFolderInPeer(unsigned source, std::optional<UInt3
         if (*item == UInt32(-1))
             target.path = archive.MoveToParent();
         else {
-            const auto &panel = window_.app_.Panels[source];
             UString path = ToUString(target.path);
             UString folder = ToUString(archive.folder);
             const auto relative =

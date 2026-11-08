@@ -54,10 +54,17 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         SaveRegLang(UString("-"), settings);
         ReloadLang(settings);
     }
-    void sameFolderCommandPreservesPeerWhenSourceDisappears() {
+    void folderCommandPreservesPeerWhenTargetDisappears_data() {
+        QTest::addColumn<bool>("selectedFolder");
+        QTest::newRow("same-folder") << false;
+        QTest::newRow("selected-folder") << true;
+    }
+    void folderCommandPreservesPeerWhenTargetDisappears() {
+        QFETCH(bool, selectedFolder);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
-        const QString source = fixture.filePath("source folder");
+        const QString parent = fixture.filePath("source parent");
+        const QString source = QDir(parent).filePath("source folder");
         const QString moved = fixture.filePath("renamed source");
         const QString peer = fixture.filePath("peer folder");
         QVERIFY(QDir().mkpath(source));
@@ -82,18 +89,26 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         peerList->selectRow(0);
         const QString originalPeer = peerAddress->text();
 
-        openFilesystemPanel(window, 0, source);
+        openFilesystemPanel(window, 0, selectedFolder ? parent : source);
         QVERIFY(!QTest::currentTestFailed());
         auto *sourceList =
             window.findChild<QWidget *>("filePanel0")->findChild<FileTable *>("archiveTable");
         sourceList->sourcePanel->Set_AutoRefresh_Mode(false);
+        sourceList->setCurrentCell(0, 0);
+        const auto command = [&] {
+            PanelKeys::command(sourceList, selectedFolder ? Qt::Key_Right : Qt::Key_Up,
+                               Qt::AltModifier | Qt::ShiftModifier);
+        };
         QtWindowWorkspace *workspace = nullptr;
         for (auto *child : window.children())
             if (auto *owner = dynamic_cast<QtWindowWorkspace *>(child))
                 workspace = owner;
         QVERIFY(workspace);
         QVERIFY(QDir().rename(source, moved));
-        QCOMPARE(workspace->OpenFolderInPeer(0), HRESULT(S_FALSE));
+        if (selectedFolder)
+            command();
+        else
+            QCOMPARE(workspace->OpenFolderInPeer(0), HRESULT(S_FALSE));
         QVERIFY(window.statusBar()->currentMessage().contains(source));
         QTRY_VERIFY(peerList->isEnabled());
         QCOMPARE(peerAddress->text(), originalPeer);
@@ -103,10 +118,15 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         QVERIFY(sourceList->hasFocus());
 
         QVERIFY(QDir().rename(moved, source));
-        PanelKeys::command(sourceList, Qt::Key_Up, Qt::AltModifier | Qt::ShiftModifier);
+        command();
         QTRY_COMPARE(peerList->model()->index(0, 0).data().toString(),
                      QStringLiteral("source.txt"));
         QVERIFY(sourceList->hasFocus());
+        peerList->setFocus();
+        QTRY_VERIFY(peerList->hasFocus());
+        QTRY_VERIFY(action(window, "backAction")->isEnabled());
+        action(window, "backAction")->trigger();
+        QTRY_COMPARE(peerAddress->text(), originalPeer);
     }
     void openArchiveSubfolderInPeerKeepsParentChain() {
         QTemporaryDir fixture;

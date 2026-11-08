@@ -140,7 +140,8 @@ void CApp::OnSetSubFolder(unsigned srcPanelIndex) {
     const unsigned realIndex = srcPanel.GetRealItemIndex(focusedItem);
     if (!srcPanel.IsItem_Folder(realIndex))
         return;
-    if (srcPanel.IsArcFolder() && _presentation &&
+    const bool diskFolder = realIndex != kParentIndex && srcPanel.IsFSFolder();
+    if ((srcPanel.IsArcFolder() || diskFolder) && _presentation &&
         _presentation->OpenFolderInPeer(srcPanelIndex, realIndex))
         return;
 
