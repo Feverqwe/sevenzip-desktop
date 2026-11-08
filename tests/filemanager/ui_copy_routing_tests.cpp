@@ -548,15 +548,18 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         ArchiveBackend backend, observerBackend, sourceObserverBackend;
         MainWindow window(&backend);
         std::unique_ptr<MainWindow> observer;
-        if (targetArchive && !typedArchivePath) {
+        if ((targetArchive || sourceArchive) && !typedArchivePath) {
             observer = std::make_unique<MainWindow>(&observerBackend);
             observer->show();
-            observer->openArchive(target);
+            if (targetArchive)
+                observer->openArchive(target);
+            else
+                observer->openPath(target);
             QTRY_VERIFY(row(*table(*observer), "seed.txt") >= 0);
             table(*observer)->sourcePanel->Set_AutoRefresh_Mode(false);
         }
         std::unique_ptr<MainWindow> sourceObserver;
-        if (sourceArchive && targetArchive && move && !typedArchivePath) {
+        if (sourceArchive && move && !typedArchivePath) {
             sourceObserver = std::make_unique<MainWindow>(&sourceObserverBackend);
             sourceObserver->show();
             sourceObserver->openArchive(source);

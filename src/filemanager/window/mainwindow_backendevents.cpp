@@ -6,6 +6,7 @@
 #include "dialogs/password/PasswordDialog.h"
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtapppresentation.h"
+#include "filemanager/window/qtworkspaceapplication.h"
 #include "localization/qtlangcontrols.h"
 #include "platform/trash/qttrashservice.h"
 #include "ui/progress/ProgressDialog2.h"
@@ -50,19 +51,27 @@ void MainWindow::connectBackend() {
         }
     });
     connect(backend_, &ArchiveBackend::finished, this, [this](bool ok, const QString &message) {
-        backendFinished(ok, message, backend_->lastResult(), false, backend_->lastExtractStatus());
+        const QString output = progress_ ? progress_->filesystemOutput : QString();
+        backendFinished(ok, message, backend_->lastResult(), false, backend_->lastExtractStatus(),
+                        {}, output);
     });
 }
 
 void MainWindow::backendFinished(bool ok, const QString &message, HRESULT result,
                                  bool messageDisplayed,
                                  std::optional<QtArchiveExtractStatus> extraction,
-                                 const QStringList &diagnostics) {
+                                 const QStringList &diagnostics, const QString &filesystemOutput) {
     if (app_.QtOperations().closed())
         return;
     QtAppOperationState::CallScope call(app_.QtOperations());
     if (sourceArchiveProgress_)
         return; // Source worker owns completion until its modal lifecycle joins.
+    if (!filesystemOutput.isEmpty()) {
+        if (auto *application = QtWorkspaceApplication::Find())
+            application->FilesystemPublished({filesystemOutput});
+        else
+            guiOutputRefresh_->Enqueue({filesystemOutput}, {});
+    }
     QString resultMessage = message;
     QStringList terminalDiagnostics = diagnostics;
     bool reviewAfterPublication = false;
@@ -81,11 +90,20 @@ void MainWindow::backendFinished(bool ok, const QString &message, HRESULT result
                 closeProgressDialog();
                 withPanelProjection(move->source, [&] {
                     auto &panel = app_.Panels[move->source];
+                    const auto &parents = panel.GetParentFolders();
+                    const QString archive =
+                        parents.Size() == 1 ? ToQString(parents.Front().VirtualPath) : QString();
                     CSelectedState selection;
                     removed = panel.RemoveItemsAfterMove(move->indices, selection, false);
                     app_.QtOperations().End();
                     renderBoundFolder();
                     panel.RestoreLoadedSelection(selection);
+                    if (removed.Published == true && !archive.isEmpty()) {
+                        if (auto *application = QtWorkspaceApplication::Find())
+                            application->ArchivePublished(archive, &panel);
+                        else
+                            ArchivePublished(archive, &panel);
+                    }
                 });
             }
             result = removed.Result;

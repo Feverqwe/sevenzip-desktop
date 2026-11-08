@@ -35,6 +35,7 @@ void MainWindow::transferFromArchive(const QString &destination, bool move, bool
         setState(State::Operating);
         begin(QtLangText(move ? IDS_MOVING : IDS_PROGRESS_EXTRACTING), projectedUi().archive,
               destination);
+        progress_->filesystemOutput = destination;
         // Source refusal permits fallback only at the archive root. Retain
         // Move's full-path transport and Copy's explicit extraction options.
         if (move) {

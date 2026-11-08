@@ -99,6 +99,7 @@ void MainWindow::extractTo(const QString &destination, bool onlySelected, const 
     previousState_ = projectedUi().state;
     setState(State::Operating);
     begin(QtLangText(IDS_PROGRESS_EXTRACTING), projectedUi().archive, destination);
+    progress_->filesystemOutput = destination;
     backend_->extract(projectedUi().archive, destination, names,
                       password.isEmpty() ? projectedUi().archivePassword.toQString() : password,
                       options);
@@ -209,6 +210,6 @@ bool MainWindow::extractWithSource(const QString &destination, bool onlySelected
                                               "Extraction completed with errors.")
                 : QString::fromWCharArray(HResultToMessage(result.Result));
     backendFinished(ok, message, result.Result, result.MessageWasDisplayed, result.ExtractStatus,
-                    diagnostics);
+                    diagnostics, output);
     return true;
 }

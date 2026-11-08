@@ -111,6 +111,7 @@ class MainWindow : public QMainWindow {
         QPointer<CProgressDialog> dialog;
         std::unique_ptr<IQtProgressTransport> transport;
         ArchivePassword passwordBeforeOperation;
+        QString filesystemOutput;
     };
     DeviceSelectionServices deviceServices_;
     QtWindowStatusBar *statusStrip_ = nullptr;
@@ -182,7 +183,7 @@ class MainWindow : public QMainWindow {
     void backendFinished(bool ok, const QString &message, HRESULT result,
                          bool messageDisplayed = false,
                          std::optional<QtArchiveExtractStatus> extraction = std::nullopt,
-                         const QStringList &diagnostics = {});
+                         const QStringList &diagnostics = {}, const QString &filesystemOutput = {});
     bool extractWithSource(const QString &destination, bool onlySelected, const QString &password,
                            const ExtractionOptions &options, const QStringList &names,
                            const CRecordVector<UInt32> *explicitIndices = nullptr);
