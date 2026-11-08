@@ -555,15 +555,14 @@ class ExtractionOptionsTests : public QObject {
         ExtractionOptions options;
         options.overwriteMode = ExtractionOptions::OverwriteMode::Ask;
         QSignalSpy rejected(&backend, &ArchiveBackend::finished);
-        const QString failedOutput = temp.filePath("wrong password output");
-        backend.extract(archive, failedOutput, {}, QStringLiteral("incorrect-test-password"),
-                        options);
+        backend.extract(archive, output, {}, QStringLiteral("incorrect-test-password"), options);
         QTRY_COMPARE_WITH_TIMEOUT(rejected.size(), 1, 30000);
         QVERIFY(!rejected.takeFirst().first().toBool());
         // Source ArchiveExtractCallback can leave unverified/partial output on
         // a data-password failure. The backend must report that as failure.
         QVERIFY(backend.lastResult() != S_OK);
         QCOMPARE(readFile(output + "/secret.txt"), QByteArray("old secret"));
+        QCOMPARE(QDir(output).entryList(QDir::Files | QDir::Hidden), QStringList{"secret.txt"});
         backend.extract(archive, output, {}, password, options);
         await(backend, true);
         QCOMPARE(readFile(output + "/secret.txt"), QByteArray("new secret"));
