@@ -1,5 +1,6 @@
 #include "archive/support/native_archive_fixture.h"
 #include "archive/support/source_extract_fixture.h"
+#include "dialogs/password/PasswordDialog.h"
 #include "filemanager/panels/Panel.h"
 #include "filemanager/panels/qtpaneldragtransport.h"
 #include "filemanager/support/panel_model_support.h"
@@ -515,8 +516,11 @@ class DragDropUiTests final : public QObject {
         const QByteArray bytes("export\0bytes", 12);
         const QString source = input.filePath(name);
         QVERIFY(SourceExtractFixture::writeFile(source, bytes));
-        const QString archive = input.filePath("source.zip");
-        if (archiveSource)
+        const QString password = QStringLiteral("clipboard fixture password");
+        const QString archive = input.filePath(replaceClipboard ? "source.7z" : "source.zip");
+        if (replaceClipboard)
+            QVERIFY(NativeArchiveFixture::WriteFiles(archive, {source}, "7z", password, false));
+        else if (archiveSource)
             QVERIFY(NativeArchiveFixture::WriteFiles(archive, {source}, "zip"));
         const QByteArray original = SourceExtractFixture::readFile(archive);
         ArchiveBackend backend;
@@ -569,14 +573,20 @@ class DragDropUiTests final : public QObject {
             if (replaceClipboard) {
                 for (const auto &entry : QtOwnedTempRegistry().Entries())
                     existingTemps.append(entry.path);
-                replacement.setSingleShot(true);
                 connect(&replacement, &QTimer::timeout, &window, [&] {
+                    auto *prompt =
+                        dynamic_cast<CPasswordDialog *>(QApplication::activeModalWidget());
+                    if (!prompt)
+                        return;
+                    replacement.stop();
                     for (const auto &entry : QtOwnedTempRegistry().Entries())
                         if (!existingTemps.contains(entry.path))
                             exportTemps.append(entry.path);
                     clipboard->setText(newer);
+                    prompt->findChild<QLineEdit *>("passwordEdit")->setText(password);
+                    prompt->accept();
                 });
-                replacement.start(0);
+                replacement.start(5);
             }
             QTest::keyClick(table, Qt::Key_C, Qt::ControlModifier);
             if (replaceClipboard) {
