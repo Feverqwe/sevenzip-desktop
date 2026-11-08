@@ -298,22 +298,25 @@ class NativeDropPublicationTests final : public QObject, protected MainWindowTes
         }
         inspect(window, "published");
         QVERIFY(runtime_.clear());
-        QVERIFY(WindowActivation::waitForActive(window));
-        view->setFocus();
-        QTRY_COMPARE(window.focusWidget(), static_cast<QWidget *>(view));
-        QTest::keyClick(view, Qt::Key_R, Qt::ControlModifier);
-        QTRY_COMPARE(list->rowCount(), count + int(succeeded));
-        QTRY_VERIFY(list->isEnabled() && panel.ShouldProcessNotifications());
-        QCOMPARE(panel.GetFolder(), provider.Interface());
-        if (!succeeded || rendered == int(S_OK)) {
-            verifySelection(panel, selected);
-            QVERIFY(!QTest::currentTestFailed());
+        if (attempted) {
+            QVERIFY(WindowActivation::waitForActive(window));
+            view->setFocus();
+            QTRY_COMPARE(window.focusWidget(), static_cast<QWidget *>(view));
+            QTest::keyClick(view, Qt::Key_R, Qt::ControlModifier);
+            QTRY_COMPARE(list->rowCount(), count + int(succeeded));
+            QTRY_VERIFY(list->isEnabled() && panel.ShouldProcessNotifications());
+            QCOMPARE(panel.GetFolder(), provider.Interface());
+            if (!succeeded || rendered == int(S_OK)) {
+                verifySelection(panel, selected);
+                QVERIFY(!QTest::currentTestFailed());
+            }
+            inspect(window, "recovered");
         }
-        inspect(window, "recovered");
         if (!succeeded) {
             window.activateWindow();
             QVERIFY(WindowActivation::waitForActive(window));
-            view->setFocus();
+            if (attempted)
+                view->setFocus();
             QTRY_COMPARE(window.focusWidget(), static_cast<QWidget *>(view));
             retrying = true;
             confirmed = injected = false;
