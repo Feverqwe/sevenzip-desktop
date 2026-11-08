@@ -571,13 +571,16 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
     void encryptedArchivePassword_data() {
         QTest::addColumn<QString>("password");
         QTest::addColumn<bool>("accept");
-        QTest::newRow("accept") << QStringLiteral("fixture пароль") << true;
-        QTest::newRow("empty") << QStringLiteral("") << true;
-        QTest::newRow("cancel") << QStringLiteral("fixture пароль") << false;
+        QTest::addColumn<bool>("retry");
+        QTest::newRow("accept") << QStringLiteral("fixture пароль") << true << false;
+        QTest::newRow("empty") << QStringLiteral("") << true << false;
+        QTest::newRow("cancel") << QStringLiteral("fixture пароль") << false << false;
+        QTest::newRow("wrong-then-retry") << QStringLiteral("fixture пароль") << true << true;
     }
     void encryptedArchivePassword() {
         QFETCH(QString, password);
         QFETCH(bool, accept);
+        QFETCH(bool, retry);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString path = fixture.filePath(QStringLiteral("архив с паролем.7z"));
@@ -595,21 +598,35 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         auto *address = window.findChild<QLineEdit *>("archivePath");
         QTRY_VERIFY(list->isEnabled());
         const QString previous = address->text();
-        bool observed = false;
+        int prompts = 0;
+        QString error;
         QTimer responder;
         connect(&responder, &QTimer::timeout, &window, [&] {
             if (auto *dialog = dynamic_cast<CPasswordDialog *>(QApplication::activeModalWidget())) {
-                observed = true;
-                dialog->findChild<QLineEdit *>("passwordEdit")->setText(password);
+                ++prompts;
+                dialog->findChild<QLineEdit *>("passwordEdit")
+                    ->setText(retry && prompts == 1 ? QStringLiteral("wrong") : password);
                 if (accept)
                     dialog->accept();
                 else
                     dialog->reject();
+            } else if (auto *message =
+                           qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                error = message->text();
+                message->accept();
             }
         });
         responder.start(5);
         window.openArchive(path);
-        QVERIFY(observed);
+        QCOMPARE(prompts, 1);
+        if (retry) {
+            QCOMPARE(address->text(), previous);
+            QVERIFY(list->isEnabled());
+            QVERIFY(!backend.busy());
+            QVERIFY(!error.isEmpty() || !window.statusBar()->currentMessage().isEmpty());
+            window.openArchive(path);
+            QCOMPARE(prompts, 2);
+        }
         QCOMPARE(QDir::cleanPath(address->text()), QDir::cleanPath(accept ? path : previous));
         QCOMPARE(list->rowCount(), 1);
         if (accept)
