@@ -25,19 +25,20 @@ QJsonObject QtWindowWorkspace::Save() {
             continue;
         }
         const auto &locationState = panels_[index].location;
+        const auto &ui = window_.panelUi_[index];
         QString path = ToQString(window_.app_.Panels[index].GetResumeFolderPath());
-        if (locationState.unavailable)
+        if (ui.locationUnavailable)
             path = locationState.archiveLocation.physicalPath.isEmpty()
                        ? locationState.path
                        : QFileInfo(locationState.archiveLocation.physicalPath).absolutePath();
-        panels.append(
-            QJsonObject{{"path", path},
-                        {"nativePlace", locationState.archiveLocation.physicalPath.isEmpty()
-                                            ? locationState.nativePlaceIdentity
-                                            : QString()},
-                        {"view", locationState.viewMode},
-                        {"sort", int(locationState.sort)},
-                        {"ascending", locationState.ascending}});
+        panels.append(QJsonObject{
+            {"path", path},
+            {"nativePlace", !ui.scanningDisk && locationState.archiveLocation.physicalPath.isEmpty()
+                                ? locationState.nativePlaceIdentity
+                                : QString()},
+            {"view", locationState.viewMode},
+            {"sort", int(locationState.sort)},
+            {"ascending", locationState.ascending}});
     }
     QJsonArray split;
     for (const int size : window_.panelSplitter_->sizes())

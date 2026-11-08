@@ -421,6 +421,52 @@ class WorkspaceSessionTests final : public QObject {
         }
     }
 
+    void sessionSavedDuringFolderScanRestoresTheFolder_data() {
+        QTest::addColumn<bool>("unavailable");
+        QTest::newRow("system-place") << false;
+        QTest::newRow("unavailable-place") << true;
+    }
+    void sessionSavedDuringFolderScanRestoresTheFolder() {
+        QFETCH(bool, unavailable);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString folder = fixture.filePath("large folder");
+        QVERIFY(QDir().mkpath(folder));
+        for (int i = 0; i < 301; ++i) {
+            QFile file(QDir(folder).filePath(QString("file-%1.txt").arg(i)));
+            QVERIFY(file.open(QIODevice::WriteOnly));
+        }
+        QJsonObject saved;
+        {
+            ControlledBackend backend;
+            MainWindow first(&backend);
+            first.show();
+            if (unavailable) {
+                bool done = false;
+                const QJsonArray panels{QJsonObject{{"path", fixture.filePath("missing")}}};
+                workspace(first)->Restore({{"panels", panels}}, [&] { done = true; });
+                QTRY_VERIFY(done);
+                QVERIFY(first.findChild<QPushButton *>("navigationRetry0")->isVisible());
+            } else
+                first.findChild<QAction *>("openRootAction")->trigger();
+            auto *table = active(first);
+            QVERIFY(table);
+            if (!unavailable)
+                QVERIFY(!QtNativePlaces::RootIdentity(*table->sourcePanel).isEmpty());
+            first.openPath(folder);
+            QVERIFY(!table->isEnabled());
+            saved = workspace(first)->Save();
+        }
+        ControlledBackend backend;
+        MainWindow restored(&backend);
+        restored.show();
+        bool done = false;
+        workspace(restored)->Restore(saved, [&] { done = true; });
+        QTRY_VERIFY(done);
+        QCOMPARE(location(restored), QFileInfo(folder).canonicalFilePath());
+        QCOMPARE(active(restored)->rowCount(), 301);
+    }
+
     void sessionRestoresIconViewAndDescendingOrder() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
