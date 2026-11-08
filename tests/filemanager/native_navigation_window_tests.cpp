@@ -623,6 +623,13 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         auto *address = window.findChild<QLineEdit *>("archivePath");
         QTRY_VERIFY(list->isEnabled());
         const QString previous = address->text();
+        if (retry) {
+            QVERIFY(WindowActivation::waitForActive(window));
+            QTRY_COMPARE(list->rowCount(), 1);
+            list->selectRow(0);
+            list->setFocus();
+            QTRY_VERIFY(list->hasFocus());
+        }
         int prompts = 0;
         QString error;
         QTimer responder;
@@ -649,7 +656,10 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
             QVERIFY(list->isEnabled());
             QVERIFY(!backend.busy());
             QVERIFY(!error.isEmpty() || !window.statusBar()->currentMessage().isEmpty());
-            window.openArchive(path);
+            QVERIFY(WindowActivation::waitForActive(window));
+            QTRY_VERIFY(list->hasFocus());
+            QCOMPARE(list->currentIndex().data().toString(), QFileInfo(path).fileName());
+            PanelKeys::openSelection(window.focusWidget());
             QCOMPARE(prompts, 2);
         }
         QCOMPARE(QDir::cleanPath(address->text()), QDir::cleanPath(accept ? path : previous));
