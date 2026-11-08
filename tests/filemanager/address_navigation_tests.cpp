@@ -453,8 +453,13 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
         ReloadLang(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
+#ifdef Q_OS_UNIX
+        const QString parent = fixture.filePath(QStringLiteral(" ancestor space δ "));
+        const QString child = QDir(parent).filePath(QStringLiteral(" inside 文件 "));
+#else
         const QString parent = fixture.filePath(QStringLiteral("ancestor space δ"));
         const QString child = QDir(parent).filePath(QStringLiteral("inside 文件"));
+#endif
         const QString peer = fixture.filePath("peer");
         QVERIFY(QDir().mkpath(child) && QDir().mkpath(peer));
         const QString control = QDir(parent).filePath(QStringLiteral("control δ.txt"));
@@ -483,6 +488,7 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
         address->setText(child);
         QTest::keyClick(address, Qt::Key_Return);
         QTRY_COMPARE(view->rowCount(), 1);
+        QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(address->text())), child);
         QString input = relative ? QStringLiteral("../missing 文件/deeper")
                                  : QDir(parent).filePath(QStringLiteral("missing 文件/deeper"));
         if (trailing)
