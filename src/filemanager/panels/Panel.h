@@ -431,7 +431,8 @@ class CPanel : public QObject {
     HRESULT CompressDropFiles(const UStringVector &filePaths, const UString &folderPath,
                               bool createNewArchive, bool moveMode, UInt32 sourceFlags,
                               UInt32 &targetFlags,
-                              std::optional<CSelectedState> *refreshSelection = nullptr);
+                              std::optional<CSelectedState> *refreshSelection = nullptr,
+                              bool *published = nullptr);
     HRESULT CopyFsItems(CCopyToOptions &options, const UStringVector &filePaths,
                         UStringVector *messages) {
         bool usePassword = false;
@@ -440,7 +441,8 @@ class CPanel : public QObject {
         return CopyTo(options, indices, messages, usePassword, password, &filePaths);
     }
     HRESULT CopyFromNoAsk(bool moveMode, const UStringVector &filePaths,
-                          std::optional<CSelectedState> *refreshSelection = nullptr);
+                          std::optional<CSelectedState> *refreshSelection = nullptr,
+                          bool *published = nullptr);
     void RefreshTitle(bool always = false) {
         if (_panelCallback)
             _panelCallback->RefreshTitle(always);

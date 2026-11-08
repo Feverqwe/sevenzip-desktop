@@ -5,6 +5,7 @@
 #include "filemanager/support/selection_fixture.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
+#include "filemanager/window/qtworkspaceapplication.h"
 #include "localization/LangUtils.h"
 #include "platform/support/native_property_failure_runtime.h"
 #include "support/drag_event_position.h"
@@ -150,6 +151,20 @@ class NativeDropPublicationTests final : public QObject, protected MainWindowTes
         startup.FullPath = ToUString(archive);
         startup.ArcFormat = L"SevenzipFixture7z";
         startup.NeedOpenArc = true;
+        QtWorkspaceApplication application(*qApp);
+        std::unique_ptr<MainWindow> observer;
+        FileTable *observed = nullptr;
+        if (activeTarget && (scenario == 0 || scenario == 6)) {
+            observer = std::make_unique<MainWindow>(&backend, nullptr, nullptr, &startup);
+            observer->show();
+            auto *observedPane = observer->findChild<QWidget *>(QString("filePanel%1").arg(pane));
+            QVERIFY(observedPane);
+            observed = observedPane->findChild<FileTable *>("archiveTable");
+            QVERIFY(observed);
+            QTRY_COMPARE(observed->rowCount(), count);
+            QVERIFY(observed->sourcePanel->IsArcFolder());
+            observed->sourcePanel->Set_AutoRefresh_Mode(false);
+        }
         MainWindow window(&backend, {}, nullptr, &startup);
         const auto resetControls = qScopeGuard([&] { runtime_.clear(); });
         window.show();
@@ -255,6 +270,12 @@ class NativeDropPublicationTests final : public QObject, protected MainWindowTes
         QTRY_COMPARE(list->rowCount(),
                      succeeded && rendered != int(S_OK) ? 0 : count + int(succeeded));
         QCOMPARE(panel.GetFolder(), provider.Interface());
+        if (observed) {
+            QTRY_COMPARE(observed->rowCount(), count + int(succeeded));
+            const auto matches = observed->model()->match(observed->model()->index(0, 0),
+                                                          Qt::DisplayRole, addedName);
+            QCOMPARE(!matches.isEmpty(), succeeded);
+        }
         QCOMPARE(window.focusWidget(), static_cast<QWidget *>(view));
         QVERIFY(peerPublication.isEmpty());
         QCOMPARE(peerList->sourcePanel->GetFolder(), peerProvider.Interface());

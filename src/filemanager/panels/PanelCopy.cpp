@@ -341,14 +341,15 @@ HRESULT CPanel::CopyTo(CCopyToOptions &options, const CRecordVector<UInt32> &ind
 }
 
 HRESULT CPanel::CopyFromNoAsk(bool moveMode, const UStringVector &filePaths,
-                              std::optional<CSelectedState> *refreshSelection) {
+                              std::optional<CSelectedState> *refreshSelection, bool *published) {
     if (refreshSelection)
         refreshSelection->reset();
     CDisableTimerProcessing disableTimerProcessing(*this);
     CSelectedState srcSelState;
     SaveSelectedState(srcSelState);
     CDisableNotify disableNotify(*this);
-    const HRESULT result = CopyFrom(moveMode, L"", filePaths, true, NULL);
+    const HRESULT result =
+        CopyFrom(moveMode, L"", filePaths, true, NULL, nullptr, std::nullopt, published);
     if (result != S_OK) {
         disableNotify.Restore();
         SetFocusToList();

@@ -4,6 +4,7 @@
 #include "filemanager/views/filetable.h"
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtapppresentation.h"
+#include "filemanager/window/qtworkspaceapplication.h"
 #include "localization/LangUtils.h"
 #include "localization/qtlangcontrols.h"
 #include <QScopeGuard>
@@ -137,10 +138,12 @@ HRESULT QtFileManagerDrag::ExecuteDrop(CDataObject *data, DWORD keys, const QPoi
     auto &target = window_.app_.DropTarget();
     CPanel *const owner = target.TargetPanel();
     std::optional<CSelectedState> refreshSelection;
+    bool published = false;
     HRESULT result;
     {
         QScopedValueRollback<bool> source(window_.sourceArchiveProgress_, true);
-        result = target.Drop(data, keys, position.x(), position.y(), &effect, &refreshSelection);
+        result = target.Drop(data, keys, position.x(), position.y(), &effect, &refreshSelection,
+                             &published);
     }
     if (refreshSelection)
         for (unsigned index = 0; index < kNumPanelsMax; ++index)
@@ -150,6 +153,14 @@ HRESULT QtFileManagerDrag::ExecuteDrop(CDataObject *data, DWORD keys, const QPoi
                 window_.appPresentation_->RequestListFocus(index);
                 break;
             }
+    if (published && owner && owner->GetParentFolders().Size() == 1) {
+        const QString archive = ToQString(owner->GetParentFolders().Front().VirtualPath);
+        const auto *updated = refreshSelection ? owner : nullptr;
+        if (auto *application = QtWorkspaceApplication::Find())
+            application->ArchivePublished(archive, updated);
+        else
+            window_.ArchivePublished(archive, updated);
+    }
     return result;
 }
 

@@ -158,7 +158,8 @@ class CDropTarget {
     HRESULT DragOver(DWORD keyState, int x, int y, DWORD *effect);
     HRESULT DragLeave();
     HRESULT Drop(CDataObject *dataObject, DWORD keyState, int x, int y, DWORD *effect,
-                 std::optional<CSelectedState> *refreshSelection = nullptr);
+                 std::optional<CSelectedState> *refreshSelection = nullptr,
+                 bool *published = nullptr);
     CPanel *TargetPanel() const { return m_Panel; }
     bool IsAppTarget() const { return m_IsAppTarget; }
     bool IsMenuDrop() const { return m_IsRightButton; }

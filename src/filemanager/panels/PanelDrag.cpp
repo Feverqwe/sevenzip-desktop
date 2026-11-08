@@ -280,9 +280,11 @@ HRESULT CDropTarget::DragLeave() {
     }
 }
 HRESULT CDropTarget::Drop(CDataObject *dataObject, DWORD keyState, int x, int y, DWORD *effect,
-                          std::optional<CSelectedState> *refreshSelection) {
+                          std::optional<CSelectedState> *refreshSelection, bool *published) {
     if (refreshSelection)
         refreshSelection->reset();
+    if (published)
+        *published = false;
     HRESULT hres = S_OK;
     bool needDrop_by_Source = false;
     DWORD opEffect = DROPEFFECT_NONE;
@@ -406,7 +408,7 @@ HRESULT CDropTarget::Drop(CDataObject *dataObject, DWORD keyState, int x, int y,
                     RemoveSelection();
                     hres = m_Panel->CompressDropFiles(
                         m_SourcePaths, path, cmd == NDragMenu::k_AddToArc, moveMode, transferFlags,
-                        target.Flags, refreshSelection);
+                        target.Flags, refreshSelection, published);
                 }
             }
         }
@@ -460,7 +462,8 @@ static bool AreThereNamesFromTemp(const UStringVector &filePaths) {
 HRESULT CPanel::CompressDropFiles(const UStringVector &filePaths, const UString &folderPath,
                                   bool createNewArchive, bool moveMode, UInt32 sourceFlags,
                                   UInt32 &targetFlags,
-                                  std::optional<CSelectedState> *refreshSelection) {
+                                  std::optional<CSelectedState> *refreshSelection,
+                                  bool *published) {
     if (filePaths.Size() == 0)
         return S_OK;
     if (createNewArchive) {
@@ -498,7 +501,7 @@ HRESULT CPanel::CompressDropFiles(const UStringVector &filePaths, const UString 
             options.ZoneIdMode = NExtract::NZoneIdMode::kNone;
             return CopyFsItems(options, filePaths, NULL);
         } else
-            return CopyFromNoAsk(moveMode, filePaths, refreshSelection);
+            return CopyFromNoAsk(moveMode, filePaths, refreshSelection, published);
     }
 }
 void CApp::CreateDragTarget() {
