@@ -203,6 +203,52 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         QCOMPARE(QApplication::clipboard()->mimeData()->urls(), urls);
     }
 
+    void gnomeCutAppliesOnlyToMatchingClipboardFiles_data() {
+        QTest::addColumn<QString>("metadata");
+        QTest::newRow("same-files-different-order") << QString("matching");
+        QTest::newRow("different-files") << QString("different");
+        QTest::newRow("invalid-file-list") << QString("invalid");
+    }
+    void gnomeCutAppliesOnlyToMatchingClipboardFiles() {
+        QFETCH(QString, metadata);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const auto cleanup = qScopeGuard([] { QApplication::clipboard()->clear(); });
+        const QString first = fixture.filePath("first.txt");
+        const QString second = fixture.filePath("second.txt");
+        const QString unrelated = fixture.filePath("unrelated.txt");
+        const QString destination = fixture.filePath("destination");
+        QVERIFY(QDir().mkpath(destination));
+        QVERIFY(write(first, "first") && write(second, "second") && write(unrelated, "other"));
+        auto *mime = new QMimeData;
+        const auto firstUrl = QUrl::fromLocalFile(first);
+        const auto secondUrl = QUrl::fromLocalFile(second);
+        mime->setUrls({firstUrl, secondUrl});
+        QByteArray gnome = "cut\n";
+        if (metadata == "matching")
+            gnome += secondUrl.toEncoded() + '\n' + firstUrl.toEncoded();
+        else if (metadata == "different")
+            gnome += QUrl::fromLocalFile(unrelated).toEncoded();
+        else
+            gnome += "https://example.invalid/not-a-file";
+        mime->setData("x-special/gnome-copied-files", gnome);
+        QApplication::clipboard()->setMimeData(mime);
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(destination);
+        auto *paste = action(window, "pasteFilesAction");
+        QTRY_VERIFY(paste->isEnabled());
+        paste->trigger();
+        QTRY_VERIFY(QtLocalFileTask::Active().isEmpty());
+        QCOMPARE(read(QDir(destination).filePath("first.txt")), QByteArray("first"));
+        QCOMPARE(read(QDir(destination).filePath("second.txt")), QByteArray("second"));
+        QCOMPARE(QFileInfo::exists(first), metadata != "matching");
+        QCOMPARE(QFileInfo::exists(second), metadata != "matching");
+        QCOMPARE(read(unrelated), QByteArray("other"));
+        QVERIFY(!QFileInfo::exists(QDir(destination).filePath("unrelated.txt")));
+    }
+
     void partialCutCanBeRetried_data() {
         QTest::addColumn<bool>("replaceClipboard");
         QTest::addColumn<bool>("gnomeOnly");

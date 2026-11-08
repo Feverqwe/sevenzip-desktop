@@ -12,19 +12,7 @@
 namespace {
 constexpr auto gnomeFilesFormat = "x-special/gnome-copied-files";
 
-QStringList ClipboardFilePaths(const QMimeData *mime) {
-    if (!mime)
-        return {};
-    QList<QUrl> urls = mime->urls();
-    if (urls.isEmpty() && !mime->hasUrls()) {
-        auto lines = mime->data(gnomeFilesFormat).split('\n');
-        if (!lines.isEmpty() && lines.back().isEmpty())
-            lines.removeLast();
-        if (lines.size() < 2 || (lines.front() != "cut" && lines.front() != "copy"))
-            return {};
-        for (qsizetype i = 1; i < lines.size(); ++i)
-            urls.append(QUrl::fromEncoded(lines[i], QUrl::StrictMode));
-    }
+QStringList LocalFilePaths(const QList<QUrl> &urls) {
     QStringList paths;
     for (const auto &url : urls) {
         if (!url.isValid() || !url.isLocalFile())
@@ -37,9 +25,34 @@ QStringList ClipboardFilePaths(const QMimeData *mime) {
     return paths;
 }
 
-bool ClipboardMovesFiles(const QMimeData &mime) {
-    bool move = mime.data("application/x-kde-cutselection") == "1" ||
-                mime.data(gnomeFilesFormat).startsWith("cut\n");
+QStringList GnomeFilePaths(const QByteArray &data) {
+    auto lines = data.split('\n');
+    if (!lines.isEmpty() && lines.back().isEmpty())
+        lines.removeLast();
+    if (lines.size() < 2 || (lines.front() != "cut" && lines.front() != "copy"))
+        return {};
+    QList<QUrl> urls;
+    for (qsizetype i = 1; i < lines.size(); ++i)
+        urls.append(QUrl::fromEncoded(lines[i], QUrl::StrictMode));
+    return LocalFilePaths(urls);
+}
+
+QStringList ClipboardFilePaths(const QMimeData *mime) {
+    if (!mime)
+        return {};
+    const auto urls = mime->urls();
+    return urls.isEmpty() && !mime->hasUrls() ? GnomeFilePaths(mime->data(gnomeFilesFormat))
+                                              : LocalFilePaths(urls);
+}
+
+bool ClipboardMovesFiles(const QMimeData &mime, const QStringList &paths) {
+    bool move = mime.data("application/x-kde-cutselection") == "1";
+    const auto gnome = mime.data(gnomeFilesFormat);
+    if (!move && !paths.isEmpty() && gnome.startsWith("cut\n")) {
+        const auto gnomePaths = GnomeFilePaths(gnome);
+        move = QSet<QString>(paths.cbegin(), paths.cend()) ==
+               QSet<QString>(gnomePaths.cbegin(), gnomePaths.cend());
+    }
 #ifdef Q_OS_WIN
     const QByteArray preferred =
         mime.data("application/x-qt-windows-mime;value=\"Preferred DropEffect\"");
@@ -113,8 +126,9 @@ void QtFileClipboard::Refresh() {
         cutDirty_ = false;
         cutPaths_.clear();
         const auto *mime = QApplication::clipboard()->mimeData();
-        if (mime && ClipboardMovesFiles(*mime))
-            for (const auto &path : ClipboardFilePaths(mime))
+        const auto paths = ClipboardFilePaths(mime);
+        if (mime && ClipboardMovesFiles(*mime, paths))
+            for (const auto &path : paths)
                 cutPaths_.insert(QDir::cleanPath(QDir::fromNativeSeparators(path)));
     }
     // Hidden tabs retain their model; every window observes clipboard changes.
@@ -187,7 +201,7 @@ void QtFileClipboard::Paste() {
     const QStringList paths = ClipboardFilePaths(mime);
     if (paths.isEmpty())
         return;
-    const bool move = ClipboardMovesFiles(*mime);
+    const bool move = ClipboardMovesFiles(*mime, paths);
     // Existing transfer owns collisions, path validation, cancellation,
     // metadata and progress; clipboard only supplies source URLs/destination.
     const QPointer<const QMimeData> original(mime);
@@ -201,7 +215,7 @@ void QtFileClipboard::Paste() {
                               if (movedSources.isEmpty() || owner->revision_ != revision ||
                                   !original || QApplication::clipboard()->mimeData() != original ||
                                   ClipboardFilePaths(original) != paths ||
-                                  !ClipboardMovesFiles(*original))
+                                  !ClipboardMovesFiles(*original, paths))
                                   return;
                               const QSet<QString> moved(movedSources.cbegin(), movedSources.cend());
                               QList<QUrl> remaining;
