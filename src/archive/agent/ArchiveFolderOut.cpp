@@ -128,7 +128,8 @@ HRESULT CAgentFolder::CommonUpdateOperation(AGENT_OP operation, bool moveMode,
                                             const UInt32 *indices, UInt32 numItems,
                                             IProgress *progress) {
     auto *publication = dynamic_cast<QtArchiveUpdatePublication *>(progress);
-    bool *published = publication ? &publication->Published.emplace(false) : nullptr;
+    bool publishedLocally = false;
+    bool *published = publication ? &publication->Published.emplace(false) : &publishedLocally;
     if (!IsBound())
         return E_FAIL;
     if (moveMode && _agentSpec->_isHashHandler)
@@ -287,6 +288,13 @@ HRESULT CAgentFolder::CommonUpdateOperation(AGENT_OP operation, bool moveMode,
             res = tempFile.MoveToOriginal(true, nullptr, published); // deleteOriginal
             if (res == S_OK)
                 adoptPublishedTemp();
+        }
+        if (res != S_OK && res != E_ABORT && !*published && updateCallback100) {
+            UString message = QtDiagnosticText(
+                QT_TRANSLATE_NOOP("SevenZipDiagnostics", "Cannot replace the archive"));
+            message.Add_LF();
+            message += fs2us(tempFile.Get_OriginalFilePath());
+            updateCallback100->UpdateErrorMessage(message);
         }
         // Preserve native Finish/Before_ArcReopen and reopening even when the
         // ownership adapter fails after a successful publication.
