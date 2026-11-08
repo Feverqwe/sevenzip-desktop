@@ -3,11 +3,12 @@
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
 #include "localization/LangUtils.h"
+#include "support/panel_keys.h"
 #include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
+#include <QClipboard>
 #include <QScopeGuard>
 #include <QStandardPaths>
-#include <QTreeWidget>
 
 class ActivationExternalFiles final : public IQtExternalFileServices {
   public:
@@ -36,7 +37,7 @@ class PanelActivationTests final : public QObject, protected MainWindowTestSuppo
                     ->findChild<QLineEdit *>("archivePath");
     }
     static void navigate(MainWindow &window, unsigned pane, const QString &path) {
-        address(window, pane).setFocus();
+        PanelKeys::focusAddress(&address(window, pane));
         address(window, pane).setText(path);
         QTest::keyClick(&address(window, pane), Qt::Key_Return);
         QTRY_COMPARE(list(window, pane).rowCount(), 2);
@@ -202,6 +203,7 @@ class PanelActivationTests final : public QObject, protected MainWindowTestSuppo
         panel.AttachExternalFileServices(&external);
         window.activateWindow();
         QVERIFY(QTest::qWaitForWindowActive(&window));
+        view.setFocus();
         action(window, qPrintable(QString("viewMode%1Action").arg(mode)))->trigger();
         QAbstractItemView *control = &view;
         if (mode == 0)
@@ -240,13 +242,17 @@ class PanelActivationTests final : public QObject, protected MainWindowTestSuppo
                 return;
             const auto close = qScopeGuard([&] { dialog->reject(); });
             shown = true;
-            auto *values = dialog->findChild<QTreeWidget *>("propertiesList");
-            QVERIFY(values);
-            QVERIFY(values->findItems(target, Qt::MatchExactly, 1).size() == 1);
+            auto *identity = dialog->findChild<QWidget *>("propertiesIdentity");
+            auto *copy = dialog->findChild<QPushButton *>("propertiesCopyInformation");
+            QVERIFY(identity && copy);
+            const auto clear = qScopeGuard([] { QApplication::clipboard()->clear(); });
+            copy->click();
+            QVERIFY(QApplication::clipboard()->text().contains(target));
             for (const QSize size : {QSize(540, 360), QSize(360, 240)}) {
                 dialog->resize(size);
                 QApplication::processEvents();
-                QVERIFY(UiInspection::fullyVisible(*values, *dialog));
+                QVERIFY(UiInspection::fullyVisible(*identity, *dialog));
+                QVERIFY(UiInspection::fullyVisible(*copy, *dialog));
                 QVERIFY(UiInspection::writeReport(*dialog, QString("activation-properties-%1-%2")
                                                                .arg(QTest::currentDataTag())
                                                                .arg(size.width())));
