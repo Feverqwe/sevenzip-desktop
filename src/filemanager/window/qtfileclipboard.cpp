@@ -22,6 +22,7 @@ QStringList LocalFilePaths(const QList<QUrl> &urls) {
             return {};
         paths.append(path);
     }
+    paths.removeDuplicates();
     return paths;
 }
 

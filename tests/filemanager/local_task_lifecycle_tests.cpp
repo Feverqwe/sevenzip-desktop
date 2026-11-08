@@ -206,6 +206,7 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
     void gnomeCutAppliesOnlyToMatchingClipboardFiles_data() {
         QTest::addColumn<QString>("metadata");
         QTest::newRow("same-files-different-order") << QString("matching");
+        QTest::newRow("same-files-with-a-repeated-url") << QString("repeated");
         QTest::newRow("different-files") << QString("different");
         QTest::newRow("invalid-file-list") << QString("invalid");
     }
@@ -223,9 +224,11 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         auto *mime = new QMimeData;
         const auto firstUrl = QUrl::fromLocalFile(first);
         const auto secondUrl = QUrl::fromLocalFile(second);
-        mime->setUrls({firstUrl, secondUrl});
+        const bool repeated = metadata == "repeated";
+        const bool matching = metadata == "matching" || repeated;
+        mime->setUrls(repeated ? QList{firstUrl, secondUrl, firstUrl} : QList{firstUrl, secondUrl});
         QByteArray gnome = "cut\n";
-        if (metadata == "matching")
+        if (matching)
             gnome += secondUrl.toEncoded() + '\n' + firstUrl.toEncoded();
         else if (metadata == "different")
             gnome += QUrl::fromLocalFile(unrelated).toEncoded();
@@ -243,8 +246,8 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         QTRY_VERIFY(QtLocalFileTask::Active().isEmpty());
         QCOMPARE(read(QDir(destination).filePath("first.txt")), QByteArray("first"));
         QCOMPARE(read(QDir(destination).filePath("second.txt")), QByteArray("second"));
-        QCOMPARE(QFileInfo::exists(first), metadata != "matching");
-        QCOMPARE(QFileInfo::exists(second), metadata != "matching");
+        QCOMPARE(QFileInfo::exists(first), !matching);
+        QCOMPARE(QFileInfo::exists(second), !matching);
         QCOMPARE(read(unrelated), QByteArray("other"));
         QVERIFY(!QFileInfo::exists(QDir(destination).filePath("unrelated.txt")));
     }
