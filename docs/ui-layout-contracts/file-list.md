@@ -75,6 +75,9 @@ stays unselected, and the focused-size/date fields stay empty when the pane
 has no selection. Check both panes, EN/RU and active/inactive ownership at
 980×620 and 640×400 through the `source-refresh-status` widget reports.
 Rebinding the view preserves selection notifications for the current provider.
+Create Folder brings the newly selected folder into view, including after a
+deferred reload. If the new folder is outside the current panel, the panel
+keeps its previous viewport.
 
 ### Archive directory CRC projection (P3-05)
 

@@ -53,6 +53,7 @@ static void PrepareCreatedSelection(const CPanel &panel, UString newName, CSelec
     state.FocusedName = newName;
     state.FocusedName_Defined = true;
     state.SelectFocused = true;
+    state.KeepViewport = false;
 }
 
 static UString RenamedItemInView(const CPanel &panel, const UString &relative) {

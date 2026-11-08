@@ -59,6 +59,9 @@ HRESULT MainWindow::reloadProjectedPanel(const CSelectedState &selection) {
         refreshActions();
         return loaded;
     }
+    if (!selection.KeepViewport)
+        return refreshFilesystem(selection, true);
+
     auto *view = qobject_cast<QAbstractItemView *>(projectedUi().viewStack->currentWidget());
     int topRow = -1;
     int iconOffset = 0;

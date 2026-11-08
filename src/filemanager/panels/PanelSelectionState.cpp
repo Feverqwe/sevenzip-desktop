@@ -60,6 +60,7 @@ void CPanel::Get_ItemIndices_OperSmart(CRecordVector<UInt32> &indices) const {
 }
 
 void CPanel::SaveSelectedState(CSelectedState &s) {
+    s.KeepViewport = true;
     s.FocusedName_Defined = false;
     s.FocusedName.Empty();
     s.SelectFocused = true;

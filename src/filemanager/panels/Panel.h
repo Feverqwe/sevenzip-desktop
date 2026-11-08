@@ -157,6 +157,7 @@ struct CSelectedState {
     bool SelectFocused;
     bool FocusedName_Defined;
     bool CalledFromTimer;
+    bool KeepViewport = true;
     UString FocusedName;
     UStringVector SelectedNames;
 

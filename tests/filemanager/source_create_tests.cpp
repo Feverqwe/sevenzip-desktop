@@ -174,7 +174,13 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         QCOMPARE(view->currentRow(), selected);
         QVERIFY(view->selectionModel()->isRowSelected(selected, {}));
     }
-    void deferredRefresh() {
+    void revealsCreatedFolder_data() {
+        QTest::addColumn<int>("count");
+        QTest::newRow("immediate") << 100;
+        QTest::newRow("deferred") << 257;
+    }
+    void revealsCreatedFolder() {
+        QFETCH(int, count);
         const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         QFile::remove(settings);
         CFmSettings preferences;
@@ -183,7 +189,7 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         preferences.Save(settings);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
-        for (int i = 0; i < 257; ++i) {
+        for (int i = 0; i < count; ++i) {
             QFile entry(fixture.filePath(QString("old-%1.bin").arg(i)));
             QVERIFY(entry.open(QIODevice::WriteOnly));
             QCOMPARE(entry.write("keep bytes"), qint64(10));
@@ -192,9 +198,11 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         MainWindow window(&backend);
         window.show();
         auto *view = openPanel(window, 0, fixture.path());
-        QTRY_VERIFY(view->isEnabled() && view->rowCount() == 257);
+        QTRY_VERIFY(view->isEnabled() && view->rowCount() == count);
         QVERIFY(WindowActivation::waitForActive(window));
         view->setFocus();
+        view->setCurrentCell(view->rowCount() - 1, 0);
+        view->scrollToBottom();
         auto &panel = *view->sourcePanel;
         panel.Set_AutoRefresh_Mode(false);
         const QString name = QStringLiteral("new 文件 with spaces");
@@ -203,12 +211,14 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         QVERIFY(input && input->isVisible());
         input->setText(name);
         QTest::keyClick(input, Qt::Key_Return);
-        QVERIFY(!panel.ShouldProcessNotifications());
-        QTRY_VERIFY(view->isEnabled() && view->rowCount() == 258);
+        if (count == 257)
+            QVERIFY(!panel.ShouldProcessNotifications());
+        QTRY_VERIFY(view->isEnabled() && view->rowCount() == count + 1);
         QCOMPARE(window.focusWidget(), view);
         QVERIFY(panel.ShouldProcessNotifications());
         QCOMPARE(view->selectionModel()->selectedRows().size(), 1);
         QCOMPARE(view->model()->index(view->currentRow(), 0).data().toString(), name);
+        QVERIFY(view->viewport()->rect().intersects(view->visualRect(view->currentIndex())));
         QVERIFY(QFileInfo::exists(fixture.filePath(name)));
         QFile keep(fixture.filePath("old-0.bin"));
         QVERIFY(keep.open(QIODevice::ReadOnly));
