@@ -30,6 +30,63 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
     void initTestCase() { UiInspection::configureReviewAppearance(); }
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
 
+    void missingFolderKeepsHistoryPosition_data() {
+        QTest::addColumn<bool>("forward");
+        QTest::newRow("back") << false;
+        QTest::newRow("forward") << true;
+    }
+    void missingFolderKeepsHistoryPosition() {
+        QFETCH(bool, forward);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString first = fixture.filePath("first");
+        const QString second = fixture.filePath("second");
+        createDirectory(first);
+        createDirectory(second);
+        ArchiveBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(first);
+        QTRY_COMPARE(location(window), first);
+        window.openPath(second);
+        QTRY_COMPARE(location(window), second);
+        if (forward) {
+            action(window, "backAction")->trigger();
+            QTRY_COMPARE(location(window), first);
+        }
+        const QString current = forward ? first : second;
+        const QString missing = forward ? second : first;
+        auto *travel = action(window, forward ? "forwardAction" : "backAction");
+        QTRY_VERIFY(travel->isEnabled());
+        const QString parked = fixture.filePath("renamed");
+        QVERIFY(QDir().rename(missing, parked));
+        travel->trigger();
+        QTRY_VERIFY(window.statusBar()->currentMessage().contains(missing));
+        QCOMPARE(location(window), current);
+        QTRY_VERIFY(travel->isEnabled());
+        const QString archive = fixture.filePath("replacement.7z");
+        QVERIFY(ExternalEditorFixture::createArchive(
+            fixture.path(), archive, QFileInfo(parked).fileName(), "7z", "history password"));
+        QVERIFY(QFile::rename(archive, missing));
+        int prompts = 0;
+        QTimer answer;
+        dialogs_.connectResponder(answer, &window, [&] {
+            if (auto *dialog = dynamic_cast<CPasswordDialog *>(dialogs_.activeDialog())) {
+                ++prompts;
+                dialog->reject();
+            }
+        });
+        answer.start(1);
+        travel->trigger();
+        answer.stop();
+        QCOMPARE(prompts, 0);
+        QCOMPARE(location(window), current);
+        QVERIFY(QFile::remove(missing));
+        QVERIFY(QDir().rename(parked, missing));
+        travel->trigger();
+        QTRY_COMPARE(location(window), missing);
+    }
+
     void keyboardAndNavigationGeometry_data() {
         QTest::addColumn<QString>("language");
         QTest::newRow("en") << QString("-");

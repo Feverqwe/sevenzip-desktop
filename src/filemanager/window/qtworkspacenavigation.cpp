@@ -24,7 +24,8 @@ QtWindowWorkspace::Visit QtWindowWorkspace::CaptureVisit(unsigned panel) {
                 locationState.archiveLocation,
                 locationState.selection,
                 locationState.scroll,
-                UInt32(locationState.viewMode)};
+                UInt32(locationState.viewMode),
+                window_.app_.Panels[panel].IsFSFolder()};
     const auto &ui = window_.panelUi_[panel];
     // A same-folder refresh has already saved the selection and viewport.
     // Its live model may be empty or only partially published.
@@ -291,6 +292,8 @@ void QtWindowWorkspace::Travel(int direction) {
     Navigate([&] {
         auto &request = *navigation_[panel];
         request.destination = destination;
+        if (target.diskFolder && !QFileInfo(QDir::cleanPath(target.path)).isDir())
+            return HRESULT(S_FALSE);
         auto &source = *request.source;
         // An existing reader can bind another directory in its own chain.
         // Different chains are probed while the previous native source is parked.

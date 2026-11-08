@@ -87,6 +87,7 @@ class QtWindowWorkspace final : public QObject {
         CSelectedState selection;
         QPoint scroll;
         UInt32 viewMode = 3;
+        bool diskFolder = false;
         bool SameLocation(const Visit &other) const;
     };
     struct Navigation {
