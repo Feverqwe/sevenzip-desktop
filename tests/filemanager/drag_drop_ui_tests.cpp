@@ -77,6 +77,31 @@ bool CopyExport(const QMimeData *mime, const QString &destination) {
            QFile::copy(urls.front().toLocalFile(), destination);
 }
 
+#ifdef Q_OS_WIN
+HWND ExplorerWindowForFolder(const QString &folder) {
+    struct Search {
+        QString name;
+        HWND window = nullptr;
+    } search{QFileInfo(folder).fileName()};
+    EnumWindows(
+        [](HWND window, LPARAM parameter) -> BOOL {
+            auto &search = *reinterpret_cast<Search *>(parameter);
+            wchar_t className[32]{};
+            GetClassNameW(window, className, 32);
+            if (!IsWindowVisible(window) || QString::fromWCharArray(className) != "CabinetWClass")
+                return TRUE;
+            wchar_t title[1024]{};
+            GetWindowTextW(window, title, 1024);
+            if (!QString::fromWCharArray(title).contains(search.name))
+                return TRUE;
+            search.window = window;
+            return FALSE;
+        },
+        reinterpret_cast<LPARAM>(&search));
+    return search.window;
+}
+#endif
+
 #if defined(Q_OS_LINUX) || defined(Q_OS_WIN)
 class NativeDropReceiver final : public QWidget {
   public:
@@ -433,6 +458,10 @@ class DragDropUiTests final : public QObject {
         QTest::newRow("archive-clipboard") << true << false << false;
         QTest::newRow("filesystem-clipboard") << false << false << false;
         QTest::newRow("archive-clipboard-replaced") << true << false << true;
+#ifdef Q_OS_WIN
+        if (QGuiApplication::platformName() == QStringLiteral("windows"))
+            QTest::newRow("explorer-clipboard") << true << false << false;
+#endif
     }
     void fileExportCanBeCopiedByRecipient() {
         QFETCH(bool, archiveSource);
@@ -523,6 +552,30 @@ class DragDropUiTests final : public QObject {
                 return;
             }
             QTRY_VERIFY(clipboard->mimeData() && clipboard->mimeData()->hasUrls());
+#ifdef Q_OS_WIN
+            if (QByteArrayView(QTest::currentDataTag()) == "explorer-clipboard") {
+                QVERIFY(QProcess::startDetached("explorer.exe",
+                                                {QDir::toNativeSeparators(output.path())}));
+                HWND explorer = nullptr;
+                QTRY_VERIFY((explorer = ExplorerWindowForFolder(output.path())));
+                const auto closeExplorer = qScopeGuard([&] {
+                    if (ExplorerWindowForFolder(output.path()) == explorer)
+                        PostMessageW(explorer, WM_CLOSE, 0, 0);
+                });
+                SetForegroundWindow(explorer);
+                QTRY_COMPARE(GetForegroundWindow(), explorer);
+                INPUT paste[4]{};
+                for (auto &event : paste)
+                    event.type = INPUT_KEYBOARD;
+                paste[0].ki.wVk = paste[3].ki.wVk = VK_CONTROL;
+                paste[1].ki.wVk = paste[2].ki.wVk = 'V';
+                paste[2].ki.dwFlags = paste[3].ki.dwFlags = KEYEVENTF_KEYUP;
+                QCOMPARE(SendInput(4, paste, sizeof(INPUT)), UINT(4));
+                QTRY_COMPARE(SourceExtractFixture::readFile(destination), bytes);
+                QCOMPARE(SourceExtractFixture::readFile(archive), original);
+                return;
+            }
+#endif
             if (QGuiApplication::platformName() == QStringLiteral("offscreen")) {
                 QVERIFY2(CopyExport(clipboard->mimeData(), destination),
                          qPrintable(clipboard->text()));

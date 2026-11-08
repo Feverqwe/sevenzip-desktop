@@ -25,7 +25,8 @@ if(BUILD_TESTING)
     if(WIN32)
         add_test(NAME native_file_clipboard COMMAND drag_drop_ui_tests -silent
             fileExportCanBeCopiedByRecipient:filesystem-clipboard
-            fileExportCanBeCopiedByRecipient:archive-clipboard)
+            fileExportCanBeCopiedByRecipient:archive-clipboard
+            fileExportCanBeCopiedByRecipient:explorer-clipboard)
         add_test(NAME native_file_drag COMMAND drag_drop_ui_tests -silent
             archiveDragReachesNativeDropReceiver)
         set(sevenzip_clipboard_qpa windows)
