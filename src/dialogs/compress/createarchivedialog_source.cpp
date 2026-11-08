@@ -5,6 +5,7 @@
 #include "Windows/FileName.h"
 #include "archive/callbacks/qtguimessages.h"
 #include "archive/codecs/archivecodeccatalog.h"
+#include "archive/operations/Update.h"
 #include "dialogs/compress/createarchivedialog.h"
 #include "ui/controls/qtdisclosure.h"
 #include "ui/lifecycle/qttaskpresentation.h"
@@ -112,6 +113,19 @@ void CreateArchiveDialog::validateAndAccept() {
         const UString nativePath(QDir::toNativeSeparators(resolved).toStdWString().c_str());
         if (existing.Find_FollowLink(us2fs(nativePath)) && existing.IsReadOnly())
             pathError = QCoreApplication::translate("SevenZipDiagnostics", "The file is read-only");
+    }
+    if (pathError.isEmpty() && !singleVolume) {
+        CArchivePath volumes;
+        volumes.VolExtension = archiveNameState_.Get_ArcInfoEx().GetMainExt();
+        if (!codecs_ && volumes.VolExtension.IsEmpty())
+            volumes.VolExtension = format_->currentText().toStdWString().c_str();
+        volumes.BaseExtension = volumes.VolExtension;
+        volumes.ParseFromPath(UString(resolved.toStdWString().c_str()), k_ArcNameMode_Smart);
+        const UString first = volumes.GetFinalVolPath() + L".001";
+        if (NWindows::NFile::NFind::DoesFileOrDirExist(us2fs(first)))
+            pathError =
+                QCoreApplication::translate("SevenZipDiagnostics", "The file already exists") +
+                '\n' + QString::fromWCharArray(first.Ptr());
     }
     if (!pathError.isEmpty()) {
         // Keep the draft available for correction before handing it to UpdateArchive.

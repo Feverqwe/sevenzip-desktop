@@ -24,6 +24,8 @@ retaining the archive options. The archive name must end with a file name,
 even when the destination folder has yet to be created.
 A dangling link or read-only file at a single-file archive destination also
 keeps the form open.
+For a multi-volume archive, an occupied first volume keeps the form open so
+the user can choose another name or folder.
 Format is immediately available. Password protection has
 an explicit enable control; its dependent fields appear together, without a
 large framed heading. A source-supplied password enables the section. Turning

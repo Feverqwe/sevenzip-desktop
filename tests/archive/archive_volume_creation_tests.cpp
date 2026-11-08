@@ -156,6 +156,38 @@ class ArchiveVolumeCreationTests final : public QObject {
         QTest::newRow("normal") << 760 << 720;
         QTest::newRow("compact") << 640 << 480;
     }
+    void occupiedFirstVolumeCanBeCorrected() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString source = fixture.filePath("source.bin");
+        const QString occupied = fixture.filePath("archive.7z.001");
+        QVERIFY(writeFile(source, "source"));
+        QVERIFY(writeFile(occupied, "keep this volume"));
+        CreateArchiveDialog dialog(fixture.path(), {source});
+        auto *name = dialog.findChild<QLineEdit *>("archiveName");
+        name->setText("archive.7z");
+        dialog.findChild<QComboBox *>("archiveVolumeSize")->setEditText("128K");
+        auto *ok = dialog.findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok);
+        dialog.show();
+        bool refused = false;
+        QTimer::singleShot(0, &dialog, [&] {
+            if (auto *warning = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                refused = true;
+                warning->accept();
+            }
+        });
+        ok->click();
+        QVERIFY(refused && dialog.isVisible());
+        QCOMPARE(readFile(occupied), QByteArray("keep this volume"));
+        name->setText("different.7z");
+        ok->click();
+        QCOMPARE(dialog.result(), int(QDialog::Accepted));
+        ArchiveBackend backend;
+        QCOMPARE(SourceCreationFixture::Create(backend, dialog.target(), dialog.sources(), {},
+                                               false, dialog.compressionOptions()),
+                 S_OK);
+        QVERIFY(QFileInfo(fixture.filePath("different.7z.001")).isFile());
+    }
     void smallVolumeConfirmationDoesNotSaveUntilYes() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
