@@ -149,18 +149,20 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         QTest::newRow("password-cancelled") << QStringLiteral("cancel");
         QTest::newRow("wrong-password") << QStringLiteral("wrong");
         QTest::newRow("nested-wrong-password") << QStringLiteral("nested-wrong");
+        QTest::newRow("renamed-nested-archive") << QStringLiteral("nested-missing");
     }
     void failedPeerArchiveOpenKeepsAddressDraft() {
         QFETCH(QString, attempt);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString archive = fixture.filePath("source.7z");
-        const bool nested = attempt == "nested-wrong";
-        const bool wrongPassword = nested || attempt == "wrong";
+        const bool nestedMissing = attempt == "nested-missing";
+        const bool nested = nestedMissing || attempt == "nested-wrong";
+        const bool wrongPassword = attempt == "wrong" || attempt == "nested-wrong";
         const QString encrypted = nested ? fixture.filePath("inner.7z") : archive;
         const QString previous = fixture.filePath("previous");
         const QString password =
-            attempt == "missing" ? QString() : QStringLiteral("fixture password");
+            attempt == "missing" || nestedMissing ? QString() : QStringLiteral("fixture password");
         QVERIFY(
             NativeArchiveFixture::Write(encrypted, {{"source.txt", "payload"}}, "7z", password));
         if (nested) {
@@ -232,6 +234,15 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         openingPeer = true;
         if (attempt == "missing")
             QVERIFY(QFile::rename(archive, fixture.filePath("moved.7z")));
+        if (nestedMissing) {
+            source->sourcePanel->Set_AutoRefresh_Mode(false);
+            QFile inner(encrypted);
+            QVERIFY(inner.open(QIODevice::ReadOnly));
+            const QString replacement = fixture.filePath("replacement.7z");
+            QVERIFY(NativeArchiveFixture::Write(replacement, {{"renamed.7z", inner.readAll()}}));
+            QVERIFY(QFile::rename(archive, fixture.filePath("moved.7z")));
+            QVERIFY(QFile::rename(replacement, archive));
+        }
         PanelKeys::command(source, Qt::Key_Up, Qt::AltModifier | Qt::ShiftModifier);
         if (attempt == "cancel") {
             QCOMPARE(passwordRequests, 2);
@@ -241,6 +252,10 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
             QTRY_VERIFY2(window.statusBar()->currentMessage().contains("Wrong password",
                                                                        Qt::CaseInsensitive),
                          qPrintable(window.statusBar()->currentMessage()));
+        } else if (nestedMissing) {
+            const QString message = window.statusBar()->currentMessage();
+            QVERIFY2(message.startsWith("Path not found:") && message.endsWith("inner.7z"),
+                     qPrintable(message));
         } else {
             QTRY_VERIFY(window.statusBar()->currentMessage().contains("source.7z"));
         }

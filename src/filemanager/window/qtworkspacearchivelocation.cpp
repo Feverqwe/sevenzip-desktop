@@ -133,8 +133,14 @@ HRESULT QtWindowWorkspace::OpenArchiveLocation(unsigned panel, const QtArchiveLo
                     return E_INVALIDARG;
                 entry = index;
             }
-        if (!entry || source.IsItem_Folder(*entry))
+        if (!entry || source.IsItem_Folder(*entry)) {
+            if (failure) {
+                source.LoadFullPath();
+                *failure = QCoreApplication::translate("mainwindow_filelist", "Path not found: ") +
+                           ToQString(source.GetCurrentFolderPrefix()) + link.entry;
+            }
             return E_INVALIDARG;
+        }
         const unsigned depth = source.GetParentFolders().Size();
         source.LoadFullPath();
         source.SetArchiveOpenPassword(layers ? (*layers)[level].password : std::nullopt);
