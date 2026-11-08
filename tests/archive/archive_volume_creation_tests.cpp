@@ -265,8 +265,9 @@ class ArchiveVolumeCreationTests final : public QObject {
         QVERIFY(UiInspection::writeReport(dialog, "archive-volumes-" + QString::number(width)));
         const QByteArray original = readFile(settings_);
         auto *section = dialog.findChild<QtDisclosure *>("archiveAdditionalSection");
-        for (const auto &invalid : {QString("0"), QString("-128K"), QString("128Mmistyped"),
-                                    QString("128K256K"), QString("128K") + QChar::Null + " 256K"}) {
+        for (const auto &invalid :
+             {QString("0"), QString("-128K"), QString("128K -256K"), QString("128Mmistyped"),
+              QString("128K256K"), QString("128K") + QChar::Null + " 256K"}) {
             volume->setEditText(invalid);
             section->setExpanded(false);
             bool reported = false;

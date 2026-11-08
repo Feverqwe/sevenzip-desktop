@@ -18,7 +18,7 @@ bool ParseVolumeSizes(const UString &s, CRecordVector<UInt64> &values) {
         if (c == L' ')
             continue;
         if (c == L'-')
-            return true;
+            return i == s.Len() || s[i] < L'0' || s[i] > L'9';
         if (prevIsNumber) {
             prevIsNumber = false;
             unsigned numBits = 0;
