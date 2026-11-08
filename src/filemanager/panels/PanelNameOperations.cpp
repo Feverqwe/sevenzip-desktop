@@ -124,7 +124,8 @@ HRESULT CPanel::CreateFolder(UString name, QString &error, QString *destinationD
     if (res == S_OK) {
         PrepareCreatedSelection(*this, name, state);
         if (destinationDirectory && IsFSFolder())
-            *destinationDirectory = QFileInfo(ToQString(GetFsPath() + name)).absolutePath();
+            *destinationDirectory =
+                QFileInfo(QDir(ToQString(GetFsPath())), ToQString(name)).absolutePath();
     }
     RefreshTitleAlways();
     RefreshListCtrl(state);

@@ -160,11 +160,19 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         keep.close();
         const QString folder = QStringLiteral("created δ");
         const bool outside = pathForm == "outside";
-        const QString destination = QDir(outside ? fixture.path() : source).filePath(folder);
+        const QString target = outside ? fixture.filePath("other") : source;
+        if (outside)
+            QVERIFY(QDir().mkdir(target));
+        const QString destination = QDir(target).filePath(folder);
         const QString entered = pathForm == "relative" ? "./" + folder : destination;
 
-        ControlledBackend backend;
-        MainWindow window(&backend);
+        QtWorkspaceApplication application(*qApp);
+        ControlledBackend backend, observerBackend;
+        MainWindow window(&backend), observer(&observerBackend);
+        observer.show();
+        auto *observed = openPanel(observer, 0, target);
+        QTRY_COMPARE(observed->rowCount(), outside ? 0 : 1);
+        observed->sourcePanel->Set_AutoRefresh_Mode(false);
         window.show();
         auto *view = openPanel(window, 0, source);
         QTRY_COMPARE(view->rowCount(), 1);
@@ -177,6 +185,7 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         input->setText(entered);
         QTest::keyClick(input, Qt::Key_Return);
         QTRY_VERIFY(QFileInfo(destination).isDir());
+        QTRY_VERIFY(row(observed, folder) >= 0);
         QTRY_COMPARE(view->rowCount(), outside ? 1 : 2);
         const int selected = row(view, outside ? "keep.txt" : folder);
         QVERIFY(selected >= 0);
