@@ -4,6 +4,7 @@
 #include "window_operations.h"
 #include <QLineEdit>
 #include <QScopedValueRollback>
+#include <QStatusBar>
 
 void MainWindowOperationsTests::backendOverwriteDisplaysNativeMetadata_data() {
     QTest::addColumn<bool>("defined");
@@ -150,13 +151,18 @@ void MainWindowOperationsTests::extractAskUsesSourceOverwriteDialog() {
     QCOMPARE(old.write("preserved"), qint64(9));
     old.close();
     choice = "overwriteNo";
-    answered = false;
     table(window)->selectRow(0);
-    window.extractTo(temp.filePath("destination"), true, {}, options);
-    QVERIFY(answered);
-    QVERIFY(old.open(QIODevice::ReadOnly));
-    QCOMPARE(old.readAll(), QByteArray("preserved"));
-    old.close();
+    for (bool selected : {false, true}) {
+        answered = false;
+        window.extractTo(temp.filePath("destination"), selected, {}, options);
+        QVERIFY(answered);
+        QVERIFY(old.open(QIODevice::ReadOnly));
+        QCOMPARE(old.readAll(), QByteArray("preserved"));
+        old.close();
+        QCOMPARE(window.statusBar()->currentMessage(),
+                 QCoreApplication::translate("ProgressRedesign",
+                                             "Completed with skipped items or messages"));
+    }
 
     choice = "overwriteRename";
     answered = false;

@@ -76,6 +76,9 @@ void MainWindow::backendFinished(bool ok, const QString &message, HRESULT result
     QStringList terminalDiagnostics = diagnostics;
     bool reviewAfterPublication = false;
     const auto move = std::move(archiveMove_);
+    if (!move && ok && extraction && !extraction->Complete)
+        resultMessage = QCoreApplication::translate("ProgressRedesign",
+                                                    "Completed with skipped items or messages");
     reviewAfterPublication =
         move && (!ok || !extraction || !extraction->Complete || !terminalDiagnostics.isEmpty());
     if (move && ok) {
