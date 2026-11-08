@@ -209,6 +209,11 @@ bool MainWindow::handlePanelListKey(QKeyEvent *key) {
         return true;
     const auto mods = key->modifiers();
     const int virtualKey = QtPanelVirtualKey(*key);
+    const unsigned peer = 1 - projectedPanel_;
+    if (virtualKey == Qt::Key_Tab && app_.NumPanels == 2 && (scanningPanelMask() & (1u << peer))) {
+        workspace_->RequestListFocus(peer);
+        return true;
+    }
     if (!mods.testFlag(Qt::MetaModifier) &&
         panel.OnListViewKeyDown({virtualKey, mods.testFlag(Qt::AltModifier),
                                  mods.testFlag(Qt::ControlModifier), false,

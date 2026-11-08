@@ -352,6 +352,22 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
         added.close();
         QTRY_VERIFY_WITH_TIMEOUT(rightTable->rowCount() > rightRows, 4000);
         QCOMPARE(leftTable->rowCount(), leftRows);
+        rightTable->sourcePanel->Set_AutoRefresh_Mode(false);
+        for (int i = 0; i < 258; ++i) {
+            QFile entry(QDir(right).filePath(QString("scan-%1.txt").arg(i)));
+            QVERIFY(entry.open(QIODevice::WriteOnly));
+        }
+        rightTable->setFocus();
+        QTRY_VERIFY(rightTable->hasFocus());
+        action(window, "refreshAction")->trigger();
+        QVERIFY(!rightTable->isEnabled());
+        leftTable->setFocus();
+        QVERIFY(leftTable->hasFocus());
+        QTest::keyClick(leftTable, Qt::Key_Tab);
+        QTRY_VERIFY(rightTable->isEnabled() && rightTable->hasFocus());
+        QCOMPARE(rightTable->selectionModel()->selectedRows().size(), 1);
+        leftTable->setFocus();
+        QTRY_VERIFY(leftTable->hasFocus());
         window.resize(640, 400);
         QApplication::processEvents();
         QCOMPARE(window.width(), 640);
