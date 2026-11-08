@@ -189,6 +189,43 @@ class SplitDestinationTests final : public QObject {
         QCOMPARE(QDir::fromNativeSeparators(dialog.destination()),
                  QDir(selected).filePath(QStringLiteral("подпапка")));
     }
+    void relativeLongDestinationUsesSourceBrowser() {
+#ifdef Q_OS_WIN
+        QSKIP("This fixture uses a long working directory without a device prefix");
+#else
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString component(95, 'a');
+        const QString base = fixture.filePath(component + '/' + component + '/' + component);
+        const QString start = QDir(base).filePath("output");
+        QVERIFY(QDir().mkpath(start));
+        const QString originalDirectory = QDir::currentPath();
+        const bool nativeDisabled = QApplication::testAttribute(Qt::AA_DontUseNativeDialogs);
+        const auto restore = qScopeGuard([&] {
+            QDir::setCurrent(originalDirectory);
+            QApplication::setAttribute(Qt::AA_DontUseNativeDialogs, nativeDisabled);
+        });
+        QApplication::setAttribute(Qt::AA_DontUseNativeDialogs);
+        QVERIFY(QDir::setCurrent(base));
+        CExtractDialog dialog(start, {});
+        enabled(dialog)->setChecked(false);
+        path(dialog)->setEditText("output/");
+        dialog.show();
+        bool sourceBrowser = false;
+        QTimer::singleShot(0, &dialog, [&] {
+            auto *picker = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!picker)
+                return;
+            sourceBrowser = picker->objectName() == "browseDialog";
+            picker->reject();
+        });
+        dialog.findChild<QPushButton *>("extractBrowseButton")->click();
+        QVERIFY(sourceBrowser);
+        QCOMPARE(path(dialog)->currentText(), QString("output/"));
+        dialog.accept();
+        QCOMPARE(dialog.result(), int(QDialog::Accepted));
+#endif
+    }
     void cleanupTestCase() {
         if (oldSettings_.isNull())
             qunsetenv("SEVENZIP_SETTINGS_PATH");

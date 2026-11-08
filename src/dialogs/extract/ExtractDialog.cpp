@@ -42,6 +42,12 @@ QString InvalidOutputDirectory() {
     return QCoreApplication::translate("SevenZipDiagnostics", "Incorrect output directory path");
 }
 
+bool ResolveOutputDirectory(const QString &candidate, FString &resolved) {
+    return !candidate.isEmpty() && !candidate.contains(QChar::Null) &&
+           NWindows::NFile::NDir::MyGetFullPathName(
+               us2fs(ToUString(QDir::toNativeSeparators(candidate))), resolved);
+}
+
 void AddDestinationToHistory(CObjectVector<QString> &history, const QString &path) {
     const UString name = ToUString(path);
     for (unsigned i = 0; i < history.Size(); ++i) {
@@ -229,14 +235,15 @@ void CExtractDialog::changeEvent(QEvent *event) {
 
 void CExtractDialog::OnButtonSetPath() {
     const QString draft = _path->currentText().trimmed();
-    if (draft.contains(QChar::Null)) {
+    FString initial;
+    if (!draft.isEmpty() && !ResolveOutputDirectory(draft, initial)) {
         _destinationError->setText(InvalidOutputDirectory());
         _destinationError->show();
         _path->setFocus();
         return;
     }
     UString path;
-    if (MyBrowseForFolder(this, ToUString(QtLangText(IDS_EXTRACT_SET_FOLDER)), ToUString(draft),
+    if (MyBrowseForFolder(this, ToUString(QtLangText(IDS_EXTRACT_SET_FOLDER)), fs2us(initial),
                           path))
         _path->setEditText(ToQString(path));
 }
@@ -247,11 +254,8 @@ void CExtractDialog::OnOK() {
     const QString requested = ToQString(s);
     const auto directoryError = [this](const QString &candidate,
                                        FString *resolvedPath = nullptr) -> QString {
-        if (candidate.isEmpty() || candidate.contains(QChar::Null))
-            return InvalidOutputDirectory();
         FString resolved;
-        if (!NWindows::NFile::NDir::MyGetFullPathName(
-                us2fs(ToUString(QDir::toNativeSeparators(candidate))), resolved))
+        if (!ResolveOutputDirectory(candidate, resolved))
             return InvalidOutputDirectory();
         if (resolvedPath)
             *resolvedPath = resolved;
