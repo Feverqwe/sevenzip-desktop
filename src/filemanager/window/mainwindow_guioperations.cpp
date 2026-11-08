@@ -177,7 +177,7 @@ void MainWindow::refreshGuiOutputPanel(unsigned index, const QtGuiOutputRefresh:
             if (changed)
                 refreshCurrent();
             else
-                showDirectory(parent, false);
+                navigateToImpl(parent, true);
         });
         // ReOpen retains modal source guards while restoring the original
         // projection. Publish its resulting idle/scan state before focus.

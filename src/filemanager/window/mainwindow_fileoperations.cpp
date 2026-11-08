@@ -47,7 +47,7 @@ void MainWindow::transferFiles(const QStringList &sources, const QString &destin
     task->BindOwner(app_.Panels[owner], *this);
     const bool refreshesLocally = appPresentation_->IsCopyPending();
     connect(task, &QtLocalFileTask::transferOutput, this,
-            [this, sources, destinationDirectory, move, refreshesLocally] {
+            [this, sources, destinationDirectory, move, refreshesLocally, owner] {
                 QStringList changed{destinationDirectory};
                 // A merge can move children while leaving their source folder.
                 if (move)
@@ -57,6 +57,11 @@ void MainWindow::transferFiles(const QStringList &sources, const QString &destin
                     application->FilesystemPublished(changed, refreshesLocally ? this : nullptr);
                 else if (!refreshesLocally)
                     guiOutputRefresh_->Enqueue(changed, {});
+                // The copy continuation reloads the peer's current provider.
+                // An archive provider also needs to check whether its file moved.
+                if (refreshesLocally && move && app_.NumPanels == 2 &&
+                    app_.Panels[1 - owner].IsArcFolder())
+                    guiOutputRefresh_->Enqueue(changed, {}, int(owner));
             });
     if (transferOutput)
         connect(task, &QtLocalFileTask::transferOutput, task, std::move(transferOutput));

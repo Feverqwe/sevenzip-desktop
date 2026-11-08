@@ -1,3 +1,4 @@
+#include "archive/support/native_archive_fixture.h"
 #include "dialogs/copy/alias.h"
 #include "dialogs/overwrite/OverwriteDialog.h"
 #include "filemanager/support/window_state_support.h"
@@ -195,6 +196,69 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         if (viaClipboard)
             QVERIFY(action(window, "pasteFilesAction")->isEnabled());
         QTRY_COMPARE(window.focusWidget(), view);
+    }
+
+    void movingFolderClosesTheArchiveAtItsOldLocationInThePeer() {
+#ifdef Q_OS_WIN
+        QSKIP("Windows can retain the source directory while a child archive is open.");
+#endif
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString source = fixture.filePath("source");
+        const QString destination = fixture.filePath("destination");
+        QVERIFY(QDir().mkpath(source));
+        QVERIFY(QDir().mkpath(destination));
+        const QString archive = QDir(source).filePath("opened.zip");
+        QVERIFY(NativeArchiveFixture::Write(archive, {{"entry.txt", "payload"}}, "zip"));
+        const QByteArray bytes = read(archive);
+        QVERIFY(!bytes.isEmpty());
+
+        MainWindow window;
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openPath(fixture.path());
+        auto *files = table(window);
+        QTRY_VERIFY(files->isEnabled());
+        action(window, "twoPanelsAction")->trigger();
+        auto *peerPanel = window.findChild<QWidget *>("filePanel1");
+        QVERIFY(peerPanel && peerPanel->isVisible());
+        auto *peer = peerPanel->findChild<FileTable *>("archiveTable");
+        auto *address = peerPanel->findChild<QLineEdit *>("archivePath");
+        QVERIFY(peer && address);
+        PanelKeys::focusAddress(address);
+        QTRY_VERIFY(address->hasFocus());
+        window.openPath(archive);
+        QTRY_VERIFY(peer->sourcePanel->IsArcFolder() && peer->isEnabled());
+
+        QVERIFY(WindowActivation::waitForActive(window));
+        QTRY_VERIFY(files->isVisible() && files->isEnabled());
+        files->setFocus();
+        QTRY_VERIFY(files->hasFocus());
+        const auto items = files->model()->match(files->model()->index(0, 0), Qt::DisplayRole,
+                                                 "source", 1, Qt::MatchExactly);
+        QCOMPARE(items.size(), 1);
+        files->setCurrentIndex(items.front());
+        files->selectRow(items.front().row());
+        QTimer submit;
+        connect(&submit, &QTimer::timeout, &window, [&] {
+            auto *dialog = window.findChild<CopyDialog *>("copyDialog");
+            if (!dialog || !dialog->isVisible())
+                return;
+            submit.stop();
+            dialog->findChild<QLineEdit *>("copyDestination")->setText(destination);
+            dialog->accept();
+            if (dialog->isVisible())
+                dialog->reject();
+        });
+        submit.start(1);
+        QTest::keyClick(files, Qt::Key_F6);
+        const QString moved = QDir(destination).filePath("source/opened.zip");
+        QTRY_VERIFY(peer->sourcePanel->IsFSFolder());
+        QVERIFY(!QFileInfo::exists(source));
+        QCOMPARE(read(moved), bytes);
+        QCOMPARE(QDir::cleanPath(ToQString(peer->sourcePanel->GetFsPath())), fixture.path());
+        QVERIFY(WindowActivation::waitForActive(window));
+        QTRY_VERIFY(files->hasFocus());
     }
 
     void partialFolderCutRefreshesSourceContents() {
