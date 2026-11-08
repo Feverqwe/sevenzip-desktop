@@ -85,9 +85,11 @@ class FileIconList final : public QListView {
     std::function<void()> dragStarter;
 
   protected:
+    void mouseDoubleClickEvent(QMouseEvent *event) override;
     void startDrag(Qt::DropActions actions) override;
     void changeEvent(QEvent *event) override;
 
   private:
+    bool containsItemAt(QPoint point) const;
     bool largeIconsConfigured_ = false;
 };

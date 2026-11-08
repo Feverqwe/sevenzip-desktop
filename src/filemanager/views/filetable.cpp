@@ -131,19 +131,27 @@ void FileIconList::InstallSelectionGesture(std::function<bool()> activate) {
              QListView::setSelection(area, flags);
              setState(previous);
          },
-         [this](QPoint point) {
-             const auto index = indexAt(point);
-             if (!index.isValid())
-                 return false;
-             QStyleOptionViewItem option;
-             initViewItemOption(&option);
-             option.rect = visualRect(index);
-             return FileRowContainsPoint(*itemDelegateForIndex(index), option, index, point);
-         },
+         [this](QPoint point) { return containsItemAt(point); },
          [this] { return QPoint(horizontalOffset(), verticalOffset()); },
          {}},
         std::move(activate));
 }
+
+bool FileIconList::containsItemAt(QPoint point) const {
+    const auto index = indexAt(point);
+    if (!index.isValid())
+        return false;
+    QStyleOptionViewItem option;
+    initViewItemOption(&option);
+    option.rect = visualRect(index);
+    return FileRowContainsPoint(*itemDelegateForIndex(index), option, index, point);
+}
+
+void FileIconList::mouseDoubleClickEvent(QMouseEvent *event) {
+    if (containsItemAt(event->position().toPoint()))
+        QListView::mouseDoubleClickEvent(event);
+}
+
 void FileIconList::startDrag(Qt::DropActions actions) {
     if (dragStarter)
         dragStarter();

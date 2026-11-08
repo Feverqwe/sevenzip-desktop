@@ -57,6 +57,12 @@ class WorkspaceSelectionGestureTests final : public QObject, protected MainWindo
         QCOMPARE(filesystemRow(window, "inside.txt"), -1);
         QVERIFY(filesystemRow(window, "child") >= 0);
         QTest::mouseClick(view->viewport(), Qt::LeftButton, Qt::NoModifier, point);
+        if (icons) {
+            const QPoint padding = view->visualRect(index).topRight() + QPoint(-2, 2);
+            QCOMPARE(view->indexAt(padding), index);
+            QTest::mouseDClick(view->viewport(), Qt::LeftButton, Qt::NoModifier, padding);
+            QCOMPARE(filesystemRow(window, "inside.txt"), -1);
+        }
         QTest::mouseDClick(view->viewport(), Qt::LeftButton, Qt::NoModifier, point);
         QTRY_VERIFY(filesystemRow(window, "inside.txt") >= 0);
     }
