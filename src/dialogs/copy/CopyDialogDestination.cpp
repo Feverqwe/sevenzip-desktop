@@ -37,19 +37,27 @@ bool SameExistingPath(const QFileInfo &first, const QFileInfo &second) {
     return !canonical.isEmpty() && canonical == second.canonicalFilePath();
 }
 
-bool IsName(const QString &name, [[maybe_unused]] const QString &directory) {
+bool IsEmptyWindowsName([[maybe_unused]] const QString &name,
+                        [[maybe_unused]] const QString &path) {
+#ifdef Q_OS_WIN
+    return !name.isEmpty() &&
+           !NWindows::NFile::NName::IsSuperOrDevicePath(
+               ToUString(QDir::toNativeSeparators(path))) &&
+           std::all_of(name.cbegin(), name.cend(), [](QChar c) { return c == ' ' || c == '.'; });
+#else
+    return false;
+#endif
+}
+
+bool IsName(const QString &name, const QString &directory) {
     if (name.isEmpty() || name == "." || name == ".." || name.contains(QChar::Null) ||
         name.contains('/'))
         return false;
 #ifdef Q_OS_WIN
     if (name.contains('\\'))
         return false;
-    if (!NWindows::NFile::NName::IsSuperOrDevicePath(
-            ToUString(QDir::toNativeSeparators(directory))) &&
-        std::all_of(name.cbegin(), name.cend(), [](QChar c) { return c == ' ' || c == '.'; }))
-        return false;
 #endif
-    return true;
+    return !IsEmptyWindowsName(name, directory);
 }
 
 enum class DirectoryStatus { Writable, Blocked, ReadOnly };
@@ -207,7 +215,8 @@ void CCopyDialog::UpdateDestination(bool checkBatch) {
         error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "Select one or more items."));
     else if (path.isEmpty())
         error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "Choose a destination."));
-    else if (path.contains(QChar::Null))
+    else if (path.contains(QChar::Null) || (filesystemDestination && !needsDirectory &&
+                                            IsEmptyWindowsName(destination.fileName(), preview)))
         error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "The destination is invalid."));
     else if (nameAvailable && !IsName(_name->text(), preview))
         error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "Enter a file or folder name."));
