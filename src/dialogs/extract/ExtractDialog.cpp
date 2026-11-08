@@ -229,8 +229,10 @@ void CExtractDialog::OnButtonSetPath() {
         initial.Empty();
     UString path;
     if (MyBrowseForFolder(this, ToUString(QtLangText(IDS_EXTRACT_SET_FOLDER)), fs2us(initial),
-                          path))
+                          path)) {
+        _path->setCurrentIndex(-1);
         _path->setEditText(ToQString(path));
+    }
     _path->setFocus();
 }
 

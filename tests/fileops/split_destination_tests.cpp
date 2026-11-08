@@ -198,14 +198,18 @@ class SplitDestinationTests final : public QObject {
         QApplication::setAttribute(Qt::AA_DontUseNativeDialogs);
         const auto restore = qScopeGuard(
             [&] { QApplication::setAttribute(Qt::AA_DontUseNativeDialogs, nativeDisabled); });
-        CExtractDialog dialog(start, {});
+        CExtractDialog dialog(start, {start});
         auto *browse = dialog.findChild<QPushButton *>("extractBrowseButton");
         QVERIFY(browse);
         const QString draft = invalidDraft ? start + QChar::Null : "  " + start + "  ";
+        path(dialog)->setCurrentIndex(0);
         path(dialog)->setEditText(draft);
         enabled(dialog)->setChecked(true);
         name(dialog)->setText(QStringLiteral("подпапка"));
         dialog.show();
+        auto *field = path(dialog)->lineEdit();
+        field->setFocus();
+        field->setSelection(6, -4);
         for (const bool accept : {false, true}) {
             QString openedDirectory;
             QTimer answer;
@@ -226,16 +230,21 @@ class SplitDestinationTests final : public QObject {
                 }
             });
             answer.start(1);
-            browse->click();
+            QTest::mouseClick(browse, Qt::LeftButton);
             QVERIFY(!openedDirectory.isEmpty());
             if (!invalidDraft)
                 QCOMPARE(openedDirectory, QFileInfo(start).canonicalFilePath());
             QCOMPARE(name(dialog)->text(), QStringLiteral("подпапка"));
-            if (accept)
+            if (accept) {
                 QCOMPARE(QFileInfo(path(dialog)->currentText()).canonicalFilePath(),
                          QFileInfo(selected).canonicalFilePath());
-            else
+                QCOMPARE(path(dialog)->currentIndex(), -1);
+            } else {
                 QCOMPARE(path(dialog)->currentText(), draft);
+                QCOMPARE(path(dialog)->currentIndex(), 0);
+                QCOMPARE(field->selectedText(), draft.mid(2, 4));
+                QCOMPARE(field->cursorPosition(), 2);
+            }
         }
         QCOMPARE(QDir::fromNativeSeparators(dialog.destination()),
                  QDir(selected).filePath(QStringLiteral("подпапка")));
