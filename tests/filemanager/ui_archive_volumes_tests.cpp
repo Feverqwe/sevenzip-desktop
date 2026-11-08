@@ -141,11 +141,10 @@ class UiArchiveVolumesTests final : public QObject, protected MainWindowTestSupp
             QVERIFY(!backend.busy());
             const int errors = answers.Errors;
             QVERIFY(writeFile(second, missingVolume));
-            MainWindow retry(&backend);
-            retry.openArchive(first);
-            QTRY_COMPARE(table(retry)->rowCount(), 2);
-            QVERIFY(action(retry, "testArchiveAction")->isEnabled());
-            retry.testArchive();
+            window.openArchive(first);
+            QTRY_COMPARE(table(window)->rowCount(), 2);
+            QVERIFY(action(window, "testArchiveAction")->isEnabled());
+            window.testArchive();
             QCOMPARE(answers.Errors, errors);
             return;
         }
