@@ -69,18 +69,27 @@ class InterarchiveMovePublicationTests final : public QObject, protected MainWin
         QTRY_VERIFY(source->hasFocus());
         source->selectRow(0);
         QVERIFY(runtime.armWriter(E_FAIL, false));
+        int reports = 0, warnings = 0;
+        QString diagnostics;
         QTimer driver;
         dialogs_.connectResponder(driver, &window, [&] {
             auto *modal = QApplication::activeModalWidget();
             if (auto *copy = dynamic_cast<CopyDialog *>(modal))
                 copy->accept();
-            else if (auto *box = qobject_cast<QMessageBox *>(modal))
+            else if (auto *box = qobject_cast<QMessageBox *>(modal)) {
+                ++warnings;
                 box->accept();
-            else if (auto *report = TestProgressDialog::ResultWindow(modal))
+            } else if (auto *report = TestProgressDialog::ResultWindow(modal)) {
+                ++reports;
+                diagnostics = TestProgressDialog::ReportText(*report);
                 TestProgressDialog::CloseResult(*report);
+            }
         });
         driver.start(2);
         QTest::keyClick(source, Qt::Key_F6);
+        QTRY_COMPARE(reports, 1);
+        QCOMPARE(warnings, 0);
+        QVERIFY(!diagnostics.isEmpty());
         QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
         QVERIFY(!runtime.writerReceipts().isEmpty());
         QCOMPARE(SourceExtractFixture::readFile(archive), before);
@@ -98,6 +107,8 @@ class InterarchiveMovePublicationTests final : public QObject, protected MainWin
                     {"x", "-y", "-o" + output, "--", archive, name}));
         QCOMPARE(SourceExtractFixture::readFile(QDir(output).filePath(name)),
                  QByteArray("payload"));
+        QCOMPARE(reports, 1);
+        QCOMPARE(warnings, 0);
     }
 
     void moveRetainsTheOnlyPublishedCopy_data() {

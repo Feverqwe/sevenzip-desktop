@@ -175,7 +175,7 @@ bool MainWindow::transferToArchivePanel(const QString &destination, bool move,
     bool published = false;
     {
         QScopedValueRollback<bool> progressOwner(sourceArchiveProgress_, true);
-        result = target.CopyFrom(move, source.GetFsPath(), names, true, &messages, nullptr,
+        result = target.CopyFrom(move, source.GetFsPath(), names, false, &messages, nullptr,
                                  std::nullopt, &published);
     }
     // The native call has completed. Release its retained source guards before
@@ -201,9 +201,17 @@ bool MainWindow::transferToArchivePanel(const QString &destination, bool move,
                                                              "Items copied into the archive."));
     } else {
         appPresentation_->CopyFinished(true, move && published);
-        if (result != E_ABORT)
-            QMessageBox::warning(this, QtLangText(IDS_COPYING),
-                                 QString::fromWCharArray(HResultToMessage(result).Ptr()));
+    }
+    if (result != S_OK || !messages.IsEmpty()) {
+        QStringList diagnostics;
+        FOR_VECTOR(i, messages)
+        diagnostics.append(ToQString(messages[i]));
+        CProgressDialog::PresentResult(this, {.title = QtLangText(move ? IDS_MOVING : IDS_COPYING),
+                                              .result = result,
+                                              .diagnostics = diagnostics,
+                                              .source = ToQString(source.GetFsPath()),
+                                              .destination = destination,
+                                              .partial = published && result != S_OK});
     }
     return true;
 }
