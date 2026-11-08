@@ -12,6 +12,7 @@
 #include "ui/controls/qtdisclosure.h"
 #include "ui/lifecycle/qttaskpresentation.h"
 #include <QCoreApplication>
+#include <QDirIterator>
 #include <QEvent>
 #include <QFileInfo>
 
@@ -37,6 +38,27 @@ QString ArchiveDirectoryError(QString path) {
             return {};
         path = parent;
     }
+}
+
+QString ExistingVolume(const UString &basePath) {
+    const QFileInfo base(ToQString(basePath));
+    const QString prefix = base.fileName() + u'.';
+    QDirIterator entries(base.absolutePath(),
+                         QDir::AllEntries | QDir::NoDotAndDotDot | QDir::Hidden | QDir::System);
+    while (entries.hasNext()) {
+        const QFileInfo entry(entries.next());
+        const QString name = entry.fileName();
+        if (!name.startsWith(prefix, Qt::CaseInsensitive))
+            continue;
+        const QString suffix = name.mid(prefix.size());
+        const uint number = suffix.toUInt();
+        if (number == 0 || suffix != QString::number(number).rightJustified(3, u'0'))
+            continue;
+        const UString candidate = basePath + ToUString(u'.' + suffix);
+        if (NWindows::NFile::NFind::DoesFileOrDirExist(us2fs(candidate)))
+            return ToQString(candidate);
+    }
+    return {};
 }
 } // namespace
 
@@ -143,14 +165,19 @@ void CreateArchiveDialog::validateAndAccept() {
         volumes.BaseExtension = volumes.VolExtension;
         volumes.ParseFromPath(UString(resolved.toStdWString().c_str()), k_ArcNameMode_Smart);
         const UString first = volumes.GetFinalVolPath() + L".001";
+        QString occupied;
         for (const UString &candidate : {volumes.GetFinalPath(), first}) {
             if (NWindows::NFile::NFind::DoesFileOrDirExist(us2fs(candidate))) {
-                pathError =
-                    QCoreApplication::translate("SevenZipDiagnostics", "The file already exists") +
-                    '\n' + ToQString(candidate);
+                occupied = ToQString(candidate);
                 break;
             }
         }
+        if (occupied.isEmpty())
+            occupied = ExistingVolume(volumes.GetFinalVolPath());
+        if (!occupied.isEmpty())
+            pathError =
+                QCoreApplication::translate("SevenZipDiagnostics", "The file already exists") +
+                '\n' + occupied;
     }
     if (!pathError.isEmpty()) {
         // Keep the draft available for correction before handing it to UpdateArchive.

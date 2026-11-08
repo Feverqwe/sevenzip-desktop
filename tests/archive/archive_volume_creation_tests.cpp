@@ -156,11 +156,17 @@ class ArchiveVolumeCreationTests final : public QObject {
         QTest::newRow("normal") << 760 << 720;
         QTest::newRow("compact") << 640 << 480;
     }
-    void occupiedFirstVolumeCanBeCorrected() {
+    void occupiedVolumeCanBeCorrected_data() {
+        QTest::addColumn<QString>("suffix");
+        QTest::newRow("first") << QString(".001");
+        QTest::newRow("later") << QString(".002");
+    }
+    void occupiedVolumeCanBeCorrected() {
+        QFETCH(QString, suffix);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString source = fixture.filePath("source.bin");
-        const QString occupied = fixture.filePath("archive.7z.001");
+        const QString occupied = fixture.filePath("archive.7z" + suffix);
         QVERIFY(writeFile(source, "source"));
         QVERIFY(writeFile(occupied, "keep this volume"));
         CreateArchiveDialog dialog(fixture.path(), {source});
@@ -171,13 +177,15 @@ class ArchiveVolumeCreationTests final : public QObject {
         dialog.show();
         const auto submitAndDismissWarning = [&] {
             bool refused = false;
-            QTimer::singleShot(0, &dialog, [&] {
+            QTimer responder;
+            connect(&responder, &QTimer::timeout, &dialog, [&] {
                 if (auto *warning =
                         qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
                     refused = true;
                     warning->accept();
                 }
             });
+            responder.start(0);
             ok->click();
             return refused;
         };
@@ -195,6 +203,7 @@ class ArchiveVolumeCreationTests final : public QObject {
         QVERIFY(submitAndDismissWarning() && dialog.isVisible());
         QCOMPARE(readFile(baseArchive), QByteArray("keep this archive"));
         name->setText("different.7z");
+        QVERIFY(writeFile(fixture.filePath("different.7z.0002"), "not a volume"));
         ok->click();
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
         ArchiveBackend backend;
