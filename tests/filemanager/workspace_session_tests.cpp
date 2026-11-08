@@ -548,22 +548,34 @@ class WorkspaceSessionTests final : public QObject {
 
     void sessionSavedDuringFolderScanRestoresTheFolder_data() {
         QTest::addColumn<bool>("unavailable");
-        QTest::newRow("system-place") << false;
-        QTest::newRow("unavailable-place") << true;
+        QTest::addColumn<bool>("archive");
+        QTest::newRow("system-place") << false << false;
+        QTest::newRow("unavailable-place") << true << false;
+        QTest::newRow("archive-from-system-place") << false << true;
     }
     void sessionSavedDuringFolderScanRestoresTheFolder() {
         QFETCH(bool, unavailable);
+        QFETCH(bool, archive);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString folder = fixture.filePath("large folder");
         QVERIFY(QDir().mkpath(folder));
+        const QString archivePath = QDir(folder).filePath("loading.zip");
+        QList<NativeArchiveFixture::Item> items;
         for (int i = 0; i < 301; ++i) {
-            QFile file(QDir(folder).filePath(QString("file-%1.txt").arg(i)));
-            QVERIFY(file.open(QIODevice::WriteOnly));
+            const QString name = QString("file-%1.txt").arg(i);
+            if (archive)
+                items.append({QString("folder/") + name, "archive content"});
+            else {
+                QFile file(QDir(folder).filePath(name));
+                QVERIFY(file.open(QIODevice::WriteOnly));
+            }
         }
+        if (archive)
+            QVERIFY(NativeArchiveFixture::Write(archivePath, items, "zip"));
         QJsonObject saved;
         {
-            ControlledBackend backend;
+            ArchiveBackend backend;
             MainWindow first(&backend);
             first.show();
             if (unavailable) {
@@ -578,7 +590,7 @@ class WorkspaceSessionTests final : public QObject {
             QVERIFY(table);
             if (!unavailable)
                 QVERIFY(!QtNativePlaces::RootIdentity(*table->sourcePanel).isEmpty());
-            first.openPath(folder);
+            first.openPath(archive ? archivePath + "/folder" : folder);
             QVERIFY(!table->isEnabled());
             saved = workspace(first)->Save();
         }
@@ -589,7 +601,8 @@ class WorkspaceSessionTests final : public QObject {
         workspace(restored)->Restore(saved, [&] { done = true; });
         QTRY_VERIFY(done);
         QCOMPARE(location(restored), QFileInfo(folder).canonicalFilePath());
-        QCOMPARE(active(restored)->rowCount(), 301);
+        QVERIFY(active(restored)->sourcePanel->IsFSFolder());
+        QCOMPARE(active(restored)->rowCount(), archive ? 1 : 301);
     }
 
     void sessionRestoresIconViewAndDescendingOrder() {
