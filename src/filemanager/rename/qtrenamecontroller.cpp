@@ -217,7 +217,7 @@ void QtRenameController::Finish(const Request &request, CPanel &panel) {
     // publication result and must not add a second rename diagnostic.
     if (result != S_OK && panel.IsFSFolder())
         panel.RefreshListCtrl(*selection);
-    else if (window_.renderBoundFolder() == S_OK)
+    else if (window_.renderBoundFolder(!selection->PreserveAddress) == S_OK)
         window_.restoreListSelection(*selection);
     if (!publishedArchive.isEmpty()) {
         if (auto *application = QtWorkspaceApplication::Find())

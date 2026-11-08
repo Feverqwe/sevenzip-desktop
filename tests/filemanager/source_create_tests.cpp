@@ -235,6 +235,11 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         auto *view = openPanel(window, 0, fixture.path());
         QTRY_VERIFY(view->isEnabled() && view->rowCount() == count);
         QVERIFY(WindowActivation::waitForActive(window));
+        auto *address =
+            window.findChild<QWidget *>("filePanel0")->findChild<QLineEdit *>("archivePath");
+        PanelKeys::focusAddress(address);
+        QTRY_VERIFY(address->hasFocus());
+        QTest::keyClicks(address, "unsubmitted path");
         view->setFocus();
         view->setCurrentCell(view->rowCount() - 1, 0);
         view->scrollToBottom();
@@ -254,6 +259,7 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
             QCOMPARE(window.focusWidget(), peerName);
         }
         QTRY_VERIFY(view->isEnabled() && view->rowCount() == count + 1);
+        QCOMPARE(address->text(), QString("unsubmitted path"));
         QCOMPARE(window.focusWidget(), peerName ? static_cast<QWidget *>(peerName) : view);
         if (peerName)
             QCOMPARE(peerName->text(), QString("peer draft"));

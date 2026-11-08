@@ -112,6 +112,7 @@ HRESULT CPanel::CreateFolder(UString name, QString &error, QString *destinationD
     CDisableTimerProcessing disableTimerProcessing2(*this);
     CSelectedState state;
     SaveSelectedState(state);
+    state.PreserveAddress = true;
     CDisableNotify disableNotify(*this);
     CThreadFolderOperations op(FOLDER_TYPE_CREATE_FOLDER);
     op.FolderOperations = _folderOperations;
@@ -163,6 +164,7 @@ HRESULT CPanel::OnEndLabelEdit(UInt32 realIndex, const UString &enteredName,
         return E_INVALIDARG;
     CSelectedState state;
     SaveSelectedState(state);
+    state.PreserveAddress = true;
     if (realIndex == kParentIndex)
         return E_INVALIDARG;
     const UString prefix = GetItemPrefix(realIndex);

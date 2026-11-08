@@ -202,6 +202,10 @@ class RenameLifecycleTests final : public QObject, protected MainWindowTestSuppo
         action(window, icons ? "viewMode0Action" : "viewMode3Action")->trigger();
         auto *active = icons ? window.findChild<QAbstractItemView *>("iconList") : view;
         QVERIFY(active);
+        auto *address = window.findChild<QLineEdit *>("archivePath");
+        PanelKeys::focusAddress(address);
+        QTRY_VERIFY(address->hasFocus());
+        QTest::keyClicks(address, "unsubmitted path");
         active->setFocus();
         const int row = filesystemRow(window, originalName);
         QVERIFY(row >= 0);
@@ -228,6 +232,7 @@ class RenameLifecycleTests final : public QObject, protected MainWindowTestSuppo
         QTest::keyClick(editor, Qt::Key_Return);
         QTRY_VERIFY(reported && active->isEnabled());
         responder.stop();
+        QCOMPARE(address->text(), QString("unsubmitted path"));
         QCOMPARE(active->currentIndex().data(QtPanelList::NameRole).toString(), originalName);
         QCOMPARE(active->verticalScrollBar()->value(), position);
         QVERIFY(WindowActivation::waitForActive(window));
@@ -239,6 +244,7 @@ class RenameLifecycleTests final : public QObject, protected MainWindowTestSuppo
         QTest::keyClick(editor, Qt::Key_Return);
         QTRY_COMPARE(active->currentIndex().data(QtPanelList::NameRole).toString(),
                      QString("z.txt"));
+        QCOMPARE(address->text(), QString("unsubmitted path"));
         QVERIFY(active->selectionModel()->isRowSelected(active->currentIndex().row(), {}));
         QTRY_VERIFY(
             active->visualRect(active->currentIndex()).intersects(active->viewport()->rect()));
