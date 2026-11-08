@@ -4,8 +4,8 @@
 #include "filemanager/window/qtwindowworkspace.h"
 #include "filemanager/window/qtworkspaceapplication.h"
 #include "platform/support/external_editor_fixture.h"
+#include "support/panel_keys.h"
 #include "support/widget_dialogs.h"
-#include "support/window_activation.h"
 #include "support/window_activation.h"
 #include "ui/formatting/qtregionalformat.h"
 #include "ui/support/layout_inspection.h"
@@ -58,6 +58,12 @@ class WorkspaceArchiveTests final : public QObject, protected MainWindowTestSupp
         const QString password = encrypted ? QString("local password") : QString();
         QVERIFY(write(fixture.filePath(name), "history payload"));
         QVERIFY(createArchive(fixture.path(), archive, name, format, password));
+        const QString plainArchive = "other.zip";
+        const QString plainEntry = "plain.txt";
+        if (encrypted) {
+            QVERIFY(write(fixture.filePath(plainEntry), "other archive payload"));
+            QVERIFY(createArchive(fixture.path(), fixture.filePath(plainArchive), plainEntry));
+        }
         ArchiveBackend backend;
         MainWindow window(&backend);
         window.show();
@@ -83,6 +89,32 @@ class WorkspaceArchiveTests final : public QObject, protected MainWindowTestSupp
         });
         answer.start(5);
         view->setFocus();
+        if (encrypted) {
+            view->selectRow(filesystemRow(window, filename));
+            view->setCurrentCell(filesystemRow(window, filename), 0);
+            cancel = true;
+            PanelKeys::openSelection(window.focusWidget());
+            QTRY_COMPARE(canceledPrompts, 1);
+            QVERIFY(WindowActivation::waitForActive(window));
+            QTRY_VERIFY(view->isEnabled() && view->hasFocus() && view->sourcePanel->IsFSFolder());
+            QCOMPARE(view->currentIndex().data().toString(), filename);
+            QVERIFY(!action(window, "forwardAction")->isEnabled());
+
+            const int other = filesystemRow(window, plainArchive);
+            QVERIFY(other >= 0);
+            view->selectRow(other);
+            view->setCurrentCell(other, 0);
+            PanelKeys::openSelection(window.focusWidget());
+            QTRY_VERIFY(view->isEnabled() && view->sourcePanel->IsArcFolder() &&
+                        rowWithPath(window, plainEntry) >= 0);
+            QCOMPARE(canceledPrompts, 1);
+            QVERIFY(WindowActivation::waitForActive(window));
+            QTRY_VERIFY(view->hasFocus());
+            QTest::keySequence(window.focusWidget(), action(window, "backAction")->shortcut());
+            QTRY_VERIFY(view->isEnabled() && view->hasFocus() && view->sourcePanel->IsFSFolder());
+            QCOMPARE(view->currentIndex().data().toString(), plainArchive);
+            cancel = false;
+        }
         openRow(window, filesystemRow(window, filename));
         QTRY_VERIFY(view->isEnabled() && view->sourcePanel->IsArcFolder());
         for (bool forward : {false, true}) {
@@ -96,7 +128,7 @@ class WorkspaceArchiveTests final : public QObject, protected MainWindowTestSupp
                 view->selectRow(row);
                 cancel = true;
                 travel->trigger();
-                QTRY_COMPARE(canceledPrompts, 1);
+                QTRY_COMPARE(canceledPrompts, 2);
                 QTRY_VERIFY(view->isEnabled() && view->sourcePanel->IsFSFolder());
                 QTRY_COMPARE(window.focusWidget(), view);
                 QVERIFY(view->selectionModel()->isRowSelected(row, {}));
