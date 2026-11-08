@@ -85,7 +85,15 @@ class DragDropUiTests final : public QObject {
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
 
 #if defined(Q_OS_LINUX) || defined(Q_OS_WIN)
+    void archiveDragReachesNativeDropReceiver_data() {
+        QTest::addColumn<bool>("cancel");
+        QTest::newRow("drop") << false;
+#ifdef Q_OS_WIN
+        QTest::newRow("escape") << true;
+#endif
+    }
     void archiveDragReachesNativeDropReceiver() {
+        QFETCH(bool, cancel);
 #ifdef Q_OS_WIN
         if (QGuiApplication::platformName() != QStringLiteral("windows"))
             QSKIP("Requires an interactive Windows desktop");
@@ -193,9 +201,34 @@ class DragDropUiTests final : public QObject {
             for (const auto &entry : QtOwnedTempRegistry().Entries())
                 if (QFileInfo::exists(QDir(entry.path).filePath(name)))
                     extractedBeforeRelease = true;
+            if (cancel) {
+                INPUT escape[2]{};
+                for (auto &event : escape) {
+                    event.type = INPUT_KEYBOARD;
+                    event.ki.wVk = VK_ESCAPE;
+                }
+                escape[1].ki.dwFlags = KEYEVENTF_KEYUP;
+                SendInput(2, escape, sizeof(INPUT));
+                std::this_thread::sleep_for(100ms);
+            }
             press(false);
         });
+        if (cancel) {
+            // The native driver must release the button even when OLE already
+            // returned in response to Escape.
+            QTRY_VERIFY_WITH_TIMEOUT(receiver.Entered, 5000);
+            drive.join();
+            QCoreApplication::processEvents();
+            QVERIFY2(warnings.isEmpty(), qPrintable(warnings.join('\n')));
+            QVERIFY(!extractedBeforeRelease);
+            QVERIFY(!QFileInfo::exists(destination));
+            for (const auto &entry : QtOwnedTempRegistry().Entries())
+                QVERIFY(!QFileInfo::exists(QDir(entry.path).filePath(name)));
+            QCOMPARE(SourceExtractFixture::readFile(archive), original);
+            return;
+        }
 #else
+        Q_UNUSED(cancel);
         QTimer drive, watchdog;
         connect(&drive, &QTimer::timeout, &window, [&] {
             if (receiver.Entered) {
