@@ -128,8 +128,10 @@ class DragDropUiTests final : public QObject {
 #ifdef Q_OS_LINUX
         QTest::newRow("external") << false << true << false;
         QTest::newRow("external-reads-on-enter") << false << true << true;
-        if (qEnvironmentVariableIsSet("SEVENZIP_TEST_DOLPHIN"))
+        if (qEnvironmentVariableIsSet("SEVENZIP_TEST_DOLPHIN")) {
             QTest::newRow("dolphin-cancel") << true << true << false;
+            QTest::newRow("dolphin-clipboard") << false << true << false;
+        }
 #endif
     }
     void archiveDragReachesNativeDropReceiver() {
@@ -272,6 +274,36 @@ class DragDropUiTests final : public QObject {
             QVERIFY(press(true));
             QVERIFY(press(false));
             QTRY_VERIFY(window.isActiveWindow());
+            if (QByteArrayView(QTest::currentDataTag()) == "dolphin-clipboard") {
+                const auto keycode = reinterpret_cast<unsigned char (*)(void *, unsigned long)>(
+                    x11.resolve("XKeysymToKeycode"));
+                const auto key = reinterpret_cast<int (*)(void *, unsigned, int, unsigned long)>(
+                    xtest.resolve("XTestFakeKeyEvent"));
+                QVERIFY(keycode && key);
+                const auto paste = [&] {
+                    const auto control = keycode(display, 0xffe3); // Control_L
+                    const auto v = keycode(display, 'v');
+                    QVERIFY(control && v);
+                    QVERIFY(key(display, control, true, 0));
+                    QVERIFY(key(display, v, true, 0));
+                    QVERIFY(key(display, v, false, 0));
+                    QVERIFY(key(display, control, false, 0));
+                    flush(display);
+                };
+                QTest::mouseClick(table->viewport(), Qt::LeftButton, Qt::NoModifier, itemPoint);
+                QTRY_VERIFY(table->hasFocus());
+                QTest::keyClick(table, Qt::Key_C, Qt::ControlModifier);
+                QTRY_VERIFY(QApplication::clipboard()->mimeData()->hasUrls());
+                pointAt(to);
+                QVERIFY(press(true));
+                QVERIFY(press(false));
+                QTRY_VERIFY(!window.isActiveWindow());
+                paste();
+                QTRY_COMPARE(SourceExtractFixture::readFile(destination), payload);
+                QCOMPARE(SourceExtractFixture::readFile(archive), original);
+                QApplication::clipboard()->clear();
+                return;
+            }
         }
 #endif
         const QPoint threshold = from + QPoint(QApplication::startDragDistance() + 10, 0);

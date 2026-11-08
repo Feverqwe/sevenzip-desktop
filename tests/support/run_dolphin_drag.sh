@@ -35,4 +35,5 @@ fi
 export QT_QPA_PLATFORM=wayland SEVENZIP_TEST_DOLPHIN=1
 export SEVENZIP_SETTINGS_PATH="$fixture/settings.ini"
 timeout -k 2 25 "$@" archiveDragReachesNativeDropReceiver:dolphin-cancel \
-    archiveDragReachesNativeDropReceiver:external
+    archiveDragReachesNativeDropReceiver:external \
+    archiveDragReachesNativeDropReceiver:dolphin-clipboard
