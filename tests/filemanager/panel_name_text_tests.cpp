@@ -230,15 +230,14 @@ class PanelNameTextTests final : public QObject, protected MainWindowTestSupport
                 item = view->model()->index(row, 0);
         QVERIFY(item.isValid());
         QCOMPARE(item.data().toString(), shown);
-        QCOMPARE(item.data(Qt::EditRole).toString(), raw.normalized(QString::NormalizationForm_C));
+        QCOMPARE(item.data(Qt::EditRole).toString(), raw);
         QCOMPARE(item.data(Qt::UserRole + 3).toString(), raw);
         QCOMPARE(item.data(Qt::UserRole + 6).toUInt(), 0u);
         {
             CPanel::CDisableNotify guard(*view->sourcePanel);
             SetPanelData(item, QVariant(), Qt::DisplayRole);
             QCOMPARE(item.data().toString(), QString());
-            QCOMPARE(item.data(Qt::EditRole).toString(),
-                     raw.normalized(QString::NormalizationForm_C));
+            QCOMPARE(item.data(Qt::EditRole).toString(), raw);
         }
         QCOMPARE(item.data().toString(), shown);
         window.show();

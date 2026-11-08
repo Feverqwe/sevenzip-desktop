@@ -119,7 +119,7 @@ QVariant FilePanelModel::data(const QModelIndex &index, int role) const {
         return {};
     case Qt::EditRole:
         if (column == 0)
-            return row.editName ? *row.editName : row.name.normalized(QString::NormalizationForm_C);
+            return row.editName ? *row.editName : row.name;
         [[fallthrough]];
     case Qt::DisplayRole:
         if (panel && !panel->ShouldDisplayItemText())

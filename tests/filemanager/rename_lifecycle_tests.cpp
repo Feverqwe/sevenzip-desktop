@@ -91,6 +91,50 @@ class RenameLifecycleTests final : public QObject, protected MainWindowTestSuppo
         QVERIFY(output.open(QIODevice::ReadOnly));
         QCOMPARE(output.readAll(), QByteArray("source bytes"));
     }
+    void unchangedNameKeepsItsOriginalUnicode_data() {
+        QTest::addColumn<bool>("icons");
+        QTest::newRow("table") << false;
+        QTest::newRow("icons") << true;
+    }
+    void unchangedNameKeepsItsOriginalUnicode() {
+        QFETCH(bool, icons);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString composed = QStringLiteral("café.txt");
+        const QString original = composed.normalized(QString::NormalizationForm_D);
+        QFile file(fixture.filePath(original));
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        QCOMPARE(file.write("source bytes"), qint64(12));
+        file.close();
+        if (QFileInfo::exists(fixture.filePath(composed)))
+            QSKIP("This filesystem treats the two Unicode spellings as the same entry.");
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openPath(fixture.path());
+        auto *view = table(window);
+        QTRY_COMPARE(view->rowCount(), 1);
+        view->setCurrentCell(0, 0);
+        view->selectRow(0);
+        action(window, icons ? "viewMode0Action" : "viewMode3Action")->trigger();
+        auto *active =
+            icons ? static_cast<QAbstractItemView *>(window.findChild<QListView *>("iconList"))
+                  : static_cast<QAbstractItemView *>(view);
+        active->setFocus();
+        action(window, "renameAction")->trigger();
+        QPointer<QLineEdit> editor = active->findChild<QLineEdit *>();
+        QVERIFY(editor);
+        QCOMPARE(editor->text(), original);
+        view->invalidateLanguageText();
+        QVERIFY(editor);
+        QCOMPARE(editor->text(), original);
+        QTest::keyClick(editor, Qt::Key_Return);
+        QTRY_VERIFY(!editor);
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        QCOMPARE(file.readAll(), QByteArray("source bytes"));
+        QVERIFY(!QFileInfo::exists(fixture.filePath(composed)));
+    }
     void refusedEditorDoesNotBlockOpening() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
