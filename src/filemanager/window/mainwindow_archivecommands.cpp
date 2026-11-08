@@ -59,7 +59,8 @@ void MainWindow::calculateHash(const QString &method) {
 void MainWindow::extractArchives() { runArchiveBatchCommand(false); }
 
 void MainWindow::runArchiveBatchCommand(bool test) {
-    if (app_.QtOperations().closed() || app_.QtOperations().active())
+    if (app_.QtOperations().closed() || app_.QtOperations().blocking() || sourceArchiveProgress_ ||
+        projectedUi().scanningDisk || projectedUi().scanningArchive)
         return;
     QtAppOperationState::CallScope call(app_.QtOperations());
     auto &panel = app_.GetFocusedPanel();

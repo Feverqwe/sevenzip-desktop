@@ -18,6 +18,7 @@
 #include "support/operation_kill.h"
 #include "support/operation_temp_cleanup.h"
 #include "support/panel_keys.h"
+#include "support/window_activation.h"
 #include "support/progress_dialog.h"
 #include "support/scoped_environment.h"
 #include "support/widget_dialogs.h"
@@ -414,11 +415,23 @@ class ToolbarArchiveWorkflowTests final : public QObject, protected MainWindowTe
         QTRY_COMPARE(window.focusWidget(), source);
         retry = true;
         modalName.clear();
+        peer->sourcePanel->Set_AutoRefresh_Mode(false);
+        constexpr int added = 257;
+        for (int i = 0; i < added; ++i)
+            QVERIFY(writeFile(QDir(output).filePath(QString("new-%1.txt").arg(i)), "peer update"));
+        QVERIFY(WindowActivation::waitForActive(window));
+        peer->setFocus();
+        QTRY_VERIFY(peer->hasFocus());
+        QTest::keySequence(peer, action(window, "refreshAction")->shortcut());
+        QVERIFY(!peer->isEnabled());
+        source->setFocus();
+        QVERIFY(source->hasFocus());
+        QVERIFY(action(window, "extractArchiveAction")->isEnabled());
         driver.start(1);
         PanelKeys::command(window.focusWidget(), Qt::Key_E,
                            Qt::ControlModifier | Qt::ShiftModifier);
         QCOMPARE(modalName, QString("copyDialog"));
-        QTRY_COMPARE(peer->rowCount(), 3);
+        QTRY_COMPARE(peer->rowCount(), added + 3);
         driver.stop();
         QVERIFY2(errors.isEmpty(), qPrintable(errors.join('\n')));
         QCOMPARE(readFile(QDir(output).filePath(name)), payload);
