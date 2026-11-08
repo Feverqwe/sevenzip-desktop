@@ -145,7 +145,12 @@ class ArchiveNavigationRollbackTests final : public QObject, protected MainWindo
         nested.Bytes = ExternalEditorFixture::read(inner);
         QVERIFY(NativeArchiveFixture::Write(outer, {nested}, "tar"));
         // Exercise prefix growth beyond the nested source's existing buffer.
-        const QString target = fixture.filePath(QString(180, QChar('t')) + " archive.7z");
+        QString targetName = QString(180, QChar('t')) + " archive.7z";
+#ifndef Q_OS_WIN
+        if (outcome == "refused")
+            targetName.prepend("<b>");
+#endif
+        const QString target = fixture.filePath(targetName);
         if (outcome == "refused")
             QVERIFY(ExternalEditorFixture::write(target, "not an archive"));
         else {
@@ -167,6 +172,8 @@ class ArchiveNavigationRollbackTests final : public QObject, protected MainWindo
         window.show();
         int prompts = 0;
         int parentPrompts = 0;
+        QString warningText;
+        Qt::TextFormat warningFormat = Qt::AutoText;
         bool rejectPassword = false;
         QTimer responder;
         dialogs_.connectResponder(responder, &window, [&] {
@@ -183,8 +190,13 @@ class ArchiveNavigationRollbackTests final : public QObject, protected MainWindo
                 if (message->objectName() == "modifiedArchiveQuestion") {
                     ++parentPrompts;
                     message->button(QMessageBox::Yes)->click();
-                } else
+                } else {
+                    if (message->icon() == QMessageBox::Warning) {
+                        warningText = message->text();
+                        warningFormat = message->textFormat();
+                    }
                     QTest::keyClick(message, Qt::Key_Return);
+                }
             }
         });
         responder.start(5);
@@ -287,6 +299,12 @@ class ArchiveNavigationRollbackTests final : public QObject, protected MainWindo
         QCOMPARE(files->selectionModel()->selectedRows().size(), 1);
         QTRY_COMPARE(files->verticalScrollBar()->value(), scroll);
         QCOMPARE(address->text(), target);
+        if (outcome == "refused") {
+            QVERIFY(warningText.contains(targetName));
+            QCOMPARE(warningFormat, Qt::PlainText);
+        } else {
+            QVERIFY(warningText.isEmpty());
+        }
         QVERIFY(UiInspection::writeReport(window, "location-refused"));
         const int promptsAfterAttempt = prompts;
         const QString output = fixture.filePath("export after refusal");

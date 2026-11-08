@@ -113,8 +113,12 @@ HRESULT MainWindow::openArchiveAsImpl(const QString &path, const QString &type) 
     else if (message.isEmpty() && result != S_OK)
         message = ToQString(HResultToMessage(result));
     showStatusMessage(message);
-    if (result != S_OK && result != E_ABORT)
-        QMessageBox::warning(this, QStringLiteral("Sevenzip"), message);
+    if (result != S_OK && result != E_ABORT) {
+        QMessageBox warning(QMessageBox::Warning, QStringLiteral("Sevenzip"), message,
+                            QMessageBox::Ok, this);
+        warning.setTextFormat(Qt::PlainText);
+        warning.exec();
+    }
     // Acknowledging the error is part of this transition. Only later input
     // should supersede the restored source's scroll position.
     if (result != S_OK && previousView)
