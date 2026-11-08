@@ -217,6 +217,8 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
 
         // Changing an existing file leaves the directory entry set unchanged.
         // Windows must observe this through the original native folder watcher.
+        action(window, "sort3Action")->trigger();
+        QVERIFY(files->currentRow() > 0);
         const QByteArray changed("changed contents");
         QVERIFY(writeFile(temp.filePath(QStringLiteral("file-050.txt")), changed));
         QTRY_COMPARE_WITH_TIMEOUT(
@@ -224,6 +226,7 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
             qint64(changed.size()), 3500);
         QCOMPARE(files->model()->index(files->currentRow(), 0).data().toString(),
                  QStringLiteral("file-050.txt"));
+        QCOMPARE(files->currentRow(), 0);
         QVERIFY(files->selectionModel()->isRowSelected(files->currentRow(), QModelIndex()));
 
         QVERIFY(QFile::remove(temp.filePath(QStringLiteral("новый файл.txt"))));
