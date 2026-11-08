@@ -472,8 +472,10 @@ class CPanel : public QObject {
                      std::optional<NWildcard::ECensorPathMode> pathMode = std::nullopt,
                      bool *published = nullptr);
     void SetNewFolder(IFolderFolder *folder);
-    void SetArchiveOpenPassword(std::optional<ArchivePassword> password) {
+    void SetArchiveOpenPassword(std::optional<ArchivePassword> password,
+                                bool retryPassword = false) {
         _archiveOpenPassword = std::move(password);
+        _retryArchiveOpenPassword = retryPassword;
     }
     void AttachFolderManager(IFolderManager *manager, const QString &settingsPath) {
         _folderManager = manager;
@@ -723,6 +725,7 @@ class CPanel : public QObject {
     IQtPanelDragServices *_dragServices = nullptr;
     std::optional<CSelectedState> _refreshSelection;
     std::optional<ArchivePassword> _archiveOpenPassword;
+    bool _retryArchiveOpenPassword = false;
     bool _archiveOpenDialogs = true;
     bool _archiveContextOutdated = false;
     std::vector<QtPanelLocationTransaction *> _locationTransactions;

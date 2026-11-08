@@ -61,9 +61,21 @@ HRESULT CPanel::OpenAsArc(IInStream *inStream, const CTempFileInfo &tempFileInfo
     ffp.SettingsPath = _settingsPath;
     ffp.OwnedStreamFile = inStream && tempFileInfo.NeedDelete && !tempFileInfo.FilePath.IsEmpty();
     ffp.MaterializeStreamFile = materializeStream;
-    const HRESULT res = ffp.OpenFileFolderPlugin(
-        inStream, folderLink.FilePath.IsEmpty() ? us2fs(virtualFilePath) : folderLink.FilePath,
-        arcFormat, virtualFilePath, GetParent());
+    const FString path =
+        folderLink.FilePath.IsEmpty() ? us2fs(virtualFilePath) : folderLink.FilePath;
+    const auto open = [&] {
+        return ffp.OpenFileFolderPlugin(inStream, path, arcFormat, virtualFilePath, GetParent());
+    };
+    HRESULT res = open();
+    if (res == S_FALSE && ffp.Encrypted && _archiveOpenPassword && _retryArchiveOpenPassword &&
+        _archiveOpenDialogs) {
+        if (inStream) {
+            RINOK(inStream->Seek(0, STREAM_SEEK_SET, nullptr))
+        }
+        ffp.Encrypted = false;
+        ffp.Password.Empty();
+        res = open();
+    }
     openRes.Encrypted = ffp.Encrypted;
     openRes.ErrorMessage = ffp.ErrorMessage;
     RINOK(res)

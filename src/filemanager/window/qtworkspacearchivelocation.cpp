@@ -92,7 +92,7 @@ HRESULT QtWindowWorkspace::OpenArchiveLocation(unsigned panel, const QtArchiveLo
     if (result != S_OK)
         return result;
     COpenResult physical;
-    source.SetArchiveOpenPassword(layers ? layers->front().password : std::nullopt);
+    source.SetArchiveOpenPassword(layers ? layers->front().password : std::nullopt, interactive);
     result = source.BindToPath(ToUString(location.physicalPath),
                                layers ? ToUString(layers->front().format) : UString(), physical);
     if (result != S_OK) {
@@ -143,7 +143,8 @@ HRESULT QtWindowWorkspace::OpenArchiveLocation(unsigned panel, const QtArchiveLo
         }
         const unsigned depth = source.GetParentFolders().Size();
         source.LoadFullPath();
-        source.SetArchiveOpenPassword(layers ? (*layers)[level].password : std::nullopt);
+        source.SetArchiveOpenPassword(layers ? (*layers)[level].password : std::nullopt,
+                                      interactive);
         const UString format = layers ? ToUString((*layers)[level].format) : UString();
         UString nestedFailure;
         result = source.OpenItemInArchiveInternal(*entry, layers ? format.Ptr() : nullptr, false,

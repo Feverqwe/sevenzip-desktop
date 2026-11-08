@@ -102,23 +102,76 @@ class WorkspaceArchivePublicationTests final : public QObject, protected MainWin
         QCOMPARE(view->currentIndex().data().toString(), QString("renamed.txt"));
     }
 
+    void manualRefreshDetectsExternalArchiveReplacement_data() {
+        QTest::addColumn<QString>("encryptedLayer");
+        QTest::newRow("plain") << QString();
+        QTest::newRow("outer-password-changed") << QStringLiteral("outer");
+        QTest::newRow("nested-password-changed") << QStringLiteral("inner");
+    }
     void manualRefreshDetectsExternalArchiveReplacement() {
+        QFETCH(QString, encryptedLayer);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString archive = fixture.filePath("shared.7z");
         const QString replacement = fixture.filePath("replacement.7z");
-        QVERIFY(NativeArchiveFixture::Write(archive, {{"original.txt", "old"}}));
-        QVERIFY(NativeArchiveFixture::Write(replacement, {{"updated.txt", "new"}}));
-        MainWindow window;
+        const bool nested = encryptedLayer == "inner";
+        const auto writeVersion = [&](const QString &path, const QString &name,
+                                      const QString &password) {
+            if (!nested)
+                return NativeArchiveFixture::Write(path, {{name, "payload"}}, "7z", password);
+            const QString inner = path + ".inner";
+            return NativeArchiveFixture::Write(inner, {{name, "payload"}}, "7z", password) &&
+                   NativeArchiveFixture::Write(path, {{"inner.7z", readFile(inner)}});
+        };
+        QString password = encryptedLayer.isEmpty() ? QString() : QStringLiteral("old-password");
+        const QString replacementPassword =
+            encryptedLayer.isEmpty() ? QString() : QStringLiteral("new-password");
+        QVERIFY(writeVersion(archive, "original.txt", password));
+        QVERIFY(writeVersion(replacement, "updated.txt", replacementPassword));
+        ArchiveBackend backend;
+        MainWindow window(&backend);
+        bool cancelPassword = false;
+        int prompts = 0;
+        QTimer responder;
+        dialogs_.connectResponder(responder, &window, [&] {
+            if (auto *dialog = dynamic_cast<CPasswordDialog *>(dialogs_.activeDialog())) {
+                ++prompts;
+                if (cancelPassword)
+                    dialog->reject();
+                else {
+                    dialog->findChild<QLineEdit *>("passwordEdit")->setText(password);
+                    dialog->accept();
+                }
+            }
+        });
+        responder.start(1);
         window.show();
         window.openArchive(archive);
+        if (nested) {
+            QTRY_COMPARE(names(window), QStringList{"inner.7z"});
+            table(window)->setCurrentCell(0, 0);
+            table(window)->selectRow(0);
+            QTRY_VERIFY(action(window, "openInsideAction")->isEnabled());
+            action(window, "openInsideAction")->trigger();
+        }
         QTRY_COMPARE(names(window), QStringList{"original.txt"});
         QVERIFY(WindowActivation::waitForActive(window));
         QVERIFY(QFile::rename(archive, fixture.filePath("original.7z")));
         QVERIFY(QFile::rename(replacement, archive));
         QCOMPARE(names(window), QStringList{"original.txt"});
+        cancelPassword = !encryptedLayer.isEmpty();
+        prompts = 0;
         QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
         action(window, "refreshAction")->trigger();
+        if (cancelPassword) {
+            QTRY_VERIFY(notice(window));
+            QCOMPARE(prompts, 1);
+            QCOMPARE(names(window), QStringList{"original.txt"});
+            cancelPassword = false;
+            password = replacementPassword;
+            window.findChild<QPushButton *>("navigationRetry0")->click();
+            QCOMPARE(prompts, 2);
+        }
         QTRY_COMPARE(names(window), QStringList{"updated.txt"});
         QVERIFY(!notice(window));
 
@@ -126,6 +179,11 @@ class WorkspaceArchivePublicationTests final : public QObject, protected MainWin
         action(window, "refreshAction")->trigger();
         QTRY_VERIFY(notice(window));
         QCOMPARE(names(window), QStringList{"updated.txt"});
+        QVERIFY(QFile::rename(replacement, archive));
+        window.findChild<QPushButton *>("navigationRetry0")->click();
+        QTRY_VERIFY(!notice(window));
+        QCOMPARE(names(window), QStringList{"updated.txt"});
+        QCOMPARE(prompts, encryptedLayer.isEmpty() ? 0 : 2);
     }
 
     void savingNestedChangesRefreshesAnotherWindow_data() {
