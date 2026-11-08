@@ -95,7 +95,7 @@ bool QtWindowWorkspace::eventFilter(QObject *object, QEvent *event) {
 }
 
 void QtWindowWorkspace::RetainListFocus(unsigned panel) {
-    auto *focused = QApplication::focusWidget();
+    auto *focused = window_.focusWidget();
     auto *container = window_.panelUi_[panel].container;
     if (!focused || !container || !container->isAncestorOf(focused))
         return;

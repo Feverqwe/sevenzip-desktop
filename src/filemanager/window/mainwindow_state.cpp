@@ -49,7 +49,9 @@ void MainWindow::refreshActions() {
                 continue;
             const bool projecting = ui.scanningDisk || ui.scanningArchive;
             const bool panelIdle = navigating && !projecting && !ui.locationUnavailable;
-            QWidget *focused = QApplication::focusWidget();
+            // A closing popup can leave global focus unset while the window
+            // still remembers the file list that owned keyboard input.
+            QWidget *focused = operating ? focusWidget() : QApplication::focusWidget();
             if ((projecting || operating) && focused &&
                 (ui.table == focused || ui.table->isAncestorOf(focused) || ui.iconList == focused ||
                  ui.iconList->isAncestorOf(focused)))
