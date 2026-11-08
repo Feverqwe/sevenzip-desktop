@@ -17,6 +17,27 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
 
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
+    void typingFindsTheNameFromAnotherColumn() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        openListedArchive(
+            window, backend, fixture.filePath("names.zip"),
+            {ArchiveEntry{"alpha.txt", 1, 1}, ArchiveEntry{QStringLiteral("Журнал.txt"), 2, 2}});
+        window.show();
+        auto *view = window.findChild<FileTable *>("archiveTable");
+        QTRY_COMPARE(view->rowCount(), 2);
+        view->setFocus();
+        const int sizeColumn = view->columnForProperty(kpidSize);
+        QVERIFY(sizeColumn > 0);
+        view->setCurrentCell(0, sizeColumn);
+        QCOMPARE(view->currentIndex().column(), sizeColumn);
+        QKeyEvent key(QEvent::KeyPress, 0, Qt::NoModifier, QStringLiteral("ж"));
+        QApplication::sendEvent(view, &key);
+        QCOMPARE(view->currentIndex().data(QtPanelList::NameRole).toString(),
+                 QStringLiteral("Журнал.txt"));
+    }
     void shiftSelectionDoesNotIncludeFollowingUnmodifiedMove_data() {
         QTest::addColumn<int>("mode");
         for (int mode : {0, 3})

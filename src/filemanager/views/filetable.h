@@ -59,6 +59,7 @@ class FileTable : public QTableView {
     PROPID propertyId(int column) const;
     bool isRawProperty(int column) const;
     int columnForProperty(PROPID id) const;
+    void keyboardSearch(const QString &search) override;
 
   protected:
     void startDrag(Qt::DropActions actions) override;

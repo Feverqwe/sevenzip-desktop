@@ -50,6 +50,22 @@ class FileColumnHeader final : public QHeaderView {
 
 } // namespace
 
+void FileTable::keyboardSearch(const QString &search) {
+    const QModelIndex current = currentIndex();
+    const int nameColumn = columnForProperty(kpidName);
+    if (search.isEmpty() || !current.isValid() || nameColumn < 0 ||
+        current.column() == nameColumn) {
+        QTableView::keyboardSearch(search);
+        return;
+    }
+
+    const QModelIndex name = current.siblingAtColumn(nameColumn);
+    selectionModel()->setCurrentIndex(name, QItemSelectionModel::NoUpdate);
+    QTableView::keyboardSearch(search);
+    if (currentIndex() == name)
+        selectionModel()->setCurrentIndex(current, QItemSelectionModel::NoUpdate);
+}
+
 FileTable::FileTable(int columns, QWidget *parent)
     : QTableView(parent), model_(new FilePanelModel(*this)) {
     setModel(model_);
