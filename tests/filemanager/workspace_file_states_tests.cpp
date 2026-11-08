@@ -1,4 +1,5 @@
 #include "filemanager/support/window_state_support.h"
+#include "support/panel_keys.h"
 #include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
 #include <QClipboard>
@@ -29,6 +30,68 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
         QApplication::clipboard()->clear();
     }
     void cleanup() { QApplication::clipboard()->clear(); }
+
+    void keyboardClipboardWorksWhileThePeerRefreshes() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString source = fixture.filePath("source");
+        const QString target = fixture.filePath("target");
+        const QString peerPath = fixture.filePath("peer");
+        for (const auto &path : {source, target, peerPath})
+            QVERIFY(QDir().mkpath(path));
+        const QString input = QDir(source).filePath("item.txt");
+        write(input);
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openPath(source);
+        auto *files = table(window);
+        QTRY_COMPARE(files->rowCount(), 1);
+        files->selectRow(0);
+        action(window, "twoPanelsAction")->trigger();
+        auto *peerPane = window.findChild<QWidget *>("filePanel1");
+        QVERIFY(peerPane && peerPane->isVisible());
+        auto *peer = peerPane->findChild<FileTable *>("archiveTable");
+        auto *address = peerPane->findChild<QLineEdit *>("archivePath");
+        QVERIFY(peer && address);
+        PanelKeys::focusAddress(address);
+        QTRY_VERIFY(address->hasFocus());
+        window.openPath(peerPath);
+        QTRY_VERIFY(peer->isEnabled() && peer->rowCount() == 0);
+        peer->sourcePanel->Set_AutoRefresh_Mode(false);
+        for (int i = 0; i < 301; ++i)
+            write(QDir(peerPath).filePath(QString("peer-%1.txt").arg(i)));
+
+        const auto startPeerRefresh = [&] {
+            peer->setFocus();
+            QVERIFY(peer->hasFocus());
+            QTest::keySequence(peer, action(window, "refreshAction")->shortcut());
+            QVERIFY(!peer->isEnabled());
+            files->setFocus();
+            QVERIFY(files->hasFocus());
+        };
+        startPeerRefresh();
+        QTest::keySequence(files, QKeySequence::Copy);
+        QCOMPARE(QApplication::clipboard()->mimeData()->urls(), QList{QUrl::fromLocalFile(input)});
+        QTRY_VERIFY(peer->isEnabled() && peer->rowCount() == 301);
+        window.openPath(target);
+        QTRY_VERIFY(files->isEnabled() && files->rowCount() == 0);
+        write(QDir(peerPath).filePath("new.txt"));
+        startPeerRefresh();
+        QTest::keySequence(files, QKeySequence::Paste);
+        QTRY_VERIFY(files->isEnabled() && rowFor(*files, "item.txt") >= 0);
+        QTRY_VERIFY(peer->isEnabled() && peer->rowCount() == 302);
+        QFile output(QDir(target).filePath("item.txt"));
+        QVERIFY(output.open(QIODevice::ReadOnly));
+        QCOMPARE(output.readAll(), QByteArray("file state fixture"));
+        QVERIFY(QFileInfo::exists(input));
+        QVERIFY(WindowActivation::waitForActive(window));
+        files->setFocus();
+        QTRY_VERIFY(files->hasFocus());
+        action(window, "twoPanelsAction")->trigger();
+        QVERIFY(!peerPane->isVisible());
+    }
 
     void cutFollowsFilesystemEntryAcrossViewsLocationsAndWindows() {
         QTemporaryDir fixture;
@@ -142,8 +205,10 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
         window.openPath(blocked);
         auto *files = table(window);
         QTRY_VERIFY(files->isEnabled() && rowFor(*files, "existing.txt") >= 0);
-        files->setCurrentCell(rowFor(*files, "existing.txt"), 0);
-        files->selectRow(rowFor(*files, "existing.txt"));
+        QVERIFY(WindowActivation::waitForActive(window));
+        files->setFocus();
+        QTRY_VERIFY(files->hasFocus());
+        QTest::keySequence(files, QKeySequence::SelectAll);
         QVERIFY(copy->isEnabled());
         QVERIFY(!cut->isEnabled());
         QVERIFY(!paste->isEnabled());
@@ -151,8 +216,9 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
             QVERIFY2(!mutation->isEnabled(), qPrintable(mutation->objectName()));
         window.openPath(writable);
         QTRY_VERIFY(paste->isEnabled());
-        files->setCurrentCell(rowFor(*files, "existing.txt"), 0);
-        files->selectRow(rowFor(*files, "existing.txt"));
+        QTRY_VERIFY(files->hasFocus());
+        QTest::keySequence(files, QKeySequence::SelectAll);
+        files->setCurrentCell(rowFor(*files, "existing.txt"), 0, QItemSelectionModel::NoUpdate);
         QVERIFY(copy->isEnabled());
         QVERIFY(cut->isEnabled());
         for (auto *mutation : mutations)
