@@ -51,10 +51,11 @@ class OverwriteLayoutTests final : public QObject {
             ReloadLang(ini);
             QtNotifyLanguageChanged();
         });
-        const QString name = QStringLiteral("длинное имя 空 ") + QString(100, 'x') + ".txt ";
+        const QString name = QStringLiteral(" длинное имя 空 ") + QString(100, 'x') + ".txt";
+        const QString existing = QStringLiteral("длинное имя 空.txt ");
         const QString displayName = '"' + name + '"';
         OverwriteQuestion question;
-        question.Existing.Path = "/old/" + name;
+        question.Existing.Path = "/old/" + existing;
         question.Incoming.Path = "/new/" + name;
         question.MultipleConflictsPossible = multiple;
         COverwriteDialog dialog;
@@ -67,6 +68,8 @@ class OverwriteLayoutTests final : public QObject {
         QVERIFY(skip->hasFocus());
         QCOMPARE(apply->isVisible(), multiple);
         QCOMPARE(dialog.findChild<QLabel *>("overwriteHeader")->text(), displayName);
+        QVERIFY(
+            dialog.findChild<QLabel *>("overwriteOldFile")->text().contains('"' + existing + '"'));
         QVERIFY(dialog.findChild<QLabel *>("overwriteNewFile")->text().contains(displayName));
         QVERIFY(dialog.findChild<QLabel *>("overwriteNewFile")->text().contains("Unknown"));
         if (multiple) {

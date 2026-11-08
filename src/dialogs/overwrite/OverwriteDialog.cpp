@@ -63,7 +63,7 @@ void COverwriteDialog::FormatPathPart(UString &s, bool shorten) {
         s.Delete(size / 2, s.Len() - size);
         s.Insert(size / 2, L" ... ");
     }
-    if (!s.IsEmpty() && s.Back() == ' ') {
+    if (!s.IsEmpty() && (s[0] == ' ' || s.Back() == ' ')) {
         s.InsertAtFront(L'\"');
         s.Add_Char('\"');
     }
