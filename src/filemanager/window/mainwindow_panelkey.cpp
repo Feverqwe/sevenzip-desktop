@@ -248,5 +248,5 @@ bool MainWindow::handlePanelListKey(QKeyEvent *key) {
     if (key->key() != Qt::Key_Control && key->key() != Qt::Key_Shift && key->key() != Qt::Key_Alt)
         refreshActions();
     // Qt otherwise moves focus again after the source OnTab callback.
-    return handled || key->key() == Qt::Key_Tab;
+    return handled || virtualKey == Qt::Key_Tab;
 }

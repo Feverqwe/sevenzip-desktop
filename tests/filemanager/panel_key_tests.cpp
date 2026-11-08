@@ -284,7 +284,7 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
         QCOMPARE(backend.extractCalls, extractCalls);
 
         rightIcons->setFocus();
-        QTest::keyClick(rightIcons, Qt::Key_Tab);
+        QTest::keyClick(rightIcons, Qt::Key_Backtab, Qt::ShiftModifier);
         QTRY_VERIFY(leftIcons->hasFocus());
         QCOMPARE(leftTable->selectionModel()->selectedRows().size(), 1);
         QCOMPARE(rightTable->selectionModel()->selectedRows().size(), 0);
@@ -293,6 +293,8 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
                  QFileInfo(left).canonicalFilePath());
         QTest::keyClick(leftIcons, Qt::Key_F9);
         QVERIFY(!rightPanel->isVisible());
+        QTest::keyClick(leftIcons, Qt::Key_Backtab, Qt::ShiftModifier);
+        QTRY_VERIFY(leftIcons->hasFocus());
         QApplication::processEvents();
         QVERIFY(leftPanel->width() >= window.width() - 8);
         action(window, "twoPanelsAction")->trigger();
