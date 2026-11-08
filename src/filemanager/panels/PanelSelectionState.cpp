@@ -66,15 +66,10 @@ void CPanel::SaveSelectedState(CSelectedState &s) {
     s.SelectFocused = true;
     s.SelectedNames.Clear();
     s.FocusedItem = _selectionList.GetFocusedItem();
-    {
-        if (s.FocusedItem >= 0) {
-            const unsigned realIndex = GetRealItemIndex(s.FocusedItem);
-            if (realIndex != kParentIndex) {
-                s.FocusedName = GetItemRelPath(realIndex);
-                s.FocusedName_Defined = true;
-                s.SelectFocused = _selectionList.IsItemSelected(s.FocusedItem);
-            }
-        }
+    if (s.FocusedItem >= 0) {
+        s.FocusedName = GetItemRelPath(GetRealItemIndex(s.FocusedItem));
+        s.FocusedName_Defined = true;
+        s.SelectFocused = _selectionList.IsItemSelected(s.FocusedItem);
     }
     GetSelectedNames(s.SelectedNames);
 }
