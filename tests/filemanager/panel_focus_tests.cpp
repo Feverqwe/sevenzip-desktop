@@ -9,6 +9,7 @@ class PanelFocusTests : public QObject, protected MainWindowTestSupport {
     void keyboardInputDuringRefresh_data() {
         QTest::addColumn<QString>("shortcutAction");
         QTest::newRow("list-navigation") << QString();
+        QTest::newRow("modifier-only") << QString("modifier");
         QTest::newRow("switch-to-address") << QString("focusPathAction");
         QTest::newRow("switch-to-icons") << QString("viewMode0Action");
     }
@@ -35,7 +36,10 @@ class PanelFocusTests : public QObject, protected MainWindowTestSupport {
         QTest::keySequence(view, action(window, "refreshAction")->shortcut());
         QVERIFY(!view->isEnabled());
         QVERIFY(window.focusWidget());
-        if (!shortcutAction.isEmpty())
+        if (shortcutAction == "modifier") {
+            QTest::keyClick(window.focusWidget(), Qt::Key_Control);
+            QTest::keyClick(window.focusWidget(), Qt::Key_Shift);
+        } else if (!shortcutAction.isEmpty())
             QTest::keySequence(window.focusWidget(),
                                action(window, qPrintable(shortcutAction))->shortcut());
         else

@@ -63,12 +63,18 @@ bool QtWindowWorkspace::eventFilter(QObject *object, QEvent *event) {
         event->type() == QEvent::Wheel) {
         const auto *widget = qobject_cast<QWidget *>(object);
         const auto *modal = QApplication::activeModalWidget();
+        const auto *key =
+            event->type() == QEvent::ShortcutOverride || event->type() == QEvent::KeyPress
+                ? static_cast<QKeyEvent *>(event)
+                : nullptr;
+        // A modifier alone does not choose a new input target. Let Qt and
+        // the panel track it, and arbitrate the actual shortcut separately.
+        if (key && (key->key() == Qt::Key_Control || key->key() == Qt::Key_Shift))
+            return QObject::eventFilter(object, event);
         // Plain list navigation on the temporary focus holder does not
         // select a new input target while its view is disabled.
-        if (pendingListFocus_ && widget &&
-            widget == window_.panelUi_[*pendingListFocus_].container &&
-            (event->type() == QEvent::ShortcutOverride || event->type() == QEvent::KeyPress)) {
-            const auto *key = static_cast<QKeyEvent *>(event);
+        if (pendingListFocus_ && key && widget &&
+            widget == window_.panelUi_[*pendingListFocus_].container) {
             if (key->modifiers() == Qt::NoModifier &&
                 (key->key() == Qt::Key_Up || key->key() == Qt::Key_Down ||
                  key->key() == Qt::Key_Left || key->key() == Qt::Key_Right ||
