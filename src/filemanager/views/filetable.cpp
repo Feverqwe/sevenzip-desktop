@@ -10,6 +10,7 @@
 #include <QMimeData>
 #include <QMouseEvent>
 #include <QScopedValueRollback>
+#include <QScrollBar>
 #include <QStyleOptionViewItem>
 #include <QUrl>
 
@@ -60,10 +61,12 @@ void FileTable::keyboardSearch(const QString &search) {
     }
 
     const QModelIndex name = current.siblingAtColumn(nameColumn);
+    const int horizontalPosition = horizontalScrollBar()->value();
     selectionModel()->setCurrentIndex(name, QItemSelectionModel::NoUpdate);
     QTableView::keyboardSearch(search);
     selectionModel()->setCurrentIndex(currentIndex().siblingAtColumn(current.column()),
                                       QItemSelectionModel::NoUpdate);
+    horizontalScrollBar()->setValue(horizontalPosition);
 }
 
 FileTable::FileTable(int columns, QWidget *parent)

@@ -4,6 +4,7 @@
 #include "support/panel_keys.h"
 #include "ui/support/layout_inspection.h"
 #include <QScopeGuard>
+#include <QScrollBar>
 #include <QSplitterHandle>
 
 extern bool g_CaseSensitive;
@@ -74,7 +75,16 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
         view->setFocus();
         const int sizeColumn = view->columnForProperty(kpidSize);
         QVERIFY(sizeColumn > 0);
+        const int nameColumn = view->columnForProperty(kpidName);
+        QVERIFY(nameColumn >= 0);
+        view->setColumnHidden(sizeColumn, false);
+        view->setHorizontalScrollMode(QAbstractItemView::ScrollPerPixel);
+        view->setColumnWidth(nameColumn, view->viewport()->width() + 100);
+        QTRY_VERIFY(view->horizontalScrollBar()->maximum() > 0);
         view->setCurrentCell(0, sizeColumn);
+        view->horizontalScrollBar()->setValue(view->horizontalScrollBar()->maximum());
+        const int horizontalPosition = view->horizontalScrollBar()->value();
+        QVERIFY(horizontalPosition > 0);
         QCOMPARE(view->currentIndex().column(), sizeColumn);
         const auto current = view->currentIndex();
         const auto selected = view->selectionModel()->selectedRows();
@@ -82,6 +92,7 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
         QKeyEvent key(QEvent::KeyPress, 0, Qt::NoModifier,
                       matches ? QStringLiteral("ж") : QStringLiteral("щ"));
         QApplication::sendEvent(view, &key);
+        QCOMPARE(view->horizontalScrollBar()->value(), horizontalPosition);
         if (matches) {
             QCOMPARE(view->currentIndex().data(QtPanelList::NameRole).toString(),
                      QStringLiteral("Журнал.txt"));
