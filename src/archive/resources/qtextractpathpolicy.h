@@ -3,14 +3,38 @@
 #include "Common/StringConvert.h"
 #include "archive/backend/archivebackend.h"
 #include "archive/callbacks/ArchiveExtractCallback.h"
+#include "platform/temp/qtownedtempidentity.h"
+#include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
+#include <QSet>
 
 class CQtExtractPathPolicy final : public IQtExtractPathPolicy {
     QString _destination;
+    QSet<QString> _inputIdentities;
 
   public:
-    explicit CQtExtractPathPolicy(const QString &destination) : _destination(destination) {}
+    explicit CQtExtractPathPolicy(const QString &destination, const QStringList &inputs = {})
+        : _destination(destination) {
+        for (const auto &input : inputs) {
+            const QString identity = QtOwnedTempIdentity(QFileInfo(input).canonicalFilePath());
+            if (!identity.isEmpty())
+                _inputIdentities.insert(identity);
+        }
+    }
+    HRESULT CheckReplace(const FString &path, UString &message) override {
+        if (_inputIdentities.isEmpty())
+            return S_OK;
+        const QString output = QString::fromWCharArray(fs2us(path).Ptr());
+        if (!_inputIdentities.contains(QtOwnedTempIdentity(QFileInfo(output).canonicalFilePath())))
+            return S_OK;
+        message = QCoreApplication::translate("archivebackend_validation",
+                                              "Cannot overwrite an input archive: %1")
+                      .arg(output)
+                      .toStdWString()
+                      .c_str();
+        return E_INVALIDARG;
+    }
     HRESULT CheckPath(const FString &path, bool directory, bool alternateStream,
                       UString &message) override {
         QString error;

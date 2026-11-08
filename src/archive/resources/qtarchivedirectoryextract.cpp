@@ -199,7 +199,8 @@ HRESULT ExtractQtArchiveDirectory(QtArchiveReadOperation &operation,
                 !request.Selected.isEmpty() && !request.Selected.contains(entry.path))
                 AddLiteral(censor, entry.path, false);
 
-    CQtExtractPathPolicy policy(request.Destination);
+    CQtExtractPathPolicy policy(request.Destination,
+                                {QString::fromWCharArray(sourcePath.Ptr(), sourcePath.Len())});
     const CExtractOptions options = MakeDirectoryExtractOptions(request, policy);
     UStringVector parts;
     const bool streamFolder =

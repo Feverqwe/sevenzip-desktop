@@ -31,7 +31,7 @@ QtArchiveBatchResult RunQtArchiveBatchExtract(ArchiveBackend &backend, const QSt
     NWildcard::CCensorNode censor;
     censor.Add_Wildcard();
     CExtractOptions sourceOptions;
-    CQtExtractPathPolicy pathPolicy(destination);
+    CQtExtractPathPolicy pathPolicy(destination, archives);
     sourceOptions.NtOptions.QtPathPolicy = &pathPolicy;
     sourceOptions.OutputDir =
         us2fs(UString(QDir::toNativeSeparators(destination).toStdWString().c_str()));

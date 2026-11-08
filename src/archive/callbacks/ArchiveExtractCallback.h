@@ -58,6 +58,7 @@ struct IQtExtractPathPolicy {
                               UString &message) = 0;
     virtual HRESULT CheckLink(const FString &path, const FString &target, bool relative,
                               UString &message) = 0;
+    virtual HRESULT CheckReplace(const FString &, UString &) { return S_OK; }
 };
 
 struct CExtractNtOptions {

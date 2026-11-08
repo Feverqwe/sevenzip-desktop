@@ -1241,6 +1241,16 @@ HRESULT CArchiveExtractCallback::CheckExistFile(FString &fullProcessedPath, bool
             }
         } // NExtract::NOverwriteMode::kAsk
 
+        if (_ntOptions.QtPathPolicy && !renameOnce &&
+            _overwriteMode != NExtract::NOverwriteMode::kRename) {
+            UString message;
+            const HRESULT result =
+                _ntOptions.QtPathPolicy->CheckReplace(fullProcessedPath, message);
+            if (result != S_OK) {
+                RINOK(_extractCallback2->MessageError(message))
+                return result;
+            }
+        }
         if (renameOnce || _overwriteMode == NExtract::NOverwriteMode::kRename) {
             if (!AutoRenamePath(fullProcessedPath)) {
                 RINOK(SendMessageError(kCantAutoRename, fullProcessedPath))

@@ -525,6 +525,50 @@ class ExtractDialogTests final : public QObject {
         QSettings settings(settings_, QSettings::IniFormat);
         QCOMPARE(settings.value("Toolbar/labels").toBool(), false);
     }
+    void extractionPreservesInputArchives_data() {
+        QTest::addColumn<bool>("batch");
+        QTest::newRow("same-archive") << false;
+        QTest::newRow("later-archive-in-batch") << true;
+    }
+    void extractionPreservesInputArchives() {
+        QFETCH(bool, batch);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString first = fixture.filePath("a.zip");
+        const QString target = batch ? fixture.filePath("b.zip") : first;
+        const QByteArray payload("extracted payload");
+        QVERIFY(
+            NativeArchiveFixture::Write(first, {{QFileInfo(target).fileName(), payload}}, "zip"));
+        if (batch)
+            QVERIFY(NativeArchiveFixture::Write(target, {{"second.txt", "keep"}}, "zip"));
+        const QStringList inputs = batch ? QStringList{first, target} : QStringList{first};
+        const QByteArray firstBytes = SourceExtractFixture::readFile(first);
+        const QByteArray targetBytes = SourceExtractFixture::readFile(target);
+        ArchiveBackend backend;
+        const auto extract = [&](NExtract::NOverwriteMode::EEnum mode) {
+            return ExtractDialogFixture::Run(
+                backend, inputs, fixture.path(), [&](CExtractDialog &dialog) {
+                    dialog.findChild<QCheckBox *>("extractNameEnable")->setChecked(false);
+                    path(dialog)->setEditText(fixture.path());
+                    overwrite(dialog)->setCurrentIndex(overwrite(dialog)->findData(int(mode)));
+                    dialog.accept();
+                });
+        };
+        const auto rejected = extract(NExtract::NOverwriteMode::kOverwrite);
+        QVERIFY(rejected.Result != S_OK || !rejected.CallbackOK);
+        QCOMPARE(SourceExtractFixture::readFile(first), firstBytes);
+        QCOMPARE(SourceExtractFixture::readFile(target), targetBytes);
+        const auto skipped = extract(NExtract::NOverwriteMode::kSkip);
+        QCOMPARE(skipped.Result, S_OK);
+        QVERIFY(skipped.CallbackOK);
+        QCOMPARE(SourceExtractFixture::readFile(target), targetBytes);
+        const auto renamed = extract(NExtract::NOverwriteMode::kRename);
+        QCOMPARE(renamed.Result, S_OK);
+        QVERIFY(renamed.CallbackOK);
+        QCOMPARE(SourceExtractFixture::readFile(target), targetBytes);
+        const QString output = fixture.filePath(QFileInfo(target).completeBaseName() + "_1.zip");
+        QCOMPARE(SourceExtractFixture::readFile(output), payload);
+    }
     void realExtractionUsesDialogModes_data() {
         QTest::addColumn<int>("pathModeIndex");
         QTest::addColumn<QString>("literalPart");

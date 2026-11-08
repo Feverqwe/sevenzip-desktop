@@ -43,7 +43,10 @@ HRESULT ExtractPanelItems(CPanel &panel, CAgentFolder &folder, const QString &ou
         status = std::move(report.Status);
         callbackOK = !report.HadErrors;
     });
-    CQtExtractPathPolicy pathPolicy(output);
+    const auto &parents = panel.GetParentFolders();
+    CQtExtractPathPolicy pathPolicy(
+        output,
+        parents.IsEmpty() ? QStringList{} : QStringList{ToQString(parents.Front().VirtualPath)});
     CExtractNtOptions ntOptions;
     ntOptions.NtSecurity = options.NtSecurity;
     ntOptions.QtPathPolicy = &pathPolicy;

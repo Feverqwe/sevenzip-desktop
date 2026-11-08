@@ -20,6 +20,7 @@ namespace {
 // its current output root when the source callback validates a final path.
 class COutputPolicy final : public IQtExtractPathPolicy {
     const CExtractOptions &_options;
+    CQtExtractPathPolicy _protectedInputs;
 
   public:
     QString Root() const {
@@ -29,7 +30,11 @@ class COutputPolicy final : public IQtExtractPathPolicy {
         return wildcard < 0 ? output : output.left(output.lastIndexOf('/', wildcard) + 1);
     }
 
-    explicit COutputPolicy(const CExtractOptions &options) : _options(options) {}
+    COutputPolicy(const CExtractOptions &options, const QStringList &inputs)
+        : _options(options), _protectedInputs({}, inputs) {}
+    HRESULT CheckReplace(const FString &path, UString &message) override {
+        return _protectedInputs.CheckReplace(path, message);
+    }
     QString DestinationError(const QString &destination) const {
         QString error;
         if (!ArchiveBackend::validateExtractionOutput(destination, destination, true, &error))
@@ -129,7 +134,10 @@ HRESULT QtShellArchiveServices::ExtractGUI(CCodecs &codecs, const CObjectVector<
         else if (type.FormatIndex >= 0 && unsigned(type.FormatIndex) < codecs.Formats.Size())
             open.SetOpenType(codecs.Formats[unsigned(type.FormatIndex)].Name);
     }
-    COutputPolicy policy(options);
+    QStringList inputs;
+    FOR_VECTOR(index, fullPaths)
+    inputs.append(QString::fromWCharArray(fullPaths[index].Ptr(), fullPaths[index].Len()));
+    COutputPolicy policy(options, inputs);
     auto *previous = options.NtOptions.QtPathPolicy;
     const auto restore = qScopeGuard([&] { options.NtOptions.QtPathPolicy = previous; });
     options.NtOptions.QtPathPolicy = &policy;
