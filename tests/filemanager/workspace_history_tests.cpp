@@ -4,6 +4,7 @@
 #include "localization/LangUtils.h"
 #include "localization/qtlangcontrols.h"
 #include "platform/support/external_editor_fixture.h"
+#include "support/panel_keys.h"
 #include "support/widget_dialogs.h"
 #include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
@@ -342,6 +343,41 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         QVERIFY(table(window)->sourcePanel->ShouldProcessNotifications());
         action(window, "forwardAction")->trigger();
         QTRY_COMPARE(location(window), c);
+    }
+
+    void addressNavigationSupersedesPendingBack() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString large = fixture.filePath("large");
+        const QString current = fixture.filePath("current");
+        const QString replacement = fixture.filePath("replacement");
+        createDirectory(large, 301);
+        createDirectory(current);
+        createDirectory(replacement, 2);
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        auto *view = table(window);
+        window.openPath(large);
+        QTRY_VERIFY(view->isEnabled() && view->rowCount() == 301);
+        window.openPath(current);
+        QTRY_COMPARE(location(window), current);
+        auto *back = action(window, "backAction");
+        auto *forward = action(window, "forwardAction");
+        QVERIFY(back->isEnabled());
+        back->trigger();
+        QVERIFY(!view->isEnabled());
+        auto *address = window.findChild<QLineEdit *>("archivePath");
+        PanelKeys::focusAddress(address);
+        address->setText(replacement);
+        QTest::keyClick(address, Qt::Key_Return);
+        QTRY_VERIFY(view->isEnabled() && location(window) == replacement);
+        back->trigger();
+        QTRY_VERIFY(view->isEnabled() && location(window) == current);
+        forward->trigger();
+        QTRY_VERIFY(view->isEnabled() && location(window) == replacement);
+        QCOMPARE(view->rowCount(), 2);
     }
 
     void canceledEncryptedBackKeepsItsCursorAndDoesNotPromptTwice() {
