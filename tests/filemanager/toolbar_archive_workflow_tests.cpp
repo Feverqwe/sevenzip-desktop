@@ -581,6 +581,7 @@ class ToolbarArchiveWorkflowTests final : public QObject, protected MainWindowTe
         QVERIFY(makeArchive(fixture.path(), second, "7z", name));
         const QByteArray firstBefore = readFile(first), secondBefore = readFile(second);
         const QString output = fixture.filePath("output δ");
+        QVERIFY(QDir().mkpath(output));
         GuiTestBackend backend;
         QCOMPARE(backend.loadCodecCatalog(module_, version_), S_OK);
         MainWindow window(&backend);
@@ -588,6 +589,9 @@ class ToolbarArchiveWorkflowTests final : public QObject, protected MainWindowTe
         window.activateWindow();
         QVERIFY(QTest::qWaitForWindowActive(&window));
         QVERIFY(showTwoPanels(window));
+        auto *peer = openPanel(window, 1 - pane, output);
+        QTRY_COMPARE(peer->rowCount(), 0);
+        peer->sourcePanel->Set_AutoRefresh_Mode(false);
         auto *source = openPanel(window, pane, input);
         QTRY_COMPARE(source->rowCount(), 2);
         QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
@@ -616,7 +620,7 @@ class ToolbarArchiveWorkflowTests final : public QObject, protected MainWindowTe
             PanelKeys::command(source, Qt::Key_E, Qt::ControlModifier | Qt::ShiftModifier);
             action(window, "extractArchiveAction")->trigger();
             QVERIFY(backend.ExtractJobs.isEmpty());
-            QVERIFY(!QFileInfo::exists(output));
+            QVERIFY(QDir(output).isEmpty());
             PanelKeys::command(source, Qt::Key_T, Qt::ControlModifier | Qt::ShiftModifier);
             QTRY_COMPARE_WITH_TIMEOUT(backend.Results.size(), 1, 30000);
             QCOMPARE(backend.Results.last().Status, QtOperationResult::Outcome::Success);
@@ -636,14 +640,11 @@ class ToolbarArchiveWorkflowTests final : public QObject, protected MainWindowTe
         PanelKeys::command(source, Qt::Key_E, Qt::ControlModifier | Qt::ShiftModifier);
         QTRY_COMPARE_WITH_TIMEOUT(backend.Results.size(), 1, 30000);
         QCOMPARE(backend.Results.last().Status, QtOperationResult::Outcome::Cancelled);
-        QVERIFY(!QFileInfo::exists(output));
+        QVERIFY(QDir(output).isEmpty());
         backend.CancelExtract = false;
-        QVERIFY(QDir().mkpath(output));
-        auto *peer = openPanel(window, 1 - pane, output);
-        QTRY_COMPARE(peer->rowCount(), 0);
-        peer->sourcePanel->Set_AutoRefresh_Mode(false);
-        source->setFocus();
-        PanelKeys::command(source, Qt::Key_E, Qt::ControlModifier | Qt::ShiftModifier);
+        QTRY_COMPARE(window.focusWidget(), source);
+        PanelKeys::command(window.focusWidget(), Qt::Key_E,
+                           Qt::ControlModifier | Qt::ShiftModifier);
         QVERIFY(action(window, "refreshAction")->isEnabled());
         QTRY_COMPARE_WITH_TIMEOUT(backend.Results.size(), 2, 30000);
         QCOMPARE(backend.Results.last().Status, QtOperationResult::Outcome::Success);
