@@ -190,7 +190,7 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
             external->setData("x-special/gnome-copied-files",
                               QByteArray("cut\n") +
                                   QUrl::fromLocalFile(source + '/' + moved).toEncoded() + '\n' +
-                                  QUrl::fromLocalFile(source + '/' + skipped).toEncoded());
+                                  QUrl::fromLocalFile(source + '/' + skipped).toEncoded() + '\n');
             QApplication::clipboard()->setMimeData(external);
         }
 

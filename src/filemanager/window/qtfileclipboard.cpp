@@ -18,7 +18,9 @@ QStringList ClipboardFilePaths(const QMimeData *mime) {
         return {};
     QList<QUrl> urls = mime->urls();
     if (urls.isEmpty() && !mime->hasUrls()) {
-        const auto lines = mime->data(gnomeFilesFormat).split('\n');
+        auto lines = mime->data(gnomeFilesFormat).split('\n');
+        if (!lines.isEmpty() && lines.back().isEmpty())
+            lines.removeLast();
         if (lines.size() < 2 || (lines.front() != "cut" && lines.front() != "copy"))
             return {};
         for (qsizetype i = 1; i < lines.size(); ++i)

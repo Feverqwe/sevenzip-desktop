@@ -174,10 +174,15 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
         const QByteArray url = QUrl::fromLocalFile(path).toEncoded();
         putFiles("copy\n" + url);
         QTRY_VERIFY(paste->isEnabled());
+        putFiles("copy\n" + url + '\n');
+        QTRY_VERIFY(paste->isEnabled());
         QVERIFY(!cut(*files, name));
-        putFiles("cut\n" + url);
+        putFiles("cut\n" + url + '\n');
         QTRY_VERIFY(paste->isEnabled());
         QVERIFY(cut(*files, name));
+        putFiles("cut\n" + url + "\n\n" + url);
+        QTRY_VERIFY(!paste->isEnabled());
+        QVERIFY(!cut(*files, name));
         putFiles("cut\n" + url + "\nhttps://example.invalid/file");
         QTRY_VERIFY(!paste->isEnabled());
         QVERIFY(!cut(*files, name));
