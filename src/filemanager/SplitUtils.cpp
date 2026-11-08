@@ -44,9 +44,13 @@ bool ParseVolumeSizes(const UString &s, CRecordVector<UInt64> &values) {
                     return false;
                 val <<= numBits;
 
-                for (; i < s.Len(); i++)
-                    if (s[i] == L' ')
-                        break;
+                if (i + 1 < s.Len() && MyCharLower_Ascii(s[i]) == 'i' &&
+                    MyCharLower_Ascii(s[i + 1]) == 'b')
+                    i += 2;
+                else if (i < s.Len() && MyCharLower_Ascii(s[i]) == 'b')
+                    ++i;
+                if (i < s.Len() && s[i] != L' ' && s[i] != L'-')
+                    return false;
                 continue;
             }
         }
