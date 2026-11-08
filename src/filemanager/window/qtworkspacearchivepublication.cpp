@@ -80,13 +80,22 @@ bool QtWindowWorkspace::RefreshPublishedArchive(unsigned panel, bool interactive
     if (!window_.panelUi_[panel].container)
         return false;
     auto &locationState = panels_[panel].location;
+    auto &source = window_.app_.Panels[panel];
+    if (interactive && locationState.archiveRevision == locationState.archiveApplied &&
+        source.IsArcFolder() && !source.GetParentFolders().IsEmpty()) {
+        auto *resource = LayerResource(source, 0);
+        const auto reader = resource ? resource->NativeReaderLease() : nullptr;
+        if (reader && !reader->sourceIsCurrent()) {
+            source.MarkArchiveOutdated();
+            ++locationState.archiveRevision;
+        }
+    }
     if (locationState.archiveRevision == locationState.archiveApplied)
         return false;
-    if (!Ready() || (!interactive && !CanRefreshPublishedArchives())) {
+    if (interactive ? !Ready(true) : !CanRefreshPublishedArchives()) {
         window_.guiOutputRefresh_->Enqueue({}, {locationState.archiveLocation.physicalPath});
         return true;
     }
-    auto &source = window_.app_.Panels[panel];
     if (!source.IsArcFolder() || source.GetParentFolders().IsEmpty()) {
         locationState.archiveApplied = locationState.archiveRevision;
         return false;

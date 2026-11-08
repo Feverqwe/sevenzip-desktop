@@ -79,9 +79,10 @@ CFastFolders QtWindowWorkspace::BookmarkDisplayPaths() {
     return paths;
 }
 
-bool QtWindowWorkspace::Ready() const {
+bool QtWindowWorkspace::Ready(bool allowSourceCall) const {
     return !changing_ && !window_.app_.QtOperations().closed() &&
-           !window_.app_.QtOperations().active() && !window_.app_.QtOperations().callActive() &&
+           !window_.app_.QtOperations().active() &&
+           (allowSourceCall || !window_.app_.QtOperations().callActive()) &&
            !window_.sourceArchiveProgress_ && !QApplication::activeModalWidget() &&
            !window_.backend_->busy() && (!window_.drag_ || !window_.drag_->Active()) &&
            (!window_.appPresentation_ || !window_.appPresentation_->IsCopyPending());

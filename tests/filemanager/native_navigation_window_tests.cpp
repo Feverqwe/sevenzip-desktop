@@ -884,8 +884,8 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         QCOMPARE(update.exitCode(), 0);
         refresh->trigger();
         QCOMPARE(table->rowCount(), 1);
-        // OnReload loads the bound proxy; physical changes require reopening.
-        QCOMPARE(table->model()->index(0, 2).data(QtPanelList::SortValueRole).toULongLong(), 6ull);
+        QTRY_COMPARE(table->model()->index(0, 2).data(QtPanelList::SortValueRole).toULongLong(),
+                     35ull);
         QCOMPARE(table->selectionModel()->selectedRows().size(), 1);
         window.activateWindow();
         QVERIFY(QTest::qWaitForWindowActive(&window));

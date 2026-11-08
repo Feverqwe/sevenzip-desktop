@@ -303,10 +303,9 @@ void QtFileManagerCommands::OpenParentFolder() { window_.goParent(); }
 void QtFileManagerCommands::FoldersHistory() { window_.showFoldersHistory(); }
 void QtFileManagerCommands::RefreshView() {
     auto &panel = window_.app_.GetFocusedPanel();
-    if (panel.ArchiveContextOutdated()) {
-        window_.workspace_->RefreshPublishedArchive(window_.projectedPanel_, true);
+    if (panel.IsArcFolder() &&
+        window_.workspace_->RefreshPublishedArchive(window_.projectedPanel_, true))
         return;
-    }
     auto &ui = window_.projectedUi();
     const QPointer<QAbstractItemView> view =
         panel.IsArcFolder() ? qobject_cast<QAbstractItemView *>(ui.viewStack->currentWidget())

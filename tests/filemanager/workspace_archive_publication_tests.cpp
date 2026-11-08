@@ -102,6 +102,32 @@ class WorkspaceArchivePublicationTests final : public QObject, protected MainWin
         QCOMPARE(view->currentIndex().data().toString(), QString("renamed.txt"));
     }
 
+    void manualRefreshDetectsExternalArchiveReplacement() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString archive = fixture.filePath("shared.7z");
+        const QString replacement = fixture.filePath("replacement.7z");
+        QVERIFY(NativeArchiveFixture::Write(archive, {{"original.txt", "old"}}));
+        QVERIFY(NativeArchiveFixture::Write(replacement, {{"updated.txt", "new"}}));
+        MainWindow window;
+        window.show();
+        window.openArchive(archive);
+        QTRY_COMPARE(names(window), QStringList{"original.txt"});
+        QVERIFY(WindowActivation::waitForActive(window));
+        QVERIFY(QFile::rename(archive, fixture.filePath("original.7z")));
+        QVERIFY(QFile::rename(replacement, archive));
+        QCOMPARE(names(window), QStringList{"original.txt"});
+        QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
+        action(window, "refreshAction")->trigger();
+        QTRY_COMPARE(names(window), QStringList{"updated.txt"});
+        QVERIFY(!notice(window));
+
+        QVERIFY(QFile::rename(archive, replacement));
+        action(window, "refreshAction")->trigger();
+        QTRY_VERIFY(notice(window));
+        QCOMPARE(names(window), QStringList{"updated.txt"});
+    }
+
     void savingNestedChangesRefreshesAnotherWindow_data() {
         QTest::addColumn<bool>("closeWriter");
         QTest::newRow("up") << false;

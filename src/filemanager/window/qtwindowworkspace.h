@@ -124,7 +124,7 @@ class QtWindowWorkspace final : public QObject {
         QToolBar *actions = nullptr;
         QWidget *actionRow = nullptr;
     };
-    bool Ready() const;
+    bool Ready(bool allowSourceCall = false) const;
     void Capture(unsigned panel, bool retainView = true);
     Visit CaptureVisit(unsigned panel);
     void FinishNavigation(unsigned panel, HRESULT result);
