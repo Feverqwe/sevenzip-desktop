@@ -22,7 +22,6 @@
 #include <QVBoxLayout>
 
 using namespace NWindows;
-static const unsigned kCurrentFileNameSizeLimit = 72;
 
 void COverwriteDialog::SetQuestion(const OverwriteQuestion &question) {
     _multipleConflictsPossible = question.MultipleConflictsPossible;
@@ -57,12 +56,7 @@ int NOverwriteDialog::MapButtonResult(INT_PTR button) {
     }
 }
 
-void COverwriteDialog::FormatPathPart(UString &s, bool shorten) {
-    const unsigned size = kCurrentFileNameSizeLimit;
-    if (shorten && s.Len() > size) {
-        s.Delete(size / 2, s.Len() - size);
-        s.Insert(size / 2, L" ... ");
-    }
+void COverwriteDialog::FormatPathPart(UString &s) {
     if (!s.IsEmpty() && (s[0] == ' ' || s.Back() == ' ')) {
         s.InsertAtFront(L'\"');
         s.Add_Char('\"');
@@ -75,11 +69,11 @@ void COverwriteDialog::SetFileInfoControl(const NOverwriteDialog::CFileInfo &fil
         const UString &path = fileInfo.Path;
         const int slashPos = path.ReverseFind_PathSepar();
         UString s = path.Left((unsigned)(slashPos + 1));
-        FormatPathPart(s, !ShowExtraButtons);
+        FormatPathPart(s);
         s.Add_LF();
         {
             UString s2 = path.Ptr((unsigned)(slashPos + 1));
-            FormatPathPart(s2, !ShowExtraButtons);
+            FormatPathPart(s2);
             s += s2;
         }
         s.Add_LF();
@@ -130,7 +124,7 @@ bool COverwriteDialog::OnInit() {
     UpdateButtonSizes();
     const UString &path = NewFileInfo.Path;
     UString name = path.Ptr((unsigned)(path.ReverseFind_PathSepar() + 1));
-    FormatPathPart(name, false);
+    FormatPathPart(name);
     SetItemText(IDT_OVERWRITE_HEADER, name);
     auto *button = static_cast<QPushButton *>(
         _controls.value(ShowExtraButtons || DefaultButton_is_NO ? IDNO : IDYES));

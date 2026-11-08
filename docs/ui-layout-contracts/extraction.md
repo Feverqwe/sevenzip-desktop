@@ -180,12 +180,12 @@ checkbox changes only the current conflict; the existing native auto-name algori
 chooses an available name. Operation policy must not leak into another operation.
 
 Existing/incoming metadata stays in separate areas, side by side when readable
-and stacked at narrower widths. Full filenames/locations wrap in the modern form;
+and stacked at narrower widths. Full filenames and locations wrap in both forms;
 unknown size/time is explicit. Known byte sizes and timestamps retain source
 formatting. The three decisions sit on the right of the same footer. The body
 scrolls independently of the footer. Native minimum button sizes remain fitted.
 The restricted Revert caller retains its original Yes/No/Cancel result contract,
-source default preference and bounded name formatting; Keep both and the scope
+source default preference; Keep both and the scope
 checkbox are unavailable there. Existing native result values are preserved;
 the one-conflict rename answer is a separate project extension.
 `overwrite_layout` covers EN/RU, normal/compact widths, extra-action availability

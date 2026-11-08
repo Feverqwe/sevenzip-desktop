@@ -58,7 +58,7 @@ class COverwriteDialog final : public QDialog {
     void SetFileInfoControl(const NOverwriteDialog::CFileInfo &info, unsigned textID,
                             unsigned iconID, unsigned iconID_2);
     void SetItemText(unsigned id, const UString &text);
-    static void FormatPathPart(UString &text, bool shorten);
+    static void FormatPathPart(UString &text);
     bool OnButtonClicked(unsigned buttonID, QWidget *button);
     void BuildPresentation();
     void UpdateButtonSizes();

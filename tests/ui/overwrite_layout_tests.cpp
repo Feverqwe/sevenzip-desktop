@@ -126,11 +126,16 @@ class OverwriteLayoutTests final : public QObject {
         COverwriteDialog dialog;
         dialog.ShowExtraButtons = extra;
         dialog.DefaultButton_is_NO = true;
-        dialog.OldFileInfo.Path = L"/destination/каталог 文件/old.txt";
-        dialog.NewFileInfo.Path = L"/source/каталог 文件/new.txt";
+        const QString common = QString(40, 'x');
+        const QString existing = '/' + common + "/папка назначения/" + common + '/';
+        const QString incoming = '/' + common + "/исходная папка/" + common + '/';
+        dialog.OldFileInfo.Path = (existing + "old.txt").toStdWString().c_str();
+        dialog.NewFileInfo.Path = (incoming + "new.txt").toStdWString().c_str();
         dialog.OldFileInfo.SetSize(12345);
         dialog.NewFileInfo.SetSize(67890);
         QVERIFY(dialog.OnInit());
+        QVERIFY(dialog.findChild<QLabel *>("overwriteOldFile")->text().contains(existing));
+        QVERIFY(dialog.findChild<QLabel *>("overwriteNewFile")->text().contains(incoming));
         dialog.resize(width, width < 500 ? 300 : 440);
         dialog.show();
         QApplication::processEvents();
