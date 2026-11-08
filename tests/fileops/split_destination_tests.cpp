@@ -524,6 +524,7 @@ class SplitDestinationTests final : public QObject {
                 name(dialog)->setText("read only/missing/deeper");
                 dialog.accept();
                 QVERIFY(dialog.isVisible() && error->isVisible());
+                QCOMPARE(error->text(), QString("The folder is read-only: %1").arg(blocked));
                 QCOMPARE(dialog.focusWidget(), name(dialog));
                 QCOMPARE(name(dialog)->text(), QString("read only/missing/deeper"));
 

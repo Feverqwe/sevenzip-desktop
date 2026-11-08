@@ -107,6 +107,10 @@
             <translation>Назначение доступно только для чтения.</translation>
         </message>
         <message>
+            <source>The folder is read-only: %1</source>
+            <translation>Папка доступна только для чтения: %1</translation>
+        </message>
+        <message>
             <source>Choose another destination or change the name.</source>
             <translation>Выберите другое назначение или измените имя.</translation>
         </message>

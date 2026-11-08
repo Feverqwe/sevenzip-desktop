@@ -45,7 +45,8 @@ class COutputPolicy final : public IQtExtractPathPolicy {
             if (entry.exists())
                 return entry.isWritable() ? QString()
                                           : QCoreApplication::translate(
-                                                "CopyRedesign", "The destination is read-only.");
+                                                "CopyRedesign", "The folder is read-only: %1")
+                                                .arg(path);
             const QString parent = entry.absolutePath();
             if (parent == path)
                 return {};
