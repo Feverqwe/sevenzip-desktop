@@ -867,15 +867,28 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         QSignalSpy finished(&backend, &ArchiveBackend::finished);
         const QString archive = dir.filePath("address.zip");
         QVERIFY(NativeArchiveFixture::WriteFiles(archive, {payload.fileName()}));
+        QFile sibling(dir.filePath("000-neighbor.txt"));
+        QVERIFY(sibling.open(QIODevice::WriteOnly));
+        sibling.close();
         MainWindow window(&backend);
         window.show();
-        window.openArchive(archive);
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openPath(dir.path());
         auto *table = window.findChild<FileTable *>("archiveTable");
         auto *address = window.findChild<QLineEdit *>("archivePath");
         auto *refresh = window.findChild<QAction *>("refreshAction");
-        auto *parent = window.findChild<QAction *>("parentFolderAction");
-        QVERIFY(table && address && refresh && parent);
-        QCOMPARE(table->rowCount(), 1);
+        QVERIFY(table && address && refresh);
+        action(window, "viewMode3Action")->trigger();
+        QTRY_VERIFY(table->isEnabled() &&
+                    filesystemRow(window, QStringLiteral("address.zip")) >= 0);
+        const int archiveRow = filesystemRow(window, QStringLiteral("address.zip"));
+        table->setCurrentCell(archiveRow, 0);
+        table->selectRow(archiveRow);
+        table->setFocus();
+        QTRY_VERIFY(table->hasFocus());
+        QTest::keyClick(table, Qt::Key_Return);
+        QTRY_COMPARE(address->text(), archive);
+        QTRY_COMPARE(table->rowCount(), 1);
         // Native binding clamps a missing suffix to the deepest existing folder.
         PanelKeys::focusAddress(address);
         address->setText(archive + QStringLiteral(" / missing/deeper"));
@@ -904,13 +917,13 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         action(window, "viewMode3Action")->trigger();
         table->setFocus();
         QTRY_VERIFY(table->hasFocus());
-        parent->trigger();
-        QCOMPARE(address->text(), QFileInfo(dir.path()).canonicalFilePath());
-        QCOMPARE(table->model()->index(table->currentRow(), 0).data().toString(),
-                 QStringLiteral("address.zip"));
+        QTest::keyClick(table, Qt::Key_Backspace);
+        QTRY_COMPARE(address->text(), QFileInfo(dir.path()).canonicalFilePath());
+        QTRY_COMPARE(table->currentIndex().data().toString(), QStringLiteral("address.zip"));
         QTRY_VERIFY(table->hasFocus());
-        window.openArchive(archive);
-        QCOMPARE(table->rowCount(), 1);
+        QTest::keyClick(table, Qt::Key_Return);
+        QTRY_COMPARE(address->text(), archive);
+        QTRY_COMPARE(table->rowCount(), 1);
         QCOMPARE(table->model()->index(0, 2).data(QtPanelList::SortValueRole).toULongLong(), 35ull);
     }
 };
