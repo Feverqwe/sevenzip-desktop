@@ -38,7 +38,7 @@ class QtLocalFileTask final : public QObject {
                     std::function<void()> cancel);
     void AskOverwrite(FileTransferOperation &worker, const OverwriteQuestion &question);
     void Finish(bool success, bool cancelled, const QString &message, bool partial,
-                const QStringList &movedSources);
+                const QStringList &movedSources, bool retainedOutput);
     void PresentFinish(bool success, bool cancelled, const QString &message, bool partial);
     void RequestPresentation(std::function<void()> action);
     void TryPresent();

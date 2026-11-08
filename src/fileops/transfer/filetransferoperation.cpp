@@ -69,6 +69,7 @@ void FileTransferOperation::run() {
         }
     }();
     resultKind_ = completion.kind;
+    retainedOutput_ = completion.retainedOutput;
     emit result(completion.kind == ResultKind::Success ||
                     completion.kind == ResultKind::PartialSuccess,
                 completion.message, completion.movedSources);

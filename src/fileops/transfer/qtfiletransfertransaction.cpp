@@ -376,19 +376,25 @@ FileTransferOperation::Completion QtFileTransferTransaction::finish(QList<Transf
         rollback(completed);
         if (!rollbackErrors_.isEmpty())
             return {FileTransferOperation::ResultKind::Failure,
-                    error + '\n' + rollbackErrors_.join('\n')};
+                    error + '\n' + rollbackErrors_.join('\n'),
+                    {},
+                    true};
         return {*failureKind_, error};
     }
     if (worker_.move_) {
         removeSources(completed, error);
         if (!error.isEmpty()) {
             rollback(completed, RollbackMode::KeepMovedSources);
+            const bool retained =
+                std::any_of(completed.cbegin(), completed.cend(), [](const TransferEntry &entry) {
+                    return !entry.ownedPath.isEmpty() && entry.sourceState != SourceState::Intact;
+                });
             return {FileTransferOperation::ResultKind::Failure,
                     error +
                         QCoreApplication::translate("qtfiletransfertransaction",
                                                     " Some items may have been moved.") +
                         (rollbackErrors_.isEmpty() ? QString() : '\n' + rollbackErrors_.join('\n')),
-                    movedSources(completed)};
+                    movedSources(completed), retained || !rollbackErrors_.isEmpty()};
         }
     }
     for (const TransferEntry &entry : completed)

@@ -632,6 +632,46 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         QVERIFY(!finished[0][1].toBool());
         QVERIFY(!finished[0][2].toString().isEmpty());
     }
+    void interruptedFolderMovePublishesRetainedOutput() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString source = fixture.filePath("source");
+        const QString destination = fixture.filePath("destination");
+        const QString merged = QDir(destination).filePath("source");
+        QVERIFY(QDir().mkpath(source) && QDir().mkpath(merged));
+        QVERIFY(write(QDir(source).filePath("first.txt"), "first"));
+        QVERIFY(write(QDir(source).filePath("second.txt"), "second"));
+        QVERIFY(write(QDir(merged).filePath("existing.txt"), "existing"));
+        FileTransferOperation *worker = nullptr;
+        FileTransferOperation::FileSystemAdapter adapter;
+        adapter.removeSource = [&worker](const QString &path) {
+            const bool removed = QFile::remove(path);
+            if (removed)
+                worker->cancel();
+            return removed;
+        };
+        worker = new FileTransferOperation({source}, destination, true, nullptr, adapter);
+        auto *task = new QtLocalFileTask(*worker, "Move", destination);
+        QSignalSpy output(task, &QtLocalFileTask::transferOutput);
+        QSignalSpy finished(task, &QtLocalFileTask::finished);
+        QTimer answer;
+        connect(&answer, &QTimer::timeout, this, [] {
+            for (auto *window : QApplication::topLevelWidgets())
+                TestProgressDialog::DismissVisibleResult(window);
+        });
+        answer.start(5);
+        task->Start();
+        QTRY_COMPARE(finished.size(), 1);
+        QVERIFY(!finished.constFirst().constFirst().toBool());
+        QCOMPARE(output.size(), 1);
+        QVERIFY(output.constFirst().constFirst().toStringList().isEmpty());
+        QCOMPARE(QDir(source).entryList(QDir::Files).size(), 1);
+        QCOMPARE(read(QDir(merged).filePath("first.txt")), QByteArray("first"));
+        QCOMPARE(read(QDir(merged).filePath("second.txt")), QByteArray("second"));
+        QCOMPARE(read(QDir(merged).filePath("existing.txt")), QByteArray("existing"));
+        QTRY_VERIFY(QtLocalFileTask::Active().isEmpty());
+    }
+
     void lateFailurePreservesAnotherWindowsDraft_data() {
         QTest::addColumn<bool>("closeTask");
         QTest::newRow("explicit-show") << false;

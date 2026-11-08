@@ -26,6 +26,7 @@ class FileTransferOperation : public QThread {
     void submitOverwriteAnswer(int answer);
     bool isCanceled() const { return canceled_; }
     ResultKind resultKind() const { return resultKind_; }
+    bool hasRetainedOutput() const { return retainedOutput_; }
 
   signals:
     void currentFile(const QString &path);
@@ -43,6 +44,7 @@ class FileTransferOperation : public QThread {
         ResultKind kind;
         QString message;
         QStringList movedSources{};
+        bool retainedOutput = false;
     };
     int askOverwrite(const OverwriteQuestion &question);
 
@@ -53,6 +55,7 @@ class FileTransferOperation : public QThread {
     FileSystemAdapter adapter_;
     std::atomic_bool canceled_{false};
     std::atomic<ResultKind> resultKind_{ResultKind::Failure};
+    std::atomic_bool retainedOutput_{false};
     QMutex overwriteMutex_;
     QWaitCondition overwriteCondition_;
     bool overwriteWaiting_ = false;
