@@ -136,7 +136,8 @@ void CPanel::RenameFile() {
         _selectionList.EditLabel(index);
 }
 
-HRESULT CPanel::OnEndLabelEdit(UInt32 realIndex, const UString &enteredName) {
+HRESULT CPanel::OnEndLabelEdit(UInt32 realIndex, const UString &enteredName,
+                               QString *destinationDirectory) {
     CDisableTimerProcessing disableTimerProcessing2(*this);
     if (!CheckBeforeUpdate(IDS_ERROR_RENAMING))
         return E_ABORT;
@@ -160,9 +161,12 @@ HRESULT CPanel::OnEndLabelEdit(UInt32 realIndex, const UString &enteredName) {
     op.Name = newName;
     const HRESULT result =
         op.DoOperation(*this, LangString(IDS_RENAMING), LangString(IDS_ERROR_RENAMING));
-    if (result == S_OK)
+    if (result == S_OK) {
         state.FocusedName = RenamedItemInView(*this, prefix + newName);
-    else
+        if (destinationDirectory && IsFSFolder())
+            *destinationDirectory =
+                QFileInfo(ToQString(GetFsPath() + prefix + newName)).absolutePath();
+    } else
         state.FocusedName = prefix + oldName;
     state.FocusedName_Defined = true;
     state.SelectFocused = true;

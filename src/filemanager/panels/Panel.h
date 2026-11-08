@@ -623,7 +623,8 @@ class CPanel : public QObject {
     HRESULT CreateFolder(UString name, QString &error);
     void RenameFile();
     bool OnBeginLabelEdit(int row);
-    HRESULT OnEndLabelEdit(UInt32 realIndex, const UString &enteredName);
+    HRESULT OnEndLabelEdit(UInt32 realIndex, const UString &enteredName,
+                           QString *destinationDirectory = nullptr);
     HRESULT MoveItemsToTrash(class IQtTrashService &trash, CSelectedState &selection,
                              const CRecordVector<UInt32> *explicitIndices = nullptr,
                              bool confirm = true, unsigned *moved = nullptr);

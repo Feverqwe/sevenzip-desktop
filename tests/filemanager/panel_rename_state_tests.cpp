@@ -3,6 +3,7 @@
 #include "filemanager/support/selection_fixture.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
+#include "filemanager/window/qtworkspaceapplication.h"
 #include "localization/LangUtils.h"
 #include "platform/support/native_link_fixture.h"
 #include "support/panel_keys.h"
@@ -50,8 +51,14 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
         QVERIFY(write(source, "original bytes"));
         QVERIFY(write(fixture.filePath("keep.txt"), "keep bytes"));
         QVERIFY(QDir().mkdir(fixture.filePath("target folder")));
-        ControlledBackend backend;
-        MainWindow window(&backend);
+        QtWorkspaceApplication application(*qApp);
+        ControlledBackend backend, observerBackend;
+        MainWindow window(&backend), observer(&observerBackend);
+        const QString output = fixture.filePath(destination);
+        observer.show();
+        observer.openPath(QFileInfo(output).absolutePath());
+        QTRY_VERIFY(table(observer)->isEnabled());
+        table(observer)->sourcePanel->Set_AutoRefresh_Mode(false);
         window.show();
         QVERIFY(QTest::qWaitForWindowActive(&window));
         window.openPath(fixture.path());
@@ -78,8 +85,9 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
         QVERIFY(editor && editor->isVisible());
         editor->setText(destination);
         QTest::keyClick(editor, Qt::Key_Return);
-        const QString output = fixture.filePath(destination);
         QTRY_VERIFY(QFileInfo::exists(output));
+        QTRY_VERIFY(filesystemRow(observer, QFileInfo(output).fileName()) >= 0);
+        QCOMPARE(filesystemRow(observer, "original.txt"), -1);
         QVERIFY(!QFileInfo::exists(source));
         QTRY_COMPARE(view->currentIndex().data().toString(), visible);
         QVERIFY(view->selectionModel()->isRowSelected(view->currentRow(), {}));

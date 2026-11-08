@@ -4,6 +4,7 @@
 #include "filemanager/panels/Panel.h"
 #include "filemanager/qtfilemanagercommands.h"
 #include "filemanager/window/mainwindow.h"
+#include "filemanager/window/qtworkspaceapplication.h"
 #include <QAbstractItemDelegate>
 #include <QFileInfo>
 #include <QLineEdit>
@@ -183,6 +184,7 @@ void QtRenameController::Apply(const Request &request) {
 }
 
 void QtRenameController::Finish(const Request &request, CPanel &panel) {
+    QString destinationDirectory;
     {
         QScopedValueRollback<bool> source(window_.sourceArchiveProgress_, true);
         if (request.name.contains(QChar::Null) ||
@@ -190,7 +192,8 @@ void QtRenameController::Finish(const Request &request, CPanel &panel) {
             CPanel::CDisableTimerProcessing disableTimer(panel);
             panel.MessageBox_Error_HRESULT(E_INVALIDARG);
         } else
-            panel.OnEndLabelEdit(request.sourceIndex, ToUString(request.name));
+            panel.OnEndLabelEdit(request.sourceIndex, ToUString(request.name),
+                                 &destinationDirectory);
     }
     const auto selection = panel.TakeRefreshSelection();
     if (!selection) {
@@ -203,4 +206,11 @@ void QtRenameController::Finish(const Request &request, CPanel &panel) {
     // publication result and must not add a second rename diagnostic.
     if (window_.renderBoundFolder() == S_OK)
         window_.restoreListSelection(*selection);
+    if (!destinationDirectory.isEmpty()) {
+        const QStringList changed{QFileInfo(request.path).absolutePath(), destinationDirectory};
+        if (auto *application = QtWorkspaceApplication::Find())
+            application->FilesystemPublished(changed);
+        else
+            window_.guiOutputRefresh_->Enqueue(changed, {});
+    }
 }
