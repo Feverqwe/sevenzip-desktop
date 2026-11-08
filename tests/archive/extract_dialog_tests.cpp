@@ -1,6 +1,7 @@
 #include "7zip/UI/GUI/ExtractRes.h"
 #include "archive/support/extract_dialog_fixture.h"
 #include "archive/support/native_archive_fixture.h"
+#include "archive/support/source_extract_fixture.h"
 #include "dialogs/extract/alias.h"
 #include "localization/LangUtils.h"
 #include "localization/qtlangcontrols.h"
@@ -526,11 +527,17 @@ class ExtractDialogTests final : public QObject {
     }
     void realExtractionUsesDialogModes_data() {
         QTest::addColumn<int>("pathModeIndex");
-        QTest::newRow("full-paths") << 0;
-        QTest::newRow("no-paths") << 1;
+        QTest::addColumn<QString>("literalPart");
+        QTest::newRow("full-paths") << 0 << QString();
+        QTest::newRow("no-paths") << 1 << QString();
+#ifdef Q_OS_UNIX
+        QTest::newRow("literal-base") << 0 << QStringLiteral("base");
+        QTest::newRow("literal-subfolder") << 1 << QStringLiteral("subfolder");
+#endif
     }
     void realExtractionUsesDialogModes() {
         QFETCH(int, pathModeIndex);
+        QFETCH(QString, literalPart);
         const QString leaf = QStringLiteral("файл с пробелом.txt");
         ArchiveBackend backend;
         const QString archive = dir_.filePath("fixture.zip");
@@ -539,17 +546,30 @@ class ExtractDialogTests final : public QObject {
         item.Path = "nested/" + leaf;
         item.Bytes = "archive content";
         QVERIFY(NativeArchiveFixture::Write(archive, {item}, "zip"));
-        const QString output =
-            dir_.filePath(QStringLiteral("папка извлечения %1").arg(pathModeIndex));
+        const QString plainOutput =
+            dir_.filePath(QStringLiteral("папка извлечения %1 %2")
+                              .arg(pathModeIndex)
+                              .arg(literalPart.isEmpty() ? QString("plain") : literalPart));
+        const QString output = literalPart.isEmpty() ? plainOutput : plainOutput + ' ';
         const QString relative = pathModeIndex == 0 ? "nested/" + leaf : leaf;
         QFile existing(QDir(output).filePath(relative));
         QVERIFY(QDir().mkpath(QFileInfo(existing).absolutePath()));
         QVERIFY(existing.open(QIODevice::WriteOnly));
         QCOMPARE(existing.write("existing"), qint64(8));
         existing.close();
+        const QString other = QDir(plainOutput).filePath(relative);
+        if (!literalPart.isEmpty()) {
+            QVERIFY(QDir().mkpath(QFileInfo(other).absolutePath()));
+            QVERIFY(SourceExtractFixture::writeFile(other, "other folder"));
+        }
         const auto extract = [&](int overwriteIndex) {
             return ExtractDialogFixture::Run(backend, archive, output, [&](CExtractDialog &dialog) {
-                path(dialog)->setEditText(output);
+                const bool split = literalPart == "subfolder";
+                path(dialog)->setEditText(split ? QFileInfo(output).absolutePath() : output);
+                dialog.findChild<QCheckBox *>("extractNameEnable")->setChecked(split);
+                if (split)
+                    dialog.findChild<QLineEdit *>("extractPathName")
+                        ->setText(QFileInfo(output).fileName());
                 pathMode(dialog)->setCurrentIndex(pathModeIndex);
                 overwrite(dialog)->setCurrentIndex(overwriteIndex);
                 dialog.findChild<QCheckBox *>("extractElimDup")->setChecked(false);
@@ -567,6 +587,8 @@ class ExtractDialogTests final : public QObject {
         QVERIFY(overwritten.CallbackOK);
         QVERIFY(existing.open(QIODevice::ReadOnly));
         QCOMPARE(existing.readAll(), QByteArray("archive content"));
+        if (!literalPart.isEmpty())
+            QCOMPARE(SourceExtractFixture::readFile(other), QByteArray("other folder"));
     }
 };
 #include "ui/support/review_test_main.h"

@@ -42,6 +42,14 @@ QString InvalidOutputDirectory() {
     return QCoreApplication::translate("SevenZipDiagnostics", "Incorrect output directory path");
 }
 
+QString DestinationDraft(const QString &draft, const QString &prefix = {}) {
+    const QString trimmed = draft.trimmed();
+    if (draft == trimmed || draft.contains(QChar::Null))
+        return draft;
+    const QFileInfo literal(prefix + draft);
+    return literal.exists() || literal.isSymLink() ? draft : trimmed;
+}
+
 bool ResolveOutputDirectory(const QString &candidate, FString &resolved) {
     if (candidate.isEmpty() || candidate.contains(QChar::Null))
         return false;
@@ -172,10 +180,8 @@ void CExtractDialog::OnInit(const QStringList &history) {
             _pathName->clear();
             return;
         }
-        UString saved = ToUString(_path->itemText(index));
-        saved.Trim();
         QString parent, name;
-        const QString destination = ToQString(saved);
+        const QString destination = DestinationDraft(_path->itemText(index));
         SplitPathToParts_Smart(destination, parent, name);
         _path->setEditText(parent.isEmpty() ? destination : parent);
         _pathName->setText(parent.isEmpty() ? QString() : name);
@@ -216,7 +222,7 @@ void CExtractDialog::changeEvent(QEvent *event) {
 }
 
 void CExtractDialog::OnButtonSetPath() {
-    const QString draft = _path->currentText().trimmed();
+    const QString draft = DestinationDraft(_path->currentText());
     FString initial;
     if (!ResolveOutputDirectory(draft, initial))
         initial.Empty();
@@ -229,7 +235,7 @@ void CExtractDialog::OnButtonSetPath() {
 
 void CExtractDialog::OnOK() {
     UString s = DraftDestination();
-    const QString base = _path->currentText().trimmed();
+    const QString base = DestinationDraft(_path->currentText());
     const QString requested = ToQString(s);
     const auto directoryError = [this](const QString &candidate, FString *resolvedPath = nullptr,
                                        bool checkOutputPolicy = true) -> QString {
@@ -303,9 +309,7 @@ void CExtractDialog::OnOK() {
     NWindows::NFile::NName::NormalizeDirPathPrefix(historyPath);
     AddUniqueArchivePath(_info.Paths, ToQString(historyPath));
     for (int i = 0; i < _path->count() && _info.Paths.Size() < kHistorySize; ++i) {
-        UString saved = ToUString(_path->itemText(i));
-        saved.Trim();
-        AddUniqueArchivePath(_info.Paths, ToQString(saved));
+        AddUniqueArchivePath(_info.Paths, DestinationDraft(_path->itemText(i)));
     }
     _info.Save(settingsPath());
     QDialog::accept();
@@ -323,13 +327,10 @@ UString CExtractDialog::DraftDestination() const {
     const QString name = _nameEnable->isChecked() ? _pathName->text() : QString();
     if (base.contains(QChar::Null) || name.contains(QChar::Null))
         return {};
-    UString s = ToUString(base);
-    s.Trim();
+    UString s = ToUString(DestinationDraft(base));
     if (_nameEnable->isChecked()) {
         NWindows::NFile::NName::NormalizeDirPathPrefix(s);
-        UString pathName = ToUString(name);
-        pathName.Trim();
-        s += pathName;
+        s += ToUString(DestinationDraft(name, ToQString(s)));
     }
     return s;
 }
