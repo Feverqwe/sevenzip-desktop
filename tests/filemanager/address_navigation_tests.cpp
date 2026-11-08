@@ -201,7 +201,11 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
                 warning->accept();
         });
         dismiss.start(5);
-        address->setText(draft);
+        address->selectAll();
+        QApplication::clipboard()->setText(draft);
+        QTest::keySequence(address, QKeySequence::Paste);
+        QApplication::clipboard()->clear();
+        QCOMPARE(address->text(), draft);
         const int selectionStart = draft.lastIndexOf(QStringLiteral("архив"));
         QVERIFY(selectionStart >= 0);
         address->setSelection(selectionStart + 5, -5);
@@ -226,9 +230,10 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
             QVERIFY(window.statusBar()->currentMessage().contains(draft));
         if (virtualPath && result == E_ABORT)
             QVERIFY(window.statusBar()->currentMessage().isEmpty());
-        view->sourcePanel->OnReload(true);
+        action(window, "refreshAction")->trigger();
         QTRY_VERIFY(view->isEnabled());
         QCOMPARE(address->text(), draft);
+        QCOMPARE(address->selectedText(), QStringLiteral("архив"));
         QVERIFY(action(window, "twoPanelsAction")->isEnabled());
         QFile source(path);
         QVERIFY(source.open(QIODevice::ReadOnly));

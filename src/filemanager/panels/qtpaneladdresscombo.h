@@ -21,6 +21,7 @@ struct QtAddressDraft {
   private:
     int cursor_;
     int anchor_;
+    bool modified_;
 };
 
 enum class QtAddressCommand { DropDown, SelectionAccepted };

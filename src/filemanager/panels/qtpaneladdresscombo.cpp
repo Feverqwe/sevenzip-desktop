@@ -206,7 +206,8 @@ void QtPanelAddressCombo::DiscardDraft(const UString &path) {
     SetText(path);
 }
 QtAddressDraft::QtAddressDraft(const QLineEdit &edit)
-    : text(edit.text()), cursor_(edit.cursorPosition()), anchor_(cursor_) {
+    : text(edit.text()), cursor_(edit.cursorPosition()), anchor_(cursor_),
+      modified_(edit.isModified()) {
     if (edit.hasSelectedText())
         anchor_ = edit.selectionStart() == cursor_ ? edit.selectionEnd() : edit.selectionStart();
 }
@@ -214,6 +215,7 @@ QtAddressDraft::QtAddressDraft(const QLineEdit &edit)
 void QtAddressDraft::Restore(QLineEdit &edit) const {
     if (edit.text() != text)
         edit.setText(text);
+    edit.setModified(modified_);
     if (anchor_ == cursor_)
         edit.setCursorPosition(cursor_);
     else

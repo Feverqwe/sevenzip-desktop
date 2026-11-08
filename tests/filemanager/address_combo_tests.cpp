@@ -249,11 +249,8 @@ class AddressComboTests final : public QObject, protected MainWindowTestSupport 
         QVERIFY(computer >= 0);
         AddressPopupSupport::selectRow(*combo, computer);
         QVERIFY(!QTest::currentTestFailed());
-#ifdef Q_OS_WIN
+        QTRY_VERIFY(table(window)->sourcePanel->IsFSDrivesFolder());
         QVERIFY(!action(window, "createFolderAction")->isEnabled());
-#else
-        QTRY_COMPARE(address->text(), QStringLiteral("/"));
-#endif
         QVERIFY(payload.open(QIODevice::ReadOnly));
         QCOMPARE(payload.readAll(), QByteArray("unchanged"));
         QCOMPARE(backend.listCalls, 0);
