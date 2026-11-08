@@ -220,6 +220,45 @@ class CopyDestinationTests final : public QObject {
         QVERIFY(move->isEnabled());
     }
 
+    void destinationNameWithWrongTypeCanBeCorrected_data() {
+        QTest::addColumn<bool>("move");
+        QTest::newRow("copy-file") << false;
+        QTest::newRow("move-folder") << true;
+    }
+    void destinationNameWithWrongTypeCanBeCorrected() {
+        QFETCH(bool, move);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString source = fixture.filePath("item");
+        const QString folder = fixture.filePath("destination");
+        QVERIFY(QDir().mkpath(folder));
+        const QString occupied = QDir(folder).filePath("item");
+        QVERIFY(QDir().mkdir(move ? source : occupied));
+        QFile file(move ? occupied : source);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.close();
+        CCopyDialog dialog(move, folder + '/', {source});
+        QtCopyDestinationContext context;
+        context.SourceDirectory = fixture.path();
+        context.SourceName = "item";
+        context.LocalFileTransfer = true;
+        context.CanRename = [](const QString &) { return true; };
+        dialog.ConfigureDestination(context);
+        dialog.show();
+        auto *name = dialog.findChild<QLineEdit *>("copyDestinationName");
+        auto *ok =
+            dialog.findChild<QDialogButtonBox *>("copyButtons")->button(QDialogButtonBox::Ok);
+        QVERIFY(name->isVisible());
+        QVERIFY(!ok->isEnabled());
+        dialog.accept();
+        QVERIFY(dialog.isVisible());
+        name->setText("other name");
+        QVERIFY(ok->isEnabled());
+        dialog.accept();
+        QCOMPARE(dialog.result(), int(QDialog::Accepted));
+        QCOMPARE(ToQString(dialog.Value), QDir(folder).filePath("other name"));
+    }
+
     void destinationBelowReadOnlyFolderCanBeCorrected() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());

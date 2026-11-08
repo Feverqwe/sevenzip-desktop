@@ -418,6 +418,8 @@ Implemented view: `src/dialogs/copy/CopyDialog.cpp`.
   remain authoritative. Cancel preserves the original value; accepted
   input preserves significant spaces and Unicode. Relative paths keep the caller's
   existing base directory.
+- For a single filesystem item, a file/folder conflict at the final name keeps
+  the dialog open so the user can change the name or destination.
 - The redesigned form uses the shared dialog margins/footer and sizes the
   initial summary by its content area rather than the old RC frame.
   Source NormalizeSize(true) applies once at first native

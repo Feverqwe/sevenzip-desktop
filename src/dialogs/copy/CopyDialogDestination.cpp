@@ -229,6 +229,16 @@ void CCopyDialog::UpdateDestination() {
              (!peerDestination || _destinationContext->PeerIsFilesystem) &&
              _destinationContext->IsInsideSourceDirectory(draft))
         error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "The destination is invalid."));
+    else if (localTransfer && _sources.size() == 1) {
+        const QFileInfo source(_sources.first());
+        const QFileInfo target(
+            needsDirectory && !_useName ? QDir(preview).filePath(source.fileName()) : draft);
+        if (target.exists() && target.isDir() != source.isDir())
+            error = QCoreApplication::translate(
+                        "qtfiletransfertransaction",
+                        "Cannot replace a file with a folder or a folder with a file: %1")
+                        .arg(target.filePath());
+    }
     _canAccept = error.isEmpty();
     _destinationMessage->setText(error);
     _destinationMessage->setVisible(!error.isEmpty());
