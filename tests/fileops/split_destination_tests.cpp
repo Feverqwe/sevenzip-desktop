@@ -411,6 +411,13 @@ class SplitDestinationTests final : public QObject {
                 QTRY_COMPARE(dialog.focusWidget(), name(dialog));
                 QCOMPARE(overwrite->currentData().toInt(), int(selectedMode));
                 QCOMPARE(name(dialog)->text(), QString("occupied/child"));
+                path(dialog)->setEditText(base + "/occupied");
+                name(dialog)->setText("../corrected");
+                dialog.accept();
+                QVERIFY(dialog.isVisible() && error->isVisible());
+                QTRY_VERIFY(dialog.focusWidget() == path(dialog) ||
+                            dialog.focusWidget() == path(dialog)->lineEdit());
+                QVERIFY(!QFileInfo::exists(corrected));
 #ifdef Q_OS_WIN
                 path(dialog)->setEditText(base + "/ ... /child");
                 name(dialog)->clear();

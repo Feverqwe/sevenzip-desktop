@@ -254,15 +254,15 @@ void CExtractDialog::OnOK() {
     UString s = DraftDestination();
     const QString base = _path->currentText().trimmed();
     const QString requested = ToQString(s);
-    const auto directoryError = [this](const QString &candidate,
-                                       FString *resolvedPath = nullptr) -> QString {
+    const auto directoryError = [this](const QString &candidate, FString *resolvedPath = nullptr,
+                                       bool checkOutputPolicy = true) -> QString {
         FString resolved;
         if (!ResolveOutputDirectory(candidate, resolved))
             return InvalidOutputDirectory();
         if (resolvedPath)
             *resolvedPath = resolved;
         QString path = QDir::cleanPath(ToQString(fs2us(resolved)));
-        if (_destinationErrorForPath)
+        if (checkOutputPolicy && _destinationErrorForPath)
             return _destinationErrorForPath(path);
         for (;;) {
             const QFileInfo entry(path);
@@ -275,9 +275,13 @@ void CExtractDialog::OnOK() {
         }
     };
     FString resolvedDestination;
-    const QString error = base.isEmpty()
-                              ? QCoreApplication::translate("CopyRedesign", "Choose a destination.")
-                              : directoryError(requested, &resolvedDestination);
+    QString error;
+    if (base.isEmpty())
+        error = QCoreApplication::translate("CopyRedesign", "Choose a destination.");
+    else if (_nameEnable->isChecked())
+        error = directoryError(base, nullptr, false);
+    if (error.isEmpty())
+        error = directoryError(requested, &resolvedDestination);
     if (!error.isEmpty()) {
         _destinationError->setText(error);
         _destinationError->show();
