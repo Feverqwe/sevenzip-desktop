@@ -36,12 +36,30 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
     }
 
   private slots:
+    void testReportIdentifiesWhichItemsWereChecked_data() {
+        QTest::addColumn<bool>("corrupt");
+        QTest::newRow("healthy") << false;
+        QTest::newRow("damaged-entry") << true;
+    }
     void testReportIdentifiesWhichItemsWereChecked() {
+        QFETCH(bool, corrupt);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString archive = fixture.filePath("test scope.zip");
-        QVERIFY(NativeArchiveFixture::Write(
-            archive, {{"outside.txt", "outside"}, {"folder/inside.txt", "inside"}}, "zip"));
+        const QByteArray damagedPayload("unique stored payload to corrupt");
+        QVERIFY(NativeArchiveFixture::Write(archive,
+                                            {{"outside.txt", "outside"},
+                                             {"folder/inside.txt", "inside"},
+                                             {"damaged.txt", damagedPayload}},
+                                            "zip", {}, true, true));
+        if (corrupt) {
+            QFile file(archive);
+            QVERIFY(file.open(QIODevice::ReadWrite));
+            const auto payloadOffset = file.readAll().indexOf(damagedPayload);
+            QVERIFY(payloadOffset >= 0);
+            QVERIFY(file.seek(payloadOffset));
+            QCOMPARE(file.write("!", 1), qint64(1));
+        }
         ArchiveBackend backend;
         MainWindow window(&backend);
         window.show();
@@ -61,6 +79,9 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
                     TestProgressDialog::ResultWindow(QApplication::activeModalWidget())) {
                 reports.append(TestProgressDialog::ReportText(*result));
                 TestProgressDialog::CloseResult(*result);
+            } else if (auto *message =
+                           qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                message->accept();
             }
         });
         responder.start(5);
@@ -69,12 +90,17 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
         QCOMPARE(reports.size(), 1);
         QVERIFY(reports.last().contains("Scope: selected items"));
         QVERIFY(reports.last().contains("outside.txt"));
+        QVERIFY(!reports.last().contains("damaged.txt"));
         QTRY_COMPARE(window.focusWidget(), view);
 
         view->clearSelection();
         window.testArchive();
         QCOMPARE(reports.size(), 2);
-        QVERIFY(reports.last().contains("Scope: entire archive"));
+        if (corrupt) {
+            QVERIFY(reports.last().contains("damaged.txt"));
+            QVERIFY(reports.last().contains("CRC", Qt::CaseInsensitive));
+        } else
+            QVERIFY(reports.last().contains("Scope: entire archive"));
 
         openRow(window, rowWithPath(window, "folder"));
         QTRY_VERIFY(rowWithPath(window, "folder/inside.txt") >= 0);
@@ -83,6 +109,7 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
         QCOMPARE(reports.size(), 3);
         QVERIFY(reports.last().contains("Scope: current folder"));
         QVERIFY(reports.last().contains("inside.txt"));
+        QVERIFY(!reports.last().contains("damaged.txt"));
     }
 
     void init() {
