@@ -7,6 +7,7 @@
 #include "fileops/scanner/filesystemscanner.h"
 #include "localization/LangUtils.h"
 #include "settings/RegistryUtils.h"
+#include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
 #include <QJsonDocument>
 #include <QMessageBox>
@@ -576,6 +577,8 @@ class WorkspaceSessionTests final : public QObject {
         QTRY_VERIFY(done);
         auto *icons = restored.findChild<QListView *>("iconList");
         QVERIFY(icons && icons->isVisible());
+        QVERIFY(WindowActivation::waitForActive(restored));
+        QTRY_COMPARE(restored.focusWidget(), static_cast<QWidget *>(icons));
         QCOMPARE(icons->model()->rowCount(), 2);
         QCOMPARE(icons->model()->index(0, icons->modelColumn()).data().toString(),
                  QString("b.txt"));

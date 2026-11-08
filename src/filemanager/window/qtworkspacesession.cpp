@@ -147,6 +147,7 @@ void QtWindowWorkspace::Restore(const QJsonObject &value, std::function<void()> 
                                 std::function<void()> canceled,
                                 const QtArchiveLocation &firstArchive) {
     const auto panels = value.value("panels").toArray();
+    const auto interaction = interactionRevision_;
     const bool savedTwo = value.value("count").toInt(1) == 2;
     bool needsOtherPane = false;
     for (unsigned panel = 0; panel < 2 && panel < panels.size(); ++panel)
@@ -155,8 +156,8 @@ void QtWindowWorkspace::Restore(const QJsonObject &value, std::function<void()> 
     if ((needsOtherPane || savedTwo) && window_.app_.NumPanels == 1)
         window_.togglePanels();
     WhenReady(
-        [this, value, panels, finished = std::move(finished), canceled, firstArchive] {
-            const auto complete = [this, value, finished] {
+        [this, value, panels, finished = std::move(finished), canceled, firstArchive, interaction] {
+            const auto complete = [this, value, finished, interaction] {
                 const unsigned focus = qBound(0, value.value("focused").toInt(), 1);
                 if (window_.panelUi_[focus].container)
                     window_.activatePanelUi(focus);
@@ -178,6 +179,9 @@ void QtWindowWorkspace::Restore(const QJsonObject &value, std::function<void()> 
                     window_.raise();
                     window_.activateWindow();
                 }
+                if (interactionRevision_ == interaction && window_.app_.IsPanelVisible(focus) &&
+                    !window_.panelUi_[focus].locationUnavailable)
+                    RequestListFocus(focus);
                 if (finished)
                     finished();
             };
