@@ -4,6 +4,7 @@
 #include "dialogs/browse/BrowseDialog.h"
 #include "filemanager/qtfilemanagercommands.h"
 #include "filemanager/qtprogramfilemenu.h"
+#include "filemanager/rename/qtrenamecontroller.h"
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtapppresentation.h"
 #include "filemanager/window/qtexternalfiletask.h"
@@ -310,6 +311,18 @@ void QtFileManagerCommands::OpenParentFolder() { window_.goParent(); }
 void QtFileManagerCommands::FoldersHistory() { window_.showFoldersHistory(); }
 void QtFileManagerCommands::RefreshView() {
     auto &panel = window_.app_.GetFocusedPanel();
+    const unsigned owner = window_.projectedPanel_;
+    if (window_.renameController_->PendingFor(owner)) {
+        const auto binding = panel.FolderBindingRevision();
+        window_.renameController_->AfterEdit(owner, [this, owner, binding] {
+            window_.workspace_->WhenReady([this, owner, binding] {
+                if (window_.app_.IsPanelVisible(owner) &&
+                    window_.app_.Panels[owner].FolderBindingRevision() == binding)
+                    window_.withPanelProjection(owner, [this] { RefreshView(); });
+            });
+        });
+        return;
+    }
     if (panel.IsArcFolder() &&
         window_.workspace_->RefreshPublishedArchive(window_.projectedPanel_, true))
         return;

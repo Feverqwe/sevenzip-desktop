@@ -236,15 +236,19 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
     void renameDraftSurvivesAutoRefresh_data() {
         QTest::addColumn<bool>("commit");
         QTest::addColumn<bool>("published");
-        QTest::newRow("enter") << true << false;
-        QTest::newRow("escape") << false << false;
-        QTest::newRow("published-enter") << true << true;
-        QTest::newRow("published-escape") << false << true;
+        QTest::addColumn<bool>("manual");
+        QTest::newRow("enter") << true << false << false;
+        QTest::newRow("escape") << false << false << false;
+        QTest::newRow("published-enter") << true << true << false;
+        QTest::newRow("published-escape") << false << true << false;
+        QTest::newRow("manual-enter") << true << false << true;
+        QTest::newRow("manual-escape") << false << false << true;
     }
 
     void renameDraftSurvivesAutoRefresh() {
         QFETCH(bool, commit);
         QFETCH(bool, published);
+        QFETCH(bool, manual);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString original = fixture.filePath("original.txt");
@@ -264,7 +268,7 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
             address->setText(fixture.path());
             QTest::keyClick(address, Qt::Key_Return);
             QTRY_COMPARE(views[pane]->rowCount(), 1);
-            if (published)
+            if (published || manual)
                 views[pane]->sourcePanel->Set_AutoRefresh_Mode(false);
         }
         auto *view = views[0];
@@ -282,7 +286,14 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         QVERIFY(writeFile(fixture.filePath("new file.txt")));
         if (published)
             application.FilesystemPublished({fixture.path()});
-        QTRY_COMPARE_WITH_TIMEOUT(views[1]->rowCount(), 2, 5000);
+        if (manual) {
+            auto *refresh = action(window, "refreshAction");
+            QVERIFY(refresh->isEnabled());
+            refresh->trigger();
+            QCOMPARE(view->rowCount(), 1);
+        } else {
+            QTRY_COMPARE_WITH_TIMEOUT(views[1]->rowCount(), 2, 5000);
+        }
         QVERIFY(editor && editor->isVisible());
         QVERIFY(editor->hasFocus());
         QCOMPARE(editor->text(), draft);

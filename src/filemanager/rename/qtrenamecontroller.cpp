@@ -43,6 +43,7 @@ struct QtRenameController::Request {
     const QPointer<QAbstractItemView> view;
     QPointer<QLineEdit> editor;
     QString name;
+    std::function<void()> refresh;
     Phase phase = Phase::Editing;
 };
 
@@ -135,6 +136,11 @@ bool QtRenameController::PendingFor(unsigned panel) const {
     return request_ && request_->panel == panel;
 }
 
+void QtRenameController::AfterEdit(unsigned panel, std::function<void()> refresh) {
+    if (PendingFor(panel))
+        request_->refresh = std::move(refresh);
+}
+
 void QtRenameController::Stop() {
     completion_.stop();
     request_.reset();
@@ -147,8 +153,11 @@ void QtRenameController::Complete() {
     const QPointer<QtRenameController> guard(this);
     if (request->phase == Request::Phase::Committed)
         Apply(*request);
-    if (guard && request_ == request)
+    if (guard && request_ == request) {
         request_.reset();
+        if (request->refresh)
+            request->refresh();
+    }
 }
 
 void QtRenameController::Apply(const Request &request) {
