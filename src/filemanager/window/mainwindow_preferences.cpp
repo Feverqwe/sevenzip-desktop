@@ -12,11 +12,12 @@ void MainWindow::showItemContextMenu(unsigned owner, QAbstractItemView *view, co
         const bool keyboard = pos == QPoint(-1, -1);
         if (!keyboard) {
             const QModelIndex index = view->indexAt(pos);
-            if (index.isValid() &&
-                !view->selectionModel()->isRowSelected(index.row(), QModelIndex())) {
-                view->selectionModel()->select(index, QItemSelectionModel::ClearAndSelect |
-                                                          QItemSelectionModel::Rows);
-                view->setCurrentIndex(index);
+            if (index.isValid()) {
+                auto *selection = view->selectionModel();
+                if (!selection->isRowSelected(index.row(), QModelIndex()))
+                    selection->select(index, QItemSelectionModel::ClearAndSelect |
+                                                 QItemSelectionModel::Rows);
+                selection->setCurrentIndex(index, QItemSelectionModel::NoUpdate);
             }
         }
         refreshActions();

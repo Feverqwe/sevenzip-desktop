@@ -45,14 +45,18 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
     }
 
   private slots:
-    void keyboardMenuKeepsSelection_data() {
+    void contextMenuKeepsSelection_data() {
         QTest::addColumn<bool>("icons");
-        QTest::newRow("details") << false;
-        QTest::newRow("icons") << true;
+        QTest::addColumn<bool>("keyboard");
+        QTest::newRow("details-keyboard") << false << true;
+        QTest::newRow("icons-keyboard") << true << true;
+        QTest::newRow("details-mouse") << false << false;
+        QTest::newRow("icons-mouse") << true << false;
     }
 
-    void keyboardMenuKeepsSelection() {
+    void contextMenuKeepsSelection() {
         QFETCH(bool, icons);
+        QFETCH(bool, keyboard);
         const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         QFile::remove(settings);
         QTemporaryDir fixture;
@@ -83,8 +87,9 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
         selection->select(index("b.txt"), QItemSelectionModel::Select | QItemSelectionModel::Rows);
         const auto selected = selection->selectedRows();
         QCOMPARE(selected.size(), 2);
-        const QPoint point = view->visualRect(index("c.txt")).center();
-        QCOMPARE(view->indexAt(point).row(), index("c.txt").row());
+        const QModelIndex hit = index(keyboard ? "c.txt" : "b.txt");
+        const QPoint point = view->visualRect(hit).center();
+        QCOMPARE(view->indexAt(point).row(), hit.row());
         bool menuShown = false;
         QTimer::singleShot(0, &window, [&] {
             auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
@@ -93,11 +98,11 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
                 menu->close();
             }
         });
-        QContextMenuEvent event(QContextMenuEvent::Keyboard, point,
-                                view->viewport()->mapToGlobal(point));
+        QContextMenuEvent event(keyboard ? QContextMenuEvent::Keyboard : QContextMenuEvent::Mouse,
+                                point, view->viewport()->mapToGlobal(point));
         QApplication::sendEvent(view->viewport(), &event);
         QVERIFY(menuShown);
-        QCOMPARE(selection->currentIndex(), focused);
+        QCOMPARE(selection->currentIndex(), keyboard ? focused : hit);
         QCOMPARE(selection->selectedRows(), selected);
     }
 
