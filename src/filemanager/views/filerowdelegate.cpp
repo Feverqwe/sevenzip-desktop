@@ -149,6 +149,12 @@ class FileRowDelegate final : public QStyledItemDelegate {
             return;
         QStyledItemDelegate::setEditorData(editor, index);
     }
+    void setModelData(QWidget *editor, QAbstractItemModel *model,
+                      const QModelIndex &index) const override {
+        // Workspace names are published by the rename controller after the native operation.
+        if (!workspace_)
+            QStyledItemDelegate::setModelData(editor, model, index);
+    }
     void initStyleOption(QStyleOptionViewItem *option, const QModelIndex &index) const override {
         QStyledItemDelegate::initStyleOption(option, index);
         const auto *list = qobject_cast<QListView *>(parent());

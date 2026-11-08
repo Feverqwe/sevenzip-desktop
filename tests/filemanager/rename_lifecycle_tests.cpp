@@ -249,6 +249,47 @@ class RenameLifecycleTests final : public QObject, protected MainWindowTestSuppo
         QCOMPARE(output.readAll(), QByteArray("payload"));
     }
 
+    void discardedRenameDoesNotSeedTheNextEditor() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString original = fixture.filePath("original.txt");
+        QFile input(original);
+        QVERIFY(input.open(QIODevice::WriteOnly));
+        QCOMPARE(input.write("payload"), qint64(7));
+        input.close();
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openPath(fixture.path());
+        auto *view = table(window);
+        QTRY_COMPARE(view->rowCount(), 1);
+        view->setCurrentCell(0, 0);
+        view->setFocus();
+        QTest::keyClick(view, Qt::Key_F2);
+        auto *editor = view->findChild<QLineEdit *>();
+        QVERIFY(editor && editor->isVisible());
+        editor->setText("discarded.txt");
+        {
+            CPanel::CDisableNotify publishing(*view->sourcePanel);
+            view->itemDelegate()->commitData(editor);
+            view->itemDelegate()->closeEditor(editor);
+            QTRY_VERIFY(!view->findChild<QLineEdit *>());
+            QTest::qWait(1);
+        }
+        QVERIFY(QFileInfo::exists(original));
+        QVERIFY(!QFileInfo::exists(fixture.filePath("discarded.txt")));
+        view->clearSelection();
+        view->selectRow(0);
+        view->setFocus();
+        QTRY_VERIFY(action(window, "renameAction")->isEnabled());
+        QTest::keyClick(view, Qt::Key_F2);
+        editor = view->findChild<QLineEdit *>();
+        QVERIFY(editor && editor->isVisible());
+        QCOMPARE(editor->text(), QString("original.txt"));
+        QTest::keyClick(editor, Qt::Key_Escape);
+    }
+
     void destroyingWindowCancelsQueuedRename() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
