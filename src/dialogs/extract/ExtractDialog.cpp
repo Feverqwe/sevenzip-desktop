@@ -262,17 +262,17 @@ void CExtractDialog::OnOK() {
         }
     };
     FString resolvedDestination;
-    QString error;
+    QString baseError;
     if (base.isEmpty())
-        error = QCoreApplication::translate("CopyRedesign", "Choose a destination.");
+        baseError = QCoreApplication::translate("CopyRedesign", "Choose a destination.");
     else if (_nameEnable->isChecked())
-        error = directoryError(base, nullptr, false);
-    if (error.isEmpty())
-        error = directoryError(requested, &resolvedDestination);
+        baseError = directoryError(base, nullptr, false);
+    const QString error =
+        baseError.isEmpty() ? directoryError(requested, &resolvedDestination) : baseError;
     if (!error.isEmpty()) {
         _destinationError->setText(error);
         _destinationError->show();
-        if (_nameEnable->isChecked() && directoryError(base).isEmpty())
+        if (_nameEnable->isChecked() && baseError.isEmpty() && directoryError(base) != error)
             _pathName->setFocus();
         else
             _path->setFocus();

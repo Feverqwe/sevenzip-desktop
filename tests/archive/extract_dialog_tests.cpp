@@ -569,6 +569,52 @@ class ExtractDialogTests final : public QObject {
         const QString output = fixture.filePath(QFileInfo(target).completeBaseName() + "_1.zip");
         QCOMPARE(SourceExtractFixture::readFile(output), payload);
     }
+    void blockedSubfolderFocusesItsOwnField() {
+#ifndef Q_OS_UNIX
+        QSKIP("Requires a searchable, read-only directory with a writable child");
+#endif
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString base = fixture.filePath("read only");
+        const QString writable = QDir(base).filePath("writable");
+        QVERIFY(QDir().mkpath(writable));
+        const QString occupied = QDir(writable).filePath("occupied");
+        QVERIFY(SourceExtractFixture::writeFile(occupied, "unchanged"));
+        const auto original = QFile::permissions(base);
+        const auto restore = qScopeGuard([&] { QFile::setPermissions(base, original); });
+        QVERIFY(QFile::setPermissions(base, original & ~(QFile::WriteOwner | QFile::WriteUser |
+                                                         QFile::WriteGroup | QFile::WriteOther)));
+        if (QFileInfo(base).isWritable())
+            QSKIP("Fixture owner can still write to the read-only directory");
+        const QString archive = fixture.filePath("archive.zip");
+        QVERIFY(NativeArchiveFixture::Write(archive, {{"entry.txt", "payload"}}, "zip"));
+        ArchiveBackend backend;
+        const auto result =
+            ExtractDialogFixture::Run(backend, archive, base, [&](CExtractDialog &dialog) {
+                const auto close = qScopeGuard([&] {
+                    if (dialog.isVisible())
+                        dialog.reject();
+                });
+                auto *destination = path(dialog);
+                destination->setEditText(base);
+                dialog.findChild<QCheckBox *>("extractNameEnable")->setChecked(true);
+                auto *subfolder = dialog.findChild<QLineEdit *>("extractPathName");
+                subfolder->setText("writable/occupied");
+                dialog.accept();
+                QVERIFY(dialog.isVisible());
+                QCOMPARE(dialog.focusWidget(), subfolder);
+                QCOMPARE(destination->currentText(), base);
+                subfolder->setText("writable/output");
+                dialog.accept();
+                QCOMPARE(dialog.result(), int(QDialog::Accepted));
+            });
+        QCOMPARE(result.Result, S_OK);
+        QVERIFY(result.CallbackOK);
+        QCOMPARE(SourceExtractFixture::readFile(occupied), QByteArray("unchanged"));
+        QCOMPARE(SourceExtractFixture::readFile(QDir(writable).filePath("output/entry.txt")),
+                 QByteArray("payload"));
+    }
+
     void realExtractionUsesDialogModes_data() {
         QTest::addColumn<int>("pathModeIndex");
         QTest::addColumn<QString>("literalPart");
