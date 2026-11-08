@@ -590,18 +590,25 @@ class DragDropUiTests final : public QObject {
         sourceTable->sourcePanel->AttachDragServices(&transport);
         if (right) {
             auto *viewport = sourceTable->viewport();
-            const QPoint start =
-                sourceTable->visualRect(sourceTable->model()->index(sourceRow, 0)).center();
-            const QPoint moved = start + QPoint(QApplication::startDragDistance() + 1, 0);
-            QMouseEvent press(QEvent::MouseButtonPress, start, viewport->mapToGlobal(start),
-                              Qt::RightButton, Qt::RightButton, Qt::NoModifier);
-            QCoreApplication::sendEvent(viewport, &press);
-            QMouseEvent motion(QEvent::MouseMove, moved, viewport->mapToGlobal(moved), Qt::NoButton,
-                               Qt::RightButton, Qt::NoModifier);
-            QCoreApplication::sendEvent(viewport, &motion);
-            QMouseEvent release(QEvent::MouseButtonRelease, moved, viewport->mapToGlobal(moved),
-                                Qt::RightButton, Qt::NoButton, Qt::NoModifier);
-            QCoreApplication::sendEvent(viewport, &release);
+            const auto gesture = [&](const QPoint &start) {
+                const QPoint moved = start + QPoint(QApplication::startDragDistance() + 1, 0);
+                QMouseEvent press(QEvent::MouseButtonPress, start, viewport->mapToGlobal(start),
+                                  Qt::RightButton, Qt::RightButton, Qt::NoModifier);
+                QCoreApplication::sendEvent(viewport, &press);
+                QMouseEvent motion(QEvent::MouseMove, moved, viewport->mapToGlobal(moved),
+                                   Qt::NoButton, Qt::RightButton, Qt::NoModifier);
+                QCoreApplication::sendEvent(viewport, &motion);
+                QMouseEvent release(QEvent::MouseButtonRelease, moved, viewport->mapToGlobal(moved),
+                                    Qt::RightButton, Qt::NoButton, Qt::NoModifier);
+                QCoreApplication::sendEvent(viewport, &release);
+            };
+            const QPoint blank(viewport->width() / 2, viewport->height() - 5);
+            QVERIFY(!sourceTable->indexAt(blank).isValid());
+            gesture(blank);
+            QVERIFY(!entered);
+            sourceTable->setCurrentCell(sourceRow, 0);
+            sourceTable->selectRow(sourceRow);
+            gesture(sourceTable->visualRect(sourceTable->model()->index(sourceRow, 0)).center());
         } else
             sourceTable->sourcePanel->OnDrag(false);
         sourceTable->sourcePanel->AttachDragServices(nullptr);

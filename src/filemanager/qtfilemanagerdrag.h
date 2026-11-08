@@ -50,6 +50,7 @@ class QtFileManagerDrag final : public QObject,
     struct RightPress {
         QPointer<QWidget> widget;
         QPoint position;
+        bool onItem;
         bool contextDeferred = false;
     };
     std::optional<RightPress> rightPress_;

@@ -56,8 +56,8 @@ bool QtFileManagerDrag::HandleRightDrag(QWidget &widget, QEvent &event) {
     if (revoked_ || panel >= kNumPanelsMax)
         return false;
     const auto &ui = window_.panelUi_[panel];
-    if ((!ui.table || &widget != ui.table->viewport()) &&
-        (!ui.iconList || &widget != ui.iconList->viewport()))
+    auto *view = qobject_cast<QAbstractItemView *>(ui.viewStack->currentWidget());
+    if (!view || &widget != view->viewport())
         return false;
     if (event.type() == QEvent::ContextMenu) {
         const auto &context = static_cast<QContextMenuEvent &>(event);
@@ -75,11 +75,16 @@ bool QtFileManagerDrag::HandleRightDrag(QWidget &widget, QEvent &event) {
         const auto &mouse = static_cast<QMouseEvent &>(event);
         rightDragConsumed_ = false;
         rightPress_.reset();
-        if (mouse.button() == Qt::RightButton)
-            rightPress_.emplace(RightPress{&widget, mouse.position().toPoint()});
+        if (mouse.button() == Qt::RightButton) {
+            const QPoint position = mouse.position().toPoint();
+            const QModelIndex item = view->indexAt(position);
+            const bool onItem =
+                item.isValid() && item.data(QtPanelList::SourceIndexRole).toUInt() != UInt32(-1);
+            rightPress_.emplace(RightPress{&widget, position, onItem});
+        }
     } else if (event.type() == QEvent::MouseMove && rightPress_ && rightPress_->widget == &widget) {
         const auto &mouse = static_cast<QMouseEvent &>(event);
-        if ((mouse.buttons() & Qt::RightButton) && PanelEnabled(panel) &&
+        if (rightPress_->onItem && (mouse.buttons() & Qt::RightButton) && PanelEnabled(panel) &&
             (mouse.position().toPoint() - rightPress_->position).manhattanLength() >=
                 QApplication::startDragDistance()) {
             rightDragConsumed_ = true;
