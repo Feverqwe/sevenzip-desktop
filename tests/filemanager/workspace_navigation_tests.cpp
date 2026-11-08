@@ -14,6 +14,7 @@
 #include <QMenu>
 #include <QScopeGuard>
 #include <QScrollBar>
+#include <QTimer>
 #include <QToolButton>
 
 class WorkspaceNavigationTests final : public QObject {
@@ -119,19 +120,29 @@ class WorkspaceNavigationTests final : public QObject {
         QTest::keyClick(host.focusWidget(), Qt::Key_Backtab);
         QCOMPARE(host.focusWidget(), overflowButton);
         auto *overflow = overflowButton->menu();
-        overflow->popup(bar.mapToGlobal(QPoint(0, bar.height())));
-        QTRY_VERIFY(overflow->isVisible());
-        const auto close = qScopeGuard([&] { overflow->hide(); });
         QAction *entry = nullptr;
         for (auto *action : overflow->actions())
             if (action->toolTip() == parent)
                 entry = action;
-        QVERIFY(entry && entry->isVisible());
+        QVERIFY(entry);
         QCOMPARE(entry->text(), QStringLiteral("Projects && Docs"));
         QVERIFY(QKeySequence::mnemonic(entry->text()).isEmpty());
-        QVERIFY(UiInspection::writeReport(*overflow, "literal-breadcrumb-overflow"));
-        overflow->setActiveAction(entry);
-        QTest::keyClick(overflow, Qt::Key_Return);
+        bool selectedWithKeyboard = false;
+        connect(overflow, &QMenu::aboutToShow, overflow, [&] {
+            QTimer::singleShot(0, overflow, [&] {
+                const auto close = qScopeGuard([&] { overflow->hide(); });
+                QVERIFY(overflow->isVisible() && entry->isVisible());
+                QVERIFY(UiInspection::writeReport(*overflow, "literal-breadcrumb-overflow"));
+                for (int i = 0; i < overflow->actions().size() && overflow->activeAction() != entry;
+                     ++i)
+                    QTest::keyClick(overflow, Qt::Key_Down);
+                QCOMPARE(overflow->activeAction(), entry);
+                QTest::keyClick(overflow, Qt::Key_Return);
+                selectedWithKeyboard = true;
+            });
+        });
+        QTest::keyClick(overflowButton, Qt::Key_Space);
+        QTRY_VERIFY(selectedWithKeyboard);
         QCOMPARE(opened, parent);
         bar.resize(1400, 36);
         QTRY_COMPARE(visibleLabels(), fullPath);
