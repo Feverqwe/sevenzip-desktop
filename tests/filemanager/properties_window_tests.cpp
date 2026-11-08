@@ -125,12 +125,14 @@ class PropertiesWindowTests final : public QObject, protected MainWindowTestSupp
     }
     void unknownZeroFoldersAndPartialSelectionStayDistinct() {
         CMyComPtr<IFolderFolder> folder;
-        QCOMPARE(CreateArchiveFolder({{"unknown", -1, -1}, {"zero", 0, 0}, {"folder/child", 13, 5}},
-                                     UString("zip"), &folder),
-                 S_OK);
+        QCOMPARE(
+            CreateArchiveFolder(
+                {{"unknown", -1, -1}, {"zero", 0, 0}, {"known", 11, 7}, {"folder/child", 13, 5}},
+                UString("zip"), &folder),
+            S_OK);
         UInt32 count = 0;
         QCOMPARE(folder->GetNumberOfItems(&count), S_OK);
-        std::optional<UInt32> unknown, zero, directory;
+        std::optional<UInt32> unknown, zero, known, directory;
         for (UInt32 i = 0; i < count; ++i) {
             NWindows::NCOM::CPropVariant value;
             QCOMPARE(folder->GetProperty(i, kpidName, &value), S_OK);
@@ -139,20 +141,26 @@ class PropertiesWindowTests final : public QObject, protected MainWindowTestSupp
                 unknown = i;
             else if (name == "zero")
                 zero = i;
+            else if (name == "known")
+                known = i;
             else if (name == "folder")
                 directory = i;
         }
-        QVERIFY(unknown && zero && directory);
+        QVERIFY(unknown && zero && known && directory);
         QtPropertiesWindow missing(collect(folder, {*unknown}));
         QtPropertiesWindow empty(collect(folder, {*zero}));
         QtPropertiesWindow contents(collect(folder, {*directory}));
         QtPropertiesWindow multiple(collect(folder, {*unknown, *zero, *directory}));
+        QtPropertiesWindow knownFiles(collect(folder, {*zero, *known}));
         QCOMPARE(shownSize(missing), QString::fromUtf8("—"));
         QVERIFY(missing.findChild<QWidget *>("propertiesIdentity")->toolTip().isEmpty());
         QCOMPARE(shownSize(empty), QtRegionalFormat::bytes(0));
         QCOMPARE(shownSize(contents), QtRegionalFormat::bytes(13));
         QVERIFY(contents.Information().contains("Size: " + QtRegionalFormat::bytes(13)));
         QCOMPARE(shownSize(multiple), QString("Not calculated"));
+        QCOMPARE(shownSize(knownFiles), QtRegionalFormat::bytes(11));
+        copy(knownFiles);
+        QVERIFY(QApplication::clipboard()->text().contains("Size: " + QtRegionalFormat::bytes(11)));
         QVERIFY(multiple.Information().contains("Files: 2 · Folders: 1"));
         QVERIFY(multiple.Information().contains("Reported size (may be partial)"));
         QCOMPARE(multiple.findChild<QLabel *>("propertiesModified")->text(),

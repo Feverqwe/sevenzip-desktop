@@ -181,8 +181,6 @@ QString QtPropertiesWindow::SummaryType() const {
 }
 QString QtPropertiesWindow::SummarySize() const {
     const auto notCalculated = QT_TRANSLATE_NOOP("PropertiesWindow", "Not calculated");
-    if (report_.items.size() > 1)
-        return text(notCalculated);
     const auto scope = report_.items.isEmpty() ? Scope::Folder : Scope::Selection;
     for (const auto &group : report_.groups)
         if (group.scope == scope) {
@@ -191,7 +189,8 @@ QString QtPropertiesWindow::SummarySize() const {
                 return value;
         }
     const bool folder = report_.items.isEmpty() || report_.items.first().directory.value_or(false);
-    return folder ? text(notCalculated) : QtRegionalFormat::bytes(std::nullopt);
+    return folder || report_.items.size() > 1 ? text(notCalculated)
+                                              : QtRegionalFormat::bytes(std::nullopt);
 }
 QString QtPropertiesWindow::SummaryModified() const {
     if (report_.items.size() > 1)
@@ -258,7 +257,9 @@ QString QtPropertiesWindow::Caption(unsigned row, Scope scope, bool compact) con
                text(QT_TRANSLATE_NOOP("PropertiesWindow", "(stored metadata)"));
     if (scope == Scope::Selection && id == kpidPackSize)
         return text(QT_TRANSLATE_NOOP("PropertiesWindow", "Reported packed size (may be partial)"));
-    if (scope == Scope::Selection && report_.items.size() > 1 && id == kpidSize)
+    if (scope == Scope::Selection && report_.items.size() > 1 && id == kpidSize &&
+        native != report_.nativeValues.cend() &&
+        native->availability != QtPropertyReport::Availability::Known)
         return text(QT_TRANSLATE_NOOP("PropertiesWindow", "Reported size (may be partial)"));
     return ToQString(report_.Strings[row]);
 }
