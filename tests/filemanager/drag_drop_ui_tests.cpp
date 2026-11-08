@@ -101,6 +101,8 @@ class DragDropUiTests final : public QObject {
         QVERIFY(panel);
         Navigate(*panel, root.path());
         QTRY_VERIFY(table->isEnabled() && Row(*table, QFileInfo(file).fileName()) >= 0);
+        table->setFocus();
+        QTRY_COMPARE(window.focusWidget(), table);
         QMimeData mime;
         mime.setUrls({QUrl::fromLocalFile(file.fileName())});
         QDragEnterEvent enter(DragEventPosition(QPoint(5, 5)), Qt::CopyAction, &mime,
@@ -126,6 +128,7 @@ class DragDropUiTests final : public QObject {
         cancel.stop();
         QVERIFY(menuShown);
         QVERIFY(!drop.isAccepted());
+        QTRY_COMPARE(window.focusWidget(), table);
         QVERIFY(!backend.busy());
         QVERIFY(file.open(QIODevice::ReadOnly));
         QCOMPARE(file.readAll(), QByteArray("middle button control"));
@@ -643,6 +646,7 @@ class DragDropUiTests final : public QObject {
         QVERIFY(!folder.data(Qt::UserRole + 19).toBool());
         QCOMPARE(targetTable->selectionModel()->selectedRows(), selection);
         if (cancel) {
+            QTRY_COMPARE(window.focusWidget(), sourceTable);
             QVERIFY(PanelIndexSelected(sourceTable->model()->index(sourceRow, 0)));
             QVERIFY(QFileInfo::exists(input.fileName()));
             QVERIFY(!QFileInfo::exists(QDir(QDir(target).filePath(subfolder)).filePath(name)));

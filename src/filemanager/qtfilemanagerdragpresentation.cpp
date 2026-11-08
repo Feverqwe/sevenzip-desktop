@@ -57,7 +57,6 @@ UInt32 QtFileManagerDrag::Drag_OnContextMenu(int x, int y, UInt32 mask, DWORD al
         {NDragMenu::k_Cancel, 402}};
     QMenu menu(&window_);
     menu.setObjectName("dragContextMenu");
-    window_.setFocus();
     for (const auto &pair : pairs) {
         const UInt32 cmd = pair.command & NDragMenu::k_MenuFlags_CmdMask;
         if (cmd != NDragMenu::k_Cancel) {
