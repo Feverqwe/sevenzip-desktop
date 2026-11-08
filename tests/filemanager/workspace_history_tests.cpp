@@ -154,6 +154,10 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         const QString selected = view->model()->index(row, 0).data().toString();
         const int scroll = view->verticalScrollBar()->value();
         QVERIFY(scroll > 0);
+        if (count > 256) {
+            action(window, "refreshAction")->trigger();
+            QVERIFY(!view->isEnabled());
+        }
         window.openPath(b);
         window.openPath(c);
         action(window, "backAction")->trigger();

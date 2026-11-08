@@ -19,8 +19,18 @@ QtWindowWorkspace::Visit QtWindowWorkspace::CaptureVisit(unsigned panel) {
         return current.visits[current.cursor];
     Capture(panel);
     const auto &locationState = panels_[panel].location;
-    return {locationState.path, locationState.nativePlaceIdentity, locationState.archiveLocation,
-            locationState.selection, locationState.scroll};
+    Visit visit{locationState.path, locationState.nativePlaceIdentity,
+                locationState.archiveLocation, locationState.selection, locationState.scroll};
+    const auto &ui = window_.panelUi_[panel];
+    // A same-folder refresh has already saved the selection and viewport.
+    // Its live model may be empty or only partially published.
+    if (ui.scanningDisk && ui.pendingSelection && ui.pendingViewport &&
+        ui.pendingViewport->directory == QDir::cleanPath(QDir::fromNativeSeparators(visit.path))) {
+        visit.selection = *ui.pendingSelection;
+        if (ui.pendingViewport->view == ui.viewStack->currentWidget())
+            visit.scroll = ui.pendingViewport->scrollPosition;
+    }
+    return visit;
 }
 
 HRESULT QtWindowWorkspace::Navigate(const std::function<HRESULT()> &body,
