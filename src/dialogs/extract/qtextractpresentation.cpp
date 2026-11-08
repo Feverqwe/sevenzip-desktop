@@ -66,6 +66,7 @@ void CExtractDialog::BuildPresentation() {
     layout->addLayout(destination);
     _destinationError = new QLabel(this);
     _destinationError->setObjectName("extractDestinationError");
+    _destinationError->setTextFormat(Qt::PlainText);
     _destinationError->setWordWrap(true);
     _destinationError->hide();
     layout->addWidget(_destinationError);

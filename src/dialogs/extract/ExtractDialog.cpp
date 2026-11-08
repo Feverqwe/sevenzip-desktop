@@ -244,7 +244,11 @@ void CExtractDialog::OnOK() {
         for (;;) {
             const QFileInfo entry(path);
             if (entry.exists() || entry.isSymLink())
-                return entry.isDir() ? QString() : InvalidOutputDirectory();
+                return entry.isDir() ? QString()
+                                     : QCoreApplication::translate(
+                                           "archivebackend_validation",
+                                           "Destination path is occupied by a file or link: %1")
+                                           .arg(path);
             const QString parent = entry.absolutePath();
             if (parent == path)
                 return {};

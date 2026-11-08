@@ -3,6 +3,7 @@
 #include "dialogs/extract/alias.h"
 #include "fileops/patterns/Wildcard.h"
 #include <QAbstractItemView>
+#include <QAccessible>
 #include <QDir>
 #include <QFile>
 #include <QFileDialog>
@@ -431,6 +432,7 @@ class SplitDestinationTests final : public QObject {
                 name(dialog)->setText("../corrected");
                 dialog.accept();
                 QVERIFY(dialog.isVisible() && error->isVisible());
+                QVERIFY(error->text().contains(base + "/occupied"));
                 QTRY_VERIFY(dialog.focusWidget() == path(dialog) ||
                             dialog.focusWidget() == path(dialog)->lineEdit());
                 QVERIFY(!QFileInfo::exists(corrected));
@@ -546,7 +548,7 @@ class SplitDestinationTests final : public QObject {
         const QString archive = fixture.filePath("source.zip");
         QVERIFY(NativeArchiveFixture::WriteFiles(archive, {source}));
         const QString missing = fixture.filePath("deleted folder");
-        const QString dangling = fixture.filePath("old shortcut");
+        const QString dangling = fixture.filePath("old <b>shortcut");
         const QString output = fixture.filePath("output folder");
         const QString linked = fixture.filePath("current shortcut");
         QVERIFY(QDir().mkpath(output + "/nested"));
@@ -569,6 +571,11 @@ class SplitDestinationTests final : public QObject {
                     dialog.accept();
                     QVERIFY(dialog.isVisible() && error->isVisible());
                     QCOMPARE(path(dialog)->currentText(), blocked);
+                    if (blocked == dangling) {
+                        auto *accessible = QAccessible::queryAccessibleInterface(error);
+                        QVERIFY(accessible);
+                        QVERIFY(accessible->text(QAccessible::Name).contains(dangling));
+                    }
                 }
                 QVERIFY(!QFileInfo::exists(output + "/nested/payload.txt"));
                 path(dialog)->setEditText(output + "/nested");
