@@ -9,7 +9,9 @@
 #include "operations/qtoperationlauncher.h"
 #include "settings/RegistryUtils.h"
 #include "support/operation_temp_cleanup.h"
+#include "support/panel_keys.h"
 #include "support/scoped_environment.h"
+#include "support/window_activation.h"
 
 namespace {
 QAction *FindShellVerb(QMenu &menu, const QString &verb) {
@@ -214,6 +216,26 @@ class ToolbarCreationWorkflowTests final : public QObject, protected MainWindowT
         QCOMPARE(
             peer->model()->index(0, 0).data().toString().normalized(QString::NormalizationForm_C),
             QString("chosen archive 空.zip"));
+        QVERIFY(WindowActivation::waitForActive(window));
+        QTRY_VERIFY(peer->hasFocus());
+        QTest::keyClick(peer, Qt::Key_Home);
+        QCOMPARE(peer->currentRow(), 0);
+        QTest::keySequence(peer, QKeySequence::SelectAll);
+        QVERIFY(peer->selectionModel()->isRowSelected(0, {}));
+        PanelKeys::openSelection(window.focusWidget());
+        QTRY_VERIFY(peer->isEnabled() && peer->sourcePanel->IsArcFolder());
+        QStringList archived;
+        for (int row = 0; row < peer->rowCount(); ++row)
+            archived.append(peer->model()->index(row, 0).data().toString().normalized(
+                QString::NormalizationForm_C));
+        archived.sort();
+        QCOMPARE(archived, retainedSelection);
+        QVERIFY(WindowActivation::waitForActive(window));
+        QTRY_VERIFY(peer->hasFocus());
+        QTest::keySequence(peer, action(window, "backAction")->shortcut());
+        QTRY_VERIFY(peer->hasFocus() && peer->sourcePanel->IsFSFolder());
+        QCOMPARE(peer->currentIndex().data().toString().normalized(QString::NormalizationForm_C),
+                 QString("chosen archive 空.zip"));
         const QString verified = input.filePath("verified");
         QProcess extract;
         extract.start(QStandardPaths::findExecutable("7z"),
