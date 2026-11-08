@@ -47,6 +47,45 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
     }
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
+    void cutUsesThePanelThatIssuedTheCommand() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString source = fixture.filePath("source");
+        const QString destination = fixture.filePath("destination");
+        QVERIFY(QDir().mkpath(source) && QDir().mkpath(destination));
+        const QString file = source + "/file.txt";
+        QVERIFY(write(file, "payload"));
+        const auto cleanup = qScopeGuard([] { QApplication::clipboard()->clear(); });
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        action(window, "twoPanelsAction")->trigger();
+        auto *left = window.findChild<QWidget *>("filePanel0")->findChild<FileTable *>();
+        auto *right = window.findChild<QWidget *>("filePanel1")->findChild<FileTable *>();
+        left->setFocus();
+        window.openPath(source);
+        QTRY_VERIFY(left->isEnabled());
+        const auto matches = left->model()->match(left->model()->index(0, 0), Qt::DisplayRole,
+                                                  QStringLiteral("file.txt"), 1, Qt::MatchExactly);
+        QCOMPARE(matches.size(), 1);
+        const int row = matches.front().row();
+        left->setCurrentCell(row, 0);
+        left->selectRow(row);
+        right->setFocus();
+        window.openPath(destination);
+        QTRY_VERIFY(right->hasFocus());
+        QVERIFY(!action(window, "cutFilesAction")->isEnabled());
+        left->sourcePanel->EditCut();
+        const QList<QUrl> expected{QUrl::fromLocalFile(file)};
+        QCOMPARE(QApplication::clipboard()->mimeData()->urls(), expected);
+        QVERIFY(left->model()->index(row, 0).data(QtPanelList::CutRole).toBool());
+        QVERIFY(right->hasFocus());
+        action(window, "pasteFilesAction")->trigger();
+        QTRY_VERIFY(QtLocalFileTask::Active().isEmpty());
+        QCOMPARE(read(destination + "/file.txt"), QByteArray("payload"));
+        QVERIFY(!QFileInfo::exists(file));
+    }
     void transferPublishesChangesWithoutAutoRefresh_data() {
         QTest::addColumn<bool>("linkedDestination");
         QTest::addColumn<bool>("viaClipboard");

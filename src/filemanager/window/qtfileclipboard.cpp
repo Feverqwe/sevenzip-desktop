@@ -144,7 +144,8 @@ void QtFileClipboard::Refresh() {
 
 void QtFileClipboard::Copy(bool move) {
     Refresh();
-    if (!(move ? cut : copy)->isEnabled())
+    const auto available = AvailabilityForPanel(window_.projectedPanel_);
+    if (!(move ? available.cut : available.copy))
         return;
     auto &source = window_.app_.GetFocusedPanel();
     QtAppOperationState::CallScope call(window_.app_.QtOperations());
@@ -197,7 +198,7 @@ void QtFileClipboard::Copy(bool move) {
 
 void QtFileClipboard::Paste() {
     Refresh();
-    if (!paste->isEnabled())
+    if (!AvailabilityForPanel(window_.projectedPanel_).paste)
         return;
     const QMimeData *mime = QApplication::clipboard()->mimeData();
     const QStringList paths = ClipboardFilePaths(mime);
