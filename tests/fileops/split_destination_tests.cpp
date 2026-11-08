@@ -96,6 +96,31 @@ class SplitDestinationTests final : public QObject {
         QVERIFY(extracted.open(QIODevice::ReadOnly));
         QCOMPARE(extracted.readAll(), QByteArray("payload"));
     }
+    void selectingHistoryWithSubfolderDisabledReplacesTheOldDraft() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString initial = fixture.filePath("current/old name/");
+        const QString saved = fixture.filePath("history/saved output/");
+        CExtractDialog dialog(initial, {saved});
+        dialog.show();
+        QVERIFY(enabled(dialog)->isChecked());
+        QVERIFY(!name(dialog)->text().isEmpty());
+        enabled(dialog)->setChecked(false);
+
+        auto *history = path(dialog);
+        history->showPopup();
+        auto *items = history->view();
+        QTRY_VERIFY(items->isVisible());
+        items->setCurrentIndex(history->model()->index(0, 0));
+        QTest::keyClick(items, Qt::Key_Return);
+        QCOMPARE(QDir::cleanPath(dialog.destination()), QDir::cleanPath(saved));
+        enabled(dialog)->setChecked(true);
+        QCOMPARE(QDir::cleanPath(dialog.destination()), QDir::cleanPath(saved));
+        dialog.accept();
+        QCOMPARE(dialog.result(), int(QDialog::Accepted));
+        QCOMPARE(QDir::cleanPath(dialog.destination()), QDir::cleanPath(saved));
+    }
+
     void historyKeepsCaseDistinctDestinations() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());

@@ -62,7 +62,8 @@ link in the destination path, the dialog shows the error before extraction.
 For a concrete destination, it also reports a known lack of write access in
 the destination or in the folder where it would be created.
 Choosing a history entry restores the saved destination, including its own
-subfolder when the split fields are enabled.
+subfolder when the split fields are enabled. If the fields are disabled,
+choosing a history entry discards the previous subfolder draft.
 New relative destinations are saved as resolved paths so they can be reused
 from a different working directory.
 The history can retain separately addressable folders whose names differ only

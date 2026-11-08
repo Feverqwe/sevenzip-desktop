@@ -188,8 +188,10 @@ void CExtractDialog::OnInit(const QStringList &history) {
     _path->setCurrentIndex(-1);
     _path->setEditText(pathPrefix);
     connect(_path, &QComboBox::activated, this, [this](int index) {
-        if (!_nameEnable->isChecked())
+        if (!_nameEnable->isChecked()) {
+            _pathName->clear();
             return;
+        }
         UString saved = ToUString(_path->itemText(index));
         saved.Trim();
         QString parent, name;
