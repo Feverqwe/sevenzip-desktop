@@ -322,11 +322,12 @@ class RecentPlacesTests final : public QObject, protected MainWindowTestSupport 
         const QString a = fixture.filePath("A"), b = fixture.filePath("B"),
                       c = fixture.filePath("C");
         directory(a, 301);
-        directory(b);
+        directory(b, 301);
         directory(c);
         ControlledBackend backend;
         MainWindow window(&backend);
         window.show();
+        QVERIFY(QTest::qWaitForWindowActive(&window));
         window.openPath(a);
         QTRY_VERIFY(active(window)->isEnabled() && active(window)->rowCount() >= 301);
         action(window, "twoPanelsAction")->trigger();
@@ -348,6 +349,14 @@ class RecentPlacesTests final : public QObject, protected MainWindowTestSupport 
         QVERIFY(entry);
         RecentPlacesMenu::Choose(*popup, *entry);
         QTRY_COMPARE(location(window), b);
+        auto *left = window.findChild<QWidget *>("filePanel0");
+        QVERIFY(left);
+        auto *list = left->findChild<FileTable *>("archiveTable");
+        QVERIFY(list);
+        QTRY_VERIFY(list->isEnabled() && list->rowCount() >= 301);
+        QTRY_COMPARE(window.focusWidget(), list);
+        if (window.isActiveWindow())
+            QVERIFY(list->hasFocus());
         QCOMPARE(QDir::cleanPath(ToQString(other->sourcePanel->GetCurrentFolderPrefix())), c);
     }
 

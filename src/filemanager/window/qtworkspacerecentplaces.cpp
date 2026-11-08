@@ -1,5 +1,6 @@
 #include "filemanager/providers/RootFolder.h"
 #include "filemanager/window/mainwindow.h"
+#include "filemanager/window/qtapppresentation.h"
 #include "filemanager/window/qtrecentplacesstore.h"
 #include "filemanager/window/qtwindowworkspace.h"
 #include "ui/controls/qtmenutext.h"
@@ -61,14 +62,23 @@ void QtWindowWorkspace::OpenRecentPlace(unsigned panel, const QtRecentPlace &pla
     window_.activatePanelUi(panel);
     if (window_.projectedPanel_ != panel)
         return;
+    const auto interaction = interactionRevision_;
     Navigate(
         [&]() -> HRESULT {
             ProtectNavigation();
             return OpenRecordedLocation(panel, place.path, place.nativeIdentity, place.archive);
         },
-        [this, panel](HRESULT result) {
-            if (result == S_OK || window_.app_.QtOperations().closed())
+        [this, panel, interaction](HRESULT result) {
+            if (window_.app_.QtOperations().closed())
                 return;
+            if (result == S_OK) {
+                // The scan completion can still be inside a temporary panel projection.
+                QTimer::singleShot(0, this, [this, panel, interaction] {
+                    if (window_.projectedPanel_ == panel && interactionRevision_ == interaction)
+                        window_.appPresentation_->RequestListFocus(panel);
+                });
+                return;
+            }
             const QString error = result == E_ABORT ? tr("Opening canceled.")
                                   : result == S_FALSE
                                       ? tr("The location is unavailable or disconnected.")
