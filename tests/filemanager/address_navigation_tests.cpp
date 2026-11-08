@@ -115,8 +115,10 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
         else if (route == "path")
             window.openPath(link);
         else if (route == "address") {
-            address->setFocus();
+            PanelKeys::focusAddress(address);
+            QTRY_VERIFY(address->hasFocus());
             address->setText(link);
+            address->setModified(true);
             QTest::keyClick(address, Qt::Key_Return);
         } else {
             const int row = filesystemRow(window, QFileInfo(link).fileName());
@@ -145,6 +147,20 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
         QVERIFY(QFileInfo(link).isSymLink());
         QCOMPARE(sourceBytes(), original);
         QCOMPARE(QFileInfo(target).exists(), kind != "missing");
+        if (route == "address" && kind == "ordinary") {
+            QVERIFY(WindowActivation::waitForActive(window));
+            QTRY_VERIFY(address->hasFocus());
+            QCOMPARE(address->text(), link);
+            const QString repaired = fixture.filePath(QStringLiteral("corrected 空.zip"));
+            QVERIFY(NativeArchiveFixture::Write(repaired, {{"recovered.txt", payload}}, "zip"));
+            address->setText(repaired);
+            address->setModified(true);
+            QTest::keyClick(window.focusWidget(), Qt::Key_Return);
+            QTRY_VERIFY(view->sourcePanel->IsArcFolder());
+            QTRY_COMPARE(view->model()->index(0, 0).data().toString(), QString("recovered.txt"));
+            QVERIFY(WindowActivation::waitForActive(window));
+            QTRY_VERIFY(view->hasFocus());
+        }
     }
     void rejectedArchiveAddressKeepsEditingFocus_data() {
         QTest::addColumn<qint32>("result");
