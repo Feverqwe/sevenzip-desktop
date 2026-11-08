@@ -278,8 +278,10 @@ void CExtractDialog::OnOK() {
         if (_nameEnable->isChecked() && baseError.isEmpty() && directoryError(base) != error) {
             _pathName->setFocus();
             _pathName->selectAll();
-        } else
+        } else {
             _path->setFocus();
+            _path->lineEdit()->selectAll();
+        }
         QTimer::singleShot(0, this, [this] {
             if (_destinationError->isVisible())
                 if (auto *scroll = findChild<QScrollArea *>("dialogContentScroll"))

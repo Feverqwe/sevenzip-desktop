@@ -8,6 +8,7 @@
 #include "settings/RegistryUtils.h"
 #include "support/secret_visibility.h"
 #include "ui/support/layout_inspection.h"
+#include <QClipboard>
 #include <QDialogButtonBox>
 #include <QDir>
 #include <QFile>
@@ -599,7 +600,15 @@ class ExtractDialogTests final : public QObject {
         QCOMPARE(dialog.size(), before);
         QCOMPARE(scroll->horizontalScrollBar()->maximum(), 0);
         QVERIFY(UiInspection::writeReport(dialog, "extract-compact-destination-error"));
-        destination->setEditText(fixture.filePath("corrected"));
+        auto *edit = destination->lineEdit();
+        QVERIFY(edit->hasFocus());
+        QCOMPARE(edit->selectedText(), blocked);
+        const QString corrected = fixture.filePath(QStringLiteral("исправленный путь"));
+        auto *clipboard = QApplication::clipboard();
+        const auto clearClipboard = qScopeGuard([clipboard] { clipboard->clear(); });
+        clipboard->setText(corrected);
+        QTest::keySequence(edit, QKeySequence::Paste);
+        QCOMPARE(destination->currentText(), corrected);
         dialog.accept();
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
     }
