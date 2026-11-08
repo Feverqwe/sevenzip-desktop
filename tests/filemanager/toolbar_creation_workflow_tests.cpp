@@ -201,6 +201,16 @@ class ToolbarCreationWorkflowTests final : public QObject, protected MainWindowT
         }
         QTRY_COMPARE(selected->rowCount(), 3);
         QTRY_COMPARE(peer->rowCount(), 1);
+        QStringList retainedSelection;
+        for (const auto &item : selected->selectionModel()->selectedRows())
+            retainedSelection.append(
+                item.data().toString().normalized(QString::NormalizationForm_C));
+        retainedSelection.sort();
+        QCOMPARE(retainedSelection, (QStringList{QStringLiteral("payload 空.txt"), "second.txt"}));
+        QCOMPARE(selected->currentIndex().data().toString(), QString("unselected.txt"));
+        QTRY_COMPARE(window.focusWidget(), selected);
+        QTest::keyClick(window.focusWidget(), Qt::Key_Tab);
+        QTRY_COMPARE(window.focusWidget(), peer);
         QCOMPARE(
             peer->model()->index(0, 0).data().toString().normalized(QString::NormalizationForm_C),
             QString("chosen archive 空.zip"));
