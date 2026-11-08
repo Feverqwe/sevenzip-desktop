@@ -114,18 +114,18 @@ bool QtFileManagerDrag::HandleDropEvent(QWidget &widget, QEvent &event) {
         return true;
     }
     auto &drop = static_cast<QDropEvent &>(event);
-    const unsigned panel = window_.panelIndexFor(&widget);
+    const QPoint position = widget.mapToGlobal(drop.position().toPoint());
+    const int panel = PanelAtPoint(position.x(), position.y());
     const bool blocked = revoked_ || window_.app_.QtOperations().closed() ||
                          window_.backend_->busy() || QApplication::activeModalWidget() ||
                          (window_.sourceArchiveProgress_ && !active_) ||
-                         (panel < kNumPanelsMax && !PanelEnabled(panel));
+                         (panel >= 0 && !PanelEnabled(unsigned(panel)));
     CDataObject *data = blocked ? nullptr : ReadData(*drop.mimeData());
     if (!data) {
         ResetDropTarget();
         drop.ignore();
         return true;
     }
-    const QPoint position = widget.mapToGlobal(drop.position().toPoint());
     const DWORD keys = DropKeys(drop);
     auto &target = window_.app_.DropTarget();
     const bool menuDrop = (keys & (MK_RBUTTON | MK_MBUTTON)) ||

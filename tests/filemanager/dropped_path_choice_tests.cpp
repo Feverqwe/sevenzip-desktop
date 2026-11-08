@@ -145,10 +145,24 @@ class DroppedPathChoiceTests final : public QObject {
         if (choice != "cancel")
             QCOMPARE(drop.dropAction(), Qt::CopyAction);
         if (choice == "open") {
-            if (openLargeFolder)
+            const QPoint windowPoint = table->viewport()->mapTo(&window, QPoint(5, 5));
+            if (openLargeFolder) {
                 QVERIFY(!table->isEnabled());
+                QDragEnterEvent blocked(DragEventPosition(windowPoint), Qt::CopyAction, &mime,
+                                        Qt::LeftButton, Qt::NoModifier);
+                QCoreApplication::sendEvent(&window, &blocked);
+                QVERIFY(!blocked.isAccepted());
+            }
             const int expectedRows = openLargeFolder ? extraFiles + 1 : 1;
             QTRY_VERIFY(table->isEnabled() && table->rowCount() == expectedRows);
+            if (openLargeFolder) {
+                QDragEnterEvent ready(DragEventPosition(windowPoint), Qt::CopyAction, &mime,
+                                      Qt::LeftButton, Qt::NoModifier);
+                QCoreApplication::sendEvent(&window, &ready);
+                QVERIFY(ready.isAccepted());
+                QDragLeaveEvent leave;
+                QCoreApplication::sendEvent(&window, &leave);
+            }
             bool foundPayload = false;
             for (int row = 0; row < table->rowCount(); ++row)
                 foundPayload |= table->model()->index(row, 0).data().toString() ==
