@@ -832,7 +832,8 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         QFETCH(int, interaction);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
-        const QString child = fixture.filePath(QStringLiteral("child папка"));
+        const QString childName = QStringLiteral("z child папка");
+        const QString child = fixture.filePath(childName);
         QVERIFY(QDir().mkpath(child));
         QFile payload(QDir(child).filePath("protected.txt"));
         QVERIFY(payload.open(QIODevice::WriteOnly));
@@ -840,10 +841,8 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         payload.close();
         // Cross the existing filesystem publication threshold with one bounded
         // fixture, rather than expanding a large archive/performance matrix.
-        for (unsigned index = 0; index < 257; ++index) {
-            QFile file(fixture.filePath(QString("entry-%1.txt").arg(index)));
-            QVERIFY(file.open(QIODevice::WriteOnly));
-        }
+        for (unsigned index = 0; index < 257; ++index)
+            QVERIFY(QDir().mkdir(fixture.filePath(QString("entry-%1").arg(index))));
         ControlledBackend backend;
         MainWindow window(&backend);
         window.show();
@@ -878,6 +877,9 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         }
         QTRY_VERIFY(list->isEnabled());
         QTRY_COMPARE(list->rowCount(), 258);
+        QTRY_COMPARE(list->currentIndex().data(QtPanelList::NameRole).toString(), childName);
+        QVERIFY(list->verticalScrollBar()->value() > 0);
+        QVERIFY(list->viewport()->rect().intersects(list->visualRect(list->currentIndex())));
         QTRY_COMPARE(window.focusWidget(), expected);
         if (interaction == 1)
             QCOMPARE(address->text(), draft);
