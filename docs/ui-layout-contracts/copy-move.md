@@ -287,8 +287,8 @@ synchronous panel refresh.
 After Copy publication verify original source/destination saved states: ordinary
 Copy/Move clears source marks on completion, preserves the captured current
 item and peer selection, updates the source title and restores source list focus.
-Cancelling a transfer between filesystem locations or from an archive to disk
-keeps the original source marks. A partial
+Cancelling a transfer between filesystem locations or between disk and an open
+archive keeps the original source marks. A partial
 filesystem Move keeps the remaining source items selected. Shift keeps
 its source saved-selection semantics. Inspect both source-panel roles under
 EN/RU1100×640/640×400, including both address/list groups and toolbar. Do not

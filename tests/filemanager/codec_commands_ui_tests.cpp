@@ -234,9 +234,11 @@ class CodecCommandsUiTests final : public QObject, protected MainWindowTestSuppo
         QVERIFY(!backend.busy());
         if (cancel)
             qInfo() << "Native cancel phase:" << (publicationAtCancel ? "publication" : "writer");
-        if (cancel && (!publicationAtCancel || readFile(archive) == before))
+        if (cancel && (!publicationAtCancel || readFile(archive) == before)) {
             QCOMPARE(readFile(archive), before);
-        else {
+            QTRY_COMPARE(window.focusWidget(), leftTable);
+            QVERIFY(leftTable->selectionModel()->isRowSelected(sourceRow, {}));
+        } else {
             QVERIFY(run(fixture.path(), {"x", "-y", "-o" + output.path(), "--", archive}));
             QCOMPARE(readFile(output.filePath(name)), replacement);
         }

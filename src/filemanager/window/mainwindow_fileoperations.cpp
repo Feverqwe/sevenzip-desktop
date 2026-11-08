@@ -164,7 +164,9 @@ bool MainWindow::transferToArchivePanel(const QString &destination, bool move,
                                                              "Items moved into the archive.")
                                : QCoreApplication::translate("mainwindow_fileoperations",
                                                              "Items copied into the archive."));
-    } else if (result != E_ABORT) {
+    } else if (result == E_ABORT) {
+        appPresentation_->CopyFinished(true);
+    } else {
         QMessageBox::warning(this, QtLangText(IDS_COPYING),
                              QString::fromWCharArray(HResultToMessage(result).Ptr()));
     }
