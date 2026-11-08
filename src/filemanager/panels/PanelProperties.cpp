@@ -215,17 +215,21 @@ void CPanel::Properties(const CRecordVector<UInt32> &operatedIndices,
         UInt64 numFiles = 0;
         UInt64 numDirs = 0;
         bool completeFileSize = true;
+        bool hasReportedSize = false;
         bool hasPackedSize = false;
         FOR_VECTOR(i, operatedIndices) {
             const UInt32 index = operatedIndices[i];
             NWindows::NCOM::CPropVariant size;
             UInt64 bytes = 0;
             if (_folder->GetProperty(index, kpidSize, &size) == S_OK &&
-                ConvertPropVariantToUInt64(size, bytes))
+                ConvertPropVariantToUInt64(size, bytes)) {
+                hasReportedSize = true;
                 AddReportedTotal(unpackSize, bytes, kpidSize, message);
-            else {
+            } else {
                 completeFileSize = false;
-                AddReportedTotal(unpackSize, GetItemSize(index), kpidSize, message);
+                const UInt64 fallback = GetItemSize(index);
+                hasReportedSize |= fallback != 0;
+                AddReportedTotal(unpackSize, fallback, kpidSize, message);
             }
             NWindows::NCOM::CPropVariant packed;
             if (_folder->GetProperty(index, kpidPackSize, &packed) == S_OK &&
@@ -254,9 +258,11 @@ void CPanel::Properties(const CRecordVector<UInt32> &operatedIndices,
         if (numFiles != 0)
             AddPropertyString(kpidNumSubFiles, numFiles, message);
         AddPropertyString(kpidSize, unpackSize, message);
-        if (completeFileSize && !message.overflowedTotals.contains(kpidSize)) {
-            auto size = message.nativeValues.find(message.Strings.Size() - 1);
-            if (size != message.nativeValues.end() && size->id == kpidSize)
+        auto size = message.nativeValues.find(message.Strings.Size() - 1);
+        if (size != message.nativeValues.end() && size->id == kpidSize) {
+            if (!hasReportedSize)
+                size->availability = QtPropertyReport::Availability::Unknown;
+            else if (completeFileSize && !message.overflowedTotals.contains(kpidSize))
                 size->availability = QtPropertyReport::Availability::Known;
         }
         AddPropertyString(kpidPackSize, packSize, message);
