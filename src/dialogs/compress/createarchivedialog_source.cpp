@@ -133,10 +133,14 @@ void CreateArchiveDialog::validateAndAccept() {
         volumes.BaseExtension = volumes.VolExtension;
         volumes.ParseFromPath(UString(resolved.toStdWString().c_str()), k_ArcNameMode_Smart);
         const UString first = volumes.GetFinalVolPath() + L".001";
-        if (NWindows::NFile::NFind::DoesFileOrDirExist(us2fs(first)))
-            pathError =
-                QCoreApplication::translate("SevenZipDiagnostics", "The file already exists") +
-                '\n' + QString::fromWCharArray(first.Ptr());
+        for (const UString &candidate : {volumes.GetFinalPath(), first}) {
+            if (NWindows::NFile::NFind::DoesFileOrDirExist(us2fs(candidate))) {
+                pathError =
+                    QCoreApplication::translate("SevenZipDiagnostics", "The file already exists") +
+                    '\n' + ToQString(candidate);
+                break;
+            }
+        }
     }
     if (!pathError.isEmpty()) {
         // Keep the draft available for correction before handing it to UpdateArchive.

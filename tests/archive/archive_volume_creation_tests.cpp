@@ -169,16 +169,25 @@ class ArchiveVolumeCreationTests final : public QObject {
         dialog.findChild<QComboBox *>("archiveVolumeSize")->setEditText("128K");
         auto *ok = dialog.findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok);
         dialog.show();
-        bool refused = false;
-        QTimer::singleShot(0, &dialog, [&] {
-            if (auto *warning = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
-                refused = true;
-                warning->accept();
-            }
-        });
-        ok->click();
-        QVERIFY(refused && dialog.isVisible());
+        const auto submitAndDismissWarning = [&] {
+            bool refused = false;
+            QTimer::singleShot(0, &dialog, [&] {
+                if (auto *warning =
+                        qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                    refused = true;
+                    warning->accept();
+                }
+            });
+            ok->click();
+            return refused;
+        };
+        QVERIFY(submitAndDismissWarning() && dialog.isVisible());
         QCOMPARE(readFile(occupied), QByteArray("keep this volume"));
+        const QString baseArchive = fixture.filePath("existing.7z");
+        QVERIFY(writeFile(baseArchive, "keep this archive"));
+        name->setText("existing.7z");
+        QVERIFY(submitAndDismissWarning() && dialog.isVisible());
+        QCOMPARE(readFile(baseArchive), QByteArray("keep this archive"));
         name->setText("different.7z");
         ok->click();
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
