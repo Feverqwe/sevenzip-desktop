@@ -672,6 +672,7 @@ class CompressionPathTests final : public QObject {
         QTest::newRow("filename") << QString("filename");
         QTest::newRow("absolute-path") << QString("absolute");
         QTest::newRow("relative-path") << QString("relative");
+        QTest::newRow("relative-zip-path") << QString("relative-zip");
         QTest::newRow("relative-destination") << QString("relative-destination");
         QTest::newRow("missing-folder") << QString("missing");
         QTest::newRow("invalid-folder") << QString("invalid");
@@ -682,6 +683,8 @@ class CompressionPathTests final : public QObject {
         QFETCH(QString, form);
         const bool directoryDraft = form.startsWith("directory-");
         const bool relativeDestination = form == "relative-destination";
+        const bool zip = form == "relative-zip";
+        const QString selectedFormat = zip ? "zip" : "7z";
         QTemporaryDir destination;
         QTemporaryDir original;
         QVERIFY(destination.isValid());
@@ -694,7 +697,8 @@ class CompressionPathTests final : public QObject {
         auto *name = dialog.findChild<QLineEdit *>("archiveName");
         auto *folder = dialog.findChild<QLineEdit *>("archiveFolder");
         auto *format = dialog.findChild<QComboBox *>("archiveFormat");
-        const QString draft = QStringLiteral("имя with spaces 空.7z");
+        format->setCurrentText(selectedFormat);
+        const QString draft = QStringLiteral("имя with spaces 空.") + selectedFormat;
         QVERIFY(QDir(original.path()).mkdir("nested"));
         folder->setText(relativeDestination ? QStringLiteral("nested")
                         : form == "missing" ? original.filePath("nested/not created/deeper")
@@ -703,8 +707,8 @@ class CompressionPathTests final : public QObject {
         const QString entered = directoryDraft ? (form == "directory-dot" ? "nested/." : "nested/")
                                 : form == "absolute"
                                     ? QDir::toNativeSeparators(original.filePath(draft))
-                                : form == "relative" || form == "invalid" ? "nested/" + draft
-                                                                          : draft;
+                                : form == "relative" || zip || form == "invalid" ? "nested/" + draft
+                                                                                 : draft;
         name->setText(entered);
         dialog.show();
         auto *browse = dialog.findChild<QPushButton *>("archiveBrowse");
@@ -725,7 +729,7 @@ class CompressionPathTests final : public QObject {
                     });
                     QCOMPARE(picker->fileMode(), QFileDialog::Directory);
                     const QString initial = form == "invalid" ? dir_.path()
-                                            : form == "relative" || form == "missing" ||
+                                            : form == "relative" || zip || form == "missing" ||
                                                     directoryDraft || relativeDestination
                                                 ? original.filePath("nested")
                                                 : original.path();
@@ -748,7 +752,7 @@ class CompressionPathTests final : public QObject {
             answer.stop();
             QVERIFY(observed);
             QCOMPARE(name->text(), accept ? (directoryDraft ? QString() : draft) : entered);
-            QCOMPARE(format->currentText(), QString("7z"));
+            QCOMPARE(format->currentText(), selectedFormat);
             if (accept)
                 QCOMPARE(QFileInfo(folder->text()).canonicalFilePath(),
                          QFileInfo(destination.path()).canonicalFilePath());
@@ -764,6 +768,17 @@ class CompressionPathTests final : public QObject {
         submit(dialog);
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
         QCOMPARE(QDir::fromNativeSeparators(dialog.target()), destination.filePath(expectedName));
+        QCOMPARE(dialog.compressionOptions().format, selectedFormat);
+        if (zip) {
+            ArchiveBackend backend;
+            QCOMPARE(SourceCreationFixture::Create(backend, dialog.target(), dialog.sources(), {},
+                                                   false, dialog.compressionOptions()),
+                     S_OK);
+            QFile archive(dialog.target());
+            QVERIFY(archive.open(QIODevice::ReadOnly));
+            QCOMPARE(archive.read(4), QByteArray("PK\x03\x04", 4));
+            QVERIFY(!QFileInfo::exists(original.filePath("nested/" + draft)));
+        }
     }
     void emptyDestinationKeepsInitialPrefixForBrowseAndAccept() {
         QTemporaryDir fixture;
