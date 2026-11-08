@@ -66,6 +66,7 @@ HRESULT CPanel::MoveItemsToTrash(IQtTrashService &trash, CSelectedState &state,
     if (indices.IsEmpty())
         return S_FALSE;
     SaveSelectedState(state);
+    state.PreserveAddress = true;
     if (!CheckBeforeUpdate(IDS_ERROR_DELETING))
         return E_ABORT;
     QHash<QString, UInt32> selectedFolders;

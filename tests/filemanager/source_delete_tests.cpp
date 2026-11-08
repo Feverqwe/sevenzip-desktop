@@ -680,6 +680,11 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         auto *active =
             icons ? view->parentWidget()->findChild<QAbstractItemView *>("iconList") : view;
         QVERIFY(active && active->isVisible());
+        auto *address =
+            window.findChild<QWidget *>("filePanel0")->findChild<QLineEdit *>("archivePath");
+        PanelKeys::focusAddress(address);
+        QTRY_VERIFY(address->hasFocus());
+        QTest::keyClicks(address, "unsubmitted path");
         active->setFocus();
         QSemaphore resume;
         bool sawProgress = false;
@@ -706,6 +711,7 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         QTRY_VERIFY(view->isEnabled() && view->rowCount() == 256);
         QTRY_VERIFY(peer->isEnabled() && peer->rowCount() == 256);
         QCOMPARE(window.focusWidget(), active);
+        QCOMPARE(address->text(), QString("unsubmitted path"));
         QVERIFY(panel.ShouldProcessNotifications());
         QVERIFY(!QFileInfo::exists(fixture.filePath(removed)));
         QVERIFY(!QFileInfo::exists(fixture.filePath(earlier)));
