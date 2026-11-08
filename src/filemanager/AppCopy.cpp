@@ -28,6 +28,8 @@ struct CApp::CopyRequest {
     const unsigned Destination;
     const bool Move;
     const bool CopyToSame;
+    UString SourcePath;
+    UString DestinationPath;
     CSelectedState SourceSelection;
     CSelectedState DestinationSelection;
 };
@@ -282,6 +284,8 @@ void CApp::OnCopy(bool move, bool copyToSame, unsigned srcPanelIndex) {
         return;
     }
     auto request = std::make_shared<CopyRequest>(srcPanelIndex, destPanelIndex, move, copyToSame);
+    request->SourcePath = srcPanel.GetCurrentFolderPrefix();
+    request->DestinationPath = destPanel.GetCurrentFolderPrefix();
     srcPanel.SaveSelectedState(request->SourceSelection);
     destPanel.SaveSelectedState(request->DestinationSelection);
     // Keep the original RefreshListCtrl caller and its saved state across the
@@ -305,19 +309,22 @@ void CApp::CompleteCopy(bool preserveSourceSelection, bool restoreSourceFocus) {
     // The original post-operation body runs after Qt publishes both panels.
     CPanel &srcPanel = Panels[request->Source];
     CPanel &destPanel = Panels[request->Destination];
+    const bool sameSource = srcPanel.GetCurrentFolderPrefix() == request->SourcePath;
+    const bool sameDestination = destPanel.GetCurrentFolderPrefix() == request->DestinationPath;
     CPanel::CDisableNotify disableNotify1(destPanel);
     CPanel::CDisableNotify disableNotify2(srcPanel);
     RefreshTitleAlways();
-    if (request->CopyToSame || request->Move || preserveSourceSelection)
+    if (sameSource && (request->CopyToSame || request->Move || preserveSourceSelection))
         srcPanel.RestoreLoadedSelection(request->SourceSelection);
     if (!request->CopyToSame) {
-        destPanel.RestoreLoadedSelection(request->DestinationSelection);
-        if (!preserveSourceSelection)
+        if (sameDestination)
+            destPanel.RestoreLoadedSelection(request->DestinationSelection);
+        if (sameSource && !preserveSourceSelection)
             srcPanel.KillSelection();
     }
     disableNotify1.Restore();
     disableNotify2.Restore();
-    if (restoreSourceFocus)
+    if (sameSource && restoreSourceFocus)
         srcPanel.SetFocusToList();
 }
 
@@ -326,9 +333,10 @@ bool CApp::RefreshCopyPanel(unsigned index) {
     if (!request || _qtOperations.closed() || index >= kNumPanelsMax)
         return false;
     // Synchronous publication can re-enter completion and release the owner.
-    if (index == request->Source)
+    if (index == request->Source && Panels[index].GetCurrentFolderPrefix() == request->SourcePath)
         Panels[index].RefreshListCtrl(request->SourceSelection);
-    else if (index == request->Destination)
+    else if (index == request->Destination &&
+             Panels[index].GetCurrentFolderPrefix() == request->DestinationPath)
         Panels[index].RefreshListCtrl(request->DestinationSelection);
     return true;
 }

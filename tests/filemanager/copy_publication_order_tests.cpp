@@ -79,7 +79,7 @@ class CopyPublicationOrderTests final : public QObject, protected MainWindowTest
     static FileTable *openPanel(MainWindow &window, unsigned index, const QString &path) {
         auto *ui = window.findChild<QWidget *>(QString("filePanel%1").arg(index));
         auto *address = ui->findChild<QLineEdit *>("archivePath");
-        address->setFocus();
+        PanelKeys::focusAddress(address);
         address->setText(path);
         QTest::keyClick(address, Qt::Key_Return);
         return static_cast<FileTable *>(ui->findChild<FileTable *>("archiveTable"));
@@ -95,15 +95,26 @@ class CopyPublicationOrderTests final : public QObject, protected MainWindowTest
     }
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
+    void destinationRefreshKeepsNewAddressInput_data() {
+        QTest::addColumn<bool>("navigate");
+        QTest::newRow("address-draft") << false;
+        QTest::newRow("different-folder") << true;
+    }
     void destinationRefreshKeepsNewAddressInput() {
+        QFETCH(bool, navigate);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString input = fixture.filePath("source");
         const QString output = fixture.filePath("destination");
+        const QString other = fixture.filePath("other");
         QVERIFY(QDir().mkpath(input) && QDir().mkpath(output));
         write(input + "/payload.txt", "copied bytes");
         for (int index = 0; index < 301; ++index)
             write(QDir(output).filePath(QString("existing-%1.txt").arg(index)), "existing");
+        if (navigate) {
+            QVERIFY(QDir().mkdir(other));
+            write(other + "/existing-0.txt", "unrelated bytes");
+        }
         ControlledBackend backend;
         MainWindow window(&backend);
         window.show();
@@ -113,6 +124,7 @@ class CopyPublicationOrderTests final : public QObject, protected MainWindowTest
         QTRY_VERIFY(peer->isEnabled() && peer->rowCount() == 301);
         auto *source = openPanel(window, 0, input);
         QTRY_COMPARE(source->rowCount(), 1);
+        peer->selectRow(0);
         source->selectRow(0);
         source->setFocus();
         auto *address =
@@ -125,22 +137,56 @@ class CopyPublicationOrderTests final : public QObject, protected MainWindowTest
             scheduled = true;
             QTimer::singleShot(0, &window, [&] {
                 PanelKeys::focusAddress(address);
-                address->selectAll();
-                QTest::keyClicks(address, "new draft");
+                if (navigate) {
+                    address->setText(other);
+                    QTest::keyClick(address, Qt::Key_Return);
+                } else {
+                    address->selectAll();
+                    QTest::keyClicks(address, "new draft");
+                }
                 edited = true;
             });
         });
-        QTimer::singleShot(0, &window, [&] {
-            auto *dialog = window.findChild<CopyDialog *>("copyDialog");
-            QVERIFY(dialog && dialog->isVisible());
-            dialog->accept();
+        bool submitted = false;
+        QString error;
+        QTimer driver;
+        dialogs_.connectResponder(driver, &window, [&] {
+            if (auto *report = TestProgressDialog::ResultWindow(dialogs_.activeDialog())) {
+                error = TestProgressDialog::ReportText(*report);
+                TestProgressDialog::CloseResult(*report);
+                return;
+            }
+            if (auto *dialog = window.findChild<CopyDialog *>("copyDialog");
+                dialog && dialog->isVisible()) {
+                if (submitted) {
+                    error = "Copy destination was rejected";
+                    dialog->reject();
+                    return;
+                }
+                submitted = true;
+                dialog->findChild<QLineEdit *>("copyDestination")->setText(output + '/');
+                dialog->accept();
+            } else if (auto *box = qobject_cast<QMessageBox *>(dialogs_.activeDialog())) {
+                error = box->text();
+                box->accept();
+            }
         });
+        driver.start(5);
         action(window, "copyAction")->trigger();
-        QTRY_VERIFY(edited && peer->isEnabled() && peer->rowCount() == 302);
+        QVERIFY(submitted);
+        QTRY_VERIFY(edited && peer->isEnabled() && peer->rowCount() == (navigate ? 1 : 302));
+        QVERIFY2(error.isEmpty(), qPrintable(error));
         QCOMPARE(read(output + "/payload.txt"), QByteArray("copied bytes"));
         QVERIFY(WindowActivation::waitForActive(window));
-        QTRY_VERIFY(address->hasFocus());
-        QCOMPARE(address->text(), QString("new draft"));
+        if (navigate) {
+            QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(address->text())), other);
+            QVERIFY(peer->selectionModel()->selectedRows().isEmpty());
+            QCOMPARE(read(other + "/existing-0.txt"), QByteArray("unrelated bytes"));
+        } else {
+            QTRY_VERIFY(address->hasFocus());
+            QCOMPARE(address->text(), QString("new draft"));
+            QCOMPARE(peer->selectionModel()->selectedRows().size(), 1);
+        }
         QVERIFY(source->selectionModel()->selectedRows().isEmpty());
     }
     void nativeCopyPhases_data() {
