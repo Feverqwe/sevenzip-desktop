@@ -9,7 +9,7 @@
     # Keep Copy/Move, cancellation, archive routing and modal selection changes
     # in the default run; the complete presentation matrix is separate.
     add_test(NAME ui_copy_routing_quick COMMAND ui_copy_routing_tests -silent
-        readOnlyPeerIsNotProposed
+        unavailablePeerIsNotProposed
         sourceReloadPublishesNamespace
         outsidePeerStillRefreshesDestination:0-0-copy
         outsidePeerStillRefreshesDestination:1-1-move

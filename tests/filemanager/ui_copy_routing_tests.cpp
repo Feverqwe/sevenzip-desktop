@@ -123,7 +123,16 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
 
-    void readOnlyPeerIsNotProposed() {
+    void unavailablePeerIsNotProposed_data() {
+        QTest::addColumn<QString>("state");
+        QTest::newRow("read-only") << QString("read-only");
+        QTest::newRow("replaced-by-file") << QString("file");
+#ifdef Q_OS_UNIX
+        QTest::newRow("replaced-by-link") << QString("link");
+#endif
+    }
+    void unavailablePeerIsNotProposed() {
+        QFETCH(QString, state);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString source = fixture.filePath("source");
@@ -132,10 +141,12 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         write(source + "/file.txt", "source bytes");
         write(peer + "/peer.txt", "peer bytes");
         const auto restore = qScopeGuard([&] {
-            QFile::setPermissions(peer, QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner);
+            if (state == "read-only")
+                QFile::setPermissions(peer, QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner);
         });
-        if (!QFile::setPermissions(peer, QFile::ReadOwner | QFile::ExeOwner) ||
-            QFileInfo(peer).isWritable())
+        if (state == "read-only" &&
+            (!QFile::setPermissions(peer, QFile::ReadOwner | QFile::ExeOwner) ||
+             QFileInfo(peer).isWritable()))
             QSKIP("Cannot make the peer folder read-only");
 
         ControlledBackend backend;
@@ -147,6 +158,15 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         QTRY_VERIFY(target->isEnabled() && row(*target, "peer.txt") >= 0);
         auto *files = openPanel(window, 0, source);
         QTRY_VERIFY(files->isEnabled() && row(*files, "file.txt") >= 0);
+        if (state != "read-only") {
+            target->sourcePanel->Set_AutoRefresh_Mode(false);
+            const QString parked = fixture.filePath("parked peer");
+            QVERIFY(QDir().rename(peer, parked));
+            if (state == "file")
+                write(peer, "replacement");
+            else
+                QVERIFY(QFile::link(parked, peer));
+        }
         files->setCurrentCell(row(*files, "file.txt"), 0);
         files->selectRow(row(*files, "file.txt"));
         files->setFocus();

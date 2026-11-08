@@ -125,10 +125,14 @@ void CApp::OnCopy(bool move, bool copyToSame, unsigned srcPanelIndex) {
     const bool renameSource = srcPanel.IsFSFolder() || srcPanel.IsAltStreamsFolder();
     const bool peerIsFilesystem = NumPanels == 2 && destPanel.IsFSFolder();
     const UString peerPath = NumPanels == 2 ? destPanel.GetFsPath() : UString();
-    const bool peerWritable = NumPanels == 2 && destPanel.DoesItSupportOperations() &&
-                              !destPanel.IsThereReadOnlyFolder() && !destPanel.IsRootFolder() &&
-                              !destPanel.IsFSDrivesFolder() &&
-                              (!peerIsFilesystem || QFileInfo(ToQString(peerPath)).isWritable());
+    const QFileInfo peerDirectory(QDir::cleanPath(ToQString(peerPath)));
+    const bool peerWritable =
+        NumPanels == 2 && destPanel.DoesItSupportOperations() &&
+        !destPanel.IsThereReadOnlyFolder() && !destPanel.IsRootFolder() &&
+        !destPanel.IsFSDrivesFolder() &&
+        (!peerIsFilesystem ||
+         (peerDirectory.isDir() && peerDirectory.isWritable() &&
+          (!srcPanel.IsFSFolder() || (!peerDirectory.isSymLink() && !peerDirectory.isJunction()))));
     if ((copyToSame && renameSource) || (!copyToSame && NumPanels == 2 && !peerWritable)) {
         destPath = srcPanel.GetFsPath();
         if (!copyToSame)
