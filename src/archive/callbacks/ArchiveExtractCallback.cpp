@@ -56,6 +56,8 @@ static const char *const kCantDeleteOutputDir =
     QT_TRANSLATE_NOOP("SevenZipDiagnostics", "Cannot delete output folder");
 static const char *const kCantOpenOutFile =
     QT_TRANSLATE_NOOP("SevenZipDiagnostics", "Cannot open output file");
+static const char *const kCantReplaceOutFile =
+    QT_TRANSLATE_NOOP("SevenZipDiagnostics", "Cannot replace output file");
 #ifndef Z7_SFX
 static const char *const kCantOpenInFile =
     QT_TRANSLATE_NOOP("SevenZipDiagnostics", "Cannot open input file");
@@ -2796,7 +2798,7 @@ Z7_COM7F_IMF(CArchiveExtractCallback::SetOperationResult(Int32 opRes)) {
         if (opRes == NArchive::NExtract::NOperationResult::kOK &&
             _diskFilePath == _replacementFile->GetPath()) {
             if (!MyPublishExtractedReplacement(_diskFilePath, _replacementPath)) {
-                RINOK(SendMessageError_with_LastError(kCantOpenOutFile, _replacementPath))
+                RINOK(SendMessageError_with_LastError(kCantReplaceOutFile, _replacementPath))
                 return E_FAIL;
             }
             _replacementFile->DisableDeleting();

@@ -425,6 +425,48 @@ class ExtractionOptionsTests : public QObject {
         }
     }
 
+#ifdef Q_OS_WIN
+    void lockedReplacementCanBeRetried() {
+        QTemporaryDir temp;
+        QVERIFY(temp.isValid());
+        const auto archive = temp.filePath("replacement.zip");
+        const auto output = temp.filePath("output");
+        const auto target = QDir(output).filePath(QStringLiteral("файл с пробелом.txt"));
+        QVERIFY(NativeArchiveFixture::Write(archive, {{QFileInfo(target).fileName(), "new bytes"}},
+                                            "zip"));
+        QVERIFY(QDir().mkpath(output));
+        writeFile(target, "old bytes");
+        ArchiveBackend backend;
+        backend.list(archive);
+        await(backend, true);
+        ExtractionOptions options;
+        options.overwriteMode = ExtractionOptions::OverwriteMode::OverwriteExisting;
+        QSignalSpy finished(&backend, &ArchiveBackend::finished);
+        {
+            const HANDLE locked =
+                ::CreateFileW(NativeFixturePath(target), GENERIC_READ, FILE_SHARE_READ, nullptr,
+                              OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+            QVERIFY(locked != INVALID_HANDLE_VALUE);
+            const auto close = qScopeGuard([&] { ::CloseHandle(locked); });
+            backend.extract(archive, output, {}, {}, options);
+            QTRY_COMPARE(finished.size(), 1);
+            const auto failure = finished.takeFirst();
+            QVERIFY(!failure[0].toBool());
+            const auto details = failure[1].toString();
+            QVERIFY2(details.contains("Cannot replace output file") &&
+                         details.contains(QFileInfo(target).fileName()),
+                     qPrintable(details));
+        }
+        QCOMPARE(readFile(target), QByteArray("old bytes"));
+        QCOMPARE(QDir(output).entryList(QDir::Files | QDir::Hidden),
+                 QStringList{QFileInfo(target).fileName()});
+        backend.extract(archive, output, {}, {}, options);
+        QTRY_COMPARE(finished.size(), 1);
+        QVERIFY(finished.takeFirst().first().toBool());
+        QCOMPARE(readFile(target), QByteArray("new bytes"));
+    }
+#endif
+
     void damagedEntryDoesNotReplaceExistingFile_data() {
         QTest::addColumn<bool>("readOnly");
         QTest::newRow("writable") << false;

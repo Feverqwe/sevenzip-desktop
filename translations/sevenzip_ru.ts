@@ -4828,6 +4828,7 @@ Are you sure you want to split archive into such volumes?</source>
             <source>Cannot open output file</source>
             <translation>Не удалось открыть выходной файл</translation>
         </message>
+        <message><source>Cannot replace output file</source><translation>Не удалось заменить файл назначения</translation></message>
         <message>
             <location line="+3" />
             <source>Cannot open input file</source>
