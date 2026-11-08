@@ -1,15 +1,52 @@
 #include "filemanager/panels/qtpaneladdresscombo.h"
 #include "filemanager/window/mainwindow.h"
-#include "filemanager/window/qtapppresentation.h"
 #include "filemanager/window/qtnavigationbar.h"
 #include "filemanager/window/qtwindowworkspace.h"
 #include <QTimer>
+
+void QtWindowWorkspace::RequestInitialFocus(unsigned index) {
+    // Source Create has already focused synchronous lists. Defer only when
+    // asynchronous startup publication kept its target disabled.
+    if (index < kNumPanelsMax && (window_.scanningPanelMask() & (1u << index)))
+        RequestListFocus(index);
+}
+
+void QtWindowWorkspace::RequestListFocus(unsigned index) {
+    if (index >= kNumPanelsMax || window_.app_.QtOperations().closed())
+        return;
+    CancelListFocus();
+    pendingListFocus_ = index;
+    CompleteListFocusIfReady();
+}
+
+void QtWindowWorkspace::CompleteListFocusIfReady() {
+    if (!pendingListFocus_ || !window_.isVisible() || window_.panelProjectionDepth_ ||
+        window_.app_.QtOperations().closed() || window_.app_.QtOperations().active())
+        return;
+    const unsigned index = *pendingListFocus_;
+    if (window_.scanningPanelMask() & (1u << index))
+        return;
+    CancelListFocus();
+    window_.activatePanelUi(index);
+    window_.app_.SetFocusedPanel(index);
+    window_.app_.Panels[index].SetFocusToList();
+    // Address FocusOut can occur while modal progress disables the pane.
+    // Finish its presentation only after the owning list-focus request is delivered.
+    if (window_.panelUi_[index].navigation)
+        window_.panelUi_[index].navigation->FinishEditing();
+    window_.app_.RefreshTitle(true);
+}
+
+void QtWindowWorkspace::CancelListFocus() {
+    pendingListFocus_.reset();
+    ++focusRequest_;
+}
 
 void QtWindowWorkspace::FocusListAfterLocationOpen(unsigned panel, quint64 interaction) {
     // The scan completion can still be inside a temporary panel projection.
     QTimer::singleShot(0, this, [this, panel, interaction] {
         if (window_.projectedPanel_ == panel && interactionRevision_ == interaction)
-            window_.appPresentation_->RequestListFocus(panel);
+            RequestListFocus(panel);
     });
 }
 
@@ -22,9 +59,7 @@ bool QtWindowWorkspace::eventFilter(QObject *object, QEvent *event) {
         // Answering a modal prompt continues the pending panel action.
         if (widget && (widget->window() == &window_ || window_.isAncestorOf(widget)) &&
             (!modal || (widget != modal && !modal->isAncestorOf(widget)))) {
-            if (window_.appPresentation_)
-                window_.appPresentation_->CancelInitialFocus();
-            ++focusRequest_;
+            CancelListFocus();
             ++interactionRevision_;
         }
     }
@@ -42,7 +77,8 @@ void QtWindowWorkspace::RetainListFocus(unsigned panel) {
 }
 
 void QtWindowWorkspace::RestoreAddressFocus(unsigned panel, const QtAddressDraft &draft) {
-    const auto request = ++focusRequest_;
+    CancelListFocus();
+    const auto request = focusRequest_;
     WhenReady([this, panel, draft, request] {
         auto &ui = window_.panelUi_[panel];
         if (focusRequest_ != request || window_.projectedPanel_ != panel ||

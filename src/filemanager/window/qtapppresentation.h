@@ -30,16 +30,11 @@ class QtAppPresentation final : public IQtAppPresentation {
     void RefreshCopyPanel(unsigned index);
     void CopySourceRefreshed(unsigned index);
     bool IsCopyPending() const { return copy_.has_value(); }
-    void RequestInitialFocus(unsigned index);
-    void RequestListFocus(unsigned index);
     void RestoreWidgetFocus(QWidget *widget);
-    void CompleteInitialFocusIfReady();
-    void CancelInitialFocus() { initialFocus_.reset(); }
 
   private:
     MainWindow &window_;
     QMenu *editMenu_ = nullptr;
-    std::optional<unsigned> initialFocus_;
     struct CopyContinuation {
         CopyContinuation(unsigned index, bool move, bool copyToSame, quint64 interaction)
             : source(index), interaction(interaction), refreshSource(move || copyToSame),

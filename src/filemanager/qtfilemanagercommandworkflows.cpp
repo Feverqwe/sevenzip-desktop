@@ -161,7 +161,7 @@ void QtFileManagerCommands::CreateFolder() {
 
     editor->OnCancel([this, index, finish] {
         finish();
-        window_.appPresentation_->RequestListFocus(index);
+        window_.workspace_->RequestListFocus(index);
     });
     const auto submit = [this, index, editor, finish](const QString &value, bool focusOwner) {
         auto &panel = window_.app_.Panels[index];
@@ -213,7 +213,7 @@ void QtFileManagerCommands::CreateFolder() {
                 window_.guiOutputRefresh_->Enqueue({destinationDirectory}, {}, int(index));
             }
             if (focusOwner)
-                window_.appPresentation_->RequestListFocus(index);
+                window_.workspace_->RequestListFocus(index);
             return;
         }
         editor->ShowError(detail.isEmpty() ? ToQString(HResultToMessage(result)) : detail,

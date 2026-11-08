@@ -3,7 +3,7 @@
 #include "archive/codecs/archivecodeccatalog.h"
 #include "filemanager/views/filetable.h"
 #include "filemanager/window/mainwindow.h"
-#include "filemanager/window/qtapppresentation.h"
+#include "filemanager/window/qtwindowworkspace.h"
 #include "filemanager/window/qtworkspaceapplication.h"
 #include "localization/LangUtils.h"
 #include "localization/qtlangcontrols.h"
@@ -166,7 +166,7 @@ HRESULT QtFileManagerDrag::ExecuteDrop(CDataObject *data, DWORD keys, const QPoi
             if (owner == &window_.app_.Panels[index]) {
                 window_.withPanelProjection(index,
                                             [&] { owner->RefreshListCtrl(*refreshSelection); });
-                window_.appPresentation_->RequestListFocus(index);
+                window_.workspace_->RequestListFocus(index);
                 break;
             }
     if (published && owner && owner->GetParentFolders().Size() == 1) {
@@ -209,7 +209,7 @@ std::optional<HRESULT> QtFileManagerDrag::HandleDroppedPathChoice(CDataObject *d
         if (result == S_OK) {
             // Opening never transfers ownership of the dropped item.
             effect = DROPEFFECT_COPY;
-            window_.appPresentation_->RequestListFocus(i);
+            window_.workspace_->RequestListFocus(i);
         } else {
             window_.activatePanelUi(previousPanel);
         }

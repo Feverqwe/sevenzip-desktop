@@ -47,6 +47,10 @@ class QtWindowWorkspace final : public QObject {
     bool CanRefreshPublishedArchives() const;
     bool CanRefreshPublishedOutput(unsigned panel) const;
     void RestoreViewPosition(CPanel &source, QAbstractItemView &view, const QPoint &position);
+    void RequestInitialFocus(unsigned panel);
+    void RequestListFocus(unsigned panel);
+    void CompleteListFocusIfReady();
+    void CancelListFocus();
     void RetainListFocus(unsigned panel);
     quint64 InteractionRevision() const { return interactionRevision_; }
     void RestoreAddressFocus(unsigned panel, const QtAddressDraft &draft);
@@ -164,6 +168,7 @@ class QtWindowWorkspace final : public QObject {
     QtFastFoldersStore *fastFolders_ = nullptr;
     QtNativePlaces *nativePlaces_ = nullptr;
     QtRecentPlacesStore *recentPlaces_ = nullptr;
+    std::optional<unsigned> pendingListFocus_;
     quint64 focusRequest_ = 0;
     quint64 interactionRevision_ = 0;
     std::array<std::unique_ptr<Navigation>, 2> navigation_;

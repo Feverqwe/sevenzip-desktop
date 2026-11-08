@@ -95,42 +95,10 @@ bool QtAppPresentation::CreatePanel(CPanel &panel, unsigned index) {
     return true;
 }
 
-void QtAppPresentation::RequestInitialFocus(unsigned index) {
-    // Source Create has already focused synchronous lists. Defer only when
-    // asynchronous startup publication kept its target disabled.
-    if (index < kNumPanelsMax && (window_.scanningPanelMask() & (1u << index)))
-        RequestListFocus(index);
-}
-
-void QtAppPresentation::RequestListFocus(unsigned index) {
-    if (index >= kNumPanelsMax || window_.app_.QtOperations().closed())
-        return;
-    initialFocus_ = index;
-    CompleteInitialFocusIfReady();
-}
-
 void QtAppPresentation::RestoreWidgetFocus(QWidget *widget) {
     if (!window_.app_.QtOperations().closed() && widget && widget->isVisible() &&
         widget->isEnabled() && !QApplication::activeModalWidget())
         widget->setFocus(Qt::OtherFocusReason);
-}
-
-void QtAppPresentation::CompleteInitialFocusIfReady() {
-    if (!initialFocus_ || !window_.isVisible() || window_.panelProjectionDepth_ ||
-        window_.app_.QtOperations().closed() || window_.app_.QtOperations().active())
-        return;
-    const unsigned index = *initialFocus_;
-    if (window_.scanningPanelMask() & (1u << index))
-        return;
-    initialFocus_.reset();
-    window_.activatePanelUi(index);
-    window_.app_.SetFocusedPanel(index);
-    window_.app_.Panels[index].SetFocusToList();
-    // Address FocusOut can occur while modal progress disables the pane.
-    // Finish its presentation only after the owning list-focus request is delivered.
-    if (window_.panelUi_[index].navigation)
-        window_.panelUi_[index].navigation->FinishEditing();
-    window_.app_.RefreshTitle(true);
 }
 
 CPanelCallback *QtAppPresentation::PanelCallback(unsigned) {

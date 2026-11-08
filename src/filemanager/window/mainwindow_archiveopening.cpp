@@ -55,7 +55,7 @@ HRESULT MainWindow::openArchiveAs(const QString &path, const QString &type) {
 HRESULT MainWindow::openArchiveAsImpl(const QString &path, const QString &type) {
     if (app_.QtOperations().closed())
         return E_ABORT;
-    appPresentation_->CancelInitialFocus();
+    workspace_->CancelListFocus();
     const QPointer<QWidget> focused = focusWidget();
     const auto restoreFocus = qScopeGuard([this, focused] {
         // Modal archive progress can clear Qt's remembered address focus.
@@ -272,7 +272,7 @@ HRESULT MainWindow::goParentImpl() {
     // Win32 keeps list focus while Parent refreshes its rows. Qt can clear it
     // when disabling that view; use the existing publication/input guard.
     if (restoreListFocus)
-        appPresentation_->RequestListFocus(panelIndex);
+        workspace_->RequestListFocus(panelIndex);
     else
         appPresentation_->RestoreWidgetFocus(focused);
     return result;

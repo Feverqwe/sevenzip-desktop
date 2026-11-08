@@ -123,13 +123,13 @@ void MainWindow::createFileManagerWindow(const QtFileManagerStartup *startup, bo
         activatePanelUi(focusedPanel);
     app_.SetFocusedPanel(focusedPanel);
     statusPanel_ = focusedPanel;
-    appPresentation_->RequestInitialFocus(focusedPanel);
+    workspace_->RequestInitialFocus(focusedPanel);
     if (layout())
         layout()->activate();
     workspace_->Refresh();
     panelSplitter_->Initialize(panelsDefined, splitterPos);
     QTimer::singleShot(0, this, [this] {
-        appPresentation_->CompleteInitialFocusIfReady();
+        workspace_->CompleteListFocusIfReady();
         panelSplitter_->UpdateSourceLayout();
     });
     autoRefreshTimer_ = new QTimer(this);

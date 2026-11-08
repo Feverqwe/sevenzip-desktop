@@ -74,7 +74,7 @@ void MainWindow::refreshActions() {
         projectedUi().iconList->setDragEnabled(dragAvailable);
     }
     if (appPresentation_ && !panelProjectionDepth_) {
-        appPresentation_->CompleteInitialFocusIfReady();
+        workspace_->CompleteListFocusIfReady();
         appPresentation_->CompleteCopyIfReady();
     }
     if (workspace_)

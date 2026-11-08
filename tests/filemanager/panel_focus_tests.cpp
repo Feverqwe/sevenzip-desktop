@@ -74,8 +74,17 @@ class PanelFocusTests : public QObject, protected MainWindowTestSupport {
             QCOMPARE(visible->selectionModel()->selectedRows().front().data().toString(),
                      QString("selected"));
         }
-        files->setFocus();
-        QTest::keySequence(files, action(window, "openItemAction")->shortcut());
+        if (addressFocused) {
+            files->setFocus();
+        } else {
+            QVERIFY(QDir().mkpath(fixture.filePath("left/added")));
+            QTest::keySequence(window.focusWidget(), action(window, "refreshAction")->shortcut());
+            QTRY_VERIFY(rowInLeftPane("added") >= 0);
+            QTRY_VERIFY(files->isEnabled() && files->hasFocus());
+            QCOMPARE(files->currentIndex().siblingAtColumn(0).data().toString(),
+                     QString("selected"));
+        }
+        QTest::keySequence(window.focusWidget(), action(window, "openItemAction")->shortcut());
         QTRY_VERIFY(rowInLeftPane("inside") >= 0);
         QCOMPARE(peerAddress->text(), QFileInfo(fixture.filePath("right")).canonicalFilePath());
     }

@@ -71,7 +71,7 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
         // the focused panel's View menu. Reuse command gating after activation.
         connect(up_, &QAction::changed, button, updateButton);
         connect(button, &QPushButton::clicked, this, [this, index] {
-            appPresentation_->CancelInitialFocus();
+            workspace_->CancelListFocus();
             activatePanelUi(index);
             if (projectedPanel_ == index)
                 app_.ExecuteCommand(IDM_OPEN_PARENT_FOLDER);
@@ -108,12 +108,11 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
                                             restored->Restore(*owner.path);
                                             if (projectedPanel_ == index) {
                                                 combo->CancelPendingListFocus();
-                                                appPresentation_->CancelInitialFocus();
                                                 workspace_->RestoreAddressFocus(index, *restored);
                                             }
                                         });
         },
-        central, [this, index] { appPresentation_->RequestListFocus(index); });
+        central, [this, index] { workspace_->RequestListFocus(index); });
     projectedUi().pathCombo->setObjectName("pathCombo");
     projectedUi().pathCombo->setEditable(true);
     projectedUi().pathCombo->setInsertPolicy(QComboBox::NoInsert);
@@ -129,7 +128,7 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
     projectedUi().navigation = new QtNavigationBar(
         *projectedUi().pathCombo,
         [this, index](const QString &path) {
-            appPresentation_->CancelInitialFocus();
+            workspace_->CancelListFocus();
             activatePanelUi(index);
             if (projectedPanel_ != index)
                 return;
@@ -137,12 +136,12 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
             const bool current = !projectedUi().locationUnavailable && panel.GetFolder() &&
                                  path == ToQString(panel.GetCurrentFolderPrefix());
             if (current || navigateTo(path, true) == S_OK)
-                appPresentation_->RequestListFocus(index);
+                workspace_->RequestListFocus(index);
         },
         navigationRow,
         [this, index] {
             static_cast<QtPanelAddressCombo *>(panelUi_[index].pathCombo)->CancelPendingListFocus();
-            appPresentation_->CancelInitialFocus();
+            workspace_->CancelListFocus();
             activatePanelUi(index);
         });
     projectedUi().navigation->setObjectName(QStringLiteral("panelNavigation%1").arg(index));
