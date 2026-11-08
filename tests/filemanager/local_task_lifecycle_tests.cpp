@@ -47,18 +47,21 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
     }
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
-    void copyPublishesDestinationWithoutAutoRefresh_data() {
+    void transferPublishesChangesWithoutAutoRefresh_data() {
         QTest::addColumn<bool>("linkedDestination");
         QTest::addColumn<bool>("viaClipboard");
-        QTest::newRow("copy-command") << false << false;
-        QTest::newRow("clipboard-directory") << false << true;
+        QTest::addColumn<bool>("move");
+        QTest::newRow("copy-command") << false << false << false;
+        QTest::newRow("move-command") << false << false << true;
+        QTest::newRow("clipboard-directory") << false << true << false;
 #ifdef Q_OS_UNIX
-        QTest::newRow("clipboard-directory-symlink") << true << true;
+        QTest::newRow("clipboard-directory-symlink") << true << true << false;
 #endif
     }
-    void copyPublishesDestinationWithoutAutoRefresh() {
+    void transferPublishesChangesWithoutAutoRefresh() {
         QFETCH(bool, linkedDestination);
         QFETCH(bool, viaClipboard);
+        QFETCH(bool, move);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString source = fixture.filePath(QStringLiteral("source 空.txt"));
@@ -72,7 +75,7 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
             QVERIFY(QFileInfo(opened).isSymLink());
         }
         QtWorkspaceApplication application(*qApp);
-        ControlledBackend backend, observerBackend;
+        ControlledBackend backend, observerBackend, sourceObserverBackend;
         MainWindow window(&backend), observer(&observerBackend);
         observer.show();
         observer.openPath(destination);
@@ -88,6 +91,15 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
                      opened);
         }
         observed->sourcePanel->Set_AutoRefresh_Mode(false);
+        const QString name = QFileInfo(source).fileName();
+        std::unique_ptr<MainWindow> sourceObserver;
+        if (move) {
+            sourceObserver = std::make_unique<MainWindow>(&sourceObserverBackend);
+            sourceObserver->show();
+            sourceObserver->openPath(fixture.path());
+            QTRY_VERIFY(filesystemRow(*sourceObserver, name) >= 0);
+            table(*sourceObserver)->sourcePanel->Set_AutoRefresh_Mode(false);
+        }
         window.show();
         window.openPath(viaClipboard ? opened : fixture.path());
         auto *view = table(window);
@@ -96,7 +108,6 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         view->setFocus();
         QCOMPARE(window.focusWidget(), view);
         view->sourcePanel->Set_AutoRefresh_Mode(false);
-        const QString name = QFileInfo(source).fileName();
         if (viaClipboard) {
             auto *mime = new QMimeData;
             mime->setUrls({QUrl::fromLocalFile(source)});
@@ -123,12 +134,17 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
                 dialog->accept();
             });
             submit.start(1);
-            action(window, "copyAction")->trigger();
+            action(window, move ? "moveAction" : "copyAction")->trigger();
         }
-        QTRY_VERIFY(filesystemRow(window, name) >= 0);
         QTRY_VERIFY(filesystemRow(observer, name) >= 0);
+        QTRY_COMPARE(filesystemRow(window, name) >= 0, !move);
+        if (sourceObserver)
+            QTRY_COMPARE(filesystemRow(*sourceObserver, name), -1);
         QCOMPARE(read(QDir(destination).filePath(name)), QByteArray("source bytes"));
-        QCOMPARE(read(source), QByteArray("source bytes"));
+        if (move)
+            QVERIFY(!QFileInfo::exists(source));
+        else
+            QCOMPARE(read(source), QByteArray("source bytes"));
         if (linkedDestination)
             QVERIFY(QFileInfo(opened).isSymLink());
         if (viaClipboard)
