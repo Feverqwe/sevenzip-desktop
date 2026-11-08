@@ -408,6 +408,7 @@
     target_link_libraries(panel_key_tests PRIVATE Qt6::Widgets Qt6::Test sevenzip_common)
     add_test(NAME panel_key COMMAND panel_key_tests -silent)
     add_test(NAME panel_key_quick COMMAND panel_key_tests -silent
+        typingAndEnterOpenTheMatchingFolder
         typingFindsTheNameFromAnotherColumn
         shiftSelectionDoesNotIncludeFollowingUnmodifiedMove
         archiveOpenDisablesBothPanelAddresses

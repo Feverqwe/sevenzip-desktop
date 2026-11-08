@@ -17,6 +17,40 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
 
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
+    void typingAndEnterOpenTheMatchingFolder_data() {
+        QTest::addColumn<int>("mode");
+        QTest::newRow("details") << 3;
+        QTest::newRow("icons") << 0;
+    }
+    void typingAndEnterOpenTheMatchingFolder() {
+        QFETCH(int, mode);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString expected = fixture.filePath(QStringLiteral("Журнал"));
+        QVERIFY(QDir().mkdir(fixture.filePath("alpha")));
+        QVERIFY(QDir().mkdir(expected));
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(fixture.path());
+        auto *view = window.findChild<FileTable *>("archiveTable");
+        QTRY_VERIFY(filesystemRow(window, "alpha") >= 0);
+        auto *viewMode = action(window, qPrintable(QString("viewMode%1Action").arg(mode)));
+        viewMode->trigger();
+        auto *active = mode == 3 ? static_cast<QAbstractItemView *>(view)
+                                 : window.findChild<QListView *>("iconList");
+        active->setFocus();
+        QTRY_VERIFY(active->hasFocus());
+        const int row = filesystemRow(window, "alpha");
+        view->setCurrentCell(row, 0);
+        view->selectRow(row);
+        QKeyEvent letter(QEvent::KeyPress, 0, Qt::NoModifier, QStringLiteral("ж"));
+        QApplication::sendEvent(active, &letter);
+        PanelKeys::openSelection(active);
+        QTRY_COMPARE(QDir::cleanPath(ToQString(view->sourcePanel->GetCurrentFolderPrefix())),
+                     expected);
+        QTRY_VERIFY(active->hasFocus());
+    }
     void typingFindsTheNameFromAnotherColumn_data() {
         QTest::addColumn<bool>("matches");
         QTest::newRow("cyrillic-match") << true;
