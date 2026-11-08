@@ -2795,7 +2795,7 @@ Z7_COM7F_IMF(CArchiveExtractCallback::SetOperationResult(Int32 opRes)) {
     if (_replacementFile) {
         if (opRes == NArchive::NExtract::NOperationResult::kOK &&
             _diskFilePath == _replacementFile->GetPath()) {
-            if (!MyPublishFile_with_Progress(_diskFilePath, _replacementPath, nullptr, true)) {
+            if (!MyPublishExtractedReplacement(_diskFilePath, _replacementPath)) {
                 RINOK(SendMessageError_with_LastError(kCantOpenOutFile, _replacementPath))
                 return E_FAIL;
             }

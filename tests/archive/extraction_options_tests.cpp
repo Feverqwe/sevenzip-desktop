@@ -425,7 +425,13 @@ class ExtractionOptionsTests : public QObject {
         }
     }
 
+    void damagedEntryDoesNotReplaceExistingFile_data() {
+        QTest::addColumn<bool>("readOnly");
+        QTest::newRow("writable") << false;
+        QTest::newRow("read-only") << true;
+    }
     void damagedEntryDoesNotReplaceExistingFile() {
+        QFETCH(bool, readOnly);
         QTemporaryDir temp;
         QVERIFY(temp.isValid());
         const auto clean = temp.filePath("clean.zip");
@@ -443,6 +449,9 @@ class ExtractionOptionsTests : public QObject {
         writeFile(damaged, bytes);
         QVERIFY(QDir().mkpath(output));
         writeFile(target, "original bytes");
+        if (readOnly)
+            QVERIFY(QFile::setPermissions(target, QFile::ReadOwner | QFile::ReadUser));
+        const auto permissions = QFile::permissions(target);
 
         ArchiveBackend backend;
         ExtractionOptions options;
@@ -454,6 +463,7 @@ class ExtractionOptionsTests : public QObject {
         QTRY_COMPARE_WITH_TIMEOUT(finished.size(), 1, 30000);
         QVERIFY(!finished.takeFirst().first().toBool());
         QCOMPARE(readFile(target), QByteArray("original bytes"));
+        QCOMPARE(QFile::permissions(target), permissions);
         QCOMPARE(readFile(QDir(output).filePath("a.txt")), good);
         QCOMPARE(QDir(output).entryList(QDir::Files | QDir::Hidden).size(), 2);
 

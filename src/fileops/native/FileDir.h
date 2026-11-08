@@ -82,6 +82,7 @@ bool MyMoveFile_NoReplace(CFSTR oldFile, CFSTR newFile);
 // published records replacement even if later temporary-file cleanup fails.
 bool MyPublishFile_with_Progress(CFSTR oldFile, CFSTR newFile, ICopyFileProgress *progress,
                                  bool replaceExisting, bool *published = nullptr);
+bool MyPublishExtractedReplacement(CFSTR stagedFile, CFSTR destination);
 
 #ifndef UNDER_CE
 bool MyCreateHardLink(CFSTR newFileName, CFSTR existFileName);

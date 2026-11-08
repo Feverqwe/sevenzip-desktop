@@ -35,7 +35,10 @@ namespace NFile {
 namespace NDir {
 
 #ifdef _WIN32
-static bool PublishOverOpenFile(CFSTR oldFile, CFSTR newFile) {
+// FileRenameInformationEx flag documented by MS-FSCC. winbase.h omits its name.
+static constexpr DWORD kIgnoreReadOnlyAttribute = 0x00000040;
+
+static bool PublishOverOpenFile(CFSTR oldFile, CFSTR newFile, bool replaceReadOnly) {
     DWORD error = ERROR_ACCESS_DENIED;
     const auto restoreError = qScopeGuard([&] { ::SetLastError(error); });
     NIO::CInFile source;
@@ -54,6 +57,8 @@ static bool PublishOverOpenFile(CFSTR oldFile, CFSTR newFile) {
     const auto storage = std::make_unique<BYTE[]>(bytes);
     auto *info = reinterpret_cast<FILE_RENAME_INFO *>(storage.get());
     info->Flags = FILE_RENAME_FLAG_REPLACE_IF_EXISTS | FILE_RENAME_FLAG_POSIX_SEMANTICS;
+    if (replaceReadOnly)
+        info->Flags |= kIgnoreReadOnlyAttribute;
     info->FileNameLength = path.Len() * sizeof(wchar_t);
     memcpy(info->FileName, path.Ptr(), info->FileNameLength);
     // The old read generation remains valid; subsequent opens see the new one.
@@ -64,7 +69,8 @@ static bool PublishOverOpenFile(CFSTR oldFile, CFSTR newFile) {
 }
 #endif
 
-static bool AtomicPublish(CFSTR oldFile, CFSTR newFile, bool replaceExisting) {
+static bool AtomicPublish(CFSTR oldFile, CFSTR newFile, bool replaceExisting,
+                          [[maybe_unused]] bool replaceReadOnly = false) {
 #ifdef _WIN32
     const DWORD flags = replaceExisting ? MOVEFILE_REPLACE_EXISTING : 0;
     IF_USE_MAIN_PATH_2(oldFile, newFile) {
@@ -80,7 +86,7 @@ static bool AtomicPublish(CFSTR oldFile, CFSTR newFile, bool replaceExisting) {
     }
 #endif
     if (replaceExisting && ::GetLastError() == ERROR_ACCESS_DENIED)
-        return PublishOverOpenFile(oldFile, newFile);
+        return PublishOverOpenFile(oldFile, newFile, replaceReadOnly);
     return false;
 #elif defined(__APPLE__)
     return renamex_np(oldFile, newFile, replaceExisting ? 0 : RENAME_EXCL) == 0;
@@ -89,6 +95,10 @@ static bool AtomicPublish(CFSTR oldFile, CFSTR newFile, bool replaceExisting) {
                 ? rename(oldFile, newFile)
                 : renameat2(AT_FDCWD, oldFile, AT_FDCWD, newFile, RENAME_NOREPLACE)) == 0;
 #endif
+}
+
+bool MyPublishExtractedReplacement(CFSTR stagedFile, CFSTR destination) {
+    return AtomicPublish(stagedFile, destination, true, true);
 }
 
 bool MyPublishFile_with_Progress(CFSTR oldFile, CFSTR newFile, ICopyFileProgress *progress,
