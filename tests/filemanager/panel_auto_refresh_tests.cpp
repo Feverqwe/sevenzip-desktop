@@ -492,7 +492,13 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         QCOMPARE(address->selectedText(), QStringLiteral("finis"));
     }
 
+    void missingFolderClearsStaleRowsAndRecovers_data() {
+        QTest::addColumn<bool>("automatic");
+        QTest::newRow("automatic") << true;
+        QTest::newRow("manual") << false;
+    }
     void missingFolderClearsStaleRowsAndRecovers() {
+        QFETCH(bool, automatic);
         QTemporaryDir temp;
         QVERIFY(temp.isValid());
         const QString folder = temp.filePath(QStringLiteral("browse"));
@@ -503,19 +509,27 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         MainWindow window;
         window.show();
         QCOMPARE(table(window)->rowCount(), 1);
+        table(window)->sourcePanel->Set_AutoRefresh_Mode(automatic);
         QVERIFY(QDir::setCurrent(temp.path()));
         QVERIFY(QFile::remove(folder + QStringLiteral("/old.txt")));
         bool removed = false;
         QTRY_VERIFY_WITH_TIMEOUT(removed || (removed = QDir().rmdir(folder)), 2000);
+        if (!automatic)
+            action(window, "refreshAction")->trigger();
         QTRY_COMPARE_WITH_TIMEOUT(table(window)->rowCount(), 0, 3500);
         QVERIFY(window.statusBar()->currentMessage().contains(QStringLiteral("Folder not found")));
 
         QVERIFY(QDir().mkpath(folder));
         QVERIFY(writeFile(folder + QStringLiteral("/new.txt")));
+        if (!automatic)
+            action(window, "refreshAction")->trigger();
         QTRY_COMPARE_WITH_TIMEOUT(table(window)->rowCount(), 1, 3500);
         QCOMPARE(table(window)->model()->index(0, 0).data().toString(), QStringLiteral("new.txt"));
+        QVERIFY(window.statusBar()->currentMessage().isEmpty());
         const QByteArray changed("changed after the folder came back");
         QVERIFY(writeFile(folder + "/new.txt", changed));
+        if (!automatic)
+            action(window, "refreshAction")->trigger();
         QTRY_COMPARE_WITH_TIMEOUT(
             table(window)->model()->index(0, 2).data(Qt::UserRole + 2).toLongLong(),
             qint64(changed.size()), 3500);

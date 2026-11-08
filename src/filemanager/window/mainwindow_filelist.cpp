@@ -21,14 +21,16 @@ HRESULT MainWindow::showDirectory(const QString &path, bool remember, bool sourc
         return E_FAIL;
     }
     const QString next = info.canonicalFilePath();
-    if (projectedUi().state != State::Filesystem || projectedUi().directory != next)
+    auto &snapshot = panelUi_[projectedPanel_].autoRefreshSnapshot;
+    const auto previous = snapshot.constFind(next);
+    if (projectedUi().state != State::Filesystem || projectedUi().directory != next ||
+        (previous != snapshot.cend() && !previous->directory))
         clearStatusMessage();
     Q_UNUSED(remember);
     cancelListPublication();
     if (!sourceAlreadyBound)
         app_.GetFocusedPanel().CloseOpenFolders();
     projectedUi().directory = next;
-    auto &snapshot = panelUi_[projectedPanel_].autoRefreshSnapshot;
     snapshot.clear();
     snapshot.insert(projectedUi().directory, filesystemSignature(projectedUi().directory));
     projectedUi().archive.clear();

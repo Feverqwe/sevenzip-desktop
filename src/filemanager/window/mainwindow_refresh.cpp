@@ -52,18 +52,6 @@ HRESULT MainWindow::reloadProjectedPanel(const CSelectedState &selection) {
             restoreListSelection(selection);
         return loaded;
     }
-    if (!QFileInfo(projectedUi().directory).isDir()) {
-        const HRESULT loaded = app_.GetFocusedPanel().LoadListItems();
-        auto &snapshot = panelUi_[projectedPanel_].autoRefreshSnapshot;
-        snapshot.clear();
-        snapshot.insert(projectedUi().directory, filesystemSignature(projectedUi().directory));
-        projectedUi().table->clearSelection();
-        projectedUi().table->clearRows();
-        showStatusMessage(QCoreApplication::translate("mainwindow_refresh", "Folder not found: ") +
-                          projectedUi().directory);
-        refreshActions();
-        return loaded;
-    }
     if (!selection.KeepViewport)
         return refreshFilesystem(selection, true);
     return refreshFilesystem(selection, true, captureListViewport());
@@ -98,6 +86,20 @@ MainWindow::ListViewport MainWindow::captureListViewport() {
 
 HRESULT MainWindow::refreshFilesystem(const CSelectedState &selection, bool sourceAlreadyBound,
                                       std::optional<ListViewport> viewport) {
+    const QString directory = projectedUi().directory;
+    const auto signature = filesystemSignature(directory);
+    if (!signature.directory) {
+        const HRESULT loaded = app_.GetFocusedPanel().LoadListItems();
+        auto &snapshot = projectedUi().autoRefreshSnapshot;
+        snapshot.clear();
+        snapshot.insert(directory, signature);
+        projectedUi().table->clearSelection();
+        projectedUi().table->clearRows();
+        showStatusMessage(QCoreApplication::translate("mainwindow_refresh", "Folder not found: ") +
+                          directory);
+        refreshActions();
+        return loaded;
+    }
     const HRESULT loaded = showDirectory(projectedUi().directory, false, sourceAlreadyBound,
                                          !selection.PreserveAddress && !reloadingFileListSettings_);
     if (loaded != S_OK)
