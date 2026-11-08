@@ -17,6 +17,7 @@
         outsidePeerStillRefreshesDestination:1-0-overwrite-cancel
         outsidePeerStillRefreshesDestination:overwrite-cancel-move
         outsidePeerStillRefreshesDestination:overwrite-skip-move
+        outsidePeerStillRefreshesDestination:overwrite-skip-copy
         outsidePeerStillRefreshesDestination:missing-copy
         outsidePeerStillRefreshesDestination:missing-move
         outsidePeerStillRefreshesDestination:relative-copy

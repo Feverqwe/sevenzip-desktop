@@ -61,8 +61,7 @@ void MainWindow::transferFiles(const QStringList &sources, const QString &destin
     if (transferOutput)
         connect(task, &QtLocalFileTask::transferOutput, task, std::move(transferOutput));
     connect(task, &QtLocalFileTask::finished, this,
-            [this, task, move, owner](bool success, bool canceled, const QString &message,
-                                      bool partial) {
+            [this, task, owner](bool success, bool canceled, const QString &message, bool partial) {
                 if (app_.QtOperations().closed())
                     return;
                 const QPointer<MainWindow> guard(this);
@@ -77,8 +76,7 @@ void MainWindow::transferFiles(const QStringList &sources, const QString &destin
                 if (projectedPanel_ != owner)
                     app_.QtOperations().End();
                 withPanelProjection(owner, [this] { setState(State::Filesystem); });
-                appPresentation_->CopyFinished(!success || (move && partial),
-                                               !success && !canceled);
+                appPresentation_->CopyFinished(!success || partial, !success && !canceled);
                 if (success && guard)
                     statusStrip_->SetMessage(&app_.Panels[owner], message);
             });

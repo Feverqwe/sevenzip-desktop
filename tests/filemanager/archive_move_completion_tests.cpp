@@ -44,6 +44,8 @@ class ArchiveMoveCompletionTests final : public QObject, protected MainWindowTes
         QTest::newRow("overwrite-escape") << false << QString("escape") << QString("zip") << false;
         QTest::newRow("copy-overwrite-escape")
             << false << QString("copy-escape") << QString("zip") << false;
+        QTest::newRow("copy-directory-no")
+            << true << QString("copy-overwriteNo") << QString("zip") << false;
         QTest::newRow("host-and-stream-overwrite-yes")
             << false << QString("overwriteYes") << QString("wim") << false;
         QTest::newRow("directory-streams-overwrite-yes")
@@ -54,7 +56,7 @@ class ArchiveMoveCompletionTests final : public QObject, protected MainWindowTes
         QFETCH(QString, answer);
         const bool noToAll = answer == "overwriteNoAll";
         const bool accept = answer == "overwriteYes";
-        const bool copy = answer == "copy-escape";
+        const bool copy = answer.startsWith("copy-");
         QFETCH(QString, format);
         QFETCH(bool, lateFailure);
         const bool streams = format == "wim";
@@ -201,7 +203,7 @@ class ArchiveMoveCompletionTests final : public QObject, protected MainWindowTes
                 else if (answer.endsWith("escape"))
                     QTest::keyClick(overwrite, Qt::Key_Escape);
                 else
-                    overwrite->findChild<QPushButton *>(answer)->click();
+                    ReplyOverwrite(*overwrite, accept ? IDYES : IDNO);
             } else if (auto *confirmation = dynamic_cast<QtDeleteConfirmation *>(modal)) {
                 deletionAsked = true;
                 ReplyDelete(*confirmation);
@@ -242,6 +244,9 @@ class ArchiveMoveCompletionTests final : public QObject, protected MainWindowTes
             QVERIFY2(window.statusBar()->currentMessage().contains("Check the source archive"),
                      qPrintable(window.statusBar()->currentMessage()));
             QVERIFY(runtime.clear());
+        } else if (copy && directory) {
+            QVERIFY(errors.join('\n').contains(collision));
+            QVERIFY(errors.join('\n').contains(secondCollision));
         } else
             QVERIFY2(errors.isEmpty(), qPrintable(errors.join('\n')));
         QCOMPARE(overwriteQuestions, expectedQuestions);

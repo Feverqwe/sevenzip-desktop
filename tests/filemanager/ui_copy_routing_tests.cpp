@@ -202,6 +202,7 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         QTest::newRow("new-batch-folder") << 0u << false << QString("new-batch-folder");
         QTest::newRow("overwrite-cancel-move") << 0u << false << QString("overwrite-cancel-move");
         QTest::newRow("overwrite-skip-move") << 0u << false << QString("overwrite-skip-move");
+        QTest::newRow("overwrite-skip-copy") << 0u << false << QString("overwrite-skip-copy");
         QTest::newRow("missing-copy") << 0u << false << QString("missing-copy");
         QTest::newRow("missing-move") << 1u << false << QString("missing-move");
         QTest::newRow("link-copy") << 0u << false << QString("link-copy");
@@ -211,7 +212,7 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         QFETCH(bool, large);
         QFETCH(QString, outcome);
         const bool cancel = outcome == "dialog-cancel";
-        const bool skip = outcome == "overwrite-skip-move";
+        const bool skip = outcome.startsWith("overwrite-skip-");
         const bool cancelBatchMove = outcome == "overwrite-cancel-move";
         const bool missing = outcome.startsWith("missing-");
         const bool overwrite = skip || outcome.startsWith("overwrite-cancel");
@@ -334,7 +335,8 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
         if (cancel || overwrite || missing) {
             QTRY_COMPARE(window.focusWidget(), sourceView);
-            QCOMPARE(sourceView->selectionModel()->selectedRows().size(), cancelBatchMove ? 2 : 1);
+            QCOMPARE(sourceView->selectionModel()->selectedRows().size(),
+                     cancelBatchMove || (skip && !move) ? 2 : 1);
             QVERIFY(sourceView->selectionModel()->isRowSelected(row(*sourceView, name), {}));
         }
         QTRY_COMPARE_WITH_TIMEOUT(peerView->rowCount(), originalRows + (cancel ? 0 : 1), 1000);
@@ -350,7 +352,7 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
             QVERIFY(!QFileInfo::exists(QDir(output).filePath(other)));
         }
         if (skip) {
-            QVERIFY(!QFileInfo::exists(QDir(input).filePath(other)));
+            QCOMPARE(QFileInfo::exists(QDir(input).filePath(other)), !move);
             QCOMPARE(read(QDir(output).filePath(other)), QByteArray("move these bytes"));
         }
         if (cancelBatchMove) {
