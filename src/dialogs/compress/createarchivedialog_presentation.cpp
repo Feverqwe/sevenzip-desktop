@@ -190,9 +190,10 @@ void CreateArchiveDialog::createArchiveForm(QVBoxLayout *layout, QVBoxLayout *wi
                 ToUString(QCoreApplication::translate("ArchiveRedesign", "Destination folder")),
                 ToUString(initial), folder)) {
             archiveFolder_->setText(QDir::toNativeSeparators(ToQString(folder)));
-            if (directoryDraft)
+            if (directoryDraft) {
                 name_->clear();
-            else if (nameIncludesPath) {
+                name_->setFocus();
+            } else if (nameIncludesPath) {
                 const QString filename =
                     resolved.isEmpty()
                         ? QFileInfo(QDir::fromNativeSeparators(ToQString(draft))).fileName()

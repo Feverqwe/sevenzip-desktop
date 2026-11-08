@@ -676,6 +676,7 @@ class CompressionPathTests final : public QObject {
                                                                           : draft;
         name->setText(entered);
         dialog.show();
+        auto *browse = dialog.findChild<QPushButton *>("archiveBrowse");
         for (bool accept : {false, true}) {
             const QString previousFolder = folder->text();
             bool observed = false;
@@ -711,7 +712,8 @@ class CompressionPathTests final : public QObject {
                 }
             });
             answer.start(1);
-            dialog.findChild<QPushButton *>("archiveBrowse")->click();
+            browse->setFocus();
+            browse->click();
             answer.stop();
             QVERIFY(observed);
             QCOMPARE(name->text(), accept ? (directoryDraft ? QString() : draft) : entered);
@@ -722,11 +724,15 @@ class CompressionPathTests final : public QObject {
             else
                 QCOMPARE(folder->text(), previousFolder);
         }
-        if (directoryDraft)
-            name->setText(draft);
+        const QString expectedName = directoryDraft ? QStringLiteral("archive.7z") : draft;
+        if (directoryDraft) {
+            QTRY_COMPARE(dialog.focusWidget(), name->focusProxy() ? name->focusProxy() : name);
+            QTest::keyClicks(dialog.focusWidget(), expectedName);
+            QCOMPARE(name->text(), expectedName);
+        }
         submit(dialog);
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
-        QCOMPARE(QDir::fromNativeSeparators(dialog.target()), destination.filePath(draft));
+        QCOMPARE(QDir::fromNativeSeparators(dialog.target()), destination.filePath(expectedName));
     }
     void emptyDestinationKeepsInitialPrefixForBrowseAndAccept() {
         QTemporaryDir fixture;
