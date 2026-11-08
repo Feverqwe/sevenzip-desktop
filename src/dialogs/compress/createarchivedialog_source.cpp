@@ -151,11 +151,15 @@ void CreateArchiveDialog::validateAndAccept() {
                                 target.isDir() || danglingTarget
                             ? InvalidArchivePath()
                             : ArchiveDirectoryError(target.absolutePath());
+    if (danglingTarget)
+        pathError += '\n' + QDir::toNativeSeparators(resolved);
     if (pathError.isEmpty() && singleVolume && target.exists()) {
         NWindows::NFile::NFind::CFileInfo existing;
         const UString nativePath(QDir::toNativeSeparators(resolved).toStdWString().c_str());
         if (existing.Find_FollowLink(us2fs(nativePath)) && existing.IsReadOnly())
-            pathError = QCoreApplication::translate("SevenZipDiagnostics", "The file is read-only");
+            pathError =
+                QCoreApplication::translate("SevenZipDiagnostics", "The file is read-only") + '\n' +
+                QDir::toNativeSeparators(resolved);
     }
     if (pathError.isEmpty() && !singleVolume) {
         CArchivePath volumes;

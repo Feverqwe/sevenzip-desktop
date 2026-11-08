@@ -558,15 +558,16 @@ class CompressionPathTests final : public QObject {
         auto *name = dialog.findChild<QLineEdit *>("archiveName");
         name->setText("old.7z");
         dialog.show();
-        bool refused = false;
+        QString diagnostic;
         QTimer::singleShot(0, &dialog, [&] {
             if (auto *warning = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
-                refused = true;
+                diagnostic = warning->text();
                 warning->accept();
             }
         });
         submit(dialog);
-        QVERIFY(refused && dialog.isVisible());
+        QVERIFY(dialog.isVisible());
+        QVERIFY2(diagnostic.contains(QDir::toNativeSeparators(occupied)), qPrintable(diagnostic));
         QCOMPARE(name->text(), QString("old.7z"));
         name->setText("new.7z");
         submit(dialog);
