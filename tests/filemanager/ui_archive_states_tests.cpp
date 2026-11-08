@@ -10,6 +10,7 @@
 #include "settings/ViewSettings.h"
 #include "support/panel_keys.h"
 #include "support/progress_dialog.h"
+#include "support/window_activation.h"
 #include "ui/progress/ProgressDialog2.h"
 #include "ui/progress/qtprogresscontrols.h"
 #include "ui/support/address_popup_support.h"
@@ -47,6 +48,9 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
         window.openArchive(archive);
         QTRY_VERIFY(rowWithPath(window, "outside.txt") >= 0);
         auto *view = table(window);
+        QVERIFY(WindowActivation::waitForActive(window));
+        view->setFocus();
+        QCOMPARE(window.focusWidget(), view);
         const auto *test = action(window, "testArchiveAction");
         QVERIFY(test->isEnabled());
 
@@ -65,6 +69,7 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
         QCOMPARE(reports.size(), 1);
         QVERIFY(reports.last().contains("Scope: selected items"));
         QVERIFY(reports.last().contains("outside.txt"));
+        QTRY_COMPARE(window.focusWidget(), view);
 
         view->clearSelection();
         window.testArchive();

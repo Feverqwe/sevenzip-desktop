@@ -31,6 +31,7 @@ void MainWindow::refreshActions() {
         QScopedValueRollback<unsigned> projection(panelProjectionDepth_, panelProjectionDepth_ + 1);
         app_.RefreshTitle();
         const bool navigating = !app_.QtOperations().closed() && !app_.QtOperations().blocking();
+        const bool operating = app_.QtOperations().kind() == QtAppOperationState::Kind::Operation;
         const bool idle =
             navigating && !projectedUi().scanningDisk && !projectedUi().scanningArchive;
         refreshBookmarks();
@@ -49,7 +50,7 @@ void MainWindow::refreshActions() {
             const bool projecting = ui.scanningDisk || ui.scanningArchive;
             const bool panelIdle = navigating && !projecting && !ui.locationUnavailable;
             QWidget *focused = QApplication::focusWidget();
-            if ((projecting || (fileTask_ && !navigating)) && focused &&
+            if ((projecting || operating) && focused &&
                 (ui.table == focused || ui.table->isAncestorOf(focused) || ui.iconList == focused ||
                  ui.iconList->isAncestorOf(focused)))
                 workspace_->RetainListFocus(index);
