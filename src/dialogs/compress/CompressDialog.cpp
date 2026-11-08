@@ -474,6 +474,15 @@ bool CCompressDialog::GetFinalPath_Smart(QString &resPath) const {
     UString dirPrefx(DirPrefix.toStdWString().c_str());
     if (dirPrefx.IsEmpty())
         dirPrefx = StartDirPrefix.toStdWString().c_str();
+    else if (NWindows::NFile::NName::GetRootPrefixSize(dirPrefx) == 0 &&
+             NWindows::NFile::NName::GetRootPrefixSize(name) == 0) {
+        const UString start(StartDirPrefix.toStdWString().c_str());
+        FString directory;
+        if (!NWindows::NFile::NName::GetFullPath(start.IsEmpty() ? nullptr : us2fs(start).Ptr(),
+                                                 us2fs(dirPrefx), directory))
+            return false;
+        dirPrefx = fs2us(directory);
+    }
     const bool res =
         !dirPrefx.IsEmpty()
             ? NWindows::NFile::NName::GetFullPath(us2fs(dirPrefx), us2fs(name), fullPath)

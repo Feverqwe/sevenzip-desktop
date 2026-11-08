@@ -399,6 +399,25 @@ class CompressionPathTests final : public QObject {
                  QDir(folder).filePath(QStringLiteral("данные.7z")));
         QVERIFY(!QFileInfo::exists(folder));
     }
+    void relativeDestinationUsesTheDialogsInitialFolder() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString initial = fixture.filePath("initial");
+        QVERIFY(QDir().mkpath(initial));
+        const QString destination = fixture.filePath(QStringLiteral("архивы 空"));
+        const QString name = QStringLiteral("данные.7z");
+        CreateArchiveDialog dialog(initial, {source_});
+        dialog.findChild<QLineEdit *>("archiveFolder")
+            ->setText(QDir::toNativeSeparators(QStringLiteral("../архивы 空")));
+        dialog.findChild<QLineEdit *>("archiveName")->setText(name);
+        submit(dialog);
+        QCOMPARE(dialog.result(), int(QDialog::Accepted));
+        const QString output = QDir(destination).filePath(name);
+        QCOMPARE(QDir::fromNativeSeparators(dialog.target()), output);
+        ArchiveBackend backend;
+        QCOMPARE(SourceCreationFixture::Create(backend, dialog.target(), dialog.sources()), S_OK);
+        QVERIFY(QFileInfo(output).isFile());
+    }
     void occupiedDestinationCanBeCorrectedWithoutLosingTheArchiveName_data() {
         QTest::addColumn<QString>("obstruction");
         QTest::newRow("file") << QString("file");

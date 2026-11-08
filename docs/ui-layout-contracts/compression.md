@@ -9,7 +9,8 @@
 The agreed November 5 catalog supersedes the older two-column and four-section
 presentation requirements below for the Add form. Archive name/destination remain
 visible above the scrolling form as separate editable rows with leading labels.
-Destination edits use the existing source path resolver. Browse selects a folder
+Relative destination folders are resolved from the folder where the dialog was opened.
+Browse selects a folder
 through the existing folder picker, retaining the name and format; history can
 still restore the source folder/name/format split.
 Browse opens in the resolved parent folder of the archive, or its nearest
