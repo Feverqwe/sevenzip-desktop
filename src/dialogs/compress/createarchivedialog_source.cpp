@@ -115,6 +115,7 @@ void CreateArchiveDialog::validateAndAccept() {
             auto *field =
                 error == CCompressDialog::kPasswordNotMatch ? passwordConfirmation_ : password_;
             field->setFocus();
+            field->selectAll();
             return;
         }
     }

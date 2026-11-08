@@ -162,7 +162,9 @@ class CompressionEncryptionTests final : public QObject {
         QVERIFY(refused && dialog.isVisible());
         QCOMPARE(dialog.focusWidget(), confirmation);
         QCOMPARE(confirmation->text(), QString("mistyped password"));
-        confirmation->setText("correct password");
+        QCOMPARE(confirmation->selectionLength(), confirmation->text().size());
+        QTest::keyClicks(confirmation, "correct password");
+        QCOMPARE(confirmation->text(), QString("correct password"));
         submit(dialog);
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
         QCOMPARE(dialog.password(), QString("correct password"));
