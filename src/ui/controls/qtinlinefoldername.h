@@ -18,5 +18,5 @@ class QtInlineFolderName final : public QWidget {
     void OnCancel(std::function<void()> cancel);
     QLineEdit *NameField() const { return name_; }
     void ClearError();
-    void ShowError(const QString &message);
+    void ShowError(const QString &message, bool focusName = true);
 };

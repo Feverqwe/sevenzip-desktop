@@ -140,7 +140,7 @@ void QtFileManagerCommands::CreateFolder() {
         finish();
         window_.appPresentation_->RequestListFocus(index);
     });
-    const auto submit = [this, index, editor, finish](const QString &value) {
+    const auto submit = [this, index, editor, finish](const QString &value, bool focusOwner) {
         auto &panel = window_.app_.Panels[index];
         DiscardStaleFolderDraft(index);
         if (editor->isHidden())
@@ -154,7 +154,8 @@ void QtFileManagerCommands::CreateFolder() {
             return;
         // The context menu may have temporarily projected this pane while
         // creating the inline editor. Submit against the editor's owner.
-        window_.activatePanelUi(index);
+        if (focusOwner)
+            window_.activatePanelUi(index);
         QString detail;
         HRESULT result = E_INVALIDARG;
         if (!value.isEmpty() && !value.contains(QChar::Null)) {
@@ -174,10 +175,12 @@ void QtFileManagerCommands::CreateFolder() {
         }
         if (result == S_OK) {
             finish();
-            window_.appPresentation_->RequestListFocus(index);
+            if (focusOwner)
+                window_.appPresentation_->RequestListFocus(index);
             return;
         }
-        editor->ShowError(detail.isEmpty() ? ToQString(HResultToMessage(result)) : detail);
+        editor->ShowError(detail.isEmpty() ? ToQString(HResultToMessage(result)) : detail,
+                          focusOwner);
     };
     QObject::connect(name, &QLineEdit::returnPressed, editor, [this, index, name, editor, submit] {
         auto draft = folderDrafts_.find(index);
@@ -185,7 +188,7 @@ void QtFileManagerCommands::CreateFolder() {
             return;
         const bool queued = draft->pendingName.has_value();
         if (!queued && !(window_.scanningPanelMask() & (1u << index))) {
-            submit(name->text());
+            submit(name->text(), true);
             return;
         }
         draft->pendingName = name->text();
@@ -196,8 +199,14 @@ void QtFileManagerCommands::CreateFolder() {
             if (!owner || draft == folderDrafts_.end() || draft->editor != owner)
                 return;
             const auto pending = std::exchange(draft->pendingName, std::nullopt);
-            if (pending && owner->NameField()->text() == *pending)
-                submit(*pending);
+            if (pending && owner->NameField()->text() == *pending) {
+                const QPointer<MainWindow> window(&window_);
+                const QPointer<QWidget> focused = window_.focusWidget();
+                const bool focusOwner = !focused || focused == owner->NameField();
+                window_.withPanelProjection(index, [&] { submit(*pending, focusOwner); });
+                if (window && !focusOwner)
+                    window->appPresentation_->RestoreWidgetFocus(focused);
+            }
         });
     });
     editor->setToolTip(ToQString(prefix));

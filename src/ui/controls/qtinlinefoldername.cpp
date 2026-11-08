@@ -45,8 +45,9 @@ bool QtInlineFolderName::eventFilter(QObject *watched, QEvent *event) {
 
 void QtInlineFolderName::ClearError() { error_->hide(); }
 
-void QtInlineFolderName::ShowError(const QString &message) {
+void QtInlineFolderName::ShowError(const QString &message, bool focusName) {
     error_->setText(message);
     error_->show();
-    name_->setFocus();
+    if (focusName)
+        name_->setFocus();
 }

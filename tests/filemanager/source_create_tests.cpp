@@ -259,15 +259,18 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         QTest::addColumn<QString>("language");
         QTest::addColumn<bool>("deferred");
         QTest::addColumn<bool>("retry");
+        QTest::addColumn<bool>("switchPane");
         for (const QString language : {"-", "ru"})
-            QTest::newRow(qPrintable(language)) << language << false << false;
-        QTest::newRow("deferred") << QString("-") << true << false;
-        QTest::newRow("deferred-retry") << QString("-") << true << true;
+            QTest::newRow(qPrintable(language)) << language << false << false << false;
+        QTest::newRow("deferred") << QString("-") << true << false << false;
+        QTest::newRow("deferred-retry") << QString("-") << true << true << false;
+        QTest::newRow("deferred-retry-peer-focus") << QString("-") << true << true << true;
     }
     void failure() {
         QFETCH(QString, language);
         QFETCH(bool, deferred);
         QFETCH(bool, retry);
+        QFETCH(bool, switchPane);
         const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         QFile::remove(settings);
         SaveRegLang(ToUString(language), settings);
@@ -294,6 +297,14 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         ControlledBackend backend;
         MainWindow window(&backend);
         window.show();
+        QTemporaryDir peerFolder;
+        FileTable *peer = nullptr;
+        if (switchPane) {
+            QVERIFY(peerFolder.isValid());
+            action(window, "twoPanelsAction")->trigger();
+            peer = openPanel(window, 1, peerFolder.path());
+            QTRY_VERIFY(peer->isEnabled());
+        }
         auto *view = openPanel(window, 0, fixture.path());
         QTRY_VERIFY(view->isEnabled() && view->rowCount() == initialRows);
         QVERIFY(WindowActivation::waitForActive(window));
@@ -321,14 +332,20 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
             name->setText(corrected);
             QTest::keyClick(name, Qt::Key_Return);
         }
+        if (peer) {
+            QTest::mouseClick(peer->viewport(), Qt::LeftButton);
+            QCOMPARE(window.focusWidget(), peer);
+        }
         if (!retry)
             QTest::keyClick(name, Qt::Key_Escape);
         // Create Folder refreshes after failure and preserves selection.
         QTRY_VERIFY(view->isEnabled() && view->rowCount() == initialRows + 1 + int(retry));
-        QTRY_COMPARE(window.focusWidget(), view);
+        QTRY_COMPARE(window.focusWidget(), peer ? peer : view);
         QCOMPARE(view->selectionModel()->selectedRows().size(), 1);
         QCOMPARE(view->currentRow(), row(view, retry ? corrected : QString("keep.bin")));
         QCOMPARE(QFileInfo(fixture.filePath(corrected)).isDir(), retry);
+        if (peer)
+            QVERIFY(!QFileInfo::exists(peerFolder.filePath(corrected)));
         QVERIFY(keep.open(QIODevice::ReadOnly));
         QCOMPARE(keep.readAll(), QByteArray("protected bytes"));
     }
