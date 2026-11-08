@@ -684,14 +684,21 @@ class ExtractDialogTests final : public QObject {
         QCOMPARE(existing.write("existing"), qint64(8));
         existing.close();
         const QString other = QDir(plainOutput).filePath(relative);
+        const QString blocked = dir_.filePath("occupied.txt");
+        QVERIFY(SourceExtractFixture::writeFile(blocked, "unrelated file"));
         if (!literalPart.isEmpty()) {
             QVERIFY(QDir().mkpath(QFileInfo(other).absolutePath()));
             QVERIFY(SourceExtractFixture::writeFile(other, "other folder"));
         }
         const auto extract = [&](int overwriteIndex) {
             return ExtractDialogFixture::Run(backend, archive, output, [&](CExtractDialog &dialog) {
+                const auto close = qScopeGuard([&] {
+                    if (dialog.isVisible())
+                        dialog.reject();
+                });
                 const bool split = literalPart == "subfolder";
-                path(dialog)->setEditText(split ? QFileInfo(output).absolutePath() : output);
+                auto *destination = path(dialog);
+                destination->setEditText(blocked);
                 dialog.findChild<QCheckBox *>("extractNameEnable")->setChecked(split);
                 if (split)
                     dialog.findChild<QLineEdit *>("extractPathName")
@@ -700,6 +707,12 @@ class ExtractDialogTests final : public QObject {
                 overwrite(dialog)->setCurrentIndex(overwriteIndex);
                 dialog.findChild<QCheckBox *>("extractElimDup")->setChecked(false);
                 dialog.accept();
+                QVERIFY(dialog.isVisible());
+                auto *error = dialog.findChild<QLabel *>("extractDestinationError");
+                QVERIFY(error && error->isVisible() && error->text().contains(blocked));
+                destination->setEditText(split ? QFileInfo(output).absolutePath() : output);
+                dialog.accept();
+                QCOMPARE(dialog.result(), int(QDialog::Accepted));
             });
         };
         const auto skipped = extract(2);
@@ -713,6 +726,7 @@ class ExtractDialogTests final : public QObject {
         QVERIFY(overwritten.CallbackOK);
         QVERIFY(existing.open(QIODevice::ReadOnly));
         QCOMPARE(existing.readAll(), QByteArray("archive content"));
+        QCOMPARE(SourceExtractFixture::readFile(blocked), QByteArray("unrelated file"));
         if (!literalPart.isEmpty())
             QCOMPARE(SourceExtractFixture::readFile(other), QByteArray("other folder"));
     }
