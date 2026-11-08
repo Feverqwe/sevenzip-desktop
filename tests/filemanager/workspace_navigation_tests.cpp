@@ -394,7 +394,13 @@ class WorkspaceNavigationTests final : public QObject {
         QVERIFY(QFileInfo(second).isDir());
     }
 
-    void canceledCutPastePreservesSourceAndClipboardThenSuccessfulPasteMovesBytes() {
+    void refusedCutPasteCanBeRetried_data() {
+        QTest::addColumn<bool>("sameFolder");
+        QTest::newRow("cancel-overwrite") << false;
+        QTest::newRow("same-folder") << true;
+    }
+    void refusedCutPasteCanBeRetried() {
+        QFETCH(bool, sameFolder);
         QTemporaryDir fixture;
         const QString source = fixture.filePath("Cut source");
         const QString destination = fixture.filePath("Cut target");
@@ -418,13 +424,16 @@ class WorkspaceNavigationTests final : public QObject {
         table->setFocus();
         QTRY_VERIFY(table->hasFocus());
         QTest::keySequence(table, QKeySequence::Cut);
-        window.openPath(destination);
+        if (!sameFolder)
+            window.openPath(destination);
         auto *paste = window.findChild<QAction *>("pasteFilesAction");
         QTRY_VERIFY(paste->isEnabled());
         bool canceled = false;
+        QString failure;
         QTimer responder;
         dialogs_.connectResponder(responder, &window, [&] {
             if (auto *result = TestProgressDialog::ResultWindow(dialogs_.activeDialog())) {
+                failure = TestProgressDialog::ReportText(*result);
                 TestProgressDialog::CloseResult(*result);
                 return;
             }
@@ -440,13 +449,17 @@ class WorkspaceNavigationTests final : public QObject {
         table->setFocus();
         QTRY_VERIFY(table->hasFocus());
         QTest::keySequence(table, QKeySequence::Paste);
-        QTRY_VERIFY_WITH_TIMEOUT(canceled && table->isEnabled(), 10000);
+        QTRY_VERIFY_WITH_TIMEOUT(
+            (sameFolder ? failure.contains(name) : canceled) && table->isEnabled(), 10000);
         responder.stop();
         QFile old(destination + '/' + name);
         QVERIFY(old.open(QIODevice::ReadOnly));
         QCOMPARE(old.readAll(), "existing bytes");
         old.close();
-        QVERIFY(QFileInfo::exists(source + '/' + name));
+        QFile original(source + '/' + name);
+        QVERIFY(original.open(QIODevice::ReadOnly));
+        QCOMPARE(original.readAll(), "original bytes");
+        original.close();
         QVERIFY(QApplication::clipboard()->mimeData()->hasUrls());
         window.openPath(source);
         QTRY_VERIFY(table->isEnabled());
