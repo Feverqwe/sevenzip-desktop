@@ -1,4 +1,5 @@
 #include "Common/StringConvert.h"
+#include "Windows/FileIO.h"
 #include "archive/codecs/archivecodelocation.h"
 #include "archive/operations/ZipRegistry.h"
 #include "archive/resources/qtarchivewritelease.h"
@@ -10,6 +11,8 @@
 #include "support/operation_temp_cleanup.h"
 #include "support/scoped_environment.h"
 #include <QEventLoop>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QRandomGenerator>
 #include <QScopeGuard>
 #include <QSignalSpy>
@@ -236,6 +239,43 @@ class OperationCreationTests final : public QObject {
         QCOMPARE(readFile(QDir(output).filePath("source 空.txt")),
                  QByteArray("created after parent exit"));
     }
+#ifdef Q_OS_WIN
+    void lockedArchiveUpdateCanBeRetried() {
+        QTemporaryDir directory;
+        QVERIFY(directory.isValid());
+        const auto source = directory.filePath("source.txt");
+        const auto archive = directory.filePath(QStringLiteral("архив с пробелом.zip"));
+        const auto program = QStringLiteral(SEVENZIP_OPERATION_HOST);
+        const auto job = Compress(archive, {source});
+        QVERIFY(writeFile(source, "original"));
+        QCOMPARE(Run(program, job).Status, Outcome::Success);
+        const auto original = readFile(archive);
+        QVERIFY(!original.isEmpty());
+        QVERIFY(writeFile(source, "replacement bytes"));
+        {
+            const auto path = QDir::toNativeSeparators(archive).toStdWString();
+            const HANDLE locked =
+                ::CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING,
+                              FILE_ATTRIBUTE_NORMAL, nullptr);
+            QVERIFY(locked != INVALID_HANDLE_VALUE);
+            const auto close = qScopeGuard([&] { ::CloseHandle(locked); });
+            const auto report = directory.filePath("update-result");
+            const Environment capture("SEVENZIP_OPERATION_REPORT", report);
+            QCOMPARE(Run(program, job).Status, Outcome::Failure);
+            const auto diagnostic = QJsonDocument::fromJson(readFile(report + ".diagnostic"));
+            const auto messages = diagnostic.object().value("messages").toString();
+            QVERIFY2(messages.contains("Cannot replace the archive") &&
+                         messages.contains(QFileInfo(archive).fileName()),
+                     qPrintable(messages));
+        }
+        QCOMPARE(readFile(archive), original);
+        QCOMPARE(Run(program, job).Status, Outcome::Success);
+        const auto output = directory.filePath("output");
+        QCOMPARE(Run(program, Extract(archive, output)).Status, Outcome::Success);
+        QCOMPARE(readFile(QDir(output).filePath("source.txt")), QByteArray("replacement bytes"));
+    }
+#endif
+
     void killedWriterKeepsOriginalAndReleasesProcessOwnership() {
         QTemporaryDir directory;
         QVERIFY(directory.isValid());

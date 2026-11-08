@@ -4767,6 +4767,7 @@ Are you sure you want to split archive into such volumes?</source>
             <source>cannot move the file</source>
             <translation>Не удалось переместить файл</translation>
         </message>
+        <message><source>Cannot replace the archive</source><translation>Не удалось заменить архив</translation></message>
         <message>
             <location line="+8" />
             <source>Archive file size exceeds 4 GB</source>

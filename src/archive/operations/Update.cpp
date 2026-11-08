@@ -1592,7 +1592,9 @@ HRESULT UpdateArchive(CCodecs *codecs, const CObjectVector<COpenType> &types,
             if (!moved) {
                 errorInfo.SystemError = ::GetLastError();
                 errorInfo.Message =
-                    QT_TRANSLATE_NOOP("SevenZipDiagnostics", "cannot move the file");
+                    thereIsInArchive
+                        ? QT_TRANSLATE_NOOP("SevenZipDiagnostics", "Cannot replace the archive")
+                        : QT_TRANSLATE_NOOP("SevenZipDiagnostics", "cannot move the file");
                 if (errorInfo.SystemError == ERROR_INVALID_PARAMETER) {
                     if (totalArcSize > (UInt32)(Int32)-1) {
                         // bool isFsDetected = false;
