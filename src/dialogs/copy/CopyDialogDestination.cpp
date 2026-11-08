@@ -233,7 +233,9 @@ void CCopyDialog::UpdateDestination() {
         const QFileInfo source(_sources.first());
         const QFileInfo target(
             needsDirectory && !_useName ? QDir(preview).filePath(source.fileName()) : draft);
-        if (target.exists() && target.isDir() != source.isDir())
+        if (QtIsFileSystemLink(target.filePath()))
+            error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "The destination is invalid."));
+        else if (target.exists() && target.isDir() != source.isDir())
             error = QCoreApplication::translate(
                         "qtfiletransfertransaction",
                         "Cannot replace a file with a folder or a folder with a file: %1")

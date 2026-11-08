@@ -259,6 +259,54 @@ class CopyDestinationTests final : public QObject {
         QCOMPARE(ToQString(dialog.Value), QDir(folder).filePath("other name"));
     }
 
+    void linkedDestinationNameCanBeCorrected() {
+#ifndef Q_OS_UNIX
+        QSKIP("The symbolic link fixture requires POSIX");
+#else
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString source = fixture.filePath("source.txt");
+        const QString folder = fixture.filePath("destination");
+        QVERIFY(QDir().mkdir(folder));
+        QFile file(source);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.close();
+        const QString linked = QDir(folder).filePath("source.txt");
+        const QString dangling = QDir(folder).filePath("dangling.txt");
+        QFile protectedFile(fixture.filePath("protected.txt"));
+        QVERIFY(protectedFile.open(QIODevice::WriteOnly));
+        protectedFile.close();
+        QVERIFY(QFile::link(protectedFile.fileName(), linked));
+        QVERIFY(QFile::link(fixture.filePath("missing.txt"), dangling));
+
+        CCopyDialog dialog(false, folder + '/', {source});
+        QtCopyDestinationContext context;
+        context.SourceDirectory = fixture.path();
+        context.SourceName = "source.txt";
+        context.LocalFileTransfer = true;
+        context.CanRename = [](const QString &) { return true; };
+        dialog.ConfigureDestination(context);
+        dialog.show();
+        auto *path = dialog.findChild<QLineEdit *>("copyDestination");
+        auto *name = dialog.findChild<QLineEdit *>("copyDestinationName");
+        auto *ok =
+            dialog.findChild<QDialogButtonBox *>("copyButtons")->button(QDialogButtonBox::Ok);
+        QVERIFY(!ok->isEnabled());
+        path->setText(dangling);
+        QVERIFY(!ok->isEnabled());
+        path->setText(folder + '/');
+        name->setText("dangling.txt");
+        QVERIFY(!ok->isEnabled());
+        dialog.accept();
+        QVERIFY(dialog.isVisible());
+        name->setText("other.txt");
+        QVERIFY(ok->isEnabled());
+        dialog.accept();
+        QCOMPARE(dialog.result(), int(QDialog::Accepted));
+        QCOMPARE(ToQString(dialog.Value), QDir(folder).filePath("other.txt"));
+#endif
+    }
+
     void destinationBelowReadOnlyFolderCanBeCorrected() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
