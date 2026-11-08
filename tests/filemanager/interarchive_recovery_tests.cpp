@@ -327,7 +327,11 @@ class InterarchiveRecoveryTests final : public QObject, protected MainWindowTest
             QCOMPARE(SourceExtractFixture::readFile(sourceArchive), sourceBefore);
             CSelectedState selection;
             sourcePanel.SaveSelectedState(selection);
-            QVERIFY(selection.SelectedNames.IsEmpty());
+            if (phase == "failed") {
+                QCOMPARE(selection.SelectedNames.Size(), 1u);
+                QCOMPARE(ToQString(selection.SelectedNames[0]), added);
+            } else
+                QVERIFY(selection.SelectedNames.IsEmpty());
             QVERIFY(sourcePanel.ShouldProcessNotifications() &&
                     destination.ShouldProcessNotifications());
             QVERIFY(source->updatesEnabled() && target->updatesEnabled());

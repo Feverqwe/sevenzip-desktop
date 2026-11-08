@@ -39,7 +39,8 @@ source publication, or an unknown publication result, retains the destination
 copy and reports the source error without claiming complete success. The warning
 explains the retained copy and asks to check both archives, including when late
 cancellation caused the incomplete result. Its EN/RU label and OK remain fitted
-at normal/compact message sizes. Source marks clear and focus returns to its list.
+at normal/compact message sizes. Focus returns to the source list. Cancellation
+keeps the source marks, while a successful transfer clears them.
 Inspect both-pane roles, EN/RU, table/icon on both panels, standard/alternative
 selection at980×620/640×400, including301-row asynchronous destination publication.
 Both views and addresses must be visible/enabled after terminal completion.

@@ -227,8 +227,9 @@ void MainWindowOperationsTests::archivePanelsCopyAndMoveThroughStaging() {
     QCOMPARE(targetAfterCancel.readAll(), beforeCanceledMove);
     targetAfterCancel.close();
     QVERIFY(rowFor("move me.txt") >= 0);
+    QTRY_COMPARE(window.focusWidget(), leftTable);
+    QVERIFY(leftTable->selectionModel()->isRowSelected(rowFor("move me.txt"), {}));
     approveDelete = true;
-    leftTable->selectRow(rowFor("move me.txt"));
     QTimer::singleShot(0, &window, [&] {
         auto *dialog = window.findChild<CopyDialog *>("copyDialog");
         QVERIFY(dialog);

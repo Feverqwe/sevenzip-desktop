@@ -164,6 +164,8 @@ bool MainWindow::transferBetweenArchivePanels(const QString &destination, bool m
         refreshArchiveTransferDestination(destinationIndex, destinationSelection,
                                           retainedUpdate ? ArchiveTransferReload::BoundFolder
                                                          : ArchiveTransferReload::ReopenArchive);
+    if (result == E_ABORT)
+        appPresentation_->CopyFinished(true);
     if (outcome == Outcome::RollbackFailed) {
         terminalDiagnostics.prepend(QCoreApplication::translate(
             "mainwindow_archive_transfer",
