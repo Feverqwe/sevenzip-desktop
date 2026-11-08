@@ -69,7 +69,7 @@ void QtWindowWorkspace::OpenRecentPlace(unsigned panel, const QtRecentPlace &pla
             ProtectNavigation();
             return OpenRecordedLocation(panel, place.path, place.nativeIdentity, place.archive);
         },
-        [this, panel, interaction](HRESULT result) {
+        [this, panel, interaction, label = PlaceLabel(place)](HRESULT result) {
             if (window_.app_.QtOperations().closed())
                 return;
             if (result == S_OK) {
@@ -78,7 +78,7 @@ void QtWindowWorkspace::OpenRecentPlace(unsigned panel, const QtRecentPlace &pla
             }
             const QString error = result == E_ABORT ? tr("Opening canceled.")
                                   : result == S_FALSE
-                                      ? tr("The location is unavailable or disconnected.")
+                                      ? tr("Location unavailable: %1").arg(label)
                                       : tr("Could not open this location. %1")
                                             .arg(ToQString(HResultToMessage(result)));
             window_.statusStrip_->SetMessage(&window_.app_.Panels[panel], error, 6000);

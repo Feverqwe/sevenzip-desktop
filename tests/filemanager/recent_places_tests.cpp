@@ -188,7 +188,7 @@ class RecentPlacesTests final : public QObject, protected MainWindowTestSupport 
         MainWindow window(&backend);
         window.show();
         window.openPath(a);
-        store().Visit({missing, {}, {}});
+        store().Visit({missing, {}, {}, true});
         action(window, "foldersHistoryAction")->trigger();
         QTRY_VERIFY(RecentPlacesMenu::Visible(window));
         auto *popup = RecentPlacesMenu::Visible(window);
@@ -196,7 +196,8 @@ class RecentPlacesTests final : public QObject, protected MainWindowTestSupport 
         QVERIFY(entry);
         const auto *provider = active(window)->sourcePanel->GetFolder();
         RecentPlacesMenu::Choose(*popup, *entry);
-        QTRY_VERIFY(!window.statusBar()->currentMessage().isEmpty());
+        QTRY_VERIFY(
+            window.statusBar()->currentMessage().contains(QDir::toNativeSeparators(missing)));
         QCOMPARE(location(window), a);
         QCOMPARE(active(window)->sourcePanel->GetFolder(), provider);
         QVERIFY(store().IndexOf(missing) >= 0);
