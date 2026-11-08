@@ -581,8 +581,9 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         QtWorkspaceApplication application(*qApp);
         MainWindow window;
         window.show();
-        QCOMPARE(table(window)->rowCount(), 1);
-        table(window)->sourcePanel->Set_AutoRefresh_Mode(automatic);
+        auto *files = table(window);
+        QCOMPARE(files->rowCount(), 1);
+        files->sourcePanel->Set_AutoRefresh_Mode(automatic);
         const QList<QAction *> fileCommands{action(window, "toolbarAddAction"),
                                             action(window, "copyAction"),
                                             action(window, "createFolderAction")};
@@ -591,8 +592,35 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         QVERIFY(QDir::setCurrent(temp.path()));
         const QString renamed = temp.filePath("renamed");
         if (publishedRename) {
-            QVERIFY(QDir().rename(folder, renamed));
-            application.FilesystemPublished({temp.path()});
+            QVERIFY(WindowActivation::waitForActive(window));
+            action(window, "twoPanelsAction")->trigger();
+            auto *peer = window.findChild<QWidget *>("filePanel1");
+            QVERIFY(peer && peer->isVisible());
+            auto *address = peer->findChild<QLineEdit *>("archivePath");
+            auto *peerFiles = peer->findChild<FileTable *>("archiveTable");
+            QVERIFY(address && peerFiles && peerFiles != files);
+            PanelKeys::focusAddress(address);
+            QVERIFY(address->hasFocus());
+            address->setText(temp.path());
+            QTest::keyClick(address, Qt::Key_Return);
+            QTRY_VERIFY(peerFiles->hasFocus());
+            const auto matches = peerFiles->model()->match(
+                peerFiles->model()->index(0, 0), Qt::DisplayRole, "browse", 1, Qt::MatchExactly);
+            QCOMPARE(matches.size(), 1);
+            peerFiles->setCurrentIndex(matches.front());
+            peerFiles->selectRow(matches.front().row());
+            QTest::keyClick(peerFiles, Qt::Key_F2);
+            auto *editor = qobject_cast<QLineEdit *>(window.focusWidget());
+            QVERIFY(editor && peerFiles->isAncestorOf(editor));
+            editor->setText("renamed");
+            QTest::keyClick(editor, Qt::Key_Return);
+            QTRY_VERIFY(QFileInfo(renamed).isDir());
+            QTRY_COMPARE(peerFiles->currentIndex().siblingAtColumn(0).data().toString(),
+                         QString("renamed"));
+            QTRY_COMPARE(files->rowCount(), 0);
+            QVERIFY(peerFiles->hasFocus());
+            files->setFocus();
+            QTRY_VERIFY(files->hasFocus());
         } else {
             QVERIFY(QFile::remove(folder + QStringLiteral("/old.txt")));
             bool removed = false;
@@ -600,7 +628,7 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
             if (!automatic)
                 action(window, "refreshAction")->trigger();
         }
-        QTRY_COMPARE_WITH_TIMEOUT(table(window)->rowCount(), 0, 3500);
+        QTRY_COMPARE_WITH_TIMEOUT(files->rowCount(), 0, 3500);
         QVERIFY(window.statusBar()->currentMessage().contains(QStringLiteral("Folder not found")));
         for (const auto *command : fileCommands)
             QVERIFY(!command->isEnabled());
@@ -617,8 +645,8 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         QVERIFY(writeFile(folder + QStringLiteral("/new.txt")));
         if (!automatic)
             action(window, "refreshAction")->trigger();
-        QTRY_COMPARE_WITH_TIMEOUT(table(window)->rowCount(), 1, 3500);
-        QCOMPARE(table(window)->model()->index(0, 0).data().toString(), QStringLiteral("new.txt"));
+        QTRY_COMPARE_WITH_TIMEOUT(files->rowCount(), 1, 3500);
+        QCOMPARE(files->model()->index(0, 0).data().toString(), QStringLiteral("new.txt"));
         for (const auto *command : fileCommands)
             QVERIFY(command->isEnabled());
         QVERIFY(window.statusBar()->currentMessage().isEmpty());
@@ -626,9 +654,8 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         QVERIFY(writeFile(folder + "/new.txt", changed));
         if (!automatic)
             action(window, "refreshAction")->trigger();
-        QTRY_COMPARE_WITH_TIMEOUT(
-            table(window)->model()->index(0, 2).data(Qt::UserRole + 2).toLongLong(),
-            qint64(changed.size()), 3500);
+        QTRY_COMPARE_WITH_TIMEOUT(files->model()->index(0, 2).data(Qt::UserRole + 2).toLongLong(),
+                                  qint64(changed.size()), 3500);
     }
 };
 
