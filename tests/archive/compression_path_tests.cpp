@@ -663,6 +663,7 @@ class CompressionPathTests final : public QObject {
         QTest::newRow("filename") << QString("filename");
         QTest::newRow("absolute-path") << QString("absolute");
         QTest::newRow("relative-path") << QString("relative");
+        QTest::newRow("relative-destination") << QString("relative-destination");
         QTest::newRow("missing-folder") << QString("missing");
         QTest::newRow("invalid-folder") << QString("invalid");
         QTest::newRow("directory-with-separator") << QString("directory-separator");
@@ -671,6 +672,7 @@ class CompressionPathTests final : public QObject {
     void destinationPickerRetainsNameAndCancelDraft() {
         QFETCH(QString, form);
         const bool directoryDraft = form.startsWith("directory-");
+        const bool relativeDestination = form == "relative-destination";
         QTemporaryDir destination;
         QTemporaryDir original;
         QVERIFY(destination.isValid());
@@ -679,13 +681,14 @@ class CompressionPathTests final : public QObject {
         QApplication::setAttribute(Qt::AA_DontUseNativeDialogs);
         const auto restore = qScopeGuard(
             [&] { QApplication::setAttribute(Qt::AA_DontUseNativeDialogs, nativeDisabled); });
-        CreateArchiveDialog dialog(dir_.path(), {source_});
+        CreateArchiveDialog dialog(relativeDestination ? original.path() : dir_.path(), {source_});
         auto *name = dialog.findChild<QLineEdit *>("archiveName");
         auto *folder = dialog.findChild<QLineEdit *>("archiveFolder");
         auto *format = dialog.findChild<QComboBox *>("archiveFormat");
         const QString draft = QStringLiteral("имя with spaces 空.7z");
         QVERIFY(QDir(original.path()).mkdir("nested"));
-        folder->setText(form == "missing"   ? original.filePath("nested/not created/deeper")
+        folder->setText(relativeDestination ? QStringLiteral("nested")
+                        : form == "missing" ? original.filePath("nested/not created/deeper")
                         : form == "invalid" ? original.path() + QChar::Null
                                             : original.path());
         const QString entered = directoryDraft ? (form == "directory-dot" ? "nested/." : "nested/")
@@ -712,11 +715,11 @@ class CompressionPathTests final : public QObject {
                             picker->reject();
                     });
                     QCOMPARE(picker->fileMode(), QFileDialog::Directory);
-                    const QString initial =
-                        form == "invalid" ? dir_.path()
-                        : form == "relative" || form == "missing" || directoryDraft
-                            ? original.filePath("nested")
-                            : original.path();
+                    const QString initial = form == "invalid" ? dir_.path()
+                                            : form == "relative" || form == "missing" ||
+                                                    directoryDraft || relativeDestination
+                                                ? original.filePath("nested")
+                                                : original.path();
                     QCOMPARE(picker->directory().canonicalPath(),
                              QFileInfo(initial).canonicalFilePath());
                     if (accept) {
