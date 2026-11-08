@@ -163,6 +163,15 @@ class CompressionPathTests final : public QObject {
         submit(single);
         QCOMPARE(single.result(), int(QDialog::Accepted));
         QCOMPARE(QDir::fromNativeSeparators(single.target()), output);
+        ArchiveBackend backend;
+        QCOMPARE(SourceCreationFixture::Create(backend, single.target(), single.sources(), {},
+                                               false, single.compressionOptions()),
+                 S_OK);
+        QProcess reader;
+        reader.start("7z", {"x", "-tgzip", "-so", "--", output});
+        QVERIFY(reader.waitForFinished(30000));
+        QCOMPARE(reader.exitCode(), 0);
+        QCOMPARE(reader.readAllStandardOutput(), QByteArray("archive path regression"));
         dialog.reject();
         QVERIFY(dialog.target().isEmpty());
 #endif
