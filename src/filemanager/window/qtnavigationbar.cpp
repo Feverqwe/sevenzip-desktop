@@ -27,6 +27,7 @@ class QtNavigationBar::CrumbButton final : public QToolButton {
         : QToolButton(parent), label_(QtSingleLineCaption(label)) {
         setText(QtLiteralMenuText(label_));
         QtConfigureChromeToolButton(*this);
+        setFocusPolicy(Qt::TabFocus);
     }
     int FullWidth() const { return qMax(20, fontMetrics().horizontalAdvance(label_) + Padding()); }
     void FitWidth(int available) {
@@ -114,6 +115,7 @@ void QtNavigationBar::Rebuild() {
     ancestors_->setText(QStringLiteral("…"));
     ancestors_->setAutoRaise(true);
     QtConfigureChromeToolButton(*ancestors_);
+    ancestors_->setFocusPolicy(Qt::TabFocus);
     ancestors_->setPopupMode(QToolButton::InstantPopup);
     auto *menu = new QMenu(ancestors_);
     ancestors_->setMenu(menu);
@@ -152,6 +154,7 @@ void QtNavigationBar::Rebuild() {
     edit->setIcon(QtCommandSymbol(QtCommandIcon::EditLocation, this));
     edit->setAutoRaise(true);
     QtConfigureChromeToolButton(*edit);
+    edit->setFocusPolicy(Qt::TabFocus);
     edit->setToolTip(tr("Edit location"));
     QtBindLocalText(edit, "QtNavigationBar", QT_TRANSLATE_NOOP("QtNavigationBar", "Edit location"),
                     true);

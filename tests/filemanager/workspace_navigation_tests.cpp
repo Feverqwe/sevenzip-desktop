@@ -101,11 +101,24 @@ class WorkspaceNavigationTests final : public QObject {
         QVERIFY(UiInspection::writeReport(bar, "literal-breadcrumb-wide"));
         bar.resize(260, 36);
         QTRY_COMPARE(visibleLabels(), (QStringList{QStringLiteral("…"), "newsBot"}));
-        QMenu *overflow = nullptr;
-        for (auto *button : bar.findChildren<QToolButton *>())
-            if (button->isVisible() && button->menu())
-                overflow = button->menu();
-        QVERIFY(overflow);
+        QVERIFY(QTest::qWaitForWindowActive(&host));
+        QToolButton *overflowButton = nullptr;
+        QToolButton *edit = nullptr;
+        for (auto *button : bar.findChildren<QToolButton *>()) {
+            if (!button->isVisible())
+                continue;
+            if (button->menu())
+                overflowButton = button;
+            if (button->objectName() == "editLocationButton")
+                edit = button;
+        }
+        QVERIFY(overflowButton && edit);
+        edit->setFocus();
+        QTest::keyClick(edit, Qt::Key_Backtab);
+        QVERIFY(bar.isAncestorOf(host.focusWidget()));
+        QTest::keyClick(host.focusWidget(), Qt::Key_Backtab);
+        QCOMPARE(host.focusWidget(), overflowButton);
+        auto *overflow = overflowButton->menu();
         overflow->popup(bar.mapToGlobal(QPoint(0, bar.height())));
         QTRY_VERIFY(overflow->isVisible());
         const auto close = qScopeGuard([&] { overflow->hide(); });
@@ -141,12 +154,21 @@ class WorkspaceNavigationTests final : public QObject {
             dynamic_cast<QtNavigationBar *>(window.findChild<QWidget *>("panelNavigation0"));
         QVERIFY(bar);
         QToolButton *parentButton = nullptr;
-        for (auto *button : bar->findChildren<QToolButton *>())
-            if (QDir::cleanPath(button->toolTip()) == parent && button->isVisible())
+        QToolButton *edit = nullptr;
+        for (auto *button : bar->findChildren<QToolButton *>()) {
+            if (!button->isVisible())
+                continue;
+            if (QDir::cleanPath(button->toolTip()) == parent)
                 parentButton = button;
-        QVERIFY(parentButton);
+            if (button->objectName() == "editLocationButton")
+                edit = button;
+        }
+        QVERIFY(parentButton && edit);
         QVERIFY(parentButton->icon().isNull());
-        parentButton->setFocus();
+        edit->setFocus();
+        QTest::keyClick(edit, Qt::Key_Backtab);
+        QVERIFY(bar->isAncestorOf(window.focusWidget()));
+        QTest::keyClick(window.focusWidget(), Qt::Key_Backtab);
         QTRY_VERIFY(parentButton->hasFocus());
         QTest::keyClick(parentButton, Qt::Key_Space);
         QTRY_COMPARE(QDir::cleanPath(ToQString(table->sourcePanel->GetCurrentFolderPrefix())),
