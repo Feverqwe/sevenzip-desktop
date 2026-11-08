@@ -134,12 +134,18 @@ void QtWindowWorkspace::RetryLocation(unsigned panel, bool parent) {
         locationState.archiveApplied = locationState.archiveRevision;
     }
     const QString requested = locationState.path;
-    window_.withPanelProjection(panel, [this, panel, &requested] {
-        const HRESULT result = Navigate([this, panel]() -> HRESULT {
-            ProtectNavigation();
-            const QScopedValueRollback<bool> changing(changing_, true);
-            return OpenPanelLocation(panel);
-        });
+    const auto interaction = interactionRevision_;
+    window_.withPanelProjection(panel, [this, panel, &requested, interaction] {
+        const HRESULT result = Navigate(
+            [this, panel]() -> HRESULT {
+                ProtectNavigation();
+                const QScopedValueRollback<bool> changing(changing_, true);
+                return OpenPanelLocation(panel);
+            },
+            [this, panel, interaction](HRESULT result) {
+                if (result == S_OK)
+                    FocusListAfterLocationOpen(panel, interaction);
+            });
         if (result != S_OK)
             CompleteLocationOpen(panel, requested, result);
     });

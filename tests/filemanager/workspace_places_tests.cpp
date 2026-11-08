@@ -225,8 +225,11 @@ class WorkspacePlacesTests final : public QObject {
         QCOMPARE(files->rowCount(), 0);
         QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(address->text())), target);
         disconnect(restart);
+        retry->setFocus();
+        QCOMPARE(window.focusWidget(), retry);
         retry->click();
         QTRY_VERIFY(files->isEnabled() && !retry->isVisible());
+        QTRY_COMPARE(window.focusWidget(), files);
         QCOMPARE(QDir::cleanPath(ToQString(files->sourcePanel->GetCurrentFolderPrefix())), target);
         QVERIFY(files->rowCount() >= 301);
         window.findChild<QAction *>("backAction")->trigger();
