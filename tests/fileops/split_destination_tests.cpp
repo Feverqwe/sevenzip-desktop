@@ -206,6 +206,10 @@ class SplitDestinationTests final : public QObject {
         path(dialog)->setEditText(draft);
         enabled(dialog)->setChecked(true);
         name(dialog)->setText(QStringLiteral("подпапка"));
+        auto *overwrite = dialog.findChild<QComboBox *>("extractOverwriteMode");
+        QVERIFY(overwrite);
+        const auto overwriteMode = NExtract::NOverwriteMode::kSkip;
+        overwrite->setCurrentIndex(overwrite->findData(overwriteMode));
         dialog.show();
         auto *field = path(dialog)->lineEdit();
         field->setFocus();
@@ -235,6 +239,7 @@ class SplitDestinationTests final : public QObject {
             if (!invalidDraft)
                 QCOMPARE(openedDirectory, QFileInfo(start).canonicalFilePath());
             QCOMPARE(name(dialog)->text(), QStringLiteral("подпапка"));
+            QCOMPARE(overwrite->currentData().toInt(), int(overwriteMode));
             if (accept) {
                 QCOMPARE(QFileInfo(path(dialog)->currentText()).canonicalFilePath(),
                          QFileInfo(selected).canonicalFilePath());
@@ -246,8 +251,12 @@ class SplitDestinationTests final : public QObject {
                 QCOMPARE(field->cursorPosition(), 2);
             }
         }
-        QCOMPARE(QDir::fromNativeSeparators(dialog.destination()),
-                 QDir(selected).filePath(QStringLiteral("подпапка")));
+        const QString destination = QDir(selected).filePath(QStringLiteral("подпапка"));
+        QCOMPARE(QDir::fromNativeSeparators(dialog.destination()), destination);
+        QTest::keyClick(field, Qt::Key_Return);
+        QCOMPARE(dialog.result(), int(QDialog::Accepted));
+        QCOMPARE(dialog.OverwriteMode, overwriteMode);
+        QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(dialog.DirPath)), destination);
     }
     void relativeLongDestinationUsesSourceBrowser() {
 #ifdef Q_OS_WIN
