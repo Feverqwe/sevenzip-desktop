@@ -245,6 +245,7 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
         QTest::addColumn<bool>("collision");
         QTest::addColumn<QString>("invalidName");
         QTest::addColumn<bool>("markFocused");
+        QTest::addColumn<bool>("icons");
         for (unsigned index : {0u, 1u})
             for (const QString language : {"-", "ru"})
                 for (int outcome : {0, 1, 2, 3, 4})
@@ -255,9 +256,10 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
                             : outcome == 3 ? QStringLiteral("renamed 空.txt") + QChar::Null + "tail"
                             : outcome == 4 ? QStringLiteral("")
                                            : QString())
-                        << true;
+                        << true << false;
         QTest::newRow("unmarked-focused-row-collision")
-            << 0u << QString("-") << true << QString() << false;
+            << 0u << QString("-") << true << QString() << false << false;
+        QTest::newRow("icons-collision") << 1u << QString("-") << true << QString() << true << true;
     }
     void editorPreservesSavedSelection() {
         QFETCH(unsigned, sourceIndex);
@@ -265,6 +267,7 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
         QFETCH(bool, collision);
         QFETCH(QString, invalidName);
         QFETCH(bool, markFocused);
+        QFETCH(bool, icons);
         const bool invalid = !invalidName.isNull();
         const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         QFile::remove(settings);
@@ -317,9 +320,13 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
         const int peerRows = peerView->rowCount();
         view->selectRow(sourceRow);
         view->setFocus();
+        if (icons)
+            action(window, "viewMode0Action")->trigger();
+        auto *active = icons ? ui->findChild<QAbstractItemView *>("iconList") : view;
+        QTRY_COMPARE(window.focusWidget(), active);
         QVERIFY(action(window, "renameAction")->isEnabled());
         action(window, "renameAction")->trigger();
-        auto *editor = view->findChild<QLineEdit *>();
+        auto *editor = active->findChild<QLineEdit *>();
         QVERIFY(editor);
         // A selection change during the editor must survive its source snapshot.
         if (!markFocused)
@@ -410,7 +417,7 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
         for (const QSize size : {QSize(980, 620), QSize(640, 400)}) {
             window.resize(size);
             QApplication::processEvents();
-            QVERIFY(UiInspection::fullyVisible(*view, window));
+            QVERIFY(UiInspection::fullyVisible(*active, window));
             QVERIFY(UiInspection::writeReport(
                 window,
                 QString("rename-selection-%1-%2").arg(QTest::currentDataTag()).arg(size.width())));
@@ -424,10 +431,10 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
         }
         if (collision || (invalid && invalidName.isEmpty()) || invalidName.contains(QChar::Null)) {
             QVERIFY(!QFileInfo::exists(fixture.filePath(QStringLiteral("renamed 空.txt"))));
-            QTRY_COMPARE(window.focusWidget(), view);
-            QTest::keyClick(view, Qt::Key_F2);
+            QTRY_COMPARE(window.focusWidget(), active);
+            QTest::keyClick(window.focusWidget(), Qt::Key_F2);
             QLineEdit *retry = nullptr;
-            for (auto *candidate : view->findChildren<QLineEdit *>())
+            for (auto *candidate : active->findChildren<QLineEdit *>())
                 if (candidate->isVisible())
                     retry = candidate;
             QVERIFY(retry);
