@@ -38,6 +38,8 @@ void CDropTarget::PositionCursor(int x, int y) {
                 m_IsAppTarget = false;
                 if ((int)i == SrcPanelIndex)
                     return;
+                if (panel->IsArcFolder() && panel->IsThereReadOnlyFolder())
+                    return;
                 break;
             }
         }
