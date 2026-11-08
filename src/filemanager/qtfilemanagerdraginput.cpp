@@ -127,13 +127,17 @@ bool QtFileManagerDrag::HandleDropEvent(QWidget &widget, QEvent &event) {
     }
     const QPoint position = widget.mapToGlobal(drop.position().toPoint());
     const DWORD keys = DropKeys(drop);
+    auto &target = window_.app_.DropTarget();
+    const bool menuDrop = (keys & (MK_RBUTTON | MK_MBUTTON)) ||
+                          (event.type() != QEvent::DragEnter && target.IsMenuDrop());
+    // A left drop of external URLs opens or archives the source in place.
+    const bool canMove = data != &external_ || data->NativeData || menuDrop;
     DWORD effect = 0;
     if (drop.possibleActions() & Qt::CopyAction)
         effect |= DROPEFFECT_COPY;
-    if (drop.possibleActions() & Qt::MoveAction)
+    if (canMove && (drop.possibleActions() & Qt::MoveAction))
         effect |= DROPEFFECT_MOVE;
     HRESULT result;
-    auto &target = window_.app_.DropTarget();
     const auto finishDrop = qScopeGuard([this, &event] {
         if (event.type() == QEvent::Drop) {
             ResetDropTarget();

@@ -94,13 +94,20 @@ class DroppedPathChoiceTests final : public QObject {
             else
                 (choice == "open" ? open : compress)->click();
         });
-        responder.start(5);
         QMimeData mime;
         mime.setUrls({QUrl::fromLocalFile(dropped)});
+        if (directory && choice == "open") {
+            QDragEnterEvent moveOnly(DragEventPosition(QPoint(5, 5)), Qt::MoveAction, &mime,
+                                     Qt::LeftButton, Qt::ShiftModifier);
+            QCoreApplication::sendEvent(table->viewport(), &moveOnly);
+            QVERIFY(!moveOnly.isAccepted());
+        }
+        responder.start(5);
         QDragEnterEvent enter(DragEventPosition(QPoint(5, 5)), Qt::CopyAction | Qt::MoveAction,
                               &mime, Qt::LeftButton, Qt::NoModifier);
         QCoreApplication::sendEvent(table->viewport(), &enter);
         QVERIFY(enter.isAccepted());
+        QCOMPARE(enter.dropAction(), Qt::CopyAction);
         QDropEvent drop(QPointF(5, 5), Qt::CopyAction | Qt::MoveAction, &mime, Qt::LeftButton,
                         Qt::NoModifier);
         QCoreApplication::sendEvent(table->viewport(), &drop);
