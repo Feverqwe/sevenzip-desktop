@@ -370,7 +370,7 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
         }
         if (collision || (invalid && invalidName.isEmpty()) || invalidName.contains(QChar::Null)) {
             QVERIFY(!QFileInfo::exists(fixture.filePath(QStringLiteral("renamed 空.txt"))));
-            view->setFocus();
+            QTRY_COMPARE(window.focusWidget(), view);
             action(window, "renameAction")->trigger();
             QLineEdit *retry = nullptr;
             for (auto *candidate : view->findChildren<QLineEdit *>())
