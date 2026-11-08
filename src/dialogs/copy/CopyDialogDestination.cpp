@@ -58,7 +58,8 @@ QString DestinationDirectoryError(const QFileInfo &destination, bool needsDirect
                 return Text(QT_TRANSLATE_NOOP("CopyRedesign", "Not a folder: %1")).arg(path);
             return directory.isWritable()
                        ? QString()
-                       : Text(QT_TRANSLATE_NOOP("CopyRedesign", "The destination is read-only."));
+                       : Text(QT_TRANSLATE_NOOP("CopyRedesign", "The folder is read-only: %1"))
+                             .arg(path);
         }
         const QString parent = directory.absolutePath();
         if (parent == path)

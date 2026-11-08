@@ -367,7 +367,8 @@ class CopyDestinationTests final : public QObject {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString blocked = fixture.filePath("read only");
-        QVERIFY(QDir().mkdir(blocked));
+        const QString writable = blocked + "/writable";
+        QVERIFY(QDir().mkpath(writable));
         const auto permissions = QFile::permissions(blocked);
         const auto restore = qScopeGuard([&] { QFile::setPermissions(blocked, permissions); });
         if (!QFile::setPermissions(blocked, QFile::ReadOwner | QFile::ExeOwner) ||
@@ -375,7 +376,7 @@ class CopyDestinationTests final : public QObject {
             QSKIP("The test filesystem does not enforce this directory permission");
 
         const QString source = fixture.filePath("source.txt");
-        const QString target = fixture.filePath("writable target.txt");
+        const QString target = writable + "/writable target.txt";
         CCopyDialog dialog(false, blocked + "/new folder/target.txt", {source});
         configure(dialog, source);
         dialog.show();
@@ -389,6 +390,8 @@ class CopyDestinationTests final : public QObject {
             dialog.accept();
             QVERIFY(dialog.isVisible());
             QCOMPARE(path->text(), unwritable);
+            QCOMPARE(dialog.findChild<QLabel *>("copyDestinationMessage")->text(),
+                     QString("The folder is read-only: %1").arg(blocked));
         }
         path->setText(target);
         QVERIFY(ok->isEnabled());
