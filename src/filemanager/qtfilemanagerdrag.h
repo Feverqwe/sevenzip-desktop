@@ -25,7 +25,7 @@ class QtFileManagerDrag final : public QObject,
     void Highlight(unsigned panel, int item, bool enabled) override;
     bool IsSameDrive(const UString &, const UStringVector &) const override;
     bool ConfirmCopyToArchive(CPanel &, DWORD) override;
-    UInt32 Drag_OnContextMenu(int x, int y, UInt32 mask) override;
+    UInt32 Drag_OnContextMenu(int x, int y, UInt32 mask, DWORD allowedEffects) override;
 
   protected:
     bool eventFilter(QObject *, QEvent *) override;

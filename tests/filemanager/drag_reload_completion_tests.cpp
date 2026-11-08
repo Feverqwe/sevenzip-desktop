@@ -103,6 +103,10 @@ class DragReloadCompletionTests final : public QObject, protected MainWindowTest
         QSignalSpy peerPublication(peerList->model(), &QAbstractItemModel::rowsRemoved);
         QMimeData mime;
         mime.setUrls({QUrl::fromLocalFile(fixture.filePath(added))});
+        QDragEnterEvent moveOnly(DragEventPosition(QPoint(5, 5)), Qt::MoveAction, &mime,
+                                 Qt::RightButton, Qt::ShiftModifier);
+        QCoreApplication::sendEvent(view->viewport(), &moveOnly);
+        QVERIFY(!moveOnly.isAccepted());
         QDragEnterEvent enter(DragEventPosition(QPoint(5, 5)), Qt::CopyAction, &mime,
                               Qt::LeftButton, Qt::NoModifier);
         QCoreApplication::sendEvent(view->viewport(), &enter);

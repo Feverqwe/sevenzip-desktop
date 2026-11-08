@@ -137,6 +137,7 @@ bool QtFileManagerDrag::HandleDropEvent(QWidget &widget, QEvent &event) {
         effect |= DROPEFFECT_COPY;
     if (canMove && (drop.possibleActions() & Qt::MoveAction))
         effect |= DROPEFFECT_MOVE;
+    const DWORD allowedEffects = effect;
     HRESULT result;
     const auto finishDrop = qScopeGuard([this, &event] {
         if (event.type() == QEvent::Drop) {
@@ -152,8 +153,11 @@ bool QtFileManagerDrag::HandleDropEvent(QWidget &widget, QEvent &event) {
         // Qt can deliver a synthetic Drop without an accepted DragEnter, or
         // after the target became disabled. Revalidate before running a command.
         result = target.DragOver(keys, position.x(), position.y(), &effect);
-        if (result == S_OK && effect)
+        if (result == S_OK && effect) {
+            if (target.IsMenuDrop())
+                effect = allowedEffects;
             result = ExecuteDrop(data, keys, position, effect);
+        }
     }
     if (result == S_OK && effect) {
         drop.setDropAction(effect == DROPEFFECT_MOVE ? Qt::MoveAction : Qt::CopyAction);

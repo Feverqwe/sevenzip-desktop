@@ -118,6 +118,8 @@ static DWORD GetEffect_ForKeys(DWORD keyState) {
 DWORD CDropTarget::GetEffect(DWORD keyState, DWORD allowedEffect) const {
     if (!m_DropIsAllowed || !m_PanelDropIsAllowed)
         return 0;
+    if (m_IsRightButton && !IsFsFolderPath())
+        allowedEffect &= DROPEFFECT_COPY;
     if (!IsFsFolderPath() || !m_TargetPath_WasSent_ToDataObject) {
         // Original source leaves this disabled: allowedEffect &= ~DROPEFFECT_MOVE;
     }
@@ -132,7 +134,7 @@ DWORD CDropTarget::GetEffect(DWORD keyState, DWORD allowedEffect) const {
         if (allowedEffect & DROPEFFECT_COPY)
             effect = DROPEFFECT_COPY;
         if (allowedEffect & DROPEFFECT_MOVE)
-            if (IsItSameDrive())
+            if (m_IsRightButton || IsItSameDrive())
                 effect = DROPEFFECT_MOVE;
     }
     return effect;
@@ -310,8 +312,9 @@ HRESULT CDropTarget::Drop(CDataObject *dataObject, DWORD keyState, int x, int y,
                 if (IsFsFolderPath())
                     flagsMask |= UInt32(1) << NDragMenu::k_Copy_Base;
             }
-            const UInt32 cmd32 = presentation_ ? presentation_->Drag_OnContextMenu(x, y, flagsMask)
-                                               : NDragMenu::k_Cancel;
+            const UInt32 cmd32 = presentation_
+                                     ? presentation_->Drag_OnContextMenu(x, y, flagsMask, *effect)
+                                     : NDragMenu::k_Cancel;
             cmd = cmd32 & NDragMenu::k_MenuFlags_CmdMask;
             if (cmd32 & NDragMenu::k_MenuFlag_Copy)
                 cmdEffect = DROPEFFECT_COPY;

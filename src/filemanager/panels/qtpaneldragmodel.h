@@ -123,7 +123,7 @@ class IQtDropTargetPresentation {
     virtual void Highlight(unsigned panel, int item, bool enabled) = 0;
     virtual bool IsSameDrive(const UString &destination, const UStringVector &sources) const = 0;
     virtual bool ConfirmCopyToArchive(CPanel &, DWORD) { return false; }
-    virtual UInt32 Drag_OnContextMenu(int, int, UInt32) { return NDragMenu::k_Cancel; }
+    virtual UInt32 Drag_OnContextMenu(int, int, UInt32, DWORD) { return NDragMenu::k_Cancel; }
 };
 class CDropTarget {
     bool m_DropIsAllowed = false, m_PanelDropIsAllowed = false;

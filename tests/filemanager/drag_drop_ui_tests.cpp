@@ -478,12 +478,18 @@ class DragDropUiTests final : public QObject {
         QTest::addColumn<int>("sourceIndex");
         QTest::addColumn<bool>("right");
         QTest::addColumn<bool>("cancel");
-        QTest::newRow("left-table-copy") << false << false << 0 << false << false;
-        QTest::newRow("right-table-move") << false << true << 1 << false << false;
-        QTest::newRow("left-icons-move") << true << true << 0 << false << false;
-        QTest::newRow("right-icons-copy") << true << false << 1 << false << false;
-        QTest::newRow("right-button-copy") << false << false << 0 << true << false;
-        QTest::newRow("right-button-cancel") << true << false << 1 << true << true;
+        QTest::addColumn<Qt::DropActions>("actions");
+        const auto both = Qt::CopyAction | Qt::MoveAction;
+        QTest::newRow("left-table-copy") << false << false << 0 << false << false << both;
+        QTest::newRow("right-table-move") << false << true << 1 << false << false << both;
+        QTest::newRow("left-icons-move") << true << true << 0 << false << false << both;
+        QTest::newRow("right-icons-copy") << true << false << 1 << false << false << both;
+        QTest::newRow("right-button-copy") << false << false << 0 << true << false << both;
+        QTest::newRow("right-button-copy-only")
+            << false << false << 0 << true << false << Qt::DropActions(Qt::CopyAction);
+        QTest::newRow("right-button-move-only")
+            << true << true << 1 << true << false << Qt::DropActions(Qt::MoveAction);
+        QTest::newRow("right-button-cancel") << true << false << 1 << true << true << both;
     }
     void nativeSourceUsesActualTargetView() {
         QFETCH(bool, icons);
@@ -491,6 +497,7 @@ class DragDropUiTests final : public QObject {
         QFETCH(int, sourceIndex);
         QFETCH(bool, right);
         QFETCH(bool, cancel);
+        QFETCH(Qt::DropActions, actions);
         QTemporaryDir root;
         const QString name = QStringLiteral("перенос с пробелом.txt");
         const QString source = root.filePath("source");
@@ -545,6 +552,7 @@ class DragDropUiTests final : public QObject {
         const auto selection = targetTable->selectionModel()->selectedRows();
         bool entered = false, dropped = false, highlighted = false, sourceRefused = false;
         bool menuShown = false;
+        bool canCopy = false, canMove = false, canArchive = false;
         QTimer chooseMenu;
         chooseMenu.setInterval(5);
         connect(&chooseMenu, &QTimer::timeout, &window, [&] {
@@ -552,17 +560,28 @@ class DragDropUiTests final : public QObject {
                 auto *menu = qobject_cast<QMenu *>(widget);
                 if (!menu || menu->objectName() != "dragContextMenu" || !menu->isVisible())
                     continue;
+                const UInt32 copyCommand = NDragMenu::k_Copy_Base | NDragMenu::k_MenuFlag_Copy;
+                const UInt32 moveCommand = NDragMenu::k_Copy_Base | NDragMenu::k_MenuFlag_Move;
                 const UInt32 command =
-                    cancel ? UInt32(NDragMenu::k_Cancel)
-                           : UInt32(NDragMenu::k_Copy_Base | NDragMenu::k_MenuFlag_Copy);
+                    cancel ? UInt32(NDragMenu::k_Cancel) : (move ? moveCommand : copyCommand);
+                QAction *chosen = nullptr;
+                menuShown = true;
                 for (QAction *action : menu->actions()) {
-                    if (!action->isSeparator() && action->data().toUInt() == command) {
-                        menuShown = true;
-                        menu->setActiveAction(action);
-                        QTest::keyClick(menu, Qt::Key_Return);
-                        return;
-                    }
+                    if (action->isSeparator() || !action->isEnabled())
+                        continue;
+                    const UInt32 id = action->data().toUInt();
+                    canCopy |= id == copyCommand;
+                    canMove |= id == moveCommand;
+                    canArchive |= id == (NDragMenu::k_AddToArc | NDragMenu::k_MenuFlag_Copy);
+                    if (id == command)
+                        chosen = action;
                 }
+                if (chosen) {
+                    menu->setActiveAction(chosen);
+                    QTest::keyClick(menu, Qt::Key_Return);
+                } else
+                    menu->close();
+                return;
             }
         });
         if (right)
@@ -576,13 +595,12 @@ class DragDropUiTests final : public QObject {
             sourceRefused = !self.isAccepted();
             QDragLeaveEvent leave;
             QCoreApplication::sendEvent(sourceTable->viewport(), &leave);
-            QDragEnterEvent enter(DragEventPosition(point), Qt::CopyAction | Qt::MoveAction,
-                                  drag.mimeData(), button, modifiers);
+            QDragEnterEvent enter(DragEventPosition(point), actions, drag.mimeData(), button,
+                                  modifiers);
             QCoreApplication::sendEvent(view->viewport(), &enter);
             entered = enter.isAccepted();
             highlighted = folder.data(Qt::UserRole + 19).toBool();
-            QDropEvent drop(point, Qt::CopyAction | Qt::MoveAction, drag.mimeData(), button,
-                            modifiers);
+            QDropEvent drop(point, actions, drag.mimeData(), button, modifiers);
             QCoreApplication::sendEvent(view->viewport(), &drop);
             dropped = drop.isAccepted();
             return dropped ? drop.dropAction() : Qt::IgnoreAction;
@@ -617,6 +635,11 @@ class DragDropUiTests final : public QObject {
         QVERIFY(entered && highlighted);
         QCOMPARE(dropped, !cancel);
         QCOMPARE(menuShown, right);
+        if (right) {
+            QCOMPARE(canCopy, actions.testFlag(Qt::CopyAction));
+            QCOMPARE(canArchive, actions.testFlag(Qt::CopyAction));
+            QCOMPARE(canMove, actions.testFlag(Qt::MoveAction));
+        }
         QVERIFY(!folder.data(Qt::UserRole + 19).toBool());
         QCOMPARE(targetTable->selectionModel()->selectedRows(), selection);
         if (cancel) {
