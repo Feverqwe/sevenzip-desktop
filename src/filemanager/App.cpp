@@ -117,6 +117,8 @@ void CApp::OnSetSameFolder(unsigned srcPanelIndex) {
         return;
     if (NumPanels <= 1)
         return;
+    if (_presentation && _presentation->OpenSameFolderInPeer(srcPanelIndex))
+        return;
     const CPanel &srcPanel = Panels[srcPanelIndex];
     CPanel &destPanel = Panels[1 - srcPanelIndex];
     if (_presentation)

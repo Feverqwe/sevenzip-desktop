@@ -63,6 +63,7 @@ class IQtAppPresentation {
     virtual CPanelCallback *PanelCallback(unsigned index) = 0;
     virtual bool AllowPanelFocusChange(unsigned) const { return true; }
     virtual void PrepareFolderChange(unsigned) {}
+    virtual bool OpenSameFolderInPeer(unsigned) { return false; }
     virtual void ExecuteCopy(bool, bool, unsigned, const QString &, const CRecordVector<UInt32> &,
                              QtCopyRoute) {}
     virtual void SetListSettings(unsigned index, const CFmSettings &settings) = 0;

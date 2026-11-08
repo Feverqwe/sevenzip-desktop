@@ -151,6 +151,11 @@ void QtAppPresentation::PrepareFolderChange(unsigned index) {
     });
 }
 
+bool QtAppPresentation::OpenSameFolderInPeer(unsigned index) {
+    window_.workspace_->OpenSameFolderInPeer(index);
+    return true;
+}
+
 void QtAppPresentation::SetListSettings(unsigned index, const CFmSettings &settings) {
     if (index >= kNumPanelsMax)
         return;

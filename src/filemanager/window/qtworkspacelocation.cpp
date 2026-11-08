@@ -6,6 +6,27 @@
 #include <QScrollBar>
 #include <utility>
 
+HRESULT QtWindowWorkspace::OpenSameFolderInPeer(unsigned source) {
+    const auto &ui = window_.panelUi_[source];
+    const auto &operations = window_.app_.QtOperations();
+    if (changing_ || operations.closed() || operations.blocking() ||
+        window_.sourceArchiveProgress_ || QApplication::activeModalWidget() || ui.scanningDisk ||
+        ui.scanningArchive || ui.locationUnavailable)
+        return E_ABORT;
+    const auto target = CaptureVisit(source);
+    const unsigned peer = 1 - source;
+    HRESULT outcome = E_ABORT;
+    window_.withPanelProjection(peer, [&] {
+        outcome = Navigate([&] {
+            return OpenRecordedLocation(peer, target.path, target.nativePlaceIdentity,
+                                        target.archiveLocation);
+        });
+    });
+    if (outcome != S_OK && outcome != E_ABORT)
+        window_.showStatusMessage(tr("Location unavailable: %1").arg(target.path));
+    return outcome;
+}
+
 HRESULT QtWindowWorkspace::OpenRecordedLocation(unsigned panel, const QString &path,
                                                 const QString &nativeIdentity,
                                                 const QtArchiveLocation &archive) {

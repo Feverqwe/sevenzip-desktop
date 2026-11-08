@@ -4,6 +4,7 @@
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
 #include "filemanager/window/mainwindow.h"
+#include "filemanager/window/qtwindowworkspace.h"
 #include "localization/LangUtils.h"
 #include "settings/RegistryUtils.h"
 #include "support/panel_keys.h"
@@ -18,6 +19,7 @@
 #include <QSignalSpy>
 #include <QStackedWidget>
 #include <QStandardPaths>
+#include <QStatusBar>
 #include <QTableWidget>
 #include <QTemporaryDir>
 #include <QtTest>
@@ -50,6 +52,60 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         QFile::remove(settings);
         SaveRegLang(UString("-"), settings);
         ReloadLang(settings);
+    }
+    void sameFolderCommandPreservesPeerWhenSourceDisappears() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString source = fixture.filePath("source folder");
+        const QString moved = fixture.filePath("renamed source");
+        const QString peer = fixture.filePath("peer folder");
+        QVERIFY(QDir().mkpath(source));
+        QVERIFY(QDir().mkpath(peer));
+        for (const auto &path :
+             {QDir(source).filePath("source.txt"), QDir(peer).filePath("peer.txt")}) {
+            QFile entry(path);
+            QVERIFY(entry.open(QIODevice::WriteOnly));
+        }
+        MainWindow window;
+        window.show();
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        if (!action(window, "twoPanelsAction")->isChecked())
+            action(window, "twoPanelsAction")->trigger();
+        openFilesystemPanel(window, 1, peer);
+        QVERIFY(!QTest::currentTestFailed());
+        auto *peerPanel = window.findChild<QWidget *>("filePanel1");
+        auto *peerList = peerPanel->findChild<FileTable *>("archiveTable");
+        auto *peerAddress = peerPanel->findChild<QLineEdit *>("archivePath");
+        peerList->sourcePanel->Set_AutoRefresh_Mode(false);
+        peerList->setCurrentCell(0, 0);
+        peerList->selectRow(0);
+        const QString originalPeer = peerAddress->text();
+
+        openFilesystemPanel(window, 0, source);
+        QVERIFY(!QTest::currentTestFailed());
+        auto *sourceList =
+            window.findChild<QWidget *>("filePanel0")->findChild<FileTable *>("archiveTable");
+        sourceList->sourcePanel->Set_AutoRefresh_Mode(false);
+        QtWindowWorkspace *workspace = nullptr;
+        for (auto *child : window.children())
+            if (auto *owner = dynamic_cast<QtWindowWorkspace *>(child))
+                workspace = owner;
+        QVERIFY(workspace);
+        QVERIFY(QDir().rename(source, moved));
+        QCOMPARE(workspace->OpenSameFolderInPeer(0), HRESULT(S_FALSE));
+        QVERIFY(window.statusBar()->currentMessage().contains(source));
+        QTRY_VERIFY(peerList->isEnabled());
+        QCOMPARE(peerAddress->text(), originalPeer);
+        QCOMPARE(peerList->currentIndex().data().toString(), QStringLiteral("peer.txt"));
+        QCOMPARE(peerList->selectionModel()->selectedRows(),
+                 QModelIndexList{peerList->currentIndex()});
+        QVERIFY(sourceList->hasFocus());
+
+        QVERIFY(QDir().rename(moved, source));
+        PanelKeys::command(sourceList, Qt::Key_Up, Qt::AltModifier | Qt::ShiftModifier);
+        QTRY_COMPARE(peerList->model()->index(0, 0).data().toString(),
+                     QStringLiteral("source.txt"));
+        QVERIFY(sourceList->hasFocus());
     }
     void parentButtonBelongsToItsPanel_data() {
         QTest::addColumn<unsigned>("pane");
