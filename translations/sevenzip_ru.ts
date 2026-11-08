@@ -6564,9 +6564,16 @@ Use `Revert` to recover timestamp.</source>
             <translation>Часть файлов пропущена; источники сохранены.</translation>
         </message>
         <message>
-            <location line="-83" />
-            <source>Source or destination unavailable, or the name is already in use.</source>
-            <translation>Источник или назначение недоступны либо имя уже занято.</translation>
+            <source>Source and destination are the same: %1</source>
+            <translation>Источник и назначение совпадают: %1</translation>
+        </message>
+        <message>
+            <source>Destination is inside the source folder: %1</source>
+            <translation>Путь назначения находится внутри исходной папки: %1</translation>
+        </message>
+        <message>
+            <source>Destination is a symbolic link: %1</source>
+            <translation>Путь назначения указывает на символическую ссылку: %1</translation>
         </message>
         <message>
             <source>Multiple items would use the same destination: %1</source>

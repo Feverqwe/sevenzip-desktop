@@ -179,12 +179,23 @@ QtFileTransferTransaction::prepareTargets(QString &error) {
                                   QDir::cleanPath(targetInfo.absoluteFilePath()) ||
                               (!sourceLink && targetInfo.exists() &&
                                info.canonicalFilePath() == targetInfo.canonicalFilePath());
-        if (QtIsFileSystemLink(target) || samePath ||
-            (!sourceLink && info.isDir() &&
-             NFsFolder::IsDestChild(info.canonicalFilePath(), canonicalDestination))) {
-            error = QCoreApplication::translate(
-                "qtfiletransfertransaction",
-                "Source or destination unavailable, or the name is already in use.");
+        if (samePath) {
+            error = QCoreApplication::translate("qtfiletransfertransaction",
+                                                "Source and destination are the same: %1")
+                        .arg(target);
+            return {};
+        }
+        if (!sourceLink && info.isDir() &&
+            NFsFolder::IsDestChild(info.canonicalFilePath(), canonicalDestination)) {
+            error = QCoreApplication::translate("qtfiletransfertransaction",
+                                                "Destination is inside the source folder: %1")
+                        .arg(target);
+            return {};
+        }
+        if (QtIsFileSystemLink(target)) {
+            error = QCoreApplication::translate("qtfiletransfertransaction",
+                                                "Destination is a symbolic link: %1")
+                        .arg(target);
             return {};
         }
         targets.append({source, target, std::move(*member)});
