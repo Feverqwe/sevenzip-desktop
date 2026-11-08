@@ -503,6 +503,7 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         int confirmations = 0;
         int errors = 0;
         bool reports = true;
+        bool refreshedBeforeReview = false;
         QString errorTitle;
         QString errorDetails;
         QTimer responder;
@@ -516,10 +517,12 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
                 return;
             }
             if (auto *progress = TestProgressDialog::ResultWindow(dialogs_.activeDialog())) {
-                if (!progress->Sync.FinalMessage.ErrorMessage.Message.IsEmpty()) {
+                if (progress->Sync.FinalMessage.Result == E_FAIL) {
                     ++errors;
                     errorTitle = progress->findChild<QLabel *>("IDT_PROGRESS_STATUS")->text();
                     errorDetails = TestProgressDialog::ReportText(*progress);
+                    refreshedBeforeReview =
+                        view->rowCount() == 2 && !itemNamed(firstDeleted).isValid();
                 }
                 for (const QSize size : {QSize(400, 240), QSize(340, 220)}) {
                     progress->resize(size);
@@ -557,6 +560,8 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         });
         responder.start(1);
         action(window, "deleteAction")->trigger();
+        if (partial)
+            QTRY_COMPARE(errors, 1);
         responder.stop();
         QCOMPARE(confirmations, 1);
         QCOMPARE(errors, partial ? 1 : 0);
@@ -574,6 +579,7 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         QCOMPARE(view->currentIndex().data(QtPanelList::NameRole).toString(),
                  partial ? secondDeleted : QString("keep.bin"));
         if (partial) {
+            QVERIFY(refreshedBeforeReview);
             QVERIFY(errorDetails.contains(secondDeleted));
             QVERIFY(errorDetails.contains(
                 language == "ru" ? QStringLiteral("Не удалось переместить объект в Корзину.")

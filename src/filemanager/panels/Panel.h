@@ -634,7 +634,8 @@ class CPanel : public QObject {
                            QString *publishedArchive = nullptr);
     HRESULT MoveItemsToTrash(class IQtTrashService &trash, CSelectedState &selection,
                              const CRecordVector<UInt32> *explicitIndices = nullptr,
-                             bool confirm = true, unsigned *moved = nullptr);
+                             bool confirm = true, unsigned *moved = nullptr,
+                             std::optional<QStringList> *review = nullptr);
     QtArchiveUpdateResult RemoveItemsAfterMove(const CRecordVector<UInt32> &indices,
                                                CSelectedState &selection, bool confirm);
     bool IsDeviceDrivesPrefix() const { return _currentFolderPrefix.IsEqualTo("\\\\.\\"); }

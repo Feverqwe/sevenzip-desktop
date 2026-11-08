@@ -49,9 +49,11 @@ static bool ConfirmDeleteItems(const CPanel &panel, const CRecordVector<UInt32> 
 
 HRESULT CPanel::MoveItemsToTrash(IQtTrashService &trash, CSelectedState &state,
                                  const CRecordVector<UInt32> *explicitIndices, bool confirm,
-                                 unsigned *moved) {
+                                 unsigned *moved, std::optional<QStringList> *review) {
     if (moved)
         *moved = 0;
+    if (review)
+        review->reset();
     if (!IsFSFolder())
         return E_NOTIMPL;
     CDisableTimerProcessing disableTimerProcessing(*this);
@@ -101,8 +103,11 @@ HRESULT CPanel::MoveItemsToTrash(IQtTrashService &trash, CSelectedState &state,
 
     CDisableNotify disableNotify(*this);
     unsigned movedCount = 0;
+    QStringList diagnostics;
     const HRESULT result =
-        QtMoveItemsToTrash(paths, trash, GetParent(), false, nullptr, &movedCount);
+        QtMoveItemsToTrash(paths, trash, GetParent(), review != nullptr, &diagnostics, &movedCount);
+    if (review && result != S_OK)
+        *review = std::move(diagnostics);
     if (moved)
         *moved = movedCount;
     if (movedCount && state.FocusedItem > 0) {

@@ -96,13 +96,25 @@ void QtFileManagerCommands::MoveToTrash() {
     const QString directory = ToQString(panel.GetFsPath());
     CSelectedState selection;
     unsigned moved = 0;
-    panel.MoveItemsToTrash(*window_.trashService_, selection, nullptr, true, &moved);
+    std::optional<QStringList> review;
+    const HRESULT result =
+        panel.MoveItemsToTrash(*window_.trashService_, selection, nullptr, true, &moved, &review);
     window_.app_.QtOperations().ContinueScanAfterSourceCall(index);
     if (moved && !directory.isEmpty()) {
         if (auto *application = QtWorkspaceApplication::Find())
             application->FilesystemPublished({directory});
         else
             window_.guiOutputRefresh_->Enqueue({directory}, {});
+    }
+    if (review) {
+        window_.workspace_->WhenReady(
+            [this, directory, result, moved, diagnostics = std::move(*review)] {
+                CProgressDialog::PresentResult(&window_, {.title = QtLangText(IDS_DELETING),
+                                                          .result = result,
+                                                          .diagnostics = diagnostics,
+                                                          .source = directory,
+                                                          .partial = moved != 0});
+            });
     }
 }
 void QtFileManagerCommands::CalculateCrc(const char *method) {
