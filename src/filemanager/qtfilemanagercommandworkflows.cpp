@@ -16,6 +16,7 @@
 #include <QScopedValueRollback>
 #include <QStackedWidget>
 #include <QVBoxLayout>
+#include <utility>
 
 void QtFileManagerCommands::OpenNative(bool internal, bool external, const wchar_t *type) {
     RunNativeOpen([=](CPanel &panel) {
@@ -139,7 +140,7 @@ void QtFileManagerCommands::CreateFolder() {
         finish();
         window_.appPresentation_->RequestListFocus(index);
     });
-    QObject::connect(name, &QLineEdit::returnPressed, editor, [this, index, name, editor, finish] {
+    const auto submit = [this, index, editor, finish](const QString &value) {
         auto &panel = window_.app_.Panels[index];
         DiscardStaleFolderDraft(index);
         if (editor->isHidden())
@@ -156,7 +157,6 @@ void QtFileManagerCommands::CreateFolder() {
         window_.activatePanelUi(index);
         QString detail;
         HRESULT result = E_INVALIDARG;
-        const QString value = name->text();
         if (!value.isEmpty() && !value.contains(QChar::Null)) {
             const QPointer<QWidget> alive(editor);
             editor->setEnabled(false);
@@ -178,6 +178,27 @@ void QtFileManagerCommands::CreateFolder() {
             return;
         }
         editor->ShowError(detail.isEmpty() ? ToQString(HResultToMessage(result)) : detail);
+    };
+    QObject::connect(name, &QLineEdit::returnPressed, editor, [this, index, name, editor, submit] {
+        auto draft = folderDrafts_.find(index);
+        if (draft == folderDrafts_.end() || draft->editor != editor)
+            return;
+        const bool queued = draft->pendingName.has_value();
+        if (!queued && !(window_.scanningPanelMask() & (1u << index))) {
+            submit(name->text());
+            return;
+        }
+        draft->pendingName = name->text();
+        if (queued)
+            return;
+        window_.workspace_->WhenReady([this, index, owner = QPointer(editor), submit] {
+            auto draft = folderDrafts_.find(index);
+            if (!owner || draft == folderDrafts_.end() || draft->editor != owner)
+                return;
+            const auto pending = std::exchange(draft->pendingName, std::nullopt);
+            if (pending && owner->NameField()->text() == *pending)
+                submit(*pending);
+        });
     });
     editor->setToolTip(ToQString(prefix));
     editor->show();

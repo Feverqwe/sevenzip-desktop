@@ -258,13 +258,16 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
     void failure_data() {
         QTest::addColumn<QString>("language");
         QTest::addColumn<bool>("deferred");
+        QTest::addColumn<bool>("retry");
         for (const QString language : {"-", "ru"})
-            QTest::newRow(qPrintable(language)) << language << false;
-        QTest::newRow("deferred") << QString("-") << true;
+            QTest::newRow(qPrintable(language)) << language << false << false;
+        QTest::newRow("deferred") << QString("-") << true << false;
+        QTest::newRow("deferred-retry") << QString("-") << true << true;
     }
     void failure() {
         QFETCH(QString, language);
         QFETCH(bool, deferred);
+        QFETCH(bool, retry);
         const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         QFile::remove(settings);
         SaveRegLang(ToUString(language), settings);
@@ -312,12 +315,20 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         auto *error = window.findChild<QLabel *>("inlineFolderError");
         QVERIFY(error && error->isVisible() && !error->text().isEmpty());
         QCOMPARE(name->text(), QString("keep.bin"));
-        QTest::keyClick(name, Qt::Key_Escape);
+        const QString corrected = QStringLiteral("corrected папка");
+        if (deferred) {
+            QVERIFY(!view->isEnabled());
+            name->setText(corrected);
+            QTest::keyClick(name, Qt::Key_Return);
+        }
+        if (!retry)
+            QTest::keyClick(name, Qt::Key_Escape);
         // Create Folder refreshes after failure and preserves selection.
-        QTRY_VERIFY(view->isEnabled() && view->rowCount() == initialRows + 1);
+        QTRY_VERIFY(view->isEnabled() && view->rowCount() == initialRows + 1 + int(retry));
         QTRY_COMPARE(window.focusWidget(), view);
         QCOMPARE(view->selectionModel()->selectedRows().size(), 1);
-        QCOMPARE(view->currentRow(), row(view, "keep.bin"));
+        QCOMPARE(view->currentRow(), row(view, retry ? corrected : QString("keep.bin")));
+        QCOMPARE(QFileInfo(fixture.filePath(corrected)).isDir(), retry);
         QVERIFY(keep.open(QIODevice::ReadOnly));
         QCOMPARE(keep.readAll(), QByteArray("protected bytes"));
     }

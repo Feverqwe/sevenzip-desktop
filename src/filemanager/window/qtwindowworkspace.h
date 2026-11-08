@@ -51,6 +51,7 @@ class QtWindowWorkspace final : public QObject {
     bool CanCloseMounts();
     QWidget *MountCloseBlocker() const;
     bool PreparePanelForShow(unsigned panel);
+    void WhenReady(std::function<void()> body, std::function<void()> canceled = {});
     enum class NavigationHistory { Record, Skip };
     HRESULT Navigate(const std::function<HRESULT()> &body,
                      std::function<void(HRESULT)> finished = {},
@@ -141,7 +142,6 @@ class QtWindowWorkspace final : public QObject {
     void AddFavorite();
     void OpenFavorite(const QtFavorite &favorite);
     void OpenRecentPlace(unsigned panel, const QtRecentPlace &place);
-    void WhenReady(std::function<void()> body, std::function<void()> canceled = {});
     void RestoreListFocus(unsigned panel, quint64 request, QPointer<QWidget> widget);
     void RestorePanel(unsigned panel, const QJsonObject &saved, std::function<void()> finished,
                       std::function<void()> canceled, const QtArchiveLocation &archive = {});
