@@ -6,6 +6,7 @@
 #include "platform/support/external_editor_fixture.h"
 #include "platform/support/native_link_fixture.h"
 #include "support/panel_keys.h"
+#include <QClipboard>
 #include <QScrollBar>
 
 class AddressNavigationTests final : public QObject, protected MainWindowTestSupport {
@@ -485,7 +486,10 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
         auto *address = ui->findChild<QLineEdit *>("archivePath");
         auto *view = static_cast<FileTable *>(ui->findChild<FileTable *>("archiveTable"));
         PanelKeys::focusAddress(address);
-        address->setText(child);
+        address->selectAll();
+        QApplication::clipboard()->setText(child);
+        QTest::keySequence(address, QKeySequence::Paste);
+        QCOMPARE(address->text(), child);
         QTest::keyClick(address, Qt::Key_Return);
         QTRY_COMPARE(view->rowCount(), 1);
         QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(address->text())), child);
