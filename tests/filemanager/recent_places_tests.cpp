@@ -317,7 +317,14 @@ class RecentPlacesTests final : public QObject, protected MainWindowTestSupport 
 #endif
     }
 
+    void openingReturnsToCapturedPanel_data() {
+        QTest::addColumn<bool>("editPeer");
+        QTest::newRow("return-to-list") << false;
+        QTest::newRow("preserve-new-peer-input") << true;
+    }
+
     void openingReturnsToCapturedPanel() {
+        QFETCH(bool, editPeer);
         QTemporaryDir fixture;
         const QString a = fixture.filePath("A"), b = fixture.filePath("B"),
                       c = fixture.filePath("C");
@@ -340,6 +347,20 @@ class RecentPlacesTests final : public QObject, protected MainWindowTestSupport 
         auto *other = right->findChild<FileTable *>("archiveTable");
         QTRY_COMPARE(QDir::cleanPath(ToQString(other->sourcePanel->GetCurrentFolderPrefix())), c);
         store().Visit({b, {}, {}});
+        const QString draft = QStringLiteral("new peer draft");
+        QWidget *editFocus = nullptr;
+        if (editPeer) {
+            const auto scanners = window.findChildren<FilesystemScanner *>();
+            QCOMPARE(scanners.size(), 2);
+            connect(scanners.front(), &FilesystemScanner::advanced, &window, [&] {
+                if (editFocus)
+                    return;
+                PanelKeys::focusAddress(address);
+                address->selectAll();
+                QTest::keyClicks(address, draft);
+                editFocus = window.focusWidget();
+            });
+        }
         auto *leftRecent = window.findChild<QToolButton *>("panelRecentPlacesButton0");
         QVERIFY(leftRecent);
         leftRecent->click();
@@ -354,9 +375,16 @@ class RecentPlacesTests final : public QObject, protected MainWindowTestSupport 
         auto *list = left->findChild<FileTable *>("archiveTable");
         QVERIFY(list);
         QTRY_VERIFY(list->isEnabled() && list->rowCount() >= 301);
-        QTRY_COMPARE(window.focusWidget(), list);
-        if (window.isActiveWindow())
-            QVERIFY(list->hasFocus());
+        if (editPeer) {
+            QVERIFY(editFocus);
+            QCOMPARE(window.focusWidget(), editFocus);
+            QVERIFY(address->isVisible());
+            QCOMPARE(address->text(), draft);
+        } else {
+            QTRY_COMPARE(window.focusWidget(), list);
+            if (window.isActiveWindow())
+                QVERIFY(list->hasFocus());
+        }
         QCOMPARE(QDir::cleanPath(ToQString(other->sourcePanel->GetCurrentFolderPrefix())), c);
     }
 
