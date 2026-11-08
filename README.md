@@ -1,123 +1,100 @@
 # Sevenzip
 
-An independent file and archive manager for Windows, macOS and Linux, based on
-7-Zip. The interface uses Qt 6 Widgets, and archive operations use the 7-Zip
-engine with project adaptations. Sevenzip has its own features and architecture;
-it is not an official 7-Zip release.
+**Open an archive like a folder. Pull a file out of a disk image. Give another
+app access to a folder inside a ZIP.**
 
-This is an AI-driven project: AI coding agents play a central role in development,
-guided by human direction, review and testing.
+Sevenzip is an independent file and archive manager for Windows, macOS and
+Linux, based on 7-Zip. Keep the source and destination side by side, whether
+you’re unpacking a download, creating a backup archive or looking for a file
+on an old drive.
 
-[Download](https://github.com/Feverqwe/7zip-qt-port/releases) ·
-[Report a bug](https://github.com/Feverqwe/7zip-qt-port/issues) ·
-[Contributing](CONTRIBUTING.md)
+[Download Sevenzip](https://github.com/Feverqwe/7zip-qt-port/releases) ·
+[Report a bug](https://github.com/Feverqwe/7zip-qt-port/issues)
 
-## Installation
+## What you can do
 
-Release archives are built for Windows x64, Linux x64 and macOS arm64.
-Extract the entire archive, keeping its directories and libraries together.
-On macOS, open `Sevenzip.app`; on Windows, run `bin/7zFM.exe`; on Linux,
-run `bin/7zFM`. macOS 14.4 or later is required.
+- **Browse and extract.** Open archives like folders, including archives nested
+  inside other archives. Extract selected files or the entire archive, and test
+  archive integrity.
+- **Create and update archives.** Create 7z and ZIP archives, choose compression
+  settings, and use password protection, split volumes or self-extracting
+  archives where the format supports them. Add, rename or remove entries in
+  writable archives.
+- **Manage files in two panels.** Copy and move files between locations, jump to
+  favorites or recent locations, and open files in an external viewer or editor.
+  Calculate and verify file checksums.
 
-Packages do not have Windows Authenticode signatures or Apple Developer ID
-signing and notarization. macOS packages use an ad-hoc signature. Checksums
-are published alongside the archives in `SHA256SUMS.txt`.
+## Get files off a disk your system can’t open
 
-## Project status
+Have an ext4 image from a Linux machine and need a file from it on Windows?
+Open the image in Sevenzip, find the file and copy it to a local folder.
+Sevenzip reads the filesystem itself, so Windows can do this without an
+ext4 driver.
 
-The application supports dual panels, filesystem and archive navigation, nested
-archives, history, favorites, list views, sorting and selection. Features include
-file copy, move, create, rename and delete operations, split/combine, properties,
-external viewers, editors and diff tools, checksums, benchmarks and settings.
+If you have the drive itself, use **File → Open device…** to browse a supported
+partition without imaging the whole drive first. Unmount its volumes and grant
+system access if prompted. Direct device access is experimental. See
+[direct device access](docs/direct-device-reading.md).
 
-File → Open device adds experimental read-only browsing and copying from external
-devices with supported filesystems without a filesystem driver or full disk image.
-See [direct device access](docs/direct-device-reading.md) for usage and limits.
+### Copy readable files from damaged volumes
 
-Read-only [F2FS support](docs/f2fs-reading.md) adds browsing and copying from
-compatible Android and flash-drive images.
+An interrupted write or a truncated image can leave some files out of reach
+while others are still readable. Sevenzip’s adapted NTFS, FAT, exFAT and ext
+readers can offer limited read-only access in some of these cases, including
+ext volumes that need journal recovery.
 
-Experimental XFS reading provides access to server and NAS filesystem images;
-see [support and limits](docs/upstream-port-audit/xfs.md).
+Sevenzip explains the detected limitation before you choose whether to continue
+and keeps a warning visible while you browse. You can copy files the reader can
+still access. Some files may be missing, outdated or unreadable, and a copy may
+be incomplete. Sevenzip leaves the source untouched and reads ext volumes in
+this mode without replaying the journal.
 
-Btrfs volumes and disk images can be browsed and extracted without changing the
-source. See [Btrfs support and limitations](docs/upstream-port-audit/btrfs-linux.md#supported-reading-and-limitations).
+## Use files from an archive in another app
 
-Archive creation and updates support compression settings, encryption, volumes
-and self-extracting archives. Available formats and operations depend on the
-selected engine. Extraction supports password and overwrite prompts; an error
-or cancellation may leave files that have already been extracted. Updating a
-nested archive requires write support throughout its containing archive chain.
-Platform metadata, links, alternate data streams and file associations have
-additional limitations.
+Need to view photos from a ZIP or open a document from a disk image? Browse to
+the folder in Sevenzip and choose **Tools → Mount read-only…**. The folder
+appears as a read-only network drive or volume. Open it from your file manager
+or directly from the app you want to use, without extracting the whole archive
+first. Sevenzip reads the source format and your system connects to it over SMB.
+See
+[read-only mounts and system requirements](docs/readonly-mounts.md).
 
-The project is in an early release stage. See the
-[acceptance scope](docs/ux-port-audit.md) for validation boundaries and the
-[7zFM comparison](docs/7zfm-parity.md) for supported workflows and limitations.
+## What Sevenzip can open
 
-## Building from source
+| Type | Examples |
+| --- | --- |
+| Archives and packages | 7z, ZIP, RAR, TAR, WIM |
+| Compressed files | gzip, bzip2, xz, Zstandard, LZ4, Lzip, Brotli |
+| Disc and disk images | ISO, UDF, DMG, Apple sparseimage and sparsebundle, QCOW/QCOW2 |
+| Filesystems inside images or on supported devices | NTFS, FAT, exFAT, ext2/3/4, APFS, HFS+, Btrfs, XFS, F2FS, EROFS |
 
-Clone the project:
+Opening a format and editing it are separate capabilities. For example, you can
+browse and extract RAR archives, while 7z and ZIP also support creation and
+updates. Filesystem images are opened read-only. For format-specific limits and
+platform differences, see [supported workflows and limitations](docs/7zfm-parity.md).
 
-```sh
-git clone https://github.com/Feverqwe/7zip-qt-port.git
-cd 7zip-qt-port
-```
+## Install
 
-You need C and C++23 compilers, CMake 3.28+, Ninja, Qt 6 Widgets and `clang-format`.
-The 7-Zip source dependencies are included in the repository. macOS builds use the official Qt SDK and target macOS
-14.4 or later. Follow the [dependency setup](docs/development.md#dependencies)
-for your platform.
+Download the package for your platform and extract the entire archive, keeping
+its folders and libraries together.
 
-From the repository root:
+| Platform | Open |
+| --- | --- |
+| Windows x64 | `bin/7zFM.exe` |
+| macOS arm64 (14.4 or later) | `Sevenzip.app` |
+| Linux x64 | `bin/7zFM` |
 
-```sh
-./scripts/doctor.sh
-python3 scripts/prepare-runtime.py
-./scripts/check.sh
-```
+Release checksums are published in `SHA256SUMS.txt`. Windows packages are unsigned.
+macOS packages use ad-hoc signing and are distributed without Apple notarization.
 
-`check.sh` checks C++ formatting, builds the application and runs the default
-test suite. On macOS, locate the development build and launch it from a terminal:
+## Development
 
-```sh
-artifact_root="$(python3 scripts/lib/build_paths.py path --root "$PWD" --category artifacts)"
-"$artifact_root/dev/Sevenzip.app/Contents/MacOS/Sevenzip" /path/to/archive.7z
-```
-
-To build a Release package without test executables:
-
-```sh
-./scripts/build-app.sh
-```
-
-The script prints the installation directory, including `Sevenzip.app` on macOS.
-Use the [workspace resolver](docs/development.md#local-commands) to locate
-build outputs for the selected branch and platform.
-
-The application uses the prepared native codec runtime and its own `7zG` process.
-The official `7z` client is included as a separate command-line tool and is also
-used for reference tests. The File Manager and GUI operations do not invoke it.
-See the [development guide](docs/development.md) for platform dependencies,
-codec and self-extracting runtime preparation, engine selection and focused
-build commands. Local builds and tests do not require access to the maintainer's
-infrastructure.
-
-## Documentation
-
-The [documentation map](docs/README.md) links development instructions, source
-provenance, architecture, UI specifications and testing. Repository conventions
-are in [AGENTS.md](AGENTS.md), with task-specific workflows in `.agents/skills/`.
-
-Local agent memory is optional. Run
-`sh .agents/skills/sz-setup/scripts/setup.sh` to initialize the Git-ignored
-`.codex/` directory with documentation links. Running it again preserves existing
-notes. See the [memory protocol](docs/agent-memory.md) for reading and handoffs.
+See the [development guide](docs/development.md) for setup, builds and tests,
+and [contributing](CONTRIBUTING.md) for how to participate. AI coding agents play
+a central role in development, guided by human direction, review and testing.
 
 ## Licenses
 
-This repository contains code under several licenses. [MIT](LICENSE) applies
-to original project code unless another license is specified. Ported 7-Zip code
-retains its own licenses; the exFAT module and adapted development tools use
-GPL-2.0-or-later. Qt and other dependencies retain their own terms.
-See [third-party notices](THIRD_PARTY_NOTICES.md).
+[MIT](LICENSE) applies to original project code unless another license is
+specified. 7-Zip, Qt and other dependencies retain their own terms. See
+[third-party notices](THIRD_PARTY_NOTICES.md).
