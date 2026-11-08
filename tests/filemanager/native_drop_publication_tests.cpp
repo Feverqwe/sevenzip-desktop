@@ -128,7 +128,11 @@ class NativeDropPublicationTests final : public QObject, protected MainWindowTes
         modes.Save(settings);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
+#ifdef Q_OS_WIN
         const QString archive = fixture.filePath("native drop archive 空.7z");
+#else
+        const QString archive = fixture.filePath("native drop <b> archive 空.7z");
+#endif
         QVERIFY(QFile::copy(seeds_.filePath(QString::number(count) + ".7z"), archive));
         const QByteArray original = SourceExtractFixture::readFile(archive);
         const QString addedName = QStringLiteral("added drop 文件 δ.bin");
@@ -177,6 +181,7 @@ class NativeDropPublicationTests final : public QObject, protected MainWindowTes
         QSignalSpy publication(list->model(), &QAbstractItemModel::rowsRemoved);
         QSignalSpy peerPublication(peerList->model(), &QAbstractItemModel::rowsRemoved);
         bool confirmed = false, injected = false, cancelled = false, retrying = false;
+        bool literalConfirmation = false;
         QStringList errors;
         QTimer responder, cancelDriver;
         dialogs_.connectResponder(responder, &window, [&] {
@@ -197,6 +202,8 @@ class NativeDropPublicationTests final : public QObject, protected MainWindowTes
                                                                      : QMessageBox::Yes;
                     if (auto *button = box->button(answer)) {
                         confirmed = true;
+                        literalConfirmation = box->textFormat() == Qt::PlainText &&
+                                              box->text().contains(QFileInfo(archive).fileName());
                         button->click();
                     } else {
                         errors << box->text();
@@ -234,6 +241,7 @@ class NativeDropPublicationTests final : public QObject, protected MainWindowTes
         }
         QCOMPARE(dropFile(*view, input), succeeded);
         QVERIFY(confirmed);
+        QVERIFY(literalConfirmation);
         QTRY_VERIFY2(list->isEnabled() && list->updatesEnabled() &&
                          panel.ShouldProcessNotifications(),
                      qPrintable(QString("enabled=%1 redraw=%2 notify=%3 rows=%4")

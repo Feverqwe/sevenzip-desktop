@@ -38,9 +38,11 @@ bool QtFileManagerDrag::ConfirmCopyToArchive(CPanel &panel, DWORD effect) {
     s.Add_LF();
     AddLangString(s, IDS_WANT_TO_COPY_FILES);
     s += " ?";
-    return QMessageBox::question(
-               &window_, ToQString(LangString(IDS_CONFIRM_FILE_COPY)), ToQString(s),
-               QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel) == QMessageBox::Yes;
+    QMessageBox dialog(QMessageBox::Question, ToQString(LangString(IDS_CONFIRM_FILE_COPY)),
+                       ToQString(s), QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel,
+                       &window_);
+    dialog.setTextFormat(Qt::PlainText);
+    return dialog.exec() == QMessageBox::Yes;
 }
 UInt32 QtFileManagerDrag::Drag_OnContextMenu(int x, int y, UInt32 mask, DWORD allowedEffects) {
     struct Pair {
