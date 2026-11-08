@@ -206,13 +206,16 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
     void revealsCreatedFolder_data() {
         QTest::addColumn<int>("count");
         QTest::addColumn<bool>("peerDraft");
-        QTest::newRow("immediate") << 100 << false;
-        QTest::newRow("deferred") << 257 << false;
-        QTest::newRow("deferred-with-peer-draft") << 257 << true;
+        QTest::addColumn<bool>("peerScan");
+        QTest::newRow("immediate") << 100 << false << false;
+        QTest::newRow("deferred") << 257 << false << false;
+        QTest::newRow("deferred-with-peer-draft") << 257 << true << false;
+        QTest::newRow("deferred-with-peer-scan") << 257 << false << true;
     }
     void revealsCreatedFolder() {
         QFETCH(int, count);
         QFETCH(bool, peerDraft);
+        QFETCH(bool, peerScan);
         const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         QFile::remove(settings);
         CFmSettings preferences;
@@ -231,11 +234,14 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         window.show();
         QTemporaryDir peerFolder;
         QLineEdit *peerName = nullptr;
-        if (peerDraft) {
+        FileTable *peer = nullptr;
+        if (peerDraft || peerScan) {
             QVERIFY(peerFolder.isValid());
             action(window, "twoPanelsAction")->trigger();
-            auto *peer = openPanel(window, 1, peerFolder.path());
+            peer = openPanel(window, 1, peerFolder.path());
             QTRY_VERIFY(peer->isEnabled());
+        }
+        if (peerDraft) {
             action(window, "createFolderAction")->trigger();
             peerName = window.findChild<QLineEdit *>("inlineFolderName");
             QVERIFY(peerName && peerName->isVisible());
@@ -255,6 +261,19 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         auto &panel = *view->sourcePanel;
         panel.Set_AutoRefresh_Mode(false);
         const QString name = QStringLiteral("new 文件 with spaces");
+        if (peerScan) {
+            peer->sourcePanel->Set_AutoRefresh_Mode(false);
+            for (int i = 0; i < count; ++i) {
+                QFile entry(peerFolder.filePath(QString("peer-%1.bin").arg(i)));
+                QVERIFY(entry.open(QIODevice::WriteOnly));
+            }
+            peer->setFocus();
+            QVERIFY(peer->hasFocus());
+            QTest::keySequence(peer, action(window, "refreshAction")->shortcut());
+            QVERIFY(!peer->isEnabled());
+            view->setFocus();
+            QVERIFY(view->hasFocus());
+        }
         action(window, "createFolderAction")->trigger();
         auto *input =
             window.findChild<QWidget *>("filePanel0")->findChild<QLineEdit *>("inlineFolderName");
@@ -268,6 +287,8 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
             QCOMPARE(window.focusWidget(), peerName);
         }
         QTRY_VERIFY(view->isEnabled() && view->rowCount() == count + 1);
+        if (peerScan)
+            QTRY_VERIFY(peer->isEnabled() && peer->rowCount() == count);
         QCOMPARE(address->text(), QString("unsubmitted path"));
         QCOMPARE(window.focusWidget(), peerName ? static_cast<QWidget *>(peerName) : view);
         if (peerName)
