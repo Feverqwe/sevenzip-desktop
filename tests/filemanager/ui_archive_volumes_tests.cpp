@@ -4,6 +4,7 @@
 #include "filemanager/support/window_state_support.h"
 #include "localization/LangUtils.h"
 #include "support/progress_dialog.h"
+#include <QPushButton>
 
 namespace {
 bool writeFile(const QString &path, const QByteArray &bytes) {
@@ -116,6 +117,35 @@ class UiArchiveVolumesTests final : public QObject, protected MainWindowTestSupp
         if (format == "7z" && !password.isEmpty())
             QVERIFY(answers.PasswordPrompts > 0);
     }
+    void refreshNoticesMissingLaterVolumeAndAllowsRetry() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        ArchiveBackend backend;
+        QString first;
+        QVERIFY(create(backend, fixture.path(), "7z", {}, first));
+        const QString second = first.left(first.size() - 3) + "002";
+        const QString parked = fixture.filePath("parked volume");
+        CDialogAnswers answers;
+        MainWindow window(&backend);
+        window.show();
+        window.openArchive(first);
+        QTRY_COMPARE(table(window)->rowCount(), 2);
+        QVERIFY(QFile::rename(second, parked));
+        auto *refresh = action(window, "refreshAction");
+        QVERIFY(refresh->isEnabled());
+        refresh->trigger();
+        auto *retry = window.findChild<QPushButton *>("navigationRetry0");
+        QTRY_VERIFY(retry && retry->isVisible());
+        QCOMPARE(table(window)->rowCount(), 2);
+        QVERIFY(QFile::rename(parked, second));
+        retry->click();
+        QTRY_VERIFY(!retry->isVisible());
+        QCOMPARE(table(window)->rowCount(), 2);
+        const int errors = answers.Errors;
+        window.testArchive();
+        QCOMPARE(answers.Errors, errors);
+    }
+
     void missingAndCorruptVolumesReportErrors_data() {
         QTest::addColumn<int>("mode");
         QTest::newRow("missing-open") << 0;
