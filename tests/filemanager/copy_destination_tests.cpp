@@ -82,12 +82,14 @@ class CopyDestinationTests final : public QObject {
         dialog.show();
         auto *path = dialog.findChild<QLineEdit *>("copyDestination");
 #ifdef Q_OS_WIN
-        path->setText(fixture.filePath(" ... "));
         auto *ok =
             dialog.findChild<QDialogButtonBox *>("copyButtons")->button(QDialogButtonBox::Ok);
-        QVERIFY(!ok->isEnabled());
-        dialog.accept();
-        QVERIFY(dialog.isVisible());
+        for (const auto *invalid : {" ... ", " ... /", " ... /copy.txt", " ... /../copy.txt"}) {
+            path->setText(fixture.filePath(invalid));
+            QVERIFY(!ok->isEnabled());
+            dialog.accept();
+            QVERIFY(dialog.isVisible());
+        }
 #endif
         path->setText(saved);
         auto *name = dialog.findChild<QLineEdit *>("copyDestinationName");
