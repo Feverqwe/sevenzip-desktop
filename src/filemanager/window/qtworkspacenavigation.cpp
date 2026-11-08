@@ -19,8 +19,12 @@ QtWindowWorkspace::Visit QtWindowWorkspace::CaptureVisit(unsigned panel) {
         return current.visits[current.cursor];
     Capture(panel);
     const auto &locationState = panels_[panel].location;
-    Visit visit{locationState.path, locationState.nativePlaceIdentity,
-                locationState.archiveLocation, locationState.selection, locationState.scroll};
+    Visit visit{locationState.path,
+                locationState.nativePlaceIdentity,
+                locationState.archiveLocation,
+                locationState.selection,
+                locationState.scroll,
+                UInt32(locationState.viewMode)};
     const auto &ui = window_.panelUi_[panel];
     // A same-folder refresh has already saved the selection and viewport.
     // Its live model may be empty or only partially published.
@@ -204,9 +208,10 @@ void QtWindowWorkspace::FinishNavigation(unsigned panel, HRESULT result) {
             request->history == NavigationHistory::Record) {
             window_.renderBoundFolder();
             window_.restoreListSelection(request->origin.selection);
-            if (auto *view = qobject_cast<QAbstractItemView *>(
-                    window_.panelUi_[panel].viewStack->currentWidget()))
-                RestoreViewPosition(*request->source, *view, request->origin.scroll);
+            if (request->origin.viewMode == request->source->GetListViewMode())
+                if (auto *view = qobject_cast<QAbstractItemView *>(
+                        window_.panelUi_[panel].viewStack->currentWidget()))
+                    RestoreViewPosition(*request->source, *view, request->origin.scroll);
         }
     }
     if (result != S_OK) {
@@ -241,9 +246,10 @@ void QtWindowWorkspace::FinishNavigation(unsigned panel, HRESULT result) {
         locationState.cursor = request->destination;
         const auto target = locationState.visits[locationState.cursor];
         window_.restoreListSelection(target.selection);
-        if (auto *view = qobject_cast<QAbstractItemView *>(
-                window_.panelUi_[panel].viewStack->currentWidget()))
-            RestoreViewPosition(*request->source, *view, target.scroll);
+        if (target.viewMode == request->source->GetListViewMode())
+            if (auto *view = qobject_cast<QAbstractItemView *>(
+                    window_.panelUi_[panel].viewStack->currentWidget()))
+                RestoreViewPosition(*request->source, *view, target.scroll);
     } else if (!locationState.visits[locationState.cursor].SameLocation(accepted)) {
         locationState.visits.resize(locationState.cursor + 1);
         locationState.visits.push_back(accepted);

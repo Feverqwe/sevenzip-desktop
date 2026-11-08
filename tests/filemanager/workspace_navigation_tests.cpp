@@ -13,6 +13,7 @@
 #include <QListWidget>
 #include <QMenu>
 #include <QScopeGuard>
+#include <QScrollBar>
 #include <QToolButton>
 
 class WorkspaceNavigationTests final : public QObject {
@@ -156,6 +157,47 @@ class WorkspaceNavigationTests final : public QObject {
             QVERIFY(UiInspection::writeReport(window, QString("native-location-%1").arg(width)));
         }
     }
+    void backKeepsTheSelectedFileVisibleAfterSwitchingViews() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString initial = fixture.filePath("initial");
+        const QString other = fixture.filePath("other");
+        QVERIFY(QDir().mkpath(initial) && QDir().mkpath(other));
+        writeFile(initial + "/a.txt", "selected");
+        for (int i = 0; i < 150; ++i)
+            writeFile(initial + QString("/file-%1.txt").arg(i), {});
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.resize(640, 400);
+        window.show();
+        window.openPath(initial);
+        auto *table = visibleTable(window);
+        QVERIFY(table);
+        QTRY_COMPARE(table->rowCount(), 151);
+        table->setCurrentCell(0, 0);
+        table->selectRow(0);
+        auto *scroll = table->verticalScrollBar();
+        QTRY_VERIFY(scroll->maximum() > 0);
+        scroll->setValue(scroll->maximum());
+        const int savedScroll = scroll->value();
+        window.openPath(other);
+        auto *back = window.findChild<QAction *>("backAction");
+        QVERIFY(back);
+        QTRY_VERIFY(back->isEnabled());
+        back->trigger();
+        QTRY_COMPARE(table->rowCount(), 151);
+        QTRY_COMPARE(scroll->value(), savedScroll);
+        window.openPath(other);
+        window.findChild<QAction *>("viewMode0Action")->trigger();
+        auto *icons = window.findChild<QListView *>("iconList");
+        QTRY_VERIFY(icons && icons->isVisible());
+        back->trigger();
+        QTRY_COMPARE(icons->currentIndex().data(QtPanelList::NameRole).toString(),
+                     QString("a.txt"));
+        QVERIFY(icons->selectionModel()->isSelected(icons->currentIndex()));
+        QTRY_VERIFY(icons->viewport()->rect().intersects(icons->visualRect(icons->currentIndex())));
+    }
+
     void hidingLeftPanelKeepsBothLocationsAndRightSelection() {
         QTemporaryDir fixture;
         const QString left = fixture.filePath("Left folder");

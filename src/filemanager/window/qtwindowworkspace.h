@@ -83,6 +83,7 @@ class QtWindowWorkspace final : public QObject {
         QtArchiveLocation archiveLocation;
         CSelectedState selection;
         QPoint scroll;
+        UInt32 viewMode = 3;
         bool SameLocation(const Visit &other) const;
     };
     struct Navigation {
