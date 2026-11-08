@@ -262,6 +262,20 @@ class PropertiesWindowTests final : public QObject, protected MainWindowTestSupp
         QVERIFY(window.Information().contains("Reported size (may be partial): Not available"));
         QVERIFY(window.Information().contains("Files: 2"));
     }
+    void missingPackedSizesAreDistinctFromZero() {
+        CMyComPtr<IFolderFolder> folder;
+        QCOMPARE(CreateArchiveFolder({{"unknown-a", 12, -1}, {"unknown-b", 4, -1}, {"zero", 0, 0}},
+                                     UString("zip"), &folder),
+                 S_OK);
+        QtPropertiesWindow missing(collect(folder, {0, 1}));
+        QtPropertiesWindow partial(collect(folder, {0, 2}));
+        const QString caption = QStringLiteral("Reported packed size (may be partial): ");
+        copy(missing);
+        QVERIFY(QApplication::clipboard()->text().contains(caption + "Not available"));
+        copy(partial);
+        QVERIFY(
+            QApplication::clipboard()->text().contains(caption + QtRegionalFormat::exactBytes(0)));
+    }
     void withoutSelectionUsesCurrentFolder() {
         ControlledBackend backend;
         MainWindow window(&backend);
