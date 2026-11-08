@@ -4,7 +4,9 @@
 #include "localization/LangUtils.h"
 #include "platform/support/external_editor_fixture.h"
 #include "support/panel_keys.h"
+#include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
+#include <QClipboard>
 
 class PersistedLocationTests final : public QObject, protected MainWindowTestSupport {
     Q_OBJECT
@@ -329,9 +331,16 @@ class PersistedLocationTests final : public QObject, protected MainWindowTestSup
         auto *address = window.findChild<QLineEdit *>("archivePath");
         for (const QString &typed : {archive + '/' + folder, legacy}) {
             action(window, "openRootAction")->trigger();
-            address->setText(typed);
+            QVERIFY(WindowActivation::waitForActive(window));
+            PanelKeys::focusAddress(address);
+            QTRY_VERIFY(address->hasFocus());
+            address->selectAll();
+            QApplication::clipboard()->setText(typed);
+            QTest::keySequence(address, QKeySequence::Paste);
+            QApplication::clipboard()->clear();
+            QCOMPARE(address->text(), typed);
             QTest::keyClick(address, Qt::Key_Return);
-            QCOMPARE(prefix(window), source);
+            QTRY_COMPARE(prefix(window), source);
             QCOMPARE(
                 table(window)->model()->index(table(window)->rowCount() - 1, 0).data().toString(),
                 QString("keep.txt"));
