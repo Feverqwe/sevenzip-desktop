@@ -383,6 +383,43 @@ class ExtractDialogTests final : public QObject {
         QCOMPARE(overwrite(afterCancel)->currentData().toInt(),
                  int(NExtract::NOverwriteMode::kRename));
     }
+    void cancelKeepsPreviouslyAcceptedExtractionOptions() {
+        const QString original = dir_.filePath("previous output");
+        const QString abandoned = dir_.filePath("abandoned output");
+        {
+            CExtractDialog accepted(original, {});
+            accepted.findChild<QCheckBox *>("extractNameEnable")->setChecked(false);
+            accepted.findChild<QComboBox *>("extractDestination")->setEditText(original);
+            pathMode(accepted)->setCurrentIndex(
+                pathMode(accepted)->findData(int(NExtract::NPathMode::kNoPaths)));
+            overwrite(accepted)->setCurrentIndex(
+                overwrite(accepted)->findData(int(NExtract::NOverwriteMode::kSkip)));
+            accepted.accept();
+            QCOMPARE(accepted.result(), int(QDialog::Accepted));
+        }
+        {
+            CExtractDialog canceled(original, {});
+            canceled.show();
+            canceled.findChild<QComboBox *>("extractDestination")->setEditText(abandoned);
+            canceled.findChild<QCheckBox *>("extractNameEnable")->setChecked(true);
+            canceled.findChild<QLineEdit *>("extractPathName")->setText("discard this");
+            pathMode(canceled)->setCurrentIndex(
+                pathMode(canceled)->findData(int(NExtract::NPathMode::kFullPaths)));
+            overwrite(canceled)->setCurrentIndex(
+                overwrite(canceled)->findData(int(NExtract::NOverwriteMode::kOverwrite)));
+            QTest::keyClick(&canceled, Qt::Key_Escape);
+            QCOMPARE(canceled.result(), int(QDialog::Rejected));
+        }
+        CExtractDialog reopened(original, {});
+        QCOMPARE(pathMode(reopened)->currentData().toInt(), int(NExtract::NPathMode::kNoPaths));
+        QCOMPARE(overwrite(reopened)->currentData().toInt(), int(NExtract::NOverwriteMode::kSkip));
+        QVERIFY(!reopened.findChild<QCheckBox *>("extractNameEnable")->isChecked());
+        auto *history = reopened.findChild<QComboBox *>("extractDestination");
+        QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(history->itemText(0))), original);
+        for (int i = 0; i < history->count(); ++i)
+            QVERIFY(!history->itemText(i).contains("abandoned output"));
+    }
+
     void legacyModesUseSafeDialogDefaults() {
         NExtract::CInfo saved;
         saved.PathMode = NExtract::NPathMode::kAbsPaths;
