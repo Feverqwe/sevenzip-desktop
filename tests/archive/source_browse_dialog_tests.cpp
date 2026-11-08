@@ -413,8 +413,7 @@ class SourceBrowseDialogTests final : public QObject {
             retried = true;
         });
         UString selected;
-        QVERIFY(MyBrowseForFolder(nullptr, UString("Browse"), ToUString(child + QDir::separator()),
-                                  selected));
+        QVERIFY(MyBrowseForFolder(nullptr, UString("Browse"), ToUString(current), selected));
         QVERIFY(retried);
         QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(ToQString(selected))), target);
     }
@@ -525,6 +524,51 @@ class SourceBrowseDialogTests final : public QObject {
         });
         QVERIFY(!MyBrowseForFolder(nullptr, L"Folder", ToUString(directory), output));
         QVERIFY(output.IsEmpty());
+    }
+
+    void folderPickerRejectsAnExistingFileAndAllowsRetry() {
+        QTemporaryDir fixture;
+        const QString directory = LongDirectory(fixture);
+        QVERIFY(QDir().mkpath(directory));
+        QFile file(directory + "/occupied.txt");
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        QCOMPARE(file.write("original"), qint64(8));
+        file.close();
+        QTimer::singleShot(0, [&] {
+            auto *dialog = Dialog();
+            QVERIFY(dialog);
+            const auto close = qScopeGuard([&] {
+                if (dialog->isVisible())
+                    dialog->reject();
+            });
+            auto *path = dialog->findChild<QLineEdit *>("browsePath");
+            QVERIFY(path);
+            bool reported = false;
+            QTimer reply;
+            connect(&reply, &QTimer::timeout, dialog, [&] {
+                if (auto *message =
+                        qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                    reported = true;
+                    message->accept();
+                }
+            });
+            reply.start(1);
+            path->setText("occupied.txt/");
+            dialog->accept();
+            QVERIFY(reported);
+            QVERIFY(dialog->isVisible());
+            QCOMPARE(path->text(), QString("occupied.txt/"));
+            QCOMPARE(dialog->focusWidget(), path);
+            path->setText("new folder");
+            dialog->accept();
+        });
+        UString output;
+        QVERIFY(MyBrowseForFolder(nullptr, L"Folder", ToUString(directory), output));
+        QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(ToQString(output))),
+                 directory + "/new folder");
+        QVERIFY(!QFileInfo::exists(directory + "/new folder"));
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        QCOMPARE(file.readAll(), QByteArray("original"));
     }
 
     void saveModePreservesSpacesInNewName() {

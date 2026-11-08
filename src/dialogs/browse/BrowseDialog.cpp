@@ -437,6 +437,14 @@ void CBrowseDialog::FinishOnOK() {
         MessageBox_HResError(this, kInvalidNameError, s);
         return;
     }
+    if (FolderMode) {
+        const QFileInfo target(QDir::cleanPath(ToQString(fs2us(destPath))));
+        if ((target.exists() || target.isSymLink()) && !target.isDir()) {
+            MessageBox_HResError(this, kInvalidNameError, s);
+            _pathEdit->setFocus();
+            return;
+        }
+    }
     if (ExistingArchiveOnly) {
         CFileInfo file;
         HRESULT error = S_OK;
@@ -469,8 +477,13 @@ bool MyBrowseForFolder(QWidget *owner, const UString &title, const UString &path
     if (NeedsSourceBrowser(path)) {
         CBrowseDialog dialog(owner);
         dialog.FolderMode = true;
+        dialog.StartInDirectory = QFileInfo(ToQString(path)).isDir();
         dialog.Title = title;
         dialog.FilePath = path;
+        if (dialog.StartInDirectory) {
+            dialog.FilePath = ToUString(QDir::toNativeSeparators(ToQString(path)));
+            NormalizeDirPathPrefix(dialog.FilePath);
+        }
         if (dialog.Create() != QDialog::Accepted)
             return false;
         resultPath = dialog.FilePath;
