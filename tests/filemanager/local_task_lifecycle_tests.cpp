@@ -5,6 +5,7 @@
 #include "filemanager/window/qtworkspaceapplication.h"
 #include "localization/LangUtils.h"
 #include "settings/RegistryUtils.h"
+#include "support/panel_keys.h"
 #include "support/progress_dialog.h"
 #include "support/widget_dialogs.h"
 #include "support/window_activation.h"
@@ -81,7 +82,12 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         QCOMPARE(QApplication::clipboard()->mimeData()->urls(), expected);
         QVERIFY(left->model()->index(row, 0).data(QtPanelList::CutRole).toBool());
         QVERIFY(right->hasFocus());
-        action(window, "pasteFilesAction")->trigger();
+        QTest::keyClick(window.focusWidget(), Qt::Key_Tab);
+        QTRY_VERIFY(left->hasFocus());
+        QTest::keyClick(window.focusWidget(), Qt::Key_Tab);
+        QTRY_VERIFY(right->hasFocus());
+        QVERIFY(action(window, "pasteFilesAction")->isEnabled());
+        PanelKeys::command(window.focusWidget(), Qt::Key_V, Qt::ControlModifier);
         QTRY_VERIFY(QtLocalFileTask::Active().isEmpty());
         QCOMPARE(read(destination + "/file.txt"), QByteArray("payload"));
         QVERIFY(!QFileInfo::exists(file));
