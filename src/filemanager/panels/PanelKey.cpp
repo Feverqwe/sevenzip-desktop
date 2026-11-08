@@ -132,14 +132,12 @@ bool CPanel::OnKeyDown(const QtPanelKeyDown &keyDownInfo, CApp &g_App) {
         }
         return false;
     }
-    case Qt::Key_Right: {
-        if (alt)
-            _panelCallback->OnSetSubFolder();
-        return false;
-    }
+    case Qt::Key_Right:
     case Qt::Key_Left: {
-        if (alt)
+        if (alt) {
             _panelCallback->OnSetSubFolder();
+            return true;
+        }
         return false;
     }
     case Qt::Key_PageDown: {

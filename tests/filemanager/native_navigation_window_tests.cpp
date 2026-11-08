@@ -55,15 +55,17 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         ReloadLang(settings);
     }
     void folderCommandPreservesPeerWhenTargetDisappears_data() {
-        QTest::addColumn<bool>("selectedFolder");
+        QTest::addColumn<int>("key");
         QTest::addColumn<int>("extraEntries");
-        QTest::newRow("same-folder") << false << 0;
-        QTest::newRow("selected-folder") << true << 0;
-        QTest::newRow("large-selected-folder") << true << 257;
+        QTest::newRow("same-folder") << int(Qt::Key_Up) << 0;
+        QTest::newRow("selected-folder-right") << int(Qt::Key_Right) << 0;
+        QTest::newRow("selected-folder-left") << int(Qt::Key_Left) << 0;
+        QTest::newRow("large-selected-folder") << int(Qt::Key_Right) << 257;
     }
     void folderCommandPreservesPeerWhenTargetDisappears() {
-        QFETCH(bool, selectedFolder);
+        QFETCH(int, key);
         QFETCH(int, extraEntries);
+        const bool selectedFolder = key != Qt::Key_Up;
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString parent = fixture.filePath("source parent");
@@ -101,9 +103,10 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         auto *sourceList =
             window.findChild<QWidget *>("filePanel0")->findChild<FileTable *>("archiveTable");
         sourceList->sourcePanel->Set_AutoRefresh_Mode(false);
-        sourceList->setCurrentCell(0, 0);
+        sourceList->setCurrentCell(0, 1);
+        QCOMPARE(sourceList->currentIndex().column(), 1);
         const auto command = [&] {
-            PanelKeys::command(sourceList, selectedFolder ? Qt::Key_Right : Qt::Key_Up,
+            PanelKeys::command(sourceList, static_cast<Qt::Key>(key),
                                Qt::AltModifier | Qt::ShiftModifier);
         };
         QtWindowWorkspace *workspace = nullptr;
@@ -123,6 +126,7 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         QCOMPARE(peerList->selectionModel()->selectedRows(),
                  QModelIndexList{peerList->currentIndex()});
         QVERIFY(sourceList->hasFocus());
+        QCOMPARE(sourceList->currentIndex().column(), 1);
 
         QVERIFY(QDir().rename(moved, source));
         command();
@@ -132,6 +136,7 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
                      QStringLiteral("source.txt"));
         QTRY_VERIFY(window.statusBar()->currentMessage().isEmpty());
         QVERIFY(sourceList->hasFocus());
+        QCOMPARE(sourceList->currentIndex().column(), 1);
         peerList->setFocus();
         QTRY_VERIFY(peerList->hasFocus());
         QTRY_VERIFY(action(window, "backAction")->isEnabled());
