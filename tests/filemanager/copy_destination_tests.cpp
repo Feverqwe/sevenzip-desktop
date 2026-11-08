@@ -8,6 +8,7 @@
 #include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QScopeGuard>
@@ -305,6 +306,35 @@ class CopyDestinationTests final : public QObject {
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
         QCOMPARE(ToQString(dialog.Value), QDir(folder).filePath("other.txt"));
 #endif
+    }
+
+    void batchDestinationConflictCanBeCorrected() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString first = fixture.filePath("first.txt");
+        const QString second = fixture.filePath("second.txt");
+        for (const auto &path : {first, second}) {
+            QFile file(path);
+            QVERIFY(file.open(QIODevice::WriteOnly));
+        }
+        const QString blocked = fixture.filePath("destination");
+        QVERIFY(QDir().mkpath(QDir(blocked).filePath("second.txt")));
+        CCopyDialog dialog(true, blocked + '/', {first, second});
+        QtCopyDestinationContext context;
+        context.SourceDirectory = fixture.path();
+        context.LocalFileTransfer = true;
+        dialog.ConfigureDestination(context);
+        dialog.show();
+        dialog.accept();
+        QVERIFY(dialog.isVisible());
+        QVERIFY(dialog.findChild<QLabel *>("copyDestinationMessage")->isVisible());
+        QVERIFY(!QFileInfo::exists(QDir(blocked).filePath("first.txt")));
+
+        const QString corrected = fixture.filePath("different folder") + '/';
+        dialog.findChild<QLineEdit *>("copyDestination")->setText(corrected);
+        dialog.accept();
+        QCOMPARE(dialog.result(), int(QDialog::Accepted));
+        QCOMPARE(ToQString(dialog.Value), corrected);
     }
 
     void destinationBelowReadOnlyFolderCanBeCorrected() {

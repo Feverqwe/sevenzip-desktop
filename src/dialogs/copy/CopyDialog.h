@@ -74,7 +74,7 @@ class CCopyDialog : public QDialog {
     bool _canAccept = true;
     bool _useName = false;
     void BuildDestinationOptions(QVBoxLayout &layout);
-    void UpdateDestination();
+    void UpdateDestination(bool checkBatch = false);
     QString DraftDestination() const;
     QString PreviewDestination(const QString &value) const;
     void RefreshSourceSummary();

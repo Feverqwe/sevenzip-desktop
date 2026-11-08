@@ -187,7 +187,7 @@ bool CCopyDialog::OnInit() {
     connect(buttons, &QDialogButtonBox::accepted, this, &CCopyDialog::OnOK);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     connect(browse, &QPushButton::clicked, this, &CCopyDialog::OnButtonSetPath);
-    connect(_pathEdit, &QLineEdit::textChanged, this, &CCopyDialog::UpdateDestination);
+    connect(_pathEdit, &QLineEdit::textChanged, this, [this] { UpdateDestination(); });
     UpdateDestination();
     resize(560, minimumSizeHint().height() + fontMetrics().lineSpacing() * 2);
     QtNormalizeDialogSize(*this, true);
@@ -254,7 +254,7 @@ bool CCopyDialog::ReadPath(UString &path) {
 }
 
 void CCopyDialog::OnOK() {
-    UpdateDestination();
+    UpdateDestination(true);
     if (!_canAccept)
         return;
     UString path;
