@@ -309,6 +309,9 @@ class PanelActivationTests final : public QObject, protected MainWindowTestSuppo
         QFile file(fixture.filePath(name));
         QVERIFY(file.open(QIODevice::WriteOnly));
         file.close();
+        QFile peer(fixture.filePath("another file.txt"));
+        QVERIFY(peer.open(QIODevice::WriteOnly));
+        peer.close();
         ActivationExternalFiles external;
         ControlledBackend backend;
         MainWindow window(&backend);
@@ -321,13 +324,15 @@ class PanelActivationTests final : public QObject, protected MainWindowTestSuppo
         view.sourcePanel->Set_AutoRefresh_Mode(false);
         view.sourcePanel->AttachExternalFileServices(&external);
         const int row = filesystemRow(window, name);
+        const QPersistentModelIndex clicked(view.model()->index(row, 0));
         const auto index = view.model()->index(row, 0);
         const auto point = view.visualRect(index).center();
         view.setFocus();
         QTest::mouseClick(view.viewport(), Qt::LeftButton, Qt::NoModifier, point);
         const auto activate = [&] {
             if (mouse)
-                QTest::mouseDClick(view.viewport(), Qt::LeftButton, Qt::NoModifier, point);
+                QTest::mouseDClick(view.viewport(), Qt::LeftButton, Qt::NoModifier,
+                                   view.visualRect(clicked).center());
             else
                 activateWithKeyboard(window, &view);
         };
@@ -352,6 +357,14 @@ class PanelActivationTests final : public QObject, protected MainWindowTestSuppo
         QVERIFY(view.selectionModel()->isSelected(index));
         QVERIFY(file.open(QIODevice::WriteOnly));
         file.close();
+        if (mouse) {
+            view.sortItems(0, Qt::DescendingOrder);
+            QVERIFY(clicked.isValid());
+            QVERIFY(clicked.row() != row);
+            const int peerRow = filesystemRow(window, "another file.txt");
+            QVERIFY(peerRow >= 0 && peerRow != clicked.row());
+            view.selectRow(peerRow);
+        }
         activate();
         QCOMPARE(external.paths.size(), 1);
         QCOMPARE(external.paths.constFirst().normalized(QString::NormalizationForm_C),
