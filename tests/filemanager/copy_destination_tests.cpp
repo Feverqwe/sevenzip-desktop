@@ -218,6 +218,8 @@ class CopyDestinationTests final : public QObject {
         dialog.accept();
         QVERIFY(dialog.isVisible());
         QCOMPARE(path->text(), blocked);
+        QCOMPARE(dialog.findChild<QLabel *>("copyDestinationMessage")->text(),
+                 QString("Not a folder: %1").arg(blocker));
 
         path->setText(blocker);
         QVERIFY(ok->isEnabled()); // An existing leaf file may be overwritten.

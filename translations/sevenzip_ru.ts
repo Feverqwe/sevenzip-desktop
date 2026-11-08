@@ -95,6 +95,10 @@
             <translation>Недопустимое назначение.</translation>
         </message>
         <message>
+            <source>Not a folder: %1</source>
+            <translation>Этот путь не является папкой: %1</translation>
+        </message>
+        <message>
             <source>Enter a file or folder name.</source>
             <translation>Введите имя файла или папки.</translation>
         </message>

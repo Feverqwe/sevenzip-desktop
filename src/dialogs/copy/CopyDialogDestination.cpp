@@ -49,20 +49,20 @@ bool IsName(const QString &name, const QString &directory) {
                                          ToUString(QDir::toNativeSeparators(directory)));
 }
 
-enum class DirectoryStatus { Writable, Blocked, ReadOnly };
-
-DirectoryStatus DestinationDirectoryStatus(const QFileInfo &destination, bool needsDirectory) {
+QString DestinationDirectoryError(const QFileInfo &destination, bool needsDirectory) {
     QString path = needsDirectory ? destination.absoluteFilePath() : destination.absolutePath();
     for (;;) {
         const QFileInfo directory(path);
         if (directory.exists() || directory.isSymLink()) {
             if (!directory.isDir())
-                return DirectoryStatus::Blocked;
-            return directory.isWritable() ? DirectoryStatus::Writable : DirectoryStatus::ReadOnly;
+                return Text(QT_TRANSLATE_NOOP("CopyRedesign", "Not a folder: %1")).arg(path);
+            return directory.isWritable()
+                       ? QString()
+                       : Text(QT_TRANSLATE_NOOP("CopyRedesign", "The destination is read-only."));
         }
         const QString parent = directory.absolutePath();
         if (parent == path)
-            return DirectoryStatus::Writable;
+            return {};
         path = parent;
     }
 }
@@ -188,12 +188,12 @@ void CCopyDialog::UpdateDestination(bool checkBatch) {
     const bool localTransfer =
         _destinationContext && _destinationContext->LocalFileTransfer && filesystemDestination;
     const QString draft = PreviewDestination(DraftDestination());
-    const auto directoryStatus =
+    const QString directoryError =
         path.isEmpty() || path.contains(QChar::Null) || !filesystemDestination
-            ? DirectoryStatus::Writable
-            : DestinationDirectoryStatus(destination, needsDirectory);
+            ? QString()
+            : DestinationDirectoryError(destination, needsDirectory);
     bool linkedTransferDirectory = false;
-    if (localTransfer && directoryStatus == DirectoryStatus::Writable && !path.isEmpty() &&
+    if (localTransfer && directoryError.isEmpty() && !path.isEmpty() &&
         !path.contains(QChar::Null)) {
         const QFileInfo transferDirectory(
             needsDirectory && !_useName ? preview : QFileInfo(draft).absolutePath());
@@ -211,11 +211,11 @@ void CCopyDialog::UpdateDestination(bool checkBatch) {
         error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "The destination is invalid."));
     else if (nameAvailable && !IsName(_name->text(), preview))
         error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "Enter a file or folder name."));
-    else if (directoryStatus == DirectoryStatus::ReadOnly)
-        error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "The destination is read-only."));
+    else if (!directoryError.isEmpty())
+        error = directoryError;
     else if (peerDestination && !_destinationContext->PeerWritable)
         error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "The destination is read-only."));
-    else if (directoryStatus == DirectoryStatus::Blocked || linkedTransferDirectory)
+    else if (linkedTransferDirectory)
         error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "The destination is invalid."));
     else if (_destinationContext && !_useName &&
              (SameDirectory(preview, _destinationContext->SourceDirectory) ||
