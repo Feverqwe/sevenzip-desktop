@@ -154,8 +154,17 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
         QTRY_VERIFY(peer->hasFocus());
 
         const QString missingName = QStringLiteral("missing 文件.txt");
+        const QString existingName = QStringLiteral("ready файл.txt");
+        const auto writeSource = [&](const QString &name, const QByteArray &bytes) {
+            QFile file(peerDirectory.filePath(name));
+            QVERIFY(file.open(QIODevice::WriteOnly));
+            QCOMPARE(file.write(bytes), bytes.size());
+        };
+        writeSource(existingName, "ready bytes");
+        const QList<QUrl> sources{QUrl::fromLocalFile(peerDirectory.filePath(existingName)),
+                                  QUrl::fromLocalFile(peerDirectory.filePath(missingName))};
         auto *clipboard = new QMimeData;
-        clipboard->setUrls({QUrl::fromLocalFile(peerDirectory.filePath(missingName))});
+        clipboard->setUrls(sources);
         QApplication::clipboard()->setMimeData(clipboard);
         const QString pasteLabel = action(window, "pasteFilesAction")->text();
         bool pasteChosen = false;
@@ -193,6 +202,8 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
         dismiss.stop();
         QVERIFY(report.contains(missingName));
         QVERIFY(!QFileInfo::exists(destination.filePath(missingName)));
+        QVERIFY(!QFileInfo::exists(destination.filePath(existingName)));
+        QCOMPARE(QApplication::clipboard()->mimeData()->urls(), sources);
         QTRY_VERIFY(action(window, "settingsAction")->isEnabled());
         window.activateWindow();
         QVERIFY(WindowActivation::waitForActive(window));
@@ -203,6 +214,18 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
         address->setText(child);
         QTest::keyClick(address, Qt::Key_Return);
         QTRY_VERIFY(row(*owner, "control.txt") >= 0);
+        writeSource(missingName, "restored bytes");
+        auto *paste = action(window, "pasteFilesAction");
+        QTRY_VERIFY(paste->isEnabled());
+        paste->trigger();
+        QTRY_VERIFY(owner->isEnabled() && row(*owner, missingName) >= 0 &&
+                    row(*owner, existingName) >= 0);
+        QFile restored(QDir(child).filePath(missingName));
+        QFile existing(QDir(child).filePath(existingName));
+        QVERIFY(restored.open(QIODevice::ReadOnly));
+        QVERIFY(existing.open(QIODevice::ReadOnly));
+        QCOMPARE(restored.readAll(), QByteArray("restored bytes"));
+        QCOMPARE(existing.readAll(), QByteArray("ready bytes"));
     }
 
     void owningPanel_data() {
