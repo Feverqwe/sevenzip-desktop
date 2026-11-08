@@ -267,7 +267,8 @@ class ArchiveVolumeCreationTests final : public QObject {
         auto *section = dialog.findChild<QtDisclosure *>("archiveAdditionalSection");
         for (const auto &invalid :
              {QString("0"), QString("-128K"), QString("128K -256K"), QString("128Mmistyped"),
-              QString("128K256K"), QString("128K") + QChar::Null + " 256K"}) {
+              QString("128K256K"), QString("65536B128K"),
+              QString("128K") + QChar::Null + " 256K"}) {
             volume->setEditText(invalid);
             section->setExpanded(false);
             bool reported = false;
@@ -286,13 +287,14 @@ class ArchiveVolumeCreationTests final : public QObject {
         }
         QCoreApplication::processEvents();
         QVERIFY(UiInspection::fullyVisible(*volume, dialog));
-        volume->setEditText("64KiB 128KB - custom");
+        volume->setEditText("65536B 64KiB 128KB - custom");
         footer->button(QDialogButtonBox::Ok)->click();
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
         const auto sizes = dialog.compressionOptions().VolumeSizes;
-        QCOMPARE(sizes.Size(), 2u);
+        QCOMPARE(sizes.Size(), 3u);
         QCOMPARE(sizes[0], UInt64(64 << 10));
-        QCOMPARE(sizes[1], UInt64(128 << 10));
+        QCOMPARE(sizes[1], UInt64(64 << 10));
+        QCOMPARE(sizes[2], UInt64(128 << 10));
         CreateArchiveDialog update(fixture.path(), {source});
         update.findChild<QLineEdit *>("archiveName")->setText(fixture.filePath("existing.zip"));
         QVERIFY(update.findChild<QComboBox *>("archiveVolumeSize")->isEnabled());

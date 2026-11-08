@@ -24,6 +24,8 @@ bool ParseVolumeSizes(const UString &s, CRecordVector<UInt64> &values) {
             unsigned numBits = 0;
             switch (MyCharLower_Ascii(c)) {
             case 'b':
+                if (i < s.Len() && s[i] != L' ' && s[i] != L'-')
+                    return false;
                 continue;
             case 'k':
                 numBits = 10;
