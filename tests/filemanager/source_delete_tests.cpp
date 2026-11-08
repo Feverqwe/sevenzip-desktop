@@ -87,7 +87,13 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         trash.moved.clear();
 #endif
     }
+    void cancelledTrashStopsBeforeTheNextItem_data() {
+        QTest::addColumn<bool>("lastItem");
+        QTest::newRow("another-item-pending") << false;
+        QTest::newRow("last-item-already-moving") << true;
+    }
     void cancelledTrashStopsBeforeTheNextItem() {
+        QFETCH(bool, lastItem);
         QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         QTemporaryDir fixture;
         for (const QString &name : {QString("a.bin"), QString("b.bin")}) {
@@ -105,9 +111,10 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         auto &panel = *view->sourcePanel;
         CRecordVector<UInt32> indices;
         indices.Add(0);
-        indices.Add(1);
+        if (!lastItem)
+            indices.Add(1);
         const QString first = ToQString(panel.GetItemRelPath2(indices[0]));
-        const QString second = ToQString(panel.GetItemRelPath2(indices[1]));
+        const QString second = ToQString(panel.GetItemRelPath2(1));
         bool stopped = false;
         QSemaphore firstMoved, resume;
         trash.during = [&] {
@@ -140,7 +147,7 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         });
         responder.start(1);
         CSelectedState selected;
-        QCOMPARE(panel.MoveItemsToTrash(trash, selected, &indices), E_ABORT);
+        QCOMPARE(panel.MoveItemsToTrash(trash, selected, &indices), lastItem ? S_OK : E_ABORT);
         responder.stop();
         QVERIFY(stopped);
         QCOMPARE(trash.calls, 1);

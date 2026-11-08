@@ -33,7 +33,7 @@ class TrashOperation final : public CProgressThreadVirt {
             }
             Sync.Set_NumFilesCur(++MovedCount);
         }
-        return Sync.CheckStop();
+        return S_OK;
     }
 
   public:
