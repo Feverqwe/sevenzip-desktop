@@ -2,6 +2,7 @@
 #include "filemanager/support/selection_fixture.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
+#include "filemanager/window/qtworkspaceapplication.h"
 #include "localization/LangUtils.h"
 #include "settings/RegistryUtils.h"
 #include "support/panel_keys.h"
@@ -29,8 +30,14 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
     void invalidDraftCanBeCorrected() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
-        ControlledBackend backend;
-        MainWindow window(&backend);
+        QtWorkspaceApplication application(*qApp);
+        ControlledBackend backend, observerBackend;
+        MainWindow window(&backend), observer(&observerBackend);
+        observer.show();
+        observer.openPath(fixture.path());
+        auto *observed = table(observer);
+        QTRY_VERIFY(observed->isEnabled());
+        observed->sourcePanel->Set_AutoRefresh_Mode(false);
         window.show();
         auto *view = openPanel(window, 0, fixture.path());
         QTRY_COMPARE(view->rowCount(), 0);
@@ -45,12 +52,14 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         QVERIFY(error && error->isVisible() && !error->text().isEmpty());
         QVERIFY(!QFileInfo::exists(fixture.filePath("truncated")));
         QCOMPARE(view->rowCount(), 0);
+        QCOMPARE(observed->rowCount(), 0);
         name->setText(finalName);
         QTest::keyClick(name, Qt::Key_Return);
         const QFileInfo created(fixture.filePath(finalName));
         QVERIFY(created.isDir());
         QVERIFY(!QFileInfo::exists(fixture.filePath("truncated")));
         QTRY_COMPARE(view->rowCount(), 1);
+        QTRY_COMPARE(row(observed, finalName), 0);
         QCOMPARE(view->currentRow(), row(view, finalName));
     }
 

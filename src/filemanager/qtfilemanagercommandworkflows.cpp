@@ -167,6 +167,7 @@ void QtFileManagerCommands::CreateFolder() {
         if (focusOwner)
             window_.activatePanelUi(index);
         QString detail;
+        QString destinationDirectory;
         HRESULT result = E_INVALIDARG;
         if (!value.isEmpty() && !value.contains(QChar::Null)) {
             const QPointer<QWidget> alive(editor);
@@ -175,7 +176,7 @@ void QtFileManagerCommands::CreateFolder() {
                 QtAppOperationState::CallScope call(operations);
                 {
                     QScopedValueRollback<bool> progress(window_.sourceArchiveProgress_, true);
-                    result = panel.CreateFolder(ToUString(value), detail);
+                    result = panel.CreateFolder(ToUString(value), detail, &destinationDirectory);
                 }
                 operations.ContinueScanAfterSourceCall(index);
             }
@@ -185,6 +186,12 @@ void QtFileManagerCommands::CreateFolder() {
         }
         if (result == S_OK) {
             finish();
+            if (!destinationDirectory.isEmpty()) {
+                if (auto *application = QtWorkspaceApplication::Find())
+                    application->FilesystemPublished({destinationDirectory});
+                else
+                    window_.guiOutputRefresh_->Enqueue({destinationDirectory}, {});
+            }
             if (focusOwner)
                 window_.appPresentation_->RequestListFocus(index);
             return;

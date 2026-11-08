@@ -90,7 +90,7 @@ static bool PrepareFilesystemName(CPanel &panel, UString &name) {
     return true;
 }
 
-HRESULT CPanel::CreateFolder(UString name, QString &error) {
+HRESULT CPanel::CreateFolder(UString name, QString &error, QString *destinationDirectory) {
     if (IsHashFolder() || !_folderOperations || IsThereReadOnlyFolder())
         return E_NOTIMPL;
     if (name.IsEmpty() || !IsCorrectFsName(name))
@@ -112,8 +112,11 @@ HRESULT CPanel::CreateFolder(UString name, QString &error) {
     const HRESULT res =
         op.DoOperation(*this, LangString(IDS_CREATE_FOLDER), LangString(IDS_CREATE_FOLDER_ERROR));
     error = ToQString(op.Sync.FinalMessage.ErrorMessage.Message);
-    if (res == S_OK)
+    if (res == S_OK) {
         PrepareCreatedSelection(*this, name, state);
+        if (destinationDirectory && IsFSFolder())
+            *destinationDirectory = QFileInfo(ToQString(GetFsPath() + name)).absolutePath();
+    }
     RefreshTitleAlways();
     RefreshListCtrl(state);
     return res;
