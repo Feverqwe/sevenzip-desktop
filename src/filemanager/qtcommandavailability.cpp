@@ -122,9 +122,7 @@ QHash<unsigned, bool> QtFileManagerCommands::Availability() {
     availability[IDM_ABOUT] = windowCommands;
     availability[OpenArchivePicker] = windowCommands && !w.backend_->busy();
     availability[ManageMounts] = windowCommands;
-    availability[IDM_FOLDERS_HISTORY] = navigating && !w.projectedUi().scanningDisk &&
-                                        !w.projectedUi().scanningArchive &&
-                                        !QApplication::activeModalWidget();
+    availability[IDM_FOLDERS_HISTORY] = windowCommands && !w.app_.QtOperations().active();
     if (availability[OpenArchivePicker] && safeFolderQueries && !w.projectedUi().scanningArchive &&
         !w.projectedUi().scanningDisk) {
         const auto *folder = dynamic_cast<CAgentFolder *>(panel.GetFolder());

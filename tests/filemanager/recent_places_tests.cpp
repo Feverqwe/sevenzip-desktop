@@ -8,6 +8,7 @@
 #include "platform/support/external_editor_fixture.h"
 #include "support/panel_keys.h"
 #include "support/widget_dialogs.h"
+#include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
 #include <QInputDialog>
 #include <QMenu>
@@ -83,14 +84,26 @@ class RecentPlacesTests final : public QObject, protected MainWindowTestSupport 
         ControlledBackend backend;
         MainWindow window(&backend);
         window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
         window.openPath(first);
         QTRY_COMPARE(location(window), first);
+        action(window, "twoPanelsAction")->trigger();
+        auto *peer =
+            window.findChild<QWidget *>("filePanel1")->findChild<FileTable *>("archiveTable");
+        QVERIFY(peer && peer->isVisible());
+        QTRY_VERIFY(peer->isEnabled());
+        active(window)->setFocus();
         auto *button = window.findChild<QToolButton *>("panelRecentPlacesButton0");
         QVERIFY(button && button->isEnabled());
         window.openPath(large);
         QVERIFY(!active(window)->isEnabled());
         QVERIFY(!button->isEnabled());
+        peer->setFocus();
+        QVERIFY(peer->hasFocus());
+        auto *history = action(window, "foldersHistoryAction");
+        QVERIFY(!history->isEnabled());
         QTRY_VERIFY(button->isEnabled());
+        QTRY_VERIFY(history->isEnabled());
         QTest::mouseClick(button, Qt::LeftButton);
         QTRY_VERIFY(RecentPlacesMenu::Visible(window));
         auto *menu = RecentPlacesMenu::Visible(window);
