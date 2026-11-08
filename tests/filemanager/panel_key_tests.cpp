@@ -29,11 +29,17 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
     void typingAndEnterOpenTheMatchingFolder() {
         QFETCH(int, mode);
         QFETCH(bool, switchView);
+        const int searchInterval = QApplication::keyboardInputInterval();
+        const auto restoreInterval = qScopeGuard(
+            [searchInterval] { QApplication::setKeyboardInputInterval(searchInterval); });
+        QApplication::setKeyboardInputInterval(5000);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString expected = fixture.filePath(QStringLiteral("Журнал"));
         QVERIFY(QDir().mkdir(fixture.filePath("alpha")));
         QVERIFY(QDir().mkdir(expected));
+        QVERIFY(QDir(expected).mkdir("alpha"));
+        QVERIFY(QDir(expected).mkdir("zebra"));
         ControlledBackend backend;
         MainWindow window(&backend);
         window.show();
@@ -68,6 +74,8 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
         QTRY_COMPARE(QDir::cleanPath(ToQString(view->sourcePanel->GetCurrentFolderPrefix())),
                      expected);
         QTRY_VERIFY(active->hasFocus());
+        QTest::keyClick(window.focusWidget(), Qt::Key_Z);
+        QCOMPARE(active->currentIndex().data(QtPanelList::NameRole).toString(), QString("zebra"));
     }
     void typingFindsTheNameFromAnotherColumn_data() {
         QTest::addColumn<bool>("matches");

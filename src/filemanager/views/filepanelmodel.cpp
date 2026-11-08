@@ -252,6 +252,15 @@ void FilePanelModel::setColumns(const QStringList &labels) {
     if (!labels.isEmpty())
         emit headerDataChanged(Qt::Horizontal, 0, labels.size() - 1);
 }
+QModelIndexList FilePanelModel::match(const QModelIndex &start, int role, const QVariant &value,
+                                      int hits, Qt::MatchFlags flags) const {
+    // Qt clears its keyboard prefix with an empty search. Do not select a row.
+    if (role == Qt::DisplayRole && flags == (Qt::MatchStartsWith | Qt::MatchWrap) &&
+        value.toString().isEmpty())
+        return {};
+    return QAbstractTableModel::match(start, role, value, hits, flags);
+}
+
 void FilePanelModel::append(Row row) {
     const int position = rows_.size();
     beginInsertRows({}, position, position);

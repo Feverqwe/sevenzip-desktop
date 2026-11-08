@@ -175,6 +175,15 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
     projectedUi().viewStack->addWidget(projectedUi().table);
     projectedUi().viewStack->addWidget(projectedUi().iconList);
     workspace_->AttachContent(index, *layout);
+    auto *table = static_cast<QAbstractItemView *>(projectedUi().table);
+    auto *icons = projectedUi().iconList;
+    connect(table->model(), &QAbstractItemModel::rowsAboutToBeRemoved, icons,
+            [table, icons](const QModelIndex &, int first, int last) {
+                if (first == 0 && last == table->model()->rowCount() - 1) {
+                    table->keyboardSearch({});
+                    icons->keyboardSearch({});
+                }
+            });
     connect(projectedUi().table->selectionModel(), &QItemSelectionModel::selectionChanged, this,
             [this, index] {
                 if (projectedPanel_ == index && app_.Panels[index].ShouldProcessNotifications())
