@@ -467,12 +467,16 @@ class WorkspaceSessionTests final : public QObject {
         file.close();
         QJsonObject saved;
         {
+            SavePanelPath(1, ToUString(fixture.path()),
+                          qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
             ControlledBackend backend;
             MainWindow source(&backend);
             source.show();
             source.openPath(folder);
             QTRY_COMPARE(location(source), folder);
             QTRY_VERIFY(active(source)->rowCount() > 0 && active(source)->isEnabled());
+            source.findChild<QAction *>("twoPanelsAction")->trigger();
+            QVERIFY(source.findChild<QWidget *>("filePanel1")->isVisible());
             saved = workspace(source)->Save();
         }
         QVERIFY(QDir().rename(folder, parked));
@@ -491,16 +495,26 @@ class WorkspaceSessionTests final : public QObject {
         QVERIFY(retry && retry->isVisible());
         QVERIFY(WindowActivation::waitForActive(restored));
         QTRY_COMPARE(restored.focusWidget(), static_cast<QWidget *>(retry));
-        QCOMPARE(QDir::cleanPath(restored.findChild<QLineEdit *>("archivePath")->text()), folder);
+        auto *peer = restored.findChild<QWidget *>("filePanel1")->findChild<FileTable *>();
+        QVERIFY(peer && peer->isVisible() && peer->isEnabled());
+        peer->setFocus();
+        QTRY_VERIFY(peer->hasFocus());
+        QTest::keyClick(restored.focusWidget(), Qt::Key_Tab);
+        QTRY_COMPARE(restored.focusWidget(), static_cast<QWidget *>(retry));
+        auto *owner = restored.findChild<QWidget *>("filePanel0");
+        auto *files = owner->findChild<FileTable *>();
+        auto *address = owner->findChild<QLineEdit *>("archivePath");
+        QCOMPARE(QDir::cleanPath(address->text()), folder);
         QVERIFY(replacement.remove());
         QTest::keyClick(restored.focusWidget(), Qt::Key_Space);
         QVERIFY(retry->isVisible());
         QVERIFY(QDir().rename(parked, folder));
         QCOMPARE(restored.focusWidget(), static_cast<QWidget *>(retry));
         QTest::keyClick(restored.focusWidget(), Qt::Key_Space);
-        QTRY_COMPARE(location(restored), folder);
-        QTRY_VERIFY(active(restored)->isEnabled() && !retry->isVisible());
-        QVERIFY(active(restored)->rowCount() > 0);
+        QTRY_COMPARE(QDir::cleanPath(address->text()), folder);
+        QTRY_VERIFY(files->isEnabled() && !retry->isVisible());
+        QVERIFY(files->rowCount() > 0);
+        QTRY_VERIFY(files->hasFocus());
     }
 
     void sessionSavedDuringFolderScanRestoresTheFolder_data() {

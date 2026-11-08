@@ -210,7 +210,8 @@ bool MainWindow::handlePanelListKey(QKeyEvent *key) {
     const auto mods = key->modifiers();
     const int virtualKey = QtPanelVirtualKey(*key);
     const unsigned peer = 1 - projectedPanel_;
-    if (virtualKey == Qt::Key_Tab && app_.NumPanels == 2 && (scanningPanelMask() & (1u << peer))) {
+    if (virtualKey == Qt::Key_Tab && app_.NumPanels == 2 &&
+        ((scanningPanelMask() & (1u << peer)) || panelUi_[peer].locationUnavailable)) {
         workspace_->RequestListFocus(peer);
         return true;
     }
