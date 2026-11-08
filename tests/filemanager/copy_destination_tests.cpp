@@ -475,8 +475,11 @@ class CopyDestinationTests final : public QObject {
                 QCOMPARE(path->cursorPosition(), 1);
             }
         }
-        dialog.reject();
         QCOMPARE(ToQString(dialog.Value), fixture.path() + '/');
+        QTest::keyClick(path, Qt::Key_Return);
+        QCOMPARE(dialog.result(), int(QDialog::Accepted));
+        QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(ToQString(dialog.Value))),
+                 QDir(selected).filePath("draft.txt"));
     }
 };
 
