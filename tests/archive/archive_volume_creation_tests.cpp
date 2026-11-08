@@ -186,6 +186,12 @@ class ArchiveVolumeCreationTests final : public QObject {
         const QString baseArchive = fixture.filePath("existing.7z");
         QVERIFY(writeFile(baseArchive, "keep this archive"));
         name->setText("existing.7z");
+        auto *volume = dialog.findChild<QComboBox *>("archiveVolumeSize");
+        volume->setEditText("0");
+        QVERIFY(submitAndDismissWarning() && dialog.isVisible());
+        QTRY_VERIFY(dialog.focusWidget() == volume || dialog.focusWidget() == volume->lineEdit());
+        QCOMPARE(name->text(), QString("existing.7z"));
+        volume->setEditText("128K");
         QVERIFY(submitAndDismissWarning() && dialog.isVisible());
         QCOMPARE(readFile(baseArchive), QByteArray("keep this archive"));
         name->setText("different.7z");

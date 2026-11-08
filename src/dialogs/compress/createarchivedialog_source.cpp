@@ -99,6 +99,14 @@ void CreateArchiveDialog::validateAndAccept() {
         return;
     }
     SaveOptionsInMem();
+    NCompressDialog::CInfo volumeInfo;
+    const auto volumeResult = volume_->isEnabled()
+                                  ? CCompressDialog::OnOK(volume_->currentText(), volumeInfo)
+                                  : CCompressDialog::kVolumeOK;
+    if (volumeResult == CCompressDialog::kIncorrectVolumeSize) {
+        checkVolumeSizes(volumeResult, volumeInfo);
+        return;
+    }
     UString draftName(name_->text().toStdWString().c_str());
     draftName.Trim();
     const UString leaf(draftName.Ptr(unsigned(draftName.ReverseFind_PathSepar() + 1)));
@@ -113,7 +121,7 @@ void CreateArchiveDialog::validateAndAccept() {
         HasEmptyWindowsPathComponent(ToUString(QDir::toNativeSeparators(archiveFolder_->text())),
                                      nativeResolved);
     const QFileInfo target(resolved);
-    const bool singleVolume = !volume_->isEnabled() || volume_->currentText().trimmed().isEmpty();
+    const bool singleVolume = volumeInfo.VolumeSizes.IsEmpty();
     const bool danglingTarget = singleVolume && target.isSymLink() && !target.exists();
     QString pathError = !hasFileName || invalidName || invalidFolder || resolved.isEmpty() ||
                                 target.isDir() || danglingTarget
@@ -161,7 +169,7 @@ void CreateArchiveDialog::validateAndAccept() {
         field->setFocus();
         return;
     }
-    if (!checkVolumeSizes())
+    if (!checkVolumeSizes(volumeResult, volumeInfo))
         return;
     // Existing outputs are opened/validated by source UpdateArchive after OK,
     // just as for the original form. The dialog must not reject update intent.
