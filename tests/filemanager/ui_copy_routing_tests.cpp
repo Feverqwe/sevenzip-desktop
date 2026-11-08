@@ -10,6 +10,7 @@
 #include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
 #include <QDialogButtonBox>
+#include <QLabel>
 #include <QLineEdit>
 #include <QProcess>
 #include <QScopeGuard>
@@ -421,6 +422,7 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         const QString name = QStringLiteral("source folder δ");
         const QString source = fixture.filePath(name);
         const QString blocked = source + "/new folder/";
+        const QString blockedInput = move ? name + "/new folder/" : blocked;
         const QString output = fixture.filePath("source folder δ copy");
         QVERIFY(QDir().mkpath(source));
         write(source + "/file.txt", "control bytes");
@@ -438,6 +440,7 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
 
         bool stayedOpen = false;
         bool corrected = false;
+        QString diagnostic;
         QTimer::singleShot(0, &window, [&] {
             auto *dialog = window.findChild<CopyDialog *>("copyDialog");
             if (!dialog)
@@ -445,10 +448,11 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
             auto *path = dialog->findChild<QLineEdit *>("copyDestination");
             auto *buttons = dialog->findChild<QDialogButtonBox *>("copyButtons");
             auto *ok = buttons->button(QDialogButtonBox::Ok);
-            path->setText(blocked);
+            path->setText(blockedInput);
+            diagnostic = dialog->findChild<QLabel *>("copyDestinationMessage")->text();
             if (!ok->isEnabled()) {
                 dialog->accept();
-                stayedOpen = dialog->isVisible() && path->text() == blocked;
+                stayedOpen = dialog->isVisible() && path->text() == blockedInput;
             }
             path->setText(output);
             corrected = ok->isEnabled();
@@ -456,6 +460,7 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         });
         QTest::keyClick(view, move ? Qt::Key_F6 : Qt::Key_F5);
         QVERIFY(stayedOpen);
+        QCOMPARE(diagnostic, QString("Destination is inside the source folder: %1").arg(blocked));
         QVERIFY(corrected);
         QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
         QVERIFY(!QFileInfo::exists(blocked));

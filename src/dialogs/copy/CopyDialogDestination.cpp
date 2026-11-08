@@ -233,7 +233,9 @@ void CCopyDialog::UpdateDestination(bool checkBatch) {
     else if (_destinationContext && _destinationContext->IsInsideSourceDirectory &&
              (!peerDestination || _destinationContext->PeerIsFilesystem) &&
              _destinationContext->IsInsideSourceDirectory(draft))
-        error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "The destination is invalid."));
+        error = QCoreApplication::translate("qtfiletransfertransaction",
+                                            "Destination is inside the source folder: %1")
+                    .arg(draft);
     else if (localTransfer && (_sources.size() == 1 || (checkBatch && destination.isDir()))) {
         // Check a batch on submit so editing the path does not stat every item.
         const QDir targetDirectory(preview);
@@ -242,7 +244,9 @@ void CCopyDialog::UpdateDestination(bool checkBatch) {
             const QFileInfo target(
                 needsDirectory && !_useName ? targetDirectory.filePath(source.fileName()) : draft);
             if (QtIsFileSystemLink(target.filePath()))
-                error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "The destination is invalid."));
+                error = QCoreApplication::translate("qtfiletransfertransaction",
+                                                    "Destination is a symbolic link: %1")
+                            .arg(target.filePath());
             else if (target.exists() && target.isDir() != source.isDir())
                 error = QCoreApplication::translate(
                             "qtfiletransfertransaction",

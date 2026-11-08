@@ -311,6 +311,8 @@ class CopyDestinationTests final : public QObject {
         QVERIFY(!ok->isEnabled());
         path->setText(dangling);
         QVERIFY(!ok->isEnabled());
+        QCOMPARE(dialog.findChild<QLabel *>("copyDestinationMessage")->text(),
+                 QString("Destination is a symbolic link: %1").arg(dangling));
         path->setText(folder + '/');
         name->setText("dangling.txt");
         QVERIFY(!ok->isEnabled());
