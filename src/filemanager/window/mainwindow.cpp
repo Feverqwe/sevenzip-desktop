@@ -79,10 +79,9 @@ void MainWindow::createFileManagerWindow(const QtFileManagerStartup *startup, bo
     statusPanel_ = focusedPanel;
     renameController_ = std::make_unique<QtRenameController>(*this);
     guiOutputRefresh_ = std::make_unique<QtGuiOutputRefresh>(
-        [this] {
-            const auto &operations = app_.QtOperations();
-            return !operations.closed() && !operations.active() && !operations.callActive() &&
-                   workspace_->CanRefreshPublishedArchives();
+        [this](unsigned panel) {
+            return !renameController_->PendingFor(panel) &&
+                   workspace_->CanRefreshPublishedOutput(panel);
         },
         [this](unsigned index, const QtGuiOutputRefresh::Outputs &output) {
             refreshGuiOutputPanel(index, output);

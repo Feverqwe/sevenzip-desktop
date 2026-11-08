@@ -43,6 +43,7 @@ class QtWindowWorkspace final : public QObject {
     void InvalidateArchive(const QString &path);
     bool RefreshPublishedArchive(unsigned panel, bool interactive = false);
     bool CanRefreshPublishedArchives() const;
+    bool CanRefreshPublishedOutput(unsigned panel) const;
     void RestoreViewPosition(CPanel &source, QAbstractItemView &view, const QPoint &position);
     void RetainListFocus(unsigned panel);
     void RestoreAddressFocus(unsigned panel, const QtAddressDraft &draft);

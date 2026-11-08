@@ -32,9 +32,9 @@ void QtGuiOutputRefresh::Flush() {
         return;
     QScopedValueRollback<bool> draining(draining_, true);
     for (unsigned i = 0; i < pending_.size(); ++i) {
-        if (stopped_ || !ready_())
+        if (stopped_)
             return;
-        if (pending_[i].empty())
+        if (pending_[i].empty() || !ready_(i))
             continue;
         // Reload may start another scan or deliver another child completion.
         // Detach this panel's batch before entering that source/UI boundary.

@@ -14,7 +14,7 @@ class QtGuiOutputRefresh final : public QObject {
         QStringList archives;
         bool empty() const { return directories.isEmpty() && archives.isEmpty(); }
     };
-    using Ready = std::function<bool()>;
+    using Ready = std::function<bool(unsigned)>;
     using Refresh = std::function<void(unsigned, const Outputs &)>;
     QtGuiOutputRefresh(Ready ready, Refresh refresh);
     void Enqueue(const QStringList &directories, const QStringList &archives);

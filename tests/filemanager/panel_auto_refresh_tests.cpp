@@ -223,17 +223,22 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
 
     void renameDraftSurvivesAutoRefresh_data() {
         QTest::addColumn<bool>("commit");
-        QTest::newRow("enter") << true;
-        QTest::newRow("escape") << false;
+        QTest::addColumn<bool>("published");
+        QTest::newRow("enter") << true << false;
+        QTest::newRow("escape") << false << false;
+        QTest::newRow("published-enter") << true << true;
+        QTest::newRow("published-escape") << false << true;
     }
 
     void renameDraftSurvivesAutoRefresh() {
         QFETCH(bool, commit);
+        QFETCH(bool, published);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString original = fixture.filePath("original.txt");
         const QString renamed = fixture.filePath(QStringLiteral("renamed δ.txt"));
         QVERIFY(writeFile(original, "original bytes"));
+        QtWorkspaceApplication application(*qApp);
         MainWindow window;
         window.show();
         QVERIFY(QTest::qWaitForWindowActive(&window));
@@ -247,6 +252,8 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
             address->setText(fixture.path());
             QTest::keyClick(address, Qt::Key_Return);
             QTRY_COMPARE(views[pane]->rowCount(), 1);
+            if (published)
+                views[pane]->sourcePanel->Set_AutoRefresh_Mode(false);
         }
         auto *view = views[0];
         view->setFocus();
@@ -261,6 +268,8 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         const QString draft = QFileInfo(renamed).fileName();
         editor->setText(draft);
         QVERIFY(writeFile(fixture.filePath("new file.txt")));
+        if (published)
+            application.FilesystemPublished({fixture.path()});
         QTRY_COMPARE_WITH_TIMEOUT(views[1]->rowCount(), 2, 5000);
         QVERIFY(editor && editor->isVisible());
         QVERIFY(editor->hasFocus());

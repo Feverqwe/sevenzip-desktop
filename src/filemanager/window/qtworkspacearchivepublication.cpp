@@ -33,6 +33,15 @@ QtArchiveFileResource *LayerResource(const CPanel &source, unsigned level) {
 }
 } // namespace
 
+bool QtWindowWorkspace::CanRefreshPublishedOutput(unsigned panel) const {
+    if (!Ready())
+        return false;
+    const auto &source = window_.app_.Panels[panel];
+    if (source.GetFolder() && source.IsArcFolder())
+        return CanRefreshPublishedArchives();
+    return true;
+}
+
 bool QtWindowWorkspace::CanRefreshPublishedArchives() const {
     if (!Ready() || !QtTaskPresentation::CanPresent())
         return false;
