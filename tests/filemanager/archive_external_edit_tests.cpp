@@ -1,6 +1,8 @@
 #include "7zip/PropID.h"
 #include "7zip/UI/FileManager/ProgressDialog2Res.h"
 #include "Common/StringConvert.h"
+#include "archive/support/native_archive_fixture.h"
+#include "dialogs/password/PasswordDialog.h"
 #include "filemanager/support/panel_load_folder.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
@@ -9,6 +11,7 @@
 #include "platform/support/external_editor_fixture.h"
 #include "platform/temp/qtownedtempregistry.h"
 #include "settings/RegistryUtils.h"
+#include "support/progress_dialog.h"
 #include "support/widget_dialogs.h"
 #include "ui/lifecycle/qttaskpresentation.h"
 #include "ui/progress/ProgressDialog2.h"
@@ -16,6 +19,7 @@
 #include <QCheckBox>
 #include <QCoreApplication>
 #include <QEventLoop>
+#include <QLineEdit>
 #include <QSaveFile>
 #include <QScopeGuard>
 #include <QStandardPaths>
@@ -38,6 +42,60 @@ class ArchiveExternalEditTests final : public QObject, protected MainWindowTestS
 
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
+    void encryptedMemberOpensAfterPasswordRetry() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString archive = fixture.filePath("encrypted.zip");
+        const QString password = QStringLiteral("test-only password");
+        const QByteArray payload = "contents from the archive";
+        QVERIFY(NativeArchiveFixture::Write(archive, {{"записка.txt", payload}}, "zip", password));
+
+        QStringList launches;
+        const auto cleanup = qScopeGuard([&] {
+            for (const auto &path : launches)
+                QDir(QFileInfo(path).absolutePath()).removeRecursively();
+        });
+        ArchiveBackend backend;
+        MainWindow window(&backend, [&](const QUrl &url) {
+            launches.append(url.toLocalFile());
+            return true;
+        });
+        window.show();
+        window.openArchive(archive);
+        QTRY_COMPARE(table(window)->rowCount(), 1);
+        table(window)->selectRow(0);
+
+        bool retry = false;
+        int prompts = 0;
+        QTimer responder;
+        connect(&responder, &QTimer::timeout, &window, [&] {
+            auto *modal = QApplication::activeModalWidget();
+            if (auto *dialog = dynamic_cast<CPasswordDialog *>(modal)) {
+                ++prompts;
+                dialog->findChild<QLineEdit *>("passwordEdit")
+                    ->setText(retry ? password : QStringLiteral("incorrect"));
+                dialog->accept();
+            } else if (auto *report = TestProgressDialog::ResultWindow(modal)) {
+                TestProgressDialog::CloseResult(*report);
+            } else if (auto *box = qobject_cast<QMessageBox *>(modal)) {
+                box->accept();
+            }
+        });
+        responder.start(5);
+        auto *open = action(window, "openOutsideAction");
+        QVERIFY(open->isEnabled());
+        open->trigger();
+        QCOMPARE(prompts, 1);
+        QVERIFY(launches.isEmpty());
+        QVERIFY(open->isEnabled());
+        retry = true;
+        open->trigger();
+        QCOMPARE(prompts, 2);
+        QCOMPARE(launches.size(), 1);
+        QCOMPARE(read(launches.front()), payload);
+        QTRY_VERIFY(!table(window)->sourcePanel->HasExternalWorkers());
+        QVERIFY(window.close());
+    }
     void associationWithoutProcessShowsActionsOnlyAfterSave_data() {
         QTest::addColumn<bool>("updateArchive");
         QTest::newRow("keep-copy") << false;
