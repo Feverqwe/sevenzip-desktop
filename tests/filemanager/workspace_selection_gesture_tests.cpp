@@ -26,6 +26,40 @@ class WorkspaceSelectionGestureTests final : public QObject, protected MainWindo
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
     void cleanup() { QApplication::clipboard()->clear(); }
+    void doubleClickOpensFoldersOnlyWithTheLeftButton_data() {
+        QTest::addColumn<bool>("icons");
+        QTest::newRow("table") << false;
+        QTest::newRow("icons") << true;
+    }
+    void doubleClickOpensFoldersOnlyWithTheLeftButton() {
+        QFETCH(bool, icons);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString child = fixture.filePath("child");
+        QVERIFY(QDir().mkpath(child));
+        QFile control(child + "/inside.txt");
+        QVERIFY(control.open(QIODevice::WriteOnly));
+        control.close();
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(fixture.path());
+        auto *files = table(window);
+        QTRY_VERIFY(files->isEnabled() && filesystemRow(window, "child") >= 0);
+        action(window, icons ? "viewMode0Action" : "viewMode3Action")->trigger();
+        auto *view = icons ? window.findChild<QAbstractItemView *>("iconList") : files;
+        QVERIFY(view && view->isVisible());
+        const auto index = view->model()->index(filesystemRow(window, "child"), 0);
+        const QPoint point = view->visualRect(index).center();
+        QCOMPARE(view->indexAt(point), index);
+        QTest::mouseClick(view->viewport(), Qt::RightButton, Qt::NoModifier, point);
+        QTest::mouseDClick(view->viewport(), Qt::RightButton, Qt::NoModifier, point);
+        QCOMPARE(filesystemRow(window, "inside.txt"), -1);
+        QVERIFY(filesystemRow(window, "child") >= 0);
+        QTest::mouseClick(view->viewport(), Qt::LeftButton, Qt::NoModifier, point);
+        QTest::mouseDClick(view->viewport(), Qt::LeftButton, Qt::NoModifier, point);
+        QTRY_VERIFY(filesystemRow(window, "inside.txt") >= 0);
+    }
     void blankAreaSelectsIntersectedEntries_data() {
         QTest::addColumn<bool>("icons");
         QTest::addColumn<int>("modifier");
