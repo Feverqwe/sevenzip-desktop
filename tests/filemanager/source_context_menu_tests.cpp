@@ -214,9 +214,15 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
         QVERIFY(QMetaObject::invokeMethod(owner, "customContextMenuRequested", Qt::DirectConnection,
                                           Q_ARG(QPoint, point)));
         QVERIFY(pasteChosen);
-        QTRY_VERIFY(!report.isEmpty());
+        QVERIFY(WindowActivation::waitForActive(window));
+        QTRY_VERIFY(peer->hasFocus());
+        QTest::keyClick(peer, Qt::Key_Tab);
+        QTRY_VERIFY(owner->hasFocus());
+        QTRY_VERIFY(!report.isEmpty() ||
+                    window.statusBar()->currentMessage().contains(missingName));
         dismiss.stop();
-        QVERIFY(report.contains(missingName));
+        QVERIFY(report.isEmpty());
+        QVERIFY(window.statusBar()->currentMessage().contains(missingName));
         QVERIFY(!QFileInfo::exists(destination.filePath(missingName)));
         QVERIFY(!QFileInfo::exists(destination.filePath(existingName)));
         QCOMPARE(QApplication::clipboard()->mimeData()->urls(), sources);

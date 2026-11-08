@@ -13,6 +13,13 @@
 namespace {
 constexpr auto gnomeFilesFormat = "x-special/gnome-copied-files";
 
+QString MissingClipboardSource(const QFileInfo &entry) {
+    if (entry.exists() || entry.isSymLink() || entry.isJunction())
+        return {};
+    return QCoreApplication::translate("qtfiletransfertransaction", "Source unavailable: %1")
+        .arg(entry.filePath());
+}
+
 QStringList LocalFilePaths(const QList<QUrl> &urls) {
     QStringList paths;
     for (const auto &url : urls) {
@@ -166,11 +173,8 @@ void QtFileClipboard::Copy(bool move) {
         source.GetFilePaths(indices, paths);
         FOR_VECTOR(i, paths) {
             const QString path = ToQString(paths[i]);
-            const QFileInfo entry(path);
-            if (!entry.exists() && !entry.isSymLink() && !entry.isJunction()) {
-                window_.showStatusMessage(QCoreApplication::translate("qtfiletransfertransaction",
-                                                                      "Source unavailable: %1")
-                                              .arg(path));
+            if (const QString error = MissingClipboardSource(QFileInfo(path)); !error.isEmpty()) {
+                window_.showStatusMessage(error);
                 return;
             }
             urls.append(QUrl::fromLocalFile(path));
@@ -225,7 +229,12 @@ void QtFileClipboard::Paste() {
         return;
     const QDir destination(window_.projectedUi().directory);
     for (const auto &path : paths) {
-        const QString target = destination.filePath(QFileInfo(path).fileName());
+        const QFileInfo entry(path);
+        if (const QString error = MissingClipboardSource(entry); !error.isEmpty()) {
+            window_.showStatusMessage(error);
+            return;
+        }
+        const QString target = destination.filePath(entry.fileName());
         if (QDir::cleanPath(path) == QDir::cleanPath(target)) {
             window_.showStatusMessage(
                 QCoreApplication::translate("qtfiletransfertransaction",
