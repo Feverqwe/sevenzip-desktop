@@ -3,6 +3,7 @@
 #include "ui/support/layout_inspection.h"
 #include <QClipboard>
 #include <QImage>
+#include <QScopeGuard>
 
 class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestSupport {
     Q_OBJECT
@@ -85,6 +86,40 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
         QTRY_VERIFY(!cut(*files, "Alpha.txt"));
         QTRY_VERIFY(!cut(*otherFiles, "Alpha.txt"));
         QVERIFY(QFileInfo::exists(source + "/Alpha.txt"));
+    }
+
+    void pasteRequiresWritableFolder() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString writable = fixture.filePath("writable");
+        const QString blocked = fixture.filePath("blocked");
+        const QString source = fixture.filePath("incoming.txt");
+        QVERIFY(QDir().mkpath(writable));
+        QVERIFY(QDir().mkpath(blocked));
+        write(source);
+        write(QDir(blocked).filePath("existing.txt"));
+        const auto restore = qScopeGuard([&] {
+            QFile::setPermissions(blocked, QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner);
+        });
+        if (!QFile::setPermissions(blocked, QFile::ReadOwner | QFile::ExeOwner) ||
+            QFileInfo(blocked).isWritable())
+            QSKIP("Cannot make the destination folder read-only");
+
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(writable);
+        auto *mime = new QMimeData;
+        mime->setUrls({QUrl::fromLocalFile(source)});
+        QApplication::clipboard()->setMimeData(mime);
+        auto *paste = action(window, "pasteFilesAction");
+        QTRY_VERIFY(paste->isEnabled());
+
+        window.openPath(blocked);
+        QTRY_VERIFY(rowFor(*table(window), "existing.txt") >= 0);
+        QVERIFY(!paste->isEnabled());
+        window.openPath(writable);
+        QTRY_VERIFY(paste->isEnabled());
     }
 
     void externalCutHints_data() {
