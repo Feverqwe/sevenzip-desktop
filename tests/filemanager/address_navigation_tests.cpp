@@ -106,6 +106,7 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
         QTest::newRow("virtual-failed") << qint32(E_FAIL) << true << false;
         QTest::newRow("virtual-cancelled") << qint32(E_ABORT) << true << false;
         QTest::newRow("cancelled-during-refresh") << qint32(E_ABORT) << false << true;
+        QTest::newRow("virtual-failed-during-refresh") << qint32(E_FAIL) << true << true;
     }
     void rejectedArchiveAddressKeepsEditingFocus() {
         QFETCH(qint32, result);
