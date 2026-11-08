@@ -31,7 +31,13 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
     }
     void cleanup() { QApplication::clipboard()->clear(); }
 
+    void keyboardClipboardWorksWhileThePeerRefreshes_data() {
+        QTest::addColumn<bool>("move");
+        QTest::newRow("copy") << false;
+        QTest::newRow("cut") << true;
+    }
     void keyboardClipboardWorksWhileThePeerRefreshes() {
+        QFETCH(bool, move);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString source = fixture.filePath("source");
@@ -72,8 +78,9 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
             QVERIFY(files->hasFocus());
         };
         startPeerRefresh();
-        QTest::keySequence(files, QKeySequence::Copy);
+        QTest::keySequence(files, move ? QKeySequence::Cut : QKeySequence::Copy);
         QCOMPARE(QApplication::clipboard()->mimeData()->urls(), QList{QUrl::fromLocalFile(input)});
+        QCOMPARE(cut(*files, "item.txt"), move);
         QTRY_VERIFY(peer->isEnabled() && peer->rowCount() == 301);
         window.openPath(target);
         QTRY_VERIFY(files->isEnabled() && files->rowCount() == 0);
@@ -85,7 +92,11 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
         QFile output(QDir(target).filePath("item.txt"));
         QVERIFY(output.open(QIODevice::ReadOnly));
         QCOMPARE(output.readAll(), QByteArray("file state fixture"));
-        QVERIFY(QFileInfo::exists(input));
+        QCOMPARE(QFileInfo::exists(input), !move);
+        if (move) {
+            const auto *mime = QApplication::clipboard()->mimeData();
+            QVERIFY(!mime || !mime->hasUrls());
+        }
         QVERIFY(WindowActivation::waitForActive(window));
         files->setFocus();
         QTRY_VERIFY(files->hasFocus());
