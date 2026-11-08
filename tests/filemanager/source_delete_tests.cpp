@@ -11,6 +11,7 @@
 #include "support/panel_keys.h"
 #include "support/progress_dialog.h"
 #include "support/widget_dialogs.h"
+#include "support/window_activation.h"
 #include "ui/progress/ProgressDialog2.h"
 #include "ui/support/layout_inspection.h"
 #include <QScopeGuard>
@@ -522,6 +523,7 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         window.show();
         auto *view = openPanel(window, 0, fixture.path());
         QTRY_VERIFY(view->isEnabled() && view->rowCount() == 258);
+        QVERIFY(WindowActivation::waitForActive(window));
         auto &panel = *view->sourcePanel;
         panel.Set_AutoRefresh_Mode(false);
         const auto nameAt = [view](int row) {
@@ -538,19 +540,30 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         auto *active = icons ? window.findChild<QAbstractItemView *>("iconList") : view;
         QVERIFY(active && active->isVisible());
         active->setFocus();
+        QSemaphore resume;
+        bool sawProgress = false;
+        trash.during = [&] {
+            if (trash.calls == 1)
+                resume.tryAcquire(1, 5000);
+        };
         QTimer answer;
         dialogs_.connectResponder(answer, &window, [&] {
             if (auto *box = dynamic_cast<QtDeleteConfirmation *>(dialogs_.activeDialog())) {
-                answer.stop();
                 auto *confirm = box->findChild<QPushButton *>("deleteConfirm");
                 confirm->setFocus();
                 QTest::keyClick(confirm, Qt::Key_Return);
+            } else if (dynamic_cast<CProgressDialog *>(dialogs_.activeDialog())) {
+                answer.stop();
+                sawProgress = true;
+                resume.release();
             }
         });
         answer.start(5);
         action(window, "deleteAction")->trigger();
         answer.stop();
+        QVERIFY(sawProgress);
         QTRY_VERIFY(view->isEnabled() && view->rowCount() == 256);
+        QCOMPARE(window.focusWidget(), active);
         QVERIFY(panel.ShouldProcessNotifications());
         QVERIFY(!QFileInfo::exists(fixture.filePath(removed)));
         QVERIFY(!QFileInfo::exists(fixture.filePath(earlier)));
