@@ -243,6 +243,7 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
         QTest::addColumn<QString>("language");
         QTest::addColumn<bool>("collision");
         QTest::addColumn<QString>("invalidName");
+        QTest::addColumn<bool>("markFocused");
         for (unsigned index : {0u, 1u})
             for (const QString language : {"-", "ru"})
                 for (int outcome : {0, 1, 2, 3, 4})
@@ -252,13 +253,17 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
                         << (outcome == 2   ? QString("..")
                             : outcome == 3 ? QStringLiteral("renamed 空.txt") + QChar::Null + "tail"
                             : outcome == 4 ? QStringLiteral("")
-                                           : QString());
+                                           : QString())
+                        << true;
+        QTest::newRow("unmarked-focused-row-collision")
+            << 0u << QString("-") << true << QString() << false;
     }
     void editorPreservesSavedSelection() {
         QFETCH(unsigned, sourceIndex);
         QFETCH(QString, language);
         QFETCH(bool, collision);
         QFETCH(QString, invalidName);
+        QFETCH(bool, markFocused);
         const bool invalid = !invalidName.isNull();
         const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         QFile::remove(settings);
@@ -316,9 +321,12 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
         auto *editor = view->findChild<QLineEdit *>();
         QVERIFY(editor);
         // A selection change during the editor must survive its source snapshot.
+        if (!markFocused)
+            view->clearSelection();
         view->selectionModel()->select(view->model()->index(peerRow, 0),
                                        QItemSelectionModel::Select | QItemSelectionModel::Rows);
-        QCOMPARE(view->selectionModel()->selectedRows().size(), 2);
+        const int expectedMarks = markFocused ? 2 : 1;
+        QCOMPARE(view->selectionModel()->selectedRows().size(), expectedMarks);
         bool errorShown = false;
         QString errorText;
         QMessageBox::Icon errorIcon = QMessageBox::NoIcon;
@@ -383,7 +391,9 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
         }
         QTRY_COMPARE(view->model()->index(view->currentRow(), 0).data(Qt::UserRole + 3).toString(),
                      collision || invalid ? original : renamed);
-        QCOMPARE(view->selectionModel()->selectedRows().size(), 2);
+        QCOMPARE(view->selectionModel()->selectedRows().size(), expectedMarks);
+        if (!markFocused)
+            QCOMPARE(view->selectionModel()->selectedRows().front().data().toString(), peer);
         closeError.stop();
         filesystem->CheckBreak = {};
         QCOMPARE(loads == 0, invalid);
@@ -395,7 +405,7 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
         QCOMPARE(peerView->rowCount(), peerRows);
         CRecordVector<UInt32> selected;
         view->sourcePanel->Get_ItemIndices_Selected(selected);
-        QCOMPARE(selected.Size(), 2u);
+        QCOMPARE(selected.Size(), unsigned(expectedMarks));
         for (const QSize size : {QSize(980, 620), QSize(640, 400)}) {
             window.resize(size);
             QApplication::processEvents();

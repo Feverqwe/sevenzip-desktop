@@ -177,13 +177,13 @@ HRESULT CPanel::OnEndLabelEdit(UInt32 realIndex, const UString &enteredName,
     SetPublishedArchive(*this, op, publishedArchive);
     if (result == S_OK) {
         state.FocusedName = RenamedItemInView(*this, prefix + newName);
+        state.SelectFocused = true;
         if (destinationDirectory && IsFSFolder())
             *destinationDirectory =
                 QFileInfo(ToQString(GetFsPath() + prefix + newName)).absolutePath();
     } else
         state.FocusedName = prefix + oldName;
     state.FocusedName_Defined = true;
-    state.SelectFocused = true;
     _dontShowMode = true;
     // Qt already queued the editor completion; its publisher takes this source
     // reload state instead of posting a second native list message.
