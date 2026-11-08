@@ -141,6 +141,17 @@ void MainWindow::refreshGuiOutputPanel(unsigned index, const QtGuiOutputRefresh:
     if (!panel.PanelCreated)
         return;
     if (panel.IsArcFolder()) {
+        const auto &parents = panel.GetParentFolders();
+        if (parents.Size() > 1 && !output.directories.isEmpty()) {
+            const QString outer = ToQString(parents.Front().VirtualPath);
+            if (!QFileInfo::exists(outer) &&
+                std::any_of(output.directories.cbegin(), output.directories.cend(),
+                            [&](const QString &directory) {
+                                return ContainsDirectory(NormalPath(directory), NormalPath(outer));
+                            }) &&
+                workspace_->RefreshPublishedArchive(index, false, true))
+                return;
+        }
         auto *folder = dynamic_cast<CAgentFolder *>(panel.GetFolder());
         auto *resource =
             folder ? dynamic_cast<QtArchiveFileResource *>(folder->GetEngineResource()) : nullptr;

@@ -77,13 +77,15 @@ void QtWindowWorkspace::ShowArchiveChangeNotice(unsigned panel) {
     ui.navigationNotice->show();
 }
 
-bool QtWindowWorkspace::RefreshPublishedArchive(unsigned panel, bool interactive) {
+bool QtWindowWorkspace::RefreshPublishedArchive(unsigned panel, bool interactive,
+                                                bool checkSource) {
     if (!window_.panelUi_[panel].container)
         return false;
     auto &locationState = panels_[panel].location;
     auto &source = window_.app_.Panels[panel];
-    if (interactive && locationState.archiveRevision == locationState.archiveApplied &&
-        source.IsArcFolder() && !source.GetParentFolders().IsEmpty()) {
+    if ((interactive || checkSource) &&
+        locationState.archiveRevision == locationState.archiveApplied && source.IsArcFolder() &&
+        !source.GetParentFolders().IsEmpty()) {
         auto *resource = LayerResource(source, 0);
         const auto reader = resource ? resource->NativeReaderLease() : nullptr;
         if (reader && !reader->sourceIsCurrent()) {

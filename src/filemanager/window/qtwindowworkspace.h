@@ -42,7 +42,8 @@ class QtWindowWorkspace final : public QObject {
     QString CurrentLocation();
     void AttachContent(unsigned panel, QVBoxLayout &layout);
     void InvalidateArchive(const QString &path, int skipPanel = -1);
-    bool RefreshPublishedArchive(unsigned panel, bool interactive = false);
+    bool RefreshPublishedArchive(unsigned panel, bool interactive = false,
+                                 bool checkSource = false);
     bool CanRefreshPublishedArchives() const;
     bool CanRefreshPublishedOutput(unsigned panel) const;
     void RestoreViewPosition(CPanel &source, QAbstractItemView &view, const QPoint &position);

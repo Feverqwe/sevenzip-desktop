@@ -103,6 +103,42 @@ class WorkspaceArchivePublicationTests final : public QObject, protected MainWin
         QCOMPARE(view->currentIndex().data().toString(), QString("renamed.txt"));
     }
 
+    void missingOuterArchiveNotifiesNestedViewAndCanReopen() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString outer = fixture.filePath("outer.7z");
+        const QString inner = fixture.filePath("inner.zip");
+        const auto writeVersion = [&](const QString &member) {
+            return NativeArchiveFixture::Write(inner, {{member, "payload"}}, "zip") &&
+                   NativeArchiveFixture::Write(outer, {{"inner.zip", readFile(inner)}});
+        };
+        QVERIFY(writeVersion("original.txt"));
+        QtWorkspaceApplication application(*qApp);
+        MainWindow window;
+        window.show();
+        window.openArchive(outer);
+        QTRY_COMPARE(names(window), QStringList{"inner.zip"});
+        auto *view = table(window);
+        view->setCurrentCell(0, 0);
+        view->selectRow(0);
+        action(window, "openItemAction")->trigger();
+        QTRY_COMPARE(names(window), QStringList{"original.txt"});
+        view->sourcePanel->Set_AutoRefresh_Mode(false);
+        QVERIFY(action(window, "createFolderAction")->isEnabled());
+        const QString renamed = fixture.filePath("renamed.7z");
+        QVERIFY(QFile::rename(outer, renamed));
+        application.FilesystemPublished({fixture.path()});
+        QTRY_VERIFY(notice(window));
+        QCOMPARE(names(window), QStringList{"original.txt"});
+        QVERIFY(!action(window, "createFolderAction")->isEnabled());
+        QVERIFY(QFile::remove(inner));
+        QVERIFY(writeVersion("replacement.txt"));
+        window.findChild<QPushButton *>("navigationRetry0")->click();
+        QTRY_COMPARE(names(window), QStringList{"replacement.txt"});
+        QVERIFY(!notice(window));
+        QVERIFY(action(window, "createFolderAction")->isEnabled());
+    }
+
     void manualRefreshDetectsExternalArchiveReplacement_data() {
         QTest::addColumn<QString>("encryptedLayer");
         QTest::addColumn<bool>("deferRefresh");
