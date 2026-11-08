@@ -5,6 +5,7 @@
 #include <QClipboard>
 #include <QInputMethodEvent>
 #include <QMimeData>
+#include <QScopeGuard>
 #include <QScrollBar>
 #include <QStyledItemDelegate>
 
@@ -170,6 +171,42 @@ class RenameLifecycleTests final : public QObject, protected MainWindowTestSuppo
         QTRY_COMPARE(QDir::cleanPath(window.findChild<QLineEdit *>("archivePath")->text()),
                      QFileInfo(child).canonicalFilePath());
         QVERIFY(QFileInfo(child).isDir());
+    }
+    void clipboardShortcutsReturnToFilesAfterRename() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString original = fixture.filePath("original.txt");
+        const QString renamed = fixture.filePath(QStringLiteral("имя с пробелом.txt"));
+        QFile input(original);
+        QVERIFY(input.open(QIODevice::WriteOnly));
+        QCOMPARE(input.write("payload"), qint64(7));
+        input.close();
+        auto *clipboard = QApplication::clipboard();
+        const auto clearClipboard = qScopeGuard([clipboard] { clipboard->clear(); });
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openPath(fixture.path());
+        auto *view = table(window);
+        QTRY_COMPARE(view->rowCount(), 1);
+        view->setCurrentCell(0, 0);
+        view->setFocus();
+        QTest::keyClick(view, Qt::Key_F2);
+        auto *editor = view->findChild<QLineEdit *>();
+        QVERIFY(editor && editor->hasFocus());
+        editor->selectAll();
+        QTest::keySequence(editor, QKeySequence::Copy);
+        QCOMPARE(clipboard->text(), QString("original.txt"));
+        QVERIFY(!clipboard->mimeData()->hasUrls());
+        clipboard->setText(QFileInfo(renamed).fileName());
+        QTest::keySequence(editor, QKeySequence::Paste);
+        QCOMPARE(editor->text(), QFileInfo(renamed).fileName());
+        QTest::keyClick(editor, Qt::Key_Return);
+        QTRY_VERIFY(QFileInfo::exists(renamed) && view->hasFocus() && view->isEnabled());
+        QTRY_COMPARE(view->model()->index(0, 0).data().toString(), QFileInfo(renamed).fileName());
+        QTest::keySequence(view, QKeySequence::Copy);
+        QCOMPARE(clipboard->mimeData()->urls(), QList<QUrl>{QUrl::fromLocalFile(renamed)});
     }
     void renameRevealsFileAtItsNewSortedPosition_data() {
         QTest::addColumn<bool>("icons");
