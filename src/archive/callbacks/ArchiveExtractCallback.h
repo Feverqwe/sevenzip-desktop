@@ -22,6 +22,7 @@
 #include "archive/callbacks/qtarchiveoutputidentity.h"
 #include "archive/opening/OpenArchive.h"
 #include "archive/resources/qtarchiveextractstatus.h"
+#include "fileops/native/FileDir.h"
 
 #include "archive/hashing/HashCalc.h"
 
@@ -383,6 +384,8 @@ class CArchiveExtractCallback Z7_final : public IArchiveExtractCallback,
 
     CReadArcItem _item;
     FString _diskFilePath;
+    FString _replacementPath;
+    std::unique_ptr<NWindows::NFile::NDir::CTempFile> _replacementFile;
 
     CProcessedFileInfo _fi;
     QtArchiveOutputIdentity QtOutputs;

@@ -510,16 +510,13 @@ void MainWindowOperationsTests::encryptedAskUsesSourceCallback() {
     dismissFailure.stop();
     QVERIFY(sawFailure);
     QVERIFY(occupied.open(QIODevice::ReadOnly));
-    QVERIFY(occupied.readAll() != QByteArray("new secret"));
+    QCOMPARE(occupied.readAll(), QByteArray("old secret"));
     occupied.close();
+    QCOMPARE(QDir(output).entryList(QDir::Files | QDir::Hidden),
+             QStringList{QFileInfo(target).fileName()});
     QVERIFY(archiveInput.open(QIODevice::ReadOnly));
     QCOMPARE(archiveInput.readAll(), archiveBytes);
     archiveInput.close();
-    // The source ZIP callback can create/truncate the destination before
-    // detecting a bad password. Restore the occupied-file retry fixture.
-    QVERIFY(occupied.open(QIODevice::WriteOnly | QIODevice::Truncate));
-    QCOMPARE(occupied.write("old secret"), qint64(10));
-    occupied.close();
     answered = false;
     window.extractTo(output, false, password, options);
     answer.stop();
@@ -527,4 +524,6 @@ void MainWindowOperationsTests::encryptedAskUsesSourceCallback() {
     QCOMPARE(preflight.size(), 0);
     QVERIFY(occupied.open(QIODevice::ReadOnly));
     QCOMPARE(occupied.readAll(), QByteArray("new secret"));
+    QCOMPARE(QDir(output).entryList(QDir::Files | QDir::Hidden),
+             QStringList{QFileInfo(target).fileName()});
 }
