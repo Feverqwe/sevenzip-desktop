@@ -143,6 +143,47 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         action(window, "backAction")->trigger();
         QTRY_COMPARE(peerAddress->text(), originalPeer);
     }
+    void openingParentRowInPeerRecordsPreviousFolder() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString child = fixture.filePath("parent/child");
+        const QString previous = fixture.filePath("previous");
+        QVERIFY(QDir().mkpath(child));
+        QVERIFY(QDir().mkpath(previous));
+        QFile entry(QDir(previous).filePath("previous.txt"));
+        QVERIFY(entry.open(QIODevice::WriteOnly));
+        entry.close();
+        const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
+        CFmSettings{true}.Save(settings);
+        SavePanelPath(1, ToUString(previous), settings);
+        MainWindow window;
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        if (!action(window, "twoPanelsAction")->isChecked())
+            action(window, "twoPanelsAction")->trigger();
+        auto *source =
+            window.findChild<QWidget *>("filePanel0")->findChild<FileTable *>("archiveTable");
+        auto *peerPanel = window.findChild<QWidget *>("filePanel1");
+        auto *peer = peerPanel->findChild<FileTable *>("archiveTable");
+        auto *address = peerPanel->findChild<QLineEdit *>("archivePath");
+        QTRY_COMPARE(peer->model()->index(1, 0).data().toString(), QStringLiteral("previous.txt"));
+        const QString originalAddress = address->text();
+        source->setFocus();
+        QTRY_VERIFY(source->hasFocus());
+        window.openPath(child);
+        QTRY_COMPARE(source->rowCount(), 1);
+        QTRY_COMPARE(source->model()->index(0, 0).data().toString(), QStringLiteral(".."));
+        source->setCurrentCell(0, 0);
+        PanelKeys::command(source, Qt::Key_Right, Qt::AltModifier | Qt::ShiftModifier);
+        QTRY_COMPARE(peer->model()->index(1, 0).data().toString(), QStringLiteral("child"));
+        QCOMPARE(window.focusWidget(), static_cast<QWidget *>(source));
+        peer->setFocus();
+        QTRY_VERIFY(peer->hasFocus());
+        QTRY_VERIFY(action(window, "backAction")->isEnabled());
+        action(window, "backAction")->trigger();
+        QTRY_COMPARE(address->text(), originalAddress);
+        QTRY_COMPARE(peer->model()->index(1, 0).data().toString(), QStringLiteral("previous.txt"));
+    }
     void openArchiveSubfolderInPeerKeepsParentChain() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());

@@ -16,6 +16,8 @@ class QtAppPresentation final : public IQtAppPresentation {
     bool AllowPanelFocusChange(unsigned index) const override;
     void PrepareFolderChange(unsigned index) override;
     bool OpenFolderInPeer(unsigned index, std::optional<UInt32> item) override;
+    bool OpenBoundFolderInPeer(unsigned source, IFolderFolder *folder,
+                               const UString &fallbackPath) override;
     void ExecuteCopy(bool move, bool copyToSame, unsigned sourceIndex, const QString &destination,
                      const CRecordVector<UInt32> &indices, QtCopyRoute route) override;
     void SetListSettings(unsigned index, const CFmSettings &settings) override;

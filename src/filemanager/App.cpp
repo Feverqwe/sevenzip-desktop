@@ -152,6 +152,9 @@ void CApp::OnSetSubFolder(unsigned srcPanelIndex) {
         if (!newFolder) {
             {
                 const UString parentPrefix = srcPanel.GetParentDirPrefix();
+                if (_presentation &&
+                    _presentation->OpenBoundFolderInPeer(srcPanelIndex, nullptr, parentPrefix))
+                    return;
                 COpenResult openRes;
                 if (_presentation)
                     _presentation->PrepareFolderChange(1 - srcPanelIndex);
@@ -165,6 +168,8 @@ void CApp::OnSetSubFolder(unsigned srcPanelIndex) {
             return;
     }
     if (!newFolder)
+        return;
+    if (_presentation && _presentation->OpenBoundFolderInPeer(srcPanelIndex, newFolder))
         return;
     if (_presentation)
         _presentation->PrepareFolderChange(1 - srcPanelIndex);

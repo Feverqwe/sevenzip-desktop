@@ -156,6 +156,24 @@ bool QtAppPresentation::OpenFolderInPeer(unsigned index, std::optional<UInt32> i
     return true;
 }
 
+bool QtAppPresentation::OpenBoundFolderInPeer(unsigned source, IFolderFolder *folder,
+                                              const UString &fallbackPath) {
+    const unsigned peer = 1 - source;
+    window_.withPanelProjection(peer, [&] {
+        window_.workspace_->Navigate([&] {
+            if (!folder)
+                return window_.navigateTo(ToQString(fallbackPath), true);
+            window_.workspace_->ProtectNavigation();
+            auto &destination = window_.app_.Panels[peer];
+            destination.CloseOpenFolders();
+            destination.SetNewFolder(folder);
+            window_.projectedUi().locationUnavailable = false;
+            return window_.renderBoundFolder();
+        });
+    });
+    return true;
+}
+
 void QtAppPresentation::SetListSettings(unsigned index, const CFmSettings &settings) {
     if (index >= kNumPanelsMax)
         return;
