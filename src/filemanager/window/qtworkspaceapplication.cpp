@@ -12,9 +12,11 @@ void QtWorkspaceApplication::ArchivePublished(const QString &archive) {
             window->ArchivePublished(archive);
 }
 
-void QtWorkspaceApplication::FilesystemPublished(const QStringList &directories) {
+void QtWorkspaceApplication::FilesystemPublished(const QStringList &directories,
+                                                 const MainWindow *exclude) {
     for (const auto &window : windows_)
-        if (window && !window->app_.QtOperations().closed() && window->guiOutputRefresh_)
+        if (window && window != exclude && !window->app_.QtOperations().closed() &&
+            window->guiOutputRefresh_)
             window->guiOutputRefresh_->Enqueue(directories, {});
 }
 

@@ -28,7 +28,7 @@ class QtWorkspaceApplication final : public QObject {
     void NewWindowFrom(MainWindow &source);
     void Save();
     void ArchivePublished(const QString &archive);
-    void FilesystemPublished(const QStringList &directories);
+    void FilesystemPublished(const QStringList &directories, const MainWindow *exclude = nullptr);
     void Quit();
 
   private:

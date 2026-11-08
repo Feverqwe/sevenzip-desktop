@@ -1,3 +1,4 @@
+#include "dialogs/copy/alias.h"
 #include "dialogs/overwrite/OverwriteDialog.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/window/qtlocalfiletask.h"
@@ -46,15 +47,18 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
     }
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
-    void clipboardCopyPublishesDestinationWithoutAutoRefresh_data() {
+    void copyPublishesDestinationWithoutAutoRefresh_data() {
         QTest::addColumn<bool>("linkedDestination");
-        QTest::newRow("directory") << false;
+        QTest::addColumn<bool>("viaClipboard");
+        QTest::newRow("copy-command") << false << false;
+        QTest::newRow("clipboard-directory") << false << true;
 #ifdef Q_OS_UNIX
-        QTest::newRow("directory-symlink") << true;
+        QTest::newRow("clipboard-directory-symlink") << true << true;
 #endif
     }
-    void clipboardCopyPublishesDestinationWithoutAutoRefresh() {
+    void copyPublishesDestinationWithoutAutoRefresh() {
         QFETCH(bool, linkedDestination);
+        QFETCH(bool, viaClipboard);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString source = fixture.filePath(QStringLiteral("source 空.txt"));
@@ -85,27 +89,50 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         }
         observed->sourcePanel->Set_AutoRefresh_Mode(false);
         window.show();
-        window.openPath(opened);
+        window.openPath(viaClipboard ? opened : fixture.path());
         auto *view = table(window);
         QTRY_VERIFY(view->isEnabled());
         QVERIFY(WindowActivation::waitForActive(window));
         view->setFocus();
         QCOMPARE(window.focusWidget(), view);
         view->sourcePanel->Set_AutoRefresh_Mode(false);
-        auto *mime = new QMimeData;
-        mime->setUrls({QUrl::fromLocalFile(source)});
-        QApplication::clipboard()->setMimeData(mime);
-        auto *paste = action(window, "pasteFilesAction");
-        QTRY_VERIFY(paste->isEnabled());
-        paste->trigger();
         const QString name = QFileInfo(source).fileName();
+        if (viaClipboard) {
+            auto *mime = new QMimeData;
+            mime->setUrls({QUrl::fromLocalFile(source)});
+            QApplication::clipboard()->setMimeData(mime);
+            auto *paste = action(window, "pasteFilesAction");
+            QTRY_VERIFY(paste->isEnabled());
+            paste->trigger();
+        } else {
+            const int row = filesystemRow(window, name);
+            QVERIFY(row >= 0);
+            view->setCurrentCell(row, 0);
+            view->selectRow(row);
+            QTimer submit;
+            connect(&submit, &QTimer::timeout, &window, [&] {
+                auto *dialog = window.findChild<CopyDialog *>("copyDialog");
+                if (!dialog || !dialog->isVisible())
+                    return;
+                submit.stop();
+                const auto close = qScopeGuard([&] {
+                    if (dialog->isVisible())
+                        dialog->reject();
+                });
+                dialog->findChild<QLineEdit *>("copyDestination")->setText(destination);
+                dialog->accept();
+            });
+            submit.start(1);
+            action(window, "copyAction")->trigger();
+        }
         QTRY_VERIFY(filesystemRow(window, name) >= 0);
         QTRY_VERIFY(filesystemRow(observer, name) >= 0);
         QCOMPARE(read(QDir(destination).filePath(name)), QByteArray("source bytes"));
         QCOMPARE(read(source), QByteArray("source bytes"));
         if (linkedDestination)
             QVERIFY(QFileInfo(opened).isSymLink());
-        QVERIFY(paste->isEnabled());
+        if (viaClipboard)
+            QVERIFY(action(window, "pasteFilesAction")->isEnabled());
         QTRY_COMPARE(window.focusWidget(), view);
     }
 

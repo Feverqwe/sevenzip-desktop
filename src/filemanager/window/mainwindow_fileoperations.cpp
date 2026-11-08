@@ -10,6 +10,7 @@
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtapppresentation.h"
 #include "filemanager/window/qtlocalfiletask.h"
+#include "filemanager/window/qtworkspaceapplication.h"
 #include "localization/qtlangcontrols.h"
 #include "platform/trash/qttrashservice.h"
 #include "settings/ViewSettings.h"
@@ -44,6 +45,19 @@ void MainWindow::transferFiles(const QStringList &sources, const QString &destin
     fileTask_ = task;
     task->SetLocations(sources.join('\n'), destination);
     task->BindOwner(app_.Panels[owner], *this);
+    const bool refreshesLocally = appPresentation_->IsCopyPending();
+    connect(task, &QtLocalFileTask::transferOutput, this,
+            [this, sources, destinationDirectory, move, refreshesLocally] {
+                QStringList changed{destinationDirectory};
+                // A merge can move children while leaving their source folder.
+                if (move)
+                    for (const auto &source : sources)
+                        changed.append(QFileInfo(source).absolutePath());
+                if (auto *application = QtWorkspaceApplication::Find())
+                    application->FilesystemPublished(changed, refreshesLocally ? this : nullptr);
+                else if (!refreshesLocally)
+                    guiOutputRefresh_->Enqueue(changed, {});
+            });
     if (transferOutput)
         connect(task, &QtLocalFileTask::transferOutput, task, std::move(transferOutput));
     connect(task, &QtLocalFileTask::finished, this,
