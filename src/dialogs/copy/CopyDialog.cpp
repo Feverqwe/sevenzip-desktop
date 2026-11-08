@@ -254,9 +254,13 @@ bool CCopyDialog::ReadPath(UString &path) {
 }
 
 void CCopyDialog::OnOK() {
+    const bool wasAcceptable = _canAccept;
     UpdateDestination(true);
-    if (!_canAccept)
+    if (!_canAccept) {
+        if (wasAcceptable)
+            _pathEdit->setFocus();
         return;
+    }
     UString path;
     if (!ReadPath(path))
         return;

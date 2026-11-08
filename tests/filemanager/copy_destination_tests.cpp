@@ -325,13 +325,19 @@ class CopyDestinationTests final : public QObject {
         context.LocalFileTransfer = true;
         dialog.ConfigureDestination(context);
         dialog.show();
-        dialog.accept();
+        auto *path = dialog.findChild<QLineEdit *>("copyDestination");
+        auto *ok =
+            dialog.findChild<QDialogButtonBox *>("copyButtons")->button(QDialogButtonBox::Ok);
+        QVERIFY(ok->isEnabled());
+        ok->setFocus();
+        QTest::keyClick(ok, Qt::Key_Return);
         QVERIFY(dialog.isVisible());
         QVERIFY(dialog.findChild<QLabel *>("copyDestinationMessage")->isVisible());
+        QCOMPARE(dialog.focusWidget(), path);
         QVERIFY(!QFileInfo::exists(QDir(blocked).filePath("first.txt")));
 
         const QString corrected = fixture.filePath("different folder") + '/';
-        dialog.findChild<QLineEdit *>("copyDestination")->setText(corrected);
+        path->setText(corrected);
         dialog.accept();
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
         QCOMPARE(ToQString(dialog.Value), corrected);
