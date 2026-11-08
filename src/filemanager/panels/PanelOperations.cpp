@@ -48,7 +48,10 @@ static bool ConfirmDeleteItems(const CPanel &panel, const CRecordVector<UInt32> 
 }
 
 HRESULT CPanel::MoveItemsToTrash(IQtTrashService &trash, CSelectedState &state,
-                                 const CRecordVector<UInt32> *explicitIndices, bool confirm) {
+                                 const CRecordVector<UInt32> *explicitIndices, bool confirm,
+                                 unsigned *moved) {
+    if (moved)
+        *moved = 0;
     if (!IsFSFolder())
         return E_NOTIMPL;
     CDisableTimerProcessing disableTimerProcessing(*this);
@@ -100,6 +103,8 @@ HRESULT CPanel::MoveItemsToTrash(IQtTrashService &trash, CSelectedState &state,
     unsigned movedCount = 0;
     const HRESULT result =
         QtMoveItemsToTrash(paths, trash, GetParent(), false, nullptr, &movedCount);
+    if (moved)
+        *moved = movedCount;
     if (movedCount && state.FocusedItem > 0) {
         // When the focused name disappears, keep its position among surviving rows.
         const auto *first = roots.ConstData();

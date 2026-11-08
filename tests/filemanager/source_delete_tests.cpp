@@ -2,6 +2,7 @@
 #include "filemanager/providers/FSFolder.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
+#include "filemanager/window/qtworkspaceapplication.h"
 #include "localization/LangUtils.h"
 #include "platform/support/native_link_fixture.h"
 #include "platform/trash/qttrashoperation.h"
@@ -443,6 +444,14 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         ControlledBackend backend;
         Trash trash;
         trash.failAfter = partial ? 1 : -1;
+        QtWorkspaceApplication application(*qApp);
+        ControlledBackend observerBackend;
+        MainWindow observer(&observerBackend);
+        observer.show();
+        observer.openPath(fixture.path());
+        auto *observed = table(observer);
+        QTRY_COMPARE(observed->rowCount(), 3);
+        observed->sourcePanel->Set_AutoRefresh_Mode(false);
         MainWindow window(&backend, {}, &trash);
         window.show();
         action(window, "twoPanelsAction")->trigger();
@@ -539,6 +548,7 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
             QCOMPARE(errorTitle,
                      QCoreApplication::translate("ProgressRedesign", "Operation failed"));
         QTRY_COMPARE(view->rowCount(), partial ? 2 : 1);
+        QTRY_COMPARE(observed->rowCount(), partial ? 2 : 1);
         QCOMPARE(panel.GetFolder(), (IFolderFolder *)folder);
         QVERIFY(panel.ShouldProcessNotifications());
         QCOMPARE(trash.calls, 2);
@@ -566,6 +576,7 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
             QCOMPARE(errors, 1);
             QCOMPARE(trash.calls, 3);
             QTRY_COMPARE(view->rowCount(), 1);
+            QTRY_COMPARE(observed->rowCount(), 1);
             QVERIFY(!QFileInfo::exists(fixture.filePath(secondDeleted)));
             QCOMPARE(view->currentIndex().data(QtPanelList::NameRole).toString(),
                      QString("keep.bin"));

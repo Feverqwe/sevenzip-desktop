@@ -8,6 +8,7 @@
 #include "filemanager/window/qtapppresentation.h"
 #include "filemanager/window/qtexternalfiletask.h"
 #include "filemanager/window/qtwindowworkspace.h"
+#include "filemanager/window/qtworkspaceapplication.h"
 #include "localization/qtlangcontrols.h"
 #include "operations/CompressCall.h"
 #include "ui/controls/qtinlinefoldername.h"
@@ -89,9 +90,18 @@ void QtFileManagerCommands::MoveTo() {
 }
 void QtFileManagerCommands::MoveToTrash() {
     const unsigned index = window_.app_.GetFocusedPanelIndex();
+    auto &panel = window_.app_.Panels[index];
+    const QString directory = ToQString(panel.GetFsPath());
     CSelectedState selection;
-    window_.app_.Panels[index].MoveItemsToTrash(*window_.trashService_, selection);
+    unsigned moved = 0;
+    panel.MoveItemsToTrash(*window_.trashService_, selection, nullptr, true, &moved);
     window_.app_.QtOperations().ContinueScanAfterSourceCall(index);
+    if (moved && !directory.isEmpty()) {
+        if (auto *application = QtWorkspaceApplication::Find())
+            application->FilesystemPublished({directory});
+        else
+            window_.guiOutputRefresh_->Enqueue({directory}, {});
+    }
 }
 void QtFileManagerCommands::CalculateCrc(const char *method) {
     window_.calculateHash(QString::fromLatin1(method));
