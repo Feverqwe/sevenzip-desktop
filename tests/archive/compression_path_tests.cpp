@@ -3,6 +3,7 @@
 #include "dialogs/compress/createarchivedialog.h"
 #include "gui/UpdateGUI.h"
 #include "ui/support/layout_inspection.h"
+#include <QClipboard>
 #include <QScopeGuard>
 #include <QScrollArea>
 #include <QSettings>
@@ -504,7 +505,12 @@ class CompressionPathTests final : public QObject {
         QCOMPARE(dialog.focusWidget(), folder);
         QCOMPARE(folder->text(), blocked);
         QCOMPARE(archiveName->text(), name);
-        folder->setText(QDir::toNativeSeparators(output));
+        QCOMPARE(folder->selectedText(), blocked);
+        auto *clipboard = QApplication::clipboard();
+        const auto clearClipboard = qScopeGuard([clipboard] { clipboard->clear(); });
+        clipboard->setText(QDir::toNativeSeparators(output));
+        QTest::keySequence(folder, QKeySequence::Paste);
+        QCOMPARE(folder->text(), QDir::toNativeSeparators(output));
         const QString blockedName = blocked + QDir::separator() + name;
         archiveName->setText(blockedName);
         submitAndDismissError();

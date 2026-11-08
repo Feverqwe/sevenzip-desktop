@@ -212,7 +212,9 @@ void CreateArchiveDialog::validateAndAccept() {
                 field = archiveFolder_;
         }
         field->setFocus();
-        if (field == name_ && (occupiedName || !hasFileName)) {
+        if (field == archiveFolder_)
+            archiveFolder_->selectAll();
+        else if (occupiedName || !hasFileName) {
             const auto text = QDir::fromNativeSeparators(name_->text());
             const int leafStart = int(text.lastIndexOf(u'/') + 1);
             if (leafStart == text.size())
