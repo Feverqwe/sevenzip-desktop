@@ -18,6 +18,7 @@
 #include <QDir>
 #include <QEvent>
 #include <QFileInfo>
+#include <QPointer>
 #include <QPushButton>
 #include <QShowEvent>
 #include <QStyle>
@@ -53,8 +54,9 @@ QString scopeName(const QtPropertyReport::Group &group) {
 } // namespace
 
 QtPropertiesWindow::QtPropertiesWindow(QtPropertyReport report, QWidget *parent,
-                                       QWidget *returnFocus)
-    : QDialog(parent, Qt::Window), report_(std::move(report)), returnFocus_(returnFocus) {
+                                       std::function<QWidget *()> returnFocus)
+    : QDialog(parent, Qt::Window), report_(std::move(report)),
+      returnFocus_(std::move(returnFocus)) {
     setObjectName("selectedPropertiesDialog");
     setWindowModality(Qt::NonModal);
     setWindowFlag(Qt::WindowContextHelpButtonHint, false);
@@ -367,10 +369,14 @@ void QtPropertiesWindow::showEvent(QShowEvent *event) {
 }
 void QtPropertiesWindow::done(int result) {
     const bool restoreFocus = isActiveWindow();
-    const auto focus = returnFocus_;
+    const auto returnFocus = returnFocus_;
     QDialog::done(result);
-    if (restoreFocus && focus && focus->isVisible()) {
+    if (!restoreFocus || !returnFocus)
+        return;
+    const QPointer<QWidget> focus = returnFocus();
+    if (focus && focus->isVisible() && focus->isEnabled()) {
         focus->window()->activateWindow();
-        focus->setFocus(Qt::OtherFocusReason);
+        if (focus)
+            focus->setFocus(Qt::OtherFocusReason);
     }
 }

@@ -176,7 +176,13 @@ class PropertiesWindowTests final : public QObject, protected MainWindowTestSupp
             window->hide();
         }
     }
+    void navigationDoesNotRetargetIndependentWindows_data() {
+        QTest::addColumn<bool>("switchToIcons");
+        QTest::newRow("details") << false;
+        QTest::newRow("switch-to-icons") << true;
+    }
     void navigationDoesNotRetargetIndependentWindows() {
+        QFETCH(bool, switchToIcons);
         ControlledBackend backend;
         MainWindow window(&backend);
         window.show();
@@ -197,13 +203,20 @@ class PropertiesWindowTests final : public QObject, protected MainWindowTestSupp
         QVERIFY(second != first);
         QVERIFY(second->Information().contains("second.txt"));
         QCOMPARE(first->Information(), before);
+        QWidget *focusTarget = table(window);
+        if (switchToIcons) {
+            action(window, "viewMode0Action")->trigger();
+            focusTarget = window.findChild<QListView *>("iconList");
+            QVERIFY(focusTarget && focusTarget->isVisible());
+            QVERIFY(!table(window)->isVisible());
+        }
         second->raise();
         second->activateWindow();
         QVERIFY(QTest::qWaitForWindowActive(second));
         QTest::keyClick(second, Qt::Key_Escape);
         QTRY_VERIFY(!second);
         QVERIFY(first && first->isVisible());
-        QTRY_COMPARE(QApplication::focusWidget(), table(window));
+        QTRY_COMPARE(QApplication::focusWidget(), focusTarget);
         first->close();
         QTRY_VERIFY(!first);
         QCOMPARE(backend.extractCalls, 0);

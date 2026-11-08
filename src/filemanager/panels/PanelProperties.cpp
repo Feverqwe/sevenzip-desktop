@@ -122,7 +122,9 @@ void CPanel::Properties() {
 
 void CPanel::ShowProperties(QtPropertyReport report) {
     auto *window =
-        new QtPropertiesWindow(std::move(report), GetParent(), _selectionList.FocusTarget());
+        new QtPropertiesWindow(std::move(report), GetParent(), [panel = QPointer<CPanel>(this)] {
+            return panel ? panel->_selectionList.FocusTarget() : nullptr;
+        });
     window->setAttribute(Qt::WA_DeleteOnClose);
     window->show();
 }
