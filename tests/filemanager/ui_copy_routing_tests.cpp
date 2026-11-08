@@ -397,6 +397,11 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
             QTRY_COMPARE(peerView->rowCount(), originalRows + 1);
             QCOMPARE(read(QDir(input).filePath(name)), QByteArray("control bytes"));
         }
+        if (outcome == "copy" || outcome == "move") {
+            QTRY_COMPARE(window.focusWidget(), sourceView);
+            QTest::keyClick(window.focusWidget(), Qt::Key_Tab);
+            QTRY_COMPARE(window.focusWidget(), peerView);
+        }
     }
     void unselectedItemsReachSourceSmartCopy_data() {
         QTest::addColumn<bool>("archive");
