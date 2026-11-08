@@ -8,7 +8,7 @@ class QWidget;
 
 // Typed in-process carrier; external receivers see ordinary local-file URLs.
 // No serialized pointer or caller-supplied MIME marker establishes a source.
-class QtPanelDragMime final : public QMimeData {
+class QtPanelDragMime : public QMimeData {
     std::shared_ptr<CDataObject> owner_;
     CDataObject &data_;
     std::function<bool()> prepareUrls_;
@@ -18,7 +18,8 @@ class QtPanelDragMime final : public QMimeData {
     QVariant retrieveData(const QString &format, QMetaType type) const override;
 
   public:
-    explicit QtPanelDragMime(CDataObject &data, std::function<bool()> prepareUrls = {});
+    explicit QtPanelDragMime(CDataObject &data, std::function<bool()> prepareUrls = {},
+                             bool exposeUrls = true);
     CDataObject &Data() const { return data_; }
     void ConfirmRecipientFinished() { data_.FinishExternalReceiver(); }
     void Cancel() { canceled_ = true; }

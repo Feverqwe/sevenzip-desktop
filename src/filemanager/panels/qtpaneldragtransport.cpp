@@ -9,6 +9,9 @@
 #include "fileops/links/qtlinkservices.h"
 #include "platform/temp/qtownedtempregistry.h"
 #endif
+#ifdef Q_OS_LINUX
+#include "filemanager/panels/qtpaneldolphindrag.h"
+#endif
 #include <QDrag>
 #include <QGuiApplication>
 #include <QScopedValueRollback>
@@ -16,8 +19,11 @@
 #include <QWidget>
 #include <new>
 
-QtPanelDragMime::QtPanelDragMime(CDataObject &data, std::function<bool()> prepareUrls)
+QtPanelDragMime::QtPanelDragMime(CDataObject &data, std::function<bool()> prepareUrls,
+                                 bool exposeUrls)
     : owner_(data.weak_from_this().lock()), data_(data), prepareUrls_(std::move(prepareUrls)) {
+    if (!exposeUrls)
+        return;
     QList<QUrl> urls;
     FOR_VECTOR(i, data.Names) urls.append(QUrl::fromLocalFile(ToQString(data.Names[i])));
     setUrls(urls);
@@ -87,7 +93,19 @@ HRESULT QtPanelDragTransport::DoDragDrop(CDataObject &data, CDropSource &source,
     }
 #endif
     std::function<bool()> prepareUrls;
+    std::unique_ptr<QtPanelDragMime> dolphinMime;
 #ifdef Q_OS_LINUX
+    std::unique_ptr<QtPanelDolphinDrop> dolphin;
+    if (nativeExecutor_ && data.IsTempFiles &&
+        QGuiApplication::platformName().startsWith(QStringLiteral("wayland"))) {
+        dolphin = std::make_unique<QtPanelDolphinDrop>();
+        dolphinMime = dolphin->CreateMime(data);
+        if (dolphinMime) {
+            data.DeferredTempFiles = true;
+            data.UsePreGlobal = false;
+            allowed &= ~DROPEFFECT_MOVE;
+        }
+    }
     if (nativeExecutor_ && data.IsTempFiles && data.Panel && promiseMaterializer_ &&
         QGuiApplication::platformName() == QStringLiteral("xcb")) {
         if (const auto owner = data.weak_from_this().lock()) {
@@ -105,7 +123,7 @@ HRESULT QtPanelDragTransport::DoDragDrop(CDataObject &data, CDropSource &source,
     }
 #endif
     // The remaining native transports need real paths before the drag.
-    if (data.IsTempFiles && !prepareUrls) {
+    if (data.IsTempFiles && !prepareUrls && !dolphinMime) {
         data.CopyFromPanelTo_Folder();
         if (data.Copy_HRESULT != S_OK || !data.Messages.IsEmpty())
             return DRAGDROP_S_CANCEL;
@@ -116,7 +134,8 @@ HRESULT QtPanelDragTransport::DoDragDrop(CDataObject &data, CDropSource &source,
         return DRAGDROP_S_CANCEL;
     }
     auto drag = std::make_unique<QDrag>(widget_);
-    const QPointer<QtPanelDragMime> mime(new QtPanelDragMime(data, std::move(prepareUrls)));
+    const QPointer<QtPanelDragMime> mime(
+        dolphinMime ? dolphinMime.release() : new QtPanelDragMime(data, std::move(prepareUrls)));
     drag->setMimeData(mime);
     Qt::DropActions actions = Qt::IgnoreAction;
     if (allowed & DROPEFFECT_COPY)
@@ -127,6 +146,15 @@ HRESULT QtPanelDragTransport::DoDragDrop(CDataObject &data, CDropSource &source,
     // QDrag and its MIME data remain owned by Qt through that transaction.
     auto *operation = nativeExecutor_ ? drag.release() : drag.get();
     const Qt::DropAction action = executor_(*operation, actions);
+#ifdef Q_OS_LINUX
+    if (dolphin && action == Qt::CopyAction) {
+        const QString destination = dolphin->DestinationAfterDrop();
+        if (!destination.isEmpty()) {
+            data.DestDirPrefix_FromTarget = ToUString(destination);
+            data.FinishExternalReceiver();
+        }
+    }
+#endif
     if (mime && action == Qt::IgnoreAction)
         mime->Cancel();
     if (action == Qt::CopyAction)

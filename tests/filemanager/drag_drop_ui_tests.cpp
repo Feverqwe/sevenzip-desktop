@@ -19,6 +19,8 @@
 #include <QLibrary>
 #include <QMouseEvent>
 #include <QProcess>
+#include <QRegion>
+#include <QRegularExpression>
 #include <QScopeGuard>
 #include <QScreen>
 #include <QStackedWidget>
@@ -35,6 +37,25 @@
 #endif
 
 namespace {
+#ifdef Q_OS_LINUX
+QRect WestonWindowFrame(qint64 pid) {
+    QProcess scene;
+    scene.start("weston-debug", {"scene-graph"});
+    if (!scene.waitForFinished(3000) || scene.exitCode() != 0)
+        return {};
+    const QRegularExpression frame(
+        QString(
+            R"(role xdg_toplevel, PID %1, [^\n]*\n\s*position: \((-?\d+), (-?\d+)\) -> \((-?\d+), (-?\d+)\))")
+            .arg(pid));
+    const auto match = frame.match(QString::fromUtf8(scene.readAllStandardOutput()));
+    if (!match.hasMatch())
+        return {};
+    const QPoint topLeft(match.captured(1).toInt(), match.captured(2).toInt());
+    const QPoint bottomRight(match.captured(3).toInt(), match.captured(4).toInt());
+    return QRect(topLeft, bottomRight - QPoint(1, 1));
+}
+#endif
+
 int Row(FileTable &table, const QString &name) {
     for (int row = 0; row < table.rowCount(); ++row)
         if (table.model()->index(row, 0).data().toString().normalized(
@@ -107,6 +128,8 @@ class DragDropUiTests final : public QObject {
 #ifdef Q_OS_LINUX
         QTest::newRow("external") << false << true << false;
         QTest::newRow("external-reads-on-enter") << false << true << true;
+        if (qEnvironmentVariableIsSet("SEVENZIP_TEST_DOLPHIN"))
+            QTest::newRow("dolphin-cancel") << true << true << false;
 #endif
     }
     void archiveDragReachesNativeDropReceiver() {
@@ -114,6 +137,7 @@ class DragDropUiTests final : public QObject {
         QFETCH(bool, external);
         QFETCH(bool, earlyRequest);
 #ifdef Q_OS_WIN
+        constexpr bool wayland = false;
         if (QGuiApplication::platformName() != QStringLiteral("windows"))
             QSKIP("Requires an interactive Windows desktop");
         const auto press = [](bool down) {
@@ -123,7 +147,11 @@ class DragDropUiTests final : public QObject {
             return SendInput(1, &input, sizeof(input)) == 1;
         };
 #else
-        if (QGuiApplication::platformName() != QStringLiteral("xcb"))
+        const bool wayland = QGuiApplication::platformName() == QStringLiteral("wayland");
+        if (wayland &&
+            (!external || earlyRequest || !qEnvironmentVariableIsSet("SEVENZIP_TEST_DOLPHIN")))
+            QSKIP("Requires the isolated Dolphin session");
+        if (!wayland && QGuiApplication::platformName() != QStringLiteral("xcb"))
             QSKIP("Requires an isolated X11 display");
         QLibrary x11("X11", 6), xtest("Xtst", 6);
         const auto open = reinterpret_cast<void *(*)(const char *)>(x11.resolve("XOpenDisplay"));
@@ -162,7 +190,9 @@ class DragDropUiTests final : public QObject {
         const QString archive = fixture.filePath("input.zip");
         QVERIFY(NativeArchiveFixture::Write(archive, {{ name, payload }}, "zip"));
         const auto original = SourceExtractFixture::readFile(archive);
-        const auto destination = fixture.filePath(name);
+        const auto outputFolder = wayland ? fixture.filePath("drop folder") : fixture.path();
+        QVERIFY(QDir().mkpath(outputFolder));
+        const auto destination = QDir(outputFolder).filePath(name);
         NativeDropReceiver receiver(destination);
         const QRect screen = QGuiApplication::primaryScreen()->availableGeometry();
         receiver.setGeometry(screen.right() - 225, screen.top() + 100, 220, 300);
@@ -174,7 +204,12 @@ class DragDropUiTests final : public QObject {
                 recipient.waitForFinished();
             }
         });
-        if (external) {
+        if (wayland) {
+            recipient.setProcessChannelMode(QProcess::ForwardedChannels);
+            recipient.start("dolphin",
+                            {"-qwindowgeometry", "760x540", "--new-window", outputFolder});
+            QVERIFY(recipient.waitForStarted());
+        } else if (external) {
             recipient.start(QCoreApplication::applicationFilePath(),
                             {"--receive-native-file-drop", destination, marker,
                              earlyRequest ? "enter" : "drop"});
@@ -186,6 +221,10 @@ class DragDropUiTests final : public QObject {
         }
         ArchiveBackend backend;
         MainWindow window(&backend);
+#ifdef Q_OS_LINUX
+        if (wayland)
+            window.setWindowFlag(Qt::FramelessWindowHint);
+#endif
         QStringList warnings;
         QTimer dismiss;
         connect(&dismiss, &QTimer::timeout, &window, [&] {
@@ -203,16 +242,38 @@ class DragDropUiTests final : public QObject {
         window.show();
         window.openArchive(archive);
         QVERIFY2(warnings.isEmpty(), qPrintable(warnings.join('\n')));
-        QVERIFY(WindowActivation::waitForActive(window));
+#ifdef Q_OS_LINUX
+        if (!wayland)
+#endif
+            QVERIFY(WindowActivation::waitForActive(window));
         window.findChild<QAction *>("viewMode3Action")->trigger();
         auto *table = window.findChild<FileTable *>("archiveTable");
         QVERIFY(table);
         QTRY_VERIFY(table->isVisible() && table->dragEnabled() && Row(*table, name) >= 0);
         const QRect item = table->visualRect(table->model()->index(Row(*table, name), 0));
-        const QPoint from =
-            table->viewport()->mapToGlobal(QPoint(item.left() + 26, item.center().y()));
-        const QPoint to = external ? receiver.geometry().center()
-                                   : receiver.mapToGlobal(receiver.rect().center());
+        const QPoint itemPoint(item.left() + 26, item.center().y());
+        QPoint from = table->viewport()->mapToGlobal(itemPoint);
+        QPoint to = external ? receiver.geometry().center()
+                             : receiver.mapToGlobal(receiver.rect().center());
+#ifdef Q_OS_LINUX
+        if (wayland) {
+            const QRect sourceFrame = WestonWindowFrame(QCoreApplication::applicationPid());
+            QRect recipientFrame;
+            QTRY_VERIFY((recipientFrame = WestonWindowFrame(recipient.processId())).isValid());
+            QVERIFY(sourceFrame.isValid());
+            from = sourceFrame.topLeft() + table->viewport()->mapTo(&window, itemPoint);
+            const auto visible =
+                QRegion(recipientFrame.adjusted(recipientFrame.width() / 3,
+                                                recipientFrame.height() / 3, -35, -35))
+                    .subtracted(QRegion(sourceFrame));
+            QVERIFY(!visible.isEmpty());
+            to = visible.begin()->center();
+            pointAt(sourceFrame.bottomRight() - QPoint(16, 12));
+            QVERIFY(press(true));
+            QVERIFY(press(false));
+            QTRY_VERIFY(window.isActiveWindow());
+        }
+#endif
         const QPoint threshold = from + QPoint(QApplication::startDragDistance() + 10, 0);
 #ifdef Q_OS_WIN
         const auto nativePoint = [](const QPoint &point) {
@@ -266,19 +327,30 @@ class DragDropUiTests final : public QObject {
 #else
         bool checkedBeforeRelease = false;
         bool extractedBeforeRelease = false;
+        int hoverTicks = 0;
         QTimer drive, watchdog;
         connect(&drive, &QTimer::timeout, &window, [&] {
-            if (external ? QFileInfo::exists(marker) : receiver.Entered.load()) {
+            if (wayland    ? hoverTicks >= 30
+                : external ? QFileInfo::exists(marker)
+                           : receiver.Entered.load()) {
                 drive.stop();
                 checkedBeforeRelease = true;
+                extractedBeforeRelease = QFileInfo::exists(destination);
                 for (const auto &entry : QtOwnedTempRegistry().Entries())
                     if (QFileInfo::exists(QDir(entry.path).filePath(name)))
                         extractedBeforeRelease = true;
-                if (cancel)
+                if (cancel) {
+                    if (wayland) {
+                        pointAt(screen.bottomLeft() + QPoint(5, -5));
+                        QTimer::singleShot(150, &window, [&] { press(false); });
+                        return;
+                    }
                     QDrag::cancel();
+                }
                 press(false);
             } else if (window.findChild<QDrag *>()) {
                 pointAt(to);
+                ++hoverTicks;
             }
         });
         connect(&watchdog, &QTimer::timeout, &window, [&] {
@@ -314,7 +386,7 @@ class DragDropUiTests final : public QObject {
         QCOMPARE(extractedBeforeRelease, earlyRequest);
         QCOMPARE(SourceExtractFixture::readFile(destination), payload);
         QCOMPARE(SourceExtractFixture::readFile(archive), original);
-        if (external) {
+        if (external && !wayland) {
             QTRY_COMPARE(recipient.state(), QProcess::NotRunning);
             QCOMPARE(recipient.exitCode(), 0);
         }

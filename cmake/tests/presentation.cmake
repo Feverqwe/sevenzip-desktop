@@ -40,6 +40,18 @@ if(BUILD_TESTING)
                 "$<TARGET_FILE:drag_drop_ui_tests>" -silent archiveDragReachesNativeDropReceiver)
             set(sevenzip_clipboard_qpa xcb)
         endif()
+        find_program(SEVENZIP_DOLPHIN dolphin)
+        find_program(SEVENZIP_WESTON weston)
+        find_program(SEVENZIP_WESTON_DEBUG weston-debug)
+        find_program(SEVENZIP_DBUS_RUN_SESSION dbus-run-session)
+        if(SEVENZIP_XVFB_RUN AND SEVENZIP_DOLPHIN AND SEVENZIP_WESTON
+           AND SEVENZIP_WESTON_DEBUG AND SEVENZIP_DBUS_RUN_SESSION)
+            add_test(NAME native_dolphin_drag
+                COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/tests/support/run_dolphin_drag.sh"
+                    "$<TARGET_FILE:drag_drop_ui_tests>")
+            set_tests_properties(native_dolphin_drag PROPERTIES TIMEOUT 35
+                RESOURCE_LOCK sevenzip_native_ui)
+        endif()
     endif()
     if(TEST native_file_clipboard)
         set_tests_properties(native_file_clipboard PROPERTIES TIMEOUT 60
