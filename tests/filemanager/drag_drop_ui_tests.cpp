@@ -95,9 +95,8 @@ class DragDropUiTests final : public QObject {
         QTest::addColumn<bool>("cancel");
         QTest::addColumn<bool>("external");
         QTest::newRow("drop") << false << false;
-#ifdef Q_OS_WIN
         QTest::newRow("escape") << true << false;
-#else
+#ifdef Q_OS_LINUX
         QTest::newRow("external") << false << true;
 #endif
     }
@@ -254,11 +253,18 @@ class DragDropUiTests final : public QObject {
             return;
         }
 #else
-        Q_UNUSED(cancel);
+        bool checkedBeforeRelease = false;
+        bool extractedBeforeRelease = false;
         QTimer drive, watchdog;
         connect(&drive, &QTimer::timeout, &window, [&] {
             if (external ? QFileInfo::exists(marker) : receiver.Entered.load()) {
                 drive.stop();
+                checkedBeforeRelease = true;
+                for (const auto &entry : QtOwnedTempRegistry().Entries())
+                    if (QFileInfo::exists(QDir(entry.path).filePath(name)))
+                        extractedBeforeRelease = true;
+                if (cancel)
+                    QDrag::cancel();
                 press(false);
             } else if (window.findChild<QDrag *>()) {
                 pointAt(to);
@@ -275,14 +281,26 @@ class DragDropUiTests final : public QObject {
         QTimer::singleShot(50, &window, [&] { pointAt(threshold); });
         drive.start(10);
         watchdog.start(7000);
+        if (cancel) {
+            QTRY_VERIFY_WITH_TIMEOUT(checkedBeforeRelease, 8000);
+            QVERIFY2(warnings.isEmpty(), qPrintable(warnings.join('\n')));
+            QVERIFY(!extractedBeforeRelease);
+            QVERIFY(!QFileInfo::exists(destination));
+            for (const auto &entry : QtOwnedTempRegistry().Entries())
+                QVERIFY(!QFileInfo::exists(QDir(entry.path).filePath(name)));
+            QCOMPARE(SourceExtractFixture::readFile(archive), original);
+            return;
+        }
 #endif
         QTRY_VERIFY_WITH_TIMEOUT(!warnings.isEmpty() || QFileInfo::exists(destination), 8000);
         QVERIFY2(warnings.isEmpty(), qPrintable(warnings.join('\n')));
 #ifdef Q_OS_WIN
         drive.join();
         QVERIFY(receiver.Entered);
-        QVERIFY(!extractedBeforeRelease);
+#else
+        QVERIFY(checkedBeforeRelease);
 #endif
+        QVERIFY(!extractedBeforeRelease);
         QCOMPARE(SourceExtractFixture::readFile(destination), payload);
         QCOMPARE(SourceExtractFixture::readFile(archive), original);
         if (external) {

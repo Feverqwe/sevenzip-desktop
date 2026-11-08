@@ -86,7 +86,7 @@ HRESULT QtFileManagerDrag::DoDragDrop(CDataObject &data, CDropSource &source, DW
     const auto &ui = window_.panelUi_[i];
     QWidget *view = ui.viewStack ? ui.viewStack->currentWidget() : ui.table;
     QtPanelDragTransport transport(view);
-#ifdef Q_OS_MACOS
+#if defined(Q_OS_MACOS) || defined(Q_OS_LINUX)
     transport.SetPromiseMaterializer(
         [window = QPointer<MainWindow>(&window_)](CDataObject &promise, CPanel &panel) {
             if (!window || window->app_.QtOperations().closed() ||

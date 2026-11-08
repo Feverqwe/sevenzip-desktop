@@ -11,11 +11,17 @@ class QWidget;
 class QtPanelDragMime final : public QMimeData {
     std::shared_ptr<CDataObject> owner_;
     CDataObject &data_;
+    std::function<bool()> prepareUrls_;
+    bool canceled_ = false;
+
+  protected:
+    QVariant retrieveData(const QString &format, QMetaType type) const override;
 
   public:
-    explicit QtPanelDragMime(CDataObject &data);
+    explicit QtPanelDragMime(CDataObject &data, std::function<bool()> prepareUrls = {});
     CDataObject &Data() const { return data_; }
     void ConfirmRecipientFinished() { data_.FinishExternalReceiver(); }
+    void Cancel() { canceled_ = true; }
 };
 
 class QtPanelDragTransport final : public IQtPanelDragServices {
@@ -30,7 +36,7 @@ class QtPanelDragTransport final : public IQtPanelDragServices {
     HRESULT CompressFiles(CPanel &, const UString &, const UString &, const UStringVector &,
                           bool) override;
     bool Active() const { return active_; }
-#ifdef Q_OS_MACOS
+#if defined(Q_OS_MACOS) || defined(Q_OS_LINUX)
     using PromiseMaterializer = std::function<bool(CDataObject &, CPanel &)>;
     void SetPromiseMaterializer(PromiseMaterializer materializer) {
         promiseMaterializer_ = std::move(materializer);
@@ -42,7 +48,7 @@ class QtPanelDragTransport final : public IQtPanelDragServices {
     const bool nativeExecutor_;
     Executor executor_;
     Compression compression_;
-#ifdef Q_OS_MACOS
+#if defined(Q_OS_MACOS) || defined(Q_OS_LINUX)
     PromiseMaterializer promiseMaterializer_;
 #endif
     bool active_ = false;
