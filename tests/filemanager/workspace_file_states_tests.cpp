@@ -287,14 +287,28 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
         openListedArchive(window, backend, fixture.filePath("view.zip"),
                           {ArchiveEntry{"inside.txt", 1, 1}});
         QTRY_VERIFY(files->isEnabled() && files->sourcePanel->IsArcFolder());
+        QVERIFY(WindowActivation::waitForActive(window));
+        files->setFocus();
+        QTRY_VERIFY(files->hasFocus());
+        const int entry = rowFor(*files, "inside.txt");
+        QVERIFY(entry >= 0);
+        files->selectRow(entry);
+        QVERIFY(action(window, "copyFilesAction")->isEnabled());
+        QVERIFY(!action(window, "cutFilesAction")->isEnabled());
         QVERIFY(!paste->isEnabled());
+        QTest::keySequence(files, QKeySequence::Cut);
+        QTest::keySequence(files, QKeySequence::Paste);
+        QCOMPARE(QApplication::clipboard()->mimeData()->urls(),
+                 QList<QUrl>{QUrl::fromLocalFile(source)});
+        QCOMPARE(rowFor(*files, "incoming.txt"), -1);
         window.openPath(destination);
         QVERIFY(!files->isEnabled());
         QVERIFY(!paste->isEnabled());
         QTRY_VERIFY(files->isEnabled() && paste->isEnabled());
         QCOMPARE(QApplication::clipboard()->mimeData()->urls(),
                  QList<QUrl>{QUrl::fromLocalFile(source)});
-        paste->trigger();
+        QTRY_VERIFY(files->hasFocus());
+        QTest::keySequence(files, QKeySequence::Paste);
         QFile output(QDir(destination).filePath("incoming.txt"));
         QTRY_VERIFY(files->isEnabled() && rowFor(*files, "incoming.txt") >= 0);
         QVERIFY(output.open(QIODevice::ReadOnly));
