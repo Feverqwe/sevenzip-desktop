@@ -68,6 +68,12 @@ class PanelShellTests final : public QObject, protected MainWindowTestSupport {
         select("unknown.bin");
         QTRY_VERIFY(size->text().isEmpty());
         QCOMPARE(item("unknown.bin").siblingAtColumn(2).data().toString(), QString::fromUtf8("—"));
+        files->selectionModel()->select(item("one.bin"),
+                                        QItemSelectionModel::Select | QItemSelectionModel::Rows);
+        auto *summary = window.findChild<QLabel *>("selectedItemsStatus");
+        QTRY_VERIFY(summary->text().contains(QStringLiteral("2 / 4")));
+        QVERIFY(size->text().isEmpty());
+        QVERIFY(!size->isVisible());
         select("huge.bin");
         QTRY_COMPARE(size->text(), QtRegionalFormat::bytes(UInt64(-1)));
         QVERIFY(size->toolTip().contains(QLocale::system().toString(qulonglong(-1))));
