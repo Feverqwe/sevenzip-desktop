@@ -253,6 +253,15 @@ class RenameLifecycleTests final : public QObject, protected MainWindowTestSuppo
         QFile output(renamed);
         QVERIFY(output.open(QIODevice::ReadOnly));
         QCOMPARE(output.readAll(), QByteArray("payload"));
+        QVERIFY(action(window, "renameAction")->isEnabled());
+        QTest::keyClick(window.focusWidget(), Qt::Key_F2);
+        QLineEdit *reopened = nullptr;
+        for (auto *candidate : active->findChildren<QLineEdit *>())
+            if (candidate->isVisible())
+                reopened = candidate;
+        QVERIFY(reopened);
+        QCOMPARE(reopened->text(), QString("z.txt"));
+        QTest::keyClick(reopened, Qt::Key_Escape);
     }
 
     void discardedRenameDoesNotSeedTheNextEditor() {
