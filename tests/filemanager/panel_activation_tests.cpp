@@ -289,6 +289,64 @@ class PanelActivationTests final : public QObject, protected MainWindowTestSuppo
         QCOMPARE(read(QDir(files).filePath("root.txt")), QByteArray("untouched"));
         QCOMPARE(read(QDir(files).filePath(target + "/child δ.txt")), QByteArray("untouched"));
     }
+    void missingDiskFileCanBeOpenedAfterRestoration_data() {
+        QTest::addColumn<bool>("mouse");
+        QTest::newRow("keyboard") << false;
+        QTest::newRow("double-click") << true;
+    }
+    void missingDiskFileCanBeOpenedAfterRestoration() {
+        QFETCH(bool, mouse);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString name = QStringLiteral("документ 空.txt");
+        QFile file(fixture.filePath(name));
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.close();
+        ActivationExternalFiles external;
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(fixture.path());
+        window.activateWindow();
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        auto &view = list(window, 0);
+        QTRY_VERIFY(view.isEnabled() && filesystemRow(window, name) >= 0);
+        view.sourcePanel->Set_AutoRefresh_Mode(false);
+        view.sourcePanel->AttachExternalFileServices(&external);
+        const int row = filesystemRow(window, name);
+        const auto index = view.model()->index(row, 0);
+        const auto point = view.visualRect(index).center();
+        view.setFocus();
+        QTest::mouseClick(view.viewport(), Qt::LeftButton, Qt::NoModifier, point);
+        const auto activate = [&] {
+            if (mouse)
+                QTest::mouseDClick(view.viewport(), Qt::LeftButton, Qt::NoModifier, point);
+            else
+                activateWithKeyboard(window, &view);
+        };
+        QVERIFY(file.remove());
+        QStringList errors;
+        QTimer answer;
+        connect(&answer, &QTimer::timeout, &window, [&] {
+            if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                errors << box->text();
+                box->accept();
+            }
+        });
+        answer.start(5);
+        activate();
+        answer.stop();
+        QVERIFY(external.paths.isEmpty());
+        QCOMPARE(errors.size(), 1);
+        QVERIFY(errors.constFirst().normalized(QString::NormalizationForm_C).contains(name));
+        QVERIFY(view.selectionModel()->isSelected(index));
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.close();
+        activate();
+        QCOMPARE(external.paths.size(), 1);
+        QCOMPARE(external.paths.constFirst().normalized(QString::NormalizationForm_C),
+                 file.fileName());
+    }
     void failedFolderRecovery_data() {
         QTest::addColumn<unsigned>("pane");
         QTest::addColumn<bool>("russian");

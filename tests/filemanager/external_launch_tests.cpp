@@ -57,6 +57,7 @@ class ExternalLaunchTests final : public QObject {
         panel.AttachExternalFileServices(&service);
         COpenResult result;
         QCOMPARE(panel.BindToPath(ToUString(fixture.path()), UString(), result), S_OK);
+        panel.LoadFullPath();
         QCOMPARE(panel.GetFolder()->LoadItems(), S_OK);
         UInt32 count = 0;
         QCOMPARE(panel.GetFolder()->GetNumberOfItems(&count), S_OK);
@@ -68,6 +69,9 @@ class ExternalLaunchTests final : public QObject {
                 index = i;
         QVERIFY(index < count);
         const UString fullPath = panel.GetItemFullPath(index);
+        QCOMPARE(QDir::fromNativeSeparators(ToQString(fullPath))
+                     .normalized(QString::NormalizationForm_C),
+                 fixture.filePath(name));
         for (bool editor : {false, true}) {
             service.Opened.clear();
             panel.EditItem(index, editor);

@@ -160,6 +160,10 @@
     endif()
     add_test(NAME panel_activation COMMAND panel_activation_tests -silent)
     set_tests_properties(panel_activation PROPERTIES TIMEOUT 180 ENVIRONMENT "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/panel-activation.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
+    add_test(NAME panel_activation_missing_file COMMAND panel_activation_tests -silent
+        missingDiskFileCanBeOpenedAfterRestoration)
+    set_tests_properties(panel_activation_missing_file PROPERTIES TIMEOUT 25 ENVIRONMENT
+        "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/panel-activation-missing-file.ini")
     # Exercise each modifier and both input routes without the full UI cross-product.
     add_test(NAME panel_activation_quick COMMAND panel_activation_tests -silent
         archiveOpeningFailureHasOneDialogAndCanRetry
