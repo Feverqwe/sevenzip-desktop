@@ -233,9 +233,9 @@ class MainWindow : public QMainWindow {
     HRESULT startFilesystemListing(bool sourceAlreadyBound, bool updateAddress);
     HRESULT finishSynchronousFilesystemListing(HRESULT result);
     HRESULT startFilesystemScan(IFolderFolder *folder);
-    struct FilesystemViewport {
-        FilesystemViewport(QAbstractItemView *source, const QString &folder, const QString &top,
-                           const QPoint &position, int offset)
+    struct ListViewport {
+        ListViewport(QAbstractItemView *source, const QString &folder, const QString &top,
+                     const QPoint &position, int offset)
             : view(source), directory(folder), topPath(top), scrollPosition(position),
               topOffset(offset) {}
         QPointer<QAbstractItemView> view;
@@ -244,8 +244,10 @@ class MainWindow : public QMainWindow {
         QPoint scrollPosition;
         int topOffset;
     };
+    ListViewport captureListViewport();
+    void restoreListViewport(const ListViewport &viewport);
     HRESULT refreshFilesystem(const CSelectedState &selection, bool sourceAlreadyBound,
-                              std::optional<FilesystemViewport> viewport = std::nullopt);
+                              std::optional<ListViewport> viewport = std::nullopt);
     void restoreListSelection(const CSelectedState &selection);
     struct FilesystemSignature;
     void pollAutoRefresh();
@@ -358,7 +360,7 @@ class MainWindow : public QMainWindow {
         FilesystemScanner *filesystemScanner = nullptr;
         QtFolderProjection *listProjection = nullptr;
         QHash<QString, FilesystemSignature> autoRefreshSnapshot;
-        std::optional<FilesystemViewport> pendingViewport;
+        std::optional<ListViewport> pendingViewport;
         std::optional<CSelectedState> pendingSelection;
     };
     std::array<PanelUiState, 2> panelUi_;

@@ -10,6 +10,7 @@
 #include "ui/lifecycle/qttaskpresentation.h"
 #include "ui/support/layout_inspection.h"
 #include <QScopeGuard>
+#include <QScrollBar>
 
 using namespace SourceExtractFixture;
 
@@ -39,9 +40,13 @@ class WorkspaceArchivePublicationTests final : public QObject, protected MainWin
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString archive = fixture.filePath("shared.7z");
-        QVERIFY(NativeArchiveFixture::Write(archive, {{"original.txt", "payload"}}));
+        QList<NativeArchiveFixture::Item> items{{"original.txt", "payload"}};
+        for (int index = 0; index < 80; ++index)
+            items.append({QString("file-%1.txt").arg(index, 3, 10, QChar('0')), "payload"});
+        QVERIFY(NativeArchiveFixture::Write(archive, items));
         QtWorkspaceApplication application(*qApp);
         MainWindow writer, observer;
+        observer.resize(640, 400);
         observer.show();
         observer.openArchive(archive);
         QTRY_VERIFY(names(observer).contains("original.txt"));
@@ -59,6 +64,14 @@ class WorkspaceArchivePublicationTests final : public QObject, protected MainWin
         const QString addressSelection = address->selectedText();
         const int addressCursor = address->cursorPosition();
         QVERIFY(address->isModified());
+        auto *observed = table(observer);
+        auto *scroll = observed->verticalScrollBar();
+        QTRY_VERIFY(scroll->maximum() > 2);
+        scroll->setValue(scroll->maximum() / 2);
+        const int topRow = observed->rowAt(0);
+        QVERIFY(topRow >= 0);
+        const QString anchor = observed->model()->index(topRow, 0).data().toString();
+        const int offset = observed->rowViewportPosition(topRow);
         QTRY_VERIFY(action(writer, "createFolderAction")->isEnabled());
         action(writer, "createFolderAction")->trigger();
         auto *folder = writer.findChild<QLineEdit *>("inlineFolderName");
@@ -66,6 +79,9 @@ class WorkspaceArchivePublicationTests final : public QObject, protected MainWin
         folder->setText("new folder");
         QTest::keyClick(folder, Qt::Key_Return);
         QTRY_VERIFY(names(observer).contains("new folder"));
+        QVERIFY(names(observer).indexOf("new folder") < names(observer).indexOf(anchor));
+        QCOMPARE(observed->model()->index(observed->rowAt(0), 0).data().toString(), anchor);
+        QCOMPARE(observed->rowViewportPosition(observed->rowAt(0)), offset);
         auto *view = table(writer);
         const int row = names(writer).indexOf("original.txt");
         QVERIFY(row >= 0);

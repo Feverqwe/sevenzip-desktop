@@ -66,8 +66,13 @@ HRESULT MainWindow::reloadProjectedPanel(const CSelectedState &selection) {
     }
     if (!selection.KeepViewport)
         return refreshFilesystem(selection, true);
+    return refreshFilesystem(selection, true, captureListViewport());
+}
 
+MainWindow::ListViewport MainWindow::captureListViewport() {
     auto *view = qobject_cast<QAbstractItemView *>(projectedUi().viewStack->currentWidget());
+    if (!view)
+        return {nullptr, {}, {}, {}, 0};
     int topRow = -1;
     int topOffset = 0;
     if (view == projectedUi().table) {
@@ -86,15 +91,13 @@ HRESULT MainWindow::reloadProjectedPanel(const CSelectedState &selection) {
         }
     }
     const QString topPath = view->model()->index(topRow, 1).data().toString();
-    const FilesystemViewport viewport(
-        view, projectedUi().directory, topPath,
-        QPoint(view->horizontalScrollBar()->value(), view->verticalScrollBar()->value()),
-        topOffset);
-    return refreshFilesystem(selection, true, viewport);
+    return {view, projectedUi().directory, topPath,
+            QPoint(view->horizontalScrollBar()->value(), view->verticalScrollBar()->value()),
+            topOffset};
 }
 
 HRESULT MainWindow::refreshFilesystem(const CSelectedState &selection, bool sourceAlreadyBound,
-                                      std::optional<FilesystemViewport> viewport) {
+                                      std::optional<ListViewport> viewport) {
     const HRESULT loaded = showDirectory(projectedUi().directory, false, sourceAlreadyBound,
                                          !selection.PreserveAddress && !reloadingFileListSettings_);
     if (loaded != S_OK)
@@ -210,36 +213,40 @@ void MainWindow::restoreAutoRefreshViewport() {
     const auto viewport = std::exchange(panelUi_[projectedPanel_].pendingViewport, std::nullopt);
     if (!viewport || viewport->directory != projectedUi().directory)
         return;
-    auto *view = viewport->view.data();
+    restoreListViewport(*viewport);
+}
+
+void MainWindow::restoreListViewport(const ListViewport &viewport) {
+    auto *view = viewport.view.data();
     if (!view || view != projectedUi().viewStack->currentWidget())
         return;
     view->doItemsLayout();
     int row = -1;
-    if (!viewport->topPath.isEmpty()) {
-        for (int i = 0; i < projectedUi().table->rowCount(); ++i) {
-            if (view->model()->index(i, 1).data().toString() == viewport->topPath) {
+    if (!viewport.topPath.isEmpty()) {
+        for (int i = 0; i < view->model()->rowCount(); ++i) {
+            if (view->model()->index(i, 1).data().toString() == viewport.topPath) {
                 row = i;
                 break;
             }
         }
     }
     if (row < 0) {
-        view->verticalScrollBar()->setValue(viewport->scrollPosition.y());
+        view->verticalScrollBar()->setValue(viewport.scrollPosition.y());
     } else if (view == projectedUi().table) {
         view->scrollTo(view->model()->index(row, 0), QAbstractItemView::PositionAtTop);
         if (view->verticalScrollMode() == QAbstractItemView::ScrollPerPixel) {
             auto *scroll = view->verticalScrollBar();
             const int displacement =
-                projectedUi().table->rowViewportPosition(row) - viewport->topOffset;
+                projectedUi().table->rowViewportPosition(row) - viewport.topOffset;
             scroll->setValue(scroll->value() + displacement);
         }
     } else {
         auto *scroll = view->verticalScrollBar();
-        scroll->setValue(viewport->scrollPosition.y());
+        scroll->setValue(viewport.scrollPosition.y());
         const QModelIndex anchor = view->model()->index(row, 0);
         // Keep the original offset even when the icon is partly scrolled out.
-        const int displacement = view->visualRect(anchor).top() - viewport->topOffset;
+        const int displacement = view->visualRect(anchor).top() - viewport.topOffset;
         scroll->setValue(scroll->value() + displacement);
     }
-    view->horizontalScrollBar()->setValue(viewport->scrollPosition.x());
+    view->horizontalScrollBar()->setValue(viewport.scrollPosition.x());
 }

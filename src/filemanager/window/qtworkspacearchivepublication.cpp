@@ -10,7 +10,6 @@
 #include <QFileInfo>
 #include <QScopeGuard>
 #include <QScopedValueRollback>
-#include <QScrollBar>
 
 namespace {
 bool SameArchive(const QString &left, const QString &right) {
@@ -142,12 +141,8 @@ bool QtWindowWorkspace::RefreshPublishedArchive(unsigned panel, bool interactive
     const QPointer<QWidget> focus = QApplication::focusWidget();
     const QPointer<QWidget> active = QApplication::activeWindow();
     const quint64 focusGeneration = focusRequest_;
-    auto *view =
-        qobject_cast<QAbstractItemView *>(window_.panelUi_[panel].viewStack->currentWidget());
-    const QPoint scroll =
-        view ? QPoint(view->horizontalScrollBar()->value(), view->verticalScrollBar()->value())
-             : QPoint();
     window_.withPanelProjection(panel, [&] {
+        const auto viewport = window_.captureListViewport();
         const QScopedValueRollback<bool> changing(changing_, true);
         const QScopedValueRollback<bool> progress(window_.sourceArchiveProgress_, true);
         QtAppOperationState::CallScope call(window_.app_.QtOperations());
@@ -173,10 +168,8 @@ bool QtWindowWorkspace::RefreshPublishedArchive(unsigned panel, bool interactive
                 window_.panelUi_[panel].listProjection->waitForFinished();
         }
         window_.restoreListSelection(selection);
-        if (view) {
-            view->horizontalScrollBar()->setValue(scroll.x());
-            view->verticalScrollBar()->setValue(scroll.y());
-        }
+        if (focusRequest_ == focusGeneration)
+            window_.restoreListViewport(viewport);
     });
     const auto restored =
         address->UserEditRevision() == editRevision ? draft : address->LastUserDraft();
