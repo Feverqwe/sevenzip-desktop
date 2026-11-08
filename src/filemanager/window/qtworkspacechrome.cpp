@@ -75,6 +75,7 @@ void QtWindowWorkspace::AttachContent(unsigned panel, QVBoxLayout &layout) {
     ui.navigationError->setWordWrap(true);
     notice->addWidget(ui.navigationError, 1);
     auto *retry = new QPushButton(ui.navigationNotice);
+    panels_[panel].retry = retry;
     retry->setObjectName(QStringLiteral("navigationRetry%1").arg(panel));
     QtBindLocalText(retry, "QtWindowWorkspace", QT_TRANSLATE_NOOP("QtWindowWorkspace", "Retry"));
     notice->addWidget(retry);

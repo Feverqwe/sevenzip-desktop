@@ -17,6 +17,7 @@ class QAbstractItemView;
 class QVBoxLayout;
 class QToolBar;
 class QListView;
+class QPushButton;
 class QtFavoriteStore;
 class QtFastFoldersStore;
 class QtNativePlaces;
@@ -132,6 +133,7 @@ class QtWindowWorkspace final : public QObject {
         QPointer<QtArchiveMountManager> mounts;
         QToolBar *actions = nullptr;
         QWidget *actionRow = nullptr;
+        QPushButton *retry = nullptr;
     };
     bool Ready(bool allowSourceCall = false) const;
     void Capture(unsigned panel, bool retainView = true);

@@ -489,12 +489,15 @@ class WorkspaceSessionTests final : public QObject {
         QTRY_VERIFY(done);
         auto *retry = restored.findChild<QPushButton *>("navigationRetry0");
         QVERIFY(retry && retry->isVisible());
+        QVERIFY(WindowActivation::waitForActive(restored));
+        QTRY_COMPARE(restored.focusWidget(), static_cast<QWidget *>(retry));
         QCOMPARE(QDir::cleanPath(restored.findChild<QLineEdit *>("archivePath")->text()), folder);
         QVERIFY(replacement.remove());
-        retry->click();
+        QTest::keyClick(restored.focusWidget(), Qt::Key_Space);
         QVERIFY(retry->isVisible());
         QVERIFY(QDir().rename(parked, folder));
-        retry->click();
+        QCOMPARE(restored.focusWidget(), static_cast<QWidget *>(retry));
+        QTest::keyClick(restored.focusWidget(), Qt::Key_Space);
         QTRY_COMPARE(location(restored), folder);
         QTRY_VERIFY(active(restored)->isEnabled() && !retry->isVisible());
         QVERIFY(active(restored)->rowCount() > 0);
