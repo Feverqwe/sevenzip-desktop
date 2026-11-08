@@ -396,13 +396,16 @@ class DragDropUiTests final : public QObject {
     void fileExportCanBeCopiedByRecipient_data() {
         QTest::addColumn<bool>("archiveSource");
         QTest::addColumn<bool>("drag");
-        QTest::newRow("archive-drag") << true << true;
-        QTest::newRow("archive-clipboard") << true << false;
-        QTest::newRow("filesystem-clipboard") << false << false;
+        QTest::addColumn<bool>("replaceClipboard");
+        QTest::newRow("archive-drag") << true << true << false;
+        QTest::newRow("archive-clipboard") << true << false << false;
+        QTest::newRow("filesystem-clipboard") << false << false << false;
+        QTest::newRow("archive-clipboard-replaced") << true << false << true;
     }
     void fileExportCanBeCopiedByRecipient() {
         QFETCH(bool, archiveSource);
         QFETCH(bool, drag);
+        QFETCH(bool, replaceClipboard);
         QTemporaryDir input, output;
         QVERIFY(input.isValid() && output.isValid());
         const ScopedTestEnvironment registry("SEVENZIP_OWNED_TEMP_REGISTRY",
@@ -463,7 +466,30 @@ class DragDropUiTests final : public QObject {
             auto *copy = window.findChild<QAction *>("copyFilesAction");
             QVERIFY(copy);
             QTRY_VERIFY(copy->isEnabled());
+            const QString newer = QStringLiteral("newer clipboard text");
+            QStringList existingTemps, exportTemps;
+            QTimer replacement;
+            if (replaceClipboard) {
+                for (const auto &entry : QtOwnedTempRegistry().Entries())
+                    existingTemps.append(entry.path);
+                replacement.setSingleShot(true);
+                connect(&replacement, &QTimer::timeout, &window, [&] {
+                    for (const auto &entry : QtOwnedTempRegistry().Entries())
+                        if (!existingTemps.contains(entry.path))
+                            exportTemps.append(entry.path);
+                    clipboard->setText(newer);
+                });
+                replacement.start(0);
+            }
             QTest::keyClick(table, Qt::Key_C, Qt::ControlModifier);
+            if (replaceClipboard) {
+                QVERIFY(!exportTemps.isEmpty());
+                QCOMPARE(clipboard->text(), newer);
+                for (const auto &path : exportTemps)
+                    QVERIFY2(!QFileInfo::exists(path), qPrintable(path));
+                QCOMPARE(SourceExtractFixture::readFile(archive), original);
+                return;
+            }
             QTRY_VERIFY(clipboard->mimeData() && clipboard->mimeData()->hasUrls());
             if (QGuiApplication::platformName() == QStringLiteral("offscreen")) {
                 QVERIFY2(CopyExport(clipboard->mimeData(), destination),

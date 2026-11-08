@@ -158,6 +158,7 @@ void QtFileClipboard::Copy(bool move) {
     } else {
         // Materialize with the same native copy owner as drag/export. Never
         // expose URLs until the engine reports a complete successful copy.
+        const auto revision = revision_;
         NWindows::NFile::NDir::CTempDir temporary;
         if (!temporary.Create(FTEXT("7zClipboard")))
             return;
@@ -172,7 +173,7 @@ void QtFileClipboard::Copy(bool move) {
             QScopedValueRollback<bool> progress(window_.sourceArchiveProgress_, true);
             result = source.CopyTo(options, indices, &messages, &report);
         }
-        if (result != S_OK || !messages.IsEmpty())
+        if (result != S_OK || !messages.IsEmpty() || revision_ != revision)
             return;
         if (source.IsArcFolder() && (!report.Status || !report.Status->Complete)) {
             window_.showStatusMessage(tr(
