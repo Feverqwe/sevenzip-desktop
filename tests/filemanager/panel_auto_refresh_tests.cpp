@@ -413,6 +413,15 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         const QString title = window.windowTitle();
         QVERIFY(QDir::fromNativeSeparators(title).startsWith(folders[owner]));
         QSignalSpy titles(&window, &QWidget::windowTitleChanged);
+        auto *rename = action(window, "renameAction");
+        auto *remove = action(window, "deleteAction");
+        auto *copy = action(window, "copyFilesAction");
+        QVERIFY(rename->isEnabled());
+        QVERIFY(remove->isEnabled());
+        QVERIFY(copy->isEnabled());
+        QSignalSpy renameAvailability(rename, &QAction::enabledChanged);
+        QSignalSpy removeAvailability(remove, &QAction::enabledChanged);
+        QSignalSpy copyAvailability(copy, &QAction::enabledChanged);
         if (published) {
             views[updated]->sourcePanel->Set_AutoRefresh_Mode(false);
             QVERIFY(writeFile(QDir(folders[updated]).filePath("published.txt")));
@@ -435,6 +444,9 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
                      folders[pane]);
         }
         if (peerPublication) {
+            QVERIFY(renameAvailability.isEmpty());
+            QVERIFY(removeAvailability.isEmpty());
+            QVERIFY(copyAvailability.isEmpty());
             QTest::keyClicks(QApplication::focusWidget(), "next");
             QCOMPARE(addresses[owner]->text(), QString("next") + draft.mid(8));
         }

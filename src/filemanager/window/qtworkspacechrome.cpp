@@ -130,7 +130,7 @@ void QtWindowWorkspace::RefreshChrome() {
                 state.location.archiveRevision != state.location.archiveApplied);
         if (auto *row =
                 dynamic_cast<QtNavigationRow *>(window_.panelUi_[panel].navigation->parentWidget()))
-            row->SetActivePane(window_.app_.NumPanels == 2 && window_.projectedPanel_ == panel);
+            row->SetActivePane(window_.app_.NumPanels == 2 && window_.statusPanel_ == panel);
         state.actions->setToolButtonStyle(window_.app_.NumPanels == 1 && window_.width() > 800
                                               ? Qt::ToolButtonTextBesideIcon
                                               : Qt::ToolButtonIconOnly);

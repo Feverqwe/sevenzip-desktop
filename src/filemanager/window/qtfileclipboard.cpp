@@ -136,7 +136,7 @@ void QtFileClipboard::Refresh() {
     // New/restored models receive the same snapshot at their next publication.
     for (auto *table : window_.findChildren<FileTable *>())
         table->panelModel()->setCutPaths(cutPaths_);
-    const auto available = AvailabilityForPanel(window_.projectedPanel_);
+    const auto available = AvailabilityForPanel(window_.statusPanel_);
     copy->setEnabled(available.copy);
     cut->setEnabled(available.cut);
     paste->setEnabled(available.paste);
