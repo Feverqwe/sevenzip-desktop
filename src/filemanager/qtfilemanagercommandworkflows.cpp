@@ -5,6 +5,7 @@
 #include "filemanager/qtfilemanagercommands.h"
 #include "filemanager/qtprogramfilemenu.h"
 #include "filemanager/window/mainwindow.h"
+#include "filemanager/window/qtapppresentation.h"
 #include "filemanager/window/qtexternalfiletask.h"
 #include "filemanager/window/qtwindowworkspace.h"
 #include "localization/qtlangcontrols.h"
@@ -128,14 +129,16 @@ void QtFileManagerCommands::CreateFolder() {
     layout->insertWidget(layout->indexOf(view), editor);
     const UString prefix = panel.GetCurrentFolderPrefix();
     folderDrafts_.insert(index, FolderDraft{editor, panel.GetFolder(), prefix});
-    const auto finish = [this, index, view, editor] {
+    const auto finish = [this, index, editor] {
         folderDrafts_.remove(index);
         editor->hide();
         editor->deleteLater();
-        view->currentWidget()->setFocus();
     };
 
-    editor->OnCancel(finish);
+    editor->OnCancel([view, finish] {
+        finish();
+        view->currentWidget()->setFocus();
+    });
     QObject::connect(name, &QLineEdit::returnPressed, editor, [this, index, name, editor, finish] {
         auto &panel = window_.app_.Panels[index];
         DiscardStaleFolderDraft(index);
@@ -171,6 +174,7 @@ void QtFileManagerCommands::CreateFolder() {
         }
         if (result == S_OK) {
             finish();
+            window_.appPresentation_->RequestListFocus(index);
             return;
         }
         editor->ShowError(detail.isEmpty() ? ToQString(HResultToMessage(result)) : detail);

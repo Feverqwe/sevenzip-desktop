@@ -193,6 +193,8 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         window.show();
         auto *view = openPanel(window, 0, fixture.path());
         QTRY_VERIFY(view->isEnabled() && view->rowCount() == 257);
+        QVERIFY(WindowActivation::waitForActive(window));
+        view->setFocus();
         auto &panel = *view->sourcePanel;
         panel.Set_AutoRefresh_Mode(false);
         const QString name = QStringLiteral("new 文件 with spaces");
@@ -203,6 +205,7 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         QTest::keyClick(input, Qt::Key_Return);
         QVERIFY(!panel.ShouldProcessNotifications());
         QTRY_VERIFY(view->isEnabled() && view->rowCount() == 258);
+        QCOMPARE(window.focusWidget(), view);
         QVERIFY(panel.ShouldProcessNotifications());
         QCOMPARE(view->selectionModel()->selectedRows().size(), 1);
         QCOMPARE(view->model()->index(view->currentRow(), 0).data().toString(), name);
