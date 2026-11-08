@@ -56,6 +56,17 @@ MainWindow *OpenSevenzipAssociatedFile(const QString &path) {
         [window, path](bool success, const QString &message) {
             const QPointer<MainWindow> alive(window);
             if (success) {
+                if (!QFileInfo::exists(path)) {
+                    window->show();
+                    QMessageBox warning(QMessageBox::Warning, QStringLiteral("Sevenzip"),
+                                        QCoreApplication::translate("mainwindow_archiveopening",
+                                                                    "File not found: ") +
+                                            path,
+                                        QMessageBox::Ok, window);
+                    warning.setTextFormat(Qt::PlainText);
+                    warning.exec();
+                    return;
+                }
                 window->openPath(path);
                 if (alive)
                     window->show();

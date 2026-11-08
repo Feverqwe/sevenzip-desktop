@@ -133,6 +133,34 @@ class AssociatedWindowTests final : public QObject {
         QCOMPARE(completed.count(), 0);
         QVERIFY(!QFileInfo::exists(fixture.filePath("not-opened.zip")));
     }
+    void missingDocumentReportsItsPathAndAllowsAnotherOpen() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const auto closeWindows = qScopeGuard([this] { cleanup(); });
+        const QString missing = fixture.filePath("missing & archive.zip");
+        const QString archive = SourceExtractFixture::makeArchive(fixture.path(), "next archive");
+        QVERIFY(!archive.isEmpty());
+        QString message;
+        QObject responder;
+        dialogs_.respond(responder, [&](QDialog &dialog) {
+            if (auto *warning = qobject_cast<QMessageBox *>(&dialog)) {
+                message = warning->text();
+                warning->accept();
+            }
+        });
+        windows_.append(OpenSevenzipAssociatedFile(missing));
+        QTRY_VERIFY(message.contains(missing));
+        QVERIFY(windows_[0] && windows_[0]->isVisible());
+        auto *address = windows_[0]->findChild<QLineEdit *>("archivePath");
+        QVERIFY(address);
+        QCOMPARE(QDir::cleanPath(address->text()), QDir::cleanPath(fixture.path()));
+
+        windows_.append(OpenSevenzipAssociatedFile(archive));
+        auto *table = windows_[1]->findChild<FileTable *>("archiveTable");
+        QVERIFY(table);
+        QTRY_VERIFY(windows_[1]->isVisible() && table->rowCount() == 1 &&
+                    table->model()->index(0, 0).data().toString() == "inside");
+    }
     void discoveryFailureReportsItsErrorWithoutStartingArchiveRead() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
