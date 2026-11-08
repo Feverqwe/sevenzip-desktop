@@ -42,7 +42,13 @@ class ArchiveExternalEditTests final : public QObject, protected MainWindowTestS
 
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
+    void encryptedMemberOpensAfterPasswordRetry_data() {
+        QTest::addColumn<bool>("cancel");
+        QTest::newRow("wrong-password") << false;
+        QTest::newRow("cancel-password") << true;
+    }
     void encryptedMemberOpensAfterPasswordRetry() {
+        QFETCH(bool, cancel);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString archive = fixture.filePath("encrypted.zip");
@@ -72,6 +78,10 @@ class ArchiveExternalEditTests final : public QObject, protected MainWindowTestS
             auto *modal = QApplication::activeModalWidget();
             if (auto *dialog = dynamic_cast<CPasswordDialog *>(modal)) {
                 ++prompts;
+                if (!retry && cancel) {
+                    dialog->reject();
+                    return;
+                }
                 dialog->findChild<QLineEdit *>("passwordEdit")
                     ->setText(retry ? password : QStringLiteral("incorrect"));
                 dialog->accept();
@@ -87,6 +97,7 @@ class ArchiveExternalEditTests final : public QObject, protected MainWindowTestS
         open->trigger();
         QCOMPARE(prompts, 1);
         QVERIFY(launches.isEmpty());
+        QVERIFY(table(window)->selectionModel()->isRowSelected(0, {}));
         QVERIFY(open->isEnabled());
         retry = true;
         open->trigger();
