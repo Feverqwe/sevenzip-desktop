@@ -421,6 +421,44 @@ class WorkspaceSessionTests final : public QObject {
         }
     }
 
+    void sessionRestoresIconViewAndDescendingOrder() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        for (const QString &name : {QString("a.txt"), QString("b.txt")}) {
+            QFile file(fixture.filePath(name));
+            QVERIFY(file.open(QIODevice::WriteOnly));
+        }
+        QJsonObject saved;
+        {
+            ControlledBackend backend;
+            MainWindow first(&backend);
+            first.show();
+            first.openPath(fixture.path());
+            auto *table = active(first);
+            QVERIFY(table);
+            QTRY_VERIFY(table->isEnabled() && table->rowCount() == 2);
+            first.findChild<QAction *>("sortDescendingAction")->trigger();
+            QTRY_COMPARE(table->model()->index(0, 0).data().toString(), QString("b.txt"));
+            first.findChild<QAction *>("viewMode0Action")->trigger();
+            QTRY_VERIFY(first.findChild<QListView *>("iconList")->isVisible());
+            saved = workspace(first)->Save();
+        }
+        QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
+        ControlledBackend backend;
+        MainWindow restored(&backend);
+        restored.show();
+        bool done = false;
+        workspace(restored)->Restore(saved, [&] { done = true; });
+        QTRY_VERIFY(done);
+        auto *icons = restored.findChild<QListView *>("iconList");
+        QVERIFY(icons && icons->isVisible());
+        QCOMPARE(icons->model()->rowCount(), 2);
+        QCOMPARE(icons->model()->index(0, icons->modelColumn()).data().toString(),
+                 QString("b.txt"));
+        QCOMPARE(icons->model()->index(1, icons->modelColumn()).data().toString(),
+                 QString("a.txt"));
+    }
+
     void restoringCompactWindowKeepsItsCustomFileAreaSplit() {
         QJsonObject saved;
         QList<int> original;
