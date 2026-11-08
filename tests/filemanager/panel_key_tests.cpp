@@ -144,11 +144,15 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
     }
     void shiftSelectionDoesNotIncludeFollowingUnmodifiedMove_data() {
         QTest::addColumn<int>("mode");
-        for (int mode : {0, 3})
-            QTest::newRow(qPrintable(QString("%1").arg(mode))) << mode;
+        QTest::addColumn<bool>("switchView");
+        QTest::newRow("icons") << 0 << false;
+        QTest::newRow("details") << 3 << false;
+        QTest::newRow("icons-to-details") << 0 << true;
+        QTest::newRow("details-to-icons") << 3 << true;
     }
     void shiftSelectionDoesNotIncludeFollowingUnmodifiedMove() {
         QFETCH(int, mode);
+        QFETCH(bool, switchView);
         QSettings settings(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"), QSettings::IniFormat);
         settings.setValue("FM/AlternativeSelection", true);
         settings.sync();
@@ -174,10 +178,20 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
         view->selectRow(0);
         const auto arrow = mode <= 1 ? Qt::Key_Right : Qt::Key_Down;
         QKeyEvent shiftDown(QEvent::KeyPress, arrow, Qt::ShiftModifier);
-        QKeyEvent down(QEvent::KeyPress, arrow, Qt::NoModifier);
         QApplication::sendEvent(target, &shiftDown);
         QCOMPARE(view->currentRow(), 1);
         QCOMPARE(view->selectionModel()->selectedRows().size(), 2);
+        auto nextArrow = arrow;
+        if (switchView) {
+            action(window, mode == 3 ? "viewMode0Action" : "viewMode3Action")->trigger();
+            target = mode == 3 ? window.findChild<QAbstractItemView *>("iconList") : view;
+            QVERIFY(target);
+            QTRY_COMPARE(window.focusWidget(), static_cast<QWidget *>(target));
+            QCOMPARE(view->currentRow(), 1);
+            QCOMPARE(view->selectionModel()->selectedRows().size(), 2);
+            nextArrow = mode == 3 ? Qt::Key_Right : Qt::Key_Down;
+        }
+        QKeyEvent down(QEvent::KeyPress, nextArrow, Qt::NoModifier);
         QApplication::sendEvent(target, &down);
         QCOMPARE(view->currentRow(), 2);
         QApplication::processEvents();
