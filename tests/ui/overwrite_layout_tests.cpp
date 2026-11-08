@@ -51,7 +51,8 @@ class OverwriteLayoutTests final : public QObject {
             ReloadLang(ini);
             QtNotifyLanguageChanged();
         });
-        const QString name = QStringLiteral("длинное имя 空 ") + QString(100, 'x') + ".txt";
+        const QString name = QStringLiteral("длинное имя 空 ") + QString(100, 'x') + ".txt ";
+        const QString displayName = '"' + name + '"';
         OverwriteQuestion question;
         question.Existing.Path = "/old/" + name;
         question.Incoming.Path = "/new/" + name;
@@ -65,7 +66,8 @@ class OverwriteLayoutTests final : public QObject {
         auto *skip = dialog.findChild<QPushButton *>("overwriteNo");
         QVERIFY(skip->hasFocus());
         QCOMPARE(apply->isVisible(), multiple);
-        QVERIFY(dialog.findChild<QLabel *>("overwriteNewFile")->text().contains(name));
+        QCOMPARE(dialog.findChild<QLabel *>("overwriteHeader")->text(), displayName);
+        QVERIFY(dialog.findChild<QLabel *>("overwriteNewFile")->text().contains(displayName));
         QVERIFY(dialog.findChild<QLabel *>("overwriteNewFile")->text().contains("Unknown"));
         if (multiple) {
             QLabel *caption = nullptr;
@@ -81,7 +83,7 @@ class OverwriteLayoutTests final : public QObject {
             QtNotifyLanguageChanged();
             QVERIFY(apply->isChecked());
             QVERIFY(apply->accessibleName() != english);
-            QVERIFY(dialog.findChild<QLabel *>("overwriteNewFile")->text().contains(name));
+            QVERIFY(dialog.findChild<QLabel *>("overwriteNewFile")->text().contains(displayName));
             QVERIFY(dialog.findChild<QLabel *>("overwriteNewFile")
                         ->text()
                         .contains(QStringLiteral("Неизвестно")));

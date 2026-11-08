@@ -57,9 +57,9 @@ int NOverwriteDialog::MapButtonResult(INT_PTR button) {
     }
 }
 
-void COverwriteDialog::ReduceString(UString &s) {
+void COverwriteDialog::FormatPathPart(UString &s, bool shorten) {
     const unsigned size = kCurrentFileNameSizeLimit;
-    if (s.Len() > size) {
+    if (shorten && s.Len() > size) {
         s.Delete(size / 2, s.Len() - size);
         s.Insert(size / 2, L" ... ");
     }
@@ -75,13 +75,11 @@ void COverwriteDialog::SetFileInfoControl(const NOverwriteDialog::CFileInfo &fil
         const UString &path = fileInfo.Path;
         const int slashPos = path.ReverseFind_PathSepar();
         UString s = path.Left((unsigned)(slashPos + 1));
-        if (!ShowExtraButtons)
-            ReduceString(s);
+        FormatPathPart(s, !ShowExtraButtons);
         s.Add_LF();
         {
             UString s2 = path.Ptr((unsigned)(slashPos + 1));
-            if (!ShowExtraButtons)
-                ReduceString(s2);
+            FormatPathPart(s2, !ShowExtraButtons);
             s += s2;
         }
         s.Add_LF();
@@ -131,7 +129,9 @@ bool COverwriteDialog::OnInit() {
                        IDI_OVERWRITE_NEW_FILE_2);
     UpdateButtonSizes();
     const UString &path = NewFileInfo.Path;
-    SetItemText(IDT_OVERWRITE_HEADER, path.Ptr((unsigned)(path.ReverseFind_PathSepar() + 1)));
+    UString name = path.Ptr((unsigned)(path.ReverseFind_PathSepar() + 1));
+    FormatPathPart(name, false);
+    SetItemText(IDT_OVERWRITE_HEADER, name);
     auto *button = static_cast<QPushButton *>(
         _controls.value(ShowExtraButtons || DefaultButton_is_NO ? IDNO : IDYES));
     button->setDefault(true);
