@@ -397,6 +397,12 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         QVERIFY(payload.open(QIODevice::WriteOnly));
         QCOMPARE(payload.write("protected bytes"), qint64(15));
         payload.close();
+        QTemporaryDir peerFixture;
+        QVERIFY(peerFixture.isValid());
+        QFile peerPayload(peerFixture.filePath("peer.txt"));
+        QVERIFY(peerPayload.open(QIODevice::WriteOnly));
+        QCOMPARE(peerPayload.write("peer bytes"), qint64(10));
+        peerPayload.close();
         if (deferred)
             for (int i = 0; i < 257; ++i) {
                 QFile extra(fixture.filePath(QString("entry-%1.txt").arg(i)));
@@ -408,10 +414,10 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         QVERIFY(QTest::qWaitForWindowActive(&window));
         if (!action(window, "twoPanelsAction")->isChecked())
             action(window, "twoPanelsAction")->trigger();
-        for (unsigned index : {pane, 1 - pane}) {
-            openFilesystemPanel(window, index, child);
-            QVERIFY(!QTest::currentTestFailed());
-        }
+        openFilesystemPanel(window, pane, child);
+        QVERIFY(!QTest::currentTestFailed());
+        openFilesystemPanel(window, 1 - pane, peerFixture.path());
+        QVERIFY(!QTest::currentTestFailed());
         auto *owner = window.findChild<QWidget *>(QString("filePanel%1").arg(pane));
         auto *peer = window.findChild<QWidget *>(QString("filePanel%1").arg(1 - pane));
         auto *list = owner->findChild<FileTable *>("archiveTable");
@@ -428,6 +434,11 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         }
         const UString peerPrefix = peerList->sourcePanel->GetCurrentFolderPrefix();
         const int peerRows = peerList->rowCount();
+        if (!peerRoot) {
+            QCOMPARE(peerRows, 1);
+            peerList->setCurrentCell(0, 0);
+            peerList->selectRow(0);
+        }
         const QString draft = QStringLiteral("peer черновик");
         peerAddress->setText(draft);
         QVERIFY(button->isEnabled());
@@ -445,6 +456,12 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         QCOMPARE(peerList->sourcePanel->GetCurrentFolderPrefix(), peerPrefix);
         QCOMPARE(peerList->rowCount(), peerRows);
         QCOMPARE(peerAddress->text(), draft);
+        if (!peerRoot) {
+            QCOMPARE(peerList->currentIndex().data().toString(), QString("peer.txt"));
+            QCOMPARE(peerList->selectionModel()->selectedRows().size(), 1);
+            QVERIFY(peerPayload.open(QIODevice::ReadOnly));
+            QCOMPARE(peerPayload.readAll(), QByteArray("peer bytes"));
+        }
         if (peerRoot) {
             auto *rootButton =
                 peer->findChild<QPushButton *>(QString("panelParentButton%1").arg(1 - pane));
