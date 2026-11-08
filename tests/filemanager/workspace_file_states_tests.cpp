@@ -1,5 +1,6 @@
 #include "filemanager/support/window_state_support.h"
 #include "support/panel_keys.h"
+#include "support/progress_dialog.h"
 #include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
 #include <QClipboard>
@@ -82,6 +83,28 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
         QCOMPARE(QApplication::clipboard()->mimeData()->urls(), QList{QUrl::fromLocalFile(input)});
         QCOMPARE(cut(*files, "item.txt"), move);
         QTRY_VERIFY(peer->isEnabled() && peer->rowCount() == 301);
+
+        QString report;
+        QTimer dismiss;
+        connect(&dismiss, &QTimer::timeout, &window, [&] {
+            if (auto *result =
+                    TestProgressDialog::ResultWindow(QApplication::activeModalWidget())) {
+                report = TestProgressDialog::ReportText(*result);
+                TestProgressDialog::CloseResult(*result);
+            }
+        });
+        dismiss.start(5);
+        QTest::keySequence(files, QKeySequence::Paste);
+        QTRY_VERIFY(!report.isEmpty() && files->isEnabled());
+        dismiss.stop();
+        QVERIFY(report.contains(QStringLiteral("Source and destination are the same:")));
+        QCOMPARE(files->rowCount(), 1);
+        QVERIFY(QFileInfo::exists(input));
+        QCOMPARE(QApplication::clipboard()->mimeData()->urls(), QList{QUrl::fromLocalFile(input)});
+        QCOMPARE(cut(*files, "item.txt"), move);
+        QVERIFY(WindowActivation::waitForActive(window));
+        QTRY_VERIFY(files->hasFocus());
+
         window.openPath(target);
         QTRY_VERIFY(files->isEnabled() && files->rowCount() == 0);
         write(QDir(peerPath).filePath("new.txt"));
