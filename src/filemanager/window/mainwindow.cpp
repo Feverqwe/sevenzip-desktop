@@ -147,6 +147,14 @@ void MainWindow::cancelListPublication() {
     projectedUi().listProjection->cancel();
     projectedUi().scanningDisk = false;
     projectedUi().scanningArchive = false;
+    auto &operations = app_.QtOperations();
+    if (operations.kind() == QtAppOperationState::Kind::Scan) {
+        const unsigned remaining = scanningPanelMask();
+        if (remaining)
+            operations.Begin(QtAppOperationState::Kind::Scan, remaining);
+        else
+            operations.End();
+    }
     panelUi_[projectedPanel_].pendingSelection.reset();
     panelUi_[projectedPanel_].pendingViewport.reset();
     if (workspace_)

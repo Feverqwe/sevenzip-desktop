@@ -224,10 +224,21 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         QVERIFY(keep.open(QIODevice::ReadOnly));
         QCOMPARE(keep.readAll(), QByteArray("keep bytes"));
     }
+    void navigationDoesNotRetargetDraft_data() {
+        QTest::addColumn<bool>("queued");
+        QTest::newRow("unsubmitted") << false;
+        QTest::newRow("queued-during-refresh") << true;
+    }
     void navigationDoesNotRetargetDraft() {
+        QFETCH(bool, queued);
         QTemporaryDir source;
         QTemporaryDir destination;
         QVERIFY(source.isValid() && destination.isValid());
+        if (queued)
+            for (int i = 0; i < 257; ++i) {
+                QFile entry(source.filePath(QString("entry-%1.bin").arg(i)));
+                QVERIFY(entry.open(QIODevice::WriteOnly));
+            }
         ControlledBackend backend;
         MainWindow window(&backend);
         window.show();
@@ -241,11 +252,19 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         QTRY_VERIFY(view->isEnabled());
         QVERIFY(name && name->isVisible());
         QCOMPARE(name->text(), QString("retained draft"));
+        if (queued) {
+            action(window, "refreshAction")->trigger();
+            QVERIFY(!view->isEnabled());
+            QTest::keyClick(name, Qt::Key_Return);
+        }
         openPanel(window, 0, destination.path());
         QTRY_VERIFY(view->isEnabled());
         QTRY_VERIFY(!name);
+        QTRY_COMPARE(QDir(ToQString(view->sourcePanel->GetCurrentFolderPrefix())).canonicalPath(),
+                     QDir(destination.path()).canonicalPath());
         QVERIFY(!QFileInfo::exists(source.filePath("retained draft")));
         QVERIFY(!QFileInfo::exists(destination.filePath("retained draft")));
+        QTRY_VERIFY(action(window, "createFolderAction")->isEnabled());
         action(window, "createFolderAction")->trigger();
         auto *fresh = window.findChild<QLineEdit *>("inlineFolderName");
         QVERIFY(fresh && fresh->isVisible());

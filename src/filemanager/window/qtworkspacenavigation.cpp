@@ -102,6 +102,10 @@ void QtWindowWorkspace::ProtectNavigation(const QString &path) {
     auto &request = navigation_[window_.projectedPanel_];
     if (!request || request->transaction || request->previousFolder)
         return;
+    // Release the superseded scan's guards before parking the source folder.
+    // Otherwise the navigation checkpoint retains its disabled notifications.
+    if (window_.scanningPanelMask() & (1u << window_.projectedPanel_))
+        window_.cancelListPublication();
     auto &source = *request->source;
     const auto &parents = source.GetParentFolders();
     if (source.IsArcFolder() && !parents.IsEmpty()) {
