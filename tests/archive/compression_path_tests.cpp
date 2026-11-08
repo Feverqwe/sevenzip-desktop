@@ -552,8 +552,13 @@ class CompressionPathTests final : public QObject {
         QTemporaryDir output;
         QVERIFY(output.isValid());
         CreateArchiveDialog dialog(output.path(), {source_});
+        auto *format = dialog.findChild<QComboBox *>("archiveFormat");
+        format->setCurrentText("7z");
         auto *name = dialog.findChild<QLineEdit *>("archiveName");
         name->setText(QDir::toNativeSeparators(entered));
+        format->setCurrentText("zip");
+        QCOMPARE(format->currentText(), QString("zip"));
+        QCOMPARE(name->text(), QDir::toNativeSeparators(entered));
         dialog.show();
         bool errorShown = false;
         QTimer::singleShot(0, &dialog, [&] {
@@ -567,11 +572,11 @@ class CompressionPathTests final : public QObject {
         QVERIFY(errorShown);
         QCOMPARE(name->text(), QDir::toNativeSeparators(entered));
         QVERIFY(!QFileInfo::exists(output.filePath("new folder")));
-        name->setText("new folder/archive.7z");
+        name->setText("new folder/archive.zip");
         submit(dialog);
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
         QCOMPARE(QDir::fromNativeSeparators(dialog.target()),
-                 output.filePath("new folder/archive.7z"));
+                 output.filePath("new folder/archive.zip"));
     }
     void destinationPickerRetainsNameAndCancelDraft_data() {
         QTest::addColumn<QString>("form");
