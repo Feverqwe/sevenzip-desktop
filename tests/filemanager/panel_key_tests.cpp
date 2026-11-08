@@ -17,7 +17,13 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
 
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
+    void typingFindsTheNameFromAnotherColumn_data() {
+        QTest::addColumn<bool>("matches");
+        QTest::newRow("cyrillic-match") << true;
+        QTest::newRow("no-match") << false;
+    }
     void typingFindsTheNameFromAnotherColumn() {
+        QFETCH(bool, matches);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         ControlledBackend backend;
@@ -33,10 +39,19 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
         QVERIFY(sizeColumn > 0);
         view->setCurrentCell(0, sizeColumn);
         QCOMPARE(view->currentIndex().column(), sizeColumn);
-        QKeyEvent key(QEvent::KeyPress, 0, Qt::NoModifier, QStringLiteral("ж"));
+        const auto current = view->currentIndex();
+        const auto selected = view->selectionModel()->selectedRows();
+        QVERIFY(!selected.isEmpty());
+        QKeyEvent key(QEvent::KeyPress, 0, Qt::NoModifier,
+                      matches ? QStringLiteral("ж") : QStringLiteral("щ"));
         QApplication::sendEvent(view, &key);
-        QCOMPARE(view->currentIndex().data(QtPanelList::NameRole).toString(),
-                 QStringLiteral("Журнал.txt"));
+        if (matches) {
+            QCOMPARE(view->currentIndex().data(QtPanelList::NameRole).toString(),
+                     QStringLiteral("Журнал.txt"));
+        } else {
+            QCOMPARE(view->currentIndex(), current);
+            QCOMPARE(view->selectionModel()->selectedRows(), selected);
+        }
     }
     void shiftSelectionDoesNotIncludeFollowingUnmodifiedMove_data() {
         QTest::addColumn<int>("mode");
