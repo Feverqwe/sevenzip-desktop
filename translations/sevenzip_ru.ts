@@ -7310,6 +7310,10 @@ Check that your distribution's CIFS support and cifs-utils are installed.</sourc
 <context>
     <name>QtNavigationBar</name>
     <message>
+        <source>Parent folders</source>
+        <translation>Родительские папки</translation>
+    </message>
+    <message>
         <source>Edit location</source>
         <translation>Изменить путь</translation>
     </message>

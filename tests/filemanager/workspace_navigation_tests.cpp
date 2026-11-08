@@ -9,6 +9,7 @@
 #include "support/widget_dialogs.h"
 #include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
+#include <QAccessible>
 #include <QClipboard>
 #include <QListWidget>
 #include <QMenu>
@@ -114,6 +115,10 @@ class WorkspaceNavigationTests final : public QObject {
                 edit = button;
         }
         QVERIFY(overflowButton && edit);
+        const auto *accessible = QAccessible::queryAccessibleInterface(overflowButton);
+        QVERIFY(accessible);
+        QCOMPARE(accessible->text(QAccessible::Name), QStringLiteral("Parent folders"));
+        QCOMPARE(overflowButton->toolTip(), accessible->text(QAccessible::Name));
         edit->setFocus();
         QTest::keyClick(edit, Qt::Key_Backtab);
         QVERIFY(bar.isAncestorOf(host.focusWidget()));

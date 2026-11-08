@@ -116,6 +116,9 @@ void QtNavigationBar::Rebuild() {
     ancestors_->setAutoRaise(true);
     QtConfigureChromeToolButton(*ancestors_);
     ancestors_->setFocusPolicy(Qt::TabFocus);
+    ancestors_->setProperty("languageToolTip", true);
+    QtBindLocalText(ancestors_, "QtNavigationBar",
+                    QT_TRANSLATE_NOOP("QtNavigationBar", "Parent folders"), true);
     ancestors_->setPopupMode(QToolButton::InstantPopup);
     auto *menu = new QMenu(ancestors_);
     ancestors_->setMenu(menu);
@@ -201,7 +204,6 @@ void QtNavigationBar::FitCrumbs() {
         }
     }
     ancestors_->setIcon(hiddenArchive);
-    ancestors_->setToolTip(hiddenArchive.isNull() ? QString() : path_);
     ancestors_->setVisible(first != 0);
     for (size_t i = 0; i < crumbButtons_.size(); ++i) {
         const auto &crumb = crumbButtons_[i];
