@@ -79,6 +79,24 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
         QVERIFY(!cut(*files, "Alpha.txt"));
         window.openPath(source);
         QTRY_VERIFY(files->isEnabled() && cut(*files, "Alpha.txt"));
+        const QString original = source + "/Alpha.txt";
+        const QString renamed = source + "/Renamed.txt";
+        QVERIFY(QFile::rename(original, renamed));
+        for (auto *owner : {&window, &other})
+            action(*owner, "refreshAction")->trigger();
+        for (auto *view : {files, otherFiles}) {
+            QTRY_VERIFY(rowFor(*view, "Renamed.txt") >= 0);
+            QCOMPARE(rowFor(*view, "Alpha.txt"), -1);
+            QVERIFY(!cut(*view, "Renamed.txt"));
+            QVERIFY(!cut(*view, "Beta.txt"));
+        }
+        QCOMPARE(QApplication::clipboard()->mimeData()->urls(),
+                 QList{QUrl::fromLocalFile(original)});
+        QVERIFY(QFile::rename(renamed, original));
+        for (auto *owner : {&window, &other})
+            action(*owner, "refreshAction")->trigger();
+        QTRY_VERIFY(cut(*files, "Alpha.txt"));
+        QTRY_VERIFY(cut(*otherFiles, "Alpha.txt"));
         auto *mime = new QMimeData;
         mime->setUrls({QUrl::fromLocalFile(source + "/Alpha.txt")});
         mime->setData("x-special/gnome-copied-files", "copy\n");
@@ -228,14 +246,15 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
         window.openPath(fixture.path());
         auto *files = table(window);
         QTRY_VERIFY(files->isEnabled() && rowFor(*files, "External cut.txt") >= 0);
+        const QUrl local = QUrl::fromLocalFile(path);
         const auto putFilesOnClipboard = [&](const QList<QUrl> &urls) {
             auto *mime = new QMimeData;
             mime->setUrls(urls);
-            mime->setData(format, hint);
+            mime->setData(
+                format, format == "x-special/gnome-copied-files" ? hint + local.toEncoded() : hint);
             QApplication::clipboard()->setMimeData(mime);
         };
         auto *paste = action(window, "pasteFilesAction");
-        const QUrl local = QUrl::fromLocalFile(path);
         putFilesOnClipboard({local});
         QTRY_VERIFY(cut(*files, "External cut.txt"));
         QTRY_VERIFY(paste->isEnabled());
