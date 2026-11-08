@@ -59,6 +59,9 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         window.openPath(destination);
         auto *view = table(window);
         QTRY_VERIFY(view->isEnabled());
+        QVERIFY(WindowActivation::waitForActive(window));
+        view->setFocus();
+        QCOMPARE(window.focusWidget(), view);
         view->sourcePanel->Set_AutoRefresh_Mode(false);
         auto *mime = new QMimeData;
         mime->setUrls({QUrl::fromLocalFile(source)});
@@ -71,6 +74,7 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         QCOMPARE(read(QDir(destination).filePath(name)), QByteArray("source bytes"));
         QCOMPARE(read(source), QByteArray("source bytes"));
         QVERIFY(paste->isEnabled());
+        QTRY_COMPARE(window.focusWidget(), view);
     }
 
     void partialCutCanBeRetried_data() {

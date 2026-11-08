@@ -49,7 +49,7 @@ void MainWindow::refreshActions() {
             const bool projecting = ui.scanningDisk || ui.scanningArchive;
             const bool panelIdle = navigating && !projecting && !ui.locationUnavailable;
             QWidget *focused = QApplication::focusWidget();
-            if (projecting && focused &&
+            if ((projecting || (fileTask_ && !navigating)) && focused &&
                 (ui.table == focused || ui.table->isAncestorOf(focused) || ui.iconList == focused ||
                  ui.iconList->isAncestorOf(focused)))
                 workspace_->RetainListFocus(index);
