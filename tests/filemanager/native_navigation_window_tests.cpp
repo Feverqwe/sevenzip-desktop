@@ -148,16 +148,26 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         QTest::newRow("missing-archive") << QStringLiteral("missing");
         QTest::newRow("password-cancelled") << QStringLiteral("cancel");
         QTest::newRow("wrong-password") << QStringLiteral("wrong");
+        QTest::newRow("nested-wrong-password") << QStringLiteral("nested-wrong");
     }
     void failedPeerArchiveOpenKeepsAddressDraft() {
         QFETCH(QString, attempt);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString archive = fixture.filePath("source.7z");
+        const bool nested = attempt == "nested-wrong";
+        const bool wrongPassword = nested || attempt == "wrong";
+        const QString encrypted = nested ? fixture.filePath("inner.7z") : archive;
         const QString previous = fixture.filePath("previous");
         const QString password =
             attempt == "missing" ? QString() : QStringLiteral("fixture password");
-        QVERIFY(NativeArchiveFixture::Write(archive, {{"source.txt", "payload"}}, "7z", password));
+        QVERIFY(
+            NativeArchiveFixture::Write(encrypted, {{"source.txt", "payload"}}, "7z", password));
+        if (nested) {
+            QFile inner(encrypted);
+            QVERIFY(inner.open(QIODevice::ReadOnly));
+            QVERIFY(NativeArchiveFixture::Write(archive, {{"inner.7z", inner.readAll()}}));
+        }
         QVERIFY(QDir().mkpath(previous));
         QFile entry(QDir(previous).filePath("previous.txt"));
         QVERIFY(entry.open(QIODevice::WriteOnly));
@@ -178,6 +188,7 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         QTRY_VERIFY(source->hasFocus());
         bool openingPeer = false;
         int passwordRequests = 0;
+        bool unexpectedMessage = false;
         QTimer responder;
         connect(&responder, &QTimer::timeout, &window, [&] {
             if (auto *dialog = dynamic_cast<CPasswordDialog *>(QApplication::activeModalWidget())) {
@@ -186,14 +197,26 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
                     dialog->reject();
                 else {
                     dialog->findChild<QLineEdit *>("passwordEdit")
-                        ->setText(openingPeer && attempt == "wrong" ? QStringLiteral("wrong")
-                                                                    : password);
+                        ->setText(openingPeer && wrongPassword ? QStringLiteral("wrong")
+                                                               : password);
                     dialog->accept();
                 }
+            } else if (auto *message =
+                           qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                unexpectedMessage = true;
+                message->accept();
             }
         });
         responder.start(1);
         window.openArchive(archive);
+        if (nested) {
+            QTRY_COMPARE(source->model()->index(0, 0).data().toString(),
+                         QStringLiteral("inner.7z"));
+            source->setCurrentCell(0, 0);
+            source->selectRow(0);
+            QTRY_VERIFY(action(window, "openInsideAction")->isEnabled());
+            action(window, "openInsideAction")->trigger();
+        }
         QTRY_COMPARE(source->model()->index(0, 0).data().toString(), QStringLiteral("source.txt"));
         QVERIFY(WindowActivation::waitForActive(window));
         PanelKeys::focusAddress(edit);
@@ -213,7 +236,7 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         if (attempt == "cancel") {
             QCOMPARE(passwordRequests, 2);
             QVERIFY(window.statusBar()->currentMessage().isEmpty());
-        } else if (attempt == "wrong") {
+        } else if (wrongPassword) {
             QCOMPARE(passwordRequests, 2);
             QTRY_VERIFY2(window.statusBar()->currentMessage().contains("Wrong password",
                                                                        Qt::CaseInsensitive),
@@ -221,12 +244,13 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         } else {
             QTRY_VERIFY(window.statusBar()->currentMessage().contains("source.7z"));
         }
+        QVERIFY(!unexpectedMessage);
         QCOMPARE(peer->model()->index(0, 0).data().toString(), QStringLiteral("previous.txt"));
         QCOMPARE(edit->text(), QStringLiteral("unfinished path"));
         QCOMPARE(edit->selectedText(), selection);
         QCOMPARE(edit->cursorPosition(), cursor);
         QCOMPARE(window.focusWidget(), static_cast<QWidget *>(source));
-        if (attempt == "wrong") {
+        if (wrongPassword) {
             openingPeer = false;
             QVERIFY(WindowActivation::waitForActive(window));
             PanelKeys::command(source, Qt::Key_Up, Qt::AltModifier | Qt::ShiftModifier);

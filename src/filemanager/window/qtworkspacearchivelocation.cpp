@@ -139,11 +139,16 @@ HRESULT QtWindowWorkspace::OpenArchiveLocation(unsigned panel, const QtArchiveLo
         source.LoadFullPath();
         source.SetArchiveOpenPassword(layers ? (*layers)[level].password : std::nullopt);
         const UString format = layers ? ToUString((*layers)[level].format) : UString();
-        result = source.OpenItemInArchiveInternal(*entry, layers ? format.Ptr() : nullptr);
+        UString nestedFailure;
+        result = source.OpenItemInArchiveInternal(*entry, layers ? format.Ptr() : nullptr, false,
+                                                  failure ? &nestedFailure : nullptr);
         ++level;
         window_.cancelListPublication();
-        if (result != S_OK)
+        if (result != S_OK) {
+            if (failure)
+                *failure = ToQString(nestedFailure);
             return result;
+        }
         if (!source.IsArcFolder() || source.GetParentFolders().Size() != depth + 1 ||
             ToQString(source.GetParentFolders().Back().RelPath) != link.entry)
             return S_FALSE;

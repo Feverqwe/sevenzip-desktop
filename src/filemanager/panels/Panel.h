@@ -486,7 +486,7 @@ class CPanel : public QObject {
                       COpenResult &openRes, bool materializeStream = false);
     HRESULT OpenAsArc_Msg(IInStream *inStream, const CTempFileInfo &tempFileInfo,
                           const UString &virtualFilePath, const UString &arcFormat,
-                          bool materializeStream = false);
+                          bool materializeStream = false, UString *failure = nullptr);
     HRESULT OpenAsArc_Name(const UString &relPath, const UString &arcFormat);
     HRESULT OpenAsArc_Index(unsigned index, const wchar_t *type = NULL);
     void OpenFolder(unsigned index);
@@ -500,7 +500,7 @@ class CPanel : public QObject {
     void OpenItemInArchive(unsigned index, bool tryInternal, bool tryExternal,
                            const wchar_t *type = nullptr);
     HRESULT OpenItemInArchiveInternal(unsigned index, const wchar_t *type = nullptr,
-                                      bool materializeStream = false);
+                                      bool materializeStream = false, UString *failure = nullptr);
     bool IsVirus_Message(const UString &name);
     HRESULT OnOpenItemChanged(UInt32 index, const wchar_t *fullFilePath, bool usePassword,
                               const UString &password);
@@ -732,7 +732,8 @@ class CPanel : public QObject {
     std::unique_ptr<CExitEventLauncher> _exitEventLauncher;
     std::vector<std::weak_ptr<IQtExternalSessionOwner>> _externalSessions;
     HRESULT OpenItemInArchiveImpl(unsigned index, bool tryInternal, bool tryExternal,
-                                  const wchar_t *type, bool materializeStream = false);
+                                  const wchar_t *type, bool materializeStream = false,
+                                  UString *failure = nullptr);
     void StartExternalFileSession(NWindows::NFile::NDir::CTempDir &tempDirectory,
                                   const CTempFileInfo &tempFileInfo, const FString &tempDirNorm,
                                   bool usePassword, const UString &password);

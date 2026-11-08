@@ -108,7 +108,7 @@ HRESULT CPanel::OpenAsArc(IInStream *inStream, const CTempFileInfo &tempFileInfo
 
 HRESULT CPanel::OpenAsArc_Msg(IInStream *inStream, const CTempFileInfo &tempFileInfo,
                               const UString &virtualFilePath, const UString &arcFormat,
-                              bool materializeStream) {
+                              bool materializeStream, UString *failure) {
     COpenResult opRes;
     HRESULT res =
         OpenAsArc(inStream, tempFileInfo, virtualFilePath, arcFormat, opRes, materializeStream);
@@ -124,7 +124,10 @@ HRESULT CPanel::OpenAsArc_Msg(IInStream *inStream, const CTempFileInfo &tempFile
                                   virtualFilePath);
         else
             message = HResultToMessage(res);
-        MessageBox_Error(message);
+        if (failure)
+            *failure = message;
+        else
+            MessageBox_Error(message);
         // A recognized encrypted archive must not fall through to an external
         // application when the supplied password did not open it.
         if (res == S_FALSE)
