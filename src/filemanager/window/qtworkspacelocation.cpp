@@ -19,10 +19,6 @@ HRESULT QtWindowWorkspace::OpenFolderInPeer(unsigned source, std::optional<UInt3
     const auto &panel = window_.app_.Panels[source];
     if (item && panel.IsFSFolder()) {
         target.path += ToQString(panel.GetItemRelPath(*item));
-        if (!QFileInfo(target.path).isDir()) {
-            window_.showStatusMessage(tr("Location unavailable: %1").arg(target.path));
-            return S_FALSE;
-        }
     } else if (item) {
         auto &archive = target.archiveLocation;
         if (archive.physicalPath.isEmpty() || !QFileInfo::exists(archive.physicalPath)) {
@@ -46,6 +42,10 @@ HRESULT QtWindowWorkspace::OpenFolderInPeer(unsigned source, std::optional<UInt3
             target.path = ToQString(path);
             archive.folder = ToQString(folder);
         }
+    }
+    if (target.diskFolder && !QFileInfo(QDir::cleanPath(target.path)).isDir()) {
+        window_.showStatusMessage(tr("Location unavailable: %1").arg(target.path));
+        return S_FALSE;
     }
     const unsigned peer = 1 - source;
     HRESULT outcome = E_ABORT;

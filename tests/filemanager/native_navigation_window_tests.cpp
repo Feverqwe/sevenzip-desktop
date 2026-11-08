@@ -121,6 +121,10 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
                 workspace = owner;
         QVERIFY(workspace);
         QVERIFY(QDir().rename(source, moved));
+        QFile replacement(source);
+        QVERIFY(replacement.open(QIODevice::WriteOnly));
+        QCOMPARE(replacement.write("replacement bytes"), qint64(17));
+        replacement.close();
         const auto draft = peerAddress->text();
         QCOMPARE(draft, QString("unfinished peer path"));
         const auto selectedText = peerAddress->selectedText();
@@ -140,6 +144,10 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         QVERIFY(sourceList->hasFocus());
         QCOMPARE(sourceList->currentIndex().column(), 1);
 
+        QVERIFY(replacement.open(QIODevice::ReadOnly));
+        QCOMPARE(replacement.readAll(), QByteArray("replacement bytes"));
+        replacement.close();
+        QVERIFY(replacement.remove());
         QVERIFY(QDir().rename(moved, source));
         command();
         QTRY_COMPARE(peerList->rowCount(), extraEntries + 1);
