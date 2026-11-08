@@ -256,6 +256,7 @@ class MainWindow : public QMainWindow {
     void SelectAll(bool select);
     HRESULT navigateTo(const QString &path, bool sourceAddress = false);
     HRESULT navigateToImpl(const QString &path, bool sourceAddress);
+    QString resolveFilesystemAddress(const QString &path) const;
     void activateRow(int row, Qt::KeyboardModifiers modifiers);
     void activateItems(Qt::KeyboardModifiers modifiers);
     void goBack();

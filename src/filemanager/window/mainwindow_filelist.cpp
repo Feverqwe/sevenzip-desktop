@@ -53,6 +53,12 @@ HRESULT MainWindow::navigateTo(const QString &path, bool sourceAddress) {
     return workspace_->Navigate([&] { return navigateToImpl(path, sourceAddress); });
 }
 
+QString MainWindow::resolveFilesystemAddress(const QString &path) const {
+    if (!path.isEmpty() && projectedUi().state == State::Filesystem && QDir::isRelativePath(path))
+        return QDir(projectedUi().directory).filePath(path);
+    return path;
+}
+
 HRESULT MainWindow::navigateToImpl(const QString &path, bool sourceAddress) {
     if (projectedUi().state == State::Loading || projectedUi().state == State::Operating)
         return E_ABORT;
@@ -62,11 +68,7 @@ HRESULT MainWindow::navigateToImpl(const QString &path, bool sourceAddress) {
         return S_OK;
     // A typed relative address belongs to the displayed filesystem folder.
     // CPanel::BindToPath still resolves the resulting native path.
-    const QString nativeAddress = !sourceAddress && !path.isEmpty() &&
-                                          projectedUi().state == State::Filesystem &&
-                                          QDir::isRelativePath(path)
-                                      ? QDir(projectedUi().directory).filePath(path)
-                                      : path;
+    const QString nativeAddress = sourceAddress ? path : resolveFilesystemAddress(path);
     const QFileInfo info(nativeAddress);
     if (!sourceAddress && info.isDir() && !IsSparseBundleName(ToUString(nativeAddress))) {
         auto &panel = app_.GetFocusedPanel();

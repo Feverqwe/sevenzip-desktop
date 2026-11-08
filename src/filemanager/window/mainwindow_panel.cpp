@@ -92,6 +92,12 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
             activatePanelUi(index);
             if (projectedPanel_ != index)
                 return E_ABORT;
+            // A repeated submission must not replace a scan of the same directory.
+            if (!sourcePath && ui.scanningDisk &&
+                QFileInfo(resolveFilesystemAddress(path)).canonicalFilePath() == ui.directory) {
+                ui.path->setText(ui.directory);
+                return S_OK;
+            }
             const auto interaction = workspace_->InteractionRevision();
             return workspace_->Navigate(
                 [&] { return navigateToImpl(path, sourcePath); },

@@ -20,7 +20,13 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
 
+    void emptyAddressOpensLocationsAndBackRestoresTheFile_data() {
+        QTest::addColumn<bool>("repeatDuringRefresh");
+        QTest::newRow("immediate") << false;
+        QTest::newRow("repeat-during-refresh") << true;
+    }
     void emptyAddressOpensLocationsAndBackRestoresTheFile() {
+        QFETCH(bool, repeatDuringRefresh);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         QVERIFY(writeFile(fixture.filePath("selected.txt"), "source bytes"));
@@ -35,13 +41,24 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
         view->setCurrentCell(0, 0);
         view->selectRow(0);
         QVERIFY(writeFile(fixture.filePath("added.txt"), "new bytes"));
+        constexpr int extra = 257;
+        if (repeatDuringRefresh)
+            for (int i = 0; i < extra; ++i)
+                QVERIFY(writeFile(fixture.filePath(QString("item-%1.txt").arg(i)), "fixture"));
         auto *address = window.findChild<QLineEdit *>("archivePath");
         PanelKeys::focusAddress(address);
         QTRY_VERIFY(address->hasFocus());
         address->setText(".");
         QTest::keyClick(address, Qt::Key_Return);
+        if (repeatDuringRefresh) {
+            QVERIFY(!view->isEnabled());
+            PanelKeys::focusAddress(address);
+            QVERIFY(address->hasFocus());
+            address->setText(fixture.path());
+            QTest::keyClick(address, Qt::Key_Return);
+        }
         QTRY_VERIFY(view->hasFocus() && view->sourcePanel->IsFSFolder());
-        QTRY_COMPARE(view->rowCount(), 2);
+        QTRY_COMPARE(view->rowCount(), repeatDuringRefresh ? extra + 2 : 2);
         QCOMPARE(view->currentIndex().data().toString(), QString("selected.txt"));
         QVERIFY(view->selectionModel()->isRowSelected(view->currentRow(), {}));
         PanelKeys::focusAddress(address);
