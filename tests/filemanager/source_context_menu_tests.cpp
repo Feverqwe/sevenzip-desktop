@@ -2,8 +2,11 @@
 #include "filemanager/views/filetable.h"
 #include "localization/LangUtils.h"
 #include "settings/RegistryUtils.h"
+#include "support/panel_keys.h"
+#include "support/progress_dialog.h"
 #include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
+#include <QClipboard>
 #include <QContextMenuEvent>
 #include <QScopeGuard>
 #include <QToolButton>
@@ -126,6 +129,75 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
             QVERIFY(peer.open(QIODevice::ReadOnly));
             QCOMPARE(peer.readAll(), QByteArray("a.txt"));
         }
+    }
+
+    void failedPasteLeavesTheDestinationPanelUsable() {
+        QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
+        const auto clearClipboard = qScopeGuard([] { QApplication::clipboard()->clear(); });
+        QTemporaryDir destination, peerDirectory;
+        QVERIFY(destination.isValid() && peerDirectory.isValid());
+        const QString child = destination.filePath("child");
+        QVERIFY(QDir().mkpath(child));
+        QFile control(child + "/control.txt");
+        QVERIFY(control.open(QIODevice::WriteOnly));
+        control.close();
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        action(window, "twoPanelsAction")->trigger();
+        auto *owner = openPanel(window, 0, destination.path());
+        auto *peer = openPanel(window, 1, peerDirectory.path());
+        QVERIFY(owner && peer);
+        QTRY_VERIFY(row(*owner, "child") >= 0);
+        peer->setFocus();
+        QTRY_VERIFY(peer->hasFocus());
+
+        auto *clipboard = new QMimeData;
+        clipboard->setUrls({QUrl::fromLocalFile(peerDirectory.filePath("missing.txt"))});
+        QApplication::clipboard()->setMimeData(clipboard);
+        const QString pasteLabel = action(window, "pasteFilesAction")->text();
+        bool pasteChosen = false;
+        QTimer::singleShot(0, &window, [&] {
+            auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
+            QVERIFY(menu);
+            const auto close = qScopeGuard([&] { menu->close(); });
+            for (auto *item : menu->actions())
+                if (item->text() == pasteLabel) {
+                    QVERIFY(item->isEnabled());
+                    pasteChosen = true;
+                    menu->setActiveAction(item);
+                    QTest::keyClick(menu, Qt::Key_Return);
+                    return;
+                }
+            QFAIL("Paste action missing");
+        });
+        bool reported = false;
+        QTimer dismiss;
+        connect(&dismiss, &QTimer::timeout, &window, [&] {
+            for (auto *widget : QApplication::topLevelWidgets())
+                if (TestProgressDialog::DismissVisibleResult(widget))
+                    reported = true;
+        });
+        dismiss.start(5);
+        const QPoint point =
+            owner->visualRect(owner->model()->index(row(*owner, "child"), 0)).center();
+        QVERIFY(QMetaObject::invokeMethod(owner, "customContextMenuRequested", Qt::DirectConnection,
+                                          Q_ARG(QPoint, point)));
+        QVERIFY(pasteChosen);
+        QTRY_VERIFY(reported);
+        dismiss.stop();
+        QVERIFY(!QFileInfo::exists(destination.filePath("missing.txt")));
+        QTRY_VERIFY(action(window, "settingsAction")->isEnabled());
+        window.activateWindow();
+        QVERIFY(WindowActivation::waitForActive(window));
+        auto *ownerUi = window.findChild<QWidget *>("filePanel0");
+        auto *address = ownerUi->findChild<QLineEdit *>("archivePath");
+        PanelKeys::focusAddress(address);
+        QTRY_VERIFY(address->hasFocus());
+        address->setText(child);
+        QTest::keyClick(address, Qt::Key_Return);
+        QTRY_VERIFY(row(*owner, "control.txt") >= 0);
     }
 
     void owningPanel_data() {

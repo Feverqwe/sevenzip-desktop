@@ -39,13 +39,15 @@ void MainWindow::transferFiles(const QStringList &sources, const QString &destin
                                              : FileTransferOperation::DestinationKind::Directory);
     auto *task =
         new QtLocalFileTask(*operation, QtLangText(move ? IDS_MOVING : IDS_COPYING), destination);
+    const unsigned owner = projectedPanel_;
     fileTask_ = task;
     task->SetLocations(sources.join('\n'), destination);
-    task->BindOwner(app_.Panels[projectedPanel_], *this);
+    task->BindOwner(app_.Panels[owner], *this);
     if (transferOutput)
         connect(task, &QtLocalFileTask::transferOutput, task, std::move(transferOutput));
     connect(task, &QtLocalFileTask::finished, this,
-            [this, task, move](bool success, bool canceled, const QString &message, bool partial) {
+            [this, task, move, owner](bool success, bool canceled, const QString &message,
+                                      bool partial) {
                 if (app_.QtOperations().closed())
                     return;
                 const QPointer<MainWindow> guard(this);
@@ -57,7 +59,11 @@ void MainWindow::transferFiles(const QStringList &sources, const QString &destin
                     showStatusMessage(message);
                 // OnCopy's continuation owns both reloads, saved selections
                 // and final focus after this worker releases its operation.
-                setState(State::Filesystem);
+                // A context-menu transfer may outlive its temporary panel projection.
+                // Release the operation before setState runs under a new projection.
+                if (projectedPanel_ != owner)
+                    app_.QtOperations().End();
+                withPanelProjection(owner, [this] { setState(State::Filesystem); });
                 appPresentation_->CopyFinished(canceled || (move && partial));
             });
     setState(State::Operating);
