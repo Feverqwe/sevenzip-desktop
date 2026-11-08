@@ -10,6 +10,7 @@
 #include "archive/resources/qtarchiveproperties.h"
 #include "archive/resources/qtextractpathpolicy.h"
 #include "filemanager/window/mainwindow.h"
+#include "filemanager/window/qtapppresentation.h"
 #include "localization/qtlangcontrols.h"
 #include "ui/progress/ProgressDialog2.h"
 #include <QScopeGuard>
@@ -169,8 +170,11 @@ bool MainWindow::extractWithSource(const QString &destination, bool onlySelected
     const QString output =
         PrepareExtractionDestination(*backend_, *resource, destination, validationNames, options,
                                      projectedUi().archiveFolder, nativeIndexes, this);
-    if (output.isEmpty())
+    if (output.isEmpty()) {
+        if (explicitIndices)
+            appPresentation_->CopyFinished(true);
         return true;
+    }
     previousState_ = projectedUi().state;
     setState(State::Operating);
     QtArchiveBatchResult result;

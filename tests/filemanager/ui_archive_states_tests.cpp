@@ -39,6 +39,58 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
     }
 
   private slots:
+    void rejectedExtractionDestinationKeepsSelectedItems() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString archive = fixture.filePath("input.zip");
+        const QString blocked = fixture.filePath("blocked");
+        const QString output = fixture.filePath("output");
+        QVERIFY(QDir().mkpath(QDir(blocked).filePath("selected.txt")));
+        QVERIFY(QDir().mkpath(output));
+        QVERIFY(NativeArchiveFixture::Write(
+            archive, {{"selected.txt", "payload"}, {"other.txt", "other"}}, "zip"));
+        ArchiveBackend backend;
+        QCOMPARE(NativeArchiveFixture::Attach(backend), S_OK);
+        MainWindow window(&backend);
+        window.show();
+        window.openArchive(archive);
+        QTRY_VERIFY(rowWithPath(window, "selected.txt") >= 0);
+        QVERIFY(WindowActivation::waitForActive(window));
+        auto *view = table(window);
+        view->setFocus();
+        view->selectRow(rowWithPath(window, "selected.txt"));
+        QString destination = blocked;
+        QString diagnostic;
+        QTimer responder;
+        connect(&responder, &QTimer::timeout, &window, [&] {
+            auto *modal = QApplication::activeModalWidget();
+            if (auto *copy = dynamic_cast<CopyDialog *>(modal)) {
+                copy->findChild<QLineEdit *>("copyDestination")->setText(destination + '/');
+                copy->accept();
+            } else if (auto *warning = qobject_cast<QMessageBox *>(modal)) {
+                diagnostic = warning->text();
+                warning->accept();
+            }
+        });
+        responder.start(5);
+        auto *copy = action(window, "copyAction");
+        QVERIFY(copy->isEnabled());
+        copy->trigger();
+        QTRY_VERIFY(copy->isEnabled());
+        QVERIFY(diagnostic.contains("selected.txt"));
+        QVERIFY(QFileInfo(QDir(blocked).filePath("selected.txt")).isDir());
+        QCOMPARE(view->selectionModel()->selectedRows().size(), 1);
+        QCOMPARE(view->selectionModel()->selectedRows().front().data().toString(),
+                 QString("selected.txt"));
+        destination = output;
+        copy->trigger();
+        QTRY_VERIFY(copy->isEnabled());
+        QFile extracted(QDir(output).filePath("selected.txt"));
+        QVERIFY(extracted.open(QIODevice::ReadOnly));
+        QCOMPARE(extracted.readAll(), QByteArray("payload"));
+        QVERIFY(!QFileInfo::exists(QDir(output).filePath("other.txt")));
+    }
+
     void failedExtractionKeepsSelectionForPasswordRetry_data() {
         QTest::addColumn<bool>("cancel");
         QTest::addColumn<bool>("hasExistingOutput");
