@@ -248,11 +248,13 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
                 dialog->reject();
         });
         bool failed = false;
+        QString report;
         QTimer dismissResult;
         connect(&dismissResult, &QTimer::timeout, &window, [&] {
             if (auto *result =
                     TestProgressDialog::ResultWindow(QApplication::activeModalWidget())) {
                 failed = true;
+                report = TestProgressDialog::ReportText(*result);
                 TestProgressDialog::CloseResult(*result);
             }
         });
@@ -263,9 +265,26 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         QTRY_VERIFY(failed || peer->sourcePanel->IsFSFolder());
         QTRY_VERIFY(QtLocalFileTask::Active().isEmpty());
         if (failed) {
+            QVERIFY(report.contains("Could not delete source after copying:"));
+            QVERIFY(!report.contains("Some items may have been moved."));
             QVERIFY(peer->sourcePanel->IsArcFolder());
             QCOMPARE(read(archive), bytes);
             QVERIFY(!QFileInfo::exists(QDir(destination).filePath("source")));
+            QVERIFY(WindowActivation::waitForActive(window));
+            peer->setFocus();
+            QTRY_VERIFY(peer->hasFocus());
+            window.openPath(fixture.path());
+            QTRY_VERIFY(peer->sourcePanel->IsFSFolder());
+            files->setFocus();
+            QTRY_VERIFY(files->hasFocus());
+            QCOMPARE(files->currentIndex().siblingAtColumn(0).data().toString(), QString("source"));
+            failed = false;
+            submit.start(1);
+            QTest::keyClick(files, Qt::Key_F6);
+            QTRY_VERIFY(failed || !QFileInfo::exists(source));
+            QVERIFY2(!failed, qPrintable(report));
+            QTRY_VERIFY(QtLocalFileTask::Active().isEmpty());
+            QCOMPARE(read(moved), bytes);
         } else {
             QVERIFY(!QFileInfo::exists(source));
             QCOMPARE(read(moved), bytes);
