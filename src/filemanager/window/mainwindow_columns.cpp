@@ -66,11 +66,9 @@ void MainWindow::sortIndicatorChanged(unsigned index, int column, Qt::SortOrder 
                 panel._sortID = view->propertyId(column);
                 panel._ascending = order == Qt::AscendingOrder;
                 panel.SetSortRawStatus();
+                // Reapply with the source property's updated sort metadata.
+                projectedUi().table->sortItems(column, order);
             }
-            // Qt's initial automatic sort precedes this signal consumer. Project
-            // the authoritative source flag/order onto the clicked section.
-            projectedUi().table->sortItems(column, panel._ascending ? Qt::AscendingOrder
-                                                                    : Qt::DescendingOrder);
         }
         if (!configuringColumns_) {
             if (active && commands_)
