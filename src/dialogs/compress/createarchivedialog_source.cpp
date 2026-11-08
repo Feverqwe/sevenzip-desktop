@@ -101,7 +101,9 @@ void CreateArchiveDialog::validateAndAccept() {
     const bool hasFileName = !leaf.IsEmpty() && !leaf.IsEqualTo(".") && !leaf.IsEqualTo("..");
     const QString resolved = archivePath();
     const QFileInfo target(resolved);
-    const QString pathError = !hasFileName || resolved.isEmpty() || target.isDir()
+    const bool singleVolume = !volume_->isEnabled() || volume_->currentText().trimmed().isEmpty();
+    const bool danglingTarget = singleVolume && target.isSymLink() && !target.exists();
+    const QString pathError = !hasFileName || resolved.isEmpty() || target.isDir() || danglingTarget
                                   ? InvalidArchivePath()
                                   : ArchiveDirectoryError(target.absolutePath());
     if (!pathError.isEmpty()) {

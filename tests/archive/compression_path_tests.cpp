@@ -479,6 +479,44 @@ class CompressionPathTests final : public QObject {
             QVERIFY(!QFileInfo::exists(missing));
         }
     }
+    void danglingArchiveNameCanBeCorrected() {
+#ifndef Q_OS_UNIX
+        QSKIP("The symbolic link fixture requires POSIX");
+#else
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString missing = fixture.filePath("missing.7z");
+        const QString linked = fixture.filePath("old.7z");
+        QVERIFY(QFile::link(missing, linked));
+        ArchiveBackend backend;
+        QVERIFY(SourceCreationFixture::Create(backend, linked, {source_}) != S_OK);
+        QVERIFY(QFileInfo(linked).isSymLink());
+        QVERIFY(!QFileInfo::exists(missing));
+
+        CreateArchiveDialog dialog(fixture.path(), {source_});
+        auto *name = dialog.findChild<QLineEdit *>("archiveName");
+        name->setText("old.7z");
+        dialog.show();
+        bool refused = false;
+        QTimer::singleShot(0, &dialog, [&] {
+            if (auto *warning = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                refused = true;
+                warning->accept();
+            }
+        });
+        submit(dialog);
+        QVERIFY(refused && dialog.isVisible());
+        QCOMPARE(name->text(), QString("old.7z"));
+        name->setText("new.7z");
+        submit(dialog);
+        QCOMPARE(dialog.result(), int(QDialog::Accepted));
+        QCOMPARE(SourceCreationFixture::Create(backend, dialog.target(), dialog.sources()), S_OK);
+        QVERIFY(QFileInfo(fixture.filePath("new.7z")).isFile());
+        QVERIFY(QFileInfo(linked).isSymLink());
+        QVERIFY(!QFileInfo::exists(missing));
+#endif
+    }
+
     void directorySpellingInNameCanBeCorrected_data() {
         QTest::addColumn<QString>("entered");
         QTest::newRow("trailing-separator") << QString("new folder/");
