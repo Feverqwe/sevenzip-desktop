@@ -133,6 +133,7 @@ class WorkspaceNavigationTests final : public QObject {
         MainWindow window(&backend);
         window.resize(980, 620);
         window.show();
+        QVERIFY(QTest::qWaitForWindowActive(&window));
         window.openPath(child);
         auto *table = visibleTable(window);
         QTRY_VERIFY(table && table->isEnabled());
@@ -145,9 +146,12 @@ class WorkspaceNavigationTests final : public QObject {
                 parentButton = button;
         QVERIFY(parentButton);
         QVERIFY(parentButton->icon().isNull());
-        QTest::mouseClick(parentButton, Qt::LeftButton);
+        parentButton->setFocus();
+        QTRY_VERIFY(parentButton->hasFocus());
+        QTest::keyClick(parentButton, Qt::Key_Space);
         QTRY_COMPARE(QDir::cleanPath(ToQString(table->sourcePanel->GetCurrentFolderPrefix())),
                      parent);
+        QTRY_VERIFY(table->hasFocus());
         QVERIFY(table->sourcePanel->IsFSFolder());
         QCOMPARE(backend.listCalls, 0);
         for (int width : {980, 640}) {

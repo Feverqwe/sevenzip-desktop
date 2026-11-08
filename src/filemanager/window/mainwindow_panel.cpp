@@ -125,8 +125,10 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
     projectedUi().navigation = new QtNavigationBar(
         *projectedUi().pathCombo,
         [this, index](const QString &path) {
+            appPresentation_->CancelInitialFocus();
             activatePanelUi(index);
-            navigateTo(path, true);
+            if (projectedPanel_ == index && navigateTo(path, true) == S_OK)
+                appPresentation_->RequestListFocus(index);
         },
         navigationRow,
         [this, index] {
