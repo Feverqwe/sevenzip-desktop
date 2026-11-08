@@ -288,6 +288,8 @@ void CApp::OnCopy(bool move, bool copyToSame, unsigned srcPanelIndex) {
     request->DestinationPath = destPanel.GetCurrentFolderPrefix();
     srcPanel.SaveSelectedState(request->SourceSelection);
     destPanel.SaveSelectedState(request->DestinationSelection);
+    request->SourceSelection.PreserveAddress = true;
+    request->DestinationSelection.PreserveAddress = true;
     // Keep the original RefreshListCtrl caller and its saved state across the
     // asynchronous presentation boundary. OnCopy ignores reload HRESULTs.
     _copyRequest = std::move(request);

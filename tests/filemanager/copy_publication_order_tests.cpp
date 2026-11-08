@@ -97,11 +97,14 @@ class CopyPublicationOrderTests final : public QObject, protected MainWindowTest
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
     void destinationRefreshKeepsNewAddressInput_data() {
         QTest::addColumn<bool>("navigate");
-        QTest::newRow("address-draft") << false;
-        QTest::newRow("different-folder") << true;
+        QTest::addColumn<bool>("existingDraft");
+        QTest::newRow("address-draft") << false << false;
+        QTest::newRow("different-folder") << true << false;
+        QTest::newRow("draft-before-copy") << false << true;
     }
     void destinationRefreshKeepsNewAddressInput() {
         QFETCH(bool, navigate);
+        QFETCH(bool, existingDraft);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString input = fixture.filePath("source");
@@ -129,10 +132,17 @@ class CopyPublicationOrderTests final : public QObject, protected MainWindowTest
         source->setFocus();
         auto *address =
             window.findChild<QWidget *>("filePanel1")->findChild<QLineEdit *>("archivePath");
+        if (existingDraft) {
+            PanelKeys::focusAddress(address);
+            QTRY_VERIFY(address->hasFocus());
+            QTest::keyClicks(address, "new draft");
+            source->setFocus();
+            QTRY_VERIFY(source->hasFocus());
+        }
         bool scheduled = false;
-        bool edited = false;
+        bool edited = existingDraft;
         connect(peer->model(), &QAbstractItemModel::rowsInserted, &window, [&] {
-            if (scheduled || peer->isEnabled())
+            if (existingDraft || scheduled || peer->isEnabled())
                 return;
             scheduled = true;
             QTimer::singleShot(0, &window, [&] {
@@ -183,7 +193,10 @@ class CopyPublicationOrderTests final : public QObject, protected MainWindowTest
             QVERIFY(peer->selectionModel()->selectedRows().isEmpty());
             QCOMPARE(read(other + "/existing-0.txt"), QByteArray("unrelated bytes"));
         } else {
-            QTRY_VERIFY(address->hasFocus());
+            if (existingDraft)
+                QTRY_VERIFY(source->hasFocus());
+            else
+                QTRY_VERIFY(address->hasFocus());
             QCOMPARE(address->text(), QString("new draft"));
             QCOMPARE(peer->selectionModel()->selectedRows().size(), 1);
         }
