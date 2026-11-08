@@ -61,6 +61,7 @@ class NativeDropReceiver final : public QWidget {
   public:
     QString Destination;
     QString EnteredMarker;
+    bool ReadPathsOnEnter = false;
     std::atomic_bool Entered = false;
 
     explicit NativeDropReceiver(const QString &destination) : Destination(destination) {
@@ -68,6 +69,12 @@ class NativeDropReceiver final : public QWidget {
     }
     void dragEnterEvent(QDragEnterEvent *event) override {
         if (event->mimeData()->hasUrls()) {
+            if (ReadPathsOnEnter) {
+                const auto urls = event->mimeData()->urls();
+                if (urls.size() != 1 || !urls.front().isLocalFile() ||
+                    !QFileInfo::exists(urls.front().toLocalFile()))
+                    return;
+            }
             Entered = true;
             if (!EnteredMarker.isEmpty())
                 SourceExtractFixture::writeFile(EnteredMarker, "entered");
@@ -94,15 +101,18 @@ class DragDropUiTests final : public QObject {
     void archiveDragReachesNativeDropReceiver_data() {
         QTest::addColumn<bool>("cancel");
         QTest::addColumn<bool>("external");
-        QTest::newRow("drop") << false << false;
-        QTest::newRow("escape") << true << false;
+        QTest::addColumn<bool>("earlyRequest");
+        QTest::newRow("drop") << false << false << false;
+        QTest::newRow("escape") << true << false << false;
 #ifdef Q_OS_LINUX
-        QTest::newRow("external") << false << true;
+        QTest::newRow("external") << false << true << false;
+        QTest::newRow("external-reads-on-enter") << false << true << true;
 #endif
     }
     void archiveDragReachesNativeDropReceiver() {
         QFETCH(bool, cancel);
         QFETCH(bool, external);
+        QFETCH(bool, earlyRequest);
 #ifdef Q_OS_WIN
         if (QGuiApplication::platformName() != QStringLiteral("windows"))
             QSKIP("Requires an interactive Windows desktop");
@@ -166,7 +176,8 @@ class DragDropUiTests final : public QObject {
         });
         if (external) {
             recipient.start(QCoreApplication::applicationFilePath(),
-                            {"--receive-native-file-drop", destination, marker});
+                            {"--receive-native-file-drop", destination, marker,
+                             earlyRequest ? "enter" : "drop"});
             QVERIFY(recipient.waitForStarted());
             QTRY_VERIFY(QFileInfo::exists(marker + ".ready"));
         } else {
@@ -300,7 +311,7 @@ class DragDropUiTests final : public QObject {
 #else
         QVERIFY(checkedBeforeRelease);
 #endif
-        QVERIFY(!extractedBeforeRelease);
+        QCOMPARE(extractedBeforeRelease, earlyRequest);
         QCOMPARE(SourceExtractFixture::readFile(destination), payload);
         QCOMPARE(SourceExtractFixture::readFile(archive), original);
         if (external) {
@@ -1037,9 +1048,10 @@ int main(int argc, char **argv) {
     if (arguments.size() == 3 && arguments[1] == "--copy-from-system-clipboard")
         return CopyExport(QApplication::clipboard()->mimeData(), arguments[2]) ? 0 : 1;
 #ifdef Q_OS_LINUX
-    if (arguments.size() == 4 && arguments[1] == "--receive-native-file-drop") {
+    if (arguments.size() == 5 && arguments[1] == "--receive-native-file-drop") {
         NativeDropReceiver receiver(arguments[2]);
         receiver.EnteredMarker = arguments[3];
+        receiver.ReadPathsOnEnter = arguments[4] == "enter";
         const QRect screen = QGuiApplication::primaryScreen()->availableGeometry();
         receiver.setGeometry(screen.right() - 225, screen.top() + 100, 220, 300);
         receiver.show();
