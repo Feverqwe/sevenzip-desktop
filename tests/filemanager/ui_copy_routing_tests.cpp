@@ -12,6 +12,7 @@
 #include <QDialogButtonBox>
 #include <QLineEdit>
 #include <QProcess>
+#include <QScopeGuard>
 #include <QStandardPaths>
 
 class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport {
@@ -119,6 +120,53 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
     }
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
+
+    void readOnlyPeerIsNotProposed() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString source = fixture.filePath("source");
+        const QString peer = fixture.filePath("read only");
+        QVERIFY(QDir().mkpath(source) && QDir().mkpath(peer));
+        write(source + "/file.txt", "source bytes");
+        write(peer + "/peer.txt", "peer bytes");
+        const auto restore = qScopeGuard([&] {
+            QFile::setPermissions(peer, QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner);
+        });
+        if (!QFile::setPermissions(peer, QFile::ReadOwner | QFile::ExeOwner) ||
+            QFileInfo(peer).isWritable())
+            QSKIP("Cannot make the peer folder read-only");
+
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        action(window, "twoPanelsAction")->trigger();
+        auto *target = openPanel(window, 1, peer);
+        QTRY_VERIFY(target->isEnabled() && row(*target, "peer.txt") >= 0);
+        auto *files = openPanel(window, 0, source);
+        QTRY_VERIFY(files->isEnabled() && row(*files, "file.txt") >= 0);
+        files->setCurrentCell(row(*files, "file.txt"), 0);
+        files->selectRow(row(*files, "file.txt"));
+        files->setFocus();
+        QVERIFY(action(window, "copyAction")->isEnabled());
+
+        bool shown = false;
+        QTimer::singleShot(0, &window, [&] {
+            auto *dialog = window.findChild<CopyDialog *>("copyDialog");
+            if (!dialog)
+                return;
+            shown = true;
+            const auto cancel = qScopeGuard([&] { dialog->reject(); });
+            auto *path = dialog->findChild<QLineEdit *>("copyDestination");
+            auto *otherPanel = dialog->findChild<QPushButton *>("copyPeerDestination");
+            QVERIFY(path && otherPanel && otherPanel->isVisible());
+            QCOMPARE(QDir::cleanPath(path->text()), QFileInfo(source).canonicalFilePath());
+            QVERIFY(!otherPanel->isEnabled());
+        });
+        action(window, "copyAction")->trigger();
+        QVERIFY(shown);
+        QVERIFY(!QFileInfo::exists(peer + "/file.txt"));
+    }
     void sourceReloadPublishesNamespace() {
         ArchiveBackend backend;
         MainWindow window(&backend);

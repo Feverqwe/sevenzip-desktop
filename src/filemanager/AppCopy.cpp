@@ -121,9 +121,12 @@ void CApp::OnCopy(bool move, bool copyToSame, unsigned srcPanelIndex) {
     FOR_VECTOR(i, indices)
     sourcePaths << ToQString(srcPanel.GetItemFullPath(indices[i]));
     const bool renameSource = srcPanel.IsFSFolder() || srcPanel.IsAltStreamsFolder();
+    const bool peerIsFilesystem = NumPanels == 2 && destPanel.IsFSFolder();
+    const UString peerPath = NumPanels == 2 ? destPanel.GetFsPath() : UString();
     const bool peerWritable = NumPanels == 2 && destPanel.DoesItSupportOperations() &&
                               !destPanel.IsThereReadOnlyFolder() && !destPanel.IsRootFolder() &&
-                              !destPanel.IsFSDrivesFolder();
+                              !destPanel.IsFSDrivesFolder() &&
+                              (!peerIsFilesystem || QFileInfo(ToQString(peerPath)).isWritable());
     if ((copyToSame && renameSource) || (!copyToSame && NumPanels == 2 && !peerWritable)) {
         destPath = srcPanel.GetFsPath();
         if (!copyToSame)
@@ -147,8 +150,6 @@ void CApp::OnCopy(bool move, bool copyToSame, unsigned srcPanelIndex) {
         destinationContext.PeerDestination = ToQString(destPanel.GetFsPath());
         destinationContext.PeerWritable = peerWritable;
     }
-    const UString peerPath = NumPanels == 2 ? destPanel.GetFsPath() : UString();
-    const bool peerIsFilesystem = NumPanels == 2 && destPanel.IsFSFolder();
     destinationContext.PeerIsFilesystem = peerIsFilesystem;
     const bool peerIsArchive = NumPanels == 2 && destPanel.IsArcFolder();
     destinationContext.PeerIsArchive = peerIsArchive;
