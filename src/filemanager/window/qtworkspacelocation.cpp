@@ -56,12 +56,13 @@ HRESULT QtWindowWorkspace::OpenFolderInPeer(unsigned source, std::optional<UInt3
         const auto draft = destination.path->isModified()
                                ? std::optional(QtAddressDraft(*destination.path))
                                : std::nullopt;
+        const auto failure = std::make_shared<QString>();
         outcome = Navigate(
             [&] {
                 return OpenRecordedLocation(peer, target.path, target.nativePlaceIdentity,
-                                            target.archiveLocation);
+                                            target.archiveLocation, failure.get());
             },
-            [this, source, peer, path = target.path, revision, draft](HRESULT result) {
+            [this, source, peer, path = target.path, revision, draft, failure](HRESULT result) {
                 if (window_.app_.QtOperations().closed())
                     return;
                 if (result != S_OK) {
@@ -77,7 +78,9 @@ HRESULT QtWindowWorkspace::OpenFolderInPeer(unsigned source, std::optional<UInt3
                 if (result != E_ABORT)
                     window_.statusStrip_->SetMessage(
                         &window_.app_.Panels[source],
-                        result == S_OK ? QString() : tr("Location unavailable: %1").arg(path));
+                        result == S_OK        ? QString()
+                        : !failure->isEmpty() ? *failure
+                                              : tr("Location unavailable: %1").arg(path));
             });
     });
     return outcome;
@@ -85,10 +88,11 @@ HRESULT QtWindowWorkspace::OpenFolderInPeer(unsigned source, std::optional<UInt3
 
 HRESULT QtWindowWorkspace::OpenRecordedLocation(unsigned panel, const QString &path,
                                                 const QString &nativeIdentity,
-                                                const QtArchiveLocation &archive) {
+                                                const QtArchiveLocation &archive,
+                                                QString *failure) {
     if (!archive.physicalPath.isEmpty()) {
         ProtectNavigation();
-        const HRESULT result = OpenArchiveLocation(panel, archive);
+        const HRESULT result = OpenArchiveLocation(panel, archive, nullptr, true, failure);
         if (result == S_OK)
             window_.panelUi_[panel].locationUnavailable = false;
         return result;

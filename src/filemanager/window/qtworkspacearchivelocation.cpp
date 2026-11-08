@@ -1,4 +1,6 @@
+#include "7zip/UI/GUI/ExtractRes.h"
 #include "archive/resources/qtarchivedirectoryread.h"
+#include "filemanager/FormatUtils.h"
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtwindowworkspace.h"
 #include <QScopeGuard>
@@ -74,7 +76,7 @@ HRESULT QtWindowWorkspace::OpenArchiveDirectory(unsigned panel, const QtArchiveL
 
 HRESULT QtWindowWorkspace::OpenArchiveLocation(unsigned panel, const QtArchiveLocation &location,
                                                const std::vector<ReopenLayer> *layers,
-                                               bool interactive) {
+                                               bool interactive, QString *failure) {
     QtAppOperationState::CallScope call(window_.app_.QtOperations());
     const QScopedValueRollback<bool> progress(window_.sourceArchiveProgress_, true);
     auto &source = window_.app_.Panels[panel];
@@ -93,8 +95,15 @@ HRESULT QtWindowWorkspace::OpenArchiveLocation(unsigned panel, const QtArchiveLo
     source.SetArchiveOpenPassword(layers ? layers->front().password : std::nullopt);
     result = source.BindToPath(ToUString(location.physicalPath),
                                layers ? ToUString(layers->front().format) : UString(), physical);
-    if (result != S_OK)
+    if (result != S_OK) {
+        if (failure && result != E_ABORT) {
+            *failure = ToQString(
+                physical.Encrypted && !physical.ArchiveIsOpened
+                    ? MyFormatNew(IDS_CANT_OPEN_ENCRYPTED_ARCHIVE, ToUString(location.physicalPath))
+                    : physical.ErrorMessage);
+        }
         return result;
+    }
 
     const auto &parents = source.GetParentFolders();
     if (!source.IsArcFolder() || parents.Size() != 1 ||

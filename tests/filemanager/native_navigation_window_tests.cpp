@@ -144,17 +144,19 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         QTRY_COMPARE(peerAddress->text(), originalPeer);
     }
     void failedPeerArchiveOpenKeepsAddressDraft_data() {
-        QTest::addColumn<bool>("cancelPassword");
-        QTest::newRow("missing-archive") << false;
-        QTest::newRow("password-cancelled") << true;
+        QTest::addColumn<QString>("attempt");
+        QTest::newRow("missing-archive") << QStringLiteral("missing");
+        QTest::newRow("password-cancelled") << QStringLiteral("cancel");
+        QTest::newRow("wrong-password") << QStringLiteral("wrong");
     }
     void failedPeerArchiveOpenKeepsAddressDraft() {
-        QFETCH(bool, cancelPassword);
+        QFETCH(QString, attempt);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString archive = fixture.filePath("source.7z");
         const QString previous = fixture.filePath("previous");
-        const QString password = cancelPassword ? QStringLiteral("fixture password") : QString();
+        const QString password =
+            attempt == "missing" ? QString() : QStringLiteral("fixture password");
         QVERIFY(NativeArchiveFixture::Write(archive, {{"source.txt", "payload"}}, "7z", password));
         QVERIFY(QDir().mkpath(previous));
         QFile entry(QDir(previous).filePath("previous.txt"));
@@ -174,16 +176,18 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
             window.findChild<QWidget *>("filePanel0")->findChild<FileTable *>("archiveTable");
         source->setFocus();
         QTRY_VERIFY(source->hasFocus());
-        bool reject = false;
+        bool openingPeer = false;
         int passwordRequests = 0;
         QTimer responder;
         connect(&responder, &QTimer::timeout, &window, [&] {
             if (auto *dialog = dynamic_cast<CPasswordDialog *>(QApplication::activeModalWidget())) {
                 ++passwordRequests;
-                if (reject)
+                if (openingPeer && attempt == "cancel")
                     dialog->reject();
                 else {
-                    dialog->findChild<QLineEdit *>("passwordEdit")->setText(password);
+                    dialog->findChild<QLineEdit *>("passwordEdit")
+                        ->setText(openingPeer && attempt == "wrong" ? QStringLiteral("wrong")
+                                                                    : password);
                     dialog->accept();
                 }
             }
@@ -202,13 +206,18 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         const QString selection = edit->selectedText();
         const int cursor = edit->cursorPosition();
         QVERIFY(edit->isModified());
-        reject = true;
-        if (!cancelPassword)
+        openingPeer = true;
+        if (attempt == "missing")
             QVERIFY(QFile::rename(archive, fixture.filePath("moved.7z")));
         PanelKeys::command(source, Qt::Key_Up, Qt::AltModifier | Qt::ShiftModifier);
-        if (cancelPassword) {
+        if (attempt == "cancel") {
             QCOMPARE(passwordRequests, 2);
             QVERIFY(window.statusBar()->currentMessage().isEmpty());
+        } else if (attempt == "wrong") {
+            QCOMPARE(passwordRequests, 2);
+            QTRY_VERIFY2(window.statusBar()->currentMessage().contains("Wrong password",
+                                                                       Qt::CaseInsensitive),
+                         qPrintable(window.statusBar()->currentMessage()));
         } else {
             QTRY_VERIFY(window.statusBar()->currentMessage().contains("source.7z"));
         }
@@ -217,6 +226,14 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         QCOMPARE(edit->selectedText(), selection);
         QCOMPARE(edit->cursorPosition(), cursor);
         QCOMPARE(window.focusWidget(), static_cast<QWidget *>(source));
+        if (attempt == "wrong") {
+            openingPeer = false;
+            QVERIFY(WindowActivation::waitForActive(window));
+            PanelKeys::command(source, Qt::Key_Up, Qt::AltModifier | Qt::ShiftModifier);
+            QTRY_COMPARE(peer->model()->index(0, 0).data().toString(),
+                         QStringLiteral("source.txt"));
+            QVERIFY(window.statusBar()->currentMessage().isEmpty());
+        }
     }
     void openingParentRowInPeerRecordsPreviousFolder() {
         QTemporaryDir fixture;

@@ -134,11 +134,11 @@ class QtWindowWorkspace final : public QObject {
     };
     HRESULT OpenArchiveLocation(unsigned panel, const QtArchiveLocation &location,
                                 const std::vector<ReopenLayer> *layers = nullptr,
-                                bool interactive = true);
+                                bool interactive = true, QString *failure = nullptr);
     HRESULT OpenArchiveDirectory(unsigned panel, const QtArchiveLocation &location);
     HRESULT OpenPanelLocation(unsigned panel);
     HRESULT OpenRecordedLocation(unsigned panel, const QString &path, const QString &nativeIdentity,
-                                 const QtArchiveLocation &archive);
+                                 const QtArchiveLocation &archive, QString *failure = nullptr);
     bool LocationMatches(unsigned panel, const QString &path);
     void CreateActions(unsigned panel, QVBoxLayout &layout);
     void RefreshChrome();
