@@ -393,28 +393,52 @@ class CopyDestinationTests final : public QObject {
         QCOMPARE(ToQString(dialog.Value), target);
     }
 
-    void browseCancelKeepsNameDraft() {
+    void browsePreservesNameDraft_data() {
+        QTest::addColumn<bool>("invalidDraft");
+        QTest::newRow("valid-path") << false;
+        QTest::newRow("invalid-path") << true;
+    }
+
+    void browsePreservesNameDraft() {
+        QFETCH(bool, invalidDraft);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
+        const QString selected = fixture.filePath("selected folder");
+        QVERIFY(QDir().mkpath(selected));
         CCopyDialog dialog(false, fixture.path() + '/', {fixture.filePath("source.txt")});
         configure(dialog, fixture.filePath("source.txt"));
         dialog.show();
         auto *name = dialog.findChild<QLineEdit *>("copyDestinationName");
         name->setText("draft.txt");
-        const QString destination = dialog.findChild<QLineEdit *>("copyDestination")->text();
-        bool found = false;
-        QTimer::singleShot(0, [&] {
-            for (auto *widget : QApplication::topLevelWidgets())
-                if (auto *picker = qobject_cast<QFileDialog *>(widget);
-                    picker && picker->isVisible()) {
-                    found = true;
-                    picker->reject();
+        auto *path = dialog.findChild<QLineEdit *>("copyDestination");
+        if (invalidDraft)
+            path->setText(path->text() + QChar::Null);
+        const QString destination = path->text();
+        for (bool accept : {false, true}) {
+            bool found = false;
+            QTimer::singleShot(0, &dialog, [&] {
+                auto *picker = qobject_cast<QFileDialog *>(QApplication::activeModalWidget());
+                if (!picker)
+                    return;
+                found = true;
+                const auto close = qScopeGuard([&] {
+                    if (picker->isVisible())
+                        picker->reject();
+                });
+                if (accept) {
+                    picker->setDirectory(selected);
+                    picker->selectFile(selected);
+                    QVERIFY(QMetaObject::invokeMethod(picker, "accept"));
                 }
-        });
-        dialog.findChild<QPushButton *>("copyBrowseButton")->click();
-        QVERIFY(found);
-        QCOMPARE(name->text(), QString("draft.txt"));
-        QCOMPARE(dialog.findChild<QLineEdit *>("copyDestination")->text(), destination);
+            });
+            dialog.findChild<QPushButton *>("copyBrowseButton")->click();
+            QVERIFY(found);
+            QCOMPARE(name->text(), QString("draft.txt"));
+            if (accept)
+                QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(path->text())), selected);
+            else
+                QCOMPARE(path->text(), destination);
+        }
         dialog.reject();
         QCOMPARE(ToQString(dialog.Value), fixture.path() + '/');
     }
