@@ -108,8 +108,17 @@ HRESULT QtWindowWorkspace::OpenArchiveLocation(unsigned panel, const QtArchiveLo
     const auto &parents = source.GetParentFolders();
     if (!source.IsArcFolder() || parents.Size() != 1 ||
         ToQString(parents.Front().VirtualPath) != location.physicalPath ||
-        !GetFolderPath(source.GetFolder()).IsEmpty())
+        !GetFolderPath(source.GetFolder()).IsEmpty()) {
+        if (failure) {
+            if (QFileInfo::exists(location.physicalPath))
+                *failure =
+                    ToQString(MyFormatNew(IDS_CANT_OPEN_ARCHIVE, ToUString(location.physicalPath)));
+            else
+                *failure = QCoreApplication::translate("mainwindow_filelist", "Path not found: ") +
+                           location.physicalPath;
+        }
         return S_FALSE;
+    }
     result = ReadDirectory(source, &window_, window_.toolbarSettingsPath(), interactive);
     if (result != S_OK)
         return result;

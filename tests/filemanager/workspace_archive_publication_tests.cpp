@@ -11,6 +11,7 @@
 #include "ui/support/layout_inspection.h"
 #include <QScopeGuard>
 #include <QScrollBar>
+#include <QStatusBar>
 
 using namespace SourceExtractFixture;
 
@@ -178,23 +179,34 @@ class WorkspaceArchivePublicationTests final : public QObject, protected MainWin
             QTRY_COMPARE(prompts, 1);
             QTRY_VERIFY(notice(window));
             QCOMPARE(names(window), QStringList{"original.txt"});
+            QVERIFY(window.statusBar()->currentMessage().isEmpty());
             cancelPassword = false;
-            password = replacementPassword;
-            window.findChild<QPushButton *>("navigationRetry0")->click();
+            password = QStringLiteral("incorrect-password");
+            auto *retry = window.findChild<QPushButton *>("navigationRetry0");
+            retry->click();
+            QTRY_VERIFY(window.statusBar()->currentMessage().contains("Wrong password",
+                                                                      Qt::CaseInsensitive));
             QCOMPARE(prompts, 2);
+            QCOMPARE(names(window), QStringList{"original.txt"});
+            password = replacementPassword;
+            retry->click();
+            QCOMPARE(prompts, 3);
         }
         QTRY_COMPARE(names(window), QStringList{"updated.txt"});
         QVERIFY(!notice(window));
+        QVERIFY(window.statusBar()->currentMessage().isEmpty());
 
         QVERIFY(QFile::rename(archive, replacement));
         action(window, "refreshAction")->trigger();
         QTRY_VERIFY(notice(window));
         QCOMPARE(names(window), QStringList{"updated.txt"});
+        QVERIFY(window.statusBar()->currentMessage().startsWith("Path not found:"));
         QVERIFY(QFile::rename(replacement, archive));
         window.findChild<QPushButton *>("navigationRetry0")->click();
         QTRY_VERIFY(!notice(window));
         QCOMPARE(names(window), QStringList{"updated.txt"});
-        QCOMPARE(prompts, encryptedLayer.isEmpty() ? 0 : 2);
+        QVERIFY(window.statusBar()->currentMessage().isEmpty());
+        QCOMPARE(prompts, encryptedLayer.isEmpty() ? 0 : 3);
     }
 
     void savingNestedChangesRefreshesAnotherWindow_data() {

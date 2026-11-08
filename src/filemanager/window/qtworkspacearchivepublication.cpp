@@ -6,6 +6,7 @@
 #include "localization/qtlangcontrols.h"
 #include "operations/qtoperationlauncher.h"
 #include "platform/temp/qtownedtempidentity.h"
+#include "ui/controls/qtwindowstatusbar.h"
 #include "ui/lifecycle/qttaskpresentation.h"
 #include <QFileInfo>
 #include <QScopeGuard>
@@ -165,6 +166,8 @@ bool QtWindowWorkspace::RefreshPublishedArchive(unsigned panel, bool interactive
     const QPointer<QWidget> focus = QApplication::focusWidget();
     const QPointer<QWidget> active = QApplication::activeWindow();
     const quint64 focusGeneration = focusRequest_;
+    QString failure;
+    HRESULT result = E_FAIL;
     window_.withPanelProjection(panel, [&] {
         const auto viewport = window_.captureListViewport();
         const QScopedValueRollback<bool> changing(changing_, true);
@@ -173,7 +176,7 @@ bool QtWindowWorkspace::RefreshPublishedArchive(unsigned panel, bool interactive
         QtPanelLocationTransaction transaction(source);
         const bool dialogs = source.SetArchiveOpenDialogs(interactive);
         const auto restoreDialogs = qScopeGuard([&] { source.SetArchiveOpenDialogs(dialogs); });
-        HRESULT result = OpenArchiveLocation(panel, location, &layers, interactive);
+        result = OpenArchiveLocation(panel, location, &layers, interactive, &failure);
         auto *root = source.GetParentFolders().IsEmpty() ? nullptr : LayerResource(source, 0);
         const auto reader = root ? root->NativeReaderLease() : nullptr;
         if (result == S_OK &&
@@ -203,6 +206,8 @@ bool QtWindowWorkspace::RefreshPublishedArchive(unsigned panel, bool interactive
     }
     if (locationState.archiveRevision != locationState.archiveApplied)
         pending();
+    if (interactive && (result == S_OK || (result != E_ABORT && !failure.isEmpty())))
+        window_.statusStrip_->SetMessage(&source, result == S_OK ? QString() : failure);
     auto *currentWindow = QApplication::activeWindow();
     if (focusRequest_ == focusGeneration && !QApplication::activeModalWidget() &&
         !qobject_cast<QLineEdit *>(QApplication::focusWidget()) &&
