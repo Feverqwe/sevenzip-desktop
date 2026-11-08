@@ -22,6 +22,7 @@ class FileTransferOperation : public QThread {
     FileTransferOperation(QStringList sources, QString destination, bool move,
                           QObject *parent = nullptr, FileSystemAdapter adapter = {},
                           DestinationKind destinationKind = DestinationKind::Directory);
+    static QString checkDirectoryPaths(const QStringList &sources, const QString &destination);
     void cancel();
     void submitOverwriteAnswer(int answer);
     bool isCanceled() const { return canceled_; }

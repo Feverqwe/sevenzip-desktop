@@ -16,12 +16,28 @@
 #include <QFileInfo>
 #include <QMap>
 #include <QScopeGuard>
+#include <QSet>
 #include <QTemporaryDir>
 #include <QUuid>
 #include <algorithm>
 
 namespace {
 using NWindows::NFile::NFind::CFileInfo;
+
+QString TargetPathError(const QFileInfo &source, const QFileInfo &target,
+                        const QSet<QString> &targets, bool checkAliases = false) {
+    if (targets.contains(target.filePath()))
+        return QCoreApplication::translate("qtfiletransfertransaction",
+                                           "Multiple items would use the same destination: %1")
+            .arg(target.filePath());
+    if (QDir::cleanPath(source.absoluteFilePath()) == QDir::cleanPath(target.absoluteFilePath()) ||
+        (checkAliases && target.exists() &&
+         source.canonicalFilePath() == target.canonicalFilePath()))
+        return QCoreApplication::translate("qtfiletransfertransaction",
+                                           "Source and destination are the same: %1")
+            .arg(target.filePath());
+    return {};
+}
 
 struct MergeMember {
     CFileInfo metadata;
@@ -138,6 +154,25 @@ bool QtFileTransferTransaction::removeEntry(const QString &path) {
     return QtRemoveFileSystemEntry(path);
 }
 
+QString FileTransferOperation::checkDirectoryPaths(const QStringList &sources,
+                                                   const QString &destination) {
+    const QDir directory(destination);
+    QSet<QString> targets;
+    for (const auto &path : sources) {
+        const QFileInfo source(path);
+        if (!source.exists() && !source.isSymLink() && !source.isJunction())
+            return QCoreApplication::translate("qtfiletransfertransaction",
+                                               "Source unavailable: %1")
+                .arg(path);
+        const QString target = directory.filePath(source.fileName());
+        if (const QString error = TargetPathError(source, QFileInfo(target), targets);
+            !error.isEmpty())
+            return error;
+        targets.insert(target);
+    }
+    return {};
+}
+
 QList<QtFileTransferTransaction::TransferPath>
 QtFileTransferTransaction::prepareTargets(QString &error) {
     const bool directPath =
@@ -148,6 +183,7 @@ QtFileTransferTransaction::prepareTargets(QString &error) {
     destinationIdentity_ = QtOwnedTempIdentity(destinationDirectory_);
     const QString canonicalDestination = destinationInfo.canonicalFilePath();
     QList<TransferPath> targets;
+    QSet<QString> targetPaths;
     if (!destinationInfo.isDir() || destinationIdentity_.isEmpty() || worker_.sources_.isEmpty() ||
         (directPath && worker_.sources_.size() != 1)) {
         error = QCoreApplication::translate("qtfiletransfertransaction",
@@ -167,24 +203,10 @@ QtFileTransferTransaction::prepareTargets(QString &error) {
         }
         const QString target = directPath ? worker_.destination_
                                           : QDir(destinationDirectory_).filePath(info.fileName());
-        if (std::any_of(targets.cbegin(), targets.cend(),
-                        [&target](const TransferPath &path) { return path.target == target; })) {
-            error = QCoreApplication::translate("qtfiletransfertransaction",
-                                                "Multiple items would use the same destination: %1")
-                        .arg(target);
-            return {};
-        }
         const QFileInfo targetInfo(target);
-        const bool samePath = QDir::cleanPath(info.absoluteFilePath()) ==
-                                  QDir::cleanPath(targetInfo.absoluteFilePath()) ||
-                              (!sourceLink && targetInfo.exists() &&
-                               info.canonicalFilePath() == targetInfo.canonicalFilePath());
-        if (samePath) {
-            error = QCoreApplication::translate("qtfiletransfertransaction",
-                                                "Source and destination are the same: %1")
-                        .arg(target);
+        error = TargetPathError(info, targetInfo, targetPaths, !sourceLink);
+        if (!error.isEmpty())
             return {};
-        }
         if (!sourceLink && info.isDir() &&
             NFsFolder::IsDestChild(info.canonicalFilePath(), canonicalDestination)) {
             error = QCoreApplication::translate("qtfiletransfertransaction",
@@ -198,6 +220,7 @@ QtFileTransferTransaction::prepareTargets(QString &error) {
                         .arg(target);
             return {};
         }
+        targetPaths.insert(target);
         targets.append({source, target, std::move(*member)});
     }
     return targets;

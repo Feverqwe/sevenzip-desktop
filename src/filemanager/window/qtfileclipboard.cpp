@@ -227,30 +227,11 @@ void QtFileClipboard::Paste() {
     const QStringList paths = ClipboardFilePaths(mime);
     if (paths.isEmpty())
         return;
-    const QDir destination(window_.projectedUi().directory);
-    QSet<QString> targets;
-    for (const auto &path : paths) {
-        const QFileInfo entry(path);
-        if (const QString error = MissingClipboardSource(entry); !error.isEmpty()) {
-            window_.showStatusMessage(error);
-            return;
-        }
-        const QString target = destination.filePath(entry.fileName());
-        if (targets.contains(target)) {
-            window_.showStatusMessage(
-                QCoreApplication::translate("qtfiletransfertransaction",
-                                            "Multiple items would use the same destination: %1")
-                    .arg(target));
-            return;
-        }
-        targets.insert(target);
-        if (QDir::cleanPath(path) == QDir::cleanPath(target)) {
-            window_.showStatusMessage(
-                QCoreApplication::translate("qtfiletransfertransaction",
-                                            "Source and destination are the same: %1")
-                    .arg(target));
-            return;
-        }
+    const QString destination = window_.projectedUi().directory;
+    if (const QString error = FileTransferOperation::checkDirectoryPaths(paths, destination);
+        !error.isEmpty()) {
+        window_.showStatusMessage(error);
+        return;
     }
     const bool move = ClipboardMovesFiles(*mime, paths);
     // Existing transfer owns collisions, path validation, cancellation,
@@ -258,7 +239,7 @@ void QtFileClipboard::Paste() {
     const QPointer<const QMimeData> original(mime);
     const QPointer<QtFileClipboard> owner(this);
     const auto revision = revision_;
-    window_.transferFiles(paths, destination.path(), move, false,
+    window_.transferFiles(paths, destination, move, false,
                           [owner, original, paths, revision](const QStringList &movedSources) {
                               if (!owner)
                                   return;
