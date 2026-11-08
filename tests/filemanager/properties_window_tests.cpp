@@ -149,7 +149,8 @@ class PropertiesWindowTests final : public QObject, protected MainWindowTestSupp
         QCOMPARE(shownSize(missing), QString::fromUtf8("—"));
         QVERIFY(missing.findChild<QWidget *>("propertiesIdentity")->toolTip().isEmpty());
         QCOMPARE(shownSize(empty), QtRegionalFormat::bytes(0));
-        QCOMPARE(shownSize(contents), QString("Not calculated"));
+        QCOMPARE(shownSize(contents), QtRegionalFormat::bytes(13));
+        QVERIFY(contents.Information().contains("Size: " + QtRegionalFormat::bytes(13)));
         QCOMPARE(shownSize(multiple), QString("Not calculated"));
         QVERIFY(multiple.Information().contains("Files: 2 · Folders: 1"));
         QVERIFY(multiple.Information().contains("Reported size (may be partial)"));
@@ -229,7 +230,7 @@ class PropertiesWindowTests final : public QObject, protected MainWindowTestSupp
         auto *properties = window.findChild<QtPropertiesWindow *>();
         QVERIFY(properties);
         QVERIFY(QTest::qWaitForWindowExposed(properties));
-        QCOMPARE(shownSize(*properties), QString("Not calculated"));
+        QCOMPARE(shownSize(*properties), QtRegionalFormat::bytes(7));
         QCOMPARE(properties->findChild<QWidget *>("propertiesIdentity")->accessibleName(),
                  QString("current-folder.zip"));
         QVERIFY(properties->findChild<QLabel *>("propertiesLocation")

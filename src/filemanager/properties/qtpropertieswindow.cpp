@@ -178,20 +178,29 @@ QString QtPropertiesWindow::SummaryType() const {
     return text(QT_TRANSLATE_NOOP("PropertiesWindow", "File"));
 }
 QString QtPropertiesWindow::SummarySize() const {
-    if (report_.items.size() != 1 || report_.items.first().directory.value_or(false))
-        return text(QT_TRANSLATE_NOOP("PropertiesWindow", "Not calculated"));
+    const auto notCalculated = QT_TRANSLATE_NOOP("PropertiesWindow", "Not calculated");
+    if (report_.items.size() > 1)
+        return text(notCalculated);
+    const auto scope = report_.items.isEmpty() ? Scope::Folder : Scope::Selection;
     for (const auto &group : report_.groups)
-        if (group.scope == Scope::Selection)
-            return PropertyValue(group, kpidSize);
-    return QtRegionalFormat::bytes(std::nullopt);
+        if (group.scope == scope) {
+            const QString value = PropertyValue(group, kpidSize);
+            if (!value.isEmpty())
+                return value;
+        }
+    const bool folder = report_.items.isEmpty() || report_.items.first().directory.value_or(false);
+    return folder ? text(notCalculated) : QtRegionalFormat::bytes(std::nullopt);
 }
 QString QtPropertiesWindow::SummaryModified() const {
     if (report_.items.size() > 1)
         return text(QT_TRANSLATE_NOOP("PropertiesWindow", "Not applicable"));
     const auto scope = report_.items.isEmpty() ? Scope::Folder : Scope::Selection;
     for (const auto &group : report_.groups)
-        if (group.scope == scope)
-            return PropertyValue(group, kpidMTime);
+        if (group.scope == scope) {
+            const QString value = PropertyValue(group, kpidMTime);
+            if (!value.isEmpty())
+                return value;
+        }
     return QString::fromUtf8("—");
 }
 QString QtPropertiesWindow::SummaryLocation() const {
@@ -279,7 +288,7 @@ QString QtPropertiesWindow::PropertyValue(const QtPropertyReport::Group &group, 
         if (const auto value = QtUnsignedPropertyValue(source->value))
             return QtRegionalFormat::bytes(*value);
     }
-    return QString::fromUtf8("—");
+    return {};
 }
 void QtPropertiesWindow::Refresh() {
     for (unsigned i = 0; i < report_.Strings.Size(); ++i)

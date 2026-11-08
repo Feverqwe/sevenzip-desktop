@@ -1,8 +1,10 @@
 #include "Windows/PropVariant.h"
+#include "filemanager/properties/qtpropertieswindow.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
 #include "ui/formatting/qtregionalformat.h"
 #include "ui/support/layout_inspection.h"
+#include <QLabel>
 
 namespace {
 bool writeFile(const QString &path, const QByteArray &bytes) {
@@ -95,6 +97,22 @@ class FolderSizeViewTests final : public QObject, protected MainWindowTestSuppor
         QVERIFY(UiInspection::fullyVisible(*view, window));
         QVERIFY(UiInspection::writeReport(window,
                                           QString("folder-size-%1").arg(QTest::currentDataTag())));
+#ifndef Q_OS_WIN
+        if (useMenu) {
+            for (const auto &[name, bytes] :
+                 {std::pair{folder, quint64(8)}, std::pair{QString("empty"), quint64(0)}}) {
+                view->setCurrentCell(filesystemRow(window, name), 0);
+                view->selectRow(filesystemRow(window, name));
+                action(window, "selectedPropertiesAction")->trigger();
+                QPointer<QtPropertiesWindow> properties = window.findChild<QtPropertiesWindow *>();
+                QVERIFY(properties);
+                QCOMPARE(properties->findChild<QLabel *>("propertiesSize")->text(),
+                         QtRegionalFormat::bytes(bytes));
+                properties->close();
+                QTRY_VERIFY(!properties);
+            }
+        }
+#endif
         QCOMPARE(backend.extractCalls, 0);
     }
 };
