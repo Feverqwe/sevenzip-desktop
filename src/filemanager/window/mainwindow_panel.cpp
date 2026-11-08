@@ -127,7 +127,12 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
         [this, index](const QString &path) {
             appPresentation_->CancelInitialFocus();
             activatePanelUi(index);
-            if (projectedPanel_ == index && navigateTo(path, true) == S_OK)
+            if (projectedPanel_ != index)
+                return;
+            const auto &panel = app_.GetFocusedPanel();
+            const bool current = !projectedUi().locationUnavailable && panel.GetFolder() &&
+                                 path == ToQString(panel.GetCurrentFolderPrefix());
+            if (current || navigateTo(path, true) == S_OK)
                 appPresentation_->RequestListFocus(index);
         },
         navigationRow,

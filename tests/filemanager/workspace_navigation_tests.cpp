@@ -170,17 +170,29 @@ class WorkspaceNavigationTests final : public QObject {
             dynamic_cast<QtNavigationBar *>(window.findChild<QWidget *>("panelNavigation0"));
         QVERIFY(bar);
         QToolButton *parentButton = nullptr;
+        QToolButton *currentButton = nullptr;
         QToolButton *edit = nullptr;
         for (auto *button : bar->findChildren<QToolButton *>()) {
             if (!button->isVisible())
                 continue;
             if (QDir::cleanPath(button->toolTip()) == parent)
                 parentButton = button;
+            if (QDir::cleanPath(button->toolTip()) == child)
+                currentButton = button;
             if (button->objectName() == "editLocationButton")
                 edit = button;
         }
-        QVERIFY(parentButton && edit);
+        QVERIFY(parentButton && currentButton && edit);
         QVERIFY(parentButton->icon().isNull());
+        const auto matches =
+            table->model()->match(table->model()->index(0, 0), Qt::DisplayRole, "keep.txt");
+        QCOMPARE(matches.size(), 1);
+        table->selectRow(matches.front().row());
+        QTest::mouseClick(currentButton, Qt::LeftButton);
+        QTRY_VERIFY(table->hasFocus());
+        QCOMPARE(table->selectionModel()->selectedRows().size(), 1);
+        QCOMPARE(table->selectionModel()->selectedRows().front().data().toString(),
+                 QString("keep.txt"));
         edit->setFocus();
         QTest::keyClick(edit, Qt::Key_Backtab);
         QVERIFY(bar->isAncestorOf(window.focusWidget()));
